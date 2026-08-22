@@ -33,12 +33,15 @@ def test_smiles_to_iupac_bicyclic(smiles, expected):
 
 
 def test_tricyclic_raises():
-    # a genuinely tetracyclic system (cyclomatic number 4): still out of
-    # scope even after tricyclic support (adamantane, three rings, is now
-    # handled -- see test_tricyclic.py -- so this is no longer a tricyclic
-    # example, just still-unsupported polycyclic territory).
+    # cubane: a genuinely pentacyclic system (cyclomatic number 5, eight
+    # branch atoms of degree 3) -- still out of scope even after
+    # tricyclic/tetracyclic support (see test_tricyclic.py,
+    # tests/test_tetracyclic.py), so this remains unsupported polycyclic
+    # territory. (Previously this test used a tetracyclic SMILES, but that
+    # topology is now correctly supported by _tetracyclic.py, so it no
+    # longer demonstrates "out of scope" -- see _tetracyclic.py.)
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1C2CC3CC1C1C(C2)C31")
+        smiles_to_iupac("C12C3C4C1C1C2C3C41")
 
 
 def test_two_separate_rings_still_raises():
