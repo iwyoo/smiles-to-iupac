@@ -17,11 +17,17 @@ multigraphs:
   perhydroanthracene/perhydrophenanthrene, which are the same abstract
   branch-atom multigraph with different bridge lengths.
 
-Propellane-like topologies (a branch atom of degree 4: two bridgeheads
-directly bonded to each other *in addition to* three bridges between them,
-collapsing the four branch points to two) and tetracyclic-or-higher systems
-remain out of scope and raise UnsupportedStructure -- see
-`find_tricyclic_core`'s degree/branch-atom-count checks. Per the IUPAC 2013
+Propellane-like topologies -- two branch atoms, both of degree 4, directly
+bonded to each other *in addition to* three bridges between them -- are a
+structurally distinct case, handled separately by `find_propellane_core`/
+`name_propellane` below rather than by the four-branch-atom search above:
+the direct bond is itself the independent secondary bridge of P-23.2.5.1,
+with length 0 (`0^x,y`, same zero-length-bridge notation already used
+elsewhere in this module, e.g. tricyclo[4.4.0.0^3,8]decane) and its two
+attachment points are the main bridgeheads themselves. Tetracyclic-or-higher
+systems remain out of scope and raise UnsupportedStructure -- see
+`find_tricyclic_core`'s and `find_propellane_core`'s degree/branch-atom-count
+checks. Per the IUPAC 2013
 Recommendations ("the Blue Book", Chapter P-2,
 https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf):
 
@@ -74,6 +80,10 @@ Flagship validation cases:
   WebBook / PubChem name for CAS 281-23-2).
 - tricyclo[4.2.2.2^2,5]dodecane (doubled-main-bridgeheads case; built
   directly from the Blue Book's own P-23.2.5.2 worked example, C12H20).
+- [1.1.1]propellane, tricyclo[1.1.1.0^1,3]pentane (propellane case; C5H6 --
+  cross-checked against Wikipedia/ChemSpider/ACS "Molecule of the Week").
+- [2.2.2]propellane, tricyclo[2.2.2.0^1,4]octane (propellane case; C8H12 --
+  cross-checked against Wikipedia/Wikidata).
 
 Fused/spiro/bicyclic systems are handled by `_cyclic.py`/`_spiro.py`/
 `_bicyclic.py`; unsaturated and heteroatom-containing tricyclics, and any
@@ -326,6 +336,100 @@ def name_tricycloalkane(mol, core) -> str:
     if best_name is None:
         raise UnsupportedStructure(
             "this tricyclic topology is not supported yet (see "
+            "_tricyclic.py's module docstring for the scope this module "
+            "covers)"
+        )
+    return best_name
+
+
+def find_propellane_core(mol):
+    """Return (bh1, bh2, bridges) if `mol`'s carbon skeleton, after stripping
+    acyclic branches, reduces to exactly two branch atoms of degree 4 (and no
+    atom of higher degree), directly bonded to each other, joined by exactly
+    three further bridges through degree-2 atoms -- else None.
+
+    `bridges` is a list of three `(bh1, bh2, path)` tuples, `path` ordered
+    nearest-`bh1`-first. The cyclomatic-number-3 check makes this genuinely
+    tricyclic (not tetracyclic-or-higher) for any bridge lengths: with two
+    degree-4 branch atoms and three bridges plus the direct bond, edges -
+    vertices + 1 is always 3 regardless of bridge length, so no extra guard
+    against tetracyclic-or-higher is needed beyond the checks already here."""
+    graph = adjacency(mol)
+    core = _strip_leaves(graph)
+    if not core:
+        return None
+    vertices = len(core)
+    edge_count = sum(len(neighbors) for neighbors in core.values()) // 2
+    if edge_count - vertices + 1 != 3:
+        return None
+    if any(len(neighbors) not in (2, 4) for neighbors in core.values()):
+        return None
+    branch_atoms = {atom for atom, neighbors in core.items() if len(neighbors) == 4}
+    if len(branch_atoms) != 2:
+        return None
+    bh1, bh2 = branch_atoms
+    if bh2 not in core[bh1]:
+        return None
+
+    bridges = []
+    for first in core[bh1] - {bh2}:
+        result = _walk_to_branch(core, branch_atoms, bh1, first)
+        if result is None:
+            return None
+        v, path = result
+        if v != bh2:
+            return None
+        bridges.append((bh1, bh2, path))
+    if len(bridges) != 3:
+        return None
+
+    return bh1, bh2, bridges
+
+
+def name_propellane(mol, core) -> str:
+    validate_atoms_and_bonds(mol)
+    if non_single_bonds(mol):
+        raise UnsupportedStructure(
+            "unsaturated propellane-type ring systems are not supported yet "
+            "(see P-31.1.4, unsaturated von Baeyer ring systems)"
+        )
+
+    bh1, bh2, bridges = core
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+
+    best_key = None
+    best_name = None
+    for start, other in ((bh1, bh2), (bh2, bh1)):
+        oriented_paths = [
+            path if start == bh1 else list(reversed(path)) for _, _, path in bridges
+        ]
+        for perm in permutations(oriented_paths):
+            if not (len(perm[0]) >= len(perm[1]) >= len(perm[2])):
+                continue
+            main_ring_first, main_ring_second, main_bridge = perm
+            main_order = (
+                [start] + list(main_ring_first) + [other]
+                + list(reversed(main_ring_second)) + list(main_bridge)
+            )
+            position = {atom: idx + 1 for idx, atom in enumerate(main_order)}
+            lo, hi = sorted((position[start], position[other]))
+            substituents = _substituents_for_ring(graph, main_order, halogens)
+            a, b, c = len(main_ring_first), len(main_ring_second), len(main_bridge)
+            total_atoms = a + b + c + 2
+            # The direct bond between the two bridgeheads is the independent
+            # secondary bridge (P-23.2.5.1), length 0, attached at the main
+            # bridgeheads themselves -- see module docstring.
+            parent = f"tricyclo[{a}.{b}.{c}.0^{lo},{hi}]{alkane_name(total_atoms)}"
+            # P-23.2.6.2.4/.2.5 (lowest secondary-bridge locants) then
+            # P-14.4/P-45.2 (lowest substituent locants).
+            key = ((lo, hi),) + _candidate_key(parent, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+
+    if best_name is None:
+        raise UnsupportedStructure(
+            "this propellane topology is not supported yet (see "
             "_tricyclic.py's module docstring for the scope this module "
             "covers)"
         )

@@ -33,14 +33,17 @@ are supported on any of the above parent hydrides, e.g. `CCCF` →
 `1-fluoropropane`, `C(Cl)(Cl)(Cl)Cl` → `tetrachloromethane`, `BrCC(Cl)C(F)CI`
 → `1-bromo-2-chloro-3-fluoro-4-iodobutane`, `ClC1CCCCC1` →
 `chlorocyclohexane`, and `C=C(Cl)CC` → `2-chlorobut-1-ene`,
-`C1CC2CCC1C1CCC2CC1` → `tricyclo[4.2.2.2^2,5]dodecane`, and
-`C1CCC2CC3CCCCC3CC2C1` (perhydroanthracene) → `tricyclo[8.4.0.0^3,8]tetradecane`.
-Other tricyclic topologies (any branch atom of degree 4, e.g. propellanes),
-tetracyclic-and-higher/polyspiro ring systems, unsaturated rings, a multiple
-bond that isn't on any candidate principal chain, heteroatoms other than the
-four halogens above, and cyclic substituent groups raise
-`NotImplementedError` and are future work. See [REFERENCES.md](REFERENCES.md)
-for the source of the rules applied.
+`C1CC2CCC1C1CCC2CC1` → `tricyclo[4.2.2.2^2,5]dodecane`,
+`C1CCC2CC3CCCCC3CC2C1` (perhydroanthracene) → `tricyclo[8.4.0.0^3,8]tetradecane`,
+plus propellane-type tricyclics — two skeletal branch atoms of degree 4,
+directly bonded to each other, joined by three further bridges, with that
+direct bond treated as a zero-length independent secondary bridge — e.g.
+`C1C23CC12C3` ([1.1.1]propellane) → `tricyclo[1.1.1.0^1,3]pentane`.
+Other tricyclic topologies, tetracyclic-and-higher/polyspiro ring systems,
+unsaturated rings, a multiple bond that isn't on any candidate principal
+chain, heteroatoms other than the four halogens above, and cyclic
+substituent groups raise `NotImplementedError` and are future work. See
+[REFERENCES.md](REFERENCES.md) for the source of the rules applied.
 
 ## Installation
 
