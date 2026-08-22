@@ -18,6 +18,7 @@ from ._common import (
     adjacency,
     bfs,
     lowest_locant_set,
+    non_single_bonds,
     path_between,
     validate_atoms_and_bonds,
 )
@@ -92,6 +93,11 @@ def _candidate_key(chain_length, substituents):
 
 def name_acyclic_alkane(mol) -> str:
     validate_atoms_and_bonds(mol)
+    if non_single_bonds(mol):
+        raise UnsupportedStructure(
+            "unsaturation is not supported by this module (see "
+            "chemonym._unsaturated for alkenes/alkynes)"
+        )
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(
             "rings are not supported by this module (see chemonym._cyclic)"

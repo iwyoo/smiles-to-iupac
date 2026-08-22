@@ -14,6 +14,7 @@ that book and can be located in the corresponding chapter PDF:
 |---------|-----------------------------------------|---------|
 | P-1     | General Principles, Rules, and Conventions | `P1.pdf` |
 | P-2     | Parent Hydrides                         | `P2.pdf` |
+| P-3     | Characteristic (Functional) and Substituent Groups | `P3.pdf` |
 | P-4     | Rules for Name Construction              | `P4.pdf` |
 
 No text from the Blue Book is reproduced here beyond short quotations for
