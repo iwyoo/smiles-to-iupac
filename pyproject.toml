@@ -32,6 +32,9 @@ dev = [
 [project.urls]
 Repository = "https://github.com/iwyoo/chemonym"
 
+[project.scripts]
+chemonym = "chemonym.__main__:main"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/chemonym"]
 

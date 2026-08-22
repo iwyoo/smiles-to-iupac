@@ -29,6 +29,15 @@ from chemonym import smiles_to_iupac
 name = smiles_to_iupac("CC(C)C(CC)CCC")  # "3-ethyl-2-methylhexane"
 ```
 
+## CLI
+
+```bash
+chemonym CC(C)C(CC)CCC  # "3-ethyl-2-methylhexane"
+```
+
+Multiple SMILES print one `<smiles>\t<name>` line each. Also runnable as
+`python3 -m chemonym <smiles>`.
+
 ## Development
 
 ```bash
