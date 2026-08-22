@@ -28,3 +28,6 @@ htmlcov/
 
 # Environment
 .env
+
+# Local scratch space (e.g. reference material fetched during development)
+tmp/
