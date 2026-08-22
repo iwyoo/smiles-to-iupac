@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "chemonym"
+name = "smiles-to-iupac"
 version = "0.1.0"
 description = "Rule-based SMILES to IUPAC name conversion following the 2013 IUPAC recommendations (the Bluebook)"
 readme = "README.md"
@@ -30,13 +30,13 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://github.com/iwyoo/chemonym"
+Repository = "https://github.com/iwyoo/smiles-to-iupac"
 
 [project.scripts]
-chemonym = "chemonym.__main__:main"
+smiles-to-iupac = "smiles_to_iupac.__main__:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/chemonym"]
+packages = ["src/smiles_to_iupac"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

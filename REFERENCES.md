@@ -1,6 +1,6 @@
 # References
 
-chemonym implements the substitutive nomenclature rules from:
+smiles-to-iupac implements the substitutive nomenclature rules from:
 
 Favre, H. A.; Powell, W. H. *Nomenclature of Organic Chemistry: Recommendations
 and Preferred Names 2013* (the "Blue Book"). Royal Society of Chemistry:

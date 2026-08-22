@@ -96,11 +96,11 @@ def name_acyclic_alkane(mol) -> str:
     if non_single_bonds(mol):
         raise UnsupportedStructure(
             "unsaturation is not supported by this module (see "
-            "chemonym._unsaturated for alkenes/alkynes)"
+            "smiles_to_iupac._unsaturated for alkenes/alkynes)"
         )
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(
-            "rings are not supported by this module (see chemonym._cyclic)"
+            "rings are not supported by this module (see smiles_to_iupac._cyclic)"
         )
 
     if mol.GetNumAtoms() == 1:

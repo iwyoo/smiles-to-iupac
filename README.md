@@ -1,4 +1,4 @@
-# chemonym
+# smiles-to-iupac
 
 A Python library that converts SMILES strings to IUPAC names using only the
 nomenclature rules from the *Nomenclature of Organic Chemistry: Recommendations
@@ -27,7 +27,7 @@ pip install -e ".[dev]"
 ## Usage
 
 ```python
-from chemonym import smiles_to_iupac
+from smiles_to_iupac import smiles_to_iupac
 
 name = smiles_to_iupac("CC(C)C(CC)CCC")  # "3-ethyl-2-methylhexane"
 ```
@@ -35,11 +35,11 @@ name = smiles_to_iupac("CC(C)C(CC)CCC")  # "3-ethyl-2-methylhexane"
 ## CLI
 
 ```bash
-chemonym CC(C)C(CC)CCC  # "3-ethyl-2-methylhexane"
+smiles-to-iupac CC(C)C(CC)CCC  # "3-ethyl-2-methylhexane"
 ```
 
 Multiple SMILES print one `<smiles>\t<name>` line each. Also runnable as
-`python3 -m chemonym <smiles>`.
+`python3 -m smiles_to_iupac <smiles>`.
 
 ## Development
 

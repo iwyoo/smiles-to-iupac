@@ -140,7 +140,7 @@ def name_acyclic_unsaturated(mol) -> str:
     validate_atoms_and_bonds(mol)
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(
-            "rings are not supported by this module (see chemonym._cyclic)"
+            "rings are not supported by this module (see smiles_to_iupac._cyclic)"
         )
 
     bonds = non_single_bonds(mol)

@@ -1,6 +1,6 @@
 import pytest
 
-from chemonym._numerals import alkane_name, alkyl_name, multiplying_prefix, numerical_term
+from smiles_to_iupac._numerals import alkane_name, alkyl_name, multiplying_prefix, numerical_term
 
 
 @pytest.mark.parametrize(
