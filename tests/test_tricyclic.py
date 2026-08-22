@@ -32,6 +32,37 @@ from smiles_to_iupac._common import UnsupportedStructure
         # bug this guards against: halogens dropped by a bicyclic/tricyclic
         # merge that didn't thread the map through).
         ("ClC12CC3CC(CC(C3)C1)C2", "1-chlorotricyclo[3.3.1.1^3,7]decane"),
+        # Built directly from the Blue Book's own P-23.2.5.2 worked example:
+        # both secondary-bridge attachment points (locants 2 and 5) fall on
+        # the *same* 4-atom main-ring segment, so the branch-atom multigraph
+        # has a doubled edge between the two main bridgeheads (the two
+        # length-2 bridges b, c) and another doubled edge between the two
+        # secondary bridgeheads (the interior of the length-4 segment a, and
+        # the independent secondary bridge d itself) -- not the six distinct
+        # single bridges (K4) adamantane/twistane have. This is the exact
+        # case `test_secondary_bridgeheads_on_same_main_bridge_raises` used
+        # to assert was out of scope; the general composite-bridge search in
+        # `name_tricycloalkane` now covers it too.
+        ("C1CC2CCC1C1CCC2CC1", "tricyclo[4.2.2.2^2,5]dodecane"),
+        # perhydroanthracene: three fused cyclohexanes in a row (ortho-fused
+        # "chain"), C14H24. Abstractly the same doubled-main-bridgeheads
+        # branch-atom multigraph as the case above, just with different
+        # bridge lengths -- both main bridgeheads and both secondary
+        # bridgeheads directly bonded (c=0, d=0), giving an 8+4-atom main
+        # ring using every skeletal atom. Not independently cross-checked
+        # against a von Baeyer name database (PubChem's computed IUPAC name
+        # for this compound, CID 93034, uses hydro-prefixed fusion
+        # nomenclature -- "tetradecahydroanthracene" -- not a tricyclo[...]
+        # von Baeyer name, so there was nothing to compare against); verified
+        # instead by hand-deriving the branch-atom multigraph and by the
+        # a+b+c+d+2 atom count matching the C14H24 formula.
+        ("C1CCC2CC3CCCCC3CC2C1", "tricyclo[8.4.0.0^3,8]tetradecane"),
+        # perhydrophenanthrene: same three-fused-cyclohexane formula, angular
+        # instead of linear fusion -- same abstract branch-atom multigraph
+        # again, but the secondary bridgeheads land at different locants (2
+        # and 7 instead of 3 and 8), confirming linear vs. angular fusion is
+        # distinguished correctly.
+        ("C1CCC2C(C1)CCC1CCCCC21", "tricyclo[8.4.0.0^2,7]tetradecane"),
     ],
 )
 def test_smiles_to_iupac_tricyclic(smiles, expected):
@@ -61,24 +92,7 @@ def test_tetracyclic_raises():
 def test_propellane_like_degree_four_raises():
     # [1.1.1]propellane: only two branch atoms, both of degree 4 (directly
     # bonded to each other in addition to the three one-carbon bridges), not
-    # four branch atoms of degree 3 -- the exact "secondary bridge
-    # reconnects to a main bridgehead" topology this module deliberately
-    # excludes (see _tricyclic.py's module docstring).
+    # four branch atoms of degree 3 -- collapses to two branch points instead
+    # of four, still out of scope (see _tricyclic.py's module docstring).
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1C23CC12C3")
-
-
-def test_secondary_bridgeheads_on_same_main_bridge_raises():
-    # Built directly from the Blue Book's own P-23.2.5.2 worked example,
-    # tricyclo[4.2.2.2^2,5]dodecane: both secondary-bridge attachment points
-    # (locants 2 and 5) lie on the *same* 4-atom main-ring segment, so the
-    # reduced graph on the four branch atoms has a doubled edge between the
-    # two main bridgeheads (via the two length-2 bridges) and another
-    # doubled edge between the two secondary bridgeheads (via the segment
-    # interior and the secondary bridge itself), rather than the six
-    # distinct single bridges (K4) this module's detection requires. A real,
-    # named von Baeyer topology that is out of scope for this
-    # implementation -- see _tricyclic.py's module docstring -- and
-    # correctly rejected rather than mis-named.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CC2CCC1C1CCC2CC1")

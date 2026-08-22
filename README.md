@@ -12,9 +12,12 @@ saturated hydrocarbons (alkanes and cycloalkanes), monospiro saturated
 hydrocarbons (two carbocyclic rings sharing exactly one atom), saturated
 bicyclic hydrocarbons — both fused and bridged (von Baeyer nomenclature,
 two carbocyclic rings sharing two or more atoms) — a subset of saturated
-tricyclic hydrocarbons (von Baeyer systems whose four branch atoms reduce
-to a bicyclic main system plus one independent secondary bridge between two
-further atoms already on that system, P-23.2.5), plus acyclic hydrocarbons
+tricyclic hydrocarbons (von Baeyer systems with exactly four skeletal atoms
+of degree 3, forming a main ring plus a main bridge plus one independent
+secondary bridge, P-23.2.5 — including both the "K4" case (adamantane,
+twistane) and the "doubled main bridgeheads/secondary bridgeheads" case
+(the Blue Book's own tricyclo[4.2.2.2²,⁵]dodecane worked example, and
+ortho-fused ring chains like perhydroanthracene)), plus acyclic hydrocarbons
 with one or more carbon-carbon double and/or triple bonds on the principal
 chain (alkenes, alkynes, dienes/trienes, diynes/triynes, and mixed enynes),
 including branched ("compound") substituent groups (P-29.4), e.g.
@@ -29,9 +32,10 @@ including branched ("compound") substituent groups (P-29.4), e.g.
 are supported on any of the above parent hydrides, e.g. `CCCF` →
 `1-fluoropropane`, `C(Cl)(Cl)(Cl)Cl` → `tetrachloromethane`, `BrCC(Cl)C(F)CI`
 → `1-bromo-2-chloro-3-fluoro-4-iodobutane`, `ClC1CCCCC1` →
-`chlorocyclohexane`, and `C=C(Cl)CC` → `2-chlorobut-1-ene`. Other tricyclic
-topologies (any branch atom of degree 4, or a secondary bridge whose two
-attachment points fall on the same bridge of the main bicyclic system),
+`chlorocyclohexane`, and `C=C(Cl)CC` → `2-chlorobut-1-ene`,
+`C1CC2CCC1C1CCC2CC1` → `tricyclo[4.2.2.2^2,5]dodecane`, and
+`C1CCC2CC3CCCCC3CC2C1` (perhydroanthracene) → `tricyclo[8.4.0.0^3,8]tetradecane`.
+Other tricyclic topologies (any branch atom of degree 4, e.g. propellanes),
 tetracyclic-and-higher/polyspiro ring systems, unsaturated rings, a multiple
 bond that isn't on any candidate principal chain, heteroatoms other than the
 four halogens above, and cyclic substituent groups raise
