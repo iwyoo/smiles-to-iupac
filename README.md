@@ -8,10 +8,11 @@ tables of known names.
 ## Status
 
 Early-stage / pre-alpha. Currently supported: acyclic and simple monocyclic
-saturated hydrocarbons (alkanes and cycloalkanes) whose substituents are
-themselves unbranched, e.g. `CC(C)C(CC)CCC` → `3-ethyl-2-methylhexane` and
-`CC1CCCCC1` → `methylcyclohexane`. Fused/bridged/spiro ring systems,
-unsaturation, heteroatoms, and branched ("compound") substituent groups raise
+saturated hydrocarbons (alkanes and cycloalkanes), including branched
+("compound") substituent groups (P-29.4), e.g. `CC(C)C(CC)CCC` →
+`3-ethyl-2-methylhexane`, `CC1CCCCC1` → `methylcyclohexane`, and
+`CCCCC(C(C)CC)CCCCC` → `5-(1-methylpropyl)decane`. Fused/bridged/spiro ring
+systems, unsaturation, heteroatoms, and cyclic substituent groups raise
 `NotImplementedError` and are future work. See [REFERENCES.md](REFERENCES.md)
 for the source of the rules applied.
 

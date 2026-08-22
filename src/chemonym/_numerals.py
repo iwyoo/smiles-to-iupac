@@ -61,3 +61,19 @@ def alkyl_name(n: int) -> str:
         return _RETAINED_ALKYLS[n]
     term = numerical_term(n)
     return term[:-1] + "yl" if term.endswith("a") else term + "yl"
+
+
+_KIS_IRREGULAR = {2: "bis", 3: "tris"}
+
+
+def multiplying_prefix(n: int, compound: bool = False) -> str:
+    """Multiplying prefix for n identical substituent prefixes: the basic
+    numerical term (P-14.2.1) for simple substituents, or the irregular
+    'bis'/'tris' or regular '...kis' series (P-14.2.2) for compound
+    substituents, avoiding ambiguity with a substituent's own internal
+    multiplying prefixes."""
+    if not compound:
+        return numerical_term(n)
+    if n in _KIS_IRREGULAR:
+        return _KIS_IRREGULAR[n]
+    return numerical_term(n) + "kis"

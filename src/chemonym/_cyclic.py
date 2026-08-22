@@ -1,6 +1,5 @@
-"""Naming of simple monocyclic saturated hydrocarbons (cycloalkanes) whose ring
-substituents are themselves unbranched, per the IUPAC 2013 Recommendations
-("the Blue Book"):
+"""Naming of simple monocyclic saturated hydrocarbons (cycloalkanes), per the
+IUPAC 2013 Recommendations ("the Blue Book"):
 
 - P-22.1.1 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf): the name
   is formed by attaching the nondetachable prefix 'cyclo' to the name of the
@@ -12,19 +11,22 @@ substituents are themselves unbranched, per the IUPAC 2013 Recommendations
   structure; for a single substituent on an otherwise unsubstituted ring, every
   ring atom is equivalent before substitution, so the locant is not essential
   and is omitted (e.g. 'methylcyclohexane', not '1-methylcyclohexane').
+- P-29.4 / P-46 (Chapter P-2, P-4): branched ("compound") substituent groups,
+  e.g. `(1-methylpropyl)` for a sec-butyl-like ring substituent — see
+  `_substituents.py`.
 
-Fused, bridged, and spiro ring systems, as well as branched ("compound")
-substituents, are out of scope for this module and raise NotImplementedError.
+Fused, bridged, and spiro ring systems are out of scope for this module and
+raise NotImplementedError.
 """
 
 from ._common import (
     UnsupportedStructure,
     adjacency,
-    linear_branch,
     lowest_locant_set,
     validate_atoms_and_bonds,
 )
-from ._numerals import alkane_name, alkyl_name, numerical_term
+from ._numerals import alkane_name
+from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 
 def _ring_cycle(graph, ring_atoms):
@@ -47,51 +49,45 @@ def _substituents_for_ring(graph, ring_order):
         branch_roots = [n for n in graph[atom] if n not in ring_set]
         if not branch_roots:
             continue
-        lengths = []
-        for root in branch_roots:
-            length = linear_branch(graph, root, atom)
-            if length is None:
-                return None
-            lengths.append(length)
-        substituents[position] = lengths
+        substituents[position] = [name_branch(graph, root, atom) for root in branch_roots]
     return substituents
 
 
-def _name_from_substituents(ring_size, substituents_by_name):
+def _group(substituents):
+    grouped = {}
+    for position, entries in substituents.items():
+        for name, is_compound in entries:
+            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
+            info["locants"].append(position)
+    return grouped
+
+
+def _name_from_substituents(ring_size, grouped):
     parent = "cyclo" + alkane_name(ring_size)
-    total_count = sum(len(v) for v in substituents_by_name.values())
+    total_count = sum(len(info["locants"]) for info in grouped.values())
     if total_count == 0:
         return parent
     if total_count == 1:
         # P-14.3.3: the locant is not essential on an otherwise unsubstituted ring.
-        (name,) = substituents_by_name
-        return f"{name}{parent}"
-    prefixes = []
-    for name in sorted(substituents_by_name):
-        locants = sorted(substituents_by_name[name])
-        multiplier = numerical_term(len(locants)) if len(locants) > 1 else ""
-        prefixes.append(f"{','.join(str(loc) for loc in locants)}-{multiplier}{name}")
-    return "-".join(prefixes) + parent
+        (name,) = grouped
+        display_name = f"({name})" if grouped[name]["compound"] else name
+        return f"{display_name}{parent}"
+    prefix = format_substituent_prefixes(grouped)
+    return prefix + parent
 
 
 def _candidate_key(ring_size, substituents):
     """Sort key implementing P-45.2.2/P-45.2.3, most-preferred first (the
     substituent count is fixed for a given ring, so unlike the acyclic case
     there is no P-45.2.1 dimension to break ties on)."""
-    substituents_by_name = {}
-    for position, lengths in substituents.items():
-        for length in lengths:
-            substituents_by_name.setdefault(alkyl_name(length), []).append(position)
-
-    locant_set = lowest_locant_set(
-        loc for locants in substituents_by_name.values() for loc in locants
-    )
+    grouped = _group(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc
-        for name in sorted(substituents_by_name)
-        for loc in sorted(substituents_by_name[name])
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
     )
-    name = _name_from_substituents(ring_size, substituents_by_name)
+    name = _name_from_substituents(ring_size, grouped)
     return locant_set, citation_locants, name
 
 
@@ -115,14 +111,8 @@ def name_cycloalkane(mol) -> str:
         rotated = ring_order[start:] + ring_order[:start]
         for candidate in (rotated, list(reversed(rotated))):
             substituents = _substituents_for_ring(graph, candidate)
-            if substituents is None:
-                continue
             key = _candidate_key(ring_size, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
 
-    if best_name is None:
-        raise UnsupportedStructure(
-            "branched (compound) substituent groups are not supported yet (see P-29.4)"
-        )
     return best_name
