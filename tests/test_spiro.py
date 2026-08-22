@@ -26,17 +26,17 @@ def test_smiles_to_iupac_spiro(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_bridged_bicyclic_raises():
-    # bicyclo[2.2.1]heptane (norbornane): bridged, not spiro.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CC2CCC1CC2")
+def test_bridged_bicyclic_is_not_spiro():
+    # bicyclo[2.2.2]octane: bridged, not spiro; handled by _bicyclic.py, not
+    # this module (see test_bicyclic.py for the expected name).
+    assert smiles_to_iupac("C1CC2CCC1CC2") == "bicyclo[2.2.2]octane"
 
 
-def test_fused_bicyclic_raises():
+def test_fused_bicyclic_is_not_spiro():
     # decahydronaphthalene (decalin): two fused six-membered rings sharing
-    # one bond (two atoms), not a single spiro atom.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCC2CCCCC2C1")
+    # one bond (two atoms), not a single spiro atom; handled by _bicyclic.py,
+    # not this module (see test_bicyclic.py for the expected name).
+    assert smiles_to_iupac("C1CCC2CCCCC2C1") == "bicyclo[4.4.0]decane"
 
 
 def test_two_separate_rings_raises():
