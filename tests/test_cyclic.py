@@ -20,9 +20,10 @@ def test_smiles_to_iupac_cyclic(smiles, expected):
 
 
 def test_polycyclic_raises():
-    # bicyclo[2.2.1]heptane (norbornane): more than one ring.
+    # adamantane: tricyclic, more than one ring and out of scope even after
+    # bicyclic support (see _bicyclic.py, test_bicyclic.py).
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CC2CCC1CC2")
+        smiles_to_iupac("C1C2CC3CC1CC(C2)C3")
 
 
 def test_ring_compound_substituent():
