@@ -43,14 +43,25 @@ directly bonded to each other, joined by three further bridges, with that
 direct bond treated as a zero-length independent secondary bridge — e.g.
 `C1C23CC12C3` ([1.1.1]propellane) → `tricyclo[1.1.1.0^1,3]pentane`, and
 `C1C2C3C2C4C1C34` (quadricyclane) → `tetracyclo[3.2.0.0^2,7.0^4,6]heptane`.
-Other tricyclic topologies, other tetracyclic topologies (any branch atom
-of degree 4, or fewer/more than six skeletal atoms of degree 3),
-pentacyclic-and-higher/polyspiro ring systems, unsaturated rings, a
-multiple bond that isn't on
-any candidate principal chain, heteroatoms other than the four halogens
-above, and cyclic substituent groups raise `NotImplementedError` and are
-future work. See [REFERENCES.md](REFERENCES.md) for the source of the
-rules applied.
+Also supported: ortho-fused aromatic (mancude) six-membered all-carbon ring
+chains carrying one of six retained names — `benzene` (one ring),
+`naphthalene` (two rings), `anthracene`/`phenanthrene` (three rings,
+straight/angular, with their traditional fixed numbering per P-25.3.3), and
+`tetracene`/`pentacene` (four/five rings, straight) — with halogen and
+alkyl substituents, e.g. `c1ccccc1` → `benzene`,
+`c1ccc2ccccc2c1` → `naphthalene`, `C1=CC=C2C=C(C=CC2=C1)Cl` →
+`2-chloronaphthalene`. Other tricyclic topologies, other tetracyclic
+topologies (any branch atom of degree 4, or fewer/more than six skeletal
+atoms of degree 3), pentacyclic-and-higher/polyspiro ring systems,
+unsaturated non-aromatic rings, a multiple bond that isn't on any
+candidate principal chain, heteroatoms other than the four halogens above,
+cyclic substituent groups, peri-fused or branched aromatic ring systems
+(e.g. pyrene, triphenylene), heteroaromatic rings, and any other
+ortho-fused aromatic ring chain (angular chains of four or more rings,
+chains of six or more rings, or anything needing genuine
+`benzo[x,y-z]fusion[...]` name construction) raise `NotImplementedError`
+and are future work. See [REFERENCES.md](REFERENCES.md) for the source of
+the rules applied.
 
 ## Installation
 

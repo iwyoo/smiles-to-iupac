@@ -1,6 +1,7 @@
 from rdkit import Chem
 
 from ._acyclic import name_acyclic_alkane
+from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
@@ -21,6 +22,18 @@ def smiles_to_iupac(smiles: str) -> str:
         raise ValueError(f"invalid SMILES: {smiles!r}")
 
     num_rings = mol.GetRingInfo().NumRings()
+    # Aromatic rings carry non-single (order 1.5) bonds, which every other
+    # ring module's non_single_bonds check rejects; an aromatic ring
+    # system's carbon skeleton can also be graph-isomorphic to a *saturated*
+    # bicyclic/tricyclic/tetracyclic core (e.g. naphthalene <-> decahydro-
+    # naphthalene), so this check must run, and must succeed for any
+    # in-scope aromatic shape, before num_rings==1 or any saturated
+    # find_*_core below gets a chance to misdetect it and raise the wrong
+    # ("unsaturated ... not supported yet") error (see _aromatic.py).
+    if num_rings >= 1:
+        aromatic_core = find_aromatic_fused_core(mol)
+        if aromatic_core is not None:
+            return name_aromatic_fused(mol, aromatic_core)
     if num_rings == 0:
         bonds = non_single_bonds(mol)
         if not bonds:
