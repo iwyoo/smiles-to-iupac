@@ -2,12 +2,16 @@
 
 A Python library that converts SMILES strings to IUPAC names using only the
 nomenclature rules from the *Nomenclature of Organic Chemistry: Recommendations
-and Preferred Names 2013* (the "Bluebook") — no machine learning, no lookup
+and Preferred Names 2013* (the "Blue Book") — no machine learning, no lookup
 tables of known names.
 
 ## Status
 
-Early-stage / pre-alpha. The naming engine is not implemented yet.
+Early-stage / pre-alpha. Currently supported: acyclic saturated hydrocarbons
+(alkanes) whose branches are themselves unbranched, e.g. `CC(C)C(CC)CCC` →
+`3-ethyl-2-methylhexane`. Rings, unsaturation, heteroatoms, and branched
+("compound") substituent groups raise `NotImplementedError` and are future
+work. See [REFERENCES.md](REFERENCES.md) for the source of the rules applied.
 
 ## Installation
 
@@ -20,7 +24,7 @@ pip install -e ".[dev]"
 ```python
 from chemonym import smiles_to_iupac
 
-name = smiles_to_iupac("CCO")
+name = smiles_to_iupac("CC(C)C(CC)CCC")  # "3-ethyl-2-methylhexane"
 ```
 
 ## Development
