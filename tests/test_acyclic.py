@@ -1,7 +1,7 @@
 import pytest
 
 from chemonym import smiles_to_iupac
-from chemonym._acyclic import UnsupportedStructure
+from chemonym._common import UnsupportedStructure
 
 
 @pytest.mark.parametrize(
@@ -27,7 +27,7 @@ def test_smiles_to_iupac(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize("smiles", ["C1CCCCC1", "c1ccccc1", "C=C", "C#C", "CCO"])
+@pytest.mark.parametrize("smiles", ["c1ccccc1", "C=C", "C#C", "CCO"])
 def test_out_of_scope_structures_raise(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
