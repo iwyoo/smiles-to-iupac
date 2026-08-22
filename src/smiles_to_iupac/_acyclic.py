@@ -11,12 +11,18 @@ Recommendations ("the Blue Book"):
 - P-29.3.2.1 (Chapter P-2): unbranched substituent groups (methyl, ethyl, propyl, ...).
 - P-29.4 / P-46 (Chapter P-2, P-4): branched ("compound") substituent groups,
   e.g. `(1-methylpropyl)` for a sec-butyl-like branch — see `_substituents.py`.
+- P-35.2.1 (Chapter P-3): halogen substituents (fluoro, chloro, bromo, iodo)
+  are never skeletal atoms (P-44.3), so the principal chain is found over
+  carbon-carbon connectivity only (`carbon_adjacency`, see `_common.py`)
+  while substituent detection still uses the full atom graph.
 """
 
 from ._common import (
     UnsupportedStructure,
     adjacency,
     bfs,
+    carbon_adjacency,
+    halogen_substituents,
     lowest_locant_set,
     non_single_bonds,
     path_between,
@@ -48,7 +54,7 @@ def _longest_chains(graph):
     return chains
 
 
-def _substituents_for_chain(graph, chain):
+def _substituents_for_chain(graph, chain, halogens):
     """Return {position (1-based) -> [(name, is_compound), ...]} for a
     candidate chain."""
     chain_set = set(chain)
@@ -57,7 +63,7 @@ def _substituents_for_chain(graph, chain):
         branch_roots = [n for n in graph[atom] if n not in chain_set]
         if not branch_roots:
             continue
-        substituents[position] = [name_branch(graph, root, atom) for root in branch_roots]
+        substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
     return substituents
 
 
@@ -71,6 +77,21 @@ def _group(substituents):
 
 
 def _name_from_substituents(chain_length, grouped):
+    if chain_length == 1 and grouped:
+        # P-14.3.4.2(a): every substituent's locant on a mononuclear parent
+        # hydride is always '1' and is never cited, however many there are
+        # (e.g. 'chloromethane (PIN)' for CH3Cl, 'dichlorosilane' for SiH2Cl2).
+        return format_substituent_prefixes(grouped, omit_locants=True) + alkane_name(chain_length)
+    total_subs = sum(len(info["locants"]) for info in grouped.values())
+    if chain_length == 2 and total_subs == 1:
+        (name,) = grouped
+        info = grouped[name]
+        if not info["compound"]:
+            # P-14.3.4.2(b): a homogeneous two-carbon chain bearing exactly
+            # one substituent has only one possible structure regardless of
+            # numbering direction, so the locant is omittable, e.g.
+            # 'chloroethane', analogous to 'ethanol (PIN)' for CH3-CH2-OH.
+            return name + alkane_name(chain_length)
     prefix = format_substituent_prefixes(grouped)
     return prefix + alkane_name(chain_length)
 
@@ -107,14 +128,15 @@ def name_acyclic_alkane(mol) -> str:
         return alkane_name(1)
 
     graph = adjacency(mol)
-    chains = _longest_chains(graph)
+    halogens = halogen_substituents(mol)
+    chains = _longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
 
     best_key = None
     best_name = None
     for chain in chains:
         for candidate in (chain, list(reversed(chain))):
-            substituents = _substituents_for_chain(graph, candidate)
+            substituents = _substituents_for_chain(graph, candidate, halogens)
             key, name = _candidate_key(chain_length, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name

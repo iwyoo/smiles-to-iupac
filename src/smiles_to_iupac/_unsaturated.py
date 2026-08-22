@@ -54,6 +54,10 @@ chain, per the IUPAC 2013 Recommendations ("the Blue Book"):
   same way as for alkanes/cycloalkanes, via `_substituents.py`, so simple
   *and* branched ("compound") substituents (e.g. isopropyl) are supported
   here too.
+- P-35.2.1 (Chapter P-3): halogen substituents (fluoro, chloro, bromo, iodo)
+  are never skeletal atoms (P-44.3), so the principal chain is found over
+  carbon-carbon connectivity only (`carbon_adjacency`, see `_common.py`)
+  while substituent detection still uses the full atom graph.
 
 A multiple bond located in a substituent rather than the principal chain
 (i.e. no candidate longest chain carries every multiple bond in the
@@ -65,6 +69,8 @@ from ._common import (
     UnsupportedStructure,
     adjacency,
     bfs,
+    carbon_adjacency,
+    halogen_substituents,
     lowest_locant_set,
     non_single_bonds,
     path_between,
@@ -100,7 +106,7 @@ def _longest_chains(graph):
     return chains
 
 
-def _substituents_for_chain(graph, chain):
+def _substituents_for_chain(graph, chain, halogens):
     """Return {position (1-based) -> [(name, is_compound), ...]} for a
     candidate chain."""
     chain_set = set(chain)
@@ -109,7 +115,7 @@ def _substituents_for_chain(graph, chain):
         branch_roots = [n for n in graph[atom] if n not in chain_set]
         if not branch_roots:
             continue
-        substituents[position] = [name_branch(graph, root, atom) for root in branch_roots]
+        substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
     return substituents
 
 
@@ -185,13 +191,24 @@ def _unsaturation_suffix(ene_locants, yne_locants):
 def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped):
     prefix = format_substituent_prefixes(grouped)
     stem = alkane_name(chain_length)[:-3]
-    if len(ene_locants) + len(yne_locants) == 1 and chain_length <= 3 and not prefix:
+    single_bond = len(ene_locants) + len(yne_locants) == 1
+    if single_bond and chain_length <= 3 and not prefix:
         # P-14.3.4.2(d): the locant is omittable only when unsubstituted, a
         # single multiple bond, and the chain is short enough that no other
         # position is possible.
         if chain_length == 2 and yne_locants:
             return "acetylene"
         return stem + ("ene" if ene_locants else "yne")
+    if single_bond and chain_length == 2 and len(grouped) == 1:
+        name = next(iter(grouped))
+        info = grouped[name]
+        if len(info["locants"]) == 1 and not info["compound"]:
+            # P-14.3.4.2(b): a homogeneous two-carbon chain bearing exactly
+            # one substituent has only one possible structure regardless of
+            # numbering direction, so both the multiple bond's and the
+            # substituent's locants are omittable, e.g. 'fluoroethyne (PIN)'
+            # for fluoroacetylene (P-31.1.2.1).
+            return name + stem + ("ene" if ene_locants else "yne")
     body, needs_stem_a = _unsaturation_suffix(ene_locants, yne_locants)
     return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
 
@@ -236,7 +253,8 @@ def name_acyclic_unsaturated(mol) -> str:
         )
 
     graph = adjacency(mol)
-    chains = _longest_chains(graph)
+    halogens = halogen_substituents(mol)
+    chains = _longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
 
     # P-44.3.2 / P-44.4.1.1: among the longest chains, only those containing
@@ -256,7 +274,7 @@ def name_acyclic_unsaturated(mol) -> str:
     for chain in chains_with_all_bonds:
         for candidate in (chain, list(reversed(chain))):
             ene_locants, yne_locants = _bond_locants(candidate, bonds)
-            substituents = _substituents_for_chain(graph, candidate)
+            substituents = _substituents_for_chain(graph, candidate, halogens)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name

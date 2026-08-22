@@ -14,6 +14,10 @@ IUPAC 2013 Recommendations ("the Blue Book"):
 - P-29.4 / P-46 (Chapter P-2, P-4): branched ("compound") substituent groups,
   e.g. `(1-methylpropyl)` for a sec-butyl-like ring substituent — see
   `_substituents.py`.
+- P-35.2.1 (Chapter P-3): halogen substituents (fluoro, chloro, bromo, iodo)
+  hang off a ring atom the same way any other substituent does; a ring's own
+  atom sequence needs no carbon-only filtering here since RDKit's ring
+  perception (`GetRingInfo`) never includes a monovalent atom in a ring.
 
 Fused, bridged, and spiro ring systems are out of scope for this module and
 raise NotImplementedError.
@@ -22,6 +26,7 @@ raise NotImplementedError.
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    halogen_substituents,
     lowest_locant_set,
     non_single_bonds,
     validate_atoms_and_bonds,
@@ -43,14 +48,14 @@ def _ring_cycle(graph, ring_atoms):
     return order
 
 
-def _substituents_for_ring(graph, ring_order):
+def _substituents_for_ring(graph, ring_order, halogens):
     ring_set = set(ring_order)
     substituents = {}
     for position, atom in enumerate(ring_order, start=1):
         branch_roots = [n for n in graph[atom] if n not in ring_set]
         if not branch_roots:
             continue
-        substituents[position] = [name_branch(graph, root, atom) for root in branch_roots]
+        substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
     return substituents
 
 
@@ -107,6 +112,7 @@ def name_cycloalkane(mol) -> str:
         )
 
     graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
     ring_atoms = list(ring_info.AtomRings()[0])
     ring_order = _ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
@@ -116,7 +122,7 @@ def name_cycloalkane(mol) -> str:
     for start in range(ring_size):
         rotated = ring_order[start:] + ring_order[:start]
         for candidate in (rotated, list(reversed(rotated))):
-            substituents = _substituents_for_ring(graph, candidate)
+            substituents = _substituents_for_ring(graph, candidate, halogens)
             key = _candidate_key(ring_size, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]

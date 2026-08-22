@@ -22,6 +22,9 @@ exactly one atom), per the IUPAC 2013 Recommendations ("the Blue Book"):
   machinery `_cyclic.py` uses for monocyclic rings.
 - P-29.4 / P-46 (Chapter P-2, P-4): branched ("compound") substituent
   groups — see `_substituents.py`.
+- P-35.2.1 (Chapter P-3): halogen substituents (fluoro, chloro, bromo, iodo)
+  hang off a ring atom the same way any other substituent does; no
+  carbon-only filtering is needed here, same as in `_cyclic.py`.
 
 Fused, bridged, and polyspiro ring systems are out of scope for this module
 and raise UnsupportedStructure.
@@ -31,6 +34,7 @@ from ._cyclic import _group, _substituents_for_ring
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    halogen_substituents,
     lowest_locant_set,
     non_single_bonds,
     validate_atoms_and_bonds,
@@ -87,6 +91,7 @@ def name_monospiro(mol, spiro_atom) -> str:
         )
 
     graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
     atom_rings = mol.GetRingInfo().AtomRings()
     ring_x = [atom for atom in atom_rings[0] if atom != spiro_atom]
     ring_y = [atom for atom in atom_rings[1] if atom != spiro_atom]
@@ -111,7 +116,7 @@ def name_monospiro(mol, spiro_atom) -> str:
         for dir1 in (order1, list(reversed(order1))):
             for dir2 in (order2, list(reversed(order2))):
                 full_order = dir1 + [spiro_atom] + dir2
-                substituents = _substituents_for_ring(graph, full_order)
+                substituents = _substituents_for_ring(graph, full_order, halogens)
                 key = _candidate_key(parent, substituents)
                 if best_key is None or key < best_key:
                     best_key, best_name = key, key[-1]
