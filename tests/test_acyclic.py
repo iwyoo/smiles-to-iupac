@@ -31,9 +31,8 @@ def test_smiles_to_iupac(smiles, expected):
     "smiles",
     [
         "c1ccccc1",
-        # C=C and C#C now name as ethene/acetylene (see test_unsaturated.py);
-        # two multiple bonds together remain out of scope here.
-        "C=CC=C",
+        # Any unsaturation now names via name_acyclic_unsaturated instead
+        # (see test_unsaturated.py), so it's no longer out of scope here.
         "CCO",
     ],
 )
