@@ -30,10 +30,9 @@ def test_smiles_to_iupac(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        # Aromatic rings now name via name_aromatic_fused instead (see
-        # test_aromatic.py: "c1ccccc1" -> "benzene"), so it's no longer out
-        # of scope here.
-        "CCO",
+        # Alcohols now name via name_alcohol instead (see test_alcohol.py:
+        # "CCO" -> "ethanol"), so it's no longer out of scope here.
+        "CCN",
     ],
 )
 def test_out_of_scope_structures_raise(smiles):
