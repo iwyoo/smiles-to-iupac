@@ -50,18 +50,27 @@ straight/angular, with their traditional fixed numbering per P-25.3.3), and
 `tetracene`/`pentacene` (four/five rings, straight) — with halogen and
 alkyl substituents, e.g. `c1ccccc1` → `benzene`,
 `c1ccc2ccccc2c1` → `naphthalene`, `C1=CC=C2C=C(C=CC2=C1)Cl` →
-`2-chloronaphthalene`. Other tricyclic topologies, other tetracyclic
-topologies (any branch atom of degree 4, or fewer/more than six skeletal
-atoms of degree 3), pentacyclic-and-higher/polyspiro ring systems,
-unsaturated non-aromatic rings, a multiple bond that isn't on any
-candidate principal chain, heteroatoms other than the four halogens above,
-cyclic substituent groups, peri-fused or branched aromatic ring systems
-(e.g. pyrene, triphenylene), heteroaromatic rings, and any other
-ortho-fused aromatic ring chain (angular chains of four or more rings,
-chains of six or more rings, or anything needing genuine
-`benzo[x,y-z]fusion[...]` name construction) raise `NotImplementedError`
-and are future work. See [REFERENCES.md](REFERENCES.md) for the source of
-the rules applied.
+`2-chloronaphthalene`.
+
+Alcohols (P-33.2, the '-ol' suffix) are also supported on acyclic and
+simple monocyclic saturated skeletons, and on acyclic skeletons with
+existing double/triple-bond support, e.g. `CCO` → `ethanol`, `CC(O)C` →
+`propan-2-ol`, `OCCO` → `ethane-1,2-diol`, `OC1CCCCC1` → `cyclohexanol`,
+and `OCCCC=C` → `pent-4-en-1-ol`.
+
+Other tricyclic topologies, other tetracyclic topologies (any branch atom
+of degree 4, or fewer/more than six skeletal atoms of degree 3),
+pentacyclic-and-higher/polyspiro ring systems, unsaturated non-aromatic
+rings, a multiple bond that isn't on any candidate principal chain,
+heteroatoms other than the four halogens and hydroxyl oxygen above,
+characteristic groups more senior than a plain alcohol (e.g. carboxylic
+acids, ketones, aldehydes), cyclic substituent groups, peri-fused or
+branched aromatic ring systems (e.g. pyrene, triphenylene), heteroaromatic
+rings, and any other ortho-fused aromatic ring chain (angular chains of
+four or more rings, chains of six or more rings, or anything needing
+genuine `benzo[x,y-z]fusion[...]` name construction) raise
+`NotImplementedError` and are future work. See
+[REFERENCES.md](REFERENCES.md) for the source of the rules applied.
 
 ## Installation
 

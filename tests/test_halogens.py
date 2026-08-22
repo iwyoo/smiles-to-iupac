@@ -75,4 +75,4 @@ def test_lone_halogen_atom_raises():
 
 def test_non_halogen_heteroatom_still_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCO")
+        smiles_to_iupac("CCN")

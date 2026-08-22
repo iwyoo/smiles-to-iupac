@@ -1,6 +1,7 @@
 from rdkit import Chem
 
 from ._acyclic import name_acyclic_alkane
+from ._alcohol import name_alcohol
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
 from ._common import UnsupportedStructure, non_single_bonds
@@ -20,6 +21,9 @@ def smiles_to_iupac(smiles: str) -> str:
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError(f"invalid SMILES: {smiles!r}")
+
+    if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
+        return name_alcohol(mol)
 
     num_rings = mol.GetRingInfo().NumRings()
     # Aromatic rings carry non-single (order 1.5) bonds, which every other
