@@ -1,6 +1,7 @@
 from rdkit import Chem
 
 from ._acyclic import name_acyclic_alkane
+from ._bicyclic import find_bicyclic_core, name_bicycloalkane
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._spiro import find_monospiro_atom, name_monospiro
@@ -25,10 +26,16 @@ def smiles_to_iupac(smiles: str) -> str:
         )
     if num_rings == 1:
         return name_cycloalkane(mol)
-    if num_rings == 2:
-        spiro_atom = find_monospiro_atom(mol)
-        if spiro_atom is not None:
-            return name_monospiro(mol, spiro_atom)
+
+    # num_rings >= 2 from here on. RDKit's SSSR can overcount rings for
+    # symmetric bridged bicyclics (see _bicyclic.py's find_bicyclic_core
+    # docstring), so bicyclic detection isn't gated on num_rings == 2 either.
+    spiro_atom = find_monospiro_atom(mol)
+    if spiro_atom is not None:
+        return name_monospiro(mol, spiro_atom)
+    bicyclic_core = find_bicyclic_core(mol)
+    if bicyclic_core is not None:
+        return name_bicycloalkane(mol, bicyclic_core)
     raise UnsupportedStructure(
         "polycyclic ring systems are not supported yet (see P-23/P-24/P-25)"
     )

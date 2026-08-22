@@ -35,6 +35,9 @@ from smiles_to_iupac._common import UnsupportedStructure
         # A halogen on a monospiro ring (P-24.2.1's numbering machinery,
         # reused unchanged from _cyclic.py/_spiro.py).
         ("ClC1CCC2(C1)CCCCC2", "2-chlorospiro[4.5]decane"),
+        # A halogen on a bicyclic (von Baeyer) ring, added after merging with
+        # _bicyclic.py: same _substituents_for_ring reuse as the spiro case.
+        ("ClC1CC2CCC1CC2", "2-chlorobicyclo[2.2.2]octane"),
         # A chloro-substituted alkene: halogen substituent combined with
         # unsaturation.
         ("C=C(Cl)CC", "2-chlorobut-1-ene"),
