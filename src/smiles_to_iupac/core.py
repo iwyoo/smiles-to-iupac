@@ -16,11 +16,11 @@ def smiles_to_iupac(smiles: str) -> str:
         bonds = non_single_bonds(mol)
         if not bonds:
             return name_acyclic_alkane(mol)
-        if len(bonds) == 1 and bonds[0][2] in (2.0, 3.0):
+        if all(order in (2.0, 3.0) for _, _, order in bonds):
             return name_acyclic_unsaturated(mol)
         raise UnsupportedStructure(
-            "more than one multiple bond, or a bond order other than double "
-            "or triple, is not supported yet (see P-31.1.1.1)"
+            "a bond order other than double or triple is not supported yet "
+            "(see P-31.1.1.1)"
         )
     if num_rings == 1:
         return name_cycloalkane(mol)
