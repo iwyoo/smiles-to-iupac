@@ -3,6 +3,7 @@ from rdkit import Chem
 from ._acyclic import name_acyclic_alkane
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
+from ._spiro import find_monospiro_atom, name_monospiro
 from ._unsaturated import name_acyclic_unsaturated
 
 
@@ -24,6 +25,10 @@ def smiles_to_iupac(smiles: str) -> str:
         )
     if num_rings == 1:
         return name_cycloalkane(mol)
+    if num_rings == 2:
+        spiro_atom = find_monospiro_atom(mol)
+        if spiro_atom is not None:
+            return name_monospiro(mol, spiro_atom)
     raise UnsupportedStructure(
         "polycyclic ring systems are not supported yet (see P-23/P-24/P-25)"
     )
