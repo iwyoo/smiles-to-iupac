@@ -1,7 +1,7 @@
 import pytest
 
-from chemonym import __version__
-from chemonym.__main__ import main
+from smiles_to_iupac import __version__
+from smiles_to_iupac.__main__ import main
 
 
 def test_single_smiles_prints_name(capsys):

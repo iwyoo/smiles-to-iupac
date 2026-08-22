@@ -1,12 +1,12 @@
 import argparse
 import sys
 
-from chemonym import __version__, smiles_to_iupac
+from smiles_to_iupac import __version__, smiles_to_iupac
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        prog="chemonym",
+        prog="smiles-to-iupac",
         description=(
             "Convert SMILES strings to IUPAC names. "
             "Prints just the name if one SMILES is given, "

@@ -1,8 +1,8 @@
 import pytest
 
-from chemonym import smiles_to_iupac
-from chemonym._common import UnsupportedStructure
-from chemonym._substituents import name_branch
+from smiles_to_iupac import smiles_to_iupac
+from smiles_to_iupac._common import UnsupportedStructure
+from smiles_to_iupac._substituents import name_branch
 
 
 @pytest.mark.parametrize(
@@ -37,7 +37,7 @@ def test_compound_substituents(smiles, expected):
 def test_polycyclic_substituent_raises():
     # Two separate cyclopropane rings joined by a chain: more than one ring
     # overall, so this is rejected before a cyclic substituent could even be
-    # considered (see chemonym.core's polycyclic check).
+    # considered (see smiles_to_iupac.core's polycyclic check).
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1CC1CCCCC1CC1")
 
