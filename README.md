@@ -20,10 +20,15 @@ including branched ("compound") substituent groups (P-29.4), e.g.
 `C1CC2CCC1C2` → `bicyclo[2.2.1]heptane`, `C1CCC2CCCCC2C1` →
 `bicyclo[4.4.0]decane`, `CCCCC(C(C)CC)CCCCC` → `5-(1-methylpropyl)decane`,
 `CCCC(C(C)C)CC=C` → `4-(1-methylethyl)hept-1-ene`, `C=CC=C` →
-`buta-1,3-diene`, and `C=CC#C` → `but-1-en-3-yne`. Tricyclic/polyspiro
-ring systems, unsaturated rings, a multiple bond that isn't on any candidate
-principal chain, heteroatoms, and cyclic substituent groups raise
-`NotImplementedError` and are future work. See
+`buta-1,3-diene`, and `C=CC#C` → `but-1-en-3-yne`. Fluoro, chloro, bromo,
+and iodo substituents (P-35.2.1) are supported on any of the above parent
+hydrides, e.g. `CCCF` → `1-fluoropropane`, `C(Cl)(Cl)(Cl)Cl` →
+`tetrachloromethane`, `BrCC(Cl)C(F)CI` →
+`1-bromo-2-chloro-3-fluoro-4-iodobutane`, `ClC1CCCCC1` → `chlorocyclohexane`,
+and `C=C(Cl)CC` → `2-chlorobut-1-ene`. Tricyclic/polyspiro ring systems,
+unsaturated rings, a multiple bond that isn't on any candidate principal
+chain, heteroatoms other than the four halogens above, and cyclic substituent
+groups raise `NotImplementedError` and are future work. See
 [REFERENCES.md](REFERENCES.md) for the source of the rules applied.
 
 ## Installation

@@ -43,6 +43,7 @@ from ._cyclic import _group, _substituents_for_ring
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    halogen_substituents,
     lowest_locant_set,
     non_single_bonds,
     validate_atoms_and_bonds,
@@ -142,6 +143,7 @@ def name_bicycloalkane(mol, core) -> str:
 
     bh1, bh2, bridges = core
     graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
     lengths_desc = sorted((len(bridge) for bridge in bridges), reverse=True)
     total_atoms = sum(lengths_desc) + 2
     parent = f"bicyclo[{'.'.join(str(n) for n in lengths_desc)}]{alkane_name(total_atoms)}"
@@ -160,7 +162,7 @@ def name_bicycloalkane(mol, core) -> str:
             full_order = (
                 [start] + main_ring_first + [other] + list(reversed(main_ring_second)) + main_bridge
             )
-            substituents = _substituents_for_ring(graph, full_order)
+            substituents = _substituents_for_ring(graph, full_order, halogens)
             key = _candidate_key(parent, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]

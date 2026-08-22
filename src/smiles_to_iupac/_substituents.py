@@ -20,7 +20,13 @@ Recommendations ("the Blue Book"):
 - P-14.5.2 (Chapter P-1): alphanumerical order is based on a substituent
   prefix's complete name, so a compound substituent like '(1-methylpropyl)'
   alphabetizes under 'm' (from 'methylpropyl'), ignoring the enclosing
-  parentheses and locants.
+  parentheses and locants. Halogeno prefixes (P-35.2.1, see `_common.py`)
+  alphabetize the same way, under their own name ('bromo', 'chloro',
+  'fluoro', 'iodo') — no special-casing needed.
+- P-35.2.1 (Chapter P-3): a halogen atom (F, Cl, Br, I) directly attached to
+  a chain/ring atom is itself a simple substituent group ('fluoro', 'chloro',
+  'bromo', 'iodo') with no locants or nested prefixes of its own — the base
+  case in `name_branch` below.
 
 Cyclic substituent groups (P-29.3.3) are out of scope and raise
 UnsupportedStructure.
@@ -38,19 +44,27 @@ def alpha_sort_key(name: str) -> str:
     return _LEADING_LOCANTS_RE.sub("", name).lower()
 
 
-def format_substituent_prefixes(grouped) -> str:
+def format_substituent_prefixes(grouped, omit_locants: bool = False) -> str:
     """grouped: {name -> {"locants": [int, ...], "compound": bool}}. Return
     the assembled, alphanumerically ordered prefix string (P-14.5.2), ready to
-    prepend to a parent name; '' if grouped is empty."""
+    prepend to a parent name; '' if grouped is empty.
+
+    `omit_locants`: for a mononuclear parent hydride (P-14.3.4.2(a)), every
+    substituent's locant is always '1' and never cited, no matter how many
+    substituents there are — unlike the ordinary case, where a locant is
+    droppable only when every substituent's is unambiguous without it."""
     parts = []
     for name in sorted(grouped, key=alpha_sort_key):
         info = grouped[name]
         locants = sorted(info["locants"])
         multiplier = multiplying_prefix(len(locants), compound=info["compound"]) if len(locants) > 1 else ""
         display_name = f"({name})" if info["compound"] else name
-        loc_str = ",".join(str(loc) for loc in locants)
-        parts.append(f"{loc_str}-{multiplier}{display_name}")
-    return "-".join(parts)
+        if omit_locants:
+            parts.append(f"{multiplier}{display_name}")
+        else:
+            loc_str = ",".join(str(loc) for loc in locants)
+            parts.append(f"{loc_str}-{multiplier}{display_name}")
+    return "".join(parts) if omit_locants else "-".join(parts)
 
 
 def _group_substituents(entries):
@@ -62,17 +76,20 @@ def _group_substituents(entries):
     return grouped
 
 
-def _longest_chains_from_root(graph, root, coming_from):
+def _longest_chains_from_root(graph, root, coming_from, halogens):
     """All maximum-length simple paths starting at `root`, extending into the
     subtree away from `coming_from` (P-46: the free valence is fixed at
     locant 1, so only one direction of travel is possible, unlike a parent
-    hydride's chain)."""
+    hydride's chain). `halogens` atoms are excluded from the walk (P-35.2.1:
+    a halogen is a terminal substituent, never a chain-extending atom), the
+    same way `carbon_adjacency` excludes them from a parent hydride's chain
+    search."""
     best_length = 0
     best_paths = []
 
     def walk(node, previous, path, path_set):
         nonlocal best_length, best_paths
-        neighbors = [n for n in graph[node] if n != previous]
+        neighbors = [n for n in graph[node] if n != previous and n not in halogens]
         if not neighbors:
             if len(path) > best_length:
                 best_length, best_paths = len(path), [list(path)]
@@ -109,12 +126,21 @@ def _candidate_key(grouped):
     return -total_count, locant_set, citation_locants
 
 
-def name_branch(graph, root, coming_from):
+def name_branch(graph, root, coming_from, halogens=None):
     """Name the substituent group hanging off `root`, reached from
     `coming_from` (the parent chain/ring atom). Returns (name, is_compound);
     is_compound is True iff the name carries its own locants/nested prefixes
-    (P-29.4) and should be parenthesized when cited as a prefix."""
-    chains = _longest_chains_from_root(graph, root, coming_from)
+    (P-29.4) and should be parenthesized when cited as a prefix.
+
+    `halogens`: {atom_idx -> prefix name} (see `_common.halogen_substituents`).
+    If `root` is itself a halogen atom, it's a simple substituent with no
+    locants or nested prefixes of its own (P-35.2.1) — returned directly,
+    with no recursion."""
+    halogens = halogens or {}
+    if root in halogens:
+        return halogens[root], False
+
+    chains = _longest_chains_from_root(graph, root, coming_from, halogens)
     chain_length = len(chains[0])
 
     best_key = None
@@ -128,10 +154,16 @@ def name_branch(graph, root, coming_from):
             for branch_root in graph[atom]:
                 if branch_root == previous or branch_root in chain_set:
                     continue
-                sub_name, sub_compound = name_branch(graph, branch_root, atom)
+                sub_name, sub_compound = name_branch(graph, branch_root, atom, halogens)
                 entries.append((position, sub_name, sub_compound))
         grouped = _group_substituents(entries)
-        if grouped:
+        if grouped and chain_length == 1:
+            # P-14.3.4.2(a): the branch's own chain is a single (mononuclear)
+            # atom, so any substituent on it has no other possible position
+            # and its locant is never cited, e.g. '(chloromethyl)', not
+            # '(1-chloromethyl)'.
+            name, is_compound = format_substituent_prefixes(grouped, omit_locants=True) + alkyl_name(1), True
+        elif grouped:
             name, is_compound = format_substituent_prefixes(grouped) + alkyl_name(chain_length), True
         else:
             name, is_compound = alkyl_name(chain_length), False
