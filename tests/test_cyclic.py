@@ -25,7 +25,7 @@ def test_polycyclic_raises():
         smiles_to_iupac("C1CC2CCC1CC2")
 
 
-def test_ring_compound_substituent_raises():
-    # sec-butyl-like branch on the ring: forks, needs P-29.4.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(CC)C1CCCCC1")
+def test_ring_compound_substituent():
+    # sec-butyl-like branch on the ring (P-29.4); the only substituent on an
+    # otherwise unsubstituted ring, so its locant is omitted (P-14.3.3).
+    assert smiles_to_iupac("CC(CC)C1CCCCC1") == "(1-methylpropyl)cyclohexane"

@@ -1,6 +1,6 @@
 import pytest
 
-from chemonym._numerals import alkane_name, alkyl_name, numerical_term
+from chemonym._numerals import alkane_name, alkyl_name, multiplying_prefix, numerical_term
 
 
 @pytest.mark.parametrize(
@@ -64,3 +64,20 @@ def test_alkane_name(n, expected):
 )
 def test_alkyl_name(n, expected):
     assert alkyl_name(n) == expected
+
+
+@pytest.mark.parametrize(
+    "n,compound,expected",
+    [
+        (2, False, "di"),
+        (3, False, "tri"),
+        (2, True, "bis"),
+        (3, True, "tris"),
+        (4, True, "tetrakis"),
+        (5, True, "pentakis"),
+        (6, True, "hexakis"),
+        (10, True, "decakis"),
+    ],
+)
+def test_multiplying_prefix(n, compound, expected):
+    assert multiplying_prefix(n, compound=compound) == expected
