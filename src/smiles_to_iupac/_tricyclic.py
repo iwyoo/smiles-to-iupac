@@ -1,12 +1,27 @@
-"""Von Baeyer naming of saturated tricyclic hydrocarbons whose three rings
-reduce to a bicyclic main system (two main bridgeheads, three bridges, as in
-`_bicyclic.py`) plus one independent secondary bridge connecting two further,
-distinct atoms that already lie on that main bicyclic system (the "secondary
-bridgeheads") -- i.e. exactly four skeletal atoms of degree 3 and none of
-higher degree. Other tricyclic topologies (e.g. a secondary bridge that
-reconnects to a main bridgehead itself, collapsing the four branch points to
-fewer distinct atoms -- a propellane-like case) and tetracyclic-or-higher
-systems are out of scope and raise UnsupportedStructure. Per the IUPAC 2013
+"""Von Baeyer naming of saturated tricyclic hydrocarbons whose skeleton
+reduces to exactly four skeletal atoms of degree 3 (a "main ring" plus a
+main bridge plus one independent secondary bridge, per P-23.2.5.1) and none
+of higher degree. This covers two structurally distinct branch-atom
+multigraphs:
+
+- the "K4" case, where each of the four branch atoms connects directly (via
+  a single bridge with no other branch atom on it) to each of the other
+  three -- e.g. adamantane, twistane;
+- the "doubled main bridgeheads" case, where two branch atoms are joined by
+  *two* parallel bridges and the other two branch atoms are also joined by
+  two parallel bridges, with a single bridge connecting one atom from each
+  pair -- this is the Blue Book's own P-23.2.5.2 worked example,
+  tricyclo[4.2.2.2^2,5]dodecane, where the two secondary-bridge attachment
+  points (locants 2 and 5) fall on the same 4-atom main-ring segment. It
+  also covers ortho-fused "chain of rings" tricyclics such as
+  perhydroanthracene/perhydrophenanthrene, which are the same abstract
+  branch-atom multigraph with different bridge lengths.
+
+Propellane-like topologies (a branch atom of degree 4: two bridgeheads
+directly bonded to each other *in addition to* three bridges between them,
+collapsing the four branch points to two) and tetracyclic-or-higher systems
+remain out of scope and raise UnsupportedStructure -- see
+`find_tricyclic_core`'s degree/branch-atom-count checks. Per the IUPAC 2013
 Recommendations ("the Blue Book", Chapter P-2,
 https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf):
 
@@ -24,17 +39,22 @@ https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf):
   main ring are cited as a pair of superscript arabic numbers (lower number
   is cited first) separated by a comma." The name is 'tricyclo' + bridge
   lengths `[a.b.c.d^x,y]` (a >= b >= c the two main-ring segments and the
-  main bridge, exactly as `_bicyclic.py` computes them; d the secondary
-  bridge's length; x,y its attachment locants, lower first, rendered here as
-  plain-text `d^x,y` with no braces) + the alkane name for the total number
-  of skeletal atoms.
+  main bridge; d the secondary bridge's length; x,y its attachment locants,
+  lower first, rendered here as plain-text `d^x,y` with no braces) + the
+  alkane name for the total number of skeletal atoms.
 - P-23.2.5.2: "After the main ring and main bridge have been numbered, the
   independent secondary bridge is numbered continuing from the higher
   numbered bridgehead of the main ring." (confirmed by the worked example
   "tricyclo[4.2.2.2^2,5]dodecane [the secondary bridge is numbered starting
   from bridgehead 5, the higher (than 2) numbered bridgehead]" -- numbering
   starts adjacent to the HIGHER-locant secondary bridgehead, not the lower
-  one, even though the lower one is cited first in the bracket descriptor.)
+  one, even though the lower one is cited first in the bracket descriptor.
+  This worked example is itself the "doubled main bridgeheads" case above:
+  both attachment points 2 and 5 lie on the same 4-atom main-ring segment,
+  meaning the main bridgeheads are joined by two parallel bridges (the two
+  length-2 segments b, c) and the secondary bridgeheads -- interior points
+  of the length-4 segment a -- are joined by two parallel bridges as well
+  (the interior of a itself, and the independent secondary bridge d).)
 - P-23.2.6.2.1/.2.4/.2.5 (stated for tetracyclic-and-higher systems, but
   generalizing P-23.2.1/P-23.2.4's selection criteria to any case where more
   than one choice of main bridgeheads is possible, so applied here too):
@@ -48,15 +68,17 @@ https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf):
   bridges is traversed first) is settled by lowest locants to substituents,
   exactly as `_bicyclic.py` does.
 
-Flagship validation case: adamantane, tricyclo[3.3.1.1^3,7]decane (verified
-structurally here -- C10H16, four skeletal atoms of degree 3 and six of
-degree 2 -- and cross-checked against the NIST WebBook / PubChem name for
-CAS 281-23-2, and against the derivation above applied by hand).
+Flagship validation cases:
+- adamantane, tricyclo[3.3.1.1^3,7]decane (K4 case; C10H16, four skeletal
+  atoms of degree 3 and six of degree 2 -- cross-checked against the NIST
+  WebBook / PubChem name for CAS 281-23-2).
+- tricyclo[4.2.2.2^2,5]dodecane (doubled-main-bridgeheads case; built
+  directly from the Blue Book's own P-23.2.5.2 worked example, C12H20).
 
 Fused/spiro/bicyclic systems are handled by `_cyclic.py`/`_spiro.py`/
 `_bicyclic.py`; unsaturated and heteroatom-containing tricyclics, and any
 tricyclic topology this module's detection can't cleanly resolve into the
-scope above, raise UnsupportedStructure.
+scope above (propellanes, tetracyclic-or-higher), raise UnsupportedStructure.
 """
 
 from itertools import combinations, permutations
@@ -110,20 +132,22 @@ def _walk_to_branch(core, branch_atoms, start, first):
             return next_atom, path
         path.append(next_atom)
         previous, current = current, next_atom
+    return None
 
 
 def find_tricyclic_core(mol):
-    """Return (branch_atoms, edges) if `mol`'s carbon skeleton, after
+    """Return (branch_atoms, bridges) if `mol`'s carbon skeleton, after
     stripping acyclic branches, reduces to exactly four branch atoms of
-    degree 3 (and no atom of higher degree), pairwise connected by six
-    bridges -- i.e. a complete graph K4 on the four branch atoms, the
-    topology of a bicyclic main system plus one independent secondary bridge
-    between two of its non-main-bridgehead atoms (see module docstring) --
-    else None.
+    degree 3 (and no atom of higher degree) joined by six bridges (the
+    graph's cyclomatic number is 3) -- else None.
 
-    `edges` is {frozenset({u, v}): {u: path_from_u, v: path_from_v}} for each
-    of the six branch-atom pairs; each path is the list of internal atom
-    indices ordered starting next to the named endpoint.
+    `bridges` is a list of six `(u, v, path)` tuples, one per bridge, where
+    `path` is the list of internal atom indices ordered nearest-`u`-first.
+    Unlike the topology this module originally supported, branch-atom pairs
+    need not each have exactly one bridge between them: two bridges between
+    the same pair (and, correspondingly, some other pair having none) is a
+    real, connected topology -- see the module docstring -- and is detected
+    here the same way.
 
     Mirrors `_bicyclic.find_bicyclic_core`'s leaf-stripping + cyclomatic-
     number approach rather than trusting RDKit's `NumRings()` (see that
@@ -142,31 +166,84 @@ def find_tricyclic_core(mol):
     if len(branch_atoms) != 4:
         return None
 
-    edges = {}
+    half_walks = []
     for u in branch_atoms:
         for first in core[u]:
             result = _walk_to_branch(core, branch_atoms, u, first)
             if result is None:
                 return None
             v, path = result
-            sides = edges.setdefault(frozenset((u, v)), {})
-            if u in sides:
-                return None
-            sides[u] = path
-    if len(edges) != 6:
+            half_walks.append((u, v, path))
+    if len(half_walks) != 12:
         return None
-    for sides in edges.values():
-        if len(sides) != 2:
+
+    bridges = []
+    used = [False] * len(half_walks)
+    for i, (u, v, path) in enumerate(half_walks):
+        if used[i]:
+            continue
+        reversed_path = list(reversed(path))
+        match = None
+        for j in range(i + 1, len(half_walks)):
+            if used[j]:
+                continue
+            u2, v2, path2 = half_walks[j]
+            if u2 == v and v2 == u and path2 == reversed_path:
+                match = j
+                break
+        if match is None:
             return None
-        (u, path_u), (v, path_v) = sides.items()
-        if path_u != list(reversed(path_v)):
-            return None
+        used[i] = used[match] = True
+        bridges.append((u, v, path))
+    if len(bridges) != 6:
+        return None
 
-    return branch_atoms, edges
+    return branch_atoms, bridges
 
 
-def _bridge_from(edges, u, v):
-    return edges[frozenset((u, v))][u]
+def _adjacency_by_atom(branch_atoms, bridges):
+    """{atom: [(bridge_index, other_atom, path_from_atom_to_other), ...]}."""
+    adj = {atom: [] for atom in branch_atoms}
+    for idx, (u, v, path) in enumerate(bridges):
+        adj[u].append((idx, v, path))
+        adj[v].append((idx, u, list(reversed(path))))
+    return adj
+
+
+def _composite_bridges(adj, start, end, others):
+    """Yield (bridge_indices_used, atom_path) for every simple walk from
+    `start` to `end` that uses zero, one, or both of `others` as
+    intermediate branch atoms, each hop a real bridge with no bridge index
+    reused. `atom_path` is the full ordered list of atoms strictly between
+    `start` and `end`, including any intermediate branch atom(s) -- so when
+    a composite is later used as a main-system bridge, its intermediate
+    branch atom(s) fall naturally into the resulting numbering."""
+    o1, o2 = others
+    for idx, v, path in adj[start]:
+        if v == end:
+            yield (idx,), path
+    for mid in (o1, o2):
+        for idx1, v1, path1 in adj[start]:
+            if v1 != mid:
+                continue
+            for idx2, v2, path2 in adj[mid]:
+                if v2 != end or idx2 == idx1:
+                    continue
+                yield (idx1, idx2), path1 + [mid] + path2
+    for mid1, mid2 in ((o1, o2), (o2, o1)):
+        for idx1, v1, path1 in adj[start]:
+            if v1 != mid1:
+                continue
+            for idx2, v2, path2 in adj[mid1]:
+                if v2 != mid2 or idx2 == idx1:
+                    continue
+                for idx3, v3, path3 in adj[mid2]:
+                    if v3 != end or idx3 in (idx1, idx2):
+                        continue
+                    yield (
+                        (idx1, idx2, idx3),
+                        path1 + [mid1] + path2 + [mid2] + path3,
+                    )
 
 
 def _candidate_key(parent, substituents):
@@ -189,51 +266,67 @@ def name_tricycloalkane(mol, core) -> str:
             "P-31.1.4, unsaturated von Baeyer ring systems)"
         )
 
-    branch_atoms, edges = core
+    branch_atoms, bridges = core
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
+    adj = _adjacency_by_atom(branch_atoms, bridges)
 
     best_key = None
     best_name = None
     for bh1, bh2 in combinations(branch_atoms, 2):
-        sec1, sec2 = (a for a in branch_atoms if a not in (bh1, bh2))
-        bridge_direct = _bridge_from(edges, bh1, bh2)
-        bridge_via_sec1 = _bridge_from(edges, bh1, sec1) + [sec1] + _bridge_from(edges, sec1, bh2)
-        bridge_via_sec2 = _bridge_from(edges, bh1, sec2) + [sec2] + _bridge_from(edges, sec2, bh2)
-        bridges = [bridge_direct, bridge_via_sec1, bridge_via_sec2]
-
-        a, b, c = sorted((len(bridge) for bridge in bridges), reverse=True)
-        d = len(_bridge_from(edges, sec1, sec2))
-        total_atoms = a + b + c + d + 2
-        # P-23.2.1 (max main ring) > P-23.2.4 (max main bridge) >
-        # P-23.2.6.2.1 (main ring divided as symmetrically as possible).
-        outer_key = (-(a + b), -c, a - b)
-
-        for start, other, oriented_bridges in (
-            (bh1, bh2, bridges),
-            (bh2, bh1, [list(reversed(bridge)) for bridge in bridges]),
-        ):
-            for perm in permutations(range(3)):
-                ordered = [oriented_bridges[i] for i in perm]
-                if not (len(ordered[0]) >= len(ordered[1]) >= len(ordered[2])):
+        others = tuple(a for a in branch_atoms if a not in (bh1, bh2))
+        for start, other in ((bh1, bh2), (bh2, bh1)):
+            composites = list(_composite_bridges(adj, start, other, others))
+            for i, j, k in combinations(range(len(composites)), 3):
+                idxs = [composites[i][0], composites[j][0], composites[k][0]]
+                paths = [composites[i][1], composites[j][1], composites[k][1]]
+                used_idxs = set(idxs[0]) | set(idxs[1]) | set(idxs[2])
+                if len(used_idxs) != len(idxs[0]) + len(idxs[1]) + len(idxs[2]):
                     continue
-                main_ring_first, main_ring_second, main_bridge = ordered
-                main_order = (
-                    [start] + main_ring_first + [other] + list(reversed(main_ring_second)) + main_bridge
-                )
-                position = {atom: i + 1 for i, atom in enumerate(main_order)}
-                x, y = position[sec1], position[sec2]
-                lo, hi = min(x, y), max(x, y)
-                hi_atom, lo_atom = (sec1, sec2) if x > y else (sec2, sec1)
-                secondary_path = _bridge_from(edges, hi_atom, lo_atom)
-                full_order = main_order + secondary_path
+                remaining = set(range(len(bridges))) - used_idxs
+                if len(remaining) != 1:
+                    continue
+                sec_idx = next(iter(remaining))
+                sec_u, sec_v, sec_path_uv = bridges[sec_idx]
 
-                substituents = _substituents_for_ring(graph, full_order, halogens)
-                parent = f"tricyclo[{a}.{b}.{c}.{d}^{lo},{hi}]{alkane_name(total_atoms)}"
-                # P-23.2.6.2.4/.2.5 (lowest secondary-bridge locants) then
-                # P-14.4/P-45.2 (lowest substituent locants).
-                key = outer_key + ((lo, hi),) + _candidate_key(parent, substituents)
-                if best_key is None or key < best_key:
-                    best_key, best_name = key, key[-1]
+                a, b, c = sorted((len(p) for p in paths), reverse=True)
+                # P-23.2.1 (max main ring) > P-23.2.4 (max main bridge) >
+                # P-23.2.6.2.1 (main ring divided as symmetrically as possible).
+                outer_key = (-(a + b), -c, a - b)
 
+                for perm in permutations(paths):
+                    if not (len(perm[0]) >= len(perm[1]) >= len(perm[2])):
+                        continue
+                    main_ring_first, main_ring_second, main_bridge = perm
+                    main_order = (
+                        [start] + main_ring_first + [other]
+                        + list(reversed(main_ring_second)) + main_bridge
+                    )
+                    position = {atom: idx + 1 for idx, atom in enumerate(main_order)}
+                    if sec_u not in position or sec_v not in position:
+                        continue
+                    x, y = position[sec_u], position[sec_v]
+                    lo, hi = min(x, y), max(x, y)
+                    hi_atom = sec_u if x > y else sec_v
+                    secondary_path = (
+                        sec_path_uv if sec_u == hi_atom else list(reversed(sec_path_uv))
+                    )
+                    full_order = main_order + secondary_path
+
+                    substituents = _substituents_for_ring(graph, full_order, halogens)
+                    d = len(sec_path_uv)
+                    total_atoms = a + b + c + d + 2
+                    parent = f"tricyclo[{a}.{b}.{c}.{d}^{lo},{hi}]{alkane_name(total_atoms)}"
+                    # P-23.2.6.2.4/.2.5 (lowest secondary-bridge locants) then
+                    # P-14.4/P-45.2 (lowest substituent locants).
+                    key = outer_key + ((lo, hi),) + _candidate_key(parent, substituents)
+                    if best_key is None or key < best_key:
+                        best_key, best_name = key, key[-1]
+
+    if best_name is None:
+        raise UnsupportedStructure(
+            "this tricyclic topology is not supported yet (see "
+            "_tricyclic.py's module docstring for the scope this module "
+            "covers)"
+        )
     return best_name
