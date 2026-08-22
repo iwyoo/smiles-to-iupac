@@ -30,9 +30,9 @@ def test_smiles_to_iupac(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        "c1ccccc1",
-        # Any unsaturation now names via name_acyclic_unsaturated instead
-        # (see test_unsaturated.py), so it's no longer out of scope here.
+        # Aromatic rings now name via name_aromatic_fused instead (see
+        # test_aromatic.py: "c1ccccc1" -> "benzene"), so it's no longer out
+        # of scope here.
         "CCO",
     ],
 )
