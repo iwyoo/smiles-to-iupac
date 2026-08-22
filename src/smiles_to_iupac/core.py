@@ -5,7 +5,12 @@ from ._bicyclic import find_bicyclic_core, name_bicycloalkane
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._spiro import find_monospiro_atom, name_monospiro
-from ._tricyclic import find_tricyclic_core, name_tricycloalkane
+from ._tricyclic import (
+    find_propellane_core,
+    find_tricyclic_core,
+    name_propellane,
+    name_tricycloalkane,
+)
 from ._unsaturated import name_acyclic_unsaturated
 
 
@@ -40,6 +45,9 @@ def smiles_to_iupac(smiles: str) -> str:
     tricyclic_core = find_tricyclic_core(mol)
     if tricyclic_core is not None:
         return name_tricycloalkane(mol, tricyclic_core)
+    propellane_core = find_propellane_core(mol)
+    if propellane_core is not None:
+        return name_propellane(mol, propellane_core)
     raise UnsupportedStructure(
         "polycyclic ring systems are not supported yet (see P-23/P-24/P-25)"
     )

@@ -89,10 +89,31 @@ def test_tetracyclic_raises():
         smiles_to_iupac("C1C2CC3CC1C1C(C2)C31")
 
 
-def test_propellane_like_degree_four_raises():
-    # [1.1.1]propellane: only two branch atoms, both of degree 4 (directly
-    # bonded to each other in addition to the three one-carbon bridges), not
-    # four branch atoms of degree 3 -- collapses to two branch points instead
-    # of four, still out of scope (see _tricyclic.py's module docstring).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1C23CC12C3")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # [1.1.1]propellane: two branch atoms, both of degree 4, directly
+        # bonded to each other in addition to three one-carbon bridges. The
+        # direct bond is the independent secondary bridge (P-23.2.5.1),
+        # length 0, attached at the two main bridgeheads themselves (1 and
+        # 3, since each of the two main-ring bridges contributes one atom:
+        # 1 -> 2 -> 3). Verified against Wikipedia ("1,1,1-Propellane"),
+        # ChemSpider (CID 125285), and the ACS "Molecule of the Week"
+        # writeup, all of which give tricyclo[1.1.1.0^1,3]pentane; also
+        # cross-checked C5H6 via RDKit's computed molecular formula.
+        ("C1C23CC12C3", "tricyclo[1.1.1.0^1,3]pentane"),
+        # [2.2.2]propellane: same topology with three two-carbon bridges
+        # instead of one-carbon ones, so the main bridgeheads land at 1 and
+        # 4 instead of 1 and 3. This SMILES was built from scratch with
+        # RDKit's RWMol (two bridgehead atoms bonded directly, plus three
+        # explicit two-atom C-C bridges between them) rather than copied
+        # from a database, then confirmed to reduce to that exact
+        # propellane branch-atom graph. Verified against Wikipedia
+        # ("2,2,2-Propellane") and Wikidata (Q4596979), which give
+        # tricyclo[2.2.2.0^1,4]octane; also cross-checked C8H12 via RDKit's
+        # computed molecular formula.
+        ("C1CC23CCC12CC3", "tricyclo[2.2.2.0^1,4]octane"),
+    ],
+)
+def test_smiles_to_iupac_propellane(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
