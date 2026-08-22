@@ -53,11 +53,51 @@ def test_smiles_to_iupac_unsaturated(smiles, expected):
 
 
 @pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # P-31.1.1.2: multiplying prefix + comma-separated locants before
+        # the (elided) suffix.
+        ("C=CC=C", "buta-1,3-diene"),
+        ("C=CCC=C", "penta-1,4-diene"),
+        ("C=CC=CC", "penta-1,3-diene"),
+        ("C#CC#C", "buta-1,3-diyne"),
+        # Cross-checked against the Blue Book's own P-31.1.1.2 example,
+        # 'nona-1,3,5,7-tetraene (PIN)'.
+        ("C=CC=CC=CC=CC", "nona-1,3,5,7-tetraene"),
+        ("C=CC=CC=C", "hexa-1,3,5-triene"),
+        # P-31.1.1.1 / P-31.1.2.2.1: a double bond and a triple bond combine
+        # into a single 'en...yne' suffix, eliding 'ene' to 'en' before the
+        # unprefixed 'yne'.
+        ("C=CC#C", "but-1-en-3-yne"),
+        # 2-methylbuta-1,3-diene (isoprene): cross-checked against the Blue
+        # Book's own P-31.1.2.1 note that this is the PIN for isoprene.
+        ("C=C(C)C=C", "2-methylbuta-1,3-diene"),
+        # A branched ("compound") substituent (P-29.4) together with two
+        # double bonds: CCCC(C(C)C)CC=C ('hept-1-ene' single-bond case
+        # above) extended with a second double bond at the chain's other
+        # end. The 7-carbon chain is still the unique longest chain (the
+        # isopropyl-like branch's own arm is too short to compete either
+        # way), and it is symmetric enough that both numbering directions
+        # tie on the double-bond locant set {1,6} and on the branch's own
+        # locant (4), giving one unambiguous name.
+        ("C=CCC(C(C)C)CC=C", "4-(1-methylethyl)hepta-1,6-diene"),
+        # P-14.4(e)(ii) / P-31.1.1.1 / P-44.4.1.10.1: lowest locants go to
+        # the full set of multiple bonds first ({2,4} either numbering
+        # direction gives the same set), then to the double bond
+        # specifically when a choice remains. Numbering left-to-right gives
+        # the double bond locant 2 (and the triple bond locant 4); the
+        # reverse direction would tie on the set {2,4} but swap them, giving
+        # the double bond locant 4 instead - left-to-right wins.
+        ("CC=CC#CC", "hex-2-en-4-yne"),
+    ],
+)
+def test_smiles_to_iupac_multiply_unsaturated(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles",
     [
-        "C=CC=C",  # buta-1,3-diene: two double bonds, out of scope.
-        "C=CC#C",  # a double bond and a triple bond together, out of scope.
-        "C#CC#C",  # two triple bonds, out of scope.
         "C1=CCCCC1",  # cyclohexene: unsaturation in a ring, out of scope.
     ],
 )
@@ -73,3 +113,13 @@ def test_unsaturated_branch_not_on_principal_chain_raises():
     # (P-29.2/P-32.1), which is out of scope for this module.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CCCCCC(C=C)CCCCCC")
+
+
+def test_unsaturated_not_all_multiple_bonds_on_one_chain_raises():
+    # Same short branch as above, but the main chain now also carries its
+    # own double bond. That bond alone would be fine, but the branch's
+    # double bond still can't be expressed without an alkenyl substituent
+    # prefix, so the whole molecule stays out of scope (P-44.4.1.1: only a
+    # chain carrying *every* multiple bond is eligible as principal chain).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=CCCCC(C=C)CCCCCC")
