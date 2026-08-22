@@ -20,11 +20,14 @@ def test_smiles_to_iupac_cyclic(smiles, expected):
 
 
 def test_polycyclic_raises():
-    # a tetracyclic ring system (cyclomatic number 4, six branch atoms): out
-    # of scope for both bicyclic and tricyclic support (see _bicyclic.py,
-    # _tricyclic.py, test_tricyclic.py).
+    # cubane: a pentacyclic ring system (cyclomatic number 5, eight branch
+    # atoms of degree 3): out of scope for bicyclic, tricyclic, and
+    # tetracyclic support alike (see _bicyclic.py, _tricyclic.py,
+    # _tetracyclic.py). (Previously this test used a tetracyclic SMILES, but
+    # that topology is now correctly supported by _tetracyclic.py -- see
+    # tests/test_tetracyclic.py.)
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1C2CC3CC1C1C(C2)C31")
+        smiles_to_iupac("C12C3C4C1C1C2C3C41")
 
 
 def test_ring_compound_substituent():

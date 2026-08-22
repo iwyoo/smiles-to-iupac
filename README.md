@@ -17,7 +17,10 @@ of degree 3, forming a main ring plus a main bridge plus one independent
 secondary bridge, P-23.2.5 — including both the "K4" case (adamantane,
 twistane) and the "doubled main bridgeheads/secondary bridgeheads" case
 (the Blue Book's own tricyclo[4.2.2.2²,⁵]dodecane worked example, and
-ortho-fused ring chains like perhydroanthracene)), plus acyclic hydrocarbons
+ortho-fused ring chains like perhydroanthracene)), a subset of saturated
+tetracyclic hydrocarbons (von Baeyer systems with exactly six skeletal
+atoms of degree 3, forming a main bicyclic system plus two independent
+secondary bridges, P-23.2.6, e.g. quadricyclane), plus acyclic hydrocarbons
 with one or more carbon-carbon double and/or triple bonds on the principal
 chain (alkenes, alkynes, dienes/trienes, diynes/triynes, and mixed enynes),
 including branched ("compound") substituent groups (P-29.4), e.g.
@@ -38,12 +41,16 @@ are supported on any of the above parent hydrides, e.g. `CCCF` →
 plus propellane-type tricyclics — two skeletal branch atoms of degree 4,
 directly bonded to each other, joined by three further bridges, with that
 direct bond treated as a zero-length independent secondary bridge — e.g.
-`C1C23CC12C3` ([1.1.1]propellane) → `tricyclo[1.1.1.0^1,3]pentane`.
-Other tricyclic topologies, tetracyclic-and-higher/polyspiro ring systems,
-unsaturated rings, a multiple bond that isn't on any candidate principal
-chain, heteroatoms other than the four halogens above, and cyclic
-substituent groups raise `NotImplementedError` and are future work. See
-[REFERENCES.md](REFERENCES.md) for the source of the rules applied.
+`C1C23CC12C3` ([1.1.1]propellane) → `tricyclo[1.1.1.0^1,3]pentane`, and
+`C1C2C3C2C4C1C34` (quadricyclane) → `tetracyclo[3.2.0.0^2,7.0^4,6]heptane`.
+Other tricyclic topologies, other tetracyclic topologies (any branch atom
+of degree 4, or fewer/more than six skeletal atoms of degree 3),
+pentacyclic-and-higher/polyspiro ring systems, unsaturated rings, a
+multiple bond that isn't on
+any candidate principal chain, heteroatoms other than the four halogens
+above, and cyclic substituent groups raise `NotImplementedError` and are
+future work. See [REFERENCES.md](REFERENCES.md) for the source of the
+rules applied.
 
 ## Installation
 
