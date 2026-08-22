@@ -20,10 +20,11 @@ def test_smiles_to_iupac_cyclic(smiles, expected):
 
 
 def test_polycyclic_raises():
-    # adamantane: tricyclic, more than one ring and out of scope even after
-    # bicyclic support (see _bicyclic.py, test_bicyclic.py).
+    # a tetracyclic ring system (cyclomatic number 4, six branch atoms): out
+    # of scope for both bicyclic and tricyclic support (see _bicyclic.py,
+    # _tricyclic.py, test_tricyclic.py).
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1C2CC3CC1CC(C2)C3")
+        smiles_to_iupac("C1C2CC3CC1C1C(C2)C31")
 
 
 def test_ring_compound_substituent():
