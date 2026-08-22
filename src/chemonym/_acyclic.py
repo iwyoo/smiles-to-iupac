@@ -101,6 +101,11 @@ def _candidate_key(chain_length, substituents):
 
 def name_acyclic_alkane(mol) -> str:
     validate_atoms_and_bonds(mol)
+    if any(bond.GetBondTypeAsDouble() != 1.0 for bond in mol.GetBonds()):
+        raise UnsupportedStructure(
+            "unsaturation is not supported by this module (see "
+            "chemonym._unsaturated for alkenes/alkynes)"
+        )
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(
             "rings are not supported by this module (see chemonym._cyclic)"

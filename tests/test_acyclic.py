@@ -27,7 +27,16 @@ def test_smiles_to_iupac(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize("smiles", ["c1ccccc1", "C=C", "C#C", "CCO"])
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        "c1ccccc1",
+        # C=C and C#C now name as ethene/acetylene (see test_unsaturated.py);
+        # two multiple bonds together remain out of scope here.
+        "C=CC=C",
+        "CCO",
+    ],
+)
 def test_out_of_scope_structures_raise(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)

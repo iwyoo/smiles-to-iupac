@@ -97,6 +97,11 @@ def _candidate_key(ring_size, substituents):
 
 def name_cycloalkane(mol) -> str:
     validate_atoms_and_bonds(mol)
+    if any(bond.GetBondTypeAsDouble() != 1.0 for bond in mol.GetBonds()):
+        raise UnsupportedStructure(
+            "unsaturated rings are not supported yet (see P-31.1.3, "
+            "cycloalkenes and cycloalkynes)"
+        )
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() != 1:
         raise UnsupportedStructure(

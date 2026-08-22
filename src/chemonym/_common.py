@@ -12,8 +12,10 @@ class UnsupportedStructure(NotImplementedError):
 
 def validate_atoms_and_bonds(mol):
     """Structure-independent checks shared by every parent hydride kind: an
-    all-carbon, all-single-bond, single-fragment skeleton. Ring shape (none,
-    one simple ring, or more) is checked separately by each naming module."""
+    all-carbon, single-fragment skeleton. Bond order (all single, or exactly one
+    double/triple bond) and ring shape (none, one simple ring, or more) are
+    checked separately by each naming module, since what's allowed there
+    differs (see `_acyclic.py`, `_cyclic.py`, `_unsaturated.py`)."""
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() != 6:
             raise UnsupportedStructure(
@@ -22,15 +24,21 @@ def validate_atoms_and_bonds(mol):
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-    for bond in mol.GetBonds():
-        if bond.GetBondTypeAsDouble() != 1.0:
-            raise UnsupportedStructure(
-                "unsaturation is not supported yet (see P-31.1, alkenes and alkynes)"
-            )
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure(
             "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
         )
+
+
+def non_single_bonds(mol):
+    """List of (begin_atom_idx, end_atom_idx, bond_order) for every bond whose
+    order isn't 1.0 (single). Used to classify a molecule's degree of
+    unsaturation for dispatch (see `core.py`)."""
+    return [
+        (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), bond.GetBondTypeAsDouble())
+        for bond in mol.GetBonds()
+        if bond.GetBondTypeAsDouble() != 1.0
+    ]
 
 
 def adjacency(mol):
