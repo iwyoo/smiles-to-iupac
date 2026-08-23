@@ -81,6 +81,22 @@ def test_ether_raises():
         smiles_to_iupac("CCOCC")
 
 
-def test_alcohol_hetero_mix_raises():
+def test_alcohol_hetero_mix_names_hydroxy_prefix():
+    # 'one' outranks 'ol' in Table 3.3, so a coexisting -OH is cited as the
+    # 'hydroxy' substituent prefix rather than rejected.
+    assert smiles_to_iupac("OCC(=O)C") == "1-hydroxypropan-2-one"
+
+
+def test_ketone_alcohol_mix_on_longer_chain():
+    assert smiles_to_iupac("CC(=O)CCO") == "4-hydroxybutan-2-one"
+
+
+def test_cyclic_ketone_alcohol_mix_names_hydroxy_prefix():
+    assert smiles_to_iupac("OC1CCC(=O)CC1") == "4-hydroxycyclohexan-1-one"
+
+
+def test_ketone_enol_mix_raises():
+    # A hydroxyl on a C=C carbon (an enol) is a tautomer of a more senior
+    # carbonyl form and out of scope, same as `_alcohol.py`'s own enol check.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC(=O)C")
+        smiles_to_iupac("OC=CC(=O)C")

@@ -7,10 +7,12 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   https://iupac.qmul.ac.uk/BlueBook/PDF/P3.pdf): 'oic acid' is the
   preselected suffix for -COOH, ranked senior to every other suffix this
   project handles (ester, amide, nitrile, aldehyde, ketone, alcohol, amine).
-  Since it outranks all of them, this module never has to resolve a
-  seniority competition between suffix kinds the way `_ketone.py` does
-  against aldehyde-shaped carbonyls: any other heteroatom, or any oxygen not
-  part of a full -COOH pattern, is simply rejected.
+  Since it outranks all of them, a coexisting carbonyl (aldehyde/ketone-
+  shaped) is still rejected as an unresolved competition; but a coexisting
+  standalone hydroxyl (-OH), being junior to '-oic acid', is cited as the
+  'hydroxy' substituent prefix instead (P-41), e.g. 'OC(=O)CCO' ->
+  '3-hydroxypropanoic acid'. Any other heteroatom, or any oxygen not part of
+  a full -COOH pattern or a standalone hydroxyl, is simply rejected.
 - P-65.1.1.2: a -COOH substituent on a ring is named with the separate
   'carboxylic acid' suffix (ring name + 'carboxylic acid'), a different
   construction from the chain-terminal 'oic acid' suffix this module
@@ -45,12 +47,16 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any ring anywhere in the molecule (P-65.1.1.2's territory; acyclic only,
   per this module's scope).
-- Any oxygen that isn't part of a full -COOH pattern on some carbon (a
-  lone carbonyl indicates an aldehyde/ketone; a lone hydroxyl indicates an
-  alcohol; an ether or any other oxygen shape).
+- Any oxygen that isn't part of a full -COOH pattern on some carbon, or a
+  standalone hydroxyl on a carbon with no carbonyl (a lone carbonyl with no
+  matching hydroxyl indicates an unresolved aldehyde/ketone competition; an
+  ether or any other oxygen shape).
 - A -COOH carbon with more than one carbon neighbor (impossible for a
   genuine carboxyl carbon, since its remaining two bonds are already the
   carbonyl and hydroxyl oxygens; guarded defensively).
+- A standalone hydroxyl on a carbon that is also part of a C=C/C#C bond (an
+  enol, tautomeric with a more senior carbonyl form) — same restriction as
+  `_alcohol.py`'s own enol check.
 - Any other heteroatom (N, S, ...).
 """
 
@@ -105,9 +111,13 @@ def has_carboxylic_acid_shape(mol) -> bool:
 
 def _validate_and_collect_carboxyls(mol):
     """Check the molecule fits this module's scope (see module docstring)
-    and return (carboxyl_carbons, carboxyl_oxygens): the set of -COOH
-    carbon atom indices, and the set of all their carbonyl/hydroxyl oxygen
-    atom indices (excluded from substituent detection)."""
+    and return (carboxyl_carbons, carboxyl_oxygens, extra_hydroxyls): the set
+    of -COOH carbon atom indices, the set of all their carbonyl/hydroxyl
+    oxygen atom indices (excluded from substituent detection), and the set of
+    any coexisting standalone alcohol hydroxyl-oxygen atom indices. A
+    standalone hydroxyl is junior to 'oic acid' in Table 3.3's suffix
+    seniority order, so it is cited as the 'hydroxy' substituent prefix
+    instead of competing for the suffix (P-41)."""
     has_carbon = False
     carbonyls_by_carbon = {}
     hydroxyls_by_carbon = {}
@@ -161,15 +171,23 @@ def _validate_and_collect_carboxyls(mol):
 
     carboxyl_carbons = set()
     carboxyl_oxygens = set()
+    extra_hydroxyls = set()
     for carbon_idx in set(carbonyls_by_carbon) | set(hydroxyls_by_carbon):
         carbonyls = carbonyls_by_carbon.get(carbon_idx, [])
         hydroxyls = hydroxyls_by_carbon.get(carbon_idx, [])
+        if not carbonyls and len(hydroxyls) == 1:
+            # A hydroxyl-only carbon is a standalone alcohol (-OH), junior to
+            # -COOH in Table 3.3 (see docstring) - cited as a 'hydroxy'
+            # prefix rather than rejected outright.
+            extra_hydroxyls.add(hydroxyls[0])
+            continue
         if len(carbonyls) != 1 or len(hydroxyls) != 1:
             raise UnsupportedStructure(
                 "an oxygen pattern that isn't exactly one carbonyl and one "
-                "hydroxyl oxygen on the same carbon is a more/less senior "
-                "characteristic group than a plain carboxylic acid (Table "
-                "3.3), which this module does not attempt to disambiguate"
+                "hydroxyl oxygen on the same carbon, or a standalone "
+                "hydroxyl, is a more/less senior characteristic group than a "
+                "plain carboxylic acid (Table 3.3), which this module does "
+                "not attempt to disambiguate"
             )
         carbon = mol.GetAtomWithIdx(carbon_idx)
         carbon_neighbors = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6]
@@ -189,7 +207,7 @@ def _validate_and_collect_carboxyls(mol):
         )
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    return carboxyl_carbons, carboxyl_oxygens
+    return carboxyl_carbons, carboxyl_oxygens, extra_hydroxyls
 
 
 def _multiplied_word(count, base):
@@ -333,9 +351,9 @@ def _substituents_for_chain(graph, chain, halogens, carboxyl_oxygens):
     return substituents
 
 
-def _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, bonds):
+def _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, hydroxyls, bonds):
     graph = adjacency(mol)
-    halogens = halogen_substituents(mol)
+    halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}}
     chains = _longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
     acid_count = len(carboxyl_carbons)
@@ -372,7 +390,7 @@ def _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, bonds
 
 
 def name_carboxylic_acid(mol) -> str:
-    carboxyl_carbons, carboxyl_oxygens = _validate_and_collect_carboxyls(mol)
+    carboxyl_carbons, carboxyl_oxygens, hydroxyls = _validate_and_collect_carboxyls(mol)
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(
             "a -COOH group on/in a ring uses the separate 'carboxylic acid' "
@@ -389,5 +407,15 @@ def name_carboxylic_acid(mol) -> str:
             "a bond order other than single, double, or triple is not "
             "supported (see P-31.1.1.1)"
         )
+    graph = adjacency(mol)
+    ene_yne_carbons = {a for a, b, _ in bonds} | {b for a, b, _ in bonds}
+    for o in hydroxyls:
+        (carbon,) = graph[o]
+        if carbon in ene_yne_carbons:
+            raise UnsupportedStructure(
+                "a hydroxyl on a carbon that is also part of a C=C/C#C bond "
+                "(an enol) is a tautomer of a more senior carbonyl form and "
+                "is out of scope for this module (P-31.1.4.2.4)"
+            )
 
-    return _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, bonds)
+    return _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, hydroxyls, bonds)

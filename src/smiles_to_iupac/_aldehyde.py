@@ -11,8 +11,10 @@ Book"):
   the same carbon) is rejected outright rather than silently named as if it
   were an aldehyde, and this module never attempts suffix-vs-suffix
   seniority competition against a coexisting senior group either (carboxylic
-  acid/ester/amide/nitrile) since only C, halogen, and aldehyde-shaped
-  oxygen atoms are accepted at all.
+  acid/ester/amide/nitrile) since only C, halogen, and aldehyde/hydroxyl
+  oxygen atoms are accepted at all. A coexisting hydroxyl (-OH), being junior
+  to 'al', is *not* rejected: it is cited as the 'hydroxy' substituent prefix
+  instead (P-41), e.g. 'OCC=O' -> '2-hydroxyethanal'.
 - Unlike -OH/=O, a -CHO carbon is always a chain terminus (it has exactly one
   carbon neighbor, being otherwise saturated by =O and one H), so it is
   never a genuine locant choice: whichever end of the principal chain bears
@@ -37,15 +39,18 @@ Book"):
   unchanged.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- Any oxygen that isn't a doubly-bonded, isolated aldehyde carbonyl oxygen
-  (ethers, any singly-bonded -OH-shaped oxygen indicating a coexisting
-  alcohol, and any oxygen bonded to more than one heavy atom).
+- Any oxygen that isn't a doubly-bonded, isolated aldehyde carbonyl oxygen or
+  a singly-bonded hydroxyl (ethers, and any oxygen bonded to more than one
+  heavy atom).
 - A carbonyl carbon with other than exactly one carbon neighbor: zero (a
   carbon-less carbonyl, e.g. formaldehyde) or two-or-more (a ketone) -
   neither is this module's territory.
 - An aromatic carbonyl carbon, or any aromatic ring elsewhere in the
   molecule - a separate module's territory.
 - Any other heteroatom (N, S, ...).
+- A hydroxyl on a carbon that is also part of a C=C/C#C bond (an enol,
+  tautomeric with a more senior carbonyl form) — same restriction as
+  `_alcohol.py`'s own enol check.
 - -CHO on a ring (the 'carbaldehyde' suffix, P-33.3.1.2, a substituent-style
   name rather than this module's parent-chain suffix) - deferred entirely;
   only an acyclic terminal -CHO is supported here.
@@ -74,8 +79,13 @@ _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
 
 def _validate_and_collect_aldehydes(mol):
     """Check the molecule fits this module's scope (see module docstring)
-    and return the set of aldehyde carbonyl-oxygen atom indices."""
+    and return (aldehydes, hydroxyls): the set of aldehyde carbonyl-oxygen
+    atom indices, and the set of any coexisting hydroxyl-oxygen atom indices.
+    A hydroxyl is junior to 'al' in Table 3.3's suffix seniority order, so it
+    is cited as the 'hydroxy' substituent prefix instead of competing for the
+    suffix (P-41)."""
     aldehydes = set()
+    hydroxyls = set()
     has_carbon = False
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
@@ -98,19 +108,25 @@ def _validate_and_collect_aldehydes(mol):
                 raise UnsupportedStructure(
                     "an oxygen bonded to more than one heavy atom (e.g. an "
                     "ether) is out of scope; only an isolated aldehyde "
-                    "carbonyl is supported (Table 3.3, P-33.3)"
+                    "carbonyl or hydroxyl is supported (Table 3.3, P-33.3)"
                 )
             (bond,) = atom.GetBonds()
-            if bond.GetBondTypeAsDouble() != 2.0:
-                raise UnsupportedStructure(
-                    "a singly-bonded oxygen indicates a coexisting alcohol "
-                    "(-OH) rather than a plain aldehyde, which this module "
-                    "does not attempt to disambiguate (Table 3.3's suffix "
-                    "seniority order, P-33.3)"
-                )
             (carbon,) = atom.GetNeighbors()
             if carbon.GetAtomicNum() != 6:
-                raise UnsupportedStructure("an aldehyde carbonyl must be attached to a carbon atom")
+                raise UnsupportedStructure("an aldehyde/hydroxyl oxygen must be attached to a carbon atom")
+            if bond.GetBondTypeAsDouble() == 1.0:
+                if atom.GetTotalNumHs() != 1:
+                    raise UnsupportedStructure(
+                        "an oxygen that isn't a carbonyl (=O) or hydroxyl "
+                        "(-OH) is out of scope for this module"
+                    )
+                hydroxyls.add(atom.GetIdx())
+                continue
+            if bond.GetBondTypeAsDouble() != 2.0:
+                raise UnsupportedStructure(
+                    "an oxygen that isn't a carbonyl (=O) or hydroxyl (-OH) "
+                    "is out of scope for this module"
+                )
             if carbon.GetIsAromatic():
                 raise UnsupportedStructure(
                     "a carbonyl on an aromatic ring is out of scope for this "
@@ -139,7 +155,7 @@ def _validate_and_collect_aldehydes(mol):
         raise UnsupportedStructure("no aldehyde (-CHO) group found; this module only handles aldehydes")
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    return aldehydes
+    return aldehydes, hydroxyls
 
 
 def _multiplied_word(count, base):
@@ -293,9 +309,9 @@ def _substituents_for_chain(graph, chain, halogens, aldehydes):
     return substituents
 
 
-def _name_acyclic_aldehyde(mol, aldehydes, bonds):
+def _name_acyclic_aldehyde(mol, aldehydes, hydroxyls, bonds):
     graph = adjacency(mol)
-    halogens = halogen_substituents(mol)
+    halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}}
     chains = _longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
 
@@ -329,7 +345,7 @@ def _name_acyclic_aldehyde(mol, aldehydes, bonds):
 
 
 def name_aldehyde(mol) -> str:
-    aldehydes = _validate_and_collect_aldehydes(mol)
+    aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol)
     graph = adjacency(mol)
     # Exclude each C=O carbonyl bond itself: `non_single_bonds` reports it as
     # order 2.0 same as a C=C, but it isn't a chain 'ene' bond (one endpoint
@@ -341,6 +357,15 @@ def name_aldehyde(mol) -> str:
             "a bond order other than single, double, or triple is not "
             "supported (see P-31.1.1.1)"
         )
+    ene_yne_carbons = {a for a, b, _ in bonds} | {b for a, b, _ in bonds}
+    for o in hydroxyls:
+        (carbon,) = graph[o]
+        if carbon in ene_yne_carbons:
+            raise UnsupportedStructure(
+                "a hydroxyl on a carbon that is also part of a C=C/C#C bond "
+                "(an enol) is a tautomer of a more senior carbonyl form and "
+                "is out of scope for this module (P-31.1.4.2.4)"
+            )
 
     if mol.GetRingInfo().NumRings() != 0:
         raise UnsupportedStructure(
@@ -348,4 +373,4 @@ def name_aldehyde(mol) -> str:
             "is out of scope for this module; only an acyclic terminal "
             "-CHO is supported"
         )
-    return _name_acyclic_aldehyde(mol, aldehydes, bonds)
+    return _name_acyclic_aldehyde(mol, aldehydes, hydroxyls, bonds)
