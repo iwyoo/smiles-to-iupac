@@ -93,9 +93,11 @@ def test_enol_raises():
         smiles_to_iupac("OC=CC")
 
 
-def test_amine_raises():
-    # A non-halogen, non-oxygen heteroatom (N) is rejected outright; this
-    # module never attempts suffix-vs-suffix seniority competition (Table
-    # 3.3) since only C/O(-OH)/halogen atoms are accepted at all.
+def test_amine_hetero_mix_raises():
+    # A structure with both -OH and a non-halogen heteroatom (N) is rejected
+    # outright by the alcohol module; this module never attempts
+    # suffix-vs-suffix seniority competition (Table 3.3) since only
+    # C/O(-OH)/halogen atoms are accepted at all. (A pure amine, no -OH, is
+    # dispatched to the separate amine module instead — see test_amine.py.)
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCN")
+        smiles_to_iupac("OCCN")

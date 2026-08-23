@@ -30,9 +30,11 @@ def test_smiles_to_iupac(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        # Alcohols now name via name_alcohol instead (see test_alcohol.py:
-        # "CCO" -> "ethanol"), so it's no longer out of scope here.
-        "CCN",
+        # Alcohols/amines now name via name_alcohol/name_amine instead (see
+        # test_alcohol.py: "CCO" -> "ethanol", test_amine.py: "CCN" ->
+        # "ethanamine"), so a plain primary amine is no longer out of scope
+        # here; a secondary amine still is.
+        "CCNCC",
     ],
 )
 def test_out_of_scope_structures_raise(smiles):

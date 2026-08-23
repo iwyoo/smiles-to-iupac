@@ -60,7 +60,10 @@ Alcohols (P-33.2, the '-ol' suffix) are also supported on acyclic and
 simple monocyclic saturated skeletons, and on acyclic skeletons with
 existing double/triple-bond support, e.g. `CCO` → `ethanol`, `CC(O)C` →
 `propan-2-ol`, `OCCO` → `ethane-1,2-diol`, `OC1CCCCC1` → `cyclohexanol`,
-and `OCCCC=C` → `pent-4-en-1-ol`.
+and `OCCCC=C` → `pent-4-en-1-ol`. Primary amines (P-33.1, the '-amine'
+suffix) are supported on the same scope of skeletons, e.g. `CCN` →
+`ethanamine`, `CC(N)C` → `propan-2-amine`, `NCCN` → `ethane-1,2-diamine`,
+`NC1CCCCC1` → `cyclohexanamine`, and `NCCCC=C` → `pent-4-en-1-amine`.
 
 Other tricyclic topologies, other tetracyclic topologies (any branch atom
 of degree 4, or fewer/more than six skeletal atoms of degree 3),
@@ -68,8 +71,9 @@ pentacyclic-and-higher ring systems, branched polyspiro ring systems
 (P-24.2.3, a spiro atom shared by three or more rings) and heterocyclic
 spiro ring systems (P-24.2.4), unsaturated non-aromatic rings, a multiple
 bond that isn't on any candidate principal chain, heteroatoms other than
-the four halogens and hydroxyl oxygen above, characteristic groups more
-senior than a plain alcohol (e.g. carboxylic acids, ketones, aldehydes),
+the four halogens, hydroxyl oxygen, and primary amine nitrogen above,
+secondary/tertiary amines, characteristic groups more senior than a plain
+alcohol or amine (e.g. carboxylic acids, ketones, aldehydes),
 cyclic substituent groups, peri-fused or branched aromatic ring systems
 (e.g. pyrene, triphenylene), heteroaromatic rings, and any other
 ortho-fused aromatic ring chain (angular chains of four or more rings,
