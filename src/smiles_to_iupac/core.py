@@ -9,6 +9,7 @@ from ._bicyclic import find_bicyclic_core, name_bicycloalkane
 from ._carboxylic_acid import has_carboxylic_acid_shape, name_carboxylic_acid
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
+from ._ether import has_ether_shape, name_ether
 from ._ketone import name_ketone
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._polyspiro import find_linear_polyspiro_chain, name_linear_polyspiro
@@ -28,6 +29,11 @@ def smiles_to_iupac(smiles: str) -> str:
         raise ValueError(f"invalid SMILES: {smiles!r}")
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
+        # A plain -O- ether (P-63.2.1) has no suffix, so it must be routed
+        # here before the carbonyl/alcohol checks below, none of which
+        # accept a degree-2 oxygen at all.
+        if has_ether_shape(mol):
+            return name_ether(mol)
         # A carbon bearing both a carbonyl and a hydroxyl oxygen is a -COOH
         # group (Table 3.3's most senior suffix here) and must be routed
         # before the aldehyde/ketone/alcohol checks below, which would

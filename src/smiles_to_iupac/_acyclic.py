@@ -112,6 +112,28 @@ def _candidate_key(chain_length, substituents):
     return (-total_count, locant_set, citation_locants, name), name
 
 
+def name_from_carbon_graph(full_graph, carbon_graph, terminals) -> str:
+    """Name the acyclic saturated skeleton given by `carbon_graph` (P-44.3
+    chain search), with `full_graph` used for substituent detection and
+    `terminals` ({atom_idx -> prefix name}) naming any leaf substituent
+    that's excluded from the chain search and never recursed into — the
+    same role `halogen_substituents` plays for halogens (P-35.2.1), reused
+    by `_ether.py` for an ether oxygen's precomputed 'alkoxy' prefix."""
+    chains = _longest_chains(carbon_graph)
+    chain_length = len(chains[0])
+
+    best_key = None
+    best_name = None
+    for chain in chains:
+        for candidate in (chain, list(reversed(chain))):
+            substituents = _substituents_for_chain(full_graph, candidate, terminals)
+            key, name = _candidate_key(chain_length, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, name
+
+    return best_name
+
+
 def name_acyclic_alkane(mol) -> str:
     validate_atoms_and_bonds(mol)
     if non_single_bonds(mol):
@@ -124,21 +146,4 @@ def name_acyclic_alkane(mol) -> str:
             "rings are not supported by this module (see smiles_to_iupac._cyclic)"
         )
 
-    if mol.GetNumAtoms() == 1:
-        return alkane_name(1)
-
-    graph = adjacency(mol)
-    halogens = halogen_substituents(mol)
-    chains = _longest_chains(carbon_adjacency(mol))
-    chain_length = len(chains[0])
-
-    best_key = None
-    best_name = None
-    for chain in chains:
-        for candidate in (chain, list(reversed(chain))):
-            substituents = _substituents_for_chain(graph, candidate, halogens)
-            key, name = _candidate_key(chain_length, substituents)
-            if best_key is None or key < best_key:
-                best_key, best_name = key, name
-
-    return best_name
+    return name_from_carbon_graph(adjacency(mol), carbon_adjacency(mol), halogen_substituents(mol))

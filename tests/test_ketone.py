@@ -77,8 +77,11 @@ def test_bicyclic_ketone_raises():
 
 
 def test_ether_raises():
+    # An ether coexisting with a ketone (as opposed to a plain ether on its
+    # own, now handled by the separate ether module) is still out of scope
+    # for this module.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCOCC")
+        smiles_to_iupac("CCOCC(=O)C")
 
 
 def test_alcohol_hetero_mix_raises():

@@ -76,7 +76,12 @@ and `C=CCCC=O` → `pent-4-enal`. Carboxylic acids (P-65.1.1, the '-oic
 acid' suffix) are supported on acyclic saturated or unsaturated carbon
 chains, e.g. `CC(=O)O` → `ethanoic acid`, `CC(C)CC(=O)O` →
 `3-methylbutanoic acid`, `OC(=O)CCCCC(=O)O` → `hexanedioic acid`, and
-`CC=CC(=O)O` → `but-2-enoic acid`.
+`CC=CC(=O)O` → `but-2-enoic acid`. Ethers (P-63.2.1, the 'oxy' substituent
+prefix — ethers have no suffix) are supported between two acyclic saturated
+chains, with the longer chain as the parent and the shorter as an 'oxy'
+prefix, e.g. `COC` → `methoxymethane`, `CCOCC` → `ethoxyethane`, `COCCC` →
+`1-methoxypropane`, and `CC(C)OCC` → `2-ethoxypropane`; a branched shorter
+side (e.g. `CC(C)OC(C)C`) is out of scope.
 
 Other tricyclic topologies, other tetracyclic topologies (any branch atom
 of degree 4, or fewer/more than six skeletal atoms of degree 3),
@@ -85,11 +90,13 @@ pentacyclic-and-higher ring systems, branched polyspiro ring systems
 spiro ring systems (P-24.2.4), unsaturated non-aromatic rings, a multiple
 bond that isn't on any candidate principal chain, heteroatoms other than
 the four halogens, hydroxyl oxygen, primary amine nitrogen, ketone carbonyl
-oxygen, aldehyde carbonyl oxygen, and carboxylic-acid oxygens above,
-secondary/tertiary amines, characteristic groups more senior than a plain
-alcohol/amine/ketone/aldehyde/carboxylic acid (e.g. esters, amides,
-nitriles), a ring-bound aldehyde (the 'carbaldehyde' suffix), a carboxylic
-acid on/in a ring, aryl ketones/aldehydes, cyclic substituent groups,
+oxygen, aldehyde carbonyl oxygen, carboxylic-acid oxygens, and a single
+plain ether oxygen above, secondary/tertiary amines, characteristic groups
+more senior than a plain alcohol/amine/ketone/aldehyde/carboxylic acid
+(e.g. esters, amides, nitriles), an ether coexisting with any other
+characteristic group, a branched ether substituent side, a ring-bound
+aldehyde (the 'carbaldehyde' suffix), a carboxylic acid on/in a ring, aryl
+ketones/aldehydes, cyclic substituent groups,
 peri-fused or branched aromatic ring systems
 (e.g. pyrene, triphenylene), heteroaromatic rings, and any other
 ortho-fused aromatic ring chain (angular chains of four or more rings,

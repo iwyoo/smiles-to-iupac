@@ -39,8 +39,11 @@ def test_carboxylic_acid_names(smiles, expected):
 
 
 def test_ether_raises():
+    # An ether coexisting with a carboxylic acid (as opposed to a plain
+    # ether on its own, now handled by the separate ether module) is still
+    # out of scope for this module.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCOCC")
+        smiles_to_iupac("CCOCC(=O)O")
 
 
 def test_ester_raises():
