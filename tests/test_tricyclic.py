@@ -82,16 +82,13 @@ def test_two_separate_rings_still_raises():
         smiles_to_iupac("C1CCCCC1C1CCCCC1")
 
 
-def test_pentacyclic_raises():
-    # cubane: a genuinely pentacyclic system (cyclomatic number 5, eight
-    # branch atoms of degree 3) -- still out of scope even after
-    # tetracyclic support (see tests/test_tetracyclic.py), so this remains
-    # unsupported polycyclic territory. (Previously this test used a
-    # tetracyclic SMILES, but that topology is now correctly supported by
-    # _tetracyclic.py, so it no longer demonstrates "out of scope" -- see
-    # _tetracyclic.py.)
+def test_hexacyclic_raises():
+    # pentagonal prism: a genuinely hexacyclic system (cyclomatic number 6,
+    # ten branch atoms of degree 3) -- still out of scope even after
+    # pentacyclic support (see tests/test_pentacyclic.py), so this remains
+    # unsupported polycyclic territory.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C12C3C4C1C1C2C3C41")
+        smiles_to_iupac("C12C3C4C1C1C2C2C3C4C12")
 
 
 @pytest.mark.parametrize(

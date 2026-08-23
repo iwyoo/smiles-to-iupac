@@ -7,15 +7,10 @@ from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
+from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._polyspiro import find_linear_polyspiro_chain, name_linear_polyspiro
 from ._spiro import find_monospiro_atom, name_monospiro
-from ._tetracyclic import find_tetracyclic_core, name_tetracycloalkane
-from ._tricyclic import (
-    find_propellane_core,
-    find_tricyclic_core,
-    name_propellane,
-    name_tricycloalkane,
-)
+from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
 
 
@@ -33,7 +28,7 @@ def smiles_to_iupac(smiles: str) -> str:
     # Aromatic rings carry non-single (order 1.5) bonds, which every other
     # ring module's non_single_bonds check rejects; an aromatic ring
     # system's carbon skeleton can also be graph-isomorphic to a *saturated*
-    # bicyclic/tricyclic/tetracyclic core (e.g. naphthalene <-> decahydro-
+    # bicyclic through pentacyclic core (e.g. naphthalene <-> decahydro-
     # naphthalene), so this check must run, and must succeed for any
     # in-scope aromatic shape, before num_rings==1 or any saturated
     # find_*_core below gets a chance to misdetect it and raise the wrong
@@ -67,15 +62,13 @@ def smiles_to_iupac(smiles: str) -> str:
     bicyclic_core = find_bicyclic_core(mol)
     if bicyclic_core is not None:
         return name_bicycloalkane(mol, bicyclic_core)
-    tricyclic_core = find_tricyclic_core(mol)
-    if tricyclic_core is not None:
-        return name_tricycloalkane(mol, tricyclic_core)
+    for ring_count in (3, 4, 5):
+        core = find_polycyclic_core(mol, ring_count)
+        if core is not None:
+            return name_polycycloalkane(mol, core, ring_count)
     propellane_core = find_propellane_core(mol)
     if propellane_core is not None:
         return name_propellane(mol, propellane_core)
-    tetracyclic_core = find_tetracyclic_core(mol)
-    if tetracyclic_core is not None:
-        return name_tetracycloalkane(mol, tetracyclic_core)
     raise UnsupportedStructure(
         "polycyclic ring systems are not supported yet (see P-23/P-24/P-25)"
     )

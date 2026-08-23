@@ -122,7 +122,7 @@ def find_aromatic_fused_core(mol):
     validation and raises specific `UnsupportedStructure` messages, mirroring
     every other module's find_*/name_* split in this project. This also
     matters for correctness: an aromatic ring system's carbon skeleton can be
-    graph-isomorphic to a *saturated* bicyclic/tricyclic/tetracyclic core
+    graph-isomorphic to a *saturated* bicyclic through pentacyclic core
     (e.g. naphthalene's skeleton matches decahydronaphthalene's), so this
     check must run, and must succeed for any valid aromatic ring shape,
     before those saturated modules get a chance to misdetect it and raise a
