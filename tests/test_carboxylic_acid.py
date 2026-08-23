@@ -66,3 +66,16 @@ def test_aryl_carboxylic_acid_raises():
 def test_amine_coexisting_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("NCC(=O)O")
+
+
+def test_alcohol_mix_names_hydroxy_prefix():
+    # '-oic acid' outranks 'ol' in Table 3.3, so a coexisting standalone -OH
+    # is cited as the 'hydroxy' substituent prefix rather than rejected.
+    assert smiles_to_iupac("OC(=O)CCO") == "3-hydroxypropanoic acid"
+
+
+def test_carboxylic_acid_enol_mix_raises():
+    # A hydroxyl on a C=C carbon (an enol) is a tautomer of a more senior
+    # carbonyl form and out of scope, same as `_alcohol.py`'s own enol check.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OC=CC(=O)O")

@@ -53,21 +53,19 @@ def test_carboxylic_acid_not_misread_as_alcohol():
     assert smiles_to_iupac("CC(=O)O") == "ethanoic acid"
 
 
-def test_ketone_hetero_mix_raises():
-    # A structure with both -OH and a ketone C=O is rejected outright; a
-    # plain ketone with no coexisting alcohol is dispatched to the separate
-    # ketone module instead (see test_ketone.py) and is now supported.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC(=O)C")
+def test_ketone_hetero_mix_dispatches_to_ketone_module():
+    # A structure with both -OH and a ketone C=O: 'one' outranks 'ol' in
+    # Table 3.3, so the ketone module (see test_ketone.py) names it with
+    # 'hydroxy' as a substituent prefix instead of this module's own suffix.
+    assert smiles_to_iupac("OCC(=O)C") == "1-hydroxypropan-2-one"
 
 
-def test_aldehyde_alcohol_mix_raises():
-    # A structure with both -OH and an aldehyde-shaped carbonyl is rejected
-    # outright; a plain aldehyde with no coexisting alcohol is dispatched to
-    # the separate aldehyde module instead (see test_aldehyde.py) and is now
-    # supported.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC=O")
+def test_aldehyde_alcohol_mix_dispatches_to_aldehyde_module():
+    # A structure with both -OH and an aldehyde-shaped carbonyl: 'al'
+    # outranks 'ol' in Table 3.3, so the aldehyde module (see
+    # test_aldehyde.py) names it with 'hydroxy' as a substituent prefix
+    # instead of this module's own suffix.
+    assert smiles_to_iupac("OCC=O") == "2-hydroxyethanal"
 
 
 def test_phenol_raises():

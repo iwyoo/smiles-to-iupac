@@ -56,9 +56,21 @@ def test_aryl_aldehyde_raises():
         smiles_to_iupac("O=Cc1ccccc1")
 
 
-def test_alcohol_aldehyde_mix_raises():
+def test_alcohol_aldehyde_mix_names_hydroxy_prefix():
+    # 'al' outranks 'ol' in Table 3.3, so a coexisting -OH is cited as the
+    # 'hydroxy' substituent prefix rather than rejected.
+    assert smiles_to_iupac("OCC=O") == "2-hydroxyethanal"
+
+
+def test_aldehyde_alcohol_mix_on_longer_chain():
+    assert smiles_to_iupac("OCCCC=O") == "4-hydroxybutanal"
+
+
+def test_aldehyde_enol_mix_raises():
+    # A hydroxyl on a C=C carbon (an enol) is a tautomer of a more senior
+    # carbonyl form and out of scope, same as `_alcohol.py`'s own enol check.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC=O")
+        smiles_to_iupac("OC=CC=O")
 
 
 def test_ring_aldehyde_raises():
