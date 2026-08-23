@@ -67,7 +67,12 @@ suffix) are supported on the same scope of skeletons, e.g. `CCN` →
 Ketones (P-33.4, the '-one' suffix) are supported on the same scope of
 skeletons, e.g. `CC(=O)C` → `propan-2-one`, `CCCC(=O)CC` → `hexan-3-one`,
 `CC(=O)CC(=O)C` → `pentane-2,4-dione`, `O=C1CCCCC1` → `cyclohexanone`, and
-`CC(=O)C=CC` → `pent-3-en-2-one`.
+`CC(=O)C=CC` → `pent-3-en-2-one`. Aldehydes (P-33.3, the '-al' suffix) are
+supported on acyclic skeletons only (a ring-bound -CHO uses the different
+'carbaldehyde' suffix pattern, out of scope) — since the -CHO carbon is
+always the chain terminus, its own locant is never cited, e.g. `CCC=O` →
+`propanal`, `CC(C)C=O` → `2-methylpropanal`, `O=CCCCC=O` → `pentanedial`,
+and `C=CCCC=O` → `pent-4-enal`.
 
 Other tricyclic topologies, other tetracyclic topologies (any branch atom
 of degree 4, or fewer/more than six skeletal atoms of degree 3),
@@ -75,10 +80,11 @@ pentacyclic-and-higher ring systems, branched polyspiro ring systems
 (P-24.2.3, a spiro atom shared by three or more rings) and heterocyclic
 spiro ring systems (P-24.2.4), unsaturated non-aromatic rings, a multiple
 bond that isn't on any candidate principal chain, heteroatoms other than
-the four halogens, hydroxyl oxygen, primary amine nitrogen, and ketone
-carbonyl oxygen above, secondary/tertiary amines, characteristic groups more
-senior than a plain alcohol/amine/ketone (e.g. carboxylic acids, esters,
-amides, nitriles, aldehydes), aryl ketones, cyclic substituent groups,
+the four halogens, hydroxyl oxygen, primary amine nitrogen, ketone carbonyl
+oxygen, and aldehyde carbonyl oxygen above, secondary/tertiary amines,
+characteristic groups more senior than a plain alcohol/amine/ketone/aldehyde
+(e.g. carboxylic acids, esters, amides, nitriles), a ring-bound aldehyde
+(the 'carbaldehyde' suffix), aryl ketones/aldehydes, cyclic substituent groups,
 peri-fused or branched aromatic ring systems
 (e.g. pyrene, triphenylene), heteroaromatic rings, and any other
 ortho-fused aromatic ring chain (angular chains of four or more rings,
