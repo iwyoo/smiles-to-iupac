@@ -5,10 +5,11 @@ from ._alcohol import name_alcohol
 from ._aldehyde import name_aldehyde
 from ._amine import name_amine
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
-from ._ketone import name_ketone
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
+from ._carboxylic_acid import has_carboxylic_acid_shape, name_carboxylic_acid
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
+from ._ketone import name_ketone
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._polyspiro import find_linear_polyspiro_chain, name_linear_polyspiro
 from ._spiro import find_monospiro_atom, name_monospiro
@@ -27,6 +28,12 @@ def smiles_to_iupac(smiles: str) -> str:
         raise ValueError(f"invalid SMILES: {smiles!r}")
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
+        # A carbon bearing both a carbonyl and a hydroxyl oxygen is a -COOH
+        # group (Table 3.3's most senior suffix here) and must be routed
+        # before the aldehyde/ketone/alcohol checks below, which would
+        # otherwise misread its carbonyl or hydroxyl half in isolation.
+        if has_carboxylic_acid_shape(mol):
+            return name_carboxylic_acid(mol)
         # A doubly-bonded, monovalent oxygen is carbonyl-shaped (aldehyde or
         # ketone, depending on how many carbon neighbors its carbon has);
         # anything else falls to the alcohol module, which itself rejects a

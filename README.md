@@ -72,7 +72,11 @@ supported on acyclic skeletons only (a ring-bound -CHO uses the different
 'carbaldehyde' suffix pattern, out of scope) — since the -CHO carbon is
 always the chain terminus, its own locant is never cited, e.g. `CCC=O` →
 `propanal`, `CC(C)C=O` → `2-methylpropanal`, `O=CCCCC=O` → `pentanedial`,
-and `C=CCCC=O` → `pent-4-enal`.
+and `C=CCCC=O` → `pent-4-enal`. Carboxylic acids (P-65.1.1, the '-oic
+acid' suffix) are supported on acyclic saturated or unsaturated carbon
+chains, e.g. `CC(=O)O` → `ethanoic acid`, `CC(C)CC(=O)O` →
+`3-methylbutanoic acid`, `OC(=O)CCCCC(=O)O` → `hexanedioic acid`, and
+`CC=CC(=O)O` → `but-2-enoic acid`.
 
 Other tricyclic topologies, other tetracyclic topologies (any branch atom
 of degree 4, or fewer/more than six skeletal atoms of degree 3),
@@ -81,10 +85,11 @@ pentacyclic-and-higher ring systems, branched polyspiro ring systems
 spiro ring systems (P-24.2.4), unsaturated non-aromatic rings, a multiple
 bond that isn't on any candidate principal chain, heteroatoms other than
 the four halogens, hydroxyl oxygen, primary amine nitrogen, ketone carbonyl
-oxygen, and aldehyde carbonyl oxygen above, secondary/tertiary amines,
-characteristic groups more senior than a plain alcohol/amine/ketone/aldehyde
-(e.g. carboxylic acids, esters, amides, nitriles), a ring-bound aldehyde
-(the 'carbaldehyde' suffix), aryl ketones/aldehydes, cyclic substituent groups,
+oxygen, aldehyde carbonyl oxygen, and carboxylic-acid oxygens above,
+secondary/tertiary amines, characteristic groups more senior than a plain
+alcohol/amine/ketone/aldehyde/carboxylic acid (e.g. esters, amides,
+nitriles), a ring-bound aldehyde (the 'carbaldehyde' suffix), a carboxylic
+acid on/in a ring, aryl ketones/aldehydes, cyclic substituent groups,
 peri-fused or branched aromatic ring systems
 (e.g. pyrene, triphenylene), heteroaromatic rings, and any other
 ortho-fused aromatic ring chain (angular chains of four or more rings,
