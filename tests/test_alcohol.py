@@ -52,11 +52,12 @@ def test_carboxylic_acid_raises():
         smiles_to_iupac("CC(=O)O")
 
 
-def test_ketone_raises():
-    # C=O not part of -COOH: a ketone is a more senior characteristic group
-    # (Table 3.3) than a plain alcohol.
+def test_ketone_hetero_mix_raises():
+    # A structure with both -OH and a ketone C=O is rejected outright; a
+    # plain ketone with no coexisting alcohol is dispatched to the separate
+    # ketone module instead (see test_ketone.py) and is now supported.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)C")
+        smiles_to_iupac("OCC(=O)C")
 
 
 def test_aldehyde_raises():
