@@ -3,6 +3,7 @@ from rdkit import Chem
 from ._acyclic import name_acyclic_alkane
 from ._alcohol import name_alcohol
 from ._aldehyde import name_aldehyde
+from ._amide import has_amide_shape, name_amide
 from ._amine import name_amine
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
@@ -40,6 +41,14 @@ def smiles_to_iupac(smiles: str) -> str:
         # otherwise misread its carbonyl or hydroxyl half in isolation.
         if has_carboxylic_acid_shape(mol):
             return name_carboxylic_acid(mol)
+        # A carbon bearing both a carbonyl oxygen and a primary-amide
+        # nitrogen (-CONH2) is an amide (junior only to the acid/ester
+        # suffixes above in Table 3.3) and must be routed before the
+        # aldehyde/ketone checks below: an amide carbon looks
+        # aldehyde-shaped to `_is_aldehyde_shaped` (it counts only carbon
+        # neighbors, ignoring the nitrogen).
+        if has_amide_shape(mol):
+            return name_amide(mol)
         # A doubly-bonded, monovalent oxygen is carbonyl-shaped (aldehyde or
         # ketone, depending on how many carbon neighbors its carbon has);
         # anything else falls to the alcohol module, which itself rejects a
