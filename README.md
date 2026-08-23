@@ -81,7 +81,13 @@ prefix — ethers have no suffix) are supported between two acyclic saturated
 chains, with the longer chain as the parent and the shorter as an 'oxy'
 prefix, e.g. `COC` → `methoxymethane`, `CCOCC` → `ethoxyethane`, `COCCC` →
 `1-methoxypropane`, and `CC(C)OCC` → `2-ethoxypropane`; a branched shorter
-side (e.g. `CC(C)OC(C)C`) is out of scope.
+side (e.g. `CC(C)OC(C)C`) is out of scope. Nitriles (P-66.5, the '-nitrile'
+suffix) are supported on acyclic skeletons only (a ring-bound -C#N uses the
+different 'carbonitrile' suffix pattern, out of scope) — since the -C#N
+carbon is always the chain terminus, its own locant is never cited, e.g.
+`CCC#N` → `propanenitrile`, `CC(C)C#N` → `2-methylpropanenitrile`, and
+`C=CCC#N` → `but-3-enenitrile`; more than one nitrile group (a dinitrile) is
+out of scope.
 
 Other tricyclic topologies, other tetracyclic topologies (any branch atom
 of degree 4, or fewer/more than six skeletal atoms of degree 3),
@@ -90,13 +96,14 @@ pentacyclic-and-higher ring systems, branched polyspiro ring systems
 spiro ring systems (P-24.2.4), unsaturated non-aromatic rings, a multiple
 bond that isn't on any candidate principal chain, heteroatoms other than
 the four halogens, hydroxyl oxygen, primary amine nitrogen, ketone carbonyl
-oxygen, aldehyde carbonyl oxygen, carboxylic-acid oxygens, and a single
-plain ether oxygen above, secondary/tertiary amines, characteristic groups
-more senior than a plain alcohol/amine/ketone/aldehyde/carboxylic acid
-(e.g. esters, amides, nitriles), an ether coexisting with any other
-characteristic group, a branched ether substituent side, a ring-bound
-aldehyde (the 'carbaldehyde' suffix), a carboxylic acid on/in a ring, aryl
-ketones/aldehydes, cyclic substituent groups,
+oxygen, aldehyde carbonyl oxygen, carboxylic-acid oxygens, a single plain
+ether oxygen, and a single nitrile nitrogen above, secondary/tertiary
+amines, characteristic groups more senior than a plain
+alcohol/amine/ketone/aldehyde/carboxylic acid/nitrile (e.g. esters, amides),
+a dinitrile, an ether coexisting with any other characteristic group, a
+branched ether substituent side, a ring-bound aldehyde (the 'carbaldehyde'
+suffix) or nitrile (the 'carbonitrile' suffix), a carboxylic acid on/in a
+ring, aryl ketones/aldehydes/nitriles, cyclic substituent groups,
 peri-fused or branched aromatic ring systems
 (e.g. pyrene, triphenylene), heteroaromatic rings, and any other
 ortho-fused aromatic ring chain (angular chains of four or more rings,

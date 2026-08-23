@@ -54,10 +54,10 @@ def test_tertiary_amine_raises():
         smiles_to_iupac("CCN(CC)CC")
 
 
-def test_nitrile_raises():
-    # A nitrogen triple-bonded to carbon is not a plain primary amine.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCC#N")
+def test_nitrile_routes_to_nitrile_module():
+    # A nitrogen triple-bonded to carbon is not a plain primary amine; it is
+    # routed to the dedicated nitrile module instead (see test_nitrile.py).
+    assert smiles_to_iupac("CCC#N") == "propanenitrile"
 
 
 def test_aniline_raises():

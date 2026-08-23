@@ -12,6 +12,7 @@ from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._ether import has_ether_shape, name_ether
 from ._ketone import name_ketone
+from ._nitrile import has_nitrile_shape, name_nitrile
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._polyspiro import find_linear_polyspiro_chain, name_linear_polyspiro
 from ._spiro import find_monospiro_atom, name_monospiro
@@ -65,6 +66,11 @@ def smiles_to_iupac(smiles: str) -> str:
             return name_ketone(mol)
         return name_alcohol(mol)
     if any(atom.GetAtomicNum() == 7 for atom in mol.GetAtoms()):
+        # A nitrile nitrogen (-C#N, P-66.5) has no oxygen, so it reaches this
+        # branch alongside plain amines; it must be routed here before
+        # name_amine, which doesn't recognize a triple-bonded nitrogen at all.
+        if has_nitrile_shape(mol):
+            return name_nitrile(mol)
         return name_amine(mol)
 
     num_rings = mol.GetRingInfo().NumRings()
