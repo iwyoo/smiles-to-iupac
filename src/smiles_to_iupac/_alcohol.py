@@ -81,7 +81,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   atoms are accepted at all; any other heteroatom (N, S, ...) is rejected.
 - -OH on an aromatic ring (phenol-type) — a separate, in-progress module's
   territory.
-- -OH on a von Baeyer polycyclic (bicyclic/tricyclic/tetracyclic) or spiro
+- -OH on a von Baeyer polycyclic (bicyclic through pentacyclic) or spiro
   skeleton — deferred; those modules' internal numbering would need real
   integration work to prioritize a suffix locant correctly.
 - -OH on a carbon that is also part of a C=C/C#C bond (an enol) — this is a
