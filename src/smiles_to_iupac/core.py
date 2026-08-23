@@ -6,6 +6,7 @@ from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
+from ._polyspiro import find_linear_polyspiro_chain, name_linear_polyspiro
 from ._spiro import find_monospiro_atom, name_monospiro
 from ._tetracyclic import find_tetracyclic_core, name_tetracycloalkane
 from ._tricyclic import (
@@ -57,6 +58,9 @@ def smiles_to_iupac(smiles: str) -> str:
     spiro_atom = find_monospiro_atom(mol)
     if spiro_atom is not None:
         return name_monospiro(mol, spiro_atom)
+    polyspiro_chain = find_linear_polyspiro_chain(mol)
+    if polyspiro_chain is not None:
+        return name_linear_polyspiro(mol, polyspiro_chain)
     bicyclic_core = find_bicyclic_core(mol)
     if bicyclic_core is not None:
         return name_bicycloalkane(mol, bicyclic_core)

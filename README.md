@@ -42,7 +42,11 @@ plus propellane-type tricyclics — two skeletal branch atoms of degree 4,
 directly bonded to each other, joined by three further bridges, with that
 direct bond treated as a zero-length independent secondary bridge — e.g.
 `C1C23CC12C3` ([1.1.1]propellane) → `tricyclo[1.1.1.0^1,3]pentane`, and
-`C1C2C3C2C4C1C34` (quadricyclane) → `tetracyclo[3.2.0.0^2,7.0^4,6]heptane`.
+`C1C2C3C2C4C1C34` (quadricyclane) → `tetracyclo[3.2.0.0^2,7.0^4,6]heptane`,
+and linear (unbranched) polyspiro saturated hydrocarbons — three or more
+carbocyclic rings connected in a chain by spiro atoms, each internal ring
+sharing exactly one spiro atom with each of its two neighbors (P-24.2.2) —
+e.g. `C1CCC12CCC3(CC2)CCC3` → `dispiro[3.2.3^7.2^4]dodecane`.
 Also supported: ortho-fused aromatic (mancude) six-membered all-carbon ring
 chains carrying one of six retained names — `benzene` (one ring),
 `naphthalene` (two rings), `anthracene`/`phenanthrene` (three rings,
@@ -60,17 +64,19 @@ and `OCCCC=C` → `pent-4-en-1-ol`.
 
 Other tricyclic topologies, other tetracyclic topologies (any branch atom
 of degree 4, or fewer/more than six skeletal atoms of degree 3),
-pentacyclic-and-higher/polyspiro ring systems, unsaturated non-aromatic
-rings, a multiple bond that isn't on any candidate principal chain,
-heteroatoms other than the four halogens and hydroxyl oxygen above,
-characteristic groups more senior than a plain alcohol (e.g. carboxylic
-acids, ketones, aldehydes), cyclic substituent groups, peri-fused or
-branched aromatic ring systems (e.g. pyrene, triphenylene), heteroaromatic
-rings, and any other ortho-fused aromatic ring chain (angular chains of
-four or more rings, chains of six or more rings, or anything needing
-genuine `benzo[x,y-z]fusion[...]` name construction) raise
-`NotImplementedError` and are future work. See
-[REFERENCES.md](REFERENCES.md) for the source of the rules applied.
+pentacyclic-and-higher ring systems, branched polyspiro ring systems
+(P-24.2.3, a spiro atom shared by three or more rings) and heterocyclic
+spiro ring systems (P-24.2.4), unsaturated non-aromatic rings, a multiple
+bond that isn't on any candidate principal chain, heteroatoms other than
+the four halogens and hydroxyl oxygen above, characteristic groups more
+senior than a plain alcohol (e.g. carboxylic acids, ketones, aldehydes),
+cyclic substituent groups, peri-fused or branched aromatic ring systems
+(e.g. pyrene, triphenylene), heteroaromatic rings, and any other
+ortho-fused aromatic ring chain (angular chains of four or more rings,
+chains of six or more rings, or anything needing genuine
+`benzo[x,y-z]fusion[...]` name construction) raise `NotImplementedError`
+and are future work. See [REFERENCES.md](REFERENCES.md) for the source of
+the rules applied.
 
 ## Installation
 
