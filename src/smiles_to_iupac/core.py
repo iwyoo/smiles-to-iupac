@@ -4,6 +4,7 @@ from ._acyclic import name_acyclic_alkane
 from ._alcohol import name_alcohol
 from ._amine import name_amine
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
+from ._ketone import name_ketone
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
@@ -20,6 +21,15 @@ def smiles_to_iupac(smiles: str) -> str:
         raise ValueError(f"invalid SMILES: {smiles!r}")
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
+        # A doubly-bonded, monovalent oxygen is carbonyl-shaped (ketone);
+        # anything else falls to the alcohol module, which itself rejects a
+        # coexisting carbonyl oxygen it finds among otherwise hydroxyl-only
+        # atoms (Table 3.3 seniority between 'ol' and 'one' isn't handled).
+        if any(
+            atom.GetAtomicNum() == 8 and atom.GetDegree() == 1 and atom.GetBonds()[0].GetBondTypeAsDouble() == 2.0
+            for atom in mol.GetAtoms()
+        ):
+            return name_ketone(mol)
         return name_alcohol(mol)
     if any(atom.GetAtomicNum() == 7 for atom in mol.GetAtoms()):
         return name_amine(mol)

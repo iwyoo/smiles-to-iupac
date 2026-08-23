@@ -64,6 +64,10 @@ and `OCCCC=C` → `pent-4-en-1-ol`. Primary amines (P-33.1, the '-amine'
 suffix) are supported on the same scope of skeletons, e.g. `CCN` →
 `ethanamine`, `CC(N)C` → `propan-2-amine`, `NCCN` → `ethane-1,2-diamine`,
 `NC1CCCCC1` → `cyclohexanamine`, and `NCCCC=C` → `pent-4-en-1-amine`.
+Ketones (P-33.4, the '-one' suffix) are supported on the same scope of
+skeletons, e.g. `CC(=O)C` → `propan-2-one`, `CCCC(=O)CC` → `hexan-3-one`,
+`CC(=O)CC(=O)C` → `pentane-2,4-dione`, `O=C1CCCCC1` → `cyclohexanone`, and
+`CC(=O)C=CC` → `pent-3-en-2-one`.
 
 Other tricyclic topologies, other tetracyclic topologies (any branch atom
 of degree 4, or fewer/more than six skeletal atoms of degree 3),
@@ -71,10 +75,11 @@ pentacyclic-and-higher ring systems, branched polyspiro ring systems
 (P-24.2.3, a spiro atom shared by three or more rings) and heterocyclic
 spiro ring systems (P-24.2.4), unsaturated non-aromatic rings, a multiple
 bond that isn't on any candidate principal chain, heteroatoms other than
-the four halogens, hydroxyl oxygen, and primary amine nitrogen above,
-secondary/tertiary amines, characteristic groups more senior than a plain
-alcohol or amine (e.g. carboxylic acids, ketones, aldehydes),
-cyclic substituent groups, peri-fused or branched aromatic ring systems
+the four halogens, hydroxyl oxygen, primary amine nitrogen, and ketone
+carbonyl oxygen above, secondary/tertiary amines, characteristic groups more
+senior than a plain alcohol/amine/ketone (e.g. carboxylic acids, esters,
+amides, nitriles, aldehydes), aryl ketones, cyclic substituent groups,
+peri-fused or branched aromatic ring systems
 (e.g. pyrene, triphenylene), heteroaromatic rings, and any other
 ortho-fused aromatic ring chain (angular chains of four or more rings,
 chains of six or more rings, or anything needing genuine
