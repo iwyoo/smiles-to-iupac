@@ -10,6 +10,7 @@ from ._bicyclic import find_bicyclic_core, name_bicycloalkane
 from ._carboxylic_acid import has_carboxylic_acid_shape, name_carboxylic_acid
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
+from ._ester import has_ester_shape, name_ester
 from ._ether import has_ether_shape, name_ether
 from ._ketone import name_ketone
 from ._nitrile import has_nitrile_shape, name_nitrile
@@ -36,6 +37,14 @@ def smiles_to_iupac(smiles: str) -> str:
         # accept a degree-2 oxygen at all.
         if has_ether_shape(mol):
             return name_ether(mol)
+        # A carbon bearing both a carbonyl oxygen and a second, carbon-bonded
+        # oxygen is an ester (-COO-), which must be routed before the
+        # carboxylic-acid/aldehyde/ketone checks below: its carbonyl half
+        # would otherwise look aldehyde/ketone-shaped, and (for a rejected,
+        # out-of-scope case) its non-carbonyl oxygen would never satisfy the
+        # carboxylic acid module's hydroxyl (O-H) requirement anyway.
+        if has_ester_shape(mol):
+            return name_ester(mol)
         # A carbon bearing both a carbonyl and a hydroxyl oxygen is a -COOH
         # group (Table 3.3's most senior suffix here) and must be routed
         # before the aldehyde/ketone/alcohol checks below, which would

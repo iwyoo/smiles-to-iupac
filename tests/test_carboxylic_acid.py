@@ -46,11 +46,6 @@ def test_ether_raises():
         smiles_to_iupac("CCOCC(=O)O")
 
 
-def test_ester_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)OC")
-
-
 def test_ring_attached_carboxylic_acid_raises():
     # P-65.1.1.2: a -COOH on a ring uses the separate 'carboxylic acid'
     # suffix construction, out of scope for this acyclic-only module.
