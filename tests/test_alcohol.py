@@ -45,11 +45,12 @@ def test_alcohol_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_carboxylic_acid_raises():
+def test_carboxylic_acid_not_misread_as_alcohol():
     # -C(=O)-OH: a carboxylic acid is a more senior characteristic group
-    # (Table 3.3) than a plain alcohol; must not be misread as one.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)O")
+    # (Table 3.3) than a plain alcohol; must not be misread as one (it's
+    # routed to the dedicated carboxylic-acid module instead, see
+    # test_carboxylic_acid.py).
+    assert smiles_to_iupac("CC(=O)O") == "ethanoic acid"
 
 
 def test_ketone_hetero_mix_raises():

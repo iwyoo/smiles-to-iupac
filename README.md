@@ -67,7 +67,11 @@ suffix) are supported on the same scope of skeletons, e.g. `CCN` →
 Ketones (P-33.4, the '-one' suffix) are supported on the same scope of
 skeletons, e.g. `CC(=O)C` → `propan-2-one`, `CCCC(=O)CC` → `hexan-3-one`,
 `CC(=O)CC(=O)C` → `pentane-2,4-dione`, `O=C1CCCCC1` → `cyclohexanone`, and
-`CC(=O)C=CC` → `pent-3-en-2-one`.
+`CC(=O)C=CC` → `pent-3-en-2-one`. Carboxylic acids (P-65.1.1, the '-oic
+acid' suffix) are supported on acyclic saturated or unsaturated carbon
+chains, e.g. `CC(=O)O` → `ethanoic acid`, `CC(C)CC(=O)O` →
+`3-methylbutanoic acid`, `OC(=O)CCCCC(=O)O` → `hexanedioic acid`, and
+`CC=CC(=O)O` → `but-2-enoic acid`.
 
 Other tricyclic topologies, other tetracyclic topologies (any branch atom
 of degree 4, or fewer/more than six skeletal atoms of degree 3),
@@ -75,10 +79,11 @@ pentacyclic-and-higher ring systems, branched polyspiro ring systems
 (P-24.2.3, a spiro atom shared by three or more rings) and heterocyclic
 spiro ring systems (P-24.2.4), unsaturated non-aromatic rings, a multiple
 bond that isn't on any candidate principal chain, heteroatoms other than
-the four halogens, hydroxyl oxygen, primary amine nitrogen, and ketone
-carbonyl oxygen above, secondary/tertiary amines, characteristic groups more
-senior than a plain alcohol/amine/ketone (e.g. carboxylic acids, esters,
-amides, nitriles, aldehydes), aryl ketones, cyclic substituent groups,
+the four halogens, hydroxyl oxygen, primary amine nitrogen, ketone carbonyl
+oxygen, and carboxylic-acid oxygens above, secondary/tertiary amines,
+characteristic groups more senior than a plain alcohol/amine/ketone/
+carboxylic acid (e.g. esters, amides, nitriles, aldehydes), a carboxylic
+acid on/in a ring, aryl ketones, cyclic substituent groups,
 peri-fused or branched aromatic ring systems
 (e.g. pyrene, triphenylene), heteroaromatic rings, and any other
 ortho-fused aromatic ring chain (angular chains of four or more rings,
