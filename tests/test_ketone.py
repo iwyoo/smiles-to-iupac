@@ -49,12 +49,13 @@ def test_ketone_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_aldehyde_raises():
-    # A carbonyl carbon with only one carbon neighbor is an aldehyde, a more
-    # senior characteristic group (Table 3.3) than a plain ketone; must not
-    # be misread as one.
+def test_aldehyde_ketone_mix_raises():
+    # A structure with both an aldehyde-shaped and a ketone-shaped carbonyl
+    # is rejected outright; a plain aldehyde with no coexisting ketone is
+    # dispatched to the separate aldehyde module instead (see
+    # test_aldehyde.py) and is now supported.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCC=O")
+        smiles_to_iupac("CC(=O)CC=O")
 
 
 def test_carboxylic_acid_raises():

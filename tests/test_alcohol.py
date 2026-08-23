@@ -60,9 +60,13 @@ def test_ketone_hetero_mix_raises():
         smiles_to_iupac("OCC(=O)C")
 
 
-def test_aldehyde_raises():
+def test_aldehyde_alcohol_mix_raises():
+    # A structure with both -OH and an aldehyde-shaped carbonyl is rejected
+    # outright; a plain aldehyde with no coexisting alcohol is dispatched to
+    # the separate aldehyde module instead (see test_aldehyde.py) and is now
+    # supported.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCC=O")
+        smiles_to_iupac("OCC=O")
 
 
 def test_phenol_raises():

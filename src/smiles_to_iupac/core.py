@@ -2,6 +2,7 @@ from rdkit import Chem
 
 from ._acyclic import name_acyclic_alkane
 from ._alcohol import name_alcohol
+from ._aldehyde import name_aldehyde
 from ._amine import name_amine
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._ketone import name_ketone
@@ -15,20 +16,30 @@ from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
 
 
+def _is_aldehyde_shaped(carbonyl_oxygen):
+    (carbon,) = carbonyl_oxygen.GetNeighbors()
+    return carbon.GetAtomicNum() == 6 and sum(1 for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6) == 1
+
+
 def smiles_to_iupac(smiles: str) -> str:
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError(f"invalid SMILES: {smiles!r}")
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
-        # A doubly-bonded, monovalent oxygen is carbonyl-shaped (ketone);
+        # A doubly-bonded, monovalent oxygen is carbonyl-shaped (aldehyde or
+        # ketone, depending on how many carbon neighbors its carbon has);
         # anything else falls to the alcohol module, which itself rejects a
         # coexisting carbonyl oxygen it finds among otherwise hydroxyl-only
-        # atoms (Table 3.3 seniority between 'ol' and 'one' isn't handled).
-        if any(
-            atom.GetAtomicNum() == 8 and atom.GetDegree() == 1 and atom.GetBonds()[0].GetBondTypeAsDouble() == 2.0
+        # atoms (Table 3.3 seniority between 'ol'/'one'/'al' isn't handled).
+        carbonyl_oxygens = [
+            atom
             for atom in mol.GetAtoms()
-        ):
+            if atom.GetAtomicNum() == 8 and atom.GetDegree() == 1 and atom.GetBonds()[0].GetBondTypeAsDouble() == 2.0
+        ]
+        if carbonyl_oxygens:
+            if any(_is_aldehyde_shaped(o) for o in carbonyl_oxygens):
+                return name_aldehyde(mol)
             return name_ketone(mol)
         return name_alcohol(mol)
     if any(atom.GetAtomicNum() == 7 for atom in mol.GetAtoms()):
