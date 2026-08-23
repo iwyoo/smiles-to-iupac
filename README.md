@@ -67,7 +67,12 @@ suffix) are supported on the same scope of skeletons, e.g. `CCN` →
 Ketones (P-33.4, the '-one' suffix) are supported on the same scope of
 skeletons, e.g. `CC(=O)C` → `propan-2-one`, `CCCC(=O)CC` → `hexan-3-one`,
 `CC(=O)CC(=O)C` → `pentane-2,4-dione`, `O=C1CCCCC1` → `cyclohexanone`, and
-`CC(=O)C=CC` → `pent-3-en-2-one`. Carboxylic acids (P-65.1.1, the '-oic
+`CC(=O)C=CC` → `pent-3-en-2-one`. Aldehydes (P-33.3, the '-al' suffix) are
+supported on acyclic skeletons only (a ring-bound -CHO uses the different
+'carbaldehyde' suffix pattern, out of scope) — since the -CHO carbon is
+always the chain terminus, its own locant is never cited, e.g. `CCC=O` →
+`propanal`, `CC(C)C=O` → `2-methylpropanal`, `O=CCCCC=O` → `pentanedial`,
+and `C=CCCC=O` → `pent-4-enal`. Carboxylic acids (P-65.1.1, the '-oic
 acid' suffix) are supported on acyclic saturated or unsaturated carbon
 chains, e.g. `CC(=O)O` → `ethanoic acid`, `CC(C)CC(=O)O` →
 `3-methylbutanoic acid`, `OC(=O)CCCCC(=O)O` → `hexanedioic acid`, and
@@ -80,10 +85,11 @@ pentacyclic-and-higher ring systems, branched polyspiro ring systems
 spiro ring systems (P-24.2.4), unsaturated non-aromatic rings, a multiple
 bond that isn't on any candidate principal chain, heteroatoms other than
 the four halogens, hydroxyl oxygen, primary amine nitrogen, ketone carbonyl
-oxygen, and carboxylic-acid oxygens above, secondary/tertiary amines,
-characteristic groups more senior than a plain alcohol/amine/ketone/
-carboxylic acid (e.g. esters, amides, nitriles, aldehydes), a carboxylic
-acid on/in a ring, aryl ketones, cyclic substituent groups,
+oxygen, aldehyde carbonyl oxygen, and carboxylic-acid oxygens above,
+secondary/tertiary amines, characteristic groups more senior than a plain
+alcohol/amine/ketone/aldehyde/carboxylic acid (e.g. esters, amides,
+nitriles), a ring-bound aldehyde (the 'carbaldehyde' suffix), a carboxylic
+acid on/in a ring, aryl ketones/aldehydes, cyclic substituent groups,
 peri-fused or branched aromatic ring systems
 (e.g. pyrene, triphenylene), heteroaromatic rings, and any other
 ortho-fused aromatic ring chain (angular chains of four or more rings,
