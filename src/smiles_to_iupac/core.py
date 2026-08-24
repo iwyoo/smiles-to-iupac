@@ -2,6 +2,7 @@ from rdkit import Chem
 
 from ._acyclic import name_acyclic_alkane
 from ._acyl_halide import has_acyl_halide_shape, name_acyl_halide
+from ._anhydride import has_anhydride_shape, name_anhydride
 from ._alcohol import name_alcohol
 from ._aldehyde import name_aldehyde
 from ._amide import has_amide_shape, name_amide
@@ -123,6 +124,12 @@ def smiles_to_iupac(smiles: str) -> str:
         # accept a degree-2 oxygen at all.
         if has_ether_shape(mol):
             return name_ether(mol)
+        # An anhydride's bridging oxygen (-C(=O)-O-C(=O)-) is also
+        # ester-shaped from either acyl carbon's point of view (a carbonyl
+        # oxygen plus a second, carbon-bonded oxygen), so it must be routed
+        # before has_ester_shape below, which would otherwise misname it.
+        if has_anhydride_shape(mol):
+            return name_anhydride(mol)
         # A carbon bearing both a carbonyl oxygen and a second, carbon-bonded
         # oxygen is an ester (-COO-), which must be routed before the
         # carboxylic-acid/aldehyde/ketone checks below: its carbonyl half
