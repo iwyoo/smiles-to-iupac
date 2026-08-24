@@ -51,6 +51,8 @@ def test_unsaturated_spiro_raises():
         smiles_to_iupac("C1CC12CCCC=C2")
 
 
-def test_heteroatom_spiro_raises():
+def test_two_ring_heteroatoms_still_raises():
+    # two ring heteroatoms (O in each ring) -- out of scope for the
+    # single-heteroatom spiro skeletal-replacement module.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CC12CCOCC2")
+        smiles_to_iupac("C1CC2(OCCC2)OC1")

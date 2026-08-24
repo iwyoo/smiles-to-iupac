@@ -17,9 +17,16 @@ from ._nitrile import has_nitrile_shape, name_nitrile
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._polyspiro import find_linear_polyspiro_chain, name_linear_polyspiro
 from ._spiro import find_monospiro_atom, name_monospiro
+from ._spiro_heteroatom import (
+    has_single_ring_heteroatom_shape as has_single_spiro_heteroatom_shape,
+    name_spiro_heteroatom,
+)
 from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
-from ._von_baeyer_heteroatom import has_single_ring_heteroatom_shape, name_von_baeyer_heteroatom
+from ._von_baeyer_heteroatom import (
+    has_single_ring_heteroatom_shape as has_single_bicyclic_heteroatom_shape,
+    name_von_baeyer_heteroatom,
+)
 
 
 def _is_aldehyde_shaped(carbonyl_oxygen):
@@ -33,12 +40,16 @@ def smiles_to_iupac(smiles: str) -> str:
         raise ValueError(f"invalid SMILES: {smiles!r}")
 
     # A single O/N/S skeletal atom in an otherwise-carbon von Baeyer
-    # bicyclic ring (P-23.2.1's 'a'-prefix skeletal replacement) must be
-    # routed here before any of the O/N-triggered branches below, none of
-    # which understand a ring heteroatom at all.
+    # bicyclic ring (P-23.2.1's 'a'-prefix skeletal replacement) or
+    # monospiro ring system (P-24.2.1's) must be routed here before any of
+    # the O/N-triggered branches below, none of which understand a ring
+    # heteroatom at all.
     bicyclic_core = find_bicyclic_core(mol)
-    if bicyclic_core is not None and has_single_ring_heteroatom_shape(mol, bicyclic_core):
+    if bicyclic_core is not None and has_single_bicyclic_heteroatom_shape(mol, bicyclic_core):
         return name_von_baeyer_heteroatom(mol, bicyclic_core)
+    spiro_atom = find_monospiro_atom(mol)
+    if spiro_atom is not None and has_single_spiro_heteroatom_shape(mol, spiro_atom):
+        return name_spiro_heteroatom(mol, spiro_atom)
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
         # A plain -O- ether (P-63.2.1) has no suffix, so it must be routed
