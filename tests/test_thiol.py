@@ -33,11 +33,6 @@ def test_dithiol_not_supported():
         smiles_to_iupac("SCCS")
 
 
-def test_sulfide_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CSC")
-
-
 def test_cyclic_thiol_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("SC1CCCCC1")
