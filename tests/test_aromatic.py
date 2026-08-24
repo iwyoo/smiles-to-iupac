@@ -98,10 +98,13 @@ def test_heteroaromatic_raises():
         smiles_to_iupac("c1ccncc1")
 
 
-def test_heteroaromatic_fused_raises():
-    # quinoline: a fused heteroaromatic, same reasoning as pyridine above.
+def test_substituted_heteroaromatic_fused_raises():
+    # a methylated quinoline: the unsubstituted parent itself is now
+    # supported (see tests/test_heteroaromatic_fused.py), but a
+    # substituted fused heteroaromatic is still out of scope, same
+    # reasoning as pyridine above.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc2ncccc2c1")
+        smiles_to_iupac("Cc1ccc2ncccc2c1")
 
 
 def test_angular_four_ring_raises():
