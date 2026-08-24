@@ -6,6 +6,10 @@ from ._anhydride import has_anhydride_shape, name_anhydride
 from ._carbamate import has_carbamate_shape, name_carbamate
 from ._alcohol import name_alcohol
 from ._aldehyde import name_aldehyde
+from ._aldehyde_carboxylic_acid import (
+    has_aldehyde_carboxylic_acid_shape,
+    name_aldehyde_carboxylic_acid,
+)
 from ._aldehyde_ketone import has_aldehyde_ketone_shape, name_aldehyde_ketone
 from ._amide import has_amide_shape, name_amide
 from ._imide import has_imide_shape, name_imide
@@ -23,6 +27,8 @@ from ._fullerene import has_fullerene_name, name_fullerene
 from ._heteroaromatic_fused import has_retained_heteroaromatic_fused_name, name_retained_heteroaromatic_fused
 from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
 from ._ketone import name_ketone
+from ._ketone_amide import has_ketone_amide_shape, name_ketone_amide
+from ._ketone_ester import has_ketone_ester_shape, name_ketone_ester
 from ._nitrile import has_nitrile_shape, name_nitrile
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
@@ -154,12 +160,24 @@ def smiles_to_iupac(smiles: str) -> str:
         # out-of-scope case) its non-carbonyl oxygen would never satisfy the
         # carboxylic acid module's hydroxyl (O-H) requirement anyway.
         if has_ester_shape(mol):
+            # P-41/Table 3.3: 'oate' outranks 'one', so an ester whose acyl
+            # chain also carries one or more ketones names the ester as the
+            # suffix and demotes each ketone to an 'oxo' prefix instead of
+            # `_ester.py`'s own "coexisting oxygen" rejection.
+            if has_ketone_ester_shape(mol):
+                return name_ketone_ester(mol)
             return name_ester(mol)
         # A carbon bearing both a carbonyl and a hydroxyl oxygen is a -COOH
         # group (Table 3.3's most senior suffix here) and must be routed
         # before the aldehyde/ketone/alcohol checks below, which would
         # otherwise misread its carbonyl or hydroxyl half in isolation.
         if has_carboxylic_acid_shape(mol):
+            # P-41/Table 3.3: 'oic acid' outranks 'al', so a carboxylic acid
+            # that also carries one or more aldehydes names the acid as the
+            # suffix and demotes each aldehyde to an 'oxo' prefix instead of
+            # `_carboxylic_acid.py`'s own "coexisting oxygen" rejection.
+            if has_aldehyde_carboxylic_acid_shape(mol):
+                return name_aldehyde_carboxylic_acid(mol)
             return name_carboxylic_acid(mol)
         # A carbon bearing both a carbonyl oxygen and a primary-amide
         # nitrogen (-CONH2) is an amide (junior only to the acid/ester
@@ -168,6 +186,12 @@ def smiles_to_iupac(smiles: str) -> str:
         # aldehyde-shaped to `_is_aldehyde_shaped` (it counts only carbon
         # neighbors, ignoring the nitrogen).
         if has_amide_shape(mol):
+            # P-41/Table 3.3: 'amide' outranks 'one', so an amide that also
+            # carries one or more ketones names the amide as the suffix and
+            # demotes each ketone to an 'oxo' prefix instead of
+            # `_amide.py`'s own "coexisting carbonyl" rejection.
+            if has_ketone_amide_shape(mol):
+                return name_ketone_amide(mol)
             return name_amide(mol)
         # A one-H nitrogen bridging two carbonyl carbons (-C(=O)-NH-C(=O)-)
         # is an imide, junior only to the acid/ester/amide suffixes above

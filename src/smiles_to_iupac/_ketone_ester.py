@@ -1,0 +1,331 @@
+"""Naming of a molecule combining exactly one ester (R-CO-O-R') with one or
+more internal ketone (=O) carbonyls on the same acyclic saturated acyl
+chain, per the IUPAC 2013 Recommendations ("the Blue Book"):
+
+- P-41, Table 3.3: 'oate' (`_ester.py`) outranks 'one' (`_ketone.py`), so a
+  coexisting ketone on the acyl chain is demoted to the 'oxo' substituent
+  prefix instead of its own '-one' suffix, e.g.
+  'CC(=O)CC(=O)OC' (methyl acetoacetate) -> 'methyl 3-oxobutanoate'
+  (confirmed against this well-known worked example). This mirrors
+  `_aldehyde_ketone.py`'s aldehyde+ketone demotion (see
+  `tasks/multi-carbonyl-seniority.md`), reusing the same {atom_idx -> 'oxo'}
+  injection into the acyl chain's substituent-prefix machinery.
+- Otherwise mirrors `_ester.py` exactly: the acyl carbon is always a chain
+  terminus and always becomes C1 of the acyl chain (P-14.3.3); a ketone
+  carbon's locant, by contrast, is always cited.
+
+Scope, deliberately narrow (same acyl-chain restriction as `_ester.py`, plus
+one or more ketones on that chain): a single ester group whose acyl part (R)
+carries one or more ketone carbonyls, with halogen substituents allowed on
+the acyl chain. The alcohol part (R') is restricted the same way
+`_ester.py` restricts it (plain unbranched saturated alkyl). Explicitly out
+of scope (raise `UnsupportedStructure`): any chain unsaturation (ene/yne) on
+the acyl chain, any ring, more than one ester group, a coexisting
+hydroxyl/ether/other heteroatom, an aldehyde-shaped (rather than
+ketone-shaped) extra carbonyl, and any ketone not captured by the acyl
+chain's single longest path.
+"""
+
+from rdkit import Chem
+
+from ._common import (
+    HALOGEN_PREFIXES,
+    UnsupportedStructure,
+    adjacency,
+    bfs,
+    carbon_adjacency,
+    halogen_substituents,
+    linear_branch,
+    lowest_locant_set,
+    non_single_bonds,
+    path_between,
+)
+from ._numerals import alkane_name, alkyl_name
+from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+
+_ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
+
+
+def _find_ester_group(mol):
+    matches = []
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 6:
+            continue
+        oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8]
+        if len(oxygens) < 2:
+            continue
+        carbonyls = [
+            o
+            for o in oxygens
+            if o.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
+        ]
+        ester_oxygens = [
+            o
+            for o in oxygens
+            if o.GetDegree() == 2
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 1.0
+            and any(n.GetAtomicNum() == 6 for n in o.GetNeighbors() if n.GetIdx() != atom.GetIdx())
+        ]
+        if carbonyls and ester_oxygens:
+            matches.append((atom, carbonyls, ester_oxygens))
+    if len(matches) != 1:
+        return None
+    acyl_carbon, carbonyls, ester_oxygens = matches[0]
+    if len(carbonyls) != 1 or len(ester_oxygens) != 1:
+        return None
+    acyl_carbon_neighbors = [n for n in acyl_carbon.GetNeighbors() if n.GetAtomicNum() == 6]
+    if len(acyl_carbon_neighbors) > 1:
+        return None
+    carbonyl_oxygen = carbonyls[0]
+    ester_oxygen = ester_oxygens[0]
+    alcohol_carbon = next(n for n in ester_oxygen.GetNeighbors() if n.GetIdx() != acyl_carbon.GetIdx())
+    return acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon
+
+
+def _extra_ketones(mol, excluded_oxygens):
+    ketones = set()
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 8 or atom.GetIdx() in excluded_oxygens:
+            continue
+        if atom.GetDegree() != 1:
+            continue
+        (bond,) = atom.GetBonds()
+        if bond.GetBondTypeAsDouble() != 2.0:
+            continue
+        (carbon,) = atom.GetNeighbors()
+        if carbon.GetAtomicNum() != 6:
+            continue
+        carbon_neighbors = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6]
+        if len(carbon_neighbors) == 2:
+            ketones.add(atom.GetIdx())
+    return ketones
+
+
+def has_ketone_ester_shape(mol) -> bool:
+    group = _find_ester_group(mol)
+    if group is None:
+        return False
+    _, carbonyl_oxygen, ester_oxygen, _ = group
+    excluded = {carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx()}
+    return bool(_extra_ketones(mol, excluded))
+
+
+def _validate(mol, acyl_carbon, carbonyl_oxygen, ester_oxygen, ketones):
+    excluded_oxygens = {carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx()} | ketones
+    has_carbon = False
+    for atom in mol.GetAtoms():
+        atomic_num = atom.GetAtomicNum()
+        if atomic_num not in _ALLOWED_ATOMIC_NUMS:
+            raise UnsupportedStructure(
+                "heteroatoms other than the ester's own oxygens and ketone "
+                "carbonyl oxygens (P-41, Table 3.3) and halogen substituents "
+                "(P-35.2.1) are not supported yet"
+            )
+        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+        if atomic_num == 6:
+            has_carbon = True
+            if atom.GetIsAromatic():
+                raise UnsupportedStructure(
+                    "aromatic rings are out of scope for this module (see "
+                    "the separate aromatic-ring module)"
+                )
+        elif atomic_num == 8:
+            if atom.GetIdx() in excluded_oxygens:
+                continue
+            raise UnsupportedStructure(
+                "an oxygen that isn't part of the single ester group or a "
+                "ketone-shaped carbonyl is out of scope for this module "
+                "(e.g. a coexisting hydroxyl or ether)"
+            )
+        else:
+            if atom.GetDegree() != 1:
+                raise UnsupportedStructure(
+                    "a halogen atom must be a monovalent substituent (P-35.2.1)"
+                )
+    if not has_carbon:
+        raise UnsupportedStructure(
+            "a structure with no carbon atom has no hydrocarbon parent "
+            "hydride to substitute"
+        )
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+
+
+def _alcohol_component(full_graph, alcohol_carbon_idx, ester_oxygen_idx):
+    component = set()
+    stack = [alcohol_carbon_idx]
+    while stack:
+        node = stack.pop()
+        if node in component:
+            continue
+        component.add(node)
+        for neighbor in full_graph[node]:
+            if neighbor != ester_oxygen_idx and neighbor not in component:
+                stack.append(neighbor)
+    return component
+
+
+def _name_alcohol_part(mol, alcohol_carbon, ester_oxygen_idx):
+    full_graph = adjacency(mol)
+    component = _alcohol_component(full_graph, alcohol_carbon.GetIdx(), ester_oxygen_idx)
+    for idx in component:
+        if mol.GetAtomWithIdx(idx).GetAtomicNum() != 6:
+            raise UnsupportedStructure(
+                "the alcohol part (R') must be a plain alkyl group; "
+                "heteroatoms/halogens there are not supported yet (P-65.6.3)"
+            )
+    for a, b, _ in non_single_bonds(mol):
+        if a in component and b in component:
+            raise UnsupportedStructure(
+                "unsaturation in the alcohol part (R') is not supported yet "
+                "(P-65.6.3)"
+            )
+    carbon_graph = carbon_adjacency(mol)
+    length = linear_branch(carbon_graph, alcohol_carbon.GetIdx(), None)
+    if length is None:
+        raise UnsupportedStructure(
+            "a branched alcohol part (R') is not supported yet (P-65.6.3)"
+        )
+    return alkyl_name(length)
+
+
+def _group(substituents):
+    grouped = {}
+    for position, entries in substituents.items():
+        for name, is_compound in entries:
+            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
+            info["locants"].append(position)
+    return grouped
+
+
+def _name_from_substituents(chain_length, grouped):
+    prefix = format_substituent_prefixes(grouped)
+    stem = alkane_name(chain_length)[:-1]
+    return prefix + stem + "oate"
+
+
+def _candidate_key(chain_length, grouped):
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _name_from_substituents(chain_length, grouped)
+    return (locant_set, citation_locants, name), name
+
+
+def _component_subgraph(graph, start):
+    dist, _ = bfs(graph, start)
+    nodes = set(dist)
+    return {node: [n for n in graph[node] if n in nodes] for node in nodes}
+
+
+def _longest_chains(graph):
+    nodes = list(graph)
+    distances = {}
+    parents = {}
+    for node in nodes:
+        dist, parent = bfs(graph, node)
+        distances[node] = dist
+        parents[node] = parent
+
+    diameter = max(d for dist in distances.values() for d in dist.values())
+    chains = []
+    seen = set()
+    for u in nodes:
+        for v, d in distances[u].items():
+            if d == diameter and (v, u) not in seen:
+                seen.add((u, v))
+                chains.append(path_between(parents[u], u, v))
+    return chains
+
+
+def _substituents_for_chain(graph, chain, names, excluded_oxygens):
+    chain_set = set(chain)
+    substituents = {}
+    for position, atom in enumerate(chain, start=1):
+        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded_oxygens]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, names) for root in branch_roots]
+    return substituents
+
+
+def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, ketones):
+    full_graph = adjacency(mol)
+    carbon_graph = carbon_adjacency(mol)
+    names = {**halogen_substituents(mol), **{o: "oxo" for o in ketones}}
+    acyl_carbon_idx = acyl_carbon.GetIdx()
+    excluded_oxygens = {carbonyl_oxygen_idx, ester_oxygen_idx}
+
+    acyl_graph = _component_subgraph(carbon_graph, acyl_carbon_idx)
+    chains = _longest_chains(acyl_graph)
+    chain_length = len(chains[0])
+
+    eligible = []
+    for chain in chains:
+        chain_set = set(chain)
+        if any(full_graph[o][0] not in chain_set for o in ketones):
+            continue
+        eligible.append(chain)
+    if not eligible:
+        raise UnsupportedStructure(
+            "not every ketone-bearing carbon lies on the acyl chain's single "
+            "longest carbon chain; a shorter principal chain is not "
+            "supported yet"
+        )
+
+    best_key = None
+    best_name = None
+    for chain in eligible:
+        for candidate in (chain, list(reversed(chain))):
+            if candidate[0] != acyl_carbon_idx:
+                # The ester carbon must sit at C1 (P-14.3.3, see module
+                # docstring); a direction that doesn't start there is
+                # never valid.
+                continue
+            substituents = _substituents_for_chain(full_graph, candidate, names, excluded_oxygens)
+            grouped = _group(substituents)
+            key, name = _candidate_key(chain_length, grouped)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, name
+    return best_name
+
+
+def name_ketone_ester(mol) -> str:
+    if mol.GetRingInfo().NumRings() > 0:
+        raise UnsupportedStructure(
+            "a ring-attached ester or ketone is out of scope for this "
+            "acyclic-only module"
+        )
+    group = _find_ester_group(mol)
+    if group is None:
+        raise UnsupportedStructure(
+            "exactly one ester group is required; zero or multiple ester "
+            "groups (e.g. a diester) are not supported yet (P-65.6.3)"
+        )
+    acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon = group
+    excluded = {carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx()}
+    ketones = _extra_ketones(mol, excluded)
+    if not ketones:
+        raise UnsupportedStructure(
+            "no coexisting ketone found; this module only handles an ester "
+            "combined with at least one ketone on the acyl chain (see "
+            "_ester.py for a plain ester)"
+        )
+    _validate(mol, acyl_carbon, carbonyl_oxygen, ester_oxygen, ketones)
+
+    all_non_single = non_single_bonds(mol)
+    carbonyl_bonds = [
+        b for b in all_non_single if b[0] in (excluded | ketones) or b[1] in (excluded | ketones)
+    ]
+    if len(carbonyl_bonds) != len(all_non_single):
+        raise UnsupportedStructure(
+            "chain unsaturation (ene/yne) combined with a ketone-on-ester "
+            "demotion is out of scope for this module"
+        )
+
+    alcohol_name = _name_alcohol_part(mol, alcohol_carbon, ester_oxygen.GetIdx())
+    acyl_name = _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx(), ketones)
+    return f"{alcohol_name} {acyl_name}"
