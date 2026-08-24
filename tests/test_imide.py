@@ -7,6 +7,11 @@ from smiles_to_iupac._common import UnsupportedStructure
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        # A symmetric imide is "N-acyl amide" substitutive nomenclature
+        # (P-66.6.3, see _imide.py docstring): the acyl part reuses
+        # _carboxylic_acid.py's already-verified '-oyl' stem and the base
+        # part reuses _amide.py's already-verified '-amide' stem, joined by
+        # a fixed 'N-' prefix -- no new locant/alphabetization judgment.
         ("O=CNC=O", "N-methanoylmethanamide"),
         ("CC(=O)NC(=O)C", "N-ethanoylethanamide"),
         ("CCC(=O)NC(=O)CC", "N-propanoylpropanamide"),

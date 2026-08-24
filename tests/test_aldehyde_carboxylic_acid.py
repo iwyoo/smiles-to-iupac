@@ -5,7 +5,8 @@ from smiles_to_iupac._common import UnsupportedStructure
 
 
 def test_worked_example_malonaldehydic_acid():
-    # O=CCC(=O)O -> 3-oxopropanoic acid
+    # malonaldehydic acid / malonic semialdehyde (PubChem CID 868): IUPAC
+    # name '3-oxopropanoic acid', confirmed via PubChem.
     assert smiles_to_iupac("O=CCC(=O)O") == "3-oxopropanoic acid"
 
 

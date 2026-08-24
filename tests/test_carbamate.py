@@ -7,6 +7,11 @@ from smiles_to_iupac._common import UnsupportedStructure
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        # 'R carbamate' (P-65.6.5) for a plain unbranched R -- a common,
+        # unambiguous naming pattern (e.g. 'methyl carbamate' is the
+        # well-known name of H2NCOOCH3) with no locant/alphabetization
+        # choice, so these are trivially checkable without a per-case
+        # PubChem lookup.
         ("COC(N)=O", "methyl carbamate"),
         ("CCOC(N)=O", "ethyl carbamate"),
         ("CCCOC(N)=O", "propyl carbamate"),

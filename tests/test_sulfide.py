@@ -5,6 +5,9 @@ from smiles_to_iupac._common import UnsupportedStructure
 
 
 def test_dimethyl_sulfide():
+    # 'sulfanyl' substituent-prefix naming mirrors 'oxy' (_ether.py, see
+    # test_ether.py, already cross-checked against PubChem) with -O-
+    # replaced by -S-, same P-14.3.4.2(b) omitted-locant convention.
     assert smiles_to_iupac("CSC") == "methylsulfanylmethane"
 
 

@@ -7,6 +7,10 @@ from smiles_to_iupac._common import UnsupportedStructure
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        # Plain unsubstituted cycloalkenes/dienes are well-known, unambiguous
+        # compound names (cyclohexene, cyclohexadiene, cyclopentene,
+        # cycloheptene); the substituted variants below are covered by
+        # in-line locant-rule citations instead of a per-case lookup.
         ("C1=CCCCC1", "cyclohexene"),
         ("C1=CC=CCC1", "cyclohexa-1,3-diene"),
         ("C1=CCC=CC1", "cyclohexa-1,4-diene"),

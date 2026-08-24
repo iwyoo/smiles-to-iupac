@@ -5,6 +5,10 @@ from smiles_to_iupac._common import UnsupportedStructure
 
 
 def test_biphenyl():
+    # 'biphenyl' with primed/unprimed ring-locant notation (P-28) is a
+    # well-known retained name (PIN '1,1'-biphenyl'); '4,4'-dichloro-1,1'-
+    # biphenyl' below is also a real, independently-named compound (a PCB
+    # congener).
     assert smiles_to_iupac("c1ccc(cc1)-c1ccccc1") == "1,1'-biphenyl"
 
 

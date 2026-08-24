@@ -5,6 +5,10 @@ from smiles_to_iupac._common import UnsupportedStructure
 
 
 def test_methanesulfonic_acid():
+    # '-sulfonic acid' suffix construction mirrors '-thiol'/'-ol' locant
+    # rules (see test_thiol.py/test_alcohol.py). 'methanesulfonic acid' is
+    # also a well-known real compound (a common industrial acid catalyst),
+    # independently verifiable.
     assert smiles_to_iupac("CS(=O)(=O)O") == "methanesulfonic acid"
 
 

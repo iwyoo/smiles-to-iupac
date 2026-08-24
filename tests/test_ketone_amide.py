@@ -5,7 +5,8 @@ from smiles_to_iupac._common import UnsupportedStructure
 
 
 def test_worked_example_acetoacetamide():
-    # CC(=O)CC(N)=O -> 3-oxobutanamide
+    # acetoacetamide (PubChem CID 80077, CAS 5977-14-0): IUPAC name
+    # '3-oxobutanamide', confirmed via PubChem.
     assert smiles_to_iupac("CC(=O)CC(N)=O") == "3-oxobutanamide"
 
 

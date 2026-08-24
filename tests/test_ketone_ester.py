@@ -5,11 +5,14 @@ from smiles_to_iupac._common import UnsupportedStructure
 
 
 def test_worked_example_methyl_acetoacetate():
-    # CC(=O)CC(=O)OC -> methyl 3-oxobutanoate
+    # methyl acetoacetate (PubChem CID 7757, CAS 105-45-3): IUPAC name
+    # 'methyl 3-oxobutanoate', confirmed via PubChem/NIST WebBook.
     assert smiles_to_iupac("CC(=O)CC(=O)OC") == "methyl 3-oxobutanoate"
 
 
 def test_ethyl_acetoacetate():
+    # A single-axis variant of the worked example above (methyl -> ethyl
+    # ester), same demotion mechanism.
     assert smiles_to_iupac("CCOC(=O)CC(=O)C") == "ethyl 3-oxobutanoate"
 
 
