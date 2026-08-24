@@ -15,6 +15,7 @@ from ._ether import has_ether_shape, name_ether
 from ._ketone import name_ketone
 from ._nitrile import has_nitrile_shape, name_nitrile
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
+from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
 from ._polyspiro import find_linear_polyspiro_chain, name_linear_polyspiro
 from ._spiro import find_monospiro_atom, name_monospiro
 from ._spiro_heteroatom import (
@@ -38,6 +39,14 @@ def smiles_to_iupac(smiles: str) -> str:
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError(f"invalid SMILES: {smiles!r}")
+
+    # pyrene/acenaphthylene (P-25.1.2's peri-fused retained names) are
+    # recognized by exact whole-molecule match, independent of every other
+    # branch below -- see _peri_fused_aromatic.py's module docstring for
+    # why (acenaphthylene in particular has a non-6-membered, non-aromatic
+    # ring that none of the other dispatch branches expect).
+    if has_retained_peri_fused_name(mol):
+        return name_retained_peri_fused(mol)
 
     # A single O/N/S skeletal atom in an otherwise-carbon von Baeyer
     # bicyclic ring (P-23.2.1's 'a'-prefix skeletal replacement) or
