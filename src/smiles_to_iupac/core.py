@@ -19,6 +19,7 @@ from ._polyspiro import find_linear_polyspiro_chain, name_linear_polyspiro
 from ._spiro import find_monospiro_atom, name_monospiro
 from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
+from ._von_baeyer_heteroatom import has_single_ring_heteroatom_shape, name_von_baeyer_heteroatom
 
 
 def _is_aldehyde_shaped(carbonyl_oxygen):
@@ -30,6 +31,14 @@ def smiles_to_iupac(smiles: str) -> str:
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError(f"invalid SMILES: {smiles!r}")
+
+    # A single O/N/S skeletal atom in an otherwise-carbon von Baeyer
+    # bicyclic ring (P-23.2.1's 'a'-prefix skeletal replacement) must be
+    # routed here before any of the O/N-triggered branches below, none of
+    # which understand a ring heteroatom at all.
+    bicyclic_core = find_bicyclic_core(mol)
+    if bicyclic_core is not None and has_single_ring_heteroatom_shape(mol, bicyclic_core):
+        return name_von_baeyer_heteroatom(mol, bicyclic_core)
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
         # A plain -O- ether (P-63.2.1) has no suffix, so it must be routed

@@ -121,7 +121,38 @@ def find_bicyclic_core(mol):
     return bh1, bh2, bridges
 
 
-def _candidate_key(parent, substituents):
+def bicyclic_parent_name(core) -> str:
+    """The 'bicyclo[x.y.z]alkane' parent name for `core`'s bridge lengths
+    (P-23.2.2) — shared with `_von_baeyer_heteroatom.py`, since a skeletal
+    heteroatom doesn't change the bridge-length count that determines this."""
+    _, _, bridges = core
+    lengths_desc = sorted((len(bridge) for bridge in bridges), reverse=True)
+    total_atoms = sum(lengths_desc) + 2
+    return f"bicyclo[{'.'.join(str(n) for n in lengths_desc)}]{alkane_name(total_atoms)}"
+
+
+def iter_bicyclic_numberings(core):
+    """Yield every von Baeyer-valid numbering (P-23.2.3) of `core` as a full
+    atom-index order (position 0 -> locant 1, etc.) — every choice of
+    starting bridgehead and, among bridges tied in length, their order,
+    consistent with the fixed 'longer segment before shorter, main bridge
+    last' shape. Shared with `_von_baeyer_heteroatom.py` so a heteroatom's
+    locant can be minimized over the same candidate numberings a plain
+    hydrocarbon's substituents are."""
+    bh1, bh2, bridges = core
+    for start, other, oriented_bridges in (
+        (bh1, bh2, bridges),
+        (bh2, bh1, [list(reversed(bridge)) for bridge in bridges]),
+    ):
+        for perm in permutations(range(3)):
+            ordered = [oriented_bridges[i] for i in perm]
+            if not (len(ordered[0]) >= len(ordered[1]) >= len(ordered[2])):
+                continue
+            main_ring_first, main_ring_second, main_bridge = ordered
+            yield [start] + main_ring_first + [other] + list(reversed(main_ring_second)) + main_bridge
+
+
+def _candidate_key(parent, substituents, heteroatom_locant=None, nondetachable_prefix=""):
     grouped = _group(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -129,8 +160,13 @@ def _candidate_key(parent, substituents):
         for name in sorted(grouped, key=alpha_sort_key)
         for loc in sorted(grouped[name]["locants"])
     )
-    name = parent if not grouped else format_substituent_prefixes(grouped) + parent
-    return locant_set, citation_locants, name
+    prefix = format_substituent_prefixes(grouped) if grouped else ""
+    if prefix and nondetachable_prefix:
+        prefix += "-"
+    name = prefix + nondetachable_prefix + parent
+    if heteroatom_locant is None:
+        return locant_set, citation_locants, name
+    return heteroatom_locant, locant_set, citation_locants, name
 
 
 def name_bicycloalkane(mol, core) -> str:
@@ -141,30 +177,16 @@ def name_bicycloalkane(mol, core) -> str:
             "P-31.1.4, unsaturated von Baeyer ring systems)"
         )
 
-    bh1, bh2, bridges = core
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    lengths_desc = sorted((len(bridge) for bridge in bridges), reverse=True)
-    total_atoms = sum(lengths_desc) + 2
-    parent = f"bicyclo[{'.'.join(str(n) for n in lengths_desc)}]{alkane_name(total_atoms)}"
+    parent = bicyclic_parent_name(core)
 
     best_key = None
     best_name = None
-    for start, other, oriented_bridges in (
-        (bh1, bh2, bridges),
-        (bh2, bh1, [list(reversed(bridge)) for bridge in bridges]),
-    ):
-        for perm in permutations(range(3)):
-            ordered = [oriented_bridges[i] for i in perm]
-            if not (len(ordered[0]) >= len(ordered[1]) >= len(ordered[2])):
-                continue
-            main_ring_first, main_ring_second, main_bridge = ordered
-            full_order = (
-                [start] + main_ring_first + [other] + list(reversed(main_ring_second)) + main_bridge
-            )
-            substituents = _substituents_for_ring(graph, full_order, halogens)
-            key = _candidate_key(parent, substituents)
-            if best_key is None or key < best_key:
-                best_key, best_name = key, key[-1]
+    for full_order in iter_bicyclic_numberings(core):
+        substituents = _substituents_for_ring(graph, full_order, halogens)
+        key = _candidate_key(parent, substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, key[-1]
 
     return best_name
