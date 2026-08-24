@@ -73,3 +73,45 @@ def test_monospiro_two_rings_is_unaffected():
     # exactly two rings still goes through _spiro.py's monospiro path, not
     # this module (find_linear_polyspiro_chain requires >= 3 rings).
     assert smiles_to_iupac("C1CCCC12CCCCC2") == "spiro[4.5]decane"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # SP-1.5's own worked example (https://iupac.qmul.ac.uk/spiro/sp0n1.html):
+        # a 9-membered hub ring carrying three spiro atoms two hub-atoms
+        # apart, each spiro-fused to a cyclopropane -- reconstructed here
+        # from that description (arc lengths 2/2/2 on the hub, 2 non-spiro
+        # atoms per terminal cyclopropane) and cross-checked against the
+        # text's own name.
+        ("C12(CC2)CCC3(CC3)CCC4(CC4)CC1", "trispiro[2.2.2^6.2.2^11.2^3]pentadecane"),
+        # Same hub, but one terminal ring is a cyclobutane instead of a
+        # cyclopropane (asymmetric terminal sizes): only verified by
+        # hand-derivation from the SP-1.5 numbering procedure (brute-force
+        # search over every starting terminal/hub-direction/terminal-walk-
+        # direction combination, lowest spiro-locant set wins per
+        # P-24.2.2.1), no independent worked example found for this exact
+        # compound.
+        ("C12(CC2)CCC3(CC3)CCC4(CCC4)CC1", "trispiro[2.2.2^6.2.3^11.2^3]hexadecane"),
+    ],
+)
+def test_smiles_to_iupac_branched_polyspiro(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_deeper_branched_polyspiro_raises():
+    # a hub ring's three spiro atoms each fused to a terminal ring is this
+    # module's minimal supported shape; a second layer of branching (one of
+    # those "terminal" rings is itself a second hub with its own extra spiro
+    # atom) is a structurally distinct, more general case (see module
+    # docstring) and must still raise, not silently misname a partial reading.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C12(C6(CC6)C2)CCC3(CC3)CCC4(CC4)CC1")
+
+
+def test_four_spiro_hub_polyspiro_raises():
+    # a hub ring with four spiro atoms (four terminal rings, five rings
+    # total) is a different von Baeyer descriptor shape than this module's
+    # exactly-three-spiro-atom minimal case; must still raise.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C12(CC2)CC3(CC3)CC4(CC4)CC5(CC5)C1")
