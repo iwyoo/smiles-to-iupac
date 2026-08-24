@@ -20,6 +20,7 @@ from ._nitrile import has_nitrile_shape, name_nitrile
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
 from ._polyspiro import find_linear_polyspiro_chain, name_linear_polyspiro
+from ._silane_chain import has_silane_chain_shape, name_silane_chain
 from ._spiro import find_monospiro_atom, name_monospiro
 from ._spiro_heteroatom import (
     has_single_ring_heteroatom_shape as has_single_spiro_heteroatom_shape,
@@ -42,6 +43,12 @@ def smiles_to_iupac(smiles: str) -> str:
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError(f"invalid SMILES: {smiles!r}")
+
+    # An all-silicon skeleton (P-21.2.1's silane chain naming) has no
+    # carbon at all, so it must be routed here before every other branch
+    # below, all of which assume at least one carbon atom.
+    if has_silane_chain_shape(mol):
+        return name_silane_chain(mol)
 
     # pyrene/acenaphthylene (P-25.1.2's peri-fused retained names) are
     # recognized by exact whole-molecule match, independent of every other
