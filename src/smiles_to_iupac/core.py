@@ -25,6 +25,7 @@ from ._ketone import name_ketone
 from ._nitrile import has_nitrile_shape, name_nitrile
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
+from ._peroxide import has_peroxide_shape, name_peroxide
 from ._polyspiro import find_linear_polyspiro_chain, name_linear_polyspiro
 from ._ring_assembly import find_ring_assembly_core, name_ring_assembly
 from ._silane_chain import has_silane_chain_shape, name_silane_chain
@@ -126,6 +127,12 @@ def smiles_to_iupac(smiles: str) -> str:
         # accept a degree-2 oxygen at all.
         if has_ether_shape(mol):
             return name_ether(mol)
+        # A plain -O-O- peroxide (P-63.2.5) also has no suffix and no
+        # carbonyl, so with no other check to intercept it, it would
+        # otherwise fall all the way through to the alcohol module below
+        # (which doesn't accept a degree-2 oxygen either).
+        if has_peroxide_shape(mol):
+            return name_peroxide(mol)
         # An anhydride's bridging oxygen (-C(=O)-O-C(=O)-) is also
         # ester-shaped from either acyl carbon's point of view (a carbonyl
         # oxygen plus a second, carbon-bonded oxygen), so it must be routed
