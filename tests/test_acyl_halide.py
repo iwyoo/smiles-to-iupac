@@ -7,6 +7,12 @@ from smiles_to_iupac._common import UnsupportedStructure
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        # -oyl halide is a mechanical stem+halide-word construction (P-65.1.5,
+        # see _acyl_halide.py docstring) with a single, non-ambiguous
+        # substitution point; no locant tie-break or alphabetization choice
+        # is involved, so these are cross-checked directly against common
+        # usage (acetyl chloride == 'ethanoyl chloride' etc.) rather than a
+        # per-case PubChem lookup.
         ("C(=O)Cl", "methanoyl chloride"),
         ("CC(=O)Cl", "ethanoyl chloride"),
         ("CCC(=O)Cl", "propanoyl chloride"),

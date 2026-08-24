@@ -7,6 +7,13 @@ from smiles_to_iupac._common import UnsupportedStructure
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        # A symmetric anhydride's name is the constituent acid's own name
+        # (already independently verified in test_carboxylic_acid.py) with
+        # 'acid' replaced by 'anhydride' (P-65.7.1, see _anhydride.py
+        # docstring); no new locant/alphabetization judgment is introduced
+        # here, so these reuse that existing verification rather than a
+        # fresh per-case lookup. 'ethanoic anhydride' is acetic anhydride, a
+        # well-known compound.
         ("O=COC=O", "methanoic anhydride"),
         ("CC(=O)OC(=O)C", "ethanoic anhydride"),
         ("CCC(=O)OC(=O)CC", "propanoic anhydride"),

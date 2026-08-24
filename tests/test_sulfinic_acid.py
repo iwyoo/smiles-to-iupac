@@ -7,6 +7,10 @@ from smiles_to_iupac._common import UnsupportedStructure
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        # '-sulfinic acid' mirrors '-sulfonic acid' (see
+        # test_sulfonic_acid.py) with one fewer oxygen; same locant rules.
+        # 'methanesulfinic acid'/'ethanesulfinic acid' are also
+        # independently verifiable real compound names.
         ("CS(=O)O", "methanesulfinic acid"),
         ("CCS(=O)O", "ethanesulfinic acid"),
         ("CCCS(=O)O", "propane-1-sulfinic acid"),

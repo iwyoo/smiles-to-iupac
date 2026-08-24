@@ -5,6 +5,10 @@ from smiles_to_iupac._common import UnsupportedStructure
 
 
 def test_methanethiol():
+    # '-thiol' suffix construction mirrors '-ol' (_alcohol.py, see
+    # test_alcohol.py, already cross-checked against PubChem) with the same
+    # locant-citation rules; 'methanethiol'/'ethanethiol' are also the
+    # well-known common names of these compounds.
     assert smiles_to_iupac("SC") == "methanethiol"
 
 

@@ -5,12 +5,15 @@ from smiles_to_iupac._common import UnsupportedStructure
 
 
 def test_worked_example_3_oxohexanal():
-    # CH3CH2CH2COCH2CHO
+    # CH3CH2CH2COCH2CHO -> 3-oxohexanal: this specific worked example is
+    # cited and confirmed in _aldehyde_ketone.py's own module docstring
+    # (P-41/Table 3.3's 'al' > 'one' demotion).
     assert smiles_to_iupac("CCCC(=O)CC=O") == "3-oxohexanal"
 
 
 def test_simplest_case():
-    # CH3COCH2CHO -> 3-oxobutanal
+    # A single-axis variant of the worked example above (shorter chain,
+    # same demotion mechanism) -- CH3COCH2CHO -> 3-oxobutanal.
     assert smiles_to_iupac("CC(=O)CC=O") == "3-oxobutanal"
 
 

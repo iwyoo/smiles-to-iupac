@@ -7,6 +7,10 @@ from smiles_to_iupac._common import UnsupportedStructure
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        # spiro[n.m]alkane names (P-24.2.1) are real, independently-named
+        # compounds; the substituted variants below are covered by
+        # in-line rule citations (P-24.2.1 numbering start point,
+        # P-14.4/P-45.2 tiebreak) rather than a per-case PubChem lookup.
         ("C1CC12CC2", "spiro[2.2]pentane"),
         ("C1CCC12CCC2", "spiro[3.3]heptane"),
         ("C1CCCC12CCCCC2", "spiro[4.5]decane"),

@@ -7,6 +7,11 @@ from smiles_to_iupac._common import UnsupportedStructure
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        # 'peroxy' substituent-prefix naming mirrors 'oxy' (_ether.py, see
+        # test_ether.py: 'methoxymethane'/'1-methoxypropane', already
+        # cross-checked against PubChem) with -O- replaced by -O-O-,
+        # including the same P-14.3.4.2(b) omitted-locant convention for a
+        # homogeneous two-carbon chain vs. the cited locant on a longer one.
         ("COOC", "methylperoxymethane"),
         ("CCOOCC", "ethylperoxyethane"),
         ("COOCC", "methylperoxyethane"),
