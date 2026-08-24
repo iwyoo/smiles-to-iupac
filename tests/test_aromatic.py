@@ -71,11 +71,12 @@ def test_smiles_to_iupac_aromatic(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_peri_fused_raises():
-    # pyrene: verified via RDKit that some atom is shared by three rings
-    # (peri-fusion), explicitly out of scope (P-25.3.1.3, ortho-fusion only).
+def test_substituted_peri_fused_raises():
+    # a methylated pyrene: the unsubstituted parent itself is now supported
+    # (see tests/test_peri_fused_aromatic.py), but a substituted peri-fused
+    # ring system is still explicitly out of scope (P-25.3.1.3).
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1cc2ccc3cccc4ccc(c1)c2c34")
+        smiles_to_iupac("Cc1cc2ccc3cccc4ccc(c1)c2c34")
 
 
 def test_branched_fusion_raises():
