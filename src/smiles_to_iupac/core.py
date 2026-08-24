@@ -13,6 +13,7 @@ from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._ester import has_ester_shape, name_ester
 from ._ether import has_ether_shape, name_ether
+from ._fullerene import has_fullerene_name, name_fullerene
 from ._heteroaromatic_fused import has_retained_heteroaromatic_fused_name, name_retained_heteroaromatic_fused
 from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
 from ._ketone import name_ketone
@@ -49,6 +50,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # below, all of which assume at least one carbon atom.
     if has_silane_chain_shape(mol):
         return name_silane_chain(mol)
+
+    # buckminsterfullerene (P-27's '[60]fullerene', a fixed 12-pentagon/
+    # 20-hexagon cage) is recognized by exact whole-molecule match --
+    # see _fullerene.py's module docstring; none of the ring modules
+    # below understand a cage shape at all.
+    if has_fullerene_name(mol):
+        return name_fullerene(mol)
 
     # pyrene/acenaphthylene (P-25.1.2's peri-fused retained names) are
     # recognized by exact whole-molecule match, independent of every other
