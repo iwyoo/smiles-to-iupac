@@ -30,6 +30,7 @@ from ._spiro_heteroatom import (
     name_spiro_heteroatom,
 )
 from ._sulfide import has_sulfide_shape, name_sulfide
+from ._sulfinic_acid import has_sulfinic_acid_shape, name_sulfinic_acid
 from ._sulfonic_acid import has_sulfonic_acid_shape, name_sulfonic_acid
 from ._thiol import has_thiol_shape, name_thiol
 from ._tricyclic import find_propellane_core, name_propellane
@@ -109,6 +110,11 @@ def smiles_to_iupac(smiles: str) -> str:
     # in that branch understand a sulfur-centered oxygen cluster at all.
     if has_sulfonic_acid_shape(mol):
         return name_sulfonic_acid(mol)
+    # A sulfinic acid (-SO2H, P-65.3.1) has two oxygens on its own sulfur --
+    # the same reasoning as sulfonic acid above -- so it too must be routed
+    # before the plain "any O atom" branch.
+    if has_sulfinic_acid_shape(mol):
+        return name_sulfinic_acid(mol)
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
         # A plain -O- ether (P-63.2.1) has no suffix, so it must be routed
