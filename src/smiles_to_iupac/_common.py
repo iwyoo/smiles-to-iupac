@@ -13,6 +13,8 @@ naming modules.
 
 from rdkit import Chem
 
+from ._numerals import numerical_term
+
 
 class UnsupportedStructure(NotImplementedError):
     pass
@@ -20,6 +22,9 @@ class UnsupportedStructure(NotImplementedError):
 
 HALOGEN_PREFIXES = {9: "fluoro", 17: "chloro", 35: "bromo", 53: "iodo"}
 _ALLOWED_ATOMIC_NUMS = {6, *HALOGEN_PREFIXES}
+
+ENE_BOND_ORDER = 2.0
+YNE_BOND_ORDER = 3.0
 
 
 def validate_atoms_and_bonds(mol):
@@ -145,3 +150,71 @@ def linear_branch(graph, root, coming_from):
 
 def lowest_locant_set(locants):
     return tuple(sorted(locants))
+
+
+def multiplied_word(count, base):
+    """Multiplying-prefix word for `count` occurrences of a suffix like 'ol'/
+    'one'/'al' (P-14.2.1): omitted for zero, bare for one, else prefixed with
+    the basic numerical term ('di', 'tri', ...)."""
+    if count == 0:
+        return ""
+    if count == 1:
+        return base
+    return numerical_term(count) + base
+
+
+def group_substituents(substituents):
+    """{position -> [(name, is_compound), ...]} -> {name -> {"locants": [...],
+    "compound": bool}}, merging same-named substituents at different
+    positions so they can be cited once with a multiplying prefix (P-16)."""
+    grouped = {}
+    for position, entries in substituents.items():
+        for name, is_compound in entries:
+            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
+            info["locants"].append(position)
+    return grouped
+
+
+def longest_chains(graph):
+    """Every longest path (by atom count) through an undirected acyclic
+    `graph` (P-44.3, the principal chain must be a longest chain candidate)."""
+    nodes = list(graph)
+    distances = {}
+    parents = {}
+    for node in nodes:
+        dist, parent = bfs(graph, node)
+        distances[node] = dist
+        parents[node] = parent
+
+    diameter = max(d for dist in distances.values() for d in dist.values())
+    chains = []
+    seen = set()
+    for u in nodes:
+        for v, d in distances[u].items():
+            if d == diameter and (v, u) not in seen:
+                seen.add((u, v))
+                chains.append(path_between(parents[u], u, v))
+    return chains
+
+
+def bond_locant(chain, bond_atoms):
+    """1-based position along `chain` of the bond between `bond_atoms` (a
+    2-tuple of atom indices), or None if that bond doesn't lie on `chain`."""
+    bond_set = set(bond_atoms)
+    for i in range(len(chain) - 1):
+        if {chain[i], chain[i + 1]} == bond_set:
+            return i + 1
+    return None
+
+
+def bond_locants(chain, bonds):
+    """(ene_locants, yne_locants) for every (a, b, order) bond in `bonds` that
+    lies on `chain`, or None if any bond doesn't (a shorter/wrong chain
+    candidate)."""
+    ene, yne = [], []
+    for a, b, order in bonds:
+        locant = bond_locant(chain, (a, b))
+        if locant is None:
+            return None
+        (ene if order == ENE_BOND_ORDER else yne).append(locant)
+    return ene, yne
