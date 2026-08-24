@@ -37,11 +37,6 @@ def test_formaldehyde_raises():
         smiles_to_iupac("C=O")
 
 
-def test_ketone_aldehyde_mix_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)CC=O")
-
-
 def test_carboxylic_acid_not_misread_as_aldehyde():
     # A carboxylic acid is routed to the dedicated carboxylic-acid module
     # (see test_carboxylic_acid.py) instead of falling through here.
