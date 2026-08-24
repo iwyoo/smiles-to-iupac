@@ -11,6 +11,7 @@ from ._branched_fused_aromatic import has_retained_branched_fused_name, name_ret
 from ._carboxylic_acid import has_carboxylic_acid_shape, name_carboxylic_acid
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
+from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
 from ._ester import has_ester_shape, name_ester
 from ._ether import has_ether_shape, name_ether
 from ._fullerene import has_fullerene_name, name_fullerene
@@ -207,6 +208,9 @@ def smiles_to_iupac(smiles: str) -> str:
             "(see P-31.1.1.1)"
         )
     if num_rings == 1:
+        unsaturated_ring = find_cyclic_unsaturated_core(mol)
+        if unsaturated_ring is not None:
+            return name_cyclic_unsaturated(mol, unsaturated_ring)
         return name_cycloalkane(mol)
 
     # num_rings >= 2 from here on. RDKit's SSSR can overcount rings for

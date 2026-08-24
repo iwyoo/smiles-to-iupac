@@ -95,17 +95,6 @@ def test_smiles_to_iupac_multiply_unsaturated(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        "C1=CCCCC1",  # cyclohexene: unsaturation in a ring, out of scope.
-    ],
-)
-def test_out_of_scope_unsaturation_raises(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
 def test_unsaturated_branch_not_on_principal_chain_raises():
     # The double bond sits on a short branch whose own arm can never be as
     # long as the two 6-carbon arms of the main chain, so no longest chain
