@@ -6,6 +6,7 @@ from ._anhydride import has_anhydride_shape, name_anhydride
 from ._alcohol import name_alcohol
 from ._aldehyde import name_aldehyde
 from ._amide import has_amide_shape, name_amide
+from ._imide import has_imide_shape, name_imide
 from ._amine import name_amine
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
@@ -152,6 +153,13 @@ def smiles_to_iupac(smiles: str) -> str:
         # neighbors, ignoring the nitrogen).
         if has_amide_shape(mol):
             return name_amide(mol)
+        # A one-H nitrogen bridging two carbonyl carbons (-C(=O)-NH-C(=O)-)
+        # is an imide, junior only to the acid/ester/amide suffixes above
+        # in Table 3.3; it must be routed before the generic carbonyl
+        # fallback below, which would otherwise misname each acyl carbon as
+        # a plain aldehyde.
+        if has_imide_shape(mol):
+            return name_imide(mol)
         # A carbon bearing a carbonyl oxygen and a halogen (-C(=O)X) is an
         # acyl halide, junior only to the acid/ester/amide suffixes above in
         # Table 3.3; it must be routed before the generic carbonyl fallback
