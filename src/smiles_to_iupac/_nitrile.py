@@ -54,21 +54,24 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 from rdkit import Chem
 
 from ._common import (
+    ENE_BOND_ORDER,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
+    YNE_BOND_ORDER,
     adjacency,
-    bfs,
+    bond_locant,
+    bond_locants,
     carbon_adjacency,
+    group_substituents,
     halogen_substituents,
+    longest_chains,
     lowest_locant_set,
+    multiplied_word,
     non_single_bonds,
-    path_between,
 )
-from ._numerals import alkane_name, numerical_term
+from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
-_ENE_ORDER = 2.0
-_YNE_ORDER = 3.0
 _NITRILE_ORDER = 3.0
 _ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
 
@@ -158,14 +161,6 @@ def _validate_and_collect_nitriles(mol):
     return nitriles
 
 
-def _multiplied_word(count, base):
-    if count == 0:
-        return ""
-    if count == 1:
-        return base
-    return numerical_term(count) + base
-
-
 def _suffix_body(ene_locants, yne_locants, nitrile_count):
     """Locant-and-suffix string for the combined 'ene'/'yne'/'nitrile'
     ending (e.g. '4-enenitrile'). Like `_aldehyde.py`'s '-al', 'nitrile'
@@ -175,11 +170,11 @@ def _suffix_body(ene_locants, yne_locants, nitrile_count):
     trailing 'e' either, since 'nitrile' starts with a consonant."""
     segments = []
     if ene_locants:
-        segments.append((sorted(ene_locants), _multiplied_word(len(ene_locants), "ene")))
+        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
     if yne_locants:
-        segments.append((sorted(yne_locants), _multiplied_word(len(yne_locants), "yne")))
+        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
 
-    nitrile_word = _multiplied_word(nitrile_count, "nitrile")
+    nitrile_word = multiplied_word(nitrile_count, "nitrile")
     words = [word for _, word in segments] + [nitrile_word]
 
     locanted_parts = [
@@ -188,15 +183,6 @@ def _suffix_body(ene_locants, yne_locants, nitrile_count):
     ]
     body = "-".join(locanted_parts) + words[-1] if locanted_parts else words[-1]
     return body
-
-
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
 
 
 def _name_from_substituents(chain_length, nitrile_count, ene_locants, yne_locants, grouped):
@@ -220,7 +206,7 @@ def _candidate_key(chain_length, nitrile_locants, ene_locants, yne_locants, subs
     locants), most-preferred first. The nitrile locant set still drives
     orientation choice even though it is never printed (see module
     docstring)."""
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     total_count = sum(len(info["locants"]) for info in grouped.values())
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -246,44 +232,6 @@ def _candidate_key(chain_length, nitrile_locants, ene_locants, yne_locants, subs
     )
 
 
-def _longest_chains(graph):
-    nodes = list(graph)
-    distances = {}
-    parents = {}
-    for node in nodes:
-        dist, parent = bfs(graph, node)
-        distances[node] = dist
-        parents[node] = parent
-
-    diameter = max(d for dist in distances.values() for d in dist.values())
-    chains = []
-    seen = set()
-    for u in nodes:
-        for v, d in distances[u].items():
-            if d == diameter and (v, u) not in seen:
-                seen.add((u, v))
-                chains.append(path_between(parents[u], u, v))
-    return chains
-
-
-def _bond_locant(chain, bond_atoms):
-    bond_set = set(bond_atoms)
-    for i in range(len(chain) - 1):
-        if {chain[i], chain[i + 1]} == bond_set:
-            return i + 1
-    return None
-
-
-def _bond_locants(chain, bonds):
-    ene, yne = [], []
-    for a, b, order in bonds:
-        locant = _bond_locant(chain, (a, b))
-        if locant is None:
-            return None
-        (ene if order == _ENE_ORDER else yne).append(locant)
-    return ene, yne
-
-
 def _nitrile_locants(position_of, nitriles, graph):
     locants = []
     for n in nitriles:
@@ -307,7 +255,7 @@ def _substituents_for_chain(graph, chain, halogens, nitriles):
 def _name_acyclic_nitrile(mol, nitriles, bonds):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    chains = _longest_chains(carbon_adjacency(mol))
+    chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
 
     eligible = []
@@ -315,7 +263,7 @@ def _name_acyclic_nitrile(mol, nitriles, bonds):
         position_of = {atom: i + 1 for i, atom in enumerate(chain)}
         if _nitrile_locants(position_of, nitriles, graph) is None:
             continue
-        if bonds and _bond_locants(chain, bonds) is None:
+        if bonds and bond_locants(chain, bonds) is None:
             continue
         eligible.append(chain)
     if not eligible:
@@ -331,7 +279,7 @@ def _name_acyclic_nitrile(mol, nitriles, bonds):
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             nitrile_locants = _nitrile_locants(position_of, nitriles, graph)
-            ene_locants, yne_locants = _bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
             substituents = _substituents_for_chain(graph, candidate, halogens, nitriles)
             key, name = _candidate_key(chain_length, nitrile_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
@@ -346,7 +294,7 @@ def name_nitrile(mol) -> str:
     # order 3.0 same as a C#C, but it isn't a chain 'yne' bond (one endpoint
     # is the nitrile nitrogen, never part of any carbon chain).
     all_non_single = [b for b in non_single_bonds(mol) if b[0] not in nitriles and b[1] not in nitriles]
-    bonds = [b for b in all_non_single if b[2] in (_ENE_ORDER, _YNE_ORDER)]
+    bonds = [b for b in all_non_single if b[2] in (ENE_BOND_ORDER, YNE_BOND_ORDER)]
     if len(bonds) != len(all_non_single):
         raise UnsupportedStructure(
             "a bond order other than single, double, or triple is not "
