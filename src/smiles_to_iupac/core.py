@@ -28,6 +28,7 @@ from ._spiro_heteroatom import (
     has_single_ring_heteroatom_shape as has_single_spiro_heteroatom_shape,
     name_spiro_heteroatom,
 )
+from ._thiol import has_thiol_shape, name_thiol
 from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
 from ._von_baeyer_heteroatom import (
@@ -149,6 +150,13 @@ def smiles_to_iupac(smiles: str) -> str:
         if has_nitrile_shape(mol):
             return name_nitrile(mol)
         return name_amine(mol)
+    if has_thiol_shape(mol):
+        # A thiol (-SH, P-63.1.1) has neither O nor N, so it only reaches
+        # this branch once both are ruled out above -- this module doesn't
+        # yet handle Table 3.3's alcohol/thiol/amine seniority coexistence,
+        # so a molecule with O or N never reaches here at all (see
+        # _thiol.py's module docstring).
+        return name_thiol(mol)
 
     num_rings = mol.GetRingInfo().NumRings()
     # Two disjoint (unfused) benzene rings joined by a single bond -- e.g.
