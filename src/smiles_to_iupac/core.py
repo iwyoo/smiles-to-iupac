@@ -14,6 +14,7 @@ from ._cyclic import name_cycloalkane
 from ._ester import has_ester_shape, name_ester
 from ._ether import has_ether_shape, name_ether
 from ._heteroaromatic_fused import has_retained_heteroaromatic_fused_name, name_retained_heteroaromatic_fused
+from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
 from ._ketone import name_ketone
 from ._nitrile import has_nitrile_shape, name_nitrile
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
@@ -62,6 +63,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # dispatch would never even consider them.
     if has_retained_heteroaromatic_fused_name(mol):
         return name_retained_heteroaromatic_fused(mol)
+
+    # oxirane/thiane/piperidine etc. (P-22.2.1's Hantzsch-Widman
+    # saturated-monocyclic retained names) are recognized the same way --
+    # see _hetero_monocyclic.py's module docstring; none of the O/N
+    # branches below understand a plain heteroatom ring at all.
+    if has_hetero_monocyclic_name(mol):
+        return name_hetero_monocyclic(mol)
 
     # A single O/N/S skeletal atom in an otherwise-carbon von Baeyer
     # bicyclic ring (P-23.2.1's 'a'-prefix skeletal replacement) or
