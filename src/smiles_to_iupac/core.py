@@ -6,6 +6,7 @@ from ._anhydride import has_anhydride_shape, name_anhydride
 from ._carbamate import has_carbamate_shape, name_carbamate
 from ._alcohol import name_alcohol
 from ._aldehyde import name_aldehyde
+from ._aldehyde_ketone import has_aldehyde_ketone_shape, name_aldehyde_ketone
 from ._amide import has_amide_shape, name_amide
 from ._imide import has_imide_shape, name_imide
 from ._amine import name_amine
@@ -193,6 +194,13 @@ def smiles_to_iupac(smiles: str) -> str:
             if atom.GetAtomicNum() == 8 and atom.GetDegree() == 1 and atom.GetBonds()[0].GetBondTypeAsDouble() == 2.0
         ]
         if carbonyl_oxygens:
+            # P-41/Table 3.3: 'al' outranks 'one', so a molecule combining a
+            # terminal aldehyde with one or more ketones names the aldehyde
+            # as the suffix and demotes each ketone to an 'oxo' prefix
+            # instead of raising the "coexisting carbonyl" rejection either
+            # single-shape module would otherwise hit on its own.
+            if has_aldehyde_ketone_shape(mol):
+                return name_aldehyde_ketone(mol)
             if any(_is_aldehyde_shaped(o) for o in carbonyl_oxygens):
                 return name_aldehyde(mol)
             return name_ketone(mol)

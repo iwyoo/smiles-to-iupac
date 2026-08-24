@@ -49,15 +49,6 @@ def test_ketone_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_aldehyde_ketone_mix_raises():
-    # A structure with both an aldehyde-shaped and a ketone-shaped carbonyl
-    # is rejected outright; a plain aldehyde with no coexisting ketone is
-    # dispatched to the separate aldehyde module instead (see
-    # test_aldehyde.py) and is now supported.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)CC=O")
-
-
 def test_carboxylic_acid_not_misread_as_ketone():
     # A carboxylic acid is routed to the dedicated carboxylic-acid module
     # (see test_carboxylic_acid.py) instead of falling through here.
