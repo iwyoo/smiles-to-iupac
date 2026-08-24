@@ -28,6 +28,7 @@ from ._spiro_heteroatom import (
     has_single_ring_heteroatom_shape as has_single_spiro_heteroatom_shape,
     name_spiro_heteroatom,
 )
+from ._sulfide import has_sulfide_shape, name_sulfide
 from ._thiol import has_thiol_shape, name_thiol
 from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
@@ -150,6 +151,12 @@ def smiles_to_iupac(smiles: str) -> str:
         if has_nitrile_shape(mol):
             return name_nitrile(mol)
         return name_amine(mol)
+    if has_sulfide_shape(mol):
+        # A plain -S- sulfide (P-63.2.1) has no suffix, so it must be routed
+        # here before has_thiol_shape below: _thiol.py's validation rejects
+        # a degree-2 sulfur outright (not a monovalent -SH), so a sulfide
+        # would otherwise raise the wrong error there instead of being named.
+        return name_sulfide(mol)
     if has_thiol_shape(mol):
         # A thiol (-SH, P-63.1.1) has neither O nor N, so it only reaches
         # this branch once both are ruled out above -- this module doesn't
