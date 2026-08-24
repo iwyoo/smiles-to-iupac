@@ -43,9 +43,11 @@ def test_diamide_raises():
         smiles_to_iupac("NC(=O)CC(N)=O")
 
 
-def test_ester_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)OC")
+def test_ester_not_misnamed_as_amide():
+    # -COO- (ester, `_ester.py`) is not amide-shaped: its carbonyl carbon's
+    # other oxygen neighbor is carbon-bonded, not a nitrogen, so this must
+    # not be routed here and misnamed.
+    assert smiles_to_iupac("CC(=O)OC") == "methyl ethanoate"
 
 
 def test_carboxylic_acid_not_misnamed_as_amide():
