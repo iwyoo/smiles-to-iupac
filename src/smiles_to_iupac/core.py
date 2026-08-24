@@ -13,6 +13,7 @@ from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._ester import has_ester_shape, name_ester
 from ._ether import has_ether_shape, name_ether
+from ._heteroaromatic_fused import has_retained_heteroaromatic_fused_name, name_retained_heteroaromatic_fused
 from ._ketone import name_ketone
 from ._nitrile import has_nitrile_shape, name_nitrile
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
@@ -54,6 +55,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # _aromatic.py's chain-only algorithm explicitly rejects this shape.
     if has_retained_branched_fused_name(mol):
         return name_retained_branched_fused(mol)
+
+    # quinoline/1H-indole (P-25.2.1's heteroaromatic retained names) are
+    # recognized the same way -- see _heteroaromatic_fused.py's module
+    # docstring; neither has an all-carbon skeleton, so _aromatic.py's
+    # dispatch would never even consider them.
+    if has_retained_heteroaromatic_fused_name(mol):
+        return name_retained_heteroaromatic_fused(mol)
 
     # A single O/N/S skeletal atom in an otherwise-carbon von Baeyer
     # bicyclic ring (P-23.2.1's 'a'-prefix skeletal replacement) or
