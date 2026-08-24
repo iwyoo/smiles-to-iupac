@@ -21,6 +21,7 @@ from ._nitrile import has_nitrile_shape, name_nitrile
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
 from ._polyspiro import find_linear_polyspiro_chain, name_linear_polyspiro
+from ._ring_assembly import find_ring_assembly_core, name_ring_assembly
 from ._silane_chain import has_silane_chain_shape, name_silane_chain
 from ._spiro import find_monospiro_atom, name_monospiro
 from ._spiro_heteroatom import (
@@ -150,6 +151,16 @@ def smiles_to_iupac(smiles: str) -> str:
         return name_amine(mol)
 
     num_rings = mol.GetRingInfo().NumRings()
+    # Two disjoint (unfused) benzene rings joined by a single bond -- e.g.
+    # biphenyl -- must be routed here before find_aromatic_fused_core: that
+    # function only checks each SSSR ring is a 6-membered aromatic carbocycle
+    # and doesn't require the rings to be fused, so it would otherwise claim
+    # this shape too and then fail in name_aromatic_fused's ring-fusion-graph
+    # validation (no shared bond means no fusion edge at all).
+    if num_rings == 2:
+        ring_assembly_core = find_ring_assembly_core(mol)
+        if ring_assembly_core is not None:
+            return name_ring_assembly(mol, ring_assembly_core)
     # Aromatic rings carry non-single (order 1.5) bonds, which every other
     # ring module's non_single_bonds check rejects; an aromatic ring
     # system's carbon skeleton can also be graph-isomorphic to a *saturated*
