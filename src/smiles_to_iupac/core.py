@@ -3,6 +3,7 @@ from rdkit import Chem
 from ._acyclic import name_acyclic_alkane
 from ._acyl_halide import has_acyl_halide_shape, name_acyl_halide
 from ._anhydride import has_anhydride_shape, name_anhydride
+from ._carbamate import has_carbamate_shape, name_carbamate
 from ._alcohol import name_alcohol
 from ._aldehyde import name_aldehyde
 from ._amide import has_amide_shape, name_amide
@@ -131,6 +132,13 @@ def smiles_to_iupac(smiles: str) -> str:
         # before has_ester_shape below, which would otherwise misname it.
         if has_anhydride_shape(mol):
             return name_anhydride(mol)
+        # A carbamate's carbon (R-O-C(=O)-NH2) is simultaneously
+        # ester-shaped (carbonyl + a second, carbon-bonded oxygen) and
+        # amide-shaped (carbonyl + a primary -NH2) on the very same carbon,
+        # so it must be routed before both has_ester_shape and
+        # has_amide_shape below, either of which would otherwise misname it.
+        if has_carbamate_shape(mol):
+            return name_carbamate(mol)
         # A carbon bearing both a carbonyl oxygen and a second, carbon-bonded
         # oxygen is an ester (-COO-), which must be routed before the
         # carboxylic-acid/aldehyde/ketone checks below: its carbonyl half
