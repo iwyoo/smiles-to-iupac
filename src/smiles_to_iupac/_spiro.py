@@ -70,7 +70,7 @@ def _walk_ring_from_spiro(graph, ring_set, spiro, start):
         previous, current = current, next_atom
 
 
-def _candidate_key(parent, substituents):
+def _candidate_key(parent, substituents, heteroatom_locant=None, nondetachable_prefix=""):
     grouped = _group(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -78,8 +78,45 @@ def _candidate_key(parent, substituents):
         for name in sorted(grouped, key=alpha_sort_key)
         for loc in sorted(grouped[name]["locants"])
     )
-    name = parent if not grouped else format_substituent_prefixes(grouped) + parent
-    return locant_set, citation_locants, name
+    prefix = format_substituent_prefixes(grouped) if grouped else ""
+    if prefix and nondetachable_prefix:
+        prefix += "-"
+    name = prefix + nondetachable_prefix + parent
+    if heteroatom_locant is None:
+        return locant_set, citation_locants, name
+    return heteroatom_locant, locant_set, citation_locants, name
+
+
+def iter_monospiro_numberings(mol, spiro_atom):
+    """Yield (parent, full_order) for every P-24.2.1-valid monospiro
+    numbering: the ring-size-fixed choice of which ring is numbered first
+    (smaller ring, or either when the two rings are tied) crossed with each
+    ring's direction of traversal from the spiro atom. Shared with
+    `_spiro_heteroatom.py` so a heteroatom's locant can be minimized over
+    the same candidate numberings a plain hydrocarbon's substituents are."""
+    graph = adjacency(mol)
+    atom_rings = mol.GetRingInfo().AtomRings()
+    ring_x = [atom for atom in atom_rings[0] if atom != spiro_atom]
+    ring_y = [atom for atom in atom_rings[1] if atom != spiro_atom]
+
+    if len(ring_x) < len(ring_y):
+        ring_pairs = [(ring_x, ring_y)]
+    elif len(ring_x) > len(ring_y):
+        ring_pairs = [(ring_y, ring_x)]
+    else:
+        ring_pairs = [(ring_x, ring_y), (ring_y, ring_x)]
+
+    for ring1, ring2 in ring_pairs:
+        a, b = len(ring1), len(ring2)
+        parent = f"spiro[{a}.{b}]{alkane_name(a + b + 1)}"
+        ring1_set, ring2_set = set(ring1), set(ring2)
+        start1 = next(n for n in graph[spiro_atom] if n in ring1_set)
+        start2 = next(n for n in graph[spiro_atom] if n in ring2_set)
+        order1 = _walk_ring_from_spiro(graph, ring1_set, spiro_atom, start1)
+        order2 = _walk_ring_from_spiro(graph, ring2_set, spiro_atom, start2)
+        for dir1 in (order1, list(reversed(order1))):
+            for dir2 in (order2, list(reversed(order2))):
+                yield parent, dir1 + [spiro_atom] + dir2
 
 
 def name_monospiro(mol, spiro_atom) -> str:
@@ -92,33 +129,13 @@ def name_monospiro(mol, spiro_atom) -> str:
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    atom_rings = mol.GetRingInfo().AtomRings()
-    ring_x = [atom for atom in atom_rings[0] if atom != spiro_atom]
-    ring_y = [atom for atom in atom_rings[1] if atom != spiro_atom]
-
-    if len(ring_x) < len(ring_y):
-        ring_pairs = [(ring_x, ring_y)]
-    elif len(ring_x) > len(ring_y):
-        ring_pairs = [(ring_y, ring_x)]
-    else:
-        ring_pairs = [(ring_x, ring_y), (ring_y, ring_x)]
 
     best_key = None
     best_name = None
-    for ring1, ring2 in ring_pairs:
-        a, b = len(ring1), len(ring2)
-        parent = f"spiro[{a}.{b}]{alkane_name(a + b + 1)}"
-        ring1_set, ring2_set = set(ring1), set(ring2)
-        start1 = next(n for n in graph[spiro_atom] if n in ring1_set)
-        start2 = next(n for n in graph[spiro_atom] if n in ring2_set)
-        order1 = _walk_ring_from_spiro(graph, ring1_set, spiro_atom, start1)
-        order2 = _walk_ring_from_spiro(graph, ring2_set, spiro_atom, start2)
-        for dir1 in (order1, list(reversed(order1))):
-            for dir2 in (order2, list(reversed(order2))):
-                full_order = dir1 + [spiro_atom] + dir2
-                substituents = _substituents_for_ring(graph, full_order, halogens)
-                key = _candidate_key(parent, substituents)
-                if best_key is None or key < best_key:
-                    best_key, best_name = key, key[-1]
+    for parent, full_order in iter_monospiro_numberings(mol, spiro_atom):
+        substituents = _substituents_for_ring(graph, full_order, halogens)
+        key = _candidate_key(parent, substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, key[-1]
 
     return best_name
