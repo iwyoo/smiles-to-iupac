@@ -1,6 +1,7 @@
 from rdkit import Chem
 
 from ._acyclic import name_acyclic_alkane
+from ._acyl_halide import has_acyl_halide_shape, name_acyl_halide
 from ._alcohol import name_alcohol
 from ._aldehyde import name_aldehyde
 from ._amide import has_amide_shape, name_amide
@@ -144,6 +145,13 @@ def smiles_to_iupac(smiles: str) -> str:
         # neighbors, ignoring the nitrogen).
         if has_amide_shape(mol):
             return name_amide(mol)
+        # A carbon bearing a carbonyl oxygen and a halogen (-C(=O)X) is an
+        # acyl halide, junior only to the acid/ester/amide suffixes above in
+        # Table 3.3; it must be routed before the generic carbonyl fallback
+        # below, which would otherwise misname it as a plain aldehyde/ketone
+        # and leave the halogen as an ordinary substituent prefix instead.
+        if has_acyl_halide_shape(mol):
+            return name_acyl_halide(mol)
         # A doubly-bonded, monovalent oxygen is carbonyl-shaped (aldehyde or
         # ketone, depending on how many carbon neighbors its carbon has);
         # anything else falls to the alcohol module, which itself rejects a
