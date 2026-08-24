@@ -7,6 +7,7 @@ from ._amide import has_amide_shape, name_amide
 from ._amine import name_amine
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
+from ._branched_fused_aromatic import has_retained_branched_fused_name, name_retained_branched_fused
 from ._carboxylic_acid import has_carboxylic_acid_shape, name_carboxylic_acid
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
@@ -47,6 +48,12 @@ def smiles_to_iupac(smiles: str) -> str:
     # ring that none of the other dispatch branches expect).
     if has_retained_peri_fused_name(mol):
         return name_retained_peri_fused(mol)
+
+    # triphenylene (P-25.1.2's branched-fusion retained name) is recognized
+    # the same way -- see _branched_fused_aromatic.py's module docstring;
+    # _aromatic.py's chain-only algorithm explicitly rejects this shape.
+    if has_retained_branched_fused_name(mol):
+        return name_retained_branched_fused(mol)
 
     # A single O/N/S skeletal atom in an otherwise-carbon von Baeyer
     # bicyclic ring (P-23.2.1's 'a'-prefix skeletal replacement) or
