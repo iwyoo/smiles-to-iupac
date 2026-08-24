@@ -33,7 +33,12 @@ from ._nitrile import has_nitrile_shape, name_nitrile
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
 from ._peroxide import has_peroxide_shape, name_peroxide
-from ._polyspiro import find_linear_polyspiro_chain, name_linear_polyspiro
+from ._polyspiro import (
+    find_branched_polyspiro_hub,
+    find_linear_polyspiro_chain,
+    name_branched_polyspiro,
+    name_linear_polyspiro,
+)
 from ._ring_assembly import find_ring_assembly_core, name_ring_assembly
 from ._silane_chain import has_silane_chain_shape, name_silane_chain
 from ._spiro import find_monospiro_atom, name_monospiro
@@ -298,6 +303,15 @@ def smiles_to_iupac(smiles: str) -> str:
     polyspiro_chain = find_linear_polyspiro_chain(mol)
     if polyspiro_chain is not None:
         return name_linear_polyspiro(mol, polyspiro_chain)
+    # A hub ring with three distinct spiro atoms, each fused to its own
+    # terminal ring (P-24.2.3/SP-1.5's minimal branched-polyspiro shape),
+    # must be routed here before find_bicyclic_core/find_polycyclic_core
+    # below: those only understand shared-bridgehead-atom bridging, not a
+    # spiro-atom hub, so they would otherwise fail to recognize this shape
+    # and fall through to the generic "not supported" error.
+    branched_hub = find_branched_polyspiro_hub(mol)
+    if branched_hub is not None:
+        return name_branched_polyspiro(mol, branched_hub)
     bicyclic_core = find_bicyclic_core(mol)
     if bicyclic_core is not None:
         return name_bicycloalkane(mol, bicyclic_core)
