@@ -21,6 +21,7 @@ from ._carboxylic_acid import has_carboxylic_acid_shape, name_carboxylic_acid
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
+from ._dihydro_aromatic import find_dihydronaphthalene_core, name_dihydronaphthalene
 from ._ester import has_ester_shape, name_ester
 from ._ether import has_ether_shape, name_ether
 from ._fullerene import has_fullerene_name, name_fullerene
@@ -278,6 +279,18 @@ def smiles_to_iupac(smiles: str) -> str:
         aromatic_core = find_aromatic_fused_core(mol)
         if aromatic_core is not None:
             return name_aromatic_fused(mol, aromatic_core)
+    # A naphthalene skeleton with one adjacent ring-atom pair saturated
+    # (1,2- or 1,4-dihydronaphthalene) has one fully aromatic ring and one
+    # partially reduced ring, so find_aromatic_fused_core above correctly
+    # rejects it (not every ring atom is aromatic); it must be routed here
+    # before find_bicyclic_core below, which would otherwise misdetect its
+    # carbon skeleton (graph-isomorphic to a saturated bicyclic) and reject
+    # it with a confusing "unsaturated bicyclics ... not supported" error
+    # instead of this module's own name.
+    if num_rings == 2:
+        dihydro_core = find_dihydronaphthalene_core(mol)
+        if dihydro_core is not None:
+            return name_dihydronaphthalene(mol, dihydro_core)
     if num_rings == 0:
         bonds = non_single_bonds(mol)
         if not bonds:
