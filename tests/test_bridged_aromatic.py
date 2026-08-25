@@ -20,6 +20,23 @@ def test_bridged_naphthalene(smiles):
     assert smiles_to_iupac(smiles) == "1,4-dihydro-1,4-methanonaphthalene"
 
 
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        # 1,4-Epoxy-1,4-dihydronaphthalene ("7-oxabenzonorbornadiene"):
+        # CAS 573-57-9, PubChem CID 97139 (structure/formula cross-checked
+        # via ConnectivitySMILES "C1=CC=C2C3C=CC(C2=C1)O3" -- PubChem's own
+        # computed IUPACName for this shape is a von Baeyer bridged-ring
+        # name, not usable to verify the fusion+bridge name itself).
+        "C1=CC2OC1c1ccccc12",
+        # Same molecule, atom order starting from the intact aromatic ring.
+        "c1ccc2c(c1)C1C=CC2O1",
+    ],
+)
+def test_bridged_naphthalene_epoxy(smiles):
+    assert smiles_to_iupac(smiles) == "1,4-dihydro-1,4-epoxynaphthalene"
+
+
 def test_naphthalene_itself_is_unaffected():
     assert smiles_to_iupac("c1ccc2ccccc2c1") == "naphthalene"
 
@@ -44,3 +61,12 @@ def test_substituted_bridge_atom_raises():
 def test_substituted_aromatic_ring_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("Cc1ccc2c(c1)C1C=CC2C1")
+
+
+def test_ether_itself_is_unaffected():
+    assert smiles_to_iupac("COC") == "methoxymethane"
+
+
+def test_substituted_epoxy_aromatic_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccc2c(c1)C1C=CC2O1")
