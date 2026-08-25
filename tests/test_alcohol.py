@@ -118,16 +118,31 @@ def test_tetrasubstituted_ring_atom_with_own_hydroxyl_and_chain_hydroxyl():
     assert smiles_to_iupac("OC1(CO)CCCCC1") == "1-(hydroxymethyl)cyclohexan-1-ol"
 
 
-def test_two_hydroxyls_on_ring_with_chain_hydroxyl_raises():
-    # the ring itself has two -OH's, so P-44.1.1's principal-group count is
-    # no longer a tie -- a real parent-choice comparison would be needed
-    # (tasks/pin-selection-and-parent-choice.md's territory), out of scope
-    # for this module's narrow tie-only case.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1C(O)CCCC1CO")
+def test_ring_hydroxyl_count_exceeds_chain():
+    # the ring has two -OH's, the chain has one: P-44.1.1's principal-group
+    # count settles it outright in the ring's favor (no tie needed).
+    # Cross-checked against PubChem PUG REST: CID 18944701
+    # (OC1C(O)CC(CO)CC1) -> "4-(hydroxymethyl)cyclohexane-1,2-diol".
+    assert smiles_to_iupac("OC1C(O)CC(CO)CC1") == "4-(hydroxymethyl)cyclohexane-1,2-diol"
 
 
-def test_two_hydroxyls_on_chain_with_ring_hydroxyl_raises():
+def test_ring_hydroxyl_count_exceeds_chain_by_two():
+    # CID 22311515 (OC1C(O)C(O)C(CO)CC1) ->
+    # "4-(hydroxymethyl)cyclohexane-1,2,3-triol".
+    assert smiles_to_iupac("OC1C(O)C(O)C(CO)CC1") == "4-(hydroxymethyl)cyclohexane-1,2,3-triol"
+
+
+def test_equal_hydroxyl_counts_above_one_each():
+    # ring and chain both have two -OH's: still a tie, resolved in the
+    # ring's favor the same way as the one-each tie above. CID 22670583
+    # (OC1C(O)CC(C(O)CO)CC1) -> "4-(1,2-dihydroxyethyl)cyclohexane-1,2-diol".
+    assert smiles_to_iupac("OC1C(O)CC(C(O)CO)CC1") == "4-(1,2-dihydroxyethyl)cyclohexane-1,2-diol"
+
+
+def test_chain_hydroxyl_count_exceeds_ring_raises():
+    # the chain has more -OH's than the ring: the ring would lose
+    # P-44.1.1's comparison, which this module still doesn't implement
+    # (tasks/pin-selection-and-parent-choice.md's territory).
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OC1CCCCC1C(O)CO")
 

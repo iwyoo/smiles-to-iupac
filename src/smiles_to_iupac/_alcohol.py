@@ -9,21 +9,28 @@ Recommendations ("the Blue Book"):
   is the senior parent -- the chain trivially captures the maximum number
   of principal characteristic groups (all of them), so it's the parent and
   the ring is cited as a plain "cyclo..." substituent prefix (P-29.3.3),
-  e.g. cyclohexylmethanol. When the ring bears exactly one -OH *and* a
-  single unbranched chain substituent also bears exactly one -OH (as of
-  `tasks/ring-vs-chain-alcohol-tie.md`, 2026-08-25), both candidate parents
-  capture the same count (one) of the principal characteristic group -- a
-  genuine P-44.1.1 tie, which P-44.1.2.2 always resolves in the ring's
-  favor (no chain-length comparison, unlike the 1993 recommendations).
-  Since the tie's resolution is fixed for this exact shape, this module
-  doesn't build or compare a real chain-parent candidate name; it simply
-  names the ring as parent and cites the chain as a
-  "(hydroxy...alkyl)" substituent prefix, reusing the
+  e.g. cyclohexylmethanol. When the ring's own -OH count is at least the
+  chain substituent's -OH count (as of `tasks/ring-vs-chain-alcohol-tie.md`
+  and `tasks/ring-vs-chain-alcohol-count-win.md`, both 2026-08-25), the
+  ring is always the senior parent: either P-44.1.1 settles it outright
+  (the ring captures strictly more of the principal characteristic group),
+  or the two counts tie and P-44.1.2.2 resolves the tie in the ring's favor
+  (no chain-length comparison, unlike the 1993 recommendations). Since the
+  winner is fixed for this whole "ring count >= chain count" shape, this
+  module doesn't build or compare a real chain-parent candidate name; it
+  simply names the ring as parent and cites the chain (with *all* of its
+  own -OH's, if more than one) as a "(hydroxy...alkyl)"/
+  "(dihydroxy...alkyl)" substituent prefix, reusing the
   `{oxygen_idx: "hydroxy"}` trick already used by `_carboxylic_acid.py`/
-  `_amide.py`/`_aldehyde.py`/`_ketone.py`. Two or more -OH's on either side
-  is a different, no-longer-tied P-44.1.1 comparison that this module does
-  NOT implement -- that remains `tasks/pin-selection-and-parent-choice.md`'s
-  territory.
+  `_amide.py`/`_aldehyde.py`/`_ketone.py` -- mapping multiple chain
+  hydroxyls this way lets the shared substituent-grouping machinery
+  multiply the "hydroxy" prefix exactly as it already does for repeated
+  halogens, no new logic needed. The reverse case (chain -OH count greater
+  than the ring's) is a different, NOT-implemented shape: the ring would
+  then be the loser and would need to be cited as a substituent bearing its
+  own -OH, but the plain ring-substituent branch this module's chain-naming
+  machinery produces has no way to express a hydroxyl on the ring itself --
+  that remains `tasks/pin-selection-and-parent-choice.md`'s territory.
 - P-92 (Chapter P-9, https://iupac.qmul.ac.uk/BlueBook/P9.html), as of
   `tasks/rs-stereocenter-naming.md` (2026-08-25): an acyclic (chain)
   alcohol whose molecule has exactly one stereo element overall -- a
@@ -612,15 +619,18 @@ def _name_ring_substituent_chain_alcohol(mol, hydroxyls):
 
 
 def _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls):
-    """Name an alcohol where the ring itself bears exactly one -OH and a
-    single unbranched chain hanging off exactly one ring atom bears exactly
-    one more -OH (P-44.1.2.2: both candidate parents capture the same
-    number, one, of the principal characteristic group -OH, a genuine tie
-    that P-44.1.2.2 always resolves in the ring's favor) -- e.g.
-    2-(hydroxymethyl)cyclohexan-1-ol. The ring is the parent; the chain is
-    cited as a '(hydroxy...alkyl)' substituent prefix, reusing the
+    """Name an alcohol where the ring itself bears at least as many -OH's
+    as a single unbranched chain hanging off exactly one ring atom does
+    (P-44.1.1: the candidate with the greater count of the principal
+    characteristic group -OH is senior; P-44.1.2.2 resolves an exact tie in
+    the ring's favor) -- e.g. 2-(hydroxymethyl)cyclohexan-1-ol,
+    4-(hydroxymethyl)cyclohexane-1,2-diol,
+    4-(1,2-dihydroxyethyl)cyclohexane-1,2-diol. The ring is the parent; the
+    chain is cited as a '(hydroxy...alkyl)' substituent prefix, reusing the
     {oxygen_idx: "hydroxy"} trick already used by
-    `_carboxylic_acid.py`/`_amide.py`/`_aldehyde.py`/`_ketone.py`."""
+    `_carboxylic_acid.py`/`_amide.py`/`_aldehyde.py`/`_ketone.py` -- mapping
+    every chain hydroxyl this way lets `name_branch` group and multiply the
+    "hydroxy" prefix exactly as it already does for repeated halogens."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
@@ -642,16 +652,18 @@ def _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls):
     chain_set = set(chain)
     chain_hydroxyls = {o for o in hydroxyls if next(iter(graph[o])) in chain_set}
     ring_hydroxyls = hydroxyls - chain_hydroxyls
-    if len(ring_hydroxyls) != 1 or len(chain_hydroxyls) != 1:
+    if len(ring_hydroxyls) < len(chain_hydroxyls):
         raise UnsupportedStructure(
-            "more than one -OH on the ring and/or on the substituent chain "
-            "is not supported yet -- P-44.1.1's principal-group count may "
-            "no longer be a tie, which needs a real parent-choice "
-            "comparison (see tasks/pin-selection-and-parent-choice.md)"
+            "a substituent chain with more -OH's than the ring is not "
+            "supported yet -- the ring would lose P-44.1.1's principal-"
+            "group-count comparison, and name_branch's plain ring-"
+            "substituent branch cannot express a hydroxyl on the ring "
+            "itself (see tasks/pin-selection-and-parent-choice.md)"
         )
-    (chain_oh,) = chain_hydroxyls
 
-    chain_name, chain_is_compound = name_branch(graph, chain_root, ring_atom, {**halogens, chain_oh: "hydroxy"})
+    chain_name, chain_is_compound = name_branch(
+        graph, chain_root, ring_atom, {**halogens, **{o: "hydroxy" for o in chain_hydroxyls}}
+    )
 
     ring_order = _ring_cycle(graph, list(ring_atoms))
     ring_size = len(ring_order)
