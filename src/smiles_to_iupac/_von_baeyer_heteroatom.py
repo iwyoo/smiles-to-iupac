@@ -1,6 +1,6 @@
 """Skeletal replacement ('a' prefix) naming of a saturated von Baeyer
 bicyclic (`_bicyclic.py`) or polycyclic, ring_count>=3 (`_polycyclic.py`)
-ring system containing exactly one ring heteroatom, per the IUPAC 2013
+ring system containing one or more ring heteroatoms, per the IUPAC 2013
 Recommendations ("the Blue Book"):
 
 - P-23.2.1 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf):
@@ -13,23 +13,43 @@ Recommendations ("the Blue Book"):
   quinuclidine). The bridge-length brackets and the ring's numbering
   (P-23.2.3) are unaffected by which skeletal atom is a heteroatom; only
   which of the numbering choices tied on that bracket is preferred
-  changes: the heteroatom must get the lowest locant available among
-  them, ahead of substituent locants (mirrors the substituent-locant
+  changes: the heteroatom(s) must get the lowest locant set available
+  among them, ahead of substituent locants (mirrors the substituent-locant
   tie-break already used for a plain hydrocarbon ring). For ring_count>=3
   this is *not* every numbering `_polycyclic.iter_polycyclic_candidates`
   yields, unlike the bicyclic case -- see
   `name_von_baeyer_heteroatom_polycyclic` below for why the topology
   choice (which candidates share the same bracket string) must still be
   settled first, by `iter_polycyclic_candidates`'s own `outer_key`.
+- Two or more skeletal heteroatoms of the *same* element (as of
+  `tasks/multi-heteroatom-skeleton-naming.md`, 2026-08-26): P-14.2.1's
+  ordinary multiplying prefix ('di', 'tri', ...) attaches directly to the
+  'a'-term ('dioxa', 'triaza', ...), and every heteroatom's own locant is
+  cited (ascending, comma-separated) before it -- confirmed against
+  PubChem's own computed IUPACName for a from-scratch-built two-oxygen
+  bicyclo[2.2.1]heptane, '2,7-dioxabicyclo[2.2.1]heptane' (C5H8O2,
+  cross-checked further via ConnectivitySMILES). `_bicyclic._candidate_key`/
+  `_polycyclic._candidate_key`'s existing `heteroatom_locant` parameter
+  already ranks candidates correctly whether it's handed a single int or,
+  as here, a locant tuple (Python's own tuple ordering does the "lowest
+  locant set" comparison for free) -- no signature change was needed.
 - Table 2.8's element seniority order governs which heteroatom is 'a'-1
-  when several *different* kinds are present; moot here since this module
-  only ever accepts exactly one.
+  when several *different* kinds are present -- out of scope here, see
+  below.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- More than one skeletal heteroatom (of any kind), or a heteroatom outside
-  the ring core (e.g. a substituent -OH/-NH2 alongside a plain hydrocarbon
-  bicyclic — a different module's territory).
+- Two or more skeletal heteroatoms of *different* elements (Table 2.8
+  seniority ordering not implemented) -- only the same-element multi-
+  heteroatom case above and the original single-heteroatom case are
+  supported.
+- A heteroatom outside the ring core (e.g. a substituent -OH/-NH2
+  alongside a plain hydrocarbon bicyclic — a different module's
+  territory).
 - Any heteroatom other than O, N, or S.
+- Multiple heteroatoms in a ring_count>=3 polycyclic system (the
+  ring_count>=3 case below still only accepts exactly one) --
+  `tasks/multi-heteroatom-skeleton-naming.md`'s own 1st-pass scope is
+  bicyclic-only for the multi-heteroatom axis.
 - Hexacyclic (ring_count=6) or larger polycyclic rings -- `_polycyclic.py`
   itself doesn't support these yet (see `tasks/hexacyclic-polycyclic-naming.md`),
   independent of the heteroatom question.
@@ -41,6 +61,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 from ._bicyclic import _candidate_key, bicyclic_parent_name, iter_bicyclic_numberings
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents, non_single_bonds
 from ._cyclic import _substituents_for_ring
+from ._numerals import numerical_term
 from ._polycyclic import _candidate_key as _polycyclic_candidate_key, iter_polycyclic_candidates
 
 _HETEROATOM_PREFIXES = {8: "oxa", 7: "aza", 16: "thia"}
@@ -108,6 +129,63 @@ def name_von_baeyer_heteroatom(mol, core) -> str:
             substituents,
             heteroatom_locant=heteroatom_locant,
             nondetachable_prefix=f"{heteroatom_locant}-{a_prefix}",
+        )
+        if best_key is None or key < best_key:
+            best_key = key
+
+    return best_key[-1]
+
+
+def has_multi_ring_heteroatom_shape(mol, core) -> bool:
+    """True iff `core` (a `_bicyclic.find_bicyclic_core` result) has two or
+    more skeletal ring heteroatoms, all the same element -- the shape
+    `name_von_baeyer_heteroatom_multi` accepts. A mixed-element ring (out of
+    scope, Table 2.8 seniority not implemented) is deliberately excluded
+    here rather than left to `name_von_baeyer_heteroatom_multi` to reject,
+    so it falls through to whatever other module (if any) can name it."""
+    ring_heteroatoms = _ring_heteroatoms(mol, core)
+    if len(ring_heteroatoms) < 2:
+        return False
+    elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in ring_heteroatoms}
+    return len(elements) == 1
+
+
+def name_von_baeyer_heteroatom_multi(mol, core) -> str:
+    _validate_atoms(mol)
+    if non_single_bonds(mol):
+        raise UnsupportedStructure(
+            "unsaturated bicyclic ring systems are not supported yet (see "
+            "P-31.1.4, unsaturated von Baeyer ring systems)"
+        )
+
+    ring_heteroatoms = _ring_heteroatoms(mol, core)
+    all_heteroatoms = [atom.GetIdx() for atom in mol.GetAtoms() if atom.GetAtomicNum() in _HETEROATOM_PREFIXES]
+    elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in ring_heteroatoms}
+    if len(ring_heteroatoms) < 2 or len(elements) != 1 or set(all_heteroatoms) != set(ring_heteroatoms):
+        raise UnsupportedStructure(
+            "two or more skeletal ring heteroatoms are only supported when "
+            "all of the same element (P-23.2.1's 'a'-prefix ordering for "
+            "mixed heteroatom kinds is out of scope here), and any "
+            "heteroatom outside the ring skeleton is also out of scope"
+        )
+    (element,) = elements
+    a_prefix = _HETEROATOM_PREFIXES[element]
+    multiplying_term = numerical_term(len(ring_heteroatoms))
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    parent = bicyclic_parent_name(core)
+
+    best_key = None
+    for full_order in iter_bicyclic_numberings(core):
+        heteroatom_locants = tuple(sorted(full_order.index(h) + 1 for h in ring_heteroatoms))
+        substituents = _substituents_for_ring(graph, full_order, halogens)
+        locant_citation = ",".join(str(loc) for loc in heteroatom_locants)
+        key = _candidate_key(
+            parent,
+            substituents,
+            heteroatom_locant=heteroatom_locants,
+            nondetachable_prefix=f"{locant_citation}-{multiplying_term}{a_prefix}",
         )
         if best_key is None or key < best_key:
             best_key = key
