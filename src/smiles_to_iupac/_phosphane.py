@@ -37,6 +37,14 @@ substituents), per the IUPAC 2013 Recommendations ("the Blue Book"):
   (di-, tri-) with no parentheses at all (P-16.5.1.3.1 doesn't apply --
   there's only one distinct substituent name to cite), e.g.
   "dimethylphosphane", "trimethylphosphane".
+- A multiply-cited substituent mixed with a different one combines both
+  rules above rather than needing a new one: each distinct name still gets
+  its own multiplying prefix by count, and the alphabetically-first
+  distinct name is still the only one never parenthesized (P-16.5.1.3.1),
+  regardless of its own count. Confirmed via PubChem PUG REST: CID 535207
+  (`CCP(C)C`, ethyl x1 + methyl x2) -> "ethyl(dimethyl)phosphane", CID
+  13836128 (`CCP(CC)C`, ethyl x2 + methyl x1) -> "diethyl(methyl)phosphane"
+  (2026-08-25).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any atom other than phosphorus, carbon, and hydrogen (no P=O, no
@@ -45,9 +53,6 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   `_silane_chain.py`-style "chain" nomenclature is a separate problem).
 - A branched or unsaturated substituent, an aromatic substituent
   (phenylphosphane, etc.), or any ring anywhere in the molecule.
-- A mix of a multiply-cited substituent with a different one (e.g. two
-  methyls plus one ethyl) -- the multiplying-prefix-and-parentheses
-  interaction for that case isn't confirmed yet; deferred.
 - Charged or isotopically modified atoms.
 """
 
@@ -108,12 +113,11 @@ def _validate_and_collect_substituents(mol):
 
 def _format_mononuclear_prefixes(names) -> str:
     """Format substituent prefixes for a mononuclear parent hydride
-    (locants always omitted, P-14.3.4.2(a)): a single repeated name uses an
-    ordinary multiplying prefix with no parentheses; two or more different
-    names, each cited exactly once, each get parenthesized except the
-    alphabetically first (P-16.5.1.3.1, see module docstring). A mix of a
-    multiply-cited name with a different one is out of scope (see module
-    docstring) and raises `UnsupportedStructure`."""
+    (locants always omitted, P-14.3.4.2(a)): each distinct name gets its
+    own ordinary multiplying prefix (di-, tri-) by its own count; when two
+    or more distinct names are present, every one is parenthesized except
+    the alphabetically first, regardless of that name's own count
+    (P-16.5.1.3.1, see module docstring)."""
     counts = {}
     for name in names:
         counts[name] = counts.get(name, 0) + 1
@@ -121,13 +125,12 @@ def _format_mononuclear_prefixes(names) -> str:
         (name, count), = counts.items()
         return multiplying_prefix(count) + name if count > 1 else name
 
-    if any(count > 1 for count in counts.values()):
-        raise UnsupportedStructure(
-            "a multiply-cited substituent mixed with a different one is not "
-            "supported yet (see P-68)"
-        )
     ordered = sorted(counts, key=alpha_sort_key)
-    parts = [ordered[0]] + [f"({name})" for name in ordered[1:]]
+    parts = []
+    for i, name in enumerate(ordered):
+        count = counts[name]
+        text = multiplying_prefix(count) + name if count > 1 else name
+        parts.append(text if i == 0 else f"({text})")
     return "".join(parts)
 
 
