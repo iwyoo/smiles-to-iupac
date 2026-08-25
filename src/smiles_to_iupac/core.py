@@ -37,7 +37,7 @@ from ._ketone_amide import has_ketone_amide_shape, name_ketone_amide
 from ._ketone_ester import has_ketone_ester_shape, name_ketone_ester
 from ._nitrile import has_nitrile_shape, name_nitrile
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
-from ._paracyclophane import has_paracyclophane_name, name_paracyclophane
+from ._cyclophane import has_cyclophane_name, name_cyclophane
 from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
 from ._peroxide import has_peroxide_shape, name_peroxide
@@ -105,14 +105,14 @@ def smiles_to_iupac(smiles: str) -> str:
     if has_retained_peri_fused_name(mol):
         return name_retained_peri_fused(mol)
 
-    # [2.2]paracyclophane (P-26's phane nomenclature retained-name-style
-    # recognition, see module docstring) is recognized the same way,
-    # independent of every other branch below -- its two -CH2CH2- bridges
-    # make its carbon skeleton look like a bridged aromatic ring system to
-    # every other dispatch branch, none of which understand phane
-    # nomenclature at all.
-    if has_paracyclophane_name(mol):
-        return name_paracyclophane(mol)
+    # [2.2]paracyclophane/[2.2]metacyclophane (P-26's phane nomenclature
+    # retained-name-style recognition, see module docstring) are recognized
+    # the same way, independent of every other branch below -- their two
+    # -CH2CH2- bridges make their carbon skeletons look like bridged
+    # aromatic ring systems to every other dispatch branch, none of which
+    # understand phane nomenclature at all.
+    if has_cyclophane_name(mol):
+        return name_cyclophane(mol)
 
     # triphenylene (P-25.1.2's branched-fusion retained name) is recognized
     # the same way -- see _branched_fused_aromatic.py's module docstring;
