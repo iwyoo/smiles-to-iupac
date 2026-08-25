@@ -9,12 +9,21 @@ Recommendations ("the Blue Book"):
   is the senior parent -- the chain trivially captures the maximum number
   of principal characteristic groups (all of them), so it's the parent and
   the ring is cited as a plain "cyclo..." substituent prefix (P-29.3.3),
-  e.g. cyclohexylmethanol. This module still does NOT implement the real
-  P-44.1.2.2 competition (both ring and chain bearing -OH, needing an
-  actual senior-parent comparison) -- that remains
-  `tasks/pin-selection-and-parent-choice.md`'s territory; here, `name_alcohol`
-  simply checks whether the ring carries any -OH before choosing which
-  branch to use, unchanged when it does.
+  e.g. cyclohexylmethanol. When the ring bears exactly one -OH *and* a
+  single unbranched chain substituent also bears exactly one -OH (as of
+  `tasks/ring-vs-chain-alcohol-tie.md`, 2026-08-25), both candidate parents
+  capture the same count (one) of the principal characteristic group -- a
+  genuine P-44.1.1 tie, which P-44.1.2.2 always resolves in the ring's
+  favor (no chain-length comparison, unlike the 1993 recommendations).
+  Since the tie's resolution is fixed for this exact shape, this module
+  doesn't build or compare a real chain-parent candidate name; it simply
+  names the ring as parent and cites the chain as a
+  "(hydroxy...alkyl)" substituent prefix, reusing the
+  `{oxygen_idx: "hydroxy"}` trick already used by `_carboxylic_acid.py`/
+  `_amide.py`/`_aldehyde.py`/`_ketone.py`. Two or more -OH's on either side
+  is a different, no-longer-tied P-44.1.1 comparison that this module does
+  NOT implement -- that remains `tasks/pin-selection-and-parent-choice.md`'s
+  territory.
 - P-92 (Chapter P-9, https://iupac.qmul.ac.uk/BlueBook/P9.html), as of
   `tasks/rs-stereocenter-naming.md` (2026-08-25): an acyclic (chain)
   alcohol whose molecule has exactly one stereo element overall -- a
@@ -602,6 +611,64 @@ def _name_ring_substituent_chain_alcohol(mol, hydroxyls):
     return best_name
 
 
+def _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls):
+    """Name an alcohol where the ring itself bears exactly one -OH and a
+    single unbranched chain hanging off exactly one ring atom bears exactly
+    one more -OH (P-44.1.2.2: both candidate parents capture the same
+    number, one, of the principal characteristic group -OH, a genuine tie
+    that P-44.1.2.2 always resolves in the ring's favor) -- e.g.
+    2-(hydroxymethyl)cyclohexan-1-ol. The ring is the parent; the chain is
+    cited as a '(hydroxy...alkyl)' substituent prefix, reusing the
+    {oxygen_idx: "hydroxy"} trick already used by
+    `_carboxylic_acid.py`/`_amide.py`/`_aldehyde.py`/`_ketone.py`."""
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
+
+    attachment = _ring_chain_attachment(graph, ring_atoms, hydroxyls)
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a ring with more than one exocyclic branch is not supported "
+            "yet (see tasks/ring-vs-chain-alcohol-tie.md's scope)"
+        )
+    ring_atom, chain_root = attachment
+    chain = _ordered_chain(graph, chain_root, ring_atom, hydroxyls)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched substituent chain hanging off the ring is not "
+            "supported yet"
+        )
+
+    chain_set = set(chain)
+    chain_hydroxyls = {o for o in hydroxyls if next(iter(graph[o])) in chain_set}
+    ring_hydroxyls = hydroxyls - chain_hydroxyls
+    if len(ring_hydroxyls) != 1 or len(chain_hydroxyls) != 1:
+        raise UnsupportedStructure(
+            "more than one -OH on the ring and/or on the substituent chain "
+            "is not supported yet -- P-44.1.1's principal-group count may "
+            "no longer be a tie, which needs a real parent-choice "
+            "comparison (see tasks/pin-selection-and-parent-choice.md)"
+        )
+    (chain_oh,) = chain_hydroxyls
+
+    chain_name, chain_is_compound = name_branch(graph, chain_root, ring_atom, {**halogens, chain_oh: "hydroxy"})
+
+    ring_order = _ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            oh_locants = _oh_locants(position_of, ring_hydroxyls, graph)
+            substituents = {position_of[ring_atom]: [(chain_name, chain_is_compound)]}
+            key = _ring_candidate_key(ring_size, oh_locants, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def name_alcohol(mol) -> str:
     hydroxyls = _validate_and_collect_hydroxyls(mol)
     graph = adjacency(mol)
@@ -630,10 +697,13 @@ def name_alcohol(mol) -> str:
                 "cycloalkenes and cycloalkynes)"
             )
         ring_atoms = set(ring_info.AtomRings()[0])
-        ring_has_hydroxyl = any(next(iter(graph[o])) in ring_atoms for o in hydroxyls)
-        if not ring_has_hydroxyl:
+        ring_hydroxyls = {o for o in hydroxyls if next(iter(graph[o])) in ring_atoms}
+        chain_hydroxyls = hydroxyls - ring_hydroxyls
+        if not ring_hydroxyls:
             return _name_ring_substituent_chain_alcohol(mol, hydroxyls)
-        return _name_cyclic_alcohol(mol, hydroxyls)
+        if not chain_hydroxyls:
+            return _name_cyclic_alcohol(mol, hydroxyls)
+        return _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls)
     raise UnsupportedStructure(
         "polycyclic and spiro alcohols are not supported yet (P-23/P-24/"
         "P-25 numbering integration with a suffix group is future work)"

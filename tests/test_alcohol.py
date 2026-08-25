@@ -101,13 +101,35 @@ def test_ring_stereocenter_raises():
         smiles_to_iupac("O[C@H]1CCCCC1C")
 
 
-def test_ring_with_own_hydroxyl_and_chain_hydroxyl_raises():
-    # the ring bears its own -OH *and* a chain substituent also bears -OH:
-    # a genuine P-44.1.2.2 ring-vs-chain competition, which this module
-    # still does not resolve (tasks/pin-selection-and-parent-choice.md's
-    # territory) -- must still raise, not silently pick a side.
+def test_ring_with_own_hydroxyl_and_chain_hydroxyl():
+    # the ring bears exactly one -OH *and* a single unbranched chain
+    # substituent also bears exactly one -OH: a genuine P-44.1.2.2 tie
+    # (both candidate parents capture exactly one -OH), which P-44.1.2.2
+    # always resolves in the ring's favor. Cross-checked against PubChem
+    # PUG REST: CID 5175258 (OC1CCCCC1CO) ->
+    # "2-(hydroxymethyl)cyclohexan-1-ol".
+    assert smiles_to_iupac("OC1CCCCC1CO") == "2-(hydroxymethyl)cyclohexan-1-ol"
+
+
+def test_tetrasubstituted_ring_atom_with_own_hydroxyl_and_chain_hydroxyl():
+    # the same ring carbon carries both the ring's own -OH and the
+    # OH-bearing chain branch. Cross-checked against PubChem PUG REST:
+    # CID 251259 (OC1(CO)CCCCC1) -> "1-(hydroxymethyl)cyclohexan-1-ol".
+    assert smiles_to_iupac("OC1(CO)CCCCC1") == "1-(hydroxymethyl)cyclohexan-1-ol"
+
+
+def test_two_hydroxyls_on_ring_with_chain_hydroxyl_raises():
+    # the ring itself has two -OH's, so P-44.1.1's principal-group count is
+    # no longer a tie -- a real parent-choice comparison would be needed
+    # (tasks/pin-selection-and-parent-choice.md's territory), out of scope
+    # for this module's narrow tie-only case.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1CCCCC1CO")
+        smiles_to_iupac("OC1C(O)CCCC1CO")
+
+
+def test_two_hydroxyls_on_chain_with_ring_hydroxyl_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OC1CCCCC1C(O)CO")
 
 
 def test_substituted_ring_with_chain_hydroxyl_raises():
