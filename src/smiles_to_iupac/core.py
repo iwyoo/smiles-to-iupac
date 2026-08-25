@@ -17,6 +17,7 @@ from ._amine import name_amine
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
 from ._bridged_aromatic import find_bridged_naphthalene_core, name_bridged_naphthalene
+from ._borane import has_simple_borane_shape, name_simple_borane
 from ._branched_fused_aromatic import has_retained_branched_fused_name, name_retained_branched_fused
 from ._carboxylic_acid import has_carboxylic_acid_shape, name_carboxylic_acid
 from ._common import UnsupportedStructure, non_single_bonds
@@ -89,6 +90,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # with no phosphorus handling.
     if has_simple_phosphane_shape(mol):
         return name_simple_phosphane(mol)
+
+    # A boron atom (P-68's borane substitutive nomenclature, the same shape
+    # as phosphane above with boron in place of phosphorus) must be routed
+    # here for the same reason -- none of the branches below recognize
+    # boron at all.
+    if has_simple_borane_shape(mol):
+        return name_simple_borane(mol)
 
     # buckminsterfullerene (P-27's '[60]fullerene', a fixed 12-pentagon/
     # 20-hexagon cage) is recognized by exact whole-molecule match --
