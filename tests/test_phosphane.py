@@ -9,7 +9,8 @@ from smiles_to_iupac._common import UnsupportedStructure
     [
         # cross-checked against PubChem PUG REST IUPACName:
         # CID 68973 (CP), CID 69607 (CPC), CID 136382 (CCP),
-        # CID 68983 (CP(C)C), CID 27365 (CCP(CC)CC), CID 20221924 (CCPC).
+        # CID 68983 (CP(C)C), CID 27365 (CCP(CC)CC), CID 20221924 (CCPC),
+        # CID 535207 (CCP(C)C), CID 13836128 (CCP(CC)C).
         ("CP", "methylphosphane"),
         ("CPC", "dimethylphosphane"),
         ("CCP", "ethylphosphane"),
@@ -24,6 +25,12 @@ from smiles_to_iupac._common import UnsupportedStructure
         # against the analogous silane errata example
         # "butyl(ethyl)(methyl)(propyl)silane".
         ("CCP(C)CCC", "ethyl(methyl)(propyl)phosphane"),
+        # a multiply-cited substituent mixed with a different one: each
+        # distinct name gets its own multiplying prefix by count, and the
+        # alphabetically-first name is still the only one never
+        # parenthesized, regardless of its own count.
+        ("CCP(C)C", "ethyl(dimethyl)phosphane"),
+        ("CCP(CC)C", "diethyl(methyl)phosphane"),
     ],
 )
 def test_smiles_to_iupac_simple_phosphane(smiles, expected):
@@ -46,10 +53,3 @@ def test_branched_substituent_raises():
 def test_unsaturated_substituent_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=CP")
-
-
-def test_mixed_multiplied_and_different_substituent_raises():
-    # two methyls plus one ethyl: the multiplying-prefix/parentheses
-    # interaction for this case isn't confirmed, deferred.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCP(C)C")
