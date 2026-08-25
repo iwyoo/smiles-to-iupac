@@ -69,7 +69,9 @@ from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
 from ._von_baeyer_heteroatom import (
     has_single_ring_heteroatom_shape as has_single_bicyclic_heteroatom_shape,
+    has_single_ring_heteroatom_shape_polycyclic,
     name_von_baeyer_heteroatom,
+    name_von_baeyer_heteroatom_polycyclic,
 )
 
 
@@ -193,6 +195,22 @@ def smiles_to_iupac(smiles: str) -> str:
     bridged_anthracene_core = find_bridged_anthracene_core(mol)
     if bridged_anthracene_core is not None:
         return name_bridged_anthracene(mol, bridged_anthracene_core)
+
+    # A single O/N/S skeletal atom in an otherwise-carbon von Baeyer
+    # polycyclic (ring_count>=3) ring (P-23.2.1's 'a'-prefix skeletal
+    # replacement, the tricyclic+ generalization of the bicyclic case
+    # routed near the top of this function) must be routed here, after the
+    # more specific aromatic/bridged-ring routes just above (pyrene,
+    # cyclophane, bridged naphthalene/anthracene) but before the plain
+    # "any O atom" branch below (a degree-2 ring oxygen would otherwise be
+    # misdetected as a plain ether, which explicitly rejects rings) -- see
+    # _von_baeyer_heteroatom.py's module docstring.
+    for ring_count in (3, 4, 5):
+        polycyclic_hetero_core = find_polycyclic_core(mol, ring_count)
+        if polycyclic_hetero_core is not None and has_single_ring_heteroatom_shape_polycyclic(
+            mol, polycyclic_hetero_core
+        ):
+            return name_von_baeyer_heteroatom_polycyclic(mol, polycyclic_hetero_core, ring_count)
 
     # A sulfonic acid (-SO3H, P-65.3.1) has three oxygens on its own sulfur,
     # so it must be routed here before the plain "any O atom" branch below --
