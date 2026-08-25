@@ -9,9 +9,17 @@ naming modules.
   means carbon in this repository) — never part of a parent hydride's
   counted chain/ring — so `carbon_adjacency` below lets chain/ring-skeleton
   search ignore them while substituent detection still finds them.
+- P-92 (Chapter P-9, https://iupac.qmul.ac.uk/BlueBook/P9.html):
+  `single_specified_stereocenter` below (added for
+  `tasks/rs-stereocenter-naming.md`, 2026-08-25) delegates all CIP
+  priority-rule computation (atomic number, duplicate-atom treatment,
+  mass number, pseudoasymmetry, ...) to RDKit's `rdCIPLabeler` rather than
+  reimplementing P-92's rules directly -- this project's own contribution
+  is only formatting the resulting label into a name, not computing it.
 """
 
 from rdkit import Chem
+from rdkit.Chem import rdCIPLabeler
 
 from ._numerals import numerical_term
 
@@ -218,3 +226,44 @@ def bond_locants(chain, bonds):
             return None
         (ene if order == ENE_BOND_ORDER else yne).append(locant)
     return ene, yne
+
+
+def single_specified_stereocenter(mol):
+    """Scan `mol` for stereo elements (RDKit's `Chem.FindPotentialStereo`).
+    If there are none at all, or every one present is left unspecified
+    (no `@`/`@@`/E-Z bond marker anywhere in the input), return None --
+    the caller should proceed exactly as if stereochemistry weren't a
+    factor. This matches both this project's existing, long-standing
+    behavior and the real IUPAC/PubChem convention for a name that doesn't
+    specify configuration at all (e.g. this project's own pre-existing,
+    PubChem-verified '2-fluorobutan-1-ol', whose C2 is a genuine but
+    undrawn stereocenter) -- it is deliberately NOT treated as a new
+    rejection case, unlike a *partially* specified molecule (see below).
+
+    If there is exactly one *specified* stereo element, no unspecified one
+    alongside it, and it's a tetrahedral atom stereocenter, return
+    (atom_idx, "R" or "S") via `rdCIPLabeler`. Otherwise -- multiple
+    specified stereocenters, a specified stereocenter mixed with an
+    unspecified one, or any double-bond E/Z stereo element -- raise
+    `UnsupportedStructure` explicitly (P-92/P-93 are both out of scope
+    beyond this single simplest case; see
+    `tasks/rs-stereocenter-naming.md`)."""
+    elements = Chem.FindPotentialStereo(mol)
+    specified = [e for e in elements if e.specified == Chem.StereoSpecified.Specified]
+    if not specified:
+        return None
+    if len(specified) != 1 or specified[0].type != Chem.StereoType.Atom_Tetrahedral or len(elements) != 1:
+        raise UnsupportedStructure(
+            "stereochemistry beyond a single, specified tetrahedral "
+            "stereocenter is not supported yet (multiple stereocenters, a "
+            "specified stereocenter mixed with an unspecified one, or any "
+            "C=C/C#N double-bond E/Z stereo -- see P-92/P-93)"
+        )
+    atom_idx = specified[0].centeredOn
+    rdCIPLabeler.AssignCIPLabels(mol)
+    atom = mol.GetAtomWithIdx(atom_idx)
+    if not atom.HasProp("_CIPCode"):
+        raise UnsupportedStructure(
+            "could not determine a CIP R/S label for this stereocenter"
+        )
+    return atom_idx, atom.GetProp("_CIPCode")
