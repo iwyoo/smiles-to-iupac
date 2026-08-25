@@ -29,7 +29,16 @@ Recommendations ("the Blue Book"):
   case in `name_branch` below.
 
 Cyclic substituent groups (P-29.3.3) are out of scope and raise
-UnsupportedStructure.
+UnsupportedStructure, except the minimal case added for
+`tasks/ring-substituent-chain-suffix.md` (2026-08-25): a plain, unsubstituted
+saturated monocyclic ring hanging off the parent chain (e.g. "cyclohexyl" in
+cyclohexylmethanol) is recognized by `_simple_ring_substituent` and named
+directly ("cyclo" + `alkyl_name`), without walking into
+`_longest_chains_from_root`'s cycle-detection rejection. A ring bearing its
+own substituent, an unsaturated ring, or a polycyclic/spiro ring as a
+substituent all remain out of scope and still raise `UnsupportedStructure`
+via that same cycle-detection path (see `_simple_ring_substituent`'s own
+docstring for exactly which shapes it recognizes).
 """
 
 import re
@@ -126,6 +135,30 @@ def _candidate_key(grouped):
     return -total_count, locant_set, citation_locants
 
 
+def _simple_ring_substituent(graph, root, coming_from):
+    """If the branch hanging off `root` (away from `coming_from`) is a
+    single, simple, unsubstituted saturated monocyclic ring with `root` as
+    its only attachment point, return the ring size; else None (a
+    non-ring branch, a ring bearing its own substituent, or any
+    polycyclic/spiro/fused shape all fall through to the ordinary
+    chain-walk in `name_branch`, which raises `UnsupportedStructure` via
+    `_longest_chains_from_root`'s cycle-detection check)."""
+    ring_neighbors = [n for n in graph[root] if n != coming_from]
+    if len(ring_neighbors) != 2:
+        return None
+    visited = {root}
+    previous, current = root, ring_neighbors[0]
+    while current != root:
+        if current in visited:
+            return None
+        visited.add(current)
+        neighbors = [n for n in graph[current] if n != previous]
+        if len(neighbors) != 1:
+            return None
+        previous, current = current, neighbors[0]
+    return len(visited)
+
+
 def name_branch(graph, root, coming_from, halogens=None):
     """Name the substituent group hanging off `root`, reached from
     `coming_from` (the parent chain/ring atom). Returns (name, is_compound);
@@ -139,6 +172,10 @@ def name_branch(graph, root, coming_from, halogens=None):
     halogens = halogens or {}
     if root in halogens:
         return halogens[root], False
+
+    ring_size = _simple_ring_substituent(graph, root, coming_from)
+    if ring_size is not None:
+        return "cyclo" + alkyl_name(ring_size), False
 
     chains = _longest_chains_from_root(graph, root, coming_from, halogens)
     chain_length = len(chains[0])

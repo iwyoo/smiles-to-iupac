@@ -42,9 +42,19 @@ def test_polycyclic_substituent_raises():
         smiles_to_iupac("C1CC1CCCCC1CC1")
 
 
-def test_cyclic_substituent_raises():
-    # Directly exercise the P-29.3.3 scope-out: a 3-membered ring (1-2-3-1)
-    # hanging off atom 0 cannot be named as a compound substituent.
+def test_simple_ring_substituent():
+    # A plain, unsubstituted 3-membered ring (1-2-3-1) hanging off atom 0 is
+    # named directly as "cyclopropyl" (see tasks/ring-substituent-chain-
+    # suffix.md, 2026-08-25) rather than rejected as a cyclic substituent.
     graph = {0: [1], 1: [0, 2, 3], 2: [1, 3], 3: [1, 2]}
+    assert name_branch(graph, 1, 0) == ("cyclopropyl", False)
+
+
+def test_substituted_ring_substituent_raises():
+    # Same 3-membered ring, but one ring atom (2) also carries its own
+    # exocyclic branch (4) -- no longer the plain unsubstituted shape
+    # `_simple_ring_substituent` recognizes, so this still falls through to
+    # the ordinary chain-walk's cycle-detection rejection (P-29.3.3).
+    graph = {0: [1], 1: [0, 2, 3], 2: [1, 3, 4], 3: [1, 2], 4: [2]}
     with pytest.raises(UnsupportedStructure):
         name_branch(graph, 1, 0)
