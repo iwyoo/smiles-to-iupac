@@ -70,3 +70,48 @@ def test_ether_itself_is_unaffected():
 def test_substituted_epoxy_aromatic_ring_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("Cc1ccc2c(c1)C1C=CC2O1")
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        # 9,10-Dihydro-9,10-methanoanthracene: literature name confirmed in
+        # J. Org. Chem. ("9,10-Dihydro-9,10-methanoanthracene and Its
+        # Perhydro Derivatives"); structure/formula (C15H12) cross-checked
+        # against PubChem CID 12651785's ConnectivitySMILES.
+        "C12c3ccccc3C(c3ccccc31)C2",
+        # Same molecule, atom order starting from one of the intact
+        # aromatic rings instead of a bridgehead -- the lowest-locants
+        # tie-break must still normalize this to "9,10-", not some other
+        # numbering (anthracene's meso positions are always 9,10 by
+        # definition, but this still exercises the candidate search).
+        "c12ccccc1C1c3ccccc3C2C1",
+    ],
+)
+def test_bridged_anthracene(smiles):
+    assert smiles_to_iupac(smiles) == "9,10-dihydro-9,10-methanoanthracene"
+
+
+def test_anthracene_itself_is_unaffected():
+    assert smiles_to_iupac("c1ccc2cc3ccccc3cc2c1") == "anthracene"
+
+
+def test_bridged_anthracene_epoxy_raises():
+    # Unlike the naphthalene case, an 'epoxy' bridge on anthracene's 9,10
+    # positions is deliberately out of scope here -- no independently
+    # verifiable name was found while scoping this (see
+    # `find_bridged_anthracene_core`'s docstring), only the structure
+    # (PubChem CID cross-checked via ConnectivitySMILES), which isn't
+    # enough under this project's test-writing policy to assert a name.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C12c3ccccc3C(c3ccccc31)O2")
+
+
+def test_substituted_bridged_anthracene_bridge_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C12c3ccccc3C(c3ccccc31)C2(C)")
+
+
+def test_substituted_bridged_anthracene_aromatic_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccc2c(c1)C1c3ccccc3C2C1")

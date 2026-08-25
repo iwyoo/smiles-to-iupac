@@ -1,7 +1,8 @@
 """Naming of the minimal single-atom-bridged fused-aromatic case
 (1,4-dihydro-1,4-methanonaphthalene "benzonorbornadiene" and its 'epoxy'
-oxygen-bridged analogue), per the IUPAC 2013 Recommendations ("the Blue
-Book"):
+oxygen-bridged analogue, plus the anthracene analogue bridging the 9,10
+meso positions, "9,10-dihydro-9,10-methanoanthracene"), per the IUPAC 2013
+Recommendations ("the Blue Book"):
 
 - P-25.4 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf): a
   one-atom bridge across two nonadjacent ('1,4'-type) positions of a
@@ -41,21 +42,46 @@ Book"):
   usable for verifying either name this module returns -- CAS/NIST WebBook/
   reagent-catalog naming (which actually use fusion+bridge nomenclature for
   this shape) is the cross-check instead.
+- Anthracene 9,10-bridge (as of `tasks/bridged-anthracene-naming.md`,
+  2026-08-26): a one-atom bridge across anthracene's own meso positions
+  (C9/C10, the middle ring's two non-fusion atoms) is structurally the
+  same P-25.4 shape, just on a 3-ring parent instead of 2-ring
+  naphthalene. Unlike the naphthalene case, no locant search/tie-break is
+  actually needed here: `_aromatic.py`'s `_anthracene_candidates` always
+  assigns anthracene's meso positions locants 9 and 10 in every candidate
+  (that's what "meso" numbering means), so the bridgeheads are always
+  '9,10' regardless of which of the 4 symmetric candidates is picked --
+  the search below is kept anyway only for structural symmetry with the
+  naphthalene function and as a defensive check. Confirmed against the
+  literature name "9,10-Dihydro-9,10-methanoanthracene" (J. Org. Chem.)
+  and PubChem CID 12651785 (structure only, cross-checked by
+  ConnectivitySMILES; PubChem's own computed IUPACName is von Baeyer-style
+  and unusable for verifying the name itself, same limitation as the
+  naphthalene case above).
 
 Explicitly out of scope (raise `UnsupportedStructure` via the generic
-fallback in `core.py`, since `find_bridged_naphthalene_core` below simply
-returns None for any of these):
+fallback in `core.py`, since `find_bridged_naphthalene_core`/
+`find_bridged_anthracene_core` below simply return None for any of these):
 - More than one bridge, a bridge longer/shorter than one atom, or any
   bridge atom other than carbon ('methano') or oxygen ('epoxy') -- e.g.
-  'imino' (-NH-), 'etheno' (-CH=CH-), 'epidioxy' (-O-O-, two atoms).
-- Any fused ring system other than plain 2-ring naphthalene.
+  'imino' (-NH-), 'etheno' (-CH=CH-), 'epidioxy' (-O-O-, two atoms). On
+  anthracene specifically, only 'methano' is supported (see
+  `find_bridged_anthracene_core`'s own docstring for why 'epoxy' is left
+  for a follow-up task).
+- Any fused ring system other than plain naphthalene or anthracene (e.g.
+  phenanthrene, tetracene), or a bridge positioned anywhere on anthracene
+  other than the 9,10 meso positions (e.g. a 1,4-type bridge within one
+  terminal ring, which this module doesn't attempt to distinguish from a
+  1,4-type bridge on plain benzene/naphthalene -- out of scope either way).
 - A bridge spanning adjacent ('1,2'-type) ring positions (a structurally
   different, cyclopropa-fused system, not a P-25.4 bridge at all).
 - Substituents of any kind, including on the bridge atom itself (which
-  would need its own locant, '9', not used in this unsubstituted scope).
+  would need its own locant, '9' for naphthalene or '11' for anthracene,
+  not used in this unsubstituted scope).
 """
 
-from ._aromatic import _straight_chain_candidates
+from ._aromatic import _anthracene_candidates, _straight_chain_candidates
+from ._common import adjacency
 
 _BRIDGE_PREFIXES = {6: "methano", 8: "epoxy"}
 
@@ -167,3 +193,111 @@ def name_bridged_naphthalene(mol, core) -> str:
 
     a, b = best_locants
     return f"{a},{b}-dihydro-{a},{b}-{bridge_prefix}naphthalene"
+
+
+def find_bridged_anthracene_core(mol):
+    """Return (ring_atom_sets, fusion_bonds_by_pair, bridgeheads,
+    bridge_prefix) if `mol` is anthracene's carbon skeleton plus exactly
+    one -CH2- bridge ('methano') across the middle ring's two meso
+    (9,10-type) positions, else None. Unlike naphthalene's bridgeheads
+    (which sit between one fusion atom and one plain -CH= atom),
+    anthracene's meso bridgeheads sit between two fusion atoms, one shared
+    with each terminal ring -- so this function's atom-role matching is
+    deliberately different from `find_bridged_naphthalene_core` above, not
+    a parameterized reuse of it.
+
+    Deliberately methano-only (unlike the naphthalene function, which also
+    accepts an 'epoxy' -O- bridge): no worked example or independently
+    verifiable name for the anthracene 9,10-epoxy analogue was found while
+    scoping this (as of `tasks/bridged-anthracene-naming.md`, 2026-08-26)
+    -- only the structure was confirmed (PubChem, matching connectivity),
+    which isn't enough to assert the name under this project's
+    test-writing policy. Left for a follow-up task if a real worked
+    example turns up, mirroring how the naphthalene epoxy case
+    (`tasks/bridged-naphthalene-oxa-bridge-naming.md`) was split off
+    separately after the methano case shipped."""
+    if mol.GetNumAtoms() != 15:
+        return None
+
+    bridge_candidates = [a for a in _bridge_candidates(mol) if a.GetAtomicNum() == 6]
+    if len(bridge_candidates) != 1:
+        return None
+    bridge_atom = bridge_candidates[0]
+    if bridge_atom.GetFormalCharge() != 0 or bridge_atom.GetIsotope() != 0:
+        return None
+    bridge_prefix = _BRIDGE_PREFIXES[bridge_atom.GetAtomicNum()]
+
+    for atom in mol.GetAtoms():
+        if atom.GetIdx() == bridge_atom.GetIdx():
+            continue
+        if atom.GetAtomicNum() != 6 or atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+            return None
+
+    bridgeheads = list(bridge_atom.GetNeighbors())
+    if len(bridgeheads) != 2:
+        return None
+    for bh in bridgeheads:
+        if bh.GetIsAromatic() or bh.GetDegree() != 3 or bh.GetTotalNumHs() != 1:
+            return None
+        if bh.GetHybridization().name != "SP3":
+            return None
+
+    neighbor_sets = []
+    for bh in bridgeheads:
+        others = [n for n in bh.GetNeighbors() if n.GetIdx() != bridge_atom.GetIdx()]
+        if len(others) != 2:
+            return None
+        for n in others:
+            if not n.GetIsAromatic() or n.GetDegree() != 3 or n.GetTotalNumHs() != 0:
+                return None
+        neighbor_sets.append({n.GetIdx() for n in others})
+
+    fusion_pairs = [(a, b) for a in neighbor_sets[0] for b in neighbor_sets[1] if mol.GetBondBetweenAtoms(a, b)]
+    if len(fusion_pairs) != 2:
+        return None
+    used = {atom for pair in fusion_pairs for atom in pair}
+    if len(used) != 4:
+        return None
+
+    terminal_rings = []
+    for a, b in fusion_pairs:
+        bond = mol.GetBondBetweenAtoms(a, b)
+        if not bond.GetIsAromatic():
+            return None
+        found = None
+        for ring in mol.GetRingInfo().AtomRings():
+            idx_set = set(ring)
+            if len(ring) == 6 and a in idx_set and b in idx_set and all(
+                mol.GetAtomWithIdx(i).GetIsAromatic() for i in ring
+            ):
+                found = idx_set
+                break
+        if found is None:
+            return None
+        terminal_rings.append(found)
+    if terminal_rings[0] == terminal_rings[1]:
+        return None
+
+    middle_ring_atoms = {bridgeheads[0].GetIdx(), bridgeheads[1].GetIdx()} | used
+    ring_atom_sets = [terminal_rings[0], middle_ring_atoms, terminal_rings[1]]
+    fusion_bonds_by_pair = {
+        frozenset((0, 1)): fusion_pairs[0],
+        frozenset((1, 2)): fusion_pairs[1],
+    }
+    bridgehead_idxs = (bridgeheads[0].GetIdx(), bridgeheads[1].GetIdx())
+    return ring_atom_sets, fusion_bonds_by_pair, bridgehead_idxs, bridge_prefix
+
+
+def name_bridged_anthracene(mol, core) -> str:
+    ring_atom_sets, fusion_bonds_by_pair, bridgeheads, bridge_prefix = core
+    graph = adjacency(mol)
+
+    candidates = _anthracene_candidates(graph, ring_atom_sets, fusion_bonds_by_pair, [0, 1, 2])
+    best_locants = None
+    for locants in candidates:
+        pair = tuple(sorted(locants[a] for a in bridgeheads))
+        if best_locants is None or pair < best_locants:
+            best_locants = pair
+
+    a, b = best_locants
+    return f"{a},{b}-dihydro-{a},{b}-{bridge_prefix}anthracene"
