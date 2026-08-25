@@ -27,6 +27,7 @@ from ._dihydro_aromatic import find_dihydronaphthalene_core, name_dihydronaphtha
 from ._ester import has_ester_shape, name_ester
 from ._ether import has_ether_shape, name_ether
 from ._fullerene import has_fullerene_name, name_fullerene
+from ._gonane import has_gonane_name, name_gonane
 from ._heteroaromatic_fused import has_retained_heteroaromatic_fused_name, name_retained_heteroaromatic_fused
 from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
 from ._two_component_heterocycle_fusion import (
@@ -121,6 +122,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # understand phane nomenclature at all.
     if has_cyclophane_name(mol):
         return name_cyclophane(mol)
+
+    # gonane (the 1989 IUPAC steroid nomenclature's fundamental tetracyclic
+    # parent, Rule 2.1 -- see module docstring) is recognized the same way,
+    # independent of every other branch below: `_polycyclic.py`'s general
+    # von Baeyer engine already names this exact skeleton (confirmed by
+    # direct testing), so this check must come first or gonane would never
+    # be reached.
+    if has_gonane_name(mol):
+        return name_gonane(mol)
 
     # triphenylene (P-25.1.2's branched-fusion retained name) is recognized
     # the same way -- see _branched_fused_aromatic.py's module docstring;
