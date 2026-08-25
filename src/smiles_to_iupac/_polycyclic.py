@@ -232,35 +232,28 @@ def _composite_bridges(adj, start, end, others):
     yield from walk(start, (), frozenset(), [])
 
 
-def _candidate_key(parent, substituents):
-    grouped = _group(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
-    name = parent if not grouped else format_substituent_prefixes(grouped) + parent
-    return locant_set, citation_locants, name
+def iter_polycyclic_candidates(core, ring_count):
+    """Yield `(full_order, parent, outer_key)` for every von Baeyer-valid
+    numbering of `core` (P-23.2.1-P-23.2.6, VB-6/VB-7) -- every choice of
+    main bridgeheads/main-system decomposition and, among candidates tied on
+    ring/bridge shape, every remaining numbering degree of freedom (main-ring
+    direction, order among equal-length bridges).
 
-
-def name_polycycloalkane(mol, core, ring_count) -> str:
-    validate_atoms_and_bonds(mol)
-    if non_single_bonds(mol):
-        raise UnsupportedStructure(
-            "unsaturated polycyclic ring systems are not supported yet (see "
-            "P-31.1.4, unsaturated von Baeyer ring systems)"
-        )
-
+    `outer_key` ranks the topology/descriptor choice (bridge-length shape,
+    secondary-bridge lengths and their locants) -- everything that must be
+    decided *before* substituent (or, as of
+    `tasks/heteroatom-skeleton-expansion.md`, 2026-08-26, a skeletal
+    heteroatom's) locants can break a remaining tie, since `parent` itself
+    (unlike `_bicyclic.py`'s fixed 'bicyclo[x.y.z]alkane') already encodes a
+    choice that must be settled first. A caller combines
+    `outer_key + _candidate_key(parent, substituents, ...)` to get the full
+    ranking key, mirroring `_bicyclic.iter_bicyclic_numberings`'s split
+    (shared with `_von_baeyer_heteroatom.py` for the same reason)."""
     branch_atoms, bridges = core
-    graph = adjacency(mol)
-    halogens = halogen_substituents(mol)
     adj = _adjacency_by_atom(branch_atoms, bridges)
     secondary_count = ring_count - 2
     ring_prefix = numerical_term(ring_count) + "cyclo"
 
-    best_key = None
-    best_name = None
     for bh1, bh2 in combinations(branch_atoms, 2):
         others = tuple(a for a in branch_atoms if a not in (bh1, bh2))
         for start, other in ((bh1, bh2), (bh2, bh1)):
@@ -278,7 +271,7 @@ def name_polycycloalkane(mol, core, ring_count) -> str:
                 a, b, c = sorted((len(p) for p in paths), reverse=True)
                 # P-23.2.1 (max main ring) > P-23.2.4 (max main bridge) >
                 # P-23.2.6.2.1 (main ring divided as symmetrically as possible).
-                outer_key = (-(a + b), -c, a - b)
+                shape_key = (-(a + b), -c, a - b)
 
                 for perm in permutations(paths):
                     if not (len(perm[0]) >= len(perm[1]) >= len(perm[2])):
@@ -320,8 +313,6 @@ def name_polycycloalkane(mol, core, ring_count) -> str:
                     for s in numbering_order:
                         full_order.extend(s["path"])
 
-                    substituents = _substituents_for_ring(graph, full_order, halogens)
-
                     # VB-6: secondary bridges are cited in decreasing size;
                     # equal-size ties cited in ascending locant order (this is
                     # independent of, and can differ from, numbering_order --
@@ -345,17 +336,60 @@ def name_polycycloalkane(mol, core, ring_count) -> str:
                     # VB-6 (maximize each secondary bridge's length, largest
                     # first) > P-23.2.6.2.4/.2.5-style lowest combined locant
                     # set for all secondary-bridge attachment points > lowest
-                    # locants in citation order > P-14.4/P-45.2 lowest
-                    # substituent locants.
-                    key = (
-                        outer_key
+                    # locants in citation order > (caller's own tie-break,
+                    # e.g. P-14.4/P-45.2 lowest substituent locants).
+                    outer_key = (
+                        shape_key
                         + tuple(-s["len"] for s in citation_order)
                         + combined_locants
                         + citation_locants
-                        + _candidate_key(parent, substituents)
                     )
-                    if best_key is None or key < best_key:
-                        best_key, best_name = key, key[-1]
+                    yield full_order, parent, outer_key
+
+
+def _candidate_key(parent, substituents, heteroatom_locant=None, nondetachable_prefix=""):
+    """`heteroatom_locant`/`nondetachable_prefix`: as of
+    `tasks/heteroatom-skeleton-expansion.md` (2026-08-26), shared with
+    `_von_baeyer_heteroatom.py`'s polycyclic (ring_count>=3) case, mirroring
+    `_bicyclic._candidate_key`'s same two optional parameters -- see that
+    function's callers for why the heteroatom locant is ranked ahead of
+    substituent locants but after `iter_polycyclic_candidates`'s own
+    `outer_key` (which the caller combines with this function's return
+    value)."""
+    grouped = _group(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    prefix = format_substituent_prefixes(grouped) if grouped else ""
+    if prefix and nondetachable_prefix:
+        prefix += "-"
+    name = prefix + nondetachable_prefix + parent
+    if heteroatom_locant is None:
+        return locant_set, citation_locants, name
+    return heteroatom_locant, locant_set, citation_locants, name
+
+
+def name_polycycloalkane(mol, core, ring_count) -> str:
+    validate_atoms_and_bonds(mol)
+    if non_single_bonds(mol):
+        raise UnsupportedStructure(
+            "unsaturated polycyclic ring systems are not supported yet (see "
+            "P-31.1.4, unsaturated von Baeyer ring systems)"
+        )
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+
+    best_key = None
+    best_name = None
+    for full_order, parent, outer_key in iter_polycyclic_candidates(core, ring_count):
+        substituents = _substituents_for_ring(graph, full_order, halogens)
+        key = outer_key + _candidate_key(parent, substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, key[-1]
 
     if best_name is None:
         raise UnsupportedStructure(

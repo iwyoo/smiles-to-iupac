@@ -53,3 +53,37 @@ def test_unsupported_heteroatom_element_raises():
 def test_unsaturated_heteroatom_bicyclic_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1CC2C=CC1O2")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # 2-oxaadamantane: adamantane (tricyclo[3.3.1.1^3,7]decane, see
+        # tests/test_polycyclic.py) with a non-bridgehead -CH2- replaced by
+        # -O-. Cross-checked against PubChem's own computed IUPACName for
+        # this exact SMILES ("2-oxatricyclo[3.3.1.1{3,7}]decane",
+        # C9H14O) -- unlike the naphthalene-bridge/phane cases, PubChem's
+        # name generator does implement this shape, so it's usable here.
+        ("O1C2CC3CC1CC(C2)C3", "2-oxatricyclo[3.3.1.1^3,7]decane"),
+        # a halogen substituent coexists with the ring heteroatom, same as
+        # the bicyclic case above. PubChem-verified for this exact SMILES
+        # ("5-chloro-2-oxatricyclo[3.3.1.1{3,7}]decane", C9H13ClO).
+        ("O1C2CC3CC1CC(Cl)(C2)C3", "5-chloro-2-oxatricyclo[3.3.1.1^3,7]decane"),
+    ],
+)
+def test_smiles_to_iupac_von_baeyer_heteroatom_tricyclic(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_two_ring_heteroatoms_tricyclic_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O1C2CC3CC1CC(C2)N3")
+
+
+def test_unsaturated_heteroatom_tricyclic_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O1C2CC3CC1C=C(C2)C3")
+
+
+def test_tricyclic_hydrocarbon_itself_is_unaffected():
+    assert smiles_to_iupac("C1C2CC3CC1CC(C2)C3") == "tricyclo[3.3.1.1^3,7]decane"
