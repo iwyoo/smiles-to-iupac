@@ -63,6 +63,23 @@ A multiple bond located in a substituent rather than the principal chain
 (i.e. no candidate longest chain carries every multiple bond in the
 molecule), and unsaturation in a ring, are out of scope and raise
 `UnsupportedStructure`.
+
+- P-93 (Chapter P-9, https://iupac.qmul.ac.uk/BlueBook/P9.html), as of
+  `tasks/ez-double-bond-naming.md` (2026-08-25): when the molecule has
+  exactly one C=C double bond in total (no triple bond, no second double
+  bond) and its geometry is specified in the input (`/`/`\`), a
+  "(E)-"/"(Z)-" prefix is added to the whole name, e.g. "(E)-but-2-ene",
+  "(Z)-2-chlorobut-2-ene" (both cross-checked against PubChem). No locant
+  is included in the prefix (R-7.1.2/P-93: a locanted "(2E)-" form is only
+  needed when there's more than one stereogenic double bond to
+  distinguish, which never arises in this single-double-bond scope). CIP
+  priority computation is delegated entirely to RDKit
+  (`_common.single_specified_double_bond_stereo`), mirroring
+  `_alcohol.py`'s R/S handling: a non-stereogenic double bond, or one left
+  unspecified in the input, is not a new rejection case -- it's named
+  exactly as before (no prefix). A specified double bond alongside a
+  triple bond, a second double bond, or a tetrahedral stereocenter is out
+  of scope and raises `UnsupportedStructure` explicitly.
 """
 
 from ._common import (
@@ -74,6 +91,7 @@ from ._common import (
     lowest_locant_set,
     non_single_bonds,
     path_between,
+    single_specified_double_bond_stereo,
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name, numerical_term
@@ -252,6 +270,14 @@ def name_acyclic_unsaturated(mol) -> str:
             "P-31.1.1.1)"
         )
 
+    stereo = single_specified_double_bond_stereo(mol)
+    if stereo is not None and len(bonds) != 1:
+        raise UnsupportedStructure(
+            "a specified double-bond E/Z stereo element combined with any "
+            "other multiple bond (a second double bond or a triple bond) "
+            "is not supported yet (see P-93)"
+        )
+
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     chains = _longest_chains(carbon_adjacency(mol))
@@ -279,4 +305,8 @@ def name_acyclic_unsaturated(mol) -> str:
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
 
+    if stereo is not None:
+        # P-93/R-7.1.2: no locant in the prefix -- with only one multiple
+        # bond in the whole molecule, there's nothing to disambiguate.
+        return f"({stereo[1]})-{best_name}"
     return best_name

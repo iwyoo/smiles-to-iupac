@@ -267,3 +267,38 @@ def single_specified_stereocenter(mol):
             "could not determine a CIP R/S label for this stereocenter"
         )
     return atom_idx, atom.GetProp("_CIPCode")
+
+
+def single_specified_double_bond_stereo(mol):
+    """`Bond_Double` analogue of `single_specified_stereocenter` above (see
+    its docstring for the same unspecified-vs-rejected reasoning, and
+    `tasks/ez-double-bond-naming.md`, 2026-08-25): None if there's no
+    *specified* double-bond stereo element at all -- covering both a
+    non-stereogenic double bond (e.g. `C=C(C)C`, where `FindPotentialStereo`
+    doesn't report an element at all) and one left unspecified in the input
+    (plain `C=C`, no `/`/`\\`) -- so the caller proceeds exactly as before
+    (no E/Z prefix) in either case. If there is exactly one specified
+    stereo element of any kind, and it's a `Bond_Double` element, return
+    (bond_idx, "E" or "Z") via `rdCIPLabeler`. Otherwise -- multiple
+    stereo elements (e.g. a second double bond, specified or not, or a
+    tetrahedral stereocenter alongside it) -- raise `UnsupportedStructure`
+    explicitly."""
+    elements = Chem.FindPotentialStereo(mol)
+    specified = [e for e in elements if e.specified == Chem.StereoSpecified.Specified]
+    if not specified:
+        return None
+    if len(specified) != 1 or specified[0].type != Chem.StereoType.Bond_Double or len(elements) != 1:
+        raise UnsupportedStructure(
+            "stereochemistry beyond a single, specified C=C double-bond E/Z "
+            "element is not supported yet (multiple stereo elements, a "
+            "specified one mixed with an unspecified one, or a tetrahedral "
+            "stereocenter -- see P-92/P-93)"
+        )
+    bond_idx = specified[0].centeredOn
+    rdCIPLabeler.AssignCIPLabels(mol)
+    bond = mol.GetBondWithIdx(bond_idx)
+    if not bond.HasProp("_CIPCode"):
+        raise UnsupportedStructure(
+            "could not determine a CIP E/Z label for this double bond"
+        )
+    return bond_idx, bond.GetProp("_CIPCode")

@@ -112,3 +112,50 @@ def test_unsaturated_not_all_multiple_bonds_on_one_chain_raises():
     # chain carrying *every* multiple bond is eligible as principal chain).
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=CCCCC(C=C)CCCCCC")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single, specified C=C double bond (P-93, tasks/ez-double-bond-
+        # naming.md, 2026-08-25): PubChem CID 62695/5287573 give these
+        # exact names for the two but-2-ene geometric isomers.
+        ("C/C=C/C", "(E)-but-2-ene"),
+        ("C/C=C\\C", "(Z)-but-2-ene"),
+        # Combined with a substituent prefix: cross-checked against
+        # PubChem CID 5364761/5463022. Note this project's own SMILES for
+        # the "E" case canonicalizes to PubChem's CID 5364761 structure
+        # (verified via Chem.CanonSmiles), not CID 5463022 as an earlier,
+        # unverified guess in the task file's own background section
+        # assumed -- CIP priority (Cl outranking CH3) flips which double-
+        # bond drawing is E vs Z relative to naive left-right geometry, so
+        # this is exactly the kind of case this module deliberately
+        # delegates to RDKit's rdCIPLabeler rather than guessing.
+        ("C/C(Cl)=C\\C", "(E)-2-chlorobut-2-ene"),
+        ("C/C(Cl)=C/C", "(Z)-2-chlorobut-2-ene"),
+    ],
+)
+def test_smiles_to_iupac_ez_double_bond(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_unspecified_double_bond_geometry_unaffected():
+    # no `/`/`\` at all: not a new rejection case -- named exactly as
+    # before (no E/Z prefix), matching this project's prior behavior.
+    assert smiles_to_iupac("CC=CC") == "but-2-ene"
+
+
+def test_non_stereogenic_double_bond_unaffected():
+    # one alkene carbon has two identical substituents (both H): no real
+    # geometric isomerism exists, so there's nothing to prefix.
+    assert smiles_to_iupac("C=C(C)C") == "2-methylprop-1-ene"
+
+
+def test_specified_double_bond_with_triple_bond_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C/C=C/CC#C")
+
+
+def test_specified_double_bond_with_second_double_bond_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C/C=C/C=C")
