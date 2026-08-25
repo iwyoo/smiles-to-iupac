@@ -29,8 +29,8 @@ from ._fullerene import has_fullerene_name, name_fullerene
 from ._heteroaromatic_fused import has_retained_heteroaromatic_fused_name, name_retained_heteroaromatic_fused
 from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
 from ._two_component_heterocycle_fusion import (
-    has_homo_heterocycle_fusion_name,
-    name_homo_heterocycle_fusion,
+    has_two_component_heterocycle_fusion_name,
+    name_two_component_heterocycle_fusion,
 )
 from ._ketone import name_ketone
 from ._ketone_amide import has_ketone_amide_shape, name_ketone_amide
@@ -127,12 +127,13 @@ def smiles_to_iupac(smiles: str) -> str:
     if has_retained_heteroaromatic_fused_name(mol):
         return name_retained_heteroaromatic_fused(mol)
 
-    # thieno[2,3-b]thiophene/furo[2,3-b]furan etc. (P-25.3.1.3's computed
-    # fusion-locant-letter mechanism, for the narrow case of two identical
-    # five-membered heteromonocycles self-fused) must be routed here before
-    # `_hetero_monocyclic.py` below, which only understands a single ring.
-    if has_homo_heterocycle_fusion_name(mol):
-        return name_homo_heterocycle_fusion(mol)
+    # thieno[2,3-b]thiophene/furo[2,3-b]furan/thieno[2,3-b]furan etc.
+    # (P-25.3.1.3's computed fusion-locant-letter mechanism, for two
+    # five-membered heteromonocycles -- identical or a mixed O/S pair --
+    # self-fused) must be routed here before `_hetero_monocyclic.py` below,
+    # which only understands a single ring.
+    if has_two_component_heterocycle_fusion_name(mol):
+        return name_two_component_heterocycle_fusion(mol)
 
     # oxirane/thiane/piperidine etc. (P-22.2.1's Hantzsch-Widman
     # saturated-monocyclic retained names) are recognized the same way --
