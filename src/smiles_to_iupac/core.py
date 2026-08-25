@@ -33,6 +33,7 @@ from ._ketone_ester import has_ketone_ester_shape, name_ketone_ester
 from ._nitrile import has_nitrile_shape, name_nitrile
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._paracyclophane import has_paracyclophane_name, name_paracyclophane
+from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
 from ._peroxide import has_peroxide_shape, name_peroxide
 from ._polyspiro import (
@@ -75,6 +76,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # below, all of which assume at least one carbon atom.
     if has_silane_chain_shape(mol):
         return name_silane_chain(mol)
+
+    # A phosphorus atom (P-68's phosphane substitutive nomenclature) must
+    # be routed here before every other branch below: none of them
+    # recognize phosphorus at all, and a phosphane carbon substituent would
+    # otherwise reach the plain acyclic-alkane/amine dispatch further down
+    # with no phosphorus handling.
+    if has_simple_phosphane_shape(mol):
+        return name_simple_phosphane(mol)
 
     # buckminsterfullerene (P-27's '[60]fullerene', a fixed 12-pentagon/
     # 20-hexagon cage) is recognized by exact whole-molecule match --
