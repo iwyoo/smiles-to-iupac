@@ -18,10 +18,39 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   hang off a ring atom the same way any other substituent does; a ring's own
   atom sequence needs no carbon-only filtering here since RDKit's ring
   perception (`GetRingInfo`) never includes a monovalent atom in a ring.
+- P-93.5.1.3 / P-91.2.1.2.1(b) (Chapter P-9,
+  https://iupac.qmul.ac.uk/BlueBook/P9.html), as of
+  `tasks/ring-cis-trans-naming.md` (2026-08-25): 'cis'/'trans' is valid
+  *general* nomenclature for the relative configuration of a disubstituted
+  alicyclic ring -- NOT a PIN construction (a PIN always uses full CIP R/S
+  descriptors instead, e.g. '(1R,2R)-1,2-dimethylcyclohexane', per
+  P-91.2.1/P-91.3), matching this project's existing precedent of
+  supporting Blue Book general nomenclature alongside PINs (e.g. the
+  Hantzsch-Widman/biphenyl retained names). Scoped to the simplest case
+  only: exactly two ring carbons, adjacent (1,2-), each bearing exactly
+  one identical substituent -- symmetric enough that there's no reference-
+  substituent selection question (P-93.5.1.3's full r/c/t rules, needed
+  for 3+ substituents or a 1,2-pair of *different* substituents, are out
+  of scope). The relation is determined by direct 3D geometry (embed a
+  conformer, check whether the two substituents sit on the same side of
+  the ring's mean plane) rather than by CIP R/S: which R/S combination
+  corresponds to cis vs. trans is known to flip between different
+  substitution patterns (e.g. 1,2- vs 1,3-), so reusing R/S labels here
+  would need separate, unperformed verification for each pattern -- pure
+  geometry avoids that entirely. Confirmed against PubChem's own isomeric
+  SMILES for cis-/trans-1,2-dimethylcyclohexane (CID 16628/23313).
+  A ring stereocenter combination other than exactly this shape (a single
+  specified stereocenter, more than two, an asymmetric 1,2-pair, or any
+  left unspecified alongside a specified one) raises `UnsupportedStructure`
+  explicitly rather than silently dropping the stereochemistry, mirroring
+  `_alcohol.py`'s R/S and `_unsaturated.py`'s E/Z handling.
 
 Fused, bridged, and spiro ring systems are out of scope for this module and
 raise NotImplementedError.
 """
+
+from rdkit import Chem
+from rdkit.Chem import AllChem
 
 from ._common import (
     UnsupportedStructure,
@@ -97,6 +126,114 @@ def _candidate_key(ring_size, substituents):
     return locant_set, citation_locants, name
 
 
+def _ring_stereocenters(mol, ring_set):
+    """If `mol` has stereo elements that are exactly two specified
+    tetrahedral atom stereocenters (and nothing else at all -- no third
+    element, no unspecified one alongside them), both on ring atoms,
+    return the two atom indices. If there's no specified stereo element at
+    all, return None (the caller proceeds exactly as before, no cis-/
+    trans- prefix). Any other combination raises `UnsupportedStructure`
+    explicitly (see module docstring)."""
+    elements = Chem.FindPotentialStereo(mol)
+    specified = [e for e in elements if e.specified == Chem.StereoSpecified.Specified]
+    if not specified:
+        return None
+    if (
+        len(specified) != 2
+        or len(elements) != 2
+        or any(e.type != Chem.StereoType.Atom_Tetrahedral for e in specified)
+    ):
+        raise UnsupportedStructure(
+            "ring stereochemistry beyond exactly two specified tetrahedral "
+            "ring stereocenters is not supported yet (see P-93.5.1.3)"
+        )
+    atoms = [e.centeredOn for e in specified]
+    if not all(a in ring_set for a in atoms):
+        raise UnsupportedStructure(
+            "a specified stereocenter not on the ring itself is not "
+            "supported yet"
+        )
+    return atoms
+
+
+def _ring_normal(coords):
+    """Newell's method: unit polygon normal for a (possibly non-planar)
+    ring, given `coords` as a list of (x, y, z) tuples in ring order."""
+    nx = ny = nz = 0.0
+    n = len(coords)
+    for i in range(n):
+        x1, y1, z1 = coords[i]
+        x2, y2, z2 = coords[(i + 1) % n]
+        nx += (y1 - y2) * (z1 + z2)
+        ny += (z1 - z2) * (x1 + x2)
+        nz += (x1 - x2) * (y1 + y2)
+    length = (nx * nx + ny * ny + nz * nz) ** 0.5
+    return nx / length, ny / length, nz / length
+
+
+def _substituents_same_face(mol, ring_atoms, ring_atom_a, sub_atom_a, ring_atom_b, sub_atom_b):
+    """Embed a 3D conformer and check whether the two substituent atoms
+    sit on the same side of the ring's mean plane (see module docstring
+    for why this is done geometrically rather than via CIP R/S)."""
+    mol_h = Chem.AddHs(mol)
+    cids = AllChem.EmbedMultipleConfs(mol_h, numConfs=5, randomSeed=0xC0FFEE)
+    if not cids:
+        raise UnsupportedStructure(
+            "could not generate a 3D conformer to determine cis/trans (see "
+            "P-93.5.1.3)"
+        )
+    props = AllChem.MMFFGetMoleculeProperties(mol_h)
+    best_cid, best_energy = None, None
+    for cid in cids:
+        ff = AllChem.MMFFGetMoleculeForceField(mol_h, props, confId=cid)
+        ff.Minimize()
+        energy = ff.CalcEnergy()
+        if best_energy is None or energy < best_energy:
+            best_energy, best_cid = energy, cid
+    conf = mol_h.GetConformer(best_cid)
+
+    coords = [tuple(conf.GetAtomPosition(a)) for a in ring_atoms]
+    nx, ny, nz = _ring_normal(coords)
+
+    pos_a = conf.GetAtomPosition(ring_atom_a)
+    pos_sub_a = conf.GetAtomPosition(sub_atom_a)
+    pos_b = conf.GetAtomPosition(ring_atom_b)
+    pos_sub_b = conf.GetAtomPosition(sub_atom_b)
+    side_a = (pos_sub_a.x - pos_a.x) * nx + (pos_sub_a.y - pos_a.y) * ny + (pos_sub_a.z - pos_a.z) * nz
+    side_b = (pos_sub_b.x - pos_b.x) * nx + (pos_sub_b.y - pos_b.y) * ny + (pos_sub_b.z - pos_b.z) * nz
+    return (side_a > 0) == (side_b > 0)
+
+
+def _cis_trans_prefix(mol, graph, ring_atoms, ring_set, halogens, stereo_atoms):
+    """(prefix, is_compound) if `stereo_atoms` is exactly the minimal
+    symmetric 1,2-disubstituted shape this module supports (see module
+    docstring), else raises `UnsupportedStructure`."""
+    atom_a, atom_b = stereo_atoms
+    if atom_b not in graph[atom_a]:
+        raise UnsupportedStructure(
+            "specified ring stereocenters that aren't adjacent (1,2-) to "
+            "each other are not supported yet (see P-93.5.1.3)"
+        )
+    subs_a = [n for n in graph[atom_a] if n not in ring_set]
+    subs_b = [n for n in graph[atom_b] if n not in ring_set]
+    if len(subs_a) != 1 or len(subs_b) != 1:
+        raise UnsupportedStructure(
+            "a ring stereocenter without exactly one substituent is not "
+            "supported yet (see P-93.5.1.3)"
+        )
+    (sub_a,), (sub_b,) = subs_a, subs_b
+    name_a, compound_a = name_branch(graph, sub_a, atom_a, halogens)
+    name_b, compound_b = name_branch(graph, sub_b, atom_b, halogens)
+    if (name_a, compound_a) != (name_b, compound_b):
+        raise UnsupportedStructure(
+            "an asymmetric 1,2-disubstituted pair (two different "
+            "substituents) is not supported yet -- P-93.5.1.3's reference-"
+            "substituent selection rules are needed (see P-93.5.1.3)"
+        )
+    same_face = _substituents_same_face(mol, ring_atoms, atom_a, sub_a, atom_b, sub_b)
+    return ("cis-" if same_face else "trans-"), False
+
+
 def name_cycloalkane(mol) -> str:
     validate_atoms_and_bonds(mol)
     if non_single_bonds(mol):
@@ -114,8 +251,14 @@ def name_cycloalkane(mol) -> str:
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     ring_atoms = list(ring_info.AtomRings()[0])
+    ring_set = set(ring_atoms)
     ring_order = _ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
+
+    stereo_atoms = _ring_stereocenters(mol, ring_set)
+    cis_trans = None
+    if stereo_atoms is not None:
+        cis_trans = _cis_trans_prefix(mol, graph, ring_atoms, ring_set, halogens, stereo_atoms)
 
     best_key = None
     best_name = None
@@ -127,4 +270,7 @@ def name_cycloalkane(mol) -> str:
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
 
+    if cis_trans is not None:
+        prefix, _ = cis_trans
+        return f"{prefix}{best_name}"
     return best_name
