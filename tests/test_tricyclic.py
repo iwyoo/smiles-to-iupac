@@ -115,6 +115,14 @@ def test_hexacyclic_raises():
         # tricyclo[2.2.2.0^1,4]octane; also cross-checked C8H12 via RDKit's
         # computed molecular formula.
         ("C1CC23CCC12CC3", "tricyclo[2.2.2.0^1,4]octane"),
+        # Secondary bridge with one atom of its own instead of a direct
+        # bond: the two main bridgeheads (both degree 4) are joined by three
+        # one-carbon main-ring/main-bridge segments *and* a fourth,
+        # one-carbon secondary bridge (rather than being bonded directly).
+        # Verified against PubChem CID 59850615, which gives exactly
+        # tricyclo[1.1.1.1^1,3]hexane for this SMILES; C6H8 cross-checked
+        # via RDKit's computed molecular formula.
+        ("C1C23CC1(C2)C3", "tricyclo[1.1.1.1^1,3]hexane"),
     ],
 )
 def test_smiles_to_iupac_propellane(smiles, expected):
