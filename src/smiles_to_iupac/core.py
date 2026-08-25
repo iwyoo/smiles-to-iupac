@@ -16,6 +16,7 @@ from ._imide import has_imide_shape, name_imide
 from ._amine import name_amine
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
+from ._bridged_aromatic import find_bridged_naphthalene_core, name_bridged_naphthalene
 from ._branched_fused_aromatic import has_retained_branched_fused_name, name_retained_branched_fused
 from ._carboxylic_acid import has_carboxylic_acid_shape, name_carboxylic_acid
 from ._common import UnsupportedStructure, non_single_bonds
@@ -321,6 +322,20 @@ def smiles_to_iupac(smiles: str) -> str:
         dihydro_core = find_dihydronaphthalene_core(mol)
         if dihydro_core is not None:
             return name_dihydronaphthalene(mol, dihydro_core)
+    # A naphthalene skeleton with a single -CH2- bridge across one ring's
+    # 1,4-positions (1,4-dihydro-1,4-methanonaphthalene, "benzonorbornadiene")
+    # has RDKit's SSSR pick two 5-membered rings plus the intact 6-membered
+    # aromatic ring (three rings total, not naphthalene's natural two
+    # 6-membered rings -- see _bridged_aromatic.py's module docstring), so it
+    # must be routed here by its own atom-role detection, before the
+    # num_rings>=2 von Baeyer tricyclic search below: that search's carbon
+    # skeleton (cyclomatic number 3, four degree-3 atoms) is graph-isomorphic
+    # to this bridged shape's, and would otherwise misdetect it as an
+    # unsaturated von Baeyer tricyclic and reject it with the wrong error.
+    if num_rings == 3:
+        bridged_core = find_bridged_naphthalene_core(mol)
+        if bridged_core is not None:
+            return name_bridged_naphthalene(mol, bridged_core)
     if num_rings == 0:
         bonds = non_single_bonds(mol)
         if not bonds:
