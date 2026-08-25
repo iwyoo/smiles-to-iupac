@@ -16,7 +16,12 @@ from ._imide import has_imide_shape, name_imide
 from ._amine import name_amine
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
-from ._bridged_aromatic import find_bridged_naphthalene_core, name_bridged_naphthalene
+from ._bridged_aromatic import (
+    find_bridged_anthracene_core,
+    find_bridged_naphthalene_core,
+    name_bridged_anthracene,
+    name_bridged_naphthalene,
+)
 from ._borane import has_simple_borane_shape, name_simple_borane
 from ._branched_fused_aromatic import has_retained_branched_fused_name, name_retained_branched_fused
 from ._carboxylic_acid import has_carboxylic_acid_shape, name_carboxylic_acid
@@ -181,6 +186,13 @@ def smiles_to_iupac(smiles: str) -> str:
     bridged_core = find_bridged_naphthalene_core(mol)
     if bridged_core is not None:
         return name_bridged_naphthalene(mol, bridged_core)
+
+    # Same shape, one ring larger: an anthracene skeleton bridged across
+    # its own 9,10 meso positions (see _bridged_aromatic.py's module
+    # docstring) must be routed here for the same reason.
+    bridged_anthracene_core = find_bridged_anthracene_core(mol)
+    if bridged_anthracene_core is not None:
+        return name_bridged_anthracene(mol, bridged_anthracene_core)
 
     # A sulfonic acid (-SO3H, P-65.3.1) has three oxygens on its own sulfur,
     # so it must be routed here before the plain "any O atom" branch below --
