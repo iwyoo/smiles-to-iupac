@@ -23,25 +23,27 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   Blue Book's own worked example for this exact O-vs-S case ('2H-[1,4]dithiepino
   [2,3-c]furan (PIN)') is annotated directly in the text as "furan is
   senior to dithiepine; O > S" -- confirmed against the primary source
-  before implementing, not assumed. Within this module's O/S-only scope,
-  that reduces to: a furan component is always the base, a thiophene
-  component is always the attached ('thieno'-prefixed) one, whenever the
-  two rings' heteroatoms differ. When they're the same (S+S or O+O), the
-  ordering has no effect (either ring could be "base" and the result is
-  identical since both keep the same ring name), so ring index 0 is simply
-  used as a tiebreak.
+  before implementing, not assumed. That ordering (O > S > Se > Te, as of
+  `tasks/two-component-fusion-chalcogen-naming.md`, 2026-08-26) now covers
+  all four chalcogens this module recognizes: whichever ring's heteroatom
+  comes first in O/S/Se/Te is always the base component when the two
+  rings differ. When they're the same, the ordering has no effect (either
+  ring could be "base" and the result is identical since both keep the
+  same ring name), so ring index 0 is simply used as a tiebreak.
 - P-25.2.1 / Table 2.2: thiophene and furan both fix their own heteroatom
   at locant 1 (independent of fusion), with a mirror symmetry across the
   heteroatom that makes both ring-numbering directions equally valid until
   a fusion (or substituent) breaks the tie via "lowest locants".
 
-Scope, deliberately narrow (see tasks/homo-heterocycle-fusion-naming.md and
-tasks/hetero-two-component-fusion-naming.md):
+Scope, deliberately narrow (see tasks/homo-heterocycle-fusion-naming.md,
+tasks/hetero-two-component-fusion-naming.md, and
+tasks/two-component-fusion-chalcogen-naming.md):
 - Exactly two rings, both aromatic, both 5-membered, both with exactly one
-  ring heteroatom, each either O or S (identical or mixed) -- any other
-  heteroatom (Se, Te, N, ...) is out of scope; P-25.3.2.4(a)'s full
-  seniority order is not implemented, only the O-vs-S slice of it that's
-  independently verified above.
+  ring heteroatom, each one of O/S/Se/Te (identical or any mixed pair) --
+  any other heteroatom (N, ...) is out of scope; P-25.3.2.4(a)'s full
+  seniority order is not implemented beyond the chalcogen slice
+  (N > F > Cl > Br > I > O > S > Se > Te > ...) that's independently
+  verified above.
 - Ortho-fusion only (the two rings share exactly one bond).
 - The fusion bond must touch an atom adjacent to *each* ring's own
   heteroatom (letter 'b', per the worked examples above) -- a fusion bond
@@ -54,18 +56,24 @@ tasks/hetero-two-component-fusion-naming.md):
   divalent atoms with no N-H case to consider, since only O/S are in
   scope).
 
-Anything else (3+ components, heteroatoms other than O/S, non-'b' fusion
-bonds, any substituent) raises `UnsupportedStructure` and falls through to
-other dispatch branches in core.py, exactly like every other
+Anything else (3+ components, heteroatoms other than O/S/Se/Te, non-'b'
+fusion bonds, any substituent) raises `UnsupportedStructure` and falls
+through to other dispatch branches in core.py, exactly like every other
 retained/computed-name module in this project.
 """
 
 from ._common import UnsupportedStructure
 
-_RING_NAMES = {8: ("furo", "furan"), 16: ("thieno", "thiophene")}
+_RING_NAMES = {
+    8: ("furo", "furan"),
+    16: ("thieno", "thiophene"),
+    34: ("selenopheno", "selenophene"),
+    52: ("telluropheno", "tellurophene"),
+}
 # P-25.3.2.4(a): heteroatom seniority order, restricted to this module's
-# O/S-only scope -- lower value is more senior (becomes the base component).
-_SENIORITY_ORDER = {8: 0, 16: 1}
+# chalcogen-only scope -- lower value is more senior (becomes the base
+# component).
+_SENIORITY_ORDER = {8: 0, 16: 1, 34: 2, 52: 3}
 
 
 def _ring_cycle(graph, ring_atoms):
@@ -99,8 +107,9 @@ def _local_numbering(graph, ring_atoms, heteroatom, fusion_atoms):
 
 def find_two_component_heterocycle_fusion_core(mol):
     """Return (ring_atom_sets, fusion_atoms, heteroatoms, elements) if `mol`
-    is exactly two ortho-fused 5-membered aromatic rings each with one O/S
-    heteroatom (identical or mixed) and no other atoms, else None."""
+    is exactly two ortho-fused 5-membered aromatic rings each with one
+    O/S/Se/Te heteroatom (identical or mixed) and no other atoms, else
+    None."""
     if mol.GetNumAtoms() != 8:
         return None
     ring_info = mol.GetRingInfo()
