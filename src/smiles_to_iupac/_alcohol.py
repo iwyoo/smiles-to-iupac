@@ -15,6 +15,23 @@ Recommendations ("the Blue Book"):
   `tasks/pin-selection-and-parent-choice.md`'s territory; here, `name_alcohol`
   simply checks whether the ring carries any -OH before choosing which
   branch to use, unchanged when it does.
+- P-92 (Chapter P-9, https://iupac.qmul.ac.uk/BlueBook/P9.html), as of
+  `tasks/rs-stereocenter-naming.md` (2026-08-25): an acyclic (chain)
+  alcohol whose molecule has exactly one stereo element overall -- a
+  single, specified tetrahedral stereocenter, located on the principal
+  chain itself, with no other stereocenter and no C=C/C#N double-bond E/Z
+  stereo anywhere -- gets a "(<locant><R/S>)-" prefix, e.g.
+  '(2R)-butan-2-ol', '(3R)-pent-1-en-3-ol' (both Blue Book worked
+  examples). CIP priority computation itself is delegated entirely to
+  RDKit (`_common.single_specified_stereocenter`); this module only
+  formats the resulting label using the chain locant already computed for
+  the winning numbering (P-92 doesn't get its own say in *which* numbering
+  wins -- it's purely descriptive once the chain/locants are otherwise
+  fixed). Any stereo element beyond this single simplest case (multiple
+  stereocenters, an unspecified one, any E/Z double bond, or the
+  stereocenter lying on a ring or a substituent branch rather than the
+  principal chain) now raises `UnsupportedStructure` explicitly, instead
+  of the previous behavior of silently ignoring `@`/`@@` markers entirely.
 
 - P-33.2.1, Table 3.3 (Chapter P-3, https://iupac.qmul.ac.uk/BlueBook/PDF/P3.pdf):
   'ol' is the preselected suffix for -OH, ranked 14th (out of 17) in Table
@@ -118,6 +135,7 @@ from ._common import (
     lowest_locant_set,
     non_single_bonds,
     path_between,
+    single_specified_stereocenter,
 )
 from ._numerals import alkane_name, alkyl_name, numerical_term
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -364,7 +382,13 @@ def _substituents_for_chain(graph, chain, halogens, hydroxyls):
     return substituents
 
 
-def _name_acyclic_alcohol(mol, hydroxyls, bonds):
+def _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo=None):
+    """`stereo`: None, or (stereocenter_atom_idx, "R"/"S") from
+    `single_specified_stereocenter` -- if given, only chain candidates that
+    include the stereocenter are eligible (P-92: a stereocenter on a
+    substituent branch rather than the principal chain is out of scope,
+    see module docstring), and the winning candidate's own locant for that
+    atom is used to format a "(<locant><R/S>)-" prefix onto the name."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     chains = _longest_chains(carbon_adjacency(mol))
@@ -377,8 +401,19 @@ def _name_acyclic_alcohol(mol, hydroxyls, bonds):
             continue
         if bonds and _bond_locants(chain, bonds) is None:
             continue
+        if stereo is not None and stereo[0] not in chain:
+            continue
         eligible.append(chain)
     if not eligible:
+        if stereo is not None and any(
+            _oh_locants({a: i + 1 for i, a in enumerate(c)}, hydroxyls, graph) is not None
+            and (not bonds or _bond_locants(c, bonds) is not None)
+            for c in chains
+        ):
+            raise UnsupportedStructure(
+                "a stereocenter on a substituent branch rather than the "
+                "principal chain is not supported yet (see P-92)"
+            )
         raise UnsupportedStructure(
             "not every hydroxyl-bearing carbon (and/or multiple bond) lies "
             "on a single longest carbon chain; a shorter principal chain "
@@ -388,6 +423,7 @@ def _name_acyclic_alcohol(mol, hydroxyls, bonds):
 
     best_key = None
     best_name = None
+    best_position_of = None
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
@@ -396,7 +432,12 @@ def _name_acyclic_alcohol(mol, hydroxyls, bonds):
             substituents = _substituents_for_chain(graph, candidate, halogens, hydroxyls)
             key, name = _candidate_key(chain_length, oh_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, name
+                best_key, best_name, best_position_of = key, name, position_of
+
+    if stereo is not None:
+        stereo_atom, r_or_s = stereo
+        locant = best_position_of[stereo_atom]
+        return f"({locant}{r_or_s})-{best_name}"
     return best_name
 
 
@@ -572,11 +613,16 @@ def name_alcohol(mol) -> str:
             "supported (see P-31.1.1.1)"
         )
     _reject_enol_carbons(graph, hydroxyls, bonds)
+    stereo = single_specified_stereocenter(mol)
 
     ring_info = mol.GetRingInfo()
     num_rings = ring_info.NumRings()
     if num_rings == 0:
-        return _name_acyclic_alcohol(mol, hydroxyls, bonds)
+        return _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo)
+    if stereo is not None:
+        raise UnsupportedStructure(
+            "a stereocenter on a ring is not supported yet (see P-92)"
+        )
     if num_rings == 1:
         if bonds:
             raise UnsupportedStructure(

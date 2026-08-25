@@ -57,10 +57,48 @@ from smiles_to_iupac._common import UnsupportedStructure
         # so this is an accepted, reviewed result rather than a PubChem-
         # confirmed one.
         ("OCCC1CCCCC1", "2-cyclohexylethan-1-ol"),
+        # A single specified tetrahedral stereocenter (P-92,
+        # tasks/rs-stereocenter-naming.md, 2026-08-25): the Blue Book's own
+        # worked example for this exact suffix, cross-checked against
+        # PubChem CID 84682/444683 for the two enantiomers.
+        ("C[C@@H](O)CC", "(2R)-butan-2-ol"),
+        ("C[C@H](O)CC", "(2S)-butan-2-ol"),
+        # A specified stereocenter combined with existing ene-suffix
+        # support: the Blue Book's other own worked example for this
+        # suffix, cross-checked against PubChem CID 6994331.
+        ("C=C[C@H](O)CC", "(3R)-pent-1-en-3-ol"),
+        # A genuine stereocenter left *unspecified* in the input (no
+        # `@`/`@@`) is not a new rejection case -- it's named exactly as
+        # before (no stereodescriptor), matching both this project's prior
+        # behavior and PubChem's own convention for a name that doesn't
+        # specify configuration at all.
+        ("CC(O)CC", "butan-2-ol"),
     ],
 )
 def test_alcohol_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_multiple_stereocenters_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[C@H](O)[C@H](C)CC")
+
+
+def test_stereocenter_with_ez_double_bond_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[C@H](O)/C=C/C")
+
+
+def test_partially_specified_stereocenters_raises():
+    # one specified, one left unspecified -- an ambiguous mix, not the
+    # same as "no stereo specified at all".
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[C@H](O)C(C)CC")
+
+
+def test_ring_stereocenter_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O[C@H]1CCCCC1C")
 
 
 def test_ring_with_own_hydroxyl_and_chain_hydroxyl_raises():
