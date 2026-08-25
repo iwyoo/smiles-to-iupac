@@ -13,9 +13,24 @@ def test_paracyclophane():
     assert smiles_to_iupac("C=1C=C2C=CC1CCC3=CC=C(C=C3)CC2") == "1,4(1,4)-dibenzenacyclohexaphane"
 
 
+def test_metacyclophane():
+    # [2.2]metacyclophane's PIN, confirmed directly against the Blue Book
+    # text (P-26.4.1.4's own paired example alongside the para isomer
+    # above, both marked "(PIN)"). PubChem CID 137543's own canonical
+    # SMILES for "(2.2)Metacyclophane" is used here and independently
+    # matches this project's own SMILES for the same structure, C16H16.
+    assert smiles_to_iupac("C1CC2=CC(=CC=C2)CCC3=CC=CC1=C3") == "1,4(1,3)-dibenzenacyclohexaphane"
+    assert smiles_to_iupac("c1cc2cc(c1)CCc1cccc(c1)CC2") == "1,4(1,3)-dibenzenacyclohexaphane"
+
+
 def test_substituted_paracyclophane_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC1CC2=CC=C(CCC3=CC=C1C=C3)C=C2")
+
+
+def test_substituted_metacyclophane_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC1CC2=CC(=CC=C2)CCC3=CC=CC1=C3")
 
 
 def test_different_bridge_length_raises():
