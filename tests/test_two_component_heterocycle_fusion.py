@@ -38,14 +38,28 @@ def test_c_lettered_fusion_raises():
         smiles_to_iupac("C1=CSC2=CSC=C21")
 
 
-def test_mixed_thieno_furo_raises():
-    # A thiophene fused to a furan (mismatched heteroatoms) needs
-    # P-25.3.2's heteroatom seniority table to pick the base component --
-    # out of scope for this module (see docstring).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1=CSC2=C1C=CO2")
+def test_thieno_2_3_b_furan():
+    # C6H4OS, cross-checked against PubChem CID 21868935's IUPACName field
+    # and ConnectivitySMILES ("C1=COC2=C1C=CS2"). A mixed thiophene+furan
+    # pair: P-25.3.2.4(a)'s heteroatom seniority (O > S, confirmed against
+    # the Blue Book's own "furan is senior to dithiepine" worked example)
+    # always makes furan the base component.
+    assert smiles_to_iupac("C1=CSC2=C1C=CO2") == "thieno[2,3-b]furan"
+
+
+def test_thieno_3_2_b_furan():
+    # C6H4OS, cross-checked against PubChem CID 18436918's IUPACName field
+    # and ConnectivitySMILES ("C1=COC2=C1SC=C2").
+    assert smiles_to_iupac("C1=COC2=C1SC=C2") == "thieno[3,2-b]furan"
 
 
 def test_substituted_thieno_thiophene_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("Cc1csc2ccsc12")
+
+
+def test_selenophene_thiophene_raises():
+    # Se is out of scope -- only the O-vs-S slice of P-25.3.2.4(a)'s
+    # seniority order is implemented (see module docstring).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1=C[Se]C2=C1C=CS2")
