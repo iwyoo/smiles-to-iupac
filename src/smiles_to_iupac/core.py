@@ -154,6 +154,16 @@ def smiles_to_iupac(smiles: str) -> str:
     if spiro_atom is not None and has_single_spiro_heteroatom_shape(mol, spiro_atom):
         return name_spiro_heteroatom(mol, spiro_atom)
 
+    # A naphthalene skeleton with a single -CH2- or -O- bridge across one
+    # ring's 1,4-positions (1,4-dihydro-1,4-methano-/epoxynaphthalene) must
+    # be routed here before the plain "any O atom" branch below (the -O-
+    # bridge variant would otherwise be misdetected as a plain ether) -- see
+    # _bridged_aromatic.py's module docstring for why RDKit's own ring
+    # perception can't be trusted for this shape either.
+    bridged_core = find_bridged_naphthalene_core(mol)
+    if bridged_core is not None:
+        return name_bridged_naphthalene(mol, bridged_core)
+
     # A sulfonic acid (-SO3H, P-65.3.1) has three oxygens on its own sulfur,
     # so it must be routed here before the plain "any O atom" branch below --
     # none of the ether/ester/carboxylic-acid/aldehyde/ketone/alcohol checks
@@ -323,20 +333,6 @@ def smiles_to_iupac(smiles: str) -> str:
         dihydro_core = find_dihydronaphthalene_core(mol)
         if dihydro_core is not None:
             return name_dihydronaphthalene(mol, dihydro_core)
-    # A naphthalene skeleton with a single -CH2- bridge across one ring's
-    # 1,4-positions (1,4-dihydro-1,4-methanonaphthalene, "benzonorbornadiene")
-    # has RDKit's SSSR pick two 5-membered rings plus the intact 6-membered
-    # aromatic ring (three rings total, not naphthalene's natural two
-    # 6-membered rings -- see _bridged_aromatic.py's module docstring), so it
-    # must be routed here by its own atom-role detection, before the
-    # num_rings>=2 von Baeyer tricyclic search below: that search's carbon
-    # skeleton (cyclomatic number 3, four degree-3 atoms) is graph-isomorphic
-    # to this bridged shape's, and would otherwise misdetect it as an
-    # unsaturated von Baeyer tricyclic and reject it with the wrong error.
-    if num_rings == 3:
-        bridged_core = find_bridged_naphthalene_core(mol)
-        if bridged_core is not None:
-            return name_bridged_naphthalene(mol, bridged_core)
     if num_rings == 0:
         bonds = non_single_bonds(mol)
         if not bonds:
