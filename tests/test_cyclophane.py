@@ -23,6 +23,23 @@ def test_metacyclophane():
     assert smiles_to_iupac("c1cc2cc(c1)CCc1cccc(c1)CC2") == "1,4(1,3)-dibenzenacyclohexaphane"
 
 
+def test_tetrabenzenacyclooctaphane():
+    # [1.1.1.1]metacyclophane's PIN, confirmed directly against the Blue
+    # Book text (P-26.4.1.4's third worked example, printed immediately
+    # alongside the para/meta pair above, all marked "(PIN)"). This
+    # project's own independently-built SMILES resolves (via InChIKey) to
+    # PubChem CID 11740710, same formula and connectivity, C28H24.
+    assert (
+        smiles_to_iupac("C1c2cccc(c2)Cc2cccc(c2)Cc2cccc(c2)Cc2cccc1c2")
+        == "1,3,5,7(1,3)-tetrabenzenacyclooctaphane"
+    )
+
+
+def test_substituted_tetrabenzenacyclooctaphane_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1cccc2c1CC1=CC=CC(=C1)CC1=CC=CC(=C1)CC1=CC=CC(=C1)C2")
+
+
 def test_substituted_paracyclophane_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC1CC2=CC=C(CCC3=CC=C1C=C3)C=C2")
