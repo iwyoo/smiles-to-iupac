@@ -68,10 +68,12 @@ from ._thiol import has_thiol_shape, name_thiol
 from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
 from ._von_baeyer_heteroatom import (
+    has_mixed_element_heteroatom_shape as has_mixed_bicyclic_heteroatom_shape,
     has_multi_ring_heteroatom_shape as has_multi_bicyclic_heteroatom_shape,
     has_single_ring_heteroatom_shape as has_single_bicyclic_heteroatom_shape,
     has_single_ring_heteroatom_shape_polycyclic,
     name_von_baeyer_heteroatom,
+    name_von_baeyer_heteroatom_mixed,
     name_von_baeyer_heteroatom_multi,
     name_von_baeyer_heteroatom_polycyclic,
 )
@@ -179,6 +181,8 @@ def smiles_to_iupac(smiles: str) -> str:
         return name_von_baeyer_heteroatom(mol, bicyclic_core)
     if bicyclic_core is not None and has_multi_bicyclic_heteroatom_shape(mol, bicyclic_core):
         return name_von_baeyer_heteroatom_multi(mol, bicyclic_core)
+    if bicyclic_core is not None and has_mixed_bicyclic_heteroatom_shape(mol, bicyclic_core):
+        return name_von_baeyer_heteroatom_mixed(mol, bicyclic_core)
     spiro_atom = find_monospiro_atom(mol)
     if spiro_atom is not None and has_single_spiro_heteroatom_shape(mol, spiro_atom):
         return name_spiro_heteroatom(mol, spiro_atom)

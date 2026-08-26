@@ -32,11 +32,6 @@ def test_smiles_to_iupac_von_baeyer_heteroatom(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_two_ring_heteroatoms_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CC2CCN1O2")
-
-
 def test_heteroatom_outside_ring_raises():
     # a plain hydrocarbon bicyclic with an exocyclic -OH substituent: the
     # single heteroatom isn't a *skeletal* ring atom, so this is a
@@ -74,12 +69,55 @@ def test_smiles_to_iupac_von_baeyer_heteroatom_multi(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_mixed_element_heteroatoms_raises():
-    # P-23.2.1's 'a'-prefix ordering for two different heteroatom kinds
-    # (Table 2.8 seniority) is out of scope -- this must not silently pick
-    # an arbitrary order.
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # bicyclo[2.2.1]heptane, O in a 2-atom bridge and N in the 1-atom
+        # bridge: PubChem-verified for this exact SMILES
+        # ("2-oxa-7-azabicyclo[2.2.1]heptane", CID 153796098).
+        ("O1CC2CCC1N2", "2-oxa-7-azabicyclo[2.2.1]heptane"),
+        # same skeleton, N at a *bridgehead* instead of in a bridge --
+        # PubChem-verified (CID 23462610): the bridgehead locant (1) is
+        # still cited after 'oxa' even though it's numerically lower than
+        # oxa's own locant (7), confirming citation order really is by
+        # Table 2.8 seniority and not by locant value.
+        ("C1CC2CCN1O2", "7-oxa-1-azabicyclo[2.2.1]heptane"),
+        # bicyclo[3.2.1]octane, O and N each in a different bridge --
+        # PubChem-verified (CID 12069231): 'oxa' is cited before 'aza'
+        # even though its own locant (8) is numerically higher than aza's
+        # (3), confirming Table 2.8 citation order is by seniority, not by
+        # locant value.
+        ("C1CC2CNCC1O2", "8-oxa-3-azabicyclo[3.2.1]octane"),
+        # same skeleton, O and S -- PubChem-verified (CID 118210548).
+        ("C1CC2CSCC1O2", "8-oxa-3-thiabicyclo[3.2.1]octane"),
+        # same skeleton, S and N -- PubChem-verified (CID 102218589):
+        # confirms S is senior to N too (S > N in Table 2.8), not just
+        # O > N.
+        ("C1CC2CSCC1N2", "3-thia-8-azabicyclo[3.2.1]octane"),
+        # bicyclo[2.2.1]heptane built with O and N in mirror-image
+        # positions (both bridging directly off the same bridgehead):
+        # isolates the tie-break rule itself, since the overall locant
+        # *set* {2,6} is symmetric either way one of the two 2-atom
+        # bridges gets numbered first. PubChem's own computed name
+        # (CID 154021213) gives O the lower locant, confirming the more
+        # senior element -- not the lower atom index -- wins the tie.
+        ("C1NC2CC1CO2", "2-oxa-6-azabicyclo[2.2.1]heptane"),
+        # same mirror-image construction, S and N instead of O and N --
+        # confirms the same tie-break for the S > N pair (CID 137400758).
+        ("C1NC2CC1CS2", "2-thia-6-azabicyclo[2.2.1]heptane"),
+    ],
+)
+def test_smiles_to_iupac_von_baeyer_heteroatom_mixed(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_three_mixed_element_heteroatoms_raises():
+    # Table 2.8 seniority ordering here only covers exactly one heteroatom
+    # of each of two different elements -- a third heteroatom (even a
+    # repeat of one already-present element) must still be rejected rather
+    # than silently picking an arbitrary order among three.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O1CC2CCC1N2")
+        smiles_to_iupac("C1CC2NNC1CO2")
 
 
 @pytest.mark.parametrize(

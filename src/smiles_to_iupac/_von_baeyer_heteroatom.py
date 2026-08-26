@@ -33,15 +33,28 @@ Recommendations ("the Blue Book"):
   already ranks candidates correctly whether it's handed a single int or,
   as here, a locant tuple (Python's own tuple ordering does the "lowest
   locant set" comparison for free) -- no signature change was needed.
-- Table 2.8's element seniority order governs which heteroatom is 'a'-1
-  when several *different* kinds are present -- out of scope here, see
-  below.
+- Exactly two skeletal heteroatoms of *different* elements, one each
+  (as of `tasks/mixed-element-heteroatom-skeleton-naming.md`,
+  2026-08-26): Table 2.8's element seniority order (P-23.2.1) is
+  O > S > N among the three elements this module supports -- confirmed
+  against PubChem's own computed IUPACName for three from-scratch-built
+  bicyclo[3.2.1]octane variants sharing one skeleton
+  ('8-oxa-3-azabicyclo[3.2.1]octane', '8-oxa-3-thiabicyclo[3.2.1]octane',
+  '3-thia-8-azabicyclo[3.2.1]octane') plus a fourth, symmetric
+  bicyclo[2.2.1]heptane built with O and N in mirror-image bridge
+  positions ('2-oxa-6-azabicyclo[2.2.1]heptane') that isolates the tie-
+  break: when the overall heteroatom locant *set* is tied between two
+  numbering choices, the more senior element (not the lower atom index)
+  gets the lower locant. The nondetachable prefix cites each element's
+  own term ('oxa', 'thia', 'aza') with its locant, in seniority order
+  (most senior first) regardless of which locant is numerically lower --
+  e.g. '8-oxa-3-aza...', oxa first even though 3 < 8.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- Two or more skeletal heteroatoms of *different* elements (Table 2.8
-  seniority ordering not implemented) -- only the same-element multi-
-  heteroatom case above and the original single-heteroatom case are
-  supported.
+- Three or more skeletal heteroatoms when not all the same element, or
+  two heteroatoms of different elements where either element repeats
+  (e.g. one O + two N) -- Table 2.8 seniority ordering above only covers
+  exactly one heteroatom of each of two different elements.
 - A heteroatom outside the ring core (e.g. a substituent -OH/-NH2
   alongside a plain hydrocarbon bicyclic — a different module's
   territory).
@@ -49,7 +62,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - Multiple heteroatoms in a ring_count>=3 polycyclic system (the
   ring_count>=3 case below still only accepts exactly one) --
   `tasks/multi-heteroatom-skeleton-naming.md`'s own 1st-pass scope is
-  bicyclic-only for the multi-heteroatom axis.
+  bicyclic-only for the multi-heteroatom axis, and this mixed-element
+  extension inherits that same bicyclic-only limit.
 - Hexacyclic (ring_count=6) or larger polycyclic rings -- `_polycyclic.py`
   itself doesn't support these yet (see `tasks/hexacyclic-polycyclic-naming.md`),
   independent of the heteroatom question.
@@ -66,6 +80,9 @@ from ._polycyclic import _candidate_key as _polycyclic_candidate_key, iter_polyc
 
 _HETEROATOM_PREFIXES = {8: "oxa", 7: "aza", 16: "thia"}
 _ALLOWED_ATOMIC_NUMS = {6, *_HETEROATOM_PREFIXES, *HALOGEN_PREFIXES}
+# Table 2.8 (P-23.2.1) element seniority, restricted to the three elements
+# this module supports: O > S > N (lower value = more senior).
+_ELEMENT_SENIORITY = {8: 0, 16: 1, 7: 2}
 
 
 def _validate_atoms(mol):
@@ -186,6 +203,66 @@ def name_von_baeyer_heteroatom_multi(mol, core) -> str:
             substituents,
             heteroatom_locant=heteroatom_locants,
             nondetachable_prefix=f"{locant_citation}-{multiplying_term}{a_prefix}",
+        )
+        if best_key is None or key < best_key:
+            best_key = key
+
+    return best_key[-1]
+
+
+def has_mixed_element_heteroatom_shape(mol, core) -> bool:
+    """True iff `core` (a `_bicyclic.find_bicyclic_core` result) has exactly
+    two skeletal ring heteroatoms of two different elements, one each -- the
+    shape `name_von_baeyer_heteroatom_mixed` accepts. Three or more
+    heteroatoms, or two different elements where one repeats, are
+    deliberately excluded (Table 2.8 seniority above only resolves the
+    one-each case)."""
+    ring_heteroatoms = _ring_heteroatoms(mol, core)
+    if len(ring_heteroatoms) != 2:
+        return False
+    elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in ring_heteroatoms}
+    return len(elements) == 2
+
+
+def name_von_baeyer_heteroatom_mixed(mol, core) -> str:
+    _validate_atoms(mol)
+    if non_single_bonds(mol):
+        raise UnsupportedStructure(
+            "unsaturated bicyclic ring systems are not supported yet (see "
+            "P-31.1.4, unsaturated von Baeyer ring systems)"
+        )
+
+    ring_heteroatoms = _ring_heteroatoms(mol, core)
+    all_heteroatoms = [atom.GetIdx() for atom in mol.GetAtoms() if atom.GetAtomicNum() in _HETEROATOM_PREFIXES]
+    elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in ring_heteroatoms}
+    if len(ring_heteroatoms) != 2 or len(elements) != 2 or set(all_heteroatoms) != set(ring_heteroatoms):
+        raise UnsupportedStructure(
+            "exactly one skeletal ring heteroatom of each of two different "
+            "elements is supported (Table 2.8 seniority ordering for three "
+            "or more heteroatoms, or a repeated element mixed with another, "
+            "is out of scope here), and any heteroatom outside the ring "
+            "skeleton is also out of scope"
+        )
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    parent = bicyclic_parent_name(core)
+
+    best_key = None
+    for full_order in iter_bicyclic_numberings(core):
+        by_seniority = sorted(
+            ((mol.GetAtomWithIdx(a).GetAtomicNum(), full_order.index(a) + 1) for a in ring_heteroatoms),
+            key=lambda pair: _ELEMENT_SENIORITY[pair[0]],
+        )
+        locant_set = tuple(sorted(loc for _, loc in by_seniority))
+        heteroatom_key = (locant_set, tuple(loc for _, loc in by_seniority))
+        nondetachable_prefix = "-".join(f"{loc}-{_HETEROATOM_PREFIXES[elem]}" for elem, loc in by_seniority)
+        substituents = _substituents_for_ring(graph, full_order, halogens)
+        key = _candidate_key(
+            parent,
+            substituents,
+            heteroatom_locant=heteroatom_key,
+            nondetachable_prefix=nondetachable_prefix,
         )
         if best_key is None or key < best_key:
             best_key = key
