@@ -33,6 +33,7 @@ from ._dihydro_aromatic import find_dihydronaphthalene_core, name_dihydronaphtha
 from ._ester import has_ester_shape, name_ester
 from ._ether import has_ether_shape, name_ether
 from ._fullerene import has_fullerene_name, name_fullerene
+from ._androstane import has_androstane_name, name_androstane
 from ._gonane import has_gonane_name, name_gonane
 from ._heteroaromatic_fused import has_retained_heteroaromatic_fused_name, name_retained_heteroaromatic_fused
 from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
@@ -147,6 +148,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # be reached.
     if has_gonane_name(mol):
         return name_gonane(mol)
+
+    # androstane (gonane + the two angular C18/C19 methyls, Rule 3S-2.3 --
+    # see module docstring) is recognized the same way, for the same
+    # reason: its own skeleton would otherwise fall through to
+    # `_polycyclic.py`'s general von Baeyer engine instead.
+    if has_androstane_name(mol):
+        return name_androstane(mol)
 
     # triphenylene (P-25.1.2's branched-fusion retained name) is recognized
     # the same way -- see _branched_fused_aromatic.py's module docstring;
