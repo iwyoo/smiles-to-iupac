@@ -43,16 +43,6 @@ def test_tetracyclic_is_not_pentacyclic():
     assert smiles_to_iupac("C1C2C3C2C4C1C34") == "tetracyclo[3.2.0.0^2,7.0^4,6]heptane"
 
 
-def test_hexacyclic_raises():
-    # pentagonal prism: a genuinely hexacyclic system (cyclomatic number 6,
-    # ten branch atoms of degree 3, two pentagons joined by five bridging
-    # bonds) -- built from scratch via RDKit's RWMol, not copied from a
-    # database. Beyond this engine's scope (P-23.2.6 covers it in principle,
-    # but _polycyclic.py only implements ring_count 3 through 5).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C12C3C4C1C1C2C2C3C4C12")
-
-
 def test_pentacyclic_propellane_like_degree_four_branch_atom_raises():
     # Cubane with one extra direct bond added between two face-diagonal
     # branch atoms: still eight skeletal atoms, but now cyclomatic number 6

@@ -440,7 +440,7 @@ def smiles_to_iupac(smiles: str) -> str:
     bicyclic_core = find_bicyclic_core(mol)
     if bicyclic_core is not None:
         return name_bicycloalkane(mol, bicyclic_core)
-    for ring_count in (3, 4, 5):
+    for ring_count in (3, 4, 5, 6):
         core = find_polycyclic_core(mol, ring_count)
         if core is not None:
             return name_polycycloalkane(mol, core, ring_count)

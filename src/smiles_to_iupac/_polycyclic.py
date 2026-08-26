@@ -76,6 +76,17 @@ Flagship validation cases:
   octane (C8H8, eight branch atoms all of degree 3, cyclomatic number 5;
   cross-checked against PubChem CID 136090's computed IUPAC name via the PUG
   REST API).
+- hexacyclic (ring_count=6): pentaprismane, hexacyclo[4.4.0.0^2,5.0^3,9.0^4,8.
+  0^7,10]decane (C10H10, ten branch atoms all of degree 3, cyclomatic number
+  6; cross-checked against PubChem CID 138295's computed IUPAC name via the
+  PUG REST API) -- as of `tasks/hexacyclic-polycyclic-naming.md`
+  (2026-08-26), confirming this generic engine (unlike `_bicyclic.py`, never
+  hardcoded per ring count) already handled ring_count=6 correctly and the
+  only actual gap was `core.py`'s own dispatch loop stopping at 5; runtime
+  for this case is well under a second, so no combinatorial-blowup mitigation
+  was needed either. 7+ is presumably reachable the same way but unverified
+  (out of this task's scope; `core.py`'s plain-hydrocarbon dispatch loop is
+  the only thing gating it).
 """
 
 from itertools import combinations, permutations

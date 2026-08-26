@@ -83,12 +83,12 @@ def test_pentacyclic_is_not_tetracyclic():
     )
 
 
-def test_hexacyclic_raises():
-    # pentagonal prism: cyclomatic number 6, ten branch atoms of degree 3 --
-    # genuinely beyond _polycyclic.py's scope (P-23.2.6 covers it in
-    # principle, but that module only implements ring_count 3 through 5).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C12C3C4C1C1C2C2C3C4C12")
+def test_pentagonal_prism_is_not_tetracyclic():
+    # pentaprismane: cyclomatic number 6, ten branch atoms of degree 3 --
+    # not mistaken for tetracyclic, and correctly resolved via
+    # _polycyclic.py's hexacyclic support instead (see
+    # tests/test_hexacyclic.py).
+    assert smiles_to_iupac("C12C3C4C1C1C2C2C3C4C12") == "hexacyclo[4.4.0.0^2,5.0^3,9.0^4,8.0^7,10]decane"
 
 
 def test_propellane_like_degree_four_branch_atom_raises():
