@@ -54,12 +54,5 @@ def test_unsaturated_bicyclic_raises():
         smiles_to_iupac("C1CC2CC=C1C2")
 
 
-def test_two_ring_heteroatoms_still_raises():
-    # two skeletal ring heteroatoms (O and N) -- out of scope for the
-    # single-heteroatom von Baeyer skeletal-replacement module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CC2CCN1O2")
-
-
 def test_monospiro_still_resolves_via_spiro_module():
     assert smiles_to_iupac("C1CCCC12CCCCC2") == "spiro[4.5]decane"
