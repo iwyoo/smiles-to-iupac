@@ -58,9 +58,16 @@ def test_aryl_carboxylic_acid_raises():
         smiles_to_iupac("OC(=O)c1ccccc1")
 
 
-def test_amine_coexisting_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC(=O)O")
+def test_amine_coexisting_demotes_to_amino_prefix():
+    # glycine (H2N-CH2-COOH): a coexisting primary amine is junior to -COOH
+    # (Table 3.3) and demoted to the 'amino' prefix (see
+    # _carboxylic_acid_amine.py) rather than rejected. This project's own
+    # `_carboxylic_acid.py` always uses the systematic 'ethanoic acid' stem
+    # rather than the retained 'acetic acid' PubChem uses for glycine's
+    # actual PIN ('2-aminoacetic acid', CID 750) -- see
+    # _carboxylic_acid_amine.py's module docstring for that pre-existing,
+    # inherited divergence.
+    assert smiles_to_iupac("NCC(=O)O") == "2-aminoethanoic acid"
 
 
 def test_alcohol_mix_names_hydroxy_prefix():

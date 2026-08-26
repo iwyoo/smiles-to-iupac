@@ -6,6 +6,7 @@ from ._anhydride import has_anhydride_shape, name_anhydride
 from ._carbamate import has_carbamate_shape, name_carbamate
 from ._alcohol import name_alcohol
 from ._aldehyde import name_aldehyde
+from ._carboxylic_acid_amine import has_carboxylic_acid_amine_shape, name_carboxylic_acid_amine
 from ._aldehyde_carboxylic_acid import (
     has_aldehyde_carboxylic_acid_shape,
     name_aldehyde_carboxylic_acid,
@@ -296,6 +297,13 @@ def smiles_to_iupac(smiles: str) -> str:
             # `_carboxylic_acid.py`'s own "coexisting oxygen" rejection.
             if has_aldehyde_carboxylic_acid_shape(mol):
                 return name_aldehyde_carboxylic_acid(mol)
+            # P-41/Table 3.3: 'oic acid' also far outranks 'amine', so a
+            # carboxylic acid that also carries a primary amine names the
+            # acid as the suffix and demotes the amine to an 'amino' prefix
+            # instead of `_carboxylic_acid.py`'s own "coexisting nitrogen"
+            # rejection.
+            if has_carboxylic_acid_amine_shape(mol):
+                return name_carboxylic_acid_amine(mol)
             return name_carboxylic_acid(mol)
         # A carbon bearing both a carbonyl oxygen and a primary-amide
         # nitrogen (-CONH2) is an amide (junior only to the acid/ester
