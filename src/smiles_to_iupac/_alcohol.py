@@ -26,11 +26,16 @@ Recommendations ("the Blue Book"):
   hydroxyls this way lets the shared substituent-grouping machinery
   multiply the "hydroxy" prefix exactly as it already does for repeated
   halogens, no new logic needed. The reverse case (chain -OH count greater
-  than the ring's) is a different, NOT-implemented shape: the ring would
-  then be the loser and would need to be cited as a substituent bearing its
-  own -OH, but the plain ring-substituent branch this module's chain-naming
-  machinery produces has no way to express a hydroxyl on the ring itself --
-  that remains `tasks/pin-selection-and-parent-choice.md`'s territory.
+  than the ring's) is now supported too, as of
+  `tasks/ring-substituent-own-hydroxyl-naming.md` (2026-08-26), but only
+  when the ring carries at most one -OH of its own: the chain becomes the
+  senior parent and the ring is cited as a substituent via
+  `_substituents.name_branch`'s new `_ring_substituent_with_hydroxyl`
+  (e.g. '1-(4-hydroxycyclohexyl)ethane-1,2-diol', PubChem CID 21395558).
+  A ring with two or more of its own -OH's, outcompeted by a chain with
+  even more, remains unsupported (`name_branch` itself only expresses one
+  ring hydroxyl) -- still `tasks/pin-selection-and-parent-choice.md`'s
+  territory.
 - P-92 (Chapter P-9, https://iupac.qmul.ac.uk/BlueBook/P9.html), as of
   `tasks/rs-stereocenter-naming.md` (2026-08-25): an acyclic (chain)
   alcohol whose molecule has one or more stereo elements overall -- every
@@ -657,13 +662,33 @@ def _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls):
     chain_hydroxyls = {o for o in hydroxyls if next(iter(graph[o])) in chain_set}
     ring_hydroxyls = hydroxyls - chain_hydroxyls
     if len(ring_hydroxyls) < len(chain_hydroxyls):
-        raise UnsupportedStructure(
-            "a substituent chain with more -OH's than the ring is not "
-            "supported yet -- the ring would lose P-44.1.1's principal-"
-            "group-count comparison, and name_branch's plain ring-"
-            "substituent branch cannot express a hydroxyl on the ring "
-            "itself (see tasks/pin-selection-and-parent-choice.md)"
+        if len(ring_hydroxyls) > 1:
+            raise UnsupportedStructure(
+                "a substituent ring with two or more of its own -OH's, "
+                "outcompeted by a chain with even more, is not supported "
+                "yet (see tasks/pin-selection-and-parent-choice.md)"
+            )
+        # P-44.1.1: the chain captures strictly more -OH's, so it's the
+        # senior parent and the ring (with its own single -OH, as of
+        # tasks/ring-substituent-own-hydroxyl-naming.md, 2026-08-26) is
+        # cited as a substituent instead -- mirrors
+        # `_name_ring_substituent_chain_alcohol` exactly, substituting
+        # the ring's own name_branch-computed name for the plain
+        # "cyclo..." one that function uses.
+        ring_name, ring_is_compound = name_branch(
+            graph, ring_atom, chain_root, {**halogens, **{o: "hydroxy" for o in ring_hydroxyls}}
         )
+        chain_length = len(chain)
+        best_key = None
+        best_name = None
+        for candidate in (chain, list(reversed(chain))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            oh_locants = _oh_locants(position_of, chain_hydroxyls, graph)
+            substituents = {position_of[chain_root]: [(ring_name, ring_is_compound)]}
+            key, name = _candidate_key(chain_length, oh_locants, [], [], substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, name
+        return best_name
 
     chain_name, chain_is_compound = name_branch(
         graph, chain_root, ring_atom, {**halogens, **{o: "hydroxy" for o in chain_hydroxyls}}

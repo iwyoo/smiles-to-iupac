@@ -168,12 +168,32 @@ def test_equal_hydroxyl_counts_above_one_each():
     assert smiles_to_iupac("OC1C(O)CC(C(O)CO)CC1") == "4-(1,2-dihydroxyethyl)cyclohexane-1,2-diol"
 
 
-def test_chain_hydroxyl_count_exceeds_ring_raises():
-    # the chain has more -OH's than the ring: the ring would lose
-    # P-44.1.1's comparison, which this module still doesn't implement
-    # (tasks/pin-selection-and-parent-choice.md's territory).
+def test_chain_hydroxyl_count_exceeds_ring_now_supported():
+    # the chain has more -OH's than the ring (two vs. one): the chain is
+    # now the senior parent (P-44.1.1) and the ring, with its own single
+    # -OH, is cited as a substituent (as of
+    # tasks/ring-substituent-own-hydroxyl-naming.md, 2026-08-26).
+    # PubChem-verified exactly (CID 130142401).
+    assert smiles_to_iupac("OC1CCCCC1C(O)CO") == "1-(2-hydroxycyclohexyl)ethane-1,2-diol"
+
+
+def test_chain_hydroxyl_count_exceeds_ring_with_no_ring_hydroxyl_chain():
+    # the ring's own -OH, chain has none besides -- exercises
+    # `_ring_substituent_with_hydroxyl` via the plain
+    # `_name_ring_substituent_chain_alcohol` path (ring bears an -OH but
+    # the chain substituent doesn't compete for the suffix at all, so the
+    # ring is simply the sole -OH-bearing parent, unaffected by this
+    # task's new ring-vs-chain wiring).
+    assert smiles_to_iupac("OC1CCC(CC)CC1") == "4-ethylcyclohexan-1-ol"
+
+
+def test_ring_with_two_hydroxyls_outcompeted_by_chain_raises():
+    # the ring has two of its own -OH's, but the chain has three -- still
+    # unsupported, since `name_branch`'s ring-substituent machinery only
+    # expresses a single ring hydroxyl (see tasks/pin-selection-and-parent-
+    # choice.md's remaining scope).
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1CCCCC1C(O)CO")
+        smiles_to_iupac("OC1C(O)CCC(C(O)C(O)CO)C1")
 
 
 def test_substituted_ring_with_chain_hydroxyl_raises():

@@ -58,3 +58,41 @@ def test_substituted_ring_substituent_raises():
     graph = {0: [1], 1: [0, 2, 3], 2: [1, 3, 4], 3: [1, 2], 4: [2]}
     with pytest.raises(UnsupportedStructure):
         name_branch(graph, 1, 0)
+
+
+def test_ring_substituent_with_own_hydroxyl():
+    # A 6-membered ring (1-2-3-4-5-6-1) hanging off atom 0, attached at
+    # ring atom 1, with a hydroxyl oxygen (7) on the ring atom directly
+    # opposite the attachment point (position 4, unambiguous either way
+    # around the ring) -- see tasks/ring-substituent-own-hydroxyl-naming.md,
+    # 2026-08-26; cross-checked end-to-end against PubChem CID 21395558 via
+    # the full molecule in tests/test_alcohol.py.
+    graph = {0: [1], 1: [0, 2, 6], 2: [1, 3], 3: [2, 4], 4: [3, 5, 7], 5: [4, 6], 6: [5, 1], 7: [4]}
+    assert name_branch(graph, 1, 0, {7: "hydroxy"}) == ("4-hydroxycyclohexyl", True)
+
+
+def test_ring_substituent_with_own_hydroxyl_picks_lower_locant():
+    # Same ring, hydroxyl on the atom immediately adjacent to the
+    # attachment point -- going one way around gives it locant 2, the
+    # other way locant 6; the lower one (2) must win.
+    graph = {0: [1], 1: [0, 2, 6], 2: [1, 3, 7], 3: [2, 4], 4: [3, 5], 5: [4, 6], 6: [5, 1], 7: [2]}
+    assert name_branch(graph, 1, 0, {7: "hydroxy"}) == ("2-hydroxycyclohexyl", True)
+
+
+def test_ring_substituent_with_two_hydroxyls_raises():
+    # Two hydroxyls on the same ring substituent -- out of scope (only one
+    # is supported), falls through to the ordinary cycle-detection
+    # rejection just like any other unsupported ring-substituent shape.
+    graph = {
+        0: [1],
+        1: [0, 2, 6],
+        2: [1, 3, 7],
+        3: [2, 4],
+        4: [3, 5, 8],
+        5: [4, 6],
+        6: [5, 1],
+        7: [2],
+        8: [4],
+    }
+    with pytest.raises(UnsupportedStructure):
+        name_branch(graph, 1, 0, {7: "hydroxy", 8: "hydroxy"})
