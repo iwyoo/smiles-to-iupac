@@ -19,15 +19,15 @@ def test_smiles_to_iupac_cyclic(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_polycyclic_raises():
-    # pentagonal prism: a hexacyclic ring system (cyclomatic number 6, ten
-    # branch atoms of degree 3, two pentagons joined by five bridging bonds):
-    # out of scope for bicyclic through pentacyclic support alike (see
-    # _bicyclic.py, _polycyclic.py). Built from scratch via RDKit's RWMol
-    # (two independent 5-cycles plus one bond between each corresponding
-    # pair of atoms), not copied from a database.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C12C3C4C1C1C2C2C3C4C12")
+def test_pentagonal_prism_is_not_monocyclic():
+    # pentaprismane: a hexacyclic ring system (cyclomatic number 6, ten
+    # branch atoms of degree 3, two pentagons joined by five bridging
+    # bonds) -- not mistaken for a plain monocyclic ring, and correctly
+    # resolved via _polycyclic.py's hexacyclic support instead (see
+    # tests/test_hexacyclic.py). Built from scratch via RDKit's RWMol (two
+    # independent 5-cycles plus one bond between each corresponding pair of
+    # atoms), not copied from a database.
+    assert smiles_to_iupac("C12C3C4C1C1C2C2C3C4C12") == "hexacyclo[4.4.0.0^2,5.0^3,9.0^4,8.0^7,10]decane"
 
 
 def test_ring_compound_substituent():

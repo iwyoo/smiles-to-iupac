@@ -82,13 +82,12 @@ def test_two_separate_rings_still_raises():
         smiles_to_iupac("C1CCCCC1C1CCCCC1")
 
 
-def test_hexacyclic_raises():
-    # pentagonal prism: a genuinely hexacyclic system (cyclomatic number 6,
-    # ten branch atoms of degree 3) -- still out of scope even after
-    # pentacyclic support (see tests/test_pentacyclic.py), so this remains
-    # unsupported polycyclic territory.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C12C3C4C1C1C2C2C3C4C12")
+def test_pentagonal_prism_is_not_tricyclic():
+    # pentaprismane: a genuinely hexacyclic system (cyclomatic number 6, ten
+    # branch atoms of degree 3) -- not mistaken for tricyclic, and
+    # correctly resolved via _polycyclic.py's hexacyclic support instead
+    # (see tests/test_hexacyclic.py).
+    assert smiles_to_iupac("C12C3C4C1C1C2C2C3C4C12") == "hexacyclo[4.4.0.0^2,5.0^3,9.0^4,8.0^7,10]decane"
 
 
 @pytest.mark.parametrize(

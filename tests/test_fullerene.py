@@ -1,7 +1,4 @@
-import pytest
-
 from smiles_to_iupac import smiles_to_iupac
-from smiles_to_iupac._common import UnsupportedStructure
 from smiles_to_iupac._fullerene import _FULLERENE_C60_SMILES
 
 
@@ -18,8 +15,9 @@ def test_benzene_still_resolves():
     assert smiles_to_iupac("c1ccccc1") == "benzene"
 
 
-def test_smaller_cage_raises():
-    # a smaller all-carbon cage-like polycyclic (not 60 atoms) must not
-    # match; falls through to the ordinary "not supported" path.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C12C3C4C1C1C2C2C3C4C12")
+def test_smaller_cage_is_not_fullerene():
+    # pentaprismane: a smaller all-carbon cage-like polycyclic (not 60
+    # atoms) must not match the fullerene shape check; it's correctly
+    # resolved via _polycyclic.py's hexacyclic support instead (see
+    # tests/test_hexacyclic.py).
+    assert smiles_to_iupac("C12C3C4C1C1C2C2C3C4C12") == "hexacyclo[4.4.0.0^2,5.0^3,9.0^4,8.0^7,10]decane"
