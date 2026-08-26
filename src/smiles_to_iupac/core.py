@@ -54,6 +54,10 @@ from ._polyspiro import (
     name_branched_polyspiro,
     name_linear_polyspiro,
 )
+from ._polyspiro_heteroatom import (
+    has_single_ring_heteroatom_shape as has_single_polyspiro_heteroatom_shape,
+    name_linear_polyspiro_heteroatom,
+)
 from ._ring_assembly import find_ring_assembly_core, name_ring_assembly
 from ._silane_chain import has_silane_chain_shape, name_silane_chain
 from ._spiro import find_monospiro_atom, name_monospiro
@@ -186,6 +190,16 @@ def smiles_to_iupac(smiles: str) -> str:
     spiro_atom = find_monospiro_atom(mol)
     if spiro_atom is not None and has_single_spiro_heteroatom_shape(mol, spiro_atom):
         return name_spiro_heteroatom(mol, spiro_atom)
+    # Same reasoning, one step up the spiro chain: a single O/N/S ring atom
+    # (never a spiro atom itself) in an otherwise-carbon linear polyspiro
+    # ring system (P-24.2.4) must be routed here for the same reason --
+    # `find_linear_polyspiro_chain` itself is topology-only and doesn't
+    # care about atom identity, so it would otherwise match first further
+    # down and hand the heteroatom-bearing molecule to the all-carbon
+    # `name_linear_polyspiro`, which explicitly rejects any non-carbon atom.
+    polyspiro_chain = find_linear_polyspiro_chain(mol)
+    if polyspiro_chain is not None and has_single_polyspiro_heteroatom_shape(mol, polyspiro_chain):
+        return name_linear_polyspiro_heteroatom(mol, polyspiro_chain)
 
     # A naphthalene skeleton with a single -CH2- or -O- bridge across one
     # ring's 1,4-positions (1,4-dihydro-1,4-methano-/epoxynaphthalene) must

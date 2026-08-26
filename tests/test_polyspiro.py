@@ -56,11 +56,6 @@ def test_unsaturated_linear_polyspiro_raises():
         smiles_to_iupac("C1=CC12CCC3(CC2)CCC3")
 
 
-def test_heteroatom_linear_polyspiro_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCC12CCC3(CC2)CCO3")
-
-
 def test_branched_polyspiro_raises():
     # a single carbon shared by three rings at once (P-24.2.3, branched
     # polyspiro): out of scope, so this must not be mistaken for a linear
