@@ -59,8 +59,27 @@ def test_substituted_bridge_atom_raises():
 
 
 def test_substituted_aromatic_ring_raises():
+    # a methyl (not a halogen) substituent remains out of scope.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("Cc1ccc2c(c1)C1C=CC2C1")
+
+
+def test_halogen_on_bridged_naphthalene_aromatic_ring():
+    # chlorobenzonorbornadiene: built from scratch from the existing
+    # unsubstituted test fixture plus one Cl on the intact aromatic ring.
+    # Structure cross-checked against PubChem CID 12473502 (PubChem's own
+    # computed IUPACName is von-Baeyer-style, same limitation as the
+    # unsubstituted case -- see module docstring).
+    assert smiles_to_iupac("Clc1ccc2c(c1)C1C=CC2C1") == "6-chloro-1,4-dihydro-1,4-methanonaphthalene"
+    # different ring position -> different, still lowest-locant, result.
+    assert smiles_to_iupac("c1cc(Cl)c2c(c1)C1C=CC2C1") == "5-chloro-1,4-dihydro-1,4-methanonaphthalene"
+
+
+def test_halogen_on_bridged_naphthalene_epoxy_aromatic_ring():
+    # the epoxy analogue of the chlorinated case above -- same mechanism,
+    # not bridge-prefix-specific. Structure cross-checked against PubChem
+    # CID 14208771 (same von-Baeyer-name limitation).
+    assert smiles_to_iupac("Clc1ccc2c(c1)C1C=CC2O1") == "6-chloro-1,4-dihydro-1,4-epoxynaphthalene"
 
 
 def test_ether_itself_is_unaffected():

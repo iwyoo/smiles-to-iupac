@@ -58,6 +58,19 @@ Recommendations ("the Blue Book"):
   ConnectivitySMILES; PubChem's own computed IUPACName is von Baeyer-style
   and unusable for verifying the name itself, same limitation as the
   naphthalene case above).
+- Halogen substituents on the bridged-naphthalene shape's intact aromatic
+  ring (as of `tasks/bridged-aromatic-halogen-naming.md`, 2026-08-26):
+  `find_bridged_naphthalene_core`/`name_bridged_naphthalene` already
+  compute their own ring atom sets and locants directly (unlike a hardcoded
+  whole-molecule-match module), so no new numbering mechanism was needed --
+  a halogen substituent is just another `graph[atom]` neighbor outside the
+  ring-atom set, exactly as `_aromatic.py`'s plain fused-ring module already
+  handles it. Confirmed against a from-scratch-built chlorobenzonorbornadiene
+  (structure only; PubChem CID 12473502's own computed IUPACName is
+  von-Baeyer-style, same limitation as the unsubstituted cases above) and
+  its epoxy analogue (CID 14208771). Substituents on the bridge atom itself
+  or on the reduced ring's bridgehead/alkene atoms remain out of scope (see
+  below) -- only the intact aromatic ring is supported.
 
 Explicitly out of scope (raise `UnsupportedStructure` via the generic
 fallback in `core.py`, since `find_bridged_naphthalene_core`/
@@ -75,13 +88,16 @@ fallback in `core.py`, since `find_bridged_naphthalene_core`/
   1,4-type bridge on plain benzene/naphthalene -- out of scope either way).
 - A bridge spanning adjacent ('1,2'-type) ring positions (a structurally
   different, cyclopropa-fused system, not a P-25.4 bridge at all).
-- Substituents of any kind, including on the bridge atom itself (which
-  would need its own locant, '9' for naphthalene or '11' for anthracene,
-  not used in this unsubstituted scope).
+- Any substituent other than a halogen on the naphthalene case's intact
+  aromatic ring (see above); any substituent at all on the bridge atom
+  itself, the reduced-ring bridgeheads/alkene carbons, or anywhere on the
+  anthracene case (still fully unsubstituted-only).
 """
 
 from ._aromatic import _anthracene_candidates, _straight_chain_candidates
-from ._common import adjacency
+from ._cyclic import _group
+from ._common import adjacency, halogen_substituents, lowest_locant_set
+from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _BRIDGE_PREFIXES = {6: "methano", 8: "epoxy"}
 
@@ -103,9 +119,14 @@ def find_bridged_naphthalene_core(mol):
     """Return (ring_atom_sets, fusion_bond_idx, bridgeheads, bridge_prefix)
     if `mol` is naphthalene's carbon skeleton plus exactly one -CH2- or -O-
     bridge across one ring's 1,4-type positions (see module docstring),
-    else None."""
-    if mol.GetNumAtoms() != 11:
+    optionally with halogen substituents on the intact aromatic ring, else
+    None."""
+    halogens = halogen_substituents(mol)
+    if mol.GetNumAtoms() - len(halogens) != 11:
         return None
+    for idx in halogens:
+        if mol.GetAtomWithIdx(idx).GetDegree() != 1:
+            return None
 
     bridge_candidates = _bridge_candidates(mol)
     if len(bridge_candidates) != 1:
@@ -116,7 +137,7 @@ def find_bridged_naphthalene_core(mol):
     bridge_prefix = _BRIDGE_PREFIXES[bridge_atom.GetAtomicNum()]
 
     for atom in mol.GetAtoms():
-        if atom.GetIdx() == bridge_atom.GetIdx():
+        if atom.GetIdx() == bridge_atom.GetIdx() or atom.GetIdx() in halogens:
             continue
         if atom.GetAtomicNum() != 6 or atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             return None
@@ -183,16 +204,36 @@ def find_bridged_naphthalene_core(mol):
 def name_bridged_naphthalene(mol, core) -> str:
     ring_atom_sets, fusion_bond_idxs, bridgeheads, bridge_prefix = core
     atom_rings = [tuple(s) for s in ring_atom_sets]
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    full_ring_atoms = ring_atom_sets[0] | ring_atom_sets[1]
+    (bridge_atom,) = (set(graph[bridgeheads[0]]) & set(graph[bridgeheads[1]])) - full_ring_atoms
+    excluded = full_ring_atoms | {bridge_atom}
 
     candidates = _straight_chain_candidates(mol, atom_rings, ring_atom_sets, fusion_bond_idxs, [0, 1])
-    best_locants = None
+    best_key = None
     for locants in candidates:
         pair = tuple(sorted(locants[a] for a in bridgeheads))
-        if best_locants is None or pair < best_locants:
-            best_locants = pair
+        substituents = {}
+        for atom, position in locants.items():
+            branch_roots = [n for n in graph[atom] if n not in excluded]
+            if branch_roots:
+                substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+        grouped = _group(substituents)
+        locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+        citation_locants = tuple(
+            loc
+            for name in sorted(grouped, key=alpha_sort_key)
+            for loc in sorted(grouped[name]["locants"])
+        )
+        a, b = pair
+        parent = f"{a},{b}-dihydro-{a},{b}-{bridge_prefix}naphthalene"
+        name = parent if not grouped else format_substituent_prefixes(grouped) + "-" + parent
+        key = (pair, locant_set, citation_locants, name)
+        if best_key is None or key < best_key:
+            best_key = key
 
-    a, b = best_locants
-    return f"{a},{b}-dihydro-{a},{b}-{bridge_prefix}naphthalene"
+    return best_key[-1]
 
 
 def find_bridged_anthracene_core(mol):
