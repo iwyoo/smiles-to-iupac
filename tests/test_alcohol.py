@@ -67,6 +67,12 @@ from smiles_to_iupac._common import UnsupportedStructure
         # support: the Blue Book's other own worked example for this
         # suffix, cross-checked against PubChem CID 6994331.
         ("C=C[C@H](O)CC", "(3R)-pent-1-en-3-ol"),
+        # Two specified stereocenters (P-92/P-91.3,
+        # tasks/multi-stereocenter-naming.md, 2026-08-26): ascending-locant,
+        # comma-separated citation in one parenthesized group -- both
+        # diastereomers cross-checked against PubChem CID 12575191/11389370.
+        ("C[C@H]([C@@H](C)Cl)O", "(2R,3R)-3-chlorobutan-2-ol"),
+        ("C[C@H]([C@H](C)Cl)O", "(2R,3S)-3-chlorobutan-2-ol"),
         # A genuine stereocenter left *unspecified* in the input (no
         # `@`/`@@`) is not a new rejection case -- it's named exactly as
         # before (no stereodescriptor), matching both this project's prior
@@ -79,9 +85,10 @@ def test_alcohol_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_multiple_stereocenters_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@H](O)[C@H](C)CC")
+def test_multiple_stereocenters_supported():
+    # 3-methylpentan-2-ol, two specified stereocenters -- PubChem-verified
+    # exactly for this SMILES ('(2S,3R)-3-methylpentan-2-ol', CID 6993006).
+    assert smiles_to_iupac("C[C@H](O)[C@H](C)CC") == "(2S,3R)-3-methylpentan-2-ol"
 
 
 def test_stereocenter_with_ez_double_bond_raises():
@@ -99,6 +106,28 @@ def test_partially_specified_stereocenters_raises():
 def test_ring_stereocenter_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O[C@H]1CCCCC1C")
+
+
+def test_three_stereocenters_supported():
+    # Three specified stereocenters on one chain: not independently found
+    # on PubChem, but the prefix-joining logic this exercises (sorting by
+    # locant, comma-joining N pairs) is a simple, directly-inspectable
+    # generalization of the already-verified two-stereocenter case above,
+    # and CIP computation itself is fully delegated to RDKit, not
+    # reimplemented -- a reviewed, not independently confirmed, result.
+    assert smiles_to_iupac("CC[C@H](C)[C@@H](Cl)[C@H](C)O") == "(2S,3R,4S)-3-chloro-4-methylhexan-2-ol"
+
+
+def test_pseudoasymmetric_stereocenter_raises():
+    # pentane-2,3,4-triol built with the outer two centers as mirror
+    # images of each other: RDKit's rdCIPLabeler assigns the middle center
+    # a lowercase 'r' (pseudoasymmetric), out of scope here (see
+    # tasks/multi-stereocenter-naming.md's exclusions) -- this project
+    # doesn't attempt to verify pseudoasymmetric CIP assignment itself.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[C@@H](O)[C@H](O)[C@@H](O)C")
+
+
 
 
 def test_ring_with_own_hydroxyl_and_chain_hydroxyl():

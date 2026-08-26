@@ -33,21 +33,23 @@ Recommendations ("the Blue Book"):
   that remains `tasks/pin-selection-and-parent-choice.md`'s territory.
 - P-92 (Chapter P-9, https://iupac.qmul.ac.uk/BlueBook/P9.html), as of
   `tasks/rs-stereocenter-naming.md` (2026-08-25): an acyclic (chain)
-  alcohol whose molecule has exactly one stereo element overall -- a
-  single, specified tetrahedral stereocenter, located on the principal
-  chain itself, with no other stereocenter and no C=C/C#N double-bond E/Z
-  stereo anywhere -- gets a "(<locant><R/S>)-" prefix, e.g.
-  '(2R)-butan-2-ol', '(3R)-pent-1-en-3-ol' (both Blue Book worked
-  examples). CIP priority computation itself is delegated entirely to
-  RDKit (`_common.single_specified_stereocenter`); this module only
-  formats the resulting label using the chain locant already computed for
-  the winning numbering (P-92 doesn't get its own say in *which* numbering
-  wins -- it's purely descriptive once the chain/locants are otherwise
-  fixed). Any stereo element beyond this single simplest case (multiple
-  stereocenters, an unspecified one, any E/Z double bond, or the
+  alcohol whose molecule has one or more stereo elements overall -- every
+  one a specified tetrahedral stereocenter located on the principal chain
+  itself, no unspecified one, and no C=C/C#N double-bond E/Z stereo
+  anywhere -- gets a "(<locant><R/S>)-" prefix, e.g. '(2R)-butan-2-ol',
+  '(3R)-pent-1-en-3-ol' (both Blue Book worked examples). As of
+  `tasks/multi-stereocenter-naming.md` (2026-08-26), two or more
+  stereocenters are cited together in one parenthesized group, ascending
+  locant order, comma-separated (P-91.3), e.g. '(2R,3R)-3-chlorobutan-2-ol'
+  (PubChem CID 12575191) -- CIP priority computation itself is delegated
+  entirely to RDKit (`_common.specified_stereocenters`); this module only
+  formats the resulting label(s) using the chain locants already computed
+  for the winning numbering (P-92 doesn't get its own say in *which*
+  numbering wins -- it's purely descriptive once the chain/locants are
+  otherwise fixed). Any stereo element beyond this (a specified
+  stereocenter mixed with an unspecified one, any E/Z double bond, or a
   stereocenter lying on a ring or a substituent branch rather than the
-  principal chain) now raises `UnsupportedStructure` explicitly, instead
-  of the previous behavior of silently ignoring `@`/`@@` markers entirely.
+  principal chain) raises `UnsupportedStructure` explicitly.
 
 - P-33.2.1, Table 3.3 (Chapter P-3, https://iupac.qmul.ac.uk/BlueBook/PDF/P3.pdf):
   'ol' is the preselected suffix for -OH, ranked 14th (out of 17) in Table
@@ -151,7 +153,7 @@ from ._common import (
     lowest_locant_set,
     non_single_bonds,
     path_between,
-    single_specified_stereocenter,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name, alkyl_name, numerical_term
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -399,16 +401,18 @@ def _substituents_for_chain(graph, chain, halogens, hydroxyls):
 
 
 def _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo=None):
-    """`stereo`: None, or (stereocenter_atom_idx, "R"/"S") from
-    `single_specified_stereocenter` -- if given, only chain candidates that
-    include the stereocenter are eligible (P-92: a stereocenter on a
+    """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
+    `specified_stereocenters` -- if given, only chain candidates that
+    include *every* stereocenter are eligible (P-92: a stereocenter on a
     substituent branch rather than the principal chain is out of scope,
-    see module docstring), and the winning candidate's own locant for that
-    atom is used to format a "(<locant><R/S>)-" prefix onto the name."""
+    see module docstring), and the winning candidate's own locants for
+    those atoms are used to format a "(<locant><R/S>,...)-" prefix onto
+    the name, ascending locant order (P-91.3)."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     chains = _longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
+    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -417,7 +421,7 @@ def _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo=None):
             continue
         if bonds and _bond_locants(chain, bonds) is None:
             continue
-        if stereo is not None and stereo[0] not in chain:
+        if stereo is not None and any(atom not in chain for atom in stereo_atoms):
             continue
         eligible.append(chain)
     if not eligible:
@@ -451,9 +455,9 @@ def _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo=None):
                 best_key, best_name, best_position_of = key, name, position_of
 
     if stereo is not None:
-        stereo_atom, r_or_s = stereo
-        locant = best_position_of[stereo_atom]
-        return f"({locant}{r_or_s})-{best_name}"
+        labels = sorted((best_position_of[atom], r_or_s) for atom, r_or_s in stereo)
+        prefix = ",".join(f"{locant}{r_or_s}" for locant, r_or_s in labels)
+        return f"({prefix})-{best_name}"
     return best_name
 
 
@@ -692,7 +696,7 @@ def name_alcohol(mol) -> str:
             "supported (see P-31.1.1.1)"
         )
     _reject_enol_carbons(graph, hydroxyls, bonds)
-    stereo = single_specified_stereocenter(mol)
+    stereo = specified_stereocenters(mol)
 
     ring_info = mol.GetRingInfo()
     num_rings = ring_info.NumRings()
