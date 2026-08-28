@@ -18,14 +18,31 @@
   position is always locant 1, and a monocyclic ring's radical position is
   symmetric ("any position").
 
+- P-71.2.1.2 (the "general method"), as of
+  `tasks/radical-branch-point-naming.md` (2026-08-28): when the radical
+  carbon is itself a branch point (not a chain terminus), reusing
+  `_substituents.py`'s `name_branch` for this was tried first and found to
+  return the pre-2013 substituent name ("1-methylethyl") rather than the
+  Blue Book PIN ("propan-2-yl") -- fixing `name_branch` itself is a much
+  larger, riskier axis (`tasks/parent-derived-substituent-prefixes.md`,
+  parked: at least 8 existing test files assert the old-style name as a
+  *substituent* prefix, which is still correct general nomenclature there,
+  just not radical PIN naming). Instead, this module implements P-29.3.2.2
+  directly and independently: number the two longest branches plus the
+  root as one parent chain, citing the free valence's own locant (e.g.
+  'propan-2-yl', 'butan-2-yl', never the elided-locant 'prop-2-yl'); any
+  third branch becomes an ordinary substituent prefix at that same locant
+  (e.g. 'sec-butyl'/'tert-pentyl' are general-nomenclature-only names for
+  radicals this module instead renders as their PINs, 'butan-2-yl'/
+  '2-methylbutan-2-yl' -- P-29.6.2.2/P-29.6.3 confirm neither retained
+  name is a PIN). The sole exception is P-29.6.1: unsubstituted (CH3)3C-
+  keeps its retained PIN 'tert-butyl' rather than the rule's own
+  '2-methylpropan-2-yl'.
+
 Explicitly out of scope (raise `UnsupportedStructure`):
-- A radical on a branched chain, or not at a chain's terminal position
-  (P-71.2.1.2, the "general method") -- reusing `_substituents.py`'s
-  `name_branch` for this was tried and found to return the pre-2013
-  substituent name ("1-methylethyl") rather than the Blue Book PIN
-  ("propan-2-yl") for a branched case (e.g. the isopropyl radical); fixing
-  that is `tasks/parent-derived-substituent-prefixes.md`'s scope, not
-  this module's.
+- Any branch off the radical carbon that is itself further branched
+  (P-29.5, "complex substituent groups") -- only the radical carbon itself
+  may be a branch point.
 - Divalent/trivalent radicals ('-ylidene'/'-ylidyne', P-71.2.2), more than
   one radical center (P-71.2.3), a radical on a functional group (P-71.3),
   on an aromatic ring, on a polycyclic/spiro skeleton, or coexisting with
@@ -34,8 +51,9 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
-from ._numerals import alkyl_name
+from ._common import UnsupportedStructure, adjacency, linear_branch
+from ._numerals import alkane_name, alkyl_name
+from ._substituents import format_substituent_prefixes
 
 
 def has_radical_shape(mol) -> bool:
@@ -88,11 +106,7 @@ def _name_chain_radical(mol, radical) -> str:
         # no bond to another atom, so degree 0 rather than 1.
         return alkyl_name(1)
     if radical.GetDegree() != 1:
-        raise UnsupportedStructure(
-            "a radical not at the terminal position of an unbranched chain "
-            "is out of scope for this module (P-71.2.1.2, the 'general "
-            "method')"
-        )
+        return _name_branch_point_radical(mol, radical)
     for atom in mol.GetAtoms():
         if atom.GetDegree() > 2:
             raise UnsupportedStructure(
@@ -100,6 +114,46 @@ def _name_chain_radical(mol, radical) -> str:
                 "(P-71.2.1.2, the 'general method')"
             )
     return alkyl_name(mol.GetNumAtoms())
+
+
+def _name_branch_point_radical(mol, radical) -> str:
+    """P-29.3.2.2: the radical carbon itself is a branch point (not a
+    chain terminus) -- see module docstring for the full derivation."""
+    graph = adjacency(mol)
+    root_idx = radical.GetIdx()
+    branch_roots = list(graph[root_idx])
+    lengths = []
+    for branch_root in branch_roots:
+        length = linear_branch(graph, branch_root, root_idx)
+        if length is None:
+            raise UnsupportedStructure(
+                "a substituent branch with its own branch point is out of "
+                "scope for this module (P-29.5, complex substituent groups)"
+            )
+        lengths.append(length)
+
+    if len(branch_roots) == 3 and all(length == 1 for length in lengths):
+        # P-29.6.1: the retained name 'tert-butyl' is the PIN for the
+        # unsubstituted (CH3)3C- radical, never the general rule's own
+        # '2-methylpropan-2-yl'.
+        return "tert-butyl"
+
+    order = sorted(range(len(branch_roots)), key=lambda i: -lengths[i])
+    chain_indices = order[:2]
+    extra_indices = order[2:]
+    side_lengths = [lengths[i] for i in chain_indices]
+    chain_length = side_lengths[0] + side_lengths[1] + 1
+    root_locant = min(side_lengths[0] + 1, side_lengths[1] + 1)
+    stem = alkane_name(chain_length)[:-1]
+
+    if not extra_indices:
+        return f"{stem}-{root_locant}-yl"
+
+    (extra_idx,) = extra_indices
+    extra_name = alkyl_name(lengths[extra_idx])
+    grouped = {extra_name: {"locants": [root_locant], "compound": False}}
+    prefix = format_substituent_prefixes(grouped)
+    return f"{prefix}{stem}-{root_locant}-yl"
 
 
 def _name_ring_radical(mol, ring_info) -> str:
