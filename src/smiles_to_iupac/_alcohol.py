@@ -133,14 +133,34 @@ Recommendations ("the Blue Book"):
 - P-35.2.1 (Chapter P-3): halogen substituents are prefix-only and coexist
   freely with the -OH suffix (they never compete for suffix status), reusing
   `halogen_substituents`/`format_substituent_prefixes` unchanged.
+- P-29.3.3 (Chapter P-2): on an acyclic chain, a simple alkoxy ether (-O-R,
+  R a plain unbranched saturated alkyl group, e.g. '-OCH3') coexists freely
+  with the -OH suffix too, cited as an ordinary 'methoxy'/'ethoxy'/...
+  substituent prefix (also covers what P-66.6.5.2 calls a 'hemiacetal',
+  RR'C(OH)(OR'') -- there is no distinct hemiacetal nomenclature, it's just
+  this same alcohol-plus-alkoxy-ether combination). Confirmed via PubChem
+  PUG REST: CID 3015637 (`CC(O)OC`) -> "1-methoxyethanol", CID 8109
+  (`OCCCOCC`) -> "3-ethoxypropan-1-ol", CID 8107 (`OCCCCOC`) ->
+  "4-methoxybutan-1-ol", CID 12486323 (`OCC(OC)COC`) ->
+  "2,3-dimethoxypropan-1-ol" (more than one such ether is fine, each gets
+  its own prefix). On a two-carbon chain this can collide with the
+  documented P-14.3.4.2(a)/(b) locant-citation edge case above (e.g.
+  PubChem's own '2-methoxyethanol' omits the -OH locant); this module
+  keeps its existing policy of always citing the locant once any
+  substituent is present, an accepted, reviewed divergence rather than a
+  PubChem-confirmed one for that specific chain length, same as the
+  halogen/ring-substituent cases already handled that way.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- Any oxygen that is not an isolated, singly-bonded -OH with exactly one H
-  (ethers, and any C=O — aldehyde, ketone, or the carbonyl of a carboxylic
-  acid/amide/ester).
+- Any oxygen that is not an isolated, singly-bonded -OH with exactly one H,
+  or a simple alkoxy ether as described above (any C=O — aldehyde, ketone,
+  or the carbonyl of a carboxylic acid/amide/ester; a branched, cyclic, or
+  unsaturated alkoxy R; an ether attached to a ring rather than an acyclic
+  chain).
 - Two or more *different* characteristic-group types (e.g. an alcohol and an
-  amine) — not applicable here since only C, halogen, and -OH-shaped oxygen
-  atoms are accepted at all; any other heteroatom (N, S, ...) is rejected.
+  amine) — not applicable here since only C, halogen, -OH-shaped oxygen,
+  and simple-alkoxy-ether oxygen atoms are accepted at all; any other
+  heteroatom (N, S, ...) is rejected.
 - -OH on an aromatic ring (phenol-type) — a separate, in-progress module's
   territory.
 - -OH on a von Baeyer polycyclic (bicyclic through pentacyclic) or spiro
@@ -176,17 +196,85 @@ _YNE_ORDER = 3.0
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
 
 
+def _plain_terminal_alkyl_length(mol, graph, start, coming_from):
+    """Walk a branch outward, like `linear_branch`, but only succeeds if
+    every atom on the way (including `start`) is a plain carbon -- returns
+    None as soon as a heteroatom, a fork, or a cycle is hit. Used to tell
+    a simple terminal alkyl group (the 'R' of an alkoxy substituent, e.g.
+    '-OCH3') apart from a direction that actually leads back into the rest
+    of the molecule (e.g. toward a coexisting -OH)."""
+    length = 0
+    previous, current, visited = coming_from, start, set()
+    while True:
+        if current in visited:
+            return None
+        visited.add(current)
+        atom = mol.GetAtomWithIdx(current)
+        if atom.GetAtomicNum() != 6 or atom.GetIsAromatic():
+            return None
+        length += 1
+        neighbors = [n for n in graph[current] if n != previous]
+        if len(neighbors) == 0:
+            return length
+        if len(neighbors) > 1:
+            return None
+        previous, current = current, neighbors[0]
+
+
+def _ether_oxygens(mol, graph):
+    """Simple ethers (-O-, single-bonded to two carbons) where exactly one
+    side is a plain unbranched terminal alkyl chain (P-29.3.3's 'alkoxy'
+    substituent, e.g. 'methoxy', 'ethoxy') -- {ether_o_idx: alkoxy_name}.
+    A degree-2 oxygen where neither or both sides qualify (an ambiguous or
+    unsupported shape, e.g. a symmetrical ether) is left out here and
+    falls through to the generic heteroatom rejection below."""
+    ethers = {}
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 8 or atom.GetDegree() != 2:
+            continue
+        if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
+            continue
+        neighbors = atom.GetNeighbors()
+        if any(n.GetAtomicNum() != 6 for n in neighbors):
+            continue
+        n1, n2 = neighbors
+        len1 = _plain_terminal_alkyl_length(mol, graph, n1.GetIdx(), atom.GetIdx())
+        len2 = _plain_terminal_alkyl_length(mol, graph, n2.GetIdx(), atom.GetIdx())
+        if (len1 is None) == (len2 is None):
+            continue
+        length = len1 if len1 is not None else len2
+        ethers[atom.GetIdx()] = _alkoxy_name(length)
+    return ethers
+
+
+_CONTRACTED_ALKOXY_NAMES = {1: "methoxy", 2: "ethoxy", 3: "propoxy", 4: "butoxy"}
+
+
+def _alkoxy_name(length):
+    """P-29.3.3: the alkoxy prefix for C1-C4 is a contracted retained form
+    ('methoxy', not 'methyloxy'); C5 and up uses the full alkyl name plus
+    'oxy' ('pentyloxy')."""
+    if length in _CONTRACTED_ALKOXY_NAMES:
+        return _CONTRACTED_ALKOXY_NAMES[length]
+    return alkyl_name(length) + "oxy"
+
+
 def _validate_and_collect_hydroxyls(mol):
     """Check the molecule fits this module's scope (see module docstring)
-    and return the set of hydroxyl-oxygen atom indices."""
+    and return (hydroxyls, ethers): the set of hydroxyl-oxygen atom
+    indices, and a {ether_o_idx: alkoxy_name} dict for any simple alkoxy
+    ether (see `_ether_oxygens`)."""
+    graph = adjacency(mol)
+    ethers = _ether_oxygens(mol, graph)
     hydroxyls = set()
     has_carbon = False
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
         if atomic_num not in _ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(
-                "heteroatoms other than a hydroxyl oxygen (P-33.2.1) and "
-                "halogen substituents (P-35.2.1) are not supported yet"
+                "heteroatoms other than a hydroxyl oxygen (P-33.2.1), a "
+                "simple alkoxy ether (P-29.3.3), and halogen substituents "
+                "(P-35.2.1) are not supported yet"
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
@@ -198,11 +286,14 @@ def _validate_and_collect_hydroxyls(mol):
                     "the separate aromatic-ring module)"
                 )
         elif atomic_num == 8:
+            if atom.GetIdx() in ethers:
+                continue
             if atom.GetDegree() != 1:
                 raise UnsupportedStructure(
                     "an oxygen bonded to more than one heavy atom (e.g. an "
-                    "ether) is out of scope; only an isolated hydroxyl "
-                    "(-OH) is supported (Table 3.3, P-33.2.1)"
+                    "ether) is out of scope unless it is a simple alkoxy "
+                    "ether (P-29.3.3) with a plain unbranched terminal "
+                    "alkyl on exactly one side"
                 )
             (bond,) = atom.GetBonds()
             if bond.GetBondTypeAsDouble() != 1.0:
@@ -236,7 +327,7 @@ def _validate_and_collect_hydroxyls(mol):
         raise UnsupportedStructure("no hydroxyl (-OH) group found; this module only handles alcohols")
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    return hydroxyls
+    return hydroxyls, ethers
 
 
 def _reject_enol_carbons(graph, hydroxyls, bonds):
@@ -419,16 +510,22 @@ def _substituents_for_chain(graph, chain, halogens, hydroxyls):
     return substituents
 
 
-def _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo=None):
+def _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo=None, ethers=None):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
     include *every* stereocenter are eligible (P-92: a stereocenter on a
     substituent branch rather than the principal chain is out of scope,
     see module docstring), and the winning candidate's own locants for
     those atoms are used to format a "(<locant><R/S>,...)-" prefix onto
-    the name, ascending locant order (P-91.3)."""
+    the name, ascending locant order (P-91.3).
+
+    `ethers`: optional {ether_o_idx: alkoxy_name} (see `_ether_oxygens`)
+    -- merged into `halogens` so `name_branch` resolves each ether oxygen
+    directly to its alkoxy prefix name instead of recursing into it (its
+    far-side terminal alkyl is already invisible to `carbon_adjacency`,
+    so it never competes for the principal chain)."""
     graph = adjacency(mol)
-    halogens = halogen_substituents(mol)
+    halogens = {**halogen_substituents(mol), **(ethers or {})}
     chains = _longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
@@ -744,7 +841,7 @@ def _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls):
 
 
 def name_alcohol(mol) -> str:
-    hydroxyls = _validate_and_collect_hydroxyls(mol)
+    hydroxyls, ethers = _validate_and_collect_hydroxyls(mol)
     graph = adjacency(mol)
     all_non_single = non_single_bonds(mol)
     bonds = [b for b in all_non_single if b[2] in (_ENE_ORDER, _YNE_ORDER)]
@@ -759,7 +856,12 @@ def name_alcohol(mol) -> str:
     ring_info = mol.GetRingInfo()
     num_rings = ring_info.NumRings()
     if num_rings == 0:
-        return _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo)
+        return _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo, ethers)
+    if ethers:
+        raise UnsupportedStructure(
+            "an alkoxy ether coexisting with a cyclic alcohol structure "
+            "is not supported yet"
+        )
     if num_rings == 1:
         if bonds:
             raise UnsupportedStructure(

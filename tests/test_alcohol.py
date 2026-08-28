@@ -292,12 +292,38 @@ def test_bicyclic_alcohol_raises():
         smiles_to_iupac("OC1CC2CCC1CC2")
 
 
-def test_ether_raises():
-    # An ether coexisting with a hydroxyl (as opposed to a plain ether on
-    # its own, now handled by the separate ether module) is still out of
-    # scope for this module.
+def test_ethoxyethanol():
+    # A simple alkoxy ether coexisting with a hydroxyl on an acyclic
+    # chain (P-29.3.3) is supported: PubChem's own name is
+    # '2-ethoxyethanol' (CID 8076), but this falls into the same
+    # documented two-carbon-chain locant-citation edge case as
+    # '2-cyclohexylethan-1-ol' above -- this module always cites the -OH
+    # locant once a substituent is present, an accepted, reviewed result
+    # rather than a PubChem-confirmed one for this specific chain length.
+    assert smiles_to_iupac("OCCOCC") == "2-ethoxyethan-1-ol"
+
+
+def test_methoxypropanol():
+    # No two-carbon-chain ambiguity here, so this matches PubChem
+    # directly. CID 8109.
+    assert smiles_to_iupac("OCCCOCC") == "3-ethoxypropan-1-ol"
+
+
+def test_two_alkoxy_ethers():
+    # Two simple alkoxy ethers each get their own substituent prefix, the
+    # same generic mechanism as any other multi-substituent case. PubChem
+    # CID 12486323.
+    assert smiles_to_iupac("OCC(OC)COC") == "2,3-dimethoxypropan-1-ol"
+
+
+def test_branched_ether_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCCOCC")
+        smiles_to_iupac("OCCOC(C)C")
+
+
+def test_ether_on_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OC1CCCCC1OC")
 
 
 def test_enol_raises():

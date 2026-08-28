@@ -43,11 +43,11 @@ def test_unsaturated_acetal_raises():
         smiles_to_iupac("C=CC(OCC)OCC")
 
 
-def test_hemiacetal_raises():
-    # RR'C(OH)(O-R'') (P-66.6.5.2) has only one alkoxy oxygen plus a
-    # hydroxyl -- a different, unverified shape, out of scope here.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(OCC)CC")
+def test_hemiacetal_named_as_alkoxy_alcohol():
+    # RR'C(OH)(O-R'') (P-66.6.5.2) isn't a distinct suffix construction --
+    # it's just an alcohol (`_alcohol.py`) with a plain alkoxy ether
+    # substituent prefix, same as '2-methoxyethanol'. PubChem CID 93269.
+    assert smiles_to_iupac("OC(OCC)CC") == "1-ethoxypropan-1-ol"
 
 
 def test_ether_not_misnamed_as_acetal():
