@@ -48,11 +48,6 @@ def test_diselenol_not_supported():
         smiles_to_iupac("[SeH]CC[SeH]")
 
 
-def test_selenide_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[Se]C")
-
-
 def test_ring_selenol_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1CCCCC1[SeH]")

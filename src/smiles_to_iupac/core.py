@@ -92,6 +92,7 @@ from ._sulfinic_acid import has_sulfinic_acid_shape, name_sulfinic_acid
 from ._sulfonic_acid import has_sulfonic_acid_shape, name_sulfonic_acid
 from ._sulfone import has_sulfone_shape, name_sulfone
 from ._sulfoxide import has_sulfoxide_shape, name_sulfoxide
+from ._selenide import has_selenide_shape, name_selenide
 from ._selenol import has_selenol_shape, name_selenol
 from ._tellurol import has_tellurol_shape, name_tellurol
 from ._thiol import has_thiol_shape, name_thiol
@@ -568,6 +569,13 @@ def smiles_to_iupac(smiles: str) -> str:
         # so a molecule with O or N never reaches here at all (see
         # _thiol.py's module docstring).
         return name_thiol(mol)
+    if has_selenide_shape(mol):
+        # A plain -Se- selenide (P-63.2.1) has no suffix, so it must be
+        # routed here before has_selenol_shape below for the same reason
+        # as has_sulfide_shape above (that check doesn't look at degree
+        # at all, so a degree-2 selenide would otherwise raise the wrong
+        # error inside `name_selenol`'s degree-1 validation).
+        return name_selenide(mol)
     if has_selenol_shape(mol):
         # A selenol (-SeH, P-63.1.1) is the next chalcogen analogue after
         # a thiol -- has neither O, N, nor S, so it only reaches this
