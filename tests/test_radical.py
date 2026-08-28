@@ -43,9 +43,39 @@ def test_branched_chain_radical_raises():
         smiles_to_iupac("[CH2]C(C)C")
 
 
-def test_nonterminal_chain_radical_raises():
+def test_branch_point_radical_propan_2_yl_name():
+    # isopropyl radical, Blue Book P-29.3.2.2 worked example:
+    # "propan-2-yl (preferred prefix) (not prop-2-yl)". The radical carbon
+    # is itself the branch point (not a chain terminus, unlike the
+    # test_*_radical_name cases above) -- this used to raise before
+    # tasks/radical-branch-point-naming.md's extension.
+    assert smiles_to_iupac("C[CH](C)") == "propan-2-yl"
+
+
+def test_branch_point_radical_butan_2_yl_name():
+    # sec-butyl radical, Blue Book worked example: "butan-2-yl (preferred
+    # prefix) (not but-2-yl)" -- 'sec-butyl' itself is general
+    # nomenclature only, not the PIN (P-29.6.2.2).
+    assert smiles_to_iupac("C[CH]CC") == "butan-2-yl"
+
+
+def test_branch_point_radical_tert_butyl_name():
+    # tert-butyl radical: P-29.6.1's sole retained-name exception -- the
+    # unsubstituted (CH3)3C- radical keeps "tert-butyl" as its PIN rather
+    # than the general rule's own "2-methylpropan-2-yl".
+    assert smiles_to_iupac("[C](C)(C)C") == "tert-butyl"
+
+
+def test_branch_point_radical_2_methylbutan_2_yl_name():
+    # tert-pentyl radical, Blue Book worked example:
+    # "2-methylbutan-2-yl (preferred prefix) (not tert-pentyl)" -- unlike
+    # tert-butyl, this retained name is NOT a PIN exception.
+    assert smiles_to_iupac("CC[C](C)C") == "2-methylbutan-2-yl"
+
+
+def test_branch_point_radical_with_further_branching_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[CH](C)")
+        smiles_to_iupac("[CH](C(C)C)C")
 
 
 def test_substituted_ring_radical_raises():
