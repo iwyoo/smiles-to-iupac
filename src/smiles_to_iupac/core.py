@@ -13,6 +13,7 @@ from ._aldehyde_carboxylic_acid import (
 )
 from ._aldehyde_ketone import has_aldehyde_ketone_shape, name_aldehyde_ketone
 from ._amide import has_amide_shape, name_amide
+from ._amidine import has_amidine_shape, name_amidine
 from ._imide import has_imide_shape, name_imide
 from ._amine import name_amine
 from ._ammonium import has_ammonium_shape, name_ammonium
@@ -492,6 +493,12 @@ def smiles_to_iupac(smiles: str) -> str:
         # name_amine, which doesn't recognize a triple-bonded nitrogen at all.
         if has_nitrile_shape(mol):
             return name_nitrile(mol)
+        # An amidine carbon (-C(=NH)NH2, P-66.4.1.1) has a C=N double bond
+        # that would otherwise look imine-shaped to the check below (a
+        # different, unrelated interpretation of the same C=N bond) -- must
+        # be routed here first.
+        if has_amidine_shape(mol):
+            return name_amidine(mol)
         # A plain (non-oxime) imine (C=N, P-62.3) has no oxygen, so it
         # reaches this branch alongside plain amines -- an oxime (which
         # does have an oxygen) is already caught by the has_simple_imine_shape
