@@ -37,6 +37,7 @@ from ._androstane import has_androstane_name, name_androstane
 from ._gonane import has_gonane_name, name_gonane
 from ._heteroaromatic_fused import has_retained_heteroaromatic_fused_name, name_retained_heteroaromatic_fused
 from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
+from ._hydroxylamine import has_hydroxylamine_shape, name_hydroxylamine
 from ._imine import has_simple_imine_shape, name_imine
 from ._two_component_heterocycle_fusion import (
     has_two_component_heterocycle_fusion_name,
@@ -257,6 +258,14 @@ def smiles_to_iupac(smiles: str) -> str:
         return name_sulfinic_acid(mol)
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
+        # Hydroxylamine (H2N-OH, P-68.3.1.1.1) and its O-substituted
+        # derivatives (H2N-O-R) have a nitrogen the ether/carbonyl/alcohol
+        # checks below don't expect at all, so it must be routed before all
+        # of them. N-substituted forms (R-NH-OH) don't match this shape
+        # (see _hydroxylamine.py's module docstring) and fall through to
+        # name_amine below instead.
+        if has_hydroxylamine_shape(mol):
+            return name_hydroxylamine(mol)
         # A plain -O- ether (P-63.2.1) has no suffix, so it must be routed
         # here before the carbonyl/alcohol checks below, none of which
         # accept a degree-2 oxygen at all.
