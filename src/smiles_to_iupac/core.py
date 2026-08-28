@@ -53,6 +53,7 @@ from ._ketone_ester import has_ketone_ester_shape, name_ketone_ester
 from ._nitrile import has_nitrile_shape, name_nitrile
 from ._azide import has_azide_shape, name_azide
 from ._diazene import has_diazene_shape, name_diazene
+from ._hydrazine import has_hydrazine_shape, name_hydrazine
 from ._diazo import has_diazo_shape, name_diazo
 from ._isocyanate import has_isocyanate_shape, name_isocyanate
 from ._isocyanide import has_isocyanide_shape, name_isocyanide
@@ -479,6 +480,13 @@ def smiles_to_iupac(smiles: str) -> str:
         # routed before name_amine for the same reason as the checks above.
         if has_diazene_shape(mol):
             return name_diazene(mol)
+        # A hydrazine skeleton (H2N-NH2, P-68.3.1.2.1) has its own two
+        # skeletal nitrogens (single-bonded, not double-bonded like
+        # diazene above) with no carbon parent chain at all -- must be
+        # routed before name_amine for the same reason as the checks
+        # above.
+        if has_hydrazine_shape(mol):
+            return name_hydrazine(mol)
         # A nitrile nitrogen (-C#N, P-66.5) has no oxygen, so it reaches this
         # branch alongside plain amines; it must be routed here before
         # name_amine, which doesn't recognize a triple-bonded nitrogen at all.
