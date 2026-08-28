@@ -62,6 +62,7 @@ from ._hydrazone import has_hydrazone_shape, name_hydrazone
 from ._diazo import has_diazo_shape, name_diazo
 from ._isocyanate import has_isocyanate_shape, name_isocyanate
 from ._isocyanide import has_isocyanide_shape, name_isocyanide
+from ._isothiocyanate import has_isothiocyanate_shape, name_isothiocyanate
 from ._nitro import has_nitro_shape, name_nitro
 from ._nitroso import has_nitroso_shape, name_nitroso
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
@@ -511,6 +512,12 @@ def smiles_to_iupac(smiles: str) -> str:
         # recognize -- must be routed here for the same reason.
         if has_isocyanide_shape(mol):
             return name_isocyanide(mol)
+        # An isothiocyanate group (-N=C=S, P-61.8) has a C=N double bond
+        # on its own skeletal carbon that would otherwise confuse the
+        # imine check further below (a different, unrelated C=N shape) --
+        # must be routed here first, same reason as diazo below.
+        if has_isothiocyanate_shape(mol):
+            return name_isothiocyanate(mol)
         # A diazo group (=N2, P-61.4) has a C=N double bond on its own
         # skeletal carbon that would otherwise confuse the imine check
         # below (a different, unrelated C=N shape) -- must be routed here
