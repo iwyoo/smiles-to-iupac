@@ -32,9 +32,24 @@ def test_pent_4_ene_1_thiol():
     assert smiles_to_iupac("SCCCC=C") == "pent-4-ene-1-thiol"
 
 
-def test_dithiol_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SCCS")
+def test_ethane_1_2_dithiol():
+    # PubChem CID 10902.
+    assert smiles_to_iupac("SCCS") == "ethane-1,2-dithiol"
+
+
+def test_propane_1_3_dithiol():
+    # PubChem CID 8013.
+    assert smiles_to_iupac("SCCCS") == "propane-1,3-dithiol"
+
+
+def test_propane_1_2_dithiol():
+    # PubChem CID 61217.
+    assert smiles_to_iupac("CC(S)CS") == "propane-1,2-dithiol"
+
+
+def test_butane_1_4_dithiol():
+    # PubChem CID 79148.
+    assert smiles_to_iupac("SCCCCS") == "butane-1,4-dithiol"
 
 
 def test_cyclic_thiol_not_supported():
