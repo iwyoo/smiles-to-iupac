@@ -31,9 +31,16 @@ substituents), per the IUPAC 2013 Recommendations ("the Blue Book"):
   (di-, tri-) with no parentheses; a multiply-cited substituent mixed with
   a different one combines both rules, exactly as in `_phosphane.py`.
 
+- A halogen (F/Cl/Br/I) bonded directly to boron is just another
+  substituent prefix that already fits the P-16.5.1.3.1 parenthesization
+  rule above (no new mechanism needed) -- confirmed via PubChem PUG REST:
+  CID 140714 (`ClB`) -> "chloroborane", CID 137221 (`ClB(C)C`) ->
+  "chloro(dimethyl)borane".
+
 Explicitly out of scope (raise `UnsupportedStructure`):
-- Any atom other than boron, carbon, and hydrogen (no B=O, no
-  halogen-substituted alkyl, no other heteroatom in a substituent chain).
+- Any atom other than boron, carbon, hydrogen, and a halogen bonded
+  directly to boron (no B=O, no halogen-substituted alkyl chain, no other
+  heteroatom in a substituent chain).
 - More than one boron atom (borane chains, e.g. diborane -- a separate,
   genuinely different structure/nomenclature problem, not a simple
   extension of this substitutive-naming scope).
@@ -47,7 +54,13 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, linear_branch, non_single_bonds
+from ._common import (
+    HALOGEN_PREFIXES,
+    UnsupportedStructure,
+    adjacency,
+    linear_branch,
+    non_single_bonds,
+)
 from ._numerals import alkyl_name, multiplying_prefix
 from ._substituents import alpha_sort_key
 
@@ -70,10 +83,19 @@ def _validate_and_collect_substituents(mol):
         raise UnsupportedStructure("a boron atom with more than three substituents is not a borane")
 
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() not in (5, 6):
+        is_halogen = atom.GetAtomicNum() in HALOGEN_PREFIXES
+        if atom.GetAtomicNum() not in (5, 6) and not is_halogen:
             raise UnsupportedStructure(
                 "heteroatoms other than the borane boron itself are not "
                 "supported yet (see P-68)"
+            )
+        if is_halogen and (
+            atom.GetDegree() != 1 or atom.GetNeighbors()[0].GetIdx() != boron.GetIdx()
+        ):
+            raise UnsupportedStructure(
+                "a halogen-substituted alkyl chain is out of scope for this "
+                "module -- only a halogen bonded directly to boron is "
+                "supported so far"
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
@@ -91,6 +113,10 @@ def _validate_and_collect_substituents(mol):
     graph = adjacency(mol)
     substituent_names = []
     for root in graph[boron.GetIdx()]:
+        root_atomic_num = mol.GetAtomWithIdx(root).GetAtomicNum()
+        if root_atomic_num in HALOGEN_PREFIXES:
+            substituent_names.append(HALOGEN_PREFIXES[root_atomic_num])
+            continue
         length = linear_branch(graph, root, boron.GetIdx())
         if length is None:
             raise UnsupportedStructure(

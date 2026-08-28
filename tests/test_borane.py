@@ -19,10 +19,21 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("CCBC", "ethyl(methyl)borane"),
         ("CCB(C)C", "ethyl(dimethyl)borane"),
         ("CCB(CC)C", "diethyl(methyl)borane"),
+        # halogen bonded directly to boron: cross-checked against PubChem
+        # PUG REST IUPACName, CID 140714 (ClB), CID 137221 (ClB(C)C).
+        ("ClB", "chloroborane"),
+        ("ClB(C)C", "chloro(dimethyl)borane"),
     ],
 )
 def test_smiles_to_iupac_simple_borane(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_halogen_substituted_alkyl_chain_raises():
+    # a halogen embedded partway along a carbon chain (rather than bonded
+    # directly to boron) is out of scope for this module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("ClCCB")
 
 
 def test_borane_chain_raises():
