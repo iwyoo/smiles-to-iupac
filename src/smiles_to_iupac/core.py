@@ -63,6 +63,7 @@ from ._diazo import has_diazo_shape, name_diazo
 from ._isocyanate import has_isocyanate_shape, name_isocyanate
 from ._isocyanide import has_isocyanide_shape, name_isocyanide
 from ._isoselenocyanate import has_isoselenocyanate_shape, name_isoselenocyanate
+from ._isotellurocyanate import has_isotellurocyanate_shape, name_isotellurocyanate
 from ._isothiocyanate import has_isothiocyanate_shape, name_isothiocyanate
 from ._nitro import has_nitro_shape, name_nitro
 from ._nitroso import has_nitroso_shape, name_nitroso
@@ -523,6 +524,11 @@ def smiles_to_iupac(smiles: str) -> str:
         # issue as isothiocyanate above -- must be routed here first too.
         if has_isoselenocyanate_shape(mol):
             return name_isoselenocyanate(mol)
+        # An isotellurocyanate group (-N=C=Te, P-61.8) has the same C=N
+        # issue as the other chalcogen analogues above -- must be routed
+        # here first too.
+        if has_isotellurocyanate_shape(mol):
+            return name_isotellurocyanate(mol)
         # A diazo group (=N2, P-61.4) has a C=N double bond on its own
         # skeletal carbon that would otherwise confuse the imine check
         # below (a different, unrelated C=N shape) -- must be routed here
