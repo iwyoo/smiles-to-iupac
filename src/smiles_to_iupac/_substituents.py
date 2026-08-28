@@ -90,6 +90,44 @@ def format_substituent_prefixes(grouped, omit_locants: bool = False) -> str:
     return "".join(parts) if omit_locants else "-".join(parts)
 
 
+def format_mononuclear_prefixes(names) -> str:
+    """Format substituent prefixes for a mononuclear parent hydride whose
+    own atom is the sole skeletal atom (e.g. a phosphane/borane/diazene
+    central atom, P-14.3.4.2(a) locants always omitted): each distinct
+    name gets its own ordinary multiplying prefix (di-, tri-) by its own
+    count; when two or more distinct names are present, every one is
+    parenthesized except the alphabetically first, regardless of that
+    name's own count (P-16.5.1.3.1, per the Blue Book's own published
+    errata, https://iupac.qmul.ac.uk/bibliog/BBerrors.html).
+
+    `names`: a flat list of plain substituent-prefix strings (not a
+    `grouped` dict like `format_substituent_prefixes` above takes) --
+    every substituent here is a simple, non-compound prefix (an alkyl
+    chain or halogen), so there's no nested-parenthesization question to
+    track alongside the count. Extracted from `_phosphane.py`/`_borane.py`/
+    `_diazene.py`, which all had byte-identical copies of this exact
+    logic (`tasks/consolidate-mononuclear-prefix-formatter.md`,
+    2026-08-28) -- deliberately NOT merged into `format_substituent_prefixes`
+    above: that function's own `omit_locants=True` mode only parenthesizes
+    a *compound* (nested) substituent, never a plain one, so it doesn't
+    implement this P-16.5.1.3.1 rule and the two functions serve genuinely
+    different shapes."""
+    counts = {}
+    for name in names:
+        counts[name] = counts.get(name, 0) + 1
+    if len(counts) == 1:
+        (name, count), = counts.items()
+        return multiplying_prefix(count) + name if count > 1 else name
+
+    ordered = sorted(counts, key=alpha_sort_key)
+    parts = []
+    for i, name in enumerate(ordered):
+        count = counts[name]
+        text = multiplying_prefix(count) + name if count > 1 else name
+        parts.append(text if i == 0 else f"({text})")
+    return "".join(parts)
+
+
 def _group_substituents(entries):
     """entries: iterable of (locant, name, is_compound)."""
     grouped = {}

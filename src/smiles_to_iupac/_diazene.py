@@ -41,8 +41,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, linear_branch, non_single_bonds
-from ._numerals import alkyl_name, multiplying_prefix
-from ._substituents import alpha_sort_key
+from ._numerals import alkyl_name
+from ._substituents import format_mononuclear_prefixes
 
 
 def _diazene_nitrogens(mol):
@@ -66,27 +66,6 @@ def _diazene_nitrogens(mol):
 
 def has_diazene_shape(mol) -> bool:
     return _diazene_nitrogens(mol) is not None
-
-
-def _format_mononuclear_prefixes(names) -> str:
-    """Mirrors `_phosphane.py`'s identical helper: each distinct name gets
-    its own ordinary multiplying prefix (di-, tri-) by its own count; when
-    two or more distinct names are present, every one is parenthesized
-    except the alphabetically first (P-16.5.1.3.1)."""
-    counts = {}
-    for name in names:
-        counts[name] = counts.get(name, 0) + 1
-    if len(counts) == 1:
-        (name, count), = counts.items()
-        return multiplying_prefix(count) + name if count > 1 else name
-
-    ordered = sorted(counts, key=alpha_sort_key)
-    parts = []
-    for i, name in enumerate(ordered):
-        count = counts[name]
-        text = multiplying_prefix(count) + name if count > 1 else name
-        parts.append(text if i == 0 else f"({text})")
-    return "".join(parts)
 
 
 def name_diazene(mol) -> str:
@@ -129,4 +108,4 @@ def name_diazene(mol) -> str:
 
     if not substituent_names:
         return "diazene"
-    return _format_mononuclear_prefixes(substituent_names) + "diazene"
+    return format_mononuclear_prefixes(substituent_names) + "diazene"
