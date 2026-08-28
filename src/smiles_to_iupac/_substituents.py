@@ -37,27 +37,33 @@ directly ("cyclo" + `alkyl_name`), without walking into
 `_longest_chains_from_root`'s cycle-detection rejection.
 
 As of `tasks/ring-substituent-own-hydroxyl-naming.md` (2026-08-26), a ring
-substituent may also carry exactly one hydroxyl (-OH) of its own, on any
+substituent may also carry one or more hydroxyls (-OH) of its own, on any
 ring atom other than the attachment point itself (e.g.
 "(4-hydroxycyclohexyl)" in `1-(4-hydroxycyclohexyl)ethane-1,2-diol`,
-PubChem CID 21395558) -- `_ring_substituent_with_hydroxyl` reuses the same
-`{oxygen_idx: "hydroxy"}`-in-`halogens`-dict convention `_alcohol.py`
+PubChem CID 21395558) -- `_ring_substituent_with_hydroxyls` reuses the
+same `{oxygen_idx: "hydroxy"}`-in-`halogens`-dict convention `_alcohol.py`
 already uses for a chain's own hydroxyls, so a caller opts in simply by
-including the ring's hydroxyl oxygen in the `halogens` dict passed to
+including the ring's hydroxyl oxygens in the `halogens` dict passed to
 `name_branch`; the attachment point is fixed at locant 1 (P-29.2's free-
-valence rule) and the ring-walk direction is chosen to give the hydroxyl
-the lower of its two possible locants, mirroring how `_alcohol.py`'s own
-plain-ring numbering picks a direction. A ring bearing its own hydroxyl on
-the attachment atom itself, two or more of its own hydroxyls, any other
-kind of substituent, an unsaturated ring, or a polycyclic/spiro ring as a
-substituent all remain out of scope and still raise `UnsupportedStructure`
-via the ordinary cycle-detection path (see `_simple_ring_substituent`'s own
+valence rule) and the ring-walk direction is chosen to give the hydroxyls
+the lowest locant set (P-14.5.2), mirroring how `_alcohol.py`'s own plain-
+ring numbering picks a direction. Two or more hydroxyls (generalized
+2026-08-28, `tasks/ring-vs-chain-alcohol-multi-oh.md`) are cited together
+with an ordinary "di"/"tri" multiplying prefix, e.g.
+"(3,4-dihydroxycyclohexyl)" -- no PubChem-listed compound was found for
+this exact multi-hydroxyl shape, so it's a reviewed (eyeballed), not
+independently verified, generalization of the single-hydroxyl mechanism
+above (for count 1 it produces byte-identical output). A ring bearing its
+own hydroxyl on the attachment atom itself, any other kind of substituent,
+an unsaturated ring, or a polycyclic/spiro ring as a substituent all
+remain out of scope and still raise `UnsupportedStructure` via the
+ordinary cycle-detection path (see `_simple_ring_substituent`'s own
 docstring for exactly which zero-substituent shapes it recognizes).
 """
 
 import re
 
-from ._common import UnsupportedStructure, lowest_locant_set
+from ._common import UnsupportedStructure, lowest_locant_set, multiplied_word
 from ._numerals import alkyl_name, multiplying_prefix
 
 _LEADING_LOCANTS_RE = re.compile(r"^[\d,\-]+")
@@ -211,16 +217,24 @@ def _simple_ring_substituent(graph, root, coming_from):
     return len(visited)
 
 
-def _ring_substituent_with_hydroxyl(graph, root, coming_from, halogens):
-    """Like `_simple_ring_substituent`, but allows exactly one non-
-    attachment ring atom to carry a plain hydroxyl (an exocyclic neighbor
-    found in `halogens`, reusing that dict's `{atom_idx -> prefix name}`
-    convention for a one-atom substituent -- see module docstring). Returns
-    (ring_size, oh_locant) with the attachment fixed at locant 1 and the
-    ring-walk direction chosen to give the hydroxyl the lower locant; else
-    None (no hydroxyl found in either direction, more than one found, or
-    any other shape `_simple_ring_substituent` itself would already
-    reject)."""
+def _ring_substituent_with_hydroxyls(graph, root, coming_from, halogens):
+    """Like `_simple_ring_substituent`, but allows one or more non-
+    attachment ring atoms to each carry a plain hydroxyl (an exocyclic
+    neighbor found in `halogens`, reusing that dict's `{atom_idx -> prefix
+    name}` convention for a one-atom substituent -- see module docstring).
+    Returns (ring_size, oh_locants) with the attachment fixed at locant 1
+    and the ring-walk direction chosen to give the hydroxyls the lowest
+    locant set (P-14.5.2); else None (no hydroxyl found in either
+    direction, or any other shape `_simple_ring_substituent` itself would
+    already reject).
+
+    Generalized (2026-08-28, `tasks/ring-vs-chain-alcohol-multi-oh.md`)
+    from an earlier version that only allowed exactly one ring hydroxyl,
+    the same way other single-to-multi generalizations in this project
+    went (e.g. `_common.specified_stereocenters`) -- for count 1 this
+    produces byte-identical output to the original (a one-element locant
+    tuple), so the already-verified single-hydroxyl case (PubChem CID
+    21395558, module docstring) is unaffected."""
     ring_neighbors = [n for n in graph[root] if n != coming_from]
     if len(ring_neighbors) != 2:
         return None
@@ -229,7 +243,7 @@ def _ring_substituent_with_hydroxyl(graph, root, coming_from, halogens):
         visited = {root}
         previous, current = root, start
         position = 1
-        oh_locant = None
+        oh_locants = []
         while current != root:
             if current in visited:
                 return None
@@ -239,15 +253,15 @@ def _ring_substituent_with_hydroxyl(graph, root, coming_from, halogens):
             named = [n for n in neighbors if n in halogens]
             ring_next = [n for n in neighbors if n not in halogens]
             if named:
-                if len(named) != 1 or halogens[named[0]] != "hydroxy" or oh_locant is not None:
+                if len(named) != 1 or halogens[named[0]] != "hydroxy":
                     return None
-                oh_locant = position
+                oh_locants.append(position)
             if len(ring_next) != 1:
                 return None
             previous, current = current, ring_next[0]
-        if oh_locant is None:
+        if not oh_locants:
             return None
-        return len(visited), oh_locant
+        return len(visited), tuple(sorted(oh_locants))
 
     results = [r for r in (walk(n) for n in ring_neighbors) if r is not None]
     if not results:
@@ -255,7 +269,8 @@ def _ring_substituent_with_hydroxyl(graph, root, coming_from, halogens):
     ring_sizes = {size for size, _ in results}
     if len(ring_sizes) != 1:
         return None
-    return ring_sizes.pop(), min(locant for _, locant in results)
+    best_locants = min(locants for _, locants in results)
+    return ring_sizes.pop(), best_locants
 
 
 def name_branch(graph, root, coming_from, halogens=None):
@@ -276,10 +291,12 @@ def name_branch(graph, root, coming_from, halogens=None):
     if ring_size is not None:
         return "cyclo" + alkyl_name(ring_size), False
 
-    ring_with_oh = _ring_substituent_with_hydroxyl(graph, root, coming_from, halogens)
+    ring_with_oh = _ring_substituent_with_hydroxyls(graph, root, coming_from, halogens)
     if ring_with_oh is not None:
-        ring_size, oh_locant = ring_with_oh
-        return f"{oh_locant}-hydroxycyclo{alkyl_name(ring_size)}", True
+        ring_size, oh_locants = ring_with_oh
+        loc_str = ",".join(str(loc) for loc in oh_locants)
+        hydroxy_word = multiplied_word(len(oh_locants), "hydroxy")
+        return f"{loc_str}-{hydroxy_word}cyclo{alkyl_name(ring_size)}", True
 
     chains = _longest_chains_from_root(graph, root, coming_from, halogens)
     chain_length = len(chains[0])

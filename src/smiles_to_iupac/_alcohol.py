@@ -27,15 +27,15 @@ Recommendations ("the Blue Book"):
   multiply the "hydroxy" prefix exactly as it already does for repeated
   halogens, no new logic needed. The reverse case (chain -OH count greater
   than the ring's) is now supported too, as of
-  `tasks/ring-substituent-own-hydroxyl-naming.md` (2026-08-26), but only
-  when the ring carries at most one -OH of its own: the chain becomes the
-  senior parent and the ring is cited as a substituent via
-  `_substituents.name_branch`'s new `_ring_substituent_with_hydroxyl`
+  `tasks/ring-substituent-own-hydroxyl-naming.md` (2026-08-26): the chain
+  becomes the senior parent and the ring is cited as a substituent via
+  `_substituents.name_branch`'s `_ring_substituent_with_hydroxyls`
   (e.g. '1-(4-hydroxycyclohexyl)ethane-1,2-diol', PubChem CID 21395558).
-  A ring with two or more of its own -OH's, outcompeted by a chain with
-  even more, remains unsupported (`name_branch` itself only expresses one
-  ring hydroxyl) -- still `tasks/pin-selection-and-parent-choice.md`'s
-  territory.
+  As of `tasks/ring-vs-chain-alcohol-multi-oh.md` (2026-08-28), this
+  applies regardless of how many -OH's the outcompeted ring has of its
+  own (`_ring_substituent_with_hydroxyls` cites them together with a
+  "di"/"tri" multiplying prefix, e.g. '(3,4-dihydroxycyclohexyl)') --
+  completing this module's whole ring-vs-chain competition.
 - P-92 (Chapter P-9, https://iupac.qmul.ac.uk/BlueBook/P9.html), as of
   `tasks/rs-stereocenter-naming.md` (2026-08-25): an acyclic (chain)
   alcohol whose molecule has one or more stereo elements overall -- every
@@ -781,16 +781,11 @@ def _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls):
     chain_hydroxyls = {o for o in hydroxyls if next(iter(graph[o])) in chain_set}
     ring_hydroxyls = hydroxyls - chain_hydroxyls
     if len(ring_hydroxyls) < len(chain_hydroxyls):
-        if len(ring_hydroxyls) > 1:
-            raise UnsupportedStructure(
-                "a substituent ring with two or more of its own -OH's, "
-                "outcompeted by a chain with even more, is not supported "
-                "yet (see tasks/pin-selection-and-parent-choice.md)"
-            )
         # P-44.1.1: the chain captures strictly more -OH's, so it's the
-        # senior parent and the ring (with its own single -OH, as of
-        # tasks/ring-substituent-own-hydroxyl-naming.md, 2026-08-26) is
-        # cited as a substituent instead -- mirrors
+        # senior parent and the ring (with its own one or more -OH's, as
+        # of tasks/ring-substituent-own-hydroxyl-naming.md, 2026-08-26,
+        # generalized to any count by tasks/ring-vs-chain-alcohol-multi-oh.md,
+        # 2026-08-28) is cited as a substituent instead -- mirrors
         # `_name_ring_substituent_chain_alcohol` exactly, substituting
         # the ring's own name_branch-computed name for the plain
         # "cyclo..." one that function uses.

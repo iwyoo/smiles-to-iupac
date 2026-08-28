@@ -79,10 +79,15 @@ def test_ring_substituent_with_own_hydroxyl_picks_lower_locant():
     assert name_branch(graph, 1, 0, {7: "hydroxy"}) == ("2-hydroxycyclohexyl", True)
 
 
-def test_ring_substituent_with_two_hydroxyls_raises():
-    # Two hydroxyls on the same ring substituent -- out of scope (only one
-    # is supported), falls through to the ordinary cycle-detection
-    # rejection just like any other unsupported ring-substituent shape.
+def test_ring_substituent_with_two_hydroxyls():
+    # Two hydroxyls on the same ring substituent (on ring atoms 2 and 4,
+    # relative to the attachment at atom 1) -- generalized from the
+    # single-hydroxyl case above by tasks/ring-vs-chain-alcohol-multi-oh.md,
+    # 2026-08-28; cited together with a "di" multiplying prefix. Going one
+    # way around the ring gives locants (2, 4), the other way (4, 6); the
+    # lower set (2, 4) must win -- hand-verified, no PubChem cross-check at
+    # this atom-index level (see tests/test_alcohol.py for an end-to-end
+    # molecule-level case).
     graph = {
         0: [1],
         1: [0, 2, 6],
@@ -94,5 +99,4 @@ def test_ring_substituent_with_two_hydroxyls_raises():
         7: [2],
         8: [4],
     }
-    with pytest.raises(UnsupportedStructure):
-        name_branch(graph, 1, 0, {7: "hydroxy", 8: "hydroxy"})
+    assert name_branch(graph, 1, 0, {7: "hydroxy", 8: "hydroxy"}) == ("2,4-dihydroxycyclohexyl", True)
