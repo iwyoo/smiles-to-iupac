@@ -73,6 +73,10 @@ from ._nitro import has_nitro_shape, name_nitro
 from ._nitroso import has_nitroso_shape, name_nitroso
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._cyclophane import has_cyclophane_name, name_cyclophane
+from ._naphthalene_benzene_phane import (
+    has_naphthalene_benzene_phane_name,
+    name_naphthalene_benzene_phane,
+)
 from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
 from ._phosphanone import has_phosphanone_shape, name_phosphanone
 from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
@@ -218,6 +222,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # understand phane nomenclature at all.
     if has_cyclophane_name(mol):
         return name_cyclophane(mol)
+
+    # A naphthalene superatom + a benzene superatom joined by two bridges
+    # (P-26's "different ring kinds" phane case, see module docstring) is
+    # recognized the same way -- same reasoning as the plain cyclophane
+    # check above.
+    if has_naphthalene_benzene_phane_name(mol):
+        return name_naphthalene_benzene_phane(mol)
 
     # gonane (the 1989 IUPAC steroid nomenclature's fundamental tetracyclic
     # parent, Rule 2.1 -- see module docstring) is recognized the same way,
