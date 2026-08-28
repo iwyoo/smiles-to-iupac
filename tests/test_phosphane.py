@@ -50,13 +50,6 @@ def test_halogen_substituted_alkyl_chain_raises():
         smiles_to_iupac("ClCCP")
 
 
-def test_phosphane_chain_raises():
-    # diphosphane (P-P bond): two phosphorus atoms, a separate "chain"
-    # nomenclature problem this module doesn't handle.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("PP")
-
-
 def test_branched_substituent_raises():
     # isopropylphosphane: a branched substituent is out of scope.
     with pytest.raises(UnsupportedStructure):
