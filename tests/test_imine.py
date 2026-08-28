@@ -30,6 +30,21 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("C=NC", "N-methylmethanimine"),
         ("CC=NC", "N-methylethanimine"),
         ("CC(C)=NC", "N-methylpropan-2-imine"),
+        # Oximes (P-68.3.1.1.2): the PIN is the N-hydroxy derivative of the
+        # imine named by this module -- the Blue Book's own worked example
+        # is 'N-hydroxypentan-2-imine (PIN)' for pentan-2-one oxime. Note
+        # this deliberately does NOT match PubChem's own auto-generated
+        # name for this exact structure (CID 136433,
+        # "N-pentan-2-ylidenehydroxylamine", a different hydroxylamine-
+        # parent pattern) -- implemented per the Blue Book's direct PIN
+        # citation instead (see module docstring).
+        ("CC(=NO)CCC", "N-hydroxypentan-2-imine"),
+        # An O-alkyl oxime ether: PubChem CID 54150571 matches the Blue
+        # Book's own 'N-ethoxypropan-1-imine (PIN)' worked example exactly
+        # (unlike the plain -OH case above).
+        ("CCC=NOCC", "N-ethoxypropan-1-imine"),
+        ("C=NO", "N-hydroxymethanimine"),
+        ("CC=NO", "N-hydroxyethanimine"),
     ],
 )
 def test_smiles_to_iupac_simple_imine(smiles, expected):
@@ -63,3 +78,13 @@ def test_amine_hetero_mix_raises():
     # competition between suffixes.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OCC=N")
+
+
+def test_branched_oxime_o_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC=NOC(C)C")
+
+
+def test_two_oxygens_on_oxime_nitrogen_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC=NOO")
