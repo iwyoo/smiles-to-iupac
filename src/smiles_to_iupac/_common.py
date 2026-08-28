@@ -170,12 +170,21 @@ def lowest_locant_set(locants):
 def multiplied_word(count, base):
     """Multiplying-prefix word for `count` occurrences of a suffix like 'ol'/
     'one'/'al' (P-14.2.1): omitted for zero, bare for one, else prefixed with
-    the basic numerical term ('di', 'tri', ...)."""
+    the basic numerical term ('di', 'tri', ...).
+
+    P-16.3.3: a multiplying prefix's terminal 'a' (tetra, penta, hexa, ...)
+    is elided before a suffix beginning with 'a' or 'o' -- e.g. 'tetra' +
+    'ol' -> 'tetrol', not 'tetraol' (PubChem CID 8998, confirming
+    "butane-1,2,3,4-tetrol"); 'tetra' + 'amine' -> 'tetramine' (CID
+    6395580). 'di'/'tri' never end in 'a', so they're never affected."""
     if count == 0:
         return ""
     if count == 1:
         return base
-    return numerical_term(count) + base
+    prefix = numerical_term(count)
+    if prefix.endswith("a") and base[:1] in "ao":
+        prefix = prefix[:-1]
+    return prefix + base
 
 
 def group_substituents(substituents):
