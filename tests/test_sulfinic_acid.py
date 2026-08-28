@@ -44,6 +44,36 @@ def test_sulfonic_acid_not_confused_with_sulfinic():
     assert smiles_to_iupac("CS(=O)(=O)O") == "methanesulfonic acid"
 
 
-def test_cyclic_sulfinic_acid_not_supported():
+def test_cyclohexanesulfinic_acid():
+    # PubChem CID 3302189.
+    assert smiles_to_iupac("OS(=O)C1CCCCC1") == "cyclohexanesulfinic acid"
+
+
+def test_2_methylcyclohexane_1_sulfinic_acid():
+    # PubChem CID 67183560.
+    assert smiles_to_iupac("OS(=O)C1CCCCC1C") == "2-methylcyclohexane-1-sulfinic acid"
+
+
+def test_cyclopentanesulfinic_acid():
+    # PubChem CID 14138538.
+    assert smiles_to_iupac("OS(=O)C1CCCC1") == "cyclopentanesulfinic acid"
+
+
+def test_2_chlorocyclohexane_1_sulfinic_acid():
+    # PubChem CID 67182750.
+    assert smiles_to_iupac("OS(=O)C1CCCCC1Cl") == "2-chlorocyclohexane-1-sulfinic acid"
+
+
+def test_polycyclic_sulfinic_acid_not_supported():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)C1CCCCC1")
+        smiles_to_iupac("OS(=O)C1CC2CCC1CC2")
+
+
+def test_unsaturated_ring_sulfinic_acid_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OS(=O)C1CCCC=C1")
+
+
+def test_sulfinic_acid_on_ring_substituent_branch_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OS(=O)CC1CCCCC1")
