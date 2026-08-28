@@ -37,9 +37,39 @@ def test_disulfonic_acid_not_supported():
         smiles_to_iupac("OS(=O)(=O)CCS(=O)(=O)O")
 
 
-def test_cyclic_sulfonic_acid_not_supported():
+def test_cyclohexanesulfonic_acid():
+    # PubChem CID 428836.
+    assert smiles_to_iupac("OS(=O)(=O)C1CCCCC1") == "cyclohexanesulfonic acid"
+
+
+def test_2_methylcyclohexane_1_sulfonic_acid():
+    # PubChem CID 121004858.
+    assert smiles_to_iupac("OS(=O)(=O)C1CCCCC1C") == "2-methylcyclohexane-1-sulfonic acid"
+
+
+def test_cyclopentanesulfonic_acid():
+    # PubChem CID 15707015.
+    assert smiles_to_iupac("OS(=O)(=O)C1CCCC1") == "cyclopentanesulfonic acid"
+
+
+def test_2_chlorocyclohexane_1_sulfonic_acid():
+    # PubChem CID 129994011.
+    assert smiles_to_iupac("OS(=O)(=O)C1CCCCC1Cl") == "2-chlorocyclohexane-1-sulfonic acid"
+
+
+def test_polycyclic_sulfonic_acid_not_supported():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)(=O)C1CCCCC1")
+        smiles_to_iupac("OS(=O)(=O)C1CC2CCC1CC2")
+
+
+def test_unsaturated_ring_sulfonic_acid_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OS(=O)(=O)C1CCCC=C1")
+
+
+def test_sulfonic_acid_on_ring_substituent_branch_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OS(=O)(=O)CC1CCCCC1")
 
 
 def test_sulfonic_acid_with_alcohol_not_supported():
