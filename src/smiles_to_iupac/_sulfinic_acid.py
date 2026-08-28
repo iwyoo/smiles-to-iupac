@@ -47,6 +47,7 @@ from ._common import (
     lowest_locant_set,
     non_single_bonds,
     path_between,
+    ring_cycle,
 )
 from ._numerals import alkane_name, numerical_term
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -292,18 +293,6 @@ def _substituents_for_chain(graph, chain, halogens, excluded):
     return substituents
 
 
-def _ring_cycle(graph, ring_atoms):
-    ring_set = set(ring_atoms)
-    order = [ring_atoms[0]]
-    previous = None
-    while len(order) < len(ring_atoms):
-        current = order[-1]
-        next_atom = next(n for n in graph[current] if n in ring_set and n != previous)
-        order.append(next_atom)
-        previous = current
-    return order
-
-
 def _substituents_for_ring(graph, ring_order, halogens, excluded):
     ring_set = set(ring_order)
     substituents = {}
@@ -345,7 +334,7 @@ def _name_cyclic_sulfinic_acid(mol, sulfur_idx, so2h_carbon):
     excluded = {sulfur_idx}
     ring_info = mol.GetRingInfo()
     ring_atoms = list(ring_info.AtomRings()[0])
-    ring_order = _ring_cycle(graph, ring_atoms)
+    ring_order = ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
 
     best_key = None

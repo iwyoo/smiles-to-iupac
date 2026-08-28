@@ -148,6 +148,22 @@ def path_between(parent, start, end):
     return list(reversed(path))
 
 
+def ring_cycle(graph, ring_atoms):
+    """Order a monocyclic ring's atoms into a single walk around the ring,
+    starting from `ring_atoms[0]` (an arbitrary RDKit ring-atom listing
+    order) -- both traversal directions are still tried by the caller when
+    picking the winning numbering."""
+    ring_set = set(ring_atoms)
+    order = [ring_atoms[0]]
+    previous = None
+    while len(order) < len(ring_atoms):
+        current = order[-1]
+        next_atom = next(n for n in graph[current] if n in ring_set and n != previous)
+        order.append(next_atom)
+        previous = current
+    return order
+
+
 def linear_branch(graph, root, coming_from):
     """Walk a branch outward; return its atom count, or None if it forks
     (a "compound" substituent, P-29.4, not yet supported)."""
