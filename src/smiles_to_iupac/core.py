@@ -95,6 +95,7 @@ from ._sulfoxide import has_sulfoxide_shape, name_sulfoxide
 from ._diselenide import has_diselenide_shape, name_diselenide
 from ._selenide import has_selenide_shape, name_selenide
 from ._selenol import has_selenol_shape, name_selenol
+from ._ditelluride import has_ditelluride_shape, name_ditelluride
 from ._tellurol import has_tellurol_shape, name_tellurol
 from ._thiol import has_thiol_shape, name_thiol
 from ._tricyclic import find_propellane_core, name_propellane
@@ -588,6 +589,12 @@ def smiles_to_iupac(smiles: str) -> str:
         # a thiol -- has neither O, N, nor S, so it only reaches this
         # branch once all three are ruled out above.
         return name_selenol(mol)
+    if has_ditelluride_shape(mol):
+        # A ditelluride (R-Te-Te-R') has two telluriums -- it would
+        # otherwise look tellurol-shaped to the check below (that check
+        # just looks for the presence of any tellurium atom) -- must be
+        # routed here first.
+        return name_ditelluride(mol)
     if has_tellurol_shape(mol):
         # A tellurol (-TeH, P-63.1.1) is the next chalcogen analogue after
         # a selenol -- has neither O, N, S, nor Se, so it only reaches
