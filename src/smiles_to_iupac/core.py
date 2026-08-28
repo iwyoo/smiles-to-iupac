@@ -57,6 +57,7 @@ from ._nitrile import has_nitrile_shape, name_nitrile
 from ._azide import has_azide_shape, name_azide
 from ._diazene import has_diazene_shape, name_diazene
 from ._hydrazine import has_hydrazine_shape, name_hydrazine
+from ._hydrazone import has_hydrazone_shape, name_hydrazone
 from ._diazo import has_diazo_shape, name_diazo
 from ._isocyanate import has_isocyanate_shape, name_isocyanate
 from ._isocyanide import has_isocyanide_shape, name_isocyanide
@@ -513,6 +514,13 @@ def smiles_to_iupac(smiles: str) -> str:
         # routed before name_amine for the same reason as the checks above.
         if has_diazene_shape(mol):
             return name_diazene(mol)
+        # A hydrazone (R2C=N-NH2, P-68.3.1.2.2) also has two skeletal
+        # nitrogens joined by a single bond -- it would otherwise look
+        # hydrazine-shaped to the check below (`_hydrazine.py`'s own shape
+        # check doesn't look for a C=N bond on the other nitrogen) -- must
+        # be routed here first.
+        if has_hydrazone_shape(mol):
+            return name_hydrazone(mol)
         # A hydrazine skeleton (H2N-NH2, P-68.3.1.2.1) has its own two
         # skeletal nitrogens (single-bonded, not double-bonded like
         # diazene above) with no carbon parent chain at all -- must be
