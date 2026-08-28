@@ -115,6 +115,7 @@ from ._selenol import has_selenol_shape, name_selenol
 from ._ditelluride import has_ditelluride_shape, name_ditelluride
 from ._telluride import has_telluride_shape, name_telluride
 from ._tellurol import has_tellurol_shape, name_tellurol
+from ._thioic_acid import has_thioic_acid_shape, name_thioic_acid
 from ._thiol import has_thiol_shape, name_thiol
 from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
@@ -480,6 +481,13 @@ def smiles_to_iupac(smiles: str) -> str:
             if has_ketone_ester_shape(mol):
                 return name_ketone_ester(mol)
             return name_ester(mol)
+        # A thioic acid (-CO-SH/-CS-OH, P-65.1.5) has a carbonyl-shaped
+        # chalcogen cluster that would otherwise look like a plain
+        # carboxylic acid's carbonyl (if the double-bonded atom is O) or
+        # trip the aromatic/heteroatom checks in other O-only modules (if
+        # it's S) -- route it here, before all of those.
+        if has_thioic_acid_shape(mol):
+            return name_thioic_acid(mol)
         # A carbon bearing both a carbonyl and a hydroxyl oxygen is a -COOH
         # group (Table 3.3's most senior suffix here) and must be routed
         # before the aldehyde/ketone/alcohol checks below, which would
