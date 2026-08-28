@@ -97,6 +97,7 @@ from ._diselenide import has_diselenide_shape, name_diselenide
 from ._selenide import has_selenide_shape, name_selenide
 from ._selenol import has_selenol_shape, name_selenol
 from ._ditelluride import has_ditelluride_shape, name_ditelluride
+from ._telluride import has_telluride_shape, name_telluride
 from ._tellurol import has_tellurol_shape, name_tellurol
 from ._thiol import has_thiol_shape, name_thiol
 from ._tricyclic import find_propellane_core, name_propellane
@@ -601,6 +602,13 @@ def smiles_to_iupac(smiles: str) -> str:
         # just looks for the presence of any tellurium atom) -- must be
         # routed here first.
         return name_ditelluride(mol)
+    if has_telluride_shape(mol):
+        # A plain -Te- telluride (P-63.2.1) has no suffix, so it must be
+        # routed here before has_tellurol_shape below for the same reason
+        # as has_selenide_shape above (that check doesn't look at degree
+        # at all, so a degree-2 telluride would otherwise raise the wrong
+        # error inside `name_tellurol`'s degree-1 validation).
+        return name_telluride(mol)
     if has_tellurol_shape(mol):
         # A tellurol (-TeH, P-63.1.1) is the next chalcogen analogue after
         # a selenol -- has neither O, N, S, nor Se, so it only reaches

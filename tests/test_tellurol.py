@@ -47,11 +47,6 @@ def test_ditellurol_not_supported():
         smiles_to_iupac("[TeH]CC[TeH]")
 
 
-def test_telluride_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[Te]C")
-
-
 def test_ring_tellurol_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1CCCCC1[TeH]")
