@@ -93,6 +93,7 @@ from ._sulfonic_acid import has_sulfonic_acid_shape, name_sulfonic_acid
 from ._sulfone import has_sulfone_shape, name_sulfone
 from ._sulfoxide import has_sulfoxide_shape, name_sulfoxide
 from ._selenol import has_selenol_shape, name_selenol
+from ._tellurol import has_tellurol_shape, name_tellurol
 from ._thiol import has_thiol_shape, name_thiol
 from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
@@ -572,6 +573,11 @@ def smiles_to_iupac(smiles: str) -> str:
         # a thiol -- has neither O, N, nor S, so it only reaches this
         # branch once all three are ruled out above.
         return name_selenol(mol)
+    if has_tellurol_shape(mol):
+        # A tellurol (-TeH, P-63.1.1) is the next chalcogen analogue after
+        # a selenol -- has neither O, N, S, nor Se, so it only reaches
+        # this branch once all four are ruled out above.
+        return name_tellurol(mol)
 
     num_rings = mol.GetRingInfo().NumRings()
     # Two disjoint (unfused) benzene rings joined by a single bond -- e.g.
