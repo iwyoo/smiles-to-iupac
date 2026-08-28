@@ -73,8 +73,8 @@ from ._common import (
     linear_branch,
     non_single_bonds,
 )
-from ._numerals import alkyl_name, multiplying_prefix
-from ._substituents import alpha_sort_key
+from ._numerals import alkyl_name
+from ._substituents import format_mononuclear_prefixes
 
 
 def has_simple_phosphane_shape(mol) -> bool:
@@ -138,31 +138,8 @@ def _validate_and_collect_substituents(mol):
     return substituent_names
 
 
-def _format_mononuclear_prefixes(names) -> str:
-    """Format substituent prefixes for a mononuclear parent hydride
-    (locants always omitted, P-14.3.4.2(a)): each distinct name gets its
-    own ordinary multiplying prefix (di-, tri-) by its own count; when two
-    or more distinct names are present, every one is parenthesized except
-    the alphabetically first, regardless of that name's own count
-    (P-16.5.1.3.1, see module docstring)."""
-    counts = {}
-    for name in names:
-        counts[name] = counts.get(name, 0) + 1
-    if len(counts) == 1:
-        (name, count), = counts.items()
-        return multiplying_prefix(count) + name if count > 1 else name
-
-    ordered = sorted(counts, key=alpha_sort_key)
-    parts = []
-    for i, name in enumerate(ordered):
-        count = counts[name]
-        text = multiplying_prefix(count) + name if count > 1 else name
-        parts.append(text if i == 0 else f"({text})")
-    return "".join(parts)
-
-
 def name_simple_phosphane(mol) -> str:
     substituent_names = _validate_and_collect_substituents(mol)
     if not substituent_names:
         return "phosphane"
-    return _format_mononuclear_prefixes(substituent_names) + "phosphane"
+    return format_mononuclear_prefixes(substituent_names) + "phosphane"
