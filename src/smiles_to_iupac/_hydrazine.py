@@ -20,6 +20,25 @@ alkyl substituents per nitrogen), per the IUPAC 2013 Recommendations
   (`CNNC`) -> "1,2-dimethylhydrazine", (`CN(C)NC`) ->
   "1,1,2-trimethylhydrazine", (`CN(C)N(C)C`) -> "1,1,2,2-tetramethylhydrazine",
   (`CCN(CC)N`) -> "1,1-diethylhydrazine".
+- P-35.2.1: a halogen substituent on a carbon branch (not directly on a
+  hydrazine nitrogen) coexists freely, reusing `_amide.py`/`_hydrazide.py`'s
+  own `name_branch`/`halogen_substituents` pattern -- a straight
+  (unbranched, once halogens are set aside) carbon chain bearing one or
+  more halogens is named as a compound substituent the same way, e.g.
+  '2-chloroethyl'. Confirmed via PubChem PUG REST: CID 19348410
+  (`ClCCNN`) -> "2-chloroethylhydrazine", CID 165881
+  (`ClCCN(N)CCCl`) -> "1,1-bis(2-chloroethyl)hydrazine" (two identical
+  compound substituents combine with the ordinary 'bis' multiplying
+  prefix, same mechanism `format_substituent_prefixes` already uses
+  elsewhere for a compound substituent), CID 140409285 (`ClCNN`) ->
+  "chloromethylhydrazine" (the sole-substituent case omits its own
+  hydrazine locant regardless of the substituent itself being a compound
+  name, same as the plain-alkyl sole-substituent case below). A real
+  carbon branch (e.g. isopropyl) remains explicitly rejected rather than
+  silently named via `name_branch`'s own recursive branching, which would
+  hit this project's known non-PIN branched-substituent-naming gap (see
+  `_substituents.py`'s `name_branch` docstring) -- checked by walking the
+  substituent's carbon skeleton with halogens set aside before naming it.
 - A single substituent (on either nitrogen) needs no locant -- hydrazine's
   two nitrogens are interchangeable by symmetry when only one substituent
   is present, the same "genuine absence of ambiguity" `_diazene.py`
@@ -38,11 +57,14 @@ alkyl substituents per nitrogen), per the IUPAC 2013 Recommendations
   which only applies when locants are omitted entirely).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- Any atom other than the two hydrazine nitrogens, carbon, and hydrogen
-  (no halogen substituents -- unverified for this group, unlike
-  `_phosphane.py`/`_borane.py`).
-- A branched or unsaturated substituent, an aromatic substituent, or any
-  ring anywhere in the molecule.
+- Any atom other than the two hydrazine nitrogens, carbon, hydrogen, and
+  a halogen substituent on a carbon branch.
+- A halogen bonded directly to a hydrazine nitrogen (a different, more
+  complex shape than a plain P-35.2.1 carbon-branch substituent; not
+  covered here).
+- A branched (real carbon fork, e.g. isopropyl) or unsaturated
+  substituent, an aromatic substituent, or any ring anywhere in the
+  molecule.
 - Hydrazine derivatives with their own suffix/prefix mechanism: hydrazone
   (P-68.3.1.2.2), azine (P-68.3.1.2.3), semicarbazide (P-68.3.1.2.4),
   hydrazide (R-CO-NH-NH2, P-66.3).
@@ -51,9 +73,17 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, linear_branch, lowest_locant_set, non_single_bonds
-from ._numerals import alkyl_name
-from ._substituents import alpha_sort_key, format_substituent_prefixes
+from ._common import (
+    HALOGEN_PREFIXES,
+    UnsupportedStructure,
+    adjacency,
+    halogen_substituents,
+    lowest_locant_set,
+    non_single_bonds,
+)
+from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+
+_ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
 
 
 def _hydrazine_nitrogens(mol):
@@ -79,22 +109,41 @@ def has_hydrazine_shape(mol) -> bool:
     return _hydrazine_nitrogens(mol) is not None
 
 
-def _substituent_names(graph, n_idx, other_n_idx):
+def _is_unbranched_ignoring_halogens(graph, root, coming_from, halogens):
+    """True iff the branch's carbon skeleton (halogen leaves set aside) is
+    a straight, non-forking chain -- the same "no real carbon branch"
+    check `linear_branch` used to make directly, now blind to any
+    terminal halogen substituent along the way."""
+    previous, current = coming_from, root
+    while True:
+        neighbors = [n for n in graph[current] if n != previous and n not in halogens]
+        if len(neighbors) > 1:
+            return False
+        if not neighbors:
+            return True
+        previous, current = current, neighbors[0]
+
+
+def _substituent_names(graph, n_idx, other_n_idx, halogens):
     names = []
     for root in graph[n_idx]:
         if root == other_n_idx:
             continue
-        length = linear_branch(graph, root, n_idx)
-        if length is None:
+        if root in halogens:
+            raise UnsupportedStructure(
+                "a halogen bonded directly to a hydrazine nitrogen is out "
+                "of scope for this module (see module docstring)"
+            )
+        if not _is_unbranched_ignoring_halogens(graph, root, n_idx, halogens):
             raise UnsupportedStructure("a branched substituent is out of scope for this module")
-        names.append(alkyl_name(length))
+        names.append(name_branch(graph, root, n_idx, halogens))
     return names
 
 
 def _group(entries):
     grouped = {}
-    for locant, name in entries:
-        info = grouped.setdefault(name, {"locants": [], "compound": False})
+    for locant, name, compound in entries:
+        info = grouped.setdefault(name, {"locants": [], "compound": compound})
         info["locants"].append(locant)
     return grouped
 
@@ -119,10 +168,11 @@ def name_hydrazine(mol) -> str:
     n1, n2 = nitrogens
 
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() not in (6, 7):
+        if atom.GetAtomicNum() not in _ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(
                 "heteroatoms other than the hydrazine's own two nitrogens "
-                "(P-68.3.1.2.1) are not supported yet"
+                "(P-68.3.1.2.1) and halogen substituents (P-35.2.1) are "
+                "not supported yet"
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
@@ -136,20 +186,23 @@ def name_hydrazine(mol) -> str:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
     graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
     n1_idx, n2_idx = n1.GetIdx(), n2.GetIdx()
-    names_n1 = _substituent_names(graph, n1_idx, n2_idx)
-    names_n2 = _substituent_names(graph, n2_idx, n1_idx)
+    names_n1 = _substituent_names(graph, n1_idx, n2_idx, halogens)
+    names_n2 = _substituent_names(graph, n2_idx, n1_idx, halogens)
 
     total = len(names_n1) + len(names_n2)
     if total == 0:
         return "hydrazine"
     if total == 1:
-        (name,) = names_n1 + names_n2
+        ((name, _),) = names_n1 + names_n2
         return name + "hydrazine"
 
     candidates = []
     for first, second in ((names_n1, names_n2), (names_n2, names_n1)):
-        entries = [(1, name) for name in first] + [(2, name) for name in second]
+        entries = [(1, name, compound) for name, compound in first] + [
+            (2, name, compound) for name, compound in second
+        ]
         grouped = _group(entries)
         candidates.append((_candidate_key(grouped), grouped))
     _, best_grouped = min(candidates, key=lambda candidate: candidate[0])
