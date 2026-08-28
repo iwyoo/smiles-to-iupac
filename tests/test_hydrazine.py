@@ -67,3 +67,29 @@ def test_aromatic_substituent_raises():
 def test_halogen_on_nitrogen_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("ClNN")
+
+
+def test_chloroethylhydrazine_name():
+    # PubChem auto-generated name matches exactly.
+    assert smiles_to_iupac("ClCCNN") == "2-chloroethylhydrazine"
+
+
+def test_bis_chloroethylhydrazine_name():
+    # Two identical compound (halogen-bearing) substituents combine with
+    # the ordinary 'bis' multiplying prefix, same as elsewhere in this
+    # project. PubChem auto-generated name matches exactly.
+    assert smiles_to_iupac("ClCCN(N)CCCl") == "1,1-bis(2-chloroethyl)hydrazine"
+
+
+def test_chloromethylhydrazine_name():
+    # The sole-substituent case omits its own hydrazine locant even
+    # though the substituent itself is a compound (halogen-bearing) name.
+    # PubChem auto-generated name matches exactly.
+    assert smiles_to_iupac("ClCNN") == "chloromethylhydrazine"
+
+
+def test_halogenated_branched_substituent_raises():
+    # A real carbon fork (not just a halogen leaf) must still be rejected,
+    # even with a halogen elsewhere in the molecule.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("ClC(C)(C)NN")
