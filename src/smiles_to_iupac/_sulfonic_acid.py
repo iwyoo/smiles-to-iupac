@@ -26,13 +26,17 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   the -SO3H suffix.
 
 Scope, deliberately narrow (first pass at this functional group, mirroring
-how `_thiol.py` started): only a single -SO3H on an acyclic chain, with no
-other heteroatom anywhere in the molecule except the sulfonic acid group's
-own three oxygens -- acid-vs-acid seniority (vs. a coexisting carboxylic
-acid) and any other Table 3.3 seniority coexistence is future work, tracked
-under `multi-carbonyl-seniority.md`. Explicitly out of scope (raise
-`UnsupportedStructure`): rings, two or more -SO3H groups, and a sulfonic
-acid on a carbon that is also part of a C=C/C#C bond.
+how `_thiol.py` started): a single -SO3H on an acyclic chain or on a
+single saturated carbon ring (monocyclic, mirroring `_thiol.py`'s own
+monocyclic support), with no other heteroatom anywhere in the molecule
+except the sulfonic acid group's own three oxygens -- acid-vs-acid
+seniority (vs. a coexisting carboxylic acid) and any other Table 3.3
+seniority coexistence is future work, tracked under
+`multi-carbonyl-seniority.md`. Explicitly out of scope (raise
+`UnsupportedStructure`): polycyclic/spiro/unsaturated rings, an -SO3H on
+a substituent branch off an otherwise-unsubstituted ring, two or more
+-SO3H groups, and a sulfonic acid on a carbon that is also part of a
+C=C/C#C bond.
 """
 
 from rdkit import Chem
@@ -292,6 +296,76 @@ def _substituents_for_chain(graph, chain, halogens, excluded):
     return substituents
 
 
+def _ring_cycle(graph, ring_atoms):
+    ring_set = set(ring_atoms)
+    order = [ring_atoms[0]]
+    previous = None
+    while len(order) < len(ring_atoms):
+        current = order[-1]
+        next_atom = next(n for n in graph[current] if n in ring_set and n != previous)
+        order.append(next_atom)
+        previous = current
+    return order
+
+
+def _substituents_for_ring(graph, ring_order, halogens, excluded):
+    ring_set = set(ring_order)
+    substituents = {}
+    for position, atom in enumerate(ring_order, start=1):
+        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+    return substituents
+
+
+def _ring_name_from_substituents(ring_size, so3h_locant, grouped):
+    stem = "cyclo" + alkane_name(ring_size)
+    total_subs = sum(len(info["locants"]) for info in grouped.values())
+
+    if total_subs == 0:
+        # P-14.3.3: the sole substituent on an otherwise unsubstituted ring
+        # has no locant to distinguish, e.g. 'cyclohexanesulfonic acid'.
+        return stem + "sulfonic acid"
+
+    prefix = format_substituent_prefixes(grouped)
+    return f"{prefix}{stem}-{so3h_locant}-sulfonic acid"
+
+
+def _ring_candidate_key(ring_size, so3h_locant, substituents):
+    grouped = _group(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _ring_name_from_substituents(ring_size, so3h_locant, grouped)
+    return so3h_locant, locant_set, citation_locants, name
+
+
+def _name_cyclic_sulfonic_acid(mol, sulfur_idx, so3h_carbon):
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    excluded = {sulfur_idx}
+    ring_info = mol.GetRingInfo()
+    ring_atoms = list(ring_info.AtomRings()[0])
+    ring_order = _ring_cycle(graph, ring_atoms)
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            so3h_locant = position_of[so3h_carbon]
+            substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
+            key = _ring_candidate_key(ring_size, so3h_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def name_sulfonic_acid(mol) -> str:
     sulfur_idx, so3h_carbon = _validate_and_collect_sulfonic_acids(mol)
     graph = adjacency(mol)
@@ -306,11 +380,27 @@ def name_sulfonic_acid(mol) -> str:
         )
     _reject_enesulfonic_carbon(graph, so3h_carbon, bonds)
 
-    if mol.GetRingInfo().NumRings() != 0:
+    ring_info = mol.GetRingInfo()
+    num_rings = ring_info.NumRings()
+    if num_rings > 1:
         raise UnsupportedStructure(
-            "cyclic sulfonic acids are not supported yet (this module "
-            "only handles acyclic chains)"
+            "polycyclic/spiro sulfonic acids are not supported yet (this "
+            "module only handles acyclic chains and a single saturated "
+            "ring)"
         )
+    if num_rings == 1:
+        if bonds:
+            raise UnsupportedStructure(
+                "unsaturated rings are not supported yet (see P-31.1.3, "
+                "cycloalkenes and cycloalkynes)"
+            )
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if so3h_carbon not in ring_atoms:
+            raise UnsupportedStructure(
+                "a sulfonic acid on a substituent branch chain rather "
+                "than the ring itself is not supported yet"
+            )
+        return _name_cyclic_sulfonic_acid(mol, sulfur_idx, so3h_carbon)
 
     halogens = halogen_substituents(mol)
     excluded = {sulfur_idx}
