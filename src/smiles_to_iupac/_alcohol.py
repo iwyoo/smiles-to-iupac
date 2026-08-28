@@ -51,10 +51,18 @@ Recommendations ("the Blue Book"):
   formats the resulting label(s) using the chain locants already computed
   for the winning numbering (P-92 doesn't get its own say in *which*
   numbering wins -- it's purely descriptive once the chain/locants are
-  otherwise fixed). Any stereo element beyond this (a specified
-  stereocenter mixed with an unspecified one, any E/Z double bond, or a
-  stereocenter lying on a ring or a substituent branch rather than the
-  principal chain) raises `UnsupportedStructure` explicitly.
+  otherwise fixed). As of `tasks/ring-stereocenter-alcohol-naming.md`
+  (2026-08-28), the same mechanism extends to a plain monocyclic ring
+  whose -OH's are all on the ring itself (no exocyclic hydroxyl chain):
+  every specified stereocenter must lie on the ring itself, e.g.
+  '(1S,2S)-2-methylcyclohexan-1-ol' (PubChem CID 642632; PubChem's own
+  redundant relative "trans-"/"cis-" prefix is dropped, matching this
+  project's existing acyclic convention of citing R/S alone). Any stereo
+  element beyond this (a specified stereocenter mixed with an unspecified
+  one, any E/Z double bond, a stereocenter on a substituent branch rather
+  than the chain/ring itself, or any stereocenter at all on a polycyclic/
+  spiro skeleton or alongside a ring-vs-chain hydroxyl comparison) raises
+  `UnsupportedStructure` explicitly.
 
 - P-33.2.1, Table 3.3 (Chapter P-3, https://iupac.qmul.ac.uk/BlueBook/PDF/P3.pdf):
   'ol' is the preselected suffix for -OH, ranked 14th (out of 17) in Table
@@ -524,16 +532,30 @@ def _ring_candidate_key(ring_size, oh_locants, substituents):
     return oh_locant_set, locant_set, citation_locants, name
 
 
-def _name_cyclic_alcohol(mol, hydroxyls):
+def _name_cyclic_alcohol(mol, hydroxyls, stereo=None):
+    """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
+    `specified_stereocenters` -- if given, every stereocenter must lie on
+    the ring itself (P-92: a stereocenter on a substituent branch is out
+    of scope, mirroring `_name_acyclic_alcohol`'s identical chain-only
+    restriction), and the winning ring numbering's own locants for those
+    atoms are used to format a "(<locant><R/S>,...)-" prefix onto the
+    name, ascending locant order (P-91.3) -- same mechanism as the
+    acyclic case, since P-92 doesn't affect which numbering wins."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     ring_info = mol.GetRingInfo()
     ring_atoms = list(ring_info.AtomRings()[0])
     ring_order = _ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
+    if stereo is not None and any(atom not in ring_order for atom, _ in stereo):
+        raise UnsupportedStructure(
+            "a stereocenter on a substituent branch rather than the ring "
+            "itself is not supported yet (see P-92)"
+        )
 
     best_key = None
     best_name = None
+    best_position_of = None
     for start in range(ring_size):
         rotated = ring_order[start:] + ring_order[:start]
         for candidate in (rotated, list(reversed(rotated))):
@@ -547,7 +569,12 @@ def _name_cyclic_alcohol(mol, hydroxyls):
             substituents = _substituents_for_ring(graph, candidate, halogens, hydroxyls)
             key = _ring_candidate_key(ring_size, oh_locants, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, key[-1]
+                best_key, best_name, best_position_of = key, key[-1], position_of
+
+    if stereo is not None:
+        labels = sorted((best_position_of[atom], r_or_s) for atom, r_or_s in stereo)
+        prefix = ",".join(f"{locant}{r_or_s}" for locant, r_or_s in labels)
+        return f"({prefix})-{best_name}"
     return best_name
 
 
@@ -733,10 +760,6 @@ def name_alcohol(mol) -> str:
     num_rings = ring_info.NumRings()
     if num_rings == 0:
         return _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo)
-    if stereo is not None:
-        raise UnsupportedStructure(
-            "a stereocenter on a ring is not supported yet (see P-92)"
-        )
     if num_rings == 1:
         if bonds:
             raise UnsupportedStructure(
@@ -747,10 +770,25 @@ def name_alcohol(mol) -> str:
         ring_hydroxyls = {o for o in hydroxyls if next(iter(graph[o])) in ring_atoms}
         chain_hydroxyls = hydroxyls - ring_hydroxyls
         if not ring_hydroxyls:
+            if stereo is not None:
+                raise UnsupportedStructure(
+                    "a stereocenter on a substituent branch rather than "
+                    "the ring itself is not supported yet (see P-92)"
+                )
             return _name_ring_substituent_chain_alcohol(mol, hydroxyls)
         if not chain_hydroxyls:
-            return _name_cyclic_alcohol(mol, hydroxyls)
+            return _name_cyclic_alcohol(mol, hydroxyls, stereo)
+        if stereo is not None:
+            raise UnsupportedStructure(
+                "a stereocenter alongside a ring-vs-chain hydroxyl "
+                "comparison is not supported yet (see P-92)"
+            )
         return _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls)
+    if stereo is not None:
+        raise UnsupportedStructure(
+            "a stereocenter on a polycyclic/spiro skeleton is not "
+            "supported yet (see P-92)"
+        )
     raise UnsupportedStructure(
         "polycyclic and spiro alcohols are not supported yet (P-23/P-24/"
         "P-25 numbering integration with a suffix group is future work)"
