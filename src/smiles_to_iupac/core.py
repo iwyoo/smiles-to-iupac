@@ -12,6 +12,7 @@ from ._aldehyde_carboxylic_acid import (
     name_aldehyde_carboxylic_acid,
 )
 from ._aldehyde_ketone import has_aldehyde_ketone_shape, name_aldehyde_ketone
+from ._acetal import has_acetal_shape, name_acetal
 from ._amide import has_amide_shape, name_amide
 from ._amidine import has_amidine_shape, name_amidine
 from ._imide import has_imide_shape, name_imide
@@ -348,6 +349,13 @@ def smiles_to_iupac(smiles: str) -> str:
         # accept a degree-2 oxygen at all.
         if has_ether_shape(mol):
             return name_ether(mol)
+        # An acetal/ketal carbon (two alkoxy oxygens on the same carbon,
+        # P-66.6.5.1) has two ether-type oxygens, not the single one
+        # has_ether_shape requires, so it must be routed here before the
+        # peroxide/carbonyl/alcohol checks below, none of which accept two
+        # degree-2 oxygens on one carbon.
+        if has_acetal_shape(mol):
+            return name_acetal(mol)
         # A plain -O-O- peroxide (P-63.2.5) also has no suffix and no
         # carbonyl, so with no other check to intercept it, it would
         # otherwise fall all the way through to the alcohol module below
