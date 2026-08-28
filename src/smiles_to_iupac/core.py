@@ -25,6 +25,7 @@ from ._bridged_aromatic import (
 )
 from ._borane import has_simple_borane_shape, name_simple_borane
 from ._branched_fused_aromatic import has_retained_branched_fused_name, name_retained_branched_fused
+from ._carboxylate import has_carboxylate_shape, name_carboxylate
 from ._carboxylic_acid import has_carboxylic_acid_shape, name_carboxylic_acid
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
@@ -336,6 +337,14 @@ def smiles_to_iupac(smiles: str) -> str:
         # has_amide_shape below, either of which would otherwise misname it.
         if has_carbamate_shape(mol):
             return name_carbamate(mol)
+        # A carboxylate anion's carbon (R-COO-, P-72.2.2.2.1.1) bears a
+        # neutral carbonyl oxygen and a formal-charge -1 oxygen, so it must
+        # be routed before every check below: its carbonyl half looks
+        # aldehyde/ketone-shaped to the generic carbonyl fallback further
+        # down, and its charged oxygen would otherwise be rejected outright
+        # by every other module here, none of which expect a charged atom.
+        if has_carboxylate_shape(mol):
+            return name_carboxylate(mol)
         # A carbon bearing both a carbonyl oxygen and a second, carbon-bonded
         # oxygen is an ester (-COO-), which must be routed before the
         # carboxylic-acid/aldehyde/ketone checks below: its carbonyl half

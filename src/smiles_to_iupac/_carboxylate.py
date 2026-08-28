@@ -1,0 +1,323 @@
+"""Naming of carboxylate anions (the '-oate' suffix, R-COO-) on acyclic
+saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
+("the Blue Book"):
+
+- P-72.2.2.2.1.1 (Chapter P-7, https://iupac.qmul.ac.uk/BlueBook/P7.html): the
+  preferred IUPAC name of an anion formed by removing a hydron from the
+  chalcogen atom of an acid is formed by replacing the acid name's 'ic acid'
+  ending with 'ate' -- e.g. CH3-CO-O(-) -> 'acetate' (PIN). This project's
+  `_carboxylic_acid.py` always uses the systematic 'ethanoic acid' stem
+  rather than the retained 'acetic acid' one (see that module's docstring),
+  so this module follows the same 'ethanoate' convention for consistency.
+- The carboxylate carbon's shape mirrors `_carboxylic_acid.py`'s -COOH
+  carbon exactly, except the hydroxyl oxygen (-OH, one H, neutral) is
+  replaced by an anionic oxygen (no H, formal charge -1): a doubly-bonded,
+  monovalent, neutral carbonyl oxygen plus a singly-bonded, monovalent,
+  formal-charge -1 oxygen, both on the same carbon. Reuses the same
+  chain-numbering and 'ene'/'yne' mechanics as `_carboxylic_acid.py` (the
+  carboxylate carbon is always C1, its own locant never cited, P-14.3.3).
+- Unlike `_carboxylic_acid.py`, this first pass only supports exactly one
+  -COO- group (no 'dioate'), mirroring `_ester.py`'s own single-group scope
+  and reusing its `_suffix_body` construction (no ' acid' word, 'oate'
+  never multiplied).
+- P-35.2.1: halogen substituents are prefix-only and coexist freely with the
+  '-oate' suffix, reusing `halogen_substituents`/`format_substituent_prefixes`
+  unchanged.
+
+Explicitly out of scope (raise `UnsupportedStructure`):
+- Any ring anywhere in the molecule (mirrors `_carboxylic_acid.py`'s own
+  acyclic-only scope; P-65.1.1.2's ring-attached construction differs).
+- More than one -COO- group, or any oxygen that isn't part of the single
+  carboxylate's carbonyl/anion pair (an ether, alcohol, second carbonyl,
+  or a second -COO-).
+- Any charged or radical atom other than the single carboxylate oxygen's
+  formal charge -1 (P-73's cations, P-71's radicals, P-74's zwitterions
+  are all out of scope).
+- Any other heteroatom (N, S, ...).
+"""
+
+from rdkit import Chem
+
+from ._common import (
+    ENE_BOND_ORDER,
+    HALOGEN_PREFIXES,
+    UnsupportedStructure,
+    YNE_BOND_ORDER,
+    adjacency,
+    bond_locants,
+    carbon_adjacency,
+    group_substituents,
+    halogen_substituents,
+    longest_chains,
+    lowest_locant_set,
+    multiplied_word,
+    non_single_bonds,
+)
+from ._numerals import alkane_name
+from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+
+_ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
+
+
+def has_carboxylate_shape(mol) -> bool:
+    """True if some carbon carries both a doubly-bonded, monovalent, neutral
+    carbonyl oxygen and a singly-bonded, monovalent, formal-charge -1 oxygen
+    (a -COO- pattern), regardless of whether the rest of the molecule is in
+    scope. Used by `core.py` to route ahead of the carboxylic-acid/ketone/
+    alcohol dispatch, since a carboxylate carbon would otherwise look
+    carbonyl-shaped (and its own charged oxygen would be rejected by every
+    other module, none of which expect a charged atom)."""
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 6:
+            continue
+        oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8]
+        if len(oxygens) < 2:
+            continue
+        has_carbonyl = any(
+            o.GetDegree() == 1
+            and o.GetFormalCharge() == 0
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
+            for o in oxygens
+        )
+        has_anion = any(
+            o.GetDegree() == 1
+            and o.GetFormalCharge() == -1
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 1.0
+            for o in oxygens
+        )
+        if has_carbonyl and has_anion:
+            return True
+    return False
+
+
+def _find_carboxylate_group(mol):
+    """Locate the molecule's single -COO- group and return
+    (carboxylate_carbon, carbonyl_oxygen, anion_oxygen) atoms, after checking
+    the molecule has exactly one such group and no other oxygens (see module
+    docstring)."""
+    matches = []
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 6:
+            continue
+        oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8]
+        if len(oxygens) < 2:
+            continue
+        carbonyls = [
+            o
+            for o in oxygens
+            if o.GetDegree() == 1
+            and o.GetFormalCharge() == 0
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
+        ]
+        anions = [
+            o
+            for o in oxygens
+            if o.GetDegree() == 1
+            and o.GetFormalCharge() == -1
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 1.0
+        ]
+        if carbonyls and anions:
+            matches.append((atom, carbonyls, anions))
+
+    if len(matches) != 1:
+        raise UnsupportedStructure(
+            "exactly one carboxylate (-COO-) group is required; zero or "
+            "multiple such groups are not supported yet (P-72.2.2.2.1.1)"
+        )
+    carboxylate_carbon, carbonyls, anions = matches[0]
+    if len(carbonyls) != 1 or len(anions) != 1:
+        raise UnsupportedStructure(
+            "a carbon with more than one carbonyl or anionic oxygen does "
+            "not match a simple carboxylate group"
+        )
+    total_oxygens = sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 8)
+    if total_oxygens != 2:
+        raise UnsupportedStructure(
+            "an oxygen outside the single carboxylate group's carbonyl/"
+            "anion pair (e.g. an ether or a hydroxyl) is out of scope for "
+            "this module"
+        )
+
+    carbon_neighbors = [n for n in carboxylate_carbon.GetNeighbors() if n.GetAtomicNum() == 6]
+    if len(carbon_neighbors) > 1:
+        raise UnsupportedStructure(
+            "a carboxylate carbon with more than one carbon neighbor is "
+            "not a valid carboxylate group"
+        )
+
+    return carboxylate_carbon, carbonyls[0], anions[0]
+
+
+def _suffix_body(ene_locants, yne_locants):
+    """Locant-and-suffix string for the combined 'ene'/'yne'/'oate' ending
+    (e.g. '2-enoate'), identical construction to `_ester.py`'s own
+    `_suffix_body` -- the carboxylate group's own count is always 1 (see
+    module docstring), so 'oate' is never multiplied, unlike
+    `_carboxylic_acid.py`'s 'oic'/'dioic'."""
+    segments = []
+    if ene_locants:
+        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
+    if yne_locants:
+        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
+
+    words = [word for _, word in segments] + ["oate"]
+    for i in range(len(words) - 1):
+        if words[i].endswith("e") and words[i + 1][0] in "aeiouy":
+            words[i] = words[i][:-1]
+
+    if segments:
+        locant_parts = [
+            f"{','.join(str(loc) for loc in locants)}-{word}"
+            for (locants, _), word in zip(segments, words[:-1])
+        ]
+        body = "-".join(locant_parts) + words[-1]
+    else:
+        body = words[-1]
+    elide_stem = words[0][0] in "aeiouy"
+    return body, elide_stem
+
+
+def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped):
+    has_unsaturation = bool(ene_locants or yne_locants)
+    prefix = format_substituent_prefixes(grouped)
+    if has_unsaturation:
+        stem = alkane_name(chain_length)[:-3]
+        needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
+    else:
+        stem = alkane_name(chain_length)
+        needs_stem_a = False
+
+    body, elide_stem = _suffix_body(ene_locants, yne_locants)
+    if not has_unsaturation and elide_stem:
+        stem = stem[:-1]
+    separator = "-" if (ene_locants or yne_locants) else ""
+    return prefix + stem + ("a" if needs_stem_a else "") + separator + body
+
+
+def _candidate_key(chain_length, ene_locants, yne_locants, substituents):
+    grouped = group_substituents(substituents)
+    total_count = sum(len(info["locants"]) for info in grouped.values())
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
+    ene_locant_set = lowest_locant_set(ene_locants)
+    name = _name_from_substituents(chain_length, ene_locants, yne_locants, grouped)
+    return (
+        (
+            combined_locant_set,
+            ene_locant_set,
+            -total_count,
+            locant_set,
+            citation_locants,
+            name,
+        ),
+        name,
+    )
+
+
+def _substituents_for_chain(graph, chain, halogens, excluded_oxygens):
+    chain_set = set(chain)
+    substituents = {}
+    for position, atom in enumerate(chain, start=1):
+        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded_oxygens]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+    return substituents
+
+
+def _name_acyclic_carboxylate(mol, carboxylate_carbon_idx, excluded_oxygens, bonds):
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    chains = longest_chains(carbon_adjacency(mol))
+    chain_length = len(chains[0])
+
+    eligible = []
+    for chain in chains:
+        if carboxylate_carbon_idx not in chain:
+            continue
+        if bonds and bond_locants(chain, bonds) is None:
+            continue
+        eligible.append(chain)
+    if not eligible:
+        raise UnsupportedStructure(
+            "the carboxylate carbon (and/or multiple bonds) does not lie "
+            "on a single longest carbon chain"
+        )
+
+    best_key = None
+    best_name = None
+    for chain in eligible:
+        for candidate in (chain, list(reversed(chain))):
+            if candidate[0] != carboxylate_carbon_idx:
+                # The carboxylate carbon must sit at C1 (see module
+                # docstring); a direction that doesn't start there is never
+                # valid.
+                continue
+            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            substituents = _substituents_for_chain(graph, candidate, halogens, excluded_oxygens)
+            key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, name
+    return best_name
+
+
+def name_carboxylate(mol) -> str:
+    if mol.GetRingInfo().NumRings() > 0:
+        raise UnsupportedStructure(
+            "a -COO- group on/in a ring is out of scope for this "
+            "acyclic-only module"
+        )
+
+    carboxylate_carbon, carbonyl_oxygen, anion_oxygen = _find_carboxylate_group(mol)
+    excluded_oxygens = {carbonyl_oxygen.GetIdx(), anion_oxygen.GetIdx()}
+
+    has_carbon = False
+    for atom in mol.GetAtoms():
+        atomic_num = atom.GetAtomicNum()
+        if atomic_num not in _ALLOWED_ATOMIC_NUMS:
+            raise UnsupportedStructure(
+                "heteroatoms other than the carboxylate's own oxygens "
+                "(P-72.2.2.2.1.1) and halogen substituents (P-35.2.1) are "
+                "not supported yet"
+            )
+        if atom.GetIdx() in excluded_oxygens:
+            continue
+        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+            raise UnsupportedStructure(
+                "a charged or isotopically modified atom other than the "
+                "single carboxylate oxygen is not supported yet"
+            )
+        if atomic_num == 6:
+            has_carbon = True
+            if atom.GetIsAromatic():
+                raise UnsupportedStructure(
+                    "aromatic rings are out of scope for this module (see "
+                    "the separate aromatic-ring module)"
+                )
+        elif atomic_num != 8 and atom.GetDegree() != 1:
+            raise UnsupportedStructure(
+                "a halogen atom must be a monovalent substituent (P-35.2.1)"
+            )
+    if not has_carbon:
+        raise UnsupportedStructure(
+            "a structure with no carbon atom has no hydrocarbon parent "
+            "hydride to substitute"
+        )
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+
+    all_non_single = [
+        b for b in non_single_bonds(mol) if b[0] not in excluded_oxygens and b[1] not in excluded_oxygens
+    ]
+    bonds = [b for b in all_non_single if b[2] in (ENE_BOND_ORDER, YNE_BOND_ORDER)]
+    if len(bonds) != len(all_non_single):
+        raise UnsupportedStructure(
+            "a bond order other than single, double, or triple is not "
+            "supported (see P-31.1.1.1)"
+        )
+
+    return _name_acyclic_carboxylate(mol, carboxylate_carbon.GetIdx(), excluded_oxygens, bonds)
