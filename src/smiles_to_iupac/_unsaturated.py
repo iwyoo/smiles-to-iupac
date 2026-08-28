@@ -64,15 +64,18 @@ A multiple bond located in a substituent rather than the principal chain
 molecule), and unsaturation in a ring, are out of scope and raise
 `UnsupportedStructure`.
 
-- P-93 (Chapter P-9, https://iupac.qmul.ac.uk/BlueBook/P9.html), as of
-  `tasks/ez-double-bond-naming.md` (2026-08-25): when the molecule has
-  exactly one C=C double bond in total (no triple bond, no second double
-  bond) and its geometry is specified in the input (`/`/`\`), a
-  "(E)-"/"(Z)-" prefix is added to the whole name, e.g. "(E)-but-2-ene",
-  "(Z)-2-chlorobut-2-ene" (both cross-checked against PubChem). No locant
-  is included in the prefix (R-7.1.2/P-93: a locanted "(2E)-" form is only
-  needed when there's more than one stereogenic double bond to
-  distinguish, which never arises in this single-double-bond scope). CIP
+- P-91.3 / P-93 (Chapter P-9, https://iupac.qmul.ac.uk/BlueBook/P9.html), as
+  of `tasks/ez-double-bond-naming.md` (2026-08-25): when a C=C double bond's
+  geometry is specified in the input (`/`/`\`), a locanted "(nE)-"/"(nZ)-"
+  prefix is added to the whole name, e.g. "(2E)-but-2-ene",
+  "(2Z)-2-chlorobut-2-ene" -- the primary source's own worked example is
+  "(2Z)-but-2-ene (PIN)" (P-91.3), and P-91.3 states plainly that "in
+  preferred IUPAC names, stereodescriptors, preceded by a locant, must be
+  cited to specify each stereogenic unit" for acyclic chains; the locant is
+  never dropped just because a single double bond leaves nothing to
+  disambiguate (that omission is reserved for specific ring systems --
+  three- to seven-membered unsaturated alicyclics, von Baeyer, spiro, fused,
+  and cyclophane systems -- per P-91.2.2, none of which apply here). CIP
   priority computation is delegated entirely to RDKit
   (`_common.specified_double_bond_stereo`), mirroring `_alcohol.py`'s R/S
   handling: a non-stereogenic double bond, or one left unspecified in the
@@ -83,10 +86,7 @@ molecule), and unsaturation in a ring, are out of scope and raise
   R/S from one stereocenter to many: two or more C=C double bonds, *all*
   specified, are cited together in one parenthesized group, ascending
   locant order, e.g. "(2E,4E)-hexa-2,4-diene", "(2Z,4E)-hexa-2,4-diene"
-  (both confirmed via PubChem PUG REST), unlike R/S's "(2R)-..." this
-  still omits the locant only in the original single-double-bond case
-  (never for two or more, since then a bare "(E,Z)-" would be ambiguous
-  about which locant is which). A specified double bond alongside a
+  (both confirmed via PubChem PUG REST). A specified double bond alongside a
   triple bond, a partially-specified set of double bonds (some with a
   slash marker, some left as a plain double bond), or a tetrahedral
   stereocenter is out of scope and raises `UnsupportedStructure`
@@ -331,14 +331,9 @@ def name_acyclic_unsaturated(mol) -> str:
                 best_key, best_name, best_candidate = key, name, candidate
 
     if stereo is not None:
-        if len(stereo) == 1:
-            # P-93/R-7.1.2: no locant in the prefix -- with only one
-            # stereogenic double bond in the whole molecule, there's
-            # nothing to disambiguate.
-            (_, code), = stereo
-            return f"({code})-{best_name}"
-        # P-91.3: two or more stereodescriptors are cited together in one
-        # parenthesized group, ascending locant order.
+        # P-91.3: a locant always precedes each stereodescriptor, cited in
+        # ascending locant order (a bare "(E)-"/"(Z)-" is only for the ring
+        # systems P-91.2.2 lists, not acyclic chains).
         labels = sorted(
             (_bond_locant(best_candidate, (mol.GetBondWithIdx(bond_idx).GetBeginAtomIdx(),
                                             mol.GetBondWithIdx(bond_idx).GetEndAtomIdx())), code)
