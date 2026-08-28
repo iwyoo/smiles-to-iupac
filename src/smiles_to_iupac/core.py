@@ -42,6 +42,10 @@ from ._fullerene import has_fullerene_name, name_fullerene
 from ._androstane import has_androstane_name, name_androstane
 from ._gonane import has_gonane_name, name_gonane
 from ._heteroaromatic_fused import has_retained_heteroaromatic_fused_name, name_retained_heteroaromatic_fused
+from ._polycyclic_component_fusion import (
+    has_polycyclic_component_fusion_name,
+    name_polycyclic_component_fusion,
+)
 from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
 from ._hydroxylamine import has_hydroxylamine_shape, name_hydroxylamine
 from ._imine import has_simple_imine_shape, name_imine
@@ -254,6 +258,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # dispatch would never even consider them.
     if has_retained_heteroaromatic_fused_name(mol):
         return name_retained_heteroaromatic_fused(mol)
+
+    # benzo[g]indole/benzo[e][1]benzofuran/benzo[g][1]benzofuran (P-25.3.1.3's
+    # computed fusion-locant-letter mechanism, this time for a plain benzo
+    # ring fused onto an already-bicyclic retained-name base component)
+    # must be routed here before `_aromatic.py`'s own tricyclic dispatch
+    # further below, which doesn't recognize a heteroatom at all.
+    if has_polycyclic_component_fusion_name(mol):
+        return name_polycyclic_component_fusion(mol)
 
     # thieno[2,3-b]thiophene/furo[2,3-b]furan/thieno[2,3-b]furan etc.
     # (P-25.3.1.3's computed fusion-locant-letter mechanism, for two
