@@ -1,6 +1,6 @@
 """Naming of hydrazides (the '-hydrazide' suffix, terminal
--C(=O)NH-NH2) on acyclic saturated or unsaturated carbon chains of three
-or more carbons, per the IUPAC 2013 Recommendations ("the Blue Book"):
+-C(=O)NH-NH2) on acyclic saturated or unsaturated carbon chains, per the
+IUPAC 2013 Recommendations ("the Blue Book"):
 
 - P-66.3.1.1 (Chapter P-6a, https://iupac.qmul.ac.uk/BlueBook/PDF/P6a.pdf):
   'hydrazide' is the suffix for a chain-terminal -CO-NH-NH2 group.
@@ -25,14 +25,19 @@ or more carbons, per the IUPAC 2013 Recommendations ("the Blue Book"):
   'acetohydrazide', 'benzohydrazide', 'oxalohydrazide' -- of these, the
   two that would otherwise be plain acyclic chain cases are the
   mononuclear (methane, formohydrazide) and dinuclear (ethane,
-  acetohydrazide) chain lengths. This module therefore explicitly
-  requires a chain of three or more carbons and rejects the 1-/2-carbon
-  cases outright rather than emitting the wrong (systematic, non-PIN)
-  name for them -- confirmed directly from the primary text, not
-  inferred from PubChem's own name choice (which happens to agree with
-  the Blue Book here, unlike some other retained-name cases elsewhere in
-  this project). Chain lengths of three carbons and up are unaffected:
-  P-66.3.1.2.3 confirms 'butanehydrazide (PIN)... not butyrohydrazide'
+  acetohydrazide) chain lengths, both implemented directly as their
+  retained names rather than the systematic '-hydrazide' suffix this
+  module otherwise produces -- confirmed directly from the primary text,
+  not inferred from PubChem's own name choice (which happens to agree
+  with the Blue Book here, unlike some other retained-name cases
+  elsewhere in this project). Confirmed via PubChem PUG REST: CID 12229
+  (`NNC=O`) -> "formohydrazide" (mononuclear, no room for a substituent),
+  CID 14039 (`CC(=O)NN`) -> "acetohydrazide", CID 101883 (`ClCC(=O)NN`)
+  -> "2-chloroacetohydrazide" (a substituent on the dinuclear case's
+  terminal carbon is cited as an ordinary prefix, same mechanism as the
+  systematic chain-length cases below). Chain lengths of three carbons
+  and up are unaffected: P-66.3.1.2.3 confirms 'butanehydrazide
+  (PIN)... not butyrohydrazide'
   directly, i.e. the systematic name is the real PIN there, same as this
   module already assumes.
 """
@@ -336,13 +341,27 @@ def _name_acyclic_hydrazide(mol, hydrazide_carbon, excluded, hydroxyls, bonds):
     chain_length = len(chains[0])
 
     if chain_length < 3:
-        raise UnsupportedStructure(
-            "a 1- or 2-carbon hydrazide chain (methane/ethane) has a "
-            "retained name ('formohydrazide'/'acetohydrazide') as its "
-            "actual preferred IUPAC name (P-66.3.1.2.1), not the "
-            "systematic '-hydrazide' suffix this module produces -- out "
-            "of scope for this first pass"
-        )
+        if bonds:
+            raise UnsupportedStructure(
+                "unsaturation alongside a 1- or 2-carbon hydrazide chain "
+                "is not supported"
+            )
+        (chain,) = [c for c in chains if hydrazide_carbon in c]
+        if chain[0] != hydrazide_carbon:
+            chain = list(reversed(chain))
+        if chain_length == 1:
+            # P-66.3.1.2.1: the mononuclear case's retained name
+            # ('formohydrazide') is itself the PIN; there's no room on a
+            # single carbon for any substituent.
+            return "formohydrazide"
+        # P-66.3.1.2.1: the dinuclear case's retained name
+        # ('acetohydrazide') is the PIN, with any substituent on its
+        # terminal carbon cited as an ordinary prefix (e.g.
+        # '2-chloroacetohydrazide', PubChem CID 101883).
+        substituents = _substituents_for_chain(graph, chain, halogens, excluded)
+        grouped = group_substituents(substituents)
+        prefix = format_substituent_prefixes(grouped)
+        return prefix + "acetohydrazide"
 
     eligible = []
     for chain in chains:

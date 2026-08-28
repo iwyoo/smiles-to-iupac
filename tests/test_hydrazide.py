@@ -30,18 +30,23 @@ def test_hydrazide_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_methane_hydrazide_raises():
+def test_formohydrazide():
     # P-66.3.1.2.1: 'formohydrazide' (a retained name), not the
-    # systematic 'methanehydrazide', is the actual PIN here -- out of
-    # scope for this module's systematic-only first pass.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C(=O)NN")
+    # systematic 'methanehydrazide', is the actual PIN here. PubChem CID
+    # 12229.
+    assert smiles_to_iupac("C(=O)NN") == "formohydrazide"
 
 
-def test_ethane_hydrazide_raises():
-    # Same reasoning: 'acetohydrazide' is the PIN, not 'ethanehydrazide'.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)NN")
+def test_acetohydrazide():
+    # 'acetohydrazide' is the PIN, not 'ethanehydrazide'. PubChem CID
+    # 14039.
+    assert smiles_to_iupac("CC(=O)NN") == "acetohydrazide"
+
+
+def test_2_chloroacetohydrazide():
+    # A substituent on acetohydrazide's terminal carbon is cited as an
+    # ordinary prefix. PubChem CID 101883.
+    assert smiles_to_iupac("ClCC(=O)NN") == "2-chloroacetohydrazide"
 
 
 def test_n_substituted_hydrazide_raises():
