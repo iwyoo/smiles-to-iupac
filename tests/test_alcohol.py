@@ -108,9 +108,24 @@ def test_multiple_stereocenters_supported():
     assert smiles_to_iupac("C[C@H](O)[C@H](C)CC") == "(2S,3R)-3-methylpentan-2-ol"
 
 
-def test_stereocenter_with_ez_double_bond_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@H](O)/C=C/C")
+def test_stereocenter_with_ez_double_bond_coexistence():
+    # P-91.3 (tasks/ez-rs-coexistence-naming.md): a specified tetrahedral
+    # stereocenter and a specified C=C double-bond E/Z element are cited
+    # together in one ascending-locant group. PubChem CID 6999919 confirms
+    # the structure (ConnectivitySMILES "CC=CC(C)O"), though PubChem's own
+    # auto-generated name groups by type ("(E,2S)-...") rather than by
+    # ascending locant -- known unreliable for exact PIN citation order
+    # (see also the thioic-acid tautomer-collapse case), so the expected
+    # locant-ascending form here is the primary source's own rule, not
+    # PubChem's.
+    assert smiles_to_iupac("C[C@H](O)/C=C/C") == "(2S,3E)-pent-3-en-2-ol"
+
+
+def test_ez_and_rs_coexistence_matches_bluebook_worked_example():
+    # Exact reproduction of the Blue Book's own P-91.3 worked example,
+    # "(2Z,5R,7E)-nona-2,7-dien-5-ol (PIN)" -- the strongest form of
+    # verification available (primary source, not a derived/guessed case).
+    assert smiles_to_iupac("C/C=C\\C[C@H](O)C/C=C/C") == "(2Z,5R,7E)-nona-2,7-dien-5-ol"
 
 
 def test_partially_specified_stereocenters_raises():
@@ -118,6 +133,15 @@ def test_partially_specified_stereocenters_raises():
     # same as "no stereo specified at all".
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C[C@H](O)C(C)CC")
+
+
+def test_specified_double_bond_with_unspecified_stereocenter_raises():
+    # E/Z specified but the coexisting stereocenter (C2: CH3/OH/H/propenyl,
+    # all different) is left unspecified -- same "ambiguous partial mix"
+    # policy as test_partially_specified_stereocenters_raises, now also
+    # covering a mix across the two different kinds of stereo element.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(O)/C=C/C")
 
 
 def test_ring_stereocenter_raises():
