@@ -44,7 +44,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   'propane-2-sulfinyl', which this module doesn't construct).
 - More than one sulfoxide group, any other heteroatom, any unsaturation,
   any ring, or any halogen substituent.
-- Selenium/tellurium chalcogen analogues (selenoxide/telluroxide).
+- The tellurium chalcogen analogue (telluroxide) -- the selenium analogue
+  is handled separately by `_selenoxide.py`.
 """
 
 from ._common import UnsupportedStructure, non_single_bonds

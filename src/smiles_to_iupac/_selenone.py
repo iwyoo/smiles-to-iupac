@@ -1,24 +1,21 @@
-"""Naming of sulfones (R-SO2-R'), restricted to two acyclic unbranched
-saturated hydrocarbon chains hung off a single sulfonyl sulfur, per the
-IUPAC 2013 Recommendations ("the Blue Book"):
+"""Naming of selenones (R-Se(=O)(=O)-R'), the selenium analogue of a
+sulfone, restricted to two acyclic unbranched saturated hydrocarbon chains
+hung off a single selenonyl selenium, per the IUPAC 2013 Recommendations
+("the Blue Book"):
 
 - P-63.6 (Chapter P-6, https://iupac.qmul.ac.uk/BlueBook/PDF/P6.pdf): a
-  sulfone's preferred IUPAC name is formed the same way as a sulfoxide's
-  (see `_sulfoxide.py`'s module docstring, which this mirrors exactly) --
-  substitutively, prefixing the acyl group R'-SO2- (built from the
-  corresponding sulfonic acid name, `_sulfonic_acid.py`'s own
-  'methanesulfonic acid' pattern, e.g. R'=ethyl -> 'ethanesulfonyl') to the
-  parent hydride name for R.
+  selenone's preferred IUPAC name is formed the same way as a selenoxide's
+  (see `_selenoxide.py`'s module docstring, which this mirrors exactly) --
+  substitutively, prefixing the acyl group R'-Se(=O)(=O)- (built from the
+  corresponding selenonic acid name, e.g. R'=ethyl -> 'ethaneselenonyl') to
+  the parent hydride name for R.
 - Confirmed via the Blue Book's own worked example for this exact acyclic
-  R-SO2-R' shape: '(ethanesulfonyl)ethane (PIN)' for diethyl sulfone
-  (R=R'=ethyl) -- including the no-locant two-carbon case, see
-  `_sulfoxide.py`'s docstring for why.
+  R-Se(=O)(=O)-R' shape: '7-(benzeneselenonyl)quinoline (PIN)'.
 
 Explicitly out of scope (raise `UnsupportedStructure`): same list as
-`_sulfoxide.py` -- a branched R or R', more than one sulfone group, any
+`_selenoxide.py` -- a branched R or R', more than one selenone group, any
 other heteroatom, any unsaturation, any ring, any halogen substituent, and
-the tellurium chalcogen analogue (tellurone) -- the selenium analogue is
-handled separately by `_selenone.py`.
+the tellurium analogue (tellurone).
 """
 
 from ._common import UnsupportedStructure, non_single_bonds
@@ -29,7 +26,7 @@ def _unbranched_chain_length(mol, root_idx, exclude_idx):
     """Length of the straight, unbranched, saturated all-carbon chain
     starting at `root_idx` and walking away from `exclude_idx` -- or None if
     the chain branches, rings, or leaves carbon at any point. Mirrors
-    `_sulfoxide.py`'s identical helper."""
+    `_selenoxide.py`'s identical helper."""
     length = 0
     previous = exclude_idx
     current = root_idx
@@ -46,12 +43,12 @@ def _unbranched_chain_length(mol, root_idx, exclude_idx):
         previous, current = current, neighbors[0]
 
 
-def _sulfonyl_sulfur_atoms(mol):
-    """Sulfur atoms shaped like a sulfone group: bonded to exactly two
+def _selenonyl_selenium_atoms(mol):
+    """Selenium atoms shaped like a selenone group: bonded to exactly two
     carbons and two double-bonded (terminal) oxygens (degree 4)."""
     matches = []
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != 16 or atom.GetDegree() != 4:
+        if atom.GetAtomicNum() != 34 or atom.GetDegree() != 4:
             continue
         neighbors = atom.GetNeighbors()
         carbons = [n for n in neighbors if n.GetAtomicNum() == 6]
@@ -67,17 +64,17 @@ def _sulfonyl_sulfur_atoms(mol):
     return matches
 
 
-def has_sulfone_shape(mol) -> bool:
-    return bool(_sulfonyl_sulfur_atoms(mol))
+def has_selenone_shape(mol) -> bool:
+    return bool(_selenonyl_selenium_atoms(mol))
 
 
-def name_sulfone(mol) -> str:
+def name_selenone(mol) -> str:
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() not in (6, 8, 16):
+        if atom.GetAtomicNum() not in (6, 8, 34):
             raise UnsupportedStructure(
-                "heteroatoms other than the sulfone's own sulfur and "
+                "heteroatoms other than the selenone's own selenium and "
                 "oxygens are not supported yet (P-63.6 is restricted to a "
-                "plain acyclic sulfone here)"
+                "plain acyclic selenone here)"
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
@@ -86,13 +83,13 @@ def name_sulfone(mol) -> str:
                 "aromatic rings are out of scope for this module (see the "
                 "separate aromatic-ring module)"
             )
-    sulfurs = _sulfonyl_sulfur_atoms(mol)
-    if len(sulfurs) != 1:
-        raise UnsupportedStructure("more than one sulfone group is out of scope for this module")
-    (sulfur,) = sulfurs
-    sulfonyl_atom_idxs = {sulfur.GetIdx()} | {n.GetIdx() for n in sulfur.GetNeighbors() if n.GetAtomicNum() == 8}
+    seleniums = _selenonyl_selenium_atoms(mol)
+    if len(seleniums) != 1:
+        raise UnsupportedStructure("more than one selenone group is out of scope for this module")
+    (selenium,) = seleniums
+    selenonyl_atom_idxs = {selenium.GetIdx()} | {n.GetIdx() for n in selenium.GetNeighbors() if n.GetAtomicNum() == 8}
     if any(
-        a not in sulfonyl_atom_idxs and b not in sulfonyl_atom_idxs for a, b, _ in non_single_bonds(mol)
+        a not in selenonyl_atom_idxs and b not in selenonyl_atom_idxs for a, b, _ in non_single_bonds(mol)
     ):
         raise UnsupportedStructure(
             "unsaturation is not supported by this module (P-63.6's scope "
@@ -101,11 +98,11 @@ def name_sulfone(mol) -> str:
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure("rings are not supported by this module yet")
 
-    s_idx = sulfur.GetIdx()
-    c1_idx, c2_idx = (n.GetIdx() for n in sulfur.GetNeighbors() if n.GetAtomicNum() == 6)
+    se_idx = selenium.GetIdx()
+    c1_idx, c2_idx = (n.GetIdx() for n in selenium.GetNeighbors() if n.GetAtomicNum() == 6)
 
-    len1 = _unbranched_chain_length(mol, c1_idx, s_idx)
-    len2 = _unbranched_chain_length(mol, c2_idx, s_idx)
+    len1 = _unbranched_chain_length(mol, c1_idx, se_idx)
+    len2 = _unbranched_chain_length(mol, c2_idx, se_idx)
     if len1 is None or len2 is None:
         raise UnsupportedStructure(
             "a branched R or R' group is out of scope for this module (see "
@@ -114,7 +111,7 @@ def name_sulfone(mol) -> str:
 
     parent_len, acyl_len = (len1, len2) if len1 >= len2 else (len2, len1)
 
-    acyl_prefix = f"({alkane_name(acyl_len)}sulfonyl)"
+    acyl_prefix = f"({alkane_name(acyl_len)}selenonyl)"
     parent = alkane_name(parent_len)
     if parent_len <= 2:
         return acyl_prefix + parent
