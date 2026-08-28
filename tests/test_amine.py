@@ -19,6 +19,11 @@ from smiles_to_iupac._common import UnsupportedStructure
         # Diamine: multiplying prefix + full locant set, cross-checked
         # against PubChem.
         ("NCCN", "ethane-1,2-diamine"),
+        # P-16.3.3 multiplying-prefix elision: 'tetra' elides its terminal
+        # 'a' before the vowel-initial 'amine' suffix ('tetramine', not
+        # 'tetraamine'). Cross-checked against PubChem PUG REST IUPACName,
+        # CID 6395580.
+        ("NCC(N)C(N)CN", "butane-1,2,3,4-tetramine"),
         # Monocyclic saturated ring, single -NH2: P-14.3.3 locant omission
         # (like 'methylcyclohexane') applies to the suffix too. Cross-checked
         # against PubChem.

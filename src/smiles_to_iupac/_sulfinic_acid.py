@@ -145,11 +145,17 @@ def _reject_enesulfinic_carbon(graph, so2h_carbon, bonds):
 
 
 def _multiplied_word(count, base):
+    """P-16.3.3: a multiplying prefix's terminal 'a' is elided before a
+    suffix beginning with 'a' or 'o' (see `_common.py`'s `multiplied_word`
+    docstring for the confirmed examples this mirrors)."""
     if count == 0:
         return ""
     if count == 1:
         return base
-    return numerical_term(count) + base
+    prefix = numerical_term(count)
+    if prefix.endswith("a") and base[:1] in "ao":
+        prefix = prefix[:-1]
+    return prefix + base
 
 
 def _suffix_body(ene_locants, yne_locants, so2h_locant):

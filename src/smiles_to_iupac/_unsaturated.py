@@ -171,12 +171,17 @@ def _bond_locants(chain, bonds):
 def _multiplied_word(count, base):
     """P-31.1.1.2: 'ene'/'yne' with a multiplying prefix ('di', 'tri', ...)
     for two or more bonds of the same kind; bare 'ene'/'yne' for exactly
-    one; '' for none."""
+    one; '' for none. P-16.3.3: a multiplying prefix's terminal 'a' is
+    elided before a suffix beginning with 'a' or 'o' (see `_common.py`'s
+    `multiplied_word` docstring for the confirmed examples this mirrors)."""
     if count == 0:
         return ""
     if count == 1:
         return base
-    return numerical_term(count) + base
+    prefix = numerical_term(count)
+    if prefix.endswith("a") and base[:1] in "ao":
+        prefix = prefix[:-1]
+    return prefix + base
 
 
 def _unsaturation_suffix(ene_locants, yne_locants):

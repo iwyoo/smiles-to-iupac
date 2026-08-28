@@ -19,6 +19,15 @@ from smiles_to_iupac._common import UnsupportedStructure
         # cross-checked against PubChem (glycol/glycerol's systematic names).
         ("OCCO", "ethane-1,2-diol"),
         ("OCC(O)CO", "propane-1,2,3-triol"),
+        # P-16.3.3 multiplying-prefix elision: 'tetra'/'penta'/'hexa'
+        # elide their terminal 'a' before the vowel-initial 'ol' suffix
+        # ('tetrol'/'pentol'/'hexol', not 'tetraol'/'pentaol'/'hexaol').
+        # Cross-checked against PubChem PUG REST IUPACName: CID 8998
+        # (butane-1,2,3,4-tetrol), CID 827 (pentane-1,2,3,4,5-pentol),
+        # CID 453 (hexane-1,2,3,4,5,6-hexol).
+        ("OCC(O)C(O)CO", "butane-1,2,3,4-tetrol"),
+        ("OCC(O)C(O)C(O)CO", "pentane-1,2,3,4,5-pentol"),
+        ("OCC(O)C(O)C(O)C(O)CO", "hexane-1,2,3,4,5,6-hexol"),
         # Monocyclic saturated ring, single -OH: P-14.3.3 locant omission
         # (like 'methylcyclohexane') applies to the suffix too. Cross-checked
         # against PubChem.
