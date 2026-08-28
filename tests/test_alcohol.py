@@ -121,8 +121,35 @@ def test_partially_specified_stereocenters_raises():
 
 
 def test_ring_stereocenter_raises():
+    # only one of the two ring stereocenters is specified (methyl carbon
+    # left unmarked) -- a genuinely ambiguous partial specification, same
+    # class of rejection as test_partially_specified_stereocenters_raises
+    # above, not "ring stereocenters are unsupported" (see the two
+    # positive ring tests below for the fully-specified case).
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O[C@H]1CCCCC1C")
+
+
+def test_ring_stereocenters_supported():
+    # trans-2-methylcyclohexan-1-ol, both ring stereocenters specified --
+    # PubChem CID 642632's own auto-generated name is
+    # "trans-(1S,2S)-2-methylcyclohexan-1-ol"; the "trans-" is PubChem's
+    # own redundant relative descriptor alongside R/S and is dropped here,
+    # matching this project's existing acyclic convention of citing R/S
+    # alone (see tasks/multi-stereocenter-naming.md's precedent).
+    assert smiles_to_iupac("O[C@H]1CCCC[C@@H]1C") == "(1S,2S)-2-methylcyclohexan-1-ol"
+
+
+def test_ring_stereocenters_other_diastereomer_supported():
+    # cis-2-methylcyclohexan-1-ol, the other diastereomer -- PubChem CID
+    # 24006's own auto-generated name is "cis-(1R,2S)-2-methylcyclohexan-1-ol"
+    # (again dropping the redundant "cis-").
+    assert smiles_to_iupac("O[C@@H]1CCCC[C@@H]1C") == "(1R,2S)-2-methylcyclohexan-1-ol"
+
+
+def test_polycyclic_ring_stereocenter_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O[C@H]1CCCC2CCCC12")
 
 
 def test_three_stereocenters_supported():
