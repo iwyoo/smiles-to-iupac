@@ -117,22 +117,25 @@ def test_unsaturated_not_all_multiple_bonds_on_one_chain_raises():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        # A single, specified C=C double bond (P-93, tasks/ez-double-bond-
-        # naming.md, 2026-08-25): PubChem CID 62695/5287573 give these
-        # exact names for the two but-2-ene geometric isomers.
-        ("C/C=C/C", "(E)-but-2-ene"),
-        ("C/C=C\\C", "(Z)-but-2-ene"),
-        # Combined with a substituent prefix: cross-checked against
-        # PubChem CID 5364761/5463022. Note this project's own SMILES for
-        # the "E" case canonicalizes to PubChem's CID 5364761 structure
-        # (verified via Chem.CanonSmiles), not CID 5463022 as an earlier,
-        # unverified guess in the task file's own background section
-        # assumed -- CIP priority (Cl outranking CH3) flips which double-
-        # bond drawing is E vs Z relative to naive left-right geometry, so
-        # this is exactly the kind of case this module deliberately
-        # delegates to RDKit's rdCIPLabeler rather than guessing.
-        ("C/C(Cl)=C\\C", "(E)-2-chlorobut-2-ene"),
-        ("C/C(Cl)=C/C", "(Z)-2-chlorobut-2-ene"),
+        # A single, specified C=C double bond (P-91.3/P-93): the primary
+        # source's own worked example is "(2Z)-but-2-ene (PIN)" -- P-91.3
+        # requires a locant before every stereodescriptor in an acyclic
+        # name, even with only one double bond in the molecule (the bare,
+        # locant-less "(Z)-" form is reserved for specific ring systems
+        # per P-91.2.2, not chains).
+        ("C/C=C/C", "(2E)-but-2-ene"),
+        ("C/C=C\\C", "(2Z)-but-2-ene"),
+        # Combined with a substituent prefix. Note this project's own
+        # SMILES for the "E" case canonicalizes to PubChem's CID 5364761
+        # structure (verified via Chem.CanonSmiles), not CID 5463022 as an
+        # earlier, unverified guess in the task file's own background
+        # section assumed -- CIP priority (Cl outranking CH3) flips which
+        # double-bond drawing is E vs Z relative to naive left-right
+        # geometry, so this is exactly the kind of case this module
+        # deliberately delegates to RDKit's rdCIPLabeler rather than
+        # guessing.
+        ("C/C(Cl)=C\\C", "(2E)-2-chlorobut-2-ene"),
+        ("C/C(Cl)=C/C", "(2Z)-2-chlorobut-2-ene"),
     ],
 )
 def test_smiles_to_iupac_ez_double_bond(smiles, expected):
