@@ -47,6 +47,7 @@ from ._ketone import name_ketone
 from ._ketone_amide import has_ketone_amide_shape, name_ketone_amide
 from ._ketone_ester import has_ketone_ester_shape, name_ketone_ester
 from ._nitrile import has_nitrile_shape, name_nitrile
+from ._nitro import has_nitro_shape, name_nitro
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._cyclophane import has_cyclophane_name, name_cyclophane
 from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
@@ -270,6 +271,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # reasoning as the sulfinic acid check above.
     if has_sulfoxide_shape(mol):
         return name_sulfoxide(mol)
+    # A nitro group (-NO2, P-61.5.1) has its own nitrogen and two oxygens
+    # neither the ether/carbonyl/alcohol checks below nor the plain-amine
+    # branch further down expect, so it must be routed before both -- a
+    # nitro-bearing molecule always has an oxygen atom, so it would
+    # otherwise be swallowed by the "any O atom" branch's unconditional
+    # `name_alcohol` fallback and never even reach the nitrogen branch.
+    if has_nitro_shape(mol):
+        return name_nitro(mol)
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
         # Hydroxylamine (H2N-OH, P-68.3.1.1.1) and its O-substituted
