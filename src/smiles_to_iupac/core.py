@@ -48,6 +48,8 @@ from ._ketone_amide import has_ketone_amide_shape, name_ketone_amide
 from ._ketone_ester import has_ketone_ester_shape, name_ketone_ester
 from ._nitrile import has_nitrile_shape, name_nitrile
 from ._azide import has_azide_shape, name_azide
+from ._isocyanate import has_isocyanate_shape, name_isocyanate
+from ._isocyanide import has_isocyanide_shape, name_isocyanide
 from ._nitro import has_nitro_shape, name_nitro
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._cyclophane import has_cyclophane_name, name_cyclophane
@@ -280,6 +282,10 @@ def smiles_to_iupac(smiles: str) -> str:
     # `name_alcohol` fallback and never even reach the nitrogen branch.
     if has_nitro_shape(mol):
         return name_nitro(mol)
+    # An isocyanate group (-N=C=O, P-61.8) has the same "own oxygen" issue
+    # as nitro above, so it must be routed here for the same reason.
+    if has_isocyanate_shape(mol):
+        return name_isocyanate(mol)
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
         # Hydroxylamine (H2N-OH, P-68.3.1.1.1) and its O-substituted
@@ -404,6 +410,11 @@ def smiles_to_iupac(smiles: str) -> str:
         # below.
         if has_azide_shape(mol):
             return name_azide(mol)
+        # An isocyanide group (-NC, P-61.9) similarly has no oxygen and a
+        # nitrogen shape (triple-bonded to a carbon) name_amine doesn't
+        # recognize -- must be routed here for the same reason.
+        if has_isocyanide_shape(mol):
+            return name_isocyanide(mol)
         # A nitrile nitrogen (-C#N, P-66.5) has no oxygen, so it reaches this
         # branch alongside plain amines; it must be routed here before
         # name_amine, which doesn't recognize a triple-bonded nitrogen at all.
