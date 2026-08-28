@@ -361,3 +361,62 @@ def specified_double_bond_stereo(mol):
             )
         labels.append((bond_idx, bond.GetProp("_CIPCode")))
     return labels
+
+
+def specified_stereo_elements(mol):
+    """Like `specified_stereocenters`/`specified_double_bond_stereo`, but
+    allows a specified tetrahedral stereocenter and a specified C=C
+    double-bond E/Z element to coexist in the same molecule
+    (`tasks/ez-rs-coexistence-naming.md`, 2026-08-29): P-91.3's own worked
+    example, '(2Z,5R,7E)-nona-2,7-dien-5-ol (PIN)', cites both kinds
+    together in one locant-ascending group, confirmed directly from the
+    primary source text.
+
+    Returns None if there is no specified stereo element at all (same
+    unspecified-vs-rejected policy as the two functions above). Otherwise
+    returns a list of ("atom" or "bond", atom_or_bond_idx, "R"/"S"/"E"/"Z")
+    triples, one per specified element, not yet locant-sorted -- the
+    caller only learns each element's locant once its own chain numbering
+    is fixed. Raises `UnsupportedStructure` for an unspecified element
+    mixed in, a pseudoasymmetric (lowercase r/s) stereocenter, or a CIP
+    label RDKit couldn't determine."""
+    elements = Chem.FindPotentialStereo(mol)
+    specified = [e for e in elements if e.specified == Chem.StereoSpecified.Specified]
+    if not specified:
+        return None
+    if len(specified) != len(elements):
+        raise UnsupportedStructure(
+            "a specified stereo element alongside an unspecified one is "
+            "not supported yet (see P-92/P-93)"
+        )
+    rdCIPLabeler.AssignCIPLabels(mol)
+    labels = []
+    for element in specified:
+        if element.type == Chem.StereoType.Atom_Tetrahedral:
+            atom = mol.GetAtomWithIdx(element.centeredOn)
+            if not atom.HasProp("_CIPCode"):
+                raise UnsupportedStructure(
+                    "could not determine a CIP R/S label for this stereocenter"
+                )
+            code = atom.GetProp("_CIPCode")
+            if code not in ("R", "S"):
+                raise UnsupportedStructure(
+                    "a pseudoasymmetric stereocenter (lowercase 'r'/'s') is "
+                    "not supported yet -- only uppercase R/S stereocenters "
+                    "are in scope"
+                )
+            labels.append(("atom", element.centeredOn, code))
+        elif element.type == Chem.StereoType.Bond_Double:
+            bond = mol.GetBondWithIdx(element.centeredOn)
+            if not bond.HasProp("_CIPCode"):
+                raise UnsupportedStructure(
+                    "could not determine a CIP E/Z label for this double bond"
+                )
+            labels.append(("bond", element.centeredOn, bond.GetProp("_CIPCode")))
+        else:
+            raise UnsupportedStructure(
+                "stereochemistry beyond a tetrahedral R/S stereocenter or a "
+                "C=C double-bond E/Z element is not supported yet (see "
+                "P-92/P-93)"
+            )
+    return labels

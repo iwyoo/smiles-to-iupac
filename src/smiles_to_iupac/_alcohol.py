@@ -57,11 +57,17 @@ Recommendations ("the Blue Book"):
   every specified stereocenter must lie on the ring itself, e.g.
   '(1S,2S)-2-methylcyclohexan-1-ol' (PubChem CID 642632; PubChem's own
   redundant relative "trans-"/"cis-" prefix is dropped, matching this
-  project's existing acyclic convention of citing R/S alone). Any stereo
-  element beyond this (a specified stereocenter mixed with an unspecified
-  one, any E/Z double bond, a stereocenter on a substituent branch rather
-  than the chain/ring itself, or any stereocenter at all on a polycyclic/
-  spiro skeleton or alongside a ring-vs-chain hydroxyl comparison) raises
+  project's existing acyclic convention of citing R/S alone). As of
+  `tasks/ez-rs-coexistence-naming.md` (2026-08-29), an acyclic chain's
+  specified tetrahedral stereocenter(s) may also coexist with specified
+  C=C double-bond E/Z element(s), cited together in the same
+  ascending-locant group (`_common.specified_stereo_elements`), e.g.
+  '(2Z,5R,7E)-nona-2,7-dien-5-ol' (a Blue Book worked example, P-91.3).
+  Any stereo element beyond this (a specified element mixed with an
+  unspecified one, a stereocenter or E/Z double bond on a substituent
+  branch rather than the chain itself, an E/Z double bond coexisting with
+  a ring, or any stereocenter at all on a polycyclic/spiro skeleton or
+  alongside a ring-vs-chain hydroxyl comparison) raises
   `UnsupportedStructure` explicitly.
 
 - P-33.2.1, Table 3.3 (Chapter P-3, https://iupac.qmul.ac.uk/BlueBook/PDF/P3.pdf):
@@ -187,6 +193,7 @@ from ._common import (
     non_single_bonds,
     path_between,
     ring_cycle,
+    specified_stereo_elements,
     specified_stereocenters,
 )
 from ._numerals import alkane_name, alkyl_name, numerical_term
@@ -512,13 +519,17 @@ def _substituents_for_chain(graph, chain, halogens, hydroxyls):
 
 
 def _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo=None, ethers=None):
-    """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
-    `specified_stereocenters` -- if given, only chain candidates that
-    include *every* stereocenter are eligible (P-92: a stereocenter on a
-    substituent branch rather than the principal chain is out of scope,
-    see module docstring), and the winning candidate's own locants for
-    those atoms are used to format a "(<locant><R/S>,...)-" prefix onto
-    the name, ascending locant order (P-91.3).
+    """`stereo`: None, or a list of ("atom"/"bond", idx, "R"/"S"/"E"/"Z")
+    from `specified_stereo_elements` -- if given, only chain candidates
+    that include *every* tetrahedral stereocenter are eligible (P-92: a
+    stereocenter on a substituent branch rather than the principal chain
+    is out of scope, see module docstring; a double-bond E/Z element's
+    atoms are already required to lie on the chain via `bonds`, so no
+    separate check is needed for those), and the winning candidate's own
+    locants for each element are used to format a
+    "(<locant><R/S/E/Z>,...)-" prefix onto the name, ascending locant
+    order (P-91.3, including when both kinds coexist --
+    tasks/ez-rs-coexistence-naming.md).
 
     `ethers`: optional {ether_o_idx: alkoxy_name} (see `_ether_oxygens`)
     -- merged into `halogens` so `name_branch` resolves each ether oxygen
@@ -529,7 +540,7 @@ def _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo=None, ethers=None):
     halogens = {**halogen_substituents(mol), **(ethers or {})}
     chains = _longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
-    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
+    stereo_atoms = [idx for kind, idx, _ in stereo if kind == "atom"] if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -572,8 +583,16 @@ def _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo=None, ethers=None):
                 best_key, best_name, best_position_of = key, name, position_of
 
     if stereo is not None:
-        labels = sorted((best_position_of[atom], r_or_s) for atom, r_or_s in stereo)
-        prefix = ",".join(f"{locant}{r_or_s}" for locant, r_or_s in labels)
+        labels = []
+        for kind, idx, code in stereo:
+            if kind == "atom":
+                locant = best_position_of[idx]
+            else:
+                bond = mol.GetBondWithIdx(idx)
+                locant = min(best_position_of[bond.GetBeginAtomIdx()], best_position_of[bond.GetEndAtomIdx()])
+            labels.append((locant, code))
+        labels.sort()
+        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
         return f"({prefix})-{best_name}"
     return best_name
 
@@ -835,12 +854,20 @@ def name_alcohol(mol) -> str:
             "supported (see P-31.1.1.1)"
         )
     _reject_enol_carbons(graph, hydroxyls, bonds)
-    stereo = specified_stereocenters(mol)
 
     ring_info = mol.GetRingInfo()
     num_rings = ring_info.NumRings()
     if num_rings == 0:
+        # A ring is never involved past this point, so a specified C=C
+        # double-bond E/Z element may coexist with a specified tetrahedral
+        # stereocenter (P-91.3, tasks/ez-rs-coexistence-naming.md) --
+        # every other branch below keeps using `specified_stereocenters`,
+        # which still rejects that combination (rings never have both:
+        # unsaturated rings are rejected outright just below).
+        stereo = specified_stereo_elements(mol)
         return _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo, ethers)
+
+    stereo = specified_stereocenters(mol)
     if ethers:
         raise UnsupportedStructure(
             "an alkoxy ether coexisting with a cyclic alcohol structure "
