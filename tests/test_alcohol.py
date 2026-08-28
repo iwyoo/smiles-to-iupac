@@ -231,13 +231,18 @@ def test_chain_hydroxyl_count_exceeds_ring_with_no_ring_hydroxyl_chain():
     assert smiles_to_iupac("OC1CCC(CC)CC1") == "4-ethylcyclohexan-1-ol"
 
 
-def test_ring_with_two_hydroxyls_outcompeted_by_chain_raises():
-    # the ring has two of its own -OH's, but the chain has three -- still
-    # unsupported, since `name_branch`'s ring-substituent machinery only
-    # expresses a single ring hydroxyl (see tasks/pin-selection-and-parent-
-    # choice.md's remaining scope).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1C(O)CCC(C(O)C(O)CO)C1")
+def test_ring_with_two_hydroxyls_outcompeted_by_chain():
+    # The ring has two of its own -OH's, but the chain has three, so the
+    # chain is the senior parent and the ring is cited as a
+    # "(dihydroxycyclohexyl)" substituent (tasks/ring-vs-chain-alcohol-multi-oh.md,
+    # 2026-08-28). No PubChem-listed compound was found for this exact
+    # structure, so this is a reviewed (eyeballed), not independently
+    # verified, result -- a generalization of the already-verified
+    # single-ring-hydroxyl mechanism (see `_substituents.py`'s
+    # `_ring_substituent_with_hydroxyls` docstring). Ring locants 3,4 are
+    # hand-verified as the lower of the two possible directions (the
+    # alternative gives 4,5).
+    assert smiles_to_iupac("OC1C(O)CCC(C(O)C(O)CO)C1") == "1-(3,4-dihydroxycyclohexyl)propane-1,2,3-triol"
 
 
 def test_substituted_ring_with_chain_hydroxyl_raises():
