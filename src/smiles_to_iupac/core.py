@@ -72,6 +72,8 @@ from ._spiro_heteroatom import (
 from ._sulfide import has_sulfide_shape, name_sulfide
 from ._sulfinic_acid import has_sulfinic_acid_shape, name_sulfinic_acid
 from ._sulfonic_acid import has_sulfonic_acid_shape, name_sulfonic_acid
+from ._sulfone import has_sulfone_shape, name_sulfone
+from ._sulfoxide import has_sulfoxide_shape, name_sulfoxide
 from ._thiol import has_thiol_shape, name_thiol
 from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
@@ -256,6 +258,18 @@ def smiles_to_iupac(smiles: str) -> str:
     # before the plain "any O atom" branch.
     if has_sulfinic_acid_shape(mol):
         return name_sulfinic_acid(mol)
+    # A sulfone (-SO2-, P-63.6) has two oxygens on its own sulfur, just like
+    # a sulfinic/sulfonic acid's cluster above, so it must be routed here for
+    # the same reason -- before it, since a sulfone's sulfur has two carbon
+    # neighbors instead of the acid's hydroxyl, which would otherwise never
+    # match `_sulfonic_acid.py`'s own shape check anyway, but routing it
+    # alongside its acid relatives keeps this family together.
+    if has_sulfone_shape(mol):
+        return name_sulfone(mol)
+    # A sulfoxide (-S(=O)-, P-63.6) has one oxygen on its own sulfur, same
+    # reasoning as the sulfinic acid check above.
+    if has_sulfoxide_shape(mol):
+        return name_sulfoxide(mol)
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
         # Hydroxylamine (H2N-OH, P-68.3.1.1.1) and its O-substituted
