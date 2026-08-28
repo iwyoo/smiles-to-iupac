@@ -25,16 +25,18 @@ Book"):
 
 Scope, deliberately narrow (first pass at this functional group, mirroring
 how `_amide.py`/`_nitrile.py`/etc. each started in isolation before any
-cross-suffix seniority work): one or more -SH groups on an acyclic chain
-(P-63.1.1's dithiol/trithiol/... multiplication, mirroring `_alcohol.py`'s
-polyol support), with no other heteroatom (in particular no -OH or amine
+cross-suffix seniority work): one or more -SH groups (P-63.1.1's
+dithiol/trithiol/... multiplication) on an acyclic chain or on a single
+saturated carbon ring, mirroring `_alcohol.py`'s polyol and monocyclic
+support, with no other heteroatom (in particular no -OH or amine
 nitrogen) anywhere in the molecule -- Table 3.3's alcohol/thiol/amine
 seniority coexistence is future work, tracked as a separate roadmap item,
 same as the analogous `multi-carbonyl-seniority.md` split for aldehyde/
 ketone. Explicitly out of scope (raise `UnsupportedStructure`):
-monocyclic/polycyclic/spiro rings, a sulfide (-S- ether-analogue) or any
-other sulfur-oxidation-state group (sulfonic acid, etc.), and any oxygen
-or nitrogen atom at all.
+polycyclic/spiro/unsaturated rings, an -SH on a substituent branch off an
+otherwise-unsubstituted ring, a sulfide (-S- ether-analogue) or any other
+sulfur-oxidation-state group (sulfonic acid, etc.), and any oxygen or
+nitrogen atom at all.
 """
 
 from rdkit import Chem
@@ -284,6 +286,78 @@ def _substituents_for_chain(graph, chain, halogens, thiols):
     return substituents
 
 
+def _ring_cycle(graph, ring_atoms):
+    ring_set = set(ring_atoms)
+    order = [ring_atoms[0]]
+    previous = None
+    while len(order) < len(ring_atoms):
+        current = order[-1]
+        next_atom = next(n for n in graph[current] if n in ring_set and n != previous)
+        order.append(next_atom)
+        previous = current
+    return order
+
+
+def _substituents_for_ring(graph, ring_order, halogens, thiols):
+    ring_set = set(ring_order)
+    substituents = {}
+    for position, atom in enumerate(ring_order, start=1):
+        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in thiols]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+    return substituents
+
+
+def _ring_name_from_substituents(ring_size, sh_locants, grouped):
+    stem = "cyclo" + alkane_name(ring_size)
+    total_subs = sum(len(info["locants"]) for info in grouped.values())
+    thiol_word = _multiplied_word(len(sh_locants), "thiol")
+
+    if total_subs == 0 and len(sh_locants) == 1:
+        # P-14.3.3: the sole substituent on an otherwise unsubstituted ring
+        # has no locant to distinguish, e.g. 'cyclohexanethiol'.
+        return stem + thiol_word
+
+    prefix = format_substituent_prefixes(grouped)
+    loc_str = ",".join(str(loc) for loc in sorted(sh_locants))
+    return f"{prefix}{stem}-{loc_str}-{thiol_word}"
+
+
+def _ring_candidate_key(ring_size, sh_locants, substituents):
+    grouped = _group(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    sh_locant_set = lowest_locant_set(sh_locants)
+    name = _ring_name_from_substituents(ring_size, sh_locants, grouped)
+    return sh_locant_set, locant_set, citation_locants, name
+
+
+def _name_cyclic_thiol(mol, thiols):
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_info = mol.GetRingInfo()
+    ring_atoms = list(ring_info.AtomRings()[0])
+    ring_order = _ring_cycle(graph, ring_atoms)
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            sh_locants = _sh_locants(position_of, thiols, graph)
+            substituents = _substituents_for_ring(graph, candidate, halogens, thiols)
+            key = _ring_candidate_key(ring_size, sh_locants, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def name_thiol(mol) -> str:
     thiols = _validate_and_collect_thiols(mol)
     graph = adjacency(mol)
@@ -296,11 +370,27 @@ def name_thiol(mol) -> str:
         )
     _reject_enethiol_carbons(graph, thiols, bonds)
 
-    if mol.GetRingInfo().NumRings() != 0:
+    ring_info = mol.GetRingInfo()
+    num_rings = ring_info.NumRings()
+    if num_rings > 1:
         raise UnsupportedStructure(
-            "cyclic thiols are not supported yet (this module only "
-            "handles acyclic chains)"
+            "polycyclic/spiro thiols are not supported yet (this module "
+            "only handles acyclic chains and a single saturated ring)"
         )
+    if num_rings == 1:
+        if bonds:
+            raise UnsupportedStructure(
+                "unsaturated rings are not supported yet (see P-31.1.3, "
+                "cycloalkenes and cycloalkynes)"
+            )
+        ring_atoms = set(ring_info.AtomRings()[0])
+        ring_thiols = {s for s in thiols if next(iter(graph[s])) in ring_atoms}
+        if ring_thiols != thiols:
+            raise UnsupportedStructure(
+                "a thiol on a substituent branch chain rather than the "
+                "ring itself is not supported yet"
+            )
+        return _name_cyclic_thiol(mol, thiols)
 
     halogens = halogen_substituents(mol)
     chains = _longest_chains(carbon_adjacency(mol))
