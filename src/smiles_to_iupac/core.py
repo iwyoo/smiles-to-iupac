@@ -31,6 +31,7 @@ from ._bridged_aromatic import (
 from ._borane import has_simple_borane_shape, name_simple_borane
 from ._branched_fused_aromatic import has_retained_branched_fused_name, name_retained_branched_fused
 from ._carboxylate import has_carboxylate_shape, name_carboxylate
+from ._thioate import has_thioate_shape, name_thioate
 from ._carboxylic_acid import has_carboxylic_acid_shape, name_carboxylic_acid
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
@@ -469,6 +470,12 @@ def smiles_to_iupac(smiles: str) -> str:
         # by every other module here, none of which expect a charged atom.
         if has_carboxylate_shape(mol):
             return name_carboxylate(mol)
+        # A thioate anion's carbon (R-CO-S(-)/R-CS-O(-), P-72.2.2.2.1.1) is
+        # the chalcogen analogue of a carboxylate anion -- same reasoning,
+        # routed here before the thioic-acid/carboxylic-acid checks below,
+        # neither of which expect a charged chalcogen.
+        if has_thioate_shape(mol):
+            return name_thioate(mol)
         # A carbon bearing both a carbonyl oxygen and a second, carbon-bonded
         # oxygen is an ester (-COO-), which must be routed before the
         # carboxylic-acid/aldehyde/ketone checks below: its carbonyl half
