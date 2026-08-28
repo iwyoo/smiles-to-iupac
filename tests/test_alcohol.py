@@ -32,6 +32,14 @@ from smiles_to_iupac._common import UnsupportedStructure
         # (like 'methylcyclohexane') applies to the suffix too. Cross-checked
         # against PubChem.
         ("OC1CCCCC1", "cyclohexanol"),
+        # myo-inositol (a cyclitol, P-104): its PIN is not a trivial name
+        # but the fully-substitutive "cyclohexane-1,2,3,4,5,6-hexol" --
+        # already reachable via this module's existing ring-polyol support
+        # plus the P-16.3.3 elision fix above (this used to render as the
+        # one-letter-wrong "-hexaol"). Cross-checked against PubChem CID
+        # 892 (stereo-free skeleton, since full stereo descriptors for six
+        # ring stereocenters are still out of scope).
+        ("OC1C(O)C(O)C(O)C(O)C1O", "cyclohexane-1,2,3,4,5,6-hexol"),
         # -OH combined with existing unsaturation support, on carbons that
         # don't touch the double bond (avoiding the enol guard). Cross-
         # checked against PubChem: the -OH gets locant 1 (suffix priority,
