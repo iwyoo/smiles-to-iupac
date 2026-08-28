@@ -25,15 +25,16 @@ Book"):
 
 Scope, deliberately narrow (first pass at this functional group, mirroring
 how `_amide.py`/`_nitrile.py`/etc. each started in isolation before any
-cross-suffix seniority work): only a single -SH on an acyclic chain, with no
-other heteroatom (in particular no -OH or amine nitrogen) anywhere in the
-molecule -- Table 3.3's alcohol/thiol/amine seniority coexistence is future
-work, tracked as a separate roadmap item, same as the analogous
-`multi-carbonyl-seniority.md` split for aldehyde/ketone. Explicitly out of
-scope (raise `UnsupportedStructure`): monocyclic/polycyclic/spiro rings,
-two or more -SH groups, a sulfide (-S- ether-analogue) or any other
-sulfur-oxidation-state group (sulfonic acid, etc.), and any oxygen or
-nitrogen atom at all.
+cross-suffix seniority work): one or more -SH groups on an acyclic chain
+(P-63.1.1's dithiol/trithiol/... multiplication, mirroring `_alcohol.py`'s
+polyol support), with no other heteroatom (in particular no -OH or amine
+nitrogen) anywhere in the molecule -- Table 3.3's alcohol/thiol/amine
+seniority coexistence is future work, tracked as a separate roadmap item,
+same as the analogous `multi-carbonyl-seniority.md` split for aldehyde/
+ketone. Explicitly out of scope (raise `UnsupportedStructure`):
+monocyclic/polycyclic/spiro rings, a sulfide (-S- ether-analogue) or any
+other sulfur-oxidation-state group (sulfonic acid, etc.), and any oxygen
+or nitrogen atom at all.
 """
 
 from rdkit import Chem
@@ -111,11 +112,6 @@ def _validate_and_collect_thiols(mol):
         )
     if not thiols:
         raise UnsupportedStructure("no thiol (-SH) group found; this module only handles thiols")
-    if len(thiols) > 1:
-        raise UnsupportedStructure(
-            "more than one thiol group (a dithiol) is out of scope for "
-            "this module"
-        )
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
     return thiols
