@@ -186,6 +186,7 @@ from ._common import (
     lowest_locant_set,
     non_single_bonds,
     path_between,
+    ring_cycle,
     specified_stereocenters,
 )
 from ._numerals import alkane_name, alkyl_name, numerical_term
@@ -577,18 +578,6 @@ def _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo=None, ethers=None):
     return best_name
 
 
-def _ring_cycle(graph, ring_atoms):
-    ring_set = set(ring_atoms)
-    order = [ring_atoms[0]]
-    previous = None
-    while len(order) < len(ring_atoms):
-        current = order[-1]
-        next_atom = next(n for n in graph[current] if n in ring_set and n != previous)
-        order.append(next_atom)
-        previous = current
-    return order
-
-
 def _substituents_for_ring(graph, ring_order, halogens, hydroxyls):
     ring_set = set(ring_order)
     substituents = {}
@@ -642,7 +631,7 @@ def _name_cyclic_alcohol(mol, hydroxyls, stereo=None):
     halogens = halogen_substituents(mol)
     ring_info = mol.GetRingInfo()
     ring_atoms = list(ring_info.AtomRings()[0])
-    ring_order = _ring_cycle(graph, ring_atoms)
+    ring_order = ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
     if stereo is not None and any(atom not in ring_order for atom, _ in stereo):
         raise UnsupportedStructure(
@@ -824,7 +813,7 @@ def _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls):
         graph, chain_root, ring_atom, {**halogens, **{o: "hydroxy" for o in chain_hydroxyls}}
     )
 
-    ring_order = _ring_cycle(graph, list(ring_atoms))
+    ring_order = ring_cycle(graph, list(ring_atoms))
     ring_size = len(ring_order)
     best_key = None
     best_name = None
