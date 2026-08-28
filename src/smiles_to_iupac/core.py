@@ -48,6 +48,7 @@ from ._ketone_amide import has_ketone_amide_shape, name_ketone_amide
 from ._ketone_ester import has_ketone_ester_shape, name_ketone_ester
 from ._nitrile import has_nitrile_shape, name_nitrile
 from ._azide import has_azide_shape, name_azide
+from ._diazo import has_diazo_shape, name_diazo
 from ._isocyanate import has_isocyanate_shape, name_isocyanate
 from ._isocyanide import has_isocyanide_shape, name_isocyanide
 from ._nitro import has_nitro_shape, name_nitro
@@ -415,6 +416,12 @@ def smiles_to_iupac(smiles: str) -> str:
         # recognize -- must be routed here for the same reason.
         if has_isocyanide_shape(mol):
             return name_isocyanide(mol)
+        # A diazo group (=N2, P-61.4) has a C=N double bond on its own
+        # skeletal carbon that would otherwise confuse the imine check
+        # below (a different, unrelated C=N shape) -- must be routed here
+        # first.
+        if has_diazo_shape(mol):
+            return name_diazo(mol)
         # A nitrile nitrogen (-C#N, P-66.5) has no oxygen, so it reaches this
         # branch alongside plain amines; it must be routed here before
         # name_amine, which doesn't recognize a triple-bonded nitrogen at all.
