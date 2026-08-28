@@ -44,22 +44,39 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   coexist freely with the imine suffix, reusing
   `halogen_substituents`/`format_substituent_prefixes` unchanged (same as
   `_ketone.py`).
+- P-68.3.1.1.2 (oximes): the PIN for R2C=N-OH is itself defined as the
+  N-hydroxy derivative of the imine named by this module -- confirmed by
+  the worked example 'N-hydroxypentan-2-imine (PIN)' for pentan-2-one
+  oxime. This module therefore also accepts the imine nitrogen's one
+  remaining substituent being an oxygen instead of a carbon, formatted the
+  same "N-" way as an N-alkyl substituent (P-62.3.1.1): plain -OH gives
+  'N-hydroxy...', and an O-alkyl ether oxime (=N-O-R, an unbranched alkyl
+  R) gives 'N-<alkoxy>...' (confirmed via PubChem PUG REST: CID 54150571,
+  `CCC=NOCC` -> "N-ethoxypropan-1-imine", matching the Blue Book's own
+  'N-ethoxypropan-1-imine (PIN)' worked example directly). The plain -OH
+  case has a PubChem-autoname-vs-PIN mismatch worth flagging: PubChem's
+  own auto-generated name for e.g. `CC(=NO)CCC` (CID 136433) is
+  "N-pentan-2-ylidenehydroxylamine" (a hydroxylamine-parent 'ylidene'
+  prefix pattern) rather than "N-hydroxypentan-2-imine" -- implemented per
+  the Blue Book's own direct PIN citation instead, consistent with this
+  project's established practice elsewhere (see e.g. `_hydroxylamine.py`,
+  `_sulfoxide.py`, `_nitro.py`).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any ring anywhere in the molecule (cyclic/aromatic imines, e.g.
   'thiolan-2-imine', are a separate, unverified case here).
 - More than one C=N imine bond (polyimines, P-62.3.1.1's multiplying-
   prefix case) -- unverified in this first pass.
-- Any heteroatom other than the imine nitrogen and halogen substituents
-  (no coexisting -OH, other C=N/C=O, etc. -- a suffix-seniority
-  competition this module doesn't attempt).
-- A branched imine nitrogen substituent, an aromatic N-substituent, or any
-  bond order other than single/double, or a second double/triple bond
-  elsewhere on the chain (P-31 unsaturation combined with imine is
-  unverified in this first pass).
-- Oximes (=N-OH) -- a separate follow-up (P-68.3.1.1.2, whose PIN is
-  itself defined as the N-hydroxy derivative of an imine named by this
-  module).
+- Any heteroatom other than the imine nitrogen, halogen substituents, and
+  (for an oxime) its own N-O(-R) oxygen (no coexisting -OH elsewhere,
+  other C=N/C=O, etc. -- a suffix-seniority competition this module
+  doesn't attempt).
+- A branched imine nitrogen substituent (carbon or O-alkyl), an aromatic
+  N-substituent, or any bond order other than single/double, or a second
+  double/triple bond elsewhere on the chain (P-31 unsaturation combined
+  with imine is unverified in this first pass).
+- Nitrolic/nitrosolic acids (P-68.3.1.1.3, an oxime combined with an
+  adjacent nitro/nitroso group) -- a separate, unverified follow-up.
 - Charged or isotopically modified atoms.
 """
 
@@ -79,6 +96,8 @@ from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
+_OXIME_ALLOWED_ATOMIC_NUMS = {6, 7, 8, *HALOGEN_PREFIXES}
+_OXY_PREFIX = {"methyl": "methoxy", "ethyl": "ethoxy", "propyl": "propoxy", "butyl": "butoxy"}
 
 
 def has_simple_imine_shape(mol) -> bool:
@@ -91,25 +110,11 @@ def has_simple_imine_shape(mol) -> bool:
 
 def _validate_and_find_imine(mol):
     """Check the molecule fits this module's scope (see module docstring)
-    and return (imine_carbon_idx, imine_nitrogen_idx, n_substituent_root)."""
-    for atom in mol.GetAtoms():
-        atomic_num = atom.GetAtomicNum()
-        if atomic_num not in _ALLOWED_ATOMIC_NUMS:
-            raise UnsupportedStructure(
-                "heteroatoms other than the imine nitrogen (P-62.3) and "
-                "halogen substituents (P-35.2.1) are not supported yet"
-            )
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
-            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atomic_num == 6 and atom.GetIsAromatic():
-            raise UnsupportedStructure("aromatic rings are out of scope for this module")
-        if atomic_num == 7 and atom.GetIsAromatic():
-            raise UnsupportedStructure("an aromatic nitrogen is out of scope for this module")
-    if mol.GetRingInfo().NumRings() != 0:
-        raise UnsupportedStructure("a ring anywhere in the molecule is out of scope for this module")
-    if len(Chem.GetMolFrags(mol)) > 1:
-        raise UnsupportedStructure("multi-fragment structures are not supported yet")
-
+    and return (imine_carbon_idx, imine_nitrogen_idx, n_substituent_root,
+    oxime_oxygen_idx, oxime_alkyl_root). The last two are only set for an
+    oxime/O-alkyl oxime ether (oxime_alkyl_root stays None for a plain
+    -OH); n_substituent_root and the oxime pair are mutually exclusive,
+    since the imine nitrogen has only one substituent position free."""
     imine_bonds = [
         bond
         for bond in mol.GetBonds()
@@ -123,6 +128,51 @@ def _validate_and_find_imine(mol):
     (imine_bond,) = imine_bonds
     carbon = imine_bond.GetBeginAtom() if imine_bond.GetBeginAtom().GetAtomicNum() == 6 else imine_bond.GetEndAtom()
     nitrogen = imine_bond.GetBeginAtom() if imine_bond.GetBeginAtom().GetAtomicNum() == 7 else imine_bond.GetEndAtom()
+
+    n_substituent_root = None
+    oxime_oxygen_idx = None
+    if nitrogen.GetDegree() == 2:
+        (other,) = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != carbon.GetIdx()]
+        if other.GetAtomicNum() == 8:
+            oxime_oxygen_idx = other.GetIdx()
+        elif other.GetAtomicNum() == 6 and not other.GetIsAromatic():
+            n_substituent_root = other.GetIdx()
+        else:
+            raise UnsupportedStructure(
+                "an imine nitrogen substituent other than a plain carbon "
+                "group or an oxime oxygen (P-68.3.1.1.2) is not supported "
+                "yet"
+            )
+    elif nitrogen.GetDegree() != 1:
+        raise UnsupportedStructure(
+            "an imine nitrogen must have exactly one substituent (or none, "
+            "i.e. =N-H)"
+        )
+
+    allowed = _OXIME_ALLOWED_ATOMIC_NUMS if oxime_oxygen_idx is not None else _ALLOWED_ATOMIC_NUMS
+    for atom in mol.GetAtoms():
+        atomic_num = atom.GetAtomicNum()
+        if atomic_num not in allowed:
+            raise UnsupportedStructure(
+                "heteroatoms other than the imine nitrogen (P-62.3), a "
+                "single oxime oxygen (P-68.3.1.1.2), and halogen "
+                "substituents (P-35.2.1) are not supported yet"
+            )
+        if atomic_num == 8 and atom.GetIdx() != oxime_oxygen_idx:
+            raise UnsupportedStructure(
+                "an oxygen atom not shaped like a plain oxime N-OH/N-O-R "
+                "is out of scope for this module"
+            )
+        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+        if atomic_num == 6 and atom.GetIsAromatic():
+            raise UnsupportedStructure("aromatic rings are out of scope for this module")
+        if atomic_num == 7 and atom.GetIsAromatic():
+            raise UnsupportedStructure("an aromatic nitrogen is out of scope for this module")
+    if mol.GetRingInfo().NumRings() != 0:
+        raise UnsupportedStructure("a ring anywhere in the molecule is out of scope for this module")
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
     other_non_single = [
         bond
@@ -143,22 +193,21 @@ def _validate_and_find_imine(mol):
             "neighbors"
         )
 
-    n_substituent_root = None
-    if nitrogen.GetDegree() == 2:
-        (other,) = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != carbon.GetIdx()]
-        if other.GetAtomicNum() != 6 or other.GetIsAromatic():
-            raise UnsupportedStructure(
-                "an imine nitrogen substituent other than a plain carbon "
-                "group is not supported yet"
-            )
-        n_substituent_root = other.GetIdx()
-    elif nitrogen.GetDegree() != 1:
-        raise UnsupportedStructure(
-            "an imine nitrogen must have exactly one substituent (or none, "
-            "i.e. =N-H)"
-        )
+    oxime_alkyl_root = None
+    if oxime_oxygen_idx is not None:
+        oxygen = mol.GetAtomWithIdx(oxime_oxygen_idx)
+        if oxygen.GetDegree() == 2:
+            (alkyl,) = [n for n in oxygen.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx()]
+            if alkyl.GetAtomicNum() != 6 or alkyl.GetIsAromatic():
+                raise UnsupportedStructure(
+                    "an oxime O-substituent other than a plain carbon "
+                    "group is not supported yet"
+                )
+            oxime_alkyl_root = alkyl.GetIdx()
+        elif oxygen.GetDegree() != 1:
+            raise UnsupportedStructure("an oxime oxygen must be -OH or -O-R (degree 1 or 2)")
 
-    return carbon.GetIdx(), nitrogen.GetIdx(), n_substituent_root
+    return carbon.GetIdx(), nitrogen.GetIdx(), n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root
 
 
 def _imine_locant(position_of, imine_carbon):
@@ -236,12 +285,28 @@ def _name_acyclic_imine(mol, imine_carbon, exclude):
 
 
 def name_imine(mol) -> str:
-    imine_carbon, imine_nitrogen, n_substituent_root = _validate_and_find_imine(mol)
+    imine_carbon, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root = _validate_and_find_imine(
+        mol
+    )
     graph = adjacency(mol)
     exclude = {imine_nitrogen}
     name = _name_acyclic_imine(mol, imine_carbon, exclude)
+
+    n_name = None
     if n_substituent_root is not None:
         n_name, _ = name_branch(graph, n_substituent_root, imine_nitrogen)
+    elif oxime_oxygen_idx is not None:
+        if oxime_alkyl_root is None:
+            n_name = "hydroxy"
+        else:
+            alkyl_name_, is_compound = name_branch(graph, oxime_alkyl_root, oxime_oxygen_idx)
+            if is_compound:
+                raise UnsupportedStructure(
+                    "a branched oxime O-substituent is not supported yet"
+                )
+            n_name = _OXY_PREFIX.get(alkyl_name_, alkyl_name_ + "oxy")
+
+    if n_name is not None:
         separator = "-" if name[0].isdigit() else ""
         name = f"N-{n_name}{separator}{name}"
     return name

@@ -288,6 +288,20 @@ def smiles_to_iupac(smiles: str) -> str:
     # as nitro above, so it must be routed here for the same reason.
     if has_isocyanate_shape(mol):
         return name_isocyanate(mol)
+    # An oxime (=N-OH/=N-O-R, P-68.3.1.1.2) is imine-shaped (C=N) but has
+    # its own oxygen the ether/carbonyl/alcohol checks below don't expect
+    # at all, so it must be routed before the "any O atom" branch for the
+    # same reason as nitro/isocyanate above -- it would otherwise be
+    # swallowed by that branch's unconditional `name_alcohol` fallback and
+    # never reach the nitrogen branch further down. Gated on an oxygen
+    # actually being present so this doesn't preempt a diazo group's own
+    # C=N bond (checked later, in the nitrogen branch) -- diazo has no
+    # oxygen at all, so it's unaffected either way, but this keeps the
+    # check's intent explicit. A non-oxime imine (no oxygen) is still
+    # correctly caught by has_simple_imine_shape's other call site further
+    # down.
+    if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()) and has_simple_imine_shape(mol):
+        return name_imine(mol)
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
         # Hydroxylamine (H2N-OH, P-68.3.1.1.1) and its O-substituted
@@ -433,10 +447,10 @@ def smiles_to_iupac(smiles: str) -> str:
         # name_amine, which doesn't recognize a triple-bonded nitrogen at all.
         if has_nitrile_shape(mol):
             return name_nitrile(mol)
-        # An imine (C=N, P-62.3) similarly has no oxygen and a non-single
-        # C=N bond that name_amine doesn't recognize either -- it must be
-        # routed here before name_amine for the same reason as the nitrile
-        # check above.
+        # A plain (non-oxime) imine (C=N, P-62.3) has no oxygen, so it
+        # reaches this branch alongside plain amines -- an oxime (which
+        # does have an oxygen) is already caught by the has_simple_imine_shape
+        # check much earlier, before the "any O atom" branch.
         if has_simple_imine_shape(mol):
             return name_imine(mol)
         return name_amine(mol)
