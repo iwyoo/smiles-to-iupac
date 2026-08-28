@@ -37,6 +37,7 @@ from ._androstane import has_androstane_name, name_androstane
 from ._gonane import has_gonane_name, name_gonane
 from ._heteroaromatic_fused import has_retained_heteroaromatic_fused_name, name_retained_heteroaromatic_fused
 from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
+from ._imine import has_simple_imine_shape, name_imine
 from ._two_component_heterocycle_fusion import (
     has_two_component_heterocycle_fusion_name,
     name_two_component_heterocycle_fusion,
@@ -369,6 +370,12 @@ def smiles_to_iupac(smiles: str) -> str:
         # name_amine, which doesn't recognize a triple-bonded nitrogen at all.
         if has_nitrile_shape(mol):
             return name_nitrile(mol)
+        # An imine (C=N, P-62.3) similarly has no oxygen and a non-single
+        # C=N bond that name_amine doesn't recognize either -- it must be
+        # routed here before name_amine for the same reason as the nitrile
+        # check above.
+        if has_simple_imine_shape(mol):
+            return name_imine(mol)
         return name_amine(mol)
     if has_sulfide_shape(mol):
         # A plain -S- sulfide (P-63.2.1) has no suffix, so it must be routed
