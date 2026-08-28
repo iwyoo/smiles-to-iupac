@@ -87,6 +87,7 @@ from ._spiro_heteroatom import (
     has_single_ring_heteroatom_shape as has_single_spiro_heteroatom_shape,
     name_spiro_heteroatom,
 )
+from ._disulfide import has_disulfide_shape, name_disulfide
 from ._sulfide import has_sulfide_shape, name_sulfide
 from ._sulfinic_acid import has_sulfinic_acid_shape, name_sulfinic_acid
 from ._sulfonic_acid import has_sulfonic_acid_shape, name_sulfonic_acid
@@ -558,6 +559,11 @@ def smiles_to_iupac(smiles: str) -> str:
         if has_simple_imine_shape(mol):
             return name_imine(mol)
         return name_amine(mol)
+    if has_disulfide_shape(mol):
+        # A disulfide (R-S-S-R') has two sulfurs -- it would otherwise
+        # look thiol-shaped to the check below (that check just looks for
+        # the presence of any sulfur atom) -- must be routed here first.
+        return name_disulfide(mol)
     if has_sulfide_shape(mol):
         # A plain -S- sulfide (P-63.2.1) has no suffix, so it must be routed
         # here before has_thiol_shape below: _thiol.py's validation rejects

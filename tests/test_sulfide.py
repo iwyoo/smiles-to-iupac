@@ -19,11 +19,6 @@ def test_diethyl_sulfide():
     assert smiles_to_iupac("CCSCC") == "ethylsulfanylethane"
 
 
-def test_disulfide_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CSSC")
-
-
 def test_branched_sulfanyl_substituent_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC(C)SC(C)C")
