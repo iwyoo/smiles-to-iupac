@@ -70,6 +70,7 @@ from ._nitroso import has_nitroso_shape, name_nitroso
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._cyclophane import has_cyclophane_name, name_cyclophane
 from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
+from ._phosphanone import has_phosphanone_shape, name_phosphanone
 from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
 from ._peroxide import has_peroxide_shape, name_peroxide
@@ -165,6 +166,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # rejection.
     if has_phosphane_chain_shape(mol) and mol.GetNumAtoms() > 1:
         return name_phosphane_chain(mol)
+
+    # A phosphine oxide (P-68.3.2.3.1's '-phosphanone' suffix, R-P(=O)<)
+    # has its own phosphorus-bonded oxygen that `_phosphane.py` doesn't
+    # expect at all (that module rejects any heteroatom besides its own
+    # phosphorus outright) -- must be routed here first, before
+    # has_simple_phosphane_shape below, for the same reason as
+    # has_phosphane_chain_shape above.
+    if has_phosphanone_shape(mol):
+        return name_phosphanone(mol)
 
     # A phosphorus atom (P-68's phosphane substitutive nomenclature) must
     # be routed here before every other branch below: none of them
