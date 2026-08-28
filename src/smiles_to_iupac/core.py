@@ -107,6 +107,8 @@ from ._sulfone import has_sulfone_shape, name_sulfone
 from ._sulfoxide import has_sulfoxide_shape, name_sulfoxide
 from ._selenone import has_selenone_shape, name_selenone
 from ._selenoxide import has_selenoxide_shape, name_selenoxide
+from ._tellurone import has_tellurone_shape, name_tellurone
+from ._telluroxide import has_telluroxide_shape, name_telluroxide
 from ._diselenide import has_diselenide_shape, name_diselenide
 from ._selenide import has_selenide_shape, name_selenide
 from ._selenol import has_selenol_shape, name_selenol
@@ -375,6 +377,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # sulfoxide.
     if has_selenoxide_shape(mol):
         return name_selenoxide(mol)
+    # A tellurone (-Te(=O)(=O)-, P-63.6) is the tellurium analogue of a
+    # sulfone/selenone -- same reasoning, checked before the telluroxide
+    # below since its tellurium has two oxygens instead of one.
+    if has_tellurone_shape(mol):
+        return name_tellurone(mol)
+    # A telluroxide (-Te(=O)-, P-63.6) is the tellurium analogue of a
+    # sulfoxide/selenoxide.
+    if has_telluroxide_shape(mol):
+        return name_telluroxide(mol)
     # A nitro group (-NO2, P-61.5.1) has its own nitrogen and two oxygens
     # neither the ether/carbonyl/alcohol checks below nor the plain-amine
     # branch further down expect, so it must be routed before both -- a
