@@ -65,6 +65,7 @@ from ._nitroso import has_nitroso_shape, name_nitroso
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._cyclophane import has_cyclophane_name, name_cyclophane
 from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
+from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
 from ._peroxide import has_peroxide_shape, name_peroxide
 from ._polyspiro import (
@@ -144,6 +145,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # below, all of which assume at least one carbon atom.
     if has_silane_chain_shape(mol):
         return name_silane_chain(mol)
+
+    # An all-phosphorus, multi-atom skeleton (diphosphane, triphosphane,
+    # ...) has no carbon at all and must be routed before
+    # has_simple_phosphane_shape below, which would otherwise misname it
+    # via `_phosphane.py`'s own explicit "more than one phosphorus atom"
+    # rejection.
+    if has_phosphane_chain_shape(mol) and mol.GetNumAtoms() > 1:
+        return name_phosphane_chain(mol)
 
     # A phosphorus atom (P-68's phosphane substitutive nomenclature) must
     # be routed here before every other branch below: none of them
