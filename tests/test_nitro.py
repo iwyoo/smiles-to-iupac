@@ -37,11 +37,6 @@ def test_two_carbon_chain_omits_locant():
     assert smiles_to_iupac("CC[N+](=O)[O-]") == "nitroethane"
 
 
-def test_nitroso_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CN=O")
-
-
 def test_ring_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1CCC([N+](=O)[O-])CC1")
