@@ -157,5 +157,35 @@ def test_specified_double_bond_with_triple_bond_raises():
 
 
 def test_specified_double_bond_with_second_double_bond_raises():
+    # The second double bond (terminal =CH2) is non-stereogenic, so it's
+    # left unspecified -- a specified bond alongside an unspecified/
+    # non-stereogenic one is still out of scope (every double bond must be
+    # specified for the multi-E/Z case below to apply).
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C/C=C/C=C")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem PUG REST (queried via POST -- GET 400s on a SMILES
+        # containing '/'): CID 638071, auto-generated name matches exactly.
+        ("C/C=C/C=C/C", "(2E,4E)-hexa-2,4-diene"),
+        # CID 5326156.
+        ("C/C=C\\C=C/C", "(2Z,4Z)-hexa-2,4-diene"),
+        # CID 643786.
+        ("C/C=C\\C=C\\C", "(2Z,4E)-hexa-2,4-diene"),
+        # CID 5368766 -- confirms the pattern extends to three double bonds.
+        ("C/C=C/C=C/C=C/C", "(2E,4E,6E)-octa-2,4,6-triene"),
+    ],
+)
+def test_multi_ez_double_bond(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_partially_specified_diene_raises():
+    # Both double bonds are stereogenic, but only one has a slash marker
+    # -- a partially-specified molecule is out of scope, same policy as
+    # `specified_stereocenters`'s R/S handling.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C/C=C/C=CC")
