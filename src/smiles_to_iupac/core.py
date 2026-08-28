@@ -15,6 +15,7 @@ from ._aldehyde_ketone import has_aldehyde_ketone_shape, name_aldehyde_ketone
 from ._acetal import has_acetal_shape, name_acetal
 from ._amide import has_amide_shape, name_amide
 from ._amidine import has_amidine_shape, name_amidine
+from ._hydrazide import has_hydrazide_shape, name_hydrazide
 from ._imide import has_imide_shape, name_imide
 from ._amine import name_amine
 from ._ammonium import has_ammonium_shape, name_ammonium
@@ -422,6 +423,14 @@ def smiles_to_iupac(smiles: str) -> str:
         # aldehyde/ketone checks below: an amide carbon looks
         # aldehyde-shaped to `_is_aldehyde_shaped` (it counts only carbon
         # neighbors, ignoring the nitrogen).
+        # A hydrazide carbon (-CO-NH-NH2, P-66.3.1.1) has a carbonyl plus
+        # a two-nitrogen chain that has_amide_shape's own single-nitrogen
+        # check doesn't match (its first nitrogen has degree 2, not 1), so
+        # it wouldn't collide with the amide check below either way -- but
+        # routing it first here keeps the two suffix-shaped carbonyl
+        # groups together.
+        if has_hydrazide_shape(mol):
+            return name_hydrazide(mol)
         if has_amide_shape(mol):
             # P-41/Table 3.3: 'amide' outranks 'one', so an amide that also
             # carries one or more ketones names the amide as the suffix and
