@@ -39,3 +39,28 @@ def test_ring_not_supported():
 def test_aromatic_substituent_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("c1ccccc1N=NC")
+
+
+def test_chloroethyldiazene_name():
+    # PubChem auto-generated name matches exactly.
+    assert smiles_to_iupac("ClCCN=N") == "2-chloroethyldiazene"
+
+
+def test_bis_chloroethyldiazene_name():
+    # Two identical compound (halogen-bearing) substituents combine with
+    # the compound 'bis' multiplying prefix (P-14.2.2), not the plain
+    # 'di' used for simple substituents. PubChem auto-generated name
+    # matches exactly.
+    assert smiles_to_iupac("ClCCN=NCCCl") == "bis(2-chloroethyl)diazene"
+
+
+def test_halogen_on_nitrogen_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("ClN=N")
+
+
+def test_mixed_compound_and_simple_substituent_raises():
+    # Two different substituents where one is a compound (halogen-
+    # bearing) name -- unverified, explicitly out of scope.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("ClCCN=NC")
