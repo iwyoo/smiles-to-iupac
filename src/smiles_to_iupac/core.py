@@ -105,6 +105,8 @@ from ._sulfinic_acid import has_sulfinic_acid_shape, name_sulfinic_acid
 from ._sulfonic_acid import has_sulfonic_acid_shape, name_sulfonic_acid
 from ._sulfone import has_sulfone_shape, name_sulfone
 from ._sulfoxide import has_sulfoxide_shape, name_sulfoxide
+from ._selenone import has_selenone_shape, name_selenone
+from ._selenoxide import has_selenoxide_shape, name_selenoxide
 from ._diselenide import has_diselenide_shape, name_diselenide
 from ._selenide import has_selenide_shape, name_selenide
 from ._selenol import has_selenol_shape, name_selenol
@@ -364,6 +366,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # reasoning as the sulfinic acid check above.
     if has_sulfoxide_shape(mol):
         return name_sulfoxide(mol)
+    # A selenone (-Se(=O)(=O)-, P-63.6) is the selenium analogue of a
+    # sulfone -- same reasoning, checked before the selenoxide below since
+    # its selenium has two oxygens instead of one.
+    if has_selenone_shape(mol):
+        return name_selenone(mol)
+    # A selenoxide (-Se(=O)-, P-63.6) is the selenium analogue of a
+    # sulfoxide.
+    if has_selenoxide_shape(mol):
+        return name_selenoxide(mol)
     # A nitro group (-NO2, P-61.5.1) has its own nitrogen and two oxygens
     # neither the ether/carbonyl/alcohol checks below nor the plain-amine
     # branch further down expect, so it must be routed before both -- a
