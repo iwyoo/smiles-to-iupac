@@ -47,6 +47,7 @@ from ._ketone import name_ketone
 from ._ketone_amide import has_ketone_amide_shape, name_ketone_amide
 from ._ketone_ester import has_ketone_ester_shape, name_ketone_ester
 from ._nitrile import has_nitrile_shape, name_nitrile
+from ._azide import has_azide_shape, name_azide
 from ._nitro import has_nitro_shape, name_nitro
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._cyclophane import has_cyclophane_name, name_cyclophane
@@ -397,6 +398,12 @@ def smiles_to_iupac(smiles: str) -> str:
             return name_ketone(mol)
         return name_alcohol(mol)
     if any(atom.GetAtomicNum() == 7 for atom in mol.GetAtoms()):
+        # An azide group (-N3, P-61.7) has no oxygen and three nitrogens
+        # name_amine doesn't recognize at all, so it must be routed here
+        # before name_amine for the same reason as the nitrile/imine checks
+        # below.
+        if has_azide_shape(mol):
+            return name_azide(mol)
         # A nitrile nitrogen (-C#N, P-66.5) has no oxygen, so it reaches this
         # branch alongside plain amines; it must be routed here before
         # name_amine, which doesn't recognize a triple-bonded nitrogen at all.
