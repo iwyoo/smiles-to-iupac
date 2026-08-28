@@ -40,6 +40,7 @@ from ._heteroaromatic_fused import has_retained_heteroaromatic_fused_name, name_
 from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
 from ._hydroxylamine import has_hydroxylamine_shape, name_hydroxylamine
 from ._imine import has_simple_imine_shape, name_imine
+from ._isotope import has_isotope_shape, name_isotope
 from ._two_component_heterocycle_fusion import (
     has_two_component_heterocycle_fusion_name,
     name_two_component_heterocycle_fusion,
@@ -105,6 +106,15 @@ def smiles_to_iupac(smiles: str) -> str:
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError(f"invalid SMILES: {smiles!r}")
+
+    # An isotopically labeled atom (P-82's isotope descriptor nomenclature)
+    # must be routed here before every other branch below: RDKit represents
+    # an isotopically substituted hydrogen (e.g. 2H) as its own explicit
+    # atom (atomic number 1), which none of the other branches recognize at
+    # all -- every one of them would reject it outright as an unsupported
+    # heteroatom.
+    if has_isotope_shape(mol):
+        return name_isotope(mol)
 
     # An all-silicon skeleton (P-21.2.1's silane chain naming) has no
     # carbon at all, so it must be routed here before every other branch
