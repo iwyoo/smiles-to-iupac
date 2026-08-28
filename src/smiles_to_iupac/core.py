@@ -115,6 +115,7 @@ from ._selenol import has_selenol_shape, name_selenol
 from ._ditelluride import has_ditelluride_shape, name_ditelluride
 from ._telluride import has_telluride_shape, name_telluride
 from ._tellurol import has_tellurol_shape, name_tellurol
+from ._selenoic_acid import has_selenoic_acid_shape, name_selenoic_acid
 from ._thioic_acid import has_thioic_acid_shape, name_thioic_acid
 from ._thiol import has_thiol_shape, name_thiol
 from ._tricyclic import find_propellane_core, name_propellane
@@ -488,6 +489,11 @@ def smiles_to_iupac(smiles: str) -> str:
         # it's S) -- route it here, before all of those.
         if has_thioic_acid_shape(mol):
             return name_thioic_acid(mol)
+        # A selenoic acid (-CO-SeH/-CSe-OH, P-65.1.5) is the selenium
+        # analogue of a thioic acid -- same reasoning, routed here for the
+        # same reason.
+        if has_selenoic_acid_shape(mol):
+            return name_selenoic_acid(mol)
         # A carbon bearing both a carbonyl and a hydroxyl oxygen is a -COOH
         # group (Table 3.3's most senior suffix here) and must be routed
         # before the aldehyde/ketone/alcohol checks below, which would

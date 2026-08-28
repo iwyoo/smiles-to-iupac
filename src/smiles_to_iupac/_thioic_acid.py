@@ -36,8 +36,9 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   P-65.1.5.1 and is out of scope).
 - A ring anywhere in the molecule (P-65.1.1.2's 'carbothioic acid'
   construction, out of scope here).
-- The selenium/tellurium analogues (selenoic/telluroic acid) -- separate
-  follow-up modules.
+- The selenium/tellurium analogues (selenoic/telluroic acid) -- the
+  selenium analogue is handled separately by `_selenoic_acid.py`; tellurium
+  is a separate follow-up module.
 - Any other heteroatom, halogen substituent, charge, or isotopic label.
 """
 
