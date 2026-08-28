@@ -16,6 +16,7 @@ from ._amide import has_amide_shape, name_amide
 from ._imide import has_imide_shape, name_imide
 from ._amine import name_amine
 from ._ammonium import has_ammonium_shape, name_ammonium
+from ._radical import has_radical_shape, name_radical
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
 from ._bridged_aromatic import (
@@ -116,6 +117,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # heteroatom.
     if has_isotope_shape(mol):
         return name_isotope(mol)
+
+    # A radical center (P-71.2.1.1's 'yl' radical naming) must be routed
+    # here before every other branch below: none of them recognize a
+    # nonzero radical electron count at all -- an unbranched-chain or
+    # monocyclic-ring radical would otherwise fall straight through to the
+    # plain alkane/cycloalkane dispatch further down, which doesn't know a
+    # hydrogen is missing.
+    if has_radical_shape(mol):
+        return name_radical(mol)
 
     # A charged ammonium nitrogen (P-73.1.1.2's hydron-addition cation
     # naming) must be routed here before every other branch below: none of
