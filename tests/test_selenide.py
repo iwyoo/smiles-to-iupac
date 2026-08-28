@@ -27,11 +27,6 @@ def test_methyl_propyl_selenide():
     assert smiles_to_iupac("CCC[Se]C") == "1-methylselanylpropane"
 
 
-def test_diselenide_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[Se][Se]C")
-
-
 def test_branched_selanyl_substituent_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC(C)[Se]C(C)C")

@@ -92,6 +92,7 @@ from ._sulfinic_acid import has_sulfinic_acid_shape, name_sulfinic_acid
 from ._sulfonic_acid import has_sulfonic_acid_shape, name_sulfonic_acid
 from ._sulfone import has_sulfone_shape, name_sulfone
 from ._sulfoxide import has_sulfoxide_shape, name_sulfoxide
+from ._diselenide import has_diselenide_shape, name_diselenide
 from ._selenide import has_selenide_shape, name_selenide
 from ._selenol import has_selenol_shape, name_selenol
 from ._tellurol import has_tellurol_shape, name_tellurol
@@ -569,6 +570,12 @@ def smiles_to_iupac(smiles: str) -> str:
         # so a molecule with O or N never reaches here at all (see
         # _thiol.py's module docstring).
         return name_thiol(mol)
+    if has_diselenide_shape(mol):
+        # A diselenide (R-Se-Se-R') has two seleniums -- it would
+        # otherwise look selenol-shaped to the check below (that check
+        # just looks for the presence of any selenium atom) -- must be
+        # routed here first.
+        return name_diselenide(mol)
     if has_selenide_shape(mol):
         # A plain -Se- selenide (P-63.2.1) has no suffix, so it must be
         # routed here before has_selenol_shape below for the same reason
