@@ -27,9 +27,29 @@ def test_branched_r_not_supported():
         smiles_to_iupac("CC(C)OC(N)=O")
 
 
-def test_n_substituted_carbamate_not_supported():
+def test_methyl_n_methylcarbamate():
+    # PubChem CID 81151.
+    assert smiles_to_iupac("CNC(=O)OC") == "methyl N-methylcarbamate"
+
+
+def test_ethyl_n_ethylcarbamate():
+    # PubChem CID 12195.
+    assert smiles_to_iupac("CCNC(=O)OCC") == "ethyl N-ethylcarbamate"
+
+
+def test_ethyl_n_methylcarbamate():
+    # PubChem CID 7752.
+    assert smiles_to_iupac("CNC(=O)OCC") == "ethyl N-methylcarbamate"
+
+
+def test_n_n_disubstituted_carbamate_not_supported():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COC(=O)NC")
+        smiles_to_iupac("COC(=O)N(C)C")
+
+
+def test_branched_n_substituent_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("COC(=O)NC(C)C")
 
 
 def test_free_carbamic_acid_not_supported():
