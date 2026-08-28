@@ -31,10 +31,23 @@ from smiles_to_iupac._common import UnsupportedStructure
         # parenthesized, regardless of its own count.
         ("CCP(C)C", "ethyl(dimethyl)phosphane"),
         ("CCP(CC)C", "diethyl(methyl)phosphane"),
+        # halogen bonded directly to phosphorus: cross-checked against
+        # PubChem PUG REST IUPACName, CID 161938 (ClP), CID 13128761
+        # (ClPCl), CID 69936 (ClP(C)C).
+        ("ClP", "chlorophosphane"),
+        ("ClPCl", "dichlorophosphane"),
+        ("ClP(C)C", "chloro(dimethyl)phosphane"),
     ],
 )
 def test_smiles_to_iupac_simple_phosphane(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_halogen_substituted_alkyl_chain_raises():
+    # a halogen embedded partway along a carbon chain (rather than bonded
+    # directly to phosphorus) is out of scope for this module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("ClCCP")
 
 
 def test_phosphane_chain_raises():

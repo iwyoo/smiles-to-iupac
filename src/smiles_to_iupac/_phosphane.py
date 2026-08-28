@@ -46,9 +46,17 @@ substituents), per the IUPAC 2013 Recommendations ("the Blue Book"):
   13836128 (`CCP(CC)C`, ethyl x2 + methyl x1) -> "diethyl(methyl)phosphane"
   (2026-08-25).
 
+- A halogen (F/Cl/Br/I) bonded directly to phosphorus is just another
+  substituent prefix that already fits the P-16.5.1.3.1 parenthesization
+  rule above (no new mechanism needed) -- confirmed via PubChem PUG REST:
+  CID 161938 (`ClP`) -> "chlorophosphane", CID 13128761 (`ClPCl`) ->
+  "dichlorophosphane", CID 69936 (`ClP(C)C`) ->
+  "chloro(dimethyl)phosphane".
+
 Explicitly out of scope (raise `UnsupportedStructure`):
-- Any atom other than phosphorus, carbon, and hydrogen (no P=O, no
-  halogen-substituted alkyl, no other heteroatom in a substituent chain).
+- Any atom other than phosphorus, carbon, hydrogen, and a halogen bonded
+  directly to phosphorus (no P=O, no halogen-substituted alkyl chain, no
+  other heteroatom in a substituent chain).
 - More than one phosphorus atom (phosphane chains, e.g. diphosphane --
   `_silane_chain.py`-style "chain" nomenclature is a separate problem).
 - A branched or unsaturated substituent, an aromatic substituent
@@ -58,7 +66,13 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, linear_branch, non_single_bonds
+from ._common import (
+    HALOGEN_PREFIXES,
+    UnsupportedStructure,
+    adjacency,
+    linear_branch,
+    non_single_bonds,
+)
 from ._numerals import alkyl_name, multiplying_prefix
 from ._substituents import alpha_sort_key
 
@@ -81,10 +95,19 @@ def _validate_and_collect_substituents(mol):
         raise UnsupportedStructure("a phosphorus atom with more than three substituents is not a phosphane")
 
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() not in (15, 6):
+        is_halogen = atom.GetAtomicNum() in HALOGEN_PREFIXES
+        if atom.GetAtomicNum() not in (15, 6) and not is_halogen:
             raise UnsupportedStructure(
                 "heteroatoms other than the phosphane phosphorus itself are "
                 "not supported yet (see P-68)"
+            )
+        if is_halogen and (
+            atom.GetDegree() != 1 or atom.GetNeighbors()[0].GetIdx() != phosphorus.GetIdx()
+        ):
+            raise UnsupportedStructure(
+                "a halogen-substituted alkyl chain is out of scope for this "
+                "module -- only a halogen bonded directly to phosphorus is "
+                "supported so far"
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
@@ -102,6 +125,10 @@ def _validate_and_collect_substituents(mol):
     graph = adjacency(mol)
     substituent_names = []
     for root in graph[phosphorus.GetIdx()]:
+        root_atomic_num = mol.GetAtomWithIdx(root).GetAtomicNum()
+        if root_atomic_num in HALOGEN_PREFIXES:
+            substituent_names.append(HALOGEN_PREFIXES[root_atomic_num])
+            continue
         length = linear_branch(graph, root, phosphorus.GetIdx())
         if length is None:
             raise UnsupportedStructure(
