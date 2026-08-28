@@ -19,9 +19,16 @@ acyclic saturated hydrocarbon chains, per the IUPAC 2013 Recommendations
   itself is a carbon, so there's no "exclude the group's own carbon from
   the chain search" wrinkle here either.
 
+- P-35.2.1: a halogen substituent is prefix-only and coexists freely with
+  the 'diazo' prefix, reusing `halogen_substituents`/the same `terminals`
+  dict merge `_nitro.py` already does. Confirmed via PubChem PUG REST:
+  CID 53674471 (`[N-]=[N+]=CCCl`) -> "1-chloro-2-diazoethane" (terminal
+  diazo), CID 150045656 (`ClCC(=[N+]=[N-])C`) ->
+  "1-chloro-2-diazopropane" (internal diazo).
+
 Explicitly out of scope (raise `UnsupportedStructure`):
-- Any other heteroatom (including halogen substituents, unverified for
-  this group) besides a diazo group's own two nitrogens.
+- Any other heteroatom besides a diazo group's own two nitrogens and
+  halogen substituents.
 - More than one diazo group, any unsaturation elsewhere in the molecule,
   any ring, or aromatic rings.
 - A diazo group coexisting with a characteristic-group suffix elsewhere in
@@ -29,10 +36,10 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   no Table 3.3 seniority handling here.
 """
 
-from ._common import UnsupportedStructure, adjacency, carbon_adjacency, non_single_bonds
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, carbon_adjacency, halogen_substituents, non_single_bonds
 from ._acyclic import name_from_carbon_graph
 
-_DIAZO_ALLOWED_ATOMIC_NUMS = {6, 7}
+_DIAZO_ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
 
 
 def _diazo_root_nitrogens(mol):
@@ -90,12 +97,17 @@ def name_diazo(mol) -> str:
         if atomic_num not in _DIAZO_ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(
                 "heteroatoms other than a diazo group's own two nitrogens "
-                "(P-61.4) are not supported yet"
+                "(P-61.4) and halogen substituents (P-35.2.1) are not "
+                "supported yet"
             )
         if atomic_num == 7 and atom.GetIdx() not in diazo_atom_idxs:
             raise UnsupportedStructure(
                 "a nitrogen atom not shaped like a plain diazo group is "
                 "out of scope for this module"
+            )
+        if atomic_num in HALOGEN_PREFIXES and atom.GetDegree() != 1:
+            raise UnsupportedStructure(
+                "a halogen atom must be a monovalent substituent (P-35.2.1)"
             )
         if atom.GetFormalCharge() not in (0, 1, -1) or atom.GetIsotope() != 0:
             raise UnsupportedStructure("isotopically modified atoms are not supported yet")
@@ -113,6 +125,7 @@ def name_diazo(mol) -> str:
         )
 
     (n1,) = root_nitrogens
-    terminals = {n1.GetIdx(): "diazo"}
+    terminals = dict(halogen_substituents(mol))
+    terminals[n1.GetIdx()] = "diazo"
 
     return name_from_carbon_graph(adjacency(mol), carbon_adjacency(mol), terminals)

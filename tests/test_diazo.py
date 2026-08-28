@@ -19,6 +19,12 @@ from smiles_to_iupac._common import UnsupportedStructure
         # neighbors plus the diazo group) -- confirms the substituted
         # carbon behaves as an ordinary chain position.
         ("CC(=[N+]=[N-])C", "2-diazopropane"),
+        # PubChem CID 53674471: diazo coexisting with a halogen
+        # substituent, terminal position.
+        ("[N-]=[N+]=CCCl", "1-chloro-2-diazoethane"),
+        # PubChem CID 150045656: diazo coexisting with a halogen
+        # substituent, internal position.
+        ("ClCC(=[N+]=[N-])C", "1-chloro-2-diazopropane"),
     ],
 )
 def test_diazo(smiles, expected):
