@@ -25,13 +25,31 @@ Recommendations ("the Blue Book"):
   substituent or a differing pair has only one possible structure
   regardless of which nitrogen is nominally "first" -- confirmed by every
   PubChem example above citing no locants at all.
+- P-35.2.1: a halogen substituent on a carbon branch (not directly on a
+  diazene nitrogen) coexists freely, reusing `_hydrazine.py`'s own
+  `name_branch`/halogen-aware branch-forking pre-check. Confirmed via
+  PubChem PUG REST: CID 76139658 (`ClCCN=N`) -> "2-chloroethyldiazene"
+  (the sole-substituent case concatenates directly, no parens, even
+  though the substituent itself is a compound name -- matching PubChem's
+  own auto-generated name exactly), CID 56629798 (`ClCCN=NCCCl`) ->
+  "bis(2-chloroethyl)diazene" (two identical compound substituents use
+  the compound 'bis' multiplying prefix, P-14.2.2, rather than the plain
+  'di' `format_mononuclear_prefixes` uses for simple substituents).
+  **Deliberately conservative scope**: the case of two *different*
+  substituents where at least one is a compound (halogen-bearing) name is
+  not verified against any worked example and is rejected explicitly
+  rather than guessed at -- only (a) zero or one substituent, and (b) two
+  identical substituents, are supported when a compound name is involved;
+  two different plain (non-compound) substituents keep working exactly as
+  before via the existing `format_mononuclear_prefixes` path.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- Any atom other than the two diazene nitrogens, carbon, and hydrogen (no
-  halogen substituents, unlike `_phosphane.py`/`_borane.py` -- unverified
-  for this group).
-- A branched or unsaturated substituent, an aromatic substituent, or any
-  ring anywhere in the molecule.
+- Any atom other than the two diazene nitrogens, carbon, halogen, and
+  hydrogen.
+- Two different substituents where at least one is a compound
+  (halogen-bearing) name -- unverified, see above.
+- A branched (real carbon fork) or unsaturated substituent, an aromatic
+  substituent, or any ring anywhere in the molecule.
 - More than one N=N unit (bis(azo) compounds), azoxy compounds (an N-oxide
   of this group, P-68.3.1.3.3), or hydrazine-type N-N single-bonded
   compounds (P-68.3.1.2, a structurally unrelated parent).
@@ -40,9 +58,25 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, linear_branch, non_single_bonds
-from ._numerals import alkyl_name
-from ._substituents import format_mononuclear_prefixes
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents, non_single_bonds
+from ._numerals import multiplying_prefix
+from ._substituents import format_mononuclear_prefixes, name_branch
+
+_ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
+
+
+def _is_unbranched_ignoring_halogens(graph, root, coming_from, halogens):
+    """True iff the branch's carbon skeleton (halogen leaves set aside) is
+    a straight, non-forking chain (see `_hydrazine.py`'s identical
+    helper)."""
+    previous, current = coming_from, root
+    while True:
+        neighbors = [n for n in graph[current] if n != previous and n not in halogens]
+        if len(neighbors) > 1:
+            return False
+        if not neighbors:
+            return True
+        previous, current = current, neighbors[0]
 
 
 def _diazene_nitrogens(mol):
@@ -75,10 +109,11 @@ def name_diazene(mol) -> str:
     n1, n2 = nitrogens
 
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() not in (6, 7):
+        if atom.GetAtomicNum() not in _ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(
                 "heteroatoms other than the diazene's own two nitrogens "
-                "(P-68.3.1.3.2) are not supported yet"
+                "(P-68.3.1.3.2) and halogen substituents (P-35.2.1) are "
+                "not supported yet"
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
@@ -96,16 +131,36 @@ def name_diazene(mol) -> str:
         )
 
     graph = adjacency(mol)
-    substituent_names = []
+    halogens = halogen_substituents(mol)
+    substituents = []
     for n_idx in (n1_idx, n2_idx):
         (root,) = [n for n in graph[n_idx] if n not in (n1_idx, n2_idx)] or (None,)
         if root is None:
             continue
-        length = linear_branch(graph, root, n_idx)
-        if length is None:
+        if root in halogens:
+            raise UnsupportedStructure(
+                "a halogen bonded directly to a diazene nitrogen is out "
+                "of scope for this module (see module docstring)"
+            )
+        if not _is_unbranched_ignoring_halogens(graph, root, n_idx, halogens):
             raise UnsupportedStructure("a branched substituent is out of scope for this module")
-        substituent_names.append(alkyl_name(length))
+        substituents.append(name_branch(graph, root, n_idx, halogens))
 
-    if not substituent_names:
+    if not substituents:
         return "diazene"
-    return format_mononuclear_prefixes(substituent_names) + "diazene"
+    if len(substituents) == 1:
+        (name, _), = substituents
+        return name + "diazene"
+
+    (name_a, compound_a), (name_b, compound_b) = substituents
+    if name_a == name_b:
+        if compound_a:
+            return f"{multiplying_prefix(2, compound=True)}({name_a})diazene"
+        return multiplying_prefix(2) + name_a + "diazene"
+    if compound_a or compound_b:
+        raise UnsupportedStructure(
+            "two different substituents where at least one is a compound "
+            "(halogen-bearing) name is unverified and out of scope for "
+            "this module (see module docstring)"
+        )
+    return format_mononuclear_prefixes([name_a, name_b]) + "diazene"
