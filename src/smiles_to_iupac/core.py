@@ -56,6 +56,7 @@ from ._ketone_ester import has_ketone_ester_shape, name_ketone_ester
 from ._nitrile import has_nitrile_shape, name_nitrile
 from ._azide import has_azide_shape, name_azide
 from ._diazene import has_diazene_shape, name_diazene
+from ._azine import has_azine_shape, name_azine
 from ._hydrazine import has_hydrazine_shape, name_hydrazine
 from ._hydrazone import has_hydrazone_shape, name_hydrazone
 from ._diazo import has_diazo_shape, name_diazo
@@ -514,6 +515,12 @@ def smiles_to_iupac(smiles: str) -> str:
         # routed before name_amine for the same reason as the checks above.
         if has_diazene_shape(mol):
             return name_diazene(mol)
+        # A symmetric azine (R2C=N-N=CR2, P-68.3.1.2.3) has two C=N double
+        # bonds, which would otherwise look like a polyimine to the plain
+        # imine check further below (`_imine.py` rejects more than one
+        # C=N bond outright) -- must be routed here first.
+        if has_azine_shape(mol):
+            return name_azine(mol)
         # A hydrazone (R2C=N-NH2, P-68.3.1.2.2) also has two skeletal
         # nitrogens joined by a single bond -- it would otherwise look
         # hydrazine-shaped to the check below (`_hydrazine.py`'s own shape

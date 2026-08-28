@@ -73,15 +73,6 @@ def test_n_substituted_hydrazone_raises():
         smiles_to_iupac("CC=NNC")
 
 
-def test_azine_raises():
-    # R2C=N-N=CR2 (both hydrazine nitrogens double-bonded to their own
-    # carbon) is a different naming scheme (PubChem PUG REST CID 79085,
-    # "N-(propan-2-ylideneamino)propan-2-imine") -- more than one C=N
-    # double bond, out of scope here.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)=NN=C(C)C")
-
-
 def test_ring_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1CCCCC1=NN")
