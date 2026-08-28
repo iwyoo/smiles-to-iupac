@@ -61,6 +61,7 @@ from ._diazo import has_diazo_shape, name_diazo
 from ._isocyanate import has_isocyanate_shape, name_isocyanate
 from ._isocyanide import has_isocyanide_shape, name_isocyanide
 from ._nitro import has_nitro_shape, name_nitro
+from ._nitroso import has_nitroso_shape, name_nitroso
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._cyclophane import has_cyclophane_name, name_cyclophane
 from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
@@ -317,6 +318,11 @@ def smiles_to_iupac(smiles: str) -> str:
     # `name_alcohol` fallback and never even reach the nitrogen branch.
     if has_nitro_shape(mol):
         return name_nitro(mol)
+    # A nitroso group (-N=O, P-61.5.1's sibling prefix) has the same "own
+    # oxygen" issue as nitro above, so it must be routed here for the same
+    # reason.
+    if has_nitroso_shape(mol):
+        return name_nitroso(mol)
     # An isocyanate group (-N=C=O, P-61.8) has the same "own oxygen" issue
     # as nitro above, so it must be routed here for the same reason.
     if has_isocyanate_shape(mol):
