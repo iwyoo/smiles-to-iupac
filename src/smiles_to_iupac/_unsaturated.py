@@ -74,12 +74,23 @@ molecule), and unsaturation in a ring, are out of scope and raise
   needed when there's more than one stereogenic double bond to
   distinguish, which never arises in this single-double-bond scope). CIP
   priority computation is delegated entirely to RDKit
-  (`_common.single_specified_double_bond_stereo`), mirroring
-  `_alcohol.py`'s R/S handling: a non-stereogenic double bond, or one left
-  unspecified in the input, is not a new rejection case -- it's named
-  exactly as before (no prefix). A specified double bond alongside a
-  triple bond, a second double bond, or a tetrahedral stereocenter is out
-  of scope and raises `UnsupportedStructure` explicitly.
+  (`_common.specified_double_bond_stereo`), mirroring `_alcohol.py`'s R/S
+  handling: a non-stereogenic double bond, or one left unspecified in the
+  input, is not a new rejection case -- it's named exactly as before (no
+  prefix).
+- As of `tasks/multi-ez-double-bond-naming.md` (2026-08-28), generalizing
+  the above the same way `tasks/multi-stereocenter-naming.md` generalized
+  R/S from one stereocenter to many: two or more C=C double bonds, *all*
+  specified, are cited together in one parenthesized group, ascending
+  locant order, e.g. "(2E,4E)-hexa-2,4-diene", "(2Z,4E)-hexa-2,4-diene"
+  (both confirmed via PubChem PUG REST), unlike R/S's "(2R)-..." this
+  still omits the locant only in the original single-double-bond case
+  (never for two or more, since then a bare "(E,Z)-" would be ambiguous
+  about which locant is which). A specified double bond alongside a
+  triple bond, a partially-specified set of double bonds (some with a
+  slash marker, some left as a plain double bond), or a tetrahedral
+  stereocenter is out of scope and raises `UnsupportedStructure`
+  explicitly.
 """
 
 from ._common import (
@@ -91,7 +102,7 @@ from ._common import (
     lowest_locant_set,
     non_single_bonds,
     path_between,
-    single_specified_double_bond_stereo,
+    specified_double_bond_stereo,
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name, numerical_term
@@ -275,13 +286,21 @@ def name_acyclic_unsaturated(mol) -> str:
             "P-31.1.1.1)"
         )
 
-    stereo = single_specified_double_bond_stereo(mol)
-    if stereo is not None and len(bonds) != 1:
-        raise UnsupportedStructure(
-            "a specified double-bond E/Z stereo element combined with any "
-            "other multiple bond (a second double bond or a triple bond) "
-            "is not supported yet (see P-93)"
-        )
+    stereo = specified_double_bond_stereo(mol)
+    if stereo is not None:
+        if any(order == _YNE_ORDER for _, _, order in bonds):
+            raise UnsupportedStructure(
+                "a specified double-bond E/Z stereo element combined with a "
+                "triple bond is not supported yet (see P-93)"
+            )
+        ene_bond_count = sum(1 for _, _, order in bonds if order == _ENE_ORDER)
+        if len(stereo) != ene_bond_count:
+            raise UnsupportedStructure(
+                "a non-stereogenic or unspecified double bond alongside one "
+                "or more specified double-bond E/Z elements is not "
+                "supported yet -- every double bond in the molecule must be "
+                "specified (see P-93, tasks/multi-ez-double-bond-naming.md)"
+            )
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -302,16 +321,29 @@ def name_acyclic_unsaturated(mol) -> str:
 
     best_key = None
     best_name = None
+    best_candidate = None
     for chain in chains_with_all_bonds:
         for candidate in (chain, list(reversed(chain))):
             ene_locants, yne_locants = _bond_locants(candidate, bonds)
             substituents = _substituents_for_chain(graph, candidate, halogens)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, name
+                best_key, best_name, best_candidate = key, name, candidate
 
     if stereo is not None:
-        # P-93/R-7.1.2: no locant in the prefix -- with only one multiple
-        # bond in the whole molecule, there's nothing to disambiguate.
-        return f"({stereo[1]})-{best_name}"
+        if len(stereo) == 1:
+            # P-93/R-7.1.2: no locant in the prefix -- with only one
+            # stereogenic double bond in the whole molecule, there's
+            # nothing to disambiguate.
+            (_, code), = stereo
+            return f"({code})-{best_name}"
+        # P-91.3: two or more stereodescriptors are cited together in one
+        # parenthesized group, ascending locant order.
+        labels = sorted(
+            (_bond_locant(best_candidate, (mol.GetBondWithIdx(bond_idx).GetBeginAtomIdx(),
+                                            mol.GetBondWithIdx(bond_idx).GetEndAtomIdx())), code)
+            for bond_idx, code in stereo
+        )
+        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+        return f"({prefix})-{best_name}"
     return best_name

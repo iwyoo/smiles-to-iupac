@@ -317,36 +317,47 @@ def specified_stereocenters(mol):
     return labels
 
 
-def single_specified_double_bond_stereo(mol):
-    """`Bond_Double` analogue of `specified_stereocenters` above (see
-    its docstring for the same unspecified-vs-rejected reasoning, and
-    `tasks/ez-double-bond-naming.md`, 2026-08-25): None if there's no
-    *specified* double-bond stereo element at all -- covering both a
-    non-stereogenic double bond (e.g. `C=C(C)C`, where `FindPotentialStereo`
-    doesn't report an element at all) and one left unspecified in the input
-    (plain `C=C`, no `/`/`\\`) -- so the caller proceeds exactly as before
-    (no E/Z prefix) in either case. If there is exactly one specified
-    stereo element of any kind, and it's a `Bond_Double` element, return
-    (bond_idx, "E" or "Z") via `rdCIPLabeler`. Otherwise -- multiple
-    stereo elements (e.g. a second double bond, specified or not, or a
-    tetrahedral stereocenter alongside it) -- raise `UnsupportedStructure`
+def specified_double_bond_stereo(mol):
+    """`Bond_Double` analogue of `specified_stereocenters` above (see its
+    docstring for the same unspecified-vs-rejected reasoning). None if
+    there's no *specified* double-bond stereo element at all -- covering
+    both a non-stereogenic double bond (e.g. `C=C(C)C`, where
+    `FindPotentialStereo` doesn't report an element at all) and one left
+    unspecified in the input (plain `C=C`, no `/`/`\\`) -- so the caller
+    proceeds exactly as before (no E/Z prefix) in either case.
+
+    If one or more stereo elements are *specified*, no unspecified one
+    alongside them, and every specified one is a `Bond_Double` element (no
+    tetrahedral atom stereocenter -- see `tasks/multi-ez-double-bond-naming.md`,
+    2026-08-28, generalizing the original single-double-bond
+    `tasks/ez-double-bond-naming.md`, 2026-08-25, the same way
+    `specified_stereocenters` above was generalized from a single
+    stereocenter by `tasks/multi-stereocenter-naming.md`), return a list of
+    (bond_idx, "E" or "Z") pairs via `rdCIPLabeler` -- in the same order
+    `Chem.FindPotentialStereo` reports them, not yet locant-sorted (the
+    caller only learns each bond's locant once its own chain numbering is
+    fixed). Otherwise -- a specified element mixed with an unspecified one,
+    or a tetrahedral stereocenter -- raise `UnsupportedStructure`
     explicitly."""
     elements = Chem.FindPotentialStereo(mol)
     specified = [e for e in elements if e.specified == Chem.StereoSpecified.Specified]
     if not specified:
         return None
-    if len(specified) != 1 or specified[0].type != Chem.StereoType.Bond_Double or len(elements) != 1:
+    if len(specified) != len(elements) or any(e.type != Chem.StereoType.Bond_Double for e in specified):
         raise UnsupportedStructure(
-            "stereochemistry beyond a single, specified C=C double-bond E/Z "
-            "element is not supported yet (multiple stereo elements, a "
-            "specified one mixed with an unspecified one, or a tetrahedral "
-            "stereocenter -- see P-92/P-93)"
+            "stereochemistry beyond one or more specified C=C double-bond "
+            "E/Z elements (with no unspecified one alongside them) is not "
+            "supported yet (a specified element mixed with an unspecified "
+            "one, or a tetrahedral stereocenter -- see P-92/P-93)"
         )
-    bond_idx = specified[0].centeredOn
     rdCIPLabeler.AssignCIPLabels(mol)
-    bond = mol.GetBondWithIdx(bond_idx)
-    if not bond.HasProp("_CIPCode"):
-        raise UnsupportedStructure(
-            "could not determine a CIP E/Z label for this double bond"
-        )
-    return bond_idx, bond.GetProp("_CIPCode")
+    labels = []
+    for element in specified:
+        bond_idx = element.centeredOn
+        bond = mol.GetBondWithIdx(bond_idx)
+        if not bond.HasProp("_CIPCode"):
+            raise UnsupportedStructure(
+                "could not determine a CIP E/Z label for this double bond"
+            )
+        labels.append((bond_idx, bond.GetProp("_CIPCode")))
+    return labels
