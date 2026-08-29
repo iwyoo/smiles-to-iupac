@@ -105,6 +105,7 @@ from ._spiro_heteroatom import (
 )
 from ._disulfide import has_disulfide_shape, name_disulfide
 from ._sulfide import has_sulfide_shape, name_sulfide
+from ._sulfinamide import has_sulfinamide_shape, name_sulfinamide
 from ._sulfinic_acid import has_sulfinic_acid_shape, name_sulfinic_acid
 from ._sulfonamide import has_sulfonamide_shape, name_sulfonamide
 from ._sulfonic_acid import has_sulfonic_acid_shape, name_sulfonic_acid
@@ -370,6 +371,11 @@ def smiles_to_iupac(smiles: str) -> str:
     # before the plain "any O atom" branch.
     if has_sulfinic_acid_shape(mol):
         return name_sulfinic_acid(mol)
+    # A sulfinamide (-S(=O)NH2, P-65.3.1) has one oxygen and one nitrogen on
+    # its own sulfur -- the same reasoning as sulfonamide above -- so it too
+    # must be routed before both the "any O atom" and "any N atom" branches.
+    if has_sulfinamide_shape(mol):
+        return name_sulfinamide(mol)
     # A sulfone (-SO2-, P-63.6) has two oxygens on its own sulfur, just like
     # a sulfinic/sulfonic acid's cluster above, so it must be routed here for
     # the same reason -- before it, since a sulfone's sulfur has two carbon
