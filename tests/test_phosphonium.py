@@ -28,12 +28,33 @@ def test_ethylphosphanium():
     assert smiles_to_iupac("CC[PH3+]") == "ethylphosphanium"
 
 
-def test_quaternary_phosphonium_not_supported():
+def test_tetramethylphosphanium():
     # A quaternary phosphonium (four carbons) has no neutral phosphane
-    # counterpart to derive its name from -- structurally confirmed on
-    # PubChem as "tetramethylphosphanium", but out of scope here.
+    # counterpart, so it's named directly from its substituents. PubChem
+    # structure match: "tetramethylphosphanium".
+    assert smiles_to_iupac("C[P+](C)(C)C") == "tetramethylphosphanium"
+
+
+def test_ethyl_trimethyl_phosphanium():
+    # PubChem structure match: "ethyl(trimethyl)phosphanium" -- the
+    # P-16.5.1.3.1 parenthesization rule for a mononuclear parent with
+    # mixed distinct substituent counts.
+    assert smiles_to_iupac("CC[P+](C)(C)C") == "ethyl(trimethyl)phosphanium"
+
+
+def test_branched_quaternary_phosphonium_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[P+](C)(C)C")
+        smiles_to_iupac("C[P+](C)(C)C(C)C")
+
+
+def test_ring_quaternary_phosphonium_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[P+]1(C)CCCC1")
+
+
+def test_halogen_substituted_quaternary_phosphonium_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[P+](C)(C)Cl")
 
 
 def test_ammonium_not_confused_with_phosphonium():
