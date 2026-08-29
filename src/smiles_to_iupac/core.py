@@ -65,6 +65,7 @@ from ._ketone import name_ketone
 from ._ketone_amide import has_ketone_amide_shape, name_ketone_amide
 from ._ketone_ester import has_ketone_ester_shape, name_ketone_ester
 from ._nitrile import has_nitrile_shape, name_nitrile
+from ._thiocyanate import has_thiocyanate_shape, name_thiocyanate
 from ._azide import has_azide_shape, name_azide
 from ._diazene import has_diazene_shape, name_diazene
 from ._azine import has_azine_shape, name_azine
@@ -715,6 +716,13 @@ def smiles_to_iupac(smiles: str) -> str:
         # above.
         if has_hydrazine_shape(mol):
             return name_hydrazine(mol)
+        # A thiocyanate (R-S-C#N, P-6) has a nitrile-shaped -C#N group with
+        # a sulfur instead of a carbon on its other side -- `_nitrile.py`'s
+        # own validation already correctly (but unhelpfully) rejects the
+        # stray sulfur, so this must be routed first to let
+        # `_thiocyanate.py` claim it instead.
+        if has_thiocyanate_shape(mol):
+            return name_thiocyanate(mol)
         # A nitrile nitrogen (-C#N, P-66.5) has no oxygen, so it reaches this
         # branch alongside plain amines; it must be routed here before
         # name_amine, which doesn't recognize a triple-bonded nitrogen at all.
