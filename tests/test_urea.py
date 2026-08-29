@@ -52,5 +52,6 @@ def test_unsaturated_n_substituent_not_supported():
 
 
 def test_thiourea_not_confused_with_urea():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(=S)N")
+    # Thiourea is supported by its own module (`_thiourea.py`, see
+    # test_thiourea.py) but must not be mistaken for plain urea.
+    assert smiles_to_iupac("NC(=S)N") == "thiourea"
