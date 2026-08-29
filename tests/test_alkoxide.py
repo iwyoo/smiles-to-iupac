@@ -48,12 +48,18 @@ def test_alkoxide_with_unsaturation():
     assert smiles_to_iupac("C=CC[O-]") == "prop-2-en-1-olate"
 
 
-def test_tert_butoxide_raises():
-    # tert-Butoxide's retained name ('tert-butoxide (PIN)') isn't
-    # implemented yet -- its branched carbon skeleton is rejected rather
-    # than emitting the wrong systematic '2-methylpropan-2-olate' name.
+def test_tert_butoxide():
+    # Blue Book P-72.2.2.2.2's own text names 'tert-butoxide' as the
+    # retained PIN for (CH3)3C-O(-) (structure confirmed via PubChem,
+    # which itself returns the systematic '2-methylpropan-2-olate').
+    assert smiles_to_iupac("CC(C)(C)[O-]") == "tert-butoxide"
+
+
+def test_other_branched_alkoxide_raises():
+    # A branched skeleton other than tert-butoxide's own fixed shape is
+    # still out of scope.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)(C)[O-]")
+        smiles_to_iupac("CC(C)C[O-]")
 
 
 def test_phenoxide_raises():

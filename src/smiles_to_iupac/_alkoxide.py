@@ -15,11 +15,13 @@ Recommendations ("the Blue Book"):
   names for CH3-O(-), C2H5-O(-), (n-)C3H7-O(-), (n-)C4H9-O(-),
   (CH3)3C-O(-), C6H5-O(-), and H2N-O(-) respectively (P-72.2.2.2.2's own
   text, `tmp/bluebook/P7.txt` lines 1108-1111). This module implements the
-  first four (methoxide/ethoxide/propoxide/butoxide) for their exact plain,
-  unhalogenated, unsaturated, unbranched, terminal-oxygen shape only --
-  isopropoxide is explicitly NOT the PIN for propan-2-ol's anion (the
-  worked example 'propan-2-olate (PIN)' confirms this), so a non-terminal
-  oxygen always falls through to the systematic '-olate' path.
+  first five (methoxide/ethoxide/propoxide/butoxide/tert-butoxide) for
+  their exact plain, unhalogenated, unsaturated, terminal-oxygen shape
+  only -- isopropoxide is explicitly NOT the PIN for propan-2-ol's anion
+  (the worked example 'propan-2-olate (PIN)' confirms this), so a
+  non-terminal oxygen always falls through to the systematic '-olate'
+  path. Phenoxide (needs a separate aromatic-ring module) and aminoxide
+  (a carbon-free H2N-O(-) shape) are not implemented.
 - Structure-verified via PubChem: `CC[O-]` (CID 119440), `CCC[O-]` (CID
   12543515), `CC(C)[O-]` (CID 3260420) -- PubChem's own generated names use
   the systematic '-olate' form even for the retained-name cases (e.g.
@@ -38,12 +40,10 @@ Recommendations ("the Blue Book"):
 Explicitly out of scope (raise `UnsupportedStructure`):
 - A ring anywhere in the molecule (acyclic-only, mirrors the other anion
   modules; phenoxide's aromatic ring is a separate follow-up).
-- A branched carbon skeleton (unbranched chains only -- a substituent-
-  bearing chain like `_alcohol.py`'s own branch support is a separate
-  follow-up).
-- tert-Butoxide, (CH3)3C-O(-) -- its retained name needs special "tert-"
-  handling this module doesn't implement yet; explicitly rejected rather
-  than emitting a wrong non-PIN systematic name.
+- A branched carbon skeleton, except for tert-butoxide, (CH3)3C-O(-)
+  itself (its retained name is hardcoded as a single fixed shape below --
+  a substituent-bearing chain otherwise, like `_alcohol.py`'s own general
+  branch support, is a separate follow-up).
 - More than one -O(-) group, or any oxygen that isn't the single alkoxide
   anion (an ether, a second alkoxide, a carbonyl).
 - A carbon bearing the anionic oxygen that's also double-bonded to another
@@ -202,7 +202,21 @@ def _substituents_for_chain(graph, chain, halogens, excluded_atoms):
     return substituents
 
 
+def _is_tert_butoxide(mol, oxygen_idx, bonds, halogen_atoms):
+    if bonds or halogen_atoms:
+        return False
+    (oxygen_carbon,) = mol.GetAtomWithIdx(oxygen_idx).GetNeighbors()
+    if oxygen_carbon.GetDegree() != 4:
+        return False
+    methyls = [n for n in oxygen_carbon.GetNeighbors() if n.GetIdx() != oxygen_idx]
+    return len(methyls) == 3 and all(m.GetAtomicNum() == 6 and m.GetDegree() == 1 for m in methyls)
+
+
 def _name_acyclic_alkoxide(mol, oxygen_idx, excluded_atoms, bonds):
+    halogen_atoms = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() in HALOGEN_PREFIXES]
+    if _is_tert_butoxide(mol, oxygen_idx, bonds, halogen_atoms):
+        return "tert-butoxide"
+
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     carbon_graph = carbon_adjacency(mol)
@@ -213,7 +227,8 @@ def _name_acyclic_alkoxide(mol, oxygen_idx, excluded_atoms, bonds):
     if chain_length != total_carbons:
         raise UnsupportedStructure(
             "a branched carbon skeleton is not supported yet (unbranched "
-            "chains only)"
+            "chains only, except for tert-butoxide's own fixed shape "
+            "above)"
         )
 
     (oxygen_carbon,) = [n.GetIdx() for n in mol.GetAtomWithIdx(oxygen_idx).GetNeighbors()]
@@ -231,7 +246,6 @@ def _name_acyclic_alkoxide(mol, oxygen_idx, excluded_atoms, bonds):
             "single longest carbon chain"
         )
 
-    halogen_atoms = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() in HALOGEN_PREFIXES]
     if chain_length in _RETAINED_ALKOXIDES and not bonds and not halogen_atoms:
         terminal_positions = {chains[0][0], chains[0][-1]}
         if oxygen_carbon in terminal_positions:
