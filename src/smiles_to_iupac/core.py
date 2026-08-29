@@ -5,6 +5,7 @@ from ._acyl_halide import has_acyl_halide_shape, name_acyl_halide
 from ._anhydride import has_anhydride_shape, name_anhydride
 from ._carbamate import has_carbamate_shape, name_carbamate
 from ._alcohol import name_alcohol
+from ._alkoxide import has_alkoxide_shape, name_alkoxide
 from ._aldehyde import name_aldehyde
 from ._carboxylic_acid_amine import has_carboxylic_acid_amine_shape, name_carboxylic_acid_amine
 from ._aldehyde_carboxylic_acid import (
@@ -424,6 +425,11 @@ def smiles_to_iupac(smiles: str) -> str:
         return name_imine(mol)
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
+        # An alkoxide anion (R-O(-), P-72.2.2.2.2) has a formal-charge -1
+        # oxygen none of the neutral-oxygen checks below (or `name_alcohol`'s
+        # own fallback) expect, so it must be routed first in this branch.
+        if has_alkoxide_shape(mol):
+            return name_alkoxide(mol)
         # Hydroxylamine (H2N-OH, P-68.3.1.1.1) and its O-substituted
         # derivatives (H2N-O-R) have a nitrogen the ether/carbonyl/alcohol
         # checks below don't expect at all, so it must be routed before all

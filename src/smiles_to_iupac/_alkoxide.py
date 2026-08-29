@@ -1,0 +1,307 @@
+"""Naming of alkoxide anions (R-O(-), the '-olate' suffix), restricted to a
+single such group on an unbranched acyclic carbon chain, per the IUPAC 2013
+Recommendations ("the Blue Book"):
+
+- P-72.2.2.2.2 (Chapter P-7, https://iupac.qmul.ac.uk/BlueBook/P7.html): an
+  anion formed by removing a hydron from the chalcogen atom of a hydroxy
+  compound (a plain '-ol', not a carbonyl/anion tautomer pair like the
+  carboxylate/thioate/selenoate modules) is named by adding 'ate' to the
+  '-ol' suffix -- e.g. 'propan-2-ol' -> 'propan-2-olate (PIN)' (confirmed
+  worked example; PubChem CID 3260420 structure match, and PubChem's own
+  auto-generated name agrees exactly here, unlike some of this project's
+  other isotope/anion modules).
+- Retained names: "methoxide, ethoxide, propoxide, butoxide, tert-butoxide,
+  phenoxide (but not isopropoxide), and aminoxide" are preferred IUPAC
+  names for CH3-O(-), C2H5-O(-), (n-)C3H7-O(-), (n-)C4H9-O(-),
+  (CH3)3C-O(-), C6H5-O(-), and H2N-O(-) respectively (P-72.2.2.2.2's own
+  text, `tmp/bluebook/P7.txt` lines 1108-1111). This module implements the
+  first four (methoxide/ethoxide/propoxide/butoxide) for their exact plain,
+  unhalogenated, unsaturated, unbranched, terminal-oxygen shape only --
+  isopropoxide is explicitly NOT the PIN for propan-2-ol's anion (the
+  worked example 'propan-2-olate (PIN)' confirms this), so a non-terminal
+  oxygen always falls through to the systematic '-olate' path.
+- Structure-verified via PubChem: `CC[O-]` (CID 119440), `CCC[O-]` (CID
+  12543515), `CC(C)[O-]` (CID 3260420) -- PubChem's own generated names use
+  the systematic '-olate' form even for the retained-name cases (e.g.
+  "ethanolate" for CC[O-]), which is expected (this project has repeatedly
+  observed PubChem's generator not always picking the Blue Book's specific
+  retained-name PIN) -- the retained names themselves come directly from
+  the Blue Book's own text, not from PubChem.
+- Mirrors `_carboxylate.py`/`_selenoate.py`'s acyclic, single-group,
+  halogen+unsaturation-coexisting scope, but unlike those, the oxygen here
+  sits as a substituent ON a chain carbon rather than being the chain's own
+  terminus, so its locant follows the same citation rules as `_alcohol.py`'s
+  '-ol' suffix (P-14.3.4.2(a) mononuclear-parent locant omission; otherwise
+  the locant is always cited on a chain of 2+ carbons once the retained
+  names' narrow, unsubstituted shape doesn't apply).
+
+Explicitly out of scope (raise `UnsupportedStructure`):
+- A ring anywhere in the molecule (acyclic-only, mirrors the other anion
+  modules; phenoxide's aromatic ring is a separate follow-up).
+- A branched carbon skeleton (unbranched chains only -- a substituent-
+  bearing chain like `_alcohol.py`'s own branch support is a separate
+  follow-up).
+- tert-Butoxide, (CH3)3C-O(-) -- its retained name needs special "tert-"
+  handling this module doesn't implement yet; explicitly rejected rather
+  than emitting a wrong non-PIN systematic name.
+- More than one -O(-) group, or any oxygen that isn't the single alkoxide
+  anion (an ether, a second alkoxide, a carbonyl).
+- A carbon bearing the anionic oxygen that's also double-bonded to another
+  chalcogen (O/S/Se/Te) -- that shape is a carboxylate/thioate/selenoate-
+  style carbonyl-anion tautomer pair (P-72.2.2.2.1.1), handled by its own
+  module, not this one's plain hydroxy-compound anion.
+- Any charged or radical atom other than the single alkoxide oxygen's
+  formal charge -1.
+- Any other heteroatom (N, S, ...), aromatic ring, or isotopic modification.
+"""
+
+from rdkit import Chem
+
+from ._common import (
+    ENE_BOND_ORDER,
+    HALOGEN_PREFIXES,
+    UnsupportedStructure,
+    YNE_BOND_ORDER,
+    adjacency,
+    bond_locants,
+    carbon_adjacency,
+    group_substituents,
+    halogen_substituents,
+    longest_chains,
+    lowest_locant_set,
+    multiplied_word,
+    non_single_bonds,
+)
+from ._numerals import alkane_name
+from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+
+_RETAINED_ALKOXIDES = {1: "methoxide", 2: "ethoxide", 3: "propoxide", 4: "butoxide"}
+_CHALCOGENS = (8, 16, 34, 52)
+
+
+def _find_alkoxide_oxygens(mol):
+    matches = []
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 8:
+            continue
+        if atom.GetFormalCharge() != -1 or atom.GetDegree() != 1:
+            continue
+        (carbon,) = atom.GetNeighbors()
+        if carbon.GetAtomicNum() != 6:
+            continue
+        bond = mol.GetBondBetweenAtoms(atom.GetIdx(), carbon.GetIdx())
+        if bond.GetBondTypeAsDouble() != 1.0:
+            continue
+        # Exclude a carboxylate/thioate/selenoate-style carbon (a carbonyl-
+        # anion tautomer pair, P-72.2.2.2.1.1) -- its own module already
+        # handles that shape, and it isn't a plain hydroxy-compound anion
+        # (P-72.2.2.2.2) at all.
+        if any(
+            n.GetAtomicNum() in _CHALCOGENS
+            and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            for n in carbon.GetNeighbors()
+        ):
+            continue
+        matches.append(atom)
+    return matches
+
+
+def has_alkoxide_shape(mol) -> bool:
+    return bool(_find_alkoxide_oxygens(mol))
+
+
+def _find_alkoxide_group(mol):
+    matches = _find_alkoxide_oxygens(mol)
+    if len(matches) != 1:
+        raise UnsupportedStructure(
+            "exactly one alkoxide (-O(-)) group is required; zero or "
+            "multiple such groups are not supported yet (P-72.2.2.2.2)"
+        )
+    return matches[0]
+
+
+def _suffix_body(ene_locants, yne_locants, o_locant):
+    segments = []
+    if ene_locants:
+        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
+    if yne_locants:
+        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
+    segments.append(([o_locant], "olate"))
+
+    words = [word for _, word in segments]
+    for i in range(len(words) - 1):
+        if words[i].endswith("e") and words[i + 1][0] in "aeiouy":
+            words[i] = words[i][:-1]
+
+    parts = [
+        f"{','.join(str(loc) for loc in locants)}-{word}"
+        for (locants, _), word in zip(segments, words)
+    ]
+    elide_stem = words[0][0] in "aeiouy"
+    return "-".join(parts), elide_stem
+
+
+def _name_from_substituents(chain_length, o_locant, ene_locants, yne_locants, grouped):
+    if chain_length == 1:
+        # P-14.3.4.2(a): a mononuclear parent's locants are always '1' and
+        # never cited, however many substituents there are.
+        stem = alkane_name(1)[:-1]  # 'olate' starts with a vowel
+        return format_substituent_prefixes(grouped, omit_locants=True) + stem + "olate"
+
+    has_unsaturation = bool(ene_locants or yne_locants)
+    prefix = format_substituent_prefixes(grouped)
+    if has_unsaturation:
+        stem = alkane_name(chain_length)[:-3]
+        needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
+    else:
+        stem = alkane_name(chain_length)
+        needs_stem_a = False
+
+    body, elide_stem = _suffix_body(ene_locants, yne_locants, o_locant)
+    if not has_unsaturation and elide_stem:
+        stem = stem[:-1]
+    return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
+
+
+def _candidate_key(chain_length, o_locant, ene_locants, yne_locants, substituents):
+    """Sort key: lowest locant to the principal characteristic group (the
+    alkoxide oxygen) first, mirroring `_alcohol.py`'s own '-ol' priority,
+    then ene/yne locants, then substituent-prefix locants (P-45.2)."""
+    grouped = group_substituents(substituents)
+    total_count = sum(len(info["locants"]) for info in grouped.values())
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
+    ene_locant_set = lowest_locant_set(ene_locants)
+    name = _name_from_substituents(chain_length, o_locant, ene_locants, yne_locants, grouped)
+    return (
+        (
+            (o_locant,),
+            combined_locant_set,
+            ene_locant_set,
+            -total_count,
+            locant_set,
+            citation_locants,
+            name,
+        ),
+        name,
+    )
+
+
+def _substituents_for_chain(graph, chain, halogens, excluded_atoms):
+    chain_set = set(chain)
+    substituents = {}
+    for position, atom in enumerate(chain, start=1):
+        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded_atoms]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+    return substituents
+
+
+def _name_acyclic_alkoxide(mol, oxygen_idx, excluded_atoms, bonds):
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    carbon_graph = carbon_adjacency(mol)
+    chains = longest_chains(carbon_graph)
+    chain_length = len(chains[0])
+
+    total_carbons = sum(1 for atom in mol.GetAtoms() if atom.GetAtomicNum() == 6)
+    if chain_length != total_carbons:
+        raise UnsupportedStructure(
+            "a branched carbon skeleton is not supported yet (unbranched "
+            "chains only)"
+        )
+
+    (oxygen_carbon,) = [n.GetIdx() for n in mol.GetAtomWithIdx(oxygen_idx).GetNeighbors()]
+
+    eligible = []
+    for chain in chains:
+        if oxygen_carbon not in chain:
+            continue
+        if bonds and bond_locants(chain, bonds) is None:
+            continue
+        eligible.append(chain)
+    if not eligible:
+        raise UnsupportedStructure(
+            "the alkoxide carbon (and/or multiple bonds) does not lie on a "
+            "single longest carbon chain"
+        )
+
+    halogen_atoms = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() in HALOGEN_PREFIXES]
+    if chain_length in _RETAINED_ALKOXIDES and not bonds and not halogen_atoms:
+        terminal_positions = {chains[0][0], chains[0][-1]}
+        if oxygen_carbon in terminal_positions:
+            return _RETAINED_ALKOXIDES[chain_length]
+
+    best_key = None
+    best_name = None
+    for chain in eligible:
+        for candidate in (chain, list(reversed(chain))):
+            o_locant = candidate.index(oxygen_carbon) + 1
+            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            substituents = _substituents_for_chain(graph, candidate, halogens, excluded_atoms)
+            key, name = _candidate_key(chain_length, o_locant, ene_locants, yne_locants, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, name
+    return best_name
+
+
+def name_alkoxide(mol) -> str:
+    if mol.GetRingInfo().NumRings() > 0:
+        raise UnsupportedStructure(
+            "a ring is out of scope for this acyclic-only module"
+        )
+
+    oxygen = _find_alkoxide_group(mol)
+    excluded_atoms = {oxygen.GetIdx()}
+
+    has_carbon = False
+    for atom in mol.GetAtoms():
+        atomic_num = atom.GetAtomicNum()
+        if atom.GetIdx() in excluded_atoms:
+            continue
+        if atomic_num not in {6, *HALOGEN_PREFIXES}:
+            raise UnsupportedStructure(
+                "heteroatoms other than the alkoxide's own oxygen "
+                "(P-72.2.2.2.2) and halogen substituents (P-35.2.1) are "
+                "not supported yet"
+            )
+        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+            raise UnsupportedStructure(
+                "a charged or isotopically modified atom other than the "
+                "single alkoxide anion oxygen is not supported yet"
+            )
+        if atomic_num == 6:
+            has_carbon = True
+            if atom.GetIsAromatic():
+                raise UnsupportedStructure(
+                    "aromatic rings are out of scope for this module (see "
+                    "the separate aromatic-ring module)"
+                )
+        elif atom.GetDegree() != 1:
+            raise UnsupportedStructure(
+                "a halogen atom must be a monovalent substituent (P-35.2.1)"
+            )
+    if not has_carbon:
+        raise UnsupportedStructure(
+            "a structure with no carbon atom has no hydrocarbon parent "
+            "hydride to substitute"
+        )
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+
+    all_non_single = [
+        b for b in non_single_bonds(mol) if b[0] not in excluded_atoms and b[1] not in excluded_atoms
+    ]
+    bonds = [b for b in all_non_single if b[2] in (ENE_BOND_ORDER, YNE_BOND_ORDER)]
+    if len(bonds) != len(all_non_single):
+        raise UnsupportedStructure(
+            "a bond order other than single, double, or triple is not "
+            "supported (see P-31.1.1.1)"
+        )
+
+    return _name_acyclic_alkoxide(mol, oxygen.GetIdx(), excluded_atoms, bonds)
