@@ -24,6 +24,7 @@ from ._imide import has_imide_shape, name_imide
 from ._amine import name_amine
 from ._aminide import has_aminide_shape, name_aminide
 from ._ammonium import has_ammonium_shape, name_ammonium
+from ._diazonium import has_diazonium_shape, name_diazonium
 from ._radical import has_radical_shape, name_radical
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
@@ -184,6 +185,12 @@ def smiles_to_iupac(smiles: str) -> str:
     # rejects any charged atom outright rather than attempting to name it.
     if has_ammonium_shape(mol):
         return name_ammonium(mol)
+
+    # A diazonium cation (R-N#N+, P-73) has a charged nitrogen too, for the
+    # same reason as ammonium above -- routed here, unconditionally,
+    # before every other branch.
+    if has_diazonium_shape(mol):
+        return name_diazonium(mol)
 
     # An all-silicon skeleton (P-21.2.1's silane chain naming) has no
     # carbon at all, so it must be routed here before every other branch
