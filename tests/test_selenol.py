@@ -43,9 +43,19 @@ def test_2_chloroethane_1_selenol():
     assert smiles_to_iupac("ClCC[SeH]") == "2-chloroethane-1-selenol"
 
 
-def test_diselenol_not_supported():
+def test_ethane_1_2_diselenol():
+    # PubChem PUG REST auto-generated name matches exactly.
+    assert smiles_to_iupac("[SeH]CC[SeH]") == "ethane-1,2-diselenol"
+
+
+def test_propane_1_3_diselenol():
+    # PubChem PUG REST auto-generated name matches exactly.
+    assert smiles_to_iupac("[SeH]CCC[SeH]") == "propane-1,3-diselenol"
+
+
+def test_triselenol_not_supported():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[SeH]CC[SeH]")
+        smiles_to_iupac("[SeH]CC([SeH])C[SeH]")
 
 
 def test_ring_selenol_not_supported():
