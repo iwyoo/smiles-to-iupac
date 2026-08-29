@@ -29,15 +29,21 @@ Book"):
   candidate SMILES tried came back as CID 0), so this is a reviewed
   (eyeballed), not independently verified, extension along an otherwise
   already-confirmed single axis.
+- Two -SeH groups (a diselenol) mirrors `_thiol.py`'s dithiol extension --
+  the locant/suffix machinery already generalizes over a list of
+  selenol locants, so only the single-group guard needed lifting.
+  Confirmed via PubChem PUG REST: `[SeH]CC[SeH]` ->
+  "ethane-1,2-diselenol", `[SeH]CCC[SeH]` -> "propane-1,3-diselenol".
 
 Scope, deliberately narrow (mirrors `_thiol.py`'s own original single-
-group scope, tasks/selenol-naming.md): only a single -SeH on an acyclic
-chain, with no other heteroatom (in particular no -OH, -SH, or amine
-nitrogen) anywhere in the molecule. Explicitly out of scope (raise
-`UnsupportedStructure`): any ring, two or more -SeH groups (a diselenol),
-a selenide (-Se- ether-analogue) or any other selenium-oxidation-state
-group, a tellurol or other chalcogen atom, and any oxygen or nitrogen atom
-at all.
+group scope, tasks/selenol-naming.md, plus tasks/diselenol-naming.md for
+the two-group extension): one or two -SeH groups on an acyclic chain,
+with no other heteroatom (in particular no -OH, -SH, or amine nitrogen)
+anywhere in the molecule. Explicitly out of scope (raise
+`UnsupportedStructure`): any ring, three or more -SeH groups (a
+triselenol or higher), a selenide (-Se- ether-analogue) or any other
+selenium-oxidation-state group, a tellurol or other chalcogen atom, and
+any oxygen or nitrogen atom at all.
 """
 
 from rdkit import Chem
@@ -119,9 +125,9 @@ def _validate_and_collect_selenols(mol):
         raise UnsupportedStructure(
             "no selenol (-SeH) group found; this module only handles selenols"
         )
-    if len(selenols) > 1:
+    if len(selenols) > 2:
         raise UnsupportedStructure(
-            "more than one selenol group (a diselenol) is out of scope for this module"
+            "more than two selenol groups (a triselenol or higher) is out of scope for this module"
         )
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
