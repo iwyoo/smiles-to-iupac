@@ -1,0 +1,122 @@
+"""Naming of simple sulfonium cations (the '-sulfanium' suffix,
+P-73.1.1.2), per the IUPAC 2013 Recommendations ("the Blue Book"):
+
+- P-73.1.1.2 (Chapter P-7, https://iupac.qmul.ac.uk/BlueBook/PDF/P7.pdf):
+  a cation formed by adding a hydron to a parent hydride is named by
+  changing the parent hydride name's terminal 'e' to the suffix 'ium'.
+  For sulfur this is 'sulfane' (H2S) -- unlike `_ammonium.py`'s own
+  '-aminium' derivation, this module can't reuse an existing neutral
+  module's output the same way: a neutralized R-SH2+ is just R-SH, an
+  ordinary thiol already named by `_thiol.py`'s own suffix-style
+  '-thiol' convention ('methanethiol'), which has no textual relationship
+  to 'methylsulfanium' at all. Sulfane's own retained-name substitutive
+  style ('methylsulfane' for a hypothetical neutral CH3-SH2, mirroring
+  `_phosphane.py`'s identical 'methylphosphane' pattern for PH3) is a
+  different, otherwise-unused naming branch that only ever surfaces
+  through this cation -- so this module builds the '-sulfanium' name
+  directly from the charged sulfur's own substituents, without ever
+  constructing (or exposing to `core.py`'s general dispatch) a neutral
+  'sulfane' molecule or name.
+- Confirmed via PubChem structure match: `[SH3+]` -> "sulfanium",
+  `C[SH2+]` -> "methylsulfanium", `C[SH+]C` -> "dimethylsulfanium",
+  `C[S+](C)C` -> "trimethylsulfanium". A charged sulfur's cation valence
+  is 3, the same as phosphane's own neutral valence -- so this module's
+  substituent-count range (0-3) and prefix formatting
+  (`format_mononuclear_prefixes`, P-16.5.1.3.1's parenthesization rule)
+  are lifted directly from `_phosphane.py`.
+
+Explicitly out of scope (raise `UnsupportedStructure`):
+- A branched, unsaturated, or aromatic substituent, or any ring anywhere
+  in the molecule (mirrors `_phosphane.py`'s own scope).
+- A halogen substituent directly on sulfur (unverified for this cation,
+  unlike `_phosphane.py`'s own confirmed halophosphane case).
+- Any sulfonium sulfur not shaped like SH3+ or a sulfur bonded to 1-3
+  carbons (with the remaining valence as hydrogens) -- e.g. formal charge
+  other than +1, more than one charged atom, isotopic modification.
+"""
+
+from rdkit import Chem
+
+from ._common import UnsupportedStructure, adjacency, linear_branch, non_single_bonds
+from ._numerals import alkyl_name
+from ._substituents import format_mononuclear_prefixes
+
+
+def has_sulfonium_shape(mol) -> bool:
+    """True if the molecule contains exactly one +1-charged sulfur shaped
+    like a genuine sulfonium (SH3+, or a sulfur singly bonded to 1-3
+    carbons with the rest hydrogens). Used by `core.py` to route here
+    before any other branch, none of which recognize a charged atom."""
+    charged_sulfurs = [
+        atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 16 and atom.GetFormalCharge() == 1
+    ]
+    if len(charged_sulfurs) != 1:
+        return False
+    sulfur = charged_sulfurs[0]
+    if sulfur.GetIsotope() != 0:
+        return False
+    degree = sulfur.GetDegree()
+    if degree > 3 or sulfur.GetTotalNumHs() + degree != 3:
+        return False
+    return all(
+        n.GetAtomicNum() == 6 and mol.GetBondBetweenAtoms(sulfur.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        for n in sulfur.GetNeighbors()
+    )
+
+
+def name_sulfonium(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+
+    charged_sulfurs = [
+        atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 16 and atom.GetFormalCharge() != 0
+    ]
+    (sulfur,) = charged_sulfurs
+    if sulfur.GetFormalCharge() != 1 or sulfur.GetIsotope() != 0:
+        raise UnsupportedStructure(
+            "only a single, singly-charged, non-isotopically-modified "
+            "sulfonium sulfur is supported (P-73.1.1.2)"
+        )
+    if sulfur.GetDegree() > 3:
+        raise UnsupportedStructure(
+            "a sulfur atom with more than three substituents is not a "
+            "sulfonium"
+        )
+    if any(n.GetAtomicNum() != 6 for n in sulfur.GetNeighbors()):
+        raise UnsupportedStructure(
+            "a sulfonium substituent other than carbon is out of scope "
+            "for this module"
+        )
+    if any(
+        mol.GetBondBetweenAtoms(sulfur.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
+        for n in sulfur.GetNeighbors()
+    ):
+        raise UnsupportedStructure("the sulfonium sulfur must be singly bonded to each substituent")
+
+    other_atoms = [atom for atom in mol.GetAtoms() if atom.GetIdx() != sulfur.GetIdx()]
+    for atom in other_atoms:
+        if atom.GetAtomicNum() != 6:
+            raise UnsupportedStructure(
+                "heteroatoms other than the sulfonium sulfur itself are "
+                "not supported yet"
+            )
+        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+        if atom.GetIsAromatic():
+            raise UnsupportedStructure("an aromatic substituent (e.g. phenylsulfonium) is out of scope")
+    if mol.GetRingInfo().NumRings() != 0:
+        raise UnsupportedStructure("a ring anywhere in the molecule is out of scope for this module")
+    if non_single_bonds(mol):
+        raise UnsupportedStructure("an unsaturated substituent is out of scope for this module")
+
+    graph = adjacency(mol)
+    substituent_names = []
+    for root in graph[sulfur.GetIdx()]:
+        length = linear_branch(graph, root, sulfur.GetIdx())
+        if length is None:
+            raise UnsupportedStructure("a branched substituent is out of scope for this module")
+        substituent_names.append(alkyl_name(length))
+
+    if not substituent_names:
+        return "sulfanium"
+    return format_mononuclear_prefixes(substituent_names) + "sulfanium"

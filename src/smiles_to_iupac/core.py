@@ -25,6 +25,7 @@ from ._amine import name_amine
 from ._aminide import has_aminide_shape, name_aminide
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._phosphonium import has_phosphonium_shape, name_phosphonium
+from ._sulfonium import has_sulfonium_shape, name_sulfonium
 from ._diazonium import has_diazonium_shape, name_diazonium
 from ._radical import has_radical_shape, name_radical
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
@@ -198,6 +199,12 @@ def smiles_to_iupac(smiles: str) -> str:
     # before every other branch.
     if has_phosphonium_shape(mol):
         return name_phosphonium(mol)
+
+    # A sulfonium cation (P-73.1.1.2) has a charged sulfur too, for the
+    # same reason as ammonium above -- routed here, unconditionally,
+    # before every other branch.
+    if has_sulfonium_shape(mol):
+        return name_sulfonium(mol)
 
     # An all-silicon skeleton (P-21.2.1's silane chain naming) has no
     # carbon at all, so it must be routed here before every other branch
