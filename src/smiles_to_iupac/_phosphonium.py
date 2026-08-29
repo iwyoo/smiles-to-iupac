@@ -17,34 +17,42 @@ P-73.1.1.2), per the IUPAC 2013 Recommendations ("the Blue Book"):
   `C[PH3+]` -> "methylphosphanium", `C[PH2+]C` -> "dimethylphosphanium",
   `C[PH+](C)C` -> "trimethylphosphanium". A fourth substituent
   (`C[P+](C)(C)C` -> "tetramethylphosphanium", a genuine quaternary
-  phosphonium salt) is structurally confirmed too but is NOT reachable by
-  this module's neutralize-then-rename approach -- a neutral phosphorus
-  atom cannot carry four substituents at all, so there is no phosphane
-  name to derive it from; naming that shape needs its own substitutive
-  logic and is deferred to a follow-up task.
+  phosphonium salt) is NOT reachable by the neutralize-then-rename
+  approach above -- a neutral phosphorus atom cannot carry four
+  substituents at all, so there is no phosphane name to derive it from.
+  Instead, mirroring `_sulfonium.py`'s own direct-substituent-construction
+  approach (used there for the same "no neutral counterpart" reason), a
+  quaternary phosphonium's name is built directly from its four carbon
+  substituents via `format_mononuclear_prefixes` + the '-phosphanium'
+  suffix. Confirmed via PubChem structure match:
+  `C[P+](C)(C)C` -> "tetramethylphosphanium", `CC[P+](C)(C)C` ->
+  "ethyl(trimethyl)phosphanium".
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- Quaternary phosphonium (phosphorus bonded to four carbons) -- see above.
-- Any phosphonium phosphorus not shaped like PH4+ or a phosphorus bonded
-  to 1-3 carbons (with the remaining valence as hydrogens) -- e.g. formal
-  charge other than +1, more than one charged atom, isotopic
-  modification, a halogen or other heteroatom substituent, a
-  branched/unsaturated/aromatic/ring-bearing substituent (inherited
-  unchanged from `_phosphane.py`'s own scope, since this module's
-  validation is entirely delegated to it after neutralization).
+- Any phosphonium phosphorus not shaped like PH4+, a phosphorus bonded to
+  1-3 carbons (with the remaining valence as hydrogens), or a phosphorus
+  bonded to exactly 4 carbons -- e.g. formal charge other than +1, more
+  than one charged atom, isotopic modification, a halogen or other
+  heteroatom substituent, a branched/unsaturated/aromatic/ring-bearing
+  substituent (inherited unchanged from `_phosphane.py`'s own scope for
+  the degree 0-3 case via neutralization; unverified via PubChem for the
+  quaternary degree-4 case, so kept just as narrow there too).
 """
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
+from ._common import UnsupportedStructure, adjacency, linear_branch, non_single_bonds
+from ._numerals import alkyl_name
 from ._phosphane import name_simple_phosphane
+from ._substituents import format_mononuclear_prefixes
 
 
 def has_phosphonium_shape(mol) -> bool:
     """True if the molecule contains exactly one +1-charged phosphorus
-    shaped like a genuine phosphonium (PH4+, or a phosphorus singly bonded
-    to 1-3 carbons with the rest hydrogens). Used by `core.py` to route
-    here before `_phosphane.py`, which rejects any charged atom outright."""
+    shaped like a genuine phosphonium (PH4+, a phosphorus singly bonded to
+    1-3 carbons with the rest hydrogens, or a phosphorus singly bonded to
+    4 carbons). Used by `core.py` to route here before `_phosphane.py`,
+    which rejects any charged atom outright."""
     charged_phosphorus = [
         atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 15 and atom.GetFormalCharge() == 1
     ]
@@ -54,7 +62,7 @@ def has_phosphonium_shape(mol) -> bool:
     if phosphorus.GetIsotope() != 0:
         return False
     degree = phosphorus.GetDegree()
-    if degree > 3 or phosphorus.GetTotalNumHs() + degree != 4:
+    if degree > 4 or phosphorus.GetTotalNumHs() + degree != 4:
         return False
     return all(
         n.GetAtomicNum() == 6 and mol.GetBondBetweenAtoms(phosphorus.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
@@ -76,12 +84,6 @@ def name_phosphonium(mol) -> str:
             "phosphonium phosphorus is supported (P-73.1.1.2)"
         )
     degree = phosphorus.GetDegree()
-    if degree > 3:
-        raise UnsupportedStructure(
-            "a quaternary phosphonium (phosphorus bonded to four carbons) "
-            "is out of scope for this module -- it has no neutral "
-            "phosphane counterpart to derive its name from (P-73.1.1.2)"
-        )
     if any(n.GetAtomicNum() != 6 for n in phosphorus.GetNeighbors()):
         raise UnsupportedStructure(
             "a phosphonium substituent other than carbon is out of scope "
@@ -93,6 +95,9 @@ def name_phosphonium(mol) -> str:
     ):
         raise UnsupportedStructure("the phosphonium phosphorus must be singly bonded to each substituent")
 
+    if degree == 4:
+        return _name_quaternary_phosphonium(mol, phosphorus)
+
     neutral_rw = Chem.RWMol(mol)
     neutral_phosphorus = neutral_rw.GetAtomWithIdx(phosphorus.GetIdx())
     neutral_phosphorus.SetFormalCharge(0)
@@ -103,3 +108,31 @@ def name_phosphonium(mol) -> str:
 
     phosphane_name = name_simple_phosphane(neutral_mol)
     return phosphane_name[:-1] + "ium"
+
+
+def _name_quaternary_phosphonium(mol, phosphorus) -> str:
+    other_atoms = [atom for atom in mol.GetAtoms() if atom.GetIdx() != phosphorus.GetIdx()]
+    for atom in other_atoms:
+        if atom.GetAtomicNum() != 6:
+            raise UnsupportedStructure(
+                "heteroatoms other than the phosphonium phosphorus itself "
+                "are not supported yet"
+            )
+        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+        if atom.GetIsAromatic():
+            raise UnsupportedStructure("an aromatic substituent (e.g. phenylphosphonium) is out of scope")
+    if mol.GetRingInfo().NumRings() != 0:
+        raise UnsupportedStructure("a ring anywhere in the molecule is out of scope for this module")
+    if non_single_bonds(mol):
+        raise UnsupportedStructure("an unsaturated substituent is out of scope for this module")
+
+    graph = adjacency(mol)
+    substituent_names = []
+    for root in graph[phosphorus.GetIdx()]:
+        length = linear_branch(graph, root, phosphorus.GetIdx())
+        if length is None:
+            raise UnsupportedStructure("a branched substituent is out of scope for this module")
+        substituent_names.append(alkyl_name(length))
+
+    return format_mononuclear_prefixes(substituent_names) + "phosphanium"
