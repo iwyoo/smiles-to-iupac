@@ -42,9 +42,14 @@ def test_ethyl_n_methylcarbamate():
     assert smiles_to_iupac("CNC(=O)OCC") == "ethyl N-methylcarbamate"
 
 
-def test_n_n_disubstituted_carbamate_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COC(=O)N(C)C")
+def test_methyl_n_n_dimethylcarbamate():
+    # PubChem structure match: "methyl N,N-dimethylcarbamate".
+    assert smiles_to_iupac("COC(=O)N(C)C") == "methyl N,N-dimethylcarbamate"
+
+
+def test_methyl_n_ethyl_n_methylcarbamate():
+    # PubChem structure match: "methyl N-ethyl-N-methylcarbamate".
+    assert smiles_to_iupac("COC(=O)N(C)CC") == "methyl N-ethyl-N-methylcarbamate"
 
 
 def test_branched_n_substituent_not_supported():

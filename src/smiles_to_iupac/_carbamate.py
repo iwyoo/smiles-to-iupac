@@ -15,13 +15,18 @@ Recommendations ("the Blue Book"):
   alkyl group attached at its own chain terminus (e.g. 'methyl', 'ethyl',
   'propyl'); a branched, substituted, unsaturated, or ring-bearing R is
   deferred.
-- The amide nitrogen is either unsubstituted -NH2, or mono-substituted
-  with a single plain, unbranched, unsubstituted, saturated alkyl group
-  R' cited as an 'N-'-prefixed substituent directly ahead of 'carbamate'
-  (P-16.3.3/P-66.1, mirroring how an amide's N-substituent is cited):
-  'methyl N-methylcarbamate' for CH3-NH-CO-O-CH3 (PubChem CID 81151).
-  N,N-disubstitution, a branched/cyclic/unsaturated N-substituent, and
-  ring-attached amide nitrogens are all deferred.
+- The amide nitrogen is unsubstituted -NH2, mono-substituted, or
+  N,N-disubstituted with one or two plain, unbranched, unsubstituted,
+  saturated alkyl groups, each cited as its own 'N-'-prefixed substituent
+  directly ahead of 'carbamate' (P-16.3.3/P-66.1, mirroring how an amide's
+  N-substituents are cited), in alphabetical order, with a 'di' multiplying
+  prefix (and a single shared 'N,N-' locant pair) when both substituents
+  are identical: 'methyl N-methylcarbamate' for CH3-NH-CO-O-CH3 (PubChem
+  CID 81151), 'methyl N,N-dimethylcarbamate' for (CH3)2N-CO-O-CH3, and
+  'methyl N-ethyl-N-methylcarbamate' for CH3(C2H5)N-CO-O-CH3 (structures
+  confirmed via PubChem, which returns these exact names). A
+  branched/cyclic/unsaturated N-substituent and ring-attached amide
+  nitrogens are still deferred.
 - P-29.3.2.1: both R's and R''s names are plain alkyl substituent-group
   names, built with `alkyl_name` directly since both are restricted to an
   unbranched chain here -- deliberately not using `name_branch` for R,
@@ -32,8 +37,7 @@ Recommendations ("the Blue Book"):
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any ring anywhere in the molecule.
-- N,N-disubstitution, or an N-substituent that is branched, unsaturated,
-  or ring-bearing.
+- An N-substituent that is branched, unsaturated, or ring-bearing.
 - A branched, substituted, unsaturated, or cyclic R -- only a plain
   unbranched saturated alkyl R is supported in this first pass.
 - More than one carbamate group, or any other heteroatom/oxygen not part
@@ -57,12 +61,13 @@ _ALLOWED_ATOMIC_NUMS = {6, 7, 8}
 
 def _carbamate_cores(mol):
     """List of (carbamate_carbon, carbonyl_o, ester_o, alkyl_carbon,
-    amide_n, n_alkyl_carbon) for every R-O-C(=O)-NHR' pattern: a carbon
+    amide_n, n_alkyl_carbons) for every R-O-C(=O)-N(R'')R' pattern: a carbon
     carrying exactly one doubly-bonded (terminal) oxygen, one singly-bonded
     oxygen itself bonded to a second carbon, and one singly-bonded
-    nitrogen that is either unsubstituted (degree 1, two H) or
-    mono-substituted with a single carbon (degree 2, one H) -- `n_alkyl_carbon`
-    is that carbon's index, or None for the unsubstituted -NH2 case."""
+    nitrogen that is unsubstituted (degree 1, two H), mono-substituted
+    (degree 2, one H), or N,N-disubstituted (degree 3, no H) with carbon --
+    `n_alkyl_carbons` is a tuple of those carbons' indices (0, 1, or 2 of
+    them)."""
     cores = []
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() != 6:
@@ -88,14 +93,12 @@ def _carbamate_cores(mol):
         (amide_n,) = nitrogens
         if mol.GetBondBetweenAtoms(atom.GetIdx(), amide_n.GetIdx()).GetBondTypeAsDouble() != 1.0:
             continue
-        n_alkyl_carbon = None
-        if amide_n.GetDegree() == 1 and amide_n.GetTotalNumHs() == 2:
-            pass
-        elif amide_n.GetDegree() == 2 and amide_n.GetTotalNumHs() == 1:
-            (n_alkyl_carbon,) = (
-                n for n in amide_n.GetNeighbors() if n.GetAtomicNum() == 6 and n.GetIdx() != atom.GetIdx()
-            )
-        else:
+        n_substituents = [n for n in amide_n.GetNeighbors() if n.GetIdx() != atom.GetIdx()]
+        n_alkyl_carbons = tuple(n.GetIdx() for n in n_substituents if n.GetAtomicNum() == 6)
+        if len(n_alkyl_carbons) != len(n_substituents):
+            continue
+        expected_hs = 2 - len(n_alkyl_carbons)
+        if amide_n.GetDegree() != 1 + len(n_alkyl_carbons) or amide_n.GetTotalNumHs() != expected_hs:
             continue
         ester_oxygen = ester_oxygens[0]
         alkyl_carbon = next(n for n in ester_oxygen.GetNeighbors() if n.GetIdx() != atom.GetIdx())
@@ -105,7 +108,7 @@ def _carbamate_cores(mol):
             ester_oxygen.GetIdx(),
             alkyl_carbon.GetIdx(),
             amide_n.GetIdx(),
-            n_alkyl_carbon.GetIdx() if n_alkyl_carbon is not None else None,
+            n_alkyl_carbons,
         ))
     return cores
 
@@ -126,7 +129,7 @@ def name_carbamate(mol) -> str:
             "exactly one carbamate group is required; zero or multiple "
             "carbamate groups are not supported yet"
         )
-    carbamate_c, carbonyl_o, ester_o, alkyl_c, amide_n, n_alkyl_c = cores[0]
+    carbamate_c, carbonyl_o, ester_o, alkyl_c, amide_n, n_alkyl_cs = cores[0]
 
     has_carbon = False
     for atom in mol.GetAtoms():
@@ -176,12 +179,20 @@ def name_carbamate(mol) -> str:
         raise UnsupportedStructure(
             "a branched R group is not supported yet"
         )
-    if n_alkyl_c is None:
+    if not n_alkyl_cs:
         return f"{alkyl_name(length)} carbamate"
 
-    n_length = linear_branch(carbon_graph, n_alkyl_c, None)
-    if n_length is None:
-        raise UnsupportedStructure(
-            "a branched N-substituent is not supported yet"
-        )
-    return f"{alkyl_name(length)} N-{alkyl_name(n_length)}carbamate"
+    n_names = []
+    for n_alkyl_c in n_alkyl_cs:
+        n_length = linear_branch(carbon_graph, n_alkyl_c, None)
+        if n_length is None:
+            raise UnsupportedStructure(
+                "a branched N-substituent is not supported yet"
+            )
+        n_names.append(alkyl_name(n_length))
+
+    if len(n_names) == 2 and n_names[0] == n_names[1]:
+        n_prefix = f"N,N-di{n_names[0]}"
+    else:
+        n_prefix = "-".join(f"N-{name}" for name in sorted(n_names))
+    return f"{alkyl_name(length)} {n_prefix}carbamate"
