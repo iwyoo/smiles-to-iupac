@@ -1,39 +1,56 @@
-"""Naming of urea (H2N-C(=O)-NH2), per the IUPAC 2013 Recommendations
-("the Blue Book"):
+"""Naming of urea (H2N-C(=O)-NH2) and its N-substituted derivatives, per
+the IUPAC 2013 Recommendations ("the Blue Book"):
 
 - Chapter P-6 (https://iupac.qmul.ac.uk/BlueBook/PDF/P6.pdf): 'urea' is a
   retained name that is itself the preferred IUPAC name -- not a
   systematic construction -- the same way 'carbamic acid' (`_carbamate.py`)
   is retained rather than derived. Confirmed via PubChem structure match:
-  `NC(=O)N` -> "urea".
-- Unlike every other module in this project, urea has no parent-hydride
-  chain to number and no chain-length logic of its own: the name is
-  always the single fixed word 'urea'.
+  `NC(=O)N` -> "urea". Unlike every other module in this project, urea has
+  no parent-hydride chain to number and no chain-length logic of its own.
+- Each nitrogen may carry 0, 1, or 2 plain, unbranched, saturated alkyl
+  substituents, cited as 'N-'-prefixed substituents directly ahead of
+  'urea', mirroring `_amide.py`'s/`_carbamate.py`'s own N-substitution
+  citation -- confirmed directly from the Blue Book's own text
+  (`tmp/bluebook/P6.txt` lines 630, 1373-1378): 'N-methyl-N-nitrosourea
+  (PIN)' cites two different substituents on the SAME nitrogen both as
+  'N-' (no prime needed -- there's only one substituted nitrogen to name),
+  and '(i) The symbols N,N' are used for the 'unprimed' parent
+  structure...' establishes that a SECOND, distinct nitrogen's
+  substituents are cited with a primed 'N'-' instead (the same convention
+  `_common.py`'s multi-nitrogen relatives use, e.g.
+  'N,N'-methylenediethanamine (PIN)'). PubChem's own generated names for
+  these use numeric locants instead (e.g. "1,3-dimethylurea"), a
+  structure-only match, not a naming-convention one -- this project
+  follows the Blue Book's letter-locant convention, per the source text
+  above.
 
-Scope, deliberately narrow (a first pass at this parent, mirroring how
-`_carbamate.py` originally deferred free carbamic acid itself): only the
-exact unsubstituted shape (H2N-C(=O)-NH2, no other atoms at all) is
-supported. N-substituted ureas (e.g. 'methylurea', '1,3-dimethylurea') are
-deferred -- PubChem's own generated names for those use numeric locants
-rather than the classical N/N' convention, and whether that matches the
-Blue Book's own PIN locant style needs separate confirmation from the
-source text before it's implemented. A ring-fused urea (e.g. hydantoin)
-and thiourea (the sulfur analogue) are both out of scope entirely.
+Scope, deliberately narrow: substituents landing on a single nitrogen (one
+or two, using the same 'N-'/'N,N-di' citation as `_amide.py`), or an
+identical single substituent on each of the two different nitrogens
+(symmetric 'N,N'-di...' citation). Explicitly out of scope (raise
+`UnsupportedStructure`): two DIFFERENT substituents split across the two
+different nitrogens (no confirmed worked example settles which physical
+nitrogen becomes 'N' vs 'N'' in that case), a branched/unsaturated/
+ring-bearing N-substituent, a ring-fused urea (e.g. hydantoin), and
+thiourea (the sulfur analogue).
 """
 
-from ._common import UnsupportedStructure
+from rdkit import Chem
+
+from ._common import UnsupportedStructure, carbon_adjacency, linear_branch, non_single_bonds
+from ._numerals import alkyl_name
 
 
-def _urea_carbon(mol):
-    """The urea carbonyl carbon, or None if the molecule isn't shaped like
-    plain, unsubstituted urea (H2N-C(=O)-NH2, and nothing else)."""
-    atoms = list(mol.GetAtoms())
-    if len(atoms) != 4:
-        return None
-    for atom in atoms:
-        if atom.GetAtomicNum() != 6:
+def _urea_core(mol):
+    """(carbon_idx, (nitrogen1_idx, nitrogen2_idx)) for the urea carbonyl
+    carbon and its two nitrogens, or None if the molecule isn't shaped like
+    a urea core at all (a carbon with exactly one double-bonded, terminal
+    oxygen and two singly-bonded nitrogens, each nitrogen bonded only to
+    that carbon and 0-2 carbons besides)."""
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 6 or atom.GetDegree() != 3:
             continue
-        if atom.GetDegree() != 3 or atom.GetFormalCharge() != 0 or atom.GetIsAromatic():
+        if atom.GetFormalCharge() != 0 or atom.GetIsAromatic():
             continue
         neighbors = atom.GetNeighbors()
         oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
@@ -43,27 +60,114 @@ def _urea_carbon(mol):
         (oxygen,) = oxygens
         if oxygen.GetDegree() != 1 or mol.GetBondBetweenAtoms(atom.GetIdx(), oxygen.GetIdx()).GetBondTypeAsDouble() != 2.0:
             continue
-        if any(
-            n.GetDegree() != 1
-            or n.GetTotalNumHs() != 2
-            or n.GetFormalCharge() != 0
-            or n.GetIsotope() != 0
-            or mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
-            for n in nitrogens
-        ):
+        if any(mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0 for n in nitrogens):
             continue
-        return atom.GetIdx()
+        if any(n.GetFormalCharge() != 0 or n.GetIsotope() != 0 for n in nitrogens):
+            continue
+        if any(nn.GetAtomicNum() != 6 for n in nitrogens for nn in n.GetNeighbors() if nn.GetIdx() != atom.GetIdx()):
+            continue
+        return atom.GetIdx(), (nitrogens[0].GetIdx(), nitrogens[1].GetIdx())
     return None
 
 
 def has_urea_shape(mol) -> bool:
-    return _urea_carbon(mol) is not None
+    return _urea_core(mol) is not None
+
+
+def _n_substituent_carbons(mol, nitrogen_idx, carbon_idx):
+    nitrogen = mol.GetAtomWithIdx(nitrogen_idx)
+    return tuple(
+        n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetIdx() != carbon_idx
+    )
+
+
+def _substituent_names(carbon_graph, substituent_carbons):
+    names = []
+    for c in substituent_carbons:
+        length = linear_branch(carbon_graph, c, None)
+        if length is None:
+            raise UnsupportedStructure("a branched N-substituent is not supported yet")
+        names.append(alkyl_name(length))
+    return names
+
+
+def _substituent_chain_atoms(carbon_graph, substituent_carbons):
+    atoms = set()
+    for root in substituent_carbons:
+        previous, current = None, root
+        while current is not None:
+            atoms.add(current)
+            neighbors = [n for n in carbon_graph[current] if n != previous]
+            previous, current = current, (neighbors[0] if neighbors else None)
+    return atoms
+
+
+def _reject_unsaturated_substituents(mol, atoms):
+    if any(b[0] in atoms or b[1] in atoms for b in non_single_bonds(mol)):
+        raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
+
+
+def _n_prefix(letter, names):
+    if not names:
+        return ""
+    if len(names) == 1:
+        return f"{letter}-{names[0]}"
+    if names[0] == names[1]:
+        return f"{letter},{letter}-di{names[0]}"
+    a, b = sorted(names)
+    return f"{letter}-{a}-{letter}-{b}"
 
 
 def name_urea(mol) -> str:
-    if _urea_carbon(mol) is None:
+    core = _urea_core(mol)
+    if core is None:
         raise UnsupportedStructure(
-            "no plain, unsubstituted urea (H2N-C(=O)-NH2) shape found; "
-            "this module only handles unsubstituted urea itself"
+            "no urea (H2N-C(=O)-NH2 or an N-substituted derivative) shape "
+            "found; this module only handles urea and simple N-substituted "
+            "ureas"
         )
-    return "urea"
+    carbon_idx, (n1_idx, n2_idx) = core
+
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+    if mol.GetRingInfo().NumRings() > 0:
+        raise UnsupportedStructure(
+            "a ring-fused urea (e.g. hydantoin) is out of scope for this module"
+        )
+
+    (oxygen_idx,) = (n.GetIdx() for n in mol.GetAtomWithIdx(carbon_idx).GetNeighbors() if n.GetAtomicNum() == 8)
+    n1_carbons = _n_substituent_carbons(mol, n1_idx, carbon_idx)
+    n2_carbons = _n_substituent_carbons(mol, n2_idx, carbon_idx)
+
+    carbon_graph = carbon_adjacency(mol)
+    n1_chain_atoms = _substituent_chain_atoms(carbon_graph, n1_carbons)
+    n2_chain_atoms = _substituent_chain_atoms(carbon_graph, n2_carbons)
+    known_atoms = {carbon_idx, oxygen_idx, n1_idx, n2_idx} | n1_chain_atoms | n2_chain_atoms
+    for atom in mol.GetAtoms():
+        if atom.GetIdx() not in known_atoms:
+            raise UnsupportedStructure(
+                "a heteroatom or other characteristic group outside the "
+                "urea core and its plain N-alkyl substituents is not "
+                "supported yet"
+            )
+
+    _reject_unsaturated_substituents(mol, n1_chain_atoms)
+    _reject_unsaturated_substituents(mol, n2_chain_atoms)
+
+    n1_names = _substituent_names(carbon_graph, n1_carbons)
+    n2_names = _substituent_names(carbon_graph, n2_carbons)
+
+    if not n1_names and not n2_names:
+        return "urea"
+
+    if n1_names and n2_names:
+        if len(n1_names) != 1 or len(n2_names) != 1 or n1_names[0] != n2_names[0]:
+            raise UnsupportedStructure(
+                "different substituents split across urea's two nitrogens "
+                "is not supported yet (no confirmed worked example settles "
+                "which nitrogen becomes N vs N' in that case)"
+            )
+        return f"N,N'-di{n1_names[0]}urea"
+
+    names = n1_names or n2_names
+    return f"{_n_prefix('N', names)}urea"

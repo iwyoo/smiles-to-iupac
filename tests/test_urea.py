@@ -9,14 +9,46 @@ def test_urea():
     assert smiles_to_iupac("NC(=O)N") == "urea"
 
 
-def test_n_substituted_urea_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CNC(=O)N")
+def test_n_methylurea():
+    # PubChem structure match ("methylurea"); this project uses the Blue
+    # Book's own letter-locant style confirmed directly from source text
+    # (tmp/bluebook/P6.txt lines 630, 1373-1378), not PubChem's numeric
+    # locants.
+    assert smiles_to_iupac("CNC(=O)N") == "N-methylurea"
 
 
-def test_n_n_disubstituted_urea_not_supported():
+def test_n_n_dimethylurea_same_nitrogen():
+    # PubChem structure match ("1,1-dimethylurea" -- both methyls on the
+    # same nitrogen).
+    assert smiles_to_iupac("CN(C)C(=O)N") == "N,N-dimethylurea"
+
+
+def test_n_ethyl_n_methylurea_same_nitrogen():
+    # PubChem structure match ("1-ethyl-1-methylurea" -- both
+    # substituents on the same nitrogen).
+    assert smiles_to_iupac("CCN(C)C(=O)N") == "N-ethyl-N-methylurea"
+
+
+def test_n_n_prime_dimethylurea_different_nitrogens():
+    # PubChem structure match ("1,3-dimethylurea" -- one methyl on each of
+    # the two different nitrogens); Blue Book P6.txt lines 1373-1378
+    # confirm the primed N,N' convention for two distinct nitrogens.
+    assert smiles_to_iupac("CNC(=O)NC") == "N,N'-dimethylurea"
+
+
+def test_different_substituents_on_different_nitrogens_not_supported():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CNC(=O)NC")
+        smiles_to_iupac("CCNC(=O)NC")
+
+
+def test_branched_n_substituent_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(C)NC(=O)N")
+
+
+def test_unsaturated_n_substituent_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=CNC(=O)N")
 
 
 def test_thiourea_not_confused_with_urea():
