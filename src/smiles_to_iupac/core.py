@@ -15,6 +15,7 @@ from ._aldehyde_carboxylic_acid import (
 from ._aldehyde_ketone import has_aldehyde_ketone_shape, name_aldehyde_ketone
 from ._acetal import has_acetal_shape, name_acetal
 from ._amide import has_amide_shape, name_amide
+from ._urea import has_urea_shape, name_urea
 from ._amidine import has_amidine_shape, name_amidine
 from ._hydrazide import has_hydrazide_shape, name_hydrazide
 from ._imide import has_imide_shape, name_imide
@@ -590,6 +591,13 @@ def smiles_to_iupac(smiles: str) -> str:
         # groups together.
         if has_hydrazide_shape(mol):
             return name_hydrazide(mol)
+        # Urea (H2N-C(=O)-NH2) has a carbonyl carbon with two qualifying
+        # nitrogens, the same shape `has_amide_shape` looks for -- routing
+        # it first here lets `_urea.py` claim it before `_amide.py` would
+        # otherwise (correctly, but unhelpfully) reject it as "not exactly
+        # one nitrogen".
+        if has_urea_shape(mol):
+            return name_urea(mol)
         if has_amide_shape(mol):
             # P-41/Table 3.3: 'amide' outranks 'one', so an amide that also
             # carries one or more ketones names the amide as the suffix and
