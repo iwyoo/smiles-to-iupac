@@ -110,6 +110,7 @@ from ._sulfinic_acid import has_sulfinic_acid_shape, name_sulfinic_acid
 from ._sulfonamide import has_sulfonamide_shape, name_sulfonamide
 from ._seleninic_acid import has_seleninic_acid_shape, name_seleninic_acid
 from ._selenonic_acid import has_selenonic_acid_shape, name_selenonic_acid
+from ._tellurinic_acid import has_tellurinic_acid_shape, name_tellurinic_acid
 from ._telluronic_acid import has_telluronic_acid_shape, name_telluronic_acid
 from ._sulfonic_acid import has_sulfonic_acid_shape, name_sulfonic_acid
 from ._sulfone import has_sulfone_shape, name_sulfone
@@ -373,6 +374,11 @@ def smiles_to_iupac(smiles: str) -> str:
     # it too must be routed before the plain "any O atom" branch.
     if has_telluronic_acid_shape(mol):
         return name_telluronic_acid(mol)
+    # A tellurinic acid (-Te(=O)OH, P-65.3.1) has the same oxygen-cluster
+    # shape as sulfinic/seleninic acid, just on tellurium, so it too must
+    # be routed before the plain "any O atom" branch.
+    if has_tellurinic_acid_shape(mol):
+        return name_tellurinic_acid(mol)
     # A seleninic acid (-Se(=O)OH, P-65.3.1) has the same oxygen-cluster
     # shape as sulfinic acid, just on selenium instead of sulfur, so it too
     # must be routed before the plain "any O atom" branch.
