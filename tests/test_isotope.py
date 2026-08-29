@@ -117,12 +117,29 @@ def test_single_halogen_ethane_deuterium_raises():
         smiles_to_iupac("FCC[2H]")
 
 
-def test_deuterium_locant_set_raises():
-    # Deuterium spread across more than one chain position needs a locant
-    # *set* (e.g. Blue Book's own '(1,1,1,3,3-2H5)pentan-2-one' shape) --
-    # out of scope for this module's single-position support.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[2H]CC[2H]")
+def test_deuterium_locant_set_two_positions():
+    # Deuterium spread across two chain positions (a locant *set*, mirroring
+    # Blue Book's own '(1,1,1,3,3-2H5)pentan-2-one' shape). PubChem
+    # structure match: "1,2-dideuterioethane" (its own systematic
+    # 'deuterio' prefix style, not the Blue Book nuclide descriptor).
+    assert smiles_to_iupac("[2H]CC[2H]") == "(1,2-2H2)ethane"
+
+
+def test_deuterium_locant_set_four_atoms_two_positions():
+    # PubChem structure match: "1,1,2,2-tetradeuterioethane".
+    assert smiles_to_iupac("[2H]C([2H])C([2H])[2H]") == "(1,1,2,2-2H4)ethane"
+
+
+def test_deuterium_locant_set_three_carbon_chain():
+    # PubChem structure match: "1,1,3,3-tetradeuteriopropane".
+    assert smiles_to_iupac("[2H]C([2H])CC([2H])[2H]") == "(1,1,3,3-2H4)propane"
+
+
+def test_deuterium_locant_set_with_halogen():
+    # Isotope and halogen locants are minimized together as one combined
+    # series (P-82.5.2) when picking chain-numbering direction; here that
+    # unambiguously favors citing the chlorine at position 3, not 1.
+    assert smiles_to_iupac("[2H]C([2H])C([2H])CCl") == "3-chloro(1,1,2-2H3)propane"
 
 
 def test_branched_chain_raises():
