@@ -19,6 +19,7 @@ from ._amidine import has_amidine_shape, name_amidine
 from ._hydrazide import has_hydrazide_shape, name_hydrazide
 from ._imide import has_imide_shape, name_imide
 from ._amine import name_amine
+from ._aminide import has_aminide_shape, name_aminide
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._radical import has_radical_shape, name_radical
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
@@ -597,6 +598,11 @@ def smiles_to_iupac(smiles: str) -> str:
             return name_ketone(mol)
         return name_alcohol(mol)
     if any(atom.GetAtomicNum() == 7 for atom in mol.GetAtoms()):
+        # An aminide anion (-NH(-), P-72.2.2.2.3) has a formal-charge -1
+        # nitrogen none of the neutral-nitrogen checks below (or
+        # `name_amine`'s own fallback) expect, so it must be routed first.
+        if has_aminide_shape(mol):
+            return name_aminide(mol)
         # An azide group (-N3, P-61.7) has no oxygen and three nitrogens
         # name_amine doesn't recognize at all, so it must be routed here
         # before name_amine for the same reason as the nitrile/imine checks
