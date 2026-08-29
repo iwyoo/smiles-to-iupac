@@ -76,3 +76,55 @@ def test_deuterium_and_carbon_isotope_together_raises():
 def test_isotopically_labeled_halogen_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[2H]C([37Cl])")
+
+
+def test_carbon_14_butane_name():
+    # Blue Book P-82.5.2 worked example (numbering-priority rule): "(2-14C)butane
+    # (PIN) [not (3-14C)butane]" -- the internal chain carbon adjacent to a
+    # terminus must be numbered '2' (not '3'), confirming a locant IS needed
+    # (and how it's chosen) for an unhalogenated multi-carbon chain, unlike
+    # methane's own never-locanted case.
+    assert smiles_to_iupac("C[14CH2]CC") == "(2-14C)butane"
+
+
+def test_trifluoro_deuterio_ethane_name():
+    # Blue Book P-82.6.2 worked example: "1,1,1-trifluoro(2-2H1)ethane (PIN)".
+    assert smiles_to_iupac("FC(F)(F)C[2H]") == "1,1,1-trifluoro(2-2H1)ethane"
+
+
+def test_carbon_isotope_propane_name():
+    # Generalizes the confirmed butane rule (P-82.5.2) to a shorter
+    # unhalogenated chain: propane's central carbon is likewise not
+    # numbering-direction-symmetric with a terminal carbon, so its locant
+    # is cited the same way.
+    assert smiles_to_iupac("C[14CH2]C") == "(2-14C)propane"
+
+
+def test_plain_ethane_deuterium_raises():
+    # An unhalogenated 2-carbon chain with a single isotopic modification
+    # isn't covered by any confirmed Blue Book worked example this module
+    # has verified -- P-82.6.1.1's omission rule for this exact shape is
+    # plausible but unconfirmed, so this stays a deliberate rejection
+    # rather than a guessed name.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[2H]CC")
+
+
+def test_single_halogen_ethane_deuterium_raises():
+    # A 2-carbon chain with exactly one halogen substituent alongside an
+    # isotopic modification is likewise unconfirmed.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("FCC[2H]")
+
+
+def test_deuterium_locant_set_raises():
+    # Deuterium spread across more than one chain position needs a locant
+    # *set* (e.g. Blue Book's own '(1,1,1,3,3-2H5)pentan-2-one' shape) --
+    # out of scope for this module's single-position support.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[2H]CC[2H]")
+
+
+def test_branched_chain_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(C)C[2H]")
