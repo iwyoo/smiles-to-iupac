@@ -66,6 +66,7 @@ from ._ketone import name_ketone
 from ._ketone_amide import has_ketone_amide_shape, name_ketone_amide
 from ._ketone_ester import has_ketone_ester_shape, name_ketone_ester
 from ._nitrile import has_nitrile_shape, name_nitrile
+from ._selenocyanate import has_selenocyanate_shape, name_selenocyanate
 from ._thiocyanate import has_thiocyanate_shape, name_thiocyanate
 from ._azide import has_azide_shape, name_azide
 from ._diazene import has_diazene_shape, name_diazene
@@ -730,6 +731,11 @@ def smiles_to_iupac(smiles: str) -> str:
         # `_thiocyanate.py` claim it instead.
         if has_thiocyanate_shape(mol):
             return name_thiocyanate(mol)
+        # A selenocyanate (R-Se-C#N, P-6) is the selenium analogue of
+        # thiocyanate above -- same reasoning, routed here for the same
+        # reason.
+        if has_selenocyanate_shape(mol):
+            return name_selenocyanate(mol)
         # A nitrile nitrogen (-C#N, P-66.5) has no oxygen, so it reaches this
         # branch alongside plain amines; it must be routed here before
         # name_amine, which doesn't recognize a triple-bonded nitrogen at all.
