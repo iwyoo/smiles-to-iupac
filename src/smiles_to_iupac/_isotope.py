@@ -40,15 +40,22 @@ modification, per the IUPAC 2013 Recommendations ("the Blue Book"):
   necessary in unmodified names") suggests these might also omit the
   locant, but without a worked example to confirm the exact omitted form,
   this module raises `UnsupportedStructure` for them rather than guessing.
-- Within a chain, exactly one isotope "locant" is supported, mirroring
-  methane's own single-axis-at-a-time scope: either 1-4 deuterium (2H)
-  atoms replacing hydrogen on the SAME chain carbon, or one chain carbon
-  itself being 12C/13C/14C -- each optionally coexisting with the
-  already-supported halogen substituent prefixes (P-35.2.1). Deuteriums
-  spread across more than one chain carbon (a locant *set*, e.g.
-  '(1,1,1,3,3-2H5)pentan-2-one'-style names) and simultaneous carbon-isotope
+- Within a chain, deuterium may now be spread across more than one chain
+  carbon (a locant *set*, mirroring the '(1,1,1,3,3-2H5)pentan-2-one'-style
+  names cited by P-82.3, though this module still only handles a plain
+  alkane parent, not a ketone), each position independently carrying 1-4
+  deuterium atoms, always with its own locant repeated once per atom --
+  the same citation style `_halogen_prefix_for_positions` already uses for
+  multiple halogens at one position. A single labeled skeletal carbon
+  (12C/13C/14C) is still the only carbon-isotope shape supported; more
+  than one such carbon (its own locant set) and simultaneous carbon-isotope
   + deuterium modification (P-82.3, confirmed distinct by
   '(2-14C,3-2H1)butane (PIN)') both stay out of scope for a follow-up task.
+  Structure-verified via PubChem: `[2H]C([2H])C([2H])[2H]` (PubChem's own
+  name: "1,1,2,2-tetradeuterioethane"), `[2H]C([2H])CC([2H])[2H]`
+  (PubChem: "1,1,3,3-tetradeuteriopropane") -- PubChem uses its own
+  systematic 'deuterio' prefix style rather than the Blue Book's
+  parenthesized nuclide descriptor, but the structures match exactly.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any parent other than an unbranched methane/alkane chain -- branched
@@ -57,9 +64,10 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - Any isotope other than deuterium (2H) among hydrogen atoms (e.g. tritium).
 - The carbon isotope and deuterium substitution occurring at the same time
   (P-82.3), or any isotopically labeled halogen.
-- More than one distinct chain position bearing an isotopic modification.
+- More than one distinct chain position bearing a skeletal carbon isotope.
 - A 2-carbon chain whose isotope-locant citation isn't settled by a
-  confirmed worked example (see above).
+  confirmed worked example (see above) -- this only applies to a single
+  deuterium-bearing position; two or more positions always cite locants.
 - Any heteroatom (other than halogens), charge, or additional isotopic
   modification.
 """
@@ -198,15 +206,14 @@ def _name_chain(mol, carbons) -> str:
             "only deuterium (2H) is supported among hydrogen isotopes; "
             "other hydrogen isotopes (e.g. tritium) are not supported yet"
         )
-    deuterium_carbons = {bonded_carbon[atom.GetIdx()] for atom in hydrogens}
-    if len(deuterium_carbons) > 1:
-        raise UnsupportedStructure(
-            "deuterium spread across more than one chain position (a locant "
-            "set) is not supported yet"
-        )
+    deuterium_counts: dict[int, int] = {}
+    for atom in hydrogens:
+        carbon_idx = bonded_carbon[atom.GetIdx()]
+        deuterium_counts[carbon_idx] = deuterium_counts.get(carbon_idx, 0) + 1
+    for count in deuterium_counts.values():
+        if count > _MAX_DEUTERIUMS:
+            raise UnsupportedStructure("a single chain position cannot carry more than 4 deuterium atoms")
     deuterium_count = len(hydrogens)
-    if deuterium_count > _MAX_DEUTERIUMS:
-        raise UnsupportedStructure("a single chain position cannot carry more than 4 deuterium atoms")
 
     carbon_isotope_positions = [c for c in chain if mol.GetAtomWithIdx(c).GetIsotope() != 0]
     for c in carbon_isotope_positions:
@@ -226,13 +233,15 @@ def _name_chain(mol, carbons) -> str:
             "is not supported yet (P-82.3)"
         )
 
+    multi_position_deuterium = len(deuterium_counts) > 1
+
     if carbon_isotope_positions:
         isotope_carbon = carbon_isotope_positions[0]
         isotope_descriptor_base = f"{mol.GetAtomWithIdx(isotope_carbon).GetIsotope()}C"
-    elif deuterium_count:
-        (isotope_carbon,) = deuterium_carbons
+    elif deuterium_count and not multi_position_deuterium:
+        (isotope_carbon,) = deuterium_counts
         isotope_descriptor_base = f"2H{deuterium_count}"
-    else:
+    elif not deuterium_count:
         raise UnsupportedStructure("no isotopically labeled atom found")
 
     halogens = [atom for atom in other_atoms if atom.GetAtomicNum() in HALOGEN_PREFIXES]
@@ -240,39 +249,55 @@ def _name_chain(mol, carbons) -> str:
     best_key = None
     best = None
     for candidate in (chain, list(reversed(chain))):
-        isotope_locant = candidate.index(isotope_carbon) + 1
         halogen_positions = [
             (candidate.index(bonded_carbon[h.GetIdx()]) + 1, h.GetAtomicNum()) for h in halogens
         ]
-        combined = lowest_locant_set([isotope_locant] + [pos for pos, _ in halogen_positions])
+        if multi_position_deuterium:
+            deuterium_locants = sorted(
+                candidate.index(carbon_idx) + 1
+                for carbon_idx, count in deuterium_counts.items()
+                for _ in range(count)
+            )
+            combined = lowest_locant_set(deuterium_locants + [pos for pos, _ in halogen_positions])
+            candidate_result = (deuterium_locants, halogen_positions)
+        else:
+            isotope_locant = candidate.index(isotope_carbon) + 1
+            combined = lowest_locant_set([isotope_locant] + [pos for pos, _ in halogen_positions])
+            candidate_result = (isotope_locant, halogen_positions)
         if best_key is None or combined < best_key:
             best_key = combined
-            best = (isotope_locant, halogen_positions)
-    isotope_locant, halogen_positions = best
+            best = candidate_result
 
     chain_length = len(chain)
-    halogen_count = len(halogen_positions)
 
-    if chain_length >= 3:
-        cite_locant = True
-    elif halogen_count == 0:
-        raise UnsupportedStructure(
-            "an unhalogenated 2-carbon chain with a single isotopic "
-            "modification is not covered by a confirmed worked example yet "
-            "(P-82.6.1.1's locant-omission rule for this shape is unconfirmed)"
-        )
-    elif halogen_count == 1:
-        raise UnsupportedStructure(
-            "a 2-carbon chain with exactly one halogen substituent alongside "
-            "an isotopic modification is not covered by a confirmed worked "
-            "example yet"
-        )
+    if multi_position_deuterium:
+        deuterium_locants, halogen_positions = best
+        isotope_descriptor = f"{','.join(str(loc) for loc in deuterium_locants)}-2H{deuterium_count}"
     else:
-        cite_locant = True
+        isotope_locant, halogen_positions = best
+        halogen_count = len(halogen_positions)
 
-    isotope_descriptor = (
-        f"{isotope_locant}-{isotope_descriptor_base}" if cite_locant else isotope_descriptor_base
-    )
+        if chain_length >= 3:
+            cite_locant = True
+        elif halogen_count == 0:
+            raise UnsupportedStructure(
+                "an unhalogenated 2-carbon chain with a single isotopic "
+                "modification is not covered by a confirmed worked example yet "
+                "(P-82.6.1.1's locant-omission rule for this shape is unconfirmed)"
+            )
+        elif halogen_count == 1:
+            raise UnsupportedStructure(
+                "a 2-carbon chain with exactly one halogen substituent alongside "
+                "an isotopic modification is not covered by a confirmed worked "
+                "example yet"
+            )
+        else:
+            cite_locant = True
+
+        isotope_descriptor = (
+            f"{isotope_locant}-{isotope_descriptor_base}" if cite_locant else isotope_descriptor_base
+        )
+
     halogen_prefix = _halogen_prefix_for_positions(halogen_positions)
 
     return f"{halogen_prefix}({isotope_descriptor}){alkane_name(chain_length)}"
