@@ -67,6 +67,7 @@ from ._ketone_amide import has_ketone_amide_shape, name_ketone_amide
 from ._ketone_ester import has_ketone_ester_shape, name_ketone_ester
 from ._nitrile import has_nitrile_shape, name_nitrile
 from ._selenocyanate import has_selenocyanate_shape, name_selenocyanate
+from ._tellurocyanate import has_tellurocyanate_shape, name_tellurocyanate
 from ._thiocyanate import has_thiocyanate_shape, name_thiocyanate
 from ._azide import has_azide_shape, name_azide
 from ._diazene import has_diazene_shape, name_diazene
@@ -736,6 +737,11 @@ def smiles_to_iupac(smiles: str) -> str:
         # reason.
         if has_selenocyanate_shape(mol):
             return name_selenocyanate(mol)
+        # A tellurocyanate (R-Te-C#N, P-6) is the tellurium analogue of
+        # thiocyanate/selenocyanate above -- same reasoning, routed here
+        # for the same reason.
+        if has_tellurocyanate_shape(mol):
+            return name_tellurocyanate(mol)
         # A nitrile nitrogen (-C#N, P-66.5) has no oxygen, so it reaches this
         # branch alongside plain amines; it must be routed here before
         # name_amine, which doesn't recognize a triple-bonded nitrogen at all.
