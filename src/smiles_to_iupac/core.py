@@ -108,6 +108,7 @@ from ._sulfide import has_sulfide_shape, name_sulfide
 from ._sulfinamide import has_sulfinamide_shape, name_sulfinamide
 from ._sulfinic_acid import has_sulfinic_acid_shape, name_sulfinic_acid
 from ._sulfonamide import has_sulfonamide_shape, name_sulfonamide
+from ._selenonic_acid import has_selenonic_acid_shape, name_selenonic_acid
 from ._sulfonic_acid import has_sulfonic_acid_shape, name_sulfonic_acid
 from ._sulfone import has_sulfone_shape, name_sulfone
 from ._sulfoxide import has_sulfoxide_shape, name_sulfoxide
@@ -360,6 +361,11 @@ def smiles_to_iupac(smiles: str) -> str:
     # in that branch understand a sulfur-centered oxygen cluster at all.
     if has_sulfonic_acid_shape(mol):
         return name_sulfonic_acid(mol)
+    # A selenonic acid (-Se(=O)(=O)OH, P-65.3.1) has the same oxygen-cluster
+    # shape as sulfonic acid above, just on selenium instead of sulfur, so
+    # it too must be routed before the plain "any O atom" branch.
+    if has_selenonic_acid_shape(mol):
+        return name_selenonic_acid(mol)
     # A sulfonamide (-SO2NH2, P-65.3.1) has two oxygens on its own sulfur,
     # the same reasoning as sulfonic acid above, plus a nitrogen that would
     # otherwise be mistaken for a plain amine -- so it too must be routed
