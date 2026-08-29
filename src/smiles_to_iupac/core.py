@@ -26,6 +26,7 @@ from ._aminide import has_aminide_shape, name_aminide
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._phosphonium import has_phosphonium_shape, name_phosphonium
 from ._oxonium import has_oxonium_shape, name_oxonium
+from ._carbenium import has_carbenium_shape, name_carbenium
 from ._sulfonium import has_sulfonium_shape, name_sulfonium
 from ._diazonium import has_diazonium_shape, name_diazonium
 from ._radical import has_radical_shape, name_radical
@@ -212,6 +213,12 @@ def smiles_to_iupac(smiles: str) -> str:
     # before every other branch.
     if has_oxonium_shape(mol):
         return name_oxonium(mol)
+
+    # A carbenium cation (P-73.2.2.1.1's 'ylium' suffix naming) has a
+    # charged carbon too, for the same reason as ammonium above -- routed
+    # here, unconditionally, before every other branch.
+    if has_carbenium_shape(mol):
+        return name_carbenium(mol)
 
     # An all-silicon skeleton (P-21.2.1's silane chain naming) has no
     # carbon at all, so it must be routed here before every other branch
