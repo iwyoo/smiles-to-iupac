@@ -44,6 +44,7 @@ from ._cyclic import name_cycloalkane
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
 from ._dihydro_aromatic import find_dihydronaphthalene_core, name_dihydronaphthalene
 from ._ester import has_ester_shape, name_ester
+from ._cyanate import has_cyanate_shape, name_cyanate
 from ._ether import has_ether_shape, name_ether
 from ._fullerene import has_fullerene_name, name_fullerene
 from ._androstane import has_androstane_name, name_androstane
@@ -488,6 +489,12 @@ def smiles_to_iupac(smiles: str) -> str:
         # name_amine below instead.
         if has_hydroxylamine_shape(mol):
             return name_hydroxylamine(mol)
+        # A cyanate (R-O-C#N, P-6) has a degree-2 oxygen bonded to two
+        # carbons, the same shape `has_ether_shape` looks for -- it must be
+        # routed here first to let `_cyanate.py` claim it before
+        # `_ether.py` would otherwise misname it as a plain ether.
+        if has_cyanate_shape(mol):
+            return name_cyanate(mol)
         # A plain -O- ether (P-63.2.1) has no suffix, so it must be routed
         # here before the carbonyl/alcohol checks below, none of which
         # accept a degree-2 oxygen at all.
