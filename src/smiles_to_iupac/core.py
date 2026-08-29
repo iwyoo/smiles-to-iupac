@@ -16,6 +16,8 @@ from ._aldehyde_ketone import has_aldehyde_ketone_shape, name_aldehyde_ketone
 from ._acetal import has_acetal_shape, name_acetal
 from ._amide import has_amide_shape, name_amide
 from ._thiourea import has_thiourea_shape, name_thiourea
+from ._selenourea import has_selenourea_shape, name_selenourea
+from ._tellurourea import has_tellurourea_shape, name_tellurourea
 from ._urea import has_urea_shape, name_urea
 from ._amidine import has_amidine_shape, name_amidine
 from ._guanidine import has_guanidine_shape, name_guanidine
@@ -511,6 +513,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # gate.
     if has_thiourea_shape(mol):
         return name_thiourea(mol)
+
+    # Selenourea/tellurourea (H2N-C(=Se/Te)-NH2) have no oxygen either, for
+    # the same reason as thiourea above.
+    if has_selenourea_shape(mol):
+        return name_selenourea(mol)
+
+    if has_tellurourea_shape(mol):
+        return name_tellurourea(mol)
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
         # An alkoxide anion (R-O(-), P-72.2.2.2.2) has a formal-charge -1
