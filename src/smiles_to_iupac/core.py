@@ -18,6 +18,7 @@ from ._amide import has_amide_shape, name_amide
 from ._thiourea import has_thiourea_shape, name_thiourea
 from ._urea import has_urea_shape, name_urea
 from ._amidine import has_amidine_shape, name_amidine
+from ._guanidine import has_guanidine_shape, name_guanidine
 from ._hydrazide import has_hydrazide_shape, name_hydrazide
 from ._imide import has_imide_shape, name_imide
 from ._amine import name_amine
@@ -723,6 +724,15 @@ def smiles_to_iupac(smiles: str) -> str:
         # that would otherwise look imine-shaped to the check below (a
         # different, unrelated interpretation of the same C=N bond) -- must
         # be routed here first.
+        # Guanidine (HN=C(NH2)2, P-66.4.1) has a carbon with the same
+        # imino+amino nitrogen shape `has_amidine_shape` looks for (just
+        # with two amino nitrogens instead of one) -- `_amidine.py`'s own
+        # docstring explicitly anticipates this "geminal diamidine" shape
+        # as one its validation rejects, so it must be routed here first
+        # to let `_guanidine.py` claim it before that (correct, but
+        # unhelpful) rejection.
+        if has_guanidine_shape(mol):
+            return name_guanidine(mol)
         if has_amidine_shape(mol):
             return name_amidine(mol)
         # A plain (non-oxime) imine (C=N, P-62.3) has no oxygen, so it

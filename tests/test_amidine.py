@@ -49,12 +49,11 @@ def test_diamidine_raises():
         smiles_to_iupac("NC(=N)CC(=N)N")
 
 
-def test_guanidine_raises():
+def test_guanidine_not_confused_with_amidine():
     # H2N-C(=NH)-NH2 has two amino nitrogens on the same carbon -- not a
-    # plain primary amidine (P-66.4.1.2.1, a separate retained name), out
-    # of scope for this module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(=N)N")
+    # plain primary amidine (P-66.4.1.2.1), but its own separate retained
+    # name, "guanidine" (see `_guanidine.py`/test_guanidine.py).
+    assert smiles_to_iupac("NC(=N)N") == "guanidine"
 
 
 def test_imine_not_misnamed_as_amidine():
