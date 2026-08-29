@@ -28,9 +28,37 @@ def test_amide_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_n_substituted_amide_raises():
+def test_n_methylethanamide():
+    # PubChem structure match: "N-methylacetamide" (PubChem uses the
+    # retained 'acetamide' stem; this module uses the systematic PIN stem
+    # 'ethanamide' consistently with its own plain-amide tests above).
+    assert smiles_to_iupac("CNC(C)=O") == "N-methylethanamide"
+
+
+def test_n_n_dimethylethanamide():
+    # PubChem structure match: "N,N-dimethylacetamide".
+    assert smiles_to_iupac("CC(=O)N(C)C") == "N,N-dimethylethanamide"
+
+
+def test_n_ethyl_n_methylethanamide():
+    # PubChem structure match: "N-ethyl-N-methylacetamide".
+    assert smiles_to_iupac("CC(=O)N(C)CC") == "N-ethyl-N-methylethanamide"
+
+
+def test_n_substituted_amide_with_longer_acyl_chain():
+    # The N-substituent must not be mistaken for the acyl chain even when
+    # it happens to be longer than it.
+    assert smiles_to_iupac("CC(=O)NCCCC") == "N-butylethanamide"
+
+
+def test_branched_n_substituent_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CNC(C)=O")
+        smiles_to_iupac("CC(=O)NC(C)C")
+
+
+def test_unsaturated_n_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=O)NC=C")
 
 
 def test_lactam_raises():

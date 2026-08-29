@@ -30,12 +30,20 @@ Recommendations ("the Blue Book"):
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with the
   'amide' suffix, reusing `halogen_substituents`/`format_substituent_prefixes`
   unchanged.
+- The amide nitrogen may carry zero, one, or two plain, unbranched,
+  unsubstituted, saturated alkyl substituents, each cited as its own
+  'N-'-prefixed substituent directly ahead of the acyl stem, in alphabetical
+  order, with a 'di' multiplying prefix (and a single shared 'N,N-' pair)
+  when both are identical -- exactly `_carbamate.py`'s own N,N-disubstitution
+  extension, reusing `alkyl_name` directly (not `name_branch`, see the P-29
+  blocker) since both substituents are restricted to an unbranched chain.
+  Confirmed via PubChem: 'N-methylacetamide' (CC(=O)NC), 'N,N-
+  dimethylacetamide' (CC(=O)N(C)C), 'N-ethyl-N-methylacetamide'
+  (CC(=O)N(C)CC).
 
 Explicitly out of scope (raise `UnsupportedStructure`), per the task's
 first-pass scope:
-- An amide nitrogen with any substituent other than its two hydrogens
-  (N-substituted amide, e.g. N-methylacetamide) - deferred entirely; only a
-  primary amide (-CONH2) is supported here.
+- An N-substituent that is branched, unsaturated, or ring-bearing.
 - An amide on/in a ring (a lactam) - a separate module's territory.
 - More than one amide group in the same molecule (a diamide) - deferred
   entirely, along with any other multiple-principal-characteristic-group
@@ -66,54 +74,66 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    linear_branch,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
 )
-from ._numerals import alkane_name
+from ._numerals import alkane_name, alkyl_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, 8, *HALOGEN_PREFIXES}
 
 
+def _is_carbonyl_carbon(mol, carbon_atom):
+    return any(
+        o.GetAtomicNum() == 8
+        and o.GetDegree() == 1
+        and mol.GetBondBetweenAtoms(carbon_atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for o in carbon_atom.GetNeighbors()
+    )
+
+
 def has_amide_shape(mol) -> bool:
     """True if some carbon carries a doubly-bonded, monovalent carbonyl
-    oxygen and a singly-bonded, monovalent, two-H nitrogen (a primary
-    -CONH2 pattern), regardless of whether the rest of the molecule is in
-    scope. Used by `core.py` to route ahead of the aldehyde/ketone dispatch,
-    since an amide carbon would otherwise look aldehyde-shaped to those
-    modules (both have exactly one carbon neighbor besides the carbonyl)."""
+    oxygen and a singly-bonded nitrogen with 0-2 carbon substituents, no
+    other heavy-atom neighbor, and no *other* carbonyl-carbon neighbor (a
+    -CON(R)(R') pattern, R/R' either H or an unbranched alkyl carbon),
+    regardless of whether the rest of the molecule is in scope. Used by
+    `core.py` to route ahead of the aldehyde/ketone dispatch, since an amide
+    carbon would otherwise look aldehyde-shaped to those modules (both have
+    exactly one carbon neighbor besides the carbonyl). A nitrogen bonded to
+    two carbonyl carbons (a symmetric imide) is excluded here so `core.py`'s
+    later `has_imide_shape` check still gets a chance at it."""
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() != 6:
             continue
-        has_carbonyl = any(
-            n.GetAtomicNum() == 8
-            and n.GetDegree() == 1
-            and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
-            for n in atom.GetNeighbors()
-        )
-        has_primary_amide_n = any(
+        if not _is_carbonyl_carbon(mol, atom):
+            continue
+        has_amide_n = any(
             n.GetAtomicNum() == 7
-            and n.GetDegree() == 1
-            and n.GetTotalNumHs() == 2
             and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+            and all(nn.GetAtomicNum() == 6 for nn in n.GetNeighbors() if nn.GetIdx() != atom.GetIdx())
+            and sum(1 for nn in n.GetNeighbors() if _is_carbonyl_carbon(mol, nn)) == 1
             for n in atom.GetNeighbors()
         )
-        if has_carbonyl and has_primary_amide_n:
+        if has_amide_n:
             return True
     return False
 
 
 def _validate_and_collect_amide(mol):
     """Check the molecule fits this module's scope (see module docstring)
-    and return (amide_carbon, amide_oxygen, amide_nitrogen, hydroxyls): the
-    single -CONH2 carbon/oxygen/nitrogen atom indices, and the set of any
+    and return (amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons,
+    hydroxyls): the single -CON(R)(R') carbon/oxygen/nitrogen atom indices,
+    a tuple of 0-2 N-alkyl substituent carbon indices, and the set of any
     coexisting standalone hydroxyl-oxygen atom indices."""
     has_carbon = False
     amide_carbons = set()
     amide_oxygen_by_carbon = {}
     amide_nitrogen_by_carbon = {}
+    n_alkyl_carbons_by_nitrogen = {}
     hydroxyls = set()
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
@@ -160,19 +180,34 @@ def _validate_and_collect_amide(mol):
                 )
             amide_oxygen_by_carbon.setdefault(carbon.GetIdx(), []).append(atom.GetIdx())
         elif atomic_num == 7:
-            if atom.GetDegree() != 1 or atom.GetTotalNumHs() != 2:
+            neighbors = list(atom.GetNeighbors())
+            if any(n.GetAtomicNum() != 6 for n in neighbors):
                 raise UnsupportedStructure(
-                    "an amide nitrogen with any substituent other than its "
-                    "two hydrogens (N-substituted amide) is out of scope "
-                    "for this module"
+                    "an amide nitrogen bonded to anything other than "
+                    "carbon is out of scope for this module"
                 )
-            (bond,) = atom.GetBonds()
-            if bond.GetBondTypeAsDouble() != 1.0:
-                raise UnsupportedStructure("an amide nitrogen must be singly bonded to its carbonyl carbon")
-            (carbon,) = atom.GetNeighbors()
-            if carbon.GetAtomicNum() != 6:
-                raise UnsupportedStructure("an amide nitrogen must be attached to a carbon atom")
-            amide_nitrogen_by_carbon.setdefault(carbon.GetIdx(), []).append(atom.GetIdx())
+            if len(neighbors) > 3:
+                raise UnsupportedStructure(
+                    "an amide nitrogen with more than two substituents "
+                    "besides its carbonyl carbon is not a valid amide "
+                    "nitrogen"
+                )
+            for bond in atom.GetBonds():
+                if bond.GetBondTypeAsDouble() != 1.0:
+                    raise UnsupportedStructure(
+                        "an amide nitrogen must be singly bonded to all its neighbors"
+                    )
+
+            carbonyl_neighbors = [n for n in neighbors if _is_carbonyl_carbon(mol, n)]
+            if len(carbonyl_neighbors) != 1:
+                raise UnsupportedStructure(
+                    "a nitrogen bonded to zero or multiple carbonyl carbons "
+                    "is not a valid amide nitrogen for this module"
+                )
+            (carbonyl_carbon,) = carbonyl_neighbors
+            n_alkyl_carbons = tuple(n.GetIdx() for n in neighbors if n.GetIdx() != carbonyl_carbon.GetIdx())
+            amide_nitrogen_by_carbon.setdefault(carbonyl_carbon.GetIdx(), []).append(atom.GetIdx())
+            n_alkyl_carbons_by_nitrogen[atom.GetIdx()] = n_alkyl_carbons
         else:
             if atom.GetDegree() != 1:
                 raise UnsupportedStructure(
@@ -207,8 +242,8 @@ def _validate_and_collect_amide(mol):
 
     if not amide_carbons:
         raise UnsupportedStructure(
-            "no primary amide (-CONH2) group found; this module only "
-            "handles primary amides"
+            "no amide (-CON(R)(R')) group found; this module only "
+            "handles amides"
         )
     if len(amide_carbons) > 1:
         raise UnsupportedStructure(
@@ -218,9 +253,10 @@ def _validate_and_collect_amide(mol):
     (amide_carbon,) = amide_carbons
     (amide_oxygen,) = amide_oxygen_by_carbon[amide_carbon]
     (amide_nitrogen,) = amide_nitrogen_by_carbon[amide_carbon]
+    n_alkyl_carbons = n_alkyl_carbons_by_nitrogen[amide_nitrogen]
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    return amide_carbon, amide_oxygen, amide_nitrogen, hydroxyls
+    return amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls
 
 
 def _suffix_body(ene_locants, yne_locants):
@@ -306,10 +342,36 @@ def _substituents_for_chain(graph, chain, halogens, excluded):
     return substituents
 
 
-def _name_acyclic_amide(mol, amide_carbon, excluded, hydroxyls, bonds):
+def _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls, bonds):
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}}
-    chains = longest_chains(carbon_adjacency(mol))
+    full_carbon_graph = carbon_adjacency(mol)
+
+    n_names = []
+    n_substituent_atoms = set()
+    for n_alkyl_c in n_alkyl_carbons:
+        n_length = linear_branch(full_carbon_graph, n_alkyl_c, None)
+        if n_length is None:
+            raise UnsupportedStructure("a branched N-substituent is not supported yet")
+        n_atoms = set()
+        previous, current = None, n_alkyl_c
+        while current is not None:
+            n_atoms.add(current)
+            neighbors = [n for n in full_carbon_graph[current] if n != previous]
+            previous, current = current, (neighbors[0] if neighbors else None)
+        if any(b[0] in n_atoms or b[1] in n_atoms for b in non_single_bonds(mol)):
+            raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
+        n_names.append(alkyl_name(n_length))
+        n_substituent_atoms |= n_atoms
+
+    # N-alkyl substituent carbons hang off the (excluded) amide nitrogen, not
+    # off any acyl-chain carbon, so they form their own isolated component(s)
+    # in the carbon-only graph; the whole subtree must be removed before
+    # picking the longest chain, or a longer N-substituent (e.g.
+    # N-butylacetamide) would be mistaken for the acyl chain itself.
+    carbon_graph = {k: v for k, v in full_carbon_graph.items() if k not in n_substituent_atoms}
+
+    chains = longest_chains(carbon_graph)
     chain_length = len(chains[0])
 
     eligible = []
@@ -339,11 +401,19 @@ def _name_acyclic_amide(mol, amide_carbon, excluded, hydroxyls, bonds):
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
-    return best_name
+
+    if not n_alkyl_carbons:
+        return best_name
+
+    if len(n_names) == 2 and n_names[0] == n_names[1]:
+        n_prefix = f"N,N-di{n_names[0]}"
+    else:
+        n_prefix = "-".join(f"N-{name}" for name in sorted(n_names))
+    return f"{n_prefix}{best_name}"
 
 
 def name_amide(mol) -> str:
-    amide_carbon, amide_oxygen, amide_nitrogen, hydroxyls = _validate_and_collect_amide(mol)
+    amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(mol)
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(
             "an amide on/in a ring (a lactam) is out of scope for this "
@@ -369,4 +439,4 @@ def name_amide(mol) -> str:
                 "is out of scope for this module (P-31.1.4.2.4)"
             )
 
-    return _name_acyclic_amide(mol, amide_carbon, excluded, hydroxyls, bonds)
+    return _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls, bonds)
