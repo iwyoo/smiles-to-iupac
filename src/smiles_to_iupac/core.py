@@ -15,6 +15,7 @@ from ._aldehyde_carboxylic_acid import (
 from ._aldehyde_ketone import has_aldehyde_ketone_shape, name_aldehyde_ketone
 from ._acetal import has_acetal_shape, name_acetal
 from ._amide import has_amide_shape, name_amide
+from ._thiourea import has_thiourea_shape, name_thiourea
 from ._urea import has_urea_shape, name_urea
 from ._amidine import has_amidine_shape, name_amidine
 from ._hydrazide import has_hydrazide_shape, name_hydrazide
@@ -462,6 +463,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # down.
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()) and has_simple_imine_shape(mol):
         return name_imine(mol)
+
+    # Thiourea (H2N-C(=S)-NH2) has no oxygen at all, so it would otherwise
+    # fall straight through the oxygen-gated block below (and every other
+    # check in it) to the plain-amine fallback at the very end of this
+    # function -- it must be checked here, unconditionally, before that
+    # gate.
+    if has_thiourea_shape(mol):
+        return name_thiourea(mol)
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
         # An alkoxide anion (R-O(-), P-72.2.2.2.2) has a formal-charge -1
