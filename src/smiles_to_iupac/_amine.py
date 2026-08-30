@@ -60,7 +60,7 @@ from ._common import (
     non_single_bonds,
     path_between,
 )
-from ._numerals import alkane_name, alkyl_name, numerical_term
+from ._numerals import alkane_name, alkyl_name, multiplying_prefix, numerical_term
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _ENE_ORDER = 2.0
@@ -358,13 +358,42 @@ def _component_subgraph(graph, start):
     return {node: [n for n in graph[node] if n in nodes] for node in nodes}
 
 
+def _format_n_prefix(n_names):
+    """Assemble the 'N-'/'N,N-'/'N,N,N-' prefix for a list of N-substituent
+    names (one per "other" N-linked chain, duplicates included), grouping
+    identical names under one multiplied prefix -- e.g. ['methyl',
+    'methyl'] -> 'N,N-dimethyl' (trimethylamine), ['ethyl', 'methyl'] ->
+    'N-ethyl-N-methyl' (asymmetric), ['methyl', 'methyl', 'methyl'] ->
+    'N,N,N-trimethyl' (the quaternary tetramethylammonium cation's PIN
+    'N,N,N-trimethylmethanaminium', P-73.1.1.1 -- confirmed against the
+    primary source's own worked example, which explicitly rejects the
+    'tetramethylazanium' alternative as non-PIN)."""
+    counts = {}
+    for name in n_names:
+        counts[name] = counts.get(name, 0) + 1
+    parts = []
+    for name in sorted(counts):
+        count = counts[name]
+        if count == 1:
+            parts.append(f"N-{name}")
+        else:
+            locants = ",".join(["N"] * count)
+            parts.append(f"{locants}-{multiplying_prefix(count)}{name}")
+    return "-".join(parts)
+
+
 def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds):
     """Name a secondary/tertiary amine: the N-linked carbon starting the
     largest carbon skeleton becomes the parent chain (suffixed '-amine' via
     `_best_chain_name`, same as a primary amine), and each other N-linked
     chain -- which must be a simple unbranched, saturated alkyl (mirrors
     `_amide.py`'s own N-substituent restriction) -- is cited as an
-    'N-'/'N,N-' prefix (P-66.4), e.g. 'N-ethylethanamine' (diethylamine)."""
+    'N-'/'N,N-' prefix (P-66.4), e.g. 'N-ethylethanamine' (diethylamine).
+
+    Also reused directly by `_ammonium.py` for a quaternary ammonium
+    cation's 3 "other" N-substituents (no charge/degree assumption is made
+    here beyond the `n_carbons` tuple passed in -- `graph`/`full_carbon_graph`
+    lookups are agnostic to the nitrogen's own formal charge)."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     full_carbon_graph = carbon_adjacency(mol)
@@ -410,10 +439,7 @@ def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds):
 
     best_name = _best_chain_name(parent_carbon_graph, graph, halogens, {n_idx}, bonds)
 
-    if len(n_names) == 2 and n_names[0] == n_names[1]:
-        n_prefix = f"N,N-di{n_names[0]}"
-    else:
-        n_prefix = "-".join(f"N-{name}" for name in sorted(n_names))
+    n_prefix = _format_n_prefix(n_names)
     separator = "-" if best_name[0].isdigit() else ""
     return f"{n_prefix}{separator}{best_name}"
 

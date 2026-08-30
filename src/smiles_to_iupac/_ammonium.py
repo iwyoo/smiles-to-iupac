@@ -10,41 +10,64 @@ family, P-73.1.1.2), per the IUPAC 2013 Recommendations ("the Blue Book"):
   'azane' (NH3) itself, giving 'azanium' -- both the Blue Book PIN and
   PubChem's own auto-generated name agree on this one (an unusually
   complete match for this project).
-- This module reuses `_amine.py`'s existing chain/ring naming wholesale:
-  a primary R-NH3+ ammonium is neutralized to the equivalent R-NH2 amine
-  (formal charge 0, one fewer hydrogen), named via `name_amine`, and the
-  resulting name's terminal 'e' is replaced with 'ium'. No new locant or
-  substituent-ordering logic is needed -- `_amine.py`'s existing scope
-  (acyclic/monocyclic, halogen coexistence) carries over unchanged.
+- This 'aminium' derivation -- not the alternative 'azanium' substitutive
+  style (a multiplying prefix directly on the 'azanium' parent, e.g.
+  'tetramethylazanium') -- is the PIN all the way up through a
+  *quaternary* ammonium cation too: the primary source's own Table 7.3
+  worked example for (CH3)4N+ lists 'tetramethylazanium' right next to
+  the PIN 'N,N,N-trimethylmethanaminium', confirming the 'azanium' form
+  is explicitly non-preferred (unlike `_phosphonium.py`/`_sulfonium.py`,
+  where the analogous direct-substituent style *is* the PIN -- nitrogen
+  is the odd one out here, confirmed directly from the primary source
+  rather than assumed by analogy).
+- Secondary/tertiary ammonium (nitrogen bonded to 2-3 carbons) reuses
+  `_amine.py`'s existing secondary/tertiary amine naming wholesale: the
+  cation is neutralized (formal charge 0, one more hydrogen than carbon
+  neighbors leaves), named via `name_amine`, and the resulting name's
+  terminal 'e' is replaced with 'ium' -- e.g. diethylamine's own
+  'N-ethylethanamine' -> 'N-ethylethanaminium' (diethylammonium), and
+  triethylamine's 'N,N-diethylethanamine' -> 'N,N-diethylethanaminium'
+  (confirmed against the primary source's own
+  'N,N-diethylethanaminium hydrogen sulfate (PIN)' salt example).
+- Quaternary ammonium (nitrogen bonded to 4 carbons) has no neutral
+  counterpart to derive an '-ium' name from at all (a neutral nitrogen
+  can carry at most 3 substituents) -- instead this module calls
+  `_amine.py`'s own `_name_acyclic_secondary_tertiary_amine` directly on
+  the still-charged molecule (that helper's internals are agnostic to
+  the nitrogen's formal charge; see its own docstring), producing the
+  same 'parent chain + N,N,N-prefix' shape as an '-amine' name would,
+  then applies the same terminal 'e' -> 'ium' swap.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- Secondary/tertiary/quaternary ammonium (nitrogen bonded to more than one
-  carbon) -- `_amine.py` itself does not support secondary/tertiary amines
-  yet, so there is no '-amine' name to derive 'ium' from.
-- Any ammonium nitrogen not shaped like a simple, singly-charged R-NH3+ or
-  NH4+ (e.g. formal charge other than +1, more than one charged atom,
-  isotopic modification, a nitrogen double/triple-bonded to carbon).
+- Anything `_amine.py` itself would reject for the neutralized (or,
+  for the quaternary case, still-charged) molecule -- a ring, a
+  branched/unsaturated N-substituent, a halogen substituent coexisting
+  with a secondary/tertiary/quaternary nitrogen, etc.
+- Any ammonium nitrogen not shaped like a simple, singly-charged R-NH3+,
+  NH4+, or a nitrogen bonded to 2-4 carbons (e.g. formal charge other
+  than +1, more than one charged atom, isotopic modification, a nitrogen
+  double/triple-bonded to carbon).
 - Any other cation-forming parent (oxonium R3O+, sulfonium R3S+, ...) --
   each is a separate P-73 subsection with its own derivation rule.
 """
 
 from rdkit import Chem
 
-from ._amine import name_amine
-from ._common import UnsupportedStructure
+from ._amine import _name_acyclic_secondary_tertiary_amine, name_amine
+from ._common import UnsupportedStructure, non_single_bonds
 
 
 def has_ammonium_shape(mol) -> bool:
     """True if the molecule contains exactly one +1-charged nitrogen shaped
-    like a genuine ammonium (NH4+, or a nitrogen singly bonded to exactly
-    one carbon with three hydrogens). Used by `core.py` to route here
-    before `_amine.py`, which rejects any charged atom outright.
+    like a genuine ammonium: NH4+, or a nitrogen singly bonded to 1-4
+    carbons with the rest of its valence as hydrogens. Used by `core.py` to
+    route here before `_amine.py`, which rejects any charged atom outright.
 
     Deliberately narrower than "any charged nitrogen exists": a nitro
     group's canonical Lewis structure (-[N+](=O)[O-]) and an isocyanide's
     (-[N+]#[C-]) both also carry a formally charged nitrogen, but neither
-    is degree-1/singly-bonded-to-carbon/three-H shaped, so this predicate
-    correctly leaves them to their own modules."""
+    is singly-bonded-to-carbon/all-remaining-valence-as-H shaped, so this
+    predicate correctly leaves them to their own modules."""
     charged_nitrogens = [
         atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 7 and atom.GetFormalCharge() == 1
     ]
@@ -56,15 +79,15 @@ def has_ammonium_shape(mol) -> bool:
     degree = nitrogen.GetDegree()
     if degree == 0:
         return nitrogen.GetTotalNumHs() == 4
-    if degree == 1:
-        (neighbor,) = nitrogen.GetNeighbors()
-        bond = mol.GetBondBetweenAtoms(nitrogen.GetIdx(), neighbor.GetIdx())
-        return (
-            neighbor.GetAtomicNum() == 6
-            and bond.GetBondTypeAsDouble() == 1.0
-            and nitrogen.GetTotalNumHs() == 3
-        )
-    return False
+    if degree > 4:
+        return False
+    if nitrogen.GetTotalNumHs() != 4 - degree:
+        return False
+    return all(
+        neighbor.GetAtomicNum() == 6
+        and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), neighbor.GetIdx()).GetBondTypeAsDouble() == 1.0
+        for neighbor in nitrogen.GetNeighbors()
+    )
 
 
 def name_ammonium(mol) -> str:
@@ -81,31 +104,47 @@ def name_ammonium(mol) -> str:
             "ammonium nitrogen is supported (P-73.1.1.2)"
         )
 
-    other_atoms = [atom for atom in mol.GetAtoms() if atom.GetIdx() != nitrogen.GetIdx()]
-    if not other_atoms:
-        if nitrogen.GetDegree() != 0 or nitrogen.GetTotalNumHs() != 4:
+    degree = nitrogen.GetDegree()
+    if degree == 0:
+        if nitrogen.GetTotalNumHs() != 4:
             raise UnsupportedStructure("an unsupported unsubstituted ammonium shape")
         return "azanium"
 
-    if nitrogen.GetDegree() != 1 or nitrogen.GetTotalNumHs() != 3:
+    neighbors = list(nitrogen.GetNeighbors())
+    if degree > 4 or nitrogen.GetTotalNumHs() != 4 - degree:
         raise UnsupportedStructure(
-            "only an isolated primary ammonium (R-NH3+, nitrogen bonded to "
-            "exactly one carbon, three hydrogens) is supported yet; "
-            "secondary/tertiary/quaternary ammonium is out of scope "
-            "(P-73.1.1.2)"
+            "only NH4+, or a nitrogen bonded to 1-4 carbons with the rest "
+            "of its valence as hydrogens, is supported (P-73.1.1.2)"
         )
-    (neighbor,) = nitrogen.GetNeighbors()
-    if neighbor.GetAtomicNum() != 6:
-        raise UnsupportedStructure("an ammonium nitrogen must be attached to a carbon atom")
-    bond = mol.GetBondBetweenAtoms(nitrogen.GetIdx(), neighbor.GetIdx())
-    if bond.GetBondTypeAsDouble() != 1.0:
+    if any(neighbor.GetAtomicNum() != 6 for neighbor in neighbors):
+        raise UnsupportedStructure("an ammonium nitrogen must be attached only to carbon atoms")
+    if any(
+        mol.GetBondBetweenAtoms(nitrogen.GetIdx(), neighbor.GetIdx()).GetBondTypeAsDouble() != 1.0
+        for neighbor in neighbors
+    ):
         raise UnsupportedStructure("the ammonium nitrogen must be singly bonded to carbon")
+
+    if degree == 4:
+        # No neutral nitrogen can carry 4 substituents, so there's no
+        # '-amine' name to derive 'ium' from by neutralizing -- instead
+        # this reuses _amine.py's own secondary/tertiary machinery
+        # directly on the still-charged molecule (see module docstring).
+        all_non_single = non_single_bonds(mol)
+        bonds = [b for b in all_non_single if b[2] in (2.0, 3.0)]
+        if len(bonds) != len(all_non_single):
+            raise UnsupportedStructure(
+                "a bond order other than single, double, or triple is not "
+                "supported (see P-31.1.1.1)"
+            )
+        n_carbons = tuple(neighbor.GetIdx() for neighbor in neighbors)
+        amine_name = _name_acyclic_secondary_tertiary_amine(mol, nitrogen.GetIdx(), n_carbons, bonds)
+        return amine_name[:-1] + "ium"
 
     neutral_rw = Chem.RWMol(mol)
     neutral_nitrogen = neutral_rw.GetAtomWithIdx(nitrogen.GetIdx())
     neutral_nitrogen.SetFormalCharge(0)
     neutral_nitrogen.SetNoImplicit(True)
-    neutral_nitrogen.SetNumExplicitHs(2)
+    neutral_nitrogen.SetNumExplicitHs(3 - degree)
     neutral_mol = neutral_rw.GetMol()
     Chem.SanitizeMol(neutral_mol)
 
