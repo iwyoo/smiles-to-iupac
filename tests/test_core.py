@@ -5,4 +5,4 @@ from smiles_to_iupac import smiles_to_iupac
 
 def test_smiles_to_iupac_not_implemented():
     with pytest.raises(NotImplementedError):
-        smiles_to_iupac("C[N+](C)(C)C")
+        smiles_to_iupac("c1ccccc1[NH3+]")

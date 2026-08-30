@@ -41,14 +41,40 @@ def test_chloromethanaminium_name():
     assert smiles_to_iupac("C(Cl)[NH3+]") == "chloromethanaminium"
 
 
-def test_secondary_ammonium_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[NH2+]C")
+def test_secondary_ammonium():
+    assert smiles_to_iupac("C[NH2+]C") == "N-methylmethanaminium"
 
 
-def test_quaternary_ammonium_raises():
+def test_secondary_ammonium_asymmetric():
+    # Structure/base-name cross-check against _amine.py's own
+    # "N-ethylethanamine" for the un-protonated diethylamine.
+    assert smiles_to_iupac("CC[NH2+]CC") == "N-ethylethanaminium"
+
+
+def test_tertiary_ammonium():
+    assert smiles_to_iupac("CC[NH+](CC)CC") == "N,N-diethylethanaminium"
+
+
+def test_quaternary_ammonium_symmetric():
+    # Blue Book P-73.1.1.1 Table 7.3 worked example: (CH3)4N+ ->
+    # "N,N,N-trimethylmethanaminium (PIN)" -- explicitly NOT the
+    # alternative "tetramethylazanium" form (non-PIN, PubChem's own
+    # auto-generated name for this structure).
+    assert smiles_to_iupac("C[N+](C)(C)C") == "N,N,N-trimethylmethanaminium"
+
+
+def test_quaternary_ammonium_asymmetric():
+    assert smiles_to_iupac("CC[N+](C)(C)C") == "N,N,N-trimethylethanaminium"
+
+
+def test_ring_ammonium_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[N+](C)(C)C")
+        smiles_to_iupac("C[NH2+]C1CCCCC1")
+
+
+def test_aromatic_ammonium_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1[NH3+]")
 
 
 def test_doubly_charged_nitrogen_raises():
