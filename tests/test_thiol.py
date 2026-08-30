@@ -90,3 +90,41 @@ def test_thiol_on_ring_substituent_branch_not_supported():
 def test_thiol_with_alcohol_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("SCCO")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter (P-92): unlike
+        # `_sulfinic_acid.py`, a thiol's -SH sulfur is monovalent (bonded
+        # only to carbon and H) and can never itself be a stereocenter, so
+        # this mirrors `_carboxylic_acid.py`/`_aldehyde.py`/`_ketone.py`/
+        # `_sulfonic_acid.py` cleanly (CIP computed entirely by RDKit's
+        # `rdCIPLabeler`). PubChem CID 444090.
+        ("CC[C@@H](C)S", "(2R)-butane-2-thiol"),
+        ("CC[C@H](C)S", "(2S)-butane-2-thiol"),
+    ],
+)
+def test_acyclic_thiol_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_cyclic_thiol_stereocenter():
+    # Two stereocenters on the ring itself (P-92), same pattern as
+    # `_alcohol.py`'s `_name_cyclic_alcohol`. PubChem CID 22211639 (name
+    # carries a redundant 'cis-' relative descriptor this project drops
+    # once full R/S is given, same policy as the existing ring-alcohol
+    # stereocenter task).
+    assert smiles_to_iupac("S[C@H]1CCCC[C@H]1C") == "(1S,2R)-2-methylcyclohexane-1-thiol"
+
+
+def test_thiol_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention.
+    assert smiles_to_iupac("CCC(C)S") == "butane-2-thiol"
+
+
+def test_thiol_partially_specified_stereocenters_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("S[C@H]1CCCCC1Cl")
