@@ -42,9 +42,17 @@ def test_2_chloroethane_1_tellurol():
     assert smiles_to_iupac("ClCC[TeH]") == "2-chloroethane-1-tellurol"
 
 
-def test_ditellurol_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[TeH]CC[TeH]")
+def test_ethane_1_2_ditellurol():
+    # `_selenol.py`'s/`_thiol.py`'s own precedent generalizes group-count
+    # support beyond one without a specific 2+-group PubChem worked
+    # example of its own (the shared locant/suffix machinery already
+    # handles an arbitrary-length locant list) -- same reasoning applied
+    # here.
+    assert smiles_to_iupac("[TeH]CC[TeH]") == "ethane-1,2-ditellurol"
+
+
+def test_propane_1_3_ditellurol():
+    assert smiles_to_iupac("[TeH]CCC[TeH]") == "propane-1,3-ditellurol"
 
 
 def test_ring_tellurol_not_supported():
