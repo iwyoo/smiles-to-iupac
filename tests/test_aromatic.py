@@ -139,6 +139,19 @@ def test_saturated_rings_still_resolve_unaffected():
         # numbering. PubChem CID 12423104
         # ("[(2S)-2-chloropropyl]benzene").
         ("c1ccccc1C[C@@H](Cl)C", "[(2S)-2-chloropropyl]benzene"),
+        # Naphthalene isn't symmetric like benzene, so unlike the benzene
+        # cases above, the ring attachment locant is still significant and
+        # cited by the ordinary substituent-prefix machinery -- only the
+        # substituent's own display text is stereo-decorated. Structure
+        # verified against PubChem's non-stereo skeleton (CID 19762405,
+        # "2-(1-chloropropyl)naphthalene"); the stereo-specified variant
+        # itself isn't PubChem-registered (CID 0).
+        ("Cl[C@@H](CC)c1ccc2ccccc2c1", "2-[(1S)-1-chloropropyl]naphthalene"),
+        ("Cl[C@H](CC)c1ccc2ccccc2c1", "2-[(1R)-1-chloropropyl]naphthalene"),
+        # Same, attached at naphthalene's other nonequivalent position.
+        # PubChem non-stereo skeleton CID 18417670,
+        # "1-(1-chloropropyl)naphthalene".
+        ("Cl[C@@H](CC)c1cccc2ccccc12", "1-[(1S)-1-chloropropyl]naphthalene"),
     ],
 )
 def test_substituent_branch_stereocenter(smiles, expected):
@@ -161,8 +174,10 @@ def test_two_stereocenters_on_one_substituent_raises():
         smiles_to_iupac("c1ccccc1[C@@H](Cl)[C@@H](Cl)C")
 
 
-def test_stereocenter_on_fused_ring_substituent_raises():
-    # Only a plain benzene ring parent is in scope; a fused ring system
-    # (here naphthalene) with a stereo substituent is not yet supported.
+def test_stereocenter_on_three_ring_fused_substituent_raises():
+    # Benzene and naphthalene ring parents are in scope; a larger fused
+    # ring system (here anthracene) with a stereo substituent is not yet
+    # supported (the locant-selection logic for 3+ rings isn't covered by
+    # this task).
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc2ccccc2c1[C@@H](Cl)CC")
+        smiles_to_iupac("c1ccc2cc3ccccc3cc2c1[C@@H](Cl)CC")

@@ -454,6 +454,13 @@ def _candidate_key(parent, locants, ring_atoms, graph, halogens, omit_single_loc
             display = f"({only_name})" if grouped[only_name]["compound"] else only_name
         name = f"{display}{parent}"
     else:
+        if stereo_display is not None:
+            # Not benzene, so the ring attachment locant is significant and
+            # still needs citing; only the substituent's own display text is
+            # replaced by the stereo-decorated one (already validated to be
+            # the system's sole substituent -- see `_stereo_display`).
+            (only_name,) = grouped
+            grouped = {stereo_display: {"locants": grouped[only_name]["locants"], "compound": False}}
         name = format_substituent_prefixes(grouped) + parent
     return locant_set, citation_locants, name
 
@@ -477,16 +484,20 @@ def _stereo_display(mol, graph, n, ring_atoms, halogens):
     stereocenter) -- see `tasks/substituent-branch-stereocenter-naming.md`.
     Returns None if there's no specified stereocenter at all (the caller
     proceeds exactly as before). Deliberately narrow: only a plain benzene
-    ring (n == 1) with exactly one substituent, carrying exactly one
-    specified stereocenter, is supported; anything else raises
-    `UnsupportedStructure`."""
+    or naphthalene ring (n in (1, 2)) with exactly one substituent,
+    carrying exactly one specified stereocenter, is supported; anything
+    else raises `UnsupportedStructure`. For naphthalene the ring
+    attachment locant is still significant (unlike benzene) and is cited
+    by the caller's normal substituent-prefix machinery -- this function
+    only builds the substituent's own decorated display text."""
     stereo = specified_stereocenters(mol)
     if stereo is None:
         return None
-    if n != 1:
+    if n not in (1, 2):
         raise UnsupportedStructure(
             "a specified stereocenter combined with anything other than a "
-            "plain benzene ring parent is not supported yet (see P-91.3)"
+            "plain benzene or naphthalene ring parent is not supported yet "
+            "(see P-91.3)"
         )
     if len(stereo) != 1:
         raise UnsupportedStructure(
