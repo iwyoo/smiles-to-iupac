@@ -77,3 +77,33 @@ def test_tellurol_on_ring_substituent_branch_not_supported():
 def test_tellurol_with_alcohol_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OCC[TeH]")
+
+
+def test_acyclic_tellurol_stereocenter():
+    # A single specified tetrahedral stereocenter (P-92): like -SH/-SeH, a
+    # tellurol's -TeH tellurium is monovalent and can never itself be a
+    # stereocenter, so this mirrors `_thiol.py`/`_selenol.py` cleanly (CIP
+    # computed entirely by RDKit's `rdCIPLabeler`). PubChem has no
+    # registered stereoisomer for this molecule (tellurium compounds are
+    # sparse there), so this is a structural/regression check on the
+    # already-proven mechanism, not an independent PubChem cross-check.
+    assert smiles_to_iupac("C[C@@H](CC)C[TeH]") == "(2S)-2-methylbutane-1-tellurol"
+
+
+def test_cyclic_tellurol_stereocenter():
+    # Two stereocenters on the ring itself (P-92), same pattern as
+    # `_thiol.py`'s `_name_cyclic_thiol`. Same PubChem-sparsity caveat as
+    # the acyclic case above.
+    assert smiles_to_iupac("[TeH][C@H]1CCCC[C@H]1C") == "(1S,2R)-2-methylcyclohexane-1-tellurol"
+
+
+def test_tellurol_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention. PubChem CID 173009567.
+    assert smiles_to_iupac("CCC(C)[TeH]") == "butane-2-tellurol"
+
+
+def test_tellurol_partially_specified_stereocenters_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[TeH][C@H]1CCCCC1Cl")
