@@ -33,11 +33,22 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - Any sulfonium sulfur not shaped like SH3+ or a sulfur bonded to 1-3
   carbons (with the remaining valence as hydrogens) -- e.g. formal charge
   other than +1, more than one charged atom, isotopic modification.
+- P-92 stereocenters (`tasks/sulfonium-phosphonium-stereocenter-naming.md`):
+  unlike `_oxonium.py`'s/`_ammonium.py`'s nitrogen/oxygen (which invert too
+  fast to be a real stereocenter), a sulfonium sulfur with three distinct
+  substituents is itself a genuine, configurationally stable stereocenter,
+  confirmed via RDKit `FindPotentialStereo` on `C[S+](CC)CCC` (both `@`/`@@`
+  currently collapse to the same, silently wrong name). Since substituents
+  here are always plain unbranched alkyl (never a stereocenter on their
+  own), the sulfur is the only possible stereocenter, and this project has
+  no established heteroatom-centered stereodescriptor convention (same
+  policy as `_sulfinic_acid.py`) -- so a specified stereocenter is
+  explicitly rejected rather than silently dropped.
 """
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, linear_branch, non_single_bonds
+from ._common import UnsupportedStructure, adjacency, linear_branch, non_single_bonds, specified_stereocenters
 from ._numerals import alkyl_name
 from ._substituents import format_mononuclear_prefixes
 
@@ -76,6 +87,16 @@ def name_sulfonium(mol) -> str:
         raise UnsupportedStructure(
             "only a single, singly-charged, non-isotopically-modified "
             "sulfonium sulfur is supported (P-73.1.1.2)"
+        )
+    if specified_stereocenters(mol) is not None:
+        # The sulfonium sulfur is itself a genuine, configurationally
+        # stable stereocenter in virtually every real R3S+/R2HS+ molecule
+        # (module docstring), and this project has no established way to
+        # cite a heteroatom-centered stereodescriptor -- explicitly reject
+        # rather than silently drop the marker (P-92).
+        raise UnsupportedStructure(
+            "a specified stereocenter (the sulfonium sulfur itself) is "
+            "not supported yet (see P-92, module docstring)"
         )
     if sulfur.GetDegree() > 3:
         raise UnsupportedStructure(
