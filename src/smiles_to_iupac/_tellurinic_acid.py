@@ -28,6 +28,18 @@ Recommendations ("the Blue Book"):
   ordering as `_sulfinic_acid.py`/`_telluronic_acid.py`.
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with
   the -Te(=O)OH suffix.
+- P-91.3/P-92 (`tasks/seleninic-tellurinic-acid-stereocenter-naming.md`):
+  unlike `_sulfinic_acid.py`'s sulfur or `_seleninic_acid.py`'s selenium,
+  RDKit's `Chem.FindPotentialStereo` does not flag this module's
+  tellurinic tellurium as a potential stereocenter at all, on any tried
+  input -- this project delegates all CIP/stereocenter determination to
+  RDKit, so per that same policy, a chain carbon stereocenter here is
+  treated as the molecule's only stereo element, exactly as in
+  `_sulfonic_acid.py`. A molecule with one or more *specified* tetrahedral
+  stereocenters -- every one on the principal chain itself, no unspecified
+  one alongside them, and no C=C/C#N double-bond E/Z element -- gets a
+  "(<locant><R/S>,...)-" prefix, ascending locant order, same pattern as
+  `_carboxylic_acid.py`/`_sulfonic_acid.py`.
 
 Scope, deliberately narrow, mirroring `_telluronic_acid.py`'s own
 chain-only scope (no monocyclic tellurinic acid has been found registered
@@ -50,6 +62,7 @@ from ._common import (
     lowest_locant_set,
     non_single_bonds,
     path_between,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name, numerical_term
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -305,6 +318,7 @@ def _substituents_for_chain(graph, chain, halogens, excluded):
 
 def name_tellurinic_acid(mol) -> str:
     tellurium_idx, teoh_carbon = _validate_and_collect_tellurinic_acids(mol)
+    stereo = specified_stereocenters(mol)
     graph = adjacency(mol)
     all_non_single = non_single_bonds(mol)
     bonds = [b for b in all_non_single if b[2] in (_ENE_ORDER, _YNE_ORDER) and tellurium_idx not in (b[0], b[1])]
@@ -321,6 +335,7 @@ def name_tellurinic_acid(mol) -> str:
     excluded = {tellurium_idx}
     chains = _longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
+    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -328,8 +343,17 @@ def name_tellurinic_acid(mol) -> str:
             continue
         if bonds and _bond_locants(chain, bonds) is None:
             continue
+        if stereo is not None and any(atom not in chain for atom in stereo_atoms):
+            continue
         eligible.append(chain)
     if not eligible:
+        if stereo is not None and any(
+            teoh_carbon in c and (not bonds or _bond_locants(c, bonds) is not None) for c in chains
+        ):
+            raise UnsupportedStructure(
+                "a stereocenter on a substituent branch rather than the "
+                "principal chain is not supported yet (see P-92)"
+            )
         raise UnsupportedStructure(
             "the tellurinic-acid-bearing carbon (and/or a multiple bond) "
             "does not lie on a single longest carbon chain; a shorter "
@@ -338,6 +362,7 @@ def name_tellurinic_acid(mol) -> str:
 
     best_key = None
     best_name = None
+    best_position_of = None
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
@@ -346,5 +371,10 @@ def name_tellurinic_acid(mol) -> str:
             substituents = _substituents_for_chain(graph, candidate, halogens, excluded)
             key, name = _candidate_key(chain_length, teoh_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, name
+                best_key, best_name, best_position_of = key, name, position_of
+
+    if stereo is not None:
+        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+        return f"({prefix})-{best_name}"
     return best_name

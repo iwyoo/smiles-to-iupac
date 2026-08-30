@@ -55,3 +55,22 @@ def test_ring_seleninic_acid_not_supported():
 def test_seleninic_acid_with_alcohol_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O[Se](=O)CCO")
+
+
+def test_seleninic_acid_unspecified_stereocenter_unaffected():
+    # A genuine chain stereocenter left unspecified (no @/@@) is named
+    # exactly as before -- no error, matching this project's long-standing
+    # convention for unspecified stereochemistry.
+    assert smiles_to_iupac("CCC(C)[Se](=O)O") == "butane-2-seleninic acid"
+
+
+def test_seleninic_acid_specified_chain_stereocenter_raises():
+    # The seleninic selenium (-R, =O, -OH) is itself a potential
+    # stereocenter in this molecule too (unlike `_sulfonic_acid.py`'s
+    # sulfur or `_tellurinic_acid.py`'s tellurium), so a specified chain
+    # stereocenter here always coexists with an unspecified selenium one,
+    # and `specified_stereocenters` correctly rejects the combination
+    # (P-92) instead of the silent drop this project's stereodescriptor
+    # safety net exists to fix (same reasoning as `_sulfinic_acid.py`).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC[C@@H](C)[Se](=O)O")
