@@ -48,15 +48,65 @@ def test_amine_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_secondary_amine_raises():
-    # A nitrogen bonded to two carbons (secondary amine) is out of scope.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCNCC")
+def test_secondary_amine():
+    # PubChem structure match: diethylamine -> "N-ethylethanamine".
+    assert smiles_to_iupac("CCNCC") == "N-ethylethanamine"
 
 
-def test_tertiary_amine_raises():
+def test_tertiary_amine_symmetric():
+    # PubChem structure match: triethylamine -> "N,N-diethylethanamine".
+    assert smiles_to_iupac("CCN(CC)CC") == "N,N-diethylethanamine"
+
+
+def test_tertiary_amine_all_same():
+    # PubChem structure match: trimethylamine -> "N,N-dimethylmethanamine".
+    assert smiles_to_iupac("CN(C)C") == "N,N-dimethylmethanamine"
+
+
+def test_tertiary_amine_asymmetric():
+    # PubChem structure match: "N-ethyl-N-methylpropan-1-amine" -- the
+    # longest N-linked chain (propyl) becomes the parent, the other two
+    # (ethyl, methyl) are cited as alphabetized N-prefixes.
+    assert smiles_to_iupac("CCN(C)CCC") == "N-ethyl-N-methylpropan-1-amine"
+
+
+def test_secondary_amine_branched_n_substituent_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCN(CC)CC")
+        smiles_to_iupac("CCCNC(C)C")
+
+
+def test_secondary_amine_unsaturated_n_substituent_raises():
+    # The allyl group is the smaller N-linked chain here (pentyl is longer
+    # and becomes the parent), so it's cited as the N-substituent -- and an
+    # unsaturated N-substituent is out of scope.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=CCNCCCCC")
+
+
+def test_secondary_amine_on_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CN(C)C1CCCCC1")
+
+
+def test_diamine_with_tertiary_nitrogen_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NCCN(C)C")
+
+
+def test_secondary_amine_with_halogen_on_n_substituent_raises():
+    # A halogen on the smaller (N-substituent) chain would otherwise be
+    # silently dropped, since only that chain's length is used to name it.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("ClCCNCCC")
+
+
+def test_secondary_amine_with_halogen_on_parent_chain_raises():
+    # P-14.5.2's alphanumerical interleaving of the 'N-' prefix with other
+    # substituent prefixes isn't implemented yet (PubChem:
+    # "2-chloro-N-ethylethanamine") -- reject rather than silently mis-order
+    # ("N-ethyl-2-chloro...").
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("ClCCNCC")
 
 
 def test_nitrile_routes_to_nitrile_module():

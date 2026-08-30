@@ -16,21 +16,34 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   -NH2 suffix, reusing `halogen_substituents`/`format_substituent_prefixes`
   unchanged.
 
-This module only accepts a *primary* amine (-NH2, nitrogen of degree 1 with
-exactly two H's) attached to a non-aromatic carbon. It otherwise mirrors
-`_alcohol.py`'s scope restrictions exactly:
+This module accepts a *primary* amine (-NH2) attached to a non-aromatic
+carbon, and (P-66.4/general N-substituent-prefix nomenclature, mirroring
+`_amide.py`'s existing N-substituent handling) an acyclic secondary/tertiary
+amine whose extra N-substituent(s) are simple unbranched, saturated alkyl
+chains: the N-linked carbon starting the largest carbon skeleton becomes the
+parent chain (suffixed '-amine' as usual), and each other N-linked chain is
+cited as an 'N-'/'N,N-' substituent prefix, e.g. 'N-ethylethanamine'
+(diethylamine, PubChem-verified) and 'N,N-dimethylmethanamine'
+(trimethylamine, PubChem-verified). It otherwise mirrors `_alcohol.py`'s
+scope restrictions:
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- Secondary/tertiary amines (nitrogen bonded to more than one carbon), or any
-  nitrogen not shaped like an isolated -NH2.
+- A secondary/tertiary amine nitrogen with a branched, unsaturated, or
+  ring-bearing N-substituent, or more than two N-substituents (mirrors
+  `_amide.py`'s own N-substituent restrictions exactly).
+- A secondary/tertiary amine nitrogen on or attached to a ring, or
+  coexisting with another amine nitrogen elsewhere in the molecule (a
+  diamine where one nitrogen is secondary/tertiary) — both deferred as
+  separate, larger extensions.
 - Any other heteroatom (O, S, ...) — including molecules that would also
   need a senior characteristic group (Table 3.3); this module rejects those
   outright rather than attempting suffix-vs-suffix seniority.
-- -NH2 on an aromatic ring (aniline-type) — a separate module's territory.
+- -NH2/-NHR/-NR2 on an aromatic ring (aniline-type) — a separate module's
+  territory.
 - -NH2 on a von Baeyer polycyclic or spiro skeleton — deferred, same as
   `_alcohol.py`.
-- -NH2 on a carbon that is also part of a C=C/C#C bond (an enamine) — scoped
-  out for the same reason `_alcohol.py` scopes out enols.
+- An amine nitrogen on a carbon that is also part of a C=C/C#C bond (an
+  enamine) — scoped out for the same reason `_alcohol.py` scopes out enols.
 """
 
 from rdkit import Chem
@@ -42,11 +55,12 @@ from ._common import (
     bfs,
     carbon_adjacency,
     halogen_substituents,
+    linear_branch,
     lowest_locant_set,
     non_single_bonds,
     path_between,
 )
-from ._numerals import alkane_name, numerical_term
+from ._numerals import alkane_name, alkyl_name, numerical_term
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _ENE_ORDER = 2.0
@@ -56,15 +70,19 @@ _ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
 
 def _validate_and_collect_amines(mol):
     """Check the molecule fits this module's scope (see module docstring)
-    and return the set of amine-nitrogen atom indices."""
+    and return (amines, n_carbons_by_nitrogen): the set of amine-nitrogen
+    atom indices, and a dict mapping each to a tuple of its 1-3 carbon
+    neighbor indices (the -NH2 carbon for a primary amine; the parent-chain
+    carbon plus 0-2 N-substituent carbons for a secondary/tertiary one)."""
     amines = set()
+    n_carbons_by_nitrogen = {}
     has_carbon = False
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
         if atomic_num not in _ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(
-                "heteroatoms other than a primary amine nitrogen (P-33.1) "
-                "and halogen substituents (P-35.2.1) are not supported yet"
+                "heteroatoms other than an amine nitrogen (P-33.1) and "
+                "halogen substituents (P-35.2.1) are not supported yet"
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
@@ -76,28 +94,27 @@ def _validate_and_collect_amines(mol):
                     "the separate aromatic-ring module)"
                 )
         elif atomic_num == 7:
-            if atom.GetDegree() != 1:
+            neighbors = list(atom.GetNeighbors())
+            if not neighbors or len(neighbors) > 3:
                 raise UnsupportedStructure(
-                    "a nitrogen bonded to more than one heavy atom (a "
-                    "secondary/tertiary amine) is out of scope; only an "
-                    "isolated primary amine (-NH2) is supported (P-33.1)"
+                    "a nitrogen with zero or more than three substituents "
+                    "is not a valid amine nitrogen"
                 )
-            (bond,) = atom.GetBonds()
-            if bond.GetBondTypeAsDouble() != 1.0:
+            if any(n.GetAtomicNum() != 6 for n in neighbors):
                 raise UnsupportedStructure(
-                    "a nitrogen double- or triple-bonded to carbon (imine, "
-                    "nitrile) is not a plain primary amine, which this "
-                    "module does not attempt to disambiguate"
+                    "an amine nitrogen bonded to anything other than "
+                    "carbon (e.g. another nitrogen) is out of scope for "
+                    "this module"
                 )
-            if atom.GetTotalNumHs() != 2:
-                raise UnsupportedStructure(
-                    "an -N< atom that isn't a simple primary amine (-NH2) "
-                    "is out of scope for this module"
-                )
-            (neighbor,) = atom.GetNeighbors()
-            if neighbor.GetAtomicNum() != 6:
-                raise UnsupportedStructure("a primary amine must be attached to a carbon atom")
+            for bond in atom.GetBonds():
+                if bond.GetBondTypeAsDouble() != 1.0:
+                    raise UnsupportedStructure(
+                        "a nitrogen double- or triple-bonded to carbon "
+                        "(imine, nitrile) is not a plain amine, which this "
+                        "module does not attempt to disambiguate"
+                    )
             amines.add(atom.GetIdx())
+            n_carbons_by_nitrogen[atom.GetIdx()] = tuple(n.GetIdx() for n in neighbors)
         else:
             if atom.GetDegree() != 1:
                 raise UnsupportedStructure(
@@ -109,22 +126,22 @@ def _validate_and_collect_amines(mol):
             "hydride to substitute"
         )
     if not amines:
-        raise UnsupportedStructure("no primary amine (-NH2) group found; this module only handles amines")
+        raise UnsupportedStructure("no amine group found; this module only handles amines")
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    return amines
+    return amines, n_carbons_by_nitrogen
 
 
 def _reject_enamine_carbons(graph, amines, bonds):
     unsaturated_atoms = {a for a, b, _ in bonds} | {b for a, b, _ in bonds}
     for n_idx in amines:
-        (carbon,) = graph[n_idx]
-        if carbon in unsaturated_atoms:
-            raise UnsupportedStructure(
-                "a primary amine on a carbon that is also part of a "
-                "C=C/C#C bond (an enamine-type structure) is out of scope "
-                "for this module"
-            )
+        for carbon in graph[n_idx]:
+            if carbon in unsaturated_atoms:
+                raise UnsupportedStructure(
+                    "an amine nitrogen on a carbon that is also part of a "
+                    "C=C/C#C bond (an enamine-type structure) is out of "
+                    "scope for this module"
+                )
 
 
 def _multiplied_word(count, base):
@@ -277,12 +294,17 @@ def _bond_locants(chain, bonds):
 
 
 def _amine_locants(position_of, amines, graph):
+    """Each nitrogen's chain-side locant. `graph` may be the full-molecule
+    adjacency (a secondary/tertiary nitrogen then has other, non-chain
+    carbon neighbors too -- e.g. its N-substituents, deliberately excluded
+    from the chain graph being tested), so a nitrogen only counts if exactly
+    one of its carbon neighbors is part of the current candidate chain."""
     locants = []
     for n in amines:
-        (carbon,) = graph[n]
-        if carbon not in position_of:
+        carbons_in_chain = [c for c in graph[n] if c in position_of]
+        if len(carbons_in_chain) != 1:
             return None
-        locants.append(position_of[carbon])
+        locants.append(position_of[carbons_in_chain[0]])
     return locants
 
 
@@ -296,10 +318,8 @@ def _substituents_for_chain(graph, chain, halogens, amines):
     return substituents
 
 
-def _name_acyclic_amine(mol, amines, bonds):
-    graph = adjacency(mol)
-    halogens = halogen_substituents(mol)
-    chains = _longest_chains(carbon_adjacency(mol))
+def _best_chain_name(carbon_graph, graph, halogens, amines, bonds):
+    chains = _longest_chains(carbon_graph)
     chain_length = len(chains[0])
 
     eligible = []
@@ -330,6 +350,84 @@ def _name_acyclic_amine(mol, amines, bonds):
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
     return best_name
+
+
+def _component_subgraph(graph, start):
+    dist, _ = bfs(graph, start)
+    nodes = set(dist)
+    return {node: [n for n in graph[node] if n in nodes] for node in nodes}
+
+
+def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds):
+    """Name a secondary/tertiary amine: the N-linked carbon starting the
+    largest carbon skeleton becomes the parent chain (suffixed '-amine' via
+    `_best_chain_name`, same as a primary amine), and each other N-linked
+    chain -- which must be a simple unbranched, saturated alkyl (mirrors
+    `_amide.py`'s own N-substituent restriction) -- is cited as an
+    'N-'/'N,N-' prefix (P-66.4), e.g. 'N-ethylethanamine' (diethylamine)."""
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    full_carbon_graph = carbon_adjacency(mol)
+
+    # N itself isn't in the carbon-only graph, so the N-linked carbons never
+    # touch each other there -- each already starts its own disjoint
+    # component, letting the largest one be isolated as the parent chain's
+    # own graph before any chain search runs.
+    components = {c: _component_subgraph(full_carbon_graph, c) for c in n_carbons}
+    parent_root = max(n_carbons, key=lambda c: len(components[c]))
+    other_roots = [c for c in n_carbons if c != parent_root]
+
+    n_names = []
+    for other in other_roots:
+        other_length = linear_branch(full_carbon_graph, other, None)
+        if other_length is None:
+            raise UnsupportedStructure("a branched N-substituent is not supported yet")
+        other_atoms = set(components[other])
+        if any(b[0] in other_atoms or b[1] in other_atoms for b in non_single_bonds(mol)):
+            raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
+        if any(neighbor in halogens for atom in other_atoms for neighbor in graph[atom]):
+            raise UnsupportedStructure(
+                "a halogen-substituted N-substituent is not supported yet "
+                "-- it would be silently dropped, since only its carbon "
+                "chain length is currently used to name it"
+            )
+        n_names.append(alkyl_name(other_length))
+
+    excluded_atoms = set()
+    for other in other_roots:
+        excluded_atoms |= set(components[other])
+    parent_carbon_graph = {k: v for k, v in full_carbon_graph.items() if k not in excluded_atoms}
+
+    if any(neighbor in halogens for atom in parent_carbon_graph for neighbor in graph[atom]):
+        raise UnsupportedStructure(
+            "a secondary/tertiary amine coexisting with a halogen "
+            "substituent on the parent chain is not supported yet -- "
+            "P-14.5.2's alphanumerical interleaving of the 'N-' prefix "
+            "with other substituent prefixes (e.g. PubChem's "
+            "'2-chloro-N-ethylethanamine') is not implemented; this module "
+            "would otherwise always cite the 'N-' prefix first"
+        )
+
+    best_name = _best_chain_name(parent_carbon_graph, graph, halogens, {n_idx}, bonds)
+
+    if len(n_names) == 2 and n_names[0] == n_names[1]:
+        n_prefix = f"N,N-di{n_names[0]}"
+    else:
+        n_prefix = "-".join(f"N-{name}" for name in sorted(n_names))
+    separator = "-" if best_name[0].isdigit() else ""
+    return f"{n_prefix}{separator}{best_name}"
+
+
+def _name_acyclic_amine(mol, amines, n_carbons_by_nitrogen, bonds):
+    if len(amines) == 1:
+        (n_idx,) = amines
+        n_carbons = n_carbons_by_nitrogen[n_idx]
+        if len(n_carbons) > 1:
+            return _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds)
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    return _best_chain_name(carbon_adjacency(mol), graph, halogens, amines, bonds)
 
 
 def _ring_cycle(graph, ring_atoms):
@@ -412,7 +510,7 @@ def _name_cyclic_amine(mol, amines):
 
 
 def name_amine(mol) -> str:
-    amines = _validate_and_collect_amines(mol)
+    amines, n_carbons_by_nitrogen = _validate_and_collect_amines(mol)
     graph = adjacency(mol)
     all_non_single = non_single_bonds(mol)
     bonds = [b for b in all_non_single if b[2] in (_ENE_ORDER, _YNE_ORDER)]
@@ -425,8 +523,19 @@ def name_amine(mol) -> str:
 
     ring_info = mol.GetRingInfo()
     num_rings = ring_info.NumRings()
+    has_secondary_or_tertiary = any(len(n_carbons_by_nitrogen[n]) > 1 for n in amines)
+    if has_secondary_or_tertiary and num_rings > 0:
+        raise UnsupportedStructure(
+            "a secondary/tertiary amine nitrogen on or attached to a ring "
+            "is out of scope for this module"
+        )
+    if has_secondary_or_tertiary and len(amines) > 1:
+        raise UnsupportedStructure(
+            "more than one amine nitrogen where at least one is "
+            "secondary/tertiary is out of scope for this module"
+        )
     if num_rings == 0:
-        return _name_acyclic_amine(mol, amines, bonds)
+        return _name_acyclic_amine(mol, amines, n_carbons_by_nitrogen, bonds)
     if num_rings == 1:
         if bonds:
             raise UnsupportedStructure(
