@@ -69,3 +69,27 @@ def test_amine_still_routes_to_amine_module():
     # A primary amine with no nitrile present must still reach
     # `name_amine` unchanged (see core.py's nitrogen-branch routing).
     assert smiles_to_iupac("CCN") == "ethanamine"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter (P-92) -- the nitrile
+        # carbon itself (sp, triple-bonded to nitrogen) is never a
+        # potential stereocenter, confirmed via RDKit `FindPotentialStereo`.
+        # PubChem CID 5479121.
+        ("CC[C@@H](C)C#N", "(2R)-2-methylbutanenitrile"),
+        ("CC[C@H](C)C#N", "(2S)-2-methylbutanenitrile"),
+    ],
+)
+def test_nitrile_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_nitrile_stereocenter_with_coexisting_halogen():
+    # PubChem CID 88154506.
+    assert smiles_to_iupac("CC[C@@H](Cl)C#N") == "(2R)-2-chlorobutanenitrile"
+
+
+def test_nitrile_unspecified_stereocenter_unaffected():
+    assert smiles_to_iupac("CCC(C)C#N") == "2-methylbutanenitrile"

@@ -49,6 +49,15 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   only an acyclic terminal -C#N is supported here.
 - Any other heteroatom (O, S, ...), or a nitrile carbon entangled with
   another heteroatom.
+
+P-91.3/P-92 (`tasks/nitrile-stereocenter-naming.md`): a molecule with one
+or more *specified* tetrahedral stereocenters -- every one on the
+principal chain itself, no unspecified one alongside them, and no
+C=C/C#N double-bond E/Z element -- gets a "(<locant><R/S>,...)-" prefix,
+ascending locant order, same pattern as `_amine.py`/`_thiol.py` (chain
+only, this module has no ring support). The nitrile carbon itself (sp,
+triple-bonded to nitrogen) is never a potential stereocenter, confirmed
+via RDKit `FindPotentialStereo` on `CC[C@@H](C)C#N`.
 """
 
 from rdkit import Chem
@@ -68,6 +77,7 @@ from ._common import (
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -252,11 +262,18 @@ def _substituents_for_chain(graph, chain, halogens, nitriles):
     return substituents
 
 
-def _name_acyclic_nitrile(mol, nitriles, bonds):
+def _name_acyclic_nitrile(mol, nitriles, bonds, stereo=None):
+    """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
+    `specified_stereocenters` -- if given, only chain candidates that
+    include every stereocenter are eligible (P-92: a stereocenter on a
+    substituent branch is out of scope), and the winning candidate's own
+    locants are used to format a "(<locant><R/S>,...)-" prefix onto the
+    final name."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
+    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -265,16 +282,20 @@ def _name_acyclic_nitrile(mol, nitriles, bonds):
             continue
         if bonds and bond_locants(chain, bonds) is None:
             continue
+        if stereo is not None and any(atom not in position_of for atom in stereo_atoms):
+            continue
         eligible.append(chain)
     if not eligible:
         raise UnsupportedStructure(
-            "the nitrile-bearing carbon (and/or multiple bond) does not lie "
+            "the nitrile-bearing carbon (and/or multiple bond, and/or a "
+            "stereocenter on a substituent branch, see P-92) does not lie "
             "on a single longest carbon chain; a shorter principal chain "
             "capturing the -C#N group (P-44.1.1) is not supported yet"
         )
 
     best_key = None
     best_name = None
+    best_position_of = None
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
@@ -283,12 +304,18 @@ def _name_acyclic_nitrile(mol, nitriles, bonds):
             substituents = _substituents_for_chain(graph, candidate, halogens, nitriles)
             key, name = _candidate_key(chain_length, nitrile_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, name
+                best_key, best_name, best_position_of = key, name, position_of
+
+    if stereo is not None:
+        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+        return f"({prefix})-{best_name}"
     return best_name
 
 
 def name_nitrile(mol) -> str:
     nitriles = _validate_and_collect_nitriles(mol)
+    stereo = specified_stereocenters(mol)
     graph = adjacency(mol)
     # Exclude each C#N nitrile bond itself: `non_single_bonds` reports it as
     # order 3.0 same as a C#C, but it isn't a chain 'yne' bond (one endpoint
@@ -307,4 +334,4 @@ def name_nitrile(mol) -> str:
             "out of scope for this module; only an acyclic terminal -C#N is "
             "supported"
         )
-    return _name_acyclic_nitrile(mol, nitriles, bonds)
+    return _name_acyclic_nitrile(mol, nitriles, bonds, stereo)
