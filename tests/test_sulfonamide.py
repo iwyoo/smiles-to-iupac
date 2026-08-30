@@ -62,6 +62,11 @@ def test_2_chlorocyclohexane_1_sulfonamide():
     assert smiles_to_iupac("O=S(=O)(N)C1CCCCC1Cl") == "2-chlorocyclohexane-1-sulfonamide"
 
 
+def test_n_methylcyclohexanesulfonamide():
+    # PubChem structure match: "N-methylcyclohexanesulfonamide" (CID 23534457).
+    assert smiles_to_iupac("O=S(=O)(NC)C1CCCCC1") == "N-methylcyclohexanesulfonamide"
+
+
 def test_polycyclic_sulfonamide_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O=S(=O)(N)C1CC2CCC1CC2")
@@ -82,9 +87,29 @@ def test_sulfonamide_with_alcohol_not_supported():
         smiles_to_iupac("NS(=O)(=O)CCO")
 
 
-def test_n_substituted_sulfonamide_not_supported():
+def test_n_methylmethanesulfonamide():
+    # PubChem structure match: "N-methylmethanesulfonamide" (CID 97632).
+    assert smiles_to_iupac("CS(=O)(=O)NC") == "N-methylmethanesulfonamide"
+
+
+def test_n_n_dimethylmethanesulfonamide():
+    # PubChem structure match: "N,N-dimethylmethanesulfonamide" (CID 70191).
+    assert smiles_to_iupac("CS(=O)(=O)N(C)C") == "N,N-dimethylmethanesulfonamide"
+
+
+def test_n_ethyl_n_methylethanesulfonamide():
+    # PubChem structure match: "N-ethyl-N-methylethanesulfonamide" (CID 21102946).
+    assert smiles_to_iupac("CCS(=O)(=O)N(C)CC") == "N-ethyl-N-methylethanesulfonamide"
+
+
+def test_branched_n_substituted_sulfonamide_not_supported():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CS(=O)(=O)NC")
+        smiles_to_iupac("CS(=O)(=O)NC(C)C")
+
+
+def test_unsaturated_n_substituted_sulfonamide_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CS(=O)(=O)NCC=C")
 
 
 @pytest.mark.parametrize(

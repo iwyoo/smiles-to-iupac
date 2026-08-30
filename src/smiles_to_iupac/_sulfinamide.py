@@ -35,17 +35,26 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   specified stereocenter (chain carbon or sulfur alike) rather than
   attempting real R/S support, mirroring `_sulfinic_acid.py`'s identical
   policy.
+- The sulfinamide nitrogen may carry zero, one, or two plain, unbranched,
+  unsubstituted, saturated alkyl substituents, each cited as its own
+  'N-'-prefixed substituent directly ahead of the parent stem, in
+  alphabetical order, with a 'di' multiplying prefix (and a single shared
+  'N,N-' pair) when both are identical -- exactly `_sulfonamide.py`'s own
+  N-/N,N-disubstitution pattern, reusing `alkyl_name` directly (not
+  `name_branch`, see the P-29 blocker). Confirmed via PubChem:
+  'N-methylmethanesulfinamide' (CS(=O)NC).
 
 Scope, deliberately narrow, mirroring `_sulfinic_acid.py`'s own first pass
 exactly: a single -S(=O)NH2 on an acyclic chain or on a single saturated
 carbon ring (monocyclic), with no other heteroatom anywhere in the molecule
-except the sulfinamide group's own oxygen/nitrogen -- acid/amide-vs-other
-Table 3.3 seniority coexistence is future work. Explicitly out of scope
-(raise `UnsupportedStructure`): an N-substituted sulfinamide (only the
-primary -S(=O)NH2 is supported), polycyclic/spiro/unsaturated rings, a
--S(=O)NH2 on a substituent branch off an otherwise-unsubstituted ring, two
-or more -S(=O)NH2 groups, and a sulfinamide on a carbon that is also part
-of a C=C/C#C bond.
+except the sulfinamide group's own oxygen/nitrogen (and any N-alkyl
+substituent's carbons) -- acid/amide-vs-other Table 3.3 seniority
+coexistence is future work. Explicitly out of scope (raise
+`UnsupportedStructure`): a branched, unsaturated, or ring-bearing
+N-substituent, polycyclic/spiro/unsaturated rings, a -S(=O)NH2 on a
+substituent branch off an otherwise-unsubstituted ring, two or more
+-S(=O)NH2 groups, and a sulfinamide on a carbon that is also part of a
+C=C/C#C bond.
 """
 
 from rdkit import Chem
@@ -57,13 +66,14 @@ from ._common import (
     bfs,
     carbon_adjacency,
     halogen_substituents,
+    linear_branch,
     lowest_locant_set,
     non_single_bonds,
     path_between,
     ring_cycle,
     specified_stereocenters,
 )
-from ._numerals import alkane_name, numerical_term
+from ._numerals import alkane_name, alkyl_name, numerical_term
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _ENE_ORDER = 2.0
@@ -92,7 +102,12 @@ def _sulfinamide_sulfur_atoms(mol):
         (nitrogen,) = nitrogens
         if mol.GetBondBetweenAtoms(atom.GetIdx(), nitrogen.GetIdx()).GetBondTypeAsDouble() != 1.0:
             continue
-        if nitrogen.GetDegree() != 1 or nitrogen.GetTotalNumHs() != 2:
+        n_substituents = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != atom.GetIdx()]
+        if len(n_substituents) > 2 or any(n.GetAtomicNum() != 6 for n in n_substituents):
+            continue
+        if nitrogen.GetTotalNumHs() != 2 - len(n_substituents):
+            continue
+        if any(bond.GetBondTypeAsDouble() != 1.0 for bond in nitrogen.GetBonds()):
             continue
         matches.append(atom)
     return matches
@@ -156,7 +171,9 @@ def _validate_and_collect_sulfinamides(mol):
 
     (sulfur,) = sulfur_atoms
     (carbon,) = (n for n in sulfur.GetNeighbors() if n.GetAtomicNum() == 6)
-    return sulfur.GetIdx(), carbon.GetIdx()
+    (nitrogen,) = (n for n in sulfur.GetNeighbors() if n.GetAtomicNum() == 7)
+    n_alkyl_carbons = tuple(n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetIdx() != sulfur.GetIdx())
+    return sulfur.GetIdx(), carbon.GetIdx(), n_alkyl_carbons
 
 
 def _reject_enesulfinamide_carbon(graph, so_nh2_carbon, bonds):
@@ -166,6 +183,38 @@ def _reject_enesulfinamide_carbon(graph, so_nh2_carbon, bonds):
             "a sulfinamide on a carbon that is also part of a C=C/C#C bond "
             "is out of scope for this module"
         )
+
+
+def _n_alkyl_info(full_carbon_graph, n_alkyl_carbons, non_single_bond_atoms):
+    """Mirrors `_sulfonamide.py`'s own N-alkyl handling: each N-substituent
+    must be a plain, unbranched, unsubstituted, saturated alkyl chain.
+    Returns (n_names, n_substituent_atoms) -- the latter must be excluded
+    from the carbon graph before picking the principal chain, since these
+    carbons hang off the (excluded) sulfinamide nitrogen rather than off the
+    sulfinamide carbon itself."""
+    n_names = []
+    n_substituent_atoms = set()
+    for n_alkyl_c in n_alkyl_carbons:
+        n_length = linear_branch(full_carbon_graph, n_alkyl_c, None)
+        if n_length is None:
+            raise UnsupportedStructure("a branched N-substituent is not supported yet")
+        n_atoms = set()
+        previous, current = None, n_alkyl_c
+        while current is not None:
+            n_atoms.add(current)
+            neighbors = [n for n in full_carbon_graph[current] if n != previous]
+            previous, current = current, (neighbors[0] if neighbors else None)
+        if n_atoms & non_single_bond_atoms:
+            raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
+        n_names.append(alkyl_name(n_length))
+        n_substituent_atoms |= n_atoms
+    return n_names, n_substituent_atoms
+
+
+def _n_prefix(n_names):
+    if len(n_names) == 2 and n_names[0] == n_names[1]:
+        return f"N,N-di{n_names[0]}"
+    return "-".join(f"N-{name}" for name in sorted(n_names))
 
 
 def _multiplied_word(count, base):
@@ -347,7 +396,7 @@ def _ring_candidate_key(ring_size, so_nh2_locant, substituents):
     return so_nh2_locant, locant_set, citation_locants, name
 
 
-def _name_cyclic_sulfinamide(mol, sulfur_idx, so_nh2_carbon):
+def _name_cyclic_sulfinamide(mol, sulfur_idx, so_nh2_carbon, n_names):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     excluded = {sulfur_idx}
@@ -367,11 +416,13 @@ def _name_cyclic_sulfinamide(mol, sulfur_idx, so_nh2_carbon):
             key = _ring_candidate_key(ring_size, so_nh2_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
+    if n_names:
+        best_name = f"{_n_prefix(n_names)}{best_name}"
     return best_name
 
 
 def name_sulfinamide(mol) -> str:
-    sulfur_idx, so_nh2_carbon = _validate_and_collect_sulfinamides(mol)
+    sulfur_idx, so_nh2_carbon, n_alkyl_carbons = _validate_and_collect_sulfinamides(mol)
     if specified_stereocenters(mol) is not None:
         # The sulfinamide sulfur is itself a potential stereocenter in
         # virtually every real -S(=O)NH2 molecule (module docstring), and
@@ -394,6 +445,8 @@ def name_sulfinamide(mol) -> str:
             "supported (see P-31.1.1.1)"
         )
     _reject_enesulfinamide_carbon(graph, so_nh2_carbon, bonds)
+    non_single_bond_atoms = {a for a, b, _ in all_non_single} | {b for a, b, _ in all_non_single}
+    n_names, n_substituent_atoms = _n_alkyl_info(carbon_adjacency(mol), n_alkyl_carbons, non_single_bond_atoms)
 
     ring_info = mol.GetRingInfo()
     num_rings = ring_info.NumRings()
@@ -415,11 +468,13 @@ def name_sulfinamide(mol) -> str:
                 "a sulfinamide on a substituent branch chain rather than "
                 "the ring itself is not supported yet"
             )
-        return _name_cyclic_sulfinamide(mol, sulfur_idx, so_nh2_carbon)
+        return _name_cyclic_sulfinamide(mol, sulfur_idx, so_nh2_carbon, n_names)
 
     halogens = halogen_substituents(mol)
     excluded = {sulfur_idx}
-    chains = _longest_chains(carbon_adjacency(mol))
+    full_carbon_graph = carbon_adjacency(mol)
+    carbon_graph = {k: v for k, v in full_carbon_graph.items() if k not in n_substituent_atoms}
+    chains = _longest_chains(carbon_graph)
     chain_length = len(chains[0])
 
     eligible = []
@@ -447,4 +502,6 @@ def name_sulfinamide(mol) -> str:
             key, name = _candidate_key(chain_length, so_nh2_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
+    if n_names:
+        best_name = f"{_n_prefix(n_names)}{best_name}"
     return best_name
