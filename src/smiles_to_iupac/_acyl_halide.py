@@ -20,6 +20,15 @@ Br, I) on acyclic saturated or unsaturated carbon chains, per the IUPAC
 - P-35.2.1: any *other* halogen (not the one forming the acyl halide) is
   an ordinary prefix substituent and coexists freely, e.g.
   '2-chloropropanoyl chloride'.
+- P-91.3/P-92 (`tasks/acyl-halide-stereocenter-naming.md`): a molecule
+  with one or more *specified* tetrahedral stereocenters on the principal
+  chain gets a "(<locant><R/S>,...)-" prefix, ascending locant order, e.g.
+  '(2R)-2-chloropropanoyl chloride' -- same mechanism as
+  `_carboxylic_acid.py`, since the acyl halide carbon's own fixed C1
+  position already decides numbering before stereo is considered. A
+  stereocenter on a substituent branch, mixed with an unspecified one, or
+  alongside E/Z double-bond stereo remains out of scope (raises
+  `UnsupportedStructure` via `_common.specified_stereocenters`).
 
 Scope, deliberately narrow (mirrors `_carboxylic_acid.py`'s own first
 pass): only a single acyl halide on an acyclic chain, with no other
@@ -42,6 +51,7 @@ from ._common import (
     lowest_locant_set,
     non_single_bonds,
     path_between,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name, numerical_term
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -303,6 +313,8 @@ def name_acyl_halide(mol) -> str:
     halogens = halogen_substituents(mol)
     chains = _longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
+    stereo = specified_stereocenters(mol)
+    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -310,8 +322,19 @@ def name_acyl_halide(mol) -> str:
             continue
         if bonds and _bond_locants(chain, bonds) is None:
             continue
+        chain_set = set(chain)
+        if any(atom not in chain_set for atom in stereo_atoms):
+            continue
         eligible.append(chain)
     if not eligible:
+        if stereo_atoms and any(
+            acyl_carbon in chain and (not bonds or _bond_locants(chain, bonds) is not None)
+            for chain in chains
+        ):
+            raise UnsupportedStructure(
+                "a stereocenter on a substituent branch rather than the "
+                "principal chain is not supported yet (see P-92)"
+            )
         raise UnsupportedStructure(
             "the acyl-halide-bearing carbon (and/or a multiple bond) does "
             "not lie on a single longest carbon chain; a shorter principal "
@@ -320,6 +343,7 @@ def name_acyl_halide(mol) -> str:
 
     best_key = None
     best_name = None
+    best_position_of = None
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             if candidate[0] != acyl_carbon:
@@ -331,5 +355,11 @@ def name_acyl_halide(mol) -> str:
             substituents = _substituents_for_chain(graph, candidate, halogens, excluded)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, halide_word, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, name
+                position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+                best_key, best_name, best_position_of = key, name, position_of
+
+    if stereo:
+        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+        return f"({prefix})-{best_name}"
     return best_name
