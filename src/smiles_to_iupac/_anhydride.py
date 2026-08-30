@@ -48,6 +48,7 @@ from ._common import (
     lowest_locant_set,
     non_single_bonds,
     path_between,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -256,6 +257,16 @@ def _branch_acid_name(chains, graph, halogens, acyl_carbon, carbonyl_oxygen, exc
 
 def name_anhydride(mol) -> str:
     acyl1, acyl2 = _validate_and_collect_anhydride(mol)
+    if specified_stereocenters(mol) is not None:
+        # A stereocenter on either acyl chain forces PubChem's actual PIN
+        # into a completely different "[acyl] ...oate" ester-style name
+        # rather than this module's shared-stem "... anhydride" pattern
+        # (confirmed via PUG REST) -- explicitly reject rather than
+        # silently drop the marker (P-92).
+        raise UnsupportedStructure(
+            "a specified stereocenter on either acyl chain is not "
+            "supported yet for acid anhydrides (see P-92, module docstring)"
+        )
     cores = _anhydride_cores(mol)
     bridging_o, _, carbonyl_o1, _, carbonyl_o2 = cores[0]
 

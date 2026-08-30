@@ -50,3 +50,13 @@ def test_cyclic_anhydride_not_supported():
 def test_two_anhydride_groups_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O=C(OC=O)CC(=O)OC=O")
+
+
+def test_specified_stereocenter_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC[C@@H](C)C(=O)OC(=O)[C@H](C)CC")
+
+
+def test_specified_stereocenter_on_either_acyl_chain_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC[C@@H](C)C(=O)OC(=O)C(C)CC")
