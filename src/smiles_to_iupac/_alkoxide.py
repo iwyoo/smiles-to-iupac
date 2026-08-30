@@ -58,6 +58,16 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - Any charged or radical atom other than the single alkoxide oxygen's
   formal charge -1.
 - Any other heteroatom (N, S, ...), aromatic ring, or isotopic modification.
+
+P-91.3/P-92 (`tasks/alkoxide-stereocenter-naming.md`): a molecule with one
+or more *specified* tetrahedral stereocenters -- every one on the
+principal chain itself, no unspecified one alongside them, and no
+C=C/C#N double-bond E/Z element -- gets a "(<locant><R/S>,...)-" prefix,
+ascending locant order, same pattern as `_sulfonic_acid.py`/`_thiol.py`
+(chain only, this module has no ring support). The alkoxide oxygen itself
+is never a potential stereocenter (a monovalent, negatively-charged
+terminal atom), confirmed via RDKit `FindPotentialStereo` on
+`CC[C@@H](C)[O-]`.
 """
 
 from rdkit import Chem
@@ -76,6 +86,7 @@ from ._common import (
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -217,9 +228,17 @@ def _is_tert_butoxide(mol, oxygen_idx, bonds, halogen_atoms):
     return len(methyls) == 3 and all(m.GetAtomicNum() == 6 and m.GetDegree() == 1 for m in methyls)
 
 
-def _name_acyclic_alkoxide(mol, oxygen_idx, excluded_atoms, bonds):
+def _name_acyclic_alkoxide(mol, oxygen_idx, excluded_atoms, bonds, stereo=None):
+    """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
+    `specified_stereocenters` -- if given, only chain candidates that
+    include every stereocenter are eligible (P-92: a stereocenter on a
+    substituent branch is out of scope), and the winning candidate's own
+    locants are used to format a "(<locant><R/S>,...)-" prefix onto the
+    final name. A genuine stereocenter always requires a branched skeleton
+    (module docstring's retained names/tert-butoxide are all unbranched or
+    symmetric), so `stereo` never fires alongside those fast paths."""
     halogen_atoms = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() in HALOGEN_PREFIXES]
-    if _is_tert_butoxide(mol, oxygen_idx, bonds, halogen_atoms):
+    if stereo is None and _is_tert_butoxide(mol, oxygen_idx, bonds, halogen_atoms):
         return "tert-butoxide"
 
     graph = adjacency(mol)
@@ -227,6 +246,7 @@ def _name_acyclic_alkoxide(mol, oxygen_idx, excluded_atoms, bonds):
     carbon_graph = carbon_adjacency(mol)
     chains = longest_chains(carbon_graph)
     chain_length = len(chains[0])
+    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     (oxygen_carbon,) = [n.GetIdx() for n in mol.GetAtomWithIdx(oxygen_idx).GetNeighbors()]
 
@@ -236,29 +256,51 @@ def _name_acyclic_alkoxide(mol, oxygen_idx, excluded_atoms, bonds):
             continue
         if bonds and bond_locants(chain, bonds) is None:
             continue
+        if stereo is not None and any(atom not in chain for atom in stereo_atoms):
+            continue
         eligible.append(chain)
     if not eligible:
+        if stereo is not None and any(
+            oxygen_carbon in c and (not bonds or bond_locants(c, bonds) is not None) for c in chains
+        ):
+            raise UnsupportedStructure(
+                "a stereocenter on a substituent branch rather than the "
+                "principal chain is not supported yet (see P-92)"
+            )
         raise UnsupportedStructure(
             "the alkoxide carbon (and/or multiple bonds) does not lie on a "
             "single longest carbon chain"
         )
 
     total_carbons = sum(1 for atom in mol.GetAtoms() if atom.GetAtomicNum() == 6)
-    if chain_length == total_carbons and chain_length in _RETAINED_ALKOXIDES and not bonds and not halogen_atoms:
+    if (
+        stereo is None
+        and chain_length == total_carbons
+        and chain_length in _RETAINED_ALKOXIDES
+        and not bonds
+        and not halogen_atoms
+    ):
         terminal_positions = {chains[0][0], chains[0][-1]}
         if oxygen_carbon in terminal_positions:
             return _RETAINED_ALKOXIDES[chain_length]
 
     best_key = None
     best_name = None
+    best_position_of = None
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
-            o_locant = candidate.index(oxygen_carbon) + 1
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            o_locant = position_of[oxygen_carbon]
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
             substituents = _substituents_for_chain(graph, candidate, halogens, excluded_atoms)
             key, name = _candidate_key(chain_length, o_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, name
+                best_key, best_name, best_position_of = key, name, position_of
+
+    if stereo is not None:
+        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+        return f"({prefix})-{best_name}"
     return best_name
 
 
@@ -270,6 +312,7 @@ def name_alkoxide(mol) -> str:
 
     oxygen = _find_alkoxide_group(mol)
     excluded_atoms = {oxygen.GetIdx()}
+    stereo = specified_stereocenters(mol)
 
     has_carbon = False
     for atom in mol.GetAtoms():
@@ -316,4 +359,4 @@ def name_alkoxide(mol) -> str:
             "supported (see P-31.1.1.1)"
         )
 
-    return _name_acyclic_alkoxide(mol, oxygen.GetIdx(), excluded_atoms, bonds)
+    return _name_acyclic_alkoxide(mol, oxygen.GetIdx(), excluded_atoms, bonds, stereo)

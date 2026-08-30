@@ -87,3 +87,31 @@ def test_two_alkoxide_groups_raises():
 def test_ether_oxygen_alongside_alkoxide_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[O-]CCOC")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter (P-92) -- the
+        # alkoxide oxygen itself is never a potential stereocenter (a
+        # monovalent, negatively-charged terminal atom), confirmed via
+        # RDKit `FindPotentialStereo`. Structure/CIP cross-checked against
+        # the parent alcohol, PubChem CID 84682 "(2R)-butan-2-ol" (PubChem
+        # doesn't resolve the bare anion SMILES to a CID).
+        ("CC[C@@H](C)[O-]", "(2R)-butan-2-olate"),
+        ("CC[C@H](C)[O-]", "(2S)-butan-2-olate"),
+    ],
+)
+def test_acyclic_alkoxide_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_alkoxide_stereocenter_with_coexisting_halogen():
+    assert smiles_to_iupac("CC[C@@H](Cl)[O-]") == "(1R)-1-chloropropan-1-olate"
+
+
+def test_alkoxide_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention.
+    assert smiles_to_iupac("CCC(C)[O-]") == "butan-2-olate"
