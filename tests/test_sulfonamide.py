@@ -85,3 +85,53 @@ def test_sulfonamide_with_alcohol_not_supported():
 def test_n_substituted_sulfonamide_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CS(=O)(=O)NC")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter (P-92), same pattern
+        # as `_sulfonic_acid.py`. PubChem CID 93472539.
+        ("CC[C@@H](C)S(=O)(=O)N", "(2R)-butane-2-sulfonamide"),
+        ("CC[C@H](C)S(=O)(=O)N", "(2S)-butane-2-sulfonamide"),
+    ],
+)
+def test_acyclic_sulfonamide_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_acyclic_sulfonamide_stereocenter_with_coexisting_substituent():
+    # A stereocenter that also bears a halogen substituent: the suffix's
+    # own locant is still cited on the 2-carbon chain despite the
+    # substituent sharing its position, same project-wide convention as
+    # the identical pre-existing 'ClC(C)S(=O)(=O)N' case. PubChem's own
+    # auto-generated name omits that locant ('(1R)-1-chloroethanesulfonamide',
+    # CID 92264750) -- a non-PIN quirk already documented elsewhere in this
+    # project -- so only the structure is cross-checked there.
+    assert smiles_to_iupac("C[C@@H](Cl)S(=O)(=O)N") == "(1R)-1-chloroethane-1-sulfonamide"
+
+
+def test_cyclic_sulfonamide_stereocenter():
+    # Two stereocenters on the ring itself (P-92), same pattern as
+    # `_sulfonic_acid.py`'s `_name_cyclic_sulfonic_acid`. PubChem has no
+    # registered CID for this exact stereoisomer (CID 0), so only the
+    # achiral structure is cross-checked (CID 130649687,
+    # '2-chlorocyclohexane-1-sulfonamide').
+    assert (
+        smiles_to_iupac("N[S](=O)(=O)[C@H]1CCCC[C@@H]1Cl")
+        == "(1S,2S)-2-chlorocyclohexane-1-sulfonamide"
+    )
+
+
+def test_sulfonamide_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention.
+    assert smiles_to_iupac("CCC(Cl)S(=O)(=O)N") == "1-chloropropane-1-sulfonamide"
+
+
+def test_sulfonamide_partially_specified_stereocenters_raises():
+    # Only one of the ring's two genuine stereocenters is marked -- must
+    # raise rather than silently dropping the marker.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("N[S](=O)(=O)[C@H]1CCCCC1Cl")

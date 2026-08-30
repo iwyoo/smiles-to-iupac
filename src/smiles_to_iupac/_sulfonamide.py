@@ -23,6 +23,14 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   the -SO2NH2 suffix. Confirmed via PubChem: 'propane-1-sulfonamide'
   (CCCS(=O)(=O)N), 'cyclohexanesulfonamide' (O=S(=O)(N)C1CCCCC1),
   '2-chloroethanesulfonamide' (ClCCS(=O)(=O)N).
+- P-91.3/P-92 (`tasks/sulfonamide-stereocenter-naming.md`): a molecule with
+  one or more *specified* tetrahedral stereocenters -- every one on the
+  principal chain/ring itself, no unspecified one alongside them, and no
+  C=C/C#N double-bond E/Z element -- gets a "(<locant><R/S>,...)-" prefix,
+  ascending locant order, same pattern as `_sulfonic_acid.py` (chain and
+  ring both). The sulfonamide's own sulfur is never itself a potential
+  stereocenter (its two =O substituents are identical), confirmed via
+  RDKit `FindPotentialStereo` on `CC(C)S(=O)(=O)N`.
 
 Scope, deliberately narrow, mirroring `_sulfonic_acid.py`'s own first pass
 exactly: a single -SO2NH2 on an acyclic chain or on a single saturated
@@ -49,6 +57,7 @@ from ._common import (
     non_single_bonds,
     path_between,
     ring_cycle,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name, numerical_term
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -331,7 +340,14 @@ def _ring_candidate_key(ring_size, so2nh2_locant, substituents):
     return so2nh2_locant, locant_set, citation_locants, name
 
 
-def _name_cyclic_sulfonamide(mol, sulfur_idx, so2nh2_carbon):
+def _name_cyclic_sulfonamide(mol, sulfur_idx, so2nh2_carbon, stereo=None):
+    """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
+    `specified_stereocenters` -- if given, every stereocenter must lie on
+    the ring itself (P-92: a stereocenter on a substituent branch is out
+    of scope, mirroring `_sulfonic_acid.py`'s `_name_cyclic_sulfonic_acid`),
+    and the winning ring numbering's own locants for those atoms are used
+    to format a "(<locant><R/S>,...)-" prefix onto the name, ascending
+    locant order (P-91.3)."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     excluded = {sulfur_idx}
@@ -339,9 +355,15 @@ def _name_cyclic_sulfonamide(mol, sulfur_idx, so2nh2_carbon):
     ring_atoms = list(ring_info.AtomRings()[0])
     ring_order = ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
+    if stereo is not None and any(atom not in ring_order for atom, _ in stereo):
+        raise UnsupportedStructure(
+            "a stereocenter on a substituent branch rather than the ring "
+            "itself is not supported yet (see P-92)"
+        )
 
     best_key = None
     best_name = None
+    best_position_of = None
     for start in range(ring_size):
         rotated = ring_order[start:] + ring_order[:start]
         for candidate in (rotated, list(reversed(rotated))):
@@ -350,12 +372,18 @@ def _name_cyclic_sulfonamide(mol, sulfur_idx, so2nh2_carbon):
             substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
             key = _ring_candidate_key(ring_size, so2nh2_locant, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, key[-1]
+                best_key, best_name, best_position_of = key, key[-1], position_of
+
+    if stereo is not None:
+        labels = sorted((best_position_of[atom], r_or_s) for atom, r_or_s in stereo)
+        prefix = ",".join(f"{locant}{r_or_s}" for locant, r_or_s in labels)
+        return f"({prefix})-{best_name}"
     return best_name
 
 
 def name_sulfonamide(mol) -> str:
     sulfur_idx, so2nh2_carbon = _validate_and_collect_sulfonamides(mol)
+    stereo = specified_stereocenters(mol)
     graph = adjacency(mol)
     all_non_single = non_single_bonds(mol)
     bonds = [b for b in all_non_single if b[2] in (_ENE_ORDER, _YNE_ORDER) and sulfur_idx not in (b[0], b[1])]
@@ -388,12 +416,13 @@ def name_sulfonamide(mol) -> str:
                 "a sulfonamide on a substituent branch chain rather than "
                 "the ring itself is not supported yet"
             )
-        return _name_cyclic_sulfonamide(mol, sulfur_idx, so2nh2_carbon)
+        return _name_cyclic_sulfonamide(mol, sulfur_idx, so2nh2_carbon, stereo)
 
     halogens = halogen_substituents(mol)
     excluded = {sulfur_idx}
     chains = _longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
+    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -401,8 +430,17 @@ def name_sulfonamide(mol) -> str:
             continue
         if bonds and _bond_locants(chain, bonds) is None:
             continue
+        if stereo is not None and any(atom not in chain for atom in stereo_atoms):
+            continue
         eligible.append(chain)
     if not eligible:
+        if stereo is not None and any(
+            so2nh2_carbon in c and (not bonds or _bond_locants(c, bonds) is not None) for c in chains
+        ):
+            raise UnsupportedStructure(
+                "a stereocenter on a substituent branch rather than the "
+                "principal chain is not supported yet (see P-92)"
+            )
         raise UnsupportedStructure(
             "the sulfonamide-bearing carbon (and/or a multiple bond) does "
             "not lie on a single longest carbon chain; a shorter principal "
@@ -411,6 +449,7 @@ def name_sulfonamide(mol) -> str:
 
     best_key = None
     best_name = None
+    best_position_of = None
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
@@ -419,5 +458,10 @@ def name_sulfonamide(mol) -> str:
             substituents = _substituents_for_chain(graph, candidate, halogens, excluded)
             key, name = _candidate_key(chain_length, so2nh2_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, name
+                best_key, best_name, best_position_of = key, name, position_of
+
+    if stereo is not None:
+        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+        return f"({prefix})-{best_name}"
     return best_name
