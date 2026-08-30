@@ -36,14 +36,23 @@ Book"):
   reviewed, not independently structure-verified, generalization along an
   already-confirmed axis, matching `_thiol.py`'s and `_selenol.py`'s own
   precedent.
+- A single, otherwise-unsubstituted saturated monocyclic ring also works,
+  mirroring `_thiol.py`'s/`_selenol.py`'s own monocyclic support:
+  confirmed via PubChem structure match, `C1CCCCC1[TeH]` ->
+  "cyclohexanetellurol". The ring machinery below is ported directly from
+  `_selenol.py`'s own ring code (itself ported from `_thiol.py`), so a
+  multi-tellurol ring is supported too on the same trust-the-shared-
+  machinery basis as `_selenol.py`'s own multi-group ring support.
 
-Scope, deliberately narrow (mirrors `_selenol.py`'s own group-count-
-generalized scope): one or more -TeH groups on an acyclic chain, with no
-other heteroatom (in particular no -OH, -SH, -SeH, or amine nitrogen)
-anywhere in the molecule. Explicitly out of scope (raise
-`UnsupportedStructure`): any ring, a telluride (-Te- ether-analogue) or
-any other tellurium-oxidation-state group, a thiol/selenol or other
-chalcogen atom, and any oxygen or nitrogen atom at all.
+Scope, deliberately narrow (mirrors `_selenol.py`'s own group-count- and
+ring-generalized scope): one or more -TeH groups on an acyclic chain, or
+on a single saturated carbon ring, with no other heteroatom (in
+particular no -OH, -SH, -SeH, or amine nitrogen) anywhere in the
+molecule. Explicitly out of scope (raise `UnsupportedStructure`):
+polycyclic/spiro/unsaturated rings, a -TeH on a substituent branch off an
+otherwise-unsubstituted ring, a telluride (-Te- ether-analogue) or any
+other tellurium-oxidation-state group, a thiol/selenol or other chalcogen
+atom, and any oxygen or nitrogen atom at all.
 """
 
 from rdkit import Chem
@@ -61,6 +70,7 @@ from ._common import (
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    ring_cycle,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -236,6 +246,66 @@ def _substituents_for_chain(graph, chain, halogens, tellurols):
     return substituents
 
 
+def _substituents_for_ring(graph, ring_order, halogens, tellurols):
+    ring_set = set(ring_order)
+    substituents = {}
+    for position, atom in enumerate(ring_order, start=1):
+        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in tellurols]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+    return substituents
+
+
+def _ring_name_from_substituents(ring_size, te_locants, grouped):
+    stem = "cyclo" + alkane_name(ring_size)
+    total_subs = sum(len(info["locants"]) for info in grouped.values())
+    tellurol_word = multiplied_word(len(te_locants), "tellurol")
+
+    if total_subs == 0 and len(te_locants) == 1:
+        # P-14.3.3: the sole substituent on an otherwise unsubstituted ring
+        # has no locant to distinguish, e.g. 'cyclohexanetellurol'.
+        return stem + tellurol_word
+
+    prefix = format_substituent_prefixes(grouped)
+    loc_str = ",".join(str(loc) for loc in sorted(te_locants))
+    return f"{prefix}{stem}-{loc_str}-{tellurol_word}"
+
+
+def _ring_candidate_key(ring_size, te_locants, substituents):
+    grouped = group_substituents(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    te_locant_set = lowest_locant_set(te_locants)
+    name = _ring_name_from_substituents(ring_size, te_locants, grouped)
+    return te_locant_set, locant_set, citation_locants, name
+
+
+def _name_cyclic_tellurol(mol, tellurols):
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_info = mol.GetRingInfo()
+    ring_atoms = list(ring_info.AtomRings()[0])
+    ring_order = ring_cycle(graph, ring_atoms)
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            te_locants = _te_locants(position_of, tellurols, graph)
+            substituents = _substituents_for_ring(graph, candidate, halogens, tellurols)
+            key = _ring_candidate_key(ring_size, te_locants, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def name_tellurol(mol) -> str:
     tellurols = _validate_and_collect_tellurols(mol)
     graph = adjacency(mol)
@@ -248,11 +318,27 @@ def name_tellurol(mol) -> str:
         )
     _reject_enetellurol_carbons(graph, tellurols, bonds)
 
-    if mol.GetRingInfo().NumRings() != 0:
+    ring_info = mol.GetRingInfo()
+    num_rings = ring_info.NumRings()
+    if num_rings > 1:
         raise UnsupportedStructure(
-            "cyclic tellurols are not supported yet (this module only "
-            "handles acyclic chains)"
+            "polycyclic/spiro tellurols are not supported yet (this module "
+            "only handles acyclic chains and a single saturated ring)"
         )
+    if num_rings == 1:
+        if bonds:
+            raise UnsupportedStructure(
+                "unsaturated rings are not supported yet (see P-31.1.3, "
+                "cycloalkenes and cycloalkynes)"
+            )
+        ring_atoms = set(ring_info.AtomRings()[0])
+        ring_tellurols = {t for t in tellurols if next(iter(graph[t])) in ring_atoms}
+        if ring_tellurols != tellurols:
+            raise UnsupportedStructure(
+                "a tellurol on a substituent branch chain rather than the "
+                "ring itself is not supported yet"
+            )
+        return _name_cyclic_tellurol(mol, tellurols)
 
     halogens = halogen_substituents(mol)
     chains = longest_chains(carbon_adjacency(mol))

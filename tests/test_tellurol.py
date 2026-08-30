@@ -55,9 +55,23 @@ def test_propane_1_3_ditellurol():
     assert smiles_to_iupac("[TeH]CCC[TeH]") == "propane-1,3-ditellurol"
 
 
-def test_ring_tellurol_not_supported():
+def test_cyclohexanetellurol():
+    # PubChem structure match: "cyclohexanetellurol".
+    assert smiles_to_iupac("C1CCCCC1[TeH]") == "cyclohexanetellurol"
+
+
+def test_substituted_ring_tellurol_locant_cited():
+    assert smiles_to_iupac("CC1CCCCC1[TeH]") == "2-methylcyclohexane-1-tellurol"
+
+
+def test_polycyclic_tellurol_not_supported():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCC1[TeH]")
+        smiles_to_iupac("C12(CCC(CC1)CC2)[TeH]")
+
+
+def test_tellurol_on_ring_substituent_branch_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1CCCCC1C[TeH]")
 
 
 def test_tellurol_with_alcohol_not_supported():
