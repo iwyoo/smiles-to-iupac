@@ -46,6 +46,18 @@ from smiles_to_iupac._common import UnsupportedStructure
         # chain are named via `_substituents.py`'s `name_branch`, the same as
         # for alkanes/cycloalkanes, instead of being rejected outright.
         ("CCCC(C(C)C)CC=C", "4-(1-methylethyl)hept-1-ene"),
+        # P-14.3.4.2(b): a two-carbon chain has only one possible bond
+        # position, so the -ene/-yne locant is omittable regardless of how
+        # many substituents are cited -- with one substituent, its own
+        # locant is also omittable (no ambiguity); with two or more, their
+        # locants are still needed to distinguish isomers like "1,2-" from
+        # "1,1-".
+        ("ClC=C", "chloroethene"),
+        ("FC#C", "fluoroethyne"),
+        ("ClC=CCl", "1,2-dichloroethene"),
+        ("FC=CF", "1,2-difluoroethene"),
+        ("FC=CCl", "1-chloro-2-fluoroethene"),
+        ("BrC#CBr", "1,2-dibromoethyne"),
     ],
 )
 def test_smiles_to_iupac_unsaturated(smiles, expected):
