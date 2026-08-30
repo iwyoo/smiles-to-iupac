@@ -51,6 +51,22 @@ def test_n_substituted_amide_with_longer_acyl_chain():
     assert smiles_to_iupac("CC(=O)NCCCC") == "N-butylethanamide"
 
 
+def test_n_n_disubstituted_amide_with_locant_leading_parent_name():
+    # The N,N-prefix must be hyphen-separated from a parent name that
+    # itself starts with a numeric locant, not just concatenated.
+    assert (
+        smiles_to_iupac("O=C(C(C(F)(F)F)C(F)(F)F)N(CCCl)CCCl")
+        == "N,N-diethyl-3,3,3-trifluoro-2-(trifluoromethyl)propanamide"
+    )
+
+
+def test_n_substituted_amide_with_locant_leading_parent_name():
+    assert (
+        smiles_to_iupac("CC(O)C(O)NC(=O)[C@H](O)[C@H](O)[C@H](O)[C@@H](O)[C@H](O)CO")
+        == "N-propyl-2,3,4,5,6,7-hexahydroxyheptanamide"
+    )
+
+
 def test_branched_n_substituent_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC(=O)NC(C)C")

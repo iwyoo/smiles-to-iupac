@@ -409,7 +409,8 @@ def _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls,
         n_prefix = f"N,N-di{n_names[0]}"
     else:
         n_prefix = "-".join(f"N-{name}" for name in sorted(n_names))
-    return f"{n_prefix}{best_name}"
+    separator = "-" if best_name[0].isdigit() else ""
+    return f"{n_prefix}{separator}{best_name}"
 
 
 def name_amide(mol) -> str:
