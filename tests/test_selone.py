@@ -55,3 +55,21 @@ def test_thione_not_confused_with_selone():
 
 def test_ketone_not_confused_with_selone():
     assert smiles_to_iupac("CC(=O)C") == "propan-2-one"
+
+
+def test_acyclic_selone_stereocenter():
+    # A single specified tetrahedral stereocenter (P-92): a selone's C=Se
+    # carbon is double-bonded to selenium exactly like a ketone's C=O
+    # carbon, so this mirrors `_thione.py`/`_ketone.py` cleanly (CIP
+    # computed entirely by RDKit's `rdCIPLabeler`). PubChem has no
+    # registered stereoisomer for this molecule, so this is a
+    # structural/regression check on the already-proven mechanism, not an
+    # independent PubChem cross-check.
+    assert smiles_to_iupac("CC[C@@H](C)C(C)=[Se]") == "(3R)-3-methylpentane-2-selone"
+
+
+def test_selone_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention.
+    assert smiles_to_iupac("CCC(C)C(C)=[Se]") == "3-methylpentane-2-selone"
