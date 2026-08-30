@@ -24,6 +24,7 @@ from ._guanidine import has_guanidine_shape, name_guanidine
 from ._hydrazide import has_hydrazide_shape, name_hydrazide
 from ._imide import has_imide_shape, name_imide
 from ._amine import name_amine
+from ._amine_oxide import has_amine_oxide_shape, name_amine_oxide
 from ._aminide import has_aminide_shape, name_aminide
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._phosphonium import has_phosphonium_shape, name_phosphonium
@@ -194,6 +195,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # rejects any charged atom outright rather than attempting to name it.
     if has_ammonium_shape(mol):
         return name_ammonium(mol)
+
+    # A secondary/tertiary amine N-oxide (P-62.5's zwitterionic N+-O-) has a
+    # charged nitrogen too, for the same reason as ammonium above -- and
+    # `has_ammonium_shape` itself doesn't match it (an oxide-bearing
+    # nitrogen has 2-3 carbon neighbors plus the oxide oxygen, never the
+    # single-carbon/three-H shape ammonium requires), so it needs its own
+    # explicit routing here.
+    if has_amine_oxide_shape(mol):
+        return name_amine_oxide(mol)
 
     # A diazonium cation (R-N#N+, P-73) has a charged nitrogen too, for the
     # same reason as ammonium above -- routed here, unconditionally,
