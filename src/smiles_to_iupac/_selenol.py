@@ -34,16 +34,27 @@ Book"):
   selenol locants, so only the single-group guard needed lifting.
   Confirmed via PubChem PUG REST: `[SeH]CC[SeH]` ->
   "ethane-1,2-diselenol", `[SeH]CCC[SeH]` -> "propane-1,3-diselenol".
+- Three or more -SeH groups (triselenol, tetraselenol, ...) lifts the
+  group-count cap entirely, the same way `_thiol.py` itself generalizes
+  to "dithiol/trithiol/..." without citing a specific 3+-group PubChem
+  worked example of its own -- `_suffix_body`/`_name_from_substituents`
+  below are already fully generalized over an arbitrary-length
+  `se_locants` list (the same shared mechanism `_alcohol.py`'s own
+  confirmed polyol support, e.g. glycerol, uses), so lifting the cap adds
+  no new code path to verify. No triselenol compound (three -SeH groups
+  on a single chain) was found registered in PubChem to independently
+  confirm this specific chalcogen (unlike `_thiol.py`'s own trithiol
+  case, which is in the same boat) -- this is a reviewed, not
+  independently structure-verified, generalization along an
+  already-confirmed axis, matching `_thiol.py`'s own precedent exactly.
 
-Scope, deliberately narrow (mirrors `_thiol.py`'s own original single-
-group scope, tasks/selenol-naming.md, plus tasks/diselenol-naming.md for
-the two-group extension): one or two -SeH groups on an acyclic chain,
-with no other heteroatom (in particular no -OH, -SH, or amine nitrogen)
-anywhere in the molecule. Explicitly out of scope (raise
-`UnsupportedStructure`): any ring, three or more -SeH groups (a
-triselenol or higher), a selenide (-Se- ether-analogue) or any other
-selenium-oxidation-state group, a tellurol or other chalcogen atom, and
-any oxygen or nitrogen atom at all.
+Scope, deliberately narrow (mirrors `_thiol.py`'s own group-count-
+generalized scope, minus its monocyclic-ring support): one or more -SeH
+groups on an acyclic chain, with no other heteroatom (in particular no
+-OH, -SH, or amine nitrogen) anywhere in the molecule. Explicitly out of
+scope (raise `UnsupportedStructure`): any ring, a selenide (-Se-
+ether-analogue) or any other selenium-oxidation-state group, a tellurol
+or other chalcogen atom, and any oxygen or nitrogen atom at all.
 """
 
 from rdkit import Chem
@@ -124,10 +135,6 @@ def _validate_and_collect_selenols(mol):
     if not selenols:
         raise UnsupportedStructure(
             "no selenol (-SeH) group found; this module only handles selenols"
-        )
-    if len(selenols) > 2:
-        raise UnsupportedStructure(
-            "more than two selenol groups (a triselenol or higher) is out of scope for this module"
         )
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
