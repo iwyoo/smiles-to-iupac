@@ -45,3 +45,19 @@ def test_thiol_not_confused_with_sulfonium():
 
 def test_phosphonium_not_confused_with_sulfonium():
     assert smiles_to_iupac("C[PH3+]") == "methylphosphanium"
+
+
+def test_sulfonium_specified_stereocenter_raises():
+    # The sulfonium sulfur (three distinct alkyl substituents) is itself a
+    # genuine, configurationally stable stereocenter -- this project has no
+    # established way to cite a heteroatom-centered stereodescriptor, so a
+    # specified one must raise rather than silently collapsing both
+    # configurations to the same name (P-92).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[S@+](CC)CCC")
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[S@@+](CC)CCC")
+
+
+def test_sulfonium_unspecified_stereocenter_unaffected():
+    assert smiles_to_iupac("C[S+](CC)CCC") == "ethyl(methyl)(propyl)sulfanium"

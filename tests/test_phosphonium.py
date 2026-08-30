@@ -63,3 +63,19 @@ def test_ammonium_not_confused_with_phosphonium():
 
 def test_phosphane_not_confused_with_phosphonium():
     assert smiles_to_iupac("CP") == "methylphosphane"
+
+
+def test_phosphonium_specified_stereocenter_raises():
+    # The phosphonium phosphorus (three or four distinct substituents) is
+    # itself a genuine, configurationally stable stereocenter -- this
+    # project has no established way to cite a heteroatom-centered
+    # stereodescriptor, so a specified one must raise rather than silently
+    # collapsing both configurations to the same name (P-92).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[P@H+](CC)CCC")
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[P@@+](CC)(CCC)CCCC")
+
+
+def test_phosphonium_unspecified_stereocenter_unaffected():
+    assert smiles_to_iupac("C[PH+](CC)CCC") == "ethyl(methyl)(propyl)phosphanium"

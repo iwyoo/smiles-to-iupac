@@ -37,11 +37,23 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   substituent (inherited unchanged from `_phosphane.py`'s own scope for
   the degree 0-3 case via neutralization; unverified via PubChem for the
   quaternary degree-4 case, so kept just as narrow there too).
+- P-92 stereocenters (`tasks/sulfonium-phosphonium-stereocenter-naming.md`):
+  unlike `_ammonium.py`'s nitrogen (which inverts too fast to be a real
+  stereocenter), a phosphonium phosphorus with three or four distinct
+  substituents is itself a genuine, configurationally stable stereocenter
+  -- confirmed via RDKit `FindPotentialStereo` on `C[PH+](CC)CCC` (degree
+  3) as well as the quaternary degree-4 case (both `@`/`@@` currently
+  collapse to the same, silently wrong name). Since substituents here are
+  always plain unbranched alkyl (never a stereocenter on their own), the
+  phosphorus is the only possible stereocenter, and this project has no
+  established heteroatom-centered stereodescriptor convention (same
+  policy as `_sulfonium.py`/`_sulfinic_acid.py`) -- so a specified
+  stereocenter is explicitly rejected rather than silently dropped.
 """
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, linear_branch, non_single_bonds
+from ._common import UnsupportedStructure, adjacency, linear_branch, non_single_bonds, specified_stereocenters
 from ._numerals import alkyl_name
 from ._phosphane import name_simple_phosphane
 from ._substituents import format_mononuclear_prefixes
@@ -82,6 +94,16 @@ def name_phosphonium(mol) -> str:
         raise UnsupportedStructure(
             "only a single, singly-charged, non-isotopically-modified "
             "phosphonium phosphorus is supported (P-73.1.1.2)"
+        )
+    if specified_stereocenters(mol) is not None:
+        # The phosphonium phosphorus is itself a genuine, configurationally
+        # stable stereocenter in virtually every real R3HP+/R4P+ molecule
+        # (module docstring), and this project has no established way to
+        # cite a heteroatom-centered stereodescriptor -- explicitly reject
+        # rather than silently drop the marker (P-92).
+        raise UnsupportedStructure(
+            "a specified stereocenter (the phosphonium phosphorus itself) "
+            "is not supported yet (see P-92, module docstring)"
         )
     degree = phosphorus.GetDegree()
     if any(n.GetAtomicNum() != 6 for n in phosphorus.GetNeighbors()):
