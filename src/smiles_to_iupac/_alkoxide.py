@@ -1,5 +1,5 @@
 """Naming of alkoxide anions (R-O(-), the '-olate' suffix), restricted to a
-single such group on an unbranched acyclic carbon chain, per the IUPAC 2013
+single such group on an acyclic carbon skeleton, per the IUPAC 2013
 Recommendations ("the Blue Book"):
 
 - P-72.2.2.2.2 (Chapter P-7, https://iupac.qmul.ac.uk/BlueBook/P7.html): an
@@ -36,14 +36,19 @@ Recommendations ("the Blue Book"):
   '-ol' suffix (P-14.3.4.2(a) mononuclear-parent locant omission; otherwise
   the locant is always cited on a chain of 2+ carbons once the retained
   names' narrow, unsubstituted shape doesn't apply).
+- A branched carbon skeleton is named via `_alcohol.py`'s own general
+  substituent-branch machinery (`name_branch`), reused here unchanged --
+  e.g. `CC(C)C[O-]` -> "2-methylpropan-1-olate" (PubChem structure/name
+  match), the same skeleton as `_alcohol.py`'s own "2-methylpropan-1-ol"
+  with 'ate' appended. A retained name (methoxide/ethoxide/propoxide/
+  butoxide) only applies to a truly unbranched chain using every carbon in
+  the molecule -- a branched skeleton whose longest chain happens to match
+  a retained name's length (e.g. a 5-carbon branched skeleton with a
+  4-atom longest chain) must fall through to the systematic path instead.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - A ring anywhere in the molecule (acyclic-only, mirrors the other anion
   modules; phenoxide's aromatic ring is a separate follow-up).
-- A branched carbon skeleton, except for tert-butoxide, (CH3)3C-O(-)
-  itself (its retained name is hardcoded as a single fixed shape below --
-  a substituent-bearing chain otherwise, like `_alcohol.py`'s own general
-  branch support, is a separate follow-up).
 - More than one -O(-) group, or any oxygen that isn't the single alkoxide
   anion (an ether, a second alkoxide, a carbonyl).
 - A carbon bearing the anionic oxygen that's also double-bonded to another
@@ -223,14 +228,6 @@ def _name_acyclic_alkoxide(mol, oxygen_idx, excluded_atoms, bonds):
     chains = longest_chains(carbon_graph)
     chain_length = len(chains[0])
 
-    total_carbons = sum(1 for atom in mol.GetAtoms() if atom.GetAtomicNum() == 6)
-    if chain_length != total_carbons:
-        raise UnsupportedStructure(
-            "a branched carbon skeleton is not supported yet (unbranched "
-            "chains only, except for tert-butoxide's own fixed shape "
-            "above)"
-        )
-
     (oxygen_carbon,) = [n.GetIdx() for n in mol.GetAtomWithIdx(oxygen_idx).GetNeighbors()]
 
     eligible = []
@@ -246,7 +243,8 @@ def _name_acyclic_alkoxide(mol, oxygen_idx, excluded_atoms, bonds):
             "single longest carbon chain"
         )
 
-    if chain_length in _RETAINED_ALKOXIDES and not bonds and not halogen_atoms:
+    total_carbons = sum(1 for atom in mol.GetAtoms() if atom.GetAtomicNum() == 6)
+    if chain_length == total_carbons and chain_length in _RETAINED_ALKOXIDES and not bonds and not halogen_atoms:
         terminal_positions = {chains[0][0], chains[0][-1]}
         if oxygen_carbon in terminal_positions:
             return _RETAINED_ALKOXIDES[chain_length]

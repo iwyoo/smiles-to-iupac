@@ -55,11 +55,23 @@ def test_tert_butoxide():
     assert smiles_to_iupac("CC(C)(C)[O-]") == "tert-butoxide"
 
 
-def test_other_branched_alkoxide_raises():
-    # A branched skeleton other than tert-butoxide's own fixed shape is
-    # still out of scope.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)C[O-]")
+def test_branched_alkoxide():
+    # PubChem CID structure/name match: "2-methylpropan-1-olate".
+    assert smiles_to_iupac("CC(C)C[O-]") == "2-methylpropan-1-olate"
+
+
+def test_branched_alkoxide_longer_chain():
+    # Cross-checked against _alcohol.py's own "3-methylbutan-1-ol" for the
+    # same skeleton (isoamyl alcohol) -- same branch, 'ate' appended. Also
+    # a regression check: this 5-carbon skeleton's longest chain is 4 atoms
+    # (butoxide's own retained-name length), so the retained-name fast path
+    # must not misfire here -- that path is reserved for a truly unbranched
+    # chain using every carbon in the molecule.
+    assert smiles_to_iupac("CC(C)CC[O-]") == "3-methylbutan-1-olate"
+
+
+def test_branched_alkoxide_with_halogen():
+    assert smiles_to_iupac("ClCC(C)C[O-]") == "3-chloro-2-methylpropan-1-olate"
 
 
 def test_phenoxide_raises():
