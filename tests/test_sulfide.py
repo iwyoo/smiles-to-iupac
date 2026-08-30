@@ -30,3 +30,26 @@ def test_branched_prefix_side_is_enclosed():
 def test_both_sides_branched_and_tied_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC(C)SC(C)C")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified (CID 92859631/92174457): the parent (longer)
+        # chain carries the stereocenter, so the prefix mirrors
+        # `_ether.py`'s P-91.3 mechanism via `winning_chain_from_carbon_graph`.
+        ("CC[C@H](C)SCC", "(2S)-2-ethylsulfanylbutane"),
+        ("CC[C@@H](C)SCC", "(2R)-2-ethylsulfanylbutane"),
+    ],
+)
+def test_stereocenter_on_parent_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_unspecified_stereocenter_ignored():
+    assert smiles_to_iupac("CCC(C)SCC") == "2-ethylsulfanylbutane"
+
+
+def test_stereocenter_on_substituent_branch_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CCCCCS[C@H](C)CC")
