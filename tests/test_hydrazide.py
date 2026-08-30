@@ -63,3 +63,25 @@ def test_amide_not_misnamed_as_hydrazide():
     # A plain primary amide (`_amide.py`) has only one nitrogen and must
     # not be routed here.
     assert smiles_to_iupac("CC(N)=O") == "ethanamide"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter (P-92): a hydrazide
+        # carbon is always chain-terminal (fixed C1), same pattern as
+        # `_amide.py` (CIP computed entirely by RDKit's `rdCIPLabeler`).
+        # PubChem CID 30066157.
+        ("CC[C@@H](C)C(=O)NN", "(2R)-2-methylbutanehydrazide"),
+        ("CC[C@H](C)C(=O)NN", "(2S)-2-methylbutanehydrazide"),
+    ],
+)
+def test_hydrazide_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_hydrazide_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention.
+    assert smiles_to_iupac("CCC(C)C(=O)NN") == "2-methylbutanehydrazide"
