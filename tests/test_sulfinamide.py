@@ -87,9 +87,27 @@ def test_sulfinamide_with_alcohol_not_supported():
         smiles_to_iupac("NS(=O)CCO")
 
 
-def test_n_substituted_sulfinamide_not_supported():
+def test_n_methylmethanesulfinamide():
+    # PubChem structure match: "N-methylmethanesulfinamide" (CID 12734342).
+    assert smiles_to_iupac("CS(=O)NC") == "N-methylmethanesulfinamide"
+
+
+def test_n_n_dimethylmethanesulfinamide():
+    assert smiles_to_iupac("CS(=O)N(C)C") == "N,N-dimethylmethanesulfinamide"
+
+
+def test_n_methylcyclohexanesulfinamide():
+    assert smiles_to_iupac("O=S(NC)C1CCCCC1") == "N-methylcyclohexanesulfinamide"
+
+
+def test_branched_n_substituted_sulfinamide_not_supported():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CS(=O)NC")
+        smiles_to_iupac("CS(=O)NC(C)C")
+
+
+def test_unsaturated_n_substituted_sulfinamide_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CS(=O)NCC=C")
 
 
 def test_sulfinamide_unspecified_stereocenter_unaffected():
