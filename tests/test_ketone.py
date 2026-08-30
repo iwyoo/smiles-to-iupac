@@ -94,3 +94,39 @@ def test_ketone_enol_mix_raises():
     # carbonyl form and out of scope, same as `_alcohol.py`'s own enol check.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OC=CC(=O)C")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter on the chain (P-92),
+        # same pattern as `_carboxylic_acid.py`/`_aldehyde.py` (CIP
+        # computed entirely by RDKit's `rdCIPLabeler`). PubChem CID
+        # 92284545.
+        ("CC[C@@H](Cl)C(C)=O", "(3R)-3-chloropentan-2-one"),
+        ("CC[C@H](Cl)C(C)=O", "(3S)-3-chloropentan-2-one"),
+        # Two specified stereocenters, ascending-locant group (P-91.3).
+        # PubChem CID 12688076, name matches exactly.
+        ("C[C@H](Cl)[C@H](Cl)C(C)=O", "(3R,4S)-3,4-dichloropentan-2-one"),
+    ],
+)
+def test_acyclic_ketone_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_cyclic_ketone_stereocenter():
+    # A stereocenter on the ring itself (P-92), same pattern as
+    # `_alcohol.py`'s `_name_cyclic_alcohol`. PubChem CID 641138.
+    assert smiles_to_iupac("O=C1CCCC[C@H]1Cl") == "(2R)-2-chlorocyclohexan-1-one"
+
+
+def test_ketone_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention.
+    assert smiles_to_iupac("CCC(Cl)C(C)=O") == "3-chloropentan-2-one"
+
+
+def test_ketone_partially_specified_stereocenters_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[C@H](Cl)C(Cl)C(C)=O")

@@ -20,6 +20,13 @@ saturated rings, per the IUPAC 2013 Recommendations ("the Blue Book"):
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with the
   ketone suffix, reusing `halogen_substituents`/`format_substituent_prefixes`
   unchanged.
+- P-91.3/P-92 (`tasks/ketone-stereocenter-naming.md`): a molecule with one or
+  more *specified* tetrahedral stereocenters -- every one on the principal
+  chain/ring itself, no unspecified one alongside them, and no C=C/C#N
+  double-bond E/Z element -- gets a "(<locant><R/S>,...)-" prefix, ascending
+  locant order, e.g. '(3R)-3-chloropentan-2-one',
+  '(2R)-2-chlorocyclohexan-1-one', same pattern as `_carboxylic_acid.py`/
+  `_aldehyde.py` (chain) and `_alcohol.py`'s `_name_cyclic_alcohol` (ring).
 
 Unlike -OH/-NH2, a ketone carbonyl carbon always has exactly two carbon
 neighbors and no hydrogens, so it can never be the sole substituent on a
@@ -73,6 +80,7 @@ from ._common import (
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -250,11 +258,20 @@ def _substituents_for_chain(graph, chain, halogens, ketones):
     return substituents
 
 
-def _name_acyclic_ketone(mol, ketones, hydroxyls, bonds):
+def _name_acyclic_ketone(mol, ketones, hydroxyls, bonds, stereo=None):
+    """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
+    `specified_stereocenters` -- if given, only chain candidates that
+    include every stereocenter are eligible (P-92: a stereocenter on a
+    substituent branch rather than the principal chain is out of scope,
+    mirroring `_carboxylic_acid.py`/`_aldehyde.py`'s identical treatment),
+    and the winning candidate's own locants are used to format a
+    "(<locant><R/S>,...)-" prefix onto the name, ascending locant order
+    (P-91.3)."""
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}}
     chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
+    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -263,8 +280,20 @@ def _name_acyclic_ketone(mol, ketones, hydroxyls, bonds):
             continue
         if bonds and bond_locants(chain, bonds) is None:
             continue
+        chain_set = set(chain)
+        if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
+            continue
         eligible.append(chain)
     if not eligible:
+        if stereo is not None and any(
+            _one_locants({a: i + 1 for i, a in enumerate(c)}, ketones, graph) is not None
+            and (not bonds or bond_locants(c, bonds) is not None)
+            for c in chains
+        ):
+            raise UnsupportedStructure(
+                "a stereocenter on a substituent branch rather than the "
+                "principal chain is not supported yet (see P-92)"
+            )
         raise UnsupportedStructure(
             "not every ketone-bearing carbon (and/or multiple bond) lies on "
             "a single longest carbon chain; a shorter principal chain "
@@ -273,6 +302,7 @@ def _name_acyclic_ketone(mol, ketones, hydroxyls, bonds):
 
     best_key = None
     best_name = None
+    best_position_of = None
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
@@ -281,7 +311,12 @@ def _name_acyclic_ketone(mol, ketones, hydroxyls, bonds):
             substituents = _substituents_for_chain(graph, candidate, halogens, ketones)
             key, name = _candidate_key(chain_length, one_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, name
+                best_key, best_name, best_position_of = key, name, position_of
+
+    if stereo is not None:
+        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+        return f"({prefix})-{best_name}"
     return best_name
 
 
@@ -337,16 +372,29 @@ def _ring_candidate_key(ring_size, one_locants, substituents):
     return one_locant_set, locant_set, citation_locants, name
 
 
-def _name_cyclic_ketone(mol, ketones, hydroxyls):
+def _name_cyclic_ketone(mol, ketones, hydroxyls, stereo=None):
+    """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
+    `specified_stereocenters` -- if given, every stereocenter must lie on
+    the ring itself (P-92: a stereocenter on a substituent branch is out
+    of scope, mirroring `_alcohol.py`'s `_name_cyclic_alcohol`), and the
+    winning ring numbering's own locants for those atoms are used to
+    format a "(<locant><R/S>,...)-" prefix onto the name, ascending
+    locant order (P-91.3)."""
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}}
     ring_info = mol.GetRingInfo()
     ring_atoms = list(ring_info.AtomRings()[0])
     ring_order = _ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
+    if stereo is not None and any(atom not in ring_order for atom, _ in stereo):
+        raise UnsupportedStructure(
+            "a stereocenter on a substituent branch rather than the ring "
+            "itself is not supported yet (see P-92)"
+        )
 
     best_key = None
     best_name = None
+    best_position_of = None
     for start in range(ring_size):
         rotated = ring_order[start:] + ring_order[:start]
         for candidate in (rotated, list(reversed(rotated))):
@@ -360,12 +408,18 @@ def _name_cyclic_ketone(mol, ketones, hydroxyls):
             substituents = _substituents_for_ring(graph, candidate, halogens, ketones)
             key = _ring_candidate_key(ring_size, one_locants, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, key[-1]
+                best_key, best_name, best_position_of = key, key[-1], position_of
+
+    if stereo is not None:
+        labels = sorted((best_position_of[atom], r_or_s) for atom, r_or_s in stereo)
+        prefix = ",".join(f"{locant}{r_or_s}" for locant, r_or_s in labels)
+        return f"({prefix})-{best_name}"
     return best_name
 
 
 def name_ketone(mol) -> str:
     ketones, hydroxyls = _validate_and_collect_ketones(mol)
+    stereo = specified_stereocenters(mol)
     graph = adjacency(mol)
     # Exclude each C=O carbonyl bond itself: `non_single_bonds` reports it as
     # order 2.0 same as a C=C, but it isn't a chain 'ene' bond (one endpoint
@@ -390,14 +444,14 @@ def name_ketone(mol) -> str:
     ring_info = mol.GetRingInfo()
     num_rings = ring_info.NumRings()
     if num_rings == 0:
-        return _name_acyclic_ketone(mol, ketones, hydroxyls, bonds)
+        return _name_acyclic_ketone(mol, ketones, hydroxyls, bonds, stereo)
     if num_rings == 1:
         if bonds:
             raise UnsupportedStructure(
                 "unsaturated rings are not supported yet (see P-31.1.3, "
                 "cycloalkenes and cycloalkynes)"
             )
-        return _name_cyclic_ketone(mol, ketones, hydroxyls)
+        return _name_cyclic_ketone(mol, ketones, hydroxyls, stereo)
     raise UnsupportedStructure(
         "polycyclic and spiro ketones are not supported yet (P-23/P-24/P-25 "
         "numbering integration with a suffix group is future work)"
