@@ -59,3 +59,25 @@ def test_aryl_ester_raises():
 def test_acyl_carbon_off_longest_chain_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("COC(=O)C(CCC)CCCC")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter on the acyl chain
+        # (P-92): the stereodescriptor is cited immediately ahead of the
+        # acyl part specifically, not the whole two-word ester name (CIP
+        # computed entirely by RDKit's `rdCIPLabeler`). PubChem CID 7156991.
+        ("CC[C@@H](C)C(=O)OCC", "ethyl (2R)-2-methylbutanoate"),
+        ("CC[C@H](C)C(=O)OCC", "ethyl (2S)-2-methylbutanoate"),
+    ],
+)
+def test_ester_acyl_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_ester_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention.
+    assert smiles_to_iupac("CCC(C)C(=O)OCC") == "ethyl 2-methylbutanoate"

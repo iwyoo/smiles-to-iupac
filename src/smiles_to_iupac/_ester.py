@@ -34,6 +34,17 @@ Book"):
 - P-29.3.2.1: the alcohol part's name is a plain alkyl substituent-group
   name (P-13.2.1's "R'yl" role, not a locanted prefix), built with
   `alkyl_name` directly since it's restricted to an unbranched chain here.
+- P-91.3/P-92 (`tasks/ester-stereocenter-naming.md`): a molecule with one
+  or more *specified* tetrahedral stereocenters on the acyl chain --
+  every one on the principal chain itself, no unspecified one alongside
+  them, and no C=C/C#N double-bond E/Z element -- gets a
+  "(<locant><R/S>,...)-" prefix, ascending locant order, cited
+  immediately ahead of the acyl part specifically rather than the whole
+  two-word name, e.g. 'ethyl (2R)-2-methylbutanoate' (PubChem CID
+  7156991), same pattern as `_carboxylic_acid.py`/`_amide.py`. The
+  alcohol part (R') is always a plain unbranched chain (above), so it can
+  never itself hold a stereocenter -- this support only ever concerns the
+  acyl side.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any ring anywhere in the molecule (a ring-attached ester or lactone uses a
@@ -66,6 +77,7 @@ from ._common import (
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name, alkyl_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -284,7 +296,19 @@ def _substituents_for_chain(graph, chain, halogens, excluded_oxygens):
     return substituents
 
 
-def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx):
+def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, stereo=None):
+    """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
+    `specified_stereocenters` -- if given, only chain candidates that
+    include every stereocenter are eligible (P-92: a stereocenter on a
+    substituent branch rather than the principal chain is out of scope,
+    mirroring `_carboxylic_acid.py`/`_amide.py`'s identical treatment),
+    and the winning candidate's own locants are used to format a
+    "(<locant><R/S>,...)-" prefix onto the acyl name -- cited immediately
+    ahead of the acyl part specifically (P-91.3), not the whole two-word
+    ester name, confirmed against PubChem's own
+    'ethyl (2R)-2-methylbutanoate' (CID 7156991). The alcohol part (R') is
+    always a plain unbranched chain (module docstring) and so can never
+    itself hold a stereocenter."""
     full_graph = adjacency(mol)
     carbon_graph = carbon_adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -294,6 +318,7 @@ def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx):
     acyl_graph = _component_subgraph(carbon_graph, acyl_carbon_idx)
     chains = longest_chains(acyl_graph)
     chain_length = len(chains[0])
+    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     all_non_single = [
         b for b in non_single_bonds(mol) if b[0] not in excluded_oxygens and b[1] not in excluded_oxygens
@@ -305,8 +330,22 @@ def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx):
             "supported (see P-31.1.1.1)"
         )
 
-    eligible = [chain for chain in chains if not bonds or bond_locants(chain, bonds) is not None]
+    eligible = []
+    for chain in chains:
+        if bonds and bond_locants(chain, bonds) is None:
+            continue
+        chain_set = set(chain)
+        if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
+            continue
+        eligible.append(chain)
     if not eligible:
+        if stereo is not None and any(
+            not bonds or bond_locants(c, bonds) is not None for c in chains
+        ):
+            raise UnsupportedStructure(
+                "a stereocenter on a substituent branch rather than the "
+                "principal chain is not supported yet (see P-92)"
+            )
         raise UnsupportedStructure(
             "the acyl chain's unsaturation does not lie on a single longest "
             "carbon chain; a shorter principal chain is not supported yet"
@@ -314,6 +353,7 @@ def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx):
 
     best_key = None
     best_name = None
+    best_position_of = None
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             if candidate[0] != acyl_carbon_idx:
@@ -324,12 +364,18 @@ def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx):
             substituents = _substituents_for_chain(full_graph, candidate, halogens, excluded_oxygens)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, name
+                position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+                best_key, best_name, best_position_of = key, name, position_of
     if best_name is None:
         raise UnsupportedStructure(
             "the ester's acyl carbon does not lie on a single longest "
             "carbon chain; a shorter principal chain is not supported yet"
         )
+
+    if stereo is not None:
+        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+        return f"({prefix})-{best_name}"
     return best_name
 
 
@@ -370,6 +416,7 @@ def name_ester(mol) -> str:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
     acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon = _find_ester_group(mol)
+    stereo = specified_stereocenters(mol)
     alcohol_name = _name_alcohol_part(mol, alcohol_carbon, ester_oxygen.GetIdx())
-    acyl_name = _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx())
+    acyl_name = _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx(), stereo)
     return f"{alcohol_name} {acyl_name}"
