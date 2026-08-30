@@ -71,6 +71,8 @@ from ._two_component_heterocycle_fusion import (
 )
 from ._ketone import name_ketone
 from ._thione import has_thione_shape, name_thione
+from ._selone import has_selone_shape, name_selone
+from ._tellone import has_tellone_shape, name_tellone
 from ._ketone_amide import has_ketone_amide_shape, name_ketone_amide
 from ._ketone_ester import has_ketone_ester_shape, name_ketone_ester
 from ._nitrile import has_nitrile_shape, name_nitrile
@@ -840,6 +842,11 @@ def smiles_to_iupac(smiles: str) -> str:
         # so a molecule with O or N never reaches here at all (see
         # _thiol.py's module docstring).
         return name_thiol(mol)
+    if has_selone_shape(mol):
+        # A selone (C=Se, P-64.6.1) has the same precise-shape reasoning
+        # as thione above (a real C=Se double bond), so it's safe to check
+        # here regardless of order relative to the selenide/selenol chain.
+        return name_selone(mol)
     if has_diselenide_shape(mol):
         # A diselenide (R-Se-Se-R') has two seleniums -- it would
         # otherwise look selenol-shaped to the check below (that check
@@ -858,6 +865,11 @@ def smiles_to_iupac(smiles: str) -> str:
         # a thiol -- has neither O, N, nor S, so it only reaches this
         # branch once all three are ruled out above.
         return name_selenol(mol)
+    if has_tellone_shape(mol):
+        # A tellone (C=Te, P-64.6.1) has the same precise-shape reasoning
+        # as thione/selone above, so it's safe to check here regardless of
+        # order relative to the telluride/tellurol chain.
+        return name_tellone(mol)
     if has_ditelluride_shape(mol):
         # A ditelluride (R-Te-Te-R') has two telluriums -- it would
         # otherwise look tellurol-shaped to the check below (that check
