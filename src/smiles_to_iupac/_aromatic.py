@@ -80,9 +80,10 @@ from ._common import (
     adjacency,
     halogen_substituents,
     lowest_locant_set,
+    specified_stereocenters,
     validate_atoms_and_bonds,
 )
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._substituents import alpha_sort_key, branch_atom_locant, format_substituent_prefixes, name_branch
 
 
 def _ring_cycle(graph, ring_atoms):
@@ -431,7 +432,7 @@ def _ring_substituents(graph, locants, ring_atoms, halogens):
     return substituents
 
 
-def _candidate_key(parent, locants, ring_atoms, graph, halogens, omit_single_locant):
+def _candidate_key(parent, locants, ring_atoms, graph, halogens, omit_single_locant, stereo_display=None):
     substituents = _ring_substituents(graph, locants, ring_atoms, halogens)
     grouped = _group(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
@@ -446,8 +447,11 @@ def _candidate_key(parent, locants, ring_atoms, graph, halogens, omit_single_loc
     elif omit_single_locant and total_count == 1:
         # P-14.3.3: on benzene, every ring position is equivalent before
         # substitution, so a single substituent's locant is not essential.
-        (only_name,) = grouped
-        display = f"({only_name})" if grouped[only_name]["compound"] else only_name
+        if stereo_display is not None:
+            display = stereo_display
+        else:
+            (only_name,) = grouped
+            display = f"({only_name})" if grouped[only_name]["compound"] else only_name
         name = f"{display}{parent}"
     else:
         name = format_substituent_prefixes(grouped) + parent
@@ -462,6 +466,57 @@ _RETAINED_NAMES = {
     (4, ("straight", "straight")): "tetracene",
     (5, ("straight", "straight", "straight")): "pentacene",
 }
+
+
+def _stereo_display(mol, graph, n, ring_atoms, halogens):
+    """If `mol` has one or more specified tetrahedral stereocenters
+    (P-92), build the bracketed "[(<locant><R/S>)-<name>]" substituent
+    display P-91.3 requires when the stereocenter sits on a substituent
+    branch rather than the ring itself (the Blue Book's own worked
+    example, since an all-carbon aromatic ring atom is never itself a
+    stereocenter) -- see `tasks/substituent-branch-stereocenter-naming.md`.
+    Returns None if there's no specified stereocenter at all (the caller
+    proceeds exactly as before). Deliberately narrow: only a plain benzene
+    ring (n == 1) with exactly one substituent, carrying exactly one
+    specified stereocenter, is supported; anything else raises
+    `UnsupportedStructure`."""
+    stereo = specified_stereocenters(mol)
+    if stereo is None:
+        return None
+    if n != 1:
+        raise UnsupportedStructure(
+            "a specified stereocenter combined with anything other than a "
+            "plain benzene ring parent is not supported yet (see P-91.3)"
+        )
+    if len(stereo) != 1:
+        raise UnsupportedStructure(
+            "more than one specified stereocenter on a substituent branch "
+            "is not supported yet (see P-91.3)"
+        )
+    stereo_atom, r_or_s = stereo[0]
+    if stereo_atom in ring_atoms:
+        raise UnsupportedStructure(
+            "a specified stereocenter on the aromatic ring itself is not "
+            "supported (an all-carbon aromatic ring atom can't be a "
+            "genuine stereocenter)"
+        )
+    branch_attachments = [
+        (ring_atom, neighbor)
+        for ring_atom in ring_atoms
+        for neighbor in graph[ring_atom]
+        if neighbor not in ring_atoms
+    ]
+    if len(branch_attachments) != 1:
+        raise UnsupportedStructure(
+            "a specified stereocenter combined with anything other than "
+            "exactly one substituent on the ring is not supported yet "
+            "(see P-91.3)"
+        )
+    ring_atom, branch_root = branch_attachments[0]
+    branch_name, branch_compound = name_branch(graph, branch_root, ring_atom, halogens)
+    site_locant = branch_atom_locant(graph, branch_root, ring_atom, stereo_atom, halogens)
+    descriptor = f"({site_locant}{r_or_s})-{branch_name}"
+    return f"[{descriptor}]" if branch_compound else f"({descriptor})"
 
 
 def name_aromatic_fused(mol, core) -> str:
@@ -487,6 +542,8 @@ def name_aromatic_fused(mol, core) -> str:
     ring_atoms = set()
     for s in ring_atom_sets:
         ring_atoms |= s
+
+    stereo_display = _stereo_display(mol, graph, n, ring_atoms, halogens)
 
     if n == 1:
         candidates = _benzene_candidates(graph, ring_atom_sets[0])
@@ -515,7 +572,7 @@ def name_aromatic_fused(mol, core) -> str:
     best_key = None
     best_name = None
     for locants in candidates:
-        key = _candidate_key(parent, locants, ring_atoms, graph, halogens, omit_single_locant)
+        key = _candidate_key(parent, locants, ring_atoms, graph, halogens, omit_single_locant, stereo_display)
         if best_key is None or key < best_key:
             best_key, best_name = key, key[-1]
     return best_name

@@ -298,10 +298,23 @@ def name_branch(graph, root, coming_from, halogens=None):
         hydroxy_word = multiplied_word(len(oh_locants), "hydroxy")
         return f"{loc_str}-{hydroxy_word}cyclo{alkyl_name(ring_size)}", True
 
+    chain, name, is_compound = _select_winning_chain(graph, root, coming_from, halogens)
+    return name, is_compound
+
+
+def _select_winning_chain(graph, root, coming_from, halogens):
+    """The P-46 tie-break shared by `name_branch` (which only needs the
+    resulting name) and `branch_atom_locant` below (which also needs to
+    know which chain won, to locate a specific atom's position on it) --
+    kept as one function so the two can never disagree about which chain
+    was chosen. Returns (chain, name, is_compound); `chain` is the winning
+    principal chain, root-first (P-46: locant 1 is always the free
+    valence)."""
     chains = _longest_chains_from_root(graph, root, coming_from, halogens)
     chain_length = len(chains[0])
 
     best_key = None
+    best_chain = None
     best_name = None
     best_compound = None
     for chain in chains:
@@ -327,6 +340,29 @@ def name_branch(graph, root, coming_from, halogens=None):
             name, is_compound = alkyl_name(chain_length), False
         key = _candidate_key(grouped) + (name,)
         if best_key is None or key < best_key:
-            best_key, best_name, best_compound = key, name, is_compound
+            best_key, best_chain, best_name, best_compound = key, chain, name, is_compound
 
-    return best_name, best_compound
+    return best_chain, best_name, best_compound
+
+
+def branch_atom_locant(graph, root, coming_from, atom_idx, halogens=None):
+    """The position (1-based, P-46: locant 1 is the free valence) of
+    `atom_idx` on the winning principal chain of the substituent group
+    named by `name_branch(graph, root, coming_from, halogens)` -- the same
+    tie-break, so the two always agree on which chain that is. Used to cite
+    a stereodescriptor at the front of a compound substituent prefix
+    (P-91.3), e.g. the '1' in '[(1S)-1-chloropropyl]benzene'.
+
+    Raises `UnsupportedStructure` if `atom_idx` isn't on that winning
+    chain at all (e.g. it sits on a branch off the chain instead) --
+    citing a stereodescriptor in that case would need a locant this
+    module doesn't assign to anything, so it's out of scope rather than
+    silently wrong."""
+    halogens = halogens or {}
+    chain, _, _ = _select_winning_chain(graph, root, coming_from, halogens)
+    if atom_idx not in chain:
+        raise UnsupportedStructure(
+            "a specified stereocenter that isn't on the substituent's own "
+            "principal chain (P-46) is not supported yet"
+        )
+    return chain.index(atom_idx) + 1
