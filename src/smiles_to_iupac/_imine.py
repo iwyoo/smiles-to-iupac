@@ -61,6 +61,18 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   the Blue Book's own direct PIN citation instead, consistent with this
   project's established practice elsewhere (see e.g. `_hydroxylamine.py`,
   `_sulfoxide.py`, `_nitro.py`).
+- P-92 stereocenters (`tasks/imine-azine-stereocenter-naming.md`): this
+  module's own C=N bond is *always* flagged by RDKit's
+  `Chem.FindPotentialStereo` as an unspecified potential Bond_Double
+  stereo element, regardless of substituents, N-substitution, or oxime
+  form -- same conclusion as `_amidine.py`/`_hydrazone.py`. Any specified
+  chain tetrahedral stereocenter therefore always coexists with this
+  unspecified C=N bond, and `_common.specified_stereocenters` correctly
+  rejects the combination as partially specified (P-92/P-93) rather than
+  silently dropping either one. This module only ever explicitly rejects
+  a specified stereocenter rather than attempting to cite one; `_azine.py`
+  (which reuses this module's internal chain-assembly helper directly)
+  carries the identical restriction independently.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any ring anywhere in the molecule (cyclic/aromatic imines, e.g.
@@ -91,6 +103,7 @@ from ._common import (
     halogen_substituents,
     longest_chains,
     lowest_locant_set,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -288,6 +301,21 @@ def name_imine(mol) -> str:
     imine_carbon, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root = _validate_and_find_imine(
         mol
     )
+    if specified_stereocenters(mol) is not None:
+        # This module's own C=N bond is always flagged by RDKit's
+        # `Chem.FindPotentialStereo` as an unspecified potential
+        # Bond_Double stereo element, regardless of substituents,
+        # N-substitution, or oxime form (module docstring) -- so any
+        # specified chain stereocenter always coexists with it, and
+        # `specified_stereocenters` correctly rejects the combination
+        # (P-92/P-93) instead of the silent drop this project's
+        # stereodescriptor safety net exists to fix, same conclusion as
+        # `_amidine.py` (PR #209) / `_hydrazone.py` (PR #210).
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside this module's own "
+            "always-unspecified C=N bond is not supported yet (see "
+            "P-92/P-93, module docstring)"
+        )
     graph = adjacency(mol)
     exclude = {imine_nitrogen}
     name = _name_acyclic_imine(mol, imine_carbon, exclude)

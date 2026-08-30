@@ -50,3 +50,15 @@ def test_ring_raises():
 def test_aromatic_carbon_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("c1ccccc1C=NN=Cc1ccccc1")
+
+
+def test_azine_specified_chain_stereocenter_raises():
+    # Both of this azine's C=N bonds are always unspecified potential
+    # Bond_Double stereo elements to RDKit, regardless of substituents
+    # (same conclusion as `_imine.py`/`_hydrazone.py`) -- so a specified
+    # chain stereocenter here always coexists with at least one of them,
+    # and `specified_stereocenters` correctly rejects the combination
+    # (P-92/P-93) instead of the silent drop this project's
+    # stereodescriptor safety net exists to fix.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC[C@@H](C)C(C)=NN=C(C)[C@H](C)CC")

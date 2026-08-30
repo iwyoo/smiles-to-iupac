@@ -43,7 +43,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, specified_stereocenters
 from ._hydrazone import _name_hydrazone_carbon
 from ._imine import _name_acyclic_imine
 
@@ -135,6 +135,22 @@ def _validate_and_find_azine(mol):
 
 def name_azine(mol) -> str:
     c1, n1, c2, n2 = _validate_and_find_azine(mol)
+    if specified_stereocenters(mol) is not None:
+        # Both of this molecule's C=N bonds are always flagged by RDKit's
+        # `Chem.FindPotentialStereo` as unspecified potential Bond_Double
+        # stereo elements, regardless of substituents -- same conclusion
+        # as `_imine.py`/`_hydrazone.py` (this module reuses their
+        # internal chain-assembly helpers directly, so it carries the
+        # identical restriction independently rather than inheriting
+        # their own entry-point checks). Any specified chain stereocenter
+        # always coexists with at least one of them, so
+        # `specified_stereocenters` correctly rejects rather than
+        # silently dropping it.
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside this azine's own "
+            "always-unspecified C=N bonds is not supported yet (see "
+            "P-92/P-93)"
+        )
 
     ylidene1 = _name_hydrazone_carbon(mol, c1, n1)
     ylidene2 = _name_hydrazone_carbon(mol, c2, n2)
