@@ -53,9 +53,17 @@ def test_propane_1_3_diselenol():
     assert smiles_to_iupac("[SeH]CCC[SeH]") == "propane-1,3-diselenol"
 
 
-def test_triselenol_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[SeH]CC([SeH])C[SeH]")
+def test_propane_1_2_3_triselenol():
+    # `_thiol.py`'s own precedent generalizes group-count support beyond
+    # two without a specific 3+-group PubChem worked example of its own
+    # (the shared `_alcohol.py`-style locant/suffix machinery already
+    # handles an arbitrary-length locant list) -- same reasoning applied
+    # here.
+    assert smiles_to_iupac("[SeH]CC([SeH])C[SeH]") == "propane-1,2,3-triselenol"
+
+
+def test_butane_1_2_4_triselenol():
+    assert smiles_to_iupac("[SeH]CC([SeH])CC[SeH]") == "butane-1,2,4-triselenol"
 
 
 def test_ring_selenol_not_supported():
