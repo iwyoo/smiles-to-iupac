@@ -15,11 +15,11 @@ sulfur, per the IUPAC 2013 Recommendations ("the Blue Book"):
 
 Scope and out-of-scope structures are identical to `_ether.py`, sulfur in
 place of oxygen -- see that module's docstring; this one mirrors its
-structure directly. In particular still out of scope: a branched R'
-substituent (P-63.2.2.1.1's enclosure interaction), any unsaturation or
-ring, and any heteroatom other than the single sulfide sulfur (in
-particular a disulfide S-S, or an oxidized sulfur -- sulfoxide/sulfone --
-are separate functional groups, not in scope here).
+structure directly, including the P-63.2.2.1.1 enclosure pattern for a
+branched R' substituent. Still out of scope: any unsaturation or ring, and
+any heteroatom other than the single sulfide sulfur (in particular a
+disulfide S-S, or an oxidized sulfur -- sulfoxide/sulfone -- are separate
+functional groups, not in scope here).
 """
 
 from ._acyclic import name_from_carbon_graph
@@ -97,10 +97,7 @@ def name_sulfide(mol) -> str:
 
     sub_name, sub_compound = name_branch(full_graph, sub_root, sulfur_idx, {})
     if sub_compound:
-        raise UnsupportedStructure(
-            "a branched alkylsulfanyl substituent's enclosing marks are "
-            "not supported yet (see P-63.2.2.1.1, module docstring)"
-        )
+        sub_name = f"({sub_name})"
 
     parent_carbon_graph = _component_subgraph(carbon_graph, parent_root)
     terminals = {sulfur_idx: _sulfanyl_prefix(sub_name)}

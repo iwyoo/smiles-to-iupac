@@ -14,15 +14,13 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   'butoxy' are the retained contracted forms for the four shortest
   unbranched chains; any other unbranched chain uses the full alkyl name
   plus 'oxy' unchanged (e.g. 'pentyloxy').
-- A branched (compound) R' would need enclosing marks placed around R'
-  only, with 'oxy' outside them (e.g. '(butan-2-yl)oxy', per the Blue
-  Book's own worked example) — a different enclosure pattern than every
-  other compound substituent in this project, which parenthesizes its
-  whole name including any trailing text (see `_substituents.py`). That
-  interaction isn't implemented here, so a branched R' is out of scope and
-  raises `UnsupportedStructure`. R (the parent side) may still be branched,
-  since its own substituents are named by the ordinary `_acyclic.py`
-  machinery, unaffected by this restriction.
+- A branched (compound) R' encloses only R' in parentheses, with 'oxy'
+  outside them (e.g. '(butan-2-yl)oxy', per the Blue Book's own worked
+  example) — a different enclosure pattern than every other compound
+  substituent in this project, which parenthesizes its whole name
+  including any trailing text (see `_substituents.py`). R (the parent
+  side) may still be branched, since its own substituents are named by
+  the ordinary `_acyclic.py` machinery, unaffected by this restriction.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - More than one oxygen, or an oxygen not shaped like a plain ether (degree
@@ -110,10 +108,7 @@ def name_ether(mol) -> str:
 
     sub_name, sub_compound = name_branch(full_graph, sub_root, oxygen_idx, {})
     if sub_compound:
-        raise UnsupportedStructure(
-            "a branched alkoxy substituent's enclosing marks are not "
-            "supported yet (see P-63.2.2.1.1, module docstring)"
-        )
+        sub_name = f"({sub_name})"
 
     parent_carbon_graph = _component_subgraph(carbon_graph, parent_root)
     terminals = {oxygen_idx: _oxy_prefix(sub_name)}

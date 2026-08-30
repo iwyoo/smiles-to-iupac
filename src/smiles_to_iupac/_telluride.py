@@ -22,12 +22,11 @@ Book"):
   unchanged, the same way `_selenide.py`/`_sulfide.py` do.
 
 Scope and out-of-scope structures are identical to `_selenide.py`,
-tellurium in place of selenium -- see that module's docstring. In
-particular still out of scope: a branched R' substituent (P-63.2.2.1.1's
-enclosure interaction), any unsaturation or ring, and any heteroatom
-other than the single telluride tellurium (in particular a ditelluride
-Te-Te, or oxidized tellurium, are separate functional groups, not in
-scope here).
+tellurium in place of selenium -- see that module's docstring, including
+the P-63.2.2.1.1 enclosure pattern for a branched R' substituent. Still
+out of scope: any unsaturation or ring, and any heteroatom other than the
+single telluride tellurium (in particular a ditelluride Te-Te, or
+oxidized tellurium, are separate functional groups, not in scope here).
 """
 
 from ._acyclic import name_from_carbon_graph
@@ -107,10 +106,7 @@ def name_telluride(mol) -> str:
 
     sub_name, sub_compound = name_branch(full_graph, sub_root, tellurium_idx, {})
     if sub_compound:
-        raise UnsupportedStructure(
-            "a branched alkyltellanyl substituent's enclosing marks are "
-            "not supported yet (see P-63.2.2.1.1, module docstring)"
-        )
+        sub_name = f"({sub_name})"
 
     parent_carbon_graph = _component_subgraph(carbon_graph, parent_root)
     terminals = {tellurium_idx: _tellanyl_prefix(sub_name)}
