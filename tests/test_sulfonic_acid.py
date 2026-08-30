@@ -75,3 +75,57 @@ def test_sulfonic_acid_on_ring_substituent_branch_not_supported():
 def test_sulfonic_acid_with_alcohol_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OS(=O)(=O)CCO")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter (P-92), same pattern
+        # as `_carboxylic_acid.py`/`_aldehyde.py`/`_ketone.py` (CIP
+        # computed entirely by RDKit's `rdCIPLabeler`). PubChem CID
+        # 46398806.
+        ("CC[C@@H](C)S(=O)(=O)O", "(2R)-butane-2-sulfonic acid"),
+        ("CC[C@H](C)S(=O)(=O)O", "(2S)-butane-2-sulfonic acid"),
+    ],
+)
+def test_acyclic_sulfonic_acid_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_acyclic_sulfonic_acid_stereocenter_with_coexisting_substituent():
+    # A stereocenter that also bears a halogen substituent: the suffix's
+    # own locant is still cited on the 2-carbon chain despite the
+    # substituent sharing its position (this project's own established
+    # convention, unaffected by this PR -- see the identical pre-existing
+    # 'CC(Cl)S(=O)(=O)O' -> '1-chloroethane-1-sulfonic acid'). PubChem's
+    # own auto-generated name omits that locant ('(1R)-1-chloroethanesulfonic
+    # acid', CID 124389840) -- a non-PIN quirk already documented elsewhere
+    # in this project -- so only the structure is cross-checked there.
+    assert smiles_to_iupac("C[C@@H](Cl)S(=O)(=O)O") == "(1R)-1-chloroethane-1-sulfonic acid"
+
+
+def test_cyclic_sulfonic_acid_stereocenter():
+    # Two stereocenters on the ring itself (P-92), same pattern as
+    # `_ketone.py`'s `_name_cyclic_ketone`. PubChem CID 101028852 (name
+    # carries a redundant 'trans-' relative descriptor this project drops
+    # once full R/S is given, same policy as the existing ring-alcohol
+    # stereocenter task).
+    assert (
+        smiles_to_iupac("O=S(=O)(O)[C@H]1CCCC[C@@H]1Cl")
+        == "(1S,2S)-2-chlorocyclohexane-1-sulfonic acid"
+    )
+
+
+def test_sulfonic_acid_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention.
+    assert smiles_to_iupac("CCC(Cl)S(=O)(=O)O") == "1-chloropropane-1-sulfonic acid"
+
+
+def test_sulfonic_acid_partially_specified_stereocenters_raises():
+    # Only one of the ring's two genuine stereocenters is marked -- the
+    # bug this PR fixes used to silently drop the marker and emit an
+    # incomplete/wrong name; it must now raise instead.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=S(=O)(O)[C@H]1CCCCC1Cl")
