@@ -21,6 +21,13 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   including any trailing text (see `_substituents.py`). R (the parent
   side) may still be branched, since its own substituents are named by
   the ordinary `_acyclic.py` machinery, unaffected by this restriction.
+- P-91.3/P-92 (`tasks/ether-stereocenter-naming.md`): a molecule with one
+  or more *specified* tetrahedral stereocenters on the parent (R) chain
+  gets a "(<locant><R/S>,...)-" prefix, ascending locant order, e.g.
+  '(2S)-2-ethoxybutane' -- same mechanism as `_acetal.py`, using
+  `_acyclic.py`'s `winning_chain_from_carbon_graph` for the parent
+  chain's locant lookup. A stereocenter on the alkoxy (R') substituent
+  branch remains out of scope (raises `UnsupportedStructure`).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - More than one oxygen, or an oxygen not shaped like a plain ether (degree
@@ -33,8 +40,15 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   chains are branched.
 """
 
-from ._acyclic import name_from_carbon_graph
-from ._common import UnsupportedStructure, adjacency, bfs, carbon_adjacency, non_single_bonds
+from ._acyclic import winning_chain_from_carbon_graph
+from ._common import (
+    UnsupportedStructure,
+    adjacency,
+    bfs,
+    carbon_adjacency,
+    non_single_bonds,
+    specified_stereocenters,
+)
 from ._substituents import name_branch
 
 _CONTRACTED_OXY = {"methyl": "methoxy", "ethyl": "ethoxy", "propyl": "propoxy", "butyl": "butoxy"}
@@ -112,4 +126,21 @@ def name_ether(mol) -> str:
 
     parent_carbon_graph = _component_subgraph(carbon_graph, parent_root)
     terminals = {oxygen_idx: _oxy_prefix(sub_name)}
-    return name_from_carbon_graph(full_graph, parent_carbon_graph, terminals)
+    chain, name = winning_chain_from_carbon_graph(full_graph, parent_carbon_graph, terminals)
+
+    stereo = specified_stereocenters(mol)
+    if stereo is None:
+        return name
+
+    # P-92: every specified stereocenter must lie on the winning parent
+    # chain; one on the alkoxy (R') substituent branch is out of scope,
+    # mirroring `_acetal.py`'s identical treatment.
+    position_of = {atom: i + 1 for i, atom in enumerate(chain)}
+    if any(atom not in position_of for atom, _ in stereo):
+        raise UnsupportedStructure(
+            "a stereocenter on a substituent branch rather than the "
+            "principal chain is not supported yet (see P-92)"
+        )
+    labels = sorted((position_of[atom], code) for atom, code in stereo)
+    prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+    return f"({prefix})-{name}"
