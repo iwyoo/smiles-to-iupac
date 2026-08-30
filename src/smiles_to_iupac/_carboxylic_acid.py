@@ -43,6 +43,17 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with
   the -oic acid suffix, reusing `halogen_substituents`/
   `format_substituent_prefixes` unchanged.
+- P-91.3/P-92 (`tasks/carboxylic-acid-stereocenter-naming.md`): a molecule
+  with one or more *specified* tetrahedral stereocenters -- every one on
+  the principal chain itself, no unspecified one alongside them, and no
+  C=C/C#N double-bond E/Z element -- gets a "(<locant><R/S>,...)-" prefix,
+  ascending locant order, e.g. '(2R)-2-chloropropanoic acid',
+  '(2S,3S)-2-chloro-3-hydroxybutanoic acid' (a Blue Book worked example).
+  CIP computation is delegated entirely to RDKit (`_common.specified_stereocenters`);
+  this module only formats the result, same pattern as `_alcohol.py`. A
+  stereocenter on a substituent branch, mixed with an unspecified one, or
+  alongside E/Z double-bond stereo remains out of scope (raises
+  `UnsupportedStructure`).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any ring anywhere in the molecule (P-65.1.1.2's territory; acyclic only,
@@ -77,6 +88,7 @@ from ._common import (
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -299,12 +311,23 @@ def _substituents_for_chain(graph, chain, halogens, carboxyl_oxygens):
     return substituents
 
 
-def _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, hydroxyls, bonds):
+def _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, hydroxyls, bonds, stereo=None):
+    """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
+    `specified_stereocenters` -- if given, only chain candidates that
+    include every stereocenter are eligible (P-92: a stereocenter on a
+    substituent branch rather than the principal chain is out of scope,
+    mirroring `_alcohol.py`'s `_name_acyclic_alcohol`), and the winning
+    candidate's own locants are used to format a "(<locant><R/S>,...)-"
+    prefix onto the name, ascending locant order (P-91.3) -- same
+    mechanism as `_alcohol.py`, since a -COOH carbon's own fixed C1
+    position (see module docstring) already decides numbering before
+    stereo is even considered."""
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}}
     chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
     acid_count = len(carboxyl_carbons)
+    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -313,8 +336,18 @@ def _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, hydro
             continue
         if bonds and bond_locants(chain, bonds) is None:
             continue
+        if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
+            continue
         eligible.append(chain)
     if not eligible:
+        if stereo is not None and any(
+            carboxyl_carbons <= set(c) and (not bonds or bond_locants(c, bonds) is not None)
+            for c in chains
+        ):
+            raise UnsupportedStructure(
+                "a stereocenter on a substituent branch rather than the "
+                "principal chain is not supported yet (see P-92)"
+            )
         raise UnsupportedStructure(
             "not every -COOH-bearing carbon (and/or multiple bond) lies on "
             "a single longest carbon chain; a shorter principal chain "
@@ -323,6 +356,7 @@ def _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, hydro
 
     best_key = None
     best_name = None
+    best_position_of = None
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             if candidate[0] not in carboxyl_carbons:
@@ -333,12 +367,19 @@ def _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, hydro
             substituents = _substituents_for_chain(graph, candidate, halogens, carboxyl_oxygens)
             key, name = _candidate_key(chain_length, acid_count, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, name
+                position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+                best_key, best_name, best_position_of = key, name, position_of
+
+    if stereo is not None:
+        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+        return f"({prefix})-{best_name}"
     return best_name
 
 
 def name_carboxylic_acid(mol) -> str:
     carboxyl_carbons, carboxyl_oxygens, hydroxyls = _validate_and_collect_carboxyls(mol)
+    stereo = specified_stereocenters(mol)
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(
             "a -COOH group on/in a ring uses the separate 'carboxylic acid' "
@@ -366,4 +407,4 @@ def name_carboxylic_acid(mol) -> str:
                 "is out of scope for this module (P-31.1.4.2.4)"
             )
 
-    return _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, hydroxyls, bonds)
+    return _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, hydroxyls, bonds, stereo)
