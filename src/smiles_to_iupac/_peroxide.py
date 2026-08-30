@@ -16,10 +16,9 @@ restricted to two acyclic saturated hydrocarbon chains hung off a single
   'methoxy'/'ethoxy'/'propoxy'/'butoxy'), 'peroxy' has no retained
   contracted forms for short chains, so it is simply concatenated
   (`methyl` + `peroxy` -> `methylperoxy`).
-- A branched (compound) R' has the same unimplemented enclosure
-  interaction as `_ether.py`'s alkoxy prefix (P-63.2.2.1.1's own worked
-  example encloses only R', with 'peroxy' outside), so it is out of scope
-  here too, mirroring `_ether.py` exactly.
+- A branched (compound) R' has the same enclosure pattern as `_ether.py`'s
+  alkoxy prefix (P-63.2.2.1.1's own worked example encloses only R', with
+  'peroxy' outside), mirroring `_ether.py` exactly.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - More than two oxygens, or two oxygens not shaped like a plain -O-O-
@@ -120,10 +119,7 @@ def name_peroxide(mol) -> str:
 
     sub_name, sub_compound = name_branch(full_graph, sub_root, sub_oxygen, {})
     if sub_compound:
-        raise UnsupportedStructure(
-            "a branched peroxy substituent's enclosing marks are not "
-            "supported yet (see P-63.2.2.1.1, module docstring)"
-        )
+        sub_name = f"({sub_name})"
 
     parent_carbon_graph = _component_subgraph(carbon_graph, parent_root)
     terminals = {parent_oxygen: sub_name + "peroxy"}

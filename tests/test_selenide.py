@@ -27,6 +27,14 @@ def test_methyl_propyl_selenide():
     assert smiles_to_iupac("CCC[Se]C") == "1-methylselanylpropane"
 
 
-def test_branched_selanyl_substituent_not_supported():
+def test_branched_prefix_side_is_enclosed():
+    # P-63.2.2.1.1: a branched R' encloses only R' in parentheses, with
+    # 'selanyl' outside. Structure verified against PubChem: CID 11321295
+    # ("1-propan-2-ylselanylbutane" -- PubChem's own PIN-style name, this
+    # project keeps its usual CAS-style substituent name instead).
+    assert smiles_to_iupac("CCCC[Se]C(C)C") == "1-(1-methylethyl)selanylbutane"
+
+
+def test_both_sides_branched_and_tied_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC(C)[Se]C(C)C")

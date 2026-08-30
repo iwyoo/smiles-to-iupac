@@ -19,10 +19,10 @@ selenide selenium, per the IUPAC 2013 Recommendations ("the Blue Book"):
   module's own identical `CCCSC` -> "1-methylsulfanylpropane").
 
 Scope and out-of-scope structures are identical to `_sulfide.py`, selenium
-in place of sulfur -- see that module's docstring. In particular still out
-of scope: a branched R' substituent (P-63.2.2.1.1's enclosure
-interaction), any unsaturation or ring, and any heteroatom other than the
-single selenide selenium (in particular a diselenide Se-Se, or an oxidized
+in place of sulfur -- see that module's docstring, including the
+P-63.2.2.1.1 enclosure pattern for a branched R' substituent. Still out of
+scope: any unsaturation or ring, and any heteroatom other than the single
+selenide selenium (in particular a diselenide Se-Se, or an oxidized
 selenium -- selenoxide/selenone -- are separate functional groups, not in
 scope here).
 """
@@ -104,10 +104,7 @@ def name_selenide(mol) -> str:
 
     sub_name, sub_compound = name_branch(full_graph, sub_root, selenium_idx, {})
     if sub_compound:
-        raise UnsupportedStructure(
-            "a branched alkylselanyl substituent's enclosing marks are "
-            "not supported yet (see P-63.2.2.1.1, module docstring)"
-        )
+        sub_name = f"({sub_name})"
 
     parent_carbon_graph = _component_subgraph(carbon_graph, parent_root)
     terminals = {selenium_idx: _selanyl_prefix(sub_name)}
