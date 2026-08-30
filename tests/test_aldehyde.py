@@ -91,3 +91,43 @@ def test_bicyclic_carbon_skeleton_with_stray_aldehyde_raises():
     # molecule (here, a branch off a longer chain) is out of scope.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CCCCC(C=O)CCCC")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter (P-92), same pattern
+        # as `_carboxylic_acid.py` (CIP computed entirely by RDKit's
+        # `rdCIPLabeler`, not reimplemented here). PubChem CID 76956407.
+        ("C[C@@H](Cl)C=O", "(2R)-2-chloropropanal"),
+        ("C[C@H](Cl)C=O", "(2S)-2-chloropropanal"),
+        # Two specified stereocenters, ascending-locant group (P-91.3).
+        # PubChem CID 92160220, name matches exactly.
+        ("C[C@H](Cl)[C@H](Cl)C=O", "(2R,3S)-2,3-dichlorobutanal"),
+    ],
+)
+def test_aldehyde_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_aldehyde_stereocenter_with_hydroxy_coexistence():
+    # Two stereocenters coexisting with a standalone hydroxyl (already
+    # supported by this module as the 'hydroxy' prefix). PubChem doesn't
+    # have this exact stereoisomer registered (CID 0 for every @/@@
+    # combination tried), so only the non-stereo parent structure is
+    # verified (PubChem CID 24973902, "2-chloro-3-hydroxybutanal");
+    # the R/S computation itself is RDKit's `rdCIPLabeler`, already
+    # verified elsewhere (`_alcohol.py`/`_carboxylic_acid.py`).
+    assert smiles_to_iupac("C[C@H](O)[C@H](Cl)C=O") == "(2S,3S)-2-chloro-3-hydroxybutanal"
+
+
+def test_aldehyde_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention.
+    assert smiles_to_iupac("CC(Cl)C=O") == "2-chloropropanal"
+
+
+def test_aldehyde_partially_specified_stereocenters_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[C@H](Cl)C(Cl)C=O")
