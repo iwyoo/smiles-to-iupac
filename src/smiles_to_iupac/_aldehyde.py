@@ -143,6 +143,13 @@ def _validate_and_collect_aldehydes(mol):
                     "formaldehyde) is not an aldehyde and is out of scope "
                     "for this module (Table 3.3)"
                 )
+            if mol.GetBondBetweenAtoms(carbon.GetIdx(), carbon_neighbors[0].GetIdx()).GetBondTypeAsDouble() != 1.0:
+                raise UnsupportedStructure(
+                    "a carbonyl carbon that is itself doubly bonded to its "
+                    "carbon neighbor (a cumulated double bond, e.g. a "
+                    "ketene's C=C=O) is not an aldehyde and is out of scope "
+                    "for this module"
+                )
             aldehydes.add(atom.GetIdx())
         else:
             if atom.GetDegree() != 1:
