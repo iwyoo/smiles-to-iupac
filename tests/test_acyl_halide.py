@@ -50,3 +50,27 @@ def test_cyclic_acyl_halide_not_supported():
 def test_coexisting_ketone_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC(=O)CC(=O)Cl")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified (CID 7157125/7006443/7568783): the acyl halide
+        # carbon is always C1 (see module docstring), so the stereocenter
+        # prefix mirrors _carboxylic_acid.py's P-91.3 mechanism exactly.
+        ("C[C@H](Cl)C(=O)Cl", "(2S)-2-chloropropanoyl chloride"),
+        ("C[C@@H](Cl)C(=O)Cl", "(2R)-2-chloropropanoyl chloride"),
+        ("CC[C@H](Cl)C(=O)Cl", "(2S)-2-chlorobutanoyl chloride"),
+    ],
+)
+def test_stereocenter_on_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_unspecified_stereocenter_ignored():
+    assert smiles_to_iupac("CC(C)C(Cl)C(=O)Cl") == "2-chloro-3-methylbutanoyl chloride"
+
+
+def test_branch_stereocenter_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(C[C@H](C)Cl)C(=O)Cl")
