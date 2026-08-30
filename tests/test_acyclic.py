@@ -32,9 +32,10 @@ def test_smiles_to_iupac(smiles, expected):
     [
         # Alcohols/amines now name via name_alcohol/name_amine instead (see
         # test_alcohol.py: "CCO" -> "ethanol", test_amine.py: "CCN" ->
-        # "ethanamine"), so a plain primary amine is no longer out of scope
-        # here; a secondary amine still is.
-        "CCNCC",
+        # "ethanamine"), and a secondary/tertiary amine is supported too
+        # (see test_amine.py: "CCNCC" -> "N-ethylethanamine"); a
+        # secondary/tertiary amine nitrogen on a ring still is out of scope.
+        "CN(C)C1CCCCC1",
     ],
 )
 def test_out_of_scope_structures_raise(smiles):
