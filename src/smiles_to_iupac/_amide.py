@@ -41,6 +41,21 @@ Recommendations ("the Blue Book"):
   dimethylacetamide' (CC(=O)N(C)C), 'N-ethyl-N-methylacetamide'
   (CC(=O)N(C)CC).
 
+- P-91.3/P-92 (`tasks/amide-stereocenter-naming.md`): a molecule with one
+  or more *specified* tetrahedral stereocenters -- every one on the
+  principal chain itself, no unspecified one alongside them, and no
+  C=C/C#N double-bond E/Z element -- gets a "(<locant><R/S>,...)-"
+  prefix, ascending locant order, cited outermost (ahead of any N-alkyl
+  prefix, since a stereodescriptor always sits at the very front of the
+  complete name), e.g. '(2R)-2-methylbutanamide',
+  '(2R)-N-ethyl-2-methylbutanamide'. The amide nitrogen itself (planar,
+  sp2) is never a stereocenter, so this is unconditional like
+  `_carboxylic_acid.py`/`_aldehyde.py`. While wiring this in, a
+  pre-existing gap surfaced: an N-substituent bearing its own hydroxyl
+  (invisible to the carbon-only chain walk that measures N-substituent
+  length) used to be silently accepted and misnamed as if it were plain
+  alkyl -- now explicitly rejected too.
+
 Explicitly out of scope (raise `UnsupportedStructure`), per the task's
 first-pass scope:
 - An N-substituent that is branched, unsaturated, or ring-bearing.
@@ -79,6 +94,7 @@ from ._common import (
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name, alkyl_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -342,7 +358,16 @@ def _substituents_for_chain(graph, chain, halogens, excluded):
     return substituents
 
 
-def _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls, bonds):
+def _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls, bonds, stereo=None):
+    """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
+    `specified_stereocenters` -- if given, only chain candidates that
+    include every stereocenter are eligible (P-92: a stereocenter on a
+    substituent branch rather than the principal chain is out of scope,
+    mirroring `_carboxylic_acid.py`/`_aldehyde.py`'s identical treatment),
+    and the winning candidate's own locants are used to format a
+    "(<locant><R/S>,...)-" prefix onto the final name -- applied outermost,
+    ahead of any N-alkyl prefix, since a stereodescriptor always sits at
+    the very front of the complete name (P-91.3)."""
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}}
     full_carbon_graph = carbon_adjacency(mol)
@@ -361,6 +386,20 @@ def _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls,
             previous, current = current, (neighbors[0] if neighbors else None)
         if any(b[0] in n_atoms or b[1] in n_atoms for b in non_single_bonds(mol)):
             raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
+        if any(next(iter(graph[o])) in n_atoms for o in hydroxyls):
+            # A hydroxyl on the N-substituent is invisible to
+            # `full_carbon_graph` (oxygen isn't a carbon), so it would
+            # otherwise pass `linear_branch` silently and get misnamed as
+            # a plain, unsubstituted alkyl group -- the module docstring's
+            # "plain, unbranched, unsubstituted" N-substituent restriction
+            # is enforced here explicitly (found via `specified_stereocenters`
+            # correctly flagging this shape's stereocenters as partially
+            # specified, see tasks/amide-stereocenter-naming.md).
+            raise UnsupportedStructure(
+                "a substituted N-substituent (e.g. bearing a hydroxyl) is "
+                "not supported yet; only a plain, unsubstituted alkyl "
+                "N-substituent is in scope"
+            )
         n_names.append(alkyl_name(n_length))
         n_substituent_atoms |= n_atoms
 
@@ -373,6 +412,7 @@ def _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls,
 
     chains = longest_chains(carbon_graph)
     chain_length = len(chains[0])
+    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -380,8 +420,18 @@ def _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls,
             continue
         if bonds and bond_locants(chain, bonds) is None:
             continue
+        chain_set = set(chain)
+        if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
+            continue
         eligible.append(chain)
     if not eligible:
+        if stereo is not None and any(
+            amide_carbon in c and (not bonds or bond_locants(c, bonds) is not None) for c in chains
+        ):
+            raise UnsupportedStructure(
+                "a stereocenter on a substituent branch rather than the "
+                "principal chain is not supported yet (see P-92)"
+            )
         raise UnsupportedStructure(
             "the amide-bearing carbon (and/or a multiple bond) does not lie "
             "on a single longest carbon chain; a shorter principal chain is "
@@ -390,6 +440,7 @@ def _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls,
 
     best_key = None
     best_name = None
+    best_position_of = None
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             if candidate[0] != amide_carbon:
@@ -400,21 +451,27 @@ def _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls,
             substituents = _substituents_for_chain(graph, candidate, halogens, excluded)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, name
+                position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+                best_key, best_name, best_position_of = key, name, position_of
 
-    if not n_alkyl_carbons:
-        return best_name
+    if n_alkyl_carbons:
+        if len(n_names) == 2 and n_names[0] == n_names[1]:
+            n_prefix = f"N,N-di{n_names[0]}"
+        else:
+            n_prefix = "-".join(f"N-{name}" for name in sorted(n_names))
+        separator = "-" if best_name[0].isdigit() else ""
+        best_name = f"{n_prefix}{separator}{best_name}"
 
-    if len(n_names) == 2 and n_names[0] == n_names[1]:
-        n_prefix = f"N,N-di{n_names[0]}"
-    else:
-        n_prefix = "-".join(f"N-{name}" for name in sorted(n_names))
-    separator = "-" if best_name[0].isdigit() else ""
-    return f"{n_prefix}{separator}{best_name}"
+    if stereo is not None:
+        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+        return f"({prefix})-{best_name}"
+    return best_name
 
 
 def name_amide(mol) -> str:
     amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(mol)
+    stereo = specified_stereocenters(mol)
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(
             "an amide on/in a ring (a lactam) is out of scope for this "
@@ -440,4 +497,4 @@ def name_amide(mol) -> str:
                 "is out of scope for this module (P-31.1.4.2.4)"
             )
 
-    return _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls, bonds)
+    return _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls, bonds, stereo)
