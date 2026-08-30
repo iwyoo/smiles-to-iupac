@@ -66,3 +66,22 @@ def test_amide_not_misnamed_as_amidine():
     # A plain amide (`_amide.py`) has an oxygen, not a second nitrogen,
     # and must not be routed here.
     assert smiles_to_iupac("CC(N)=O") == "ethanamide"
+
+
+def test_amidine_unspecified_stereocenter_unaffected():
+    # A genuine chain stereocenter left unspecified (no @/@@) is named
+    # exactly as before -- no error, matching this project's long-standing
+    # convention for unspecified stereochemistry.
+    assert smiles_to_iupac("CCC(C)C(=N)N") == "2-methylbutanimidamide"
+
+
+def test_amidine_specified_chain_stereocenter_raises():
+    # This amidine's own C=NH imine bond is always an unspecified
+    # potential Bond_Double stereo element to RDKit, regardless of
+    # substituents (module docstring) -- so a specified chain
+    # stereocenter here always coexists with it, and
+    # `specified_stereocenters` correctly rejects the combination (P-92/
+    # P-93) instead of the silent drop this project's stereodescriptor
+    # safety net exists to fix.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC[C@@H](C)C(=N)N")
