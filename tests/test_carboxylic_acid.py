@@ -81,3 +81,36 @@ def test_carboxylic_acid_enol_mix_raises():
     # carbonyl form and out of scope, same as `_alcohol.py`'s own enol check.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OC=CC(=O)O")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter (P-92), same pattern
+        # as `_alcohol.py`'s `_name_acyclic_alcohol` (CIP computed
+        # entirely by RDKit's `rdCIPLabeler`, not reimplemented here).
+        # PubChem CID 2724540, name matches exactly (a rare case where
+        # PubChem's auto-generated name equals the PIN).
+        ("C[C@@H](Cl)C(=O)O", "(2R)-2-chloropropanoic acid"),
+        ("C[C@H](Cl)C(=O)O", "(2S)-2-chloropropanoic acid"),
+        # Two specified stereocenters, coexisting with a standalone
+        # hydroxyl (P-91.3's own worked example, cited in
+        # `_common.py`'s `specified_stereocenters` docstring). PubChem
+        # CID 21586112, name matches exactly.
+        ("C[C@H](O)[C@H](Cl)C(=O)O", "(2S,3S)-2-chloro-3-hydroxybutanoic acid"),
+    ],
+)
+def test_carboxylic_acid_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_carboxylic_acid_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention (see `_common.py`'s `specified_stereocenters` docstring).
+    assert smiles_to_iupac("CC(Cl)C(=O)O") == "2-chloropropanoic acid"
+
+
+def test_carboxylic_acid_partially_specified_stereocenters_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[C@H](Cl)C(Cl)C(=O)O")
