@@ -103,6 +103,7 @@ from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
 from ._phosphanone import has_phosphanone_shape, name_phosphanone
 from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
+from ._hydroperoxide import has_hydroperoxide_shape, name_hydroperoxide
 from ._peroxide import has_peroxide_shape, name_peroxide
 from ._polyspiro import (
     find_branched_polyspiro_hub,
@@ -573,6 +574,12 @@ def smiles_to_iupac(smiles: str) -> str:
         # (which doesn't accept a degree-2 oxygen either).
         if has_peroxide_shape(mol):
             return name_peroxide(mol)
+        # A hydroperoxide (R-O-O-H, P-56.1) has a 'peroxol' suffix rather
+        # than no suffix at all, but its degree-1 terminal oxygen doesn't
+        # match any check above or `name_alcohol`'s own fallback below, so
+        # it must be routed here too, right alongside its R-O-O-R' cousin.
+        if has_hydroperoxide_shape(mol):
+            return name_hydroperoxide(mol)
         # An anhydride's bridging oxygen (-C(=O)-O-C(=O)-) is also
         # ester-shaped from either acyl carbon's point of view (a carbonyl
         # oxygen plus a second, carbon-bonded oxygen), so it must be routed
