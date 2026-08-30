@@ -88,3 +88,21 @@ def test_branched_oxime_o_substituent_raises():
 def test_two_oxygens_on_oxime_nitrogen_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC=NOO")
+
+
+def test_imine_unspecified_stereocenter_unaffected():
+    # A genuine chain stereocenter left unspecified (no @/@@) is named
+    # exactly as before -- no error, matching this project's long-standing
+    # convention for unspecified stereochemistry.
+    assert smiles_to_iupac("CCC(C)C(C)=N") == "3-methylpentan-2-imine"
+
+
+def test_imine_specified_chain_stereocenter_raises():
+    # This module's own C=N bond is always an unspecified potential
+    # Bond_Double stereo element to RDKit, regardless of substituents
+    # (module docstring) -- so a specified chain stereocenter here always
+    # coexists with it, and `specified_stereocenters` correctly rejects
+    # the combination (P-92/P-93) instead of the silent drop this
+    # project's stereodescriptor safety net exists to fix.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC[C@@H](C)C(C)=N")
