@@ -23,6 +23,18 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with
   the -S(=O)NH2 suffix. Confirmed via PubChem: 'cyclohexanesulfinamide'
   (O=S(N)C1CCCCC1).
+- P-92 stereocenters (`tasks/sulfinamide-stereocenter-naming.md`): like
+  `_sulfinic_acid.py`'s sulfur (and unlike `_sulfonamide.py`'s, whose two
+  identical =O substituents keep it non-stereogenic), this module's
+  sulfinamide sulfur (one =O, one N, one C, one lone pair -- four distinct
+  "substituents") is itself a potential stereocenter in virtually every
+  real -S(=O)NH2 molecule, confirmed via RDKit `FindPotentialStereo` on
+  `CC(C)S(=O)N` (flags the sulfur even with no chain stereocenter at all).
+  This project has no established way to cite a heteroatom-centered
+  stereodescriptor, so this module only ever explicitly rejects a
+  specified stereocenter (chain carbon or sulfur alike) rather than
+  attempting real R/S support, mirroring `_sulfinic_acid.py`'s identical
+  policy.
 
 Scope, deliberately narrow, mirroring `_sulfinic_acid.py`'s own first pass
 exactly: a single -S(=O)NH2 on an acyclic chain or on a single saturated
@@ -49,6 +61,7 @@ from ._common import (
     non_single_bonds,
     path_between,
     ring_cycle,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name, numerical_term
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -359,6 +372,17 @@ def _name_cyclic_sulfinamide(mol, sulfur_idx, so_nh2_carbon):
 
 def name_sulfinamide(mol) -> str:
     sulfur_idx, so_nh2_carbon = _validate_and_collect_sulfinamides(mol)
+    if specified_stereocenters(mol) is not None:
+        # The sulfinamide sulfur is itself a potential stereocenter in
+        # virtually every real -S(=O)NH2 molecule (module docstring), and
+        # this project has no established way to cite a heteroatom-centered
+        # stereodescriptor -- explicitly reject rather than silently drop
+        # the marker (P-92), mirroring `_sulfinic_acid.py`.
+        raise UnsupportedStructure(
+            "a specified stereocenter (chain carbon or the sulfinamide "
+            "sulfur itself) is not supported yet for sulfinamides (see "
+            "P-92, module docstring)"
+        )
     graph = adjacency(mol)
     all_non_single = non_single_bonds(mol)
     bonds = [b for b in all_non_single if b[2] in (_ENE_ORDER, _YNE_ORDER) and sulfur_idx not in (b[0], b[1])]
