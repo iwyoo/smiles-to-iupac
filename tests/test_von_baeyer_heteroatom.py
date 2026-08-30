@@ -69,6 +69,17 @@ def test_smiles_to_iupac_von_baeyer_heteroatom_multi(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_tetraaza_multiplying_prefix_elides_vowel():
+    # P-16.3.3: 'tetra' + 'aza' -> 'tetraza' (the multiplying prefix's
+    # terminal 'a' elides before the 'a'-initial heteroatom prefix), not
+    # 'tetraaza' -- PubChem-verified for this exact SMILES
+    # ("12-methyl-1,4,7,10-tetrazabicyclo[8.3.2]pentadecane").
+    assert (
+        smiles_to_iupac("CC1CN2CCNCCNCCN(CC2)C1")
+        == "12-methyl-1,4,7,10-tetrazabicyclo[8.3.2]pentadecane"
+    )
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
