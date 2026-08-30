@@ -38,3 +38,21 @@ def test_branched_ditellanyl_substituent_not_supported():
 def test_tritellurium_chain_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C[Te][Te][Te]C")
+
+
+def test_stereocenter_on_parent_chain():
+    # No PubChem-registered stereoisomer for this shape (specified SMILES
+    # resolves to CID 0); cross-checked against RDKit's independent
+    # rdCIPLabeler, which agrees with the R/S the parent chain's own
+    # stereocenter should carry -- same evidentiary bar as `_peroxide.py`'s
+    # PR #225.
+    assert smiles_to_iupac("CC[C@H](C)[Te][Te]CC") == "(2S)-2-(ethylditellanyl)butane"
+
+
+def test_unspecified_stereocenter_ignored():
+    assert smiles_to_iupac("CCC(C)[Te][Te]CC") == "2-(ethylditellanyl)butane"
+
+
+def test_stereocenter_on_substituent_branch_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CCCCC[Te][Te][C@H](C)CC")

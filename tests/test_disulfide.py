@@ -37,3 +37,28 @@ def test_branched_disulfanyl_substituent_not_supported():
 def test_trisulfur_chain_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CSSSC")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # No PubChem-registered stereoisomer for this shape (specified
+        # SMILES resolves to CID 0); cross-checked against RDKit's
+        # independent rdCIPLabeler, which agrees with the R/S the parent
+        # chain's own stereocenter should carry -- same evidentiary bar as
+        # `_peroxide.py`'s PR #225.
+        ("CC[C@H](C)SSCC", "(2S)-2-(ethyldisulfanyl)butane"),
+        ("CC[C@@H](C)SSCC", "(2R)-2-(ethyldisulfanyl)butane"),
+    ],
+)
+def test_stereocenter_on_parent_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_unspecified_stereocenter_ignored():
+    assert smiles_to_iupac("CCC(C)SSCC") == "2-(ethyldisulfanyl)butane"
+
+
+def test_stereocenter_on_substituent_branch_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CCCCCSS[C@H](C)CC")

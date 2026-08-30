@@ -43,7 +43,15 @@ monoselenide, or oxidized selenium, are separate functional groups).
 from rdkit import Chem
 
 from ._acyclic import _longest_chains
-from ._common import UnsupportedStructure, adjacency, bfs, carbon_adjacency, lowest_locant_set, non_single_bonds
+from ._common import (
+    UnsupportedStructure,
+    adjacency,
+    bfs,
+    carbon_adjacency,
+    lowest_locant_set,
+    non_single_bonds,
+    specified_stereocenters,
+)
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
@@ -176,13 +184,14 @@ def _name_parent_chain(full_graph, carbon_graph, terminals):
 
     best_key = None
     best_name = None
+    best_chain = None
     for chain in chains:
         for candidate in (chain, list(reversed(chain))):
             substituents = _substituents_for_chain(full_graph, candidate, terminals)
             key, name = _candidate_key(chain_length, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, name
-    return best_name
+                best_key, best_name, best_chain = key, name, candidate
+    return best_chain, best_name
 
 
 def name_diselenide(mol) -> str:
@@ -217,4 +226,21 @@ def name_diselenide(mol) -> str:
 
     parent_carbon_graph = _component_subgraph(carbon_graph, parent_root)
     terminals = {parent_se: sub_name + "diselanyl"}
-    return _name_parent_chain(full_graph, parent_carbon_graph, terminals)
+    chain, name = _name_parent_chain(full_graph, parent_carbon_graph, terminals)
+
+    stereo = specified_stereocenters(mol)
+    if stereo is None:
+        return name
+
+    # P-92: every specified stereocenter must lie on the winning parent
+    # chain; one on the diselanyl (R') substituent branch is out of
+    # scope, mirroring `_sulfide.py`'s identical treatment.
+    position_of = {atom: i + 1 for i, atom in enumerate(chain)}
+    if any(atom not in position_of for atom, _ in stereo):
+        raise UnsupportedStructure(
+            "a stereocenter on a substituent branch rather than the "
+            "principal chain is not supported yet (see P-92)"
+        )
+    labels = sorted((position_of[atom], code) for atom, code in stereo)
+    prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+    return f"({prefix})-{name}"
