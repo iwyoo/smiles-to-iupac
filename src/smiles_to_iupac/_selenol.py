@@ -47,14 +47,26 @@ Book"):
   case, which is in the same boat) -- this is a reviewed, not
   independently structure-verified, generalization along an
   already-confirmed axis, matching `_thiol.py`'s own precedent exactly.
+- A single, otherwise-unsubstituted saturated monocyclic ring also works,
+  mirroring `_thiol.py`'s own monocyclic support: confirmed via PubChem
+  structure match, `C1CCCCC1[SeH]` -> "cyclohexaneselenol",
+  `C1CCCC1[SeH]` -> "cyclopentaneselenol". The ring machinery below
+  (`_ring_name_from_substituents`/`_ring_candidate_key`) is ported
+  directly from `_thiol.py`'s own already-generalized-over-multiple-
+  groups ring code, so a multi-selenol ring is supported too, the same
+  way `_thiol.py` itself doesn't cite a specific multi-group ring PubChem
+  example either -- trusting the shared, already-exercised locant
+  machinery rather than re-deriving it.
 
-Scope, deliberately narrow (mirrors `_thiol.py`'s own group-count-
-generalized scope, minus its monocyclic-ring support): one or more -SeH
-groups on an acyclic chain, with no other heteroatom (in particular no
--OH, -SH, or amine nitrogen) anywhere in the molecule. Explicitly out of
-scope (raise `UnsupportedStructure`): any ring, a selenide (-Se-
-ether-analogue) or any other selenium-oxidation-state group, a tellurol
-or other chalcogen atom, and any oxygen or nitrogen atom at all.
+Scope, deliberately narrow (mirrors `_thiol.py`'s own group-count- and
+ring-generalized scope): one or more -SeH groups on an acyclic chain, or
+on a single saturated carbon ring, with no other heteroatom (in
+particular no -OH, -SH, or amine nitrogen) anywhere in the molecule.
+Explicitly out of scope (raise `UnsupportedStructure`): polycyclic/spiro/
+unsaturated rings, an -SeH on a substituent branch off an otherwise-
+unsubstituted ring, a selenide (-Se- ether-analogue) or any other
+selenium-oxidation-state group, a tellurol or other chalcogen atom, and
+any oxygen or nitrogen atom at all.
 """
 
 from rdkit import Chem
@@ -72,6 +84,7 @@ from ._common import (
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    ring_cycle,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -247,6 +260,66 @@ def _substituents_for_chain(graph, chain, halogens, selenols):
     return substituents
 
 
+def _substituents_for_ring(graph, ring_order, halogens, selenols):
+    ring_set = set(ring_order)
+    substituents = {}
+    for position, atom in enumerate(ring_order, start=1):
+        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in selenols]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+    return substituents
+
+
+def _ring_name_from_substituents(ring_size, se_locants, grouped):
+    stem = "cyclo" + alkane_name(ring_size)
+    total_subs = sum(len(info["locants"]) for info in grouped.values())
+    selenol_word = multiplied_word(len(se_locants), "selenol")
+
+    if total_subs == 0 and len(se_locants) == 1:
+        # P-14.3.3: the sole substituent on an otherwise unsubstituted ring
+        # has no locant to distinguish, e.g. 'cyclohexaneselenol'.
+        return stem + selenol_word
+
+    prefix = format_substituent_prefixes(grouped)
+    loc_str = ",".join(str(loc) for loc in sorted(se_locants))
+    return f"{prefix}{stem}-{loc_str}-{selenol_word}"
+
+
+def _ring_candidate_key(ring_size, se_locants, substituents):
+    grouped = group_substituents(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    se_locant_set = lowest_locant_set(se_locants)
+    name = _ring_name_from_substituents(ring_size, se_locants, grouped)
+    return se_locant_set, locant_set, citation_locants, name
+
+
+def _name_cyclic_selenol(mol, selenols):
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_info = mol.GetRingInfo()
+    ring_atoms = list(ring_info.AtomRings()[0])
+    ring_order = ring_cycle(graph, ring_atoms)
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            se_locants = _se_locants(position_of, selenols, graph)
+            substituents = _substituents_for_ring(graph, candidate, halogens, selenols)
+            key = _ring_candidate_key(ring_size, se_locants, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def name_selenol(mol) -> str:
     selenols = _validate_and_collect_selenols(mol)
     graph = adjacency(mol)
@@ -259,11 +332,27 @@ def name_selenol(mol) -> str:
         )
     _reject_eneselenol_carbons(graph, selenols, bonds)
 
-    if mol.GetRingInfo().NumRings() != 0:
+    ring_info = mol.GetRingInfo()
+    num_rings = ring_info.NumRings()
+    if num_rings > 1:
         raise UnsupportedStructure(
-            "cyclic selenols are not supported yet (this module only "
-            "handles acyclic chains)"
+            "polycyclic/spiro selenols are not supported yet (this module "
+            "only handles acyclic chains and a single saturated ring)"
         )
+    if num_rings == 1:
+        if bonds:
+            raise UnsupportedStructure(
+                "unsaturated rings are not supported yet (see P-31.1.3, "
+                "cycloalkenes and cycloalkynes)"
+            )
+        ring_atoms = set(ring_info.AtomRings()[0])
+        ring_selenols = {s for s in selenols if next(iter(graph[s])) in ring_atoms}
+        if ring_selenols != selenols:
+            raise UnsupportedStructure(
+                "a selenol on a substituent branch chain rather than the "
+                "ring itself is not supported yet"
+            )
+        return _name_cyclic_selenol(mol, selenols)
 
     halogens = halogen_substituents(mol)
     chains = longest_chains(carbon_adjacency(mol))

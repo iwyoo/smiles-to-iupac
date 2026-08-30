@@ -66,9 +66,28 @@ def test_butane_1_2_4_triselenol():
     assert smiles_to_iupac("[SeH]CC([SeH])CC[SeH]") == "butane-1,2,4-triselenol"
 
 
-def test_ring_selenol_not_supported():
+def test_cyclohexaneselenol():
+    # PubChem structure match: "cyclohexaneselenol".
+    assert smiles_to_iupac("C1CCCCC1[SeH]") == "cyclohexaneselenol"
+
+
+def test_cyclopentaneselenol():
+    # PubChem structure match: "cyclopentaneselenol".
+    assert smiles_to_iupac("C1CCCC1[SeH]") == "cyclopentaneselenol"
+
+
+def test_substituted_ring_selenol_locant_cited():
+    assert smiles_to_iupac("CC1CCCCC1[SeH]") == "2-methylcyclohexane-1-selenol"
+
+
+def test_polycyclic_selenol_not_supported():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCC1[SeH]")
+        smiles_to_iupac("C12(CCC(CC1)CC2)[SeH]")
+
+
+def test_selenol_on_ring_substituent_branch_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1CCCCC1C[SeH]")
 
 
 def test_selenol_with_alcohol_not_supported():
