@@ -36,6 +36,16 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - The tellurium analogue (telluroate) -- a separate follow-up module,
   mirroring how `_telluroic_acid.py` followed `_selenoic_acid.py`.
 - Any other heteroatom.
+
+P-91.3/P-92 (`tasks/thioate-selenoate-stereocenter-naming.md`): a molecule
+with one or more *specified* tetrahedral stereocenters -- every one on the
+principal chain itself, no unspecified one alongside them, and no
+C=C/C#N double-bond E/Z element -- gets a "(<locant><R/S>,...)-" prefix,
+ascending locant order, same pattern as `_carboxylate.py`/`_thioate.py`
+(the selenoate carbon is always C1, so it never affects numbering). The
+selenoate carbon itself is never a potential stereocenter, confirmed via
+RDKit `FindPotentialStereo` on both drawn tautomers
+(`CC[C@@H](C)C(=O)[Se-]`/`CC[C@@H](C)C(=[Se])[O-]`).
 """
 
 from rdkit import Chem
@@ -54,6 +64,7 @@ from ._common import (
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -199,11 +210,19 @@ def _substituents_for_chain(graph, chain, halogens, excluded_atoms):
     return substituents
 
 
-def _name_acyclic_selenoate(mol, selenoate_carbon_idx, excluded_atoms, bonds):
+def _name_acyclic_selenoate(mol, selenoate_carbon_idx, excluded_atoms, bonds, stereo=None):
+    """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
+    `specified_stereocenters` -- if given, only chain candidates that
+    include every stereocenter are eligible (P-92: a stereocenter on a
+    substituent branch rather than the principal chain is out of scope,
+    mirroring `_thioate.py`/`_carboxylate.py`), and the winning candidate's
+    own locants are used to format a "(<locant><R/S>,...)-" prefix onto
+    the final name."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
+    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -211,8 +230,18 @@ def _name_acyclic_selenoate(mol, selenoate_carbon_idx, excluded_atoms, bonds):
             continue
         if bonds and bond_locants(chain, bonds) is None:
             continue
+        chain_set = set(chain)
+        if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
+            continue
         eligible.append(chain)
     if not eligible:
+        if stereo is not None and any(
+            selenoate_carbon_idx in c and (not bonds or bond_locants(c, bonds) is not None) for c in chains
+        ):
+            raise UnsupportedStructure(
+                "a stereocenter on a substituent branch rather than the "
+                "principal chain is not supported yet (see P-92)"
+            )
         raise UnsupportedStructure(
             "the selenoate carbon (and/or multiple bonds) does not lie on a "
             "single longest carbon chain"
@@ -220,15 +249,22 @@ def _name_acyclic_selenoate(mol, selenoate_carbon_idx, excluded_atoms, bonds):
 
     best_key = None
     best_name = None
+    best_position_of = None
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             if candidate[0] != selenoate_carbon_idx:
                 continue
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
             substituents = _substituents_for_chain(graph, candidate, halogens, excluded_atoms)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, name
+                best_key, best_name, best_position_of = key, name, position_of
+
+    if stereo is not None:
+        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+        return f"({prefix})-{best_name}"
     return best_name
 
 
@@ -241,6 +277,7 @@ def name_selenoate(mol) -> str:
 
     selenoate_carbon, carbonyl_atom, anion_atom = _find_selenoate_group(mol)
     excluded_atoms = {carbonyl_atom.GetIdx(), anion_atom.GetIdx()}
+    stereo = specified_stereocenters(mol)
 
     has_carbon = False
     for atom in mol.GetAtoms():
@@ -287,4 +324,4 @@ def name_selenoate(mol) -> str:
             "supported (see P-31.1.1.1)"
         )
 
-    return _name_acyclic_selenoate(mol, selenoate_carbon.GetIdx(), excluded_atoms, bonds)
+    return _name_acyclic_selenoate(mol, selenoate_carbon.GetIdx(), excluded_atoms, bonds, stereo)

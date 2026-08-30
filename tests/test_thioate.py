@@ -51,3 +51,25 @@ def test_thioate_on_ring_raises():
 def test_thioate_branched_r_group():
     # PubChem CID 20063546: 2-methylpropanethioate.
     assert smiles_to_iupac("CC(C)C(=O)[S-]") == "2-methylpropanethioate"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter (P-92): the thioate
+        # carbon is always chain-terminal (fixed C1), same pattern as
+        # `_carboxylate.py`. PubChem CID 154057341.
+        ("CC[C@@H](C)C(=O)[S-]", "(2R)-2-methylbutanethioate"),
+        ("CC[C@H](C)C(=O)[S-]", "(2S)-2-methylbutanethioate"),
+        # The other drawn tautomer gives the identical name (module
+        # docstring: the anion charge is delocalized across both
+        # chalcogens).
+        ("CC[C@@H](C)C(=S)[O-]", "(2R)-2-methylbutanethioate"),
+    ],
+)
+def test_thioate_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_thioate_unspecified_stereocenter_unaffected():
+    assert smiles_to_iupac("CCC(C)C(=O)[S-]") == "2-methylbutanethioate"
