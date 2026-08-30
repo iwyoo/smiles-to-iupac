@@ -37,6 +37,13 @@ Book"):
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with the
   'al' suffix, reusing `halogen_substituents`/`format_substituent_prefixes`
   unchanged.
+- P-91.3/P-92 (`tasks/aldehyde-stereocenter-naming.md`): a molecule with one
+  or more *specified* tetrahedral stereocenters -- every one on the
+  principal chain itself, no unspecified one alongside them, and no
+  C=C/C#N double-bond E/Z element -- gets a "(<locant><R/S>,...)-" prefix,
+  ascending locant order, e.g. '(2R)-2-chloropropanal',
+  '(2R,3S)-2,3-dichlorobutanal', same pattern as `_carboxylic_acid.py`
+  (CIP computation delegated entirely to RDKit).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any oxygen that isn't a doubly-bonded, isolated aldehyde carbonyl oxygen or
@@ -73,6 +80,7 @@ from ._common import (
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -264,11 +272,20 @@ def _substituents_for_chain(graph, chain, halogens, aldehydes):
     return substituents
 
 
-def _name_acyclic_aldehyde(mol, aldehydes, hydroxyls, bonds):
+def _name_acyclic_aldehyde(mol, aldehydes, hydroxyls, bonds, stereo=None):
+    """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
+    `specified_stereocenters` -- if given, only chain candidates that
+    include every stereocenter are eligible (P-92: a stereocenter on a
+    substituent branch rather than the principal chain is out of scope,
+    mirroring `_carboxylic_acid.py`'s identical treatment), and the
+    winning candidate's own locants are used to format a
+    "(<locant><R/S>,...)-" prefix onto the name, ascending locant order
+    (P-91.3)."""
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}}
     chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
+    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -277,8 +294,20 @@ def _name_acyclic_aldehyde(mol, aldehydes, hydroxyls, bonds):
             continue
         if bonds and bond_locants(chain, bonds) is None:
             continue
+        chain_set = set(chain)
+        if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
+            continue
         eligible.append(chain)
     if not eligible:
+        if stereo is not None and any(
+            _al_locants({a: i + 1 for i, a in enumerate(c)}, aldehydes, graph) is not None
+            and (not bonds or bond_locants(c, bonds) is not None)
+            for c in chains
+        ):
+            raise UnsupportedStructure(
+                "a stereocenter on a substituent branch rather than the "
+                "principal chain is not supported yet (see P-92)"
+            )
         raise UnsupportedStructure(
             "not every aldehyde-bearing carbon (and/or multiple bond) lies "
             "on a single longest carbon chain; a shorter principal chain "
@@ -287,6 +316,7 @@ def _name_acyclic_aldehyde(mol, aldehydes, hydroxyls, bonds):
 
     best_key = None
     best_name = None
+    best_position_of = None
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
@@ -295,12 +325,18 @@ def _name_acyclic_aldehyde(mol, aldehydes, hydroxyls, bonds):
             substituents = _substituents_for_chain(graph, candidate, halogens, aldehydes)
             key, name = _candidate_key(chain_length, al_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, name
+                best_key, best_name, best_position_of = key, name, position_of
+
+    if stereo is not None:
+        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+        return f"({prefix})-{best_name}"
     return best_name
 
 
 def name_aldehyde(mol) -> str:
     aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol)
+    stereo = specified_stereocenters(mol)
     graph = adjacency(mol)
     # Exclude each C=O carbonyl bond itself: `non_single_bonds` reports it as
     # order 2.0 same as a C=C, but it isn't a chain 'ene' bond (one endpoint
@@ -328,4 +364,4 @@ def name_aldehyde(mol) -> str:
             "is out of scope for this module; only an acyclic terminal "
             "-CHO is supported"
         )
-    return _name_acyclic_aldehyde(mol, aldehydes, hydroxyls, bonds)
+    return _name_acyclic_aldehyde(mol, aldehydes, hydroxyls, bonds, stereo)
