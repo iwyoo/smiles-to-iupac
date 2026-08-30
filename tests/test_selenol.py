@@ -93,3 +93,33 @@ def test_selenol_on_ring_substituent_branch_not_supported():
 def test_selenol_with_alcohol_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OCC[SeH]")
+
+
+def test_acyclic_selenol_stereocenter():
+    # A single specified tetrahedral stereocenter (P-92): like a thiol's
+    # -SH sulfur, a selenol's -SeH selenium is monovalent and can never
+    # itself be a stereocenter, so this mirrors `_thiol.py` cleanly (CIP
+    # computed entirely by RDKit's `rdCIPLabeler`). PubChem CID 175184280.
+    assert smiles_to_iupac("C[C@@H](CC)C[SeH]") == "(2S)-2-methylbutane-1-selenol"
+
+
+def test_cyclic_selenol_stereocenter():
+    # Two stereocenters on the ring itself (P-92), same pattern as
+    # `_thiol.py`'s `_name_cyclic_thiol`. PubChem has no registered
+    # stereoisomer for this exact ring (even the non-stereo parent isn't
+    # registered), so this is a structural/regression check on the
+    # already-proven mechanism ported verbatim from `_thiol.py`, not an
+    # independent PubChem cross-check.
+    assert smiles_to_iupac("[SeH][C@H]1CCCC[C@H]1C") == "(1S,2R)-2-methylcyclohexane-1-selenol"
+
+
+def test_selenol_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention.
+    assert smiles_to_iupac("CCC(C)[SeH]") == "butane-2-selenol"
+
+
+def test_selenol_partially_specified_stereocenters_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[SeH][C@H]1CCCCC1Cl")
