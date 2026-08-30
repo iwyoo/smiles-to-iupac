@@ -29,6 +29,18 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   the 'imidamide' suffix, reusing `halogen_substituents`/
   `format_substituent_prefixes` unchanged. Confirmed via PubChem PUG
   REST: CID 35602 (`ClCC(=N)N`) -> "2-chloroethanimidamide".
+- P-92 stereocenters (`tasks/amidine-stereocenter-naming.md`): unlike
+  `_amide.py`'s carbonyl (always non-stereogenic), this module's own
+  C=NH imine bond is *always* flagged by RDKit's
+  `Chem.FindPotentialStereo` as an unspecified potential Bond_Double
+  stereo element, regardless of substituents -- confirmed on
+  `CC(=N)N`/`CCC(=N)N`/`C(=N)N` alike. That means any specified chain
+  tetrahedral stereocenter always coexists with this unspecified imine
+  bond, and `_common.specified_stereocenters` correctly rejects the
+  combination as partially specified (P-92/P-93) rather than silently
+  dropping either one -- same conclusion as `_sulfinic_acid.py`'s
+  sulfur. This module only ever explicitly rejects a specified
+  stereocenter rather than attempting to cite one.
 
 Explicitly out of scope (raise `UnsupportedStructure`), mirroring
 `_amide.py`'s own first-pass scope:
@@ -63,6 +75,7 @@ from ._common import (
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -320,6 +333,20 @@ def _name_acyclic_amidine(mol, amidine_carbon, excluded, bonds):
 
 def name_amidine(mol) -> str:
     amidine_carbon, imino_nitrogen, amino_nitrogen = _validate_and_collect_amidine(mol)
+    if specified_stereocenters(mol) is not None:
+        # The amidine's own C=NH imine bond is always flagged by RDKit's
+        # `Chem.FindPotentialStereo` as an unspecified potential
+        # Bond_Double stereo element, regardless of substituents (module
+        # docstring) -- so any specified chain stereocenter here always
+        # coexists with that unspecified imine bond, and
+        # `specified_stereocenters` correctly rejects the combination
+        # (P-92/P-93) instead of the silent drop this project's
+        # stereodescriptor safety net exists to fix.
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside this amidine's own "
+            "always-unspecified C=NH imine bond is not supported yet "
+            "(see P-92/P-93, module docstring)"
+        )
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(
             "an amidine on/in a ring is out of scope for this acyclic-only "
