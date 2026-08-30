@@ -37,6 +37,13 @@ family, P-73.1.1.2), per the IUPAC 2013 Recommendations ("the Blue Book"):
   the nitrogen's formal charge; see its own docstring), producing the
   same 'parent chain + N,N,N-prefix' shape as an '-amine' name would,
   then applies the same terminal 'e' -> 'ium' swap.
+- P-91.3/P-92 stereocenters (`tasks/ammonium-stereocenter-naming.md`): the
+  1-3-substituted paths delegate to `name_amine` on the neutralized
+  molecule, so they inherited full R/S support automatically once
+  `_amine.py` gained it. The quaternary (4-substituted) path calls
+  `_name_acyclic_secondary_tertiary_amine` directly and now passes
+  `specified_stereocenters(mol)` through the same way, e.g.
+  '(2R)-N,N,N-trimethylbutan-2-aminium'.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Anything `_amine.py` itself would reject for the neutralized (or,
@@ -54,7 +61,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 from rdkit import Chem
 
 from ._amine import _name_acyclic_secondary_tertiary_amine, name_amine
-from ._common import UnsupportedStructure, non_single_bonds
+from ._common import UnsupportedStructure, non_single_bonds, specified_stereocenters
 
 
 def has_ammonium_shape(mol) -> bool:
@@ -137,7 +144,8 @@ def name_ammonium(mol) -> str:
                 "supported (see P-31.1.1.1)"
             )
         n_carbons = tuple(neighbor.GetIdx() for neighbor in neighbors)
-        amine_name = _name_acyclic_secondary_tertiary_amine(mol, nitrogen.GetIdx(), n_carbons, bonds)
+        stereo = specified_stereocenters(mol)
+        amine_name = _name_acyclic_secondary_tertiary_amine(mol, nitrogen.GetIdx(), n_carbons, bonds, stereo)
         return amine_name[:-1] + "ium"
 
     neutral_rw = Chem.RWMol(mol)

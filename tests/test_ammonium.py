@@ -80,3 +80,25 @@ def test_aromatic_ammonium_raises():
 def test_doubly_charged_nitrogen_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[NH3++]")
+
+
+def test_primary_ammonium_stereocenter():
+    # Degree 1-3 ammonium delegates to `name_amine` on the neutralized
+    # molecule, so it inherited full R/S support automatically once
+    # `_amine.py` gained it (P-91.3/P-92).
+    assert smiles_to_iupac("CC[C@@H](C)[NH3+]") == "(2R)-butan-2-aminium"
+
+
+def test_quaternary_ammonium_stereocenter():
+    # The quaternary (degree 4) path calls
+    # `_name_acyclic_secondary_tertiary_amine` directly rather than
+    # delegating to `name_amine`, so it needed its own `specified_stereocenters`
+    # wiring -- CIP/locant cross-checked against PubChem's own (non-PIN
+    # 'azanium'-style) name for the same structure: "[(2R)-butan-2-yl]-
+    # trimethylazanium" (CID 102019526).
+    assert smiles_to_iupac("CC[C@@H](C)[N+](C)(C)C") == "(2R)-N,N,N-trimethylbutan-2-aminium"
+    assert smiles_to_iupac("CC[C@H](C)[N+](C)(C)C") == "(2S)-N,N,N-trimethylbutan-2-aminium"
+
+
+def test_quaternary_ammonium_unspecified_stereocenter_unaffected():
+    assert smiles_to_iupac("CCC(C)[N+](C)(C)C") == "N,N,N-trimethylbutan-2-aminium"

@@ -41,3 +41,12 @@ def test_amine_oxide_halogen_on_parent_chain_raises():
 
 def test_plain_tertiary_amine_still_works():
     assert smiles_to_iupac("CN(C)C") == "N,N-dimethylmethanamine"
+
+
+def test_amine_oxide_stereocenter():
+    # This module always delegates to `name_amine` on the reduced (neutral)
+    # molecule, so it inherited full R/S support automatically once
+    # `_amine.py` gained it (P-91.3/P-92) -- no separate wiring needed here,
+    # this is a regression test locking that in.
+    assert smiles_to_iupac("CC[C@@H](C)[N+](C)(C)[O-]") == "(2R)-N,N-dimethylbutan-2-amine N-oxide"
+    assert smiles_to_iupac("CC[C@H](C)[N+](C)(C)[O-]") == "(2S)-N,N-dimethylbutan-2-amine N-oxide"
