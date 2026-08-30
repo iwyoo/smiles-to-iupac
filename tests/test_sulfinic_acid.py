@@ -77,3 +77,43 @@ def test_unsaturated_ring_sulfinic_acid_not_supported():
 def test_sulfinic_acid_on_ring_substituent_branch_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OS(=O)CC1CCCCC1")
+
+
+def test_sulfinic_acid_unspecified_stereocenter_unaffected():
+    # A genuine chain stereocenter left unspecified (no @/@@) is named
+    # exactly as before -- no error, matching this project's long-standing
+    # convention for unspecified stereochemistry.
+    assert smiles_to_iupac("CCC(C)S(=O)O") == "butane-2-sulfinic acid"
+
+
+def test_sulfinic_acid_specified_chain_stereocenter_raises():
+    # The sulfinic sulfur (-R, =O, -OH) is itself a potential stereocenter
+    # in this molecule too (unlike `_sulfonic_acid.py`'s sulfur, whose two
+    # identical =O make it never stereogenic) -- so a specified chain
+    # stereocenter here always coexists with an unspecified sulfur one,
+    # and `specified_stereocenters` correctly rejects the combination
+    # (P-92) instead of the silent drop this project's stereodescriptor
+    # safety net exists to fix.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC[C@@H](C)S(=O)O")
+
+
+def test_sulfinic_acid_specified_sulfur_stereocenter_raises():
+    # A specified sulfur configuration, with no chain stereocenter at all
+    # (CCC[S@](=O)O), is explicitly out of scope too -- this project has
+    # no established locant/prefix convention for a heteroatom-centered
+    # stereodescriptor, and PubChem itself doesn't distinguish the two
+    # sulfur configurations for this molecule (CCC[S@](=O)O and
+    # CCC[S@@](=O)O both resolve to PubChem CID 643586 with the same,
+    # unstereo name).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CCC[S@](=O)O")
+
+
+def test_ring_sulfinic_acid_non_stereocenter_marker_unaffected():
+    # The ring carbon bearing -SO2H here isn't a genuine stereocenter (both
+    # ring neighbors are identical -CH2- groups), so RDKit never reports it
+    # as a stereo element at all -- this stray '@' marker is silently
+    # ignored exactly as before, same policy as every other module's
+    # "unspecified/non-stereogenic marker" handling.
+    assert smiles_to_iupac("O=S(O)[C@H]1CCCCC1") == "cyclohexanesulfinic acid"
