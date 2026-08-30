@@ -1,0 +1,363 @@
+"""Naming of thiones (the '-thione' suffix, C=S with two carbon
+substituents) on acyclic saturated or unsaturated carbon chains and on
+simple monocyclic saturated rings, per the IUPAC 2013 Recommendations
+("the Blue Book"):
+
+- P-64.6.1 (Chapter P-6, https://iupac.qmul.ac.uk/BlueBook/PDF/P6.pdf):
+  "Chalcogen analogues of ketones, pseudoketones and heterones are named
+  by using the following suffixes and prefixes: =S '-thione' ... =Se
+  '-selone' ... =Te '-tellone'" -- this module covers only the sulfur
+  case ('-thione'), mirroring `_ketone.py`'s own '-one' suffix
+  machinery exactly (a thione carbon, like a ketone carbon, always has
+  two carbon neighbors and no hydrogens). Confirmed via PubChem PUG REST
+  structure match: `CC(=S)C` -> "propane-2-thione" (matches the Blue
+  Book's own worked example "propane-2-thione (PIN) (not thioacetone)"),
+  `CCC(=S)C`/`CC(=S)CC` -> "butane-2-thione" (matches the Blue Book's own
+  "butane-2-thione (PIN)"), `C1CCC(=S)CC1` -> "cyclohexanethione".
+- Two or more C=S groups (a dithione) mirrors the Blue Book's own worked
+  example "pentane-2,4-dithione (PIN)" directly -- the locant/suffix
+  machinery (ported unchanged from `_ketone.py`) already generalizes over
+  a list of thione locants.
+- Unlike '-one' (vowel-initial, elides the parent hydride's terminal 'e'),
+  '-thione' begins with a consonant, so the terminal 'e' is never elided
+  (P-16.3.3): 'propane' + 'thione' -> 'propanethione'/'propane-2-thione',
+  not 'propanthione'. `_ketone.py`'s own elision check (whether the
+  suffix word's first letter is a vowel) already produces this correctly
+  unchanged, since 't' isn't a vowel -- no new logic needed for this.
+- Selenium/tellurium analogues ('-selone'/'-tellone') are confirmed to
+  exist in the Blue Book (same P-64.6.1 rule text, worked example
+  "hexane-3-selone (PIN)") but are deferred to a follow-up task, the same
+  way `_selenol.py`/`_tellurol.py` were split into separate tasks despite
+  being the same mechanism.
+
+Scope, deliberately narrow (mirrors `_ketone.py`'s own scope, minus its
+Table 3.3 ketone/hydroxyl seniority-coexistence handling -- that
+combination is future work, tracked separately, same as `_ketone.py`'s
+own note about it): one or more C=S groups on an acyclic chain or a
+single saturated monocyclic ring, with no other heteroatom (in
+particular no ketone C=O, hydroxyl -OH, or any other chalcogen) anywhere
+in the molecule. Explicitly out of scope (raise `UnsupportedStructure`):
+any oxygen at all, a thione carbon with fewer than two carbon neighbors
+(a thial/thioaldehyde, a different suffix), an aromatic thione carbon,
+polycyclic/spiro/unsaturated rings, and a thione on a substituent branch
+off an otherwise-unsubstituted ring.
+"""
+
+from rdkit import Chem
+
+from ._common import (
+    ENE_BOND_ORDER,
+    HALOGEN_PREFIXES,
+    UnsupportedStructure,
+    YNE_BOND_ORDER,
+    adjacency,
+    bond_locants,
+    carbon_adjacency,
+    group_substituents,
+    halogen_substituents,
+    longest_chains,
+    lowest_locant_set,
+    multiplied_word,
+    non_single_bonds,
+    ring_cycle,
+)
+from ._numerals import alkane_name
+from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+
+_SULFUR = 16
+_ALLOWED_ATOMIC_NUMS = {6, _SULFUR, *HALOGEN_PREFIXES}
+
+
+def has_thione_shape(mol) -> bool:
+    """True iff `mol` has at least one sulfur double-bonded to a carbon
+    (a thione, C=S) -- unlike a plain -SH/-S- sulfur (`_thiol.py`'s/
+    `_sulfide.py`'s own loose "any sulfur atom" checks), this is precise
+    enough to route correctly regardless of check order."""
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != _SULFUR:
+            continue
+        if atom.GetDegree() == 1:
+            (bond,) = atom.GetBonds()
+            if bond.GetBondTypeAsDouble() == 2.0:
+                return True
+    return False
+
+
+def _validate_and_collect_thiones(mol):
+    thiones = set()
+    has_carbon = False
+    for atom in mol.GetAtoms():
+        atomic_num = atom.GetAtomicNum()
+        if atomic_num not in _ALLOWED_ATOMIC_NUMS:
+            raise UnsupportedStructure(
+                "heteroatoms other than a thione sulfur (P-64.6.1) and "
+                "halogen substituents (P-35.2.1) are not supported yet -- "
+                "in particular, a coexisting ketone C=O or hydroxyl -OH "
+                "needs Table 3.3 seniority-coexistence handling not yet "
+                "implemented for thiones"
+            )
+        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+        if atomic_num == 6:
+            has_carbon = True
+            if atom.GetIsAromatic():
+                raise UnsupportedStructure(
+                    "aromatic rings are out of scope for this module (see "
+                    "the separate aromatic-ring module)"
+                )
+        elif atomic_num == _SULFUR:
+            if atom.GetDegree() != 1:
+                raise UnsupportedStructure(
+                    "a sulfur bonded to more than one heavy atom (e.g. a "
+                    "thioether/sulfide) is out of scope; only an isolated "
+                    "thione is supported (P-64.6.1)"
+                )
+            (bond,) = atom.GetBonds()
+            (carbon,) = atom.GetNeighbors()
+            if carbon.GetAtomicNum() != 6:
+                raise UnsupportedStructure("a thione sulfur must be attached to a carbon atom")
+            if bond.GetBondTypeAsDouble() != 2.0:
+                raise UnsupportedStructure(
+                    "a sulfur that isn't a thione (C=S) is out of scope for "
+                    "this module (e.g. a thiol, -SH)"
+                )
+            if carbon.GetIsAromatic():
+                raise UnsupportedStructure(
+                    "a thione on an aromatic ring is out of scope for this module"
+                )
+            carbon_neighbors = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6]
+            if len(carbon_neighbors) != 2:
+                raise UnsupportedStructure(
+                    "a thione carbon with fewer than two carbon neighbors "
+                    "(a thial/thioaldehyde) is a different suffix, which "
+                    "this module does not attempt to disambiguate"
+                )
+            thiones.add(atom.GetIdx())
+        else:
+            if atom.GetDegree() != 1:
+                raise UnsupportedStructure(
+                    "a halogen atom must be a monovalent substituent (P-35.2.1)"
+                )
+    if not has_carbon:
+        raise UnsupportedStructure(
+            "a structure with no carbon atom has no hydrocarbon parent "
+            "hydride to substitute"
+        )
+    if not thiones:
+        raise UnsupportedStructure("no thione (C=S) group found; this module only handles thiones")
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+    return thiones
+
+
+def _suffix_body(ene_locants, yne_locants, thione_locants):
+    segments = []
+    if ene_locants:
+        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
+    if yne_locants:
+        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
+    segments.append((sorted(thione_locants), multiplied_word(len(thione_locants), "thione")))
+
+    words = [word for _, word in segments]
+    for i in range(len(words) - 1):
+        if words[i].endswith("e") and words[i + 1][0] in "aeiouy":
+            words[i] = words[i][:-1]
+
+    parts = [
+        f"{','.join(str(loc) for loc in locants)}-{word}"
+        for (locants, _), word in zip(segments, words)
+    ]
+    elide_stem = words[0][0] in "aeiouy"
+    return "-".join(parts), elide_stem
+
+
+def _name_from_substituents(chain_length, thione_locants, ene_locants, yne_locants, grouped):
+    has_unsaturation = bool(ene_locants or yne_locants)
+    prefix = format_substituent_prefixes(grouped)
+    if has_unsaturation:
+        stem = alkane_name(chain_length)[:-3]
+        needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
+    else:
+        stem = alkane_name(chain_length)
+        needs_stem_a = False
+
+    body, elide_stem = _suffix_body(ene_locants, yne_locants, thione_locants)
+    if not has_unsaturation and elide_stem:
+        stem = stem[:-1]
+    return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
+
+
+def _candidate_key(chain_length, thione_locants, ene_locants, yne_locants, substituents):
+    grouped = group_substituents(substituents)
+    total_count = sum(len(info["locants"]) for info in grouped.values())
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    thione_locant_set = lowest_locant_set(thione_locants)
+    combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
+    ene_locant_set = lowest_locant_set(ene_locants)
+    name = _name_from_substituents(chain_length, thione_locants, ene_locants, yne_locants, grouped)
+    return (
+        (
+            thione_locant_set,
+            combined_locant_set,
+            ene_locant_set,
+            -total_count,
+            locant_set,
+            citation_locants,
+            name,
+        ),
+        name,
+    )
+
+
+def _thione_locants(position_of, thiones, graph):
+    locants = []
+    for s in thiones:
+        (carbon,) = graph[s]
+        if carbon not in position_of:
+            return None
+        locants.append(position_of[carbon])
+    return locants
+
+
+def _substituents_for_chain(graph, chain, halogens, thiones):
+    chain_set = set(chain)
+    substituents = {}
+    for position, atom in enumerate(chain, start=1):
+        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in thiones]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+    return substituents
+
+
+def _name_acyclic_thione(mol, thiones, bonds):
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    chains = longest_chains(carbon_adjacency(mol))
+    chain_length = len(chains[0])
+
+    eligible = []
+    for chain in chains:
+        position_of = {atom: i + 1 for i, atom in enumerate(chain)}
+        if _thione_locants(position_of, thiones, graph) is None:
+            continue
+        if bonds and bond_locants(chain, bonds) is None:
+            continue
+        eligible.append(chain)
+    if not eligible:
+        raise UnsupportedStructure(
+            "not every thione-bearing carbon (and/or multiple bond) lies "
+            "on a single longest carbon chain; a shorter principal chain "
+            "capturing more C=S groups is not supported yet"
+        )
+
+    best_key = None
+    best_name = None
+    for chain in eligible:
+        for candidate in (chain, list(reversed(chain))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            thione_locants = _thione_locants(position_of, thiones, graph)
+            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            substituents = _substituents_for_chain(graph, candidate, halogens, thiones)
+            key, name = _candidate_key(chain_length, thione_locants, ene_locants, yne_locants, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, name
+    return best_name
+
+
+def _substituents_for_ring(graph, ring_order, halogens, thiones):
+    ring_set = set(ring_order)
+    substituents = {}
+    for position, atom in enumerate(ring_order, start=1):
+        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in thiones]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+    return substituents
+
+
+def _ring_name_from_substituents(ring_size, thione_locants, grouped):
+    parent = "cyclo" + alkane_name(ring_size)
+    total_subs = sum(len(info["locants"]) for info in grouped.values())
+    thione_word = multiplied_word(len(thione_locants), "thione")
+    elide = thione_word[0] in "aeiouy"
+    stem = parent[:-1] if elide else parent
+
+    if total_subs == 0 and len(thione_locants) == 1:
+        # P-14.3.3: the sole substituent on an otherwise unsubstituted ring
+        # has no locant to distinguish, e.g. 'cyclohexanethione'.
+        return stem + thione_word
+
+    prefix = format_substituent_prefixes(grouped)
+    loc_str = ",".join(str(loc) for loc in sorted(thione_locants))
+    return f"{prefix}{stem}-{loc_str}-{thione_word}"
+
+
+def _ring_candidate_key(ring_size, thione_locants, substituents):
+    grouped = group_substituents(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    thione_locant_set = lowest_locant_set(thione_locants)
+    name = _ring_name_from_substituents(ring_size, thione_locants, grouped)
+    return thione_locant_set, locant_set, citation_locants, name
+
+
+def _name_cyclic_thione(mol, thiones):
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_info = mol.GetRingInfo()
+    ring_atoms = list(ring_info.AtomRings()[0])
+    ring_order = ring_cycle(graph, ring_atoms)
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            thione_locants = _thione_locants(position_of, thiones, graph)
+            if thione_locants is None:
+                raise UnsupportedStructure(
+                    "a thione not on the ring itself (e.g. on a "
+                    "substituent branch) is not supported yet"
+                )
+            substituents = _substituents_for_ring(graph, candidate, halogens, thiones)
+            key = _ring_candidate_key(ring_size, thione_locants, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
+def name_thione(mol) -> str:
+    thiones = _validate_and_collect_thiones(mol)
+    graph = adjacency(mol)
+    all_non_single = [b for b in non_single_bonds(mol) if b[0] not in thiones and b[1] not in thiones]
+    bonds = [b for b in all_non_single if b[2] in (ENE_BOND_ORDER, YNE_BOND_ORDER)]
+    if len(bonds) != len(all_non_single):
+        raise UnsupportedStructure(
+            "a bond order other than single, double, or triple is not "
+            "supported (see P-31.1.1.1)"
+        )
+
+    ring_info = mol.GetRingInfo()
+    num_rings = ring_info.NumRings()
+    if num_rings == 0:
+        return _name_acyclic_thione(mol, thiones, bonds)
+    if num_rings == 1:
+        if bonds:
+            raise UnsupportedStructure(
+                "unsaturated rings are not supported yet (see P-31.1.3, "
+                "cycloalkenes and cycloalkynes)"
+            )
+        return _name_cyclic_thione(mol, thiones)
+    raise UnsupportedStructure(
+        "polycyclic and spiro thiones are not supported yet"
+    )
