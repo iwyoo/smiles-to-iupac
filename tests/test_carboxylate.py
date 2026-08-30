@@ -51,3 +51,21 @@ def test_extra_charged_atom_raises():
 def test_amine_coexisting_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("NCC(=O)[O-]")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter (P-92): the
+        # carboxylate carbon is always chain-terminal (fixed C1), same
+        # pattern as `_carboxylic_acid.py`. PubChem CID 6950478.
+        ("CC[C@@H](C)C(=O)[O-]", "(2R)-2-methylbutanoate"),
+        ("CC[C@H](C)C(=O)[O-]", "(2S)-2-methylbutanoate"),
+    ],
+)
+def test_carboxylate_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_carboxylate_unspecified_stereocenter_unaffected():
+    assert smiles_to_iupac("CCC(C)C(=O)[O-]") == "2-methylbutanoate"
