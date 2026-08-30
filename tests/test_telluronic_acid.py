@@ -51,3 +51,29 @@ def test_ring_telluronic_acid_not_supported():
 def test_telluronic_acid_with_alcohol_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O[Te](=O)(=O)CCO")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter (P-92), same pattern
+        # as `_sulfonic_acid.py`/`_selenonic_acid.py` -- tellurium itself
+        # is not a potential stereocenter (its two double-bonded oxygens
+        # are identical), confirmed via RDKit `FindPotentialStereo`.
+        # PubChem has no registered telluronic acid with a branch (even
+        # unspecified), so only structure/CIP-label consistency with the
+        # sulfur/selenium analogues is checked here.
+        ("CC[C@@H](C)[Te](=O)(=O)O", "(2R)-butane-2-telluronic acid"),
+        ("CC[C@H](C)[Te](=O)(=O)O", "(2S)-butane-2-telluronic acid"),
+    ],
+)
+def test_acyclic_telluronic_acid_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_acyclic_telluronic_acid_stereocenter_with_coexisting_substituent():
+    assert smiles_to_iupac("C[C@@H](Cl)[Te](=O)(=O)O") == "(1S)-1-chloroethane-1-telluronic acid"
+
+
+def test_telluronic_acid_unspecified_stereocenter_unaffected():
+    assert smiles_to_iupac("CCC(Cl)[Te](=O)(=O)O") == "1-chloropropane-1-telluronic acid"
