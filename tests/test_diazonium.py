@@ -40,9 +40,38 @@ def test_two_diazonium_groups_not_supported():
         smiles_to_iupac("N#[N+]CC[N+]#N")
 
 
-def test_ring_diazonium_not_supported():
+def test_cyclohexanediazonium():
+    # PubChem structure match: "cyclohexanediazonium".
+    assert smiles_to_iupac("C1CCCCC1[N+]#N") == "cyclohexanediazonium"
+
+
+def test_cyclopentanediazonium():
+    # PubChem structure match: "cyclopentanediazonium".
+    assert smiles_to_iupac("C1CCCC1[N+]#N") == "cyclopentanediazonium"
+
+
+def test_cyclopropanediazonium():
+    assert smiles_to_iupac("C1CC1[N+]#N") == "cyclopropanediazonium"
+
+
+def test_substituted_ring_diazonium_not_supported():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCC1[N+]#N")
+        smiles_to_iupac("CC1CCCCC1[N+]#N")
+
+
+def test_halogen_substituted_ring_diazonium_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("ClC1CCCCC1[N+]#N")
+
+
+def test_aromatic_ring_diazonium_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1[N+]#N")
+
+
+def test_polycyclic_diazonium_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C12(CCC(CC1)CC2)[N+]#N")
 
 
 def test_diazonium_with_alcohol_not_supported():

@@ -18,15 +18,26 @@ Recommendations ("the Blue Book"):
   `CC(C)[N+]#N` -> "propane-2-diazonium" (a branched chain, supported the
   same way `_sulfonic_acid.py` supports one), `ClCC[N+]#N` ->
   "2-chloroethanediazonium" (halogen coexistence).
+- A single, otherwise-unsubstituted saturated monocyclic ring also works,
+  mirroring `_sulfonic_acid.py`'s own monocyclic support (and
+  `_radical.py`'s/`_carbenium.py`'s "cyclo" + parent name pattern):
+  confirmed via PubChem structure match, `C1CCCCC1[N+]#N` ->
+  "cyclohexanediazonium", `C1CCCC1[N+]#N` -> "cyclopentanediazonium". A
+  ring-substituent case (a halogen or alkyl group elsewhere on the ring,
+  e.g. `ClC1CCCCC1[N+]#N`) is NOT reachable here -- PubChem itself can't
+  compute an IUPACName for that shape (an engine limitation, not a
+  disproof), so it stays unverified and out of scope, unlike
+  `_sulfonic_acid.py`'s own broader ring-substituent support.
 
 Scope, deliberately narrow, mirroring `_sulfonic_acid.py`'s own chain
-scope (acyclic only for this first pass -- no monocyclic diazonium shape
-has been verified here): a single -N#N+ on an acyclic chain (branched,
-unbranched, or unsaturated), with no other heteroatom anywhere in the
-molecule except the diazonium group's own two nitrogens. Explicitly out
-of scope (raise `UnsupportedStructure`): any ring, two or more diazonium
-groups, and a diazonium group on a carbon that is also part of a C=C/C#C
-bond.
+scope: a single -N#N+ on an acyclic chain (branched, unbranched, or
+unsaturated) with no other heteroatom anywhere in the molecule except the
+diazonium group's own two nitrogens, OR a single, otherwise-unsubstituted
+saturated monocyclic carbon ring. Explicitly out of scope (raise
+`UnsupportedStructure`): a polycyclic/spiro/aromatic/unsaturated ring, a
+substituent anywhere on an otherwise-unsubstituted ring, two or more
+diazonium groups, and a diazonium group on a carbon that is also part of
+a C=C/C#C bond.
 """
 
 from rdkit import Chem
@@ -41,6 +52,7 @@ from ._common import (
     lowest_locant_set,
     non_single_bonds,
     path_between,
+    ring_cycle,
 )
 from ._numerals import alkane_name, numerical_term
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -124,14 +136,53 @@ def _validate_and_collect_diazonium(mol):
         )
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(
-            "rings are not supported yet (this module only handles "
-            "acyclic chains)"
+            "a ring other than a single, otherwise-unsubstituted saturated "
+            "monocyclic carbon ring is not supported yet"
         )
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
     (carbon,) = (n for n in nitrogen.GetNeighbors() if n.GetAtomicNum() == 6)
     return carbon.GetIdx(), diazonium_atom_idxs
+
+
+def _unsubstituted_monocyclic_ring_diazonium_name(mol):
+    """The name for a single -N#N+ on a single, otherwise-unsubstituted
+    saturated monocyclic carbon ring (e.g. 'cyclohexanediazonium'), or
+    None if the molecule isn't shaped like that at all."""
+    nitrogens = _diazonium_nitrogens(mol)
+    if len(nitrogens) != 1:
+        return None
+    (nitrogen,) = nitrogens
+    (carbon,) = (n for n in nitrogen.GetNeighbors() if n.GetAtomicNum() == 6)
+
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() != 1:
+        return None
+    (ring_atoms,) = ring_info.AtomRings()
+    if carbon.GetIdx() not in ring_atoms:
+        return None
+    if len(ring_atoms) != mol.GetNumAtoms() - 2:
+        # every non-ring atom must be one of the diazonium group's own two
+        # nitrogens -- no halogen or other substituent anywhere.
+        return None
+
+    for atom in mol.GetAtoms():
+        if atom.GetIdx() in ring_atoms:
+            if atom.GetAtomicNum() != 6 or atom.GetIsAromatic() or atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+                return None
+            expected_degree = 3 if atom.GetIdx() == carbon.GetIdx() else 2
+            if atom.GetDegree() != expected_degree:
+                return None
+        elif atom.GetIdx() not in (nitrogen.GetIdx(), next(n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetAtomicNum() == 7)):
+            return None
+    diazonium_idxs = {nitrogen.GetIdx(), next(n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetAtomicNum() == 7)}
+    if any(b[0] not in diazonium_idxs or b[1] not in diazonium_idxs for b in non_single_bonds(mol)):
+        return None
+    if len(Chem.GetMolFrags(mol)) > 1:
+        return None
+
+    return "cyclo" + alkane_name(len(ring_atoms)) + "diazonium"
 
 
 def _reject_enediazonium_carbon(graph, diazonium_carbon, bonds):
@@ -288,6 +339,10 @@ def _substituents_for_chain(graph, chain, halogens, excluded):
 
 
 def name_diazonium(mol) -> str:
+    ring_name = _unsubstituted_monocyclic_ring_diazonium_name(mol)
+    if ring_name is not None:
+        return ring_name
+
     diazonium_carbon, excluded = _validate_and_collect_diazonium(mol)
     graph = adjacency(mol)
     all_non_single = non_single_bonds(mol)
