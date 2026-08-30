@@ -73,9 +73,15 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 """
 
 from ._bicyclic import _candidate_key, bicyclic_parent_name, iter_bicyclic_numberings
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents, non_single_bonds
+from ._common import (
+    HALOGEN_PREFIXES,
+    UnsupportedStructure,
+    adjacency,
+    halogen_substituents,
+    multiplied_word,
+    non_single_bonds,
+)
 from ._cyclic import _substituents_for_ring
-from ._numerals import numerical_term
 from ._polycyclic import _candidate_key as _polycyclic_candidate_key, iter_polycyclic_candidates
 
 _HETEROATOM_PREFIXES = {8: "oxa", 7: "aza", 16: "thia"}
@@ -187,7 +193,7 @@ def name_von_baeyer_heteroatom_multi(mol, core) -> str:
         )
     (element,) = elements
     a_prefix = _HETEROATOM_PREFIXES[element]
-    multiplying_term = numerical_term(len(ring_heteroatoms))
+    multiplied_a_prefix = multiplied_word(len(ring_heteroatoms), a_prefix)
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -202,7 +208,7 @@ def name_von_baeyer_heteroatom_multi(mol, core) -> str:
             parent,
             substituents,
             heteroatom_locant=heteroatom_locants,
-            nondetachable_prefix=f"{locant_citation}-{multiplying_term}{a_prefix}",
+            nondetachable_prefix=f"{locant_citation}-{multiplied_a_prefix}",
         )
         if best_key is None or key < best_key:
             best_key = key
