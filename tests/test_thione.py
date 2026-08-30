@@ -69,3 +69,27 @@ def test_disulfide_not_confused_with_thione():
 
 def test_ketone_not_confused_with_thione():
     assert smiles_to_iupac("CC(=O)C") == "propan-2-one"
+
+
+def test_acyclic_thione_stereocenter():
+    # A single specified tetrahedral stereocenter (P-92): a thione's C=S
+    # carbon is double-bonded to sulfur exactly like a ketone's C=O
+    # carbon, so this mirrors `_ketone.py` cleanly (CIP computed entirely
+    # by RDKit's `rdCIPLabeler`). PubChem has no registered stereoisomer
+    # for this molecule (thiones are sparsely covered there), so this is
+    # a structural/regression check on the already-proven mechanism, not
+    # an independent PubChem cross-check.
+    assert smiles_to_iupac("CC[C@@H](C)C(C)=S") == "(3R)-3-methylpentane-2-thione"
+
+
+def test_cyclic_thione_stereocenter():
+    # A stereocenter on the ring itself (P-92), same pattern as
+    # `_ketone.py`'s `_name_cyclic_ketone`. Same PubChem-sparsity caveat.
+    assert smiles_to_iupac("S=C1CCCC[C@H]1C") == "(2R)-2-methylcyclohexane-1-thione"
+
+
+def test_thione_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention.
+    assert smiles_to_iupac("CCC(C)C(C)=S") == "3-methylpentane-2-thione"
