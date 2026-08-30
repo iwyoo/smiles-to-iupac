@@ -132,3 +132,49 @@ def test_enamine_raises():
     # narrowed out of scope (see module docstring).
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("NC=CC")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter (P-92) on a primary
+        # amine chain -- the amine nitrogen itself is never a potential
+        # stereocenter (pyramidal inversion), confirmed via RDKit
+        # `FindPotentialStereo`. PubChem CID 2724537.
+        ("CC[C@@H](C)N", "(2R)-butan-2-amine"),
+        ("CC[C@H](C)N", "(2S)-butan-2-amine"),
+    ],
+)
+def test_primary_amine_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_secondary_tertiary_amine_stereocenter():
+    # The stereodescriptor sits outermost, ahead of both the N,N- and N-
+    # prefixes (P-91.3: always at the very front of the complete name),
+    # same pattern as `_amide.py`.
+    assert smiles_to_iupac("CC[C@@H](C)N(C)C") == "(2R)-N,N-dimethylbutan-2-amine"
+    assert smiles_to_iupac("CC[C@@H](C)NCC") == "(2R)-N-ethylbutan-2-amine"
+
+
+def test_cyclic_amine_stereocenter():
+    # Two stereocenters on the ring itself (P-92), same pattern as
+    # `_sulfonic_acid.py`'s `_name_cyclic_sulfonic_acid`. PubChem CID
+    # 92244014 (name carries a redundant 'trans-' relative descriptor this
+    # project drops once full R/S is given, same policy as the existing
+    # ring-alcohol stereocenter task).
+    assert smiles_to_iupac("N[C@H]1CCCC[C@@H]1Cl") == "(1S,2S)-2-chlorocyclohexan-1-amine"
+
+
+def test_amine_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention.
+    assert smiles_to_iupac("CCC(Cl)N") == "1-chloropropan-1-amine"
+
+
+def test_amine_partially_specified_stereocenters_raises():
+    # Only one of the ring's two genuine stereocenters is marked -- must
+    # raise rather than silently dropping the marker.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("N[C@H]1CCCCC1Cl")
