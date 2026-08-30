@@ -70,6 +70,7 @@ from ._two_component_heterocycle_fusion import (
     name_two_component_heterocycle_fusion,
 )
 from ._ketone import name_ketone
+from ._thione import has_thione_shape, name_thione
 from ._ketone_amide import has_ketone_amide_shape, name_ketone_amide
 from ._ketone_ester import has_ketone_ester_shape, name_ketone_ester
 from ._nitrile import has_nitrile_shape, name_nitrile
@@ -814,6 +815,13 @@ def smiles_to_iupac(smiles: str) -> str:
         if has_simple_imine_shape(mol):
             return name_imine(mol)
         return name_amine(mol)
+    if has_thione_shape(mol):
+        # A thione (C=S, P-64.6.1) has no oxygen or nitrogen, so it only
+        # reaches this branch once both are ruled out above. Its own shape
+        # check is precise (a real C=S double bond), unlike thiol's/
+        # sulfide's own loose "any sulfur atom" checks, so it's safe to
+        # check here regardless of order relative to them.
+        return name_thione(mol)
     if has_disulfide_shape(mol):
         # A disulfide (R-S-S-R') has two sulfurs -- it would otherwise
         # look thiol-shaped to the check below (that check just looks for
