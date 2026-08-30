@@ -45,3 +45,8 @@ def test_ring_not_supported():
 def test_hydroxyl_coexistence_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OCC(=O)CC(=O)OC")
+
+
+def test_acyl_carbon_off_longest_chain_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CCCCC(=O)C(CC(C)C)C(CC(C)C)C(=O)OC")

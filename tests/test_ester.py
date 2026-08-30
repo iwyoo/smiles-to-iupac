@@ -54,3 +54,8 @@ def test_amine_coexisting_raises():
 def test_aryl_ester_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("c1ccccc1C(=O)OC")
+
+
+def test_acyl_carbon_off_longest_chain_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("COC(=O)C(CCC)CCCC")

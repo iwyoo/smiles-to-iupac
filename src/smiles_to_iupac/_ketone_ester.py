@@ -290,6 +290,11 @@ def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, ket
             key, name = _candidate_key(chain_length, grouped)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
+    if best_name is None:
+        raise UnsupportedStructure(
+            "the ester's acyl carbon does not lie on a single longest "
+            "carbon chain; a shorter principal chain is not supported yet"
+        )
     return best_name
 
 
