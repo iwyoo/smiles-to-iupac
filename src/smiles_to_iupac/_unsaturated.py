@@ -233,16 +233,24 @@ def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped):
         if chain_length == 2 and yne_locants:
             return "acetylene"
         return stem + ("ene" if ene_locants else "yne")
-    if single_bond and chain_length == 2 and len(grouped) == 1:
-        name = next(iter(grouped))
-        info = grouped[name]
-        if len(info["locants"]) == 1 and not info["compound"]:
-            # P-14.3.4.2(b): a homogeneous two-carbon chain bearing exactly
-            # one substituent has only one possible structure regardless of
-            # numbering direction, so both the multiple bond's and the
-            # substituent's locants are omittable, e.g. 'fluoroethyne (PIN)'
-            # for fluoroacetylene (P-31.1.2.1).
-            return name + stem + ("ene" if ene_locants else "yne")
+    if single_bond and chain_length == 2:
+        suffix = "ene" if ene_locants else "yne"
+        if len(grouped) == 1:
+            name = next(iter(grouped))
+            info = grouped[name]
+            if len(info["locants"]) == 1 and not info["compound"]:
+                # P-14.3.4.2(b): a homogeneous two-carbon chain bearing
+                # exactly one substituent has only one possible structure
+                # regardless of numbering direction, so both the multiple
+                # bond's and the substituent's locants are omittable, e.g.
+                # 'fluoroethyne (PIN)' for fluoroacetylene (P-31.1.2.1).
+                return name + stem + suffix
+        # A two-carbon chain has only one possible bond position (the
+        # C1=C2/C1#C2 pair), so the bond's own locant is always omittable
+        # here -- even with 2+ substituents, whose own locants (already
+        # baked into `prefix`) are still needed to distinguish isomers
+        # like "1,2-" from "1,1-".
+        return prefix + stem + suffix
     body, needs_stem_a = _unsaturation_suffix(ene_locants, yne_locants)
     return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
 
