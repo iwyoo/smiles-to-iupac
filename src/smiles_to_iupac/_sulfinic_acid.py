@@ -21,6 +21,26 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   ordering as every other suffix module here.
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with
   the -SO2H suffix.
+- P-92 stereocenters (`tasks/sulfinic-acid-stereocenter-naming.md`): unlike
+  `_sulfonic_acid.py`'s sulfur (two identical =O, never stereogenic), this
+  module's sulfinic sulfur (-R, =O, -OH, a lone pair) is *itself* a
+  potential stereocenter in essentially every real -SO2H molecule --
+  confirmed via RDKit's `Chem.FindPotentialStereo` on e.g. plain
+  `CC(C)S(=O)O` (no chain stereocenter at all), which still flags the
+  sulfur atom. That means any input with a specified *chain* stereocenter
+  almost always has this second, unspecified sulfur stereocenter riding
+  along, and `_common.specified_stereocenters` correctly rejects that
+  combination as partially specified (P-92) rather than silently ignoring
+  either one. A specified sulfur configuration is out of scope too, since
+  this project has no established locant/prefix convention for a
+  heteroatom-centered (rather than carbon-centered) stereodescriptor, and
+  PubChem itself doesn't distinguish the two sulfur configurations of a
+  test case (`CCC[S@](=O)O`/`CCC[S@@](=O)O`, both CID 643586, same
+  unstereo name) -- so this module only ever explicitly rejects a
+  specified stereocenter (chain carbon or sulfur alike) rather than
+  attempting to cite one; see the module below for the R/S support this
+  project *does* provide (`_carboxylic_acid.py`/`_aldehyde.py`/
+  `_ketone.py`/`_sulfonic_acid.py`, none of which have this complication).
 
 Scope, deliberately narrow (mirrors `_sulfonic_acid.py`'s own first pass):
 a single -SO2H on an acyclic chain or on a single saturated carbon ring
@@ -48,6 +68,7 @@ from ._common import (
     non_single_bonds,
     path_between,
     ring_cycle,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name, numerical_term
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -353,6 +374,17 @@ def _name_cyclic_sulfinic_acid(mol, sulfur_idx, so2h_carbon):
 
 def name_sulfinic_acid(mol) -> str:
     sulfur_idx, so2h_carbon = _validate_and_collect_sulfinic_acids(mol)
+    if specified_stereocenters(mol) is not None:
+        # Unlike `_sulfonic_acid.py`'s sulfur, this module's sulfinic
+        # sulfur is itself a potential stereocenter in virtually every real
+        # -SO2H molecule (module docstring), and this project has no
+        # established way to cite a heteroatom-centered stereodescriptor --
+        # explicitly reject rather than silently drop the marker (P-92).
+        raise UnsupportedStructure(
+            "a specified stereocenter (chain carbon or the sulfinic sulfur "
+            "itself) is not supported yet for sulfinic acids (see P-92, "
+            "module docstring)"
+        )
     graph = adjacency(mol)
     all_non_single = non_single_bonds(mol)
     bonds = [b for b in all_non_single if b[2] in (_ENE_ORDER, _YNE_ORDER) and sulfur_idx not in (b[0], b[1])]
