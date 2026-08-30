@@ -123,3 +123,46 @@ def test_saturated_rings_still_resolve_unaffected():
     assert smiles_to_iupac("C1CC2CCC1C2") == "bicyclo[2.2.1]heptane"
     assert smiles_to_iupac("C1C2CC3CC1CC(C2)C3") == "tricyclo[3.3.1.1^3,7]decane"
     assert smiles_to_iupac("C1C2C3C2C4C1C34") == "tetracyclo[3.2.0.0^2,7.0^4,6]heptane"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Blue Book P-91.3's own worked example: benzene can't itself be a
+        # stereocenter (aromatic ring symmetry), so a specified
+        # stereocenter on its one substituent is cited at the front of the
+        # bracketed substituent prefix. Structure verified against
+        # PubChem: CID 86325534 ("[(1S)-1-chloropropyl]benzene").
+        ("c1ccccc1[C@@H](Cl)CC", "[(1S)-1-chloropropyl]benzene"),
+        # The stereocenter need not be the attachment carbon itself --
+        # `branch_atom_locant` reuses the substituent's own principal-chain
+        # numbering. PubChem CID 12423104
+        # ("[(2S)-2-chloropropyl]benzene").
+        ("c1ccccc1C[C@@H](Cl)C", "[(2S)-2-chloropropyl]benzene"),
+    ],
+)
+def test_substituent_branch_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_stereo_marker_no_longer_silently_dropped_without_scope():
+    # Regression guard for the bug this feature fixes: before, an
+    # unsupported stereocenter shape was silently ignored rather than
+    # rejected (`c1ccccc1[C@@H](Cl)CC` used to return the exact same
+    # string as the non-stereo `c1ccccc1C(Cl)CC`). Two substituents (one
+    # of them stereo) is still out of this module's narrow scope, but it
+    # must now raise instead of quietly losing the stereo marker.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Clc1ccccc1[C@@H](Cl)CC")
+
+
+def test_two_stereocenters_on_one_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1[C@@H](Cl)[C@@H](Cl)C")
+
+
+def test_stereocenter_on_fused_ring_substituent_raises():
+    # Only a plain benzene ring parent is in scope; a fused ring system
+    # (here naphthalene) with a stereo substituent is not yet supported.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccc2ccccc2c1[C@@H](Cl)CC")
