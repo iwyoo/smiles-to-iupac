@@ -24,15 +24,26 @@ Book"):
   came back as CID 0, same as `_selenol.py`'s equivalent case), so this
   is a reviewed (eyeballed), not independently verified, extension along
   an otherwise already-confirmed single axis.
+- Two or more -TeH groups (ditellurol, tritellurol, ...) lifts the
+  group-count cap entirely, the same way `_selenol.py`'s own triselenol+
+  generalization did, and for the identical reason: `_suffix_body`/
+  `_name_from_substituents` below are already fully generalized over an
+  arbitrary-length `te_locants` list, so lifting the cap adds no new code
+  path to verify. No ditellurol compound was found registered in PubChem
+  at all (`[TeH]CC[TeH]`/`[TeH]CCC[TeH]` both came back as CID 0, an even
+  weaker evidence bar than `_selenol.py`'s triselenol case, which at
+  least found a registered but IUPACName-less structure) -- this is a
+  reviewed, not independently structure-verified, generalization along an
+  already-confirmed axis, matching `_thiol.py`'s and `_selenol.py`'s own
+  precedent.
 
-Scope, deliberately narrow (mirrors `_selenol.py`'s own scope,
-tasks/tellurol-naming.md): only a single -TeH on an acyclic chain, with no
+Scope, deliberately narrow (mirrors `_selenol.py`'s own group-count-
+generalized scope): one or more -TeH groups on an acyclic chain, with no
 other heteroatom (in particular no -OH, -SH, -SeH, or amine nitrogen)
 anywhere in the molecule. Explicitly out of scope (raise
-`UnsupportedStructure`): any ring, two or more -TeH groups (a ditellurol),
-a telluride (-Te- ether-analogue) or any other tellurium-oxidation-state
-group, a thiol/selenol or other chalcogen atom, and any oxygen or nitrogen
-atom at all.
+`UnsupportedStructure`): any ring, a telluride (-Te- ether-analogue) or
+any other tellurium-oxidation-state group, a thiol/selenol or other
+chalcogen atom, and any oxygen or nitrogen atom at all.
 """
 
 from rdkit import Chem
@@ -113,10 +124,6 @@ def _validate_and_collect_tellurols(mol):
     if not tellurols:
         raise UnsupportedStructure(
             "no tellurol (-TeH) group found; this module only handles tellurols"
-        )
-    if len(tellurols) > 1:
-        raise UnsupportedStructure(
-            "more than one tellurol group (a ditellurol) is out of scope for this module"
         )
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
