@@ -37,6 +37,16 @@ def test_formaldehyde_raises():
         smiles_to_iupac("C=O")
 
 
+def test_ketene_raises():
+    # A ketene's carbonyl carbon (C=C=O) is itself doubly bonded to its
+    # carbon neighbor (a cumulated double bond, sp-hybridized) -- it is not
+    # an aldehyde's -CHO and must not be silently misnamed as one.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CCCCCCCCCCCCCCC=C=O")
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC=C=O")
+
+
 def test_carboxylic_acid_not_misread_as_aldehyde():
     # A carboxylic acid is routed to the dedicated carboxylic-acid module
     # (see test_carboxylic_acid.py) instead of falling through here.
