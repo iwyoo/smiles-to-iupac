@@ -38,6 +38,16 @@ on acyclic saturated carbon chains, per the IUPAC 2013 Recommendations
   PubChem PUG REST: CID 163551743 (`ClCC=NN`) ->
   "2-chloroethylidenehydrazine", CID 174934626 (`ClCCC=NN`) ->
   "3-chloropropylidenehydrazine".
+- P-92 stereocenters (`tasks/hydrazone-stereocenter-naming.md`): this
+  module's own C=N bond is *always* flagged by RDKit's
+  `Chem.FindPotentialStereo` as an unspecified potential Bond_Double
+  stereo element, regardless of substituents -- same conclusion as
+  `_amidine.py`'s C=NH (PR #209). Any specified tetrahedral stereocenter
+  on the R2C side therefore always coexists with this unspecified C=N
+  bond, and `_common.specified_stereocenters` correctly rejects the
+  combination as partially specified (P-92/P-93) rather than silently
+  dropping either one. This module only ever explicitly rejects a
+  specified stereocenter rather than attempting to cite one.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - An N-substituted hydrazone (=N-NH-R, the terminal nitrogen bearing an
@@ -73,6 +83,7 @@ from ._common import (
     halogen_substituents,
     longest_chains,
     lowest_locant_set,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -244,4 +255,18 @@ def _name_hydrazone_carbon(mol, carbon_idx, imine_n_idx):
 
 def name_hydrazone(mol) -> str:
     carbon_idx, imine_n_idx = _validate_and_find_hydrazone(mol)
+    if specified_stereocenters(mol) is not None:
+        # This hydrazone's own C=N bond is always flagged by RDKit's
+        # `Chem.FindPotentialStereo` as an unspecified potential
+        # Bond_Double stereo element, regardless of substituents (module
+        # docstring) -- so any specified stereocenter on the R2C side
+        # always coexists with it, and `specified_stereocenters`
+        # correctly rejects the combination (P-92/P-93) instead of the
+        # silent drop this project's stereodescriptor safety net exists
+        # to fix, same conclusion as `_amidine.py` (PR #209).
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside this hydrazone's own "
+            "always-unspecified C=N bond is not supported yet (see "
+            "P-92/P-93, module docstring)"
+        )
     return _name_hydrazone_carbon(mol, carbon_idx, imine_n_idx) + "hydrazine"
