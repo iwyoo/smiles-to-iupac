@@ -53,3 +53,25 @@ def test_selenoate_branched_r_group():
     # ('CC(C)C(=O)[S-]' -> '2-methylpropanethioate'), reviewed but not
     # independently verified.
     assert smiles_to_iupac("CC(C)C(=O)[Se-]") == "2-methylpropaneselenoate"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter (P-92): the selenoate
+        # carbon is always chain-terminal (fixed C1), same pattern as
+        # `_thioate.py`/`_carboxylate.py`. Not registered in PubChem
+        # (queried, CID 0) -- mechanical extension of the PubChem-verified
+        # `_thioate.py` stereocenter case, reviewed but not independently
+        # verified.
+        ("CC[C@@H](C)C(=O)[Se-]", "(2R)-2-methylbutaneselenoate"),
+        ("CC[C@H](C)C(=O)[Se-]", "(2S)-2-methylbutaneselenoate"),
+        ("CC[C@@H](C)C(=[Se])[O-]", "(2R)-2-methylbutaneselenoate"),
+    ],
+)
+def test_selenoate_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_selenoate_unspecified_stereocenter_unaffected():
+    assert smiles_to_iupac("CCC(C)C(=O)[Se-]") == "2-methylbutaneselenoate"
