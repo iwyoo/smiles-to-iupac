@@ -22,6 +22,16 @@ Recommendations ("the Blue Book"):
   ordering as `_sulfinic_acid.py`.
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with
   the -Se(=O)OH suffix.
+- P-92 stereocenters (`tasks/seleninic-tellurinic-acid-stereocenter-naming.md`):
+  like `_sulfinic_acid.py`'s sulfur, this module's seleninic selenium
+  (-R, =O, -OH, a lone pair) is *itself* a potential stereocenter in
+  essentially every real -Se(=O)OH molecule -- confirmed via RDKit's
+  `Chem.FindPotentialStereo` on `CC(C)[Se](=O)O` (no chain stereocenter
+  at all), which still flags the selenium atom. Same conclusion as
+  sulfinic acid: this module only ever explicitly rejects a specified
+  stereocenter (chain carbon or selenium alike) rather than attempting to
+  cite one, for the same reasons documented in `_sulfinic_acid.py`'s
+  module docstring.
 
 Scope, deliberately narrow, mirroring `_selenonic_acid.py`'s own
 chain-only first pass (no monocyclic seleninic acid has been found
@@ -44,6 +54,7 @@ from ._common import (
     lowest_locant_set,
     non_single_bonds,
     path_between,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name, numerical_term
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -299,6 +310,18 @@ def _substituents_for_chain(graph, chain, halogens, excluded):
 
 def name_seleninic_acid(mol) -> str:
     selenium_idx, seoh_carbon = _validate_and_collect_seleninic_acids(mol)
+    if specified_stereocenters(mol) is not None:
+        # Unlike `_sulfonic_acid.py`'s sulfur, this module's seleninic
+        # selenium is itself a potential stereocenter in virtually every
+        # real -Se(=O)OH molecule (module docstring), and this project has
+        # no established way to cite a heteroatom-centered
+        # stereodescriptor -- explicitly reject rather than silently drop
+        # the marker (P-92), same as `_sulfinic_acid.py`.
+        raise UnsupportedStructure(
+            "a specified stereocenter (chain carbon or the seleninic "
+            "selenium itself) is not supported yet for seleninic acids "
+            "(see P-92, module docstring)"
+        )
     graph = adjacency(mol)
     all_non_single = non_single_bonds(mol)
     bonds = [b for b in all_non_single if b[2] in (_ENE_ORDER, _YNE_ORDER) and selenium_idx not in (b[0], b[1])]

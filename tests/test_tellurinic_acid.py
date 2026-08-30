@@ -54,3 +54,31 @@ def test_ring_tellurinic_acid_not_supported():
 def test_tellurinic_acid_with_alcohol_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O[Te](=O)CCO")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter (P-92): unlike
+        # `_seleninic_acid.py`'s selenium, RDKit's `Chem.FindPotentialStereo`
+        # never flags this module's tellurinic tellurium as a potential
+        # stereocenter (module docstring) -- so this mirrors
+        # `_sulfonic_acid.py`/`_carboxylic_acid.py` cleanly (CIP computed
+        # entirely by RDKit's `rdCIPLabeler`). PubChem has no registered
+        # tellurinic acid stereoisomer (or even most non-stereo ones --
+        # module docstring), so this is a structural/regression check on
+        # the already-proven mechanism, not an independent PubChem
+        # cross-check.
+        ("CC[C@@H](C)[Te](=O)O", "(2R)-butane-2-tellurinic acid"),
+        ("CC[C@H](C)[Te](=O)O", "(2S)-butane-2-tellurinic acid"),
+    ],
+)
+def test_tellurinic_acid_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_tellurinic_acid_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention.
+    assert smiles_to_iupac("CCC(C)[Te](=O)O") == "butane-2-tellurinic acid"
