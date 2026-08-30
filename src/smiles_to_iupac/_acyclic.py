@@ -15,6 +15,12 @@ Recommendations ("the Blue Book"):
   are never skeletal atoms (P-44.3), so the principal chain is found over
   carbon-carbon connectivity only (`carbon_adjacency`, see `_common.py`)
   while substituent detection still uses the full atom graph.
+
+`winning_chain_from_carbon_graph` additionally exposes the winning chain
+itself (not just its name) for `_acetal.py`'s stereodescriptor locant
+lookup (`tasks/acetal-stereocenter-naming.md`) -- `name_from_carbon_graph`
+delegates to it unchanged, so `_ether.py`/`_peroxide.py`/`_nitro.py`/
+`name_acyclic_alkane` (its other callers) see no behavior change.
 """
 
 from ._common import (
@@ -112,6 +118,30 @@ def _candidate_key(chain_length, substituents):
     return (-total_count, locant_set, citation_locants, name), name
 
 
+def winning_chain_from_carbon_graph(full_graph, carbon_graph, terminals):
+    """Same P-44.3/P-45.2 tie-break as `name_from_carbon_graph` below, but
+    also returns the winning candidate chain itself (root-to-tip, in the
+    direction that won), not just its name -- used by a caller (e.g.
+    `_acetal.py`) that additionally needs to locate a specific atom's
+    position on that chain, such as for a stereodescriptor's locant
+    (P-91.3). Kept as the single source of truth so `name_from_carbon_graph`
+    and any such caller can never disagree about which chain was chosen."""
+    chains = _longest_chains(carbon_graph)
+    chain_length = len(chains[0])
+
+    best_key = None
+    best_chain = None
+    best_name = None
+    for chain in chains:
+        for candidate in (chain, list(reversed(chain))):
+            substituents = _substituents_for_chain(full_graph, candidate, terminals)
+            key, name = _candidate_key(chain_length, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_chain, best_name = key, candidate, name
+
+    return best_chain, best_name
+
+
 def name_from_carbon_graph(full_graph, carbon_graph, terminals) -> str:
     """Name the acyclic saturated skeleton given by `carbon_graph` (P-44.3
     chain search), with `full_graph` used for substituent detection and
@@ -119,19 +149,8 @@ def name_from_carbon_graph(full_graph, carbon_graph, terminals) -> str:
     that's excluded from the chain search and never recursed into — the
     same role `halogen_substituents` plays for halogens (P-35.2.1), reused
     by `_ether.py` for an ether oxygen's precomputed 'alkoxy' prefix."""
-    chains = _longest_chains(carbon_graph)
-    chain_length = len(chains[0])
-
-    best_key = None
-    best_name = None
-    for chain in chains:
-        for candidate in (chain, list(reversed(chain))):
-            substituents = _substituents_for_chain(full_graph, candidate, terminals)
-            key, name = _candidate_key(chain_length, substituents)
-            if best_key is None or key < best_key:
-                best_key, best_name = key, name
-
-    return best_name
+    _, name = winning_chain_from_carbon_graph(full_graph, carbon_graph, terminals)
+    return name
 
 
 def name_acyclic_alkane(mol) -> str:

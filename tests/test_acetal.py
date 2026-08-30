@@ -58,3 +58,30 @@ def test_ether_not_misnamed_as_acetal():
 
 def test_ketone_not_misnamed_as_acetal():
     assert smiles_to_iupac("CC(=O)C") == "propan-2-one"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter on the chain, away
+        # from the acetal carbon (P-92) -- CIP computed entirely by
+        # RDKit's `rdCIPLabeler`, same pattern as `_carboxylic_acid.py`.
+        # PubChem CID 90324169.
+        ("CC[C@@H](C)C(OC)OC", "(2R)-1,1-dimethoxy-2-methylbutane"),
+        ("CC[C@H](C)C(OC)OC", "(2S)-1,1-dimethoxy-2-methylbutane"),
+        # The stereocenter can be the acetal carbon itself, when its two
+        # alkoxy groups differ (otherwise it's not a genuine stereocenter
+        # at all -- confirmed via RDKit's `Chem.FindPotentialStereo`).
+        # PubChem CID 97550416.
+        ("CC[C@H](OC)OCC", "(1R)-1-ethoxy-1-methoxypropane"),
+    ],
+)
+def test_acetal_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_acetal_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention.
+    assert smiles_to_iupac("CCC(C)C(OC)OC") == "1,1-dimethoxy-2-methylbutane"

@@ -25,6 +25,19 @@ per the IUPAC 2013 Recommendations ("the Blue Book"):
 - P-63.2.2.1.1: each alkoxy prefix reuses `_ether.py`'s own
   `_oxy_prefix`/contracted-name table ('methoxy', 'ethoxy', 'propoxy',
   'butoxy' for the four shortest unbranched chains).
+- P-91.3/P-92 (`tasks/acetal-stereocenter-naming.md`): a molecule with one
+  or more *specified* tetrahedral stereocenters -- every one on the
+  principal chain itself (the acetal carbon included, when its two
+  alkoxy groups differ enough to make it a genuine stereocenter -- when
+  they're identical it's symmetric and never flagged by RDKit's
+  `Chem.FindPotentialStereo`), no unspecified one alongside them, and no
+  C=C/C#N double-bond E/Z element -- gets a "(<locant><R/S>,...)-"
+  prefix, ascending locant order, e.g. '(2R)-1,1-dimethoxy-2-methylbutane'
+  (PubChem CID 90324169), '(1R)-1-ethoxy-1-methoxypropane' (PubChem CID
+  97550416). Uses `_acyclic.py`'s `winning_chain_from_carbon_graph`
+  (added alongside `name_from_carbon_graph`, which every other caller of
+  that module keeps using unchanged) to locate the winning chain's own
+  locant for each stereocenter.
 
 Explicitly out of scope (raise `UnsupportedStructure`), mirroring
 `_ether.py`'s own first-pass scope:
@@ -42,8 +55,8 @@ Explicitly out of scope (raise `UnsupportedStructure`), mirroring
 
 from rdkit import Chem
 
-from ._acyclic import name_from_carbon_graph
-from ._common import UnsupportedStructure, adjacency, carbon_adjacency, non_single_bonds
+from ._acyclic import winning_chain_from_carbon_graph
+from ._common import UnsupportedStructure, adjacency, carbon_adjacency, non_single_bonds, specified_stereocenters
 from ._ether import _oxy_prefix
 from ._substituents import name_branch
 
@@ -143,6 +156,7 @@ def _validate_and_collect_acetal(mol):
 
 def name_acetal(mol) -> str:
     acetal_carbon, oxygen_1, oxygen_2 = _validate_and_collect_acetal(mol)
+    stereo = specified_stereocenters(mol)
     full_graph = adjacency(mol)
     carbon_graph = carbon_adjacency(mol)
 
@@ -158,4 +172,21 @@ def name_acetal(mol) -> str:
             )
         terminals[oxygen_idx] = _oxy_prefix(sub_name)
 
-    return name_from_carbon_graph(full_graph, carbon_graph, terminals)
+    chain, name = winning_chain_from_carbon_graph(full_graph, carbon_graph, terminals)
+    if stereo is None:
+        return name
+
+    # P-92: every specified stereocenter -- the acetal carbon itself (only
+    # a genuine stereocenter when the two alkoxy groups differ) and/or any
+    # chain carbon -- must lie on the winning parent chain; one on a
+    # substituent branch is out of scope, mirroring
+    # `_carboxylic_acid.py`'s identical treatment.
+    position_of = {atom: i + 1 for i, atom in enumerate(chain)}
+    if any(atom not in position_of for atom, _ in stereo):
+        raise UnsupportedStructure(
+            "a stereocenter on a substituent branch rather than the "
+            "principal chain is not supported yet (see P-92)"
+        )
+    labels = sorted((position_of[atom], code) for atom, code in stereo)
+    prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+    return f"({prefix})-{name}"
