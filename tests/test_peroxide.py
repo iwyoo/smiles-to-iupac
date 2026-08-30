@@ -47,3 +47,28 @@ def test_unsaturated_not_supported():
 def test_three_oxygens_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("COOCOC")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # The achiral parent structure is PubChem-verified (CID 19875133,
+        # "2-ethylperoxybutane"); PubChem has no registered peroxide
+        # stereoisomer CID, so these are a structural regression check on
+        # the already-verified mechanism (same pattern as `_ether.py`'s
+        # `winning_chain_from_carbon_graph` reuse, PR #224).
+        ("CC[C@H](C)OOCC", "(2S)-2-ethylperoxybutane"),
+        ("CC[C@@H](C)OOCC", "(2R)-2-ethylperoxybutane"),
+    ],
+)
+def test_stereocenter_on_parent_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_unspecified_stereocenter_ignored():
+    assert smiles_to_iupac("CCC(C)OOCC") == "2-ethylperoxybutane"
+
+
+def test_stereocenter_on_substituent_branch_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CCCCCOO[C@H](C)CC")
