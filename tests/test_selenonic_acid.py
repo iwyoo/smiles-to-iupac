@@ -48,3 +48,32 @@ def test_ring_selenonic_acid_not_supported():
 def test_selenonic_acid_with_alcohol_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O[Se](=O)(=O)CCO")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single specified tetrahedral stereocenter (P-92), same pattern
+        # as `_sulfonic_acid.py`'s acyclic stereocenter task -- selenium
+        # itself is not a potential stereocenter (its two double-bonded
+        # oxygens are identical), confirmed via RDKit `FindPotentialStereo`.
+        # PubChem has no registered selenonic acid with a branch (even
+        # unspecified), so only structure/CIP-label consistency with
+        # `_sulfonic_acid.py`'s sulfur analogue is checked here.
+        ("CC[C@@H](C)[Se](=O)(=O)O", "(2R)-butane-2-selenonic acid"),
+        ("CC[C@H](C)[Se](=O)(=O)O", "(2S)-butane-2-selenonic acid"),
+    ],
+)
+def test_acyclic_selenonic_acid_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_acyclic_selenonic_acid_stereocenter_with_coexisting_substituent():
+    # A stereocenter that also bears a halogen substituent: the suffix's
+    # own locant is still cited despite the substituent sharing its
+    # position, mirroring `_sulfonic_acid.py`'s established convention.
+    assert smiles_to_iupac("C[C@@H](Cl)[Se](=O)(=O)O") == "(1S)-1-chloroethane-1-selenonic acid"
+
+
+def test_selenonic_acid_unspecified_stereocenter_unaffected():
+    assert smiles_to_iupac("CCC(Cl)[Se](=O)(=O)O") == "1-chloropropane-1-selenonic acid"
