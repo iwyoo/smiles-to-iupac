@@ -106,6 +106,26 @@ def test_smiles_to_iupac_hetero_monocyclic(smiles, expected):
         ("Cn1cccc1", "1-methylpyrrole"),  # CID 7304
         ("Cn1ccnc1", "1-methylimidazole"),  # CID 1390
         ("Cn1cccn1", "1-methylpyrazole"),  # CID 70255
+        # Two or more substituents (`tasks/hetero-monocyclic-multi-substituent-naming.md`),
+        # all confirmed as PubChem's IUPACName for the exact SMILES.
+        # Symmetric parents pick the lowest locant *set* automatically;
+        # mixed substituent kinds are cited alphabetically.
+        ("Cc1ccc(C)o1", "2,5-dimethylfuran"),  # CID 12266
+        ("Cc1ccc(Cl)s1", "2-chloro-5-methylthiophene"),  # CID 140208
+        ("Clc1ccncc1Cl", "3,4-dichloropyridine"),  # CID 2736081
+        ("Cc1nc(C)co1", "2,4-dimethyl-1,3-oxazole"),  # CID 138961
+        ("Clc1nccnc1Cl", "2,3-dichloropyrazine"),  # CID 78575
+        ("Cc1c(C)coc1", "3,4-dimethylfuran"),  # CID 34338
+        # imidazole/pyrazole multi-substituent is only safe when one of
+        # the substituents sits at the tautomer-fixing N-H locant (1) --
+        # see `test_imidazole_multi_substituent_without_n1_raises` below
+        # for the case that's still rejected.
+        ("Cn1cc(Cl)nc1", "4-chloro-1-methylimidazole"),  # CID 12514200
+        ("Cn1cc(Cl)cn1", "4-chloro-1-methylpyrazole"),  # CID 13844024
+        # A pyrrole carbon substituent alongside the untouched N-H is
+        # unambiguous (no tautomer axis involved, unlike imidazole/
+        # pyrazole), so the '1H-' prefix is retained.
+        ("Cc1cc(Cl)c[nH]1", "4-chloro-2-methyl-1H-pyrrole"),  # CID 57109453
     ],
 )
 def test_smiles_to_iupac_hetero_monocyclic_substituent(smiles, expected):
@@ -117,9 +137,16 @@ def test_substituted_hetero_monocyclic_raises():
         smiles_to_iupac("CC1CCCCO1")
 
 
-def test_two_substituents_on_mancude_ring_raises():
+def test_imidazole_multi_substituent_without_n1_raises():
+    # Same tautomer ambiguity as the single-substituent case below, but
+    # with two ring-carbon substituents and neither at the N-H-derived
+    # locant 1: PubChem's own name for this exact SMILES ("2-chloro-
+    # 5-methyl-1H-imidazole", CID 313195) doesn't match this input's own
+    # literal, structurally-fixed N-H position (which would give locants
+    # 2 and 4), confirming PubChem silently renormalizes to its own
+    # canonical tautomer before naming.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1c(C)coc1")
+        smiles_to_iupac("Cc1cnc(Cl)[nH]1")
 
 
 def test_ring_size_outside_scope_raises():

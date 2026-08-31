@@ -76,21 +76,42 @@ returns False for all of these, so `core.py`'s existing dispatch (which
 already rejects heteroatoms outside a few specific recognized shapes)
 continues to raise `UnsupportedStructure` for them, unchanged.
 
-Single-substituent naming (`has_hetero_monocyclic_substituent_name`/
+Substituent naming (`has_hetero_monocyclic_substituent_name`/
 `name_hetero_monocyclic_substituent`), one axis further than the
 unsubstituted-only functions above:
 
-- Scope: exactly one substituent (a halogen, or any group `name_branch`
-  can name) on exactly one atom of one of the 19 mancude parents listed
-  in `_MANCUDE_NAME_SMILES`/`_TWO_HETEROATOM_MANCUDE_NAME_SMILES` above
-  (single-heteroatom 5/6-membered plus two-heteroatom 5/6-membered,
-  Se/Te analogues included) -- everything else about the parent (ring
-  size, unsaturation, heteroatom set) stays exactly as recognized by the
-  unsubstituted table. Two or more substituents, saturated/partially
-  saturated rings, and polycyclic systems remain out of scope (a second
-  ring anywhere -- including one folded into the substituent itself, like
-  a cyclopropyl group -- is rejected via `mol.GetRingInfo().NumRings() ==
-  1`).
+- Scope: one or more substituents (a halogen, or any group `name_branch`
+  can name, repeats and mixed kinds both allowed) on one of the 19
+  mancude parents listed in `_MANCUDE_NAME_SMILES`/
+  `_TWO_HETEROATOM_MANCUDE_NAME_SMILES` above (single-heteroatom 5/6-
+  membered plus two-heteroatom 5/6-membered, Se/Te analogues included)
+  -- everything else about the parent (ring size, unsaturation,
+  heteroatom set) stays exactly as recognized by the unsubstituted
+  table. Saturated/partially saturated rings and polycyclic systems
+  remain out of scope (a second ring anywhere -- including one folded
+  into a substituent itself, like a cyclopropyl group -- is rejected via
+  `mol.GetRingInfo().NumRings() == 1`).
+- Multiple substituents (`tasks/hetero-monocyclic-multi-substituent-naming.md`,
+  extending the original single-substituent axis): each substituted ring
+  atom must still carry exactly one exocyclic branch (no gem-disubstitution
+  on a ring atom, which mancude/aromatic ring carbons can't have anyway).
+  Locants are chosen the same way `_alcohol.py`'s `_name_cyclic_alcohol`
+  numbers a substituted ring: try every rotation/direction of the ring
+  that satisfies the parent's fixed heteroatom role sequence, and among
+  the valid ones pick the lowest locant *set* for the substituted atoms
+  as a whole (P-14.4), breaking ties by giving the alphabetically-first
+  substituent name the lower individual locant (P-14.5.2) -- mirrors
+  `_alcohol.py`'s `_ring_candidate_key` exactly (locant-set, then
+  citation-locants-in-alphabetical-name-order, then the assembled name
+  itself as a final tiebreak). Substituents are cited alphabetically with
+  ordinary di-/tri- multiplying prefixes for repeats
+  (`format_substituent_prefixes`, same helper `_alcohol.py`/
+  `_carboxylic_acid.py` already use). PubChem verification: `2,5-
+  dimethylfuran` (CID 12266), `2-chloro-5-methylthiophene` (CID 140208,
+  confirming alphabetical mixed-kind ordering), `3,4-dichloropyridine`
+  (CID 2736081), `2,4-dimethyl-1,3-oxazole` (CID 138961, heteroatom-
+  asymmetric parent so the locants are structurally fixed, not a lowest-
+  set choice), `2,3-dichloropyrazine` (CID 78575).
 - A chalcogen ring atom (O/S/Se/Te) or a "pyridine-type" ring nitrogen
   (no N-H in the unsubstituted parent: pyridine's N, and the second
   nitrogen of imidazole/pyrazole/oxazole/isoxazole/thiazole/isothiazole/
@@ -138,8 +159,8 @@ unsubstituted-only functions above:
 
 from rdkit import Chem
 
-from ._common import adjacency, halogen_substituents, ring_cycle
-from ._substituents import name_branch
+from ._common import adjacency, halogen_substituents, lowest_locant_set, ring_cycle
+from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _RETAINED_NAME_SMILES = {
     ("O", 3): ("oxirane", "C1CO1"),
@@ -239,9 +260,9 @@ _ROLE_SEQUENCES = {
 # imidazole/pyrazole's N-H can migrate to the *other* ring nitrogen
 # (a real prototropic tautomer, not a naming choice) -- this only
 # reshuffles which ring carbon counts as adjacent to N1, so a substituent
-# actually sitting on N1 (locant 1, replacing the H directly) is
-# unaffected and always safe; one anywhere else is excluded below (see
-# `_match_hetero_monocyclic_substituent`).
+# set that includes N1 (locant 1, replacing the H directly) is unaffected
+# and always safe; one that doesn't touch N1 at all is excluded below (see
+# `_match_hetero_monocyclic_substituents`).
 _TAUTOMER_AMBIGUOUS_UNLESS_N1 = {"1H-imidazole", "1H-pyrazole"}
 
 
@@ -258,13 +279,38 @@ def _ring_alignments(ring_order):
             yield base[start:] + base[:start]
 
 
-def _match_hetero_monocyclic_substituent(mol):
-    """(parent_name, locant, substituent_root, ring_attach_atom, graph) for
-    a mancude ring carrying exactly one substituent that matches one of
-    `_ROLE_SEQUENCES`'s 19 parents; None if the molecule doesn't fit that
-    shape at all (a second ring anywhere, more than one substituted ring
-    atom, a ring size/heteroatom pattern outside the table, or a
-    substituent sitting on a non-substitutable heteroatom)."""
+def _group(substituents):
+    """{ring_atom: (name, is_compound)} -> {name: {"locants": [...],
+    "compound": bool}}, mirroring `_alcohol.py`'s own `_group` helper."""
+    grouped = {}
+    for position, (name, is_compound) in substituents.items():
+        info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
+        info["locants"].append(position)
+    return grouped
+
+
+def _candidate_key(grouped):
+    """(locant_set, citation_locants, name) sort key -- lowest locant set
+    for the substituted atoms as a whole wins first (P-14.4), ties broken
+    by which alphabetically-ordered substituent gets the lower individual
+    locant (P-14.5.2), mirroring `_alcohol.py`'s `_ring_candidate_key`."""
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    return locant_set, citation_locants
+
+
+def _match_hetero_monocyclic_substituents(mol):
+    """(parent_name, grouped, graph) for a mancude ring carrying one or more
+    substituents that matches one of `_ROLE_SEQUENCES`'s 19 parents; None if
+    the molecule doesn't fit that shape at all (a second ring anywhere, a
+    ring atom bearing more than one exocyclic branch, a ring size/
+    heteroatom pattern outside the table, a substituent sitting on a
+    non-substitutable heteroatom, or -- for imidazole/pyrazole only -- no
+    substituent at the tautomer-fixing N-H position)."""
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() != 1:
         return None
@@ -276,79 +322,83 @@ def _match_hetero_monocyclic_substituent(mol):
 
     graph = adjacency(mol)
     ring_set = set(ring_atoms)
-    substituted = [
-        (atom, [n for n in graph[atom] if n not in ring_set]) for atom in ring_atoms
-    ]
-    substituted = [(atom, exo) for atom, exo in substituted if exo]
-    if len(substituted) != 1 or len(substituted[0][1]) != 1:
+    exo_by_atom = {}
+    for atom in ring_atoms:
+        exo = [n for n in graph[atom] if n not in ring_set]
+        if not exo:
+            continue
+        if len(exo) != 1:
+            return None
+        exo_by_atom[atom] = exo[0]
+    if not exo_by_atom:
         return None
-    ring_attach_atom, (substituent_root,) = substituted[0]
+    substituted_atoms = set(exo_by_atom)
 
     ring_order = ring_cycle(graph, ring_atoms)
     elements = {atom: mol.GetAtomWithIdx(atom).GetSymbol() for atom in ring_atoms}
     h_counts = {atom: mol.GetAtomWithIdx(atom).GetTotalNumHs() for atom in ring_atoms}
+    halogens = halogen_substituents(mol)
+    names_by_atom = {
+        atom: name_branch(graph, root, atom, halogens) for atom, root in exo_by_atom.items()
+    }
 
     for parent_name, role_sequence in _ROLE_SEQUENCES.items():
         if len(role_sequence) != len(ring_atoms):
             continue
-        best_locant = None
+        best_key = None
+        best_grouped = None
         for candidate in _ring_alignments(ring_order):
-            locant = None
-            for position, (role_element, role_has_h) in enumerate(role_sequence, start=1):
-                atom = candidate[position - 1]
+            position_of = {atom: position for position, atom in enumerate(candidate, start=1)}
+            valid = True
+            for atom, position in position_of.items():
+                role_element, role_has_h = role_sequence[position - 1]
                 if elements[atom] != role_element:
-                    locant = None
+                    valid = False
                     break
-                if atom == ring_attach_atom:
+                if atom in substituted_atoms:
                     if not role_has_h:
-                        locant = None
+                        valid = False
                         break
-                    locant = position
                 elif h_counts[atom] != (1 if role_has_h else 0):
-                    locant = None
+                    valid = False
                     break
-            if locant is not None and (best_locant is None or locant < best_locant):
-                best_locant = locant
-        if best_locant is not None:
-            if parent_name in _TAUTOMER_AMBIGUOUS_UNLESS_N1 and best_locant != 1:
-                # A ring-carbon substituent on imidazole/pyrazole (any
-                # locant other than the N-H position itself) is a real
-                # prototropic-tautomer ambiguity, not just a numbering
-                # choice: moving the N-H to the *other* nitrogen changes
-                # which carbon is "adjacent to N1" and thus renumbers the
-                # very same physical substituent -- confirmed by
-                # PubChem's own name for `Cc1cc[nH]n1` ("5-methyl-1H-
-                # pyrazole", CID 15073) not matching this input SMILES's
-                # own literal, structurally-fixed N-H position (which
-                # gives locant 3), because PubChem silently renormalizes
-                # the input to its own canonical tautomer before naming
-                # (the same InChI mobile-H behavior already found for
-                # triazole/tetrazole and amidine this session). Without
-                # pinning down the Blue Book's own tie-breaking rule for
-                # this case, this locant can't be trusted -- fall through
-                # to the next parent (there won't be one) rather than
-                # return a possibly-wrong name.
+            if not valid:
                 continue
-            return parent_name, best_locant, substituent_root, ring_attach_atom, graph
+            if parent_name in _TAUTOMER_AMBIGUOUS_UNLESS_N1 and all(
+                position_of[atom] != 1 for atom in substituted_atoms
+            ):
+                # None of the substituents sits at the N-H-derived locant
+                # 1 -- a real prototropic-tautomer ambiguity (see
+                # `_TAUTOMER_AMBIGUOUS_UNLESS_N1`'s note), so this
+                # alignment (and, since the ring is otherwise rigid, every
+                # alignment for this parent) can't be trusted.
+                continue
+            grouped = _group(
+                {position_of[atom]: names_by_atom[atom] for atom in substituted_atoms}
+            )
+            key = _candidate_key(grouped)
+            if best_key is None or key < best_key:
+                best_key, best_grouped = key, grouped
+        if best_grouped is not None:
+            return parent_name, best_grouped, graph
     return None
 
 
 def has_hetero_monocyclic_substituent_name(mol) -> bool:
-    return _match_hetero_monocyclic_substituent(mol) is not None
+    return _match_hetero_monocyclic_substituents(mol) is not None
 
 
 def name_hetero_monocyclic_substituent(mol) -> str:
-    parent_name, locant, substituent_root, ring_attach_atom, graph = _match_hetero_monocyclic_substituent(mol)
-    halogens = halogen_substituents(mol)
-    name, is_compound = name_branch(graph, substituent_root, ring_attach_atom, halogens)
-    display_name = f"({name})" if is_compound else name
+    parent_name, grouped, _graph = _match_hetero_monocyclic_substituents(mol)
+    all_locants = {loc for info in grouped.values() for loc in info["locants"]}
     # The parent's own indicated-hydrogen prefix (pyrrole/imidazole/
     # pyrazole's '1H-') marks position 1 as the ring's one substitutable
     # N-H; once a substituent sits there instead, the locant '1-' alone
     # already pins the position, so the '1H-' becomes redundant and is
     # dropped (confirmed via PubChem: `Cn1cccc1` -> "1-methylpyrrole", not
     # "1-methyl-1H-pyrrole").
-    if locant == 1 and parent_name.startswith("1H-"):
+    if 1 in all_locants and parent_name.startswith("1H-"):
         parent_name = parent_name[len("1H-") :]
+    prefix = format_substituent_prefixes(grouped)
     separator = "-" if parent_name[0].isdigit() else ""
-    return f"{locant}-{display_name}{separator}{parent_name}"
+    return f"{prefix}{separator}{parent_name}"
