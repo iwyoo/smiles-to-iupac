@@ -45,6 +45,21 @@ from smiles_to_iupac._common import UnsupportedStructure
         # Pyrrole's PIN carries the indicated-hydrogen prefix (PubChem
         # CID 8027: "1H-pyrrole", not bare "pyrrole").
         ("c1cc[nH]c1", "1H-pyrrole"),
+        # Mancude two-heteroatom monocycles, P-22.2.1 Table 2.2 -- all
+        # confirmed as PubChem's IUPACName for the exact SMILES: imidazole
+        # (CID 795), pyrazole (CID 1048), 1,3-oxazole (CID 9255), 1,2-oxazole
+        # / isoxazole (CID 9254), 1,3-thiazole (CID 9256), 1,2-thiazole /
+        # isothiazole (CID 67515), pyridazine (CID 9259), pyrimidine
+        # (CID 9260), pyrazine (CID 9261).
+        ("c1cnc[nH]1", "1H-imidazole"),
+        ("c1cc[nH]n1", "1H-pyrazole"),
+        ("c1cocn1", "1,3-oxazole"),
+        ("c1ccon1", "1,2-oxazole"),
+        ("c1cscn1", "1,3-thiazole"),
+        ("c1ccsn1", "1,2-thiazole"),
+        ("c1ccnnc1", "pyridazine"),
+        ("c1ccncn1", "pyrimidine"),
+        ("c1cnccn1", "pyrazine"),
     ],
 )
 def test_smiles_to_iupac_hetero_monocyclic(smiles, expected):
@@ -78,7 +93,12 @@ def test_substituted_mancude_monocyclic_raises():
         smiles_to_iupac("Cc1ccncc1")
 
 
-def test_two_heteroatom_mancude_ring_raises():
-    # imidazole: two ring heteroatoms, out of scope here.
+def test_substituted_two_heteroatom_mancude_ring_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1c[nH]cn1")
+        smiles_to_iupac("Cc1cnc[nH]1")
+
+
+def test_three_heteroatom_mancude_ring_raises():
+    # 1,2,4-triazole: three ring heteroatoms, out of scope here.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1nc[nH]n1")
