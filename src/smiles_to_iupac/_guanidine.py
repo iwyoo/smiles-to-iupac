@@ -1,5 +1,5 @@
 """Naming of guanidine (HN=C(NH2)2) and its N-substituted derivatives on
-the two amino nitrogens, per the IUPAC 2013 Recommendations ("the Blue
+all three nitrogens, per the IUPAC 2013 Recommendations ("the Blue
 Book"):
 
 - Chapter P-6 (https://iupac.qmul.ac.uk/BlueBook/PDF/P6.pdf): 'guanidine'
@@ -29,27 +29,34 @@ Book"):
   structure-only checks): `CNC(=N)N` -> "2-methylguanidine",
   `CN(C)C(=N)N` -> "1,1-dimethylguanidine", `CNC(=N)NC` ->
   "1,2-dimethylguanidine" (this last one is the same structure as the
-  Blue Book's own "N,N′-dimethylguanidine (PIN)" worked example above).
+  Blue Book's own "N,N′-dimethylguanidine (PIN)" worked example above),
+  `CN=C(N)N` -> "2-methylguanidine" (imino nitrogen alone, same numeral
+  locant PubChem uses for the amino case -- structure-only confirms the
+  shape, not which letter this project assigns), `CCN=C(N)N` ->
+  "2-ethylguanidine", `CN=C(NC)N` -> "1,2-dimethylguanidine" (imino +
+  one amino nitrogen substituted).
 
 Scope, deliberately narrow, mirroring `_urea.py`'s/`_thiourea.py`'s own:
-substituents landing on the two amino nitrogens only (one nitrogen with
-one or two, using the same 'N-'/'N,N-di' citation established there), or
-an identical single substituent on each of the two different amino
-nitrogens ('N,N'-di...' citation). The imino nitrogen must stay
-unsubstituted for this pass. Explicitly out of scope (raise
-`UnsupportedStructure`): two DIFFERENT substituents split across the two
-amino nitrogens, a different substituent count on each amino nitrogen (no
-confirmed worked example settles the locant tie-break for either case), a
-substituent on the imino nitrogen (N''-substitution -- confirmed to exist
-in the Blue Book, but deferred as its own follow-up), a
+substituents landing on the two amino nitrogens (one nitrogen with one or
+two, using the same 'N-'/'N,N-di' citation established there, or an
+identical single substituent on each of the two different amino nitrogens
+using 'N,N'-di...'), the imino nitrogen (at most one substituent -- it
+only has one open valence beyond its C=N double bond), or both at once,
+combined and alphabetized per the tetramethyl-phenyl worked example
+above. Explicitly out of scope (raise `UnsupportedStructure`): two
+DIFFERENT substituents split across the two amino nitrogens, a different
+substituent count on each amino nitrogen (no confirmed worked example
+settles the locant tie-break for either case), a
 branched/unsaturated/ring-bearing N-substituent, and a ring-fused
 guanidine.
 """
 
+from collections import defaultdict
+
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, carbon_adjacency, linear_branch, non_single_bonds
-from ._numerals import alkyl_name
+from ._numerals import alkyl_name, multiplying_prefix
 
 
 def _guanidine_core(mol):
@@ -79,9 +86,16 @@ def _guanidine_core(mol):
         if len(imino) != 1 or len(amino) != 2:
             continue
         (imino_n,) = imino
-        if imino_n.GetDegree() != 1 or imino_n.GetTotalNumHs() != 1 or imino_n.GetFormalCharge() != 0:
+        if imino_n.GetFormalCharge() != 0 or imino_n.GetIsotope() != 0:
             continue
-        if imino_n.GetIsotope() != 0:
+        if imino_n.GetDegree() == 1:
+            if imino_n.GetTotalNumHs() != 1:
+                continue
+        elif imino_n.GetDegree() == 2:
+            other = [n for n in imino_n.GetNeighbors() if n.GetIdx() != atom.GetIdx()]
+            if imino_n.GetTotalNumHs() != 0 or other[0].GetAtomicNum() != 6:
+                continue
+        else:
             continue
         if any(n.GetFormalCharge() != 0 or n.GetIsotope() != 0 for n in amino):
             continue
@@ -128,25 +142,34 @@ def _reject_unsaturated_substituents(mol, atoms):
         raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
 
 
-def _n_prefix(letter, names):
-    if not names:
-        return ""
-    if len(names) == 1:
-        return f"{letter}-{names[0]}"
-    if names[0] == names[1]:
-        return f"{letter},{letter}-di{names[0]}"
-    a, b = sorted(names)
-    return f"{letter}-{a}-{letter}-{b}"
+def _prime_rank(letter):
+    return letter.count("'")
+
+
+def _combine_prefixes(letters_and_names):
+    """Combine (letter, substituent name) pairs into a single citation,
+    grouping identical substituent names under a shared multiplying
+    prefix and alphabetizing groups by name (P-14.5.2), per the Blue
+    Book's own "N,N,N′,N′-tetramethyl-N′′-phenylguanidine" worked
+    example."""
+    groups = defaultdict(list)
+    for letter, name in letters_and_names:
+        groups[name].append(letter)
+    parts = []
+    for name in sorted(groups):
+        letters = sorted(groups[name], key=lambda l: (_prime_rank(l), l))
+        prefix_name = name if len(letters) == 1 else multiplying_prefix(len(letters)) + name
+        parts.append(f"{','.join(letters)}-{prefix_name}")
+    return "-".join(parts)
 
 
 def name_guanidine(mol) -> str:
     core = _guanidine_core(mol)
     if core is None:
         raise UnsupportedStructure(
-            "no guanidine (HN=C(NH2)2 or an N-/N'-substituted derivative on "
-            "the two amino nitrogens) shape found; this module only "
-            "handles guanidine and simple amino-nitrogen-substituted "
-            "guanidines"
+            "no guanidine (HN=C(NH2)2 or an N-/N'-/N''-substituted "
+            "derivative) shape found; this module only handles guanidine "
+            "and simple nitrogen-substituted guanidines"
         )
     carbon_idx, imino_idx, (n1_idx, n2_idx) = core
 
@@ -159,11 +182,18 @@ def name_guanidine(mol) -> str:
 
     n1_carbons = _n_substituent_carbons(mol, n1_idx, carbon_idx)
     n2_carbons = _n_substituent_carbons(mol, n2_idx, carbon_idx)
+    imino_carbons = _n_substituent_carbons(mol, imino_idx, carbon_idx)
 
     carbon_graph = carbon_adjacency(mol)
     n1_chain_atoms = _substituent_chain_atoms(carbon_graph, n1_carbons)
     n2_chain_atoms = _substituent_chain_atoms(carbon_graph, n2_carbons)
-    known_atoms = {carbon_idx, imino_idx, n1_idx, n2_idx} | n1_chain_atoms | n2_chain_atoms
+    imino_chain_atoms = _substituent_chain_atoms(carbon_graph, imino_carbons)
+    known_atoms = (
+        {carbon_idx, imino_idx, n1_idx, n2_idx}
+        | n1_chain_atoms
+        | n2_chain_atoms
+        | imino_chain_atoms
+    )
     for atom in mol.GetAtoms():
         if atom.GetIdx() not in known_atoms:
             raise UnsupportedStructure(
@@ -174,12 +204,11 @@ def name_guanidine(mol) -> str:
 
     _reject_unsaturated_substituents(mol, n1_chain_atoms)
     _reject_unsaturated_substituents(mol, n2_chain_atoms)
+    _reject_unsaturated_substituents(mol, imino_chain_atoms)
 
     n1_names = _substituent_names(carbon_graph, n1_carbons)
     n2_names = _substituent_names(carbon_graph, n2_carbons)
-
-    if not n1_names and not n2_names:
-        return "guanidine"
+    imino_names = _substituent_names(carbon_graph, imino_carbons)
 
     if n1_names and n2_names:
         if len(n1_names) != 1 or len(n2_names) != 1 or n1_names[0] != n2_names[0]:
@@ -189,7 +218,15 @@ def name_guanidine(mol) -> str:
                 "supported yet (no confirmed worked example settles the "
                 "locant tie-break in that case)"
             )
-        return f"N,N'-di{n1_names[0]}guanidine"
+        amino_entries = [("N", n1_names[0]), ("N'", n2_names[0])]
+    else:
+        letter = "N" if n1_names else "N'"
+        names = n1_names or n2_names
+        amino_entries = [(letter, name) for name in names]
 
-    names = n1_names or n2_names
-    return f"{_n_prefix('N', names)}guanidine"
+    imino_entries = [("N''", name) for name in imino_names]
+
+    entries = amino_entries + imino_entries
+    if not entries:
+        return "guanidine"
+    return f"{_combine_prefixes(entries)}guanidine"

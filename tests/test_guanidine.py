@@ -46,12 +46,43 @@ def test_different_substituent_counts_on_amino_nitrogens_not_supported():
         smiles_to_iupac("CN(C)C(=N)NC")
 
 
-def test_imino_nitrogen_substitution_not_supported():
-    # N''-substitution (on the double-bonded nitrogen) is a confirmed Blue
-    # Book shape ("N,N,N′,N′-tetramethyl-N′′-phenylguanidine (PIN)") but
-    # deferred as its own follow-up.
+def test_n_double_prime_methylguanidine():
+    # PubChem structure match: "2-methylguanidine" (deprecated numeral
+    # locant for the imino nitrogen).
+    assert smiles_to_iupac("NC(=NC)N") == "N''-methylguanidine"
+
+
+def test_n_double_prime_ethylguanidine():
+    # PubChem structure match: "2-ethylguanidine".
+    assert smiles_to_iupac("NC(=NCC)N") == "N''-ethylguanidine"
+
+
+def test_imino_plus_one_amino_substituted():
+    # PubChem structure match: "1,2-dimethylguanidine" (deprecated numeral
+    # locants for one amino + the imino nitrogen).
+    assert smiles_to_iupac("CNC(=NC)N") == "N,N''-dimethylguanidine"
+
+
+def test_imino_plus_both_amino_substituted_same_name():
+    assert smiles_to_iupac("CNC(=NC)NC") == "N,N',N''-trimethylguanidine"
+
+
+def test_imino_plus_amino_different_names_alphabetized():
+    # Different substituent names are cited alphabetically (P-14.5.2)
+    # regardless of which nitrogen (letter) they sit on: "ethyl" sorts
+    # before "methyl", so the N''-ethyl group is cited first even though
+    # its letter has more primes than the amino N-methyl group.
+    assert smiles_to_iupac("CNC(=NCC)N") == "N''-ethyl-N-methylguanidine"
+
+
+def test_branched_imino_n_substituent_not_supported():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(=NC)N")
+        smiles_to_iupac("NC(=NC(C)C)N")
+
+
+def test_unsaturated_imino_n_substituent_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NC(=NC=C)N")
 
 
 def test_branched_n_substituent_not_supported():
