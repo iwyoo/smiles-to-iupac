@@ -81,11 +81,17 @@ def test_deuterium_and_carbon_isotope_together_multi_deuterium_name():
     assert smiles_to_iupac("[2H][13CH]([2H])[2H]") == "(13C,2H3)methane"
 
 
-def test_deuterium_and_carbon_isotope_together_chain_raises():
-    # The same combination on a multi-carbon chain is still out of scope
-    # (P-82.5.2's combined-locant-series numbering not yet attempted).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[2H]C[13CH2]C")
+def test_deuterium_and_carbon_isotope_together_chain_name():
+    # Blue Book P-82.5.2 worked example: "(2-14C,3-2H1)butane (PIN)"
+    # [not "(3-14C,2-2H1)butane"] -- the carbon-isotope locant and the
+    # deuterium locant are minimized together as one combined series.
+    assert smiles_to_iupac("C[14CH2]C([2H])C") == "(2-14C,3-2H1)butane"
+
+
+def test_deuterium_and_carbon_isotope_together_chain_multi_deuterium_name():
+    # Blue Book P-82.5.2 worked example: "(3-14C,2,2-2H2)butane (PIN)"
+    # [not "(2-14C,3,3-2H2)butane"].
+    assert smiles_to_iupac("CC([2H])([2H])[14CH2]C") == "(3-14C,2,2-2H2)butane"
 
 
 def test_isotopically_labeled_halogen_raises():
