@@ -36,16 +36,16 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("CC=CCCC(C)C", "6-methylhept-2-ene"),
         # A branched ("compound") substituent (P-29.4) on an unsaturated
         # chain: CCCC(C(C)C)CC=C is a 7-carbon chain (the unique longest
-        # chain: the isopropyl-like fork's own arm is only 2 atoms long,
+        # chain: the isopropyl branch's own arm is only 2 atoms long,
         # shorter than the 3-atom continuation on the other side, so it can't
-        # tie for principal chain) carrying an isopropyl-like branch
-        # (root forking into two methyls -> "1-methylethyl", P-46) plus a
+        # tie for principal chain) carrying an isopropyl branch (root
+        # forking into two methyls -> "propan-2-yl", P-29.3.2.2) plus a
         # double bond at the far end. Numbering from the double-bond end
         # (P-14.4e) gives the double bond locant 1 and the branch locant 4.
         # This is only reachable now because substituents on an unsaturated
         # chain are named via `_substituents.py`'s `name_branch`, the same as
         # for alkanes/cycloalkanes, instead of being rejected outright.
-        ("CCCC(C(C)C)CC=C", "4-(1-methylethyl)hept-1-ene"),
+        ("CCCC(C(C)C)CC=C", "4-(propan-2-yl)hept-1-ene"),
         # P-14.3.4.2(b): a two-carbon chain has only one possible bond
         # position, so the -ene/-yne locant is omittable regardless of how
         # many substituents are cited -- with one substituent, its own
@@ -88,11 +88,11 @@ def test_smiles_to_iupac_unsaturated(smiles, expected):
         # double bonds: CCCC(C(C)C)CC=C ('hept-1-ene' single-bond case
         # above) extended with a second double bond at the chain's other
         # end. The 7-carbon chain is still the unique longest chain (the
-        # isopropyl-like branch's own arm is too short to compete either
+        # isopropyl branch's own arm is too short to compete either
         # way), and it is symmetric enough that both numbering directions
         # tie on the double-bond locant set {1,6} and on the branch's own
         # locant (4), giving one unambiguous name.
-        ("C=CCC(C(C)C)CC=C", "4-(1-methylethyl)hepta-1,6-diene"),
+        ("C=CCC(C(C)C)CC=C", "4-(propan-2-yl)hepta-1,6-diene"),
         # P-14.4(e)(ii) / P-31.1.1.1 / P-44.4.1.10.1: lowest locants go to
         # the full set of multiple bonds first ({2,4} either numbering
         # direction gives the same set), then to the double bond
