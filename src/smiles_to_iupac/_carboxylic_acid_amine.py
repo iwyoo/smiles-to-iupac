@@ -33,6 +33,12 @@ Explicitly out of scope (raise `UnsupportedStructure`): any chain
 unsaturation (ene/yne), any ring, more than one carboxylic acid or amine, a
 secondary/tertiary amine, a coexisting hydroxyl/ether/other heteroatom, and
 any acid/amine not captured by a single longest chain.
+
+Any *specified* tetrahedral stereocenter (e.g. the alpha carbon of an amino
+acid such as alanine/valine) is labeled via `_common.specified_stereocenters`
+using the same P-91.3/P-92 mechanism as `_carboxylic_acid.py` (P-92: a
+stereocenter on a substituent branch rather than the principal chain is out
+of scope) -- see `tasks/amino-acid-halide-stereocenter-naming.md`.
 """
 
 from rdkit import Chem
@@ -46,6 +52,7 @@ from ._common import (
     longest_chains,
     lowest_locant_set,
     non_single_bonds,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -238,16 +245,26 @@ def name_carboxylic_acid_amine(mol) -> str:
     acid_carbon_idx = acid_carbon.GetIdx()
     chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
+    stereo = specified_stereocenters(mol)
+    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
+
+    def _carries_acid_and_amines(chain_set):
+        return acid_carbon_idx in chain_set and all(graph[n][0] in chain_set for n in amines)
 
     eligible = []
     for chain in chains:
-        if acid_carbon_idx not in chain:
-            continue
         chain_set = set(chain)
-        if any(graph[n][0] not in chain_set for n in amines):
+        if not _carries_acid_and_amines(chain_set):
+            continue
+        if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
             continue
         eligible.append(chain)
     if not eligible:
+        if stereo is not None and any(_carries_acid_and_amines(set(c)) for c in chains):
+            raise UnsupportedStructure(
+                "a stereocenter on a substituent branch rather than the "
+                "principal chain is not supported yet (see P-92)"
+            )
         raise UnsupportedStructure(
             "not every acid/amine-bearing carbon lies on a single longest "
             "carbon chain; a shorter principal chain is not supported yet"
@@ -255,6 +272,7 @@ def name_carboxylic_acid_amine(mol) -> str:
 
     best_key = None
     best_name = None
+    best_position_of = None
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             if candidate[0] != acid_carbon_idx:
@@ -266,5 +284,14 @@ def name_carboxylic_acid_amine(mol) -> str:
             grouped = _group(substituents)
             key, name = _candidate_key(chain_length, grouped)
             if best_key is None or key < best_key:
-                best_key, best_name = key, name
+                position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+                best_key, best_name, best_position_of = key, name, position_of
+
+    if stereo is not None:
+        # P-91.3: the -COOH carbon's own fixed C1 position (see module
+        # docstring) already decides numbering before stereo is considered,
+        # mirroring `_carboxylic_acid.py`'s identical treatment.
+        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+        return f"({prefix})-{best_name}"
     return best_name

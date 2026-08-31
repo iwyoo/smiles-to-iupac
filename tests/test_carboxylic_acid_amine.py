@@ -81,3 +81,31 @@ def test_plain_carboxylic_acid_still_works():
 
 def test_plain_amine_still_works():
     assert smiles_to_iupac("CCCN") == "propan-1-amine"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # L-alanine / D-alanine: PubChem-verified exactly (CID 5950's
+        # '(2S)-2-aminopropanoic acid' and CID 71080's
+        # '(2R)-2-aminopropanoic acid'), same P-91.3/P-92 mechanism as
+        # `_carboxylic_acid.py`'s own stereocenter test (CIP computed
+        # entirely by RDKit's `rdCIPLabeler`, not reimplemented here).
+        ("C[C@H](N)C(=O)O", "(2S)-2-aminopropanoic acid"),
+        ("C[C@@H](N)C(=O)O", "(2R)-2-aminopropanoic acid"),
+        # L-valine / D-valine: PubChem-verified exactly (CID 6287's
+        # '(2S)-2-amino-3-methylbutanoic acid' and CID 439610's
+        # '(2R)-2-amino-3-methylbutanoic acid').
+        ("CC(C)[C@H](N)C(=O)O", "(2S)-2-amino-3-methylbutanoic acid"),
+        ("CC(C)[C@@H](N)C(=O)O", "(2R)-2-amino-3-methylbutanoic acid"),
+    ],
+)
+def test_carboxylic_acid_amine_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_carboxylic_acid_amine_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention (see `_common.py`'s `specified_stereocenters` docstring).
+    assert smiles_to_iupac("CC(N)C(=O)O") == "2-aminopropanoic acid"
