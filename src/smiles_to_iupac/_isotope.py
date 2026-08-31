@@ -49,13 +49,26 @@ modification, per the IUPAC 2013 Recommendations ("the Blue Book"):
   multiple halogens at one position. A single labeled skeletal carbon
   (12C/13C/14C) is still the only carbon-isotope shape supported; more
   than one such carbon (its own locant set) and simultaneous carbon-isotope
-  + deuterium modification (P-82.3, confirmed distinct by
-  '(2-14C,3-2H1)butane (PIN)') both stay out of scope for a follow-up task.
-  Structure-verified via PubChem: `[2H]C([2H])C([2H])[2H]` (PubChem's own
-  name: "1,1,2,2-tetradeuterioethane"), `[2H]C([2H])CC([2H])[2H]`
-  (PubChem: "1,1,3,3-tetradeuteriopropane") -- PubChem uses its own
-  systematic 'deuterio' prefix style rather than the Blue Book's
-  parenthesized nuclide descriptor, but the structures match exactly.
+  + deuterium modification on a chain (P-82.3) both stay out of scope for a
+  follow-up task. Structure-verified via PubChem: `[2H]C([2H])C([2H])[2H]`
+  (PubChem's own name: "1,1,2,2-tetradeuterioethane"),
+  `[2H]C([2H])CC([2H])[2H]` (PubChem: "1,1,3,3-tetradeuteriopropane") --
+  PubChem uses its own systematic 'deuterio' prefix style rather than the
+  Blue Book's parenthesized nuclide descriptor, but the structures match
+  exactly.
+- P-82.3.1 (order of nuclide symbols): a mononuclear methane parent may now
+  carry a skeletal carbon isotope (12C/13C/14C) and deuterium substitution
+  at the same time -- "when isotopes of different elements are present ...
+  their symbols are arranged in alphabetical order", confirmed by the
+  worked example `methan(2H,18O)ol (PIN)` (a different element pair, but
+  the same alphabetical-ordering rule applies to carbon+hydrogen: 'C'
+  before 'H', e.g. '(13C,2H1)methane'). Structure-verified via PubChem:
+  `[13CH3][2H]` -> CID 10949861, PubChem's own name
+  "deuterio(113C)methane" (PubChem's systematic style, not a PIN, but
+  confirms the combined structure is valid and distinct from either
+  isotope alone). This combination is still out of scope for a
+  multi-carbon chain (P-82.5.2's combined-locant-series numbering adds
+  complexity not yet attempted).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any parent other than an unbranched methane/alkane chain -- branched
@@ -63,7 +76,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   supported.
 - Any isotope other than deuterium (2H) among hydrogen atoms (e.g. tritium).
 - The carbon isotope and deuterium substitution occurring at the same time
-  (P-82.3), or any isotopically labeled halogen.
+  on a multi-carbon chain (P-82.3; a mononuclear methane parent supports
+  this combination -- see above), or any isotopically labeled halogen.
 - More than one distinct chain position bearing a skeletal carbon isotope.
 - A 2-carbon chain whose isotope-locant citation isn't settled by a
   confirmed worked example (see above) -- this only applies to a single
@@ -143,15 +157,12 @@ def _name_methane(mol, carbon) -> str:
         raise UnsupportedStructure(
             "only 12C/13C/14C skeletal carbon isotopes are supported (P-82.2.1)"
         )
-    if carbon_isotope != 0 and deuterium_count:
-        raise UnsupportedStructure(
-            "a skeletal carbon isotope combined with deuterium substitution "
-            "is not supported yet (P-82.3)"
-        )
     if deuterium_count > _MAX_DEUTERIUMS:
         raise UnsupportedStructure("methane cannot carry more than 4 deuterium atoms")
 
-    if carbon_isotope != 0:
+    if carbon_isotope != 0 and deuterium_count:
+        isotope_descriptor = f"{carbon_isotope}C,2H{deuterium_count}"
+    elif carbon_isotope != 0:
         isotope_descriptor = f"{carbon_isotope}C"
     elif deuterium_count:
         isotope_descriptor = f"2H{deuterium_count}"

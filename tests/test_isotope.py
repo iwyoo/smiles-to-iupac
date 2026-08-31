@@ -68,9 +68,24 @@ def test_trichloro_carbon_12_methane_name():
     assert smiles_to_iupac("[12CH](Cl)(Cl)Cl") == "trichloro(12C)methane"
 
 
-def test_deuterium_and_carbon_isotope_together_raises():
+def test_deuterium_and_carbon_isotope_together_methane_name():
+    # A mononuclear methane parent may carry a skeletal carbon isotope and
+    # deuterium at the same time (P-82.3.1: different-element nuclides are
+    # cited in alphabetical order, 'C' before 'H'). PubChem structure match:
+    # `[13CH3][2H]` -> CID 10949861, "deuterio(113C)methane" (PubChem's own
+    # systematic style, not PIN format, but confirms the structure).
+    assert smiles_to_iupac("[2H][13CH3]") == "(13C,2H1)methane"
+
+
+def test_deuterium_and_carbon_isotope_together_multi_deuterium_name():
+    assert smiles_to_iupac("[2H][13CH]([2H])[2H]") == "(13C,2H3)methane"
+
+
+def test_deuterium_and_carbon_isotope_together_chain_raises():
+    # The same combination on a multi-carbon chain is still out of scope
+    # (P-82.5.2's combined-locant-series numbering not yet attempted).
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[2H][13CH3]")
+        smiles_to_iupac("[2H]C[13CH2]C")
 
 
 def test_isotopically_labeled_halogen_raises():
