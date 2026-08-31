@@ -62,7 +62,12 @@ from ._polycyclic_component_fusion import (
     has_polycyclic_component_fusion_name,
     name_polycyclic_component_fusion,
 )
-from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
+from ._hetero_monocyclic import (
+    has_hetero_monocyclic_name,
+    has_hetero_monocyclic_substituent_name,
+    name_hetero_monocyclic,
+    name_hetero_monocyclic_substituent,
+)
 from ._hydroxylamine import has_hydroxylamine_shape, name_hydroxylamine
 from ._imine import has_simple_imine_shape, name_imine
 from ._isotope import has_isotope_shape, name_isotope
@@ -356,6 +361,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # branches below understand a plain heteroatom ring at all.
     if has_hetero_monocyclic_name(mol):
         return name_hetero_monocyclic(mol)
+
+    # A single substituent on one of the same mancude parents above (P-22.2.1
+    # heteroatom locants stay fixed; only one ring atom's H is replaced) --
+    # see _hetero_monocyclic.py's module docstring for the role-sequence
+    # matching this uses instead of the exact-match table above.
+    if has_hetero_monocyclic_substituent_name(mol):
+        return name_hetero_monocyclic_substituent(mol)
 
     # A single O/N/S skeletal atom in an otherwise-carbon von Baeyer
     # bicyclic ring (P-23.2.1's 'a'-prefix skeletal replacement) or
