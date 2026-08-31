@@ -55,3 +55,23 @@ def test_thiourea_not_confused_with_urea():
     # Thiourea is supported by its own module (`_thiourea.py`, see
     # test_thiourea.py) but must not be mistaken for plain urea.
     assert smiles_to_iupac("NC(=S)N") == "thiourea"
+
+
+def test_semicarbazide():
+    # PubChem structure match: "aminourea" (CID 5196).
+    assert smiles_to_iupac("NC(=O)NN") == "aminourea"
+
+
+def test_semicarbazide_with_n_alkyl_substituent_not_supported():
+    # PubChem's own name for this combination ("1-amino-3-methylurea",
+    # CID 256005) uses a numeric-locant style this module doesn't
+    # otherwise follow for urea -- out of scope until that's resolved.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CNC(=O)NN")
+
+
+def test_double_amino_substituted_urea_not_supported():
+    # Carbonohydrazide (H2N-NH-C(=O)-NH-NH2) -- amino on both nitrogens is
+    # out of scope for this module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NNC(=O)NN")

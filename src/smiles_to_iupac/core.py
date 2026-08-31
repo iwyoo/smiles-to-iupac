@@ -668,6 +668,17 @@ def smiles_to_iupac(smiles: str) -> str:
         # aldehyde/ketone checks below: an amide carbon looks
         # aldehyde-shaped to `_is_aldehyde_shaped` (it counts only carbon
         # neighbors, ignoring the nitrogen).
+        # Urea (H2N-C(=O)-NH2) has a carbonyl carbon with two qualifying
+        # nitrogens, the same shape `has_amide_shape` looks for -- routing
+        # it first here lets `_urea.py` claim it before `_amide.py` would
+        # otherwise (correctly, but unhelpfully) reject it as "not exactly
+        # one nitrogen". It must also be checked before the hydrazide check
+        # below: semicarbazide (H2N-NH-C(=O)-NH2) is urea-shaped but its
+        # amino nitrogen also happens to match hydrazide's -CO-NH-NH2
+        # pattern (hydrazide's shape check doesn't look at the carbonyl
+        # carbon's other substituents), so urea must claim it first.
+        if has_urea_shape(mol):
+            return name_urea(mol)
         # A hydrazide carbon (-CO-NH-NH2, P-66.3.1.1) has a carbonyl plus
         # a two-nitrogen chain that has_amide_shape's own single-nitrogen
         # check doesn't match (its first nitrogen has degree 2, not 1), so
@@ -676,13 +687,6 @@ def smiles_to_iupac(smiles: str) -> str:
         # groups together.
         if has_hydrazide_shape(mol):
             return name_hydrazide(mol)
-        # Urea (H2N-C(=O)-NH2) has a carbonyl carbon with two qualifying
-        # nitrogens, the same shape `has_amide_shape` looks for -- routing
-        # it first here lets `_urea.py` claim it before `_amide.py` would
-        # otherwise (correctly, but unhelpfully) reject it as "not exactly
-        # one nitrogen".
-        if has_urea_shape(mol):
-            return name_urea(mol)
         if has_amide_shape(mol):
             # P-41/Table 3.3: 'amide' outranks 'one', so an amide that also
             # carries one or more ketones names the amide as the suffix and
