@@ -33,6 +33,18 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("C1CCCN1", "pyrrolidine"),
         ("C1CCCCN1", "piperidine"),
         ("C1CCCCCN1", "azepane"),
+        # Mancude (aromatic) single-heteroatom monocycles, P-22.2.1 Table
+        # 2.2 -- all confirmed as PubChem's IUPACName for the exact
+        # SMILES: furan (CID 8029), thiophene (CID 8030), selenophene
+        # (CID 136130), tellurophene (CID 136131), pyridine (CID 1049).
+        ("c1ccoc1", "furan"),
+        ("c1ccsc1", "thiophene"),
+        ("c1cc[se]c1", "selenophene"),
+        ("c1cc[te]c1", "tellurophene"),
+        ("c1ccncc1", "pyridine"),
+        # Pyrrole's PIN carries the indicated-hydrogen prefix (PubChem
+        # CID 8027: "1H-pyrrole", not bare "pyrrole").
+        ("c1cc[nH]c1", "1H-pyrrole"),
     ],
 )
 def test_smiles_to_iupac_hetero_monocyclic(smiles, expected):
@@ -59,3 +71,14 @@ def test_two_heteroatoms_raises():
 def test_unsupported_heteroatom_element_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1CCCCP1")
+
+
+def test_substituted_mancude_monocyclic_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccncc1")
+
+
+def test_two_heteroatom_mancude_ring_raises():
+    # imidazole: two ring heteroatoms, out of scope here.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1c[nH]cn1")

@@ -1,8 +1,9 @@
-"""Naming of saturated monocyclic rings (3- to 7-membered) containing
-exactly one heteroatom (O, S, or N) and no substituents, using
-Hantzsch-Widman-system names, per the IUPAC 2013 Recommendations ("the
-Blue Book"):
+"""Naming of saturated and mancude (maximally unsaturated) monocyclic
+rings containing exactly one heteroatom (O, S, Se, Te, or N) and no
+substituents, using Hantzsch-Widman-system and retained names, per the
+IUPAC 2013 Recommendations ("the Blue Book"):
 
+Saturated rings (3- to 7-membered):
 - P-22.2.1 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf,
   Table 22.1): the Hantzsch-Widman stem for a saturated ring is
   '-irane'/'-irene' (3), '-etane' (4), '-olane' (5), '-ane' (6), '-epane'
@@ -18,22 +19,35 @@ Blue Book"):
   Table 2.3 listing piperidine/pyrrolidine (among others) as retained
   names that are PINs. Aziridine/azetidine happen to coincide with the
   literal stem-based construction; pyrrolidine/piperidine don't.
-- Since this module's only job is recognizing the exact unsubstituted
-  parent for a fixed, small (element, ring size) table -- no locants to
-  assign, no substituent numbering -- an exact whole-molecule canonical-
-  SMILES match against each name's structure is both sufficient and
-  simplest, mirroring `_peri_fused_aromatic.py`'s approach.
+
+Mancude (aromatic) rings, single heteroatom, 5- and 6-membered only
+(P-22.2.1 Table 2.2): furan/thiophene/selenophene/tellurophene (5-membered
+O/S/Se/Te) and pyridine (6-membered N) are retained names that are PINs
+outright; pyrrole (5-membered N) needs an indicated-hydrogen prefix --
+its PIN is '1H-pyrrole', not bare 'pyrrole' (confirmed via Table 2.2 and
+PubChem). Two-heteroatom mancude rings (imidazole, oxazole, pyrazine,
+etc., also listed in Table 2.2) and the 6-membered O/S/Se/Te rings
+(pyran/thiopyran/selenopyran/telluropyran, which need an indicated-
+hydrogen prefix themselves since they aren't fully mancude with a single
+chalcogen) are out of scope -- separate future tasks.
+
+Since this module's only job is recognizing the exact unsubstituted
+parent for a fixed, small (element, ring size, saturation) table -- no
+locants to assign, no substituent numbering -- an exact whole-molecule
+canonical-SMILES match against each name's structure is both sufficient
+and simplest, mirroring `_peri_fused_aromatic.py`'s approach.
 
 Formulas cross-checked (all well-known compounds): oxirane C2H4O,
-piperidine C5H11N, thiane C5H10S, etc. -- see `_RETAINED_NAME_SMILES`.
+piperidine C5H11N, thiane C5H10S, furan C4H4O, pyridine C5H5N, etc. --
+see `_RETAINED_NAME_SMILES` and `_MANCUDE_NAME_SMILES`.
 
-Explicitly out of scope: any substituent, any unsaturation (P-22's
-indicated-hydrogen/partial-saturation forms are a separate future task),
-two or more heteroatoms (dioxane, morpholine, etc.), heteroatoms other
-than O/S/N, and ring sizes outside 3-7. `has_hetero_monocyclic_name`
-returns False for all of these, so `core.py`'s existing dispatch (which
-already rejects heteroatoms outside a few specific recognized shapes)
-continues to raise `UnsupportedStructure` for them, unchanged.
+Explicitly out of scope: any substituent, partially-saturated indicated-
+hydrogen forms other than 1H-pyrrole, two or more heteroatoms (dioxane,
+morpholine, imidazole, etc.), heteroatoms other than O/S/Se/Te/N, and
+ring sizes outside the tables above. `has_hetero_monocyclic_name` returns
+False for all of these, so `core.py`'s existing dispatch (which already
+rejects heteroatoms outside a few specific recognized shapes) continues
+to raise `UnsupportedStructure` for them, unchanged.
 """
 
 from rdkit import Chem
@@ -55,8 +69,17 @@ _RETAINED_NAME_SMILES = {
     ("N", 6): ("piperidine", "C1CCCCN1"),
     ("N", 7): ("azepane", "C1CCCCCN1"),
 }
+_MANCUDE_NAME_SMILES = {
+    ("O", 5): ("furan", "c1ccoc1"),
+    ("S", 5): ("thiophene", "c1ccsc1"),
+    ("Se", 5): ("selenophene", "c1cc[se]c1"),
+    ("Te", 5): ("tellurophene", "c1cc[te]c1"),
+    ("N", 5): ("1H-pyrrole", "c1cc[nH]c1"),
+    ("N", 6): ("pyridine", "c1ccncc1"),
+}
 _CANONICAL_TO_NAME = {
-    Chem.CanonSmiles(smiles): name for name, smiles in _RETAINED_NAME_SMILES.values()
+    Chem.CanonSmiles(smiles): name
+    for name, smiles in (*_RETAINED_NAME_SMILES.values(), *_MANCUDE_NAME_SMILES.values())
 }
 
 
