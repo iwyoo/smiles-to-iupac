@@ -33,6 +33,17 @@ different nitrogens (no confirmed worked example settles which physical
 nitrogen becomes 'N' vs 'N'' in that case), a branched/unsaturated/
 ring-bearing N-substituent, a ring-fused urea (e.g. hydantoin), and
 thiourea (the sulfur analogue).
+
+- Semicarbazide (H2N-NH-C(=O)-NH2, P-68.3.1.4): PubChem structure match
+  confirms `NC(=O)NN` -> "aminourea" -- the unsubstituted parent is named
+  as urea carrying a plain 'amino' substituent, not with its own retained
+  name. Scope here is deliberately limited to that single unsubstituted
+  case; any carbon substituent alongside the amino nitrogen is out of
+  scope (raise `UnsupportedStructure`) -- PubChem's own examples for that
+  combination (`CNC(=O)NN` -> "1-amino-3-methylurea") use a numeric-locant
+  style this project doesn't otherwise follow for urea (see above), so
+  mixing amino with alkyl substitution needs its own follow-up scoping
+  pass rather than being folded in here.
 """
 
 from rdkit import Chem
@@ -64,14 +75,52 @@ def _urea_core(mol):
             continue
         if any(n.GetFormalCharge() != 0 or n.GetIsotope() != 0 for n in nitrogens):
             continue
-        if any(nn.GetAtomicNum() != 6 for n in nitrogens for nn in n.GetNeighbors() if nn.GetIdx() != atom.GetIdx()):
+        if any(
+            nn.GetAtomicNum() != 6 and not _is_terminal_amino_nitrogen(nn, n.GetIdx())
+            for n in nitrogens
+            for nn in n.GetNeighbors()
+            if nn.GetIdx() != atom.GetIdx()
+        ):
+            continue
+        amino_neighbors = [
+            nn
+            for n in nitrogens
+            for nn in n.GetNeighbors()
+            if nn.GetIdx() != atom.GetIdx() and _is_terminal_amino_nitrogen(nn, n.GetIdx())
+        ]
+        if len(amino_neighbors) > 1:
             continue
         return atom.GetIdx(), (nitrogens[0].GetIdx(), nitrogens[1].GetIdx())
     return None
 
 
+def _is_terminal_amino_nitrogen(atom, exclude_idx):
+    """True if `atom` is a plain terminal -NH2 nitrogen (semicarbazide's
+    extra nitrogen) bonded only to the nitrogen at `exclude_idx`."""
+    if atom.GetAtomicNum() != 7 or atom.GetIsAromatic():
+        return False
+    if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+        return False
+    neighbors = [n.GetIdx() for n in atom.GetNeighbors()]
+    return neighbors == [exclude_idx]
+
+
 def has_urea_shape(mol) -> bool:
     return _urea_core(mol) is not None
+
+
+def _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx):
+    """idx of the extra terminal amino nitrogen attached to one of urea's
+    two core nitrogens (the semicarbazide shape), or None if neither core
+    nitrogen carries one."""
+    for n_idx in (n1_idx, n2_idx):
+        nitrogen = mol.GetAtomWithIdx(n_idx)
+        for neighbor in nitrogen.GetNeighbors():
+            if neighbor.GetIdx() in (carbon_idx,):
+                continue
+            if _is_terminal_amino_nitrogen(neighbor, n_idx):
+                return neighbor.GetIdx()
+    return None
 
 
 def _n_substituent_carbons(mol, nitrogen_idx, carbon_idx):
@@ -136,13 +185,16 @@ def name_urea(mol) -> str:
         )
 
     (oxygen_idx,) = (n.GetIdx() for n in mol.GetAtomWithIdx(carbon_idx).GetNeighbors() if n.GetAtomicNum() == 8)
-    n1_carbons = _n_substituent_carbons(mol, n1_idx, carbon_idx)
-    n2_carbons = _n_substituent_carbons(mol, n2_idx, carbon_idx)
+    amino_nitrogen_idx = _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx)
+    n1_carbons = tuple(c for c in _n_substituent_carbons(mol, n1_idx, carbon_idx) if c != amino_nitrogen_idx)
+    n2_carbons = tuple(c for c in _n_substituent_carbons(mol, n2_idx, carbon_idx) if c != amino_nitrogen_idx)
 
     carbon_graph = carbon_adjacency(mol)
     n1_chain_atoms = _substituent_chain_atoms(carbon_graph, n1_carbons)
     n2_chain_atoms = _substituent_chain_atoms(carbon_graph, n2_carbons)
     known_atoms = {carbon_idx, oxygen_idx, n1_idx, n2_idx} | n1_chain_atoms | n2_chain_atoms
+    if amino_nitrogen_idx is not None:
+        known_atoms.add(amino_nitrogen_idx)
     for atom in mol.GetAtoms():
         if atom.GetIdx() not in known_atoms:
             raise UnsupportedStructure(
@@ -156,6 +208,17 @@ def name_urea(mol) -> str:
 
     n1_names = _substituent_names(carbon_graph, n1_carbons)
     n2_names = _substituent_names(carbon_graph, n2_carbons)
+
+    if amino_nitrogen_idx is not None:
+        if n1_names or n2_names:
+            raise UnsupportedStructure(
+                "a semicarbazide (amino-substituted urea nitrogen) "
+                "combined with a plain N-alkyl substituent is not "
+                "supported yet -- PubChem's own examples for that "
+                "combination use a numeric-locant style this module "
+                "doesn't otherwise follow for urea"
+            )
+        return "aminourea"
 
     if not n1_names and not n2_names:
         return "urea"
