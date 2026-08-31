@@ -50,6 +50,27 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   `_amide.py`. Both hydrazide nitrogens are never stereocenters (verified
   via RDKit's `Chem.FindPotentialStereo`), so this support is
   unconditional.
+- `tasks/hydrazide-n-substitution-naming.md`: a plain, unbranched,
+  unsubstituted alkyl substituent on either hydrazide nitrogen is cited as
+  an "N-"/"N'-" prefix (the carbonyl-adjacent nitrogen is "N", the
+  terminal one "N'", mirroring `_amide.py`'s "N-"/`_urea.py`'s
+  "N-"/"N'-" convention), placed directly ahead of the acyl stem, in
+  alphabetical order by substituent name; identically-named substituents
+  (whether on the same nitrogen or split across both) share one
+  multiplying prefix with their locants listed together, e.g. "N,N'-di"/
+  "N,N',N'-tri". Confirmed via PubChem PUG REST: 'N-methylacetohydrazide'
+  (`CC(=O)N(C)N`, CID 19051), "N'-methylacetohydrazide" (`CC(=O)NNC`, CID
+  122488), "N,N'-dimethylacetohydrazide" (`CC(=O)N(C)NC`, CID 12596294),
+  "N',N'-dimethylacetohydrazide" (`CC(=O)NN(C)C`, CID 80385),
+  "N,N',N'-trimethylacetohydrazide" (`CC(=O)N(C)N(C)C`, CID 12362621),
+  "N-ethyl-N'-methylacetohydrazide" (`CC(=O)N(CC)NC`, CID 89037658),
+  "N'-ethyl-N-methylacetohydrazide" (`CC(=O)N(C)NCC`, CID 119096326), and
+  the systematic (non-retained-name) chain lengths behave the same way:
+  "N-methylbutanehydrazide" (`CCCC(=O)N(C)N`, CID 53649946),
+  "N'-methylbutanehydrazide" (`CCCC(=O)NNC`, CID 88556637). The
+  carbonyl-adjacent nitrogen can carry at most one alkyl substituent
+  (it's already bonded to the carbonyl carbon and the other nitrogen);
+  the terminal nitrogen can carry up to two.
 """
 
 from rdkit import Chem
@@ -64,60 +85,67 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    linear_branch,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
     specified_stereocenters,
 )
-from ._numerals import alkane_name
+from ._numerals import alkane_name, alkyl_name, multiplying_prefix
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, 8, *HALOGEN_PREFIXES}
 
 
+def _is_carbonyl_carbon(mol, carbon_atom):
+    return any(
+        o.GetAtomicNum() == 8
+        and o.GetDegree() == 1
+        and mol.GetBondBetweenAtoms(carbon_atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for o in carbon_atom.GetNeighbors()
+    )
+
+
 def has_hydrazide_shape(mol) -> bool:
     """True if some carbon carries a doubly-bonded, monovalent carbonyl
-    oxygen and a singly-bonded nitrogen (degree 2, one H) that is itself
-    singly bonded to a terminal, two-H nitrogen -- a -CO-NH-NH2 pattern --
+    oxygen and a singly-bonded nitrogen that is itself singly bonded to
+    exactly one other nitrogen -- a -CO-N(-)-N(-) pattern, regardless of
+    how many (if any) plain alkyl substituents sit on either nitrogen --
     regardless of whether the rest of the molecule is in scope. Used by
     `core.py` to route ahead of the amide/aldehyde/ketone dispatch, since
     a hydrazide carbon would otherwise look amide-shaped (P-66.1's own
-    -CONH2 check doesn't look past the first nitrogen)."""
+    -CONH2 check doesn't look past the first nitrogen). Doesn't check
+    substituent count/H totals (unlike the old, unsubstituted-only
+    version of this check) so N-/N'-substituted hydrazides route here
+    too; `_validate_and_collect_hydrazide` below does the real scope
+    enforcement."""
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() != 6:
             continue
-        has_carbonyl = any(
-            n.GetAtomicNum() == 8
-            and n.GetDegree() == 1
-            and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
-            for n in atom.GetNeighbors()
-        )
-        if not has_carbonyl:
+        if not _is_carbonyl_carbon(mol, atom):
             continue
         for n1 in atom.GetNeighbors():
-            if (
-                n1.GetAtomicNum() == 7
-                and n1.GetDegree() == 2
-                and n1.GetTotalNumHs() == 1
-                and mol.GetBondBetweenAtoms(atom.GetIdx(), n1.GetIdx()).GetBondTypeAsDouble() == 1.0
-            ):
-                (n2,) = [n for n in n1.GetNeighbors() if n.GetIdx() != atom.GetIdx()]
-                if (
-                    n2.GetAtomicNum() == 7
-                    and n2.GetDegree() == 1
-                    and n2.GetTotalNumHs() == 2
-                    and mol.GetBondBetweenAtoms(n1.GetIdx(), n2.GetIdx()).GetBondTypeAsDouble() == 1.0
-                ):
-                    return True
+            if n1.GetAtomicNum() != 7:
+                continue
+            if mol.GetBondBetweenAtoms(atom.GetIdx(), n1.GetIdx()).GetBondTypeAsDouble() != 1.0:
+                continue
+            nitrogen_neighbors = [n for n in n1.GetNeighbors() if n.GetAtomicNum() == 7]
+            if len(nitrogen_neighbors) != 1:
+                continue
+            (n2,) = nitrogen_neighbors
+            if mol.GetBondBetweenAtoms(n1.GetIdx(), n2.GetIdx()).GetBondTypeAsDouble() == 1.0:
+                return True
     return False
 
 
 def _validate_and_collect_hydrazide(mol):
     """Check the molecule fits this module's scope (see module docstring)
-    and return (hydrazide_carbon, hydrazide_oxygen, n1, n2, hydroxyls):
-    the single -CO-NH-NH2 carbon/oxygen/n1(-NH-)/n2(-NH2) atom indices,
-    and the set of any coexisting standalone hydroxyl-oxygen indices."""
+    and return (hydrazide_carbon, hydrazide_oxygen, n1, n2, n1_alkyl,
+    n2_alkyl, hydroxyls): the single -CO-N(R)-N(R')(R'') carbon/oxygen/
+    n1/n2 atom indices, n1's 0-1 and n2's 0-2 N-alkyl substituent carbon
+    indices, and the set of any coexisting standalone hydroxyl-oxygen
+    indices."""
     has_carbon = False
     hydrazide_carbons = set()
     oxygen_by_carbon = {}
@@ -168,49 +196,66 @@ def _validate_and_collect_hydrazide(mol):
                 )
             oxygen_by_carbon.setdefault(carbon.GetIdx(), []).append(atom.GetIdx())
         elif atomic_num == 7:
-            neighbors = atom.GetNeighbors()
+            neighbors = list(atom.GetNeighbors())
+            if len(neighbors) > 3:
+                raise UnsupportedStructure(
+                    "a hydrazide nitrogen with more than two substituents "
+                    "besides its ring/chain neighbor is not a valid "
+                    "hydrazide nitrogen"
+                )
+            if any(n.GetAtomicNum() not in (6, 7) for n in neighbors):
+                raise UnsupportedStructure(
+                    "a hydrazide nitrogen bonded to anything other than "
+                    "carbon or its partner nitrogen is out of scope for "
+                    "this module"
+                )
+            for bond in atom.GetBonds():
+                if bond.GetBondTypeAsDouble() != 1.0:
+                    raise UnsupportedStructure(
+                        "a hydrazide nitrogen must be singly bonded to all its neighbors"
+                    )
             carbon_neighbors = [n for n in neighbors if n.GetAtomicNum() == 6]
             nitrogen_neighbors = [n for n in neighbors if n.GetAtomicNum() == 7]
-            is_n1_shape = (
-                len(carbon_neighbors) == 1
-                and len(nitrogen_neighbors) == 1
-                and atom.GetDegree() == 2
-                and atom.GetTotalNumHs() == 1
-                and mol.GetBondBetweenAtoms(atom.GetIdx(), carbon_neighbors[0].GetIdx()).GetBondTypeAsDouble()
-                == 1.0
-                and mol.GetBondBetweenAtoms(atom.GetIdx(), nitrogen_neighbors[0].GetIdx()).GetBondTypeAsDouble()
-                == 1.0
-            )
-            is_n2_shape = (
-                not carbon_neighbors
-                and len(nitrogen_neighbors) == 1
-                and atom.GetDegree() == 1
-                and atom.GetTotalNumHs() == 2
-            )
+            carbonyl_neighbors = [n for n in carbon_neighbors if _is_carbonyl_carbon(mol, n)]
+            alkyl_neighbors = [n for n in carbon_neighbors if n not in carbonyl_neighbors]
+            is_n1_shape = len(carbonyl_neighbors) == 1 and len(nitrogen_neighbors) == 1 and len(alkyl_neighbors) <= 1
+            is_n2_shape = not carbonyl_neighbors and len(nitrogen_neighbors) == 1
             if is_n1_shape:
                 (n2,) = nitrogen_neighbors
-                if not (
-                    n2.GetDegree() == 1
-                    and n2.GetTotalNumHs() == 2
-                    and not [x for x in n2.GetNeighbors() if x.GetAtomicNum() == 6]
-                ):
+                n2_neighbors = list(n2.GetNeighbors())
+                if len(n2_neighbors) > 3:
                     raise UnsupportedStructure(
-                        "a hydrazide nitrogen chain with any substituent "
-                        "other than its hydrogens (N-substituted "
-                        "hydrazide) is out of scope for this module"
+                        "a hydrazide's terminal nitrogen with more than "
+                        "two alkyl substituents is not a valid hydrazide "
+                        "nitrogen"
                     )
-                n1_by_carbon.setdefault(carbon_neighbors[0].GetIdx(), []).append((atom.GetIdx(), n2.GetIdx()))
+                if any(n.GetIdx() != atom.GetIdx() and n.GetAtomicNum() != 6 for n in n2_neighbors):
+                    raise UnsupportedStructure(
+                        "a hydrazide's terminal nitrogen bonded to "
+                        "anything other than carbon (besides its own N-N "
+                        "bond) is out of scope for this module"
+                    )
+                for bond in n2.GetBonds():
+                    if bond.GetBondTypeAsDouble() != 1.0:
+                        raise UnsupportedStructure(
+                            "a hydrazide nitrogen must be singly bonded to all its neighbors"
+                        )
+                n1_alkyl = tuple(n.GetIdx() for n in alkyl_neighbors)
+                n2_alkyl = tuple(n.GetIdx() for n in n2_neighbors if n.GetIdx() != atom.GetIdx())
+                n1_by_carbon.setdefault(carbonyl_neighbors[0].GetIdx(), []).append(
+                    (atom.GetIdx(), n2.GetIdx(), n1_alkyl, n2_alkyl)
+                )
                 continue
             if is_n2_shape:
                 # Already validated as part of its N1 partner's own check
                 # above; nothing further to do for this atom in isolation.
                 continue
             raise UnsupportedStructure(
-                "a nitrogen shaped like neither a hydrazide's -NH- nor its "
-                "terminal -NH2 (P-66.3.1.1) is out of scope for this "
-                "module (e.g. a plain primary amide/amine nitrogen bonded "
-                "directly to a carbon; see _amide.py for a plain primary "
-                "amide)"
+                "a nitrogen shaped like neither a hydrazide's -N(R)- nor "
+                "its terminal -N(R')(R'') (P-66.3.1.1) is out of scope for "
+                "this module (e.g. a plain primary amide/amine nitrogen "
+                "bonded directly to a carbon; see _amide.py for a plain "
+                "primary amide)"
             )
         else:
             if atom.GetDegree() != 1:
@@ -255,10 +300,10 @@ def _validate_and_collect_hydrazide(mol):
         )
     (hydrazide_carbon,) = hydrazide_carbons
     (hydrazide_oxygen,) = oxygen_by_carbon[hydrazide_carbon]
-    ((n1, n2),) = n1_by_carbon[hydrazide_carbon]
+    ((n1, n2, n1_alkyl, n2_alkyl),) = n1_by_carbon[hydrazide_carbon]
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    return hydrazide_carbon, hydrazide_oxygen, n1, n2, hydroxyls
+    return hydrazide_carbon, hydrazide_oxygen, n1, n2, n1_alkyl, n2_alkyl, hydroxyls
 
 
 def _suffix_body(ene_locants, yne_locants):
@@ -345,7 +390,60 @@ def _substituents_for_chain(graph, chain, halogens, excluded):
     return substituents
 
 
-def _name_acyclic_hydrazide(mol, hydrazide_carbon, excluded, hydroxyls, bonds, stereo=None):
+def _collect_n_alkyl(full_carbon_graph, mol, hydroxyls, graph, n1_alkyl, n2_alkyl):
+    """Validate n1's (0-1) and n2's (0-2) alkyl substituents -- each must
+    be a plain, unbranched, unsubstituted, saturated alkyl chain, the same
+    restriction `_amide.py` places on its own N-substituents -- and return
+    (entries, n_alkyl_atoms): `entries` is a list of ("N"/"N'", name)
+    pairs (module docstring's N/N' convention) ready for `_format_n_prefix`,
+    and `n_alkyl_atoms` is the full set of atom indices spanned by every
+    N-substituent, to exclude from the principal-chain search below."""
+    entries = []
+    n_alkyl_atoms = set()
+    for locant_label, alkyl_roots in (("N", n1_alkyl), ("N'", n2_alkyl)):
+        for root in alkyl_roots:
+            length = linear_branch(full_carbon_graph, root, None)
+            if length is None:
+                raise UnsupportedStructure("a branched N-substituent is not supported yet")
+            atoms = set()
+            previous, current = None, root
+            while current is not None:
+                atoms.add(current)
+                neighbors = [n for n in full_carbon_graph[current] if n != previous]
+                previous, current = current, (neighbors[0] if neighbors else None)
+            if any(b[0] in atoms or b[1] in atoms for b in non_single_bonds(mol)):
+                raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
+            if any(next(iter(graph[o])) in atoms for o in hydroxyls):
+                raise UnsupportedStructure(
+                    "a substituted N-substituent (e.g. bearing a hydroxyl) "
+                    "is not supported yet; only a plain, unsubstituted "
+                    "alkyl N-substituent is in scope"
+                )
+            entries.append((locant_label, alkyl_name(length)))
+            n_alkyl_atoms |= atoms
+    return entries, n_alkyl_atoms
+
+
+def _format_n_prefix(entries):
+    """entries: [("N"/"N'", name), ...] -> the assembled "N-"/"N'-" prefix
+    string (module docstring), grouping identically-named substituents
+    (whether on the same nitrogen or split across both) under one shared
+    multiplying prefix, e.g. [("N", "methyl"), ("N'", "methyl")] ->
+    "N,N'-dimethyl". '' if entries is empty."""
+    if not entries:
+        return ""
+    grouped = {}
+    for locant, name in entries:
+        grouped.setdefault(name, []).append(locant)
+    parts = []
+    for name in sorted(grouped, key=alpha_sort_key):
+        locants = sorted(grouped[name])
+        multiplier = multiplying_prefix(len(locants)) if len(locants) > 1 else ""
+        parts.append(f"{','.join(locants)}-{multiplier}{name}")
+    return "-".join(parts)
+
+
+def _name_acyclic_hydrazide(mol, hydrazide_carbon, excluded, hydroxyls, bonds, n1_alkyl, n2_alkyl, stereo=None):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
     include every stereocenter are eligible (P-92: a stereocenter on a
@@ -359,7 +457,18 @@ def _name_acyclic_hydrazide(mol, hydrazide_carbon, excluded, hydroxyls, bonds, s
     ever non-None here for chain_length >= 3."""
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}}
-    chains = longest_chains(carbon_adjacency(mol))
+    full_carbon_graph = carbon_adjacency(mol)
+    n_entries, n_alkyl_atoms = _collect_n_alkyl(full_carbon_graph, mol, hydroxyls, graph, n1_alkyl, n2_alkyl)
+    n_prefix = _format_n_prefix(n_entries)
+
+    # N-alkyl substituent carbons hang off the (excluded) hydrazide
+    # nitrogens, not off any acyl-chain carbon, so they form their own
+    # isolated component(s) in the carbon-only graph; the whole subtree
+    # must be removed before picking the longest chain, or a longer
+    # N-substituent would be mistaken for the acyl chain itself (same
+    # issue `_amide.py` guards against).
+    carbon_graph = {k: v for k, v in full_carbon_graph.items() if k not in n_alkyl_atoms}
+    chains = longest_chains(carbon_graph)
     chain_length = len(chains[0])
 
     if chain_length < 3:
@@ -374,7 +483,18 @@ def _name_acyclic_hydrazide(mol, hydrazide_carbon, excluded, hydroxyls, bonds, s
         if chain_length == 1:
             # P-66.3.1.2.1: the mononuclear case's retained name
             # ('formohydrazide') is itself the PIN; there's no room on a
-            # single carbon for any substituent.
+            # single carbon for any substituent. Unlike the dinuclear case
+            # below, a substituent on either nitrogen also breaks the
+            # retained name itself (PubChem switches to 'formamide' +
+            # amino-substituent naming for `O=CN(C)N`/`O=CNNC`, a
+            # different naming paradigm this module doesn't attempt), so
+            # N-substitution is out of scope here specifically.
+            if n_entries:
+                raise UnsupportedStructure(
+                    "an N-/N'-substituted formohydrazide is not supported "
+                    "yet (the retained name itself doesn't survive "
+                    "substitution here, unlike the dinuclear case)"
+                )
             return "formohydrazide"
         # P-66.3.1.2.1: the dinuclear case's retained name
         # ('acetohydrazide') is the PIN, with any substituent on its
@@ -383,7 +503,11 @@ def _name_acyclic_hydrazide(mol, hydrazide_carbon, excluded, hydroxyls, bonds, s
         substituents = _substituents_for_chain(graph, chain, halogens, excluded)
         grouped = group_substituents(substituents)
         prefix = format_substituent_prefixes(grouped)
-        return prefix + "acetohydrazide"
+        name = prefix + "acetohydrazide"
+        if n_prefix:
+            separator = "-" if name[0].isdigit() else ""
+            name = f"{n_prefix}{separator}{name}"
+        return name
 
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
@@ -428,6 +552,10 @@ def _name_acyclic_hydrazide(mol, hydrazide_carbon, excluded, hydroxyls, bonds, s
                 position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
                 best_key, best_name, best_position_of = key, name, position_of
 
+    if n_prefix:
+        separator = "-" if best_name[0].isdigit() else ""
+        best_name = f"{n_prefix}{separator}{best_name}"
+
     if stereo is not None:
         labels = sorted((best_position_of[atom], code) for atom, code in stereo)
         prefix = ",".join(f"{locant}{code}" for locant, code in labels)
@@ -436,7 +564,7 @@ def _name_acyclic_hydrazide(mol, hydrazide_carbon, excluded, hydroxyls, bonds, s
 
 
 def name_hydrazide(mol) -> str:
-    hydrazide_carbon, hydrazide_oxygen, n1, n2, hydroxyls = _validate_and_collect_hydrazide(mol)
+    hydrazide_carbon, hydrazide_oxygen, n1, n2, n1_alkyl, n2_alkyl, hydroxyls = _validate_and_collect_hydrazide(mol)
     stereo = specified_stereocenters(mol)
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(
@@ -463,4 +591,4 @@ def name_hydrazide(mol) -> str:
                 "is out of scope for this module (P-31.1.4.2.4)"
             )
 
-    return _name_acyclic_hydrazide(mol, hydrazide_carbon, excluded, hydroxyls, bonds, stereo)
+    return _name_acyclic_hydrazide(mol, hydrazide_carbon, excluded, hydroxyls, bonds, n1_alkyl, n2_alkyl, stereo)
