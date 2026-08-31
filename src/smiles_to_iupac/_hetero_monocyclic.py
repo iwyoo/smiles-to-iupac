@@ -37,12 +37,23 @@ pyrazine) are, like pyridine, fully mancude without indicated hydrogen.
 All nine confirmed as PubChem's IUPACName for the exact SMILES: CID
 795/1048/9255/9254/9256/67515/9259/9260/9261.
 
-Se/Te analogues of the two-heteroatom rings (selenazole, telluradiazole,
-etc.), three-or-more heteroatom rings (triazole, tetrazole, etc.),
-6-membered O/S/Se/Te rings (pyran/thiopyran/selenopyran/telluropyran,
-which need an indicated-hydrogen prefix themselves since they aren't
-fully mancude with a single chalcogen), and substituents are out of
-scope -- separate future tasks.
+Se/Te analogues of the N+S mancude pair (Table 2.2 lists them alongside
+thiazole/isothiazole as a symmetric O->S->Se->Te chalcogen series):
+1,3-selenazole and 1,2-selenazole, 1,3-tellurazole and 1,2-tellurazole --
+none carry indicated hydrogen, same as their S analogues. Three of the
+four confirmed via PubChem's IUPACName for the exact SMILES: 1,3-selenazole
+(CID 11686913), 1,2-selenazole (CID 13224788), 1,2-tellurazole (CID
+102212476); 1,3-tellurazole has no PubChem record (CID 0 for the exact
+SMILES) so it's confirmed from Table 2.2's text alone, matching the same
+symmetric pattern as the other three. The N+O pair (oxazole/isoxazole)
+has no listed Se/Te analogue in Table 2.2, so that combination stays out
+of scope.
+
+Three-or-more heteroatom rings (triazole, tetrazole, etc.), 6-membered
+O/S/Se/Te rings (pyran/thiopyran/selenopyran/telluropyran, which need an
+indicated-hydrogen prefix themselves since they aren't fully mancude with
+a single chalcogen), and substituents are out of scope -- separate future
+tasks.
 
 Since this module's only job is recognizing the exact unsubstituted
 parent for a fixed, small (element(s), ring size, saturation) table --
@@ -102,6 +113,10 @@ _TWO_HETEROATOM_MANCUDE_NAME_SMILES = {
     ("1,2-diazine", 6): ("pyridazine", "c1ccnnc1"),
     ("1,3-diazine", 6): ("pyrimidine", "c1ccncn1"),
     ("1,4-diazine", 6): ("pyrazine", "c1cnccn1"),
+    ("1,3-selenazole", 5): ("1,3-selenazole", "c1cnc[se]1"),
+    ("1,2-selenazole", 5): ("1,2-selenazole", "c1ccn[se]1"),
+    ("1,3-tellurazole", 5): ("1,3-tellurazole", "c1cnc[te]1"),
+    ("1,2-tellurazole", 5): ("1,2-tellurazole", "c1ccn[te]1"),
 }
 _CANONICAL_TO_NAME = {
     Chem.CanonSmiles(smiles): name

@@ -60,6 +60,17 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("c1ccnnc1", "pyridazine"),
         ("c1ccncn1", "pyrimidine"),
         ("c1cnccn1", "pyrazine"),
+        # Se/Te analogues of the N+S mancude pair, Table 2.2 -- 1,3- and
+        # 1,2-selenazole confirmed as PubChem's IUPACName for the exact
+        # SMILES (CID 11686913, CID 13224788); 1,2-tellurazole likewise
+        # (CID 102212476). 1,3-tellurazole has no PubChem record for the
+        # exact SMILES (CID 0), confirmed from Table 2.2's text alone
+        # instead, matching the same symmetric O->S->Se->Te pattern as the
+        # other three.
+        ("c1cnc[se]1", "1,3-selenazole"),
+        ("c1ccn[se]1", "1,2-selenazole"),
+        ("c1cnc[te]1", "1,3-tellurazole"),
+        ("c1ccn[te]1", "1,2-tellurazole"),
     ],
 )
 def test_smiles_to_iupac_hetero_monocyclic(smiles, expected):
