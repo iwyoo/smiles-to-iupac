@@ -91,14 +91,14 @@ def test_substituted_branched_fusion_raises():
 
 
 def test_heteroaromatic_raises():
-    # pyrimidine: not even detected as in scope (find_aromatic_fused_core
+    # 1,2,4-triazole: not even detected as in scope (find_aromatic_fused_core
     # requires an all-carbon ring, and _hetero_monocyclic.py's mancude
-    # table only covers single-heteroatom rings -- see P-22.2.1 Table
-    # 2.2), falls through to the existing heteroatom rejection in
-    # validate_atoms_and_bonds. Bare pyridine itself is now supported by
-    # _hetero_monocyclic.py -- see tests/test_hetero_monocyclic.py.
+    # table only covers rings with one or two heteroatoms -- see P-22.2.1
+    # Table 2.2), falls through to the existing heteroatom rejection in
+    # validate_atoms_and_bonds. Bare pyridine/pyrimidine are now supported
+    # by _hetero_monocyclic.py -- see tests/test_hetero_monocyclic.py.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccncn1")
+        smiles_to_iupac("c1nc[nH]n1")
 
 
 def test_substituted_heteroaromatic_fused_raises():

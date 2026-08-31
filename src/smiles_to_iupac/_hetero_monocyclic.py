@@ -25,29 +25,44 @@ Mancude (aromatic) rings, single heteroatom, 5- and 6-membered only
 O/S/Se/Te) and pyridine (6-membered N) are retained names that are PINs
 outright; pyrrole (5-membered N) needs an indicated-hydrogen prefix --
 its PIN is '1H-pyrrole', not bare 'pyrrole' (confirmed via Table 2.2 and
-PubChem). Two-heteroatom mancude rings (imidazole, oxazole, pyrazine,
-etc., also listed in Table 2.2) and the 6-membered O/S/Se/Te rings
-(pyran/thiopyran/selenopyran/telluropyran, which need an indicated-
-hydrogen prefix themselves since they aren't fully mancude with a single
-chalcogen) are out of scope -- separate future tasks.
+PubChem).
+
+Mancude rings, two heteroatoms (also P-22.2.1 Table 2.2), unsubstituted
+only: the 5-membered N+N/N+O/N+S rings need an indicated-hydrogen prefix
+on the NH ring member -- 1H-imidazole (1,3-diazole) and 1H-pyrazole
+(1,2-diazole); 1,3-oxazole and 1,2-oxazole (isoxazole); 1,3-thiazole and
+1,2-thiazole (isothiazole) don't carry indicated hydrogen since neither
+heteroatom bears an H. The 6-membered N+N rings (pyridazine, pyrimidine,
+pyrazine) are, like pyridine, fully mancude without indicated hydrogen.
+All nine confirmed as PubChem's IUPACName for the exact SMILES: CID
+795/1048/9255/9254/9256/67515/9259/9260/9261.
+
+Se/Te analogues of the two-heteroatom rings (selenazole, telluradiazole,
+etc.), three-or-more heteroatom rings (triazole, tetrazole, etc.),
+6-membered O/S/Se/Te rings (pyran/thiopyran/selenopyran/telluropyran,
+which need an indicated-hydrogen prefix themselves since they aren't
+fully mancude with a single chalcogen), and substituents are out of
+scope -- separate future tasks.
 
 Since this module's only job is recognizing the exact unsubstituted
-parent for a fixed, small (element, ring size, saturation) table -- no
-locants to assign, no substituent numbering -- an exact whole-molecule
+parent for a fixed, small (element(s), ring size, saturation) table --
+no locants to assign, no substituent numbering -- an exact whole-molecule
 canonical-SMILES match against each name's structure is both sufficient
 and simplest, mirroring `_peri_fused_aromatic.py`'s approach.
 
 Formulas cross-checked (all well-known compounds): oxirane C2H4O,
-piperidine C5H11N, thiane C5H10S, furan C4H4O, pyridine C5H5N, etc. --
-see `_RETAINED_NAME_SMILES` and `_MANCUDE_NAME_SMILES`.
+piperidine C5H11N, thiane C5H10S, furan C4H4O, pyridine C5H5N, imidazole
+C3H4N2, pyrimidine C4H4N2, etc. -- see `_RETAINED_NAME_SMILES` and
+`_MANCUDE_NAME_SMILES`.
 
 Explicitly out of scope: any substituent, partially-saturated indicated-
-hydrogen forms other than 1H-pyrrole, two or more heteroatoms (dioxane,
-morpholine, imidazole, etc.), heteroatoms other than O/S/Se/Te/N, and
-ring sizes outside the tables above. `has_hetero_monocyclic_name` returns
-False for all of these, so `core.py`'s existing dispatch (which already
-rejects heteroatoms outside a few specific recognized shapes) continues
-to raise `UnsupportedStructure` for them, unchanged.
+hydrogen forms other than the ones listed above, three or more
+heteroatoms, heteroatoms other than O/S/Se/Te/N, mixed-element rings not
+listed above (dioxane, morpholine, etc.), and ring sizes outside the
+tables above. `has_hetero_monocyclic_name` returns False for all of
+these, so `core.py`'s existing dispatch (which already rejects
+heteroatoms outside a few specific recognized shapes) continues to raise
+`UnsupportedStructure` for them, unchanged.
 """
 
 from rdkit import Chem
@@ -77,9 +92,24 @@ _MANCUDE_NAME_SMILES = {
     ("N", 5): ("1H-pyrrole", "c1cc[nH]c1"),
     ("N", 6): ("pyridine", "c1ccncc1"),
 }
+_TWO_HETEROATOM_MANCUDE_NAME_SMILES = {
+    ("1,3-diazole", 5): ("1H-imidazole", "c1cnc[nH]1"),
+    ("1,2-diazole", 5): ("1H-pyrazole", "c1cc[nH]n1"),
+    ("1,3-oxazole", 5): ("1,3-oxazole", "c1cocn1"),
+    ("1,2-oxazole", 5): ("1,2-oxazole", "c1ccon1"),
+    ("1,3-thiazole", 5): ("1,3-thiazole", "c1cscn1"),
+    ("1,2-thiazole", 5): ("1,2-thiazole", "c1ccsn1"),
+    ("1,2-diazine", 6): ("pyridazine", "c1ccnnc1"),
+    ("1,3-diazine", 6): ("pyrimidine", "c1ccncn1"),
+    ("1,4-diazine", 6): ("pyrazine", "c1cnccn1"),
+}
 _CANONICAL_TO_NAME = {
     Chem.CanonSmiles(smiles): name
-    for name, smiles in (*_RETAINED_NAME_SMILES.values(), *_MANCUDE_NAME_SMILES.values())
+    for name, smiles in (
+        *_RETAINED_NAME_SMILES.values(),
+        *_MANCUDE_NAME_SMILES.values(),
+        *_TWO_HETEROATOM_MANCUDE_NAME_SMILES.values(),
+    )
 }
 
 
