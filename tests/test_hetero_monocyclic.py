@@ -77,9 +77,49 @@ def test_smiles_to_iupac_hetero_monocyclic(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # One substituent on a mancude parent, fixed heteroatom locants
+        # unchanged from the unsubstituted table above -- all confirmed as
+        # PubChem's IUPACName for the exact SMILES. Symmetric parents
+        # (single heteroatom, and the three 6-membered two-nitrogen rings)
+        # pick the lower of two valid numbering directions automatically;
+        # the heteroatom-asymmetric ones (thiazole/oxazole family) have
+        # only one valid direction to begin with.
+        ("Cc1ccoc1", "3-methylfuran"),  # CID 13587
+        ("Cc1ccsc1", "3-methylthiophene"),  # CID 12024
+        ("Cc1cc[se]c1", "3-methylselenophene"),  # CID 13022371
+        ("Cc1cc[te]c1", "3-methyltellurophene"),  # CID 13022372
+        ("Cc1ccccn1", "2-methylpyridine"),  # CID 7975
+        ("Clc1ccncc1", "4-chloropyridine"),  # CID 12288
+        ("Cc1ccnnc1", "4-methylpyridazine"),  # CID 136882
+        ("Cc1ncccn1", "2-methylpyrimidine"),  # CID 78748
+        ("Cc1cnccn1", "2-methylpyrazine"),  # CID 7976
+        ("Cc1ccon1", "3-methyl-1,2-oxazole"),  # CID 96098
+        ("Cc1cscn1", "4-methyl-1,3-thiazole"),  # CID 12748
+        ("Cc1ccsn1", "3-methyl-1,2-thiazole"),  # CID 12747
+        # Pyrrole/imidazole/pyrazole's own N-H position (locant 1) is a
+        # real, unambiguous substitutable position -- substituting it
+        # directly drops the parent's '1H-' indicated-hydrogen prefix
+        # entirely, since the locant '1-' alone already pins it.
+        ("Cn1cccc1", "1-methylpyrrole"),  # CID 7304
+        ("Cn1ccnc1", "1-methylimidazole"),  # CID 1390
+        ("Cn1cccn1", "1-methylpyrazole"),  # CID 70255
+    ],
+)
+def test_smiles_to_iupac_hetero_monocyclic_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_substituted_hetero_monocyclic_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC1CCCCO1")
+
+
+def test_two_substituents_on_mancude_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1c(C)coc1")
 
 
 def test_ring_size_outside_scope_raises():
@@ -99,14 +139,25 @@ def test_unsupported_heteroatom_element_raises():
         smiles_to_iupac("C1CCCCP1")
 
 
-def test_substituted_mancude_monocyclic_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccncc1")
-
-
-def test_substituted_two_heteroatom_mancude_ring_raises():
+def test_imidazole_ring_carbon_substituent_raises():
+    # A substituent on imidazole's ring carbon (any locant other than 1,
+    # the N-H position itself) is deliberately rejected rather than named:
+    # imidazole's N-H can migrate to the *other* nitrogen (a real
+    # prototropic tautomer), which reshuffles which carbon counts as
+    # adjacent to N1 -- PubChem's own name for this exact SMILES
+    # ("5-methyl-1H-imidazole", CID 13195) doesn't match this input's own
+    # literal, structurally-fixed N-H position (locant 4), confirming
+    # PubChem silently renormalizes to its own canonical tautomer before
+    # naming. Without the Blue Book's own tie-breaking rule for this case,
+    # the locant can't be trusted yet.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("Cc1cnc[nH]1")
+
+
+def test_pyrazole_ring_carbon_substituent_raises():
+    # Same tautomer ambiguity as imidazole above, one ring family over.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1cc[nH]n1")
 
 
 def test_three_heteroatom_mancude_ring_raises():
