@@ -22,9 +22,9 @@ def test_diethyl_sulfide():
 def test_branched_prefix_side_is_enclosed():
     # P-63.2.2.1.1: a branched R' encloses only R' in parentheses, with
     # 'sulfanyl' outside. Structure verified against PubChem: CID 522478
-    # ("1-propan-2-ylsulfanylbutane" -- PubChem's own PIN-style name, this
-    # project keeps its usual CAS-style substituent name instead).
-    assert smiles_to_iupac("CCCCSC(C)C") == "1-(1-methylethyl)sulfanylbutane"
+    # ("1-propan-2-ylsulfanylbutane" -- PubChem elides the parentheses this
+    # project's usual compound-substituent formatting keeps).
+    assert smiles_to_iupac("CCCCSC(C)C") == "1-(propan-2-yl)sulfanylbutane"
 
 
 def test_both_sides_branched_and_tied_not_supported():

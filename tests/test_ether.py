@@ -28,12 +28,12 @@ from smiles_to_iupac._common import UnsupportedStructure
         # A branched R' (the shorter, prefix side): P-63.2.2.1.1 encloses
         # only R' in parentheses, with 'oxy' outside them. Structure
         # verified against PubChem: CCCCOC(C)C -> CID 137240
-        # ("1-propan-2-yloxybutane" -- PubChem's own PIN-style name, this
-        # project keeps its usual CAS-style substituent name instead).
-        ("CCCCOC(C)C", "1-(1-methylethyl)oxybutane"),
+        # ("1-propan-2-yloxybutane" -- PubChem elides the parentheses this
+        # project's usual compound-substituent formatting keeps).
+        ("CCCCOC(C)C", "1-(propan-2-yl)oxybutane"),
         # Longer R' side also branched: PubChem CID 28488 confirms the
         # structure ("2-methyl-2-propan-2-yloxypropane").
-        ("CC(C)OC(C)(C)C", "2-(1-methylethyl)oxy-2-methylpropane"),
+        ("CC(C)OC(C)(C)C", "2-(propan-2-yl)oxy-2-methylpropane"),
     ],
 )
 def test_ether(smiles, expected):

@@ -8,25 +8,30 @@ from smiles_to_iupac._substituents import name_branch
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        # isopropyl-like branch: root forks into two equal-length methyls, so
-        # the longest chain from the fixed root (P-46) is 2 atoms (ethyl) with
-        # the other methyl cited at locant 1.
-        ("CCCC(C(C)C)CCC", "4-(1-methylethyl)heptane"),
-        # tert-butyl-like branch: root forks into three methyls.
-        ("CCCC(C(C)(C)C)CCC", "4-(1,1-dimethylethyl)heptane"),
-        # sec-butyl-like branch: root forks into a methyl and an ethyl
-        # continuation; the longer (ethyl) continuation wins the chain.
-        ("CCCCC(C(C)CC)CCCCC", "5-(1-methylpropyl)decane"),
+        # isopropyl branch: root forks into two equal-length methyls, so
+        # (P-29.3.2.2) the free valence sits internal to its own principal
+        # chain -- propane, at locant 2 -- rather than at a chain terminus.
+        ("CCCC(C(C)C)CCC", "4-(propan-2-yl)heptane"),
+        # tert-butyl branch: root forks into three methyls -- P-29.6.1's
+        # retained name, not the general rule's own name.
+        ("CCCC(C(C)(C)C)CCC", "4-tert-butylheptane"),
+        # sec-butyl branch: root forks into a methyl and an ethyl
+        # continuation; the longer (ethyl) side wins the chain, giving
+        # butane with the free valence at locant 2 (P-29.2: lowest locant
+        # consistent with the chain).
+        ("CCCCC(C(C)CC)CCCCC", "5-(butan-2-yl)decane"),
         # a compound substituent alongside a simple one on the same chain;
         # alphanumerical order (P-14.5.2) puts 'methyl' before the compound
-        # substituent's own key ('methylethyl'), so it gets the lower locant.
-        ("CCCC(C)C(C(C)C)CCC", "4-methyl-5-(1-methylethyl)octane"),
-        # a compound substituent on a ring, alongside a simple one.
-        ("CC1CCCCC1C(C)CC", "1-methyl-2-(1-methylpropyl)cyclohexane"),
+        # substituent's own key ('propanyl'), so it gets the lower locant.
+        ("CCCC(C)C(C(C)C)CCC", "4-methyl-5-(propan-2-yl)octane"),
+        # a compound substituent on a ring, alongside a simple one;
+        # alphanumerical order now puts the compound substituent's own key
+        # ('butanyl') before 'methyl', so it gets the lower locant.
+        ("CC1CCCCC1C(C)CC", "1-(butan-2-yl)-2-methylcyclohexane"),
         # two identical compound substituents: 'bis', not 'di' (P-14.2.2).
         (
             "CCCCC(C(C)CC)CCCCC(C(C)CC)CCCCC",
-            "5,10-bis(1-methylpropyl)pentadecane",
+            "5,10-bis(butan-2-yl)pentadecane",
         ),
     ],
 )

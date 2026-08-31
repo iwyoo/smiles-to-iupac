@@ -31,9 +31,10 @@ def test_pentagonal_prism_is_not_monocyclic():
 
 
 def test_ring_compound_substituent():
-    # sec-butyl-like branch on the ring (P-29.4); the only substituent on an
-    # otherwise unsubstituted ring, so its locant is omitted (P-14.3.3).
-    assert smiles_to_iupac("CC(CC)C1CCCCC1") == "(1-methylpropyl)cyclohexane"
+    # sec-butyl branch on the ring (P-29.4), free valence internal to its
+    # own chain (P-29.3.2.2, 'butan-2-yl'); the only substituent on an
+    # otherwise unsubstituted ring, so its own locant is omitted (P-14.3.3).
+    assert smiles_to_iupac("CC(CC)C1CCCCC1") == "(butan-2-yl)cyclohexane"
 
 
 @pytest.mark.parametrize(

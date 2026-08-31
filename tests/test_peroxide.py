@@ -29,9 +29,9 @@ def test_asymmetric_prefers_longer_chain_as_parent():
 def test_branched_prefix_side_is_enclosed():
     # P-63.2.2.1.1: a branched R' encloses only R' in parentheses, with
     # 'peroxy' outside. Structure verified against PubChem: CID 22572410
-    # ("1-propan-2-ylperoxybutane" -- PubChem's own PIN-style name, this
-    # project keeps its usual CAS-style substituent name instead).
-    assert smiles_to_iupac("CCCCOOC(C)C") == "1-(1-methylethyl)peroxybutane"
+    # ("1-propan-2-ylperoxybutane" -- PubChem elides the parentheses this
+    # project's usual compound-substituent formatting keeps).
+    assert smiles_to_iupac("CCCCOOC(C)C") == "1-(propan-2-yl)peroxybutane"
 
 
 def test_ring_not_supported():

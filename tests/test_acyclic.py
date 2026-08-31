@@ -44,14 +44,14 @@ def test_out_of_scope_structures_raise(smiles):
 
 
 def test_compound_substituent():
-    # A decane chain (the unique longest chain) carrying a sec-butyl-like
-    # branch at C5: the branch itself forks (root -> a methyl, and an ethyl
-    # continuation), so it is named as a compound substituent (P-29.4), with
-    # the longer (ethyl) continuation chosen as the branch's own chain and
-    # the leftover methyl cited at its locant 1: '1-methylpropyl'. The branch
+    # A decane chain (the unique longest chain) carrying a sec-butyl branch
+    # at C5: the branch itself forks (root -> a methyl, and an ethyl
+    # continuation), so it is named as a compound substituent (P-29.4) with
+    # its free valence internal to its own principal chain (P-29.3.2.2):
+    # butane, with the free valence at locant 2: 'butan-2-yl'. The branch
     # can't be absorbed into a longer main chain because the decane backbone
     # is strictly longer than any path running through the branch instead.
-    assert smiles_to_iupac("CCCCC(C(C)CC)CCCCC") == "5-(1-methylpropyl)decane"
+    assert smiles_to_iupac("CCCCC(C(C)CC)CCCCC") == "5-(butan-2-yl)decane"
 
 
 @pytest.mark.parametrize(

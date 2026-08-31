@@ -64,7 +64,7 @@ docstring for exactly which zero-substituent shapes it recognizes).
 import re
 
 from ._common import UnsupportedStructure, lowest_locant_set, multiplied_word
-from ._numerals import alkyl_name, multiplying_prefix
+from ._numerals import alkane_name, alkyl_name, multiplying_prefix
 
 _LEADING_LOCANTS_RE = re.compile(r"^[\d,\-]+")
 
@@ -145,10 +145,12 @@ def _group_substituents(entries):
 
 def _longest_chains_from_root(graph, root, coming_from, halogens):
     """All maximum-length simple paths starting at `root`, extending into the
-    subtree away from `coming_from` (P-46: the free valence is fixed at
-    locant 1, so only one direction of travel is possible, unlike a parent
-    hydride's chain). `halogens` atoms are excluded from the walk (P-35.2.1:
-    a halogen is a terminal substituent, never a chain-extending atom), the
+    subtree away from `coming_from`. Used both for the ordinary case where
+    `root` is the free valence itself (P-46: fixed at locant 1, so only one
+    direction of travel from it) and, via `_branch_point_candidate_chains`,
+    for a single side of a chain that runs *through* the free valence
+    (P-29.3.2.2). `halogens` atoms are excluded from the walk (P-35.2.1: a
+    halogen is a terminal substituent, never a chain-extending atom), the
     same way `carbon_adjacency` excludes them from a parent hydride's chain
     search."""
     best_length = 0
@@ -298,18 +300,47 @@ def name_branch(graph, root, coming_from, halogens=None):
         hydroxy_word = multiplied_word(len(oh_locants), "hydroxy")
         return f"{loc_str}-{hydroxy_word}cyclo{alkyl_name(ring_size)}", True
 
-    chain, name, is_compound = _select_winning_chain(graph, root, coming_from, halogens)
+    _, _, name, is_compound = _select_winning_structure(graph, root, coming_from, halogens)
     return name, is_compound
 
 
+def _substituent_entries_along_chain(graph, chain, first_previous, halogens, extra_exclusions=None):
+    """(position, name, is_compound) for every branch hanging off `chain`
+    (a chosen principal chain, root/free-valence somewhere on it), position
+    1-based along `chain`. `first_previous`: the atom to exclude when
+    collecting `chain[0]`'s own branches -- the external parent atom when
+    `chain[0]` is the free valence itself, or `None` when `chain[0]` is a
+    genuine leaf reached from the far side of a P-29.3.2.2 branch-point
+    chain (its only non-chain neighbors, if any, are real substituents,
+    since `_longest_chains_from_root` only stops there when nothing longer
+    extends past it).
+
+    `extra_exclusions`: {position -> atom}, for a P-29.3.2.2 branch-point
+    chain where the free valence sits mid-chain -- its external parent atom
+    is a real neighbor there too (not just at `chain[0]`), and, unlike
+    `chain[0]`'s neighbor, isn't already screened out by `chain_set` since
+    it's outside the chain entirely."""
+    extra_exclusions = extra_exclusions or {}
+    chain_set = set(chain)
+    entries = []
+    for position, atom in enumerate(chain, start=1):
+        previous = chain[position - 2] if position > 1 else first_previous
+        excluded = extra_exclusions.get(position)
+        for branch_root in graph[atom]:
+            if branch_root == previous or branch_root == excluded or branch_root in chain_set:
+                continue
+            sub_name, sub_compound = name_branch(graph, branch_root, atom, halogens)
+            entries.append((position, sub_name, sub_compound))
+    return entries
+
+
 def _select_winning_chain(graph, root, coming_from, halogens):
-    """The P-46 tie-break shared by `name_branch` (which only needs the
-    resulting name) and `branch_atom_locant` below (which also needs to
-    know which chain won, to locate a specific atom's position on it) --
-    kept as one function so the two can never disagree about which chain
-    was chosen. Returns (chain, name, is_compound); `chain` is the winning
-    principal chain, root-first (P-46: locant 1 is always the free
-    valence)."""
+    """The ordinary (non-branch-point) P-46 tie-break: `root` is fixed at
+    locant 1 (the free valence is always a chain terminus here). Returns
+    (chain, root_position, name, is_compound); `root_position` is always 1,
+    kept in the return shape so callers can treat this and
+    `_branch_point_candidate_chains` interchangeably via
+    `_select_winning_structure`."""
     chains = _longest_chains_from_root(graph, root, coming_from, halogens)
     chain_length = len(chains[0])
 
@@ -318,15 +349,7 @@ def _select_winning_chain(graph, root, coming_from, halogens):
     best_name = None
     best_compound = None
     for chain in chains:
-        chain_set = set(chain)
-        entries = []
-        for position, atom in enumerate(chain, start=1):
-            previous = chain[position - 2] if position > 1 else coming_from
-            for branch_root in graph[atom]:
-                if branch_root == previous or branch_root in chain_set:
-                    continue
-                sub_name, sub_compound = name_branch(graph, branch_root, atom, halogens)
-                entries.append((position, sub_name, sub_compound))
+        entries = _substituent_entries_along_chain(graph, chain, coming_from, halogens)
         grouped = _group_substituents(entries)
         if grouped and chain_length == 1:
             # P-14.3.4.2(a): the branch's own chain is a single (mononuclear)
@@ -342,15 +365,116 @@ def _select_winning_chain(graph, root, coming_from, halogens):
         if best_key is None or key < best_key:
             best_key, best_chain, best_name, best_compound = key, chain, name, is_compound
 
-    return best_chain, best_name, best_compound
+    return best_chain, 1, best_name, best_compound
+
+
+def _branch_point_candidate_chains(graph, root, coming_from, halogens):
+    """P-29.3.2.2: when the free-valence atom `root` itself forks into two
+    or more branches, the principal chain runs *through* it -- `root`
+    becomes an internal locant of the chain (e.g. isopropyl's carbon is
+    position 2 of propane, giving PIN 'propan-2-yl', not position 1 of the
+    pre-PIN CAS-style '1-methylethyl') -- rather than always starting at
+    it as `_select_winning_chain` assumes. Mirrors
+    `_radical.py::_name_branch_point_radical`'s P-29.3.2.2 derivation, but
+    generalized to let each branch be itself further branched (reusing
+    `_longest_chains_from_root`'s own recursive walk per branch, instead of
+    requiring every branch to be a plain unbranched chain the way the
+    radical module's narrower `linear_branch` does).
+
+    Returns (chain, root_position, name, is_compound), choosing among tied
+    candidates by the same P-46 criteria `_select_winning_chain` uses
+    (`_candidate_key`) -- chain length and `root_position` are fixed before
+    that tie-break runs (P-29.2: the free valence must get the lowest
+    locant the chain allows), so, like `_candidate_key`'s own docstring
+    notes for chain length, they are not themselves part of the key. `None`
+    if `root` isn't a branch point (fewer than two non-halogen branches);
+    callers fall back to `_select_winning_chain` in that case."""
+    branch_roots = [n for n in graph[root] if n != coming_from and n not in halogens]
+    if len(branch_roots) < 2:
+        return None
+
+    paths = {b: _longest_chains_from_root(graph, b, root, halogens) for b in branch_roots}
+    lengths = {b: len(paths[b][0]) for b in branch_roots}
+
+    if len(branch_roots) == 3 and all(length == 1 for length in lengths.values()):
+        # P-29.6.1: the retained name 'tert-butyl' is the PIN for the
+        # unsubstituted (CH3)3C- group, never the general rule's own
+        # '2-methylpropan-2-yl' -- and, being a single retained word with no
+        # locant of its own, it is never parenthesized as a compound prefix.
+        return [root], 1, "tert-butyl", False
+
+    sorted_lengths = sorted(lengths.values(), reverse=True)
+    target_total = sorted_lengths[0] + sorted_lengths[1]
+    spine_pairs = [
+        (a, b)
+        for i, a in enumerate(branch_roots)
+        for b in branch_roots[i + 1 :]
+        if lengths[a] + lengths[b] == target_total
+    ]
+
+    orientations = []
+    for a, b in spine_pairs:
+        if lengths[a] == lengths[b]:
+            orientations.extend([(a, b), (b, a)])
+        elif lengths[a] < lengths[b]:
+            orientations.append((a, b))
+        else:
+            orientations.append((b, a))
+
+    chain_length = target_total + 1
+    stem = alkane_name(chain_length)[:-1]
+
+    best_key = None
+    best_chain = None
+    best_position = None
+    best_name = None
+    for before_branch, after_branch in orientations:
+        extra_roots = [r for r in branch_roots if r not in (before_branch, after_branch)]
+        for path_before in paths[before_branch]:
+            for path_after in paths[after_branch]:
+                spine = list(reversed(path_before)) + [root] + path_after
+                root_locant = len(path_before) + 1
+                entries = _substituent_entries_along_chain(
+                    graph, spine, None, halogens, extra_exclusions={root_locant: coming_from}
+                )
+                for extra in extra_roots:
+                    sub_name, sub_compound = name_branch(graph, extra, root, halogens)
+                    entries.append((root_locant, sub_name, sub_compound))
+                grouped = _group_substituents(entries)
+                prefix = format_substituent_prefixes(grouped)
+                name = f"{prefix}{stem}-{root_locant}-yl"
+                key = _candidate_key(grouped) + (name,)
+                if best_key is None or key < best_key:
+                    best_key = key
+                    best_chain = spine
+                    best_position = root_locant
+                    best_name = name
+
+    return best_chain, best_position, best_name, True
+
+
+def _select_winning_structure(graph, root, coming_from, halogens):
+    """(chain, root_position, name, is_compound) for the substituent group
+    hanging off `root`: the P-29.3.2.2 branch-point chain
+    (`_branch_point_candidate_chains`) when `root` forks into two or more
+    branches, else the ordinary root-is-locant-1 chain
+    (`_select_winning_chain`). Shared by `name_branch` (which only needs
+    the name) and `branch_atom_locant` below (which also needs to know
+    which chain won and where `root` sits on it), so the two can never
+    disagree about which chain was chosen."""
+    branch_point = _branch_point_candidate_chains(graph, root, coming_from, halogens)
+    if branch_point is not None:
+        return branch_point
+    return _select_winning_chain(graph, root, coming_from, halogens)
 
 
 def branch_atom_locant(graph, root, coming_from, atom_idx, halogens=None):
-    """The position (1-based, P-46: locant 1 is the free valence) of
-    `atom_idx` on the winning principal chain of the substituent group
-    named by `name_branch(graph, root, coming_from, halogens)` -- the same
-    tie-break, so the two always agree on which chain that is. Used to cite
-    a stereodescriptor at the front of a compound substituent prefix
+    """The position (1-based) of `atom_idx` on the winning principal chain
+    of the substituent group named by
+    `name_branch(graph, root, coming_from, halogens)` -- from
+    `_select_winning_structure`, so the two always agree on which chain
+    that is (and where `root` itself sits on it, per P-29.3.2.2). Used to
+    cite a stereodescriptor at the front of a compound substituent prefix
     (P-91.3), e.g. the '1' in '[(1S)-1-chloropropyl]benzene'.
 
     Raises `UnsupportedStructure` if `atom_idx` isn't on that winning
@@ -359,7 +483,7 @@ def branch_atom_locant(graph, root, coming_from, atom_idx, halogens=None):
     module doesn't assign to anything, so it's out of scope rather than
     silently wrong."""
     halogens = halogens or {}
-    chain, _, _ = _select_winning_chain(graph, root, coming_from, halogens)
+    chain, _, _, _ = _select_winning_structure(graph, root, coming_from, halogens)
     if atom_idx not in chain:
         raise UnsupportedStructure(
             "a specified stereocenter that isn't on the substituent's own "
