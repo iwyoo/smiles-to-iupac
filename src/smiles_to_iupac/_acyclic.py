@@ -17,10 +17,13 @@ Recommendations ("the Blue Book"):
   while substituent detection still uses the full atom graph.
 
 `winning_chain_from_carbon_graph` additionally exposes the winning chain
-itself (not just its name) for `_acetal.py`'s stereodescriptor locant
-lookup (`tasks/acetal-stereocenter-naming.md`) -- `name_from_carbon_graph`
-delegates to it unchanged, so `_ether.py`/`_peroxide.py`/`_nitro.py`/
-`name_acyclic_alkane` (its other callers) see no behavior change.
+itself (not just its name) for stereodescriptor locant lookups
+(`tasks/acetal-stereocenter-naming.md`) -- `name_from_carbon_graph`
+delegates to it unchanged, so `_ether.py`/`_peroxide.py`/`_nitro.py` (its
+other callers) see no behavior change. `name_acyclic_alkane` uses it
+directly to apply the same P-91.3/P-92 stereodescriptor treatment to a
+halogenated chain's own stereocenters (`tasks/amino-acid-halide-
+stereocenter-naming.md`), mirroring `_ether.py`'s pattern.
 """
 
 from ._common import (
@@ -32,6 +35,7 @@ from ._common import (
     lowest_locant_set,
     non_single_bonds,
     path_between,
+    specified_stereocenters,
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name
@@ -165,4 +169,22 @@ def name_acyclic_alkane(mol) -> str:
             "rings are not supported by this module (see smiles_to_iupac._cyclic)"
         )
 
-    return name_from_carbon_graph(adjacency(mol), carbon_adjacency(mol), halogen_substituents(mol))
+    full_graph = adjacency(mol)
+    chain, name = winning_chain_from_carbon_graph(full_graph, carbon_adjacency(mol), halogen_substituents(mol))
+
+    stereo = specified_stereocenters(mol)
+    if stereo is None:
+        return name
+
+    # P-92: every specified stereocenter must lie on the winning principal
+    # chain; one on a substituent branch is out of scope, mirroring
+    # `_ether.py`'s identical treatment.
+    position_of = {atom: i + 1 for i, atom in enumerate(chain)}
+    if any(atom not in position_of for atom, _ in stereo):
+        raise UnsupportedStructure(
+            "a stereocenter on a substituent branch rather than the "
+            "principal chain is not supported yet (see P-92)"
+        )
+    labels = sorted((position_of[atom], code) for atom, code in stereo)
+    prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+    return f"({prefix})-{name}"

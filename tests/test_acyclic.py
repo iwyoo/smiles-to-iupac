@@ -52,3 +52,25 @@ def test_compound_substituent():
     # can't be absorbed into a longer main chain because the decane backbone
     # is strictly longer than any path running through the branch instead.
     assert smiles_to_iupac("CCCCC(C(C)CC)CCCCC") == "5-(1-methylpropyl)decane"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A halogenated chain's own stereocenter (P-91.3/P-92), same
+        # mechanism as `_carboxylic_acid.py`'s/`_ether.py`'s stereocenter
+        # tests (CIP computed entirely by RDKit's `rdCIPLabeler`, not
+        # reimplemented here).
+        ("C[C@H](Cl)CC", "(2S)-2-chlorobutane"),
+        ("C[C@@H](Cl)CC", "(2R)-2-chlorobutane"),
+    ],
+)
+def test_acyclic_alkane_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_acyclic_alkane_unspecified_stereocenter_unaffected():
+    # A genuine stereocenter left unspecified (no @/@@) is named exactly
+    # as before -- no stereo prefix, matching this project's long-standing
+    # convention (see `_common.py`'s `specified_stereocenters` docstring).
+    assert smiles_to_iupac("CC(Cl)CC") == "2-chlorobutane"
