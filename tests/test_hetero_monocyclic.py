@@ -183,6 +183,36 @@ def test_two_heteroatom_saturated_ring_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # 1,3-related two-heteroatom saturated 5-membered rings with their
+        # own retained/systematic name (P-22.2.1) -- PubChem-verified:
+        # imidazolidine (CID 449488), 1,3-oxazolidine (CID 536683),
+        # 1,3-thiazolidine (CID 10444), 1,3-dioxolane (CID 12586),
+        # 1,3-oxathiolane (CID 65092), 1,3-dithiolane (CID 20970).
+        ("C1CNCN1", "imidazolidine"),
+        ("C1CNCO1", "1,3-oxazolidine"),
+        ("C1CSCN1", "1,3-thiazolidine"),
+        ("C1COCO1", "1,3-dioxolane"),
+        ("C1CSCO1", "1,3-oxathiolane"),
+        ("C1CSCS1", "1,3-dithiolane"),
+    ],
+)
+def test_five_membered_1_3_two_heteroatom_ring_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_five_membered_1_2_relationship_raises():
+    # pyrazolidine (N+N, 1,2-relationship) is out of scope here -- unlike
+    # the 1,3-relationship rings above, a 5-membered 1,2-pair uses a
+    # different locant-citation rule (PubChem: 'dithiolane' with no
+    # locants for the S+S 1,2-case, CID 79045, vs explicit '1,3-' for the
+    # 1,3-case) that hasn't been scoped yet.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1CCNN1")
+
+
 def test_unsupported_heteroatom_element_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1CCCCP1")

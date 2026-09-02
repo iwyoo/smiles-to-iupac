@@ -67,11 +67,22 @@ piperidine C5H11N, thiane C5H10S, furan C4H4O, pyridine C5H5N, imidazole
 C3H4N2, pyrimidine C4H4N2, etc. -- see `_RETAINED_NAME_SMILES` and
 `_MANCUDE_NAME_SMILES`.
 
+Saturated rings, two heteroatoms, unsubstituted only: the 6-membered
+1,4-related pairs (N+O morpholine, N+N piperazine, N+S thiomorpholine,
+O+O 1,4-dioxane, O+S 1,4-oxathiane, S+S 1,4-dithiane) and the 5-membered
+1,3-related pairs (N+N imidazolidine, N+O 1,3-oxazolidine, N+S
+1,3-thiazolidine, O+O 1,3-dioxolane, O+S 1,3-oxathiolane, S+S
+1,3-dithiolane) all have their own retained/systematic name, confirmed
+via PubChem's IUPACName for the exact SMILES.
+
 Explicitly out of scope for the unsubstituted-only functions above: any
 substituent, partially-saturated indicated-hydrogen forms other than the
 ones listed above, three or more heteroatoms, heteroatoms other than
-O/S/Se/Te/N, mixed-element rings not listed above (1,4-oxathiane, 1,3-
-relationships, etc.), and ring sizes outside the tables above. `has_hetero_monocyclic_name`
+O/S/Se/Te/N, saturated two-heteroatom ring sizes/relationships other than
+the two listed above (5-membered 1,2-relationships in particular, e.g.
+pyrazolidine, use a different locant-citation rule and are deliberately
+excluded here), and ring sizes outside the single-heteroatom tables
+above. `has_hetero_monocyclic_name`
 returns False for all of these, so `core.py`'s existing dispatch (which
 already rejects heteroatoms outside a few specific recognized shapes)
 continues to raise `UnsupportedStructure` for them, unchanged.
@@ -195,6 +206,14 @@ _TWO_HETEROATOM_SATURATED_NAME_SMILES = {
     frozenset(("O", "S")): ("1,4-oxathiane", "C1COCCS1"),
     frozenset(("S", "S")): ("1,4-dithiane", "C1CSCCS1"),
 }
+_FIVE_MEMBERED_1_3_TWO_HETEROATOM_NAME_SMILES = {
+    frozenset(("N", "N")): ("imidazolidine", "C1CNCN1"),
+    frozenset(("N", "O")): ("1,3-oxazolidine", "C1CNCO1"),
+    frozenset(("N", "S")): ("1,3-thiazolidine", "C1CSCN1"),
+    frozenset(("O", "O")): ("1,3-dioxolane", "C1COCO1"),
+    frozenset(("O", "S")): ("1,3-oxathiolane", "C1CSCO1"),
+    frozenset(("S", "S")): ("1,3-dithiolane", "C1CSCS1"),
+}
 _TWO_HETEROATOM_MANCUDE_NAME_SMILES = {
     ("1,3-diazole", 5): ("1H-imidazole", "c1cnc[nH]1"),
     ("1,2-diazole", 5): ("1H-pyrazole", "c1cc[nH]n1"),
@@ -216,6 +235,7 @@ _CANONICAL_TO_NAME = {
         *_RETAINED_NAME_SMILES.values(),
         *_MANCUDE_NAME_SMILES.values(),
         *_TWO_HETEROATOM_SATURATED_NAME_SMILES.values(),
+        *_FIVE_MEMBERED_1_3_TWO_HETEROATOM_NAME_SMILES.values(),
         *_TWO_HETEROATOM_MANCUDE_NAME_SMILES.values(),
     )
 }
