@@ -116,6 +116,18 @@ branch needed, just adding `frozenset(("O", "O"))` to
 `O=C1COCCO1` -> '1,4-dioxan-2-one' (CID 18233), `O=C1COC(=O)CO1` ->
 '1,4-dioxane-2,5-dione' (CID 65432).
 
+`tasks/oxathiane-dithiane-naming.md`: extending to O+S (1,4-oxathiane) and
+S+S (1,4-dithiane) surfaced a latent bug in `_TWO_HETERO_PRIORITY` -- it
+had treated O and S as equal-priority (both outranking N only), which
+never mattered while O and S never shared a pair, but silently picked
+whichever heteroatom happened to come first in ring-atom order once O+S
+became possible. Fixed to the strict P-22.2.1 order O > S > N (Table 2.8),
+confirmed via PubChem's own '1,4-oxathian-3-one' (O at locant 1, S at
+locant 4). S+S ties through the existing identical-element branch, same as
+O+O and piperazine. PubChem-confirmed: `O=C1COCCS1` -> '1,4-oxathian-3-one'
+(CID 15238324), `O=C1CSCCS1` -> '1,4-dithian-2-one' (CID 542724),
+`O=C1CSC(=O)CS1` -> '1,4-dithiane-2,5-dione' (CID 319007).
+
 Unlike -OH/-NH2, a ketone carbon can never itself also be a C=C/C#C alkene
 carbon (its two remaining bonds, after the C=O double bond, are already
 committed to its two required carbon substituents — a ketone carbon with a
@@ -158,12 +170,15 @@ _TWO_HETERO_RING_ELEMENT_PAIRS = {
     frozenset(("N", "N")),
     frozenset(("N", "S")),
     frozenset(("O", "O")),
+    frozenset(("O", "S")),
+    frozenset(("S", "S")),
 }
 _TWO_HETERO_RING_SIZE = 6
-# P-22.2.1 element seniority for locant 1 among these three pairs: O and S
-# both outrank N (PubChem's '4-methylmorpholine'/'4-methylthiomorpholine'
-# confirm N always lands at locant 4); within a pair the lower value wins.
-_TWO_HETERO_PRIORITY = {"O": 0, "S": 0, "N": 1}
+# P-22.2.1 element seniority for locant 1 (Table 2.8's replacement-nomenclature
+# order O > S > N, confirmed via PubChem's own 'oxathian-3-one' citing O at
+# locant 1 and S at locant 4): the strictly lower value always wins, so O
+# outranks S which outranks N.
+_TWO_HETERO_PRIORITY = {"O": 0, "S": 1, "N": 2}
 
 
 def _validate_and_collect_ketones(mol):

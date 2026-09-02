@@ -192,6 +192,8 @@ _TWO_HETEROATOM_SATURATED_NAME_SMILES = {
     frozenset(("N", "N")): ("piperazine", "C1CNCCN1"),
     frozenset(("N", "S")): ("thiomorpholine", "C1CSCCN1"),
     frozenset(("O", "O")): ("1,4-dioxane", "C1COCCO1"),
+    frozenset(("O", "S")): ("1,4-oxathiane", "C1COCCS1"),
+    frozenset(("S", "S")): ("1,4-dithiane", "C1CSCCS1"),
 }
 _TWO_HETEROATOM_MANCUDE_NAME_SMILES = {
     ("1,3-diazole", 5): ("1H-imidazole", "c1cnc[nH]1"),
@@ -243,11 +245,12 @@ def saturated_two_heteroatom_1_4_ring_name(elements):
     1,4-related two-heteroatom saturated ring whose heteroatom elements
     are `elements` (an (element, element) pair or frozenset, e.g.
     ('N', 'O') -> 'morpholine'), or None if that element pair isn't one
-    of the four in P-22.2.1's scope (morpholine/piperazine/
-    thiomorpholine/1,4-dioxane -- other element pairs, and other ring
-    sizes/relationships, have no retained name and are out of scope).
-    Exposed for `_ketone.py`'s hetero-ring ketone naming, which needs the
-    bare stem name rather than a full unsubstituted-molecule match."""
+    of the six in P-22.2.1's scope (morpholine/piperazine/
+    thiomorpholine/1,4-dioxane/1,4-oxathiane/1,4-dithiane -- other
+    element pairs (Se/Te included), and other ring sizes/relationships,
+    have no retained name and are out of scope). Exposed for
+    `_ketone.py`'s hetero-ring ketone naming, which needs the bare stem
+    name rather than a full unsubstituted-molecule match."""
     entry = _TWO_HETEROATOM_SATURATED_NAME_SMILES.get(frozenset(elements))
     return entry[0] if entry else None
 

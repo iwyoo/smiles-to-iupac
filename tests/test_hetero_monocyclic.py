@@ -156,12 +156,12 @@ def test_ring_size_outside_scope_raises():
 
 
 def test_two_heteroatoms_raises():
-    # 1,4-oxathiane (an O+S pair): two ring heteroatoms, out of scope here --
-    # unlike morpholine/piperazine/thiomorpholine/1,4-dioxane (N+O/N+N/N+S/
-    # O+O) below, this element pair has no retained name in this module's
-    # scope.
+    # 1,4-oxaselenane (an O+Se pair): two ring heteroatoms, out of scope
+    # here -- unlike morpholine/piperazine/thiomorpholine/1,4-dioxane/
+    # 1,4-oxathiane/1,4-dithiane (N+O/N+N/N+S/O+O/O+S/S+S) below,
+    # Se/Te-containing pairs have no retained name in this module's scope.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1COCCS1")
+        smiles_to_iupac("C1COCC[Se]1")
 
 
 @pytest.mark.parametrize(
@@ -170,11 +170,14 @@ def test_two_heteroatoms_raises():
         # 1,4-related two-heteroatom saturated 6-membered rings with their
         # own retained/systematic name (P-22.2.1) -- PubChem-verified:
         # morpholine (CID 8083), piperazine (CID 4837), thiomorpholine
-        # (CID 67164), 1,4-dioxane (CID 31275).
+        # (CID 67164), 1,4-dioxane (CID 31275), 1,4-oxathiane (CID 27596),
+        # 1,4-dithiane (CID 10452).
         ("C1COCCN1", "morpholine"),
         ("C1CNCCN1", "piperazine"),
         ("C1CSCCN1", "thiomorpholine"),
         ("C1COCCO1", "1,4-dioxane"),
+        ("C1COCCS1", "1,4-oxathiane"),
+        ("C1CSCCS1", "1,4-dithiane"),
     ],
 )
 def test_two_heteroatom_saturated_ring_names(smiles, expected):
