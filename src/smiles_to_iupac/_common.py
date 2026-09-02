@@ -10,12 +10,9 @@ naming modules.
   counted chain/ring — so `carbon_adjacency` below lets chain/ring-skeleton
   search ignore them while substituent detection still finds them.
 - P-92 (Chapter P-9, https://iupac.qmul.ac.uk/BlueBook/P9.html):
-  `specified_stereocenters` below (added for
-  `tasks/rs-stereocenter-naming.md`, 2026-08-25, as
-  `single_specified_stereocenter`; generalized to any number of
-  stereocenters for `tasks/multi-stereocenter-naming.md`, 2026-08-26)
-  delegates all CIP priority-rule computation (atomic number, duplicate-
-  atom treatment, mass number, pseudoasymmetry, ...) to RDKit's
+  `specified_stereocenters` below delegates all CIP priority-rule
+  computation (atomic number, duplicate-atom treatment, mass number,
+  pseudoasymmetry, ...) to RDKit's
   `rdCIPLabeler` rather than reimplementing P-92's rules directly -- this
   project's own contribution is only formatting the resulting label(s)
   into a name, not computing them. P-91.3: when two or more are cited
@@ -283,8 +280,8 @@ def specified_stereocenters(mol):
     specified stereocenter mixed with an unspecified one, or any
     double-bond E/Z stereo element -- raise `UnsupportedStructure`
     explicitly (P-93 double-bond stereo combined with P-92 tetrahedral
-    stereo, and any partially-specified molecule, are both out of scope;
-    see `tasks/rs-stereocenter-naming.md`/`tasks/multi-stereocenter-naming.md`)."""
+    stereo, and any partially-specified molecule, are both out of
+    scope)."""
     elements = Chem.FindPotentialStereo(mol)
     specified = [e for e in elements if e.specified == Chem.StereoSpecified.Specified]
     if not specified:
@@ -328,11 +325,7 @@ def specified_double_bond_stereo(mol):
 
     If one or more stereo elements are *specified*, no unspecified one
     alongside them, and every specified one is a `Bond_Double` element (no
-    tetrahedral atom stereocenter -- see `tasks/multi-ez-double-bond-naming.md`,
-    2026-08-28, generalizing the original single-double-bond
-    `tasks/ez-double-bond-naming.md`, 2026-08-25, the same way
-    `specified_stereocenters` above was generalized from a single
-    stereocenter by `tasks/multi-stereocenter-naming.md`), return a list of
+    tetrahedral atom stereocenter), return a list of
     (bond_idx, "E" or "Z") pairs via `rdCIPLabeler` -- in the same order
     `Chem.FindPotentialStereo` reports them, not yet locant-sorted (the
     caller only learns each bond's locant once its own chain numbering is
@@ -366,9 +359,8 @@ def specified_double_bond_stereo(mol):
 def specified_stereo_elements(mol):
     """Like `specified_stereocenters`/`specified_double_bond_stereo`, but
     allows a specified tetrahedral stereocenter and a specified C=C
-    double-bond E/Z element to coexist in the same molecule
-    (`tasks/ez-rs-coexistence-naming.md`, 2026-08-29): P-91.3's own worked
-    example, '(2Z,5R,7E)-nona-2,7-dien-5-ol (PIN)', cites both kinds
+    double-bond E/Z element to coexist in the same molecule: P-91.3's own
+    worked example, '(2Z,5R,7E)-nona-2,7-dien-5-ol (PIN)', cites both kinds
     together in one locant-ascending group, confirmed directly from the
     primary source text.
 

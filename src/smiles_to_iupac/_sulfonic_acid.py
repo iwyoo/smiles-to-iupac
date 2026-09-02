@@ -24,7 +24,7 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   as every other suffix module here.
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with
   the -SO3H suffix.
-- P-91.3/P-92 (`tasks/sulfonic-acid-stereocenter-naming.md`): a molecule
+- P-91.3/P-92: a molecule
   with one or more *specified* tetrahedral stereocenters -- every one on
   the principal chain/ring itself, no unspecified one alongside them, and
   no C=C/C#N double-bond E/Z element -- gets a "(<locant><R/S>,...)-"

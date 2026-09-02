@@ -79,8 +79,7 @@ def test_ether_raises():
     "smiles,expected",
     [
         # Single-heteroatom saturated ring, single ketone -- PubChem-verified
-        # (see tasks/hetero-monocyclic-ketone-naming.md and the module
-        # docstring). The heteroatom is always locant 1; numbering direction
+        # (see the module docstring). The heteroatom is always locant 1; numbering direction
         # is chosen to minimize the ketone locant(s), same P-44.4.1.8 rule
         # as the carbocyclic path.
         ("O=C1CCNCC1", "piperidin-4-one"),
@@ -89,8 +88,7 @@ def test_ether_raises():
         ("O=C1CCSCC1", "thian-4-one"),
         # Lactams (the ketone carbonyl directly bonded to the ring N) fit
         # this same shape and are routed here ahead of `_amide.py`'s
-        # ring-always-out-of-scope guard (see
-        # tasks/hetero-ring-ketone-lactam-routing.md, test_amide.py's
+        # ring-always-out-of-scope guard (see test_amide.py's
         # test_lactam_is_named_via_ketone_module). PubChem-verified: CID
         # 12665/12025/7768.
         ("O=C1CCCCN1", "piperidin-2-one"),
@@ -104,7 +102,7 @@ def test_ether_raises():
         ("O=C1CCC(=O)N1", "pyrrolidine-2,5-dione"),
         # Lactones (the ketone carbonyl directly bonded to the ring O/S)
         # fit this same shape and are routed here ahead of `_ester.py`'s
-        # acyclic-only construction (see tasks/dioxane-naming.md).
+        # acyclic-only construction.
         # PubChem-verified: CID 10953/10953473.
         ("O=C1CCCCO1", "oxan-2-one"),
         ("O=C1CCCCS1", "thian-2-one"),
@@ -116,7 +114,7 @@ def test_hetero_ring_ketone_names(smiles, expected):
 
 def test_hetero_ring_ketone_substituted_heteroatom_raises():
     # An N-methyl ring heteroatom is out of scope for this module's narrow
-    # first pass (tasks/hetero-monocyclic-ketone-naming.md).
+    # first pass.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O=C1CCN(C)CC1")
 
@@ -142,10 +140,7 @@ def test_hetero_ring_ketone_two_heteroatoms_raises():
         # 1,4-related two-heteroatom 6-membered saturated ring, one of the
         # six retained/systematic-name shapes (morpholine/piperazine/
         # thiomorpholine/1,4-dioxane/1,4-oxathiane/1,4-dithiane) --
-        # PubChem-verified (see
-        # tasks/two-heteroatom-1-4-saturated-ring-naming.md,
-        # tasks/dioxane-naming.md, and
-        # tasks/oxathiane-dithiane-naming.md). The higher-priority
+        # PubChem-verified. The higher-priority
         # heteroatom (P-22.2.1 order O > S > N) is always locant 1; for
         # piperazine's two identical nitrogens, 1,4-dioxane's two
         # identical oxygens, and 1,4-dithiane's two identical sulfurs,
@@ -176,7 +171,7 @@ def test_two_hetero_ring_ketone_substituted_heteroatom_raises():
 
 def test_two_hetero_ring_ketone_wrong_element_pair_raises():
     # An O+Se pair has no retained name in this module's scope (Se/Te
-    # pairs are out of scope, see tasks/oxathiane-dithiane-naming.md) --
+    # pairs are out of scope) --
     # falls through to the existing, unrelated rejection for whatever
     # other module (if any) matches this shape.
     with pytest.raises(UnsupportedStructure):

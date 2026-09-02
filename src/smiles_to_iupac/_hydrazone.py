@@ -38,7 +38,7 @@ on acyclic saturated carbon chains, per the IUPAC 2013 Recommendations
   PubChem PUG REST: CID 163551743 (`ClCC=NN`) ->
   "2-chloroethylidenehydrazine", CID 174934626 (`ClCCC=NN`) ->
   "3-chloropropylidenehydrazine".
-- P-92 stereocenters (`tasks/hydrazone-stereocenter-naming.md`): this
+- P-92 stereocenters: this
   module's own C=N bond is *always* flagged by RDKit's
   `Chem.FindPotentialStereo` as an unspecified potential Bond_Double
   stereo element, regardless of substituents -- same conclusion as

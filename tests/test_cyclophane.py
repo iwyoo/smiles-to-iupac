@@ -52,9 +52,8 @@ def test_substituted_metacyclophane_raises():
 
 def test_different_bridge_length_now_supported():
     # [3.3]paracyclophane: same shape as [2.2]paracyclophane but with
-    # three-carbon bridges instead of two -- now supported by the general
-    # symmetric-phane algorithm (tasks/phane-symmetric-generalization.md,
-    # 2026-08-26), computed directly from the same formula verified
+    # three-carbon bridges instead of two -- supported by the general
+    # symmetric-phane algorithm, computed directly from the same formula verified
     # against the three Blue Book PIN worked examples, not a fresh guess.
     # Structure cross-checked against PubChem CID 137763 (its own computed
     # IUPACName is von-Baeyer-style, same limitation as the other cases).

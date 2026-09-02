@@ -41,8 +41,7 @@ def test_ring_compound_substituent():
     "smiles,expected",
     [
         # cis-/trans-1,2-dimethylcyclohexane (P-93.5.1.3 general
-        # nomenclature, tasks/ring-cis-trans-naming.md, 2026-08-25):
-        # cross-checked against PubChem's own isomeric SMILES for CID
+        # nomenclature): cross-checked against PubChem's own isomeric SMILES for CID
         # 16628 (cis) and CID 23313 (trans).
         ("C[C@@H]1CCCC[C@@H]1C", "cis-1,2-dimethylcyclohexane"),
         ("C[C@@H]1CCCC[C@H]1C", "trans-1,2-dimethylcyclohexane"),

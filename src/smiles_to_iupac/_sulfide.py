@@ -21,7 +21,7 @@ any heteroatom other than the single sulfide sulfur (in particular a
 disulfide S-S, or an oxidized sulfur -- sulfoxide/sulfone -- are separate
 functional groups, not in scope here).
 
-- P-91.3/P-92 (`tasks/sulfide-stereocenter-naming.md`): a molecule with
+- P-91.3/P-92: a molecule with
   one or more *specified* tetrahedral stereocenters on the parent (R)
   chain gets a "(<locant><R/S>,...)-" prefix, ascending locant order --
   same mechanism as `_ether.py`, using `_acyclic.py`'s

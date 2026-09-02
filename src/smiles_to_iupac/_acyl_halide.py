@@ -20,7 +20,7 @@ Br, I) on acyclic saturated or unsaturated carbon chains, per the IUPAC
 - P-35.2.1: any *other* halogen (not the one forming the acyl halide) is
   an ordinary prefix substituent and coexists freely, e.g.
   '2-chloropropanoyl chloride'.
-- P-91.3/P-92 (`tasks/acyl-halide-stereocenter-naming.md`): a molecule
+- P-91.3/P-92: a molecule
   with one or more *specified* tetrahedral stereocenters on the principal
   chain gets a "(<locant><R/S>,...)-" prefix, ascending locant order, e.g.
   '(2R)-2-chloropropanoyl chloride' -- same mechanism as

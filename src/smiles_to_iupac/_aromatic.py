@@ -481,9 +481,8 @@ def _stereo_display(mol, graph, n, ring_atoms, halogens):
     display P-91.3 requires when the stereocenter sits on a substituent
     branch rather than the ring itself (the Blue Book's own worked
     example, since an all-carbon aromatic ring atom is never itself a
-    stereocenter) -- see `tasks/substituent-branch-stereocenter-naming.md`.
-    Returns None if there's no specified stereocenter at all (the caller
-    proceeds exactly as before). Deliberately narrow: only a plain benzene
+    stereocenter). Returns None if there's no specified stereocenter at
+    all (the caller proceeds exactly as before). Deliberately narrow: only a plain benzene
     or naphthalene ring (n in (1, 2)) with exactly one substituent,
     carrying exactly one specified stereocenter, is supported; anything
     else raises `UnsupportedStructure`. For naphthalene the ring

@@ -6,17 +6,16 @@ carbon chain, per the IUPAC 2013 Recommendations ("the Blue Book"):
   coexisting ketone is demoted to the 'oxo' substituent prefix instead of
   its own '-one' suffix, e.g. 'CC(=O)CC(N)=O' (acetoacetamide) ->
   '3-oxobutanamide' (a well-known worked example). This mirrors
-  `_aldehyde_ketone.py`'s aldehyde+ketone demotion (see
-  `tasks/multi-carbonyl-seniority.md`), reusing the same {atom_idx -> 'oxo'}
-  injection into the chain's substituent-prefix machinery.
+  `_aldehyde_ketone.py`'s aldehyde+ketone demotion, reusing the same
+  {atom_idx -> 'oxo'} injection into the chain's substituent-prefix
+  machinery.
 - Otherwise mirrors `_amide.py` exactly: the amide carbon is always a chain
   terminus and always becomes C1 with its own locant never cited
   (P-14.3.3); a ketone carbon's locant, by contrast, is always cited.
 
 Scope, deliberately narrow (first extension of the general suffix-vs-suffix
-demotion problem beyond aldehyde+ketone, see
-`tasks/multi-carbonyl-seniority.md`): a single primary amide plus one or
-more ketones, all on one acyclic saturated chain, with halogen substituents
+demotion problem beyond aldehyde+ketone): a single primary amide plus one
+or more ketones, all on one acyclic saturated chain, with halogen substituents
 allowed. Explicitly out of scope (raise `UnsupportedStructure`): any chain
 unsaturation (ene/yne), any ring, an N-substituted amide, more than one
 amide, a coexisting hydroxyl/ether/other heteroatom, and any ketone not

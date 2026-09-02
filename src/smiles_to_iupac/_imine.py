@@ -61,7 +61,7 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   the Blue Book's own direct PIN citation instead, consistent with this
   project's established practice elsewhere (see e.g. `_hydroxylamine.py`,
   `_sulfoxide.py`, `_nitro.py`).
-- P-92 stereocenters (`tasks/imine-azine-stereocenter-naming.md`): this
+- P-92 stereocenters: this
   module's own C=N bond is *always* flagged by RDKit's
   `Chem.FindPotentialStereo` as an unspecified potential Bond_Double
   stereo element, regardless of substituents, N-substitution, or oxime

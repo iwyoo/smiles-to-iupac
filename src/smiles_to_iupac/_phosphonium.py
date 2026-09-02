@@ -37,7 +37,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   substituent (inherited unchanged from `_phosphane.py`'s own scope for
   the degree 0-3 case via neutralization; unverified via PubChem for the
   quaternary degree-4 case, so kept just as narrow there too).
-- P-92 stereocenters (`tasks/sulfonium-phosphonium-stereocenter-naming.md`):
+- P-92 stereocenters:
   unlike `_ammonium.py`'s nitrogen (which inverts too fast to be a real
   stereocenter), a phosphonium phosphorus with three or four distinct
   substituents is itself a genuine, configurationally stable stereocenter

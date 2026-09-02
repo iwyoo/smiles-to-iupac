@@ -15,8 +15,7 @@
   "naphthalen-1(2H)-one"): naphthalene has no indicated-hydrogen tautomer
   of its own, and no suffix is involved here, so 'hydro' is the only
   mechanism in play (confirmed against secondary sources cross-referencing
-  FR-9.3's indicated/added/hydro-prefix distinction; see
-  `tasks/hydro-prefix-dihydronaphthalene-naming.md`).
+  FR-9.3's indicated/added/hydro-prefix distinction).
 - P-25.3.3.1.1: dihydronaphthalene reuses naphthalene's own peripheral
   numbering (1,2,3,4,4a,5,6,7,8,8a) unchanged -- the saturation doesn't
   renumber anything, it just adds a locant pair citation. Numbering

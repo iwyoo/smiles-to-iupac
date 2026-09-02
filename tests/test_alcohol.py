@@ -59,8 +59,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         # A plain, unsubstituted ring bearing no -OH of its own, with the
         # -OH on a chain hanging off the ring instead: the chain (not the
         # ring) is the parent, and the ring is cited as a "cyclo..."
-        # substituent prefix (tasks/ring-substituent-chain-suffix.md,
-        # 2026-08-25). Mononuclear (one-carbon) chain, so P-14.3.4.2(a)
+        # substituent prefix. Mononuclear (one-carbon) chain, so P-14.3.4.2(a)
         # omits the -OH locant same as plain 'methanol' -- cross-checked
         # against PubChem CID 7507 ("Cyclohexylmethanol").
         ("OCC1CCCCC1", "cyclohexylmethanol"),
@@ -74,8 +73,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         # so this is an accepted, reviewed result rather than a PubChem-
         # confirmed one.
         ("OCCC1CCCCC1", "2-cyclohexylethan-1-ol"),
-        # A single specified tetrahedral stereocenter (P-92,
-        # tasks/rs-stereocenter-naming.md, 2026-08-25): the Blue Book's own
+        # A single specified tetrahedral stereocenter (P-92): the Blue Book's own
         # worked example for this exact suffix, cross-checked against
         # PubChem CID 84682/444683 for the two enantiomers.
         ("C[C@@H](O)CC", "(2R)-butan-2-ol"),
@@ -84,8 +82,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         # support: the Blue Book's other own worked example for this
         # suffix, cross-checked against PubChem CID 6994331.
         ("C=C[C@H](O)CC", "(3R)-pent-1-en-3-ol"),
-        # Two specified stereocenters (P-92/P-91.3,
-        # tasks/multi-stereocenter-naming.md, 2026-08-26): ascending-locant,
+        # Two specified stereocenters (P-92/P-91.3): ascending-locant,
         # comma-separated citation in one parenthesized group -- both
         # diastereomers cross-checked against PubChem CID 12575191/11389370.
         ("C[C@H]([C@@H](C)Cl)O", "(2R,3R)-3-chlorobutan-2-ol"),
@@ -109,7 +106,7 @@ def test_multiple_stereocenters_supported():
 
 
 def test_stereocenter_with_ez_double_bond_coexistence():
-    # P-91.3 (tasks/ez-rs-coexistence-naming.md): a specified tetrahedral
+    # P-91.3: a specified tetrahedral
     # stereocenter and a specified C=C double-bond E/Z element are cited
     # together in one ascending-locant group. PubChem CID 6999919 confirms
     # the structure (ConnectivitySMILES "CC=CC(C)O"), though PubChem's own
@@ -160,7 +157,7 @@ def test_ring_stereocenters_supported():
     # "trans-(1S,2S)-2-methylcyclohexan-1-ol"; the "trans-" is PubChem's
     # own redundant relative descriptor alongside R/S and is dropped here,
     # matching this project's existing acyclic convention of citing R/S
-    # alone (see tasks/multi-stereocenter-naming.md's precedent).
+    # alone.
     assert smiles_to_iupac("O[C@H]1CCCC[C@@H]1C") == "(1S,2S)-2-methylcyclohexan-1-ol"
 
 
@@ -190,7 +187,7 @@ def test_pseudoasymmetric_stereocenter_raises():
     # pentane-2,3,4-triol built with the outer two centers as mirror
     # images of each other: RDKit's rdCIPLabeler assigns the middle center
     # a lowercase 'r' (pseudoasymmetric), out of scope here (see
-    # tasks/multi-stereocenter-naming.md's exclusions) -- this project
+    # this project
     # doesn't attempt to verify pseudoasymmetric CIP assignment itself.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C[C@@H](O)[C@H](O)[C@@H](O)C")
@@ -239,8 +236,7 @@ def test_equal_hydroxyl_counts_above_one_each():
 def test_chain_hydroxyl_count_exceeds_ring_now_supported():
     # the chain has more -OH's than the ring (two vs. one): the chain is
     # now the senior parent (P-44.1.1) and the ring, with its own single
-    # -OH, is cited as a substituent (as of
-    # tasks/ring-substituent-own-hydroxyl-naming.md, 2026-08-26).
+    # -OH, is cited as a substituent.
     # PubChem-verified exactly (CID 130142401).
     assert smiles_to_iupac("OC1CCCCC1C(O)CO") == "1-(2-hydroxycyclohexyl)ethane-1,2-diol"
 
@@ -258,8 +254,7 @@ def test_chain_hydroxyl_count_exceeds_ring_with_no_ring_hydroxyl_chain():
 def test_ring_with_two_hydroxyls_outcompeted_by_chain():
     # The ring has two of its own -OH's, but the chain has three, so the
     # chain is the senior parent and the ring is cited as a
-    # "(dihydroxycyclohexyl)" substituent (tasks/ring-vs-chain-alcohol-multi-oh.md,
-    # 2026-08-28). No PubChem-listed compound was found for this exact
+    # "(dihydroxycyclohexyl)" substituent. No PubChem-listed compound was found for this exact
     # structure, so this is a reviewed (eyeballed), not independently
     # verified, result -- a generalization of the already-verified
     # single-ring-hydroxyl mechanism (see `_substituents.py`'s

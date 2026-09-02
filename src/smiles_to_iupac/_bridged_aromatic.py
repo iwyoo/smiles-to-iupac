@@ -10,8 +10,7 @@ Recommendations ("the Blue Book"):
   attachment locants (here, always the naphthalene locants unchanged --
   the bridge atom's own locant, '9', doesn't appear in this module's
   unsubstituted scope) after the ring system's name.
-- P-25.4.2.1.4 (as of `tasks/bridged-naphthalene-oxa-bridge-naming.md`,
-  2026-08-25): the preselected bridge prefix for a divalent -O- bridge is
+- P-25.4.2.1.4: the preselected bridge prefix for a divalent -O- bridge is
   'epoxy', confirmed directly in the primary text ("epoxy (preselected
   prefix) -O- (not epoxidano)") -- not a guess. A single-carbon -CH2-
   bridge is 'methano' (P-25.4.2.1.1), already supported below.
@@ -19,9 +18,8 @@ Recommendations ("the Blue Book"):
   1,4-positions forces both bridgehead carbons to sp3 (a bridged atom can't
   stay part of a mancude/aromatic ring), so the correct name is
   '1,4-dihydro-1,4-methanonaphthalene'/'1,4-dihydro-1,4-epoxynaphthalene',
-  not the bare bridge name -- confirmed against CAS 4453-90-1 (methano,
-  `tasks/bridged-naphthalene-naming.md`) and CAS 573-57-9 (epoxy, this
-  task). Both locant sets ('...-dihydro-' and the bridge's own) are always
+  not the bare bridge name -- confirmed against CAS 4453-90-1 (methano)
+  and CAS 573-57-9 (epoxy). Both locant sets ('...-dihydro-' and the bridge's own) are always
   numerically identical for this exact shape (the bridge only ever spans
   the two bridgehead positions the hydro prefix already names), so this
   module computes the pair once and reuses it for both.
@@ -42,8 +40,7 @@ Recommendations ("the Blue Book"):
   usable for verifying either name this module returns -- CAS/NIST WebBook/
   reagent-catalog naming (which actually use fusion+bridge nomenclature for
   this shape) is the cross-check instead.
-- Anthracene 9,10-bridge (as of `tasks/bridged-anthracene-naming.md`,
-  2026-08-26): a one-atom bridge across anthracene's own meso positions
+- Anthracene 9,10-bridge: a one-atom bridge across anthracene's own meso positions
   (C9/C10, the middle ring's two non-fusion atoms) is structurally the
   same P-25.4 shape, just on a 3-ring parent instead of 2-ring
   naphthalene. Unlike the naphthalene case, no locant search/tie-break is
@@ -59,8 +56,7 @@ Recommendations ("the Blue Book"):
   and unusable for verifying the name itself, same limitation as the
   naphthalene case above).
 - Halogen substituents on the bridged-naphthalene shape's intact aromatic
-  ring (as of `tasks/bridged-aromatic-halogen-naming.md`, 2026-08-26):
-  `find_bridged_naphthalene_core`/`name_bridged_naphthalene` already
+  ring: `find_bridged_naphthalene_core`/`name_bridged_naphthalene` already
   compute their own ring atom sets and locants directly (unlike a hardcoded
   whole-molecule-match module), so no new numbering mechanism was needed --
   a halogen substituent is just another `graph[atom]` neighbor outside the
@@ -249,14 +245,11 @@ def find_bridged_anthracene_core(mol):
 
     Deliberately methano-only (unlike the naphthalene function, which also
     accepts an 'epoxy' -O- bridge): no worked example or independently
-    verifiable name for the anthracene 9,10-epoxy analogue was found while
-    scoping this (as of `tasks/bridged-anthracene-naming.md`, 2026-08-26)
-    -- only the structure was confirmed (PubChem, matching connectivity),
+    verifiable name for the anthracene 9,10-epoxy analogue was found --
+    only the structure was confirmed (PubChem, matching connectivity),
     which isn't enough to assert the name under this project's
     test-writing policy. Left for a follow-up task if a real worked
-    example turns up, mirroring how the naphthalene epoxy case
-    (`tasks/bridged-naphthalene-oxa-bridge-naming.md`) was split off
-    separately after the methano case shipped."""
+    example turns up."""
     if mol.GetNumAtoms() != 15:
         return None
 

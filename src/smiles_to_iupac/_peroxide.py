@@ -19,7 +19,7 @@ restricted to two acyclic saturated hydrocarbon chains hung off a single
 - A branched (compound) R' has the same enclosure pattern as `_ether.py`'s
   alkoxy prefix (P-63.2.2.1.1's own worked example encloses only R', with
   'peroxy' outside), mirroring `_ether.py` exactly.
-- P-91.3/P-92 (`tasks/peroxide-stereocenter-naming.md`): a molecule with
+- P-91.3/P-92: a molecule with
   one or more *specified* tetrahedral stereocenters on the parent (R)
   chain gets a "(<locant><R/S>,...)-" prefix, ascending locant order --
   same mechanism as `_ether.py`, using `_acyclic.py`'s

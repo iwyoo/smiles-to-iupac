@@ -41,7 +41,7 @@ Recommendations ("the Blue Book"):
   dimethylacetamide' (CC(=O)N(C)C), 'N-ethyl-N-methylacetamide'
   (CC(=O)N(C)CC).
 
-- P-91.3/P-92 (`tasks/amide-stereocenter-naming.md`): a molecule with one
+- P-91.3/P-92: a molecule with one
   or more *specified* tetrahedral stereocenters -- every one on the
   principal chain itself, no unspecified one alongside them, and no
   C=C/C#N double-bond E/Z element -- gets a "(<locant><R/S>,...)-"
@@ -394,7 +394,7 @@ def _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls,
             # "plain, unbranched, unsubstituted" N-substituent restriction
             # is enforced here explicitly (found via `specified_stereocenters`
             # correctly flagging this shape's stereocenters as partially
-            # specified, see tasks/amide-stereocenter-naming.md).
+            # specified).
             raise UnsupportedStructure(
                 "a substituted N-substituent (e.g. bearing a hydroxyl) is "
                 "not supported yet; only a plain, unsubstituted alkyl "

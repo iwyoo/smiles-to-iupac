@@ -20,7 +20,7 @@ saturated rings, per the IUPAC 2013 Recommendations ("the Blue Book"):
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with the
   ketone suffix, reusing `halogen_substituents`/`format_substituent_prefixes`
   unchanged.
-- P-91.3/P-92 (`tasks/ketone-stereocenter-naming.md`): a molecule with one or
+- P-91.3/P-92: a molecule with one or
   more *specified* tetrahedral stereocenters -- every one on the principal
   chain/ring itself, no unspecified one alongside them, and no C=C/C#N
   double-bond E/Z element -- gets a "(<locant><R/S>,...)-" prefix, ascending
@@ -52,81 +52,52 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - -one on a von Baeyer polycyclic or spiro skeleton — deferred, same as
   `_alcohol.py`.
 
-`tasks/hetero-monocyclic-ketone-naming.md`: a narrow extra path handles one
-or more ketone carbonyls on an otherwise unsubstituted, saturated,
-single-heteroatom (N/O/S) monocyclic ring of size 5-7 -- reusing
-`_hetero_monocyclic.py`'s retained-name table (piperidine/pyrrolidine/
-oxane/thiane/... for the bare stem) with the ring heteroatom always fixed
-at locant 1 (only its own H, if any, may be present -- no other exocyclic
-substituent), and the ketone locant set minimized over the two possible
-numbering directions. PubChem-confirmed: `O=C1CCNCC1` ->
-'piperidin-4-one' (CID 33721), `O=C1CCCNC1` -> 'piperidin-3-one' (CID
-33722), `O=C1CCOCC1` -> 'oxan-4-one' (CID 121599), `O=C1CCSCC1` ->
-'thian-4-one' (CID 66173), `O=C1CNC(=O)N1` (hydantoin) ->
-'imidazolidine-2,4-dione' (CID 10006, a 1,3-diazole ring -- out of scope
-here, single-heteroatom only). This path is deliberately narrow: 2+
-heteroatom rings (e.g. piperazine), Se/Te heteroatoms, mancude (aromatic)
-rings, 3-/4-membered rings, and any substituent other than the ring
-heteroatom's own indicated hydrogen and the ketone carbonyl(s) themselves
-(alkyl, halogen, hydroxyl, ...) are all out of scope -- these fall through
-to this module's existing carbocyclic-only validation, which raises its
-own (more general) error.
+A narrow extra path handles one or more ketone carbonyls on an otherwise
+unsubstituted, saturated, single- or two-heteroatom (N/O/S) monocyclic
+ring of size 5-7 (single-heteroatom) or the 1,4-related 6-membered
+two-heteroatom rings with their own retained/systematic name (morpholine
+N+O, piperazine N+N, thiomorpholine N+S, 1,4-dioxane O+O, 1,4-oxathiane
+O+S, 1,4-dithiane S+S -- `_hetero_monocyclic.py`'s
+`saturated_ring_name`/`saturated_two_heteroatom_1_4_ring_name`) -- the
+ring heteroatom(s) always fixed at locant 1 (only their own H, if any,
+may be present -- no other exocyclic substituent), and the ketone locant
+set minimized over the possible numbering directions. For two different
+heteroatoms, the higher-priority one (P-22.2.1 element seniority O > S >
+N, `_TWO_HETERO_PRIORITY`) always takes locant 1; for two identical
+heteroatoms, either may be locant 1 so both are tried. A ketone carbonyl
+directly bonded to the ring heteroatom (a lactam/lactone, e.g.
+piperidin-2-one, 1,4-oxathian-3-one) fits this same shape and is named
+correctly here; `core.py` routes `has_hetero_ring_ketone_shape` ahead of
+both `has_amide_shape` and `has_ester_shape` so this module claims it
+before either of those modules' ring-always-out-of-scope guards would. A
+symmetric, unsubstituted cyclic imide/dione (e.g. succinimide,
+`O=C1CCC(=O)N1`) fits the same shape too and is named here as a plain
+ring dione rather than via `_imide.py`'s acyclic-only "N-acyl amide"
+construction (P-66.6.3), which was never meant to cover the cyclic case.
+This path is deliberately narrow: 3+ heteroatom rings, Se/Te heteroatoms,
+mancude (aromatic) rings, 3-/4-membered rings, non-1,4- two-heteroatom
+relationships, and any substituent other than the ring heteroatom's own
+indicated hydrogen and the ketone carbonyl(s) themselves (alkyl, halogen,
+hydroxyl, ...) are all out of scope -- these fall through to this
+module's existing carbocyclic-only validation, which raises its own
+(more general) error.
 
-`tasks/hetero-ring-ketone-lactam-routing.md`: a ketone carbonyl directly
-bonded to the ring heteroatom (a lactam, e.g. piperidin-2-one) fits this
-same shape and this module already names it correctly -- the only real
-blocker was `core.py`'s dispatch order, since that shape also looks
-amide-shaped (a carbonyl plus a singly-bonded N with 0-2 carbon
-substituents) to the earlier `has_amide_shape` check, which would
-otherwise send it to `_amide.py`'s unconditional "any ring is a lactam,
-out of scope" guard. `core.py` now checks this module's
-`has_hetero_ring_ketone_shape` first. PubChem-confirmed: `O=C1CCCCN1` ->
-'piperidin-2-one' (CID 12665), `O=C1CCCN1` -> 'pyrrolidin-2-one' (CID
-12025), `O=C1CCCCCN1` -> 'azepan-2-one' (CID 7768). A symmetric,
-unsubstituted cyclic imide (e.g. succinimide, `O=C1CCC(=O)N1`) fits the
-same shape too (both ring carbonyls bonded to the same N) and is named
-here as a plain ring dione ('pyrrolidine-2,5-dione', CID 11439) rather
-than via `_imide.py`'s acyclic-only "N-acyl amide" construction
-(P-66.6.3), which was never meant to cover the cyclic case.
-
-`tasks/two-heteroatom-1-4-saturated-ring-naming.md`: the same hetero-ring
-path extends to the 1,4-related two-heteroatom 6-membered saturated rings
-that have their own retained/systematic name
-(`_hetero_monocyclic.py`'s `saturated_two_heteroatom_1_4_ring_name`) --
-morpholine (N+O), piperazine (N+N), thiomorpholine (N+S). The
-higher-priority heteroatom (O or S over N, per P-22.2.1's element
-seniority -- confirmed via PubChem's own '4-methylmorpholine'/
-'4-methylthiomorpholine', both citing the ring N as locant 4, i.e. O/S
-always wins locant 1) is fixed at locant 1 when the two elements differ;
-for piperazine's two identical nitrogens, either one may be locant 1, so
-both are tried alongside both directions. The other heteroatom always
-lands at locant 4 regardless of direction (a 6-ring's antipodal position
-is 3 steps either way), so only the ketone locant set varies between
-candidates -- same minimization as the single-heteroatom path.
-PubChem-confirmed: `O=C1COCCN1` -> 'morpholin-3-one' (CID 66953),
-`O=C1CNCCN1` -> 'piperazin-2-one' (CID 231360), `O=C1CNC(=O)CN1` ->
-'piperazine-2,5-dione' (CID 7817), `O=C1CSCCN1` -> 'thiomorpholin-3-one'
-(CID 88402).
-
-`tasks/dioxane-naming.md`: the same identical-element tie already handled
-for piperazine's two nitrogens also covers O+O (1,4-dioxane) -- no new
-branch needed, just adding `frozenset(("O", "O"))` to
-`_TWO_HETERO_RING_ELEMENT_PAIRS` and to
-`_hetero_monocyclic.py`'s own name table. PubChem-confirmed:
+PubChem-confirmed: `O=C1CCNCC1` -> 'piperidin-4-one' (CID 33721),
+`O=C1CCCNC1` -> 'piperidin-3-one' (CID 33722), `O=C1CCOCC1` ->
+'oxan-4-one' (CID 121599), `O=C1CCSCC1` -> 'thian-4-one' (CID 66173),
+`O=C1CCCCN1` -> 'piperidin-2-one' (CID 12665), `O=C1CCCN1` ->
+'pyrrolidin-2-one' (CID 12025), `O=C1CCCCCN1` -> 'azepan-2-one' (CID
+7768), `O=C1CCC(=O)N1` -> 'pyrrolidine-2,5-dione' (CID 11439),
+`O=C1COCCN1` -> 'morpholin-3-one' (CID 66953), `O=C1CNCCN1` ->
+'piperazin-2-one' (CID 231360), `O=C1CNC(=O)CN1` -> 'piperazine-2,5-dione'
+(CID 7817), `O=C1CSCCN1` -> 'thiomorpholin-3-one' (CID 88402),
 `O=C1COCCO1` -> '1,4-dioxan-2-one' (CID 18233), `O=C1COC(=O)CO1` ->
-'1,4-dioxane-2,5-dione' (CID 65432).
-
-`tasks/oxathiane-dithiane-naming.md`: extending to O+S (1,4-oxathiane) and
-S+S (1,4-dithiane) surfaced a latent bug in `_TWO_HETERO_PRIORITY` -- it
-had treated O and S as equal-priority (both outranking N only), which
-never mattered while O and S never shared a pair, but silently picked
-whichever heteroatom happened to come first in ring-atom order once O+S
-became possible. Fixed to the strict P-22.2.1 order O > S > N (Table 2.8),
-confirmed via PubChem's own '1,4-oxathian-3-one' (O at locant 1, S at
-locant 4). S+S ties through the existing identical-element branch, same as
-O+O and piperazine. PubChem-confirmed: `O=C1COCCS1` -> '1,4-oxathian-3-one'
+'1,4-dioxane-2,5-dione' (CID 65432), `O=C1COCCS1` -> '1,4-oxathian-3-one'
 (CID 15238324), `O=C1CSCCS1` -> '1,4-dithian-2-one' (CID 542724),
-`O=C1CSC(=O)CS1` -> '1,4-dithiane-2,5-dione' (CID 319007).
+`O=C1CSC(=O)CS1` -> '1,4-dithiane-2,5-dione' (CID 319007). The element
+seniority itself (O > S > N) is confirmed via PubChem's own
+'4-methylmorpholine'/'4-methylthiomorpholine' (N always at locant 4) and
+'1,4-oxathian-3-one' (O at locant 1, S at locant 4).
 
 Unlike -OH/-NH2, a ketone carbon can never itself also be a C=C/C#C alkene
 carbon (its two remaining bonds, after the C=O double bond, are already

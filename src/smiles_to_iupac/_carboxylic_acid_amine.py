@@ -7,9 +7,9 @@ per the IUPAC 2013 Recommendations ("the Blue Book"):
   substituent prefix instead of its own '-amine' suffix, e.g.
   'NCCCC(=O)O' (4-aminobutanoic acid, GABA) -> '4-aminobutanoic acid'
   (PubChem CID 119's own IUPACName). This mirrors
-  `_aldehyde_carboxylic_acid.py`'s carbonyl demotion (see
-  `tasks/multi-carbonyl-seniority.md`), except the demoted group here is a
-  substituent atom (the amine nitrogen itself), not a chain carbon,
+  `_aldehyde_carboxylic_acid.py`'s carbonyl demotion, except the demoted
+  group here is a substituent atom (the amine nitrogen itself), not a
+  chain carbon,
   reusing `_carboxylic_acid.py`'s own `{atom_idx -> 'hydroxy'}` injection
   pattern for a coexisting standalone hydroxyl, just with 'amino' instead.
 - Otherwise mirrors `_carboxylic_acid.py` exactly: the -COOH carbon is
@@ -26,9 +26,9 @@ per the IUPAC 2013 Recommendations ("the Blue Book"):
   divergence from PubChem inherited from `_carboxylic_acid.py`, not a new
   one introduced here.
 
-Scope, deliberately narrow (`tasks/amino-seniority-prefix-naming.md`'s
-1st-pass scope): a single carboxylic acid plus a single primary amine, both
-on one acyclic *saturated* chain, with halogen substituents allowed.
+Scope, deliberately narrow: a single carboxylic acid plus a single primary
+amine, both on one acyclic *saturated* chain, with halogen substituents
+allowed.
 Explicitly out of scope (raise `UnsupportedStructure`): any chain
 unsaturation (ene/yne), any ring, more than one carboxylic acid or amine, a
 secondary/tertiary amine, a coexisting hydroxyl/ether/other heteroatom, and
@@ -38,7 +38,7 @@ Any *specified* tetrahedral stereocenter (e.g. the alpha carbon of an amino
 acid such as alanine/valine) is labeled via `_common.specified_stereocenters`
 using the same P-91.3/P-92 mechanism as `_carboxylic_acid.py` (P-92: a
 stereocenter on a substituent branch rather than the principal chain is out
-of scope) -- see `tasks/amino-acid-halide-stereocenter-naming.md`.
+of scope).
 """
 
 from rdkit import Chem

@@ -37,7 +37,7 @@ family, P-73.1.1.2), per the IUPAC 2013 Recommendations ("the Blue Book"):
   the nitrogen's formal charge; see its own docstring), producing the
   same 'parent chain + N,N,N-prefix' shape as an '-amine' name would,
   then applies the same terminal 'e' -> 'ium' swap.
-- P-91.3/P-92 stereocenters (`tasks/ammonium-stereocenter-naming.md`): the
+- P-91.3/P-92 stereocenters: the
   1-3-substituted paths delegate to `name_amine` on the neutralized
   molecule, so they inherited full R/S support automatically once
   `_amine.py` gained it. The quaternary (4-substituted) path calls

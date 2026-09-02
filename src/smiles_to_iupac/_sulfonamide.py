@@ -23,7 +23,7 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   the -SO2NH2 suffix. Confirmed via PubChem: 'propane-1-sulfonamide'
   (CCCS(=O)(=O)N), 'cyclohexanesulfonamide' (O=S(=O)(N)C1CCCCC1),
   '2-chloroethanesulfonamide' (ClCCS(=O)(=O)N).
-- P-91.3/P-92 (`tasks/sulfonamide-stereocenter-naming.md`): a molecule with
+- P-91.3/P-92: a molecule with
   one or more *specified* tetrahedral stereocenters -- every one on the
   principal chain/ring itself, no unspecified one alongside them, and no
   C=C/C#N double-bond E/Z element -- gets a "(<locant><R/S>,...)-" prefix,

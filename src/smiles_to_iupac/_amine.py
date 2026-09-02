@@ -45,7 +45,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - An amine nitrogen on a carbon that is also part of a C=C/C#C bond (an
   enamine) — scoped out for the same reason `_alcohol.py` scopes out enols.
 
-P-91.3/P-92 (`tasks/amine-stereocenter-naming.md`): a molecule with one or
+P-91.3/P-92: a molecule with one or
 more *specified* tetrahedral stereocenters -- every one on the principal
 chain/ring itself, no unspecified one alongside them, and no C=C/C#N
 double-bond E/Z element -- gets a "(<locant><R/S>,...)-" prefix, ascending

@@ -21,8 +21,7 @@ Recommendations ("the Blue Book"):
   `name_von_baeyer_heteroatom_polycyclic` below for why the topology
   choice (which candidates share the same bracket string) must still be
   settled first, by `iter_polycyclic_candidates`'s own `outer_key`.
-- Two or more skeletal heteroatoms of the *same* element (as of
-  `tasks/multi-heteroatom-skeleton-naming.md`, 2026-08-26): P-14.2.1's
+- Two or more skeletal heteroatoms of the *same* element: P-14.2.1's
   ordinary multiplying prefix ('di', 'tri', ...) attaches directly to the
   'a'-term ('dioxa', 'triaza', ...), and every heteroatom's own locant is
   cited (ascending, comma-separated) before it -- confirmed against
@@ -33,9 +32,8 @@ Recommendations ("the Blue Book"):
   already ranks candidates correctly whether it's handed a single int or,
   as here, a locant tuple (Python's own tuple ordering does the "lowest
   locant set" comparison for free) -- no signature change was needed.
-- Exactly two skeletal heteroatoms of *different* elements, one each
-  (as of `tasks/mixed-element-heteroatom-skeleton-naming.md`,
-  2026-08-26): Table 2.8's element seniority order (P-23.2.1) is
+- Exactly two skeletal heteroatoms of *different* elements, one each:
+  Table 2.8's element seniority order (P-23.2.1) is
   O > S > N among the three elements this module supports -- confirmed
   against PubChem's own computed IUPACName for three from-scratch-built
   bicyclo[3.2.1]octane variants sharing one skeleton
@@ -60,13 +58,11 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   territory).
 - Any heteroatom other than O, N, or S.
 - Multiple heteroatoms in a ring_count>=3 polycyclic system (the
-  ring_count>=3 case below still only accepts exactly one) --
-  `tasks/multi-heteroatom-skeleton-naming.md`'s own 1st-pass scope is
-  bicyclic-only for the multi-heteroatom axis, and this mixed-element
+  ring_count>=3 case below still only accepts exactly one) -- this
+  module's multi-heteroatom axis is bicyclic-only, and the mixed-element
   extension inherits that same bicyclic-only limit.
 - Hexacyclic (ring_count=6) or larger polycyclic rings -- `_polycyclic.py`
-  itself doesn't support these yet (see `tasks/hexacyclic-polycyclic-naming.md`),
-  independent of the heteroatom question.
+  itself doesn't support these yet, independent of the heteroatom question.
 - Unsaturation, charged/isotopic atoms, or anything else
   `_bicyclic.name_bicycloalkane`/`_polycyclic.name_polycycloalkane`'s own
   validation already rejects for the all-carbon case.

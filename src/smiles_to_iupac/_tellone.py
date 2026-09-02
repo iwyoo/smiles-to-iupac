@@ -20,7 +20,7 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
 - Like '-thione', '-tellone' begins with a consonant, so the parent
   hydride's terminal 'e' is never elided (P-16.3.3).
 
-- P-91.3/P-92 (`tasks/thione-selone-tellone-stereocenter-naming.md`): a
+- P-91.3/P-92: a
   molecule with one or more *specified* tetrahedral stereocenters -- every
   one on the principal chain/ring itself, no unspecified one alongside
   them, and no C=C/C#N double-bond E/Z element -- gets a

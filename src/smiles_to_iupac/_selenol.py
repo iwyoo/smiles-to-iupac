@@ -58,7 +58,7 @@ Book"):
   example either -- trusting the shared, already-exercised locant
   machinery rather than re-deriving it.
 
-- P-91.3/P-92 (`tasks/selenol-tellurol-stereocenter-naming.md`): a
+- P-91.3/P-92: a
   molecule with one or more *specified* tetrahedral stereocenters -- every
   one on the principal chain/ring itself, no unspecified one alongside
   them, and no C=C/C#N double-bond E/Z element -- gets a

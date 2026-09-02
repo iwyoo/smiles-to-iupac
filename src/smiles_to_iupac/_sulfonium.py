@@ -33,7 +33,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - Any sulfonium sulfur not shaped like SH3+ or a sulfur bonded to 1-3
   carbons (with the remaining valence as hydrogens) -- e.g. formal charge
   other than +1, more than one charged atom, isotopic modification.
-- P-92 stereocenters (`tasks/sulfonium-phosphonium-stereocenter-naming.md`):
+- P-92 stereocenters:
   unlike `_oxonium.py`'s/`_ammonium.py`'s nitrogen/oxygen (which invert too
   fast to be a real stereocenter), a sulfonium sulfur with three distinct
   substituents is itself a genuine, configurationally stable stereocenter,

@@ -19,8 +19,7 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   atom sequence needs no carbon-only filtering here since RDKit's ring
   perception (`GetRingInfo`) never includes a monovalent atom in a ring.
 - P-93.5.1.3 / P-91.2.1.2.1(b) (Chapter P-9,
-  https://iupac.qmul.ac.uk/BlueBook/P9.html), as of
-  `tasks/ring-cis-trans-naming.md` (2026-08-25): 'cis'/'trans' is valid
+  https://iupac.qmul.ac.uk/BlueBook/P9.html): 'cis'/'trans' is valid
   *general* nomenclature for the relative configuration of a disubstituted
   alicyclic ring -- NOT a PIN construction (a PIN always uses full CIP R/S
   descriptors instead, e.g. '(1R,2R)-1,2-dimethylcyclohexane', per

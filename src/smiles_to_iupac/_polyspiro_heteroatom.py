@@ -40,8 +40,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   atom itself, or a heteroatom outside the ring system entirely.
 - Any heteroatom other than O, N, or S.
 - The branched polyspiro shape (`_polyspiro.find_branched_polyspiro_hub`) --
-  `tasks/polyspiro-heteroatom-naming.md`'s 1st-pass scope is the linear
-  chain only.
+  this module's 1st-pass scope is the linear chain only.
 - Unsaturation, charged/isotopic atoms, or anything else
   `_polyspiro.name_linear_polyspiro`'s own validation already rejects for
   the all-carbon case.

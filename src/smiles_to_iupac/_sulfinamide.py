@@ -23,7 +23,7 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with
   the -S(=O)NH2 suffix. Confirmed via PubChem: 'cyclohexanesulfinamide'
   (O=S(N)C1CCCCC1).
-- P-92 stereocenters (`tasks/sulfinamide-stereocenter-naming.md`): like
+- P-92 stereocenters: like
   `_sulfinic_acid.py`'s sulfur (and unlike `_sulfonamide.py`'s, whose two
   identical =O substituents keep it non-stereogenic), this module's
   sulfinamide sulfur (one =O, one N, one C, one lone pair -- four distinct

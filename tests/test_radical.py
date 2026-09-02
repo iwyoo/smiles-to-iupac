@@ -47,8 +47,7 @@ def test_branch_point_radical_propan_2_yl_name():
     # isopropyl radical, Blue Book P-29.3.2.2 worked example:
     # "propan-2-yl (preferred prefix) (not prop-2-yl)". The radical carbon
     # is itself the branch point (not a chain terminus, unlike the
-    # test_*_radical_name cases above) -- this used to raise before
-    # tasks/radical-branch-point-naming.md's extension.
+    # test_*_radical_name cases above).
     assert smiles_to_iupac("C[CH](C)") == "propan-2-yl"
 
 

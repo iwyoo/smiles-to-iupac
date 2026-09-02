@@ -25,8 +25,8 @@ carbon chain, per the IUPAC 2013 Recommendations ("the Blue Book"):
   principal suffix).
 
 Scope, deliberately narrow (first concrete case of the general
-suffix-vs-suffix demotion problem, see `tasks/multi-carbonyl-seniority.md`):
-only a single terminal aldehyde plus one or more ketones, all on one
+suffix-vs-suffix demotion problem): only a single terminal aldehyde plus
+one or more ketones, all on one
 acyclic saturated chain, with halogen substituents allowed. Explicitly out
 of scope (raise `UnsupportedStructure`): any chain unsaturation (ene/yne),
 any ring, more than one aldehyde, a coexisting hydroxyl/ether/other
