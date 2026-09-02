@@ -22,13 +22,16 @@ Book"):
 
 Scope, deliberately narrow, identical to `_urea.py`'s own: substituents
 landing on a single nitrogen (one or two, using the same 'N-'/'N,N-di'
-citation), or an identical single substituent on each of the two
-different nitrogens (symmetric 'N,N'-di...' citation). Explicitly out of
-scope (raise `UnsupportedStructure`): two DIFFERENT substituents split
-across the two different nitrogens (no confirmed worked example settles
-which physical nitrogen becomes 'N' vs 'N'' in that case), a
-branched/unsaturated/ring-bearing N-substituent, a ring-fused thiourea,
-and the selenium/tellurium analogues (selenourea/tellurourea).
+citation), an identical single substituent on each of the two different
+nitrogens (symmetric 'N,N'-di...' citation), or one DIFFERENT substituent
+on each of the two nitrogens -- the alphabetically first substituent name
+becomes 'N-', the other 'N''-', same rule as `_urea.py` (PubChem structure
+match: `CCNC(=S)NC` -> '1-ethyl-3-methylthiourea', CID 15568242).
+Explicitly out of scope (raise `UnsupportedStructure`): a different
+substituent *count* on each nitrogen (no confirmed worked example settles
+that locant tie-break), a branched/unsaturated/ring-bearing N-substituent,
+a ring-fused thiourea, and the selenium/tellurium analogues (selenourea/
+tellurourea).
 """
 
 from rdkit import Chem
@@ -157,13 +160,16 @@ def name_thiourea(mol) -> str:
         return "thiourea"
 
     if n1_names and n2_names:
-        if len(n1_names) != 1 or len(n2_names) != 1 or n1_names[0] != n2_names[0]:
+        if len(n1_names) != 1 or len(n2_names) != 1:
             raise UnsupportedStructure(
-                "different substituents split across thiourea's two nitrogens "
-                "is not supported yet (no confirmed worked example settles "
-                "which nitrogen becomes N vs N' in that case)"
+                "a different substituent count on each of thiourea's two "
+                "nitrogens is not supported yet (no confirmed worked "
+                "example settles the locant tie-break for that case)"
             )
-        return f"N,N'-di{n1_names[0]}thiourea"
+        if n1_names[0] == n2_names[0]:
+            return f"N,N'-di{n1_names[0]}thiourea"
+        first, second = sorted((n1_names[0], n2_names[0]))
+        return f"N-{first}-N'-{second}thiourea"
 
     names = n1_names or n2_names
     return f"{_n_prefix('N', names)}thiourea"
