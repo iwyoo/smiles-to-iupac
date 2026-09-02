@@ -36,9 +36,21 @@ def test_n_n_prime_dimethylguanidine_different_nitrogens():
     assert smiles_to_iupac("CNC(=N)NC") == "N,N'-dimethylguanidine"
 
 
-def test_different_substituents_on_different_amino_nitrogens_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCNC(=N)NC")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # One different substituent on each amino nitrogen -- the
+        # alphabetically first substituent name becomes 'N-', the other
+        # 'N''-', same rule as `_urea.py`/`_thiourea.py` (PubChem
+        # structure match, its own numeric-locant style): `CCNC(=N)NC` ->
+        # '1-ethyl-2-methylguanidine' (CID 17814701), `CCCNC(=N)NC` ->
+        # '2-methyl-1-propylguanidine' (CID 20383691).
+        ("CCNC(=N)NC", "N-ethyl-N'-methylguanidine"),
+        ("CCCNC(=N)NC", "N-methyl-N'-propylguanidine"),
+    ],
+)
+def test_different_substituents_on_different_amino_nitrogens(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_different_substituent_counts_on_amino_nitrogens_not_supported():
