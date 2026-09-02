@@ -126,12 +126,13 @@ def test_hetero_ring_ketone_ring_substituent_raises():
         smiles_to_iupac("O=C1CC(C)NCC1")
 
 
-def test_hetero_ring_ketone_two_heteroatoms_raises():
-    # A ring-fused urea (e.g. hydantoin, two N heteroatoms in a 5-membered
-    # ring) doesn't fit the 6-membered 1,4-two-heteroatom shape either, so
-    # it falls through to the existing, unrelated urea-module rejection.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CNC(=O)N1")
+def test_hetero_ring_ketone_two_heteroatoms_wrong_ring_size():
+    # A ring-fused urea (hydantoin, two N heteroatoms in a 5-membered
+    # ring) doesn't fit the 6-membered 1,4-two-heteroatom shape, but is
+    # named correctly via the separate five-membered 1,3-two-heteroatom
+    # dione path (see test_five_membered_1_3_ring_dione_names) instead of
+    # this module's 6-membered path.
+    assert smiles_to_iupac("O=C1CNC(=O)N1") == "imidazolidine-2,4-dione"
 
 
 @pytest.mark.parametrize(
@@ -208,12 +209,30 @@ def test_five_membered_1_3_ring_ketone_heteroatoms_adjacent_raises():
         smiles_to_iupac("O=C1CCNN1")
 
 
-def test_five_membered_1_3_ring_ketone_extra_carbonyl_raises():
-    # Hydantoin (both ring carbons flanking the heteroatoms carbonylated,
-    # not just the one directly between them) is out of scope for this
-    # module's narrow single-ketone-at-C2 path.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1NC(=O)CN1")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A second ketone on the long arc of the same five-membered
+        # 1,3-ring shape (the hydantoin family) -- when the two
+        # heteroatoms differ, P-22.2.1 element seniority (O > S > N) fixes
+        # locant 1 regardless of which locant that gives the second
+        # ketone (no minimization); when they're identical, either may be
+        # locant 1, so the lower ketone locant set wins. PubChem-verified:
+        # imidazolidine-2,4-dione (CID 10006), 1,3-oxazolidine-2,5-dione
+        # (CID 75136), 1,3-thiazolidine-2,5-dione (CID 542718),
+        # 1,3-dioxolane-2,4-dione (CID 12793796),
+        # 1,3-oxathiolane-2,4-dione (CID 67415624),
+        # 1,3-dithiolane-2,4-dione (CID 637793).
+        ("O=C1NC(=O)CN1", "imidazolidine-2,4-dione"),
+        ("O=C1OC(=O)CN1", "1,3-oxazolidine-2,5-dione"),
+        ("O=C1SC(=O)CN1", "1,3-thiazolidine-2,5-dione"),
+        ("O=C1OC(=O)CO1", "1,3-dioxolane-2,4-dione"),
+        ("O=C1SC(=O)CO1", "1,3-oxathiolane-2,4-dione"),
+        ("O=C1SC(=O)CS1", "1,3-dithiolane-2,4-dione"),
+    ],
+)
+def test_five_membered_1_3_ring_dione_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_five_membered_1_3_ring_ketone_wrong_element_pair_raises():
