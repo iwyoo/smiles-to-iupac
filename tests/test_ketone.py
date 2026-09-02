@@ -75,6 +75,46 @@ def test_ether_raises():
         smiles_to_iupac("CCOCC(=O)C")
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Single-heteroatom saturated ring, single ketone -- PubChem-verified
+        # (see tasks/hetero-monocyclic-ketone-naming.md and the module
+        # docstring). The heteroatom is always locant 1; numbering direction
+        # is chosen to minimize the ketone locant(s), same P-44.4.1.8 rule
+        # as the carbocyclic path.
+        ("O=C1CCNCC1", "piperidin-4-one"),
+        ("O=C1CCCNC1", "piperidin-3-one"),
+        ("O=C1CCOCC1", "oxan-4-one"),
+        ("O=C1CCSCC1", "thian-4-one"),
+    ],
+)
+def test_hetero_ring_ketone_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_hetero_ring_ketone_substituted_heteroatom_raises():
+    # An N-methyl ring heteroatom is out of scope for this module's narrow
+    # first pass (tasks/hetero-monocyclic-ketone-naming.md).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1CCN(C)CC1")
+
+
+def test_hetero_ring_ketone_ring_substituent_raises():
+    # A plain alkyl substituent elsewhere on the ring is out of scope for
+    # this module's narrow first pass.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1CC(C)NCC1")
+
+
+def test_hetero_ring_ketone_two_heteroatoms_raises():
+    # A ring-fused urea (e.g. hydantoin, two N heteroatoms) is out of scope
+    # for this module's narrow first pass (single heteroatom only) -- it
+    # falls through to the existing, unrelated urea-module rejection.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1CNC(=O)N1")
+
+
 def test_alcohol_hetero_mix_names_hydroxy_prefix():
     # 'one' outranks 'ol' in Table 3.3, so a coexisting -OH is cited as the
     # 'hydroxy' substituent prefix rather than rejected.

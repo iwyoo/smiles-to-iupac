@@ -220,6 +220,17 @@ def name_hetero_monocyclic(mol) -> str:
     return _CANONICAL_TO_NAME[Chem.MolToSmiles(mol)]
 
 
+def saturated_ring_name(element: str, size: int):
+    """The retained/Hantzsch-Widman name for the unsubstituted saturated
+    monocyclic ring with a single `element` heteroatom (O/S/N) and `size`
+    ring atoms (e.g. ('N', 6) -> 'piperidine'), or None if that combination
+    isn't in P-22.2.1 Table 2.3's scope (3-7 membered O/S/N only). Exposed
+    for `_ketone.py`'s hetero-ring ketone naming, which needs the bare stem
+    name rather than a full unsubstituted-molecule match."""
+    entry = _RETAINED_NAME_SMILES.get((element, size))
+    return entry[0] if entry else None
+
+
 def _role(element, has_h=False):
     """A ring position's fixed (element, has_h) role in its unsubstituted
     parent -- `has_h` is whether that position carries a replaceable H
