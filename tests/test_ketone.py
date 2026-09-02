@@ -140,21 +140,27 @@ def test_hetero_ring_ketone_two_heteroatoms_raises():
     "smiles,expected",
     [
         # 1,4-related two-heteroatom 6-membered saturated ring, one of the
-        # four retained/systematic-name shapes (morpholine/piperazine/
-        # thiomorpholine/1,4-dioxane) -- PubChem-verified (see
-        # tasks/two-heteroatom-1-4-saturated-ring-naming.md and
-        # tasks/dioxane-naming.md). The higher-priority heteroatom (O/S
-        # over N) is always locant 1; for piperazine's two identical
-        # nitrogens (and 1,4-dioxane's two identical oxygens), both are
-        # tried as the locant-1 candidate.
+        # six retained/systematic-name shapes (morpholine/piperazine/
+        # thiomorpholine/1,4-dioxane/1,4-oxathiane/1,4-dithiane) --
+        # PubChem-verified (see
+        # tasks/two-heteroatom-1-4-saturated-ring-naming.md,
+        # tasks/dioxane-naming.md, and
+        # tasks/oxathiane-dithiane-naming.md). The higher-priority
+        # heteroatom (P-22.2.1 order O > S > N) is always locant 1; for
+        # piperazine's two identical nitrogens, 1,4-dioxane's two
+        # identical oxygens, and 1,4-dithiane's two identical sulfurs,
+        # both are tried as the locant-1 candidate.
         ("O=C1COCCN1", "morpholin-3-one"),
         ("O=C1CNCCN1", "piperazin-2-one"),
         ("O=C1CSCCN1", "thiomorpholin-3-one"),
         ("O=C1COCCO1", "1,4-dioxan-2-one"),
+        ("O=C1COCCS1", "1,4-oxathian-3-one"),
+        ("O=C1CSCCS1", "1,4-dithian-2-one"),
         # Symmetric diketone: same multiplying-prefix + full-locant-set
         # pattern as every other hetero-ring ketone case.
         ("O=C1CNC(=O)CN1", "piperazine-2,5-dione"),
         ("O=C1COC(=O)CO1", "1,4-dioxane-2,5-dione"),
+        ("O=C1CSC(=O)CS1", "1,4-dithiane-2,5-dione"),
     ],
 )
 def test_two_hetero_ring_ketone_names(smiles, expected):
@@ -169,11 +175,12 @@ def test_two_hetero_ring_ketone_substituted_heteroatom_raises():
 
 
 def test_two_hetero_ring_ketone_wrong_element_pair_raises():
-    # An O+S pair (1,4-oxathiane) has no retained name in this module's
-    # scope (only N+O/N+N/N+S) -- falls through to the existing, unrelated
-    # ether-module rejection.
+    # An O+Se pair has no retained name in this module's scope (Se/Te
+    # pairs are out of scope, see tasks/oxathiane-dithiane-naming.md) --
+    # falls through to the existing, unrelated rejection for whatever
+    # other module (if any) matches this shape.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1COCCS1")
+        smiles_to_iupac("O=C1COCC[Se]1")
 
 
 def test_alcohol_hetero_mix_names_hydroxy_prefix():
