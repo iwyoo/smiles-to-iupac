@@ -732,7 +732,7 @@ def _name_ring_substituent_chain_alcohol(mol, hydroxyls):
     if attachment is None:
         raise UnsupportedStructure(
             "a ring with more than one exocyclic branch is not supported "
-            "yet (see tasks/ring-substituent-chain-suffix.md's scope)"
+            "yet"
         )
     ring_atom, chain_root = attachment
     chain = _ordered_chain(graph, chain_root, ring_atom, hydroxyls)
@@ -786,7 +786,7 @@ def _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls):
     if attachment is None:
         raise UnsupportedStructure(
             "a ring with more than one exocyclic branch is not supported "
-            "yet (see tasks/ring-vs-chain-alcohol-tie.md's scope)"
+            "yet"
         )
     ring_atom, chain_root = attachment
     chain = _ordered_chain(graph, chain_root, ring_atom, hydroxyls)

@@ -307,7 +307,7 @@ def name_acyclic_unsaturated(mol) -> str:
                 "a non-stereogenic or unspecified double bond alongside one "
                 "or more specified double-bond E/Z elements is not "
                 "supported yet -- every double bond in the molecule must be "
-                "specified (see P-93, tasks/multi-ez-double-bond-naming.md)"
+                "specified (see P-93)"
             )
 
     graph = adjacency(mol)
