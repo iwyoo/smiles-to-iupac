@@ -45,6 +45,16 @@ def test_unsaturated_imide_not_supported():
         smiles_to_iupac("C=CC(=O)NC(=O)C=C")
 
 
-def test_cyclic_imide_not_supported():
+def test_cyclic_symmetric_imide_is_named_via_ketone_suffix():
+    # An unsubstituted, symmetric cyclic imide (succinimide) doesn't use
+    # this module's acyclic "N-acyl amide" construction at all -- P-66.6.3
+    # only covers the acyclic case. It's routed to `_ketone.py`'s
+    # hetero-ring ketone path instead (see
+    # tasks/hetero-ring-ketone-lactam-routing.md), which already produces
+    # the correct PIN as a plain ring dione. PubChem-verified: CID 11439.
+    assert smiles_to_iupac("O=C1CCC(=O)N1") == "pyrrolidine-2,5-dione"
+
+
+def test_n_substituted_cyclic_imide_not_supported():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CCC(=O)N1")
+        smiles_to_iupac("CN1C(=O)CCC1=O")

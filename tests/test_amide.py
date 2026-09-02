@@ -87,9 +87,23 @@ def test_unsaturated_n_substituent_raises():
         smiles_to_iupac("CC(=O)NC=C")
 
 
-def test_lactam_raises():
+def test_lactam_is_named_via_ketone_module():
+    # A plain, unsubstituted lactam (ketone carbonyl directly bonded to the
+    # ring's own N-H) is routed to `_ketone.py`'s hetero-ring ketone path
+    # instead of being rejected here -- see
+    # tasks/hetero-ring-ketone-lactam-routing.md and test_ketone.py's own
+    # coverage. PubChem-verified: CID 12025.
+    assert smiles_to_iupac("O=C1CCCN1") == "pyrrolidin-2-one"
+
+
+def test_n_substituted_lactam_raises():
+    # An N-substituted lactam is still out of scope: the ring heteroatom
+    # itself may only carry its own indicated hydrogen (see
+    # `_ketone.py`'s hetero-ring ketone path, which is what actually
+    # raises here -- this shape is routed there ahead of this module, same
+    # as the plain lactam above).
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CCCN1")
+        smiles_to_iupac("O=C1CCCN1C")
 
 
 def test_diamide_raises():
