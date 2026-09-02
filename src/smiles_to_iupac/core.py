@@ -624,6 +624,18 @@ def smiles_to_iupac(smiles: str) -> str:
         # here for the same reason.
         if has_selenoate_shape(mol):
             return name_selenoate(mol)
+        # A ketone carbonyl directly bonded to a saturated single- or
+        # 1,4-two-heteroatom ring's own O/S heteroatom (a lactone, e.g.
+        # oxan-2-one/1,4-dioxan-2-one, tasks/dioxane-naming.md) looks
+        # ester-shaped to `has_ester_shape` below (carbonyl + a second,
+        # carbon-bonded oxygen) and would otherwise be misnamed by
+        # `_ester.py`'s acyclic-only construction -- `_ketone.py` already
+        # names this narrow ring shape correctly (heteroatom always locant
+        # 1, ketone locant set minimized), so claim it here first, mirroring
+        # the lactam fix (tasks/hetero-ring-ketone-lactam-routing.md) that
+        # already routes this same check ahead of `has_amide_shape`.
+        if has_hetero_ring_ketone_shape(mol):
+            return name_ketone(mol)
         # A carbon bearing both a carbonyl oxygen and a second, carbon-bonded
         # oxygen is an ester (-COO-), which must be routed before the
         # carboxylic-acid/aldehyde/ketone checks below: its carbonyl half
@@ -699,17 +711,6 @@ def smiles_to_iupac(smiles: str) -> str:
         # groups together.
         if has_hydrazide_shape(mol):
             return name_hydrazide(mol)
-        # A ketone carbonyl directly bonded to a saturated single-
-        # heteroatom ring's own heteroatom (a lactam, e.g.
-        # piperidin-2-one, tasks/hetero-ring-ketone-lactam-routing.md)
-        # looks amide-shaped to `has_amide_shape` below (carbonyl + a
-        # singly-bonded N with 0-2 carbon substituents) and would
-        # otherwise be rejected by `_amide.py`'s "any ring is a lactam,
-        # out of scope" guard -- `_ketone.py` already names this narrow
-        # ring shape correctly (heteroatom always locant 1, ketone locant
-        # set minimized), so claim it here first.
-        if has_hetero_ring_ketone_shape(mol):
-            return name_ketone(mol)
         if has_amide_shape(mol):
             # P-41/Table 3.3: 'amide' outranks 'one', so an amide that also
             # carries one or more ketones names the amide as the suffix and

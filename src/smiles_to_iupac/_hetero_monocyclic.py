@@ -70,8 +70,8 @@ C3H4N2, pyrimidine C4H4N2, etc. -- see `_RETAINED_NAME_SMILES` and
 Explicitly out of scope for the unsubstituted-only functions above: any
 substituent, partially-saturated indicated-hydrogen forms other than the
 ones listed above, three or more heteroatoms, heteroatoms other than
-O/S/Se/Te/N, mixed-element rings not listed above (dioxane, morpholine,
-etc.), and ring sizes outside the tables above. `has_hetero_monocyclic_name`
+O/S/Se/Te/N, mixed-element rings not listed above (1,4-oxathiane, 1,3-
+relationships, etc.), and ring sizes outside the tables above. `has_hetero_monocyclic_name`
 returns False for all of these, so `core.py`'s existing dispatch (which
 already rejects heteroatoms outside a few specific recognized shapes)
 continues to raise `UnsupportedStructure` for them, unchanged.
@@ -191,6 +191,7 @@ _TWO_HETEROATOM_SATURATED_NAME_SMILES = {
     frozenset(("N", "O")): ("morpholine", "C1COCCN1"),
     frozenset(("N", "N")): ("piperazine", "C1CNCCN1"),
     frozenset(("N", "S")): ("thiomorpholine", "C1CSCCN1"),
+    frozenset(("O", "O")): ("1,4-dioxane", "C1COCCO1"),
 }
 _TWO_HETEROATOM_MANCUDE_NAME_SMILES = {
     ("1,3-diazole", 5): ("1H-imidazole", "c1cnc[nH]1"),
@@ -238,15 +239,15 @@ def saturated_ring_name(element: str, size: int):
 
 
 def saturated_two_heteroatom_1_4_ring_name(elements):
-    """The retained name for the unsubstituted, 6-membered, 1,4-related
-    two-heteroatom saturated ring whose heteroatom elements are `elements`
-    (an (element, element) pair or frozenset, e.g. ('N', 'O') ->
-    'morpholine'), or None if that element pair isn't one of the three in
-    P-22.2.1's scope (morpholine/piperazine/thiomorpholine -- other
-    element pairs, and other ring sizes/relationships, have no retained
-    name and are out of scope). Exposed for `_ketone.py`'s hetero-ring
-    ketone naming, which needs the bare stem name rather than a full
-    unsubstituted-molecule match."""
+    """The retained/systematic name for the unsubstituted, 6-membered,
+    1,4-related two-heteroatom saturated ring whose heteroatom elements
+    are `elements` (an (element, element) pair or frozenset, e.g.
+    ('N', 'O') -> 'morpholine'), or None if that element pair isn't one
+    of the four in P-22.2.1's scope (morpholine/piperazine/
+    thiomorpholine/1,4-dioxane -- other element pairs, and other ring
+    sizes/relationships, have no retained name and are out of scope).
+    Exposed for `_ketone.py`'s hetero-ring ketone naming, which needs the
+    bare stem name rather than a full unsubstituted-molecule match."""
     entry = _TWO_HETEROATOM_SATURATED_NAME_SMILES.get(frozenset(elements))
     return entry[0] if entry else None
 

@@ -102,6 +102,12 @@ def test_ether_raises():
         # P-66.6.3's "N-acyl amide" imide construction only covers the
         # acyclic case. PubChem-verified: CID 11439.
         ("O=C1CCC(=O)N1", "pyrrolidine-2,5-dione"),
+        # Lactones (the ketone carbonyl directly bonded to the ring O/S)
+        # fit this same shape and are routed here ahead of `_ester.py`'s
+        # acyclic-only construction (see tasks/dioxane-naming.md).
+        # PubChem-verified: CID 10953/10953473.
+        ("O=C1CCCCO1", "oxan-2-one"),
+        ("O=C1CCCCS1", "thian-2-one"),
     ],
 )
 def test_hetero_ring_ketone_names(smiles, expected):
@@ -134,18 +140,21 @@ def test_hetero_ring_ketone_two_heteroatoms_raises():
     "smiles,expected",
     [
         # 1,4-related two-heteroatom 6-membered saturated ring, one of the
-        # three retained-name shapes (morpholine/piperazine/thiomorpholine)
-        # -- PubChem-verified (see
-        # tasks/two-heteroatom-1-4-saturated-ring-naming.md). The
-        # higher-priority heteroatom (O/S over N) is always locant 1; for
-        # piperazine's two identical nitrogens, both are tried as the
-        # locant-1 candidate.
+        # four retained/systematic-name shapes (morpholine/piperazine/
+        # thiomorpholine/1,4-dioxane) -- PubChem-verified (see
+        # tasks/two-heteroatom-1-4-saturated-ring-naming.md and
+        # tasks/dioxane-naming.md). The higher-priority heteroatom (O/S
+        # over N) is always locant 1; for piperazine's two identical
+        # nitrogens (and 1,4-dioxane's two identical oxygens), both are
+        # tried as the locant-1 candidate.
         ("O=C1COCCN1", "morpholin-3-one"),
         ("O=C1CNCCN1", "piperazin-2-one"),
         ("O=C1CSCCN1", "thiomorpholin-3-one"),
+        ("O=C1COCCO1", "1,4-dioxan-2-one"),
         # Symmetric diketone: same multiplying-prefix + full-locant-set
         # pattern as every other hetero-ring ketone case.
         ("O=C1CNC(=O)CN1", "piperazine-2,5-dione"),
+        ("O=C1COC(=O)CO1", "1,4-dioxane-2,5-dione"),
     ],
 )
 def test_two_hetero_ring_ketone_names(smiles, expected):
