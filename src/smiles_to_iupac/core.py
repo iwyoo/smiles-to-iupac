@@ -75,7 +75,7 @@ from ._two_component_heterocycle_fusion import (
     has_two_component_heterocycle_fusion_name,
     name_two_component_heterocycle_fusion,
 )
-from ._ketone import has_hetero_ring_ketone_shape, name_ketone
+from ._ketone import has_five_membered_1_3_ring_ketone_shape, has_hetero_ring_ketone_shape, name_ketone
 from ._thione import has_thione_shape, name_thione
 from ._selone import has_selone_shape, name_selone
 from ._tellone import has_tellone_shape, name_tellone
@@ -549,6 +549,19 @@ def smiles_to_iupac(smiles: str) -> str:
         return name_tellurourea(mol)
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
+        # A ketone carbonyl sitting directly between two ring heteroatoms
+        # in a five-membered 1,3-related saturated ring (e.g.
+        # 1,3-dioxolan-2-one, imidazolidin-2-one) looks ether-, acetal-,
+        # or carbamate-shaped (depending on the element pair) to several
+        # checks below and would otherwise be misnamed by their
+        # acyclic-only constructions -- `_ketone.py` already names this
+        # narrow ring shape correctly, so claim it here first, ahead of
+        # every other oxygen-containing check in this branch. Unlike
+        # `has_hetero_ring_ketone_shape` below, this shape can never
+        # collide with a cyclic anhydride (see that function's own
+        # docstring), so routing it this early is safe.
+        if has_five_membered_1_3_ring_ketone_shape(mol):
+            return name_ketone(mol)
         # An alkoxide anion (R-O(-), P-72.2.2.2.2) has a formal-charge -1
         # oxygen none of the neutral-oxygen checks below (or `name_alcohol`'s
         # own fallback) expect, so it must be routed first in this branch.
