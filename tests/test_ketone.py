@@ -178,6 +178,52 @@ def test_two_hetero_ring_ketone_wrong_element_pair_raises():
         smiles_to_iupac("O=C1COCC[Se]1")
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A ketone carbonyl sitting directly between the two heteroatoms of
+        # a five-membered 1,3-related saturated ring -- always locant 2,
+        # regardless of numbering direction, since it's the only ring atom
+        # between them on the short arc. PubChem-verified: imidazolidin-2-one
+        # (CID 8453), 1,3-oxazolidin-2-one (CID 73949), 1,3-thiazolidin-2-one
+        # (CID 97431), 1,3-dioxolan-2-one (CID 7303), 1,3-oxathiolan-2-one
+        # (CID 72822), 1,3-dithiolan-2-one (CID 123140).
+        ("O=C1NCCN1", "imidazolidin-2-one"),
+        ("O=C1OCCN1", "1,3-oxazolidin-2-one"),
+        ("O=C1SCCN1", "1,3-thiazolidin-2-one"),
+        ("O=C1OCCO1", "1,3-dioxolan-2-one"),
+        ("O=C1SCCO1", "1,3-oxathiolan-2-one"),
+        ("O=C1SCCS1", "1,3-dithiolan-2-one"),
+    ],
+)
+def test_five_membered_1_3_ring_ketone_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_five_membered_1_3_ring_ketone_heteroatoms_adjacent_raises():
+    # The two heteroatoms are directly bonded (a 1,2-relationship, not
+    # 1,3-) -- out of scope, falls through to whatever other module (if
+    # any) matches this shape.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1CCNN1")
+
+
+def test_five_membered_1_3_ring_ketone_extra_carbonyl_raises():
+    # Hydantoin (both ring carbons flanking the heteroatoms carbonylated,
+    # not just the one directly between them) is out of scope for this
+    # module's narrow single-ketone-at-C2 path.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1NC(=O)CN1")
+
+
+def test_five_membered_1_3_ring_ketone_wrong_element_pair_raises():
+    # An O+Se pair has no retained name in this module's scope (Se/Te
+    # pairs are out of scope) -- falls through to the existing, unrelated
+    # rejection for whatever other module (if any) matches this shape.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1OCC[Se]1")
+
+
 def test_alcohol_hetero_mix_names_hydroxy_prefix():
     # 'one' outranks 'ol' in Table 3.3, so a coexisting -OH is cited as the
     # 'hydroxy' substituent prefix rather than rejected.
