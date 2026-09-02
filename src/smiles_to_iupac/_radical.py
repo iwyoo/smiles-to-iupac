@@ -18,16 +18,15 @@
   position is always locant 1, and a monocyclic ring's radical position is
   symmetric ("any position").
 
-- P-71.2.1.2 (the "general method"), as of
-  `tasks/radical-branch-point-naming.md` (2026-08-28): when the radical
+- P-71.2.1.2 (the "general method"): when the radical
   carbon is itself a branch point (not a chain terminus), reusing
   `_substituents.py`'s `name_branch` for this was tried first and found to
   return the pre-2013 substituent name ("1-methylethyl") rather than the
   Blue Book PIN ("propan-2-yl") -- fixing `name_branch` itself is a much
-  larger, riskier axis (`tasks/parent-derived-substituent-prefixes.md`,
-  parked: at least 8 existing test files assert the old-style name as a
-  *substituent* prefix, which is still correct general nomenclature there,
-  just not radical PIN naming). Instead, this module implements P-29.3.2.2
+  larger, riskier axis (parked: at least 8 existing test files assert the
+  old-style name as a *substituent* prefix, which is still correct general
+  nomenclature there, just not radical PIN naming). Instead, this module
+  implements P-29.3.2.2
   directly and independently: number the two longest branches plus the
   root as one parent chain, citing the free valence's own locant (e.g.
   'propan-2-yl', 'butan-2-yl', never the elided-locant 'prop-2-yl'); any

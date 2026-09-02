@@ -65,7 +65,7 @@ def test_n_substituted_amide_with_locant_leading_parent_name_raises():
     # carries two hydroxyls of its own ("CC(O)C(O)N..."), which this
     # module's docstring already scopes out ("plain, unbranched,
     # unsubstituted" N-substituent only). Before `specified_stereocenters`
-    # was wired in (tasks/amide-stereocenter-naming.md), this was silently
+    # was wired in, this was silently
     # accepted and misnamed as "N-propyl-2,3,4,5,6,7-hexahydroxyheptanamide"
     # -- a genuine pre-existing bug on two fronts: the substituted
     # N-substituent was never rejected, and the acyl chain's five specified
@@ -90,8 +90,7 @@ def test_unsaturated_n_substituent_raises():
 def test_lactam_is_named_via_ketone_module():
     # A plain, unsubstituted lactam (ketone carbonyl directly bonded to the
     # ring's own N-H) is routed to `_ketone.py`'s hetero-ring ketone path
-    # instead of being rejected here -- see
-    # tasks/hetero-ring-ketone-lactam-routing.md and test_ketone.py's own
+    # instead of being rejected here -- see test_ketone.py's own
     # coverage. PubChem-verified: CID 12025.
     assert smiles_to_iupac("O=C1CCCN1") == "pyrrolidin-2-one"
 

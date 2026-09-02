@@ -3,10 +3,7 @@ rings -- one naphthalene "superatom" and one benzene "superatom", joined
 by two bridges of any (possibly unequal) length -- per the IUPAC 2013
 Recommendations ("the Blue Book"):
 
-- P-26 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf; full
-  text confirmed accessible 2026-08-29 via
-  https://iupac.qmul.ac.uk/BlueBook/P2.html after earlier sessions'
-  repeated access failures -- see tasks/phane-naming.md's own log). This
+- P-26 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf). This
   is the "different ring kinds, asymmetric attachment points" shape
   `_cyclophane.py` explicitly left for this broader case.
 - Confirmed via a direct Blue Book worked example (P-26.4.1.4):
@@ -74,8 +71,7 @@ from ._polyspiro import _ring_cyclic_order
 
 _NAPHTHALENE_REF = Chem.MolFromSmiles("c1ccc2ccccc2c1")
 # Atom index (in the reference SMILES above) -> canonical naphthalene
-# locant; verified directly via RDKit bond inspection (see this module's
-# own development notes / tasks/naphthalene-benzene-phane-naming.md).
+# locant; verified directly via RDKit bond inspection.
 _NAPHTHALENE_ROLE = {9: 1, 0: 2, 1: 3, 2: 4, 3: "4a", 4: 5, 5: 6, 6: 7, 7: 8, 8: "8a"}
 _LOCAL_LOCANTS = {"ortho": "1,2", "meta": "1,3", "para": "1,4"}
 

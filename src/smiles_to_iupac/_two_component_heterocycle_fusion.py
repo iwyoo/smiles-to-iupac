@@ -16,15 +16,13 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   in `_heteroaromatic_fused.py`) and that a third isomer (letter 'c', the
   fusion bond not touching either ring's own heteroatom) exists and must be
   told apart from the two 'b'-lettered ones handled here.
-- P-25.3.2.4, criterion (a) (as of `tasks/hetero-two-component-fusion-naming.md`,
-  2026-08-25): when the two components are *different* heteromonocycles,
+- P-25.3.2.4, criterion (a): when the two components are *different* heteromonocycles,
   the parent (base) component is the one containing the heteroatom earlier
   in the seniority order N > F > Cl > Br > I > O > S > Se > Te > ...; the
   Blue Book's own worked example for this exact O-vs-S case ('2H-[1,4]dithiepino
   [2,3-c]furan (PIN)') is annotated directly in the text as "furan is
   senior to dithiepine; O > S" -- confirmed against the primary source
-  before implementing, not assumed. That ordering (O > S > Se > Te, as of
-  `tasks/two-component-fusion-chalcogen-naming.md`, 2026-08-26) now covers
+  before implementing, not assumed. That ordering (O > S > Se > Te) covers
   all four chalcogens this module recognizes: whichever ring's heteroatom
   comes first in O/S/Se/Te is always the base component when the two
   rings differ. When they're the same, the ordering has no effect (either
@@ -35,9 +33,7 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   heteroatom that makes both ring-numbering directions equally valid until
   a fusion (or substituent) breaks the tie via "lowest locants".
 
-Scope, deliberately narrow (see tasks/homo-heterocycle-fusion-naming.md,
-tasks/hetero-two-component-fusion-naming.md, and
-tasks/two-component-fusion-chalcogen-naming.md):
+Scope, deliberately narrow:
 - Exactly two rings, both aromatic, both 5-membered, both with exactly one
   ring heteroatom, each one of O/S/Se/Te (identical or any mixed pair) --
   any other heteroatom (N, ...) is out of scope; P-25.3.2.4(a)'s full

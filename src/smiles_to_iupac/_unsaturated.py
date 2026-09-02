@@ -64,8 +64,8 @@ A multiple bond located in a substituent rather than the principal chain
 molecule), and unsaturation in a ring, are out of scope and raise
 `UnsupportedStructure`.
 
-- P-91.3 / P-93 (Chapter P-9, https://iupac.qmul.ac.uk/BlueBook/P9.html), as
-  of `tasks/ez-double-bond-naming.md` (2026-08-25): when a C=C double bond's
+- P-91.3 / P-93 (Chapter P-9, https://iupac.qmul.ac.uk/BlueBook/P9.html):
+  when a C=C double bond's
   geometry is specified in the input (`/`/`\`), a locanted "(nE)-"/"(nZ)-"
   prefix is added to the whole name, e.g. "(2E)-but-2-ene",
   "(2Z)-2-chlorobut-2-ene" -- the primary source's own worked example is
@@ -81,9 +81,8 @@ molecule), and unsaturation in a ring, are out of scope and raise
   handling: a non-stereogenic double bond, or one left unspecified in the
   input, is not a new rejection case -- it's named exactly as before (no
   prefix).
-- As of `tasks/multi-ez-double-bond-naming.md` (2026-08-28), generalizing
-  the above the same way `tasks/multi-stereocenter-naming.md` generalized
-  R/S from one stereocenter to many: two or more C=C double bonds, *all*
+- Generalizing the above the same way R/S was generalized from one
+  stereocenter to many: two or more C=C double bonds, *all*
   specified, are cited together in one parenthesized group, ascending
   locant order, e.g. "(2E,4E)-hexa-2,4-diene", "(2Z,4E)-hexa-2,4-diene"
   (both confirmed via PubChem PUG REST). A specified double bond alongside a

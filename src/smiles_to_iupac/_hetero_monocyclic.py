@@ -91,8 +91,8 @@ unsubstituted-only functions above:
   remain out of scope (a second ring anywhere -- including one folded
   into a substituent itself, like a cyclopropyl group -- is rejected via
   `mol.GetRingInfo().NumRings() == 1`).
-- Multiple substituents (`tasks/hetero-monocyclic-multi-substituent-naming.md`,
-  extending the original single-substituent axis): each substituted ring
+- Multiple substituents (extending the original single-substituent axis):
+  each substituted ring
   atom must still carry exactly one exocyclic branch (no gem-disubstitution
   on a ring atom, which mancude/aromatic ring carbons can't have anyway).
   Locants are chosen the same way `_alcohol.py`'s `_name_cyclic_alcohol`

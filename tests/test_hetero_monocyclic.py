@@ -106,8 +106,7 @@ def test_smiles_to_iupac_hetero_monocyclic(smiles, expected):
         ("Cn1cccc1", "1-methylpyrrole"),  # CID 7304
         ("Cn1ccnc1", "1-methylimidazole"),  # CID 1390
         ("Cn1cccn1", "1-methylpyrazole"),  # CID 70255
-        # Two or more substituents (`tasks/hetero-monocyclic-multi-substituent-naming.md`),
-        # all confirmed as PubChem's IUPACName for the exact SMILES.
+        # Two or more substituents, all confirmed as PubChem's IUPACName for the exact SMILES.
         # Symmetric parents pick the lowest locant *set* automatically;
         # mixed substituent kinds are cited alphabetically.
         ("Cc1ccc(C)o1", "2,5-dimethylfuran"),  # CID 12266

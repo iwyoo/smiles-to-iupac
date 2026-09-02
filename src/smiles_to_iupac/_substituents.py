@@ -29,15 +29,13 @@ Recommendations ("the Blue Book"):
   case in `name_branch` below.
 
 Cyclic substituent groups (P-29.3.3) are out of scope and raise
-UnsupportedStructure, except the minimal case added for
-`tasks/ring-substituent-chain-suffix.md` (2026-08-25): a plain, unsubstituted
+UnsupportedStructure, except the minimal case: a plain, unsubstituted
 saturated monocyclic ring hanging off the parent chain (e.g. "cyclohexyl" in
 cyclohexylmethanol) is recognized by `_simple_ring_substituent` and named
 directly ("cyclo" + `alkyl_name`), without walking into
 `_longest_chains_from_root`'s cycle-detection rejection.
 
-As of `tasks/ring-substituent-own-hydroxyl-naming.md` (2026-08-26), a ring
-substituent may also carry one or more hydroxyls (-OH) of its own, on any
+A ring substituent may also carry one or more hydroxyls (-OH) of its own, on any
 ring atom other than the attachment point itself (e.g.
 "(4-hydroxycyclohexyl)" in `1-(4-hydroxycyclohexyl)ethane-1,2-diol`,
 PubChem CID 21395558) -- `_ring_substituent_with_hydroxyls` reuses the
@@ -47,8 +45,7 @@ including the ring's hydroxyl oxygens in the `halogens` dict passed to
 `name_branch`; the attachment point is fixed at locant 1 (P-29.2's free-
 valence rule) and the ring-walk direction is chosen to give the hydroxyls
 the lowest locant set (P-14.5.2), mirroring how `_alcohol.py`'s own plain-
-ring numbering picks a direction. Two or more hydroxyls (generalized
-2026-08-28, `tasks/ring-vs-chain-alcohol-multi-oh.md`) are cited together
+ring numbering picks a direction. Two or more hydroxyls are cited together
 with an ordinary "di"/"tri" multiplying prefix, e.g.
 "(3,4-dihydroxycyclohexyl)" -- no PubChem-listed compound was found for
 this exact multi-hydroxyl shape, so it's a reviewed (eyeballed), not
@@ -112,8 +109,7 @@ def format_mononuclear_prefixes(names) -> str:
     chain or halogen), so there's no nested-parenthesization question to
     track alongside the count. Extracted from `_phosphane.py`/`_borane.py`/
     `_diazene.py`, which all had byte-identical copies of this exact
-    logic (`tasks/consolidate-mononuclear-prefix-formatter.md`,
-    2026-08-28) -- deliberately NOT merged into `format_substituent_prefixes`
+    logic -- deliberately NOT merged into `format_substituent_prefixes`
     above: that function's own `omit_locants=True` mode only parenthesizes
     a *compound* (nested) substituent, never a plain one, so it doesn't
     implement this P-16.5.1.3.1 rule and the two functions serve genuinely
@@ -230,8 +226,7 @@ def _ring_substituent_with_hydroxyls(graph, root, coming_from, halogens):
     direction, or any other shape `_simple_ring_substituent` itself would
     already reject).
 
-    Generalized (2026-08-28, `tasks/ring-vs-chain-alcohol-multi-oh.md`)
-    from an earlier version that only allowed exactly one ring hydroxyl,
+    Generalized from an earlier version that only allowed exactly one ring hydroxyl,
     the same way other single-to-multi generalizations in this project
     went (e.g. `_common.specified_stereocenters`) -- for count 1 this
     produces byte-identical output to the original (a one-element locant

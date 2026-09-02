@@ -30,7 +30,7 @@ simple monocyclic saturated rings, per the IUPAC 2013 Recommendations
   way `_selenol.py`/`_tellurol.py` were split into separate tasks despite
   being the same mechanism.
 
-- P-91.3/P-92 (`tasks/thione-selone-tellone-stereocenter-naming.md`): a
+- P-91.3/P-92: a
   molecule with one or more *specified* tetrahedral stereocenters -- every
   one on the principal chain/ring itself, no unspecified one alongside
   them, and no C=C/C#N double-bond E/Z element -- gets a

@@ -3,10 +3,7 @@ the carbocyclic (non-heteroatom) ring of indole or 1-benzofuran -- a base
 component that is itself already a fused bicyclic retained-name system,
 per the IUPAC 2013 Recommendations ("the Blue Book"):
 
-- P-25.3.1.3 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf,
-  full text confirmed accessible 2026-08-29 via
-  https://iupac.qmul.ac.uk/BlueBook/P2.html after several earlier sessions'
-  access failures -- see tasks/general-fusion-naming.md's own log):
+- P-25.3.1.3 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf):
   "Isomers are distinguished by lettering, continuously, each peripheral
   side of the parent component ... using the italic letters a, b, c, etc.,
   beginning with a for the side numbered '1,2', b for '2,3' etc." This
@@ -49,8 +46,7 @@ per the IUPAC 2013 Recommendations ("the Blue Book"):
   no PubChem-confirmed compound of its own -- a reviewed, not
   independently verified, extension.
 
-Scope, deliberately narrow (see tasks/general-fusion-naming.md,
-tasks/polycyclic-component-fusion-naming.md): exactly one plain
+Scope, deliberately narrow: exactly one plain
 unsubstituted benzo ring ortho-fused onto indole's or 1-benzofuran's own
 6-membered (carbocyclic) ring, at one of the three periphery bonds not
 touching a ring-fusion atom or the base's own heteroatom (C4-C5, C5-C6,

@@ -22,7 +22,7 @@ Recommendations ("the Blue Book"):
   ordering as `_sulfinic_acid.py`.
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with
   the -Se(=O)OH suffix.
-- P-92 stereocenters (`tasks/seleninic-tellurinic-acid-stereocenter-naming.md`):
+- P-92 stereocenters:
   like `_sulfinic_acid.py`'s sulfur, this module's seleninic selenium
   (-R, =O, -OH, a lone pair) is *itself* a potential stereocenter in
   essentially every real -Se(=O)OH molecule -- confirmed via RDKit's

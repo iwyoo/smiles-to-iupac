@@ -22,7 +22,7 @@ Book"):
   'ethanethiol'.
 - P-35.2.1 (Chapter P-3): halogen substituents are prefix-only and coexist
   freely with the -SH suffix, same as in `_alcohol.py`.
-- P-91.3/P-92 (`tasks/thiol-stereocenter-naming.md`): a molecule with one
+- P-91.3/P-92: a molecule with one
   or more *specified* tetrahedral stereocenters -- every one on the
   principal chain/ring itself, no unspecified one alongside them, and no
   C=C/C#N double-bond E/Z element -- gets a "(<locant><R/S>,...)-" prefix,

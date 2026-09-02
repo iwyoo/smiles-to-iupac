@@ -21,7 +21,7 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   including any trailing text (see `_substituents.py`). R (the parent
   side) may still be branched, since its own substituents are named by
   the ordinary `_acyclic.py` machinery, unaffected by this restriction.
-- P-91.3/P-92 (`tasks/ether-stereocenter-naming.md`): a molecule with one
+- P-91.3/P-92: a molecule with one
   or more *specified* tetrahedral stereocenters on the parent (R) chain
   gets a "(<locant><R/S>,...)-" prefix, ascending locant order, e.g.
   '(2S)-2-ethoxybutane' -- same mechanism as `_acetal.py`, using

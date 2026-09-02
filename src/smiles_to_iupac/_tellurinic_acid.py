@@ -28,7 +28,7 @@ Recommendations ("the Blue Book"):
   ordering as `_sulfinic_acid.py`/`_telluronic_acid.py`.
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with
   the -Te(=O)OH suffix.
-- P-91.3/P-92 (`tasks/seleninic-tellurinic-acid-stereocenter-naming.md`):
+- P-91.3/P-92:
   unlike `_sulfinic_acid.py`'s sulfur or `_seleninic_acid.py`'s selenium,
   RDKit's `Chem.FindPotentialStereo` does not flag this module's
   tellurinic tellurium as a potential stereocenter at all, on any tried

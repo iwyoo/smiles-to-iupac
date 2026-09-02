@@ -49,8 +49,7 @@ def test_cyclic_symmetric_imide_is_named_via_ketone_suffix():
     # An unsubstituted, symmetric cyclic imide (succinimide) doesn't use
     # this module's acyclic "N-acyl amide" construction at all -- P-66.6.3
     # only covers the acyclic case. It's routed to `_ketone.py`'s
-    # hetero-ring ketone path instead (see
-    # tasks/hetero-ring-ketone-lactam-routing.md), which already produces
+    # hetero-ring ketone path instead, which already produces
     # the correct PIN as a plain ring dione. PubChem-verified: CID 11439.
     assert smiles_to_iupac("O=C1CCC(=O)N1") == "pyrrolidine-2,5-dione"
 

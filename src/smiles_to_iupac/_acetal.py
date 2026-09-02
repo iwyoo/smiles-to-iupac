@@ -25,7 +25,7 @@ per the IUPAC 2013 Recommendations ("the Blue Book"):
 - P-63.2.2.1.1: each alkoxy prefix reuses `_ether.py`'s own
   `_oxy_prefix`/contracted-name table ('methoxy', 'ethoxy', 'propoxy',
   'butoxy' for the four shortest unbranched chains).
-- P-91.3/P-92 (`tasks/acetal-stereocenter-naming.md`): a molecule with one
+- P-91.3/P-92: a molecule with one
   or more *specified* tetrahedral stereocenters -- every one on the
   principal chain itself (the acetal carbon included, when its two
   alkoxy groups differ enough to make it a genuine stereocenter -- when

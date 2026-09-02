@@ -21,7 +21,7 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   ordering as every other suffix module here.
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with
   the -SO2H suffix.
-- P-92 stereocenters (`tasks/sulfinic-acid-stereocenter-naming.md`): unlike
+- P-92 stereocenters: unlike
   `_sulfonic_acid.py`'s sulfur (two identical =O, never stereogenic), this
   module's sulfinic sulfur (-R, =O, -OH, a lone pair) is *itself* a
   potential stereocenter in essentially every real -SO2H molecule --

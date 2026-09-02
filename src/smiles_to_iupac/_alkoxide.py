@@ -59,7 +59,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   formal charge -1.
 - Any other heteroatom (N, S, ...), aromatic ring, or isotopic modification.
 
-P-91.3/P-92 (`tasks/alkoxide-stereocenter-naming.md`): a molecule with one
+P-91.3/P-92: a molecule with one
 or more *specified* tetrahedral stereocenters -- every one on the
 principal chain itself, no unspecified one alongside them, and no
 C=C/C#N double-bond E/Z element -- gets a "(<locant><R/S>,...)-" prefix,

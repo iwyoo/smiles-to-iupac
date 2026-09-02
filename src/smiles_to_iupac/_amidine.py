@@ -29,7 +29,7 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   the 'imidamide' suffix, reusing `halogen_substituents`/
   `format_substituent_prefixes` unchanged. Confirmed via PubChem PUG
   REST: CID 35602 (`ClCC(=N)N`) -> "2-chloroethanimidamide".
-- P-92 stereocenters (`tasks/amidine-stereocenter-naming.md`): unlike
+- P-92 stereocenters: unlike
   `_amide.py`'s carbonyl (always non-stereogenic), this module's own
   C=NH imine bond is *always* flagged by RDKit's
   `Chem.FindPotentialStereo` as an unspecified potential Bond_Double

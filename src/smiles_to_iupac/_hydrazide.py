@@ -40,7 +40,7 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   (PIN)... not butyrohydrazide'
   directly, i.e. the systematic name is the real PIN there, same as this
   module already assumes.
-- P-91.3/P-92 (`tasks/hydrazide-stereocenter-naming.md`): a molecule with
+- P-91.3/P-92: a molecule with
   one or more *specified* tetrahedral stereocenters -- every one on the
   principal chain itself (chain length >= 3; the 1-/2-carbon retained-name
   cases structurally can't have a genuine stereocenter), no unspecified
@@ -50,8 +50,8 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   `_amide.py`. Both hydrazide nitrogens are never stereocenters (verified
   via RDKit's `Chem.FindPotentialStereo`), so this support is
   unconditional.
-- `tasks/hydrazide-n-substitution-naming.md`: a plain, unbranched,
-  unsubstituted alkyl substituent on either hydrazide nitrogen is cited as
+- A plain, unbranched, unsubstituted alkyl substituent on either
+  hydrazide nitrogen is cited as
   an "N-"/"N'-" prefix (the carbonyl-adjacent nitrogen is "N", the
   terminal one "N'", mirroring `_amide.py`'s "N-"/`_urea.py`'s
   "N-"/"N'-" convention), placed directly ahead of the acyl stem, in

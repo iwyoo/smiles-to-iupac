@@ -34,7 +34,7 @@ Book"):
 - P-29.3.2.1: the alcohol part's name is a plain alkyl substituent-group
   name (P-13.2.1's "R'yl" role, not a locanted prefix), built with
   `alkyl_name` directly since it's restricted to an unbranched chain here.
-- P-91.3/P-92 (`tasks/ester-stereocenter-naming.md`): a molecule with one
+- P-91.3/P-92: a molecule with one
   or more *specified* tetrahedral stereocenters on the acyl chain --
   every one on the principal chain itself, no unspecified one alongside
   them, and no C=C/C#N double-bond E/Z element -- gets a

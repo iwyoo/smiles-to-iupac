@@ -7,9 +7,9 @@ chain, per the IUPAC 2013 Recommendations ("the Blue Book"):
   prefix instead of its own '-one' suffix, e.g.
   'CC(=O)CC(=O)OC' (methyl acetoacetate) -> 'methyl 3-oxobutanoate'
   (confirmed against this well-known worked example). This mirrors
-  `_aldehyde_ketone.py`'s aldehyde+ketone demotion (see
-  `tasks/multi-carbonyl-seniority.md`), reusing the same {atom_idx -> 'oxo'}
-  injection into the acyl chain's substituent-prefix machinery.
+  `_aldehyde_ketone.py`'s aldehyde+ketone demotion, reusing the same
+  {atom_idx -> 'oxo'} injection into the acyl chain's substituent-prefix
+  machinery.
 - Otherwise mirrors `_ester.py` exactly: the acyl carbon is always a chain
   terminus and always becomes C1 of the acyl chain (P-14.3.3); a ketone
   carbon's locant, by contrast, is always cited.

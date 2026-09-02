@@ -1,8 +1,7 @@
 """Naming of alcohols (the '-ol' suffix, -OH) on acyclic saturated or
-unsaturated carbon chains, on simple monocyclic saturated rings, and (as of
-`tasks/ring-substituent-chain-suffix.md`, 2026-08-25) on a chain hanging off
-an otherwise-plain saturated monocyclic ring, per the IUPAC 2013
-Recommendations ("the Blue Book"):
+unsaturated carbon chains, on simple monocyclic saturated rings, and on a
+chain hanging off an otherwise-plain saturated monocyclic ring, per the
+IUPAC 2013 Recommendations ("the Blue Book"):
 
 - P-44.1.1 ring-vs-chain competition (P-44.1.2.2): when the ring itself
   bears no -OH at all, there is no actual competition for which structure
@@ -10,57 +9,49 @@ Recommendations ("the Blue Book"):
   of principal characteristic groups (all of them), so it's the parent and
   the ring is cited as a plain "cyclo..." substituent prefix (P-29.3.3),
   e.g. cyclohexylmethanol. When the ring's own -OH count is at least the
-  chain substituent's -OH count (as of `tasks/ring-vs-chain-alcohol-tie.md`
-  and `tasks/ring-vs-chain-alcohol-count-win.md`, both 2026-08-25), the
-  ring is always the senior parent: either P-44.1.1 settles it outright
-  (the ring captures strictly more of the principal characteristic group),
-  or the two counts tie and P-44.1.2.2 resolves the tie in the ring's favor
-  (no chain-length comparison, unlike the 1993 recommendations). Since the
-  winner is fixed for this whole "ring count >= chain count" shape, this
-  module doesn't build or compare a real chain-parent candidate name; it
-  simply names the ring as parent and cites the chain (with *all* of its
-  own -OH's, if more than one) as a "(hydroxy...alkyl)"/
-  "(dihydroxy...alkyl)" substituent prefix, reusing the
-  `{oxygen_idx: "hydroxy"}` trick already used by `_carboxylic_acid.py`/
-  `_amide.py`/`_aldehyde.py`/`_ketone.py` -- mapping multiple chain
-  hydroxyls this way lets the shared substituent-grouping machinery
-  multiply the "hydroxy" prefix exactly as it already does for repeated
-  halogens, no new logic needed. The reverse case (chain -OH count greater
-  than the ring's) is now supported too, as of
-  `tasks/ring-substituent-own-hydroxyl-naming.md` (2026-08-26): the chain
-  becomes the senior parent and the ring is cited as a substituent via
-  `_substituents.name_branch`'s `_ring_substituent_with_hydroxyls`
-  (e.g. '1-(4-hydroxycyclohexyl)ethane-1,2-diol', PubChem CID 21395558).
-  As of `tasks/ring-vs-chain-alcohol-multi-oh.md` (2026-08-28), this
-  applies regardless of how many -OH's the outcompeted ring has of its
-  own (`_ring_substituent_with_hydroxyls` cites them together with a
-  "di"/"tri" multiplying prefix, e.g. '(3,4-dihydroxycyclohexyl)') --
-  completing this module's whole ring-vs-chain competition.
-- P-92 (Chapter P-9, https://iupac.qmul.ac.uk/BlueBook/P9.html), as of
-  `tasks/rs-stereocenter-naming.md` (2026-08-25): an acyclic (chain)
-  alcohol whose molecule has one or more stereo elements overall -- every
-  one a specified tetrahedral stereocenter located on the principal chain
-  itself, no unspecified one, and no C=C/C#N double-bond E/Z stereo
-  anywhere -- gets a "(<locant><R/S>)-" prefix, e.g. '(2R)-butan-2-ol',
-  '(3R)-pent-1-en-3-ol' (both Blue Book worked examples). As of
-  `tasks/multi-stereocenter-naming.md` (2026-08-26), two or more
-  stereocenters are cited together in one parenthesized group, ascending
-  locant order, comma-separated (P-91.3), e.g. '(2R,3R)-3-chlorobutan-2-ol'
-  (PubChem CID 12575191) -- CIP priority computation itself is delegated
-  entirely to RDKit (`_common.specified_stereocenters`); this module only
-  formats the resulting label(s) using the chain locants already computed
-  for the winning numbering (P-92 doesn't get its own say in *which*
-  numbering wins -- it's purely descriptive once the chain/locants are
-  otherwise fixed). As of `tasks/ring-stereocenter-alcohol-naming.md`
-  (2026-08-28), the same mechanism extends to a plain monocyclic ring
-  whose -OH's are all on the ring itself (no exocyclic hydroxyl chain):
-  every specified stereocenter must lie on the ring itself, e.g.
+  chain substituent's -OH count, the ring is always the senior parent:
+  either P-44.1.1 settles it outright (the ring captures strictly more of
+  the principal characteristic group), or the two counts tie and
+  P-44.1.2.2 resolves the tie in the ring's favor (no chain-length
+  comparison, unlike the 1993 recommendations). Since the winner is fixed
+  for this whole "ring count >= chain count" shape, this module doesn't
+  build or compare a real chain-parent candidate name; it simply names the
+  ring as parent and cites the chain (with *all* of its own -OH's, if more
+  than one) as a "(hydroxy...alkyl)"/"(dihydroxy...alkyl)" substituent
+  prefix, reusing the `{oxygen_idx: "hydroxy"}` trick already used by
+  `_carboxylic_acid.py`/`_amide.py`/`_aldehyde.py`/`_ketone.py` -- mapping
+  multiple chain hydroxyls this way lets the shared substituent-grouping
+  machinery multiply the "hydroxy" prefix exactly as it already does for
+  repeated halogens, no new logic needed. The reverse case (chain -OH
+  count greater than the ring's, regardless of how many -OH's the
+  outcompeted ring has of its own) is supported too: the chain becomes the
+  senior parent and the ring is cited as a substituent via
+  `_substituents.name_branch`'s `_ring_substituent_with_hydroxyls`, which
+  cites the ring's own hydroxyls together with a "di"/"tri" multiplying
+  prefix (e.g. '1-(4-hydroxycyclohexyl)ethane-1,2-diol', PubChem CID
+  21395558) -- completing this module's whole ring-vs-chain competition.
+- P-92 (Chapter P-9, https://iupac.qmul.ac.uk/BlueBook/P9.html): an
+  acyclic (chain) alcohol whose molecule has one or more stereo elements
+  overall -- every one a specified tetrahedral stereocenter located on the
+  principal chain itself, no unspecified one, and no C=C/C#N double-bond
+  E/Z stereo anywhere -- gets a "(<locant><R/S>)-" prefix, e.g.
+  '(2R)-butan-2-ol', '(3R)-pent-1-en-3-ol' (both Blue Book worked
+  examples). Two or more stereocenters are cited together in one
+  parenthesized group, ascending locant order, comma-separated (P-91.3),
+  e.g. '(2R,3R)-3-chlorobutan-2-ol' (PubChem CID 12575191) -- CIP priority
+  computation itself is delegated entirely to RDKit
+  (`_common.specified_stereocenters`); this module only formats the
+  resulting label(s) using the chain locants already computed for the
+  winning numbering (P-92 doesn't get its own say in *which* numbering
+  wins -- it's purely descriptive once the chain/locants are otherwise
+  fixed). The same mechanism extends to a plain monocyclic ring whose
+  -OH's are all on the ring itself (no exocyclic hydroxyl chain): every
+  specified stereocenter must lie on the ring itself, e.g.
   '(1S,2S)-2-methylcyclohexan-1-ol' (PubChem CID 642632; PubChem's own
   redundant relative "trans-"/"cis-" prefix is dropped, matching this
-  project's existing acyclic convention of citing R/S alone). As of
-  `tasks/ez-rs-coexistence-naming.md` (2026-08-29), an acyclic chain's
-  specified tetrahedral stereocenter(s) may also coexist with specified
-  C=C double-bond E/Z element(s), cited together in the same
+  project's existing acyclic convention of citing R/S alone). An acyclic
+  chain's specified tetrahedral stereocenter(s) may also coexist with
+  specified C=C double-bond E/Z element(s), cited together in the same
   ascending-locant group (`_common.specified_stereo_elements`), e.g.
   '(2Z,5R,7E)-nona-2,7-dien-5-ol' (a Blue Book worked example, P-91.3).
   Any stereo element beyond this (a specified element mixed with an
@@ -528,8 +519,7 @@ def _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo=None, ethers=None):
     separate check is needed for those), and the winning candidate's own
     locants for each element are used to format a
     "(<locant><R/S/E/Z>,...)-" prefix onto the name, ascending locant
-    order (P-91.3, including when both kinds coexist --
-    tasks/ez-rs-coexistence-naming.md).
+    order (P-91.3, including when both kinds coexist).
 
     `ethers`: optional {ether_o_idx: alkoxy_name} (see `_ether_oxygens`)
     -- merged into `halogens` so `name_branch` resolves each ether oxygen
@@ -801,10 +791,8 @@ def _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls):
     ring_hydroxyls = hydroxyls - chain_hydroxyls
     if len(ring_hydroxyls) < len(chain_hydroxyls):
         # P-44.1.1: the chain captures strictly more -OH's, so it's the
-        # senior parent and the ring (with its own one or more -OH's, as
-        # of tasks/ring-substituent-own-hydroxyl-naming.md, 2026-08-26,
-        # generalized to any count by tasks/ring-vs-chain-alcohol-multi-oh.md,
-        # 2026-08-28) is cited as a substituent instead -- mirrors
+        # senior parent and the ring (with its own one or more -OH's) is
+        # cited as a substituent instead -- mirrors
         # `_name_ring_substituent_chain_alcohol` exactly, substituting
         # the ring's own name_branch-computed name for the plain
         # "cyclo..." one that function uses.
@@ -860,10 +848,10 @@ def name_alcohol(mol) -> str:
     if num_rings == 0:
         # A ring is never involved past this point, so a specified C=C
         # double-bond E/Z element may coexist with a specified tetrahedral
-        # stereocenter (P-91.3, tasks/ez-rs-coexistence-naming.md) --
-        # every other branch below keeps using `specified_stereocenters`,
-        # which still rejects that combination (rings never have both:
-        # unsaturated rings are rejected outright just below).
+        # stereocenter (P-91.3) -- every other branch below keeps using
+        # `specified_stereocenters`, which still rejects that combination
+        # (rings never have both: unsaturated rings are rejected outright
+        # just below).
         stereo = specified_stereo_elements(mol)
         return _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo, ethers)
 

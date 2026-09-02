@@ -14,12 +14,9 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   '1,4(1,3)-dibenzenacyclohexaphane' ("[2.2]metacyclophane"), and
   '1,3,5,7(1,3)-tetrabenzenacyclooctaphane' ("[1.1.1.1]metacyclophane" /
   cyclotetrabenzylene) -- these three were previously recognized by exact
-  whole-molecule hardcoded structure match (as of
-  `tasks/paracyclophane-hardcode.md`/`tasks/metacyclophane-naming.md`/
-  `tasks/cyclophane-third-case-naming.md`, all 2026-08-25), one at a time,
-  because no general phane algorithm existed. As of
-  `tasks/phane-symmetric-generalization.md` (2026-08-26), this module
-  instead detects the shared *shape* those three examples all happen to
+  whole-molecule hardcoded structure match, one at a time, because no
+  general phane algorithm existed. This module instead detects the shared
+  *shape* those three examples all happen to
   have (identical rings, symmetric attachment points, equal bridge length)
   and computes the name algorithmically for any N/L/pattern combination
   fitting that shape -- not just these three specific structures.
@@ -41,8 +38,8 @@ IUPAC 2013 Recommendations ("the Blue Book"):
 - Since every ring/bridge is required identical, this is deliberately a
   narrower shape than the general phane algorithm (which would also need
   to handle different ring kinds, asymmetric attachment points, and a
-  non-trivial attachment-locant-ordering rule for those -- see
-  `tasks/phane-naming.md`, still open for that broader case).
+  non-trivial attachment-locant-ordering rule for those, still open for
+  that broader case).
 
 Formulas/structures cross-checked (same three compounds as before this
 generalization): [2.2]Paracyclophane (C16H16, PubChem CID 74210),

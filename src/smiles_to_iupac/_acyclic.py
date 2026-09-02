@@ -17,13 +17,12 @@ Recommendations ("the Blue Book"):
   while substituent detection still uses the full atom graph.
 
 `winning_chain_from_carbon_graph` additionally exposes the winning chain
-itself (not just its name) for stereodescriptor locant lookups
-(`tasks/acetal-stereocenter-naming.md`) -- `name_from_carbon_graph`
-delegates to it unchanged, so `_ether.py`/`_peroxide.py`/`_nitro.py` (its
-other callers) see no behavior change. `name_acyclic_alkane` uses it
-directly to apply the same P-91.3/P-92 stereodescriptor treatment to a
-halogenated chain's own stereocenters (`tasks/amino-acid-halide-
-stereocenter-naming.md`), mirroring `_ether.py`'s pattern.
+itself (not just its name) for stereodescriptor locant lookups --
+`name_from_carbon_graph` delegates to it unchanged, so `_ether.py`/
+`_peroxide.py`/`_nitro.py` (its other callers) see no behavior change.
+`name_acyclic_alkane` uses it directly to apply the same P-91.3/P-92
+stereodescriptor treatment to a halogenated chain's own stereocenters,
+mirroring `_ether.py`'s pattern.
 """
 
 from ._common import (

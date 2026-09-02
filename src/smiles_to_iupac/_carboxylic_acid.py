@@ -43,7 +43,7 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with
   the -oic acid suffix, reusing `halogen_substituents`/
   `format_substituent_prefixes` unchanged.
-- P-91.3/P-92 (`tasks/carboxylic-acid-stereocenter-naming.md`): a molecule
+- P-91.3/P-92: a molecule
   with one or more *specified* tetrahedral stereocenters -- every one on
   the principal chain itself, no unspecified one alongside them, and no
   C=C/C#N double-bond E/Z element -- gets a "(<locant><R/S>,...)-" prefix,

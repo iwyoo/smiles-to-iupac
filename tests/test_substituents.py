@@ -69,8 +69,7 @@ def test_ring_substituent_with_own_hydroxyl():
     # A 6-membered ring (1-2-3-4-5-6-1) hanging off atom 0, attached at
     # ring atom 1, with a hydroxyl oxygen (7) on the ring atom directly
     # opposite the attachment point (position 4, unambiguous either way
-    # around the ring) -- see tasks/ring-substituent-own-hydroxyl-naming.md,
-    # 2026-08-26; cross-checked end-to-end against PubChem CID 21395558 via
+    # around the ring); cross-checked end-to-end against PubChem CID 21395558 via
     # the full molecule in tests/test_alcohol.py.
     graph = {0: [1], 1: [0, 2, 6], 2: [1, 3], 3: [2, 4], 4: [3, 5, 7], 5: [4, 6], 6: [5, 1], 7: [4]}
     assert name_branch(graph, 1, 0, {7: "hydroxy"}) == ("4-hydroxycyclohexyl", True)
@@ -87,8 +86,7 @@ def test_ring_substituent_with_own_hydroxyl_picks_lower_locant():
 def test_ring_substituent_with_two_hydroxyls():
     # Two hydroxyls on the same ring substituent (on ring atoms 2 and 4,
     # relative to the attachment at atom 1) -- generalized from the
-    # single-hydroxyl case above by tasks/ring-vs-chain-alcohol-multi-oh.md,
-    # 2026-08-28; cited together with a "di" multiplying prefix. Going one
+    # single-hydroxyl case above; cited together with a "di" multiplying prefix. Going one
     # way around the ring gives locants (2, 4), the other way (4, 6); the
     # lower set (2, 4) must win -- hand-verified, no PubChem cross-check at
     # this atom-index level (see tests/test_alcohol.py for an end-to-end

@@ -44,7 +44,7 @@ Book"):
   multi-tellurol ring is supported too on the same trust-the-shared-
   machinery basis as `_selenol.py`'s own multi-group ring support.
 
-- P-91.3/P-92 (`tasks/selenol-tellurol-stereocenter-naming.md`): a
+- P-91.3/P-92: a
   molecule with one or more *specified* tetrahedral stereocenters -- every
   one on the principal chain/ring itself, no unspecified one alongside
   them, and no C=C/C#N double-bond E/Z element -- gets a

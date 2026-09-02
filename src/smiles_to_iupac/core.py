@@ -626,14 +626,13 @@ def smiles_to_iupac(smiles: str) -> str:
             return name_selenoate(mol)
         # A ketone carbonyl directly bonded to a saturated single- or
         # 1,4-two-heteroatom ring's own O/S heteroatom (a lactone, e.g.
-        # oxan-2-one/1,4-dioxan-2-one, tasks/dioxane-naming.md) looks
-        # ester-shaped to `has_ester_shape` below (carbonyl + a second,
-        # carbon-bonded oxygen) and would otherwise be misnamed by
-        # `_ester.py`'s acyclic-only construction -- `_ketone.py` already
-        # names this narrow ring shape correctly (heteroatom always locant
-        # 1, ketone locant set minimized), so claim it here first, mirroring
-        # the lactam fix (tasks/hetero-ring-ketone-lactam-routing.md) that
-        # already routes this same check ahead of `has_amide_shape`.
+        # oxan-2-one/1,4-dioxan-2-one) looks ester-shaped to
+        # `has_ester_shape` below (carbonyl + a second, carbon-bonded
+        # oxygen) and would otherwise be misnamed by `_ester.py`'s
+        # acyclic-only construction -- `_ketone.py` already names this
+        # narrow ring shape correctly (heteroatom always locant 1, ketone
+        # locant set minimized), so claim it here first, mirroring the
+        # same routing already used ahead of `has_amide_shape`.
         if has_hetero_ring_ketone_shape(mol):
             return name_ketone(mol)
         # A carbon bearing both a carbonyl oxygen and a second, carbon-bonded

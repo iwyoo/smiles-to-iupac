@@ -16,10 +16,7 @@ in a hardcoded secondary-bridge count, so this module takes that count as the
 `ring_count` parameter instead. `_bicyclic.py` (ring_count=2, zero secondary
 bridges, so no branch-atom "hopping" is ever needed) is intentionally *not*
 folded in here: its two-bridgehead representation and simpler search loop
-are different enough in shape that unifying them would obscure both, per
-`tasks/von-baeyer-engine-consolidation.md`'s decision to consolidate only
-once a third near-identical module (this one's pentacyclic addition) made
-the duplication cost concrete.
+are different enough in shape that unifying them would obscure both.
 
 Per the IUPAC 2013 Recommendations ("the Blue Book", Chapter P-2,
 https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf) and W.H. Powell, "Extension
@@ -79,11 +76,9 @@ Flagship validation cases:
 - hexacyclic (ring_count=6): pentaprismane, hexacyclo[4.4.0.0^2,5.0^3,9.0^4,8.
   0^7,10]decane (C10H10, ten branch atoms all of degree 3, cyclomatic number
   6; cross-checked against PubChem CID 138295's computed IUPAC name via the
-  PUG REST API) -- as of `tasks/hexacyclic-polycyclic-naming.md`
-  (2026-08-26), confirming this generic engine (unlike `_bicyclic.py`, never
-  hardcoded per ring count) already handled ring_count=6 correctly and the
-  only actual gap was `core.py`'s own dispatch loop stopping at 5; runtime
-  for this case is well under a second, so no combinatorial-blowup mitigation
+  PUG REST API) -- this generic engine (unlike `_bicyclic.py`, never
+  hardcoded per ring count) handles ring_count=6 correctly; runtime for this
+  case is well under a second, so no combinatorial-blowup mitigation
   was needed either. 7+ is presumably reachable the same way but unverified
   (out of this task's scope; `core.py`'s plain-hydrocarbon dispatch loop is
   the only thing gating it).
@@ -252,9 +247,8 @@ def iter_polycyclic_candidates(core, ring_count):
 
     `outer_key` ranks the topology/descriptor choice (bridge-length shape,
     secondary-bridge lengths and their locants) -- everything that must be
-    decided *before* substituent (or, as of
-    `tasks/heteroatom-skeleton-expansion.md`, 2026-08-26, a skeletal
-    heteroatom's) locants can break a remaining tie, since `parent` itself
+    decided *before* substituent (or a skeletal heteroatom's) locants can
+    break a remaining tie, since `parent` itself
     (unlike `_bicyclic.py`'s fixed 'bicyclo[x.y.z]alkane') already encodes a
     choice that must be settled first. A caller combines
     `outer_key + _candidate_key(parent, substituents, ...)` to get the full
@@ -359,8 +353,7 @@ def iter_polycyclic_candidates(core, ring_count):
 
 
 def _candidate_key(parent, substituents, heteroatom_locant=None, nondetachable_prefix=""):
-    """`heteroatom_locant`/`nondetachable_prefix`: as of
-    `tasks/heteroatom-skeleton-expansion.md` (2026-08-26), shared with
+    """`heteroatom_locant`/`nondetachable_prefix`: shared with
     `_von_baeyer_heteroatom.py`'s polycyclic (ring_count>=3) case, mirroring
     `_bicyclic._candidate_key`'s same two optional parameters -- see that
     function's callers for why the heteroatom locant is ranked ahead of

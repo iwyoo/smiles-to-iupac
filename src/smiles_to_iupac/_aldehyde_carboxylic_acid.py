@@ -7,8 +7,8 @@ carbon chain, per the IUPAC 2013 Recommendations ("the Blue Book"):
   substituent prefix instead of its own '-al' suffix, e.g.
   'O=CCC(=O)O' (malonaldehydic acid) -> '3-oxopropanoic acid' (a
   well-known worked example). This mirrors `_aldehyde_ketone.py`'s
-  aldehyde+ketone demotion (see `tasks/multi-carbonyl-seniority.md`),
-  reusing the same {atom_idx -> 'oxo'} injection into the chain's
+  aldehyde+ketone demotion, reusing the same {atom_idx -> 'oxo'}
+  injection into the chain's
   substituent-prefix machinery -- an aldehyde carbon that is part of the
   parent chain (rather than a branch) is cited as 'oxo', not 'formyl',
   the same way a demoted ketone is.
@@ -18,9 +18,8 @@ carbon chain, per the IUPAC 2013 Recommendations ("the Blue Book"):
   cited.
 
 Scope, deliberately narrow (first extension of the general suffix-vs-suffix
-demotion problem beyond aldehyde+ketone, see
-`tasks/multi-carbonyl-seniority.md`): a single carboxylic acid plus one or
-more aldehydes, all on one acyclic saturated chain, with halogen
+demotion problem beyond aldehyde+ketone): a single carboxylic acid plus one
+or more aldehydes, all on one acyclic saturated chain, with halogen
 substituents allowed. Explicitly out of scope (raise `UnsupportedStructure`):
 any chain unsaturation (ene/yne), any ring, more than one carboxylic acid, a
 coexisting hydroxyl/ether/other heteroatom, and any aldehyde not captured by
