@@ -235,6 +235,50 @@ def test_five_membered_1_3_ring_dione_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A plain, unbranched, unsubstituted alkyl substituent on a ring
+        # nitrogen of the five-membered 1,3-two-heteroatom shape -- its
+        # own locant is whatever the already-fixed ketone-locant numbering
+        # gives it (P-44.4.1.8: suffix locants are decided first and win
+        # outright), not separately minimized. PubChem-verified:
+        # 3-methylimidazolidine-2,4-dione (CID 138851),
+        # 1-methylimidazolidine-2,4-dione (CID 69217),
+        # 1,3-dimethylimidazolidine-2,4-dione (CID 123410),
+        # 1-methylimidazolidin-2-one (CID 567600, same pattern on the
+        # single-ketone shape).
+        ("O=C1N(C)C(=O)CN1", "3-methylimidazolidine-2,4-dione"),
+        ("O=C1NC(=O)CN1C", "1-methylimidazolidine-2,4-dione"),
+        ("O=C1N(C)C(=O)CN1C", "1,3-dimethylimidazolidine-2,4-dione"),
+        ("O=C1N(C)CCN1", "1-methylimidazolidin-2-one"),
+    ],
+)
+def test_five_membered_1_3_ring_ketone_n_substituent_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_five_membered_1_3_ring_ketone_branched_n_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1N(C(C)C)C(=O)CN1")
+
+
+def test_five_membered_1_3_ring_ketone_substituted_n_substituent_raises():
+    # A hydroxyl on the N-substituent itself -- only a plain, unbranched,
+    # unsubstituted alkyl N-substituent is in scope (same restriction as
+    # `_amide.py`/`_hydrazide.py`).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1N(CCO)C(=O)CN1")
+
+
+def test_five_membered_1_3_ring_ketone_ring_carbon_substituent_raises():
+    # An alkyl substituent on one of the plain ring carbons (rather than a
+    # ring nitrogen) is still out of scope -- the new N-substituent path
+    # only loosens the heteroatom check, not the ring-carbon check.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1OC(C)CN1")
+
+
 def test_five_membered_1_3_ring_ketone_wrong_element_pair_raises():
     # An O+Se pair has no retained name in this module's scope (Se/Te
     # pairs are out of scope) -- falls through to the existing, unrelated
