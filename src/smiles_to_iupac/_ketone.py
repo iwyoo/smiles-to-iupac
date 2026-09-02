@@ -89,6 +89,24 @@ here as a plain ring dione ('pyrrolidine-2,5-dione', CID 11439) rather
 than via `_imide.py`'s acyclic-only "N-acyl amide" construction
 (P-66.6.3), which was never meant to cover the cyclic case.
 
+`tasks/two-heteroatom-1-4-saturated-ring-naming.md`: the same hetero-ring
+path extends to the three 1,4-related two-heteroatom 6-membered saturated
+rings that have their own retained name (`_hetero_monocyclic.py`'s
+`saturated_two_heteroatom_1_4_ring_name`) -- morpholine (N+O), piperazine
+(N+N), thiomorpholine (N+S). The higher-priority heteroatom (O or S over
+N, per P-22.2.1's element seniority -- confirmed via PubChem's own
+'4-methylmorpholine'/'4-methylthiomorpholine', both citing the ring N as
+locant 4, i.e. O/S always wins locant 1) is fixed at locant 1 when the two
+elements differ; for piperazine's two identical nitrogens, either one may
+be locant 1, so both are tried alongside both directions. The other
+heteroatom always lands at locant 4 regardless of direction (a 6-ring's
+antipodal position is 3 steps either way), so only the ketone locant set
+varies between candidates -- same minimization as the single-heteroatom
+path. PubChem-confirmed: `O=C1COCCN1` -> 'morpholin-3-one' (CID 66953),
+`O=C1CNCCN1` -> 'piperazin-2-one' (CID 231360), `O=C1CNC(=O)CN1` ->
+'piperazine-2,5-dione' (CID 7817), `O=C1CSCCN1` -> 'thiomorpholin-3-one'
+(CID 88402).
+
 Unlike -OH/-NH2, a ketone carbon can never itself also be a C=C/C#C alkene
 carbon (its two remaining bonds, after the C=O double bond, are already
 committed to its two required carbon substituents — a ketone carbon with a
@@ -119,13 +137,19 @@ from ._common import (
     non_single_bonds,
     specified_stereocenters,
 )
-from ._hetero_monocyclic import saturated_ring_name
+from ._hetero_monocyclic import saturated_ring_name, saturated_two_heteroatom_1_4_ring_name
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
 _HETERO_RING_ELEMENTS = {7: "N", 8: "O", 16: "S"}
 _HETERO_RING_SIZES = (5, 6, 7)
+_TWO_HETERO_RING_ELEMENT_PAIRS = {frozenset(("N", "O")), frozenset(("N", "N")), frozenset(("N", "S"))}
+_TWO_HETERO_RING_SIZE = 6
+# P-22.2.1 element seniority for locant 1 among these three pairs: O and S
+# both outrank N (PubChem's '4-methylmorpholine'/'4-methylthiomorpholine'
+# confirm N always lands at locant 4); within a pair the lower value wins.
+_TWO_HETERO_PRIORITY = {"O": 0, "S": 0, "N": 1}
 
 
 def _validate_and_collect_ketones(mol):
@@ -481,12 +505,13 @@ def _hetero_ring_heteroatom(mol):
     return heteroatom
 
 
-def _validate_and_collect_hetero_ring_ketone(mol, heteroatom):
-    """(ring_order, ketones) for a hetero-ring ketone starting numbering
-    at `heteroatom` -- validates that every other ring atom is a plain CH2
-    or an unsubstituted ketone carbonyl carbon, the ring itself is fully
-    saturated, and the heteroatom carries no substituent beyond its own
-    indicated hydrogen (P-22.2.1's plain retained-name ring shape)."""
+def _validate_and_collect_hetero_ring_ketone(mol, heteroatoms):
+    """(ring_order, ketones, elements_by_atom) for a hetero-ring ketone --
+    validates that every ring heteroatom (`heteroatoms`, 1 or 2 atom
+    indices) carries no substituent beyond its own indicated hydrogen,
+    every other ring atom is a plain CH2 or an unsubstituted ketone
+    carbonyl carbon, and the ring itself is fully saturated (P-22.2.1's
+    plain retained-name ring shape)."""
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
     graph = adjacency(mol)
@@ -495,21 +520,24 @@ def _validate_and_collect_hetero_ring_ketone(mol, heteroatom):
     ring_order = _ring_cycle(graph, ring_atoms)
     ring_set = set(ring_atoms)
 
-    hetero_atom_obj = mol.GetAtomWithIdx(heteroatom)
-    element = _HETERO_RING_ELEMENTS[hetero_atom_obj.GetAtomicNum()]
-    if hetero_atom_obj.GetFormalCharge() != 0 or hetero_atom_obj.GetIsotope() != 0:
-        raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-    expected_h = 1 if element == "N" else 0
-    if hetero_atom_obj.GetDegree() != 2 or hetero_atom_obj.GetTotalNumHs() != expected_h:
-        raise UnsupportedStructure(
-            "a ring heteroatom bearing a substituent is out of scope for "
-            "this module's hetero-ring ketone path (see "
-            "tasks/hetero-monocyclic-ketone-naming.md)"
-        )
+    elements_by_atom = {}
+    for heteroatom in heteroatoms:
+        hetero_atom_obj = mol.GetAtomWithIdx(heteroatom)
+        element = _HETERO_RING_ELEMENTS[hetero_atom_obj.GetAtomicNum()]
+        elements_by_atom[heteroatom] = element
+        if hetero_atom_obj.GetFormalCharge() != 0 or hetero_atom_obj.GetIsotope() != 0:
+            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+        expected_h = 1 if element == "N" else 0
+        if hetero_atom_obj.GetDegree() != 2 or hetero_atom_obj.GetTotalNumHs() != expected_h:
+            raise UnsupportedStructure(
+                "a ring heteroatom bearing a substituent is out of scope for "
+                "this module's hetero-ring ketone path (see "
+                "tasks/hetero-monocyclic-ketone-naming.md)"
+            )
 
     ketones = set()
     for atom_idx in ring_atoms:
-        if atom_idx == heteroatom:
+        if atom_idx in elements_by_atom:
             continue
         atom = mol.GetAtomWithIdx(atom_idx)
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
@@ -547,34 +575,32 @@ def _validate_and_collect_hetero_ring_ketone(mol, heteroatom):
                 "module's hetero-ring ketone path"
             )
 
-    return ring_order, ketones, element
+    return ring_order, ketones, elements_by_atom
 
 
-def _name_hetero_cyclic_ketone(mol, heteroatom):
-    graph = adjacency(mol)
-    ring_order, ketones, element = _validate_and_collect_hetero_ring_ketone(mol, heteroatom)
-    ring_size = len(ring_order)
-    stem = saturated_ring_name(element, ring_size)
-    if stem is None:
-        raise UnsupportedStructure(
-            f"no retained/Hantzsch-Widman name for a {ring_size}-membered "
-            f"{element}-heteroatom saturated ring (P-22.2.1)"
-        )
-
-    start = ring_order.index(heteroatom)
-    rotated = ring_order[start:] + ring_order[:start]
+def _best_one_locants(graph, ring_order, ketones, starts):
+    """Lowest ketone locant set over every (start, direction) candidate in
+    `starts` (each start rotated to position 1, tried both directions) --
+    shared by the single- and two-heteroatom hetero-ring ketone paths."""
     best_locants = None
-    for candidate in (rotated, [rotated[0]] + list(reversed(rotated[1:]))):
-        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
-        one_locants = _one_locants(position_of, ketones, graph)
-        if one_locants is None:
-            raise UnsupportedStructure(
-                "a ketone not on the ring itself is not supported yet"
-            )
-        locant_set = lowest_locant_set(one_locants)
-        if best_locants is None or locant_set < best_locants:
-            best_locants = locant_set
+    for start in starts:
+        rotated_start = ring_order.index(start)
+        rotated = ring_order[rotated_start:] + ring_order[:rotated_start]
+        for candidate in (rotated, [rotated[0]] + list(reversed(rotated[1:]))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            one_locants = _one_locants(position_of, ketones, graph)
+            if one_locants is None:
+                raise UnsupportedStructure(
+                    "a ketone not on the ring itself (e.g. on a substituent "
+                    "branch) is not supported yet"
+                )
+            locant_set = lowest_locant_set(one_locants)
+            if best_locants is None or locant_set < best_locants:
+                best_locants = locant_set
+    return best_locants
 
+
+def _hetero_ring_ketone_name(stem, best_locants):
     one_word = multiplied_word(len(best_locants), "one")
     elide = one_word[0] in "aeiouy"
     base = stem[:-1] if elide else stem
@@ -582,20 +608,92 @@ def _name_hetero_cyclic_ketone(mol, heteroatom):
     return f"{base}-{loc_str}-{one_word}"
 
 
+def _name_hetero_cyclic_ketone(mol, heteroatom):
+    graph = adjacency(mol)
+    ring_order, ketones, elements_by_atom = _validate_and_collect_hetero_ring_ketone(mol, {heteroatom})
+    ring_size = len(ring_order)
+    element = elements_by_atom[heteroatom]
+    stem = saturated_ring_name(element, ring_size)
+    if stem is None:
+        raise UnsupportedStructure(
+            f"no retained/Hantzsch-Widman name for a {ring_size}-membered "
+            f"{element}-heteroatom saturated ring (P-22.2.1)"
+        )
+    best_locants = _best_one_locants(graph, ring_order, ketones, [heteroatom])
+    return _hetero_ring_ketone_name(stem, best_locants)
+
+
+def _hetero_ring_two_heteroatoms(mol):
+    """(het1, het2) ring-atom indices for a saturated, 6-membered,
+    1,4-related two-heteroatom ketone shape (morpholine/piperazine/
+    thiomorpholine's element pairs only -- see
+    `_TWO_HETERO_RING_ELEMENT_PAIRS`), or None if it doesn't match that
+    shape at all."""
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() != 1:
+        return None
+    ring_atoms = ring_info.AtomRings()[0]
+    if len(ring_atoms) != _TWO_HETERO_RING_SIZE:
+        return None
+    if any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring_atoms):
+        return None
+    heteroatoms = [a for a in ring_atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
+    if len(heteroatoms) != 2:
+        return None
+    het1, het2 = heteroatoms
+    atomic_num1 = mol.GetAtomWithIdx(het1).GetAtomicNum()
+    atomic_num2 = mol.GetAtomWithIdx(het2).GetAtomicNum()
+    if atomic_num1 not in _HETERO_RING_ELEMENTS or atomic_num2 not in _HETERO_RING_ELEMENTS:
+        return None
+    elements = frozenset((_HETERO_RING_ELEMENTS[atomic_num1], _HETERO_RING_ELEMENTS[atomic_num2]))
+    if elements not in _TWO_HETERO_RING_ELEMENT_PAIRS:
+        return None
+    graph = adjacency(mol)
+    ring_order = _ring_cycle(graph, list(ring_atoms))
+    if abs(ring_order.index(het1) - ring_order.index(het2)) != _TWO_HETERO_RING_SIZE // 2:
+        # Not the 1,4 (antipodal) relationship morpholine/piperazine/
+        # thiomorpholine need -- e.g. a 1,2- or 1,3-diheteroatom ring,
+        # which has no retained name and is out of scope.
+        return None
+    return het1, het2
+
+
+def _name_two_hetero_cyclic_ketone(mol, het1, het2):
+    graph = adjacency(mol)
+    ring_order, ketones, elements_by_atom = _validate_and_collect_hetero_ring_ketone(mol, {het1, het2})
+    stem = saturated_two_heteroatom_1_4_ring_name((elements_by_atom[het1], elements_by_atom[het2]))
+    if stem is None:
+        raise UnsupportedStructure(
+            "no retained name for this two-heteroatom saturated ring "
+            "(P-22.2.1)"
+        )
+    if elements_by_atom[het1] == elements_by_atom[het2]:
+        starts = [het1, het2]
+    else:
+        starts = [het1 if _TWO_HETERO_PRIORITY[elements_by_atom[het1]] < _TWO_HETERO_PRIORITY[elements_by_atom[het2]] else het2]
+    best_locants = _best_one_locants(graph, ring_order, ketones, starts)
+    return _hetero_ring_ketone_name(stem, best_locants)
+
+
 def has_hetero_ring_ketone_shape(mol) -> bool:
     """True if this molecule fits the narrow hetero-ring-ketone shape
-    (see `_hetero_ring_heteroatom`) -- used by `core.py` to route ahead of
-    `has_amide_shape`, since a ketone directly bonded to the ring
-    heteroatom (a lactam, e.g. piperidin-2-one) would otherwise look
+    (single heteroatom, see `_hetero_ring_heteroatom`, or the 1,4
+    two-heteroatom morpholine/piperazine/thiomorpholine shape, see
+    `_hetero_ring_two_heteroatoms`) -- used by `core.py` to route ahead of
+    `has_amide_shape`, since a ketone directly bonded to a ring nitrogen
+    (a lactam, e.g. piperidin-2-one/morpholin-3-one) would otherwise look
     amide-shaped to that check and get rejected by `_amide.py`'s
     ring-always-out-of-scope guard before ever reaching this module."""
-    return _hetero_ring_heteroatom(mol) is not None
+    return _hetero_ring_heteroatom(mol) is not None or _hetero_ring_two_heteroatoms(mol) is not None
 
 
 def name_ketone(mol) -> str:
     hetero_atom = _hetero_ring_heteroatom(mol)
     if hetero_atom is not None:
         return _name_hetero_cyclic_ketone(mol, hetero_atom)
+    two_heteroatoms = _hetero_ring_two_heteroatoms(mol)
+    if two_heteroatoms is not None:
+        return _name_two_hetero_cyclic_ketone(mol, *two_heteroatoms)
     ketones, hydroxyls = _validate_and_collect_ketones(mol)
     stereo = specified_stereocenters(mol)
     graph = adjacency(mol)

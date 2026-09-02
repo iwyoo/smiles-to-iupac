@@ -187,6 +187,11 @@ _MANCUDE_NAME_SMILES = {
     ("N", 5): ("1H-pyrrole", "c1cc[nH]c1"),
     ("N", 6): ("pyridine", "c1ccncc1"),
 }
+_TWO_HETEROATOM_SATURATED_NAME_SMILES = {
+    frozenset(("N", "O")): ("morpholine", "C1COCCN1"),
+    frozenset(("N", "N")): ("piperazine", "C1CNCCN1"),
+    frozenset(("N", "S")): ("thiomorpholine", "C1CSCCN1"),
+}
 _TWO_HETEROATOM_MANCUDE_NAME_SMILES = {
     ("1,3-diazole", 5): ("1H-imidazole", "c1cnc[nH]1"),
     ("1,2-diazole", 5): ("1H-pyrazole", "c1cc[nH]n1"),
@@ -207,6 +212,7 @@ _CANONICAL_TO_NAME = {
     for name, smiles in (
         *_RETAINED_NAME_SMILES.values(),
         *_MANCUDE_NAME_SMILES.values(),
+        *_TWO_HETEROATOM_SATURATED_NAME_SMILES.values(),
         *_TWO_HETEROATOM_MANCUDE_NAME_SMILES.values(),
     )
 }
@@ -228,6 +234,20 @@ def saturated_ring_name(element: str, size: int):
     for `_ketone.py`'s hetero-ring ketone naming, which needs the bare stem
     name rather than a full unsubstituted-molecule match."""
     entry = _RETAINED_NAME_SMILES.get((element, size))
+    return entry[0] if entry else None
+
+
+def saturated_two_heteroatom_1_4_ring_name(elements):
+    """The retained name for the unsubstituted, 6-membered, 1,4-related
+    two-heteroatom saturated ring whose heteroatom elements are `elements`
+    (an (element, element) pair or frozenset, e.g. ('N', 'O') ->
+    'morpholine'), or None if that element pair isn't one of the three in
+    P-22.2.1's scope (morpholine/piperazine/thiomorpholine -- other
+    element pairs, and other ring sizes/relationships, have no retained
+    name and are out of scope). Exposed for `_ketone.py`'s hetero-ring
+    ketone naming, which needs the bare stem name rather than a full
+    unsubstituted-molecule match."""
+    entry = _TWO_HETEROATOM_SATURATED_NAME_SMILES.get(frozenset(elements))
     return entry[0] if entry else None
 
 
