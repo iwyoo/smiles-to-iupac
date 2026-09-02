@@ -36,9 +36,30 @@ def test_n_n_prime_dimethylurea_different_nitrogens():
     assert smiles_to_iupac("CNC(=O)NC") == "N,N'-dimethylurea"
 
 
-def test_different_substituents_on_different_nitrogens_not_supported():
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # One different substituent on each nitrogen -- the alphabetically
+        # first substituent name (P-14.5.2, locants ignored) becomes 'N-',
+        # the other becomes 'N''-', confirmed via the Blue Book's own PIN
+        # worked example 'N-[1-cyano-3-(methylsulfanyl)propyl]-
+        # N'-methylurea'. PubChem structure match (its own numeric-locant
+        # style): 'ethyl' < 'methyl' -> `CCNC(=O)NC` -> '1-ethyl-3-methylurea'
+        # (CID 206567); 'methyl' < 'propyl' -> `CCCNC(=O)NC` ->
+        # '1-methyl-3-propylurea' (CID 217014).
+        ("CCNC(=O)NC", "N-ethyl-N'-methylurea"),
+        ("CCCNC(=O)NC", "N-methyl-N'-propylurea"),
+    ],
+)
+def test_different_substituents_on_different_nitrogens(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_different_substituent_counts_on_different_nitrogens_not_supported():
+    # One nitrogen with two substituents, the other with one -- still out
+    # of scope: no confirmed worked example settles this locant tie-break.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCNC(=O)NC")
+        smiles_to_iupac("CCN(C)C(=O)NC")
 
 
 def test_branched_n_substituent_not_supported():
