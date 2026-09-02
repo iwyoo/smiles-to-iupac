@@ -299,11 +299,27 @@ def saturated_five_membered_1_3_two_heteroatom_ring_name(elements):
     ('N', 'N') -> 'imidazolidine'), or None if that element pair isn't
     one of the six in P-22.2.1's scope (imidazolidine/1,3-oxazolidine/
     1,3-thiazolidine/1,3-dioxolane/1,3-oxathiolane/1,3-dithiolane --
-    other element pairs, the 1,2-relationship, and other ring sizes have
-    no retained name here and are out of scope). Exposed for
+    other element pairs and other ring sizes have no retained name here
+    and are out of scope; the 1,2-relationship has its own six, see
+    `saturated_five_membered_1_2_two_heteroatom_ring_name`). Exposed for
     `_ketone.py`'s hetero-ring ketone naming, which needs the bare stem
     name rather than a full unsubstituted-molecule match."""
     entry = _FIVE_MEMBERED_1_3_TWO_HETEROATOM_NAME_SMILES.get(frozenset(elements))
+    return entry[0] if entry else None
+
+
+def saturated_five_membered_1_2_two_heteroatom_ring_name(elements):
+    """The retained/systematic name for the unsubstituted, 5-membered,
+    1,2-related two-heteroatom saturated ring whose heteroatom elements
+    are `elements` (an (element, element) pair or frozenset, e.g.
+    ('N', 'N') -> 'pyrazolidine'), or None if that element pair isn't one
+    of the six in P-22.2.1's scope (pyrazolidine/1,2-oxazolidine/
+    1,2-thiazolidine/1,2-dioxolane/1,2-oxathiolane/1,2-dithiolane --
+    other element pairs and other ring sizes have no retained name here
+    and are out of scope). Exposed for `_ketone.py`'s hetero-ring ketone
+    naming, which needs the bare stem name rather than a full
+    unsubstituted-molecule match."""
+    entry = _FIVE_MEMBERED_1_2_TWO_HETEROATOM_NAME_SMILES.get(frozenset(elements))
     return entry[0] if entry else None
 
 

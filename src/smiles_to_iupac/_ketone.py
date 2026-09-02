@@ -136,6 +136,22 @@ locants are decided first and win outright). PubChem-confirmed:
 `O=C1N(C)C(=O)CN1C` -> '1,3-dimethylimidazolidine-2,4-dione' (CID
 123410).
 
+A parallel path handles the five-membered 1,2-related two-heteroatom
+shape (the two heteroatoms directly bonded, locants 1/2 fixed rather than
+separated by a bridging carbon; the ketone lands on one of the three
+remaining ring carbons, locants 3/4/5) -- otherwise the same mechanics as
+the 1,3-case above (element seniority forces locant 1 when the pair
+differs, minimization decides it when identical; N-substituents allowed).
+PubChem-confirmed for the N-containing pairs: `O=C1CCNN1` ->
+'pyrazolidin-3-one' (CID 151497), `O=C1CCON1` -> '1,2-oxazolidin-3-one'
+(CID 192737), `O=C1CCSN1` -> '1,2-thiazolidin-3-one' (CID 21878697). For
+the O/S-only pairs, PubChem's own computed name drops the '1,2-' locant
+(e.g. 'dioxolan-3-one'), contradicted by the same Table 2.3/
+P-22.2.2.1.3 primary-text evidence already used for the unsubstituted
+parent names (`saturated_five_membered_1_2_two_heteroatom_ring_name`) --
+so `O=C1CCOO1`/`O=C1CCOS1`/`O=C1CCSS1` are named
+'1,2-dioxolan-3-one'/'1,2-oxathiolan-3-one'/'1,2-dithiolan-3-one' here.
+
 Unlike -OH/-NH2, a ketone carbon can never itself also be a C=C/C#C alkene
 carbon (its two remaining bonds, after the C=O double bond, are already
 committed to its two required carbon substituents — a ketone carbon with a
@@ -168,6 +184,7 @@ from ._common import (
     specified_stereocenters,
 )
 from ._hetero_monocyclic import (
+    saturated_five_membered_1_2_two_heteroatom_ring_name,
     saturated_five_membered_1_3_two_heteroatom_ring_name,
     saturated_ring_name,
     saturated_two_heteroatom_1_4_ring_name,
@@ -193,6 +210,14 @@ _TWO_HETERO_RING_SIZE = 6
 # outranks S which outranks N.
 _TWO_HETERO_PRIORITY = {"O": 0, "S": 1, "N": 2}
 _FIVE_MEMBERED_1_3_RING_ELEMENT_PAIRS = {
+    frozenset(("N", "N")),
+    frozenset(("N", "O")),
+    frozenset(("N", "S")),
+    frozenset(("O", "O")),
+    frozenset(("O", "S")),
+    frozenset(("S", "S")),
+}
+_FIVE_MEMBERED_1_2_RING_ELEMENT_PAIRS = {
     frozenset(("N", "N")),
     frozenset(("N", "O")),
     frozenset(("N", "S")),
@@ -868,6 +893,103 @@ def _name_five_membered_1_3_ring_ketone(mol, het1, het2):
     return f"{prefix}{separator}{name}"
 
 
+def _hetero_ring_five_membered_1_2(mol):
+    """(het1, het2) ring-atom indices for a saturated, 5-membered,
+    1,2-related (directly bonded) two-heteroatom ketone shape (the
+    pyrazolidin-3-one family -- see
+    `_FIVE_MEMBERED_1_2_RING_ELEMENT_PAIRS`), or None if it doesn't match
+    that shape at all (heteroatoms not directly bonded, an unsupported
+    element pair, or not a 5-membered saturated ring with exactly two
+    heteroatoms)."""
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() != 1:
+        return None
+    ring_atoms = ring_info.AtomRings()[0]
+    if len(ring_atoms) != 5:
+        return None
+    if any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring_atoms):
+        return None
+    heteroatoms = [a for a in ring_atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
+    if len(heteroatoms) != 2:
+        return None
+    het1, het2 = heteroatoms
+    atomic_num1 = mol.GetAtomWithIdx(het1).GetAtomicNum()
+    atomic_num2 = mol.GetAtomWithIdx(het2).GetAtomicNum()
+    if atomic_num1 not in _HETERO_RING_ELEMENTS or atomic_num2 not in _HETERO_RING_ELEMENTS:
+        return None
+    elements = frozenset((_HETERO_RING_ELEMENTS[atomic_num1], _HETERO_RING_ELEMENTS[atomic_num2]))
+    if elements not in _FIVE_MEMBERED_1_2_RING_ELEMENT_PAIRS:
+        return None
+    graph = adjacency(mol)
+    if het2 not in graph[het1]:
+        return None
+    return het1, het2
+
+
+def _five_membered_1_2_numbering(mol, het1, het2, elements_by_atom, ketones):
+    """(best_locants, position_of) for the five-membered 1,2-two-heteroatom
+    ring shape -- the two heteroatoms are always locants 1 and 2 (directly
+    bonded), and the remaining three ring carbons follow as locants 3, 4,
+    5 in the one direction that reaches the other heteroatom immediately
+    (the opposite direction from a given start reaches a ring carbon
+    first instead, misnumbering the heteroatom pair as e.g. {1, 5} rather
+    than the required lowest set {1, 2}, so it's never a valid candidate
+    -- mirrors `_five_membered_1_3_numbering`'s identical "only one
+    direction is geometrically valid" reasoning). Locant 1 goes to the
+    higher-priority heteroatom (P-22.2.1's O > S > N, `_TWO_HETERO_PRIORITY`)
+    when the two elements differ -- no minimization freedom, same
+    seniority-over-locants rule as the 1,3-case. When identical, both
+    starts are tried and the one minimizing the ketone locant set wins."""
+    graph = adjacency(mol)
+    ring_order = _ring_cycle(graph, list(mol.GetRingInfo().AtomRings()[0]))
+
+    def candidates(start, other):
+        rotated_start = ring_order.index(start)
+        rotated = ring_order[rotated_start:] + ring_order[:rotated_start]
+        for candidate in (rotated, [rotated[0]] + list(reversed(rotated[1:]))):
+            if candidate[1] != other:
+                continue
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            locants = sorted(position_of[next(iter(graph[oxygen]))] for oxygen in ketones)
+            yield locants, position_of
+
+    if elements_by_atom[het1] == elements_by_atom[het2]:
+        options = list(candidates(het1, het2)) + list(candidates(het2, het1))
+        return min(options, key=lambda option: option[0])
+    start, other = (
+        (het1, het2)
+        if _TWO_HETERO_PRIORITY[elements_by_atom[het1]] < _TWO_HETERO_PRIORITY[elements_by_atom[het2]]
+        else (het2, het1)
+    )
+    (result,) = candidates(start, other)
+    return result
+
+
+def _name_five_membered_1_2_ring_ketone(mol, het1, het2):
+    ring_order, ketones, elements_by_atom, n_substituents = _validate_and_collect_hetero_ring_ketone(
+        mol, {het1, het2}, allow_n_substituent=True
+    )
+    stem = saturated_five_membered_1_2_two_heteroatom_ring_name(
+        (elements_by_atom[het1], elements_by_atom[het2])
+    )
+    if stem is None:
+        raise UnsupportedStructure(
+            "no retained name for this five-membered two-heteroatom "
+            "saturated ring (P-22.2.1)"
+        )
+    best_locants, position_of = _five_membered_1_2_numbering(mol, het1, het2, elements_by_atom, ketones)
+    name = _hetero_ring_ketone_name(stem, best_locants)
+    if not n_substituents:
+        return name
+    grouped = {}
+    for atom_idx, (sub_name, is_compound) in n_substituents.items():
+        info = grouped.setdefault(sub_name, {"locants": [], "compound": is_compound})
+        info["locants"].append(position_of[atom_idx])
+    prefix = format_substituent_prefixes(grouped)
+    separator = "-" if name[0].isdigit() else ""
+    return f"{prefix}{separator}{name}"
+
+
 def has_hetero_ring_ketone_shape(mol) -> bool:
     """True if this molecule fits the narrow hetero-ring-ketone shape
     (single heteroatom, see `_hetero_ring_heteroatom`, or the 1,4
@@ -907,13 +1029,28 @@ def has_five_membered_1_3_ring_ketone_shape(mol) -> bool:
     return _hetero_ring_five_membered_1_3(mol) is not None
 
 
+def has_five_membered_1_2_ring_ketone_shape(mol) -> bool:
+    """True if this molecule fits the five-membered 1,2-two-heteroatom
+    ring-ketone shape (see `_hetero_ring_five_membered_1_2`, e.g.
+    pyrazolidin-3-one) -- kept separate from
+    `has_five_membered_1_3_ring_ketone_shape` for the same reasons: it
+    must be routed just as early in `core.py` (this shape, too, is
+    otherwise misnamed by the aldehyde/ether checks depending on the
+    element pair), and can never collide with the cyclic anhydride shape
+    (which needs exactly one ring heteroatom)."""
+    return _hetero_ring_five_membered_1_2(mol) is not None
+
+
 def name_ketone(mol) -> str:
     hetero_atom = _hetero_ring_heteroatom(mol)
     if hetero_atom is not None:
         return _name_hetero_cyclic_ketone(mol, hetero_atom)
-    five_membered = _hetero_ring_five_membered_1_3(mol)
-    if five_membered is not None:
-        return _name_five_membered_1_3_ring_ketone(mol, *five_membered)
+    five_membered_1_3 = _hetero_ring_five_membered_1_3(mol)
+    if five_membered_1_3 is not None:
+        return _name_five_membered_1_3_ring_ketone(mol, *five_membered_1_3)
+    five_membered_1_2 = _hetero_ring_five_membered_1_2(mol)
+    if five_membered_1_2 is not None:
+        return _name_five_membered_1_2_ring_ketone(mol, *five_membered_1_2)
     two_heteroatoms = _hetero_ring_two_heteroatoms(mol)
     if two_heteroatoms is not None:
         return _name_two_hetero_cyclic_ketone(mol, *two_heteroatoms)
