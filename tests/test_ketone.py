@@ -271,12 +271,35 @@ def test_five_membered_1_3_ring_ketone_substituted_n_substituent_raises():
         smiles_to_iupac("O=C1N(CCO)C(=O)CN1")
 
 
-def test_five_membered_1_3_ring_ketone_ring_carbon_substituent_raises():
-    # An alkyl substituent on one of the plain ring carbons (rather than a
-    # ring nitrogen) is still out of scope -- the new N-substituent path
-    # only loosens the heteroatom check, not the ring-carbon check.
+def test_five_membered_1_3_ring_ketone_single_ketone_ring_carbon_substituent_raises():
+    # A ring-carbon substituent alongside a single ketone (not a dione) is
+    # still out of scope: two plain ring carbons remain, and which one
+    # carries the substituent would become a new locant tie-break input
+    # this module doesn't implement.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O=C1OC(C)CN1")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # An alkyl substituent on the sole remaining plain ring carbon of
+        # the dione (hydantoin) shape -- unlike the single-ketone case
+        # above, the ketone locants alone already fully fix the
+        # numbering, so the substituent's own locant is simply whatever
+        # that fixed numbering gives it (same P-44.4.1.8 principle as the
+        # N-substituent case). PubChem-verified:
+        # 5-methylimidazolidine-2,4-dione (CID 69216),
+        # 4-methyl-1,3-oxazolidine-2,5-dione (CID 70938, its locant '4'
+        # matches the same carbon's locant in the unsubstituted
+        # numbering), 5-methyl-1,3-dioxolane-2,4-dione (CID 22227598).
+        ("O=C1NC(=O)C(C)N1", "5-methylimidazolidine-2,4-dione"),
+        ("O=C1OC(=O)C(C)N1", "4-methyl-1,3-oxazolidine-2,5-dione"),
+        ("O=C1OC(=O)C(C)O1", "5-methyl-1,3-dioxolane-2,4-dione"),
+    ],
+)
+def test_five_membered_1_3_ring_dione_carbon_substituent_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_five_membered_1_3_ring_ketone_wrong_element_pair_raises():

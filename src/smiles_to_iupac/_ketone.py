@@ -136,6 +136,17 @@ locants are decided first and win outright). PubChem-confirmed:
 `O=C1N(C)C(=O)CN1C` -> '1,3-dimethylimidazolidine-2,4-dione' (CID
 123410).
 
+For the dione (hydantoin) form specifically, the sole remaining plain
+ring carbon may likewise carry a single plain, unbranched, unsubstituted
+alkyl substituent -- its locant is, again, whatever the already-fixed
+ketone numbering gives it. The single-ketone form is excluded: two plain
+ring carbons remain there, and which one carries the substituent would be
+a new locant tie-break input this module doesn't implement.
+PubChem-confirmed: `O=C1NC(=O)C(C)N1` -> '5-methylimidazolidine-2,4-dione'
+(CID 69216), `O=C1OC(=O)C(C)N1` -> '4-methyl-1,3-oxazolidine-2,5-dione'
+(CID 70938), `O=C1OC(=O)C(C)O1` -> '5-methyl-1,3-dioxolane-2,4-dione'
+(CID 22227598).
+
 A parallel path handles the five-membered 1,2-related two-heteroatom
 shape (the two heteroatoms directly bonded, locants 1/2 fixed rather than
 separated by a bridging carbon; the ketone lands on one of the three
@@ -580,20 +591,54 @@ def _hetero_ring_heteroatom(mol):
     return heteroatom
 
 
-def _validate_and_collect_hetero_ring_ketone(mol, heteroatoms, allow_n_substituent=False):
-    """(ring_order, ketones, elements_by_atom, n_substituents) for a
+def _linear_alkyl_substituent(mol, full_carbon_graph, graph, root, attachment_point):
+    """alkyl_name(length) for the plain, unbranched, unsubstituted alkyl
+    chain hanging off `root` (reached from `attachment_point`, a ring
+    atom), or raise `UnsupportedStructure` if it's branched, unsaturated,
+    or itself carries any further substituent -- shared by the ring
+    heteroatom (N-alkyl) and ring carbon substituent paths in
+    `_validate_and_collect_hetero_ring_ketone` below, which only differ in
+    which atom `attachment_point` is."""
+    length = linear_branch(full_carbon_graph, root, attachment_point)
+    if length is None:
+        raise UnsupportedStructure("a branched substituent is not supported yet")
+    atoms = set()
+    previous, current = attachment_point, root
+    while current is not None:
+        atoms.add(current)
+        neighbors = [n for n in full_carbon_graph[current] if n != previous]
+        previous, current = current, (neighbors[0] if neighbors else None)
+    if any(b[0] in atoms or b[1] in atoms for b in non_single_bonds(mol)):
+        raise UnsupportedStructure("an unsaturated substituent is not supported yet")
+    if any(set(graph[atom]) - atoms - {attachment_point} for atom in atoms):
+        raise UnsupportedStructure(
+            "a substituted substituent is not supported yet; only a "
+            "plain, unsubstituted alkyl substituent is in scope"
+        )
+    return alkyl_name(length)
+
+
+def _validate_and_collect_hetero_ring_ketone(
+    mol, heteroatoms, allow_n_substituent=False, allow_ring_carbon_substituent=False
+):
+    """(ring_order, ketones, elements_by_atom, substituents) for a
     hetero-ring ketone -- validates that every ring heteroatom
     (`heteroatoms`, 1 or 2 atom indices) carries no substituent beyond its
     own indicated hydrogen, every other ring atom is a plain CH2 or an
     unsubstituted ketone carbonyl carbon, and the ring itself is fully
-    saturated (P-22.2.1's plain retained-name ring shape). `n_substituents`
-    is {} unless `allow_n_substituent` is True, in which case a ring
-    nitrogen may instead carry a single plain, unbranched, unsubstituted
-    alkyl substituent (mirroring `_amide.py`/`_hydrazide.py`'s identical
-    N-substituent restriction) -- collected as
-    {heteroatom_atom_idx: (alkyl_name, is_compound=False)}; O/S
-    heteroatoms never get this option (P-22.2.1: no spare valence to give
-    up)."""
+    saturated (P-22.2.1's plain retained-name ring shape). `substituents`
+    is {} unless `allow_n_substituent`/`allow_ring_carbon_substituent` is
+    True, in which case a ring nitrogen (mirroring `_amide.py`/
+    `_hydrazide.py`'s identical N-substituent restriction) and/or a plain
+    ring carbon may instead carry a single plain, unbranched,
+    unsubstituted alkyl substituent -- collected as
+    {atom_idx: (alkyl_name, is_compound=False)}; O/S heteroatoms never get
+    this option (P-22.2.1: no spare valence to give up). A ring-carbon
+    substituent is additionally only accepted when the ring ends up with
+    two or more ketones (a dione/hydantoin shape) -- with a single
+    ketone, two plain ring carbons remain and which one carries the
+    substituent would become a new locant tie-break input the caller
+    doesn't yet implement."""
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
     graph = adjacency(mol)
@@ -601,10 +646,12 @@ def _validate_and_collect_hetero_ring_ketone(mol, heteroatoms, allow_n_substitue
     ring_atoms = list(ring_info.AtomRings()[0])
     ring_order = _ring_cycle(graph, ring_atoms)
     ring_set = set(ring_atoms)
-    full_carbon_graph = carbon_adjacency(mol) if allow_n_substituent else None
+    full_carbon_graph = (
+        carbon_adjacency(mol) if allow_n_substituent or allow_ring_carbon_substituent else None
+    )
 
     elements_by_atom = {}
-    n_substituents = {}
+    substituents = {}
     for heteroatom in heteroatoms:
         hetero_atom_obj = mol.GetAtomWithIdx(heteroatom)
         element = _HETERO_RING_ELEMENTS[hetero_atom_obj.GetAtomicNum()]
@@ -621,23 +668,10 @@ def _validate_and_collect_hetero_ring_ketone(mol, heteroatoms, allow_n_substitue
             and hetero_atom_obj.GetTotalNumHs() == 0
         ):
             (root,) = [n for n in graph[heteroatom] if n not in ring_set]
-            length = linear_branch(full_carbon_graph, root, None)
-            if length is None:
-                raise UnsupportedStructure("a branched N-substituent is not supported yet")
-            atoms = set()
-            previous, current = None, root
-            while current is not None:
-                atoms.add(current)
-                neighbors = [n for n in full_carbon_graph[current] if n != previous]
-                previous, current = current, (neighbors[0] if neighbors else None)
-            if any(b[0] in atoms or b[1] in atoms for b in non_single_bonds(mol)):
-                raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
-            if any(set(graph[atom]) - atoms - {heteroatom} for atom in atoms):
-                raise UnsupportedStructure(
-                    "a substituted N-substituent is not supported yet; only "
-                    "a plain, unsubstituted alkyl N-substituent is in scope"
-                )
-            n_substituents[heteroatom] = (alkyl_name(length), False)
+            substituents[heteroatom] = (
+                _linear_alkyl_substituent(mol, full_carbon_graph, graph, root, heteroatom),
+                False,
+            )
             continue
         raise UnsupportedStructure(
             "a ring heteroatom bearing a substituent is out of scope for "
@@ -646,6 +680,7 @@ def _validate_and_collect_hetero_ring_ketone(mol, heteroatoms, allow_n_substitue
         )
 
     ketones = set()
+    carbon_substituents = {}
     for atom_idx in ring_atoms:
         if atom_idx in elements_by_atom:
             continue
@@ -659,6 +694,17 @@ def _validate_and_collect_hetero_ring_ketone(mol, heteroatoms, allow_n_substitue
                     "a substituent other than a ketone carbonyl is out of "
                     "scope for this module's hetero-ring ketone path"
                 )
+            continue
+        if (
+            allow_ring_carbon_substituent
+            and len(exo) == 1
+            and atom.GetTotalNumHs() == 1
+            and mol.GetAtomWithIdx(exo[0]).GetAtomicNum() == 6
+        ):
+            carbon_substituents[atom_idx] = (
+                _linear_alkyl_substituent(mol, full_carbon_graph, graph, exo[0], atom_idx),
+                False,
+            )
             continue
         if len(exo) != 1:
             raise UnsupportedStructure(
@@ -676,6 +722,14 @@ def _validate_and_collect_hetero_ring_ketone(mol, heteroatoms, allow_n_substitue
         ketones.add(other)
     if not ketones:
         raise UnsupportedStructure("no ketone (C=O) group found; this module only handles ketones")
+    if carbon_substituents and len(ketones) < 2:
+        raise UnsupportedStructure(
+            "a ring-carbon substituent alongside a single ketone is not "
+            "supported yet -- which of the two remaining plain ring "
+            "carbons carries it would become a new locant tie-break input "
+            "(P-14.5.2)"
+        )
+    substituents.update(carbon_substituents)
 
     for i in range(len(ring_order)):
         a, b = ring_order[i], ring_order[(i + 1) % len(ring_order)]
@@ -685,7 +739,7 @@ def _validate_and_collect_hetero_ring_ketone(mol, heteroatoms, allow_n_substitue
                 "module's hetero-ring ketone path"
             )
 
-    return ring_order, ketones, elements_by_atom, n_substituents
+    return ring_order, ketones, elements_by_atom, substituents
 
 
 def _best_one_locants(graph, ring_order, ketones, starts):
@@ -870,7 +924,7 @@ def _five_membered_1_3_numbering(mol, het1, het2, elements_by_atom, ketones):
 
 def _name_five_membered_1_3_ring_ketone(mol, het1, het2):
     ring_order, ketones, elements_by_atom, n_substituents = _validate_and_collect_hetero_ring_ketone(
-        mol, {het1, het2}, allow_n_substituent=True
+        mol, {het1, het2}, allow_n_substituent=True, allow_ring_carbon_substituent=True
     )
     stem = saturated_five_membered_1_3_two_heteroatom_ring_name(
         (elements_by_atom[het1], elements_by_atom[het2])
