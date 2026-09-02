@@ -75,7 +75,7 @@ from ._two_component_heterocycle_fusion import (
     has_two_component_heterocycle_fusion_name,
     name_two_component_heterocycle_fusion,
 )
-from ._ketone import name_ketone
+from ._ketone import has_hetero_ring_ketone_shape, name_ketone
 from ._thione import has_thione_shape, name_thione
 from ._selone import has_selone_shape, name_selone
 from ._tellone import has_tellone_shape, name_tellone
@@ -699,6 +699,17 @@ def smiles_to_iupac(smiles: str) -> str:
         # groups together.
         if has_hydrazide_shape(mol):
             return name_hydrazide(mol)
+        # A ketone carbonyl directly bonded to a saturated single-
+        # heteroatom ring's own heteroatom (a lactam, e.g.
+        # piperidin-2-one, tasks/hetero-ring-ketone-lactam-routing.md)
+        # looks amide-shaped to `has_amide_shape` below (carbonyl + a
+        # singly-bonded N with 0-2 carbon substituents) and would
+        # otherwise be rejected by `_amide.py`'s "any ring is a lactam,
+        # out of scope" guard -- `_ketone.py` already names this narrow
+        # ring shape correctly (heteroatom always locant 1, ketone locant
+        # set minimized), so claim it here first.
+        if has_hetero_ring_ketone_shape(mol):
+            return name_ketone(mol)
         if has_amide_shape(mol):
             # P-41/Table 3.3: 'amide' outranks 'one', so an amide that also
             # carries one or more ketones names the amide as the suffix and

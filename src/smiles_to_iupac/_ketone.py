@@ -70,12 +70,24 @@ rings, 3-/4-membered rings, and any substituent other than the ring
 heteroatom's own indicated hydrogen and the ketone carbonyl(s) themselves
 (alkyl, halogen, hydroxyl, ...) are all out of scope -- these fall through
 to this module's existing carbocyclic-only validation, which raises its
-own (more general) error. A ketone carbonyl directly bonded to the ring
-nitrogen (a lactam, e.g. piperidin-2-one) never reaches this module at
-all: `core.py` routes that shape to `_amide.py` first, which already
-raises its own explicit "lactam...out of scope" error -- confirmed this
-path's cases (piperidin-3-one/4-one) never have that adjacency, so there
-is no overlap to reconcile.
+own (more general) error.
+
+`tasks/hetero-ring-ketone-lactam-routing.md`: a ketone carbonyl directly
+bonded to the ring heteroatom (a lactam, e.g. piperidin-2-one) fits this
+same shape and this module already names it correctly -- the only real
+blocker was `core.py`'s dispatch order, since that shape also looks
+amide-shaped (a carbonyl plus a singly-bonded N with 0-2 carbon
+substituents) to the earlier `has_amide_shape` check, which would
+otherwise send it to `_amide.py`'s unconditional "any ring is a lactam,
+out of scope" guard. `core.py` now checks this module's
+`has_hetero_ring_ketone_shape` first. PubChem-confirmed: `O=C1CCCCN1` ->
+'piperidin-2-one' (CID 12665), `O=C1CCCN1` -> 'pyrrolidin-2-one' (CID
+12025), `O=C1CCCCCN1` -> 'azepan-2-one' (CID 7768). A symmetric,
+unsubstituted cyclic imide (e.g. succinimide, `O=C1CCC(=O)N1`) fits the
+same shape too (both ring carbonyls bonded to the same N) and is named
+here as a plain ring dione ('pyrrolidine-2,5-dione', CID 11439) rather
+than via `_imide.py`'s acyclic-only "N-acyl amide" construction
+(P-66.6.3), which was never meant to cover the cyclic case.
 
 Unlike -OH/-NH2, a ketone carbon can never itself also be a C=C/C#C alkene
 carbon (its two remaining bonds, after the C=O double bond, are already
@@ -568,6 +580,16 @@ def _name_hetero_cyclic_ketone(mol, heteroatom):
     base = stem[:-1] if elide else stem
     loc_str = ",".join(str(loc) for loc in best_locants)
     return f"{base}-{loc_str}-{one_word}"
+
+
+def has_hetero_ring_ketone_shape(mol) -> bool:
+    """True if this molecule fits the narrow hetero-ring-ketone shape
+    (see `_hetero_ring_heteroatom`) -- used by `core.py` to route ahead of
+    `has_amide_shape`, since a ketone directly bonded to the ring
+    heteroatom (a lactam, e.g. piperidin-2-one) would otherwise look
+    amide-shaped to that check and get rejected by `_amide.py`'s
+    ring-always-out-of-scope guard before ever reaching this module."""
+    return _hetero_ring_heteroatom(mol) is not None
 
 
 def name_ketone(mol) -> str:

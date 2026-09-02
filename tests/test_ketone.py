@@ -87,6 +87,21 @@ def test_ether_raises():
         ("O=C1CCCNC1", "piperidin-3-one"),
         ("O=C1CCOCC1", "oxan-4-one"),
         ("O=C1CCSCC1", "thian-4-one"),
+        # Lactams (the ketone carbonyl directly bonded to the ring N) fit
+        # this same shape and are routed here ahead of `_amide.py`'s
+        # ring-always-out-of-scope guard (see
+        # tasks/hetero-ring-ketone-lactam-routing.md, test_amide.py's
+        # test_lactam_is_named_via_ketone_module). PubChem-verified: CID
+        # 12665/12025/7768.
+        ("O=C1CCCCN1", "piperidin-2-one"),
+        ("O=C1CCCN1", "pyrrolidin-2-one"),
+        ("O=C1CCCCCN1", "azepan-2-one"),
+        # A symmetric, unsubstituted cyclic imide (succinimide) has both
+        # ring carbonyls bonded to the same N and is routed here too (see
+        # test_imide.py's test_cyclic_symmetric_imide_is_named_via_ketone_suffix) --
+        # P-66.6.3's "N-acyl amide" imide construction only covers the
+        # acyclic case. PubChem-verified: CID 11439.
+        ("O=C1CCC(=O)N1", "pyrrolidine-2,5-dione"),
     ],
 )
 def test_hetero_ring_ketone_names(smiles, expected):
