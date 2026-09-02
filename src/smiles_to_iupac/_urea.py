@@ -25,14 +25,19 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   above.
 
 Scope, deliberately narrow: substituents landing on a single nitrogen (one
-or two, using the same 'N-'/'N,N-di' citation as `_amide.py`), or an
+or two, using the same 'N-'/'N,N-di' citation as `_amide.py`), an
 identical single substituent on each of the two different nitrogens
-(symmetric 'N,N'-di...' citation). Explicitly out of scope (raise
-`UnsupportedStructure`): two DIFFERENT substituents split across the two
-different nitrogens (no confirmed worked example settles which physical
-nitrogen becomes 'N' vs 'N'' in that case), a branched/unsaturated/
-ring-bearing N-substituent, a ring-fused urea (e.g. hydantoin), and
-thiourea (the sulfur analogue).
+(symmetric 'N,N'-di...' citation), or one DIFFERENT substituent on each of
+the two nitrogens -- confirmed via the Blue Book's own PIN worked example
+'N-[1-cyano-3-(methylsulfanyl)propyl]-N'-methylurea': the alphabetically
+first substituent name (P-14.5.2, locants ignored) becomes 'N-', the
+other becomes 'N''-', e.g. 'N-ethyl-N'-methylurea' (PubChem structure
+match, numeric-locant style: `CCNC(=O)NC` -> '1-ethyl-3-methylurea', CID
+206567). Explicitly out of scope (raise `UnsupportedStructure`): a
+different substituent *count* on each nitrogen (e.g. one with two
+substituents, the other with one -- no confirmed worked example settles
+that locant tie-break), a branched/unsaturated/ring-bearing N-substituent,
+a ring-fused urea (e.g. hydantoin), and thiourea (the sulfur analogue).
 
 - Semicarbazide (H2N-NH-C(=O)-NH2, P-68.3.1.4): PubChem structure match
   confirms `NC(=O)NN` -> "aminourea" -- the unsubstituted parent is named
@@ -224,13 +229,16 @@ def name_urea(mol) -> str:
         return "urea"
 
     if n1_names and n2_names:
-        if len(n1_names) != 1 or len(n2_names) != 1 or n1_names[0] != n2_names[0]:
+        if len(n1_names) != 1 or len(n2_names) != 1:
             raise UnsupportedStructure(
-                "different substituents split across urea's two nitrogens "
-                "is not supported yet (no confirmed worked example settles "
-                "which nitrogen becomes N vs N' in that case)"
+                "a different substituent count on each of urea's two "
+                "nitrogens is not supported yet (no confirmed worked "
+                "example settles the locant tie-break for that case)"
             )
-        return f"N,N'-di{n1_names[0]}urea"
+        if n1_names[0] == n2_names[0]:
+            return f"N,N'-di{n1_names[0]}urea"
+        first, second = sorted((n1_names[0], n2_names[0]))
+        return f"N-{first}-N'-{second}urea"
 
     names = n1_names or n2_names
     return f"{_n_prefix('N', names)}urea"
