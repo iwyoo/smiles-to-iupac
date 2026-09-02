@@ -123,11 +123,48 @@ def test_hetero_ring_ketone_ring_substituent_raises():
 
 
 def test_hetero_ring_ketone_two_heteroatoms_raises():
-    # A ring-fused urea (e.g. hydantoin, two N heteroatoms) is out of scope
-    # for this module's narrow first pass (single heteroatom only) -- it
-    # falls through to the existing, unrelated urea-module rejection.
+    # A ring-fused urea (e.g. hydantoin, two N heteroatoms in a 5-membered
+    # ring) doesn't fit the 6-membered 1,4-two-heteroatom shape either, so
+    # it falls through to the existing, unrelated urea-module rejection.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O=C1CNC(=O)N1")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # 1,4-related two-heteroatom 6-membered saturated ring, one of the
+        # three retained-name shapes (morpholine/piperazine/thiomorpholine)
+        # -- PubChem-verified (see
+        # tasks/two-heteroatom-1-4-saturated-ring-naming.md). The
+        # higher-priority heteroatom (O/S over N) is always locant 1; for
+        # piperazine's two identical nitrogens, both are tried as the
+        # locant-1 candidate.
+        ("O=C1COCCN1", "morpholin-3-one"),
+        ("O=C1CNCCN1", "piperazin-2-one"),
+        ("O=C1CSCCN1", "thiomorpholin-3-one"),
+        # Symmetric diketone: same multiplying-prefix + full-locant-set
+        # pattern as every other hetero-ring ketone case.
+        ("O=C1CNC(=O)CN1", "piperazine-2,5-dione"),
+    ],
+)
+def test_two_hetero_ring_ketone_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_two_hetero_ring_ketone_substituted_heteroatom_raises():
+    # An N-methyl ring heteroatom is out of scope, same as the
+    # single-heteroatom path.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1COCCN1C")
+
+
+def test_two_hetero_ring_ketone_wrong_element_pair_raises():
+    # An O+S pair (1,4-oxathiane) has no retained name in this module's
+    # scope (only N+O/N+N/N+S) -- falls through to the existing, unrelated
+    # ether-module rejection.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1COCCS1")
 
 
 def test_alcohol_hetero_mix_names_hydroxy_prefix():

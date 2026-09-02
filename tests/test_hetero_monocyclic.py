@@ -156,9 +156,26 @@ def test_ring_size_outside_scope_raises():
 
 
 def test_two_heteroatoms_raises():
-    # 1,4-dioxane: two ring heteroatoms, out of scope here.
+    # 1,4-dioxane (an O+O pair): two ring heteroatoms, out of scope here --
+    # unlike morpholine/piperazine/thiomorpholine (N+O/N+N/N+S) below, this
+    # element pair has no retained name in this module's scope.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1COCCO1")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # 1,4-related two-heteroatom saturated 6-membered rings with their
+        # own retained name (P-22.2.1) -- PubChem-verified: morpholine
+        # (CID 8083), piperazine (CID 4837), thiomorpholine (CID 67164).
+        ("C1COCCN1", "morpholine"),
+        ("C1CNCCN1", "piperazine"),
+        ("C1CSCCN1", "thiomorpholine"),
+    ],
+)
+def test_two_heteroatom_saturated_ring_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_unsupported_heteroatom_element_raises():
