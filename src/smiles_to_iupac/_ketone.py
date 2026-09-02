@@ -561,7 +561,7 @@ def _validate_and_collect_hetero_ring_ketone(mol, heteroatoms):
             raise UnsupportedStructure(
                 "a ring heteroatom bearing a substituent is out of scope for "
                 "this module's hetero-ring ketone path (see "
-                "tasks/hetero-monocyclic-ketone-naming.md)"
+                "P-22.2.1)"
             )
 
     ketones = set()

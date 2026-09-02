@@ -311,7 +311,7 @@ def specified_stereocenters(mol):
             raise UnsupportedStructure(
                 "a pseudoasymmetric stereocenter (lowercase 'r'/'s') is not "
                 "supported yet -- only uppercase R/S stereocenters are in "
-                "scope (see tasks/multi-stereocenter-naming.md)"
+                "scope"
             )
         labels.append((atom_idx, code))
     return labels
