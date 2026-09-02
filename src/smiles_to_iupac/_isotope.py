@@ -1,7 +1,7 @@
 """Naming of isotopically substituted compounds (the '(<nuclide>)' isotope
 descriptor, P-82.2.1) for a mononuclear methane parent, and for an
-unbranched multi-carbon alkane chain parent bearing a single isotopic
-modification, per the IUPAC 2013 Recommendations ("the Blue Book"):
+unbranched multi-carbon alkane chain parent bearing one or more isotopic
+modifications, per the IUPAC 2013 Recommendations ("the Blue Book"):
 
 - P-82.2.1 (Chapter P-8, https://iupac.qmul.ac.uk/BlueBook/P8.html): the name
   of an isotopically substituted compound is formed by adding the nuclide
@@ -79,6 +79,18 @@ modification, per the IUPAC 2013 Recommendations ("the Blue Book"):
   multi-position deuterium locants with halogen locants. Locants are
   always cited for this combination (never omitted) -- both worked
   examples cite them even though butane's own unmodified name needs none.
+- A skeletal carbon isotope may now also be spread across more than one
+  chain carbon (its own locant set), mirroring the deuterium locant-set
+  rule above, as long as every labeled carbon shares the same nuclide
+  (mixing e.g. 13C and 14C on the same chain stays out of scope). The
+  isotope count is cited as a subscript on the nuclide symbol only when
+  more than one carbon carries it (e.g. '13C2'), matching the
+  single-carbon form's bare 'nC' (no '1' subscript). Structure-verified
+  via PubChem: `[13CH3]CC[13CH3]` -> "(1,4-13C2)butane" (CID 13378975),
+  `[13CH3][13CH2]CC` -> "(1,2-13C2)butane" (CID 90969531),
+  `[13CH3]C[13CH2]C` -> "(1,3-13C2)butane" (CID 13378977). It combines
+  with deuterium/halogen locants using the same combined-locant-set
+  numbering rule as everything else in this module.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any parent other than an unbranched methane/alkane chain -- branched
@@ -86,7 +98,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   supported.
 - Any isotope other than deuterium (2H) among hydrogen atoms (e.g. tritium).
 - Any isotopically labeled halogen.
-- More than one distinct chain position bearing a skeletal carbon isotope.
+- Mixing different skeletal carbon isotope nuclides (e.g. 13C and 14C
+  together) on the same chain.
 - A 2-carbon chain whose isotope-locant citation isn't settled by a
   confirmed worked example (see above) -- this only applies to a single
   deuterium-bearing position; two or more positions always cite locants.
@@ -235,16 +248,16 @@ def _name_chain(mol, carbons) -> str:
     deuterium_count = len(hydrogens)
 
     carbon_isotope_positions = [c for c in chain if mol.GetAtomWithIdx(c).GetIsotope() != 0]
-    for c in carbon_isotope_positions:
-        isotope = mol.GetAtomWithIdx(c).GetIsotope()
+    carbon_isotopes = {mol.GetAtomWithIdx(c).GetIsotope() for c in carbon_isotope_positions}
+    for isotope in carbon_isotopes:
         if isotope not in _CARBON_ISOTOPES:
             raise UnsupportedStructure(
                 "only 12C/13C/14C skeletal carbon isotopes are supported (P-82.2.1)"
             )
-    if len(carbon_isotope_positions) > 1:
+    if len(carbon_isotopes) > 1:
         raise UnsupportedStructure(
-            "more than one isotopically labeled skeletal carbon (a locant "
-            "set) is not supported yet"
+            "mixing different skeletal carbon isotope nuclides (e.g. 13C "
+            "and 14C together) is not supported yet"
         )
     has_carbon_isotope = bool(carbon_isotope_positions)
     has_deuterium = deuterium_count > 0
@@ -252,9 +265,12 @@ def _name_chain(mol, carbons) -> str:
         raise UnsupportedStructure("no isotopically labeled atom found")
 
     multi_position_deuterium = len(deuterium_counts) > 1
-    carbon_isotope_carbon = carbon_isotope_positions[0] if has_carbon_isotope else None
+    carbon_isotope_count = len(carbon_isotope_positions)
+    carbon_isotope_nuclide = next(iter(carbon_isotopes)) if has_carbon_isotope else None
     carbon_isotope_symbol = (
-        f"{mol.GetAtomWithIdx(carbon_isotope_carbon).GetIsotope()}C" if has_carbon_isotope else None
+        f"{carbon_isotope_nuclide}C" + (str(carbon_isotope_count) if carbon_isotope_count > 1 else "")
+        if has_carbon_isotope
+        else None
     )
 
     halogens = [atom for atom in other_atoms if atom.GetAtomicNum() in HALOGEN_PREFIXES]
@@ -270,25 +286,24 @@ def _name_chain(mol, carbons) -> str:
             for carbon_idx, count in deuterium_counts.items()
             for _ in range(count)
         )
-        carbon_isotope_locant = (
-            candidate.index(carbon_isotope_carbon) + 1 if has_carbon_isotope else None
+        carbon_isotope_locants = sorted(
+            candidate.index(c) + 1 for c in carbon_isotope_positions
         )
-        combined_isotope_locants = (
-            [carbon_isotope_locant] if has_carbon_isotope else []
-        ) + deuterium_locants
+        combined_isotope_locants = carbon_isotope_locants + deuterium_locants
         combined = lowest_locant_set(combined_isotope_locants + [pos for pos, _ in halogen_positions])
-        candidate_result = (carbon_isotope_locant, deuterium_locants, halogen_positions)
+        candidate_result = (carbon_isotope_locants, deuterium_locants, halogen_positions)
         if best_key is None or combined < best_key:
             best_key = combined
             best = candidate_result
 
     chain_length = len(chain)
-    carbon_isotope_locant, deuterium_locants, halogen_positions = best
+    carbon_isotope_locants, deuterium_locants, halogen_positions = best
     halogen_count = len(halogen_positions)
 
     descriptor_parts = []
     if has_carbon_isotope:
-        descriptor_parts.append(f"{carbon_isotope_locant}-{carbon_isotope_symbol}")
+        locants_str = ",".join(str(loc) for loc in carbon_isotope_locants)
+        descriptor_parts.append(f"{locants_str}-{carbon_isotope_symbol}")
 
     if has_deuterium:
         deuterium_symbol = f"2H{deuterium_count}"

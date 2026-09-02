@@ -166,3 +166,36 @@ def test_deuterium_locant_set_with_halogen():
 def test_branched_chain_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC(C)C[2H]")
+
+
+def test_carbon_isotope_locant_set_two_positions():
+    # PubChem: "(1,4-13C2)butane" (CID 13378975).
+    assert smiles_to_iupac("[13CH3]CC[13CH3]") == "(1,4-13C2)butane"
+
+
+def test_carbon_isotope_locant_set_adjacent_positions():
+    # PubChem: "(1,2-13C2)butane" (CID 90969531).
+    assert smiles_to_iupac("[13CH3][13CH2]CC") == "(1,2-13C2)butane"
+
+
+def test_carbon_isotope_locant_set_numbering_priority():
+    # PubChem: "(1,3-13C2)butane" (CID 13378977) -- lowest locant set picks
+    # 1,3 over the mirrored 2,4 numbering.
+    assert smiles_to_iupac("[13CH3]C[13CH2]C") == "(1,3-13C2)butane"
+
+
+def test_carbon_isotope_locant_set_with_deuterium():
+    # A carbon-isotope locant set combined with deuterium at another
+    # position, minimized together as one combined locant series -- here
+    # that favors numbering from the deuterium end (locants 2,4 and 1)
+    # over the mirrored 1,3 and 4.
+    assert smiles_to_iupac("[13CH3]C[13CH2]C[2H]") == "(2,4-13C2,1-2H1)butane"
+
+
+def test_carbon_isotope_locant_set_with_halogen():
+    assert smiles_to_iupac("[13CH3]C[13CH2]CCl") == "1-chloro(2,4-13C2)butane"
+
+
+def test_mixed_carbon_isotope_nuclides_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[13CH3]C[14CH2]C")
