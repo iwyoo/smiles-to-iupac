@@ -90,22 +90,31 @@ than via `_imide.py`'s acyclic-only "N-acyl amide" construction
 (P-66.6.3), which was never meant to cover the cyclic case.
 
 `tasks/two-heteroatom-1-4-saturated-ring-naming.md`: the same hetero-ring
-path extends to the three 1,4-related two-heteroatom 6-membered saturated
-rings that have their own retained name (`_hetero_monocyclic.py`'s
-`saturated_two_heteroatom_1_4_ring_name`) -- morpholine (N+O), piperazine
-(N+N), thiomorpholine (N+S). The higher-priority heteroatom (O or S over
-N, per P-22.2.1's element seniority -- confirmed via PubChem's own
-'4-methylmorpholine'/'4-methylthiomorpholine', both citing the ring N as
-locant 4, i.e. O/S always wins locant 1) is fixed at locant 1 when the two
-elements differ; for piperazine's two identical nitrogens, either one may
-be locant 1, so both are tried alongside both directions. The other
-heteroatom always lands at locant 4 regardless of direction (a 6-ring's
-antipodal position is 3 steps either way), so only the ketone locant set
-varies between candidates -- same minimization as the single-heteroatom
-path. PubChem-confirmed: `O=C1COCCN1` -> 'morpholin-3-one' (CID 66953),
+path extends to the 1,4-related two-heteroatom 6-membered saturated rings
+that have their own retained/systematic name
+(`_hetero_monocyclic.py`'s `saturated_two_heteroatom_1_4_ring_name`) --
+morpholine (N+O), piperazine (N+N), thiomorpholine (N+S). The
+higher-priority heteroatom (O or S over N, per P-22.2.1's element
+seniority -- confirmed via PubChem's own '4-methylmorpholine'/
+'4-methylthiomorpholine', both citing the ring N as locant 4, i.e. O/S
+always wins locant 1) is fixed at locant 1 when the two elements differ;
+for piperazine's two identical nitrogens, either one may be locant 1, so
+both are tried alongside both directions. The other heteroatom always
+lands at locant 4 regardless of direction (a 6-ring's antipodal position
+is 3 steps either way), so only the ketone locant set varies between
+candidates -- same minimization as the single-heteroatom path.
+PubChem-confirmed: `O=C1COCCN1` -> 'morpholin-3-one' (CID 66953),
 `O=C1CNCCN1` -> 'piperazin-2-one' (CID 231360), `O=C1CNC(=O)CN1` ->
 'piperazine-2,5-dione' (CID 7817), `O=C1CSCCN1` -> 'thiomorpholin-3-one'
 (CID 88402).
+
+`tasks/dioxane-naming.md`: the same identical-element tie already handled
+for piperazine's two nitrogens also covers O+O (1,4-dioxane) -- no new
+branch needed, just adding `frozenset(("O", "O"))` to
+`_TWO_HETERO_RING_ELEMENT_PAIRS` and to
+`_hetero_monocyclic.py`'s own name table. PubChem-confirmed:
+`O=C1COCCO1` -> '1,4-dioxan-2-one' (CID 18233), `O=C1COC(=O)CO1` ->
+'1,4-dioxane-2,5-dione' (CID 65432).
 
 Unlike -OH/-NH2, a ketone carbon can never itself also be a C=C/C#C alkene
 carbon (its two remaining bonds, after the C=O double bond, are already
@@ -144,7 +153,12 @@ from ._substituents import alpha_sort_key, format_substituent_prefixes, name_bra
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
 _HETERO_RING_ELEMENTS = {7: "N", 8: "O", 16: "S"}
 _HETERO_RING_SIZES = (5, 6, 7)
-_TWO_HETERO_RING_ELEMENT_PAIRS = {frozenset(("N", "O")), frozenset(("N", "N")), frozenset(("N", "S"))}
+_TWO_HETERO_RING_ELEMENT_PAIRS = {
+    frozenset(("N", "O")),
+    frozenset(("N", "N")),
+    frozenset(("N", "S")),
+    frozenset(("O", "O")),
+}
 _TWO_HETERO_RING_SIZE = 6
 # P-22.2.1 element seniority for locant 1 among these three pairs: O and S
 # both outrank N (PubChem's '4-methylmorpholine'/'4-methylthiomorpholine'
@@ -678,12 +692,15 @@ def _name_two_hetero_cyclic_ketone(mol, het1, het2):
 def has_hetero_ring_ketone_shape(mol) -> bool:
     """True if this molecule fits the narrow hetero-ring-ketone shape
     (single heteroatom, see `_hetero_ring_heteroatom`, or the 1,4
-    two-heteroatom morpholine/piperazine/thiomorpholine shape, see
-    `_hetero_ring_two_heteroatoms`) -- used by `core.py` to route ahead of
-    `has_amide_shape`, since a ketone directly bonded to a ring nitrogen
-    (a lactam, e.g. piperidin-2-one/morpholin-3-one) would otherwise look
-    amide-shaped to that check and get rejected by `_amide.py`'s
-    ring-always-out-of-scope guard before ever reaching this module."""
+    two-heteroatom morpholine/piperazine/thiomorpholine/1,4-dioxane
+    shape, see `_hetero_ring_two_heteroatoms`) -- used by `core.py` to
+    route ahead of both `has_ester_shape` and `has_amide_shape`, since a
+    ketone directly bonded to a ring oxygen/sulfur (a lactone, e.g.
+    oxan-2-one/1,4-dioxan-2-one) or ring nitrogen (a lactam, e.g.
+    piperidin-2-one/morpholin-3-one) would otherwise look ester- or
+    amide-shaped to those checks and get rejected by `_ester.py`'s
+    acyclic-only construction or `_amide.py`'s ring-always-out-of-scope
+    guard before ever reaching this module."""
     return _hetero_ring_heteroatom(mol) is not None or _hetero_ring_two_heteroatoms(mol) is not None
 
 
