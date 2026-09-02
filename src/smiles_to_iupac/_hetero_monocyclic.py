@@ -69,20 +69,28 @@ C3H4N2, pyrimidine C4H4N2, etc. -- see `_RETAINED_NAME_SMILES` and
 
 Saturated rings, two heteroatoms, unsubstituted only: the 6-membered
 1,4-related pairs (N+O morpholine, N+N piperazine, N+S thiomorpholine,
-O+O 1,4-dioxane, O+S 1,4-oxathiane, S+S 1,4-dithiane) and the 5-membered
+O+O 1,4-dioxane, O+S 1,4-oxathiane, S+S 1,4-dithiane), the 5-membered
 1,3-related pairs (N+N imidazolidine, N+O 1,3-oxazolidine, N+S
 1,3-thiazolidine, O+O 1,3-dioxolane, O+S 1,3-oxathiolane, S+S
-1,3-dithiolane) all have their own retained/systematic name, confirmed
-via PubChem's IUPACName for the exact SMILES.
+1,3-dithiolane), and the 5-membered 1,2-related pairs (N+N pyrazolidine,
+N+O 1,2-oxazolidine, N+S 1,2-thiazolidine, O+O 1,2-dioxolane, O+S
+1,2-oxathiolane, S+S 1,2-dithiolane) all have their own retained/
+systematic name -- per Table 2.3 and P-22.2.2.1.2/.1.3, a pair with no
+retained name (all but the N+N ones, which are simply irregular retained
+names carrying no locants at all, 1,2- or 1,3- alike) always cites its
+heteroatom locants; PubChem's own computed names are unreliable here
+(they drop the locants for several of the O/S-only 1,2-pairs, contradicted
+by Table 2.3's explicit '1,2-oxazolidine (PIN)'/'1,2-thiazolidine (PIN)'
+entries and P-22.2.2.1.3's own '1,2-oxathiolane (PIN)' worked example),
+so the 1,2-pairs are sourced from the primary text directly rather than
+from PubChem.
 
 Explicitly out of scope for the unsubstituted-only functions above: any
 substituent, partially-saturated indicated-hydrogen forms other than the
 ones listed above, three or more heteroatoms, heteroatoms other than
 O/S/Se/Te/N, saturated two-heteroatom ring sizes/relationships other than
-the two listed above (5-membered 1,2-relationships in particular, e.g.
-pyrazolidine, use a different locant-citation rule and are deliberately
-excluded here), and ring sizes outside the single-heteroatom tables
-above. `has_hetero_monocyclic_name`
+the three listed above, and ring sizes outside the single-heteroatom
+tables above. `has_hetero_monocyclic_name`
 returns False for all of these, so `core.py`'s existing dispatch (which
 already rejects heteroatoms outside a few specific recognized shapes)
 continues to raise `UnsupportedStructure` for them, unchanged.
@@ -214,6 +222,14 @@ _FIVE_MEMBERED_1_3_TWO_HETEROATOM_NAME_SMILES = {
     frozenset(("O", "S")): ("1,3-oxathiolane", "C1CSCO1"),
     frozenset(("S", "S")): ("1,3-dithiolane", "C1CSCS1"),
 }
+_FIVE_MEMBERED_1_2_TWO_HETEROATOM_NAME_SMILES = {
+    frozenset(("N", "N")): ("pyrazolidine", "C1CCNN1"),
+    frozenset(("N", "O")): ("1,2-oxazolidine", "C1CCON1"),
+    frozenset(("N", "S")): ("1,2-thiazolidine", "C1CCSN1"),
+    frozenset(("O", "O")): ("1,2-dioxolane", "C1CCOO1"),
+    frozenset(("O", "S")): ("1,2-oxathiolane", "C1CCOS1"),
+    frozenset(("S", "S")): ("1,2-dithiolane", "C1CCSS1"),
+}
 _TWO_HETEROATOM_MANCUDE_NAME_SMILES = {
     ("1,3-diazole", 5): ("1H-imidazole", "c1cnc[nH]1"),
     ("1,2-diazole", 5): ("1H-pyrazole", "c1cc[nH]n1"),
@@ -236,6 +252,7 @@ _CANONICAL_TO_NAME = {
         *_MANCUDE_NAME_SMILES.values(),
         *_TWO_HETEROATOM_SATURATED_NAME_SMILES.values(),
         *_FIVE_MEMBERED_1_3_TWO_HETEROATOM_NAME_SMILES.values(),
+        *_FIVE_MEMBERED_1_2_TWO_HETEROATOM_NAME_SMILES.values(),
         *_TWO_HETEROATOM_MANCUDE_NAME_SMILES.values(),
     )
 }

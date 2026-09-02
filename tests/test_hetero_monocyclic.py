@@ -203,14 +203,29 @@ def test_five_membered_1_3_two_heteroatom_ring_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_five_membered_1_2_relationship_raises():
-    # pyrazolidine (N+N, 1,2-relationship) is out of scope here -- unlike
-    # the 1,3-relationship rings above, a 5-membered 1,2-pair uses a
-    # different locant-citation rule (PubChem: 'dithiolane' with no
-    # locants for the S+S 1,2-case, CID 79045, vs explicit '1,3-' for the
-    # 1,3-case) that hasn't been scoped yet.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCNN1")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # 1,2-related two-heteroatom saturated 5-membered rings -- Blue
+        # Book Table 2.3 confirms pyrazolidine is a retained name (no
+        # locants, unlike the mixed-heteroatom pairs below); Table 2.3
+        # itself gives '1,2-oxazolidine (PIN)'/'1,2-thiazolidine (PIN)'
+        # with locants, and P-22.2.2.1.3's own worked example gives
+        # '1,2-oxathiolane (PIN)' verbatim (all three sourced directly
+        # from the primary text, not PubChem -- PubChem's own computed
+        # names for the O/S-only pairs omit the locants, which the
+        # primary text's general locant-citation rule and its
+        # '1,2-oxathiolane' example both contradict).
+        ("C1CCNN1", "pyrazolidine"),
+        ("C1CCON1", "1,2-oxazolidine"),
+        ("C1CCSN1", "1,2-thiazolidine"),
+        ("C1CCOO1", "1,2-dioxolane"),
+        ("C1CCOS1", "1,2-oxathiolane"),
+        ("C1CCSS1", "1,2-dithiolane"),
+    ],
+)
+def test_five_membered_1_2_two_heteroatom_ring_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_unsupported_heteroatom_element_raises():
