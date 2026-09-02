@@ -201,12 +201,12 @@ def test_five_membered_1_3_ring_ketone_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_five_membered_1_3_ring_ketone_heteroatoms_adjacent_raises():
+def test_five_membered_1_3_ring_ketone_heteroatoms_adjacent_not_this_path():
     # The two heteroatoms are directly bonded (a 1,2-relationship, not
-    # 1,3-) -- out of scope, falls through to whatever other module (if
-    # any) matches this shape.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CCNN1")
+    # 1,3-) -- out of scope for this module's 1,3-path, but named
+    # correctly via the separate five-membered 1,2-path instead (see
+    # test_five_membered_1_2_ring_ketone_names).
+    assert smiles_to_iupac("O=C1CCNN1") == "pyrazolidin-3-one"
 
 
 @pytest.mark.parametrize(
@@ -285,6 +285,37 @@ def test_five_membered_1_3_ring_ketone_wrong_element_pair_raises():
     # rejection for whatever other module (if any) matches this shape.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O=C1OCC[Se]1")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A ketone carbonyl on the five-membered 1,2-two-heteroatom ring
+        # shape (the two heteroatoms directly bonded, locants 1/2 fixed;
+        # the ketone lands on one of the three remaining ring carbons,
+        # locants 3/4/5). PubChem-verified for the N-containing pairs:
+        # pyrazolidin-3-one (CID 151497), 1,2-oxazolidin-3-one (CID
+        # 192737), 1,2-thiazolidin-3-one (CID 21878697). The O/S-only
+        # pairs follow the same '1,2-' locant-citation rule established
+        # in test_five_membered_1_2_two_heteroatom_ring_names (Blue Book
+        # Table 2.3/P-22.2.2.1.3, not PubChem, which drops the locant for
+        # these three specifically): 1,2-dioxolan-3-one,
+        # 1,2-oxathiolan-3-one, 1,2-dithiolan-3-one.
+        ("O=C1CCNN1", "pyrazolidin-3-one"),
+        ("O=C1CCON1", "1,2-oxazolidin-3-one"),
+        ("O=C1CCSN1", "1,2-thiazolidin-3-one"),
+        ("O=C1CCOO1", "1,2-dioxolan-3-one"),
+        ("O=C1CCOS1", "1,2-oxathiolan-3-one"),
+        ("O=C1CCSS1", "1,2-dithiolan-3-one"),
+    ],
+)
+def test_five_membered_1_2_ring_ketone_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_five_membered_1_2_ring_ketone_wrong_element_pair_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1CC[Se]N1")
 
 
 def test_alcohol_hetero_mix_names_hydroxy_prefix():

@@ -75,7 +75,12 @@ from ._two_component_heterocycle_fusion import (
     has_two_component_heterocycle_fusion_name,
     name_two_component_heterocycle_fusion,
 )
-from ._ketone import has_five_membered_1_3_ring_ketone_shape, has_hetero_ring_ketone_shape, name_ketone
+from ._ketone import (
+    has_five_membered_1_2_ring_ketone_shape,
+    has_five_membered_1_3_ring_ketone_shape,
+    has_hetero_ring_ketone_shape,
+    name_ketone,
+)
 from ._thione import has_thione_shape, name_thione
 from ._selone import has_selone_shape, name_selone
 from ._tellone import has_tellone_shape, name_tellone
@@ -561,6 +566,12 @@ def smiles_to_iupac(smiles: str) -> str:
         # collide with a cyclic anhydride (see that function's own
         # docstring), so routing it this early is safe.
         if has_five_membered_1_3_ring_ketone_shape(mol):
+            return name_ketone(mol)
+        # Same reasoning for the five-membered 1,2-related shape (e.g.
+        # pyrazolidin-3-one) -- it looks aldehyde- or ether-shaped
+        # depending on the element pair instead, but the collision-safety
+        # argument is identical.
+        if has_five_membered_1_2_ring_ketone_shape(mol):
             return name_ketone(mol)
         # An alkoxide anion (R-O(-), P-72.2.2.2.2) has a formal-charge -1
         # oxygen none of the neutral-oxygen checks below (or `name_alcohol`'s
