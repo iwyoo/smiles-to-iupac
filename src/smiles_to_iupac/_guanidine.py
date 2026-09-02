@@ -38,15 +38,17 @@ Book"):
 
 Scope, deliberately narrow, mirroring `_urea.py`'s/`_thiourea.py`'s own:
 substituents landing on the two amino nitrogens (one nitrogen with one or
-two, using the same 'N-'/'N,N-di' citation established there, or an
-identical single substituent on each of the two different amino nitrogens
-using 'N,N'-di...'), the imino nitrogen (at most one substituent -- it
-only has one open valence beyond its C=N double bond), or both at once,
-combined and alphabetized per the tetramethyl-phenyl worked example
-above. Explicitly out of scope (raise `UnsupportedStructure`): two
-DIFFERENT substituents split across the two amino nitrogens, a different
-substituent count on each amino nitrogen (no confirmed worked example
-settles the locant tie-break for either case), a
+two, using the same 'N-'/'N,N-di' citation established there; an identical
+single substituent on each of the two different amino nitrogens using
+'N,N'-di...'; or one DIFFERENT substituent on each, the alphabetically
+first becoming 'N-' and the other 'N''-', same rule as `_urea.py`/
+`_thiourea.py` -- PubChem structure match: `CCNC(=N)NC` ->
+'1-ethyl-2-methylguanidine', CID 17814701), the imino nitrogen (at most
+one substituent -- it only has one open valence beyond its C=N double
+bond), or both at once, combined and alphabetized per the
+tetramethyl-phenyl worked example above. Explicitly out of scope (raise
+`UnsupportedStructure`): a different substituent *count* on each amino
+nitrogen (no confirmed worked example settles that locant tie-break), a
 branched/unsaturated/ring-bearing N-substituent, and a ring-fused
 guanidine.
 """
@@ -211,14 +213,15 @@ def name_guanidine(mol) -> str:
     imino_names = _substituent_names(carbon_graph, imino_carbons)
 
     if n1_names and n2_names:
-        if len(n1_names) != 1 or len(n2_names) != 1 or n1_names[0] != n2_names[0]:
+        if len(n1_names) != 1 or len(n2_names) != 1:
             raise UnsupportedStructure(
-                "different substituents, or a different substituent count, "
-                "split across guanidine's two amino nitrogens is not "
-                "supported yet (no confirmed worked example settles the "
-                "locant tie-break in that case)"
+                "a different substituent count on each of guanidine's two "
+                "amino nitrogens is not supported yet (no confirmed "
+                "worked example settles the locant tie-break for that "
+                "case)"
             )
-        amino_entries = [("N", n1_names[0]), ("N'", n2_names[0])]
+        first, second = sorted((n1_names[0], n2_names[0]))
+        amino_entries = [("N", first), ("N'", second)]
     else:
         letter = "N" if n1_names else "N'"
         names = n1_names or n2_names
