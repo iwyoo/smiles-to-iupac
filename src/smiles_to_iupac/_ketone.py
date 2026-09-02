@@ -99,18 +99,32 @@ seniority itself (O > S > N) is confirmed via PubChem's own
 '4-methylmorpholine'/'4-methylthiomorpholine' (N always at locant 4) and
 '1,4-oxathian-3-one' (O at locant 1, S at locant 4).
 
-A separate, narrower path handles a ketone carbonyl sitting directly
-between the two heteroatoms of a five-membered 1,3-related saturated ring
-(N+N/N+O/N+S/O+O/O+S/S+S, `_hetero_ring_five_membered_1_3`) -- the
-carbonyl's own locant is always 2 (the sole ring atom between the
-heteroatoms on the short arc), so unlike every other hetero-ring-ketone
-case above, no locant search is needed at all; the two remaining ring
-carbons must be plain CH2. PubChem-confirmed: `O=C1NCCN1` ->
+A separate, narrower path handles one or two ketone carbonyls on a
+five-membered 1,3-related saturated ring (N+N/N+O/N+S/O+O/O+S/S+S,
+`_hetero_ring_five_membered_1_3`) -- one carbonyl always sits between the
+two heteroatoms (locant 2, the sole ring atom on the short arc, fixed
+regardless of numbering direction); a second, optional carbonyl sits on
+the long arc (locant 4 or 5). When the two heteroatoms differ, P-22.2.1's
+element seniority (O > S > N, `_TWO_HETERO_PRIORITY`) fixes which one is
+locant 1 -- this outranks locant minimization entirely, so the second
+carbonyl's locant is then whatever that forced numbering gives it, not
+whichever is lower (confirmed by contrast: `O=C1OC(=O)CN1` names as
+'1,3-oxazolidine-2,5-dione', not the lower-locant '...-2,4-dione' that
+naive minimization would produce, because O must stay locant 1). When the
+two heteroatoms are identical, either may be locant 1, so both are tried
+and the lower ketone locant set wins (e.g. imidazolidine-2,4-dione).
+PubChem-confirmed unsubstituted/single-ketone forms: `O=C1NCCN1` ->
 'imidazolidin-2-one' (CID 8453), `O=C1OCCN1` -> '1,3-oxazolidin-2-one'
 (CID 73949), `O=C1SCCN1` -> '1,3-thiazolidin-2-one' (CID 97431),
 `O=C1OCCO1` -> '1,3-dioxolan-2-one' (CID 7303), `O=C1SCCO1` ->
 '1,3-oxathiolan-2-one' (CID 72822), `O=C1SCCS1` -> '1,3-dithiolan-2-one'
-(CID 123140).
+(CID 123140). PubChem-confirmed dione forms: `O=C1NC(=O)CN1` ->
+'imidazolidine-2,4-dione' (CID 10006), `O=C1OC(=O)CN1` ->
+'1,3-oxazolidine-2,5-dione' (CID 75136), `O=C1SC(=O)CN1` ->
+'1,3-thiazolidine-2,5-dione' (CID 542718), `O=C1OC(=O)CO1` ->
+'1,3-dioxolane-2,4-dione' (CID 12793796), `O=C1SC(=O)CO1` ->
+'1,3-oxathiolane-2,4-dione' (CID 67415624), `O=C1SC(=O)CS1` ->
+'1,3-dithiolane-2,4-dione' (CID 637793).
 
 Unlike -OH/-NH2, a ketone carbon can never itself also be a C=C/C#C alkene
 carbon (its two remaining bonds, after the C=O double bond, are already
@@ -701,15 +715,13 @@ def _name_two_hetero_cyclic_ketone(mol, het1, het2):
 
 
 def _hetero_ring_five_membered_1_3(mol):
-    """(het1, het2, c2) ring-atom indices for a saturated, 5-membered,
-    1,3-related two-heteroatom ketone shape (the imidazolidin-2-one
-    family -- see `_FIVE_MEMBERED_1_3_RING_ELEMENT_PAIRS`), `c2` being the
-    single ring carbon directly bonded to both heteroatoms (always locant
-    2, regardless of numbering direction, since it's the only ring atom
-    between them on the short arc) -- or None if it doesn't match that
-    shape at all (heteroatoms adjacent to each other rather than 1,3-
-    related, an unsupported element pair, or not a 5-membered saturated
-    ring with exactly two heteroatoms)."""
+    """(het1, het2) ring-atom indices for a saturated, 5-membered,
+    1,3-related two-heteroatom ketone shape (the imidazolidin-2-one/
+    imidazolidine-2,4-dione family -- see
+    `_FIVE_MEMBERED_1_3_RING_ELEMENT_PAIRS`), or None if it doesn't match
+    that shape at all (heteroatoms adjacent to each other rather than
+    1,3-related, an unsupported element pair, or not a 5-membered
+    saturated ring with exactly two heteroatoms)."""
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() != 1:
         return None
@@ -736,82 +748,50 @@ def _hetero_ring_five_membered_1_3(mol):
     bridging = (set(graph[het1]) & set(graph[het2]) & ring_set) - {het1, het2}
     if len(bridging) != 1:
         return None
-    (c2,) = bridging
-    return het1, het2, c2
+    return het1, het2
 
 
-def _validate_five_membered_1_3_ring_ketone(mol, het1, het2, c2):
-    """{atom_idx: element} for `het1`/`het2` -- validates that both ring
-    heteroatoms carry no substituent beyond their own indicated hydrogen,
-    `c2` carries exactly one exocyclic ketone carbonyl and nothing else,
-    the remaining two ring carbons are plain CH2, and the ring itself is
-    fully saturated (mirrors `_validate_and_collect_hetero_ring_ketone`,
-    specialized to this fixed five-membered 1,3-shape where the ketone
-    locant is always 2, so no locant search is needed)."""
-    if len(Chem.GetMolFrags(mol)) > 1:
-        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+def _five_membered_1_3_locants(mol, het1, het2, elements_by_atom, ketones):
+    """Lowest ketone locant set for the five-membered 1,3-two-heteroatom
+    ring shape. Locant 1 goes to the higher-priority heteroatom
+    (P-22.2.1's O > S > N element seniority, `_TWO_HETERO_PRIORITY`) when
+    the two elements differ -- the heteroatom-seniority rule outranks
+    substituent-locant minimization here, so there is no freedom to
+    choose the lower-locant direction instead (confirmed against PubChem:
+    'oxazolidine-2,4-dione' would minimize the ketone locant to 4, but
+    the real compound is '1,3-oxazolidine-2,5-dione' because O must stay
+    locant 1). When the two heteroatoms are identical, either may be
+    locant 1, so both are tried and the one minimizing the ketone locant
+    set wins (e.g. imidazolidine-2,4-dione, not -2,5-dione). Only the
+    direction that reaches the other heteroatom via the bridging carbon
+    (locant 2) is considered in either case -- the opposite direction
+    would misnumber the other heteroatom to locant 4 instead of 3,
+    contradicting the ring's own '1,3-' name (unlike the symmetric
+    six-membered 1,4-case in `_best_one_locants`, the two directions
+    are not equivalent here)."""
     graph = adjacency(mol)
     ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
+    (bridge,) = (set(graph[het1]) & set(graph[het2]) & ring_atoms) - {het1, het2}
+    long_near = {}
+    for het, other in ((het1, het2), (het2, het1)):
+        (long_near[het],) = (set(graph[het]) & ring_atoms) - {bridge, other}
 
-    elements_by_atom = {}
-    for heteroatom in (het1, het2):
-        atom = mol.GetAtomWithIdx(heteroatom)
-        element = _HETERO_RING_ELEMENTS[atom.GetAtomicNum()]
-        elements_by_atom[heteroatom] = element
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
-            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        expected_h = 1 if element == "N" else 0
-        if atom.GetDegree() != 2 or atom.GetTotalNumHs() != expected_h:
-            raise UnsupportedStructure(
-                "a ring heteroatom bearing a substituent is out of scope for "
-                "this module's five-membered hetero-ring ketone path (P-22.2.1)"
-            )
+    def locants_for(start, other):
+        position_of = {start: 1, bridge: 2, other: 3, long_near[other]: 4, long_near[start]: 5}
+        return sorted(position_of[next(iter(graph[oxygen]))] for oxygen in ketones)
 
-    c2_atom = mol.GetAtomWithIdx(c2)
-    if c2_atom.GetFormalCharge() != 0 or c2_atom.GetIsotope() != 0:
-        raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-    exo = [n for n in graph[c2] if n not in ring_atoms]
-    if len(exo) != 1:
-        raise UnsupportedStructure(
-            "this module only supports a ketone carbonyl directly between "
-            "the two ring heteroatoms"
-        )
-    (other,) = exo
-    other_atom = mol.GetAtomWithIdx(other)
-    bond = mol.GetBondBetweenAtoms(c2, other)
-    if other_atom.GetAtomicNum() != 8 or other_atom.GetDegree() != 1 or bond.GetBondTypeAsDouble() != 2.0:
-        raise UnsupportedStructure(
-            "this module only supports a ketone carbonyl directly between "
-            "the two ring heteroatoms"
-        )
-
-    for atom_idx in ring_atoms - {het1, het2, c2}:
-        atom = mol.GetAtomWithIdx(atom_idx)
-        if (
-            atom.GetAtomicNum() != 6
-            or atom.GetFormalCharge() != 0
-            or atom.GetIsotope() != 0
-            or atom.GetTotalNumHs() != 2
-            or any(n not in ring_atoms for n in graph[atom_idx])
-        ):
-            raise UnsupportedStructure(
-                "a substituent elsewhere on this five-membered ring is out "
-                "of scope for this module's ketone path"
-            )
-
-    for atom_idx in ring_atoms:
-        for neighbor in graph[atom_idx]:
-            if neighbor in ring_atoms and mol.GetBondBetweenAtoms(atom_idx, neighbor).GetBondTypeAsDouble() != 1.0:
-                raise UnsupportedStructure(
-                    "an unsaturated hetero ring is out of scope for this "
-                    "module's ketone path"
-                )
-
-    return elements_by_atom
+    if elements_by_atom[het1] == elements_by_atom[het2]:
+        return min(locants_for(het1, het2), locants_for(het2, het1))
+    start, other = (
+        (het1, het2)
+        if _TWO_HETERO_PRIORITY[elements_by_atom[het1]] < _TWO_HETERO_PRIORITY[elements_by_atom[het2]]
+        else (het2, het1)
+    )
+    return locants_for(start, other)
 
 
-def _name_five_membered_1_3_ring_ketone(mol, het1, het2, c2):
-    elements_by_atom = _validate_five_membered_1_3_ring_ketone(mol, het1, het2, c2)
+def _name_five_membered_1_3_ring_ketone(mol, het1, het2):
+    ring_order, ketones, elements_by_atom = _validate_and_collect_hetero_ring_ketone(mol, {het1, het2})
     stem = saturated_five_membered_1_3_two_heteroatom_ring_name(
         (elements_by_atom[het1], elements_by_atom[het2])
     )
@@ -820,7 +800,8 @@ def _name_five_membered_1_3_ring_ketone(mol, het1, het2, c2):
             "no retained name for this five-membered two-heteroatom "
             "saturated ring (P-22.2.1)"
         )
-    return _hetero_ring_ketone_name(stem, [2])
+    best_locants = _five_membered_1_3_locants(mol, het1, het2, elements_by_atom, ketones)
+    return _hetero_ring_ketone_name(stem, best_locants)
 
 
 def has_hetero_ring_ketone_shape(mol) -> bool:
@@ -848,16 +829,16 @@ def has_hetero_ring_ketone_shape(mol) -> bool:
 
 def has_five_membered_1_3_ring_ketone_shape(mol) -> bool:
     """True if this molecule fits the five-membered 1,3-two-heteroatom
-    ring-ketone shape (see `_hetero_ring_five_membered_1_3`, e.g.
-    1,3-dioxolan-2-one/imidazolidin-2-one) -- kept as its own separate
-    check from `has_hetero_ring_ketone_shape` above because it must be
-    routed much earlier in `core.py` (ahead of ether/acetal/carbamate/
-    alkoxide/hydroxylamine/cyanate, which would otherwise misname its
-    various O/N/S element-pair combinations), and unlike the single-/
-    1,4-two-heteroatom shapes, it can never collide with the cyclic
-    anhydride shape (that needs exactly one ring heteroatom flanked by
-    two ketones; this shape always has exactly two ring heteroatoms and
-    exactly one ketone, fixed between them), so the earlier routing is
+    ring-ketone shape (see `_hetero_ring_five_membered_1_3`, one or two
+    ketones -- e.g. 1,3-dioxolan-2-one, or the hydantoin family like
+    imidazolidine-2,4-dione) -- kept as its own separate check from
+    `has_hetero_ring_ketone_shape` above because it must be routed much
+    earlier in `core.py` (ahead of ether/acetal/carbamate/alkoxide/
+    hydroxylamine/cyanate, which would otherwise misname its various O/N/S
+    element-pair combinations), and unlike the single-/1,4-two-heteroatom
+    shapes, it can never collide with the cyclic anhydride shape (that
+    needs exactly one ring heteroatom flanked by two ketones; this shape
+    always has exactly two ring heteroatoms), so the earlier routing is
     safe."""
     return _hetero_ring_five_membered_1_3(mol) is not None
 
