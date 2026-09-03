@@ -92,6 +92,43 @@ def test_thiol_with_alcohol_not_supported():
         smiles_to_iupac("SCCO")
 
 
+def test_phenyl_chain_thiol():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring PR #269-#277's
+    # carboxylic-acid/ketone/alcohol/ester/aldehyde/amide/nitrile/acyl-
+    # halide/sulfonic-acid chains): the ring is cited as a "phenyl"
+    # substituent prefix.
+    assert smiles_to_iupac("c1ccccc1CCCS") == "3-phenylpropane-1-thiol"
+
+
+def test_phenyl_chain_thiol_internal_locant():
+    # The -SH locant is a genuine choice on the chain, same as the base
+    # acyclic module.
+    assert smiles_to_iupac("C(c1ccccc1)C(C)S") == "1-phenylpropane-2-thiol"
+
+
+def test_phenyl_directly_attached_thiol_raises():
+    # Thiophenol-type naming (-SH directly on the ring) is a separate
+    # construction, out of scope for this acyclic-chain-parent module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1S")
+
+
+def test_phenyl_substituted_benzene_ring_thiol_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CCS")
+
+
+def test_phenyl_chain_thiol_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CCS")
+
+
+def test_phenyl_chain_dithiol_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C(S)CCS")
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
