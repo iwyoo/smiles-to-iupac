@@ -76,10 +76,13 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    is_plain_benzene_ring,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    ordered_chain,
+    ring_chain_attachment,
     specified_stereocenters,
 )
 from ._numerals import alkane_name
@@ -88,13 +91,21 @@ from ._substituents import alpha_sort_key, format_substituent_prefixes, name_bra
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
 
 
-def _validate_and_collect_aldehydes(mol):
+def _validate_and_collect_aldehydes(mol, aromatic_ring_atoms=frozenset()):
     """Check the molecule fits this module's scope (see module docstring)
     and return (aldehydes, hydroxyls): the set of aldehyde carbonyl-oxygen
     atom indices, and the set of any coexisting hydroxyl-oxygen atom indices.
     A hydroxyl is junior to 'al' in Table 3.3's suffix seniority order, so it
     is cited as the 'hydroxy' substituent prefix instead of competing for the
-    suffix (P-41)."""
+    suffix (P-41).
+
+    `aromatic_ring_atoms`: atom indices already independently verified (by
+    the caller, before this function runs) to form a single plain benzene
+    ring with exactly one exocyclic attachment -- exempted from the
+    aromatic-atom rejection below so `name_aldehyde`'s benzene-ring-
+    substituent path (see `_name_phenyl_chain_aldehyde`) can reuse this
+    same validation for the rest of the molecule. Empty by default, so
+    every other caller's behavior is unchanged."""
     aldehydes = set()
     hydroxyls = set()
     has_carbon = False
@@ -109,7 +120,7 @@ def _validate_and_collect_aldehydes(mol):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module (see "
                     "the separate aromatic-ring module)"
@@ -334,7 +345,90 @@ def _name_acyclic_aldehyde(mol, aldehydes, hydroxyls, bonds, stereo=None):
     return best_name
 
 
+def _name_phenyl_chain_aldehyde(mol, ring_atoms):
+    """Name an aldehyde whose -CHO lies entirely on a single unbranched
+    chain hanging off one atom of an otherwise-plain, unsubstituted benzene
+    ring -- e.g. 3-phenylpropanal. The ring is cited as a 'phenyl'
+    substituent prefix (via `name_branch`'s aromatic-ring recognition) on
+    the chain, which is the parent hydride, mirroring
+    `_carboxylic_acid.py`'s `_name_phenyl_chain_carboxylic_acid`. Narrower
+    than the acyclic path above: exactly one -CHO, no coexisting standalone
+    hydroxyl, no chain unsaturation, and no specified stereocenter -- each
+    is a separate follow-up (see
+    tasks/phenyl-substituent-on-aldehyde-chain.md's scope note)."""
+    aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol, aromatic_ring_atoms=ring_atoms)
+    if hydroxyls:
+        raise UnsupportedStructure(
+            "a standalone hydroxyl alongside a benzene-ring-substituent "
+            "aldehyde chain is not supported yet"
+        )
+    if len(aldehydes) != 1:
+        raise UnsupportedStructure(
+            "more than one aldehyde group alongside a benzene-ring "
+            "substituent is not supported yet"
+        )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a benzene-ring-substituent "
+            "aldehyde chain is not supported yet"
+        )
+    non_ring_unsaturation = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in aldehydes and b[1] not in aldehydes and b[0] not in ring_atoms and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent "
+            "aldehyde chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain aldehyde is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, aldehydes)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside an "
+            "aldehyde is not supported yet"
+        )
+    (aldehyde_oxygen,) = aldehydes
+    (aldehyde_carbon,) = graph[aldehyde_oxygen]
+    if chain[-1] != aldehyde_carbon:
+        raise UnsupportedStructure(
+            "the aldehyde carbon must be the chain's far terminus from the "
+            "benzene ring for this benzene-substituent path"
+        )
+    if len(chain) < 2:
+        raise UnsupportedStructure(
+            "a -CHO group directly attached to the benzene ring (the "
+            "'carbaldehyde' suffix, P-33.3.1.2) uses a separate naming "
+            "construction, out of scope for this acyclic-chain-parent "
+            "module"
+        )
+
+    ordered = list(reversed(chain))
+    chain_length = len(ordered)
+    position_of = {atom: i + 1 for i, atom in enumerate(ordered)}
+    halogens = halogen_substituents(mol)
+    substituents = {
+        position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+    }
+    grouped = group_substituents(substituents)
+    return _name_from_substituents(chain_length, 1, [], [], grouped)
+
+
 def name_aldehyde(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_aldehyde(mol, ring_atoms)
     aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol)
     stereo = specified_stereocenters(mol)
     graph = adjacency(mol)

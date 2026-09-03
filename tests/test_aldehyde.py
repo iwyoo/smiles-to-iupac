@@ -24,6 +24,20 @@ from smiles_to_iupac._common import UnsupportedStructure
         # -al combined with a halogen substituent prefix, cross-checked
         # against PubChem.
         ("ClCCC=O", "3-chloropropanal"),
+        # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+        # aromatic-ring-substituent extension, mirroring PR #269/#270/
+        # #271/#272's carboxylic-acid/ketone/alcohol/ester chains): the
+        # ring is cited as a "phenyl" substituent prefix. Cross-checked
+        # against PubChem CID 7707 ("3-phenylpropanal").
+        ("c1ccccc1CCC=O", "3-phenylpropanal"),
+        # Two-carbon chain: PubChem's own name for this SMILES
+        # ('2-phenylacetaldehyde', CID 998) uses the retained
+        # 'acetaldehyde' stem, but this module always uses the systematic
+        # 'ethanal' stem (see 'ethanal' above), so this is an accepted,
+        # reviewed result rather than a PubChem-confirmed one -- same
+        # policy as the carboxylic-acid module's '2-phenylethanoic acid'
+        # (PR #269).
+        ("c1ccccc1CC=O", "2-phenylethanal"),
     ],
 )
 def test_aldehyde_names(smiles, expected):
@@ -59,6 +73,21 @@ def test_aryl_aldehyde_raises():
     # territory).
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O=Cc1ccccc1")
+
+
+def test_phenyl_substituted_benzene_ring_aldehyde_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC=O")
+
+
+def test_phenyl_chain_aldehyde_with_hydroxyl_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OCc1ccccc1CC=O")
+
+
+def test_phenyl_chain_aldehyde_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC=O")
 
 
 def test_alcohol_aldehyde_mix_names_hydroxy_prefix():
