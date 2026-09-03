@@ -41,7 +41,14 @@ molecule. Explicitly out of scope (raise `UnsupportedStructure`): any
 oxygen or sulfur at all, a selone carbon with fewer than two carbon
 neighbors (a selenoaldehyde, a different suffix), an aromatic selone
 carbon, polycyclic/spiro/unsaturated rings, and a selone on a substituent
-branch off an otherwise-unsubstituted ring.
+branch off an otherwise-unsubstituted *saturated* ring. One narrow
+*aromatic*-ring exception: `_name_phenyl_chain_selone` names a single
+selone whose chain hangs off a plain, unsubstituted benzene ring (e.g.
+'1-phenylpropane-2-selone'), mirroring `_thione.py`'s identical benzene-
+ring-substituent path -- narrower than the acyclic path: exactly one
+selone, no chain unsaturation, and no specified stereocenter, and a
+selone carbon directly attached to the ring (an aryl selone) stays out
+of scope for this module.
 """
 
 from rdkit import Chem
@@ -56,10 +63,13 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    is_plain_benzene_ring,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    ordered_chain,
+    ring_chain_attachment,
     ring_cycle,
     specified_stereocenters,
 )
@@ -85,7 +95,14 @@ def has_selone_shape(mol) -> bool:
     return False
 
 
-def _validate_and_collect_selones(mol):
+def _validate_and_collect_selones(mol, aromatic_ring_atoms=frozenset()):
+    """`aromatic_ring_atoms`: atom indices already independently verified
+    (by the caller, before this function runs) to form a single plain
+    benzene ring with exactly one exocyclic attachment -- exempted from
+    the aromatic-atom rejection below so `name_selone`'s benzene-ring-
+    substituent path (see `_name_phenyl_chain_selone`) can reuse this same
+    validation for the rest of the molecule. Empty by default, so every
+    other caller's behavior is unchanged."""
     selones = set()
     has_carbon = False
     for atom in mol.GetAtoms():
@@ -102,7 +119,7 @@ def _validate_and_collect_selones(mol):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module (see "
                     "the separate aromatic-ring module)"
@@ -382,7 +399,90 @@ def _name_cyclic_selone(mol, selones, stereo=None):
     return best_name
 
 
+def _name_phenyl_chain_selone(mol, ring_atoms):
+    """Name a selone whose C=Se lies entirely on a single unbranched
+    chain hanging off one atom of an otherwise-plain, unsubstituted
+    benzene ring -- e.g. 1-phenylpropane-2-selone. The ring is cited as a
+    'phenyl' substituent prefix (via `name_branch`'s aromatic-ring
+    recognition) on the chain, which is the parent hydride, mirroring
+    `_thione.py`'s `_name_phenyl_chain_thione`. Narrower than the acyclic
+    path above: exactly one selone, no chain unsaturation, and no
+    specified stereocenter -- each is a separate follow-up rather than
+    being combined with the ring case in this first slice. A selone
+    carbon directly attached to the ring (an aryl selone) stays out of
+    scope, same as the module's existing acyclic-carbonyl check above."""
+    selones = _validate_and_collect_selones(mol, aromatic_ring_atoms=ring_atoms)
+    if len(selones) != 1:
+        raise UnsupportedStructure(
+            "more than one selone group alongside a benzene-ring "
+            "substituent is not supported yet"
+        )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a benzene-ring-substituent "
+            "selone chain is not supported yet"
+        )
+    non_ring_unsaturation = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in selones and b[1] not in selones and b[0] not in ring_atoms and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent "
+            "selone chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain selone is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, selones)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside a "
+            "selone is not supported yet"
+        )
+    (selone_selenium,) = selones
+    (selone_carbon,) = graph[selone_selenium]
+    if selone_carbon == chain_root:
+        raise UnsupportedStructure(
+            "a selone carbon directly attached to the benzene ring (an "
+            "aryl selone) is out of scope for this module (see the "
+            "separate aromatic-ring module)"
+        )
+    if selone_carbon not in chain:
+        raise UnsupportedStructure(
+            "the selone carbon must lie on the chain hanging off the "
+            "benzene ring for this benzene-substituent path"
+        )
+
+    chain_length = len(chain)
+    halogens = halogen_substituents(mol)
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        selone_locants = _selone_locants(position_of, selones, graph)
+        substituents = {
+            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+        }
+        key, name = _candidate_key(chain_length, selone_locants, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_selone(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_selone(mol, ring_atoms)
     selones = _validate_and_collect_selones(mol)
     stereo = specified_stereocenters(mol)
     graph = adjacency(mol)
