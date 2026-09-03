@@ -114,6 +114,22 @@ from smiles_to_iupac._common import UnsupportedStructure
         # behavior and PubChem's own convention for a name that doesn't
         # specify configuration at all.
         ("CC(O)CC", "butan-2-ol"),
+        # A plain, unsubstituted benzene ring on a chain hanging off it,
+        # -OH on the chain itself (P-2/P-3 aromatic-ring-substituent
+        # extension, mirroring PR #269/#270's carboxylic-acid/ketone
+        # chains): the ring is cited as a "phenyl" substituent prefix.
+        # Mononuclear chain, so P-14.3.4.2(a) omits the -OH locant, same as
+        # the aliphatic 'cyclohexylmethanol' case above. Cross-checked
+        # against PubChem CID 244 ("phenylmethanol").
+        ("c1ccccc1CO", "phenylmethanol"),
+        # Two-carbon chain: falls into the same always-cite-the-locant
+        # case as '2-cyclohexylethan-1-ol' above once a substituent
+        # prefix is present. PubChem's own name for this SMILES
+        # ('2-phenylethanol', CID 6054) omits the locant; not used as a
+        # cross-check here for the same reason as the cyclohexyl case.
+        ("c1ccccc1CCO", "2-phenylethan-1-ol"),
+        # -OH mid-chain rather than at the far terminus from the ring.
+        ("c1ccccc1CC(O)C", "1-phenylpropan-2-ol"),
     ],
 )
 def test_alcohol_names(smiles, expected):
@@ -283,6 +299,25 @@ def test_ring_with_two_hydroxyls_outcompeted_by_chain():
     # hand-verified as the lower of the two possible directions (the
     # alternative gives 4,5).
     assert smiles_to_iupac("OC1C(O)CCC(C(O)C(O)CO)C1") == "1-(3,4-dihydroxycyclohexyl)propane-1,2,3-triol"
+
+
+def test_phenyl_substituted_benzene_ring_raises():
+    # A benzene ring with two exocyclic substituents (here, a methyl and
+    # the -OH chain) is outside this first slice's scope -- only a plain,
+    # unsubstituted benzene ring is supported (see
+    # tasks/phenyl-substituent-on-alcohol-chain.md's scope note).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CCO")
+
+
+def test_phenyl_chain_with_second_hydroxyl_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OCc1ccccc1CO")
+
+
+def test_phenyl_chain_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CO")
 
 
 def test_substituted_ring_with_chain_hydroxyl_raises():
