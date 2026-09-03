@@ -36,7 +36,13 @@ carbonyl-bearing characteristic group (ketone/aldehyde/carboxylic
 acid/ester/amide) anywhere in the molecule -- that Table 3.3 seniority
 coexistence is future work, tracked under `multi-carbonyl-seniority.md`.
 Explicitly out of scope (raise `UnsupportedStructure`): rings and two or
-more acyl halide groups.
+more acyl halide groups, except for one narrow ring case: an acyl
+halide's chain hanging off a single plain, unsubstituted benzene ring
+with no other substituent on the ring (`_name_phenyl_chain_acyl_halide`,
+e.g. '3-phenylpropanoyl chloride'), mirroring `_aldehyde.py`/`_amide.py`/
+`_nitrile.py`'s identical benzene-ring-substituent path. Narrower than
+the acyclic path: no chain unsaturation, no specified stereocenter, and
+no substituted benzene/naphthalene -- each a separate follow-up.
 """
 
 from rdkit import Chem
@@ -48,9 +54,12 @@ from ._common import (
     bfs,
     carbon_adjacency,
     halogen_substituents,
+    is_plain_benzene_ring,
     lowest_locant_set,
     non_single_bonds,
+    ordered_chain,
     path_between,
+    ring_chain_attachment,
     specified_stereocenters,
 )
 from ._numerals import alkane_name, numerical_term
@@ -89,7 +98,14 @@ def has_acyl_halide_shape(mol) -> bool:
     return bool(_acyl_halide_carbons(mol))
 
 
-def _validate_and_collect_acyl_halides(mol):
+def _validate_and_collect_acyl_halides(mol, aromatic_ring_atoms=frozenset()):
+    """`aromatic_ring_atoms`: atom indices already independently verified
+    (by the caller, before this function runs) to form a single plain
+    benzene ring with exactly one exocyclic attachment -- exempted from the
+    aromatic-atom rejection below so `name_acyl_halide`'s benzene-ring-
+    substituent path (see `_name_phenyl_chain_acyl_halide`) can reuse this
+    same validation for the rest of the molecule. Empty by default, so
+    every other caller's behavior is unchanged."""
     matches = _acyl_halide_carbons(mol)
     if not matches:
         raise UnsupportedStructure(
@@ -116,7 +132,7 @@ def _validate_and_collect_acyl_halides(mol):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module"
                 )
@@ -292,7 +308,80 @@ def _substituents_for_chain(graph, chain, halogens, excluded):
     return substituents
 
 
+def _name_phenyl_chain_acyl_halide(mol, ring_atoms):
+    """Name an acyl halide whose -C(=O)X lies entirely on a single
+    unbranched chain hanging off one atom of an otherwise-plain,
+    unsubstituted benzene ring -- e.g. 3-phenylpropanoyl chloride. The ring
+    is cited as a 'phenyl' substituent prefix (via `name_branch`'s
+    aromatic-ring recognition) on the chain, which is the parent hydride,
+    mirroring `_aldehyde.py`'s `_name_phenyl_chain_aldehyde`. Narrower than
+    the acyclic path above: no chain unsaturation and no specified
+    stereocenter -- each is a separate follow-up (see
+    tasks/phenyl-substituent-on-acyl-halide-chain.md's scope note)."""
+    acyl_carbon, carbonyl_oxygen, acyl_halogen = _validate_and_collect_acyl_halides(
+        mol, aromatic_ring_atoms=ring_atoms
+    )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a benzene-ring-substituent "
+            "acyl halide chain is not supported yet"
+        )
+    excluded = {carbonyl_oxygen, acyl_halogen}
+    non_ring_unsaturation = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in excluded and b[1] not in excluded and b[0] not in ring_atoms and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent acyl "
+            "halide chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain acyl halide is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, excluded)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside an "
+            "acyl halide is not supported yet"
+        )
+    if chain[-1] != acyl_carbon:
+        raise UnsupportedStructure(
+            "the acyl halide carbon must be the chain's far terminus from "
+            "the benzene ring for this benzene-substituent path"
+        )
+    if len(chain) < 2:
+        raise UnsupportedStructure(
+            "an acyl halide directly attached to the benzene ring uses a "
+            "separate naming construction, out of scope for this "
+            "acyclic-chain-parent module"
+        )
+
+    ordered = list(reversed(chain))
+    chain_length = len(ordered)
+    position_of = {atom: i + 1 for i, atom in enumerate(ordered)}
+    halide_word = _HALIDE_WORDS[mol.GetAtomWithIdx(acyl_halogen).GetAtomicNum()]
+    halogens = halogen_substituents(mol)
+    substituents = {
+        position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+    }
+    grouped = _group(substituents)
+    return _name_from_substituents(chain_length, [], [], halide_word, grouped)
+
+
 def name_acyl_halide(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_acyl_halide(mol, ring_atoms)
     acyl_carbon, carbonyl_oxygen, acyl_halogen = _validate_and_collect_acyl_halides(mol)
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(

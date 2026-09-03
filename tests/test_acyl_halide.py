@@ -74,3 +74,45 @@ def test_unspecified_stereocenter_ignored():
 def test_branch_stereocenter_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC(C[C@H](C)Cl)C(=O)Cl")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+        # aromatic-ring-substituent extension, mirroring PR #269/#270/
+        # #271/#272/#273/#274/#275's carboxylic-acid/ketone/alcohol/ester/
+        # aldehyde/amide/nitrile chains): the ring is cited as a "phenyl"
+        # substituent prefix. Cross-checked against PubChem CID 61529
+        # ("3-phenylpropanoyl chloride", hydrocinnamoyl chloride).
+        ("c1ccccc1CCC(=O)Cl", "3-phenylpropanoyl chloride"),
+        # Two-carbon chain: this module always uses the systematic
+        # 'ethanoyl' stem (see test_saturated_acyl_halide above) rather
+        # than a retained "phenylacetyl" form, so this is an accepted,
+        # reviewed result -- same policy as the aldehyde module's
+        # '2-phenylethanal' (PR #273).
+        ("c1ccccc1CC(=O)Cl", "2-phenylethanoyl chloride"),
+        # A different halide word coexists the same way (P-35.2.1's
+        # module-level analog for the acyl halogen itself).
+        ("c1ccccc1CCC(=O)Br", "3-phenylpropanoyl bromide"),
+    ],
+)
+def test_phenyl_chain_acyl_halide_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_phenyl_directly_attached_acyl_halide_raises():
+    # -C(=O)X directly on the ring uses a separate naming construction
+    # (benzoyl-style), out of scope for this acyclic-chain-parent module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C(=O)Cl")
+
+
+def test_phenyl_substituted_benzene_ring_acyl_halide_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(=O)Cl")
+
+
+def test_phenyl_chain_acyl_halide_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC(=O)Cl")
