@@ -130,3 +130,38 @@ def test_hydrazide_unspecified_stereocenter_unaffected():
     # as before -- no stereo prefix, matching this project's long-standing
     # convention.
     assert smiles_to_iupac("CCC(C)C(=O)NN") == "2-methylbutanehydrazide"
+
+
+def test_phenyl_chain_hydrazide():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring PR #269-#288's
+    # carboxylic-acid/.../hydroperoxide chains): the ring is cited as a
+    # "phenyl" substituent prefix.
+    assert smiles_to_iupac("c1ccccc1CCC(=O)NN") == "3-phenylpropanehydrazide"
+
+
+def test_phenyl_chain_hydrazide_retained_name():
+    # Dinuclear case: the retained 'acetohydrazide' name is still the PIN
+    # even with the phenyl substituent, mirroring the module's own
+    # '2-chloroacetohydrazide' pattern (module docstring).
+    assert smiles_to_iupac("c1ccccc1CC(=O)NN") == "2-phenylacetohydrazide"
+
+
+def test_phenyl_directly_attached_hydrazide_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C(=O)NN")
+
+
+def test_phenyl_chain_hydrazide_n_alkyl_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1CC(=O)N(C)N")
+
+
+def test_phenyl_substituted_benzene_ring_hydrazide_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(=O)NN")
+
+
+def test_phenyl_chain_hydrazide_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC(=O)NN")
