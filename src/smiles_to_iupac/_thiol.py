@@ -44,9 +44,16 @@ seniority coexistence is future work, tracked as a separate roadmap item,
 same as the analogous `multi-carbonyl-seniority.md` split for aldehyde/
 ketone. Explicitly out of scope (raise `UnsupportedStructure`):
 polycyclic/spiro/unsaturated rings, an -SH on a substituent branch off an
-otherwise-unsubstituted ring, a sulfide (-S- ether-analogue) or any other
-sulfur-oxidation-state group (sulfonic acid, etc.), and any oxygen or
-nitrogen atom at all.
+otherwise-unsubstituted *saturated* ring, a sulfide (-S- ether-analogue)
+or any other sulfur-oxidation-state group (sulfonic acid, etc.), and any
+oxygen or nitrogen atom at all. One narrow *aromatic*-ring exception:
+`_name_phenyl_chain_thiol` names a single -SH chain hanging off a plain,
+unsubstituted benzene ring (e.g. '3-phenylpropane-1-thiol'), mirroring
+`_alcohol.py`/`_sulfonic_acid.py`'s identical benzene-ring-substituent
+path -- narrower than the acyclic path: exactly one -SH, no chain
+unsaturation, no specified stereocenter, and a thiol directly on the ring
+(thiophenol-type) stays out of scope for this acyclic-chain-parent
+module.
 """
 
 from rdkit import Chem
@@ -58,9 +65,12 @@ from ._common import (
     bfs,
     carbon_adjacency,
     halogen_substituents,
+    is_plain_benzene_ring,
     lowest_locant_set,
     non_single_bonds,
+    ordered_chain,
     path_between,
+    ring_chain_attachment,
     ring_cycle,
     specified_stereocenters,
 )
@@ -72,7 +82,14 @@ _YNE_ORDER = 3.0
 _ALLOWED_ATOMIC_NUMS = {6, 16, *HALOGEN_PREFIXES}
 
 
-def _validate_and_collect_thiols(mol):
+def _validate_and_collect_thiols(mol, aromatic_ring_atoms=frozenset()):
+    """`aromatic_ring_atoms`: atom indices already independently verified
+    (by the caller, before this function runs) to form a single plain
+    benzene ring with exactly one exocyclic attachment -- exempted from
+    the aromatic-atom rejection below so `name_thiol`'s benzene-ring-
+    substituent path (see `_name_phenyl_chain_thiol`) can reuse this same
+    validation for the rest of the molecule. Empty by default, so every
+    other caller's behavior is unchanged."""
     thiols = set()
     has_carbon = False
     for atom in mol.GetAtoms():
@@ -89,7 +106,7 @@ def _validate_and_collect_thiols(mol):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module"
                 )
@@ -376,7 +393,87 @@ def _name_cyclic_thiol(mol, thiols, stereo=None):
     return best_name
 
 
+def _name_phenyl_chain_thiol(mol, ring_atoms):
+    """Name a thiol whose -SH lies entirely on a single unbranched chain
+    hanging off one atom of an otherwise-plain, unsubstituted benzene ring
+    -- e.g. 3-phenylpropane-1-thiol. The ring is cited as a 'phenyl'
+    substituent prefix (via `name_branch`'s aromatic-ring recognition) on
+    the chain, which is the parent hydride, mirroring `_alcohol.py`'s
+    `_name_phenyl_chain_alcohol`. Narrower than the acyclic path above:
+    exactly one -SH, no chain unsaturation, and no specified stereocenter
+    -- each is a separate follow-up (see
+    tasks/phenyl-substituent-on-thiol-chain.md's scope note)."""
+    thiols = _validate_and_collect_thiols(mol, aromatic_ring_atoms=ring_atoms)
+    if len(thiols) != 1:
+        raise UnsupportedStructure(
+            "more than one thiol alongside a benzene-ring substituent is "
+            "not supported yet"
+        )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a benzene-ring-substituent "
+            "thiol chain is not supported yet"
+        )
+    non_ring_unsaturation = [
+        b for b in non_single_bonds(mol) if b[0] not in ring_atoms and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent "
+            "thiol chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain thiol is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    if chain_root in thiols:
+        raise UnsupportedStructure(
+            "a thiol directly on the benzene ring (thiophenol-type) uses "
+            "a separate construction, out of scope for this chain-parent "
+            "module"
+        )
+    chain = ordered_chain(graph, chain_root, ring_atom, thiols)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside a "
+            "thiol is not supported yet"
+        )
+    chain_set = set(chain)
+    for s in thiols:
+        (carbon,) = graph[s]
+        if carbon not in chain_set:
+            raise UnsupportedStructure(
+                "a thiol outside the single unbranched chain hanging off "
+                "the benzene ring is not supported yet"
+            )
+
+    halogens = halogen_substituents(mol)
+    chain_length = len(chain)
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        sh_locants = _sh_locants(position_of, thiols, graph)
+        substituents = {
+            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+        }
+        key, name = _candidate_key(chain_length, sh_locants, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_thiol(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_thiol(mol, ring_atoms)
     thiols = _validate_and_collect_thiols(mol)
     stereo = specified_stereocenters(mol)
     graph = adjacency(mol)
