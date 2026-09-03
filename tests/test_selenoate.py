@@ -75,3 +75,27 @@ def test_selenoate_stereocenter(smiles, expected):
 
 def test_selenoate_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("CCC(C)C(=O)[Se-]") == "2-methylbutaneselenoate"
+
+
+def test_phenyl_chain_selenoate():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring `_carboxylate.py`'s
+    # phenyl-chain path): the ring is cited as a "phenyl" substituent
+    # prefix. PubChem PUG REST: "2-phenylethaneselenoate".
+    assert smiles_to_iupac("c1ccccc1CC(=O)[Se-]") == "2-phenylethaneselenoate"
+    assert smiles_to_iupac("c1ccccc1CCC(=O)[Se-]") == "3-phenylpropaneselenoate"
+
+
+def test_phenyl_directly_attached_selenoate_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C(=O)[Se-]")
+
+
+def test_phenyl_substituted_benzene_ring_selenoate_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(=O)[Se-]")
+
+
+def test_phenyl_chain_selenoate_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC(=O)[Se-]")
