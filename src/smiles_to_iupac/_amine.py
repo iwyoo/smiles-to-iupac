@@ -67,10 +67,13 @@ from ._common import (
     bfs,
     carbon_adjacency,
     halogen_substituents,
+    is_plain_benzene_ring,
     linear_branch,
     lowest_locant_set,
     non_single_bonds,
+    ordered_chain,
     path_between,
+    ring_chain_attachment,
     specified_stereocenters,
 )
 from ._numerals import alkane_name, alkyl_name, multiplying_prefix, numerical_term
@@ -81,12 +84,21 @@ _YNE_ORDER = 3.0
 _ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
 
 
-def _validate_and_collect_amines(mol):
+def _validate_and_collect_amines(mol, aromatic_ring_atoms=frozenset()):
     """Check the molecule fits this module's scope (see module docstring)
     and return (amines, n_carbons_by_nitrogen): the set of amine-nitrogen
     atom indices, and a dict mapping each to a tuple of its 1-3 carbon
     neighbor indices (the -NH2 carbon for a primary amine; the parent-chain
-    carbon plus 0-2 N-substituent carbons for a secondary/tertiary one)."""
+    carbon plus 0-2 N-substituent carbons for a secondary/tertiary one).
+
+    `aromatic_ring_atoms`: atom indices already independently verified (by
+    the caller, before this function runs) to form a single plain benzene
+    ring with exactly one exocyclic attachment -- exempted from the
+    aromatic-atom rejection below so `name_amine`'s benzene-ring-substituent
+    path (see `_name_phenyl_chain_amine`) can reuse this same validation for
+    the rest of the molecule. Empty by default, so every other caller's
+    behavior is unchanged. Mirrors `_thiol.py`'s
+    `_validate_and_collect_thiols`."""
     amines = set()
     n_carbons_by_nitrogen = {}
     has_carbon = False
@@ -101,7 +113,7 @@ def _validate_and_collect_amines(mol):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module (see "
                     "the separate aromatic-ring module)"
@@ -587,7 +599,93 @@ def _name_cyclic_amine(mol, amines, stereo=None):
     return best_name
 
 
+def _name_phenyl_chain_amine(mol, ring_atoms):
+    """Name a primary amine whose -NH2 lies entirely on a single
+    unbranched chain hanging off one atom of an otherwise-plain,
+    unsubstituted benzene ring -- e.g. 3-phenylpropan-1-amine. The ring is
+    cited as a 'phenyl' substituent prefix (via `name_branch`'s
+    aromatic-ring recognition) on the chain, which is the parent hydride,
+    mirroring `_thiol.py`'s `_name_phenyl_chain_thiol`. Narrower than the
+    acyclic path above: exactly one *primary* amine (no N-alkyl
+    substituent -- a secondary/tertiary amine alongside a ring is out of
+    scope, same as `name_amine`'s existing ring guard below), no chain
+    unsaturation, and no specified stereocenter."""
+    amines, n_carbons_by_nitrogen = _validate_and_collect_amines(mol, aromatic_ring_atoms=ring_atoms)
+    if len(amines) != 1:
+        raise UnsupportedStructure(
+            "more than one amine nitrogen alongside a benzene-ring "
+            "substituent is not supported yet"
+        )
+    (n_idx,) = amines
+    if len(n_carbons_by_nitrogen[n_idx]) > 1:
+        raise UnsupportedStructure(
+            "a secondary/tertiary amine nitrogen on or attached to a ring "
+            "is out of scope for this module"
+        )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a benzene-ring-substituent "
+            "amine chain is not supported yet"
+        )
+    non_ring_unsaturation = [
+        b for b in non_single_bonds(mol) if b[0] not in ring_atoms and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent "
+            "amine chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain amine is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    if chain_root == n_idx:
+        raise UnsupportedStructure(
+            "an amine directly on the benzene ring (aniline-type) uses a "
+            "separate construction, out of scope for this chain-parent "
+            "module"
+        )
+    chain = ordered_chain(graph, chain_root, ring_atom, amines)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside an "
+            "amine is not supported yet"
+        )
+    chain_set = set(chain)
+    (carbon,) = n_carbons_by_nitrogen[n_idx]
+    if carbon not in chain_set:
+        raise UnsupportedStructure(
+            "an amine outside the single unbranched chain hanging off the "
+            "benzene ring is not supported yet"
+        )
+
+    halogens = halogen_substituents(mol)
+    chain_length = len(chain)
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        amine_locants = _amine_locants(position_of, amines, graph)
+        substituents = {
+            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+        }
+        key, name = _candidate_key(chain_length, amine_locants, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_amine(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_amine(mol, ring_atoms)
     amines, n_carbons_by_nitrogen = _validate_and_collect_amines(mol)
     stereo = specified_stereocenters(mol)
     graph = adjacency(mol)
