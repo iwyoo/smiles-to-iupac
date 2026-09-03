@@ -181,6 +181,17 @@ ketone like 'CC(=O)C=CC' (the double bond adjacent to, but not on, the
 carbonyl carbon) is a perfectly nameable 'pent-3-en-2-one' and is supported
 via the same suffix-locant-priority mechanism as `_alcohol.py`'s
 'pent-4-en-1-ol'.
+
+A further narrow path (`_name_phenyl_chain_ketone`) allows the sole ketone
+to sit on an otherwise plain, unbranched, saturated chain hanging off one
+atom of an unsubstituted benzene ring -- the ring is then cited as a
+'phenyl' substituent prefix on the chain (P-44/P-52.2.8), mirroring
+`_carboxylic_acid.py`'s identical first slice
+(`_name_phenyl_chain_carboxylic_acid`,
+`tasks/aromatic-ring-substituent-parent-selection.md`'s scope note). A
+carbonyl carbon directly attached to the ring (an aryl ketone) still stays
+out of scope. PubChem-confirmed: `CC(=O)Cc1ccccc1` -> '1-phenylpropan-2-one'
+(CID 7678), `CC(=O)CCc1ccccc1` -> '4-phenylbutan-2-one' (CID 17355).
 """
 
 from rdkit import Chem
@@ -196,11 +207,14 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    is_plain_benzene_ring,
     linear_branch,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    ordered_chain,
+    ring_chain_attachment,
     specified_stereocenters,
 )
 from ._hetero_monocyclic import (
@@ -247,13 +261,19 @@ _FIVE_MEMBERED_1_2_RING_ELEMENT_PAIRS = {
 }
 
 
-def _validate_and_collect_ketones(mol):
+def _validate_and_collect_ketones(mol, aromatic_ring_atoms=frozenset()):
     """Check the molecule fits this module's scope (see module docstring)
     and return (ketones, hydroxyls): the set of carbonyl-oxygen atom indices,
     and the set of any coexisting hydroxyl-oxygen atom indices. A hydroxyl is
     junior to 'one' in Table 3.3's suffix seniority order, so it is cited as
     the 'hydroxy' substituent prefix instead of competing for the suffix
-    (P-41)."""
+    (P-41).
+
+    `aromatic_ring_atoms`: atom indices already independently verified
+    elsewhere as a single plain benzene ring cited as a 'phenyl' substituent
+    prefix (see `_name_phenyl_chain_ketone`) -- exempted here from the
+    aromatic-atom rejection below so that path can still call this same
+    validator."""
     ketones = set()
     hydroxyls = set()
     has_carbon = False
@@ -268,7 +288,7 @@ def _validate_and_collect_ketones(mol):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module (see "
                     "the separate aromatic-ring module)"
@@ -476,6 +496,93 @@ def _name_acyclic_ketone(mol, ketones, hydroxyls, bonds, stereo=None):
         labels = sorted((best_position_of[atom], code) for atom, code in stereo)
         prefix = ",".join(f"{locant}{code}" for locant, code in labels)
         return f"({prefix})-{best_name}"
+    return best_name
+
+
+def _name_phenyl_chain_ketone(mol, ring_atoms):
+    """Name a ketone whose C=O lies entirely on a single unbranched chain
+    hanging off one atom of an otherwise-plain, unsubstituted benzene ring
+    -- e.g. 1-phenylpropan-2-one. The ring is cited as a 'phenyl'
+    substituent prefix (via `name_branch`'s aromatic-ring recognition) on
+    the chain, which is the parent hydride, mirroring
+    `_carboxylic_acid.py`'s `_name_phenyl_chain_carboxylic_acid`. Narrower
+    than the acyclic path above: exactly one ketone, no coexisting
+    standalone hydroxyl, no chain unsaturation, and no specified
+    stereocenter -- each is a separate follow-up rather than being combined
+    with the ring case in this first slice. A ketone carbon directly
+    attached to the ring (an aryl ketone) stays out of scope, same as the
+    module's existing acyclic-carbonyl check above."""
+    ketones, hydroxyls = _validate_and_collect_ketones(mol, aromatic_ring_atoms=ring_atoms)
+    if hydroxyls:
+        raise UnsupportedStructure(
+            "a standalone hydroxyl alongside a benzene-ring-substituent "
+            "ketone chain is not supported yet"
+        )
+    if len(ketones) != 1:
+        raise UnsupportedStructure(
+            "more than one ketone group alongside a benzene-ring "
+            "substituent is not supported yet"
+        )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a benzene-ring-substituent "
+            "ketone chain is not supported yet"
+        )
+    non_ring_unsaturation = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in ketones
+        and b[1] not in ketones
+        and b[0] not in ring_atoms
+        and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent "
+            "ketone chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain ketone is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, ketones)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside a "
+            "ketone is not supported yet"
+        )
+    (ketone_oxygen,) = ketones
+    (ketone_carbon,) = graph[ketone_oxygen]
+    if ketone_carbon == chain_root:
+        raise UnsupportedStructure(
+            "a carbonyl carbon directly attached to the benzene ring (an "
+            "aryl ketone) is out of scope for this module (see the "
+            "separate aromatic-ring module)"
+        )
+    if ketone_carbon not in chain:
+        raise UnsupportedStructure(
+            "the ketone carbon must lie on the chain hanging off the "
+            "benzene ring for this benzene-substituent path"
+        )
+
+    chain_length = len(chain)
+    halogens = halogen_substituents(mol)
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        one_locants = _one_locants(position_of, ketones, graph)
+        substituents = {
+            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+        }
+        key, name = _candidate_key(chain_length, one_locants, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
     return best_name
 
 
@@ -1120,6 +1227,11 @@ def name_ketone(mol) -> str:
     two_heteroatoms = _hetero_ring_two_heteroatoms(mol)
     if two_heteroatoms is not None:
         return _name_two_hetero_cyclic_ketone(mol, *two_heteroatoms)
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_ketone(mol, ring_atoms)
     ketones, hydroxyls = _validate_and_collect_ketones(mol)
     stereo = specified_stereocenters(mol)
     graph = adjacency(mol)

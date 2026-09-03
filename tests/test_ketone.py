@@ -62,6 +62,41 @@ def test_aryl_ketone_raises():
         smiles_to_iupac("CC(=O)c1ccccc1")
 
 
+def test_phenyl_substituent_ketone():
+    # A plain, unsubstituted benzene ring hanging off a chain carrying the
+    # sole ketone, mirroring `_carboxylic_acid.py`'s identical first slice
+    # (test_phenyl_substituent_carboxylic_acid). PubChem CID 7678.
+    assert smiles_to_iupac("CC(=O)Cc1ccccc1") == "1-phenylpropan-2-one"
+
+
+def test_phenyl_substituent_ketone_matches_locant_mechanism():
+    # Same locant mechanism, one carbon further from the ring. PubChem
+    # CID 17355.
+    assert smiles_to_iupac("CC(=O)CCc1ccccc1") == "4-phenylbutan-2-one"
+
+
+def test_phenyl_substituent_ketone_directly_on_ring_raises():
+    # No intervening chain carbon between the ring and the carbonyl carbon
+    # is the aryl-ketone case, already covered by test_aryl_ketone_raises --
+    # this is the same rejection reached through the new benzene-ring code
+    # path instead of falling through to the old blanket ring rejection.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C(=O)C")
+
+
+def test_phenyl_substituent_ketone_substituted_ring_raises():
+    # A substituted benzene ring (more than one exocyclic attachment) is
+    # out of scope for this first slice -- see
+    # tasks/aromatic-ring-substituent-parent-selection.md.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(C)=O")
+
+
+def test_phenyl_substituent_ketone_naphthalene_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccc2ccccc2c1CC(C)=O")
+
+
 def test_bicyclic_ketone_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O=C1CC2CCC1CC2")
