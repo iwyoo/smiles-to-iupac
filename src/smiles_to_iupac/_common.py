@@ -110,6 +110,43 @@ def carbon_adjacency(mol):
     return graph
 
 
+def ring_chain_attachment(graph, ring_atoms, excluded):
+    """If `ring_atoms` (a plain, otherwise-unsubstituted monocyclic ring)
+    has exactly one exocyclic branch, hanging off exactly one ring atom,
+    return (ring_atom, chain_root); else None. `excluded` are atom indices
+    ignored as branch roots (e.g. a ring hydroxyl oxygen already accounted
+    for separately) -- pass an empty set/frozenset if there are none."""
+    attachments = []
+    for atom in ring_atoms:
+        branch_roots = [n for n in graph[atom] if n not in ring_atoms and n not in excluded]
+        if branch_roots:
+            attachments.append((atom, branch_roots))
+    if len(attachments) != 1:
+        return None
+    ring_atom, branch_roots = attachments[0]
+    if len(branch_roots) != 1:
+        return None
+    return ring_atom, branch_roots[0]
+
+
+def ordered_chain(graph, root, coming_from, excluded):
+    """The chain of atoms starting at `root` and extending away from
+    `coming_from`, ignoring `excluded` atoms (e.g. hydroxyl/carboxyl
+    oxygens) the same way `_substituents._longest_chains_from_root`
+    ignores halogens; None if it branches (more than one non-excluded,
+    non-`previous` neighbor at any point)."""
+    chain = [root]
+    previous, current = coming_from, root
+    while True:
+        neighbors = [n for n in graph[current] if n != previous and n not in excluded]
+        if not neighbors:
+            return chain
+        if len(neighbors) > 1:
+            return None
+        previous, current = current, neighbors[0]
+        chain.append(current)
+
+
 def halogen_substituents(mol):
     """{atom_idx -> substituent prefix name} for every halogen atom in `mol`
     (P-35.2.1). Passed down into `name_branch` so it can name a halogen leaf

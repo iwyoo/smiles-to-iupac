@@ -14,7 +14,7 @@ Recommendations ("the Blue Book"):
   `_cyclic_unsaturated.name_cyclic_unsaturated_yl`, with the attachment
   fixed at locant 1 (P-29.2) -- e.g. '(cyclohex-3-en-1-yl)methanol'; this
   path still requires the ring to have no other exocyclic branch (see
-  `_ring_chain_attachment`), so a ring bearing both the -OH chain and
+  `_common.ring_chain_attachment`), so a ring bearing both the -OH chain and
   another substituent of its own stays unsupported regardless of
   saturation. When the ring's own -OH count is at least the
   chain substituent's -OH count, the ring is always the senior parent:
@@ -190,7 +190,9 @@ from ._common import (
     halogen_substituents,
     lowest_locant_set,
     non_single_bonds,
+    ordered_chain,
     path_between,
+    ring_chain_attachment,
     ring_cycle,
     specified_stereo_elements,
     specified_stereocenters,
@@ -682,41 +684,6 @@ def _name_cyclic_alcohol(mol, hydroxyls, stereo=None):
     return best_name
 
 
-def _ring_chain_attachment(graph, ring_atoms, hydroxyls):
-    """If `ring_atoms` (a plain, otherwise-unsubstituted saturated
-    monocyclic ring) has exactly one exocyclic branch, hanging off exactly
-    one ring atom, return (ring_atom, chain_root); else None."""
-    attachments = []
-    for atom in ring_atoms:
-        branch_roots = [n for n in graph[atom] if n not in ring_atoms and n not in hydroxyls]
-        if branch_roots:
-            attachments.append((atom, branch_roots))
-    if len(attachments) != 1:
-        return None
-    ring_atom, branch_roots = attachments[0]
-    if len(branch_roots) != 1:
-        return None
-    return ring_atom, branch_roots[0]
-
-
-def _ordered_chain(graph, root, coming_from, excluded):
-    """The chain of atoms starting at `root` and extending away from
-    `coming_from`, ignoring `excluded` atoms (hydroxyl oxygens) the same
-    way `_substituents._longest_chains_from_root` ignores halogens; None if
-    it branches (more than one non-excluded, non-`previous` neighbor at any
-    point)."""
-    chain = [root]
-    previous, current = coming_from, root
-    while True:
-        neighbors = [n for n in graph[current] if n != previous and n not in excluded]
-        if not neighbors:
-            return chain
-        if len(neighbors) > 1:
-            return None
-        previous, current = current, neighbors[0]
-        chain.append(current)
-
-
 def _name_ring_substituent_chain_alcohol(mol, hydroxyls):
     """Name an alcohol whose -OH lies entirely on a single unbranched chain
     hanging off one atom of an otherwise-plain monocyclic ring (the ring
@@ -730,14 +697,14 @@ def _name_ring_substituent_chain_alcohol(mol, hydroxyls):
     halogens = halogen_substituents(mol)
     ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
 
-    attachment = _ring_chain_attachment(graph, ring_atoms, hydroxyls)
+    attachment = ring_chain_attachment(graph, ring_atoms, hydroxyls)
     if attachment is None:
         raise UnsupportedStructure(
             "a ring with more than one exocyclic branch is not supported "
             "yet"
         )
     ring_atom, chain_root = attachment
-    chain = _ordered_chain(graph, chain_root, ring_atom, hydroxyls)
+    chain = ordered_chain(graph, chain_root, ring_atom, hydroxyls)
     if chain is None:
         raise UnsupportedStructure(
             "a branched substituent chain hanging off the ring is not "
@@ -795,14 +762,14 @@ def _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls):
     halogens = halogen_substituents(mol)
     ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
 
-    attachment = _ring_chain_attachment(graph, ring_atoms, hydroxyls)
+    attachment = ring_chain_attachment(graph, ring_atoms, hydroxyls)
     if attachment is None:
         raise UnsupportedStructure(
             "a ring with more than one exocyclic branch is not supported "
             "yet"
         )
     ring_atom, chain_root = attachment
-    chain = _ordered_chain(graph, chain_root, ring_atom, hydroxyls)
+    chain = ordered_chain(graph, chain_root, ring_atom, hydroxyls)
     if chain is None:
         raise UnsupportedStructure(
             "a branched substituent chain hanging off the ring is not "
