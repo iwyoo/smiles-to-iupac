@@ -71,6 +71,16 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   carbonyl-adjacent nitrogen can carry at most one alkyl substituent
   (it's already bonded to the carbonyl carbon and the other nitrogen);
   the terminal nitrogen can carry up to two.
+- One narrow exception to the "acyclic-only" scope below:
+  `_name_phenyl_chain_hydrazide` names a hydrazide's chain hanging off a
+  single plain, unsubstituted benzene ring (e.g. '3-phenylpropanehydrazide',
+  or '2-phenylacetohydrazide' for the dinuclear retained-name case,
+  mirroring the module's own '2-chloroacetohydrazide'
+  substituent-on-retained-name pattern), mirroring `_amide.py`'s
+  identical benzene-ring-substituent path. Narrower than the acyclic path: no N-/N'-alkyl substitution, no
+  coexisting standalone hydroxyl, no chain unsaturation, and no specified
+  stereocenter, and a hydrazide directly on the ring (benzohydrazide-
+  style) stays out of scope for this chain-parent module.
 """
 
 from rdkit import Chem
@@ -85,11 +95,14 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    is_plain_benzene_ring,
     linear_branch,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    ordered_chain,
+    ring_chain_attachment,
     specified_stereocenters,
 )
 from ._numerals import alkane_name, alkyl_name, multiplying_prefix
@@ -139,13 +152,21 @@ def has_hydrazide_shape(mol) -> bool:
     return False
 
 
-def _validate_and_collect_hydrazide(mol):
+def _validate_and_collect_hydrazide(mol, aromatic_ring_atoms=frozenset()):
     """Check the molecule fits this module's scope (see module docstring)
     and return (hydrazide_carbon, hydrazide_oxygen, n1, n2, n1_alkyl,
     n2_alkyl, hydroxyls): the single -CO-N(R)-N(R')(R'') carbon/oxygen/
     n1/n2 atom indices, n1's 0-1 and n2's 0-2 N-alkyl substituent carbon
     indices, and the set of any coexisting standalone hydroxyl-oxygen
-    indices."""
+    indices.
+
+    `aromatic_ring_atoms`: atom indices already independently verified (by
+    the caller, before this function runs) to form a single plain benzene
+    ring with exactly one exocyclic attachment -- exempted from the
+    aromatic-atom rejection below so `name_hydrazide`'s benzene-ring-
+    substituent path (see `_name_phenyl_chain_hydrazide`) can reuse this
+    same validation for the rest of the molecule. Empty by default, so
+    every other caller's behavior is unchanged."""
     has_carbon = False
     hydrazide_carbons = set()
     oxygen_by_carbon = {}
@@ -163,7 +184,7 @@ def _validate_and_collect_hydrazide(mol):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module (see "
                     "the separate aromatic-ring module)"
@@ -563,7 +584,98 @@ def _name_acyclic_hydrazide(mol, hydrazide_carbon, excluded, hydroxyls, bonds, n
     return best_name
 
 
+def _name_phenyl_chain_hydrazide(mol, ring_atoms):
+    """Name a hydrazide whose -CO-NH-NH2 lies entirely on a single
+    unbranched chain hanging off one atom of an otherwise-plain,
+    unsubstituted benzene ring -- e.g. 3-phenylpropanehydrazide, or
+    '2-phenylacetohydrazide' for the dinuclear retained-name case
+    (mirroring the module's own '2-chloroacetohydrazide' pattern). The
+    ring is cited as a 'phenyl' substituent prefix on the chain, which is
+    the parent hydride, mirroring `_amide.py`'s
+    `_name_phenyl_chain_amide`. Narrower than the acyclic path above: no
+    N-/N'-alkyl substitution, no coexisting standalone hydroxyl, no chain
+    unsaturation, and no specified stereocenter -- each is a separate
+    follow-up (see
+    tasks/phenyl-substituent-on-hydrazide-chain.md's scope note)."""
+    hydrazide_carbon, hydrazide_oxygen, n1, n2, n1_alkyl, n2_alkyl, hydroxyls = _validate_and_collect_hydrazide(
+        mol, aromatic_ring_atoms=ring_atoms
+    )
+    if n1_alkyl or n2_alkyl:
+        raise UnsupportedStructure(
+            "an N-/N'-alkyl-substituted hydrazide alongside a benzene-ring "
+            "substituent is not supported yet"
+        )
+    if hydroxyls:
+        raise UnsupportedStructure(
+            "a standalone hydroxyl alongside a benzene-ring-substituent "
+            "hydrazide chain is not supported yet"
+        )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a benzene-ring-substituent "
+            "hydrazide chain is not supported yet"
+        )
+    excluded = {hydrazide_oxygen, n1, n2}
+    non_ring_unsaturation = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in excluded and b[1] not in excluded and b[0] not in ring_atoms and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent "
+            "hydrazide chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain hydrazide is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, excluded)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside a "
+            "hydrazide is not supported yet"
+        )
+    if chain[-1] != hydrazide_carbon:
+        raise UnsupportedStructure(
+            "the hydrazide carbon must be the chain's far terminus from "
+            "the benzene ring for this benzene-substituent path"
+        )
+    if len(chain) < 2:
+        raise UnsupportedStructure(
+            "a hydrazide directly attached to the benzene ring "
+            "(benzohydrazide-style naming) uses a separate construction, "
+            "out of scope for this acyclic-chain-parent module"
+        )
+
+    ordered = list(reversed(chain))
+    chain_length = len(ordered)
+    position_of = {atom: i + 1 for i, atom in enumerate(ordered)}
+    halogens = halogen_substituents(mol)
+    substituents = {
+        position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+    }
+    grouped = group_substituents(substituents)
+    if chain_length == 2:
+        # P-66.3.1.2.1: the dinuclear case's retained name ('acetohydrazide')
+        # is the PIN, with the substituent cited as an ordinary prefix
+        # (see module docstring's '2-chloroacetohydrazide').
+        prefix = format_substituent_prefixes(grouped)
+        return prefix + "acetohydrazide"
+    return _name_from_substituents(chain_length, [], [], grouped)
+
+
 def name_hydrazide(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_hydrazide(mol, ring_atoms)
     hydrazide_carbon, hydrazide_oxygen, n1, n2, n1_alkyl, n2_alkyl, hydroxyls = _validate_and_collect_hydrazide(mol)
     stereo = specified_stereocenters(mol)
     if mol.GetRingInfo().NumRings() > 0:
