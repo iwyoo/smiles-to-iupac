@@ -25,6 +25,19 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("ClCC(=O)OC", "methyl 2-chloroethanoate"),
         # A longer, unbranched alcohol part.
         ("CC(=O)OCCC", "propyl ethanoate"),
+        # A plain, unsubstituted benzene ring on the acyl chain (P-2/P-3
+        # aromatic-ring-substituent extension, mirroring PR #269/#270/#271's
+        # carboxylic-acid/ketone/alcohol chains): the ring is cited as a
+        # "phenyl" substituent prefix. Cross-checked against PubChem CID
+        # 7643 ("methyl 3-phenylpropanoate").
+        ("c1ccccc1CCC(=O)OC", "methyl 3-phenylpropanoate"),
+        # Two-carbon acyl chain: PubChem's own name for this SMILES
+        # ('ethyl 2-phenylacetate', CID 7590) uses the retained 'acetate'
+        # stem, but this module always uses the systematic 'ethanoate' stem
+        # (see 'methyl ethanoate' above), so this is an accepted, reviewed
+        # result rather than a PubChem-confirmed one -- same policy as the
+        # carboxylic-acid module's '2-phenylethanoic acid' (PR #269).
+        ("c1ccccc1CC(=O)OCC", "ethyl 2-phenylethanoate"),
     ],
 )
 def test_ester_names(smiles, expected):
@@ -54,6 +67,24 @@ def test_amine_coexisting_raises():
 def test_aryl_ester_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("c1ccccc1C(=O)OC")
+
+
+def test_phenyl_ester_oxygen_side_raises():
+    # The benzene ring attached via the ester oxygen (an aryl ester, e.g.
+    # phenyl acetate) rather than the acyl chain is out of scope for this
+    # first slice (module docstring: R' must be a plain unbranched alkyl).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=O)Oc1ccccc1")
+
+
+def test_phenyl_substituted_benzene_ring_ester_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(=O)OC")
+
+
+def test_phenyl_acyl_chain_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC(=O)OC")
 
 
 def test_acyl_carbon_off_longest_chain_raises():
