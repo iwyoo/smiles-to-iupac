@@ -49,9 +49,12 @@ from ._common import (
     bfs,
     carbon_adjacency,
     halogen_substituents,
+    is_plain_benzene_ring,
     lowest_locant_set,
     non_single_bonds,
+    ordered_chain,
     path_between,
+    ring_chain_attachment,
     ring_cycle,
 )
 from ._numerals import alkane_name, numerical_term
@@ -92,7 +95,19 @@ def has_diazonium_shape(mol) -> bool:
     return bool(_diazonium_nitrogens(mol))
 
 
-def _validate_and_collect_diazonium(mol):
+def _validate_and_collect_diazonium(mol, aromatic_ring_atoms=frozenset()):
+    """(diazonium_carbon_idx, diazonium_atom_idxs) after checking the
+    molecule fits this module's scope (see module docstring).
+
+    `aromatic_ring_atoms`: atom indices already independently verified (by
+    the caller, before this function runs) to form a single plain benzene
+    ring with exactly one exocyclic attachment -- exempted from the
+    aromatic-atom rejection and the unconditional ring rejection below so
+    `name_diazonium`'s benzene-ring-substituent path (see
+    `_name_phenyl_chain_diazonium`) can reuse this same validation for the
+    rest of the molecule. Empty by default, so every other caller's
+    behavior is unchanged. Mirrors `_sulfonic_acid.py`'s equivalent
+    aromatic-exemption pattern."""
     nitrogens = _diazonium_nitrogens(mol)
     if not nitrogens:
         raise UnsupportedStructure(
@@ -113,7 +128,7 @@ def _validate_and_collect_diazonium(mol):
         atomic_num = atom.GetAtomicNum()
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module"
                 )
@@ -134,7 +149,7 @@ def _validate_and_collect_diazonium(mol):
             "a structure with no carbon atom has no hydrocarbon parent "
             "hydride to substitute"
         )
-    if mol.GetRingInfo().NumRings() > 0:
+    if not aromatic_ring_atoms and mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(
             "a ring other than a single, otherwise-unsubstituted saturated "
             "monocyclic carbon ring is not supported yet"
@@ -338,10 +353,78 @@ def _substituents_for_chain(graph, chain, halogens, excluded):
     return substituents
 
 
+def _name_phenyl_chain_diazonium(mol, ring_atoms):
+    """Name a diazonium cation whose -N#N+ lies entirely on a single
+    unbranched chain hanging off one atom of an otherwise-plain,
+    unsubstituted benzene ring -- e.g. 3-phenylpropane-1-diazonium. The
+    ring is cited as a 'phenyl' substituent prefix (via `name_branch`'s
+    aromatic-ring recognition) on the chain, which is the parent hydride,
+    mirroring `_sulfonic_acid.py`'s `_name_phenyl_chain_sulfonic_acid`.
+    Narrower than the acyclic path above: no chain unsaturation."""
+    diazonium_carbon, excluded = _validate_and_collect_diazonium(mol, aromatic_ring_atoms=ring_atoms)
+    if diazonium_carbon in ring_atoms:
+        raise UnsupportedStructure(
+            "a diazonium group directly attached to the benzene ring "
+            "(benzenediazonium-style naming) is out of scope for this "
+            "module (see the separate aromatic-ring module)"
+        )
+    non_ring_unsaturation = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in excluded and b[1] not in excluded and b[0] not in ring_atoms and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent "
+            "diazonium chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain diazonium is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, excluded)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside a "
+            "diazonium group is not supported yet"
+        )
+    if diazonium_carbon not in chain:
+        raise UnsupportedStructure(
+            "the diazonium carbon must lie on the chain hanging off the "
+            "benzene ring for this benzene-substituent path"
+        )
+
+    chain_length = len(chain)
+    halogens = halogen_substituents(mol)
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        diazonium_locant = position_of[diazonium_carbon]
+        substituents = {
+            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+        }
+        key, name = _candidate_key(chain_length, diazonium_locant, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_diazonium(mol) -> str:
     ring_name = _unsubstituted_monocyclic_ring_diazonium_name(mol)
     if ring_name is not None:
         return ring_name
+
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_diazonium(mol, ring_atoms)
 
     diazonium_carbon, excluded = _validate_and_collect_diazonium(mol)
     graph = adjacency(mol)
