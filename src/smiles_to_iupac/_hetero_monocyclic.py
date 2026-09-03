@@ -69,7 +69,11 @@ C3H4N2, pyrimidine C4H4N2, etc. -- see `_RETAINED_NAME_SMILES` and
 
 Saturated rings, two heteroatoms, unsubstituted only: the 6-membered
 1,4-related pairs (N+O morpholine, N+N piperazine, N+S thiomorpholine,
-O+O 1,4-dioxane, O+S 1,4-oxathiane, S+S 1,4-dithiane), the 5-membered
+O+O 1,4-dioxane, O+S 1,4-oxathiane, S+S 1,4-dithiane, N+Se
+selenomorpholine, N+Te telluromorpholine, O+Se 1,4-oxaselenane, O+Te
+1,4-oxatellurane, S+Se 1,4-thiaselenane, S+Te 1,4-thiatellurane, Se+Se
+1,4-diselenane, Te+Te 1,4-ditellurane -- Se+Te has no name registered
+in PubChem and stays out of scope), the 5-membered
 1,3-related pairs (N+N imidazolidine, N+O 1,3-oxazolidine, N+S
 1,3-thiazolidine, O+O 1,3-dioxolane, O+S 1,3-oxathiolane, S+S
 1,3-dithiolane), and the 5-membered 1,2-related pairs (N+N pyrazolidine,
@@ -213,6 +217,14 @@ _TWO_HETEROATOM_SATURATED_NAME_SMILES = {
     frozenset(("O", "O")): ("1,4-dioxane", "C1COCCO1"),
     frozenset(("O", "S")): ("1,4-oxathiane", "C1COCCS1"),
     frozenset(("S", "S")): ("1,4-dithiane", "C1CSCCS1"),
+    frozenset(("N", "Se")): ("selenomorpholine", "C1CNCC[Se]1"),
+    frozenset(("N", "Te")): ("telluromorpholine", "C1CNCC[Te]1"),
+    frozenset(("O", "Se")): ("1,4-oxaselenane", "C1COCC[Se]1"),
+    frozenset(("O", "Te")): ("1,4-oxatellurane", "C1COCC[Te]1"),
+    frozenset(("S", "Se")): ("1,4-thiaselenane", "C1CSCC[Se]1"),
+    frozenset(("S", "Te")): ("1,4-thiatellurane", "C1CSCC[Te]1"),
+    frozenset(("Se", "Se")): ("1,4-diselenane", "C1C[Se]CC[Se]1"),
+    frozenset(("Te", "Te")): ("1,4-ditellurane", "C1C[Te]CC[Te]1"),
 }
 _FIVE_MEMBERED_1_3_TWO_HETEROATOM_NAME_SMILES = {
     frozenset(("N", "N")): ("imidazolidine", "C1CNCN1"),
@@ -282,10 +294,12 @@ def saturated_two_heteroatom_1_4_ring_name(elements):
     1,4-related two-heteroatom saturated ring whose heteroatom elements
     are `elements` (an (element, element) pair or frozenset, e.g.
     ('N', 'O') -> 'morpholine'), or None if that element pair isn't one
-    of the six in P-22.2.1's scope (morpholine/piperazine/
-    thiomorpholine/1,4-dioxane/1,4-oxathiane/1,4-dithiane -- other
-    element pairs (Se/Te included), and other ring sizes/relationships,
-    have no retained name and are out of scope). Exposed for
+    of the fourteen in scope (morpholine/piperazine/thiomorpholine/
+    1,4-dioxane/1,4-oxathiane/1,4-dithiane, plus their Se/Te analogues
+    selenomorpholine/telluromorpholine/1,4-oxaselenane/1,4-oxatellurane/
+    1,4-thiaselenane/1,4-thiatellurane/1,4-diselenane/1,4-ditellurane --
+    Se+Te has no PubChem-registered name and stays out of scope, and
+    other ring sizes/relationships are out of scope too). Exposed for
     `_ketone.py`'s hetero-ring ketone naming, which needs the bare stem
     name rather than a full unsubstituted-molecule match."""
     entry = _TWO_HETEROATOM_SATURATED_NAME_SMILES.get(frozenset(elements))

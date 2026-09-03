@@ -155,12 +155,12 @@ def test_ring_size_outside_scope_raises():
 
 
 def test_two_heteroatoms_raises():
-    # 1,4-oxaselenane (an O+Se pair): two ring heteroatoms, out of scope
-    # here -- unlike morpholine/piperazine/thiomorpholine/1,4-dioxane/
-    # 1,4-oxathiane/1,4-dithiane (N+O/N+N/N+S/O+O/O+S/S+S) below,
-    # Se/Te-containing pairs have no retained name in this module's scope.
+    # 1,4-related Se+Te pair: two ring heteroatoms, out of scope here --
+    # unlike every other pair below (including the other Se/Te-containing
+    # ones), this one specific combination has no name registered in
+    # PubChem, so it stays unsupported.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1COCC[Se]1")
+        smiles_to_iupac("[Te]1CC[Se]CC1")
 
 
 @pytest.mark.parametrize(
@@ -180,6 +180,29 @@ def test_two_heteroatoms_raises():
     ],
 )
 def test_two_heteroatom_saturated_ring_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # 1,4-related two-heteroatom saturated 6-membered rings whose pair
+        # includes Se and/or Te -- PubChem-verified: selenomorpholine,
+        # telluromorpholine, 1,4-oxaselenane, 1,4-oxatellurane,
+        # 1,4-thiaselenane, 1,4-thiatellurane, 1,4-diselenane,
+        # 1,4-ditellurane (Se+Te itself has no registered name -- see
+        # `test_two_heteroatoms_raises` above).
+        ("C1CNCC[Se]1", "selenomorpholine"),
+        ("C1CNCC[Te]1", "telluromorpholine"),
+        ("C1COCC[Se]1", "1,4-oxaselenane"),
+        ("C1COCC[Te]1", "1,4-oxatellurane"),
+        ("C1CSCC[Se]1", "1,4-thiaselenane"),
+        ("C1CSCC[Te]1", "1,4-thiatellurane"),
+        ("C1C[Se]CC[Se]1", "1,4-diselenane"),
+        ("C1C[Te]CC[Te]1", "1,4-ditellurane"),
+    ],
+)
+def test_two_heteroatom_saturated_ring_names_se_te(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

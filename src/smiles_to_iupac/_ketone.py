@@ -241,7 +241,11 @@ _TWO_HETERO_RING_SIZE = 6
 # P-22.2.1 element seniority for locant 1 (Table 2.8's replacement-nomenclature
 # order O > S > N, confirmed via PubChem's own 'oxathian-3-one' citing O at
 # locant 1 and S at locant 4): the strictly lower value always wins, so O
-# outranks S which outranks N.
+# outranks S which outranks N. Se/Te are deliberately absent here -- the
+# unsubstituted-ring names for Se/Te-containing 1,4-pairs are supported
+# (`_hetero_monocyclic.py`), but PubChem has no registered name for any
+# ketone on those rings to confirm the locant this priority table would
+# pick, so the ketone axis for Se/Te pairs stays out of scope.
 _TWO_HETERO_PRIORITY = {"O": 0, "S": 1, "N": 2}
 _FIVE_MEMBERED_1_3_RING_ELEMENT_PAIRS = {
     frozenset(("N", "N")),
