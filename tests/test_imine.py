@@ -106,3 +106,39 @@ def test_imine_specified_chain_stereocenter_raises():
     # project's stereodescriptor safety net exists to fix.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC[C@@H](C)C(C)=N")
+
+
+def test_phenyl_chain_imine():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring
+    # `_sulfonic_acid.py`'s phenyl-chain path): the ring is cited as a
+    # "phenyl" substituent prefix. PubChem PUG REST: "2-phenylethanimine"/
+    # "3-phenylpropan-1-imine"/"1-phenylpropan-2-imine" (ketimine, internal
+    # locant) -- all exact matches, including the two-carbon and
+    # mononuclear locant-omission rules this module already gets right.
+    assert smiles_to_iupac("c1ccccc1CC=N") == "2-phenylethanimine"
+    assert smiles_to_iupac("c1ccccc1CCC=N") == "3-phenylpropan-1-imine"
+    assert smiles_to_iupac("c1ccccc1CC(C)=N") == "1-phenylpropan-2-imine"
+
+
+def test_phenyl_directly_attached_imine():
+    # The imine carbon directly on the ring (chain length 1, e.g.
+    # benzaldimine) is still a valid mononuclear-chain case for this
+    # module -- P-14.3.4.2(a) omits the phenyl substituent's own locant
+    # too. PubChem PUG REST: "phenylmethanimine".
+    assert smiles_to_iupac("c1ccccc1C=N") == "phenylmethanimine"
+
+
+def test_phenyl_substituted_benzene_ring_imine_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC=N")
+
+
+def test_phenyl_chain_imine_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC=N")
+
+
+def test_phenyl_chain_n_substituted_imine_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1CC=NC")

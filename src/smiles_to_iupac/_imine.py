@@ -101,8 +101,12 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    is_plain_benzene_ring,
     longest_chains,
     lowest_locant_set,
+    non_single_bonds,
+    ordered_chain,
+    ring_chain_attachment,
     specified_stereocenters,
 )
 from ._numerals import alkane_name
@@ -121,13 +125,22 @@ def has_simple_imine_shape(mol) -> bool:
     )
 
 
-def _validate_and_find_imine(mol):
+def _validate_and_find_imine(mol, aromatic_ring_atoms=frozenset()):
     """Check the molecule fits this module's scope (see module docstring)
     and return (imine_carbon_idx, imine_nitrogen_idx, n_substituent_root,
     oxime_oxygen_idx, oxime_alkyl_root). The last two are only set for an
     oxime/O-alkyl oxime ether (oxime_alkyl_root stays None for a plain
     -OH); n_substituent_root and the oxime pair are mutually exclusive,
-    since the imine nitrogen has only one substituent position free."""
+    since the imine nitrogen has only one substituent position free.
+
+    `aromatic_ring_atoms`: atom indices already independently verified (by
+    the caller, before this function runs) to form a single plain benzene
+    ring with exactly one exocyclic attachment -- exempted from the
+    aromatic-atom rejection below so `name_imine`'s benzene-ring-
+    substituent path (see `_name_phenyl_chain_imine`) can reuse this same
+    validation for the rest of the molecule. Empty by default, so every
+    other caller's behavior is unchanged. Mirrors `_sulfonic_acid.py`'s
+    equivalent aromatic-exemption pattern."""
     imine_bonds = [
         bond
         for bond in mol.GetBonds()
@@ -178,11 +191,11 @@ def _validate_and_find_imine(mol):
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atomic_num == 6 and atom.GetIsAromatic():
+        if atomic_num == 6 and atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
             raise UnsupportedStructure("aromatic rings are out of scope for this module")
         if atomic_num == 7 and atom.GetIsAromatic():
             raise UnsupportedStructure("an aromatic nitrogen is out of scope for this module")
-    if mol.GetRingInfo().NumRings() != 0:
+    if not aromatic_ring_atoms and mol.GetRingInfo().NumRings() != 0:
         raise UnsupportedStructure("a ring anywhere in the molecule is out of scope for this module")
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
@@ -190,7 +203,11 @@ def _validate_and_find_imine(mol):
     other_non_single = [
         bond
         for bond in mol.GetBonds()
-        if bond.GetBondTypeAsDouble() != 1.0 and bond.GetIdx() != imine_bond.GetIdx()
+        if bond.GetBondTypeAsDouble() != 1.0
+        and bond.GetIdx() != imine_bond.GetIdx()
+        and not (
+            bond.GetBeginAtomIdx() in aromatic_ring_atoms and bond.GetEndAtomIdx() in aromatic_ring_atoms
+        )
     ]
     if other_non_single:
         raise UnsupportedStructure(
@@ -238,7 +255,12 @@ def _substituents_for_chain(graph, chain, halogens, exclude):
 
 
 def _name_from_substituents(chain_length, imine_locant, grouped):
-    prefix = format_substituent_prefixes(grouped)
+    # P-14.3.4.2(a): a mononuclear parent's substituent locants (not just
+    # the imine's own) are always '1' and never cited either -- unreachable
+    # before the benzene-ring-substituent chain-length-1 case (a bare
+    # methanimine carbon has no room for any other substituent), so this
+    # branch was never previously exercised.
+    prefix = format_substituent_prefixes(grouped, omit_locants=(chain_length == 1))
     # 'imine' always starts with a vowel, so the alkane stem's trailing 'e'
     # is always elided (P-16.3.3 / P-16.6), whether or not a locant lands
     # between them -- 'methanimine', 'propan-2-imine', not 'methaneimine'/
@@ -297,7 +319,86 @@ def _name_acyclic_imine(mol, imine_carbon, exclude):
     return best_name
 
 
+def _name_phenyl_chain_imine(mol, ring_atoms):
+    """Name a plain (no N-substituent, no oxime) imine whose C=N lies
+    entirely on a single unbranched chain hanging off one atom of an
+    otherwise-plain, unsubstituted benzene ring -- e.g.
+    3-phenylpropan-1-imine. The ring is cited as a 'phenyl' substituent
+    prefix (via `name_branch`'s aromatic-ring recognition) on the chain,
+    which is the parent hydride, mirroring `_sulfonic_acid.py`'s
+    `_name_phenyl_chain_sulfonic_acid`. Unlike a carboxylic-acid-style
+    chain terminus, the imine carbon's own locant is a genuine choice
+    (P-62.3.1.1), same as the sulfonic acid group."""
+    imine_carbon, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root = (
+        _validate_and_find_imine(mol, aromatic_ring_atoms=ring_atoms)
+    )
+    if n_substituent_root is not None or oxime_oxygen_idx is not None:
+        raise UnsupportedStructure(
+            "an N-substituted imine or an oxime alongside a benzene-ring "
+            "substituent is not supported yet"
+        )
+    if specified_stereocenters(mol) is not None:
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside this module's own "
+            "always-unspecified C=N bond is not supported yet (see "
+            "P-92/P-93, module docstring)"
+        )
+
+    exclude = {imine_nitrogen}
+    non_ring_unsaturation = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in exclude and b[1] not in exclude and b[0] not in ring_atoms and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent "
+            "imine chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain imine is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, exclude)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside an "
+            "imine is not supported yet"
+        )
+    if imine_carbon not in chain:
+        raise UnsupportedStructure(
+            "the imine carbon must lie on the chain hanging off the "
+            "benzene ring for this benzene-substituent path"
+        )
+
+    chain_length = len(chain)
+    halogens = halogen_substituents(mol)
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        imine_locant = _imine_locant(position_of, imine_carbon)
+        substituents = {
+            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+        }
+        key, name = _candidate_key(chain_length, imine_locant, substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_imine(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_imine(mol, ring_atoms)
+
     imine_carbon, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root = _validate_and_find_imine(
         mol
     )
