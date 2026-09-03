@@ -178,3 +178,53 @@ def test_amine_partially_specified_stereocenters_raises():
     # raise rather than silently dropping the marker.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("N[C@H]1CCCCC1Cl")
+
+
+def test_phenyl_chain_amine():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring `_thiol.py`'s
+    # `test_phenyl_chain_thiol`): the ring is cited as a "phenyl"
+    # substituent prefix. PubChem PUG REST: "phenylmethanamine"/
+    # "3-phenylpropan-1-amine" (both exact matches; the two-carbon case
+    # "2-phenylethan-1-amine" keeps its locant unlike PubChem's
+    # locant-omitted "2-phenylethanamine" -- same known, out-of-scope-here
+    # limitation as `_thiol.py`'s own two-carbon phenyl-chain case).
+    assert smiles_to_iupac("c1ccccc1CN") == "phenylmethanamine"
+    assert smiles_to_iupac("c1ccccc1CCN") == "2-phenylethan-1-amine"
+    assert smiles_to_iupac("c1ccccc1CCCN") == "3-phenylpropan-1-amine"
+
+
+def test_phenyl_chain_amine_internal_locant():
+    # The -NH2 locant is a genuine choice on the chain, same as the base
+    # acyclic module. PubChem PUG REST: "1-phenylpropan-2-amine".
+    assert smiles_to_iupac("C(c1ccccc1)C(C)N") == "1-phenylpropan-2-amine"
+
+
+def test_phenyl_directly_attached_amine_raises():
+    # Aniline-type naming (-NH2 directly on the ring) is a separate
+    # construction, out of scope for this acyclic-chain-parent module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1N")
+
+
+def test_phenyl_substituted_benzene_ring_amine_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CCN")
+
+
+def test_phenyl_chain_amine_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CCN")
+
+
+def test_phenyl_chain_diamine_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C(N)CCN")
+
+
+def test_phenyl_chain_secondary_amine_raises():
+    # A secondary/tertiary amine nitrogen alongside a ring is out of
+    # scope, same as the existing (non-phenyl-chain) ring guard in
+    # `name_amine`.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1CCNC")
