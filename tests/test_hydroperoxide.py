@@ -45,3 +45,30 @@ def test_ring_not_supported():
 def test_two_hydroperoxide_groups_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OOCCOO")
+
+
+def test_phenyl_chain_hydroperoxide():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring PR #269-#287's
+    # carboxylic-acid/.../sulfinamide chains): the ring is cited as a
+    # "phenyl" substituent prefix.
+    assert smiles_to_iupac("c1ccccc1CCCOO") == "3-phenylpropane-1-peroxol"
+
+
+def test_phenyl_chain_hydroperoxide_internal_locant():
+    assert smiles_to_iupac("C(c1ccccc1)C(C)OO") == "1-phenylpropane-2-peroxol"
+
+
+def test_phenyl_directly_attached_hydroperoxide_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1OO")
+
+
+def test_phenyl_substituted_benzene_ring_hydroperoxide_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CCOO")
+
+
+def test_phenyl_chain_hydroperoxide_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CCOO")
