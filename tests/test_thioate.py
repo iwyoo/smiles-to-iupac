@@ -73,3 +73,28 @@ def test_thioate_stereocenter(smiles, expected):
 
 def test_thioate_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("CCC(C)C(=O)[S-]") == "2-methylbutanethioate"
+
+
+def test_phenyl_chain_thioate():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring `_carboxylate.py`'s
+    # phenyl-chain path): the ring is cited as a "phenyl" substituent
+    # prefix. PubChem PUG REST: "2-phenylethanethioate"/
+    # "3-phenylpropanethioate".
+    assert smiles_to_iupac("c1ccccc1CC(=O)[S-]") == "2-phenylethanethioate"
+    assert smiles_to_iupac("c1ccccc1CCC(=O)[S-]") == "3-phenylpropanethioate"
+
+
+def test_phenyl_directly_attached_thioate_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C(=O)[S-]")
+
+
+def test_phenyl_substituted_benzene_ring_thioate_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(=O)[S-]")
+
+
+def test_phenyl_chain_thioate_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC(=O)[S-]")
