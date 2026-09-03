@@ -121,14 +121,27 @@ def _candidate_key(chain_length, substituents):
     return (-total_count, locant_set, citation_locants, name), name
 
 
-def winning_chain_from_carbon_graph(full_graph, carbon_graph, terminals):
-    """Same P-44.3/P-45.2 tie-break as `name_from_carbon_graph` below, but
-    also returns the winning candidate chain itself (root-to-tip, in the
-    direction that won), not just its name -- used by a caller (e.g.
-    `_acetal.py`) that additionally needs to locate a specific atom's
-    position on that chain, such as for a stereodescriptor's locant
-    (P-91.3). Kept as the single source of truth so `name_from_carbon_graph`
-    and any such caller can never disagree about which chain was chosen."""
+def longest_chain_length(carbon_graph) -> int:
+    """P-44.3's own top-level criterion (greater number of skeletal atoms in
+    the chain) applied to a single candidate side, before any P-45.2
+    locant-set tie-break: the length of the longest simple path in
+    `carbon_graph`. Used by `_ether.py`/`_peroxide.py`/`_sulfide.py`/
+    `_selenide.py`/`_telluride.py` to compare two candidate parent sides
+    that tie in total skeletal-atom count but not necessarily in the length
+    of the chain each would actually use as its own parent hydride (e.g. a
+    neopentyl arm's 5 carbons max out at chain length 3 around its
+    quaternary carbon, while an isopentyl arm's 5 carbons reach chain
+    length 4 -- PubChem CID-confirmed `CC(C)(C)COCCC(C)C` ->
+    '1-(2,2-dimethylpropoxy)-3-methylbutane' picks the isopentyl side as
+    parent on this basis alone, before any locant-set comparison is even
+    needed)."""
+    return len(_longest_chains(carbon_graph)[0])
+
+
+def _best_candidate(full_graph, carbon_graph, terminals):
+    """Shared search behind `winning_chain_from_carbon_graph` and
+    `winning_chain_with_key`: every candidate chain/direction's P-45.2 sort
+    key, alongside the winning chain and name."""
     chains = _longest_chains(carbon_graph)
     chain_length = len(chains[0])
 
@@ -142,7 +155,30 @@ def winning_chain_from_carbon_graph(full_graph, carbon_graph, terminals):
             if best_key is None or key < best_key:
                 best_key, best_chain, best_name = key, candidate, name
 
-    return best_chain, best_name
+    return best_key, best_chain, best_name
+
+
+def winning_chain_from_carbon_graph(full_graph, carbon_graph, terminals):
+    """Same P-44.3/P-45.2 tie-break as `name_from_carbon_graph` below, but
+    also returns the winning candidate chain itself (root-to-tip, in the
+    direction that won), not just its name -- used by a caller (e.g.
+    `_acetal.py`) that additionally needs to locate a specific atom's
+    position on that chain, such as for a stereodescriptor's locant
+    (P-91.3). Kept as the single source of truth so `name_from_carbon_graph`
+    and any such caller can never disagree about which chain was chosen."""
+    _, chain, name = _best_candidate(full_graph, carbon_graph, terminals)
+    return chain, name
+
+
+def winning_chain_with_key(full_graph, carbon_graph, terminals):
+    """Same as `winning_chain_from_carbon_graph`, but also exposes the
+    P-45.2 sort key (lowest locant set, then alphanumerical order) used to
+    pick it. A caller comparing two *different* candidate parent sides of
+    equal `longest_chain_length` (e.g. an isobutyl arm vs. a tert-butyl arm,
+    both built on a 3-long chain) can compare their keys directly to decide
+    which side is senior, the same way this function's own inner loop
+    already decides between numbering directions of one fixed chain."""
+    return _best_candidate(full_graph, carbon_graph, terminals)
 
 
 def name_from_carbon_graph(full_graph, carbon_graph, terminals) -> str:

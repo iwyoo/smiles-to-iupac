@@ -40,9 +40,43 @@ def test_ether(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_ether_both_sides_branched_and_tied_out_of_scope():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)OC(C)C")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Fully symmetric tie (PubChem CID-confirmed 'CC(C)OC(C)C' ->
+        # '2-propan-2-yloxypropane'): either side works as parent, so any
+        # tie-break gives the same answer.
+        ("CC(C)OC(C)C", "2-(propan-2-yl)oxypropane"),
+        # Tied total carbon count (4 each) and tied longest-chain length too
+        # (both an isobutyl and a tert-butyl arm reduce to a
+        # 2-methylpropane skeleton, chain length 3) -- the decider is the
+        # locant set each side gives as parent: isobutyl-as-parent {1,2}
+        # vs. tert-butyl-as-parent {2,2}, so isobutyl wins. PubChem
+        # CID-confirmed: 'CC(C)COC(C)(C)C' ->
+        # '2-methyl-1-[(2-methylpropan-2-yl)oxy]propane' (this project
+        # retains 'tert-butyl' rather than PubChem's systematic
+        # '2-methylpropan-2-yl', per `_substituents.py`'s existing
+        # P-29.6.1 special case, and cites prefixes alphabetically --
+        # 'butyloxy' before 'methyl' -- unaffected by this task).
+        ("CC(C)COC(C)(C)C", "1-tert-butyloxy-2-methylpropane"),
+        # Tied total carbon count (5 each) but different longest achievable
+        # chain: a neopentyl arm's 5 carbons max out at chain length 3
+        # around its quaternary carbon, while an isopentyl arm's 5 carbons
+        # reach chain length 4 -- isopentyl wins outright, no locant-set
+        # comparison needed. PubChem CID-confirmed: 'CC(C)(C)COCCC(C)C' ->
+        # '1-(2,2-dimethylpropoxy)-3-methylbutane'.
+        ("CC(C)(C)COCCC(C)C", "1-(2,2-dimethylpropyl)oxy-3-methylbutane"),
+        # Tied total carbon count (4 each) but different longest achievable
+        # chain: an isobutyl arm's own chain (used as parent) tops out at
+        # length 3 (its 4th carbon has to be a methyl branch), while a
+        # sec-butyl arm's own chain is a plain, unbranched 4-long butane --
+        # sec-butyl wins outright, no locant-set comparison needed. PubChem
+        # CID-confirmed: 'CC(C)COC(C)CC' -> '2-(2-methylpropoxy)butane'.
+        ("CC(C)COC(C)CC", "2-(2-methylpropyl)oxybutane"),
+    ],
+)
+def test_ether_both_sides_branched_and_tied(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(

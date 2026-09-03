@@ -28,6 +28,20 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   `_acyclic.py`'s `winning_chain_from_carbon_graph` for the parent
   chain's locant lookup. A stereocenter on the alkoxy (R') substituent
   branch remains out of scope (raises `UnsupportedStructure`).
+- A tie in total skeletal-atom count between the two chains is resolved in
+  two steps, both reusing `_acyclic.py`'s existing P-44.3/P-45.2 machinery
+  rather than a new algorithm: first by each side's own longest achievable
+  chain length (`longest_chain_length` -- e.g. a neopentyl arm's 5 carbons
+  max out at chain length 3 around its quaternary carbon, while an
+  isopentyl arm's 5 carbons reach chain length 4, so isopentyl wins
+  outright, PubChem CID-confirmed 'CC(C)(C)COCCC(C)C' ->
+  '1-(2,2-dimethylpropoxy)-3-methylbutane'); only if that also ties (both
+  sides reduce to the same chain length, e.g. an isobutyl arm vs. a
+  tert-butyl arm, both length 3) does the choice fall to comparing each
+  side's resulting locant set as parent (`winning_chain_with_key`,
+  PubChem CID-confirmed 'CC(C)COC(C)(C)C' ->
+  '2-methyl-1-[(2-methylpropan-2-yl)oxy]propane': isobutyl-as-parent gets
+  locants {1,2}, tert-butyl-as-parent gets {2,2}, so isobutyl wins).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - More than one oxygen, or an oxygen not shaped like a plain ether (degree
@@ -35,12 +49,9 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   before this one is even tried.
 - Any unsaturation, any ring, or any heteroatom other than the single ether
   oxygen.
-- A tie in skeletal-atom count between the two chains where neither side
-  can serve as the (necessarily unbranched) R'-substituent side, i.e. both
-  chains are branched.
 """
 
-from ._acyclic import winning_chain_from_carbon_graph
+from ._acyclic import longest_chain_length, winning_chain_from_carbon_graph, winning_chain_with_key
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -106,15 +117,21 @@ def name_ether(mol) -> str:
     size2 = len(_component_subgraph(carbon_graph, n2))
 
     if size1 == size2:
-        name_a, compound_a = name_branch(full_graph, n1, oxygen_idx, {})
-        name_b, compound_b = name_branch(full_graph, n2, oxygen_idx, {})
-        if compound_a and compound_b:
-            raise UnsupportedStructure(
-                "an ether tied in skeletal-atom count with both sides "
-                "branched is not supported yet (see P-63.2.2.1.1's "
-                "enclosure interaction, module docstring)"
-            )
-        parent_root, sub_root = (n2, n1) if compound_a else (n1, n2)
+        graph_a = _component_subgraph(carbon_graph, n1)
+        graph_b = _component_subgraph(carbon_graph, n2)
+        len_a, len_b = longest_chain_length(graph_a), longest_chain_length(graph_b)
+        if len_a > len_b:
+            parent_root, sub_root = n1, n2
+        elif len_b > len_a:
+            parent_root, sub_root = n2, n1
+        else:
+            name_a, compound_a = name_branch(full_graph, n1, oxygen_idx, {})
+            name_b, compound_b = name_branch(full_graph, n2, oxygen_idx, {})
+            sub_from_a = f"({name_a})" if compound_a else name_a
+            sub_from_b = f"({name_b})" if compound_b else name_b
+            key_a, _, _ = winning_chain_with_key(full_graph, graph_a, {oxygen_idx: _oxy_prefix(sub_from_b)})
+            key_b, _, _ = winning_chain_with_key(full_graph, graph_b, {oxygen_idx: _oxy_prefix(sub_from_a)})
+            parent_root, sub_root = (n1, n2) if key_a <= key_b else (n2, n1)
     elif size1 > size2:
         parent_root, sub_root = n1, n2
     else:
