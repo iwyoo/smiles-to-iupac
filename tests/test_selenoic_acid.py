@@ -50,3 +50,33 @@ def test_unsaturated_chain_not_supported():
 def test_two_selenoic_acid_groups_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[SeH]C(=O)CC(=O)[SeH]")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+        # aromatic-ring-substituent extension, mirroring PR #269-#280's
+        # carboxylic-acid/ketone/alcohol/ester/aldehyde/amide/nitrile/
+        # acyl-halide/sulfonic-acid/thiol/sulfinic-acid/thioic-acid
+        # chains): the ring is cited as a "phenyl" substituent prefix.
+        # This module never supports any other substituent, so the ring
+        # is always at the chain's far terminus with no locant tie-break
+        # needed.
+        ("c1ccccc1CC(=O)[SeH]", "2-phenylethaneselenoic Se-acid"),
+        ("c1ccccc1CCC(=O)[SeH]", "3-phenylpropaneselenoic Se-acid"),
+        ("c1ccccc1CC(=[Se])O", "2-phenylethaneselenoic O-acid"),
+    ],
+)
+def test_phenyl_chain_selenoic_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_phenyl_directly_attached_selenoic_acid_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C(=O)[SeH]")
+
+
+def test_phenyl_substituted_benzene_ring_selenoic_acid_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(=O)[SeH]")
