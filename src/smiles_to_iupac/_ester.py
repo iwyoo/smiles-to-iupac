@@ -72,11 +72,14 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    is_plain_benzene_ring,
     linear_branch,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    ordered_chain,
+    ring_chain_attachment,
     specified_stereocenters,
 )
 from ._numerals import alkane_name, alkyl_name
@@ -379,13 +382,18 @@ def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, ste
     return best_name
 
 
-def name_ester(mol) -> str:
-    if mol.GetRingInfo().NumRings() > 0:
-        raise UnsupportedStructure(
-            "a ring-attached ester or lactone uses a different naming "
-            "construction (P-65.6.3.2/P-65.6.3.3), out of scope for this "
-            "acyclic-only module"
-        )
+def _validate_ester_atoms(mol, aromatic_ring_atoms=frozenset()):
+    """Check the molecule's atoms fit this module's scope (see module
+    docstring): only C/O/halogen, no charges/isotopes, no aromatic carbon
+    outside `aromatic_ring_atoms`, and at least one carbon.
+
+    `aromatic_ring_atoms`: atom indices already independently verified (by
+    the caller, before this function runs) to form a single plain benzene
+    ring with exactly one exocyclic attachment -- exempted from the
+    aromatic-atom rejection below so `name_ester`'s benzene-ring-
+    substituent path (see `_name_phenyl_acyl_ester`) can reuse this same
+    validation for the rest of the molecule. Empty by default, so every
+    other caller's behavior is unchanged."""
     has_carbon = False
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
@@ -398,7 +406,7 @@ def name_ester(mol) -> str:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module (see "
                     "the separate aromatic-ring module)"
@@ -414,6 +422,96 @@ def name_ester(mol) -> str:
         )
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
+
+
+def _name_phenyl_acyl_ester(mol, ring_atoms):
+    """Name an ester whose acyl part (R-CO-) chain hangs off a single
+    unbranched chain attached to an otherwise-plain, unsubstituted benzene
+    ring -- e.g. 'methyl 3-phenylpropanoate'. Mirrors
+    `_carboxylic_acid.py`'s `_name_phenyl_chain_carboxylic_acid` and
+    `_alcohol.py`'s `_name_phenyl_chain_alcohol`, adapted for the ester's
+    two-word (alcohol + acyl) name -- the alcohol part (R') is always a
+    plain unbranched chain regardless (module docstring), so a ring can
+    only appear on the acyl side; `_name_alcohol_part` is reused unchanged
+    for it. Narrower than the general acyl path: no chain unsaturation and
+    no specified stereocenter -- each a separate follow-up (see
+    tasks/phenyl-substituent-on-ester-chain.md's scope note)."""
+    _validate_ester_atoms(mol, aromatic_ring_atoms=ring_atoms)
+    acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon = _find_ester_group(mol)
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a benzene-ring-substituent "
+            "ester acyl chain is not supported yet"
+        )
+    excluded_oxygens = {carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx()}
+    non_ring_unsaturation = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in excluded_oxygens
+        and b[1] not in excluded_oxygens
+        and b[0] not in ring_atoms
+        and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent ester "
+            "acyl chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain ester is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, excluded_oxygens)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside an "
+            "ester is not supported yet"
+        )
+    acyl_carbon_idx = acyl_carbon.GetIdx()
+    if chain[-1] != acyl_carbon_idx:
+        raise UnsupportedStructure(
+            "the ester's acyl carbon must be the chain's far terminus from "
+            "the benzene ring for this benzene-substituent path"
+        )
+    if len(chain) < 2:
+        raise UnsupportedStructure(
+            "an ester group directly attached to the benzene ring (no "
+            "intervening chain carbon) is out of scope for this "
+            "acyclic-chain-parent module"
+        )
+
+    alcohol_name = _name_alcohol_part(mol, alcohol_carbon, ester_oxygen.GetIdx())
+
+    ordered = list(reversed(chain))
+    chain_length = len(ordered)
+    position_of = {atom: i + 1 for i, atom in enumerate(ordered)}
+    halogens = halogen_substituents(mol)
+    substituents = {
+        position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+    }
+    grouped = group_substituents(substituents)
+    acyl_name = _name_from_substituents(chain_length, [], [], grouped)
+    return f"{alcohol_name} {acyl_name}"
+
+
+def name_ester(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_acyl_ester(mol, ring_atoms)
+    if ring_info.NumRings() > 0:
+        raise UnsupportedStructure(
+            "a ring-attached ester or lactone uses a different naming "
+            "construction (P-65.6.3.2/P-65.6.3.3), out of scope for this "
+            "acyclic-only module"
+        )
+    _validate_ester_atoms(mol)
 
     acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon = _find_ester_group(mol)
     stereo = specified_stereocenters(mol)
