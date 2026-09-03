@@ -163,6 +163,15 @@ parent names (`saturated_five_membered_1_2_two_heteroatom_ring_name`) --
 so `O=C1CCOO1`/`O=C1CCOS1`/`O=C1CCSS1` are named
 '1,2-dioxolan-3-one'/'1,2-oxathiolan-3-one'/'1,2-dithiolan-3-one' here.
 
+The dione form of this 1,2-shape likewise allows a single plain,
+unbranched, unsubstituted alkyl substituent on its sole remaining plain
+ring carbon, mirroring the 1,3-case's identical hydantoin rule above --
+the single-ketone form stays excluded for the same reason (two plain
+ring carbons remain, and picking which one carries the substituent would
+need a new locant tie-break rule this module doesn't implement).
+PubChem-confirmed: `O=C1C(C)C(=O)NN1` -> '4-methylpyrazolidine-3,5-dione'
+(CID 12391681).
+
 Unlike -OH/-NH2, a ketone carbon can never itself also be a C=C/C#C alkene
 carbon (its two remaining bonds, after the C=O double bond, are already
 committed to its two required carbon substituents — a ketone carbon with a
@@ -1021,7 +1030,7 @@ def _five_membered_1_2_numbering(mol, het1, het2, elements_by_atom, ketones):
 
 def _name_five_membered_1_2_ring_ketone(mol, het1, het2):
     ring_order, ketones, elements_by_atom, n_substituents = _validate_and_collect_hetero_ring_ketone(
-        mol, {het1, het2}, allow_n_substituent=True
+        mol, {het1, het2}, allow_n_substituent=True, allow_ring_carbon_substituent=True
     )
     stem = saturated_five_membered_1_2_two_heteroatom_ring_name(
         (elements_by_atom[het1], elements_by_atom[het2])

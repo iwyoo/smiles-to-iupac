@@ -341,6 +341,33 @@ def test_five_membered_1_2_ring_ketone_wrong_element_pair_raises():
         smiles_to_iupac("O=C1CC[Se]N1")
 
 
+def test_five_membered_1_2_ring_ketone_single_ketone_ring_carbon_substituent_raises():
+    # Same tie-break gap as the 1,3-ring single-ketone case: two plain
+    # ring carbons remain, and which one carries the substituent would be
+    # a new locant tie-break input this module doesn't implement.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC1CC(=O)NN1")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # An alkyl substituent on the sole remaining plain ring carbon of
+        # the 1,2-dione shape -- mirrors the 1,3-ring dione case above.
+        # PubChem-verified: 4-methylpyrazolidine-3,5-dione (CID 12391681).
+        # The O/S-containing pairs follow the same '1,2-' locant-citation
+        # rule as their unsubstituted parents (not independently
+        # PubChem-verified for the substituted form, same evidentiary
+        # gap as the unsubstituted O/S-only names above).
+        ("O=C1C(C)C(=O)NN1", "4-methylpyrazolidine-3,5-dione"),
+        ("O=C1C(C)C(=O)ON1", "4-methyl-1,2-oxazolidine-3,5-dione"),
+        ("O=C1C(C)C(=O)SN1", "4-methyl-1,2-thiazolidine-3,5-dione"),
+    ],
+)
+def test_five_membered_1_2_ring_dione_carbon_substituent_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_alcohol_hetero_mix_names_hydroxy_prefix():
     # 'one' outranks 'ol' in Table 3.3, so a coexisting -OH is cited as the
     # 'hydroxy' substituent prefix rather than rejected.
