@@ -50,9 +50,16 @@ substituent's carbons) -- acid/amide-vs-other Table 3.3 seniority
 coexistence is future work. Explicitly out of scope (raise
 `UnsupportedStructure`): a branched, unsaturated, or ring-bearing
 N-substituent, polycyclic/spiro/unsaturated rings, a -SO2NH2 on a
-substituent branch off an otherwise-unsubstituted ring, two or more
--SO2NH2 groups, and a sulfonamide on a carbon that is also part of a
-C=C/C#C bond.
+substituent branch off an otherwise-unsubstituted *saturated* ring, two
+or more -SO2NH2 groups, and a sulfonamide on a carbon that is also part
+of a C=C/C#C bond. One narrow *aromatic*-ring exception:
+`_name_phenyl_chain_sulfonamide` names a -SO2NH2 chain hanging off a
+single plain, unsubstituted benzene ring (e.g.
+'3-phenylpropane-1-sulfonamide'), mirroring `_sulfonic_acid.py`'s
+identical benzene-ring-substituent path -- narrower than the acyclic
+path: no N-alkyl substitution, no chain unsaturation, and no specified
+stereocenter, and a -SO2NH2 directly on the ring (benzenesulfonamide-
+style) stays out of scope for this module.
 """
 
 from rdkit import Chem
@@ -64,10 +71,13 @@ from ._common import (
     bfs,
     carbon_adjacency,
     halogen_substituents,
+    is_plain_benzene_ring,
     linear_branch,
     lowest_locant_set,
     non_single_bonds,
+    ordered_chain,
     path_between,
+    ring_chain_attachment,
     ring_cycle,
     specified_stereocenters,
 )
@@ -114,7 +124,14 @@ def has_sulfonamide_shape(mol) -> bool:
     return bool(_sulfonamide_sulfur_atoms(mol))
 
 
-def _validate_and_collect_sulfonamides(mol):
+def _validate_and_collect_sulfonamides(mol, aromatic_ring_atoms=frozenset()):
+    """`aromatic_ring_atoms`: atom indices already independently verified
+    (by the caller, before this function runs) to form a single plain
+    benzene ring with exactly one exocyclic attachment -- exempted from
+    the aromatic-atom rejection below so `name_sulfonamide`'s benzene-
+    ring-substituent path (see `_name_phenyl_chain_sulfonamide`) can
+    reuse this same validation for the rest of the molecule. Empty by
+    default, so every other caller's behavior is unchanged."""
     sulfur_atoms = _sulfonamide_sulfur_atoms(mol)
     if not sulfur_atoms:
         raise UnsupportedStructure(
@@ -138,7 +155,7 @@ def _validate_and_collect_sulfonamides(mol):
         atomic_num = atom.GetAtomicNum()
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module"
                 )
@@ -436,7 +453,90 @@ def _name_cyclic_sulfonamide(mol, sulfur_idx, so2nh2_carbon, n_names, stereo=Non
     return best_name
 
 
+def _name_phenyl_chain_sulfonamide(mol, ring_atoms):
+    """Name a sulfonamide whose -SO2NH2 lies entirely on a single
+    unbranched chain hanging off one atom of an otherwise-plain,
+    unsubstituted benzene ring -- e.g. 3-phenylpropane-1-sulfonamide.
+    The ring is cited as a 'phenyl' substituent prefix on the chain,
+    which is the parent hydride, mirroring
+    `_sulfonic_acid.py`'s `_name_phenyl_chain_sulfonic_acid`. Narrower
+    than the acyclic path above: no N-alkyl substitution, no chain
+    unsaturation, and no specified stereocenter -- each is a separate
+    follow-up (see
+    tasks/phenyl-substituent-on-sulfonamide-chain.md's scope note)."""
+    sulfur_idx, so2nh2_carbon, n_alkyl_carbons = _validate_and_collect_sulfonamides(
+        mol, aromatic_ring_atoms=ring_atoms
+    )
+    if n_alkyl_carbons:
+        raise UnsupportedStructure(
+            "an N-alkyl-substituted sulfonamide alongside a benzene-ring "
+            "substituent is not supported yet"
+        )
+    if so2nh2_carbon in ring_atoms:
+        raise UnsupportedStructure(
+            "a sulfonamide directly attached to the benzene ring "
+            "(benzenesulfonamide-style naming) is out of scope for this "
+            "module (see the separate aromatic-ring module)"
+        )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a benzene-ring-substituent "
+            "sulfonamide chain is not supported yet"
+        )
+    excluded = {sulfur_idx}
+    non_ring_unsaturation = [
+        b
+        for b in non_single_bonds(mol)
+        if sulfur_idx not in (b[0], b[1]) and b[0] not in ring_atoms and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent "
+            "sulfonamide chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain sulfonamide is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, excluded)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside a "
+            "sulfonamide is not supported yet"
+        )
+    if so2nh2_carbon not in chain:
+        raise UnsupportedStructure(
+            "the sulfonamide carbon must lie on the chain hanging off "
+            "the benzene ring for this benzene-substituent path"
+        )
+
+    chain_length = len(chain)
+    halogens = halogen_substituents(mol)
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        so2nh2_locant = position_of[so2nh2_carbon]
+        substituents = {
+            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+        }
+        key, name = _candidate_key(chain_length, so2nh2_locant, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_sulfonamide(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_sulfonamide(mol, ring_atoms)
     sulfur_idx, so2nh2_carbon, n_alkyl_carbons = _validate_and_collect_sulfonamides(mol)
     stereo = specified_stereocenters(mol)
     graph = adjacency(mol)

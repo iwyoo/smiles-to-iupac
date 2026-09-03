@@ -87,6 +87,38 @@ def test_sulfonamide_with_alcohol_not_supported():
         smiles_to_iupac("NS(=O)(=O)CCO")
 
 
+def test_phenyl_chain_sulfonamide():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring PR #269-#285's
+    # carboxylic-acid/.../tellone chains): the ring is cited as a
+    # "phenyl" substituent prefix.
+    assert smiles_to_iupac("c1ccccc1CCCS(=O)(=O)N") == "3-phenylpropane-1-sulfonamide"
+
+
+def test_phenyl_chain_sulfonamide_internal_locant():
+    assert smiles_to_iupac("c1ccccc1CC(C)S(=O)(=O)N") == "1-phenylpropane-2-sulfonamide"
+
+
+def test_phenyl_directly_attached_sulfonamide_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1S(=O)(=O)N")
+
+
+def test_phenyl_chain_sulfonamide_n_alkyl_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1CCCS(=O)(=O)NC")
+
+
+def test_phenyl_substituted_benzene_ring_sulfonamide_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CCS(=O)(=O)N")
+
+
+def test_phenyl_chain_sulfonamide_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CCS(=O)(=O)N")
+
+
 def test_n_methylmethanesulfonamide():
     # PubChem structure match: "N-methylmethanesulfonamide" (CID 97632).
     assert smiles_to_iupac("CS(=O)(=O)NC") == "N-methylmethanesulfonamide"
