@@ -73,6 +73,27 @@ from smiles_to_iupac._common import UnsupportedStructure
         # so this is an accepted, reviewed result rather than a PubChem-
         # confirmed one.
         ("OCCC1CCCCC1", "2-cyclohexylethan-1-ol"),
+        # Same ring-is-substituent shape, but the ring itself carries a
+        # C=C double bond (P-31.1.3 + P-29.2): the free valence pins the
+        # ring's numbering at position 1, so -- unlike the plain
+        # 'cyclohexene' parent name -- a single double bond's locant is
+        # never redundant and must always be cited, mirroring the Blue
+        # Book's own 'triaz-1-en-1-yl' worked example of citing a '1'
+        # locant that coincides with the fixed 'yl' attachment point
+        # (P-68.3.1.4.1). PubChem's auto-generated name for this SMILES
+        # drops that locant ('cyclohexen-1-ylmethanol'), a CAS-style
+        # abbreviation rather than the 2013-recommendations PIN, so it's
+        # not used as a cross-check here.
+        ("OCC1=CCCCC1", "(cyclohex-1-en-1-yl)methanol"),
+        # Same shape with the double bond elsewhere in the ring (numbering
+        # direction chosen to give it the lower locant, 3 rather than 4).
+        ("OCC1CC=CCC1", "(cyclohex-3-en-1-yl)methanol"),
+        # Two ring double bonds: multiplying prefix + full locant set, same
+        # as the plain-hydrocarbon diene case.
+        ("OCC1=CC=CCC1", "(cyclohexa-1,3-dien-1-yl)methanol"),
+        # A longer chain between the ring and the -OH still routes through
+        # the same unsaturated-ring-substituent naming.
+        ("OCCC1CC=CCC1", "2-(cyclohex-3-en-1-yl)ethan-1-ol"),
         # A single specified tetrahedral stereocenter (P-92): the Blue Book's own
         # worked example for this exact suffix, cross-checked against
         # PubChem CID 84682/444683 for the two enantiomers.
