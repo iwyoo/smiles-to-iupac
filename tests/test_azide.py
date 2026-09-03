@@ -25,6 +25,36 @@ def test_azide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Blue Book P-44.1.2.2's own worked example: the ring is senior to
+        # a chain of the same class regardless of chain length, since
+        # 'azido' has no suffix form to force the chain to stay parent.
+        ("c1ccccc1CCN=[N+]=[N-]", "(2-azidoethyl)benzene"),
+        ("c1ccccc1CN=[N+]=[N-]", "(azidomethyl)benzene"),
+        # A longer chain still loses to the ring (contrast 'heptylbenzene
+        # (PIN)', not '1-phenylheptane', despite the chain having more
+        # skeletal atoms).
+        ("c1ccccc1CCCCCCCCCCN=[N+]=[N-]", "(10-azidodecyl)benzene"),
+        # Halogen coexisting on the chain alongside the ring.
+        ("N(=[N+]=[N-])CC(Cl)c1ccccc1", "(2-azido-1-chloroethyl)benzene"),
+    ],
+)
+def test_azide_benzene_ring_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_substituted_benzene_ring_chain_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CN=[N+]=[N-]")
+
+
+def test_fused_aromatic_ring_chain_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccc2ccccc2c1CN=[N+]=[N-]")
+
+
 def test_ring_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1CCC(N=[N+]=[N-])CC1")
