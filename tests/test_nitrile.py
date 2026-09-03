@@ -74,6 +74,47 @@ def test_amine_still_routes_to_amine_module():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+        # aromatic-ring-substituent extension, mirroring PR #269/#270/
+        # #271/#272/#273/#274's carboxylic-acid/ketone/alcohol/ester/
+        # aldehyde/amide chains): the ring is cited as a "phenyl"
+        # substituent prefix. Cross-checked against PubChem CID 22795
+        # ("3-phenylpropanenitrile").
+        ("c1ccccc1CCC#N", "3-phenylpropanenitrile"),
+        # Two-carbon chain: PubChem's own name for this SMILES uses the
+        # retained "phenylacetonitrile" stem, but this module always uses
+        # the systematic 'ethanenitrile' stem (see test_nitrile_names
+        # above), so this is an accepted, reviewed result rather than a
+        # PubChem-confirmed one -- same policy as the aldehyde module's
+        # '2-phenylethanal' (PR #273).
+        ("c1ccccc1CC#N", "2-phenylethanenitrile"),
+    ],
+)
+def test_phenyl_chain_nitrile_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_phenyl_directly_attached_nitrile_raises():
+    # Benzonitrile-style naming (-C#N directly on the ring, P-66.5.1.2) is
+    # a separate construction, out of scope for this acyclic-chain-parent
+    # module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C#N")
+
+
+def test_phenyl_substituted_benzene_ring_nitrile_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC#N")
+
+
+def test_phenyl_chain_nitrile_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC#N")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         # A single specified tetrahedral stereocenter (P-92) -- the nitrile
         # carbon itself (sp, triple-bonded to nitrogen) is never a
         # potential stereocenter, confirmed via RDKit `FindPotentialStereo`.
