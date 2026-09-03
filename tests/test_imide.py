@@ -54,6 +54,8 @@ def test_cyclic_symmetric_imide_is_named_via_ketone_suffix():
     assert smiles_to_iupac("O=C1CCC(=O)N1") == "pyrrolidine-2,5-dione"
 
 
-def test_n_substituted_cyclic_imide_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CN1C(=O)CCC1=O")
+def test_n_substituted_cyclic_imide_named_via_ketone_module():
+    # Routed to `_ketone.py`'s hetero-ring ketone path (same as the plain
+    # cyclic imide), which supports a single plain alkyl substituent on
+    # the ring nitrogen. PubChem-verified: N-methylsuccinimide (CID 11621).
+    assert smiles_to_iupac("CN1C(=O)CCC1=O") == "1-methylpyrrolidine-2,5-dione"

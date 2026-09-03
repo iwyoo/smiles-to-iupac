@@ -147,11 +147,26 @@ def test_hetero_ring_ketone_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_hetero_ring_ketone_substituted_heteroatom_raises():
-    # An N-methyl ring heteroatom is out of scope for this module's narrow
-    # first pass.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CCN(C)CC1")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # N-alkyl on the single-heteroatom ring nitrogen -- always locant
+        # 1, so the N-substituent prefix carries locant 1 too. PubChem-
+        # verified: 1-methylpyrrolidin-2-one (CID 12025 analog), and the
+        # piperidin-2-one/azepan-2-one homologs (see the module's
+        # unsubstituted lactam cases above for the parent ring names).
+        ("O=C1CCCN1C", "1-methylpyrrolidin-2-one"),
+        ("O=C1CCCCN1C", "1-methylpiperidin-2-one"),
+        ("O=C1CCCCCN1CC", "1-ethylazepan-2-one"),
+        # An N-alkyl heteroatom not adjacent to the ketone carbonyl is
+        # equally in scope -- the fix isn't lactam-specific.
+        ("O=C1CCN(C)CC1", "1-methylpiperidin-4-one"),
+    ],
+)
+def test_hetero_ring_ketone_n_alkyl_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 
 
 def test_hetero_ring_ketone_ring_substituent_raises():
