@@ -76,7 +76,11 @@ selenomorpholine, N+Te telluromorpholine, O+Se 1,4-oxaselenane, O+Te
 in PubChem and stays out of scope), the 5-membered
 1,3-related pairs (N+N imidazolidine, N+O 1,3-oxazolidine, N+S
 1,3-thiazolidine, O+O 1,3-dioxolane, O+S 1,3-oxathiolane, S+S
-1,3-dithiolane), and the 5-membered 1,2-related pairs (N+N pyrazolidine,
+1,3-dithiolane, N+Se 1,3-selenazolidine, N+Te 1,3-tellurazolidine, O+Se
+1,3-oxaselenolane, O+Te 1,3-oxatellurolane, S+Se 1,3-thiaselenolane, S+Te
+1,3-thiatellurolane, Se+Se 1,3-diselenolane, Te+Te 1,3-ditellurolane --
+Se+Te has no name registered in PubChem here either and stays out of
+scope, same as the 1,4-ring), and the 5-membered 1,2-related pairs (N+N pyrazolidine,
 N+O 1,2-oxazolidine, N+S 1,2-thiazolidine, O+O 1,2-dioxolane, O+S
 1,2-oxathiolane, S+S 1,2-dithiolane) all have their own retained/
 systematic name -- per Table 2.3 and P-22.2.2.1.2/.1.3, a pair with no
@@ -233,6 +237,14 @@ _FIVE_MEMBERED_1_3_TWO_HETEROATOM_NAME_SMILES = {
     frozenset(("O", "O")): ("1,3-dioxolane", "C1COCO1"),
     frozenset(("O", "S")): ("1,3-oxathiolane", "C1CSCO1"),
     frozenset(("S", "S")): ("1,3-dithiolane", "C1CSCS1"),
+    frozenset(("N", "Se")): ("1,3-selenazolidine", "C1CNC[Se]1"),
+    frozenset(("N", "Te")): ("1,3-tellurazolidine", "C1CNC[Te]1"),
+    frozenset(("O", "Se")): ("1,3-oxaselenolane", "C1C[Se]CO1"),
+    frozenset(("O", "Te")): ("1,3-oxatellurolane", "C1C[Te]CO1"),
+    frozenset(("S", "Se")): ("1,3-thiaselenolane", "C1C[Se]CS1"),
+    frozenset(("S", "Te")): ("1,3-thiatellurolane", "C1C[Te]CS1"),
+    frozenset(("Se", "Se")): ("1,3-diselenolane", "C1C[Se]C[Se]1"),
+    frozenset(("Te", "Te")): ("1,3-ditellurolane", "C1C[Te]C[Te]1"),
 }
 _FIVE_MEMBERED_1_2_TWO_HETEROATOM_NAME_SMILES = {
     frozenset(("N", "N")): ("pyrazolidine", "C1CCNN1"),
@@ -311,10 +323,14 @@ def saturated_five_membered_1_3_two_heteroatom_ring_name(elements):
     1,3-related two-heteroatom saturated ring whose heteroatom elements
     are `elements` (an (element, element) pair or frozenset, e.g.
     ('N', 'N') -> 'imidazolidine'), or None if that element pair isn't
-    one of the six in P-22.2.1's scope (imidazolidine/1,3-oxazolidine/
-    1,3-thiazolidine/1,3-dioxolane/1,3-oxathiolane/1,3-dithiolane --
-    other element pairs and other ring sizes have no retained name here
-    and are out of scope; the 1,2-relationship has its own six, see
+    one of the fourteen in scope (imidazolidine/1,3-oxazolidine/
+    1,3-thiazolidine/1,3-dioxolane/1,3-oxathiolane/1,3-dithiolane, plus
+    their Se/Te analogues 1,3-selenazolidine/1,3-tellurazolidine/
+    1,3-oxaselenolane/1,3-oxatellurolane/1,3-thiaselenolane/
+    1,3-thiatellurolane/1,3-diselenolane/1,3-ditellurolane -- Se+Te itself
+    has no name registered in PubChem and stays out of scope, same as the
+    1,4-ring; other element pairs and other ring sizes have no retained
+    name here and are out of scope; the 1,2-relationship has its own six, see
     `saturated_five_membered_1_2_two_heteroatom_ring_name`). Exposed for
     `_ketone.py`'s hetero-ring ketone naming, which needs the bare stem
     name rather than a full unsubstituted-molecule match."""
