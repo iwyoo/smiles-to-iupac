@@ -117,3 +117,30 @@ def test_ring_sulfinic_acid_non_stereocenter_marker_unaffected():
     # ignored exactly as before, same policy as every other module's
     # "unspecified/non-stereogenic marker" handling.
     assert smiles_to_iupac("O=S(O)[C@H]1CCCCC1") == "cyclohexanesulfinic acid"
+
+
+def test_phenyl_chain_sulfinic_acid():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring PR #269-#278's
+    # carboxylic-acid/ketone/alcohol/ester/aldehyde/amide/nitrile/acyl-
+    # halide/sulfonic-acid/thiol chains): the ring is cited as a "phenyl"
+    # substituent prefix.
+    assert smiles_to_iupac("c1ccccc1CCCS(=O)O") == "3-phenylpropane-1-sulfinic acid"
+
+
+def test_phenyl_directly_attached_sulfinic_acid_raises():
+    # Benzenesulfinic acid-style naming (-SO2H directly on the ring) is a
+    # separate construction, out of scope for this acyclic-chain-parent
+    # module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1S(=O)O")
+
+
+def test_phenyl_substituted_benzene_ring_sulfinic_acid_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CCS(=O)O")
+
+
+def test_phenyl_chain_sulfinic_acid_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CCS(=O)O")
