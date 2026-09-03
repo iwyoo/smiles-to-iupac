@@ -44,3 +44,32 @@ def test_unsaturated_chain_not_supported():
 def test_two_thioic_acid_groups_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("SC(=O)CC(=O)S")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+        # aromatic-ring-substituent extension, mirroring PR #269-#279's
+        # carboxylic-acid/ketone/alcohol/ester/aldehyde/amide/nitrile/
+        # acyl-halide/sulfonic-acid/thiol/sulfinic-acid chains): the ring
+        # is cited as a "phenyl" substituent prefix. This module never
+        # supports any other substituent, so the ring is always at the
+        # chain's far terminus with no locant tie-break needed.
+        ("c1ccccc1CC(=O)S", "2-phenylethanethioic S-acid"),
+        ("c1ccccc1CCC(=O)S", "3-phenylpropanethioic S-acid"),
+        ("c1ccccc1CC(=S)O", "2-phenylethanethioic O-acid"),
+    ],
+)
+def test_phenyl_chain_thioic_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_phenyl_directly_attached_thioic_acid_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C(=O)S")
+
+
+def test_phenyl_substituted_benzene_ring_thioic_acid_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(=O)S")
