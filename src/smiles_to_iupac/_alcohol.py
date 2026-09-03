@@ -1,14 +1,22 @@
 """Naming of alcohols (the '-ol' suffix, -OH) on acyclic saturated or
 unsaturated carbon chains, on simple monocyclic saturated rings, and on a
-chain hanging off an otherwise-plain saturated monocyclic ring, per the
-IUPAC 2013 Recommendations ("the Blue Book"):
+chain hanging off an otherwise-plain monocyclic ring (saturated, or
+carrying ring C=C unsaturation of its own), per the IUPAC 2013
+Recommendations ("the Blue Book"):
 
 - P-44.1.1 ring-vs-chain competition (P-44.1.2.2): when the ring itself
   bears no -OH at all, there is no actual competition for which structure
   is the senior parent -- the chain trivially captures the maximum number
   of principal characteristic groups (all of them), so it's the parent and
   the ring is cited as a plain "cyclo..." substituent prefix (P-29.3.3),
-  e.g. cyclohexylmethanol. When the ring's own -OH count is at least the
+  e.g. cyclohexylmethanol. When the ring itself carries one or more C=C
+  double bonds (and still no -OH of its own), it's instead cited via
+  `_cyclic_unsaturated.name_cyclic_unsaturated_yl`, with the attachment
+  fixed at locant 1 (P-29.2) -- e.g. '(cyclohex-3-en-1-yl)methanol'; this
+  path still requires the ring to have no other exocyclic branch (see
+  `_ring_chain_attachment`), so a ring bearing both the -OH chain and
+  another substituent of its own stays unsupported regardless of
+  saturation. When the ring's own -OH count is at least the
   chain substituent's -OH count, the ring is always the senior parent:
   either P-44.1.1 settles it outright (the ring captures strictly more of
   the principal characteristic group), or the two counts tie and
@@ -187,6 +195,7 @@ from ._common import (
     specified_stereo_elements,
     specified_stereocenters,
 )
+from ._cyclic_unsaturated import name_cyclic_unsaturated_yl
 from ._numerals import alkane_name, alkyl_name, numerical_term
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
@@ -710,10 +719,13 @@ def _ordered_chain(graph, root, coming_from, excluded):
 
 def _name_ring_substituent_chain_alcohol(mol, hydroxyls):
     """Name an alcohol whose -OH lies entirely on a single unbranched chain
-    hanging off one atom of an otherwise-plain saturated monocyclic ring
-    (the ring itself bears no -OH) -- e.g. cyclohexylmethanol. The ring is
-    cited as a "cyclo..." substituent prefix (P-29.3.3) on the chain, which
-    is the parent hydride (see module docstring)."""
+    hanging off one atom of an otherwise-plain monocyclic ring (the ring
+    itself bears no -OH) -- e.g. cyclohexylmethanol. The ring is cited as a
+    "cyclo..." substituent prefix (P-29.3.3) on the chain, which is the
+    parent hydride (see module docstring). The ring may carry ring C=C
+    unsaturation of its own (P-31.1.3 + P-29.2), named via
+    `name_cyclic_unsaturated_yl` with the attachment fixed at locant 1 --
+    e.g. '(cyclohex-3-en-1-yl)methanol'."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
@@ -740,7 +752,18 @@ def _name_ring_substituent_chain_alcohol(mol, hydroxyls):
                 "off the ring is not supported yet"
             )
 
-    ring_name = "cyclo" + alkyl_name(len(ring_atoms))
+    ring_has_double_bond = any(
+        bond.GetBondTypeAsDouble() == 2.0
+        and bond.GetBeginAtomIdx() in ring_atoms
+        and bond.GetEndAtomIdx() in ring_atoms
+        for bond in mol.GetBonds()
+    )
+    if ring_has_double_bond:
+        ring_name = name_cyclic_unsaturated_yl(mol, ring_atoms, ring_atom)
+        ring_is_compound = True
+    else:
+        ring_name = "cyclo" + alkyl_name(len(ring_atoms))
+        ring_is_compound = False
     chain_length = len(chain)
 
     best_key = None
@@ -748,7 +771,7 @@ def _name_ring_substituent_chain_alcohol(mol, hydroxyls):
     for candidate in (chain, list(reversed(chain))):
         position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
         oh_locants = _oh_locants(position_of, hydroxyls, graph)
-        substituents = {position_of[chain_root]: [(ring_name, False)]}
+        substituents = {position_of[chain_root]: [(ring_name, ring_is_compound)]}
         key, name = _candidate_key(chain_length, oh_locants, [], [], substituents)
         if best_key is None or key < best_key:
             best_key, best_name = key, name
@@ -862,14 +885,25 @@ def name_alcohol(mol) -> str:
             "is not supported yet"
         )
     if num_rings == 1:
-        if bonds:
-            raise UnsupportedStructure(
-                "unsaturated rings are not supported yet (see P-31.1.3, "
-                "cycloalkenes and cycloalkynes)"
-            )
         ring_atoms = set(ring_info.AtomRings()[0])
         ring_hydroxyls = {o for o in hydroxyls if next(iter(graph[o])) in ring_atoms}
         chain_hydroxyls = hydroxyls - ring_hydroxyls
+        if bonds:
+            # A ring C=C double bond coexisting with a suffix -OH is only
+            # supported for the narrow "chain is parent, ring has no -OH
+            # of its own" shape below (P-31.1.3 + P-29.2, see
+            # `_name_ring_substituent_chain_alcohol`); any -OH on the ring
+            # itself, or unsaturation reaching outside the ring (an
+            # exocyclic double bond, or a triple bond), stays unsupported.
+            ring_only_double_bonds = not ring_hydroxyls and all(
+                order == _ENE_ORDER and a in ring_atoms and b in ring_atoms
+                for a, b, order in bonds
+            )
+            if not ring_only_double_bonds:
+                raise UnsupportedStructure(
+                    "unsaturated rings are not supported yet (see P-31.1.3, "
+                    "cycloalkenes and cycloalkynes)"
+                )
         if not ring_hydroxyls:
             if stereo is not None:
                 raise UnsupportedStructure(

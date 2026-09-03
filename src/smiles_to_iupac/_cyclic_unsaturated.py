@@ -162,6 +162,37 @@ def _candidate_key(ring_size, ene_locants, substituents):
     return ene_locant_set, locant_set, citation_locants, name
 
 
+def name_cyclic_unsaturated_yl(mol, ring_atoms, root) -> str:
+    """Name a monocyclic all-carbon partially unsaturated ring, bearing no
+    exocyclic substituent other than the free valence itself, as a '-yl'
+    substituent group (P-29.2) with that free valence fixed at position 1
+    -- e.g. 'cyclohex-3-en-1-yl'. Unlike the parent-hydride name
+    (`name_cyclic_unsaturated`), a single ring double bond's locant is
+    never redundant here: fixing the free valence at '1' removes the free
+    choice of numbering start that otherwise always lets a lone double
+    bond land on '1', so its locant must always be cited."""
+    graph = adjacency(mol)
+    double_bonds = _double_bonds(mol)
+    ring_order = _ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+    start = ring_order.index(root)
+    rotated = ring_order[start:] + ring_order[:start]
+
+    best_locants = None
+    for candidate in (rotated, [rotated[0]] + list(reversed(rotated[1:]))):
+        ene_locants = _ring_bond_locants(candidate, double_bonds)
+        if best_locants is None or ene_locants < best_locants:
+            best_locants = ene_locants
+
+    parent_stem = "cyclo" + alkane_name(ring_size)[:-3]
+    count = len(best_locants)
+    if count == 1:
+        return f"{parent_stem}-{best_locants[0]}-en-1-yl"
+    word = numerical_term(count) + "en"
+    loc_str = ",".join(str(loc) for loc in best_locants)
+    return f"{parent_stem}a-{loc_str}-{word}-1-yl"
+
+
 def name_cyclic_unsaturated(mol, ring_atoms) -> str:
     validate_atoms_and_bonds(mol)
     ring_set = set(ring_atoms)
