@@ -91,10 +91,13 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    is_plain_benzene_ring,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    ordered_chain,
+    ring_chain_attachment,
     ring_cycle,
     specified_stereocenters,
 )
@@ -110,7 +113,15 @@ def has_selenol_shape(mol) -> bool:
     return any(atom.GetAtomicNum() == _SELENIUM for atom in mol.GetAtoms())
 
 
-def _validate_and_collect_selenols(mol):
+def _validate_and_collect_selenols(mol, aromatic_ring_atoms=frozenset()):
+    """`aromatic_ring_atoms`: atom indices already independently verified
+    (by the caller, before this function runs) to form a single plain
+    benzene ring with exactly one exocyclic attachment -- exempted from
+    the aromatic-atom rejection below so `name_selenol`'s benzene-ring-
+    substituent path (see `_name_phenyl_chain_selenol`) can reuse this
+    same validation for the rest of the molecule. Empty by default, so
+    every other caller's behavior is unchanged. Mirrors `_thiol.py`'s
+    `_validate_and_collect_thiols`."""
     selenols = set()
     has_carbon = False
     for atom in mol.GetAtoms():
@@ -127,7 +138,7 @@ def _validate_and_collect_selenols(mol):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure("aromatic rings are out of scope for this module")
         elif atomic_num == _SELENIUM:
             if atom.GetDegree() != 1:
@@ -350,7 +361,86 @@ def _name_cyclic_selenol(mol, selenols, stereo=None):
     return best_name
 
 
+def _name_phenyl_chain_selenol(mol, ring_atoms):
+    """Name a selenol whose -SeH lies entirely on a single unbranched
+    chain hanging off one atom of an otherwise-plain, unsubstituted
+    benzene ring -- e.g. 3-phenylpropane-1-selenol. The ring is cited as
+    a 'phenyl' substituent prefix (via `name_branch`'s aromatic-ring
+    recognition) on the chain, which is the parent hydride, mirroring
+    `_thiol.py`'s `_name_phenyl_chain_thiol`. Narrower than the acyclic
+    path above: exactly one -SeH, no chain unsaturation, and no specified
+    stereocenter."""
+    selenols = _validate_and_collect_selenols(mol, aromatic_ring_atoms=ring_atoms)
+    if len(selenols) != 1:
+        raise UnsupportedStructure(
+            "more than one selenol alongside a benzene-ring substituent is "
+            "not supported yet"
+        )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a benzene-ring-substituent "
+            "selenol chain is not supported yet"
+        )
+    non_ring_unsaturation = [
+        b for b in non_single_bonds(mol) if b[0] not in ring_atoms and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent "
+            "selenol chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain selenol is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    if chain_root in selenols:
+        raise UnsupportedStructure(
+            "a selenol directly on the benzene ring (selenophenol-type) "
+            "uses a separate construction, out of scope for this "
+            "chain-parent module"
+        )
+    chain = ordered_chain(graph, chain_root, ring_atom, selenols)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside a "
+            "selenol is not supported yet"
+        )
+    chain_set = set(chain)
+    for s in selenols:
+        (carbon,) = graph[s]
+        if carbon not in chain_set:
+            raise UnsupportedStructure(
+                "a selenol outside the single unbranched chain hanging off "
+                "the benzene ring is not supported yet"
+            )
+
+    halogens = halogen_substituents(mol)
+    chain_length = len(chain)
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        se_locants = _se_locants(position_of, selenols, graph)
+        substituents = {
+            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+        }
+        key, name = _candidate_key(chain_length, se_locants, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_selenol(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_selenol(mol, ring_atoms)
     selenols = _validate_and_collect_selenols(mol)
     stereo = specified_stereocenters(mol)
     graph = adjacency(mol)

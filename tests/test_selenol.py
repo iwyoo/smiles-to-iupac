@@ -123,3 +123,41 @@ def test_selenol_unspecified_stereocenter_unaffected():
 def test_selenol_partially_specified_stereocenters_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[SeH][C@H]1CCCCC1Cl")
+
+
+def test_phenyl_chain_selenol():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring `_thiol.py`'s
+    # `test_phenyl_chain_thiol`): the ring is cited as a "phenyl"
+    # substituent prefix. PubChem PUG REST: "3-phenylpropane-1-selenol".
+    assert smiles_to_iupac("c1ccccc1CCC[SeH]") == "3-phenylpropane-1-selenol"
+
+
+def test_phenyl_chain_selenol_internal_locant():
+    # The -SeH locant is a genuine choice on the chain, same as the base
+    # acyclic module. No PubChem-registered structure for this exact
+    # molecule -- a structural/regression check on the mechanism ported
+    # verbatim from `_thiol.py`.
+    assert smiles_to_iupac("C(c1ccccc1)C(C)[SeH]") == "1-phenylpropane-2-selenol"
+
+
+def test_phenyl_directly_attached_selenol_raises():
+    # Selenophenol-type naming (-SeH directly on the ring) is a separate
+    # construction, out of scope for this acyclic-chain-parent module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1[SeH]")
+
+
+def test_phenyl_substituted_benzene_ring_selenol_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC[SeH]")
+
+
+def test_phenyl_chain_selenol_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC[SeH]")
+
+
+def test_phenyl_chain_diselenol_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C([SeH])CC[SeH]")
