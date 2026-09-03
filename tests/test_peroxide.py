@@ -52,6 +52,21 @@ def test_three_oxygens_not_supported():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        # Same tied-parent-selection cases as `test_ether.py`, peroxy in
+        # place of oxy -- see that module's tests for the full reasoning.
+        ("CC(C)OOC(C)C", "2-(propan-2-yl)peroxypropane"),
+        ("CC(C)COOC(C)(C)C", "1-tert-butylperoxy-2-methylpropane"),
+        ("CC(C)(C)COOCCC(C)C", "1-(2,2-dimethylpropyl)peroxy-3-methylbutane"),
+        ("CC(C)COOC(C)CC", "2-(2-methylpropyl)peroxybutane"),
+    ],
+)
+def test_both_sides_branched_and_tied(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         # The achiral parent structure is PubChem-verified (CID 19875133,
         # "2-ethylperoxybutane"); PubChem has no registered peroxide
         # stereoisomer CID, so these are a structural regression check on

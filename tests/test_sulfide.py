@@ -27,9 +27,19 @@ def test_branched_prefix_side_is_enclosed():
     assert smiles_to_iupac("CCCCSC(C)C") == "1-(propan-2-yl)sulfanylbutane"
 
 
-def test_both_sides_branched_and_tied_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)SC(C)C")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Same tied-parent-selection cases as `test_ether.py`, sulfanyl in
+        # place of oxy -- see that module's tests for the full reasoning.
+        ("CC(C)SC(C)C", "2-(propan-2-yl)sulfanylpropane"),
+        ("CC(C)CSC(C)(C)C", "1-tert-butylsulfanyl-2-methylpropane"),
+        ("CC(C)(C)CSCCC(C)C", "1-(2,2-dimethylpropyl)sulfanyl-3-methylbutane"),
+        ("CC(C)CSC(C)CC", "2-(2-methylpropyl)sulfanylbutane"),
+    ],
+)
+def test_both_sides_branched_and_tied(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(

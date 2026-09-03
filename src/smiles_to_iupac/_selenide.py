@@ -27,7 +27,7 @@ selenium -- selenoxide/selenone -- are separate functional groups, not in
 scope here).
 """
 
-from ._acyclic import name_from_carbon_graph
+from ._acyclic import longest_chain_length, name_from_carbon_graph, winning_chain_with_key
 from ._common import UnsupportedStructure, adjacency, bfs, carbon_adjacency, non_single_bonds
 from ._substituents import name_branch
 
@@ -88,15 +88,21 @@ def name_selenide(mol) -> str:
     size2 = len(_component_subgraph(carbon_graph, n2))
 
     if size1 == size2:
-        name_a, compound_a = name_branch(full_graph, n1, selenium_idx, {})
-        name_b, compound_b = name_branch(full_graph, n2, selenium_idx, {})
-        if compound_a and compound_b:
-            raise UnsupportedStructure(
-                "a selenide tied in skeletal-atom count with both sides "
-                "branched is not supported yet (see P-63.2.2.1.1's "
-                "enclosure interaction, module docstring)"
-            )
-        parent_root, sub_root = (n2, n1) if compound_a else (n1, n2)
+        graph_a = _component_subgraph(carbon_graph, n1)
+        graph_b = _component_subgraph(carbon_graph, n2)
+        len_a, len_b = longest_chain_length(graph_a), longest_chain_length(graph_b)
+        if len_a > len_b:
+            parent_root, sub_root = n1, n2
+        elif len_b > len_a:
+            parent_root, sub_root = n2, n1
+        else:
+            name_a, compound_a = name_branch(full_graph, n1, selenium_idx, {})
+            name_b, compound_b = name_branch(full_graph, n2, selenium_idx, {})
+            sub_from_a = f"({name_a})" if compound_a else name_a
+            sub_from_b = f"({name_b})" if compound_b else name_b
+            key_a, _, _ = winning_chain_with_key(full_graph, graph_a, {selenium_idx: _selanyl_prefix(sub_from_b)})
+            key_b, _, _ = winning_chain_with_key(full_graph, graph_b, {selenium_idx: _selanyl_prefix(sub_from_a)})
+            parent_root, sub_root = (n1, n2) if key_a <= key_b else (n2, n1)
     elif size1 > size2:
         parent_root, sub_root = n1, n2
     else:

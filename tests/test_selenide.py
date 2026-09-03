@@ -1,7 +1,6 @@
 import pytest
 
 from smiles_to_iupac import smiles_to_iupac
-from smiles_to_iupac._common import UnsupportedStructure
 
 
 def test_dimethyl_selenide():
@@ -35,6 +34,21 @@ def test_branched_prefix_side_is_enclosed():
     assert smiles_to_iupac("CCCC[Se]C(C)C") == "1-(propan-2-yl)selanylbutane"
 
 
-def test_both_sides_branched_and_tied_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)[Se]C(C)C")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Same tied-parent-selection cases as `test_ether.py`, selanyl in
+        # place of oxy -- see that module's tests for the full reasoning.
+        # PubChem can't compute a name for the branched/branched cases here
+        # (CID 0, no IUPACName returned for either structure), so these are
+        # verified structurally instead: `_selenide.py` reuses the exact
+        # same graph algorithm already PubChem-confirmed for `_ether.py`/
+        # `_sulfide.py`, with only the prefix word ('selanyl') differing.
+        ("CC(C)[Se]C(C)C", "2-(propan-2-yl)selanylpropane"),
+        ("CC(C)C[Se]C(C)(C)C", "1-tert-butylselanyl-2-methylpropane"),
+        ("CC(C)(C)C[Se]CCC(C)C", "1-(2,2-dimethylpropyl)selanyl-3-methylbutane"),
+        ("CC(C)C[Se]C(C)CC", "2-(2-methylpropyl)selanylbutane"),
+    ],
+)
+def test_both_sides_branched_and_tied(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

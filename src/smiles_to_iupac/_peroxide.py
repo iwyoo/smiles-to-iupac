@@ -26,6 +26,12 @@ restricted to two acyclic saturated hydrocarbon chains hung off a single
   `winning_chain_from_carbon_graph` for the parent chain's locant lookup.
   A stereocenter on the peroxy (R') substituent branch remains out of
   scope (raises `UnsupportedStructure`).
+- A tie in total skeletal-atom count between the two chains is resolved
+  the same two-step way as `_ether.py` (see that module's docstring for
+  the worked examples): first by each side's own longest achievable chain
+  length (`longest_chain_length`), and only if that also ties, by
+  comparing each side's resulting locant set as parent
+  (`winning_chain_with_key`).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - More than two oxygens, or two oxygens not shaped like a plain -O-O-
@@ -34,12 +40,9 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   is even tried.
 - Any unsaturation, any ring, or any heteroatom other than the peroxide's
   own two oxygens.
-- A tie in skeletal-atom count between the two chains where neither side
-  can serve as the (necessarily unbranched) R'-substituent side, i.e. both
-  chains are branched.
 """
 
-from ._acyclic import winning_chain_from_carbon_graph
+from ._acyclic import longest_chain_length, winning_chain_from_carbon_graph, winning_chain_with_key
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -115,17 +118,23 @@ def name_peroxide(mol) -> str:
     size2 = len(_component_subgraph(carbon_graph, n2))
 
     if size1 == size2:
-        name_a, compound_a = name_branch(full_graph, n1, o1_idx, {})
-        name_b, compound_b = name_branch(full_graph, n2, o2_idx, {})
-        if compound_a and compound_b:
-            raise UnsupportedStructure(
-                "a peroxide tied in skeletal-atom count with both sides "
-                "branched is not supported yet (see P-63.2.2.1.1's "
-                "enclosure interaction, module docstring)"
+        graph_a = _component_subgraph(carbon_graph, n1)
+        graph_b = _component_subgraph(carbon_graph, n2)
+        len_a, len_b = longest_chain_length(graph_a), longest_chain_length(graph_b)
+        if len_a > len_b:
+            parent_root, parent_oxygen, sub_root, sub_oxygen = n1, o1_idx, n2, o2_idx
+        elif len_b > len_a:
+            parent_root, parent_oxygen, sub_root, sub_oxygen = n2, o2_idx, n1, o1_idx
+        else:
+            name_a, compound_a = name_branch(full_graph, n1, o1_idx, {})
+            name_b, compound_b = name_branch(full_graph, n2, o2_idx, {})
+            sub_from_a = f"({name_a})" if compound_a else name_a
+            sub_from_b = f"({name_b})" if compound_b else name_b
+            key_a, _, _ = winning_chain_with_key(full_graph, graph_a, {o1_idx: sub_from_b + "peroxy"})
+            key_b, _, _ = winning_chain_with_key(full_graph, graph_b, {o2_idx: sub_from_a + "peroxy"})
+            parent_root, parent_oxygen, sub_root, sub_oxygen = (
+                (n1, o1_idx, n2, o2_idx) if key_a <= key_b else (n2, o2_idx, n1, o1_idx)
             )
-        parent_root, parent_oxygen, sub_root, sub_oxygen = (
-            (n2, o2_idx, n1, o1_idx) if compound_a else (n1, o1_idx, n2, o2_idx)
-        )
     elif size1 > size2:
         parent_root, parent_oxygen, sub_root, sub_oxygen = n1, o1_idx, n2, o2_idx
     else:
