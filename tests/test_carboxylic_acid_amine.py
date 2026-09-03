@@ -109,3 +109,35 @@ def test_carboxylic_acid_amine_unspecified_stereocenter_unaffected():
     # as before -- no stereo prefix, matching this project's long-standing
     # convention (see `_common.py`'s `specified_stereocenters` docstring).
     assert smiles_to_iupac("CC(N)C(=O)O") == "2-aminopropanoic acid"
+
+
+def test_phenyl_chain_carboxylic_acid_amine():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring
+    # `_carboxylic_acid.py`'s phenyl-chain path): the ring is cited as a
+    # "phenyl" substituent prefix alongside the demoted amine's "amino"
+    # prefix -- the phenylalanine/homophenylalanine structural pattern.
+    # PubChem PUG REST: "2-amino-3-phenylpropanoic acid"/
+    # "2-amino-4-phenylbutanoic acid".
+    assert smiles_to_iupac("c1ccccc1CC(N)C(=O)O") == "2-amino-3-phenylpropanoic acid"
+    assert smiles_to_iupac("c1ccccc1CCC(N)C(=O)O") == "2-amino-4-phenylbutanoic acid"
+
+
+def test_phenyl_directly_attached_to_amine_carbon():
+    # The ring attaches directly to the amine-bearing carbon (2-carbon
+    # chain, phenylglycine's structural pattern), not the acid carbon --
+    # still a valid chain-parent case. PubChem PUG REST (systematic-stem
+    # divergence already established by this module's own glycine
+    # precedent, see module docstring): "2-amino-2-phenylacetic acid";
+    # this project's own convention gives "2-amino-2-phenylethanoic acid".
+    assert smiles_to_iupac("c1ccccc1C(N)C(=O)O") == "2-amino-2-phenylethanoic acid"
+
+
+def test_phenyl_substituted_benzene_ring_carboxylic_acid_amine_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(N)C(=O)O")
+
+
+def test_phenyl_chain_carboxylic_acid_amine_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC(N)C(=O)O")

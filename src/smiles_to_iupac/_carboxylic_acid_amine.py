@@ -49,9 +49,12 @@ from ._common import (
     adjacency,
     carbon_adjacency,
     halogen_substituents,
+    is_plain_benzene_ring,
     longest_chains,
     lowest_locant_set,
     non_single_bonds,
+    ordered_chain,
+    ring_chain_attachment,
     specified_stereocenters,
 )
 from ._numerals import alkane_name
@@ -119,7 +122,7 @@ def has_carboxylic_acid_amine_shape(mol) -> bool:
     return bool(amines) and _amine_on_a_different_carbon(mol, found[0].GetIdx(), amines)
 
 
-def _validate(mol, excluded_oxygens, amines):
+def _validate(mol, excluded_oxygens, amines, aromatic_ring_atoms=frozenset()):
     has_carbon = False
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
@@ -133,7 +136,7 @@ def _validate(mol, excluded_oxygens, amines):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module (see "
                     "the separate aromatic-ring module)"
@@ -192,17 +195,117 @@ def _candidate_key(chain_length, grouped):
     return (locant_set, citation_locants, name), name
 
 
-def _substituents_for_chain(graph, chain, names, excluded):
+def _substituents_for_chain(graph, chain, names, excluded, ring_atoms=frozenset()):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, names) for root in branch_roots]
+            substituents[position] = [
+                name_branch(graph, root, atom, names, ring_atoms) for root in branch_roots
+            ]
     return substituents
 
 
+def _name_phenyl_chain_carboxylic_acid_amine(mol, ring_atoms):
+    """Name a carboxylic-acid+amine combination (e.g. phenylalanine's
+    2-amino-3-phenylpropanoic acid shape) whose -COOH lies entirely on a
+    single unbranched chain hanging off one atom of an otherwise-plain,
+    unsubstituted benzene ring. The ring is cited as a 'phenyl'
+    substituent prefix (via `name_branch`'s aromatic-ring recognition) on
+    the chain, which is the parent hydride, mirroring
+    `_carboxylic_acid.py`'s `_name_phenyl_chain_carboxylic_acid`. Unlike
+    `_aldehyde_carboxylic_acid.py`, the demoted amine is a substituent
+    atom (like a halogen), not a chain carbon, so it can sit anywhere
+    along the chain -- no aldehyde-style terminus conflict with the ring.
+    Narrower than the acyclic path above: no chain unsaturation."""
+    found = _find_carboxylic_acid_carbon(mol)
+    if found is None:
+        raise UnsupportedStructure(
+            "no carboxylic acid (-COOH) group found; this module only "
+            "handles carboxylic acids"
+        )
+    acid_carbon, carbonyl_oxygen, hydroxyl_oxygen = found
+    excluded_acid_oxygens = {carbonyl_oxygen.GetIdx(), hydroxyl_oxygen.GetIdx()}
+    amines = _find_primary_amines(mol)
+    if len(amines) != 1:
+        raise UnsupportedStructure(
+            "exactly one primary amine (-NH2) coexisting with the single "
+            "carboxylic acid is supported here (see _carboxylic_acid.py "
+            "for a plain carboxylic acid, _amine.py for a plain amine)"
+        )
+    if not _amine_on_a_different_carbon(mol, acid_carbon.GetIdx(), amines):
+        raise UnsupportedStructure(
+            "a primary amine bonded directly to the acid carbon itself "
+            "(H2N-COOH, carbamic acid) is a distinct retained functional "
+            "class, out of scope here (see _carbamate.py)"
+        )
+    _validate(mol, excluded_acid_oxygens, amines, aromatic_ring_atoms=ring_atoms)
+
+    all_non_single = non_single_bonds(mol)
+    carbonyl_bonds = [b for b in all_non_single if b[0] in excluded_acid_oxygens or b[1] in excluded_acid_oxygens]
+    ring_bonds = [b for b in all_non_single if b[0] in ring_atoms and b[1] in ring_atoms]
+    if len(carbonyl_bonds) + len(ring_bonds) != len(all_non_single):
+        raise UnsupportedStructure(
+            "chain unsaturation (ene/yne) alongside a benzene-ring-"
+            "substituent carboxylic-acid/amine combination is out of "
+            "scope for this module"
+        )
+
+    graph = adjacency(mol)
+    names = {**halogen_substituents(mol), **{n: "amino" for n in amines}}
+    acid_carbon_idx = acid_carbon.GetIdx()
+    stereo = specified_stereocenters(mol)
+    if stereo:
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a benzene-ring-substituent "
+            "carboxylic-acid/amine chain is not supported yet"
+        )
+
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain carboxylic-acid/amine combination is not "
+            "supported yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, excluded_acid_oxygens | set(names))
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside a "
+            "carboxylic-acid/amine combination is not supported yet"
+        )
+    if chain[-1] != acid_carbon_idx:
+        raise UnsupportedStructure(
+            "the carboxylic acid carbon must be the chain's far terminus "
+            "from the benzene ring for this benzene-substituent path"
+        )
+    if any(graph[n][0] not in chain for n in amines):
+        raise UnsupportedStructure(
+            "not every amine-bearing carbon lies on the chain hanging "
+            "off the benzene ring for this benzene-substituent path"
+        )
+    if len(chain) < 2:
+        raise UnsupportedStructure(
+            "a -COOH group directly attached to the benzene ring uses a "
+            "different naming construction, out of scope for this "
+            "acyclic-chain-parent module"
+        )
+
+    ordered = list(reversed(chain))
+    chain_length = len(ordered)
+    substituents = _substituents_for_chain(graph, ordered, names, excluded_acid_oxygens, ring_atoms)
+    grouped = _group(substituents)
+    return _name_from_substituents(chain_length, grouped)
+
+
 def name_carboxylic_acid_amine(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_carboxylic_acid_amine(mol, ring_atoms)
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(
             "a -COOH and/or -NH2 group on/in a ring uses a different "
