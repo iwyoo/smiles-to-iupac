@@ -52,7 +52,14 @@ in the molecule. Explicitly out of scope (raise `UnsupportedStructure`):
 any oxygen at all, a thione carbon with fewer than two carbon neighbors
 (a thial/thioaldehyde, a different suffix), an aromatic thione carbon,
 polycyclic/spiro/unsaturated rings, and a thione on a substituent branch
-off an otherwise-unsubstituted ring.
+off an otherwise-unsubstituted *saturated* ring. One narrow *aromatic*-
+ring exception: `_name_phenyl_chain_thione` names a single thione whose
+chain hangs off a plain, unsubstituted benzene ring (e.g.
+'1-phenylpropane-2-thione'), mirroring `_ketone.py`'s identical benzene-
+ring-substituent path -- narrower than the acyclic path: exactly one
+thione, no chain unsaturation, and no specified stereocenter, and a
+thione carbon directly attached to the ring (an aryl thione) stays out
+of scope for this module.
 """
 
 from rdkit import Chem
@@ -67,10 +74,13 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    is_plain_benzene_ring,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    ordered_chain,
+    ring_chain_attachment,
     ring_cycle,
     specified_stereocenters,
 )
@@ -96,7 +106,14 @@ def has_thione_shape(mol) -> bool:
     return False
 
 
-def _validate_and_collect_thiones(mol):
+def _validate_and_collect_thiones(mol, aromatic_ring_atoms=frozenset()):
+    """`aromatic_ring_atoms`: atom indices already independently verified
+    (by the caller, before this function runs) to form a single plain
+    benzene ring with exactly one exocyclic attachment -- exempted from
+    the aromatic-atom rejection below so `name_thione`'s benzene-ring-
+    substituent path (see `_name_phenyl_chain_thione`) can reuse this same
+    validation for the rest of the molecule. Empty by default, so every
+    other caller's behavior is unchanged."""
     thiones = set()
     has_carbon = False
     for atom in mol.GetAtoms():
@@ -113,7 +130,7 @@ def _validate_and_collect_thiones(mol):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module (see "
                     "the separate aromatic-ring module)"
@@ -393,7 +410,90 @@ def _name_cyclic_thione(mol, thiones, stereo=None):
     return best_name
 
 
+def _name_phenyl_chain_thione(mol, ring_atoms):
+    """Name a thione whose C=S lies entirely on a single unbranched chain
+    hanging off one atom of an otherwise-plain, unsubstituted benzene ring
+    -- e.g. 1-phenylpropane-2-thione. The ring is cited as a 'phenyl'
+    substituent prefix (via `name_branch`'s aromatic-ring recognition) on
+    the chain, which is the parent hydride, mirroring `_ketone.py`'s
+    `_name_phenyl_chain_ketone`. Narrower than the acyclic path above:
+    exactly one thione, no chain unsaturation, and no specified
+    stereocenter -- each is a separate follow-up rather than being
+    combined with the ring case in this first slice. A thione carbon
+    directly attached to the ring (an aryl thione) stays out of scope,
+    same as the module's existing acyclic-carbonyl check above."""
+    thiones = _validate_and_collect_thiones(mol, aromatic_ring_atoms=ring_atoms)
+    if len(thiones) != 1:
+        raise UnsupportedStructure(
+            "more than one thione group alongside a benzene-ring "
+            "substituent is not supported yet"
+        )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a benzene-ring-substituent "
+            "thione chain is not supported yet"
+        )
+    non_ring_unsaturation = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in thiones and b[1] not in thiones and b[0] not in ring_atoms and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent "
+            "thione chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain thione is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, thiones)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside a "
+            "thione is not supported yet"
+        )
+    (thione_sulfur,) = thiones
+    (thione_carbon,) = graph[thione_sulfur]
+    if thione_carbon == chain_root:
+        raise UnsupportedStructure(
+            "a thione carbon directly attached to the benzene ring (an "
+            "aryl thione) is out of scope for this module (see the "
+            "separate aromatic-ring module)"
+        )
+    if thione_carbon not in chain:
+        raise UnsupportedStructure(
+            "the thione carbon must lie on the chain hanging off the "
+            "benzene ring for this benzene-substituent path"
+        )
+
+    chain_length = len(chain)
+    halogens = halogen_substituents(mol)
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        thione_locants = _thione_locants(position_of, thiones, graph)
+        substituents = {
+            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+        }
+        key, name = _candidate_key(chain_length, thione_locants, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_thione(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_thione(mol, ring_atoms)
     thiones = _validate_and_collect_thiones(mol)
     stereo = specified_stereocenters(mol)
     graph = adjacency(mol)

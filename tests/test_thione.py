@@ -93,3 +93,34 @@ def test_thione_unspecified_stereocenter_unaffected():
     # as before -- no stereo prefix, matching this project's long-standing
     # convention.
     assert smiles_to_iupac("CCC(C)C(C)=S") == "3-methylpentane-2-thione"
+
+
+def test_phenyl_chain_thione():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring PR #269-#282's
+    # carboxylic-acid/ketone/alcohol/ester/aldehyde/amide/nitrile/acyl-
+    # halide/sulfonic-acid/thiol/sulfinic-acid/thioic-acid/selenoic-acid/
+    # telluroic-acid chains): the ring is cited as a "phenyl" substituent
+    # prefix, mirroring `_ketone.py`'s '1-phenylpropan-2-one'.
+    assert smiles_to_iupac("c1ccccc1CC(=S)C") == "1-phenylpropane-2-thione"
+
+
+def test_phenyl_chain_thione_longer_chain():
+    assert smiles_to_iupac("c1ccccc1CC(=S)CC") == "1-phenylbutane-2-thione"
+
+
+def test_phenyl_directly_attached_thione_raises():
+    # An aryl thione (C=S directly on the ring) is out of scope for this
+    # acyclic-chain-parent module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C(=S)C")
+
+
+def test_phenyl_substituted_benzene_ring_thione_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(=S)C")
+
+
+def test_phenyl_chain_thione_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC(=S)C")
