@@ -226,6 +226,36 @@ def test_five_membered_1_3_two_heteroatom_ring_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_five_membered_1_3_two_heteroatoms_se_te_pair_raises():
+    # 1,3-related Se+Te pair: out of scope, same reason as the 1,4-ring's
+    # Se+Te pair (no name registered in PubChem).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1C[Se]C[Te]1")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # 1,3-related two-heteroatom saturated 5-membered rings whose pair
+        # includes Se and/or Te -- PubChem-verified: 1,3-selenazolidine,
+        # 1,3-tellurazolidine, 1,3-oxaselenolane, 1,3-oxatellurolane,
+        # 1,3-thiaselenolane, 1,3-thiatellurolane, 1,3-diselenolane,
+        # 1,3-ditellurolane (Se+Te itself has no registered name -- see
+        # `test_five_membered_1_3_two_heteroatoms_se_te_pair_raises` above).
+        ("C1CNC[Se]1", "1,3-selenazolidine"),
+        ("C1CNC[Te]1", "1,3-tellurazolidine"),
+        ("C1C[Se]CO1", "1,3-oxaselenolane"),
+        ("C1C[Te]CO1", "1,3-oxatellurolane"),
+        ("C1C[Se]CS1", "1,3-thiaselenolane"),
+        ("C1C[Te]CS1", "1,3-thiatellurolane"),
+        ("C1C[Se]C[Se]1", "1,3-diselenolane"),
+        ("C1C[Te]C[Te]1", "1,3-ditellurolane"),
+    ],
+)
+def test_five_membered_1_3_two_heteroatom_ring_names_se_te(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
