@@ -57,3 +57,31 @@ def test_ring_not_supported():
 def test_hydroxyl_coexistence_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OCC(=O)CC=O")
+
+
+def test_phenyl_chain_aldehyde_ketone():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring `_aldehyde.py`'s
+    # phenyl-chain path): the ring is cited as a "phenyl" substituent
+    # prefix alongside the demoted ketone's "oxo" prefix. PubChem PUG
+    # REST: "3-oxo-4-phenylbutanal"/"2-oxo-4-phenylbutanal".
+    assert smiles_to_iupac("c1ccccc1CC(=O)CC=O") == "3-oxo-4-phenylbutanal"
+    assert smiles_to_iupac("c1ccccc1CCC(=O)C=O") == "2-oxo-4-phenylbutanal"
+
+
+def test_phenyl_directly_attached_to_ketone_carbon():
+    # The ring attaches directly to the ketone carbon, not the aldehyde --
+    # still a valid chain-parent case (no separate ring-suffix
+    # construction needed here, unlike a -CHO directly on the ring).
+    # PubChem PUG REST: "3-oxo-3-phenylpropanal".
+    assert smiles_to_iupac("c1ccccc1C(=O)CC=O") == "3-oxo-3-phenylpropanal"
+
+
+def test_phenyl_substituted_benzene_ring_aldehyde_ketone_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(=O)CC=O")
+
+
+def test_phenyl_chain_aldehyde_ketone_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC(=O)CC=O")
