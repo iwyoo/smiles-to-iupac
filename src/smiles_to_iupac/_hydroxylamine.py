@@ -28,7 +28,7 @@ returning False, or fall through to another module):
   own N and O.
 """
 
-from ._common import UnsupportedStructure, adjacency, non_single_bonds
+from ._common import UnsupportedStructure, adjacency, is_plain_benzene_ring, non_single_bonds
 from ._substituents import name_branch
 
 
@@ -55,7 +55,31 @@ def has_hydroxylamine_shape(mol) -> bool:
     return _hydroxylamine_atoms(mol) is not None
 
 
+def _plain_benzene_o_substituent_ring(mol, n_idx, o):
+    """Ring-atom set if the O-substituent is *directly* a plain,
+    unsubstituted benzene ring (P-2/P-3 aromatic-ring-substituent
+    extension, e.g. O-phenylhydroxylamine) -- exempted from the blanket
+    aromatic/ring rejection below. None otherwise (including a chain that
+    merely ends in a ring further out, e.g. O-benzyl -- that's a compound
+    O-substituent, already out of scope for an unrelated reason)."""
+    if o.GetDegree() != 2:
+        return None
+    r_root = next(nbr for nbr in o.GetNeighbors() if nbr.GetIdx() != n_idx)
+    if not r_root.GetIsAromatic():
+        return None
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() != 1:
+        return None
+    ring_atoms = set(ring_info.AtomRings()[0])
+    if r_root.GetIdx() not in ring_atoms or not is_plain_benzene_ring(mol, ring_atoms):
+        return None
+    return ring_atoms
+
+
 def name_hydroxylamine(mol) -> str:
+    n, o = _hydroxylamine_atoms(mol)
+    ring_atoms = _plain_benzene_o_substituent_ring(mol, n.GetIdx(), o) or frozenset()
+
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() not in (6, 7, 8):
             raise UnsupportedStructure(
@@ -65,27 +89,29 @@ def name_hydroxylamine(mol) -> str:
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic():
+        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and atom.GetIdx() not in ring_atoms:
             raise UnsupportedStructure(
                 "aromatic rings are out of scope for this module (see the "
                 "separate aromatic-ring module)"
             )
-    if non_single_bonds(mol):
+    non_ring_unsaturation = [
+        b for b in non_single_bonds(mol) if b[0] not in ring_atoms or b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
         raise UnsupportedStructure(
             "unsaturation is not supported by this module (P-68.3.1.1.1's "
             "O-substituent scope here is limited to a saturated chain)"
         )
-    if mol.GetRingInfo().NumRings() > 0:
+    if not ring_atoms and mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure("rings are not supported by this module yet")
 
-    n, o = _hydroxylamine_atoms(mol)
     if o.GetDegree() == 1:
         return "hydroxylamine"
 
     n_idx, o_idx = n.GetIdx(), o.GetIdx()
     r_root = next(nbr.GetIdx() for nbr in o.GetNeighbors() if nbr.GetIdx() != n_idx)
     graph = adjacency(mol)
-    r_name, r_compound = name_branch(graph, r_root, o_idx, {})
+    r_name, r_compound = name_branch(graph, r_root, o_idx, {}, ring_atoms)
     if r_compound:
         raise UnsupportedStructure(
             "a branched O-substituent is not supported yet (mirrors "
