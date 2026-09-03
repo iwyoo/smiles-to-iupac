@@ -271,13 +271,20 @@ def test_five_membered_1_3_ring_ketone_substituted_n_substituent_raises():
         smiles_to_iupac("O=C1N(CCO)C(=O)CN1")
 
 
-def test_five_membered_1_3_ring_ketone_single_ketone_ring_carbon_substituent_raises():
-    # A ring-carbon substituent alongside a single ketone (not a dione) is
-    # still out of scope: two plain ring carbons remain, and which one
-    # carries the substituent would become a new locant tie-break input
-    # this module doesn't implement.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1OC(C)CN1")
+def test_five_membered_1_3_ring_ketone_single_ketone_ring_carbon_substituent():
+    # Different heteroatom elements fix the numbering direction outright
+    # (O outranks N for locant 1), so the substituent locant just falls
+    # out of that -- no tie-break needed. PubChem CID 136837.
+    assert smiles_to_iupac("O=C1OC(C)CN1") == "5-methyl-1,3-oxazolidin-2-one"
+
+
+def test_five_membered_1_3_ring_ketone_single_ketone_ring_carbon_substituent_tie_break():
+    # Identical heteroatoms (both N): the lone ketone sits on the bridging
+    # carbon (locant 2) regardless of direction, so the two candidate
+    # numberings tie on the suffix locant and fall through to P-14.5.2's
+    # next criterion -- lowest locant to the substituent set, giving '4-'
+    # rather than '5-'. PubChem CID 97832.
+    assert smiles_to_iupac("O=C1NC(C)CN1") == "4-methylimidazolidin-2-one"
 
 
 @pytest.mark.parametrize(
@@ -341,12 +348,13 @@ def test_five_membered_1_2_ring_ketone_wrong_element_pair_raises():
         smiles_to_iupac("O=C1CC[Se]N1")
 
 
-def test_five_membered_1_2_ring_ketone_single_ketone_ring_carbon_substituent_raises():
-    # Same tie-break gap as the 1,3-ring single-ketone case: two plain
-    # ring carbons remain, and which one carries the substituent would be
-    # a new locant tie-break input this module doesn't implement.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC1CC(=O)NN1")
+def test_five_membered_1_2_ring_ketone_single_ketone_ring_carbon_substituent():
+    # Unlike the 1,3-ring case, the heteroatom-then-ketone locant rules
+    # already fully determine the numbering direction even with a single
+    # ketone (the two candidate directions give the ketone locant 3 vs 5,
+    # never a tie), so no separate substituent tie-break is needed here.
+    # PubChem CID 312666.
+    assert smiles_to_iupac("CC1CC(=O)NN1") == "5-methylpyrazolidin-3-one"
 
 
 @pytest.mark.parametrize(
