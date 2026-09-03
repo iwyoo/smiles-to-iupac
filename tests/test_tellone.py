@@ -64,3 +64,26 @@ def test_tellone_unspecified_stereocenter_unaffected():
     # as before -- no stereo prefix, matching this project's long-standing
     # convention.
     assert smiles_to_iupac("CCC(C)C(C)=[Te]") == "3-methylpentane-2-tellone"
+
+
+def test_phenyl_chain_tellone():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring PR #269-#284's
+    # carboxylic-acid/.../selone chains): the ring is cited as a "phenyl"
+    # substituent prefix, mirroring `_thione.py`'s
+    # '1-phenylpropane-2-thione'.
+    assert smiles_to_iupac("c1ccccc1CC(=[Te])C") == "1-phenylpropane-2-tellone"
+
+
+def test_phenyl_chain_tellone_longer_chain():
+    assert smiles_to_iupac("c1ccccc1CC(=[Te])CC") == "1-phenylbutane-2-tellone"
+
+
+def test_phenyl_directly_attached_tellone_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C(=[Te])C")
+
+
+def test_phenyl_substituted_benzene_ring_tellone_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(=[Te])C")

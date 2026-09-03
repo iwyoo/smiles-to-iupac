@@ -38,7 +38,14 @@ molecule. Explicitly out of scope (raise `UnsupportedStructure`): any
 oxygen or sulfur at all, a tellone carbon with fewer than two carbon
 neighbors (a telluroaldehyde, a different suffix), an aromatic tellone
 carbon, polycyclic/spiro/unsaturated rings, and a tellone on a
-substituent branch off an otherwise-unsubstituted ring.
+substituent branch off an otherwise-unsubstituted *saturated* ring. One
+narrow *aromatic*-ring exception: `_name_phenyl_chain_tellone` names a
+single tellone whose chain hangs off a plain, unsubstituted benzene ring
+(e.g. '1-phenylpropane-2-tellone'), mirroring `_thione.py`'s identical
+benzene-ring-substituent path -- narrower than the acyclic path: exactly
+one tellone, no chain unsaturation, and no specified stereocenter, and a
+tellone carbon directly attached to the ring (an aryl tellone) stays out
+of scope for this module.
 """
 
 from rdkit import Chem
@@ -53,10 +60,13 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    is_plain_benzene_ring,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    ordered_chain,
+    ring_chain_attachment,
     ring_cycle,
     specified_stereocenters,
 )
@@ -82,7 +92,14 @@ def has_tellone_shape(mol) -> bool:
     return False
 
 
-def _validate_and_collect_tellones(mol):
+def _validate_and_collect_tellones(mol, aromatic_ring_atoms=frozenset()):
+    """`aromatic_ring_atoms`: atom indices already independently verified
+    (by the caller, before this function runs) to form a single plain
+    benzene ring with exactly one exocyclic attachment -- exempted from
+    the aromatic-atom rejection below so `name_tellone`'s benzene-ring-
+    substituent path (see `_name_phenyl_chain_tellone`) can reuse this
+    same validation for the rest of the molecule. Empty by default, so
+    every other caller's behavior is unchanged."""
     tellones = set()
     has_carbon = False
     for atom in mol.GetAtoms():
@@ -99,7 +116,7 @@ def _validate_and_collect_tellones(mol):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module (see "
                     "the separate aromatic-ring module)"
@@ -379,7 +396,90 @@ def _name_cyclic_tellone(mol, tellones, stereo=None):
     return best_name
 
 
+def _name_phenyl_chain_tellone(mol, ring_atoms):
+    """Name a tellone whose C=Te lies entirely on a single unbranched
+    chain hanging off one atom of an otherwise-plain, unsubstituted
+    benzene ring -- e.g. 1-phenylpropane-2-tellone. The ring is cited as a
+    'phenyl' substituent prefix (via `name_branch`'s aromatic-ring
+    recognition) on the chain, which is the parent hydride, mirroring
+    `_thione.py`'s `_name_phenyl_chain_thione`. Narrower than the acyclic
+    path above: exactly one tellone, no chain unsaturation, and no
+    specified stereocenter -- each is a separate follow-up rather than
+    being combined with the ring case in this first slice. A tellone
+    carbon directly attached to the ring (an aryl tellone) stays out of
+    scope, same as the module's existing acyclic-carbonyl check above."""
+    tellones = _validate_and_collect_tellones(mol, aromatic_ring_atoms=ring_atoms)
+    if len(tellones) != 1:
+        raise UnsupportedStructure(
+            "more than one tellone group alongside a benzene-ring "
+            "substituent is not supported yet"
+        )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a benzene-ring-substituent "
+            "tellone chain is not supported yet"
+        )
+    non_ring_unsaturation = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in tellones and b[1] not in tellones and b[0] not in ring_atoms and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent "
+            "tellone chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain tellone is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, tellones)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside a "
+            "tellone is not supported yet"
+        )
+    (tellone_tellurium,) = tellones
+    (tellone_carbon,) = graph[tellone_tellurium]
+    if tellone_carbon == chain_root:
+        raise UnsupportedStructure(
+            "a tellone carbon directly attached to the benzene ring (an "
+            "aryl tellone) is out of scope for this module (see the "
+            "separate aromatic-ring module)"
+        )
+    if tellone_carbon not in chain:
+        raise UnsupportedStructure(
+            "the tellone carbon must lie on the chain hanging off the "
+            "benzene ring for this benzene-substituent path"
+        )
+
+    chain_length = len(chain)
+    halogens = halogen_substituents(mol)
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        tellone_locants = _tellone_locants(position_of, tellones, graph)
+        substituents = {
+            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+        }
+        key, name = _candidate_key(chain_length, tellone_locants, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_tellone(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_tellone(mol, ring_atoms)
     tellones = _validate_and_collect_tellones(mol)
     stereo = specified_stereocenters(mol)
     graph = adjacency(mol)
