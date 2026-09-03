@@ -56,3 +56,30 @@ def test_ring_not_supported():
 def test_unsaturated_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=CON")
+
+
+def test_phenyl_o_substituent():
+    # A plain, unsubstituted benzene ring bonded directly to the
+    # hydroxylamine oxygen (P-2/P-3 aromatic-ring-substituent extension) --
+    # named as a "phenyl" O-substituent, not as a chain-parent case (unlike
+    # `_thiol.py` and friends, `_hydroxylamine.py`'s R is a functional-class
+    # substituent name, so no chain is involved here). PubChem PUG REST:
+    # "O-phenylhydroxylamine".
+    assert smiles_to_iupac("NOc1ccccc1") == "O-phenylhydroxylamine"
+
+
+def test_benzyl_o_substituent_still_not_supported():
+    # A chain that merely ends in a ring further out (O-benzyl) is a
+    # compound O-substituent -- already out of scope for an unrelated
+    # reason (mirrors `_ether.py`'s enclosure-mark limitation), unaffected
+    # by the new direct-ring exemption.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NOCc1ccccc1")
+
+
+def test_substituted_phenyl_o_substituent_not_supported():
+    # A substituted benzene ring (o-tolyl) doesn't match
+    # `is_plain_benzene_ring`, so it's out of scope, same as every other
+    # module's plain-benzene-only support.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NOc1ccccc1C")
