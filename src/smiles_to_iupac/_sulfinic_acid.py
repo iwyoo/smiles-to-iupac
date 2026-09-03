@@ -50,9 +50,16 @@ acid group's own two oxygens -- acid-vs-acid seniority and any other
 Table 3.3 seniority coexistence is future work, tracked under
 `multi-carbonyl-seniority.md`. Explicitly out of scope (raise
 `UnsupportedStructure`): polycyclic/spiro/unsaturated rings, an -SO2H on
-a substituent branch off an otherwise-unsubstituted ring, two or more
--SO2H groups, and a sulfinic acid on a carbon that is also part of a
-C=C/C#C bond.
+a substituent branch off an otherwise-unsubstituted *saturated* ring, two
+or more -SO2H groups, and a sulfinic acid on a carbon that is also part
+of a C=C/C#C bond. One narrow *aromatic*-ring exception:
+`_name_phenyl_chain_sulfinic_acid` names a -SO2H chain hanging off a
+single plain, unsubstituted benzene ring (e.g.
+'3-phenylpropane-1-sulfinic acid'), mirroring `_sulfonic_acid.py`'s
+identical benzene-ring-substituent path -- narrower than the acyclic
+path: no chain unsaturation, and a -SO2H directly on the ring
+(benzenesulfinic acid-style) stays out of scope for this
+acyclic-chain-parent module.
 """
 
 from rdkit import Chem
@@ -64,9 +71,12 @@ from ._common import (
     bfs,
     carbon_adjacency,
     halogen_substituents,
+    is_plain_benzene_ring,
     lowest_locant_set,
     non_single_bonds,
+    ordered_chain,
     path_between,
+    ring_chain_attachment,
     ring_cycle,
     specified_stereocenters,
 )
@@ -107,7 +117,14 @@ def has_sulfinic_acid_shape(mol) -> bool:
     return bool(_sulfinic_sulfur_atoms(mol))
 
 
-def _validate_and_collect_sulfinic_acids(mol):
+def _validate_and_collect_sulfinic_acids(mol, aromatic_ring_atoms=frozenset()):
+    """`aromatic_ring_atoms`: atom indices already independently verified
+    (by the caller, before this function runs) to form a single plain
+    benzene ring with exactly one exocyclic attachment -- exempted from
+    the aromatic-atom rejection below so `name_sulfinic_acid`'s benzene-
+    ring-substituent path (see `_name_phenyl_chain_sulfinic_acid`) can
+    reuse this same validation for the rest of the molecule. Empty by
+    default, so every other caller's behavior is unchanged."""
     sulfur_atoms = _sulfinic_sulfur_atoms(mol)
     if not sulfur_atoms:
         raise UnsupportedStructure(
@@ -129,7 +146,7 @@ def _validate_and_collect_sulfinic_acids(mol):
         atomic_num = atom.GetAtomicNum()
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module"
                 )
@@ -372,7 +389,87 @@ def _name_cyclic_sulfinic_acid(mol, sulfur_idx, so2h_carbon):
     return best_name
 
 
+def _name_phenyl_chain_sulfinic_acid(mol, ring_atoms):
+    """Name a sulfinic acid whose -SO2H lies entirely on a single
+    unbranched chain hanging off one atom of an otherwise-plain,
+    unsubstituted benzene ring -- e.g. 3-phenylpropane-1-sulfinic acid.
+    The ring is cited as a 'phenyl' substituent prefix (via
+    `name_branch`'s aromatic-ring recognition) on the chain, which is the
+    parent hydride, mirroring `_sulfonic_acid.py`'s
+    `_name_phenyl_chain_sulfonic_acid`. Narrower than the acyclic path
+    above: no chain unsaturation -- a separate follow-up (see
+    tasks/phenyl-substituent-on-sulfinic-acid-chain.md's scope note)."""
+    sulfur_idx, so2h_carbon = _validate_and_collect_sulfinic_acids(mol, aromatic_ring_atoms=ring_atoms)
+    if so2h_carbon in ring_atoms:
+        raise UnsupportedStructure(
+            "a sulfinic acid directly attached to the benzene ring "
+            "(benzenesulfinic acid-style naming) is out of scope for this "
+            "module (see the separate aromatic-ring module)"
+        )
+    if specified_stereocenters(mol) is not None:
+        # See module docstring: the sulfinic sulfur is itself a potential
+        # stereocenter in virtually every real -SO2H molecule, and this
+        # project has no established way to cite one -- reject
+        # unconditionally, same as the acyclic path below.
+        raise UnsupportedStructure(
+            "a specified stereocenter (chain carbon or the sulfinic "
+            "sulfur itself) is not supported yet for sulfinic acids (see "
+            "P-92, module docstring)"
+        )
+    excluded = {sulfur_idx}
+    non_ring_unsaturation = [
+        b
+        for b in non_single_bonds(mol)
+        if sulfur_idx not in (b[0], b[1]) and b[0] not in ring_atoms and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent "
+            "sulfinic acid chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain sulfinic acid is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, excluded)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside a "
+            "sulfinic acid is not supported yet"
+        )
+    if so2h_carbon not in chain:
+        raise UnsupportedStructure(
+            "the sulfinic acid carbon must lie on the chain hanging off "
+            "the benzene ring for this benzene-substituent path"
+        )
+
+    chain_length = len(chain)
+    halogens = halogen_substituents(mol)
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        so2h_locant = position_of[so2h_carbon]
+        substituents = {
+            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+        }
+        key, name = _candidate_key(chain_length, so2h_locant, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_sulfinic_acid(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_sulfinic_acid(mol, ring_atoms)
     sulfur_idx, so2h_carbon = _validate_and_collect_sulfinic_acids(mol)
     if specified_stereocenters(mol) is not None:
         # Unlike `_sulfonic_acid.py`'s sulfur, this module's sulfinic
