@@ -85,3 +85,31 @@ def test_amidine_specified_chain_stereocenter_raises():
     # safety net exists to fix.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC[C@@H](C)C(=N)N")
+
+
+def test_phenyl_chain_amidine():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring `_amide.py`'s
+    # `test_phenyl_chain_amide`): the ring is cited as a "phenyl"
+    # substituent prefix. PubChem PUG REST: "2-phenylethanimidamide"/
+    # "3-phenylpropanimidamide".
+    assert smiles_to_iupac("c1ccccc1CC(=N)N") == "2-phenylethanimidamide"
+    assert smiles_to_iupac("c1ccccc1CCC(=N)N") == "3-phenylpropanimidamide"
+
+
+def test_phenyl_directly_attached_amidine_raises():
+    # Benzamidine-type naming (the amidine carbon directly on the ring) is
+    # a separate construction, out of scope for this acyclic-chain-parent
+    # module, mirroring `_amide.py`'s benzamide-type rejection.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C(=N)N")
+
+
+def test_phenyl_substituted_benzene_ring_amidine_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(=N)N")
+
+
+def test_phenyl_chain_amidine_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC(=N)N")
