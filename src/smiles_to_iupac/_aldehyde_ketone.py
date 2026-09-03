@@ -42,9 +42,12 @@ from ._common import (
     bfs,
     carbon_adjacency,
     halogen_substituents,
+    is_plain_benzene_ring,
     lowest_locant_set,
     non_single_bonds,
+    ordered_chain,
     path_between,
+    ring_chain_attachment,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -80,7 +83,15 @@ def has_aldehyde_ketone_shape(mol) -> bool:
     return bool(aldehydes) and bool(ketones)
 
 
-def _validate_and_collect(mol):
+def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
+    """`aromatic_ring_atoms`: atom indices already independently verified
+    (by the caller, before this function runs) to form a single plain
+    benzene ring with exactly one exocyclic attachment -- exempted from
+    the aromatic-atom rejection below so `name_aldehyde_ketone`'s
+    benzene-ring-substituent path (see
+    `_name_phenyl_chain_aldehyde_ketone`) can reuse this same validation
+    for the rest of the molecule. Empty by default, so every other
+    caller's behavior is unchanged."""
     has_carbon = False
     aldehydes = set()
     ketones = set()
@@ -96,7 +107,7 @@ def _validate_and_collect(mol):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module (see "
                     "the separate aromatic-ring module)"
@@ -205,17 +216,88 @@ def _longest_chains(graph):
     return chains
 
 
-def _substituents_for_chain(graph, chain, names, aldehydes):
+def _substituents_for_chain(graph, chain, names, aldehydes, ring_atoms=frozenset()):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in aldehydes]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, names) for root in branch_roots]
+            substituents[position] = [
+                name_branch(graph, root, atom, names, ring_atoms) for root in branch_roots
+            ]
     return substituents
 
 
+def _name_phenyl_chain_aldehyde_ketone(mol, ring_atoms):
+    """Name an aldehyde+ketone combination whose -CHO lies entirely on a
+    single unbranched chain hanging off one atom of an otherwise-plain,
+    unsubstituted benzene ring -- e.g. 3-oxo-4-phenylbutanal. The ring is
+    cited as a 'phenyl' substituent prefix (via `name_branch`'s aromatic-
+    ring recognition) on the chain, which is the parent hydride, mirroring
+    `_aldehyde.py`'s `_name_phenyl_chain_aldehyde`. Narrower than the
+    acyclic path above: no chain unsaturation."""
+    aldehydes, ketones = _validate_and_collect(mol, aromatic_ring_atoms=ring_atoms)
+    carbonyl_oxygens = aldehydes | ketones
+    all_non_single = non_single_bonds(mol)
+    carbonyl_bonds = [b for b in all_non_single if b[0] in carbonyl_oxygens or b[1] in carbonyl_oxygens]
+    ring_bonds = [b for b in all_non_single if b[0] in ring_atoms and b[1] in ring_atoms]
+    if len(carbonyl_bonds) + len(ring_bonds) != len(all_non_single):
+        raise UnsupportedStructure(
+            "chain unsaturation (ene/yne) alongside a benzene-ring-"
+            "substituent aldehyde/ketone combination is out of scope for "
+            "this module"
+        )
+
+    graph = adjacency(mol)
+    (aldehyde_o,) = aldehydes
+    (aldehyde_carbon,) = graph[aldehyde_o]
+    names = {**halogen_substituents(mol), **{o: "oxo" for o in ketones}}
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain aldehyde/ketone combination is not "
+            "supported yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, aldehydes | set(names))
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside an "
+            "aldehyde/ketone combination is not supported yet"
+        )
+    if chain[-1] != aldehyde_carbon:
+        raise UnsupportedStructure(
+            "the aldehyde carbon must be the chain's far terminus from "
+            "the benzene ring for this benzene-substituent path"
+        )
+    if any(graph[o][0] not in chain for o in ketones):
+        raise UnsupportedStructure(
+            "not every ketone-bearing carbon lies on the chain hanging "
+            "off the benzene ring for this benzene-substituent path"
+        )
+    if len(chain) < 2:
+        raise UnsupportedStructure(
+            "a -CHO group directly attached to the benzene ring (the "
+            "'carbaldehyde' suffix, P-33.3.1.2) uses a separate naming "
+            "construction, out of scope for this acyclic-chain-parent "
+            "module"
+        )
+
+    ordered = list(reversed(chain))
+    chain_length = len(ordered)
+    substituents = _substituents_for_chain(graph, ordered, names, aldehydes, ring_atoms)
+    grouped = _group(substituents)
+    return _name_from_substituents(chain_length, grouped)
+
+
 def name_aldehyde_ketone(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_aldehyde_ketone(mol, ring_atoms)
+
     aldehydes, ketones = _validate_and_collect(mol)
     if mol.GetRingInfo().NumRings() != 0:
         raise UnsupportedStructure(
