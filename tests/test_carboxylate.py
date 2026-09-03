@@ -69,3 +69,33 @@ def test_carboxylate_stereocenter(smiles, expected):
 
 def test_carboxylate_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("CCC(C)C(=O)[O-]") == "2-methylbutanoate"
+
+
+def test_phenyl_chain_carboxylate():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring
+    # `_carboxylic_acid.py`'s `test_phenyl_chain_carboxylic_acid`): the
+    # ring is cited as a "phenyl" substituent prefix. PubChem PUG REST
+    # (structure match only; this project keeps its own "ethanoate"
+    # naming convention): "2-phenylacetate"/"3-phenylpropanoate".
+    assert smiles_to_iupac("c1ccccc1CC(=O)[O-]") == "2-phenylethanoate"
+    assert smiles_to_iupac("c1ccccc1CCC(=O)[O-]") == "3-phenylpropanoate"
+
+
+def test_phenyl_directly_attached_carboxylate_raises():
+    # Benzoate-type naming (the carboxylate carbon directly on the ring)
+    # is a separate construction, out of scope for this acyclic-
+    # chain-parent module, mirroring `_carboxylic_acid.py`'s benzoic-acid
+    # rejection.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C(=O)[O-]")
+
+
+def test_phenyl_substituted_benzene_ring_carboxylate_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(=O)[O-]")
+
+
+def test_phenyl_chain_carboxylate_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC(=O)[O-]")
