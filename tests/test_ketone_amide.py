@@ -48,3 +48,19 @@ def test_hydroxyl_coexistence_not_supported():
 def test_n_substituted_amide_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CNC(=O)CC(=O)C")
+
+
+def test_phenyl_chain_ketone_amide():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring
+    # `_aldehyde_ketone.py`'s phenyl-chain path): the ring is cited as a
+    # "phenyl" substituent prefix alongside the demoted ketone's "oxo"
+    # prefix. PubChem PUG REST: "3-oxo-4-phenylbutanamide"/
+    # "2-oxo-4-phenylbutanamide".
+    assert smiles_to_iupac("c1ccccc1CC(=O)CC(N)=O") == "3-oxo-4-phenylbutanamide"
+    assert smiles_to_iupac("c1ccccc1CCC(=O)C(N)=O") == "2-oxo-4-phenylbutanamide"
+
+
+def test_phenyl_chain_ketone_amide_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC(=O)CC(N)=O")
