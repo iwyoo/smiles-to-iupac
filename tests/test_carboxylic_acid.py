@@ -58,6 +58,49 @@ def test_aryl_carboxylic_acid_raises():
         smiles_to_iupac("OC(=O)c1ccccc1")
 
 
+def test_phenyl_substituent_carboxylic_acid():
+    # A plain, unsubstituted benzene ring hanging off a chain whose far end
+    # carries the sole -COOH (P-65.1.1.2's territory doesn't apply here --
+    # the -COOH is on the chain, not the ring itself). PubChem CID 999
+    # structure-matches this to "phenylacetic acid", but this module's own
+    # already-established convention uses the systematic stem once
+    # substituted (see the halogen case just below) rather than the
+    # retained 'acetic acid' name -- P-65.1.1 retains 'acetic acid' as PIN
+    # only for unsubstituted CH3COOH itself.
+    assert smiles_to_iupac("c1ccccc1CC(=O)O") == "2-phenylethanoic acid"
+
+
+def test_phenyl_substituent_carboxylic_acid_matches_halogen_locant_pattern():
+    # Same locant mechanism already verified for a halogen substituent
+    # (test_carboxylic_acid_names' "3-chloropropanoic acid" case) applied
+    # to a phenyl substituent instead -- one axis changed (substituent
+    # identity), locant placement itself already proven correct.
+    assert smiles_to_iupac("c1ccccc1CCC(=O)O") == "3-phenylpropanoic acid"
+
+
+def test_phenyl_substituent_carboxylic_acid_directly_on_ring_raises():
+    # No intervening chain carbon between the ring and the -COOH carbon is
+    # really the P-65.1.1.2 ring-carboxylic-acid case (benzoic acid),
+    # already covered by test_aryl_carboxylic_acid_raises -- this is the
+    # same rejection reached through the new benzene-ring code path
+    # instead of falling through to the old blanket ring rejection.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C(=O)O")
+
+
+def test_phenyl_substituent_carboxylic_acid_substituted_ring_raises():
+    # A substituted benzene ring (more than one exocyclic attachment) is
+    # out of scope for this first slice -- see
+    # tasks/aromatic-ring-substituent-parent-selection.md.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(=O)O")
+
+
+def test_phenyl_substituent_carboxylic_acid_naphthalene_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccc2ccccc2c1CC(=O)O")
+
+
 def test_amine_coexisting_demotes_to_amino_prefix():
     # glycine (H2N-CH2-COOH): a coexisting primary amine is junior to -COOH
     # (Table 3.3) and demoted to the 'amino' prefix (see
