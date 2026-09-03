@@ -117,6 +117,55 @@ def test_ester_not_misnamed_as_amide():
     assert smiles_to_iupac("CC(=O)OC") == "methyl ethanoate"
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+        # aromatic-ring-substituent extension, mirroring PR #269/#270/
+        # #271/#272/#273's carboxylic-acid/ketone/alcohol/ester/aldehyde
+        # chains): the ring is cited as a "phenyl" substituent prefix.
+        # Cross-checked against PubChem CID 68140 ("3-phenylpropanamide").
+        ("c1ccccc1CCC(N)=O", "3-phenylpropanamide"),
+        # Two-carbon chain: PubChem's own name for this SMILES uses the
+        # retained "phenylacetamide" stem, but this module always uses the
+        # systematic 'ethanamide' stem (see test_amide_names above), so
+        # this is an accepted, reviewed result rather than a
+        # PubChem-confirmed one -- same policy as the aldehyde module's
+        # '2-phenylethanal' (PR #273).
+        ("c1ccccc1CC(N)=O", "2-phenylethanamide"),
+    ],
+)
+def test_phenyl_chain_amide_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_phenyl_directly_attached_amide_raises():
+    # Benzamide-style naming (-CONH2 directly on the ring) is a separate
+    # construction, out of scope for this acyclic-chain-parent module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C(N)=O")
+
+
+def test_phenyl_chain_amide_n_alkyl_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1CCC(=O)NC")
+
+
+def test_phenyl_substituted_benzene_ring_amide_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(N)=O")
+
+
+def test_phenyl_chain_amide_with_hydroxyl_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OCc1ccccc1CC(N)=O")
+
+
+def test_phenyl_chain_amide_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC(N)=O")
+
+
 def test_carboxylic_acid_not_misnamed_as_amide():
     assert smiles_to_iupac("CC(=O)O") == "ethanoic acid"
 

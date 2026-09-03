@@ -69,7 +69,14 @@ first-pass scope:
 - A carbonyl carbon with other than exactly one nitrogen neighbor, or more
   than one carbon neighbor (a ketone-shaped carbon is not an amide carbon).
 - An aromatic carbonyl carbon, or any aromatic ring elsewhere in the
-  molecule - a separate module's territory.
+  molecule - a separate module's territory, except for one narrow case: a
+  primary amide's chain hanging off a single plain, unsubstituted benzene
+  ring with no other substituent on the ring (`_name_phenyl_chain_amide`,
+  e.g. '3-phenylpropanamide'), mirroring `_aldehyde.py`/
+  `_carboxylic_acid.py`'s identical benzene-ring-substituent path. Narrower
+  than the acyclic path: no N-alkyl substitution, no coexisting standalone
+  hydroxyl, no chain unsaturation, no specified stereocenter, and no
+  substituted benzene/naphthalene - each a separate follow-up.
 - Any other heteroatom (S, ...).
 - A hydroxyl on a carbon that is also part of a C=C/C#C bond (an enol,
   tautomeric with a more senior carbonyl form) — same restriction as
@@ -89,11 +96,14 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    is_plain_benzene_ring,
     linear_branch,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    ordered_chain,
+    ring_chain_attachment,
     specified_stereocenters,
 )
 from ._numerals import alkane_name, alkyl_name
@@ -139,12 +149,20 @@ def has_amide_shape(mol) -> bool:
     return False
 
 
-def _validate_and_collect_amide(mol):
+def _validate_and_collect_amide(mol, aromatic_ring_atoms=frozenset()):
     """Check the molecule fits this module's scope (see module docstring)
     and return (amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons,
     hydroxyls): the single -CON(R)(R') carbon/oxygen/nitrogen atom indices,
     a tuple of 0-2 N-alkyl substituent carbon indices, and the set of any
-    coexisting standalone hydroxyl-oxygen atom indices."""
+    coexisting standalone hydroxyl-oxygen atom indices.
+
+    `aromatic_ring_atoms`: atom indices already independently verified (by
+    the caller, before this function runs) to form a single plain benzene
+    ring with exactly one exocyclic attachment -- exempted from the
+    aromatic-atom rejection below so `name_amide`'s benzene-ring-substituent
+    path (see `_name_phenyl_chain_amide`) can reuse this same validation for
+    the rest of the molecule. Empty by default, so every other caller's
+    behavior is unchanged."""
     has_carbon = False
     amide_carbons = set()
     amide_oxygen_by_carbon = {}
@@ -163,7 +181,7 @@ def _validate_and_collect_amide(mol):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module (see "
                     "the separate aromatic-ring module)"
@@ -469,7 +487,91 @@ def _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls,
     return best_name
 
 
+def _name_phenyl_chain_amide(mol, ring_atoms):
+    """Name a primary amide whose -CONH2 lies entirely on a single
+    unbranched chain hanging off one atom of an otherwise-plain,
+    unsubstituted benzene ring -- e.g. 3-phenylpropanamide. The ring is
+    cited as a 'phenyl' substituent prefix (via `name_branch`'s aromatic-
+    ring recognition) on the chain, which is the parent hydride, mirroring
+    `_aldehyde.py`'s `_name_phenyl_chain_aldehyde`. Narrower than the
+    acyclic path above: no N-alkyl substitution, no coexisting standalone
+    hydroxyl, no chain unsaturation, and no specified stereocenter -- each
+    is a separate follow-up (see
+    tasks/phenyl-substituent-on-amide-chain.md's scope note)."""
+    amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(
+        mol, aromatic_ring_atoms=ring_atoms
+    )
+    if n_alkyl_carbons:
+        raise UnsupportedStructure(
+            "an N-alkyl-substituted amide alongside a benzene-ring "
+            "substituent is not supported yet"
+        )
+    if hydroxyls:
+        raise UnsupportedStructure(
+            "a standalone hydroxyl alongside a benzene-ring-substituent "
+            "amide chain is not supported yet"
+        )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a benzene-ring-substituent "
+            "amide chain is not supported yet"
+        )
+
+    excluded = {amide_oxygen, amide_nitrogen}
+    non_ring_unsaturation = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in excluded and b[1] not in excluded and b[0] not in ring_atoms and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent amide "
+            "chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain amide is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, excluded)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside an "
+            "amide is not supported yet"
+        )
+    if chain[-1] != amide_carbon:
+        raise UnsupportedStructure(
+            "the amide carbon must be the chain's far terminus from the "
+            "benzene ring for this benzene-substituent path"
+        )
+    if len(chain) < 2:
+        raise UnsupportedStructure(
+            "an amide directly attached to the benzene ring (the "
+            "'benzamide'-style naming) uses a separate construction, out "
+            "of scope for this acyclic-chain-parent module"
+        )
+
+    ordered = list(reversed(chain))
+    chain_length = len(ordered)
+    position_of = {atom: i + 1 for i, atom in enumerate(ordered)}
+    halogens = halogen_substituents(mol)
+    substituents = {
+        position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+    }
+    grouped = group_substituents(substituents)
+    return _name_from_substituents(chain_length, [], [], grouped)
+
+
 def name_amide(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_amide(mol, ring_atoms)
     amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(mol)
     stereo = specified_stereocenters(mol)
     if mol.GetRingInfo().NumRings() > 0:
