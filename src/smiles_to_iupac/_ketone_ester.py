@@ -35,10 +35,13 @@ from ._common import (
     bfs,
     carbon_adjacency,
     halogen_substituents,
+    is_plain_benzene_ring,
     linear_branch,
     lowest_locant_set,
     non_single_bonds,
+    ordered_chain,
     path_between,
+    ring_chain_attachment,
 )
 from ._numerals import alkane_name, alkyl_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -110,7 +113,7 @@ def has_ketone_ester_shape(mol) -> bool:
     return bool(_extra_ketones(mol, excluded))
 
 
-def _validate(mol, acyl_carbon, carbonyl_oxygen, ester_oxygen, ketones):
+def _validate(mol, acyl_carbon, carbonyl_oxygen, ester_oxygen, ketones, aromatic_ring_atoms=frozenset()):
     excluded_oxygens = {carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx()} | ketones
     has_carbon = False
     for atom in mol.GetAtoms():
@@ -125,7 +128,7 @@ def _validate(mol, acyl_carbon, carbonyl_oxygen, ester_oxygen, ketones):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module (see "
                     "the separate aromatic-ring module)"
@@ -242,13 +245,15 @@ def _longest_chains(graph):
     return chains
 
 
-def _substituents_for_chain(graph, chain, names, excluded_oxygens):
+def _substituents_for_chain(graph, chain, names, excluded_oxygens, ring_atoms=frozenset()):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded_oxygens]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, names) for root in branch_roots]
+            substituents[position] = [
+                name_branch(graph, root, atom, names, ring_atoms) for root in branch_roots
+            ]
     return substituents
 
 
@@ -298,7 +303,105 @@ def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, ket
     return best_name
 
 
+def _name_phenyl_chain_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, ketones, ring_atoms):
+    """Name the acyl part (R) of a ketone+ester combination whose acyl
+    chain hangs off a single unbranched chain from one atom of an
+    otherwise-plain, unsubstituted benzene ring -- e.g.
+    'methyl 3-oxo-4-phenylbutanoate'. Mirrors `_name_acyl_part` above but
+    routes the acyl chain through `ring_chain_attachment` instead of
+    `_longest_chains`, the same way `_aldehyde_ketone.py`'s
+    `_name_phenyl_chain_aldehyde_ketone` extends its own chain-terminus
+    acyl search."""
+    full_graph = adjacency(mol)
+    names = {**halogen_substituents(mol), **{o: "oxo" for o in ketones}}
+    acyl_carbon_idx = acyl_carbon.GetIdx()
+    excluded_oxygens = {carbonyl_oxygen_idx, ester_oxygen_idx}
+
+    attachment = ring_chain_attachment(full_graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain ketone/ester combination is not supported "
+            "yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(full_graph, chain_root, ring_atom, excluded_oxygens | set(names))
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside a "
+            "ketone/ester combination is not supported yet"
+        )
+    if chain[-1] != acyl_carbon_idx:
+        raise UnsupportedStructure(
+            "the ester's acyl carbon must be the chain's far terminus "
+            "from the benzene ring for this benzene-substituent path"
+        )
+    if any(full_graph[o][0] not in chain for o in ketones):
+        raise UnsupportedStructure(
+            "not every ketone-bearing carbon lies on the chain hanging "
+            "off the benzene ring for this benzene-substituent path"
+        )
+    if len(chain) < 2:
+        raise UnsupportedStructure(
+            "an ester group directly attached to the benzene ring uses a "
+            "separate naming construction, out of scope for this "
+            "acyclic-chain-parent module"
+        )
+
+    ordered = list(reversed(chain))
+    chain_length = len(ordered)
+    substituents = _substituents_for_chain(full_graph, ordered, names, excluded_oxygens, ring_atoms)
+    grouped = _group(substituents)
+    return _name_from_substituents(chain_length, grouped)
+
+
+def _name_phenyl_chain_ketone_ester(mol, ring_atoms):
+    """Name a ketone+ester combination whose acyl chain (R) hangs off a
+    plain, unsubstituted benzene ring -- e.g.
+    'methyl 3-oxo-4-phenylbutanoate'. The alcohol part (R') is unaffected
+    (unbranched-alkyl-only, same as the acyclic path)."""
+    group = _find_ester_group(mol)
+    if group is None:
+        raise UnsupportedStructure(
+            "exactly one ester group is required; zero or multiple ester "
+            "groups (e.g. a diester) are not supported yet (P-65.6.3)"
+        )
+    acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon = group
+    excluded = {carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx()}
+    ketones = _extra_ketones(mol, excluded)
+    if not ketones:
+        raise UnsupportedStructure(
+            "no coexisting ketone found; this module only handles an ester "
+            "combined with at least one ketone on the acyl chain (see "
+            "_ester.py for a plain ester)"
+        )
+    _validate(mol, acyl_carbon, carbonyl_oxygen, ester_oxygen, ketones, aromatic_ring_atoms=ring_atoms)
+
+    all_non_single = non_single_bonds(mol)
+    carbonyl_bonds = [
+        b for b in all_non_single if b[0] in (excluded | ketones) or b[1] in (excluded | ketones)
+    ]
+    ring_bonds = [b for b in all_non_single if b[0] in ring_atoms and b[1] in ring_atoms]
+    if len(carbonyl_bonds) + len(ring_bonds) != len(all_non_single):
+        raise UnsupportedStructure(
+            "chain unsaturation (ene/yne) alongside a benzene-ring-"
+            "substituent ketone/ester combination is out of scope for "
+            "this module"
+        )
+
+    alcohol_name = _name_alcohol_part(mol, alcohol_carbon, ester_oxygen.GetIdx())
+    acyl_name = _name_phenyl_chain_acyl_part(
+        mol, acyl_carbon, carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx(), ketones, ring_atoms
+    )
+    return f"{alcohol_name} {acyl_name}"
+
+
 def name_ketone_ester(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_ketone_ester(mol, ring_atoms)
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(
             "a ring-attached ester or ketone is out of scope for this "
