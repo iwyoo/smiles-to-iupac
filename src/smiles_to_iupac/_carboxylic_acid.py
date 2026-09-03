@@ -98,6 +98,7 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    is_plain_benzene_ring,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
@@ -401,13 +402,6 @@ def _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, hydro
     return best_name
 
 
-def _is_plain_benzene_ring(mol, ring_atoms):
-    return len(ring_atoms) == 6 and all(
-        mol.GetAtomWithIdx(idx).GetAtomicNum() == 6 and mol.GetAtomWithIdx(idx).GetIsAromatic()
-        for idx in ring_atoms
-    )
-
-
 def _name_phenyl_chain_carboxylic_acid(mol, ring_atoms):
     """Name a carboxylic acid whose -COOH lies entirely on a single
     unbranched chain hanging off one atom of an otherwise-plain,
@@ -495,7 +489,7 @@ def name_carboxylic_acid(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
-        if _is_plain_benzene_ring(mol, ring_atoms):
+        if is_plain_benzene_ring(mol, ring_atoms):
             return _name_phenyl_chain_carboxylic_acid(mol, ring_atoms)
         raise UnsupportedStructure(
             "a -COOH group on/in a ring uses the separate 'carboxylic acid' "

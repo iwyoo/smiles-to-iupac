@@ -129,6 +129,18 @@ def ring_chain_attachment(graph, ring_atoms, excluded):
     return ring_atom, branch_roots[0]
 
 
+def is_plain_benzene_ring(mol, ring_atoms):
+    """True if `ring_atoms` is exactly a 6-membered ring of aromatic carbons
+    (a plain, unsubstituted-shape benzene ring) -- used by any chain-parent
+    module (`_carboxylic_acid.py`, `_ketone.py`, ...) that names such a ring
+    as a 'phenyl' substituent prefix on the chain rather than as the parent
+    itself."""
+    return len(ring_atoms) == 6 and all(
+        mol.GetAtomWithIdx(idx).GetAtomicNum() == 6 and mol.GetAtomWithIdx(idx).GetIsAromatic()
+        for idx in ring_atoms
+    )
+
+
 def ordered_chain(graph, root, coming_from, excluded):
     """The chain of atoms starting at `root` and extending away from
     `coming_from`, ignoring `excluded` atoms (e.g. hydroxyl/carboxyl
