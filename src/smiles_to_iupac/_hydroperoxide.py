@@ -37,7 +37,13 @@ work), any unsaturation (ene/yne coexistence), any ring, the P-56.2
 chalcogen-analogue suffixes ('SO-thioperoxol' etc., a completely different
 -S-OH/-Se-OH family), and any coexisting principal characteristic group
 (Table 3.3 seniority competition, e.g. -OOH + -COOH) -- all separate,
-unverified axes.
+unverified axes. One narrow exception to the "any ring" rule:
+`_name_phenyl_chain_hydroperoxide` names a -OOH chain hanging off a
+single plain, unsubstituted benzene ring (e.g.
+'2-phenylethaneperoxol'), mirroring `_alcohol.py`/`_thiol.py`'s
+identical benzene-ring-substituent path -- narrower than the acyclic
+path: no chain unsaturation, and a -OOH directly on the ring stays out
+of scope for this module.
 """
 
 from rdkit import Chem
@@ -49,9 +55,12 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    is_plain_benzene_ring,
     longest_chains,
     lowest_locant_set,
     non_single_bonds,
+    ordered_chain,
+    ring_chain_attachment,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -90,11 +99,19 @@ def has_hydroperoxide_shape(mol) -> bool:
     return _hydroperoxide_oxygens(mol) is not None
 
 
-def _validate_and_collect(mol):
+def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
     """Check the molecule fits this module's scope (see module docstring)
     and return (site, exclude) where `site` is the carbon bearing -OOH and
     `exclude` is the {attach, terminal} oxygen indices to skip when
-    collecting substituent branches off the parent chain."""
+    collecting substituent branches off the parent chain.
+
+    `aromatic_ring_atoms`: atom indices already independently verified (by
+    the caller, before this function runs) to form a single plain benzene
+    ring with exactly one exocyclic attachment -- exempted from the
+    aromatic-atom rejection below so `name_hydroperoxide`'s benzene-ring-
+    substituent path (see `_name_phenyl_chain_hydroperoxide`) can reuse
+    this same validation for the rest of the molecule. Empty by default,
+    so every other caller's behavior is unchanged."""
     has_carbon = False
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
@@ -108,7 +125,7 @@ def _validate_and_collect(mol):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module (see "
                     "the separate aromatic-ring module)"
@@ -188,7 +205,73 @@ def _substituents_for_chain(graph, chain, halogens, exclude):
     return substituents
 
 
+def _name_phenyl_chain_hydroperoxide(mol, ring_atoms):
+    """Name a hydroperoxide whose -OOH lies entirely on a single
+    unbranched chain hanging off one atom of an otherwise-plain,
+    unsubstituted benzene ring -- e.g. 2-phenylethaneperoxol. The ring is
+    cited as a 'phenyl' substituent prefix on the chain, which is the
+    parent hydride, mirroring `_alcohol.py`'s `_name_phenyl_chain_alcohol`.
+    Narrower than the acyclic path above: no chain unsaturation -- a
+    separate follow-up (see
+    tasks/phenyl-substituent-on-hydroperoxide-chain.md's scope note)."""
+    site, exclude = _validate_and_collect(mol, aromatic_ring_atoms=ring_atoms)
+    non_ring_unsaturation = [
+        b for b in non_single_bonds(mol) if b[0] not in ring_atoms and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent "
+            "hydroperoxide chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain hydroperoxide is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    if chain_root in exclude:
+        raise UnsupportedStructure(
+            "a hydroperoxide directly on the benzene ring uses a separate "
+            "construction, out of scope for this chain-parent module"
+        )
+    chain = ordered_chain(graph, chain_root, ring_atom, exclude)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside a "
+            "hydroperoxide is not supported yet"
+        )
+    if site not in chain:
+        raise UnsupportedStructure(
+            "the hydroperoxide-bearing carbon must lie on the chain "
+            "hanging off the benzene ring for this benzene-substituent "
+            "path"
+        )
+
+    halogens = halogen_substituents(mol)
+    chain_length = len(chain)
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        locant = position_of[site]
+        substituents = {
+            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+        }
+        key, name = _candidate_key(chain_length, locant, substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_hydroperoxide(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_hydroperoxide(mol, ring_atoms)
     site, exclude = _validate_and_collect(mol)
     if non_single_bonds(mol):
         raise UnsupportedStructure(
