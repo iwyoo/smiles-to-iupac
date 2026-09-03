@@ -43,11 +43,40 @@ def test_halogen_substituent():
     assert smiles_to_iupac("C1=CC(Cl)CCC1") == "3-chlorocyclohexene"
 
 
-def test_ring_triple_bond_not_supported():
+def test_unsubstituted_cycloalkyne():
+    # cyclooctyne: well-known unambiguous compound name, single ring
+    # triple bond so its locant is always omitted (P-14.3.3), same as the
+    # single-ene case above.
+    assert smiles_to_iupac("C1#CCCCCCC1") == "cyclooctyne"
+
+
+def test_cycloalkyne_with_substituent():
+    # Same locant-tiebreak logic already verified for the ene case
+    # (test_single_ene_locant_always_omitted_with_substituent) applied to
+    # a triple bond: the yne stays at the omitted '1', methyl gets the
+    # lowest achievable locant.
+    assert smiles_to_iupac("CC1CCCCCC#C1") == "3-methylcyclooctyne"
+
+
+def test_mixed_enyne_ring():
+    # P-31.1.3.1's own worked example (Blue Book Chapter P-3): the double
+    # bond is allocated locant '1' and the triple bond '4' -- lower
+    # locants go to the double bond specifically once the combined
+    # {1,4}/{1,2}... locant-set choice is tied. Stereodescriptor omitted
+    # (E/Z on ring multiple bonds is out of this module's scope).
+    assert smiles_to_iupac("C1=CCC#CCCCCCCCCCC1") == "cyclopentadec-1-en-4-yne"
+
+
+def test_polycyclic_ring_triple_bond_not_supported():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1#CCCCC1")
+        smiles_to_iupac("C1#CC2(CCCC1)CCCCC2")
 
 
 def test_exocyclic_double_bond_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1(=C)CCCCC1")
+
+
+def test_exocyclic_triple_bond_substituent_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1(C#CC)CCCCC1")
