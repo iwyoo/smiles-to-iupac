@@ -77,6 +77,38 @@ def test_sulfonic_acid_with_alcohol_not_supported():
         smiles_to_iupac("OS(=O)(=O)CCO")
 
 
+def test_phenyl_chain_sulfonic_acid():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring PR #269-#276's
+    # carboxylic-acid/ketone/alcohol/ester/aldehyde/amide/nitrile/acyl-
+    # halide chains): the ring is cited as a "phenyl" substituent prefix.
+    assert smiles_to_iupac("c1ccccc1CCCS(=O)(=O)O") == "3-phenylpropane-1-sulfonic acid"
+
+
+def test_phenyl_chain_sulfonic_acid_internal_locant():
+    # The -SO3H locant is a genuine choice on the chain (unlike a
+    # terminus-only suffix like -CHO), same as the base acyclic module.
+    assert smiles_to_iupac("c1ccccc1CC(C)S(=O)(=O)O") == "1-phenylpropane-2-sulfonic acid"
+
+
+def test_phenyl_directly_attached_sulfonic_acid_raises():
+    # Benzenesulfonic acid-style naming (-SO3H directly on the ring) is a
+    # separate construction, out of scope for this acyclic-chain-parent
+    # module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1S(=O)(=O)O")
+
+
+def test_phenyl_substituted_benzene_ring_sulfonic_acid_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CCS(=O)(=O)O")
+
+
+def test_phenyl_chain_sulfonic_acid_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CCS(=O)(=O)O")
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
