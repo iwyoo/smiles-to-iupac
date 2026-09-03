@@ -45,3 +45,33 @@ def test_unsaturated_chain_not_supported():
 def test_two_telluroic_acid_groups_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[TeH]C(=O)CC(=O)[TeH]")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+        # aromatic-ring-substituent extension, mirroring PR #269-#281's
+        # carboxylic-acid/ketone/alcohol/ester/aldehyde/amide/nitrile/
+        # acyl-halide/sulfonic-acid/thiol/sulfinic-acid/thioic-acid/
+        # selenoic-acid chains): the ring is cited as a "phenyl"
+        # substituent prefix. This module never supports any other
+        # substituent, so the ring is always at the chain's far terminus
+        # with no locant tie-break needed.
+        ("c1ccccc1CC(=O)[TeH]", "2-phenylethanetelluroic Te-acid"),
+        ("c1ccccc1CCC(=O)[TeH]", "3-phenylpropanetelluroic Te-acid"),
+        ("c1ccccc1CC(=[Te])O", "2-phenylethanetelluroic O-acid"),
+    ],
+)
+def test_phenyl_chain_telluroic_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_phenyl_directly_attached_telluroic_acid_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C(=O)[TeH]")
+
+
+def test_phenyl_substituted_benzene_ring_telluroic_acid_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(=O)[TeH]")
