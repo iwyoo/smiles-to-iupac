@@ -64,10 +64,16 @@ from ._common import UnsupportedStructure, lowest_locant_set, multiplied_word
 from ._numerals import alkane_name, alkyl_name, multiplying_prefix
 
 _LEADING_LOCANTS_RE = re.compile(r"^[\d,\-]+")
+_ITALIC_PREFIX_RE = re.compile(r"^(tert|sec|iso)-")
 
 
 def alpha_sort_key(name: str) -> str:
-    return _LEADING_LOCANTS_RE.sub("", name).lower()
+    """P-14.5.2: alphanumerical ordering ignores locants and italicized
+    prefixes like 'tert-' -- only the rest of the name counts (so
+    'tert-butyl' sorts under 'b', not 't')."""
+    stripped = _LEADING_LOCANTS_RE.sub("", name)
+    stripped = _ITALIC_PREFIX_RE.sub("", stripped)
+    return stripped.lower()
 
 
 def format_substituent_prefixes(grouped, omit_locants: bool = False) -> str:
