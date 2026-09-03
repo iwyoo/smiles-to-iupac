@@ -39,6 +39,30 @@ def test_trisulfur_chain_not_supported():
         smiles_to_iupac("CSSSC")
 
 
+def test_terminal_persulfide_methane():
+    # PubChem PUG REST CID 522059 -- a bare 'disulfanyl' with no locant
+    # next to it needs no P-16.3.3 parentheses, unlike the alkyl-prefixed
+    # 'methyldisulfanyl' cases above.
+    assert smiles_to_iupac("CSS") == "disulfanylmethane"
+
+
+def test_terminal_persulfide_ethane():
+    # PubChem PUG REST CID 94671.
+    assert smiles_to_iupac("CCSS") == "disulfanylethane"
+
+
+def test_terminal_persulfide_propane():
+    # PubChem PUG REST CID 6428842 -- a 3-carbon parent needs a locant, and
+    # the parentheses return once a digit sits directly in front of the
+    # bare 'disulfanyl' name.
+    assert smiles_to_iupac("CCCSS") == "1-(disulfanyl)propane"
+
+
+def test_both_terminal_disulfane_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("SS")
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [

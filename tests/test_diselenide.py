@@ -39,6 +39,30 @@ def test_triselenium_chain_not_supported():
         smiles_to_iupac("C[Se][Se][Se]C")
 
 
+def test_terminal_perselenol_methane():
+    # PubChem PUG REST CID 101729611 -- a bare 'diselanyl' with no locant
+    # next to it needs no P-16.3.3 parentheses, unlike the alkyl-prefixed
+    # 'methyldiselanyl' cases above.
+    assert smiles_to_iupac("C[Se][SeH]") == "diselanylmethane"
+
+
+def test_terminal_perselenol_ethane():
+    # PubChem PUG REST CID 173348765.
+    assert smiles_to_iupac("CC[Se][SeH]") == "diselanylethane"
+
+
+def test_terminal_perselenol_propane():
+    # PubChem PUG REST CID 174964680 -- a 3-carbon parent needs a locant,
+    # and the parentheses return once a digit sits directly in front of
+    # the bare 'diselanyl' name.
+    assert smiles_to_iupac("CCC[Se][SeH]") == "1-(diselanyl)propane"
+
+
+def test_both_terminal_diselane_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[SeH][SeH]")
+
+
 def test_stereocenter_on_parent_chain():
     # No PubChem-registered stereoisomer for this shape (specified SMILES
     # resolves to CID 0); cross-checked against RDKit's independent
