@@ -22,6 +22,19 @@ restricted to two acyclic saturated hydrocarbon chains hung off a single
   P-14.3.4.2(b) rule as `_diselenide.py`'s identical case), CID 16592
   (`CCCSSC`) -> "1-(methyldisulfanyl)propane" (3-carbon parent needs it).
 
+- One side may also be a plain terminal -SH instead of a second R'
+  (a "perthiol"/hydrodisulfide, R-S-SH): confirmed via PubChem PUG REST --
+  CID 522059 (`CSS`) -> "disulfanylmethane" (mononuclear parent, no
+  parentheses -- unlike the R-S-S-R' case above, a *bare*, unprefixed
+  'disulfanyl' name isn't itself a compound substituent, so P-16.3.3's
+  disambiguation doesn't apply when no locant sits next to it), CID 94671
+  (`CCSS`) -> "disulfanylethane" (2-carbon parent, same no-locant/no-parens
+  rule), CID 6428842 (`CCCSS`) -> "1-(disulfanyl)propane" (3-carbon parent
+  -- once a locant digit sits directly in front of 'disulfanyl', the
+  parentheses return to keep the digit from misreading as part of the
+  'di-' syllable). Both sulfurs terminal (H-S-S-H, disulfane itself) stays
+  out of scope -- no carbon parent to hang a name on.
+
 Scope and out-of-scope structures are otherwise identical to
 `_diselenide.py`, sulfur chained to sulfur in place of selenium chained
 to selenium. In particular still out of scope: a branched R'
@@ -46,6 +59,7 @@ from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _SULFUR = 16
+_BARE_TERMINAL_NAME = "disulfanyl"
 
 
 def _component_subgraph(graph, start):
@@ -55,9 +69,11 @@ def _component_subgraph(graph, start):
 
 
 def has_disulfide_shape(mol) -> bool:
-    """True iff `mol` has exactly two sulfur atoms, bonded to each other
-    (single bond) and each also singly bonded to exactly one carbon (a
-    plain R-S-S-R' disulfide) -- the shape this module accepts."""
+    """True iff `mol` has exactly two sulfur atoms, singly bonded to each
+    other, where each sulfur is additionally bonded either to exactly one
+    carbon (R-S-) or to nothing else (a terminal -SH, filled by an
+    implicit hydrogen) -- but not both terminal at once (H-S-S-H has no
+    carbon parent to hang a name on, out of scope)."""
     sulfurs = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == _SULFUR]
     if len(sulfurs) != 2:
         return False
@@ -65,11 +81,20 @@ def has_disulfide_shape(mol) -> bool:
     bond = mol.GetBondBetweenAtoms(s1.GetIdx(), s2.GetIdx())
     if bond is None or bond.GetBondTypeAsDouble() != 1.0:
         return False
-    if s1.GetDegree() != 2 or s2.GetDegree() != 2:
+    if s1.GetDegree() not in (1, 2) or s2.GetDegree() not in (1, 2):
         return False
-    (other1,) = [n for n in s1.GetNeighbors() if n.GetIdx() != s2.GetIdx()]
-    (other2,) = [n for n in s2.GetNeighbors() if n.GetIdx() != s1.GetIdx()]
-    return other1.GetAtomicNum() == 6 and other2.GetAtomicNum() == 6
+    if s1.GetDegree() == 1 and s1.GetTotalNumHs() != 1:
+        return False
+    if s2.GetDegree() == 1 and s2.GetTotalNumHs() != 1:
+        return False
+    if s1.GetDegree() == 1 and s2.GetDegree() == 1:
+        return False
+    others = []
+    for s, other_s in ((s1, s2), (s2, s1)):
+        if s.GetDegree() == 2:
+            (other,) = [n for n in s.GetNeighbors() if n.GetIdx() != other_s.GetIdx()]
+            others.append(other)
+    return all(o.GetAtomicNum() == 6 for o in others)
 
 
 def _validate_and_find_disulfide(mol):
@@ -102,8 +127,12 @@ def _validate_and_find_disulfide(mol):
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
     s1, s2 = (atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == _SULFUR)
-    (c1,) = [n.GetIdx() for n in s1.GetNeighbors() if n.GetIdx() != s2.GetIdx()]
-    (c2,) = [n.GetIdx() for n in s2.GetNeighbors() if n.GetIdx() != s1.GetIdx()]
+    c1 = None
+    if s1.GetDegree() == 2:
+        (c1,) = [n.GetIdx() for n in s1.GetNeighbors() if n.GetIdx() != s2.GetIdx()]
+    c2 = None
+    if s2.GetDegree() == 2:
+        (c2,) = [n.GetIdx() for n in s2.GetNeighbors() if n.GetIdx() != s1.GetIdx()]
     return s1.GetIdx(), s2.GetIdx(), c1, c2
 
 
@@ -140,6 +169,14 @@ def _group(substituents):
 
 def _name_from_substituents(chain_length, grouped):
     if chain_length == 1 and grouped:
+        (name,) = grouped
+        if name == _BARE_TERMINAL_NAME:
+            # No locant sits next to it here, so the bare (unprefixed)
+            # name needs no P-16.3.3 parentheses -- confirmed by
+            # 'disulfanylmethane' (CID 522059), unlike a genuinely
+            # compound name like 'methyldisulfanyl' (still parenthesized
+            # below via the ordinary path).
+            return name + alkane_name(chain_length)
         return format_substituent_prefixes(grouped, omit_locants=True) + alkane_name(chain_length)
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     if chain_length == 2 and total_subs == 1:
@@ -148,8 +185,16 @@ def _name_from_substituents(chain_length, grouped):
         # numbering direction, so the locant is omittable -- this holds
         # whether or not that substituent is itself compound (confirmed
         # by 'disulfanyl', same as `_diselenide.py`'s identical rule).
+        # A bare (unprefixed) 'disulfanyl' name is the exception -- no
+        # locant here either, so no parentheses (CID 94671
+        # 'disulfanylethane'), unlike the >=3-carbon case below where a
+        # locant digit does sit next to it (CID 6428842
+        # '1-(disulfanyl)propane').
         (name,) = grouped
-        display_name = f"({name})" if grouped[name]["compound"] else name
+        if name == _BARE_TERMINAL_NAME:
+            display_name = name
+        else:
+            display_name = f"({name})" if grouped[name]["compound"] else name
         return display_name + alkane_name(chain_length)
     prefix = format_substituent_prefixes(grouped)
     return prefix + alkane_name(chain_length)
@@ -188,34 +233,39 @@ def name_disulfide(mol) -> str:
     s1_idx, s2_idx, c1, c2 = _validate_and_find_disulfide(mol)
     full_graph = adjacency(mol)
     carbon_graph = carbon_adjacency(mol)
-    size1 = len(_component_subgraph(carbon_graph, c1))
-    size2 = len(_component_subgraph(carbon_graph, c2))
 
-    if size1 == size2:
-        _, compound_a = name_branch(full_graph, c1, s1_idx, {})
-        _, compound_b = name_branch(full_graph, c2, s2_idx, {})
-        if compound_a and compound_b:
-            raise UnsupportedStructure(
-                "a disulfide tied in skeletal-atom count with both sides "
-                "branched is not supported yet"
-            )
-        if compound_a:
-            parent_root, parent_s, sub_root, sub_s = c2, s2_idx, c1, s1_idx
-        else:
-            parent_root, parent_s, sub_root, sub_s = c1, s1_idx, c2, s2_idx
-    elif size1 > size2:
-        parent_root, parent_s, sub_root, sub_s = c1, s1_idx, c2, s2_idx
+    if c1 is None or c2 is None:
+        parent_root, parent_s = (c2, s2_idx) if c1 is None else (c1, s1_idx)
+        terminals = {parent_s: _BARE_TERMINAL_NAME}
     else:
-        parent_root, parent_s, sub_root, sub_s = c2, s2_idx, c1, s1_idx
+        size1 = len(_component_subgraph(carbon_graph, c1))
+        size2 = len(_component_subgraph(carbon_graph, c2))
 
-    sub_name, sub_compound = name_branch(full_graph, sub_root, sub_s, {})
-    if sub_compound:
-        raise UnsupportedStructure(
-            "a branched alkyldisulfanyl substituent is not supported yet"
-        )
+        if size1 == size2:
+            _, compound_a = name_branch(full_graph, c1, s1_idx, {})
+            _, compound_b = name_branch(full_graph, c2, s2_idx, {})
+            if compound_a and compound_b:
+                raise UnsupportedStructure(
+                    "a disulfide tied in skeletal-atom count with both sides "
+                    "branched is not supported yet"
+                )
+            if compound_a:
+                parent_root, parent_s, sub_root, sub_s = c2, s2_idx, c1, s1_idx
+            else:
+                parent_root, parent_s, sub_root, sub_s = c1, s1_idx, c2, s2_idx
+        elif size1 > size2:
+            parent_root, parent_s, sub_root, sub_s = c1, s1_idx, c2, s2_idx
+        else:
+            parent_root, parent_s, sub_root, sub_s = c2, s2_idx, c1, s1_idx
+
+        sub_name, sub_compound = name_branch(full_graph, sub_root, sub_s, {})
+        if sub_compound:
+            raise UnsupportedStructure(
+                "a branched alkyldisulfanyl substituent is not supported yet"
+            )
+        terminals = {parent_s: sub_name + "disulfanyl"}
 
     parent_carbon_graph = _component_subgraph(carbon_graph, parent_root)
-    terminals = {parent_s: sub_name + "disulfanyl"}
     chain, name = _name_parent_chain(full_graph, parent_carbon_graph, terminals)
 
     stereo = specified_stereocenters(mol)

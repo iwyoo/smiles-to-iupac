@@ -40,6 +40,32 @@ def test_tritellurium_chain_not_supported():
         smiles_to_iupac("C[Te][Te][Te]C")
 
 
+def test_terminal_pertellurol_ethane():
+    # PubChem PUG REST CID 173350364 -- a bare 'ditellanyl' with no locant
+    # next to it needs no P-16.3.3 parentheses, unlike the alkyl-prefixed
+    # 'methylditellanyl' cases above.
+    assert smiles_to_iupac("CC[Te][TeH]") == "ditellanylethane"
+
+
+def test_terminal_pertellurol_methane():
+    # No PubChem-listed compound for this exact structure (CID 0) -- a
+    # reviewed extension of the confirmed ethane case above and of
+    # `_disulfide.py`/`_diselenide.py`'s identical mononuclear rule.
+    assert smiles_to_iupac("C[Te][TeH]") == "ditellanylmethane"
+
+
+def test_terminal_pertellurol_propane():
+    # No PubChem-listed compound for this exact structure (CID 0) -- a
+    # reviewed extension of `_disulfide.py`/`_diselenide.py`'s identical
+    # confirmed 3-carbon case.
+    assert smiles_to_iupac("CCC[Te][TeH]") == "1-(ditellanyl)propane"
+
+
+def test_both_terminal_ditellane_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[TeH][TeH]")
+
+
 def test_stereocenter_on_parent_chain():
     # No PubChem-registered stereoisomer for this shape (specified SMILES
     # resolves to CID 0); cross-checked against RDKit's independent
