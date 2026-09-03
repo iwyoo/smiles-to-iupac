@@ -81,3 +81,34 @@ def test_diazonium_with_alcohol_not_supported():
 
 def test_ammonium_not_confused_with_diazonium():
     assert smiles_to_iupac("C[NH3+]") == "methanaminium"
+
+
+def test_phenyl_chain_diazonium():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring `_sulfonic_acid.py`'s
+    # phenyl-chain path): the ring is cited as a "phenyl" substituent
+    # prefix. PubChem PUG REST: "2-phenylethanediazonium" (no locant) /
+    # "3-phenylpropane-1-diazonium" -- the two-carbon case keeps its
+    # locant here, same known, out-of-scope-here limitation already
+    # established elsewhere in this project (e.g. `_thiol.py`'s own
+    # phenyl-chain two-carbon case).
+    assert smiles_to_iupac("c1ccccc1CC[N+]#N") == "2-phenylethane-1-diazonium"
+    assert smiles_to_iupac("c1ccccc1CCC[N+]#N") == "3-phenylpropane-1-diazonium"
+
+
+def test_phenyl_directly_attached_diazonium_raises():
+    # Benzenediazonium-style naming (the diazonium carbon directly on the
+    # ring) is a separate construction, out of scope for this
+    # acyclic-chain-parent module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1[N+]#N")
+
+
+def test_phenyl_substituted_benzene_ring_diazonium_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC[N+]#N")
+
+
+def test_phenyl_chain_diazonium_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC[N+]#N")
