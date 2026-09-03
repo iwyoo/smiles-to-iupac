@@ -115,3 +115,33 @@ def test_alkoxide_unspecified_stereocenter_unaffected():
     # as before -- no stereo prefix, matching this project's long-standing
     # convention.
     assert smiles_to_iupac("CCC(C)[O-]") == "butan-2-olate"
+
+
+def test_phenyl_chain_alkoxide():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring `_alcohol.py`'s
+    # `test_phenyl_chain_alcohol`): the ring is cited as a "phenyl"
+    # substituent prefix. PubChem PUG REST: "2-phenylethanolate"/
+    # "3-phenylpropan-1-olate" (the two-carbon case keeps its locant here,
+    # same known, out-of-scope-here limitation already established by this
+    # module's own `test_fluoroethanolate_locant` for the halogen case).
+    assert smiles_to_iupac("c1ccccc1CC[O-]") == "2-phenylethan-1-olate"
+    assert smiles_to_iupac("c1ccccc1CCC[O-]") == "3-phenylpropan-1-olate"
+
+
+def test_phenyl_directly_attached_alkoxide_raises():
+    # Phenoxide-type naming (-O(-) directly on the ring) is a separate
+    # construction, out of scope for this acyclic-chain-parent module (the
+    # module docstring already flags this).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1[O-]")
+
+
+def test_phenyl_substituted_benzene_ring_alkoxide_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC[O-]")
+
+
+def test_phenyl_chain_alkoxide_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC[O-]")
