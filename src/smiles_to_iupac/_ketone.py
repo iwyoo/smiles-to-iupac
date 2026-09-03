@@ -886,7 +886,9 @@ def _hetero_ring_ketone_name(stem, best_locants):
 
 def _name_hetero_cyclic_ketone(mol, heteroatom):
     graph = adjacency(mol)
-    ring_order, ketones, elements_by_atom, _ = _validate_and_collect_hetero_ring_ketone(mol, {heteroatom})
+    ring_order, ketones, elements_by_atom, substituents = _validate_and_collect_hetero_ring_ketone(
+        mol, {heteroatom}, allow_n_substituent=True
+    )
     ring_size = len(ring_order)
     element = elements_by_atom[heteroatom]
     stem = saturated_ring_name(element, ring_size)
@@ -896,7 +898,13 @@ def _name_hetero_cyclic_ketone(mol, heteroatom):
             f"{element}-heteroatom saturated ring (P-22.2.1)"
         )
     best_locants = _best_one_locants(graph, ring_order, ketones, [heteroatom])
-    return _hetero_ring_ketone_name(stem, best_locants)
+    name = _hetero_ring_ketone_name(stem, best_locants)
+    if not substituents:
+        return name
+    ((sub_name, is_compound),) = substituents.values()
+    prefix = format_substituent_prefixes({sub_name: {"locants": [1], "compound": is_compound}})
+    separator = "-" if name[0].isdigit() else ""
+    return f"{prefix}{separator}{name}"
 
 
 def _hetero_ring_two_heteroatoms(mol):
