@@ -281,6 +281,35 @@ def test_five_membered_1_2_two_heteroatom_ring_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # 1,2-related two-heteroatom saturated 5-membered rings whose pair
+        # includes Se and/or Te. N+Se/N+Te are Blue Book Table 2.3 retained
+        # names, PubChem-verified with locants included ('1,2-selenazolidine'
+        # CID 22597361, '1,2-tellurazolidine' CID 18381235). The remaining
+        # six (O/S/Se/Te-only pairs) are systematic Hantzsch-Widman names
+        # whose locants PubChem's own computed name drops (e.g. 'oxaselenolane'
+        # for CID 129737263) -- per P-22.2.2.1.7 the locant can only be
+        # omitted when there's no ambiguity, and a 1,2- vs 1,3- placement is
+        # always ambiguous here, so the '1,2-' prefix is added per the
+        # primary text rather than following PubChem's computed name,
+        # mirroring the already-established '1,2-oxathiolane (PIN)' case
+        # above.
+        ("C1CC[Se]N1", "1,2-selenazolidine"),
+        ("C1CC[Te]N1", "1,2-tellurazolidine"),
+        ("C1CCO[Se]1", "1,2-oxaselenolane"),
+        ("C1CCO[Te]1", "1,2-oxatellurolane"),
+        ("C1CCS[Se]1", "1,2-thiaselenolane"),
+        ("C1CCS[Te]1", "1,2-thiatellurolane"),
+        ("C1CC[Se][Se]1", "1,2-diselenolane"),
+        ("C1CC[Te][Te]1", "1,2-ditellurolane"),
+    ],
+)
+def test_five_membered_1_2_two_heteroatom_ring_names_se_te(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_unsupported_heteroatom_element_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1CCCCP1")
