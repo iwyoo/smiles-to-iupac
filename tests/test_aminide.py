@@ -65,3 +65,30 @@ def test_enamine_aminide_raises():
 def test_second_nitrogen_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("NCC[NH-]")
+
+
+def test_phenyl_chain_aminide():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring `_alkoxide.py`'s
+    # phenyl-chain path): the ring is cited as a "phenyl" substituent
+    # prefix. PubChem structure match only (this module already uses its
+    # own '-aminide' convention rather than PubChem's 'azanide' naming).
+    assert smiles_to_iupac("c1ccccc1CC[NH-]") == "2-phenylethan-1-aminide"
+    assert smiles_to_iupac("c1ccccc1CCC[NH-]") == "3-phenylpropan-1-aminide"
+
+
+def test_phenyl_directly_attached_aminide_raises():
+    # Anilinide-type naming (-NH(-) directly on the ring) is a separate
+    # construction, out of scope for this acyclic-chain-parent module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1[NH-]")
+
+
+def test_phenyl_substituted_benzene_ring_aminide_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC[NH-]")
+
+
+def test_phenyl_chain_aminide_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC[NH-]")
