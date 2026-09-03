@@ -50,3 +50,19 @@ def test_hydroxyl_coexistence_not_supported():
 def test_acyl_carbon_off_longest_chain_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CCCCC(=O)C(CC(C)C)C(CC(C)C)C(=O)OC")
+
+
+def test_phenyl_chain_ketone_ester():
+    # A plain, unsubstituted benzene ring on the acyl chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring
+    # `_aldehyde_ketone.py`'s phenyl-chain path): the ring is cited as a
+    # "phenyl" substituent prefix alongside the demoted ketone's "oxo"
+    # prefix. PubChem PUG REST: "methyl 3-oxo-4-phenylbutanoate"/
+    # "methyl 2-oxo-4-phenylbutanoate".
+    assert smiles_to_iupac("c1ccccc1CC(=O)CC(=O)OC") == "methyl 3-oxo-4-phenylbutanoate"
+    assert smiles_to_iupac("c1ccccc1CCC(=O)C(=O)OC") == "methyl 2-oxo-4-phenylbutanoate"
+
+
+def test_phenyl_chain_ketone_ester_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC(=O)CC(=O)OC")
