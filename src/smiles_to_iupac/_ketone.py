@@ -642,12 +642,11 @@ def _validate_and_collect_hetero_ring_ketone(
     ring carbon may instead carry a single plain, unbranched,
     unsubstituted alkyl substituent -- collected as
     {atom_idx: (alkyl_name, is_compound=False)}; O/S heteroatoms never get
-    this option (P-22.2.1: no spare valence to give up). A ring-carbon
-    substituent is additionally only accepted when the ring ends up with
-    two or more ketones (a dione/hydantoin shape) -- with a single
-    ketone, two plain ring carbons remain and which one carries the
-    substituent would become a new locant tie-break input the caller
-    doesn't yet implement."""
+    this option (P-22.2.1: no spare valence to give up). A single-ketone
+    ring (as opposed to a dione/hydantoin shape) is equally in scope here
+    -- the caller's own locant computation is responsible for the
+    P-14.5.2 substituent-locant tie-break this can introduce (see
+    `_five_membered_1_3_numbering`)."""
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
     graph = adjacency(mol)
@@ -731,13 +730,6 @@ def _validate_and_collect_hetero_ring_ketone(
         ketones.add(other)
     if not ketones:
         raise UnsupportedStructure("no ketone (C=O) group found; this module only handles ketones")
-    if carbon_substituents and len(ketones) < 2:
-        raise UnsupportedStructure(
-            "a ring-carbon substituent alongside a single ketone is not "
-            "supported yet -- which of the two remaining plain ring "
-            "carbons carries it would become a new locant tie-break input "
-            "(P-14.5.2)"
-        )
     substituents.update(carbon_substituents)
 
     for i in range(len(ring_order)):
@@ -885,16 +877,13 @@ def _hetero_ring_five_membered_1_3(mol):
     return het1, het2
 
 
-def _five_membered_1_3_numbering(mol, het1, het2, elements_by_atom, ketones):
+def _five_membered_1_3_numbering(mol, het1, het2, elements_by_atom, ketones, substituent_atoms=frozenset()):
     """(best_locants, position_of) for the five-membered 1,3-two-heteroatom
     ring shape -- `position_of` is the full {atom_idx: locant} mapping for
     whichever numbering direction produced `best_locants`, exposed so a
-    caller can also look up an N-substituent's own locant (P-44.4.1.8: the
-    ketone suffix locants are decided first and win outright; a
-    substituent's locant is whatever that already-fixed numbering gives
-    it, never a separate minimization target). Locant 1 goes to the
-    higher-priority heteroatom (P-22.2.1's O > S > N element seniority,
-    `_TWO_HETERO_PRIORITY`) when the two elements differ -- the
+    caller can also look up a substituent's own locant. Locant 1 goes to
+    the higher-priority heteroatom (P-22.2.1's O > S > N element
+    seniority, `_TWO_HETERO_PRIORITY`) when the two elements differ -- the
     heteroatom-seniority rule outranks locant minimization entirely, so
     there is no freedom to choose the lower-locant direction instead
     (confirmed against PubChem: 'oxazolidine-2,4-dione' would minimize the
@@ -902,11 +891,19 @@ def _five_membered_1_3_numbering(mol, het1, het2, elements_by_atom, ketones):
     '1,3-oxazolidine-2,5-dione' because O must stay locant 1). When the
     two heteroatoms are identical, either may be locant 1, so both are
     tried and the one minimizing the ketone locant set wins (e.g.
-    imidazolidine-2,4-dione, not -2,5-dione). Only the direction that
-    reaches the other heteroatom via the bridging carbon (locant 2) is
-    considered in either case -- the opposite direction would misnumber
-    the other heteroatom to locant 4 instead of 3, contradicting the
-    ring's own '1,3-' name (unlike the symmetric six-membered 1,4-case in
+    imidazolidine-2,4-dione, not -2,5-dione). With a dione this always
+    settles the tie outright (the two candidate ketone-locant sets always
+    differ, e.g. {2,4} vs {2,5}); with a single ketone the lone ketone
+    always sits on the bridging carbon (locant 2) regardless of
+    direction, so both candidates tie on the ketone locant and the choice
+    falls through to P-14.5.2's next criterion -- lowest locants to the
+    full set of substituents cited by prefix (`substituent_atoms`, ring
+    carbon and/or N alike), e.g. '4-methylimidazolidin-2-one' (PubChem
+    CID 97832), not '5-methyl...'. Only the direction that reaches the
+    other heteroatom via the bridging carbon (locant 2) is considered in
+    either case -- the opposite direction would misnumber the other
+    heteroatom to locant 4 instead of 3, contradicting the ring's own
+    '1,3-' name (unlike the symmetric six-membered 1,4-case in
     `_best_one_locants`, the two directions are not equivalent here)."""
     graph = adjacency(mol)
     ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
@@ -920,9 +917,13 @@ def _five_membered_1_3_numbering(mol, het1, het2, elements_by_atom, ketones):
         locants = sorted(position_of[next(iter(graph[oxygen]))] for oxygen in ketones)
         return locants, position_of
 
+    def sort_key(result):
+        locants, position_of = result
+        return locants, sorted(position_of[atom] for atom in substituent_atoms)
+
     if elements_by_atom[het1] == elements_by_atom[het2]:
         a, b = candidate(het1, het2), candidate(het2, het1)
-        return a if a[0] <= b[0] else b
+        return min(a, b, key=sort_key)
     start, other = (
         (het1, het2)
         if _TWO_HETERO_PRIORITY[elements_by_atom[het1]] < _TWO_HETERO_PRIORITY[elements_by_atom[het2]]
@@ -943,7 +944,9 @@ def _name_five_membered_1_3_ring_ketone(mol, het1, het2):
             "no retained name for this five-membered two-heteroatom "
             "saturated ring (P-22.2.1)"
         )
-    best_locants, position_of = _five_membered_1_3_numbering(mol, het1, het2, elements_by_atom, ketones)
+    best_locants, position_of = _five_membered_1_3_numbering(
+        mol, het1, het2, elements_by_atom, ketones, set(n_substituents)
+    )
     name = _hetero_ring_ketone_name(stem, best_locants)
     if not n_substituents:
         return name
