@@ -107,3 +107,41 @@ def test_tellurol_unspecified_stereocenter_unaffected():
 def test_tellurol_partially_specified_stereocenters_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[TeH][C@H]1CCCCC1Cl")
+
+
+def test_phenyl_chain_tellurol():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring `_thiol.py`'s
+    # `test_phenyl_chain_thiol`): the ring is cited as a "phenyl"
+    # substituent prefix. PubChem PUG REST: "3-phenylpropane-1-tellurol".
+    assert smiles_to_iupac("c1ccccc1CCC[TeH]") == "3-phenylpropane-1-tellurol"
+
+
+def test_phenyl_chain_tellurol_internal_locant():
+    # The -TeH locant is a genuine choice on the chain, same as the base
+    # acyclic module. No PubChem-registered structure for this exact
+    # molecule -- a structural/regression check on the mechanism ported
+    # verbatim from `_thiol.py`.
+    assert smiles_to_iupac("C(c1ccccc1)C(C)[TeH]") == "1-phenylpropane-2-tellurol"
+
+
+def test_phenyl_directly_attached_tellurol_raises():
+    # Tellurophenol-type naming (-TeH directly on the ring) is a separate
+    # construction, out of scope for this acyclic-chain-parent module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1[TeH]")
+
+
+def test_phenyl_substituted_benzene_ring_tellurol_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC[TeH]")
+
+
+def test_phenyl_chain_tellurol_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC[TeH]")
+
+
+def test_phenyl_chain_ditellurol_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C([TeH])CC[TeH]")
