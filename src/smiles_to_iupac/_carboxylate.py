@@ -58,10 +58,13 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    is_plain_benzene_ring,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    ordered_chain,
+    ring_chain_attachment,
     specified_stereocenters,
 )
 from ._numerals import alkane_name
@@ -301,13 +304,18 @@ def _name_acyclic_carboxylate(mol, carboxylate_carbon_idx, excluded_oxygens, bon
     return best_name
 
 
-def name_carboxylate(mol) -> str:
-    if mol.GetRingInfo().NumRings() > 0:
-        raise UnsupportedStructure(
-            "a -COO- group on/in a ring is out of scope for this "
-            "acyclic-only module"
-        )
+def _validate_and_prepare_carboxylate(mol, aromatic_ring_atoms=frozenset()):
+    """(carboxylate_carbon, excluded_oxygens, bonds, stereo) after checking
+    the molecule fits this module's scope (see module docstring).
 
+    `aromatic_ring_atoms`: atom indices already independently verified (by
+    the caller, before this function runs) to form a single plain benzene
+    ring with exactly one exocyclic attachment -- exempted from the
+    aromatic-atom rejection below so `name_carboxylate`'s benzene-ring-
+    substituent path (see `_name_phenyl_chain_carboxylate`) can reuse this
+    same validation for the rest of the molecule. Empty by default, so
+    every other caller's behavior is unchanged. Mirrors
+    `_carboxylic_acid.py`'s equivalent aromatic-exemption pattern."""
     carboxylate_carbon, carbonyl_oxygen, anion_oxygen = _find_carboxylate_group(mol)
     excluded_oxygens = {carbonyl_oxygen.GetIdx(), anion_oxygen.GetIdx()}
     stereo = specified_stereocenters(mol)
@@ -330,7 +338,7 @@ def name_carboxylate(mol) -> str:
             )
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module (see "
                     "the separate aromatic-ring module)"
@@ -348,7 +356,11 @@ def name_carboxylate(mol) -> str:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
     all_non_single = [
-        b for b in non_single_bonds(mol) if b[0] not in excluded_oxygens and b[1] not in excluded_oxygens
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in excluded_oxygens
+        and b[1] not in excluded_oxygens
+        and (b[0] not in aromatic_ring_atoms or b[1] not in aromatic_ring_atoms)
     ]
     bonds = [b for b in all_non_single if b[2] in (ENE_BOND_ORDER, YNE_BOND_ORDER)]
     if len(bonds) != len(all_non_single):
@@ -356,5 +368,81 @@ def name_carboxylate(mol) -> str:
             "a bond order other than single, double, or triple is not "
             "supported (see P-31.1.1.1)"
         )
+    return carboxylate_carbon, excluded_oxygens, bonds, stereo
 
+
+def _name_phenyl_chain_carboxylate(mol, ring_atoms):
+    """Name a carboxylate whose -COO- lies entirely on a single unbranched
+    chain hanging off one atom of an otherwise-plain, unsubstituted
+    benzene ring -- e.g. 3-phenylpropanoate. The ring is cited as a
+    'phenyl' substituent prefix (via `name_branch`'s aromatic-ring
+    recognition) on the chain, which is the parent hydride, mirroring
+    `_carboxylic_acid.py`'s `_name_phenyl_chain_carboxylic_acid`. Narrower
+    than the acyclic path above: no chain unsaturation and no specified
+    stereocenter."""
+    carboxylate_carbon, excluded_oxygens, bonds, stereo = _validate_and_prepare_carboxylate(
+        mol, aromatic_ring_atoms=ring_atoms
+    )
+    if stereo:
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a benzene-ring-substituent "
+            "carboxylate chain is not supported yet"
+        )
+    non_ring_unsaturation = [b for b in bonds if b[0] not in ring_atoms or b[1] not in ring_atoms]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent "
+            "carboxylate chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain carboxylate is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, excluded_oxygens)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside a "
+            "carboxylate is not supported yet"
+        )
+    if chain[-1] != carboxylate_carbon.GetIdx():
+        raise UnsupportedStructure(
+            "the carboxylate carbon must be the chain's far terminus from "
+            "the benzene ring for this benzene-substituent path"
+        )
+    if len(chain) < 2:
+        raise UnsupportedStructure(
+            "a -COO- group directly attached to the benzene ring "
+            "(benzoate-type naming) uses a separate construction, out of "
+            "scope for this acyclic-chain-parent module"
+        )
+
+    ordered = list(reversed(chain))
+    chain_length = len(ordered)
+    position_of = {atom: i + 1 for i, atom in enumerate(ordered)}
+    halogens = halogen_substituents(mol)
+    substituents = {
+        position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+    }
+    grouped = group_substituents(substituents)
+    return _name_from_substituents(chain_length, [], [], grouped)
+
+
+def name_carboxylate(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_carboxylate(mol, ring_atoms)
+    if mol.GetRingInfo().NumRings() > 0:
+        raise UnsupportedStructure(
+            "a -COO- group on/in a ring is out of scope for this "
+            "acyclic-only module"
+        )
+
+    carboxylate_carbon, excluded_oxygens, bonds, stereo = _validate_and_prepare_carboxylate(mol)
     return _name_acyclic_carboxylate(mol, carboxylate_carbon.GetIdx(), excluded_oxygens, bonds, stereo)
