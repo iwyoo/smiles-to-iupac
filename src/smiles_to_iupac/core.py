@@ -47,6 +47,10 @@ from ._carboxylate import has_carboxylate_shape, name_carboxylate
 from ._selenoate import has_selenoate_shape, name_selenoate
 from ._thioate import has_thioate_shape, name_thioate
 from ._carboxylic_acid import has_carboxylic_acid_shape, name_carboxylic_acid
+from ._carboxylic_acid_sulfonic_acid import (
+    has_carboxylic_acid_sulfonic_acid_shape,
+    name_carboxylic_acid_sulfonic_acid,
+)
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -463,6 +467,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # validation would accept -- must be routed here first.
     if has_sulfonic_acid_sulfonamide_shape(mol):
         return name_sulfonic_acid_sulfonamide(mol)
+    # A carboxylic acid coexisting with a sulfonic acid (P-41/P-43, see
+    # `_seniority.py`) has the same -COOH carbon shape `_carboxylic_acid.py`
+    # would otherwise reject on sight of the extra sulfonic sulfur, and the
+    # same four-oxygen sulfonic sulfur `_sulfonic_acid.py` would otherwise
+    # reject on sight of the extra -COOH oxygens -- must be routed here
+    # first, before either single-group module.
+    if has_carboxylic_acid_sulfonic_acid_shape(mol):
+        return name_carboxylic_acid_sulfonic_acid(mol)
     # A sulfonic acid (-SO3H, P-65.3.1) has three oxygens on its own sulfur,
     # so it must be routed here before the plain "any O atom" branch below --
     # none of the ether/ester/carboxylic-acid/aldehyde/ketone/alcohol checks
