@@ -84,3 +84,28 @@ def test_unsaturated_n_substituent_not_supported():
 
 def test_urea_not_confused_with_thiourea():
     assert smiles_to_iupac("NC(=O)N") == "urea"
+
+
+def test_n_phenylthiourea():
+    # PubChem structure match: "phenylthiourea" (CID 676454).
+    assert smiles_to_iupac("NC(=S)Nc1ccccc1") == "N-phenylthiourea"
+
+
+def test_n_methyl_n_prime_phenylthiourea_different_nitrogens():
+    # PubChem structure match: "1-methyl-3-phenylthiourea" (CID 698294).
+    assert smiles_to_iupac("CNC(=S)Nc1ccccc1") == "N-methyl-N'-phenylthiourea"
+
+
+def test_n_n_prime_diphenylthiourea():
+    # PubChem structure match: "1,3-diphenylthiourea" (CID 700999).
+    assert smiles_to_iupac("c1ccc(NC(=S)Nc2ccccc2)cc1") == "N,N'-diphenylthiourea"
+
+
+def test_substituted_phenyl_n_substituent_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NC(=S)Nc1ccc(C)cc1")
+
+
+def test_phenyl_alongside_another_substituent_on_same_nitrogen_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CN(c1ccccc1)C(=S)N")
