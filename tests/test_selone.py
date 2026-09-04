@@ -16,10 +16,26 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("C1CCC(=[Se])CC1", "cyclohexaneselone"),
         # PubChem structure match: "1-chloropropane-2-selone".
         ("ClCC(=[Se])C", "1-chloropropane-2-selone"),
+        # Monocyclic ring, single ring double bond (P-31.1.3): the selone
+        # always gets locant 1 (suffix priority), the ring double bond's
+        # locant is minimized by choosing direction. Cross-checked against
+        # PubChem (CID 102393135/102393138).
+        ("[Se]=C1CCCC=C1", "cyclohex-2-ene-1-selone"),
+        ("[Se]=C1CC=CCC1", "cyclohex-3-ene-1-selone"),
     ],
 )
 def test_selone_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_unsaturated_ring_selone_with_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[Se]=C1CCCC=C1C")
+
+
+def test_unsaturated_ring_selone_triple_bond_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[Se]=C1CCCC#C1")
 
 
 def test_selenoaldehyde_not_supported():

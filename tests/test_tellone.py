@@ -22,6 +22,27 @@ def test_cyclohexanetellone():
     assert smiles_to_iupac("C1CCC(=[Te])CC1") == "cyclohexanetellone"
 
 
+def test_unsaturated_ring_tellone():
+    # Monocyclic ring, single ring double bond (P-31.1.3): same pattern
+    # already confirmed for `_thione.py`/`_selone.py`. The exact ring
+    # structures aren't PubChem-registered (sparse tellone ring coverage,
+    # same reason `test_cyclohexanetellone` above has no PubChem name
+    # citation), but the identical ring shape is PubChem-confirmed for the
+    # selenium analogue (`cyclohex-2-ene-1-selone`, CID 102393135).
+    assert smiles_to_iupac("[Te]=C1CCCC=C1") == "cyclohex-2-ene-1-tellone"
+    assert smiles_to_iupac("[Te]=C1CC=CCC1") == "cyclohex-3-ene-1-tellone"
+
+
+def test_unsaturated_ring_tellone_with_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[Te]=C1CCCC=C1C")
+
+
+def test_unsaturated_ring_tellone_triple_bond_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[Te]=C1CCCC#C1")
+
+
 def test_telluroaldehyde_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CCC=[Te]")
