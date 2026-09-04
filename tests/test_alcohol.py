@@ -361,12 +361,20 @@ def test_aldehyde_alcohol_mix_dispatches_to_aldehyde_module():
     assert smiles_to_iupac("OCC=O") == "2-hydroxyethanal"
 
 
-def test_phenol_raises():
-    # An aromatic ring bearing -OH is out of scope for this module (separate,
-    # in-progress aromatic-ring module's territory); must not be picked up
-    # here before reaching that module.
+def test_phenol():
+    # -OH attached directly to a benzene ring carbon (P-63.1.1). PubChem
+    # PUG REST: "phenol"/"4-methylphenol"/"2-chlorophenol" -- the retained
+    # name 'phenol' stands for the whole ring+OH system (like 'benzoic
+    # acid'/'benzenesulfonic acid'), so the OH's own ring locant is never
+    # cited, only other substituents'.
+    assert smiles_to_iupac("Oc1ccccc1") == "phenol"
+    assert smiles_to_iupac("Oc1ccc(C)cc1") == "4-methylphenol"
+    assert smiles_to_iupac("Oc1ccccc1Cl") == "2-chlorophenol"
+
+
+def test_phenol_multiple_hydroxyls_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Oc1ccccc1")
+        smiles_to_iupac("Oc1ccccc1O")
 
 
 def test_bicyclic_alcohol_raises():

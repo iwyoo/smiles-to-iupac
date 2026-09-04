@@ -178,8 +178,11 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   amine) — not applicable here since only C, halogen, -OH-shaped oxygen,
   and simple-alkoxy-ether oxygen atoms are accepted at all; any other
   heteroatom (N, S, ...) is rejected.
-- -OH on an aromatic ring (phenol-type) — a separate, in-progress module's
-  territory.
+- -OH on an aromatic ring (phenol-type) combined with a *second* hydroxyl
+  elsewhere (a second ring -OH, or a separate chain -OH), or an alkoxy
+  ether alongside it — a single ring -OH on an otherwise-plain benzene
+  ring is handled by `_name_phenol` (P-63.1.1), a separate follow-up from
+  this narrower multi-group combination.
 - -OH on a von Baeyer polycyclic (bicyclic through pentacyclic) or spiro
   skeleton — deferred; those modules' internal numbering would need real
   integration work to prioritize a suffix locant correctly.
@@ -672,6 +675,72 @@ def _ring_candidate_key(ring_size, oh_locants, ene_locants, yne_locants, substit
     return oh_locant_set, combined_locant_set, ene_locant_set, locant_set, citation_locants, name
 
 
+def _phenol_name_from_substituents(grouped):
+    # Like the mancude-ring 'benzenesulfonic acid'/'benzoic acid' cases
+    # (`_sulfonic_acid.py`/`_carboxylic_acid.py`), the retained name
+    # 'phenol' stands for the whole ring+OH system, so the ring's own
+    # numbering is always free to start at the -OH carbon and that
+    # locant is never cited, even when other substituents need theirs --
+    # e.g. '4-methylphenol' (PubChem CID 2879), not '4-methylphenol-1-ol'.
+    if not grouped:
+        return "phenol"
+    return f"{format_substituent_prefixes(grouped)}phenol"
+
+
+def _phenol_candidate_key(oh_locant, substituents):
+    grouped = _group(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _phenol_name_from_substituents(grouped)
+    return oh_locant, locant_set, citation_locants, name
+
+
+def _name_phenol(mol, ring_atoms):
+    """P-63.1.1: -OH attached directly to a benzene ring carbon -- e.g.
+    'phenol' (PubChem CID 996), '4-methylphenol' (CID 2879), '2-
+    chlorophenol' (CID 7245). Mirrors `_sulfonic_acid.py`'s
+    `_name_benzenesulfonic_acid` exactly, with the retained name 'phenol'
+    standing in for 'benzenesulfonic acid'. Narrower than the general
+    ring case: exactly one hydroxyl (directly on the ring, no coexisting
+    alkoxy ether), and no specified stereocenter -- more than one ring
+    hydroxyl (resorcinol-style) is a separate follow-up."""
+    hydroxyls, ethers = _validate_and_collect_hydroxyls(mol, aromatic_ring_atoms=ring_atoms)
+    if ethers:
+        raise UnsupportedStructure("an alkoxy ether alongside phenol is not supported yet")
+    if len(hydroxyls) != 1:
+        raise UnsupportedStructure(
+            "more than one hydroxyl directly on a benzene ring is not "
+            "supported yet"
+        )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure("a specified stereocenter alongside phenol is not supported yet")
+
+    (oh_oxygen,) = hydroxyls
+    graph = adjacency(mol)
+    (oh_carbon,) = graph[oh_oxygen]
+    halogens = halogen_substituents(mol)
+    excluded = {oh_oxygen}
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            oh_locant = position_of[oh_carbon]
+            substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
+            key = _phenol_candidate_key(oh_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def _ring_bond_locant(position_of, bond_atoms, ring_size):
     pa, pb = position_of[bond_atoms[0]], position_of[bond_atoms[1]]
     return ring_size if {pa, pb} == {1, ring_size} else min(pa, pb)
@@ -927,9 +996,10 @@ def _name_phenyl_chain_alcohol(mol, ring_atoms):
     ring_atom, chain_root = attachment
     if chain_root in hydroxyls:
         raise UnsupportedStructure(
-            "a hydroxyl directly on the benzene ring (phenol-type) uses a "
-            "separate, in-progress module, out of scope for this "
-            "chain-parent module"
+            "a hydroxyl directly on the benzene ring (phenol-type) "
+            "combined with a second hydroxyl elsewhere is not supported "
+            "yet -- a single ring hydroxyl alone is handled by "
+            "`_name_phenol`, out of scope for this chain-parent module"
         )
     chain = ordered_chain(graph, chain_root, ring_atom, hydroxyls)
     if chain is None:
@@ -967,6 +1037,11 @@ def name_alcohol(mol) -> str:
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            hydroxyls, ethers = _validate_and_collect_hydroxyls(mol, aromatic_ring_atoms=ring_atoms)
+            graph = adjacency(mol)
+            ring_hydroxyls = {o for o in hydroxyls if next(iter(graph[o])) in ring_atoms}
+            if not ethers and hydroxyls == ring_hydroxyls and len(hydroxyls) == 1:
+                return _name_phenol(mol, ring_atoms)
             return _name_phenyl_chain_alcohol(mol, ring_atoms)
     hydroxyls, ethers = _validate_and_collect_hydroxyls(mol)
     graph = adjacency(mol)
