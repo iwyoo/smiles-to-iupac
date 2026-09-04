@@ -36,3 +36,31 @@ def test_ring_not_supported():
 def test_unsaturated_chain_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=CN=O")
+
+
+def test_phenyl_nitroso_direct_bond():
+    # P-44.1.2.2 rule (1): 'nitroso' has no suffix form, so the ring is
+    # always senior to a chain of the same class -- confirmed by PubChem
+    # CID 11473.
+    assert smiles_to_iupac("c1ccccc1N=O") == "nitrosobenzene"
+
+
+def test_phenyl_nitroso_chain():
+    # PubChem CID 12267972/21470433 give "nitrosomethylbenzene"/
+    # "2-nitrosoethylbenzene" (no parentheses); this codebase follows
+    # `_azide.py`'s identical, PIN-verified rule instead (its own test
+    # confirms "(azidomethyl)benzene" for the same 1-carbon shape) --
+    # same PubChem inconsistency already documented for `_nitro.py`
+    # (PR #321).
+    assert smiles_to_iupac("c1ccccc1CN=O") == "(nitrosomethyl)benzene"
+    assert smiles_to_iupac("c1ccccc1CCN=O") == "(2-nitrosoethyl)benzene"
+
+
+def test_phenyl_nitroso_substituted_ring_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CN=O")
+
+
+def test_phenyl_nitroso_unsaturation_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CN=O")
