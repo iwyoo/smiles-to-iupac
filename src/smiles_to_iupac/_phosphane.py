@@ -53,14 +53,24 @@ substituents), per the IUPAC 2013 Recommendations ("the Blue Book"):
   "dichlorophosphane", CID 69936 (`ClP(C)C`) ->
   "chloro(dimethyl)phosphane".
 
+- A branched substituent is supported (e.g. 'propan-2-ylphosphane',
+  PubChem CID 537979; 'tert-butylphosphane', CID 123165), built with
+  `name_branch` -- a compound (branched) name is never parenthesized on
+  its own (only the position/multiplying rules above apply to it, same as
+  a plain name), except when it's also multiplied (see
+  `format_mononuclear_prefixes`'s own docstring for the full derivation,
+  e.g. 'tri(propan-2-yl)phosphane', CID 80969). A multiplied compound
+  name mixed with a *different* substituent is out of scope (unconfirmed
+  punctuation, see that same docstring).
+
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any atom other than phosphorus, carbon, hydrogen, and a halogen bonded
   directly to phosphorus (no P=O, no halogen-substituted alkyl chain, no
   other heteroatom in a substituent chain).
 - More than one phosphorus atom (phosphane chains, e.g. diphosphane --
   `_silane_chain.py`-style "chain" nomenclature is a separate problem).
-- A branched or unsaturated substituent, an aromatic substituent
-  (phenylphosphane, etc.), or any ring anywhere in the molecule.
+- An unsaturated substituent, an aromatic substituent (phenylphosphane,
+  etc.), or any ring anywhere in the molecule.
 - Charged or isotopically modified atoms.
 """
 
@@ -70,11 +80,9 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    linear_branch,
     non_single_bonds,
 )
-from ._numerals import alkyl_name
-from ._substituents import format_mononuclear_prefixes
+from ._substituents import format_mononuclear_prefixes, name_branch
 
 
 def has_simple_phosphane_shape(mol) -> bool:
@@ -127,14 +135,9 @@ def _validate_and_collect_substituents(mol):
     for root in graph[phosphorus.GetIdx()]:
         root_atomic_num = mol.GetAtomWithIdx(root).GetAtomicNum()
         if root_atomic_num in HALOGEN_PREFIXES:
-            substituent_names.append(HALOGEN_PREFIXES[root_atomic_num])
+            substituent_names.append((HALOGEN_PREFIXES[root_atomic_num], False))
             continue
-        length = linear_branch(graph, root, phosphorus.GetIdx())
-        if length is None:
-            raise UnsupportedStructure(
-                "a branched substituent is out of scope for this module (see P-68)"
-            )
-        substituent_names.append(alkyl_name(length))
+        substituent_names.append(name_branch(graph, root, phosphorus.GetIdx(), {}))
     return substituent_names
 
 

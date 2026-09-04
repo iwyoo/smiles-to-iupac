@@ -127,7 +127,7 @@ def _validate_and_collect_substituents(mol):
         length = linear_branch(graph, root, phosphorus.GetIdx())
         if length is None:
             raise UnsupportedStructure("a branched substituent is out of scope for this module")
-        substituent_names.append(alkyl_name(length))
+        substituent_names.append((alkyl_name(length), False))
     if not substituent_names:
         raise UnsupportedStructure(
             "a phosphanone with no substituents on phosphorus (bare "

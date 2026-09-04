@@ -115,7 +115,7 @@ def name_oxonium(mol) -> str:
         length = linear_branch(graph, root, oxygen.GetIdx())
         if length is None:
             raise UnsupportedStructure("a branched substituent is out of scope for this module")
-        substituent_names.append(alkyl_name(length))
+        substituent_names.append((alkyl_name(length), False))
 
     if not substituent_names:
         return "oxidanium"

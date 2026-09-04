@@ -43,9 +43,16 @@ def test_borane_chain_raises():
         smiles_to_iupac("BB")
 
 
-def test_branched_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)B")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified: CID 101871698, 5326178.
+        ("CC(C)B", "propan-2-ylborane"),
+        ("CC(C)(C)B", "tert-butylborane"),
+    ],
+)
+def test_branched_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_unsaturated_substituent_raises():

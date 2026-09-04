@@ -163,4 +163,4 @@ def name_diazene(mol) -> str:
             "(halogen-bearing) name is unverified and out of scope for "
             "this module (see module docstring)"
         )
-    return format_mononuclear_prefixes([name_a, name_b]) + "diazene"
+    return format_mononuclear_prefixes([(name_a, False), (name_b, False)]) + "diazene"
