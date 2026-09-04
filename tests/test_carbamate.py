@@ -22,9 +22,18 @@ def test_carbamate(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_branched_r_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)OC(N)=O")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified: CID 15628, 77922, 10973, 10984.
+        ("CC(C)OC(N)=O", "propan-2-yl carbamate"),
+        ("CC(C)(C)OC(N)=O", "tert-butyl carbamate"),
+        ("CC(C)COC(N)=O", "2-methylpropyl carbamate"),
+        ("CC(C)CCOC(N)=O", "3-methylbutyl carbamate"),
+    ],
+)
+def test_branched_r(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_methyl_n_methylcarbamate():
