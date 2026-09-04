@@ -37,6 +37,12 @@ substituents), per the IUPAC 2013 Recommendations ("the Blue Book"):
   CID 140714 (`ClB`) -> "chloroborane", CID 137221 (`ClB(C)C`) ->
   "chloro(dimethyl)borane".
 
+- A branched substituent is supported (e.g. 'propan-2-ylborane', CID
+  101871698), built with `name_branch`, following exactly the same
+  compound/multiplying parenthesization rules as `_phosphane.py` -- see
+  that module's docstring and `format_mononuclear_prefixes`'s own
+  docstring for the full derivation.
+
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any atom other than boron, carbon, hydrogen, and a halogen bonded
   directly to boron (no B=O, no halogen-substituted alkyl chain, no other
@@ -44,8 +50,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - More than one boron atom (borane chains, e.g. diborane -- a separate,
   genuinely different structure/nomenclature problem, not a simple
   extension of this substitutive-naming scope).
-- A branched or unsaturated substituent, an aromatic substituent
-  (phenylborane, etc.), or any ring anywhere in the molecule.
+- An unsaturated substituent, an aromatic substituent (phenylborane,
+  etc.), or any ring anywhere in the molecule.
 - Charged or isotopically modified atoms.
 - A structure that also contains phosphorus (or any other heteroatom):
   rejected by the "heteroatoms other than boron itself" check below, same
@@ -58,11 +64,9 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    linear_branch,
     non_single_bonds,
 )
-from ._numerals import alkyl_name
-from ._substituents import format_mononuclear_prefixes
+from ._substituents import format_mononuclear_prefixes, name_branch
 
 
 def has_simple_borane_shape(mol) -> bool:
@@ -115,14 +119,9 @@ def _validate_and_collect_substituents(mol):
     for root in graph[boron.GetIdx()]:
         root_atomic_num = mol.GetAtomWithIdx(root).GetAtomicNum()
         if root_atomic_num in HALOGEN_PREFIXES:
-            substituent_names.append(HALOGEN_PREFIXES[root_atomic_num])
+            substituent_names.append((HALOGEN_PREFIXES[root_atomic_num], False))
             continue
-        length = linear_branch(graph, root, boron.GetIdx())
-        if length is None:
-            raise UnsupportedStructure(
-                "a branched substituent is out of scope for this module (see P-68)"
-            )
-        substituent_names.append(alkyl_name(length))
+        substituent_names.append(name_branch(graph, root, boron.GetIdx(), {}))
     return substituent_names
 
 

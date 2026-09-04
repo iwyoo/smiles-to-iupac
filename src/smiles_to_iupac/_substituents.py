@@ -99,33 +99,49 @@ def format_substituent_prefixes(grouped, omit_locants: bool = False) -> str:
     return "".join(parts) if omit_locants else "-".join(parts)
 
 
-def format_mononuclear_prefixes(names) -> str:
+def format_mononuclear_prefixes(entries) -> str:
     """Format substituent prefixes for a mononuclear parent hydride whose
-    own atom is the sole skeletal atom (e.g. a phosphane/borane/diazene
-    central atom, P-14.3.4.2(a) locants always omitted): each distinct
-    name gets its own ordinary multiplying prefix (di-, tri-) by its own
-    count; when two or more distinct names are present, every one is
+    own atom is the sole skeletal atom (e.g. a phosphane/borane central
+    atom, P-14.3.4.2(a) locants always omitted): each distinct name gets
+    its own ordinary multiplying prefix (di-, tri-) by its own count;
+    when two or more distinct names are present, every one is
     parenthesized except the alphabetically first, regardless of that
     name's own count (P-16.5.1.3.1, per the Blue Book's own published
     errata, https://iupac.qmul.ac.uk/bibliog/BBerrors.html).
 
-    `names`: a flat list of plain substituent-prefix strings (not a
-    `grouped` dict like `format_substituent_prefixes` above takes) --
-    every substituent here is a simple, non-compound prefix (an alkyl
-    chain or halogen), so there's no nested-parenthesization question to
-    track alongside the count. Extracted from `_phosphane.py`/`_borane.py`/
-    `_diazene.py`, which all had byte-identical copies of this exact
-    logic -- deliberately NOT merged into `format_substituent_prefixes`
-    above: that function's own `omit_locants=True` mode only parenthesizes
-    a *compound* (nested) substituent, never a plain one, so it doesn't
-    implement this P-16.5.1.3.1 rule and the two functions serve genuinely
-    different shapes."""
+    `entries`: a flat list of `(name, is_compound)` tuples (as returned by
+    `name_branch`, not a `grouped` dict like `format_substituent_prefixes`
+    above takes). A compound name (has its own locant, e.g. 'propan-2-yl')
+    is never parenthesized on its own ('propan-2-ylphosphane',
+    'propan-2-yl(propyl)phosphane' when it's the alphabetically-first of
+    two) -- only a *multiplied* compound name needs its own inner
+    parentheses to avoid ambiguity ('tri(propan-2-yl)phosphane', PubChem
+    CID 80969), mirroring the 'di(...)' rule already established for
+    `_carbamate.py`/`_urea.py`. A multiplied compound name mixed with a
+    *different* substituent is out of scope (`UnsupportedStructure`) --
+    PubChem's own naming engine is already documented elsewhere as
+    unreliable for phosphane/borane cases with 3+ distinct substituents,
+    and there's no confirmed Blue Book worked example settling the
+    resulting punctuation (a hyphen appears to be involved, but not
+    reliably enough to encode blind)."""
     counts = {}
-    for name in names:
+    compound_of = {}
+    for name, is_compound in entries:
         counts[name] = counts.get(name, 0) + 1
+        compound_of[name] = is_compound
     if len(counts) == 1:
         (name, count), = counts.items()
-        return multiplying_prefix(count) + name if count > 1 else name
+        if count == 1:
+            return name
+        wrapped = f"({name})" if compound_of[name] else name
+        return multiplying_prefix(count) + wrapped
+
+    if any(counts[name] > 1 and compound_of[name] for name in counts):
+        raise UnsupportedStructure(
+            "a multiplied compound substituent alongside a different "
+            "substituent is not supported yet (P-16.5.1.3.1 "
+            "parenthesization for this combination is unconfirmed)"
+        )
 
     ordered = sorted(counts, key=alpha_sort_key)
     parts = []

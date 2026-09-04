@@ -50,10 +50,30 @@ def test_halogen_substituted_alkyl_chain_raises():
         smiles_to_iupac("ClCCP")
 
 
-def test_branched_substituent_raises():
-    # isopropylphosphane: a branched substituent is out of scope.
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified: CID 537979, 123165.
+        ("CC(C)P", "propan-2-ylphosphane"),
+        ("CC(C)(C)P", "tert-butylphosphane"),
+        # CID 20566651: position-based parens, alphabetically-first
+        # compound name unparenthesized.
+        ("CC(C)PC", "methyl(propan-2-yl)phosphane"),
+        ("CC(C)P(CCC)", "propan-2-yl(propyl)phosphane"),
+        # CID 80969: multiplied compound name needs its own parens.
+        ("CC(C)P(C(C)C)C(C)C", "tri(propan-2-yl)phosphane"),
+    ],
+)
+def test_branched_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_multiplied_compound_substituent_with_different_substituent_raises():
+    # Unconfirmed punctuation for this combination (see module/
+    # `format_mononuclear_prefixes` docstrings) -- deliberately out of
+    # scope rather than guessed.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)P")
+        smiles_to_iupac("CCCP(C(C)C)C(C)C")
 
 
 def test_unsaturated_substituent_raises():
