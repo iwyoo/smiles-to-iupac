@@ -21,10 +21,15 @@
   situation.
 
 Scope, deliberately narrow (mirrors `_selenocyanate.py`'s own first
-pass): R is restricted to a plain, unbranched, unsubstituted, saturated
-alkyl group attached at its own chain terminus (e.g. 'methyl', 'ethyl',
-'propyl'); a branched, substituted, unsaturated, or ring-bearing R is
-deferred. Explicitly out of scope (raise `UnsupportedStructure`): any
+pass): R is restricted to a plain, unsubstituted, saturated, acyclic
+alkyl group (branched or unbranched) attached at its own chain terminus,
+built with `name_branch` (P-29 PIN style, PR #237/#328/#329), never
+parenthesized. Not independently PubChem-verified for a branched R here
+(PubChem has no branched tellurocyanate registered, same sparse-tellurium
+gap as above) -- inherited unchanged from the identical mechanism already
+confirmed by `_thiocyanate.py`/`_cyanate.py`/`_selenocyanate.py`. A
+substituted, unsaturated, or ring-bearing R is still deferred.
+Explicitly out of scope (raise `UnsupportedStructure`): any
 ring anywhere in the molecule, more than one tellurocyanate group, and
 any other heteroatom/oxygen not part of this single tellurocyanate
 group.
@@ -32,8 +37,8 @@ group.
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, carbon_adjacency, linear_branch, non_single_bonds
-from ._numerals import alkyl_name
+from ._common import UnsupportedStructure, adjacency, non_single_bonds
+from ._substituents import name_branch
 
 _YNE_ORDER = 3.0
 _TELLURIUM = 52
@@ -112,9 +117,5 @@ def name_tellurocyanate(mol) -> str:
     if non_single:
         raise UnsupportedStructure("unsaturation in the R group is not supported yet")
 
-    carbon_graph = carbon_adjacency(mol)
-    length = linear_branch(carbon_graph, alkyl_c_idx, None)
-    if length is None:
-        raise UnsupportedStructure("a branched R group is not supported yet")
-
-    return f"{alkyl_name(length)} tellurocyanate"
+    r_name, _ = name_branch(adjacency(mol), alkyl_c_idx, tellurium_idx, {})
+    return f"{r_name} tellurocyanate"

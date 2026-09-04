@@ -19,9 +19,9 @@ def test_propyl_cyanate():
     assert smiles_to_iupac("CCCOC#N") == "propyl cyanate"
 
 
-def test_branched_r_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)OC#N")
+def test_branched_r():
+    # PubChem-verified: CID 550695.
+    assert smiles_to_iupac("CC(C)OC#N") == "propan-2-yl cyanate"
 
 
 def test_unsaturated_r_not_supported():
