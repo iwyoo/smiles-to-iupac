@@ -142,12 +142,17 @@ def test_phenyl_chain_sulfinic_acid():
     assert smiles_to_iupac("c1ccccc1CCCS(=O)O") == "3-phenylpropane-1-sulfinic acid"
 
 
-def test_phenyl_directly_attached_sulfinic_acid_raises():
-    # Benzenesulfinic acid-style naming (-SO2H directly on the ring) is a
-    # separate construction, out of scope for this acyclic-chain-parent
-    # module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1S(=O)O")
+def test_benzenesulfinic_acid():
+    # -SO2H directly on a benzene ring carbon, cross-checked against
+    # PubChem PUG REST.
+    assert smiles_to_iupac("c1ccccc1S(=O)O") == "benzenesulfinic acid"  # CID 12057
+
+
+def test_substituted_benzenesulfinic_acid():
+    # A substituent on a different ring atom than the -SO2H: the
+    # mancude-ring numbering is free to start at the -SO2H carbon, so its
+    # own locant is never cited, unlike the cycloalkane case.
+    assert smiles_to_iupac("Cc1ccccc1S(=O)O") == "2-methylbenzenesulfinic acid"  # CID 12661295
 
 
 def test_phenyl_substituted_benzene_ring_sulfinic_acid_raises():
