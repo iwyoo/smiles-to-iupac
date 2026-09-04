@@ -34,11 +34,19 @@ alkyl substituents per nitrogen), per the IUPAC 2013 Recommendations
   "chloromethylhydrazine" (the sole-substituent case omits its own
   hydrazine locant regardless of the substituent itself being a compound
   name, same as the plain-alkyl sole-substituent case below). A real
-  carbon branch (e.g. isopropyl) remains explicitly rejected rather than
-  silently named via `name_branch`'s own recursive branching, which would
-  hit this project's known non-PIN branched-substituent-naming gap (see
-  `_substituents.py`'s `name_branch` docstring) -- checked by walking the
-  substituent's carbon skeleton with halogens set aside before naming it.
+  carbon branch (e.g. isopropyl) is supported too, built with
+  `name_branch` (P-29 PIN style, fixed project-wide by PR #237; mirrors
+  `_diazene.py`'s identical fix, PR #338) -- confirmed via PubChem:
+  CID 52789 (`CC(C)NN`) -> "propan-2-ylhydrazine", CID 18459757
+  (`CC(C)NNC`) -> "1-methyl-2-propan-2-ylhydrazine". **Not** independently
+  re-verified: two identical branched substituents on the same nitrogen
+  (e.g. `CC(C)N(N)C(C)C`) -- PubChem gives "1,1-di(propan-2-yl)hydrazine"
+  (CID 70201) for that shape, but `format_substituent_prefixes`'s
+  existing `compound=True` path (already confirmed correct for the
+  chloroethyl case, 'bis(2-chloroethyl)') would instead produce
+  '1,1-bis(propan-2-yl)hydrazine' -- the same di-vs-bis PubChem
+  inconsistency `_diazene.py` already ran into (see that module's own
+  docstring) and deliberately left unresolved; not touched here either.
 - A single substituent (on either nitrogen) needs no locant -- hydrazine's
   two nitrogens are interchangeable by symmetry when only one substituent
   is present, the same "genuine absence of ambiguity" `_diazene.py`
@@ -62,9 +70,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - A halogen bonded directly to a hydrazine nitrogen (a different, more
   complex shape than a plain P-35.2.1 carbon-branch substituent; not
   covered here).
-- A branched (real carbon fork, e.g. isopropyl) or unsaturated
-  substituent, an aromatic substituent, or any ring anywhere in the
-  molecule.
+- An unsaturated substituent, an aromatic substituent, or any ring
+  anywhere in the molecule.
 - Hydrazine derivatives with their own suffix/prefix mechanism: hydrazone
   (P-68.3.1.2.2), azine (P-68.3.1.2.3), semicarbazide (P-68.3.1.2.4),
   hydrazide (R-CO-NH-NH2, P-66.3).
@@ -109,21 +116,6 @@ def has_hydrazine_shape(mol) -> bool:
     return _hydrazine_nitrogens(mol) is not None
 
 
-def _is_unbranched_ignoring_halogens(graph, root, coming_from, halogens):
-    """True iff the branch's carbon skeleton (halogen leaves set aside) is
-    a straight, non-forking chain -- the same "no real carbon branch"
-    check `linear_branch` used to make directly, now blind to any
-    terminal halogen substituent along the way."""
-    previous, current = coming_from, root
-    while True:
-        neighbors = [n for n in graph[current] if n != previous and n not in halogens]
-        if len(neighbors) > 1:
-            return False
-        if not neighbors:
-            return True
-        previous, current = current, neighbors[0]
-
-
 def _substituent_names(graph, n_idx, other_n_idx, halogens):
     names = []
     for root in graph[n_idx]:
@@ -134,8 +126,6 @@ def _substituent_names(graph, n_idx, other_n_idx, halogens):
                 "a halogen bonded directly to a hydrazine nitrogen is out "
                 "of scope for this module (see module docstring)"
             )
-        if not _is_unbranched_ignoring_halogens(graph, root, n_idx, halogens):
-            raise UnsupportedStructure("a branched substituent is out of scope for this module")
         names.append(name_branch(graph, root, n_idx, halogens))
     return names
 

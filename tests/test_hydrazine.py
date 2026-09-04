@@ -54,9 +54,21 @@ def test_1_1_diethylhydrazine_name():
     assert smiles_to_iupac("CCN(CC)N") == "1,1-diethylhydrazine"
 
 
-def test_branched_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)NN")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified: CID 52789.
+        ("CC(C)NN", "propan-2-ylhydrazine"),
+        # PubChem CID 18459757 gives "1-methyl-2-propan-2-ylhydrazine"
+        # (no parentheses), but this project's PIN convention always
+        # parenthesizes a compound substituent cited with a locant
+        # (`format_substituent_prefixes`, same pattern documented
+        # elsewhere for `_ether.py`/`_nitro.py`/`_azide.py`).
+        ("CC(C)NNC", "1-methyl-2-(propan-2-yl)hydrazine"),
+    ],
+)
+def test_branched_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_aromatic_substituent_raises():
@@ -88,8 +100,9 @@ def test_chloromethylhydrazine_name():
     assert smiles_to_iupac("ClCNN") == "chloromethylhydrazine"
 
 
-def test_halogenated_branched_substituent_raises():
-    # A real carbon fork (not just a halogen leaf) must still be rejected,
-    # even with a halogen elsewhere in the molecule.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("ClC(C)(C)NN")
+def test_halogenated_branched_substituent_name():
+    # Not independently PubChem-registered (CID 0), but an accepted,
+    # reviewed result following the same name_branch mechanism already
+    # confirmed for the plain-branched and halogenated-unbranched cases
+    # above.
+    assert smiles_to_iupac("ClC(C)(C)NN") == "2-chloropropan-2-ylhydrazine"
