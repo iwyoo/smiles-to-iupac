@@ -50,9 +50,11 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   identical benzene-ring-substituent path. Narrower than the acyclic path:
   no chain unsaturation, no specified stereocenter, and no substituted
   benzene/naphthalene - each a separate follow-up.
-- -C#N on a ring (the 'carbonitrile' suffix, P-66.5.1.2, a substituent-style
-  name rather than this module's parent-chain suffix) - deferred entirely;
-  only an acyclic terminal -C#N is supported here.
+- A ring shape other than a single saturated monocyclic all-carbon ring
+  or a single plain benzene ring, with -C#N directly on it -- P-66.5.1.1.3's
+  'carbonitrile' suffix (a substituent-style name rather than this
+  module's own parent-chain suffix) is handled by `_name_ring_nitrile`/
+  `_name_benzonitrile` for those two single-ring cases only.
 - Any other heteroatom (O, S, ...), or a nitrile carbon entangled with
   another heteroatom.
 
@@ -86,6 +88,7 @@ from ._common import (
     non_single_bonds,
     ordered_chain,
     ring_chain_attachment,
+    ring_cycle,
     specified_stereocenters,
 )
 from ._numerals import alkane_name
@@ -330,6 +333,182 @@ def _name_acyclic_nitrile(mol, nitriles, bonds, stereo=None):
     return best_name
 
 
+def _ring_substituents(graph, ring_order, halogens, excluded):
+    """{ring position -> [substituent name, ...]}, mirroring
+    `_aldehyde.py`'s identically-named helper -- every branch hanging off
+    a ring atom other than the nitrile carbon itself (in `excluded`) is a
+    plain substituent prefix (alkyl/halogen)."""
+    ring_set = set(ring_order)
+    substituents = {}
+    for position, atom in enumerate(ring_order, start=1):
+        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+    return substituents
+
+
+def _ring_name_from_substituents(ring_size, cn_locant, grouped):
+    stem = "cyclo" + alkane_name(ring_size)
+    total_subs = sum(len(info["locants"]) for info in grouped.values())
+    if total_subs == 0:
+        # P-14.3.3: the sole substituent on an otherwise unsubstituted ring
+        # has no locant to distinguish, e.g. 'cyclohexanecarbonitrile'.
+        return stem + "carbonitrile"
+    prefix = format_substituent_prefixes(grouped)
+    return f"{prefix}{stem}-{cn_locant}-carbonitrile"
+
+
+def _ring_candidate_key(ring_size, cn_locant, substituents):
+    grouped = group_substituents(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _ring_name_from_substituents(ring_size, cn_locant, grouped)
+    return cn_locant, locant_set, citation_locants, name
+
+
+def _name_ring_nitrile(mol, ring_atoms):
+    """P-66.5.1.1.3: "The suffix 'carbonitrile' is always used to name
+    nitriles having the -C#N group attached to a ring" -- e.g.
+    'cyclohexanecarbonitrile (PIN)'. Unlike the chain-parent 'nitrile'
+    suffix above (where the -C#N carbon is always the parent's own C1),
+    here the ring itself is the parent hydride and the -C#N carbon is a
+    substituent atom hanging directly off one ring carbon, mirroring
+    `_aldehyde.py`'s `_name_ring_aldehyde` construction.
+
+    A saturated monocyclic all-carbon ring with exactly one -C#N hanging
+    directly off one ring atom (no ring unsaturation, no other
+    substituent sharing that same ring atom), plus any number of
+    substituents (alkyl/halogen) on *other* ring atoms."""
+    (nitrile_nitrogen,) = _validate_and_collect_nitriles(mol)
+
+    graph = adjacency(mol)
+    (nitrile_carbon,) = graph[nitrile_nitrogen]
+    all_non_single = [b for b in non_single_bonds(mol) if b[0] != nitrile_nitrogen and b[1] != nitrile_nitrogen]
+    if all_non_single:
+        raise UnsupportedStructure(
+            "an unsaturated ring alongside a nitrile substituent is not "
+            "supported yet (see P-31.1.3)"
+        )
+
+    ring_neighbors = [n for n in graph[nitrile_carbon] if n in ring_atoms]
+    if len(ring_neighbors) != 1:
+        raise UnsupportedStructure(
+            "a nitrile not directly attached to a single ring atom is not "
+            "supported yet"
+        )
+    (ring_atom,) = ring_neighbors
+    other_ring_atom_branches = [n for n in graph[ring_atom] if n not in ring_atoms and n != nitrile_carbon]
+    if other_ring_atom_branches:
+        raise UnsupportedStructure(
+            "a substituent on the same ring atom as the nitrile is not "
+            "supported yet"
+        )
+
+    halogens = halogen_substituents(mol)
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            cn_locant = position_of[ring_atom]
+            substituents = _ring_substituents(graph, candidate, halogens, {nitrile_carbon})
+            key = _ring_candidate_key(ring_size, cn_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+
+    return best_name
+
+
+def _benzonitrile_name_from_substituents(grouped):
+    total_subs = sum(len(info["locants"]) for info in grouped.values())
+    if total_subs == 0:
+        # 'benzonitrile' is a fully retained name (P-66.5.1.1.3) -- unlike
+        # 'cyclohexanecarbonitrile', there is no locant position to even
+        # omit.
+        return "benzonitrile"
+    return f"{format_substituent_prefixes(grouped)}benzonitrile"
+
+
+def _benzonitrile_candidate_key(cn_locant, substituents):
+    grouped = group_substituents(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _benzonitrile_name_from_substituents(grouped)
+    return cn_locant, locant_set, citation_locants, name
+
+
+def _name_benzonitrile(mol, ring_atoms):
+    """P-66.5.1.1.3: 'benzonitrile' is a retained name that is itself the
+    PIN for a -C#N hanging directly off one carbon of an otherwise-plain
+    (or substituted) benzene ring -- e.g. 'benzonitrile' (PubChem CID
+    7505), '2-methylbenzonitrile' (CID 10287), '4-methylbenzonitrile'
+    (CID 12174). Structurally identical to `_name_ring_nitrile`'s
+    saturated-ring case, mirroring `_aldehyde.py`'s `_name_benzaldehyde`,
+    with the retained name 'benzonitrile' replacing 'cyclo' + alkane_name
+    + 'carbonitrile' as the whole suffix unit (no locant is ever cited
+    for the -C#N position itself)."""
+    (nitrile_nitrogen,) = _validate_and_collect_nitriles(mol, aromatic_ring_atoms=ring_atoms)
+
+    graph = adjacency(mol)
+    (nitrile_carbon,) = graph[nitrile_nitrogen]
+    all_non_single = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] != nitrile_nitrogen
+        and b[1] != nitrile_nitrogen
+        and (b[0] not in ring_atoms or b[1] not in ring_atoms)
+    ]
+    if all_non_single:
+        raise UnsupportedStructure(
+            "unsaturation outside the ring alongside benzonitrile is not "
+            "supported yet"
+        )
+
+    ring_neighbors = [n for n in graph[nitrile_carbon] if n in ring_atoms]
+    if len(ring_neighbors) != 1:
+        raise UnsupportedStructure(
+            "a nitrile not directly attached to a single ring atom is not "
+            "supported yet"
+        )
+    (ring_atom,) = ring_neighbors
+    other_ring_atom_branches = [n for n in graph[ring_atom] if n not in ring_atoms and n != nitrile_carbon]
+    if other_ring_atom_branches:
+        raise UnsupportedStructure(
+            "a substituent on the same ring atom as the nitrile is not "
+            "supported yet"
+        )
+
+    halogens = halogen_substituents(mol)
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            cn_locant = position_of[ring_atom]
+            substituents = _ring_substituents(graph, candidate, halogens, {nitrile_carbon})
+            key = _benzonitrile_candidate_key(cn_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+
+    return best_name
+
+
 def _name_phenyl_chain_nitrile(mol, ring_atoms):
     """Name a nitrile whose -C#N lies entirely on a single unbranched chain
     hanging off one atom of an otherwise-plain, unsubstituted benzene ring
@@ -378,13 +557,6 @@ def _name_phenyl_chain_nitrile(mol, ring_atoms):
             "the nitrile carbon must be the chain's far terminus from the "
             "benzene ring for this benzene-substituent path"
         )
-    if len(chain) < 2:
-        raise UnsupportedStructure(
-            "a -C#N group directly attached to the benzene ring (the "
-            "'carbonitrile' suffix, P-66.5.1.2) uses a separate naming "
-            "construction, out of scope for this acyclic-chain-parent "
-            "module"
-        )
 
     ordered = list(reversed(chain))
     chain_length = len(ordered)
@@ -402,7 +574,19 @@ def name_nitrile(mol) -> str:
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            (only_nitrogen,) = _validate_and_collect_nitriles(mol, aromatic_ring_atoms=ring_atoms)
+            graph = adjacency(mol)
+            (only_carbon,) = graph[only_nitrogen]
+            ring_neighbors = [n for n in graph[only_carbon] if n in ring_atoms]
+            if len(ring_neighbors) == 1:
+                return _name_benzonitrile(mol, ring_atoms)
             return _name_phenyl_chain_nitrile(mol, ring_atoms)
+        (only_nitrogen,) = _validate_and_collect_nitriles(mol)
+        graph = adjacency(mol)
+        (only_carbon,) = graph[only_nitrogen]
+        ring_neighbors = [n for n in graph[only_carbon] if n in ring_atoms]
+        if len(ring_neighbors) == 1:
+            return _name_ring_nitrile(mol, ring_atoms)
     nitriles = _validate_and_collect_nitriles(mol)
     stereo = specified_stereocenters(mol)
     graph = adjacency(mol)
@@ -419,8 +603,9 @@ def name_nitrile(mol) -> str:
 
     if mol.GetRingInfo().NumRings() != 0:
         raise UnsupportedStructure(
-            "a nitrile on a ring (the 'carbonitrile' suffix, P-66.5.1.2) is "
-            "out of scope for this module; only an acyclic terminal -C#N is "
-            "supported"
+            "this ring shape alongside a nitrile (ring unsaturation, or a "
+            "ring other than a single saturated monocyclic/benzene one) is "
+            "out of scope for this module's 'carbonitrile' suffix path "
+            "(P-66.5.1.1.3)"
         )
     return _name_acyclic_nitrile(mol, nitriles, bonds, stereo)

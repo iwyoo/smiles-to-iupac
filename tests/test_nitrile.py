@@ -42,20 +42,26 @@ def test_dinitrile_raises():
         smiles_to_iupac("N#CCCC#N")
 
 
-def test_aryl_nitrile_raises():
-    # Benzonitrile: an aromatic ring elsewhere in the molecule is out of
-    # scope for this module (separate, in-progress aromatic-ring module's
-    # territory).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N#Cc1ccccc1")
+def test_benzonitrile():
+    # -C#N attached directly to a benzene ring carbon (P-66.5.1.1.3). The
+    # retained name 'benzonitrile' stands for the whole ring+CN system
+    # (like 'benzaldehyde'), so the nitrile's own ring locant is never
+    # cited, only other substituents'. PubChem PUG REST:
+    # "benzonitrile"/"4-methylbenzonitrile"/"2-chlorobenzonitrile" -- all
+    # exact matches.
+    assert smiles_to_iupac("N#Cc1ccccc1") == "benzonitrile"
+    assert smiles_to_iupac("N#Cc1ccc(C)cc1") == "4-methylbenzonitrile"
+    assert smiles_to_iupac("N#Cc1ccccc1Cl") == "2-chlorobenzonitrile"
 
 
-def test_ring_nitrile_raises():
-    # -C#N on a ring is the 'carbonitrile' suffix (P-66.5.1.2), a different
-    # naming pattern this module deliberately excludes (see module
-    # docstring).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N#CC1CCCCC1")
+def test_ring_nitrile():
+    # -C#N attached directly to a saturated monocyclic ring carbon
+    # (P-66.5.1.1.3, the 'carbonitrile' suffix) -- e.g.
+    # 'cyclohexanecarbonitrile'. PubChem PUG REST:
+    # "cyclohexanecarbonitrile"/"4-methylcyclohexane-1-carbonitrile" --
+    # both exact matches.
+    assert smiles_to_iupac("N#CC1CCCCC1") == "cyclohexanecarbonitrile"
+    assert smiles_to_iupac("N#CC1CCC(C)CC1") == "4-methylcyclohexane-1-carbonitrile"
 
 
 def test_bicyclic_carbon_skeleton_with_stray_nitrile_raises():
@@ -94,12 +100,10 @@ def test_phenyl_chain_nitrile_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_phenyl_directly_attached_nitrile_raises():
-    # Benzonitrile-style naming (-C#N directly on the ring, P-66.5.1.2) is
-    # a separate construction, out of scope for this acyclic-chain-parent
-    # module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C#N")
+def test_phenyl_directly_attached_nitrile():
+    # Same benzonitrile-type case as test_benzonitrile, reached via a
+    # different ring-atom ordering in the SMILES.
+    assert smiles_to_iupac("c1ccccc1C#N") == "benzonitrile"
 
 
 def test_phenyl_substituted_benzene_ring_nitrile_raises():
