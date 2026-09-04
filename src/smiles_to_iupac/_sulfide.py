@@ -16,10 +16,10 @@ sulfur, per the IUPAC 2013 Recommendations ("the Blue Book"):
 Scope and out-of-scope structures are identical to `_ether.py`, sulfur in
 place of oxygen -- see that module's docstring; this one mirrors its
 structure directly, including the P-63.2.2.1.1 enclosure pattern for a
-branched R' substituent. Still out of scope: any unsaturation or ring, and
-any heteroatom other than the single sulfide sulfur (in particular a
-disulfide S-S, or an oxidized sulfur -- sulfoxide/sulfone -- are separate
-functional groups, not in scope here).
+branched R' substituent. Still out of scope: any unsaturation or non-
+benzene ring, and any heteroatom other than the single sulfide sulfur (in
+particular a disulfide S-S, or an oxidized sulfur -- sulfoxide/sulfone --
+are separate functional groups, not in scope here).
 
 - P-91.3/P-92: a molecule with
   one or more *specified* tetrahedral stereocenters on the parent (R)
@@ -28,6 +28,19 @@ functional groups, not in scope here).
   `winning_chain_from_carbon_graph` for the parent chain's locant lookup.
   A stereocenter on the sulfanyl (R') substituent branch remains out of
   scope (raises `UnsupportedStructure`).
+
+A single, otherwise-unsubstituted benzene ring gets a dedicated path
+(`_name_benzene_ring_sulfide_chain`), mirroring `_ether.py`'s equivalent:
+'sulfanyl' has no suffix form, so P-44.1.2.2 rule (1) makes the ring the
+parent regardless of the other side's chain length. Both a direct
+ring-sulfur bond and a chain spacer between the ring and the sulfide
+sulfur are supported, confirmed via PubChem PUG REST for the underlying
+structure/connectivity (CID 12144 'c1ccccc1SCC' -> 'ethylsulfanylbenzene',
+'c1ccccc1CSCC' -> 'ethylsulfanylmethylbenzene', 'c1ccccc1SC(C)C' ->
+'propan-2-ylsulfanylbenzene', 'c1ccccc1CSC(C)C' ->
+'propan-2-ylsulfanylmethylbenzene') -- but, like `_ether.py`, a compound
+R' side or a compound chain-spacer branch is still parenthesized here
+even where PubChem's own auto-generated name omits the parentheses.
 """
 
 from ._acyclic import longest_chain_length, winning_chain_from_carbon_graph, winning_chain_with_key
@@ -36,7 +49,9 @@ from ._common import (
     adjacency,
     bfs,
     carbon_adjacency,
+    is_plain_benzene_ring,
     non_single_bonds,
+    ring_chain_attachment,
     specified_stereocenters,
 )
 from ._substituents import name_branch
@@ -63,8 +78,14 @@ def has_sulfide_shape(mol) -> bool:
     return sulfur.GetDegree() == 2 and all(n.GetAtomicNum() == 6 for n in sulfur.GetNeighbors())
 
 
-def name_sulfide(mol) -> str:
+def _validate_sulfide_atoms(mol, ring_atoms=frozenset()):
+    """Shared per-atom validation for both the plain-chain path and the
+    single-benzene-ring path (mirrors `_ether.py`'s
+    `_validate_ether_atoms`): every atom outside `ring_atoms` (empty for
+    the plain-chain path) must be a non-aromatic chain carbon or the
+    sulfide's own sulfur."""
     for atom in mol.GetAtoms():
+        idx = atom.GetIdx()
         if atom.GetAtomicNum() not in (6, 16):
             raise UnsupportedStructure(
                 "heteroatoms other than the sulfide sulfur are not "
@@ -73,18 +94,80 @@ def name_sulfide(mol) -> str:
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic():
+        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and idx not in ring_atoms:
             raise UnsupportedStructure(
                 "aromatic rings are out of scope for this module (see the "
                 "separate aromatic-ring module)"
             )
-    if non_single_bonds(mol):
+    if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in non_single_bonds(mol)):
         raise UnsupportedStructure(
             "unsaturation is not supported by this module (see P-31 for "
             "alkenes/alkynes; not yet combined with a sulfide here)"
         )
-    if mol.GetRingInfo().NumRings() > 0:
+
+
+def _name_benzene_ring_sulfide_chain(mol, ring_atoms) -> str:
+    """P-44.1.2.2 rule (1): since the 'sulfanyl' prefix has no suffix form
+    (module docstring), a single, otherwise-unsubstituted benzene ring is
+    always the parent hydride, regardless of the other side's chain
+    length. Handles both a direct ring-sulfur bond ('ethylsulfanylbenzene')
+    and a chain spacer between the ring and the sulfide sulfur
+    ('(2-ethylsulfanylethyl)benzene'), mirroring
+    `_ether._name_benzene_ring_ether_chain` exactly (sulfur in place of
+    oxygen, 'sulfanyl' in place of 'oxy')."""
+    _validate_sulfide_atoms(mol, ring_atoms)
+    if specified_stereocenters(mol) is not None:
+        raise UnsupportedStructure(
+            "a specified stereocenter is not supported yet for a "
+            "benzene-ring-substituent sulfide"
+        )
+
+    graph = adjacency(mol)
+    (sulfur_idx,) = (idx for idx in graph if mol.GetAtomWithIdx(idx).GetAtomicNum() == 16)
+
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a sulfide is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+
+    if chain_root == sulfur_idx:
+        (r_prime,) = [n for n in graph[sulfur_idx] if n != ring_atom]
+        sub_name, sub_compound = name_branch(graph, r_prime, sulfur_idx, {})
+        if sub_compound:
+            sub_name = f"({sub_name})"
+        return f"{_sulfanyl_prefix(sub_name)}benzene"
+
+    blocked_graph = {node: [n for n in neighbors if n != sulfur_idx] for node, neighbors in graph.items()}
+    del blocked_graph[sulfur_idx]
+    reached, _ = bfs(blocked_graph, ring_atom)
+    (r_prime,) = [n for n in graph[sulfur_idx] if n not in reached]
+
+    sub_name, sub_compound = name_branch(graph, r_prime, sulfur_idx, {})
+    if sub_compound:
+        sub_name = f"({sub_name})"
+    sulfanyl_term = _sulfanyl_prefix(sub_name)
+    branch_name, is_compound = name_branch(graph, chain_root, ring_atom, {sulfur_idx: sulfanyl_term})
+    if not is_compound:
+        return f"{branch_name}benzene"
+    if "(" in branch_name:
+        return f"[{branch_name}]benzene"
+    return f"({branch_name})benzene"
+
+
+def name_sulfide(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_benzene_ring_sulfide_chain(mol, ring_atoms)
         raise UnsupportedStructure("rings are not supported by this module yet")
+    if ring_info.NumRings() > 0:
+        raise UnsupportedStructure("rings are not supported by this module yet")
+
+    _validate_sulfide_atoms(mol)
 
     (sulfur,) = (atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 16)
     sulfur_idx = sulfur.GetIdx()
