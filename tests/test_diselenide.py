@@ -79,3 +79,33 @@ def test_unspecified_stereocenter_ignored():
 def test_stereocenter_on_substituent_branch_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CCCCC[Se][Se][C@H](C)CC")
+
+
+def test_phenyl_diselenide_direct_bond():
+    # A plain, unsubstituted benzene ring directly bonded to one
+    # selenium (P-44.1.2.2 rule (1), same "ring always wins" pattern as
+    # `_disulfide.py`'s benzene-ring path -- 'diselanyl' has no suffix
+    # form). PubChem CID 59041517.
+    assert smiles_to_iupac("c1ccccc1[Se][Se]C") == "(methyldiselanyl)benzene"
+    # PubChem CID 71327844.
+    assert smiles_to_iupac("c1ccccc1[Se][Se]CC") == "(ethyldiselanyl)benzene"
+
+
+def test_phenyl_diselenide_chain_spacer_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C[Se][Se]C")
+
+
+def test_phenyl_diselenide_seh_terminal_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1[Se][SeH]")
+
+
+def test_phenyl_diselenide_branched_other_side_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1[Se][Se]C(C)C")
+
+
+def test_phenyl_diselenide_substituted_ring_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1[Se][Se]C")
