@@ -44,3 +44,14 @@ def test_two_tellurocyanate_groups_not_supported():
 
 def test_selenocyanate_not_confused_with_tellurocyanate():
     assert smiles_to_iupac("C[Se]C#N") == "methyl selenocyanate"
+
+
+def test_phenyl_tellurocyanate():
+    # A plain, unsubstituted benzene ring bonded directly to the
+    # tellurocyanate tellurium, cross-checked against PubChem PUG REST.
+    assert smiles_to_iupac("c1ccccc1[Te]C#N") == "phenyl tellurocyanate"  # CID 12553982
+
+
+def test_phenyl_tellurocyanate_chain_spacer_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C[Te]C#N")

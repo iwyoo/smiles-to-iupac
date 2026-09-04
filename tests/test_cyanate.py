@@ -45,3 +45,19 @@ def test_ether_not_confused_with_cyanate():
 
 def test_thiocyanate_not_confused_with_cyanate():
     assert smiles_to_iupac("CSC#N") == "methyl thiocyanate"
+
+
+def test_phenyl_cyanate():
+    # A plain, unsubstituted benzene ring bonded directly to the cyanate
+    # oxygen, cross-checked against PubChem PUG REST.
+    assert smiles_to_iupac("c1ccccc1OC#N") == "phenyl cyanate"  # CID 70740
+
+
+def test_phenyl_cyanate_chain_spacer_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1COC#N")
+
+
+def test_phenyl_cyanate_substituted_ring_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1OC#N")
