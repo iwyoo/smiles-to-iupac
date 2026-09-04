@@ -19,9 +19,16 @@ def test_propyl_thiocyanate():
     assert smiles_to_iupac("CCCSC#N") == "propyl thiocyanate"
 
 
-def test_branched_r_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)SC#N")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified: CID 246911, 641640.
+        ("CC(C)SC#N", "propan-2-yl thiocyanate"),
+        ("CC(C)(C)SC#N", "tert-butyl thiocyanate"),
+    ],
+)
+def test_branched_r(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_unsaturated_r_not_supported():

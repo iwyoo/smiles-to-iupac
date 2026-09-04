@@ -17,9 +17,11 @@ Blue Book"):
   isotellurocyanate family was built up one module at a time.
 
 Scope, deliberately narrow (mirrors `_thiocyanate.py`'s own first pass): R
-is restricted to a plain, unbranched, unsubstituted, saturated alkyl group
-attached at its own chain terminus (e.g. 'methyl', 'ethyl', 'propyl'); a
-branched, substituted, unsaturated, or ring-bearing R is deferred.
+is restricted to a plain, unsubstituted, saturated, acyclic alkyl group
+(branched or unbranched) attached at its own chain terminus, built with
+`name_branch` (P-29 PIN style, PR #237/#328/#329), never parenthesized.
+Confirmed via PubChem: `CC(C)OC#N` -> "propan-2-yl cyanate" (CID 550695).
+A substituted, unsaturated, or ring-bearing R is still deferred.
 Explicitly out of scope (raise `UnsupportedStructure`): any ring anywhere
 in the molecule, more than one cyanate group, and any other
 heteroatom/oxygen not part of this single cyanate group.
@@ -27,8 +29,8 @@ heteroatom/oxygen not part of this single cyanate group.
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, carbon_adjacency, linear_branch, non_single_bonds
-from ._numerals import alkyl_name
+from ._common import UnsupportedStructure, adjacency, non_single_bonds
+from ._substituents import name_branch
 
 _YNE_ORDER = 3.0
 
@@ -106,9 +108,5 @@ def name_cyanate(mol) -> str:
     if non_single:
         raise UnsupportedStructure("unsaturation in the R group is not supported yet")
 
-    carbon_graph = carbon_adjacency(mol)
-    length = linear_branch(carbon_graph, alkyl_c_idx, None)
-    if length is None:
-        raise UnsupportedStructure("a branched R group is not supported yet")
-
-    return f"{alkyl_name(length)} cyanate"
+    r_name, _ = name_branch(adjacency(mol), alkyl_c_idx, oxygen_idx, {})
+    return f"{r_name} cyanate"
