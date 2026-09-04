@@ -50,9 +50,31 @@ def test_different_substituent_counts_on_different_nitrogens_not_supported():
         smiles_to_iupac("CCN(C)C(=S)NC")
 
 
-def test_branched_n_substituent_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)NC(=S)N")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified: CID 1711921, 737374.
+        ("CC(C)NC(=S)N", "N-propan-2-ylthiourea"),
+        ("CC(C)(C)NC(=S)N", "N-tert-butylthiourea"),
+    ],
+)
+def test_branched_n_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_two_identical_branched_substituents_different_nitrogens_parenthesized_when_compound():
+    # PubChem CID 2758386.
+    assert smiles_to_iupac("CC(C)NC(=S)NC(C)C") == "N,N'-di(propan-2-yl)thiourea"
+
+
+def test_two_identical_branched_substituents_different_nitrogens_not_parenthesized_when_retained():
+    # PubChem CID 2801221.
+    assert smiles_to_iupac("CC(C)(C)NC(=S)NC(C)(C)C") == "N,N'-ditert-butylthiourea"
+
+
+def test_two_different_substituents_alphabetized_ignoring_italic_prefix():
+    # PubChem CID 4611181.
+    assert smiles_to_iupac("CC(C)(C)NC(=S)NCC") == "N-tert-butyl-N'-ethylthiourea"
 
 
 def test_unsaturated_n_substituent_not_supported():
