@@ -67,6 +67,7 @@ from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
 from ._dihydro_aromatic import find_dihydronaphthalene_core, name_dihydronaphthalene
+from ._diester_acyloxy import has_diester_shape, name_diester_acyloxy
 from ._ester import has_ester_shape, name_ester
 from ._cyanate import has_cyanate_shape, name_cyanate
 from ._ether import has_ether_shape, name_ether
@@ -745,6 +746,13 @@ def smiles_to_iupac(smiles: str) -> str:
         # would otherwise look aldehyde/ketone-shaped, and (for a rejected,
         # out-of-scope case) its non-carbonyl oxygen would never satisfy the
         # carboxylic acid module's hydroxyl (O-H) requirement anyway.
+        if has_diester_shape(mol):
+            # P-65.6.3: a diester on a shared diol chain is not a simple
+            # multiplied 'oate' suffix -- one ester stays the suffix parent
+            # and the other is demoted to an 'acyloxy' prefix, a different
+            # construction from `_ester.py`'s single-ester "exactly one"
+            # rejection below, so it must be routed first.
+            return name_diester_acyloxy(mol)
         if has_ester_shape(mol):
             # P-41/Table 3.3: 'oate' outranks 'one', so an ester whose acyl
             # chain also carries one or more ketones names the ester as the
