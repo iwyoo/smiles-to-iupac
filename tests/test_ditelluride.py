@@ -82,3 +82,31 @@ def test_unspecified_stereocenter_ignored():
 def test_stereocenter_on_substituent_branch_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CCCCC[Te][Te][C@H](C)CC")
+
+
+def test_phenyl_ditelluride_direct_bond():
+    # A plain, unsubstituted benzene ring directly bonded to one
+    # tellurium (P-44.1.2.2 rule (1), same "ring always wins" pattern as
+    # `_disulfide.py`'s benzene-ring path -- 'ditellanyl' has no suffix
+    # form). PubChem CID 101099279.
+    assert smiles_to_iupac("c1ccccc1[Te][Te]C") == "(methylditellanyl)benzene"
+
+
+def test_phenyl_ditelluride_chain_spacer_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C[Te][Te]C")
+
+
+def test_phenyl_ditelluride_teh_terminal_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1[Te][TeH]")
+
+
+def test_phenyl_ditelluride_branched_other_side_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1[Te][Te]C(C)C")
+
+
+def test_phenyl_ditelluride_substituted_ring_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1[Te][Te]C")
