@@ -72,9 +72,13 @@ def test_ring_ammonium_raises():
         smiles_to_iupac("C[NH2+]C1CCCCC1")
 
 
-def test_aromatic_ammonium_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1[NH3+]")
+def test_aromatic_ammonium():
+    # Anilinium (P-73, protonated aniline) -- now that `_amine.py` supports
+    # aniline itself, the neutralize-and-'e'->'ium' path this module
+    # already uses for chain amines applies here too. Blue Book worked
+    # examples confirm "anilinium chloride (PIN)"/"N,N,N-trimethylanilinium
+    # (PIN)" (`tmp/bluebook/P7.txt` lines 1795/3567).
+    assert smiles_to_iupac("c1ccccc1[NH3+]") == "anilinium"
 
 
 def test_doubly_charged_nitrogen_raises():

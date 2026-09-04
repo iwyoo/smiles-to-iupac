@@ -38,8 +38,11 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - Any other heteroatom (O, S, ...) — including molecules that would also
   need a senior characteristic group (Table 3.3); this module rejects those
   outright rather than attempting suffix-vs-suffix seniority.
-- -NH2/-NHR/-NR2 on an aromatic ring (aniline-type) — a separate module's
-  territory.
+- -NHR/-NR2 (N-substituted) on an aromatic ring, or a second amine
+  nitrogen alongside a ring one — a plain, unsubstituted -NH2 directly on
+  an otherwise-plain benzene ring is handled by `_name_aniline`
+  (P-62.2.1.1.1), a separate follow-up from this narrower N-substituted/
+  multi-group combination.
 - -NH2 on a von Baeyer polycyclic or spiro skeleton — deferred, same as
   `_alcohol.py`.
 - An amine nitrogen on a carbon that is also part of a C=C/C#C bond (an
@@ -643,6 +646,72 @@ def _name_cyclic_amine(mol, amines, stereo=None, bonds=()):
     return best_name
 
 
+def _aniline_name_from_substituents(grouped):
+    # P-62.2.1.1.1: the retained name 'aniline' stands for the whole
+    # ring+NH2 system (like 'phenol'/'phenoxide' in `_alcohol.py`/
+    # `_alkoxide.py`), so the amine's own ring locant is never cited --
+    # e.g. '4-methylaniline (PIN)', not '4-methylaniline-1-amine'.
+    if not grouped:
+        return "aniline"
+    return f"{format_substituent_prefixes(grouped)}aniline"
+
+
+def _aniline_candidate_key(amine_locant, substituents):
+    grouped = _group(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _aniline_name_from_substituents(grouped)
+    return amine_locant, locant_set, citation_locants, name
+
+
+def _name_aniline(mol, ring_atoms):
+    """P-62.2.1.1.1: -NH2 attached directly to a benzene ring carbon --
+    e.g. 'aniline' (PubChem CID 6115), '4-methylaniline' (CID 7864), '2-
+    chloroaniline' (CID 8863). Mirrors `_alcohol.py`'s `_name_phenol`
+    exactly, with the retained name 'aniline' standing in for 'phenol'.
+    Narrower than the general ring case: exactly one *primary* amine
+    (directly on the ring, no N-alkyl substituent -- N-substituted
+    aniline, e.g. 'N-methylaniline (PIN)', is a separate follow-up), and
+    no specified stereocenter."""
+    amines, n_carbons_by_nitrogen = _validate_and_collect_amines(mol, aromatic_ring_atoms=ring_atoms)
+    if len(amines) != 1:
+        raise UnsupportedStructure(
+            "more than one amine nitrogen directly on a benzene ring is "
+            "not supported yet"
+        )
+    (n_idx,) = amines
+    if len(n_carbons_by_nitrogen[n_idx]) > 1:
+        raise UnsupportedStructure(
+            "an N-substituted aniline is not supported yet"
+        )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure("a specified stereocenter alongside aniline is not supported yet")
+
+    (amine_carbon,) = n_carbons_by_nitrogen[n_idx]
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    excluded = {n_idx}
+    ring_order = _ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            amine_locant = position_of[amine_carbon]
+            substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
+            key = _aniline_candidate_key(amine_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def _name_phenyl_chain_amine(mol, ring_atoms):
     """Name a primary amine whose -NH2 lies entirely on a single
     unbranched chain hanging off one atom of an otherwise-plain,
@@ -688,12 +757,6 @@ def _name_phenyl_chain_amine(mol, ring_atoms):
             "alongside a chain amine is not supported yet"
         )
     ring_atom, chain_root = attachment
-    if chain_root == n_idx:
-        raise UnsupportedStructure(
-            "an amine directly on the benzene ring (aniline-type) uses a "
-            "separate construction, out of scope for this chain-parent "
-            "module"
-        )
     chain = ordered_chain(graph, chain_root, ring_atom, amines)
     if chain is None:
         raise UnsupportedStructure(
@@ -729,6 +792,13 @@ def name_amine(mol) -> str:
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            amines, n_carbons_by_nitrogen = _validate_and_collect_amines(mol, aromatic_ring_atoms=ring_atoms)
+            if len(amines) == 1:
+                (n_idx,) = amines
+                if len(n_carbons_by_nitrogen[n_idx]) == 1:
+                    (only_carbon,) = n_carbons_by_nitrogen[n_idx]
+                    if only_carbon in ring_atoms:
+                        return _name_aniline(mol, ring_atoms)
             return _name_phenyl_chain_amine(mol, ring_atoms)
     amines, n_carbons_by_nitrogen = _validate_and_collect_amines(mol)
     stereo = specified_stereocenters(mol)
