@@ -56,3 +56,24 @@ def test_unsaturated_chain_not_supported():
 def test_ring_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OC(=O)C1CCC(S(=O)O)CC1")
+
+
+def test_phenyl_chain_carboxylic_acid_sulfinic_acid():
+    # A plain, unsubstituted benzene ring on the carboxylic acid/sulfinic
+    # acid chain, mirroring `_carboxylic_acid_sulfonic_acid.py`'s own
+    # benzene-ring-substituent path (PR #362), cross-checked against
+    # PubChem PUG REST.
+    assert smiles_to_iupac("c1ccccc1C(S(=O)O)CC(=O)O") == "3-phenyl-3-sulfinopropanoic acid"  # CID 174325886
+
+
+def test_phenyl_ring_with_second_substituent_raises():
+    # A benzene ring with two exocyclic attachments (carboxylic acid
+    # directly on the ring plus a separate sulfinic-acid-bearing chain)
+    # is out of scope for this single-chain-substituent module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OC(=O)c1ccccc1S(=O)O")
+
+
+def test_phenyl_chain_carboxylic_acid_sulfinic_acid_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC(S(=O)O)C(=O)O")
