@@ -41,24 +41,28 @@ substituents), per the IUPAC 2013 Recommendations ("the Blue Book"):
   rules above rather than needing a new one: each distinct name still gets
   its own multiplying prefix by count, and the alphabetically-first
   distinct name is still the only one never parenthesized (P-16.5.1.3.1),
-  regardless of its own count. Confirmed via PubChem PUG REST: CID 535207
-  (`CCP(C)C`, ethyl x1 + methyl x2) -> "ethyl(dimethyl)phosphane", CID
-  13836128 (`CCP(CC)C`, ethyl x2 + methyl x1) -> "diethyl(methyl)phosphane"
-  (2026-08-25). **Known open question (not addressed here)**: the Blue
-  Book's own worked example for the analogous silane case is
-  "ethyldi(methyl)phosphane (PIN)" (`tmp/bluebook/P1.html`,
-  P-16.5.1.3.1) -- multiplying prefix *outside* the parens, not
-  "ethyl(dimethyl)phosphane" as PubChem (and this module, unchanged) give
-  -- discovered while investigating a related PubChem-parenthesization
-  gap (see the branched-substituent note above); left as-is pending a
-  dedicated follow-up rather than folded into that unrelated fix.
+  regardless of its own count -- but the multiplying prefix itself
+  always sits *outside* the parentheses (P-16.5.1.3.1's own text, "the
+  multiplicative prefixes are not included in the parentheses"),
+  confirmed directly via the Blue Book's own "ethyldi(methyl)phosphane
+  (PIN)" worked example (`tmp/bluebook/P1.html`) -- a correction from
+  this module's own earlier (PubChem-trusted) assumption
+  ("ethyl(dimethyl)phosphane" for CID 535207's structure, another
+  instance of PubChem's own parenthesization unreliability, same as the
+  branched-substituent note below): "ethyl(methyl x2)" is now
+  "ethyldi(methyl)phosphane", and "ethyl x2 + methyl x1" (CID 13836128)
+  stays "diethyl(methyl)phosphane" unchanged (the multiplied group was
+  already first, so it was never wrapped in the first place).
 
 - A halogen (F/Cl/Br/I) bonded directly to phosphorus is just another
   substituent prefix that already fits the P-16.5.1.3.1 parenthesization
-  rule above (no new mechanism needed) -- confirmed via PubChem PUG REST:
-  CID 161938 (`ClP`) -> "chlorophosphane", CID 13128761 (`ClPCl`) ->
-  "dichlorophosphane", CID 69936 (`ClP(C)C`) ->
-  "chloro(dimethyl)phosphane".
+  rule above (no new mechanism needed) -- confirmed via PubChem PUG REST
+  for structure only: CID 161938 (`ClP`) -> "chlorophosphane", CID
+  13128761 (`ClPCl`) -> "dichlorophosphane"; CID 69936's structure
+  (`ClP(C)C`) is named "chlorodi(methyl)phosphane" here (not PubChem's
+  own raw "chloro(dimethyl)phosphane"), matching the Blue Book's own
+  "chlorodi(methyl)borane (PIN)" worked example for the analogous
+  borane case (`tmp/bluebook/P6.txt`).
 
 - A branched substituent is supported (e.g. 'propan-2-ylphosphane',
   PubChem CID 537979; 'tert-butylphosphane', CID 123165), built with

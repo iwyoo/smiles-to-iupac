@@ -28,15 +28,22 @@ from smiles_to_iupac._common import UnsupportedStructure
         # a multiply-cited substituent mixed with a different one: each
         # distinct name gets its own multiplying prefix by count, and the
         # alphabetically-first name is still the only one never
-        # parenthesized, regardless of its own count.
-        ("CCP(C)C", "ethyl(dimethyl)phosphane"),
+        # parenthesized, regardless of its own count -- but the
+        # multiplying prefix itself sits *outside* the parentheses (Blue
+        # Book "ethyldi(methyl)phosphane (PIN)" worked example,
+        # `tmp/bluebook/P1.html`), not PubChem's own raw
+        # "ethyl(dimethyl)phosphane" for CID 535207's structure.
+        ("CCP(C)C", "ethyldi(methyl)phosphane"),
         ("CCP(CC)C", "diethyl(methyl)phosphane"),
-        # halogen bonded directly to phosphorus: cross-checked against
-        # PubChem PUG REST IUPACName, CID 161938 (ClP), CID 13128761
-        # (ClPCl), CID 69936 (ClP(C)C).
+        # halogen bonded directly to phosphorus: structure cross-checked
+        # against PubChem PUG REST, CID 161938 (ClP), CID 13128761
+        # (ClPCl), CID 69936 (ClP(C)C) -- the last name matches the Blue
+        # Book's own "chlorodi(methyl)borane (PIN)" analogue
+        # (`tmp/bluebook/P6.txt`), not PubChem's own raw
+        # "chloro(dimethyl)phosphane".
         ("ClP", "chlorophosphane"),
         ("ClPCl", "dichlorophosphane"),
-        ("ClP(C)C", "chloro(dimethyl)phosphane"),
+        ("ClP(C)C", "chlorodi(methyl)phosphane"),
     ],
 )
 def test_smiles_to_iupac_simple_phosphane(smiles, expected):

@@ -36,10 +36,15 @@ def test_tetramethylphosphanium():
 
 
 def test_ethyl_trimethyl_phosphanium():
-    # PubChem structure match: "ethyl(trimethyl)phosphanium" -- the
-    # P-16.5.1.3.1 parenthesization rule for a mononuclear parent with
-    # mixed distinct substituent counts.
-    assert smiles_to_iupac("CC[P+](C)(C)C") == "ethyl(trimethyl)phosphanium"
+    # PubChem structure match (raw name "ethyl(trimethyl)phosphanium"
+    # omits a required parenthesis placement) -- the P-16.5.1.3.1
+    # parenthesization rule for a mononuclear parent with mixed distinct
+    # substituent counts puts the multiplying prefix *outside* the
+    # parentheses, confirmed via the Blue Book's own
+    # "chlorodi(methyl)borane (PIN)"/"ethyldi(methyl)phosphane (PIN)"
+    # worked examples (`tmp/bluebook/P6.txt`/`P1.html`, see
+    # `_phosphane.py`'s docstring for the full derivation).
+    assert smiles_to_iupac("CC[P+](C)(C)C") == "ethyltri(methyl)phosphanium"
 
 
 def test_branched_quaternary_phosphonium_raises():
