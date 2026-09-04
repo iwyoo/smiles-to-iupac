@@ -7,6 +7,10 @@ from smiles_to_iupac._common import UnsupportedStructure
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        # Mononuclear parent (P-14.3.4.2(a), no locant on the 'sulfo'
+        # prefix). PubChem CID 18466245 gives the retained name
+        # "sulfoformic acid"; systematic-stem substitution as below.
+        ("OC(=O)S(=O)(=O)O", "sulfomethanoic acid"),
         # PubChem CID 31257 gives the retained-name "2-sulfoacetic acid";
         # this codebase always uses the systematic '...oic acid' stem
         # instead of a retained name once any substituent is present
