@@ -90,7 +90,12 @@ rings, unsaturation reaching outside the ring or a ring triple bond, an
 -SeH on a substituent branch off an otherwise-unsubstituted ring, a
 selenide (-Se- ether-analogue) or any other selenium-oxidation-state
 group, a tellurol or other chalcogen atom, and any oxygen or nitrogen
-atom at all.
+atom at all. `_name_benzeneselenol` names a single -SeH directly on a
+benzene ring carbon (with or without other ring substituents), e.g.
+'benzeneselenol' (PubChem CID 69530), mirroring `_thiol.py`'s
+`_name_benzenethiol` exactly -- the -SeH's own locant is never cited,
+unlike the cycloalkane case; two or more -SeH groups directly on the
+ring remain out of scope.
 """
 
 from rdkit import Chem
@@ -407,6 +412,68 @@ def _name_cyclic_selenol(mol, selenols, stereo=None, bonds=()):
     return best_name
 
 
+def _benzeneselenol_name_from_substituents(se_locants, grouped):
+    # Unlike the cycloalkane case, the mancude ring's own numbering is
+    # always free to start at the -SeH carbon (P-14.3.3-style), so its
+    # locant is never cited even when other substituents need theirs,
+    # mirroring `_thiol.py`'s identical 'benzenethiol' treatment.
+    selenol_word = multiplied_word(len(se_locants), "selenol")
+    if not grouped:
+        return "benzene" + selenol_word
+    return f"{format_substituent_prefixes(grouped)}benzene{selenol_word}"
+
+
+def _benzeneselenol_candidate_key(se_locants, substituents):
+    grouped = group_substituents(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    se_locant_set = lowest_locant_set(se_locants)
+    name = _benzeneselenol_name_from_substituents(se_locants, grouped)
+    return se_locant_set, locant_set, citation_locants, name
+
+
+def _name_benzeneselenol(mol, ring_atoms):
+    """P-63.1.1: -SeH attached directly to a benzene ring carbon -- e.g.
+    'benzeneselenol' (PubChem CID 69530). Mirrors `_thiol.py`'s
+    `_name_benzenethiol` exactly (selenium in place of sulfur), with the
+    retained name 'benzene' as stem in place of 'cyclo' + alkane_name.
+    Only a single -SeH directly on the ring is verified here (two or more
+    direct ring selenols remain out of scope)."""
+    selenols = _validate_and_collect_selenols(mol, aromatic_ring_atoms=ring_atoms)
+    if len(selenols) != 1:
+        raise UnsupportedStructure(
+            "more than one selenol directly on the benzene ring is not "
+            "supported yet"
+        )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside benzeneselenol is not "
+            "supported yet"
+        )
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            se_locants = _se_locants(position_of, selenols, graph)
+            substituents = _substituents_for_ring(graph, candidate, halogens, selenols)
+            key = _benzeneselenol_candidate_key(se_locants, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def _name_phenyl_chain_selenol(mol, ring_atoms):
     """Name a selenol whose -SeH lies entirely on a single unbranched
     chain hanging off one atom of an otherwise-plain, unsubstituted
@@ -486,6 +553,12 @@ def name_selenol(mol) -> str:
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            ring_selenols = _validate_and_collect_selenols(mol, aromatic_ring_atoms=ring_atoms)
+            if len(ring_selenols) == 1:
+                (only_se,) = ring_selenols
+                (only_se_carbon,) = adjacency(mol)[only_se]
+                if only_se_carbon in ring_atoms:
+                    return _name_benzeneselenol(mol, ring_atoms)
             return _name_phenyl_chain_selenol(mol, ring_atoms)
     selenols = _validate_and_collect_selenols(mol)
     stereo = specified_stereocenters(mol)
