@@ -60,3 +60,25 @@ def test_thiourea_not_confused_with_selenourea():
 
 def test_urea_not_confused_with_selenourea():
     assert smiles_to_iupac("NC(=O)N") == "urea"
+
+
+def test_n_phenylselenourea():
+    # PubChem structure match: CID 6329315, synonym "Phenylselenourea"
+    # (IUPACName unavailable for this selenium compound).
+    assert smiles_to_iupac("NC(=[Se])Nc1ccccc1") == "N-phenylselenourea"
+
+
+def test_n_n_prime_diphenylselenourea():
+    # PubChem structure match: CID 6327858, synonym
+    # "N,N'-Diphenylselenourea".
+    assert smiles_to_iupac("c1ccc(NC(=[Se])Nc2ccccc2)cc1") == "N,N'-diphenylselenourea"
+
+
+def test_substituted_phenyl_n_substituent_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NC(=[Se])Nc1ccc(C)cc1")
+
+
+def test_phenyl_alongside_another_substituent_on_same_nitrogen_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CN(c1ccccc1)C(=[Se])N")
