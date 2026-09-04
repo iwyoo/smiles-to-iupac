@@ -103,9 +103,18 @@ def test_ring_carboxylic_acid_two_carboxyls_raises():
         smiles_to_iupac("OC(=O)C1CCC(C(=O)O)CC1")
 
 
-def test_aryl_carboxylic_acid_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)c1ccccc1")
+def test_benzoic_acid():
+    # -COOH directly on a benzene ring carbon: 'benzoic acid' is a fully
+    # retained name (P-65.1.1), cross-checked against PubChem PUG REST.
+    assert smiles_to_iupac("OC(=O)c1ccccc1") == "benzoic acid"  # CID 243
+
+
+def test_substituted_benzoic_acid():
+    # A substituent on a different ring atom than the -COOH: the retained
+    # 'benzoic acid' name itself carries no locant, so only the other
+    # substituent's position is cited.
+    assert smiles_to_iupac("OC(=O)c1ccccc1C") == "2-methylbenzoic acid"  # CID 8373
+    assert smiles_to_iupac("OC(=O)c1ccc(C)cc1") == "4-methylbenzoic acid"  # CID 7470
 
 
 def test_phenyl_substituent_carboxylic_acid():
@@ -128,14 +137,12 @@ def test_phenyl_substituent_carboxylic_acid_matches_halogen_locant_pattern():
     assert smiles_to_iupac("c1ccccc1CCC(=O)O") == "3-phenylpropanoic acid"
 
 
-def test_phenyl_substituent_carboxylic_acid_directly_on_ring_raises():
-    # No intervening chain carbon between the ring and the -COOH carbon is
-    # really the P-65.1.1.2 ring-carboxylic-acid case (benzoic acid),
-    # already covered by test_aryl_carboxylic_acid_raises -- this is the
-    # same rejection reached through the new benzene-ring code path
-    # instead of falling through to the old blanket ring rejection.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C(=O)O")
+def test_phenyl_substituent_carboxylic_acid_directly_on_ring_is_benzoic_acid():
+    # No intervening chain carbon between the ring and the -COOH carbon
+    # is really the P-65.1.1 benzoic-acid case (test_benzoic_acid above),
+    # reached here through the phenyl-chain module's own dispatch instead
+    # of the ring module's.
+    assert smiles_to_iupac("c1ccccc1C(=O)O") == "benzoic acid"
 
 
 def test_phenyl_substituent_carboxylic_acid_substituted_ring_raises():
