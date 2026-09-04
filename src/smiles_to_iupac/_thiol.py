@@ -42,9 +42,23 @@ support, with no other heteroatom (in particular no -OH or amine
 nitrogen) anywhere in the molecule -- Table 3.3's alcohol/thiol/amine
 seniority coexistence is future work, tracked as a separate roadmap item,
 same as the analogous `multi-carbonyl-seniority.md` split for aldehyde/
-ketone. Explicitly out of scope (raise `UnsupportedStructure`):
-polycyclic/spiro/unsaturated rings, an -SH on a substituent branch off an
-otherwise-unsubstituted *saturated* ring, a sulfide (-S- ether-analogue)
+ketone.
+
+P-31.1.3: a monocyclic ring bearing a thiol and exactly one C=C ring
+double bond -- e.g. 'cyclohex-2-ene-1-thiol', 'cyclohex-3-ene-1-thiol',
+both confirmed via PubChem PUG REST (note 'thiol' starts with a
+consonant, so 'ene' never elides here, unlike the ketone/alcohol
+'-en-1-one'/'-en-1-ol' pattern -- 'pent-4-ene-1-thiol' already confirms
+the same rule on the acyclic path). The thiol's own locant is never
+omittable here even as the ring's sole substituent, mirroring
+`_ketone.py`/`_alcohol.py`'s identical extension. Deliberately narrow: a
+ring triple bond, and any other substituent alongside the ring double
+bond, are both still explicitly rejected pending further verification.
+
+Explicitly out of scope (raise `UnsupportedStructure`):
+polycyclic/spiro rings, unsaturation reaching outside the ring or a ring
+triple bond, an -SH on a substituent branch off an otherwise-unsubstituted
+*saturated* ring, a sulfide (-S- ether-analogue)
 or any other sulfur-oxidation-state group (sulfonic acid, etc.), and any
 oxygen or nitrogen atom at all. One narrow *aromatic*-ring exception:
 `_name_phenyl_chain_thiol` names a single -SH chain hanging off a plain,
@@ -325,22 +339,33 @@ def _substituents_for_ring(graph, ring_order, halogens, thiols):
     return substituents
 
 
-def _ring_name_from_substituents(ring_size, sh_locants, grouped):
+def _ring_name_from_substituents(ring_size, sh_locants, ene_locants, yne_locants, grouped):
+    has_unsaturation = bool(ene_locants or yne_locants)
     stem = "cyclo" + alkane_name(ring_size)
     total_subs = sum(len(info["locants"]) for info in grouped.values())
-    thiol_word = _multiplied_word(len(sh_locants), "thiol")
 
-    if total_subs == 0 and len(sh_locants) == 1:
-        # P-14.3.3: the sole substituent on an otherwise unsubstituted ring
-        # has no locant to distinguish, e.g. 'cyclohexanethiol'.
-        return stem + thiol_word
+    if not has_unsaturation:
+        thiol_word = _multiplied_word(len(sh_locants), "thiol")
+        if total_subs == 0 and len(sh_locants) == 1:
+            # P-14.3.3: the sole substituent on an otherwise unsubstituted
+            # ring has no locant to distinguish, e.g. 'cyclohexanethiol'.
+            return stem + thiol_word
+        prefix = format_substituent_prefixes(grouped)
+        loc_str = ",".join(str(loc) for loc in sorted(sh_locants))
+        return f"{prefix}{stem}-{loc_str}-{thiol_word}"
 
+    # A competing ring double/triple bond (P-31.1.3) means the thiol's
+    # locant is never omittable even when it's the sole substituent, e.g.
+    # 'cyclohex-2-ene-1-thiol' (confirmed via PubChem) -- mirrors
+    # `_ketone.py`/`_alcohol.py`'s identical treatment.
+    unsaturated_stem = stem[:-3]
+    needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
     prefix = format_substituent_prefixes(grouped)
-    loc_str = ",".join(str(loc) for loc in sorted(sh_locants))
-    return f"{prefix}{stem}-{loc_str}-{thiol_word}"
+    body = _suffix_body(ene_locants, yne_locants, sh_locants)
+    return prefix + unsaturated_stem + ("a" if needs_stem_a else "") + "-" + body
 
 
-def _ring_candidate_key(ring_size, sh_locants, substituents):
+def _ring_candidate_key(ring_size, sh_locants, ene_locants, yne_locants, substituents):
     grouped = _group(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -349,11 +374,30 @@ def _ring_candidate_key(ring_size, sh_locants, substituents):
         for loc in sorted(grouped[name]["locants"])
     )
     sh_locant_set = lowest_locant_set(sh_locants)
-    name = _ring_name_from_substituents(ring_size, sh_locants, grouped)
-    return sh_locant_set, locant_set, citation_locants, name
+    combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
+    ene_locant_set = lowest_locant_set(ene_locants)
+    name = _ring_name_from_substituents(ring_size, sh_locants, ene_locants, yne_locants, grouped)
+    return sh_locant_set, combined_locant_set, ene_locant_set, locant_set, citation_locants, name
 
 
-def _name_cyclic_thiol(mol, thiols, stereo=None):
+def _ring_bond_locant(position_of, bond_atoms, ring_size):
+    pa, pb = position_of[bond_atoms[0]], position_of[bond_atoms[1]]
+    return ring_size if {pa, pb} == {1, ring_size} else min(pa, pb)
+
+
+def _ring_bond_locants(position_of, bonds, ring_size):
+    """(ene_locants, yne_locants), both sorted, for every ring C=C/C#C bond
+    under this ring numbering -- mirrors `_ketone.py`/`_alcohol.py`'s
+    identical helper, each module kept self-contained by this project's
+    existing convention."""
+    ene, yne = [], []
+    for a, b, order in bonds:
+        locant = _ring_bond_locant(position_of, (a, b), ring_size)
+        (ene if order == _ENE_ORDER else yne).append(locant)
+    return sorted(ene), sorted(yne)
+
+
+def _name_cyclic_thiol(mol, thiols, stereo=None, bonds=()):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, every stereocenter must lie on
     the ring itself (P-92: a stereocenter on a substituent branch is out
@@ -372,6 +416,11 @@ def _name_cyclic_thiol(mol, thiols, stereo=None):
             "a stereocenter on a substituent branch rather than the ring "
             "itself is not supported yet (see P-92)"
         )
+    if bonds and any(_substituents_for_ring(graph, ring_order, halogens, thiols).values()):
+        raise UnsupportedStructure(
+            "a substituent alongside both a ring double/triple bond and a "
+            "thiol is not supported yet (see module docstring)"
+        )
 
     best_key = None
     best_name = None
@@ -382,7 +431,8 @@ def _name_cyclic_thiol(mol, thiols, stereo=None):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             sh_locants = _sh_locants(position_of, thiols, graph)
             substituents = _substituents_for_ring(graph, candidate, halogens, thiols)
-            key = _ring_candidate_key(ring_size, sh_locants, substituents)
+            ene_locants, yne_locants = _ring_bond_locants(position_of, bonds, ring_size)
+            key = _ring_candidate_key(ring_size, sh_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, key[-1], position_of
 
@@ -494,19 +544,26 @@ def name_thiol(mol) -> str:
             "only handles acyclic chains and a single saturated ring)"
         )
     if num_rings == 1:
-        if bonds:
-            raise UnsupportedStructure(
-                "unsaturated rings are not supported yet (see P-31.1.3, "
-                "cycloalkenes and cycloalkynes)"
-            )
         ring_atoms = set(ring_info.AtomRings()[0])
+        if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in bonds):
+            raise UnsupportedStructure(
+                "unsaturation outside the ring alongside a cyclic thiol is "
+                "not supported yet (see P-31.1.3, cycloalkenes and "
+                "cycloalkynes)"
+            )
+        if any(order == _YNE_ORDER for _, _, order in bonds):
+            raise UnsupportedStructure(
+                "a ring triple bond (cycloalkyne) alongside a thiol is not "
+                "supported yet -- only a ring double bond is in scope for "
+                "this first pass (see P-31.1.3)"
+            )
         ring_thiols = {s for s in thiols if next(iter(graph[s])) in ring_atoms}
         if ring_thiols != thiols:
             raise UnsupportedStructure(
                 "a thiol on a substituent branch chain rather than the "
                 "ring itself is not supported yet"
             )
-        return _name_cyclic_thiol(mol, thiols, stereo)
+        return _name_cyclic_thiol(mol, thiols, stereo, bonds)
 
     halogens = halogen_substituents(mol)
     chains = _longest_chains(carbon_adjacency(mol))
