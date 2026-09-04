@@ -54,14 +54,18 @@ Explicitly out of scope (raise `UnsupportedStructure`): polycyclic/spiro
 rings, unsaturation reaching outside the ring or a ring triple bond, an
 -SO3H on a substituent branch off an otherwise-unsubstituted *saturated*
 ring, two or more -SO3H groups, and a sulfonic acid on a carbon that is
-also part of a C=C/C#C bond. One narrow *aromatic*-ring exception:
+also part of a C=C/C#C bond. Two *aromatic*-ring cases:
 `_name_phenyl_chain_sulfonic_acid` names a -SO3H chain hanging off a
 single plain, unsubstituted benzene ring (e.g.
 '3-phenylpropane-1-sulfonic acid'), mirroring `_ketone.py`/
 `_aldehyde.py`'s identical benzene-ring-substituent path -- narrower than
-the acyclic path: no chain unsaturation and no specified stereocenter,
-and a -SO3H directly on the ring (benzenesulfonic acid-style) stays out
-of scope for this acyclic-chain-parent module.
+the acyclic path: no chain unsaturation and no specified stereocenter.
+`_name_benzenesulfonic_acid` names -SO3H directly on a benzene ring
+carbon (with or without other ring substituents), e.g.
+'benzenesulfonic acid' (PubChem CID 7371), '2-methylbenzenesulfonic
+acid' (CID 6925), mirroring `_name_cyclic_sulfonic_acid`'s ring-
+numbering search with the retained name 'benzene' as stem -- the
+-SO3H's own locant is never cited here, unlike the cycloalkane case.
 """
 
 from rdkit import Chem
@@ -445,6 +449,65 @@ def _name_cyclic_sulfonic_acid(mol, sulfur_idx, so3h_carbon, stereo=None, bonds=
     return best_name
 
 
+def _benzenesulfonic_acid_name_from_substituents(grouped):
+    # Unlike the cycloalkane case, the mancude ring's own numbering is
+    # always free to start at the -SO3H carbon (P-14.3.3-style), so its
+    # locant is never cited even when other substituents need theirs,
+    # e.g. '2-methylbenzenesulfonic acid' (PubChem CID 6925), not
+    # '2-methylbenzene-1-sulfonic acid' -- mirrors `_carboxylic_acid.py`'s
+    # identical 'benzoic acid' treatment.
+    if not grouped:
+        return "benzenesulfonic acid"
+    return f"{format_substituent_prefixes(grouped)}benzenesulfonic acid"
+
+
+def _benzenesulfonic_acid_candidate_key(so3h_locant, substituents):
+    grouped = _group(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _benzenesulfonic_acid_name_from_substituents(grouped)
+    return so3h_locant, locant_set, citation_locants, name
+
+
+def _name_benzenesulfonic_acid(mol, ring_atoms):
+    """P-65.3.1: -SO3H attached directly to a benzene ring carbon -- e.g.
+    'benzenesulfonic acid' (PubChem CID 7371), '2-methylbenzenesulfonic
+    acid' (CID 6925), '4-methylbenzenesulfonic acid' (CID 6101). Mirrors
+    `_name_cyclic_sulfonic_acid`'s ring-numbering search exactly, with the
+    aromatic retained name 'benzene' as stem in place of 'cyclo' +
+    alkane_name; an aromatic ring has no ene/yne ring-bond locants of its
+    own, so those are always empty here."""
+    sulfur_idx, so3h_carbon = _validate_and_collect_sulfonic_acids(mol, aromatic_ring_atoms=ring_atoms)
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside benzenesulfonic acid is "
+            "not supported yet"
+        )
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    excluded = {sulfur_idx}
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            so3h_locant = position_of[so3h_carbon]
+            substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
+            key = _benzenesulfonic_acid_candidate_key(so3h_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def _name_phenyl_chain_sulfonic_acid(mol, ring_atoms):
     """Name a sulfonic acid whose -SO3H lies entirely on a single
     unbranched chain hanging off one atom of an otherwise-plain,
@@ -456,12 +519,6 @@ def _name_phenyl_chain_sulfonic_acid(mol, ring_atoms):
     specified stereocenter -- each is a separate follow-up (see
     tasks/phenyl-substituent-on-sulfonic-acid-chain.md's scope note)."""
     sulfur_idx, so3h_carbon = _validate_and_collect_sulfonic_acids(mol, aromatic_ring_atoms=ring_atoms)
-    if so3h_carbon in ring_atoms:
-        raise UnsupportedStructure(
-            "a sulfonic acid directly attached to the benzene ring "
-            "(benzenesulfonic acid-style naming) is out of scope for this "
-            "module (see the separate aromatic-ring module)"
-        )
     if specified_stereocenters(mol):
         raise UnsupportedStructure(
             "a specified stereocenter alongside a benzene-ring-substituent "
@@ -520,6 +577,9 @@ def name_sulfonic_acid(mol) -> str:
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            sulfur_idx, so3h_carbon = _validate_and_collect_sulfonic_acids(mol, aromatic_ring_atoms=ring_atoms)
+            if so3h_carbon in ring_atoms:
+                return _name_benzenesulfonic_acid(mol, ring_atoms)
             return _name_phenyl_chain_sulfonic_acid(mol, ring_atoms)
     sulfur_idx, so3h_carbon = _validate_and_collect_sulfonic_acids(mol)
     stereo = specified_stereocenters(mol)
