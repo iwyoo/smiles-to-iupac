@@ -32,6 +32,12 @@ from smiles_to_iupac._common import UnsupportedStructure
         # (like 'methylcyclohexane') applies to the suffix too. Cross-checked
         # against PubChem.
         ("OC1CCCCC1", "cyclohexanol"),
+        # Monocyclic ring, single -OH, single ring double bond (P-31.1.3):
+        # the hydroxyl always gets locant 1 (suffix priority), the ring
+        # double bond's locant is minimized by choosing direction.
+        # Cross-checked against PubChem (CID 13198/556685).
+        ("OC1CCCC=C1", "cyclohex-2-en-1-ol"),
+        ("OC1CC=CCC1", "cyclohex-3-en-1-ol"),
         # myo-inositol (a cyclitol, P-104): its PIN is not a trivial name
         # but the fully-substitutive "cyclohexane-1,2,3,4,5,6-hexol" --
         # already reachable via this module's existing ring-polyol support
@@ -411,6 +417,21 @@ def test_enol_raises():
     # narrowed out of scope (see module docstring).
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OC=CC")
+
+
+def test_unsaturated_ring_alcohol_with_substituent_raises():
+    # A substituent alongside both a ring double bond and a ring hydroxyl
+    # needs more careful numbering-priority verification than this first
+    # pass covers.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OC1CCCC=C1C")
+
+
+def test_unsaturated_ring_alcohol_triple_bond_raises():
+    # A ring triple bond (cycloalkyne) alongside a hydroxyl is out of
+    # scope for this first pass -- only a ring double bond is supported.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OC1CCCC#C1")
 
 
 def test_amine_hetero_mix_raises():
