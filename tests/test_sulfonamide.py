@@ -72,9 +72,28 @@ def test_polycyclic_sulfonamide_not_supported():
         smiles_to_iupac("O=S(=O)(N)C1CC2CCC1CC2")
 
 
-def test_unsaturated_ring_sulfonamide_not_supported():
+def test_unsaturated_ring_sulfonamide():
+    # Monocyclic ring, single -SO2NH2, single ring double bond (P-31.1.3):
+    # the sulfonamide always gets locant 1 (suffix priority), the ring
+    # double bond's locant is minimized by choosing direction.
+    # Cross-checked against PubChem (CID 114763869/71757353).
+    assert smiles_to_iupac("O=S(=O)(N)C1CCCC=C1") == "cyclohex-2-ene-1-sulfonamide"
+    assert smiles_to_iupac("O=S(=O)(N)C1CC=CCC1") == "cyclohex-3-ene-1-sulfonamide"
+
+
+def test_unsaturated_ring_sulfonamide_with_substituent_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=S(=O)(N)C1CCCC=C1")
+        smiles_to_iupac("O=S(=O)(N)C1CCCC=C1C")
+
+
+def test_unsaturated_ring_sulfonamide_triple_bond_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=S(=O)(N)C1CCCC#C1")
+
+
+def test_unsaturated_ring_sulfonamide_with_n_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=S(=O)(NC)C1CCCC=C1")
 
 
 def test_sulfonamide_on_ring_substituent_branch_not_supported():
