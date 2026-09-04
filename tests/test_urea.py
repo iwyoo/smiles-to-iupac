@@ -104,6 +104,36 @@ def test_unsaturated_n_substituent_not_supported():
         smiles_to_iupac("C=CNC(=O)N")
 
 
+def test_n_phenylurea():
+    # PubChem structure match: "phenylurea" (CID 6145); this project uses
+    # the letter-locant style ('N-phenylurea') for the same reason as
+    # test_n_methylurea above.
+    assert smiles_to_iupac("NC(=O)Nc1ccccc1") == "N-phenylurea"
+
+
+def test_n_methyl_n_prime_phenylurea_different_nitrogens():
+    # PubChem structure match: "1-methyl-3-phenylurea" (CID 13880).
+    assert smiles_to_iupac("CNC(=O)Nc1ccccc1") == "N-methyl-N'-phenylurea"
+
+
+def test_n_n_prime_diphenylurea():
+    # PubChem structure match: "1,3-diphenylurea" (CID 7595).
+    assert smiles_to_iupac("c1ccc(NC(=O)Nc2ccccc2)cc1") == "N,N'-diphenylurea"
+
+
+def test_substituted_phenyl_n_substituent_not_supported():
+    # A phenyl ring bearing its own substituent (PubChem:
+    # "(4-methylphenyl)urea", CID 12148) is out of scope -- only a plain,
+    # unsubstituted benzene ring is supported.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NC(=O)Nc1ccc(C)cc1")
+
+
+def test_phenyl_alongside_another_substituent_on_same_nitrogen_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CN(c1ccccc1)C(=O)N")
+
+
 def test_thiourea_not_confused_with_urea():
     # Thiourea is supported by its own module (`_thiourea.py`, see
     # test_thiourea.py) but must not be mistaken for plain urea.
