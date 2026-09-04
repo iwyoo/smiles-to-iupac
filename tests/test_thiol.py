@@ -140,9 +140,11 @@ def test_phenyl_chain_thiol_unsaturation_raises():
         smiles_to_iupac("C=Cc1ccccc1CCS")
 
 
-def test_phenyl_chain_dithiol_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C(S)CCS")
+def test_phenyl_chain_dithiol():
+    # Two -SH groups on the chain hanging off the benzene ring, cross-
+    # checked against PubChem PUG REST.
+    assert smiles_to_iupac("c1ccccc1C(S)CCS") == "1-phenylpropane-1,3-dithiol"  # CID 57158210
+    assert smiles_to_iupac("SCC(S)Cc1ccccc1") == "3-phenylpropane-1,2-dithiol"  # CID 154223538
 
 
 @pytest.mark.parametrize(
