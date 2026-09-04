@@ -223,6 +223,27 @@ def test_seven_membered_1_3_two_heteroatom_saturated_ring_names(smiles, expected
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        # 1,2-related two-heteroatom saturated 7-membered rings --
+        # heteroatoms directly adjacent. PubChem's raw IUPACName drops the
+        # locant for these six ('diazepane', 'oxazepane', ...), but that
+        # bare stem clashes with the 1,3-axis above (P-22.2.2.1.7 only
+        # omits locants when there's no ambiguity), so this module keeps
+        # '1,2-' explicit -- see the module docstring.
+        ("C1CCCCNN1", "1,2-diazepane"),
+        ("C1CCCCON1", "1,2-oxazepane"),
+        ("C1CCCCSN1", "1,2-thiazepane"),
+        ("C1CCCCOO1", "1,2-dioxepane"),
+        ("C1CCCCOS1", "1,2-oxathiepane"),
+        ("C1CCCCSS1", "1,2-dithiepane"),
+    ],
+)
+def test_seven_membered_1_2_two_heteroatom_saturated_ring_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         # 1,4-related two-heteroatom saturated 6-membered rings whose pair
         # includes Se and/or Te -- PubChem-verified: selenomorpholine,
         # telluromorpholine, 1,4-oxaselenane, 1,4-oxatellurane,
