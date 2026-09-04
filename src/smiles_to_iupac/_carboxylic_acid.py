@@ -31,10 +31,15 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   itself). A -COOH directly on a saturated monocyclic all-carbon ring is
   supported (see `_name_ring_carboxylic_acid`), including other ring
   substituents (alkyl/halogen), e.g. '4-methylcyclohexane-1-carboxylic
-  acid' (PubChem CID 20330); ring unsaturation, a standalone hydroxyl, a
-  second -COOH, any aromatic/polycyclic ring, or an intervening chain
-  carbon between the ring and the -COOH carbon remain out of scope and
-  still raise `UnsupportedStructure`.
+  acid' (PubChem CID 20330). A -COOH directly on a single benzene ring
+  carbon is also supported (see `_name_benzoic_acid`): 'benzoic acid'
+  (PIN, P-65.1.1's own retained name, CID 243) with or without other
+  ring substituents, e.g. '2-methylbenzoic acid' (CID 8373); the
+  retained name itself carries no locant for the -COOH position, unlike
+  the cycloalkane case. Ring unsaturation outside a benzene ring, a
+  standalone hydroxyl, a second -COOH, a polycyclic/naphthalene ring, or
+  an intervening chain carbon between a saturated ring and the -COOH
+  carbon remain out of scope and still raise `UnsupportedStructure`.
 - A -COOH carbon is always a chain terminus: after its carbonyl (=O) and
   hydroxyl (-OH) oxygens, it has room for at most one more substituent,
   which must be another chain carbon (or nothing, for formic acid,
@@ -600,11 +605,117 @@ def _name_ring_carboxylic_acid(mol, ring_atoms):
     return best_name
 
 
+def _benzoic_acid_name_from_substituents(grouped):
+    total_subs = sum(len(info["locants"]) for info in grouped.values())
+    if total_subs == 0:
+        # 'benzoic acid' is a fully retained name (P-65.1.1) -- unlike
+        # 'cyclohexanecarboxylic acid', there is no locant position to
+        # even omit.
+        return "benzoic acid"
+    return f"{format_substituent_prefixes(grouped)}benzoic acid"
+
+
+def _benzoic_acid_candidate_key(carboxyl_locant, substituents):
+    grouped = group_substituents(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _benzoic_acid_name_from_substituents(grouped)
+    return carboxyl_locant, locant_set, citation_locants, name
+
+
+def _name_benzoic_acid(mol, ring_atoms):
+    """P-65.1.1: 'benzoic acid' is a retained name that is itself the PIN
+    for a -COOH hanging directly off one carbon of an otherwise-plain (or
+    substituted) benzene ring -- e.g. 'benzoic acid' (PubChem CID 243),
+    '2-methylbenzoic acid' (CID 8373), '4-methylbenzoic acid' (CID 7470).
+    Structurally identical to `_name_ring_carboxylic_acid`'s saturated-
+    ring case (the -COOH carbon is an exocyclic substituent atom, not a
+    ring atom itself) -- mirrors that function's ring-numbering search,
+    with the retained name 'benzoic acid' replacing 'cyclo' + alkane_name
+    + 'carboxylic acid' as the whole suffix unit (no locant is ever cited
+    for the -COOH position itself, unlike the cycloalkane case, since
+    'benzoic acid' carries no positional stem at all)."""
+    carboxyl_carbons, carboxyl_oxygens, extra_hydroxyls = _validate_and_collect_carboxyls(
+        mol, aromatic_ring_atoms=ring_atoms
+    )
+    if extra_hydroxyls:
+        raise UnsupportedStructure(
+            "a standalone hydroxyl alongside benzoic acid is not "
+            "supported yet"
+        )
+    if len(carboxyl_carbons) != 1:
+        raise UnsupportedStructure(
+            "more than one carboxylic acid group alongside a benzene ring "
+            "is not supported yet"
+        )
+    (carboxyl_carbon,) = carboxyl_carbons
+
+    all_non_single = non_single_bonds(mol)
+    if any(
+        a not in carboxyl_oxygens
+        and b not in carboxyl_oxygens
+        and (a not in ring_atoms or b not in ring_atoms)
+        for a, b, _ in all_non_single
+    ):
+        raise UnsupportedStructure(
+            "unsaturation outside the ring alongside benzoic acid is not "
+            "supported yet"
+        )
+
+    graph = adjacency(mol)
+    ring_neighbors = [n for n in graph[carboxyl_carbon] if n in ring_atoms]
+    if len(ring_neighbors) != 1:
+        raise UnsupportedStructure(
+            "a carboxylic acid not directly attached to a single ring atom "
+            "is not supported yet"
+        )
+    (ring_atom,) = ring_neighbors
+
+    halogens = halogen_substituents(mol)
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            carboxyl_locant = position_of[ring_atom]
+            substituents = _ring_substituents(graph, candidate, halogens, {carboxyl_carbon})
+            key = _benzoic_acid_candidate_key(carboxyl_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+
+    return best_name
+
+
+def _has_carboxyl_directly_on_ring(mol, ring_atoms):
+    """Cheap routing check (not full validation): True iff some ring atom
+    has an exocyclic carbon neighbor shaped like a -COOH carbon (two
+    oxygen neighbors) -- used only to decide between the benzoic-acid
+    ring-parent path and the phenyl-chain path below."""
+    for idx in ring_atoms:
+        for nbr in mol.GetAtomWithIdx(idx).GetNeighbors():
+            if nbr.GetIdx() in ring_atoms or nbr.GetAtomicNum() != 6:
+                continue
+            oxygens = [n for n in nbr.GetNeighbors() if n.GetAtomicNum() == 8]
+            if len(oxygens) == 2:
+                return True
+    return False
+
+
 def name_carboxylic_acid(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            if _has_carboxyl_directly_on_ring(mol, ring_atoms):
+                return _name_benzoic_acid(mol, ring_atoms)
             return _name_phenyl_chain_carboxylic_acid(mol, ring_atoms)
         if not any(mol.GetAtomWithIdx(idx).GetIsAromatic() for idx in ring_atoms):
             return _name_ring_carboxylic_acid(mol, ring_atoms)
