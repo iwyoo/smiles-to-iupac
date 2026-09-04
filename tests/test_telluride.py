@@ -1,6 +1,7 @@
 import pytest
 
 from smiles_to_iupac import smiles_to_iupac
+from smiles_to_iupac._common import UnsupportedStructure
 
 
 def test_dimethyl_telluride():
@@ -52,3 +53,36 @@ def test_branched_prefix_side_is_enclosed():
 )
 def test_both_sides_branched_and_tied(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # P-44.1.2.2 rule (1): 'tellanyl' has no suffix form, so a plain
+        # benzene ring is always the parent, mirroring `_selenide.py`'s/
+        # `_sulfide.py`'s identical benzene-ring path.
+        ("c1ccccc1[Te]CC", "ethyltellanylbenzene"),  # PubChem CID 5325650
+        # Direct ring-tellurium bond with a branched R': the same
+        # '(...)tellanyl' parenthesization as the plain two-chain path
+        # above, even though PubChem's own auto-generated name for the
+        # same structure omits the parentheses.
+        ("c1ccccc1[Te]C(C)C", "(propan-2-yl)tellanylbenzene"),
+        # Chain spacer between the ring and the telluride tellurium --
+        # matching this project's existing benzene-ring-chain convention
+        # rather than PubChem's own un-parenthesized auto-name
+        # ('ethyltellanylmethylbenzene', CID 23077050).
+        ("c1ccccc1C[Te]CC", "(ethyltellanylmethyl)benzene"),
+    ],
+)
+def test_benzene_ring_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_benzene_ring_multiple_substituents_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[Te]c1ccccc1[Te]C")
+
+
+def test_benzene_ring_stereocenter_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1[Te][C@H](C)CC")

@@ -21,14 +21,34 @@ selenide selenium, per the IUPAC 2013 Recommendations ("the Blue Book"):
 Scope and out-of-scope structures are identical to `_sulfide.py`, selenium
 in place of sulfur -- see that module's docstring, including the
 P-63.2.2.1.1 enclosure pattern for a branched R' substituent. Still out of
-scope: any unsaturation or ring, and any heteroatom other than the single
-selenide selenium (in particular a diselenide Se-Se, or an oxidized
-selenium -- selenoxide/selenone -- are separate functional groups, not in
-scope here).
+scope: any unsaturation or non-benzene ring, and any heteroatom other than
+the single selenide selenium (in particular a diselenide Se-Se, or an
+oxidized selenium -- selenoxide/selenone -- are separate functional
+groups, not in scope here).
+
+A single, otherwise-unsubstituted benzene ring gets a dedicated path
+(`_name_benzene_ring_selenide_chain`), mirroring `_sulfide.py`'s
+`_name_benzene_ring_sulfide_chain` exactly (selenium in place of sulfur,
+'selanyl' in place of 'sulfanyl'): since 'selanyl' has no suffix form,
+P-44.1.2.2 rule (1) makes the ring the parent regardless of the other
+side's chain length. Both a direct ring-selenium bond and a chain spacer
+are supported, confirmed via PubChem PUG REST (CID 140285
+'c1ccccc1[Se]CC' -> 'ethylselanylbenzene', CID 12975596
+'c1ccccc1C[Se]CC' -> 'ethylselanylmethylbenzene', CID 140894
+'c1ccccc1[Se]C(C)C' -> 'propan-2-ylselanylbenzene').
 """
 
 from ._acyclic import longest_chain_length, name_from_carbon_graph, winning_chain_with_key
-from ._common import UnsupportedStructure, adjacency, bfs, carbon_adjacency, non_single_bonds
+from ._common import (
+    UnsupportedStructure,
+    adjacency,
+    bfs,
+    carbon_adjacency,
+    is_plain_benzene_ring,
+    non_single_bonds,
+    ring_chain_attachment,
+    specified_stereocenters,
+)
 from ._substituents import name_branch
 
 _SELENIUM = 34
@@ -55,8 +75,12 @@ def has_selenide_shape(mol) -> bool:
     return selenium.GetDegree() == 2 and all(n.GetAtomicNum() == 6 for n in selenium.GetNeighbors())
 
 
-def name_selenide(mol) -> str:
+def _validate_selenide_atoms(mol, ring_atoms=frozenset()):
+    """Shared per-atom validation for both the plain-chain path and the
+    single-benzene-ring path, mirrors `_sulfide.py`'s
+    `_validate_sulfide_atoms`."""
     for atom in mol.GetAtoms():
+        idx = atom.GetIdx()
         if atom.GetAtomicNum() not in (6, _SELENIUM):
             raise UnsupportedStructure(
                 "heteroatoms other than the selenide selenium are not "
@@ -65,18 +89,79 @@ def name_selenide(mol) -> str:
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic():
+        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and idx not in ring_atoms:
             raise UnsupportedStructure(
                 "aromatic rings are out of scope for this module (see the "
                 "separate aromatic-ring module)"
             )
-    if non_single_bonds(mol):
+    if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in non_single_bonds(mol)):
         raise UnsupportedStructure(
             "unsaturation is not supported by this module (see P-31 for "
             "alkenes/alkynes; not yet combined with a selenide here)"
         )
-    if mol.GetRingInfo().NumRings() > 0:
+
+
+def _name_benzene_ring_selenide_chain(mol, ring_atoms) -> str:
+    """P-44.1.2.2 rule (1): since the 'selanyl' prefix has no suffix form
+    (module docstring), a single, otherwise-unsubstituted benzene ring is
+    always the parent hydride, regardless of the other side's chain
+    length. Handles both a direct ring-selenium bond
+    ('ethylselanylbenzene') and a chain spacer between the ring and the
+    selenide selenium ('(2-ethylselanylethyl)benzene'), mirroring
+    `_sulfide._name_benzene_ring_sulfide_chain` exactly."""
+    _validate_selenide_atoms(mol, ring_atoms)
+    if specified_stereocenters(mol) is not None:
+        raise UnsupportedStructure(
+            "a specified stereocenter is not supported yet for a "
+            "benzene-ring-substituent selenide"
+        )
+
+    graph = adjacency(mol)
+    (selenium_idx,) = (idx for idx in graph if mol.GetAtomWithIdx(idx).GetAtomicNum() == _SELENIUM)
+
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a selenide is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+
+    if chain_root == selenium_idx:
+        (r_prime,) = [n for n in graph[selenium_idx] if n != ring_atom]
+        sub_name, sub_compound = name_branch(graph, r_prime, selenium_idx, {})
+        if sub_compound:
+            sub_name = f"({sub_name})"
+        return f"{_selanyl_prefix(sub_name)}benzene"
+
+    blocked_graph = {node: [n for n in neighbors if n != selenium_idx] for node, neighbors in graph.items()}
+    del blocked_graph[selenium_idx]
+    reached, _ = bfs(blocked_graph, ring_atom)
+    (r_prime,) = [n for n in graph[selenium_idx] if n not in reached]
+
+    sub_name, sub_compound = name_branch(graph, r_prime, selenium_idx, {})
+    if sub_compound:
+        sub_name = f"({sub_name})"
+    selanyl_term = _selanyl_prefix(sub_name)
+    branch_name, is_compound = name_branch(graph, chain_root, ring_atom, {selenium_idx: selanyl_term})
+    if not is_compound:
+        return f"{branch_name}benzene"
+    if "(" in branch_name:
+        return f"[{branch_name}]benzene"
+    return f"({branch_name})benzene"
+
+
+def name_selenide(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_benzene_ring_selenide_chain(mol, ring_atoms)
         raise UnsupportedStructure("rings are not supported by this module yet")
+    if ring_info.NumRings() > 0:
+        raise UnsupportedStructure("rings are not supported by this module yet")
+
+    _validate_selenide_atoms(mol)
 
     (selenium,) = (atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == _SELENIUM)
     selenium_idx = selenium.GetIdx()
