@@ -24,20 +24,27 @@ Scope, deliberately narrow, identical to `_urea.py`'s own: substituents
 landing on a single nitrogen (one or two, using the same 'N-'/'N,N-di'
 citation), an identical single substituent on each of the two different
 nitrogens (symmetric 'N,N'-di...' citation), or one DIFFERENT substituent
-on each of the two nitrogens -- the alphabetically first substituent name
-becomes 'N-', the other 'N''-', same rule as `_urea.py` (PubChem structure
-match: `CCNC(=S)NC` -> '1-ethyl-3-methylthiourea', CID 15568242).
+on each of the two nitrogens -- the alphanumerical order (P-14.5.2,
+locants and italicized prefixes like 'tert-' ignored) decides which
+substituent becomes 'N-' and which becomes 'N''-', same rule as `_urea.py`
+(PubChem structure match: `CCNC(=S)NC` -> '1-ethyl-3-methylthiourea', CID
+15568242). Each N-substituent's own name is built with `name_branch`
+(P-29 PIN style, fixed project-wide by PR #237; mirrors `_urea.py`'s
+identical fix, PR #332) -- a branched N-substituent is supported (e.g.
+'N-propan-2-ylthiourea', CID 1711921; 'N-tert-butylthiourea', CID
+737374), with the same 'di(...)' parenthesization-only-when-compound rule
+as `_urea.py`.
 Explicitly out of scope (raise `UnsupportedStructure`): a different
 substituent *count* on each nitrogen (no confirmed worked example settles
-that locant tie-break), a branched/unsaturated/ring-bearing N-substituent,
+that locant tie-break), an unsaturated/ring-bearing N-substituent,
 a ring-fused thiourea, and the selenium/tellurium analogues (selenourea/
 tellurourea).
 """
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, carbon_adjacency, linear_branch, non_single_bonds
-from ._numerals import alkyl_name
+from ._common import UnsupportedStructure, adjacency, bfs, carbon_adjacency, non_single_bonds
+from ._substituents import alpha_sort_key, name_branch
 
 
 def _thiourea_core(mol):
@@ -80,24 +87,15 @@ def _n_substituent_carbons(mol, nitrogen_idx, carbon_idx):
     )
 
 
-def _substituent_names(carbon_graph, substituent_carbons):
-    names = []
-    for c in substituent_carbons:
-        length = linear_branch(carbon_graph, c, None)
-        if length is None:
-            raise UnsupportedStructure("a branched N-substituent is not supported yet")
-        names.append(alkyl_name(length))
-    return names
+def _substituent_names(full_graph, nitrogen_idx, substituent_carbons):
+    return [name_branch(full_graph, c, nitrogen_idx, {}) for c in substituent_carbons]
 
 
 def _substituent_chain_atoms(carbon_graph, substituent_carbons):
     atoms = set()
     for root in substituent_carbons:
-        previous, current = None, root
-        while current is not None:
-            atoms.add(current)
-            neighbors = [n for n in carbon_graph[current] if n != previous]
-            previous, current = current, (neighbors[0] if neighbors else None)
+        reached, _ = bfs(carbon_graph, root)
+        atoms.update(reached)
     return atoms
 
 
@@ -106,14 +104,20 @@ def _reject_unsaturated_substituents(mol, atoms):
         raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
 
 
-def _n_prefix(letter, names):
-    if not names:
+def _di_name(name, is_compound):
+    return f"({name})" if is_compound else name
+
+
+def _n_prefix(letter, entries):
+    if not entries:
         return ""
-    if len(names) == 1:
-        return f"{letter}-{names[0]}"
-    if names[0] == names[1]:
-        return f"{letter},{letter}-di{names[0]}"
-    a, b = sorted(names)
+    if len(entries) == 1:
+        (name, _), = entries
+        return f"{letter}-{name}"
+    (name_a, compound_a), (name_b, compound_b) = entries
+    if name_a == name_b:
+        return f"{letter},{letter}-di{_di_name(name_a, compound_a)}"
+    (a, _), (b, _) = sorted(entries, key=lambda e: alpha_sort_key(e[0]))
     return f"{letter}-{a}-{letter}-{b}"
 
 
@@ -153,8 +157,9 @@ def name_thiourea(mol) -> str:
     _reject_unsaturated_substituents(mol, n1_chain_atoms)
     _reject_unsaturated_substituents(mol, n2_chain_atoms)
 
-    n1_names = _substituent_names(carbon_graph, n1_carbons)
-    n2_names = _substituent_names(carbon_graph, n2_carbons)
+    full_graph = adjacency(mol)
+    n1_names = _substituent_names(full_graph, n1_idx, n1_carbons)
+    n2_names = _substituent_names(full_graph, n2_idx, n2_carbons)
 
     if not n1_names and not n2_names:
         return "thiourea"
@@ -166,9 +171,10 @@ def name_thiourea(mol) -> str:
                 "nitrogens is not supported yet (no confirmed worked "
                 "example settles the locant tie-break for that case)"
             )
-        if n1_names[0] == n2_names[0]:
-            return f"N,N'-di{n1_names[0]}thiourea"
-        first, second = sorted((n1_names[0], n2_names[0]))
+        (name_a, compound_a), (name_b, compound_b) = n1_names[0], n2_names[0]
+        if name_a == name_b:
+            return f"N,N'-di{_di_name(name_a, compound_a)}thiourea"
+        (first, _), (second, _) = sorted((n1_names[0], n2_names[0]), key=lambda e: alpha_sort_key(e[0]))
         return f"N-{first}-N'-{second}thiourea"
 
     names = n1_names or n2_names
