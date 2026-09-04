@@ -27,19 +27,25 @@ Recommendations ("the Blue Book"):
   confirmed via PubChem, which returns these exact names). A
   branched/cyclic/unsaturated N-substituent and ring-attached amide
   nitrogens are still deferred.
-- P-29.3.2.1: both R's and R''s names are plain alkyl substituent-group
-  names, built with `alkyl_name` directly since both are restricted to an
-  unbranched chain here -- deliberately not using `name_branch` for R,
-  since that function still produces pre-PIN branched-substituent names
-  (e.g. '1-methylethyl' instead of 'propan-2-yl'; see the P-29 blocker
-  tracked in the roadmap) that would mismatch a verified PIN like
-  'propan-2-yl carbamate' or 'tert-butyl carbamate'.
+- P-29.3.2.1: R's name is built with `name_branch` (P-29 PIN style,
+  fixed project-wide by PR #237 -- previously this module avoided
+  `name_branch` for exactly this reason, but that blocker no longer
+  applies), e.g. 'propan-2-yl' for R = isopropyl, matching the verified
+  PIN 'propan-2-yl carbamate' (PubChem CID 15628) and 'tert-butyl
+  carbamate' (CID 77922). Unlike a substituent prefix elsewhere in this
+  project, R here is never parenthesized regardless of
+  `name_branch`'s `is_compound` flag -- the 'R carbamate' two-word
+  pattern (mirroring `_ester.py`'s alcohol part) has no nested-prefix
+  ambiguity to guard against.
+- R''s name (the N-substituent(s)) is still built with `alkyl_name`
+  directly, restricted to an unbranched chain -- that side remains out
+  of this task's scope (see below).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any ring anywhere in the molecule.
 - An N-substituent that is branched, unsaturated, or ring-bearing.
-- A branched, substituted, unsaturated, or cyclic R -- only a plain
-  unbranched saturated alkyl R is supported in this first pass.
+- An unsaturated or cyclic R (a branched but otherwise plain saturated
+  acyclic R is supported, see above).
 - More than one carbamate group, or any other heteroatom/oxygen not part
   of this single carbamate group (an ether, alcohol, or second carbonyl
   elsewhere) -- including free carbamic acid itself (H2N-COOH, R = H),
@@ -50,11 +56,13 @@ from rdkit import Chem
 
 from ._common import (
     UnsupportedStructure,
+    adjacency,
     carbon_adjacency,
     linear_branch,
     non_single_bonds,
 )
 from ._numerals import alkyl_name
+from ._substituents import name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, 8}
 
@@ -174,13 +182,9 @@ def name_carbamate(mol) -> str:
         )
 
     carbon_graph = carbon_adjacency(mol)
-    length = linear_branch(carbon_graph, alkyl_c, None)
-    if length is None:
-        raise UnsupportedStructure(
-            "a branched R group is not supported yet"
-        )
+    r_name, _ = name_branch(adjacency(mol), alkyl_c, ester_o, {})
     if not n_alkyl_cs:
-        return f"{alkyl_name(length)} carbamate"
+        return f"{r_name} carbamate"
 
     n_names = []
     for n_alkyl_c in n_alkyl_cs:
@@ -195,4 +199,4 @@ def name_carbamate(mol) -> str:
         n_prefix = f"N,N-di{n_names[0]}"
     else:
         n_prefix = "-".join(f"N-{name}" for name in sorted(n_names))
-    return f"{alkyl_name(length)} {n_prefix}carbamate"
+    return f"{r_name} {n_prefix}carbamate"
