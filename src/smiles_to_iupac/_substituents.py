@@ -107,7 +107,12 @@ def format_mononuclear_prefixes(entries) -> str:
     when two or more distinct names are present, every one is
     parenthesized except the alphabetically first, regardless of that
     name's own count (P-16.5.1.3.1, per the Blue Book's own published
-    errata, https://iupac.qmul.ac.uk/bibliog/BBerrors.html).
+    errata, https://iupac.qmul.ac.uk/bibliog/BBerrors.html) -- but the
+    multiplying prefix itself always sits *outside* those parentheses
+    ('ethyldi(methyl)phosphane', not 'ethyl(dimethyl)phosphane'), per
+    that same rule's own text and confirmed directly by the Blue Book's
+    'ethyldi(methyl)phosphane (PIN)' worked example (`tmp/bluebook/
+    P1.html`).
 
     `entries`: a flat list of `(name, is_compound)` tuples (as returned by
     `name_branch`, not a `grouped` dict like `format_substituent_prefixes`
@@ -162,8 +167,12 @@ def format_mononuclear_prefixes(entries) -> str:
     for i, name in enumerate(ordered):
         count = counts[name]
         if count > 1:
-            text = multiplying_prefix(count) + name
-            parts.append(text if i == 0 else f"({text})")
+            # P-16.5.1.3.1's own text: "the multiplicative prefixes are
+            # not included in the parentheses" -- confirmed via the Blue
+            # Book's own 'ethyldi(methyl)phosphane (PIN)' worked example
+            # (`tmp/bluebook/P1.html`), so the prefix sits outside the
+            # parens at any position, not just the first.
+            parts.append(multiplying_prefix(count) + (name if i == 0 else f"({name})"))
         elif compound_of[name]:
             parts.append(f"({name})")
         else:
