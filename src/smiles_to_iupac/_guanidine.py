@@ -40,25 +40,34 @@ Scope, deliberately narrow, mirroring `_urea.py`'s/`_thiourea.py`'s own:
 substituents landing on the two amino nitrogens (one nitrogen with one or
 two, using the same 'N-'/'N,N-di' citation established there; an identical
 single substituent on each of the two different amino nitrogens using
-'N,N'-di...'; or one DIFFERENT substituent on each, the alphabetically
-first becoming 'N-' and the other 'N''-', same rule as `_urea.py`/
+'N,N'-di...'; or one DIFFERENT substituent on each, the alphanumerical
+order (P-14.5.2, ignoring italicized prefixes like 'tert-') deciding
+which becomes 'N-' and which 'N''-', same rule as `_urea.py`/
 `_thiourea.py` -- PubChem structure match: `CCNC(=N)NC` ->
 '1-ethyl-2-methylguanidine', CID 17814701), the imino nitrogen (at most
 one substituent -- it only has one open valence beyond its C=N double
 bond), or both at once, combined and alphabetized per the
-tetramethyl-phenyl worked example above. Explicitly out of scope (raise
+tetramethyl-phenyl worked example above. Each N-substituent's own name is
+built with `name_branch` (P-29 PIN style, fixed project-wide by PR #237;
+mirrors `_urea.py`'s/`_thiourea.py`'s identical fix, PR #332/#333) -- a
+branched N-substituent is supported (e.g. 'N-propan-2-ylguanidine', CID
+11491919; 'N-tert-butylguanidine', CID 12830400), with the same
+'di(...)' parenthesization-only-when-compound rule as `_urea.py` applied
+per multiplying-prefix group in `_combine_prefixes` (e.g.
+'N,N'-di(propan-2-yl)guanidine', CID 198192; 'N,N'-ditert-butylguanidine',
+CID 23103888). Explicitly out of scope (raise
 `UnsupportedStructure`): a different substituent *count* on each amino
-nitrogen (no confirmed worked example settles that locant tie-break), a
-branched/unsaturated/ring-bearing N-substituent, and a ring-fused
-guanidine.
+nitrogen (no confirmed worked example settles that locant tie-break), an
+unsaturated/ring-bearing N-substituent, and a ring-fused guanidine.
 """
 
 from collections import defaultdict
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, carbon_adjacency, linear_branch, non_single_bonds
-from ._numerals import alkyl_name, multiplying_prefix
+from ._common import UnsupportedStructure, adjacency, bfs, carbon_adjacency, non_single_bonds
+from ._numerals import multiplying_prefix
+from ._substituents import alpha_sort_key, name_branch
 
 
 def _guanidine_core(mol):
@@ -118,24 +127,15 @@ def _n_substituent_carbons(mol, nitrogen_idx, carbon_idx):
     )
 
 
-def _substituent_names(carbon_graph, substituent_carbons):
-    names = []
-    for c in substituent_carbons:
-        length = linear_branch(carbon_graph, c, None)
-        if length is None:
-            raise UnsupportedStructure("a branched N-substituent is not supported yet")
-        names.append(alkyl_name(length))
-    return names
+def _substituent_names(full_graph, nitrogen_idx, substituent_carbons):
+    return [name_branch(full_graph, c, nitrogen_idx, {}) for c in substituent_carbons]
 
 
 def _substituent_chain_atoms(carbon_graph, substituent_carbons):
     atoms = set()
     for root in substituent_carbons:
-        previous, current = None, root
-        while current is not None:
-            atoms.add(current)
-            neighbors = [n for n in carbon_graph[current] if n != previous]
-            previous, current = current, (neighbors[0] if neighbors else None)
+        reached, _ = bfs(carbon_graph, root)
+        atoms.update(reached)
     return atoms
 
 
@@ -148,19 +148,31 @@ def _prime_rank(letter):
     return letter.count("'")
 
 
-def _combine_prefixes(letters_and_names):
-    """Combine (letter, substituent name) pairs into a single citation,
-    grouping identical substituent names under a shared multiplying
-    prefix and alphabetizing groups by name (P-14.5.2), per the Blue
-    Book's own "N,N,N′,N′-tetramethyl-N′′-phenylguanidine" worked
-    example."""
+def _di_name(name, is_compound):
+    return f"({name})" if is_compound else name
+
+
+def _combine_prefixes(letters_and_entries):
+    """Combine (letter, substituent name, is_compound) triples into a
+    single citation, grouping identical substituent names under a shared
+    multiplying prefix and alphanumerically ordering groups by name
+    (P-14.5.2, via `alpha_sort_key`), per the Blue Book's own
+    "N,N,N′,N′-tetramethyl-N′′-phenylguanidine" worked example. A
+    multiplied compound name (has its own locant) is parenthesized to
+    avoid ambiguity (e.g. 'N,N'-di(propan-2-yl)'); a single occurrence or
+    a retained (non-compound) name is not."""
     groups = defaultdict(list)
-    for letter, name in letters_and_names:
+    compound_of = {}
+    for letter, name, is_compound in letters_and_entries:
         groups[name].append(letter)
+        compound_of[name] = is_compound
     parts = []
-    for name in sorted(groups):
+    for name in sorted(groups, key=alpha_sort_key):
         letters = sorted(groups[name], key=lambda l: (_prime_rank(l), l))
-        prefix_name = name if len(letters) == 1 else multiplying_prefix(len(letters)) + name
+        if len(letters) == 1:
+            prefix_name = name
+        else:
+            prefix_name = multiplying_prefix(len(letters)) + _di_name(name, compound_of[name])
         parts.append(f"{','.join(letters)}-{prefix_name}")
     return "-".join(parts)
 
@@ -208,9 +220,10 @@ def name_guanidine(mol) -> str:
     _reject_unsaturated_substituents(mol, n2_chain_atoms)
     _reject_unsaturated_substituents(mol, imino_chain_atoms)
 
-    n1_names = _substituent_names(carbon_graph, n1_carbons)
-    n2_names = _substituent_names(carbon_graph, n2_carbons)
-    imino_names = _substituent_names(carbon_graph, imino_carbons)
+    full_graph = adjacency(mol)
+    n1_names = _substituent_names(full_graph, n1_idx, n1_carbons)
+    n2_names = _substituent_names(full_graph, n2_idx, n2_carbons)
+    imino_names = _substituent_names(full_graph, imino_idx, imino_carbons)
 
     if n1_names and n2_names:
         if len(n1_names) != 1 or len(n2_names) != 1:
@@ -220,14 +233,14 @@ def name_guanidine(mol) -> str:
                 "worked example settles the locant tie-break for that "
                 "case)"
             )
-        first, second = sorted((n1_names[0], n2_names[0]))
-        amino_entries = [("N", first), ("N'", second)]
+        first, second = sorted((n1_names[0], n2_names[0]), key=lambda e: alpha_sort_key(e[0]))
+        amino_entries = [("N", *first), ("N'", *second)]
     else:
         letter = "N" if n1_names else "N'"
         names = n1_names or n2_names
-        amino_entries = [(letter, name) for name in names]
+        amino_entries = [(letter, name, is_compound) for name, is_compound in names]
 
-    imino_entries = [("N''", name) for name in imino_names]
+    imino_entries = [("N''", name, is_compound) for name, is_compound in imino_names]
 
     entries = amino_entries + imino_entries
     if not entries:
