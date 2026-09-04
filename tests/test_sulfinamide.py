@@ -128,9 +128,24 @@ def test_n_methylcyclohexanesulfinamide():
     assert smiles_to_iupac("O=S(NC)C1CCCCC1") == "N-methylcyclohexanesulfinamide"
 
 
-def test_branched_n_substituted_sulfinamide_not_supported():
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified: CID 14896695, 11240507.
+        ("CS(=O)NC(C)C", "N-propan-2-ylmethanesulfinamide"),
+        ("CS(=O)NC(C)(C)C", "N-tert-butylmethanesulfinamide"),
+    ],
+)
+def test_branched_n_substituted_sulfinamide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_halogenated_n_substituent_not_supported():
+    # A halogen on the N-substituent is out of scope (module docstring) --
+    # previously silently misnamed instead of rejected (same bug
+    # `_amide.py`/`_sulfonamide.py` found and fixed).
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CS(=O)NC(C)C")
+        smiles_to_iupac("CS(=O)NCCCl")
 
 
 def test_unsaturated_n_substituted_sulfinamide_not_supported():
