@@ -60,14 +60,19 @@ polycyclic/spiro rings, unsaturation reaching outside the ring or a ring
 triple bond, an -SH on a substituent branch off an otherwise-unsubstituted
 *saturated* ring, a sulfide (-S- ether-analogue)
 or any other sulfur-oxidation-state group (sulfonic acid, etc.), and any
-oxygen or nitrogen atom at all. One narrow *aromatic*-ring exception:
+oxygen or nitrogen atom at all. Two *aromatic*-ring cases:
 `_name_phenyl_chain_thiol` names one or more -SH groups on a chain
 hanging off a plain, unsubstituted benzene ring (e.g.
 '3-phenylpropane-1-thiol', '3-phenylpropane-1,2-dithiol'), mirroring
 `_alcohol.py`/`_sulfonic_acid.py`'s identical benzene-ring-substituent
 path -- narrower than the acyclic path: no chain unsaturation, no
-specified stereocenter, and a thiol directly on the ring (thiophenol-
-type) stays out of scope for this acyclic-chain-parent module.
+specified stereocenter. `_name_benzenethiol` names a single -SH directly
+on a benzene ring carbon (with or without other ring substituents), e.g.
+'benzenethiol' (PubChem CID 7969), '2-methylbenzenethiol' (CID 8712),
+mirroring `_name_cyclic_thiol`'s ring-numbering search with the retained
+name 'benzene' as stem -- the -SH's own locant is never cited here,
+unlike the cycloalkane case; two or more -SH groups directly on the ring
+(a dithiophenol-style structure) remain out of scope.
 """
 
 from rdkit import Chem
@@ -443,6 +448,72 @@ def _name_cyclic_thiol(mol, thiols, stereo=None, bonds=()):
     return best_name
 
 
+def _benzenethiol_name_from_substituents(sh_locants, grouped):
+    # Unlike the cycloalkane case, the mancude ring's own numbering is
+    # always free to start at the -SH carbon (P-14.3.3-style), so its
+    # locant is never cited even when other substituents need theirs,
+    # e.g. '2-methylbenzenethiol' (PubChem CID 8712), not
+    # '2-methylbenzene-1-thiol' -- mirrors `_sulfonic_acid.py`'s
+    # identical 'benzenesulfonic acid' treatment.
+    thiol_word = _multiplied_word(len(sh_locants), "thiol")
+    if not grouped:
+        return "benzene" + thiol_word
+    return f"{format_substituent_prefixes(grouped)}benzene{thiol_word}"
+
+
+def _benzenethiol_candidate_key(sh_locants, substituents):
+    grouped = _group(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    sh_locant_set = lowest_locant_set(sh_locants)
+    name = _benzenethiol_name_from_substituents(sh_locants, grouped)
+    return sh_locant_set, locant_set, citation_locants, name
+
+
+def _name_benzenethiol(mol, ring_atoms):
+    """P-63.1.1: -SH attached directly to a benzene ring carbon -- e.g.
+    'benzenethiol' (PubChem CID 7969), '2-methylbenzenethiol' (CID 8712).
+    Mirrors `_name_cyclic_thiol`'s ring-numbering search, with the
+    retained name 'benzene' as stem in place of 'cyclo' + alkane_name.
+    Narrower than that saturated-ring case: only a single -SH directly on
+    the ring is verified here (two or more direct ring thiols, a
+    dithiophenol-style structure, remain out of scope pending a
+    PubChem-confirmed example)."""
+    thiols = _validate_and_collect_thiols(mol, aromatic_ring_atoms=ring_atoms)
+    if len(thiols) != 1:
+        raise UnsupportedStructure(
+            "more than one thiol directly on the benzene ring is not "
+            "supported yet"
+        )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside benzenethiol is not "
+            "supported yet"
+        )
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            sh_locants = _sh_locants(position_of, thiols, graph)
+            substituents = _substituents_for_ring(graph, candidate, halogens, thiols)
+            key = _benzenethiol_candidate_key(sh_locants, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def _name_phenyl_chain_thiol(mol, ring_atoms):
     """Name one or more -SH groups lying entirely on a single unbranched
     chain hanging off one atom of an otherwise-plain, unsubstituted
@@ -521,6 +592,12 @@ def name_thiol(mol) -> str:
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            ring_thiols = _validate_and_collect_thiols(mol, aromatic_ring_atoms=ring_atoms)
+            if len(ring_thiols) == 1:
+                (only_s,) = ring_thiols
+                (only_s_carbon,) = adjacency(mol)[only_s]
+                if only_s_carbon in ring_atoms:
+                    return _name_benzenethiol(mol, ring_atoms)
             return _name_phenyl_chain_thiol(mol, ring_atoms)
     thiols = _validate_and_collect_thiols(mol)
     stereo = specified_stereocenters(mol)
