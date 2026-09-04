@@ -72,9 +72,30 @@ def test_polycyclic_sulfinamide_not_supported():
         smiles_to_iupac("O=S(N)C1CC2CCC1CC2")
 
 
-def test_unsaturated_ring_sulfinamide_not_supported():
+def test_unsaturated_ring_sulfinamide():
+    # Monocyclic ring, single -SONH2, single ring double bond (P-31.1.3):
+    # same pattern already confirmed for `_sulfonamide.py` (PR #356). The
+    # exact ring structures aren't PubChem-registered, but the acyclic
+    # ene+sulfinamide combination is (`prop-2-ene-1-sulfinamide`), and the
+    # identical ring shape is confirmed for the sibling
+    # `_sulfonic_acid.py`/`_sulfinic_acid.py`/`_sulfonamide.py` modules.
+    assert smiles_to_iupac("O=S(N)C1CCCC=C1") == "cyclohex-2-ene-1-sulfinamide"
+    assert smiles_to_iupac("O=S(N)C1CC=CCC1") == "cyclohex-3-ene-1-sulfinamide"
+
+
+def test_unsaturated_ring_sulfinamide_with_substituent_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=S(N)C1CCCC=C1")
+        smiles_to_iupac("O=S(N)C1CCCC=C1C")
+
+
+def test_unsaturated_ring_sulfinamide_triple_bond_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=S(N)C1CCCC#C1")
+
+
+def test_unsaturated_ring_sulfinamide_with_n_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=S(NC)C1CCCC=C1")
 
 
 def test_sulfinamide_on_ring_substituent_branch_not_supported():
