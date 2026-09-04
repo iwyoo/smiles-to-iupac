@@ -1,6 +1,7 @@
 import pytest
 
 from smiles_to_iupac import smiles_to_iupac
+from smiles_to_iupac._common import UnsupportedStructure
 
 
 def test_dimethyl_selenide():
@@ -52,3 +53,37 @@ def test_branched_prefix_side_is_enclosed():
 )
 def test_both_sides_branched_and_tied(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # P-44.1.2.2 rule (1): 'selanyl' has no suffix form, so a plain
+        # benzene ring is always the parent, mirroring `_sulfide.py`'s
+        # identical benzene-ring path.
+        ("c1ccccc1[Se]CC", "ethylselanylbenzene"),  # PubChem CID 140285
+        # Direct ring-selenium bond with a branched R': the same
+        # '(...)selanyl' parenthesization as the plain two-chain path
+        # above, even though PubChem's own auto-generated name for the
+        # same structure omits the parentheses
+        # ('c1ccccc1[Se]C(C)C' -> 'propan-2-ylselanylbenzene', CID 140894).
+        ("c1ccccc1[Se]C(C)C", "(propan-2-yl)selanylbenzene"),
+        # Chain spacer between the ring and the selenide selenium --
+        # matching this project's existing benzene-ring-chain convention
+        # rather than PubChem's own un-parenthesized auto-name
+        # ('ethylselanylmethylbenzene', CID 12975596).
+        ("c1ccccc1C[Se]CC", "(ethylselanylmethyl)benzene"),
+    ],
+)
+def test_benzene_ring_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_benzene_ring_multiple_substituents_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[Se]c1ccccc1[Se]C")
+
+
+def test_benzene_ring_stereocenter_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1[Se][C@H](C)CC")
