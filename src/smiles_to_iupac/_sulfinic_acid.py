@@ -48,11 +48,20 @@ a single -SO2H on an acyclic chain or on a single saturated carbon ring
 with no other heteroatom anywhere in the molecule except the sulfinic
 acid group's own two oxygens -- acid-vs-acid seniority and any other
 Table 3.3 seniority coexistence is future work, tracked under
-`multi-carbonyl-seniority.md`. Explicitly out of scope (raise
-`UnsupportedStructure`): polycyclic/spiro/unsaturated rings, an -SO2H on
-a substituent branch off an otherwise-unsubstituted *saturated* ring, two
-or more -SO2H groups, and a sulfinic acid on a carbon that is also part
-of a C=C/C#C bond. One narrow *aromatic*-ring exception:
+`multi-carbonyl-seniority.md`.
+
+P-31.1.3: a monocyclic ring bearing a sulfinic acid and exactly one C=C
+ring double bond -- e.g. 'cyclohex-2-ene-1-sulfinic acid',
+'cyclohex-3-ene-1-sulfinic acid', both confirmed via PubChem PUG REST.
+Mirrors `_sulfonic_acid.py`'s identical extension; deliberately narrow: a
+ring triple bond, and any other substituent alongside the ring double
+bond, are both still explicitly rejected pending further verification.
+
+Explicitly out of scope (raise `UnsupportedStructure`): polycyclic/spiro
+rings, unsaturation reaching outside the ring or a ring triple bond, an
+-SO2H on a substituent branch off an otherwise-unsubstituted *saturated*
+ring, two or more -SO2H groups, and a sulfinic acid on a carbon that is
+also part of a C=C/C#C bond. One narrow *aromatic*-ring exception:
 `_name_phenyl_chain_sulfinic_acid` names a -SO2H chain hanging off a
 single plain, unsubstituted benzene ring (e.g.
 '3-phenylpropane-1-sulfinic acid'), mirroring `_sulfonic_acid.py`'s
@@ -341,20 +350,31 @@ def _substituents_for_ring(graph, ring_order, halogens, excluded):
     return substituents
 
 
-def _ring_name_from_substituents(ring_size, so2h_locant, grouped):
+def _ring_name_from_substituents(ring_size, so2h_locant, ene_locants, yne_locants, grouped):
+    has_unsaturation = bool(ene_locants or yne_locants)
     stem = "cyclo" + alkane_name(ring_size)
     total_subs = sum(len(info["locants"]) for info in grouped.values())
 
-    if total_subs == 0:
-        # P-14.3.3: the sole substituent on an otherwise unsubstituted ring
-        # has no locant to distinguish, e.g. 'cyclohexanesulfinic acid'.
-        return stem + "sulfinic acid"
+    if not has_unsaturation:
+        if total_subs == 0:
+            # P-14.3.3: the sole substituent on an otherwise unsubstituted
+            # ring has no locant to distinguish, e.g.
+            # 'cyclohexanesulfinic acid'.
+            return stem + "sulfinic acid"
+        prefix = format_substituent_prefixes(grouped)
+        return f"{prefix}{stem}-{so2h_locant}-sulfinic acid"
 
+    # A competing ring double/triple bond (P-31.1.3) means the sulfinic
+    # acid's locant is never omittable even when it's the sole
+    # substituent -- mirrors `_sulfonic_acid.py`'s identical treatment.
+    unsaturated_stem = stem[:-3]
+    needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
     prefix = format_substituent_prefixes(grouped)
-    return f"{prefix}{stem}-{so2h_locant}-sulfinic acid"
+    body = _suffix_body(ene_locants, yne_locants, so2h_locant)
+    return prefix + unsaturated_stem + ("a" if needs_stem_a else "") + "-" + body
 
 
-def _ring_candidate_key(ring_size, so2h_locant, substituents):
+def _ring_candidate_key(ring_size, so2h_locant, ene_locants, yne_locants, substituents):
     grouped = _group(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -362,11 +382,29 @@ def _ring_candidate_key(ring_size, so2h_locant, substituents):
         for name in sorted(grouped, key=alpha_sort_key)
         for loc in sorted(grouped[name]["locants"])
     )
-    name = _ring_name_from_substituents(ring_size, so2h_locant, grouped)
-    return so2h_locant, locant_set, citation_locants, name
+    combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
+    ene_locant_set = lowest_locant_set(ene_locants)
+    name = _ring_name_from_substituents(ring_size, so2h_locant, ene_locants, yne_locants, grouped)
+    return so2h_locant, combined_locant_set, ene_locant_set, locant_set, citation_locants, name
 
 
-def _name_cyclic_sulfinic_acid(mol, sulfur_idx, so2h_carbon):
+def _ring_bond_locant(position_of, bond_atoms, ring_size):
+    pa, pb = position_of[bond_atoms[0]], position_of[bond_atoms[1]]
+    return ring_size if {pa, pb} == {1, ring_size} else min(pa, pb)
+
+
+def _ring_bond_locants(position_of, bonds, ring_size):
+    """(ene_locants, yne_locants), both sorted, for every ring C=C/C#C bond
+    under this ring numbering -- mirrors `_sulfonic_acid.py`'s identical
+    helper."""
+    ene, yne = [], []
+    for a, b, order in bonds:
+        locant = _ring_bond_locant(position_of, (a, b), ring_size)
+        (ene if order == _ENE_ORDER else yne).append(locant)
+    return sorted(ene), sorted(yne)
+
+
+def _name_cyclic_sulfinic_acid(mol, sulfur_idx, so2h_carbon, bonds=()):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     excluded = {sulfur_idx}
@@ -374,6 +412,11 @@ def _name_cyclic_sulfinic_acid(mol, sulfur_idx, so2h_carbon):
     ring_atoms = list(ring_info.AtomRings()[0])
     ring_order = ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
+    if bonds and any(_substituents_for_ring(graph, ring_order, halogens, excluded).values()):
+        raise UnsupportedStructure(
+            "a substituent alongside both a ring double/triple bond and a "
+            "sulfinic acid is not supported yet (see module docstring)"
+        )
 
     best_key = None
     best_name = None
@@ -383,7 +426,8 @@ def _name_cyclic_sulfinic_acid(mol, sulfur_idx, so2h_carbon):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             so2h_locant = position_of[so2h_carbon]
             substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
-            key = _ring_candidate_key(ring_size, so2h_locant, substituents)
+            ene_locants, yne_locants = _ring_bond_locants(position_of, bonds, ring_size)
+            key = _ring_candidate_key(ring_size, so2h_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
     return best_name
@@ -503,18 +547,25 @@ def name_sulfinic_acid(mol) -> str:
             "ring)"
         )
     if num_rings == 1:
-        if bonds:
-            raise UnsupportedStructure(
-                "unsaturated rings are not supported yet (see P-31.1.3, "
-                "cycloalkenes and cycloalkynes)"
-            )
         ring_atoms = set(ring_info.AtomRings()[0])
+        if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in bonds):
+            raise UnsupportedStructure(
+                "unsaturation outside the ring alongside a cyclic sulfinic "
+                "acid is not supported yet (see P-31.1.3, cycloalkenes and "
+                "cycloalkynes)"
+            )
+        if any(order == _YNE_ORDER for _, _, order in bonds):
+            raise UnsupportedStructure(
+                "a ring triple bond (cycloalkyne) alongside a sulfinic "
+                "acid is not supported yet -- only a ring double bond is "
+                "in scope for this first pass (see P-31.1.3)"
+            )
         if so2h_carbon not in ring_atoms:
             raise UnsupportedStructure(
                 "a sulfinic acid on a substituent branch chain rather "
                 "than the ring itself is not supported yet"
             )
-        return _name_cyclic_sulfinic_acid(mol, sulfur_idx, so2h_carbon)
+        return _name_cyclic_sulfinic_acid(mol, sulfur_idx, so2h_carbon, bonds)
 
     halogens = halogen_substituents(mol)
     excluded = {sulfur_idx}
