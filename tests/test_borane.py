@@ -17,12 +17,19 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("CB(C)C", "trimethylborane"),
         ("CCB(CC)CC", "triethylborane"),
         ("CCBC", "ethyl(methyl)borane"),
-        ("CCB(C)C", "ethyl(dimethyl)borane"),
+        # the multiplying prefix sits *outside* the parentheses (Blue
+        # Book "chlorodi(methyl)borane (PIN)" worked example,
+        # `tmp/bluebook/P6.txt`), not PubChem's own raw
+        # "ethyl(dimethyl)borane" for CID 517955's structure.
+        ("CCB(C)C", "ethyldi(methyl)borane"),
         ("CCB(CC)C", "diethyl(methyl)borane"),
-        # halogen bonded directly to boron: cross-checked against PubChem
-        # PUG REST IUPACName, CID 140714 (ClB), CID 137221 (ClB(C)C).
+        # halogen bonded directly to boron: structure cross-checked
+        # against PubChem PUG REST, CID 140714 (ClB), CID 137221
+        # (ClB(C)C) -- the second name matches the Blue Book's own
+        # "chlorodi(methyl)borane (PIN)" directly, not PubChem's own raw
+        # "chloro(dimethyl)borane".
         ("ClB", "chloroborane"),
-        ("ClB(C)C", "chloro(dimethyl)borane"),
+        ("ClB(C)C", "chlorodi(methyl)borane"),
     ],
 )
 def test_smiles_to_iupac_simple_borane(smiles, expected):

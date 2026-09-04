@@ -13,9 +13,16 @@ substituents), per the IUPAC 2013 Recommendations ("the Blue Book"):
   CID 6331 (`B`) -> "borane", CID 5326078 (`CB`) -> "methylborane",
   CID 15879358 (`CBC`) -> "dimethylborane", CID 68979 (`CB(C)C`) ->
   "trimethylborane", CID 7357 (`CCB(CC)CC`) -> "triethylborane",
-  CID 143352201 (`CCBC`, ethyl + methyl) -> "ethyl(methyl)borane",
-  CID 517955 (`CCB(C)C`, ethyl x1 + methyl x2) -> "ethyl(dimethyl)borane",
-  CID 543198 (`CCB(CC)C`, ethyl x2 + methyl x1) -> "diethyl(methyl)borane".
+  CID 143352201 (`CCBC`, ethyl + methyl) -> "ethyl(methyl)borane".
+  For a multiplied substituent mixed with a different one, this module's
+  own output (via the shared `format_mononuclear_prefixes` helper) is
+  "ethyldi(methyl)borane" (CID 517955's structure, ethyl x1 + methyl x2)
+  and "diethyl(methyl)borane" (CID 543198's structure, ethyl x2 + methyl
+  x1) -- the multiplying prefix always sits *outside* the parentheses,
+  confirmed via the Blue Book's own "chlorodi(methyl)borane (PIN)"
+  worked example (`tmp/bluebook/P6.txt`), not PubChem's own raw
+  "ethyl(dimethyl)borane" for the first case (see `_phosphane.py`'s
+  docstring for the full derivation of this correction).
 - P-14.3.4.2(a): boron is the sole skeletal atom of the parent hydride, so
   every substituent's locant is always '1' and is never cited.
 - P-16.5.1.3.1 (per the Blue Book's own published errata,
@@ -33,9 +40,11 @@ substituents), per the IUPAC 2013 Recommendations ("the Blue Book"):
 
 - A halogen (F/Cl/Br/I) bonded directly to boron is just another
   substituent prefix that already fits the P-16.5.1.3.1 parenthesization
-  rule above (no new mechanism needed) -- confirmed via PubChem PUG REST:
-  CID 140714 (`ClB`) -> "chloroborane", CID 137221 (`ClB(C)C`) ->
-  "chloro(dimethyl)borane".
+  rule above (no new mechanism needed) -- confirmed via PubChem PUG REST
+  for structure only: CID 140714 (`ClB`) -> "chloroborane"; CID 137221's
+  structure (`ClB(C)C`) is named "chlorodi(methyl)borane" here, matching
+  the Blue Book's own "chlorodi(methyl)borane (PIN)" worked example
+  directly (not PubChem's own raw "chloro(dimethyl)borane").
 
 - A branched substituent is supported (e.g. 'propan-2-ylborane', CID
   101871698), built with `name_branch`, following exactly the same

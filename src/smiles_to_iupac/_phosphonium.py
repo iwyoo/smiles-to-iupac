@@ -24,9 +24,14 @@ P-73.1.1.2), per the IUPAC 2013 Recommendations ("the Blue Book"):
   approach (used there for the same "no neutral counterpart" reason), a
   quaternary phosphonium's name is built directly from its four carbon
   substituents via `format_mononuclear_prefixes` + the '-phosphanium'
-  suffix. Confirmed via PubChem structure match:
-  `C[P+](C)(C)C` -> "tetramethylphosphanium", `CC[P+](C)(C)C` ->
-  "ethyl(trimethyl)phosphanium".
+  suffix. Confirmed via PubChem structure match for
+  `C[P+](C)(C)C` -> "tetramethylphosphanium"; `CC[P+](C)(C)C`'s structure
+  is named "ethyltri(methyl)phosphanium" here (the multiplying prefix
+  sits outside the parentheses, per P-16.5.1.3.1's own text and the Blue
+  Book's "chlorodi(methyl)borane (PIN)"/"ethyldi(methyl)phosphane (PIN)"
+  worked examples, `tmp/bluebook/P6.txt`/`P1.html` -- see
+  `_phosphane.py`'s docstring for the full derivation), not PubChem's own
+  raw "ethyl(trimethyl)phosphanium".
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any phosphonium phosphorus not shaped like PH4+, a phosphorus bonded to
