@@ -72,7 +72,14 @@ first-pass scope:
 - An N-substituent that is unsaturated or ring-bearing (a branched but
   otherwise plain saturated acyclic N-substituent is supported, see
   above).
-- An amide on/in a ring (a lactam) - a separate module's territory.
+- A true lactam (the carbonyl carbon itself is a ring atom) - handled by
+  `_ketone.py`'s hetero-ring ketone path, not this module. An
+  N-unsubstituted -CONH2 hanging as an *exocyclic* substituent directly
+  off one ring carbon (P-66.1.1.1.1.3's 'carboxamide' suffix) is handled
+  by `_name_ring_amide`/`_name_benzamide` for a single saturated
+  monocyclic or benzene ring only - N-substitution, multiple amides, a
+  standalone hydroxyl, or ring unsaturation alongside it are still out
+  of scope.
 - More than one amide group in the same molecule (a diamide) - deferred
   entirely, along with any other multiple-principal-characteristic-group
   combination.
@@ -117,6 +124,7 @@ from ._common import (
     non_single_bonds,
     ordered_chain,
     ring_chain_attachment,
+    ring_cycle,
     specified_stereocenters,
 )
 from ._numerals import alkane_name
@@ -511,6 +519,200 @@ def _name_acyclic_amide(mol, amide_carbon, amide_nitrogen, excluded, n_alkyl_car
     return best_name
 
 
+def _ring_substituents(graph, ring_order, halogens, excluded):
+    """{ring position -> [substituent name, ...]}, mirroring
+    `_nitrile.py`'s identically-named helper -- every branch hanging off
+    a ring atom other than the amide carbon itself (in `excluded`) is a
+    plain substituent prefix (alkyl/halogen)."""
+    ring_set = set(ring_order)
+    substituents = {}
+    for position, atom in enumerate(ring_order, start=1):
+        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+    return substituents
+
+
+def _ring_name_from_substituents(ring_size, amide_locant, grouped):
+    stem = "cyclo" + alkane_name(ring_size)
+    total_subs = sum(len(info["locants"]) for info in grouped.values())
+    if total_subs == 0:
+        # P-14.3.3: the sole substituent on an otherwise unsubstituted ring
+        # has no locant to distinguish, e.g. 'cyclohexanecarboxamide'.
+        return stem + "carboxamide"
+    prefix = format_substituent_prefixes(grouped)
+    return f"{prefix}{stem}-{amide_locant}-carboxamide"
+
+
+def _ring_candidate_key(ring_size, amide_locant, substituents):
+    grouped = group_substituents(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _ring_name_from_substituents(ring_size, amide_locant, grouped)
+    return amide_locant, locant_set, citation_locants, name
+
+
+def _name_ring_amide(mol, ring_atoms):
+    """P-66.1.1.1.1.3: "The suffix 'carboxamide' is always used to name
+    amides with the –CO-NH2 group attached to a ring" -- e.g.
+    'cyclohexanecarboxamide'. Unlike the chain-parent 'amide' suffix
+    above (where the -CONH2 carbon is always the parent's own C1), here
+    the ring itself is the parent hydride and the -CONH2 carbon is a
+    substituent atom hanging directly off one ring carbon, mirroring
+    `_nitrile.py`'s `_name_ring_nitrile` construction.
+
+    A saturated monocyclic all-carbon ring with exactly one N-unsubstituted
+    -CONH2 hanging directly off one ring atom (no ring unsaturation, no
+    standalone hydroxyl, no other substituent sharing that same ring
+    atom), plus any number of substituents (alkyl/halogen) on *other*
+    ring atoms."""
+    amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(mol)
+    if n_alkyl_carbons:
+        raise UnsupportedStructure("an N-alkyl-substituted ring amide is not supported yet")
+    if hydroxyls:
+        raise UnsupportedStructure(
+            "a standalone hydroxyl alongside a ring amide is not "
+            "supported yet"
+        )
+
+    graph = adjacency(mol)
+    excluded_atoms = {amide_oxygen, amide_nitrogen}
+    all_non_single = [b for b in non_single_bonds(mol) if b[0] not in excluded_atoms and b[1] not in excluded_atoms]
+    if all_non_single:
+        raise UnsupportedStructure(
+            "an unsaturated ring alongside an amide substituent is not "
+            "supported yet (see P-31.1.3)"
+        )
+
+    ring_neighbors = [n for n in graph[amide_carbon] if n in ring_atoms]
+    if len(ring_neighbors) != 1:
+        raise UnsupportedStructure(
+            "an amide not directly attached to a single ring atom is not "
+            "supported yet"
+        )
+    (ring_atom,) = ring_neighbors
+    other_ring_atom_branches = [n for n in graph[ring_atom] if n not in ring_atoms and n != amide_carbon]
+    if other_ring_atom_branches:
+        raise UnsupportedStructure(
+            "a substituent on the same ring atom as the amide is not "
+            "supported yet"
+        )
+
+    halogens = halogen_substituents(mol)
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            amide_locant = position_of[ring_atom]
+            substituents = _ring_substituents(graph, candidate, halogens, {amide_carbon})
+            key = _ring_candidate_key(ring_size, amide_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+
+    return best_name
+
+
+def _benzamide_name_from_substituents(grouped):
+    total_subs = sum(len(info["locants"]) for info in grouped.values())
+    if total_subs == 0:
+        # 'benzamide' is a fully retained name (P-66.1.1.1.2.1) -- unlike
+        # 'cyclohexanecarboxamide', there is no locant position to even
+        # omit.
+        return "benzamide"
+    return f"{format_substituent_prefixes(grouped)}benzamide"
+
+
+def _benzamide_candidate_key(amide_locant, substituents):
+    grouped = group_substituents(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _benzamide_name_from_substituents(grouped)
+    return amide_locant, locant_set, citation_locants, name
+
+
+def _name_benzamide(mol, ring_atoms):
+    """P-66.1.1.1.2.1: 'benzamide' is one of only four retained amide
+    names that are preferred IUPAC names and can be substituted -- itself
+    the PIN for a -CONH2 hanging directly off one carbon of an otherwise-
+    plain (or substituted) benzene ring -- e.g. 'benzamide' (PubChem CID
+    239), '2-methylbenzamide' (CID 68140), '4-methylbenzamide' (CID
+    69254). Structurally identical to `_name_ring_amide`'s saturated-ring
+    case, mirroring `_nitrile.py`'s `_name_benzonitrile`, with the
+    retained name 'benzamide' replacing 'cyclo' + alkane_name +
+    'carboxamide' as the whole suffix unit (no locant is ever cited for
+    the -CONH2 position itself)."""
+    amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(
+        mol, aromatic_ring_atoms=ring_atoms
+    )
+    if n_alkyl_carbons:
+        raise UnsupportedStructure("an N-alkyl-substituted benzamide is not supported yet")
+    if hydroxyls:
+        raise UnsupportedStructure(
+            "a standalone hydroxyl alongside benzamide is not supported "
+            "yet"
+        )
+
+    graph = adjacency(mol)
+    excluded_atoms = {amide_oxygen, amide_nitrogen}
+    all_non_single = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in excluded_atoms
+        and b[1] not in excluded_atoms
+        and (b[0] not in ring_atoms or b[1] not in ring_atoms)
+    ]
+    if all_non_single:
+        raise UnsupportedStructure(
+            "unsaturation outside the ring alongside benzamide is not "
+            "supported yet"
+        )
+
+    ring_neighbors = [n for n in graph[amide_carbon] if n in ring_atoms]
+    if len(ring_neighbors) != 1:
+        raise UnsupportedStructure(
+            "an amide not directly attached to a single ring atom is not "
+            "supported yet"
+        )
+    (ring_atom,) = ring_neighbors
+    other_ring_atom_branches = [n for n in graph[ring_atom] if n not in ring_atoms and n != amide_carbon]
+    if other_ring_atom_branches:
+        raise UnsupportedStructure(
+            "a substituent on the same ring atom as the amide is not "
+            "supported yet"
+        )
+
+    halogens = halogen_substituents(mol)
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            amide_locant = position_of[ring_atom]
+            substituents = _ring_substituents(graph, candidate, halogens, {amide_carbon})
+            key = _benzamide_candidate_key(amide_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+
+    return best_name
+
+
 def _name_phenyl_chain_amide(mol, ring_atoms):
     """Name a primary amide whose -CONH2 lies entirely on a single
     unbranched chain hanging off one atom of an otherwise-plain,
@@ -572,12 +774,6 @@ def _name_phenyl_chain_amide(mol, ring_atoms):
             "the amide carbon must be the chain's far terminus from the "
             "benzene ring for this benzene-substituent path"
         )
-    if len(chain) < 2:
-        raise UnsupportedStructure(
-            "an amide directly attached to the benzene ring (the "
-            "'benzamide'-style naming) uses a separate construction, out "
-            "of scope for this acyclic-chain-parent module"
-        )
 
     ordered = list(reversed(chain))
     chain_length = len(ordered)
@@ -595,13 +791,30 @@ def name_amide(mol) -> str:
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            amide_carbon, _, _, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(
+                mol, aromatic_ring_atoms=ring_atoms
+            )
+            if not n_alkyl_carbons and not hydroxyls:
+                graph = adjacency(mol)
+                ring_neighbors = [n for n in graph[amide_carbon] if n in ring_atoms]
+                if len(ring_neighbors) == 1:
+                    return _name_benzamide(mol, ring_atoms)
             return _name_phenyl_chain_amide(mol, ring_atoms)
+        amide_carbon, _, _, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(mol)
+        if not n_alkyl_carbons and not hydroxyls:
+            graph = adjacency(mol)
+            ring_neighbors = [n for n in graph[amide_carbon] if n in ring_atoms]
+            if len(ring_neighbors) == 1:
+                return _name_ring_amide(mol, ring_atoms)
     amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(mol)
     stereo = specified_stereocenters(mol)
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(
-            "an amide on/in a ring (a lactam) is out of scope for this "
-            "acyclic-only module"
+            "this ring shape alongside an amide (a true lactam, N-alkyl "
+            "substitution, more than one amide, a standalone hydroxyl, "
+            "ring unsaturation, or a ring other than a single saturated "
+            "monocyclic/benzene one) is out of scope for this module's "
+            "'carboxamide' suffix path (P-66.1.1.1.1.3)"
         )
 
     excluded = {amide_oxygen, amide_nitrogen}

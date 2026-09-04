@@ -173,11 +173,10 @@ def test_phenyl_chain_amide_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_phenyl_directly_attached_amide_raises():
-    # Benzamide-style naming (-CONH2 directly on the ring) is a separate
-    # construction, out of scope for this acyclic-chain-parent module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C(N)=O")
+def test_phenyl_directly_attached_amide():
+    # Same benzamide-type case as test_benzamide, reached via a different
+    # ring-atom ordering in the SMILES.
+    assert smiles_to_iupac("c1ccccc1C(N)=O") == "benzamide"
 
 
 def test_phenyl_chain_amide_n_alkyl_raises():
@@ -204,9 +203,27 @@ def test_carboxylic_acid_not_misnamed_as_amide():
     assert smiles_to_iupac("CC(=O)O") == "ethanoic acid"
 
 
-def test_aryl_amide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(=O)c1ccccc1")
+def test_benzamide():
+    # -CONH2 attached directly to a benzene ring carbon (P-66.1.1.1.2.1,
+    # one of only four retained amide names that are PINs and can be
+    # substituted). The retained name 'benzamide' stands for the whole
+    # ring+CONH2 system (like 'benzonitrile'), so the amide's own ring
+    # locant is never cited, only other substituents'. PubChem PUG REST:
+    # "benzamide"/"4-methylbenzamide"/"2-chlorobenzamide" -- all exact
+    # matches.
+    assert smiles_to_iupac("NC(=O)c1ccccc1") == "benzamide"
+    assert smiles_to_iupac("NC(=O)c1ccc(C)cc1") == "4-methylbenzamide"
+    assert smiles_to_iupac("NC(=O)c1ccccc1Cl") == "2-chlorobenzamide"
+
+
+def test_ring_amide():
+    # -CONH2 attached directly to a saturated monocyclic ring carbon
+    # (P-66.1.1.1.1.3, the 'carboxamide' suffix) -- e.g.
+    # 'cyclohexanecarboxamide'. PubChem PUG REST:
+    # "cyclohexanecarboxamide"/"4-methylcyclohexane-1-carboxamide" -- both
+    # exact matches.
+    assert smiles_to_iupac("NC(=O)C1CCCCC1") == "cyclohexanecarboxamide"
+    assert smiles_to_iupac("NC(=O)C1CCC(C)CC1") == "4-methylcyclohexane-1-carboxamide"
 
 
 def test_alcohol_mix_names_hydroxy_prefix():
