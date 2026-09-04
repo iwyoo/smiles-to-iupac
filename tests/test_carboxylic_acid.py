@@ -59,13 +59,24 @@ def test_ether_raises():
         ("C1CCCC1C(=O)O", "cyclopentanecarboxylic acid"),
         ("C1CCCCCC1C(=O)O", "cycloheptanecarboxylic acid"),
         ("C1CC1C(=O)O", "cyclopropanecarboxylic acid"),
+        # P-65.1.2.2.2 + substituent(s) on a *different* ring atom than the
+        # carboxylic acid: the ring is renumbered to give the -COOH carbon
+        # locant 1 (never omitted once there's another substituent to
+        # locate), then the other substituent(s) get the lowest remaining
+        # locant set, cross-checked against PubChem PUG REST.
+        ("CC1CCC(CC1)C(=O)O", "4-methylcyclohexane-1-carboxylic acid"),  # CID 20330
+        ("ClC1CCC(CC1)C(=O)O", "4-chlorocyclohexane-1-carboxylic acid"),  # CID 12603304
+        ("CC1CCC(C)C(C1)C(=O)O", "2,5-dimethylcyclohexane-1-carboxylic acid"),  # CID 14048268
     ],
 )
 def test_ring_carboxylic_acid_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_ring_carboxylic_acid_extra_substituent_raises():
+def test_ring_carboxylic_acid_same_atom_substituent_raises():
+    # A substituent sharing the same ring atom as the -COOH (a quaternary
+    # ring carbon) is out of scope; a substituent on a *different* ring
+    # atom is covered by test_ring_carboxylic_acid_names above.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1CCC(Cl)(CC1)C(=O)O")
 
