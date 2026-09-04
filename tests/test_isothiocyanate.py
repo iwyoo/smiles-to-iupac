@@ -32,6 +32,25 @@ def test_ring_not_supported():
         smiles_to_iupac("C1CCC(N=C=S)CC1")
 
 
+def test_phenyl_isothiocyanate_direct_bond():
+    # P-44.1.2.2 rule (1): 'isothiocyanato' has no suffix form, so the
+    # ring is always senior to a chain of the same class, mirroring
+    # `_isocyanate.py`'s identical rule -- confirmed by PubChem CID 7673.
+    assert smiles_to_iupac("c1ccccc1N=C=S") == "isothiocyanatobenzene"
+
+
+def test_phenyl_isothiocyanate_chain():
+    # PubChem CID 2346 gives "isothiocyanatomethylbenzene" (no
+    # parentheses), but this codebase follows `_isocyanate.py`'s/
+    # `_nitro.py`'s identical, Blue-Book-verified rule instead.
+    assert smiles_to_iupac("c1ccccc1CN=C=S") == "(isothiocyanatomethyl)benzene"
+
+
+def test_phenyl_isothiocyanate_substituted_ring_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1N=C=S")
+
+
 def test_unsaturated_chain_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=CCN=C=S")

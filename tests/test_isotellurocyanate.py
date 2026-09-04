@@ -27,6 +27,24 @@ def test_ring_not_supported():
         smiles_to_iupac("C1CCC([N]=C=[Te])CC1")
 
 
+def test_phenyl_isotellurocyanate_direct_bond():
+    # P-44.1.2.2 rule (1): 'isotellurocyanato' has no suffix form, so the
+    # ring is always senior to a chain of the same class -- not
+    # independently PubChem-verified (CID 0, same sparse-tellurium gap as
+    # the acyclic path), inherited unchanged from the identical mechanism
+    # already confirmed for oxygen/sulfur/selenium.
+    assert smiles_to_iupac("c1ccccc1[N]=C=[Te]") == "isotellurocyanatobenzene"
+
+
+def test_phenyl_isotellurocyanate_chain():
+    assert smiles_to_iupac("c1ccccc1C[N]=C=[Te]") == "(isotellurocyanatomethyl)benzene"
+
+
+def test_phenyl_isotellurocyanate_substituted_ring_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1[N]=C=[Te]")
+
+
 def test_unsaturated_chain_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=CC[N]=C=[Te]")
