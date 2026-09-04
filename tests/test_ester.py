@@ -82,12 +82,21 @@ def test_aryl_ester_raises():
         smiles_to_iupac("c1ccccc1C(=O)OC")
 
 
-def test_phenyl_ester_oxygen_side_raises():
-    # The benzene ring attached via the ester oxygen (an aryl ester, e.g.
-    # phenyl acetate) rather than the acyl chain is out of scope for this
-    # first slice (module docstring: R' must be a plain unbranched alkyl).
+def test_phenyl_ester_oxygen_side():
+    # A benzene ring attached directly via the ester oxygen (an aryl
+    # ester, P-65.6.3.2) is now supported -- PubChem's own 'phenyl
+    # acetate'/'phenyl formate'/'phenyl propanoate' (CID 31229/74626/
+    # 12497), this project's systematic-name convention applied.
+    assert smiles_to_iupac("CC(=O)Oc1ccccc1") == "phenyl ethanoate"
+    assert smiles_to_iupac("O=COc1ccccc1") == "phenyl methanoate"
+    assert smiles_to_iupac("CCC(=O)Oc1ccccc1") == "phenyl propanoate"
+
+
+def test_phenyl_ester_oxygen_side_substituted_ring_raises():
+    # A phenol ring with another substituent besides the ester oxygen is
+    # still out of scope for this first pass.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)Oc1ccccc1")
+        smiles_to_iupac("CC(=O)Oc1ccccc1C")
 
 
 def test_phenyl_substituted_benzene_ring_ester_raises():
