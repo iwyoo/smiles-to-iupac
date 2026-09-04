@@ -26,18 +26,23 @@ is restricted to a plain, unsubstituted, saturated, acyclic alkyl group
 `name_branch` (P-29 PIN style, fixed project-wide by PR #237; mirrors
 `_carbamate.py`'s/`_ester.py`'s identical fix, PR #328/#329), never
 parenthesized (the "R thiocyanate" two-word pattern has no nested-prefix
-ambiguity to guard against). A substituted, unsaturated, or ring-bearing R
-is still deferred. Confirmed via PubChem: `CC(C)SC#N` -> "propan-2-yl
-thiocyanate" (CID 246911), `CC(C)(C)SC#N` -> "tert-butyl thiocyanate"
-(CID 641640).
-Explicitly out of scope (raise `UnsupportedStructure`): any ring anywhere
-in the molecule, more than one thiocyanate group, and any other
-heteroatom/oxygen not part of this single thiocyanate group.
+ambiguity to guard against). Confirmed via PubChem: `CC(C)SC#N` ->
+"propan-2-yl thiocyanate" (CID 246911), `CC(C)(C)SC#N` -> "tert-butyl
+thiocyanate" (CID 641640). R may also be a plain, unsubstituted benzene
+ring bonded directly to the thiocyanate sulfur, e.g. 'phenyl thiocyanate'
+(CID 21357) -- a chain spacer between the ring and the sulfur (e.g.
+'benzyl thiocyanate') is still deferred, mirroring `_cyanate.py`'s
+identical scope note. A substituted, unsaturated, or otherwise
+ring-bearing R is still deferred.
+Explicitly out of scope (raise `UnsupportedStructure`): any ring other
+than the single plain-benzene-bonded-directly-to-S exception above, more
+than one thiocyanate group, and any other heteroatom/oxygen not part of
+this single thiocyanate group.
 """
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, non_single_bonds
+from ._common import UnsupportedStructure, adjacency, is_plain_benzene_ring, non_single_bonds
 from ._substituents import name_branch
 
 _YNE_ORDER = 3.0
@@ -88,10 +93,24 @@ def name_thiocyanate(mol) -> str:
         )
     sulfur_idx, nitrile_c_idx, alkyl_c_idx = cores[0]
 
-    if mol.GetRingInfo().NumRings() > 0:
+    ring_info = mol.GetRingInfo()
+    ring_atoms = set()
+    if ring_info.NumRings() == 1:
+        candidate_ring_atoms = set(ring_info.AtomRings()[0])
+        if not is_plain_benzene_ring(mol, candidate_ring_atoms):
+            raise UnsupportedStructure(
+                "a non-benzene ring is out of scope for this module"
+            )
+        if alkyl_c_idx not in candidate_ring_atoms:
+            raise UnsupportedStructure(
+                "a benzene ring reached through a chain spacer (rather "
+                "than bonded directly to the thiocyanate sulfur) is not "
+                "supported yet"
+            )
+        ring_atoms = candidate_ring_atoms
+    elif ring_info.NumRings() > 1:
         raise UnsupportedStructure(
-            "a ring-attached thiocyanate is out of scope for this "
-            "acyclic-only module"
+            "more than one ring is out of scope for this module"
         )
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
@@ -108,12 +127,18 @@ def name_thiocyanate(mol) -> str:
                 "heteroatoms other than this single thiocyanate group are "
                 "not supported yet"
             )
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0 or atom.GetIsAromatic():
+        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+        if atom.GetIsAromatic() and atom.GetIdx() not in ring_atoms:
             raise UnsupportedStructure("aromatic rings are out of scope for this module")
 
-    non_single = [b for b in non_single_bonds(mol) if nitrile_c_idx not in (b[0], b[1])]
+    non_single = [
+        b
+        for b in non_single_bonds(mol)
+        if nitrile_c_idx not in (b[0], b[1]) and (b[0] not in ring_atoms or b[1] not in ring_atoms)
+    ]
     if non_single:
         raise UnsupportedStructure("unsaturation in the R group is not supported yet")
 
-    r_name, _ = name_branch(adjacency(mol), alkyl_c_idx, sulfur_idx, {})
+    r_name, _ = name_branch(adjacency(mol), alkyl_c_idx, sulfur_idx, {}, ring_atoms)
     return f"{r_name} thiocyanate"

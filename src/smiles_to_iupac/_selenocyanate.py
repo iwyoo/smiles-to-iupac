@@ -22,16 +22,21 @@ is restricted to a plain, unsubstituted, saturated, acyclic alkyl group
 (branched or unbranched) attached at its own chain terminus, built with
 `name_branch` (P-29 PIN style, PR #237/#328/#329), never parenthesized.
 Confirmed via PubChem: `CC(C)[Se]C#N` -> "propan-2-yl selenocyanate"
-(CID 13496974). A substituted, unsaturated, or ring-bearing R is still
+(CID 13496974). R may also be a plain, unsubstituted benzene ring bonded
+directly to the selenocyanate selenium, e.g. 'phenyl selenocyanate' (CID
+555340) -- a chain spacer between the ring and the selenium is still
+deferred, mirroring `_cyanate.py`'s/`_thiocyanate.py`'s identical scope
+note. A substituted, unsaturated, or otherwise ring-bearing R is still
 deferred.
-Explicitly out of scope (raise `UnsupportedStructure`): any ring anywhere
-in the molecule, more than one selenocyanate group, and any other
-heteroatom/oxygen not part of this single selenocyanate group.
+Explicitly out of scope (raise `UnsupportedStructure`): any ring other
+than the single plain-benzene-bonded-directly-to-Se exception above, more
+than one selenocyanate group, and any other heteroatom/oxygen not part of
+this single selenocyanate group.
 """
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, non_single_bonds
+from ._common import UnsupportedStructure, adjacency, is_plain_benzene_ring, non_single_bonds
 from ._substituents import name_branch
 
 _YNE_ORDER = 3.0
@@ -84,10 +89,24 @@ def name_selenocyanate(mol) -> str:
         )
     selenium_idx, nitrile_c_idx, alkyl_c_idx = cores[0]
 
-    if mol.GetRingInfo().NumRings() > 0:
+    ring_info = mol.GetRingInfo()
+    ring_atoms = set()
+    if ring_info.NumRings() == 1:
+        candidate_ring_atoms = set(ring_info.AtomRings()[0])
+        if not is_plain_benzene_ring(mol, candidate_ring_atoms):
+            raise UnsupportedStructure(
+                "a non-benzene ring is out of scope for this module"
+            )
+        if alkyl_c_idx not in candidate_ring_atoms:
+            raise UnsupportedStructure(
+                "a benzene ring reached through a chain spacer (rather "
+                "than bonded directly to the selenocyanate selenium) is "
+                "not supported yet"
+            )
+        ring_atoms = candidate_ring_atoms
+    elif ring_info.NumRings() > 1:
         raise UnsupportedStructure(
-            "a ring-attached selenocyanate is out of scope for this "
-            "acyclic-only module"
+            "more than one ring is out of scope for this module"
         )
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
@@ -104,12 +123,18 @@ def name_selenocyanate(mol) -> str:
                 "heteroatoms other than this single selenocyanate group "
                 "are not supported yet"
             )
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0 or atom.GetIsAromatic():
+        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+        if atom.GetIsAromatic() and atom.GetIdx() not in ring_atoms:
             raise UnsupportedStructure("aromatic rings are out of scope for this module")
 
-    non_single = [b for b in non_single_bonds(mol) if nitrile_c_idx not in (b[0], b[1])]
+    non_single = [
+        b
+        for b in non_single_bonds(mol)
+        if nitrile_c_idx not in (b[0], b[1]) and (b[0] not in ring_atoms or b[1] not in ring_atoms)
+    ]
     if non_single:
         raise UnsupportedStructure("unsaturation in the R group is not supported yet")
 
-    r_name, _ = name_branch(adjacency(mol), alkyl_c_idx, selenium_idx, {})
+    r_name, _ = name_branch(adjacency(mol), alkyl_c_idx, selenium_idx, {}, ring_atoms)
     return f"{r_name} selenocyanate"

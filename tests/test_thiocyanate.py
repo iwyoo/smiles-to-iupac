@@ -52,3 +52,14 @@ def test_nitrile_not_confused_with_thiocyanate():
 
 def test_isothiocyanate_not_confused_with_thiocyanate():
     assert smiles_to_iupac("CN=C=S") == "isothiocyanatomethane"
+
+
+def test_phenyl_thiocyanate():
+    # A plain, unsubstituted benzene ring bonded directly to the
+    # thiocyanate sulfur, cross-checked against PubChem PUG REST.
+    assert smiles_to_iupac("c1ccccc1SC#N") == "phenyl thiocyanate"  # CID 21357
+
+
+def test_phenyl_thiocyanate_chain_spacer_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1CSC#N")
