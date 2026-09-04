@@ -47,8 +47,24 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - More than one oxygen, or an oxygen not shaped like a plain ether (degree
   != 2, a non-carbon neighbor) — routed to a different module by `core.py`
   before this one is even tried.
-- Any unsaturation, any ring, or any heteroatom other than the single ether
-  oxygen.
+- Any unsaturation, any ring other than a single benzene ring (see below),
+  or any heteroatom other than the single ether oxygen.
+
+A single, otherwise-unsubstituted benzene ring gets a dedicated path
+(`_name_benzene_ring_ether_chain`), mirroring `_nitro.py`'s equivalent:
+'oxy' has no suffix form, so P-44.1.2.2 rule (1) makes the ring the parent
+regardless of the other side's chain length. Both a direct ring-oxygen
+bond (P-63.2.2.1.1's own 'alkoxybenzene' shape) and a chain spacer between
+the ring and the ether oxygen are supported — unlike some sibling
+prefix-only modules (`_disulfide.py`), 'oxy' is a single-word contraction/
+suffix with no P-16.3.3 disambiguation need, so PubChem's own names for
+both shapes (confirmed via PUG REST: CID 7500 'c1ccccc1OCC' ->
+'ethoxybenzene', 'c1ccccc1COCC' -> 'ethoxymethylbenzene', 'c1ccccc1OC(C)C'
+-> 'propan-2-yloxybenzene', 'c1ccccc1COC(C)C' -> 'propan-2-yloxymethylbenzene')
+never enclose a compound R' side in parentheses when the ring is the
+parent — unlike the plain two-chain path above, which does (P-29.4's
+default via `format_substituent_prefixes`/`name_branch`'s own
+`is_compound` convention elsewhere in this project).
 """
 
 from ._acyclic import longest_chain_length, winning_chain_from_carbon_graph, winning_chain_with_key
@@ -57,7 +73,9 @@ from ._common import (
     adjacency,
     bfs,
     carbon_adjacency,
+    is_plain_benzene_ring,
     non_single_bonds,
+    ring_chain_attachment,
     specified_stereocenters,
 )
 from ._substituents import name_branch
@@ -85,8 +103,14 @@ def has_ether_shape(mol) -> bool:
     return oxygen.GetDegree() == 2 and all(n.GetAtomicNum() == 6 for n in oxygen.GetNeighbors())
 
 
-def name_ether(mol) -> str:
+def _validate_ether_atoms(mol, ring_atoms=frozenset()):
+    """Shared per-atom validation for both the plain-chain path and the
+    single-benzene-ring path (mirrors `_nitro.py`'s
+    `_validate_nitro_atoms`): every atom outside `ring_atoms` (empty for
+    the plain-chain path) must be a non-aromatic chain carbon or the
+    ether's own oxygen."""
     for atom in mol.GetAtoms():
+        idx = atom.GetIdx()
         if atom.GetAtomicNum() not in (6, 8):
             raise UnsupportedStructure(
                 "heteroatoms other than the ether oxygen are not supported "
@@ -94,18 +118,77 @@ def name_ether(mol) -> str:
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic():
+        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and idx not in ring_atoms:
             raise UnsupportedStructure(
                 "aromatic rings are out of scope for this module (see the "
                 "separate aromatic-ring module)"
             )
-    if non_single_bonds(mol):
+    if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in non_single_bonds(mol)):
         raise UnsupportedStructure(
             "unsaturation is not supported by this module (see P-31 for "
             "alkenes/alkynes; not yet combined with an ether here)"
         )
-    if mol.GetRingInfo().NumRings() > 0:
+
+
+def _name_benzene_ring_ether_chain(mol, ring_atoms) -> str:
+    """P-44.1.2.2 rule (1): since the 'oxy' prefix has no suffix form
+    (module docstring), a single, otherwise-unsubstituted benzene ring is
+    always the parent hydride, regardless of the other side's chain
+    length. Handles both a direct ring-oxygen bond ('ethoxybenzene') and
+    a chain spacer between the ring and the ether oxygen
+    ('ethoxymethylbenzene', '2-ethoxyethylbenzene') -- see module
+    docstring for the PubChem confirmations of both shapes and why,
+    unlike `_disulfide.py`, neither needs parentheses around a compound
+    R' side."""
+    _validate_ether_atoms(mol, ring_atoms)
+    if specified_stereocenters(mol) is not None:
+        raise UnsupportedStructure(
+            "a specified stereocenter is not supported yet for a "
+            "benzene-ring-substituent ether"
+        )
+
+    graph = adjacency(mol)
+    (oxygen_idx,) = (idx for idx in graph if mol.GetAtomWithIdx(idx).GetAtomicNum() == 8)
+
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside an ether is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+
+    if chain_root == oxygen_idx:
+        (r_prime,) = [n for n in graph[oxygen_idx] if n != ring_atom]
+        sub_name, _ = name_branch(graph, r_prime, oxygen_idx, {})
+        return f"{_oxy_prefix(sub_name)}benzene"
+
+    blocked_graph = {node: [n for n in neighbors if n != oxygen_idx] for node, neighbors in graph.items()}
+    del blocked_graph[oxygen_idx]
+    reached, _ = bfs(blocked_graph, ring_atom)
+    (r_prime,) = [n for n in graph[oxygen_idx] if n not in reached]
+
+    sub_name, _ = name_branch(graph, r_prime, oxygen_idx, {})
+    terminals = {oxygen_idx: _oxy_prefix(sub_name)}
+    # Unlike most other benzene-ring-substituent chain modules
+    # (`_nitro.py` etc.), a compound 'oxy'-terminated branch name is
+    # never parenthesized here either -- confirmed above ('propan-2-
+    # yloxymethylbenzene', '2-ethoxyethylbenzene').
+    branch_name, _ = name_branch(graph, chain_root, ring_atom, terminals)
+    return f"{branch_name}benzene"
+
+
+def name_ether(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_benzene_ring_ether_chain(mol, ring_atoms)
         raise UnsupportedStructure("rings are not supported by this module yet")
+    if ring_info.NumRings() > 0:
+        raise UnsupportedStructure("rings are not supported by this module yet")
+
+    _validate_ether_atoms(mol)
 
     (oxygen,) = (atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 8)
     oxygen_idx = oxygen.GetIdx()

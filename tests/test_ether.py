@@ -100,3 +100,40 @@ def test_unspecified_stereocenter_ignored():
 def test_stereocenter_on_substituent_branch_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CCCCCO[C@H](C)CC")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Direct ring-oxygen bond (P-63.2.2.1.1's own 'alkoxybenzene'
+        # shape) -- PubChem-confirmed: CID 7500 'c1ccccc1OCC' ->
+        # 'ethoxybenzene', CID 7519 'c1ccccc1OC' -> 'methoxybenzene'.
+        ("c1ccccc1OCC", "ethoxybenzene"),
+        ("c1ccccc1OC", "methoxybenzene"),
+        ("c1ccccc1OCCC", "propoxybenzene"),
+        # Direct ring-oxygen bond with a branched R' -- no parentheses
+        # around the compound side here, unlike the plain two-chain path
+        # above (module docstring). PubChem-confirmed:
+        # 'c1ccccc1OC(C)C' -> 'propan-2-yloxybenzene'.
+        ("c1ccccc1OC(C)C", "propan-2-yloxybenzene"),
+        # Chain spacer between the ring and the ether oxygen. PubChem-
+        # confirmed: 'c1ccccc1COCC' -> 'ethoxymethylbenzene',
+        # 'c1ccccc1CCOCC' -> '2-ethoxyethylbenzene',
+        # 'c1ccccc1COC(C)C' -> 'propan-2-yloxymethylbenzene'.
+        ("c1ccccc1COCC", "ethoxymethylbenzene"),
+        ("c1ccccc1CCOCC", "2-ethoxyethylbenzene"),
+        ("c1ccccc1COC(C)C", "propan-2-yloxymethylbenzene"),
+    ],
+)
+def test_benzene_ring_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_benzene_ring_multiple_substituents_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("COc1ccccc1OC")
+
+
+def test_benzene_ring_stereocenter_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1O[C@H](C)CC")
