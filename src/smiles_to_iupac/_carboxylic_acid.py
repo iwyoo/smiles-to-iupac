@@ -485,21 +485,71 @@ def _name_phenyl_chain_carboxylic_acid(mol, ring_atoms):
     return _name_from_substituents(chain_length, 1, [], [], grouped)
 
 
+def _name_ring_carboxylic_acid(mol, ring_atoms):
+    """P-65.1.2.2.2: "Carboxy groups attached to cyclic parent hydrides ...
+    are always named by using the suffix 'carboxylic acid'" -- e.g.
+    'cyclopentanecarboxylic acid (PIN)'. Unlike the chain-parent 'oic acid'
+    suffix above (where the -COOH carbon is always the parent's own C1),
+    here the ring itself is the parent hydride and the -COOH carbon is a
+    substituent atom hanging directly off one ring carbon, mirroring
+    `_sulfonic_acid.py`'s `_name_cyclic_sulfonic_acid` construction but for
+    an *exocyclic* suffix carbon rather than a ring-atom-attached one.
+
+    Narrowest possible slice: a single, otherwise completely unsubstituted
+    saturated monocyclic all-carbon ring with exactly one -COOH hanging
+    directly off one ring atom (no intervening chain carbon, no other ring
+    substituent, no standalone hydroxyl, no ring unsaturation) -- the sole
+    substituent's ring locant is P-14.3.3-omitted, exactly like
+    `_sulfonic_acid.py`'s analogous "total_subs == 0" ring case."""
+    carboxyl_carbons, carboxyl_oxygens, extra_hydroxyls = _validate_and_collect_carboxyls(mol)
+    if extra_hydroxyls:
+        raise UnsupportedStructure(
+            "a standalone hydroxyl alongside a ring carboxylic acid is not "
+            "supported yet"
+        )
+    if len(carboxyl_carbons) != 1:
+        raise UnsupportedStructure(
+            "more than one carboxylic acid group alongside a ring is not "
+            "supported yet"
+        )
+    (carboxyl_carbon,) = carboxyl_carbons
+
+    all_non_single = non_single_bonds(mol)
+    if any(a not in carboxyl_oxygens and b not in carboxyl_oxygens for a, b, _ in all_non_single):
+        raise UnsupportedStructure(
+            "an unsaturated ring alongside a carboxylic acid substituent "
+            "is not supported yet (see P-31.1.3)"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None or attachment[1] != carboxyl_carbon:
+        raise UnsupportedStructure(
+            "a ring with more than one exocyclic substituent, or a "
+            "carboxylic acid not directly attached to the ring itself, is "
+            "not supported yet"
+        )
+
+    return "cyclo" + alkane_name(len(ring_atoms)) + "carboxylic acid"
+
+
 def name_carboxylic_acid(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
             return _name_phenyl_chain_carboxylic_acid(mol, ring_atoms)
+        if not any(mol.GetAtomWithIdx(idx).GetIsAromatic() for idx in ring_atoms):
+            return _name_ring_carboxylic_acid(mol, ring_atoms)
         raise UnsupportedStructure(
             "a -COOH group on/in a ring uses the separate 'carboxylic acid' "
-            "suffix construction (P-65.1.1.2), out of scope for this "
+            "suffix construction (P-65.1.2.2.2), out of scope for this "
             "acyclic-only module"
         )
     if ring_info.NumRings() > 0:
         raise UnsupportedStructure(
             "a -COOH group on/in a ring uses the separate 'carboxylic acid' "
-            "suffix construction (P-65.1.1.2), out of scope for this "
+            "suffix construction (P-65.1.2.2.2), out of scope for this "
             "acyclic-only module"
         )
     carboxyl_carbons, carboxyl_oxygens, hydroxyls = _validate_and_collect_carboxyls(mol)

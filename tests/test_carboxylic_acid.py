@@ -46,11 +46,50 @@ def test_ether_raises():
         smiles_to_iupac("CCOCC(=O)O")
 
 
-def test_ring_attached_carboxylic_acid_raises():
-    # P-65.1.1.2: a -COOH on a ring uses the separate 'carboxylic acid'
-    # suffix construction, out of scope for this acyclic-only module.
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # P-65.1.2.2.2: a -COOH directly attached to an otherwise
+        # unsubstituted saturated monocyclic ring is named with the
+        # 'carboxylic acid' suffix on the ring parent hydride, cross-checked
+        # against PubChem (e.g. cyclohexanecarboxylic acid's PIN). The sole
+        # substituent's ring locant is omitted (P-14.3.3), same as
+        # _sulfonic_acid.py's analogous single-substituent ring case.
+        ("C1CCC(CC1)C(=O)O", "cyclohexanecarboxylic acid"),
+        ("C1CCCC1C(=O)O", "cyclopentanecarboxylic acid"),
+        ("C1CCCCCC1C(=O)O", "cycloheptanecarboxylic acid"),
+        ("C1CC1C(=O)O", "cyclopropanecarboxylic acid"),
+    ],
+)
+def test_ring_carboxylic_acid_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_ring_carboxylic_acid_extra_substituent_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)C1CCCCC1")
+        smiles_to_iupac("C1CCC(Cl)(CC1)C(=O)O")
+
+
+def test_ring_carboxylic_acid_unsaturated_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1=CCCC1C(=O)O")
+
+
+def test_ring_carboxylic_acid_standalone_hydroxyl_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OC1CCCCC1C(=O)O")
+
+
+def test_ring_carboxylic_acid_intervening_chain_carbon_raises():
+    # A -COOH one chain carbon away from the ring (rather than directly
+    # attached) is still out of scope for this first slice.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1CCC(CC1)CC(=O)O")
+
+
+def test_ring_carboxylic_acid_two_carboxyls_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OC(=O)C1CCC(C(=O)O)CC1")
 
 
 def test_aryl_carboxylic_acid_raises():
