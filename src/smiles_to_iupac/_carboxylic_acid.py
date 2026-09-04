@@ -28,10 +28,13 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   convention already prefers the systematic stem once substituted, e.g.
   'ClCC(=O)O' -> '2-chloroethanoic acid', not '2-chloroacetic acid' --
   P-65.1.1 retains 'acetic acid' as PIN only for unsubstituted CH3COOH
-  itself). A -COOH directly on the ring itself (no intervening chain
-  carbon), any other ring shape (substituted benzene, any other aromatic
-  or saturated ring, more than one ring), remains out of scope and still
-  raises `UnsupportedStructure`.
+  itself). A -COOH directly on a saturated monocyclic all-carbon ring is
+  supported (see `_name_ring_carboxylic_acid`), including other ring
+  substituents (alkyl/halogen), e.g. '4-methylcyclohexane-1-carboxylic
+  acid' (PubChem CID 20330); ring unsaturation, a standalone hydroxyl, a
+  second -COOH, any aromatic/polycyclic ring, or an intervening chain
+  carbon between the ring and the -COOH carbon remain out of scope and
+  still raise `UnsupportedStructure`.
 - A -COOH carbon is always a chain terminus: after its carbonyl (=O) and
   hydroxyl (-OH) oxygens, it has room for at most one more substituent,
   which must be another chain carbon (or nothing, for formic acid,
@@ -70,8 +73,10 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   `UnsupportedStructure`).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- Any ring anywhere in the molecule (P-65.1.1.2's territory; acyclic only,
-  per this module's scope).
+- A ring bearing anything other than the single narrow shape
+  `_name_ring_carboxylic_acid` supports (see above): unsaturated,
+  aromatic, or polycyclic rings, a ring reached through an intervening
+  chain carbon, or more than one -COOH group.
 - Any oxygen that isn't part of a full -COOH pattern on some carbon, or a
   standalone hydroxyl on a carbon with no carbonyl (a lone carbonyl with no
   matching hydroxyl indicates an unresolved aldehyde/ketone competition; an
@@ -105,6 +110,7 @@ from ._common import (
     non_single_bonds,
     ordered_chain,
     ring_chain_attachment,
+    ring_cycle,
     specified_stereocenters,
 )
 from ._numerals import alkane_name
@@ -485,6 +491,43 @@ def _name_phenyl_chain_carboxylic_acid(mol, ring_atoms):
     return _name_from_substituents(chain_length, 1, [], [], grouped)
 
 
+def _ring_substituents(graph, ring_order, halogens, excluded):
+    """{ring position -> [substituent name, ...]}, mirroring
+    `_sulfonic_acid.py`'s identically-named helper -- every branch hanging
+    off a ring atom other than the carboxylic acid carbon itself (in
+    `excluded`) is a plain substituent prefix (alkyl/halogen)."""
+    ring_set = set(ring_order)
+    substituents = {}
+    for position, atom in enumerate(ring_order, start=1):
+        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+    return substituents
+
+
+def _ring_name_from_substituents(ring_size, carboxyl_locant, grouped):
+    stem = "cyclo" + alkane_name(ring_size)
+    total_subs = sum(len(info["locants"]) for info in grouped.values())
+    if total_subs == 0:
+        # P-14.3.3: the sole substituent on an otherwise unsubstituted ring
+        # has no locant to distinguish, e.g. 'cyclohexanecarboxylic acid'.
+        return stem + "carboxylic acid"
+    prefix = format_substituent_prefixes(grouped)
+    return f"{prefix}{stem}-{carboxyl_locant}-carboxylic acid"
+
+
+def _ring_candidate_key(ring_size, carboxyl_locant, substituents):
+    grouped = group_substituents(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _ring_name_from_substituents(ring_size, carboxyl_locant, grouped)
+    return carboxyl_locant, locant_set, citation_locants, name
+
+
 def _name_ring_carboxylic_acid(mol, ring_atoms):
     """P-65.1.2.2.2: "Carboxy groups attached to cyclic parent hydrides ...
     are always named by using the suffix 'carboxylic acid'" -- e.g.
@@ -495,12 +538,14 @@ def _name_ring_carboxylic_acid(mol, ring_atoms):
     `_sulfonic_acid.py`'s `_name_cyclic_sulfonic_acid` construction but for
     an *exocyclic* suffix carbon rather than a ring-atom-attached one.
 
-    Narrowest possible slice: a single, otherwise completely unsubstituted
-    saturated monocyclic all-carbon ring with exactly one -COOH hanging
-    directly off one ring atom (no intervening chain carbon, no other ring
-    substituent, no standalone hydroxyl, no ring unsaturation) -- the sole
-    substituent's ring locant is P-14.3.3-omitted, exactly like
-    `_sulfonic_acid.py`'s analogous "total_subs == 0" ring case."""
+    A saturated monocyclic all-carbon ring with exactly one -COOH hanging
+    directly off one ring atom (no intervening chain carbon, no standalone
+    hydroxyl, no ring unsaturation, and no other substituent sharing that
+    same ring atom), plus any number of substituents (alkyl/halogen) on
+    *other* ring atoms -- e.g. 'cyclohexanecarboxylic acid' (the sole
+    substituent's ring locant is P-14.3.3-omitted) and
+    '4-methylcyclohexane-1-carboxylic acid' (PubChem CID 20330), mirroring
+    `_sulfonic_acid.py`'s ring-numbering search."""
     carboxyl_carbons, carboxyl_oxygens, extra_hydroxyls = _validate_and_collect_carboxyls(mol)
     if extra_hydroxyls:
         raise UnsupportedStructure(
@@ -522,15 +567,37 @@ def _name_ring_carboxylic_acid(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    attachment = ring_chain_attachment(graph, ring_atoms, set())
-    if attachment is None or attachment[1] != carboxyl_carbon:
+    ring_neighbors = [n for n in graph[carboxyl_carbon] if n in ring_atoms]
+    if len(ring_neighbors) != 1:
         raise UnsupportedStructure(
-            "a ring with more than one exocyclic substituent, or a "
-            "carboxylic acid not directly attached to the ring itself, is "
+            "a carboxylic acid not directly attached to a single ring atom "
+            "is not supported yet"
+        )
+    (ring_atom,) = ring_neighbors
+    other_ring_atom_branches = [n for n in graph[ring_atom] if n not in ring_atoms and n != carboxyl_carbon]
+    if other_ring_atom_branches:
+        raise UnsupportedStructure(
+            "a substituent on the same ring atom as the carboxylic acid is "
             "not supported yet"
         )
 
-    return "cyclo" + alkane_name(len(ring_atoms)) + "carboxylic acid"
+    halogens = halogen_substituents(mol)
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            carboxyl_locant = position_of[ring_atom]
+            substituents = _ring_substituents(graph, candidate, halogens, {carboxyl_carbon})
+            key = _ring_candidate_key(ring_size, carboxyl_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+
+    return best_name
 
 
 def name_carboxylic_acid(mol) -> str:
