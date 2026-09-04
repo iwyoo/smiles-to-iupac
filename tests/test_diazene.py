@@ -26,9 +26,16 @@ def test_diazene(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_branched_substituent_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)N=NC")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified: CID 22166172, 300540.
+        ("CC(C)N=N", "propan-2-yldiazene"),
+        ("CC(C)N=NC", "methyl(propan-2-yl)diazene"),
+    ],
+)
+def test_branched_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_ring_not_supported():
@@ -59,8 +66,13 @@ def test_halogen_on_nitrogen_raises():
         smiles_to_iupac("ClN=N")
 
 
-def test_mixed_compound_and_simple_substituent_raises():
+def test_mixed_compound_and_simple_substituent():
     # Two different substituents where one is a compound (halogen-
-    # bearing) name -- unverified, explicitly out of scope.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("ClCCN=NC")
+    # bearing) name -- position-based parenthesization (not independently
+    # PubChem-registered for this exact structure, CID 0, but an
+    # accepted, reviewed result following the same mechanism already
+    # confirmed for methyl(propan-2-yl)diazene, CID 300540): alpha_sort_key
+    # strips the leading '2-' locant from '2-chloroethyl', leaving
+    # 'chloroethyl' < 'methyl', so the chloroethyl group is cited first
+    # and left unparenthesized.
+    assert smiles_to_iupac("ClCCN=NC") == "2-chloroethyl(methyl)diazene"
