@@ -42,6 +42,25 @@ def test_cyclohexanesulfonic_acid():
     assert smiles_to_iupac("OS(=O)(=O)C1CCCCC1") == "cyclohexanesulfonic acid"
 
 
+def test_unsaturated_ring_sulfonic_acid():
+    # Monocyclic ring, single -SO3H, single ring double bond (P-31.1.3):
+    # the sulfonic acid always gets locant 1 (suffix priority), the ring
+    # double bond's locant is minimized by choosing direction.
+    # Cross-checked against PubChem (CID 15311747/20471403).
+    assert smiles_to_iupac("OS(=O)(=O)C1CCCC=C1") == "cyclohex-2-ene-1-sulfonic acid"
+    assert smiles_to_iupac("OS(=O)(=O)C1CC=CCC1") == "cyclohex-3-ene-1-sulfonic acid"
+
+
+def test_unsaturated_ring_sulfonic_acid_with_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OS(=O)(=O)C1CCCC=C1C")
+
+
+def test_unsaturated_ring_sulfonic_acid_triple_bond_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OS(=O)(=O)C1CCCC#C1")
+
+
 def test_2_methylcyclohexane_1_sulfonic_acid():
     # PubChem CID 121004858.
     assert smiles_to_iupac("OS(=O)(=O)C1CCCCC1C") == "2-methylcyclohexane-1-sulfonic acid"
@@ -60,11 +79,6 @@ def test_2_chlorocyclohexane_1_sulfonic_acid():
 def test_polycyclic_sulfonic_acid_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OS(=O)(=O)C1CC2CCC1CC2")
-
-
-def test_unsaturated_ring_sulfonic_acid_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)(=O)C1CCCC=C1")
 
 
 def test_sulfonic_acid_on_ring_substituent_branch_not_supported():
