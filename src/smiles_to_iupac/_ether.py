@@ -55,16 +55,16 @@ A single, otherwise-unsubstituted benzene ring gets a dedicated path
 'oxy' has no suffix form, so P-44.1.2.2 rule (1) makes the ring the parent
 regardless of the other side's chain length. Both a direct ring-oxygen
 bond (P-63.2.2.1.1's own 'alkoxybenzene' shape) and a chain spacer between
-the ring and the ether oxygen are supported — unlike some sibling
-prefix-only modules (`_disulfide.py`), 'oxy' is a single-word contraction/
-suffix with no P-16.3.3 disambiguation need, so PubChem's own names for
-both shapes (confirmed via PUG REST: CID 7500 'c1ccccc1OCC' ->
+the ring and the ether oxygen are supported, confirmed via PubChem PUG
+REST for the underlying structure/connectivity (CID 7500 'c1ccccc1OCC' ->
 'ethoxybenzene', 'c1ccccc1COCC' -> 'ethoxymethylbenzene', 'c1ccccc1OC(C)C'
--> 'propan-2-yloxybenzene', 'c1ccccc1COC(C)C' -> 'propan-2-yloxymethylbenzene')
-never enclose a compound R' side in parentheses when the ring is the
-parent — unlike the plain two-chain path above, which does (P-29.4's
-default via `format_substituent_prefixes`/`name_branch`'s own
-`is_compound` convention elsewhere in this project).
+-> 'propan-2-yloxybenzene', 'c1ccccc1COC(C)C' ->
+'propan-2-yloxymethylbenzene') — but, like `_nitro.py`/`_azide.py`
+(see their own PubChem-vs-PIN discrepancy notes in `test_nitro.py`/
+`test_azide.py`), a compound R' side or a compound chain-spacer branch is
+still parenthesized here even where PubChem's own auto-generated name
+omits the parentheses, escalating to square brackets rather than nesting
+round ones when a '(...)oxy' term already sits inside the branch.
 """
 
 from ._acyclic import longest_chain_length, winning_chain_from_carbon_graph, winning_chain_with_key
@@ -136,10 +136,18 @@ def _name_benzene_ring_ether_chain(mol, ring_atoms) -> str:
     always the parent hydride, regardless of the other side's chain
     length. Handles both a direct ring-oxygen bond ('ethoxybenzene') and
     a chain spacer between the ring and the ether oxygen
-    ('ethoxymethylbenzene', '2-ethoxyethylbenzene') -- see module
-    docstring for the PubChem confirmations of both shapes and why,
-    unlike `_disulfide.py`, neither needs parentheses around a compound
-    R' side."""
+    ('(2-ethoxyethyl)benzene').
+
+    A branched R' still gets the plain two-chain path's own parenthesized
+    '(...)oxy' treatment (P-63.2.2.1.1's worked example, 'butan-2-yl' ->
+    '(butan-2-yl)oxy'). A chain-spacer branch also follows this project's
+    existing benzene-ring-chain convention (`_nitro.py`/`_azide.py`): the
+    whole branch is parenthesized whenever it's compound, even though
+    PubChem's own auto-generated name sometimes omits those parentheses
+    (confirmed for azide, see `test_azide.py`) -- escalating to square
+    brackets when the branch name already contains a '(...)oxy' term of
+    its own, to avoid nesting round brackets (mirrors the plain two-chain
+    path's own bracket-escalation example in the module docstring)."""
     _validate_ether_atoms(mol, ring_atoms)
     if specified_stereocenters(mol) is not None:
         raise UnsupportedStructure(
@@ -160,7 +168,9 @@ def _name_benzene_ring_ether_chain(mol, ring_atoms) -> str:
 
     if chain_root == oxygen_idx:
         (r_prime,) = [n for n in graph[oxygen_idx] if n != ring_atom]
-        sub_name, _ = name_branch(graph, r_prime, oxygen_idx, {})
+        sub_name, sub_compound = name_branch(graph, r_prime, oxygen_idx, {})
+        if sub_compound:
+            sub_name = f"({sub_name})"
         return f"{_oxy_prefix(sub_name)}benzene"
 
     blocked_graph = {node: [n for n in neighbors if n != oxygen_idx] for node, neighbors in graph.items()}
@@ -168,14 +178,16 @@ def _name_benzene_ring_ether_chain(mol, ring_atoms) -> str:
     reached, _ = bfs(blocked_graph, ring_atom)
     (r_prime,) = [n for n in graph[oxygen_idx] if n not in reached]
 
-    sub_name, _ = name_branch(graph, r_prime, oxygen_idx, {})
-    terminals = {oxygen_idx: _oxy_prefix(sub_name)}
-    # Unlike most other benzene-ring-substituent chain modules
-    # (`_nitro.py` etc.), a compound 'oxy'-terminated branch name is
-    # never parenthesized here either -- confirmed above ('propan-2-
-    # yloxymethylbenzene', '2-ethoxyethylbenzene').
-    branch_name, _ = name_branch(graph, chain_root, ring_atom, terminals)
-    return f"{branch_name}benzene"
+    sub_name, sub_compound = name_branch(graph, r_prime, oxygen_idx, {})
+    if sub_compound:
+        sub_name = f"({sub_name})"
+    oxy_term = _oxy_prefix(sub_name)
+    branch_name, is_compound = name_branch(graph, chain_root, ring_atom, {oxygen_idx: oxy_term})
+    if not is_compound:
+        return f"{branch_name}benzene"
+    if "(" in branch_name:
+        return f"[{branch_name}]benzene"
+    return f"({branch_name})benzene"
 
 
 def name_ether(mol) -> str:
