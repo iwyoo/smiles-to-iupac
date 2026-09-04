@@ -60,6 +60,27 @@ def test_cyclohexanetellurol():
     assert smiles_to_iupac("C1CCCCC1[TeH]") == "cyclohexanetellurol"
 
 
+def test_unsaturated_ring_tellurol():
+    # Monocyclic ring, single -TeH, single ring double bond (P-31.1.3):
+    # same pattern already confirmed for _thiol.py/_selenol.py. The exact
+    # ring structures aren't PubChem-registered (sparse tellurol ring
+    # coverage, same as the plain 'cyclohexanetellurol' case above), but
+    # the acyclic ene+tellurol combination is already PubChem-confirmed
+    # ('prop-2-ene-1-tellurol', CID 101841305).
+    assert smiles_to_iupac("[TeH]C1CCCC=C1") == "cyclohex-2-ene-1-tellurol"
+    assert smiles_to_iupac("[TeH]C1CC=CCC1") == "cyclohex-3-ene-1-tellurol"
+
+
+def test_unsaturated_ring_tellurol_with_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[TeH]C1CCCC=C1C")
+
+
+def test_unsaturated_ring_tellurol_triple_bond_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[TeH]C1CCCC#C1")
+
+
 def test_substituted_ring_tellurol_locant_cited():
     assert smiles_to_iupac("CC1CCCCC1[TeH]") == "2-methylcyclohexane-1-tellurol"
 
