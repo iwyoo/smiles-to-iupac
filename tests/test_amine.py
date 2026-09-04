@@ -121,11 +121,20 @@ def test_nitrile_routes_to_nitrile_module():
     assert smiles_to_iupac("CCC#N") == "propanenitrile"
 
 
-def test_aniline_raises():
-    # An aromatic ring bearing -NH2 is out of scope for this module
-    # (separate, in-progress aromatic-ring module's territory).
+def test_aniline():
+    # -NH2 attached directly to a benzene ring carbon (P-62.2.1.1.1). The
+    # retained name 'aniline' stands for the whole ring+NH2 system (like
+    # 'phenol'), so the amine's own ring locant is never cited, only other
+    # substituents'. PubChem PUG REST: "aniline"/"4-methylaniline"/
+    # "2-chloroaniline" -- all exact matches.
+    assert smiles_to_iupac("Nc1ccccc1") == "aniline"
+    assert smiles_to_iupac("Nc1ccc(C)cc1") == "4-methylaniline"
+    assert smiles_to_iupac("Nc1ccccc1Cl") == "2-chloroaniline"
+
+
+def test_n_substituted_aniline_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Nc1ccccc1")
+        smiles_to_iupac("CNc1ccccc1")
 
 
 def test_bicyclic_amine_raises():
@@ -206,11 +215,10 @@ def test_phenyl_chain_amine_internal_locant():
     assert smiles_to_iupac("C(c1ccccc1)C(C)N") == "1-phenylpropan-2-amine"
 
 
-def test_phenyl_directly_attached_amine_raises():
-    # Aniline-type naming (-NH2 directly on the ring) is a separate
-    # construction, out of scope for this acyclic-chain-parent module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1N")
+def test_phenyl_directly_attached_amine():
+    # Same aniline-type case as test_aniline, reached via a different
+    # ring-atom ordering in the SMILES.
+    assert smiles_to_iupac("c1ccccc1N") == "aniline"
 
 
 def test_phenyl_substituted_benzene_ring_amine_raises():
