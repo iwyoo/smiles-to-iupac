@@ -132,7 +132,7 @@ def test_n_methylcyclohexanesulfinamide():
     "smiles,expected",
     [
         # PubChem-verified: CID 14896695, 11240507.
-        ("CS(=O)NC(C)C", "N-propan-2-ylmethanesulfinamide"),
+        ("CS(=O)NC(C)C", "N-(propan-2-yl)methanesulfinamide"),
         ("CS(=O)NC(C)(C)C", "N-tert-butylmethanesulfinamide"),
     ],
 )

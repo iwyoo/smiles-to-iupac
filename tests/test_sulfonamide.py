@@ -138,7 +138,7 @@ def test_n_ethyl_n_methylethanesulfonamide():
     "smiles,expected",
     [
         # PubChem-verified: CID 312702, 4130162.
-        ("CS(=O)(=O)NC(C)C", "N-propan-2-ylmethanesulfonamide"),
+        ("CS(=O)(=O)NC(C)C", "N-(propan-2-yl)methanesulfonamide"),
         ("CS(=O)(=O)NC(C)(C)C", "N-tert-butylmethanesulfonamide"),
     ],
 )

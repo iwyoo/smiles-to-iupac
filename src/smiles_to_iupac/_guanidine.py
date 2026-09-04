@@ -50,10 +50,12 @@ bond), or both at once, combined and alphabetized per the
 tetramethyl-phenyl worked example above. Each N-substituent's own name is
 built with `name_branch` (P-29 PIN style, fixed project-wide by PR #237;
 mirrors `_urea.py`'s/`_thiourea.py`'s identical fix, PR #332/#333) -- a
-branched N-substituent is supported (e.g. 'N-propan-2-ylguanidine', CID
-11491919; 'N-tert-butylguanidine', CID 12830400), with the same
-'di(...)' parenthesization-only-when-compound rule as `_urea.py` applied
-per multiplying-prefix group in `_combine_prefixes` (e.g.
+branched N-substituent is supported (e.g. 'N-tert-butylguanidine', CID
+12830400, a retained non-compound name), and a *compound* one is always
+parenthesized -- 'N-(propan-2-yl)guanidine', not PubChem's own raw
+'N-propan-2-ylguanidine' (CID 11491919), same correction as `_urea.py`
+(see that module's docstring for the Blue Book citations), applied per
+substituent (single or grouped) in `_combine_prefixes` (e.g.
 'N,N'-di(propan-2-yl)guanidine', CID 198192; 'N,N'-ditert-butylguanidine',
 CID 23103888). Explicitly out of scope (raise
 `UnsupportedStructure`): a different substituent *count* on each amino
@@ -170,7 +172,7 @@ def _combine_prefixes(letters_and_entries):
     for name in sorted(groups, key=alpha_sort_key):
         letters = sorted(groups[name], key=lambda l: (_prime_rank(l), l))
         if len(letters) == 1:
-            prefix_name = name
+            prefix_name = _di_name(name, compound_of[name])
         else:
             prefix_name = multiplying_prefix(len(letters)) + _di_name(name, compound_of[name])
         parts.append(f"{','.join(letters)}-{prefix_name}")

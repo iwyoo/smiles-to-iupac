@@ -43,9 +43,12 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   multiplying prefix (and a single shared 'N,N-' pair) when both are
   identical -- exactly `_sulfonamide.py`'s own N-/N,N-disubstitution
   pattern (same PR), built with `name_branch` (P-29 PIN style, fixed
-  project-wide by PR #237). Confirmed via PubChem:
-  'N-methylmethanesulfinamide' (CS(=O)NC),
-  'N-propan-2-ylmethanesulfinamide' (CID 14896695).
+  project-wide by PR #237). A *compound* N-substituent (has its own
+  locant) is always parenthesized -- 'N-(propan-2-yl)methanesulfinamide',
+  not PubChem's own raw 'N-propan-2-ylmethanesulfinamide' (CID 14896695),
+  same correction as `_urea.py` (see that module's docstring for the
+  Blue Book citations). Confirmed via PubChem for the non-compound case:
+  'N-methylmethanesulfinamide' (CS(=O)NC).
 
 Scope, deliberately narrow, mirroring `_sulfinic_acid.py`'s own first pass
 exactly: a single -S(=O)NH2 on an acyclic chain or on a single saturated
@@ -235,7 +238,10 @@ def _n_prefix(n_names):
         name, is_compound = n_names[0]
         di_name = f"({name})" if is_compound else name
         return f"N,N-di{di_name}"
-    return "-".join(f"N-{name}" for name, _ in sorted(n_names, key=lambda e: alpha_sort_key(e[0])))
+    return "-".join(
+        f"N-({name})" if is_compound else f"N-{name}"
+        for name, is_compound in sorted(n_names, key=lambda e: alpha_sort_key(e[0]))
+    )
 
 
 def _multiplied_word(count, base):

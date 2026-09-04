@@ -111,19 +111,33 @@ def format_mononuclear_prefixes(entries) -> str:
 
     `entries`: a flat list of `(name, is_compound)` tuples (as returned by
     `name_branch`, not a `grouped` dict like `format_substituent_prefixes`
-    above takes). A compound name (has its own locant, e.g. 'propan-2-yl')
-    is never parenthesized on its own ('propan-2-ylphosphane',
-    'propan-2-yl(propyl)phosphane' when it's the alphabetically-first of
-    two) -- only a *multiplied* compound name needs its own inner
-    parentheses to avoid ambiguity ('tri(propan-2-yl)phosphane', PubChem
-    CID 80969), mirroring the 'di(...)' rule already established for
-    `_carbamate.py`/`_urea.py`. A multiplied compound name mixed with a
-    *different* substituent is out of scope (`UnsupportedStructure`) --
-    PubChem's own naming engine is already documented elsewhere as
-    unreliable for phosphane/borane cases with 3+ distinct substituents,
-    and there's no confirmed Blue Book worked example settling the
-    resulting punctuation (a hyphen appears to be involved, but not
-    reliably enough to encode blind)."""
+    above takes). A lone compound name (has its own locant, e.g.
+    'propan-2-yl') with nothing else to cite is never parenthesized
+    ('propan-2-ylphosphane', P-16.5.1.3.2's own "second and subsequent"
+    framing implying the sole substituent needs no enclosing marks at
+    all) -- but as soon as there's a second, different substituent to
+    cite, the literal P-16.5.1.3.1 text ("the first cited substituent
+    never has enclosing marks *unless* it is a compound substituent group
+    or includes a locant") means a compound first substituent *does* get
+    parenthesized too, e.g. '(propan-2-yl)(propyl)phosphane' -- a
+    correction from this project's own earlier (undocumented, PubChem-
+    trusted) assumption that only non-first compound names needed
+    parentheses; PubChem's raw auto-generated names are already
+    documented elsewhere in this project as unreliable for omitting
+    required parentheses (see e.g. `_azide.py`/`_ether.py`'s benzene-ring
+    paths), and this turned out to be another instance of that. A
+    *multiplied* compound name needs its own inner parentheses regardless
+    of position to avoid ambiguity ('tri(propan-2-yl)phosphane', PubChem
+    CID 80969; confirmed independently via the Blue Book's own
+    'ethyldi(propan-2-yl)silane (PIN)' worked example, `tmp/bluebook/
+    P1.html` P-16.5.1.3.1), mirroring the 'di(...)' rule already
+    established for `_carbamate.py`/`_urea.py`. A multiplied compound
+    name mixed with a *different* substituent is out of scope
+    (`UnsupportedStructure`) -- PubChem's own naming engine is already
+    documented elsewhere as unreliable for phosphane/borane cases with
+    3+ distinct substituents, and there's no confirmed Blue Book worked
+    example settling the resulting punctuation (a hyphen appears to be
+    involved, but not reliably enough to encode blind)."""
     counts = {}
     compound_of = {}
     for name, is_compound in entries:
@@ -147,8 +161,13 @@ def format_mononuclear_prefixes(entries) -> str:
     parts = []
     for i, name in enumerate(ordered):
         count = counts[name]
-        text = multiplying_prefix(count) + name if count > 1 else name
-        parts.append(text if i == 0 else f"({text})")
+        if count > 1:
+            text = multiplying_prefix(count) + name
+            parts.append(text if i == 0 else f"({text})")
+        elif compound_of[name]:
+            parts.append(f"({name})")
+        else:
+            parts.append(name if i == 0 else f"({name})")
     return "".join(parts)
 
 
