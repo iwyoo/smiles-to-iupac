@@ -34,9 +34,17 @@ def test_different_substituents_on_different_nitrogens_not_supported():
         smiles_to_iupac("CCNC(=[Te])NC")
 
 
-def test_branched_n_substituent_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)NC(=[Te])N")
+def test_branched_n_substituent():
+    # Not independently PubChem-registered (same sparse-tellurium-data
+    # gap this project has already documented elsewhere), but an
+    # accepted, reviewed result inherited from the identical,
+    # Blue-Book-confirmed mechanism in `_selenourea.py`
+    # ('N-(butan-2-yl)selenourea (PIN)', `tmp/bluebook/P6a.txt` line 1143).
+    assert smiles_to_iupac("CC(C)NC(=[Te])N") == "N-(propan-2-yl)tellurourea"
+
+
+def test_n_tert_butyltellurourea():
+    assert smiles_to_iupac("CC(C)(C)NC(=[Te])N") == "N-tert-butyltellurourea"
 
 
 def test_unsaturated_n_substituent_not_supported():
