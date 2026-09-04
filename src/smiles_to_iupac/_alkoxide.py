@@ -20,8 +20,12 @@ Recommendations ("the Blue Book"):
   only -- isopropoxide is explicitly NOT the PIN for propan-2-ol's anion
   (the worked example 'propan-2-olate (PIN)' confirms this), so a
   non-terminal oxygen always falls through to the systematic '-olate'
-  path. Phenoxide (needs a separate aromatic-ring module) and aminoxide
-  (a carbon-free H2N-O(-) shape) are not implemented.
+  path. Phenoxide (-O(-) directly on a benzene ring, `_name_phenoxide`)
+  is implemented as a separate aromatic-ring path -- P-63.8.1 confirms it
+  "may be substituted in the same way as the corresponding alcohols"
+  (`tmp/bluebook/P6.txt` lines 3091-3111, worked example "lithium
+  phenoxide (PIN)"), mirroring `_alcohol.py`'s `_name_phenol` exactly.
+  Aminoxide (a carbon-free H2N-O(-) shape) is not implemented.
 - Structure-verified via PubChem: `CC[O-]` (CID 119440), `CCC[O-]` (CID
   12543515), `CC(C)[O-]` (CID 3260420) -- PubChem's own generated names use
   the systematic '-olate' form even for the retained-name cases (e.g.
@@ -47,8 +51,10 @@ Recommendations ("the Blue Book"):
   4-atom longest chain) must fall through to the systematic path instead.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- A ring anywhere in the molecule (acyclic-only, mirrors the other anion
-  modules; phenoxide's aromatic ring is a separate follow-up).
+- A ring anywhere in the molecule other than a single plain benzene ring
+  bearing the -O(-) itself or one chain substituent (acyclic-only,
+  mirrors the other anion modules; see `_name_phenoxide`/
+  `_name_phenyl_chain_alkoxide` for the two benzene-ring paths).
 - More than one -O(-) group, or any oxygen that isn't the single alkoxide
   anion (an ether, a second alkoxide, a carbonyl).
 - A carbon bearing the anionic oxygen that's also double-bonded to another
@@ -89,6 +95,7 @@ from ._common import (
     non_single_bonds,
     ordered_chain,
     ring_chain_attachment,
+    ring_cycle,
     specified_stereocenters,
 )
 from ._numerals import alkane_name
@@ -374,6 +381,73 @@ def _validate_and_prepare_alkoxide(mol, aromatic_ring_atoms=frozenset()):
     return oxygen, excluded_atoms, bonds, stereo
 
 
+def _phenoxide_name_from_substituents(grouped):
+    # P-63.8.1/P-72.2.2.2.2: the retained name 'phenoxide' stands for the
+    # whole ring+O(-) system and "may be substituted in the same way as
+    # the corresponding alcohols" (`tmp/bluebook/P6.txt` lines 3091-3111)
+    # -- mirrors `_alcohol.py`'s `_name_phenol`'s identical treatment of
+    # 'phenol', so the O(-)'s own ring locant is never cited, only other
+    # substituents'.
+    if not grouped:
+        return "phenoxide"
+    return f"{format_substituent_prefixes(grouped)}phenoxide"
+
+
+def _phenoxide_candidate_key(o_locant, substituents):
+    grouped = group_substituents(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _phenoxide_name_from_substituents(grouped)
+    return o_locant, locant_set, citation_locants, name
+
+
+def _substituents_for_ring(graph, ring_order, halogens, excluded):
+    ring_set = set(ring_order)
+    substituents = {}
+    for position, atom in enumerate(ring_order, start=1):
+        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+    return substituents
+
+
+def _name_phenoxide(mol, ring_atoms, oxygen):
+    """P-63.8.1/P-72.2.2.2.2: -O(-) attached directly to a benzene ring
+    carbon -- e.g. 'phenoxide' (PubChem CID 998, structure match; PubChem's
+    own auto-generated name), '4-methylphenoxide' (structure-verified
+    against the corresponding phenol, CID 2879, per the Blue Book's own
+    "substituted the same way as the corresponding alcohols" text -- see
+    module docstring). Mirrors `_alcohol.py`'s `_name_phenol` exactly, with
+    'phenoxide' as the retained parent name in place of 'phenol'."""
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure("a specified stereocenter alongside phenoxide is not supported yet")
+
+    graph = adjacency(mol)
+    oxygen_idx = oxygen.GetIdx()
+    (oxygen_carbon,) = [n.GetIdx() for n in oxygen.GetNeighbors()]
+    halogens = halogen_substituents(mol)
+    excluded = {oxygen_idx}
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            o_locant = position_of[oxygen_carbon]
+            substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
+            key = _phenoxide_candidate_key(o_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def _name_phenyl_chain_alkoxide(mol, ring_atoms):
     """Name an alkoxide whose -O(-) lies entirely on a single unbranched
     chain hanging off one atom of an otherwise-plain, unsubstituted
@@ -409,13 +483,6 @@ def _name_phenyl_chain_alkoxide(mol, ring_atoms):
             "alongside a chain alkoxide is not supported yet"
         )
     ring_atom, chain_root = attachment
-    oxygen_idx = oxygen.GetIdx()
-    if chain_root == oxygen_idx:
-        raise UnsupportedStructure(
-            "an alkoxide directly on the benzene ring (phenoxide-type) "
-            "uses a separate construction, out of scope for this "
-            "chain-parent module"
-        )
     chain = ordered_chain(graph, chain_root, ring_atom, excluded_atoms)
     if chain is None:
         raise UnsupportedStructure(
@@ -450,6 +517,10 @@ def name_alkoxide(mol) -> str:
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            oxygen = _find_alkoxide_group(mol)
+            (oxygen_carbon,) = [n.GetIdx() for n in oxygen.GetNeighbors()]
+            if oxygen_carbon in ring_atoms:
+                return _name_phenoxide(mol, ring_atoms, oxygen)
             return _name_phenyl_chain_alkoxide(mol, ring_atoms)
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(

@@ -74,9 +74,19 @@ def test_branched_alkoxide_with_halogen():
     assert smiles_to_iupac("ClCC(C)C[O-]") == "3-chloro-2-methylpropan-1-olate"
 
 
-def test_phenoxide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[O-]c1ccccc1")
+def test_phenoxide():
+    # -O(-) attached directly to a benzene ring carbon (P-63.8.1/
+    # P-72.2.2.2.2). The retained name 'phenoxide' stands for the whole
+    # ring+O(-) system (like 'phenol'), so the O(-)'s own ring locant is
+    # never cited, only other substituents'. PubChem PUG REST:
+    # "phenoxide" (CID 998, exact auto-generated-name match); the
+    # substituted cases follow the Blue Book's own "substituted the same
+    # way as the corresponding alcohols" text rather than PubChem's own
+    # differently-styled "...phenolate" auto-generated names (module
+    # docstring).
+    assert smiles_to_iupac("[O-]c1ccccc1") == "phenoxide"
+    assert smiles_to_iupac("[O-]c1ccc(C)cc1") == "4-methylphenoxide"
+    assert smiles_to_iupac("[O-]c1ccccc1Cl") == "2-chlorophenoxide"
 
 
 def test_two_alkoxide_groups_raises():
@@ -129,12 +139,10 @@ def test_phenyl_chain_alkoxide():
     assert smiles_to_iupac("c1ccccc1CCC[O-]") == "3-phenylpropan-1-olate"
 
 
-def test_phenyl_directly_attached_alkoxide_raises():
-    # Phenoxide-type naming (-O(-) directly on the ring) is a separate
-    # construction, out of scope for this acyclic-chain-parent module (the
-    # module docstring already flags this).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1[O-]")
+def test_phenyl_directly_attached_alkoxide():
+    # Same phenoxide-type case as test_phenoxide, reached via a different
+    # ring-atom ordering in the SMILES.
+    assert smiles_to_iupac("c1ccccc1[O-]") == "phenoxide"
 
 
 def test_phenyl_substituted_benzene_ring_alkoxide_raises():
