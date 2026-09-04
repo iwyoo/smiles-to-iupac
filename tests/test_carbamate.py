@@ -61,9 +61,34 @@ def test_methyl_n_ethyl_n_methylcarbamate():
     assert smiles_to_iupac("COC(=O)N(C)CC") == "methyl N-ethyl-N-methylcarbamate"
 
 
-def test_branched_n_substituent_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COC(=O)NC(C)C")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified: CID 568334, 575684.
+        ("COC(=O)NC(C)C", "methyl N-propan-2-ylcarbamate"),
+        ("COC(=O)NC(C)(C)C", "methyl N-tert-butylcarbamate"),
+    ],
+)
+def test_branched_n_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_two_identical_branched_n_substituents_parenthesized_when_compound():
+    # PubChem CID 568417: a compound name (has its own locant) is
+    # parenthesized under the 'di' multiplying prefix to avoid ambiguity.
+    assert smiles_to_iupac("COC(=O)N(C(C)C)C(C)C") == "methyl N,N-di(propan-2-yl)carbamate"
+
+
+def test_two_identical_branched_n_substituents_not_parenthesized_when_retained():
+    # PubChem CID 12567954: a non-compound (retained) name is not
+    # parenthesized under 'di'.
+    assert smiles_to_iupac("COC(=O)N(C(C)(C)C)C(C)(C)C") == "methyl N,N-ditert-butylcarbamate"
+
+
+def test_two_different_n_substituents_alphabetized_ignoring_italic_prefix():
+    # PubChem CID 87089877: alphanumerical ordering (P-14.5.2) ignores
+    # italicized 'tert-', so 'tert-butyl' sorts under 'b', ahead of 'ethyl'.
+    assert smiles_to_iupac("COC(=O)N(CC)C(C)(C)C") == "methyl N-tert-butyl-N-ethylcarbamate"
 
 
 def test_free_carbamic_acid_not_supported():
