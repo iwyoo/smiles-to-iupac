@@ -61,13 +61,13 @@ triple bond, an -SH on a substituent branch off an otherwise-unsubstituted
 *saturated* ring, a sulfide (-S- ether-analogue)
 or any other sulfur-oxidation-state group (sulfonic acid, etc.), and any
 oxygen or nitrogen atom at all. One narrow *aromatic*-ring exception:
-`_name_phenyl_chain_thiol` names a single -SH chain hanging off a plain,
-unsubstituted benzene ring (e.g. '3-phenylpropane-1-thiol'), mirroring
+`_name_phenyl_chain_thiol` names one or more -SH groups on a chain
+hanging off a plain, unsubstituted benzene ring (e.g.
+'3-phenylpropane-1-thiol', '3-phenylpropane-1,2-dithiol'), mirroring
 `_alcohol.py`/`_sulfonic_acid.py`'s identical benzene-ring-substituent
-path -- narrower than the acyclic path: exactly one -SH, no chain
-unsaturation, no specified stereocenter, and a thiol directly on the ring
-(thiophenol-type) stays out of scope for this acyclic-chain-parent
-module.
+path -- narrower than the acyclic path: no chain unsaturation, no
+specified stereocenter, and a thiol directly on the ring (thiophenol-
+type) stays out of scope for this acyclic-chain-parent module.
 """
 
 from rdkit import Chem
@@ -444,21 +444,19 @@ def _name_cyclic_thiol(mol, thiols, stereo=None, bonds=()):
 
 
 def _name_phenyl_chain_thiol(mol, ring_atoms):
-    """Name a thiol whose -SH lies entirely on a single unbranched chain
-    hanging off one atom of an otherwise-plain, unsubstituted benzene ring
-    -- e.g. 3-phenylpropane-1-thiol. The ring is cited as a 'phenyl'
-    substituent prefix (via `name_branch`'s aromatic-ring recognition) on
-    the chain, which is the parent hydride, mirroring `_alcohol.py`'s
-    `_name_phenyl_chain_alcohol`. Narrower than the acyclic path above:
-    exactly one -SH, no chain unsaturation, and no specified stereocenter
-    -- each is a separate follow-up (see
+    """Name one or more -SH groups lying entirely on a single unbranched
+    chain hanging off one atom of an otherwise-plain, unsubstituted
+    benzene ring -- e.g. 3-phenylpropane-1-thiol,
+    3-phenylpropane-1,2-dithiol (PubChem CID 154223538). The ring is
+    cited as a 'phenyl' substituent prefix (via `name_branch`'s
+    aromatic-ring recognition) on the chain, which is the parent hydride,
+    mirroring `_alcohol.py`'s `_name_phenyl_chain_alcohol`; multiple -SH
+    locants are handled by the same `_sh_locants`/`_candidate_key`
+    machinery already used by the acyclic-chain path above. Narrower
+    than the acyclic path above: no chain unsaturation and no specified
+    stereocenter -- each is a separate follow-up (see
     tasks/phenyl-substituent-on-thiol-chain.md's scope note)."""
     thiols = _validate_and_collect_thiols(mol, aromatic_ring_atoms=ring_atoms)
-    if len(thiols) != 1:
-        raise UnsupportedStructure(
-            "more than one thiol alongside a benzene-ring substituent is "
-            "not supported yet"
-        )
     if specified_stereocenters(mol):
         raise UnsupportedStructure(
             "a specified stereocenter alongside a benzene-ring-substituent "
