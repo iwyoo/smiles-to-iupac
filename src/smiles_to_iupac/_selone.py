@@ -37,10 +37,20 @@ Scope, deliberately narrow (mirrors `_thione.py`'s own scope exactly):
 one or more C=Se groups on an acyclic chain or a single saturated
 monocyclic ring, with no other heteroatom (in particular no ketone C=O,
 thione C=S, hydroxyl -OH, or any other chalcogen) anywhere in the
-molecule. Explicitly out of scope (raise `UnsupportedStructure`): any
-oxygen or sulfur at all, a selone carbon with fewer than two carbon
-neighbors (a selenoaldehyde, a different suffix), an aromatic selone
-carbon, polycyclic/spiro/unsaturated rings, and a selone on a substituent
+molecule.
+
+P-31.1.3: a monocyclic ring bearing a selone and exactly one C=C ring
+double bond -- e.g. 'cyclohex-2-ene-1-selone', 'cyclohex-3-ene-1-selone',
+both confirmed via PubChem PUG REST. Mirrors `_thione.py`'s identical
+extension; deliberately narrow: a ring triple bond, and any other
+substituent alongside the ring double bond, are both still explicitly
+rejected pending further verification.
+
+Explicitly out of scope (raise `UnsupportedStructure`): any oxygen or
+sulfur at all, a selone carbon with fewer than two carbon neighbors (a
+selenoaldehyde, a different suffix), an aromatic selone carbon,
+polycyclic/spiro rings, unsaturation reaching outside the ring or a ring
+triple bond, and a selone on a substituent
 branch off an otherwise-unsubstituted *saturated* ring. One narrow
 *aromatic*-ring exception: `_name_phenyl_chain_selone` names a single
 selone whose chain hangs off a plain, unsubstituted benzene ring (e.g.
@@ -324,24 +334,35 @@ def _substituents_for_ring(graph, ring_order, halogens, selones):
     return substituents
 
 
-def _ring_name_from_substituents(ring_size, selone_locants, grouped):
+def _ring_name_from_substituents(ring_size, selone_locants, ene_locants, yne_locants, grouped):
+    has_unsaturation = bool(ene_locants or yne_locants)
     parent = "cyclo" + alkane_name(ring_size)
     total_subs = sum(len(info["locants"]) for info in grouped.values())
-    selone_word = multiplied_word(len(selone_locants), "selone")
-    elide = selone_word[0] in "aeiouy"
-    stem = parent[:-1] if elide else parent
 
-    if total_subs == 0 and len(selone_locants) == 1:
-        # P-14.3.3: the sole substituent on an otherwise unsubstituted ring
-        # has no locant to distinguish, e.g. 'cyclohexaneselone'.
-        return stem + selone_word
+    if not has_unsaturation:
+        selone_word = multiplied_word(len(selone_locants), "selone")
+        elide = selone_word[0] in "aeiouy"
+        stem = parent[:-1] if elide else parent
+        if total_subs == 0 and len(selone_locants) == 1:
+            # P-14.3.3: the sole substituent on an otherwise unsubstituted
+            # ring has no locant to distinguish, e.g. 'cyclohexaneselone'.
+            return stem + selone_word
+        prefix = format_substituent_prefixes(grouped)
+        loc_str = ",".join(str(loc) for loc in sorted(selone_locants))
+        return f"{prefix}{stem}-{loc_str}-{selone_word}"
 
+    # A competing ring double/triple bond (P-31.1.3) means the selone's
+    # locant is never omittable even when it's the sole substituent, e.g.
+    # 'cyclohex-2-ene-1-selone' (confirmed via PubChem) -- mirrors
+    # `_thione.py`'s identical treatment.
+    stem = parent[:-3]
+    needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
     prefix = format_substituent_prefixes(grouped)
-    loc_str = ",".join(str(loc) for loc in sorted(selone_locants))
-    return f"{prefix}{stem}-{loc_str}-{selone_word}"
+    body, elide_stem = _suffix_body(ene_locants, yne_locants, selone_locants)
+    return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
 
 
-def _ring_candidate_key(ring_size, selone_locants, substituents):
+def _ring_candidate_key(ring_size, selone_locants, ene_locants, yne_locants, substituents):
     grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -350,11 +371,28 @@ def _ring_candidate_key(ring_size, selone_locants, substituents):
         for loc in sorted(grouped[name]["locants"])
     )
     selone_locant_set = lowest_locant_set(selone_locants)
-    name = _ring_name_from_substituents(ring_size, selone_locants, grouped)
-    return selone_locant_set, locant_set, citation_locants, name
+    combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
+    ene_locant_set = lowest_locant_set(ene_locants)
+    name = _ring_name_from_substituents(ring_size, selone_locants, ene_locants, yne_locants, grouped)
+    return selone_locant_set, combined_locant_set, ene_locant_set, locant_set, citation_locants, name
 
 
-def _name_cyclic_selone(mol, selones, stereo=None):
+def _ring_bond_locant(position_of, bond_atoms, ring_size):
+    pa, pb = position_of[bond_atoms[0]], position_of[bond_atoms[1]]
+    return ring_size if {pa, pb} == {1, ring_size} else min(pa, pb)
+
+
+def _ring_bond_locants(position_of, bonds, ring_size):
+    """(ene_locants, yne_locants), both sorted, for every ring C=C/C#C bond
+    under this ring numbering -- mirrors `_thione.py`'s identical helper."""
+    ene, yne = [], []
+    for a, b, order in bonds:
+        locant = _ring_bond_locant(position_of, (a, b), ring_size)
+        (ene if order == ENE_BOND_ORDER else yne).append(locant)
+    return sorted(ene), sorted(yne)
+
+
+def _name_cyclic_selone(mol, selones, stereo=None, bonds=()):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, every stereocenter must lie on
     the ring itself (P-92: a stereocenter on a substituent branch is out
@@ -373,6 +411,11 @@ def _name_cyclic_selone(mol, selones, stereo=None):
             "a stereocenter on a substituent branch rather than the ring "
             "itself is not supported yet (see P-92)"
         )
+    if bonds and any(_substituents_for_ring(graph, ring_order, halogens, selones).values()):
+        raise UnsupportedStructure(
+            "a substituent alongside both a ring double/triple bond and a "
+            "selone is not supported yet (see module docstring)"
+        )
 
     best_key = None
     best_name = None
@@ -388,7 +431,8 @@ def _name_cyclic_selone(mol, selones, stereo=None):
                     "substituent branch) is not supported yet"
                 )
             substituents = _substituents_for_ring(graph, candidate, halogens, selones)
-            key = _ring_candidate_key(ring_size, selone_locants, substituents)
+            ene_locants, yne_locants = _ring_bond_locants(position_of, bonds, ring_size)
+            key = _ring_candidate_key(ring_size, selone_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, key[-1], position_of
 
@@ -499,12 +543,20 @@ def name_selone(mol) -> str:
     if num_rings == 0:
         return _name_acyclic_selone(mol, selones, bonds, stereo)
     if num_rings == 1:
-        if bonds:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in bonds):
             raise UnsupportedStructure(
-                "unsaturated rings are not supported yet (see P-31.1.3, "
-                "cycloalkenes and cycloalkynes)"
+                "unsaturation outside the ring alongside a cyclic selone "
+                "is not supported yet (see P-31.1.3, cycloalkenes and "
+                "cycloalkynes)"
             )
-        return _name_cyclic_selone(mol, selones, stereo)
+        if any(order == YNE_BOND_ORDER for _, _, order in bonds):
+            raise UnsupportedStructure(
+                "a ring triple bond (cycloalkyne) alongside a selone is "
+                "not supported yet -- only a ring double bond is in scope "
+                "for this first pass (see P-31.1.3)"
+            )
+        return _name_cyclic_selone(mol, selones, stereo, bonds)
     raise UnsupportedStructure(
         "polycyclic and spiro selones are not supported yet"
     )
