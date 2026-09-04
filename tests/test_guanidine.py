@@ -87,9 +87,14 @@ def test_imino_plus_amino_different_names_alphabetized():
     assert smiles_to_iupac("CNC(=NCC)N") == "N''-ethyl-N-methylguanidine"
 
 
-def test_branched_imino_n_substituent_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(=NC(C)C)N")
+def test_branched_imino_n_substituent():
+    # Same structure as CC(C)NC(=N)N (PubChem CID 11491919), just written
+    # with the substituent on the double-bonded nitrogen -- this module's
+    # existing convention (see module docstring) always labels the
+    # explicit C=N nitrogen 'N''', regardless of which tautomer the input
+    # SMILES happens to spell out (matches the already-passing unbranched
+    # 'N''-methylguanidine' case above).
+    assert smiles_to_iupac("NC(=NC(C)C)N") == "N''-propan-2-ylguanidine"
 
 
 def test_unsaturated_imino_n_substituent_not_supported():
@@ -97,9 +102,26 @@ def test_unsaturated_imino_n_substituent_not_supported():
         smiles_to_iupac("NC(=NC=C)N")
 
 
-def test_branched_n_substituent_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)NC(=N)N")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified: CID 11491919, 12830400.
+        ("CC(C)NC(=N)N", "N-propan-2-ylguanidine"),
+        ("CC(C)(C)NC(=N)N", "N-tert-butylguanidine"),
+    ],
+)
+def test_branched_n_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_two_identical_branched_substituents_different_amino_nitrogens_parenthesized_when_compound():
+    # PubChem CID 198192.
+    assert smiles_to_iupac("CC(C)NC(=N)NC(C)C") == "N,N'-di(propan-2-yl)guanidine"
+
+
+def test_two_identical_branched_substituents_different_amino_nitrogens_not_parenthesized_when_retained():
+    # PubChem CID 23103888.
+    assert smiles_to_iupac("CC(C)(C)NC(=N)NC(C)(C)C") == "N,N'-ditert-butylguanidine"
 
 
 def test_unsaturated_n_substituent_not_supported():
