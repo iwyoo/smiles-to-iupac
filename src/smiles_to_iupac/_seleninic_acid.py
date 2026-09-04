@@ -51,9 +51,12 @@ from ._common import (
     bfs,
     carbon_adjacency,
     halogen_substituents,
+    is_plain_benzene_ring,
     lowest_locant_set,
     non_single_bonds,
+    ordered_chain,
     path_between,
+    ring_chain_attachment,
     specified_stereocenters,
 )
 from ._numerals import alkane_name, numerical_term
@@ -94,7 +97,14 @@ def has_seleninic_acid_shape(mol) -> bool:
     return bool(_seleninic_selenium_atoms(mol))
 
 
-def _validate_and_collect_seleninic_acids(mol):
+def _validate_and_collect_seleninic_acids(mol, aromatic_ring_atoms=frozenset()):
+    """`aromatic_ring_atoms`: atom indices already independently verified
+    (by the caller, before this function runs) to form a single plain
+    benzene ring with exactly one exocyclic attachment -- exempted from
+    the aromatic-atom rejection below so `name_seleninic_acid`'s benzene-
+    ring-substituent path (see `_name_phenyl_chain_seleninic_acid`) can
+    reuse this same validation for the rest of the molecule. Empty by
+    default, so every other caller's behavior is unchanged."""
     selenium_atoms = _seleninic_selenium_atoms(mol)
     if not selenium_atoms:
         raise UnsupportedStructure(
@@ -116,7 +126,7 @@ def _validate_and_collect_seleninic_acids(mol):
         atomic_num = atom.GetAtomicNum()
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module"
                 )
@@ -144,9 +154,13 @@ def _validate_and_collect_seleninic_acids(mol):
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
-    if mol.GetRingInfo().NumRings() > 0:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() > 0 and not (
+        ring_info.NumRings() == 1 and set(ring_info.AtomRings()[0]) == set(aromatic_ring_atoms)
+    ):
         raise UnsupportedStructure(
-            "rings are not supported yet (this module only handles "
+            "rings are not supported yet, other than the separate benzene-"
+            "ring-substituent path (this module otherwise only handles "
             "acyclic chains)"
         )
 
@@ -308,7 +322,86 @@ def _substituents_for_chain(graph, chain, halogens, excluded):
     return substituents
 
 
+def _name_phenyl_chain_seleninic_acid(mol, ring_atoms):
+    """Name a seleninic acid whose -Se(=O)OH lies entirely on a single
+    unbranched chain hanging off one atom of an otherwise-plain,
+    unsubstituted benzene ring -- e.g. phenylmethaneseleninic acid
+    (PubChem CID 125616). The ring is cited as a 'phenyl' substituent
+    prefix (via `name_branch`'s aromatic-ring recognition) on the chain,
+    which is the parent hydride, mirroring `_sulfinic_acid.py`'s
+    `_name_phenyl_chain_sulfinic_acid`. Narrower than the acyclic path
+    above: no chain unsaturation."""
+    selenium_idx, seoh_carbon = _validate_and_collect_seleninic_acids(mol, aromatic_ring_atoms=ring_atoms)
+    if seoh_carbon in ring_atoms:
+        raise UnsupportedStructure(
+            "a seleninic acid directly attached to the benzene ring "
+            "(benzeneseleninic acid-style naming) is out of scope for "
+            "this module (see the separate aromatic-ring module)"
+        )
+    if specified_stereocenters(mol) is not None:
+        # See module docstring: the seleninic selenium is itself a
+        # potential stereocenter in virtually every real -Se(=O)OH
+        # molecule, and this project has no established way to cite one --
+        # reject unconditionally, same as the acyclic path below.
+        raise UnsupportedStructure(
+            "a specified stereocenter (chain carbon or the seleninic "
+            "selenium itself) is not supported yet for seleninic acids "
+            "(see P-92, module docstring)"
+        )
+    excluded = {selenium_idx}
+    non_ring_unsaturation = [
+        b
+        for b in non_single_bonds(mol)
+        if selenium_idx not in (b[0], b[1]) and b[0] not in ring_atoms and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent "
+            "seleninic acid chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain seleninic acid is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, excluded)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside a "
+            "seleninic acid is not supported yet"
+        )
+    if seoh_carbon not in chain:
+        raise UnsupportedStructure(
+            "the seleninic acid carbon must lie on the chain hanging off "
+            "the benzene ring for this benzene-substituent path"
+        )
+
+    chain_length = len(chain)
+    halogens = halogen_substituents(mol)
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        seoh_locant = position_of[seoh_carbon]
+        substituents = {
+            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+        }
+        key, name = _candidate_key(chain_length, seoh_locant, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_seleninic_acid(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_seleninic_acid(mol, ring_atoms)
     selenium_idx, seoh_carbon = _validate_and_collect_seleninic_acids(mol)
     if specified_stereocenters(mol) is not None:
         # Unlike `_sulfonic_acid.py`'s sulfur, this module's seleninic

@@ -74,3 +74,32 @@ def test_seleninic_acid_specified_chain_stereocenter_raises():
     # safety net exists to fix (same reasoning as `_sulfinic_acid.py`).
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC[C@@H](C)[Se](=O)O")
+
+
+def test_phenyl_chain_seleninic_acid():
+    # A plain, unsubstituted benzene ring on the chain (P-2/P-3
+    # aromatic-ring-substituent extension, mirroring
+    # `_sulfinic_acid.py`'s identical PR): the ring is cited as a
+    # "phenyl" substituent prefix. PubChem CID 125616
+    # ("phenylmethaneseleninic acid") confirms the mononuclear (no
+    # locant) case.
+    assert smiles_to_iupac("O=[Se](O)Cc1ccccc1") == "phenylmethaneseleninic acid"
+    assert smiles_to_iupac("c1ccccc1CCC[Se](=O)O") == "3-phenylpropane-1-seleninic acid"
+
+
+def test_phenyl_directly_attached_seleninic_acid_raises():
+    # Benzeneseleninic acid-style naming (-Se(=O)OH directly on the ring)
+    # is a separate construction, out of scope for this acyclic-chain-
+    # parent module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1[Se](=O)O")
+
+
+def test_phenyl_substituted_benzene_ring_seleninic_acid_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC[Se](=O)O")
+
+
+def test_phenyl_chain_seleninic_acid_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC[Se](=O)O")
