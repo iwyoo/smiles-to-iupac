@@ -19,9 +19,9 @@ def test_propyl_selenocyanate():
     assert smiles_to_iupac("CCC[Se]C#N") == "propyl selenocyanate"
 
 
-def test_branched_r_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)[Se]C#N")
+def test_branched_r():
+    # PubChem-verified: CID 13496974.
+    assert smiles_to_iupac("CC(C)[Se]C#N") == "propan-2-yl selenocyanate"
 
 
 def test_unsaturated_r_not_supported():

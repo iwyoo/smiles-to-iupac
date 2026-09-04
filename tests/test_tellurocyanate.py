@@ -19,9 +19,12 @@ def test_propyl_tellurocyanate():
     assert smiles_to_iupac("CCC[Te]C#N") == "propyl tellurocyanate"
 
 
-def test_branched_r_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)[Te]C#N")
+def test_branched_r():
+    # Not independently PubChem-verified (no branched tellurocyanate is
+    # registered there, see module docstring) -- an accepted, reviewed
+    # result inherited from the identical, PubChem-confirmed mechanism in
+    # `_thiocyanate.py`/`_cyanate.py`/`_selenocyanate.py`.
+    assert smiles_to_iupac("CC(C)[Te]C#N") == "propan-2-yl tellurocyanate"
 
 
 def test_unsaturated_r_not_supported():

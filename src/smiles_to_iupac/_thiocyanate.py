@@ -20,9 +20,16 @@
   time.
 
 Scope, deliberately narrow (mirrors `_carbamate.py`'s own first pass): R
-is restricted to a plain, unbranched, unsubstituted, saturated alkyl group
-attached at its own chain terminus (e.g. 'methyl', 'ethyl', 'propyl'); a
-branched, substituted, unsaturated, or ring-bearing R is deferred.
+is restricted to a plain, unsubstituted, saturated, acyclic alkyl group
+(branched or unbranched) attached at its own chain terminus (e.g.
+'methyl', 'propan-2-yl', 'tert-butyl') -- R's name is built with
+`name_branch` (P-29 PIN style, fixed project-wide by PR #237; mirrors
+`_carbamate.py`'s/`_ester.py`'s identical fix, PR #328/#329), never
+parenthesized (the "R thiocyanate" two-word pattern has no nested-prefix
+ambiguity to guard against). A substituted, unsaturated, or ring-bearing R
+is still deferred. Confirmed via PubChem: `CC(C)SC#N` -> "propan-2-yl
+thiocyanate" (CID 246911), `CC(C)(C)SC#N` -> "tert-butyl thiocyanate"
+(CID 641640).
 Explicitly out of scope (raise `UnsupportedStructure`): any ring anywhere
 in the molecule, more than one thiocyanate group, and any other
 heteroatom/oxygen not part of this single thiocyanate group.
@@ -30,8 +37,8 @@ heteroatom/oxygen not part of this single thiocyanate group.
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, carbon_adjacency, linear_branch, non_single_bonds
-from ._numerals import alkyl_name
+from ._common import UnsupportedStructure, adjacency, non_single_bonds
+from ._substituents import name_branch
 
 _YNE_ORDER = 3.0
 
@@ -108,9 +115,5 @@ def name_thiocyanate(mol) -> str:
     if non_single:
         raise UnsupportedStructure("unsaturation in the R group is not supported yet")
 
-    carbon_graph = carbon_adjacency(mol)
-    length = linear_branch(carbon_graph, alkyl_c_idx, None)
-    if length is None:
-        raise UnsupportedStructure("a branched R group is not supported yet")
-
-    return f"{alkyl_name(length)} thiocyanate"
+    r_name, _ = name_branch(adjacency(mol), alkyl_c_idx, sulfur_idx, {})
+    return f"{r_name} thiocyanate"
