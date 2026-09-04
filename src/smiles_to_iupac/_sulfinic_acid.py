@@ -61,14 +61,18 @@ Explicitly out of scope (raise `UnsupportedStructure`): polycyclic/spiro
 rings, unsaturation reaching outside the ring or a ring triple bond, an
 -SO2H on a substituent branch off an otherwise-unsubstituted *saturated*
 ring, two or more -SO2H groups, and a sulfinic acid on a carbon that is
-also part of a C=C/C#C bond. One narrow *aromatic*-ring exception:
+also part of a C=C/C#C bond. Two *aromatic*-ring cases:
 `_name_phenyl_chain_sulfinic_acid` names a -SO2H chain hanging off a
 single plain, unsubstituted benzene ring (e.g.
 '3-phenylpropane-1-sulfinic acid'), mirroring `_sulfonic_acid.py`'s
 identical benzene-ring-substituent path -- narrower than the acyclic
-path: no chain unsaturation, and a -SO2H directly on the ring
-(benzenesulfinic acid-style) stays out of scope for this
-acyclic-chain-parent module.
+path: no chain unsaturation. `_name_benzenesulfinic_acid` names -SO2H
+directly on a benzene ring carbon (with or without other ring
+substituents), e.g. 'benzenesulfinic acid' (PubChem CID 12057),
+'2-methylbenzenesulfinic acid' (CID 12661295), mirroring
+`_sulfonic_acid.py`'s `_name_benzenesulfonic_acid` with the retained
+name 'benzene' as stem -- the -SO2H's own locant is never cited here,
+unlike the cycloalkane case.
 """
 
 from rdkit import Chem
@@ -433,6 +437,69 @@ def _name_cyclic_sulfinic_acid(mol, sulfur_idx, so2h_carbon, bonds=()):
     return best_name
 
 
+def _benzenesulfinic_acid_name_from_substituents(grouped):
+    # Unlike the cycloalkane case, the mancude ring's own numbering is
+    # always free to start at the -SO2H carbon (P-14.3.3-style), so its
+    # locant is never cited even when other substituents need theirs,
+    # e.g. '2-methylbenzenesulfinic acid' (PubChem CID 12661295), not
+    # '2-methylbenzene-1-sulfinic acid' -- mirrors `_sulfonic_acid.py`'s
+    # identical 'benzenesulfonic acid' treatment.
+    if not grouped:
+        return "benzenesulfinic acid"
+    return f"{format_substituent_prefixes(grouped)}benzenesulfinic acid"
+
+
+def _benzenesulfinic_acid_candidate_key(so2h_locant, substituents):
+    grouped = _group(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _benzenesulfinic_acid_name_from_substituents(grouped)
+    return so2h_locant, locant_set, citation_locants, name
+
+
+def _name_benzenesulfinic_acid(mol, ring_atoms):
+    """P-65.3.1: -SO2H attached directly to a benzene ring carbon -- e.g.
+    'benzenesulfinic acid' (PubChem CID 12057), '2-methylbenzenesulfinic
+    acid' (CID 12661295). Mirrors `_sulfonic_acid.py`'s
+    `_name_benzenesulfonic_acid` exactly, with the retained name
+    'benzene' as stem in place of 'cyclo' + alkane_name; an aromatic ring
+    has no ene/yne locants of its own."""
+    sulfur_idx, so2h_carbon = _validate_and_collect_sulfinic_acids(mol, aromatic_ring_atoms=ring_atoms)
+    if specified_stereocenters(mol) is not None:
+        # See module docstring: the sulfinic sulfur is itself a potential
+        # stereocenter in virtually every real -SO2H molecule, and this
+        # project has no established way to cite one -- reject
+        # unconditionally, same as the acyclic/chain paths.
+        raise UnsupportedStructure(
+            "a specified stereocenter (ring carbon or the sulfinic "
+            "sulfur itself) is not supported yet for sulfinic acids (see "
+            "P-92, module docstring)"
+        )
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    excluded = {sulfur_idx}
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            so2h_locant = position_of[so2h_carbon]
+            substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
+            key = _benzenesulfinic_acid_candidate_key(so2h_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def _name_phenyl_chain_sulfinic_acid(mol, ring_atoms):
     """Name a sulfinic acid whose -SO2H lies entirely on a single
     unbranched chain hanging off one atom of an otherwise-plain,
@@ -444,12 +511,6 @@ def _name_phenyl_chain_sulfinic_acid(mol, ring_atoms):
     above: no chain unsaturation -- a separate follow-up (see
     tasks/phenyl-substituent-on-sulfinic-acid-chain.md's scope note)."""
     sulfur_idx, so2h_carbon = _validate_and_collect_sulfinic_acids(mol, aromatic_ring_atoms=ring_atoms)
-    if so2h_carbon in ring_atoms:
-        raise UnsupportedStructure(
-            "a sulfinic acid directly attached to the benzene ring "
-            "(benzenesulfinic acid-style naming) is out of scope for this "
-            "module (see the separate aromatic-ring module)"
-        )
     if specified_stereocenters(mol) is not None:
         # See module docstring: the sulfinic sulfur is itself a potential
         # stereocenter in virtually every real -SO2H molecule, and this
@@ -513,6 +574,9 @@ def name_sulfinic_acid(mol) -> str:
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            sulfur_idx, so2h_carbon = _validate_and_collect_sulfinic_acids(mol, aromatic_ring_atoms=ring_atoms)
+            if so2h_carbon in ring_atoms:
+                return _name_benzenesulfinic_acid(mol, ring_atoms)
             return _name_phenyl_chain_sulfinic_acid(mol, ring_atoms)
     sulfur_idx, so2h_carbon = _validate_and_collect_sulfinic_acids(mol)
     if specified_stereocenters(mol) is not None:
