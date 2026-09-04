@@ -135,3 +135,39 @@ def test_amidine_not_confused_with_guanidine():
 
 def test_urea_not_confused_with_guanidine():
     assert smiles_to_iupac("NC(=O)N") == "urea"
+
+
+def test_n_phenylguanidine():
+    # PubChem structure match: "2-phenylguanidine".
+    assert smiles_to_iupac("c1ccccc1NC(=N)N") == "N-phenylguanidine"
+
+
+def test_n_n_prime_diphenylguanidine():
+    # PubChem structure match: "1,2-diphenylguanidine".
+    assert smiles_to_iupac("c1ccccc1NC(=N)Nc1ccccc1") == "N,N'-diphenylguanidine"
+
+
+def test_n_methyl_n_prime_phenylguanidine_different_nitrogens():
+    # PubChem structure match: "2-methyl-1-phenylguanidine".
+    assert smiles_to_iupac("CNC(=N)Nc1ccccc1") == "N-methyl-N'-phenylguanidine"
+
+
+def test_n_double_prime_phenylguanidine():
+    assert smiles_to_iupac("NC(=Nc1ccccc1)N") == "N''-phenylguanidine"
+
+
+def test_substituted_phenyl_n_substituent_not_supported():
+    # Only a plain, unsubstituted benzene ring is supported, mirroring
+    # `_urea.py`'s identical restriction.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccc(NC(=N)N)cc1")
+
+
+def test_phenyl_alongside_another_substituent_on_same_nitrogen_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CN(c1ccccc1)C(=N)N")
+
+
+def test_ring_fused_guanidine_still_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("N1CCCCC1=N")
