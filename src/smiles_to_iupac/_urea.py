@@ -29,14 +29,24 @@ or two, using the same 'N-'/'N,N-di' citation as `_amide.py`), an
 identical single substituent on each of the two different nitrogens
 (symmetric 'N,N'-di...' citation), or one DIFFERENT substituent on each of
 the two nitrogens -- confirmed via the Blue Book's own PIN worked example
-'N-[1-cyano-3-(methylsulfanyl)propyl]-N'-methylurea': the alphabetically
-first substituent name (P-14.5.2, locants ignored) becomes 'N-', the
-other becomes 'N''-', e.g. 'N-ethyl-N'-methylurea' (PubChem structure
-match, numeric-locant style: `CCNC(=O)NC` -> '1-ethyl-3-methylurea', CID
-206567). Explicitly out of scope (raise `UnsupportedStructure`): a
+'N-[1-cyano-3-(methylsulfanyl)propyl]-N'-methylurea': the alphanumerical
+order (P-14.5.2, locants and italicized prefixes like 'tert-' ignored --
+via `alpha_sort_key`) decides which substituent becomes 'N-' and which
+becomes 'N''-', e.g. 'N-ethyl-N'-methylurea' (PubChem structure match,
+numeric-locant style: `CCNC(=O)NC` -> '1-ethyl-3-methylurea', CID 206567).
+Each N-substituent's own name is built with `name_branch` (P-29 PIN
+style, fixed project-wide by PR #237; mirrors `_carbamate.py`'s identical
+fix, PR #328/#331) -- a branched N-substituent is supported (e.g.
+'N-propan-2-ylurea', CID 12725; 'N-tert-butylurea', CID 14233), never
+parenthesized on its own. An identical-pair 'N,N-di'/'N,N'-di' name is
+parenthesized only when the substituent name is compound (has its own
+locant, e.g. 'N,N'-di(propan-2-yl)urea', CID 20084) and not when it's a
+retained name (e.g. 'N,N'-ditert-butylurea', CID 21420) -- mirrors
+`_carbamate.py`'s identical rule.
+Explicitly out of scope (raise `UnsupportedStructure`): a
 different substituent *count* on each nitrogen (e.g. one with two
 substituents, the other with one -- no confirmed worked example settles
-that locant tie-break), a branched/unsaturated/ring-bearing N-substituent,
+that locant tie-break), an unsaturated/ring-bearing N-substituent,
 a ring-fused urea (e.g. hydantoin), and thiourea (the sulfur analogue).
 
 - Semicarbazide (H2N-NH-C(=O)-NH2, P-68.3.1.4): PubChem structure match
@@ -53,8 +63,8 @@ a ring-fused urea (e.g. hydantoin), and thiourea (the sulfur analogue).
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, carbon_adjacency, linear_branch, non_single_bonds
-from ._numerals import alkyl_name
+from ._common import UnsupportedStructure, adjacency, bfs, carbon_adjacency, non_single_bonds
+from ._substituents import alpha_sort_key, name_branch
 
 
 def _urea_core(mol):
@@ -135,24 +145,15 @@ def _n_substituent_carbons(mol, nitrogen_idx, carbon_idx):
     )
 
 
-def _substituent_names(carbon_graph, substituent_carbons):
-    names = []
-    for c in substituent_carbons:
-        length = linear_branch(carbon_graph, c, None)
-        if length is None:
-            raise UnsupportedStructure("a branched N-substituent is not supported yet")
-        names.append(alkyl_name(length))
-    return names
+def _substituent_names(full_graph, nitrogen_idx, substituent_carbons):
+    return [name_branch(full_graph, c, nitrogen_idx, {}) for c in substituent_carbons]
 
 
 def _substituent_chain_atoms(carbon_graph, substituent_carbons):
     atoms = set()
     for root in substituent_carbons:
-        previous, current = None, root
-        while current is not None:
-            atoms.add(current)
-            neighbors = [n for n in carbon_graph[current] if n != previous]
-            previous, current = current, (neighbors[0] if neighbors else None)
+        reached, _ = bfs(carbon_graph, root)
+        atoms.update(reached)
     return atoms
 
 
@@ -161,14 +162,20 @@ def _reject_unsaturated_substituents(mol, atoms):
         raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
 
 
-def _n_prefix(letter, names):
-    if not names:
+def _di_name(name, is_compound):
+    return f"({name})" if is_compound else name
+
+
+def _n_prefix(letter, entries):
+    if not entries:
         return ""
-    if len(names) == 1:
-        return f"{letter}-{names[0]}"
-    if names[0] == names[1]:
-        return f"{letter},{letter}-di{names[0]}"
-    a, b = sorted(names)
+    if len(entries) == 1:
+        (name, _), = entries
+        return f"{letter}-{name}"
+    (name_a, compound_a), (name_b, compound_b) = entries
+    if name_a == name_b:
+        return f"{letter},{letter}-di{_di_name(name_a, compound_a)}"
+    (a, _), (b, _) = sorted(entries, key=lambda e: alpha_sort_key(e[0]))
     return f"{letter}-{a}-{letter}-{b}"
 
 
@@ -211,8 +218,9 @@ def name_urea(mol) -> str:
     _reject_unsaturated_substituents(mol, n1_chain_atoms)
     _reject_unsaturated_substituents(mol, n2_chain_atoms)
 
-    n1_names = _substituent_names(carbon_graph, n1_carbons)
-    n2_names = _substituent_names(carbon_graph, n2_carbons)
+    full_graph = adjacency(mol)
+    n1_names = _substituent_names(full_graph, n1_idx, n1_carbons)
+    n2_names = _substituent_names(full_graph, n2_idx, n2_carbons)
 
     if amino_nitrogen_idx is not None:
         if n1_names or n2_names:
@@ -235,9 +243,10 @@ def name_urea(mol) -> str:
                 "nitrogens is not supported yet (no confirmed worked "
                 "example settles the locant tie-break for that case)"
             )
-        if n1_names[0] == n2_names[0]:
-            return f"N,N'-di{n1_names[0]}urea"
-        first, second = sorted((n1_names[0], n2_names[0]))
+        (name_a, compound_a), (name_b, compound_b) = n1_names[0], n2_names[0]
+        if name_a == name_b:
+            return f"N,N'-di{_di_name(name_a, compound_a)}urea"
+        (first, _), (second, _) = sorted((n1_names[0], n2_names[0]), key=lambda e: alpha_sort_key(e[0]))
         return f"N-{first}-N'-{second}urea"
 
     names = n1_names or n2_names

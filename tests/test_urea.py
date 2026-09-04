@@ -62,9 +62,41 @@ def test_different_substituent_counts_on_different_nitrogens_not_supported():
         smiles_to_iupac("CCN(C)C(=O)NC")
 
 
-def test_branched_n_substituent_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)NC(=O)N")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified: CID 12725, 14233.
+        ("CC(C)NC(=O)N", "N-propan-2-ylurea"),
+        ("CC(C)(C)NC(=O)N", "N-tert-butylurea"),
+    ],
+)
+def test_branched_n_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_two_identical_branched_substituents_different_nitrogens_parenthesized_when_compound():
+    # PubChem CID 20084.
+    assert smiles_to_iupac("CC(C)NC(=O)NC(C)C") == "N,N'-di(propan-2-yl)urea"
+
+
+def test_two_identical_branched_substituents_different_nitrogens_not_parenthesized_when_retained():
+    # PubChem CID 21420.
+    assert smiles_to_iupac("CC(C)(C)NC(=O)NC(C)(C)C") == "N,N'-ditert-butylurea"
+
+
+def test_two_different_substituents_different_nitrogens_alphabetized_ignoring_italic_prefix():
+    # PubChem CID 20434688: 'tert-butyl' sorts under 'b', ahead of 'ethyl'.
+    assert smiles_to_iupac("CC(C)(C)NC(=O)NCC") == "N-tert-butyl-N'-ethylurea"
+
+
+def test_two_identical_branched_substituents_same_nitrogen_parenthesized_when_compound():
+    # PubChem CID 3059921.
+    assert smiles_to_iupac("CC(C)N(C(C)C)C(=O)N") == "N,N-di(propan-2-yl)urea"
+
+
+def test_two_different_substituents_same_nitrogen_alphabetized_ignoring_italic_prefix():
+    # PubChem CID 19354675.
+    assert smiles_to_iupac("CC(C)(C)N(CC)C(=O)N") == "N-tert-butyl-N-ethylurea"
 
 
 def test_unsaturated_n_substituent_not_supported():
