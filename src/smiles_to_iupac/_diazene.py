@@ -35,21 +35,21 @@ Recommendations ("the Blue Book"):
   "bis(2-chloroethyl)diazene" (two identical compound substituents use
   the compound 'bis' multiplying prefix, P-14.2.2, rather than the plain
   'di' `format_mononuclear_prefixes` uses for simple substituents).
-  **Deliberately conservative scope**: the case of two *different*
-  substituents where at least one is a compound (halogen-bearing) name is
-  not verified against any worked example and is rejected explicitly
-  rather than guessed at -- only (a) zero or one substituent, and (b) two
-  identical substituents, are supported when a compound name is involved;
-  two different plain (non-compound) substituents keep working exactly as
-  before via the existing `format_mononuclear_prefixes` path.
+  Two different substituents where at least one is a compound name (a
+  branched chain or a halogen-bearing one) is now supported too, via the
+  same `format_mononuclear_prefixes` position-based parenthesization path
+  `_phosphane.py`/`_borane.py` already use (PR #337) -- confirmed via
+  PubChem: CID 300540 (`CC(C)N=NC`) -> "methyl(propan-2-yl)diazene", the
+  alphabetically-first compound name left unparenthesized.
+- A branched (real carbon fork) substituent is supported too (e.g.
+  'propan-2-yldiazene', PubChem CID 22166172), built with `name_branch`
+  the same way a plain substituent already was.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any atom other than the two diazene nitrogens, carbon, halogen, and
   hydrogen.
-- Two different substituents where at least one is a compound
-  (halogen-bearing) name -- unverified, see above.
-- A branched (real carbon fork) or unsaturated substituent, an aromatic
-  substituent, or any ring anywhere in the molecule.
+- An unsaturated substituent, an aromatic substituent, or any ring
+  anywhere in the molecule.
 - More than one N=N unit (bis(azo) compounds), azoxy compounds (an N-oxide
   of this group, P-68.3.1.3.3), or hydrazine-type N-N single-bonded
   compounds (P-68.3.1.2, a structurally unrelated parent).
@@ -63,20 +63,6 @@ from ._numerals import multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
-
-
-def _is_unbranched_ignoring_halogens(graph, root, coming_from, halogens):
-    """True iff the branch's carbon skeleton (halogen leaves set aside) is
-    a straight, non-forking chain (see `_hydrazine.py`'s identical
-    helper)."""
-    previous, current = coming_from, root
-    while True:
-        neighbors = [n for n in graph[current] if n != previous and n not in halogens]
-        if len(neighbors) > 1:
-            return False
-        if not neighbors:
-            return True
-        previous, current = current, neighbors[0]
 
 
 def _diazene_nitrogens(mol):
@@ -142,8 +128,6 @@ def name_diazene(mol) -> str:
                 "a halogen bonded directly to a diazene nitrogen is out "
                 "of scope for this module (see module docstring)"
             )
-        if not _is_unbranched_ignoring_halogens(graph, root, n_idx, halogens):
-            raise UnsupportedStructure("a branched substituent is out of scope for this module")
         substituents.append(name_branch(graph, root, n_idx, halogens))
 
     if not substituents:
@@ -157,10 +141,4 @@ def name_diazene(mol) -> str:
         if compound_a:
             return f"{multiplying_prefix(2, compound=True)}({name_a})diazene"
         return multiplying_prefix(2) + name_a + "diazene"
-    if compound_a or compound_b:
-        raise UnsupportedStructure(
-            "two different substituents where at least one is a compound "
-            "(halogen-bearing) name is unverified and out of scope for "
-            "this module (see module docstring)"
-        )
-    return format_mononuclear_prefixes([(name_a, False), (name_b, False)]) + "diazene"
+    return format_mononuclear_prefixes([(name_a, compound_a), (name_b, compound_b)]) + "diazene"
