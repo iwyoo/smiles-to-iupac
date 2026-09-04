@@ -35,14 +35,17 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   specified stereocenter (chain carbon or sulfur alike) rather than
   attempting real R/S support, mirroring `_sulfinic_acid.py`'s identical
   policy.
-- The sulfinamide nitrogen may carry zero, one, or two plain, unbranched,
-  unsubstituted, saturated alkyl substituents, each cited as its own
-  'N-'-prefixed substituent directly ahead of the parent stem, in
-  alphabetical order, with a 'di' multiplying prefix (and a single shared
-  'N,N-' pair) when both are identical -- exactly `_sulfonamide.py`'s own
-  N-/N,N-disubstitution pattern, reusing `alkyl_name` directly (not
-  `name_branch`, see the P-29 blocker). Confirmed via PubChem:
-  'N-methylmethanesulfinamide' (CS(=O)NC).
+- The sulfinamide nitrogen may carry zero, one, or two plain,
+  unsubstituted, saturated, acyclic alkyl substituents (branched or
+  unbranched), each cited as its own 'N-'-prefixed substituent directly
+  ahead of the parent stem, in alphanumerical order (P-14.5.2, ignoring
+  italicized prefixes like 'tert-' via `alpha_sort_key`), with a 'di'
+  multiplying prefix (and a single shared 'N,N-' pair) when both are
+  identical -- exactly `_sulfonamide.py`'s own N-/N,N-disubstitution
+  pattern (same PR), built with `name_branch` (P-29 PIN style, fixed
+  project-wide by PR #237). Confirmed via PubChem:
+  'N-methylmethanesulfinamide' (CS(=O)NC),
+  'N-propan-2-ylmethanesulfinamide' (CID 14896695).
 
 Scope, deliberately narrow, mirroring `_sulfinic_acid.py`'s own first pass
 exactly: a single -S(=O)NH2 on an acyclic chain or on a single saturated
@@ -50,8 +53,9 @@ carbon ring (monocyclic), with no other heteroatom anywhere in the molecule
 except the sulfinamide group's own oxygen/nitrogen (and any N-alkyl
 substituent's carbons) -- acid/amide-vs-other Table 3.3 seniority
 coexistence is future work. Explicitly out of scope (raise
-`UnsupportedStructure`): a branched, unsaturated, or ring-bearing
-N-substituent, polycyclic/spiro/unsaturated rings, a -S(=O)NH2 on a
+`UnsupportedStructure`): an unsaturated or ring-bearing N-substituent (a
+branched but otherwise plain saturated acyclic N-substituent is
+supported, see above), polycyclic/spiro/unsaturated rings, a -S(=O)NH2 on a
 substituent branch off an otherwise-unsubstituted *saturated* ring, two
 or more -S(=O)NH2 groups, and a sulfinamide on a carbon that is also part
 of a C=C/C#C bond. One narrow *aromatic*-ring exception:
@@ -73,7 +77,6 @@ from ._common import (
     carbon_adjacency,
     halogen_substituents,
     is_plain_benzene_ring,
-    linear_branch,
     lowest_locant_set,
     non_single_bonds,
     ordered_chain,
@@ -82,7 +85,7 @@ from ._common import (
     ring_cycle,
     specified_stereocenters,
 )
-from ._numerals import alkane_name, alkyl_name, numerical_term
+from ._numerals import alkane_name, numerical_term
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _ENE_ORDER = 2.0
@@ -189,7 +192,7 @@ def _validate_and_collect_sulfinamides(mol, aromatic_ring_atoms=frozenset()):
     (carbon,) = (n for n in sulfur.GetNeighbors() if n.GetAtomicNum() == 6)
     (nitrogen,) = (n for n in sulfur.GetNeighbors() if n.GetAtomicNum() == 7)
     n_alkyl_carbons = tuple(n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetIdx() != sulfur.GetIdx())
-    return sulfur.GetIdx(), carbon.GetIdx(), n_alkyl_carbons
+    return sulfur.GetIdx(), carbon.GetIdx(), nitrogen.GetIdx(), n_alkyl_carbons
 
 
 def _reject_enesulfinamide_carbon(graph, so_nh2_carbon, bonds):
@@ -201,36 +204,38 @@ def _reject_enesulfinamide_carbon(graph, so_nh2_carbon, bonds):
         )
 
 
-def _n_alkyl_info(full_carbon_graph, n_alkyl_carbons, non_single_bond_atoms):
-    """Mirrors `_sulfonamide.py`'s own N-alkyl handling: each N-substituent
-    must be a plain, unbranched, unsubstituted, saturated alkyl chain.
-    Returns (n_names, n_substituent_atoms) -- the latter must be excluded
-    from the carbon graph before picking the principal chain, since these
-    carbons hang off the (excluded) sulfinamide nitrogen rather than off the
+def _n_alkyl_info(full_graph, full_carbon_graph, nitrogen_idx, n_alkyl_carbons, non_single_bond_atoms, halogens):
+    """Mirrors `_sulfonamide.py`'s own N-alkyl handling (PR #335 lineage):
+    each N-substituent must be a plain, unsubstituted, saturated, acyclic
+    alkyl chain (branched or unbranched). Returns (n_names,
+    n_substituent_atoms) -- the latter must be excluded from the carbon
+    graph before picking the principal chain, since these carbons hang
+    off the (excluded) sulfinamide nitrogen rather than off the
     sulfinamide carbon itself."""
     n_names = []
     n_substituent_atoms = set()
     for n_alkyl_c in n_alkyl_carbons:
-        n_length = linear_branch(full_carbon_graph, n_alkyl_c, None)
-        if n_length is None:
-            raise UnsupportedStructure("a branched N-substituent is not supported yet")
-        n_atoms = set()
-        previous, current = None, n_alkyl_c
-        while current is not None:
-            n_atoms.add(current)
-            neighbors = [n for n in full_carbon_graph[current] if n != previous]
-            previous, current = current, (neighbors[0] if neighbors else None)
+        n_atoms, _ = bfs(full_carbon_graph, n_alkyl_c)
+        n_atoms = set(n_atoms)
         if n_atoms & non_single_bond_atoms:
             raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
-        n_names.append(alkyl_name(n_length))
+        if any(nbr in n_atoms for h in halogens for nbr in full_graph[h]):
+            raise UnsupportedStructure(
+                "a substituted N-substituent (e.g. bearing a halogen) is "
+                "not supported yet; only a plain, unsubstituted alkyl "
+                "N-substituent is in scope"
+            )
+        n_names.append(name_branch(full_graph, n_alkyl_c, nitrogen_idx, {}))
         n_substituent_atoms |= n_atoms
     return n_names, n_substituent_atoms
 
 
 def _n_prefix(n_names):
-    if len(n_names) == 2 and n_names[0] == n_names[1]:
-        return f"N,N-di{n_names[0]}"
-    return "-".join(f"N-{name}" for name in sorted(n_names))
+    if len(n_names) == 2 and n_names[0][0] == n_names[1][0]:
+        name, is_compound = n_names[0]
+        di_name = f"({name})" if is_compound else name
+        return f"N,N-di{di_name}"
+    return "-".join(f"N-{name}" for name, _ in sorted(n_names, key=lambda e: alpha_sort_key(e[0])))
 
 
 def _multiplied_word(count, base):
@@ -447,7 +452,7 @@ def _name_phenyl_chain_sulfinamide(mol, ring_atoms):
     above: no N-alkyl substitution and no chain unsaturation -- each is
     a separate follow-up (see
     tasks/phenyl-substituent-on-sulfinamide-chain.md's scope note)."""
-    sulfur_idx, so_nh2_carbon, n_alkyl_carbons = _validate_and_collect_sulfinamides(
+    sulfur_idx, so_nh2_carbon, _, n_alkyl_carbons = _validate_and_collect_sulfinamides(
         mol, aromatic_ring_atoms=ring_atoms
     )
     if n_alkyl_carbons:
@@ -525,7 +530,7 @@ def name_sulfinamide(mol) -> str:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
             return _name_phenyl_chain_sulfinamide(mol, ring_atoms)
-    sulfur_idx, so_nh2_carbon, n_alkyl_carbons = _validate_and_collect_sulfinamides(mol)
+    sulfur_idx, so_nh2_carbon, nitrogen_idx, n_alkyl_carbons = _validate_and_collect_sulfinamides(mol)
     if specified_stereocenters(mol) is not None:
         # The sulfinamide sulfur is itself a potential stereocenter in
         # virtually every real -S(=O)NH2 molecule (module docstring), and
@@ -549,7 +554,10 @@ def name_sulfinamide(mol) -> str:
         )
     _reject_enesulfinamide_carbon(graph, so_nh2_carbon, bonds)
     non_single_bond_atoms = {a for a, b, _ in all_non_single} | {b for a, b, _ in all_non_single}
-    n_names, n_substituent_atoms = _n_alkyl_info(carbon_adjacency(mol), n_alkyl_carbons, non_single_bond_atoms)
+    halogens = halogen_substituents(mol)
+    n_names, n_substituent_atoms = _n_alkyl_info(
+        graph, carbon_adjacency(mol), nitrogen_idx, n_alkyl_carbons, non_single_bond_atoms, halogens
+    )
 
     ring_info = mol.GetRingInfo()
     num_rings = ring_info.NumRings()

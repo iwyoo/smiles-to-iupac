@@ -134,9 +134,40 @@ def test_n_ethyl_n_methylethanesulfonamide():
     assert smiles_to_iupac("CCS(=O)(=O)N(C)CC") == "N-ethyl-N-methylethanesulfonamide"
 
 
-def test_branched_n_substituted_sulfonamide_not_supported():
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified: CID 312702, 4130162.
+        ("CS(=O)(=O)NC(C)C", "N-propan-2-ylmethanesulfonamide"),
+        ("CS(=O)(=O)NC(C)(C)C", "N-tert-butylmethanesulfonamide"),
+    ],
+)
+def test_branched_n_substituted_sulfonamide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_two_identical_branched_n_substituents_parenthesized_when_compound():
+    # PubChem CID 284325.
+    assert smiles_to_iupac("CS(=O)(=O)N(C(C)C)C(C)C") == "N,N-di(propan-2-yl)methanesulfonamide"
+
+
+def test_two_identical_branched_n_substituents_not_parenthesized_when_retained():
+    # PubChem CID 58624041.
+    assert smiles_to_iupac("CS(=O)(=O)N(C(C)(C)C)C(C)(C)C") == "N,N-ditert-butylmethanesulfonamide"
+
+
+def test_two_different_n_substituents_alphabetized_ignoring_italic_prefix():
+    # PubChem CID 58540473.
+    assert smiles_to_iupac("CS(=O)(=O)N(CC)C(C)(C)C") == "N-tert-butyl-N-ethylmethanesulfonamide"
+
+
+def test_halogenated_n_substituent_not_supported():
+    # A halogen on the N-substituent is out of scope (module docstring) --
+    # previously silently misnamed instead of rejected (invisible to the
+    # old carbon-only chain-length check, same bug `_amide.py` found and
+    # fixed, PR #335).
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CS(=O)(=O)NC(C)C")
+        smiles_to_iupac("CS(=O)(=O)NCCCl")
 
 
 def test_unsaturated_n_substituted_sulfonamide_not_supported():
