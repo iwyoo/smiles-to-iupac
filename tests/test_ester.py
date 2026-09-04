@@ -49,9 +49,22 @@ def test_diester_raises():
         smiles_to_iupac("COC(=O)CC(=O)OC")
 
 
-def test_branched_alcohol_part_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)OC(C)C")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Structure PubChem-confirmed (CID 7915, 10908, 8038: 'propan-2-yl
+        # acetate', 'tert-butyl acetate', '2-methylpropyl acetate'), but
+        # this module always uses the systematic 'ethanoate' stem rather
+        # than the retained 'acetate' one (see module docstring/
+        # test_ester_names above), so the acyl word here is an accepted,
+        # reviewed result rather than a PubChem-confirmed one.
+        ("CC(=O)OC(C)C", "propan-2-yl ethanoate"),
+        ("CC(=O)OC(C)(C)C", "tert-butyl ethanoate"),
+        ("CC(=O)OCC(C)C", "2-methylpropyl ethanoate"),
+    ],
+)
+def test_branched_alcohol_part(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_ring_ester_raises():

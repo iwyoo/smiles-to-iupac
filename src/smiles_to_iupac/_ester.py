@@ -12,11 +12,11 @@ Book"):
 - This module's scope (see also `_carboxylic_acid.py`/`_aldehyde.py`, the
   most similar existing modules): the acyl part (R) may be any acyclic
   saturated or unsaturated chain, with halogen substituents, the same as
-  `_carboxylic_acid.py`'s R. The alcohol part (R') is restricted to a plain,
-  unbranched, unsubstituted, saturated alkyl group attached at its own chain
-  terminus (e.g. 'methyl', 'ethyl', 'propyl') — a branched, substituted,
-  unsaturated, or ring-bearing R' is deferred (see "Explicitly out of
-  scope" below).
+  `_carboxylic_acid.py`'s R. The alcohol part (R') is restricted to a
+  plain, unsubstituted, saturated, acyclic alkyl group (branched or
+  unbranched) attached at its own chain terminus (e.g. 'methyl',
+  'propan-2-yl', 'tert-butyl') — a substituted, unsaturated, or
+  ring-bearing R' is deferred (see "Explicitly out of scope" below).
 - The acyl carbon is always a chain terminus (its remaining two bonds, after
   the carbonyl and ester oxygens, allow at most one more substituent, which
   must be another chain carbon, or nothing for a formate ester), so it is
@@ -33,7 +33,14 @@ Book"):
   `format_substituent_prefixes` unchanged.
 - P-29.3.2.1: the alcohol part's name is a plain alkyl substituent-group
   name (P-13.2.1's "R'yl" role, not a locanted prefix), built with
-  `alkyl_name` directly since it's restricted to an unbranched chain here.
+  `name_branch` (P-29 PIN style, fixed project-wide by PR #237 --
+  previously this module avoided `name_branch` for exactly this reason,
+  but that blocker no longer applies; mirrors `_carbamate.py`'s
+  identical fix, PR #328), e.g. 'propan-2-yl' for R' = isopropyl,
+  matching the verified PIN 'propan-2-yl acetate' (PubChem CID 7915)
+  and 'tert-butyl acetate' (CID 10908). R' is never parenthesized
+  regardless of `name_branch`'s `is_compound` flag -- the "R'yl R-oate"
+  two-word pattern has no nested-prefix ambiguity to guard against.
 - P-91.3/P-92: a molecule with one
   or more *specified* tetrahedral stereocenters on the acyl chain --
   every one on the principal chain itself, no unspecified one alongside
@@ -53,8 +60,9 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - More than one ester group (a diester), or any oxygen that isn't part of
   the single ester's carbonyl/ester-oxygen pair (an ether, alcohol, or
   second carbonyl elsewhere).
-- A branched, substituted, unsaturated, or cyclic alcohol part (R') — only
-  a plain unbranched saturated alkyl R' is supported in this first pass.
+- A substituted, unsaturated, or cyclic alcohol part (R') — only a plain
+  saturated acyclic alkyl R' (branched or unbranched) is supported in
+  this first pass.
 - Any other heteroatom (N, S, ...).
 """
 
@@ -73,7 +81,6 @@ from ._common import (
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
-    linear_branch,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
@@ -82,7 +89,7 @@ from ._common import (
     ring_chain_attachment,
     specified_stereocenters,
 )
-from ._numerals import alkane_name, alkyl_name
+from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
@@ -204,13 +211,8 @@ def _name_alcohol_part(mol, alcohol_carbon, ester_oxygen_idx):
                 "(P-65.6.3)"
             )
 
-    carbon_graph = carbon_adjacency(mol)
-    length = linear_branch(carbon_graph, alcohol_carbon.GetIdx(), None)
-    if length is None:
-        raise UnsupportedStructure(
-            "a branched alcohol part (R') is not supported yet (P-65.6.3)"
-        )
-    return alkyl_name(length)
+    name, _ = name_branch(full_graph, alcohol_carbon.GetIdx(), ester_oxygen_idx, {})
+    return name
 
 
 def _suffix_body(ene_locants, yne_locants):
