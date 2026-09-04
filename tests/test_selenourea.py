@@ -10,12 +10,14 @@ def test_selenourea():
     assert smiles_to_iupac("NC(=[Se])N") == "selenourea"
 
 
-def test_n_butan_2_yl_selenourea():
-    # Blue Book P-66.1.6.1.3.1 worked example: "N-(butan-2-yl)selenourea
-    # (PIN)" -- this project's own scope doesn't yet support the branched
-    # butan-2-yl substituent itself, so this is exercised with a plain
-    # unbranched substituent instead, mirroring `_thiourea.py`'s own tests.
+def test_n_methylselenourea():
     assert smiles_to_iupac("CNC(=[Se])N") == "N-methylselenourea"
+
+
+def test_n_butan_2_yl_selenourea():
+    # Blue Book P-66.1.6.1.3.1's own worked example, confirmed verbatim:
+    # "N-(butan-2-yl)selenourea (PIN)" (`tmp/bluebook/P6a.txt` line 1143).
+    assert smiles_to_iupac("CCC(C)NC(=[Se])N") == "N-(butan-2-yl)selenourea"
 
 
 def test_n_n_dimethylselenourea_same_nitrogen():
@@ -35,9 +37,16 @@ def test_different_substituents_on_different_nitrogens_not_supported():
         smiles_to_iupac("CCNC(=[Se])NC")
 
 
-def test_branched_n_substituent_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)NC(=[Se])N")
+def test_branched_n_substituent():
+    assert smiles_to_iupac("CC(C)NC(=[Se])N") == "N-(propan-2-yl)selenourea"
+
+
+def test_n_tert_butylselenourea():
+    assert smiles_to_iupac("CC(C)(C)NC(=[Se])N") == "N-tert-butylselenourea"
+
+
+def test_two_identical_branched_n_substituents_parenthesized_when_compound():
+    assert smiles_to_iupac("CC(C)NC(=[Se])NC(C)C") == "N,N'-di(propan-2-yl)selenourea"
 
 
 def test_unsaturated_n_substituent_not_supported():

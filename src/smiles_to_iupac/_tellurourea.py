@@ -16,23 +16,33 @@ and its N-substituted derivatives, per the IUPAC 2013 Recommendations
   engine limitation already seen for other tellurium compounds this
   project has covered -- structure match plus the Blue Book's own
   explicit rule text are the evidence here).
-- Each nitrogen may carry 0, 1, or 2 plain, unbranched, saturated alkyl
-  substituents, cited exactly the way `_thiourea.py`/`_urea.py` already
-  established for their own N-/N,N-/N,N'- letter-locant convention.
+- Each nitrogen may carry 0, 1, or 2 plain, unsubstituted, saturated,
+  acyclic alkyl substituents (branched or unbranched), cited exactly the
+  way `_thiourea.py`/`_urea.py` already established for their own
+  N-/N,N-/N,N'- letter-locant convention. Each N-substituent's own name
+  is built with `name_branch` (P-29 PIN style, fixed project-wide by PR
+  #237) -- a branched N-substituent is supported, mirroring
+  `_selenourea.py`'s identical extension (that module has a directly
+  confirmed Blue Book worked example, 'N-(butan-2-yl)selenourea (PIN)',
+  `tmp/bluebook/P6a.txt` line 1143; tellurourea inherits the same
+  mechanism by the shared P-66.1.6.1.3.1 rule text, no tellurium-specific
+  worked example exists). A compound (has its own locant) N-substituent
+  is always parenthesized, even alone, matching `_urea.py`'s identical
+  correction (PR #341).
 
 Scope, deliberately narrow, identical to `_thiourea.py`'s own:
 substituents landing on a single nitrogen (one or two, using the same
 'N-'/'N,N-di' citation), or an identical single substituent on each of the
 two different nitrogens (symmetric 'N,N'-di...' citation). Explicitly out
 of scope (raise `UnsupportedStructure`): two DIFFERENT substituents split
-across the two different nitrogens, a branched/unsaturated/ring-bearing
+across the two different nitrogens, an unsaturated/ring-bearing
 N-substituent, and a ring-fused tellurourea.
 """
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, carbon_adjacency, linear_branch, non_single_bonds
-from ._numerals import alkyl_name
+from ._common import UnsupportedStructure, adjacency, bfs, carbon_adjacency, non_single_bonds
+from ._substituents import alpha_sort_key, name_branch
 
 
 def _tellurourea_core(mol):
@@ -75,24 +85,15 @@ def _n_substituent_carbons(mol, nitrogen_idx, carbon_idx):
     )
 
 
-def _substituent_names(carbon_graph, substituent_carbons):
-    names = []
-    for c in substituent_carbons:
-        length = linear_branch(carbon_graph, c, None)
-        if length is None:
-            raise UnsupportedStructure("a branched N-substituent is not supported yet")
-        names.append(alkyl_name(length))
-    return names
+def _substituent_names(full_graph, nitrogen_idx, substituent_carbons):
+    return [name_branch(full_graph, c, nitrogen_idx, {}) for c in substituent_carbons]
 
 
 def _substituent_chain_atoms(carbon_graph, substituent_carbons):
     atoms = set()
     for root in substituent_carbons:
-        previous, current = None, root
-        while current is not None:
-            atoms.add(current)
-            neighbors = [n for n in carbon_graph[current] if n != previous]
-            previous, current = current, (neighbors[0] if neighbors else None)
+        reached, _ = bfs(carbon_graph, root)
+        atoms.update(reached)
     return atoms
 
 
@@ -101,15 +102,25 @@ def _reject_unsaturated_substituents(mol, atoms):
         raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
 
 
-def _n_prefix(letter, names):
-    if not names:
+def _di_name(name, is_compound):
+    return f"({name})" if is_compound else name
+
+
+def _n_letter_entry(letter, name, is_compound):
+    return f"{letter}-({name})" if is_compound else f"{letter}-{name}"
+
+
+def _n_prefix(letter, entries):
+    if not entries:
         return ""
-    if len(names) == 1:
-        return f"{letter}-{names[0]}"
-    if names[0] == names[1]:
-        return f"{letter},{letter}-di{names[0]}"
-    a, b = sorted(names)
-    return f"{letter}-{a}-{letter}-{b}"
+    if len(entries) == 1:
+        (name, is_compound), = entries
+        return _n_letter_entry(letter, name, is_compound)
+    (name_a, compound_a), (name_b, compound_b) = entries
+    if name_a == name_b:
+        return f"{letter},{letter}-di{_di_name(name_a, compound_a)}"
+    (a, ca), (b, cb) = sorted(entries, key=lambda e: alpha_sort_key(e[0]))
+    return f"{_n_letter_entry(letter, a, ca)}-{_n_letter_entry(letter, b, cb)}"
 
 
 def name_tellurourea(mol) -> str:
@@ -148,21 +159,23 @@ def name_tellurourea(mol) -> str:
     _reject_unsaturated_substituents(mol, n1_chain_atoms)
     _reject_unsaturated_substituents(mol, n2_chain_atoms)
 
-    n1_names = _substituent_names(carbon_graph, n1_carbons)
-    n2_names = _substituent_names(carbon_graph, n2_carbons)
+    full_graph = adjacency(mol)
+    n1_names = _substituent_names(full_graph, n1_idx, n1_carbons)
+    n2_names = _substituent_names(full_graph, n2_idx, n2_carbons)
 
     if not n1_names and not n2_names:
         return "tellurourea"
 
     if n1_names and n2_names:
-        if len(n1_names) != 1 or len(n2_names) != 1 or n1_names[0] != n2_names[0]:
+        if len(n1_names) != 1 or len(n2_names) != 1 or n1_names[0][0] != n2_names[0][0]:
             raise UnsupportedStructure(
                 "different substituents split across tellurourea's two "
                 "nitrogens is not supported yet (no confirmed worked "
                 "example settles which nitrogen becomes N vs N' in that "
                 "case)"
             )
-        return f"N,N'-di{n1_names[0]}tellurourea"
+        name, is_compound = n1_names[0]
+        return f"N,N'-di{_di_name(name, is_compound)}tellurourea"
 
     names = n1_names or n2_names
     return f"{_n_prefix('N', names)}tellurourea"
