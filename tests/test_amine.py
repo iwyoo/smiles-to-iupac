@@ -28,6 +28,12 @@ from smiles_to_iupac._common import UnsupportedStructure
         # (like 'methylcyclohexane') applies to the suffix too. Cross-checked
         # against PubChem.
         ("NC1CCCCC1", "cyclohexanamine"),
+        # Monocyclic ring, single -NH2, single ring double bond (P-31.1.3):
+        # the amine always gets locant 1 (suffix priority), the ring
+        # double bond's locant is minimized by choosing direction.
+        # Cross-checked against PubChem (CID 10931371/13040867).
+        ("NC1CCCC=C1", "cyclohex-2-en-1-amine"),
+        ("NC1CC=CCC1", "cyclohex-3-en-1-amine"),
         # -NH2 combined with existing unsaturation support, on carbons that
         # don't touch the double bond (avoiding the enamine guard).
         # Cross-checked against PubChem: the -NH2 gets locant 1 (suffix
@@ -228,3 +234,13 @@ def test_phenyl_chain_secondary_amine_raises():
     # `name_amine`.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("c1ccccc1CCNC")
+
+
+def test_unsaturated_ring_amine_with_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NC1CCCC=C1C")
+
+
+def test_unsaturated_ring_amine_triple_bond_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NC1CCCC#C1")
