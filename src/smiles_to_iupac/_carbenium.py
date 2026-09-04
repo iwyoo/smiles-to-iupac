@@ -15,17 +15,32 @@ Book"):
   module reuses `_numerals.py`'s `alkyl_name` the same way, appending
   'ium' to its own output.
 
-Explicitly out of scope (raise `UnsupportedStructure`), mirroring
-`_radical.py`'s own original scope before its later branch-point
-extension:
-- A cation carbon that is itself a branch point (not a chain terminus) --
-  P-73.2.2.1.2's "general method" names this by citing the cation's own
-  locant directly on the full (possibly branched) parent hydride name
-  (e.g. 'heptamethyltrisilan-2-ylium (PIN)'), which would need
-  `_substituents.py`'s `name_branch` for any branched substituent --
-  currently pre-PIN (P-29 blocker, see the roadmap) -- so this shape is
-  deferred to a follow-up task, exactly as `_radical.py`'s own P-29.3.2.2
-  branch-point handling was.
+- P-73.2.2.1.2, the "general method": a cation carbon that is itself a
+  branch point (not a chain terminus) is named by adding '-ylium' to the
+  PIN of the parent hydride (P-2/P-5 parent-hydride selection), with
+  elision of the final 'e' -- confirmed worked examples in
+  `tmp/bluebook/P7.txt` (1948-1995) are silane/furan/spiro-based (e.g.
+  'heptamethyltrisilan-2-ylium (PIN)'), with no plain-carbon-chain
+  worked example, but the mechanism ("parent hydride PIN + '-ylium'")
+  parallels `_radical.py`'s own P-29.3.2.2 branch-point mechanism
+  ('yl' instead of 'ylium') closely enough for the two-branch case: both
+  reduce to picking the longest chain through the branch-point atom, that
+  atom getting the lowest possible locant. Scoped conservatively to
+  exactly two branches off the cation (e.g. 'propan-2-ylium',
+  'butan-2-ylium') -- a three-branch shape (needing an extra substituent
+  prefix, or the `_radical.py`-style 'tert-butyl' retained-name
+  exception) is deferred: neither has a confirmed carbon-only PIN worked
+  example here, and PubChem doesn't reliably register/verify these
+  cationic structures (tested directly: it silently returns the neutral
+  isomer's name instead of erroring), so this project's usual
+  verification bar isn't met for that wider case yet.
+
+Explicitly out of scope (raise `UnsupportedStructure`):
+- A cation carbon that is a branch point with other than exactly two
+  branches (three-branch shapes, and the associated 'tert-butyl'-style
+  retained-name question, are deferred -- see above), or where either
+  branch is itself further branched (P-29.5-style "complex substituent
+  groups").
 - More than one cationic center, a cation on a polycyclic/spiro skeleton
   or an aromatic ring, or coexisting with any heteroatom, halogen,
   unsaturation, or isotopic modification.
@@ -33,8 +48,8 @@ extension:
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
-from ._numerals import alkyl_name
+from ._common import UnsupportedStructure, adjacency, linear_branch
+from ._numerals import alkane_name, alkyl_name
 
 
 def has_carbenium_shape(mol) -> bool:
@@ -105,10 +120,7 @@ def _name_chain_carbenium(mol, cation) -> str:
         # another atom, so degree 0 rather than 1.
         return alkyl_name(1) + "ium"
     if cation.GetDegree() != 1:
-        raise UnsupportedStructure(
-            "a carbenium carbon that is itself a branch point is out of "
-            "scope for this module (P-73.2.2.1.2, the 'general method')"
-        )
+        return _name_branch_point_carbenium(mol, cation)
     for atom in mol.GetAtoms():
         if atom.GetDegree() > 2:
             raise UnsupportedStructure(
@@ -116,6 +128,39 @@ def _name_chain_carbenium(mol, cation) -> str:
                 "(P-73.2.2.1.2, the 'general method')"
             )
     return alkyl_name(mol.GetNumAtoms()) + "ium"
+
+
+def _name_branch_point_carbenium(mol, cation) -> str:
+    """P-73.2.2.1.2: the cation carbon itself is a branch point (not a
+    chain terminus) -- see module docstring for the full derivation.
+    Scoped to exactly two branches (mirrors `_radical.py`'s
+    `_name_branch_point_radical`'s two-longest-branches mechanism, 'yl'
+    replaced by 'ylium'); a third branch or a further-branched branch is
+    out of scope."""
+    graph = adjacency(mol)
+    root_idx = cation.GetIdx()
+    branch_roots = list(graph[root_idx])
+    if len(branch_roots) != 2:
+        raise UnsupportedStructure(
+            "a carbenium branch point with other than exactly two "
+            "branches is not supported yet (P-73.2.2.1.2, the 'general "
+            "method')"
+        )
+    lengths = []
+    for branch_root in branch_roots:
+        length = linear_branch(graph, branch_root, root_idx)
+        if length is None:
+            raise UnsupportedStructure(
+                "a substituent branch with its own branch point is out "
+                "of scope for this module (P-29.5, complex substituent "
+                "groups)"
+            )
+        lengths.append(length)
+
+    chain_length = lengths[0] + lengths[1] + 1
+    root_locant = min(lengths[0] + 1, lengths[1] + 1)
+    stem = alkane_name(chain_length)[:-1]
+    return f"{stem}-{root_locant}-ylium"
 
 
 def _name_ring_carbenium(mol, ring_info) -> str:
