@@ -1,37 +1,34 @@
 """Naming of a molecule combining exactly one carboxylic acid (-COOH) with
-one or more sulfonic acid (-SO3H) groups on the same acyclic saturated
+one or more sulfinic acid (-S(=O)OH) groups on the same acyclic saturated
 carbon chain, per the IUPAC 2013 Recommendations ("the Blue Book"):
 
 - P-41/P-43 (`_seniority.py`): carboxylic acid (Table 4.4 class 1)
-  outranks sulfonic acid (class 4), so a coexisting sulfonic acid is
-  demoted to the 'sulfo' substituent prefix (P-65.3.1) instead of its own
-  '-sulfonic acid' suffix -- e.g. 'OC(=O)CS(=O)(=O)O' -> '2-sulfoacetic
-  acid' (PubChem CID 31257 confirms the systematic '2-sulfoacetic acid'
-  form; this module always uses the systematic '...anoic acid' stem
-  rather than a retained name like 'acetic acid', mirroring
-  `_carboxylic_acid.py`'s own established convention once any substituent
-  is present). Unlike the three existing `_seniority.py` consumers
-  (`_sulfonic_acid_thiol.py`/`_sulfonic_acid_sulfinic_acid.py`/
-  `_sulfonic_acid_sulfonamide.py`), which all demote *to* a prefix
-  *around* a sulfonic-acid-suffixed parent, this is the first pairwise
-  module where the winning suffix is carboxylic acid instead -- so the
-  parent-chain naming mirrors `_carboxylic_acid.py` (the -COOH carbon is
-  always the chain-terminal C1, P-65.1.1) rather than
-  `_sulfonic_acid.py`.
+  outranks sulfinic acid (class 9), so a coexisting sulfinic acid is
+  demoted to the 'sulfino' substituent prefix (P-65.3.1) instead of its
+  own '-sulfinic acid' suffix -- e.g. 'OC(=O)CS(=O)O' -> '2-sulfinoacetic
+  acid' (PubChem CID 13101808 confirms the systematic '2-sulfinoacetic
+  acid' form; this module always uses the systematic '...anoic acid'
+  stem rather than a retained name like 'acetic acid'/'formic acid',
+  mirroring `_carboxylic_acid.py`'s and
+  `_carboxylic_acid_sulfonic_acid.py`'s own established convention once
+  any substituent is present). Mirrors `_carboxylic_acid_sulfonic_acid.py`
+  (PR #314), the first pairwise module where carboxylic acid wins the
+  suffix, with the demoted group swapped from sulfonic acid/'sulfo' to
+  sulfinic acid/'sulfino'.
 - Otherwise mirrors `_carboxylic_acid.py`'s acyclic-chain path: P-14.3.3's
   locant-omission rule for the -COOH suffix itself (always C1, never
-  cited), and 'sulfo' is injected into the same {atom_idx -> name} map
+  cited), and 'sulfino' is injected into the same {atom_idx -> name} map
   `_carboxylic_acid.py` already uses for halogens/a demoted hydroxyl, so
   it is formatted, alphabetized, and multiplied by the same general
   substituent-prefix machinery.
 
-Scope, deliberately narrow (mirrors `_sulfonic_acid_sulfinic_acid.py`): a
-single carboxylic acid plus one or more sulfonic acids, all on one
+Scope, deliberately narrow (mirrors `_carboxylic_acid_sulfonic_acid.py`):
+a single carboxylic acid plus one or more sulfinic acids, all on one
 acyclic saturated chain, with halogen substituents allowed. Explicitly
 out of scope (raise `UnsupportedStructure`): any chain unsaturation
 (ene/yne), any ring, more than one carboxylic acid, a coexisting
 standalone hydroxyl/ether/other heteroatom, a specified stereocenter, and
-any carboxylic acid/sulfonic acid not captured by a single longest chain.
+any carboxylic acid/sulfinic acid not captured by a single longest chain.
 """
 
 from rdkit import Chem
@@ -53,22 +50,22 @@ from ._substituents import alpha_sort_key, format_substituent_prefixes, name_bra
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, 16, *HALOGEN_PREFIXES}
 
-assert senior_class("carboxylic_acid", "sulfonic_acid") == "carboxylic_acid"
+assert senior_class("carboxylic_acid", "sulfinic_acid") == "carboxylic_acid"
 
 
-def _sulfonic_sulfur_atoms(mol):
-    """Sulfur atoms shaped like a sulfonic acid group: bonded to exactly
-    one carbon, two double-bonded (terminal) oxygens, and one
+def _sulfinic_sulfur_atoms(mol):
+    """Sulfur atoms shaped like a sulfinic acid group: bonded to exactly
+    one carbon, one double-bonded (terminal) oxygen, and one
     single-bonded hydroxyl oxygen (terminal, one H). Mirrors
-    `_sulfonic_acid.py`'s identical helper."""
+    `_sulfinic_acid.py`'s identical helper."""
     matches = []
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != 16 or atom.GetDegree() != 4:
+        if atom.GetAtomicNum() != 16 or atom.GetDegree() != 3:
             continue
         neighbors = atom.GetNeighbors()
         carbons = [n for n in neighbors if n.GetAtomicNum() == 6]
         oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
-        if len(carbons) != 1 or len(oxygens) != 3:
+        if len(carbons) != 1 or len(oxygens) != 2:
             continue
         double_os = [
             o
@@ -80,7 +77,7 @@ def _sulfonic_sulfur_atoms(mol):
             for o in oxygens
             if mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 1.0
         ]
-        if len(double_os) != 2 or len(hydroxyl_os) != 1:
+        if len(double_os) != 1 or len(hydroxyl_os) != 1:
             continue
         if any(o.GetDegree() != 1 for o in double_os):
             continue
@@ -126,8 +123,8 @@ def _carboxyl_carbons(mol):
     return matches
 
 
-def has_carboxylic_acid_sulfonic_acid_shape(mol) -> bool:
-    return bool(_carboxyl_carbons(mol)) and bool(_sulfonic_sulfur_atoms(mol))
+def has_carboxylic_acid_sulfinic_acid_shape(mol) -> bool:
+    return bool(_carboxyl_carbons(mol)) and bool(_sulfinic_sulfur_atoms(mol))
 
 
 def _validate_and_collect(mol):
@@ -136,31 +133,31 @@ def _validate_and_collect(mol):
         raise UnsupportedStructure(
             "exactly one carboxylic acid is required; this module only "
             "handles a single carboxylic acid combined with one or more "
-            "sulfonic acids"
+            "sulfinic acids"
         )
     (carboxyl_carbon,) = carboxyl_carbons
     carboxyl_oxygens = {n.GetIdx() for n in carboxyl_carbon.GetNeighbors() if n.GetAtomicNum() == 8}
 
-    sulfonics = _sulfonic_sulfur_atoms(mol)
-    if not sulfonics:
+    sulfinics = _sulfinic_sulfur_atoms(mol)
+    if not sulfinics:
         raise UnsupportedStructure(
-            "no sulfonic acid found; this module only handles a "
-            "carboxylic acid combined with at least one sulfonic acid "
+            "no sulfinic acid found; this module only handles a "
+            "carboxylic acid combined with at least one sulfinic acid "
             "(see _carboxylic_acid.py for a plain carboxylic acid)"
         )
-    sulfonic_idxs = {s.GetIdx() for s in sulfonics}
-    sulfonic_oxygens = {
-        o.GetIdx() for s in sulfonics for o in s.GetNeighbors() if o.GetAtomicNum() == 8
+    sulfinic_idxs = {s.GetIdx() for s in sulfinics}
+    sulfinic_oxygens = {
+        o.GetIdx() for s in sulfinics for o in s.GetNeighbors() if o.GetAtomicNum() == 8
     }
 
-    accounted_oxygen_idxs = carboxyl_oxygens | sulfonic_oxygens
+    accounted_oxygen_idxs = carboxyl_oxygens | sulfinic_oxygens
 
     has_carbon = False
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
         if atomic_num not in _ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(
-                "heteroatoms other than the carboxylic/sulfonic acid "
+                "heteroatoms other than the carboxylic/sulfinic acid "
                 "groups' own oxygens (P-65.1.1/P-65.3.1) and halogen "
                 "substituents (P-35.2.1) are not supported yet"
             )
@@ -176,14 +173,14 @@ def _validate_and_collect(mol):
         elif atomic_num == 8:
             if atom.GetIdx() not in accounted_oxygen_idxs:
                 raise UnsupportedStructure(
-                    "an oxygen that isn't part of the carboxylic/sulfonic "
+                    "an oxygen that isn't part of the carboxylic/sulfinic "
                     "acid groups is out of scope for this module (e.g. a "
                     "coexisting hydroxyl, ether, or carbonyl)"
                 )
         elif atomic_num == 16:
-            if atom.GetIdx() not in sulfonic_idxs:
+            if atom.GetIdx() not in sulfinic_idxs:
                 raise UnsupportedStructure(
-                    "a sulfur atom not shaped like a sulfonic acid group "
+                    "a sulfur atom not shaped like a sulfinic acid group "
                     "is out of scope for this module"
                 )
         else:
@@ -199,7 +196,7 @@ def _validate_and_collect(mol):
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
-    return carboxyl_carbon.GetIdx(), carboxyl_oxygens, sulfonic_idxs
+    return carboxyl_carbon.GetIdx(), carboxyl_oxygens, sulfinic_idxs
 
 
 def _name_from_substituents(chain_length, grouped):
@@ -235,44 +232,44 @@ def _substituents_for_chain(graph, chain, names, excluded):
     return substituents
 
 
-def name_carboxylic_acid_sulfonic_acid(mol) -> str:
-    carboxyl_carbon, carboxyl_oxygens, sulfonic_idxs = _validate_and_collect(mol)
+def name_carboxylic_acid_sulfinic_acid(mol) -> str:
+    carboxyl_carbon, carboxyl_oxygens, sulfinic_idxs = _validate_and_collect(mol)
 
     if mol.GetRingInfo().NumRings() != 0:
         raise UnsupportedStructure(
-            "a carboxylic acid/sulfonic acid combination on a ring is out "
+            "a carboxylic acid/sulfinic acid combination on a ring is out "
             "of scope for this acyclic-only module"
         )
     all_non_single = non_single_bonds(mol)
-    excluded_from_unsaturation_check = {carboxyl_carbon} | sulfonic_idxs
+    excluded_from_unsaturation_check = {carboxyl_carbon} | sulfinic_idxs
     if any(
         a not in excluded_from_unsaturation_check and b not in excluded_from_unsaturation_check
         for a, b, _ in all_non_single
     ):
         raise UnsupportedStructure(
             "chain unsaturation (ene/yne) alongside a carboxylic acid/"
-            "sulfonic acid combination is out of scope for this module"
+            "sulfinic acid combination is out of scope for this module"
         )
 
     graph = adjacency(mol)
-    names = {**halogen_substituents(mol), **{s: "sulfo" for s in sulfonic_idxs}}
+    names = {**halogen_substituents(mol), **{s: "sulfino" for s in sulfinic_idxs}}
     chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
 
-    sulfonic_carbons = {
+    sulfinic_carbons = {
         n.GetIdx()
-        for s in sulfonic_idxs
+        for s in sulfinic_idxs
         for n in mol.GetAtomWithIdx(s).GetNeighbors()
         if n.GetAtomicNum() == 6
     }
     eligible = [
         chain
         for chain in chains
-        if carboxyl_carbon in chain and sulfonic_carbons.issubset(set(chain))
+        if carboxyl_carbon in chain and sulfinic_carbons.issubset(set(chain))
     ]
     if not eligible:
         raise UnsupportedStructure(
-            "not every carboxylic acid/sulfonic acid-bearing carbon lies "
+            "not every carboxylic acid/sulfinic acid-bearing carbon lies "
             "on a single longest carbon chain; a shorter principal chain "
             "is not supported yet"
         )
