@@ -204,6 +204,25 @@ def test_seven_membered_two_heteroatom_saturated_ring_names(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        # 1,3-related two-heteroatom saturated 7-membered rings -- same
+        # N/O/S axis as the 1,4-seven-membered family above, heteroatoms
+        # one carbon apart instead of two. PubChem PUG REST auto-generated
+        # names match exactly for all six.
+        ("N1CNCCCC1", "1,3-diazepane"),
+        ("O1CNCCCC1", "1,3-oxazepane"),
+        ("S1CNCCCC1", "1,3-thiazepane"),
+        ("O1COCCCC1", "1,3-dioxepane"),
+        ("C1CCCOCS1", "1,3-oxathiepane"),
+        ("S1CSCCCC1", "1,3-dithiepane"),
+    ],
+)
+def test_seven_membered_1_3_two_heteroatom_saturated_ring_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         # 1,4-related two-heteroatom saturated 6-membered rings whose pair
         # includes Se and/or Te -- PubChem-verified: selenomorpholine,
         # telluromorpholine, 1,4-oxaselenane, 1,4-oxatellurane,
