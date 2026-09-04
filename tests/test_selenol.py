@@ -162,11 +162,18 @@ def test_phenyl_chain_selenol_internal_locant():
     assert smiles_to_iupac("C(c1ccccc1)C(C)[SeH]") == "1-phenylpropane-2-selenol"
 
 
-def test_phenyl_directly_attached_selenol_raises():
-    # Selenophenol-type naming (-SeH directly on the ring) is a separate
-    # construction, out of scope for this acyclic-chain-parent module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1[SeH]")
+def test_benzeneselenol():
+    # -SeH directly on a benzene ring carbon, cross-checked against
+    # PubChem PUG REST (structure match; PubChem has no computed
+    # IUPACName for the substituted case, so only the unsubstituted case
+    # is independently name-verified here).
+    assert smiles_to_iupac("c1ccccc1[SeH]") == "benzeneselenol"  # CID 69530
+
+
+def test_substituted_benzeneselenol():
+    # Mechanical extension of the verified unsubstituted case, mirroring
+    # `_thiol.py`'s identical 'benzenethiol'/'2-methylbenzenethiol' proof.
+    assert smiles_to_iupac("Cc1ccccc1[SeH]") == "2-methylbenzeneselenol"
 
 
 def test_phenyl_substituted_benzene_ring_selenol_raises():

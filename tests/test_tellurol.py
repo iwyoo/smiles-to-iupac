@@ -146,11 +146,18 @@ def test_phenyl_chain_tellurol_internal_locant():
     assert smiles_to_iupac("C(c1ccccc1)C(C)[TeH]") == "1-phenylpropane-2-tellurol"
 
 
-def test_phenyl_directly_attached_tellurol_raises():
-    # Tellurophenol-type naming (-TeH directly on the ring) is a separate
-    # construction, out of scope for this acyclic-chain-parent module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1[TeH]")
+def test_benzenetellurol():
+    # -TeH directly on a benzene ring carbon, cross-checked against
+    # PubChem PUG REST (structure match; PubChem has no computed
+    # IUPACName for the substituted case, so only the unsubstituted case
+    # is independently name-verified here).
+    assert smiles_to_iupac("c1ccccc1[TeH]") == "benzenetellurol"  # CID 5246059
+
+
+def test_substituted_benzenetellurol():
+    # Mechanical extension of the verified unsubstituted case, mirroring
+    # `_thiol.py`'s/`_selenol.py`'s identical proofs.
+    assert smiles_to_iupac("Cc1ccccc1[TeH]") == "2-methylbenzenetellurol"
 
 
 def test_phenyl_substituted_benzene_ring_tellurol_raises():
