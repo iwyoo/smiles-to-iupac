@@ -67,12 +67,16 @@ def test_carboxylic_acid_not_misread_as_aldehyde():
     assert smiles_to_iupac("CC(=O)O") == "ethanoic acid"
 
 
-def test_aryl_aldehyde_raises():
-    # Benzaldehyde: an aromatic ring elsewhere in the molecule is out of
-    # scope for this module (separate, in-progress aromatic-ring module's
-    # territory).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=Cc1ccccc1")
+def test_benzaldehyde():
+    # -CHO attached directly to a benzene ring carbon (P-66.6.1.1.3). The
+    # retained name 'benzaldehyde' stands for the whole ring+CHO system
+    # (like 'phenol'/'aniline'), so the aldehyde's own ring locant is
+    # never cited, only other substituents'. PubChem PUG REST:
+    # "benzaldehyde"/"4-methylbenzaldehyde"/"2-chlorobenzaldehyde" -- all
+    # exact matches.
+    assert smiles_to_iupac("O=Cc1ccccc1") == "benzaldehyde"
+    assert smiles_to_iupac("O=Cc1ccc(C)cc1") == "4-methylbenzaldehyde"
+    assert smiles_to_iupac("O=Cc1ccccc1Cl") == "2-chlorobenzaldehyde"
 
 
 def test_phenyl_substituted_benzene_ring_aldehyde_raises():
@@ -107,12 +111,19 @@ def test_aldehyde_enol_mix_raises():
         smiles_to_iupac("OC=CC=O")
 
 
-def test_ring_aldehyde_raises():
-    # -CHO on a ring is the 'carbaldehyde' suffix (P-33.3.1.2), a different
-    # naming pattern this module deliberately excludes (see module
-    # docstring).
+def test_ring_aldehyde():
+    # -CHO attached directly to a saturated monocyclic ring carbon
+    # (P-66.6.1.1.3, the 'carbaldehyde' suffix) -- e.g.
+    # 'cyclohexanecarbaldehyde'. PubChem PUG REST:
+    # "cyclohexanecarbaldehyde"/"4-methylcyclohexane-1-carbaldehyde" --
+    # both exact matches.
+    assert smiles_to_iupac("O=CC1CCCCC1") == "cyclohexanecarbaldehyde"
+    assert smiles_to_iupac("O=CC1CCC(C)CC1") == "4-methylcyclohexane-1-carbaldehyde"
+
+
+def test_ring_aldehyde_multiple_groups_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=CC1CCCCC1")
+        smiles_to_iupac("O=CC1CCC(C=O)CC1")
 
 
 def test_bicyclic_carbon_skeleton_with_stray_aldehyde_raises():

@@ -58,9 +58,13 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - A hydroxyl on a carbon that is also part of a C=C/C#C bond (an enol,
   tautomeric with a more senior carbonyl form) — same restriction as
   `_alcohol.py`'s own enol check.
-- -CHO on a ring (the 'carbaldehyde' suffix, P-33.3.1.2, a substituent-style
-  name rather than this module's parent-chain suffix) - deferred entirely;
-  only an acyclic terminal -CHO is supported here.
+- More than one -CHO on a ring, a ring with other unsaturation, a
+  standalone hydroxyl alongside a ring aldehyde, or any ring shape other
+  than a single saturated monocyclic all-carbon ring or a single plain
+  benzene ring -- P-66.6.1.1.3's 'carbaldehyde' suffix (a substituent-
+  style name rather than this module's own parent-chain suffix) is
+  handled by `_name_ring_aldehyde`/`_name_benzaldehyde` for the single-
+  group case only.
 """
 
 from rdkit import Chem
@@ -83,6 +87,7 @@ from ._common import (
     non_single_bonds,
     ordered_chain,
     ring_chain_attachment,
+    ring_cycle,
     specified_stereocenters,
 )
 from ._numerals import alkane_name
@@ -345,6 +350,203 @@ def _name_acyclic_aldehyde(mol, aldehydes, hydroxyls, bonds, stereo=None):
     return best_name
 
 
+def _ring_substituents(graph, ring_order, halogens, excluded):
+    """{ring position -> [substituent name, ...]}, mirroring
+    `_carboxylic_acid.py`'s identically-named helper -- every branch
+    hanging off a ring atom other than the aldehyde carbon itself (in
+    `excluded`) is a plain substituent prefix (alkyl/halogen)."""
+    ring_set = set(ring_order)
+    substituents = {}
+    for position, atom in enumerate(ring_order, start=1):
+        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+    return substituents
+
+
+def _ring_name_from_substituents(ring_size, al_locant, grouped):
+    stem = "cyclo" + alkane_name(ring_size)
+    total_subs = sum(len(info["locants"]) for info in grouped.values())
+    if total_subs == 0:
+        # P-14.3.3: the sole substituent on an otherwise unsubstituted ring
+        # has no locant to distinguish, e.g. 'cyclohexanecarbaldehyde'.
+        return stem + "carbaldehyde"
+    prefix = format_substituent_prefixes(grouped)
+    return f"{prefix}{stem}-{al_locant}-carbaldehyde"
+
+
+def _ring_candidate_key(ring_size, al_locant, substituents):
+    grouped = group_substituents(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _ring_name_from_substituents(ring_size, al_locant, grouped)
+    return al_locant, locant_set, citation_locants, name
+
+
+def _name_ring_aldehyde(mol, ring_atoms):
+    """P-66.6.1.1.3: "The suffix 'carbaldehyde' is used when the -CHO
+    group is attached to a carbon atom of a ring" -- e.g.
+    'cyclohexanecarbaldehyde (PIN)'. Unlike the chain-parent 'al' suffix
+    above (where the -CHO carbon is always the parent's own C1), here the
+    ring itself is the parent hydride and the -CHO carbon is a
+    substituent atom hanging directly off one ring carbon, mirroring
+    `_carboxylic_acid.py`'s `_name_ring_carboxylic_acid` construction.
+
+    A saturated monocyclic all-carbon ring with exactly one -CHO hanging
+    directly off one ring atom (no intervening chain carbon, no
+    standalone hydroxyl, no ring unsaturation, and no other substituent
+    sharing that same ring atom), plus any number of substituents
+    (alkyl/halogen) on *other* ring atoms."""
+    aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol)
+    if hydroxyls:
+        raise UnsupportedStructure(
+            "a standalone hydroxyl alongside a ring aldehyde is not "
+            "supported yet"
+        )
+    if len(aldehydes) != 1:
+        raise UnsupportedStructure(
+            "more than one aldehyde group alongside a ring is not "
+            "supported yet"
+        )
+    (aldehyde_oxygen,) = aldehydes
+
+    graph = adjacency(mol)
+    (aldehyde_carbon,) = graph[aldehyde_oxygen]
+    all_non_single = [b for b in non_single_bonds(mol) if b[0] != aldehyde_oxygen and b[1] != aldehyde_oxygen]
+    if all_non_single:
+        raise UnsupportedStructure(
+            "an unsaturated ring alongside an aldehyde substituent is not "
+            "supported yet (see P-31.1.3)"
+        )
+
+    ring_neighbors = [n for n in graph[aldehyde_carbon] if n in ring_atoms]
+    if len(ring_neighbors) != 1:
+        raise UnsupportedStructure(
+            "an aldehyde not directly attached to a single ring atom is "
+            "not supported yet"
+        )
+    (ring_atom,) = ring_neighbors
+    other_ring_atom_branches = [n for n in graph[ring_atom] if n not in ring_atoms and n != aldehyde_carbon]
+    if other_ring_atom_branches:
+        raise UnsupportedStructure(
+            "a substituent on the same ring atom as the aldehyde is not "
+            "supported yet"
+        )
+
+    halogens = halogen_substituents(mol)
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            al_locant = position_of[ring_atom]
+            substituents = _ring_substituents(graph, candidate, halogens, {aldehyde_carbon})
+            key = _ring_candidate_key(ring_size, al_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+
+    return best_name
+
+
+def _benzaldehyde_name_from_substituents(grouped):
+    total_subs = sum(len(info["locants"]) for info in grouped.values())
+    if total_subs == 0:
+        # 'benzaldehyde' is a fully retained name (P-66.6.1.1.3) -- unlike
+        # 'cyclohexanecarbaldehyde', there is no locant position to even
+        # omit.
+        return "benzaldehyde"
+    return f"{format_substituent_prefixes(grouped)}benzaldehyde"
+
+
+def _benzaldehyde_candidate_key(al_locant, substituents):
+    grouped = group_substituents(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _benzaldehyde_name_from_substituents(grouped)
+    return al_locant, locant_set, citation_locants, name
+
+
+def _name_benzaldehyde(mol, ring_atoms):
+    """P-66.6.1.1.3: 'benzaldehyde' is a retained name that is itself the
+    PIN for a -CHO hanging directly off one carbon of an otherwise-plain
+    (or substituted) benzene ring -- e.g. 'benzaldehyde' (PubChem CID
+    240), '2-methylbenzaldehyde' (CID 10722), '4-methylbenzaldehyde' (CID
+    7725). Structurally identical to `_name_ring_aldehyde`'s saturated-
+    ring case, mirroring `_carboxylic_acid.py`'s `_name_benzoic_acid`,
+    with the retained name 'benzaldehyde' replacing 'cyclo' + alkane_name
+    + 'carbaldehyde' as the whole suffix unit (no locant is ever cited
+    for the -CHO position itself)."""
+    aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol, aromatic_ring_atoms=ring_atoms)
+    if hydroxyls:
+        raise UnsupportedStructure(
+            "a standalone hydroxyl alongside benzaldehyde is not "
+            "supported yet"
+        )
+    if len(aldehydes) != 1:
+        raise UnsupportedStructure(
+            "more than one aldehyde group alongside a benzene ring is not "
+            "supported yet"
+        )
+    (aldehyde_oxygen,) = aldehydes
+
+    graph = adjacency(mol)
+    (aldehyde_carbon,) = graph[aldehyde_oxygen]
+    all_non_single = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] != aldehyde_oxygen and b[1] != aldehyde_oxygen and (b[0] not in ring_atoms or b[1] not in ring_atoms)
+    ]
+    if all_non_single:
+        raise UnsupportedStructure(
+            "unsaturation outside the ring alongside benzaldehyde is not "
+            "supported yet"
+        )
+
+    ring_neighbors = [n for n in graph[aldehyde_carbon] if n in ring_atoms]
+    if len(ring_neighbors) != 1:
+        raise UnsupportedStructure(
+            "an aldehyde not directly attached to a single ring atom is "
+            "not supported yet"
+        )
+    (ring_atom,) = ring_neighbors
+    other_ring_atom_branches = [n for n in graph[ring_atom] if n not in ring_atoms and n != aldehyde_carbon]
+    if other_ring_atom_branches:
+        raise UnsupportedStructure(
+            "a substituent on the same ring atom as the aldehyde is not "
+            "supported yet"
+        )
+
+    halogens = halogen_substituents(mol)
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            al_locant = position_of[ring_atom]
+            substituents = _ring_substituents(graph, candidate, halogens, {aldehyde_carbon})
+            key = _benzaldehyde_candidate_key(al_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+
+    return best_name
+
+
 def _name_phenyl_chain_aldehyde(mol, ring_atoms):
     """Name an aldehyde whose -CHO lies entirely on a single unbranched
     chain hanging off one atom of an otherwise-plain, unsubstituted benzene
@@ -404,13 +606,6 @@ def _name_phenyl_chain_aldehyde(mol, ring_atoms):
             "the aldehyde carbon must be the chain's far terminus from the "
             "benzene ring for this benzene-substituent path"
         )
-    if len(chain) < 2:
-        raise UnsupportedStructure(
-            "a -CHO group directly attached to the benzene ring (the "
-            "'carbaldehyde' suffix, P-33.3.1.2) uses a separate naming "
-            "construction, out of scope for this acyclic-chain-parent "
-            "module"
-        )
 
     ordered = list(reversed(chain))
     chain_length = len(ordered)
@@ -428,7 +623,23 @@ def name_aldehyde(mol) -> str:
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol, aromatic_ring_atoms=ring_atoms)
+            if not hydroxyls and len(aldehydes) == 1:
+                (only_oxygen,) = aldehydes
+                graph = adjacency(mol)
+                (only_carbon,) = graph[only_oxygen]
+                ring_neighbors = [n for n in graph[only_carbon] if n in ring_atoms]
+                if len(ring_neighbors) == 1:
+                    return _name_benzaldehyde(mol, ring_atoms)
             return _name_phenyl_chain_aldehyde(mol, ring_atoms)
+        aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol)
+        if not hydroxyls and len(aldehydes) == 1:
+            (only_oxygen,) = aldehydes
+            graph = adjacency(mol)
+            (only_carbon,) = graph[only_oxygen]
+            ring_neighbors = [n for n in graph[only_carbon] if n in ring_atoms]
+            if len(ring_neighbors) == 1:
+                return _name_ring_aldehyde(mol, ring_atoms)
     aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol)
     stereo = specified_stereocenters(mol)
     graph = adjacency(mol)
@@ -454,8 +665,10 @@ def name_aldehyde(mol) -> str:
 
     if mol.GetRingInfo().NumRings() != 0:
         raise UnsupportedStructure(
-            "an aldehyde on a ring (the 'carbaldehyde' suffix, P-33.3.1.2) "
-            "is out of scope for this module; only an acyclic terminal "
-            "-CHO is supported"
+            "this ring shape alongside an aldehyde (more than one -CHO on "
+            "the ring, other ring unsaturation, a standalone hydroxyl, or "
+            "a ring other than a single saturated monocyclic/benzene one) "
+            "is out of scope for this module's 'carbaldehyde' suffix path "
+            "(P-33.3.1.2)"
         )
     return _name_acyclic_aldehyde(mol, aldehydes, hydroxyls, bonds, stereo)
