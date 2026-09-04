@@ -53,16 +53,34 @@ Book"):
   never itself hold a stereocenter -- this support only ever concerns the
   acyl side.
 
+- P-65.6.3.2 (aryl esters): the alcohol part (R') may also be a single,
+  otherwise-unsubstituted benzene ring attached directly to the ester
+  oxygen (Ar-O-CO-R, e.g. 'phenyl ethanoate' for PhO-CO-CH3, confirmed via
+  PubChem's own 'phenyl acetate'/'phenyl formate'/'phenyl propanoate' --
+  this project's systematic-name convention carries over the same way it
+  does for the acyl side). The acyl part (R) reuses the ordinary acyclic
+  path unchanged (`_name_acyl_part`) since the ring and the acyl chain sit
+  on opposite sides of the ester oxygen, never sharing a carbon-adjacency
+  component. A ring-substituted phenol (more than one exocyclic
+  attachment), a heteroaromatic or polycyclic alcohol part, or a genuine
+  ring-embedded lactone (the carbonyl carbon itself inside the ring, a
+  structurally different construction, P-65.6.3.3) are all still out of
+  scope, deferred to a future pass.
+
 Explicitly out of scope (raise `UnsupportedStructure`):
-- Any ring anywhere in the molecule (a ring-attached ester or lactone uses a
-  different naming construction, P-65.6.3.2/P-65.6.3.3; acyclic only, per
-  this module's scope).
-- More than one ester group (a diester), or any oxygen that isn't part of
-  the single ester's carbonyl/ester-oxygen pair (an ether, alcohol, or
+- More than one ring, or a ring elsewhere in the molecule alongside the
+  aryl-ester alcohol-part ring above; a lone ring on the acyl side (see
+  `_name_phenyl_acyl_ester`) is separately supported, but the two ring
+  paths don't combine, and a ring-embedded lactone (P-65.6.3.3) uses a
+  different naming construction entirely.
+- More than one ester group (a diester -- see `_diester_acyloxy.py` for a
+  narrow, separately-scoped diester axis), or any oxygen that isn't part
+  of the single ester's carbonyl/ester-oxygen pair (an ether, alcohol, or
   second carbonyl elsewhere).
-- A substituted, unsaturated, or cyclic alcohol part (R') — only a plain
-  saturated acyclic alkyl R' (branched or unbranched) is supported in
-  this first pass.
+- A substituted, unsaturated, or cyclic (other than the plain-benzene aryl
+  case above) alcohol part (R') — only a plain saturated acyclic alkyl R'
+  (branched or unbranched), or a plain unsubstituted benzene ring, is
+  supported in this first pass.
 - Any other heteroatom (N, S, ...).
 """
 
@@ -301,7 +319,7 @@ def _substituents_for_chain(graph, chain, halogens, excluded_oxygens):
     return substituents
 
 
-def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, stereo=None):
+def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, stereo=None, ring_atoms=frozenset()):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
     include every stereocenter are eligible (P-92: a stereocenter on a
@@ -312,8 +330,15 @@ def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, ste
     ahead of the acyl part specifically (P-91.3), not the whole two-word
     ester name, confirmed against PubChem's own
     'ethyl (2R)-2-methylbutanoate' (CID 7156991). The alcohol part (R') is
-    always a plain unbranched chain (module docstring) and so can never
-    itself hold a stereocenter."""
+    always a plain unbranched chain, or the single benzene ring
+    `ring_atoms` names (`_name_phenol_ester`) -- either way it can never
+    itself hold a stereocenter. `ring_atoms`: the alcohol-side aryl-ester
+    ring's own atoms (empty by default), excluded here so this function's
+    own unsaturation scan doesn't mistake the ring's internal aromatic
+    bonds for acyl-chain unsaturation -- the acyl chain itself never
+    shares a carbon-adjacency component with that ring regardless (they
+    sit on opposite sides of the ester oxygen), so this exclusion is only
+    needed for this scan, not the chain search below."""
     full_graph = adjacency(mol)
     carbon_graph = carbon_adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -326,7 +351,11 @@ def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, ste
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     all_non_single = [
-        b for b in non_single_bonds(mol) if b[0] not in excluded_oxygens and b[1] not in excluded_oxygens
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in excluded_oxygens
+        and b[1] not in excluded_oxygens
+        and not (b[0] in ring_atoms and b[1] in ring_atoms)
     ]
     bonds = [b for b in all_non_single if b[2] in (ENE_BOND_ORDER, YNE_BOND_ORDER)]
     if len(bonds) != len(all_non_single):
@@ -432,10 +461,10 @@ def _name_phenyl_acyl_ester(mol, ring_atoms):
     ring -- e.g. 'methyl 3-phenylpropanoate'. Mirrors
     `_carboxylic_acid.py`'s `_name_phenyl_chain_carboxylic_acid` and
     `_alcohol.py`'s `_name_phenyl_chain_alcohol`, adapted for the ester's
-    two-word (alcohol + acyl) name -- the alcohol part (R') is always a
-    plain unbranched chain regardless (module docstring), so a ring can
-    only appear on the acyl side; `_name_alcohol_part` is reused unchanged
-    for it. Narrower than the general acyl path: no chain unsaturation and
+    two-word (alcohol + acyl) name; `name_ester` only calls this when the
+    ring sits on the acyl side (see `_name_phenol_ester` for the alcohol
+    side instead) -- `_name_alcohol_part` is reused unchanged for the
+    plain acyclic alcohol part here. Narrower than the general acyl path: no chain unsaturation and
     no specified stereocenter -- each a separate follow-up (see
     tasks/phenyl-substituent-on-ester-chain.md's scope note)."""
     _validate_ester_atoms(mol, aromatic_ring_atoms=ring_atoms)
@@ -501,11 +530,38 @@ def _name_phenyl_acyl_ester(mol, ring_atoms):
     return f"{alcohol_name} {acyl_name}"
 
 
+def _name_phenol_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_oxygen):
+    """Name an ester whose alcohol part (R') is a single, otherwise-plain
+    benzene ring attached directly to the ester oxygen (Ar-O-CO-R,
+    P-65.6.3.2) -- e.g. 'phenyl ethanoate' (PubChem CID 31229's own
+    'phenyl acetate', this project's systematic-name convention applied).
+    The acyl part reuses the ordinary acyclic path unchanged
+    (`_name_acyl_part`): the ring and the acyl chain sit on opposite sides
+    of the ester oxygen, so they never share a carbon-adjacency component
+    and that function needs no change to handle this case."""
+    _validate_ester_atoms(mol, aromatic_ring_atoms=ring_atoms)
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None or attachment[1] != ester_oxygen.GetIdx():
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a phenol ester is not supported yet"
+        )
+    stereo = specified_stereocenters(mol)
+    acyl_name = _name_acyl_part(
+        mol, acyl_carbon, carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx(), stereo, ring_atoms
+    )
+    return f"phenyl {acyl_name}"
+
+
 def name_ester(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon = _find_ester_group(mol)
+            if alcohol_carbon.GetIdx() in ring_atoms:
+                return _name_phenol_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_oxygen)
             return _name_phenyl_acyl_ester(mol, ring_atoms)
     if ring_info.NumRings() > 0:
         raise UnsupportedStructure(
