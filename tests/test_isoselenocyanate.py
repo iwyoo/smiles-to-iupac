@@ -31,6 +31,25 @@ def test_ring_not_supported():
         smiles_to_iupac("C1CCC([N]=C=[Se])CC1")
 
 
+def test_phenyl_isoselenocyanate_direct_bond():
+    # P-44.1.2.2 rule (1): 'isoselenocyanato' has no suffix form, so the
+    # ring is always senior to a chain of the same class -- confirmed by
+    # PubChem CID 555335.
+    assert smiles_to_iupac("c1ccccc1[N]=C=[Se]") == "isoselenocyanatobenzene"
+
+
+def test_phenyl_isoselenocyanate_chain():
+    # PubChem CID 12506035 gives "isoselenocyanatomethylbenzene" (no
+    # parentheses), but this codebase follows the sibling modules'
+    # identical, Blue-Book-verified rule instead.
+    assert smiles_to_iupac("c1ccccc1C[N]=C=[Se]") == "(isoselenocyanatomethyl)benzene"
+
+
+def test_phenyl_isoselenocyanate_substituted_ring_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1[N]=C=[Se]")
+
+
 def test_unsaturated_chain_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=CC[N]=C=[Se]")
