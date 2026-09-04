@@ -107,6 +107,11 @@ axes' Se+Te gap) are confirmed via PubChem's IUPACName for the exact
 SMILES, all six matching the systematic Hantzsch-Widman-style pattern
 directly (no retained irregular name here, unlike piperazine et al.).
 
+The 7-membered 1,3-related pairs (N+N 1,3-diazepane, N+O 1,3-oxazepane,
+N+S 1,3-thiazepane, O+O 1,3-dioxepane, O+S 1,3-oxathiepane, S+S
+1,3-dithiepane -- Se/Te not attempted, same reasoning as the other axes'
+Se+Te gap) are confirmed via PubChem's IUPACName the same way.
+
 Explicitly out of scope for the unsubstituted-only functions above: any
 substituent, partially-saturated indicated-hydrogen forms other than the
 ones listed above, three or more heteroatoms, heteroatoms other than
@@ -284,6 +289,14 @@ _SEVEN_MEMBERED_1_4_TWO_HETEROATOM_NAME_SMILES = {
     frozenset(("O", "S")): ("1,4-oxathiepane", "C1COCCSC1"),
     frozenset(("S", "S")): ("1,4-dithiepane", "C1CSCCSC1"),
 }
+_SEVEN_MEMBERED_1_3_TWO_HETEROATOM_NAME_SMILES = {
+    frozenset(("N", "N")): ("1,3-diazepane", "N1CNCCCC1"),
+    frozenset(("N", "O")): ("1,3-oxazepane", "O1CNCCCC1"),
+    frozenset(("N", "S")): ("1,3-thiazepane", "S1CNCCCC1"),
+    frozenset(("O", "O")): ("1,3-dioxepane", "O1COCCCC1"),
+    frozenset(("O", "S")): ("1,3-oxathiepane", "C1CCCOCS1"),
+    frozenset(("S", "S")): ("1,3-dithiepane", "S1CSCCCC1"),
+}
 _TWO_HETEROATOM_MANCUDE_NAME_SMILES = {
     ("1,3-diazole", 5): ("1H-imidazole", "c1cnc[nH]1"),
     ("1,2-diazole", 5): ("1H-pyrazole", "c1cc[nH]n1"),
@@ -308,6 +321,7 @@ _CANONICAL_TO_NAME = {
         *_FIVE_MEMBERED_1_3_TWO_HETEROATOM_NAME_SMILES.values(),
         *_FIVE_MEMBERED_1_2_TWO_HETEROATOM_NAME_SMILES.values(),
         *_SEVEN_MEMBERED_1_4_TWO_HETEROATOM_NAME_SMILES.values(),
+        *_SEVEN_MEMBERED_1_3_TWO_HETEROATOM_NAME_SMILES.values(),
         *_TWO_HETEROATOM_MANCUDE_NAME_SMILES.values(),
     )
 }
@@ -401,6 +415,23 @@ def saturated_seven_membered_1_4_two_heteroatom_ring_name(elements):
     as `saturated_two_heteroatom_1_4_ring_name`, should a future ketone
     suffix or N-alkyl substituent PR need the bare stem name."""
     entry = _SEVEN_MEMBERED_1_4_TWO_HETEROATOM_NAME_SMILES.get(frozenset(elements))
+    return entry[0] if entry else None
+
+
+def saturated_seven_membered_1_3_two_heteroatom_ring_name(elements):
+    """The systematic name for the unsubstituted, 7-membered, 1,3-related
+    two-heteroatom saturated ring whose heteroatom elements are `elements`
+    (an (element, element) pair or frozenset, e.g. ('N', 'N') ->
+    '1,3-diazepane'), or None if that element pair isn't one of the six in
+    scope (1,3-diazepane/1,3-oxazepane/1,3-thiazepane/1,3-dioxepane/
+    1,3-oxathiepane/1,3-dithiepane -- Se/Te analogues weren't attempted,
+    same as the other two-heteroatom axes; other element pairs, other ring
+    sizes, and the 1,2-/1,4-relationships have no retained name here and
+    are out of scope). Exposed for the same reason as
+    `saturated_seven_membered_1_4_two_heteroatom_ring_name`, should a
+    future ketone suffix or N-alkyl substituent PR need the bare stem
+    name."""
+    entry = _SEVEN_MEMBERED_1_3_TWO_HETEROATOM_NAME_SMILES.get(frozenset(elements))
     return entry[0] if entry else None
 
 
