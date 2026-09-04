@@ -71,6 +71,27 @@ def test_cyclohexaneselenol():
     assert smiles_to_iupac("C1CCCCC1[SeH]") == "cyclohexaneselenol"
 
 
+def test_unsaturated_ring_selenol():
+    # Monocyclic ring, single -SeH, single ring double bond (P-31.1.3):
+    # same pattern already confirmed for _thiol.py (PR #350) -- the exact
+    # ring structures aren't PubChem-registered (sparse selenol ring
+    # coverage, same as the plain 'cyclohexaneselenol' case above), but
+    # the acyclic ene+selenol combination and elision rule are already
+    # PubChem-confirmed ('prop-2-ene-1-selenol', CID 15821407).
+    assert smiles_to_iupac("[SeH]C1CCCC=C1") == "cyclohex-2-ene-1-selenol"
+    assert smiles_to_iupac("[SeH]C1CC=CCC1") == "cyclohex-3-ene-1-selenol"
+
+
+def test_unsaturated_ring_selenol_with_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[SeH]C1CCCC=C1C")
+
+
+def test_unsaturated_ring_selenol_triple_bond_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[SeH]C1CCCC#C1")
+
+
 def test_cyclopentaneselenol():
     # PubChem structure match: "cyclopentaneselenol".
     assert smiles_to_iupac("C1CCCC1[SeH]") == "cyclopentaneselenol"
