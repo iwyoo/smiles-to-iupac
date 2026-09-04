@@ -94,7 +94,7 @@ def test_branched_imino_n_substituent():
     # explicit C=N nitrogen 'N''', regardless of which tautomer the input
     # SMILES happens to spell out (matches the already-passing unbranched
     # 'N''-methylguanidine' case above).
-    assert smiles_to_iupac("NC(=NC(C)C)N") == "N''-propan-2-ylguanidine"
+    assert smiles_to_iupac("NC(=NC(C)C)N") == "N''-(propan-2-yl)guanidine"
 
 
 def test_unsaturated_imino_n_substituent_not_supported():
@@ -106,7 +106,7 @@ def test_unsaturated_imino_n_substituent_not_supported():
     "smiles,expected",
     [
         # PubChem-verified: CID 11491919, 12830400.
-        ("CC(C)NC(=N)N", "N-propan-2-ylguanidine"),
+        ("CC(C)NC(=N)N", "N-(propan-2-yl)guanidine"),
         ("CC(C)(C)NC(=N)N", "N-tert-butylguanidine"),
     ],
 )

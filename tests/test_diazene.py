@@ -68,11 +68,13 @@ def test_halogen_on_nitrogen_raises():
 
 def test_mixed_compound_and_simple_substituent():
     # Two different substituents where one is a compound (halogen-
-    # bearing) name -- position-based parenthesization (not independently
-    # PubChem-registered for this exact structure, CID 0, but an
-    # accepted, reviewed result following the same mechanism already
-    # confirmed for methyl(propan-2-yl)diazene, CID 300540): alpha_sort_key
-    # strips the leading '2-' locant from '2-chloroethyl', leaving
-    # 'chloroethyl' < 'methyl', so the chloroethyl group is cited first
-    # and left unparenthesized.
-    assert smiles_to_iupac("ClCCN=NC") == "2-chloroethyl(methyl)diazene"
+    # bearing) name (not independently PubChem-registered for this exact
+    # structure, CID 0, but an accepted, reviewed result following the
+    # same mechanism confirmed elsewhere). alpha_sort_key strips the
+    # leading '2-' locant from '2-chloroethyl', leaving 'chloroethyl' <
+    # 'methyl', so the chloroethyl group is cited first -- but per
+    # P-16.5.1.3.1 ("the first cited substituent never has enclosing
+    # marks unless it is a compound substituent group or includes a
+    # locant"), a compound first substituent still needs its own
+    # parentheses.
+    assert smiles_to_iupac("ClCCN=NC") == "(2-chloroethyl)(methyl)diazene"

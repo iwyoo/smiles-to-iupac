@@ -95,7 +95,7 @@ def test_n_substituted_amide_with_locant_leading_parent_name_raises():
     "smiles,expected",
     [
         # PubChem-verified: CID 136874, 12985.
-        ("CC(=O)NC(C)C", "N-propan-2-ylethanamide"),
+        ("CC(=O)NC(C)C", "N-(propan-2-yl)ethanamide"),
         ("CC(=O)NC(C)(C)C", "N-tert-butylethanamide"),
     ],
 )

@@ -37,12 +37,16 @@ numeric-locant style: `CCNC(=O)NC` -> '1-ethyl-3-methylurea', CID 206567).
 Each N-substituent's own name is built with `name_branch` (P-29 PIN
 style, fixed project-wide by PR #237; mirrors `_carbamate.py`'s identical
 fix, PR #328/#331) -- a branched N-substituent is supported (e.g.
-'N-propan-2-ylurea', CID 12725; 'N-tert-butylurea', CID 14233), never
-parenthesized on its own. An identical-pair 'N,N-di'/'N,N'-di' name is
-parenthesized only when the substituent name is compound (has its own
-locant, e.g. 'N,N'-di(propan-2-yl)urea', CID 20084) and not when it's a
-retained name (e.g. 'N,N'-ditert-butylurea', CID 21420) -- mirrors
-`_carbamate.py`'s identical rule.
+'N-tert-butylurea', CID 14233, a retained non-compound name), and a
+*compound* one (has its own locant, e.g. 'propan-2-yl') is always
+parenthesized -- 'N-(propan-2-yl)urea', not PubChem's own raw
+'N-propan-2-ylurea' (CID 12725), per P-16.5.1.5's/P-66.1.6.1.3.1's own
+worked examples ('N-(2-chloroethyl)propan-1-amine (PIN)',
+'N-(butan-2-yl)selenourea (PIN)', `tmp/bluebook/P1.html`/`P6a.txt`) --
+mirrors `_carbamate.py`'s identical correction. An identical-pair
+'N,N-di'/'N,N'-di' name is parenthesized only when the substituent name
+is compound (e.g. 'N,N'-di(propan-2-yl)urea', CID 20084) and not when
+it's a retained name (e.g. 'N,N'-ditert-butylurea', CID 21420).
 Explicitly out of scope (raise `UnsupportedStructure`): a
 different substituent *count* on each nitrogen (e.g. one with two
 substituents, the other with one -- no confirmed worked example settles
@@ -166,17 +170,21 @@ def _di_name(name, is_compound):
     return f"({name})" if is_compound else name
 
 
+def _n_letter_entry(letter, name, is_compound):
+    return f"{letter}-({name})" if is_compound else f"{letter}-{name}"
+
+
 def _n_prefix(letter, entries):
     if not entries:
         return ""
     if len(entries) == 1:
-        (name, _), = entries
-        return f"{letter}-{name}"
+        (name, is_compound), = entries
+        return _n_letter_entry(letter, name, is_compound)
     (name_a, compound_a), (name_b, compound_b) = entries
     if name_a == name_b:
         return f"{letter},{letter}-di{_di_name(name_a, compound_a)}"
-    (a, _), (b, _) = sorted(entries, key=lambda e: alpha_sort_key(e[0]))
-    return f"{letter}-{a}-{letter}-{b}"
+    (a, ca), (b, cb) = sorted(entries, key=lambda e: alpha_sort_key(e[0]))
+    return f"{_n_letter_entry(letter, a, ca)}-{_n_letter_entry(letter, b, cb)}"
 
 
 def name_urea(mol) -> str:
@@ -246,8 +254,12 @@ def name_urea(mol) -> str:
         (name_a, compound_a), (name_b, compound_b) = n1_names[0], n2_names[0]
         if name_a == name_b:
             return f"N,N'-di{_di_name(name_a, compound_a)}urea"
-        (first, _), (second, _) = sorted((n1_names[0], n2_names[0]), key=lambda e: alpha_sort_key(e[0]))
-        return f"N-{first}-N'-{second}urea"
+        (first, first_compound), (second, second_compound) = sorted(
+            (n1_names[0], n2_names[0]), key=lambda e: alpha_sort_key(e[0])
+        )
+        first_entry = _n_letter_entry("N", first, first_compound)
+        second_entry = _n_letter_entry("N'", second, second_compound)
+        return f"{first_entry}-{second_entry}urea"
 
     names = n1_names or n2_names
     return f"{_n_prefix('N', names)}urea"
