@@ -244,6 +244,24 @@ def _imine_locant(position_of, imine_carbon):
     return position_of.get(imine_carbon)
 
 
+def _n_substituent_prefix(graph, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root):
+    """Build the 'N-...' prefix (without the leading 'N-' itself, e.g.
+    'methyl'/'hydroxy'/'ethoxy') for an N-substituted imine or an oxime,
+    or None for a plain =N-H imine. Shared by the acyclic and
+    benzene-ring-substituent-chain naming paths so the two stay in sync."""
+    if n_substituent_root is not None:
+        name, _ = name_branch(graph, n_substituent_root, imine_nitrogen)
+        return name
+    if oxime_oxygen_idx is not None:
+        if oxime_alkyl_root is None:
+            return "hydroxy"
+        alkyl_name_, is_compound = name_branch(graph, oxime_alkyl_root, oxime_oxygen_idx)
+        if is_compound:
+            raise UnsupportedStructure("a branched oxime O-substituent is not supported yet")
+        return _OXY_PREFIX.get(alkyl_name_, alkyl_name_ + "oxy")
+    return None
+
+
 def _substituents_for_chain(graph, chain, halogens, exclude):
     chain_set = set(chain)
     substituents = {}
@@ -320,22 +338,28 @@ def _name_acyclic_imine(mol, imine_carbon, exclude):
 
 
 def _name_phenyl_chain_imine(mol, ring_atoms):
-    """Name a plain (no N-substituent, no oxime) imine whose C=N lies
-    entirely on a single unbranched chain hanging off one atom of an
-    otherwise-plain, unsubstituted benzene ring -- e.g.
-    3-phenylpropan-1-imine. The ring is cited as a 'phenyl' substituent
-    prefix (via `name_branch`'s aromatic-ring recognition) on the chain,
-    which is the parent hydride, mirroring `_sulfonic_acid.py`'s
+    """Name an imine (plain =N-H, N-alkyl-substituted, or a plain -OH
+    oxime) whose C=N lies entirely on a single unbranched chain hanging
+    off one atom of an otherwise-plain, unsubstituted benzene ring -- e.g.
+    3-phenylpropan-1-imine, N-methyl-3-phenylpropan-1-imine,
+    N-hydroxy-3-phenylpropan-1-imine. The ring is cited as a 'phenyl'
+    substituent prefix (via `name_branch`'s aromatic-ring recognition) on
+    the chain, which is the parent hydride, mirroring `_sulfonic_acid.py`'s
     `_name_phenyl_chain_sulfonic_acid`. Unlike a carboxylic-acid-style
     chain terminus, the imine carbon's own locant is a genuine choice
-    (P-62.3.1.1), same as the sulfonic acid group."""
+    (P-62.3.1.1), same as the sulfonic acid group. An O-alkyl oxime ether
+    (=N-O-R) is out of scope here -- no PubChem-registered example exists
+    to verify the combination against (module docstring's own oxime
+    section notes this project already diverges from PubChem's own
+    auto-generated oxime name in the non-benzene case, so an unverifiable
+    third variant isn't a safe mechanical extension)."""
     imine_carbon, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root = (
         _validate_and_find_imine(mol, aromatic_ring_atoms=ring_atoms)
     )
-    if n_substituent_root is not None or oxime_oxygen_idx is not None:
+    if oxime_alkyl_root is not None:
         raise UnsupportedStructure(
-            "an N-substituted imine or an oxime alongside a benzene-ring "
-            "substituent is not supported yet"
+            "an oxime O-alkyl ether alongside a benzene-ring substituent "
+            "chain is not supported yet"
         )
     if specified_stereocenters(mol) is not None:
         raise UnsupportedStructure(
@@ -389,6 +413,11 @@ def _name_phenyl_chain_imine(mol, ring_atoms):
         key, name = _candidate_key(chain_length, imine_locant, substituents)
         if best_key is None or key < best_key:
             best_key, best_name = key, name
+
+    n_name = _n_substituent_prefix(graph, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root)
+    if n_name is not None:
+        separator = "-" if best_name[0].isdigit() else ""
+        best_name = f"N-{n_name}{separator}{best_name}"
     return best_name
 
 
@@ -421,19 +450,7 @@ def name_imine(mol) -> str:
     exclude = {imine_nitrogen}
     name = _name_acyclic_imine(mol, imine_carbon, exclude)
 
-    n_name = None
-    if n_substituent_root is not None:
-        n_name, _ = name_branch(graph, n_substituent_root, imine_nitrogen)
-    elif oxime_oxygen_idx is not None:
-        if oxime_alkyl_root is None:
-            n_name = "hydroxy"
-        else:
-            alkyl_name_, is_compound = name_branch(graph, oxime_alkyl_root, oxime_oxygen_idx)
-            if is_compound:
-                raise UnsupportedStructure(
-                    "a branched oxime O-substituent is not supported yet"
-                )
-            n_name = _OXY_PREFIX.get(alkyl_name_, alkyl_name_ + "oxy")
+    n_name = _n_substituent_prefix(graph, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root)
 
     if n_name is not None:
         separator = "-" if name[0].isdigit() else ""
