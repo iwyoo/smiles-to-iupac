@@ -47,6 +47,10 @@ from ._carboxylate import has_carboxylate_shape, name_carboxylate
 from ._selenoate import has_selenoate_shape, name_selenoate
 from ._thioate import has_thioate_shape, name_thioate
 from ._carboxylic_acid import has_carboxylic_acid_shape, name_carboxylic_acid
+from ._carboxylic_acid_seleninic_acid import (
+    has_carboxylic_acid_seleninic_acid_shape,
+    name_carboxylic_acid_seleninic_acid,
+)
 from ._carboxylic_acid_sulfinic_acid import (
     has_carboxylic_acid_sulfinic_acid_shape,
     name_carboxylic_acid_sulfinic_acid,
@@ -487,6 +491,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # first, before either single-group module.
     if has_carboxylic_acid_sulfinic_acid_shape(mol):
         return name_carboxylic_acid_sulfinic_acid(mol)
+    # A carboxylic acid coexisting with a seleninic acid (P-41/P-43, see
+    # `_seniority.py`) has the same -COOH carbon shape `_carboxylic_acid.py`
+    # would otherwise reject on sight of the extra seleninic selenium, and
+    # the same three-oxygen-cluster seleninic selenium
+    # `_seleninic_acid.py` would otherwise reject on sight of the extra
+    # -COOH oxygens -- must be routed here first, before either
+    # single-group module.
+    if has_carboxylic_acid_seleninic_acid_shape(mol):
+        return name_carboxylic_acid_seleninic_acid(mol)
     # A sulfonic acid (-SO3H, P-65.3.1) has three oxygens on its own sulfur,
     # so it must be routed here before the plain "any O atom" branch below --
     # none of the ether/ester/carboxylic-acid/aldehyde/ketone/alcohol checks
