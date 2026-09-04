@@ -112,6 +112,19 @@ N+S 1,3-thiazepane, O+O 1,3-dioxepane, O+S 1,3-oxathiepane, S+S
 1,3-dithiepane -- Se/Te not attempted, same reasoning as the other axes'
 Se+Te gap) are confirmed via PubChem's IUPACName the same way.
 
+The 7-membered 1,2-related pairs (N+N 1,2-diazepane, N+O 1,2-oxazepane,
+N+S 1,2-thiazepane, O+O 1,2-dioxepane, O+S 1,2-oxathiepane, S+S
+1,2-dithiepane -- Se/Te not attempted, same reasoning as the other axes'
+Se+Te gap): PubChem's raw IUPACName drops the locant for all six
+('diazepane', 'oxazepane', etc.), but P-22.2.2.1.7 only omits
+Hantzsch-Widman locants "if there is no ambiguity if locants are
+omitted" -- and there is ambiguity here, since the 1,3-related pair above
+already uses the identical bare stem (e.g. both 1,2-oxazepane and
+1,3-oxazepane would collapse to plain 'oxazepane'). So, mirroring the
+5-membered 1,2-axis's own PubChem-vs-primary-text correction above, this
+axis keeps its locants explicit rather than trusting PubChem's bare
+name.
+
 Explicitly out of scope for the unsubstituted-only functions above: any
 substituent, partially-saturated indicated-hydrogen forms other than the
 ones listed above, three or more heteroatoms, heteroatoms other than
@@ -297,6 +310,14 @@ _SEVEN_MEMBERED_1_3_TWO_HETEROATOM_NAME_SMILES = {
     frozenset(("O", "S")): ("1,3-oxathiepane", "C1CCCOCS1"),
     frozenset(("S", "S")): ("1,3-dithiepane", "S1CSCCCC1"),
 }
+_SEVEN_MEMBERED_1_2_TWO_HETEROATOM_NAME_SMILES = {
+    frozenset(("N", "N")): ("1,2-diazepane", "C1CCCCNN1"),
+    frozenset(("N", "O")): ("1,2-oxazepane", "C1CCCCON1"),
+    frozenset(("N", "S")): ("1,2-thiazepane", "C1CCCCSN1"),
+    frozenset(("O", "O")): ("1,2-dioxepane", "C1CCCCOO1"),
+    frozenset(("O", "S")): ("1,2-oxathiepane", "C1CCCCOS1"),
+    frozenset(("S", "S")): ("1,2-dithiepane", "C1CCCCSS1"),
+}
 _TWO_HETEROATOM_MANCUDE_NAME_SMILES = {
     ("1,3-diazole", 5): ("1H-imidazole", "c1cnc[nH]1"),
     ("1,2-diazole", 5): ("1H-pyrazole", "c1cc[nH]n1"),
@@ -322,6 +343,7 @@ _CANONICAL_TO_NAME = {
         *_FIVE_MEMBERED_1_2_TWO_HETEROATOM_NAME_SMILES.values(),
         *_SEVEN_MEMBERED_1_4_TWO_HETEROATOM_NAME_SMILES.values(),
         *_SEVEN_MEMBERED_1_3_TWO_HETEROATOM_NAME_SMILES.values(),
+        *_SEVEN_MEMBERED_1_2_TWO_HETEROATOM_NAME_SMILES.values(),
         *_TWO_HETEROATOM_MANCUDE_NAME_SMILES.values(),
     )
 }
@@ -432,6 +454,26 @@ def saturated_seven_membered_1_3_two_heteroatom_ring_name(elements):
     future ketone suffix or N-alkyl substituent PR need the bare stem
     name."""
     entry = _SEVEN_MEMBERED_1_3_TWO_HETEROATOM_NAME_SMILES.get(frozenset(elements))
+    return entry[0] if entry else None
+
+
+def saturated_seven_membered_1_2_two_heteroatom_ring_name(elements):
+    """The systematic name for the unsubstituted, 7-membered, 1,2-related
+    two-heteroatom saturated ring whose heteroatom elements are `elements`
+    (an (element, element) pair or frozenset, e.g. ('N', 'N') ->
+    '1,2-diazepane'), or None if that element pair isn't one of the six in
+    scope (1,2-diazepane/1,2-oxazepane/1,2-thiazepane/1,2-dioxepane/
+    1,2-oxathiepane/1,2-dithiepane -- Se/Te analogues weren't attempted,
+    same as the other two-heteroatom axes; other element pairs, other ring
+    sizes, and the 1,3-/1,4-relationships have no retained name here and
+    are out of scope). Unlike PubChem's own computed name for these six
+    (which drops the locant), this module keeps '1,2-' explicit -- see the
+    module docstring's note on P-22.2.2.1.7 and the clash with the
+    1,3-axis's identical bare stem. Exposed for the same reason as
+    `saturated_seven_membered_1_4_two_heteroatom_ring_name`, should a
+    future ketone suffix or N-alkyl substituent PR need the bare stem
+    name."""
+    entry = _SEVEN_MEMBERED_1_2_TWO_HETEROATOM_NAME_SMILES.get(frozenset(elements))
     return entry[0] if entry else None
 
 
