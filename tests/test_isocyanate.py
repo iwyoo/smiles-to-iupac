@@ -45,3 +45,25 @@ def test_unsaturated_chain_not_supported():
 def test_two_isocyanate_groups_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O=C=NCN=C=O")
+
+
+def test_benzene_ring_direct_bond():
+    # PubChem CID 7672.
+    assert smiles_to_iupac("c1ccccc1N=C=O") == "isocyanatobenzene"
+
+
+def test_benzene_ring_chain_spacer():
+    # PubChem CID 76639 ('isocyanatomethylbenzene', no parentheses), but
+    # this project's existing benzene-ring-chain convention
+    # (`_nitro.py`/`_azide.py`) parenthesizes a compound substituent name.
+    assert smiles_to_iupac("c1ccccc1CN=C=O") == "(isocyanatomethyl)benzene"
+
+
+def test_benzene_ring_longer_chain_spacer():
+    # PubChem CID 160602.
+    assert smiles_to_iupac("c1ccccc1CCN=C=O") == "(2-isocyanatoethyl)benzene"
+
+
+def test_benzene_ring_multiple_substituents_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C=Nc1ccccc1N=C=O")
