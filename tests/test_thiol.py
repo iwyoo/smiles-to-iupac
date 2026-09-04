@@ -123,11 +123,22 @@ def test_phenyl_chain_thiol_internal_locant():
     assert smiles_to_iupac("C(c1ccccc1)C(C)S") == "1-phenylpropane-2-thiol"
 
 
-def test_phenyl_directly_attached_thiol_raises():
-    # Thiophenol-type naming (-SH directly on the ring) is a separate
-    # construction, out of scope for this acyclic-chain-parent module.
+def test_benzenethiol():
+    # -SH directly on a benzene ring carbon, cross-checked against
+    # PubChem PUG REST.
+    assert smiles_to_iupac("c1ccccc1S") == "benzenethiol"  # CID 7969
+
+
+def test_substituted_benzenethiol():
+    # A substituent on a different ring atom than the -SH: the
+    # mancude-ring numbering is free to start at the -SH carbon, so its
+    # own locant is never cited, unlike the cycloalkane case.
+    assert smiles_to_iupac("Cc1ccccc1S") == "2-methylbenzenethiol"  # CID 8712
+
+
+def test_two_direct_ring_thiols_not_supported():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1S")
+        smiles_to_iupac("Sc1ccccc1S")
 
 
 def test_phenyl_substituted_benzene_ring_thiol_raises():
