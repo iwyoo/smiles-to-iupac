@@ -76,7 +76,12 @@ rings, unsaturation reaching outside the ring or a ring triple bond, a
 -TeH on a substituent branch off an otherwise-unsubstituted ring, a
 telluride (-Te- ether-analogue) or any other tellurium-oxidation-state
 group, a thiol/selenol or other chalcogen atom, and any oxygen or
-nitrogen atom at all.
+nitrogen atom at all. `_name_benzenetellurol` names a single -TeH
+directly on a benzene ring carbon (with or without other ring
+substituents), e.g. 'benzenetellurol' (PubChem CID 5246059), mirroring
+`_thiol.py`'s/`_selenol.py`'s identical construction -- the -TeH's own
+locant is never cited, unlike the cycloalkane case; two or more -TeH
+groups directly on the ring remain out of scope.
 """
 
 from rdkit import Chem
@@ -394,6 +399,70 @@ def _name_cyclic_tellurol(mol, tellurols, stereo=None, bonds=()):
     return best_name
 
 
+def _benzenetellurol_name_from_substituents(te_locants, grouped):
+    # Unlike the cycloalkane case, the mancude ring's own numbering is
+    # always free to start at the -TeH carbon (P-14.3.3-style), so its
+    # locant is never cited even when other substituents need theirs,
+    # mirroring `_thiol.py`'s/`_selenol.py`'s identical 'benzenethiol'/
+    # 'benzeneselenol' treatment.
+    tellurol_word = multiplied_word(len(te_locants), "tellurol")
+    if not grouped:
+        return "benzene" + tellurol_word
+    return f"{format_substituent_prefixes(grouped)}benzene{tellurol_word}"
+
+
+def _benzenetellurol_candidate_key(te_locants, substituents):
+    grouped = group_substituents(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    te_locant_set = lowest_locant_set(te_locants)
+    name = _benzenetellurol_name_from_substituents(te_locants, grouped)
+    return te_locant_set, locant_set, citation_locants, name
+
+
+def _name_benzenetellurol(mol, ring_atoms):
+    """P-63.1.1: -TeH attached directly to a benzene ring carbon -- e.g.
+    'benzenetellurol' (PubChem CID 5246059). Mirrors `_thiol.py`'s/
+    `_selenol.py`'s `_name_benzenethiol`/`_name_benzeneselenol` exactly
+    (tellurium in place of sulfur/selenium), with the retained name
+    'benzene' as stem in place of 'cyclo' + alkane_name. Only a single
+    -TeH directly on the ring is verified here (two or more direct ring
+    tellurols remain out of scope)."""
+    tellurols = _validate_and_collect_tellurols(mol, aromatic_ring_atoms=ring_atoms)
+    if len(tellurols) != 1:
+        raise UnsupportedStructure(
+            "more than one tellurol directly on the benzene ring is not "
+            "supported yet"
+        )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside benzenetellurol is not "
+            "supported yet"
+        )
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            te_locants = _te_locants(position_of, tellurols, graph)
+            substituents = _substituents_for_ring(graph, candidate, halogens, tellurols)
+            key = _benzenetellurol_candidate_key(te_locants, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def _name_phenyl_chain_tellurol(mol, ring_atoms):
     """Name a tellurol whose -TeH lies entirely on a single unbranched
     chain hanging off one atom of an otherwise-plain, unsubstituted
@@ -473,6 +542,12 @@ def name_tellurol(mol) -> str:
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            ring_tellurols = _validate_and_collect_tellurols(mol, aromatic_ring_atoms=ring_atoms)
+            if len(ring_tellurols) == 1:
+                (only_te,) = ring_tellurols
+                (only_te_carbon,) = adjacency(mol)[only_te]
+                if only_te_carbon in ring_atoms:
+                    return _name_benzenetellurol(mol, ring_atoms)
             return _name_phenyl_chain_tellurol(mol, ring_atoms)
     tellurols = _validate_and_collect_tellurols(mol)
     stereo = specified_stereocenters(mol)
