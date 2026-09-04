@@ -106,23 +106,32 @@ def test_stereocenter_on_substituent_branch_not_supported():
     "smiles,expected",
     [
         # Direct ring-oxygen bond (P-63.2.2.1.1's own 'alkoxybenzene'
-        # shape) -- PubChem-confirmed: CID 7500 'c1ccccc1OCC' ->
+        # shape). Structure PubChem-confirmed: CID 7500 'c1ccccc1OCC' ->
         # 'ethoxybenzene', CID 7519 'c1ccccc1OC' -> 'methoxybenzene'.
         ("c1ccccc1OCC", "ethoxybenzene"),
         ("c1ccccc1OC", "methoxybenzene"),
         ("c1ccccc1OCCC", "propoxybenzene"),
-        # Direct ring-oxygen bond with a branched R' -- no parentheses
-        # around the compound side here, unlike the plain two-chain path
-        # above (module docstring). PubChem-confirmed:
-        # 'c1ccccc1OC(C)C' -> 'propan-2-yloxybenzene'.
-        ("c1ccccc1OC(C)C", "propan-2-yloxybenzene"),
-        # Chain spacer between the ring and the ether oxygen. PubChem-
-        # confirmed: 'c1ccccc1COCC' -> 'ethoxymethylbenzene',
-        # 'c1ccccc1CCOCC' -> '2-ethoxyethylbenzene',
-        # 'c1ccccc1COC(C)C' -> 'propan-2-yloxymethylbenzene'.
-        ("c1ccccc1COCC", "ethoxymethylbenzene"),
-        ("c1ccccc1CCOCC", "2-ethoxyethylbenzene"),
-        ("c1ccccc1COC(C)C", "propan-2-yloxymethylbenzene"),
+        # Direct ring-oxygen bond with a branched R': the same
+        # '(...)oxy' parenthesization as the plain two-chain path above
+        # (P-63.2.2.1.1's worked example), even though PubChem's own
+        # auto-generated name for the same structure omits the
+        # parentheses ('c1ccccc1OC(C)C' -> 'propan-2-yloxybenzene').
+        ("c1ccccc1OC(C)C", "(propan-2-yl)oxybenzene"),
+        # Chain spacer between the ring and the ether oxygen -- the whole
+        # branch is parenthesized when compound, matching this project's
+        # existing benzene-ring-chain convention (`_nitro.py`/
+        # `_azide.py`'s own PubChem-vs-PIN discrepancy, see
+        # `test_nitro.py`) rather than PubChem's own un-parenthesized
+        # auto-names ('ethoxymethylbenzene', '2-ethoxyethylbenzene').
+        ("c1ccccc1COCC", "(ethoxymethyl)benzene"),
+        ("c1ccccc1CCOCC", "(2-ethoxyethyl)benzene"),
+        # A branched R' behind a chain spacer: the '(...)oxy' term
+        # already carries round brackets, so the outer compound-branch
+        # wrap escalates to square brackets instead of nesting round ones
+        # (mirrors the plain two-chain path's own bracket-escalation
+        # example in the module docstring). Structure PubChem-confirmed
+        # ('c1ccccc1COC(C)C' -> 'propan-2-yloxymethylbenzene').
+        ("c1ccccc1COC(C)C", "[(propan-2-yl)oxymethyl]benzene"),
     ],
 )
 def test_benzene_ring_parent(smiles, expected):
