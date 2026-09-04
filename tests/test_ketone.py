@@ -24,6 +24,12 @@ from smiles_to_iupac._common import UnsupportedStructure
         # (like 'methylcyclohexane') applies to the suffix too. Cross-checked
         # against PubChem.
         ("O=C1CCCCC1", "cyclohexanone"),
+        # Monocyclic ring, single ketone, single ring double bond
+        # (P-31.1.3): the ketone always gets locant 1 (suffix priority),
+        # the ring double bond's locant is minimized by choosing direction.
+        # Cross-checked against PubChem (CID 13594/77727).
+        ("O=C1CCCC=C1", "cyclohex-2-en-1-one"),
+        ("O=C1CC=CCC1", "cyclohex-3-en-1-one"),
         # -one combined with existing unsaturation support, on carbons that
         # don't touch the double bond (avoiding the enone guard).
         # Cross-checked against PubChem: the ketone gets locant 2 (suffix
@@ -445,6 +451,21 @@ def test_ketone_enol_mix_raises():
     # carbonyl form and out of scope, same as `_alcohol.py`'s own enol check.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OC=CC(=O)C")
+
+
+def test_unsaturated_ring_ketone_with_substituent_raises():
+    # A substituent alongside both a ring double bond and a ketone needs
+    # more careful numbering-priority verification than this first pass
+    # covers.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1CCCC=C1C")
+
+
+def test_unsaturated_ring_ketone_triple_bond_raises():
+    # A ring triple bond (cycloalkyne) alongside a ketone is out of scope
+    # for this first pass -- only a ring double bond is supported.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1CCCC#C1")
 
 
 @pytest.mark.parametrize(
