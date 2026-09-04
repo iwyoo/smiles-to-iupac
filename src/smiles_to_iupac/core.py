@@ -146,6 +146,10 @@ from ._sulfonic_acid_sulfinic_acid import (
     has_sulfonic_acid_sulfinic_acid_shape,
     name_sulfonic_acid_sulfinic_acid,
 )
+from ._sulfonic_acid_sulfonamide import (
+    has_sulfonic_acid_sulfonamide_shape,
+    name_sulfonic_acid_sulfonamide,
+)
 from ._sulfonic_acid_thiol import has_sulfonic_acid_thiol_shape, name_sulfonic_acid_thiol
 from ._sulfone import has_sulfone_shape, name_sulfone
 from ._sulfoxide import has_sulfoxide_shape, name_sulfoxide
@@ -452,6 +456,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # accept -- must be routed here first.
     if has_sulfonic_acid_sulfinic_acid_shape(mol):
         return name_sulfonic_acid_sulfinic_acid(mol)
+    # A sulfonic acid coexisting with an unsubstituted sulfonamide
+    # (P-41/P-43, see `_seniority.py`) has the same four-oxygen sulfonic
+    # sulfur as plain sulfonic acid below, plus an extra sulfonamide
+    # sulfur that neither `_sulfonic_acid.py` nor `_sulfonamide.py`'s own
+    # validation would accept -- must be routed here first.
+    if has_sulfonic_acid_sulfonamide_shape(mol):
+        return name_sulfonic_acid_sulfonamide(mol)
     # A sulfonic acid (-SO3H, P-65.3.1) has three oxygens on its own sulfur,
     # so it must be routed here before the plain "any O atom" branch below --
     # none of the ether/ester/carboxylic-acid/aldehyde/ketone/alcohol checks
