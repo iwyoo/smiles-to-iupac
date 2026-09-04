@@ -45,3 +45,40 @@ def test_ring_not_supported():
 def test_unsaturated_chain_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=CC[N+](=O)[O-]")
+
+
+def test_phenyl_nitro_direct_bond():
+    # P-44.1.2.2 rule (1): 'nitro' has no suffix form, so the ring is
+    # always senior to a chain of the same class -- confirmed by PubChem
+    # CID 7416.
+    assert smiles_to_iupac("c1ccccc1[N+](=O)[O-]") == "nitrobenzene"
+
+
+def test_phenyl_nitro_chain():
+    # PubChem CID 80208 gives "2-nitroethylbenzene" (no parentheses), but
+    # this codebase follows `_azide.py`'s identical, Blue-Book-verified
+    # rule instead (the Blue Book's own worked example is
+    # '(2-azidoethyl)benzene (PIN)', parenthesized) -- a locant-bearing
+    # compound substituent prefix is enclosed regardless of which simple
+    # prefix (azido/nitro/...) it carries, so 'nitro' gets the same
+    # treatment PubChem's own algorithmic name doesn't apply consistently
+    # here.
+    assert smiles_to_iupac("c1ccccc1CC[N+](=O)[O-]") == "(2-nitroethyl)benzene"
+    # PubChem CID 54143589 gives "7-nitroheptylbenzene" (same
+    # no-parentheses inconsistency); ring wins regardless of chain
+    # length, same as 'heptylbenzene (PIN)'.
+    assert smiles_to_iupac("c1ccccc1CCCCCCC[N+](=O)[O-]") == "(7-nitroheptyl)benzene"
+
+
+def test_phenyl_nitro_halogen_coexistence():
+    assert smiles_to_iupac("c1ccccc1CC(Cl)[N+](=O)[O-]") == "(2-chloro-2-nitroethyl)benzene"
+
+
+def test_phenyl_nitro_substituted_ring_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1C[N+](=O)[O-]")
+
+
+def test_phenyl_nitro_unsaturation_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1C[N+](=O)[O-]")
