@@ -38,8 +38,26 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   bridge (not bonded to each other, degree != 2, a non-carbon second
   neighbor) -- routed to a different module by `core.py` before this one
   is even tried.
-- Any unsaturation, any ring, or any heteroatom other than the peroxide's
-  own two oxygens.
+- Any unsaturation, any non-benzene ring, or any heteroatom other than the
+  peroxide's own two oxygens.
+
+A single, otherwise-unsubstituted benzene ring gets a dedicated path
+(`_name_benzene_ring_peroxide_chain`), mirroring `_ether.py`'s equivalent:
+'peroxy' has no suffix form, so P-44.1.2.2 rule (1) makes the ring the
+parent regardless of the other side's chain length. Both a direct
+ring-oxygen bond and a chain spacer between the ring and the near
+peroxide oxygen are supported, confirmed via PubChem PUG REST for the
+underlying structure/connectivity (CID 15817998 'c1ccccc1OOCC' ->
+'ethylperoxybenzene', 'c1ccccc1COOCC' -> 'ethylperoxymethylbenzene',
+'c1ccccc1OOC(C)C' -> 'propan-2-ylperoxybenzene', 'c1ccccc1COOC(C)C' ->
+'propan-2-ylperoxymethylbenzene') -- but, like `_ether.py`, a compound R'
+side or a compound chain-spacer branch is still parenthesized here even
+where PubChem's own auto-generated name omits the parentheses. Unlike
+`_disulfide.py`'s narrower benzene-ring path (direct ring-sulfur bond
+only), the chain-spacer case is in scope here: 'peroxy' is an independent
+prefix word applied only to R', not a fused whole-fragment prefix like
+'disulfanyl', so it doesn't hit the nested-parenthesization mismatch that
+excluded disulfide's chain-spacer case.
 """
 
 from ._acyclic import longest_chain_length, winning_chain_from_carbon_graph, winning_chain_with_key
@@ -48,7 +66,9 @@ from ._common import (
     adjacency,
     bfs,
     carbon_adjacency,
+    is_plain_benzene_ring,
     non_single_bonds,
+    ring_chain_attachment,
     specified_stereocenters,
 )
 from ._substituents import name_branch
@@ -84,8 +104,14 @@ def has_peroxide_shape(mol) -> bool:
     return _peroxide_oxygens(mol) is not None
 
 
-def name_peroxide(mol) -> str:
+def _validate_peroxide_atoms(mol, ring_atoms=frozenset()):
+    """Shared per-atom validation for both the plain-chain path and the
+    single-benzene-ring path (mirrors `_ether.py`'s
+    `_validate_ether_atoms`): every atom outside `ring_atoms` (empty for
+    the plain-chain path) must be a non-aromatic chain carbon or one of
+    the peroxide's own two oxygens."""
     for atom in mol.GetAtoms():
+        idx = atom.GetIdx()
         if atom.GetAtomicNum() not in (6, 8):
             raise UnsupportedStructure(
                 "heteroatoms other than the peroxide's own two oxygens are "
@@ -94,18 +120,86 @@ def name_peroxide(mol) -> str:
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic():
+        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and idx not in ring_atoms:
             raise UnsupportedStructure(
                 "aromatic rings are out of scope for this module (see the "
                 "separate aromatic-ring module)"
             )
-    if non_single_bonds(mol):
+    if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in non_single_bonds(mol)):
         raise UnsupportedStructure(
             "unsaturation is not supported by this module (see P-31 for "
             "alkenes/alkynes; not yet combined with a peroxide here)"
         )
-    if mol.GetRingInfo().NumRings() > 0:
+
+
+def _name_benzene_ring_peroxide_chain(mol, ring_atoms) -> str:
+    """P-44.1.2.2 rule (1): since the 'peroxy' prefix has no suffix form
+    (module docstring), a single, otherwise-unsubstituted benzene ring is
+    always the parent hydride, regardless of the other side's chain
+    length. Handles both a direct ring-oxygen bond ('ethylperoxybenzene')
+    and a chain spacer between the ring and the near peroxide oxygen
+    ('(2-ethylperoxyethyl)benzene'), mirroring
+    `_ether._name_benzene_ring_ether_chain` with the single ether oxygen
+    generalized to the peroxide's near/far oxygen pair."""
+    _validate_peroxide_atoms(mol, ring_atoms)
+    if specified_stereocenters(mol) is not None:
+        raise UnsupportedStructure(
+            "a specified stereocenter is not supported yet for a "
+            "benzene-ring-substituent peroxide"
+        )
+
+    graph = adjacency(mol)
+    o1, o2 = _peroxide_oxygens(mol)
+    o1_idx, o2_idx = o1.GetIdx(), o2.GetIdx()
+
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a peroxide is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+
+    if chain_root in (o1_idx, o2_idx):
+        near_o = chain_root
+        far_o = o2_idx if near_o == o1_idx else o1_idx
+        (r_prime,) = [n for n in graph[far_o] if n != near_o]
+        sub_name, sub_compound = name_branch(graph, r_prime, far_o, {})
+        if sub_compound:
+            sub_name = f"({sub_name})"
+        return f"{sub_name}peroxybenzene"
+
+    blocked_graph = {node: [n for n in neighbors if n not in (o1_idx, o2_idx)] for node, neighbors in graph.items()}
+    del blocked_graph[o1_idx]
+    del blocked_graph[o2_idx]
+    reached, _ = bfs(blocked_graph, ring_atom)
+    near_o = o1_idx if any(n in reached for n in graph[o1_idx]) else o2_idx
+    far_o = o2_idx if near_o == o1_idx else o1_idx
+    (r_prime,) = [n for n in graph[far_o] if n != near_o]
+
+    sub_name, sub_compound = name_branch(graph, r_prime, far_o, {})
+    if sub_compound:
+        sub_name = f"({sub_name})"
+    peroxy_term = sub_name + "peroxy"
+    branch_name, is_compound = name_branch(graph, chain_root, ring_atom, {near_o: peroxy_term})
+    if not is_compound:
+        return f"{branch_name}benzene"
+    if "(" in branch_name:
+        return f"[{branch_name}]benzene"
+    return f"({branch_name})benzene"
+
+
+def name_peroxide(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_benzene_ring_peroxide_chain(mol, ring_atoms)
         raise UnsupportedStructure("rings are not supported by this module yet")
+    if ring_info.NumRings() > 0:
+        raise UnsupportedStructure("rings are not supported by this module yet")
+
+    _validate_peroxide_atoms(mol)
 
     o1, o2 = _peroxide_oxygens(mol)
     o1_idx, o2_idx = o1.GetIdx(), o2.GetIdx()
