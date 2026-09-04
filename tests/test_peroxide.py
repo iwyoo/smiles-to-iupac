@@ -87,3 +87,46 @@ def test_unspecified_stereocenter_ignored():
 def test_stereocenter_on_substituent_branch_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CCCCCOO[C@H](C)CC")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Direct ring-oxygen bond. Structure PubChem-confirmed: CID
+        # 15817998 'c1ccccc1OOCC' -> 'ethylperoxybenzene'.
+        ("c1ccccc1OOCC", "ethylperoxybenzene"),
+        ("c1ccccc1OOC", "methylperoxybenzene"),
+        # Direct ring-oxygen bond with a branched R': the same
+        # '(...)peroxy' parenthesization as the plain two-chain path above
+        # (P-63.2.2.1.1's worked example), even though PubChem's own
+        # auto-generated name for the same structure omits the
+        # parentheses ('c1ccccc1OOC(C)C' -> 'propan-2-ylperoxybenzene',
+        # CID 57523889).
+        ("c1ccccc1OOC(C)C", "(propan-2-yl)peroxybenzene"),
+        # Chain spacer between the ring and the near peroxide oxygen --
+        # the whole branch is parenthesized when compound, matching this
+        # project's existing benzene-ring-chain convention (`_ether.py`),
+        # rather than PubChem's own un-parenthesized auto-name
+        # ('ethylperoxymethylbenzene', CID 20216190).
+        ("c1ccccc1COOCC", "(ethylperoxymethyl)benzene"),
+        # A branched R' behind a chain spacer: the '(...)peroxy' term
+        # already carries round brackets, so the outer compound-branch
+        # wrap escalates to square brackets instead of nesting round ones
+        # (mirrors `_ether.py`'s own bracket-escalation example).
+        # Structure PubChem-confirmed ('c1ccccc1COOC(C)C' ->
+        # 'propan-2-ylperoxymethylbenzene', CID 57505016).
+        ("c1ccccc1COOC(C)C", "[(propan-2-yl)peroxymethyl]benzene"),
+    ],
+)
+def test_benzene_ring_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_benzene_ring_multiple_substituents_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("COOc1ccccc1OOC")
+
+
+def test_benzene_ring_stereocenter_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1OO[C@H](C)CC")
