@@ -16,34 +16,43 @@ Recommendations ("the Blue Book"):
   'propyl'); a branched, substituted, unsaturated, or ring-bearing R is
   deferred.
 - The amide nitrogen is unsubstituted -NH2, mono-substituted, or
-  N,N-disubstituted with one or two plain, unbranched, unsubstituted,
-  saturated alkyl groups, each cited as its own 'N-'-prefixed substituent
-  directly ahead of 'carbamate' (P-16.3.3/P-66.1, mirroring how an amide's
-  N-substituents are cited), in alphabetical order, with a 'di' multiplying
-  prefix (and a single shared 'N,N-' locant pair) when both substituents
-  are identical: 'methyl N-methylcarbamate' for CH3-NH-CO-O-CH3 (PubChem
-  CID 81151), 'methyl N,N-dimethylcarbamate' for (CH3)2N-CO-O-CH3, and
-  'methyl N-ethyl-N-methylcarbamate' for CH3(C2H5)N-CO-O-CH3 (structures
-  confirmed via PubChem, which returns these exact names). A
-  branched/cyclic/unsaturated N-substituent and ring-attached amide
-  nitrogens are still deferred.
-- P-29.3.2.1: R's name is built with `name_branch` (P-29 PIN style,
-  fixed project-wide by PR #237 -- previously this module avoided
-  `name_branch` for exactly this reason, but that blocker no longer
-  applies), e.g. 'propan-2-yl' for R = isopropyl, matching the verified
-  PIN 'propan-2-yl carbamate' (PubChem CID 15628) and 'tert-butyl
-  carbamate' (CID 77922). Unlike a substituent prefix elsewhere in this
-  project, R here is never parenthesized regardless of
-  `name_branch`'s `is_compound` flag -- the 'R carbamate' two-word
-  pattern (mirroring `_ester.py`'s alcohol part) has no nested-prefix
-  ambiguity to guard against.
-- R''s name (the N-substituent(s)) is still built with `alkyl_name`
-  directly, restricted to an unbranched chain -- that side remains out
-  of this task's scope (see below).
+  N,N-disubstituted with one or two plain, unsubstituted, saturated,
+  acyclic alkyl groups (branched or unbranched), each cited as its own
+  'N-'-prefixed substituent directly ahead of 'carbamate' (P-16.3.3/
+  P-66.1, mirroring how an amide's N-substituents are cited), in
+  alphanumerical order (P-14.5.2, ignoring italicized prefixes like
+  'tert-' -- via `alpha_sort_key`), with a 'di' multiplying prefix (and a
+  single shared 'N,N-' locant pair) when both substituents are identical:
+  'methyl N-methylcarbamate' for CH3-NH-CO-O-CH3 (PubChem CID 81151),
+  'methyl N,N-dimethylcarbamate' for (CH3)2N-CO-O-CH3, 'methyl
+  N-ethyl-N-methylcarbamate' for CH3(C2H5)N-CO-O-CH3, 'methyl
+  N-propan-2-ylcarbamate' (CID 568334), 'methyl N-tert-butylcarbamate'
+  (CID 575684), 'methyl N-tert-butyl-N-ethylcarbamate' (CID 87089877,
+  alphabetized as 'b' before 'e', ignoring 'tert-') -- structures
+  confirmed via PubChem, which returns these exact names. A compound
+  identical-pair 'di' name is parenthesized to avoid ambiguity ('methyl
+  N,N-di(propan-2-yl)carbamate', CID 568417) while a non-compound
+  (retained-name) one is not ('methyl N,N-ditert-butylcarbamate', CID
+  12567954) -- a single N-substituent is never parenthesized either way.
+  A cyclic/unsaturated N-substituent and ring-attached amide nitrogens
+  are still deferred.
+- P-29.3.2.1: both R's and R''s names are built with `name_branch` (P-29
+  PIN style, fixed project-wide by PR #237 -- previously this module
+  avoided `name_branch` for exactly this reason, but that blocker no
+  longer applies), e.g. 'propan-2-yl' for R = isopropyl, matching the
+  verified PIN 'propan-2-yl carbamate' (PubChem CID 15628) and
+  'tert-butyl carbamate' (CID 77922). R itself is never parenthesized
+  regardless of `name_branch`'s `is_compound` flag -- the 'R carbamate'
+  two-word pattern (mirroring `_ester.py`'s alcohol part) has no
+  nested-prefix ambiguity to guard against; each individual N-substituent
+  is likewise never parenthesized -- only the multiplied 'N,N-di(...)'
+  form needs it (see above).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any ring anywhere in the molecule.
-- An N-substituent that is branched, unsaturated, or ring-bearing.
+- An N-substituent that is unsaturated or ring-bearing (a branched but
+  otherwise plain saturated acyclic N-substituent is supported, see
+  above).
 - An unsaturated or cyclic R (a branched but otherwise plain saturated
   acyclic R is supported, see above).
 - More than one carbamate group, or any other heteroatom/oxygen not part
@@ -54,15 +63,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._common import (
-    UnsupportedStructure,
-    adjacency,
-    carbon_adjacency,
-    linear_branch,
-    non_single_bonds,
-)
-from ._numerals import alkyl_name
-from ._substituents import name_branch
+from ._common import UnsupportedStructure, adjacency, non_single_bonds
+from ._substituents import alpha_sort_key, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, 8}
 
@@ -181,22 +183,17 @@ def name_carbamate(mol) -> str:
             "unsaturation in the R group is not supported yet"
         )
 
-    carbon_graph = carbon_adjacency(mol)
-    r_name, _ = name_branch(adjacency(mol), alkyl_c, ester_o, {})
+    full_graph = adjacency(mol)
+    r_name, _ = name_branch(full_graph, alkyl_c, ester_o, {})
     if not n_alkyl_cs:
         return f"{r_name} carbamate"
 
-    n_names = []
-    for n_alkyl_c in n_alkyl_cs:
-        n_length = linear_branch(carbon_graph, n_alkyl_c, None)
-        if n_length is None:
-            raise UnsupportedStructure(
-                "a branched N-substituent is not supported yet"
-            )
-        n_names.append(alkyl_name(n_length))
+    n_entries = [name_branch(full_graph, n_alkyl_c, amide_n, {}) for n_alkyl_c in n_alkyl_cs]
 
-    if len(n_names) == 2 and n_names[0] == n_names[1]:
-        n_prefix = f"N,N-di{n_names[0]}"
+    if len(n_entries) == 2 and n_entries[0][0] == n_entries[1][0]:
+        name, is_compound = n_entries[0]
+        di_name = f"({name})" if is_compound else name
+        n_prefix = f"N,N-di{di_name}"
     else:
-        n_prefix = "-".join(f"N-{name}" for name in sorted(n_names))
+        n_prefix = "-".join(f"N-{name}" for name, _ in sorted(n_entries, key=lambda e: alpha_sort_key(e[0])))
     return f"{r_name} {n_prefix}carbamate"
