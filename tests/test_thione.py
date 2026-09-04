@@ -24,10 +24,26 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("ClCC(=S)C", "1-chloropropane-2-thione"),
         # Unsaturated chain, PubChem structure match: "pent-4-ene-2-thione".
         ("C=CCC(=S)C", "pent-4-ene-2-thione"),
+        # Monocyclic ring, single ring double bond (P-31.1.3): the thione
+        # always gets locant 1 (suffix priority), the ring double bond's
+        # locant is minimized by choosing direction. Cross-checked against
+        # PubChem (CID 574444/7006514).
+        ("S=C1CCCC=C1", "cyclohex-2-ene-1-thione"),
+        ("S=C1CC=CCC1", "cyclohex-3-ene-1-thione"),
     ],
 )
 def test_thione_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_unsaturated_ring_thione_with_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("S=C1CCCC=C1C")
+
+
+def test_unsaturated_ring_thione_triple_bond_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("S=C1CCCC#C1")
 
 
 def test_thial_not_supported():
