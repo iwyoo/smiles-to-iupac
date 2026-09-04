@@ -29,15 +29,29 @@ Recommendations ("the Blue Book"):
   disproof), so it stays unverified and out of scope, unlike
   `_sulfonic_acid.py`'s own broader ring-substituent support.
 
+-N#N+ directly on a benzene ring carbon (`_name_benzene_ring_diazonium`)
+is also supported, with or without other ring substituents -- e.g.
+'benzenediazonium' (PubChem CID 9718), '2-methylbenzenediazonium' (CID
+192837). Mirrors `_carboxylic_acid.py`'s `_name_ring_carboxylic_acid`
+ring-numbering search (the diazonium suffix locant is never cited, any
+ring atom can be renumbered to position 1; other substituents get real
+locants relative to that fixed reference), with the aromatic retained
+name 'benzene' as stem instead of 'cyclo' + alkane_name. A chain-spacer
+case (a -N#N+-bearing chain hanging off a plain benzene ring instead of
+attaching directly) is a separate, already-supported construction --
+see `_name_phenyl_chain_diazonium` below.
+
 Scope, deliberately narrow, mirroring `_sulfonic_acid.py`'s own chain
 scope: a single -N#N+ on an acyclic chain (branched, unbranched, or
 unsaturated) with no other heteroatom anywhere in the molecule except the
 diazonium group's own two nitrogens, OR a single, otherwise-unsubstituted
-saturated monocyclic carbon ring. Explicitly out of scope (raise
-`UnsupportedStructure`): a polycyclic/spiro/aromatic/unsaturated ring, a
-substituent anywhere on an otherwise-unsubstituted ring, two or more
-diazonium groups, and a diazonium group on a carbon that is also part of
-a C=C/C#C bond.
+saturated monocyclic carbon ring, OR a single benzene ring with -N#N+
+attached directly to one of its carbons (any number of other ring
+substituents allowed). Explicitly out of scope (raise
+`UnsupportedStructure`): a polycyclic/spiro/unsaturated non-benzene ring,
+a substituent anywhere on an otherwise-unsubstituted saturated ring, two
+or more diazonium groups, and a diazonium group on a carbon that is also
+part of a C=C/C#C bond.
 """
 
 from rdkit import Chem
@@ -48,6 +62,7 @@ from ._common import (
     adjacency,
     bfs,
     carbon_adjacency,
+    group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     lowest_locant_set,
@@ -353,6 +368,66 @@ def _substituents_for_chain(graph, chain, halogens, excluded):
     return substituents
 
 
+def _ring_substituents_diazonium(graph, ring_order, halogens, excluded):
+    """Mirrors `_sulfonic_acid.py`'s/`_carboxylic_acid.py`'s identically-
+    named ring-substituent helpers: every branch hanging off a ring atom
+    other than the diazonium group's own two nitrogens (in `excluded`) is
+    a plain substituent prefix (alkyl/halogen)."""
+    ring_set = set(ring_order)
+    substituents = {}
+    for position, atom in enumerate(ring_order, start=1):
+        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+    return substituents
+
+
+def _candidate_key_diazonium(diazonium_locant, substituents):
+    grouped = group_substituents(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    if not grouped:
+        name = "benzenediazonium"
+    else:
+        name = f"{format_substituent_prefixes(grouped)}benzenediazonium"
+    return (diazonium_locant, locant_set, citation_locants, name), name
+
+
+def _name_benzene_ring_diazonium(mol, ring_atoms):
+    """P-73/P-14.3.3: -N#N+ attached directly to a benzene ring carbon --
+    e.g. 'benzenediazonium' (PubChem CID 9718),
+    '2-methylbenzenediazonium' (CID 192837). The diazonium suffix locant
+    is never cited (any ring atom can be renumbered to position 1),
+    mirroring `_carboxylic_acid.py`'s `_name_ring_carboxylic_acid`
+    ring-numbering search, with the aromatic retained name 'benzene' as
+    stem in place of 'cyclo' + alkane_name. Unlike that sp3-ring case, an
+    aromatic ring carbon has no room for a second exocyclic substituent
+    alongside the diazonium nitrogen (valence), so there is no
+    same-ring-atom-substituent case to guard against here."""
+    diazonium_carbon, excluded = _validate_and_collect_diazonium(mol, aromatic_ring_atoms=ring_atoms)
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            diazonium_locant = position_of[diazonium_carbon]
+            substituents = _ring_substituents_diazonium(graph, candidate, halogens, excluded)
+            key, name = _candidate_key_diazonium(diazonium_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, name
+    return best_name
+
+
 def _name_phenyl_chain_diazonium(mol, ring_atoms):
     """Name a diazonium cation whose -N#N+ lies entirely on a single
     unbranched chain hanging off one atom of an otherwise-plain,
@@ -362,12 +437,6 @@ def _name_phenyl_chain_diazonium(mol, ring_atoms):
     mirroring `_sulfonic_acid.py`'s `_name_phenyl_chain_sulfonic_acid`.
     Narrower than the acyclic path above: no chain unsaturation."""
     diazonium_carbon, excluded = _validate_and_collect_diazonium(mol, aromatic_ring_atoms=ring_atoms)
-    if diazonium_carbon in ring_atoms:
-        raise UnsupportedStructure(
-            "a diazonium group directly attached to the benzene ring "
-            "(benzenediazonium-style naming) is out of scope for this "
-            "module (see the separate aromatic-ring module)"
-        )
     non_ring_unsaturation = [
         b
         for b in non_single_bonds(mol)
@@ -424,6 +493,14 @@ def name_diazonium(mol) -> str:
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            nitrogens = _diazonium_nitrogens(mol)
+            if len(nitrogens) == 1:
+                (nitrogen,) = nitrogens
+                (diazonium_carbon,) = (
+                    n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetAtomicNum() == 6
+                )
+                if diazonium_carbon in ring_atoms:
+                    return _name_benzene_ring_diazonium(mol, ring_atoms)
             return _name_phenyl_chain_diazonium(mol, ring_atoms)
 
     diazonium_carbon, excluded = _validate_and_collect_diazonium(mol)
