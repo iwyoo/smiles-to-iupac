@@ -53,11 +53,25 @@ def test_n_substituted_amide_with_longer_acyl_chain():
 
 def test_n_n_disubstituted_amide_with_locant_leading_parent_name():
     # The N,N-prefix must be hyphen-separated from a parent name that
-    # itself starts with a numeric locant, not just concatenated.
+    # itself starts with a numeric locant, not just concatenated. (This
+    # SMILES previously used '-CH2CH2Cl' N-substituents, CCCl -- that
+    # halogen was invisible to the old length-only carbon-chain check and
+    # silently misnamed as plain 'diethyl'; now explicitly rejected (see
+    # `test_halogenated_n_substituent_not_supported` below), so this test
+    # uses plain ethyl instead to keep testing its actual point, the
+    # hyphenation.)
     assert (
-        smiles_to_iupac("O=C(C(C(F)(F)F)C(F)(F)F)N(CCCl)CCCl")
+        smiles_to_iupac("O=C(C(C(F)(F)F)C(F)(F)F)N(CC)CC")
         == "N,N-diethyl-3,3,3-trifluoro-2-(trifluoromethyl)propanamide"
     )
+
+
+def test_halogenated_n_substituent_not_supported():
+    # A halogen on the N-substituent is out of scope (module docstring:
+    # "plain, unsubstituted" N-substituent only) -- previously silently
+    # misnamed instead of rejected (see comment above).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=O)NCCCl")
 
 
 def test_n_substituted_amide_with_locant_leading_parent_name_raises():
@@ -77,9 +91,31 @@ def test_n_substituted_amide_with_locant_leading_parent_name_raises():
         smiles_to_iupac("CC(O)C(O)NC(=O)[C@H](O)[C@H](O)[C@H](O)[C@@H](O)[C@H](O)CO")
 
 
-def test_branched_n_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)NC(C)C")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified: CID 136874, 12985.
+        ("CC(=O)NC(C)C", "N-propan-2-ylethanamide"),
+        ("CC(=O)NC(C)(C)C", "N-tert-butylethanamide"),
+    ],
+)
+def test_branched_n_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_two_identical_branched_n_substituents_parenthesized_when_compound():
+    # PubChem CID 69797.
+    assert smiles_to_iupac("CC(=O)N(C(C)C)C(C)C") == "N,N-di(propan-2-yl)ethanamide"
+
+
+def test_two_identical_branched_n_substituents_not_parenthesized_when_retained():
+    # PubChem CID 18999412.
+    assert smiles_to_iupac("CC(=O)N(C(C)(C)C)C(C)(C)C") == "N,N-ditert-butylethanamide"
+
+
+def test_two_different_n_substituents_alphabetized_ignoring_italic_prefix():
+    # PubChem CID 54197906.
+    assert smiles_to_iupac("CC(=O)N(CC)C(C)(C)C") == "N-tert-butyl-N-ethylethanamide"
 
 
 def test_unsaturated_n_substituent_raises():

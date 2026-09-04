@@ -30,16 +30,24 @@ Recommendations ("the Blue Book"):
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with the
   'amide' suffix, reusing `halogen_substituents`/`format_substituent_prefixes`
   unchanged.
-- The amide nitrogen may carry zero, one, or two plain, unbranched,
-  unsubstituted, saturated alkyl substituents, each cited as its own
-  'N-'-prefixed substituent directly ahead of the acyl stem, in alphabetical
-  order, with a 'di' multiplying prefix (and a single shared 'N,N-' pair)
-  when both are identical -- exactly `_carbamate.py`'s own N,N-disubstitution
-  extension, reusing `alkyl_name` directly (not `name_branch`, see the P-29
-  blocker) since both substituents are restricted to an unbranched chain.
-  Confirmed via PubChem: 'N-methylacetamide' (CC(=O)NC), 'N,N-
-  dimethylacetamide' (CC(=O)N(C)C), 'N-ethyl-N-methylacetamide'
-  (CC(=O)N(C)CC).
+- The amide nitrogen may carry zero, one, or two plain,
+  unsubstituted, saturated, acyclic alkyl substituents (branched or
+  unbranched), each cited as its own 'N-'-prefixed substituent directly
+  ahead of the acyl stem, in alphanumerical order (P-14.5.2, ignoring
+  italicized prefixes like 'tert-' via `alpha_sort_key`), with a 'di'
+  multiplying prefix (and a single shared 'N,N-' pair) when both are
+  identical -- exactly `_carbamate.py`'s/`_urea.py`'s own N,N-
+  disubstitution extension. Each N-substituent's own name is built with
+  `name_branch` (P-29 PIN style, fixed project-wide by PR #237; mirrors
+  `_carbamate.py`'s/`_urea.py`'s identical fix, PR #328/#332), e.g.
+  'N-propan-2-ylacetamide' (PubChem CID 136874), 'N-tert-butylacetamide'
+  (CID 12985). A multiplied identical-pair name is parenthesized only
+  when compound (has its own locant), e.g. 'N,N-di(propan-2-yl)acetamide'
+  (CID 69797) vs. 'N,N-ditert-butylacetamide' (CID 18999412) -- same rule
+  as `_urea.py`. Confirmed via PubChem: 'N-methylacetamide' (CC(=O)NC),
+  'N,N-dimethylacetamide' (CC(=O)N(C)C), 'N-ethyl-N-methylacetamide'
+  (CC(=O)N(C)CC), 'N-tert-butyl-N-ethylacetamide' (CID 54197906,
+  alphabetized ignoring 'tert-').
 
 - P-91.3/P-92: a molecule with one
   or more *specified* tetrahedral stereocenters -- every one on the
@@ -58,7 +66,9 @@ Recommendations ("the Blue Book"):
 
 Explicitly out of scope (raise `UnsupportedStructure`), per the task's
 first-pass scope:
-- An N-substituent that is branched, unsaturated, or ring-bearing.
+- An N-substituent that is unsaturated or ring-bearing (a branched but
+  otherwise plain saturated acyclic N-substituent is supported, see
+  above).
 - An amide on/in a ring (a lactam) - a separate module's territory.
 - More than one amide group in the same molecule (a diamide) - deferred
   entirely, along with any other multiple-principal-characteristic-group
@@ -91,13 +101,13 @@ from ._common import (
     UnsupportedStructure,
     YNE_BOND_ORDER,
     adjacency,
+    bfs,
     bond_locant,
     bond_locants,
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
-    linear_branch,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
@@ -106,7 +116,7 @@ from ._common import (
     ring_chain_attachment,
     specified_stereocenters,
 )
-from ._numerals import alkane_name, alkyl_name
+from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, 8, *HALOGEN_PREFIXES}
@@ -376,7 +386,7 @@ def _substituents_for_chain(graph, chain, halogens, excluded):
     return substituents
 
 
-def _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls, bonds, stereo=None):
+def _name_acyclic_amide(mol, amide_carbon, amide_nitrogen, excluded, n_alkyl_carbons, hydroxyls, bonds, stereo=None):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
     include every stereocenter are eligible (P-92: a stereocenter on a
@@ -393,24 +403,17 @@ def _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls,
     n_names = []
     n_substituent_atoms = set()
     for n_alkyl_c in n_alkyl_carbons:
-        n_length = linear_branch(full_carbon_graph, n_alkyl_c, None)
-        if n_length is None:
-            raise UnsupportedStructure("a branched N-substituent is not supported yet")
-        n_atoms = set()
-        previous, current = None, n_alkyl_c
-        while current is not None:
-            n_atoms.add(current)
-            neighbors = [n for n in full_carbon_graph[current] if n != previous]
-            previous, current = current, (neighbors[0] if neighbors else None)
+        n_atoms, _ = bfs(full_carbon_graph, n_alkyl_c)
+        n_atoms = set(n_atoms)
         if any(b[0] in n_atoms or b[1] in n_atoms for b in non_single_bonds(mol)):
             raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
         if any(next(iter(graph[o])) in n_atoms for o in hydroxyls):
             # A hydroxyl on the N-substituent is invisible to
             # `full_carbon_graph` (oxygen isn't a carbon), so it would
-            # otherwise pass `linear_branch` silently and get misnamed as
-            # a plain, unsubstituted alkyl group -- the module docstring's
-            # "plain, unbranched, unsubstituted" N-substituent restriction
-            # is enforced here explicitly (found via `specified_stereocenters`
+            # otherwise pass `name_branch` silently and get misnamed as a
+            # plain, unsubstituted alkyl group -- the module docstring's
+            # "plain, unsubstituted" N-substituent restriction is enforced
+            # here explicitly (found via `specified_stereocenters`
             # correctly flagging this shape's stereocenters as partially
             # specified).
             raise UnsupportedStructure(
@@ -418,7 +421,20 @@ def _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls,
                 "not supported yet; only a plain, unsubstituted alkyl "
                 "N-substituent is in scope"
             )
-        n_names.append(alkyl_name(n_length))
+        if any(nbr in n_atoms for h in halogen_substituents(mol) for nbr in graph[h]):
+            # A halogen on the N-substituent is likewise invisible to
+            # `full_carbon_graph` -- calling `name_branch` with an empty
+            # halogens dict here would otherwise walk straight through it
+            # as if it were a chain-extending atom (misnaming e.g.
+            # '-CH2CH2Cl' as a 3-atom 'propyl' chain). Same
+            # "plain, unsubstituted" restriction as the hydroxyl check
+            # above, enforced explicitly rather than silently mishandled.
+            raise UnsupportedStructure(
+                "a substituted N-substituent (e.g. bearing a halogen) is "
+                "not supported yet; only a plain, unsubstituted alkyl "
+                "N-substituent is in scope"
+            )
+        n_names.append(name_branch(graph, n_alkyl_c, amide_nitrogen, {}))
         n_substituent_atoms |= n_atoms
 
     # N-alkyl substituent carbons hang off the (excluded) amide nitrogen, not
@@ -473,10 +489,12 @@ def _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls,
                 best_key, best_name, best_position_of = key, name, position_of
 
     if n_alkyl_carbons:
-        if len(n_names) == 2 and n_names[0] == n_names[1]:
-            n_prefix = f"N,N-di{n_names[0]}"
+        if len(n_names) == 2 and n_names[0][0] == n_names[1][0]:
+            name, is_compound = n_names[0]
+            di_name = f"({name})" if is_compound else name
+            n_prefix = f"N,N-di{di_name}"
         else:
-            n_prefix = "-".join(f"N-{name}" for name in sorted(n_names))
+            n_prefix = "-".join(f"N-{name}" for name, _ in sorted(n_names, key=lambda e: alpha_sort_key(e[0])))
         separator = "-" if best_name[0].isdigit() else ""
         best_name = f"{n_prefix}{separator}{best_name}"
 
@@ -599,4 +617,4 @@ def name_amide(mol) -> str:
                 "is out of scope for this module (P-31.1.4.2.4)"
             )
 
-    return _name_acyclic_amide(mol, amide_carbon, excluded, n_alkyl_carbons, hydroxyls, bonds, stereo)
+    return _name_acyclic_amide(mol, amide_carbon, amide_nitrogen, excluded, n_alkyl_carbons, hydroxyls, bonds, stereo)
