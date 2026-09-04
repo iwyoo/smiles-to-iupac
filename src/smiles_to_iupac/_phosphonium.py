@@ -155,6 +155,6 @@ def _name_quaternary_phosphonium(mol, phosphorus) -> str:
         length = linear_branch(graph, root, phosphorus.GetIdx())
         if length is None:
             raise UnsupportedStructure("a branched substituent is out of scope for this module")
-        substituent_names.append(alkyl_name(length))
+        substituent_names.append((alkyl_name(length), False))
 
     return format_mononuclear_prefixes(substituent_names) + "phosphanium"
