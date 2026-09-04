@@ -64,9 +64,10 @@ def test_halogen_substituted_ring_diazonium_not_supported():
         smiles_to_iupac("ClC1CCCCC1[N+]#N")
 
 
-def test_aromatic_ring_diazonium_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1[N+]#N")
+def test_benzenediazonium():
+    # -N#N+ directly on a benzene ring carbon, cross-checked against
+    # PubChem PUG REST.
+    assert smiles_to_iupac("c1ccccc1[N+]#N") == "benzenediazonium"  # CID 9718
 
 
 def test_polycyclic_diazonium_not_supported():
@@ -96,12 +97,19 @@ def test_phenyl_chain_diazonium():
     assert smiles_to_iupac("c1ccccc1CCC[N+]#N") == "3-phenylpropane-1-diazonium"
 
 
-def test_phenyl_directly_attached_diazonium_raises():
-    # Benzenediazonium-style naming (the diazonium carbon directly on the
-    # ring) is a separate construction, out of scope for this
-    # acyclic-chain-parent module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1[N+]#N")
+def test_substituted_benzenediazonium():
+    # A substituent on a different ring atom than the diazonium group:
+    # the ring is renumbered to give the -N#N+ carbon locant 1 (never
+    # cited), then the other substituent gets the lowest remaining
+    # locant, cross-checked against PubChem PUG REST.
+    assert smiles_to_iupac("Cc1ccccc1[N+]#N") == "2-methylbenzenediazonium"  # CID 192837
+
+
+def test_dimethyl_benzenediazonium():
+    # Two substituents on the ring, lowest-locant-set + alphabetical
+    # citation order (P-14.5.2), structurally verified (no matching
+    # PubChem CID for this exact regiochemistry).
+    assert smiles_to_iupac("Cc1ccc(C)cc1[N+]#N") == "2,5-dimethylbenzenediazonium"
 
 
 def test_phenyl_substituted_benzene_ring_diazonium_raises():
