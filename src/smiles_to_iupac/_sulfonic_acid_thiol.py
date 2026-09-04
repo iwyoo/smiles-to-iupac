@@ -21,11 +21,18 @@ per the IUPAC 2013 Recommendations ("the Blue Book"):
 
 Scope, deliberately narrow (first concrete pairwise case built on
 `_seniority.py`): a single sulfonic acid plus one or more thiols, all on
-one acyclic saturated chain, with halogen substituents allowed.
+one acyclic saturated chain, with halogen substituents allowed. One
+narrow *aromatic*-ring exception: `_name_phenyl_chain_sulfonic_acid_thiol`
+names a sulfonic acid/thiol chain hanging off a single plain,
+unsubstituted benzene ring (e.g. '3-phenyl-3-sulfanylpropane-1-sulfonic
+acid', PubChem CID 57312026), mirroring `_sulfonic_acid.py`'s/
+`_thiol.py`'s identical benzene-ring-substituent path.
 Explicitly out of scope (raise `UnsupportedStructure`): any chain
-unsaturation (ene/yne), any ring, more than one sulfonic acid, a
-coexisting hydroxyl/ether/other heteroatom, a specified stereocenter, and
-any sulfonic acid/thiol not captured by a single longest chain.
+unsaturation (ene/yne), any ring other than the single benzene-
+substituent exception above, more than one sulfonic acid, a coexisting
+hydroxyl/ether/other heteroatom, a specified stereocenter, a thiol
+directly on the benzene ring (thiophenol-type), and any sulfonic
+acid/thiol not captured by a single longest chain.
 """
 
 from rdkit import Chem
@@ -37,9 +44,13 @@ from ._common import (
     bfs,
     carbon_adjacency,
     halogen_substituents,
+    is_plain_benzene_ring,
     lowest_locant_set,
     non_single_bonds,
+    ordered_chain,
     path_between,
+    ring_chain_attachment,
+    specified_stereocenters,
 )
 from ._numerals import alkane_name
 from ._seniority import senior_class
@@ -112,7 +123,7 @@ def has_sulfonic_acid_thiol_shape(mol) -> bool:
     return bool(_sulfonic_sulfur_atoms(mol)) and bool(_thiol_sulfur_atoms(mol))
 
 
-def _validate_and_collect(mol):
+def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
     sulfonic_atoms = _sulfonic_sulfur_atoms(mol)
     if len(sulfonic_atoms) != 1:
         raise UnsupportedStructure(
@@ -148,7 +159,7 @@ def _validate_and_collect(mol):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module (see "
                     "the separate aromatic-ring module)"
@@ -249,7 +260,102 @@ def _substituents_for_chain(graph, chain, names, excluded):
     return substituents
 
 
+def _name_phenyl_chain_sulfonic_acid_thiol(mol, ring_atoms):
+    """Name a sulfonic acid plus one or more thiols, all lying on a single
+    unbranched chain hanging off one atom of an otherwise-plain,
+    unsubstituted benzene ring -- e.g.
+    '3-phenyl-3-sulfanylpropane-1-sulfonic acid' (PubChem CID 57312026).
+    The ring is cited as a 'phenyl' substituent prefix (via
+    `name_branch`'s aromatic-ring recognition) on the chain, which is the
+    parent hydride, mirroring `_sulfonic_acid.py`'s
+    `_name_phenyl_chain_sulfonic_acid`/`_thiol.py`'s
+    `_name_phenyl_chain_thiol`. Narrower than the acyclic path above: no
+    chain unsaturation and no specified stereocenter."""
+    sulfonic_sulfur_idx, so3h_carbon, thiol_idxs = _validate_and_collect(
+        mol, aromatic_ring_atoms=ring_atoms
+    )
+    if so3h_carbon in ring_atoms:
+        raise UnsupportedStructure(
+            "a sulfonic acid directly attached to the benzene ring "
+            "(benzenesulfonic acid-style naming) is out of scope for this "
+            "module (see the separate aromatic-ring module)"
+        )
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a benzene-ring-substituent "
+            "sulfonic acid/thiol chain is not supported yet"
+        )
+    non_ring_unsaturation = [
+        b
+        for b in non_single_bonds(mol)
+        if sulfonic_sulfur_idx not in (b[0], b[1])
+        and b[0] not in ring_atoms
+        and b[1] not in ring_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside a benzene-ring-substituent "
+            "sulfonic acid/thiol chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a chain sulfonic acid/thiol is not supported yet"
+        )
+    ring_atom, chain_root = attachment
+    if chain_root in thiol_idxs:
+        raise UnsupportedStructure(
+            "a thiol directly on the benzene ring (thiophenol-type) uses "
+            "a separate construction, out of scope for this chain-parent "
+            "module"
+        )
+    chain = ordered_chain(graph, chain_root, ring_atom, {sulfonic_sulfur_idx} | thiol_idxs)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off the benzene ring alongside a "
+            "sulfonic acid/thiol is not supported yet"
+        )
+    if so3h_carbon not in chain:
+        raise UnsupportedStructure(
+            "the sulfonic acid carbon must lie on the chain hanging off "
+            "the benzene ring for this benzene-substituent path"
+        )
+    chain_set = set(chain)
+    for s in thiol_idxs:
+        (carbon,) = graph[s]
+        if carbon not in chain_set:
+            raise UnsupportedStructure(
+                "a thiol outside the single unbranched chain hanging off "
+                "the benzene ring is not supported yet"
+            )
+
+    names = {**halogen_substituents(mol), **{s: "sulfanyl" for s in thiol_idxs}}
+    chain_length = len(chain)
+    excluded = {sulfonic_sulfur_idx, ring_atom}
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        so3h_locant = position_of[so3h_carbon]
+        substituents = _substituents_for_chain(graph, candidate, names, excluded)
+        ring_entry = name_branch(graph, ring_atom, chain_root, names, ring_atoms)
+        substituents.setdefault(position_of[chain_root], []).append(ring_entry)
+        key, name = _candidate_key(chain_length, so3h_locant, substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_sulfonic_acid_thiol(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_sulfonic_acid_thiol(mol, ring_atoms)
+
     sulfonic_sulfur_idx, so3h_carbon, thiol_idxs = _validate_and_collect(mol)
 
     if mol.GetRingInfo().NumRings() != 0:

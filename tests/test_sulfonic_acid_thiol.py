@@ -49,6 +49,34 @@ def test_ring_not_supported():
         smiles_to_iupac("C1CCC(S)(CC1)S(=O)(=O)O")
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A plain, unsubstituted benzene ring on the sulfonic acid/thiol
+        # chain, mirroring `_sulfonic_acid.py`'s/`_thiol.py`'s own
+        # benzene-ring-substituent path, cross-checked against PubChem
+        # PUG REST.
+        ("c1ccccc1C(S)CCS(=O)(=O)O", "3-phenyl-3-sulfanylpropane-1-sulfonic acid"),  # CID 57312026
+        ("c1ccccc1CC(S)CS(=O)(=O)O", "3-phenyl-2-sulfanylpropane-1-sulfonic acid"),  # CID 57473419
+    ],
+)
+def test_phenyl_chain_sulfonic_acid_thiol(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_phenyl_ring_with_second_substituent_raises():
+    # A benzene ring with two exocyclic attachments (a thiol directly on
+    # the ring plus a separate sulfonic-acid-bearing chain) is out of
+    # scope for this single-chain-substituent module.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Sc1ccccc1CS(=O)(=O)O")
+
+
+def test_phenyl_chain_sulfonic_acid_thiol_unsaturation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CC(S)S(=O)(=O)O")
+
+
 def test_senior_class_ranks_sulfonic_acid_over_alcohol():
     assert senior_class("sulfonic_acid", "alcohol") == "sulfonic_acid"
     assert senior_class("alcohol", "sulfonic_acid") == "sulfonic_acid"
