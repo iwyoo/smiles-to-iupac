@@ -58,3 +58,24 @@ def test_selenourea_not_confused_with_tellurourea():
 
 def test_urea_not_confused_with_tellurourea():
     assert smiles_to_iupac("NC(=O)N") == "urea"
+
+
+def test_n_phenyltellurourea():
+    # PubChem structure match: CID 139787446 (no IUPACName or synonym
+    # available for this tellurium compound).
+    assert smiles_to_iupac("NC(=[Te])Nc1ccccc1") == "N-phenyltellurourea"
+
+
+def test_n_n_prime_diphenyltellurourea():
+    # PubChem structure match: CID 19737113.
+    assert smiles_to_iupac("c1ccc(NC(=[Te])Nc2ccccc2)cc1") == "N,N'-diphenyltellurourea"
+
+
+def test_substituted_phenyl_n_substituent_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NC(=[Te])Nc1ccc(C)cc1")
+
+
+def test_phenyl_alongside_another_substituent_on_same_nitrogen_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CN(c1ccccc1)C(=[Te])N")
