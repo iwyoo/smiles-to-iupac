@@ -37,14 +37,31 @@ PubChem's own raw 'N-propan-2-ylthiourea' (CID 1711921), same correction
 as `_urea.py` (see that module's docstring for the Blue Book citations).
 Explicitly out of scope (raise `UnsupportedStructure`): a different
 substituent *count* on each nitrogen (no confirmed worked example settles
-that locant tie-break), an unsaturated/ring-bearing N-substituent,
-a ring-fused thiourea, and the selenium/tellurium analogues (selenourea/
+that locant tie-break), an unsaturated N-substituent, a ring-bearing
+N-substituent other than a single plain (unsubstituted) benzene ring, a
+ring-fused thiourea, and the selenium/tellurium analogues (selenourea/
 tellurourea).
+
+- A plain benzene ring bonded directly to one nitrogen is cited as
+  'phenyl', mirroring `_urea.py`'s identical extension (PR #382):
+  PubChem structure match `NC(=S)Nc1ccccc1` -> "phenylthiourea", CID
+  676454. Combines with the existing symmetric/asymmetric machinery
+  unchanged (`N-methyl-N'-phenylthiourea`, CID 698294). A *substituted*
+  phenyl ring or a second substituent sharing that same nitrogen is out
+  of scope.
 """
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, bfs, carbon_adjacency, non_single_bonds
+from ._common import (
+    UnsupportedStructure,
+    adjacency,
+    bfs,
+    carbon_adjacency,
+    is_plain_benzene_ring,
+    non_single_bonds,
+    ring_chain_attachment,
+)
 from ._substituents import alpha_sort_key, name_branch
 
 
@@ -88,8 +105,28 @@ def _n_substituent_carbons(mol, nitrogen_idx, carbon_idx):
     )
 
 
-def _substituent_names(full_graph, nitrogen_idx, substituent_carbons):
-    return [name_branch(full_graph, c, nitrogen_idx, {}) for c in substituent_carbons]
+def _substituent_names(full_graph, nitrogen_idx, substituent_carbons, aromatic_atoms=frozenset()):
+    return [name_branch(full_graph, c, nitrogen_idx, {}, aromatic_atoms) for c in substituent_carbons]
+
+
+def _plain_phenyl_substituent_atoms(mol, graph, roots):
+    """Union of ring atoms for every plain, unsubstituted benzene ring in
+    `mol` that hangs directly off one of `roots` (a thiourea nitrogen's
+    substituent-carbon neighbors) with no other exocyclic attachment --
+    i.e. a lone 'phenyl' N-substituent, as opposed to a fused or
+    otherwise-substituted ring."""
+    atoms = set()
+    for ring in mol.GetRingInfo().AtomRings():
+        ring_atoms = set(ring)
+        if not is_plain_benzene_ring(mol, ring_atoms):
+            continue
+        attachment = ring_chain_attachment(graph, ring_atoms, set())
+        if attachment is None:
+            continue
+        ring_atom, _ = attachment
+        if ring_atom in roots:
+            atoms |= ring_atoms
+    return atoms
 
 
 def _substituent_chain_atoms(carbon_graph, substituent_carbons):
@@ -138,14 +175,30 @@ def name_thiourea(mol) -> str:
 
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    if mol.GetRingInfo().NumRings() > 0:
-        raise UnsupportedStructure(
-            "a ring-fused thiourea (e.g. hydantoin) is out of scope for this module"
-        )
 
     (sulfur_idx,) = (n.GetIdx() for n in mol.GetAtomWithIdx(carbon_idx).GetNeighbors() if n.GetAtomicNum() == 16)
     n1_carbons = _n_substituent_carbons(mol, n1_idx, carbon_idx)
     n2_carbons = _n_substituent_carbons(mol, n2_idx, carbon_idx)
+
+    full_graph = adjacency(mol)
+    phenyl_atoms = _plain_phenyl_substituent_atoms(mol, full_graph, n1_carbons + n2_carbons)
+    if phenyl_atoms and (
+        (any(c in phenyl_atoms for c in n1_carbons) and len(n1_carbons) > 1)
+        or (any(c in phenyl_atoms for c in n2_carbons) and len(n2_carbons) > 1)
+    ):
+        raise UnsupportedStructure(
+            "a phenyl N-substituent alongside another substituent on the "
+            "same nitrogen is not supported yet"
+        )
+
+    if mol.GetRingInfo().NumRings() > 0:
+        all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
+        if all_ring_atoms - phenyl_atoms:
+            raise UnsupportedStructure(
+                "a ring-fused thiourea (e.g. hydantoin) or a ring "
+                "N-substituent other than a plain, unsubstituted benzene "
+                "ring is out of scope for this module"
+            )
 
     carbon_graph = carbon_adjacency(mol)
     n1_chain_atoms = _substituent_chain_atoms(carbon_graph, n1_carbons)
@@ -159,12 +212,11 @@ def name_thiourea(mol) -> str:
                 "supported yet"
             )
 
-    _reject_unsaturated_substituents(mol, n1_chain_atoms)
-    _reject_unsaturated_substituents(mol, n2_chain_atoms)
+    _reject_unsaturated_substituents(mol, n1_chain_atoms - phenyl_atoms)
+    _reject_unsaturated_substituents(mol, n2_chain_atoms - phenyl_atoms)
 
-    full_graph = adjacency(mol)
-    n1_names = _substituent_names(full_graph, n1_idx, n1_carbons)
-    n2_names = _substituent_names(full_graph, n2_idx, n2_carbons)
+    n1_names = _substituent_names(full_graph, n1_idx, n1_carbons, frozenset(phenyl_atoms))
+    n2_names = _substituent_names(full_graph, n2_idx, n2_carbons, frozenset(phenyl_atoms))
 
     if not n1_names and not n2_names:
         return "thiourea"
