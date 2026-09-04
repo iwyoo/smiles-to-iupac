@@ -139,6 +139,30 @@ def test_phenyl_chain_imine_unsaturation_raises():
         smiles_to_iupac("C=Cc1ccccc1CC=N")
 
 
-def test_phenyl_chain_n_substituted_imine_raises():
+def test_phenyl_chain_n_substituted_imine():
+    # An N-alkyl-substituted imine alongside a benzene-ring-substituent
+    # chain. PubChem PUG REST: "N-methyl-3-phenylpropan-1-imine"/
+    # "N-ethyl-2-phenylethanimine" -- both exact matches, including the
+    # phenyl-chain locant rules already established for the plain case.
+    assert smiles_to_iupac("c1ccccc1CCC=NC") == "N-methyl-3-phenylpropan-1-imine"
+    assert smiles_to_iupac("c1ccccc1CC=NCC") == "N-ethyl-2-phenylethanimine"
+
+
+def test_phenyl_chain_oxime():
+    # A plain -OH oxime alongside a benzene-ring-substituent chain. No
+    # PubChem-registered example exists for this combination (PubChem's
+    # own auto-generated oxime name uses a different "N-...ylidene-
+    # hydroxylamine" pattern this project already diverges from in the
+    # non-benzene case, per this module's own docstring) -- this follows
+    # the same "N-hydroxy..." pattern this module already established for
+    # the plain-chain oxime case, combined with the phenyl-chain locant
+    # rules already established for the plain imine case.
+    assert smiles_to_iupac("c1ccccc1CCC=NO") == "N-hydroxy-3-phenylpropan-1-imine"
+
+
+def test_phenyl_chain_oxime_ether_raises():
+    # An O-alkyl oxime ether (=N-O-R) alongside a benzene-ring-substituent
+    # chain remains out of scope -- no PubChem-registered example exists
+    # to verify the combination against.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1CC=NC")
+        smiles_to_iupac("c1ccccc1CCC=NOCC")
