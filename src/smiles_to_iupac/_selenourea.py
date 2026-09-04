@@ -31,13 +31,33 @@ substituents landing on a single nitrogen (one or two, using the same
 'N-'/'N,N-di' citation), or an identical single substituent on each of the
 two different nitrogens (symmetric 'N,N'-di...' citation). Explicitly out
 of scope (raise `UnsupportedStructure`): two DIFFERENT substituents split
-across the two different nitrogens, an unsaturated/ring-bearing
-N-substituent, and a ring-fused selenourea.
+across the two different nitrogens, an unsaturated N-substituent, a
+ring-bearing N-substituent other than a single plain (unsubstituted)
+benzene ring, and a ring-fused selenourea.
+
+- A plain benzene ring bonded directly to a nitrogen is cited as
+  'phenyl', mirroring `_urea.py`'s/`_thiourea.py`'s/`_guanidine.py`'s
+  identical fix (PR #382/#383/#384). PubChem's IUPACName property is
+  unavailable for this selenium compound (the same engine limitation
+  noted above for plain selenourea), so this is a structure match plus
+  synonym confirmation instead: `NC(=[Se])Nc1ccccc1` is CID 6329315,
+  synonym "Phenylselenourea"; `c1ccc(NC(=[Se])Nc2ccccc2)cc1` is CID
+  6327858, synonym "N,N'-Diphenylselenourea". A *substituted* phenyl
+  ring or a second substituent sharing that same nitrogen is out of
+  scope.
 """
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, bfs, carbon_adjacency, non_single_bonds
+from ._common import (
+    UnsupportedStructure,
+    adjacency,
+    bfs,
+    carbon_adjacency,
+    is_plain_benzene_ring,
+    non_single_bonds,
+    ring_chain_attachment,
+)
 from ._substituents import alpha_sort_key, name_branch
 
 
@@ -81,8 +101,31 @@ def _n_substituent_carbons(mol, nitrogen_idx, carbon_idx):
     )
 
 
-def _substituent_names(full_graph, nitrogen_idx, substituent_carbons):
-    return [name_branch(full_graph, c, nitrogen_idx, {}) for c in substituent_carbons]
+def _substituent_names(full_graph, nitrogen_idx, substituent_carbons, aromatic_atoms=frozenset()):
+    return [
+        name_branch(full_graph, c, nitrogen_idx, {}, aromatic_atoms)
+        for c in substituent_carbons
+    ]
+
+
+def _plain_phenyl_substituent_atoms(mol, graph, roots):
+    """Union of ring atoms for every plain, unsubstituted benzene ring in
+    `mol` that hangs directly off one of `roots` (a selenourea nitrogen's
+    substituent-carbon neighbors) with no other exocyclic attachment --
+    i.e. a lone 'phenyl' N-substituent. Mirrors `_urea.py`'s identical
+    helper."""
+    atoms = set()
+    for ring in mol.GetRingInfo().AtomRings():
+        ring_atoms = set(ring)
+        if not is_plain_benzene_ring(mol, ring_atoms):
+            continue
+        attachment = ring_chain_attachment(graph, ring_atoms, set())
+        if attachment is None:
+            continue
+        ring_atom, _ = attachment
+        if ring_atom in roots:
+            atoms |= ring_atoms
+    return atoms
 
 
 def _substituent_chain_atoms(carbon_graph, substituent_carbons):
@@ -131,14 +174,30 @@ def name_selenourea(mol) -> str:
 
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    if mol.GetRingInfo().NumRings() > 0:
-        raise UnsupportedStructure(
-            "a ring-fused selenourea is out of scope for this module"
-        )
 
     (selenium_idx,) = (n.GetIdx() for n in mol.GetAtomWithIdx(carbon_idx).GetNeighbors() if n.GetAtomicNum() == 34)
     n1_carbons = _n_substituent_carbons(mol, n1_idx, carbon_idx)
     n2_carbons = _n_substituent_carbons(mol, n2_idx, carbon_idx)
+
+    full_graph = adjacency(mol)
+    phenyl_atoms = _plain_phenyl_substituent_atoms(mol, full_graph, n1_carbons + n2_carbons)
+    if phenyl_atoms and (
+        (any(c in phenyl_atoms for c in n1_carbons) and len(n1_carbons) > 1)
+        or (any(c in phenyl_atoms for c in n2_carbons) and len(n2_carbons) > 1)
+    ):
+        raise UnsupportedStructure(
+            "a phenyl N-substituent alongside another substituent on the "
+            "same nitrogen is not supported yet"
+        )
+
+    if mol.GetRingInfo().NumRings() > 0:
+        all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
+        if all_ring_atoms - phenyl_atoms:
+            raise UnsupportedStructure(
+                "a ring-fused selenourea or a ring N-substituent other "
+                "than a plain, unsubstituted benzene ring is out of scope "
+                "for this module"
+            )
 
     carbon_graph = carbon_adjacency(mol)
     n1_chain_atoms = _substituent_chain_atoms(carbon_graph, n1_carbons)
@@ -152,12 +211,12 @@ def name_selenourea(mol) -> str:
                 "supported yet"
             )
 
-    _reject_unsaturated_substituents(mol, n1_chain_atoms)
-    _reject_unsaturated_substituents(mol, n2_chain_atoms)
+    _reject_unsaturated_substituents(mol, n1_chain_atoms - phenyl_atoms)
+    _reject_unsaturated_substituents(mol, n2_chain_atoms - phenyl_atoms)
 
-    full_graph = adjacency(mol)
-    n1_names = _substituent_names(full_graph, n1_idx, n1_carbons)
-    n2_names = _substituent_names(full_graph, n2_idx, n2_carbons)
+    aromatic_atoms = frozenset(phenyl_atoms)
+    n1_names = _substituent_names(full_graph, n1_idx, n1_carbons, aromatic_atoms)
+    n2_names = _substituent_names(full_graph, n2_idx, n2_carbons, aromatic_atoms)
 
     if not n1_names and not n2_names:
         return "selenourea"
