@@ -65,7 +65,7 @@ def test_methyl_n_ethyl_n_methylcarbamate():
     "smiles,expected",
     [
         # PubChem-verified: CID 568334, 575684.
-        ("COC(=O)NC(C)C", "methyl N-propan-2-ylcarbamate"),
+        ("COC(=O)NC(C)C", "methyl N-(propan-2-yl)carbamate"),
         ("COC(=O)NC(C)(C)C", "methyl N-tert-butylcarbamate"),
     ],
 )

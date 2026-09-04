@@ -40,11 +40,14 @@ Recommendations ("the Blue Book"):
   disubstitution extension. Each N-substituent's own name is built with
   `name_branch` (P-29 PIN style, fixed project-wide by PR #237; mirrors
   `_carbamate.py`'s/`_urea.py`'s identical fix, PR #328/#332), e.g.
-  'N-propan-2-ylacetamide' (PubChem CID 136874), 'N-tert-butylacetamide'
-  (CID 12985). A multiplied identical-pair name is parenthesized only
-  when compound (has its own locant), e.g. 'N,N-di(propan-2-yl)acetamide'
-  (CID 69797) vs. 'N,N-ditert-butylacetamide' (CID 18999412) -- same rule
-  as `_urea.py`. Confirmed via PubChem: 'N-methylacetamide' (CC(=O)NC),
+  'N-tert-butylacetamide' (CID 12985, a retained non-compound name). A
+  *compound* N-substituent (has its own locant) is always parenthesized
+  -- 'N-(propan-2-yl)acetamide', not PubChem's own raw
+  'N-propan-2-ylacetamide' (CID 136874), same correction as `_urea.py`
+  (see that module's docstring for the Blue Book citations). A multiplied
+  identical-pair name is likewise parenthesized only when compound, e.g.
+  'N,N-di(propan-2-yl)acetamide' (CID 69797) vs. 'N,N-ditert-butylacetamide'
+  (CID 18999412). Confirmed via PubChem: 'N-methylacetamide' (CC(=O)NC),
   'N,N-dimethylacetamide' (CC(=O)N(C)C), 'N-ethyl-N-methylacetamide'
   (CC(=O)N(C)CC), 'N-tert-butyl-N-ethylacetamide' (CID 54197906,
   alphabetized ignoring 'tert-').
@@ -494,7 +497,10 @@ def _name_acyclic_amide(mol, amide_carbon, amide_nitrogen, excluded, n_alkyl_car
             di_name = f"({name})" if is_compound else name
             n_prefix = f"N,N-di{di_name}"
         else:
-            n_prefix = "-".join(f"N-{name}" for name, _ in sorted(n_names, key=lambda e: alpha_sort_key(e[0])))
+            n_prefix = "-".join(
+                f"N-({name})" if is_compound else f"N-{name}"
+                for name, is_compound in sorted(n_names, key=lambda e: alpha_sort_key(e[0]))
+            )
         separator = "-" if best_name[0].isdigit() else ""
         best_name = f"{n_prefix}{separator}{best_name}"
 

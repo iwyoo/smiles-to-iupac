@@ -26,16 +26,25 @@ Recommendations ("the Blue Book"):
   'methyl N-methylcarbamate' for CH3-NH-CO-O-CH3 (PubChem CID 81151),
   'methyl N,N-dimethylcarbamate' for (CH3)2N-CO-O-CH3, 'methyl
   N-ethyl-N-methylcarbamate' for CH3(C2H5)N-CO-O-CH3, 'methyl
-  N-propan-2-ylcarbamate' (CID 568334), 'methyl N-tert-butylcarbamate'
-  (CID 575684), 'methyl N-tert-butyl-N-ethylcarbamate' (CID 87089877,
-  alphabetized as 'b' before 'e', ignoring 'tert-') -- structures
-  confirmed via PubChem, which returns these exact names. A compound
-  identical-pair 'di' name is parenthesized to avoid ambiguity ('methyl
-  N,N-di(propan-2-yl)carbamate', CID 568417) while a non-compound
-  (retained-name) one is not ('methyl N,N-ditert-butylcarbamate', CID
-  12567954) -- a single N-substituent is never parenthesized either way.
-  A cyclic/unsaturated N-substituent and ring-attached amide nitrogens
-  are still deferred.
+  N-tert-butylcarbamate' (CID 575684), 'methyl N-tert-butyl-N-ethylcarbamate'
+  (CID 87089877, alphabetized as 'b' before 'e', ignoring 'tert-') --
+  structures confirmed via PubChem, which returns these exact names for
+  a non-compound (retained-name, no locant) substituent. A *compound*
+  N-substituent (has its own locant, e.g. 'propan-2-yl') is always
+  parenthesized -- P-16.5.1.5's own worked example 'N-(2-chloroethyl)
+  propan-1-amine (PIN)' and P-66.1.6.1.3.1's 'N-(butan-2-yl)selenourea
+  (PIN)' (`tmp/bluebook/P1.html`/`P6a.txt`) both confirm this for a
+  *single*, non-multiplied compound N-substituent, contradicting
+  PubChem's own raw (unparenthesized) auto-generated name for the
+  equivalent carbamate structure ('methyl N-propan-2-ylcarbamate', CID
+  568334) -- yet another instance of PubChem omitting parentheses this
+  project's PIN convention requires (see e.g. `_azide.py`/`_ether.py`'s
+  benzene-ring paths), corrected here: 'methyl N-(propan-2-yl)carbamate'.
+  A multiplied identical-pair 'di' name is likewise parenthesized when
+  compound ('methyl N,N-di(propan-2-yl)carbamate', CID 568417) but not
+  when it's a retained name ('methyl N,N-ditert-butylcarbamate', CID
+  12567954). A cyclic/unsaturated N-substituent and ring-attached amide
+  nitrogens are still deferred.
 - P-29.3.2.1: both R's and R''s names are built with `name_branch` (P-29
   PIN style, fixed project-wide by PR #237 -- previously this module
   avoided `name_branch` for exactly this reason, but that blocker no
@@ -43,10 +52,11 @@ Recommendations ("the Blue Book"):
   verified PIN 'propan-2-yl carbamate' (PubChem CID 15628) and
   'tert-butyl carbamate' (CID 77922). R itself is never parenthesized
   regardless of `name_branch`'s `is_compound` flag -- the 'R carbamate'
-  two-word pattern (mirroring `_ester.py`'s alcohol part) has no
-  nested-prefix ambiguity to guard against; each individual N-substituent
-  is likewise never parenthesized -- only the multiplied 'N,N-di(...)'
-  form needs it (see above).
+  two-word pattern (mirroring `_ester.py`'s alcohol part, confirmed via
+  the Blue Book's own 'propan-2-yl thiocyanate (PIN)' worked example,
+  `tmp/bluebook/P6.txt`) has no nested-prefix ambiguity to guard
+  against -- unlike the 'N-' prefix pattern on the amide side, which
+  always needs enclosing marks for a compound name (see above).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any ring anywhere in the molecule.
@@ -195,5 +205,8 @@ def name_carbamate(mol) -> str:
         di_name = f"({name})" if is_compound else name
         n_prefix = f"N,N-di{di_name}"
     else:
-        n_prefix = "-".join(f"N-{name}" for name, _ in sorted(n_entries, key=lambda e: alpha_sort_key(e[0])))
+        n_prefix = "-".join(
+            f"N-({name})" if is_compound else f"N-{name}"
+            for name, is_compound in sorted(n_entries, key=lambda e: alpha_sort_key(e[0]))
+        )
     return f"{r_name} {n_prefix}carbamate"

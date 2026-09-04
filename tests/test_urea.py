@@ -66,7 +66,7 @@ def test_different_substituent_counts_on_different_nitrogens_not_supported():
     "smiles,expected",
     [
         # PubChem-verified: CID 12725, 14233.
-        ("CC(C)NC(=O)N", "N-propan-2-ylurea"),
+        ("CC(C)NC(=O)N", "N-(propan-2-yl)urea"),
         ("CC(C)(C)NC(=O)N", "N-tert-butylurea"),
     ],
 )

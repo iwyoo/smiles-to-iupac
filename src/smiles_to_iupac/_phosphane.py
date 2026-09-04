@@ -44,7 +44,14 @@ substituents), per the IUPAC 2013 Recommendations ("the Blue Book"):
   regardless of its own count. Confirmed via PubChem PUG REST: CID 535207
   (`CCP(C)C`, ethyl x1 + methyl x2) -> "ethyl(dimethyl)phosphane", CID
   13836128 (`CCP(CC)C`, ethyl x2 + methyl x1) -> "diethyl(methyl)phosphane"
-  (2026-08-25).
+  (2026-08-25). **Known open question (not addressed here)**: the Blue
+  Book's own worked example for the analogous silane case is
+  "ethyldi(methyl)phosphane (PIN)" (`tmp/bluebook/P1.html`,
+  P-16.5.1.3.1) -- multiplying prefix *outside* the parens, not
+  "ethyl(dimethyl)phosphane" as PubChem (and this module, unchanged) give
+  -- discovered while investigating a related PubChem-parenthesization
+  gap (see the branched-substituent note above); left as-is pending a
+  dedicated follow-up rather than folded into that unrelated fix.
 
 - A halogen (F/Cl/Br/I) bonded directly to phosphorus is just another
   substituent prefix that already fits the P-16.5.1.3.1 parenthesization
@@ -55,13 +62,20 @@ substituents), per the IUPAC 2013 Recommendations ("the Blue Book"):
 
 - A branched substituent is supported (e.g. 'propan-2-ylphosphane',
   PubChem CID 537979; 'tert-butylphosphane', CID 123165), built with
-  `name_branch` -- a compound (branched) name is never parenthesized on
-  its own (only the position/multiplying rules above apply to it, same as
-  a plain name), except when it's also multiplied (see
-  `format_mononuclear_prefixes`'s own docstring for the full derivation,
-  e.g. 'tri(propan-2-yl)phosphane', CID 80969). A multiplied compound
-  name mixed with a *different* substituent is out of scope (unconfirmed
-  punctuation, see that same docstring).
+  `name_branch`. A lone compound (branched) name is not parenthesized
+  when it's the only substituent (P-16.5.1.3.2's "second and subsequent"
+  framing), but as soon as there's a second, different substituent to
+  cite, a compound first substituent *does* get its own parentheses too
+  -- '(propan-2-yl)(propyl)phosphane', not PubChem's own raw
+  'propan-2-yl(propyl)phosphane' (CID 85572629) -- per P-16.5.1.3.1's
+  literal text ("the first cited substituent never has enclosing marks
+  unless it is a compound substituent group or includes a locant," see
+  `tmp/bluebook/P1.html`); see `format_mononuclear_prefixes`'s own
+  docstring for the full derivation, including the multiplied case (e.g.
+  'tri(propan-2-yl)phosphane', CID 80969, independently confirmed via the
+  Blue Book's own 'ethyldi(propan-2-yl)silane (PIN)' worked example). A
+  multiplied compound name mixed with a *different* substituent is out of
+  scope (unconfirmed punctuation, see that same docstring).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any atom other than phosphorus, carbon, hydrogen, and a halogen bonded

@@ -56,10 +56,17 @@ def test_halogen_substituted_alkyl_chain_raises():
         # PubChem-verified: CID 537979, 123165.
         ("CC(C)P", "propan-2-ylphosphane"),
         ("CC(C)(C)P", "tert-butylphosphane"),
-        # CID 20566651: position-based parens, alphabetically-first
-        # compound name unparenthesized.
+        # CID 20566651: position-based parens for the non-first substituent.
         ("CC(C)PC", "methyl(propan-2-yl)phosphane"),
-        ("CC(C)P(CCC)", "propan-2-yl(propyl)phosphane"),
+        # PubChem's own raw name for this structure (CID 85572629) is
+        # "propan-2-yl(propyl)phosphane" (no parens on the first term),
+        # but P-16.5.1.3.1's literal text ("the first cited substituent
+        # never has enclosing marks unless it is a compound substituent
+        # group or includes a locant") requires parentheses here too --
+        # another instance of PubChem omitting parentheses this project's
+        # own PIN convention requires (see e.g. `_azide.py`/`_ether.py`'s
+        # benzene-ring paths).
+        ("CC(C)P(CCC)", "(propan-2-yl)(propyl)phosphane"),
         # CID 80969: multiplied compound name needs its own parens.
         ("CC(C)P(C(C)C)C(C)C", "tri(propan-2-yl)phosphane"),
     ],

@@ -38,9 +38,15 @@ Recommendations ("the Blue Book"):
   Two different substituents where at least one is a compound name (a
   branched chain or a halogen-bearing one) is now supported too, via the
   same `format_mononuclear_prefixes` position-based parenthesization path
-  `_phosphane.py`/`_borane.py` already use (PR #337) -- confirmed via
-  PubChem: CID 300540 (`CC(C)N=NC`) -> "methyl(propan-2-yl)diazene", the
-  alphabetically-first compound name left unparenthesized.
+  `_phosphane.py`/`_borane.py` already use (PR #337/later correction) --
+  confirmed via PubChem for the case where the compound name isn't first:
+  CID 300540 (`CC(C)N=NC`) -> "methyl(propan-2-yl)diazene". When the
+  compound name *is* alphabetically first, it still needs its own
+  parentheses too (P-16.5.1.3.1's literal text, `tmp/bluebook/P1.html`)
+  -- e.g. '(2-chloroethyl)(methyl)diazene', not a bare
+  '2-chloroethyl(methyl)diazene' (not independently PubChem-registered
+  for that exact structure, but the same correction already applied to
+  `_phosphane.py`'s analogous case).
 - A branched (real carbon fork) substituent is supported too (e.g.
   'propan-2-yldiazene', PubChem CID 22166172), built with `name_branch`
   the same way a plain substituent already was.

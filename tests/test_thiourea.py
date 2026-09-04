@@ -54,7 +54,7 @@ def test_different_substituent_counts_on_different_nitrogens_not_supported():
     "smiles,expected",
     [
         # PubChem-verified: CID 1711921, 737374.
-        ("CC(C)NC(=S)N", "N-propan-2-ylthiourea"),
+        ("CC(C)NC(=S)N", "N-(propan-2-yl)thiourea"),
         ("CC(C)(C)NC(=S)N", "N-tert-butylthiourea"),
     ],
 )
