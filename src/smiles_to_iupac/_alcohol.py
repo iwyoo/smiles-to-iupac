@@ -156,6 +156,18 @@ Recommendations ("the Blue Book"):
   PubChem-confirmed one for that specific chain length, same as the
   halogen/ring-substituent cases already handled that way.
 
+- P-31.1.3: a monocyclic ring bearing a hydroxyl and exactly one C=C ring
+  double bond -- e.g. 'cyclohex-2-en-1-ol', 'cyclohex-3-en-1-ol', both
+  confirmed via PubChem PUG REST. The hydroxyl's own locant is never
+  omittable here even as the ring's sole substituent (a competing ring
+  double bond means '1' must still be cited, unlike the fully saturated
+  'cyclohexanol' case above); the numbering direction is then chosen to
+  minimize the double bond's own locant -- mirrors `_ketone.py`'s
+  identical extension (same underlying `_cyclic_unsaturated.py` pattern).
+  Deliberately narrow: a ring triple bond, and any other substituent
+  alongside the ring double bond, are both still explicitly rejected
+  pending further verification.
+
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any oxygen that is not an isolated, singly-bonded -OH with exactly one H,
   or a simple alkoxy ether as described above (any C=O — aldehyde, ketone,
@@ -617,24 +629,35 @@ def _substituents_for_ring(graph, ring_order, halogens, hydroxyls):
     return substituents
 
 
-def _ring_name_from_substituents(ring_size, oh_locants, grouped):
+def _ring_name_from_substituents(ring_size, oh_locants, ene_locants, yne_locants, grouped):
+    has_unsaturation = bool(ene_locants or yne_locants)
     parent = "cyclo" + alkane_name(ring_size)
     total_subs = sum(len(info["locants"]) for info in grouped.values())
-    ol_word = _multiplied_word(len(oh_locants), "ol")
-    elide = ol_word[0] in "aeiouy"
-    stem = parent[:-1] if elide else parent
 
-    if total_subs == 0 and len(oh_locants) == 1:
-        # P-14.3.3: the sole substituent on an otherwise unsubstituted ring
-        # has no locant to distinguish, e.g. 'cyclohexanol'.
-        return stem + ol_word
+    if not has_unsaturation:
+        ol_word = _multiplied_word(len(oh_locants), "ol")
+        elide = ol_word[0] in "aeiouy"
+        stem = parent[:-1] if elide else parent
+        if total_subs == 0 and len(oh_locants) == 1:
+            # P-14.3.3: the sole substituent on an otherwise unsubstituted
+            # ring has no locant to distinguish, e.g. 'cyclohexanol'.
+            return stem + ol_word
+        prefix = format_substituent_prefixes(grouped)
+        loc_str = ",".join(str(loc) for loc in sorted(oh_locants))
+        return f"{prefix}{stem}-{loc_str}-{ol_word}"
 
+    # A competing ring double/triple bond (P-31.1.3) means the hydroxyl's
+    # locant is never omittable even when it's the sole substituent, e.g.
+    # 'cyclohex-2-en-1-ol' (confirmed via PubChem), unlike the bare case
+    # above -- mirrors `_ketone.py`'s identical treatment.
+    stem = parent[:-3]
+    needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
     prefix = format_substituent_prefixes(grouped)
-    loc_str = ",".join(str(loc) for loc in sorted(oh_locants))
-    return f"{prefix}{stem}-{loc_str}-{ol_word}"
+    body, elide_stem = _suffix_body(ene_locants, yne_locants, oh_locants)
+    return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
 
 
-def _ring_candidate_key(ring_size, oh_locants, substituents):
+def _ring_candidate_key(ring_size, oh_locants, ene_locants, yne_locants, substituents):
     grouped = _group(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -643,11 +666,29 @@ def _ring_candidate_key(ring_size, oh_locants, substituents):
         for loc in sorted(grouped[name]["locants"])
     )
     oh_locant_set = lowest_locant_set(oh_locants)
-    name = _ring_name_from_substituents(ring_size, oh_locants, grouped)
-    return oh_locant_set, locant_set, citation_locants, name
+    combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
+    ene_locant_set = lowest_locant_set(ene_locants)
+    name = _ring_name_from_substituents(ring_size, oh_locants, ene_locants, yne_locants, grouped)
+    return oh_locant_set, combined_locant_set, ene_locant_set, locant_set, citation_locants, name
 
 
-def _name_cyclic_alcohol(mol, hydroxyls, stereo=None):
+def _ring_bond_locant(position_of, bond_atoms, ring_size):
+    pa, pb = position_of[bond_atoms[0]], position_of[bond_atoms[1]]
+    return ring_size if {pa, pb} == {1, ring_size} else min(pa, pb)
+
+
+def _ring_bond_locants(position_of, bonds, ring_size):
+    """(ene_locants, yne_locants), both sorted, for every ring C=C/C#C bond
+    under this ring numbering -- mirrors `_ketone.py`'s identical helper,
+    each module kept self-contained by this project's existing convention."""
+    ene, yne = [], []
+    for a, b, order in bonds:
+        locant = _ring_bond_locant(position_of, (a, b), ring_size)
+        (ene if order == _ENE_ORDER else yne).append(locant)
+    return sorted(ene), sorted(yne)
+
+
+def _name_cyclic_alcohol(mol, hydroxyls, stereo=None, bonds=()):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, every stereocenter must lie on
     the ring itself (P-92: a stereocenter on a substituent branch is out
@@ -655,7 +696,10 @@ def _name_cyclic_alcohol(mol, hydroxyls, stereo=None):
     restriction), and the winning ring numbering's own locants for those
     atoms are used to format a "(<locant><R/S>,...)-" prefix onto the
     name, ascending locant order (P-91.3) -- same mechanism as the
-    acyclic case, since P-92 doesn't affect which numbering wins."""
+    acyclic case, since P-92 doesn't affect which numbering wins.
+    `bonds`: ring C=C double bonds (P-31.1.3), empty by default -- see
+    `_ketone.py`'s identical `bonds` parameter for the shared reasoning
+    (hydroxyl locant fixed first, then minimized ene locant)."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     ring_info = mol.GetRingInfo()
@@ -666,6 +710,11 @@ def _name_cyclic_alcohol(mol, hydroxyls, stereo=None):
         raise UnsupportedStructure(
             "a stereocenter on a substituent branch rather than the ring "
             "itself is not supported yet (see P-92)"
+        )
+    if bonds and any(_substituents_for_ring(graph, ring_order, halogens, hydroxyls).values()):
+        raise UnsupportedStructure(
+            "a substituent alongside both a ring double/triple bond and a "
+            "hydroxyl is not supported yet (see module docstring)"
         )
 
     best_key = None
@@ -682,7 +731,8 @@ def _name_cyclic_alcohol(mol, hydroxyls, stereo=None):
                     "substituent branch) is not supported yet"
                 )
             substituents = _substituents_for_ring(graph, candidate, halogens, hydroxyls)
-            key = _ring_candidate_key(ring_size, oh_locants, substituents)
+            ene_locants, yne_locants = _ring_bond_locants(position_of, bonds, ring_size)
+            key = _ring_candidate_key(ring_size, oh_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, key[-1], position_of
 
@@ -824,7 +874,7 @@ def _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             oh_locants = _oh_locants(position_of, ring_hydroxyls, graph)
             substituents = {position_of[ring_atom]: [(chain_name, chain_is_compound)]}
-            key = _ring_candidate_key(ring_size, oh_locants, substituents)
+            key = _ring_candidate_key(ring_size, oh_locants, [], [], substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
     return best_name
@@ -951,17 +1001,21 @@ def name_alcohol(mol) -> str:
         ring_hydroxyls = {o for o in hydroxyls if next(iter(graph[o])) in ring_atoms}
         chain_hydroxyls = hydroxyls - ring_hydroxyls
         if bonds:
-            # A ring C=C double bond coexisting with a suffix -OH is only
-            # supported for the narrow "chain is parent, ring has no -OH
-            # of its own" shape below (P-31.1.3 + P-29.2, see
-            # `_name_ring_substituent_chain_alcohol`); any -OH on the ring
-            # itself, or unsaturation reaching outside the ring (an
-            # exocyclic double bond, or a triple bond), stays unsupported.
-            ring_only_double_bonds = not ring_hydroxyls and all(
+            # A ring C=C double bond coexisting with a suffix -OH is
+            # supported for the "chain is parent, ring has no -OH of its
+            # own" shape (P-31.1.3 + P-29.2, see
+            # `_name_ring_substituent_chain_alcohol`) and for the "-OH is
+            # on the ring itself, no separate chain -OH" shape (P-31.1.3,
+            # see `_name_cyclic_alcohol`'s own `bonds` parameter, mirroring
+            # `_ketone.py`'s identical extension); a ring double bond
+            # alongside *both* a ring -OH and a separate chain -OH, or
+            # unsaturation reaching outside the ring (an exocyclic double
+            # bond, or a triple bond), stays unsupported.
+            ring_only_double_bonds = all(
                 order == _ENE_ORDER and a in ring_atoms and b in ring_atoms
                 for a, b, order in bonds
             )
-            if not ring_only_double_bonds:
+            if not ring_only_double_bonds or (ring_hydroxyls and chain_hydroxyls):
                 raise UnsupportedStructure(
                     "unsaturated rings are not supported yet (see P-31.1.3, "
                     "cycloalkenes and cycloalkynes)"
@@ -974,7 +1028,7 @@ def name_alcohol(mol) -> str:
                 )
             return _name_ring_substituent_chain_alcohol(mol, hydroxyls)
         if not chain_hydroxyls:
-            return _name_cyclic_alcohol(mol, hydroxyls, stereo)
+            return _name_cyclic_alcohol(mol, hydroxyls, stereo, bonds)
         if stereo is not None:
             raise UnsupportedStructure(
                 "a stereocenter alongside a ring-vs-chain hydroxyl "
