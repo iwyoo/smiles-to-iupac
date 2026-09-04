@@ -51,8 +51,10 @@ from ._common import (
     adjacency,
     bfs,
     carbon_adjacency,
+    is_plain_benzene_ring,
     lowest_locant_set,
     non_single_bonds,
+    ring_chain_attachment,
     specified_stereocenters,
 )
 from ._numerals import alkane_name
@@ -97,7 +99,15 @@ def has_disulfide_shape(mol) -> bool:
     return all(o.GetAtomicNum() == 6 for o in others)
 
 
-def _validate_and_find_disulfide(mol):
+def _validate_and_find_disulfide(mol, aromatic_ring_atoms=frozenset()):
+    """`aromatic_ring_atoms`: atom indices already independently verified
+    (by the caller, before this function runs) to form a single plain
+    benzene ring with exactly one exocyclic attachment -- exempted from
+    the aromatic-atom/ring/unsaturation rejections below so
+    `name_disulfide`'s benzene-ring-substituent path (see
+    `_name_benzene_ring_disulfide_chain`) can reuse this same validation
+    for the rest of the molecule. Empty by default, so every other
+    caller's behavior is unchanged."""
     if not has_disulfide_shape(mol):
         raise UnsupportedStructure(
             "no plain disulfide (R-S-S-R') skeleton found; this module "
@@ -111,18 +121,24 @@ def _validate_and_find_disulfide(mol):
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic():
+        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
             raise UnsupportedStructure(
                 "aromatic rings are out of scope for this module (see the "
                 "separate aromatic-ring module)"
             )
-    if non_single_bonds(mol):
+    if any(a not in aromatic_ring_atoms or b not in aromatic_ring_atoms for a, b, _ in non_single_bonds(mol)):
         raise UnsupportedStructure(
             "unsaturation is not supported by this module (see P-31 for "
             "alkenes/alkynes; not yet combined with a disulfide here)"
         )
-    if mol.GetRingInfo().NumRings() > 0:
-        raise UnsupportedStructure("rings are not supported by this module yet")
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() > 0 and not (
+        ring_info.NumRings() == 1 and set(ring_info.AtomRings()[0]) == set(aromatic_ring_atoms)
+    ):
+        raise UnsupportedStructure(
+            "rings are not supported yet, other than the separate "
+            "benzene-ring-substituent path"
+        )
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
@@ -229,7 +245,76 @@ def _name_parent_chain(full_graph, carbon_graph, terminals):
     return best_chain, best_name
 
 
+def _name_benzene_ring_disulfide_chain(mol, ring_atoms) -> str:
+    """P-44.1.2.2 rule (1): since 'disulfanyl' has no suffix form (module
+    docstring), a single, otherwise-unsubstituted benzene ring is senior
+    to a chain of the same (plain-hydrocarbon) class regardless of the
+    chain's length -- mirrors `_azide.py`'s
+    `_name_benzene_ring_azide_chain`. The ring is always the parent
+    hydride; the whole R-S-S- fragment hung directly off the ring is a
+    single '...disulfanyl' substituent prefix on it. Confirmed via
+    PubChem: CID 84234 ('(methyldisulfanyl)benzene'), CID 257711
+    ('(ethyldisulfanyl)benzene').
+
+    Deliberately narrower than `_azide.py`'s equivalent: only a *direct*
+    ring-to-sulfur bond is supported here, not a chain spacer between the
+    ring and the near sulfur (e.g. a benzyl disulfide, 'c1ccccc1CSSC') --
+    PubChem's own name for that case ('(methyldisulfanyl)methylbenzene',
+    CID 12779) nests the 'disulfanyl' prefix inside a further 'methyl'
+    substituent layer in a way this project's general-purpose
+    `name_branch` machinery (built for simpler terminal substituents like
+    halogens) doesn't reproduce byte-for-byte, and resolving that
+    discrepancy needs more research -- out of scope for this narrow first
+    slice."""
+    s1_idx, s2_idx, c1, c2 = _validate_and_find_disulfide(mol, aromatic_ring_atoms=ring_atoms)
+    if c1 is None or c2 is None:
+        raise UnsupportedStructure(
+            "a perthiol (-S-SH) combined with a benzene-ring-substituent "
+            "disulfide is out of scope for this module"
+        )
+    if specified_stereocenters(mol) is not None:
+        raise UnsupportedStructure(
+            "a specified stereocenter is not supported yet for a "
+            "benzene-ring-substituent disulfide"
+        )
+
+    full_graph = adjacency(mol)
+    attachment = ring_chain_attachment(full_graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent "
+            "alongside a disulfide chain is not supported yet"
+        )
+    ring_atom, root = attachment
+
+    if root == s1_idx:
+        other_sulfur, other_root = s2_idx, c2
+    elif root == s2_idx:
+        other_sulfur, other_root = s1_idx, c1
+    else:
+        raise UnsupportedStructure(
+            "a chain spacer between the benzene ring and the disulfide's "
+            "near sulfur is not supported yet (only a direct ring-sulfur "
+            "bond is, see module docstring)"
+        )
+
+    sub_name, sub_compound = name_branch(full_graph, other_root, other_sulfur, {})
+    if sub_compound:
+        raise UnsupportedStructure(
+            "a branched alkyldisulfanyl substituent is not supported yet"
+        )
+    # Always parenthesized (P-16.3.3, same rule as the plain-chain path):
+    # a bare, unprefixed 'disulfanyl' has no locant/prefix ambiguity to
+    # guard against, but "[R']disulfanyl" always does.
+    return f"({sub_name}disulfanyl)benzene"
+
+
 def name_disulfide(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_benzene_ring_disulfide_chain(mol, ring_atoms)
     s1_idx, s2_idx, c1, c2 = _validate_and_find_disulfide(mol)
     full_graph = adjacency(mol)
     carbon_graph = carbon_adjacency(mol)

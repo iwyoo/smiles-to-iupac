@@ -86,3 +86,43 @@ def test_unspecified_stereocenter_ignored():
 def test_stereocenter_on_substituent_branch_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CCCCCSS[C@H](C)CC")
+
+
+def test_phenyl_disulfide_direct_bond():
+    # A plain, unsubstituted benzene ring directly bonded to one sulfur
+    # (P-44.1.2.2 rule (1), same "ring always wins" pattern as
+    # `_azide.py`'s benzene-ring path -- 'disulfanyl' has no suffix form).
+    # PubChem CID 84234.
+    assert smiles_to_iupac("c1ccccc1SSC") == "(methyldisulfanyl)benzene"
+    # PubChem CID 257711.
+    assert smiles_to_iupac("c1ccccc1SSCC") == "(ethyldisulfanyl)benzene"
+
+
+def test_phenyl_disulfide_chain_spacer_not_supported():
+    # A -CH2- spacer between the ring and the near sulfur is deliberately
+    # out of scope for this narrow first slice (see module docstring) --
+    # PubChem CID 12779 ('(methyldisulfanyl)methylbenzene') nests the
+    # 'disulfanyl' prefix in a way this project's general-purpose
+    # `name_branch` machinery doesn't reproduce without further research.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1CSSC")
+
+
+def test_phenyl_disulfide_perthiol_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1SS")
+
+
+def test_phenyl_disulfide_branched_other_side_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1SSC(C)C")
+
+
+def test_phenyl_disulfide_substituted_ring_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1SSC")
+
+
+def test_phenyl_disulfide_unsaturation_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=Cc1ccccc1CSSC")
