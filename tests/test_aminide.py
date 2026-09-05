@@ -84,9 +84,17 @@ def test_phenyl_directly_attached_aminide_raises():
         smiles_to_iupac("c1ccccc1[NH-]")
 
 
-def test_phenyl_substituted_benzene_ring_aminide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC[NH-]")
+def test_phenyl_chain_aminide_ring_methyl():
+    # A plain methyl ring substituent, like halogens, no longer forces
+    # the benzene ring to win the ring-vs-chain parent competition (see
+    # test_carboxylic_acid.py's identical methylated-ring cases; this
+    # project's own 'aminide' suffix convention as in the
+    # unsubstituted-ring test above).
+    assert smiles_to_iupac("Cc1ccccc1CC[NH-]") == "2-(2-methylphenyl)ethan-1-aminide"
+
+
+def test_phenyl_chain_aminide_ring_methyl_para():
+    assert smiles_to_iupac("CC1=CC=C(CC[NH-])C=C1") == "2-(4-methylphenyl)ethan-1-aminide"
 
 
 def test_phenyl_chain_aminide_ring_halogen():
