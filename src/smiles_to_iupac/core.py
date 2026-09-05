@@ -19,6 +19,7 @@ from ._aldehyde_ketone import has_aldehyde_ketone_shape, name_aldehyde_ketone
 from ._acetal import has_acetal_shape, name_acetal
 from ._amide import has_amide_shape, name_amide
 from ._amide_amine import has_amide_amine_shape, name_amide_amine
+from ._ester_amine import has_ester_amine_shape, name_ester_amine
 from ._hidden_amide_ketone import has_hidden_amide_shape, name_hidden_amide_ketone
 from ._thiourea import has_thiourea_shape, name_thiourea
 from ._selenourea import has_selenourea_shape, name_selenourea
@@ -815,6 +816,13 @@ def smiles_to_iupac(smiles: str) -> str:
             # `_ester.py`'s own "coexisting oxygen" rejection.
             if has_ketone_ester_shape(mol):
                 return name_ketone_ester(mol)
+            # P-41/Table 4.1: 'ester' (class 9) also outranks 'amine'
+            # (class 19), so an ester that also carries a separate primary
+            # amine on its acyl chain names the ester as the suffix and
+            # demotes the amine to an 'amino' prefix instead of
+            # `_ester.py`'s own "coexisting nitrogen" rejection.
+            if has_ester_amine_shape(mol):
+                return name_ester_amine(mol)
             return name_ester(mol)
         # A thioic acid (-CO-SH/-CS-OH, P-65.1.5) has a carbonyl-shaped
         # chalcogen cluster that would otherwise look like a plain
