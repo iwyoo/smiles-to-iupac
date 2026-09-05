@@ -98,6 +98,17 @@ def test_phenyl_substituent_ketone_substituted_ring_raises():
         smiles_to_iupac("Cc1ccccc1CC(C)=O")
 
 
+def test_phenyl_substituent_ketone_ring_halogen():
+    # PubChem PUG REST computes "1-(4-chlorophenyl)propan-2-one" for this
+    # structure, matching the systematic form directly (no retained-name
+    # divergence here, unlike the acid/nitrile/aldehyde cases).
+    assert smiles_to_iupac("CC(=O)Cc1ccc(Cl)cc1") == "1-(4-chlorophenyl)propan-2-one"
+
+
+def test_phenyl_substituent_ketone_ring_dihalogen():
+    assert smiles_to_iupac("Clc1cc(Cl)ccc1CC(C)=O") == "1-(2,4-dichlorophenyl)propan-2-one"
+
+
 def test_phenyl_substituent_ketone_naphthalene_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("c1ccc2ccccc2c1CC(C)=O")

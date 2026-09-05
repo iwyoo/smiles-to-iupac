@@ -84,6 +84,18 @@ def test_phenyl_substituted_benzene_ring_aldehyde_raises():
         smiles_to_iupac("Cc1ccccc1CC=O")
 
 
+def test_phenyl_chain_aldehyde_ring_halogen():
+    # PubChem PUG REST computes "2-(4-chlorophenyl)acetaldehyde" for this
+    # structure -- this project's own systematic-stem convention (see
+    # test_carboxylic_acid.py's identical halogenated-ring cases) prefers
+    # 'ethanal' once substituted.
+    assert smiles_to_iupac("O=CCc1ccc(Cl)cc1") == "2-(4-chlorophenyl)ethanal"
+
+
+def test_phenyl_chain_aldehyde_ring_dihalogen():
+    assert smiles_to_iupac("Clc1cc(Cl)ccc1CC=O") == "2-(2,4-dichlorophenyl)ethanal"
+
+
 def test_phenyl_chain_aldehyde_with_hydroxyl_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OCc1ccccc1CC=O")
