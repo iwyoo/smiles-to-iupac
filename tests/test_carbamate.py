@@ -96,9 +96,22 @@ def test_free_carbamic_acid_not_supported():
         smiles_to_iupac("OC(N)=O")
 
 
-def test_cyclic_r_group_not_supported():
+def test_plain_cyclic_r_group():
+    # PubChem CID 14302 "cyclohexyl carbamate", CID 199405 "cyclopentyl
+    # carbamate" -- a plain, unsubstituted, saturated monocyclic R is
+    # supported via `name_branch`'s existing plain-ring recognition.
+    assert smiles_to_iupac("O=C(N)OC1CCCCC1") == "cyclohexyl carbamate"
+    assert smiles_to_iupac("NC(=O)OC1CCCC1") == "cyclopentyl carbamate"
+
+
+def test_substituted_cyclic_r_group_not_supported():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(=O)OC1CCCC1")
+        smiles_to_iupac("O=C(N)OC1CCC(C)CC1")
+
+
+def test_n_methyl_cyclic_r_group():
+    # PubChem CID 232119 "cyclohexyl N-methylcarbamate".
+    assert smiles_to_iupac("CNC(=O)OC1CCCCC1") == "cyclohexyl N-methylcarbamate"
 
 
 def test_unsaturated_r_not_supported():

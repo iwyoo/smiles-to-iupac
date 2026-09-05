@@ -49,9 +49,17 @@ Recommendations ("the Blue Book"):
   'phenyl', mirroring `_urea.py`'s identical fix (PR #382 et seq.) --
   PubChem structure match: `COC(=O)Nc1ccccc1` -> "methyl
   N-phenylcarbamate" (IUPACName confirmed directly). A *substituted*
-  phenyl ring, a ring on the R (ester-alkoxy) side, or a second
-  substituent sharing the amide nitrogen with the phenyl one is out of
-  scope.
+  phenyl ring, or a second substituent sharing the amide nitrogen with
+  the phenyl one, is out of scope.
+- A plain, unsubstituted, saturated monocyclic ring may also be R itself
+  (the ester-alkoxy side), e.g. 'cyclohexyl carbamate' (PubChem CID
+  14302) / 'cyclohexyl N-methylcarbamate' (CID 232119) --
+  `name_branch`'s existing plain-ring recognition (`_simple_ring_
+  substituent`, already used by `_alcohol.py`/`_ketone.py` for the same
+  ring-vs-chain shape) already names it correctly once the ring is let
+  through this module's own upfront ring rejection; no new naming logic
+  needed. A ring bearing its own substituent/unsaturation, or a polycyclic
+  shape, is still out of scope (falls through to the ordinary rejection).
 - P-29.3.2.1: both R's and R''s names are built with `name_branch` (P-29
   PIN style, fixed project-wide by PR #237 -- previously this module
   avoided `name_branch` for exactly this reason, but that blocker no
@@ -67,12 +75,14 @@ Recommendations ("the Blue Book"):
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any ring anywhere in the molecule other than a single plain,
-  unsubstituted benzene ring bonded directly to the amide nitrogen.
+  unsubstituted benzene ring bonded directly to the amide nitrogen, or a
+  single plain, unsubstituted, saturated monocyclic ring as R itself.
 - An N-substituent that is unsaturated, or ring-bearing other than that
   same plain benzene-ring case (a branched but otherwise plain saturated
   acyclic N-substituent is supported, see above).
-- An unsaturated or cyclic R (a branched but otherwise plain saturated
-  acyclic R is supported, see above).
+- An unsaturated R, or one bearing more than the single plain saturated
+  ring shape above (a branched but otherwise plain saturated acyclic R is
+  supported, see above).
 - More than one carbamate group, or any other heteroatom/oxygen not part
   of this single carbamate group (an ether, alcohol, or second carbonyl
   elsewhere) -- including free carbamic acid itself (H2N-COOH, R = H),
@@ -172,6 +182,27 @@ def _plain_phenyl_substituent_atoms(mol, graph, roots):
     return atoms
 
 
+def _plain_ring_r_atoms(mol, graph, ester_o, alkyl_c):
+    """Ring atom set if `alkyl_c` (R itself) sits on a single plain,
+    unsubstituted, saturated monocyclic ring whose only exocyclic bond is
+    the ester oxygen -- else empty (a ring with a substituent/unsaturation,
+    a polycyclic/spiro shape, or no ring at all falls through to the
+    ordinary rejection in `name_carbamate`)."""
+    for ring in mol.GetRingInfo().AtomRings():
+        ring_atoms = set(ring)
+        if alkyl_c not in ring_atoms:
+            continue
+        if any(mol.GetAtomWithIdx(idx).GetIsAromatic() for idx in ring_atoms):
+            continue
+        attachment = ring_chain_attachment(graph, ring_atoms, set())
+        if attachment is None:
+            continue
+        ring_atom, chain_root = attachment
+        if ring_atom == alkyl_c and chain_root == ester_o:
+            return ring_atoms
+    return set()
+
+
 def name_carbamate(mol) -> str:
     cores = _carbamate_cores(mol)
     if len(cores) != 1:
@@ -188,14 +219,16 @@ def name_carbamate(mol) -> str:
             "a phenyl N-substituent alongside another substituent on the "
             "same nitrogen is not supported yet"
         )
+    ring_r_atoms = _plain_ring_r_atoms(mol, full_graph, ester_o, alkyl_c)
 
     if mol.GetRingInfo().NumRings() > 0:
         all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
-        if all_ring_atoms - phenyl_atoms:
+        if all_ring_atoms - phenyl_atoms - ring_r_atoms:
             raise UnsupportedStructure(
                 "a ring-attached carbamate other than a plain, "
-                "unsubstituted benzene ring on the amide nitrogen is out "
-                "of scope for this module"
+                "unsubstituted benzene ring on the amide nitrogen, or a "
+                "plain saturated ring as R itself, is out of scope for "
+                "this module"
             )
 
     has_carbon = False
