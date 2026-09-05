@@ -50,12 +50,22 @@ Recommendations ("the Blue Book"):
 - A branched (real carbon fork) substituent is supported too (e.g.
   'propan-2-yldiazene', PubChem CID 22166172), built with `name_branch`
   the same way a plain substituent already was.
+- A plain, unsubstituted benzene ring bonded directly to a diazene
+  nitrogen is cited as a 'phenyl' substituent -- `name_branch`'s own
+  `aromatic_atoms` parameter already recognizes this shape (used by
+  several other modules, e.g. `_ketone.py`), so this only needed passing
+  it through and dropping this module's own blanket aromatic-atom
+  rejection. Confirmed via PubChem PUG REST: `c1ccccc1N=N` ->
+  "phenyldiazene" (CID 141902), `c1ccccc1N=Nc1ccccc1` ->
+  "diphenyldiazene" (CID 2272), `c1ccccc1N=NC` -> "methyl(phenyl)diazene"
+  (CID 6451992).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any atom other than the two diazene nitrogens, carbon, halogen, and
   hydrogen.
-- An unsaturated substituent, an aromatic substituent, or any ring
-  anywhere in the molecule.
+- An unsaturated substituent, an aromatic substituent other than a plain,
+  unsubstituted phenyl (a substituted or heteroaromatic ring, e.g.), or a
+  ring other than a plain phenyl substituent.
 - More than one N=N unit (bis(azo) compounds), azoxy compounds (an N-oxide
   of this group, P-68.3.1.3.3), or hydrazine-type N-N single-bonded
   compounds (P-68.3.1.2, a structurally unrelated parent).
@@ -100,6 +110,7 @@ def name_diazene(mol) -> str:
         raise UnsupportedStructure("no plain diazene (N=N) skeleton found; this module only handles diazenes")
     n1, n2 = nitrogens
 
+    aromatic_atoms = frozenset(atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic())
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() not in _ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(
@@ -109,15 +120,16 @@ def name_diazene(mol) -> str:
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic():
-            raise UnsupportedStructure("an aromatic substituent is out of scope for this module")
-    if mol.GetRingInfo().NumRings() != 0:
-        raise UnsupportedStructure("a ring anywhere in the molecule is out of scope for this module")
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
     n1_idx, n2_idx = n1.GetIdx(), n2.GetIdx()
-    if any(a not in (n1_idx, n2_idx) and b not in (n1_idx, n2_idx) for a, b, _ in non_single_bonds(mol)):
+    if any(
+        a not in (n1_idx, n2_idx)
+        and b not in (n1_idx, n2_idx)
+        and not (a in aromatic_atoms and b in aromatic_atoms)
+        for a, b, _ in non_single_bonds(mol)
+    ):
         raise UnsupportedStructure(
             "unsaturation in a substituent is out of scope for this module"
         )
@@ -134,7 +146,7 @@ def name_diazene(mol) -> str:
                 "a halogen bonded directly to a diazene nitrogen is out "
                 "of scope for this module (see module docstring)"
             )
-        substituents.append(name_branch(graph, root, n_idx, halogens))
+        substituents.append(name_branch(graph, root, n_idx, halogens, aromatic_atoms))
 
     if not substituents:
         return "diazene"

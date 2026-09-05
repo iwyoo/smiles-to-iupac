@@ -38,14 +38,31 @@ def test_branched_substituent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_ring_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCC(CC1)N=NC")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem PUG REST confirmed: `c1ccccc1N=N` -> "phenyldiazene"
+        # (CID 141902), `c1ccccc1N=Nc1ccccc1` -> "diphenyldiazene" (CID
+        # 2272), `c1ccccc1N=NC` -> "methyl(phenyl)diazene" (CID 6451992).
+        ("c1ccccc1N=N", "phenyldiazene"),
+        ("c1ccccc1N=Nc1ccccc1", "diphenyldiazene"),
+        ("c1ccccc1N=NC", "methyl(phenyl)diazene"),
+        # A plain saturated ring substituent (e.g. cyclohexyl) comes for
+        # free from the same `name_branch` fix, since that helper already
+        # recognizes both ring shapes -- PubChem PUG REST confirmed:
+        # `C1CCCCC1N=N` -> "cyclohexyldiazene" (CID 19772949),
+        # `C1CCC(CC1)N=NC` -> "cyclohexyl(methyl)diazene" (CID 21031023).
+        ("C1CCCCC1N=N", "cyclohexyldiazene"),
+        ("C1CCC(CC1)N=NC", "cyclohexyl(methyl)diazene"),
+    ],
+)
+def test_ring_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
-def test_aromatic_substituent_not_supported():
+def test_substituted_phenyl_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1N=NC")
+        smiles_to_iupac("Cc1ccccc1N=N")
 
 
 def test_chloroethyldiazene_name():
