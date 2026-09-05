@@ -50,6 +50,20 @@ def test_selenonic_acid_with_alcohol_not_supported():
         smiles_to_iupac("O[Se](=O)(=O)CCO")
 
 
+def test_benzeneselenonic_acid():
+    # -Se(=O)(=O)OH directly on a benzene ring carbon, cross-checked
+    # against PubChem PUG REST.
+    assert smiles_to_iupac("c1ccccc1[Se](=O)(=O)O") == "benzeneselenonic acid"
+
+
+def test_substituted_benzeneselenonic_acid():
+    # The mancude-ring numbering is free to start at the -Se(=O)(=O)OH
+    # carbon, so its own locant is never cited, mirroring
+    # benzenesulfonic acid.
+    assert smiles_to_iupac("Cc1ccccc1[Se](=O)(=O)O") == "2-methylbenzeneselenonic acid"
+    assert smiles_to_iupac("Cc1ccc(cc1)[Se](=O)(=O)O") == "4-methylbenzeneselenonic acid"  # PubChem PUG REST
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
