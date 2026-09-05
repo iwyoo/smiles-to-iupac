@@ -398,7 +398,18 @@ def _substituents_for_chain(graph, chain, halogens, excluded):
     return substituents
 
 
-def _name_acyclic_amide(mol, amide_carbon, amide_nitrogen, excluded, n_alkyl_carbons, hydroxyls, bonds, stereo=None):
+def _name_acyclic_amide(
+    mol,
+    amide_carbon,
+    amide_nitrogen,
+    excluded,
+    n_alkyl_carbons,
+    hydroxyls,
+    bonds,
+    stereo=None,
+    extra_names=None,
+    required_atoms=frozenset(),
+):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
     include every stereocenter are eligible (P-92: a stereocenter on a
@@ -407,9 +418,18 @@ def _name_acyclic_amide(mol, amide_carbon, amide_nitrogen, excluded, n_alkyl_car
     and the winning candidate's own locants are used to format a
     "(<locant><R/S>,...)-" prefix onto the final name -- applied outermost,
     ahead of any N-alkyl prefix, since a stereodescriptor always sits at
-    the very front of the complete name (P-91.3)."""
+    the very front of the complete name (P-91.3).
+
+    `extra_names`/`required_atoms`: same coexisting-group injection point
+    as `_ketone.py`'s `_name_acyclic_ketone`, reused by `_amide_amine.py`
+    via `_coexisting_groups.py` -- both empty/None by default so existing
+    callers are unaffected."""
     graph = adjacency(mol)
-    halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}}
+    halogens = {
+        **halogen_substituents(mol),
+        **{o: "hydroxy" for o in hydroxyls},
+        **(extra_names or {}),
+    }
     full_carbon_graph = carbon_adjacency(mol)
 
     n_names = []
@@ -464,6 +484,8 @@ def _name_acyclic_amide(mol, amide_carbon, amide_nitrogen, excluded, n_alkyl_car
     for chain in chains:
         if amide_carbon not in chain:
             continue
+        if not required_atoms <= set(chain):
+            continue
         if bonds and bond_locants(chain, bonds) is None:
             continue
         chain_set = set(chain)
@@ -472,7 +494,10 @@ def _name_acyclic_amide(mol, amide_carbon, amide_nitrogen, excluded, n_alkyl_car
         eligible.append(chain)
     if not eligible:
         if stereo is not None and any(
-            amide_carbon in c and (not bonds or bond_locants(c, bonds) is not None) for c in chains
+            amide_carbon in c
+            and required_atoms <= set(c)
+            and (not bonds or bond_locants(c, bonds) is not None)
+            for c in chains
         ):
             raise UnsupportedStructure(
                 "a stereocenter on a substituent branch rather than the "
