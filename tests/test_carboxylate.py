@@ -91,15 +91,22 @@ def test_phenyl_directly_attached_carboxylate_raises():
         smiles_to_iupac("c1ccccc1C(=O)[O-]")
 
 
-def test_phenyl_substituted_benzene_ring_carboxylate_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC(=O)[O-]")
+def test_phenyl_substituted_benzene_ring_carboxylate_ortho_methyl():
+    # A ring methyl substituent is now supported (see
+    # tasks/aromatic-ring-methyl-rollout-3.md) -- PubChem PUG
+    # REST-verified "2-(2-methylphenyl)acetate".
+    assert smiles_to_iupac("Cc1ccccc1CC(=O)[O-]") == "2-(2-methylphenyl)ethanoate"
 
 
 def test_phenyl_chain_carboxylate_ring_halogen():
     # PubChem PUG REST computes "3-(4-chlorophenyl)propanoate" for this
     # structure.
     assert smiles_to_iupac("Clc1ccc(CCC(=O)[O-])cc1") == "3-(4-chlorophenyl)propanoate"
+
+
+def test_phenyl_chain_carboxylate_ring_methyl():
+    # PubChem PUG REST-verified "3-(4-methylphenyl)propanoate".
+    assert smiles_to_iupac("Cc1ccc(CCC(=O)[O-])cc1") == "3-(4-methylphenyl)propanoate"
 
 
 def test_phenyl_chain_carboxylate_unsaturation_raises():
