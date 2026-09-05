@@ -145,6 +145,12 @@ def test_phenyl_substituted_benzene_ring_sulfinamide_raises():
         smiles_to_iupac("Cc1ccccc1CCS(=O)N")
 
 
+def test_phenyl_chain_sulfinamide_ring_halogen():
+    # PubChem PUG REST computes "(4-chlorophenyl)methanesulfinamide" for
+    # this structure.
+    assert smiles_to_iupac("Clc1ccc(CS(=O)N)cc1") == "(4-chlorophenyl)methanesulfinamide"
+
+
 def test_phenyl_chain_sulfinamide_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CCS(=O)N")
