@@ -90,6 +90,7 @@ from ._common import (
     ordered_chain,
     path_between,
     ring_chain_attachment,
+    ring_chain_attachment_with_halogens,
     ring_cycle,
     specified_stereocenters,
 )
@@ -543,11 +544,12 @@ def _name_phenyl_chain_thiol(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    halogens = halogen_substituents(mol)
+    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
     if attachment is None:
         raise UnsupportedStructure(
-            "a benzene ring with more than one exocyclic substituent "
-            "alongside a chain thiol is not supported yet"
+            "a benzene ring with more than one non-halogen exocyclic "
+            "substituent alongside a chain thiol is not supported yet"
         )
     ring_atom, chain_root = attachment
     if chain_root in thiols:
@@ -571,7 +573,6 @@ def _name_phenyl_chain_thiol(mol, ring_atoms):
                 "the benzene ring is not supported yet"
             )
 
-    halogens = halogen_substituents(mol)
     chain_length = len(chain)
     best_key = None
     best_name = None

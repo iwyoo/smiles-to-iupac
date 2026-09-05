@@ -160,6 +160,12 @@ def test_phenyl_substituted_benzene_ring_sulfinic_acid_raises():
         smiles_to_iupac("Cc1ccccc1CCS(=O)O")
 
 
+def test_phenyl_chain_sulfinic_acid_ring_halogen():
+    # PubChem PUG REST computes "3-(4-chlorophenyl)propane-1-sulfinic
+    # acid" for this structure.
+    assert smiles_to_iupac("Clc1ccc(CCCS(=O)O)cc1") == "3-(4-chlorophenyl)propane-1-sulfinic acid"
+
+
 def test_phenyl_chain_sulfinic_acid_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CCS(=O)O")
