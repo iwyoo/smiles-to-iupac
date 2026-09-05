@@ -93,3 +93,38 @@ def test_multiplied_compound_substituent_with_different_substituent_raises():
 def test_unsaturated_substituent_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=CP")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified: `c1ccccc1P` -> "phenylphosphane" (CID 12519),
+        # `c1ccccc1P(c1ccccc1)c1ccccc1` -> "triphenylphosphane" (CID
+        # 11776). Unlike `_phosphanone.py`'s identical extension,
+        # phosphorus's normal valence is exactly 3, so three phenyls never
+        # trigger a lambda-convention label.
+        ("c1ccccc1P", "phenylphosphane"),
+        ("c1ccccc1P(c1ccccc1)c1ccccc1", "triphenylphosphane"),
+    ],
+)
+def test_phenyl_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_mixed_alkyl_and_phenyl_substituents():
+    # Not itself a PubChem/Blue Book worked example, but a direct
+    # generalization of the two confirmed shapes above (mixed substituent
+    # identity is already handled generically by
+    # `format_mononuclear_prefixes`).
+    assert smiles_to_iupac("CP(c1ccccc1)C") == "dimethyl(phenyl)phosphane"
+
+
+def test_substituted_phenyl_raises():
+    # A substituted ring is not the plain 'phenyl' shape.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1P")
+
+
+def test_non_aromatic_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1CCCCC1P")
