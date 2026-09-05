@@ -157,15 +157,20 @@ def test_phenyl_chain_hydrazide_n_alkyl_raises():
         smiles_to_iupac("c1ccccc1CC(=O)N(C)N")
 
 
-def test_phenyl_substituted_benzene_ring_hydrazide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC(=O)NN")
+def test_phenyl_substituted_benzene_ring_hydrazide_ortho_methyl():
+    # A ring methyl substituent is now supported (see
+    # tasks/aromatic-ring-methyl-rollout-5.md).
+    assert smiles_to_iupac("Cc1ccccc1CC(=O)NN") == "2-(2-methylphenyl)acetohydrazide"
 
 
 def test_phenyl_chain_hydrazide_ring_halogen():
     # PubChem PUG REST computes "3-(4-chlorophenyl)propanehydrazide" for
     # this structure.
     assert smiles_to_iupac("Clc1ccc(CCC(=O)NN)cc1") == "3-(4-chlorophenyl)propanehydrazide"
+
+
+def test_phenyl_chain_hydrazide_ring_methyl():
+    assert smiles_to_iupac("Cc1ccc(CCC(=O)NN)cc1") == "3-(4-methylphenyl)propanehydrazide"
 
 
 def test_phenyl_chain_hydrazide_unsaturation_raises():
