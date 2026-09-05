@@ -651,6 +651,17 @@ def smiles_to_iupac(smiles: str) -> str:
         # benzene ring.
         if has_hidden_amide_shape(mol):
             return name_hidden_amide_ketone(mol)
+        # A plain 1,4-N,O saturated six-membered ring whose nitrogen
+        # carries one substituent (e.g. 4-methylmorpholine) looks
+        # ether-shaped to `has_ether_shape` below (its ring oxygen is a
+        # perfectly ordinary degree-2 ether oxygen) -- must be routed
+        # before that check, mirroring the same "claim the specific ring
+        # shape before the generic one" pattern used throughout this
+        # branch. The N,N/N,S sibling shapes (piperazine/thiomorpholine)
+        # have no oxygen at all and are instead routed in the
+        # oxygen-free "any nitrogen" branch further down.
+        if has_ring_amine_shape(mol):
+            return name_ring_amine(mol)
         # A ketone carbonyl sitting directly between two ring heteroatoms
         # in a five-membered 1,3-related saturated ring (e.g.
         # 1,3-dioxolan-2-one, imidazolidin-2-one) looks ether-, acetal-,
@@ -1003,12 +1014,14 @@ def smiles_to_iupac(smiles: str) -> str:
         if has_simple_imine_shape(mol):
             return name_imine(mol)
         # A plain saturated monocyclic amine whose sole ring nitrogen
-        # carries one substituent (e.g. 1-methylpiperidine) has the ring
-        # itself as the parent hydride, unlike every other shape reaching
-        # `name_amine` below (which always treats an acyclic chain as the
-        # parent) -- `name_amine` itself explicitly defers this shape, so
-        # it must be routed here first. Has no oxygen at all (a plain
-        # alkyl/cyclic N-substituent), so this never collides with
+        # carries one substituent (e.g. 1-methylpiperidine, or the N,N/
+        # N,S piperazine/thiomorpholine siblings -- the N,O morpholine
+        # sibling has an oxygen and is instead routed in the oxygen-gated
+        # branch above) has the ring itself as the parent hydride, unlike
+        # every other shape reaching `name_amine` below (which always
+        # treats an acyclic chain as the parent) -- `name_amine` itself
+        # explicitly defers this shape, so it must be routed here first.
+        # These oxygen-free variants never collide with
         # `_hidden_amide_ketone.py`'s acyl-on-ring-nitrogen path, which
         # requires the substituent's own carbonyl oxygen and is routed
         # separately in the oxygen-gated branch above.

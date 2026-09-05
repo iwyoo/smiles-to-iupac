@@ -54,11 +54,50 @@ def test_acyl_n_substituent_routes_to_hidden_amide():
     assert smiles_to_iupac("CC(=O)N1CCCCC1") == "1-(piperidin-1-yl)ethan-1-one"
 
 
-def test_two_heteroatom_ring_raises():
-    # Morpholine (1,4-N,O) is a different axis (locant 4, not 1) -- out of
-    # scope for this first slice.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CN1CCOCC1")
+def test_morpholine():
+    # PubChem CID 7972 "4-methylmorpholine" -- the non-nitrogen heteroatom
+    # (O) always wins locant 1, so the substituted nitrogen is locant 4.
+    assert smiles_to_iupac("CN1CCOCC1") == "4-methylmorpholine"
+
+
+def test_ethylmorpholine():
+    # PubChem CID 7525 "4-ethylmorpholine".
+    assert smiles_to_iupac("CCN1CCOCC1") == "4-ethylmorpholine"
+
+
+def test_propan_2_yl_morpholine_is_parenthesized():
+    # PubChem CID 73998's raw "4-propan-2-ylmorpholine", parenthesized
+    # here per this project's usual compound-substituent convention.
+    assert smiles_to_iupac("CC(C)N1CCOCC1") == "4-(propan-2-yl)morpholine"
+
+
+def test_cyclopropylmorpholine():
+    # PubChem CID 52140468 "4-cyclopropylmorpholine".
+    assert smiles_to_iupac("C1CC1N1CCOCC1") == "4-cyclopropylmorpholine"
+
+
+def test_thiomorpholine():
+    # PubChem CID 523249 "4-methylthiomorpholine" -- S also outranks N for
+    # locant 1 (P-22.2.1, O > S > N).
+    assert smiles_to_iupac("CN1CCSCC1") == "4-methylthiomorpholine"
+
+
+def test_piperazine():
+    # PubChem CID 53167 "1-methylpiperazine" -- the symmetric N,N pair
+    # gives the *substituted* nitrogen the lowest locant (1), not 4.
+    assert smiles_to_iupac("CN1CCNCC1") == "1-methylpiperazine"
+
+
+def test_ethylpiperazine():
+    # PubChem CID 79196 "1-ethylpiperazine".
+    assert smiles_to_iupac("CCN1CCNCC1") == "1-ethylpiperazine"
+
+
+def test_plain_morpholine_and_piperazine_unaffected():
+    # The unsubstituted rings themselves are a different, already-working
+    # shape and must still route correctly.
+    assert smiles_to_iupac("C1COCCN1") == "morpholine"
+    assert smiles_to_iupac("C1CNCCN1") == "piperazine"
 
 
 def test_unsaturated_n_substituent_raises():
