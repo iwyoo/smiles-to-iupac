@@ -114,6 +114,18 @@ def test_phenyl_substituted_benzene_ring_ester_raises():
         smiles_to_iupac("Cc1ccccc1CC(=O)OC")
 
 
+def test_phenyl_acyl_chain_ring_halogen():
+    # PubChem CID 68493 "methyl 2-(4-chlorophenyl)acetate" -- this
+    # project's own systematic-stem convention (see
+    # test_carboxylic_acid.py's identical halogenated-ring cases) prefers
+    # 'ethanoate' once substituted.
+    assert smiles_to_iupac("COC(=O)Cc1ccc(Cl)cc1") == "methyl 2-(4-chlorophenyl)ethanoate"
+
+
+def test_phenyl_acyl_chain_ring_dihalogen():
+    assert smiles_to_iupac("COC(=O)Cc1ccc(Cl)c(Cl)c1") == "methyl 2-(3,4-dichlorophenyl)ethanoate"
+
+
 def test_phenyl_acyl_chain_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CC(=O)OC")

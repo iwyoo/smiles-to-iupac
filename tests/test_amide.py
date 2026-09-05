@@ -189,6 +189,17 @@ def test_phenyl_substituted_benzene_ring_amide_raises():
         smiles_to_iupac("Cc1ccccc1CC(N)=O")
 
 
+def test_phenyl_chain_amide_ring_halogen():
+    # PubChem CID 68881 "2-(4-chlorophenyl)acetamide" -- this project's own
+    # systematic-stem convention (see test_carboxylic_acid.py's identical
+    # halogenated-ring cases) prefers 'ethanamide' once substituted.
+    assert smiles_to_iupac("NC(=O)Cc1ccc(Cl)cc1") == "2-(4-chlorophenyl)ethanamide"
+
+
+def test_phenyl_chain_amide_ring_dihalogen():
+    assert smiles_to_iupac("Clc1cc(Cl)ccc1CC(N)=O") == "2-(2,4-dichlorophenyl)ethanamide"
+
+
 def test_phenyl_chain_amide_with_hydroxyl_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OCc1ccccc1CC(N)=O")
