@@ -84,3 +84,23 @@ def test_phosphonium_specified_stereocenter_raises():
 
 def test_phosphonium_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("C[PH+](CC)CCC") == "ethyl(methyl)(propyl)phosphanium"
+
+
+def test_phenyl_substituent_degree_0_3():
+    # Works automatically via `_phosphane.py`'s own phenyl support (PR
+    # #397) through the neutralize-then-rename path.
+    assert smiles_to_iupac("c1ccccc1[PH3+]") == "phenylphosphanium"
+
+
+def test_tetraphenylphosphanium():
+    # PubChem PUG REST confirmed: CID 164912.
+    assert smiles_to_iupac("c1ccccc1[P+](c1ccccc1)(c1ccccc1)c1ccccc1") == "tetraphenylphosphanium"
+
+
+def test_mixed_alkyl_and_phenyl_quaternary_phosphonium():
+    assert smiles_to_iupac("C[P+](C)(C)c1ccccc1") == "trimethyl(phenyl)phosphanium"
+
+
+def test_substituted_phenyl_quaternary_phosphonium_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1[P+](C)(C)C")
