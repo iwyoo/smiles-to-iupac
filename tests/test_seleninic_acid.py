@@ -87,12 +87,23 @@ def test_phenyl_chain_seleninic_acid():
     assert smiles_to_iupac("c1ccccc1CCC[Se](=O)O") == "3-phenylpropane-1-seleninic acid"
 
 
-def test_phenyl_directly_attached_seleninic_acid_raises():
-    # Benzeneseleninic acid-style naming (-Se(=O)OH directly on the ring)
-    # is a separate construction, out of scope for this acyclic-chain-
-    # parent module.
+def test_benzeneseleninic_acid():
+    # -Se(=O)OH directly on a benzene ring carbon, cross-checked against
+    # PubChem PUG REST.
+    assert smiles_to_iupac("c1ccccc1[Se](=O)O") == "benzeneseleninic acid"
+
+
+def test_substituted_benzeneseleninic_acid():
+    # The mancude-ring numbering is free to start at the -Se(=O)OH
+    # carbon, so its own locant is never cited, mirroring
+    # benzenesulfonic acid.
+    assert smiles_to_iupac("Cc1ccccc1[Se](=O)O") == "2-methylbenzeneseleninic acid"
+    assert smiles_to_iupac("Cc1ccc(cc1)[Se](=O)O") == "4-methylbenzeneseleninic acid"  # PubChem PUG REST
+
+
+def test_benzeneseleninic_acid_specified_stereocenter_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1[Se](=O)O")
+        smiles_to_iupac("c1ccccc1[Se@](=O)O")
 
 
 def test_phenyl_substituted_benzene_ring_seleninic_acid_raises():
