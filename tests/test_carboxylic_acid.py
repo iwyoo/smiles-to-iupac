@@ -158,6 +158,28 @@ def test_phenyl_substituent_carboxylic_acid_naphthalene_raises():
         smiles_to_iupac("c1ccc2ccccc2c1CC(=O)O")
 
 
+def test_phenyl_substituent_carboxylic_acid_ring_halogen():
+    # The ring's other atoms may each carry a single halogen alongside the
+    # chain attachment (PubChem CID 15880 IUPACName "2-(4-chlorophenyl)
+    # acetic acid" -- this module's own retained-name convention prefers
+    # the systematic 'ethanoic acid' stem once substituted, same as the
+    # unsubstituted-ring case above).
+    assert smiles_to_iupac("Clc1ccc(CC(=O)O)cc1") == "2-(4-chlorophenyl)ethanoic acid"
+
+
+def test_phenyl_substituent_carboxylic_acid_ring_dihalogen():
+    # PubChem CID 88209 "2-(2,4-dichlorophenyl)acetic acid".
+    assert smiles_to_iupac("Clc1cc(Cl)ccc1CC(=O)O") == "2-(2,4-dichlorophenyl)ethanoic acid"
+
+
+def test_phenyl_substituent_carboxylic_acid_ring_alkyl_substituent_raises():
+    # A non-halogen ring substituent alongside the chain is still out of
+    # scope -- only plain halogens are handled by this first slice (see
+    # tasks/aromatic-ring-multisubstituent-suffix.md).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(C)Cc1ccc(C(C)C(=O)O)cc1")
+
+
 def test_amine_coexisting_demotes_to_amino_prefix():
     # glycine (H2N-CH2-COOH): a coexisting primary amine is junior to -COOH
     # (Table 3.3) and demoted to the 'amino' prefix (see

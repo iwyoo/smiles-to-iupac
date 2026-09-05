@@ -326,6 +326,18 @@ def test_phenyl_chain_unsaturation_raises():
         smiles_to_iupac("C=Cc1ccccc1CO")
 
 
+def test_phenyl_chain_ring_halogen():
+    # The ring's other atoms may each carry a single halogen alongside the
+    # -OH chain attachment (PubChem CID 18825 IUPACName "1-(4-chlorophenyl)
+    # ethanol").
+    assert smiles_to_iupac("OC(C)c1ccc(Cl)cc1") == "1-(4-chlorophenyl)ethan-1-ol"
+
+
+def test_phenyl_chain_ring_dihalogen():
+    # PubChem CID 244558 "2-(3,4-dichlorophenyl)ethanol".
+    assert smiles_to_iupac("Clc1ccc(cc1Cl)CCO") == "2-(3,4-dichlorophenyl)ethan-1-ol"
+
+
 def test_substituted_ring_with_chain_hydroxyl_raises():
     # the ring itself carries an extra substituent (not just the OH-bearing
     # chain) -- out of this module's minimal scope.

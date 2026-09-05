@@ -420,7 +420,8 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None):
     (or None/empty, the default, if the caller's scope has no aromatic
     atoms at all) -- opts a plain benzene-ring branch into being named
     'phenyl' instead of falling through to the cyclic-substituent
-    rejection (see `_simple_ring_substituent`)."""
+    rejection (see `_simple_ring_substituent`), and a halogen-substituted
+    one into e.g. '4-chlorophenyl' (see `halogenated_phenyl_substituent`)."""
     halogens = halogens or {}
     aromatic_atoms = aromatic_atoms or frozenset()
     if root in halogens:
@@ -439,6 +440,12 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None):
         loc_str = ",".join(str(loc) for loc in oh_locants)
         hydroxy_word = multiplied_word(len(oh_locants), "hydroxy")
         return f"{loc_str}-{hydroxy_word}cyclo{alkyl_name(ring_size)}", True
+
+    if aromatic_atoms:
+        halophenyl = halogenated_phenyl_substituent(graph, aromatic_atoms, root, coming_from, halogens)
+        if halophenyl is not None:
+            name, _, _ = halophenyl
+            return name, True
 
     _, _, name, is_compound = _select_winning_structure(graph, root, coming_from, halogens)
     return name, is_compound
