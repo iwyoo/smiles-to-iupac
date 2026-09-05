@@ -184,9 +184,22 @@ def test_phenyl_chain_amide_n_alkyl_raises():
         smiles_to_iupac("c1ccccc1CCC(=O)NC")
 
 
-def test_phenyl_substituted_benzene_ring_amide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC(N)=O")
+def test_phenyl_chain_amide_ring_methyl():
+    # PubChem '2-(2-methylphenyl)acetamide' -- a plain methyl ring
+    # substituent, like halogens, no longer forces the benzene ring to
+    # win the ring-vs-chain parent competition (see
+    # test_carboxylic_acid.py's identical methylated-ring cases).
+    assert smiles_to_iupac("Cc1ccccc1CC(N)=O") == "2-(2-methylphenyl)ethanamide"
+
+
+def test_phenyl_chain_amide_ring_methyl_para():
+    assert smiles_to_iupac("NC(=O)Cc1ccc(C)cc1") == "2-(4-methylphenyl)ethanamide"
+
+
+def test_phenyl_chain_amide_ring_halogen_and_methyl():
+    # PubChem "2-(2-chloro-5-methylphenyl)acetamide" -- halogen and
+    # methyl ring substituents mixed on the same ring.
+    assert smiles_to_iupac("ClC1=CC=C(C)C=C1CC(N)=O") == "2-(2-chloro-5-methylphenyl)ethanamide"
 
 
 def test_phenyl_chain_amide_ring_halogen():
