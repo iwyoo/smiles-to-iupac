@@ -289,7 +289,9 @@ def _substituents_for_chain(graph, chain, halogens, aldehydes):
     return substituents
 
 
-def _name_acyclic_aldehyde(mol, aldehydes, hydroxyls, bonds, stereo=None):
+def _name_acyclic_aldehyde(
+    mol, aldehydes, hydroxyls, bonds, stereo=None, extra_names=None, required_atoms=frozenset()
+):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
     include every stereocenter are eligible (P-92: a stereocenter on a
@@ -297,9 +299,18 @@ def _name_acyclic_aldehyde(mol, aldehydes, hydroxyls, bonds, stereo=None):
     mirroring `_carboxylic_acid.py`'s identical treatment), and the
     winning candidate's own locants are used to format a
     "(<locant><R/S>,...)-" prefix onto the name, ascending locant order
-    (P-91.3)."""
+    (P-91.3).
+
+    `extra_names`: optional {atom_idx -> prefix name} for a coexisting
+    characteristic group demoted to a substituent prefix by
+    `_seniority.senior_class` (e.g. a demoted amine's 'amino'), reused by
+    `_coexisting_groups.py` so a pairwise module doesn't have to
+    reimplement this function's chain search/candidate selection.
+    `required_atoms`: additional carbon atoms (e.g. every demoted amine's
+    own carbon neighbor) that a candidate chain must also carry -- both
+    empty/None by default so existing callers are unaffected."""
     graph = adjacency(mol)
-    halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}}
+    halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}, **(extra_names or {})}
     chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
@@ -308,6 +319,8 @@ def _name_acyclic_aldehyde(mol, aldehydes, hydroxyls, bonds, stereo=None):
     for chain in chains:
         position_of = {atom: i + 1 for i, atom in enumerate(chain)}
         if _al_locants(position_of, aldehydes, graph) is None:
+            continue
+        if not required_atoms <= set(chain):
             continue
         if bonds and bond_locants(chain, bonds) is None:
             continue
@@ -318,6 +331,7 @@ def _name_acyclic_aldehyde(mol, aldehydes, hydroxyls, bonds, stereo=None):
     if not eligible:
         if stereo is not None and any(
             _al_locants({a: i + 1 for i, a in enumerate(c)}, aldehydes, graph) is not None
+            and required_atoms <= set(c)
             and (not bonds or bond_locants(c, bonds) is not None)
             for c in chains
         ):
