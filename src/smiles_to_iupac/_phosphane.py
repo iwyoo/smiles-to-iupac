@@ -92,16 +92,46 @@ and/or plain phenyl substituents), per the IUPAC 2013 Recommendations
   `_plain_phenyl_substituent_atoms` pattern (`is_plain_benzene_ring` +
   `ring_chain_attachment`) adapted for phosphorus's own direct-neighbor
   substituent roots.
+- A benzene ring bonded directly to phosphorus and also bearing one or
+  more halogen substituents of its own is cited as a halogenated-phenyl
+  substituent, e.g. '(4-chlorophenyl)phosphane' -- confirmed via PubChem
+  PUG REST: `Clc1ccc(cc1)P` -> "(4-chlorophenyl)phosphane" (CID 17762777),
+  `Clc1ccccc1P` -> "(2-chlorophenyl)phosphane" (CID 17796935),
+  `Fc1ccc(cc1)P` -> "(4-fluorophenyl)phosphane" (CID 17762775),
+  `Brc1ccc(cc1)P` -> "(4-bromophenyl)phosphane" (CID 23413207),
+  `Clc1ccc(Cl)c(Cl)c1P` -> "(2,3,6-trichlorophenyl)phosphane" (CID
+  160229181, multiple halogens on one ring, lowest-locants direction
+  chosen per P-14.5.2), and three identical rings ->
+  "tris(4-chlorophenyl)phosphane" (CID 70874). Unlike a branched alkyl
+  compound name (e.g. 'propan-2-yl'), this kind of name -- a *substituted*
+  substituent group -- both needs enclosing marks even as the sole
+  substituent and takes the 'bis'/'tris' multiplying series rather than
+  ordinary 'di'/'tri' (P-14.2.2); detected here by the name's own leading
+  locant digit (`format_mononuclear_prefixes`'s own docstring has the
+  full derivation). Mixing a halogenated-phenyl substituent with any
+  differently-named substituent (plain phenyl, a lone halogen, an alkyl
+  group, or a *different* halogenated phenyl) is out of scope: PubChem's
+  own raw name for the halophenyl+alkyl case
+  ('(4-chlorophenyl)-methylphosphane') doesn't follow the already-
+  established P-16.5.1.3.1 parenthesization rule (contrast
+  'ethyl(methyl)phosphane'), and two different halogenated-phenyl rings on
+  one phosphorus aren't registered in PubChem at all (CID 0) -- so neither
+  is trusted. Detection reuses `_substituents.halogenated_phenyl_substituent`
+  (shared with `_borane.py`).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any atom other than phosphorus, carbon, hydrogen, and a halogen bonded
-  directly to phosphorus (no P=O, no halogen-substituted alkyl chain, no
-  other heteroatom in a substituent chain).
+  directly to phosphorus or to a halogenated-phenyl ring on phosphorus (no
+  P=O, no halogen-substituted alkyl chain, no other heteroatom in a
+  substituent chain).
 - More than one phosphorus atom (phosphane chains, e.g. diphosphane --
   `_silane_chain.py`-style "chain" nomenclature is a separate problem).
-- An unsaturated substituent, an aromatic substituent other than a plain,
-  unsubstituted phenyl (a substituted or heteroaromatic ring, e.g.), or a
-  ring other than a plain phenyl substituent directly on phosphorus.
+- An unsaturated substituent, an aromatic substituent other than a plain
+  or halogen-substituted phenyl (a substituted-by-something-else or
+  heteroaromatic ring, e.g.), or a ring other than that directly on
+  phosphorus.
+- A halogenated-phenyl substituent mixed with a differently-named
+  substituent (see above).
 - Charged or isotopically modified atoms.
 """
 
@@ -111,11 +141,12 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
+    halogen_substituents,
     is_plain_benzene_ring,
     non_single_bonds,
     ring_chain_attachment,
 )
-from ._substituents import format_mononuclear_prefixes, name_branch
+from ._substituents import format_mononuclear_prefixes, halogenated_phenyl_substituent, name_branch
 
 
 def has_simple_phosphane_shape(mol) -> bool:
@@ -161,36 +192,60 @@ def _validate_and_collect_substituents(mol):
     roots = set(graph[phosphorus.GetIdx()])
     phenyl_atoms = _plain_phenyl_substituent_atoms(mol, graph, roots)
 
+    halogens = halogen_substituents(mol)
+    aromatic_atoms = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic()}
+    halophenyl = {}
+    for root in roots - phenyl_atoms:
+        result = halogenated_phenyl_substituent(graph, aromatic_atoms, root, phosphorus.GetIdx(), halogens)
+        if result is not None:
+            halophenyl[root] = result
+    halophenyl_ring_atoms = {a for _, ring_atoms, _ in halophenyl.values() for a in ring_atoms}
+    halophenyl_halogen_atoms = {a for _, _, halogen_atoms in halophenyl.values() for a in halogen_atoms}
+
     for atom in mol.GetAtoms():
+        idx = atom.GetIdx()
         is_halogen = atom.GetAtomicNum() in HALOGEN_PREFIXES
         if atom.GetAtomicNum() not in (15, 6) and not is_halogen:
             raise UnsupportedStructure(
                 "heteroatoms other than the phosphane phosphorus itself are "
                 "not supported yet (see P-68)"
             )
+        if is_halogen and idx in halophenyl_halogen_atoms:
+            continue
         if is_halogen and (
             atom.GetDegree() != 1 or atom.GetNeighbors()[0].GetIdx() != phosphorus.GetIdx()
         ):
             raise UnsupportedStructure(
                 "a halogen-substituted alkyl chain is out of scope for this "
-                "module -- only a halogen bonded directly to phosphorus is "
-                "supported so far"
+                "module -- only a halogen bonded directly to phosphorus, or "
+                "to a phenyl ring directly on phosphorus, is supported so far"
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and atom.GetIdx() not in phenyl_atoms:
+        if (
+            atom.GetAtomicNum() == 6
+            and atom.GetIsAromatic()
+            and idx not in phenyl_atoms
+            and idx not in halophenyl_ring_atoms
+        ):
             raise UnsupportedStructure(
-                "an aromatic substituent other than a plain, unsubstituted "
-                "phenyl group is out of scope for this module"
+                "an aromatic substituent other than a plain or halogen-"
+                "substituted phenyl group is out of scope for this module"
             )
     all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
-    if all_ring_atoms - phenyl_atoms:
+    if all_ring_atoms - phenyl_atoms - halophenyl_ring_atoms:
         raise UnsupportedStructure(
-            "a ring other than a plain phenyl substituent directly on "
-            "phosphorus is out of scope for this module"
+            "a ring other than a plain or halogen-substituted phenyl "
+            "substituent directly on phosphorus is out of scope for this "
+            "module"
         )
     non_ring_unsaturation = [
-        b for b in non_single_bonds(mol) if b[0] not in phenyl_atoms and b[1] not in phenyl_atoms
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in phenyl_atoms
+        and b[1] not in phenyl_atoms
+        and b[0] not in halophenyl_ring_atoms
+        and b[1] not in halophenyl_ring_atoms
     ]
     if non_ring_unsaturation:
         raise UnsupportedStructure(
@@ -205,11 +260,31 @@ def _validate_and_collect_substituents(mol):
         if root in phenyl_atoms:
             substituent_names.append(("phenyl", False))
             continue
+        if root in halophenyl:
+            name, _, _ = halophenyl[root]
+            substituent_names.append((name, True))
+            continue
         root_atomic_num = mol.GetAtomWithIdx(root).GetAtomicNum()
         if root_atomic_num in HALOGEN_PREFIXES:
             substituent_names.append((HALOGEN_PREFIXES[root_atomic_num], False))
             continue
         substituent_names.append(name_branch(graph, root, phosphorus.GetIdx(), {}))
+
+    distinct_names = {name for name, _ in substituent_names}
+    if len(distinct_names) > 1 and any(
+        is_compound and name[0].isdigit() for name, is_compound in substituent_names
+    ):
+        raise UnsupportedStructure(
+            "a halogen-substituted phenyl group mixed with any differently-"
+            "named substituent is out of scope for this module -- the "
+            "resulting punctuation isn't confirmed by PubChem (unregistered "
+            "for two different halogenated phenyls on the same phosphorus) "
+            "or a Blue Book worked example (PubChem's raw "
+            "'(4-chlorophenyl)-methylphosphane' for the halophenyl+alkyl "
+            "case leaves the non-first plain substituent unparenthesized, "
+            "unlike the already-established 'ethyl(methyl)phosphane' "
+            "precedent, so it isn't trusted blind either)"
+        )
     return substituent_names
 
 

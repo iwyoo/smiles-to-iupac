@@ -128,3 +128,44 @@ def test_substituted_phenyl_raises():
 def test_non_aromatic_ring_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1CCCCC1P")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified: `Clc1ccc(cc1)P` -> "(4-chlorophenyl)phosphane"
+        # (CID 17762777), `Clc1ccccc1P` -> "(2-chlorophenyl)phosphane" (CID
+        # 17796935), `Fc1ccc(cc1)P` -> "(4-fluorophenyl)phosphane" (CID
+        # 17762775), `Brc1ccc(cc1)P` -> "(4-bromophenyl)phosphane" (CID
+        # 23413207), `Clc1ccc(Cl)c(Cl)c1P` ->
+        # "(2,3,6-trichlorophenyl)phosphane" (CID 160229181, multiple
+        # halogens on one ring, lowest-locants direction), and three
+        # identical rings -> "tris(4-chlorophenyl)phosphane" (CID 70874).
+        ("Clc1ccc(cc1)P", "(4-chlorophenyl)phosphane"),
+        ("Clc1ccccc1P", "(2-chlorophenyl)phosphane"),
+        ("Fc1ccc(cc1)P", "(4-fluorophenyl)phosphane"),
+        ("Brc1ccc(cc1)P", "(4-bromophenyl)phosphane"),
+        ("Clc1ccc(Cl)c(Cl)c1P", "(2,3,6-trichlorophenyl)phosphane"),
+        (
+            "Clc1ccc(cc1)P(c1ccc(Cl)cc1)c1ccc(Cl)cc1",
+            "tris(4-chlorophenyl)phosphane",
+        ),
+    ],
+)
+def test_halogenated_phenyl_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_halogenated_phenyl_mixed_with_alkyl_raises():
+    # PubChem's own raw name for this shape ('(4-chlorophenyl)-
+    # methylphosphane') doesn't follow the already-established
+    # P-16.5.1.3.1 parenthesization rule (contrast 'ethyl(methyl)phosphane'),
+    # so it isn't trusted.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CP(c1ccc(Cl)cc1)")
+
+
+def test_two_different_halogenated_phenyls_raises():
+    # Unregistered in PubChem (CID 0) -- punctuation unconfirmed.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Clc1ccc(cc1)P(c1ccc(F)cc1)")
