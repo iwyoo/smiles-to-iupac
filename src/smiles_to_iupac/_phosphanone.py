@@ -1,6 +1,6 @@
 """Naming of simple phosphine oxides ("phosphanones", R-P(=O)< bearing
-1-3 unbranched, saturated alkyl substituents on the phosphorus), per the
-IUPAC 2013 Recommendations ("the Blue Book"):
+1-3 unbranched, saturated alkyl and/or plain phenyl substituents on the
+phosphorus), per the IUPAC 2013 Recommendations ("the Blue Book"):
 
 - P-68.3.2.3.1 (Chapter P-6a, https://iupac.qmul.ac.uk/BlueBook/PDF/P6a.pdf):
   a P=O group on a phosphane parent is named substitutively with the
@@ -39,24 +39,39 @@ IUPAC 2013 Recommendations ("the Blue Book"):
 - Substituent prefix assembly (identical/different substituents,
   P-16.5.1.3.1 parenthesization) reuses `_phosphane.py`'s own
   `format_mononuclear_prefixes` unchanged -- the alkyl-substituent
-  collection logic (linear, unbranched, saturated, non-aromatic alkyl
-  chains only) is copied from that module too, since aromatic
-  substituents (the Blue Book's own phenyl examples) are unverified here
-  for a plain non-retained alkyl chain and out of scope for this first
-  pass.
+  collection logic (linear, unbranched, saturated alkyl chains) is copied
+  from that module too.
+- A plain, unsubstituted benzene ring bonded directly to the phosphorus
+  is cited as a 'phenyl' substituent -- the Blue Book's own two worked
+  examples above are exactly this shape (a lone phenyl, and three
+  identical phenyls), so it's supported outright rather than deferred.
+  Detection mirrors `_carbamate.py`'s `_plain_phenyl_substituent_atoms`
+  (`is_plain_benzene_ring` + `ring_chain_attachment`), adapted for
+  phosphorus's own direct-neighbor substituent roots instead of a
+  chain-root carbon one hop away from the parent heteroatom.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- A halogen or aromatic substituent on phosphorus (unverified for this
-  shape; `_phosphane.py`'s own halogen support is not reused here).
+- A halogen substituent on phosphorus (unverified for this shape;
+  `_phosphane.py`'s own halogen support is not reused here), or an
+  aromatic substituent other than a plain, unsubstituted phenyl (a
+  substituted or heteroaromatic ring, e.g.).
 - Zero substituents (bare 'phosphanone', an exotic/unconfirmed shape).
 - More than one phosphorus atom, more than one P=O group, any other
-  heteroatom, a branched or unsaturated substituent, any ring, or charged/
-  isotopically modified atoms.
+  heteroatom, a branched or unsaturated (non-aromatic) substituent, a
+  ring other than a plain phenyl substituent, or charged/isotopically
+  modified atoms.
 """
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, linear_branch, non_single_bonds
+from ._common import (
+    UnsupportedStructure,
+    adjacency,
+    is_plain_benzene_ring,
+    linear_branch,
+    non_single_bonds,
+    ring_chain_attachment,
+)
 from ._numerals import alkyl_name
 from ._substituents import format_mononuclear_prefixes
 
@@ -84,6 +99,29 @@ def has_phosphanone_shape(mol) -> bool:
     return _find_phosphanone_phosphorus(mol) is not None
 
 
+def _plain_phenyl_substituent_atoms(mol, graph, roots):
+    """Union of ring atoms for every plain, unsubstituted benzene ring in
+    `mol` that hangs directly off one of `roots` (the phosphanone
+    phosphorus's own substituent neighbors) with no other exocyclic
+    attachment -- i.e. a lone 'phenyl' substituent directly on phosphorus.
+    Mirrors `_carbamate.py`'s identical helper; here `roots` are the
+    parent heteroatom's direct neighbors themselves (a ring bonded
+    straight to phosphorus, chain length zero) rather than a chain-root
+    carbon one hop away."""
+    atoms = set()
+    for ring in mol.GetRingInfo().AtomRings():
+        ring_atoms = set(ring)
+        if not is_plain_benzene_ring(mol, ring_atoms):
+            continue
+        attachment = ring_chain_attachment(graph, ring_atoms, set())
+        if attachment is None:
+            continue
+        ring_atom, _ = attachment
+        if ring_atom in roots:
+            atoms |= ring_atoms
+    return atoms
+
+
 def _validate_and_collect_substituents(mol):
     found = _find_phosphanone_phosphorus(mol)
     if found is None:
@@ -92,6 +130,9 @@ def _validate_and_collect_substituents(mol):
             "only handles phosphanones"
         )
     phosphorus, oxo = found
+    graph = adjacency(mol)
+    roots = {r for r in graph[phosphorus.GetIdx()] if r != oxo.GetIdx()}
+    phenyl_atoms = _plain_phenyl_substituent_atoms(mol, graph, roots)
 
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() not in (15, 6, 8):
@@ -106,23 +147,33 @@ def _validate_and_collect_substituents(mol):
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic():
+        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and atom.GetIdx() not in phenyl_atoms:
             raise UnsupportedStructure(
-                "an aromatic substituent is out of scope for this module (unverified for a plain alkyl chain)"
+                "an aromatic substituent other than a plain, unsubstituted "
+                "phenyl group is out of scope for this module"
             )
-    if mol.GetRingInfo().NumRings() != 0:
-        raise UnsupportedStructure("a ring anywhere in the molecule is out of scope for this module")
-    if len(non_single_bonds(mol)) != 1:
+    all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
+    if all_ring_atoms - phenyl_atoms:
         raise UnsupportedStructure(
-            "unsaturation other than the phosphanone's own P=O is out of scope for this module"
+            "a ring other than a plain phenyl substituent directly on "
+            "phosphorus is out of scope for this module"
+        )
+    non_ring_unsaturation = [
+        b for b in non_single_bonds(mol) if b[0] not in phenyl_atoms and b[1] not in phenyl_atoms
+    ]
+    if len(non_ring_unsaturation) != 1:
+        raise UnsupportedStructure(
+            "unsaturation other than the phosphanone's own P=O (and a "
+            "plain phenyl substituent's own aromaticity) is out of scope "
+            "for this module"
         )
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
-    graph = adjacency(mol)
     substituent_names = []
-    for root in graph[phosphorus.GetIdx()]:
-        if root == oxo.GetIdx():
+    for root in roots:
+        if root in phenyl_atoms:
+            substituent_names.append(("phenyl", False))
             continue
         length = linear_branch(graph, root, phosphorus.GetIdx())
         if length is None:
