@@ -524,7 +524,7 @@ def _substituents_for_chain(graph, chain, halogens, ketones):
 
 
 def _name_acyclic_ketone(
-    mol, ketones, hydroxyls, bonds, stereo=None, extra_names=None, required_atoms=frozenset()
+    mol, ketones, hydroxyls, bonds, stereo=None, extra_names=None, required_atoms=frozenset(), carbon_graph=None
 ):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
@@ -542,10 +542,18 @@ def _name_acyclic_ketone(
     reimplement this function's chain search/candidate selection.
     `required_atoms`: additional carbon atoms (e.g. every demoted amine's
     own carbon neighbor) that a candidate chain must also carry -- both
-    empty/None by default so existing callers are unaffected."""
+    empty/None by default so existing callers are unaffected.
+    `carbon_graph`: the carbon-only graph to search for the principal
+    chain -- defaults to `carbon_adjacency(mol)` (unchanged behavior);
+    `_ether_ketone.py` passes one with a coexisting ether's alkoxy-branch
+    component already removed, mirroring `_thiol.py`'s identical
+    `carbon_graph` parameter (PR #428) and for the same reason: an ether
+    oxygen isn't itself a carbon, so its alkoxy branch would otherwise
+    form a separate component that could wrongly outrank the real
+    ketone-bearing chain in `longest_chains`' global-diameter search."""
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}, **(extra_names or {})}
-    chains = longest_chains(carbon_adjacency(mol))
+    chains = longest_chains(carbon_graph if carbon_graph is not None else carbon_adjacency(mol))
     chain_length = len(chains[0])
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
