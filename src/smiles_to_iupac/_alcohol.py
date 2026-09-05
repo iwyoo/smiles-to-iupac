@@ -203,6 +203,7 @@ from ._common import (
     bfs,
     carbon_adjacency,
     halogen_substituents,
+    plain_methyl_ring_substituents,
     is_plain_benzene_ring,
     lowest_locant_set,
     non_single_bonds,
@@ -1004,12 +1005,13 @@ def _name_phenyl_chain_alcohol(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    halogens = halogen_substituents(mol)
+    halogens = {**halogen_substituents(mol), **plain_methyl_ring_substituents(mol, graph, ring_atoms)}
     attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
     if attachment is None:
         raise UnsupportedStructure(
-            "a benzene ring with more than one non-halogen exocyclic "
-            "substituent alongside a chain alcohol is not supported yet"
+            "a benzene ring with more than one non-halogen, non-methyl "
+            "exocyclic substituent alongside a chain alcohol is not "
+            "supported yet"
         )
     ring_atom, chain_root = attachment
     if chain_root in hydroxyls:

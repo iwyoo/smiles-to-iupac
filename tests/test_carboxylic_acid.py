@@ -145,12 +145,11 @@ def test_phenyl_substituent_carboxylic_acid_directly_on_ring_is_benzoic_acid():
     assert smiles_to_iupac("c1ccccc1C(=O)O") == "benzoic acid"
 
 
-def test_phenyl_substituent_carboxylic_acid_substituted_ring_raises():
-    # A substituted benzene ring (more than one exocyclic attachment) is
-    # out of scope for this first slice -- see
-    # tasks/aromatic-ring-substituent-parent-selection.md.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC(=O)O")
+def test_phenyl_substituent_carboxylic_acid_substituted_ring_ortho_methyl():
+    # A ring methyl substituent is now supported (see
+    # tasks/aromatic-ring-methyl-substituent.md) -- PubChem PUG
+    # REST-verified "2-(2-methylphenyl)acetic acid".
+    assert smiles_to_iupac("Cc1ccccc1CC(=O)O") == "2-(2-methylphenyl)ethanoic acid"
 
 
 def test_phenyl_substituent_carboxylic_acid_naphthalene_raises():
@@ -172,10 +171,25 @@ def test_phenyl_substituent_carboxylic_acid_ring_dihalogen():
     assert smiles_to_iupac("Clc1cc(Cl)ccc1CC(=O)O") == "2-(2,4-dichlorophenyl)ethanoic acid"
 
 
+def test_phenyl_substituent_carboxylic_acid_ring_methyl():
+    # PubChem PUG REST-verified "2-(4-methylphenyl)acetic acid" -- a
+    # plain methyl ring substituent alongside the chain, same
+    # non-halogen-specific mechanism
+    # `ring_chain_attachment_with_halogens`/`halogenated_phenyl_substituent`
+    # already used for halogens.
+    assert smiles_to_iupac("CC1=CC=C(CC(=O)O)C=C1") == "2-(4-methylphenyl)ethanoic acid"
+
+
+def test_phenyl_substituent_carboxylic_acid_ring_halogen_and_methyl():
+    # PubChem "2-(2-chloro-5-methylphenyl)acetic acid" -- halogen and
+    # methyl ring substituents mixed on the same ring.
+    assert smiles_to_iupac("ClC1=CC=C(C)C=C1CC(=O)O") == "2-(2-chloro-5-methylphenyl)ethanoic acid"
+
+
 def test_phenyl_substituent_carboxylic_acid_ring_alkyl_substituent_raises():
-    # A non-halogen ring substituent alongside the chain is still out of
-    # scope -- only plain halogens are handled by this first slice (see
-    # tasks/aromatic-ring-multisubstituent-suffix.md).
+    # A non-halogen, non-methyl ring substituent alongside the chain is
+    # still out of scope -- only plain halogens and a plain methyl are
+    # handled so far (see tasks/aromatic-ring-methyl-substituent.md).
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC(C)Cc1ccc(C(C)C(=O)O)cc1")
 
