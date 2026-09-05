@@ -165,3 +165,41 @@ def test_phenyl_substituted_benzene_ring_hydrazide_raises():
 def test_phenyl_chain_hydrazide_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CC(=O)NN")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Symmetric diacylhydrazide (P-66.3.3.3), PubChem PUG REST
+        # cross-checked: 'N'-acetylacetohydrazide' (CID 72884, both sides
+        # the dinuclear retained name) and 'N'-propanoylpropanehydrazide'
+        # (CID 73715, both sides a systematic three-carbon chain).
+        ("CC(=O)NNC(=O)C", "N'-acetylacetohydrazide"),
+        ("CCC(=O)NNC(=O)CC", "N'-propanoylpropanehydrazide"),
+    ],
+)
+def test_symmetric_diacyl_hydrazide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_diacyl_hydrazide_formyl():
+    # Mononuclear retained name on both sides.
+    assert smiles_to_iupac("O=CNNC=O") == "N'-formylformohydrazide"
+
+
+def test_asymmetric_diacyl_hydrazide_raises():
+    # The two acyl groups name differently -- deciding which is senior
+    # needs Table 3.3/4.4 acid-seniority handling, out of scope here
+    # (mirrors `_imide.py`'s identical symmetric-only restriction).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=O)NNC(=O)CC")
+
+
+def test_diacyl_hydrazide_aromatic_acyl_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=O)NNC(=O)c1ccccc1")
+
+
+def test_diacyl_hydrazide_branched_acyl_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(C)C(=O)NNC(=O)C(C)C")
