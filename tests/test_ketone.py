@@ -290,12 +290,40 @@ def test_seven_membered_1_3_ring_ketone_second_ketone_on_far_arc_raises():
         smiles_to_iupac("O=C1NC(=O)CCCN1")
 
 
-def test_seven_membered_1_2_ring_ketone_raises():
-    # A 1,2- (directly bonded) relationship on a 7-membered ring is out of
-    # scope for this shape -- falls through to whatever other module (if
-    # any) matches instead.
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # 1,2-related (directly bonded) two-heteroatom 7-membered
+        # saturated ring, one of the six retained/systematic-name shapes
+        # (1,2-diazepane/1,2-oxazepane/1,2-thiazepane/1,2-dioxepane/
+        # 1,2-oxathiepane/1,2-dithiepane) -- PubChem-verified by
+        # connectivity (its own computed name drops the '1,2-' locant for
+        # all six pairs, contradicted by the same P-22.2.2.1.7/stem-clash
+        # evidence already used for the unsubstituted parent names, so
+        # '1,2-' is kept here too). The sole ketone always sits on the
+        # ring carbon immediately after the second heteroatom (locant 3).
+        ("N1NC(=O)CCCC1", "1,2-diazepan-3-one"),
+        ("O1NC(=O)CCCC1", "1,2-oxazepan-3-one"),
+        ("S1NC(=O)CCCC1", "1,2-thiazepan-3-one"),
+        ("O1OC(=O)CCCC1", "1,2-dioxepan-3-one"),
+        ("O1SC(=O)CCCC1", "1,2-oxathiepan-3-one"),
+        ("S1SC(=O)CCCC1", "1,2-dithiepan-3-one"),
+    ],
+)
+def test_seven_membered_1_2_ring_ketone_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_seven_membered_1_2_ring_ketone_second_ketone_on_far_arc_raises():
+    # A second ketone anywhere on the 4-carbon far arc is out of scope --
+    # no PubChem-registered example was found to confirm its locant.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CCCCNN1")
+        smiles_to_iupac("N1NC(=O)CCC(=O)C1")
+
+
+def test_seven_membered_1_2_ring_ketone_wrong_element_pair_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1CCCC[Se]N1")
 
 
 @pytest.mark.parametrize(

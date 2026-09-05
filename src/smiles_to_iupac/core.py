@@ -96,6 +96,7 @@ from ._ketone import (
     has_five_membered_1_2_ring_ketone_shape,
     has_five_membered_1_3_ring_ketone_shape,
     has_hetero_ring_ketone_shape,
+    has_seven_membered_1_2_ring_ketone_shape,
     has_seven_membered_1_3_ring_ketone_shape,
     name_ketone,
 )
@@ -660,6 +661,14 @@ def smiles_to_iupac(smiles: str) -> str:
         # depending on the element pair instead, but the collision-safety
         # argument is identical.
         if has_five_membered_1_2_ring_ketone_shape(mol):
+            return name_ketone(mol)
+        # Same reasoning for the 7-membered 1,2-related shape (e.g.
+        # 1,2-diazepan-3-one) -- the collision-safety argument is
+        # identical, and empirically this shape falls all the way through
+        # to the generic aldehyde/ketone fallback further below (misnamed
+        # as an aldehyde, or rejected by its heteroatom check) if not
+        # claimed here first.
+        if has_seven_membered_1_2_ring_ketone_shape(mol):
             return name_ketone(mol)
         # An alkoxide anion (R-O(-), P-72.2.2.2.2) has a formal-charge -1
         # oxygen none of the neutral-oxygen checks below (or `name_alcohol`'s
