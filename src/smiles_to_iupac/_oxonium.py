@@ -1,5 +1,6 @@
 """Naming of simple oxonium cations (the '-oxidanium' suffix,
-P-73.1.1.2), per the IUPAC 2013 Recommendations ("the Blue Book"):
+P-73.1.1.2, bearing 0-3 unbranched, saturated alkyl and/or plain phenyl
+substituents), per the IUPAC 2013 Recommendations ("the Blue Book"):
 
 - P-73.1.1.2 (Chapter P-7, https://iupac.qmul.ac.uk/BlueBook/PDF/P7.pdf):
   a cation formed by adding a hydron to a parent hydride is named by
@@ -24,10 +25,22 @@ P-73.1.1.2), per the IUPAC 2013 Recommendations ("the Blue Book"):
   prefix formatting (`format_mononuclear_prefixes`, P-16.5.1.3.1's
   parenthesization rule) are lifted directly from `_phosphane.py`/
   `_sulfonium.py`.
+- A plain, unsubstituted benzene ring bonded directly to the oxonium
+  oxygen is cited as a 'phenyl' substituent, mixed freely with alkyl
+  substituents -- confirmed via PubChem PUG REST: `c1ccccc1[OH2+]` ->
+  "phenyloxidanium" (CID 5152889),
+  `c1ccccc1[O+](c1ccccc1)c1ccccc1` -> "triphenyloxidanium" (CID
+  3474029). Mirrors `_sulfonium.py`'s identical extension (PR #399);
+  the oxonium cation's own valence of 3 never triggers a
+  lambda-convention label. Detection reuses the same
+  `_plain_phenyl_substituent_atoms` pattern (`is_plain_benzene_ring` +
+  `ring_chain_attachment`).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- A branched, unsaturated, or aromatic substituent, or any ring anywhere
-  in the molecule (mirrors `_phosphane.py`'s own scope).
+- A branched or unsaturated substituent, or an aromatic substituent other
+  than a plain, unsubstituted phenyl (a substituted or heteroaromatic
+  ring, e.g.), or a ring other than a plain phenyl substituent directly
+  on oxygen.
 - A halogen substituent directly on oxygen (unverified for this cation,
   unlike `_phosphane.py`'s own confirmed halophosphane case).
 - Any oxonium oxygen not shaped like OH3+ or an oxygen bonded to 1-3
@@ -37,9 +50,36 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, linear_branch, non_single_bonds
+from ._common import (
+    UnsupportedStructure,
+    adjacency,
+    is_plain_benzene_ring,
+    linear_branch,
+    non_single_bonds,
+    ring_chain_attachment,
+)
 from ._numerals import alkyl_name
 from ._substituents import format_mononuclear_prefixes
+
+
+def _plain_phenyl_substituent_atoms(mol, graph, roots):
+    """Union of ring atoms for every plain, unsubstituted benzene ring in
+    `mol` that hangs directly off one of `roots` (the oxonium oxygen's
+    own substituent neighbors) with no other exocyclic attachment -- i.e.
+    a lone 'phenyl' substituent directly on oxygen. Mirrors
+    `_sulfonium.py`'s identical helper."""
+    atoms = set()
+    for ring in mol.GetRingInfo().AtomRings():
+        ring_atoms = set(ring)
+        if not is_plain_benzene_ring(mol, ring_atoms):
+            continue
+        attachment = ring_chain_attachment(graph, ring_atoms, set())
+        if attachment is None:
+            continue
+        ring_atom, _ = attachment
+        if ring_atom in roots:
+            atoms |= ring_atoms
+    return atoms
 
 
 def has_oxonium_shape(mol) -> bool:
@@ -93,6 +133,10 @@ def name_oxonium(mol) -> str:
     ):
         raise UnsupportedStructure("the oxonium oxygen must be singly bonded to each substituent")
 
+    graph = adjacency(mol)
+    roots = set(graph[oxygen.GetIdx()])
+    phenyl_atoms = _plain_phenyl_substituent_atoms(mol, graph, roots)
+
     other_atoms = [atom for atom in mol.GetAtoms() if atom.GetIdx() != oxygen.GetIdx()]
     for atom in other_atoms:
         if atom.GetAtomicNum() != 6:
@@ -102,16 +146,28 @@ def name_oxonium(mol) -> str:
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetIsAromatic():
-            raise UnsupportedStructure("an aromatic substituent (e.g. phenyloxonium) is out of scope")
-    if mol.GetRingInfo().NumRings() != 0:
-        raise UnsupportedStructure("a ring anywhere in the molecule is out of scope for this module")
-    if non_single_bonds(mol):
+        if atom.GetIsAromatic() and atom.GetIdx() not in phenyl_atoms:
+            raise UnsupportedStructure(
+                "an aromatic substituent other than a plain, unsubstituted "
+                "phenyl group is out of scope for this module"
+            )
+    all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
+    if all_ring_atoms - phenyl_atoms:
+        raise UnsupportedStructure(
+            "a ring other than a plain phenyl substituent directly on "
+            "oxygen is out of scope for this module"
+        )
+    non_ring_unsaturation = [
+        b for b in non_single_bonds(mol) if b[0] not in phenyl_atoms and b[1] not in phenyl_atoms
+    ]
+    if non_ring_unsaturation:
         raise UnsupportedStructure("an unsaturated substituent is out of scope for this module")
 
-    graph = adjacency(mol)
     substituent_names = []
-    for root in graph[oxygen.GetIdx()]:
+    for root in roots:
+        if root in phenyl_atoms:
+            substituent_names.append(("phenyl", False))
+            continue
         length = linear_branch(graph, root, oxygen.GetIdx())
         if length is None:
             raise UnsupportedStructure("a branched substituent is out of scope for this module")
