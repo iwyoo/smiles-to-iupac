@@ -238,6 +238,40 @@ def test_two_hetero_ring_ketone_wrong_element_pair_raises():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        # 1,4-related two-heteroatom 7-membered saturated ring, one of the
+        # six retained/systematic-name shapes (1,4-diazepane/1,4-oxazepane/
+        # 1,4-thiazepane/1,4-dioxepane/1,4-oxathiepane/1,4-dithiepane) --
+        # PubChem-verified. Unlike the 6-membered ring, the two arcs
+        # between the heteroatoms differ in length (2 carbons vs. 3), so
+        # only one numbering direction per candidate start actually gives
+        # locant 4 to the other heteroatom.
+        ("C1CNCCNC1=O", "1,4-diazepan-5-one"),
+        ("C1CNCC(=O)NC1", "1,4-diazepan-2-one"),
+        ("C1COCCNC1=O", "1,4-oxazepan-5-one"),
+        ("C1CSCCNC1=O", "1,4-thiazepan-5-one"),
+        ("C1COCC(=O)OC1", "1,4-dioxepan-2-one"),
+        ("C1COC(=O)CSC1", "1,4-oxathiepan-2-one"),
+    ],
+)
+def test_seven_membered_1_4_ring_ketone_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_seven_membered_1_4_ring_ketone_wrong_element_pair_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1CNCC[Se]C1")
+
+
+def test_seven_membered_1_3_ring_ketone_raises():
+    # A 1,3- (not 1,4-) relationship on a 7-membered ring is out of scope
+    # for this shape.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1NCCCCN1")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         # A ketone carbonyl sitting directly between the two heteroatoms of
         # a five-membered 1,3-related saturated ring -- always locant 2,
         # regardless of numbering direction, since it's the only ring atom
