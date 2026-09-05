@@ -226,6 +226,12 @@ def test_phenyl_substituted_benzene_ring_amine_raises():
         smiles_to_iupac("Cc1ccccc1CCN")
 
 
+def test_phenyl_chain_amine_ring_halogen():
+    # PubChem PUG REST computes "3-(4-chlorophenyl)propan-1-amine" for
+    # this structure.
+    assert smiles_to_iupac("Clc1ccc(CCCN)cc1") == "3-(4-chlorophenyl)propan-1-amine"
+
+
 def test_phenyl_chain_amine_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CCN")

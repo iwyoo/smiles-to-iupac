@@ -95,6 +95,12 @@ def test_phenyl_substituted_benzene_ring_thioate_raises():
         smiles_to_iupac("Cc1ccccc1CC(=O)[S-]")
 
 
+def test_phenyl_chain_thioate_ring_halogen():
+    # PubChem PUG REST computes "2-(4-chlorophenyl)ethanethioate" for
+    # this structure.
+    assert smiles_to_iupac("Clc1ccc(CC(=O)[S-])cc1") == "2-(4-chlorophenyl)ethanethioate"
+
+
 def test_phenyl_chain_thioate_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CC(=O)[S-]")
