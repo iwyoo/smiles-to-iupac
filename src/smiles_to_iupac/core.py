@@ -18,6 +18,7 @@ from ._aldehyde_carboxylic_acid import (
 from ._aldehyde_ketone import has_aldehyde_ketone_shape, name_aldehyde_ketone
 from ._acetal import has_acetal_shape, name_acetal
 from ._amide import has_amide_shape, name_amide
+from ._amide_amine import has_amide_amine_shape, name_amide_amine
 from ._hidden_amide_ketone import has_hidden_amide_shape, name_hidden_amide_ketone
 from ._thiourea import has_thiourea_shape, name_thiourea
 from ._selenourea import has_selenourea_shape, name_selenourea
@@ -883,6 +884,13 @@ def smiles_to_iupac(smiles: str) -> str:
             # `_amide.py`'s own "coexisting carbonyl" rejection.
             if has_ketone_amide_shape(mol):
                 return name_ketone_amide(mol)
+            # P-41/Table 3.3: 'amide' also outranks 'amine', so a primary
+            # amide that also carries a separate primary amine names the
+            # amide as the suffix and demotes the amine to an 'amino'
+            # prefix instead of `_amide.py`'s own "coexisting nitrogen"
+            # rejection.
+            if has_amide_amine_shape(mol):
+                return name_amide_amine(mol)
             return name_amide(mol)
         # A one-H nitrogen bridging two carbonyl carbons (-C(=O)-NH-C(=O)-)
         # is an imide, junior only to the acid/ester/amide suffixes above
