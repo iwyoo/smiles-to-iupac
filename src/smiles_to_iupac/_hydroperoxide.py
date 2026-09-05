@@ -42,8 +42,13 @@ unverified axes. One narrow exception to the "any ring" rule:
 single plain, unsubstituted benzene ring (e.g.
 '2-phenylethaneperoxol'), mirroring `_alcohol.py`/`_thiol.py`'s
 identical benzene-ring-substituent path -- narrower than the acyclic
-path: no chain unsaturation, and a -OOH directly on the ring stays out
-of scope for this module.
+path: no chain unsaturation. The same function also covers the direct
+case, -OOH with no chain at all bonded straight to the ring: unlike
+'phenol' (`_alcohol.py`), P-56.1 has no retained ring-plus-suffix name
+for this, so PubChem confirms benzene stays the parent with '-OOH' as a
+plain 'hydroperoxy' prefix instead -- `OOc1ccccc1` -> "hydroperoxybenzene"
+(same shape as `_nitro.py`'s 'nitrobenzene', not a suffix construction).
+A substituted phenyl ring is still out of scope.
 """
 
 from rdkit import Chem
@@ -211,9 +216,9 @@ def _name_phenyl_chain_hydroperoxide(mol, ring_atoms):
     unsubstituted benzene ring -- e.g. 2-phenylethaneperoxol. The ring is
     cited as a 'phenyl' substituent prefix on the chain, which is the
     parent hydride, mirroring `_alcohol.py`'s `_name_phenyl_chain_alcohol`.
-    Narrower than the acyclic path above: no chain unsaturation -- a
-    separate follow-up (see
-    tasks/phenyl-substituent-on-hydroperoxide-chain.md's scope note)."""
+    Narrower than the acyclic path above: no chain unsaturation. Also
+    handles the direct case (-OOH with no chain, bonded straight to the
+    ring) as 'hydroperoxybenzene' -- see module docstring."""
     site, exclude = _validate_and_collect(mol, aromatic_ring_atoms=ring_atoms)
     non_ring_unsaturation = [
         b for b in non_single_bonds(mol) if b[0] not in ring_atoms and b[1] not in ring_atoms
@@ -233,10 +238,11 @@ def _name_phenyl_chain_hydroperoxide(mol, ring_atoms):
         )
     ring_atom, chain_root = attachment
     if chain_root in exclude:
-        raise UnsupportedStructure(
-            "a hydroperoxide directly on the benzene ring uses a separate "
-            "construction, out of scope for this chain-parent module"
-        )
+        # P-56.1 has no retained ring-plus-suffix name the way `_alcohol.py`'s
+        # 'phenol' does for -OH; PubChem confirms benzene stays the parent
+        # with '-OOH' cited as a plain 'hydroperoxy' prefix instead (same
+        # shape as `_nitro.py`'s 'nitrobenzene', not a suffix construction).
+        return "hydroperoxybenzene"
     chain = ordered_chain(graph, chain_root, ring_atom, exclude)
     if chain is None:
         raise UnsupportedStructure(
