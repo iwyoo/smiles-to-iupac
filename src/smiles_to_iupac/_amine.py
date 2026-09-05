@@ -87,6 +87,7 @@ from ._common import (
     ordered_chain,
     path_between,
     ring_chain_attachment,
+    ring_chain_attachment_with_halogens,
     specified_stereocenters,
 )
 from ._numerals import alkane_name, alkyl_name, multiplying_prefix, numerical_term
@@ -750,11 +751,12 @@ def _name_phenyl_chain_amine(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    halogens = halogen_substituents(mol)
+    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
     if attachment is None:
         raise UnsupportedStructure(
-            "a benzene ring with more than one exocyclic substituent "
-            "alongside a chain amine is not supported yet"
+            "a benzene ring with more than one non-halogen exocyclic "
+            "substituent alongside a chain amine is not supported yet"
         )
     ring_atom, chain_root = attachment
     chain = ordered_chain(graph, chain_root, ring_atom, amines)
@@ -771,7 +773,6 @@ def _name_phenyl_chain_amine(mol, ring_atoms):
             "benzene ring is not supported yet"
         )
 
-    halogens = halogen_substituents(mol)
     chain_length = len(chain)
     best_key = None
     best_name = None
