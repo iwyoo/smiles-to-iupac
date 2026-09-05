@@ -643,7 +643,9 @@ def name_thiol(mol) -> str:
     return _name_acyclic_thiol(mol, thiols, bonds, stereo)
 
 
-def _name_acyclic_thiol(mol, thiols, bonds, stereo=None, extra_names=None, required_atoms=frozenset()):
+def _name_acyclic_thiol(
+    mol, thiols, bonds, stereo=None, extra_names=None, required_atoms=frozenset(), carbon_graph=None
+):
     """`extra_names`: optional {atom_idx -> prefix name} for a coexisting
     characteristic group demoted to a substituent prefix by
     `_seniority.senior_class` (e.g. a demoted amine's 'amino'), reused by
@@ -652,10 +654,16 @@ def _name_acyclic_thiol(mol, thiols, bonds, stereo=None, extra_names=None, requi
     keeps the original halogens-only behavior unchanged. `required_atoms`:
     additional carbon atoms (e.g. every demoted amine's own carbon
     neighbor) that a candidate chain must also carry -- empty by default
-    so existing callers are unaffected."""
+    so existing callers are unaffected. `carbon_graph`: the carbon-only
+    graph to search for the principal chain -- defaults to
+    `carbon_adjacency(mol)` (unchanged behavior); `_ether_thiol.py` passes
+    one with a coexisting ether's alkoxy-branch component already removed,
+    since an ether oxygen (not itself a carbon) would otherwise leave that
+    branch as a separate component that could wrongly outrank the real
+    thiol-bearing chain in `_longest_chains`' global-diameter search."""
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **(extra_names or {})}
-    chains = _longest_chains(carbon_adjacency(mol))
+    chains = _longest_chains(carbon_graph if carbon_graph is not None else carbon_adjacency(mol))
     chain_length = len(chains[0])
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
