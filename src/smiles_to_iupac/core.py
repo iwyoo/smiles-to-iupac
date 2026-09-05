@@ -15,6 +15,7 @@ from ._aldehyde_carboxylic_acid import (
 from ._aldehyde_ketone import has_aldehyde_ketone_shape, name_aldehyde_ketone
 from ._acetal import has_acetal_shape, name_acetal
 from ._amide import has_amide_shape, name_amide
+from ._hidden_amide_ketone import has_hidden_amide_shape, name_hidden_amide_ketone
 from ._thiourea import has_thiourea_shape, name_thiourea
 from ._selenourea import has_selenourea_shape, name_selenourea
 from ._tellurourea import has_tellurourea_shape, name_tellurourea
@@ -637,6 +638,18 @@ def smiles_to_iupac(smiles: str) -> str:
         return name_tellurourea(mol)
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
+        # An acyl group bonded directly to the nitrogen of an otherwise-
+        # plain saturated monocyclic ring (e.g. 1-acetylpiperidine) is a
+        # P-64.1.2.1(b) 'pseudoketone'/'hidden amide' -- it must be routed
+        # before `has_hetero_ring_ketone_shape` below, which claims any
+        # single-heteroatom saturated ring alongside any oxygen in the
+        # molecule without checking the ring itself actually contains a
+        # ketone (it would otherwise misname this shape's acyl branch as
+        # an "N-alkyl substituent"), and before `has_amide_shape` further
+        # down, whose `name_amide` unconditionally rejects any non-
+        # benzene ring.
+        if has_hidden_amide_shape(mol):
+            return name_hidden_amide_ketone(mol)
         # A ketone carbonyl sitting directly between two ring heteroatoms
         # in a five-membered 1,3-related saturated ring (e.g.
         # 1,3-dioxolan-2-one, imidazolidin-2-one) looks ether-, acetal-,
