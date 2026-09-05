@@ -129,6 +129,33 @@ def ring_chain_attachment(graph, ring_atoms, excluded):
     return ring_atom, branch_roots[0]
 
 
+def ring_chain_attachment_with_halogens(graph, ring_atoms, excluded, halogens):
+    """Like `ring_chain_attachment`, but tolerates the ring's other atoms
+    each carrying a single plain halogen substituent (an exocyclic
+    neighbor found in `halogens`) instead of requiring `ring_atoms` to be
+    completely unsubstituted apart from the one chain -- lets a "phenyl
+    chain" module recognize e.g. 4-chlorophenyl the same way it already
+    recognizes plain phenyl (`name_branch`'s own halogenated-phenyl path
+    then names the ring). Returns (ring_atom, chain_root) for the sole
+    non-halogen exocyclic branch; else None (no such branch, more than one
+    non-halogen branch, or any ring atom with more than one exocyclic
+    neighbor)."""
+    chain_attachment = None
+    for atom in ring_atoms:
+        branch_roots = [n for n in graph[atom] if n not in ring_atoms and n not in excluded]
+        if not branch_roots:
+            continue
+        if len(branch_roots) != 1:
+            return None
+        (branch_root,) = branch_roots
+        if branch_root in halogens:
+            continue
+        if chain_attachment is not None:
+            return None
+        chain_attachment = (atom, branch_root)
+    return chain_attachment
+
+
 def is_plain_benzene_ring(mol, ring_atoms):
     """True if `ring_atoms` is exactly a 6-membered ring of aromatic carbons
     (a plain, unsubstituted-shape benzene ring) -- used by any chain-parent

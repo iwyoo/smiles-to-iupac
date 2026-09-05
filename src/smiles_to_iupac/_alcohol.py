@@ -209,6 +209,7 @@ from ._common import (
     ordered_chain,
     path_between,
     ring_chain_attachment,
+    ring_chain_attachment_with_halogens,
     ring_cycle,
     specified_stereo_elements,
     specified_stereocenters,
@@ -951,16 +952,18 @@ def _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls):
 
 def _name_phenyl_chain_alcohol(mol, ring_atoms):
     """Name an alcohol whose -OH lies entirely on a single unbranched chain
-    hanging off one atom of an otherwise-plain, unsubstituted benzene ring
-    -- e.g. 2-phenylethanol. The ring is cited as a 'phenyl' substituent
-    prefix (via `name_branch`'s aromatic-ring recognition) on the chain,
-    which is the parent hydride, mirroring `_carboxylic_acid.py`'s
+    hanging off one atom of a benzene ring -- e.g. 2-phenylethanol. The
+    ring is cited as a 'phenyl' (or, if the ring's other atoms each carry a
+    single halogen, e.g. '4-chlorophenyl') substituent prefix (via
+    `name_branch`'s aromatic-ring recognition) on the chain, which is the
+    parent hydride, mirroring `_carboxylic_acid.py`'s
     `_name_phenyl_chain_carboxylic_acid` and this module's own
     `_name_ring_substituent_chain_alcohol` for a plain saturated ring.
     Narrower than either: exactly one -OH, no coexisting alkoxy ether, no
-    chain unsaturation, and no specified stereocenter -- each is a separate
-    follow-up (see `tasks/phenyl-substituent-on-alcohol-chain.md`'s scope
-    note) rather than being combined with this first slice."""
+    chain unsaturation, no specified stereocenter, and no non-halogen ring
+    substituent alongside the chain -- each is a separate follow-up (see
+    `tasks/phenyl-substituent-on-alcohol-chain.md`'s scope note) rather
+    than being combined with this first slice."""
     hydroxyls, ethers = _validate_and_collect_hydroxyls(mol, aromatic_ring_atoms=ring_atoms)
     if ethers:
         raise UnsupportedStructure(
@@ -987,11 +990,12 @@ def _name_phenyl_chain_alcohol(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    halogens = halogen_substituents(mol)
+    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
     if attachment is None:
         raise UnsupportedStructure(
-            "a benzene ring with more than one exocyclic substituent "
-            "alongside a chain alcohol is not supported yet"
+            "a benzene ring with more than one non-halogen exocyclic "
+            "substituent alongside a chain alcohol is not supported yet"
         )
     ring_atom, chain_root = attachment
     if chain_root in hydroxyls:
@@ -1016,7 +1020,6 @@ def _name_phenyl_chain_alcohol(mol, ring_atoms):
                 "off the benzene ring is not supported yet"
             )
 
-    halogens = halogen_substituents(mol)
     chain_length = len(chain)
     best_key = None
     best_name = None
