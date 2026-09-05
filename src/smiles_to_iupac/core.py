@@ -189,6 +189,7 @@ from ._selenoic_acid import has_selenoic_acid_shape, name_selenoic_acid
 from ._telluroic_acid import has_telluroic_acid_shape, name_telluroic_acid
 from ._thioic_acid import has_thioic_acid_shape, name_thioic_acid
 from ._thiol import has_thiol_shape, name_thiol
+from ._thiol_amine import has_thiol_amine_shape, name_thiol_amine
 from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
 from ._von_baeyer_heteroatom import (
@@ -1043,6 +1044,13 @@ def smiles_to_iupac(smiles: str) -> str:
         # separately in the oxygen-gated branch above.
         if has_ring_amine_shape(mol):
             return name_ring_amine(mol)
+        # P-41/Table 3.3: '-thiol' (sharing alcohol's rank as a chalcogen
+        # analogue) outranks 'amine', so one or more thiols coexisting with
+        # a primary amine names the thiol as the suffix and demotes the
+        # amine to an 'amino' prefix instead of `name_amine`'s own
+        # "coexisting sulfur" rejection.
+        if has_thiol_amine_shape(mol):
+            return name_thiol_amine(mol)
         return name_amine(mol)
     if has_thione_shape(mol):
         # A thione (C=S, P-64.6.1) has no oxygen or nitrogen, so it only
@@ -1064,10 +1072,9 @@ def smiles_to_iupac(smiles: str) -> str:
         return name_sulfide(mol)
     if has_thiol_shape(mol):
         # A thiol (-SH, P-63.1.1) has neither O nor N, so it only reaches
-        # this branch once both are ruled out above -- this module doesn't
-        # yet handle Table 3.3's alcohol/thiol/amine seniority coexistence,
-        # so a molecule with O or N never reaches here at all (see
-        # _thiol.py's module docstring).
+        # this branch once both are ruled out above (a thiol coexisting
+        # with an amine is instead routed inside the nitrogen-gated branch
+        # above, before its own `name_amine` fallback).
         return name_thiol(mol)
     if has_selone_shape(mol):
         # A selone (C=Se, P-64.6.1) has the same precise-shape reasoning
