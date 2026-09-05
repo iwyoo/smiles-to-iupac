@@ -45,9 +45,34 @@ def test_zero_substituents_raises():
         smiles_to_iupac("O=P")
 
 
-def test_aromatic_substituent_raises():
+def test_single_phenyl_substituent():
+    # The Blue Book's own direct worked example: 'C6H5-P=O' ->
+    # 'phenylphosphanone (PIN)' [explicitly "not oxo(phenyl)phosphane"].
+    assert smiles_to_iupac("O=Pc1ccccc1") == "phenylphosphanone"
+
+
+def test_three_identical_phenyl_substituents_needs_lambda5():
+    # The Blue Book's own direct worked example: '(C6H5)3P=O' ->
+    # 'triphenyl-λ5-phosphanone (PIN)'.
+    assert smiles_to_iupac("O=P(c1ccccc1)(c1ccccc1)c1ccccc1") == "triphenyl-λ5-phosphanone"
+
+
+def test_mixed_alkyl_and_phenyl_substituents():
+    # Not itself a Blue Book worked example, but a direct generalization
+    # of the two confirmed shapes above (mixed substituent identity is
+    # already handled generically by `format_mononuclear_prefixes`).
+    assert smiles_to_iupac("CP(=O)c1ccccc1") == "methyl(phenyl)-λ5-phosphanone"
+
+
+def test_substituted_phenyl_raises():
+    # A substituted ring is not the Blue Book's plain 'phenyl' shape.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=Pc1ccccc1")
+        smiles_to_iupac("O=Pc1ccccc1C")
+
+
+def test_non_aromatic_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=PC1CCCCC1")
 
 
 def test_branched_substituent_raises():
