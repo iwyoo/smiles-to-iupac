@@ -89,6 +89,15 @@ def test_phenyl_substituted_benzene_ring_aminide_raises():
         smiles_to_iupac("Cc1ccccc1CC[NH-]")
 
 
+def test_phenyl_chain_aminide_ring_halogen():
+    # PubChem PUG REST computes "3-(4-chlorophenyl)propylazanide" for this
+    # structure -- a different naming convention (azanide parent +
+    # substituent) than this project's own established 'aminide' suffix
+    # (see the module's own unsubstituted-ring test), so this checks
+    # self-consistency with that convention rather than a PubChem match.
+    assert smiles_to_iupac("Clc1ccc(CCC[NH-])cc1") == "3-(4-chlorophenyl)propan-1-aminide"
+
+
 def test_phenyl_chain_aminide_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CC[NH-]")
