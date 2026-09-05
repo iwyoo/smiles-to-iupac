@@ -5,6 +5,7 @@ from ._acyl_halide import has_acyl_halide_shape, name_acyl_halide
 from ._anhydride import has_anhydride_shape, name_anhydride
 from ._carbamate import has_carbamate_shape, name_carbamate
 from ._alcohol import name_alcohol
+from ._alcohol_amine import has_alcohol_amine_shape, name_alcohol_amine
 from ._alkoxide import has_alkoxide_shape, name_alkoxide
 from ._aldehyde import name_aldehyde
 from ._carboxylic_acid_amine import has_carboxylic_acid_amine_shape, name_carboxylic_acid_amine
@@ -915,6 +916,12 @@ def smiles_to_iupac(smiles: str) -> str:
             if any(_is_aldehyde_shaped(o) for o in carbonyl_oxygens):
                 return name_aldehyde(mol)
             return name_ketone(mol)
+        # P-41/Table 3.3: '-ol' also outranks 'amine', so one or more
+        # hydroxyls coexisting with a primary amine names the alcohol as
+        # the suffix and demotes the amine to an 'amino' prefix instead of
+        # `_alcohol.py`'s own "coexisting nitrogen" rejection.
+        if has_alcohol_amine_shape(mol):
+            return name_alcohol_amine(mol)
         return name_alcohol(mol)
     if any(atom.GetAtomicNum() == 7 for atom in mol.GetAtoms()):
         # An aminide anion (-NH(-), P-72.2.2.2.3) has a formal-charge -1
