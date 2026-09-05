@@ -119,15 +119,22 @@ def test_substituted_benzenesulfonic_acid():
     assert smiles_to_iupac("Cc1ccc(cc1)S(=O)(=O)O") == "4-methylbenzenesulfonic acid"  # CID 6101
 
 
-def test_phenyl_substituted_benzene_ring_sulfonic_acid_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CCS(=O)(=O)O")
+def test_phenyl_substituted_benzene_ring_sulfonic_acid_ortho_methyl():
+    # A ring methyl substituent is now supported (see
+    # tasks/aromatic-ring-methyl-rollout-2.md) -- PubChem PUG
+    # REST-verified "2-(2-methylphenyl)ethanesulfonic acid".
+    assert smiles_to_iupac("Cc1ccccc1CCS(=O)(=O)O") == "2-(2-methylphenyl)ethane-1-sulfonic acid"
 
 
 def test_phenyl_chain_sulfonic_acid_ring_halogen():
     # PubChem PUG REST computes "3-(4-chlorophenyl)propane-1-sulfonic
     # acid" for this structure.
     assert smiles_to_iupac("Clc1ccc(CCCS(=O)(=O)O)cc1") == "3-(4-chlorophenyl)propane-1-sulfonic acid"
+
+
+def test_phenyl_chain_sulfonic_acid_ring_methyl():
+    # PubChem PUG REST-verified "3-(4-methylphenyl)propane-1-sulfonic acid".
+    assert smiles_to_iupac("Cc1ccc(CCCS(=O)(=O)O)cc1") == "3-(4-methylphenyl)propane-1-sulfonic acid"
 
 
 def test_phenyl_chain_sulfonic_acid_unsaturation_raises():
