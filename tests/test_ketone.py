@@ -119,12 +119,11 @@ def test_bicyclic_ketone_raises():
         smiles_to_iupac("O=C1CC2CCC1CC2")
 
 
-def test_ether_raises():
-    # An ether coexisting with a ketone (as opposed to a plain ether on its
-    # own, now handled by the separate ether module) is still out of scope
-    # for this module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCOCC(=O)C")
+def test_ether_now_supported_via_ether_ketone():
+    # A coexisting ether is now handled by `_ether_ketone.py` (P-41: an
+    # ether has no suffix at all, so it's always the 'alkoxy' prefix) --
+    # see tests/test_ether_ketone.py for that module's own coverage.
+    assert smiles_to_iupac("CCOCC(=O)C") == "1-ethoxypropan-2-one"
 
 
 @pytest.mark.parametrize(
