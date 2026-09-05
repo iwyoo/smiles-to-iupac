@@ -104,3 +104,24 @@ def test_cyclic_r_group_not_supported():
 def test_unsaturated_r_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=CCOC(N)=O")
+
+
+def test_methyl_n_phenylcarbamate():
+    # PubChem IUPACName confirmed directly: "methyl N-phenylcarbamate".
+    assert smiles_to_iupac("COC(=O)Nc1ccccc1") == "methyl N-phenylcarbamate"
+
+
+def test_phenyl_r_group_still_not_supported():
+    # The phenyl exception only applies to the amide nitrogen, not R.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NC(=O)Oc1ccccc1")
+
+
+def test_substituted_phenyl_n_substituent_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("COC(=O)Nc1ccc(C)cc1")
+
+
+def test_phenyl_alongside_another_substituent_on_same_nitrogen_not_supported():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("COC(=O)N(C)c1ccccc1")
