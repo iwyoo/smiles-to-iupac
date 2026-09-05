@@ -67,9 +67,19 @@ def test_branched_alcohol_part(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_ring_ester_raises():
+def test_plain_cyclyl_alcohol_ester():
+    # PubChem CID 12146 "cyclohexyl acetate"/CID 70273 "cyclopentyl
+    # acetate"/CID 61375 "cyclohexyl propanoate" -- this project's own
+    # systematic-stem convention gives 'ethanoate' not 'acetate' (see the
+    # module's other tests).
+    assert smiles_to_iupac("CC(=O)OC1CCCCC1") == "cyclohexyl ethanoate"
+    assert smiles_to_iupac("CC(=O)OC1CCCC1") == "cyclopentyl ethanoate"
+    assert smiles_to_iupac("CCC(=O)OC1CCCCC1") == "cyclohexyl propanoate"
+
+
+def test_substituted_cyclyl_alcohol_ester_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)OC1CCCCC1")
+        smiles_to_iupac("CC(=O)OC1CCC(C)CC1")
 
 
 def test_amine_coexisting_raises():

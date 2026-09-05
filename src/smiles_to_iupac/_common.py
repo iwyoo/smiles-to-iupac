@@ -156,6 +156,31 @@ def ring_chain_attachment_with_halogens(graph, ring_atoms, excluded, halogens):
     return chain_attachment
 
 
+def plain_saturated_ring_substituent_atoms(mol, graph, coming_from, root):
+    """Ring atom set if `root` sits on a single plain, unsubstituted,
+    saturated monocyclic ring whose only exocyclic bond is to
+    `coming_from` -- else empty (a ring with a substituent/unsaturation, a
+    polycyclic/spiro shape, or no ring at all). Used by any module naming
+    a plain saturated ring as a substituent attached through one specific
+    neighbor (e.g. `_carbamate.py`'s/`_ester.py`'s ring-on-the-alkoxy-side
+    path) -- `name_branch`'s own `_simple_ring_substituent` already names
+    the ring itself once it's let through the caller's own ring
+    rejection; this only answers whether that shape applies here."""
+    for ring in mol.GetRingInfo().AtomRings():
+        ring_atoms = set(ring)
+        if root not in ring_atoms:
+            continue
+        if any(mol.GetAtomWithIdx(idx).GetIsAromatic() for idx in ring_atoms):
+            continue
+        attachment = ring_chain_attachment(graph, ring_atoms, set())
+        if attachment is None:
+            continue
+        ring_atom, chain_root = attachment
+        if ring_atom == root and chain_root == coming_from:
+            return ring_atoms
+    return set()
+
+
 def is_plain_benzene_ring(mol, ring_atoms):
     """True if `ring_atoms` is exactly a 6-membered ring of aromatic carbons
     (a plain, unsubstituted-shape benzene ring) -- used by any chain-parent
