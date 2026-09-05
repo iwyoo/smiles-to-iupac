@@ -8,6 +8,8 @@ from ._alcohol import name_alcohol
 from ._alcohol_amine import has_alcohol_amine_shape, name_alcohol_amine
 from ._alkoxide import has_alkoxide_shape, name_alkoxide
 from ._aldehyde import name_aldehyde
+from ._aldehyde_amine import has_aldehyde_amine_shape, name_aldehyde_amine
+from ._ketone_amine import has_ketone_amine_shape, name_ketone_amine
 from ._carboxylic_acid_amine import has_carboxylic_acid_amine_shape, name_carboxylic_acid_amine
 from ._aldehyde_carboxylic_acid import (
     has_aldehyde_carboxylic_acid_shape,
@@ -914,6 +916,15 @@ def smiles_to_iupac(smiles: str) -> str:
             # single-shape module would otherwise hit on its own.
             if has_aldehyde_ketone_shape(mol):
                 return name_aldehyde_ketone(mol)
+            # P-41/Table 3.3: 'one'/'al' also outrank 'amine', so a ketone
+            # or aldehyde coexisting with a primary amine names the
+            # carbonyl as the suffix and demotes the amine to an 'amino'
+            # prefix instead of `_ketone.py`'s/`_aldehyde.py`'s own
+            # "coexisting nitrogen" rejection.
+            if has_ketone_amine_shape(mol):
+                return name_ketone_amine(mol)
+            if has_aldehyde_amine_shape(mol):
+                return name_aldehyde_amine(mol)
             if any(_is_aldehyde_shaped(o) for o in carbonyl_oxygens):
                 return name_aldehyde(mol)
             return name_ketone(mol)
