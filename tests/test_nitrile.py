@@ -111,6 +111,18 @@ def test_phenyl_substituted_benzene_ring_nitrile_raises():
         smiles_to_iupac("Cc1ccccc1CC#N")
 
 
+def test_phenyl_chain_nitrile_ring_halogen():
+    # PubChem PUG REST computes "2-(4-chlorophenyl)acetonitrile" for this
+    # structure -- this project's own systematic-stem convention (see
+    # test_carboxylic_acid.py's identical halogenated-ring cases) prefers
+    # 'ethanenitrile' once substituted.
+    assert smiles_to_iupac("N#CCc1ccc(Cl)cc1") == "2-(4-chlorophenyl)ethanenitrile"
+
+
+def test_phenyl_chain_nitrile_ring_dihalogen():
+    assert smiles_to_iupac("Clc1cc(Cl)ccc1CC#N") == "2-(2,4-dichlorophenyl)ethanenitrile"
+
+
 def test_phenyl_chain_nitrile_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CC#N")

@@ -280,6 +280,7 @@ from ._common import (
     non_single_bonds,
     ordered_chain,
     ring_chain_attachment,
+    ring_chain_attachment_with_halogens,
     specified_stereocenters,
 )
 from ._hetero_monocyclic import (
@@ -628,11 +629,12 @@ def _name_phenyl_chain_ketone(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    halogens = halogen_substituents(mol)
+    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
     if attachment is None:
         raise UnsupportedStructure(
-            "a benzene ring with more than one exocyclic substituent "
-            "alongside a chain ketone is not supported yet"
+            "a benzene ring with more than one non-halogen exocyclic "
+            "substituent alongside a chain ketone is not supported yet"
         )
     ring_atom, chain_root = attachment
     chain = ordered_chain(graph, chain_root, ring_atom, ketones)
@@ -656,7 +658,6 @@ def _name_phenyl_chain_ketone(mol, ring_atoms):
         )
 
     chain_length = len(chain)
-    halogens = halogen_substituents(mol)
     best_key = None
     best_name = None
     for candidate in (chain, list(reversed(chain))):
