@@ -307,13 +307,11 @@ def test_ring_with_two_hydroxyls_outcompeted_by_chain():
     assert smiles_to_iupac("OC1C(O)CCC(C(O)C(O)CO)C1") == "1-(3,4-dihydroxycyclohexyl)propane-1,2,3-triol"
 
 
-def test_phenyl_substituted_benzene_ring_raises():
-    # A benzene ring with two exocyclic substituents (here, a methyl and
-    # the -OH chain) is outside this first slice's scope -- only a plain,
-    # unsubstituted benzene ring is supported (see
-    # tasks/phenyl-substituent-on-alcohol-chain.md's scope note).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CCO")
+def test_phenyl_substituted_benzene_ring_ortho_methyl():
+    # A ring methyl substituent is now supported (see
+    # tasks/aromatic-ring-methyl-substituent.md) -- PubChem PUG
+    # REST-verified "2-(2-methylphenyl)ethanol".
+    assert smiles_to_iupac("Cc1ccccc1CCO") == "2-(2-methylphenyl)ethan-1-ol"
 
 
 def test_phenyl_chain_with_second_hydroxyl_raises():
@@ -336,6 +334,13 @@ def test_phenyl_chain_ring_halogen():
 def test_phenyl_chain_ring_dihalogen():
     # PubChem CID 244558 "2-(3,4-dichlorophenyl)ethanol".
     assert smiles_to_iupac("Clc1ccc(cc1Cl)CCO") == "2-(3,4-dichlorophenyl)ethan-1-ol"
+
+
+def test_phenyl_chain_ring_methyl():
+    # PubChem PUG REST-verified "2-(4-methylphenyl)ethanol" -- same
+    # non-halogen-specific mechanism as the halogen cases above, now fed
+    # a plain methyl ring substituent instead.
+    assert smiles_to_iupac("CC1=CC=C(CCO)C=C1") == "2-(4-methylphenyl)ethan-1-ol"
 
 
 def test_substituted_ring_with_chain_hydroxyl_raises():
