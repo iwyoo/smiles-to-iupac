@@ -347,7 +347,16 @@ def _substituents_for_chain(graph, chain, halogens, carboxyl_oxygens):
     return substituents
 
 
-def _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, hydroxyls, bonds, stereo=None):
+def _name_acyclic_carboxylic_acid(
+    mol,
+    carboxyl_carbons,
+    carboxyl_oxygens,
+    hydroxyls,
+    bonds,
+    stereo=None,
+    extra_names=None,
+    required_atoms=frozenset(),
+):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
     include every stereocenter are eligible (P-92: a stereocenter on a
@@ -357,9 +366,23 @@ def _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, hydro
     prefix onto the name, ascending locant order (P-91.3) -- same
     mechanism as `_alcohol.py`, since a -COOH carbon's own fixed C1
     position (see module docstring) already decides numbering before
-    stereo is even considered."""
+    stereo is even considered.
+
+    `extra_names`: optional {atom_idx -> prefix name} for a coexisting
+    characteristic group demoted to a substituent prefix by
+    `_seniority.senior_class` (e.g. a demoted amine's 'amino'), reused by
+    `_coexisting_groups.py` so a pairwise module doesn't have to
+    reimplement this function's chain search/candidate selection. `None`
+    keeps the original hydroxyl-only behavior unchanged. `required_atoms`:
+    additional carbon atoms (e.g. every demoted amine's own carbon
+    neighbor) that a candidate chain must also carry -- empty by default
+    so existing callers are unaffected."""
     graph = adjacency(mol)
-    halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}}
+    halogens = {
+        **halogen_substituents(mol),
+        **{o: "hydroxy" for o in hydroxyls},
+        **(extra_names or {}),
+    }
     chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
     acid_count = len(carboxyl_carbons)
@@ -370,6 +393,8 @@ def _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, hydro
         chain_set = set(chain)
         if not carboxyl_carbons <= chain_set:
             continue
+        if not required_atoms <= chain_set:
+            continue
         if bonds and bond_locants(chain, bonds) is None:
             continue
         if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
@@ -377,7 +402,9 @@ def _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, hydro
         eligible.append(chain)
     if not eligible:
         if stereo is not None and any(
-            carboxyl_carbons <= set(c) and (not bonds or bond_locants(c, bonds) is not None)
+            carboxyl_carbons <= set(c)
+            and required_atoms <= set(c)
+            and (not bonds or bond_locants(c, bonds) is not None)
             for c in chains
         ):
             raise UnsupportedStructure(
