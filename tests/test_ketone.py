@@ -90,12 +90,11 @@ def test_phenyl_substituent_ketone_directly_on_ring_raises():
         smiles_to_iupac("c1ccccc1C(=O)C")
 
 
-def test_phenyl_substituent_ketone_substituted_ring_raises():
-    # A substituted benzene ring (more than one exocyclic attachment) is
-    # out of scope for this first slice -- see
-    # tasks/aromatic-ring-substituent-parent-selection.md.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC(C)=O")
+def test_phenyl_substituent_ketone_substituted_ring_ortho_methyl():
+    # A ring methyl substituent is now supported (see
+    # tasks/aromatic-ring-methyl-rollout.md) -- PubChem PUG
+    # REST-verified "1-(2-methylphenyl)propan-2-one".
+    assert smiles_to_iupac("Cc1ccccc1CC(C)=O") == "1-(2-methylphenyl)propan-2-one"
 
 
 def test_phenyl_substituent_ketone_ring_halogen():
@@ -107,6 +106,11 @@ def test_phenyl_substituent_ketone_ring_halogen():
 
 def test_phenyl_substituent_ketone_ring_dihalogen():
     assert smiles_to_iupac("Clc1cc(Cl)ccc1CC(C)=O") == "1-(2,4-dichlorophenyl)propan-2-one"
+
+
+def test_phenyl_substituent_ketone_ring_methyl():
+    # PubChem PUG REST-verified "1-(4-methylphenyl)propan-2-one".
+    assert smiles_to_iupac("Cc1ccc(CC(C)=O)cc1") == "1-(4-methylphenyl)propan-2-one"
 
 
 def test_phenyl_substituent_ketone_naphthalene_raises():
