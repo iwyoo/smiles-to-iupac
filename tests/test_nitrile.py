@@ -106,9 +106,11 @@ def test_phenyl_directly_attached_nitrile():
     assert smiles_to_iupac("c1ccccc1C#N") == "benzonitrile"
 
 
-def test_phenyl_substituted_benzene_ring_nitrile_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC#N")
+def test_phenyl_substituted_benzene_ring_nitrile_ortho_methyl():
+    # A ring methyl substituent is now supported (see
+    # tasks/aromatic-ring-methyl-rollout.md) -- PubChem PUG
+    # REST-verified "2-(2-methylphenyl)acetonitrile".
+    assert smiles_to_iupac("Cc1ccccc1CC#N") == "2-(2-methylphenyl)ethanenitrile"
 
 
 def test_phenyl_chain_nitrile_ring_halogen():
@@ -121,6 +123,11 @@ def test_phenyl_chain_nitrile_ring_halogen():
 
 def test_phenyl_chain_nitrile_ring_dihalogen():
     assert smiles_to_iupac("Clc1cc(Cl)ccc1CC#N") == "2-(2,4-dichlorophenyl)ethanenitrile"
+
+
+def test_phenyl_chain_nitrile_ring_methyl():
+    # PubChem PUG REST-verified "2-(4-methylphenyl)acetonitrile".
+    assert smiles_to_iupac("Cc1ccc(CC#N)cc1") == "2-(4-methylphenyl)ethanenitrile"
 
 
 def test_phenyl_chain_nitrile_unsaturation_raises():

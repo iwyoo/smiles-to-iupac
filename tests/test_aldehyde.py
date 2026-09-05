@@ -79,9 +79,11 @@ def test_benzaldehyde():
     assert smiles_to_iupac("O=Cc1ccccc1Cl") == "2-chlorobenzaldehyde"
 
 
-def test_phenyl_substituted_benzene_ring_aldehyde_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC=O")
+def test_phenyl_substituted_benzene_ring_aldehyde_ortho_methyl():
+    # A ring methyl substituent is now supported (see
+    # tasks/aromatic-ring-methyl-rollout.md) -- PubChem PUG
+    # REST-verified "2-(2-methylphenyl)acetaldehyde".
+    assert smiles_to_iupac("Cc1ccccc1CC=O") == "2-(2-methylphenyl)ethanal"
 
 
 def test_phenyl_chain_aldehyde_ring_halogen():
@@ -94,6 +96,11 @@ def test_phenyl_chain_aldehyde_ring_halogen():
 
 def test_phenyl_chain_aldehyde_ring_dihalogen():
     assert smiles_to_iupac("Clc1cc(Cl)ccc1CC=O") == "2-(2,4-dichlorophenyl)ethanal"
+
+
+def test_phenyl_chain_aldehyde_ring_methyl():
+    # PubChem PUG REST-verified "2-(4-methylphenyl)acetaldehyde".
+    assert smiles_to_iupac("Cc1ccc(CC=O)cc1") == "2-(4-methylphenyl)ethanal"
 
 
 def test_phenyl_chain_aldehyde_with_hydroxyl_raises():
