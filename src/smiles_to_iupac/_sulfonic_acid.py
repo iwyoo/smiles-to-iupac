@@ -624,7 +624,24 @@ def name_sulfonic_acid(mol) -> str:
             )
         return _name_cyclic_sulfonic_acid(mol, sulfur_idx, so3h_carbon, stereo, bonds)
 
-    halogens = halogen_substituents(mol)
+    return _name_acyclic_sulfonic_acid(mol, sulfur_idx, so3h_carbon, bonds, stereo)
+
+
+def _name_acyclic_sulfonic_acid(
+    mol, sulfur_idx, so3h_carbon, bonds, stereo=None, extra_names=None, required_atoms=frozenset()
+):
+    """`extra_names`: optional {atom_idx -> prefix name} for a coexisting
+    characteristic group demoted to a substituent prefix by
+    `_seniority.senior_class` (e.g. a demoted thiol's 'sulfanyl'), reused
+    by `_coexisting_groups.py` so a pairwise module doesn't have to
+    reimplement this function's chain search/candidate selection. `None`
+    keeps the original halogens-only behavior unchanged. `required_atoms`:
+    carbon atoms (e.g. every demoted thiol's own carbon) that a candidate
+    chain must also carry, mirroring how a plain sulfonic acid always
+    requires just its own carbon -- empty by default so existing callers
+    are unaffected."""
+    graph = adjacency(mol)
+    halogens = {**halogen_substituents(mol), **(extra_names or {})}
     excluded = {sulfur_idx}
     chains = _longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
@@ -632,16 +649,22 @@ def name_sulfonic_acid(mol) -> str:
 
     eligible = []
     for chain in chains:
-        if so3h_carbon not in chain:
+        chain_set = set(chain)
+        if so3h_carbon not in chain_set:
+            continue
+        if not required_atoms <= chain_set:
             continue
         if bonds and _bond_locants(chain, bonds) is None:
             continue
-        if stereo is not None and any(atom not in chain for atom in stereo_atoms):
+        if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
             continue
         eligible.append(chain)
     if not eligible:
         if stereo is not None and any(
-            so3h_carbon in c and (not bonds or _bond_locants(c, bonds) is not None) for c in chains
+            so3h_carbon in c
+            and required_atoms <= set(c)
+            and (not bonds or _bond_locants(c, bonds) is not None)
+            for c in chains
         ):
             raise UnsupportedStructure(
                 "a stereocenter on a substituent branch rather than the "
