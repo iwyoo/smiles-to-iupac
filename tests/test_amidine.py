@@ -105,15 +105,21 @@ def test_phenyl_directly_attached_amidine_raises():
         smiles_to_iupac("c1ccccc1C(=N)N")
 
 
-def test_phenyl_substituted_benzene_ring_amidine_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC(=N)N")
+def test_phenyl_substituted_benzene_ring_amidine_ortho_methyl():
+    # A ring methyl substituent is now supported (see
+    # tasks/aromatic-ring-methyl-rollout-5.md) -- PubChem PUG
+    # REST-verified "2-(2-methylphenyl)ethanimidamide".
+    assert smiles_to_iupac("Cc1ccccc1CC(=N)N") == "2-(2-methylphenyl)ethanimidamide"
 
 
 def test_phenyl_chain_amidine_ring_halogen():
     # PubChem PUG REST computes "3-(4-chlorophenyl)propanimidamide" for
     # this structure.
     assert smiles_to_iupac("Clc1ccc(CCC(=N)N)cc1") == "3-(4-chlorophenyl)propanimidamide"
+
+
+def test_phenyl_chain_amidine_ring_methyl():
+    assert smiles_to_iupac("Cc1ccc(CCC(=N)N)cc1") == "3-(4-methylphenyl)propanimidamide"
 
 
 def test_phenyl_chain_amidine_unsaturation_raises():
