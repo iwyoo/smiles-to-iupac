@@ -114,7 +114,7 @@ from ._common import (
     multiplied_word,
     non_single_bonds,
     ordered_chain,
-    ring_chain_attachment,
+    ring_chain_attachment_with_halogens,
     ring_cycle,
     specified_stereocenters,
 )
@@ -415,14 +415,16 @@ def _name_acyclic_carboxylic_acid(mol, carboxyl_carbons, carboxyl_oxygens, hydro
 
 def _name_phenyl_chain_carboxylic_acid(mol, ring_atoms):
     """Name a carboxylic acid whose -COOH lies entirely on a single
-    unbranched chain hanging off one atom of an otherwise-plain,
-    unsubstituted benzene ring -- e.g. 2-phenylethanoic acid. The ring is
-    cited as a 'phenyl' substituent prefix (via `name_branch`'s aromatic-
-    ring recognition) on the chain, which is the parent hydride, mirroring
-    `_alcohol.py`'s `_name_ring_substituent_chain_alcohol` for a plain
-    saturated ring. Narrower than the acyclic path above: exactly one
-    -COOH, no coexisting standalone hydroxyl, no chain unsaturation, and
-    no specified stereocenter -- each is a separate follow-up (see
+    unbranched chain hanging off one atom of a benzene ring -- e.g.
+    2-phenylethanoic acid. The ring is cited as a 'phenyl' (or, if the
+    ring's other atoms each carry a single halogen, e.g. '4-chlorophenyl')
+    substituent prefix (via `name_branch`'s aromatic-ring recognition) on
+    the chain, which is the parent hydride, mirroring `_alcohol.py`'s
+    `_name_ring_substituent_chain_alcohol` for a plain saturated ring.
+    Narrower than the acyclic path above: exactly one -COOH, no coexisting
+    standalone hydroxyl, no chain unsaturation, no specified stereocenter,
+    and no non-halogen ring substituent alongside the chain -- each is a
+    separate follow-up (see
     `tasks/phenyl-substituent-on-carboxylic-acid-chain.md`'s scope note)
     rather than being combined with the ring case in this first slice."""
     carboxyl_carbons, carboxyl_oxygens, hydroxyls = _validate_and_collect_carboxyls(
@@ -458,11 +460,13 @@ def _name_phenyl_chain_carboxylic_acid(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    halogens = halogen_substituents(mol)
+    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
     if attachment is None:
         raise UnsupportedStructure(
-            "a benzene ring with more than one exocyclic substituent "
-            "alongside a chain carboxylic acid is not supported yet"
+            "a benzene ring with more than one non-halogen exocyclic "
+            "substituent alongside a chain carboxylic acid is not "
+            "supported yet"
         )
     ring_atom, chain_root = attachment
     chain = ordered_chain(graph, chain_root, ring_atom, carboxyl_oxygens)
@@ -488,7 +492,6 @@ def _name_phenyl_chain_carboxylic_acid(mol, ring_atoms):
     ordered = list(reversed(chain))
     chain_length = len(ordered)
     position_of = {atom: i + 1 for i, atom in enumerate(ordered)}
-    halogens = halogen_substituents(mol)
     substituents = {
         position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
     }
