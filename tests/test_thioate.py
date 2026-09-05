@@ -90,15 +90,21 @@ def test_phenyl_directly_attached_thioate_raises():
         smiles_to_iupac("c1ccccc1C(=O)[S-]")
 
 
-def test_phenyl_substituted_benzene_ring_thioate_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC(=O)[S-]")
+def test_phenyl_substituted_benzene_ring_thioate_ortho_methyl():
+    # A ring methyl substituent is now supported (see
+    # tasks/aromatic-ring-methyl-rollout-4.md).
+    assert smiles_to_iupac("Cc1ccccc1CC(=O)[S-]") == "2-(2-methylphenyl)ethanethioate"
 
 
 def test_phenyl_chain_thioate_ring_halogen():
     # PubChem PUG REST computes "2-(4-chlorophenyl)ethanethioate" for
     # this structure.
     assert smiles_to_iupac("Clc1ccc(CC(=O)[S-])cc1") == "2-(4-chlorophenyl)ethanethioate"
+
+
+def test_phenyl_chain_thioate_ring_methyl():
+    # PubChem PUG REST-verified "2-(4-methylphenyl)ethanethioate".
+    assert smiles_to_iupac("Cc1ccc(CC(=O)[S-])cc1") == "2-(4-methylphenyl)ethanethioate"
 
 
 def test_phenyl_chain_thioate_unsaturation_raises():
