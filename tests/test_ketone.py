@@ -262,11 +262,40 @@ def test_seven_membered_1_4_ring_ketone_wrong_element_pair_raises():
         smiles_to_iupac("O=C1CNCC[Se]C1")
 
 
-def test_seven_membered_1_3_ring_ketone_raises():
-    # A 1,3- (not 1,4-) relationship on a 7-membered ring is out of scope
-    # for this shape.
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # 1,3-related two-heteroatom 7-membered saturated ring, one of the
+        # six retained/systematic-name shapes (1,3-diazepane/1,3-oxazepane/
+        # 1,3-thiazepane/1,3-dioxepane/1,3-oxathiepane/1,3-dithiepane) --
+        # PubChem-verified. The sole ketone always sits on the bridging
+        # carbon between the two heteroatoms (locant 2), regardless of
+        # numbering direction, same as the 5-membered 1,3-ring shape.
+        ("C1CCNC(=O)NC1", "1,3-diazepan-2-one"),
+        ("C1CCOC(=O)NC1", "1,3-oxazepan-2-one"),
+        ("C1CCSC(=O)NC1", "1,3-thiazepan-2-one"),
+        ("C1CCOC(=O)OC1", "1,3-dioxepan-2-one"),
+        ("C1CCSC(=O)OC1", "1,3-oxathiepan-2-one"),
+        ("C1CCSC(=O)SC1", "1,3-dithiepan-2-one"),
+    ],
+)
+def test_seven_membered_1_3_ring_ketone_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_seven_membered_1_3_ring_ketone_second_ketone_on_far_arc_raises():
+    # A second ketone anywhere on the 4-carbon far arc is out of scope --
+    # no PubChem-registered example was found to confirm its locant.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1NCCCCN1")
+        smiles_to_iupac("O=C1NC(=O)CCCN1")
+
+
+def test_seven_membered_1_2_ring_ketone_raises():
+    # A 1,2- (directly bonded) relationship on a 7-membered ring is out of
+    # scope for this shape -- falls through to whatever other module (if
+    # any) matches instead.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1CCCCNN1")
 
 
 @pytest.mark.parametrize(
