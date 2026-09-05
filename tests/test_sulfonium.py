@@ -61,3 +61,28 @@ def test_sulfonium_specified_stereocenter_raises():
 
 def test_sulfonium_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("C[S+](CC)CCC") == "ethyl(methyl)(propyl)sulfanium"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem PUG REST confirmed: `c1ccccc1[SH2+]` ->
+        # "phenylsulfanium" (CID 12099100),
+        # `c1ccccc1[S+](c1ccccc1)c1ccccc1` -> "triphenylsulfanium" (CID
+        # 61344). A charged sulfur's cation valence is 3, so three
+        # phenyls never trigger a lambda-convention label.
+        ("c1ccccc1[SH2+]", "phenylsulfanium"),
+        ("c1ccccc1[S+](c1ccccc1)c1ccccc1", "triphenylsulfanium"),
+    ],
+)
+def test_phenyl_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_mixed_alkyl_and_phenyl_substituents():
+    assert smiles_to_iupac("C[S+](C)c1ccccc1") == "dimethyl(phenyl)sulfanium"
+
+
+def test_substituted_phenyl_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1[SH2+]")
