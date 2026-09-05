@@ -37,24 +37,23 @@ acid/thiol not captured by a single longest chain.
 
 from rdkit import Chem
 
+from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    bfs,
-    carbon_adjacency,
     halogen_substituents,
     is_plain_benzene_ring,
     lowest_locant_set,
     non_single_bonds,
     ordered_chain,
-    path_between,
     ring_chain_attachment,
     specified_stereocenters,
 )
 from ._numerals import alkane_name
 from ._seniority import senior_class
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._sulfonic_acid import _name_acyclic_sulfonic_acid
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, 16, *HALOGEN_PREFIXES}
 
@@ -230,26 +229,6 @@ def _candidate_key(chain_length, so3h_locant, substituents):
     return (so3h_locant, locant_set, citation_locants, name), name
 
 
-def _longest_chains(graph):
-    nodes = list(graph)
-    distances = {}
-    parents = {}
-    for node in nodes:
-        dist, parent = bfs(graph, node)
-        distances[node] = dist
-        parents[node] = parent
-
-    diameter = max(d for dist in distances.values() for d in dist.values())
-    chains = []
-    seen = set()
-    for u in nodes:
-        for v, d in distances[u].items():
-            if d == diameter and (v, u) not in seen:
-                seen.add((u, v))
-                chains.append(path_between(parents[u], u, v))
-    return chains
-
-
 def _substituents_for_chain(graph, chain, names, excluded):
     chain_set = set(chain)
     substituents = {}
@@ -371,32 +350,12 @@ def name_sulfonic_acid_thiol(mol) -> str:
         )
 
     graph = adjacency(mol)
-    names = {**halogen_substituents(mol), **{s: "sulfanyl" for s in thiol_idxs}}
-    chains = _longest_chains(carbon_adjacency(mol))
-    chain_length = len(chains[0])
-
     thiol_carbons = {next(iter(graph[s])) for s in thiol_idxs}
-    eligible = [
-        chain
-        for chain in chains
-        if so3h_carbon in chain and thiol_carbons.issubset(set(chain))
-    ]
-    if not eligible:
-        raise UnsupportedStructure(
-            "not every sulfonic acid/thiol-bearing carbon lies on a "
-            "single longest carbon chain; a shorter principal chain is "
-            "not supported yet"
-        )
-
-    excluded = {sulfonic_sulfur_idx}
-    best_key = None
-    best_name = None
-    for chain in eligible:
-        for candidate in (chain, list(reversed(chain))):
-            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
-            so3h_locant = position_of[so3h_carbon]
-            substituents = _substituents_for_chain(graph, candidate, names, excluded)
-            key, name = _candidate_key(chain_length, so3h_locant, substituents)
-            if best_key is None or key < best_key:
-                best_key, best_name = key, name
-    return best_name
+    return name_via_senior_acyclic(
+        _name_acyclic_sulfonic_acid,
+        "sulfonic_acid",
+        "alcohol",
+        (mol, sulfonic_sulfur_idx, so3h_carbon, []),
+        {s: "sulfanyl" for s in thiol_idxs},
+        required_atoms=thiol_carbons,
+    )
