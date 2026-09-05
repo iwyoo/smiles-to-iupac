@@ -454,11 +454,14 @@ def test_unsaturated_ring_alcohol_triple_bond_raises():
         smiles_to_iupac("OC1CCCC#C1")
 
 
-def test_amine_hetero_mix_raises():
-    # A structure with both -OH and a non-halogen heteroatom (N) is rejected
-    # outright by the alcohol module; this module never attempts
-    # suffix-vs-suffix seniority competition (Table 3.3) since only
-    # C/O(-OH)/halogen atoms are accepted at all. (A pure amine, no -OH, is
-    # dispatched to the separate amine module instead — see test_amine.py.)
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCCN")
+def test_amine_hetero_mix_dispatches_to_alcohol_amine():
+    # A structure with both -OH and a primary amine is now handled by the
+    # separate `_alcohol_amine.py` seniority-coexistence module (P-41,
+    # '-ol' outranks 'amine') rather than being rejected here -- see
+    # test_alcohol_amine.py for that module's own coverage. PubChem CID
+    # 700's own IUPACName is '2-aminoethanol' (the retained 'ethanol' stem
+    # kept even when substituted); this module already diverges from that
+    # convention for a substituted ethanol (e.g. '2-ethoxyethan-1-ol'
+    # above), so '_alcohol_amine.py' follows that same pre-existing
+    # convention instead.
+    assert smiles_to_iupac("OCCN") == "2-aminoethan-1-ol"

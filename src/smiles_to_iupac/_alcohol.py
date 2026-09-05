@@ -545,7 +545,9 @@ def _substituents_for_chain(graph, chain, halogens, hydroxyls):
     return substituents
 
 
-def _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo=None, ethers=None):
+def _name_acyclic_alcohol(
+    mol, hydroxyls, bonds, stereo=None, ethers=None, extra_names=None, required_atoms=frozenset()
+):
     """`stereo`: None, or a list of ("atom"/"bond", idx, "R"/"S"/"E"/"Z")
     from `specified_stereo_elements` -- if given, only chain candidates
     that include *every* tetrahedral stereocenter are eligible (P-92: a
@@ -561,9 +563,18 @@ def _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo=None, ethers=None):
     -- merged into `halogens` so `name_branch` resolves each ether oxygen
     directly to its alkoxy prefix name instead of recursing into it (its
     far-side terminal alkyl is already invisible to `carbon_adjacency`,
-    so it never competes for the principal chain)."""
+    so it never competes for the principal chain).
+
+    `extra_names`: optional {atom_idx -> prefix name} for a coexisting
+    characteristic group demoted to a substituent prefix by
+    `_seniority.senior_class` (e.g. a demoted amine's 'amino'), reused by
+    `_coexisting_groups.py` so a pairwise module doesn't have to
+    reimplement this function's chain search/candidate selection.
+    `required_atoms`: additional carbon atoms (e.g. every demoted amine's
+    own carbon neighbor) that a candidate chain must also carry -- both
+    empty/None by default so existing callers are unaffected."""
     graph = adjacency(mol)
-    halogens = {**halogen_substituents(mol), **(ethers or {})}
+    halogens = {**halogen_substituents(mol), **(ethers or {}), **(extra_names or {})}
     chains = _longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
     stereo_atoms = [idx for kind, idx, _ in stereo if kind == "atom"] if stereo is not None else []
@@ -573,6 +584,8 @@ def _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo=None, ethers=None):
         position_of = {atom: i + 1 for i, atom in enumerate(chain)}
         if _oh_locants(position_of, hydroxyls, graph) is None:
             continue
+        if not required_atoms <= set(chain):
+            continue
         if bonds and _bond_locants(chain, bonds) is None:
             continue
         if stereo is not None and any(atom not in chain for atom in stereo_atoms):
@@ -581,6 +594,7 @@ def _name_acyclic_alcohol(mol, hydroxyls, bonds, stereo=None, ethers=None):
     if not eligible:
         if stereo is not None and any(
             _oh_locants({a: i + 1 for i, a in enumerate(c)}, hydroxyls, graph) is not None
+            and required_atoms <= set(c)
             and (not bonds or _bond_locants(c, bonds) is not None)
             for c in chains
         ):
