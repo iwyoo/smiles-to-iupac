@@ -49,6 +49,7 @@ from ._common import (
     non_single_bonds,
     ordered_chain,
     ring_chain_attachment,
+    ring_chain_attachment_with_halogens,
     ENE_BOND_ORDER,
     YNE_BOND_ORDER,
 )
@@ -308,11 +309,12 @@ def _name_phenyl_chain_aminide(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    halogens = halogen_substituents(mol)
+    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
     if attachment is None:
         raise UnsupportedStructure(
-            "a benzene ring with more than one exocyclic substituent "
-            "alongside a chain aminide is not supported yet"
+            "a benzene ring with more than one non-halogen exocyclic "
+            "substituent alongside a chain aminide is not supported yet"
         )
     ring_atom, chain_root = attachment
     nitrogen_idx = nitrogen.GetIdx()
@@ -335,7 +337,6 @@ def _name_phenyl_chain_aminide(mol, ring_atoms):
             "the benzene ring is not supported yet"
         )
 
-    halogens = halogen_substituents(mol)
     chain_length = len(chain)
     best_key = None
     best_name = None
