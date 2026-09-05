@@ -1,5 +1,6 @@
 """Naming of simple phosphanes (PH3 bearing 1-3 unbranched, saturated alkyl
-substituents), per the IUPAC 2013 Recommendations ("the Blue Book"):
+and/or plain phenyl substituents), per the IUPAC 2013 Recommendations
+("the Blue Book"):
 
 - P-68 (Chapter P-6, https://iupac.qmul.ac.uk/BlueBook/PDF/P6.pdf):
   unlike amines (`_amine.py`, where a carbon chain is the parent hydride
@@ -80,6 +81,17 @@ substituents), per the IUPAC 2013 Recommendations ("the Blue Book"):
   Blue Book's own 'ethyldi(propan-2-yl)silane (PIN)' worked example). A
   multiplied compound name mixed with a *different* substituent is out of
   scope (unconfirmed punctuation, see that same docstring).
+- A plain, unsubstituted benzene ring bonded directly to phosphorus is
+  cited as a 'phenyl' substituent, mixed freely with alkyl/halogen
+  substituents -- confirmed via PubChem PUG REST: `c1ccccc1P` ->
+  "phenylphosphane" (CID 12519), `c1ccccc1P(c1ccccc1)c1ccccc1` ->
+  "triphenylphosphane" (CID 11776). Like `_borane.py`'s identical
+  extension and unlike `_phosphanone.py`'s (P=O, PR #395), phosphorus's
+  normal valence here is exactly 3, so three phenyl substituents never
+  trigger a lambda-convention label. Detection reuses the same
+  `_plain_phenyl_substituent_atoms` pattern (`is_plain_benzene_ring` +
+  `ring_chain_attachment`) adapted for phosphorus's own direct-neighbor
+  substituent roots.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any atom other than phosphorus, carbon, hydrogen, and a halogen bonded
@@ -87,8 +99,9 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   other heteroatom in a substituent chain).
 - More than one phosphorus atom (phosphane chains, e.g. diphosphane --
   `_silane_chain.py`-style "chain" nomenclature is a separate problem).
-- An unsaturated substituent, an aromatic substituent (phenylphosphane,
-  etc.), or any ring anywhere in the molecule.
+- An unsaturated substituent, an aromatic substituent other than a plain,
+  unsubstituted phenyl (a substituted or heteroaromatic ring, e.g.), or a
+  ring other than a plain phenyl substituent directly on phosphorus.
 - Charged or isotopically modified atoms.
 """
 
@@ -98,13 +111,37 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
+    is_plain_benzene_ring,
     non_single_bonds,
+    ring_chain_attachment,
 )
 from ._substituents import format_mononuclear_prefixes, name_branch
 
 
 def has_simple_phosphane_shape(mol) -> bool:
     return any(atom.GetAtomicNum() == 15 for atom in mol.GetAtoms())
+
+
+def _plain_phenyl_substituent_atoms(mol, graph, roots):
+    """Union of ring atoms for every plain, unsubstituted benzene ring in
+    `mol` that hangs directly off one of `roots` (the phosphane
+    phosphorus's own substituent neighbors) with no other exocyclic
+    attachment -- i.e. a lone 'phenyl' substituent directly on phosphorus.
+    Mirrors `_borane.py`'s identical helper (itself mirroring
+    `_phosphanone.py`'s/`_carbamate.py`'s), adapted for a plain phosphane
+    in place of boron/phosphanone."""
+    atoms = set()
+    for ring in mol.GetRingInfo().AtomRings():
+        ring_atoms = set(ring)
+        if not is_plain_benzene_ring(mol, ring_atoms):
+            continue
+        attachment = ring_chain_attachment(graph, ring_atoms, set())
+        if attachment is None:
+            continue
+        ring_atom, _ = attachment
+        if ring_atom in roots:
+            atoms |= ring_atoms
+    return atoms
 
 
 def _validate_and_collect_substituents(mol):
@@ -119,6 +156,10 @@ def _validate_and_collect_substituents(mol):
         raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
     if phosphorus.GetDegree() > 3:
         raise UnsupportedStructure("a phosphorus atom with more than three substituents is not a phosphane")
+
+    graph = adjacency(mol)
+    roots = set(graph[phosphorus.GetIdx()])
+    phenyl_atoms = _plain_phenyl_substituent_atoms(mol, graph, roots)
 
     for atom in mol.GetAtoms():
         is_halogen = atom.GetAtomicNum() in HALOGEN_PREFIXES
@@ -137,20 +178,33 @@ def _validate_and_collect_substituents(mol):
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic():
-            raise UnsupportedStructure("an aromatic substituent (e.g. phenylphosphane) is out of scope")
-    if mol.GetRingInfo().NumRings() != 0:
-        raise UnsupportedStructure("a ring anywhere in the molecule is out of scope for this module")
-    if non_single_bonds(mol):
+        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and atom.GetIdx() not in phenyl_atoms:
+            raise UnsupportedStructure(
+                "an aromatic substituent other than a plain, unsubstituted "
+                "phenyl group is out of scope for this module"
+            )
+    all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
+    if all_ring_atoms - phenyl_atoms:
         raise UnsupportedStructure(
-            "an unsaturated substituent is out of scope for this module (see P-68)"
+            "a ring other than a plain phenyl substituent directly on "
+            "phosphorus is out of scope for this module"
+        )
+    non_ring_unsaturation = [
+        b for b in non_single_bonds(mol) if b[0] not in phenyl_atoms and b[1] not in phenyl_atoms
+    ]
+    if non_ring_unsaturation:
+        raise UnsupportedStructure(
+            "an unsaturated substituent is out of scope for this module "
+            "(see P-68)"
         )
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
-    graph = adjacency(mol)
     substituent_names = []
-    for root in graph[phosphorus.GetIdx()]:
+    for root in roots:
+        if root in phenyl_atoms:
+            substituent_names.append(("phenyl", False))
+            continue
         root_atomic_num = mol.GetAtomWithIdx(root).GetAtomicNum()
         if root_atomic_num in HALOGEN_PREFIXES:
             substituent_names.append((HALOGEN_PREFIXES[root_atomic_num], False))
