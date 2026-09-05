@@ -49,3 +49,28 @@ def test_ether_not_confused_with_oxonium():
 
 def test_sulfonium_not_confused_with_oxonium():
     assert smiles_to_iupac("C[SH2+]") == "methylsulfanium"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem PUG REST confirmed: `c1ccccc1[OH2+]` ->
+        # "phenyloxidanium" (CID 5152889),
+        # `c1ccccc1[O+](c1ccccc1)c1ccccc1` -> "triphenyloxidanium" (CID
+        # 3474029). A charged oxygen's cation valence is 3, so three
+        # phenyls never trigger a lambda-convention label.
+        ("c1ccccc1[OH2+]", "phenyloxidanium"),
+        ("c1ccccc1[O+](c1ccccc1)c1ccccc1", "triphenyloxidanium"),
+    ],
+)
+def test_phenyl_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_mixed_alkyl_and_phenyl_substituents():
+    assert smiles_to_iupac("C[O+](C)c1ccccc1") == "dimethyl(phenyl)oxidanium"
+
+
+def test_substituted_phenyl_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1[OH2+]")
