@@ -42,29 +42,51 @@ Recommendations ("the Blue Book"):
   '4-methylthiomorpholine' (CID 523249), 'CN1CCNCC1' ->
   '1-methylpiperazine' (CID 53167).
 
-`core.py` routes to this module from two places: the oxygen-free "any
+- A third path handles a sulfonyl group (P-65.3.1's -SO2- substituent
+  prefix, not the '-sulfonic acid'/'-sulfonamide' suffix) as the ring
+  nitrogen's substituent -- e.g. 'CS(=O)(=O)N1CCCCC1' ->
+  '1-methylsulfonylpiperidine' (PubChem CID 273952). The prefix fuses the
+  R group's own plain substituent name directly with 'sulfonyl' (not the
+  '-ane'-stem acid form, i.e. 'methylsulfonyl' not 'methanesulfonyl'),
+  inheriting R's own compound/parenthesization status unchanged -- e.g.
+  'ClCS(=O)(=O)N1CCCCC1' -> '1-(chloromethylsulfonyl)piperidine' (CID
+  1519936, since 'chloromethyl' is itself a compound substituent name,
+  P-14.3.4.2(a)) but 'CCS(=O)(=O)N1CCCCC1' -> '1-ethylsulfonylpiperidine'
+  (CID 3418537, no parens -- plain 'ethyl' isn't compound). Works
+  uniformly with both the single- and two-heteroatom ring paths above:
+  'CS(=O)(=O)N1CCOCC1' -> '4-methylsulfonylmorpholine' (CID 519344),
+  'CS(=O)(=O)N1CCNCC1' -> '1-methylsulfonylpiperazine' (CID 709161).
+
+`core.py` routes to this module from three places: the oxygen-free "any
 nitrogen" branch (immediately before its final `name_amine` fallback --
 piperidine/pyrrolidine/azepane and the N,N/N,S piperazine/thiomorpholine
-siblings all have no oxygen), and, for the N,O morpholine sibling only
-(which does have an oxygen), the oxygen-gated branch ahead of
-`has_ether_shape` (morpholine's ring oxygen would otherwise look like a
-perfectly ordinary ether oxygen to that check). Never collides with
-`_hidden_amide_ketone.py`'s acyl-on-ring-nitrogen path, which requires
-the substituent's own carbonyl oxygen and is routed separately, earlier
-in the same oxygen-gated branch.
+siblings all have no oxygen when the substituent is plain alkyl); the
+oxygen-gated branch ahead of `has_ether_shape`, for the N,O morpholine
+sibling with a plain-alkyl substituent (morpholine's ring oxygen would
+otherwise look like a perfectly ordinary ether oxygen to that check); and
+-- via the narrower `has_ring_amine_sulfonyl_shape` -- ahead of
+`has_sulfonamide_shape`, near the very start of `core.py`'s dispatch, for
+*any* ring shape with a sulfonyl substituent (which brings its own
+oxygen along regardless of ring type, and would otherwise be misclaimed
+by that earlier, ring-unaware check). Never collides with
+`_hidden_amide_ketone.py`'s acyl-on-ring-nitrogen path -- that module's
+shape requires the substituent's own carbonyl oxygen and is routed
+separately, and `has_ring_amine_sulfonyl_shape`'s extra sulfonyl check
+(unlike the plain `has_ring_amine_shape`) never matches an acyl
+substituent, so it's safe to route this one so early.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - A ring nitrogen with zero substituents (the plain unsubstituted ring
   itself, already named elsewhere) or more than one (structurally
   impossible for a neutral trivalent ring nitrogen with two ring bonds
   anyway).
-- A sulfonyl (or any other oxygen-bearing) N-substituent (e.g.
-  'CS(=O)(=O)N1CCCCC1', PubChem's own '1-methylsulfonylpiperidine') --
-  `name_branch` doesn't recognize a sulfonyl-rooted substituent at all
-  yet; a separate follow-up (overlaps the "sulfone combined with other
-  groups" real-data domain).
 - An acyl N-substituent -- handled by `_hidden_amide_ketone.py` instead
-  (routed earlier, in the oxygen-gated branch).
+  (routed earlier).
+- An aromatic-R or acyl-R sulfonyl N-substituent, or any other
+  oxygen-bearing N-substituent (sulfinyl, phosphoryl, ...) -- a plain
+  alkyl/halogenated/cyclic-R sulfonyl group is supported (see the
+  P-65.3.1 note above), but that's the only oxygen-bearing shape this
+  module recognizes so far.
 - An aromatic N-substituent, a heteroatom other than N/O/S, a ring size
   other than 5/6/7 (single-heteroatom path) or other than 6
   (two-heteroatom path, `saturated_two_heteroatom_1_4_ring_name`'s own
@@ -232,19 +254,70 @@ def has_ring_amine_shape(mol) -> bool:
     return _ring_amine_shape(mol) is not None or _two_hetero_ring_amine_shape(mol) is not None
 
 
+def has_ring_amine_sulfonyl_shape(mol) -> bool:
+    """True if `mol` fits `_ring_amine_shape`/`_two_hetero_ring_amine_shape`
+    *and* the ring nitrogen's one substituent is specifically a sulfonyl
+    group. Exposed separately (narrower than `has_ring_amine_shape`) so
+    `core.py` can route it ahead of `has_sulfonamide_shape` -- which would
+    otherwise misclaim this exact shape (a sulfonyl group on a plain ring
+    nitrogen looks like an ordinary, but ring-unaware, sulfonamide to that
+    check) -- without also preempting `_hidden_amide_ketone.py`'s
+    acyl-on-ring-nitrogen shape, which `has_ring_amine_shape` alone can't
+    distinguish from any other single N-substituent (it only checks that
+    exactly one exists, not what it is)."""
+    shape = _ring_amine_shape(mol)
+    if shape is not None:
+        n_idx, _, root = shape
+        return _sulfonyl_root_shape(mol, root, n_idx) is not None
+    shape2 = _two_hetero_ring_amine_shape(mol)
+    if shape2 is not None:
+        n_idx, _, root, _, _ = shape2
+        return _sulfonyl_root_shape(mol, root, n_idx) is not None
+    return False
+
+
+def _sulfonyl_root_shape(mol, root, n_idx):
+    """(r_carbon_idx, {oxygen_idx, oxygen_idx}) if `root` is a sulfonyl
+    sulfur (P-65.3.1's -SO2- group: two double-bonded, monovalent oxygens
+    plus exactly one carbon neighbor besides the ring nitrogen) -- else
+    None."""
+    atom = mol.GetAtomWithIdx(root)
+    if atom.GetAtomicNum() != 16 or atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+        return None
+    if mol.GetBondBetweenAtoms(root, n_idx).GetBondTypeAsDouble() != 1.0:
+        return None
+    neighbors = [n for n in atom.GetNeighbors() if n.GetIdx() != n_idx]
+    oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
+    carbons = [n for n in neighbors if n.GetAtomicNum() == 6]
+    if len(oxygens) != 2 or len(carbons) != 1:
+        return None
+    if any(
+        o.GetDegree() != 1 or mol.GetBondBetweenAtoms(root, o.GetIdx()).GetBondTypeAsDouble() != 2.0
+        for o in oxygens
+    ):
+        return None
+    (r_carbon,) = carbons
+    if mol.GetBondBetweenAtoms(root, r_carbon.GetIdx()).GetBondTypeAsDouble() != 1.0:
+        return None
+    return r_carbon.GetIdx(), {o.GetIdx() for o in oxygens}
+
+
 def _validate_and_name_substituent(mol, ring_atoms, n_idx, root):
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
+    sulfonyl = _sulfonyl_root_shape(mol, root, n_idx)
+    extra_allowed = {root, *sulfonyl[1]} if sulfonyl is not None else set()
+
     for atom in mol.GetAtoms():
         idx = atom.GetIdx()
-        if idx in ring_atoms:
+        if idx in ring_atoms or idx in extra_allowed:
             continue
         if atom.GetAtomicNum() not in _ALLOWED_SUBSTITUENT_ATOMIC_NUMS:
             raise UnsupportedStructure(
-                "an N-substituent containing anything other than carbon "
-                "and halogens is not supported yet for this ring-amine "
-                "path"
+                "an N-substituent containing anything other than carbon, "
+                "halogens, and a sulfonyl group is not supported yet for "
+                "this ring-amine path"
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
@@ -258,11 +331,18 @@ def _validate_and_name_substituent(mol, ring_atoms, n_idx, root):
                 "a halogen atom must be a monovalent substituent (P-35.2.1)"
             )
 
-    if any(a not in ring_atoms and b not in ring_atoms for a, b, _ in non_single_bonds(mol)):
+    if any(
+        a not in ring_atoms and b not in ring_atoms and not ({a, b} <= extra_allowed)
+        for a, b, _ in non_single_bonds(mol)
+    ):
         raise UnsupportedStructure("unsaturation in the N-substituent is not supported yet")
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
+    if sulfonyl is not None:
+        r_carbon, _ = sulfonyl
+        r_name, r_is_compound = name_branch(graph, r_carbon, root, halogens)
+        return f"{r_name}sulfonyl", r_is_compound
     return name_branch(graph, root, n_idx, halogens)
 
 

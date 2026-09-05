@@ -25,7 +25,7 @@ from ._guanidine import has_guanidine_shape, name_guanidine
 from ._hydrazide import has_hydrazide_shape, name_hydrazide
 from ._imide import has_imide_shape, name_imide
 from ._amine import name_amine
-from ._ring_amine import has_ring_amine_shape, name_ring_amine
+from ._ring_amine import has_ring_amine_shape, has_ring_amine_sulfonyl_shape, name_ring_amine
 from ._amine_oxide import has_amine_oxide_shape, name_amine_oxide
 from ._aminide import has_aminide_shape, name_aminide
 from ._ammonium import has_ammonium_shape, name_ammonium
@@ -544,6 +544,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # must be routed before the plain "any O atom" branch.
     if has_seleninic_acid_shape(mol):
         return name_seleninic_acid(mol)
+    # A sulfonyl group on a plain saturated ring nitrogen (e.g.
+    # 1-methylsulfonylpiperidine) looks sulfonamide-shaped to
+    # `has_sulfonamide_shape` below, which doesn't know about this
+    # ring-as-parent construction and would misclaim/reject it -- must be
+    # routed here first (narrower than `has_ring_amine_shape` alone, so it
+    # doesn't also preempt `_hidden_amide_ketone.py`'s unrelated
+    # acyl-on-ring-nitrogen shape further down).
+    if has_ring_amine_sulfonyl_shape(mol):
+        return name_ring_amine(mol)
     # A sulfonamide (-SO2NH2, P-65.3.1) has two oxygens on its own sulfur,
     # the same reasoning as sulfonic acid above, plus a nitrogen that would
     # otherwise be mistaken for a plain amine -- so it too must be routed

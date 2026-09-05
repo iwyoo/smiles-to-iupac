@@ -108,3 +108,41 @@ def test_unsaturated_n_substituent_raises():
 def test_substituted_ring_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CN1CCC(C)CC1")
+
+
+def test_methylsulfonylpiperidine():
+    # PubChem CID 273952 "1-methylsulfonylpiperidine".
+    assert smiles_to_iupac("CS(=O)(=O)N1CCCCC1") == "1-methylsulfonylpiperidine"
+
+
+def test_ethylsulfonylpiperidine():
+    # PubChem CID 3418537 "1-ethylsulfonylpiperidine".
+    assert smiles_to_iupac("CCS(=O)(=O)N1CCCCC1") == "1-ethylsulfonylpiperidine"
+
+
+def test_chloromethylsulfonylpiperidine_is_parenthesized():
+    # PubChem CID 1519936 "1-(chloromethylsulfonyl)piperidine" -- the
+    # whole 'Rsulfonyl' group is parenthesized because R ('chloromethyl')
+    # is itself a compound substituent name.
+    assert smiles_to_iupac("ClCS(=O)(=O)N1CCCCC1") == "1-(chloromethylsulfonyl)piperidine"
+
+
+def test_methylsulfonylmorpholine():
+    # PubChem CID 519344 "4-methylsulfonylmorpholine".
+    assert smiles_to_iupac("CS(=O)(=O)N1CCOCC1") == "4-methylsulfonylmorpholine"
+
+
+def test_methylsulfonylpiperazine():
+    # PubChem CID 709161 "1-methylsulfonylpiperazine".
+    assert smiles_to_iupac("CS(=O)(=O)N1CCNCC1") == "1-methylsulfonylpiperazine"
+
+
+def test_methylsulfonylthiomorpholine():
+    # PubChem CID 11309885 "4-methylsulfonylthiomorpholine".
+    assert smiles_to_iupac("CS(=O)(=O)N1CCSCC1") == "4-methylsulfonylthiomorpholine"
+
+
+def test_unrelated_sulfonamide_unaffected():
+    # A plain aromatic sulfonamide (no ring nitrogen at all) is a
+    # different, already-working shape and must still route correctly.
+    assert smiles_to_iupac("NS(=O)(=O)c1ccccc1") == "benzenesulfonamide"
