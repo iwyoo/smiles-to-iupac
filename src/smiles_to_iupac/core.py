@@ -78,6 +78,7 @@ from ._diester_acyloxy import has_diester_shape, name_diester_acyloxy
 from ._ester import has_ester_shape, name_ester
 from ._cyanate import has_cyanate_shape, name_cyanate
 from ._ether import has_ether_shape, name_ether
+from ._ether_amine import has_ether_amine_shape, name_ether_amine
 from ._fullerene import has_fullerene_name, name_fullerene
 from ._androstane import has_androstane_name, name_androstane
 from ._gonane import has_gonane_name, name_gonane
@@ -730,6 +731,13 @@ def smiles_to_iupac(smiles: str) -> str:
         # `_ether.py` would otherwise misname it as a plain ether.
         if has_cyanate_shape(mol):
             return name_cyanate(mol)
+        # An ether coexisting with a separate primary amine (P-41: ether
+        # has no suffix at all, class 41, so it's always the 'alkoxy'
+        # prefix, never competing for parent-hood) must be routed before
+        # `has_ether_shape` below, which would otherwise misname/reject it
+        # via `_ether.py`'s own "coexisting nitrogen" rejection.
+        if has_ether_amine_shape(mol):
+            return name_ether_amine(mol)
         # A plain -O- ether (P-63.2.1) has no suffix, so it must be routed
         # here before the carbonyl/alcohol checks below, none of which
         # accept a degree-2 oxygen at all.
