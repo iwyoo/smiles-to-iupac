@@ -71,6 +71,22 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   carbonyl-adjacent nitrogen can carry at most one alkyl substituent
   (it's already bonded to the carbonyl carbon and the other nitrogen);
   the terminal nitrogen can carry up to two.
+- P-66.3.3.3: a *diacylhydrazide* (R-CO-NH-NH-CO-R', both hydrazide
+  nitrogens bearing no other substituent) is named by keeping the senior
+  acyl group's own hydrazide name as the parent and citing the other as
+  an "N'-<acyl>" prefix, e.g. 'N'-benzoylbenzohydrazide' (not
+  '1,2-dibenzoylhydrazine'). Determining which acyl group is senior
+  needs the general acid-seniority rules (Table 3.3/4.4); this module
+  only handles the *symmetric* case (both acyl groups name identically,
+  so which one plays which role is arbitrary), mirroring `_imide.py`'s
+  identical narrowing for the same reason. Confirmed via PubChem PUG
+  REST: 'N'-acetylacetohydrazide' (`CC(=O)NNC(=O)C`, CID 72884, dinuclear
+  retained-name case on both sides) and 'N'-propanoylpropanehydrazide'
+  (`CCC(=O)NNC(=O)CC`, CID 73715, systematic three-carbon case on both
+  sides). An unsymmetric diacylhydrazide, an acyl group on the
+  carbonyl-adjacent nitrogen instead of the terminal one, and any other
+  substituent alongside either acyl chain (halogen, branching, an
+  aromatic acyl group) are out of scope for this first pass.
 - One narrow exception to the "acyclic-only" scope below:
   `_name_phenyl_chain_hydrazide` names a hydrazide's chain hanging off a
   single plain, unsubstituted benzene ring (e.g. '3-phenylpropanehydrazide',
@@ -150,6 +166,150 @@ def has_hydrazide_shape(mol) -> bool:
             if mol.GetBondBetweenAtoms(n1.GetIdx(), n2.GetIdx()).GetBondTypeAsDouble() == 1.0:
                 return True
     return False
+
+
+def _diacyl_hydrazide_core(mol):
+    """(n1, n2, c1, o1, c2, o2) if the molecule is a plain
+    R-CO-NH-NH-CO-R' diacylhydrazide -- each bridging nitrogen bears
+    exactly one H and no substituent besides its own acyl carbon and the
+    N-N bond (P-66.3.3.3). None otherwise."""
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 7 or atom.GetDegree() != 2 or atom.GetTotalNumHs() != 1:
+            continue
+        neighbors = list(atom.GetNeighbors())
+        carbons = [n for n in neighbors if n.GetAtomicNum() == 6]
+        nitrogens = [n for n in neighbors if n.GetAtomicNum() == 7]
+        if len(carbons) != 1 or len(nitrogens) != 1:
+            continue
+        c1, n2 = carbons[0], nitrogens[0]
+        if not _is_carbonyl_carbon(mol, c1):
+            continue
+        if mol.GetBondBetweenAtoms(atom.GetIdx(), c1.GetIdx()).GetBondTypeAsDouble() != 1.0:
+            continue
+        if mol.GetBondBetweenAtoms(atom.GetIdx(), n2.GetIdx()).GetBondTypeAsDouble() != 1.0:
+            continue
+        if n2.GetDegree() != 2 or n2.GetTotalNumHs() != 1:
+            continue
+        n2_other = [n for n in n2.GetNeighbors() if n.GetIdx() != atom.GetIdx()]
+        if len(n2_other) != 1 or n2_other[0].GetAtomicNum() != 6:
+            continue
+        c2 = n2_other[0]
+        if not _is_carbonyl_carbon(mol, c2):
+            continue
+        if mol.GetBondBetweenAtoms(n2.GetIdx(), c2.GetIdx()).GetBondTypeAsDouble() != 1.0:
+            continue
+
+        def _carbonyl_oxygen(carbon):
+            oxygens = [
+                o
+                for o in carbon.GetNeighbors()
+                if o.GetAtomicNum() == 8
+                and o.GetDegree() == 1
+                and mol.GetBondBetweenAtoms(carbon.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
+            ]
+            return oxygens[0].GetIdx() if len(oxygens) == 1 else None
+
+        o1, o2 = _carbonyl_oxygen(c1), _carbonyl_oxygen(c2)
+        if o1 is None or o2 is None:
+            continue
+        return atom.GetIdx(), n2.GetIdx(), c1.GetIdx(), o1, c2.GetIdx(), o2
+    return None
+
+
+def has_diacyl_hydrazide_shape(mol) -> bool:
+    return _diacyl_hydrazide_core(mol) is not None
+
+
+def _validate_and_collect_diacyl_hydrazide(mol):
+    n1, n2, c1, o1, c2, o2 = _diacyl_hydrazide_core(mol)
+    core_atoms = {n1, n2, o1, o2}
+
+    for atom in mol.GetAtoms():
+        atomic_num = atom.GetAtomicNum()
+        if atomic_num not in (6, 7, 8):
+            raise UnsupportedStructure(
+                "heteroatoms other than a diacylhydrazide's own two "
+                "bridging nitrogens and carbonyl oxygens (P-66.3.3.3) are "
+                "out of scope for this module"
+            )
+        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+        if atomic_num == 6:
+            if atom.GetIsAromatic():
+                raise UnsupportedStructure(
+                    "an aromatic acyl group (e.g. benzoyl) is out of scope "
+                    "for this module"
+                )
+        elif atomic_num == 7:
+            if atom.GetIdx() not in (n1, n2):
+                raise UnsupportedStructure(
+                    "a nitrogen other than the diacylhydrazide's own two "
+                    "bridging nitrogens needs seniority handling not yet "
+                    "implemented here"
+                )
+        elif atomic_num == 8:
+            if atom.GetIdx() not in core_atoms:
+                raise UnsupportedStructure(
+                    "an oxygen other than the diacylhydrazide's own two "
+                    "carbonyl oxygens (e.g. a coexisting hydroxyl or ester) "
+                    "is out of scope for this module"
+                )
+    if mol.GetRingInfo().NumRings() > 0:
+        raise UnsupportedStructure(
+            "a cyclic diacylhydrazide is a structurally different shape "
+            "and out of scope for this module"
+        )
+    if len(non_single_bonds(mol)) != 2:
+        # Exactly the two acyl C=O bonds are always present; anything else
+        # is chain unsaturation, out of scope for this narrow first pass.
+        raise UnsupportedStructure(
+            "chain unsaturation is out of scope for this module"
+        )
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+    for carbon_idx in (c1, c2):
+        carbon_neighbors = [n for n in mol.GetAtomWithIdx(carbon_idx).GetNeighbors() if n.GetAtomicNum() == 6]
+        if len(carbon_neighbors) > 1:
+            raise UnsupportedStructure(
+                "an acyl carbon with more than one carbon neighbor is not "
+                "a valid diacylhydrazide acyl carbon"
+            )
+    return c1, c2
+
+
+def _acyl_chain_length(mol, acyl_carbon):
+    length = linear_branch(carbon_adjacency(mol), acyl_carbon, None)
+    if length is None:
+        raise UnsupportedStructure("a branched acyl chain is out of scope for this module")
+    return length
+
+
+def _diacyl_prefix_name(chain_length):
+    if chain_length == 1:
+        return "formyl"
+    if chain_length == 2:
+        return "acetyl"
+    return alkane_name(chain_length)[:-1] + "oyl"
+
+
+def _diacyl_parent_name(chain_length):
+    if chain_length == 1:
+        return "formohydrazide"
+    if chain_length == 2:
+        return "acetohydrazide"
+    return alkane_name(chain_length) + "hydrazide"
+
+
+def name_diacyl_hydrazide(mol) -> str:
+    c1, c2 = _validate_and_collect_diacyl_hydrazide(mol)
+    length1, length2 = _acyl_chain_length(mol, c1), _acyl_chain_length(mol, c2)
+    if length1 != length2:
+        raise UnsupportedStructure(
+            "an unsymmetric diacylhydrazide (the two acyl groups name "
+            "differently) needs Table 3.3 acid-seniority handling not yet "
+            "implemented here"
+        )
+    return f"N'-{_diacyl_prefix_name(length1)}{_diacyl_parent_name(length2)}"
 
 
 def _validate_and_collect_hydrazide(mol, aromatic_ring_atoms=frozenset()):
@@ -671,6 +831,8 @@ def _name_phenyl_chain_hydrazide(mol, ring_atoms):
 
 
 def name_hydrazide(mol) -> str:
+    if has_diacyl_hydrazide_shape(mol):
+        return name_diacyl_hydrazide(mol)
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
