@@ -67,20 +67,33 @@ Book"):
   structurally different construction, P-65.6.3.3) are all still out of
   scope, deferred to a future pass.
 
+- The alcohol part (R') may likewise be a single, otherwise-unsubstituted,
+  saturated monocyclic ring attached directly to the ester oxygen (e.g.
+  'cyclohexyl ethanoate', PubChem CID 12146's own 'cyclohexyl acetate') --
+  the saturated counterpart of the aryl-ester case above, reusing
+  `name_branch`'s existing plain-ring recognition (`_simple_ring_
+  substituent`, already used by `_alcohol.py`/`_ketone.py`/`_carbamate.py`
+  for the same ring-vs-chain shape) rather than new naming logic. The acyl
+  part again reuses `_name_acyl_part` unchanged for the same
+  opposite-sides-of-the-ester-oxygen reason. A ring bearing its own
+  substituent/unsaturation, or a polycyclic shape, is still out of scope.
+
 Explicitly out of scope (raise `UnsupportedStructure`):
 - More than one ring, or a ring elsewhere in the molecule alongside the
-  aryl-ester alcohol-part ring above; a lone ring on the acyl side (see
-  `_name_phenyl_acyl_ester`) is separately supported, but the two ring
-  paths don't combine, and a ring-embedded lactone (P-65.6.3.3) uses a
-  different naming construction entirely.
+  aryl-ester/cyclyl-ester alcohol-part ring above; a lone ring on the acyl
+  side (see `_name_phenyl_acyl_ester`) is separately supported, but the
+  ring paths don't combine, and a ring-embedded lactone (P-65.6.3.3) uses
+  a different naming construction entirely.
 - More than one ester group (a diester -- see `_diester_acyloxy.py` for a
   narrow, separately-scoped diester axis), or any oxygen that isn't part
   of the single ester's carbonyl/ester-oxygen pair (an ether, alcohol, or
   second carbonyl elsewhere).
-- A substituted, unsaturated, or cyclic (other than the plain-benzene aryl
-  case above) alcohol part (R') — only a plain saturated acyclic alkyl R'
-  (branched or unbranched), or a plain unsubstituted benzene ring, is
-  supported in this first pass.
+- A substituted or unsaturated alcohol part (R'), or a cyclic one other
+  than the plain-benzene aryl case or the plain-saturated-monocyclic
+  cyclyl case above — only a plain saturated acyclic alkyl R' (branched or
+  unbranched), a plain unsubstituted benzene ring, or a plain
+  unsubstituted saturated monocyclic ring, is supported in this first
+  pass.
 - Any other heteroatom (N, S, ...).
 """
 
@@ -104,6 +117,7 @@ from ._common import (
     multiplied_word,
     non_single_bonds,
     ordered_chain,
+    plain_saturated_ring_substituent_atoms,
     ring_chain_attachment,
     specified_stereocenters,
 )
@@ -554,6 +568,26 @@ def _name_phenol_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_oxyg
     return f"phenyl {acyl_name}"
 
 
+def _name_cyclyl_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon):
+    """Name an ester whose alcohol part (R') is a single, otherwise-plain,
+    saturated monocyclic ring attached directly to the ester oxygen (e.g.
+    'cyclohexyl ethanoate', PubChem CID 12146's own 'cyclohexyl acetate',
+    this project's systematic-name convention applied) -- the saturated
+    counterpart of `_name_phenol_ester`'s aromatic case. The acyl part
+    reuses the ordinary acyclic path unchanged (`_name_acyl_part`), same
+    reasoning as `_name_phenol_ester`: the ring and the acyl chain sit on
+    opposite sides of the ester oxygen, so they never share a
+    carbon-adjacency component."""
+    _validate_ester_atoms(mol)
+    graph = adjacency(mol)
+    stereo = specified_stereocenters(mol)
+    acyl_name = _name_acyl_part(
+        mol, acyl_carbon, carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx(), stereo, ring_atoms
+    )
+    alcohol_name, _ = name_branch(graph, alcohol_carbon.GetIdx(), ester_oxygen.GetIdx(), {})
+    return f"{alcohol_name} {acyl_name}"
+
+
 def name_ester(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
@@ -563,6 +597,12 @@ def name_ester(mol) -> str:
             if alcohol_carbon.GetIdx() in ring_atoms:
                 return _name_phenol_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_oxygen)
             return _name_phenyl_acyl_ester(mol, ring_atoms)
+        acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon = _find_ester_group(mol)
+        cyclyl_ring_atoms = plain_saturated_ring_substituent_atoms(
+            mol, adjacency(mol), ester_oxygen.GetIdx(), alcohol_carbon.GetIdx()
+        )
+        if cyclyl_ring_atoms:
+            return _name_cyclyl_ester(mol, cyclyl_ring_atoms, acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon)
     if ring_info.NumRings() > 0:
         raise UnsupportedStructure(
             "a ring-attached ester or lactone uses a different naming "
