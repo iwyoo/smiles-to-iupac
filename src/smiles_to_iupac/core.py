@@ -25,6 +25,7 @@ from ._guanidine import has_guanidine_shape, name_guanidine
 from ._hydrazide import has_hydrazide_shape, name_hydrazide
 from ._imide import has_imide_shape, name_imide
 from ._amine import name_amine
+from ._ring_amine import has_ring_amine_shape, name_ring_amine
 from ._amine_oxide import has_amine_oxide_shape, name_amine_oxide
 from ._aminide import has_aminide_shape, name_aminide
 from ._ammonium import has_ammonium_shape, name_ammonium
@@ -1001,6 +1002,18 @@ def smiles_to_iupac(smiles: str) -> str:
         # check much earlier, before the "any O atom" branch.
         if has_simple_imine_shape(mol):
             return name_imine(mol)
+        # A plain saturated monocyclic amine whose sole ring nitrogen
+        # carries one substituent (e.g. 1-methylpiperidine) has the ring
+        # itself as the parent hydride, unlike every other shape reaching
+        # `name_amine` below (which always treats an acyclic chain as the
+        # parent) -- `name_amine` itself explicitly defers this shape, so
+        # it must be routed here first. Has no oxygen at all (a plain
+        # alkyl/cyclic N-substituent), so this never collides with
+        # `_hidden_amide_ketone.py`'s acyl-on-ring-nitrogen path, which
+        # requires the substituent's own carbonyl oxygen and is routed
+        # separately in the oxygen-gated branch above.
+        if has_ring_amine_shape(mol):
+            return name_ring_amine(mol)
         return name_amine(mol)
     if has_thione_shape(mol):
         # A thione (C=S, P-64.6.1) has no oxygen or nitrogen, so it only
