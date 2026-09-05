@@ -59,9 +59,11 @@ def test_phenyl_chain_hydroperoxide_internal_locant():
     assert smiles_to_iupac("C(c1ccccc1)C(C)OO") == "1-phenylpropane-2-peroxol"
 
 
-def test_phenyl_directly_attached_hydroperoxide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1OO")
+def test_hydroperoxybenzene():
+    # PubChem IUPACName confirmed directly: "hydroperoxybenzene" (no
+    # retained ring-plus-suffix name the way 'phenol' has for -OH; benzene
+    # stays the parent with 'hydroperoxy' as a plain prefix instead).
+    assert smiles_to_iupac("c1ccccc1OO") == "hydroperoxybenzene"
 
 
 def test_phenyl_substituted_benzene_ring_hydroperoxide_raises():
