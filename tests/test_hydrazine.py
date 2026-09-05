@@ -71,9 +71,32 @@ def test_branched_substituent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_aromatic_substituent_raises():
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem PUG REST confirmed: `c1ccccc1NN` -> "phenylhydrazine"
+        # (CID 7516), `c1ccccc1NNc1ccccc1` -> "1,2-diphenylhydrazine"
+        # (CID 31222), `c1ccccc1NNC` -> "1-methyl-2-phenylhydrazine"
+        # (CID 10197813).
+        ("c1ccccc1NN", "phenylhydrazine"),
+        ("c1ccccc1NNc1ccccc1", "1,2-diphenylhydrazine"),
+        ("c1ccccc1NNC", "1-methyl-2-phenylhydrazine"),
+        # A plain saturated ring substituent comes for free from the same
+        # `name_branch` fix, mirroring `_diazene.py`'s identical bonus
+        # (PR #401) -- PubChem PUG REST confirmed: `C1CCCCC1NN` ->
+        # "cyclohexylhydrazine" (CID 80993), `C1CCC(CC1)NNC` ->
+        # "1-cyclohexyl-2-methylhydrazine" (CID 20519791).
+        ("C1CCCCC1NN", "cyclohexylhydrazine"),
+        ("C1CCC(CC1)NNC", "1-cyclohexyl-2-methylhydrazine"),
+    ],
+)
+def test_ring_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_substituted_phenyl_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1NN")
+        smiles_to_iupac("Cc1ccccc1NN")
 
 
 def test_halogen_on_nitrogen_raises():
