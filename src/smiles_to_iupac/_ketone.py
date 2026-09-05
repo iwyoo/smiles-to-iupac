@@ -111,6 +111,21 @@ seniority itself (O > S > N) is confirmed via PubChem's own
 '4-methylmorpholine'/'4-methylthiomorpholine' (N always at locant 4) and
 '1,4-oxathian-3-one' (O at locant 1, S at locant 4).
 
+The 7-membered analogue of this same 1,4-two-heteroatom shape
+(1,4-diazepane/1,4-oxazepane/1,4-thiazepane/1,4-dioxepane/
+1,4-oxathiepane/1,4-dithiepane -- `_hetero_ring_seven_membered_1_4`) is
+handled separately, since its two heteroatom-to-heteroatom arcs differ in
+length (2 carbons vs. 3) rather than being equal as in the 6-membered
+case -- see `_seven_membered_1_4_numbering`. PubChem-confirmed:
+`C1CNCCNC1=O` -> '1,4-diazepan-5-one' (CID 2737264), `C1CNCC(=O)NC1` ->
+'1,4-diazepan-2-one' (CID 13428532), `C1COCCNC1=O` ->
+'1,4-oxazepan-5-one' (CID 7023020), `C1CSCCNC1=O` ->
+'1,4-thiazepan-5-one' (CID 286337), `C1COCC(=O)OC1` ->
+'1,4-dioxepan-2-one' (CID 10219408), `C1COC(=O)CSC1` ->
+'1,4-oxathiepan-2-one' (CID 12391259). The dione form and N-/ring-carbon
+alkyl substituents are not attempted here, unlike the 6-membered case --
+no PubChem-registered example was found to confirm either.
+
 A separate, narrower path handles one or two ketone carbonyls on a
 five-membered 1,3-related saturated ring (N+N/N+O/N+S/O+O/O+S/S+S,
 `_hetero_ring_five_membered_1_3`) -- one carbonyl always sits between the
@@ -233,6 +248,7 @@ from ._hetero_monocyclic import (
     saturated_five_membered_1_2_two_heteroatom_ring_name,
     saturated_five_membered_1_3_two_heteroatom_ring_name,
     saturated_ring_name,
+    saturated_seven_membered_1_4_two_heteroatom_ring_name,
     saturated_two_heteroatom_1_4_ring_name,
 )
 from ._numerals import alkane_name, alkyl_name
@@ -275,6 +291,11 @@ _FIVE_MEMBERED_1_2_RING_ELEMENT_PAIRS = {
     frozenset(("O", "S")),
     frozenset(("S", "S")),
 }
+# Same six N/O/S pairs as the 6-membered 1,4-axis above -- Se/Te stay out of
+# scope for the same reason (no PubChem-registered ketone name to confirm
+# the locant either priority table or numbering direction would pick).
+_SEVEN_MEMBERED_1_4_RING_ELEMENT_PAIRS = _TWO_HETERO_RING_ELEMENT_PAIRS
+_SEVEN_MEMBERED_1_4_RING_SIZE = 7
 
 
 def _validate_and_collect_ketones(mol, aromatic_ring_atoms=frozenset()):
@@ -1010,6 +1031,95 @@ def _name_two_hetero_cyclic_ketone(mol, het1, het2):
     return _hetero_ring_ketone_name(stem, best_locants)
 
 
+def _hetero_ring_seven_membered_1_4(mol):
+    """(het1, het2) ring-atom indices for a saturated, 7-membered,
+    1,4-related two-heteroatom ketone shape (the 1,4-diazepan-2-one/
+    1,4-diazepan-5-one family -- see
+    `_SEVEN_MEMBERED_1_4_RING_ELEMENT_PAIRS`), or None if it doesn't match
+    that shape at all. Unlike the 6-membered 1,4-ring (whose two arcs
+    between the heteroatoms are both length 3, so either numbering
+    direction reaches locant 4), a 7-membered ring's two arcs are length 2
+    and 3 -- only the short (length-2) arc gives a valid '1,4-' numbering,
+    so a heteroatom pair must sit exactly 3 ring bonds apart on one side
+    (equivalently 4 the other way) to qualify at all; see
+    `_seven_membered_1_4_numbering` for how the single valid direction per
+    start is then picked out."""
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() != 1:
+        return None
+    ring_atoms = ring_info.AtomRings()[0]
+    if len(ring_atoms) != _SEVEN_MEMBERED_1_4_RING_SIZE:
+        return None
+    if any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring_atoms):
+        return None
+    heteroatoms = [a for a in ring_atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
+    if len(heteroatoms) != 2:
+        return None
+    het1, het2 = heteroatoms
+    atomic_num1 = mol.GetAtomWithIdx(het1).GetAtomicNum()
+    atomic_num2 = mol.GetAtomWithIdx(het2).GetAtomicNum()
+    if atomic_num1 not in _HETERO_RING_ELEMENTS or atomic_num2 not in _HETERO_RING_ELEMENTS:
+        return None
+    elements = frozenset((_HETERO_RING_ELEMENTS[atomic_num1], _HETERO_RING_ELEMENTS[atomic_num2]))
+    if elements not in _SEVEN_MEMBERED_1_4_RING_ELEMENT_PAIRS:
+        return None
+    graph = adjacency(mol)
+    ring_order = _ring_cycle(graph, list(ring_atoms))
+    diff = abs(ring_order.index(het1) - ring_order.index(het2))
+    if min(diff, _SEVEN_MEMBERED_1_4_RING_SIZE - diff) != _SEVEN_MEMBERED_1_4_RING_SIZE // 2:
+        return None
+    return het1, het2
+
+
+def _seven_membered_1_4_numbering(ring_order, het1, het2, elements_by_atom, ketones, graph):
+    """Lowest ketone locant set for the 7-membered 1,4-two-heteroatom
+    shape. When the two heteroatoms differ, P-22.2.1 element seniority
+    (`_TWO_HETERO_PRIORITY`) fixes the higher-priority one at locant 1;
+    when identical, either may be locant 1, so both are tried. Whichever
+    start is used, only one of the two rotation directions actually lands
+    the other heteroatom on locant 4 (the ring's short arc) -- the other
+    direction would misnumber it to locant 5, contradicting the ring's own
+    '1,4-' name -- so (unlike the symmetric 6-membered case in
+    `_best_one_locants`) there is no free direction choice to minimize the
+    ketone locant against; each start contributes exactly one candidate."""
+    starts = [het1, het2] if elements_by_atom[het1] == elements_by_atom[het2] else [
+        het1 if _TWO_HETERO_PRIORITY[elements_by_atom[het1]] < _TWO_HETERO_PRIORITY[elements_by_atom[het2]] else het2
+    ]
+    best_locants = None
+    for start in starts:
+        other = het2 if start == het1 else het1
+        rotated_start = ring_order.index(start)
+        rotated = ring_order[rotated_start:] + ring_order[:rotated_start]
+        if rotated.index(other) != _SEVEN_MEMBERED_1_4_RING_SIZE // 2:
+            rotated = [rotated[0]] + list(reversed(rotated[1:]))
+        position_of = {atom: i + 1 for i, atom in enumerate(rotated)}
+        one_locants = _one_locants(position_of, ketones, graph)
+        if one_locants is None:
+            raise UnsupportedStructure(
+                "a ketone not on the ring itself (e.g. on a substituent "
+                "branch) is not supported yet"
+            )
+        locant_set = lowest_locant_set(one_locants)
+        if best_locants is None or locant_set < best_locants:
+            best_locants = locant_set
+    return best_locants
+
+
+def _name_seven_membered_1_4_ring_ketone(mol, het1, het2):
+    graph = adjacency(mol)
+    ring_order, ketones, elements_by_atom, _ = _validate_and_collect_hetero_ring_ketone(mol, {het1, het2})
+    stem = saturated_seven_membered_1_4_two_heteroatom_ring_name(
+        (elements_by_atom[het1], elements_by_atom[het2])
+    )
+    if stem is None:
+        raise UnsupportedStructure(
+            "no retained name for this seven-membered two-heteroatom "
+            "saturated ring (P-22.2.1)"
+        )
+    best_locants = _seven_membered_1_4_numbering(ring_order, het1, het2, elements_by_atom, ketones, graph)
+    return _hetero_ring_ketone_name(stem, best_locants)
+
+
 def _hetero_ring_five_membered_1_3(mol):
     """(het1, het2) ring-atom indices for a saturated, 5-membered,
     1,3-related two-heteroatom ketone shape (the imidazolidin-2-one/
@@ -1246,7 +1356,11 @@ def has_hetero_ring_ketone_shape(mol) -> bool:
     both neighboring carbons (e.g. 'O=C1CCC(=O)O1') is itself a cyclic
     anhydride shape, and moving this check any earlier would silently
     reclassify it before `_anhydride.py`'s own explicit ring rejection."""
-    return _hetero_ring_heteroatom(mol) is not None or _hetero_ring_two_heteroatoms(mol) is not None
+    return (
+        _hetero_ring_heteroatom(mol) is not None
+        or _hetero_ring_two_heteroatoms(mol) is not None
+        or _hetero_ring_seven_membered_1_4(mol) is not None
+    )
 
 
 def has_five_membered_1_3_ring_ketone_shape(mol) -> bool:
@@ -1290,6 +1404,9 @@ def name_ketone(mol) -> str:
     two_heteroatoms = _hetero_ring_two_heteroatoms(mol)
     if two_heteroatoms is not None:
         return _name_two_hetero_cyclic_ketone(mol, *two_heteroatoms)
+    seven_membered_1_4 = _hetero_ring_seven_membered_1_4(mol)
+    if seven_membered_1_4 is not None:
+        return _name_seven_membered_1_4_ring_ketone(mol, *seven_membered_1_4)
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
