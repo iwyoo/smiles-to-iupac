@@ -96,6 +96,7 @@ from ._common import (
     adjacency,
     is_plain_benzene_ring,
     non_single_bonds,
+    plain_saturated_ring_substituent_atoms,
     ring_chain_attachment,
 )
 from ._substituents import alpha_sort_key, name_branch
@@ -182,27 +183,6 @@ def _plain_phenyl_substituent_atoms(mol, graph, roots):
     return atoms
 
 
-def _plain_ring_r_atoms(mol, graph, ester_o, alkyl_c):
-    """Ring atom set if `alkyl_c` (R itself) sits on a single plain,
-    unsubstituted, saturated monocyclic ring whose only exocyclic bond is
-    the ester oxygen -- else empty (a ring with a substituent/unsaturation,
-    a polycyclic/spiro shape, or no ring at all falls through to the
-    ordinary rejection in `name_carbamate`)."""
-    for ring in mol.GetRingInfo().AtomRings():
-        ring_atoms = set(ring)
-        if alkyl_c not in ring_atoms:
-            continue
-        if any(mol.GetAtomWithIdx(idx).GetIsAromatic() for idx in ring_atoms):
-            continue
-        attachment = ring_chain_attachment(graph, ring_atoms, set())
-        if attachment is None:
-            continue
-        ring_atom, chain_root = attachment
-        if ring_atom == alkyl_c and chain_root == ester_o:
-            return ring_atoms
-    return set()
-
-
 def name_carbamate(mol) -> str:
     cores = _carbamate_cores(mol)
     if len(cores) != 1:
@@ -219,7 +199,7 @@ def name_carbamate(mol) -> str:
             "a phenyl N-substituent alongside another substituent on the "
             "same nitrogen is not supported yet"
         )
-    ring_r_atoms = _plain_ring_r_atoms(mol, full_graph, ester_o, alkyl_c)
+    ring_r_atoms = plain_saturated_ring_substituent_atoms(mol, full_graph, ester_o, alkyl_c)
 
     if mol.GetRingInfo().NumRings() > 0:
         all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
