@@ -67,6 +67,36 @@ def test_unsaturated_substituent_raises():
         smiles_to_iupac("C=CB")
 
 
-def test_aromatic_substituent_raises():
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified: `c1ccccc1B` -> "phenylborane" (CID 101697465),
+        # `c1ccccc1B(c1ccccc1)c1ccccc1` -> "triphenylborane" (CID 70400).
+        # Unlike `_phosphanone.py`'s identical extension, boron's normal
+        # valence is exactly 3, so three phenyls never trigger a
+        # lambda-convention label.
+        ("c1ccccc1B", "phenylborane"),
+        ("c1ccccc1B(c1ccccc1)c1ccccc1", "triphenylborane"),
+    ],
+)
+def test_phenyl_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_mixed_alkyl_and_phenyl_substituents():
+    # Not itself a Blue Book/PubChem worked example, but a direct
+    # generalization of the two confirmed shapes above (mixed substituent
+    # identity is already handled generically by
+    # `format_mononuclear_prefixes`).
+    assert smiles_to_iupac("CB(c1ccccc1)C") == "dimethyl(phenyl)borane"
+
+
+def test_substituted_phenyl_raises():
+    # A substituted ring is not the plain 'phenyl' shape.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1B")
+        smiles_to_iupac("Cc1ccccc1B")
+
+
+def test_non_aromatic_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1CCCCC1B")
