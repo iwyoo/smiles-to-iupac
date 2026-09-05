@@ -89,7 +89,6 @@ from ._common import (
     non_single_bonds,
     ordered_chain,
     path_between,
-    ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     ring_cycle,
     specified_stereocenters,
@@ -641,7 +640,21 @@ def name_thiol(mol) -> str:
             )
         return _name_cyclic_thiol(mol, thiols, stereo, bonds)
 
-    halogens = halogen_substituents(mol)
+    return _name_acyclic_thiol(mol, thiols, bonds, stereo)
+
+
+def _name_acyclic_thiol(mol, thiols, bonds, stereo=None, extra_names=None, required_atoms=frozenset()):
+    """`extra_names`: optional {atom_idx -> prefix name} for a coexisting
+    characteristic group demoted to a substituent prefix by
+    `_seniority.senior_class` (e.g. a demoted amine's 'amino'), reused by
+    `_coexisting_groups.py` so a pairwise module doesn't have to
+    reimplement this function's chain search/candidate selection. `None`
+    keeps the original halogens-only behavior unchanged. `required_atoms`:
+    additional carbon atoms (e.g. every demoted amine's own carbon
+    neighbor) that a candidate chain must also carry -- empty by default
+    so existing callers are unaffected."""
+    graph = adjacency(mol)
+    halogens = {**halogen_substituents(mol), **(extra_names or {})}
     chains = _longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
@@ -651,15 +664,18 @@ def name_thiol(mol) -> str:
         position_of = {atom: i + 1 for i, atom in enumerate(chain)}
         if _sh_locants(position_of, thiols, graph) is None:
             continue
+        chain_set = set(chain)
+        if not required_atoms <= chain_set:
+            continue
         if bonds and _bond_locants(chain, bonds) is None:
             continue
-        chain_set = set(chain)
         if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
             continue
         eligible.append(chain)
     if not eligible:
         if stereo is not None and any(
             _sh_locants({a: i + 1 for i, a in enumerate(c)}, thiols, graph) is not None
+            and required_atoms <= set(c)
             and (not bonds or _bond_locants(c, bonds) is not None)
             for c in chains
         ):
