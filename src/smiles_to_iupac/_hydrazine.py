@@ -63,6 +63,13 @@ alkyl substituents per nitrogen), per the IUPAC 2013 Recommendations
   `format_substituent_prefixes` (ordinary locant-carrying prefixes, not
   `_phosphane.py`'s special no-locant P-16.5.1.3.1 parenthesization rule,
   which only applies when locants are omitted entirely).
+- A plain, unsubstituted benzene ring bonded directly to a hydrazine
+  nitrogen is cited as a 'phenyl' substituent -- `name_branch`'s own
+  `aromatic_atoms` parameter already recognizes this shape (mirrors
+  `_diazene.py`'s identical fix, PR #401). Confirmed via PubChem PUG
+  REST: `c1ccccc1NN` -> "phenylhydrazine" (CID 7516),
+  `c1ccccc1NNc1ccccc1` -> "1,2-diphenylhydrazine" (CID 31222),
+  `c1ccccc1NNC` -> "1-methyl-2-phenylhydrazine" (CID 10197813).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any atom other than the two hydrazine nitrogens, carbon, hydrogen, and
@@ -70,8 +77,9 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - A halogen bonded directly to a hydrazine nitrogen (a different, more
   complex shape than a plain P-35.2.1 carbon-branch substituent; not
   covered here).
-- An unsaturated substituent, an aromatic substituent, or any ring
-  anywhere in the molecule.
+- An unsaturated substituent, an aromatic substituent other than a plain,
+  unsubstituted phenyl (a substituted or heteroaromatic ring, e.g.), or a
+  ring other than a plain phenyl substituent.
 - Hydrazine derivatives with their own suffix/prefix mechanism: hydrazone
   (P-68.3.1.2.2), azine (P-68.3.1.2.3), semicarbazide (P-68.3.1.2.4),
   hydrazide (R-CO-NH-NH2, P-66.3).
@@ -116,7 +124,7 @@ def has_hydrazine_shape(mol) -> bool:
     return _hydrazine_nitrogens(mol) is not None
 
 
-def _substituent_names(graph, n_idx, other_n_idx, halogens):
+def _substituent_names(graph, n_idx, other_n_idx, halogens, aromatic_atoms):
     names = []
     for root in graph[n_idx]:
         if root == other_n_idx:
@@ -126,7 +134,7 @@ def _substituent_names(graph, n_idx, other_n_idx, halogens):
                 "a halogen bonded directly to a hydrazine nitrogen is out "
                 "of scope for this module (see module docstring)"
             )
-        names.append(name_branch(graph, root, n_idx, halogens))
+        names.append(name_branch(graph, root, n_idx, halogens, aromatic_atoms))
     return names
 
 
@@ -157,6 +165,7 @@ def name_hydrazine(mol) -> str:
         )
     n1, n2 = nitrogens
 
+    aromatic_atoms = frozenset(atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic())
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() not in _ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(
@@ -166,20 +175,19 @@ def name_hydrazine(mol) -> str:
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic():
-            raise UnsupportedStructure("an aromatic substituent is out of scope for this module")
-    if mol.GetRingInfo().NumRings() != 0:
-        raise UnsupportedStructure("a ring anywhere in the molecule is out of scope for this module")
-    if non_single_bonds(mol):
+    n1_idx, n2_idx = n1.GetIdx(), n2.GetIdx()
+    if any(
+        not (a in aromatic_atoms and b in aromatic_atoms)
+        for a, b, _ in non_single_bonds(mol)
+    ):
         raise UnsupportedStructure("an unsaturated substituent is out of scope for this module")
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    n1_idx, n2_idx = n1.GetIdx(), n2.GetIdx()
-    names_n1 = _substituent_names(graph, n1_idx, n2_idx, halogens)
-    names_n2 = _substituent_names(graph, n2_idx, n1_idx, halogens)
+    names_n1 = _substituent_names(graph, n1_idx, n2_idx, halogens, aromatic_atoms)
+    names_n2 = _substituent_names(graph, n2_idx, n1_idx, halogens, aromatic_atoms)
 
     total = len(names_n1) + len(names_n2)
     if total == 0:
