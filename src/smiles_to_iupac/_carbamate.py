@@ -43,8 +43,15 @@ Recommendations ("the Blue Book"):
   A multiplied identical-pair 'di' name is likewise parenthesized when
   compound ('methyl N,N-di(propan-2-yl)carbamate', CID 568417) but not
   when it's a retained name ('methyl N,N-ditert-butylcarbamate', CID
-  12567954). A cyclic/unsaturated N-substituent and ring-attached amide
-  nitrogens are still deferred.
+  12567954). An unsaturated N-substituent, or a ring-bearing one other
+  than a single plain (unsubstituted) benzene ring, is still deferred.
+- A plain benzene ring bonded directly to the amide nitrogen is cited as
+  'phenyl', mirroring `_urea.py`'s identical fix (PR #382 et seq.) --
+  PubChem structure match: `COC(=O)Nc1ccccc1` -> "methyl
+  N-phenylcarbamate" (IUPACName confirmed directly). A *substituted*
+  phenyl ring, a ring on the R (ester-alkoxy) side, or a second
+  substituent sharing the amide nitrogen with the phenyl one is out of
+  scope.
 - P-29.3.2.1: both R's and R''s names are built with `name_branch` (P-29
   PIN style, fixed project-wide by PR #237 -- previously this module
   avoided `name_branch` for exactly this reason, but that blocker no
@@ -59,10 +66,11 @@ Recommendations ("the Blue Book"):
   always needs enclosing marks for a compound name (see above).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- Any ring anywhere in the molecule.
-- An N-substituent that is unsaturated or ring-bearing (a branched but
-  otherwise plain saturated acyclic N-substituent is supported, see
-  above).
+- Any ring anywhere in the molecule other than a single plain,
+  unsubstituted benzene ring bonded directly to the amide nitrogen.
+- An N-substituent that is unsaturated, or ring-bearing other than that
+  same plain benzene-ring case (a branched but otherwise plain saturated
+  acyclic N-substituent is supported, see above).
 - An unsaturated or cyclic R (a branched but otherwise plain saturated
   acyclic R is supported, see above).
 - More than one carbamate group, or any other heteroatom/oxygen not part
@@ -73,7 +81,13 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, non_single_bonds
+from ._common import (
+    UnsupportedStructure,
+    adjacency,
+    is_plain_benzene_ring,
+    non_single_bonds,
+    ring_chain_attachment,
+)
 from ._substituents import alpha_sort_key, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, 8}
@@ -137,12 +151,28 @@ def has_carbamate_shape(mol) -> bool:
     return bool(_carbamate_cores(mol))
 
 
+def _plain_phenyl_substituent_atoms(mol, graph, roots):
+    """Union of ring atoms for every plain, unsubstituted benzene ring in
+    `mol` that hangs directly off one of `roots` (the carbamate amide
+    nitrogen's substituent-carbon neighbors) with no other exocyclic
+    attachment -- i.e. a lone 'phenyl' N-substituent. Mirrors `_urea.py`'s
+    identical helper; deliberately never includes a ring on the R
+    (ester-alkoxy) side, which stays out of scope."""
+    atoms = set()
+    for ring in mol.GetRingInfo().AtomRings():
+        ring_atoms = set(ring)
+        if not is_plain_benzene_ring(mol, ring_atoms):
+            continue
+        attachment = ring_chain_attachment(graph, ring_atoms, set())
+        if attachment is None:
+            continue
+        ring_atom, _ = attachment
+        if ring_atom in roots:
+            atoms |= ring_atoms
+    return atoms
+
+
 def name_carbamate(mol) -> str:
-    if mol.GetRingInfo().NumRings() > 0:
-        raise UnsupportedStructure(
-            "a ring-attached carbamate is out of scope for this "
-            "acyclic-only module"
-        )
     cores = _carbamate_cores(mol)
     if len(cores) != 1:
         raise UnsupportedStructure(
@@ -150,6 +180,23 @@ def name_carbamate(mol) -> str:
             "carbamate groups are not supported yet"
         )
     carbamate_c, carbonyl_o, ester_o, alkyl_c, amide_n, n_alkyl_cs = cores[0]
+
+    full_graph = adjacency(mol)
+    phenyl_atoms = _plain_phenyl_substituent_atoms(mol, full_graph, n_alkyl_cs)
+    if phenyl_atoms and any(c in phenyl_atoms for c in n_alkyl_cs) and len(n_alkyl_cs) > 1:
+        raise UnsupportedStructure(
+            "a phenyl N-substituent alongside another substituent on the "
+            "same nitrogen is not supported yet"
+        )
+
+    if mol.GetRingInfo().NumRings() > 0:
+        all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
+        if all_ring_atoms - phenyl_atoms:
+            raise UnsupportedStructure(
+                "a ring-attached carbamate other than a plain, "
+                "unsubstituted benzene ring on the amide nitrogen is out "
+                "of scope for this module"
+            )
 
     has_carbon = False
     for atom in mol.GetAtoms():
@@ -163,7 +210,7 @@ def name_carbamate(mol) -> str:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in phenyl_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module"
                 )
@@ -187,18 +234,24 @@ def name_carbamate(mol) -> str:
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
-    other_non_single = [b for b in non_single_bonds(mol) if carbamate_c not in (b[0], b[1])]
+    other_non_single = [
+        b
+        for b in non_single_bonds(mol)
+        if carbamate_c not in (b[0], b[1]) and not (b[0] in phenyl_atoms and b[1] in phenyl_atoms)
+    ]
     if other_non_single:
         raise UnsupportedStructure(
             "unsaturation in the R group is not supported yet"
         )
 
-    full_graph = adjacency(mol)
     r_name, _ = name_branch(full_graph, alkyl_c, ester_o, {})
     if not n_alkyl_cs:
         return f"{r_name} carbamate"
 
-    n_entries = [name_branch(full_graph, n_alkyl_c, amide_n, {}) for n_alkyl_c in n_alkyl_cs]
+    aromatic_atoms = frozenset(phenyl_atoms)
+    n_entries = [
+        name_branch(full_graph, n_alkyl_c, amide_n, {}, aromatic_atoms) for n_alkyl_c in n_alkyl_cs
+    ]
 
     if len(n_entries) == 2 and n_entries[0][0] == n_entries[1][0]:
         name, is_compound = n_entries[0]
