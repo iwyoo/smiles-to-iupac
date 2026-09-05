@@ -42,6 +42,28 @@ structurally different heterocyclic-dione shape), and Table 3.3 seniority
 coexistence are future work. Explicitly out of scope (raise
 `UnsupportedStructure`): rings, any chain unsaturation, an N-substituted
 imide nitrogen, and two branches that name differently (unsymmetric).
+
+- One narrow exception to the ring-free scope above (the "aromatic ring
+  substituent" axis, already ported to ~22 other suffix modules, PR
+  #269-#289/#318): a symmetric imide whose *both* acyl chains end in a
+  single plain, unsubstituted benzene ring, mirroring
+  `_hydrazide.py`'s own `_name_phenyl_chain_hydrazide`. Since the module
+  still requires symmetry, a ring on only one branch is never valid (the
+  two branch names would differ) and falls through to the ordinary
+  aromatic-atom rejection above. PubChem PUG REST confirms the structure/
+  naming pattern is valid: 'PhCH2CO-NH-CO-CH2Ph'
+  (`c1ccccc1CC(=O)NC(=O)Cc1ccccc1`, CID 220148) ->
+  '2-phenyl-N-(2-phenylacetyl)acetamide', and 'PhCH2CH2CO-NH-CO-CH2CH2Ph'
+  (`c1ccccc1CCC(=O)NC(=O)CCc1ccccc1`, CID 53874044) ->
+  '3-phenyl-N-(3-phenylpropanoyl)propanamide' -- though this module
+  follows its own already-established systematic-naming/N-acyl-first
+  convention rather than PubChem's raw string (retained names like
+  'acetamide', and a different prefix order), so it actually returns
+  'N-(2-phenylethanoyl)-2-phenylethanamide' and
+  'N-(3-phenylpropanoyl)-3-phenylpropanamide' respectively. A ring
+  directly on an acyl carbon (benzoyl-style) or any other
+  ring/substituted-ring shape stays out of scope for this narrow
+  extension.
 """
 
 from rdkit import Chem
@@ -53,9 +75,12 @@ from ._common import (
     bfs,
     carbon_adjacency,
     halogen_substituents,
+    is_plain_benzene_ring,
     lowest_locant_set,
     non_single_bonds,
+    ordered_chain,
     path_between,
+    ring_chain_attachment,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -280,7 +305,160 @@ def _acyl_prefix_name(chain_length, grouped):
     return name, is_compound
 
 
+def _validate_and_collect_phenyl_chain_imide(mol, ring1_atoms, ring2_atoms):
+    """Like `_validate_and_collect_imide`, but each acyl chain is allowed
+    to end in one of the two given plain-benzene rings (see module
+    docstring). Returns (ordered_chain1, ring_atom1, ordered_chain2,
+    ring_atom2), each chain ordered acyl-carbon-first (matching
+    `_best_branch`'s own numbering)."""
+    cores = _imide_cores(mol)
+    if not cores:
+        raise UnsupportedStructure(
+            "no imide (-C(=O)-NH-C(=O)-) group found; this module only "
+            "handles imides"
+        )
+    if len(cores) > 1:
+        raise UnsupportedStructure(
+            "more than one imide group is out of scope for this module"
+        )
+    imide_n, acyl1, carbonyl_o1, acyl2, carbonyl_o2 = cores[0]
+    imide_atoms = {imide_n, carbonyl_o1, carbonyl_o2}
+    ring_atoms_all = ring1_atoms | ring2_atoms
+
+    has_carbon = False
+    for atom in mol.GetAtoms():
+        atomic_num = atom.GetAtomicNum()
+        if atomic_num not in _ALLOWED_ATOMIC_NUMS:
+            raise UnsupportedStructure(
+                "heteroatoms other than an imide's own nitrogen/oxygens "
+                "(P-66.6.3) and halogen substituents (P-35.2.1) are not "
+                "supported yet"
+            )
+        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+        if atomic_num == 6:
+            has_carbon = True
+            if atom.GetIsAromatic() and atom.GetIdx() not in ring_atoms_all:
+                raise UnsupportedStructure(
+                    "aromatic rings are out of scope for this module (other "
+                    "than a single plain benzene ring ending each acyl chain)"
+                )
+        elif atomic_num == 7:
+            if atom.GetIdx() != imide_n:
+                raise UnsupportedStructure(
+                    "a nitrogen other than the imide's own bridging "
+                    "nitrogen needs Table 3.3 seniority handling not yet "
+                    "implemented here"
+                )
+        elif atomic_num == 8:
+            if atom.GetIdx() not in imide_atoms:
+                raise UnsupportedStructure(
+                    "an oxygen other than the imide's own two carbonyl "
+                    "oxygens (e.g. a coexisting ketone/aldehyde/carboxylic "
+                    "acid/ester/amide) needs Table 3.3 seniority handling "
+                    "not yet implemented here"
+                )
+        else:
+            if atom.GetDegree() != 1:
+                raise UnsupportedStructure(
+                    "a halogen atom must be a monovalent substituent (P-35.2.1)"
+                )
+    if not has_carbon:
+        raise UnsupportedStructure(
+            "a structure with no carbon atom has no hydrocarbon parent "
+            "hydride to substitute"
+        )
+    for acyl in (acyl1, acyl2):
+        carbon = mol.GetAtomWithIdx(acyl)
+        carbon_neighbors = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6]
+        if len(carbon_neighbors) > 1:
+            raise UnsupportedStructure(
+                "an acyl carbon with more than one carbon neighbor is not "
+                "a valid imide acyl carbon"
+            )
+    non_ring_bonds = [b for b in non_single_bonds(mol) if b[0] not in ring_atoms_all and b[1] not in ring_atoms_all]
+    if len(non_ring_bonds) != 2:
+        # Exactly the imide's own two C=O bonds are always present;
+        # anything else is chain unsaturation, out of scope for this module.
+        raise UnsupportedStructure(
+            "chain unsaturation (ene/yne) is out of scope for this module"
+        )
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+
+    graph = adjacency(mol)
+    excluded = {imide_n, carbonyl_o1, carbonyl_o2}
+    attachment1 = ring_chain_attachment(graph, ring1_atoms, set())
+    attachment2 = ring_chain_attachment(graph, ring2_atoms, set())
+    if attachment1 is None or attachment2 is None:
+        raise UnsupportedStructure(
+            "a benzene ring with more than one exocyclic substituent is "
+            "out of scope for this module"
+        )
+    ring_atom1, chain_root1 = attachment1
+    ring_atom2, chain_root2 = attachment2
+    chain1 = ordered_chain(graph, chain_root1, ring_atom1, excluded)
+    chain2 = ordered_chain(graph, chain_root2, ring_atom2, excluded)
+    if chain1 is None or chain2 is None:
+        raise UnsupportedStructure(
+            "a branched chain hanging off a benzene ring is out of scope "
+            "for this module"
+        )
+    if {chain1[-1], chain2[-1]} != {acyl1, acyl2}:
+        raise UnsupportedStructure(
+            "each benzene ring must lie on its own acyl chain, terminating "
+            "at one of the imide's own acyl carbons"
+        )
+    if chain1[-1] != acyl1:
+        chain1, chain2 = chain2, chain1
+        ring_atom1, ring_atom2 = ring_atom2, ring_atom1
+    if len(chain1) < 2 or len(chain2) < 2:
+        raise UnsupportedStructure(
+            "a benzene ring directly attached to an acyl carbon "
+            "(benzoyl-style) uses a separate construction, out of scope "
+            "for this module"
+        )
+    return list(reversed(chain1)), ring_atom1, list(reversed(chain2)), ring_atom2
+
+
+def _phenyl_chain_grouped(graph, halogens, ordered_chain, ring_atom, ring_atoms):
+    chain_root = ordered_chain[-1]
+    position = len(ordered_chain)
+    substituents = {position: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]}
+    return _group(substituents)
+
+
+def _combine_symmetric_branches(length1, grouped1, length2, grouped2):
+    if _acid_stem_name(length1, grouped1) != _acid_stem_name(length2, grouped2):
+        raise UnsupportedStructure(
+            "an unsymmetric imide (the two acyl groups name differently) "
+            "is out of scope for this module"
+        )
+    amide_name = _amide_name(length1, grouped1)
+    acyl_name, acyl_is_compound = _acyl_prefix_name(length2, grouped2)
+    acyl_part = f"({acyl_name})" if acyl_is_compound else acyl_name
+    separator = "-" if amide_name[0].isdigit() else ""
+    return f"N-{acyl_part}{separator}{amide_name}"
+
+
+def _name_phenyl_chain_imide(mol, ring1_atoms, ring2_atoms):
+    ordered1, ring_atom1, ordered2, ring_atom2 = _validate_and_collect_phenyl_chain_imide(
+        mol, ring1_atoms, ring2_atoms
+    )
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    grouped1 = _phenyl_chain_grouped(graph, halogens, ordered1, ring_atom1, ring1_atoms)
+    grouped2 = _phenyl_chain_grouped(graph, halogens, ordered2, ring_atom2, ring2_atoms)
+    return _combine_symmetric_branches(len(ordered1), grouped1, len(ordered2), grouped2)
+
+
 def name_imide(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 2:
+        ring1_atoms, ring2_atoms = (set(r) for r in ring_info.AtomRings())
+        if is_plain_benzene_ring(mol, ring1_atoms) and is_plain_benzene_ring(mol, ring2_atoms):
+            return _name_phenyl_chain_imide(mol, ring1_atoms, ring2_atoms)
+
     acyl1, acyl2 = _validate_and_collect_imide(mol)
     cores = _imide_cores(mol)
     imide_n, _, carbonyl_o1, _, carbonyl_o2 = cores[0]
@@ -291,15 +469,4 @@ def name_imide(mol) -> str:
     chains = _longest_chains(carbon_adjacency(mol))
     length1, grouped1 = _best_branch(chains, graph, halogens, acyl1, carbonyl_o1, excluded)
     length2, grouped2 = _best_branch(chains, graph, halogens, acyl2, carbonyl_o2, excluded)
-
-    if _acid_stem_name(length1, grouped1) != _acid_stem_name(length2, grouped2):
-        raise UnsupportedStructure(
-            "an unsymmetric imide (the two acyl groups name differently) "
-            "is out of scope for this module"
-        )
-
-    amide_name = _amide_name(length1, grouped1)
-    acyl_name, acyl_is_compound = _acyl_prefix_name(length2, grouped2)
-    acyl_part = f"({acyl_name})" if acyl_is_compound else acyl_name
-    separator = "-" if amide_name[0].isdigit() else ""
-    return f"N-{acyl_part}{separator}{amide_name}"
+    return _combine_symmetric_branches(length1, grouped1, length2, grouped2)

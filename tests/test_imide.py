@@ -59,3 +59,45 @@ def test_n_substituted_cyclic_imide_named_via_ketone_module():
     # cyclic imide), which supports a single plain alkyl substituent on
     # the ring nitrogen. PubChem-verified: N-methylsuccinimide (CID 11621).
     assert smiles_to_iupac("CN1C(=O)CCC1=O") == "1-methylpyrrolidine-2,5-dione"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Both acyl chains end in a plain benzene ring (module docstring's
+        # "aromatic ring substituent" extension). PubChem PUG REST confirms
+        # the structure/naming pattern (CID 220148, CID 53874044), though
+        # its raw string uses retained names ('acetamide') and a different
+        # prefix order than this project's own established convention
+        # (`_amide.py` already gives 'c1ccccc1CC(=O)N' as
+        # '2-phenylethanamide', not '2-phenylacetamide') -- expected values
+        # below follow that existing systematic-naming/N-acyl-first
+        # convention instead of PubChem's raw string.
+        ("c1ccccc1CC(=O)NC(=O)Cc1ccccc1", "N-(2-phenylethanoyl)-2-phenylethanamide"),
+        ("c1ccccc1CCC(=O)NC(=O)CCc1ccccc1", "N-(3-phenylpropanoyl)-3-phenylpropanamide"),
+    ],
+)
+def test_symmetric_imide_phenyl_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_imide_phenyl_chain_unsymmetric_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1CC(=O)NC(=O)CCc1ccccc1")
+
+
+def test_imide_phenyl_ring_directly_on_acyl_carbon_raises():
+    # Benzoyl-style ring attachment (chain length 1) uses a separate
+    # construction, out of scope here.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1C(=O)NC(=O)c1ccccc1")
+
+
+def test_imide_one_sided_phenyl_chain_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1CC(=O)NC(=O)CC")
+
+
+def test_imide_substituted_benzene_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccccc1CC(=O)NC(=O)Cc1ccccc1C")
