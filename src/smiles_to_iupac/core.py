@@ -96,6 +96,7 @@ from ._ketone import (
     has_five_membered_1_2_ring_ketone_shape,
     has_five_membered_1_3_ring_ketone_shape,
     has_hetero_ring_ketone_shape,
+    has_seven_membered_1_3_ring_ketone_shape,
     name_ketone,
 )
 from ._thione import has_thione_shape, name_thione
@@ -647,6 +648,12 @@ def smiles_to_iupac(smiles: str) -> str:
         # collide with a cyclic anhydride (see that function's own
         # docstring), so routing it this early is safe.
         if has_five_membered_1_3_ring_ketone_shape(mol):
+            return name_ketone(mol)
+        # Same reasoning for the 7-membered 1,3-related shape (e.g.
+        # 1,3-diazepan-2-one) -- an O+N pair here looks carbamate-shaped
+        # (N-C(=O)-O) instead, but the collision-safety argument is
+        # identical.
+        if has_seven_membered_1_3_ring_ketone_shape(mol):
             return name_ketone(mol)
         # Same reasoning for the five-membered 1,2-related shape (e.g.
         # pyrazolidin-3-one) -- it looks aldehyde- or ether-shaped
