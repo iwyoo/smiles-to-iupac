@@ -119,6 +119,7 @@ from ._common import (
     non_single_bonds,
     ordered_chain,
     ring_chain_attachment,
+    ring_chain_attachment_with_halogens,
     specified_stereocenters,
 )
 from ._numerals import alkane_name, alkyl_name, multiplying_prefix
@@ -788,11 +789,12 @@ def _name_phenyl_chain_hydrazide(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    halogens = halogen_substituents(mol)
+    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
     if attachment is None:
         raise UnsupportedStructure(
-            "a benzene ring with more than one exocyclic substituent "
-            "alongside a chain hydrazide is not supported yet"
+            "a benzene ring with more than one non-halogen exocyclic "
+            "substituent alongside a chain hydrazide is not supported yet"
         )
     ring_atom, chain_root = attachment
     chain = ordered_chain(graph, chain_root, ring_atom, excluded)
@@ -816,7 +818,6 @@ def _name_phenyl_chain_hydrazide(mol, ring_atoms):
     ordered = list(reversed(chain))
     chain_length = len(ordered)
     position_of = {atom: i + 1 for i, atom in enumerate(ordered)}
-    halogens = halogen_substituents(mol)
     substituents = {
         position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
     }

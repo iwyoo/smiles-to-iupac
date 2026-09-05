@@ -162,6 +162,12 @@ def test_phenyl_substituted_benzene_ring_hydrazide_raises():
         smiles_to_iupac("Cc1ccccc1CC(=O)NN")
 
 
+def test_phenyl_chain_hydrazide_ring_halogen():
+    # PubChem PUG REST computes "3-(4-chlorophenyl)propanehydrazide" for
+    # this structure.
+    assert smiles_to_iupac("Clc1ccc(CCC(=O)NN)cc1") == "3-(4-chlorophenyl)propanehydrazide"
+
+
 def test_phenyl_chain_hydrazide_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CC(=O)NN")

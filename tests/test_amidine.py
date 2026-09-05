@@ -110,6 +110,12 @@ def test_phenyl_substituted_benzene_ring_amidine_raises():
         smiles_to_iupac("Cc1ccccc1CC(=N)N")
 
 
+def test_phenyl_chain_amidine_ring_halogen():
+    # PubChem PUG REST computes "3-(4-chlorophenyl)propanimidamide" for
+    # this structure.
+    assert smiles_to_iupac("Clc1ccc(CCC(=N)N)cc1") == "3-(4-chlorophenyl)propanimidamide"
+
+
 def test_phenyl_chain_amidine_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CC(=N)N")
