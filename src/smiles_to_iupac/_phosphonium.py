@@ -32,16 +32,26 @@ P-73.1.1.2), per the IUPAC 2013 Recommendations ("the Blue Book"):
   worked examples, `tmp/bluebook/P6.txt`/`P1.html` -- see
   `_phosphane.py`'s docstring for the full derivation), not PubChem's own
   raw "ethyl(trimethyl)phosphanium".
+- A plain, unsubstituted benzene ring bonded directly to phosphorus is
+  cited as a 'phenyl' substituent here too. The degree 0-3 case already
+  gets this for free via `_phosphane.py`'s own identical extension (PR
+  #397) through the neutralize-then-rename path above; the quaternary
+  degree-4 case needs its own copy of that same detection (mirroring
+  `_phosphane.py`'s `_plain_phenyl_substituent_atoms`) since it's built
+  directly rather than reusing `name_simple_phosphane`. Confirmed via
+  PubChem PUG REST: `c1ccccc1[P+](c1ccccc1)(c1ccccc1)c1ccccc1` ->
+  "tetraphenylphosphanium" (CID 164912).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any phosphonium phosphorus not shaped like PH4+, a phosphorus bonded to
   1-3 carbons (with the remaining valence as hydrogens), or a phosphorus
   bonded to exactly 4 carbons -- e.g. formal charge other than +1, more
   than one charged atom, isotopic modification, a halogen or other
-  heteroatom substituent, a branched/unsaturated/aromatic/ring-bearing
-  substituent (inherited unchanged from `_phosphane.py`'s own scope for
-  the degree 0-3 case via neutralization; unverified via PubChem for the
-  quaternary degree-4 case, so kept just as narrow there too).
+  heteroatom substituent, a branched/unsaturated substituent, or an
+  aromatic substituent other than a plain, unsubstituted phenyl, or a
+  ring other than a plain phenyl substituent (inherited unchanged from
+  `_phosphane.py`'s own scope for the degree 0-3 case via neutralization;
+  independently verified for the quaternary degree-4 case above).
 - P-92 stereocenters:
   unlike `_ammonium.py`'s nitrogen (which inverts too fast to be a real
   stereocenter), a phosphonium phosphorus with three or four distinct
@@ -58,7 +68,15 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, linear_branch, non_single_bonds, specified_stereocenters
+from ._common import (
+    UnsupportedStructure,
+    adjacency,
+    is_plain_benzene_ring,
+    linear_branch,
+    non_single_bonds,
+    ring_chain_attachment,
+    specified_stereocenters,
+)
 from ._numerals import alkyl_name
 from ._phosphane import name_simple_phosphane
 from ._substituents import format_mononuclear_prefixes
@@ -137,7 +155,31 @@ def name_phosphonium(mol) -> str:
     return phosphane_name[:-1] + "ium"
 
 
+def _plain_phenyl_substituent_atoms(mol, graph, roots):
+    """Union of ring atoms for every plain, unsubstituted benzene ring in
+    `mol` that hangs directly off one of `roots` (the quaternary
+    phosphonium phosphorus's own substituent neighbors) with no other
+    exocyclic attachment -- i.e. a lone 'phenyl' substituent directly on
+    phosphorus. Mirrors `_phosphane.py`'s identical helper."""
+    atoms = set()
+    for ring in mol.GetRingInfo().AtomRings():
+        ring_atoms = set(ring)
+        if not is_plain_benzene_ring(mol, ring_atoms):
+            continue
+        attachment = ring_chain_attachment(graph, ring_atoms, set())
+        if attachment is None:
+            continue
+        ring_atom, _ = attachment
+        if ring_atom in roots:
+            atoms |= ring_atoms
+    return atoms
+
+
 def _name_quaternary_phosphonium(mol, phosphorus) -> str:
+    graph = adjacency(mol)
+    roots = set(graph[phosphorus.GetIdx()])
+    phenyl_atoms = _plain_phenyl_substituent_atoms(mol, graph, roots)
+
     other_atoms = [atom for atom in mol.GetAtoms() if atom.GetIdx() != phosphorus.GetIdx()]
     for atom in other_atoms:
         if atom.GetAtomicNum() != 6:
@@ -147,16 +189,28 @@ def _name_quaternary_phosphonium(mol, phosphorus) -> str:
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetIsAromatic():
-            raise UnsupportedStructure("an aromatic substituent (e.g. phenylphosphonium) is out of scope")
-    if mol.GetRingInfo().NumRings() != 0:
-        raise UnsupportedStructure("a ring anywhere in the molecule is out of scope for this module")
-    if non_single_bonds(mol):
+        if atom.GetIsAromatic() and atom.GetIdx() not in phenyl_atoms:
+            raise UnsupportedStructure(
+                "an aromatic substituent other than a plain, unsubstituted "
+                "phenyl group is out of scope for this module"
+            )
+    all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
+    if all_ring_atoms - phenyl_atoms:
+        raise UnsupportedStructure(
+            "a ring other than a plain phenyl substituent directly on "
+            "phosphorus is out of scope for this module"
+        )
+    non_ring_unsaturation = [
+        b for b in non_single_bonds(mol) if b[0] not in phenyl_atoms and b[1] not in phenyl_atoms
+    ]
+    if non_ring_unsaturation:
         raise UnsupportedStructure("an unsaturated substituent is out of scope for this module")
 
-    graph = adjacency(mol)
     substituent_names = []
-    for root in graph[phosphorus.GetIdx()]:
+    for root in roots:
+        if root in phenyl_atoms:
+            substituent_names.append(("phenyl", False))
+            continue
         length = linear_branch(graph, root, phosphorus.GetIdx())
         if length is None:
             raise UnsupportedStructure("a branched substituent is out of scope for this module")
