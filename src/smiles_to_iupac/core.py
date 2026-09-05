@@ -20,6 +20,7 @@ from ._acetal import has_acetal_shape, name_acetal
 from ._amide import has_amide_shape, name_amide
 from ._amide_amine import has_amide_amine_shape, name_amide_amine
 from ._ester_amine import has_ester_amine_shape, name_ester_amine
+from ._ether_ester import has_ether_ester_shape, name_ether_ester
 from ._hidden_amide_ketone import has_hidden_amide_shape, name_hidden_amide_ketone
 from ._thiourea import has_thiourea_shape, name_thiourea
 from ._selenourea import has_selenourea_shape, name_selenourea
@@ -865,6 +866,13 @@ def smiles_to_iupac(smiles: str) -> str:
             # `_ester.py`'s own "coexisting oxygen" rejection.
             if has_ketone_ester_shape(mol):
                 return name_ketone_ester(mol)
+            # P-41 Table 4.1: an ether has no suffix at all (class 41), so
+            # an ester whose acyl chain also carries a separate ether
+            # names the ester as the suffix and demotes the ether to an
+            # 'alkoxy' prefix instead of `_ester.py`'s own "coexisting
+            # oxygen" rejection.
+            if has_ether_ester_shape(mol):
+                return name_ether_ester(mol)
             # P-41/Table 4.1: 'ester' (class 9) also outranks 'amine'
             # (class 19), so an ester that also carries a separate primary
             # amine on its acyl chain names the ester as the suffix and
