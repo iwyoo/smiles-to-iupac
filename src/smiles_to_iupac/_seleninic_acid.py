@@ -38,8 +38,15 @@ chain-only first pass (no monocyclic seleninic acid has been found
 registered on PubChem to verify that shape here): a single -Se(=O)OH on
 an acyclic chain, with no other heteroatom anywhere in the molecule except
 the seleninic acid group's own two oxygens. Explicitly out of scope (raise
-`UnsupportedStructure`): any ring, two or more -Se(=O)OH groups, and a
-seleninic acid on a carbon that is also part of a C=C/C#C bond.
+`UnsupportedStructure`): any saturated ring, two or more -Se(=O)OH groups,
+and a seleninic acid on a carbon that is also part of a C=C/C#C bond. One
+*aromatic*-ring exception beyond the phenyl-chain path below:
+`_name_benzeneseleninic_acid` names -Se(=O)OH directly on a benzene ring
+carbon (with or without other ring substituents), e.g.
+'benzeneseleninic acid', '4-methylbenzeneseleninic acid' (both PubChem
+PUG REST matches), mirroring `_sulfonic_acid.py`'s
+`_name_benzenesulfonic_acid` with the retained name 'benzene' as stem;
+the -Se(=O)OH's own locant is never cited here.
 """
 
 from rdkit import Chem
@@ -57,6 +64,7 @@ from ._common import (
     ordered_chain,
     path_between,
     ring_chain_attachment,
+    ring_cycle,
     specified_stereocenters,
 )
 from ._numerals import alkane_name, numerical_term
@@ -322,6 +330,75 @@ def _substituents_for_chain(graph, chain, halogens, excluded):
     return substituents
 
 
+def _substituents_for_ring(graph, ring_order, halogens, excluded):
+    ring_set = set(ring_order)
+    substituents = {}
+    for position, atom in enumerate(ring_order, start=1):
+        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+    return substituents
+
+
+def _benzeneseleninic_acid_name_from_substituents(grouped):
+    # Mirrors `_sulfonic_acid.py`'s `_benzenesulfonic_acid_name_from_substituents`:
+    # the mancude ring's own numbering is always free to start at the
+    # -Se(=O)OH carbon, so its locant is never cited even when other
+    # substituents need theirs, e.g. '4-methylbenzeneseleninic acid'.
+    if not grouped:
+        return "benzeneseleninic acid"
+    return f"{format_substituent_prefixes(grouped)}benzeneseleninic acid"
+
+
+def _benzeneseleninic_acid_candidate_key(seoh_locant, substituents):
+    grouped = _group(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _benzeneseleninic_acid_name_from_substituents(grouped)
+    return seoh_locant, locant_set, citation_locants, name
+
+
+def _name_benzeneseleninic_acid(mol, ring_atoms):
+    """P-65.3.1: -Se(=O)OH attached directly to a benzene ring carbon --
+    e.g. 'benzeneseleninic acid', '4-methylbenzeneseleninic acid' (both
+    PubChem PUG REST matches). Mirrors `_sulfonic_acid.py`'s
+    `_name_benzenesulfonic_acid` with the retained name 'benzene' as
+    stem; the -Se(=O)OH's own locant is never cited here. A specified
+    stereocenter is always rejected (module docstring: the seleninic
+    selenium is itself a potential stereocenter with no established way
+    to cite it)."""
+    selenium_idx, seoh_carbon = _validate_and_collect_seleninic_acids(mol, aromatic_ring_atoms=ring_atoms)
+    if specified_stereocenters(mol) is not None:
+        raise UnsupportedStructure(
+            "a specified stereocenter (chain carbon or the seleninic "
+            "selenium itself) is not supported yet for seleninic acids "
+            "(see P-92, module docstring)"
+        )
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    excluded = {selenium_idx}
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            seoh_locant = position_of[seoh_carbon]
+            substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
+            key = _benzeneseleninic_acid_candidate_key(seoh_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def _name_phenyl_chain_seleninic_acid(mol, ring_atoms):
     """Name a seleninic acid whose -Se(=O)OH lies entirely on a single
     unbranched chain hanging off one atom of an otherwise-plain,
@@ -332,12 +409,6 @@ def _name_phenyl_chain_seleninic_acid(mol, ring_atoms):
     `_name_phenyl_chain_sulfinic_acid`. Narrower than the acyclic path
     above: no chain unsaturation."""
     selenium_idx, seoh_carbon = _validate_and_collect_seleninic_acids(mol, aromatic_ring_atoms=ring_atoms)
-    if seoh_carbon in ring_atoms:
-        raise UnsupportedStructure(
-            "a seleninic acid directly attached to the benzene ring "
-            "(benzeneseleninic acid-style naming) is out of scope for "
-            "this module (see the separate aromatic-ring module)"
-        )
     if specified_stereocenters(mol) is not None:
         # See module docstring: the seleninic selenium is itself a
         # potential stereocenter in virtually every real -Se(=O)OH
@@ -401,6 +472,9 @@ def name_seleninic_acid(mol) -> str:
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            _, seoh_carbon = _validate_and_collect_seleninic_acids(mol, aromatic_ring_atoms=ring_atoms)
+            if seoh_carbon in ring_atoms:
+                return _name_benzeneseleninic_acid(mol, ring_atoms)
             return _name_phenyl_chain_seleninic_acid(mol, ring_atoms)
     selenium_idx, seoh_carbon = _validate_and_collect_seleninic_acids(mol)
     if specified_stereocenters(mol) is not None:
