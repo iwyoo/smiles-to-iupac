@@ -116,9 +116,23 @@ def test_phenyl_chain_sulfinamide():
     assert smiles_to_iupac("c1ccccc1CCCS(=O)N") == "3-phenylpropane-1-sulfinamide"
 
 
-def test_phenyl_directly_attached_sulfinamide_raises():
+def test_benzenesulfinamide():
+    # -S(=O)NH2 directly on a benzene ring carbon, cross-checked against
+    # PubChem PUG REST.
+    assert smiles_to_iupac("c1ccccc1S(=O)N") == "benzenesulfinamide"
+
+
+def test_substituted_benzenesulfinamide():
+    # The mancude-ring numbering is free to start at the -S(=O)NH2
+    # carbon, so its own locant is never cited, mirroring
+    # benzenesulfonamide.
+    assert smiles_to_iupac("Cc1ccccc1S(=O)N") == "2-methylbenzenesulfinamide"
+    assert smiles_to_iupac("Cc1ccc(cc1)S(=O)N") == "4-methylbenzenesulfinamide"  # PubChem PUG REST
+
+
+def test_benzenesulfinamide_n_alkyl_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1S(=O)N")
+        smiles_to_iupac("c1ccccc1S(=O)NC")
 
 
 def test_phenyl_chain_sulfinamide_n_alkyl_raises():

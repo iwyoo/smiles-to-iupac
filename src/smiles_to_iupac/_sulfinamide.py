@@ -75,13 +75,20 @@ supported, see above), polycyclic/spiro rings, unsaturation reaching
 outside the ring or a ring triple bond, a -S(=O)NH2 on a
 substituent branch off an otherwise-unsubstituted *saturated* ring, two
 or more -S(=O)NH2 groups, and a sulfinamide on a carbon that is also part
-of a C=C/C#C bond. One narrow *aromatic*-ring exception:
+of a C=C/C#C bond. Two *aromatic*-ring cases:
 `_name_phenyl_chain_sulfinamide` names a -S(=O)NH2 chain hanging off a
 single plain, unsubstituted benzene ring (e.g.
 '3-phenylpropane-1-sulfinamide'), mirroring `_sulfonamide.py`'s
 identical benzene-ring-substituent path -- narrower than the acyclic
-path: no N-alkyl substitution and no chain unsaturation, and a
--S(=O)NH2 directly on the ring stays out of scope for this module.
+path: no N-alkyl substitution and no chain unsaturation.
+`_name_benzenesulfinamide` names -S(=O)NH2 directly on a benzene ring
+carbon (with or without other ring substituents), e.g.
+'benzenesulfinamide' (PubChem PUG REST match for c1ccccc1S(=O)N),
+mirroring `_sulfonamide.py`'s `_name_benzenesulfonamide` with the
+retained name 'benzene' as stem -- the -S(=O)NH2's own locant is never
+cited here; narrower than the acyclic path: no N-alkyl substitution and
+no specified stereocenter (every sulfinamide sulfur is a potential
+stereocenter, so a specified one is always rejected here too).
 """
 
 from rdkit import Chem
@@ -502,6 +509,72 @@ def _name_cyclic_sulfinamide(mol, sulfur_idx, so_nh2_carbon, n_names, bonds=()):
     return best_name
 
 
+def _benzenesulfinamide_name_from_substituents(grouped):
+    # Mirrors `_sulfonamide.py`'s `_benzenesulfonamide_name_from_substituents`:
+    # the mancude ring's own numbering is always free to start at the
+    # -S(=O)NH2 carbon, so its locant is never cited even when other
+    # substituents need theirs.
+    if not grouped:
+        return "benzenesulfinamide"
+    return f"{format_substituent_prefixes(grouped)}benzenesulfinamide"
+
+
+def _benzenesulfinamide_candidate_key(so_nh2_locant, substituents):
+    grouped = _group(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _benzenesulfinamide_name_from_substituents(grouped)
+    return so_nh2_locant, locant_set, citation_locants, name
+
+
+def _name_benzenesulfinamide(mol, ring_atoms):
+    """P-65.3.1: -S(=O)NH2 attached directly to a benzene ring carbon --
+    e.g. 'benzenesulfinamide' (PubChem PUG REST match for
+    c1ccccc1S(=O)N). Mirrors `_sulfonamide.py`'s
+    `_name_benzenesulfonamide` with the retained name 'benzene' as stem;
+    the -S(=O)NH2's own locant is never cited here. A specified
+    stereocenter is always rejected (module docstring: the sulfinamide
+    sulfur is itself a potential stereocenter with no established way to
+    cite it)."""
+    sulfur_idx, so_nh2_carbon, _, n_alkyl_carbons = _validate_and_collect_sulfinamides(
+        mol, aromatic_ring_atoms=ring_atoms
+    )
+    if n_alkyl_carbons:
+        raise UnsupportedStructure(
+            "an N-alkyl-substituted sulfinamide directly on a benzene ring "
+            "is not supported yet"
+        )
+    if specified_stereocenters(mol) is not None:
+        raise UnsupportedStructure(
+            "a specified stereocenter (chain carbon or the sulfinamide "
+            "sulfur itself) is not supported yet for sulfinamides (see "
+            "P-92, module docstring)"
+        )
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    excluded = {sulfur_idx}
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            so_nh2_locant = position_of[so_nh2_carbon]
+            substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
+            key = _benzenesulfinamide_candidate_key(so_nh2_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def _name_phenyl_chain_sulfinamide(mol, ring_atoms):
     """Name a sulfinamide whose -S(=O)NH2 lies entirely on a single
     unbranched chain hanging off one atom of an otherwise-plain,
@@ -519,12 +592,6 @@ def _name_phenyl_chain_sulfinamide(mol, ring_atoms):
         raise UnsupportedStructure(
             "an N-alkyl-substituted sulfinamide alongside a benzene-ring "
             "substituent is not supported yet"
-        )
-    if so_nh2_carbon in ring_atoms:
-        raise UnsupportedStructure(
-            "a sulfinamide directly attached to the benzene ring is out "
-            "of scope for this module (see the separate aromatic-ring "
-            "module)"
         )
     if specified_stereocenters(mol) is not None:
         # See module docstring: the sulfinamide sulfur is itself a
@@ -589,6 +656,9 @@ def name_sulfinamide(mol) -> str:
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            _, so_nh2_carbon, _, _ = _validate_and_collect_sulfinamides(mol, aromatic_ring_atoms=ring_atoms)
+            if so_nh2_carbon in ring_atoms:
+                return _name_benzenesulfinamide(mol, ring_atoms)
             return _name_phenyl_chain_sulfinamide(mol, ring_atoms)
     sulfur_idx, so_nh2_carbon, nitrogen_idx, n_alkyl_carbons = _validate_and_collect_sulfinamides(mol)
     if specified_stereocenters(mol) is not None:
