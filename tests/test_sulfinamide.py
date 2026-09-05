@@ -140,15 +140,21 @@ def test_phenyl_chain_sulfinamide_n_alkyl_raises():
         smiles_to_iupac("c1ccccc1CCCS(=O)NC")
 
 
-def test_phenyl_substituted_benzene_ring_sulfinamide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CCS(=O)N")
+def test_phenyl_substituted_benzene_ring_sulfinamide_ortho_methyl():
+    # A ring methyl substituent is now supported (see
+    # tasks/aromatic-ring-methyl-rollout-3.md).
+    assert smiles_to_iupac("Cc1ccccc1CCS(=O)N") == "2-(2-methylphenyl)ethane-1-sulfinamide"
 
 
 def test_phenyl_chain_sulfinamide_ring_halogen():
     # PubChem PUG REST computes "(4-chlorophenyl)methanesulfinamide" for
     # this structure.
     assert smiles_to_iupac("Clc1ccc(CS(=O)N)cc1") == "(4-chlorophenyl)methanesulfinamide"
+
+
+def test_phenyl_chain_sulfinamide_ring_methyl():
+    # PubChem PUG REST-verified "(4-methylphenyl)methanesulfinamide".
+    assert smiles_to_iupac("Cc1ccc(CS(=O)N)cc1") == "(4-methylphenyl)methanesulfinamide"
 
 
 def test_phenyl_chain_sulfinamide_unsaturation_raises():
