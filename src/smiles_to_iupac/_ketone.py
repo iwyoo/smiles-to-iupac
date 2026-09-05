@@ -216,6 +216,27 @@ need a new locant tie-break rule this module doesn't implement).
 PubChem-confirmed: `O=C1C(C)C(=O)NN1` -> '4-methylpyrazolidine-3,5-dione'
 (CID 12391681).
 
+The 7-membered analogue of this same 1,2-two-heteroatom shape
+(1,2-diazepane/1,2-oxazepane/1,2-thiazepane/1,2-dioxepane/
+1,2-oxathiepane/1,2-dithiepane -- `_hetero_ring_seven_membered_1_2`) is
+handled separately and, like the 7-membered 1,3-case above, much more
+narrowly: only the single-ketone form (locant 3, the ring carbon
+immediately after the second heteroatom) is supported -- no
+PubChem-registered example was found for a second ketone on the longer
+(4-carbon) far arc or for a ring-carbon alkyl substituent. Unlike the
+5-membered case, PubChem's own computed name drops the '1,2-' locant for
+every one of the six element pairs here, including the N-containing ones
+(not just O/S-only) -- '1,2-' is kept anyway, for the same reason the
+unsubstituted parent name already does
+(`saturated_seven_membered_1_2_two_heteroatom_ring_name`: P-22.2.2.1.7 and
+a stem clash with the 1,3-axis). PubChem-confirmed by connectivity:
+`N1NC(=O)CCCC1` -> '1,2-diazepan-3-one' (CID 21962094), `O1NC(=O)CCCC1`
+-> '1,2-oxazepan-3-one' (CID 12116845), `S1NC(=O)CCCC1` ->
+'1,2-thiazepan-3-one' (CID 22346532), `O1OC(=O)CCCC1` ->
+'1,2-dioxepan-3-one' (CID 17988591), `O1SC(=O)CCCC1` ->
+'1,2-oxathiepan-3-one' (CID 123366628), `S1SC(=O)CCCC1` ->
+'1,2-dithiepan-3-one' (CID 129723503).
+
 Unlike -OH/-NH2, a ketone carbon can never itself also be a C=C/C#C alkene
 carbon (its two remaining bonds, after the C=O double bond, are already
 committed to its two required carbon substituents — a ketone carbon with a
@@ -265,6 +286,7 @@ from ._hetero_monocyclic import (
     saturated_five_membered_1_2_two_heteroatom_ring_name,
     saturated_five_membered_1_3_two_heteroatom_ring_name,
     saturated_ring_name,
+    saturated_seven_membered_1_2_two_heteroatom_ring_name,
     saturated_seven_membered_1_3_two_heteroatom_ring_name,
     saturated_seven_membered_1_4_two_heteroatom_ring_name,
     saturated_two_heteroatom_1_4_ring_name,
@@ -318,6 +340,10 @@ _SEVEN_MEMBERED_1_4_RING_SIZE = 7
 # scope for the same reason (no PubChem-registered ketone name found).
 _SEVEN_MEMBERED_1_3_RING_ELEMENT_PAIRS = _FIVE_MEMBERED_1_3_RING_ELEMENT_PAIRS
 _SEVEN_MEMBERED_1_3_RING_SIZE = 7
+# Same six N/O/S pairs as the 5-membered 1,2-axis below -- Se/Te stay out of
+# scope for the same reason (no PubChem-registered ketone name found).
+_SEVEN_MEMBERED_1_2_RING_ELEMENT_PAIRS = _FIVE_MEMBERED_1_2_RING_ELEMENT_PAIRS
+_SEVEN_MEMBERED_1_2_RING_SIZE = 7
 
 
 def _validate_and_collect_ketones(mol, aromatic_ring_atoms=frozenset()):
@@ -1428,6 +1454,67 @@ def _name_five_membered_1_2_ring_ketone(mol, het1, het2):
     return f"{prefix}{separator}{name}"
 
 
+def _hetero_ring_seven_membered_1_2(mol):
+    """(het1, het2) ring-atom indices for a saturated, 7-membered,
+    1,2-related (directly bonded) two-heteroatom ketone shape (the
+    1,2-diazepan-3-one family -- see
+    `_SEVEN_MEMBERED_1_2_RING_ELEMENT_PAIRS`), or None if it doesn't match
+    that shape at all. Structurally identical to the 5-membered 1,2-case
+    above (heteroatoms at locants 1/2, the ketone on the ring carbon
+    immediately after locant 2) except for the longer far arc (4 carbons
+    instead of 2, at locants 4-7); unlike that case, only the narrow
+    single-ketone shape (locant 3) is attempted here -- no
+    PubChem-registered example was found for a second ketone on the far
+    arc or for a ring-carbon alkyl substituent, so both stay unsupported
+    (see `_name_seven_membered_1_2_ring_ketone`)."""
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() != 1:
+        return None
+    ring_atoms = ring_info.AtomRings()[0]
+    if len(ring_atoms) != _SEVEN_MEMBERED_1_2_RING_SIZE:
+        return None
+    if any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring_atoms):
+        return None
+    heteroatoms = [a for a in ring_atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
+    if len(heteroatoms) != 2:
+        return None
+    het1, het2 = heteroatoms
+    atomic_num1 = mol.GetAtomWithIdx(het1).GetAtomicNum()
+    atomic_num2 = mol.GetAtomWithIdx(het2).GetAtomicNum()
+    if atomic_num1 not in _HETERO_RING_ELEMENTS or atomic_num2 not in _HETERO_RING_ELEMENTS:
+        return None
+    elements = frozenset((_HETERO_RING_ELEMENTS[atomic_num1], _HETERO_RING_ELEMENTS[atomic_num2]))
+    if elements not in _SEVEN_MEMBERED_1_2_RING_ELEMENT_PAIRS:
+        return None
+    graph = adjacency(mol)
+    if het2 not in graph[het1]:
+        return None
+    return het1, het2
+
+
+def _name_seven_membered_1_2_ring_ketone(mol, het1, het2):
+    _, ketones, elements_by_atom, _ = _validate_and_collect_hetero_ring_ketone(mol, {het1, het2})
+    stem = saturated_seven_membered_1_2_two_heteroatom_ring_name(
+        (elements_by_atom[het1], elements_by_atom[het2])
+    )
+    if stem is None:
+        raise UnsupportedStructure(
+            "no retained name for this seven-membered two-heteroatom "
+            "saturated ring (P-22.2.1)"
+        )
+    if len(ketones) != 1:
+        raise UnsupportedStructure(
+            "a second ketone on the far arc of this ring shape is not "
+            "supported yet; only a single ketone adjacent to the second "
+            "heteroatom is in scope"
+        )
+    # `_five_membered_1_2_numbering` makes no assumption about ring size --
+    # it derives locants entirely from the molecule's own ring traversal --
+    # so it's reused as-is here rather than duplicated.
+    best_locants, _ = _five_membered_1_2_numbering(mol, het1, het2, elements_by_atom, ketones)
+    return _hetero_ring_ketone_name(stem, best_locants)
+
+
 def has_hetero_ring_ketone_shape(mol) -> bool:
     """True if this molecule fits the narrow hetero-ring-ketone shape
     (single heteroatom, see `_hetero_ring_heteroatom`, or the 1,4
@@ -1495,6 +1582,17 @@ def has_five_membered_1_2_ring_ketone_shape(mol) -> bool:
     return _hetero_ring_five_membered_1_2(mol) is not None
 
 
+def has_seven_membered_1_2_ring_ketone_shape(mol) -> bool:
+    """True if this molecule fits the 7-membered 1,2-two-heteroatom
+    ring-ketone shape (see `_hetero_ring_seven_membered_1_2`, e.g.
+    1,2-diazepan-3-one) -- kept alongside
+    `has_five_membered_1_2_ring_ketone_shape` for the identical reason
+    (misnamed by the aldehyde/ether checks depending on the element pair
+    if not claimed here first), and likewise can never collide with the
+    cyclic anhydride shape."""
+    return _hetero_ring_seven_membered_1_2(mol) is not None
+
+
 def name_ketone(mol) -> str:
     hetero_atom = _hetero_ring_heteroatom(mol)
     if hetero_atom is not None:
@@ -1508,6 +1606,9 @@ def name_ketone(mol) -> str:
     five_membered_1_2 = _hetero_ring_five_membered_1_2(mol)
     if five_membered_1_2 is not None:
         return _name_five_membered_1_2_ring_ketone(mol, *five_membered_1_2)
+    seven_membered_1_2 = _hetero_ring_seven_membered_1_2(mol)
+    if seven_membered_1_2 is not None:
+        return _name_seven_membered_1_2_ring_ketone(mol, *seven_membered_1_2)
     two_heteroatoms = _hetero_ring_two_heteroatoms(mol)
     if two_heteroatoms is not None:
         return _name_two_hetero_cyclic_ketone(mol, *two_heteroatoms)
