@@ -82,9 +82,11 @@ def test_substituted_cyclyl_alcohol_ester_raises():
         smiles_to_iupac("CC(=O)OC1CCC(C)CC1")
 
 
-def test_amine_coexisting_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC(=O)OC")
+def test_amine_coexisting_now_supported_via_ester_amine():
+    # A coexisting primary amine is now handled by `_ester_amine.py`
+    # (P-41 Table 4.1: ester outranks amine) rather than rejected here --
+    # see tests/test_ester_amine.py for that module's own coverage.
+    assert smiles_to_iupac("NCC(=O)OC") == "methyl 2-aminoethanoate"
 
 
 def test_aryl_ester_raises():
