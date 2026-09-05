@@ -140,6 +140,7 @@ from ._phosphanone import has_phosphanone_shape, name_phosphanone
 from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
 from ._hydroperoxide import has_hydroperoxide_shape, name_hydroperoxide
+from ._hydroperoxide_amine import has_hydroperoxide_amine_shape, name_hydroperoxide_amine
 from ._peroxide import has_peroxide_shape, name_peroxide
 from ._polyspiro import (
     find_branched_polyspiro_hub,
@@ -752,6 +753,16 @@ def smiles_to_iupac(smiles: str) -> str:
         # match any check above or `name_alcohol`'s own fallback below, so
         # it must be routed here too, right alongside its R-O-O-R' cousin.
         if has_hydroperoxide_shape(mol):
+            # P-41/Table 4.1: 'hydroperoxide' (class 18) also outranks
+            # 'amine' (class 19), so a hydroperoxide that also carries a
+            # separate primary amine names the hydroperoxide as the
+            # suffix and demotes the amine to an 'amino' prefix instead of
+            # `_hydroperoxide.py`'s own "coexisting nitrogen" rejection.
+            # (Note: this follows Table 4.1's text directly, diverging
+            # from PubChem's own auto-namer for this specific pair -- see
+            # `_hydroperoxide_amine.py`'s module docstring.)
+            if has_hydroperoxide_amine_shape(mol):
+                return name_hydroperoxide_amine(mol)
             return name_hydroperoxide(mol)
         # An anhydride's bridging oxygen (-C(=O)-O-C(=O)-) is also
         # ester-shaped from either acyl carbon's point of view (a carbonyl

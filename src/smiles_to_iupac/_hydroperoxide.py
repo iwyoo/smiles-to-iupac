@@ -272,27 +272,22 @@ def _name_phenyl_chain_hydroperoxide(mol, ring_atoms):
     return best_name
 
 
-def name_hydroperoxide(mol) -> str:
-    ring_info = mol.GetRingInfo()
-    if ring_info.NumRings() == 1:
-        ring_atoms = set(ring_info.AtomRings()[0])
-        if is_plain_benzene_ring(mol, ring_atoms):
-            return _name_phenyl_chain_hydroperoxide(mol, ring_atoms)
-    site, exclude = _validate_and_collect(mol)
-    if non_single_bonds(mol):
-        raise UnsupportedStructure(
-            "unsaturation is not supported by this module (see P-31 for "
-            "alkenes/alkynes; not yet combined with a hydroperoxide here)"
-        )
-    if mol.GetRingInfo().NumRings() > 0:
-        raise UnsupportedStructure("rings are not supported by this module yet")
-
+def _name_acyclic_hydroperoxide(mol, site, exclude, extra_names=None, required_atoms=frozenset()):
+    """`extra_names`: optional {atom_idx -> prefix name} for a coexisting
+    characteristic group demoted to a substituent prefix by
+    `_seniority.senior_class` (e.g. a demoted amine's 'amino'), reused by
+    `_hydroperoxide_amine.py` via `_coexisting_groups.py` so that module
+    doesn't have to reimplement this chain search/candidate selection.
+    `None` keeps the original halogens-only behavior unchanged.
+    `required_atoms`: additional carbon atoms (e.g. a demoted amine's own
+    carbon neighbor) that a candidate chain must also carry -- empty by
+    default so existing callers are unaffected."""
     graph = adjacency(mol)
-    halogens = halogen_substituents(mol)
+    halogens = {**halogen_substituents(mol), **(extra_names or {})}
     chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
 
-    eligible = [chain for chain in chains if site in chain]
+    eligible = [chain for chain in chains if site in chain and required_atoms <= set(chain)]
     if not eligible:
         raise UnsupportedStructure(
             "the hydroperoxide-bearing carbon does not lie on a single "
@@ -311,3 +306,21 @@ def name_hydroperoxide(mol) -> str:
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
     return best_name
+
+
+def name_hydroperoxide(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_phenyl_chain_hydroperoxide(mol, ring_atoms)
+    site, exclude = _validate_and_collect(mol)
+    if non_single_bonds(mol):
+        raise UnsupportedStructure(
+            "unsaturation is not supported by this module (see P-31 for "
+            "alkenes/alkynes; not yet combined with a hydroperoxide here)"
+        )
+    if mol.GetRingInfo().NumRings() > 0:
+        raise UnsupportedStructure("rings are not supported by this module yet")
+
+    return _name_acyclic_hydroperoxide(mol, site, exclude)
