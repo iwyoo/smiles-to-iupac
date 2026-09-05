@@ -81,6 +81,7 @@ from ._ether import has_ether_shape, name_ether
 from ._ether_amine import has_ether_amine_shape, name_ether_amine
 from ._ether_aldehyde import has_ether_aldehyde_shape, name_ether_aldehyde
 from ._ether_amide import has_ether_amide_shape, name_ether_amide
+from ._ether_hydroperoxide import has_ether_hydroperoxide_shape, name_ether_hydroperoxide
 from ._ether_ketone import has_ether_ketone_shape, name_ether_ketone
 from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
 from ._fullerene import has_fullerene_name, name_fullerene
@@ -762,6 +763,11 @@ def smiles_to_iupac(smiles: str) -> str:
         # above) must likewise be routed before `has_ether_shape` below.
         if has_ether_amide_shape(mol):
             return name_ether_amide(mol)
+        # An ether coexisting with a separate hydroperoxide (same P-41
+        # reasoning as the amine/thiol/ketone/aldehyde/amide cases above)
+        # must likewise be routed before `has_ether_shape` below.
+        if has_ether_hydroperoxide_shape(mol):
+            return name_ether_hydroperoxide(mol)
         # A plain -O- ether (P-63.2.1) has no suffix, so it must be routed
         # here before the carbonyl/alcohol checks below, none of which
         # accept a degree-2 oxygen at all.
