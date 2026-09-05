@@ -45,6 +45,11 @@ SUFFIX_CLASS_RANK = {
     "seleninic_acid": 13,
     "telluronic_acid": 14,
     "tellurinic_acid": 15,
+    # Not a Table 4.4 numbered suffix (esters are a functional-class name,
+    # P-41 note above class 16) -- positioned per Table 4.1's general class
+    # order instead (7 Acids > 8 Anhydrides > 9 Esters > 10 Acid halides >
+    # 11 Amides), i.e. junior to every acid above but senior to amide.
+    "ester": 15.5,
     "amide": 16,
     "sulfonamide": 19,
     "sulfinamide": 24,

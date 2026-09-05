@@ -334,7 +334,16 @@ def _substituents_for_chain(graph, chain, halogens, excluded_oxygens):
     return substituents
 
 
-def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, stereo=None, ring_atoms=frozenset()):
+def _name_acyl_part(
+    mol,
+    acyl_carbon,
+    carbonyl_oxygen_idx,
+    ester_oxygen_idx,
+    stereo=None,
+    ring_atoms=frozenset(),
+    extra_names=None,
+    required_atoms=frozenset(),
+):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
     include every stereocenter are eligible (P-92: a stereocenter on a
@@ -353,10 +362,15 @@ def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, ste
     bonds for acyl-chain unsaturation -- the acyl chain itself never
     shares a carbon-adjacency component with that ring regardless (they
     sit on opposite sides of the ester oxygen), so this exclusion is only
-    needed for this scan, not the chain search below."""
+    needed for this scan, not the chain search below.
+
+    `extra_names`/`required_atoms`: same coexisting-group injection point
+    as `_amide.py`'s `_name_acyclic_amide`, reused by `_ester_amine.py` via
+    `_coexisting_groups.py` -- both empty/None by default so existing
+    callers are unaffected."""
     full_graph = adjacency(mol)
     carbon_graph = carbon_adjacency(mol)
-    halogens = halogen_substituents(mol)
+    halogens = {**halogen_substituents(mol), **(extra_names or {})}
     acyl_carbon_idx = acyl_carbon.GetIdx()
     excluded_oxygens = {carbonyl_oxygen_idx, ester_oxygen_idx}
 
@@ -381,6 +395,8 @@ def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, ste
 
     eligible = []
     for chain in chains:
+        if not required_atoms <= set(chain):
+            continue
         if bonds and bond_locants(chain, bonds) is None:
             continue
         chain_set = set(chain)
