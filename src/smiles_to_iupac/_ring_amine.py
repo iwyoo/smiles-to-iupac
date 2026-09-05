@@ -1,5 +1,6 @@
 """Naming of a plain, saturated, monocyclic amine ring (piperidine/
-pyrrolidine/azepane, P-22.2.1) whose sole nitrogen carries exactly one
+pyrrolidine/azepane, and the 1,4-two-heteroatom morpholine/piperazine/
+thiomorpholine siblings, P-22.2.1) whose nitrogen carries exactly one
 substituent -- e.g. 1-methylpiperidine -- per the IUPAC 2013
 Recommendations ("the Blue Book"):
 
@@ -24,13 +25,33 @@ Recommendations ("the Blue Book"):
   is parenthesized, this project's usual convention over PubChem's own
   unparenthesized raw name ('1-propan-2-ylpiperidine' -> this module's
   '1-(propan-2-yl)piperidine').
+- A second path handles the 1,4-two-heteroatom sibling rings
+  (morpholine/piperazine/thiomorpholine, the same six-membered element
+  pairs `_ketone.py`'s `_hetero_ring_two_heteroatoms` already recognizes)
+  with one substituent on the ring's nitrogen -- e.g. 'CN1CCOCC1' ->
+  '4-methylmorpholine' (PubChem CID 7972). The non-nitrogen heteroatom
+  always wins locant 1 (P-22.2.1 element seniority O > S > N, mirroring
+  `_ketone.py`'s own `_TWO_HETERO_PRIORITY` table -- not imported, since
+  this project's convention accepts each module keeping its own small
+  private copy of such a table, e.g. `_is_carbonyl_carbon` duplicated
+  across `_amide.py`/`_hydrazide.py`), so the substituted nitrogen is
+  always locant 4 there; for the symmetric N,N piperazine pair, the
+  substituted nitrogen is always locant 1 (P-14.5.2 lowest locant to the
+  cited substituent) and the plain nitrogen is 4. PubChem structure
+  matches: 'CCN1CCOCC1' -> '4-ethylmorpholine' (CID 7525), 'CN1CCSCC1' ->
+  '4-methylthiomorpholine' (CID 523249), 'CN1CCNCC1' ->
+  '1-methylpiperazine' (CID 53167).
 
-`core.py` must route to this module in the oxygen-free "any nitrogen"
-branch, immediately before its final `name_amine` fallback -- a plain
-alkyl/cyclic N-substituent has no oxygen at all, so it never reaches any
-oxygen-gated check (including `_hidden_amide_ketone.py`'s acyl-on-ring-
-nitrogen path, which requires the substituent's own carbonyl oxygen and
-is therefore never a routing collision with this module).
+`core.py` routes to this module from two places: the oxygen-free "any
+nitrogen" branch (immediately before its final `name_amine` fallback --
+piperidine/pyrrolidine/azepane and the N,N/N,S piperazine/thiomorpholine
+siblings all have no oxygen), and, for the N,O morpholine sibling only
+(which does have an oxygen), the oxygen-gated branch ahead of
+`has_ether_shape` (morpholine's ring oxygen would otherwise look like a
+perfectly ordinary ether oxygen to that check). Never collides with
+`_hidden_amide_ketone.py`'s acyl-on-ring-nitrogen path, which requires
+the substituent's own carbonyl oxygen and is routed separately, earlier
+in the same oxygen-gated branch.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - A ring nitrogen with zero substituents (the plain unsubstituted ring
@@ -44,10 +65,13 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   groups" real-data domain).
 - An acyl N-substituent -- handled by `_hidden_amide_ketone.py` instead
   (routed earlier, in the oxygen-gated branch).
-- An aromatic N-substituent, a ring with more than one heteroatom (e.g.
-  morpholine/piperazine -- different locant numbering), a heteroatom
-  other than nitrogen, a ring size other than 5/6/7 (`saturated_ring_name`'s
-  own P-22.2.1 scope), any substituent on the ring itself, or any ring
+- An aromatic N-substituent, a heteroatom other than N/O/S, a ring size
+  other than 5/6/7 (single-heteroatom path) or other than 6
+  (two-heteroatom path, `saturated_two_heteroatom_1_4_ring_name`'s own
+  scope), a Se/Te two-heteroatom pair (no PubChem-registered N-substituted
+  name to confirm the locant, same reasoning as `_ketone.py`'s identical
+  exclusion), N,N'-disubstituted piperazine (both nitrogens substituted --
+  a separate follow-up), any substituent on the ring itself, or any ring
   unsaturation.
 - Any other heteroatom, charged/isotopically modified atom, or
   multi-fragment structure.
@@ -61,12 +85,25 @@ from ._common import (
     adjacency,
     halogen_substituents,
     non_single_bonds,
+    ring_cycle,
 )
-from ._hetero_monocyclic import saturated_ring_name
+from ._hetero_monocyclic import saturated_ring_name, saturated_two_heteroatom_1_4_ring_name
 from ._substituents import name_branch
 
 _RING_SIZES = (5, 6, 7)
 _ALLOWED_SUBSTITUENT_ATOMIC_NUMS = {6, *HALOGEN_PREFIXES}
+_TWO_HETERO_RING_SIZE = 6
+_TWO_HETERO_ELEMENTS = {7: "N", 8: "O", 16: "S"}
+_TWO_HETERO_ELEMENT_PAIRS = {
+    frozenset(("N", "O")),
+    frozenset(("N", "N")),
+    frozenset(("N", "S")),
+}
+# P-22.2.1 element seniority for locant 1 (mirrors `_ketone.py`'s own
+# `_TWO_HETERO_PRIORITY`, O > S > N) -- the non-nitrogen heteroatom always
+# wins locant 1 for the N,O/N,S pairs, so the substituted nitrogen is
+# always locant 4 there.
+_TWO_HETERO_PRIORITY = {"O": 0, "S": 1, "N": 2}
 
 
 def _ring_amine_shape(mol):
@@ -112,20 +149,90 @@ def _ring_amine_shape(mol):
     return n_idx, ring_atoms, exo[0].GetIdx()
 
 
+def _two_hetero_ring_amine_shape(mol):
+    """(n_idx, ring_atoms, substituent_root_idx, n_locant, elements) for a
+    plain, saturated, six-membered, 1,4-two-heteroatom ring (morpholine/
+    piperazine/thiomorpholine's element pairs only) whose nitrogen carries
+    exactly one exocyclic substituent -- else None. `elements` is the
+    frozenset PubChem-verified pair for `saturated_two_heteroatom_1_4_ring_
+    name`; `n_locant` is 4 for an N,O/N,S pair (the non-nitrogen heteroatom
+    always wins locant 1) or 1 for the symmetric N,N piperazine pair (the
+    substituted nitrogen wins the lowest locant)."""
+    ring_info = mol.GetRingInfo()
+    candidates = []
+    for ring in ring_info.AtomRings():
+        if len(ring) != _TWO_HETERO_RING_SIZE:
+            continue
+        if any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring):
+            continue
+        heteroatoms = [a for a in ring if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
+        if len(heteroatoms) != 2:
+            continue
+        elements = [_TWO_HETERO_ELEMENTS.get(mol.GetAtomWithIdx(a).GetAtomicNum()) for a in heteroatoms]
+        if None in elements or frozenset(elements) not in _TWO_HETERO_ELEMENT_PAIRS:
+            continue
+        candidates.append((set(ring), heteroatoms))
+    if len(candidates) != 1:
+        return None
+    ring_atoms, heteroatoms = candidates[0]
+
+    graph = adjacency(mol)
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    het1, het2 = heteroatoms
+    if abs(ring_order.index(het1) - ring_order.index(het2)) != _TWO_HETERO_RING_SIZE // 2:
+        return None
+
+    nitrogens = [a for a in heteroatoms if mol.GetAtomWithIdx(a).GetAtomicNum() == 7]
+    substituted = []
+    for n in nitrogens:
+        n_atom = mol.GetAtomWithIdx(n)
+        if n_atom.GetFormalCharge() != 0 or n_atom.GetIsotope() != 0:
+            return None
+        exo = [x for x in n_atom.GetNeighbors() if x.GetIdx() not in ring_atoms]
+        if len(exo) > 1:
+            return None
+        if exo:
+            if mol.GetBondBetweenAtoms(n, exo[0].GetIdx()).GetBondTypeAsDouble() != 1.0:
+                return None
+            substituted.append((n, exo[0].GetIdx()))
+        elif n_atom.GetTotalNumHs() != 1:
+            return None
+    if len(substituted) != 1:
+        return None
+    (n_idx, root) = substituted[0]
+
+    other_heteroatom = het2 if n_idx == het1 else het1
+    other_atom = mol.GetAtomWithIdx(other_heteroatom)
+    if other_atom.GetAtomicNum() != 7:
+        if other_atom.GetFormalCharge() != 0 or other_atom.GetIsotope() != 0:
+            return None
+        if any(x.GetIdx() not in ring_atoms for x in other_atom.GetNeighbors()):
+            return None
+
+    for a in ring_atoms:
+        if a in heteroatoms:
+            continue
+        atom = mol.GetAtomWithIdx(a)
+        if atom.GetAtomicNum() != 6 or atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+            return None
+        if any(x.GetIdx() not in ring_atoms for x in atom.GetNeighbors()):
+            return None
+        if atom.GetTotalNumHs() != 2:
+            return None
+    if any(a in ring_atoms and b in ring_atoms for a, b, _ in non_single_bonds(mol)):
+        return None
+
+    other_element = _TWO_HETERO_ELEMENTS[other_atom.GetAtomicNum()]
+    n_locant = 1 if other_element == "N" else 4
+    elements = frozenset(("N", other_element))
+    return n_idx, ring_atoms, root, n_locant, elements
+
+
 def has_ring_amine_shape(mol) -> bool:
-    return _ring_amine_shape(mol) is not None
+    return _ring_amine_shape(mol) is not None or _two_hetero_ring_amine_shape(mol) is not None
 
 
-def name_ring_amine(mol) -> str:
-    shape = _ring_amine_shape(mol)
-    if shape is None:
-        raise UnsupportedStructure(
-            "no plain saturated monocyclic ring with a single N-substituted "
-            "nitrogen shape found"
-        )
-    n_idx, ring_atoms, root = shape
-    ring_size = len(ring_atoms)
-
+def _validate_and_name_substituent(mol, ring_atoms, n_idx, root):
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
@@ -156,13 +263,37 @@ def name_ring_amine(mol) -> str:
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    name, is_compound = name_branch(graph, root, n_idx, halogens)
+    return name_branch(graph, root, n_idx, halogens)
 
-    stem = saturated_ring_name("N", ring_size)
-    if stem is None:
-        raise UnsupportedStructure(
-            f"no retained/Hantzsch-Widman name for a {ring_size}-membered "
-            f"N-heteroatom saturated ring (P-22.2.1)"
-        )
-    sub_name = f"({name})" if is_compound else name
-    return f"1-{sub_name}{stem}"
+
+def name_ring_amine(mol) -> str:
+    shape = _ring_amine_shape(mol)
+    if shape is not None:
+        n_idx, ring_atoms, root = shape
+        name, is_compound = _validate_and_name_substituent(mol, ring_atoms, n_idx, root)
+        stem = saturated_ring_name("N", len(ring_atoms))
+        if stem is None:
+            raise UnsupportedStructure(
+                f"no retained/Hantzsch-Widman name for a {len(ring_atoms)}-membered "
+                f"N-heteroatom saturated ring (P-22.2.1)"
+            )
+        sub_name = f"({name})" if is_compound else name
+        return f"1-{sub_name}{stem}"
+
+    shape2 = _two_hetero_ring_amine_shape(mol)
+    if shape2 is not None:
+        n_idx, ring_atoms, root, n_locant, elements = shape2
+        name, is_compound = _validate_and_name_substituent(mol, ring_atoms, n_idx, root)
+        stem = saturated_two_heteroatom_1_4_ring_name(elements)
+        if stem is None:
+            raise UnsupportedStructure(
+                "no retained name for this 1,4-two-heteroatom saturated "
+                "ring element pair (P-22.2.1)"
+            )
+        sub_name = f"({name})" if is_compound else name
+        return f"{n_locant}-{sub_name}{stem}"
+
+    raise UnsupportedStructure(
+        "no plain saturated monocyclic ring with a single N-substituted "
+        "nitrogen shape found"
+    )
