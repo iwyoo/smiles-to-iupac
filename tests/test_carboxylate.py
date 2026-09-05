@@ -96,6 +96,12 @@ def test_phenyl_substituted_benzene_ring_carboxylate_raises():
         smiles_to_iupac("Cc1ccccc1CC(=O)[O-]")
 
 
+def test_phenyl_chain_carboxylate_ring_halogen():
+    # PubChem PUG REST computes "3-(4-chlorophenyl)propanoate" for this
+    # structure.
+    assert smiles_to_iupac("Clc1ccc(CCC(=O)[O-])cc1") == "3-(4-chlorophenyl)propanoate"
+
+
 def test_phenyl_chain_carboxylate_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CC(=O)[O-]")
