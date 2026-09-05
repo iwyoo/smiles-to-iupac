@@ -100,3 +100,23 @@ def test_substituted_phenyl_raises():
 def test_non_aromatic_ring_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1CCCCC1B")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-verified: `Clc1ccc(cc1)B` -> "(4-chlorophenyl)borane" (CID
+        # 102445216), `Fc1ccc(cc1)B` -> "(4-fluorophenyl)borane" (CID
+        # 101045919) -- see `_phosphane.py`'s identical, more extensively
+        # verified extension.
+        ("Clc1ccc(cc1)B", "(4-chlorophenyl)borane"),
+        ("Fc1ccc(cc1)B", "(4-fluorophenyl)borane"),
+    ],
+)
+def test_halogenated_phenyl_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_halogenated_phenyl_mixed_with_alkyl_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CB(c1ccc(Cl)cc1)")

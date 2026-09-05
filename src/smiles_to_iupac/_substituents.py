@@ -151,9 +151,25 @@ def format_mononuclear_prefixes(entries) -> str:
     if len(counts) == 1:
         (name, count), = counts.items()
         if count == 1:
+            # A compound name that itself begins with a locant digit (e.g.
+            # '4-chlorophenyl') needs enclosing marks even alone, unlike a
+            # branched name whose own locant isn't leading ('propan-2-yl',
+            # left bare above) -- confirmed via PubChem PUG REST:
+            # `Clc1ccc(cc1)P` -> '(4-chlorophenyl)phosphane' (CID 17762777).
+            if compound_of[name] and name[0].isdigit():
+                return f"({name})"
             return name
+        # A digit-leading compound name is itself a *substituted*
+        # substituent group (e.g. '4-chlorophenyl' = phenyl substituted by
+        # chloro), which takes the irregular 'bis'/'tris' series (P-14.2.2)
+        # to avoid ambiguity -- unlike a branched name's own locant, which
+        # doesn't make it a substituted-substituent-group in this sense
+        # ('tri(propan-2-yl)phosphane', PubChem CID 80969, plain 'tri').
+        # Confirmed via PubChem PUG REST: three (4-chlorophenyl) groups on
+        # one phosphorus -> 'tris(4-chlorophenyl)phosphane' (CID 70874).
+        needs_kis = compound_of[name] and name[0].isdigit()
         wrapped = f"({name})" if compound_of[name] else name
-        return multiplying_prefix(count) + wrapped
+        return multiplying_prefix(count, compound=needs_kis) + wrapped
 
     if any(counts[name] > 1 and compound_of[name] for name in counts):
         raise UnsupportedStructure(
@@ -172,7 +188,8 @@ def format_mononuclear_prefixes(entries) -> str:
             # Book's own 'ethyldi(methyl)phosphane (PIN)' worked example
             # (`tmp/bluebook/P1.html`), so the prefix sits outside the
             # parens at any position, not just the first.
-            parts.append(multiplying_prefix(count) + (name if i == 0 else f"({name})"))
+            needs_kis = compound_of[name] and name[0].isdigit()
+            parts.append(multiplying_prefix(count, compound=needs_kis) + (name if i == 0 else f"({name})"))
         elif compound_of[name]:
             parts.append(f"({name})")
         else:
@@ -331,6 +348,61 @@ def _ring_substituent_with_hydroxyls(graph, root, coming_from, halogens):
         return None
     best_locants = min(locants for _, locants in results)
     return ring_sizes.pop(), best_locants
+
+
+def halogenated_phenyl_substituent(graph, aromatic_atoms, root, coming_from, halogens):
+    """Like `_ring_substituent_with_hydroxyls`, but for a benzene ring
+    (fixed at locant 1 = `root`, the ring carbon bonded to the parent atom)
+    where zero or more of the other five ring atoms each carry a single
+    halogen substituent (an exocyclic neighbor found in `halogens`) instead
+    of a hydroxyl -- used by `_phosphane.py`/`_borane.py` to extend their
+    existing plain-phenyl support to a halogen-substituted phenyl ring.
+    Returns the assembled name (e.g. '4-chlorophenyl',
+    '2,3,6-trichlorophenyl'), the ring's own atom indices, and the halogen
+    atoms' own indices -- as `(name, ring_atoms, halogen_atoms)` -- using
+    the ring-walk direction that gives the halogens the lowest locant set
+    overall (P-14.5.2); or None if the ring isn't a plain six-membered
+    all-aromatic-carbon ring, a non-attachment ring atom carries anything
+    other than a single halogen (or nothing), or `root`'s ring has no
+    halogen at all (the ordinary unsubstituted-phenyl path already covers
+    that case)."""
+    ring_neighbors = [n for n in graph[root] if n != coming_from]
+    if len(ring_neighbors) != 2 or root not in aromatic_atoms:
+        return None
+
+    def walk(start):
+        visited = {root}
+        previous, current = root, start
+        position = 1
+        entries = []
+        while current != root:
+            if current in visited or current not in aromatic_atoms:
+                return None
+            visited.add(current)
+            position += 1
+            neighbors = [n for n in graph[current] if n != previous]
+            ring_next = [n for n in neighbors if n not in halogens]
+            halogen_neighbors = [n for n in neighbors if n in halogens]
+            if len(ring_next) != 1 or len(halogen_neighbors) > 1:
+                return None
+            if halogen_neighbors:
+                entries.append((position, halogens[halogen_neighbors[0]], halogen_neighbors[0]))
+            previous, current = current, ring_next[0]
+        if len(visited) != 6:
+            return None
+        return visited, entries
+
+    candidates = [r for r in (walk(n) for n in ring_neighbors) if r is not None and r[1]]
+    if not candidates:
+        return None
+    visited, entries = min(candidates, key=lambda vc: [pos for pos, _, _ in vc[1]])
+    grouped = {}
+    for pos, name, _ in entries:
+        info = grouped.setdefault(name, {"locants": [], "compound": False})
+        info["locants"].append(pos)
+    full_name = format_substituent_prefixes(grouped) + "phenyl"
+    halogen_atoms = {atom_idx for _, _, atom_idx in entries}
+    return full_name, frozenset(visited), frozenset(halogen_atoms)
 
 
 def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None):

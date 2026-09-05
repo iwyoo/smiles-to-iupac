@@ -63,17 +63,32 @@ and/or plain phenyl substituents), per the IUPAC 2013 Recommendations
   Detection reuses the same `_plain_phenyl_substituent_atoms` pattern
   (`is_plain_benzene_ring` + `ring_chain_attachment`) adapted for boron's
   own direct-neighbor substituent roots.
+- A benzene ring bonded directly to boron and also bearing one or more
+  halogen substituents of its own is cited as a halogenated-phenyl
+  substituent, e.g. '(4-chlorophenyl)borane' -- confirmed via PubChem PUG
+  REST: `Clc1ccc(cc1)B` -> "(4-chlorophenyl)borane" (CID 102445216),
+  `Fc1ccc(cc1)B` -> "(4-fluorophenyl)borane" (CID 101045919), mirroring
+  `_phosphane.py`'s identical extension (see that module's docstring for
+  the full derivation, including the 'bis'/'tris' multiplying and
+  mixing-restriction rules, which apply here unchanged with boron in
+  place of phosphorus). Detection reuses
+  `_substituents.halogenated_phenyl_substituent` (shared with
+  `_phosphane.py`).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any atom other than boron, carbon, hydrogen, and a halogen bonded
-  directly to boron (no B=O, no halogen-substituted alkyl chain, no other
-  heteroatom in a substituent chain).
+  directly to boron or to a halogenated-phenyl ring on boron (no B=O, no
+  halogen-substituted alkyl chain, no other heteroatom in a substituent
+  chain).
 - More than one boron atom (borane chains, e.g. diborane -- a separate,
   genuinely different structure/nomenclature problem, not a simple
   extension of this substitutive-naming scope).
-- An unsaturated substituent, an aromatic substituent other than a plain,
-  unsubstituted phenyl (a substituted or heteroaromatic ring, e.g.), or a
-  ring other than a plain phenyl substituent directly on boron.
+- An unsaturated substituent, an aromatic substituent other than a plain
+  or halogen-substituted phenyl (a substituted-by-something-else or
+  heteroaromatic ring, e.g.), or a ring other than that directly on
+  boron.
+- A halogenated-phenyl substituent mixed with a differently-named
+  substituent (see `_phosphane.py`'s docstring).
 - Charged or isotopically modified atoms.
 - A structure that also contains phosphorus (or any other heteroatom):
   rejected by the "heteroatoms other than boron itself" check below, same
@@ -86,11 +101,12 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
+    halogen_substituents,
     is_plain_benzene_ring,
     non_single_bonds,
     ring_chain_attachment,
 )
-from ._substituents import format_mononuclear_prefixes, name_branch
+from ._substituents import format_mononuclear_prefixes, halogenated_phenyl_substituent, name_branch
 
 
 def has_simple_borane_shape(mol) -> bool:
@@ -135,36 +151,59 @@ def _validate_and_collect_substituents(mol):
     roots = set(graph[boron.GetIdx()])
     phenyl_atoms = _plain_phenyl_substituent_atoms(mol, graph, roots)
 
+    halogens = halogen_substituents(mol)
+    aromatic_atoms = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic()}
+    halophenyl = {}
+    for root in roots - phenyl_atoms:
+        result = halogenated_phenyl_substituent(graph, aromatic_atoms, root, boron.GetIdx(), halogens)
+        if result is not None:
+            halophenyl[root] = result
+    halophenyl_ring_atoms = {a for _, ring_atoms, _ in halophenyl.values() for a in ring_atoms}
+    halophenyl_halogen_atoms = {a for _, _, halogen_atoms in halophenyl.values() for a in halogen_atoms}
+
     for atom in mol.GetAtoms():
+        idx = atom.GetIdx()
         is_halogen = atom.GetAtomicNum() in HALOGEN_PREFIXES
         if atom.GetAtomicNum() not in (5, 6) and not is_halogen:
             raise UnsupportedStructure(
                 "heteroatoms other than the borane boron itself are not "
                 "supported yet (see P-68)"
             )
+        if is_halogen and idx in halophenyl_halogen_atoms:
+            continue
         if is_halogen and (
             atom.GetDegree() != 1 or atom.GetNeighbors()[0].GetIdx() != boron.GetIdx()
         ):
             raise UnsupportedStructure(
                 "a halogen-substituted alkyl chain is out of scope for this "
-                "module -- only a halogen bonded directly to boron is "
-                "supported so far"
+                "module -- only a halogen bonded directly to boron, or to a "
+                "phenyl ring directly on boron, is supported so far"
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and atom.GetIdx() not in phenyl_atoms:
+        if (
+            atom.GetAtomicNum() == 6
+            and atom.GetIsAromatic()
+            and idx not in phenyl_atoms
+            and idx not in halophenyl_ring_atoms
+        ):
             raise UnsupportedStructure(
-                "an aromatic substituent other than a plain, unsubstituted "
-                "phenyl group is out of scope for this module"
+                "an aromatic substituent other than a plain or halogen-"
+                "substituted phenyl group is out of scope for this module"
             )
     all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
-    if all_ring_atoms - phenyl_atoms:
+    if all_ring_atoms - phenyl_atoms - halophenyl_ring_atoms:
         raise UnsupportedStructure(
-            "a ring other than a plain phenyl substituent directly on "
-            "boron is out of scope for this module"
+            "a ring other than a plain or halogen-substituted phenyl "
+            "substituent directly on boron is out of scope for this module"
         )
     non_ring_unsaturation = [
-        b for b in non_single_bonds(mol) if b[0] not in phenyl_atoms and b[1] not in phenyl_atoms
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in phenyl_atoms
+        and b[1] not in phenyl_atoms
+        and b[0] not in halophenyl_ring_atoms
+        and b[1] not in halophenyl_ring_atoms
     ]
     if non_ring_unsaturation:
         raise UnsupportedStructure(
@@ -179,11 +218,28 @@ def _validate_and_collect_substituents(mol):
         if root in phenyl_atoms:
             substituent_names.append(("phenyl", False))
             continue
+        if root in halophenyl:
+            name, _, _ = halophenyl[root]
+            substituent_names.append((name, True))
+            continue
         root_atomic_num = mol.GetAtomWithIdx(root).GetAtomicNum()
         if root_atomic_num in HALOGEN_PREFIXES:
             substituent_names.append((HALOGEN_PREFIXES[root_atomic_num], False))
             continue
         substituent_names.append(name_branch(graph, root, boron.GetIdx(), {}))
+
+    distinct_names = {name for name, _ in substituent_names}
+    if len(distinct_names) > 1 and any(
+        is_compound and name[0].isdigit() for name, is_compound in substituent_names
+    ):
+        raise UnsupportedStructure(
+            "a halogen-substituted phenyl group mixed with any differently-"
+            "named substituent is out of scope for this module -- the "
+            "resulting punctuation isn't confirmed by PubChem (unregistered "
+            "for two different halogenated phenyls on the same boron) or a "
+            "Blue Book worked example, mirroring `_phosphane.py`'s "
+            "identical restriction"
+        )
     return substituent_names
 
 
