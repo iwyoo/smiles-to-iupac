@@ -221,15 +221,22 @@ def test_phenyl_directly_attached_amine():
     assert smiles_to_iupac("c1ccccc1N") == "aniline"
 
 
-def test_phenyl_substituted_benzene_ring_amine_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CCN")
+def test_phenyl_substituted_benzene_ring_amine_ortho_methyl():
+    # A ring methyl substituent is now supported (see
+    # tasks/aromatic-ring-methyl-rollout-4.md) -- PubChem PUG
+    # REST-verified "2-(2-methylphenyl)ethanamine".
+    assert smiles_to_iupac("Cc1ccccc1CCN") == "2-(2-methylphenyl)ethan-1-amine"
 
 
 def test_phenyl_chain_amine_ring_halogen():
     # PubChem PUG REST computes "3-(4-chlorophenyl)propan-1-amine" for
     # this structure.
     assert smiles_to_iupac("Clc1ccc(CCCN)cc1") == "3-(4-chlorophenyl)propan-1-amine"
+
+
+def test_phenyl_chain_amine_ring_methyl():
+    # PubChem PUG REST-verified "3-(4-methylphenyl)propan-1-amine".
+    assert smiles_to_iupac("Cc1ccc(CCCN)cc1") == "3-(4-methylphenyl)propan-1-amine"
 
 
 def test_phenyl_chain_amine_unsaturation_raises():
