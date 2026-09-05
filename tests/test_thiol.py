@@ -141,15 +141,21 @@ def test_two_direct_ring_thiols_not_supported():
         smiles_to_iupac("Sc1ccccc1S")
 
 
-def test_phenyl_substituted_benzene_ring_thiol_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CCS")
+def test_phenyl_substituted_benzene_ring_thiol_ortho_methyl():
+    # A ring methyl substituent is now supported (see
+    # tasks/aromatic-ring-methyl-rollout-2.md).
+    assert smiles_to_iupac("Cc1ccccc1CCS") == "2-(2-methylphenyl)ethane-1-thiol"
 
 
 def test_phenyl_chain_thiol_ring_halogen():
     # PubChem PUG REST computes "3-(4-chlorophenyl)propane-1-thiol" for
     # this structure.
     assert smiles_to_iupac("Clc1ccc(CCCS)cc1") == "3-(4-chlorophenyl)propane-1-thiol"
+
+
+def test_phenyl_chain_thiol_ring_methyl():
+    # PubChem PUG REST-verified "3-(4-methylphenyl)propane-1-thiol".
+    assert smiles_to_iupac("Cc1ccc(CCCS)cc1") == "3-(4-methylphenyl)propane-1-thiol"
 
 
 def test_phenyl_chain_thiol_unsaturation_raises():
