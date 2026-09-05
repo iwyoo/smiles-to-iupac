@@ -146,6 +146,12 @@ def test_phenyl_substituted_benzene_ring_thiol_raises():
         smiles_to_iupac("Cc1ccccc1CCS")
 
 
+def test_phenyl_chain_thiol_ring_halogen():
+    # PubChem PUG REST computes "3-(4-chlorophenyl)propane-1-thiol" for
+    # this structure.
+    assert smiles_to_iupac("Clc1ccc(CCCS)cc1") == "3-(4-chlorophenyl)propane-1-thiol"
+
+
 def test_phenyl_chain_thiol_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CCS")
