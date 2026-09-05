@@ -111,9 +111,25 @@ def test_phenyl_ester_oxygen_side_substituted_ring_raises():
         smiles_to_iupac("CC(=O)Oc1ccccc1C")
 
 
-def test_phenyl_substituted_benzene_ring_ester_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC(=O)OC")
+def test_phenyl_acyl_chain_ring_methyl():
+    # PubChem 'methyl 2-(2-methylphenyl)acetate' -- a plain methyl ring
+    # substituent, like halogens, no longer forces the benzene ring to
+    # win the ring-vs-chain parent competition (see
+    # test_carboxylic_acid.py's identical methylated-ring cases).
+    assert smiles_to_iupac("Cc1ccccc1CC(=O)OC") == "methyl 2-(2-methylphenyl)ethanoate"
+
+
+def test_phenyl_acyl_chain_ring_methyl_para():
+    assert smiles_to_iupac("COC(=O)Cc1ccc(C)cc1") == "methyl 2-(4-methylphenyl)ethanoate"
+
+
+def test_phenyl_acyl_chain_ring_halogen_and_methyl():
+    # PubChem "methyl 2-(2-chloro-5-methylphenyl)acetate" -- halogen and
+    # methyl ring substituents mixed on the same ring.
+    assert (
+        smiles_to_iupac("ClC1=CC=C(C)C=C1CC(=O)OC")
+        == "methyl 2-(2-chloro-5-methylphenyl)ethanoate"
+    )
 
 
 def test_phenyl_acyl_chain_ring_halogen():
