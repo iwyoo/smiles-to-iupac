@@ -36,10 +36,36 @@ def test_formonitrile_raises():
         smiles_to_iupac("C#N")
 
 
-def test_dinitrile_raises():
-    # More than one nitrile group is future work (see module docstring).
+def test_dinitrile():
+    # PubChem "butanedinitrile" (succinonitrile) -- both nitrile carbons
+    # are chain termini, so the existing count-parameterized naming
+    # helpers (`_suffix_body`/`_candidate_key`) already generalize; only
+    # the validation gate needed loosening (see module docstring).
+    assert smiles_to_iupac("N#CCCC#N") == "butanedinitrile"
+
+
+def test_dinitrile_longer_chain():
+    assert smiles_to_iupac("N#CCCCC#N") == "pentanedinitrile"
+
+
+def test_dinitrile_branched_substituent():
+    assert smiles_to_iupac("N#CCC(C)(C#N)C") == "2,2-dimethylbutanedinitrile"
+
+
+def test_dinitrile_halogen_substituent():
+    assert smiles_to_iupac("ClC(C#N)CC#N") == "2-chlorobutanedinitrile"
+
+
+def test_trinitrile_raises():
+    # A third nitrile can't sit on both chain termini, and there is no
+    # 'cyano' substituent-prefix support yet for a branch-mounted one.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N#CCCC#N")
+        smiles_to_iupac("N#CC(CC#N)CC#N")
+
+
+def test_dinitrile_alongside_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("N#CC1CCC(C#N)CC1")
 
 
 def test_benzonitrile():

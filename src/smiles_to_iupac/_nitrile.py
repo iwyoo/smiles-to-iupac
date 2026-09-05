@@ -34,7 +34,11 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   unchanged.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- More than one nitrile group (a dinitrile, P-66.6.3) - future work.
+- More than two nitrile groups - a third can't sit on both chain termini
+  the way exactly two can (P-66.6.3's dinitrile case, e.g.
+  'butanedinitrile', is supported for the acyclic case), and this project
+  has no 'cyano' substituent-prefix support yet for a branch-mounted one.
+  A dinitrile alongside any ring is also still out of scope.
 - Any oxygen - routed to a different module by `core.py`, or out of scope
   entirely if this module is called directly on one.
 - A nitrile nitrogen that isn't a plain, isolated -C#N (any degree other
@@ -186,8 +190,12 @@ def _validate_and_collect_nitriles(mol, aromatic_ring_atoms=frozenset()):
         )
     if not nitriles:
         raise UnsupportedStructure("no nitrile (-C#N) group found; this module only handles nitriles")
-    if len(nitriles) > 1:
-        raise UnsupportedStructure("more than one nitrile group (a dinitrile) is not supported yet")
+    if len(nitriles) > 2:
+        raise UnsupportedStructure(
+            "more than two nitrile groups is not supported yet (a third "
+            "nitrile can't sit on both chain termini, and this project "
+            "has no 'cyano' substituent-prefix support yet)"
+        )
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
     return nitriles
@@ -577,14 +585,26 @@ def name_nitrile(mol) -> str:
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
-            (only_nitrogen,) = _validate_and_collect_nitriles(mol, aromatic_ring_atoms=ring_atoms)
+            ring_nitriles = _validate_and_collect_nitriles(mol, aromatic_ring_atoms=ring_atoms)
+            if len(ring_nitriles) != 1:
+                raise UnsupportedStructure(
+                    "more than one nitrile group alongside a ring is not "
+                    "supported yet (only the acyclic dinitrile case is)"
+                )
+            (only_nitrogen,) = ring_nitriles
             graph = adjacency(mol)
             (only_carbon,) = graph[only_nitrogen]
             ring_neighbors = [n for n in graph[only_carbon] if n in ring_atoms]
             if len(ring_neighbors) == 1:
                 return _name_benzonitrile(mol, ring_atoms)
             return _name_phenyl_chain_nitrile(mol, ring_atoms)
-        (only_nitrogen,) = _validate_and_collect_nitriles(mol)
+        ring_nitriles = _validate_and_collect_nitriles(mol)
+        if len(ring_nitriles) != 1:
+            raise UnsupportedStructure(
+                "more than one nitrile group alongside a ring is not "
+                "supported yet (only the acyclic dinitrile case is)"
+            )
+        (only_nitrogen,) = ring_nitriles
         graph = adjacency(mol)
         (only_carbon,) = graph[only_nitrogen]
         ring_neighbors = [n for n in graph[only_carbon] if n in ring_atoms]
