@@ -90,6 +90,7 @@ from ._fullerene import has_fullerene_name, name_fullerene
 from ._androstane import has_androstane_name, name_androstane
 from ._estrane import has_estrane_name, name_estrane
 from ._gonane import has_gonane_name, name_gonane
+from ._pregnane import has_pregnane_name, name_pregnane
 from ._heteroaromatic_fused import has_retained_heteroaromatic_fused_name, name_retained_heteroaromatic_fused
 from ._polycyclic_component_fusion import (
     has_polycyclic_component_fusion_name,
@@ -390,6 +391,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # general von Baeyer engine instead.
     if has_estrane_name(mol):
         return name_estrane(mol)
+
+    # pregnane (androstane + a plain ethyl side chain at C17, Rule 3S-2.4 --
+    # see module docstring) is recognized the same way, for the same
+    # reason: its own skeleton would otherwise fall through to
+    # `_polycyclic.py`'s general von Baeyer engine instead.
+    if has_pregnane_name(mol):
+        return name_pregnane(mol)
 
     # triphenylene (P-25.1.2's branched-fusion retained name) is recognized
     # the same way -- see _branched_fused_aromatic.py's module docstring;
