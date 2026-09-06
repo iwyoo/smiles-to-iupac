@@ -608,6 +608,24 @@ def test_ring_substituent_chain_ketone_unsaturated_ring_raises():
         smiles_to_iupac("CC(=O)C1CCCC=C1")
 
 
+def test_ring_with_ketone_chain_ketone_tie():
+    # Ring and chain each carry exactly one ketone (P-44.1.1 tie,
+    # P-44.1.2.2 resolves it in the ring's favor) -- the ring becomes the
+    # parent and the chain's ketone is cited as an "oxopropyl"
+    # substituent prefix, mirroring `_alcohol.py`'s `_name_ring_with_
+    # hydroxy_chain_alcohol`. PubChem PUG REST-verified
+    # "2-(2-oxopropyl)cyclohexan-1-one" (CID 538581).
+    assert smiles_to_iupac("O=C1CCCCC1CC(C)=O") == "2-(2-oxopropyl)cyclohexan-1-one"
+
+
+def test_ring_with_ketone_chain_ketone_chain_wins_raises():
+    # The chain has strictly more ketones than the ring -- deferred,
+    # since `name_branch` can't yet cite a ring as an "oxo"-decorated
+    # cyclic substituent (only "hydroxy" is wired up there).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1CCCCC1CC(=O)CC(C)=O")
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
