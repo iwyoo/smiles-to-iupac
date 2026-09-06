@@ -89,9 +89,73 @@ def test_amine_coexisting_now_supported_via_ester_amine():
     assert smiles_to_iupac("NCC(=O)OC") == "methyl 2-aminoethanoate"
 
 
-def test_aryl_ester_raises():
+def test_benzoate_ester():
+    # The acyl part hangs directly off the benzene ring, no intervening
+    # chain carbon (P-65.6.3.2's retained-name axis) -- mirrors
+    # `_carboxylic_acid.py`'s 'benzoic acid' with the 'benzoate' suffix
+    # word. PubChem PUG REST-verified "methyl benzoate" (CID 7150).
+    assert smiles_to_iupac("c1ccccc1C(=O)OC") == "methyl benzoate"
+
+
+def test_benzoate_ester_substituted():
+    # PubChem PUG REST-verified "methyl 2-methylbenzoate" (CID 33094).
+    assert smiles_to_iupac("Cc1ccccc1C(=O)OC") == "methyl 2-methylbenzoate"
+
+
+def test_ring_acyl_ester():
+    # The acyl part hangs directly off a plain saturated ring, no
+    # intervening chain carbon -- mirrors `_carboxylic_acid.py`'s
+    # 'cyclohexanecarboxylic acid' with the 'carboxylate' suffix word.
+    # PubChem PUG REST-verified "methyl cyclohexanecarboxylate"
+    # (CID 20748).
+    assert smiles_to_iupac("O=C(OC)C1CCCCC1") == "methyl cyclohexanecarboxylate"
+
+
+def test_ring_acyl_ester_substituted():
+    # PubChem PUG REST-verified "methyl 4-methylcyclohexane-1-
+    # carboxylate" (CID 170993).
+    assert (
+        smiles_to_iupac("O=C(OC)C1CCC(C)CC1") == "methyl 4-methylcyclohexane-1-carboxylate"
+    )
+
+
+def test_ring_acyl_ester_unsaturated_ring_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C(=O)OC")
+        smiles_to_iupac("O=C(OC)C1CCCC=C1")
+
+
+def test_ring_acyl_ester_substituent_on_acyl_ring_atom_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C(OC)C1(C)CCCCC1")
+
+
+def test_ring_acyl_chain_ester():
+    # The acyl part (R-CO-) chain hangs off a single unbranched chain
+    # attached to an otherwise-plain saturated ring -- the saturated
+    # counterpart of `_name_phenyl_acyl_ester`. PubChem PUG REST-verified
+    # "methyl 2-cyclohexylacetate" (CID 139743) -- this project's
+    # systematic 'ethanoate' stem convention applies here too (see
+    # `test_ester_names` above).
+    assert smiles_to_iupac("O=C(OC)CC1CCCCC1") == "methyl 2-cyclohexylethanoate"
+
+
+def test_ring_acyl_chain_ester_ring_with_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C(OC)CC1CCC(C)CC1")
+
+
+def test_ring_acyl_chain_ester_unsaturated_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C(OC)CC1CCCC=C1")
+
+
+def test_ring_on_alcohol_chain_ester_still_raises():
+    # A saturated ring reachable only from the alcohol side (not the acyl
+    # side) is still out of scope -- this task only covers rings on the
+    # acyl side (directly, or via a chain); a ring on the alcohol side via
+    # a chain is a separate, unscoped gap.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=O)OCC1CCCCC1")
 
 
 def test_phenyl_ester_oxygen_side():
