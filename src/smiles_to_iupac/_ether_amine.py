@@ -206,9 +206,9 @@ def name_ether_amine(mol) -> str:
     }
 
     sub_name, sub_compound = name_branch(full_graph, r_prime_carbon, ether_oxygen_idx, {}, mol=mol)
-    if sub_compound:
-        sub_name = f"({sub_name})"
     oxy_term = _oxy_prefix(sub_name)
+    if sub_compound:
+        oxy_term = f"({oxy_term})"
     halogens = {**halogen_substituents(mol), ether_oxygen_idx: oxy_term}
 
     best_name, _ = _best_chain_name(main_carbon_graph, full_graph, halogens, {amine_nitrogen}, ())

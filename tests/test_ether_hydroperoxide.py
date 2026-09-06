@@ -24,7 +24,7 @@ def test_smiles_to_iupac_ether_hydroperoxide(smiles, expected):
 
 
 def test_branched_alkoxy_r_prime():
-    assert smiles_to_iupac("CC(C)OCCOO") == "2-(propan-2-yl)oxyethane-1-peroxol"
+    assert smiles_to_iupac("CC(C)OCCOO") == "2-(propan-2-yloxy)ethane-1-peroxol"
 
 
 def test_halogen_on_main_chain_still_works():

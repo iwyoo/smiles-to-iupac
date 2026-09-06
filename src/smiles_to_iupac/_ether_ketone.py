@@ -195,9 +195,9 @@ def name_ether_ketone(mol) -> str:
     }
 
     sub_name, sub_compound = name_branch(full_graph, r_prime_carbon, ether_oxygen_idx, {}, mol=mol)
-    if sub_compound:
-        sub_name = f"({sub_name})"
     oxy_term = _oxy_prefix(sub_name)
+    if sub_compound:
+        oxy_term = f"({oxy_term})"
     extra_names = {ether_oxygen_idx: oxy_term}
 
     return _name_acyclic_ketone(mol, ketones, set(), (), carbon_graph=main_carbon_graph, extra_names=extra_names)
