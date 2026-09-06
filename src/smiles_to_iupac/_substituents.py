@@ -275,10 +275,18 @@ def _longest_chains_from_root(graph, root, coming_from, halogens, mol=None):
     `mol`: when given, defends against a caller that failed to validate its
     whole branch as carbon-plus-`halogens` before calling in -- every walked
     atom (including `root` itself) must be carbon or already excluded via
-    `halogens`, else this raises rather than silently treating an
-    unvalidated heteroatom (an amine nitrogen, an ether oxygen, ...) as if
-    it were an ordinary chain-extending carbon (found via two independent
-    `smiles-to-iupac-realdata-test` pubchem diffs, PR #487/#488). `None`
+    `halogens`, and every bond *within* the branch (not `root`'s own
+    attachment bond to `coming_from`, which some callers -- e.g.
+    `_hydrazone.py`'s '-ylidene' construction -- legitimately make a double
+    bond and account for separately) must be single, else this raises
+    rather than silently treating an unvalidated heteroatom (an amine
+    nitrogen, an ether oxygen, ...) or an unsaturated bond (name_branch has
+    no ene/yne machinery of its own) as if it were an ordinary saturated
+    chain-extending carbon (found via several independent
+    `smiles-to-iupac-realdata-test` pubchem diffs, PR #487/#488 for the
+    atom-type gap and a further diff -- a phenol's ring bearing a plain
+    'ethyl' *and* a vinyl substituent came out as '2,3-diethylphenol', the
+    double bond silently vanishing -- for this bond-order gap). `None`
     (the default) keeps every not-yet-migrated caller's original behavior
     unchanged."""
     best_length = 0
@@ -290,6 +298,15 @@ def _longest_chains_from_root(graph, root, coming_from, halogens, mol=None):
             raise UnsupportedStructure(
                 "a heteroatom in a compound substituent branch, other than "
                 "a recognized halogen/named group, is not supported yet"
+            )
+        if (
+            mol is not None
+            and previous != coming_from
+            and mol.GetBondBetweenAtoms(node, previous).GetBondTypeAsDouble() != 1.0
+        ):
+            raise UnsupportedStructure(
+                "unsaturation in a compound substituent branch is not "
+                "supported yet"
             )
         neighbors = [n for n in graph[node] if n != previous and n not in halogens]
         if not neighbors:
