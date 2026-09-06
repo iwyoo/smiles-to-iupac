@@ -97,6 +97,18 @@ def test_phenyl_chain_aminide_ring_methyl_para():
     assert smiles_to_iupac("CC1=CC=C(CC[NH-])C=C1") == "2-(4-methylphenyl)ethan-1-aminide"
 
 
+def test_phenyl_chain_aminide_ring_ethyl():
+    # Structure/mechanism consistency check mirroring the methyl case
+    # above: any plain, fully saturated acyclic alkyl ring substituent
+    # (not just methyl) is now supported, reusing `name_branch` itself
+    # via `plain_alkyl_ring_substituents`. PubChem returns this
+    # project's own diverging 'azanide' retained-name style for the
+    # matching structure ('2-(4-ethylphenyl)ethylazanide'), confirming
+    # the structure but not this module's own '-aminide' suffix
+    # convention (see module docstring).
+    assert smiles_to_iupac("CCc1ccc(cc1)CC[NH-]") == "2-(4-ethylphenyl)ethan-1-aminide"
+
+
 def test_phenyl_chain_aminide_ring_halogen():
     # PubChem PUG REST computes "3-(4-chlorophenyl)propylazanide" for this
     # structure -- a different naming convention (azanide parent +
