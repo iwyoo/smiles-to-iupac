@@ -325,3 +325,29 @@ def test_ring_substituent_chain_amine_ring_with_substituent_raises():
 def test_ring_substituent_chain_amine_unsaturated_ring_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("NCC1CCCC=C1")
+
+
+def test_ring_with_amine_chain_amine_tie():
+    # Ring and chain each carry exactly one amine (P-44.1.1 tie,
+    # P-44.1.2.2 resolves it in the ring's favor) -- the ring becomes the
+    # parent and the chain's amine is cited as an "aminomethyl"
+    # substituent prefix, mirroring `_alcohol.py`'s `_name_ring_with_
+    # hydroxy_chain_alcohol`. PubChem PUG REST-verified
+    # "2-(aminomethyl)cyclohexan-1-amine" (CID 430326).
+    assert smiles_to_iupac("NC1CCCCC1CN") == "2-(aminomethyl)cyclohexan-1-amine"
+
+
+def test_ring_with_amine_chain_amine_ring_wins_outright():
+    # The ring carries two amines against the chain's one -- P-44.1.1's
+    # greater-count rule picks the ring outright, no tie-break needed.
+    # PubChem PUG REST-verified "1-(aminomethyl)cyclohexane-1,2-diamine"
+    # (CID 149881934).
+    assert (
+        smiles_to_iupac("NC1CCCCC1(N)CN") == "1-(aminomethyl)cyclohexane-1,2-diamine"
+    )
+
+
+def test_ring_with_amine_chain_amine_longer_chain():
+    # A two-carbon chain amine, same tie-break, verifying the chain's own
+    # locant math still works once it's longer than a single carbon.
+    assert smiles_to_iupac("NC1CCCCC1CCN") == "2-(2-aminoethyl)cyclohexan-1-amine"
