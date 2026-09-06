@@ -56,6 +56,20 @@ def test_tellurinic_acid_with_alcohol_not_supported():
         smiles_to_iupac("O[Te](=O)CCO")
 
 
+def test_benzenetellurinic_acid():
+    # -Te(=O)OH directly on a benzene ring carbon, cross-checked against
+    # PubChem PUG REST IUPACName.
+    assert smiles_to_iupac("c1ccccc1[Te](=O)O") == "benzenetellurinic acid"
+
+
+def test_substituted_benzenetellurinic_acid():
+    # The mancude-ring numbering is free to start at the -Te(=O)OH
+    # carbon, so its own locant is never cited, mirroring
+    # benzeneseleninic/benzenesulfinic acid.
+    assert smiles_to_iupac("Cc1ccccc1[Te](=O)O") == "2-methylbenzenetellurinic acid"
+    assert smiles_to_iupac("Cc1ccc(cc1)[Te](=O)O") == "4-methylbenzenetellurinic acid"  # PubChem PUG REST
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [

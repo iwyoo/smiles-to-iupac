@@ -42,12 +42,22 @@ Recommendations ("the Blue Book"):
   `_carboxylic_acid.py`/`_sulfonic_acid.py`.
 
 Scope, deliberately narrow, mirroring `_telluronic_acid.py`'s own
-chain-only scope (no monocyclic tellurinic acid has been found registered
-on PubChem to verify that shape here): a single -Te(=O)OH on an acyclic
-chain, with no other heteroatom anywhere in the molecule except the
-tellurinic acid group's own two oxygens. Explicitly out of scope (raise
-`UnsupportedStructure`): any ring, two or more -Te(=O)OH groups, and a
-tellurinic acid on a carbon that is also part of a C=C/C#C bond.
+chain-only scope: a single -Te(=O)OH on an acyclic chain, with no other
+heteroatom anywhere in the molecule except the tellurinic acid group's
+own two oxygens. Explicitly out of scope (raise `UnsupportedStructure`):
+any saturated ring, two or more -Te(=O)OH groups, and a tellurinic acid
+on a carbon that is also part of a C=C/C#C bond. One *aromatic*-ring
+exception: `_name_benzenetellurinic_acid` names -Te(=O)OH directly on a
+benzene ring carbon (with or without other ring substituents), e.g.
+'benzenetellurinic acid', '4-methylbenzenetellurinic acid' (both PubChem
+PUG REST IUPACName matches), mirroring `_telluronic_acid.py`'s
+`_name_benzenetelluronic_acid`/`_selenonic_acid.py`'s
+`_name_benzeneselenonic_acid` with the retained name 'benzene' as stem;
+the -Te(=O)OH's own locant is never cited here. A benzene-ring-substituent
+*chain* (mirroring `_seleninic_acid.py`'s
+`_name_phenyl_chain_seleninic_acid`) is not registered on PubChem for
+this suffix (CID 0 for phenylmethanetellurinic acid) and stays out of
+scope.
 """
 
 from rdkit import Chem
@@ -59,9 +69,11 @@ from ._common import (
     bfs,
     carbon_adjacency,
     halogen_substituents,
+    is_plain_benzene_ring,
     lowest_locant_set,
     non_single_bonds,
     path_between,
+    ring_cycle,
     specified_stereocenters,
 )
 from ._numerals import alkane_name, numerical_term
@@ -102,7 +114,14 @@ def has_tellurinic_acid_shape(mol) -> bool:
     return bool(_tellurinic_tellurium_atoms(mol))
 
 
-def _validate_and_collect_tellurinic_acids(mol):
+def _validate_and_collect_tellurinic_acids(mol, aromatic_ring_atoms=frozenset()):
+    """`aromatic_ring_atoms`: atom indices already independently verified
+    (by the caller, before this function runs) to form a single plain
+    benzene ring -- exempted from the aromatic-atom rejection below so
+    `name_tellurinic_acid`'s benzene-ring-direct path (see
+    `_name_benzenetellurinic_acid`) can reuse this same validation for the
+    rest of the molecule. Empty by default, so every other caller's
+    behavior is unchanged."""
     tellurium_atoms = _tellurinic_tellurium_atoms(mol)
     if not tellurium_atoms:
         raise UnsupportedStructure(
@@ -124,7 +143,7 @@ def _validate_and_collect_tellurinic_acids(mol):
         atomic_num = atom.GetAtomicNum()
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic():
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module"
                 )
@@ -152,10 +171,13 @@ def _validate_and_collect_tellurinic_acids(mol):
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
-    if mol.GetRingInfo().NumRings() > 0:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() > 0 and not (
+        ring_info.NumRings() == 1 and set(ring_info.AtomRings()[0]) == set(aromatic_ring_atoms)
+    ):
         raise UnsupportedStructure(
-            "rings are not supported yet (this module only handles "
-            "acyclic chains)"
+            "rings other than a single plain benzene ring bearing the "
+            "tellurinic acid directly are not supported yet"
         )
 
     (tellurium,) = tellurium_atoms
@@ -316,7 +338,78 @@ def _substituents_for_chain(graph, chain, halogens, excluded):
     return substituents
 
 
+def _substituents_for_ring(graph, ring_order, halogens, excluded):
+    ring_set = set(ring_order)
+    substituents = {}
+    for position, atom in enumerate(ring_order, start=1):
+        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+    return substituents
+
+
+def _benzenetellurinic_acid_name_from_substituents(grouped):
+    # Mirrors `_selenonic_acid.py`'s
+    # `_benzeneselenonic_acid_name_from_substituents`: the mancude ring's
+    # own numbering is always free to start at the -Te(=O)OH carbon, so
+    # its locant is never cited even when other substituents need theirs,
+    # e.g. '4-methylbenzenetellurinic acid'.
+    if not grouped:
+        return "benzenetellurinic acid"
+    return f"{format_substituent_prefixes(grouped)}benzenetellurinic acid"
+
+
+def _benzenetellurinic_acid_candidate_key(teoh_locant, substituents):
+    grouped = _group(substituents)
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    name = _benzenetellurinic_acid_name_from_substituents(grouped)
+    return teoh_locant, locant_set, citation_locants, name
+
+
+def _name_benzenetellurinic_acid(mol, ring_atoms):
+    """P-65.3.1: -Te(=O)OH attached directly to a benzene ring carbon --
+    e.g. 'benzenetellurinic acid', '4-methylbenzenetellurinic acid' (both
+    PubChem PUG REST IUPACName matches). Mirrors `_telluronic_acid.py`'s
+    `_name_benzenetelluronic_acid` with the retained name 'benzene' as
+    stem; the -Te(=O)OH's own locant is never cited here."""
+    tellurium_idx, teoh_carbon = _validate_and_collect_tellurinic_acids(mol, aromatic_ring_atoms=ring_atoms)
+    if specified_stereocenters(mol) is not None:
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside benzenetellurinic acid is "
+            "not supported yet"
+        )
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    excluded = {tellurium_idx}
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            teoh_locant = position_of[teoh_carbon]
+            substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
+            key = _benzenetellurinic_acid_candidate_key(teoh_locant, substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def name_tellurinic_acid(mol) -> str:
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() == 1:
+        ring_atoms = set(ring_info.AtomRings()[0])
+        if is_plain_benzene_ring(mol, ring_atoms):
+            return _name_benzenetellurinic_acid(mol, ring_atoms)
     tellurium_idx, teoh_carbon = _validate_and_collect_tellurinic_acids(mol)
     stereo = specified_stereocenters(mol)
     graph = adjacency(mol)
