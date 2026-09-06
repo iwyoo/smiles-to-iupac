@@ -88,9 +88,9 @@ from ._common import (
     halogen_substituents,
     is_plain_benzene_ring,
     linear_branch,
+    longest_branched_chain_through,
     lowest_locant_set,
     non_single_bonds,
-    ordered_chain,
     path_between,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
@@ -817,20 +817,9 @@ def _name_phenyl_chain_amine(mol, ring_atoms):
             "exocyclic substituent alongside a chain amine is not "
             "supported yet"
         )
-    ring_atom, chain_root = attachment
-    chain = ordered_chain(graph, chain_root, ring_atom, amines)
-    if chain is None:
-        raise UnsupportedStructure(
-            "a branched chain hanging off the benzene ring alongside an "
-            "amine is not supported yet"
-        )
-    chain_set = set(chain)
     (carbon,) = n_carbons_by_nitrogen[n_idx]
-    if carbon not in chain_set:
-        raise UnsupportedStructure(
-            "an amine outside the single unbranched chain hanging off the "
-            "benzene ring is not supported yet"
-        )
+    chain, branches = longest_branched_chain_through(graph, carbon, ring_atoms, amines)
+    branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
 
     chain_length = len(chain)
     best_key = None
@@ -839,7 +828,8 @@ def _name_phenyl_chain_amine(mol, ring_atoms):
         position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
         amine_locants = _amine_locants(position_of, amines, graph)
         substituents = {
-            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms) for root in roots]
+            for atom, roots in branches_by_atom.items()
         }
         key, name = _candidate_key(chain_length, amine_locants, [], [], substituents)
         if best_key is None or key < best_key:

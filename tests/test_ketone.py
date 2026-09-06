@@ -624,3 +624,12 @@ def test_ketone_unspecified_stereocenter_unaffected():
 def test_ketone_partially_specified_stereocenters_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C[C@H](Cl)C(Cl)C(C)=O")
+
+
+def test_phenyl_substituent_ketone_branched_chain():
+    # A branch at the ring-adjacent carbon is absorbed into the parent
+    # chain (`longest_branched_chain_through`, P-44.3.2), same principle
+    # as `_carboxylic_acid.py`'s ibuprofen case, but here the ketone
+    # carbon can sit anywhere along the resulting chain rather than
+    # always at C1. PubChem PUG REST-verified "3-phenylbutan-2-one".
+    assert smiles_to_iupac("c1ccccc1C(C)C(=O)C") == "3-phenylbutan-2-one"

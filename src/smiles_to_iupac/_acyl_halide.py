@@ -55,9 +55,9 @@ from ._common import (
     carbon_adjacency,
     halogen_substituents,
     is_plain_benzene_ring,
+    longest_branched_chain,
     lowest_locant_set,
     non_single_bonds,
-    ordered_chain,
     path_between,
     ring_chain_attachment,
     specified_stereocenters,
@@ -345,18 +345,7 @@ def _name_phenyl_chain_acyl_halide(mol, ring_atoms):
             "a benzene ring with more than one exocyclic substituent "
             "alongside a chain acyl halide is not supported yet"
         )
-    ring_atom, chain_root = attachment
-    chain = ordered_chain(graph, chain_root, ring_atom, excluded)
-    if chain is None:
-        raise UnsupportedStructure(
-            "a branched chain hanging off the benzene ring alongside an "
-            "acyl halide is not supported yet"
-        )
-    if chain[-1] != acyl_carbon:
-        raise UnsupportedStructure(
-            "the acyl halide carbon must be the chain's far terminus from "
-            "the benzene ring for this benzene-substituent path"
-        )
+    chain, branches = longest_branched_chain(graph, acyl_carbon, ring_atoms, excluded)
     if len(chain) < 2:
         raise UnsupportedStructure(
             "an acyl halide directly attached to the benzene ring uses a "
@@ -364,13 +353,12 @@ def _name_phenyl_chain_acyl_halide(mol, ring_atoms):
             "acyclic-chain-parent module"
         )
 
-    ordered = list(reversed(chain))
-    chain_length = len(ordered)
-    position_of = {atom: i + 1 for i, atom in enumerate(ordered)}
+    chain_length = len(chain)
     halide_word = _HALIDE_WORDS[mol.GetAtomWithIdx(acyl_halogen).GetAtomicNum()]
     halogens = halogen_substituents(mol)
     substituents = {
-        position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms) for root in roots]
+        for position, roots in branches.items()
     }
     grouped = _group(substituents)
     return _name_from_substituents(chain_length, [], [], halide_word, grouped)

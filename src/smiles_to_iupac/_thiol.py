@@ -85,9 +85,9 @@ from ._common import (
     carbon_adjacency,
     halogen_substituents,
     is_plain_benzene_ring,
+    longest_branched_chain_through,
     lowest_locant_set,
     non_single_bonds,
-    ordered_chain,
     path_between,
     ring_chain_attachment_with_halogens,
     ring_cycle,
@@ -603,12 +603,9 @@ def _name_phenyl_chain_thiol(mol, ring_atoms):
             "a separate construction, out of scope for this chain-parent "
             "module"
         )
-    chain = ordered_chain(graph, chain_root, ring_atom, thiols)
-    if chain is None:
-        raise UnsupportedStructure(
-            "a branched chain hanging off the benzene ring alongside a "
-            "thiol is not supported yet"
-        )
+    anchor_sulfur = next(iter(thiols))
+    (anchor_carbon,) = graph[anchor_sulfur]
+    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, thiols)
     chain_set = set(chain)
     for s in thiols:
         (carbon,) = graph[s]
@@ -617,6 +614,7 @@ def _name_phenyl_chain_thiol(mol, ring_atoms):
                 "a thiol outside the single unbranched chain hanging off "
                 "the benzene ring is not supported yet"
             )
+    branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
 
     chain_length = len(chain)
     best_key = None
@@ -625,7 +623,8 @@ def _name_phenyl_chain_thiol(mol, ring_atoms):
         position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
         sh_locants = _sh_locants(position_of, thiols, graph)
         substituents = {
-            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms) for root in roots]
+            for atom, roots in branches_by_atom.items()
         }
         key, name = _candidate_key(chain_length, sh_locants, [], [], substituents)
         if best_key is None or key < best_key:

@@ -62,11 +62,11 @@ from ._common import (
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
+    longest_branched_chain,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
-    ordered_chain,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     specified_stereocenters,
@@ -378,18 +378,7 @@ def _name_phenyl_chain_thioate(mol, ring_atoms):
             "exocyclic substituent alongside a chain thioate is not "
             "supported yet"
         )
-    ring_atom, chain_root = attachment
-    chain = ordered_chain(graph, chain_root, ring_atom, excluded_atoms)
-    if chain is None:
-        raise UnsupportedStructure(
-            "a branched chain hanging off the benzene ring alongside a "
-            "thioate is not supported yet"
-        )
-    if chain[-1] != thioate_carbon.GetIdx():
-        raise UnsupportedStructure(
-            "the thioate carbon must be the chain's far terminus from the "
-            "benzene ring for this benzene-substituent path"
-        )
+    chain, branches = longest_branched_chain(graph, thioate_carbon.GetIdx(), ring_atoms, excluded_atoms)
     if len(chain) < 2:
         raise UnsupportedStructure(
             "a thioate group directly attached to the benzene ring uses a "
@@ -397,11 +386,10 @@ def _name_phenyl_chain_thioate(mol, ring_atoms):
             "acyclic-chain-parent module"
         )
 
-    ordered = list(reversed(chain))
-    chain_length = len(ordered)
-    position_of = {atom: i + 1 for i, atom in enumerate(ordered)}
+    chain_length = len(chain)
     substituents = {
-        position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms) for root in roots]
+        for position, roots in branches.items()
     }
     grouped = group_substituents(substituents)
     return _name_from_substituents(chain_length, [], [], grouped)

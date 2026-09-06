@@ -123,11 +123,11 @@ from ._common import (
     halogen_substituents,
     is_plain_benzene_ring,
     linear_branch,
+    longest_branched_chain,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
-    ordered_chain,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     specified_stereocenters,
@@ -831,18 +831,7 @@ def _name_phenyl_chain_hydrazide(mol, ring_atoms):
             "exocyclic substituent alongside a chain hydrazide is not "
             "supported yet"
         )
-    ring_atom, chain_root = attachment
-    chain = ordered_chain(graph, chain_root, ring_atom, excluded)
-    if chain is None:
-        raise UnsupportedStructure(
-            "a branched chain hanging off the benzene ring alongside a "
-            "hydrazide is not supported yet"
-        )
-    if chain[-1] != hydrazide_carbon:
-        raise UnsupportedStructure(
-            "the hydrazide carbon must be the chain's far terminus from "
-            "the benzene ring for this benzene-substituent path"
-        )
+    chain, branches = longest_branched_chain(graph, hydrazide_carbon, ring_atoms, excluded)
     if len(chain) < 2:
         raise UnsupportedStructure(
             "a hydrazide directly attached to the benzene ring "
@@ -850,11 +839,10 @@ def _name_phenyl_chain_hydrazide(mol, ring_atoms):
             "out of scope for this acyclic-chain-parent module"
         )
 
-    ordered = list(reversed(chain))
-    chain_length = len(ordered)
-    position_of = {atom: i + 1 for i, atom in enumerate(ordered)}
+    chain_length = len(chain)
     substituents = {
-        position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms) for root in roots]
+        for position, roots in branches.items()
     }
     grouped = group_substituents(substituents)
     if chain_length == 2:

@@ -204,13 +204,16 @@ def test_phenyl_substituent_carboxylic_acid_ring_tert_butyl():
     assert smiles_to_iupac("CC(C)(C)c1ccc(cc1)CC(=O)O") == "2-(4-tert-butylphenyl)ethanoic acid"
 
 
-def test_phenyl_substituent_carboxylic_acid_branched_acid_chain_raises():
-    # The *acid chain itself* being branched is a separate, still
-    # unsupported limitation (`ordered_chain` requires an unbranched
-    # chain from the ring to the acid carbon) -- unrelated to the ring
-    # substituent's own shape, which is now a plain isobutyl (supported).
-    with pytest.raises(UnsupportedStructure):
+def test_phenyl_substituent_carboxylic_acid_branched_acid_chain():
+    # Ibuprofen: the acid chain itself branches at the ring-adjacent
+    # carbon (`longest_branched_chain`, P-44.3.2) -- the alpha-methyl is
+    # absorbed into the parent chain ('propanoic acid') rather than cited
+    # as a separate substituent on a shorter 'ethanoic acid', matching
+    # PubChem's own PIN exactly (CID 3672).
+    assert (
         smiles_to_iupac("CC(C)Cc1ccc(C(C)C(=O)O)cc1")
+        == "2-[4-(2-methylpropyl)phenyl]propanoic acid"
+    )
 
 
 def test_amine_coexisting_demotes_to_amino_prefix():
@@ -304,3 +307,13 @@ def test_carboxylic_acid_ring_stereocenter_unspecified_unaffected():
 def test_carboxylic_acid_ring_partially_specified_stereocenters_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O=C(O)[C@H]1CCCCC1Cl")
+
+
+def test_phenyl_substituent_carboxylic_acid_branch_tie_prefers_more_substituents():
+    # Both the phenyl-bearing carbon and the methyl-bearing carbon sit one
+    # bond from C2 -- tied for farthest from the -COOH carbon
+    # (`longest_branched_chain`). P-44.3.2's own next tie-break after
+    # chain length prefers the chain giving more substituents cited as
+    # prefixes: 'methyl' + 'phenyl' (two) beats one compound 'benzyl'-
+    # shaped substituent, confirmed against PubChem PUG REST.
+    assert smiles_to_iupac("c1ccccc1CC(C)C(=O)O") == "2-methyl-3-phenylpropanoic acid"
