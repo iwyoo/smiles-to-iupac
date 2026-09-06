@@ -229,7 +229,14 @@ unsubstituted-only functions above:
 
 from rdkit import Chem
 
-from ._common import HALOGEN_PREFIXES, adjacency, halogen_substituents, lowest_locant_set, ring_cycle
+from ._common import (
+    HALOGEN_PREFIXES,
+    adjacency,
+    halogen_substituents,
+    lowest_locant_set,
+    non_single_bonds,
+    ring_cycle,
+)
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _SUBSTITUENT_ATOMIC_NUMS = {6, *HALOGEN_PREFIXES}
@@ -605,6 +612,18 @@ def _match_hetero_monocyclic_substituents(mol):
         # falls through to a module that actually understands the other
         # heteroatoms, rather than claim a shape this module can't safely
         # name.
+        return None
+    if any(a not in ring_set or b not in ring_set for a, b, _ in non_single_bonds(mol)):
+        # Same blind spot as the atom-type check above, but for bond order:
+        # `name_branch`'s chain-walking fallback doesn't check bond order
+        # either, so a C=C in an exocyclic branch would silently be
+        # counted as if it were a saturated chain (confirmed via real-data
+        # testing: 'C=CCc1ccnc(Cl)c1Cl' was misnamed
+        # '2,3-dichloro-4-propylpyridine', dropping the branch's own
+        # double bond -- the correct 'prop-2-enyl' substituent never even
+        # gets considered). Ring-internal bonds (aromatic, bond order 1.5)
+        # are fine and excluded by the `a not in ring_set or b not in
+        # ring_set` check.
         return None
     exo_by_atom = {}
     for atom in ring_atoms:

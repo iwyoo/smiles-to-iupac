@@ -148,6 +148,17 @@ def test_hetero_monocyclic_substituent_with_non_alkyl_branch_raises():
         smiles_to_iupac("NC(CCc1ncccc1Cl)C(=O)O")
 
 
+def test_hetero_monocyclic_substituent_with_unsaturated_branch_raises():
+    # A branch containing a C=C double bond must not be silently walked
+    # as if it were a saturated chain -- found via real-data testing:
+    # this exact SMILES (an allyl-substituted pyridine) was misnamed
+    # '2,3-dichloro-4-propylpyridine' (PubChem PIN is
+    # '2,3-dichloro-4-prop-2-enylpyridine'), silently dropping the
+    # branch's own double bond.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=CCc1ccnc(Cl)c1Cl")
+
+
 def test_imidazole_multi_substituent_without_n1_raises():
     # Same tautomer ambiguity as the single-substituent case below, but
     # with two ring-carbon substituents and neither at the N-H-derived
