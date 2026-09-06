@@ -380,6 +380,26 @@ def _collect_n_alkyl(full_carbon_graph, mol, amino_subs, imino_subs):
                 previous, current = current, (neighbors[0] if neighbors else None)
             if any(b[0] in atoms or b[1] in atoms for b in non_single_bonds(mol)):
                 raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
+            # `full_carbon_graph` only sees carbon-carbon bonds, so a
+            # halogen (or any other heteroatom) hanging off the chain is
+            # invisible to the walk above and would otherwise pass through
+            # silently, misnaming e.g. a -CH2CF3 N-substituent as plain
+            # 'ethyl' with the three fluorines dropped entirely (found via
+            # real-data testing: 'CCC(=N)N(CC)CC(F)(F)F' was misnamed
+            # 'N,N-diethylpropanimidamide'). The only legitimate neighbor
+            # of a chain atom outside `atoms` is the amidine nitrogen
+            # itself, at `root`.
+            for atom_idx in atoms:
+                for neighbor in mol.GetAtomWithIdx(atom_idx).GetNeighbors():
+                    if neighbor.GetAtomicNum() == 1 or neighbor.GetIdx() in atoms:
+                        continue
+                    if neighbor.GetAtomicNum() == 7:
+                        continue
+                    raise UnsupportedStructure(
+                        "a substituted N-substituent (e.g. bearing a "
+                        "halogen) is not supported yet; only a plain, "
+                        "unsubstituted alkyl N-substituent is in scope"
+                    )
             entries.append((locant_label, alkyl_name(length)))
             n_alkyl_atoms |= atoms
     return entries, n_alkyl_atoms
