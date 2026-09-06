@@ -156,37 +156,6 @@ def ring_chain_attachment_with_halogens(graph, ring_atoms, excluded, halogens):
     return chain_attachment
 
 
-def plain_methyl_ring_substituents(mol, graph, ring_atoms):
-    """{atom_idx -> "methyl"} for every ring atom's sole exocyclic
-    substituent that is a plain terminal methyl carbon (degree 1, three
-    H's, no charge/isotope) -- fed into the same {atom_idx -> prefix
-    name} dict `halogen_substituents` builds. Neither
-    `ring_chain_attachment_with_halogens` nor
-    `halogenated_phenyl_substituent`/`name_branch`'s halogenated-phenyl
-    path have any halogen-specific logic -- both just echo back whatever
-    name a dict value gives an already-tolerated exocyclic atom -- so
-    merging this dict's entries into the halogens dict passed to either
-    lets a 'phenyl chain' module recognize e.g. 4-methylphenyl the same
-    way it already recognizes 4-chlorophenyl, with no changes to either
-    function. Other alkyl substituents (ethyl, propyl, ...) are a
-    separate follow-up."""
-    methyls = {}
-    for atom in ring_atoms:
-        for n in graph[atom]:
-            if n in ring_atoms:
-                continue
-            carbon = mol.GetAtomWithIdx(n)
-            if (
-                carbon.GetAtomicNum() == 6
-                and carbon.GetDegree() == 1
-                and carbon.GetTotalNumHs() == 3
-                and carbon.GetFormalCharge() == 0
-                and carbon.GetIsotope() == 0
-            ):
-                methyls[n] = "methyl"
-    return methyls
-
-
 def plain_saturated_ring_substituent_atoms(mol, graph, coming_from, root):
     """Ring atom set if `root` sits on a single plain, unsubstituted,
     saturated monocyclic ring whose only exocyclic bond is to
