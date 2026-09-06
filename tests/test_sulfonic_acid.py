@@ -81,9 +81,24 @@ def test_polycyclic_sulfonic_acid_not_supported():
         smiles_to_iupac("OS(=O)(=O)C1CC2CCC1CC2")
 
 
-def test_sulfonic_acid_on_ring_substituent_branch_not_supported():
+def test_ring_substituent_chain_sulfonic_acid():
+    # A sulfonic acid entirely on a chain hanging off a plain saturated
+    # ring (the ring itself bears no sulfonic acid) -- the ring is cited
+    # as a "cyclo..." substituent prefix on the chain, mirroring
+    # `_name_phenyl_chain_sulfonic_acid`/`_ketone.py`'s `_name_ring_
+    # substituent_chain_ketone`. PubChem PUG REST-verified
+    # "cyclohexylmethanesulfonic acid" (CID 18406397).
+    assert smiles_to_iupac("OS(=O)(=O)CC1CCCCC1") == "cyclohexylmethanesulfonic acid"
+
+
+def test_ring_substituent_chain_sulfonic_acid_ring_with_substituent_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)(=O)CC1CCCCC1")
+        smiles_to_iupac("OS(=O)(=O)CC1CCC(C)CC1")
+
+
+def test_ring_substituent_chain_sulfonic_acid_unsaturated_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OS(=O)(=O)CC1CCCC=C1")
 
 
 def test_sulfonic_acid_with_alcohol_not_supported():
