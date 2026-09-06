@@ -162,6 +162,14 @@ def test_phenyl_chain_sulfinamide_ring_methyl():
     assert smiles_to_iupac("Cc1ccc(CS(=O)N)cc1") == "(4-methylphenyl)methanesulfinamide"
 
 
+def test_phenyl_chain_sulfinamide_ring_ethyl():
+    # Not independently PubChem-verified (CID 0, same sparse-data gap as
+    # other sulfinamide shapes) -- structural/mechanism consistency check
+    # mirroring the methyl case above and `plain_alkyl_ring_substituents`'s
+    # other already-verified callers.
+    assert smiles_to_iupac("CCc1ccc(cc1)CS(=O)N") == "(4-ethylphenyl)methanesulfinamide"
+
+
 def test_phenyl_chain_sulfinamide_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CCS(=O)N")
