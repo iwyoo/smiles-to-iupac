@@ -106,7 +106,7 @@ from ._common import (
     specified_stereocenters,
 )
 from ._numerals import alkane_name
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._substituents import alpha_sort_key, branch_atom_locant, format_substituent_prefixes, name_branch
 
 _YNE_BOND_ORDER = 3.0
 _TELLURIUM = 52
@@ -353,25 +353,61 @@ def _ring_bond_locants(position_of, bonds, ring_size):
     return sorted(ene), sorted(yne)
 
 
+def _ring_branch_stereo_display(graph, ring_order, tellurols, stereo, halogens):
+    """Mirrors `_thiol.py`/`_selenol.py`'s identical helper (itself
+    mirroring `_aromatic.py`'s `_stereo_display`): if the ring carries
+    exactly one specified stereocenter and that stereocenter sits off the
+    ring on the ring's own sole substituent branch (P-92), return that
+    branch's ring-attachment atom plus its bracketed
+    "[(<locant><R/S>)-<name>]" display (P-91.3). Returns None (the caller
+    keeps its existing outright rejection) for more than one stereocenter,
+    or the ring having more or fewer than one substituent in total."""
+    if len(stereo) != 1:
+        return None
+    stereo_atom, r_or_s = stereo[0]
+    ring_set = set(ring_order)
+    branch_attachments = [
+        (ring_atom, neighbor)
+        for ring_atom in ring_order
+        for neighbor in graph[ring_atom]
+        if neighbor not in ring_set and neighbor not in tellurols
+    ]
+    if len(branch_attachments) != 1:
+        return None
+    ring_atom, branch_root = branch_attachments[0]
+    branch_name, branch_compound = name_branch(graph, branch_root, ring_atom, halogens)
+    site_locant = branch_atom_locant(graph, branch_root, ring_atom, stereo_atom, halogens)
+    descriptor = f"({site_locant}{r_or_s})-{branch_name}"
+    display = f"[{descriptor}]" if branch_compound else f"({descriptor})"
+    return ring_atom, display
+
+
 def _name_cyclic_tellurol(mol, tellurols, stereo=None, bonds=()):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
-    `specified_stereocenters` -- if given, every stereocenter must lie on
-    the ring itself (P-92: a stereocenter on a substituent branch is out
-    of scope, mirroring `_thiol.py`'s `_name_cyclic_thiol`), and the
+    `specified_stereocenters` -- if given, every stereocenter must normally
+    lie on the ring itself (P-92: a stereocenter on a substituent branch is
+    out of scope, mirroring `_thiol.py`'s `_name_cyclic_thiol`), and the
     winning ring numbering's own locants for those atoms are used to
     format a "(<locant><R/S>,...)-" prefix onto the name, ascending
-    locant order (P-91.3)."""
+    locant order (P-91.3). The one narrow exception
+    (`_ring_branch_stereo_display`, mirroring `_thiol.py`/`_selenol.py`'s
+    own case): exactly one stereocenter on the ring's sole substituent
+    branch instead embeds a bracketed descriptor into that substituent's
+    own name, in place of the usual ring-locant prefix."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     ring_info = mol.GetRingInfo()
     ring_atoms = list(ring_info.AtomRings()[0])
     ring_order = ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
+    branch_stereo = None
     if stereo is not None and any(atom not in ring_order for atom, _ in stereo):
-        raise UnsupportedStructure(
-            "a stereocenter on a substituent branch rather than the ring "
-            "itself is not supported yet (see P-92)"
-        )
+        branch_stereo = _ring_branch_stereo_display(graph, ring_order, tellurols, stereo, halogens)
+        if branch_stereo is None:
+            raise UnsupportedStructure(
+                "a stereocenter on a substituent branch rather than the ring "
+                "itself is not supported yet (see P-92)"
+            )
     if bonds and any(_substituents_for_ring(graph, ring_order, halogens, tellurols).values()):
         raise UnsupportedStructure(
             "a substituent alongside both a ring double/triple bond and a "
@@ -387,12 +423,15 @@ def _name_cyclic_tellurol(mol, tellurols, stereo=None, bonds=()):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             te_locants = _te_locants(position_of, tellurols, graph)
             substituents = _substituents_for_ring(graph, candidate, halogens, tellurols)
+            if branch_stereo is not None:
+                branch_ring_atom, display = branch_stereo
+                substituents[position_of[branch_ring_atom]] = [(display, False)]
             ene_locants, yne_locants = _ring_bond_locants(position_of, bonds, ring_size)
             key = _ring_candidate_key(ring_size, te_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, key[-1], position_of
 
-    if stereo is not None:
+    if stereo is not None and branch_stereo is None:
         labels = sorted((best_position_of[atom], r_or_s) for atom, r_or_s in stereo)
         prefix = ",".join(f"{locant}{r_or_s}" for locant, r_or_s in labels)
         return f"({prefix})-{best_name}"
