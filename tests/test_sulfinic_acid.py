@@ -88,9 +88,18 @@ def test_unsaturated_ring_sulfinic_acid_triple_bond_raises():
         smiles_to_iupac("OS(=O)C1CCCC#C1")
 
 
-def test_sulfinic_acid_on_ring_substituent_branch_not_supported():
+def test_ring_substituent_chain_sulfinic_acid():
+    # A sulfinic acid entirely on a chain hanging off a plain saturated
+    # ring (the ring itself bears no sulfinic acid) -- mirrors
+    # `_sulfonic_acid.py`'s `test_ring_substituent_chain_sulfonic_acid`.
+    # PubChem PUG REST-verified "cyclohexylmethanesulfinic acid"
+    # (CID 57427118).
+    assert smiles_to_iupac("OS(=O)CC1CCCCC1") == "cyclohexylmethanesulfinic acid"
+
+
+def test_ring_substituent_chain_sulfinic_acid_ring_with_substituent_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)CC1CCCCC1")
+        smiles_to_iupac("OS(=O)CC1CCC(C)CC1")
 
 
 def test_sulfinic_acid_unspecified_stereocenter_unaffected():

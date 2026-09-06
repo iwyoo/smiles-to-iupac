@@ -96,9 +96,18 @@ def test_unsaturated_ring_sulfonamide_with_n_substituent_raises():
         smiles_to_iupac("O=S(=O)(NC)C1CCCC=C1")
 
 
-def test_sulfonamide_on_ring_substituent_branch_not_supported():
+def test_ring_substituent_chain_sulfonamide():
+    # A sulfonamide entirely on a chain hanging off a plain saturated ring
+    # (the ring itself bears no sulfonamide) -- mirrors
+    # `_sulfonic_acid.py`'s `test_ring_substituent_chain_sulfonic_acid`.
+    # PubChem PUG REST-verified "cyclohexylmethanesulfonamide"
+    # (CID 21686562).
+    assert smiles_to_iupac("NS(=O)(=O)CC1CCCCC1") == "cyclohexylmethanesulfonamide"
+
+
+def test_ring_substituent_chain_sulfonamide_ring_with_substituent_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NS(=O)(=O)CC1CCCCC1")
+        smiles_to_iupac("NS(=O)(=O)CC1CCC(C)CC1")
 
 
 def test_sulfonamide_with_alcohol_not_supported():
