@@ -343,6 +343,13 @@ def test_phenyl_chain_ring_methyl():
     assert smiles_to_iupac("CC1=CC=C(CCO)C=C1") == "2-(4-methylphenyl)ethan-1-ol"
 
 
+def test_phenyl_chain_ring_ethyl():
+    # PubChem PUG REST IUPACName match: any plain, fully saturated
+    # acyclic alkyl ring substituent (not just methyl) is now supported,
+    # reusing `name_branch` itself via `plain_alkyl_ring_substituents`.
+    assert smiles_to_iupac("CCc1ccc(cc1)CO") == "(4-ethylphenyl)methanol"
+
+
 def test_substituted_ring_with_chain_hydroxyl_raises():
     # the ring itself carries an extra substituent (not just the OH-bearing
     # chain) -- out of this module's minimal scope.

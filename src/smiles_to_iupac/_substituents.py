@@ -447,6 +447,82 @@ def halogenated_phenyl_substituent(graph, aromatic_atoms, root, coming_from, hal
     return full_name, frozenset(visited), frozenset(halogen_atoms)
 
 
+def plain_alkyl_ring_substituents(mol, graph, ring_atoms):
+    """{atom_idx -> name} for every ring atom's sole exocyclic substituent
+    that is a plain, fully saturated, acyclic alkyl group (any length,
+    branched or unbranched) -- a general-algorithm replacement for
+    `_common.py`'s narrower `plain_methyl_ring_substituents` (terminal
+    CH3 only), reusing `name_branch` itself instead of hand-rolling a
+    second walk. Fed into the same {atom_idx -> prefix name} dict
+    `halogen_substituents` builds, so
+    `ring_chain_attachment_with_halogens`/`halogenated_phenyl_substituent`
+    (both halogen-agnostic, just echoing back whatever name a dict value
+    gives) recognize e.g. '4-ethylphenyl'/'4-propan-2-ylphenyl' the same
+    way they already recognize '4-methylphenyl' -- confirmed via PubChem
+    PUG REST IUPACName ('2-(4-ethylphenyl)acetic acid',
+    '2-(4-propan-2-ylphenyl)acetic acid': a compound branch name like
+    'propan-2-yl' embeds here with no extra inner parens of its own,
+    matching this function's plain-string return, since the *whole*
+    ring-plus-substituent unit gets its own outer parens from the
+    ordinary compound-substituent citation machinery instead).
+
+    `n` itself directly starting another ring (a nested/fused
+    substituent, e.g. a cyclohexyl group hanging off the ring) is
+    excluded up front via `IsInRing()` -- out of scope for these 19
+    phenyl-chain modules, unverified territory this pilot doesn't
+    attempt. Anything else `name_branch` itself rejects (unsaturation, a
+    *deeper* nested ring several bonds down, hidden heteroatoms) is
+    simply skipped via the `UnsupportedStructure` it already raises for
+    exactly those shapes -- the atom is left out of the returned dict,
+    falling through to each caller's existing "more than one
+    non-halogen, non-methyl exocyclic substituent" rejection unchanged,
+    so no separate validation is needed here."""
+    alkyls = {}
+    for atom in ring_atoms:
+        for n in graph[atom]:
+            if n in ring_atoms:
+                continue
+            carbon = mol.GetAtomWithIdx(n)
+            if carbon.GetAtomicNum() != 6 or carbon.GetIsAromatic() or carbon.IsInRing():
+                continue
+            if carbon.GetFormalCharge() != 0 or carbon.GetIsotope() != 0:
+                continue
+            if not _all_carbon_branch(mol, graph, n, atom):
+                # `name_branch`'s walk operates on the whole-molecule
+                # graph, heteroatoms included -- it has no way to know a
+                # branch like -CH2-C(=O)-OH isn't a plain alkyl chain
+                # unless this caller filters it out first (unlike every
+                # other `name_branch` caller here, which only ever hands
+                # it an already-verified all-carbon halogens-dict branch).
+                continue
+            try:
+                name, _ = name_branch(graph, n, atom, {})
+            except UnsupportedStructure:
+                continue
+            alkyls[n] = name
+    return alkyls
+
+
+def _all_carbon_branch(mol, graph, root, coming_from):
+    """True if every atom reachable from `root`, away from
+    `coming_from`, is a plain (uncharged, non-isotopic) carbon -- the
+    pre-check `plain_alkyl_ring_substituents` needs before trusting
+    `name_branch` with an arbitrary ring-atom branch."""
+    stack = [(root, coming_from)]
+    seen = {root}
+    while stack:
+        node, previous = stack.pop()
+        atom = mol.GetAtomWithIdx(node)
+        if atom.GetAtomicNum() != 6 or atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+            return False
+        for neighbor in graph[node]:
+            if neighbor == previous or neighbor in seen:
+                continue
+            seen.add(neighbor)
+            stack.append((neighbor, node))
+    return True
+
+
 def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None):
     """Name the substituent group hanging off `root`, reached from
     `coming_from` (the parent chain/ring atom). Returns (name, is_compound);
