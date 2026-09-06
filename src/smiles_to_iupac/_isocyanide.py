@@ -45,6 +45,8 @@ its own carbon. Confirmed via PubChem PUG REST: CID 13606
 'c1ccccc1CC[N+]#[C-]' -> '2-isocyanoethylbenzene'.
 """
 
+from rdkit import Chem
+
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -192,6 +194,10 @@ def _name_benzene_ring_isocyanide_chain(mol, nitrogen, group_atom_idxs, ring_ato
 
 
 def name_isocyanide(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     nitrogens = _isocyanide_nitrogens(mol)
     if not nitrogens:
         raise UnsupportedStructure("no isocyanide (-NC) group found; this module only handles isocyanides")

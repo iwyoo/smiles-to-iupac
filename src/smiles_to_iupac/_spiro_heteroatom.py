@@ -32,6 +32,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   validation already rejects for the all-carbon case.
 """
 
+from rdkit import Chem
+
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents, non_single_bonds
 from ._cyclic import _substituents_for_ring
 from ._spiro import _candidate_key, iter_monospiro_numberings
@@ -60,6 +62,10 @@ def has_single_ring_heteroatom_shape(mol, spiro_atom) -> bool:
 
 
 def name_spiro_heteroatom(mol, spiro_atom) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
         if atomic_num not in _ALLOWED_ATOMIC_NUMS:

@@ -231,6 +231,7 @@ from rdkit import Chem
 
 from ._common import (
     HALOGEN_PREFIXES,
+    UnsupportedStructure,
     adjacency,
     halogen_substituents,
     lowest_locant_set,
@@ -692,6 +693,10 @@ def has_hetero_monocyclic_substituent_name(mol) -> bool:
 
 
 def name_hetero_monocyclic_substituent(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     parent_name, grouped, _graph = _match_hetero_monocyclic_substituents(mol)
     all_locants = {loc for info in grouped.values() for loc in info["locants"]}
     # The parent's own indicated-hydrogen prefix (pyrrole/imidazole/

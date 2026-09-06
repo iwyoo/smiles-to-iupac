@@ -32,6 +32,8 @@ Explicitly out of scope (raise `UnsupportedStructure`), matching
   `_imine.py`'s oxime handling for the =N-OH shape instead).
 """
 
+from rdkit import Chem
+
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -158,6 +160,10 @@ def _name_benzene_ring_nitroso_chain(mol, nitroso_nitrogens, nitroso_atom_idxs, 
 
 
 def name_nitroso(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     nitroso_nitrogens = _nitroso_nitrogen_atoms(mol)
     if not nitroso_nitrogens:
         raise UnsupportedStructure("no nitroso (-N=O) group found; this module only handles nitroso compounds")

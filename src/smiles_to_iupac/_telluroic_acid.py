@@ -40,6 +40,8 @@ substituent (P-35.2.1) is allowed only on the benzene ring in the
 ring-substituent path, not elsewhere.
 """
 
+from rdkit import Chem
+
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -207,6 +209,10 @@ def _name_phenyl_chain_telluroic_acid(mol, ring_atoms):
 
 
 def name_telluroic_acid(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])

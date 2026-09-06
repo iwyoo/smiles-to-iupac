@@ -50,6 +50,8 @@ Confirmed via PubChem PUG REST (CID 7672 'c1ccccc1N=C=O' ->
 'c1ccccc1CCN=C=O' -> '2-isocyanatoethylbenzene').
 """
 
+from rdkit import Chem
+
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -206,6 +208,10 @@ def _name_benzene_ring_isocyanate_chain(mol, n1, group_atom_idxs, ring_atoms) ->
 
 
 def name_isocyanate(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     nitrogens = _isocyanate_nitrogens(mol)
     if not nitrogens:
         raise UnsupportedStructure("no isocyanate (-NCO) group found; this module only handles isocyanates")

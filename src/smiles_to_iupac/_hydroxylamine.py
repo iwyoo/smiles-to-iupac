@@ -28,6 +28,8 @@ returning False, or fall through to another module):
   own N and O.
 """
 
+from rdkit import Chem
+
 from ._common import UnsupportedStructure, adjacency, is_plain_benzene_ring, non_single_bonds
 from ._substituents import name_branch
 
@@ -77,6 +79,10 @@ def _plain_benzene_o_substituent_ring(mol, n_idx, o):
 
 
 def name_hydroxylamine(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     n, o = _hydroxylamine_atoms(mol)
     ring_atoms = _plain_benzene_o_substituent_ring(mol, n.GetIdx(), o) or frozenset()
 

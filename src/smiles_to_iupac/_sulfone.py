@@ -21,6 +21,8 @@ the tellurium chalcogen analogue (tellurone) -- the selenium analogue is
 handled separately by `_selenone.py`.
 """
 
+from rdkit import Chem
+
 from ._common import UnsupportedStructure, non_single_bonds
 from ._numerals import alkane_name
 
@@ -72,6 +74,10 @@ def has_sulfone_shape(mol) -> bool:
 
 
 def name_sulfone(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() not in (6, 8, 16):
             raise UnsupportedStructure(

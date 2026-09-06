@@ -42,6 +42,8 @@ Explicitly out of scope (raise `UnsupportedStructure`), mirroring
   attachment, or a branched chain hanging off the ring).
 """
 
+from rdkit import Chem
+
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -185,6 +187,10 @@ def _name_benzene_ring_azide_chain(mol, root_nitrogens, azide_atom_idxs, ring_at
 
 
 def name_azide(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     root_nitrogens = _azide_root_nitrogens(mol)
     if not root_nitrogens:
         raise UnsupportedStructure("no azide (-N3) group found; this module only handles azides")

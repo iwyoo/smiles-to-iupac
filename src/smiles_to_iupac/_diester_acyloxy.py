@@ -37,6 +37,8 @@ substituent prefix, per the IUPAC 2013 Recommendations ("the Blue Book"):
   scope and raise `UnsupportedStructure`.
 """
 
+from rdkit import Chem
+
 from ._common import UnsupportedStructure, adjacency, non_single_bonds, ordered_chain
 from ._numerals import alkane_name, alkyl_name
 
@@ -92,6 +94,10 @@ def _acid_stem(chain_length: int) -> str:
 
 
 def name_diester_acyloxy(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() not in _ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(

@@ -33,6 +33,8 @@ extension:
   group this module doesn't recognize at all.
 """
 
+from rdkit import Chem
+
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -169,6 +171,10 @@ def _name_benzene_ring_nitro_chain(mol, nitro_nitrogens, nitro_atom_idxs, ring_a
 
 
 def name_nitro(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     nitro_nitrogens = _nitro_nitrogen_atoms(mol)
     if not nitro_nitrogens:
         raise UnsupportedStructure("no nitro (-NO2) group found; this module only handles nitro compounds")

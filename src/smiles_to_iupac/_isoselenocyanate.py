@@ -42,6 +42,8 @@ REST (CID 555335 'c1ccccc1N=C=[Se]' -> 'isoselenocyanatobenzene', CID
 12506035 'c1ccccc1CN=C=[Se]' -> 'isoselenocyanatomethylbenzene').
 """
 
+from rdkit import Chem
+
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -199,6 +201,10 @@ def _name_benzene_ring_isoselenocyanate_chain(mol, n1, group_atom_idxs, ring_ato
 
 
 def name_isoselenocyanate(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     nitrogens = _isoselenocyanate_nitrogens(mol)
     if not nitrogens:
         raise UnsupportedStructure(
