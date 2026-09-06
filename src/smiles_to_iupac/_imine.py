@@ -395,7 +395,7 @@ def _name_phenyl_chain_imine(mol, ring_atoms):
             "exocyclic substituent alongside a chain imine is not "
             "supported yet"
         )
-    chain, branches = longest_branched_chain_through(graph, imine_carbon, ring_atoms, exclude)
+    chain, branches = longest_branched_chain_through(graph, imine_carbon, ring_atoms, exclude, halogens=halogen_substituents(mol))
     branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
 
     chain_length = len(chain)

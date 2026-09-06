@@ -269,7 +269,7 @@ def _name_phenyl_chain_carboxylic_acid_amine(mol, ring_atoms):
             "alongside a chain carboxylic-acid/amine combination is not "
             "supported yet"
         )
-    chain, _ = longest_branched_chain(graph, acid_carbon_idx, ring_atoms, excluded_acid_oxygens | set(names))
+    chain, _ = longest_branched_chain(graph, acid_carbon_idx, ring_atoms, excluded_acid_oxygens | set(names), halogens=halogen_substituents(mol))
     if any(graph[n][0] not in chain for n in amines):
         raise UnsupportedStructure(
             "not every amine-bearing carbon lies on the chain hanging "

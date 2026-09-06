@@ -511,7 +511,7 @@ def _name_phenyl_chain_amidine(mol, ring_atoms):
             "exocyclic substituent alongside a chain amidine is not "
             "supported yet"
         )
-    chain, branches = longest_branched_chain(graph, amidine_carbon, ring_atoms, excluded)
+    chain, branches = longest_branched_chain(graph, amidine_carbon, ring_atoms, excluded, halogens=halogen_substituents(mol))
     if len(chain) < 2:
         raise UnsupportedStructure(
             "an amidine directly attached to the benzene ring (the "

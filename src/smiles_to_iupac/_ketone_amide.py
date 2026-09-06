@@ -247,7 +247,7 @@ def _name_phenyl_chain_ketone_amide(mol, ring_atoms):
             "alongside a chain ketone/amide combination is not supported "
             "yet"
         )
-    chain, _ = longest_branched_chain(graph, amide_carbon_idx, ring_atoms, own_excluded | set(names))
+    chain, _ = longest_branched_chain(graph, amide_carbon_idx, ring_atoms, own_excluded | set(names), halogens=halogen_substituents(mol))
     if any(graph[o][0] not in chain for o in ketones):
         raise UnsupportedStructure(
             "not every ketone-bearing carbon lies on the chain hanging "

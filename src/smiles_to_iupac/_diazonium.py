@@ -455,7 +455,7 @@ def _name_phenyl_chain_diazonium(mol, ring_atoms):
             "a benzene ring with more than one exocyclic substituent "
             "alongside a chain diazonium is not supported yet"
         )
-    chain, branches = longest_branched_chain_through(graph, diazonium_carbon, ring_atoms, excluded)
+    chain, branches = longest_branched_chain_through(graph, diazonium_carbon, ring_atoms, excluded, halogens=halogen_substituents(mol))
     branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
 
     chain_length = len(chain)

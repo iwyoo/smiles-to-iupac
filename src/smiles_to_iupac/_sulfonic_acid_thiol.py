@@ -291,7 +291,7 @@ def _name_phenyl_chain_sulfonic_acid_thiol(mol, ring_atoms):
             "a separate construction, out of scope for this chain-parent "
             "module"
         )
-    chain, _ = longest_branched_chain_through(graph, so3h_carbon, ring_atoms, {sulfonic_sulfur_idx} | thiol_idxs)
+    chain, _ = longest_branched_chain_through(graph, so3h_carbon, ring_atoms, {sulfonic_sulfur_idx} | thiol_idxs, halogens=halogen_substituents(mol))
     chain_set = set(chain)
     for s in thiol_idxs:
         (carbon,) = graph[s]

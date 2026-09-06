@@ -548,7 +548,7 @@ def _name_phenyl_chain_tellurol(mol, ring_atoms):
         )
     anchor_tellurium = next(iter(tellurols))
     (anchor_carbon,) = graph[anchor_tellurium]
-    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, tellurols)
+    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, tellurols, halogens=halogen_substituents(mol))
     chain_set = set(chain)
     for t in tellurols:
         (carbon,) = graph[t]
@@ -597,7 +597,7 @@ def _name_ring_substituent_chain_tellurol(mol, tellurols):
     ring_atom, chain_root = attachment
     anchor_tellurium = next(iter(tellurols))
     (anchor_carbon,) = graph[anchor_tellurium]
-    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, tellurols)
+    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, tellurols, halogens=halogen_substituents(mol))
     chain_set = set(chain)
     for t in tellurols:
         (carbon,) = graph[t]

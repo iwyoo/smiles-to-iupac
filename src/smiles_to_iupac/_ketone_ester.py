@@ -324,7 +324,7 @@ def _name_phenyl_chain_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_ox
             "alongside a chain ketone/ester combination is not supported "
             "yet"
         )
-    chain, _ = longest_branched_chain(full_graph, acyl_carbon_idx, ring_atoms, excluded_oxygens | set(names))
+    chain, _ = longest_branched_chain(full_graph, acyl_carbon_idx, ring_atoms, excluded_oxygens | set(names), halogens=halogen_substituents(mol))
     if any(full_graph[o][0] not in chain for o in ketones):
         raise UnsupportedStructure(
             "not every ketone-bearing carbon lies on the chain hanging "

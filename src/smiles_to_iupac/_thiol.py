@@ -607,7 +607,7 @@ def _name_phenyl_chain_thiol(mol, ring_atoms):
         )
     anchor_sulfur = next(iter(thiols))
     (anchor_carbon,) = graph[anchor_sulfur]
-    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, thiols)
+    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, thiols, halogens=halogen_substituents(mol))
     chain_set = set(chain)
     for s in thiols:
         (carbon,) = graph[s]
@@ -655,7 +655,7 @@ def _name_ring_substituent_chain_thiol(mol, thiols):
     ring_atom, chain_root = attachment
     anchor_sulfur = next(iter(thiols))
     (anchor_carbon,) = graph[anchor_sulfur]
-    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, thiols)
+    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, thiols, halogens=halogen_substituents(mol))
     chain_set = set(chain)
     for s in thiols:
         (carbon,) = graph[s]

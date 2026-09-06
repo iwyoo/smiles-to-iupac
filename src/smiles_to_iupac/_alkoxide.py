@@ -505,7 +505,7 @@ def _name_phenyl_chain_alkoxide(mol, ring_atoms):
             "alongside a chain alkoxide is not supported yet"
         )
     (oxygen_carbon,) = [n.GetIdx() for n in oxygen.GetNeighbors()]
-    chain, branches = longest_branched_chain_through(graph, oxygen_carbon, ring_atoms, excluded_atoms)
+    chain, branches = longest_branched_chain_through(graph, oxygen_carbon, ring_atoms, excluded_atoms, halogens=halogen_substituents(mol))
     branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
 
     halogens = halogen_substituents(mol)
