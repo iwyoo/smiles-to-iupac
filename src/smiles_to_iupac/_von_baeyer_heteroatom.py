@@ -76,10 +76,10 @@ from ._common import (
     UnsupportedStructure,
     adjacency,
     halogen_substituents,
-    multiplied_word,
     non_single_bonds,
 )
 from ._cyclic import _substituents_for_ring
+from ._numerals import numerical_term
 from ._polycyclic import _candidate_key as _polycyclic_candidate_key, iter_polycyclic_candidates
 
 _HETEROATOM_PREFIXES = {8: "oxa", 7: "aza", 16: "thia"}
@@ -87,6 +87,27 @@ _ALLOWED_ATOMIC_NUMS = {6, *_HETEROATOM_PREFIXES, *HALOGEN_PREFIXES}
 # Table 2.8 (P-23.2.1) element seniority, restricted to the three elements
 # this module supports: O > S > N (lower value = more senior).
 _ELEMENT_SENIORITY = {8: 0, 16: 1, 7: 2}
+
+
+def _replacement_multiplied_word(count, a_prefix):
+    """Multiplying-prefix word for `count` occurrences of a skeletal
+    replacement ('a') prefix (P-23.2.1), e.g. 'tetra' + 'aza' -> 'tetraza'.
+    Unlike `_common.multiplied_word` (used for a characteristic-group
+    suffix like -ol/-one/-amine, which elides before a base starting with
+    either 'a' or 'o' -- 'tetra' + 'ol' -> 'tetrol'), a replacement prefix
+    only elides before 'aza', not 'oxa': PubChem's own computed IUPACName
+    confirms both '12-methyl-1,4,7,10-tetrazabicyclo[8.3.2]pentadecane'
+    (elided, matching `test_von_baeyer_heteroatom.py`'s existing case) and
+    '1,4,7-trimethyl-2,3,5,6-tetraoxabicyclo[2.2.1]heptane' (not elided --
+    this project previously got this wrong as '...tetroxa...' by reusing
+    the suffix-elision helper here). 'thia' never starts with a vowel, so
+    it's never affected either way."""
+    if count == 1:
+        return a_prefix
+    prefix = numerical_term(count)
+    if prefix.endswith("a") and a_prefix == "aza":
+        prefix = prefix[:-1]
+    return prefix + a_prefix
 
 
 def _validate_atoms(mol):
@@ -199,7 +220,7 @@ def name_von_baeyer_heteroatom_multi(mol, core) -> str:
         )
     (element,) = elements
     a_prefix = _HETEROATOM_PREFIXES[element]
-    multiplied_a_prefix = multiplied_word(len(ring_heteroatoms), a_prefix)
+    multiplied_a_prefix = _replacement_multiplied_word(len(ring_heteroatoms), a_prefix)
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
