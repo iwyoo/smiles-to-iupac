@@ -17,7 +17,18 @@ def test_smiles_to_iupac_ether_ketone(smiles, expected):
 
 
 def test_branched_alkoxy_r_prime():
-    assert smiles_to_iupac("CC(C)OCC(C)=O") == "1-(propan-2-yl)oxypropan-2-one"
+    assert smiles_to_iupac("CC(C)OCC(C)=O") == "1-(propan-2-yloxy)propan-2-one"
+
+
+def test_branched_alkoxy_r_prime_on_main_chain():
+    # Found via real-data testing (smiles-to-iupac-realdata-test's pubchem
+    # diff): this used to come out as
+    # '5-(propan-2-yl)oxy-4,4-dimethylpentan-2-one', 'oxy' wrongly sitting
+    # outside the enclosing parenthesis instead of fused inside it -- see
+    # `test_ether.py`'s own note on the same bug across all 8 ether
+    # modules. PubChem-verified reference:
+    # '4,4-dimethyl-5-propan-2-yloxypentan-2-one'.
+    assert smiles_to_iupac("CC(=O)CC(C)(C)COC(C)C") == "5-(propan-2-yloxy)-4,4-dimethylpentan-2-one"
 
 
 def test_halogen_on_main_chain_still_works():

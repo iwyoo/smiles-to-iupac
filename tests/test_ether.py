@@ -25,15 +25,21 @@ from smiles_to_iupac._common import UnsupportedStructure
         # A branched parent chain is unaffected by this module's R'-only
         # restriction; only the (unbranched) shorter side is the prefix.
         ("CC(C)OCC", "2-ethoxypropane"),
-        # A branched R' (the shorter, prefix side): P-63.2.2.1.1 encloses
-        # only R' in parentheses, with 'oxy' outside them. Structure
-        # verified against PubChem: CCCCOC(C)C -> CID 137240
-        # ("1-propan-2-yloxybutane" -- PubChem elides the parentheses this
-        # project's usual compound-substituent formatting keeps).
-        ("CCCCOC(C)C", "1-(propan-2-yl)oxybutane"),
+        # A branched R' (the shorter, prefix side): P-16.3.3 encloses the
+        # *whole* alkoxy group ('R-yloxy', including 'oxy') in parentheses
+        # when it carries its own internal locant, not just the 'yl' part
+        # -- 'oxy' fuses inside the enclosing mark, mirroring established
+        # names like '(1,1-dimethylethoxy)' (systematic tert-butoxy), not
+        # '(1,1-dimethylethyl)oxy'. Structure verified against PubChem:
+        # CCCCOC(C)C -> CID 137240 ("1-propan-2-yloxybutane" -- PubChem
+        # elides the parentheses this project's usual compound-substituent
+        # formatting keeps; found via real-data testing that this
+        # project's own placement of them, splitting 'oxy' outside, had
+        # been wrong since introduction).
+        ("CCCCOC(C)C", "1-(propan-2-yloxy)butane"),
         # Longer R' side also branched: PubChem CID 28488 confirms the
         # structure ("2-methyl-2-propan-2-yloxypropane").
-        ("CC(C)OC(C)(C)C", "2-(propan-2-yl)oxy-2-methylpropane"),
+        ("CC(C)OC(C)(C)C", "2-(propan-2-yloxy)-2-methylpropane"),
     ],
 )
 def test_ether(smiles, expected):
@@ -46,7 +52,7 @@ def test_ether(smiles, expected):
         # Fully symmetric tie (PubChem CID-confirmed 'CC(C)OC(C)C' ->
         # '2-propan-2-yloxypropane'): either side works as parent, so any
         # tie-break gives the same answer.
-        ("CC(C)OC(C)C", "2-(propan-2-yl)oxypropane"),
+        ("CC(C)OC(C)C", "2-(propan-2-yloxy)propane"),
         # Tied total carbon count (4 each) and tied longest-chain length too
         # (both an isobutyl and a tert-butyl arm reduce to a
         # 2-methylpropane skeleton, chain length 3) -- the decider is the
@@ -64,15 +70,21 @@ def test_ether(smiles, expected):
         # around its quaternary carbon, while an isopentyl arm's 5 carbons
         # reach chain length 4 -- isopentyl wins outright, no locant-set
         # comparison needed. PubChem CID-confirmed: 'CC(C)(C)COCCC(C)C' ->
-        # '1-(2,2-dimethylpropoxy)-3-methylbutane'.
-        ("CC(C)(C)COCCC(C)C", "1-(2,2-dimethylpropyl)oxy-3-methylbutane"),
+        # '1-(2,2-dimethylpropoxy)-3-methylbutane' -- this project doesn't
+        # implement the further 'propoxy'-style contraction PubChem uses
+        # here (only the four plain unbranched names in `_CONTRACTED_OXY`
+        # contract), so its own systematic '...propyloxy' stands instead.
+        ("CC(C)(C)COCCC(C)C", "1-(2,2-dimethylpropyloxy)-3-methylbutane"),
         # Tied total carbon count (4 each) but different longest achievable
         # chain: an isobutyl arm's own chain (used as parent) tops out at
         # length 3 (its 4th carbon has to be a methyl branch), while a
         # sec-butyl arm's own chain is a plain, unbranched 4-long butane --
         # sec-butyl wins outright, no locant-set comparison needed. PubChem
-        # CID-confirmed: 'CC(C)COC(C)CC' -> '2-(2-methylpropoxy)butane'.
-        ("CC(C)COC(C)CC", "2-(2-methylpropyl)oxybutane"),
+        # CID-confirmed: 'CC(C)COC(C)CC' -> '2-(2-methylpropoxy)butane' --
+        # this project doesn't contract '2-methylpropyl' to 'isobutoxy'-
+        # style (see `_CONTRACTED_OXY`'s four-name limit above), so its
+        # own systematic '...propyloxy' stands instead.
+        ("CC(C)COC(C)CC", "2-(2-methylpropyloxy)butane"),
     ],
 )
 def test_ether_both_sides_branched_and_tied(smiles, expected):
@@ -112,11 +124,12 @@ def test_stereocenter_on_substituent_branch_not_supported():
         ("c1ccccc1OC", "methoxybenzene"),
         ("c1ccccc1OCCC", "propoxybenzene"),
         # Direct ring-oxygen bond with a branched R': the same
-        # '(...)oxy' parenthesization as the plain two-chain path above
-        # (P-63.2.2.1.1's worked example), even though PubChem's own
-        # auto-generated name for the same structure omits the
-        # parentheses ('c1ccccc1OC(C)C' -> 'propan-2-yloxybenzene').
-        ("c1ccccc1OC(C)C", "(propan-2-yl)oxybenzene"),
+        # '(...)' parenthesization (around the whole 'yloxy' group, not
+        # just 'yl' -- see `test_ether`'s own note above) as the plain
+        # two-chain path above (P-63.2.2.1.1's worked example), even
+        # though PubChem's own auto-generated name for the same structure
+        # omits the parentheses ('c1ccccc1OC(C)C' -> 'propan-2-yloxybenzene').
+        ("c1ccccc1OC(C)C", "(propan-2-yloxy)benzene"),
         # Chain spacer between the ring and the ether oxygen -- the whole
         # branch is parenthesized when compound, matching this project's
         # existing benzene-ring-chain convention (`_nitro.py`/
@@ -125,13 +138,13 @@ def test_stereocenter_on_substituent_branch_not_supported():
         # auto-names ('ethoxymethylbenzene', '2-ethoxyethylbenzene').
         ("c1ccccc1COCC", "(ethoxymethyl)benzene"),
         ("c1ccccc1CCOCC", "(2-ethoxyethyl)benzene"),
-        # A branched R' behind a chain spacer: the '(...)oxy' term
-        # already carries round brackets, so the outer compound-branch
-        # wrap escalates to square brackets instead of nesting round ones
+        # A branched R' behind a chain spacer: the '(...)' term already
+        # carries round brackets, so the outer compound-branch wrap
+        # escalates to square brackets instead of nesting round ones
         # (mirrors the plain two-chain path's own bracket-escalation
         # example in the module docstring). Structure PubChem-confirmed
         # ('c1ccccc1COC(C)C' -> 'propan-2-yloxymethylbenzene').
-        ("c1ccccc1COC(C)C", "[(propan-2-yl)oxymethyl]benzene"),
+        ("c1ccccc1COC(C)C", "[(propan-2-yloxy)methyl]benzene"),
     ],
 )
 def test_benzene_ring_parent(smiles, expected):

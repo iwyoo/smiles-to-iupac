@@ -204,9 +204,9 @@ def name_ether_aldehyde(mol) -> str:
     }
 
     sub_name, sub_compound = name_branch(full_graph, r_prime_carbon, ether_oxygen_idx, {}, mol=mol)
-    if sub_compound:
-        sub_name = f"({sub_name})"
     oxy_term = _oxy_prefix(sub_name)
+    if sub_compound:
+        oxy_term = f"({oxy_term})"
     extra_names = {ether_oxygen_idx: oxy_term}
 
     return _name_acyclic_aldehyde(

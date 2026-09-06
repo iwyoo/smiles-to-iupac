@@ -171,9 +171,10 @@ def _name_benzene_ring_ether_chain(mol, ring_atoms) -> str:
     if chain_root == oxygen_idx:
         (r_prime,) = [n for n in graph[oxygen_idx] if n != ring_atom]
         sub_name, sub_compound = name_branch(graph, r_prime, oxygen_idx, {}, mol=mol)
+        oxy_term = _oxy_prefix(sub_name)
         if sub_compound:
-            sub_name = f"({sub_name})"
-        return f"{_oxy_prefix(sub_name)}benzene"
+            oxy_term = f"({oxy_term})"
+        return f"{oxy_term}benzene"
 
     blocked_graph = {node: [n for n in neighbors if n != oxygen_idx] for node, neighbors in graph.items()}
     del blocked_graph[oxygen_idx]
@@ -181,9 +182,9 @@ def _name_benzene_ring_ether_chain(mol, ring_atoms) -> str:
     (r_prime,) = [n for n in graph[oxygen_idx] if n not in reached]
 
     sub_name, sub_compound = name_branch(graph, r_prime, oxygen_idx, {}, mol=mol)
-    if sub_compound:
-        sub_name = f"({sub_name})"
     oxy_term = _oxy_prefix(sub_name)
+    if sub_compound:
+        oxy_term = f"({oxy_term})"
     branch_name, is_compound = name_branch(graph, chain_root, ring_atom, {oxygen_idx: oxy_term}, mol=mol)
     if not is_compound:
         return f"{branch_name}benzene"
@@ -228,10 +229,14 @@ def name_ether(mol) -> str:
         else:
             name_a, compound_a = name_branch(full_graph, n1, oxygen_idx, {}, mol=mol)
             name_b, compound_b = name_branch(full_graph, n2, oxygen_idx, {}, mol=mol)
-            sub_from_a = f"({name_a})" if compound_a else name_a
-            sub_from_b = f"({name_b})" if compound_b else name_b
-            key_a, _, _ = winning_chain_with_key(full_graph, graph_a, {oxygen_idx: _oxy_prefix(sub_from_b)}, mol=mol)
-            key_b, _, _ = winning_chain_with_key(full_graph, graph_b, {oxygen_idx: _oxy_prefix(sub_from_a)}, mol=mol)
+            oxy_from_a = _oxy_prefix(name_a)
+            oxy_from_b = _oxy_prefix(name_b)
+            if compound_a:
+                oxy_from_a = f"({oxy_from_a})"
+            if compound_b:
+                oxy_from_b = f"({oxy_from_b})"
+            key_a, _, _ = winning_chain_with_key(full_graph, graph_a, {oxygen_idx: oxy_from_b}, mol=mol)
+            key_b, _, _ = winning_chain_with_key(full_graph, graph_b, {oxygen_idx: oxy_from_a}, mol=mol)
             parent_root, sub_root = (n1, n2) if key_a <= key_b else (n2, n1)
     elif size1 > size2:
         parent_root, sub_root = n1, n2
@@ -239,11 +244,12 @@ def name_ether(mol) -> str:
         parent_root, sub_root = n2, n1
 
     sub_name, sub_compound = name_branch(full_graph, sub_root, oxygen_idx, {}, mol=mol)
+    oxy_term = _oxy_prefix(sub_name)
     if sub_compound:
-        sub_name = f"({sub_name})"
+        oxy_term = f"({oxy_term})"
 
     parent_carbon_graph = _component_subgraph(carbon_graph, parent_root)
-    terminals = {oxygen_idx: _oxy_prefix(sub_name)}
+    terminals = {oxygen_idx: oxy_term}
     chain, name = winning_chain_from_carbon_graph(full_graph, parent_carbon_graph, terminals, mol=mol)
 
     stereo = specified_stereocenters(mol)
