@@ -94,7 +94,7 @@ from ._common import (
     ring_cycle,
     specified_stereocenters,
 )
-from ._numerals import alkane_name
+from ._numerals import alkane_name, alkyl_name
 from ._substituents import alpha_sort_key, branch_atom_locant, format_substituent_prefixes, name_branch
 
 _SULFUR = 16
@@ -564,6 +564,55 @@ def _name_phenyl_chain_thione(mol, ring_atoms):
     return best_name
 
 
+def _name_ring_substituent_chain_thione(mol, thiones):
+    """Name a thione whose C=S lies entirely on a single
+    branched chain hanging off one atom of an otherwise-plain saturated
+    monocyclic ring (the ring itself bears no thione) -- e.g.
+    1-cyclohexylethanethione. The ring is cited as a "cyclo..."
+    substituent prefix (P-29.3.3) on the chain, which is the parent
+    hydride, mirroring `_name_phenyl_chain_thione` above and
+    `_ketone.py`'s `_name_ring_substituent_chain_ketone`. Narrower than
+    the benzene-ring case: exactly one thione."""
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
+
+    attachment = ring_chain_attachment(graph, ring_atoms, thiones)
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a ring with more than one exocyclic branch is not supported "
+            "yet"
+        )
+    ring_atom, chain_root = attachment
+    (thione_sulfur,) = thiones
+    (thione_carbon,) = graph[thione_sulfur]
+
+    chain, branches = longest_branched_chain_through(graph, thione_carbon, ring_atoms, thiones)
+    branches_by_atom = {
+        chain[position - 1]: [r for r in roots if r != ring_atom]
+        for position, roots in branches.items()
+    }
+    branches_by_atom = {atom: roots for atom, roots in branches_by_atom.items() if roots}
+
+    ring_name = "cyclo" + alkyl_name(len(ring_atoms))
+    chain_length = len(chain)
+
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        thione_locants = _thione_locants(position_of, thiones, graph)
+        substituents = {
+            position_of[atom]: [name_branch(graph, root, atom, halogens) for root in roots]
+            for atom, roots in branches_by_atom.items()
+        }
+        substituents.setdefault(position_of[chain_root], []).append((ring_name, False))
+        key, name = _candidate_key(chain_length, thione_locants, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_thione(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
@@ -599,6 +648,14 @@ def name_thione(mol) -> str:
                 "not supported yet -- only a ring double bond is in scope "
                 "for this first pass (see P-31.1.3)"
             )
+        ring_thiones = {s for s in thiones if next(iter(graph[s])) in ring_atoms}
+        if not bonds and not ring_thiones and len(thiones) == 1:
+            if stereo is not None:
+                raise UnsupportedStructure(
+                    "a stereocenter on a substituent branch rather than "
+                    "the ring itself is not supported yet (see P-92)"
+                )
+            return _name_ring_substituent_chain_thione(mol, thiones)
         return _name_cyclic_thione(mol, thiones, stereo, bonds)
     raise UnsupportedStructure(
         "polycyclic and spiro thiones are not supported yet"
