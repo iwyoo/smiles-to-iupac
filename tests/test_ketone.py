@@ -604,6 +604,16 @@ def test_cyclic_ketone_stereocenter():
     assert smiles_to_iupac("O=C1CCCC[C@H]1Cl") == "(2R)-2-chlorocyclohexan-1-one"
 
 
+def test_cyclic_ketone_branch_stereocenter():
+    # A stereocenter on the ring's sole substituent branch rather than the
+    # ring itself (P-92), same pattern as `_alcohol.py`'s
+    # `_name_cyclic_alcohol` -- the branch sits at C4 (para to the
+    # carbonyl), a ring position symmetric enough that the ring atom
+    # itself needs no locant/stereo label of its own. PubChem's own
+    # computed IUPACName for this exact SMILES agrees.
+    assert smiles_to_iupac("O=C1CCC(CC1)[C@@H](C)CC") == "4-[(2S)-butan-2-yl]cyclohexan-1-one"
+
+
 def test_ketone_unspecified_stereocenter_unaffected():
     # A genuine stereocenter left unspecified (no @/@@) is named exactly
     # as before -- no stereo prefix, matching this project's long-standing
