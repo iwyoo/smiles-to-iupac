@@ -106,9 +106,26 @@ def test_polycyclic_selenol_not_supported():
         smiles_to_iupac("C12(CCC(CC1)CC2)[SeH]")
 
 
-def test_selenol_on_ring_substituent_branch_not_supported():
+def test_ring_substituent_chain_selenol():
+    # A selenol entirely on a chain hanging off a plain saturated ring
+    # (the ring itself bears no selenol) -- the ring is cited as a
+    # "cyclo..." substituent prefix on the chain, mirroring
+    # `_name_phenyl_chain_selenol`/`_thiol.py`'s `_name_ring_substituent_
+    # chain_thiol`. No PubChem-registered structure for this exact
+    # molecule -- a structural/regression check on the mechanism ported
+    # verbatim from `_thiol.py`, same as `test_phenyl_chain_selenol_
+    # internal_locant` above.
+    assert smiles_to_iupac("C1CCCCC1C[SeH]") == "cyclohexylmethaneselenol"
+
+
+def test_ring_substituent_chain_selenol_ring_with_substituent_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCC1C[SeH]")
+        smiles_to_iupac("C1CCC(C)CC1C[SeH]")
+
+
+def test_ring_substituent_chain_selenol_unsaturated_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1=CCCCC1C[SeH]")
 
 
 def test_selenol_with_alcohol_not_supported():

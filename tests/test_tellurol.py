@@ -90,9 +90,25 @@ def test_polycyclic_tellurol_not_supported():
         smiles_to_iupac("C12(CCC(CC1)CC2)[TeH]")
 
 
-def test_tellurol_on_ring_substituent_branch_not_supported():
+def test_ring_substituent_chain_tellurol():
+    # A tellurol entirely on a chain hanging off a plain saturated ring
+    # (the ring itself bears no tellurol) -- the ring is cited as a
+    # "cyclo..." substituent prefix on the chain, mirroring
+    # `_name_phenyl_chain_tellurol`/`_thiol.py`'s `_name_ring_substituent_
+    # chain_thiol`. No PubChem-registered structure for this exact
+    # molecule -- a structural/regression check on the mechanism ported
+    # verbatim from `_thiol.py`.
+    assert smiles_to_iupac("C1CCCCC1C[TeH]") == "cyclohexylmethanetellurol"
+
+
+def test_ring_substituent_chain_tellurol_ring_with_substituent_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCC1C[TeH]")
+        smiles_to_iupac("C1CCC(C)CC1C[TeH]")
+
+
+def test_ring_substituent_chain_tellurol_unsaturated_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1=CCCCC1C[TeH]")
 
 
 def test_tellurol_with_alcohol_not_supported():
