@@ -726,17 +726,22 @@ def _branch_point_candidate_chains(graph, root, coming_from, halogens):
     best_position = None
     best_name = None
     for before_branch, after_branch in orientations:
-        extra_roots = [r for r in branch_roots if r not in (before_branch, after_branch)]
         for path_before in paths[before_branch]:
             for path_after in paths[after_branch]:
                 spine = list(reversed(path_before)) + [root] + path_after
                 root_locant = len(path_before) + 1
+                # Any branch off `root` beyond `before_branch`/`after_branch`
+                # (e.g. a third, shorter branch when `root` forks three
+                # ways) is already picked up below: `root` always sits at
+                # an internal spine locant (`root_locant` >= 2, since
+                # `path_before` is never empty), so
+                # `_substituent_entries_along_chain`'s own walk over that
+                # position's neighbors finds it via the ordinary
+                # not-in-chain-set/not-`previous`/not-`excluded` check --
+                # a separate pass over it here would double-count it.
                 entries = _substituent_entries_along_chain(
                     graph, spine, None, halogens, extra_exclusions={root_locant: coming_from}
                 )
-                for extra in extra_roots:
-                    sub_name, sub_compound = name_branch(graph, extra, root, halogens)
-                    entries.append((root_locant, sub_name, sub_compound))
                 grouped = _group_substituents(entries)
                 prefix = format_substituent_prefixes(grouped)
                 name = f"{prefix}{stem}-{root_locant}-yl"
