@@ -43,6 +43,26 @@ def test_unsaturated_ring_tellone_triple_bond_raises():
         smiles_to_iupac("[Te]=C1CCCC#C1")
 
 
+def test_ring_substituent_chain_tellone():
+    # A tellone entirely on a chain hanging off a plain saturated ring
+    # (the ring itself bears no tellone) -- mirrors `_thione.py`'s
+    # `test_ring_substituent_chain_thione`. No PubChem-registered
+    # structure for this exact molecule (sparse tellone coverage), so
+    # this is a structural/regression check on the mechanism ported
+    # verbatim from `_ketone.py`/`_thione.py`.
+    assert smiles_to_iupac("CC(=[Te])C1CCCCC1") == "1-cyclohexylethane-1-tellone"
+
+
+def test_ring_substituent_chain_tellone_ring_with_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=[Te])C1CCC(C)CC1")
+
+
+def test_ring_substituent_chain_tellone_unsaturated_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=[Te])C1CCCC=C1")
+
+
 def test_telluroaldehyde_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CCC=[Te]")

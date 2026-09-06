@@ -83,7 +83,7 @@ from ._common import (
     ring_cycle,
     specified_stereocenters,
 )
-from ._numerals import alkane_name
+from ._numerals import alkane_name, alkyl_name
 from ._substituents import alpha_sort_key, branch_atom_locant, format_substituent_prefixes, name_branch
 
 _SELENIUM = 34
@@ -553,6 +553,55 @@ def _name_phenyl_chain_selone(mol, ring_atoms):
     return best_name
 
 
+def _name_ring_substituent_chain_selone(mol, selones):
+    """Name a selone whose C=S lies entirely on a single
+    branched chain hanging off one atom of an otherwise-plain saturated
+    monocyclic ring (the ring itself bears no selone) -- e.g.
+    1-cyclohexylethaneselone. The ring is cited as a "cyclo..."
+    substituent prefix (P-29.3.3) on the chain, which is the parent
+    hydride, mirroring `_name_phenyl_chain_selone` above and
+    `_ketone.py`'s `_name_ring_substituent_chain_ketone`. Narrower than
+    the benzene-ring case: exactly one selone."""
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
+
+    attachment = ring_chain_attachment(graph, ring_atoms, selones)
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a ring with more than one exocyclic branch is not supported "
+            "yet"
+        )
+    ring_atom, chain_root = attachment
+    (selone_selenium,) = selones
+    (selone_carbon,) = graph[selone_selenium]
+
+    chain, branches = longest_branched_chain_through(graph, selone_carbon, ring_atoms, selones)
+    branches_by_atom = {
+        chain[position - 1]: [r for r in roots if r != ring_atom]
+        for position, roots in branches.items()
+    }
+    branches_by_atom = {atom: roots for atom, roots in branches_by_atom.items() if roots}
+
+    ring_name = "cyclo" + alkyl_name(len(ring_atoms))
+    chain_length = len(chain)
+
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        selone_locants = _selone_locants(position_of, selones, graph)
+        substituents = {
+            position_of[atom]: [name_branch(graph, root, atom, halogens) for root in roots]
+            for atom, roots in branches_by_atom.items()
+        }
+        substituents.setdefault(position_of[chain_root], []).append((ring_name, False))
+        key, name = _candidate_key(chain_length, selone_locants, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_selone(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
@@ -588,6 +637,14 @@ def name_selone(mol) -> str:
                 "not supported yet -- only a ring double bond is in scope "
                 "for this first pass (see P-31.1.3)"
             )
+        ring_selones = {s for s in selones if next(iter(graph[s])) in ring_atoms}
+        if not bonds and not ring_selones and len(selones) == 1:
+            if stereo is not None:
+                raise UnsupportedStructure(
+                    "a stereocenter on a substituent branch rather than "
+                    "the ring itself is not supported yet (see P-92)"
+                )
+            return _name_ring_substituent_chain_selone(mol, selones)
         return _name_cyclic_selone(mol, selones, stereo, bonds)
     raise UnsupportedStructure(
         "polycyclic and spiro selones are not supported yet"

@@ -46,6 +46,25 @@ def test_unsaturated_ring_thione_triple_bond_raises():
         smiles_to_iupac("S=C1CCCC#C1")
 
 
+def test_ring_substituent_chain_thione():
+    # A thione entirely on a chain hanging off a plain saturated ring (the
+    # ring itself bears no thione) -- the ring is cited as a "cyclo..."
+    # substituent prefix on the chain, mirroring `_name_phenyl_chain_
+    # thione`/`_ketone.py`'s `_name_ring_substituent_chain_ketone`.
+    # PubChem PUG REST-verified "1-cyclohexylethanethione" (CID 13294348).
+    assert smiles_to_iupac("CC(=S)C1CCCCC1") == "1-cyclohexylethane-1-thione"
+
+
+def test_ring_substituent_chain_thione_ring_with_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=S)C1CCC(C)CC1")
+
+
+def test_ring_substituent_chain_thione_unsaturated_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=S)C1CCCC=C1")
+
+
 def test_thial_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CCC=S")
