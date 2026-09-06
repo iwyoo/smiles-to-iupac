@@ -646,7 +646,7 @@ def _name_phenyl_chain_sulfinamide(mol, ring_atoms):
             "exocyclic substituent alongside a chain sulfinamide is not "
             "supported yet"
         )
-    chain, branches = longest_branched_chain_through(graph, so_nh2_carbon, ring_atoms, excluded)
+    chain, branches = longest_branched_chain_through(graph, so_nh2_carbon, ring_atoms, excluded, halogens=halogen_substituents(mol))
     branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
 
     chain_length = len(chain)
@@ -687,7 +687,7 @@ def _name_ring_substituent_chain_sulfinamide(mol, sulfur_idx, so_nh2_carbon):
         )
     ring_atom, chain_root = attachment
 
-    chain, branches = longest_branched_chain_through(graph, so_nh2_carbon, ring_atoms, excluded)
+    chain, branches = longest_branched_chain_through(graph, so_nh2_carbon, ring_atoms, excluded, halogens=halogen_substituents(mol))
     branches_by_atom = {
         chain[position - 1]: [r for r in roots if r != ring_atom]
         for position, roots in branches.items()

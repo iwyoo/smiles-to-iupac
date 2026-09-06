@@ -211,7 +211,7 @@ def ordered_chain(graph, root, coming_from, excluded):
         chain.append(current)
 
 
-def longest_branched_chain(graph, source, ring_boundary, excluded=frozenset()):
+def longest_branched_chain(graph, source, ring_boundary, excluded=frozenset(), halogens=frozenset()):
     """Generalizes `ordered_chain`: the longest simple chain starting at
     `source` (typically a suffix's own principal-characteristic-group
     carbon, always a tree leaf once its own heteroatoms are excluded)
@@ -231,6 +231,14 @@ def longest_branched_chain(graph, source, ring_boundary, excluded=frozenset()):
     `excluded`: atoms that are neither part of the chain nor ever cited
     as a separate branch (typically the suffix's own carbonyl/hydroxyl
     oxygens, already accounted for by the suffix name itself).
+    `halogens`: halogen atom indices (typically `halogen_substituents(mol)`,
+    the same dict passed to `name_branch`) -- excluded from the chain
+    itself (a halogen is always monovalent and would otherwise dead-end
+    the BFS at a leaf, silently absorbing it into the chain as if it were
+    carbon), but, like `ring_boundary`, still surfaced as an ordinary
+    branch wherever one is adjacent to a chosen chain atom (P-35.2.1: a
+    halogen is always cited as a substituent prefix, never part of the
+    parent chain).
 
     On a tie for longest, prefers the chain giving the greater number of
     substituents cited as prefixes (P-44.3.2's own next tie-break after
@@ -249,7 +257,7 @@ def longest_branched_chain(graph, source, ring_boundary, excluded=frozenset()):
     `excluded` -- name each via `name_branch`, same as any other
     substituent (a ring-atom branch root is named as a ring substituent
     automatically, since `name_branch` already recognizes one)."""
-    blocked = set(ring_boundary) | set(excluded)
+    blocked = set(ring_boundary) | set(excluded) | set(halogens)
     dist = {source: 0}
     parent = {source: None}
     queue = [source]
@@ -288,7 +296,7 @@ def longest_branched_chain(graph, source, ring_boundary, excluded=frozenset()):
     return best_chain, best_branches
 
 
-def longest_branched_chain_through(graph, required, ring_boundary, excluded=frozenset()):
+def longest_branched_chain_through(graph, required, ring_boundary, excluded=frozenset(), halogens=frozenset()):
     """Like `longest_branched_chain`, but `required` need not be a chain
     terminus (e.g. a ketone's own carbonyl carbon, always internal once
     its aryl-ketone case is separately rejected) -- finds one of the
@@ -298,7 +306,8 @@ def longest_branched_chain_through(graph, required, ring_boundary, excluded=froz
     here allowing the group to sit anywhere on the chain instead of
     fixing it at C1).
 
-    `ring_boundary`/`excluded`: same meaning as `longest_branched_chain`.
+    `ring_boundary`/`excluded`/`halogens`: same meaning as
+    `longest_branched_chain`.
 
     Returns (chain, branches): `chain` is the winning path as an
     atom-index list, in an arbitrary direction -- the caller tries both
@@ -306,7 +315,7 @@ def longest_branched_chain_through(graph, required, ring_boundary, excluded=froz
     `required` its own lowest locant; `branches` is {position ->
     [branch_root_atom, ...]}, 1-based against this `chain`'s order, same
     shape as `longest_branched_chain`."""
-    blocked = set(ring_boundary) | set(excluded)
+    blocked = set(ring_boundary) | set(excluded) | set(halogens)
     neighbors = [n for n in graph[required] if n not in blocked]
 
     arms = []

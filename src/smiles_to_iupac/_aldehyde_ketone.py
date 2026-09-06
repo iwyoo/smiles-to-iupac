@@ -259,7 +259,7 @@ def _name_phenyl_chain_aldehyde_ketone(mol, ring_atoms):
             "alongside a chain aldehyde/ketone combination is not "
             "supported yet"
         )
-    chain, _ = longest_branched_chain(graph, aldehyde_carbon, ring_atoms, aldehydes | set(names))
+    chain, _ = longest_branched_chain(graph, aldehyde_carbon, ring_atoms, aldehydes | set(names), halogens=halogen_substituents(mol))
     if any(graph[o][0] not in chain for o in ketones):
         raise UnsupportedStructure(
             "not every ketone-bearing carbon lies on the chain hanging "

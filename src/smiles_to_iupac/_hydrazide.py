@@ -831,7 +831,7 @@ def _name_phenyl_chain_hydrazide(mol, ring_atoms):
             "exocyclic substituent alongside a chain hydrazide is not "
             "supported yet"
         )
-    chain, branches = longest_branched_chain(graph, hydrazide_carbon, ring_atoms, excluded)
+    chain, branches = longest_branched_chain(graph, hydrazide_carbon, ring_atoms, excluded, halogens=halogen_substituents(mol))
     if len(chain) < 2:
         raise UnsupportedStructure(
             "a hydrazide directly attached to the benzene ring "

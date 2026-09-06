@@ -108,6 +108,19 @@ def test_phenyl_substituent_ketone_ring_dihalogen():
     assert smiles_to_iupac("Clc1cc(Cl)ccc1CC(C)=O") == "1-(2,4-dichlorophenyl)propan-2-one"
 
 
+def test_phenyl_substituent_ketone_chain_terminal_halogens_not_absorbed():
+    # Regression: `longest_branched_chain_through`'s BFS treated a
+    # chain-terminal halogen as an ordinary carbon (its own leaf-like
+    # shape matches what the search otherwise expects only of chain
+    # carbons), silently absorbing it into the chain and shortening the
+    # halogen substituent list by one. PubChem-style correct answer has a
+    # 4-carbon chain and 4 fluorines, not a 5-carbon chain with 3.
+    assert (
+        smiles_to_iupac("O=C(Cc1cccc(F)c1F)C(F)(F)C(F)F")
+        == "1-(2,3-difluorophenyl)-3,3,4,4-tetrafluorobutan-2-one"
+    )
+
+
 def test_phenyl_substituent_ketone_ring_methyl():
     # PubChem PUG REST-verified "1-(4-methylphenyl)propan-2-one".
     assert smiles_to_iupac("Cc1ccc(CC(C)=O)cc1") == "1-(4-methylphenyl)propan-2-one"

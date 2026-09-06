@@ -536,7 +536,7 @@ def _name_phenyl_acyl_ester(mol, ring_atoms):
             "supported yet"
         )
     acyl_carbon_idx = acyl_carbon.GetIdx()
-    chain, branches = longest_branched_chain(graph, acyl_carbon_idx, ring_atoms, excluded_oxygens)
+    chain, branches = longest_branched_chain(graph, acyl_carbon_idx, ring_atoms, excluded_oxygens, halogens=halogen_substituents(mol))
     if len(chain) < 2:
         raise UnsupportedStructure(
             "an ester group directly attached to the benzene ring (no "
@@ -670,7 +670,7 @@ def _name_ring_acyl_chain_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, e
             "chain ester is not supported yet"
         )
     acyl_carbon_idx = acyl_carbon.GetIdx()
-    chain, branches = longest_branched_chain(graph, acyl_carbon_idx, ring_atoms, excluded_oxygens)
+    chain, branches = longest_branched_chain(graph, acyl_carbon_idx, ring_atoms, excluded_oxygens, halogens=halogen_substituents(mol))
     if len(chain) < 2:
         raise UnsupportedStructure(
             "an ester group directly attached to the ring (no intervening "

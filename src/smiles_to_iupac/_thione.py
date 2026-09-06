@@ -545,7 +545,7 @@ def _name_phenyl_chain_thione(mol, ring_atoms):
             "separate aromatic-ring module)"
         )
 
-    chain, branches = longest_branched_chain_through(graph, thione_carbon, ring_atoms, thiones)
+    chain, branches = longest_branched_chain_through(graph, thione_carbon, ring_atoms, thiones, halogens=halogen_substituents(mol))
     branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
 
     chain_length = len(chain)
@@ -588,7 +588,7 @@ def _name_ring_substituent_chain_thione(mol, thiones):
     (thione_sulfur,) = thiones
     (thione_carbon,) = graph[thione_sulfur]
 
-    chain, branches = longest_branched_chain_through(graph, thione_carbon, ring_atoms, thiones)
+    chain, branches = longest_branched_chain_through(graph, thione_carbon, ring_atoms, thiones, halogens=halogen_substituents(mol))
     branches_by_atom = {
         chain[position - 1]: [r for r in roots if r != ring_atom]
         for position, roots in branches.items()

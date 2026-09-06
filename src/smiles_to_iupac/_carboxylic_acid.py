@@ -503,7 +503,7 @@ def _name_phenyl_chain_carboxylic_acid(mol, ring_atoms):
             "not supported yet"
         )
     (carboxyl_carbon,) = carboxyl_carbons
-    chain, branches = longest_branched_chain(graph, carboxyl_carbon, ring_atoms, carboxyl_oxygens)
+    chain, branches = longest_branched_chain(graph, carboxyl_carbon, ring_atoms, carboxyl_oxygens, halogens=halogen_substituents(mol))
     if len(chain) < 2:
         raise UnsupportedStructure(
             "a -COOH group directly attached to the benzene ring (no "

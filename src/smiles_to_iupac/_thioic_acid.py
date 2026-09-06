@@ -202,7 +202,7 @@ def _name_phenyl_chain_thioic_acid(mol, ring_atoms):
         )
     acid_carbon_idx = acid_carbon.GetIdx()
     hetero_idxs = acid_atom_idxs - {acid_carbon_idx}
-    chain, branches = longest_branched_chain(graph, acid_carbon_idx, ring_atoms, hetero_idxs)
+    chain, branches = longest_branched_chain(graph, acid_carbon_idx, ring_atoms, hetero_idxs, halogens=halogen_substituents(mol))
     if len(chain) < 2:
         raise UnsupportedStructure(
             "a thioic acid directly attached to the benzene ring uses a "

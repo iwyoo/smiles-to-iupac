@@ -286,7 +286,7 @@ def _name_phenyl_chain_carboxylic_acid_sulfinic_acid(mol, ring_atoms):
             "supported yet"
         )
     ring_atom, chain_root = attachment
-    chain, _ = longest_branched_chain(graph, carboxyl_carbon, ring_atoms, carboxyl_oxygens | sulfinic_idxs)
+    chain, _ = longest_branched_chain(graph, carboxyl_carbon, ring_atoms, carboxyl_oxygens | sulfinic_idxs, halogens=halogen_substituents(mol))
     if len(chain) < 2:
         raise UnsupportedStructure(
             "a -COOH group directly attached to the benzene ring (no "

@@ -577,7 +577,7 @@ def _name_phenyl_chain_nitrile(mol, ring_atoms):
         )
     (nitrile_nitrogen,) = nitriles
     (nitrile_carbon,) = graph[nitrile_nitrogen]
-    chain, branches = longest_branched_chain(graph, nitrile_carbon, ring_atoms, nitriles)
+    chain, branches = longest_branched_chain(graph, nitrile_carbon, ring_atoms, nitriles, halogens=halogen_substituents(mol))
 
     chain_length = len(chain)
     substituents = {

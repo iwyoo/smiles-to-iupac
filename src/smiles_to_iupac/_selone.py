@@ -534,7 +534,7 @@ def _name_phenyl_chain_selone(mol, ring_atoms):
             "separate aromatic-ring module)"
         )
 
-    chain, branches = longest_branched_chain_through(graph, selone_carbon, ring_atoms, selones)
+    chain, branches = longest_branched_chain_through(graph, selone_carbon, ring_atoms, selones, halogens=halogen_substituents(mol))
     branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
 
     chain_length = len(chain)
@@ -577,7 +577,7 @@ def _name_ring_substituent_chain_selone(mol, selones):
     (selone_selenium,) = selones
     (selone_carbon,) = graph[selone_selenium]
 
-    chain, branches = longest_branched_chain_through(graph, selone_carbon, ring_atoms, selones)
+    chain, branches = longest_branched_chain_through(graph, selone_carbon, ring_atoms, selones, halogens=halogen_substituents(mol))
     branches_by_atom = {
         chain[position - 1]: [r for r in roots if r != ring_atom]
         for position, roots in branches.items()

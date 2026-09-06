@@ -410,7 +410,7 @@ def _name_phenyl_chain_carboxylate(mol, ring_atoms):
             "exocyclic substituent alongside a chain carboxylate is not "
             "supported yet"
         )
-    chain, branches = longest_branched_chain(graph, carboxylate_carbon.GetIdx(), ring_atoms, excluded_oxygens)
+    chain, branches = longest_branched_chain(graph, carboxylate_carbon.GetIdx(), ring_atoms, excluded_oxygens, halogens=halogen_substituents(mol))
     if len(chain) < 2:
         raise UnsupportedStructure(
             "a -COO- group directly attached to the benzene ring "
