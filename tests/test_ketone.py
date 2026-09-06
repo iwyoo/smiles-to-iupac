@@ -580,6 +580,34 @@ def test_unsaturated_ring_ketone_triple_bond_raises():
         smiles_to_iupac("O=C1CCCC#C1")
 
 
+def test_ring_substituent_chain_ketone():
+    # A ketone entirely on a chain hanging off a plain saturated ring (the
+    # ring itself bears no ketone) -- the ring is cited as a "cyclo..."
+    # substituent prefix on the chain, mirroring `_alcohol.py`'s
+    # `_name_ring_substituent_chain_alcohol`. PubChem PUG REST-verified
+    # "1-cyclohexylethanone" (CID 13207).
+    assert smiles_to_iupac("CC(=O)C1CCCCC1") == "1-cyclohexylethan-1-one"
+
+
+def test_ring_substituent_chain_ketone_longer_chain():
+    # PubChem PUG REST: "1-cyclohexylpropan-1-one" (CID 70748) -- an
+    # exact match here since the '1' locant is a genuine choice (three or
+    # more chain carbons), unlike the two-carbon case above.
+    assert smiles_to_iupac("CCC(=O)C1CCCCC1") == "1-cyclohexylpropan-1-one"
+
+
+def test_ring_substituent_chain_ketone_ring_with_substituent_raises():
+    # A ring atom other than the chain attachment carrying its own
+    # substituent is out of scope for this first pass.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=O)C1CCC(C)CC1")
+
+
+def test_ring_substituent_chain_ketone_unsaturated_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=O)C1CCCC=C1")
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
