@@ -130,9 +130,14 @@ def test_substituted_benzenesulfinamide():
     assert smiles_to_iupac("Cc1ccc(cc1)S(=O)N") == "4-methylbenzenesulfinamide"  # PubChem PUG REST
 
 
-def test_benzenesulfinamide_n_alkyl_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1S(=O)NC")
+def test_benzenesulfinamide_n_alkyl():
+    # PubChem PUG REST IUPACName match.
+    assert smiles_to_iupac("CNS(=O)c1ccccc1") == "N-methylbenzenesulfinamide"
+
+
+def test_substituted_benzenesulfinamide_n_alkyl():
+    # Same coinciding-name merge as `_sulfonamide.py`'s identical case.
+    assert smiles_to_iupac("Cc1ccc(cc1)S(=O)NC") == "N,4-dimethylbenzenesulfinamide"
 
 
 def test_phenyl_chain_sulfinamide_n_alkyl_raises():

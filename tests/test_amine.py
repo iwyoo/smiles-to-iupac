@@ -69,6 +69,14 @@ def test_tertiary_amine_all_same():
     assert smiles_to_iupac("CN(C)C") == "N,N-dimethylmethanamine"
 
 
+def test_n_locant_sorts_before_numeric_when_names_coincide():
+    # PubChem PUG REST IUPACName match: "N,2-dimethylpropan-1-amine", not
+    # "2,N-dimethyl..." -- a non-numeric ('N') locant is cited before a
+    # numeric one when both share the same substituent name
+    # (`_substituents.py`'s `_locant_sort_key`).
+    assert smiles_to_iupac("CNCC(C)C") == "N,2-dimethylpropan-1-amine"
+
+
 def test_tertiary_amine_asymmetric():
     # PubChem structure match: "N-ethyl-N-methylpropan-1-amine" -- the
     # longest N-linked chain (propyl) becomes the parent, the other two
