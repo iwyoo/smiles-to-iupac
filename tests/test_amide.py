@@ -196,6 +196,13 @@ def test_phenyl_chain_amide_ring_methyl_para():
     assert smiles_to_iupac("NC(=O)Cc1ccc(C)cc1") == "2-(4-methylphenyl)ethanamide"
 
 
+def test_phenyl_chain_amide_ring_ethyl():
+    # PubChem PUG REST IUPACName match: any plain, fully saturated
+    # acyclic alkyl ring substituent (not just methyl) is now supported,
+    # reusing `name_branch` itself via `plain_alkyl_ring_substituents`.
+    assert smiles_to_iupac("CCc1ccc(cc1)CC(N)=O") == "2-(4-ethylphenyl)ethanamide"
+
+
 def test_phenyl_chain_amide_ring_halogen_and_methyl():
     # PubChem "2-(2-chloro-5-methylphenyl)acetamide" -- halogen and
     # methyl ring substituents mixed on the same ring.

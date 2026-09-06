@@ -123,6 +123,13 @@ def test_phenyl_acyl_chain_ring_methyl_para():
     assert smiles_to_iupac("COC(=O)Cc1ccc(C)cc1") == "methyl 2-(4-methylphenyl)ethanoate"
 
 
+def test_phenyl_acyl_chain_ring_ethyl():
+    # PubChem PUG REST IUPACName match: any plain, fully saturated
+    # acyclic alkyl ring substituent (not just methyl) is now supported,
+    # reusing `name_branch` itself via `plain_alkyl_ring_substituents`.
+    assert smiles_to_iupac("CCc1ccc(cc1)CC(=O)OC") == "methyl 2-(4-ethylphenyl)ethanoate"
+
+
 def test_phenyl_acyl_chain_ring_halogen_and_methyl():
     # PubChem "methyl 2-(2-chloro-5-methylphenyl)acetate" -- halogen and
     # methyl ring substituents mixed on the same ring.
