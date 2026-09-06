@@ -110,7 +110,7 @@ from ._common import (
     ring_cycle,
     specified_stereocenters,
 )
-from ._numerals import alkane_name, numerical_term
+from ._numerals import alkane_name, alkyl_name, numerical_term
 from ._substituents import (
     alpha_sort_key,
     format_substituent_prefixes,
@@ -665,6 +665,54 @@ def _name_phenyl_chain_sulfinamide(mol, ring_atoms):
     return best_name
 
 
+def _name_ring_substituent_chain_sulfinamide(mol, sulfur_idx, so_nh2_carbon):
+    """Name a sulfinamide whose -S(=O)NH2 lies entirely on a single
+    branched chain hanging off one atom of an otherwise-plain saturated
+    monocyclic ring (the ring itself bears no sulfinamide) -- e.g.
+    cyclohexylmethanesulfinamide. The ring is cited as a "cyclo..."
+    substituent prefix (P-29.3.3) on the chain, which is the parent
+    hydride, mirroring `_name_phenyl_chain_sulfinamide` above and
+    `_sulfonic_acid.py`'s `_name_ring_substituent_chain_sulfonic_acid`.
+    Narrower than the benzene-ring case: no N-alkyl substitution."""
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
+    excluded = {sulfur_idx}
+
+    attachment = ring_chain_attachment(graph, ring_atoms, excluded)
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a ring with more than one exocyclic branch is not supported "
+            "yet"
+        )
+    ring_atom, chain_root = attachment
+
+    chain, branches = longest_branched_chain_through(graph, so_nh2_carbon, ring_atoms, excluded)
+    branches_by_atom = {
+        chain[position - 1]: [r for r in roots if r != ring_atom]
+        for position, roots in branches.items()
+    }
+    branches_by_atom = {atom: roots for atom, roots in branches_by_atom.items() if roots}
+
+    ring_name = "cyclo" + alkyl_name(len(ring_atoms))
+    chain_length = len(chain)
+
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        so_nh2_locant = position_of[so_nh2_carbon]
+        substituents = {
+            position_of[atom]: [name_branch(graph, root, atom, halogens) for root in roots]
+            for atom, roots in branches_by_atom.items()
+        }
+        substituents.setdefault(position_of[chain_root], []).append((ring_name, False))
+        key, name = _candidate_key(chain_length, so_nh2_locant, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_sulfinamide(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
@@ -726,6 +774,8 @@ def name_sulfinamide(mol) -> str:
                 "scope for this first pass (see P-31.1.3)"
             )
         if so_nh2_carbon not in ring_atoms:
+            if not bonds and not n_alkyl_carbons:
+                return _name_ring_substituent_chain_sulfinamide(mol, sulfur_idx, so_nh2_carbon)
             raise UnsupportedStructure(
                 "a sulfinamide on a substituent branch chain rather than "
                 "the ring itself is not supported yet"
