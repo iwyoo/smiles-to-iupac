@@ -78,6 +78,7 @@ from ._common import (
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    ordered_chain,
     ring_chain_attachment,
     ring_cycle,
     specified_stereocenters,
@@ -601,6 +602,70 @@ def _name_ring_substituent_chain_tellone(mol, tellones):
     return best_name
 
 
+def _name_ring_with_tellone_chain_tellone(mol, tellones):
+    """Name a tellone compound where the ring itself bears at least
+    as many tellones as a single unbranched chain hanging off
+    exactly one ring atom does (P-44.1.1/P-44.1.2.2). The ring is the
+    parent; the chain is cited as a '(tellanylidene...alkyl)' substituent
+    prefix, mirroring `_ketone.py`'s `_name_ring_with_ketone_chain_
+    ketone`."""
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
+
+    attachment = ring_chain_attachment(graph, ring_atoms, tellones)
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a ring with more than one exocyclic branch is not supported "
+            "yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, tellones)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched substituent chain hanging off the ring is not "
+            "supported yet"
+        )
+
+    chain_set = set(chain)
+    chain_tellones = {o for o in tellones if next(iter(graph[o])) in chain_set}
+    ring_tellones = tellones - chain_tellones
+    if len(ring_tellones) < len(chain_tellones):
+        ring_name, ring_is_compound = name_branch(
+            graph, ring_atom, chain_root, {**halogens, **{o: "tellanylidene" for o in ring_tellones}}
+        )
+        chain_length = len(chain)
+        best_key = None
+        best_name = None
+        for candidate in (chain, list(reversed(chain))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            tellone_locants = _tellone_locants(position_of, chain_tellones, graph)
+            substituents = {position_of[chain_root]: [(ring_name, ring_is_compound)]}
+            key, name = _candidate_key(chain_length, tellone_locants, [], [], substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, name
+        return best_name
+
+    chain_name, chain_is_compound = name_branch(
+        graph, chain_root, ring_atom, {**halogens, **{o: "tellanylidene" for o in chain_tellones}}
+    )
+
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            tellone_locants = _tellone_locants(position_of, ring_tellones, graph)
+            substituents = {position_of[ring_atom]: [(chain_name, chain_is_compound)]}
+            key = _ring_candidate_key(ring_size, tellone_locants, [], [], substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def name_tellone(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
@@ -644,6 +709,13 @@ def name_tellone(mol) -> str:
                     "the ring itself is not supported yet (see P-92)"
                 )
             return _name_ring_substituent_chain_tellone(mol, tellones)
+        if not bonds and ring_tellones and ring_tellones != tellones:
+            if stereo is not None:
+                raise UnsupportedStructure(
+                    "a stereocenter alongside a ring-vs-chain tellone "
+                    "comparison is not supported yet (see P-92)"
+                )
+            return _name_ring_with_tellone_chain_tellone(mol, tellones)
         return _name_cyclic_tellone(mol, tellones, stereo, bonds)
     raise UnsupportedStructure(
         "polycyclic and spiro tellones are not supported yet"
