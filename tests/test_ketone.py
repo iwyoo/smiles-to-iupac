@@ -113,6 +113,13 @@ def test_phenyl_substituent_ketone_ring_methyl():
     assert smiles_to_iupac("Cc1ccc(CC(C)=O)cc1") == "1-(4-methylphenyl)propan-2-one"
 
 
+def test_phenyl_substituent_ketone_ring_ethyl():
+    # PubChem PUG REST IUPACName match: any plain, fully saturated
+    # acyclic alkyl ring substituent (not just methyl) is now supported,
+    # reusing `name_branch` itself via `plain_alkyl_ring_substituents`.
+    assert smiles_to_iupac("CCc1ccc(cc1)CC(=O)C") == "1-(4-ethylphenyl)propan-2-one"
+
+
 def test_phenyl_substituent_ketone_naphthalene_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("c1ccc2ccccc2c1CC(C)=O")
