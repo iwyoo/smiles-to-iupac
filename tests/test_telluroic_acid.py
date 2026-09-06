@@ -72,6 +72,19 @@ def test_phenyl_directly_attached_telluroic_acid_raises():
         smiles_to_iupac("c1ccccc1C(=O)[TeH]")
 
 
-def test_phenyl_substituted_benzene_ring_telluroic_acid_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC(=O)[TeH]")
+def test_phenyl_substituted_benzene_ring_telluroic_acid_methyl():
+    # A plain alkyl ring substituent is now supported alongside the chain
+    # (mirroring `_thioic_acid.py`'s `plain_alkyl_ring_substituents`
+    # rollout).
+    assert smiles_to_iupac("Cc1ccccc1CC(=O)[TeH]") == "2-(2-methylphenyl)ethanetelluroic Te-acid"
+
+
+def test_phenyl_substituent_telluroic_acid_ring_halogen():
+    assert smiles_to_iupac("Clc1ccc(CC(=O)[TeH])cc1") == "2-(4-chlorophenyl)ethanetelluroic Te-acid"
+
+
+def test_phenyl_substituent_telluroic_acid_branched_chain():
+    assert (
+        smiles_to_iupac("CC(C)Cc1ccc(cc1)C(C)C(=O)[TeH]")
+        == "2-[4-(2-methylpropyl)phenyl]propanetelluroic Te-acid"
+    )
