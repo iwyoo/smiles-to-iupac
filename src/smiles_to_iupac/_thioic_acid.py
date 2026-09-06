@@ -29,33 +29,44 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   ('methanoic acid').
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- A branched or unsaturated R group (unlike `_carboxylic_acid.py`, this
-  first cut mirrors `_sulfoxide.py`'s minimal-scope style).
+- A branched or unsaturated R group on the plain acyclic path (unlike
+  `_carboxylic_acid.py`, this first cut mirrors `_sulfoxide.py`'s
+  minimal-scope style) -- the benzene-ring-substituent path below is the
+  one exception, where a branched chain is supported.
 - More than one thioic acid group (the dicarboxylic-acid analogue,
   'bis(thioic acid)'/'dithioic acid', uses a different construction per
   P-65.1.5.1 and is out of scope).
 - A ring anywhere in the molecule (P-65.1.1.2's 'carbothioic acid'
   construction, out of scope here), except for one narrow case: a thioic
-  acid's chain hanging off a single plain, unsubstituted benzene ring with
-  no other ring substituent (`_name_phenyl_chain_thioic_acid`, e.g.
-  '2-phenylethanethioic S-acid'), mirroring `_aldehyde.py`'s identical
-  benzene-ring-substituent path. A thioic acid directly on the ring stays
-  out of scope for this chain-parent module.
+  acid's branched chain hanging off a single benzene ring bearing only
+  halogen/plain-alkyl substituents besides the chain itself
+  (`_name_phenyl_chain_thioic_acid`, e.g. '2-phenylethanethioic S-acid'),
+  mirroring `_carboxylic_acid.py`'s identical benzene-ring-substituent
+  path (P-44.3.2, `longest_branched_chain`). A thioic acid directly on
+  the ring stays out of scope for this chain-parent module.
 - The selenium/tellurium analogues (selenoic/telluroic acid) -- the
   selenium analogue is handled separately by `_selenoic_acid.py`; tellurium
   is a separate follow-up module.
-- Any other heteroatom, halogen substituent, charge, or isotopic label.
+- Any other heteroatom, charge, or isotopic label. A halogen substituent
+  (P-35.2.1) is allowed only on the benzene ring in the ring-substituent
+  path above, not elsewhere.
 """
 
 from ._common import (
+    HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
+    group_substituents,
+    halogen_substituents,
     is_plain_benzene_ring,
+    longest_branched_chain,
     non_single_bonds,
-    ordered_chain,
-    ring_chain_attachment,
+    ring_chain_attachment_with_halogens,
 )
 from ._numerals import alkane_name
+from ._substituents import format_substituent_prefixes, name_branch, plain_alkyl_ring_substituents
+
+_ALLOWED_ATOMIC_NUMS = {6, 8, 16, *HALOGEN_PREFIXES}
 
 
 def _thioic_acid_carbons(mol):
@@ -131,15 +142,19 @@ def _validate_and_collect_thioic_acid(mol, aromatic_ring_atoms=frozenset()):
     default, so every other caller's behavior is unchanged. Returns
     (acid_carbon, label, acid_atom_idxs)."""
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() not in (6, 8, 16):
+        atomic_num = atom.GetAtomicNum()
+        if atomic_num not in _ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(
-                "heteroatoms other than the thioic acid's own chalcogens are "
-                "not supported yet (P-65.1.5 is restricted to a plain "
-                "acyclic thioic acid here)"
+                "heteroatoms other than the thioic acid's own chalcogens "
+                "and halogen substituents (P-35.2.1) are not supported yet "
+                "(P-65.1.5 is restricted to a plain acyclic thioic acid "
+                "here)"
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
+        if atomic_num in HALOGEN_PREFIXES and atom.GetDegree() != 1:
+            raise UnsupportedStructure("a halogen atom must be a monovalent substituent (P-35.2.1)")
+        if atomic_num == 6 and atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
             raise UnsupportedStructure(
                 "aromatic rings are out of scope for this module (see the "
                 "separate aromatic-ring module)"
@@ -163,37 +178,31 @@ def _validate_and_collect_thioic_acid(mol, aromatic_ring_atoms=frozenset()):
 
 
 def _name_phenyl_chain_thioic_acid(mol, ring_atoms):
-    """Name a thioic acid whose -C(=O)SH/-C(=S)OH lies entirely on a
-    single unbranched chain hanging off one atom of an otherwise-plain,
-    unsubstituted benzene ring -- e.g. '2-phenylethanethioic S-acid'. The
-    ring is cited as a 'phenyl' substituent prefix on the chain, which is
-    the parent hydride, mirroring `_aldehyde.py`'s
-    `_name_phenyl_chain_aldehyde`. This module never supports any
-    substituent besides the ring itself (module docstring), so no locant
-    tie-break is needed: the acid carbon is always C1 and the ring is
-    always at the chain's far terminus (see
-    tasks/phenyl-substituent-on-thioic-acid-chain.md's scope note)."""
+    """Name a thioic acid whose -C(=O)SH/-C(=S)OH lies on a (possibly
+    branched) chain hanging off one atom of a benzene ring that otherwise
+    bears only halogen/plain-alkyl substituents -- e.g.
+    '2-phenylethanethioic S-acid'. The ring is cited as a 'phenyl' (or
+    e.g. '4-chlorophenyl') substituent prefix (via `name_branch`'s
+    aromatic-ring recognition) on the chain, which is the parent hydride,
+    mirroring `_carboxylic_acid.py`'s `_name_phenyl_chain_carboxylic_acid`
+    (P-44.3.2, `longest_branched_chain` absorbs a branch into the parent
+    chain whenever that makes it longer). The acid carbon is always C1 --
+    unlike a sulfonic/carboxylic acid group elsewhere in a chain, a
+    thioic acid group is by definition a chain terminus, so no locant
+    tie-break between chain directions is needed."""
     acid_carbon, label, acid_atom_idxs = _validate_and_collect_thioic_acid(mol, aromatic_ring_atoms=ring_atoms)
     graph = adjacency(mol)
-    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
+    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
     if attachment is None:
         raise UnsupportedStructure(
-            "a benzene ring with more than one exocyclic substituent "
-            "alongside a chain thioic acid is not supported yet"
+            "a benzene ring with more than one non-halogen, non-alkyl "
+            "exocyclic substituent alongside a chain thioic acid is not "
+            "supported yet"
         )
-    ring_atom, chain_root = attachment
-    hetero_idxs = acid_atom_idxs - {acid_carbon.GetIdx()}
-    chain = ordered_chain(graph, chain_root, ring_atom, hetero_idxs)
-    if chain is None:
-        raise UnsupportedStructure(
-            "a branched chain hanging off the benzene ring alongside a "
-            "thioic acid is not supported yet"
-        )
-    if chain[-1] != acid_carbon.GetIdx():
-        raise UnsupportedStructure(
-            "the thioic acid carbon must be the chain's far terminus from "
-            "the benzene ring for this benzene-substituent path"
-        )
+    acid_carbon_idx = acid_carbon.GetIdx()
+    hetero_idxs = acid_atom_idxs - {acid_carbon_idx}
+    chain, branches = longest_branched_chain(graph, acid_carbon_idx, ring_atoms, hetero_idxs)
     if len(chain) < 2:
         raise UnsupportedStructure(
             "a thioic acid directly attached to the benzene ring uses a "
@@ -202,7 +211,13 @@ def _name_phenyl_chain_thioic_acid(mol, ring_atoms):
         )
 
     chain_length = len(chain)
-    return f"{chain_length}-phenyl{alkane_name(chain_length)}thioic {label}-acid"
+    substituents = {
+        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms) for root in roots]
+        for position, roots in branches.items()
+    }
+    grouped = group_substituents(substituents)
+    prefix = format_substituent_prefixes(grouped)
+    return f"{prefix}{alkane_name(chain_length)}thioic {label}-acid"
 
 
 def name_thioic_acid(mol) -> str:

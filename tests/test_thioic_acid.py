@@ -70,6 +70,26 @@ def test_phenyl_directly_attached_thioic_acid_raises():
         smiles_to_iupac("c1ccccc1C(=O)S")
 
 
-def test_phenyl_substituted_benzene_ring_thioic_acid_raises():
+def test_phenyl_substituted_benzene_ring_thioic_acid_methyl():
+    # A plain alkyl ring substituent is now supported alongside the chain
+    # (mirroring `_carboxylic_acid.py`'s `plain_alkyl_ring_substituents`
+    # rollout), so this is no longer a raise -- the ring is cited as
+    # "4-methylphenyl", same locant/naming mechanism already verified for
+    # carboxylic acid.
+    assert smiles_to_iupac("Cc1ccccc1CC(=O)S") == "2-(2-methylphenyl)ethanethioic S-acid"
+
+
+def test_phenyl_substituent_thioic_acid_ring_halogen():
+    assert smiles_to_iupac("Clc1ccc(CC(=O)S)cc1") == "2-(4-chlorophenyl)ethanethioic S-acid"
+
+
+def test_phenyl_substituent_thioic_acid_non_halogen_non_alkyl_ring_substituent_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC(=O)S")
+        smiles_to_iupac("N#Cc1ccccc1CC(=O)S")
+
+
+def test_phenyl_substituent_thioic_acid_branched_chain():
+    # The chain itself may branch, absorbed into the parent chain per
+    # P-44.3.2 (`longest_branched_chain`), mirroring
+    # `_carboxylic_acid.py`'s ibuprofen-shaped test case.
+    assert smiles_to_iupac("CC(C)Cc1ccc(cc1)C(C)C(=O)S") == "2-[4-(2-methylpropyl)phenyl]propanethioic S-acid"
