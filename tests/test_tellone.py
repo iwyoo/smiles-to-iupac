@@ -80,6 +80,21 @@ def test_acyclic_tellone_stereocenter():
     assert smiles_to_iupac("CC[C@@H](C)C(C)=[Te]") == "(3R)-3-methylpentane-2-tellone"
 
 
+def test_cyclic_tellone_branch_stereocenter():
+    # A stereocenter on the ring's sole substituent branch rather than the
+    # ring itself (P-92), same pattern as `_ketone.py`'s
+    # `_name_cyclic_ketone` -- the branch sits at C4 (para to the C=Te
+    # carbon, which -- like a ketone's carbonyl carbon -- is sp2 and
+    # cannot itself bear a branch). PubChem has no registered structure
+    # here (tellurium compounds are sparse), so this is a
+    # structural/regression check on the already-proven mechanism ported
+    # from `_ketone.py`.
+    assert (
+        smiles_to_iupac("[Te]=C1CCC(CC1)[C@@H](C)CC")
+        == "4-[(2S)-butan-2-yl]cyclohexane-1-tellone"
+    )
+
+
 def test_tellone_unspecified_stereocenter_unaffected():
     # A genuine stereocenter left unspecified (no @/@@) is named exactly
     # as before -- no stereo prefix, matching this project's long-standing
