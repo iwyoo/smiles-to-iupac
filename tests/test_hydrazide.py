@@ -157,6 +157,32 @@ def test_phenyl_chain_hydrazide_n_alkyl_raises():
         smiles_to_iupac("c1ccccc1CC(=O)N(C)N")
 
 
+def test_n_prime_phenylhydrazide():
+    # PubChem PUG REST IUPACName match: a plain phenyl ring hanging
+    # directly off the hydrazide's terminal (N') nitrogen -- distinct
+    # from the chain-substituent case above (ring far from any
+    # nitrogen).
+    assert smiles_to_iupac("CC(=O)NNc1ccccc1") == "N'-phenylacetohydrazide"
+    assert smiles_to_iupac("CCC(=O)NNc1ccccc1") == "N'-phenylpropanehydrazide"
+
+
+def test_n_phenylhydrazide():
+    # PubChem PUG REST IUPACName match: the phenyl ring on the
+    # carbonyl-adjacent (N) nitrogen instead.
+    assert smiles_to_iupac("CC(=O)N(c1ccccc1)N") == "N-phenylacetohydrazide"
+
+
+def test_n_and_n_prime_substituted_phenylhydrazide():
+    # PubChem PUG REST IUPACName match: an alkyl on N and a phenyl on N'
+    # coexist.
+    assert smiles_to_iupac("CC(=O)N(C)Nc1ccccc1") == "N-methyl-N'-phenylacetohydrazide"
+
+
+def test_n_phenylhydrazide_with_second_n_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=O)N(c1ccccc1)Nc1ccccc1")
+
+
 def test_phenyl_substituted_benzene_ring_hydrazide_ortho_methyl():
     # A ring methyl substituent is now supported (see
     # tasks/aromatic-ring-methyl-rollout-5.md).
