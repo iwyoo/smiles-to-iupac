@@ -106,13 +106,16 @@ def test_secondary_amine_with_halogen_on_n_substituent_raises():
         smiles_to_iupac("ClCCNCCC")
 
 
-def test_secondary_amine_with_halogen_on_parent_chain_raises():
-    # P-14.5.2's alphanumerical interleaving of the 'N-' prefix with other
-    # substituent prefixes isn't implemented yet (PubChem:
-    # "2-chloro-N-ethylethanamine") -- reject rather than silently mis-order
-    # ("N-ethyl-2-chloro...").
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("ClCCNCC")
+def test_secondary_amine_with_halogen_on_parent_chain():
+    # P-14.5.2: the 'N-' prefix interleaves alphabetically with the
+    # halogen prefix rather than always citing first (PubChem:
+    # "2-chloro-N-ethylethanamine"; this project keeps the amine's own
+    # locant, same established style as "2-phenylethan-1-amine" above).
+    assert smiles_to_iupac("ClCCNCC") == "2-chloro-N-ethylethan-1-amine"
+
+
+def test_secondary_amine_with_dihalogen_on_parent_chain():
+    assert smiles_to_iupac("ClCCC(Cl)NCC") == "1,3-dichloro-N-ethylpropan-1-amine"
 
 
 def test_nitrile_routes_to_nitrile_module():

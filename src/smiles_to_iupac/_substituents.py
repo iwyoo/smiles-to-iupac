@@ -76,27 +76,53 @@ def alpha_sort_key(name: str) -> str:
     return stripped.lower()
 
 
+def _locant_sort_key(locant):
+    """Numeric locants sort by value; a non-numeric one (e.g. 'N', P-66.4's
+    amine-nitrogen locant) always sorts after every numeric one, mirroring
+    how a heteroatom-nitrogen locant is cited last among a shared
+    substituent's own locant list (see `_amine.py`'s N-prefix/halogen
+    interleaving)."""
+    return (1, str(locant)) if isinstance(locant, str) else (0, locant)
+
+
 def format_substituent_prefixes(grouped, omit_locants: bool = False) -> str:
-    """grouped: {name -> {"locants": [int, ...], "compound": bool}}. Return
-    the assembled, alphanumerically ordered prefix string (P-14.5.2), ready to
-    prepend to a parent name; '' if grouped is empty.
+    """grouped: {name -> {"locants": [int or 'N', ...], "compound": bool}}.
+    Return the assembled, alphanumerically ordered prefix string
+    (P-14.5.2), ready to prepend to a parent name; '' if grouped is empty.
 
     `omit_locants`: for a mononuclear parent hydride (P-14.3.4.2(a)), every
     substituent's locant is always '1' and never cited, no matter how many
     substituents there are — unlike the ordinary case, where a locant is
-    droppable only when every substituent's is unambiguous without it."""
-    parts = []
+    droppable only when every substituent's is unambiguous without it. A
+    non-numeric locant (e.g. 'N') is never omitted even under
+    `omit_locants=True`, since it marks a different atom than the
+    mononuclear parent's own carbon (see `_amine.py`'s N-prefix/halogen
+    interleaving) -- so the two locant kinds can coexist in one call, with
+    a hyphen separating an omitted-locant part from an explicit one but
+    never two consecutive omitted-locant parts (still alphabetically
+    interleaved either way, since `sorted(grouped, ...)` runs once up
+    front over every name regardless of which kind its own locants are)."""
+    entries = []
     for name in sorted(grouped, key=alpha_sort_key):
         info = grouped[name]
-        locants = sorted(info["locants"])
+        locants = sorted(info["locants"], key=_locant_sort_key)
         multiplier = multiplying_prefix(len(locants), compound=info["compound"]) if len(locants) > 1 else ""
         display_name = f"({name})" if info["compound"] else name
-        if omit_locants:
-            parts.append(f"{multiplier}{display_name}")
-        else:
+        explicit = (not omit_locants) or any(isinstance(loc, str) for loc in locants)
+        if explicit:
             loc_str = ",".join(str(loc) for loc in locants)
-            parts.append(f"{loc_str}-{multiplier}{display_name}")
-    return "".join(parts) if omit_locants else "-".join(parts)
+            entries.append((f"{loc_str}-{multiplier}{display_name}", True))
+        else:
+            entries.append((f"{multiplier}{display_name}", False))
+
+    result = ""
+    for i, (text, explicit) in enumerate(entries):
+        if i == 0:
+            result = text
+        else:
+            sep = "-" if (explicit or entries[i - 1][1]) else ""
+            result += sep + text
+    return result
 
 
 def format_mononuclear_prefixes(entries) -> str:
