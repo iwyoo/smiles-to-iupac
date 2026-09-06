@@ -135,3 +135,23 @@ def test_mol_defends_against_unvalidated_heteroatom_branch():
     assert name_branch(graph, 1, 0, {}) == ("propyl", False)
     with pytest.raises(UnsupportedStructure):
         name_branch(graph, 1, 0, {}, mol=mol)
+
+
+def test_mol_defends_against_unsaturated_branch():
+    # Same bug class, a different dimension: `_longest_chains_from_root`
+    # checked atom type (above) but not bond order, so a branch with its
+    # own internal double bond was silently walked as if it were a plain
+    # saturated chain -- name_branch has no ene/yne machinery to name it
+    # correctly instead. Found via real-data testing:
+    # 'C=Cc1cccc(O)c1CC' (a phenol ring bearing a plain ethyl *and* a
+    # vinyl substituent) was misnamed '2,3-diethylphenol', the double
+    # bond vanishing entirely.
+    # The double bond sits one hop past the attachment point (not on the
+    # attachment bond itself, which some callers -- e.g. `_hydrazone.py`'s
+    # '-ylidene' construction -- legitimately make double; see the `mol`
+    # parameter's own docstring note on `_longest_chains_from_root`).
+    mol = Chem.MolFromSmiles("CCC=C")
+    graph = adjacency(mol)
+    assert name_branch(graph, 1, 0, {}) == ("propyl", False)
+    with pytest.raises(UnsupportedStructure):
+        name_branch(graph, 1, 0, {}, mol=mol)
