@@ -284,6 +284,22 @@ def test_cyclic_sulfonamide_stereocenter():
     )
 
 
+def test_cyclic_sulfonamide_branch_stereocenter():
+    # A stereocenter on the ring's sole substituent branch rather than the
+    # ring itself (P-92), same pattern as `_alcohol.py`'s
+    # `_name_cyclic_alcohol`/`_sulfonic_acid.py` -- the branch and the
+    # -SO2NH2 share the same ring carbon (C1), same shape as the
+    # alcohol/sulfonic-acid precedent. PubChem has no cached record for
+    # this exact structure (CID 0, sparse data gap), but the unstereo
+    # parent ('1-ethylcyclohexane-1-sulfonamide') matches PubChem exactly,
+    # and the descriptor-construction code itself is identical to the
+    # already-verified alcohol/ketone/thiol/sulfonic-acid/amine cases.
+    assert (
+        smiles_to_iupac("NS(=O)(=O)C1(CCCCC1)[C@@H](C)CC")
+        == "1-[(2S)-butan-2-yl]cyclohexane-1-sulfonamide"
+    )
+
+
 def test_sulfonamide_unspecified_stereocenter_unaffected():
     # A genuine stereocenter left unspecified (no @/@@) is named exactly
     # as before -- no stereo prefix, matching this project's long-standing
