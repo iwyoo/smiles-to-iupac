@@ -378,7 +378,7 @@ def _name_phenyl_chain_thioate(mol, ring_atoms):
             "exocyclic substituent alongside a chain thioate is not "
             "supported yet"
         )
-    chain, branches = longest_branched_chain(graph, thioate_carbon.GetIdx(), ring_atoms, excluded_atoms)
+    chain, branches = longest_branched_chain(graph, thioate_carbon.GetIdx(), ring_atoms, excluded_atoms, halogens=halogen_substituents(mol))
     if len(chain) < 2:
         raise UnsupportedStructure(
             "a thioate group directly attached to the benzene ring uses a "

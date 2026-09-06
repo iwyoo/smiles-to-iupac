@@ -559,7 +559,7 @@ def _name_phenyl_chain_selenol(mol, ring_atoms):
         )
     anchor_selenium = next(iter(selenols))
     (anchor_carbon,) = graph[anchor_selenium]
-    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, selenols)
+    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, selenols, halogens=halogen_substituents(mol))
     chain_set = set(chain)
     for s in selenols:
         (carbon,) = graph[s]
@@ -608,7 +608,7 @@ def _name_ring_substituent_chain_selenol(mol, selenols):
     ring_atom, chain_root = attachment
     anchor_selenium = next(iter(selenols))
     (anchor_carbon,) = graph[anchor_selenium]
-    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, selenols)
+    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, selenols, halogens=halogen_substituents(mol))
     chain_set = set(chain)
     for s in selenols:
         (carbon,) = graph[s]

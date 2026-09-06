@@ -836,7 +836,7 @@ def _name_phenyl_chain_amide(mol, ring_atoms):
             "exocyclic substituent alongside a chain amide is not "
             "supported yet"
         )
-    chain, branches = longest_branched_chain(graph, amide_carbon, ring_atoms, excluded)
+    chain, branches = longest_branched_chain(graph, amide_carbon, ring_atoms, excluded, halogens=halogen_substituents(mol))
 
     chain_length = len(chain)
     substituents = {

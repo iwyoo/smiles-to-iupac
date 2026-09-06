@@ -243,7 +243,7 @@ def _name_phenyl_chain_hydroperoxide(mol, ring_atoms):
         # with '-OOH' cited as a plain 'hydroperoxy' prefix instead (same
         # shape as `_nitro.py`'s 'nitrobenzene', not a suffix construction).
         return "hydroperoxybenzene"
-    chain, branches = longest_branched_chain_through(graph, site, ring_atoms, exclude)
+    chain, branches = longest_branched_chain_through(graph, site, ring_atoms, exclude, halogens=halogen_substituents(mol))
     branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
 
     halogens = halogen_substituents(mol)

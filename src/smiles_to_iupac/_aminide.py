@@ -331,7 +331,7 @@ def _name_phenyl_chain_aminide(mol, ring_atoms):
             "module"
         )
     (nitrogen_carbon,) = [n.GetIdx() for n in nitrogen.GetNeighbors()]
-    chain, branches = longest_branched_chain_through(graph, nitrogen_carbon, ring_atoms, excluded_atoms)
+    chain, branches = longest_branched_chain_through(graph, nitrogen_carbon, ring_atoms, excluded_atoms, halogens=halogen_substituents(mol))
     branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
 
     chain_length = len(chain)

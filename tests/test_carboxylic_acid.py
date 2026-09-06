@@ -186,6 +186,17 @@ def test_phenyl_substituent_carboxylic_acid_ring_halogen_and_methyl():
     assert smiles_to_iupac("ClC1=CC=C(C)C=C1CC(=O)O") == "2-(2-chloro-5-methylphenyl)ethanoic acid"
 
 
+def test_phenyl_substituent_carboxylic_acid_chain_terminal_halogens_not_absorbed():
+    # Regression: `longest_branched_chain`'s BFS treated a chain-terminal
+    # halogen as an ordinary carbon, silently absorbing it into the chain
+    # and shortening the halogen substituent list by one. Correct answer
+    # has a 3-carbon chain and 3 fluorines, not a 4-carbon chain with 2.
+    assert (
+        smiles_to_iupac("c1ccccc1C(F)C(F)(F)C(=O)O")
+        == "2,2,3-trifluoro-3-phenylpropanoic acid"
+    )
+
+
 def test_phenyl_substituent_carboxylic_acid_ring_ethyl():
     # PubChem PUG REST IUPACName match: any plain, fully saturated acyclic
     # alkyl ring substituent (not just methyl) is now supported, reusing

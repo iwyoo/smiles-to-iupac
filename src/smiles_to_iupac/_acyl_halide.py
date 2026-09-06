@@ -345,7 +345,7 @@ def _name_phenyl_chain_acyl_halide(mol, ring_atoms):
             "a benzene ring with more than one exocyclic substituent "
             "alongside a chain acyl halide is not supported yet"
         )
-    chain, branches = longest_branched_chain(graph, acyl_carbon, ring_atoms, excluded)
+    chain, branches = longest_branched_chain(graph, acyl_carbon, ring_atoms, excluded, halogens=halogen_substituents(mol))
     if len(chain) < 2:
         raise UnsupportedStructure(
             "an acyl halide directly attached to the benzene ring uses a "

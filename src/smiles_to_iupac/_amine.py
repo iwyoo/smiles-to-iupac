@@ -792,7 +792,7 @@ def _name_ring_substituent_chain_amine(mol, amines, n_carbons_by_nitrogen):
     ring_atom, chain_root = attachment
     anchor_n = next(iter(amines))
     (anchor_carbon,) = n_carbons_by_nitrogen[anchor_n]
-    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, amines)
+    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, amines, halogens=halogen_substituents(mol))
     chain_set = set(chain)
     for n in amines:
         (carbon,) = n_carbons_by_nitrogen[n]
@@ -946,7 +946,7 @@ def _name_phenyl_chain_amine(mol, ring_atoms):
             "supported yet"
         )
     (carbon,) = n_carbons_by_nitrogen[n_idx]
-    chain, branches = longest_branched_chain_through(graph, carbon, ring_atoms, amines)
+    chain, branches = longest_branched_chain_through(graph, carbon, ring_atoms, amines, halogens=halogen_substituents(mol))
     branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
 
     chain_length = len(chain)

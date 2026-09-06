@@ -899,7 +899,7 @@ def _name_ring_substituent_chain_alcohol(mol, hydroxyls):
     ring_atom, chain_root = attachment
     anchor_oxygen = next(iter(hydroxyls))
     (anchor_carbon,) = graph[anchor_oxygen]
-    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, hydroxyls)
+    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, hydroxyls, halogens=halogen_substituents(mol))
     chain_set = set(chain)
     for o in hydroxyls:
         (carbon,) = graph[o]
@@ -1081,7 +1081,7 @@ def _name_phenyl_chain_alcohol(mol, ring_atoms):
         )
     anchor_oxygen = next(iter(hydroxyls))
     (anchor_carbon,) = graph[anchor_oxygen]
-    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, hydroxyls)
+    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, hydroxyls, halogens=halogen_substituents(mol))
     chain_set = set(chain)
     for o in hydroxyls:
         (carbon,) = graph[o]

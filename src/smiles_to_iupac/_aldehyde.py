@@ -638,7 +638,7 @@ def _name_phenyl_chain_aldehyde(mol, ring_atoms):
         )
     (aldehyde_oxygen,) = aldehydes
     (aldehyde_carbon,) = graph[aldehyde_oxygen]
-    chain, branches = longest_branched_chain(graph, aldehyde_carbon, ring_atoms, aldehydes)
+    chain, branches = longest_branched_chain(graph, aldehyde_carbon, ring_atoms, aldehydes, halogens=halogen_substituents(mol))
 
     chain_length = len(chain)
     substituents = {
