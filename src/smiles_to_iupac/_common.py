@@ -211,6 +211,148 @@ def ordered_chain(graph, root, coming_from, excluded):
         chain.append(current)
 
 
+def longest_branched_chain(graph, source, ring_boundary, excluded=frozenset()):
+    """Generalizes `ordered_chain`: the longest simple chain starting at
+    `source` (typically a suffix's own principal-characteristic-group
+    carbon, always a tree leaf once its own heteroatoms are excluded)
+    and extending through the tree, absorbing any branch encountered
+    along the way into the chain itself whenever doing so makes it
+    longer (P-44.3.2: the parent chain is one of the longest chains
+    containing the principal characteristic group) -- e.g. ibuprofen's
+    alpha-methyl becomes part of the parent chain ('propanoic acid'),
+    not a separate '2-methyl-...' prefix on a shorter 'ethanoic acid'
+    (PubChem CID 3672, '2-[4-(2-methylpropyl)phenyl]propanoic acid').
+
+    `ring_boundary`: atoms the chain itself may never enter (typically
+    every ring atom -- this project's own "phenyl chain" modules always
+    cite a ring hanging off the chain as a substituent prefix, never as
+    part of the parent chain), but which still shows up as an ordinary
+    branch wherever it's adjacent to a chosen chain atom.
+    `excluded`: atoms that are neither part of the chain nor ever cited
+    as a separate branch (typically the suffix's own carbonyl/hydroxyl
+    oxygens, already accounted for by the suffix name itself).
+
+    On a tie for longest, prefers the chain giving the greater number of
+    substituents cited as prefixes (P-44.3.2's own next tie-break after
+    chain length), then the lowest set of locants among those (P-14.5.2)
+    -- e.g. 'c1ccccc1CC(C)C(=O)O' (both a phenyl-bearing carbon and a
+    methyl-bearing carbon are one bond from the acid's C2, tied for
+    farthest) is '2-methyl-3-phenylpropanoic acid' (two substituents:
+    'methyl' + 'phenyl'), not '2-(phenylmethyl)propanoic acid' (one
+    compound 'benzyl'-shaped substituent) -- PubChem PUG REST verified.
+
+    Returns (chain, branches): `chain` is the winning path as an
+    atom-index list with `source` first (so 1-based `enumerate(chain,
+    start=1)` locants match the suffix's own fixed-C1 convention);
+    `branches` is {position -> [branch_root_atom, ...]} for every
+    neighbor of a chain atom that isn't itself on the chain or in
+    `excluded` -- name each via `name_branch`, same as any other
+    substituent (a ring-atom branch root is named as a ring substituent
+    automatically, since `name_branch` already recognizes one)."""
+    blocked = set(ring_boundary) | set(excluded)
+    dist = {source: 0}
+    parent = {source: None}
+    queue = [source]
+    while queue:
+        next_queue = []
+        for node in queue:
+            for neighbor in graph[node]:
+                if neighbor in blocked or neighbor in dist:
+                    continue
+                dist[neighbor] = dist[node] + 1
+                parent[neighbor] = node
+                next_queue.append(neighbor)
+        queue = next_queue
+    farthest = max(dist.values())
+
+    def branches_for(chain):
+        chain_set = set(chain)
+        branches = {}
+        for position, atom in enumerate(chain, start=1):
+            roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
+            if roots:
+                branches[position] = roots
+        return branches
+
+    best_chain, best_branches, best_key = None, None, None
+    for node, d in dist.items():
+        if d != farthest:
+            continue
+        chain = path_between(parent, source, node)
+        branches = branches_for(chain)
+        substituent_count = sum(len(roots) for roots in branches.values())
+        locants = lowest_locant_set(pos for pos, roots in branches.items() for _ in roots)
+        key = (-substituent_count, locants)
+        if best_key is None or key < best_key:
+            best_key, best_chain, best_branches = key, chain, branches
+    return best_chain, best_branches
+
+
+def longest_branched_chain_through(graph, required, ring_boundary, excluded=frozenset()):
+    """Like `longest_branched_chain`, but `required` need not be a chain
+    terminus (e.g. a ketone's own carbonyl carbon, always internal once
+    its aryl-ketone case is separately rejected) -- finds one of the
+    longest chains in the tree that includes `required` somewhere along
+    it, by combining `required`'s two longest 'arms' (P-44.3.2, the same
+    "longest chain containing the principal characteristic group" rule,
+    here allowing the group to sit anywhere on the chain instead of
+    fixing it at C1).
+
+    `ring_boundary`/`excluded`: same meaning as `longest_branched_chain`.
+
+    Returns (chain, branches): `chain` is the winning path as an
+    atom-index list, in an arbitrary direction -- the caller tries both
+    ways (same as it already does for a plain unbranched chain) to give
+    `required` its own lowest locant; `branches` is {position ->
+    [branch_root_atom, ...]}, 1-based against this `chain`'s order, same
+    shape as `longest_branched_chain`."""
+    blocked = set(ring_boundary) | set(excluded)
+    neighbors = [n for n in graph[required] if n not in blocked]
+
+    arms = []
+    for start in neighbors:
+        # `required` itself must stay off-limits here -- otherwise this
+        # arm's search loops back through it into the *other* arm(s),
+        # corrupting the two-arm split with a self-crossing path.
+        arm_blocked = blocked | {required}
+        dist = {start: 0}
+        parent = {start: None}
+        queue = [start]
+        while queue:
+            next_queue = []
+            for node in queue:
+                for neighbor in graph[node]:
+                    if neighbor in arm_blocked or neighbor in dist:
+                        continue
+                    dist[neighbor] = dist[node] + 1
+                    parent[neighbor] = node
+                    next_queue.append(neighbor)
+            queue = next_queue
+        far = max(dist, key=lambda n: dist[n])
+        arms.append([required] + path_between(parent, start, far))
+
+    arms.sort(key=len, reverse=True)
+    if not arms:
+        chain = [required]
+    elif len(arms) == 1:
+        chain = list(reversed(arms[0]))
+    else:
+        chain = list(reversed(arms[0])) + arms[1][1:]
+
+    chain_set = set(chain)
+    branches = {}
+    for position, atom in enumerate(chain, start=1):
+        # Any neighbor not on the two chosen arms -- including a third+
+        # arm off `required` itself, e.g. a ketone carbon with more than
+        # two carbon substituents (shouldn't normally arise, but falls
+        # through safely here rather than being silently dropped) -- is
+        # an ordinary branch, named via `name_branch` like any other.
+        roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
+        if roots:
+            branches[position] = roots
+    return chain, branches
+
+
 def halogen_substituents(mol):
     """{atom_idx -> substituent prefix name} for every halogen atom in `mol`
     (P-35.2.1). Passed down into `name_branch` so it can name a halogen leaf

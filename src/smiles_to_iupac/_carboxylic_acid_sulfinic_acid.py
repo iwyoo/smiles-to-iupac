@@ -47,10 +47,10 @@ from ._common import (
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
+    longest_branched_chain,
     longest_chains,
     lowest_locant_set,
     non_single_bonds,
-    ordered_chain,
     ring_chain_attachment,
     specified_stereocenters,
 )
@@ -286,17 +286,7 @@ def _name_phenyl_chain_carboxylic_acid_sulfinic_acid(mol, ring_atoms):
             "supported yet"
         )
     ring_atom, chain_root = attachment
-    chain = ordered_chain(graph, chain_root, ring_atom, carboxyl_oxygens | sulfinic_idxs)
-    if chain is None:
-        raise UnsupportedStructure(
-            "a branched chain hanging off the benzene ring alongside a "
-            "carboxylic acid/sulfinic acid is not supported yet"
-        )
-    if chain[-1] != carboxyl_carbon:
-        raise UnsupportedStructure(
-            "the carboxylic acid carbon must be the chain's far terminus "
-            "from the benzene ring for this benzene-substituent path"
-        )
+    chain, _ = longest_branched_chain(graph, carboxyl_carbon, ring_atoms, carboxyl_oxygens | sulfinic_idxs)
     if len(chain) < 2:
         raise UnsupportedStructure(
             "a -COOH group directly attached to the benzene ring (no "
@@ -317,11 +307,10 @@ def _name_phenyl_chain_carboxylic_acid_sulfinic_acid(mol, ring_atoms):
             "off the benzene ring is not supported yet"
         )
 
-    ordered = list(reversed(chain))
-    chain_length = len(ordered)
-    position_of = {atom: i + 1 for i, atom in enumerate(ordered)}
+    chain_length = len(chain)
+    position_of = {atom: i + 1 for i, atom in enumerate(chain)}
     names = {**halogen_substituents(mol), **{s: "sulfino" for s in sulfinic_idxs}}
-    substituents = _substituents_for_chain(graph, ordered, names, carboxyl_oxygens | {ring_atom})
+    substituents = _substituents_for_chain(graph, chain, names, carboxyl_oxygens | {ring_atom})
     ring_entry = name_branch(graph, ring_atom, chain_root, names, ring_atoms)
     substituents.setdefault(position_of[chain_root], []).append(ring_entry)
     grouped = group_substituents(substituents)

@@ -44,9 +44,9 @@ from ._common import (
     adjacency,
     halogen_substituents,
     is_plain_benzene_ring,
+    longest_branched_chain_through,
     lowest_locant_set,
     non_single_bonds,
-    ordered_chain,
     ring_chain_attachment,
     specified_stereocenters,
 )
@@ -291,17 +291,7 @@ def _name_phenyl_chain_sulfonic_acid_thiol(mol, ring_atoms):
             "a separate construction, out of scope for this chain-parent "
             "module"
         )
-    chain = ordered_chain(graph, chain_root, ring_atom, {sulfonic_sulfur_idx} | thiol_idxs)
-    if chain is None:
-        raise UnsupportedStructure(
-            "a branched chain hanging off the benzene ring alongside a "
-            "sulfonic acid/thiol is not supported yet"
-        )
-    if so3h_carbon not in chain:
-        raise UnsupportedStructure(
-            "the sulfonic acid carbon must lie on the chain hanging off "
-            "the benzene ring for this benzene-substituent path"
-        )
+    chain, _ = longest_branched_chain_through(graph, so3h_carbon, ring_atoms, {sulfonic_sulfur_idx} | thiol_idxs)
     chain_set = set(chain)
     for s in thiol_idxs:
         (carbon,) = graph[s]

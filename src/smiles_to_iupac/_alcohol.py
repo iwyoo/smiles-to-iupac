@@ -204,6 +204,7 @@ from ._common import (
     carbon_adjacency,
     halogen_substituents,
     is_plain_benzene_ring,
+    longest_branched_chain_through,
     lowest_locant_set,
     non_single_bonds,
     ordered_chain,
@@ -896,12 +897,9 @@ def _name_ring_substituent_chain_alcohol(mol, hydroxyls):
             "yet"
         )
     ring_atom, chain_root = attachment
-    chain = ordered_chain(graph, chain_root, ring_atom, hydroxyls)
-    if chain is None:
-        raise UnsupportedStructure(
-            "a branched substituent chain hanging off the ring is not "
-            "supported yet"
-        )
+    anchor_oxygen = next(iter(hydroxyls))
+    (anchor_carbon,) = graph[anchor_oxygen]
+    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, hydroxyls)
     chain_set = set(chain)
     for o in hydroxyls:
         (carbon,) = graph[o]
@@ -910,6 +908,14 @@ def _name_ring_substituent_chain_alcohol(mol, hydroxyls):
                 "a hydroxyl outside the single unbranched chain hanging "
                 "off the ring is not supported yet"
             )
+    # `ring_atom` is named specially below (`ring_name`, aware of ring
+    # unsaturation via `name_cyclic_unsaturated_yl`) -- drop it here so
+    # the generic per-position loop doesn't also re-name it plainly.
+    branches_by_atom = {
+        chain[position - 1]: [r for r in roots if r != ring_atom]
+        for position, roots in branches.items()
+    }
+    branches_by_atom = {atom: roots for atom, roots in branches_by_atom.items() if roots}
 
     ring_has_double_bond = any(
         bond.GetBondTypeAsDouble() == 2.0
@@ -930,7 +936,11 @@ def _name_ring_substituent_chain_alcohol(mol, hydroxyls):
     for candidate in (chain, list(reversed(chain))):
         position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
         oh_locants = _oh_locants(position_of, hydroxyls, graph)
-        substituents = {position_of[chain_root]: [(ring_name, ring_is_compound)]}
+        substituents = {
+            position_of[atom]: [name_branch(graph, root, atom, halogens) for root in roots]
+            for atom, roots in branches_by_atom.items()
+        }
+        substituents.setdefault(position_of[chain_root], []).append((ring_name, ring_is_compound))
         key, name = _candidate_key(chain_length, oh_locants, [], [], substituents)
         if best_key is None or key < best_key:
             best_key, best_name = key, name
@@ -1069,12 +1079,9 @@ def _name_phenyl_chain_alcohol(mol, ring_atoms):
             "yet -- a single ring hydroxyl alone is handled by "
             "`_name_phenol`, out of scope for this chain-parent module"
         )
-    chain = ordered_chain(graph, chain_root, ring_atom, hydroxyls)
-    if chain is None:
-        raise UnsupportedStructure(
-            "a branched chain hanging off the benzene ring alongside an "
-            "alcohol is not supported yet"
-        )
+    anchor_oxygen = next(iter(hydroxyls))
+    (anchor_carbon,) = graph[anchor_oxygen]
+    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, hydroxyls)
     chain_set = set(chain)
     for o in hydroxyls:
         (carbon,) = graph[o]
@@ -1083,6 +1090,7 @@ def _name_phenyl_chain_alcohol(mol, ring_atoms):
                 "a hydroxyl outside the single unbranched chain hanging "
                 "off the benzene ring is not supported yet"
             )
+    branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
 
     chain_length = len(chain)
     best_key = None
@@ -1091,7 +1099,8 @@ def _name_phenyl_chain_alcohol(mol, ring_atoms):
         position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
         oh_locants = _oh_locants(position_of, hydroxyls, graph)
         substituents = {
-            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms) for root in roots]
+            for atom, roots in branches_by_atom.items()
         }
         key, name = _candidate_key(chain_length, oh_locants, [], [], substituents)
         if best_key is None or key < best_key:

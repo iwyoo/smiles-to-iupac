@@ -73,11 +73,11 @@ from ._common import (
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
+    longest_branched_chain_through,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
-    ordered_chain,
     ring_chain_attachment,
     ring_cycle,
     specified_stereocenters,
@@ -523,12 +523,6 @@ def _name_phenyl_chain_tellone(mol, ring_atoms):
             "alongside a chain tellone is not supported yet"
         )
     ring_atom, chain_root = attachment
-    chain = ordered_chain(graph, chain_root, ring_atom, tellones)
-    if chain is None:
-        raise UnsupportedStructure(
-            "a branched chain hanging off the benzene ring alongside a "
-            "tellone is not supported yet"
-        )
     (tellone_tellurium,) = tellones
     (tellone_carbon,) = graph[tellone_tellurium]
     if tellone_carbon == chain_root:
@@ -537,11 +531,9 @@ def _name_phenyl_chain_tellone(mol, ring_atoms):
             "aryl tellone) is out of scope for this module (see the "
             "separate aromatic-ring module)"
         )
-    if tellone_carbon not in chain:
-        raise UnsupportedStructure(
-            "the tellone carbon must lie on the chain hanging off the "
-            "benzene ring for this benzene-substituent path"
-        )
+
+    chain, branches = longest_branched_chain_through(graph, tellone_carbon, ring_atoms, tellones)
+    branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
 
     chain_length = len(chain)
     halogens = halogen_substituents(mol)
@@ -551,7 +543,8 @@ def _name_phenyl_chain_tellone(mol, ring_atoms):
         position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
         tellone_locants = _tellone_locants(position_of, tellones, graph)
         substituents = {
-            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms) for root in roots]
+            for atom, roots in branches_by_atom.items()
         }
         key, name = _candidate_key(chain_length, tellone_locants, [], [], substituents)
         if best_key is None or key < best_key:

@@ -376,9 +376,12 @@ def test_substituted_ring_with_chain_hydroxyl_raises():
         smiles_to_iupac("OCC1CCCCC1C")
 
 
-def test_branched_chain_hydroxyl_on_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC(C)C1CCCCC1")
+def test_branched_chain_hydroxyl_on_ring():
+    # A branch on the chain hanging off the ring is absorbed into the
+    # parent chain (`longest_branched_chain_through`, P-44.3.2), same
+    # principle as `_carboxylic_acid.py`'s ibuprofen case. PubChem PUG
+    # REST-verified "2-cyclohexylpropan-1-ol".
+    assert smiles_to_iupac("OCC(C)C1CCCCC1") == "2-cyclohexylpropan-1-ol"
 
 
 def test_carboxylic_acid_not_misread_as_alcohol():
