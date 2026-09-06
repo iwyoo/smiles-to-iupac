@@ -156,6 +156,13 @@ def test_phenyl_chain_nitrile_ring_methyl():
     assert smiles_to_iupac("Cc1ccc(CC#N)cc1") == "2-(4-methylphenyl)ethanenitrile"
 
 
+def test_phenyl_chain_nitrile_ring_ethyl():
+    # PubChem PUG REST IUPACName match: any plain, fully saturated
+    # acyclic alkyl ring substituent (not just methyl) is now supported,
+    # reusing `name_branch` itself via `plain_alkyl_ring_substituents`.
+    assert smiles_to_iupac("CCc1ccc(cc1)CC#N") == "2-(4-ethylphenyl)ethanenitrile"
+
+
 def test_phenyl_chain_nitrile_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CC#N")
