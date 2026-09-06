@@ -24,8 +24,14 @@ chains: the N-linked carbon starting the largest carbon skeleton becomes the
 parent chain (suffixed '-amine' as usual), and each other N-linked chain is
 cited as an 'N-'/'N,N-' substituent prefix, e.g. 'N-ethylethanamine'
 (diethylamine, PubChem-verified) and 'N,N-dimethylmethanamine'
-(trimethylamine, PubChem-verified). It otherwise mirrors `_alcohol.py`'s
-scope restrictions:
+(trimethylamine, PubChem-verified). A halogen substituent on the parent
+chain now coexists with this too (P-14.5.2: the 'N-' prefix interleaves
+alphabetically with any other substituent prefix rather than always
+citing first, e.g. 'ClCCNCC' -> '2-chloro-N-ethylethanamine',
+PubChem-verified) -- `_add_n_names`/`format_substituent_prefixes`'s
+non-numeric 'N' locant handles this generically, so it applies equally to
+`_ammonium.py`'s reuse of this same machinery. It otherwise mirrors
+`_alcohol.py`'s scope restrictions:
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - A secondary/tertiary amine nitrogen with a branched, unsaturated, or
@@ -91,7 +97,7 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     specified_stereocenters,
 )
-from ._numerals import alkane_name, alkyl_name, multiplying_prefix, numerical_term
+from ._numerals import alkane_name, alkyl_name, numerical_term
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _ENE_ORDER = 2.0
@@ -232,26 +238,54 @@ def _group(substituents):
     return grouped
 
 
-def _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locants, grouped):
+def _add_n_names(grouped, n_names):
+    """Merge N-substituent names (P-66.4) into a parent-chain `grouped`
+    dict, each getting the non-numeric locant 'N' -- for display only
+    (`format_substituent_prefixes`'s alphabetical citation, P-14.5.2, sorts
+    by name regardless of locant type, and `_locant_sort_key` in
+    `_substituents.py` puts 'N' after every numeric locant when the same
+    name also occurs on the numbered chain). Never mutates the input
+    `grouped` -- callers still need the original, numeric-only version for
+    both chain-orientation ranking and the `chain_length`-based
+    locant-omission branches below, neither of which an 'N' locant may
+    enter (it doesn't move when the chain is renumbered, and its presence
+    doesn't make the amine's own carbon locant any less omittable)."""
+    if not n_names:
+        return grouped
+    display = {name: {"locants": list(info["locants"]), "compound": info["compound"]} for name, info in grouped.items()}
+    for name in n_names:
+        info = display.setdefault(name, {"locants": [], "compound": False})
+        info["locants"].append("N")
+    return display
+
+
+def _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locants, grouped, n_names=()):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     has_unsaturation = bool(ene_locants or yne_locants)
 
     if chain_length == 1:
         # P-14.3.4.2(a): a mononuclear parent's locants (prefix or suffix)
-        # are always '1' and never cited.
+        # are always '1' and never cited -- an 'N-' locant is never
+        # omittable though (see `_add_n_names`/`format_substituent_prefixes`,
+        # it marks a different atom than the mononuclear carbon itself).
         amine_word = _multiplied_word(len(amine_locants), "amine")
         stem = alkane_name(1)
         if amine_word[0] in "aeiouy":
             stem = stem[:-1]
-        return format_substituent_prefixes(grouped, omit_locants=True) + stem + amine_word
+        prefix = format_substituent_prefixes(_add_n_names(grouped, n_names), omit_locants=True)
+        return prefix + stem + amine_word
 
     if chain_length == 2 and not has_unsaturation and total_subs == 0 and len(amine_locants) == 1:
         # P-14.3.4.2(b): a homogeneous two-carbon chain bearing exactly one
         # substituent (here, the sole -NH2) in total has only one possible
-        # structure, so the locant is omittable, e.g. 'ethanamine'.
-        return alkane_name(2)[:-1] + "amine"
+        # structure, so the locant is omittable, e.g. 'ethanamine' -- an
+        # N-substituent doesn't change this (it doesn't create any
+        # carbon-position asymmetry), but still needs its own 'N-' prefix,
+        # e.g. 'N-ethylethanamine'.
+        prefix = format_substituent_prefixes(_add_n_names(grouped, n_names))
+        return prefix + alkane_name(2)[:-1] + "amine"
 
-    prefix = format_substituent_prefixes(grouped)
+    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names))
     if has_unsaturation:
         stem = alkane_name(chain_length)[:-3]
         needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
@@ -265,10 +299,18 @@ def _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locant
     return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
 
 
-def _candidate_key(chain_length, amine_locants, ene_locants, yne_locants, substituents):
+def _candidate_key(chain_length, amine_locants, ene_locants, yne_locants, substituents, n_names=()):
     """Sort key implementing P-44.4.1.8 (suffix locants) ahead of
     P-44.4.1.10 (ene/yne locants) ahead of P-45.2 (substituent-prefix
-    locants), most-preferred first."""
+    locants), most-preferred first.
+
+    `n_names`: N-substituent names (P-66.4) from a secondary/tertiary
+    amine's other N-linked chain(s), passed straight through to
+    `_name_from_substituents` (which folds them into the *displayed* name
+    via `_add_n_names` so they interleave alphabetically with any
+    parent-chain substituent prefix, P-14.5.2, e.g. '2-chloro-N-ethyl...')
+    but excluded from every locant-set computation below since 'N' is
+    never a candidate for the lowest-locant chain-orientation tie-break."""
     grouped = _group(substituents)
     total_count = sum(len(info["locants"]) for info in grouped.values())
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
@@ -280,7 +322,7 @@ def _candidate_key(chain_length, amine_locants, ene_locants, yne_locants, substi
     amine_locant_set = lowest_locant_set(amine_locants)
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
-    name = _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locants, grouped)
+    name = _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locants, grouped, n_names)
     return (
         (
             amine_locant_set,
@@ -358,13 +400,18 @@ def _substituents_for_chain(graph, chain, halogens, amines):
     return substituents
 
 
-def _best_chain_name(carbon_graph, graph, halogens, amines, bonds, stereo=None):
+def _best_chain_name(carbon_graph, graph, halogens, amines, bonds, stereo=None, n_names=()):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
     include every stereocenter are eligible (P-92: a stereocenter on a
     substituent branch is out of scope). Returns (name, position_of) so a
-    caller wrapping an N-alkyl prefix around `name` can still place a
-    stereo prefix outermost using the winning chain's own locants."""
+    caller wrapping a stereo prefix around `name` can still place it
+    outermost using the winning chain's own locants.
+
+    `n_names`: a secondary/tertiary amine's other N-substituent name(s)
+    (P-66.4), passed straight through to `_candidate_key` so they're
+    already correctly interleaved into `name` itself (P-14.5.2) -- the
+    caller no longer glues an 'N-' prefix on afterward."""
     chains = _longest_chains(carbon_graph)
     chain_length = len(chains[0])
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
@@ -397,7 +444,7 @@ def _best_chain_name(carbon_graph, graph, halogens, amines, bonds, stereo=None):
             amine_locants = _amine_locants(position_of, amines, graph)
             ene_locants, yne_locants = _bond_locants(candidate, bonds) if bonds else ([], [])
             substituents = _substituents_for_chain(graph, candidate, halogens, amines)
-            key, name = _candidate_key(chain_length, amine_locants, ene_locants, yne_locants, substituents)
+            key, name = _candidate_key(chain_length, amine_locants, ene_locants, yne_locants, substituents, n_names)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of
     return best_name, best_position_of
@@ -407,30 +454,6 @@ def _component_subgraph(graph, start):
     dist, _ = bfs(graph, start)
     nodes = set(dist)
     return {node: [n for n in graph[node] if n in nodes] for node in nodes}
-
-
-def _format_n_prefix(n_names):
-    """Assemble the 'N-'/'N,N-'/'N,N,N-' prefix for a list of N-substituent
-    names (one per "other" N-linked chain, duplicates included), grouping
-    identical names under one multiplied prefix -- e.g. ['methyl',
-    'methyl'] -> 'N,N-dimethyl' (trimethylamine), ['ethyl', 'methyl'] ->
-    'N-ethyl-N-methyl' (asymmetric), ['methyl', 'methyl', 'methyl'] ->
-    'N,N,N-trimethyl' (the quaternary tetramethylammonium cation's PIN
-    'N,N,N-trimethylmethanaminium', P-73.1.1.1 -- confirmed against the
-    primary source's own worked example, which explicitly rejects the
-    'tetramethylazanium' alternative as non-PIN)."""
-    counts = {}
-    for name in n_names:
-        counts[name] = counts.get(name, 0) + 1
-    parts = []
-    for name in sorted(counts):
-        count = counts[name]
-        if count == 1:
-            parts.append(f"N-{name}")
-        else:
-            locants = ",".join(["N"] * count)
-            parts.append(f"{locants}-{multiplying_prefix(count)}{name}")
-    return "-".join(parts)
 
 
 def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=None):
@@ -478,21 +501,9 @@ def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=
         excluded_atoms |= set(components[other])
     parent_carbon_graph = {k: v for k, v in full_carbon_graph.items() if k not in excluded_atoms}
 
-    if any(neighbor in halogens for atom in parent_carbon_graph for neighbor in graph[atom]):
-        raise UnsupportedStructure(
-            "a secondary/tertiary amine coexisting with a halogen "
-            "substituent on the parent chain is not supported yet -- "
-            "P-14.5.2's alphanumerical interleaving of the 'N-' prefix "
-            "with other substituent prefixes (e.g. PubChem's "
-            "'2-chloro-N-ethylethanamine') is not implemented; this module "
-            "would otherwise always cite the 'N-' prefix first"
-        )
-
-    best_name, best_position_of = _best_chain_name(parent_carbon_graph, graph, halogens, {n_idx}, bonds, stereo)
-
-    n_prefix = _format_n_prefix(n_names)
-    separator = "-" if best_name[0].isdigit() else ""
-    best_name = f"{n_prefix}{separator}{best_name}"
+    best_name, best_position_of = _best_chain_name(
+        parent_carbon_graph, graph, halogens, {n_idx}, bonds, stereo, n_names=n_names
+    )
 
     if stereo is not None:
         labels = sorted((best_position_of[atom], code) for atom, code in stereo)
