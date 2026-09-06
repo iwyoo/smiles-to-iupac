@@ -100,6 +100,16 @@ def test_phenoxide_non_alkyl_ring_substituent_raises():
         smiles_to_iupac("O=C(O)c1ccccc1[O-].[Cu+]")
 
 
+def test_phenoxide_unsaturated_ring_substituent_raises():
+    # A ring substituent containing a C=C double bond must not be
+    # silently walked as if it were a saturated chain -- found via
+    # real-data testing: this exact SMILES (an allyl-substituted
+    # phenoxide) was misnamed '4-propylphenoxide', dropping the branch's
+    # own double bond.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[O-]c1ccc(CC=C)cc1")
+
+
 def test_two_alkoxide_groups_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[O-]CC[O-]")
