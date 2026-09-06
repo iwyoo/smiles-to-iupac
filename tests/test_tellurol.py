@@ -111,6 +111,27 @@ def test_ring_substituent_chain_tellurol_unsaturated_ring_raises():
         smiles_to_iupac("C1=CCCCC1C[TeH]")
 
 
+def test_ring_with_tellurol_chain_tellurol_tie():
+    # Ring and chain each carry exactly one tellurol (P-44.1.1 tie,
+    # P-44.1.2.2 resolves it in the ring's favor), mirroring `_thiol.py`'s
+    # `test_ring_with_thiol_chain_thiol_tie`. No PubChem-registered
+    # structure for this exact molecule (sparse tellurol coverage), so
+    # this is a structural/regression check on the mechanism ported
+    # verbatim from `_thiol.py`.
+    assert (
+        smiles_to_iupac("[TeH]C1CCCCC1CC[TeH]") == "2-(2-tellanylethyl)cyclohexane-1-tellurol"
+    )
+
+
+def test_ring_with_tellurol_chain_tellurol_ring_wins_outright():
+    # The ring carries two tellurols against the chain's one -- P-44.1.1's
+    # greater-count rule picks the ring outright, no tie-break needed.
+    assert (
+        smiles_to_iupac("[TeH]C1CCCCC1(C[TeH])[TeH]")
+        == "1-(tellanylmethyl)cyclohexane-1,2-ditellurol"
+    )
+
+
 def test_tellurol_with_alcohol_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OCC[TeH]")

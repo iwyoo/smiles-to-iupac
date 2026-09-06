@@ -128,6 +128,27 @@ def test_ring_substituent_chain_selenol_unsaturated_ring_raises():
         smiles_to_iupac("C1=CCCCC1C[SeH]")
 
 
+def test_ring_with_selenol_chain_selenol_tie():
+    # Ring and chain each carry exactly one selenol (P-44.1.1 tie,
+    # P-44.1.2.2 resolves it in the ring's favor), mirroring `_thiol.py`'s
+    # `test_ring_with_thiol_chain_thiol_tie`. No PubChem-registered
+    # structure for this exact molecule (sparse selenol coverage), so
+    # this is a structural/regression check on the mechanism ported
+    # verbatim from `_thiol.py`.
+    assert (
+        smiles_to_iupac("[SeH]C1CCCCC1CC[SeH]") == "2-(2-selanylethyl)cyclohexane-1-selenol"
+    )
+
+
+def test_ring_with_selenol_chain_selenol_ring_wins_outright():
+    # The ring carries two selenols against the chain's one -- P-44.1.1's
+    # greater-count rule picks the ring outright, no tie-break needed.
+    assert (
+        smiles_to_iupac("[SeH]C1CCCCC1(C[SeH])[SeH]")
+        == "1-(selanylmethyl)cyclohexane-1,2-diselenol"
+    )
+
+
 def test_selenol_with_alcohol_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OCC[SeH]")

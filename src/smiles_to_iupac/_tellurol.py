@@ -101,6 +101,7 @@ from ._common import (
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    ordered_chain,
     ring_chain_attachment,
     ring_cycle,
     specified_stereocenters,
@@ -630,6 +631,69 @@ def _name_ring_substituent_chain_tellurol(mol, tellurols):
     return best_name
 
 
+def _name_ring_with_tellurol_chain_tellurol(mol, tellurols):
+    """Name a tellurol compound where the ring itself bears at least as
+    many -TeH's as a single unbranched chain hanging off exactly one ring
+    atom does (P-44.1.1/P-44.1.2.2). The ring is the parent; the chain is
+    cited as a '(tellanyl...alkyl)' substituent prefix, mirroring
+    `_thiol.py`'s `_name_ring_with_thiol_chain_thiol`."""
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
+
+    attachment = ring_chain_attachment(graph, ring_atoms, tellurols)
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a ring with more than one exocyclic branch is not supported "
+            "yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, tellurols)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched substituent chain hanging off the ring is not "
+            "supported yet"
+        )
+
+    chain_set = set(chain)
+    chain_tellurols = {t for t in tellurols if next(iter(graph[t])) in chain_set}
+    ring_tellurols = tellurols - chain_tellurols
+    if len(ring_tellurols) < len(chain_tellurols):
+        ring_name, ring_is_compound = name_branch(
+            graph, ring_atom, chain_root, {**halogens, **{t: "tellanyl" for t in ring_tellurols}}
+        )
+        chain_length = len(chain)
+        best_key = None
+        best_name = None
+        for candidate in (chain, list(reversed(chain))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            te_locants = _te_locants(position_of, chain_tellurols, graph)
+            substituents = {position_of[chain_root]: [(ring_name, ring_is_compound)]}
+            key, name = _candidate_key(chain_length, te_locants, [], [], substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, name
+        return best_name
+
+    chain_name, chain_is_compound = name_branch(
+        graph, chain_root, ring_atom, {**halogens, **{t: "tellanyl" for t in chain_tellurols}}
+    )
+
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            te_locants = _te_locants(position_of, ring_tellurols, graph)
+            substituents = {position_of[ring_atom]: [(chain_name, chain_is_compound)]}
+            key = _ring_candidate_key(ring_size, te_locants, [], [], substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def name_tellurol(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
@@ -683,6 +747,13 @@ def name_tellurol(mol) -> str:
                     "the ring itself is not supported yet (see P-92)"
                 )
             return _name_ring_substituent_chain_tellurol(mol, tellurols)
+        if not bonds and ring_tellurols and ring_tellurols != tellurols:
+            if stereo is not None:
+                raise UnsupportedStructure(
+                    "a stereocenter alongside a ring-vs-chain tellurol "
+                    "comparison is not supported yet (see P-92)"
+                )
+            return _name_ring_with_tellurol_chain_tellurol(mol, tellurols)
         if ring_tellurols != tellurols:
             raise UnsupportedStructure(
                 "a tellurol on a substituent branch chain rather than the "
