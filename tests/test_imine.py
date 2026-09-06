@@ -145,6 +145,14 @@ def test_phenyl_chain_imine_ring_methyl():
     assert smiles_to_iupac("Cc1ccc(CCC=N)cc1") == "3-(4-methylphenyl)propan-1-imine"
 
 
+def test_phenyl_chain_imine_ring_ethyl():
+    # Not independently PubChem-verified (CID 0 for the ethyl variant,
+    # same sparse-data gap this module already has for several shapes) --
+    # structural/mechanism consistency check mirroring the methyl/
+    # halogen cases above.
+    assert smiles_to_iupac("CCc1ccc(cc1)CCC=N") == "3-(4-ethylphenyl)propan-1-imine"
+
+
 def test_phenyl_chain_imine_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CC=N")
