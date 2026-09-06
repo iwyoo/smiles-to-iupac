@@ -27,26 +27,34 @@ monocarboxylic-acid-analogue group on an acyclic unbranched saturated
 chain.
 
 Explicitly out of scope (raise `UnsupportedStructure`): same list as
-`_selenoic_acid.py` -- a branched or unsaturated R group, more than one
-telluroic acid group, a ring anywhere in the molecule, any other
-heteroatom, halogen substituent, charge, or isotopic label, except for
-one narrow case: a telluroic acid's chain hanging off a single plain,
-unsubstituted benzene ring with no other ring substituent
-(`_name_phenyl_chain_telluroic_acid`, e.g.
+`_selenoic_acid.py` -- a branched or unsaturated R group on the plain
+acyclic path, more than one telluroic acid group, a ring anywhere in the
+molecule, any other heteroatom, charge, or isotopic label, except for one
+narrow case: a telluroic acid's branched chain hanging off a single
+benzene ring bearing only halogen/plain-alkyl substituents besides the
+chain itself (`_name_phenyl_chain_telluroic_acid`, e.g.
 '2-phenylethanetelluroic Te-acid'), mirroring `_selenoic_acid.py`'s
 identical benzene-ring-substituent path. A telluroic acid directly on
-the ring stays out of scope for this chain-parent module.
+the ring stays out of scope for this chain-parent module. A halogen
+substituent (P-35.2.1) is allowed only on the benzene ring in the
+ring-substituent path, not elsewhere.
 """
 
 from ._common import (
+    HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
+    group_substituents,
+    halogen_substituents,
     is_plain_benzene_ring,
+    longest_branched_chain,
     non_single_bonds,
-    ordered_chain,
-    ring_chain_attachment,
+    ring_chain_attachment_with_halogens,
 )
 from ._numerals import alkane_name
+from ._substituents import format_substituent_prefixes, name_branch, plain_alkyl_ring_substituents
+
+_ALLOWED_ATOMIC_NUMS = {6, 8, 52, *HALOGEN_PREFIXES}
 
 
 def _telluroic_acid_carbons(mol):
@@ -122,15 +130,19 @@ def _validate_and_collect_telluroic_acid(mol, aromatic_ring_atoms=frozenset()):
     default, so every other caller's behavior is unchanged. Returns
     (acid_carbon, label, acid_atom_idxs)."""
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() not in (6, 8, 52):
+        atomic_num = atom.GetAtomicNum()
+        if atomic_num not in _ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(
                 "heteroatoms other than the telluroic acid's own chalcogens "
-                "are not supported yet (P-65.1.5 is restricted to a plain "
-                "acyclic telluroic acid here)"
+                "and halogen substituents (P-35.2.1) are not supported yet "
+                "(P-65.1.5 is restricted to a plain acyclic telluroic acid "
+                "here)"
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
+        if atomic_num in HALOGEN_PREFIXES and atom.GetDegree() != 1:
+            raise UnsupportedStructure("a halogen atom must be a monovalent substituent (P-35.2.1)")
+        if atomic_num == 6 and atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
             raise UnsupportedStructure(
                 "aromatic rings are out of scope for this module (see the "
                 "separate aromatic-ring module)"
@@ -154,37 +166,29 @@ def _validate_and_collect_telluroic_acid(mol, aromatic_ring_atoms=frozenset()):
 
 
 def _name_phenyl_chain_telluroic_acid(mol, ring_atoms):
-    """Name a telluroic acid whose -C(=O)TeH/-C(=Te)OH lies entirely on a
-    single unbranched chain hanging off one atom of an otherwise-plain,
-    unsubstituted benzene ring -- e.g. '2-phenylethanetelluroic Te-acid'.
-    The ring is cited as a 'phenyl' substituent prefix on the chain, which
-    is the parent hydride, mirroring `_selenoic_acid.py`'s
-    `_name_phenyl_chain_selenoic_acid`. This module never supports any
-    substituent besides the ring itself (module docstring), so no locant
-    tie-break is needed: the acid carbon is always C1 and the ring is
-    always at the chain's far terminus (see
-    tasks/phenyl-substituent-on-telluroic-acid-chain.md's scope note)."""
+    """Name a telluroic acid whose -C(=O)TeH/-C(=Te)OH lies on a (possibly
+    branched) chain hanging off one atom of a benzene ring that otherwise
+    bears only halogen/plain-alkyl substituents -- e.g.
+    '2-phenylethanetelluroic Te-acid'. The ring is cited as a 'phenyl' (or
+    e.g. '4-chlorophenyl') substituent prefix (via `name_branch`'s
+    aromatic-ring recognition) on the chain, which is the parent hydride,
+    mirroring `_selenoic_acid.py`'s `_name_phenyl_chain_selenoic_acid`
+    (P-44.3.2, `longest_branched_chain`). The acid carbon is always C1,
+    a chain terminus by definition, so no locant tie-break between chain
+    directions is needed."""
     acid_carbon, label, acid_atom_idxs = _validate_and_collect_telluroic_acid(mol, aromatic_ring_atoms=ring_atoms)
     graph = adjacency(mol)
-    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
+    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
     if attachment is None:
         raise UnsupportedStructure(
-            "a benzene ring with more than one exocyclic substituent "
-            "alongside a chain telluroic acid is not supported yet"
+            "a benzene ring with more than one non-halogen, non-alkyl "
+            "exocyclic substituent alongside a chain telluroic acid is "
+            "not supported yet"
         )
-    ring_atom, chain_root = attachment
-    hetero_idxs = acid_atom_idxs - {acid_carbon.GetIdx()}
-    chain = ordered_chain(graph, chain_root, ring_atom, hetero_idxs)
-    if chain is None:
-        raise UnsupportedStructure(
-            "a branched chain hanging off the benzene ring alongside a "
-            "telluroic acid is not supported yet"
-        )
-    if chain[-1] != acid_carbon.GetIdx():
-        raise UnsupportedStructure(
-            "the telluroic acid carbon must be the chain's far terminus "
-            "from the benzene ring for this benzene-substituent path"
-        )
+    acid_carbon_idx = acid_carbon.GetIdx()
+    hetero_idxs = acid_atom_idxs - {acid_carbon_idx}
+    chain, branches = longest_branched_chain(graph, acid_carbon_idx, ring_atoms, hetero_idxs)
     if len(chain) < 2:
         raise UnsupportedStructure(
             "a telluroic acid directly attached to the benzene ring uses "
@@ -193,7 +197,13 @@ def _name_phenyl_chain_telluroic_acid(mol, ring_atoms):
         )
 
     chain_length = len(chain)
-    return f"{chain_length}-phenyl{alkane_name(chain_length)}telluroic {label}-acid"
+    substituents = {
+        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms) for root in roots]
+        for position, roots in branches.items()
+    }
+    grouped = group_substituents(substituents)
+    prefix = format_substituent_prefixes(grouped)
+    return f"{prefix}{alkane_name(chain_length)}telluroic {label}-acid"
 
 
 def name_telluroic_acid(mol) -> str:

@@ -77,6 +77,19 @@ def test_phenyl_directly_attached_selenoic_acid_raises():
         smiles_to_iupac("c1ccccc1C(=O)[SeH]")
 
 
-def test_phenyl_substituted_benzene_ring_selenoic_acid_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC(=O)[SeH]")
+def test_phenyl_substituted_benzene_ring_selenoic_acid_methyl():
+    # A plain alkyl ring substituent is now supported alongside the chain
+    # (mirroring `_thioic_acid.py`'s `plain_alkyl_ring_substituents`
+    # rollout).
+    assert smiles_to_iupac("Cc1ccccc1CC(=O)[SeH]") == "2-(2-methylphenyl)ethaneselenoic Se-acid"
+
+
+def test_phenyl_substituent_selenoic_acid_ring_halogen():
+    assert smiles_to_iupac("Clc1ccc(CC(=O)[SeH])cc1") == "2-(4-chlorophenyl)ethaneselenoic Se-acid"
+
+
+def test_phenyl_substituent_selenoic_acid_branched_chain():
+    assert (
+        smiles_to_iupac("CC(C)Cc1ccc(cc1)C(C)C(=O)[SeH]")
+        == "2-[4-(2-methylpropyl)phenyl]propaneselenoic Se-acid"
+    )
