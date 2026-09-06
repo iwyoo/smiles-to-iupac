@@ -123,7 +123,16 @@ def format_substituent_prefixes(grouped, omit_locants: bool = False) -> str:
         all_non_numeric = all(isinstance(loc, str) for loc in locants)
         multiplier_compound = info["compound"] and not all_non_numeric
         multiplier = multiplying_prefix(len(locants), compound=multiplier_compound) if len(locants) > 1 else ""
-        display_name = f"({name})" if info["compound"] else name
+        # P-16.3.3: enclosing marks escalate one level, (), [], {}, ... --
+        # a name that already contains its own '(' (e.g. '4-(2-methylpropyl)
+        # phenyl') needs the next mark up, or two same-kind marks would abut
+        # ambiguously (PubChem '2-[4-(2-methylpropyl)phenyl]propanoic acid').
+        if not info["compound"]:
+            display_name = name
+        elif "(" not in name:
+            display_name = f"({name})"
+        else:
+            display_name = f"[{name}]"
         explicit = (not omit_locants) or any(isinstance(loc, str) for loc in locants)
         if explicit:
             loc_str = ",".join(str(loc) for loc in locants)
@@ -440,7 +449,13 @@ def halogenated_phenyl_substituent(graph, aromatic_atoms, root, coming_from, hal
     visited, entries = min(candidates, key=lambda vc: [pos for pos, _, _ in vc[1]])
     grouped = {}
     for pos, name, _ in entries:
-        info = grouped.setdefault(name, {"locants": [], "compound": False})
+        # A name starting with its own locant (e.g. '2-methylpropyl') needs
+        # enclosing marks here to keep it from reading as a second ring
+        # locant butted up against this one (e.g. '4-2-methylpropylphenyl');
+        # one that doesn't (e.g. 'propan-2-yl') needs none (PubChem
+        # '2-(4-propan-2-ylphenyl)acetic acid' vs
+        # '2-[4-(2-methylpropyl)phenyl]propanoic acid', ibuprofen's PIN).
+        info = grouped.setdefault(name, {"locants": [], "compound": name[0].isdigit()})
         info["locants"].append(pos)
     full_name = format_substituent_prefixes(grouped) + "phenyl"
     halogen_atoms = {atom_idx for _, _, atom_idx in entries}

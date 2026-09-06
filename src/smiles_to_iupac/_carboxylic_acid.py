@@ -109,11 +109,11 @@ from ._common import (
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
+    longest_branched_chain,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
-    ordered_chain,
     ring_chain_attachment_with_halogens,
     ring_cycle,
     specified_stereocenters,
@@ -441,17 +441,24 @@ def _name_acyclic_carboxylic_acid(
 
 
 def _name_phenyl_chain_carboxylic_acid(mol, ring_atoms):
-    """Name a carboxylic acid whose -COOH lies entirely on a single
-    unbranched chain hanging off one atom of a benzene ring -- e.g.
-    2-phenylethanoic acid. The ring is cited as a 'phenyl' (or, if the
-    ring's other atoms each carry a single halogen, e.g. '4-chlorophenyl')
-    substituent prefix (via `name_branch`'s aromatic-ring recognition) on
-    the chain, which is the parent hydride, mirroring `_alcohol.py`'s
+    """Name a carboxylic acid whose -COOH lies on a chain hanging off one
+    atom of a benzene ring -- e.g. 2-phenylethanoic acid. The ring is
+    cited as a 'phenyl' (or, if the ring's other atoms each carry a
+    single halogen/alkyl substituent, e.g. '4-chlorophenyl') substituent
+    prefix (via `name_branch`'s aromatic-ring recognition) on the chain,
+    which is the parent hydride, mirroring `_alcohol.py`'s
     `_name_ring_substituent_chain_alcohol` for a plain saturated ring.
-    Narrower than the acyclic path above: exactly one -COOH, no coexisting
-    standalone hydroxyl, no chain unsaturation, no specified stereocenter,
-    and no non-halogen ring substituent alongside the chain -- each is a
-    separate follow-up (see
+    The chain itself may branch (`longest_branched_chain` picks one of
+    the longest chains containing the -COOH carbon, per P-44.3.2,
+    absorbing a branch into the parent chain whenever that makes it
+    longer) -- e.g. ibuprofen's alpha-methyl becomes part of 'propanoic
+    acid' rather than a substituent on a shorter 'ethanoic acid'
+    (`CC(C)Cc1ccc(cc1)C(C)C(=O)O` -> '2-[4-(2-methylpropyl)phenyl]
+    propanoic acid', PubChem CID 3672). Narrower than the acyclic path
+    above: exactly one -COOH, no coexisting standalone hydroxyl, no
+    chain unsaturation, no specified stereocenter, and no non-halogen/
+    non-alkyl ring substituent alongside the chain -- each is a separate
+    follow-up (see
     `tasks/phenyl-substituent-on-carboxylic-acid-chain.md`'s scope note)
     rather than being combined with the ring case in this first slice."""
     carboxyl_carbons, carboxyl_oxygens, hydroxyls = _validate_and_collect_carboxyls(
@@ -495,19 +502,8 @@ def _name_phenyl_chain_carboxylic_acid(mol, ring_atoms):
             "exocyclic substituent alongside a chain carboxylic acid is "
             "not supported yet"
         )
-    ring_atom, chain_root = attachment
-    chain = ordered_chain(graph, chain_root, ring_atom, carboxyl_oxygens)
-    if chain is None:
-        raise UnsupportedStructure(
-            "a branched chain hanging off the benzene ring alongside a "
-            "carboxylic acid is not supported yet"
-        )
     (carboxyl_carbon,) = carboxyl_carbons
-    if chain[-1] != carboxyl_carbon:
-        raise UnsupportedStructure(
-            "the carboxylic acid carbon must be the chain's far terminus "
-            "from the benzene ring for this benzene-substituent path"
-        )
+    chain, branches = longest_branched_chain(graph, carboxyl_carbon, ring_atoms, carboxyl_oxygens)
     if len(chain) < 2:
         raise UnsupportedStructure(
             "a -COOH group directly attached to the benzene ring (no "
@@ -516,11 +512,10 @@ def _name_phenyl_chain_carboxylic_acid(mol, ring_atoms):
             "this acyclic-chain-parent module"
         )
 
-    ordered = list(reversed(chain))
-    chain_length = len(ordered)
-    position_of = {atom: i + 1 for i, atom in enumerate(ordered)}
+    chain_length = len(chain)
     substituents = {
-        position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms) for root in roots]
+        for position, roots in branches.items()
     }
     grouped = group_substituents(substituents)
     return _name_from_substituents(chain_length, 1, [], [], grouped)

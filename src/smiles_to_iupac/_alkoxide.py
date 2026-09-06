@@ -89,11 +89,11 @@ from ._common import (
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
+    longest_branched_chain_through,
     longest_chains,
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
-    ordered_chain,
     ring_chain_attachment,
     ring_cycle,
     specified_stereocenters,
@@ -482,19 +482,9 @@ def _name_phenyl_chain_alkoxide(mol, ring_atoms):
             "a benzene ring with more than one exocyclic substituent "
             "alongside a chain alkoxide is not supported yet"
         )
-    ring_atom, chain_root = attachment
-    chain = ordered_chain(graph, chain_root, ring_atom, excluded_atoms)
-    if chain is None:
-        raise UnsupportedStructure(
-            "a branched chain hanging off the benzene ring alongside an "
-            "alkoxide is not supported yet"
-        )
     (oxygen_carbon,) = [n.GetIdx() for n in oxygen.GetNeighbors()]
-    if oxygen_carbon not in chain:
-        raise UnsupportedStructure(
-            "an alkoxide outside the single unbranched chain hanging off "
-            "the benzene ring is not supported yet"
-        )
+    chain, branches = longest_branched_chain_through(graph, oxygen_carbon, ring_atoms, excluded_atoms)
+    branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
 
     halogens = halogen_substituents(mol)
     chain_length = len(chain)
@@ -504,7 +494,8 @@ def _name_phenyl_chain_alkoxide(mol, ring_atoms):
         position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
         o_locant = position_of[oxygen_carbon]
         substituents = {
-            position_of[chain_root]: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]
+            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms) for root in roots]
+            for atom, roots in branches_by_atom.items()
         }
         key, name = _candidate_key(chain_length, o_locant, [], [], substituents)
         if best_key is None or key < best_key:
