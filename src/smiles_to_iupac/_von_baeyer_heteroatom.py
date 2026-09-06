@@ -68,6 +68,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   validation already rejects for the all-carbon case.
 """
 
+from rdkit import Chem
+
 from ._bicyclic import _candidate_key, bicyclic_parent_name, iter_bicyclic_numberings
 from ._common import (
     HALOGEN_PREFIXES,
@@ -117,6 +119,10 @@ def has_single_ring_heteroatom_shape(mol, core) -> bool:
 
 
 def name_von_baeyer_heteroatom(mol, core) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     _validate_atoms(mol)
     if non_single_bonds(mol):
         raise UnsupportedStructure(
@@ -170,6 +176,10 @@ def has_multi_ring_heteroatom_shape(mol, core) -> bool:
 
 
 def name_von_baeyer_heteroatom_multi(mol, core) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     _validate_atoms(mol)
     if non_single_bonds(mol):
         raise UnsupportedStructure(
@@ -227,6 +237,10 @@ def has_mixed_element_heteroatom_shape(mol, core) -> bool:
 
 
 def name_von_baeyer_heteroatom_mixed(mol, core) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     _validate_atoms(mol)
     if non_single_bonds(mol):
         raise UnsupportedStructure(
@@ -285,6 +299,10 @@ def has_single_ring_heteroatom_shape_polycyclic(mol, core) -> bool:
 
 
 def name_von_baeyer_heteroatom_polycyclic(mol, core, ring_count) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     _validate_atoms(mol)
     if non_single_bonds(mol):
         raise UnsupportedStructure(

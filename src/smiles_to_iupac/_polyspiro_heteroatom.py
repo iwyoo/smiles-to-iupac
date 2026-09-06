@@ -48,6 +48,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from itertools import product
 
+from rdkit import Chem
+
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents, lowest_locant_set, non_single_bonds
 from ._cyclic import _group, _substituents_for_ring
 from ._numerals import alkane_name, numerical_term
@@ -92,6 +94,10 @@ def _candidate_key(parent, spiro_locants, descriptor, heteroatom_locant, substit
 
 
 def name_linear_polyspiro_heteroatom(mol, chain) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
         if atomic_num not in _ALLOWED_ATOMIC_NUMS:

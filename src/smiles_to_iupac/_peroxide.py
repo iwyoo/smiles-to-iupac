@@ -60,6 +60,8 @@ prefix word applied only to R', not a fused whole-fragment prefix like
 excluded disulfide's chain-spacer case.
 """
 
+from rdkit import Chem
+
 from ._acyclic import longest_chain_length, winning_chain_from_carbon_graph, winning_chain_with_key
 from ._common import (
     UnsupportedStructure,
@@ -190,6 +192,10 @@ def _name_benzene_ring_peroxide_chain(mol, ring_atoms) -> str:
 
 
 def name_peroxide(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])

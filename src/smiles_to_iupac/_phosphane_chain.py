@@ -29,6 +29,8 @@ substituent (halogen included), any atom other than phosphorus, any bond
 order other than single, and any ring.
 """
 
+from rdkit import Chem
+
 from ._common import UnsupportedStructure, adjacency
 from ._numerals import numerical_term
 
@@ -43,6 +45,10 @@ def has_phosphane_chain_shape(mol) -> bool:
 
 
 def name_phosphane_chain(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     for atom in mol.GetAtoms():
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")

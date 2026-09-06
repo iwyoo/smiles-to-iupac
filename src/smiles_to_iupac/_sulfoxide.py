@@ -48,6 +48,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   is handled separately by `_selenoxide.py`.
 """
 
+from rdkit import Chem
+
 from ._common import UnsupportedStructure, non_single_bonds
 from ._numerals import alkane_name
 
@@ -97,6 +99,10 @@ def _unbranched_chain_length(mol, root_idx, exclude_idx):
 
 
 def name_sulfoxide(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() not in (6, 8, 16):
             raise UnsupportedStructure(

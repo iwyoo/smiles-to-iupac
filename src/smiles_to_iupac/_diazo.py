@@ -36,6 +36,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   no Table 3.3 seniority handling here.
 """
 
+from rdkit import Chem
+
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, carbon_adjacency, halogen_substituents, non_single_bonds
 from ._acyclic import name_from_carbon_graph
 
@@ -77,6 +79,10 @@ def has_diazo_shape(mol) -> bool:
 
 
 def name_diazo(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     root_nitrogens = _diazo_root_nitrogens(mol)
     if not root_nitrogens:
         raise UnsupportedStructure("no diazo (=N2) group found; this module only handles diazo compounds")

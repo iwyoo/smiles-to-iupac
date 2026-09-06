@@ -39,6 +39,8 @@ sparse-tellurium-data gap noted above for `c1ccccc1N=C=[Te]`/
 identical mechanism already confirmed for oxygen/sulfur/selenium.
 """
 
+from rdkit import Chem
+
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -196,6 +198,10 @@ def _name_benzene_ring_isotellurocyanate_chain(mol, n1, group_atom_idxs, ring_at
 
 
 def name_isotellurocyanate(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     nitrogens = _isotellurocyanate_nitrogens(mol)
     if not nitrogens:
         raise UnsupportedStructure(

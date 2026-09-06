@@ -43,6 +43,8 @@ length. Confirmed via PubChem PUG REST (CID 7673 'c1ccccc1N=C=S' ->
 'isothiocyanatomethylbenzene').
 """
 
+from rdkit import Chem
+
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -198,6 +200,10 @@ def _name_benzene_ring_isothiocyanate_chain(mol, n1, group_atom_idxs, ring_atoms
 
 
 def name_isothiocyanate(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
     nitrogens = _isothiocyanate_nitrogens(mol)
     if not nitrogens:
         raise UnsupportedStructure(
