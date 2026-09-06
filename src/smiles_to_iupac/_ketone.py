@@ -279,6 +279,7 @@ from ._common import (
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    ordered_chain,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     specified_stereocenters,
@@ -740,6 +741,78 @@ def _name_ring_substituent_chain_ketone(mol, ketones):
         key, name = _candidate_key(chain_length, one_locants, [], [], substituents)
         if best_key is None or key < best_key:
             best_key, best_name = key, name
+    return best_name
+
+
+def _name_ring_with_ketone_chain_ketone(mol, ketones):
+    """Name a ketone compound where the ring itself bears at least as many
+    ketones as a single unbranched chain hanging off exactly one ring atom
+    does (P-44.1.1: the candidate with the greater count of the principal
+    characteristic group 'one' is senior; P-44.1.2.2 resolves an exact tie
+    in the ring's favor) -- e.g. 2-(2-oxopropyl)cyclohexan-1-one. The ring
+    is the parent; the chain is cited as an '(oxo...alkyl)' substituent
+    prefix, mirroring `_alcohol.py`'s `_name_ring_with_hydroxy_chain_
+    alcohol` and `_amine.py`'s `_name_ring_with_amine_chain_amine`. A
+    ring's own carbonyl carbon can never be the chain-attachment atom
+    (it's sp2 with two ring bonds plus the C=O, leaving no room for a
+    fifth, exocyclic bond), so no aryl-ketone-style exception is needed
+    here. Narrower than the alcohol/amine precedents: only the
+    "ring wins" direction (the ring has at least as many ketones as the
+    chain) is supported -- the reverse direction would need `name_branch`
+    to cite the ring as an "oxo"-decorated cyclic substituent, which it
+    doesn't support yet (only "hydroxy" is wired up there)."""
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
+
+    attachment = ring_chain_attachment(graph, ring_atoms, ketones)
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a ring with more than one exocyclic branch is not supported "
+            "yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, ketones)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched substituent chain hanging off the ring is not "
+            "supported yet"
+        )
+
+    chain_set = set(chain)
+    chain_ketones = {o for o in ketones if next(iter(graph[o])) in chain_set}
+    ring_ketones = ketones - chain_ketones
+    if len(ring_ketones) < len(chain_ketones):
+        # The chain has strictly more ketones, so it would be the senior
+        # parent (P-44.1.1) with the ring cited as an "oxo"-decorated
+        # cyclic substituent -- but `name_branch` only recognizes a
+        # "hydroxy"-decorated cyclic substituent (`_ring_substituent_
+        # with_hydroxyls`), not an arbitrary prefix dict, so this
+        # direction is deferred rather than raising the generic/misleading
+        # "cyclic substituent groups are not supported" from its acyclic
+        # fallback walker.
+        raise UnsupportedStructure(
+            "a chain with more ketones than the ring it hangs off of is "
+            "not supported yet"
+        )
+
+    chain_name, chain_is_compound = name_branch(
+        graph, chain_root, ring_atom, {**halogens, **{o: "oxo" for o in chain_ketones}}
+    )
+
+    ring_order = _ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            one_locants = _one_locants(position_of, ring_ketones, graph)
+            substituents = {position_of[ring_atom]: [(chain_name, chain_is_compound)]}
+            key = _ring_candidate_key(ring_size, one_locants, [], [], substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
     return best_name
 
 
@@ -1780,6 +1853,13 @@ def name_ketone(mol) -> str:
                     "the ring itself is not supported yet (see P-92)"
                 )
             return _name_ring_substituent_chain_ketone(mol, ketones)
+        if not bonds and not hydroxyls and ring_ketones and ring_ketones != ketones:
+            if stereo is not None:
+                raise UnsupportedStructure(
+                    "a stereocenter alongside a ring-vs-chain ketone "
+                    "comparison is not supported yet (see P-92)"
+                )
+            return _name_ring_with_ketone_chain_ketone(mol, ketones)
         return _name_cyclic_ketone(mol, ketones, hydroxyls, stereo, bonds)
     raise UnsupportedStructure(
         "polycyclic and spiro ketones are not supported yet (P-23/P-24/P-25 "
