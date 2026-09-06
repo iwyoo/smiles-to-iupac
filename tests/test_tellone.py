@@ -63,6 +63,19 @@ def test_ring_substituent_chain_tellone_unsaturated_ring_raises():
         smiles_to_iupac("CC(=[Te])C1CCCC=C1")
 
 
+def test_ring_with_tellone_chain_tellone_tie():
+    # Ring and chain each carry exactly one tellone (P-44.1.1 tie),
+    # mirrors `_thione.py`'s `test_ring_with_thione_chain_thione_tie`.
+    # No PubChem-registered structure for the exact molecule or even the
+    # "tellanylidene" substituent prefix alone (sparse tellurium
+    # coverage), so this is a structural/regression check on the
+    # mechanism ported verbatim from `_thione.py`/`_selone.py`.
+    assert (
+        smiles_to_iupac("[Te]=C1CCCCC1C(=[Te])C")
+        == "2-(1-tellanylideneethyl)cyclohexane-1-tellone"
+    )
+
+
 def test_telluroaldehyde_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CCC=[Te]")
