@@ -296,3 +296,32 @@ def test_unsaturated_ring_amine_with_substituent_raises():
 def test_unsaturated_ring_amine_triple_bond_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("NC1CCCC#C1")
+
+
+def test_ring_substituent_chain_amine():
+    # A primary amine entirely on a chain hanging off a plain saturated
+    # ring (the ring itself bears no amine) -- the ring is cited as a
+    # "cyclo..." substituent prefix on the chain, mirroring `_alcohol.py`'s
+    # `_name_ring_substituent_chain_alcohol`. PubChem PUG REST-verified
+    # "cyclohexylmethanamine" (CID 76688).
+    assert smiles_to_iupac("NCC1CCCCC1") == "cyclohexylmethanamine"
+
+
+def test_ring_substituent_chain_amine_internal_locant():
+    # PubChem PUG REST: "1-cyclohexylethanamine" (CID 110733) -- the
+    # locant is not omitted here, the same known limitation as
+    # `test_phenyl_chain_amine`'s two-carbon case.
+    assert smiles_to_iupac("NC(C)C1CCCCC1") == "1-cyclohexylethan-1-amine"
+
+
+def test_ring_substituent_chain_amine_ring_with_substituent_raises():
+    # A ring atom other than the chain attachment carrying its own
+    # substituent is out of scope for this first pass -- mirrors
+    # `_name_ring_substituent_chain_alcohol`'s identical restriction.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NCC1CCC(C)CC1")
+
+
+def test_ring_substituent_chain_amine_unsaturated_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NCC1CCCC=C1")

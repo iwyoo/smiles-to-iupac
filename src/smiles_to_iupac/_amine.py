@@ -771,6 +771,60 @@ def _name_aniline(mol, ring_atoms):
     return best_name
 
 
+def _name_ring_substituent_chain_amine(mol, amines, n_carbons_by_nitrogen):
+    """Name a primary amine whose -NH2 group(s) lie entirely on a single
+    branched chain hanging off one atom of an otherwise-plain saturated
+    monocyclic ring (the ring itself bears no amine) -- e.g.
+    cyclohexylmethanamine. The ring is cited as a "cyclo..." substituent
+    prefix (P-29.3.3) on the chain, which is the parent hydride, mirroring
+    `_alcohol.py`'s `_name_ring_substituent_chain_alcohol`."""
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
+
+    attachment = ring_chain_attachment(graph, ring_atoms, amines)
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a ring with more than one exocyclic branch is not supported "
+            "yet"
+        )
+    ring_atom, chain_root = attachment
+    anchor_n = next(iter(amines))
+    (anchor_carbon,) = n_carbons_by_nitrogen[anchor_n]
+    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, amines)
+    chain_set = set(chain)
+    for n in amines:
+        (carbon,) = n_carbons_by_nitrogen[n]
+        if carbon not in chain_set:
+            raise UnsupportedStructure(
+                "an amine outside the single branched chain hanging off "
+                "the ring is not supported yet"
+            )
+    branches_by_atom = {
+        chain[position - 1]: [r for r in roots if r != ring_atom]
+        for position, roots in branches.items()
+    }
+    branches_by_atom = {atom: roots for atom, roots in branches_by_atom.items() if roots}
+
+    ring_name = "cyclo" + alkyl_name(len(ring_atoms))
+    chain_length = len(chain)
+
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        amine_locants = _amine_locants(position_of, amines, graph)
+        substituents = {
+            position_of[atom]: [name_branch(graph, root, atom, halogens) for root in roots]
+            for atom, roots in branches_by_atom.items()
+        }
+        substituents.setdefault(position_of[chain_root], []).append((ring_name, False))
+        key, name = _candidate_key(chain_length, amine_locants, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def _name_phenyl_chain_amine(mol, ring_atoms):
     """Name a primary amine whose -NH2 lies entirely on a single
     unbranched chain hanging off one atom of an otherwise-plain,
@@ -891,6 +945,16 @@ def name_amine(mol) -> str:
                 "not supported yet -- only a ring double bond is in scope "
                 "for this first pass (see P-31.1.3)"
             )
+        ring_amines = {
+            n for n in amines if next(iter(n_carbons_by_nitrogen[n])) in ring_atoms
+        }
+        if not bonds and not ring_amines:
+            if stereo is not None:
+                raise UnsupportedStructure(
+                    "a stereocenter on a substituent branch rather than "
+                    "the ring itself is not supported yet (see P-92)"
+                )
+            return _name_ring_substituent_chain_amine(mol, amines, n_carbons_by_nitrogen)
         return _name_cyclic_amine(mol, amines, stereo, bonds)
     raise UnsupportedStructure(
         "polycyclic and spiro amines are not supported yet (P-23/P-24/P-25 "
