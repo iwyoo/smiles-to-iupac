@@ -101,6 +101,13 @@ def test_smiles_to_iupac_unsaturated(smiles, expected):
         # reverse direction would tie on the set {2,4} but swap them, giving
         # the double bond locant 4 instead - left-to-right wins.
         ("CC=CC#CC", "hex-2-en-4-yne"),
+        # A multiplying-prefixed 'yne' (diyne/triyne) elides 'ene's
+        # trailing 'e' exactly like an unprefixed 'yne' does -- the
+        # elision is triggered by the underlying 'yne' word itself, not
+        # by whether the final prefixed word happens to start with a
+        # vowel. Found via real-data testing (PubChem-verified):
+        # 'deca-1,2,3-trien-5,7,9-triyne', not '...triene-5,7,9-triyne'.
+        ("C#CC#CC#CC=C=C=C", "deca-1,2,3-trien-5,7,9-triyne"),
     ],
 )
 def test_smiles_to_iupac_multiply_unsaturated(smiles, expected):

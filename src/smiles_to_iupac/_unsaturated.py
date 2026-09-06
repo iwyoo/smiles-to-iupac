@@ -198,9 +198,14 @@ def _unsaturation_suffix(ene_locants, yne_locants):
     """Locant-and-suffix string (e.g. '1,3-dien-5-yne') plus whether the
     parent stem needs its euphonic trailing 'a' (P-31.1.1.2), for a chain's
     full set of multiple bonds. 'ene' is always cited before 'yne'
-    (P-31.1.1.1), with its final 'e' elided only when directly followed by
-    an unprefixed 'yne' (P-31.1.1.1's own examples; a multiplying-prefixed
-    'diyne'/'triyne' begins with a consonant and elides nothing)."""
+    (P-31.1.1.1), with its final 'e' always elided when a 'yne' part
+    follows, whether or not that 'yne' itself carries a multiplying
+    prefix -- the elision is triggered by the underlying 'yne' word
+    starting with a vowel sound, not by the final prefixed word's own
+    first letter ('deca-1,2,3-trien-5,7,9-triyne', PubChem-verified: a
+    'diyne'/'triyne' elides exactly like a plain 'yne' does, contrary to
+    this function's own former assumption that a multiplying-prefixed
+    'yne' word "begins with a consonant and elides nothing")."""
     ene_locants = sorted(ene_locants)
     yne_locants = sorted(yne_locants)
     ene_count, yne_count = len(ene_locants), len(yne_locants)
@@ -208,7 +213,7 @@ def _unsaturation_suffix(ene_locants, yne_locants):
     yne_word = _multiplied_word(yne_count, "yne")
 
     if ene_count and yne_count:
-        ene_part = ene_word[:-1] if yne_word[0] in "aeiouy" else ene_word
+        ene_part = ene_word[:-1]
         ene_loc_str = ",".join(str(loc) for loc in ene_locants)
         yne_loc_str = ",".join(str(loc) for loc in yne_locants)
         body = f"{ene_loc_str}-{ene_part}-{yne_loc_str}-{yne_word}"
