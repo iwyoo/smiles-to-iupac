@@ -713,11 +713,24 @@ def _branch_point_candidate_chains(graph, root, coming_from, halogens, mol=None)
     paths = {b: _longest_chains_from_root(graph, b, root, halogens, mol) for b in branch_roots}
     lengths = {b: len(paths[b][0]) for b in branch_roots}
 
-    if len(branch_roots) == 3 and all(length == 1 for length in lengths.values()):
+    if (
+        len(branch_roots) == 3
+        and all(length == 1 for length in lengths.values())
+        and all(len(graph[b]) == 1 for b in branch_roots)
+    ):
         # P-29.6.1: the retained name 'tert-butyl' is the PIN for the
         # unsubstituted (CH3)3C- group, never the general rule's own
         # '2-methylpropan-2-yl' -- and, being a single retained word with no
         # locant of its own, it is never parenthesized as a compound prefix.
+        # The `len(graph[b]) == 1` check is required alongside the chain-
+        # length-1 check above: a branch root with a halogen substituent of
+        # its own (e.g. -CH2Br) also has a length-1 chain (halogens don't
+        # extend the chain search either), but isn't a bare methyl -- taking
+        # this shortcut for it would silently drop the halogen (found via
+        # real-data testing: 'CC(C)c1cccc(C(C)(C)CBr)c1' was misnamed
+        # '1-tert-butyl-3-(propan-2-yl)benzene', losing the bromine
+        # entirely; the correct name keeps it as a substituted
+        # '1-bromo-2-methylpropan-2-yl' branch instead).
         return [root], 1, "tert-butyl", False
 
     sorted_lengths = sorted(lengths.values(), reverse=True)
