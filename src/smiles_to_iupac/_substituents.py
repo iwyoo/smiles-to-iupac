@@ -450,10 +450,11 @@ def halogenated_phenyl_substituent(graph, aromatic_atoms, root, coming_from, hal
 def plain_alkyl_ring_substituents(mol, graph, ring_atoms):
     """{atom_idx -> name} for every ring atom's sole exocyclic substituent
     that is a plain, fully saturated, acyclic alkyl group (any length,
-    branched or unbranched) -- a general-algorithm replacement for
-    `_common.py`'s narrower `plain_methyl_ring_substituents` (terminal
-    CH3 only), reusing `name_branch` itself instead of hand-rolling a
-    second walk. Fed into the same {atom_idx -> prefix name} dict
+    branched or unbranched) -- a general-algorithm replacement for what
+    used to be a narrower terminal-CH3-only helper (`_common.py`'s
+    `plain_methyl_ring_substituents`, removed once every caller migrated
+    here), reusing `name_branch` itself instead of hand-rolling a second
+    walk. Fed into the same {atom_idx -> prefix name} dict
     `halogen_substituents` builds, so
     `ring_chain_attachment_with_halogens`/`halogenated_phenyl_substituent`
     (both halogen-agnostic, just echoing back whatever name a dict value
