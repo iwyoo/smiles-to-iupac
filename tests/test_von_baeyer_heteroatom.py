@@ -80,6 +80,20 @@ def test_tetraaza_multiplying_prefix_elides_vowel():
     )
 
 
+def test_tetraoxa_multiplying_prefix_does_not_elide_vowel():
+    # Unlike 'tetra' + 'aza' above, 'tetra' + 'oxa' does NOT elide --
+    # 'tetraoxa', not 'tetroxa' -- PubChem-verified for this exact SMILES
+    # ("1,4,7-trimethyl-2,3,5,6-tetraoxabicyclo[2.2.1]heptane"). Found via
+    # smiles-to-iupac-realdata-test's pubchem diff after this project
+    # previously got it wrong by reusing the suffix-elision rule (P-16.3.3,
+    # 'tetra' + 'ol' -> 'tetrol') for this skeletal-replacement-prefix
+    # context instead.
+    assert (
+        smiles_to_iupac("CC1C2(C)OOC1(C)OO2")
+        == "1,4,7-trimethyl-2,3,5,6-tetraoxabicyclo[2.2.1]heptane"
+    )
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
