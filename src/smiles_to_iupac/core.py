@@ -1,5 +1,6 @@
 from rdkit import Chem
 
+from ._salt import has_salt_shape, name_salt
 from ._acyclic import name_acyclic_alkane
 from ._acyl_halide import has_acyl_halide_shape, name_acyl_halide
 from ._anhydride import has_anhydride_shape, name_anhydride
@@ -226,6 +227,13 @@ def smiles_to_iupac(smiles: str) -> str:
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError(f"invalid SMILES: {smiles!r}")
+
+    # A multi-fragment SMILES (P-77 salts) must be routed here before every
+    # other branch below: those all assume one connected molecule and would
+    # reject a foreign atom like sodium outright, never getting a chance to
+    # recognize the two fragments as a cation/anion pair.
+    if has_salt_shape(mol):
+        return name_salt(mol)
 
     # An isotopically labeled atom (P-82's isotope descriptor nomenclature)
     # must be routed here before every other branch below: RDKit represents
