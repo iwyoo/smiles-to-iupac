@@ -351,3 +351,15 @@ def test_ring_with_amine_chain_amine_longer_chain():
     # A two-carbon chain amine, same tie-break, verifying the chain's own
     # locant math still works once it's longer than a single carbon.
     assert smiles_to_iupac("NC1CCCCC1CCN") == "2-(2-aminoethyl)cyclohexan-1-amine"
+
+
+def test_ring_with_amine_chain_amine_chain_wins():
+    # The chain has strictly more amines than the ring, so it's the
+    # senior parent (P-44.1.1) and the ring is cited as an "amino"-
+    # decorated cyclic substituent instead, mirroring `_alcohol.py`'s
+    # identical "chain wins" branch (`name_branch`'s `_ring_substituent_
+    # with_named_atoms` generalization). PubChem PUG REST-verified
+    # "1-(2-aminocyclohexyl)ethane-1,2-diamine" (CID 77647753).
+    assert (
+        smiles_to_iupac("NC1CCCCC1C(N)CN") == "1-(2-aminocyclohexyl)ethane-1,2-diamine"
+    )
