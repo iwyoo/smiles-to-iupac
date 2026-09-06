@@ -433,10 +433,20 @@ def _name_phenoxide(mol, ring_atoms, oxygen):
     misname the branch as a plain alkyl group instead of being rejected
     (found via real-data testing: 'O=C(O)c1ccccc1[O-].[Cu+]' was misnamed
     '2-(propan-2-yl)phenoxide', treating the -COOH branch's two oxygens
-    as if they were carbons)."""
-    oxygen, _excluded_atoms, _bonds, stereo = _validate_and_prepare_alkoxide(mol, aromatic_ring_atoms=ring_atoms)
+    as if they were carbons). The returned `bonds` (any non-ring ene/yne
+    bond) must also be rejected here, not just collected: this function's
+    own substituent-naming path (`_substituents_for_ring`/`name_branch`)
+    has no ene/yne locant handling of its own, so an unchecked bond would
+    likewise get silently walked as if it were saturated (a branch's own
+    C=C was found dropped this way too: '[O-]c1ccc(CC=C)cc1' misnamed
+    '4-propylphenoxide' instead of raising)."""
+    oxygen, _excluded_atoms, bonds, stereo = _validate_and_prepare_alkoxide(mol, aromatic_ring_atoms=ring_atoms)
     if stereo:
         raise UnsupportedStructure("a specified stereocenter alongside phenoxide is not supported yet")
+    if bonds:
+        raise UnsupportedStructure(
+            "chain unsaturation alongside phenoxide is not supported yet"
+        )
 
     graph = adjacency(mol)
     oxygen_idx = oxygen.GetIdx()
