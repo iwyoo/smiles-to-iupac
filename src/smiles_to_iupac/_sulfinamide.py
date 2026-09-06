@@ -256,17 +256,6 @@ def _n_alkyl_info(full_graph, full_carbon_graph, nitrogen_idx, n_alkyl_carbons, 
     return n_names, n_substituent_atoms
 
 
-def _n_prefix(n_names):
-    if len(n_names) == 2 and n_names[0][0] == n_names[1][0]:
-        name, is_compound = n_names[0]
-        di_name = f"({name})" if is_compound else name
-        return f"N,N-di{di_name}"
-    return "-".join(
-        f"N-({name})" if is_compound else f"N-{name}"
-        for name, is_compound in sorted(n_names, key=lambda e: alpha_sort_key(e[0]))
-    )
-
-
 def _multiplied_word(count, base):
     """P-16.3.3: a multiplying prefix's terminal 'a' is elided before a
     suffix beginning with 'a' or 'o' (see `_common.py`'s `multiplied_word`
@@ -310,22 +299,29 @@ def _group(substituents):
     return grouped
 
 
-def _name_from_substituents(chain_length, so_nh2_locant, ene_locants, yne_locants, grouped):
+def _name_from_substituents(chain_length, so_nh2_locant, ene_locants, yne_locants, grouped, n_names=()):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     has_unsaturation = bool(ene_locants or yne_locants)
 
     if chain_length == 1:
         # P-14.3.4.2(a): a mononuclear parent's locant is always '1' and
-        # never cited.
-        return format_substituent_prefixes(grouped, omit_locants=True) + alkane_name(1) + "sulfinamide"
+        # never cited -- an 'N-' locant is never omittable though (see
+        # `_add_n_names`/`format_substituent_prefixes`).
+        return (
+            format_substituent_prefixes(_add_n_names(grouped, n_names), omit_locants=True)
+            + alkane_name(1)
+            + "sulfinamide"
+        )
 
     if chain_length == 2 and not has_unsaturation and total_subs == 0:
         # P-14.3.4.2(b): a homogeneous two-carbon chain with exactly one
         # substituent (the sole -S(=O)NH2) in total omits the locant, e.g.
-        # 'ethanesulfinamide'.
-        return alkane_name(2) + "sulfinamide"
+        # 'ethanesulfinamide' -- an N-substituent still needs its own
+        # 'N-' prefix.
+        prefix = format_substituent_prefixes(_add_n_names(grouped, n_names))
+        return prefix + alkane_name(2) + "sulfinamide"
 
-    prefix = format_substituent_prefixes(grouped)
+    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names))
     if has_unsaturation:
         stem = alkane_name(chain_length)[:-3]
         needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
@@ -337,7 +333,7 @@ def _name_from_substituents(chain_length, so_nh2_locant, ene_locants, yne_locant
     return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
 
 
-def _candidate_key(chain_length, so_nh2_locant, ene_locants, yne_locants, substituents):
+def _candidate_key(chain_length, so_nh2_locant, ene_locants, yne_locants, substituents, n_names=()):
     grouped = _group(substituents)
     total_count = sum(len(info["locants"]) for info in grouped.values())
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
@@ -348,7 +344,7 @@ def _candidate_key(chain_length, so_nh2_locant, ene_locants, yne_locants, substi
     )
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
-    name = _name_from_substituents(chain_length, so_nh2_locant, ene_locants, yne_locants, grouped)
+    name = _name_from_substituents(chain_length, so_nh2_locant, ene_locants, yne_locants, grouped, n_names)
     return (
         (
             so_nh2_locant,
@@ -421,18 +417,21 @@ def _substituents_for_ring(graph, ring_order, halogens, excluded):
     return substituents
 
 
-def _ring_name_from_substituents(ring_size, so_nh2_locant, ene_locants, yne_locants, grouped):
+def _ring_name_from_substituents(ring_size, so_nh2_locant, ene_locants, yne_locants, grouped, n_names=()):
     has_unsaturation = bool(ene_locants or yne_locants)
     stem = "cyclo" + alkane_name(ring_size)
     total_subs = sum(len(info["locants"]) for info in grouped.values())
 
     if not has_unsaturation:
-        if total_subs == 0:
+        if total_subs == 0 and not n_names:
             # P-14.3.3: the sole substituent on an otherwise unsubstituted
             # ring has no locant to distinguish, e.g.
             # 'cyclohexanesulfinamide'.
             return stem + "sulfinamide"
-        prefix = format_substituent_prefixes(grouped)
+        if total_subs == 0:
+            prefix = format_substituent_prefixes(_add_n_names(grouped, n_names), omit_locants=True)
+            return f"{prefix}{stem}sulfinamide"
+        prefix = format_substituent_prefixes(_add_n_names(grouped, n_names))
         return f"{prefix}{stem}-{so_nh2_locant}-sulfinamide"
 
     # A competing ring double/triple bond (P-31.1.3) means the
@@ -440,12 +439,12 @@ def _ring_name_from_substituents(ring_size, so_nh2_locant, ene_locants, yne_loca
     # substituent -- mirrors `_sulfonamide.py`'s identical treatment.
     unsaturated_stem = stem[:-3]
     needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
-    prefix = format_substituent_prefixes(grouped)
+    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names))
     body = _suffix_body(ene_locants, yne_locants, so_nh2_locant)
     return prefix + unsaturated_stem + ("a" if needs_stem_a else "") + "-" + body
 
 
-def _ring_candidate_key(ring_size, so_nh2_locant, ene_locants, yne_locants, substituents):
+def _ring_candidate_key(ring_size, so_nh2_locant, ene_locants, yne_locants, substituents, n_names=()):
     grouped = _group(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -455,7 +454,7 @@ def _ring_candidate_key(ring_size, so_nh2_locant, ene_locants, yne_locants, subs
     )
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
-    name = _ring_name_from_substituents(ring_size, so_nh2_locant, ene_locants, yne_locants, grouped)
+    name = _ring_name_from_substituents(ring_size, so_nh2_locant, ene_locants, yne_locants, grouped, n_names)
     return so_nh2_locant, combined_locant_set, ene_locant_set, locant_set, citation_locants, name
 
 
@@ -503,25 +502,38 @@ def _name_cyclic_sulfinamide(mol, sulfur_idx, so_nh2_carbon, n_names, bonds=()):
             so_nh2_locant = position_of[so_nh2_carbon]
             substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
             ene_locants, yne_locants = _ring_bond_locants(position_of, bonds, ring_size)
-            key = _ring_candidate_key(ring_size, so_nh2_locant, ene_locants, yne_locants, substituents)
+            key = _ring_candidate_key(ring_size, so_nh2_locant, ene_locants, yne_locants, substituents, n_names)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
-    if n_names:
-        best_name = f"{_n_prefix(n_names)}{best_name}"
     return best_name
 
 
-def _benzenesulfinamide_name_from_substituents(grouped):
+def _add_n_names(grouped, n_names):
+    """Merge N-alkyl substituent names into a *display-only* copy of the
+    ring `grouped` dict, each getting the non-numeric locant 'N' --
+    mirrors `_amine.py`'s/`_sulfonamide.py`'s identical `_add_n_names`
+    (P-66.4's N-locant interleaving, PR #443)."""
+    if not n_names:
+        return grouped
+    display = {name: {"locants": list(info["locants"]), "compound": info["compound"]} for name, info in grouped.items()}
+    for name, is_compound in n_names:
+        info = display.setdefault(name, {"locants": [], "compound": is_compound})
+        info["locants"].append("N")
+    return display
+
+
+def _benzenesulfinamide_name_from_substituents(grouped, n_names=()):
     # Mirrors `_sulfonamide.py`'s `_benzenesulfonamide_name_from_substituents`:
     # the mancude ring's own numbering is always free to start at the
     # -S(=O)NH2 carbon, so its locant is never cited even when other
     # substituents need theirs.
-    if not grouped:
+    display = _add_n_names(grouped, n_names)
+    if not display:
         return "benzenesulfinamide"
-    return f"{format_substituent_prefixes(grouped)}benzenesulfinamide"
+    return f"{format_substituent_prefixes(display)}benzenesulfinamide"
 
 
-def _benzenesulfinamide_candidate_key(so_nh2_locant, substituents):
+def _benzenesulfinamide_candidate_key(so_nh2_locant, substituents, n_names=()):
     grouped = _group(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -529,27 +541,27 @@ def _benzenesulfinamide_candidate_key(so_nh2_locant, substituents):
         for name in sorted(grouped, key=alpha_sort_key)
         for loc in sorted(grouped[name]["locants"])
     )
-    name = _benzenesulfinamide_name_from_substituents(grouped)
+    name = _benzenesulfinamide_name_from_substituents(grouped, n_names)
     return so_nh2_locant, locant_set, citation_locants, name
 
 
 def _name_benzenesulfinamide(mol, ring_atoms):
     """P-65.3.1: -S(=O)NH2 attached directly to a benzene ring carbon --
     e.g. 'benzenesulfinamide' (PubChem PUG REST match for
-    c1ccccc1S(=O)N). Mirrors `_sulfonamide.py`'s
+    c1ccccc1S(=O)N), and now 'N-methylbenzenesulfinamide' (PubChem
+    PUG REST IUPACName match). Mirrors `_sulfonamide.py`'s
     `_name_benzenesulfonamide` with the retained name 'benzene' as stem;
-    the -S(=O)NH2's own locant is never cited here. A specified
-    stereocenter is always rejected (module docstring: the sulfinamide
-    sulfur is itself a potential stereocenter with no established way to
-    cite it)."""
-    sulfur_idx, so_nh2_carbon, _, n_alkyl_carbons = _validate_and_collect_sulfinamides(
+    the -S(=O)NH2's own locant is never cited here. The N-alkyl
+    substituent itself reuses `_n_alkyl_info` unchanged from the acyclic
+    path (`name_sulfinamide`), merged into the ring citation via
+    `_add_n_names` (so a coinciding name, e.g. 'N,4-dimethyl...',
+    collapses into one multiplied citation like PubChem's own name). A
+    specified stereocenter is always rejected (module docstring: the
+    sulfinamide sulfur is itself a
+    potential stereocenter with no established way to cite it)."""
+    sulfur_idx, so_nh2_carbon, nitrogen_idx, n_alkyl_carbons = _validate_and_collect_sulfinamides(
         mol, aromatic_ring_atoms=ring_atoms
     )
-    if n_alkyl_carbons:
-        raise UnsupportedStructure(
-            "an N-alkyl-substituted sulfinamide directly on a benzene ring "
-            "is not supported yet"
-        )
     if specified_stereocenters(mol) is not None:
         raise UnsupportedStructure(
             "a specified stereocenter (chain carbon or the sulfinamide "
@@ -559,7 +571,11 @@ def _name_benzenesulfinamide(mol, ring_atoms):
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    excluded = {sulfur_idx}
+    non_single_bond_atoms = {a for a, b, _ in non_single_bonds(mol)} | {b for a, b, _ in non_single_bonds(mol)}
+    n_names, n_substituent_atoms = _n_alkyl_info(
+        graph, carbon_adjacency(mol), nitrogen_idx, n_alkyl_carbons, non_single_bond_atoms, halogens
+    )
+    excluded = {sulfur_idx} | n_substituent_atoms
     ring_order = ring_cycle(graph, list(ring_atoms))
     ring_size = len(ring_order)
 
@@ -571,7 +587,7 @@ def _name_benzenesulfinamide(mol, ring_atoms):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             so_nh2_locant = position_of[so_nh2_carbon]
             substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
-            key = _benzenesulfinamide_candidate_key(so_nh2_locant, substituents)
+            key = _benzenesulfinamide_candidate_key(so_nh2_locant, substituents, n_names)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
     return best_name
@@ -750,9 +766,7 @@ def name_sulfinamide(mol) -> str:
             so_nh2_locant = position_of[so_nh2_carbon]
             ene_locants, yne_locants = _bond_locants(candidate, bonds) if bonds else ([], [])
             substituents = _substituents_for_chain(graph, candidate, halogens, excluded)
-            key, name = _candidate_key(chain_length, so_nh2_locant, ene_locants, yne_locants, substituents)
+            key, name = _candidate_key(chain_length, so_nh2_locant, ene_locants, yne_locants, substituents, n_names)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
-    if n_names:
-        best_name = f"{_n_prefix(n_names)}{best_name}"
     return best_name

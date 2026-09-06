@@ -78,11 +78,13 @@ def alpha_sort_key(name: str) -> str:
 
 def _locant_sort_key(locant):
     """Numeric locants sort by value; a non-numeric one (e.g. 'N', P-66.4's
-    amine-nitrogen locant) always sorts after every numeric one, mirroring
-    how a heteroatom-nitrogen locant is cited last among a shared
-    substituent's own locant list (see `_amine.py`'s N-prefix/halogen
-    interleaving)."""
-    return (1, str(locant)) if isinstance(locant, str) else (0, locant)
+    amine-nitrogen locant) always sorts *before* every numeric one within
+    a shared substituent's own locant list -- confirmed against PubChem
+    (`CNCC(C)C` -> 'N,2-dimethylpropan-1-amine', not
+    '2,N-dimethylpropan-1-amine'; corrects a previously unverified
+    assumption from `_amine.py`'s N-prefix/halogen interleaving, PR
+    #443, which had no coinciding-name test case to catch this)."""
+    return (0, str(locant)) if isinstance(locant, str) else (1, locant)
 
 
 def format_substituent_prefixes(grouped, omit_locants: bool = False) -> str:
@@ -101,12 +103,26 @@ def format_substituent_prefixes(grouped, omit_locants: bool = False) -> str:
     a hyphen separating an omitted-locant part from an explicit one but
     never two consecutive omitted-locant parts (still alphabetically
     interleaved either way, since `sorted(grouped, ...)` runs once up
-    front over every name regardless of which kind its own locants are)."""
+    front over every name regardless of which kind its own locants are).
+
+    A name cited *only* under non-numeric locants (e.g. two identical
+    N-substituents, no coinciding numbered one) always multiplies with
+    'di'/'tri'/... even when `compound` is True -- confirmed against
+    PubChem ('N,N-di(propan-2-yl)methanesulfonamide', CID 284325, not
+    '...bis(propan-2-yl)...') -- this project's established convention
+    already hardcoded this for pure N,N-/N,N',N''- citation (`_urea.py`,
+    `_amide.py`, `_carbamate.py`) before any of them merged into this
+    shared helper; a name whose locants mix a numeral with 'N' (a
+    genuinely new coinciding-name citation, e.g.
+    'N,4-dimethylbenzenesulfonamide') still follows the ordinary
+    compound-aware bis/tris rule, unaffected."""
     entries = []
     for name in sorted(grouped, key=alpha_sort_key):
         info = grouped[name]
         locants = sorted(info["locants"], key=_locant_sort_key)
-        multiplier = multiplying_prefix(len(locants), compound=info["compound"]) if len(locants) > 1 else ""
+        all_non_numeric = all(isinstance(loc, str) for loc in locants)
+        multiplier_compound = info["compound"] and not all_non_numeric
+        multiplier = multiplying_prefix(len(locants), compound=multiplier_compound) if len(locants) > 1 else ""
         display_name = f"({name})" if info["compound"] else name
         explicit = (not omit_locants) or any(isinstance(loc, str) for loc in locants)
         if explicit:

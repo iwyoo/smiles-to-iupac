@@ -131,9 +131,17 @@ def test_substituted_benzenesulfonamide():
     assert smiles_to_iupac("Cc1ccc(cc1)S(=O)(=O)N") == "4-methylbenzenesulfonamide"  # PubChem PUG REST
 
 
-def test_benzenesulfonamide_n_alkyl_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1S(=O)(=O)NC")
+def test_benzenesulfonamide_n_alkyl():
+    # PubChem PUG REST IUPACName matches.
+    assert smiles_to_iupac("CNS(=O)(=O)c1ccccc1") == "N-methylbenzenesulfonamide"
+    assert smiles_to_iupac("CN(C)S(=O)(=O)c1ccccc1") == "N,N-dimethylbenzenesulfonamide"
+
+
+def test_substituted_benzenesulfonamide_n_alkyl():
+    # The N-substituent and the ring substituent share the same name
+    # ("methyl"), so they collapse into one merged, multiplied citation
+    # with mixed numeric/'N' locants -- PubChem PUG REST IUPACName match.
+    assert smiles_to_iupac("Cc1ccc(cc1)S(=O)(=O)NC") == "N,4-dimethylbenzenesulfonamide"
 
 
 def test_phenyl_chain_sulfonamide_n_alkyl_raises():
@@ -203,6 +211,20 @@ def test_two_identical_branched_n_substituents_not_parenthesized_when_retained()
 def test_two_different_n_substituents_alphabetized_ignoring_italic_prefix():
     # PubChem CID 58540473.
     assert smiles_to_iupac("CS(=O)(=O)N(CC)C(C)(C)C") == "N-tert-butyl-N-ethylmethanesulfonamide"
+
+
+def test_acyclic_n_alkyl_coinciding_with_chain_substituent_name():
+    # PubChem PUG REST IUPACName match: the N-methyl and the chain's own
+    # 2-methyl branch share a name, so they merge into one multiplied
+    # citation with mixed numeric/'N' locants, not two separate prefix
+    # blocks.
+    assert smiles_to_iupac("CNS(=O)(=O)CC(C)C") == "N,2-dimethylpropane-1-sulfonamide"
+
+
+def test_cyclic_n_alkyl_coinciding_with_ring_substituent_name():
+    # Not independently PubChem-verified (CID 0) -- structural/mechanism
+    # consistency check with the acyclic case above.
+    assert smiles_to_iupac("CNS(=O)(=O)C1(C)CCCCC1") == "N,1-dimethylcyclohexane-1-sulfonamide"
 
 
 def test_halogenated_n_substituent_not_supported():
