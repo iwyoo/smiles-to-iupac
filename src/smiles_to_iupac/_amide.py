@@ -612,7 +612,7 @@ def _ring_candidate_key(ring_size, amide_locant, substituents):
     return amide_locant, locant_set, citation_locants, name
 
 
-def _name_ring_amide(mol, ring_atoms):
+def _name_ring_amide(mol, ring_atoms, stereo=None):
     """P-66.1.1.1.1.3: "The suffix 'carboxamide' is always used to name
     amides with the –CO-NH2 group attached to a ring" -- e.g.
     'cyclohexanecarboxamide'. Unlike the chain-parent 'amide' suffix
@@ -625,7 +625,12 @@ def _name_ring_amide(mol, ring_atoms):
     -CONH2 hanging directly off one ring atom (no ring unsaturation, no
     standalone hydroxyl, no other substituent sharing that same ring
     atom), plus any number of substituents (alkyl/halogen) on *other*
-    ring atoms."""
+    ring atoms.
+
+    `stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
+    `specified_stereocenters` -- every stereocenter must lie on the ring
+    itself (a stereocenter on the -CONH2 substituent branch is out of
+    scope for now)."""
     amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(mol)
     if n_alkyl_carbons:
         raise UnsupportedStructure("an N-alkyl-substituted ring amide is not supported yet")
@@ -658,12 +663,19 @@ def _name_ring_amide(mol, ring_atoms):
             "supported yet"
         )
 
+    if stereo is not None and any(atom not in ring_atoms for atom, _ in stereo):
+        raise UnsupportedStructure(
+            "a stereocenter on the -CONH2 substituent branch rather than "
+            "the ring itself is not supported yet (see P-92)"
+        )
+
     halogens = halogen_substituents(mol)
     ring_order = ring_cycle(graph, list(ring_atoms))
     ring_size = len(ring_order)
 
     best_key = None
     best_name = None
+    best_position_of = None
     for start in range(ring_size):
         rotated = ring_order[start:] + ring_order[:start]
         for candidate in (rotated, list(reversed(rotated))):
@@ -672,8 +684,12 @@ def _name_ring_amide(mol, ring_atoms):
             substituents = _ring_substituents(graph, candidate, halogens, {amide_carbon})
             key = _ring_candidate_key(ring_size, amide_locant, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, key[-1]
+                best_key, best_name, best_position_of = key, key[-1], position_of
 
+    if stereo:
+        labels = sorted((best_position_of[atom], r_or_s) for atom, r_or_s in stereo)
+        prefix = ",".join(f"{locant}{r_or_s}" for locant, r_or_s in labels)
+        return f"({prefix})-{best_name}"
     return best_name
 
 
@@ -915,7 +931,7 @@ def name_amide(mol) -> str:
             graph = adjacency(mol)
             ring_neighbors = [n for n in graph[amide_carbon] if n in ring_atoms]
             if len(ring_neighbors) == 1:
-                return _name_ring_amide(mol, ring_atoms)
+                return _name_ring_amide(mol, ring_atoms, specified_stereocenters(mol))
     amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(mol)
     stereo = specified_stereocenters(mol)
     if mol.GetRingInfo().NumRings() > 0:

@@ -197,3 +197,34 @@ def test_aldehyde_unspecified_stereocenter_unaffected():
 def test_aldehyde_partially_specified_stereocenters_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C[C@H](Cl)C(Cl)C=O")
+
+
+def test_cyclic_aldehyde_ring_stereocenter():
+    # A specified stereocenter on the ring itself, alongside the ring's
+    # sole -CHO substituent (P-92), same pattern as
+    # `_carboxylic_acid.py`'s `_name_ring_carboxylic_acid`. PubChem has
+    # no cached record for this exact stereoisomer, but the CIP labels
+    # are RDKit's `rdCIPLabeler`, already verified elsewhere, and the
+    # unstereo parent ('2-chlorocyclohexane-1-carbaldehyde') matches this
+    # project's own existing output.
+    assert (
+        smiles_to_iupac("O=C[C@H]1CCCC[C@@H]1Cl")
+        == "(1R,2S)-2-chlorocyclohexane-1-carbaldehyde"
+    )
+
+
+def test_aldehyde_ring_branch_stereocenter_raises():
+    # A stereocenter on a substituent branch elsewhere on the ring (not
+    # the -CHO carbon's own ring atom) is out of scope for now (see
+    # `tasks/carbo-suffix-ring-stereocenter.md` stage 1).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C[C@H]1CC[C@H](C[C@@H](C)CC)C1")
+
+
+def test_aldehyde_ring_stereocenter_unspecified_unaffected():
+    assert smiles_to_iupac("O=CC1CCCCC1Cl") == "2-chlorocyclohexane-1-carbaldehyde"
+
+
+def test_aldehyde_ring_partially_specified_stereocenters_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C[C@H]1CCCCC1Cl")

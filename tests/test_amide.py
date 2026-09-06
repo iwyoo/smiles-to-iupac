@@ -331,3 +331,30 @@ def test_amide_unspecified_stereocenter_unaffected():
     # as before -- no stereo prefix, matching this project's long-standing
     # convention.
     assert smiles_to_iupac("CCC(C)C(N)=O") == "2-methylbutanamide"
+
+
+def test_cyclic_amide_ring_stereocenter():
+    # A specified stereocenter on the ring itself, alongside the ring's
+    # sole -CONH2 substituent (P-92), same pattern as
+    # `_carboxylic_acid.py`'s `_name_ring_carboxylic_acid`.
+    assert (
+        smiles_to_iupac("NC(=O)[C@H]1CCCC[C@@H]1Cl")
+        == "(1R,2S)-2-chlorocyclohexane-1-carboxamide"
+    )
+
+
+def test_amide_ring_branch_stereocenter_raises():
+    # A stereocenter on a substituent branch elsewhere on the ring (not
+    # the -CONH2 carbon's own ring atom) is out of scope for now (see
+    # `tasks/carbo-suffix-ring-stereocenter.md` stage 1).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NC(=O)[C@H]1CC[C@H](C[C@@H](C)CC)C1")
+
+
+def test_amide_ring_stereocenter_unspecified_unaffected():
+    assert smiles_to_iupac("NC(=O)C1CCCCC1Cl") == "2-chlorocyclohexane-1-carboxamide"
+
+
+def test_amide_ring_partially_specified_stereocenters_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NC(=O)[C@H]1CCCCC1Cl")

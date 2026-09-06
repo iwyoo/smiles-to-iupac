@@ -269,3 +269,38 @@ def test_carboxylic_acid_unspecified_stereocenter_unaffected():
 def test_carboxylic_acid_partially_specified_stereocenters_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C[C@H](Cl)C(Cl)C(=O)O")
+
+
+def test_cyclic_carboxylic_acid_ring_stereocenter():
+    # A specified stereocenter on the ring itself, alongside the ring's
+    # sole -COOH substituent (P-92), same pattern as `_sulfonic_acid.py`'s
+    # `_name_cyclic_sulfonic_acid`/`_ketone.py`'s `_name_cyclic_ketone`.
+    # PubChem CID 92338088 (name carries a redundant 'trans-' relative
+    # descriptor this project drops once full R/S is given, same policy
+    # as the existing ring-alcohol/sulfonic-acid stereocenter tasks).
+    assert (
+        smiles_to_iupac("OC(=O)[C@H]1CCCC[C@@H]1Cl")
+        == "(1R,2S)-2-chlorocyclohexane-1-carboxylic acid"
+    )
+
+
+def test_carboxylic_acid_ring_branch_stereocenter_raises():
+    # A stereocenter on a substituent branch elsewhere on the ring (not
+    # the -COOH carbon's own ring atom) is out of scope for now -- only
+    # a stereocenter on the ring itself is supported (see
+    # `tasks/carbo-suffix-ring-stereocenter.md` stage 1; stage 2 will
+    # extend this to the ring's sole substituent branch, mirroring
+    # `_sulfonic_acid.py`'s `_ring_branch_stereo_display`).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OC(=O)[C@H]1CC[C@H](C[C@@H](C)CC)C1")
+
+
+def test_carboxylic_acid_ring_stereocenter_unspecified_unaffected():
+    # A genuine ring stereocenter left unspecified is named exactly as
+    # before -- no stereo prefix.
+    assert smiles_to_iupac("OC(=O)C1CCCCC1Cl") == "2-chlorocyclohexane-1-carboxylic acid"
+
+
+def test_carboxylic_acid_ring_partially_specified_stereocenters_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C(O)[C@H]1CCCCC1Cl")

@@ -563,7 +563,7 @@ def _ring_candidate_key(ring_size, carboxyl_locant, substituents):
     return carboxyl_locant, locant_set, citation_locants, name
 
 
-def _name_ring_carboxylic_acid(mol, ring_atoms):
+def _name_ring_carboxylic_acid(mol, ring_atoms, stereo=None):
     """P-65.1.2.2.2: "Carboxy groups attached to cyclic parent hydrides ...
     are always named by using the suffix 'carboxylic acid'" -- e.g.
     'cyclopentanecarboxylic acid (PIN)'. Unlike the chain-parent 'oic acid'
@@ -580,7 +580,13 @@ def _name_ring_carboxylic_acid(mol, ring_atoms):
     *other* ring atoms -- e.g. 'cyclohexanecarboxylic acid' (the sole
     substituent's ring locant is P-14.3.3-omitted) and
     '4-methylcyclohexane-1-carboxylic acid' (PubChem CID 20330), mirroring
-    `_sulfonic_acid.py`'s ring-numbering search."""
+    `_sulfonic_acid.py`'s ring-numbering search.
+
+    `stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
+    `specified_stereocenters` -- every stereocenter must lie on the ring
+    itself (a stereocenter on the -COOH substituent branch is out of
+    scope for now, mirroring `_sulfonic_acid.py`'s
+    `_name_cyclic_sulfonic_acid` before its own branch-stereo extension)."""
     carboxyl_carbons, carboxyl_oxygens, extra_hydroxyls = _validate_and_collect_carboxyls(mol)
     if extra_hydroxyls:
         raise UnsupportedStructure(
@@ -616,12 +622,19 @@ def _name_ring_carboxylic_acid(mol, ring_atoms):
             "not supported yet"
         )
 
+    if stereo is not None and any(atom not in ring_atoms for atom, _ in stereo):
+        raise UnsupportedStructure(
+            "a stereocenter on the -COOH substituent branch rather than "
+            "the ring itself is not supported yet (see P-92)"
+        )
+
     halogens = halogen_substituents(mol)
     ring_order = ring_cycle(graph, list(ring_atoms))
     ring_size = len(ring_order)
 
     best_key = None
     best_name = None
+    best_position_of = None
     for start in range(ring_size):
         rotated = ring_order[start:] + ring_order[:start]
         for candidate in (rotated, list(reversed(rotated))):
@@ -630,8 +643,12 @@ def _name_ring_carboxylic_acid(mol, ring_atoms):
             substituents = _ring_substituents(graph, candidate, halogens, {carboxyl_carbon})
             key = _ring_candidate_key(ring_size, carboxyl_locant, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, key[-1]
+                best_key, best_name, best_position_of = key, key[-1], position_of
 
+    if stereo:
+        labels = sorted((best_position_of[atom], r_or_s) for atom, r_or_s in stereo)
+        prefix = ",".join(f"{locant}{r_or_s}" for locant, r_or_s in labels)
+        return f"({prefix})-{best_name}"
     return best_name
 
 
@@ -748,7 +765,7 @@ def name_carboxylic_acid(mol) -> str:
                 return _name_benzoic_acid(mol, ring_atoms)
             return _name_phenyl_chain_carboxylic_acid(mol, ring_atoms)
         if not any(mol.GetAtomWithIdx(idx).GetIsAromatic() for idx in ring_atoms):
-            return _name_ring_carboxylic_acid(mol, ring_atoms)
+            return _name_ring_carboxylic_acid(mol, ring_atoms, specified_stereocenters(mol))
         raise UnsupportedStructure(
             "a -COOH group on/in a ring uses the separate 'carboxylic acid' "
             "suffix construction (P-65.1.2.2.2), out of scope for this "
