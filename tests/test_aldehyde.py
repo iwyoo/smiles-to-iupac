@@ -103,6 +103,13 @@ def test_phenyl_chain_aldehyde_ring_methyl():
     assert smiles_to_iupac("Cc1ccc(CC=O)cc1") == "2-(4-methylphenyl)ethanal"
 
 
+def test_phenyl_chain_aldehyde_ring_ethyl():
+    # PubChem PUG REST IUPACName match: any plain, fully saturated
+    # acyclic alkyl ring substituent (not just methyl) is now supported,
+    # reusing `name_branch` itself via `plain_alkyl_ring_substituents`.
+    assert smiles_to_iupac("CCc1ccc(cc1)CC=O") == "2-(4-ethylphenyl)ethanal"
+
+
 def test_phenyl_chain_aldehyde_with_hydroxyl_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OCc1ccccc1CC=O")
