@@ -413,7 +413,7 @@ def _ring_candidate_key(ring_size, al_locant, substituents):
     return al_locant, locant_set, citation_locants, name
 
 
-def _name_ring_aldehyde(mol, ring_atoms):
+def _name_ring_aldehyde(mol, ring_atoms, stereo=None):
     """P-66.6.1.1.3: "The suffix 'carbaldehyde' is used when the -CHO
     group is attached to a carbon atom of a ring" -- e.g.
     'cyclohexanecarbaldehyde (PIN)'. Unlike the chain-parent 'al' suffix
@@ -426,7 +426,12 @@ def _name_ring_aldehyde(mol, ring_atoms):
     directly off one ring atom (no intervening chain carbon, no
     standalone hydroxyl, no ring unsaturation, and no other substituent
     sharing that same ring atom), plus any number of substituents
-    (alkyl/halogen) on *other* ring atoms."""
+    (alkyl/halogen) on *other* ring atoms.
+
+    `stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
+    `specified_stereocenters` -- every stereocenter must lie on the ring
+    itself (a stereocenter on the -CHO substituent branch is out of scope
+    for now)."""
     aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol)
     if hydroxyls:
         raise UnsupportedStructure(
@@ -463,12 +468,19 @@ def _name_ring_aldehyde(mol, ring_atoms):
             "supported yet"
         )
 
+    if stereo is not None and any(atom not in ring_atoms for atom, _ in stereo):
+        raise UnsupportedStructure(
+            "a stereocenter on the -CHO substituent branch rather than "
+            "the ring itself is not supported yet (see P-92)"
+        )
+
     halogens = halogen_substituents(mol)
     ring_order = ring_cycle(graph, list(ring_atoms))
     ring_size = len(ring_order)
 
     best_key = None
     best_name = None
+    best_position_of = None
     for start in range(ring_size):
         rotated = ring_order[start:] + ring_order[:start]
         for candidate in (rotated, list(reversed(rotated))):
@@ -477,8 +489,12 @@ def _name_ring_aldehyde(mol, ring_atoms):
             substituents = _ring_substituents(graph, candidate, halogens, {aldehyde_carbon})
             key = _ring_candidate_key(ring_size, al_locant, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, key[-1]
+                best_key, best_name, best_position_of = key, key[-1], position_of
 
+    if stereo:
+        labels = sorted((best_position_of[atom], r_or_s) for atom, r_or_s in stereo)
+        prefix = ",".join(f"{locant}{r_or_s}" for locant, r_or_s in labels)
+        return f"({prefix})-{best_name}"
     return best_name
 
 
@@ -666,7 +682,7 @@ def name_aldehyde(mol) -> str:
             (only_carbon,) = graph[only_oxygen]
             ring_neighbors = [n for n in graph[only_carbon] if n in ring_atoms]
             if len(ring_neighbors) == 1:
-                return _name_ring_aldehyde(mol, ring_atoms)
+                return _name_ring_aldehyde(mol, ring_atoms, specified_stereocenters(mol))
     aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol)
     stereo = specified_stereocenters(mol)
     graph = adjacency(mol)
