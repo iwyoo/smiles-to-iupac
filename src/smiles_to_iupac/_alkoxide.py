@@ -218,13 +218,13 @@ def _candidate_key(chain_length, o_locant, ene_locants, yne_locants, substituent
     )
 
 
-def _substituents_for_chain(graph, chain, halogens, excluded_atoms):
+def _substituents_for_chain(graph, chain, halogens, excluded_atoms, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded_atoms]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -302,7 +302,7 @@ def _name_acyclic_alkoxide(mol, oxygen_idx, excluded_atoms, bonds, stereo=None):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             o_locant = position_of[oxygen_carbon]
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, excluded_atoms)
+            substituents = _substituents_for_chain(graph, candidate, halogens, excluded_atoms, mol=mol)
             key, name = _candidate_key(chain_length, o_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of
@@ -405,13 +405,13 @@ def _phenoxide_candidate_key(o_locant, substituents):
     return o_locant, locant_set, citation_locants, name
 
 
-def _substituents_for_ring(graph, ring_order, halogens, excluded):
+def _substituents_for_ring(graph, ring_order, halogens, excluded, mol=None):
     ring_set = set(ring_order)
     substituents = {}
     for position, atom in enumerate(ring_order, start=1):
         branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -463,7 +463,7 @@ def _name_phenoxide(mol, ring_atoms, oxygen):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             o_locant = position_of[oxygen_carbon]
-            substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
+            substituents = _substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
             key = _phenoxide_candidate_key(o_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
@@ -516,7 +516,7 @@ def _name_phenyl_chain_alkoxide(mol, ring_atoms):
         position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
         o_locant = position_of[oxygen_carbon]
         substituents = {
-            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms) for root in roots]
+            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms, mol=mol) for root in roots]
             for atom, roots in branches_by_atom.items()
         }
         key, name = _candidate_key(chain_length, o_locant, [], [], substituents)

@@ -192,13 +192,13 @@ def _longest_chains(graph):
     return chains
 
 
-def _substituents_for_chain(graph, chain, names, excluded):
+def _substituents_for_chain(graph, chain, names, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, names) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, names, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -264,7 +264,7 @@ def name_aldehyde_carboxylic_acid(mol) -> str:
                 # docstring); a direction that doesn't start there is
                 # never valid.
                 continue
-            substituents = _substituents_for_chain(graph, candidate, names, excluded_acid_oxygens)
+            substituents = _substituents_for_chain(graph, candidate, names, excluded_acid_oxygens, mol=mol)
             grouped = _group(substituents)
             key, name = _candidate_key(chain_length, grouped)
             if best_key is None or key < best_key:

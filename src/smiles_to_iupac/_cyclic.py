@@ -76,14 +76,14 @@ def _ring_cycle(graph, ring_atoms):
     return order
 
 
-def _substituents_for_ring(graph, ring_order, halogens):
+def _substituents_for_ring(graph, ring_order, halogens, mol=None):
     ring_set = set(ring_order)
     substituents = {}
     for position, atom in enumerate(ring_order, start=1):
         branch_roots = [n for n in graph[atom] if n not in ring_set]
         if not branch_roots:
             continue
-        substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+        substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -221,8 +221,8 @@ def _cis_trans_prefix(mol, graph, ring_atoms, ring_set, halogens, stereo_atoms):
             "supported yet (see P-93.5.1.3)"
         )
     (sub_a,), (sub_b,) = subs_a, subs_b
-    name_a, compound_a = name_branch(graph, sub_a, atom_a, halogens)
-    name_b, compound_b = name_branch(graph, sub_b, atom_b, halogens)
+    name_a, compound_a = name_branch(graph, sub_a, atom_a, halogens, mol=mol)
+    name_b, compound_b = name_branch(graph, sub_b, atom_b, halogens, mol=mol)
     if (name_a, compound_a) != (name_b, compound_b):
         raise UnsupportedStructure(
             "an asymmetric 1,2-disubstituted pair (two different "
@@ -264,7 +264,7 @@ def name_cycloalkane(mol) -> str:
     for start in range(ring_size):
         rotated = ring_order[start:] + ring_order[:start]
         for candidate in (rotated, list(reversed(rotated))):
-            substituents = _substituents_for_ring(graph, candidate, halogens)
+            substituents = _substituents_for_ring(graph, candidate, halogens, mol=mol)
             key = _candidate_key(ring_size, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]

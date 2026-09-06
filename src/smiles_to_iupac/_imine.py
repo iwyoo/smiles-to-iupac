@@ -250,31 +250,31 @@ def _imine_locant(position_of, imine_carbon):
     return position_of.get(imine_carbon)
 
 
-def _n_substituent_prefix(graph, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root):
+def _n_substituent_prefix(graph, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root, mol=None):
     """Build the 'N-...' prefix (without the leading 'N-' itself, e.g.
     'methyl'/'hydroxy'/'ethoxy') for an N-substituted imine or an oxime,
     or None for a plain =N-H imine. Shared by the acyclic and
     benzene-ring-substituent-chain naming paths so the two stay in sync."""
     if n_substituent_root is not None:
-        name, _ = name_branch(graph, n_substituent_root, imine_nitrogen)
+        name, _ = name_branch(graph, n_substituent_root, imine_nitrogen, mol=mol)
         return name
     if oxime_oxygen_idx is not None:
         if oxime_alkyl_root is None:
             return "hydroxy"
-        alkyl_name_, is_compound = name_branch(graph, oxime_alkyl_root, oxime_oxygen_idx)
+        alkyl_name_, is_compound = name_branch(graph, oxime_alkyl_root, oxime_oxygen_idx, mol=mol)
         if is_compound:
             raise UnsupportedStructure("a branched oxime O-substituent is not supported yet")
         return _OXY_PREFIX.get(alkyl_name_, alkyl_name_ + "oxy")
     return None
 
 
-def _substituents_for_chain(graph, chain, halogens, exclude):
+def _substituents_for_chain(graph, chain, halogens, exclude, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in exclude]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -336,7 +336,7 @@ def _name_acyclic_imine(mol, imine_carbon, exclude):
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             imine_locant = _imine_locant(position_of, imine_carbon)
-            substituents = _substituents_for_chain(graph, candidate, halogens, exclude)
+            substituents = _substituents_for_chain(graph, candidate, halogens, exclude, mol=mol)
             key, name = _candidate_key(chain_length, imine_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
@@ -405,14 +405,14 @@ def _name_phenyl_chain_imine(mol, ring_atoms):
         position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
         imine_locant = _imine_locant(position_of, imine_carbon)
         substituents = {
-            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms) for root in roots]
+            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms, mol=mol) for root in roots]
             for atom, roots in branches_by_atom.items()
         }
         key, name = _candidate_key(chain_length, imine_locant, substituents)
         if best_key is None or key < best_key:
             best_key, best_name = key, name
 
-    n_name = _n_substituent_prefix(graph, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root)
+    n_name = _n_substituent_prefix(graph, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root, mol=mol)
     if n_name is not None:
         separator = "-" if best_name[0].isdigit() else ""
         best_name = f"N-{n_name}{separator}{best_name}"
@@ -448,7 +448,7 @@ def name_imine(mol) -> str:
     exclude = {imine_nitrogen}
     name = _name_acyclic_imine(mol, imine_carbon, exclude)
 
-    n_name = _n_substituent_prefix(graph, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root)
+    n_name = _n_substituent_prefix(graph, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root, mol=mol)
 
     if n_name is not None:
         separator = "-" if name[0].isdigit() else ""

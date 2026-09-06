@@ -298,13 +298,13 @@ def _bond_locants(chain, bonds):
     return ene, yne
 
 
-def _substituents_for_chain(graph, chain, halogens, excluded):
+def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -357,7 +357,7 @@ def _name_phenyl_chain_acyl_halide(mol, ring_atoms):
     halide_word = _HALIDE_WORDS[mol.GetAtomWithIdx(acyl_halogen).GetAtomicNum()]
     halogens = halogen_substituents(mol)
     substituents = {
-        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms) for root in roots]
+        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms, mol=mol) for root in roots]
         for position, roots in branches.items()
     }
     grouped = _group(substituents)
@@ -429,7 +429,7 @@ def name_acyl_halide(mol) -> str:
                 # never valid.
                 continue
             ene_locants, yne_locants = _bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, excluded)
+            substituents = _substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, halide_word, substituents)
             if best_key is None or key < best_key:
                 position_of = {atom: i + 1 for i, atom in enumerate(candidate)}

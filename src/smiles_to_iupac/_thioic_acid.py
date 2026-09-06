@@ -212,7 +212,7 @@ def _name_phenyl_chain_thioic_acid(mol, ring_atoms):
 
     chain_length = len(chain)
     substituents = {
-        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms) for root in roots]
+        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms, mol=mol) for root in roots]
         for position, roots in branches.items()
     }
     grouped = group_substituents(substituents)

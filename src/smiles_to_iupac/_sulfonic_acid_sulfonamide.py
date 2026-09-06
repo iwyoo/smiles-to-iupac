@@ -263,13 +263,13 @@ def _longest_chains(graph):
     return chains
 
 
-def _substituents_for_chain(graph, chain, names, excluded):
+def _substituents_for_chain(graph, chain, names, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, names) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, names, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -319,7 +319,7 @@ def name_sulfonic_acid_sulfonamide(mol) -> str:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             so3h_locant = position_of[so3h_carbon]
-            substituents = _substituents_for_chain(graph, candidate, names, excluded)
+            substituents = _substituents_for_chain(graph, candidate, names, excluded, mol=mol)
             key, name = _candidate_key(chain_length, so3h_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name

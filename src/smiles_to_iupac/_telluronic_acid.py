@@ -314,23 +314,23 @@ def _bond_locants(chain, bonds):
     return ene, yne
 
 
-def _substituents_for_chain(graph, chain, halogens, excluded):
+def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
-def _substituents_for_ring(graph, ring_order, halogens, excluded):
+def _substituents_for_ring(graph, ring_order, halogens, excluded, mol=None):
     ring_set = set(ring_order)
     substituents = {}
     for position, atom in enumerate(ring_order, start=1):
         branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -384,7 +384,7 @@ def _name_benzenetelluronic_acid(mol, ring_atoms):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             teo3h_locant = position_of[teo3h_carbon]
-            substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
+            substituents = _substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
             key = _benzenetelluronic_acid_candidate_key(teo3h_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
@@ -448,7 +448,7 @@ def name_telluronic_acid(mol) -> str:
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             teo3h_locant = position_of[teo3h_carbon]
             ene_locants, yne_locants = _bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, excluded)
+            substituents = _substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
             key, name = _candidate_key(chain_length, teo3h_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of

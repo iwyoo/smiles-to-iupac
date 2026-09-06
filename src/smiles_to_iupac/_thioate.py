@@ -210,13 +210,13 @@ def _candidate_key(chain_length, ene_locants, yne_locants, substituents):
     )
 
 
-def _substituents_for_chain(graph, chain, halogens, excluded_atoms):
+def _substituents_for_chain(graph, chain, halogens, excluded_atoms, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded_atoms]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -266,7 +266,7 @@ def _name_acyclic_thioate(mol, thioate_carbon_idx, excluded_atoms, bonds, stereo
                 continue
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, excluded_atoms)
+            substituents = _substituents_for_chain(graph, candidate, halogens, excluded_atoms, mol=mol)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of
@@ -388,7 +388,7 @@ def _name_phenyl_chain_thioate(mol, ring_atoms):
 
     chain_length = len(chain)
     substituents = {
-        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms) for root in roots]
+        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms, mol=mol) for root in roots]
         for position, roots in branches.items()
     }
     grouped = group_substituents(substituents)

@@ -396,17 +396,17 @@ def _amine_locants(position_of, amines, graph):
     return locants
 
 
-def _substituents_for_chain(graph, chain, halogens, amines):
+def _substituents_for_chain(graph, chain, halogens, amines, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in amines]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
-def _best_chain_name(carbon_graph, graph, halogens, amines, bonds, stereo=None, n_names=()):
+def _best_chain_name(carbon_graph, graph, halogens, amines, bonds, stereo=None, n_names=(), mol=None):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
     include every stereocenter are eligible (P-92: a stereocenter on a
@@ -449,7 +449,7 @@ def _best_chain_name(carbon_graph, graph, halogens, amines, bonds, stereo=None, 
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             amine_locants = _amine_locants(position_of, amines, graph)
             ene_locants, yne_locants = _bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, amines)
+            substituents = _substituents_for_chain(graph, candidate, halogens, amines, mol=mol)
             key, name = _candidate_key(chain_length, amine_locants, ene_locants, yne_locants, substituents, n_names)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of
@@ -508,7 +508,7 @@ def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=
     parent_carbon_graph = {k: v for k, v in full_carbon_graph.items() if k not in excluded_atoms}
 
     best_name, best_position_of = _best_chain_name(
-        parent_carbon_graph, graph, halogens, {n_idx}, bonds, stereo, n_names=n_names
+        parent_carbon_graph, graph, halogens, {n_idx}, bonds, stereo, n_names=n_names, mol=mol
     )
 
     if stereo is not None:
@@ -527,7 +527,7 @@ def _name_acyclic_amine(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None):
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    best_name, best_position_of = _best_chain_name(carbon_adjacency(mol), graph, halogens, amines, bonds, stereo)
+    best_name, best_position_of = _best_chain_name(carbon_adjacency(mol), graph, halogens, amines, bonds, stereo, mol=mol)
     if stereo is not None:
         labels = sorted((best_position_of[atom], code) for atom, code in stereo)
         prefix = ",".join(f"{locant}{code}" for locant, code in labels)
@@ -547,13 +547,13 @@ def _ring_cycle(graph, ring_atoms):
     return order
 
 
-def _substituents_for_ring(graph, ring_order, halogens, amines):
+def _substituents_for_ring(graph, ring_order, halogens, amines, mol=None):
     ring_set = set(ring_order)
     substituents = {}
     for position, atom in enumerate(ring_order, start=1):
         branch_roots = [n for n in graph[atom] if n not in ring_set and n not in amines]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -615,7 +615,7 @@ def _ring_bond_locants(position_of, bonds, ring_size):
     return sorted(ene), sorted(yne)
 
 
-def _ring_branch_stereo_display(graph, ring_order, amines, stereo, halogens):
+def _ring_branch_stereo_display(graph, ring_order, amines, stereo, halogens, mol=None):
     """Mirrors `_alcohol.py`/`_ketone.py`/`_thiol.py`/`_sulfonic_acid.py`'s
     identical helper (itself mirroring `_aromatic.py`'s `_stereo_display`):
     if the ring carries exactly one specified stereocenter and that
@@ -638,8 +638,8 @@ def _ring_branch_stereo_display(graph, ring_order, amines, stereo, halogens):
     if len(branch_attachments) != 1:
         return None
     ring_atom, branch_root = branch_attachments[0]
-    branch_name, branch_compound = name_branch(graph, branch_root, ring_atom, halogens)
-    site_locant = branch_atom_locant(graph, branch_root, ring_atom, stereo_atom, halogens)
+    branch_name, branch_compound = name_branch(graph, branch_root, ring_atom, halogens, mol=mol)
+    site_locant = branch_atom_locant(graph, branch_root, ring_atom, stereo_atom, halogens, mol=mol)
     descriptor = f"({site_locant}{r_or_s})-{branch_name}"
     display = f"[{descriptor}]" if branch_compound else f"({descriptor})"
     return ring_atom, display
@@ -665,13 +665,13 @@ def _name_cyclic_amine(mol, amines, stereo=None, bonds=()):
     ring_size = len(ring_order)
     branch_stereo = None
     if stereo is not None and any(atom not in ring_order for atom, _ in stereo):
-        branch_stereo = _ring_branch_stereo_display(graph, ring_order, amines, stereo, halogens)
+        branch_stereo = _ring_branch_stereo_display(graph, ring_order, amines, stereo, halogens, mol=mol)
         if branch_stereo is None:
             raise UnsupportedStructure(
                 "a stereocenter on a substituent branch rather than the ring "
                 "itself is not supported yet (see P-92)"
             )
-    if bonds and any(_substituents_for_ring(graph, ring_order, halogens, amines).values()):
+    if bonds and any(_substituents_for_ring(graph, ring_order, halogens, amines, mol=mol).values()):
         raise UnsupportedStructure(
             "a substituent alongside both a ring double/triple bond and a "
             "primary amine is not supported yet (see module docstring)"
@@ -690,7 +690,7 @@ def _name_cyclic_amine(mol, amines, stereo=None, bonds=()):
                     "a primary amine not on the ring itself (e.g. on a "
                     "substituent branch) is not supported yet"
                 )
-            substituents = _substituents_for_ring(graph, candidate, halogens, amines)
+            substituents = _substituents_for_ring(graph, candidate, halogens, amines, mol=mol)
             if branch_stereo is not None:
                 branch_ring_atom, display = branch_stereo
                 substituents[position_of[branch_ring_atom]] = [(display, False)]
@@ -765,7 +765,7 @@ def _name_aniline(mol, ring_atoms):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             amine_locant = position_of[amine_carbon]
-            substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
+            substituents = _substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
             key = _aniline_candidate_key(amine_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
@@ -816,7 +816,7 @@ def _name_ring_substituent_chain_amine(mol, amines, n_carbons_by_nitrogen):
         position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
         amine_locants = _amine_locants(position_of, amines, graph)
         substituents = {
-            position_of[atom]: [name_branch(graph, root, atom, halogens) for root in roots]
+            position_of[atom]: [name_branch(graph, root, atom, halogens, mol=mol) for root in roots]
             for atom, roots in branches_by_atom.items()
         }
         substituents.setdefault(position_of[chain_root], []).append((ring_name, False))
@@ -865,7 +865,7 @@ def _name_ring_with_amine_chain_amine(mol, amines, n_carbons_by_nitrogen):
         # ring's own name_branch-computed name for the plain "cyclo..."
         # one that function uses.
         ring_name, ring_is_compound = name_branch(
-            graph, ring_atom, chain_root, {**halogens, **{n: "amino" for n in ring_amines}}
+            graph, ring_atom, chain_root, {**halogens, **{n: "amino" for n in ring_amines}}, mol=mol
         )
         chain_length = len(chain)
         best_key = None
@@ -880,7 +880,7 @@ def _name_ring_with_amine_chain_amine(mol, amines, n_carbons_by_nitrogen):
         return best_name
 
     chain_name, chain_is_compound = name_branch(
-        graph, chain_root, ring_atom, {**halogens, **{n: "amino" for n in chain_amines}}
+        graph, chain_root, ring_atom, {**halogens, **{n: "amino" for n in chain_amines}}, mol=mol
     )
 
     ring_order = _ring_cycle(graph, list(ring_atoms))
@@ -956,7 +956,7 @@ def _name_phenyl_chain_amine(mol, ring_atoms):
         position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
         amine_locants = _amine_locants(position_of, amines, graph)
         substituents = {
-            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms) for root in roots]
+            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms, mol=mol) for root in roots]
             for atom, roots in branches_by_atom.items()
         }
         key, name = _candidate_key(chain_length, amine_locants, [], [], substituents)

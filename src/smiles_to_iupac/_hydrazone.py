@@ -186,13 +186,13 @@ def _validate_and_find_hydrazone(mol):
     return carbon.GetIdx(), imine_n.GetIdx()
 
 
-def _substituents_for_chain(graph, chain, halogens, exclude):
+def _substituents_for_chain(graph, chain, halogens, exclude, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in exclude]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -236,7 +236,7 @@ def _name_hydrazone_carbon(mol, carbon_idx, imine_n_idx):
         # prefix and never cited -- the exact numbering/branch-naming
         # `name_branch` already applies for an ordinary '-yl' substituent
         # rooted at its own attachment point (see module docstring).
-        branch_name, _ = name_branch(graph, carbon_idx, imine_n_idx, halogens)
+        branch_name, _ = name_branch(graph, carbon_idx, imine_n_idx, halogens, mol=mol)
         return branch_name + "idene"
 
     chain_length = len(chains[0])
@@ -246,7 +246,7 @@ def _name_hydrazone_carbon(mol, carbon_idx, imine_n_idx):
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             locant = position_of[carbon_idx]
-            substituents = _substituents_for_chain(graph, candidate, halogens, {imine_n_idx})
+            substituents = _substituents_for_chain(graph, candidate, halogens, {imine_n_idx}, mol=mol)
             key, name = _ylidene_name(chain_length, locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name

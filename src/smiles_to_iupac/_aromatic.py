@@ -418,7 +418,7 @@ def _benzene_candidates(graph, ring_atoms):
     return candidates
 
 
-def _ring_substituents(graph, locants, ring_atoms, halogens):
+def _ring_substituents(graph, locants, ring_atoms, halogens, mol=None):
     """Like `_cyclic._substituents_for_ring`, but `locants` (nonfusion atom
     -> integer position) covers only part of the ring skeleton -- a fusion
     carbon has no free valence and so is never itself a locant -- while
@@ -428,12 +428,12 @@ def _ring_substituents(graph, locants, ring_atoms, halogens):
     for atom, position in locants.items():
         branch_roots = [n for n in graph[atom] if n not in ring_atoms]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
-def _candidate_key(parent, locants, ring_atoms, graph, halogens, omit_single_locant, stereo_display=None):
-    substituents = _ring_substituents(graph, locants, ring_atoms, halogens)
+def _candidate_key(parent, locants, ring_atoms, graph, halogens, omit_single_locant, stereo_display=None, mol=None):
+    substituents = _ring_substituents(graph, locants, ring_atoms, halogens, mol=mol)
     grouped = _group(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -523,8 +523,8 @@ def _stereo_display(mol, graph, n, ring_atoms, halogens):
             "(see P-91.3)"
         )
     ring_atom, branch_root = branch_attachments[0]
-    branch_name, branch_compound = name_branch(graph, branch_root, ring_atom, halogens)
-    site_locant = branch_atom_locant(graph, branch_root, ring_atom, stereo_atom, halogens)
+    branch_name, branch_compound = name_branch(graph, branch_root, ring_atom, halogens, mol=mol)
+    site_locant = branch_atom_locant(graph, branch_root, ring_atom, stereo_atom, halogens, mol=mol)
     descriptor = f"({site_locant}{r_or_s})-{branch_name}"
     return f"[{descriptor}]" if branch_compound else f"({descriptor})"
 
@@ -582,7 +582,7 @@ def name_aromatic_fused(mol, core) -> str:
     best_key = None
     best_name = None
     for locants in candidates:
-        key = _candidate_key(parent, locants, ring_atoms, graph, halogens, omit_single_locant, stereo_display)
+        key = _candidate_key(parent, locants, ring_atoms, graph, halogens, omit_single_locant, stereo_display, mol=mol)
         if best_key is None or key < best_key:
             best_key, best_name = key, key[-1]
     return best_name

@@ -173,13 +173,13 @@ def _candidate_key(chain_length, n_locant, ene_locants, yne_locants, substituent
     )
 
 
-def _substituents_for_chain(graph, chain, halogens, excluded_atoms):
+def _substituents_for_chain(graph, chain, halogens, excluded_atoms, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded_atoms]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -220,7 +220,7 @@ def _name_acyclic_aminide(mol, nitrogen_idx, excluded_atoms, bonds):
         for candidate in (chain, list(reversed(chain))):
             n_locant = candidate.index(nitrogen_carbon) + 1
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, excluded_atoms)
+            substituents = _substituents_for_chain(graph, candidate, halogens, excluded_atoms, mol=mol)
             key, name = _candidate_key(chain_length, n_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
@@ -341,7 +341,7 @@ def _name_phenyl_chain_aminide(mol, ring_atoms):
         position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
         n_locant = position_of[nitrogen_carbon]
         substituents = {
-            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms) for root in roots]
+            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms, mol=mol) for root in roots]
             for atom, roots in branches_by_atom.items()
         }
         key, name = _candidate_key(chain_length, n_locant, [], [], substituents)

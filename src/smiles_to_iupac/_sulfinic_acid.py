@@ -340,23 +340,23 @@ def _bond_locants(chain, bonds):
     return ene, yne
 
 
-def _substituents_for_chain(graph, chain, halogens, excluded):
+def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
-def _substituents_for_ring(graph, ring_order, halogens, excluded):
+def _substituents_for_ring(graph, ring_order, halogens, excluded, mol=None):
     ring_set = set(ring_order)
     substituents = {}
     for position, atom in enumerate(ring_order, start=1):
         branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -422,7 +422,7 @@ def _name_cyclic_sulfinic_acid(mol, sulfur_idx, so2h_carbon, bonds=()):
     ring_atoms = list(ring_info.AtomRings()[0])
     ring_order = ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
-    if bonds and any(_substituents_for_ring(graph, ring_order, halogens, excluded).values()):
+    if bonds and any(_substituents_for_ring(graph, ring_order, halogens, excluded, mol=mol).values()):
         raise UnsupportedStructure(
             "a substituent alongside both a ring double/triple bond and a "
             "sulfinic acid is not supported yet (see module docstring)"
@@ -435,7 +435,7 @@ def _name_cyclic_sulfinic_acid(mol, sulfur_idx, so2h_carbon, bonds=()):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             so2h_locant = position_of[so2h_carbon]
-            substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
+            substituents = _substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
             ene_locants, yne_locants = _ring_bond_locants(position_of, bonds, ring_size)
             key = _ring_candidate_key(ring_size, so2h_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
@@ -499,7 +499,7 @@ def _name_benzenesulfinic_acid(mol, ring_atoms):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             so2h_locant = position_of[so2h_carbon]
-            substituents = _substituents_for_ring(graph, candidate, halogens, excluded)
+            substituents = _substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
             key = _benzenesulfinic_acid_candidate_key(so2h_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
@@ -558,7 +558,7 @@ def _name_phenyl_chain_sulfinic_acid(mol, ring_atoms):
         position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
         so2h_locant = position_of[so2h_carbon]
         substituents = {
-            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms) for root in roots]
+            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms, mol=mol) for root in roots]
             for atom, roots in branches_by_atom.items()
         }
         key, name = _candidate_key(chain_length, so2h_locant, [], [], substituents)
@@ -604,7 +604,7 @@ def _name_ring_substituent_chain_sulfinic_acid(mol, sulfur_idx, so2h_carbon):
         position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
         so2h_locant = position_of[so2h_carbon]
         substituents = {
-            position_of[atom]: [name_branch(graph, root, atom, halogens) for root in roots]
+            position_of[atom]: [name_branch(graph, root, atom, halogens, mol=mol) for root in roots]
             for atom, roots in branches_by_atom.items()
         }
         substituents.setdefault(position_of[chain_root], []).append((ring_name, False))
@@ -704,7 +704,7 @@ def name_sulfinic_acid(mol) -> str:
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             so2h_locant = position_of[so2h_carbon]
             ene_locants, yne_locants = _bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, excluded)
+            substituents = _substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
             key, name = _candidate_key(chain_length, so2h_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name

@@ -128,4 +128,4 @@ def name_diazo(mol) -> str:
     terminals = dict(halogen_substituents(mol))
     terminals[n1.GetIdx()] = "diazo"
 
-    return name_from_carbon_graph(adjacency(mol), carbon_adjacency(mol), terminals)
+    return name_from_carbon_graph(adjacency(mol), carbon_adjacency(mol), terminals, mol=mol)
