@@ -694,6 +694,55 @@ def _name_phenyl_chain_ketone(mol, ring_atoms):
     return best_name
 
 
+def _name_ring_substituent_chain_ketone(mol, ketones):
+    """Name a ketone whose C=O lies entirely on a single branched chain
+    hanging off one atom of an otherwise-plain saturated monocyclic ring
+    (the ring itself bears no ketone) -- e.g. 1-cyclohexylethanone. The
+    ring is cited as a "cyclo..." substituent prefix (P-29.3.3) on the
+    chain, which is the parent hydride, mirroring `_name_phenyl_chain_
+    ketone` above and `_alcohol.py`'s `_name_ring_substituent_chain_
+    alcohol`. Narrower than the benzene-ring case: exactly one ketone, no
+    coexisting standalone hydroxyl -- each a separate follow-up."""
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
+
+    attachment = ring_chain_attachment(graph, ring_atoms, ketones)
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a ring with more than one exocyclic branch is not supported "
+            "yet"
+        )
+    ring_atom, chain_root = attachment
+    (ketone_oxygen,) = ketones
+    (ketone_carbon,) = graph[ketone_oxygen]
+
+    chain, branches = longest_branched_chain_through(graph, ketone_carbon, ring_atoms, ketones)
+    branches_by_atom = {
+        chain[position - 1]: [r for r in roots if r != ring_atom]
+        for position, roots in branches.items()
+    }
+    branches_by_atom = {atom: roots for atom, roots in branches_by_atom.items() if roots}
+
+    ring_name = "cyclo" + alkyl_name(len(ring_atoms))
+    chain_length = len(chain)
+
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        one_locants = _one_locants(position_of, ketones, graph)
+        substituents = {
+            position_of[atom]: [name_branch(graph, root, atom, halogens) for root in roots]
+            for atom, roots in branches_by_atom.items()
+        }
+        substituents.setdefault(position_of[chain_root], []).append((ring_name, False))
+        key, name = _candidate_key(chain_length, one_locants, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def _ring_cycle(graph, ring_atoms):
     ring_set = set(ring_atoms)
     order = [ring_atoms[0]]
@@ -1723,6 +1772,14 @@ def name_ketone(mol) -> str:
                 "supported yet -- only a ring double bond is in scope for "
                 "this first pass (see P-31.1.3)"
             )
+        ring_ketones = {o for o in ketones if next(iter(graph[o])) in ring_atoms}
+        if not bonds and not hydroxyls and not ring_ketones and len(ketones) == 1:
+            if stereo is not None:
+                raise UnsupportedStructure(
+                    "a stereocenter on a substituent branch rather than "
+                    "the ring itself is not supported yet (see P-92)"
+                )
+            return _name_ring_substituent_chain_ketone(mol, ketones)
         return _name_cyclic_ketone(mol, ketones, hydroxyls, stereo, bonds)
     raise UnsupportedStructure(
         "polycyclic and spiro ketones are not supported yet (P-23/P-24/P-25 "
