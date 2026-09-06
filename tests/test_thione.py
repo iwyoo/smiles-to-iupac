@@ -65,6 +65,31 @@ def test_ring_substituent_chain_thione_unsaturated_ring_raises():
         smiles_to_iupac("CC(=S)C1CCCC=C1")
 
 
+def test_ring_with_thione_chain_thione_tie():
+    # Ring and chain each carry exactly one thione (P-44.1.1 tie,
+    # P-44.1.2.2 resolves it in the ring's favor) -- the ring becomes the
+    # parent and the chain's thione is cited as a "sulfanylideneethyl"
+    # substituent prefix, mirroring `_ketone.py`'s `_name_ring_with_
+    # ketone_chain_ketone`. No PubChem-registered structure for this
+    # exact molecule (sparse thione ring coverage), but the "oxo"-analog
+    # mechanism and "sulfanylidene" substituent-prefix naming are each
+    # independently PubChem-confirmed ("2-(2-oxopropyl)cyclohexan-1-one"
+    # CID 538581; "4-sulfanylidenepentan-2-one" CID 13087952).
+    assert (
+        smiles_to_iupac("S=C1CCCCC1CC(=S)C")
+        == "2-(2-sulfanylidenepropyl)cyclohexane-1-thione"
+    )
+
+
+def test_ring_with_thione_chain_thione_ring_wins_outright():
+    # The ring carries two thiones against the chain's one -- P-44.1.1's
+    # greater-count rule picks the ring outright, no tie-break needed.
+    assert (
+        smiles_to_iupac("S=C1CC(=S)CCC1C(=S)C")
+        == "4-(1-sulfanylideneethyl)cyclohexane-1,3-dithione"
+    )
+
+
 def test_thial_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CCC=S")

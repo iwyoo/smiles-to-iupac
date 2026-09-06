@@ -58,6 +58,18 @@ def test_ring_substituent_chain_selone_unsaturated_ring_raises():
         smiles_to_iupac("CC(=[Se])C1CCCC=C1")
 
 
+def test_ring_with_selone_chain_selone_tie():
+    # Ring and chain each carry exactly one selone (P-44.1.1 tie), mirrors
+    # `_thione.py`'s `test_ring_with_thione_chain_thione_tie`. PubChem
+    # PUG REST-confirmed "selanylidene" substituent-prefix naming
+    # ("4-selanylidenepentan-2-one" CID 175299406) applied here as a
+    # structural/regression check (no exact-structure PubChem record).
+    assert (
+        smiles_to_iupac("[Se]=C1CCCCC1C(=[Se])C")
+        == "2-(1-selanylideneethyl)cyclohexane-1-selone"
+    )
+
+
 def test_selenoaldehyde_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CCC=[Se]")

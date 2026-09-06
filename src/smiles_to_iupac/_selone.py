@@ -79,6 +79,7 @@ from ._common import (
     lowest_locant_set,
     multiplied_word,
     non_single_bonds,
+    ordered_chain,
     ring_chain_attachment,
     ring_cycle,
     specified_stereocenters,
@@ -602,6 +603,70 @@ def _name_ring_substituent_chain_selone(mol, selones):
     return best_name
 
 
+def _name_ring_with_selone_chain_selone(mol, selones):
+    """Name a selone compound where the ring itself bears at least
+    as many selones as a single unbranched chain hanging off
+    exactly one ring atom does (P-44.1.1/P-44.1.2.2). The ring is the
+    parent; the chain is cited as a '(selanylidene...alkyl)' substituent
+    prefix, mirroring `_ketone.py`'s `_name_ring_with_ketone_chain_
+    ketone`."""
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
+
+    attachment = ring_chain_attachment(graph, ring_atoms, selones)
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a ring with more than one exocyclic branch is not supported "
+            "yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, selones)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched substituent chain hanging off the ring is not "
+            "supported yet"
+        )
+
+    chain_set = set(chain)
+    chain_selones = {o for o in selones if next(iter(graph[o])) in chain_set}
+    ring_selones = selones - chain_selones
+    if len(ring_selones) < len(chain_selones):
+        ring_name, ring_is_compound = name_branch(
+            graph, ring_atom, chain_root, {**halogens, **{o: "selanylidene" for o in ring_selones}}
+        )
+        chain_length = len(chain)
+        best_key = None
+        best_name = None
+        for candidate in (chain, list(reversed(chain))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            selone_locants = _selone_locants(position_of, chain_selones, graph)
+            substituents = {position_of[chain_root]: [(ring_name, ring_is_compound)]}
+            key, name = _candidate_key(chain_length, selone_locants, [], [], substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, name
+        return best_name
+
+    chain_name, chain_is_compound = name_branch(
+        graph, chain_root, ring_atom, {**halogens, **{o: "selanylidene" for o in chain_selones}}
+    )
+
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            selone_locants = _selone_locants(position_of, ring_selones, graph)
+            substituents = {position_of[ring_atom]: [(chain_name, chain_is_compound)]}
+            key = _ring_candidate_key(ring_size, selone_locants, [], [], substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def name_selone(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
@@ -645,6 +710,13 @@ def name_selone(mol) -> str:
                     "the ring itself is not supported yet (see P-92)"
                 )
             return _name_ring_substituent_chain_selone(mol, selones)
+        if not bonds and ring_selones and ring_selones != selones:
+            if stereo is not None:
+                raise UnsupportedStructure(
+                    "a stereocenter alongside a ring-vs-chain selone "
+                    "comparison is not supported yet (see P-92)"
+                )
+            return _name_ring_with_selone_chain_selone(mol, selones)
         return _name_cyclic_selone(mol, selones, stereo, bonds)
     raise UnsupportedStructure(
         "polycyclic and spiro selones are not supported yet"
