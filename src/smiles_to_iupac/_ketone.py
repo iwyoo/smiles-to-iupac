@@ -1095,11 +1095,12 @@ def _validate_and_collect_hetero_ring_ketone(
             and hetero_atom_obj.GetTotalNumHs() == 0
         ):
             (root,) = [n for n in graph[heteroatom] if n not in ring_set]
-            substituents[heteroatom] = (
-                _linear_alkyl_substituent(mol, full_carbon_graph, graph, root, heteroatom),
-                False,
-            )
-            continue
+            if mol.GetAtomWithIdx(root).GetAtomicNum() == 6:
+                substituents[heteroatom] = (
+                    _linear_alkyl_substituent(mol, full_carbon_graph, graph, root, heteroatom),
+                    False,
+                )
+                continue
         raise UnsupportedStructure(
             "a ring heteroatom bearing a substituent is out of scope for "
             "this module's hetero-ring ketone path (see "

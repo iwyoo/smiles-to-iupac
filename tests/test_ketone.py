@@ -203,6 +203,17 @@ def test_hetero_ring_ketone_ring_substituent_raises():
         smiles_to_iupac("O=C1CC(C)NCC1")
 
 
+def test_hetero_ring_ketone_non_alkyl_n_substituent_raises():
+    # A molecule with no ketone at all (a sulfonamide/amine/ether-bearing
+    # pyrrolidine) was crashing with a KeyError: the ring N-substituent
+    # branch assumed its exocyclic neighbor was carbon (for the
+    # carbon-only adjacency graph `_linear_alkyl_substituent` walks)
+    # without checking, so a non-carbon substituent (here, the sulfonyl
+    # sulfur) blew up instead of raising a clean UnsupportedStructure.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CCNCCCN(C)S(=O)(=O)N1CCC(OC)C1")
+
+
 def test_hetero_ring_ketone_two_heteroatoms_wrong_ring_size():
     # A ring-fused urea (hydantoin, two N heteroatoms in a 5-membered
     # ring) doesn't fit the 6-membered 1,4-two-heteroatom shape, but is
