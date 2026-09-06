@@ -158,6 +158,13 @@ def test_phenyl_chain_thiol_ring_methyl():
     assert smiles_to_iupac("Cc1ccc(CCCS)cc1") == "3-(4-methylphenyl)propane-1-thiol"
 
 
+def test_phenyl_chain_thiol_ring_ethyl():
+    # PubChem PUG REST IUPACName match: any plain, fully saturated
+    # acyclic alkyl ring substituent (not just methyl) is now supported,
+    # reusing `name_branch` itself via `plain_alkyl_ring_substituents`.
+    assert smiles_to_iupac("CCc1ccc(cc1)CS") == "(4-ethylphenyl)methanethiol"
+
+
 def test_phenyl_chain_thiol_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CCS")
