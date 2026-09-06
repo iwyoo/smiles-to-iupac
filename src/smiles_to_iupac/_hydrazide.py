@@ -97,6 +97,16 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   coexisting standalone hydroxyl, no chain unsaturation, and no specified
   stereocenter, and a hydrazide directly on the ring (benzohydrazide-
   style) stays out of scope for this chain-parent module.
+- A second, separate aromatic-ring case: `_name_hydrazide_with_n_phenyl`
+  names a plain, unsubstituted benzene ring hanging directly off the N
+  or N' nitrogen itself (an anilide-type hydrazide), e.g.
+  'N'-phenylacetohydrazide' (PubChem PUG REST IUPACName match for
+  `CC(=O)NNc1ccccc1`), mirroring the identical 'phenyl N-substituent'
+  pattern already wired into `_urea.py`/`_thiourea.py`/`_guanidine.py`/
+  `_selenourea.py`/`_tellurourea.py`/`_carbamate.py`/`_amide.py`/
+  `_sulfonamide.py`/`_sulfinamide.py`. Only a lone phenyl (no second
+  substituent sharing that nitrogen, no substituted phenyl) is
+  supported; each is a separate follow-up.
 """
 
 from rdkit import Chem
@@ -630,7 +640,18 @@ def _format_n_prefix(entries):
     return "-".join(parts)
 
 
-def _name_acyclic_hydrazide(mol, hydrazide_carbon, excluded, hydroxyls, bonds, n1_alkyl, n2_alkyl, stereo=None):
+def _name_acyclic_hydrazide(
+    mol,
+    hydrazide_carbon,
+    excluded,
+    hydroxyls,
+    bonds,
+    n1_alkyl,
+    n2_alkyl,
+    stereo=None,
+    extra_n_entries=(),
+    extra_excluded_carbons=frozenset(),
+):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
     include every stereocenter are eligible (P-92: a stereocenter on a
@@ -641,11 +662,18 @@ def _name_acyclic_hydrazide(mol, hydrazide_carbon, excluded, hydroxyls, bonds, n
     stereodescriptor always sits at the very front of the complete name
     (P-91.3). A 1- or 2-carbon chain (the retained-name special cases)
     structurally can't have a genuine stereocenter, so `stereo` is only
-    ever non-None here for chain_length >= 3."""
+    ever non-None here for chain_length >= 3.
+
+    `extra_n_entries`/`extra_excluded_carbons`: an already-resolved
+    ("N"/"N'", name) pair (e.g. a phenyl N-substituent, see
+    `_name_hydrazide_with_n_phenyl`) and the atom indices it spans, merged
+    in alongside the ordinary alkyl entries below -- both empty by
+    default, so every other caller's behavior is unchanged."""
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}}
     full_carbon_graph = carbon_adjacency(mol)
     n_entries, n_alkyl_atoms = _collect_n_alkyl(full_carbon_graph, mol, hydroxyls, graph, n1_alkyl, n2_alkyl)
+    n_entries = n_entries + list(extra_n_entries)
     n_prefix = _format_n_prefix(n_entries)
 
     # N-alkyl substituent carbons hang off the (excluded) hydrazide
@@ -654,6 +682,7 @@ def _name_acyclic_hydrazide(mol, hydrazide_carbon, excluded, hydroxyls, bonds, n
     # must be removed before picking the longest chain, or a longer
     # N-substituent would be mistaken for the acyl chain itself (same
     # issue `_amide.py` guards against).
+    n_alkyl_atoms = n_alkyl_atoms | set(extra_excluded_carbons)
     carbon_graph = {k: v for k, v in full_carbon_graph.items() if k not in n_alkyl_atoms}
     chains = longest_chains(carbon_graph)
     chain_length = len(chains[0])
@@ -837,6 +866,69 @@ def _name_phenyl_chain_hydrazide(mol, ring_atoms):
     return _name_from_substituents(chain_length, [], [], grouped)
 
 
+def _name_hydrazide_with_n_phenyl(mol, ring_atoms):
+    """Name a hydrazide whose N or N' nitrogen carries a plain,
+    unsubstituted benzene ring as a direct substituent -- e.g.
+    'N'-phenylacetohydrazide' (PubChem PUG REST IUPACName match for
+    `CC(=O)NNc1ccccc1`). Mirrors `_amide.py`'s
+    `_name_amide_with_n_phenyl`: the ring is just another N-substituent
+    name (via `name_branch`'s aromatic-ring recognition), merged into
+    `_name_acyclic_hydrazide`'s existing N-/N'-prefix assembly via
+    `extra_n_entries`. A second substituent sharing the same nitrogen
+    (phenyl+alkyl) is out of scope, same restriction as those other
+    modules; each is a separate follow-up."""
+    hydrazide_carbon, hydrazide_oxygen, n1, n2, n1_alkyl, n2_alkyl, hydroxyls = _validate_and_collect_hydrazide(
+        mol, aromatic_ring_atoms=ring_atoms
+    )
+    if hydroxyls:
+        raise UnsupportedStructure(
+            "a standalone hydroxyl alongside an N-phenylhydrazide is not "
+            "supported yet"
+        )
+    stereo = specified_stereocenters(mol)
+    if len(n1_alkyl) == 1 and set(n1_alkyl) & ring_atoms:
+        if n2_alkyl:
+            raise UnsupportedStructure(
+                "a phenyl N-substituent alongside another substituent on "
+                "the same nitrogen is not supported yet"
+            )
+        extra_n_entries = (("N", "phenyl"),)
+        n1_alkyl, n2_alkyl = (), n2_alkyl
+    else:
+        if len(n2_alkyl) != 1 or not (set(n2_alkyl) & ring_atoms):
+            raise UnsupportedStructure(
+                "a phenyl N-substituent alongside another substituent on "
+                "the same nitrogen is not supported yet"
+            )
+        extra_n_entries = (("N'", "phenyl"),)
+        n1_alkyl, n2_alkyl = n1_alkyl, ()
+
+    excluded = {hydrazide_oxygen, n1, n2}
+    all_non_single = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in excluded and b[1] not in excluded and (b[0] not in ring_atoms or b[1] not in ring_atoms)
+    ]
+    bonds = [b for b in all_non_single if b[2] in (ENE_BOND_ORDER, YNE_BOND_ORDER)]
+    if len(bonds) != len(all_non_single):
+        raise UnsupportedStructure(
+            "a bond order other than single, double, or triple is not "
+            "supported (see P-31.1.1.1)"
+        )
+    return _name_acyclic_hydrazide(
+        mol,
+        hydrazide_carbon,
+        excluded,
+        hydroxyls,
+        bonds,
+        n1_alkyl,
+        n2_alkyl,
+        stereo,
+        extra_n_entries=extra_n_entries,
+        extra_excluded_carbons=ring_atoms,
+    )
+
+
 def name_hydrazide(mol) -> str:
     if has_diacyl_hydrazide_shape(mol):
         return name_diacyl_hydrazide(mol)
@@ -844,6 +936,10 @@ def name_hydrazide(mol) -> str:
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            graph = adjacency(mol)
+            attachment = ring_chain_attachment(graph, ring_atoms, set())
+            if attachment is not None and mol.GetAtomWithIdx(attachment[1]).GetAtomicNum() == 7:
+                return _name_hydrazide_with_n_phenyl(mol, ring_atoms)
             return _name_phenyl_chain_hydrazide(mol, ring_atoms)
     hydrazide_carbon, hydrazide_oxygen, n1, n2, n1_alkyl, n2_alkyl, hydroxyls = _validate_and_collect_hydrazide(mol)
     stereo = specified_stereocenters(mol)
