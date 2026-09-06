@@ -20,7 +20,7 @@ def test_smiles_to_iupac_ether_amide(smiles, expected):
 
 
 def test_branched_alkoxy_r_prime():
-    assert smiles_to_iupac("CC(C)OCC(N)=O") == "2-(propan-2-yl)oxyethanamide"
+    assert smiles_to_iupac("CC(C)OCC(N)=O") == "2-(propan-2-yloxy)ethanamide"
 
 
 def test_halogen_on_main_chain_still_works():

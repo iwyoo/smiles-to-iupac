@@ -216,9 +216,9 @@ def name_ether_ester(mol) -> str:
         )
 
     sub_name, sub_compound = name_branch(full_graph, r_prime_carbon, ether_oxygen_idx, {}, mol=mol)
-    if sub_compound:
-        sub_name = f"({sub_name})"
     oxy_term = _oxy_prefix(sub_name)
+    if sub_compound:
+        oxy_term = f"({oxy_term})"
     extra_names = {ether_oxygen_idx: oxy_term}
 
     alcohol_name = _name_alcohol_part(mol, alcohol_carbon, ester_oxygen.GetIdx())

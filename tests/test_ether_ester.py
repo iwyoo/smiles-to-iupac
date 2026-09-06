@@ -20,7 +20,7 @@ def test_smiles_to_iupac_ether_ester(smiles, expected):
 
 
 def test_branched_alkoxy_r_prime():
-    assert smiles_to_iupac("CC(C)OCC(=O)OC") == "methyl 2-(propan-2-yl)oxyethanoate"
+    assert smiles_to_iupac("CC(C)OCC(=O)OC") == "methyl 2-(propan-2-yloxy)ethanoate"
 
 
 def test_halogen_on_acyl_chain_still_works():

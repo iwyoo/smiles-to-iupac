@@ -23,9 +23,10 @@ def test_smiles_to_iupac_ether_amine(smiles, expected):
 
 
 def test_branched_alkoxy_r_prime():
-    # Mirrors `_ether.py`'s own enclosure convention: only R' is
-    # parenthesized, 'oxy' sits outside (e.g. '(butan-2-yl)oxy').
-    assert smiles_to_iupac("CC(C)OCCN") == "2-(propan-2-yl)oxyethan-1-amine"
+    # Mirrors `_ether.py`'s own enclosure convention: the whole 'yloxy'
+    # group (including 'oxy') is parenthesized when it carries its own
+    # internal locant, e.g. '(butan-2-yloxy)' -- P-16.3.3.
+    assert smiles_to_iupac("CC(C)OCCN") == "2-(propan-2-yloxy)ethan-1-amine"
 
 
 def test_halogen_on_main_chain_still_works():
