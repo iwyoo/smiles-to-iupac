@@ -216,7 +216,13 @@ from ._common import (
 )
 from ._cyclic_unsaturated import name_cyclic_unsaturated_yl
 from ._numerals import alkane_name, alkyl_name, numerical_term
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch, plain_alkyl_ring_substituents
+from ._substituents import (
+    alpha_sort_key,
+    branch_atom_locant,
+    format_substituent_prefixes,
+    name_branch,
+    plain_alkyl_ring_substituents,
+)
 
 _ENE_ORDER = 2.0
 _YNE_ORDER = 3.0
@@ -772,15 +778,52 @@ def _ring_bond_locants(position_of, bonds, ring_size):
     return sorted(ene), sorted(yne)
 
 
+def _ring_branch_stereo_display(graph, ring_order, hydroxyls, stereo, halogens):
+    """Mirrors `_aromatic.py`'s `_stereo_display`: if the ring carries
+    exactly one specified stereocenter and that stereocenter sits off the
+    ring on the ring's own sole substituent branch (P-92), return that
+    branch's ring-attachment atom plus its bracketed
+    "[(<locant><R/S>)-<name>]" display (P-91.3) -- e.g. the '1' atom and
+    '[(2S)-butan-2-yl]' in '1-[(2S)-butan-2-yl]cyclohexan-1-ol' (PubChem
+    CID confirmed). Returns None (the caller keeps its existing outright
+    rejection) for more than one stereocenter, or the ring having more or
+    fewer than one substituent in total -- both a genuinely more general
+    case this narrow slice doesn't attempt."""
+    if len(stereo) != 1:
+        return None
+    stereo_atom, r_or_s = stereo[0]
+    ring_set = set(ring_order)
+    branch_attachments = [
+        (ring_atom, neighbor)
+        for ring_atom in ring_order
+        for neighbor in graph[ring_atom]
+        if neighbor not in ring_set and neighbor not in hydroxyls
+    ]
+    if len(branch_attachments) != 1:
+        return None
+    ring_atom, branch_root = branch_attachments[0]
+    branch_name, branch_compound = name_branch(graph, branch_root, ring_atom, halogens)
+    site_locant = branch_atom_locant(graph, branch_root, ring_atom, stereo_atom, halogens)
+    descriptor = f"({site_locant}{r_or_s})-{branch_name}"
+    display = f"[{descriptor}]" if branch_compound else f"({descriptor})"
+    return ring_atom, display
+
+
 def _name_cyclic_alcohol(mol, hydroxyls, stereo=None, bonds=()):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
-    `specified_stereocenters` -- if given, every stereocenter must lie on
-    the ring itself (P-92: a stereocenter on a substituent branch is out
-    of scope, mirroring `_name_acyclic_alcohol`'s identical chain-only
-    restriction), and the winning ring numbering's own locants for those
-    atoms are used to format a "(<locant><R/S>,...)-" prefix onto the
-    name, ascending locant order (P-91.3) -- same mechanism as the
-    acyclic case, since P-92 doesn't affect which numbering wins.
+    `specified_stereocenters` -- if given, every stereocenter must
+    normally lie on the ring itself (P-92: a stereocenter on a
+    substituent branch is out of scope, mirroring
+    `_name_acyclic_alcohol`'s identical chain-only restriction), and the
+    winning ring numbering's own locants for those atoms are used to
+    format a "(<locant><R/S>,...)-" prefix onto the name, ascending
+    locant order (P-91.3) -- same mechanism as the acyclic case, since
+    P-92 doesn't affect which numbering wins. The one narrow exception
+    (`_ring_branch_stereo_display`, mirroring `_aromatic.py`'s own single-
+    branch-stereocenter case): exactly one stereocenter on the ring's
+    sole substituent branch instead embeds a bracketed descriptor into
+    that substituent's own name, in place of the usual ring-locant
+    prefix.
     `bonds`: ring C=C double bonds (P-31.1.3), empty by default -- see
     `_ketone.py`'s identical `bonds` parameter for the shared reasoning
     (hydroxyl locant fixed first, then minimized ene locant)."""
@@ -790,11 +833,14 @@ def _name_cyclic_alcohol(mol, hydroxyls, stereo=None, bonds=()):
     ring_atoms = list(ring_info.AtomRings()[0])
     ring_order = ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
+    branch_stereo = None
     if stereo is not None and any(atom not in ring_order for atom, _ in stereo):
-        raise UnsupportedStructure(
-            "a stereocenter on a substituent branch rather than the ring "
-            "itself is not supported yet (see P-92)"
-        )
+        branch_stereo = _ring_branch_stereo_display(graph, ring_order, hydroxyls, stereo, halogens)
+        if branch_stereo is None:
+            raise UnsupportedStructure(
+                "a stereocenter on a substituent branch rather than the ring "
+                "itself is not supported yet (see P-92)"
+            )
     if bonds and any(_substituents_for_ring(graph, ring_order, halogens, hydroxyls).values()):
         raise UnsupportedStructure(
             "a substituent alongside both a ring double/triple bond and a "
@@ -815,12 +861,15 @@ def _name_cyclic_alcohol(mol, hydroxyls, stereo=None, bonds=()):
                     "substituent branch) is not supported yet"
                 )
             substituents = _substituents_for_ring(graph, candidate, halogens, hydroxyls)
+            if branch_stereo is not None:
+                branch_ring_atom, display = branch_stereo
+                substituents[position_of[branch_ring_atom]] = [(display, False)]
             ene_locants, yne_locants = _ring_bond_locants(position_of, bonds, ring_size)
             key = _ring_candidate_key(ring_size, oh_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, key[-1], position_of
 
-    if stereo is not None:
+    if stereo is not None and branch_stereo is None:
         labels = sorted((best_position_of[atom], r_or_s) for atom, r_or_s in stereo)
         prefix = ",".join(f"{locant}{r_or_s}" for locant, r_or_s in labels)
         return f"({prefix})-{best_name}"
