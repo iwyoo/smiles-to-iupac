@@ -89,6 +89,17 @@ def test_phenoxide():
     assert smiles_to_iupac("[O-]c1ccccc1Cl") == "2-chlorophenoxide"
 
 
+def test_phenoxide_non_alkyl_ring_substituent_raises():
+    # A ring substituent containing another heteroatom (here, a
+    # carboxylic acid) must not be silently walked as if it were a plain
+    # carbon chain -- found via real-data testing: this exact SMILES (a
+    # copper salt of a non-carboxylate anion, itself out of scope for
+    # `_salt.py`) was misnamed '2-(propan-2-yl)phenoxide', treating the
+    # -COOH branch's two oxygens as if they were carbons.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C(O)c1ccccc1[O-].[Cu+]")
+
+
 def test_two_alkoxide_groups_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[O-]CC[O-]")

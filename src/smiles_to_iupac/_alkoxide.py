@@ -422,8 +422,20 @@ def _name_phenoxide(mol, ring_atoms, oxygen):
     against the corresponding phenol, CID 2879, per the Blue Book's own
     "substituted the same way as the corresponding alcohols" text -- see
     module docstring). Mirrors `_alcohol.py`'s `_name_phenol` exactly, with
-    'phenoxide' as the retained parent name in place of 'phenol'."""
-    if specified_stereocenters(mol):
+    'phenoxide' as the retained parent name in place of 'phenol'.
+
+    Reuses `_validate_and_prepare_alkoxide` (whole-molecule atom
+    composition + multi-fragment checks), mirroring
+    `_name_phenyl_chain_alkoxide` -- without it, a ring substituent
+    containing another heteroatom (or a foreign multi-fragment cation)
+    would reach `name_branch`'s chain-walking fallback, which doesn't
+    check element types while counting chain length and would silently
+    misname the branch as a plain alkyl group instead of being rejected
+    (found via real-data testing: 'O=C(O)c1ccccc1[O-].[Cu+]' was misnamed
+    '2-(propan-2-yl)phenoxide', treating the -COOH branch's two oxygens
+    as if they were carbons)."""
+    oxygen, _excluded_atoms, _bonds, stereo = _validate_and_prepare_alkoxide(mol, aromatic_ring_atoms=ring_atoms)
+    if stereo:
         raise UnsupportedStructure("a specified stereocenter alongside phenoxide is not supported yet")
 
     graph = adjacency(mol)
