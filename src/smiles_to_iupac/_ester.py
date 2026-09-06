@@ -117,14 +117,18 @@ from ._common import (
     multiplied_word,
     non_single_bonds,
     ordered_chain,
-    plain_methyl_ring_substituents,
     plain_saturated_ring_substituent_atoms,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     specified_stereocenters,
 )
 from ._numerals import alkane_name
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._substituents import (
+    alpha_sort_key,
+    format_substituent_prefixes,
+    name_branch,
+    plain_alkyl_ring_substituents,
+)
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
 
@@ -522,11 +526,11 @@ def _name_phenyl_acyl_ester(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    halogens = {**halogen_substituents(mol), **plain_methyl_ring_substituents(mol, graph, ring_atoms)}
+    halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
     attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
     if attachment is None:
         raise UnsupportedStructure(
-            "a benzene ring with more than one non-halogen, non-methyl "
+            "a benzene ring with more than one non-halogen, non-alkyl "
             "exocyclic substituent alongside a chain ester is not "
             "supported yet"
         )
