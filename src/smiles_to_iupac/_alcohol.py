@@ -203,7 +203,6 @@ from ._common import (
     bfs,
     carbon_adjacency,
     halogen_substituents,
-    plain_methyl_ring_substituents,
     is_plain_benzene_ring,
     lowest_locant_set,
     non_single_bonds,
@@ -217,7 +216,7 @@ from ._common import (
 )
 from ._cyclic_unsaturated import name_cyclic_unsaturated_yl
 from ._numerals import alkane_name, alkyl_name, numerical_term
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch, plain_alkyl_ring_substituents
 
 _ENE_ORDER = 2.0
 _YNE_ORDER = 3.0
@@ -1005,11 +1004,11 @@ def _name_phenyl_chain_alcohol(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    halogens = {**halogen_substituents(mol), **plain_methyl_ring_substituents(mol, graph, ring_atoms)}
+    halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
     attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
     if attachment is None:
         raise UnsupportedStructure(
-            "a benzene ring with more than one non-halogen, non-methyl "
+            "a benzene ring with more than one non-halogen, non-alkyl "
             "exocyclic substituent alongside a chain alcohol is not "
             "supported yet"
         )
