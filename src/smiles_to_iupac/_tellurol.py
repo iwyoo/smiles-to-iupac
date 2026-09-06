@@ -105,7 +105,7 @@ from ._common import (
     ring_cycle,
     specified_stereocenters,
 )
-from ._numerals import alkane_name
+from ._numerals import alkane_name, alkyl_name
 from ._substituents import alpha_sort_key, branch_atom_locant, format_substituent_prefixes, name_branch
 
 _YNE_BOND_ORDER = 3.0
@@ -575,6 +575,61 @@ def _name_phenyl_chain_tellurol(mol, ring_atoms):
     return best_name
 
 
+def _name_ring_substituent_chain_tellurol(mol, tellurols):
+    """Name one or more -TeH groups lying entirely on a single branched
+    chain hanging off one atom of an otherwise-plain saturated monocyclic
+    ring (the ring itself bears no tellurol) -- e.g.
+    cyclohexylmethanetellurol. The ring is cited as a "cyclo..."
+    substituent prefix (P-29.3.3) on the chain, which is the parent
+    hydride, mirroring `_name_phenyl_chain_tellurol` above and
+    `_thiol.py`'s `_name_ring_substituent_chain_thiol`."""
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
+
+    attachment = ring_chain_attachment(graph, ring_atoms, tellurols)
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a ring with more than one exocyclic branch is not supported "
+            "yet"
+        )
+    ring_atom, chain_root = attachment
+    anchor_tellurium = next(iter(tellurols))
+    (anchor_carbon,) = graph[anchor_tellurium]
+    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, tellurols)
+    chain_set = set(chain)
+    for t in tellurols:
+        (carbon,) = graph[t]
+        if carbon not in chain_set:
+            raise UnsupportedStructure(
+                "a tellurol outside the single branched chain hanging off "
+                "the ring is not supported yet"
+            )
+    branches_by_atom = {
+        chain[position - 1]: [r for r in roots if r != ring_atom]
+        for position, roots in branches.items()
+    }
+    branches_by_atom = {atom: roots for atom, roots in branches_by_atom.items() if roots}
+
+    ring_name = "cyclo" + alkyl_name(len(ring_atoms))
+    chain_length = len(chain)
+
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        te_locants = _te_locants(position_of, tellurols, graph)
+        substituents = {
+            position_of[atom]: [name_branch(graph, root, atom, halogens) for root in roots]
+            for atom, roots in branches_by_atom.items()
+        }
+        substituents.setdefault(position_of[chain_root], []).append((ring_name, False))
+        key, name = _candidate_key(chain_length, te_locants, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_tellurol(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
@@ -621,6 +676,13 @@ def name_tellurol(mol) -> str:
                 "for this first pass (see P-31.1.3)"
             )
         ring_tellurols = {t for t in tellurols if next(iter(graph[t])) in ring_atoms}
+        if not bonds and not ring_tellurols:
+            if stereo is not None:
+                raise UnsupportedStructure(
+                    "a stereocenter on a substituent branch rather than "
+                    "the ring itself is not supported yet (see P-92)"
+                )
+            return _name_ring_substituent_chain_tellurol(mol, tellurols)
         if ring_tellurols != tellurols:
             raise UnsupportedStructure(
                 "a tellurol on a substituent branch chain rather than the "
