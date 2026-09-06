@@ -122,6 +122,26 @@ def test_ring_substituent_chain_thiol_unsaturated_ring_raises():
         smiles_to_iupac("SCC1CCCC=C1")
 
 
+def test_ring_with_thiol_chain_thiol_tie():
+    # Ring and chain each carry exactly one thiol (P-44.1.1 tie,
+    # P-44.1.2.2 resolves it in the ring's favor) -- the ring becomes the
+    # parent and the chain's thiol is cited as a "sulfanylethyl"
+    # substituent prefix, mirroring `_alcohol.py`'s `_name_ring_with_
+    # hydroxy_chain_alcohol`. PubChem PUG REST-verified
+    # "2-(2-sulfanylethyl)cyclohexane-1-thiol" (CID 21513938).
+    assert smiles_to_iupac("SC1CCCCC1CCS") == "2-(2-sulfanylethyl)cyclohexane-1-thiol"
+
+
+def test_ring_with_thiol_chain_thiol_ring_wins_outright():
+    # The ring carries two thiols against the chain's one -- P-44.1.1's
+    # greater-count rule picks the ring outright, no tie-break needed.
+    # PubChem PUG REST-verified "1-(sulfanylmethyl)cyclohexane-1,2-
+    # dithiol" (CID 153981188).
+    assert (
+        smiles_to_iupac("SC1CCCCC1(S)CS") == "1-(sulfanylmethyl)cyclohexane-1,2-dithiol"
+    )
+
+
 def test_thiol_with_alcohol_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("SCCO")

@@ -88,6 +88,7 @@ from ._common import (
     longest_branched_chain_through,
     lowest_locant_set,
     non_single_bonds,
+    ordered_chain,
     path_between,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
@@ -688,6 +689,73 @@ def _name_ring_substituent_chain_thiol(mol, thiols):
     return best_name
 
 
+def _name_ring_with_thiol_chain_thiol(mol, thiols):
+    """Name a thiol compound where the ring itself bears at least as many
+    -SH's as a single unbranched chain hanging off exactly one ring atom
+    does (P-44.1.1: the candidate with the greater count of the principal
+    characteristic group thiol is senior; P-44.1.2.2 resolves an exact
+    tie in the ring's favor) -- e.g. 2-(2-sulfanylethyl)cyclohexane-1-
+    thiol, 1-(sulfanylmethyl)cyclohexane-1,2-dithiol. The ring is the
+    parent; the chain is cited as a '(sulfanyl...alkyl)' substituent
+    prefix, mirroring `_alcohol.py`'s `_name_ring_with_hydroxy_chain_
+    alcohol` and `_amine.py`'s `_name_ring_with_amine_chain_amine`."""
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
+
+    attachment = ring_chain_attachment(graph, ring_atoms, thiols)
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a ring with more than one exocyclic branch is not supported "
+            "yet"
+        )
+    ring_atom, chain_root = attachment
+    chain = ordered_chain(graph, chain_root, ring_atom, thiols)
+    if chain is None:
+        raise UnsupportedStructure(
+            "a branched substituent chain hanging off the ring is not "
+            "supported yet"
+        )
+
+    chain_set = set(chain)
+    chain_thiols = {s for s in thiols if next(iter(graph[s])) in chain_set}
+    ring_thiols = thiols - chain_thiols
+    if len(ring_thiols) < len(chain_thiols):
+        ring_name, ring_is_compound = name_branch(
+            graph, ring_atom, chain_root, {**halogens, **{s: "sulfanyl" for s in ring_thiols}}
+        )
+        chain_length = len(chain)
+        best_key = None
+        best_name = None
+        for candidate in (chain, list(reversed(chain))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            sh_locants = _sh_locants(position_of, chain_thiols, graph)
+            substituents = {position_of[chain_root]: [(ring_name, ring_is_compound)]}
+            key, name = _candidate_key(chain_length, sh_locants, [], [], substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, name
+        return best_name
+
+    chain_name, chain_is_compound = name_branch(
+        graph, chain_root, ring_atom, {**halogens, **{s: "sulfanyl" for s in chain_thiols}}
+    )
+
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+    best_key = None
+    best_name = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            sh_locants = _sh_locants(position_of, ring_thiols, graph)
+            substituents = {position_of[ring_atom]: [(chain_name, chain_is_compound)]}
+            key = _ring_candidate_key(ring_size, sh_locants, [], [], substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, key[-1]
+    return best_name
+
+
 def name_thiol(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
@@ -741,6 +809,13 @@ def name_thiol(mol) -> str:
                     "the ring itself is not supported yet (see P-92)"
                 )
             return _name_ring_substituent_chain_thiol(mol, thiols)
+        if not bonds and ring_thiols and ring_thiols != thiols:
+            if stereo is not None:
+                raise UnsupportedStructure(
+                    "a stereocenter alongside a ring-vs-chain thiol "
+                    "comparison is not supported yet (see P-92)"
+                )
+            return _name_ring_with_thiol_chain_thiol(mol, thiols)
         if ring_thiols != thiols:
             raise UnsupportedStructure(
                 "a thiol on a substituent branch chain rather than the "
