@@ -29,14 +29,32 @@ def test_amidine_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_n_substituted_amino_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=N)NC")
+def test_n_substituted_amino():
+    # P-66.4.1.1: the amino (-NH2) nitrogen is locant 'N'. Not
+    # independently PubChem-verifiable for this exact tautomer -- querying
+    # PubChem for this SMILES silently returns the *other* tautomer's
+    # structure/name instead (`CC(=NC)N` -> "N'-methylethanimidamide"),
+    # i.e. it renormalizes the amidine before naming (see
+    # `_name_amidine_with_n_phenyl`'s docstring for the same issue with
+    # phenyl instead of methyl). This is a genuinely different explicit
+    # structure from that renormalized one, not just a resonance form.
+    assert smiles_to_iupac("CC(=N)NC") == "N-methylethanimidamide"
 
 
-def test_n_substituted_imino_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=NC)N")
+def test_n_substituted_imino():
+    # PubChem PUG REST IUPACName match; this tautomer's structure
+    # round-trips unchanged (P-66.4.1.1: the imino (=NH) nitrogen is
+    # locant 'N'').
+    assert smiles_to_iupac("CC(=NC)N") == "N'-methylethanimidamide"
+
+
+def test_n_n_disubstituted_amino():
+    assert smiles_to_iupac("CC(=N)N(C)C") == "N,N-dimethylethanimidamide"
+
+
+def test_n_and_n_prime_substituted():
+    # PubChem PUG REST IUPACName match, structure round-trip confirmed.
+    assert smiles_to_iupac("CC(=NC)NC") == "N,N'-dimethylethanimidamide"
 
 
 def test_ring_amidine_raises():
@@ -95,6 +113,30 @@ def test_phenyl_chain_amidine():
     # "3-phenylpropanimidamide".
     assert smiles_to_iupac("c1ccccc1CC(=N)N") == "2-phenylethanimidamide"
     assert smiles_to_iupac("c1ccccc1CCC(=N)N") == "3-phenylpropanimidamide"
+
+
+def test_n_prime_phenylamidine():
+    # PubChem PUG REST IUPACName match, structure round-trip confirmed:
+    # phenyl directly on the imino (N') nitrogen.
+    assert smiles_to_iupac("CC(=Nc1ccccc1)N") == "N'-phenylethanimidamide"
+
+
+def test_n_phenylamidine():
+    # P-66.4.1.4.1's own confirmed worked example is exactly this shape
+    # ('N-phenylbenzenecarboximidamide (PIN)'); not independently
+    # PubChem-verifiable for this specific tautomer (see
+    # `_name_amidine_with_n_phenyl`'s docstring).
+    assert smiles_to_iupac("CC(=N)Nc1ccccc1") == "N-phenylethanimidamide"
+
+
+def test_n_prime_methyl_n_phenylamidine():
+    # PubChem PUG REST IUPACName match, structure round-trip confirmed.
+    assert smiles_to_iupac("CC(=NC)Nc1ccccc1") == "N'-methyl-N-phenylethanimidamide"
+
+
+def test_n_phenylamidine_with_second_imino_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=Nc1ccccc1)Nc1ccccc1")
 
 
 def test_phenyl_directly_attached_amidine_raises():
