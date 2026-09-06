@@ -16,6 +16,13 @@ from smiles_to_iupac._substituents import name_branch
         # tert-butyl branch: root forks into three methyls -- P-29.6.1's
         # retained name, not the general rule's own name.
         ("CCCC(C(C)(C)C)CCC", "4-tert-butylheptane"),
+        # NOT tert-butyl: root forks three ways with each arm still a
+        # length-1 chain, but one arm is -CH2Br, not a bare methyl --
+        # taking the tert-butyl shortcut here would silently drop the
+        # bromine (found via real-data testing:
+        # 'CC(C)c1cccc(C(C)(C)CBr)c1' was misnamed
+        # '1-tert-butyl-3-(propan-2-yl)benzene').
+        ("CCCC(C(C)(C)CBr)CCC", "4-(1-bromo-2-methylpropan-2-yl)heptane"),
         # sec-butyl branch: root forks into a methyl and an ethyl
         # continuation; the longer (ethyl) side wins the chain, giving
         # butane with the free valence at locant 2 (P-29.2: lowest locant
