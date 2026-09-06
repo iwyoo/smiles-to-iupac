@@ -186,10 +186,29 @@ def test_phenyl_substituent_carboxylic_acid_ring_halogen_and_methyl():
     assert smiles_to_iupac("ClC1=CC=C(C)C=C1CC(=O)O") == "2-(2-chloro-5-methylphenyl)ethanoic acid"
 
 
-def test_phenyl_substituent_carboxylic_acid_ring_alkyl_substituent_raises():
-    # A non-halogen, non-methyl ring substituent alongside the chain is
-    # still out of scope -- only plain halogens and a plain methyl are
-    # handled so far (see tasks/aromatic-ring-methyl-substituent.md).
+def test_phenyl_substituent_carboxylic_acid_ring_ethyl():
+    # PubChem PUG REST IUPACName match: any plain, fully saturated acyclic
+    # alkyl ring substituent (not just methyl) is now supported, reusing
+    # `name_branch` itself via `plain_alkyl_ring_substituents`.
+    assert smiles_to_iupac("CCc1ccc(cc1)CC(=O)O") == "2-(4-ethylphenyl)ethanoic acid"
+
+
+def test_phenyl_substituent_carboxylic_acid_ring_branched_alkyl():
+    # PubChem PUG REST IUPACName match: a branched ring substituent
+    # (isopropyl) embeds with no extra inner parens of its own.
+    assert smiles_to_iupac("CC(C)c1ccc(cc1)CC(=O)O") == "2-(4-propan-2-ylphenyl)ethanoic acid"
+
+
+def test_phenyl_substituent_carboxylic_acid_ring_tert_butyl():
+    # PubChem PUG REST IUPACName match.
+    assert smiles_to_iupac("CC(C)(C)c1ccc(cc1)CC(=O)O") == "2-(4-tert-butylphenyl)ethanoic acid"
+
+
+def test_phenyl_substituent_carboxylic_acid_branched_acid_chain_raises():
+    # The *acid chain itself* being branched is a separate, still
+    # unsupported limitation (`ordered_chain` requires an unbranched
+    # chain from the ring to the acid carbon) -- unrelated to the ring
+    # substituent's own shape, which is now a plain isobutyl (supported).
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC(C)Cc1ccc(C(C)C(=O)O)cc1")
 
