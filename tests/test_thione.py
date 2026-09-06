@@ -104,6 +104,22 @@ def test_cyclic_thione_stereocenter():
     assert smiles_to_iupac("S=C1CCCC[C@H]1C") == "(2R)-2-methylcyclohexane-1-thione"
 
 
+def test_cyclic_thione_branch_stereocenter():
+    # A stereocenter on the ring's sole substituent branch rather than the
+    # ring itself (P-92), same pattern as `_ketone.py`'s
+    # `_name_cyclic_ketone` -- the branch sits at C4 (para to the C=S
+    # carbon, which is sp2 and cannot itself bear a branch). The unstereo
+    # parent ('4-ethylcyclohexane-1-thione') matches PubChem's own
+    # computed IUPACName exactly; the stereo-specified case has no cached
+    # PubChem record (CID 0), so it's verified by the
+    # descriptor-construction code being identical to the
+    # already-PubChem-verified `_ketone.py` case.
+    assert (
+        smiles_to_iupac("S=C1CCC(CC1)[C@@H](C)CC")
+        == "4-[(2S)-butan-2-yl]cyclohexane-1-thione"
+    )
+
+
 def test_thione_unspecified_stereocenter_unaffected():
     # A genuine stereocenter left unspecified (no @/@@) is named exactly
     # as before -- no stereo prefix, matching this project's long-standing
