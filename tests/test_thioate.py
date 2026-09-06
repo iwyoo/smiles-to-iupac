@@ -107,6 +107,13 @@ def test_phenyl_chain_thioate_ring_methyl():
     assert smiles_to_iupac("Cc1ccc(CC(=O)[S-])cc1") == "2-(4-methylphenyl)ethanethioate"
 
 
+def test_phenyl_chain_thioate_ring_ethyl():
+    # Not independently PubChem-verified (CID 0, same sparse-data gap
+    # seen for other less-common thioate-anion shapes) -- structural/
+    # mechanism consistency check mirroring the methyl case above.
+    assert smiles_to_iupac("CCc1ccc(cc1)CC(=O)[S-]") == "2-(4-ethylphenyl)ethanethioate"
+
+
 def test_phenyl_chain_thioate_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CC(=O)[S-]")
