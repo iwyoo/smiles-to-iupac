@@ -174,3 +174,14 @@ def test_phenyl_chain_amidine_ring_ethyl():
 def test_phenyl_chain_amidine_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CC(=N)N")
+
+
+def test_halogen_substituted_n_alkyl_raises():
+    # `_collect_n_alkyl`'s chain walk uses a carbon-only graph, so a
+    # halogen hanging off an N-substituent was invisible to it and passed
+    # through silently -- found via real-data testing:
+    # 'CCC(=N)N(CC)CC(F)(F)F' was misnamed 'N,N-diethylpropanimidamide',
+    # the -CH2CF3 substituent's three fluorines vanishing entirely (both
+    # N-substituents wrongly reported as identical plain 'ethyl' groups).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CCC(=N)N(CC)CC(F)(F)F")

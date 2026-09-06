@@ -247,3 +247,14 @@ def test_diacyl_hydrazide_aromatic_acyl_raises():
 def test_diacyl_hydrazide_branched_acyl_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC(C)C(=O)NNC(=O)C(C)C")
+
+
+def test_halogen_substituted_n_alkyl_raises():
+    # Same bug class as `_amidine.py`'s identical `_collect_n_alkyl`:
+    # a halogen hanging off an N-substituent is invisible to the
+    # carbon-only chain walk and passed through silently -- found via
+    # real-data testing: 'CCC(=O)NNCC(F)(F)F' was misnamed
+    # "N'-ethylpropanehydrazide", the -CH2CF3 substituent's three
+    # fluorines vanishing entirely.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CCC(=O)NNCC(F)(F)F")
