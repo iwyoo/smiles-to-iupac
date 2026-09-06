@@ -122,6 +122,13 @@ def test_phenyl_chain_amidine_ring_methyl():
     assert smiles_to_iupac("Cc1ccc(CCC(=N)N)cc1") == "3-(4-methylphenyl)propanimidamide"
 
 
+def test_phenyl_chain_amidine_ring_ethyl():
+    # PubChem PUG REST IUPACName match: any plain, fully saturated
+    # acyclic alkyl ring substituent (not just methyl) is now supported,
+    # reusing `name_branch` itself via `plain_alkyl_ring_substituents`.
+    assert smiles_to_iupac("CCc1ccc(cc1)CCC(=N)N") == "3-(4-ethylphenyl)propanimidamide"
+
+
 def test_phenyl_chain_amidine_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CC(=N)N")
