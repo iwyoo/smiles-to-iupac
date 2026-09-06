@@ -129,7 +129,7 @@ def _name_benzene_ring_selenide_chain(mol, ring_atoms) -> str:
 
     if chain_root == selenium_idx:
         (r_prime,) = [n for n in graph[selenium_idx] if n != ring_atom]
-        sub_name, sub_compound = name_branch(graph, r_prime, selenium_idx, {})
+        sub_name, sub_compound = name_branch(graph, r_prime, selenium_idx, {}, mol=mol)
         if sub_compound:
             sub_name = f"({sub_name})"
         return f"{_selanyl_prefix(sub_name)}benzene"
@@ -139,11 +139,11 @@ def _name_benzene_ring_selenide_chain(mol, ring_atoms) -> str:
     reached, _ = bfs(blocked_graph, ring_atom)
     (r_prime,) = [n for n in graph[selenium_idx] if n not in reached]
 
-    sub_name, sub_compound = name_branch(graph, r_prime, selenium_idx, {})
+    sub_name, sub_compound = name_branch(graph, r_prime, selenium_idx, {}, mol=mol)
     if sub_compound:
         sub_name = f"({sub_name})"
     selanyl_term = _selanyl_prefix(sub_name)
-    branch_name, is_compound = name_branch(graph, chain_root, ring_atom, {selenium_idx: selanyl_term})
+    branch_name, is_compound = name_branch(graph, chain_root, ring_atom, {selenium_idx: selanyl_term}, mol=mol)
     if not is_compound:
         return f"{branch_name}benzene"
     if "(" in branch_name:
@@ -181,22 +181,22 @@ def name_selenide(mol) -> str:
         elif len_b > len_a:
             parent_root, sub_root = n2, n1
         else:
-            name_a, compound_a = name_branch(full_graph, n1, selenium_idx, {})
-            name_b, compound_b = name_branch(full_graph, n2, selenium_idx, {})
+            name_a, compound_a = name_branch(full_graph, n1, selenium_idx, {}, mol=mol)
+            name_b, compound_b = name_branch(full_graph, n2, selenium_idx, {}, mol=mol)
             sub_from_a = f"({name_a})" if compound_a else name_a
             sub_from_b = f"({name_b})" if compound_b else name_b
-            key_a, _, _ = winning_chain_with_key(full_graph, graph_a, {selenium_idx: _selanyl_prefix(sub_from_b)})
-            key_b, _, _ = winning_chain_with_key(full_graph, graph_b, {selenium_idx: _selanyl_prefix(sub_from_a)})
+            key_a, _, _ = winning_chain_with_key(full_graph, graph_a, {selenium_idx: _selanyl_prefix(sub_from_b)}, mol=mol)
+            key_b, _, _ = winning_chain_with_key(full_graph, graph_b, {selenium_idx: _selanyl_prefix(sub_from_a)}, mol=mol)
             parent_root, sub_root = (n1, n2) if key_a <= key_b else (n2, n1)
     elif size1 > size2:
         parent_root, sub_root = n1, n2
     else:
         parent_root, sub_root = n2, n1
 
-    sub_name, sub_compound = name_branch(full_graph, sub_root, selenium_idx, {})
+    sub_name, sub_compound = name_branch(full_graph, sub_root, selenium_idx, {}, mol=mol)
     if sub_compound:
         sub_name = f"({sub_name})"
 
     parent_carbon_graph = _component_subgraph(carbon_graph, parent_root)
     terminals = {selenium_idx: _selanyl_prefix(sub_name)}
-    return name_from_carbon_graph(full_graph, parent_carbon_graph, terminals)
+    return name_from_carbon_graph(full_graph, parent_carbon_graph, terminals, mol=mol)

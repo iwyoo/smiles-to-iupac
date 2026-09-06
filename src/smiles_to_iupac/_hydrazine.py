@@ -124,7 +124,7 @@ def has_hydrazine_shape(mol) -> bool:
     return _hydrazine_nitrogens(mol) is not None
 
 
-def _substituent_names(graph, n_idx, other_n_idx, halogens, aromatic_atoms):
+def _substituent_names(graph, n_idx, other_n_idx, halogens, aromatic_atoms, mol=None):
     names = []
     for root in graph[n_idx]:
         if root == other_n_idx:
@@ -134,7 +134,7 @@ def _substituent_names(graph, n_idx, other_n_idx, halogens, aromatic_atoms):
                 "a halogen bonded directly to a hydrazine nitrogen is out "
                 "of scope for this module (see module docstring)"
             )
-        names.append(name_branch(graph, root, n_idx, halogens, aromatic_atoms))
+        names.append(name_branch(graph, root, n_idx, halogens, aromatic_atoms, mol=mol))
     return names
 
 
@@ -186,8 +186,8 @@ def name_hydrazine(mol) -> str:
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    names_n1 = _substituent_names(graph, n1_idx, n2_idx, halogens, aromatic_atoms)
-    names_n2 = _substituent_names(graph, n2_idx, n1_idx, halogens, aromatic_atoms)
+    names_n1 = _substituent_names(graph, n1_idx, n2_idx, halogens, aromatic_atoms, mol=mol)
+    names_n2 = _substituent_names(graph, n2_idx, n1_idx, halogens, aromatic_atoms, mol=mol)
 
     total = len(names_n1) + len(names_n2)
     if total == 0:

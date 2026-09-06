@@ -214,7 +214,7 @@ def name_bridged_naphthalene(mol, core) -> str:
         for atom, position in locants.items():
             branch_roots = [n for n in graph[atom] if n not in excluded]
             if branch_roots:
-                substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+                substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
         grouped = _group(substituents)
         locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
         citation_locants = tuple(

@@ -226,7 +226,7 @@ def _validate_and_collect_substituents(mol):
         if root_atomic_num in HALOGEN_PREFIXES:
             substituent_names.append((HALOGEN_PREFIXES[root_atomic_num], False))
             continue
-        substituent_names.append(name_branch(graph, root, boron.GetIdx(), {}))
+        substituent_names.append(name_branch(graph, root, boron.GetIdx(), {}, mol=mol))
 
     distinct_names = {name for name, _ in substituent_names}
     if len(distinct_names) > 1 and any(

@@ -341,9 +341,9 @@ def _validate_and_name_substituent(mol, ring_atoms, n_idx, root):
     halogens = halogen_substituents(mol)
     if sulfonyl is not None:
         r_carbon, _ = sulfonyl
-        r_name, r_is_compound = name_branch(graph, r_carbon, root, halogens)
+        r_name, r_is_compound = name_branch(graph, r_carbon, root, halogens, mol=mol)
         return f"{r_name}sulfonyl", r_is_compound
-    return name_branch(graph, root, n_idx, halogens)
+    return name_branch(graph, root, n_idx, halogens, mol=mol)
 
 
 def name_ring_amine(mol) -> str:

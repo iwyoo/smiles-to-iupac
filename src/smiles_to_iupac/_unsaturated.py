@@ -134,7 +134,7 @@ def _longest_chains(graph):
     return chains
 
 
-def _substituents_for_chain(graph, chain, halogens):
+def _substituents_for_chain(graph, chain, halogens, mol=None):
     """Return {position (1-based) -> [(name, is_compound), ...]} for a
     candidate chain."""
     chain_set = set(chain)
@@ -143,7 +143,7 @@ def _substituents_for_chain(graph, chain, halogens):
         branch_roots = [n for n in graph[atom] if n not in chain_set]
         if not branch_roots:
             continue
-        substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+        substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -332,7 +332,7 @@ def name_acyclic_unsaturated(mol) -> str:
     for chain in chains_with_all_bonds:
         for candidate in (chain, list(reversed(chain))):
             ene_locants, yne_locants = _bond_locants(candidate, bonds)
-            substituents = _substituents_for_chain(graph, candidate, halogens)
+            substituents = _substituents_for_chain(graph, candidate, halogens, mol=mol)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_candidate = key, name, candidate

@@ -146,7 +146,7 @@ def name_diazene(mol) -> str:
                 "a halogen bonded directly to a diazene nitrogen is out "
                 "of scope for this module (see module docstring)"
             )
-        substituents.append(name_branch(graph, root, n_idx, halogens, aromatic_atoms))
+        substituents.append(name_branch(graph, root, n_idx, halogens, aromatic_atoms, mol=mol))
 
     if not substituents:
         return "diazene"

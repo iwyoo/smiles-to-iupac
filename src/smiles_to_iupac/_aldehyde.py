@@ -284,13 +284,13 @@ def _al_locants(position_of, aldehydes, graph):
     return locants
 
 
-def _substituents_for_chain(graph, chain, halogens, aldehydes):
+def _substituents_for_chain(graph, chain, halogens, aldehydes, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in aldehydes]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -364,7 +364,7 @@ def _name_acyclic_aldehyde(
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             al_locants = _al_locants(position_of, aldehydes, graph)
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, aldehydes)
+            substituents = _substituents_for_chain(graph, candidate, halogens, aldehydes, mol=mol)
             key, name = _candidate_key(chain_length, al_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of
@@ -376,7 +376,7 @@ def _name_acyclic_aldehyde(
     return best_name
 
 
-def _ring_substituents(graph, ring_order, halogens, excluded):
+def _ring_substituents(graph, ring_order, halogens, excluded, mol=None):
     """{ring position -> [substituent name, ...]}, mirroring
     `_carboxylic_acid.py`'s identically-named helper -- every branch
     hanging off a ring atom other than the aldehyde carbon itself (in
@@ -386,7 +386,7 @@ def _ring_substituents(graph, ring_order, halogens, excluded):
     for position, atom in enumerate(ring_order, start=1):
         branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -486,7 +486,7 @@ def _name_ring_aldehyde(mol, ring_atoms, stereo=None):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             al_locant = position_of[ring_atom]
-            substituents = _ring_substituents(graph, candidate, halogens, {aldehyde_carbon})
+            substituents = _ring_substituents(graph, candidate, halogens, {aldehyde_carbon}, mol=mol)
             key = _ring_candidate_key(ring_size, al_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, key[-1], position_of
@@ -581,7 +581,7 @@ def _name_benzaldehyde(mol, ring_atoms):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             al_locant = position_of[ring_atom]
-            substituents = _ring_substituents(graph, candidate, halogens, {aldehyde_carbon})
+            substituents = _ring_substituents(graph, candidate, halogens, {aldehyde_carbon}, mol=mol)
             key = _benzaldehyde_candidate_key(al_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
@@ -642,7 +642,7 @@ def _name_phenyl_chain_aldehyde(mol, ring_atoms):
 
     chain_length = len(chain)
     substituents = {
-        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms) for root in roots]
+        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms, mol=mol) for root in roots]
         for position, roots in branches.items()
     }
     grouped = group_substituents(substituents)

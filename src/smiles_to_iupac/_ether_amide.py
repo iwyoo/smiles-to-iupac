@@ -220,7 +220,7 @@ def name_ether_amide(mol) -> str:
 
     r_prime_component, _ = bfs(full_carbon_graph, r_prime_carbon)
 
-    sub_name, sub_compound = name_branch(full_graph, r_prime_carbon, ether_oxygen_idx, {})
+    sub_name, sub_compound = name_branch(full_graph, r_prime_carbon, ether_oxygen_idx, {}, mol=mol)
     if sub_compound:
         sub_name = f"({sub_name})"
     oxy_term = _oxy_prefix(sub_name)

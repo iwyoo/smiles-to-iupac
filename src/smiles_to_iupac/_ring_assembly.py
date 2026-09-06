@@ -83,12 +83,12 @@ def _numberings_from_attachment(graph, ring_atoms, attach, prime):
         yield {atom: f"{position}{suffix}" for position, atom in enumerate(seq, start=1)}
 
 
-def _candidate_key(locants, ring_atoms, graph, halogens):
+def _candidate_key(locants, ring_atoms, graph, halogens, mol=None):
     substituents = {}
     for atom, position in locants.items():
         branch_roots = [n for n in graph[atom] if n not in ring_atoms]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
 
     grouped = _group(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
@@ -121,7 +121,7 @@ def name_ring_assembly(mol, core) -> str:
         for locants_a in _numberings_from_attachment(graph, ring_a, attach_a, prime=False):
             for locants_b in _numberings_from_attachment(graph, ring_b, attach_b, prime=True):
                 locants = {**locants_a, **locants_b}
-                key = _candidate_key(locants, ring_atoms, graph, halogens)
+                key = _candidate_key(locants, ring_atoms, graph, halogens, mol=mol)
                 if best_key is None or key < best_key:
                     best_key, best_name = key, key[-1]
 

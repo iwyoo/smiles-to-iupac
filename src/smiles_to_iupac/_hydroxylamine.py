@@ -111,7 +111,7 @@ def name_hydroxylamine(mol) -> str:
     n_idx, o_idx = n.GetIdx(), o.GetIdx()
     r_root = next(nbr.GetIdx() for nbr in o.GetNeighbors() if nbr.GetIdx() != n_idx)
     graph = adjacency(mol)
-    r_name, r_compound = name_branch(graph, r_root, o_idx, {}, ring_atoms)
+    r_name, r_compound = name_branch(graph, r_root, o_idx, {}, ring_atoms, mol=mol)
     if r_compound:
         raise UnsupportedStructure(
             "a branched O-substituent is not supported yet (mirrors "

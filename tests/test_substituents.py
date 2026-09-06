@@ -1,7 +1,8 @@
 import pytest
+from rdkit import Chem
 
 from smiles_to_iupac import smiles_to_iupac
-from smiles_to_iupac._common import UnsupportedStructure
+from smiles_to_iupac._common import UnsupportedStructure, adjacency
 from smiles_to_iupac._substituents import name_branch
 
 
@@ -114,3 +115,16 @@ def test_ring_substituent_with_two_hydroxyls():
         8: [4],
     }
     assert name_branch(graph, 1, 0, {7: "hydroxy", 8: "hydroxy"}) == ("2,4-dihydroxycyclohexyl", True)
+
+
+def test_mol_defends_against_unvalidated_heteroatom_branch():
+    # PR #487/#488 found the same bug class twice: a caller handed
+    # `name_branch` a branch it hadn't fully validated as carbon-plus-
+    # `halogens`, so an unrecognized heteroatom (here an amine nitrogen)
+    # was silently walked as if it were an ordinary chain carbon, instead
+    # of being rejected. `mol` closes this for any not-yet-audited caller.
+    mol = Chem.MolFromSmiles("CCCN")
+    graph = adjacency(mol)
+    assert name_branch(graph, 1, 0, {}) == ("propyl", False)
+    with pytest.raises(UnsupportedStructure):
+        name_branch(graph, 1, 0, {}, mol=mol)

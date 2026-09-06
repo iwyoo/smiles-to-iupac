@@ -163,7 +163,7 @@ def _name_benzene_ring_nitro_chain(mol, nitro_nitrogens, nitro_atom_idxs, ring_a
     for n in nitro_nitrogens:
         terminals[n.GetIdx()] = "nitro"
 
-    branch_name, is_compound = name_branch(graph, chain_root, ring_atom, terminals)
+    branch_name, is_compound = name_branch(graph, chain_root, ring_atom, terminals, mol=mol)
     display = f"({branch_name})" if is_compound else branch_name
     return f"{display}benzene"
 
@@ -198,4 +198,4 @@ def name_nitro(mol) -> str:
     for n in nitro_nitrogens:
         terminals[n.GetIdx()] = "nitro"
 
-    return name_from_carbon_graph(adjacency(mol), carbon_adjacency(mol), terminals)
+    return name_from_carbon_graph(adjacency(mol), carbon_adjacency(mol), terminals, mol=mol)
