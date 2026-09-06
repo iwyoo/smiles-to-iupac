@@ -71,7 +71,14 @@ Explicitly out of scope (raise `UnsupportedStructure`), per the task's
 first-pass scope:
 - An N-substituent that is unsaturated or ring-bearing (a branched but
   otherwise plain saturated acyclic N-substituent is supported, see
-  above).
+  above), except for one narrow case: a plain, unsubstituted benzene ring
+  hanging directly off the amide nitrogen itself (an anilide, e.g.
+  'N-phenylacetamide', PubChem confirms `CC(=O)Nc1ccccc1` ->
+  'N-phenylacetamide') -- mirrors the identical 'phenyl N-substituent'
+  pattern already wired into `_urea.py`/`_thiourea.py`/`_guanidine.py`/
+  `_selenourea.py`/`_tellurourea.py`/`_carbamate.py`. Only a lone phenyl
+  (no second substituent sharing that nitrogen, no substituted phenyl
+  like 4-hydroxyphenyl) is supported; each is a separate follow-up.
 - A true lactam (the carbonyl carbon itself is a ring atom) - handled by
   `_ketone.py`'s hetero-ring ketone path, not this module. An
   N-unsubstituted -CONH2 hanging as an *exocyclic* substituent directly
@@ -411,6 +418,7 @@ def _name_acyclic_amide(
     extra_names=None,
     required_atoms=frozenset(),
     extra_excluded_carbons=frozenset(),
+    phenyl_atoms=frozenset(),
 ):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
@@ -444,6 +452,10 @@ def _name_acyclic_amide(
     n_names = []
     n_substituent_atoms = set()
     for n_alkyl_c in n_alkyl_carbons:
+        if n_alkyl_c in phenyl_atoms:
+            n_names.append(name_branch(graph, n_alkyl_c, amide_nitrogen, {}, phenyl_atoms))
+            n_substituent_atoms |= phenyl_atoms
+            continue
         n_atoms, _ = bfs(full_carbon_graph, n_alkyl_c)
         n_atoms = set(n_atoms)
         if any(b[0] in n_atoms or b[1] in n_atoms for b in non_single_bonds(mol)):
@@ -827,11 +839,64 @@ def _name_phenyl_chain_amide(mol, ring_atoms):
     return _name_from_substituents(chain_length, [], [], grouped)
 
 
+def _name_amide_with_n_phenyl(mol, ring_atoms):
+    """Name a primary/secondary amide whose nitrogen carries a plain,
+    unsubstituted benzene ring as a direct 'N-phenyl' substituent (e.g.
+    acetanilide -> 'N-phenylacetamide', PubChem-confirmed), mirroring
+    `_urea.py`'s/`_carbamate.py`'s identical N-phenyl pattern: the ring is
+    just another N-substituent name (via `name_branch`'s aromatic-ring
+    recognition), reusing `_name_acyclic_amide`'s existing N-prefix
+    formatting unchanged. A second substituent sharing the same nitrogen
+    (phenyl+alkyl, or two phenyls) is out of scope, same restriction as
+    those modules; each is a separate follow-up."""
+    amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(
+        mol, aromatic_ring_atoms=ring_atoms
+    )
+    if len(n_alkyl_carbons) != 1:
+        raise UnsupportedStructure(
+            "a phenyl N-substituent alongside another substituent on the "
+            "same nitrogen is not supported yet"
+        )
+    if hydroxyls:
+        raise UnsupportedStructure(
+            "a standalone hydroxyl alongside an N-phenylamide is not "
+            "supported yet"
+        )
+    stereo = specified_stereocenters(mol)
+    excluded = {amide_oxygen, amide_nitrogen}
+    all_non_single = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in excluded and b[1] not in excluded and (b[0] not in ring_atoms or b[1] not in ring_atoms)
+    ]
+    bonds = [b for b in all_non_single if b[2] in (ENE_BOND_ORDER, YNE_BOND_ORDER)]
+    if len(bonds) != len(all_non_single):
+        raise UnsupportedStructure(
+            "a bond order other than single, double, or triple is not "
+            "supported (see P-31.1.1.1)"
+        )
+    return _name_acyclic_amide(
+        mol,
+        amide_carbon,
+        amide_nitrogen,
+        excluded,
+        n_alkyl_carbons,
+        hydroxyls,
+        bonds,
+        stereo,
+        phenyl_atoms=ring_atoms,
+    )
+
+
 def name_amide(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
+            graph = adjacency(mol)
+            attachment = ring_chain_attachment(graph, ring_atoms, set())
+            if attachment is not None and mol.GetAtomWithIdx(attachment[1]).GetAtomicNum() == 7:
+                return _name_amide_with_n_phenyl(mol, ring_atoms)
             amide_carbon, _, _, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(
                 mol, aromatic_ring_atoms=ring_atoms
             )

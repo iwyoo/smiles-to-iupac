@@ -223,6 +223,33 @@ def test_phenyl_chain_amide_unsaturation_raises():
         smiles_to_iupac("C=Cc1ccccc1CC(N)=O")
 
 
+def test_n_phenyl_amide():
+    # PubChem: CC(=O)Nc1ccccc1 -> "N-phenylacetamide" (acetanilide); this
+    # project's own systematic-stem convention (see test above) uses
+    # "ethanamide".
+    assert smiles_to_iupac("CC(=O)Nc1ccccc1") == "N-phenylethanamide"
+
+
+def test_n_phenyl_amide_longer_chain():
+    assert smiles_to_iupac("CCC(=O)Nc1ccccc1") == "N-phenylpropanamide"
+
+
+def test_n_phenyl_formamide():
+    assert smiles_to_iupac("O=CNc1ccccc1") == "N-phenylmethanamide"
+
+
+def test_n_phenyl_amide_with_second_n_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=O)N(C)c1ccccc1")
+
+
+def test_n_phenyl_amide_substituted_ring_raises():
+    # A substituted phenyl (e.g. 4-hydroxyphenyl, as in paracetamol) is out
+    # of scope -- only a plain, unsubstituted benzene ring is supported.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=O)Nc1ccc(O)cc1")
+
+
 def test_carboxylic_acid_not_misnamed_as_amide():
     assert smiles_to_iupac("CC(=O)O") == "ethanoic acid"
 
