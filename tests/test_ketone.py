@@ -618,12 +618,13 @@ def test_ring_with_ketone_chain_ketone_tie():
     assert smiles_to_iupac("O=C1CCCCC1CC(C)=O") == "2-(2-oxopropyl)cyclohexan-1-one"
 
 
-def test_ring_with_ketone_chain_ketone_chain_wins_raises():
-    # The chain has strictly more ketones than the ring -- deferred,
-    # since `name_branch` can't yet cite a ring as an "oxo"-decorated
-    # cyclic substituent (only "hydroxy" is wired up there).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CCCCC1CC(=O)CC(C)=O")
+def test_ring_with_ketone_chain_ketone_chain_wins():
+    # The chain has strictly more ketones than the ring, so it's the
+    # senior parent (P-44.1.1) and the ring is cited as an "oxo"-
+    # decorated cyclic substituent instead, mirroring `_alcohol.py`'s
+    # identical "chain wins" branch. PubChem PUG REST-verified
+    # "1-(2-oxocyclohexyl)butane-1,3-dione" (CID 11298321).
+    assert smiles_to_iupac("O=C1CCCCC1C(=O)CC(C)=O") == "1-(2-oxocyclohexyl)butane-1,3-dione"
 
 
 @pytest.mark.parametrize(

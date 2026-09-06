@@ -756,11 +756,7 @@ def _name_ring_with_ketone_chain_ketone(mol, ketones):
     ring's own carbonyl carbon can never be the chain-attachment atom
     (it's sp2 with two ring bonds plus the C=O, leaving no room for a
     fifth, exocyclic bond), so no aryl-ketone-style exception is needed
-    here. Narrower than the alcohol/amine precedents: only the
-    "ring wins" direction (the ring has at least as many ketones as the
-    chain) is supported -- the reverse direction would need `name_branch`
-    to cite the ring as an "oxo"-decorated cyclic substituent, which it
-    doesn't support yet (only "hydroxy" is wired up there)."""
+    here."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
@@ -783,18 +779,26 @@ def _name_ring_with_ketone_chain_ketone(mol, ketones):
     chain_ketones = {o for o in ketones if next(iter(graph[o])) in chain_set}
     ring_ketones = ketones - chain_ketones
     if len(ring_ketones) < len(chain_ketones):
-        # The chain has strictly more ketones, so it would be the senior
-        # parent (P-44.1.1) with the ring cited as an "oxo"-decorated
-        # cyclic substituent -- but `name_branch` only recognizes a
-        # "hydroxy"-decorated cyclic substituent (`_ring_substituent_
-        # with_hydroxyls`), not an arbitrary prefix dict, so this
-        # direction is deferred rather than raising the generic/misleading
-        # "cyclic substituent groups are not supported" from its acyclic
-        # fallback walker.
-        raise UnsupportedStructure(
-            "a chain with more ketones than the ring it hangs off of is "
-            "not supported yet"
+        # P-44.1.1: the chain captures strictly more ketones, so it's the
+        # senior parent and the ring (with its own one or more ketones)
+        # is cited as a substituent instead -- mirrors
+        # `_name_ring_substituent_chain_ketone` exactly, substituting
+        # the ring's own name_branch-computed name for the plain
+        # "cyclo..." one that function uses.
+        ring_name, ring_is_compound = name_branch(
+            graph, ring_atom, chain_root, {**halogens, **{o: "oxo" for o in ring_ketones}}
         )
+        chain_length = len(chain)
+        best_key = None
+        best_name = None
+        for candidate in (chain, list(reversed(chain))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            one_locants = _one_locants(position_of, chain_ketones, graph)
+            substituents = {position_of[chain_root]: [(ring_name, ring_is_compound)]}
+            key, name = _candidate_key(chain_length, one_locants, [], [], substituents)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, name
+        return best_name
 
     chain_name, chain_is_compound = name_branch(
         graph, chain_root, ring_atom, {**halogens, **{o: "oxo" for o in chain_ketones}}
