@@ -122,6 +122,7 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     specified_stereocenters,
 )
+from ._carboxylic_acid import _name_benzo_attached_carboxyl, _name_ring_attached_carboxyl
 from ._numerals import alkane_name
 from ._substituents import (
     alpha_sort_key,
@@ -555,6 +556,141 @@ def _name_phenyl_acyl_ester(mol, ring_atoms):
     return f"{alcohol_name} {acyl_name}"
 
 
+def _name_benzoate_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon):
+    """Name an ester whose acyl part (R-CO-) hangs directly off one carbon
+    of an otherwise-plain (or substituted) benzene ring, with no
+    intervening chain carbon (P-65.6.3.2's retained-name axis) -- e.g.
+    'methyl benzoate' (PubChem CID 7150), '2-methylbenzoate' esters.
+    Reuses `_carboxylic_acid.py`'s `_name_benzo_attached_carboxyl` kernel
+    (the same ring-numbering search `_name_benzoic_acid` uses) with the
+    'benzoate' suffix word in place of 'benzoic acid'; the alcohol part
+    reuses `_name_alcohol_part` unchanged, same reasoning as
+    `_name_phenol_ester`/`_name_cyclyl_ester`: the ring and the alcohol
+    part sit on opposite sides of the ester oxygen."""
+    _validate_ester_atoms(mol, aromatic_ring_atoms=ring_atoms)
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a benzoate ester is not "
+            "supported yet"
+        )
+    excluded_oxygens = {carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx()}
+    all_non_single = non_single_bonds(mol)
+    if any(
+        a not in excluded_oxygens
+        and b not in excluded_oxygens
+        and (a not in ring_atoms or b not in ring_atoms)
+        for a, b, _ in all_non_single
+    ):
+        raise UnsupportedStructure(
+            "unsaturation outside the ring alongside a benzoate ester is "
+            "not supported yet"
+        )
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    alcohol_name = _name_alcohol_part(mol, alcohol_carbon, ester_oxygen.GetIdx())
+    acyl_name = _name_benzo_attached_carboxyl(graph, ring_atoms, acyl_carbon.GetIdx(), halogens, word="benzoate")
+    return f"{alcohol_name} {acyl_name}"
+
+
+def _name_ring_acyl_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon):
+    """Saturated-ring counterpart of `_name_benzoate_ester`: the acyl part
+    hangs directly off one atom of an otherwise-plain saturated
+    monocyclic ring, with no intervening chain carbon (P-65.6.3.2's
+    retained-name axis, extended to von Baeyer ring stems) -- e.g. 'methyl
+    cyclohexanecarboxylate' (PubChem CID 20748). Reuses
+    `_carboxylic_acid.py`'s `_name_ring_attached_carboxyl` kernel (the
+    same ring-numbering search `_name_ring_carboxylic_acid` uses) with
+    the 'carboxylate' suffix word in place of 'carboxylic acid'."""
+    _validate_ester_atoms(mol)
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a ring-attached ester "
+            "acyl group is not supported yet"
+        )
+    graph = adjacency(mol)
+    acyl_idx = acyl_carbon.GetIdx()
+    (ring_atom,) = [n for n in graph[acyl_idx] if n in ring_atoms]
+    other_ring_atom_branches = [n for n in graph[ring_atom] if n not in ring_atoms and n != acyl_idx]
+    if other_ring_atom_branches:
+        raise UnsupportedStructure(
+            "a substituent on the same ring atom as the ester acyl group "
+            "is not supported yet"
+        )
+    excluded_oxygens = {carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx()}
+    all_non_single = non_single_bonds(mol)
+    if any(a not in excluded_oxygens and b not in excluded_oxygens for a, b, _ in all_non_single):
+        raise UnsupportedStructure(
+            "an unsaturated ring alongside a ring-attached ester acyl "
+            "group is not supported yet (see P-31.1.3)"
+        )
+
+    halogens = halogen_substituents(mol)
+    alcohol_name = _name_alcohol_part(mol, alcohol_carbon, ester_oxygen.GetIdx())
+    acyl_name = _name_ring_attached_carboxyl(graph, ring_atoms, acyl_idx, halogens, suffix="carboxylate")
+    return f"{alcohol_name} {acyl_name}"
+
+
+def _name_ring_acyl_chain_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon):
+    """Saturated-ring counterpart of `_name_phenyl_acyl_ester`: the acyl
+    part (R-CO-) chain hangs off a single unbranched chain attached to an
+    otherwise-plain saturated monocyclic ring -- e.g. 'methyl
+    2-cyclohexylacetate'. `name_branch`'s own plain-ring recognition
+    (`_simple_ring_substituent`) names the ring as "cyclo..." with no
+    `aromatic_atoms` needed, unlike the benzene case. Narrower than the
+    benzene case: no ring alkyl/halogen substituents, matching this
+    project's established saturated-ring-chain first-slice convention
+    (see `_ketone.py`'s `_name_ring_substituent_chain_ketone`)."""
+    _validate_ester_atoms(mol)
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a saturated-ring-"
+            "substituent ester acyl chain is not supported yet"
+        )
+    excluded_oxygens = {carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx()}
+    if any(a not in excluded_oxygens and b not in excluded_oxygens for a, b, _ in non_single_bonds(mol)):
+        # Unlike the benzene case (whose ring bonds are inherently
+        # aromatic and always correctly named "phenyl"), `name_branch`'s
+        # plain-ring detector (`_simple_ring_substituent`) doesn't check
+        # bond order at all, so an unsaturated saturated-ring shape
+        # (cyclohexenyl) would otherwise be silently misnamed as the
+        # plain "cyclohexyl" -- reject any non-single bond outside the
+        # ester's own carbonyl, on the ring or the chain alike, rather
+        # than risk that silent mismatch.
+        raise UnsupportedStructure(
+            "unsaturation on the ring or chain alongside a saturated-"
+            "ring-substituent ester acyl chain is not supported yet"
+        )
+
+    graph = adjacency(mol)
+    attachment = ring_chain_attachment(graph, ring_atoms, set())
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a ring with more than one exocyclic branch alongside a "
+            "chain ester is not supported yet"
+        )
+    acyl_carbon_idx = acyl_carbon.GetIdx()
+    chain, branches = longest_branched_chain(graph, acyl_carbon_idx, ring_atoms, excluded_oxygens)
+    if len(chain) < 2:
+        raise UnsupportedStructure(
+            "an ester group directly attached to the ring (no intervening "
+            "chain carbon) is out of scope for this acyclic-chain-parent "
+            "module"
+        )
+
+    alcohol_name = _name_alcohol_part(mol, alcohol_carbon, ester_oxygen.GetIdx())
+
+    halogens = halogen_substituents(mol)
+    chain_length = len(chain)
+    substituents = {
+        position: [name_branch(graph, root, chain[position - 1], halogens) for root in roots]
+        for position, roots in branches.items()
+    }
+    grouped = group_substituents(substituents)
+    acyl_name = _name_from_substituents(chain_length, [], [], grouped)
+    return f"{alcohol_name} {acyl_name}"
+
+
 def _name_phenol_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_oxygen):
     """Name an ester whose alcohol part (R') is a single, otherwise-plain
     benzene ring attached directly to the ester oxygen (Ar-O-CO-R,
@@ -607,6 +743,11 @@ def name_ester(mol) -> str:
             acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon = _find_ester_group(mol)
             if alcohol_carbon.GetIdx() in ring_atoms:
                 return _name_phenol_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_oxygen)
+            graph = adjacency(mol)
+            if any(n in ring_atoms for n in graph[acyl_carbon.GetIdx()]):
+                return _name_benzoate_ester(
+                    mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon
+                )
             return _name_phenyl_acyl_ester(mol, ring_atoms)
         acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon = _find_ester_group(mol)
         cyclyl_ring_atoms = plain_saturated_ring_substituent_atoms(
@@ -614,6 +755,14 @@ def name_ester(mol) -> str:
         )
         if cyclyl_ring_atoms:
             return _name_cyclyl_ester(mol, cyclyl_ring_atoms, acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon)
+        graph = adjacency(mol)
+        if any(n in ring_atoms for n in graph[acyl_carbon.GetIdx()]):
+            return _name_ring_acyl_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon)
+        acyl_component = _alcohol_component(graph, acyl_carbon.GetIdx(), ester_oxygen.GetIdx())
+        if ring_atoms & acyl_component:
+            return _name_ring_acyl_chain_ester(
+                mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon
+            )
     if ring_info.NumRings() > 0:
         raise UnsupportedStructure(
             "a ring-attached ester or lactone uses a different naming "
