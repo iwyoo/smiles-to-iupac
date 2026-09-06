@@ -400,13 +400,13 @@ def _candidate_key(chain_length, ene_locants, yne_locants, substituents):
     )
 
 
-def _substituents_for_chain(graph, chain, halogens, excluded):
+def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -457,7 +457,7 @@ def _name_acyclic_amide(
     n_substituent_atoms = set()
     for n_alkyl_c in n_alkyl_carbons:
         if n_alkyl_c in phenyl_atoms:
-            n_names.append(name_branch(graph, n_alkyl_c, amide_nitrogen, {}, phenyl_atoms))
+            n_names.append(name_branch(graph, n_alkyl_c, amide_nitrogen, {}, phenyl_atoms, mol=mol))
             n_substituent_atoms |= phenyl_atoms
             continue
         n_atoms, _ = bfs(full_carbon_graph, n_alkyl_c)
@@ -491,7 +491,7 @@ def _name_acyclic_amide(
                 "not supported yet; only a plain, unsubstituted alkyl "
                 "N-substituent is in scope"
             )
-        n_names.append(name_branch(graph, n_alkyl_c, amide_nitrogen, {}))
+        n_names.append(name_branch(graph, n_alkyl_c, amide_nitrogen, {}, mol=mol))
         n_substituent_atoms |= n_atoms
 
     # N-alkyl substituent carbons hang off the (excluded) amide nitrogen, not
@@ -549,7 +549,7 @@ def _name_acyclic_amide(
                 # direction that doesn't start there is never valid.
                 continue
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, excluded)
+            substituents = _substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
@@ -575,7 +575,7 @@ def _name_acyclic_amide(
     return best_name
 
 
-def _ring_substituents(graph, ring_order, halogens, excluded):
+def _ring_substituents(graph, ring_order, halogens, excluded, mol=None):
     """{ring position -> [substituent name, ...]}, mirroring
     `_nitrile.py`'s identically-named helper -- every branch hanging off
     a ring atom other than the amide carbon itself (in `excluded`) is a
@@ -585,7 +585,7 @@ def _ring_substituents(graph, ring_order, halogens, excluded):
     for position, atom in enumerate(ring_order, start=1):
         branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -681,7 +681,7 @@ def _name_ring_amide(mol, ring_atoms, stereo=None):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             amide_locant = position_of[ring_atom]
-            substituents = _ring_substituents(graph, candidate, halogens, {amide_carbon})
+            substituents = _ring_substituents(graph, candidate, halogens, {amide_carbon}, mol=mol)
             key = _ring_candidate_key(ring_size, amide_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, key[-1], position_of
@@ -777,7 +777,7 @@ def _name_benzamide(mol, ring_atoms):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             amide_locant = position_of[ring_atom]
-            substituents = _ring_substituents(graph, candidate, halogens, {amide_carbon})
+            substituents = _ring_substituents(graph, candidate, halogens, {amide_carbon}, mol=mol)
             key = _benzamide_candidate_key(amide_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
@@ -840,7 +840,7 @@ def _name_phenyl_chain_amide(mol, ring_atoms):
 
     chain_length = len(chain)
     substituents = {
-        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms) for root in roots]
+        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms, mol=mol) for root in roots]
         for position, roots in branches.items()
     }
     grouped = group_substituents(substituents)

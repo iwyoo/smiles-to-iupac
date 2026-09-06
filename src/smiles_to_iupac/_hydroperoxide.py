@@ -200,13 +200,13 @@ def _candidate_key(chain_length, locant, substituents):
     return (locant, -total_count, locant_set, citation_locants, name), name
 
 
-def _substituents_for_chain(graph, chain, halogens, exclude):
+def _substituents_for_chain(graph, chain, halogens, exclude, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in exclude]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -254,7 +254,7 @@ def _name_phenyl_chain_hydroperoxide(mol, ring_atoms):
         position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
         locant = position_of[site]
         substituents = {
-            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms) for root in roots]
+            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms, mol=mol) for root in roots]
             for atom, roots in branches_by_atom.items()
         }
         key, name = _candidate_key(chain_length, locant, substituents)
@@ -300,7 +300,7 @@ def _name_acyclic_hydroperoxide(
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             locant = position_of[site]
-            substituents = _substituents_for_chain(graph, candidate, halogens, exclude)
+            substituents = _substituents_for_chain(graph, candidate, halogens, exclude, mol=mol)
             key, name = _candidate_key(chain_length, locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name

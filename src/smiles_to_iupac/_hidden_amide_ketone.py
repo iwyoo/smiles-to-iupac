@@ -197,7 +197,7 @@ def name_hidden_amide_ketone(mol) -> str:
     for position, atom in enumerate(chain, start=1):
         branch_roots = [x for x in graph[atom] if x not in chain_set and x not in (n_idx, carbonyl_oxygen)]
         for root in branch_roots:
-            entry = name_branch(graph, root, atom, halogens)
+            entry = name_branch(graph, root, atom, halogens, mol=mol)
             substituents.setdefault(position, []).append(entry)
 
     grouped = group_substituents(substituents)

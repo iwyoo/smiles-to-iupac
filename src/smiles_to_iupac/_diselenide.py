@@ -162,7 +162,7 @@ def _validate_and_find_diselenide(mol, aromatic_ring_atoms=frozenset()):
     return se1.GetIdx(), se2.GetIdx(), c1, c2
 
 
-def _substituents_for_chain(graph, chain, terminals):
+def _substituents_for_chain(graph, chain, terminals, mol=None):
     """Like `_acyclic._substituents_for_chain`, but a `terminals` leaf is
     always cited as a compound (parenthesized) substituent -- see module
     docstring for why the diselanyl prefix needs this, unlike the plain
@@ -179,7 +179,7 @@ def _substituents_for_chain(graph, chain, terminals):
             if root in terminals:
                 entries.append((terminals[root], True))
             else:
-                entries.append(name_branch(graph, root, atom, {}))
+                entries.append(name_branch(graph, root, atom, {}, mol=mol))
         substituents[position] = entries
     return substituents
 
@@ -239,7 +239,7 @@ def _candidate_key(chain_length, substituents):
     return (-total_count, locant_set, citation_locants, name), name
 
 
-def _name_parent_chain(full_graph, carbon_graph, terminals):
+def _name_parent_chain(full_graph, carbon_graph, terminals, mol=None):
     chains = _longest_chains(carbon_graph)
     chain_length = len(chains[0])
 
@@ -248,7 +248,7 @@ def _name_parent_chain(full_graph, carbon_graph, terminals):
     best_chain = None
     for chain in chains:
         for candidate in (chain, list(reversed(chain))):
-            substituents = _substituents_for_chain(full_graph, candidate, terminals)
+            substituents = _substituents_for_chain(full_graph, candidate, terminals, mol=mol)
             key, name = _candidate_key(chain_length, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_chain = key, name, candidate
@@ -299,7 +299,7 @@ def _name_benzene_ring_diselenide_chain(mol, ring_atoms) -> str:
             "selenium bond is, see module docstring)"
         )
 
-    sub_name, sub_compound = name_branch(full_graph, other_root, other_se, {})
+    sub_name, sub_compound = name_branch(full_graph, other_root, other_se, {}, mol=mol)
     if sub_compound:
         raise UnsupportedStructure(
             "a branched alkyldiselanyl substituent is not supported yet"
@@ -325,8 +325,8 @@ def name_diselenide(mol) -> str:
         size2 = len(_component_subgraph(carbon_graph, c2))
 
         if size1 == size2:
-            _, compound_a = name_branch(full_graph, c1, se1_idx, {})
-            _, compound_b = name_branch(full_graph, c2, se2_idx, {})
+            _, compound_a = name_branch(full_graph, c1, se1_idx, {}, mol=mol)
+            _, compound_b = name_branch(full_graph, c2, se2_idx, {}, mol=mol)
             if compound_a and compound_b:
                 raise UnsupportedStructure(
                     "a diselenide tied in skeletal-atom count with both sides "
@@ -341,7 +341,7 @@ def name_diselenide(mol) -> str:
         else:
             parent_root, parent_se, sub_root, sub_se = c2, se2_idx, c1, se1_idx
 
-        sub_name, sub_compound = name_branch(full_graph, sub_root, sub_se, {})
+        sub_name, sub_compound = name_branch(full_graph, sub_root, sub_se, {}, mol=mol)
         if sub_compound:
             raise UnsupportedStructure(
                 "a branched alkyldiselanyl substituent is not supported yet"
@@ -349,7 +349,7 @@ def name_diselenide(mol) -> str:
         terminals = {parent_se: sub_name + "diselanyl"}
 
     parent_carbon_graph = _component_subgraph(carbon_graph, parent_root)
-    chain, name = _name_parent_chain(full_graph, parent_carbon_graph, terminals)
+    chain, name = _name_parent_chain(full_graph, parent_carbon_graph, terminals, mol=mol)
 
     stereo = specified_stereocenters(mol)
     if stereo is None:

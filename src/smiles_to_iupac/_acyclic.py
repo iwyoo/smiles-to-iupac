@@ -63,7 +63,7 @@ def _longest_chains(graph):
     return chains
 
 
-def _substituents_for_chain(graph, chain, halogens):
+def _substituents_for_chain(graph, chain, halogens, mol=None):
     """Return {position (1-based) -> [(name, is_compound), ...]} for a
     candidate chain."""
     chain_set = set(chain)
@@ -72,7 +72,7 @@ def _substituents_for_chain(graph, chain, halogens):
         branch_roots = [n for n in graph[atom] if n not in chain_set]
         if not branch_roots:
             continue
-        substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+        substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -138,7 +138,7 @@ def longest_chain_length(carbon_graph) -> int:
     return len(_longest_chains(carbon_graph)[0])
 
 
-def _best_candidate(full_graph, carbon_graph, terminals):
+def _best_candidate(full_graph, carbon_graph, terminals, mol=None):
     """Shared search behind `winning_chain_from_carbon_graph` and
     `winning_chain_with_key`: every candidate chain/direction's P-45.2 sort
     key, alongside the winning chain and name."""
@@ -150,7 +150,7 @@ def _best_candidate(full_graph, carbon_graph, terminals):
     best_name = None
     for chain in chains:
         for candidate in (chain, list(reversed(chain))):
-            substituents = _substituents_for_chain(full_graph, candidate, terminals)
+            substituents = _substituents_for_chain(full_graph, candidate, terminals, mol=mol)
             key, name = _candidate_key(chain_length, substituents)
             if best_key is None or key < best_key:
                 best_key, best_chain, best_name = key, candidate, name
@@ -158,7 +158,7 @@ def _best_candidate(full_graph, carbon_graph, terminals):
     return best_key, best_chain, best_name
 
 
-def winning_chain_from_carbon_graph(full_graph, carbon_graph, terminals):
+def winning_chain_from_carbon_graph(full_graph, carbon_graph, terminals, mol=None):
     """Same P-44.3/P-45.2 tie-break as `name_from_carbon_graph` below, but
     also returns the winning candidate chain itself (root-to-tip, in the
     direction that won), not just its name -- used by a caller (e.g.
@@ -166,11 +166,11 @@ def winning_chain_from_carbon_graph(full_graph, carbon_graph, terminals):
     position on that chain, such as for a stereodescriptor's locant
     (P-91.3). Kept as the single source of truth so `name_from_carbon_graph`
     and any such caller can never disagree about which chain was chosen."""
-    _, chain, name = _best_candidate(full_graph, carbon_graph, terminals)
+    _, chain, name = _best_candidate(full_graph, carbon_graph, terminals, mol=mol)
     return chain, name
 
 
-def winning_chain_with_key(full_graph, carbon_graph, terminals):
+def winning_chain_with_key(full_graph, carbon_graph, terminals, mol=None):
     """Same as `winning_chain_from_carbon_graph`, but also exposes the
     P-45.2 sort key (lowest locant set, then alphanumerical order) used to
     pick it. A caller comparing two *different* candidate parent sides of
@@ -178,17 +178,17 @@ def winning_chain_with_key(full_graph, carbon_graph, terminals):
     both built on a 3-long chain) can compare their keys directly to decide
     which side is senior, the same way this function's own inner loop
     already decides between numbering directions of one fixed chain."""
-    return _best_candidate(full_graph, carbon_graph, terminals)
+    return _best_candidate(full_graph, carbon_graph, terminals, mol=mol)
 
 
-def name_from_carbon_graph(full_graph, carbon_graph, terminals) -> str:
+def name_from_carbon_graph(full_graph, carbon_graph, terminals, mol=None) -> str:
     """Name the acyclic saturated skeleton given by `carbon_graph` (P-44.3
     chain search), with `full_graph` used for substituent detection and
     `terminals` ({atom_idx -> prefix name}) naming any leaf substituent
     that's excluded from the chain search and never recursed into — the
     same role `halogen_substituents` plays for halogens (P-35.2.1), reused
     by `_ether.py` for an ether oxygen's precomputed 'alkoxy' prefix."""
-    _, name = winning_chain_from_carbon_graph(full_graph, carbon_graph, terminals)
+    _, name = winning_chain_from_carbon_graph(full_graph, carbon_graph, terminals, mol=mol)
     return name
 
 
@@ -205,7 +205,7 @@ def name_acyclic_alkane(mol) -> str:
         )
 
     full_graph = adjacency(mol)
-    chain, name = winning_chain_from_carbon_graph(full_graph, carbon_adjacency(mol), halogen_substituents(mol))
+    chain, name = winning_chain_from_carbon_graph(full_graph, carbon_adjacency(mol), halogen_substituents(mol), mol=mol)
 
     stereo = specified_stereocenters(mol)
     if stereo is None:

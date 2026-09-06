@@ -237,13 +237,13 @@ def _group(substituents):
     return grouped
 
 
-def _substituents_for_chain(graph, chain, halogens, excluded):
+def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -258,7 +258,7 @@ def _candidate_key(substituents):
     return locant_set, citation_locants
 
 
-def _best_branch(chains, graph, halogens, acyl_carbon, carbonyl_oxygen, excluded):
+def _best_branch(chains, graph, halogens, acyl_carbon, carbonyl_oxygen, excluded, mol=None):
     """Return (chain_length, grouped substituents) for the best (lowest
     locant set) numbering of `acyl_carbon`'s own branch."""
     eligible = [c for c in chains if acyl_carbon in c]
@@ -276,7 +276,7 @@ def _best_branch(chains, graph, halogens, acyl_carbon, carbonyl_oxygen, excluded
         # `_validate_and_collect_imide`), so it can only ever be a chain
         # endpoint, never interior.
         candidate = chain if chain[0] == acyl_carbon else list(reversed(chain))
-        substituents = _substituents_for_chain(graph, candidate, halogens, excluded | {carbonyl_oxygen})
+        substituents = _substituents_for_chain(graph, candidate, halogens, excluded | {carbonyl_oxygen}, mol=mol)
         key = _candidate_key(substituents)
         if best_key is None or key < best_key:
             best_key, best_grouped = key, _group(substituents)
@@ -421,10 +421,10 @@ def _validate_and_collect_phenyl_chain_imide(mol, ring1_atoms, ring2_atoms):
     return list(reversed(chain1)), ring_atom1, list(reversed(chain2)), ring_atom2
 
 
-def _phenyl_chain_grouped(graph, halogens, ordered_chain, ring_atom, ring_atoms):
+def _phenyl_chain_grouped(graph, halogens, ordered_chain, ring_atom, ring_atoms, mol=None):
     chain_root = ordered_chain[-1]
     position = len(ordered_chain)
-    substituents = {position: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms)]}
+    substituents = {position: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms, mol=mol)]}
     return _group(substituents)
 
 
@@ -447,8 +447,8 @@ def _name_phenyl_chain_imide(mol, ring1_atoms, ring2_atoms):
     )
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    grouped1 = _phenyl_chain_grouped(graph, halogens, ordered1, ring_atom1, ring1_atoms)
-    grouped2 = _phenyl_chain_grouped(graph, halogens, ordered2, ring_atom2, ring2_atoms)
+    grouped1 = _phenyl_chain_grouped(graph, halogens, ordered1, ring_atom1, ring1_atoms, mol=mol)
+    grouped2 = _phenyl_chain_grouped(graph, halogens, ordered2, ring_atom2, ring2_atoms, mol=mol)
     return _combine_symmetric_branches(len(ordered1), grouped1, len(ordered2), grouped2)
 
 
@@ -467,6 +467,6 @@ def name_imide(mol) -> str:
     halogens = halogen_substituents(mol)
     excluded = {imide_n}
     chains = _longest_chains(carbon_adjacency(mol))
-    length1, grouped1 = _best_branch(chains, graph, halogens, acyl1, carbonyl_o1, excluded)
-    length2, grouped2 = _best_branch(chains, graph, halogens, acyl2, carbonyl_o2, excluded)
+    length1, grouped1 = _best_branch(chains, graph, halogens, acyl1, carbonyl_o1, excluded, mol=mol)
+    length2, grouped2 = _best_branch(chains, graph, halogens, acyl2, carbonyl_o2, excluded, mol=mol)
     return _combine_symmetric_branches(length1, grouped1, length2, grouped2)

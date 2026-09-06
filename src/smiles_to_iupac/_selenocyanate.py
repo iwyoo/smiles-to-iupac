@@ -136,5 +136,5 @@ def name_selenocyanate(mol) -> str:
     if non_single:
         raise UnsupportedStructure("unsaturation in the R group is not supported yet")
 
-    r_name, _ = name_branch(adjacency(mol), alkyl_c_idx, selenium_idx, {}, ring_atoms)
+    r_name, _ = name_branch(adjacency(mol), alkyl_c_idx, selenium_idx, {}, ring_atoms, mol=mol)
     return f"{r_name} selenocyanate"

@@ -642,7 +642,7 @@ def _match_hetero_monocyclic_substituents(mol):
     h_counts = {atom: mol.GetAtomWithIdx(atom).GetTotalNumHs() for atom in ring_atoms}
     halogens = halogen_substituents(mol)
     names_by_atom = {
-        atom: name_branch(graph, root, atom, halogens) for atom, root in exo_by_atom.items()
+        atom: name_branch(graph, root, atom, halogens, mol=mol) for atom, root in exo_by_atom.items()
     }
 
     for parent_name, role_sequence in _ROLE_SEQUENCES.items():

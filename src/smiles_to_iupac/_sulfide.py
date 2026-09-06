@@ -135,7 +135,7 @@ def _name_benzene_ring_sulfide_chain(mol, ring_atoms) -> str:
 
     if chain_root == sulfur_idx:
         (r_prime,) = [n for n in graph[sulfur_idx] if n != ring_atom]
-        sub_name, sub_compound = name_branch(graph, r_prime, sulfur_idx, {})
+        sub_name, sub_compound = name_branch(graph, r_prime, sulfur_idx, {}, mol=mol)
         if sub_compound:
             sub_name = f"({sub_name})"
         return f"{_sulfanyl_prefix(sub_name)}benzene"
@@ -145,11 +145,11 @@ def _name_benzene_ring_sulfide_chain(mol, ring_atoms) -> str:
     reached, _ = bfs(blocked_graph, ring_atom)
     (r_prime,) = [n for n in graph[sulfur_idx] if n not in reached]
 
-    sub_name, sub_compound = name_branch(graph, r_prime, sulfur_idx, {})
+    sub_name, sub_compound = name_branch(graph, r_prime, sulfur_idx, {}, mol=mol)
     if sub_compound:
         sub_name = f"({sub_name})"
     sulfanyl_term = _sulfanyl_prefix(sub_name)
-    branch_name, is_compound = name_branch(graph, chain_root, ring_atom, {sulfur_idx: sulfanyl_term})
+    branch_name, is_compound = name_branch(graph, chain_root, ring_atom, {sulfur_idx: sulfanyl_term}, mol=mol)
     if not is_compound:
         return f"{branch_name}benzene"
     if "(" in branch_name:
@@ -187,25 +187,25 @@ def name_sulfide(mol) -> str:
         elif len_b > len_a:
             parent_root, sub_root = n2, n1
         else:
-            name_a, compound_a = name_branch(full_graph, n1, sulfur_idx, {})
-            name_b, compound_b = name_branch(full_graph, n2, sulfur_idx, {})
+            name_a, compound_a = name_branch(full_graph, n1, sulfur_idx, {}, mol=mol)
+            name_b, compound_b = name_branch(full_graph, n2, sulfur_idx, {}, mol=mol)
             sub_from_a = f"({name_a})" if compound_a else name_a
             sub_from_b = f"({name_b})" if compound_b else name_b
-            key_a, _, _ = winning_chain_with_key(full_graph, graph_a, {sulfur_idx: _sulfanyl_prefix(sub_from_b)})
-            key_b, _, _ = winning_chain_with_key(full_graph, graph_b, {sulfur_idx: _sulfanyl_prefix(sub_from_a)})
+            key_a, _, _ = winning_chain_with_key(full_graph, graph_a, {sulfur_idx: _sulfanyl_prefix(sub_from_b)}, mol=mol)
+            key_b, _, _ = winning_chain_with_key(full_graph, graph_b, {sulfur_idx: _sulfanyl_prefix(sub_from_a)}, mol=mol)
             parent_root, sub_root = (n1, n2) if key_a <= key_b else (n2, n1)
     elif size1 > size2:
         parent_root, sub_root = n1, n2
     else:
         parent_root, sub_root = n2, n1
 
-    sub_name, sub_compound = name_branch(full_graph, sub_root, sulfur_idx, {})
+    sub_name, sub_compound = name_branch(full_graph, sub_root, sulfur_idx, {}, mol=mol)
     if sub_compound:
         sub_name = f"({sub_name})"
 
     parent_carbon_graph = _component_subgraph(carbon_graph, parent_root)
     terminals = {sulfur_idx: _sulfanyl_prefix(sub_name)}
-    chain, name = winning_chain_from_carbon_graph(full_graph, parent_carbon_graph, terminals)
+    chain, name = winning_chain_from_carbon_graph(full_graph, parent_carbon_graph, terminals, mol=mol)
 
     stereo = specified_stereocenters(mol)
     if stereo is None:

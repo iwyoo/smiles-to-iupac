@@ -337,13 +337,13 @@ def _candidate_key(chain_length, acid_count, ene_locants, yne_locants, substitue
     )
 
 
-def _substituents_for_chain(graph, chain, halogens, carboxyl_oxygens):
+def _substituents_for_chain(graph, chain, halogens, carboxyl_oxygens, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in carboxyl_oxygens]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -427,7 +427,7 @@ def _name_acyclic_carboxylic_acid(
                 # direction that doesn't start there is never valid.
                 continue
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, carboxyl_oxygens)
+            substituents = _substituents_for_chain(graph, candidate, halogens, carboxyl_oxygens, mol=mol)
             key, name = _candidate_key(chain_length, acid_count, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
@@ -514,14 +514,14 @@ def _name_phenyl_chain_carboxylic_acid(mol, ring_atoms):
 
     chain_length = len(chain)
     substituents = {
-        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms) for root in roots]
+        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms, mol=mol) for root in roots]
         for position, roots in branches.items()
     }
     grouped = group_substituents(substituents)
     return _name_from_substituents(chain_length, 1, [], [], grouped)
 
 
-def _ring_substituents(graph, ring_order, halogens, excluded):
+def _ring_substituents(graph, ring_order, halogens, excluded, mol=None):
     """{ring position -> [substituent name, ...]}, mirroring
     `_sulfonic_acid.py`'s identically-named helper -- every branch hanging
     off a ring atom other than the carboxylic acid carbon itself (in
@@ -531,7 +531,7 @@ def _ring_substituents(graph, ring_order, halogens, excluded):
     for position, atom in enumerate(ring_order, start=1):
         branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -558,7 +558,7 @@ def _ring_candidate_key(ring_size, carboxyl_locant, substituents, suffix="carbox
     return carboxyl_locant, locant_set, citation_locants, name
 
 
-def _name_ring_attached_carboxyl(graph, ring_atoms, carboxyl_carbon, halogens, stereo=None, suffix="carboxylic acid"):
+def _name_ring_attached_carboxyl(graph, ring_atoms, carboxyl_carbon, halogens, stereo=None, suffix="carboxylic acid", mol=None):
     """Shared ring-numbering-search kernel behind `_name_ring_carboxylic_
     acid` -- also reused by `_ester.py` (with `suffix="carboxylate"`) for
     the analogous ester-acyl case, since the numbering/substituent-citation
@@ -579,7 +579,7 @@ def _name_ring_attached_carboxyl(graph, ring_atoms, carboxyl_carbon, halogens, s
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             carboxyl_locant = position_of[ring_atom]
-            substituents = _ring_substituents(graph, candidate, halogens, {carboxyl_carbon})
+            substituents = _ring_substituents(graph, candidate, halogens, {carboxyl_carbon}, mol=mol)
             key = _ring_candidate_key(ring_size, carboxyl_locant, substituents, suffix)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, key[-1], position_of
@@ -657,7 +657,7 @@ def _name_ring_carboxylic_acid(mol, ring_atoms, stereo=None):
         )
 
     halogens = halogen_substituents(mol)
-    return _name_ring_attached_carboxyl(graph, ring_atoms, carboxyl_carbon, halogens, stereo)
+    return _name_ring_attached_carboxyl(graph, ring_atoms, carboxyl_carbon, halogens, stereo, mol=mol)
 
 
 def _benzoic_acid_name_from_substituents(grouped, word="benzoic acid"):
@@ -682,7 +682,7 @@ def _benzoic_acid_candidate_key(carboxyl_locant, substituents, word="benzoic aci
     return carboxyl_locant, locant_set, citation_locants, name
 
 
-def _name_benzo_attached_carboxyl(graph, ring_atoms, carboxyl_carbon, halogens, word="benzoic acid"):
+def _name_benzo_attached_carboxyl(graph, ring_atoms, carboxyl_carbon, halogens, word="benzoic acid", mol=None):
     """Shared ring-numbering-search kernel behind `_name_benzoic_acid` --
     also reused by `_ester.py` (with `word="benzoate"`) for the analogous
     ester-acyl case (P-65.6.3.2's retained-name-as-acyl-part axis). The
@@ -700,7 +700,7 @@ def _name_benzo_attached_carboxyl(graph, ring_atoms, carboxyl_carbon, halogens, 
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             carboxyl_locant = position_of[ring_atom]
-            substituents = _ring_substituents(graph, candidate, halogens, {carboxyl_carbon})
+            substituents = _ring_substituents(graph, candidate, halogens, {carboxyl_carbon}, mol=mol)
             key = _benzoic_acid_candidate_key(carboxyl_locant, substituents, word)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
@@ -756,7 +756,7 @@ def _name_benzoic_acid(mol, ring_atoms):
     (ring_atom,) = ring_neighbors
 
     halogens = halogen_substituents(mol)
-    return _name_benzo_attached_carboxyl(graph, ring_atoms, carboxyl_carbon, halogens)
+    return _name_benzo_attached_carboxyl(graph, ring_atoms, carboxyl_carbon, halogens, mol=mol)
 
 
 def _has_carboxyl_directly_on_ring(mol, ring_atoms):

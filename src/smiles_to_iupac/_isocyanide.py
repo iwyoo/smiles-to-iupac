@@ -186,7 +186,7 @@ def _name_benzene_ring_isocyanide_chain(mol, nitrogen, group_atom_idxs, ring_ato
         )
 
     terminals = {nitrogen.GetIdx(): "isocyano"}
-    branch_name, is_compound = name_branch(graph, chain_root, ring_atom, terminals)
+    branch_name, is_compound = name_branch(graph, chain_root, ring_atom, terminals, mol=mol)
     display = f"({branch_name})" if is_compound else branch_name
     return f"{display}benzene"
 
@@ -221,4 +221,4 @@ def name_isocyanide(mol) -> str:
     excluded_carbons = group_atom_idxs - {n1.GetIdx()}
     carbon_graph = _carbon_adjacency_excluding(mol, excluded_carbons)
 
-    return name_from_carbon_graph(adjacency(mol), carbon_graph, terminals)
+    return name_from_carbon_graph(adjacency(mol), carbon_graph, terminals, mol=mol)

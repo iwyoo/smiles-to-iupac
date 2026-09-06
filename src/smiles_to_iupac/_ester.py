@@ -250,7 +250,7 @@ def _name_alcohol_part(mol, alcohol_carbon, ester_oxygen_idx):
                 "(P-65.6.3)"
             )
 
-    name, _ = name_branch(full_graph, alcohol_carbon.GetIdx(), ester_oxygen_idx, {})
+    name, _ = name_branch(full_graph, alcohol_carbon.GetIdx(), ester_oxygen_idx, {}, mol=mol)
     return name
 
 
@@ -330,13 +330,13 @@ def _component_subgraph(graph, start):
     return {node: [n for n in graph[node] if n in nodes] for node in nodes}
 
 
-def _substituents_for_chain(graph, chain, halogens, excluded_oxygens):
+def _substituents_for_chain(graph, chain, halogens, excluded_oxygens, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded_oxygens]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -432,7 +432,7 @@ def _name_acyl_part(
                 # direction that doesn't start there is never valid.
                 continue
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(full_graph, candidate, halogens, excluded_oxygens)
+            substituents = _substituents_for_chain(full_graph, candidate, halogens, excluded_oxygens, mol=mol)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
@@ -548,7 +548,7 @@ def _name_phenyl_acyl_ester(mol, ring_atoms):
 
     chain_length = len(chain)
     substituents = {
-        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms) for root in roots]
+        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms, mol=mol) for root in roots]
         for position, roots in branches.items()
     }
     grouped = group_substituents(substituents)
@@ -683,7 +683,7 @@ def _name_ring_acyl_chain_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, e
     halogens = halogen_substituents(mol)
     chain_length = len(chain)
     substituents = {
-        position: [name_branch(graph, root, chain[position - 1], halogens) for root in roots]
+        position: [name_branch(graph, root, chain[position - 1], halogens, mol=mol) for root in roots]
         for position, roots in branches.items()
     }
     grouped = group_substituents(substituents)
@@ -731,7 +731,7 @@ def _name_cyclyl_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_oxyg
     acyl_name = _name_acyl_part(
         mol, acyl_carbon, carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx(), stereo, ring_atoms
     )
-    alcohol_name, _ = name_branch(graph, alcohol_carbon.GetIdx(), ester_oxygen.GetIdx(), {})
+    alcohol_name, _ = name_branch(graph, alcohol_carbon.GetIdx(), ester_oxygen.GetIdx(), {}, mol=mol)
     return f"{alcohol_name} {acyl_name}"
 
 

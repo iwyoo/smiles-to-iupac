@@ -200,13 +200,13 @@ def _group(substituents):
     return grouped
 
 
-def _substituents_for_chain(graph, chain, halogens, excluded):
+def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -231,7 +231,7 @@ def _candidate_key(substituents):
     return locant_set, citation_locants
 
 
-def _branch_acid_name(chains, graph, halogens, acyl_carbon, carbonyl_oxygen, excluded):
+def _branch_acid_name(chains, graph, halogens, acyl_carbon, carbonyl_oxygen, excluded, mol=None):
     eligible = [c for c in chains if acyl_carbon in c]
     if not eligible:
         raise UnsupportedStructure(
@@ -247,7 +247,7 @@ def _branch_acid_name(chains, graph, halogens, acyl_carbon, carbonyl_oxygen, exc
         # `_validate_and_collect_anhydride`), so it can only ever be a
         # chain endpoint, never interior.
         candidate = chain if chain[0] == acyl_carbon else list(reversed(chain))
-        substituents = _substituents_for_chain(graph, candidate, halogens, excluded | {carbonyl_oxygen})
+        substituents = _substituents_for_chain(graph, candidate, halogens, excluded | {carbonyl_oxygen}, mol=mol)
         key = _candidate_key(substituents)
         if best_key is None or key < best_key:
             grouped = _group(substituents)
@@ -274,8 +274,8 @@ def name_anhydride(mol) -> str:
     halogens = halogen_substituents(mol)
     excluded = {bridging_o}
     chains = _longest_chains(carbon_adjacency(mol))
-    name1 = _branch_acid_name(chains, graph, halogens, acyl1, carbonyl_o1, excluded)
-    name2 = _branch_acid_name(chains, graph, halogens, acyl2, carbonyl_o2, excluded)
+    name1 = _branch_acid_name(chains, graph, halogens, acyl1, carbonyl_o1, excluded, mol=mol)
+    name2 = _branch_acid_name(chains, graph, halogens, acyl2, carbonyl_o2, excluded, mol=mol)
     if name1 != name2:
         raise UnsupportedStructure(
             "an unsymmetric anhydride (the two acyl groups name "

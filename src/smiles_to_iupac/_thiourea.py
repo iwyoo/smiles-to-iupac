@@ -105,8 +105,8 @@ def _n_substituent_carbons(mol, nitrogen_idx, carbon_idx):
     )
 
 
-def _substituent_names(full_graph, nitrogen_idx, substituent_carbons, aromatic_atoms=frozenset()):
-    return [name_branch(full_graph, c, nitrogen_idx, {}, aromatic_atoms) for c in substituent_carbons]
+def _substituent_names(full_graph, nitrogen_idx, substituent_carbons, aromatic_atoms=frozenset(), mol=None):
+    return [name_branch(full_graph, c, nitrogen_idx, {}, aromatic_atoms, mol=mol) for c in substituent_carbons]
 
 
 def _plain_phenyl_substituent_atoms(mol, graph, roots):
@@ -215,8 +215,8 @@ def name_thiourea(mol) -> str:
     _reject_unsaturated_substituents(mol, n1_chain_atoms - phenyl_atoms)
     _reject_unsaturated_substituents(mol, n2_chain_atoms - phenyl_atoms)
 
-    n1_names = _substituent_names(full_graph, n1_idx, n1_carbons, frozenset(phenyl_atoms))
-    n2_names = _substituent_names(full_graph, n2_idx, n2_carbons, frozenset(phenyl_atoms))
+    n1_names = _substituent_names(full_graph, n1_idx, n1_carbons, frozenset(phenyl_atoms), mol=mol)
+    n2_names = _substituent_names(full_graph, n2_idx, n2_carbons, frozenset(phenyl_atoms), mol=mol)
 
     if not n1_names and not n2_names:
         return "thiourea"

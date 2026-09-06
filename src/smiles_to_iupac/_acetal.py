@@ -163,7 +163,7 @@ def name_acetal(mol) -> str:
     terminals = {}
     for oxygen_idx in (oxygen_1, oxygen_2):
         (sub_root,) = (idx for idx in full_graph[oxygen_idx] if idx != acetal_carbon)
-        sub_name, sub_compound = name_branch(full_graph, sub_root, oxygen_idx, {})
+        sub_name, sub_compound = name_branch(full_graph, sub_root, oxygen_idx, {}, mol=mol)
         if sub_compound:
             raise UnsupportedStructure(
                 "a branched alkoxy substituent's enclosing marks are not "
@@ -172,7 +172,7 @@ def name_acetal(mol) -> str:
             )
         terminals[oxygen_idx] = _oxy_prefix(sub_name)
 
-    chain, name = winning_chain_from_carbon_graph(full_graph, carbon_graph, terminals)
+    chain, name = winning_chain_from_carbon_graph(full_graph, carbon_graph, terminals, mol=mol)
     if stereo is None:
         return name
 

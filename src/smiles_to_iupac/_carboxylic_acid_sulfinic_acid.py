@@ -232,13 +232,13 @@ def _candidate_key(chain_length, substituents):
     return (locant_set, citation_locants, name), name
 
 
-def _substituents_for_chain(graph, chain, names, excluded):
+def _substituents_for_chain(graph, chain, names, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, names) for root in branch_roots]
+            substituents[position] = [name_branch(graph, root, atom, names, mol=mol) for root in branch_roots]
     return substituents
 
 
@@ -310,8 +310,8 @@ def _name_phenyl_chain_carboxylic_acid_sulfinic_acid(mol, ring_atoms):
     chain_length = len(chain)
     position_of = {atom: i + 1 for i, atom in enumerate(chain)}
     names = {**halogen_substituents(mol), **{s: "sulfino" for s in sulfinic_idxs}}
-    substituents = _substituents_for_chain(graph, chain, names, carboxyl_oxygens | {ring_atom})
-    ring_entry = name_branch(graph, ring_atom, chain_root, names, ring_atoms)
+    substituents = _substituents_for_chain(graph, chain, names, carboxyl_oxygens | {ring_atom}, mol=mol)
+    ring_entry = name_branch(graph, ring_atom, chain_root, names, ring_atoms, mol=mol)
     substituents.setdefault(position_of[chain_root], []).append(ring_entry)
     grouped = group_substituents(substituents)
     return _name_from_substituents(chain_length, grouped)
@@ -374,7 +374,7 @@ def name_carboxylic_acid_sulfinic_acid(mol) -> str:
                 # A -COOH carbon must sit at C1 (P-65.1.1); a direction
                 # that doesn't start there is never valid.
                 continue
-            substituents = _substituents_for_chain(graph, candidate, names, excluded)
+            substituents = _substituents_for_chain(graph, candidate, names, excluded, mol=mol)
             key, name = _candidate_key(chain_length, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name

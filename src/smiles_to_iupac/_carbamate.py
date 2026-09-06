@@ -257,13 +257,13 @@ def name_carbamate(mol) -> str:
             "unsaturation in the R group is not supported yet"
         )
 
-    r_name, _ = name_branch(full_graph, alkyl_c, ester_o, {})
+    r_name, _ = name_branch(full_graph, alkyl_c, ester_o, {}, mol=mol)
     if not n_alkyl_cs:
         return f"{r_name} carbamate"
 
     aromatic_atoms = frozenset(phenyl_atoms)
     n_entries = [
-        name_branch(full_graph, n_alkyl_c, amide_n, {}, aromatic_atoms) for n_alkyl_c in n_alkyl_cs
+        name_branch(full_graph, n_alkyl_c, amide_n, {}, aromatic_atoms, mol=mol) for n_alkyl_c in n_alkyl_cs
     ]
 
     if len(n_entries) == 2 and n_entries[0][0] == n_entries[1][0]:

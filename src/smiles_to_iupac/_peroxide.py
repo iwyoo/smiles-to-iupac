@@ -164,7 +164,7 @@ def _name_benzene_ring_peroxide_chain(mol, ring_atoms) -> str:
         near_o = chain_root
         far_o = o2_idx if near_o == o1_idx else o1_idx
         (r_prime,) = [n for n in graph[far_o] if n != near_o]
-        sub_name, sub_compound = name_branch(graph, r_prime, far_o, {})
+        sub_name, sub_compound = name_branch(graph, r_prime, far_o, {}, mol=mol)
         if sub_compound:
             sub_name = f"({sub_name})"
         return f"{sub_name}peroxybenzene"
@@ -177,11 +177,11 @@ def _name_benzene_ring_peroxide_chain(mol, ring_atoms) -> str:
     far_o = o2_idx if near_o == o1_idx else o1_idx
     (r_prime,) = [n for n in graph[far_o] if n != near_o]
 
-    sub_name, sub_compound = name_branch(graph, r_prime, far_o, {})
+    sub_name, sub_compound = name_branch(graph, r_prime, far_o, {}, mol=mol)
     if sub_compound:
         sub_name = f"({sub_name})"
     peroxy_term = sub_name + "peroxy"
-    branch_name, is_compound = name_branch(graph, chain_root, ring_atom, {near_o: peroxy_term})
+    branch_name, is_compound = name_branch(graph, chain_root, ring_atom, {near_o: peroxy_term}, mol=mol)
     if not is_compound:
         return f"{branch_name}benzene"
     if "(" in branch_name:
@@ -220,12 +220,12 @@ def name_peroxide(mol) -> str:
         elif len_b > len_a:
             parent_root, parent_oxygen, sub_root, sub_oxygen = n2, o2_idx, n1, o1_idx
         else:
-            name_a, compound_a = name_branch(full_graph, n1, o1_idx, {})
-            name_b, compound_b = name_branch(full_graph, n2, o2_idx, {})
+            name_a, compound_a = name_branch(full_graph, n1, o1_idx, {}, mol=mol)
+            name_b, compound_b = name_branch(full_graph, n2, o2_idx, {}, mol=mol)
             sub_from_a = f"({name_a})" if compound_a else name_a
             sub_from_b = f"({name_b})" if compound_b else name_b
-            key_a, _, _ = winning_chain_with_key(full_graph, graph_a, {o1_idx: sub_from_b + "peroxy"})
-            key_b, _, _ = winning_chain_with_key(full_graph, graph_b, {o2_idx: sub_from_a + "peroxy"})
+            key_a, _, _ = winning_chain_with_key(full_graph, graph_a, {o1_idx: sub_from_b + "peroxy"}, mol=mol)
+            key_b, _, _ = winning_chain_with_key(full_graph, graph_b, {o2_idx: sub_from_a + "peroxy"}, mol=mol)
             parent_root, parent_oxygen, sub_root, sub_oxygen = (
                 (n1, o1_idx, n2, o2_idx) if key_a <= key_b else (n2, o2_idx, n1, o1_idx)
             )
@@ -234,13 +234,13 @@ def name_peroxide(mol) -> str:
     else:
         parent_root, parent_oxygen, sub_root, sub_oxygen = n2, o2_idx, n1, o1_idx
 
-    sub_name, sub_compound = name_branch(full_graph, sub_root, sub_oxygen, {})
+    sub_name, sub_compound = name_branch(full_graph, sub_root, sub_oxygen, {}, mol=mol)
     if sub_compound:
         sub_name = f"({sub_name})"
 
     parent_carbon_graph = _component_subgraph(carbon_graph, parent_root)
     terminals = {parent_oxygen: sub_name + "peroxy"}
-    chain, name = winning_chain_from_carbon_graph(full_graph, parent_carbon_graph, terminals)
+    chain, name = winning_chain_from_carbon_graph(full_graph, parent_carbon_graph, terminals, mol=mol)
 
     stereo = specified_stereocenters(mol)
     if stereo is None:
