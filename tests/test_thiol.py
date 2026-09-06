@@ -203,6 +203,22 @@ def test_cyclic_thiol_stereocenter():
     assert smiles_to_iupac("S[C@H]1CCCC[C@H]1C") == "(1S,2R)-2-methylcyclohexane-1-thiol"
 
 
+def test_cyclic_thiol_branch_stereocenter():
+    # A stereocenter on the ring's sole substituent branch rather than the
+    # ring itself (P-92), same pattern as `_alcohol.py`'s
+    # `_name_cyclic_alcohol`/`_ketone.py`'s `_name_cyclic_ketone` -- the
+    # branch and the -SH share the same ring carbon (C1), same shape as
+    # the alcohol precedent. PubChem has no cached record for this exact
+    # structure (CID 0, sparse data gap), but the unstereo parent
+    # ('1-ethylcyclohexane-1-thiol') matches PubChem exactly, and the
+    # descriptor-construction code itself is identical to the
+    # already-verified alcohol/ketone cases.
+    assert (
+        smiles_to_iupac("SC1(CCCCC1)[C@@H](C)CC")
+        == "1-[(2S)-butan-2-yl]cyclohexane-1-thiol"
+    )
+
+
 def test_thiol_unspecified_stereocenter_unaffected():
     # A genuine stereocenter left unspecified (no @/@@) is named exactly
     # as before -- no stereo prefix, matching this project's long-standing
