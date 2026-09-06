@@ -139,9 +139,9 @@ Substituent naming (`has_hetero_monocyclic_substituent_name`/
 `name_hetero_monocyclic_substituent`), one axis further than the
 unsubstituted-only functions above:
 
-- Scope: one or more substituents (a halogen, or any group `name_branch`
-  can name, repeats and mixed kinds both allowed) on one of the 19
-  mancude parents listed in `_MANCUDE_NAME_SMILES`/
+- Scope: one or more substituents (a halogen, or a plain hydrocarbon
+  group `name_branch` can name -- repeats and mixed kinds both allowed)
+  on one of the 19 mancude parents listed in `_MANCUDE_NAME_SMILES`/
   `_TWO_HETEROATOM_MANCUDE_NAME_SMILES` above (single-heteroatom 5/6-
   membered plus two-heteroatom 5/6-membered, Se/Te analogues included)
   -- everything else about the parent (ring size, unsaturation,
@@ -149,7 +149,18 @@ unsubstituted-only functions above:
   table. Saturated/partially saturated rings and polycyclic systems
   remain out of scope (a second ring anywhere -- including one folded
   into a substituent itself, like a cyclopropyl group -- is rejected via
-  `mol.GetRingInfo().NumRings() == 1`).
+  `mol.GetRingInfo().NumRings() == 1`). Every atom outside the ring must
+  be carbon or a halogen (`_SUBSTITUENT_ATOMIC_NUMS`) -- `name_branch`'s
+  chain-walking fallback doesn't actually check element types as it
+  counts chain length, so an unvalidated branch containing e.g. an amine
+  nitrogen or a carboxylic-acid oxygen would silently get counted as
+  carbon and produce a wrong plain-alkyl name instead of being rejected
+  (found via real-data testing: 'NC(CCc1ncccc1Cl)C(=O)O', an amino acid
+  with a pyridine side chain, was misnamed
+  '3-chloro-2-(3,4-dimethylpentyl)pyridine', silently dropping the amino
+  and carboxylic acid groups). Any other heteroatom anywhere in the
+  molecule makes this function return `None` so `core.py` falls through
+  to a module that actually understands it.
 - Multiple substituents (extending the original single-substituent axis):
   each substituted ring
   atom must still carry exactly one exocyclic branch (no gem-disubstitution
@@ -218,8 +229,10 @@ unsubstituted-only functions above:
 
 from rdkit import Chem
 
-from ._common import adjacency, halogen_substituents, lowest_locant_set, ring_cycle
+from ._common import HALOGEN_PREFIXES, adjacency, halogen_substituents, lowest_locant_set, ring_cycle
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+
+_SUBSTITUENT_ATOMIC_NUMS = {6, *HALOGEN_PREFIXES}
 
 _RETAINED_NAME_SMILES = {
     ("O", 3): ("oxirane", "C1CO1"),
@@ -579,6 +592,20 @@ def _match_hetero_monocyclic_substituents(mol):
 
     graph = adjacency(mol)
     ring_set = set(ring_atoms)
+    if any(atom.GetIdx() not in ring_set and atom.GetAtomicNum() not in _SUBSTITUENT_ATOMIC_NUMS for atom in mol.GetAtoms()):
+        # `name_branch`'s chain-walking fallback (`_longest_chains_from_root`)
+        # treats every non-halogen neighbor as chain-extending regardless of
+        # element, so an exocyclic branch containing e.g. an amine nitrogen
+        # or a carboxylic-acid oxygen would silently get counted as if it
+        # were carbon and named as a plain alkyl substituent -- a wrong
+        # name, not a raised rejection (confirmed via real-data testing:
+        # 'NC(CCc1ncccc1Cl)C(=O)O' was misnamed
+        # '3-chloro-2-(3,4-dimethylpentyl)pyridine', dropping the amino and
+        # carboxylic acid groups entirely). Bail out to `None` so `core.py`
+        # falls through to a module that actually understands the other
+        # heteroatoms, rather than claim a shape this module can't safely
+        # name.
+        return None
     exo_by_atom = {}
     for atom in ring_atoms:
         exo = [n for n in graph[atom] if n not in ring_set]
