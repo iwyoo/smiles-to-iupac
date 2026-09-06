@@ -98,9 +98,28 @@ def test_polycyclic_thiol_not_supported():
         smiles_to_iupac("SC1CC2CCC1CC2")
 
 
-def test_thiol_on_ring_substituent_branch_not_supported():
+def test_ring_substituent_chain_thiol():
+    # A thiol entirely on a chain hanging off a plain saturated ring (the
+    # ring itself bears no thiol) -- the ring is cited as a "cyclo..."
+    # substituent prefix on the chain, mirroring `_name_phenyl_chain_
+    # thiol`/`_alcohol.py`'s `_name_ring_substituent_chain_alcohol`.
+    # PubChem PUG REST-verified "cyclohexylmethanethiol" (CID 520209).
+    assert smiles_to_iupac("SCC1CCCCC1") == "cyclohexylmethanethiol"
+
+
+def test_ring_substituent_chain_thiol_internal_locant():
+    # PubChem PUG REST: "1-cyclohexylethanethiol" (CID 18994009).
+    assert smiles_to_iupac("SC(C)C1CCCCC1") == "1-cyclohexylethane-1-thiol"
+
+
+def test_ring_substituent_chain_thiol_ring_with_substituent_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SCC1CCCCC1")
+        smiles_to_iupac("SCC1CCC(C)CC1")
+
+
+def test_ring_substituent_chain_thiol_unsaturated_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("SCC1CCCC=C1")
 
 
 def test_thiol_with_alcohol_not_supported():

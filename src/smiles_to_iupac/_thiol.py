@@ -89,11 +89,12 @@ from ._common import (
     lowest_locant_set,
     non_single_bonds,
     path_between,
+    ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     ring_cycle,
     specified_stereocenters,
 )
-from ._numerals import alkane_name, numerical_term
+from ._numerals import alkane_name, alkyl_name, numerical_term
 from ._substituents import (
     alpha_sort_key,
     branch_atom_locant,
@@ -632,6 +633,61 @@ def _name_phenyl_chain_thiol(mol, ring_atoms):
     return best_name
 
 
+def _name_ring_substituent_chain_thiol(mol, thiols):
+    """Name one or more -SH groups lying entirely on a single branched
+    chain hanging off one atom of an otherwise-plain saturated monocyclic
+    ring (the ring itself bears no thiol) -- e.g. cyclohexylmethanethiol.
+    The ring is cited as a "cyclo..." substituent prefix (P-29.3.3) on the
+    chain, which is the parent hydride, mirroring `_name_phenyl_chain_
+    thiol` above and `_alcohol.py`'s `_name_ring_substituent_chain_
+    alcohol`."""
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
+
+    attachment = ring_chain_attachment(graph, ring_atoms, thiols)
+    if attachment is None:
+        raise UnsupportedStructure(
+            "a ring with more than one exocyclic branch is not supported "
+            "yet"
+        )
+    ring_atom, chain_root = attachment
+    anchor_sulfur = next(iter(thiols))
+    (anchor_carbon,) = graph[anchor_sulfur]
+    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, thiols)
+    chain_set = set(chain)
+    for s in thiols:
+        (carbon,) = graph[s]
+        if carbon not in chain_set:
+            raise UnsupportedStructure(
+                "a thiol outside the single branched chain hanging off "
+                "the ring is not supported yet"
+            )
+    branches_by_atom = {
+        chain[position - 1]: [r for r in roots if r != ring_atom]
+        for position, roots in branches.items()
+    }
+    branches_by_atom = {atom: roots for atom, roots in branches_by_atom.items() if roots}
+
+    ring_name = "cyclo" + alkyl_name(len(ring_atoms))
+    chain_length = len(chain)
+
+    best_key = None
+    best_name = None
+    for candidate in (chain, list(reversed(chain))):
+        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+        sh_locants = _sh_locants(position_of, thiols, graph)
+        substituents = {
+            position_of[atom]: [name_branch(graph, root, atom, halogens) for root in roots]
+            for atom, roots in branches_by_atom.items()
+        }
+        substituents.setdefault(position_of[chain_root], []).append((ring_name, False))
+        key, name = _candidate_key(chain_length, sh_locants, [], [], substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name = key, name
+    return best_name
+
+
 def name_thiol(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
@@ -678,6 +734,13 @@ def name_thiol(mol) -> str:
                 "this first pass (see P-31.1.3)"
             )
         ring_thiols = {s for s in thiols if next(iter(graph[s])) in ring_atoms}
+        if not bonds and not ring_thiols:
+            if stereo is not None:
+                raise UnsupportedStructure(
+                    "a stereocenter on a substituent branch rather than "
+                    "the ring itself is not supported yet (see P-92)"
+                )
+            return _name_ring_substituent_chain_thiol(mol, thiols)
         if ring_thiols != thiols:
             raise UnsupportedStructure(
                 "a thiol on a substituent branch chain rather than the "
