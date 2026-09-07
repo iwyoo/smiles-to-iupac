@@ -44,8 +44,11 @@ def test_ring_carboxylate_raises():
 
 
 def test_extra_charged_atom_raises():
+    # a metal cation this project doesn't recognize (see _salt.py) --
+    # [NH4+].CC(=O)[O-] is now a supported ammonium salt (test_salt.py),
+    # not a rejection case.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[NH4+].CC(=O)[O-]")
+        smiles_to_iupac("[Zn+2].CC(=O)[O-]")
 
 
 def test_amine_coexisting_raises():
