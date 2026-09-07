@@ -54,6 +54,16 @@ def test_diester_raises():
         smiles_to_iupac("COC(=O)CC(=O)OC")
 
 
+def test_ring_embedded_lactone_raises():
+    # Found via real-data testing: a macrolactone (the ester's own carbonyl
+    # carbon and ester oxygen are both ring atoms) was wrongly routed into
+    # the ring-attached-acyl dispatch path, which assumes the acyl carbon
+    # sits outside the ring, crashing with a tuple-unpack ValueError instead
+    # of raising the documented out-of-scope UnsupportedStructure.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CCC1CCCCCCCCC(C)(C)C(C)(C)C(C)(C)C(=O)O1")
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
