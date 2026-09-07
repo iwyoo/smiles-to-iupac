@@ -58,12 +58,35 @@ def test_transition_metal_cation_raises():
         smiles_to_iupac("[Fe+2].CC(=O)[O-].CC(=O)[O-]")
 
 
-def test_polyatomic_cation_raises():
-    # ammonium (a molecular, not monoatomic, cation) needs its own name
-    # assembled via `_ammonium.py` -- combining that into a salt name is
-    # unattempted here.
+def test_ammonium_ethanoate():
+    # PubChem's own computed IUPACName for this exact SMILES is "azanium
+    # acetate" -- 'ethanoate' is this project's own systematic stem (see
+    # test_sodium_acetate above), and 'azanium' (not 'ammonium') is
+    # `_ammonium.py`'s own PIN for unsubstituted NH4+.
+    assert smiles_to_iupac("[NH4+].CC(=O)[O-]") == "azanium ethanoate"
+
+
+def test_methanaminium_ethanoate():
+    # PubChem's own computed IUPACName for this exact SMILES is
+    # "methylazanium acetate"; `_ammonium.py`'s own PIN convention for a
+    # substituted ammonium is the '-aminium' derivation, not the
+    # 'azanium' substitutive style (see that module's docstring), giving
+    # "methanaminium" here instead of PubChem's "methylazanium".
+    assert smiles_to_iupac("C[NH3+].CC(=O)[O-]") == "methanaminium ethanoate"
+
+
+def test_quaternary_ammonium_cation_ethanoate():
+    assert (
+        smiles_to_iupac("C[N+](C)(C)C.CC(=O)[O-]")
+        == "N,N,N-trimethylmethanaminium ethanoate"
+    )
+
+
+def test_two_ammonium_cation_fragments_raises():
+    # more than one cation fragment (a multi-cation salt) is unattempted
+    # here, same as the existing monoatomic-cation scope.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[NH4+].CC(=O)[O-]")
+        smiles_to_iupac("[NH4+].[NH4+].CC(=O)[O-].CC(=O)[O-]")
 
 
 def test_non_carboxylate_anion_raises():
