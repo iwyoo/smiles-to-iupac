@@ -38,6 +38,11 @@ from smiles_to_iupac._common import UnsupportedStructure
         # result rather than a PubChem-confirmed one -- same policy as the
         # carboxylic-acid module's '2-phenylethanoic acid' (PR #269).
         ("c1ccccc1CC(=O)OCC", "ethyl 2-phenylethanoate"),
+        # P-31.1.1.1 'ene' elision before a multiplied 'yne' segment: the
+        # elision must fire regardless of the yne count's own multiplying
+        # prefix ('diyne' still counts as 'y'-initial), found via real-data
+        # testing to be wrongly left unelided ('...dien-4,6-diynoate').
+        ("BrC=CCCCCCCC=CCC#CC#CCCC(=O)OC", "methyl 18-bromooctadeca-9,17-dien-4,6-diynoate"),
     ],
 )
 def test_ester_names(smiles, expected):

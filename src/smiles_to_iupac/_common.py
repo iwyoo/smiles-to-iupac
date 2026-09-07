@@ -452,6 +452,26 @@ def multiplied_word(count, base):
     return prefix + base
 
 
+def elides_before(word: str) -> bool:
+    """True if a preceding word ending in 'e' (e.g. an 'ene' locant-suffix
+    segment assembled by `multiplied_word`) should have that 'e' elided
+    right before `word`. P-31.1.1.1's 'dien-...-yne' elision is specific to
+    a following yne/diyne/triyne/... segment -- it always applies there
+    regardless of the multiplying prefix, since 'yne' itself is 'y'-initial
+    (found via real-data testing: 'deca-1,2,3-trien-5,7,9-triyne' and
+    'methyl 18-bromooctadeca-9,17-dien-5,7-diynoate' were wrongly left
+    unelided by the ~30 suffix modules that had inlined this check against
+    the final word's own first letter). For every other following word
+    (oic, diazonium, oate, ...) elision follows that word's own literal
+    first letter, not its underlying un-prefixed form -- 'but-2-enedioic
+    acid' and 'pent-4-ene-1-diazonium' both stay unelided even though
+    'dioic'/'diazonium' start with a consonant only because of their own
+    multiplying prefix."""
+    if word.endswith("yne"):
+        return True
+    return word[:1] in "aeiouy"
+
+
 def group_substituents(substituents):
     """{position -> [(name, is_compound), ...]} -> {name -> {"locants": [...],
     "compound": bool}}, merging same-named substituents at different
