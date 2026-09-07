@@ -18,16 +18,17 @@ carbon chain, per the IUPAC 2013 Recommendations ("the Blue Book"):
   parent-chain naming mirrors `_carboxylic_acid.py` (the -COOH carbon is
   always the chain-terminal C1, P-65.1.1) rather than
   `_sulfonic_acid.py`.
-- The acyclic-chain path reuses `_carboxylic_acid.py`'s own naming
-  function directly (`_name_acyclic_carboxylic_acid`, via
-  `_coexisting_groups.name_via_senior_acyclic`) rather than duplicating
-  its chain-search/numbering logic, mirroring the
+- Both the acyclic-chain path and the benzene-ring-substituent path reuse
+  `_carboxylic_acid.py`'s own naming functions directly
+  (`_name_acyclic_carboxylic_acid`/`_name_phenyl_chain_carboxylic_acid`,
+  via `_coexisting_groups.name_via_senior_acyclic`/
+  `name_via_senior_phenyl_chain`) rather than duplicating their
+  chain-search/numbering logic, mirroring the
   `_carboxylic_acid_sulfinic_acid.py`/`_carboxylic_acid_sulfonamide.py`
-  migrations (PR #510/#511) -- 'sulfo' is injected as an `extra_names`
-  prefix, and the sulfonic-bearing carbon(s) are passed as
-  `required_atoms`. The benzene-ring-substituent path below is untouched
-  by this (the dispatcher is acyclic-only, same as every other pairwise
-  module's phenyl-chain path).
+  acyclic migrations (PR #510/#511) and the
+  `_carboxylic_acid_sulfinic_acid.py` phenyl-chain migration (PR #513) --
+  'sulfo' is injected as an `extra_names` prefix, and the sulfonic-bearing
+  carbon(s) are passed as `required_atoms`.
 
 Scope, deliberately narrow (mirrors `_sulfonic_acid_sulfinic_acid.py`): a
 single carboxylic acid plus one or more sulfonic acids, all on one
@@ -46,22 +47,14 @@ any carboxylic acid/sulfonic acid not captured by a single longest chain.
 
 from rdkit import Chem
 
-from ._coexisting_groups import name_via_senior_acyclic
+from ._coexisting_groups import name_via_senior_acyclic, name_via_senior_phenyl_chain
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
-    adjacency,
-    group_substituents,
-    halogen_substituents,
     is_plain_benzene_ring,
-    longest_branched_chain,
     non_single_bonds,
-    ring_chain_attachment,
-    specified_stereocenters,
 )
-from ._carboxylic_acid import _name_acyclic_carboxylic_acid
-from ._numerals import alkane_name
-from ._substituents import format_substituent_prefixes, name_branch
+from ._carboxylic_acid import _name_acyclic_carboxylic_acid, _name_phenyl_chain_carboxylic_acid
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, 16, *HALOGEN_PREFIXES}
 
@@ -212,27 +205,6 @@ def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
     return carboxyl_carbon.GetIdx(), carboxyl_oxygens, sulfonic_idxs
 
 
-def _name_from_substituents(chain_length, grouped):
-    # P-14.3.4.2(a): a mononuclear parent's substituent locant is always
-    # '1' and never cited (mirrors the same rule other `_seniority.py`
-    # consumers apply to their own single-carbon case).
-    prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
-    stem = alkane_name(chain_length)
-    # P-14.3.3: the -COOH suffix locant is never cited, since a -COOH
-    # carbon is always the chain-terminal C1.
-    return f"{prefix}{stem[:-1]}oic acid"
-
-
-def _substituents_for_chain(graph, chain, names, excluded, mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, names, mol=mol) for root in branch_roots]
-    return substituents
-
-
 def _name_phenyl_chain_carboxylic_acid_sulfonic_acid(mol, ring_atoms):
     """Name a carboxylic acid plus one or more sulfonic acids, all lying
     on a single unbranched chain hanging off one atom of an otherwise-
@@ -246,68 +218,43 @@ def _name_phenyl_chain_carboxylic_acid_sulfonic_acid(mol, ring_atoms):
     `_name_phenyl_chain_sulfonic_acid_thiol` (a demoted heteroatom
     injected into the shared {atom_idx -> name} substituent map).
     Narrower than the acyclic path above: no chain unsaturation and no
-    specified stereocenter."""
-    carboxyl_carbon, carboxyl_oxygens, sulfonic_idxs = _validate_and_collect(
+    specified stereocenter.
+
+    The chain-search/numbering itself reuses `_carboxylic_acid.py`'s own
+    `_name_phenyl_chain_carboxylic_acid` (via `_coexisting_groups.
+    name_via_senior_phenyl_chain`), same as the acyclic path above and
+    mirroring the `_carboxylic_acid_sulfinic_acid.py` migration (PR #513)
+    -- 'sulfo' is injected as an `extra_names` prefix, and the
+    sulfonic-bearing carbon(s)/oxygens are passed as `required_atoms`/
+    `extra_accounted_atoms`. The specified-stereocenter and chain-
+    unsaturation rejections are the shared function's own (same checks,
+    now unduplicated)."""
+    _carboxyl_carbon, _carboxyl_oxygens, sulfonic_idxs = _validate_and_collect(
         mol, aromatic_ring_atoms=ring_atoms
     )
-    if specified_stereocenters(mol):
-        raise UnsupportedStructure(
-            "a specified stereocenter alongside a benzene-ring-substituent "
-            "carboxylic acid/sulfonic acid chain is not supported yet"
-        )
-    excluded_from_unsaturation_check = {carboxyl_carbon} | sulfonic_idxs
-    non_ring_unsaturation = [
-        b
-        for b in non_single_bonds(mol)
-        if b[0] not in excluded_from_unsaturation_check
-        and b[1] not in excluded_from_unsaturation_check
-        and b[0] not in ring_atoms
-        and b[1] not in ring_atoms
-    ]
-    if non_ring_unsaturation:
-        raise UnsupportedStructure(
-            "chain unsaturation alongside a benzene-ring-substituent "
-            "carboxylic acid/sulfonic acid chain is not supported yet"
-        )
 
-    graph = adjacency(mol)
-    attachment = ring_chain_attachment(graph, ring_atoms, set())
-    if attachment is None:
-        raise UnsupportedStructure(
-            "a benzene ring with more than one exocyclic substituent "
-            "alongside a chain carboxylic acid/sulfonic acid is not "
-            "supported yet"
-        )
-    ring_atom, chain_root = attachment
-    chain, _ = longest_branched_chain(graph, carboxyl_carbon, ring_atoms, carboxyl_oxygens | sulfonic_idxs, halogens=halogen_substituents(mol))
-    if len(chain) < 2:
-        raise UnsupportedStructure(
-            "a -COOH group directly attached to the benzene ring (no "
-            "intervening chain carbon) uses the separate 'carboxylic "
-            "acid' suffix construction (P-65.1.1.2), out of scope for "
-            "this acyclic-chain-parent module"
-        )
-    chain_set = set(chain)
     sulfonic_carbons = {
         n.GetIdx()
         for s in sulfonic_idxs
         for n in mol.GetAtomWithIdx(s).GetNeighbors()
         if n.GetAtomicNum() == 6
     }
-    if not sulfonic_carbons.issubset(chain_set):
-        raise UnsupportedStructure(
-            "a sulfonic acid outside the single unbranched chain hanging "
-            "off the benzene ring is not supported yet"
-        )
-
-    chain_length = len(chain)
-    position_of = {atom: i + 1 for i, atom in enumerate(chain)}
-    names = {**halogen_substituents(mol), **{s: "sulfo" for s in sulfonic_idxs}}
-    substituents = _substituents_for_chain(graph, chain, names, carboxyl_oxygens | {ring_atom}, mol=mol)
-    ring_entry = name_branch(graph, ring_atom, chain_root, names, ring_atoms, mol=mol)
-    substituents.setdefault(position_of[chain_root], []).append(ring_entry)
-    grouped = group_substituents(substituents)
-    return _name_from_substituents(chain_length, grouped)
+    sulfonic_oxygens = {
+        n.GetIdx()
+        for s in sulfonic_idxs
+        for n in mol.GetAtomWithIdx(s).GetNeighbors()
+        if n.GetAtomicNum() == 8
+    }
+    return name_via_senior_phenyl_chain(
+        _name_phenyl_chain_carboxylic_acid,
+        "carboxylic_acid",
+        "sulfonic_acid",
+        mol,
+        ring_atoms,
+        {s: "sulfo" for s in sulfonic_idxs},
+        required_atoms=sulfonic_carbons,
+        extra_accounted_atoms=sulfonic_idxs | sulfonic_oxygens,
+    )
 
 
 def name_carboxylic_acid_sulfonic_acid(mol) -> str:
