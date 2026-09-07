@@ -55,6 +55,15 @@ neither 'di...', unlike the carboxylate case's confirmed 'calcium
 diacetate'), so there is no reliable worked example to verify the
 multivalent-cation form of any of these salts against yet.
 
+The anion may also be a single monoatomic halide (F-/Cl-/Br-/I-, a fixed
+name lookup off `_common.py`'s own `HALOGEN_PREFIXES`), with no
+singly-charged restriction -- unlike alkoxide/thioate/selenoate above,
+PubChem's own generator *does* apply the multiplying prefix consistently
+here: `[Na+].[Cl-]` -> 'sodium chloride', `[NH4+].[Cl-]` -> 'azanium
+chloride', `[Ca+2].[Cl-].[Cl-]` -> 'calcium dichloride'. This is a
+distinct shape from `_hydrohalide_salt.py`'s bare *neutral* HX fragment
+(P-77.1.3(3) general nomenclature for an organic base) -- no overlap.
+
 Explicitly out of scope (raise `UnsupportedStructure`, or -- for
 `has_salt_shape` -- simply return False so the shape falls through to
 every other branch's own, usually less helpful, rejection): any metal
@@ -71,15 +80,30 @@ from rdkit import Chem
 from ._alkoxide import has_alkoxide_shape, name_alkoxide
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._carboxylate import has_carboxylate_shape, name_carboxylate
+from ._common import HALOGEN_PREFIXES
 from ._numerals import multiplying_prefix
 from ._selenoate import has_selenoate_shape, name_selenoate
 from ._thioate import has_thioate_shape, name_thioate
+
+
+def _has_halide_anion_shape(frag):
+    if frag.GetNumAtoms() != 1:
+        return False
+    atom = frag.GetAtomWithIdx(0)
+    return atom.GetAtomicNum() in HALOGEN_PREFIXES and atom.GetFormalCharge() == -1
+
+
+def _name_halide_anion(frag) -> str:
+    prefix = HALOGEN_PREFIXES[frag.GetAtomWithIdx(0).GetAtomicNum()]
+    return prefix[:-1] + "ide"
+
 
 _ANION_KINDS = [
     (has_carboxylate_shape, name_carboxylate),
     (has_alkoxide_shape, name_alkoxide),
     (has_thioate_shape, name_thioate),
     (has_selenoate_shape, name_selenoate),
+    (_has_halide_anion_shape, _name_halide_anion),
 ]
 
 _SINGLY_CHARGED_CATION_ONLY_ANIONS = {name_alkoxide, name_thioate, name_selenoate}
