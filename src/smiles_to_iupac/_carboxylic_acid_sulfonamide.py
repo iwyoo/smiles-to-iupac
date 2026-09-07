@@ -18,13 +18,15 @@ Blue Book"):
   `_sulfonic_acid_sulfonamide.py` (PR #313) -- an N-alkylated sulfonamide
   is out of scope, since 'sulfamoyl' with N-substituents needs its own
   N-prefix handling not built here.
-- Otherwise mirrors `_carboxylic_acid.py`'s acyclic-chain path: P-14.3.3's
-  locant-omission rule for the -COOH suffix itself (always C1, never
-  cited), P-14.3.4.2(a)'s locant-omission rule for a mononuclear parent's
-  own substituent locant, and 'sulfamoyl' is injected into the same
-  {atom_idx -> name} map `_carboxylic_acid.py` already uses for halogens/
-  a demoted hydroxyl, so it is formatted, alphabetized, and multiplied by
-  the same general substituent-prefix machinery.
+- The acyclic-chain path reuses `_carboxylic_acid.py`'s own naming
+  function directly (`_name_acyclic_carboxylic_acid`, via
+  `_coexisting_groups.name_via_senior_acyclic`) rather than duplicating
+  its chain-search/numbering logic, mirroring the
+  `_carboxylic_acid_sulfinic_acid.py` migration (PR #510) -- 'sulfamoyl'
+  is injected as an `extra_names` prefix, and the sulfonamide-bearing
+  carbon(s) are passed as `required_atoms`. The benzene-ring-substituent
+  path below is untouched by this (the dispatcher is acyclic-only, same
+  as every other pairwise module's phenyl-chain path).
 
 Scope, deliberately narrow (mirrors `_carboxylic_acid_sulfinic_acid.py`):
 a single carboxylic acid plus one or more *unsubstituted* sulfonamides,
@@ -44,28 +46,24 @@ not captured by a single longest chain.
 
 from rdkit import Chem
 
+from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    carbon_adjacency,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain,
-    longest_chains,
-    lowest_locant_set,
     non_single_bonds,
     ring_chain_attachment,
     specified_stereocenters,
 )
+from ._carboxylic_acid import _name_acyclic_carboxylic_acid
 from ._numerals import alkane_name
-from ._seniority import senior_class
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, 8, 16, *HALOGEN_PREFIXES}
-
-assert senior_class("carboxylic_acid", "sulfonamide") == "carboxylic_acid"
 
 
 def _sulfonamide_sulfur_atoms(mol):
@@ -234,18 +232,6 @@ def _name_from_substituents(chain_length, grouped):
     return f"{prefix}{stem[:-1]}oic acid"
 
 
-def _candidate_key(chain_length, substituents):
-    grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
-    name = _name_from_substituents(chain_length, grouped)
-    return (locant_set, citation_locants, name), name
-
-
 def _substituents_for_chain(graph, chain, names, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
@@ -356,40 +342,17 @@ def name_carboxylic_acid_sulfonamide(mol) -> str:
             "sulfonamide combination is out of scope for this module"
         )
 
-    graph = adjacency(mol)
-    names = {**halogen_substituents(mol), **{s: "sulfamoyl" for s in sulfonamide_idxs}}
-    chains = longest_chains(carbon_adjacency(mol))
-    chain_length = len(chains[0])
-
     sulfonamide_carbons = {
         n.GetIdx()
         for s in sulfonamide_idxs
         for n in mol.GetAtomWithIdx(s).GetNeighbors()
         if n.GetAtomicNum() == 6
     }
-    eligible = [
-        chain
-        for chain in chains
-        if carboxyl_carbon in chain and sulfonamide_carbons.issubset(set(chain))
-    ]
-    if not eligible:
-        raise UnsupportedStructure(
-            "not every carboxylic acid/sulfonamide-bearing carbon lies on "
-            "a single longest carbon chain; a shorter principal chain is "
-            "not supported yet"
-        )
-
-    excluded = carboxyl_oxygens
-    best_key = None
-    best_name = None
-    for chain in eligible:
-        for candidate in (chain, list(reversed(chain))):
-            if candidate[0] != carboxyl_carbon:
-                # A -COOH carbon must sit at C1 (P-65.1.1); a direction
-                # that doesn't start there is never valid.
-                continue
-            substituents = _substituents_for_chain(graph, candidate, names, excluded, mol=mol)
-            key, name = _candidate_key(chain_length, substituents)
-            if best_key is None or key < best_key:
-                best_key, best_name = key, name
-    return best_name
+    return name_via_senior_acyclic(
+        _name_acyclic_carboxylic_acid,
+        "carboxylic_acid",
+        "sulfonamide",
+        (mol, {carboxyl_carbon}, carboxyl_oxygens, set(), []),
+        {s: "sulfamoyl" for s in sulfonamide_idxs},
+        required_atoms=sulfonamide_carbons,
+    )
