@@ -146,3 +146,40 @@ def test_divalent_cation_thioate_anion_raises():
     # not "calcium diethanethioate".
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[Ca+2].CC(=O)[S-].CC(=O)[S-]")
+
+
+def test_sodium_chloride():
+    assert smiles_to_iupac("[Na+].[Cl-]") == "sodium chloride"
+
+
+def test_potassium_bromide():
+    assert smiles_to_iupac("[K+].[Br-]") == "potassium bromide"
+
+
+def test_calcium_dichloride():
+    # unlike alkoxide/thioate/selenoate, PubChem's own generator *does*
+    # apply the multiplying prefix consistently for a halide anion:
+    # "calcium dichloride", not "calcium chloride".
+    assert smiles_to_iupac("[Ca+2].[Cl-].[Cl-]") == "calcium dichloride"
+
+
+def test_aluminium_trifluoride():
+    assert smiles_to_iupac("[Al+3].[F-].[F-].[F-]") == "aluminium trifluoride"
+
+
+def test_anilinium_chloride():
+    # Blue Book P-77.1.1's own worked example is "anilinium chloride
+    # (PIN)" (PubChem's own computed name for this exact SMILES is
+    # "phenylazanium chloride" -- `_ammonium.py`'s 'aminium' PIN
+    # convention over the 'azanium' substitutive style, already
+    # established there, is why this module's output differs).
+    assert smiles_to_iupac("[NH3+]c1ccccc1.[Cl-]") == "anilinium chloride"
+
+
+def test_ammonium_chloride():
+    assert smiles_to_iupac("[NH4+].[Cl-]") == "azanium chloride"
+
+
+def test_mixed_halide_anions_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[Ca+2].[Cl-].[Br-]")
