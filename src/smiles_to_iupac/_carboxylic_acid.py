@@ -153,7 +153,7 @@ def has_carboxylic_acid_shape(mol) -> bool:
     return False
 
 
-def _validate_and_collect_carboxyls(mol, aromatic_ring_atoms=frozenset()):
+def _validate_and_collect_carboxyls(mol, aromatic_ring_atoms=frozenset(), extra_accounted_atoms=frozenset()):
     """Check the molecule fits this module's scope (see module docstring)
     and return (carboxyl_carbons, carboxyl_oxygens, extra_hydroxyls): the set
     of -COOH carbon atom indices, the set of all their carbonyl/hydroxyl
@@ -169,11 +169,21 @@ def _validate_and_collect_carboxyls(mol, aromatic_ring_atoms=frozenset()):
     the aromatic-atom rejection below so `name_carboxylic_acid`'s
     benzene-ring-substituent path (see `_name_phenyl_chain_carboxylic_acid`)
     can reuse this same validation for the rest of the molecule. Empty by
+    default, so every other caller's behavior is unchanged.
+
+    `extra_accounted_atoms`: atom indices a coexisting-group pairwise
+    module (e.g. `_carboxylic_acid_sulfinic_acid.py`) has already
+    independently validated as belonging to its own demoted junior group
+    (its heteroatom(s) plus their own oxygens) -- skipped entirely here
+    (not subject to the plain-carboxylic-acid atom-type allowlist below),
+    reused via `_coexisting_groups.name_via_senior_phenyl_chain`. Empty by
     default, so every other caller's behavior is unchanged."""
     has_carbon = False
     carbonyls_by_carbon = {}
     hydroxyls_by_carbon = {}
     for atom in mol.GetAtoms():
+        if atom.GetIdx() in extra_accounted_atoms:
+            continue
         atomic_num = atom.GetAtomicNum()
         if atomic_num not in _ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(
@@ -443,7 +453,9 @@ def _name_acyclic_carboxylic_acid(
     return best_name
 
 
-def _name_phenyl_chain_carboxylic_acid(mol, ring_atoms):
+def _name_phenyl_chain_carboxylic_acid(
+    mol, ring_atoms, extra_names=None, required_atoms=frozenset(), extra_accounted_atoms=frozenset()
+):
     """Name a carboxylic acid whose -COOH lies on a chain hanging off one
     atom of a benzene ring -- e.g. 2-phenylethanoic acid. The ring is
     cited as a 'phenyl' (or, if the ring's other atoms each carry a
@@ -463,9 +475,18 @@ def _name_phenyl_chain_carboxylic_acid(mol, ring_atoms):
     non-alkyl ring substituent alongside the chain -- each is a separate
     follow-up (see
     `tasks/phenyl-substituent-on-carboxylic-acid-chain.md`'s scope note)
-    rather than being combined with the ring case in this first slice."""
+    rather than being combined with the ring case in this first slice.
+
+    `extra_names`/`required_atoms`/`extra_accounted_atoms`: same injection
+    point as `_name_acyclic_carboxylic_acid`
+    (`extra_accounted_atoms` mirrors that function's caller-side atom-type
+    validation, since this function -- unlike the acyclic one -- still
+    does its own), reused by `_coexisting_groups.
+    name_via_senior_phenyl_chain` so a pairwise module doesn't have to
+    reimplement this function's chain search/numbering logic --
+    `None`/empty keeps the original behavior unchanged."""
     carboxyl_carbons, carboxyl_oxygens, hydroxyls = _validate_and_collect_carboxyls(
-        mol, aromatic_ring_atoms=ring_atoms
+        mol, aromatic_ring_atoms=ring_atoms, extra_accounted_atoms=extra_accounted_atoms
     )
     if hydroxyls:
         raise UnsupportedStructure(
@@ -489,6 +510,8 @@ def _name_phenyl_chain_carboxylic_acid(mol, ring_atoms):
         and b[1] not in carboxyl_oxygens
         and b[0] not in ring_atoms
         and b[1] not in ring_atoms
+        and b[0] not in extra_accounted_atoms
+        and b[1] not in extra_accounted_atoms
     ]
     if non_ring_unsaturation:
         raise UnsupportedStructure(
@@ -497,7 +520,11 @@ def _name_phenyl_chain_carboxylic_acid(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
+    halogens = {
+        **halogen_substituents(mol),
+        **plain_alkyl_ring_substituents(mol, graph, ring_atoms),
+        **(extra_names or {}),
+    }
     attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
     if attachment is None:
         raise UnsupportedStructure(
@@ -506,13 +533,24 @@ def _name_phenyl_chain_carboxylic_acid(mol, ring_atoms):
             "not supported yet"
         )
     (carboxyl_carbon,) = carboxyl_carbons
-    chain, branches = longest_branched_chain(graph, carboxyl_carbon, ring_atoms, carboxyl_oxygens, halogens=halogen_substituents(mol))
+    chain, branches = longest_branched_chain(
+        graph,
+        carboxyl_carbon,
+        ring_atoms,
+        carboxyl_oxygens,
+        halogens={**halogen_substituents(mol), **(extra_names or {})},
+    )
     if len(chain) < 2:
         raise UnsupportedStructure(
             "a -COOH group directly attached to the benzene ring (no "
             "intervening chain carbon) uses the separate 'carboxylic "
             "acid' suffix construction (P-65.1.1.2), out of scope for "
             "this acyclic-chain-parent module"
+        )
+    if not required_atoms <= set(chain):
+        raise UnsupportedStructure(
+            "a required substituent atom outside the single unbranched "
+            "chain hanging off the benzene ring is not supported yet"
         )
 
     chain_length = len(chain)
