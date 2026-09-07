@@ -57,6 +57,7 @@ part of a C=C/C#C bond.
 from rdkit import Chem
 
 from ._common import (
+    elides_before,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
@@ -248,7 +249,7 @@ def _suffix_body(ene_locants, yne_locants, diazonium_locant):
 
     words = [word for _, word in segments]
     for i in range(len(words) - 1):
-        if words[i].endswith("e") and words[i + 1][0] in "aeiouy":
+        if words[i].endswith("e") and elides_before(words[i + 1]):
             words[i] = words[i][:-1]
 
     parts = [

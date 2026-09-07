@@ -48,6 +48,7 @@ no substituted benzene/naphthalene -- each a separate follow-up.
 from rdkit import Chem
 
 from ._common import (
+    elides_before,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
@@ -194,7 +195,7 @@ def _suffix_body(ene_locants, yne_locants):
 
     words = [word for _, word in segments] + [oyl_word]
     for i in range(len(words) - 1):
-        if words[i].endswith("e") and words[i + 1][0] in "aeiouy":
+        if words[i].endswith("e") and elides_before(words[i + 1]):
             words[i] = words[i][:-1]
 
     if segments:
