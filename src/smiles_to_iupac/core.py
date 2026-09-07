@@ -1,6 +1,7 @@
 from rdkit import Chem
 
 from ._salt import has_salt_shape, name_salt
+from ._hydrohalide_salt import has_hydrohalide_salt_shape, name_hydrohalide_salt
 from ._acyclic import name_acyclic_alkane
 from ._acyl_halide import has_acyl_halide_shape, name_acyl_halide
 from ._anhydride import has_anhydride_shape, name_anhydride
@@ -237,6 +238,12 @@ def smiles_to_iupac(smiles: str) -> str:
     # recognize the two fragments as a cation/anion pair.
     if has_salt_shape(mol):
         return name_salt(mol)
+
+    # A bare hydrogen halide fragment (P-77.1.3(3)'s 'hydrochloride'-style
+    # general nomenclature, see _hydrohalide_salt.py) must likewise be
+    # routed here before every other branch below, for the same reason.
+    if has_hydrohalide_salt_shape(mol):
+        return name_hydrohalide_salt(mol, smiles_to_iupac)
 
     # An isotopically labeled atom (P-82's isotope descriptor nomenclature)
     # must be routed here before every other branch below: RDKit represents
