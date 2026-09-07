@@ -35,10 +35,12 @@ def test_halide_fragment_order_independent():
     assert smiles_to_iupac("Cl.CN") == "methanamine;hydrochloride"
 
 
-def test_ionized_form_raises():
-    # [NH3+]/[Cl-] rather than the neutral N/Cl atoms is out of scope.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[NH3+]c1ccccc1.[Cl-]")
+def test_ionized_form_routes_to_salt_module():
+    # [NH3+]/[Cl-] (rather than the neutral N/Cl atoms this module itself
+    # handles) is a different shape entirely -- an ammonium cation plus a
+    # halide anion, now handled by `_salt.py` (see test_salt.py's own
+    # anilinium chloride case), not this module.
+    assert smiles_to_iupac("[NH3+]c1ccccc1.[Cl-]") == "anilinium chloride"
 
 
 def test_two_halide_fragments_raises():
