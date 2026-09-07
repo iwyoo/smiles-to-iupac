@@ -25,19 +25,29 @@ molecule and would reject a foreign atom like sodium outright):
   'calcium diethanoate' (P-65.6.2.1's own worked example, 'calcium
   diacetate' PIN, confirms this multiplier-on-the-anion pattern).
 
+The cation may also be a single ammonium-shaped fragment recognized by
+`_ammonium.py` (`has_ammonium_shape`/`name_ammonium`, reused unchanged) --
+NH4+ or an N-alkyl-substituted ammonium, always singly charged, so exactly
+one anion fragment is required and no multiplying prefix ever applies.
+PubChem-verified: `[NH4+].CC(=O)[O-]` -> 'azanium acetate',
+`C[NH3+].CC(=O)[O-]` -> 'methylazanium acetate' -- this project's own
+`_ammonium.py` PIN convention names the latter cation 'methanaminium'
+rather than PubChem's 'methylazanium' (a divergence already established
+and accepted, see `_ammonium.py`'s own docstring), so this module's output
+for that example is 'methanaminium acetate'.
+
 Explicitly out of scope (raise `UnsupportedStructure`, or -- for
 `has_salt_shape` -- simply return False so the shape falls through to
 every other branch's own, usually less helpful, rejection): any metal
 cation other than the fixed-valence ones above (transition metals need
-Stock/oxidation-number disambiguation, not attempted here), a polyatomic
-cation (ammonium etc. -- those name fine standalone already, via
-`_ammonium.py`, but combining them into a salt name is unattempted here),
-any anion other than a plain carboxylate, mixed/different anions on the
-same cation, and more than one cation fragment (multi-cation salts, e.g.
+Stock/oxidation-number disambiguation, not attempted here), any anion
+other than a plain carboxylate, mixed/different anions on the same
+cation, and more than one cation fragment (multi-cation salts, e.g.
 'potassium sodium butanedioate', are unattempted here)."""
 
 from rdkit import Chem
 
+from ._ammonium import has_ammonium_shape, name_ammonium
 from ._carboxylate import has_carboxylate_shape, name_carboxylate
 from ._numerals import multiplying_prefix
 
@@ -67,10 +77,19 @@ def _monoatomic_cation(frag):
     return name, charge
 
 
+def _cation(frag):
+    cation = _monoatomic_cation(frag)
+    if cation is not None:
+        return cation
+    if has_ammonium_shape(frag):
+        return name_ammonium(frag), 1
+    return None
+
+
 def _split_cation_anions(mol):
     frags = Chem.GetMolFrags(mol, asMols=True)
     for i, cation_frag in enumerate(frags):
-        cation = _monoatomic_cation(cation_frag)
+        cation = _cation(cation_frag)
         if cation is None:
             continue
         cation_name, charge = cation
