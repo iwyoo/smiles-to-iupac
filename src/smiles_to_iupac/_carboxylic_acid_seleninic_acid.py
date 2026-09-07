@@ -18,13 +18,16 @@ Book"):
   down the chalcogen table (P-65.3.1's own sulfur/selenium/tellurium
   triad, same pattern as `_seleninic_acid.py`'s relationship to
   `_sulfinic_acid.py`).
-- Otherwise mirrors `_carboxylic_acid.py`'s acyclic-chain path: P-14.3.3's
-  locant-omission rule for the -COOH suffix itself (always C1, never
-  cited), P-14.3.4.2(a)'s locant-omission rule for a mononuclear parent's
-  own substituent locant, and 'selenino' is injected into the same
-  {atom_idx -> name} map `_carboxylic_acid.py` already uses for halogens/
-  a demoted hydroxyl, so it is formatted, alphabetized, and multiplied by
-  the same general substituent-prefix machinery.
+- Otherwise reuses `_carboxylic_acid.py`'s own acyclic-chain naming
+  function directly (`_name_acyclic_carboxylic_acid`, via
+  `_coexisting_groups.name_via_senior_acyclic`) rather than duplicating
+  its chain-search/numbering logic, mirroring the
+  `_carboxylic_acid_amine.py` pilot (PR #413) -- 'selenino' is injected
+  as an `extra_names` prefix, and the seleninic-bearing carbon(s) are
+  passed as `required_atoms`. P-14.3.3's locant-omission rule for the
+  -COOH suffix itself (always C1, never cited) and P-14.3.4.2(a)'s
+  locant-omission rule for a mononuclear parent's own substituent locant
+  both come from that shared function unchanged.
 
 Scope, deliberately narrow (mirrors `_carboxylic_acid_sulfinic_acid.py`):
 a single carboxylic acid plus one or more seleninic acids, all on one
@@ -40,25 +43,16 @@ scope.
 
 from rdkit import Chem
 
+from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
-    adjacency,
-    carbon_adjacency,
-    group_substituents,
-    halogen_substituents,
-    longest_chains,
-    lowest_locant_set,
     non_single_bonds,
 )
-from ._numerals import alkane_name
-from ._seniority import senior_class
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._carboxylic_acid import _name_acyclic_carboxylic_acid
 
 _SELENIUM = 34
 _ALLOWED_ATOMIC_NUMS = {6, 8, _SELENIUM, *HALOGEN_PREFIXES}
-
-assert senior_class("carboxylic_acid", "seleninic_acid") == "carboxylic_acid"
 
 
 def _seleninic_selenium_atoms(mol):
@@ -207,38 +201,6 @@ def _validate_and_collect(mol):
     return carboxyl_carbon.GetIdx(), carboxyl_oxygens, seleninic_idxs
 
 
-def _name_from_substituents(chain_length, grouped):
-    # P-14.3.4.2(a): a mononuclear parent's substituent locant is always
-    # '1' and never cited.
-    prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
-    stem = alkane_name(chain_length)
-    # P-14.3.3: the -COOH suffix locant is never cited, since a -COOH
-    # carbon is always the chain-terminal C1.
-    return f"{prefix}{stem[:-1]}oic acid"
-
-
-def _candidate_key(chain_length, substituents):
-    grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
-    name = _name_from_substituents(chain_length, grouped)
-    return (locant_set, citation_locants, name), name
-
-
-def _substituents_for_chain(graph, chain, names, excluded, mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, names, mol=mol) for root in branch_roots]
-    return substituents
-
-
 def name_carboxylic_acid_seleninic_acid(mol) -> str:
     carboxyl_carbon, carboxyl_oxygens, seleninic_idxs = _validate_and_collect(mol)
 
@@ -258,40 +220,17 @@ def name_carboxylic_acid_seleninic_acid(mol) -> str:
             "seleninic acid combination is out of scope for this module"
         )
 
-    graph = adjacency(mol)
-    names = {**halogen_substituents(mol), **{s: "selenino" for s in seleninic_idxs}}
-    chains = longest_chains(carbon_adjacency(mol))
-    chain_length = len(chains[0])
-
     seleninic_carbons = {
         n.GetIdx()
         for s in seleninic_idxs
         for n in mol.GetAtomWithIdx(s).GetNeighbors()
         if n.GetAtomicNum() == 6
     }
-    eligible = [
-        chain
-        for chain in chains
-        if carboxyl_carbon in chain and seleninic_carbons.issubset(set(chain))
-    ]
-    if not eligible:
-        raise UnsupportedStructure(
-            "not every carboxylic acid/seleninic acid-bearing carbon lies "
-            "on a single longest carbon chain; a shorter principal chain "
-            "is not supported yet"
-        )
-
-    excluded = carboxyl_oxygens
-    best_key = None
-    best_name = None
-    for chain in eligible:
-        for candidate in (chain, list(reversed(chain))):
-            if candidate[0] != carboxyl_carbon:
-                # A -COOH carbon must sit at C1 (P-65.1.1); a direction
-                # that doesn't start there is never valid.
-                continue
-            substituents = _substituents_for_chain(graph, candidate, names, excluded, mol=mol)
-            key, name = _candidate_key(chain_length, substituents)
-            if best_key is None or key < best_key:
-                best_key, best_name = key, name
-    return best_name
+    return name_via_senior_acyclic(
+        _name_acyclic_carboxylic_acid,
+        "carboxylic_acid",
+        "seleninic_acid",
+        (mol, {carboxyl_carbon}, carboxyl_oxygens, set(), []),
+        {s: "selenino" for s in seleninic_idxs},
+        required_atoms=seleninic_carbons,
+    )
