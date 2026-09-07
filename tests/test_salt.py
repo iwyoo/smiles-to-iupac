@@ -92,3 +92,33 @@ def test_two_ammonium_cation_fragments_raises():
 def test_non_carboxylate_anion_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[Na+].CCO")
+
+
+def test_sodium_methoxide():
+    # PubChem's own computed IUPACName for this exact SMILES is "sodium
+    # methanolate"; `_alkoxide.py`'s own PIN convention retains the
+    # traditional 'methoxide' name over the systematic 'methanolate' one
+    # (P-72.2.2.2.2), so this module's output is "sodium methoxide".
+    assert smiles_to_iupac("[Na+].C[O-]") == "sodium methoxide"
+
+
+def test_potassium_ethoxide():
+    assert smiles_to_iupac("[K+].CC[O-]") == "potassium ethoxide"
+
+
+def test_ammonium_methoxide():
+    # PubChem's own computed IUPACName for this exact SMILES is "azanium
+    # methanolate" -- same 'methoxide' vs 'methanolate' divergence as
+    # test_sodium_methoxide above.
+    assert smiles_to_iupac("[NH4+].C[O-]") == "azanium methoxide"
+
+
+def test_divalent_cation_alkoxide_anion_raises():
+    # a 2+/3+ metal cation paired with an alkoxide anion is out of scope:
+    # PubChem's own generator inconsistently omits the multiplying prefix
+    # here (`[Ca+2].C[O-].C[O-]` -> "calcium methanolate", not "calcium
+    # dimethanolate", unlike the carboxylate case's confirmed "calcium
+    # diacetate"), so there is no reliable worked example to verify this
+    # form against yet.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[Ca+2].C[O-].C[O-]")
