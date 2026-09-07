@@ -294,7 +294,9 @@ def _suffix_body(ene_locants, yne_locants, acid_count):
 
 def _name_from_substituents(chain_length, acid_count, ene_locants, yne_locants, grouped):
     has_unsaturation = bool(ene_locants or yne_locants)
-    prefix = format_substituent_prefixes(grouped)
+    # P-14.3.4.2(a): a mononuclear parent's substituent locant is always
+    # '1' and never cited.
+    prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
     if has_unsaturation:
         stem = alkane_name(chain_length)[:-3]
         needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
