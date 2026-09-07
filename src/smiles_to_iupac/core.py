@@ -92,6 +92,7 @@ from ._estrane import has_estrane_name, name_estrane
 from ._gonane import has_gonane_name, name_gonane
 from ._pregnane import has_pregnane_name, name_pregnane
 from ._cholane import has_cholane_name, name_cholane
+from ._cholestane import has_cholestane_name, name_cholestane
 from ._heteroaromatic_fused import has_retained_heteroaromatic_fused_name, name_retained_heteroaromatic_fused
 from ._polycyclic_component_fusion import (
     has_polycyclic_component_fusion_name,
@@ -406,6 +407,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # through to `_polycyclic.py`'s general von Baeyer engine instead.
     if has_cholane_name(mol):
         return name_cholane(mol)
+
+    # cholestane (cholane's side chain extended by a symmetric gem-dimethyl
+    # terminus, C25-C27, Rule 3S-2.4 -- see module docstring) is recognized
+    # the same way, for the same reason: its own skeleton would otherwise
+    # fall through to `_polycyclic.py`'s general von Baeyer engine instead.
+    if has_cholestane_name(mol):
+        return name_cholestane(mol)
 
     # triphenylene (P-25.1.2's branched-fusion retained name) is recognized
     # the same way -- see _branched_fused_aromatic.py's module docstring;
