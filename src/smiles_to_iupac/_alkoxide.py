@@ -79,6 +79,7 @@ terminal atom), confirmed via RDKit `FindPotentialStereo` on
 from rdkit import Chem
 
 from ._common import (
+    elides_before,
     ENE_BOND_ORDER,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -156,7 +157,7 @@ def _suffix_body(ene_locants, yne_locants, o_locant):
 
     words = [word for _, word in segments]
     for i in range(len(words) - 1):
-        if words[i].endswith("e") and words[i + 1][0] in "aeiouy":
+        if words[i].endswith("e") and elides_before(words[i + 1]):
             words[i] = words[i][:-1]
 
     parts = [
