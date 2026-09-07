@@ -177,3 +177,14 @@ def test_unsaturated_heteroatom_tricyclic_raises():
 
 def test_tricyclic_hydrocarbon_itself_is_unaffected():
     assert smiles_to_iupac("C1C2CC3CC1CC(C2)C3") == "tricyclo[3.3.1.1^3,7]decane"
+
+
+def test_disjoint_ring_systems_joined_by_chain_raises():
+    # a camphane-like bicyclic ring with a nitrogen substituent, chained
+    # through two carbons to a completely unrelated adamantane-like
+    # tricyclic ring -- two disjoint ring systems joined only by an
+    # acyclic linker, not one fused/bridged polycyclic core. Previously
+    # crashed with TypeError (best_key stayed None and index [-1] on it
+    # blew up) instead of raising UnsupportedStructure.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC1(C)C2CC[C@@]1(C)CN(CCC1C3CC4CC(C3)CC1C4)C2")
