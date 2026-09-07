@@ -282,6 +282,9 @@ def test_ring_amide():
     # exact matches.
     assert smiles_to_iupac("NC(=O)C1CCCCC1") == "cyclohexanecarboxamide"
     assert smiles_to_iupac("NC(=O)C1CCC(C)CC1") == "4-methylcyclohexane-1-carboxamide"
+    # A substituent sharing the same ring atom as the -CONH2 (a quaternary
+    # ring carbon), verified via PubChem PUG REST.
+    assert smiles_to_iupac("NC(=O)C1(C)CCCCC1") == "1-methylcyclohexane-1-carboxamide"
 
 
 def test_alcohol_mix_names_hydroxy_prefix():

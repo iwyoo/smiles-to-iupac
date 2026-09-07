@@ -624,9 +624,8 @@ def _name_ring_amide(mol, ring_atoms, stereo=None):
 
     A saturated monocyclic all-carbon ring with exactly one N-unsubstituted
     -CONH2 hanging directly off one ring atom (no ring unsaturation, no
-    standalone hydroxyl, no other substituent sharing that same ring
-    atom), plus any number of substituents (alkyl/halogen) on *other*
-    ring atoms.
+    standalone hydroxyl), plus any number of substituents (alkyl/halogen)
+    on any ring atom, including the -CONH2-bearing atom itself.
 
     `stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- every stereocenter must lie on the ring
@@ -657,12 +656,6 @@ def _name_ring_amide(mol, ring_atoms, stereo=None):
             "supported yet"
         )
     (ring_atom,) = ring_neighbors
-    other_ring_atom_branches = [n for n in graph[ring_atom] if n not in ring_atoms and n != amide_carbon]
-    if other_ring_atom_branches:
-        raise UnsupportedStructure(
-            "a substituent on the same ring atom as the amide is not "
-            "supported yet"
-        )
 
     if stereo is not None and any(atom not in ring_atoms for atom, _ in stereo):
         raise UnsupportedStructure(

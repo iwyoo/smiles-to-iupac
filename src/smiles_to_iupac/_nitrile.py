@@ -394,9 +394,9 @@ def _name_ring_nitrile(mol, ring_atoms, stereo=None):
     `_aldehyde.py`'s `_name_ring_aldehyde` construction.
 
     A saturated monocyclic all-carbon ring with exactly one -C#N hanging
-    directly off one ring atom (no ring unsaturation, no other
-    substituent sharing that same ring atom), plus any number of
-    substituents (alkyl/halogen) on *other* ring atoms.
+    directly off one ring atom (no ring unsaturation), plus any number of
+    substituents (alkyl/halogen) on any ring atom, including the -C#N-
+    bearing atom itself.
 
     `stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- every stereocenter must lie on the ring
@@ -420,12 +420,6 @@ def _name_ring_nitrile(mol, ring_atoms, stereo=None):
             "supported yet"
         )
     (ring_atom,) = ring_neighbors
-    other_ring_atom_branches = [n for n in graph[ring_atom] if n not in ring_atoms and n != nitrile_carbon]
-    if other_ring_atom_branches:
-        raise UnsupportedStructure(
-            "a substituent on the same ring atom as the nitrile is not "
-            "supported yet"
-        )
 
     if stereo is not None and any(atom not in ring_atoms for atom, _ in stereo):
         raise UnsupportedStructure(

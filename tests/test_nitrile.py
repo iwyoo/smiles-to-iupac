@@ -88,6 +88,9 @@ def test_ring_nitrile():
     # both exact matches.
     assert smiles_to_iupac("N#CC1CCCCC1") == "cyclohexanecarbonitrile"
     assert smiles_to_iupac("N#CC1CCC(C)CC1") == "4-methylcyclohexane-1-carbonitrile"
+    # A substituent sharing the same ring atom as the -C#N (a quaternary
+    # ring carbon), verified via PubChem PUG REST.
+    assert smiles_to_iupac("N#CC1(C)CCCCC1") == "1-methylcyclohexane-1-carbonitrile"
 
 
 def test_bicyclic_carbon_skeleton_with_stray_nitrile_raises():
