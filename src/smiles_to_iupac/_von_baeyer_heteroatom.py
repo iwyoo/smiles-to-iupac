@@ -358,4 +358,12 @@ def name_von_baeyer_heteroatom_polycyclic(mol, core, ring_count) -> str:
         if best_key is None or key < best_key:
             best_key = key
 
+    if best_key is None:
+        raise UnsupportedStructure(
+            "this polycyclic topology is not supported yet (disjoint ring "
+            "systems joined only by an acyclic linker are out of scope; "
+            "see _polycyclic.py's name_polycycloalkane for the analogous "
+            "non-heteroatom guard)"
+        )
+
     return best_key[-1]
