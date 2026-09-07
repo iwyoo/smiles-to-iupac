@@ -499,3 +499,21 @@ def test_amine_hetero_mix_dispatches_to_alcohol_amine():
     # above), so '_alcohol_amine.py' follows that same pre-existing
     # convention instead.
     assert smiles_to_iupac("OCCN") == "2-aminoethan-1-ol"
+
+
+def test_branch_point_prefers_halogen_bearing_arm_over_plain_alkyl_arm():
+    # Found via real-data testing: `_common.py`'s `longest_branched_chain_
+    # through` (shared by ~20 suffix modules) resolved a tie between two
+    # equal-length one-carbon arms off the alcohol carbon (a plain methyl
+    # vs a halogen-bearing carbon) arbitrarily, by BFS/adjacency insertion
+    # order, instead of applying the same "more substituents cited as
+    # prefixes" tie-break its sibling `longest_branched_chain` already
+    # uses (P-44.3.2) -- both examples below are PubChem's own PINs.
+    assert (
+        smiles_to_iupac("CCCCc1ccc(C(O)(CCC)C(C)C(F)F)cc1")
+        == "3-(4-butylphenyl)-1,1-difluoro-2-methylhexan-3-ol"
+    )
+    assert (
+        smiles_to_iupac("CC(O)(Cc1cccc(F)c1)C(F)(F)Br")
+        == "1-bromo-1,1-difluoro-3-(3-fluorophenyl)-2-methylpropan-2-ol"
+    )
