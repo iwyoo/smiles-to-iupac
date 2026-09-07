@@ -751,6 +751,16 @@ def name_ester(mol) -> str:
                 )
             return _name_phenyl_acyl_ester(mol, ring_atoms)
         acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon = _find_ester_group(mol)
+        if acyl_carbon.GetIdx() in ring_atoms:
+            # A ring-embedded lactone (the carbonyl carbon itself in the
+            # ring, e.g. a macrolactone) is a structurally different
+            # construction (P-65.6.3.3) from the ring-attached-acyl shapes
+            # below, which all assume the acyl carbon sits outside the ring.
+            raise UnsupportedStructure(
+                "a ring-attached ester or lactone uses a different naming "
+                "construction (P-65.6.3.2/P-65.6.3.3), out of scope for this "
+                "acyclic-only module"
+            )
         cyclyl_ring_atoms = plain_saturated_ring_substituent_atoms(
             mol, adjacency(mol), ester_oxygen.GetIdx(), alcohol_carbon.GetIdx()
         )
