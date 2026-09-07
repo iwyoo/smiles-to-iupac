@@ -10,9 +10,15 @@ carbon chain, per the IUPAC 2013 Recommendations ("the Blue Book"):
   `_sulfonic_acid_thiol.py`, the first module built on `_seniority.py`,
   with the demoted group swapped from thiol/'sulfanyl' to sulfinic
   acid/'sulfino'.
-- Otherwise mirrors `_sulfonic_acid.py`'s acyclic-chain path exactly: the
-  P-14.3.4.2(a)/(b) locant-omission rules, and the -SO3H locant minimized
-  before substituent-prefix locants (P-45.2).
+- Otherwise reuses `_sulfonic_acid.py`'s own acyclic-chain naming function
+  directly (`_name_acyclic_sulfonic_acid`, via
+  `_coexisting_groups.name_via_senior_acyclic`) rather than duplicating
+  its chain-search/numbering logic, mirroring the
+  `_sulfonic_acid_thiol.py` pilot (PR #413) -- 'sulfino' is injected as
+  an `extra_names` prefix, and the sulfinic-bearing carbon(s) are passed
+  as `required_atoms`. The P-14.3.4.2(a)/(b) locant-omission rules and
+  the -SO3H locant minimized before substituent-prefix locants (P-45.2)
+  both come from that shared function unchanged.
 
 Scope, deliberately narrow (mirrors `_sulfonic_acid_thiol.py`): a single
 sulfonic acid plus one or more sulfinic acids, all on one acyclic
@@ -25,24 +31,15 @@ not captured by a single longest chain.
 
 from rdkit import Chem
 
+from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
-    adjacency,
-    bfs,
-    carbon_adjacency,
-    halogen_substituents,
-    lowest_locant_set,
     non_single_bonds,
-    path_between,
 )
-from ._numerals import alkane_name
-from ._seniority import senior_class
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._sulfonic_acid import _name_acyclic_sulfonic_acid
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, 16, *HALOGEN_PREFIXES}
-
-assert senior_class("sulfonic_acid", "sulfinic_acid") == "sulfonic_acid"
 
 
 def _sulfonic_sulfur_atoms(mol):
@@ -193,73 +190,6 @@ def _validate_and_collect(mol):
     return sulfonic_sulfur.GetIdx(), so3h_carbon.GetIdx(), sulfinic_idxs
 
 
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
-
-
-def _name_from_substituents(chain_length, so3h_locant, grouped):
-    total_subs = sum(len(info["locants"]) for info in grouped.values())
-
-    if chain_length == 1:
-        # P-14.3.4.2(a): a mononuclear parent's locant is always '1' and
-        # never cited.
-        return format_substituent_prefixes(grouped, omit_locants=True) + alkane_name(1) + "sulfonic acid"
-    if chain_length == 2 and total_subs == 0:
-        # P-14.3.4.2(b): a homogeneous two-carbon chain with exactly one
-        # substituent (the sole -SO3H) in total omits the locant.
-        return alkane_name(2) + "sulfonic acid"
-
-    prefix = format_substituent_prefixes(grouped)
-    return f"{prefix}{alkane_name(chain_length)}-{so3h_locant}-sulfonic acid"
-
-
-def _candidate_key(chain_length, so3h_locant, substituents):
-    grouped = _group(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
-    name = _name_from_substituents(chain_length, so3h_locant, grouped)
-    return (so3h_locant, locant_set, citation_locants, name), name
-
-
-def _longest_chains(graph):
-    nodes = list(graph)
-    distances = {}
-    parents = {}
-    for node in nodes:
-        dist, parent = bfs(graph, node)
-        distances[node] = dist
-        parents[node] = parent
-
-    diameter = max(d for dist in distances.values() for d in dist.values())
-    chains = []
-    seen = set()
-    for u in nodes:
-        for v, d in distances[u].items():
-            if d == diameter and (v, u) not in seen:
-                seen.add((u, v))
-                chains.append(path_between(parents[u], u, v))
-    return chains
-
-
-def _substituents_for_chain(graph, chain, names, excluded, mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, names, mol=mol) for root in branch_roots]
-    return substituents
-
-
 def name_sulfonic_acid_sulfinic_acid(mol) -> str:
     sulfonic_sulfur_idx, so3h_carbon, sulfinic_idxs = _validate_and_collect(mol)
 
@@ -276,38 +206,17 @@ def name_sulfonic_acid_sulfinic_acid(mol) -> str:
             "sulfinic acid combination is out of scope for this module"
         )
 
-    graph = adjacency(mol)
-    names = {**halogen_substituents(mol), **{s: "sulfino" for s in sulfinic_idxs}}
-    chains = _longest_chains(carbon_adjacency(mol))
-    chain_length = len(chains[0])
-
     sulfinic_carbons = {
         n.GetIdx()
         for s in sulfinic_idxs
         for n in mol.GetAtomWithIdx(s).GetNeighbors()
         if n.GetAtomicNum() == 6
     }
-    eligible = [
-        chain
-        for chain in chains
-        if so3h_carbon in chain and sulfinic_carbons.issubset(set(chain))
-    ]
-    if not eligible:
-        raise UnsupportedStructure(
-            "not every sulfonic acid/sulfinic acid-bearing carbon lies on "
-            "a single longest carbon chain; a shorter principal chain is "
-            "not supported yet"
-        )
-
-    excluded = {sulfonic_sulfur_idx}
-    best_key = None
-    best_name = None
-    for chain in eligible:
-        for candidate in (chain, list(reversed(chain))):
-            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
-            so3h_locant = position_of[so3h_carbon]
-            substituents = _substituents_for_chain(graph, candidate, names, excluded, mol=mol)
-            key, name = _candidate_key(chain_length, so3h_locant, substituents)
-            if best_key is None or key < best_key:
-                best_key, best_name = key, name
-    return best_name
+    return name_via_senior_acyclic(
+        _name_acyclic_sulfonic_acid,
+        "sulfonic_acid",
+        "sulfinic_acid",
+        (mol, sulfonic_sulfur_idx, so3h_carbon, []),
+        {s: "sulfino" for s in sulfinic_idxs},
+        required_atoms=sulfinic_carbons,
+    )
