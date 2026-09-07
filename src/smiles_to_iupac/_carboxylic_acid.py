@@ -604,12 +604,13 @@ def _name_ring_carboxylic_acid(mol, ring_atoms, stereo=None):
 
     A saturated monocyclic all-carbon ring with exactly one -COOH hanging
     directly off one ring atom (no intervening chain carbon, no standalone
-    hydroxyl, no ring unsaturation, and no other substituent sharing that
-    same ring atom), plus any number of substituents (alkyl/halogen) on
-    *other* ring atoms -- e.g. 'cyclohexanecarboxylic acid' (the sole
-    substituent's ring locant is P-14.3.3-omitted) and
-    '4-methylcyclohexane-1-carboxylic acid' (PubChem CID 20330), mirroring
-    `_sulfonic_acid.py`'s ring-numbering search.
+    hydroxyl, no ring unsaturation), plus any number of substituents
+    (alkyl/halogen) on any ring atom, including the -COOH-bearing atom
+    itself -- e.g. 'cyclohexanecarboxylic acid' (the sole substituent's
+    ring locant is P-14.3.3-omitted), '4-methylcyclohexane-1-carboxylic
+    acid' (PubChem CID 20330), and '1-methylcyclohexane-1-carboxylic
+    acid' (quaternary -COOH-bearing atom), mirroring `_sulfonic_acid.py`'s
+    ring-numbering search.
 
     `stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- every stereocenter must lie on the ring
@@ -644,12 +645,6 @@ def _name_ring_carboxylic_acid(mol, ring_atoms, stereo=None):
             "is not supported yet"
         )
     (ring_atom,) = ring_neighbors
-    other_ring_atom_branches = [n for n in graph[ring_atom] if n not in ring_atoms and n != carboxyl_carbon]
-    if other_ring_atom_branches:
-        raise UnsupportedStructure(
-            "a substituent on the same ring atom as the carboxylic acid is "
-            "not supported yet"
-        )
 
     if stereo is not None and any(atom not in ring_atoms for atom, _ in stereo):
         raise UnsupportedStructure(
