@@ -36,20 +36,40 @@ rather than PubChem's 'methylazanium' (a divergence already established
 and accepted, see `_ammonium.py`'s own docstring), so this module's output
 for that example is 'methanaminium acetate'.
 
+The anion may also be a single alkoxide, recognized by `_alkoxide.py`
+(`has_alkoxide_shape`/`name_alkoxide`, reused unchanged), but -- unlike
+carboxylate -- only paired with a singly-charged cation (alkali metal or
+ammonium): PubChem-verified `[Na+].C[O-]` -> 'sodium methanolate' and
+`[NH4+].C[O-]` -> 'azanium methanolate', both exactly one cation to one
+anion. A 2+/3+ metal cation with two or three alkoxide anions is *not*
+attempted here -- PubChem's own generator inconsistently omits the
+multiplying prefix there (`[Ca+2].C[O-].C[O-]` -> 'calcium methanolate',
+not 'calcium dimethanolate', unlike the carboxylate case's confirmed
+'calcium diacetate'), so there is no reliable worked example to verify
+the multivalent-cation form of an alkoxide salt against yet.
+
 Explicitly out of scope (raise `UnsupportedStructure`, or -- for
 `has_salt_shape` -- simply return False so the shape falls through to
 every other branch's own, usually less helpful, rejection): any metal
 cation other than the fixed-valence ones above (transition metals need
 Stock/oxidation-number disambiguation, not attempted here), any anion
-other than a plain carboxylate, mixed/different anions on the same
-cation, and more than one cation fragment (multi-cation salts, e.g.
-'potassium sodium butanedioate', are unattempted here)."""
+other than a plain carboxylate or (singly-charged-cation-only) alkoxide,
+mixed/different anions on the same cation, a 2+/3+ metal cation paired
+with an alkoxide anion (see above), and more than one cation fragment
+(multi-cation salts, e.g. 'potassium sodium butanedioate', are
+unattempted here)."""
 
 from rdkit import Chem
 
+from ._alkoxide import has_alkoxide_shape, name_alkoxide
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._carboxylate import has_carboxylate_shape, name_carboxylate
 from ._numerals import multiplying_prefix
+
+_ANION_KINDS = [
+    (has_carboxylate_shape, name_carboxylate),
+    (has_alkoxide_shape, name_alkoxide),
+]
 
 _MONOATOMIC_CATION_NAMES = {
     ("Li", 1): "lithium",
@@ -102,12 +122,15 @@ def _split_cation_anions(mol):
         ]
         if any(c != -1 for c in anion_charges):
             continue
-        if not all(has_carboxylate_shape(frag) for frag in anion_frags):
-            continue
-        smiles = {Chem.MolToSmiles(frag) for frag in anion_frags}
-        if len(smiles) != 1:
-            continue
-        return cation_name, anion_frags[0], len(anion_frags)
+        for has_shape, namer in _ANION_KINDS:
+            if namer is name_alkoxide and charge != 1:
+                continue
+            if not all(has_shape(frag) for frag in anion_frags):
+                continue
+            smiles = {Chem.MolToSmiles(frag) for frag in anion_frags}
+            if len(smiles) != 1:
+                continue
+            return cation_name, namer, anion_frags[0], len(anion_frags)
     return None
 
 
@@ -116,8 +139,8 @@ def has_salt_shape(mol) -> bool:
 
 
 def name_salt(mol) -> str:
-    cation_name, anion_frag, anion_count = _split_cation_anions(mol)
-    anion_name = name_carboxylate(anion_frag)
+    cation_name, namer, anion_frag, anion_count = _split_cation_anions(mol)
+    anion_name = namer(anion_frag)
     if anion_count == 1:
         return f"{cation_name} {anion_name}"
     return f"{cation_name} {multiplying_prefix(anion_count)}{anion_name}"
