@@ -36,28 +36,35 @@ rather than PubChem's 'methylazanium' (a divergence already established
 and accepted, see `_ammonium.py`'s own docstring), so this module's output
 for that example is 'methanaminium acetate'.
 
-The anion may also be a single alkoxide, recognized by `_alkoxide.py`
-(`has_alkoxide_shape`/`name_alkoxide`, reused unchanged), but -- unlike
-carboxylate -- only paired with a singly-charged cation (alkali metal or
-ammonium): PubChem-verified `[Na+].C[O-]` -> 'sodium methanolate' and
-`[NH4+].C[O-]` -> 'azanium methanolate', both exactly one cation to one
-anion. A 2+/3+ metal cation with two or three alkoxide anions is *not*
+The anion may also be a single alkoxide, thioate, or selenoate, recognized
+by `_alkoxide.py`/`_thioate.py`/`_selenoate.py` (each module's own
+`has_*_shape`/`name_*`, reused unchanged), but -- unlike carboxylate --
+only paired with a singly-charged cation (alkali metal or ammonium):
+PubChem-verified `[Na+].C[O-]` -> 'sodium methanolate',
+`[NH4+].C[O-]` -> 'azanium methanolate',
+`[Na+].CC(=O)[S-]` -> 'sodium ethanethioate' (an exact match with this
+project's own thioate naming, unlike the alkoxide/carboxylate retained-
+name divergences),
+`[NH4+].CC(=O)[S-]` -> 'azanium ethanethioate',
+`[Na+].CC(=O)[Se-]` -> 'sodium ethaneselenoate' -- all exactly one cation
+to one anion. A 2+/3+ metal cation with two or three such anions is *not*
 attempted here -- PubChem's own generator inconsistently omits the
-multiplying prefix there (`[Ca+2].C[O-].C[O-]` -> 'calcium methanolate',
-not 'calcium dimethanolate', unlike the carboxylate case's confirmed
-'calcium diacetate'), so there is no reliable worked example to verify
-the multivalent-cation form of an alkoxide salt against yet.
+multiplying prefix there for all three (`[Ca+2].C[O-].C[O-]` -> 'calcium
+methanolate', `[Ca+2].CC(=O)[S-].CC(=O)[S-]` -> 'calcium ethanethioate',
+neither 'di...', unlike the carboxylate case's confirmed 'calcium
+diacetate'), so there is no reliable worked example to verify the
+multivalent-cation form of any of these salts against yet.
 
 Explicitly out of scope (raise `UnsupportedStructure`, or -- for
 `has_salt_shape` -- simply return False so the shape falls through to
 every other branch's own, usually less helpful, rejection): any metal
 cation other than the fixed-valence ones above (transition metals need
 Stock/oxidation-number disambiguation, not attempted here), any anion
-other than a plain carboxylate or (singly-charged-cation-only) alkoxide,
-mixed/different anions on the same cation, a 2+/3+ metal cation paired
-with an alkoxide anion (see above), and more than one cation fragment
-(multi-cation salts, e.g. 'potassium sodium butanedioate', are
-unattempted here)."""
+other than a plain carboxylate or (singly-charged-cation-only)
+alkoxide/thioate/selenoate, mixed/different anions on the same cation, a
+2+/3+ metal cation paired with one of the singly-charged-cation-only
+anions (see above), and more than one cation fragment (multi-cation
+salts, e.g. 'potassium sodium butanedioate', are unattempted here)."""
 
 from rdkit import Chem
 
@@ -65,11 +72,17 @@ from ._alkoxide import has_alkoxide_shape, name_alkoxide
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._carboxylate import has_carboxylate_shape, name_carboxylate
 from ._numerals import multiplying_prefix
+from ._selenoate import has_selenoate_shape, name_selenoate
+from ._thioate import has_thioate_shape, name_thioate
 
 _ANION_KINDS = [
     (has_carboxylate_shape, name_carboxylate),
     (has_alkoxide_shape, name_alkoxide),
+    (has_thioate_shape, name_thioate),
+    (has_selenoate_shape, name_selenoate),
 ]
+
+_SINGLY_CHARGED_CATION_ONLY_ANIONS = {name_alkoxide, name_thioate, name_selenoate}
 
 _MONOATOMIC_CATION_NAMES = {
     ("Li", 1): "lithium",
@@ -123,7 +136,7 @@ def _split_cation_anions(mol):
         if any(c != -1 for c in anion_charges):
             continue
         for has_shape, namer in _ANION_KINDS:
-            if namer is name_alkoxide and charge != 1:
+            if namer in _SINGLY_CHARGED_CATION_ONLY_ANIONS and charge != 1:
                 continue
             if not all(has_shape(frag) for frag in anion_frags):
                 continue
