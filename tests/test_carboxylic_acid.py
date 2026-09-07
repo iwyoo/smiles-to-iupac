@@ -67,18 +67,14 @@ def test_ether_raises():
         ("CC1CCC(CC1)C(=O)O", "4-methylcyclohexane-1-carboxylic acid"),  # CID 20330
         ("ClC1CCC(CC1)C(=O)O", "4-chlorocyclohexane-1-carboxylic acid"),  # CID 12603304
         ("CC1CCC(C)C(C1)C(=O)O", "2,5-dimethylcyclohexane-1-carboxylic acid"),  # CID 14048268
+        # A substituent sharing the same ring atom as the -COOH (a
+        # quaternary ring carbon) is named like any other ring position.
+        ("CC1(CCCCC1)C(=O)O", "1-methylcyclohexane-1-carboxylic acid"),  # verified via PubChem PUG REST
+        ("OC(=O)C1(Cl)CCCCC1", "1-chlorocyclohexane-1-carboxylic acid"),  # verified via PubChem PUG REST
     ],
 )
 def test_ring_carboxylic_acid_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_ring_carboxylic_acid_same_atom_substituent_raises():
-    # A substituent sharing the same ring atom as the -COOH (a quaternary
-    # ring carbon) is out of scope; a substituent on a *different* ring
-    # atom is covered by test_ring_carboxylic_acid_names above.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCC(Cl)(CC1)C(=O)O")
 
 
 def test_ring_carboxylic_acid_unsaturated_ring_raises():

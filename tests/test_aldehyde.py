@@ -145,6 +145,9 @@ def test_ring_aldehyde():
     # both exact matches.
     assert smiles_to_iupac("O=CC1CCCCC1") == "cyclohexanecarbaldehyde"
     assert smiles_to_iupac("O=CC1CCC(C)CC1") == "4-methylcyclohexane-1-carbaldehyde"
+    # A substituent sharing the same ring atom as the -CHO (a quaternary
+    # ring carbon), verified via PubChem PUG REST.
+    assert smiles_to_iupac("O=CC1(C)CCCCC1") == "1-methylcyclohexane-1-carbaldehyde"
 
 
 def test_ring_aldehyde_multiple_groups_raises():

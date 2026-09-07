@@ -425,9 +425,9 @@ def _name_ring_aldehyde(mol, ring_atoms, stereo=None):
 
     A saturated monocyclic all-carbon ring with exactly one -CHO hanging
     directly off one ring atom (no intervening chain carbon, no
-    standalone hydroxyl, no ring unsaturation, and no other substituent
-    sharing that same ring atom), plus any number of substituents
-    (alkyl/halogen) on *other* ring atoms.
+    standalone hydroxyl, no ring unsaturation), plus any number of
+    substituents (alkyl/halogen) on any ring atom, including the -CHO-
+    bearing atom itself.
 
     `stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- every stereocenter must lie on the ring
@@ -462,12 +462,6 @@ def _name_ring_aldehyde(mol, ring_atoms, stereo=None):
             "not supported yet"
         )
     (ring_atom,) = ring_neighbors
-    other_ring_atom_branches = [n for n in graph[ring_atom] if n not in ring_atoms and n != aldehyde_carbon]
-    if other_ring_atom_branches:
-        raise UnsupportedStructure(
-            "a substituent on the same ring atom as the aldehyde is not "
-            "supported yet"
-        )
 
     if stereo is not None and any(atom not in ring_atoms for atom, _ in stereo):
         raise UnsupportedStructure(
