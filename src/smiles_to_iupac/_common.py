@@ -306,6 +306,24 @@ def longest_branched_chain_through(graph, required, ring_boundary, excluded=froz
     here allowing the group to sit anywhere on the chain instead of
     fixing it at C1).
 
+    On a tie for longest, prefers the combination giving the greater
+    number of substituents cited as prefixes, then the lowest set of
+    locants among those -- the same P-44.3.2 tie-break `longest_branched_
+    chain` already applies, generalized to the two-arm case (found via
+    real-data testing: a branch point with a halogen-bearing 1-carbon arm
+    tied in length against a plain methyl arm, e.g. 'C(F)(F)Br' vs 'C'
+    off the same alcohol carbon, was previously resolved arbitrarily by
+    BFS/adjacency insertion order rather than by this rule, e.g.
+    'CC(O)(Cc1cccc(F)c1)C(F)(F)Br' wrongly named
+    '2-(bromodifluoromethyl)-1-(3-fluorophenyl)propan-2-ol' instead of
+    PubChem's '1-bromo-1,1-difluoro-3-(3-fluorophenyl)-2-methylpropan-2-ol',
+    which absorbs the halogen-bearing carbon into the chain instead,
+    citing 5 prefix substituents instead of 2). Every candidate two-arm
+    combination (across every pair of distinct starting neighbors of
+    `required`, and every farthest node tied within each) is enumerated
+    and scored the same way, since `required` rarely has more than two or
+    three non-excluded neighbors -- this stays cheap.
+
     `ring_boundary`/`excluded`/`halogens`: same meaning as
     `longest_branched_chain`.
 
@@ -318,7 +336,7 @@ def longest_branched_chain_through(graph, required, ring_boundary, excluded=froz
     blocked = set(ring_boundary) | set(excluded) | set(halogens)
     neighbors = [n for n in graph[required] if n not in blocked]
 
-    arms = []
+    groups = []
     for start in neighbors:
         # `required` itself must stay off-limits here -- otherwise this
         # arm's search loops back through it into the *other* arm(s),
@@ -337,29 +355,52 @@ def longest_branched_chain_through(graph, required, ring_boundary, excluded=froz
                     parent[neighbor] = node
                     next_queue.append(neighbor)
             queue = next_queue
-        far = max(dist, key=lambda n: dist[n])
-        arms.append([required] + path_between(parent, start, far))
+        far = max(dist.values())
+        groups.append([
+            [required] + path_between(parent, start, node)
+            for node, d in dist.items()
+            if d == far
+        ])
 
-    arms.sort(key=len, reverse=True)
-    if not arms:
-        chain = [required]
-    elif len(arms) == 1:
-        chain = list(reversed(arms[0]))
-    else:
-        chain = list(reversed(arms[0])) + arms[1][1:]
+    def candidate_chains():
+        if not groups:
+            yield [required]
+        elif len(groups) == 1:
+            for arm in groups[0]:
+                yield list(reversed(arm))
+        else:
+            for i in range(len(groups)):
+                for j in range(len(groups)):
+                    if i == j:
+                        continue
+                    for arm1 in groups[i]:
+                        for arm2 in groups[j]:
+                            yield list(reversed(arm1)) + arm2[1:]
 
-    chain_set = set(chain)
-    branches = {}
-    for position, atom in enumerate(chain, start=1):
-        # Any neighbor not on the two chosen arms -- including a third+
-        # arm off `required` itself, e.g. a ketone carbon with more than
-        # two carbon substituents (shouldn't normally arise, but falls
-        # through safely here rather than being silently dropped) -- is
-        # an ordinary branch, named via `name_branch` like any other.
-        roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
-        if roots:
-            branches[position] = roots
-    return chain, branches
+    def branches_for(chain):
+        chain_set = set(chain)
+        branches = {}
+        for position, atom in enumerate(chain, start=1):
+            # Any neighbor not on the two chosen arms -- including a
+            # third+ arm off `required` itself, e.g. a ketone carbon with
+            # more than two carbon substituents (shouldn't normally
+            # arise, but falls through safely here rather than being
+            # silently dropped) -- is an ordinary branch, named via
+            # `name_branch` like any other.
+            roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
+            if roots:
+                branches[position] = roots
+        return branches
+
+    best_chain, best_branches, best_key = None, None, None
+    for chain in candidate_chains():
+        branches = branches_for(chain)
+        substituent_count = sum(len(roots) for roots in branches.values())
+        locants = lowest_locant_set(pos for pos, roots in branches.items() for _ in roots)
+        key = (-len(chain), -substituent_count, locants)
+        if best_key is None or key < best_key:
+            best_key, best_chain, best_branches = key, chain, branches
+    return best_chain, best_branches
 
 
 def halogen_substituents(mol):
