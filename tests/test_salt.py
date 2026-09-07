@@ -122,3 +122,27 @@ def test_divalent_cation_alkoxide_anion_raises():
     # form against yet.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[Ca+2].C[O-].C[O-]")
+
+
+def test_sodium_ethanethioate():
+    # PubChem's own computed IUPACName for this exact SMILES is "sodium
+    # ethanethioate" -- an exact match with this project's own
+    # `_thioate.py` naming, unlike the alkoxide/carboxylate cases' own
+    # retained-name divergences.
+    assert smiles_to_iupac("[Na+].CC(=O)[S-]") == "sodium ethanethioate"
+
+
+def test_ammonium_ethanethioate():
+    assert smiles_to_iupac("[NH4+].CC(=O)[S-]") == "azanium ethanethioate"
+
+
+def test_sodium_ethaneselenoate():
+    assert smiles_to_iupac("[Na+].CC(=O)[Se-]") == "sodium ethaneselenoate"
+
+
+def test_divalent_cation_thioate_anion_raises():
+    # same multiplying-prefix inconsistency as the alkoxide case:
+    # PubChem's `[Ca+2].CC(=O)[S-].CC(=O)[S-]` -> "calcium ethanethioate",
+    # not "calcium diethanethioate".
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[Ca+2].CC(=O)[S-].CC(=O)[S-]")
