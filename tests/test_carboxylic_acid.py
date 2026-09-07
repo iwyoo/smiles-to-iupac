@@ -38,6 +38,15 @@ def test_carboxylic_acid_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_mononuclear_parent_omits_locant():
+    # P-14.3.4.2(a): a mononuclear parent's own substituent locant is
+    # always '1' and never cited, even for the acyclic single-carbon
+    # -COOH chain itself (mirrors the ring path's identical P-14.3.3
+    # rule, and `_carboxylic_acid_seleninic_acid.py`'s own precedent for
+    # this same rule via a coexisting seleninic acid).
+    assert smiles_to_iupac("OC(=O)Cl") == "chloromethanoic acid"
+
+
 def test_ether_raises():
     # An ether coexisting with a carboxylic acid (as opposed to a plain
     # ether on its own, now handled by the separate ether module) is still
