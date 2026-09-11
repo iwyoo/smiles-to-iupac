@@ -104,6 +104,7 @@ from ._polycyclic_component_fusion import (
 )
 from ._anthracene_fusion import has_anthracene_fusion_name, name_anthracene_fusion
 from ._phenanthrene_fusion import has_phenanthrene_fusion_name, name_phenanthrene_fusion
+from ._pyrene_fusion import has_pyrene_fusion_name, name_pyrene_fusion
 from ._hetero_monocyclic import (
     has_hetero_monocyclic_name,
     has_hetero_monocyclic_substituent_name,
@@ -478,6 +479,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # names via a different (senior) base component.
     if has_phenanthrene_fusion_name(mol):
         return name_phenanthrene_fusion(mol)
+
+    # benzo[a]pyrene/benzo[e]pyrene (same mechanism again, for pyrene as
+    # the base component -- the first *peri*-fused, not simply
+    # catacondensed, base for this algorithm) -- routed here for the same
+    # reason as the checks above.
+    if has_pyrene_fusion_name(mol):
+        return name_pyrene_fusion(mol)
 
     # thieno[2,3-b]thiophene/furo[2,3-b]furan/thieno[2,3-b]furan etc.
     # (P-25.3.1.3's computed fusion-locant-letter mechanism, for two
