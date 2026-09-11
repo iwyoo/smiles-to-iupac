@@ -102,6 +102,7 @@ from ._polycyclic_component_fusion import (
     has_polycyclic_component_fusion_name,
     name_polycyclic_component_fusion,
 )
+from ._anthracene_fusion import has_anthracene_fusion_name, name_anthracene_fusion
 from ._hetero_monocyclic import (
     has_hetero_monocyclic_name,
     has_hetero_monocyclic_substituent_name,
@@ -453,6 +454,18 @@ def smiles_to_iupac(smiles: str) -> str:
     # further below, which doesn't recognize a heteroatom at all.
     if has_polycyclic_component_fusion_name(mol):
         return name_polycyclic_component_fusion(mol)
+
+    # benzo[a]anthracene (P-25.3.1.3's computed fusion-locant-letter
+    # mechanism again, this time for a plain benzo ring fused onto
+    # anthracene itself -- the Blue Book's own worked example for this
+    # section) must be routed here for the same reason as the check just
+    # above: before `_aromatic.py`'s own tetracyclic dispatch further
+    # below, which only recognizes the *linear* fusion (tetracene) and
+    # would otherwise reject the angular one outright. The linear shape
+    # is deliberately excluded from `has_anthracene_fusion_name` itself
+    # so it still falls through to that tetracene recognition unchanged.
+    if has_anthracene_fusion_name(mol):
+        return name_anthracene_fusion(mol)
 
     # thieno[2,3-b]thiophene/furo[2,3-b]furan/thieno[2,3-b]furan etc.
     # (P-25.3.1.3's computed fusion-locant-letter mechanism, for two
