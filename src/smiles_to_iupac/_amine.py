@@ -19,24 +19,31 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
 This module accepts a *primary* amine (-NH2) attached to a non-aromatic
 carbon, and (P-66.4/general N-substituent-prefix nomenclature, mirroring
 `_amide.py`'s existing N-substituent handling) an acyclic secondary/tertiary
-amine whose extra N-substituent(s) are simple unbranched, saturated alkyl
-chains: the N-linked carbon starting the largest carbon skeleton becomes the
-parent chain (suffixed '-amine' as usual), and each other N-linked chain is
-cited as an 'N-'/'N,N-' substituent prefix, e.g. 'N-ethylethanamine'
-(diethylamine, PubChem-verified) and 'N,N-dimethylmethanamine'
-(trimethylamine, PubChem-verified). A halogen substituent on the parent
-chain now coexists with this too (P-14.5.2: the 'N-' prefix interleaves
-alphabetically with any other substituent prefix rather than always
-citing first, e.g. 'ClCCNCC' -> '2-chloro-N-ethylethanamine',
-PubChem-verified) -- `_add_n_names`/`format_substituent_prefixes`'s
-non-numeric 'N' locant handles this generically, so it applies equally to
-`_ammonium.py`'s reuse of this same machinery. It otherwise mirrors
-`_alcohol.py`'s scope restrictions:
+amine whose extra N-substituent(s) are saturated alkyl chains, branched or
+straight, halogen-substituted or not: the N-linked carbon starting the
+largest carbon skeleton becomes the parent chain (suffixed '-amine' as
+usual), and each other N-linked chain is named the same way an ordinary
+substituent branch is (`name_branch`) and cited as an 'N-'/'N,N-'
+substituent prefix, e.g. 'N-ethylethanamine' (diethylamine,
+PubChem-verified), 'N,N-dimethylmethanamine' (trimethylamine,
+PubChem-verified), 'N-(propan-2-yl)propan-1-amine' (PubChem CID 89119, raw
+'N-propan-2-ylpropan-1-amine' corrected to this project's established
+compound-prefix parenthesization, see `_amide.py`), and
+'N-(2-chloroethyl)propan-1-amine' (PubChem CID 3045065). A halogen
+substituent on the parent chain also coexists with this (P-14.5.2: the
+'N-' prefix interleaves alphabetically with any other substituent prefix
+rather than always citing first, e.g. 'ClCCNCC' ->
+'2-chloro-N-ethylethanamine', PubChem-verified) -- `_add_n_names`/
+`format_substituent_prefixes`'s non-numeric 'N' locant handles this
+generically, so it applies equally to `_ammonium.py`'s reuse of this same
+machinery. It otherwise mirrors `_alcohol.py`'s scope restrictions:
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- A secondary/tertiary amine nitrogen with a branched, unsaturated, or
-  ring-bearing N-substituent, or more than two N-substituents (mirrors
-  `_amide.py`'s own N-substituent restrictions exactly).
+- A secondary/tertiary amine nitrogen with an unsaturated N-substituent
+  (e.g. N-allyl, 'N-prop-2-enylpentan-1-amine', PubChem CID 12442641) --
+  `name_branch` has no ene/yne machinery of its own yet -- or more than
+  two N-substituents (mirrors `_amide.py`'s own N-substituent
+  restrictions).
 - A secondary/tertiary amine nitrogen on or attached to a ring, or
   coexisting with another amine nitrogen elsewhere in the molecule (a
   diamine where one nitrogen is secondary/tertiary) — both deferred as
@@ -88,7 +95,6 @@ from ._common import (
     carbon_adjacency,
     halogen_substituents,
     is_plain_benzene_ring,
-    linear_branch,
     longest_branched_chain_through,
     lowest_locant_set,
     non_single_bonds,
@@ -256,12 +262,17 @@ def _add_n_names(grouped, n_names):
     both chain-orientation ranking and the `chain_length`-based
     locant-omission branches below, neither of which an 'N' locant may
     enter (it doesn't move when the chain is renumbered, and its presence
-    doesn't make the amine's own carbon locant any less omittable)."""
+    doesn't make the amine's own carbon locant any less omittable).
+
+    `n_names`: (name, is_compound) pairs, one per N-substituent -- the same
+    shape `name_branch` returns, so a branched/compound N-substituent (e.g.
+    'propan-2-yl') gets its own enclosing marks via
+    `format_substituent_prefixes` exactly like any other compound prefix."""
     if not n_names:
         return grouped
     display = {name: {"locants": list(info["locants"]), "compound": info["compound"]} for name, info in grouped.items()}
-    for name in n_names:
-        info = display.setdefault(name, {"locants": [], "compound": False})
+    for name, is_compound in n_names:
+        info = display.setdefault(name, {"locants": [], "compound": is_compound})
         info["locants"].append("N")
     return display
 
@@ -467,9 +478,16 @@ def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=
     """Name a secondary/tertiary amine: the N-linked carbon starting the
     largest carbon skeleton becomes the parent chain (suffixed '-amine' via
     `_best_chain_name`, same as a primary amine), and each other N-linked
-    chain -- which must be a simple unbranched, saturated alkyl (mirrors
-    `_amide.py`'s own N-substituent restriction) -- is cited as an
-    'N-'/'N,N-' prefix (P-66.4), e.g. 'N-ethylethanamine' (diethylamine).
+    chain -- a branched and/or halogen-substituted saturated alkyl, named
+    via `name_branch` the same way an ordinary substituent branch is
+    (P-66.4/P-29) -- is cited as an 'N-'/'N,N-' prefix, e.g.
+    'N-ethylethanamine' (diethylamine), 'N-(propan-2-yl)propan-1-amine'
+    (PubChem CID 89119, raw 'N-propan-2-ylpropan-1-amine' corrected to this
+    project's established compound-prefix parenthesization, see
+    `_amide.py`), 'N-(2-chloroethyl)propan-1-amine' (PubChem CID 3045065).
+    An *unsaturated* N-substituent (e.g. 'N-prop-2-enylpentan-1-amine',
+    PubChem CID 12442641) stays out of scope -- `name_branch` has no
+    ene/yne machinery of its own yet.
 
     Also reused directly by `_ammonium.py` for a quaternary ammonium
     cation's 3 "other" N-substituents (no charge/degree assumption is made
@@ -489,19 +507,10 @@ def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=
 
     n_names = []
     for other in other_roots:
-        other_length = linear_branch(full_carbon_graph, other, None)
-        if other_length is None:
-            raise UnsupportedStructure("a branched N-substituent is not supported yet")
         other_atoms = set(components[other])
         if any(b[0] in other_atoms or b[1] in other_atoms for b in non_single_bonds(mol)):
             raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
-        if any(neighbor in halogens for atom in other_atoms for neighbor in graph[atom]):
-            raise UnsupportedStructure(
-                "a halogen-substituted N-substituent is not supported yet "
-                "-- it would be silently dropped, since only its carbon "
-                "chain length is currently used to name it"
-            )
-        n_names.append(alkyl_name(other_length))
+        n_names.append(name_branch(graph, other, n_idx, halogens, mol=mol))
 
     excluded_atoms = set()
     for other in other_roots:
