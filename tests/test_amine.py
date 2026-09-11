@@ -84,9 +84,22 @@ def test_tertiary_amine_asymmetric():
     assert smiles_to_iupac("CCN(C)CCC") == "N-ethyl-N-methylpropan-1-amine"
 
 
-def test_secondary_amine_branched_n_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCCNC(C)C")
+def test_secondary_amine_branched_n_substituent():
+    # PubChem CID 89119: 'N-propan-2-ylpropan-1-amine' -- corrected to this
+    # project's established compound-prefix parenthesization (see
+    # `_amide.py`'s identical 'N-(propan-2-yl)acetamide' correction).
+    assert smiles_to_iupac("CCCNC(C)C") == "N-(propan-2-yl)propan-1-amine"
+
+
+def test_tertiary_amine_two_branched_n_substituents():
+    # PubChem CID 13616122: 'N,N-di(propan-2-yl)propan-1-amine'.
+    assert smiles_to_iupac("CCCN(C(C)C)C(C)C") == "N,N-di(propan-2-yl)propan-1-amine"
+
+
+def test_secondary_amine_halogenated_n_substituent():
+    # PubChem CID 3045065: 'N-2-chloroethylpropan-1-amine' -- corrected to
+    # this project's established compound-prefix parenthesization.
+    assert smiles_to_iupac("ClCCNCCC") == "N-(2-chloroethyl)propan-1-amine"
 
 
 def test_secondary_amine_unsaturated_n_substituent_raises():
@@ -105,13 +118,6 @@ def test_secondary_amine_on_ring_raises():
 def test_diamine_with_tertiary_nitrogen_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("NCCN(C)C")
-
-
-def test_secondary_amine_with_halogen_on_n_substituent_raises():
-    # A halogen on the smaller (N-substituent) chain would otherwise be
-    # silently dropped, since only that chain's length is used to name it.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("ClCCNCCC")
 
 
 def test_secondary_amine_with_halogen_on_parent_chain():
