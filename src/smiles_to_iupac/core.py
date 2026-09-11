@@ -33,6 +33,7 @@ from ._guanidine import has_guanidine_shape, name_guanidine
 from ._hydrazide import has_hydrazide_shape, name_hydrazide
 from ._imide import has_imide_shape, name_imide
 from ._amine import name_amine
+from ._hetero_ring_amine import has_hetero_ring_amine_shape, name_hetero_ring_amine
 from ._ring_amine import has_ring_amine_shape, has_ring_amine_sulfonyl_shape, name_ring_amine
 from ._amine_oxide import has_amine_oxide_shape, name_amine_oxide
 from ._aminide import has_aminide_shape, name_aminide
@@ -1192,6 +1193,14 @@ def smiles_to_iupac(smiles: str) -> str:
         # separately in the oxygen-gated branch above.
         if has_ring_amine_shape(mol):
             return name_ring_amine(mol)
+        # The reverse shape: the ring nitrogen itself is plain (no
+        # substituent), but a ring carbon bears an exocyclic primary
+        # amine (e.g. piperidin-4-amine) -- `name_amine` also explicitly
+        # defers any ring bearing a nitrogen heteroatom, so this must be
+        # routed here first too, same reasoning as `has_ring_amine_shape`
+        # just above.
+        if has_hetero_ring_amine_shape(mol):
+            return name_hetero_ring_amine(mol)
         # P-41/Table 3.3: '-thiol' (sharing alcohol's rank as a chalcogen
         # analogue) outranks 'amine', so one or more thiols coexisting with
         # a primary amine names the thiol as the suffix and demotes the
