@@ -326,6 +326,24 @@ def test_ring_with_two_hydroxyls_outcompeted_by_chain():
     assert smiles_to_iupac("OC1C(O)CCC(C(O)C(O)CO)C1") == "1-(3,4-dihydroxycyclohexyl)propane-1,2,3-triol"
 
 
+def test_ring_with_hydroxyl_and_unbranched_diol_chain():
+    # PubChem CID 82849893: "3-(2-hydroxycyclohexyl)propane-1,2-diol" --
+    # the chain's 2 -OH's outnumber the ring's 1, so the chain (unbranched
+    # here) is the senior parent.
+    assert smiles_to_iupac("OC1CCCCC1CC(O)CO") == "3-(2-hydroxycyclohexyl)propane-1,2-diol"
+
+
+def test_ring_with_hydroxyl_and_branched_diol_chain():
+    # Same shape as the previous test, but the winning chain is now
+    # carbon-branched (P-44.3.2: `longest_branched_chain_through`, the
+    # same general search `_name_ring_substituent_chain_alcohol` already
+    # uses). No PubChem-listed compound was found for this exact
+    # structure, so this is a reviewed (eyeballed), not independently
+    # verified, result -- a generalization of the already-verified
+    # unbranched case just above.
+    assert smiles_to_iupac("OC1CCCCC1C(CO)CO") == "2-(2-hydroxycyclohexyl)propane-1,3-diol"
+
+
 def test_phenyl_substituted_benzene_ring_ortho_methyl():
     # A ring methyl substituent is now supported (see
     # tasks/aromatic-ring-methyl-substituent.md) -- PubChem PUG

@@ -208,7 +208,6 @@ from ._common import (
     longest_branched_chain_through,
     lowest_locant_set,
     non_single_bonds,
-    ordered_chain,
     path_between,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
@@ -950,17 +949,27 @@ def _name_ring_substituent_chain_alcohol(mol, hydroxyls):
 
 def _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls):
     """Name an alcohol where the ring itself bears at least as many -OH's
-    as a single unbranched chain hanging off exactly one ring atom does
-    (P-44.1.1: the candidate with the greater count of the principal
-    characteristic group -OH is senior; P-44.1.2.2 resolves an exact tie in
-    the ring's favor) -- e.g. 2-(hydroxymethyl)cyclohexan-1-ol,
+    as the chain hanging off exactly one ring atom does (P-44.1.1: the
+    candidate with the greater count of the principal characteristic group
+    -OH is senior; P-44.1.2.2 resolves an exact tie in the ring's favor)
+    -- e.g. 2-(hydroxymethyl)cyclohexan-1-ol,
     4-(hydroxymethyl)cyclohexane-1,2-diol,
     4-(1,2-dihydroxyethyl)cyclohexane-1,2-diol. The ring is the parent; the
     chain is cited as a '(hydroxy...alkyl)' substituent prefix, reusing the
     {oxygen_idx: "hydroxy"} trick already used by
     `_carboxylic_acid.py`/`_amide.py`/`_aldehyde.py`/`_ketone.py` -- mapping
     every chain hydroxyl this way lets `name_branch` group and multiply the
-    "hydroxy" prefix exactly as it already does for repeated halogens."""
+    "hydroxy" prefix exactly as it already does for repeated halogens.
+
+    The chain hanging off the ring may itself be branched (P-44.3.2: the
+    chain-wins case below uses `longest_branched_chain_through`, the same
+    general branch-absorbing search `_name_ring_substituent_chain_alcohol`
+    already uses for its own, ring-has-no-competing-OH case) -- no
+    PubChem-registered example of a *carbon*-branched competing chain was
+    found (most real compounds with this shape are unbranched, e.g.
+    PubChem CID 82849893's '3-(2-hydroxycyclohexyl)propane-1,2-diol'), but
+    the rule is the identical P-44.3.2 search already verified for the
+    unbranched and ring-substituent-only cases."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     ring_atoms = set(mol.GetRingInfo().AtomRings()[0])
@@ -972,16 +981,9 @@ def _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls):
             "yet"
         )
     ring_atom, chain_root = attachment
-    chain = ordered_chain(graph, chain_root, ring_atom, hydroxyls)
-    if chain is None:
-        raise UnsupportedStructure(
-            "a branched substituent chain hanging off the ring is not "
-            "supported yet"
-        )
+    ring_hydroxyls = {o for o in hydroxyls if next(iter(graph[o])) in ring_atoms}
+    chain_hydroxyls = hydroxyls - ring_hydroxyls
 
-    chain_set = set(chain)
-    chain_hydroxyls = {o for o in hydroxyls if next(iter(graph[o])) in chain_set}
-    ring_hydroxyls = hydroxyls - chain_hydroxyls
     if len(ring_hydroxyls) < len(chain_hydroxyls):
         # P-44.1.1: the chain captures strictly more -OH's, so it's the
         # senior parent and the ring (with its own one or more -OH's) is
@@ -992,13 +994,23 @@ def _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls):
         ring_name, ring_is_compound = name_branch(
             graph, ring_atom, chain_root, {**halogens, **{o: "hydroxy" for o in ring_hydroxyls}}, mol=mol
         )
+        chain, branches = longest_branched_chain_through(graph, chain_root, ring_atoms, hydroxyls, halogens=halogen_substituents(mol))
+        branches_by_atom = {
+            chain[position - 1]: [r for r in roots if r != ring_atom]
+            for position, roots in branches.items()
+        }
+        branches_by_atom = {atom: roots for atom, roots in branches_by_atom.items() if roots}
         chain_length = len(chain)
         best_key = None
         best_name = None
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             oh_locants = _oh_locants(position_of, chain_hydroxyls, graph)
-            substituents = {position_of[chain_root]: [(ring_name, ring_is_compound)]}
+            substituents = {
+                position_of[atom]: [name_branch(graph, root, atom, halogens, mol=mol) for root in roots]
+                for atom, roots in branches_by_atom.items()
+            }
+            substituents.setdefault(position_of[chain_root], []).append((ring_name, ring_is_compound))
             key, name = _candidate_key(chain_length, oh_locants, [], [], substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
