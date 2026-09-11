@@ -155,3 +155,26 @@ def test_mol_defends_against_unsaturated_branch():
     assert name_branch(graph, 1, 0, {}) == ("propyl", False)
     with pytest.raises(UnsupportedStructure):
         name_branch(graph, 1, 0, {}, mol=mol)
+
+
+def test_halogenated_phenyl_substituent_alphabetical_tiebreak():
+    # `halogenated_phenyl_substituent` picks whichever ring-walk direction
+    # gives the lowest locant set (P-14.5.2); when a symmetric halogen
+    # pattern makes both directions' locant sets identical ({2,4,6} either
+    # way here), the direction was previously chosen arbitrarily by
+    # ring-neighbor iteration order instead of by the required alphabetical
+    # tiebreak (the alphabetically-first-cited substituent -- 'bromo' before
+    # 'chloro' -- must get the lower locant). These two SMILES draw the same
+    # molecule (one ortho Br, the other ortho Cl, para F) in opposite ring
+    # directions and must produce the identical, correct name.
+    expected = "1-(2-bromo-6-chloro-4-fluorophenyl)propan-2-one"
+    assert smiles_to_iupac("CC(=O)Cc1c(Cl)cc(F)cc1Br") == expected
+    assert smiles_to_iupac("CC(=O)Cc1c(Br)cc(F)cc1Cl") == expected
+
+
+def test_halogenated_phenyl_substituent_non_tied_locant_set():
+    # A non-symmetric case (the two walk directions' locant sets differ:
+    # {2,3} vs {5,6}) must still resolve by lowest locant set alone,
+    # unaffected by the alphabetical tiebreak added above. PubChem CID
+    # 83724710.
+    assert smiles_to_iupac("CC(=O)Cc1c(Cl)c(Br)ccc1") == "1-(3-bromo-2-chlorophenyl)propan-2-one"
