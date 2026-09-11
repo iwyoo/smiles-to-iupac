@@ -491,10 +491,27 @@ def halogenated_phenyl_substituent(graph, aromatic_atoms, root, coming_from, hal
             return None
         return visited, entries
 
+    def tiebreak_key(entries):
+        # P-14.5.2: lowest locant set first (entries are already in
+        # ascending position order from `walk`); when two ring-walk
+        # directions give the same locant set (a symmetric halogen
+        # pattern), the direction that gives the alphabetically-first
+        # substituent name the lower locant wins, mirroring
+        # `_candidate_key`'s identical `citation_locants` tiebreak
+        # elsewhere in this module.
+        locant_set = tuple(pos for pos, _, _ in entries)
+        grouped = {}
+        for pos, name, _ in entries:
+            grouped.setdefault(name, []).append(pos)
+        citation_locants = tuple(
+            loc for name in sorted(grouped, key=alpha_sort_key) for loc in sorted(grouped[name])
+        )
+        return locant_set, citation_locants
+
     candidates = [r for r in (walk(n) for n in ring_neighbors) if r is not None and r[1]]
     if not candidates:
         return None
-    visited, entries = min(candidates, key=lambda vc: [pos for pos, _, _ in vc[1]])
+    visited, entries = min(candidates, key=lambda vc: tiebreak_key(vc[1]))
     grouped = {}
     for pos, name, _ in entries:
         # A name starting with its own locant (e.g. '2-methylpropyl') needs
