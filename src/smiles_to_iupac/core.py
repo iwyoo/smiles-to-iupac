@@ -55,6 +55,7 @@ from ._borane import has_simple_borane_shape, name_simple_borane
 from ._branched_fused_aromatic import has_retained_branched_fused_name, name_retained_branched_fused
 from ._carboxylate import has_carboxylate_shape, name_carboxylate
 from ._selenoate import has_selenoate_shape, name_selenoate
+from ._sulfonate import has_sulfonate_shape, name_sulfonate
 from ._thioate import has_thioate_shape, name_thioate
 from ._carboxylic_acid import has_carboxylic_acid_shape, name_carboxylic_acid
 from ._carboxylic_acid_sulfonamide import (
@@ -891,6 +892,13 @@ def smiles_to_iupac(smiles: str) -> str:
         # here for the same reason.
         if has_selenoate_shape(mol):
             return name_selenoate(mol)
+        # A sulfonate anion's sulfur (R-SO3-, P-72.2.2.2.1.1) bears an
+        # anionic oxygen (formal charge -1, no H) that every other module
+        # here -- including `_sulfonic_acid.py`'s own neutral -SO3H check
+        # further down -- would reject outright, so it must be routed
+        # before those.
+        if has_sulfonate_shape(mol):
+            return name_sulfonate(mol)
         # A ketone carbonyl directly bonded to a saturated single- or
         # 1,4-two-heteroatom ring's own O/S heteroatom (a lactone, e.g.
         # oxan-2-one/1,4-dioxan-2-one) looks ester-shaped to
