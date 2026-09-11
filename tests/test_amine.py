@@ -102,12 +102,43 @@ def test_secondary_amine_halogenated_n_substituent():
     assert smiles_to_iupac("ClCCNCCC") == "N-(2-chloroethyl)propan-1-amine"
 
 
-def test_secondary_amine_unsaturated_n_substituent_raises():
-    # The allyl group is the smaller N-linked chain here (pentyl is longer
-    # and becomes the parent), so it's cited as the N-substituent -- and an
-    # unsaturated N-substituent is out of scope.
+def test_secondary_amine_allyl_n_substituent():
+    # PubChem CID 12442641: 'N-prop-2-enylpentan-1-amine' -- the allyl
+    # group is the smaller N-linked chain here (pentyl is longer and
+    # becomes the parent), so it's cited as the N-substituent. The
+    # attachment locant is never cited (matches `_hetero_monocyclic.py`'s
+    # already-verified 'prop-2-enyl', not 'prop-2-en-1-yl').
+    assert smiles_to_iupac("C=CCNCCCCC") == "N-prop-2-enylpentan-1-amine"
+
+
+def test_secondary_amine_butenyl_n_substituent():
+    # PubChem CID 11018968: 'N-but-3-enylpentan-1-amine' -- a longer
+    # unsaturated N-substituent, double-bond locant '3' cited.
+    assert smiles_to_iupac("C=CCCNCCCCC") == "N-but-3-enylpentan-1-amine"
+
+
+def test_secondary_amine_propargyl_n_substituent():
+    # PubChem CID 3465926: 'N-prop-2-ynylbutan-1-amine'.
+    assert smiles_to_iupac("C#CCNCCCC") == "N-prop-2-ynylbutan-1-amine"
+
+
+def test_secondary_amine_vinyl_n_substituent_raises():
+    # N directly on the alkene carbon (not one bond further away, as the
+    # allyl/butenyl/propargyl cases above are) is still out of scope --
+    # a real enamine-shaped nitrogen, rejected by `_reject_enamine_carbons`
+    # regardless of which side of the amine it sits on.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CCNCCCCC")
+        smiles_to_iupac("C=CNCCCC")
+
+
+def test_secondary_amine_branched_unsaturated_n_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=CC(C)NCCCCC")
+
+
+def test_secondary_amine_two_multiple_bonds_on_n_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=CC=CCNCCCCCCC")
 
 
 def test_secondary_amine_on_ring_raises():
