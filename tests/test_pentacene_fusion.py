@@ -1,7 +1,4 @@
-import pytest
-
 from smiles_to_iupac import smiles_to_iupac
-from smiles_to_iupac._common import UnsupportedStructure
 
 
 def test_benzo_a_pentacene():
@@ -16,12 +13,8 @@ def test_plain_pentacene_still_resolves():
     assert smiles_to_iupac("c1ccc2cc3cc4cc5ccccc5cc4cc3cc2c1") == "pentacene"
 
 
-def test_benzo_b_pentacene_still_unsupported():
+def test_benzo_b_pentacene_routes_to_hexacene():
     # Letter 'b' on pentacene is the linear chain extension -- the exact
-    # same compound as "hexacene", which `_aromatic.py`'s retained-name
-    # table doesn't cover yet (a separate, known gap). This module
-    # excludes the shape rather than silently inventing a name for it,
-    # so it must keep raising the same error as before this module
-    # existed.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc2cc3cc4cc5cc6ccccc6cc5cc4cc3cc2c1")
+    # same compound as the retained name "hexacene" `_aromatic.py` now
+    # recognizes directly -- so this module excludes it.
+    assert smiles_to_iupac("c1ccc2cc3cc4cc5cc6ccccc6cc5cc4cc3cc2c1") == "hexacene"

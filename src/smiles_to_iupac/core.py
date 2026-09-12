@@ -449,10 +449,8 @@ def smiles_to_iupac(smiles: str) -> str:
     # component -- the third plain catacondensed-chain base, after
     # anthracene/tetracene) must be routed here for the same reason as
     # the checks just above. The linear ('hexacene') shape is deliberately
-    # excluded from `has_pentacene_fusion_name` itself, even though
-    # `_aromatic.py` doesn't recognize hexacene yet (a separate, known
-    # gap) -- so it still raises `UnsupportedStructure` unchanged, same
-    # as before this module existed.
+    # excluded from `has_pentacene_fusion_name` itself so it still falls
+    # through to `_aromatic.py`'s own hexacene recognition unchanged.
     if has_pentacene_fusion_name(mol):
         return name_pentacene_fusion(mol)
 

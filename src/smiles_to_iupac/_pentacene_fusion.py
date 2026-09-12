@@ -27,18 +27,14 @@ a, b, c, l, m, n -- pentacene's own symmetry (order 4, the same D2h
 long-axis mirror + ring-swap rotation pair anthracene/tetracene have)
 collapses these into just two distinct shapes: {a, c, l, n} (letter 'a'
 wins per P-25.3.1.3's tie-break) and {b, m}. The {b, m} shape is the
-linear extension -- the exact same compound (InChI-confirmed) as
-'hexacene', which -- unlike tetracene's own linear extension pentacene
--- `_aromatic.py`'s retained-name table doesn't cover yet (a known,
-separate gap; filling it is out of this module's scope). It is still
-excluded here for the same structural reason `_anthracene_fusion.py`/
-`_tetracene_fusion.py` exclude their own linear-extension letters, even
-though that leaves it raising `UnsupportedStructure` via the existing
-`_aromatic.py` fallback rather than resolving to a name -- no regression,
-since hexacene was already unsupported before this module existed. The
-other, letter 'a', is a distinct, real registered compound:
-'benzo[a]pentacene' (PubChem CID 67482, CAS 239-98-5, also known as
-"isohexaphene").
+linear extension -- the exact same compound (InChI-confirmed) as the
+retained name 'hexacene', which `_aromatic.py`'s retained-name table now
+covers directly -- excluded here for the same reason
+`_anthracene_fusion.py`/`_tetracene_fusion.py` exclude their own
+linear-extension letters, so it falls through to that recognition
+unchanged. The other, letter 'a', is a distinct, real registered
+compound: 'benzo[a]pentacene' (PubChem CID 67482, CAS 239-98-5, also
+known as "isohexaphene").
 
 Scope, deliberately narrow, matching the other fusion modules: exactly
 one plain, unsubstituted benzo ring ortho-fused onto pentacene at this

@@ -35,6 +35,12 @@ from smiles_to_iupac._common import UnsupportedStructure
         # pentacene: straight 5-ring chain, same general algorithm one ring
         # further. Cross-checked against PubChem CID 8671.
         ("C1=CC=C2C=C3C=C4C=C5C=CC=CC5=CC4=CC3=CC2=C1", "pentacene"),
+        # hexacene/heptacene (P-25.1.2.1 Table 28.1, both genuine retained
+        # names -- confirmed in the cached Blue Book text): same general
+        # algorithm, one and two rings further than pentacene. Cross-checked
+        # against PubChem CID 123044/5460712.
+        ("c1ccc2cc3cc4cc5cc6ccccc6cc5cc4cc3cc2c1", "hexacene"),
+        ("c1ccc2cc3cc4cc5cc6cc7ccccc7cc6cc5cc4cc3cc2c1", "heptacene"),
         # Halogen substituents (P-35.2.1), reusing the existing
         # halogen_substituents/name_branch machinery, cross-checked against
         # PubChem: chlorobenzene (CID 7964), 2-chloronaphthalene (CID 7056).
