@@ -90,13 +90,10 @@ from ._ether_hydroperoxide import has_ether_hydroperoxide_shape, name_ether_hydr
 from ._ether_ketone import has_ether_ketone_shape, name_ether_ketone
 from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
 from ._fullerene import has_fullerene_name, name_fullerene
-from ._androstane import has_androstane_name, name_androstane
-from ._estrane import has_estrane_name, name_estrane
-from ._gonane import has_gonane_name, name_gonane
-from ._pregnane import has_pregnane_name, name_pregnane
-from ._cholane import has_cholane_name, name_cholane
-from ._cholestane import has_cholestane_name, name_cholestane
-from ._ergostane import has_ergostane_name, name_ergostane
+from ._steroid_parent_hydrides import (
+    has_steroid_parent_hydride_name,
+    name_steroid_parent_hydride,
+)
 from ._heteroaromatic_fused import has_retained_heteroaromatic_fused_name, name_retained_heteroaromatic_fused
 from ._polycyclic_component_fusion import (
     has_polycyclic_component_fusion_name,
@@ -387,57 +384,14 @@ def smiles_to_iupac(smiles: str) -> str:
     if has_naphthalene_benzene_phane_name(mol):
         return name_naphthalene_benzene_phane(mol)
 
-    # gonane (the 1989 IUPAC steroid nomenclature's fundamental tetracyclic
-    # parent, Rule 2.1 -- see module docstring) is recognized the same way,
-    # independent of every other branch below: `_polycyclic.py`'s general
-    # von Baeyer engine already names this exact skeleton (confirmed by
-    # direct testing), so this check must come first or gonane would never
-    # be reached.
-    if has_gonane_name(mol):
-        return name_gonane(mol)
-
-    # androstane (gonane + the two angular C18/C19 methyls, Rule 3S-2.3 --
-    # see module docstring) is recognized the same way, for the same
-    # reason: its own skeleton would otherwise fall through to
-    # `_polycyclic.py`'s general von Baeyer engine instead.
-    if has_androstane_name(mol):
-        return name_androstane(mol)
-
-    # estrane (gonane + only the C13 angular methyl, Rule 3S-2.2 -- see
-    # module docstring) is recognized the same way, for the same reason:
-    # its own skeleton would otherwise fall through to `_polycyclic.py`'s
-    # general von Baeyer engine instead.
-    if has_estrane_name(mol):
-        return name_estrane(mol)
-
-    # pregnane (androstane + a plain ethyl side chain at C17, Rule 3S-2.4 --
-    # see module docstring) is recognized the same way, for the same
-    # reason: its own skeleton would otherwise fall through to
-    # `_polycyclic.py`'s general von Baeyer engine instead.
-    if has_pregnane_name(mol):
-        return name_pregnane(mol)
-
-    # cholane (androstane + a plain 2-methyl-branched five-carbon C17 side
-    # chain, C20-C24, Rule 3S-2.4 -- see module docstring) is recognized the
-    # same way, for the same reason: its own skeleton would otherwise fall
-    # through to `_polycyclic.py`'s general von Baeyer engine instead.
-    if has_cholane_name(mol):
-        return name_cholane(mol)
-
-    # cholestane (cholane's side chain extended by a symmetric gem-dimethyl
-    # terminus, C25-C27, Rule 3S-2.4 -- see module docstring) is recognized
-    # the same way, for the same reason: its own skeleton would otherwise
-    # fall through to `_polycyclic.py`'s general von Baeyer engine instead.
-    if has_cholestane_name(mol):
-        return name_cholestane(mol)
-
-    # ergostane (cholestane's side chain extended by one more methyl
-    # branch at C24, C28, Rule 3S-2.4 -- see module docstring) is
-    # recognized the same way, for the same reason: its own skeleton would
-    # otherwise fall through to `_polycyclic.py`'s general von Baeyer
-    # engine instead.
-    if has_ergostane_name(mol):
-        return name_ergostane(mol)
+    # The seven 1989 IUPAC steroid parent ring hydrides (gonane through
+    # ergostane, Rule 2.1/3S-2.2/2.3/2.4 -- see module docstring) are
+    # recognized the same way, independent of every other branch below:
+    # `_polycyclic.py`'s general von Baeyer engine already names the bare
+    # gonane skeleton (confirmed by direct testing), so this check must
+    # come first or gonane would never be reached.
+    if has_steroid_parent_hydride_name(mol):
+        return name_steroid_parent_hydride(mol)
 
     # triphenylene (P-25.1.2's branched-fusion retained name) is recognized
     # the same way -- see _branched_fused_aromatic.py's module docstring;
