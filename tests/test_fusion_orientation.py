@@ -1,5 +1,7 @@
+import pytest
 from rdkit import Chem
 
+from smiles_to_iupac._common import UnsupportedStructure
 from smiles_to_iupac._fusion_orientation import count_rings_in_horizontal_row
 
 
@@ -62,3 +64,23 @@ def test_straight_tetracene_all_four_in_row():
 def test_straight_pentacene_all_five_in_row():
     mol = Chem.MolFromSmiles("c1ccc2cc3cc4cc5ccccc5cc4cc3cc2c1")
     assert count_rings_in_horizontal_row(mol) == 5
+
+
+def test_triphenylene_branching_two_in_row():
+    # Triphenylene's ring-fusion graph is branched (one central ring
+    # ortho-fused to three others), not a simple chain -- the first
+    # branching case this module supports. `_triphenylene_fusion.py`'s own
+    # docstring documents that chrysene and triphenylene tie on every
+    # criterion through (f) and are only distinguished starting at (g)
+    # ("greatest number of rings in a horizontal row"), which requires
+    # both to compute the same row count here.
+    mol = Chem.MolFromSmiles("c1ccc2c(c1)ccc1c2ccc2ccccc21")
+    assert count_rings_in_horizontal_row(mol) == 2
+
+
+def test_pyrene_peri_fused_still_unsupported():
+    # An atom shared by three rings makes the ring-fusion graph cyclic,
+    # not a tree -- still out of scope (see module docstring).
+    mol = Chem.MolFromSmiles("c1cc2ccc3cccc4ccc(c1)c2c34")
+    with pytest.raises(UnsupportedStructure):
+        count_rings_in_horizontal_row(mol)

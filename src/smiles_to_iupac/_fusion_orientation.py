@@ -1,47 +1,47 @@
 """P-25.3.2.3.3 criterion (a) -- "maximum number of rings in a horizontal
-row" -- generalized to catacondensed, non-branching ortho-fused aromatic
-ring chains of arbitrary length (https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf).
-
-`_aromatic.py`'s `_classify_shape` already tells each internal ring apart
-as 'straight' or 'bent', but collapses the *direction* of a bend (two
-possible geometries, `_edge_index` diff 2 vs 4) into that one label. That
-loses information a general row-count needs: a chain that bends the same
-way twice (e.g. chrysene, PubChem CID 9171, diffs [4, 4]) ends up with a
-different horizontal-row count than one that bends, then bends back
-(e.g. benzo[c]phenanthrene / [4]helicene, CID 9136, diffs [4, 2]), even
-though both collapse to the identical ('bent', 'bent') shape tuple. So
-this module recomputes the per-junction turn itself, signed (+1/-1 units
-of 60 degrees; 0 for 'straight'), rather than consuming `_classify_shape`'s
-already-collapsed output.
+row" -- generalized to any ortho-fused, non-peri-fused all-carbon aromatic
+ring system whose ring-fusion graph is a tree (catacondensed chains, plus
+branched systems like triphenylene) (https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf).
 
 Model: each ring-fusion bond has a direction, in units of 60 degrees,
-accumulated from each internal ring's own signed turn (diff==3 is 0 turn/
-'straight'; diff==4 is +1 and diff==2 is -1, both 'bent' -- this sign is
-internally consistent along one chain because every ring's own two fusion
-bonds are compared via the same `ring_cycle` traversal direction, but is
-not claimed to correspond to any fixed real-world "clockwise"/
-"counterclockwise" outside this module). A ring is "in" a candidate
-horizontal row (one of the 3 possible lattice axes, since a hexagon has 3
-pairs of opposite edges) if either the bond direction entering it or the
-bond direction leaving it lies on that axis (direction mod 3 == the
-axis's residue) -- this is what lets a 'bent' ring still count as the
-last ring of a row it bends away from, matching phenanthrene (row = 2,
-not 1). Criterion (a)'s answer is the maximum count over the 3 axis
-choices.
+defined only up to one global rotation and modulo 6 (opposite directions
+are the same lattice axis, `direction % 3`). Directions are assigned by
+picking an arbitrary bond as direction 0, then propagating outward through
+the ring-fusion tree: at each ring, every other incident bond's direction
+is the already-known reference bond's direction plus a signed turn,
+`(ref_edge - other_edge) % 6 - 3`, where `ref_edge`/`other_edge` are each
+bond's position (0-5) on that ring's own hexagon, via `_edge_index`. This
+generalizes the old chain-only "signed turn" model (diff 3 = 0 turn/
+'straight', diff 4/2 = +-1 = 'bent') to a ring with more than 2 fusion
+bonds: a third bond on adjacent hexagon edges (diff 1 or 5, e.g. a
+branching center like triphenylene's) gets turn +-2, still consistent with
+the same formula. A ring is "in" a candidate horizontal row (one of the 3
+lattice axes) if any of its incident bond directions lies on that axis --
+this is what lets a 'bent' ring still count as the last ring of a row it
+bends away from, matching phenanthrene (row = 2, not 1), and lets a
+branching ring's three neighbors each be checked independently.
 
 Validated directly against the primary source's own worked examples
-(P-25.3.2.3.3): anthracene = 3, phenanthrene = 2, tetraphene/
+(P-25.3.2.3.3, P-25.3.2.4): anthracene = 3, phenanthrene = 2, tetraphene/
 benzo[a]anthracene = 3, chrysene = 2 -- plus benzo[c]phenanthrene as a
-fifth check specifically for the signed-turn distinction above.
+check specifically for the signed-turn distinction (see the chain-only
+version's history), and triphenylene = 2 as the first branching case,
+matching `_triphenylene_fusion.py`'s own documented finding that chrysene
+and triphenylene tie on every criterion up through (a) itself (the module
+docstring there: "Chrysene and triphenylene tie on every criterion through
+(f) ... down to (g)"), which is only possible if both compute the same row
+count.
 
-Scope, deliberately narrow: only catacondensed, non-branching,
-non-peri-fused all-carbon aromatic chains (the same shape
-`_ring_path_order` already restricts `_aromatic.py` to) -- branching
-(e.g. triphenylene) and peri-fusion (e.g. pyrene, fluoranthene) are out of
-scope for this module and raise `UnsupportedStructure`, same as
-`_aromatic.py` does. This module does not implement criteria (b)/(c)/(d)
-(the quadrant-counting tie-breaks used when (a) alone doesn't decide), and
-its result is not yet wired into any naming path -- see
+Scope, still narrow: the ring-fusion graph must be a tree (no cycle) --
+peri-fused systems (e.g. pyrene, fluoranthene: an atom shared by three or
+more rings, which also means the ring-fusion graph has a cycle rather than
+just branching) remain out of scope and raise `UnsupportedStructure`; a
+future step would need genuine 2D coordinate placement (not just a
+direction per bond) to validate a peri-fused ring-fusion cycle closes
+consistently. This module does not implement criteria (b)/(c)/(d) (the
+quadrant-counting tie-breaks used when (a) alone doesn't decide -- needed
+to actually resolve the chrysene vs triphenylene tie), and its result is
+not yet wired into any naming path -- see
 `_aromatic.py`/`_triphenylene_fusion.py`/`_chrysene_fusion.py`'s own
 docstrings for where a real seniority decision still needs this.
 """
@@ -51,61 +51,88 @@ from ._aromatic import (
     _atom_ring_membership,
     _edge_index,
     _ring_adjacency,
-    _ring_path_order,
     find_aromatic_fused_core,
 )
 
-_TURN_BY_DIFF = {3: 0, 4: 1, 2: -1}
 
+def _assign_bond_directions(graph, atom_rings, adj, fusion_bonds_by_pair, n):
+    """Direction (mod 6, up to one global rotation) for every ring-fusion
+    bond in a ring-fusion tree of `n` rings. Raises `UnsupportedStructure`
+    if the ring-fusion graph is not a tree (a cycle means peri-fusion,
+    e.g. pyrene)."""
+    if n == 1:
+        return {}
+    total_edges = sum(len(v) for v in adj.values()) // 2
+    if total_edges != n - 1:
+        raise UnsupportedStructure(
+            "a cyclic ring-fusion arrangement (e.g. a peri-fused system "
+            "like pyrene or fluoranthene) is not supported yet (see "
+            "P-25.3.2.3.3)"
+        )
 
-def _ring_turn_units(graph, atom_rings, ring_order, fusion_bonds_by_pair):
-    """Signed 60-degree turn at each internal ring, in path order (one
-    entry per ring strictly between the two chain endpoints)."""
-    turns = []
-    for pos in range(1, len(ring_order) - 1):
-        ring_idx = ring_order[pos]
-        cycle = ring_cycle(graph, list(atom_rings[ring_idx]))
-        left_edge = _edge_index(cycle, *fusion_bonds_by_pair[frozenset((ring_order[pos - 1], ring_idx))])
-        right_edge = _edge_index(cycle, *fusion_bonds_by_pair[frozenset((ring_idx, ring_order[pos + 1]))])
-        diff = (left_edge - right_edge) % 6
-        if diff not in _TURN_BY_DIFF:
-            raise UnsupportedStructure(
-                "an ortho-fused ring junction with an unexpected fusion-bond "
-                "geometry is not supported (see P-25.3.2.3.3)"
+    direction = {}
+    root = 0
+    ref_neighbor = next(iter(adj[root]))
+    direction[frozenset((root, ref_neighbor))] = 0
+    processed_ref = {root: ref_neighbor, ref_neighbor: root}
+    visited = {root, ref_neighbor}
+    queue = [root, ref_neighbor]
+    while queue:
+        current = queue.pop(0)
+        parent = processed_ref[current]
+        cycle = ring_cycle(graph, list(atom_rings[current]))
+        ref_edge = _edge_index(cycle, *fusion_bonds_by_pair[frozenset((current, parent))])
+        for neighbor in adj[current]:
+            if neighbor == parent:
+                continue
+            if neighbor in visited:
+                raise UnsupportedStructure(
+                    "a cyclic ring-fusion arrangement (e.g. a peri-fused "
+                    "system like pyrene or fluoranthene) is not supported "
+                    "yet (see P-25.3.2.3.3)"
+                )
+            visited.add(neighbor)
+            bond = fusion_bonds_by_pair[frozenset((current, neighbor))]
+            edge = _edge_index(cycle, *bond)
+            diff = (ref_edge - edge) % 6
+            direction[frozenset((current, neighbor))] = (
+                direction[frozenset((current, parent))] + (diff - 3)
             )
-        turns.append(_TURN_BY_DIFF[diff])
-    return turns
+            processed_ref[neighbor] = current
+            queue.append(neighbor)
+
+    if len(visited) != n:
+        raise UnsupportedStructure(
+            "a disconnected ring-fusion arrangement is not supported (see "
+            "P-25.3.2.3.3)"
+        )
+    return direction
 
 
-def max_rings_in_horizontal_row(turns, n):
-    """P-25.3.2.3.3 criterion (a) alone, for a catacondensed non-branching
-    chain of `n` rings. `turns`: this chain's `_ring_turn_units` result
-    (length n - 2). Returns the largest number of rings that lie on one of
-    the 3 possible horizontal-row axes."""
-    if n <= 2:
-        return n
-    bond_axis = [0] * (n - 1)
-    for k in range(1, n - 1):
-        bond_axis[k] = bond_axis[k - 1] + turns[k - 1]
-    best = 0
-    for residue in range(3):
-        count = 0
-        for i in range(n):
-            in_bond = bond_axis[i - 1] if i - 1 >= 0 else None
-            out_bond = bond_axis[i] if i <= n - 2 else None
-            if (in_bond is not None and in_bond % 3 == residue) or (
-                out_bond is not None and out_bond % 3 == residue
-            ):
+def _rings_on_axis(adj, direction, residue):
+    count = 0
+    for ring_idx, neighbors in adj.items():
+        for neighbor in neighbors:
+            if direction[frozenset((ring_idx, neighbor))] % 3 == residue:
                 count += 1
-        best = max(best, count)
-    return best
+                break
+    return count
+
+
+def max_rings_in_horizontal_row(adj, direction, n):
+    """P-25.3.2.3.3 criterion (a): the largest number of rings that lie on
+    one of the 3 possible horizontal-row axes, for a ring-fusion tree of
+    `n` rings (`direction`: this tree's `_assign_bond_directions` result)."""
+    if n <= 1:
+        return n
+    return max(_rings_on_axis(adj, direction, residue) for residue in range(3))
 
 
 def count_rings_in_horizontal_row(mol) -> int:
     """P-25.3.2.3.3 criterion (a) for a plain all-carbon aromatic mancude
     ring system: the number of rings in the orientation's horizontal row.
-    Raises `UnsupportedStructure` for anything other than a catacondensed,
-    non-branching, non-peri-fused chain (see module docstring)."""
+    Raises `UnsupportedStructure` for a peri-fused or disconnected
+    ring-fusion arrangement (see module docstring)."""
     core = find_aromatic_fused_core(mol)
     if core is None:
         raise UnsupportedStructure(
@@ -120,7 +147,6 @@ def count_rings_in_horizontal_row(mol) -> int:
             "more rings) are not supported yet (see P-25.3.2.3.3)"
         )
     adj, fusion_bonds_by_pair = _ring_adjacency(atom_rings, ring_atom_sets, fusion_bond_idxs, mol)
-    ring_order = _ring_path_order(adj, n)
     graph = adjacency(mol)
-    turns = _ring_turn_units(graph, atom_rings, ring_order, fusion_bonds_by_pair)
-    return max_rings_in_horizontal_row(turns, n)
+    direction = _assign_bond_directions(graph, atom_rings, adj, fusion_bonds_by_pair, n)
+    return max_rings_in_horizontal_row(adj, direction, n)
