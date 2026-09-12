@@ -1,5 +1,5 @@
 """Fusion-locant-letter naming for a named five-membered heteromonocycle
-(furan, thiophene) ortho-fused onto pyridine, per the IUPAC 2013
+(furan, thiophene, pyrrole) ortho-fused onto pyridine, per the IUPAC 2013
 Recommendations ("the Blue Book"):
 
 - P-25.3.2.4(a): when the two components have different heteroatoms, the
@@ -34,35 +34,50 @@ Recommendations ("the Blue Book"):
 - Fusion bonds touching pyridine's own nitrogen are out of scope (would
   require citing an indicated-nitrogen/bridgehead special case this
   module doesn't attempt).
-- Pyrrole is deliberately excluded from this step's scope even though its
-  seniority relative to pyridine works out the same way (N ties on
-  element, pyridine's larger ring wins via P-25.3.2.4(c)): every real
-  pyrrolo-pyridine isomer needs an indicated-hydrogen citation ("1H-") for
-  its N-H, a distinct P-14.7 mechanism this module doesn't implement -
-  silently omitting it would produce a real IUPAC name with a token
-  missing rather than a rejection, so pyrrole is excluded outright
-  instead (`UnsupportedStructure` via the heteroatom-not-recognized path
-  below) until indicated hydrogen is handled.
+- Pyrrole's seniority relative to pyridine works out the same way as
+  furan/thiophene's (N ties on element, pyridine's larger ring wins via
+  P-25.3.2.4(c)), but every real pyrrolo-pyridine isomer needs an
+  indicated-hydrogen citation ("1H-") for its N-H (P-25.3.2.5.3/P-14.7),
+  a distinct mechanism from the fusion-descriptor numbering above. The
+  indicated-hydrogen locant is always 1 for this specific bicyclic shape
+  (5-ring ortho-fused to 6-ring, fusion not touching either ring's own
+  principal heteroatom): P-25.3.3.1's whole-fused-system numbering always
+  numbers the attached 5-ring first, starting at its own heteroatom and
+  walking *away* from the fusion bond (the opposite direction from
+  `_local_numbering`'s own convention above, which walks *toward* the
+  fusion bond for the fusion descriptor - these are two separate,
+  non-conflicting numbering systems) - so the attached ring's own
+  heteroatom is always the whole system's own locant 1, independent of
+  which pyridine bond it's fused at. Confirmed against real registered
+  examples spanning both letters this module produces ('b' and 'c'; see
+  below) rather than assumed from one case. `_indicated_hydrogen_prefix`
+  below applies this without re-deriving the full whole-system walk, since
+  it only needs this one fixed fact about this one bicyclic shape.
 
 Real registered examples confirming this family and scope: furo[3,2-b]
 pyridine (PubChem CID 12210217) and furo[2,3-b]pyridine (CID 12421098),
 thieno[3,2-b]pyridine (CID 12210218) and thieno[2,3-b]pyridine (CID
 289928) - each pair being the two ways the attached ring can straddle a
 given pyridine bond - plus furo[2,3-c]pyridine (CID 12826108), confirming
-the base letter isn't fixed at 'b'.
+the base letter isn't fixed at 'b'; and for the indicated-hydrogen case,
+1H-pyrrolo[2,3-b]pyridine (CID 9222), 1H-pyrrolo[3,2-b]pyridine (CID
+9226), 1H-pyrrolo[2,3-c]pyridine (CID 9219), and 1H-pyrrolo[3,2-c]pyridine
+(CID 9220) - all four "1H-", confirming the indicated-hydrogen locant
+really is fixed at 1 across both letters, not a coincidence of a single
+isomer.
 
 Scope, deliberately narrow, matching the sibling fusion modules:
-- Exactly two rings: pyridine (base) plus one furan/thiophene (attached),
-  ortho-fused, unsubstituted, no extra atoms.
+- Exactly two rings: pyridine (base) plus one furan/thiophene/pyrrole
+  (attached), ortho-fused, unsubstituted, no extra atoms.
 - The fusion bond must touch (or be adjacent to) the attached ring's own
   heteroatom per `_local_numbering`'s rule, and must not touch pyridine's
   own nitrogen.
 
-Anything else (3+ rings, other heteroatoms including pyrrole, fusion at
-pyridine's own nitrogen, fusion not reachable from the attached ring's
-heteroatom, any other substituent) raises `UnsupportedStructure` and
-falls through to other dispatch branches in core.py, exactly like every
-other retained/computed-name module in this project.
+Anything else (3+ rings, other heteroatoms, fusion at pyridine's own
+nitrogen, fusion not reachable from the attached ring's heteroatom, any
+other substituent) raises `UnsupportedStructure` and falls through to
+other dispatch branches in core.py, exactly like every other retained/
+computed-name module in this project.
 """
 
 from rdkit import Chem
@@ -72,7 +87,18 @@ from ._common import UnsupportedStructure, ring_cycle
 _ATTACHED_RING_NAMES = {
     8: "furo",
     16: "thieno",
+    7: "pyrrolo",
 }
+
+
+def _indicated_hydrogen_prefix(mol, attached_heteroatom):
+    """"1H-" if the attached ring's own heteroatom carries an explicit
+    hydrogen (pyrrole's N-H; furan/thiophene's O/S never do), else "" -
+    see the module docstring for why the locant is always 1 for this
+    bicyclic shape."""
+    if mol.GetAtomWithIdx(attached_heteroatom).GetTotalNumHs() > 0:
+        return "1H-"
+    return ""
 
 
 def _local_numbering(graph, ring_atoms, heteroatom, fusion_atoms):
@@ -201,4 +227,5 @@ def name_pyridine_heterocycle_fusion(mol) -> str:
 
     attached_atomic_num = mol.GetAtomWithIdx(attached_heteroatom).GetAtomicNum()
     attached_prefix = _ATTACHED_RING_NAMES[attached_atomic_num]
-    return f"{attached_prefix}[{citation}-{letter}]pyridine"
+    indicated_h = _indicated_hydrogen_prefix(mol, attached_heteroatom)
+    return f"{indicated_h}{attached_prefix}[{citation}-{letter}]pyridine"
