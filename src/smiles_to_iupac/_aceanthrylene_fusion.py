@@ -53,8 +53,7 @@ of these five distinct positions. Explicitly out of scope (raise
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
-from ._fusion_locant_letter import find_fusion_letter
+from ._fusion_component_registry import make_fusion_component_functions
 
 _ACEANTHRYLENE_REF = Chem.MolFromSmiles("C1=CC=C2C3=C4C(=CC=CC4=CC2=C1)C=C3")
 _LETTER_BY_PAIR = {
@@ -70,28 +69,12 @@ _EXCLUDED_LETTERS = frozenset({"a"})
 
 _NONAROMATIC_REF_ATOMS = frozenset({14, 15})
 
-
-def _find_core(mol):
-    return find_fusion_letter(
-        mol,
-        _ACEANTHRYLENE_REF,
-        _LETTER_BY_PAIR,
-        _EXCLUDED_LETTERS,
-        num_atoms=20,
-        num_rings=5,
-        nonaromatic_ref_atoms=_NONAROMATIC_REF_ATOMS,
-    )
-
-
-def has_aceanthrylene_fusion_name(mol) -> bool:
-    return _find_core(mol) is not None
-
-
-def name_aceanthrylene_fusion(mol) -> str:
-    letter = _find_core(mol)
-    if letter is None:
-        raise UnsupportedStructure(
-            "this pentacyclic system is not a supported benzo-fused "
-            "aceanthrylene shape (see P-25.3.1.3)"
-        )
-    return f"benzo[{letter}]aceanthrylene"
+has_aceanthrylene_fusion_name, name_aceanthrylene_fusion = make_fusion_component_functions(
+    "aceanthrylene",
+    _ACEANTHRYLENE_REF,
+    _LETTER_BY_PAIR,
+    _EXCLUDED_LETTERS,
+    num_atoms=20,
+    num_rings=5,
+    nonaromatic_ref_atoms=_NONAROMATIC_REF_ATOMS,
+)

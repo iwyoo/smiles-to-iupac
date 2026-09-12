@@ -54,8 +54,7 @@ one plain, unsubstituted benzo ring ortho-fused onto triphenylene at the
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
-from ._fusion_locant_letter import find_fusion_letter
+from ._fusion_component_registry import make_fusion_component_functions
 
 _TRIPHENYLENE_REF = Chem.MolFromSmiles("c1ccc2c(c1)c1ccccc1c1ccccc21")
 _LETTER_BY_PAIR = {
@@ -71,22 +70,6 @@ _LETTER_BY_PAIR = {
 }
 _EXCLUDED_LETTERS = {"a"}
 
-
-def _find_core(mol):
-    return find_fusion_letter(
-        mol, _TRIPHENYLENE_REF, _LETTER_BY_PAIR, _EXCLUDED_LETTERS, num_atoms=22, num_rings=5
-    )
-
-
-def has_triphenylene_fusion_name(mol) -> bool:
-    return _find_core(mol) is not None
-
-
-def name_triphenylene_fusion(mol) -> str:
-    letter = _find_core(mol)
-    if letter is None:
-        raise UnsupportedStructure(
-            "this pentacyclic system is not a supported benzo-fused "
-            "triphenylene shape (see P-25.3.1.3)"
-        )
-    return f"benzo[{letter}]triphenylene"
+has_triphenylene_fusion_name, name_triphenylene_fusion = make_fusion_component_functions(
+    "triphenylene", _TRIPHENYLENE_REF, _LETTER_BY_PAIR, _EXCLUDED_LETTERS, num_atoms=22, num_rings=5
+)

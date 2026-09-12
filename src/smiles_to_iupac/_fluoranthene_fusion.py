@@ -44,8 +44,7 @@ of these four distinct positions. Explicitly out of scope (raise
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
-from ._fusion_locant_letter import find_fusion_letter
+from ._fusion_component_registry import make_fusion_component_functions
 
 _FLUORANTHENE_REF = Chem.MolFromSmiles("C1=CC=C2C(=C1)C3=CC=CC4=C3C2=CC=C4")
 _LETTER_BY_PAIR = {
@@ -59,20 +58,6 @@ _LETTER_BY_PAIR = {
 }
 _EXCLUDED_LETTERS = frozenset()
 
-
-def _find_core(mol):
-    return find_fusion_letter(mol, _FLUORANTHENE_REF, _LETTER_BY_PAIR, _EXCLUDED_LETTERS, num_atoms=20, num_rings=5)
-
-
-def has_fluoranthene_fusion_name(mol) -> bool:
-    return _find_core(mol) is not None
-
-
-def name_fluoranthene_fusion(mol) -> str:
-    letter = _find_core(mol)
-    if letter is None:
-        raise UnsupportedStructure(
-            "this pentacyclic system is not a supported benzo-fused "
-            "fluoranthene shape (see P-25.3.1.3)"
-        )
-    return f"benzo[{letter}]fluoranthene"
+has_fluoranthene_fusion_name, name_fluoranthene_fusion = make_fusion_component_functions(
+    "fluoranthene", _FLUORANTHENE_REF, _LETTER_BY_PAIR, _EXCLUDED_LETTERS, num_atoms=20, num_rings=5
+)
