@@ -20,13 +20,11 @@ def test_benzo_g_chrysene():
     assert smiles_to_iupac("c1ccc2c(c1)ccc1c3ccccc3c3ccccc3c21") == "benzo[g]chrysene"
 
 
-def test_letter_a_defers_to_picene():
-    # Letter 'a' on chrysene is picene (PubChem CID 9162), a retained
-    # name -- excluded here, but the shape isn't supported anywhere else
-    # yet either (picene itself has no dedicated recognizer), so it
-    # currently still raises.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=C2C=CC4=C3C=CC5=CC=CC=C54")
+def test_letter_a_is_picene():
+    # Letter 'a' on chrysene is picene (PubChem CID 9162, InChI and
+    # ConnectivitySMILES both confirmed against PubChem directly) -- a
+    # retained name, cited as such rather than as "benzo[a]chrysene".
+    assert smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=C2C=CC4=C3C=CC5=CC=CC=C54") == "picene"
 
 
 def test_substituted_chrysene_fusion_raises():
