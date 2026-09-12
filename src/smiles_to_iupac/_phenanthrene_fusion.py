@@ -31,22 +31,39 @@ or 'c' bond. Explicitly out of scope (raise `UnsupportedStructure`):
   different citation mechanism), or the 'b'/'l' shapes above (both
   already produced via a different, more senior base component).
 - Any substituent, any heteroatom anywhere, or more than one extra ring.
+
+`_LETTER_BY_PAIR` is derived by `_fusion_numbering.py` rather than
+hand-computed: phenanthrene's own mirror symmetry (ring A <-> ring C)
+means no anchor set can ever narrow its numbering to a single candidate
+(see that module's docstring) -- chrysene (CID 9171, letter 'a') and
+benzo[c]phenanthrene (CID 9136, letter 'c') as known-compound anchors
+narrow it to exactly the two mirror-image candidates, and picking either
+one names every compound identically (a mirror relabels every letter
+consistently), so the tie-break below (lower reference-SMILES atom index
+wins the 'a' bond) is an arbitrary but fixed internal convention, not a
+chemistry rule -- it is verified to reproduce this module's own prior
+by-hand-computed numbering.
 """
 
 from rdkit import Chem
 
 from ._fusion_component_registry import make_fusion_component_functions
+from ._fusion_numbering import letter_by_pair_candidates
 
 _PHENANTHRENE_REF = Chem.MolFromSmiles("c1ccc2ccc3ccccc3c2c1")
-_LETTER_BY_PAIR = {
-    frozenset({1, 2}): "a",
-    frozenset({0, 1}): "b",
-    frozenset({0, 13}): "c",
-    frozenset({9, 10}): "g",
-    frozenset({8, 9}): "h",
-    frozenset({7, 8}): "i",
-    frozenset({4, 5}): "l",
-}
+# PubChem CID 9171 (chrysene, letter 'a') and CID 9136
+# (benzo[c]phenanthrene, letter 'c') as known-compound anchors.
+_CHRYSENE = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=C2C=CC4=CC=CC=C43")
+_BENZO_C_PHENANTHRENE = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=C2C4=CC=CC=C4C=C3")
+_NUMBERING_CANDIDATES = letter_by_pair_candidates(
+    _PHENANTHRENE_REF,
+    [],
+    compound_anchors=[(_CHRYSENE, "a"), (_BENZO_C_PHENANTHRENE, "c")],
+)
+_LETTER_BY_PAIR = min(
+    _NUMBERING_CANDIDATES,
+    key=lambda letters: min(atom for pair, letter in letters.items() if letter == "a" for atom in pair),
+)
 _EXCLUDED_LETTERS = {"b", "l"}
 _RETAINED_NAME_BY_LETTER = {"a": "chrysene"}
 

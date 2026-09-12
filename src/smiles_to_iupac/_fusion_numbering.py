@@ -1,11 +1,15 @@
 """Auto-derive a fused aromatic base's P-25.3.3.1.1 peripheral numbering
 and P-25.3.1.3 `letter_by_pair` mapping from its reference molecule plus
-one or more real, substituent-position-known "anchor" structures --
-replacing the manual process every `_X_fusion.py` module's own docstring
-describes doing by hand so far (walk the SSSR periphery, then match real
-monosubstituted PubChem structures by substructure to fix the numbering
-direction, e.g. `_aceanthrylene_fusion.py` used four monomethylaceanthrylene
-anchors, `_fluoranthene_fusion.py` used five).
+one or more real "anchor" structures -- replacing the manual process
+every `_X_fusion.py` module's own docstring describes doing by hand so
+far (walk the SSSR periphery, then match real monosubstituted PubChem
+structures by substructure to fix the numbering direction, e.g.
+`_aceanthrylene_fusion.py` used four monomethylaceanthrylene anchors,
+`_fluoranthene_fusion.py` used five). Two anchor kinds are supported,
+combinable in the same call: a substituent-position anchor (`anchors`,
+"this real molecule is `ref` plus one substituent at known locant N")
+and a known-compound anchor (`compound_anchors`, "this real, already-
+named compound is `ref` plus one benzo ring fused at known letter L").
 
 Reuses `_aromatic.py`'s existing graph primitives unchanged
 (`find_aromatic_fused_core`, `_periphery_cycle`, `_atom_ring_membership`,
@@ -70,6 +74,34 @@ def _anchor_ref_locant_candidates(ref, anchor_mol):
     return candidates
 
 
+def _anchor_ref_bond_candidates(ref, compound_mol):
+    """Ref bonds (as `frozenset({a, b})` of ref atom indices) that could
+    be the fusion bond where an already-named real compound has an extra
+    ring ortho-fused onto `ref`, one per valid embedding of `ref` as a
+    substructure of `compound_mol`. This is the "known-compound" anchor
+    counterpart to `_anchor_ref_locant_candidates`'s "position-substituent"
+    anchor -- same substructure-match skeleton, but it looks for a bond
+    whose *both* ref atoms have an extra neighbor outside the match (the
+    two fusion-bond atoms shared with the new ring), not a single
+    substituted atom."""
+    candidates = set()
+    for match in compound_mol.GetSubstructMatches(ref, useChirality=False, uniquify=False):
+        core = set(match)
+        fused_ref_atoms = set()
+        for ref_idx, compound_idx in enumerate(match):
+            has_extra_neighbor = any(
+                n.GetIdx() not in core
+                for n in compound_mol.GetAtomWithIdx(compound_idx).GetNeighbors()
+            )
+            if has_extra_neighbor:
+                fused_ref_atoms.add(ref_idx)
+        for bond in ref.GetBonds():
+            a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+            if a in fused_ref_atoms and b in fused_ref_atoms:
+                candidates.add(frozenset({a, b}))
+    return candidates
+
+
 def _numbering_candidates(cycle, fusion_atoms):
     """Every (start_index, step, locants) triple `_walk_locants` can
     produce from this periphery cycle, starting only at a nonfusion atom
@@ -97,21 +129,27 @@ def _assign_letters(cycle, start, step, fusion_atoms):
     return letter_by_pair
 
 
-def letter_by_pair_candidates(ref, anchors):
+def letter_by_pair_candidates(ref, anchors, compound_anchors=()):
     """Every `letter_by_pair` dict consistent with `ref`'s periphery graph
-    and every anchor in `anchors` (a list of (anchor_mol, claimed_locant)
-    pairs, each a real molecule that is `ref` plus exactly one plain
-    substituent at a known IUPAC locant). Ordinarily a list of 1 (a fully
-    anchor-determined numbering) or more (a residual symmetry -- see
-    module docstring); never empty unless the anchors are mutually
-    inconsistent, in which case this raises `UnsupportedStructure`
-    directly rather than returning an empty list, since that's always a
-    bad-input error, not a valid "zero candidates" answer.
+    and every anchor given. `anchors` is a list of (anchor_mol,
+    claimed_locant) pairs, each a real molecule that is `ref` plus exactly
+    one plain substituent at a known IUPAC locant. `compound_anchors` is
+    the same idea one level up: a list of (compound_mol, claimed_letter)
+    pairs, each an already-named real compound that is `ref` plus exactly
+    one plain benzo ring ortho-fused at a known P-25.3.1.3 letter --
+    useful when the compound's *name* (hence its fusion letter) is known
+    but no single substituent-locant anchor is available or needed.
+    Ordinarily a list of 1 (a fully anchor-determined numbering) or more
+    (a residual symmetry -- see module docstring); never empty unless the
+    anchors are mutually inconsistent, in which case this raises
+    `UnsupportedStructure` directly rather than returning an empty list,
+    since that's always a bad-input error, not a valid "zero candidates"
+    answer.
 
     Raises `UnsupportedStructure` if `ref` isn't a supported aromatic
-    core, if an anchor doesn't cleanly match `ref` plus one substituent,
-    or if the anchors are mutually inconsistent (no valid numbering
-    satisfies all of them at once)."""
+    core, if an anchor doesn't cleanly match `ref` plus one substituent
+    (or one fused ring), or if the anchors are mutually inconsistent (no
+    valid numbering satisfies all of them at once)."""
     core = find_aromatic_fused_core(ref)
     if core is None:
         raise UnsupportedStructure(
@@ -131,6 +169,16 @@ def letter_by_pair_candidates(ref, anchors):
             )
         anchor_ref_candidates.append((ref_candidates, claimed_locant))
 
+    compound_anchor_bond_candidates = []
+    for compound_mol, claimed_letter in compound_anchors:
+        ref_bond_candidates = _anchor_ref_bond_candidates(ref, compound_mol)
+        if not ref_bond_candidates:
+            raise UnsupportedStructure(
+                "a compound anchor does not match the reference molecule plus "
+                "exactly one plain fused ring (see P-25.3.1.3)"
+            )
+        compound_anchor_bond_candidates.append((ref_bond_candidates, claimed_letter))
+
     unique_letterings = []
     for start, step, locants in _numbering_candidates(cycle, fusion_atoms):
         if not all(
@@ -139,6 +187,11 @@ def letter_by_pair_candidates(ref, anchors):
         ):
             continue
         letters = _assign_letters(cycle, start, step, fusion_atoms)
+        if not all(
+            any(letters.get(c) == claimed_letter for c in ref_bond_candidates)
+            for ref_bond_candidates, claimed_letter in compound_anchor_bond_candidates
+        ):
+            continue
         if letters not in unique_letterings:
             unique_letterings.append(letters)
 
@@ -150,7 +203,7 @@ def letter_by_pair_candidates(ref, anchors):
     return unique_letterings
 
 
-def derive_letter_by_pair(ref, anchors):
+def derive_letter_by_pair(ref, anchors, compound_anchors=()):
     """Like `letter_by_pair_candidates`, but requires the anchors to
     narrow the result down to exactly one `letter_by_pair` dict, raising
     `UnsupportedStructure` (naming how many candidates remain) otherwise
@@ -158,7 +211,7 @@ def derive_letter_by_pair(ref, anchors):
     base's numbering; use `letter_by_pair_candidates` directly to inspect
     the candidate set for a symmetric base where that will never happen
     (see module docstring)."""
-    candidates = letter_by_pair_candidates(ref, anchors)
+    candidates = letter_by_pair_candidates(ref, anchors, compound_anchors)
     if len(candidates) > 1:
         raise UnsupportedStructure(
             f"the given anchors leave {len(candidates)} numbering "

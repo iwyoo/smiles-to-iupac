@@ -69,3 +69,25 @@ def test_anchor_not_matching_reference_raises():
     naphthalene_1_methyl = Chem.MolFromSmiles("Cc1cccc2ccccc12")
     with pytest.raises(UnsupportedStructure, match="does not match the reference molecule"):
         derive_letter_by_pair(_PHENANTHRENE_REF, [(naphthalene_1_methyl, 1)])
+
+
+# PubChem CID 9171 (chrysene, letter 'a') and CID 9136
+# (benzo[c]phenanthrene, letter 'c').
+_CHRYSENE = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=C2C=CC4=CC=CC=C43")
+_BENZO_C_PHENANTHRENE = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=C2C4=CC=CC=C4C=C3")
+
+
+def test_compound_anchors_narrow_symmetric_base_to_its_symmetry_group_size():
+    candidates = letter_by_pair_candidates(
+        _PHENANTHRENE_REF, [], compound_anchors=[(_CHRYSENE, "a"), (_BENZO_C_PHENANTHRENE, "c")]
+    )
+    assert len(candidates) == 2
+    from smiles_to_iupac._phenanthrene_fusion import _LETTER_BY_PAIR as _PHEN_LETTER_BY_PAIR
+
+    assert _PHEN_LETTER_BY_PAIR in candidates
+
+
+def test_compound_anchor_not_matching_reference_raises():
+    naphthalene = Chem.MolFromSmiles("c1ccc2ccccc2c1")
+    with pytest.raises(UnsupportedStructure, match="does not match the reference molecule"):
+        derive_letter_by_pair(_PHENANTHRENE_REF, [], compound_anchors=[(naphthalene, "a")])
