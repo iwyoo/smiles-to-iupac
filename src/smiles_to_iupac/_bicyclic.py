@@ -39,10 +39,11 @@ scope and raise UnsupportedStructure.
 
 from itertools import permutations
 
-from ._cyclic import _group, _substituents_for_ring
+from ._cyclic import _substituents_for_ring
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    group_substituents,
     halogen_substituents,
     lowest_locant_set,
     non_single_bonds,
@@ -153,7 +154,7 @@ def iter_bicyclic_numberings(core):
 
 
 def _candidate_key(parent, substituents, heteroatom_locant=None, nondetachable_prefix=""):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc

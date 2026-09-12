@@ -48,6 +48,7 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
+    group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain,
@@ -169,15 +170,6 @@ def _validate(mol, excluded_oxygens, amines, aromatic_ring_atoms=frozenset()):
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
 
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
-
-
 def _name_from_substituents(chain_length, grouped):
     prefix = format_substituent_prefixes(grouped)
     stem = alkane_name(chain_length)[:-1]
@@ -284,7 +276,7 @@ def _name_phenyl_chain_carboxylic_acid_amine(mol, ring_atoms):
 
     chain_length = len(chain)
     substituents = _substituents_for_chain(graph, chain, names, excluded_acid_oxygens, ring_atoms, mol=mol)
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     return _name_from_substituents(chain_length, grouped)
 
 

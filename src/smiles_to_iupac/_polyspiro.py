@@ -75,10 +75,11 @@ systems are out of scope for this module.
 
 from itertools import product
 
-from ._cyclic import _group, _substituents_for_ring
+from ._cyclic import _substituents_for_ring
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    group_substituents,
     halogen_substituents,
     lowest_locant_set,
     non_single_bonds,
@@ -309,7 +310,7 @@ def _build_sequence(graph, atom_rings, ring_order, spiro_atoms, start_dir, end_d
 
 
 def _candidate_key(parent, spiro_locants, descriptor, substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc

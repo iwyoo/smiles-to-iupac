@@ -60,7 +60,6 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    bfs,
     bond_locant,
     bond_locants,
     carbon_adjacency,
@@ -69,13 +68,14 @@ from ._common import (
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain_through,
+    longest_chains,
     lowest_locant_set,
+    multiplied_word,
     non_single_bonds,
-    path_between,
     ring_chain_attachment,
     ring_cycle,
 )
-from ._numerals import alkane_name, numerical_term
+from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _ENE_ORDER = 2.0
@@ -227,26 +227,12 @@ def _reject_enediazonium_carbon(graph, diazonium_carbon, bonds):
         )
 
 
-def _multiplied_word(count, base):
-    """P-16.3.3: a multiplying prefix's terminal 'a' is elided before a
-    suffix beginning with 'a' or 'o' (see `_common.py`'s `multiplied_word`
-    docstring for the confirmed examples this mirrors)."""
-    if count == 0:
-        return ""
-    if count == 1:
-        return base
-    prefix = numerical_term(count)
-    if prefix.endswith("a") and base[:1] in "ao":
-        prefix = prefix[:-1]
-    return prefix + base
-
-
 def _suffix_body(ene_locants, yne_locants, diazonium_locant):
     segments = []
     if ene_locants:
-        segments.append((sorted(ene_locants), _multiplied_word(len(ene_locants), "ene")))
+        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
     if yne_locants:
-        segments.append((sorted(yne_locants), _multiplied_word(len(yne_locants), "yne")))
+        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
     segments.append(([diazonium_locant], "diazonium"))
 
     words = [word for _, word in segments]
@@ -259,15 +245,6 @@ def _suffix_body(ene_locants, yne_locants, diazonium_locant):
         for (locants, _), word in zip(segments, words)
     ]
     return "-".join(parts)
-
-
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
 
 
 def _name_from_substituents(chain_length, diazonium_locant, ene_locants, yne_locants, grouped):
@@ -298,7 +275,7 @@ def _name_from_substituents(chain_length, diazonium_locant, ene_locants, yne_loc
 
 
 def _candidate_key(chain_length, diazonium_locant, ene_locants, yne_locants, substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     total_count = sum(len(info["locants"]) for info in grouped.values())
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -321,26 +298,6 @@ def _candidate_key(chain_length, diazonium_locant, ene_locants, yne_locants, sub
         ),
         name,
     )
-
-
-def _longest_chains(graph):
-    nodes = list(graph)
-    distances = {}
-    parents = {}
-    for node in nodes:
-        dist, parent = bfs(graph, node)
-        distances[node] = dist
-        parents[node] = parent
-
-    diameter = max(d for dist in distances.values() for d in dist.values())
-    chains = []
-    seen = set()
-    for u in nodes:
-        for v, d in distances[u].items():
-            if d == diameter and (v, u) not in seen:
-                seen.add((u, v))
-                chains.append(path_between(parents[u], u, v))
-    return chains
 
 
 def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
@@ -498,7 +455,7 @@ def name_diazonium(mol) -> str:
     _reject_enediazonium_carbon(graph, diazonium_carbon, bonds)
 
     halogens = halogen_substituents(mol)
-    chains = _longest_chains(carbon_adjacency(mol))
+    chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
 
     eligible = []

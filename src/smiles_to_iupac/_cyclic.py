@@ -54,6 +54,7 @@ from rdkit.Chem import AllChem
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    group_substituents,
     halogen_substituents,
     lowest_locant_set,
     non_single_bonds,
@@ -87,15 +88,6 @@ def _substituents_for_ring(graph, ring_order, halogens, mol=None):
     return substituents
 
 
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
-
-
 def _name_from_substituents(ring_size, grouped):
     parent = "cyclo" + alkane_name(ring_size)
     total_count = sum(len(info["locants"]) for info in grouped.values())
@@ -114,7 +106,7 @@ def _candidate_key(ring_size, substituents):
     """Sort key implementing P-45.2.2/P-45.2.3, most-preferred first (the
     substituent count is fixed for a given ring, so unlike the acyclic case
     there is no P-45.2.1 dimension to break ties on)."""
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc
