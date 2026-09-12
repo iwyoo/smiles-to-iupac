@@ -17,10 +17,10 @@ def test_substituted_triphenylene_raises():
         smiles_to_iupac("Cc1ccc2c(c1)c1ccccc1c1ccccc21")
 
 
-def test_unrelated_branched_shape_raises():
-    # a different branched-fusion hydrocarbon (verified via RDKit: a
+def test_unrelated_branched_shape_not_claimed_here():
+    # A different branched-fusion hydrocarbon (verified via RDKit: a
     # degree-3 ring-adjacency node, but not triphenylene's exact skeleton)
-    # must still fall through to the ordinary "not supported" path, not
-    # accidentally match triphenylene.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc2c(c1)c1ccc3ccccc3c1c1ccccc21")
+    # must not accidentally match triphenylene. It does resolve
+    # correctly elsewhere though -- this is benzo[g]chrysene (PubChem
+    # CID 9140), via `_chrysene_fusion.py`'s letter 'g'.
+    assert smiles_to_iupac("c1ccc2c(c1)c1ccc3ccccc3c1c1ccccc21") == "benzo[g]chrysene"

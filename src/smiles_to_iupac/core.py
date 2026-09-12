@@ -105,6 +105,7 @@ from ._polycyclic_component_fusion import (
 from ._anthracene_fusion import has_anthracene_fusion_name, name_anthracene_fusion
 from ._phenanthrene_fusion import has_phenanthrene_fusion_name, name_phenanthrene_fusion
 from ._pyrene_fusion import has_pyrene_fusion_name, name_pyrene_fusion
+from ._chrysene_fusion import has_chrysene_fusion_name, name_chrysene_fusion
 from ._hetero_monocyclic import (
     has_hetero_monocyclic_name,
     has_hetero_monocyclic_substituent_name,
@@ -486,6 +487,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # reason as the checks above.
     if has_pyrene_fusion_name(mol):
         return name_pyrene_fusion(mol)
+
+    # benzo[b]chrysene/benzo[c]chrysene/benzo[g]chrysene (same mechanism
+    # again, for chrysene as the base component -- chrysene itself is
+    # `_phenanthrene_fusion.py`'s letter 'a') -- routed here for the same
+    # reason as the checks above. The fourth structurally possible letter
+    # is picene, a retained name, and is excluded from
+    # `has_chrysene_fusion_name` itself.
+    if has_chrysene_fusion_name(mol):
+        return name_chrysene_fusion(mol)
 
     # thieno[2,3-b]thiophene/furo[2,3-b]furan/thieno[2,3-b]furan etc.
     # (P-25.3.1.3's computed fusion-locant-letter mechanism, for two
