@@ -64,7 +64,7 @@ docstring for exactly which zero-substituent shapes it recognizes).
 
 import re
 
-from ._common import UnsupportedStructure, lowest_locant_set, multiplied_word
+from ._common import UnsupportedStructure, heteroaromatic_monocycle_yl_name, lowest_locant_set, multiplied_word
 from ._numerals import alkane_name, alkyl_name, multiplying_prefix
 
 _LEADING_LOCANTS_RE = re.compile(r"^[\d,\-]+")
@@ -345,41 +345,50 @@ def _candidate_key(grouped):
     return -total_count, locant_set, citation_locants
 
 
-def _simple_ring_substituent(graph, root, coming_from, aromatic_atoms=frozenset()):
+def _simple_ring_substituent(graph, root, coming_from, aromatic_atoms=frozenset(), mol=None):
     """If the branch hanging off `root` (away from `coming_from`) is a
     single, simple, unsubstituted monocyclic ring with `root` as its only
-    attachment point, return (ring_size, is_aromatic); else None (a
-    non-ring branch, a ring bearing its own substituent, or any
-    polycyclic/spiro/fused shape all fall through to the ordinary
+    attachment point, return (ring_size, is_aromatic, heteroaromatic_name);
+    else None (a non-ring branch, a ring bearing its own substituent, or
+    any polycyclic/spiro/fused shape all fall through to the ordinary
     chain-walk in `name_branch`, which raises `UnsupportedStructure` via
     `_longest_chains_from_root`'s cycle-detection check). `is_aromatic` is
-    True only for a plain six-membered all-carbon ring whose every atom is
-    in `aromatic_atoms` (benzene as a substituent, i.e. 'phenyl' -- see
-    `name_branch`); a caller not passing `aromatic_atoms` (the default
-    empty set) only ever gets `is_aromatic=False`, matching every existing
-    caller's saturated-ring-only scope unchanged. A non-six-membered
-    all-aromatic ring is out of scope (`UnsupportedStructure` via the
-    ordinary cycle-detection path, same as any other unrecognized ring
-    shape) -- no all-carbon monocyclic aromatic exists at another size for
-    a neutral hydrocarbon substituent anyway."""
+    True for a plain six-membered all-carbon ring whose every atom is in
+    `aromatic_atoms` (benzene as a substituent, i.e. 'phenyl'), or for one
+    of the four simple heteroaromatic monocycles `mol` and
+    `heteroaromatic_monocycle_name` recognize (pyridine/furan/thiophene/
+    pyrrole, P-29.3.4.1) -- in the latter case `heteroaromatic_name` is
+    that ring's own "-yl" substituent name (e.g. 'pyridin-3-yl'), else
+    None; a caller not passing `aromatic_atoms` (the default empty set)
+    only ever gets `is_aromatic=False`, matching every existing caller's
+    saturated-ring-only scope unchanged. Any other aromatic ring shape
+    (a size not matching plain benzene or one of the four heteroaromatic
+    monocycles) is out of scope (`UnsupportedStructure` via the ordinary
+    cycle-detection path, same as any other unrecognized ring shape)."""
     ring_neighbors = [n for n in graph[root] if n != coming_from]
     if len(ring_neighbors) != 2:
         return None
+    order = [root]
     visited = {root}
     previous, current = root, ring_neighbors[0]
     while current != root:
         if current in visited:
             return None
         visited.add(current)
+        order.append(current)
         neighbors = [n for n in graph[current] if n != previous]
         if len(neighbors) != 1:
             return None
         previous, current = current, neighbors[0]
     if aromatic_atoms and visited <= aromatic_atoms:
+        if mol is not None:
+            heteroaromatic_name = heteroaromatic_monocycle_yl_name(mol, order, root)
+            if heteroaromatic_name is not None:
+                return len(visited), True, heteroaromatic_name
         if len(visited) != 6:
             return None
-        return len(visited), True
-    return len(visited), False
+        return len(visited), True, None
+    return len(visited), False, None
 
 
 def _ring_substituent_with_named_atoms(graph, root, coming_from, halogens):
@@ -631,10 +640,12 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
     if root in halogens:
         return halogens[root], False
 
-    ring_result = _simple_ring_substituent(graph, root, coming_from, aromatic_atoms)
+    ring_result = _simple_ring_substituent(graph, root, coming_from, aromatic_atoms, mol=mol)
     if ring_result is not None:
-        ring_size, is_aromatic = ring_result
+        ring_size, is_aromatic, heteroaromatic_name = ring_result
         if is_aromatic:
+            if heteroaromatic_name is not None:
+                return heteroaromatic_name, True
             return "phenyl", False
         return "cyclo" + alkyl_name(ring_size), False
 
