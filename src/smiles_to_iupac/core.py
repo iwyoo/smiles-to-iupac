@@ -125,6 +125,10 @@ from ._hetero_monocyclic import (
 from ._hydroxylamine import has_hydroxylamine_shape, name_hydroxylamine
 from ._imine import has_simple_imine_shape, name_imine
 from ._isotope import has_isotope_shape, name_isotope
+from ._pyridine_heterocycle_fusion import (
+    has_pyridine_heterocycle_fusion_name,
+    name_pyridine_heterocycle_fusion,
+)
 from ._two_component_heterocycle_fusion import (
     has_two_component_heterocycle_fusion_name,
     name_two_component_heterocycle_fusion,
@@ -560,6 +564,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # which only understands a single ring.
     if has_two_component_heterocycle_fusion_name(mol):
         return name_two_component_heterocycle_fusion(mol)
+
+    # furo[3,2-b]pyridine/thieno[2,3-b]pyridine etc. (P-25.3.1.3's computed
+    # fusion-locant-letter mechanism, pyridine as the base component with
+    # a named five-membered O/S heteromonocycle attached) -- also routed
+    # here before `_hetero_monocyclic.py` below, same reason as above.
+    if has_pyridine_heterocycle_fusion_name(mol):
+        return name_pyridine_heterocycle_fusion(mol)
 
     # oxirane/thiane/piperidine etc. (P-22.2.1's Hantzsch-Widman
     # saturated-monocyclic retained names) are recognized the same way --
