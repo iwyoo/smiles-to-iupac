@@ -21,6 +21,16 @@ from smiles_to_iupac._benzo_bis_heterocycle_fusion import (
         ("C1=COC2=CC3=C(C=C21)OC=C3", "benzo[1,2-b:4,5-b']difuran"),
         # PubChem CID 12274424
         ("C1=CC2=C(C=CO2)C3=C1C=CO3", "benzo[1,2-b:3,4-b']difuran"),
+        # PubChem CID 605316 -- a real, structurally distinct isomer from
+        # CID 11106168 above (different InChIKey - a different regio-
+        # chemistry of the two thiophene S atoms, not just a citation-
+        # order variant). Found during #607's PubChem validation pass:
+        # an earlier version of this module's citation-order logic sorted
+        # by the *attached* benzo ring's own numbering instead of the
+        # *parent* thiophene's, which happened to give the same wrong
+        # name ("...4,5-b'...") for this isomer as for CID 11106168 -
+        # silently conflating two different real compounds into one name.
+        ("C1=CSC2=CC3=C(C=CS3)C=C21", "benzo[1,2-b:5,4-b']dithiophene"),
     ],
 )
 def test_benzo_bis_heterocycle_fusion_matches_pubchem(smiles, expected):
@@ -30,9 +40,11 @@ def test_benzo_bis_heterocycle_fusion_matches_pubchem(smiles, expected):
 
 
 def test_mixed_parent_rings_out_of_scope():
-    # One furan + one thiophene bridged by benzo - needs P-25.3.4.2.1's
-    # seniority ordering between two *different* parents, a later step
-    # (M5 step 2, #605).
+    # One furan + one thiophene bridged by benzo - #605 found this isn't
+    # even a real multiparent case (the senior parent, furan, would just
+    # win outright and use a retained bicyclic base instead - see
+    # `thieno[3,2-f][1]benzofuran`, PubChem CID 69035235), so this
+    # structure is correctly rejected here rather than misnamed.
     mol = Chem.MolFromSmiles("C1=CC2=C(C=CO2)C3=C1C=CS3")
     assert not has_benzo_bis_heterocycle_fusion_name(mol)
 
@@ -54,4 +66,14 @@ def test_substituent_out_of_scope():
 
 def test_wrong_ring_count_out_of_scope():
     mol = Chem.MolFromSmiles("c1ccc2occc2c1")  # benzofuran, 2 rings only
+    assert not has_benzo_bis_heterocycle_fusion_name(mol)
+
+
+def test_naphtho_bridge_out_of_scope():
+    # naphtho[1,2-b:5,6-b']dithiophene (PubChem CID 58434773), found
+    # during #607's validation pass: a real compound in the same spirit
+    # (two identical thiophene parents bridged by one carbocycle) but with
+    # a naphtho (4-ring total) bridge instead of benzo (3-ring total) -
+    # correctly out of this module's exactly-3-rings scope.
+    mol = Chem.MolFromSmiles("C1=CC2=C(C=CC3=C2SC=C3)C4=C1C=CS4")
     assert not has_benzo_bis_heterocycle_fusion_name(mol)
