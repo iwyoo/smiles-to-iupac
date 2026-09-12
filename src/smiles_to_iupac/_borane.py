@@ -60,7 +60,7 @@ and/or plain phenyl substituents), per the IUPAC 2013 Recommendations
   boron's normal valence is exactly 3, so three phenyl substituents never
   trigger a lambda-convention label -- this mirrors the plain
   'trimethylborane' shape exactly, with no P-14.1 complication at all.
-  Detection reuses the same `_plain_phenyl_substituent_atoms` pattern
+  Detection reuses the same `plain_phenyl_substituent_atoms` pattern
   (`is_plain_benzene_ring` + `ring_chain_attachment`) adapted for boron's
   own direct-neighbor substituent roots.
 - A benzene ring bonded directly to boron and also bearing one or more
@@ -104,6 +104,7 @@ from ._common import (
     halogen_substituents,
     is_plain_benzene_ring,
     non_single_bonds,
+    plain_phenyl_substituent_atoms,
     ring_chain_attachment,
 )
 from ._substituents import format_mononuclear_prefixes, halogenated_phenyl_substituent, name_branch
@@ -111,27 +112,6 @@ from ._substituents import format_mononuclear_prefixes, halogenated_phenyl_subst
 
 def has_simple_borane_shape(mol) -> bool:
     return any(atom.GetAtomicNum() == 5 for atom in mol.GetAtoms())
-
-
-def _plain_phenyl_substituent_atoms(mol, graph, roots):
-    """Union of ring atoms for every plain, unsubstituted benzene ring in
-    `mol` that hangs directly off one of `roots` (the borane boron's own
-    substituent neighbors) with no other exocyclic attachment -- i.e. a
-    lone 'phenyl' substituent directly on boron. Mirrors
-    `_phosphanone.py`'s identical helper (itself mirroring
-    `_carbamate.py`'s), adapted for boron in place of phosphorus."""
-    atoms = set()
-    for ring in mol.GetRingInfo().AtomRings():
-        ring_atoms = set(ring)
-        if not is_plain_benzene_ring(mol, ring_atoms):
-            continue
-        attachment = ring_chain_attachment(graph, ring_atoms, set())
-        if attachment is None:
-            continue
-        ring_atom, _ = attachment
-        if ring_atom in roots:
-            atoms |= ring_atoms
-    return atoms
 
 
 def _validate_and_collect_substituents(mol):
@@ -149,7 +129,7 @@ def _validate_and_collect_substituents(mol):
 
     graph = adjacency(mol)
     roots = set(graph[boron.GetIdx()])
-    phenyl_atoms = _plain_phenyl_substituent_atoms(mol, graph, roots)
+    phenyl_atoms = plain_phenyl_substituent_atoms(mol, graph, roots)
 
     halogens = halogen_substituents(mol)
     aromatic_atoms = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic()}

@@ -89,7 +89,7 @@ and/or plain phenyl substituents), per the IUPAC 2013 Recommendations
   extension and unlike `_phosphanone.py`'s (P=O, PR #395), phosphorus's
   normal valence here is exactly 3, so three phenyl substituents never
   trigger a lambda-convention label. Detection reuses the same
-  `_plain_phenyl_substituent_atoms` pattern (`is_plain_benzene_ring` +
+  `plain_phenyl_substituent_atoms` pattern (`is_plain_benzene_ring` +
   `ring_chain_attachment`) adapted for phosphorus's own direct-neighbor
   substituent roots.
 - A benzene ring bonded directly to phosphorus and also bearing one or
@@ -144,6 +144,7 @@ from ._common import (
     halogen_substituents,
     is_plain_benzene_ring,
     non_single_bonds,
+    plain_phenyl_substituent_atoms,
     ring_chain_attachment,
 )
 from ._substituents import format_mononuclear_prefixes, halogenated_phenyl_substituent, name_branch
@@ -151,28 +152,6 @@ from ._substituents import format_mononuclear_prefixes, halogenated_phenyl_subst
 
 def has_simple_phosphane_shape(mol) -> bool:
     return any(atom.GetAtomicNum() == 15 for atom in mol.GetAtoms())
-
-
-def _plain_phenyl_substituent_atoms(mol, graph, roots):
-    """Union of ring atoms for every plain, unsubstituted benzene ring in
-    `mol` that hangs directly off one of `roots` (the phosphane
-    phosphorus's own substituent neighbors) with no other exocyclic
-    attachment -- i.e. a lone 'phenyl' substituent directly on phosphorus.
-    Mirrors `_borane.py`'s identical helper (itself mirroring
-    `_phosphanone.py`'s/`_carbamate.py`'s), adapted for a plain phosphane
-    in place of boron/phosphanone."""
-    atoms = set()
-    for ring in mol.GetRingInfo().AtomRings():
-        ring_atoms = set(ring)
-        if not is_plain_benzene_ring(mol, ring_atoms):
-            continue
-        attachment = ring_chain_attachment(graph, ring_atoms, set())
-        if attachment is None:
-            continue
-        ring_atom, _ = attachment
-        if ring_atom in roots:
-            atoms |= ring_atoms
-    return atoms
 
 
 def _validate_and_collect_substituents(mol):
@@ -190,7 +169,7 @@ def _validate_and_collect_substituents(mol):
 
     graph = adjacency(mol)
     roots = set(graph[phosphorus.GetIdx()])
-    phenyl_atoms = _plain_phenyl_substituent_atoms(mol, graph, roots)
+    phenyl_atoms = plain_phenyl_substituent_atoms(mol, graph, roots)
 
     halogens = halogen_substituents(mol)
     aromatic_atoms = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic()}

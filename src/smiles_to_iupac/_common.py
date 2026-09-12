@@ -193,6 +193,25 @@ def is_plain_benzene_ring(mol, ring_atoms):
     )
 
 
+def plain_phenyl_substituent_atoms(mol, graph, roots):
+    """Union of ring atoms for every plain, unsubstituted benzene ring in
+    `mol` that hangs directly off one of `roots` with no other exocyclic
+    attachment -- i.e. a lone 'phenyl' substituent directly on one of
+    `roots`."""
+    atoms = set()
+    for ring in mol.GetRingInfo().AtomRings():
+        ring_atoms = set(ring)
+        if not is_plain_benzene_ring(mol, ring_atoms):
+            continue
+        attachment = ring_chain_attachment(graph, ring_atoms, set())
+        if attachment is None:
+            continue
+        ring_atom, _ = attachment
+        if ring_atom in roots:
+            atoms |= ring_atoms
+    return atoms
+
+
 def ordered_chain(graph, root, coming_from, excluded):
     """The chain of atoms starting at `root` and extending away from
     `coming_from`, ignoring `excluded` atoms (e.g. hydroxyl/carboxyl
@@ -429,6 +448,15 @@ def bfs(graph, start):
                     next_queue.append(neighbor)
         queue = next_queue
     return dist, parent
+
+
+def component_subgraph(graph, start):
+    """`graph` restricted to the connected component containing `start`
+    (e.g. one acyl branch of a symmetric multi-fragment structure once the
+    bridging atom(s) are excluded from `graph` itself)."""
+    dist, _ = bfs(graph, start)
+    nodes = set(dist)
+    return {node: [n for n in graph[node] if n in nodes] for node in nodes}
 
 
 def path_between(parent, start, end):

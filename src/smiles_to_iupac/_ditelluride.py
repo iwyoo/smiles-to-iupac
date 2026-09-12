@@ -49,8 +49,8 @@ from rdkit import Chem
 from ._common import (
     UnsupportedStructure,
     adjacency,
-    bfs,
     carbon_adjacency,
+    component_subgraph,
     group_substituents,
     is_plain_benzene_ring,
     longest_chains,
@@ -64,12 +64,6 @@ from ._substituents import alpha_sort_key, format_substituent_prefixes, name_bra
 
 _TELLURIUM = 52
 _BARE_TERMINAL_NAME = "ditellanyl"
-
-
-def _component_subgraph(graph, start):
-    dist, _ = bfs(graph, start)
-    nodes = set(dist)
-    return {node: [n for n in graph[node] if n in nodes] for node in nodes}
 
 
 def has_ditelluride_shape(mol) -> bool:
@@ -302,8 +296,8 @@ def name_ditelluride(mol) -> str:
         parent_root, parent_te = (c2, te2_idx) if c1 is None else (c1, te1_idx)
         terminals = {parent_te: _BARE_TERMINAL_NAME}
     else:
-        size1 = len(_component_subgraph(carbon_graph, c1))
-        size2 = len(_component_subgraph(carbon_graph, c2))
+        size1 = len(component_subgraph(carbon_graph, c1))
+        size2 = len(component_subgraph(carbon_graph, c2))
 
         if size1 == size2:
             _, compound_a = name_branch(full_graph, c1, te1_idx, {}, mol=mol)
@@ -329,7 +323,7 @@ def name_ditelluride(mol) -> str:
             )
         terminals = {parent_te: sub_name + "ditellanyl"}
 
-    parent_carbon_graph = _component_subgraph(carbon_graph, parent_root)
+    parent_carbon_graph = component_subgraph(carbon_graph, parent_root)
     chain, name = _name_parent_chain(full_graph, parent_carbon_graph, terminals, mol=mol)
 
     stereo = specified_stereocenters(mol)

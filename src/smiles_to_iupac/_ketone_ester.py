@@ -32,8 +32,8 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    bfs,
     carbon_adjacency,
+    component_subgraph,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
@@ -211,12 +211,6 @@ def _candidate_key(chain_length, grouped):
     return (locant_set, citation_locants, name), name
 
 
-def _component_subgraph(graph, start):
-    dist, _ = bfs(graph, start)
-    nodes = set(dist)
-    return {node: [n for n in graph[node] if n in nodes] for node in nodes}
-
-
 def _substituents_for_chain(graph, chain, names, excluded_oxygens, ring_atoms=frozenset(), mol=None):
     chain_set = set(chain)
     substituents = {}
@@ -236,7 +230,7 @@ def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, ket
     acyl_carbon_idx = acyl_carbon.GetIdx()
     excluded_oxygens = {carbonyl_oxygen_idx, ester_oxygen_idx}
 
-    acyl_graph = _component_subgraph(carbon_graph, acyl_carbon_idx)
+    acyl_graph = component_subgraph(carbon_graph, acyl_carbon_idx)
     chains = longest_chains(acyl_graph)
     chain_length = len(chains[0])
 

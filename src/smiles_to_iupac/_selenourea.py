@@ -54,9 +54,8 @@ from ._common import (
     adjacency,
     bfs,
     carbon_adjacency,
-    is_plain_benzene_ring,
     non_single_bonds,
-    ring_chain_attachment,
+    plain_phenyl_substituent_atoms,
 )
 from ._substituents import alpha_sort_key, name_branch
 
@@ -106,26 +105,6 @@ def _substituent_names(full_graph, nitrogen_idx, substituent_carbons, aromatic_a
         name_branch(full_graph, c, nitrogen_idx, {}, aromatic_atoms, mol=mol)
         for c in substituent_carbons
     ]
-
-
-def _plain_phenyl_substituent_atoms(mol, graph, roots):
-    """Union of ring atoms for every plain, unsubstituted benzene ring in
-    `mol` that hangs directly off one of `roots` (a selenourea nitrogen's
-    substituent-carbon neighbors) with no other exocyclic attachment --
-    i.e. a lone 'phenyl' N-substituent. Mirrors `_urea.py`'s identical
-    helper."""
-    atoms = set()
-    for ring in mol.GetRingInfo().AtomRings():
-        ring_atoms = set(ring)
-        if not is_plain_benzene_ring(mol, ring_atoms):
-            continue
-        attachment = ring_chain_attachment(graph, ring_atoms, set())
-        if attachment is None:
-            continue
-        ring_atom, _ = attachment
-        if ring_atom in roots:
-            atoms |= ring_atoms
-    return atoms
 
 
 def _substituent_chain_atoms(carbon_graph, substituent_carbons):
@@ -180,7 +159,7 @@ def name_selenourea(mol) -> str:
     n2_carbons = _n_substituent_carbons(mol, n2_idx, carbon_idx)
 
     full_graph = adjacency(mol)
-    phenyl_atoms = _plain_phenyl_substituent_atoms(mol, full_graph, n1_carbons + n2_carbons)
+    phenyl_atoms = plain_phenyl_substituent_atoms(mol, full_graph, n1_carbons + n2_carbons)
     if phenyl_atoms and (
         (any(c in phenyl_atoms for c in n1_carbons) and len(n1_carbons) > 1)
         or (any(c in phenyl_atoms for c in n2_carbons) and len(n2_carbons) > 1)
