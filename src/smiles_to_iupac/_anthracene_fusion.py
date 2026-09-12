@@ -5,7 +5,9 @@ mirroring `_polycyclic_component_fusion.py`'s identical mechanism for
 the indole/1-benzofuran base components -- this module is the general
 algorithm's first *all-carbon* base component (indole/1-benzofuran are
 both heteroatom-containing, so their fixed atom-role table never
-collides with an ordinary retained-name PAH).
+collides with an ordinary retained-name PAH). The matching itself is
+`_fusion_locant_letter.py`'s shared engine; this module only supplies
+anthracene's own reference structure/side-letter table.
 
 Anthracene's own numbering (P-25.3.3, 1,2,3,4,4a,5,6,7,8,8a,9,9a,10,10a)
 gives P-25.3.1.3's continuous peripheral lettering (a for the '1,2' side,
@@ -40,6 +42,7 @@ at one of the six candidate periphery bonds, excluding the linear
 from rdkit import Chem
 
 from ._common import UnsupportedStructure
+from ._fusion_locant_letter import find_fusion_letter
 
 _ANTHRACENE_REF = Chem.MolFromSmiles("c1cccc2cc3ccccc3cc12")
 _LETTER_BY_PAIR = {
@@ -53,53 +56,8 @@ _LETTER_BY_PAIR = {
 _EXCLUDED_LETTERS = {"b"}
 
 
-def _find_letter(mol):
-    matches = mol.GetSubstructMatches(_ANTHRACENE_REF, useChirality=False, uniquify=False)
-    best = None
-    for match in matches:
-        core = set(match)
-        extra = [a.GetIdx() for a in mol.GetAtoms() if a.GetIdx() not in core]
-        if len(extra) != 4:
-            continue
-        if any(
-            mol.GetAtomWithIdx(a).GetAtomicNum() != 6 or not mol.GetAtomWithIdx(a).GetIsAromatic()
-            for a in extra
-        ):
-            continue
-        target_to_ref_idx = {match[i]: i for i in range(len(match))}
-        fusion_ref_idxs = set()
-        bad = False
-        for a in extra:
-            for n in mol.GetAtomWithIdx(a).GetNeighbors():
-                if n.GetIdx() in target_to_ref_idx:
-                    fusion_ref_idxs.add(target_to_ref_idx[n.GetIdx()])
-                elif n.GetIdx() not in extra:
-                    bad = True
-        if bad or len(fusion_ref_idxs) != 2:
-            continue
-        letter = _LETTER_BY_PAIR.get(frozenset(fusion_ref_idxs))
-        if letter is not None and (best is None or letter < best):
-            best = letter
-    if best in _EXCLUDED_LETTERS:
-        return None
-    return best
-
-
 def _find_core(mol):
-    if mol.GetNumAtoms() != 18:
-        return None
-    if mol.GetRingInfo().NumRings() != 4:
-        return None
-    if any(not atom.GetIsAromatic() for atom in mol.GetAtoms()):
-        return None
-    for atom in mol.GetAtoms():
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
-            return None
-        if atom.GetAtomicNum() != 6:
-            return None
-    if len(Chem.GetMolFrags(mol)) > 1:
-        return None
-    return _find_letter(mol)
+    return find_fusion_letter(mol, _ANTHRACENE_REF, _LETTER_BY_PAIR, _EXCLUDED_LETTERS, num_atoms=18, num_rings=4)
 
 
 def has_anthracene_fusion_name(mol) -> bool:
