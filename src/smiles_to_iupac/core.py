@@ -133,6 +133,10 @@ from ._bridgehead_heteroatom_fusion import (
 from ._hydroxylamine import has_hydroxylamine_shape, name_hydroxylamine
 from ._imine import has_simple_imine_shape, name_imine
 from ._isotope import has_isotope_shape, name_isotope
+from ._pyridine_bis_heterocycle_fusion import (
+    has_pyridine_bis_heterocycle_fusion_name,
+    name_pyridine_bis_heterocycle_fusion,
+)
 from ._pyridine_heterocycle_fusion import (
     has_pyridine_heterocycle_fusion_name,
     name_pyridine_heterocycle_fusion,
@@ -593,6 +597,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # below, same reason as above.
     if has_benzo_bis_heterocycle_fusion_name(mol):
         return name_benzo_bis_heterocycle_fusion(mol)
+
+    # dithieno[2,3-b:3',2'-e]pyridine etc. (P-25.3.6.1's "identical
+    # attached components" -- pyridine as the sole senior parent, with
+    # two identical five-membered heteromonocycles as first-order
+    # attached components) -- also routed here before
+    # `_hetero_monocyclic.py` below, same reason as above.
+    if has_pyridine_bis_heterocycle_fusion_name(mol):
+        return name_pyridine_bis_heterocycle_fusion(mol)
 
     # oxirane/thiane/piperidine etc. (P-22.2.1's Hantzsch-Widman
     # saturated-monocyclic retained names) are recognized the same way --
