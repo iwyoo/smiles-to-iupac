@@ -21,6 +21,16 @@ from smiles_to_iupac._pyridine_heterocycle_fusion import (
         ("C1=CC2=C(C=CS2)N=C1", "thieno[3,2-b]pyridine"),
         # PubChem CID 12826108 -- confirms the base letter isn't fixed at 'b'
         ("C1=CN=CC2=C1C=CO2", "furo[2,3-c]pyridine"),
+        # PubChem CID 9222 -- pyrrole's N-H needs the "1H-" indicated-
+        # hydrogen prefix furan/thiophene never do.
+        ("C1=CC2=C(NC=C2)N=C1", "1H-pyrrolo[2,3-b]pyridine"),
+        # PubChem CID 9226
+        ("C1=CC2=C(C=CN2)N=C1", "1H-pyrrolo[3,2-b]pyridine"),
+        # PubChem CID 9219 -- confirms the indicated-hydrogen locant is
+        # still 1 at letter 'c' too, not just 'b'.
+        ("C1=CNC2=C1C=CN=C2", "1H-pyrrolo[2,3-c]pyridine"),
+        # PubChem CID 9220
+        ("C1=CNC2=C1C=NC=C2", "1H-pyrrolo[3,2-c]pyridine"),
     ],
 )
 def test_pyridine_heterocycle_fusion_matches_pubchem(smiles, expected):
@@ -29,24 +39,21 @@ def test_pyridine_heterocycle_fusion_matches_pubchem(smiles, expected):
     assert name_pyridine_heterocycle_fusion(mol) == expected
 
 
-def test_pyrrole_out_of_scope_needs_indicated_hydrogen():
-    # 1H-pyrrolo[2,3-b]pyridine (PubChem CID 9222) -- excluded because its
-    # correct name needs an indicated-hydrogen citation ("1H-") this
-    # module doesn't implement (see module docstring); rejecting is
-    # correct, a silently-incomplete name would not be.
-    mol = Chem.MolFromSmiles("C1=CC2=C(NC=C2)N=C1")
-    assert not has_pyridine_heterocycle_fusion_name(mol)
-    with pytest.raises(UnsupportedStructure):
-        name_pyridine_heterocycle_fusion(mol)
-
-
 def test_bridgehead_nitrogen_unsupported():
     # Indolizine (PubChem CID 9230): the shared fusion atom itself is
-    # pyridine's own nitrogen, a bridgehead-N shape this module rejects
-    # (the attached ring has no O/S heteroatom of its own once the shared
-    # N is accounted for as pyridine's).
+    # pyridine's own nitrogen - a bridgehead-N shape out of this module's
+    # scope (see `_bridgehead_heteroatom_fusion.py`, which handles shared
+    # heteroatoms, but not this shape specifically - indolizine has no
+    # second heteroatom at all). Now that pyrrole is a recognized attached
+    # ring, this passes the coarse shape check (the bridgehead N reads as
+    # "pyrrole's own heteroatom" at that level, same pattern as
+    # `test_fusion_not_reachable_from_attached_heteroatom_unsupported`
+    # below) - `name_...` rejects it once it looks at which atoms are
+    # fused (nitrogen is itself a fusion atom).
     mol = Chem.MolFromSmiles("C1=CC2=CC=CN2C=C1")
-    assert not has_pyridine_heterocycle_fusion_name(mol)
+    assert has_pyridine_heterocycle_fusion_name(mol)
+    with pytest.raises(UnsupportedStructure):
+        name_pyridine_heterocycle_fusion(mol)
 
 
 def test_fusion_not_reachable_from_attached_heteroatom_unsupported():
