@@ -103,6 +103,7 @@ from ._anthracene_fusion import has_anthracene_fusion_name, name_anthracene_fusi
 from ._tetracene_fusion import has_tetracene_fusion_name, name_tetracene_fusion
 from ._pentacene_fusion import has_pentacene_fusion_name, name_pentacene_fusion
 from ._hexacene_fusion import has_hexacene_fusion_name, name_hexacene_fusion
+from ._heptacene_fusion import has_heptacene_fusion_name, name_heptacene_fusion
 from ._phenanthrene_fusion import has_phenanthrene_fusion_name, name_phenanthrene_fusion
 from ._pyrene_fusion import has_pyrene_fusion_name, name_pyrene_fusion
 from ._chrysene_fusion import has_chrysene_fusion_name, name_chrysene_fusion
@@ -464,6 +465,16 @@ def smiles_to_iupac(smiles: str) -> str:
     # unchanged.
     if has_hexacene_fusion_name(mol):
         return name_hexacene_fusion(mol)
+
+    # benzo[a]heptacene (same mechanism again, for heptacene as the base
+    # component -- the fifth plain catacondensed-chain base, after
+    # anthracene/tetracene/pentacene/hexacene) must be routed here for
+    # the same reason as the checks just above. The linear ('octacene')
+    # shape is deliberately excluded from `has_heptacene_fusion_name`
+    # itself so it still falls through to `_aromatic.py`'s own octacene
+    # recognition unchanged.
+    if has_heptacene_fusion_name(mol):
+        return name_heptacene_fusion(mol)
 
     # chrysene/benzo[c]phenanthrene (same mechanism once more, for
     # phenanthrene as the base component) -- routed here for the same
