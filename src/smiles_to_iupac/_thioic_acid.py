@@ -64,6 +64,7 @@ from ._common import (
     longest_branched_chain,
     non_single_bonds,
     ring_chain_attachment_with_halogens,
+    unbranched_chain_length,
 )
 from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch, plain_alkyl_ring_substituents
@@ -111,27 +112,6 @@ def _thioic_acid_carbons(mol):
 
 def has_thioic_acid_shape(mol) -> bool:
     return bool(_thioic_acid_carbons(mol))
-
-
-def _unbranched_chain_length(mol, root_idx, exclude_idx):
-    """Length of the straight, unbranched, saturated all-carbon chain
-    starting at `root_idx` and walking away from `exclude_idx` -- or None if
-    the chain branches, rings, or leaves carbon at any point. Mirrors
-    `_sulfoxide.py`'s identical helper."""
-    length = 0
-    previous = exclude_idx
-    current = root_idx
-    while True:
-        atom = mol.GetAtomWithIdx(current)
-        if atom.GetAtomicNum() != 6 or atom.GetIsAromatic():
-            return None
-        neighbors = [n.GetIdx() for n in atom.GetNeighbors() if n.GetIdx() != previous]
-        length += 1
-        if not neighbors:
-            return length
-        if len(neighbors) > 1:
-            return None
-        previous, current = current, neighbors[0]
 
 
 def _validate_and_collect_thioic_acid(mol, aromatic_ring_atoms=frozenset()):
@@ -242,7 +222,7 @@ def name_thioic_acid(mol) -> str:
 
     if chain_neighbors:
         (chain_root,) = chain_neighbors
-        chain_length = _unbranched_chain_length(mol, chain_root.GetIdx(), acid_carbon.GetIdx())
+        chain_length = unbranched_chain_length(mol, chain_root.GetIdx(), acid_carbon.GetIdx())
         if chain_length is None:
             raise UnsupportedStructure(
                 "a branched R group is out of scope for this module (see "

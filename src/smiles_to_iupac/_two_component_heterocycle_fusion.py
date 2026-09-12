@@ -58,7 +58,7 @@ through to other dispatch branches in core.py, exactly like every other
 retained/computed-name module in this project.
 """
 
-from ._common import UnsupportedStructure
+from ._common import UnsupportedStructure, ring_cycle
 
 _RING_NAMES = {
     8: ("furo", "furan"),
@@ -72,18 +72,6 @@ _RING_NAMES = {
 _SENIORITY_ORDER = {8: 0, 16: 1, 34: 2, 52: 3}
 
 
-def _ring_cycle(graph, ring_atoms):
-    ring_set = set(ring_atoms)
-    order = [ring_atoms[0]]
-    previous = None
-    while len(order) < len(ring_atoms):
-        current = order[-1]
-        next_atom = next(n for n in graph[current] if n in ring_set and n != previous)
-        order.append(next_atom)
-        previous = current
-    return order
-
-
 def _local_numbering(graph, ring_atoms, heteroatom, fusion_atoms):
     """Number a ring 1 (heteroatom) .. 5, walking in whichever direction
     makes a fusion atom appear at position 2 (the 'lowest locants' choice
@@ -91,7 +79,7 @@ def _local_numbering(graph, ring_atoms, heteroatom, fusion_atoms):
     None if neither ring-neighbor of the heteroatom is a fusion atom (the
     fusion bond doesn't touch this ring's own heteroatom -- letter 'c',
     out of scope)."""
-    cycle = _ring_cycle(graph, list(ring_atoms))
+    cycle = ring_cycle(graph, list(ring_atoms))
     n = len(cycle)
     start = cycle.index(heteroatom)
     for step in (1, -1):

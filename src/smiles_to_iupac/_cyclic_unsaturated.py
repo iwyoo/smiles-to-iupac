@@ -57,6 +57,7 @@ from ._common import (
     halogen_substituents,
     lowest_locant_set,
     multiplied_word,
+    ring_cycle,
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name, numerical_term
@@ -65,20 +66,6 @@ from ._substituents import alpha_sort_key, format_substituent_prefixes, name_bra
 _ENE_ORDER = 2.0
 _YNE_ORDER = 3.0
 _VALID_ORDERS = (_ENE_ORDER, _YNE_ORDER)
-
-
-def _ring_cycle(graph, ring_atoms):
-    """Order a simple ring's atoms into a cyclic sequence by walking its
-    bonds (works regardless of bond order -- adjacency doesn't encode it)."""
-    ring_set = set(ring_atoms)
-    order = [ring_atoms[0]]
-    previous = None
-    while len(order) < len(ring_atoms):
-        current = order[-1]
-        next_atom = next(n for n in graph[current] if n in ring_set and n != previous)
-        order.append(next_atom)
-        previous = current
-    return order
 
 
 def find_cyclic_unsaturated_core(mol):
@@ -217,7 +204,7 @@ def name_cyclic_unsaturated_yl(mol, ring_atoms, root) -> str:
     bond land on '1', so its locant must always be cited."""
     graph = adjacency(mol)
     double_bonds = _double_bonds(mol)
-    ring_order = _ring_cycle(graph, list(ring_atoms))
+    ring_order = ring_cycle(graph, list(ring_atoms))
     ring_size = len(ring_order)
     start = ring_order.index(root)
     rotated = ring_order[start:] + ring_order[:start]
@@ -261,7 +248,7 @@ def name_cyclic_unsaturated(mol, ring_atoms) -> str:
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     bonds = _multi_bonds(mol)
-    ring_order = _ring_cycle(graph, list(ring_atoms))
+    ring_order = ring_cycle(graph, list(ring_atoms))
     ring_size = len(ring_order)
 
     best_key = None
