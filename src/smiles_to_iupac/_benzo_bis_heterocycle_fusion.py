@@ -203,7 +203,16 @@ def name_benzo_bis_heterocycle_fusion(mol) -> str:
                 "supported (see P-25.3.1.3)"
             )
         letter, _ = letter_result
-        low, high = sorted(pair, key=lambda atom: benzo_numbering[atom])
+        # Citation order must match the *parent*'s own numbering direction
+        # (the established rule from `_pyridine_heterocycle_fusion.py`),
+        # not the attached benzo ring's own ascending order - these can
+        # disagree, and citing benzo's own ascending order regardless
+        # conflated two structurally distinct real isomers (PubChem CID
+        # 11106168 "benzo[1,2-b:4,5-b']dithiophene" and CID 605316
+        # "benzo[1,2-b:5,4-b']dithiophene" - different InChIKeys) into the
+        # same wrong name for one of them, caught during #607's PubChem
+        # validation pass.
+        low, high = sorted(pair, key=lambda atom: parent_numbering[atom])
         prime = "'" if primed else ""
         parts.append(f"{benzo_numbering[low]},{benzo_numbering[high]}-{letter}{prime}")
 
