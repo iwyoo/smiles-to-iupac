@@ -155,9 +155,26 @@ def test_diamine_with_tertiary_nitrogen():
     assert smiles_to_iupac("NCCN(C)C") == "N1,N1-dimethylethane-1,2-diamine"
 
 
-def test_three_amines_with_a_tertiary_nitrogen_still_raises():
+def test_disconnected_amine_nitrogens_raise():
+    # The three nitrogens here don't share one connected carbon backbone
+    # (each pair is only bridged through a nitrogen, not a C-C bond) -- a
+    # different, unimplemented naming path, not this module's job.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("NCCN(C)CCN")
+
+
+def test_triamine_with_tertiary_nitrogen():
+    # Three coexisting amines on one shared chain generalizes cleanly from
+    # the two-amine case (P-16.9.2's superscript-locant mechanism doesn't
+    # special-case a count) -- cross-checked structurally against PubChem
+    # CID 14396522 (same skeleton, C5H15N3; PubChem's own autoname uses
+    # yet another, non-PIN locant style, '3-N,3-N-dimethyl...', so it's
+    # not usable for a name-string comparison here, only formula/skeleton).
+    assert smiles_to_iupac("CN(C)CC(N)CN") == "N1,N1-dimethylpropane-1,2,3-triamine"
+
+
+def test_tetramine_with_tertiary_nitrogen():
+    assert smiles_to_iupac("NCC(N)C(N)CN(C)C") == "N1,N1-dimethylbutane-1,2,3,4-tetramine"
 
 
 def test_two_amines_use_superscript_locants_not_primes():
