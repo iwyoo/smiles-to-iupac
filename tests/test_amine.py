@@ -146,9 +146,36 @@ def test_secondary_amine_on_ring_raises():
         smiles_to_iupac("CN(C)C1CCCCC1")
 
 
-def test_diamine_with_tertiary_nitrogen_raises():
+def test_diamine_with_tertiary_nitrogen():
+    # P-16.9.2: two coexisting amine nitrogens use superscript parent-chain
+    # locants ('N1', 'N2', ...) rather than the older N/N'-prime
+    # convention to tell them apart -- confirmed against the Blue Book's
+    # own worked PIN example for this exact rule, see
+    # `test_two_amines_use_superscript_locants_not_primes` below.
+    assert smiles_to_iupac("NCCN(C)C") == "N1,N1-dimethylethane-1,2-diamine"
+
+
+def test_three_amines_with_a_tertiary_nitrogen_still_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCCN(C)C")
+        smiles_to_iupac("NCCN(C)CCN")
+
+
+def test_two_amines_use_superscript_locants_not_primes():
+    # Blue Book P-16.9.2's own worked PIN example, verbatim.
+    assert smiles_to_iupac("CCNCCNC") == "N1-ethyl-N2-methylethane-1,2-diamine"
+
+
+def test_geminal_diamine_with_substituent_raises():
+    # P-16.9.2 explicitly excludes geminal amines from the superscript-
+    # locant convention; both nitrogens sharing one carbon needs a
+    # different (unimplemented) naming path.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(N)N(C)C")
+
+
+def test_two_amines_with_unsaturated_n_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NCCN(C)CC=C")
 
 
 def test_secondary_amine_with_halogen_on_parent_chain():
