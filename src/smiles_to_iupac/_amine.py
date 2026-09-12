@@ -114,6 +114,7 @@ from ._common import (
     ring_bond_locants,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
+    ring_cycle,
     specified_stereocenters,
 )
 from ._numerals import alkane_name, alkyl_name
@@ -687,18 +688,6 @@ def _name_acyclic_amine(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None):
     return best_name
 
 
-def _ring_cycle(graph, ring_atoms):
-    ring_set = set(ring_atoms)
-    order = [ring_atoms[0]]
-    previous = None
-    while len(order) < len(ring_atoms):
-        current = order[-1]
-        next_atom = next(n for n in graph[current] if n in ring_set and n != previous)
-        order.append(next_atom)
-        previous = current
-    return order
-
-
 def _substituents_for_ring(graph, ring_order, halogens, amines, mol=None):
     ring_set = set(ring_order)
     substituents = {}
@@ -798,7 +787,7 @@ def _name_cyclic_amine(mol, amines, stereo=None, bonds=()):
     halogens = halogen_substituents(mol)
     ring_info = mol.GetRingInfo()
     ring_atoms = list(ring_info.AtomRings()[0])
-    ring_order = _ring_cycle(graph, ring_atoms)
+    ring_order = ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
     branch_stereo = None
     if stereo is not None and any(atom not in ring_order for atom, _ in stereo):
@@ -892,7 +881,7 @@ def _name_aniline(mol, ring_atoms):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     excluded = {n_idx}
-    ring_order = _ring_cycle(graph, list(ring_atoms))
+    ring_order = ring_cycle(graph, list(ring_atoms))
     ring_size = len(ring_order)
 
     best_key = None
@@ -1020,7 +1009,7 @@ def _name_ring_with_amine_chain_amine(mol, amines, n_carbons_by_nitrogen):
         graph, chain_root, ring_atom, {**halogens, **{n: "amino" for n in chain_amines}}, mol=mol
     )
 
-    ring_order = _ring_cycle(graph, list(ring_atoms))
+    ring_order = ring_cycle(graph, list(ring_atoms))
     ring_size = len(ring_order)
     best_key = None
     best_name = None
