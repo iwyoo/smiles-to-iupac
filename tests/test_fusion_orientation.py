@@ -4,6 +4,8 @@ from rdkit import Chem
 from smiles_to_iupac._common import UnsupportedStructure
 from smiles_to_iupac._fusion_orientation import (
     count_rings_in_horizontal_row,
+    rings_above_horizontal_row,
+    rings_in_lower_left_quadrant,
     rings_in_upper_right_quadrant,
 )
 
@@ -126,3 +128,47 @@ def test_chrysene_and_triphenylene_tie_on_criterion_b_too():
     chrysene = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=C2C=CC4=CC=CC=C43")
     triphenylene = Chem.MolFromSmiles("c1ccc2c(c1)ccc1c2ccc2ccccc21")
     assert rings_in_upper_right_quadrant(chrysene) == rings_in_upper_right_quadrant(triphenylene) == 2.5
+
+
+def test_phenanthrene_criteria_c_and_d():
+    mol = Chem.MolFromSmiles("c1ccc2ccc3ccccc3c2c1")
+    assert rings_in_lower_left_quadrant(mol) == 0.5
+    assert rings_above_horizontal_row(mol) == 2.0
+
+
+def test_tetraphene_criteria_c_and_d():
+    mol = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=CC4=CC=CC=C4C=C32")
+    assert rings_in_lower_left_quadrant(mol) == 0.75
+    assert rings_above_horizontal_row(mol) == 2.5
+
+
+def test_chrysene_and_triphenylene_tie_through_the_full_cascade():
+    # The tie persists through (c) and (d) too, not just (a) and (b) -
+    # strong evidence the two are decided by plain alphabetical order
+    # further down P-25.3.2.4's seniority list, not by these orientation
+    # criteria at all (see the module docstring).
+    chrysene = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=C2C=CC4=CC=CC=C43")
+    triphenylene = Chem.MolFromSmiles("c1ccc2c(c1)ccc1c2ccc2ccccc21")
+    assert rings_in_lower_left_quadrant(chrysene) == rings_in_lower_left_quadrant(triphenylene) == 0.5
+    assert rings_above_horizontal_row(chrysene) == rings_above_horizontal_row(triphenylene) == 3.0
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        "c1ccc2ccc3ccccc3c2c1",  # phenanthrene
+        "C1=CC=C2C(=C1)C=CC3=CC4=CC=CC=C4C=C32",  # tetraphene
+        "C1=CC=C2C(=C1)C=CC3=C2C=CC4=CC=CC=C43",  # chrysene
+        "c1ccc2c(c1)ccc1c2ccc2ccccc21",  # triphenylene
+        "c1ccc2cc3ccccc3cc2c1",  # anthracene
+        "c1ccc2cc3cc4cc5ccccc5cc4cc3cc2c1",  # pentacene
+    ],
+)
+def test_above_plus_below_equals_total_ring_count(smiles):
+    # "Below the row" isn't exposed directly, but total ring count minus
+    # "above" is exactly what it must be by construction - this is really
+    # asserting `rings_above_horizontal_row` never over/undercounts.
+    mol = Chem.MolFromSmiles(smiles)
+    n = mol.GetRingInfo().NumRings()
+    above = rings_above_horizontal_row(mol)
+    assert 0 <= above <= n

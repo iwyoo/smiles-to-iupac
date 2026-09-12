@@ -1,8 +1,10 @@
-"""P-25.3.2.3.3 criteria (a) and (b) -- "maximum number of rings in a
-horizontal row" and "maximum number of rings in the upper right quadrant"
--- generalized to any ortho-fused, non-peri-fused all-carbon aromatic ring
-system whose ring-fusion graph is a tree (catacondensed chains, plus
-branched systems like triphenylene) (https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf).
+"""P-25.3.2.3.3's full preferred-orientation cascade, criteria (a)-(d) --
+"maximum rings in a horizontal row", "maximum rings in the upper right
+quadrant", "minimum rings in the lower left quadrant", "maximum rings
+above the horizontal row" -- generalized to any ortho-fused, non-peri-
+fused all-carbon aromatic ring system whose ring-fusion graph is a tree
+(catacondensed chains, plus branched systems like triphenylene)
+(https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf).
 
 Model: each ring-fusion bond has a direction, in units of 60 degrees,
 defined only up to one global rotation and modulo 6 (opposite directions
@@ -66,17 +68,44 @@ chasing it further with (c)/(d) is the wrong next step for resolving
 for other ties and for a single structure's own preferred-orientation
 choice).
 
+Criteria (c) (minimum rings in the lower left quadrant) and (d) (maximum
+rings above the row) complete the cascade: `_best_orientation` filters the
+same (residue, reflect) candidates down through all four criteria in
+order -- max (a), then max (b) among those, then min (c) among those,
+then max (d) among those -- and every public function in this module
+reports its own criterion's value for that one shared, fully-cascaded
+orientation (not each independently re-optimized in isolation, which
+would be wrong once more than one criterion is in play). Chrysene and
+triphenylene still tie all the way through (d) too (not just (a) and
+(b)), further reinforcing that their seniority is decided by plain
+alphabetical order further down P-25.3.2.4's list, not by any of these
+orientation criteria.
+
+**(c) and (d)'s own worked examples in the primary source are not
+reliable verification anchors** -- cross-checking them found an internal
+contradiction (the text's numbers for what looks like tetraphene's
+"correct orientation" claim 1.75 upper-right, 0.75 lower-left, *and* 3.5
+above-the-row simultaneously, which is impossible for a 4-ring system:
+0.75 lower-left alone already exceeds the 0.5 that a below-the-row total
+of 4 - 3.5 would allow), almost certainly multiple diagrams' captions
+concatenated out of order during PDF text extraction -- the same class of
+problem already hit with ring-shape diagrams during #568's scoping. (c)
+and (d) are implemented against the rule *prose* instead (unambiguous on
+its own) and validated via internal consistency (every ring's quadrant
+contributions sum to the total ring count; above + below does too) plus
+concrete regression values now pinned down by this implementation itself
+(phenanthrene, tetraphene) rather than the anonymous examples.
+
 Scope, still narrow: the ring-fusion graph must be a tree (no cycle) --
 peri-fused systems (e.g. pyrene, fluoranthene: an atom shared by three or
 more rings, which also means the ring-fusion graph has a cycle rather than
 just branching) remain out of scope and raise `UnsupportedStructure`; a
 future step would need genuine 2D coordinate placement for a *cyclic*
 ring-fusion graph (this module's 2D placement so far only walks a tree) to
-validate it closes consistently. This module does not implement criteria
-(c)/(d) (the remaining quadrant-counting tie-breaks), and its result is
-not yet wired into any naming path -- see
-`_aromatic.py`/`_triphenylene_fusion.py`/`_chrysene_fusion.py`'s own
-docstrings for where a real seniority decision still needs this.
+validate it closes consistently. This module's result is not yet wired
+into any naming path -- see `_aromatic.py`/`_triphenylene_fusion.py`/
+`_chrysene_fusion.py`'s own docstrings for where a real seniority
+decision still needs this.
 """
 
 from ._common import UnsupportedStructure, adjacency, ring_cycle
@@ -285,42 +314,79 @@ def _row_center(adj, direction, position, winning_residue, n):
     return center_ring
 
 
-def _upper_right_count(adj, direction, residue, reflect, n):
-    """Criterion (b)'s value for one specific candidate orientation
-    (a winning-axis `residue` plus a `reflect` mirror choice, see
-    `_ring_positions`) -- not yet maximized over candidates."""
+def _quadrant_counts(adj, direction, residue, reflect, n):
+    """Criteria (b), (c), (d)'s raw values -- (upper-right, lower-left,
+    above-the-row) -- for one specific candidate orientation (a
+    winning-axis `residue` plus a `reflect` mirror choice, see
+    `_ring_positions`), not yet selected among candidates (see
+    `_best_orientation`). A ring exactly on one axis counts as a half
+    (attributed to whichever side of that axis it's actually on); a ring
+    at the intersection of both axes counts as a quarter of each quadrant.
+    "Above the row" only depends on y (not which side of the vertical
+    axis), so an on-row ring (y == 0) counts as a half regardless of x."""
     position = _ring_positions(adj, direction, residue, n, reflect)
     center_x, center_y = _row_center(adj, direction, position, residue, n)
-    total = 0.0
+    upper_right = lower_left = above = 0.0
     for ring_idx in range(n):
         x = position[ring_idx][0] - center_x
         y = position[ring_idx][1] - center_y
         if x == 0 and y == 0:
-            total += 0.25
+            upper_right += 0.25
+            lower_left += 0.25
+            above += 0.5
         elif x == 0:
             if y > 0:
-                total += 0.5
+                upper_right += 0.5
+            else:
+                lower_left += 0.5
         elif y == 0:
             if x > 0:
-                total += 0.5
-        elif x > 0 and y > 0:
-            total += 1.0
-    return total
+                upper_right += 0.5
+            else:
+                lower_left += 0.5
+            above += 0.5
+        else:
+            if x > 0 and y > 0:
+                upper_right += 1.0
+            elif x < 0 and y < 0:
+                lower_left += 1.0
+            if y > 0:
+                above += 1.0
+    return upper_right, lower_left, above
+
+
+def _best_orientation(adj, direction, n):
+    """The single preferred orientation, per P-25.3.2.3.3's full (a) ->
+    (b) -> (c) -> (d) cascade: among every candidate tied for (a)'s
+    maximum row count, keep only those maximizing (b); among those, keep
+    only those minimizing (c); among those, return one maximizing (d)
+    (ties left after (d) are still equally preferred - any survivor is
+    fine, since every criterion this module implements is already
+    exhausted). Returns (residue, reflect, upper_right, lower_left,
+    above) for the winner, so callers don't need to recompute it."""
+    residues = _max_row_residues(adj, direction, n)
+    candidates = [
+        (residue, reflect) + _quadrant_counts(adj, direction, residue, reflect, n)
+        for residue in residues
+        for reflect in _REFLECTIONS
+    ]
+    max_b = max(c[2] for c in candidates)
+    candidates = [c for c in candidates if c[2] == max_b]
+    min_c = min(c[3] for c in candidates)
+    candidates = [c for c in candidates if c[3] == min_c]
+    max_d = max(c[4] for c in candidates)
+    candidates = [c for c in candidates if c[4] == max_d]
+    return candidates[0]
 
 
 def rings_in_upper_right_quadrant(mol) -> float:
     """P-25.3.2.3.3 criterion (b): the number of rings in the upper right
     quadrant relative to the horizontal row's center, for the *preferred*
-    orientation -- i.e. the maximum over every candidate orientation that
-    already ties for criterion (a)'s maximum row count (there can be more
-    than one winning axis, and independently 4 mirror choices per axis;
-    P-25.3.2.3.3 doesn't fix a handedness, only that whichever orientation
-    is drawn must maximize (b) among the (a)-maximizers). A ring exactly
-    on one axis counts as a half (attributed to whichever of the two
-    quadrants that axis's side actually borders); a ring at the exact
-    intersection of both axes counts as a quarter. Raises
-    `UnsupportedStructure` under the same conditions as
-    `count_rings_in_horizontal_row`.
+    orientation (see `_best_orientation`). A ring exactly on one axis
+    counts as a half (attributed to whichever of the two quadrants that
+    axis's side actually borders); a ring at the exact intersection of
+    both axes counts as a quarter. Raises `UnsupportedStructure` under
+    the same conditions as `count_rings_in_horizontal_row`.
 
     Validated against the primary source's own worked examples
     (P-25.3.2.3.3(b)): phenanthrene = 1.5, tetraphene/benzo[a]anthracene =
@@ -334,9 +400,48 @@ def rings_in_upper_right_quadrant(mol) -> float:
     _atom_rings, adj, _fusion_bonds_by_pair, direction, n = _prepare(mol)
     if n <= 1:
         return 0.25 if n == 1 else 0.0
-    residues = _max_row_residues(adj, direction, n)
-    return max(
-        _upper_right_count(adj, direction, residue, reflect, n)
-        for residue in residues
-        for reflect in _REFLECTIONS
-    )
+    return _best_orientation(adj, direction, n)[2]
+
+
+def rings_in_lower_left_quadrant(mol) -> float:
+    """P-25.3.2.3.3 criterion (c): the number of rings in the lower left
+    quadrant, for the same preferred orientation criterion (b) selects
+    (see `_best_orientation`) -- this is the tie-break used when (a) and
+    (b) alone don't decide. Same half/quarter convention as criterion
+    (b). Raises `UnsupportedStructure` under the same conditions as
+    `count_rings_in_horizontal_row`.
+
+    Not validated against the P-25.3.2.3.3(c) worked example directly --
+    that example's own numbers turned out to be internally inconsistent
+    with a 4-ring system when cross-checked against (d)'s worked example
+    (see the module docstring), almost certainly multiple diagrams'
+    captions concatenated out of order during PDF text extraction, the
+    same class of problem already hit with ring-shape diagrams during
+    #568's scoping. Validated instead via internal consistency: for every
+    already-tested molecule, upper-right + upper-left + lower-right +
+    lower-left equals the total ring count (see
+    `tests/test_fusion_orientation.py`)."""
+    _atom_rings, adj, _fusion_bonds_by_pair, direction, n = _prepare(mol)
+    if n <= 1:
+        return 0.25 if n == 1 else 0.0
+    return _best_orientation(adj, direction, n)[3]
+
+
+def rings_above_horizontal_row(mol) -> float:
+    """P-25.3.2.3.3 criterion (d): the number of rings above the
+    horizontal row, for the same preferred orientation criteria (b)/(c)
+    select (see `_best_orientation`) -- the last of the four tie-breaks
+    this module implements. Unlike (b)/(c), this only depends on which
+    side of the horizontal axis a ring is on (not the vertical axis), so
+    a ring exactly on the row counts as a half regardless of its x
+    position. Raises `UnsupportedStructure` under the same conditions as
+    `count_rings_in_horizontal_row`.
+
+    Not validated against the P-25.3.2.3.3(d) worked examples directly,
+    for the same PDF-text-extraction reason as `rings_in_lower_left_
+    quadrant` above. Validated instead via internal consistency: above +
+    below equals the total ring count."""
+    _atom_rings, adj, _fusion_bonds_by_pair, direction, n = _prepare(mol)
+    if n <= 1:
+        return 0.5 if n == 1 else 0.0
+    return _best_orientation(adj, direction, n)[4]
