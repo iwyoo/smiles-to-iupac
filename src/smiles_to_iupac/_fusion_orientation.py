@@ -30,10 +30,9 @@ benzo[a]anthracene = 3, chrysene = 2 -- plus benzo[c]phenanthrene as a
 check specifically for the signed-turn distinction (see the chain-only
 version's history), and triphenylene = 2 as the first branching case,
 matching `_triphenylene_fusion.py`'s own documented finding that chrysene
-and triphenylene tie on every criterion up through (a) itself (the module
-docstring there: "Chrysene and triphenylene tie on every criterion through
-(f) ... down to (g)"), which is only possible if both compute the same row
-count.
+and triphenylene tie on criterion (a) itself (the module docstring there:
+"Chrysene and triphenylene tie on every criterion through (f) ... down to
+(g)"), which is only possible if both compute the same row count.
 
 Criterion (b) extends the same bond-direction data to actual 2D ring
 coordinates (`_ring_positions`), scaled so every position -- and every
@@ -56,17 +55,20 @@ phenanthrene's correct maximum (1.5) by luck, but undercounted
 tetraphene/benzo[a]anthracene (0.75 instead of the correct 1.75, caught
 by comparing against P-25.3.2.3.3(b)'s own second worked example, "3
 rings in horizontal row, 1<sup>3</sup>/<sub>4</sub> rings in upper right
-quadrant"). Chrysene and triphenylene still tie at 2.5 even after this
-fix (not just at criterion (a)'s 2), reinforcing (now on firmer footing
-than the earlier, unmaximized computation) `_triphenylene_fusion.py`'s
-existing guess that the two tie all the way through P-25.3.2.4's
-seniority list and fall to plain alphabetical order, rather than being
-decided by these quadrant criteria at all -- worth re-checking again once
-(c)/(d) exist, since if the tie really does persist through all four,
-chasing it further with (c)/(d) is the wrong next step for resolving
-*this specific* comparison (though (c)/(d) are still needed generally,
-for other ties and for a single structure's own preferred-orientation
-choice).
+quadrant"). Chrysene and triphenylene tie on criterion (a) (both 2), but
+NOT on (b): chrysene is 2.5, genuine triphenylene (PubChem CID 9170,
+InChIKey SLGBZMMZGDRARJ-UHFFFAOYSA-N; see
+`tests/test_fusion_orientation.py`'s `test_chrysene_beats_triphenylene_
+on_criterion_b`) is 1.5. This does NOT settle their P-25.3.2.4 seniority,
+though: (b) only picks a single preferred orientation for criterion (a)/
+(g) to read off (see `_triphenylene_fusion.py`'s own docstring for the
+actual seniority chain, which still ties through (g) and needs criterion
+(j) - a numbering rule, not implemented here). (An earlier draft of this
+docstring, and of `tests/test_fusion_orientation.py`, used a mislabeled
+"triphenylene" SMILES that was actually a linear 4-ring chain isomer with
+no branching at all, which happened to also give 2.5 for (b) -- caught
+while cross-checking real PubChem structures for issue #570; see that
+test's comment for the corrected SMILES and InChIKey.)
 
 Criteria (c) (minimum rings in the lower left quadrant) and (d) (maximum
 rings above the row) complete the cascade: `_best_orientation` filters the
@@ -75,11 +77,12 @@ order -- max (a), then max (b) among those, then min (c) among those,
 then max (d) among those -- and every public function in this module
 reports its own criterion's value for that one shared, fully-cascaded
 orientation (not each independently re-optimized in isolation, which
-would be wrong once more than one criterion is in play). Chrysene and
-triphenylene still tie all the way through (d) too (not just (a) and
-(b)), further reinforcing that their seniority is decided by plain
-alphabetical order further down P-25.3.2.4's list, not by any of these
-orientation criteria.
+would be wrong once more than one criterion is in play). None of (b)/(c)/
+(d) are themselves P-25.3.2.4 seniority-list entries (see above) -- they
+only fix which single orientation (a)/(g) is read from -- so they're
+exercised on triphenylene here purely as this module's own branched-graph
+regression coverage (`test_triphenylene_criteria_c_and_d`), not as
+tie-breakers for the chrysene comparison.
 
 **(c) and (d)'s own worked examples in the primary source are not
 reliable verification anchors** -- cross-checking them found an internal
