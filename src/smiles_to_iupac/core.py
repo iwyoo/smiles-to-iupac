@@ -105,6 +105,7 @@ from ._pyrene_fusion import has_pyrene_fusion_name, name_pyrene_fusion
 from ._chrysene_fusion import has_chrysene_fusion_name, name_chrysene_fusion
 from ._triphenylene_fusion import has_triphenylene_fusion_name, name_triphenylene_fusion
 from ._fluoranthene_fusion import has_fluoranthene_fusion_name, name_fluoranthene_fusion
+from ._aceanthrylene_fusion import has_aceanthrylene_fusion_name, name_aceanthrylene_fusion
 from ._hetero_monocyclic import (
     has_hetero_monocyclic_name,
     has_hetero_monocyclic_substituent_name,
@@ -466,6 +467,17 @@ def smiles_to_iupac(smiles: str) -> str:
     # -- routed here for the same reason as the checks above.
     if has_fluoranthene_fusion_name(mol):
         return name_fluoranthene_fusion(mol)
+
+    # benzo[d]aceanthrylene/benzo[e]aceanthrylene/benzo[j]aceanthrylene/
+    # benzo[k]aceanthrylene/benzo[l]aceanthrylene (same mechanism again,
+    # for aceanthrylene as the base component -- the third peri-fused
+    # base) -- routed here for the same reason as the checks above. The
+    # sixth structurally possible letter is the exact same compound as
+    # `_fluoranthene_fusion.py`'s own letter 'a'/'f' and is excluded from
+    # `has_aceanthrylene_fusion_name` itself to avoid a second route to
+    # it.
+    if has_aceanthrylene_fusion_name(mol):
+        return name_aceanthrylene_fusion(mol)
 
     # thieno[2,3-b]thiophene/furo[2,3-b]furan/thieno[2,3-b]furan etc.
     # (P-25.3.1.3's computed fusion-locant-letter mechanism, for two
