@@ -151,8 +151,7 @@ def test_phenyl_substituent_carboxylic_acid_directly_on_ring_is_benzoic_acid():
 
 
 def test_phenyl_substituent_carboxylic_acid_substituted_ring_ortho_methyl():
-    # A ring methyl substituent is now supported (see
-    # tasks/aromatic-ring-methyl-substituent.md) -- PubChem PUG
+    # A ring methyl substituent is now supported -- PubChem PUG
     # REST-verified "2-(2-methylphenyl)acetic acid".
     assert smiles_to_iupac("Cc1ccccc1CC(=O)O") == "2-(2-methylphenyl)ethanoic acid"
 
@@ -160,6 +159,45 @@ def test_phenyl_substituent_carboxylic_acid_substituted_ring_ortho_methyl():
 def test_phenyl_substituent_carboxylic_acid_naphthalene_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("c1ccc2ccccc2c1CC(=O)O")
+
+
+def test_pyridine_substituent_carboxylic_acid():
+    # A plain heteroaromatic monocycle (P-29.3.4.1) reuses the same
+    # phenyl-chain path as a plain benzene ring -- structure-matches
+    # PubChem CID 108 ("2-pyridin-3-ylacetic acid").
+    assert smiles_to_iupac("OC(=O)Cc1cccnc1") == "2-(pyridin-3-yl)ethanoic acid"
+
+
+def test_furan_substituent_carboxylic_acid():
+    # PubChem CID 75974 ("2-(furan-2-yl)acetic acid").
+    assert smiles_to_iupac("OC(=O)Cc1ccco1") == "2-(furan-2-yl)ethanoic acid"
+
+
+def test_thiophene_substituent_carboxylic_acid():
+    # PubChem CID 15970 ("2-thiophen-2-ylacetic acid").
+    assert smiles_to_iupac("OC(=O)Cc1cccs1") == "2-(thiophen-2-yl)ethanoic acid"
+
+
+def test_pyrrole_c_substituent_carboxylic_acid_cites_indicated_hydrogen():
+    # Attachment at a ring carbon leaves pyrrole's own N-H tautomer intact,
+    # so its indicated hydrogen must still be cited (P-25.7.1.3) -- PubChem
+    # CID 4220146 ("2-(1H-pyrrol-2-yl)acetic acid").
+    assert smiles_to_iupac("OC(=O)Cc1ccc[nH]1") == "2-(1H-pyrrol-2-yl)ethanoic acid"
+
+
+def test_pyrrole_n_substituent_carboxylic_acid_no_indicated_hydrogen():
+    # Attachment directly at the N-H position consumes that hydrogen
+    # itself, so no indicated-hydrogen citation is needed -- PubChem
+    # CID 242027 ("2-pyrrol-1-ylacetic acid").
+    assert smiles_to_iupac("OC(=O)Cn1cccc1") == "2-(pyrrol-1-yl)ethanoic acid"
+
+
+def test_heteroaromatic_substituent_carboxylic_acid_directly_on_ring_raises():
+    # A -COOH directly on a heteroaromatic ring (e.g. nicotinic acid) needs
+    # a different suffix construction than this chain-substituent path --
+    # out of scope for this step.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OC(=O)c1cccnc1")
 
 
 def test_phenyl_substituent_carboxylic_acid_ring_halogen():
