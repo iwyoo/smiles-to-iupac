@@ -72,14 +72,14 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    bfs,
     carbon_adjacency,
+    group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain,
+    longest_chains,
     lowest_locant_set,
     non_single_bonds,
-    path_between,
     ring_chain_attachment,
 )
 from ._numerals import alkane_name
@@ -208,35 +208,6 @@ def _validate_and_collect_imide(mol):
     return acyl1, acyl2
 
 
-def _longest_chains(graph):
-    nodes = list(graph)
-    distances = {}
-    parents = {}
-    for node in nodes:
-        dist, parent = bfs(graph, node)
-        distances[node] = dist
-        parents[node] = parent
-
-    diameter = max(d for dist in distances.values() for d in dist.values())
-    chains = []
-    seen = set()
-    for u in nodes:
-        for v, d in distances[u].items():
-            if d == diameter and (v, u) not in seen:
-                seen.add((u, v))
-                chains.append(path_between(parents[u], u, v))
-    return chains
-
-
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
-
-
 def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
@@ -248,7 +219,7 @@ def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
 
 
 def _candidate_key(substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc
@@ -279,7 +250,7 @@ def _best_branch(chains, graph, halogens, acyl_carbon, carbonyl_oxygen, excluded
         substituents = _substituents_for_chain(graph, candidate, halogens, excluded | {carbonyl_oxygen}, mol=mol)
         key = _candidate_key(substituents)
         if best_key is None or key < best_key:
-            best_key, best_grouped = key, _group(substituents)
+            best_key, best_grouped = key, group_substituents(substituents)
     return chain_length, best_grouped
 
 
@@ -420,7 +391,7 @@ def _phenyl_chain_grouped(graph, halogens, chain, branches, ring_atoms, mol=None
         position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms, mol=mol) for root in roots]
         for position, roots in branches.items()
     }
-    return _group(substituents)
+    return group_substituents(substituents)
 
 
 def _combine_symmetric_branches(length1, grouped1, length2, grouped2):
@@ -460,7 +431,7 @@ def name_imide(mol) -> str:
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     excluded = {imide_n}
-    chains = _longest_chains(carbon_adjacency(mol))
+    chains = longest_chains(carbon_adjacency(mol))
     length1, grouped1 = _best_branch(chains, graph, halogens, acyl1, carbonyl_o1, excluded, mol=mol)
     length2, grouped2 = _best_branch(chains, graph, halogens, acyl2, carbonyl_o2, excluded, mol=mol)
     return _combine_symmetric_branches(length1, grouped1, length2, grouped2)

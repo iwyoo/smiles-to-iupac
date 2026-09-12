@@ -81,18 +81,19 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    bfs,
     bond_locant,
     bond_locants,
     carbon_adjacency,
     elides_before,
+    group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain_through,
+    longest_chains,
     lowest_locant_set,
+    multiplied_word,
     non_single_bonds,
     ordered_chain,
-    path_between,
     ring_bond_locant,
     ring_bond_locants,
     ring_chain_attachment,
@@ -100,7 +101,7 @@ from ._common import (
     ring_cycle,
     specified_stereocenters,
 )
-from ._numerals import alkane_name, alkyl_name, numerical_term
+from ._numerals import alkane_name, alkyl_name
 from ._substituents import (
     alpha_sort_key,
     branch_atom_locant,
@@ -191,27 +192,13 @@ def _reject_enethiol_carbons(graph, thiols, bonds):
             )
 
 
-def _multiplied_word(count, base):
-    """P-16.3.3: a multiplying prefix's terminal 'a' is elided before a
-    suffix beginning with 'a' or 'o' (see `_common.py`'s `multiplied_word`
-    docstring for the confirmed examples this mirrors)."""
-    if count == 0:
-        return ""
-    if count == 1:
-        return base
-    prefix = numerical_term(count)
-    if prefix.endswith("a") and base[:1] in "ao":
-        prefix = prefix[:-1]
-    return prefix + base
-
-
 def _suffix_body(ene_locants, yne_locants, sh_locants):
     segments = []
     if ene_locants:
-        segments.append((sorted(ene_locants), _multiplied_word(len(ene_locants), "ene")))
+        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
     if yne_locants:
-        segments.append((sorted(yne_locants), _multiplied_word(len(yne_locants), "yne")))
-    segments.append((sorted(sh_locants), _multiplied_word(len(sh_locants), "thiol")))
+        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
+    segments.append((sorted(sh_locants), multiplied_word(len(sh_locants), "thiol")))
 
     words = [word for _, word in segments]
     for i in range(len(words) - 1):
@@ -225,15 +212,6 @@ def _suffix_body(ene_locants, yne_locants, sh_locants):
     return "-".join(parts)
 
 
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
-
-
 def _name_from_substituents(chain_length, sh_locants, ene_locants, yne_locants, grouped):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     has_unsaturation = bool(ene_locants or yne_locants)
@@ -241,7 +219,7 @@ def _name_from_substituents(chain_length, sh_locants, ene_locants, yne_locants, 
     if chain_length == 1:
         # P-14.3.4.2(a): a mononuclear parent's locants are always '1' and
         # never cited.
-        thiol_word = _multiplied_word(len(sh_locants), "thiol")
+        thiol_word = multiplied_word(len(sh_locants), "thiol")
         return format_substituent_prefixes(grouped, omit_locants=True) + alkane_name(1) + thiol_word
 
     if chain_length == 2 and not has_unsaturation and total_subs == 0 and len(sh_locants) == 1:
@@ -263,7 +241,7 @@ def _name_from_substituents(chain_length, sh_locants, ene_locants, yne_locants, 
 
 
 def _candidate_key(chain_length, sh_locants, ene_locants, yne_locants, substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     total_count = sum(len(info["locants"]) for info in grouped.values())
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -287,26 +265,6 @@ def _candidate_key(chain_length, sh_locants, ene_locants, yne_locants, substitue
         ),
         name,
     )
-
-
-def _longest_chains(graph):
-    nodes = list(graph)
-    distances = {}
-    parents = {}
-    for node in nodes:
-        dist, parent = bfs(graph, node)
-        distances[node] = dist
-        parents[node] = parent
-
-    diameter = max(d for dist in distances.values() for d in dist.values())
-    chains = []
-    seen = set()
-    for u in nodes:
-        for v, d in distances[u].items():
-            if d == diameter and (v, u) not in seen:
-                seen.add((u, v))
-                chains.append(path_between(parents[u], u, v))
-    return chains
 
 
 def _sh_locants(position_of, thiols, graph):
@@ -345,7 +303,7 @@ def _ring_name_from_substituents(ring_size, sh_locants, ene_locants, yne_locants
     total_subs = sum(len(info["locants"]) for info in grouped.values())
 
     if not has_unsaturation:
-        thiol_word = _multiplied_word(len(sh_locants), "thiol")
+        thiol_word = multiplied_word(len(sh_locants), "thiol")
         if total_subs == 0 and len(sh_locants) == 1:
             # P-14.3.3: the sole substituent on an otherwise unsubstituted
             # ring has no locant to distinguish, e.g. 'cyclohexanethiol'.
@@ -366,7 +324,7 @@ def _ring_name_from_substituents(ring_size, sh_locants, ene_locants, yne_locants
 
 
 def _ring_candidate_key(ring_size, sh_locants, ene_locants, yne_locants, substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc
@@ -472,14 +430,14 @@ def _benzenethiol_name_from_substituents(sh_locants, grouped):
     # e.g. '2-methylbenzenethiol' (PubChem CID 8712), not
     # '2-methylbenzene-1-thiol' -- mirrors `_sulfonic_acid.py`'s
     # identical 'benzenesulfonic acid' treatment.
-    thiol_word = _multiplied_word(len(sh_locants), "thiol")
+    thiol_word = multiplied_word(len(sh_locants), "thiol")
     if not grouped:
         return "benzene" + thiol_word
     return f"{format_substituent_prefixes(grouped)}benzene{thiol_word}"
 
 
 def _benzenethiol_candidate_key(sh_locants, substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc
@@ -813,10 +771,10 @@ def _name_acyclic_thiol(
     one with a coexisting ether's alkoxy-branch component already removed,
     since an ether oxygen (not itself a carbon) would otherwise leave that
     branch as a separate component that could wrongly outrank the real
-    thiol-bearing chain in `_longest_chains`' global-diameter search."""
+    thiol-bearing chain in `longest_chains`' global-diameter search."""
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **(extra_names or {})}
-    chains = _longest_chains(carbon_graph if carbon_graph is not None else carbon_adjacency(mol))
+    chains = longest_chains(carbon_graph if carbon_graph is not None else carbon_adjacency(mol))
     chain_length = len(chains[0])
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 

@@ -39,14 +39,14 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    bfs,
     carbon_adjacency,
+    group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain,
+    longest_chains,
     lowest_locant_set,
     non_single_bonds,
-    path_between,
     ring_chain_attachment,
 )
 from ._numerals import alkane_name
@@ -169,15 +169,6 @@ def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
     return aldehydes, ketones
 
 
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
-
-
 def _name_from_substituents(chain_length, grouped):
     prefix = format_substituent_prefixes(grouped)
     stem = alkane_name(chain_length)[:-1]
@@ -185,7 +176,7 @@ def _name_from_substituents(chain_length, grouped):
 
 
 def _candidate_key(chain_length, al_locant, substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc
@@ -194,26 +185,6 @@ def _candidate_key(chain_length, al_locant, substituents):
     )
     name = _name_from_substituents(chain_length, grouped)
     return (al_locant, locant_set, citation_locants, name), name
-
-
-def _longest_chains(graph):
-    nodes = list(graph)
-    distances = {}
-    parents = {}
-    for node in nodes:
-        dist, parent = bfs(graph, node)
-        distances[node] = dist
-        parents[node] = parent
-
-    diameter = max(d for dist in distances.values() for d in dist.values())
-    chains = []
-    seen = set()
-    for u in nodes:
-        for v, d in distances[u].items():
-            if d == diameter and (v, u) not in seen:
-                seen.add((u, v))
-                chains.append(path_between(parents[u], u, v))
-    return chains
 
 
 def _substituents_for_chain(graph, chain, names, aldehydes, ring_atoms=frozenset(), mol=None):
@@ -275,7 +246,7 @@ def _name_phenyl_chain_aldehyde_ketone(mol, ring_atoms):
 
     chain_length = len(chain)
     substituents = _substituents_for_chain(graph, chain, names, aldehydes, ring_atoms, mol=mol)
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     return _name_from_substituents(chain_length, grouped)
 
 
@@ -308,7 +279,7 @@ def name_aldehyde_ketone(mol) -> str:
     (aldehyde_o,) = aldehydes
     (aldehyde_carbon,) = graph[aldehyde_o]
     names = {**halogen_substituents(mol), **{o: "oxo" for o in ketones}}
-    chains = _longest_chains(carbon_adjacency(mol))
+    chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
 
     eligible = []

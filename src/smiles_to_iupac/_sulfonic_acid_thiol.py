@@ -42,6 +42,7 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
+    group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain_through,
@@ -192,15 +193,6 @@ def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
     return sulfonic_sulfur.GetIdx(), so3h_carbon.GetIdx(), thiol_idxs
 
 
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
-
-
 def _name_from_substituents(chain_length, so3h_locant, grouped):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
 
@@ -218,7 +210,7 @@ def _name_from_substituents(chain_length, so3h_locant, grouped):
 
 
 def _candidate_key(chain_length, so3h_locant, substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc

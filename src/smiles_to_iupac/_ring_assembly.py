@@ -27,9 +27,10 @@ rings (terphenyl etc.), or non-benzene ring assemblies are out of scope and
 fall through to `UnsupportedStructure` elsewhere in the dispatch chain.
 """
 
-from ._cyclic import _group, _ring_cycle
+from ._cyclic import _ring_cycle
 from ._common import (
     adjacency,
+    group_substituents,
     halogen_substituents,
     lowest_locant_set,
     validate_atoms_and_bonds,
@@ -90,7 +91,7 @@ def _candidate_key(locants, ring_atoms, graph, halogens, mol=None):
         if branch_roots:
             substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
 
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc

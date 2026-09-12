@@ -46,13 +46,14 @@ are separate functional groups).
 
 from rdkit import Chem
 
-from ._acyclic import _longest_chains
 from ._common import (
     UnsupportedStructure,
     adjacency,
     bfs,
     carbon_adjacency,
+    group_substituents,
     is_plain_benzene_ring,
+    longest_chains,
     lowest_locant_set,
     non_single_bonds,
     ring_chain_attachment,
@@ -175,15 +176,6 @@ def _substituents_for_chain(graph, chain, terminals, mol=None):
     return substituents
 
 
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
-
-
 def _name_from_substituents(chain_length, grouped):
     if chain_length == 1 and grouped:
         (name,) = grouped
@@ -217,7 +209,7 @@ def _name_from_substituents(chain_length, grouped):
 
 
 def _candidate_key(chain_length, substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     total_count = sum(len(info["locants"]) for info in grouped.values())
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -230,7 +222,7 @@ def _candidate_key(chain_length, substituents):
 
 
 def _name_parent_chain(full_graph, carbon_graph, terminals, mol=None):
-    chains = _longest_chains(carbon_graph)
+    chains = longest_chains(carbon_graph)
     chain_length = len(chains[0])
 
     best_key = None

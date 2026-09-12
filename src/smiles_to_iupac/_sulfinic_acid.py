@@ -81,17 +81,18 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    bfs,
     bond_locant,
     bond_locants,
     carbon_adjacency,
     elides_before,
+    group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain_through,
+    longest_chains,
     lowest_locant_set,
+    multiplied_word,
     non_single_bonds,
-    path_between,
     ring_bond_locant,
     ring_bond_locants,
     ring_chain_attachment,
@@ -99,7 +100,7 @@ from ._common import (
     ring_cycle,
     specified_stereocenters,
 )
-from ._numerals import alkane_name, alkyl_name, numerical_term
+from ._numerals import alkane_name, alkyl_name
 from ._substituents import (
     alpha_sort_key,
     format_substituent_prefixes,
@@ -211,26 +212,12 @@ def _reject_enesulfinic_carbon(graph, so2h_carbon, bonds):
         )
 
 
-def _multiplied_word(count, base):
-    """P-16.3.3: a multiplying prefix's terminal 'a' is elided before a
-    suffix beginning with 'a' or 'o' (see `_common.py`'s `multiplied_word`
-    docstring for the confirmed examples this mirrors)."""
-    if count == 0:
-        return ""
-    if count == 1:
-        return base
-    prefix = numerical_term(count)
-    if prefix.endswith("a") and base[:1] in "ao":
-        prefix = prefix[:-1]
-    return prefix + base
-
-
 def _suffix_body(ene_locants, yne_locants, so2h_locant):
     segments = []
     if ene_locants:
-        segments.append((sorted(ene_locants), _multiplied_word(len(ene_locants), "ene")))
+        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
     if yne_locants:
-        segments.append((sorted(yne_locants), _multiplied_word(len(yne_locants), "yne")))
+        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
     segments.append(([so2h_locant], "sulfinic acid"))
 
     words = [word for _, word in segments]
@@ -243,15 +230,6 @@ def _suffix_body(ene_locants, yne_locants, so2h_locant):
         for (locants, _), word in zip(segments, words)
     ]
     return "-".join(parts)
-
-
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
 
 
 def _name_from_substituents(chain_length, so2h_locant, ene_locants, yne_locants, grouped):
@@ -282,7 +260,7 @@ def _name_from_substituents(chain_length, so2h_locant, ene_locants, yne_locants,
 
 
 def _candidate_key(chain_length, so2h_locant, ene_locants, yne_locants, substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     total_count = sum(len(info["locants"]) for info in grouped.values())
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -305,26 +283,6 @@ def _candidate_key(chain_length, so2h_locant, ene_locants, yne_locants, substitu
         ),
         name,
     )
-
-
-def _longest_chains(graph):
-    nodes = list(graph)
-    distances = {}
-    parents = {}
-    for node in nodes:
-        dist, parent = bfs(graph, node)
-        distances[node] = dist
-        parents[node] = parent
-
-    diameter = max(d for dist in distances.values() for d in dist.values())
-    chains = []
-    seen = set()
-    for u in nodes:
-        for v, d in distances[u].items():
-            if d == diameter and (v, u) not in seen:
-                seen.add((u, v))
-                chains.append(path_between(parents[u], u, v))
-    return chains
 
 
 def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
@@ -372,7 +330,7 @@ def _ring_name_from_substituents(ring_size, so2h_locant, ene_locants, yne_locant
 
 
 def _ring_candidate_key(ring_size, so2h_locant, ene_locants, yne_locants, substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc
@@ -427,7 +385,7 @@ def _benzenesulfinic_acid_name_from_substituents(grouped):
 
 
 def _benzenesulfinic_acid_candidate_key(so2h_locant, substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc
@@ -651,7 +609,7 @@ def name_sulfinic_acid(mol) -> str:
 
     halogens = halogen_substituents(mol)
     excluded = {sulfur_idx}
-    chains = _longest_chains(carbon_adjacency(mol))
+    chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
 
     eligible = []

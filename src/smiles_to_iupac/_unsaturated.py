@@ -95,45 +95,24 @@ molecule), and unsaturation in a ring, are out of scope and raise
 from ._common import (
     UnsupportedStructure,
     adjacency,
-    bfs,
     bond_locant,
     bond_locants,
     carbon_adjacency,
+    group_substituents,
     halogen_substituents,
+    longest_chains,
     lowest_locant_set,
+    multiplied_word,
     non_single_bonds,
-    path_between,
     specified_double_bond_stereo,
     validate_atoms_and_bonds,
 )
-from ._numerals import alkane_name, numerical_term
+from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _ENE_ORDER = 2.0
 _YNE_ORDER = 3.0
 _VALID_ORDERS = (_ENE_ORDER, _YNE_ORDER)
-
-
-def _longest_chains(graph):
-    """All maximum-length simple paths in the tree (P-44.3.2: greater number
-    of skeletal atoms)."""
-    nodes = list(graph)
-    distances = {}
-    parents = {}
-    for node in nodes:
-        dist, parent = bfs(graph, node)
-        distances[node] = dist
-        parents[node] = parent
-
-    diameter = max(d for dist in distances.values() for d in dist.values())
-    chains = []
-    seen = set()
-    for u in nodes:
-        for v, d in distances[u].items():
-            if d == diameter and (v, u) not in seen:
-                seen.add((u, v))
-                chains.append(path_between(parents[u], u, v))
-    return chains
 
 
 def _substituents_for_chain(graph, chain, halogens, mol=None):
@@ -147,31 +126,6 @@ def _substituents_for_chain(graph, chain, halogens, mol=None):
             continue
         substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
-
-
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
-
-
-def _multiplied_word(count, base):
-    """P-31.1.1.2: 'ene'/'yne' with a multiplying prefix ('di', 'tri', ...)
-    for two or more bonds of the same kind; bare 'ene'/'yne' for exactly
-    one; '' for none. P-16.3.3: a multiplying prefix's terminal 'a' is
-    elided before a suffix beginning with 'a' or 'o' (see `_common.py`'s
-    `multiplied_word` docstring for the confirmed examples this mirrors)."""
-    if count == 0:
-        return ""
-    if count == 1:
-        return base
-    prefix = numerical_term(count)
-    if prefix.endswith("a") and base[:1] in "ao":
-        prefix = prefix[:-1]
-    return prefix + base
 
 
 def _unsaturation_suffix(ene_locants, yne_locants):
@@ -189,8 +143,8 @@ def _unsaturation_suffix(ene_locants, yne_locants):
     ene_locants = sorted(ene_locants)
     yne_locants = sorted(yne_locants)
     ene_count, yne_count = len(ene_locants), len(yne_locants)
-    ene_word = _multiplied_word(ene_count, "ene")
-    yne_word = _multiplied_word(yne_count, "yne")
+    ene_word = multiplied_word(ene_count, "ene")
+    yne_word = multiplied_word(yne_count, "yne")
 
     if ene_count and yne_count:
         ene_part = ene_word[:-1]
@@ -242,7 +196,7 @@ def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped):
 def _candidate_key(chain_length, ene_locants, yne_locants, substituents):
     """Sort key implementing P-14.4(e)/P-44.4.1.10 then P-45.2.1-P-45.2.3,
     most-preferred first."""
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     total_count = sum(len(info["locants"]) for info in grouped.values())
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -296,7 +250,7 @@ def name_acyclic_unsaturated(mol) -> str:
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    chains = _longest_chains(carbon_adjacency(mol))
+    chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
 
     # P-44.3.2 / P-44.4.1.1: among the longest chains, only those containing

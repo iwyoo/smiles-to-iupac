@@ -28,39 +28,17 @@ mirroring `_ether.py`'s pattern.
 from ._common import (
     UnsupportedStructure,
     adjacency,
-    bfs,
     carbon_adjacency,
+    group_substituents,
     halogen_substituents,
+    longest_chains,
     lowest_locant_set,
     non_single_bonds,
-    path_between,
     specified_stereocenters,
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
-
-
-def _longest_chains(graph):
-    """All maximum-length simple paths in the tree (P-44.3.2: greater number of
-    skeletal atoms)."""
-    nodes = list(graph)
-    distances = {}
-    parents = {}
-    for node in nodes:
-        dist, parent = bfs(graph, node)
-        distances[node] = dist
-        parents[node] = parent
-
-    diameter = max(d for dist in distances.values() for d in dist.values())
-    chains = []
-    seen = set()
-    for u in nodes:
-        for v, d in distances[u].items():
-            if d == diameter and (v, u) not in seen:
-                seen.add((u, v))
-                chains.append(path_between(parents[u], u, v))
-    return chains
 
 
 def _substituents_for_chain(graph, chain, halogens, mol=None):
@@ -74,15 +52,6 @@ def _substituents_for_chain(graph, chain, halogens, mol=None):
             continue
         substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
     return substituents
-
-
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
 
 
 def _name_from_substituents(chain_length, grouped):
@@ -107,7 +76,7 @@ def _name_from_substituents(chain_length, grouped):
 
 def _candidate_key(chain_length, substituents):
     """Sort key implementing P-45.2.1-P-45.2.3, most-preferred first."""
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     total_count = sum(len(info["locants"]) for info in grouped.values())
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -135,14 +104,14 @@ def longest_chain_length(carbon_graph) -> int:
     '1-(2,2-dimethylpropoxy)-3-methylbutane' picks the isopentyl side as
     parent on this basis alone, before any locant-set comparison is even
     needed)."""
-    return len(_longest_chains(carbon_graph)[0])
+    return len(longest_chains(carbon_graph)[0])
 
 
 def _best_candidate(full_graph, carbon_graph, terminals, mol=None):
     """Shared search behind `winning_chain_from_carbon_graph` and
     `winning_chain_with_key`: every candidate chain/direction's P-45.2 sort
     key, alongside the winning chain and name."""
-    chains = _longest_chains(carbon_graph)
+    chains = longest_chains(carbon_graph)
     chain_length = len(chains[0])
 
     best_key = None

@@ -50,8 +50,8 @@ from itertools import product
 
 from rdkit import Chem
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents, lowest_locant_set, non_single_bonds
-from ._cyclic import _group, _substituents_for_ring
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_substituents, halogen_substituents, lowest_locant_set, non_single_bonds
+from ._cyclic import _substituents_for_ring
 from ._numerals import alkane_name, numerical_term
 from ._polyspiro import _arc_choice_options, _build_sequence, _chain_direction_candidates
 from ._substituents import alpha_sort_key, format_substituent_prefixes
@@ -82,7 +82,7 @@ def has_single_ring_heteroatom_shape(mol, chain) -> bool:
 
 
 def _candidate_key(parent, spiro_locants, descriptor, heteroatom_locant, substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc

@@ -34,13 +34,14 @@ from ._common import (
     adjacency,
     bfs,
     carbon_adjacency,
+    group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     linear_branch,
     longest_branched_chain,
+    longest_chains,
     lowest_locant_set,
     non_single_bonds,
-    path_between,
     ring_chain_attachment,
 )
 from ._numerals import alkane_name, alkyl_name
@@ -193,15 +194,6 @@ def _name_alcohol_part(mol, alcohol_carbon, ester_oxygen_idx):
     return alkyl_name(length)
 
 
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
-
-
 def _name_from_substituents(chain_length, grouped):
     prefix = format_substituent_prefixes(grouped)
     stem = alkane_name(chain_length)[:-1]
@@ -225,26 +217,6 @@ def _component_subgraph(graph, start):
     return {node: [n for n in graph[node] if n in nodes] for node in nodes}
 
 
-def _longest_chains(graph):
-    nodes = list(graph)
-    distances = {}
-    parents = {}
-    for node in nodes:
-        dist, parent = bfs(graph, node)
-        distances[node] = dist
-        parents[node] = parent
-
-    diameter = max(d for dist in distances.values() for d in dist.values())
-    chains = []
-    seen = set()
-    for u in nodes:
-        for v, d in distances[u].items():
-            if d == diameter and (v, u) not in seen:
-                seen.add((u, v))
-                chains.append(path_between(parents[u], u, v))
-    return chains
-
-
 def _substituents_for_chain(graph, chain, names, excluded_oxygens, ring_atoms=frozenset(), mol=None):
     chain_set = set(chain)
     substituents = {}
@@ -265,7 +237,7 @@ def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, ket
     excluded_oxygens = {carbonyl_oxygen_idx, ester_oxygen_idx}
 
     acyl_graph = _component_subgraph(carbon_graph, acyl_carbon_idx)
-    chains = _longest_chains(acyl_graph)
+    chains = longest_chains(acyl_graph)
     chain_length = len(chains[0])
 
     eligible = []
@@ -291,7 +263,7 @@ def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, ket
                 # never valid.
                 continue
             substituents = _substituents_for_chain(full_graph, candidate, names, excluded_oxygens, mol=mol)
-            grouped = _group(substituents)
+            grouped = group_substituents(substituents)
             key, name = _candidate_key(chain_length, grouped)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
@@ -309,7 +281,7 @@ def _name_phenyl_chain_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_ox
     otherwise-plain, unsubstituted benzene ring -- e.g.
     'methyl 3-oxo-4-phenylbutanoate'. Mirrors `_name_acyl_part` above but
     routes the acyl chain through `ring_chain_attachment` instead of
-    `_longest_chains`, the same way `_aldehyde_ketone.py`'s
+    `longest_chains`, the same way `_aldehyde_ketone.py`'s
     `_name_phenyl_chain_aldehyde_ketone` extends its own chain-terminus
     acyl search."""
     full_graph = adjacency(mol)
@@ -339,7 +311,7 @@ def _name_phenyl_chain_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_ox
 
     chain_length = len(chain)
     substituents = _substituents_for_chain(full_graph, chain, names, excluded_oxygens, ring_atoms, mol=mol)
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     return _name_from_substituents(chain_length, grouped)
 
 
