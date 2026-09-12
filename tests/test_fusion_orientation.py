@@ -106,6 +106,17 @@ def test_naphthalene_criterion_b_half_ring():
     assert rings_in_upper_right_quadrant(mol) == 0.5
 
 
+def test_tetraphene_criterion_b_needs_orientation_search():
+    # P-25.3.2.3.3(b)'s second worked example: "3 rings in horizontal row,
+    # 1 3/4 rings in upper right quadrant" - this is tetraphene/
+    # benzo[a]anthracene. An earlier version of this function picked one
+    # arbitrary candidate orientation instead of searching all of them and
+    # got 0.75 for this molecule (still correct for phenanthrene, only by
+    # luck) - this is the asymmetric case that catches that gap.
+    mol = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=CC4=CC=CC=C4C=C32")
+    assert rings_in_upper_right_quadrant(mol) == 1.75
+
+
 def test_chrysene_and_triphenylene_tie_on_criterion_b_too():
     # `_triphenylene_fusion.py`'s own docstring already guesses chrysene
     # and triphenylene tie all the way down P-25.3.2.4's seniority list
