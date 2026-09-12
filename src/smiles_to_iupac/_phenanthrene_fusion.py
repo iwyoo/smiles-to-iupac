@@ -1,9 +1,8 @@
 """Fusion-locant-letter naming for a plain benzo ring ortho-fused onto
-phenanthrene, at the one periphery bond that doesn't touch a ring-fusion
-carbon and doesn't collide with an already-recognized retained name
-(P-25.3.1.3, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf) -- mirroring
-`_anthracene_fusion.py`'s identical mechanism for anthracene, the other
-tricyclic all-carbon base component.
+phenanthrene, at the periphery bonds that don't touch a ring-fusion
+carbon (P-25.3.1.3, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf) --
+mirroring `_anthracene_fusion.py`'s identical mechanism for anthracene,
+the other tricyclic all-carbon base component.
 
 Phenanthrene's own numbering (P-25.3.3, 1,2,3,4,4a,4b,5,6,7,8,8a,9,10,10a)
 gives P-25.3.1.3's continuous peripheral lettering as: a(1,2), b(2,3),
@@ -13,22 +12,23 @@ ring-fusion atom (4a, 4b, 8a, 10a) -- a, b, c, g, h, i, l -- phenanthrene's
 own mirror symmetry (ring A <-> ring C) makes g/h/i the same compound as
 c/b/a respectively (already found automatically by trying every
 substructure-match automorphism, same as `_anthracene_fusion.py`), so
-only three *distinct* shapes are possible: 'a' (chrysene, CID 9171 --
-already a retained name, not yet implemented anywhere in this project),
+only three *distinct* shapes are possible: 'a' (chrysene, PubChem CID
+9171 -- confirmed by building the fused structure and matching InChI --
+a retained name, cited as such rather than as "benzo[a]phenanthrene"),
 'b' (benzo[a]anthracene, CID 5954 -- the exact same compound
 `_anthracene_fusion.py` already names via anthracene as the base
-component instead), and 'l' (triphenylene, CID 9170 -- already a
-retained name, `_branched_fused_aromatic.py`). All three are excluded
-here so this module claims only the one genuinely new name it adds:
+component instead, so excluded here to avoid a second, redundant route to
+it), and 'l' (triphenylene, CID 9170 -- already a retained name,
+`_branched_fused_aromatic.py`, excluded here for the same reason). So
+this module claims 'chrysene' and the one genuinely new systematic name,
 'benzo[c]phenanthrene' (PubChem CID 9136).
 
 Scope, deliberately narrow, matching `_anthracene_fusion.py`: exactly one
-plain, unsubstituted benzo ring ortho-fused onto phenanthrene at the 'c'
-bond (3,4). Explicitly out of scope (raise `UnsupportedStructure`):
+plain, unsubstituted benzo ring ortho-fused onto phenanthrene at the 'a'
+or 'c' bond. Explicitly out of scope (raise `UnsupportedStructure`):
 - Fusion at any bond touching a ring-fusion atom (a peri-fused system,
-  different citation mechanism), or the 'a'/'b'/'l' shapes above (all
-  three either not yet implemented as a retained name, or already
-  produced via a different base component).
+  different citation mechanism), or the 'b'/'l' shapes above (both
+  already produced via a different, more senior base component).
 - Any substituent, any heteroatom anywhere, or more than one extra ring.
 """
 
@@ -46,7 +46,8 @@ _LETTER_BY_PAIR = {
     frozenset({7, 8}): "i",
     frozenset({4, 5}): "l",
 }
-_EXCLUDED_LETTERS = {"a", "b", "l"}
+_EXCLUDED_LETTERS = {"b", "l"}
+_RETAINED_NAME_BY_LETTER = {"a": "chrysene"}
 
 
 def _find_letter(mol):
@@ -109,4 +110,7 @@ def name_phenanthrene_fusion(mol) -> str:
             "this tetracyclic system is not a supported benzo-fused "
             "phenanthrene shape (see P-25.3.1.3)"
         )
+    retained_name = _RETAINED_NAME_BY_LETTER.get(letter)
+    if retained_name is not None:
+        return retained_name
     return f"benzo[{letter}]phenanthrene"
