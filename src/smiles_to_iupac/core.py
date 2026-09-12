@@ -122,6 +122,10 @@ from ._hetero_monocyclic import (
     name_hetero_monocyclic,
     name_hetero_monocyclic_substituent,
 )
+from ._bridgehead_heteroatom_fusion import (
+    has_bridgehead_heteroatom_fusion_name,
+    name_bridgehead_heteroatom_fusion,
+)
 from ._hydroxylamine import has_hydroxylamine_shape, name_hydroxylamine
 from ._imine import has_simple_imine_shape, name_imine
 from ._isotope import has_isotope_shape, name_isotope
@@ -571,6 +575,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # here before `_hetero_monocyclic.py` below, same reason as above.
     if has_pyridine_heterocycle_fusion_name(mol):
         return name_pyridine_heterocycle_fusion(mol)
+
+    # imidazo[1,2-a]pyridine/imidazo[2,1-b]thiazole etc. (P-25.3.2.5.1's
+    # bridgehead-heteroatom fusion -- the shared fusion atom is itself a
+    # nitrogen common to both components) -- also routed here before
+    # `_hetero_monocyclic.py` below, same reason as above.
+    if has_bridgehead_heteroatom_fusion_name(mol):
+        return name_bridgehead_heteroatom_fusion(mol)
 
     # oxirane/thiane/piperidine etc. (P-22.2.1's Hantzsch-Widman
     # saturated-monocyclic retained names) are recognized the same way --
