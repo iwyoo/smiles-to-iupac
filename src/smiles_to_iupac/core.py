@@ -443,12 +443,11 @@ def smiles_to_iupac(smiles: str) -> str:
     if has_pyrene_fusion_name(mol):
         return name_pyrene_fusion(mol)
 
-    # benzo[b]chrysene/benzo[c]chrysene/benzo[g]chrysene (same mechanism
-    # again, for chrysene as the base component -- chrysene itself is
-    # `_phenanthrene_fusion.py`'s letter 'a') -- routed here for the same
-    # reason as the checks above. The fourth structurally possible letter
-    # is picene, a retained name, and is excluded from
-    # `has_chrysene_fusion_name` itself.
+    # benzo[b]chrysene/benzo[c]chrysene/benzo[g]chrysene/picene (same
+    # mechanism again, for chrysene as the base component -- chrysene
+    # itself is `_phenanthrene_fusion.py`'s letter 'a'; picene is this
+    # module's own letter 'a') -- routed here for the same reason as the
+    # checks above.
     if has_chrysene_fusion_name(mol):
         return name_chrysene_fusion(mol)
 

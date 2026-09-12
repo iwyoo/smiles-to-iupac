@@ -25,20 +25,21 @@ q(12,12a), r(12a,1). Of the eight bonds not touching a ring-fusion atom
 (4a, 4b, 6a, 10a, 10b, 12a) -- a, b, c, g, j, k, l, p -- the C2 symmetry
 above collapses these to four distinct shapes: {a, j} (picene, PubChem
 CID 9162 -- confirmed by building the fused structure and matching
-InChI -- a retained name, excluded here), {b, k}, {c, l}, and {g, p}.
-The latter three don't match any retained name or existing PubChem
-common name (each resolves, by direct PubChem structure lookup, only to
-a von Baeyer-style systematic name -- CIDs 9163/9135/9140 respectively
--- confirming they're real, registered compounds without their own
+InChI against PubChem's own -- a retained name, cited as such rather
+than as "benzo[a]chrysene"), {b, k}, {c, l}, and {g, p}. The latter
+three don't match any retained name or existing PubChem common name
+(each resolves, by direct PubChem structure lookup, only to a von
+Baeyer-style systematic name -- CIDs 9163/9135/9140 respectively --
+confirming they're real, registered compounds without their own
 trivial name), so all three are supported here as
 'benzo[b]chrysene'/'benzo[c]chrysene'/'benzo[g]chrysene'.
 
 Scope, deliberately narrow, matching the sibling fusion modules: exactly
 one plain, unsubstituted benzo ring ortho-fused onto chrysene at the
-'b', 'c', or 'g' bond. Explicitly out of scope (raise
+'a', 'b', 'c', or 'g' bond. Explicitly out of scope (raise
 `UnsupportedStructure`):
 - Fusion at any bond touching a ring-fusion atom (a peri-fused system,
-  different citation mechanism), or the 'a'/picene shape above.
+  different citation mechanism).
 - Any substituent, any heteroatom anywhere, or more than one extra ring.
 """
 
@@ -58,7 +59,8 @@ _LETTER_BY_PAIR = {
     frozenset({15, 16}): "l",
     frozenset({7, 6}): "p",
 }
-_EXCLUDED_LETTERS = {"a"}
+_EXCLUDED_LETTERS = set()
+_RETAINED_NAME_BY_LETTER = {"a": "picene"}
 
 
 def _find_core(mol):
@@ -76,4 +78,7 @@ def name_chrysene_fusion(mol) -> str:
             "this pentacyclic system is not a supported benzo-fused "
             "chrysene shape (see P-25.3.1.3)"
         )
+    retained_name = _RETAINED_NAME_BY_LETTER.get(letter)
+    if retained_name is not None:
+        return retained_name
     return f"benzo[{letter}]chrysene"
