@@ -193,6 +193,73 @@ def is_plain_benzene_ring(mol, ring_atoms):
     )
 
 
+_HETEROAROMATIC_MONOCYCLE_NAMES = {
+    (6, 7): "pyridine",
+    (5, 8): "furan",
+    (5, 16): "thiophene",
+    (5, 7): "pyrrole",
+}
+
+
+def heteroaromatic_monocycle_name(mol, ring_order):
+    """Parent hydride name if `ring_order` (an ordered ring walk, e.g. from
+    `ring_cycle`) is a plain, fully aromatic 5- or 6-membered monocycle
+    with exactly one heteroatom matching one of the four simple
+    heteroaromatic monocycles this project names as a "-yl" substituent
+    prefix -- pyridine, furan, thiophene, or pyrrole (P-29.3.4.1) -- else
+    None. Composition only (no charges/isotopes, exactly one heteroatom,
+    the rest aromatic carbon); doesn't check for a single exocyclic
+    attachment point itself -- see `ring_chain_attachment` for that."""
+    n = len(ring_order)
+    if n not in (5, 6):
+        return None
+    if any(
+        mol.GetAtomWithIdx(idx).GetFormalCharge() != 0 or mol.GetAtomWithIdx(idx).GetIsotope() != 0
+        for idx in ring_order
+    ):
+        return None
+    if not all(mol.GetAtomWithIdx(idx).GetIsAromatic() for idx in ring_order):
+        return None
+    heteroatoms = [idx for idx in ring_order if mol.GetAtomWithIdx(idx).GetAtomicNum() != 6]
+    if len(heteroatoms) != 1:
+        return None
+    (heteroatom,) = heteroatoms
+    return _HETEROAROMATIC_MONOCYCLE_NAMES.get((n, mol.GetAtomWithIdx(heteroatom).GetAtomicNum()))
+
+
+def heteroaromatic_monocycle_yl_name(mol, ring_order, attachment_atom):
+    """"-yl" substituent name (e.g. "pyridin-3-yl", "1H-pyrrol-2-yl") for a
+    plain heteroaromatic monocycle recognized by
+    `heteroaromatic_monocycle_name`, with the free valence at
+    `attachment_atom` -- the heteroatom is fixed at locant 1 (its own
+    established parent-hydride numbering), and `attachment_atom` gets
+    whichever of the two ring-walk directions gives it the lower locant
+    (P-29.3.4.1's own worked example, "pyridin-2-yl"). Pyrrole's own name
+    always cites its indicated hydrogen ("1H-pyrrole" is itself the
+    correct parent name, P-25.7.1.3) except when the substitution is
+    directly at that N-H position, which consumes it instead (plain
+    "pyrrol-1-yl", no citation needed, mirroring
+    `_pyridine_heterocycle_fusion.py`'s identical `GetTotalNumHs() > 0`
+    heuristic for the same tautomer distinction); pyridine/furan/thiophene
+    never need this, since their heteroatom carries no H to begin with.
+    Returns None if `ring_order` isn't one of the four recognized rings."""
+    name = heteroaromatic_monocycle_name(mol, ring_order)
+    if name is None:
+        return None
+    n = len(ring_order)
+    (heteroatom,) = [idx for idx in ring_order if mol.GetAtomWithIdx(idx).GetAtomicNum() != 6]
+    start = ring_order.index(heteroatom)
+    target = ring_order.index(attachment_atom)
+    forward = (target - start) % n
+    backward = (start - target) % n
+    locant = min(forward, backward) + 1
+    stem = name[:-1] if name.endswith("e") else name
+    indicated_hydrogen = ""
+    if attachment_atom != heteroatom and mol.GetAtomWithIdx(heteroatom).GetTotalNumHs() > 0:
+        indicated_hydrogen = "1H-"
+    return f"{indicated_hydrogen}{stem}-{locant}-yl"
+
+
 def plain_phenyl_substituent_atoms(mol, graph, roots):
     """Union of ring atoms for every plain, unsubstituted benzene ring in
     `mol` that hangs directly off one of `roots` with no other exocyclic

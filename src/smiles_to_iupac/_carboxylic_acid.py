@@ -109,6 +109,7 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    heteroaromatic_monocycle_name,
     is_plain_benzene_ring,
     longest_branched_chain,
     longest_chains,
@@ -165,11 +166,13 @@ def _validate_and_collect_carboxyls(mol, aromatic_ring_atoms=frozenset(), extra_
 
     `aromatic_ring_atoms`: atom indices already independently verified
     (by the caller, before this function runs) to form a single plain
-    benzene ring with exactly one exocyclic attachment -- exempted from
-    the aromatic-atom rejection below so `name_carboxylic_acid`'s
-    benzene-ring-substituent path (see `_name_phenyl_chain_carboxylic_acid`)
-    can reuse this same validation for the rest of the molecule. Empty by
-    default, so every other caller's behavior is unchanged.
+    benzene or heteroaromatic-monocycle ring (P-29.3.4.1) with exactly one
+    exocyclic attachment -- exempted from both the atomic-number allowlist
+    and the aromatic-atom rejection below (including the ring's own
+    heteroatom, if it has one) so `name_carboxylic_acid`'s ring-substituent
+    path (see `_name_phenyl_chain_carboxylic_acid`) can reuse this same
+    validation for the rest of the molecule. Empty by default, so every
+    other caller's behavior is unchanged.
 
     `extra_accounted_atoms`: atom indices a coexisting-group pairwise
     module (e.g. `_carboxylic_acid_sulfinic_acid.py`) has already
@@ -185,13 +188,15 @@ def _validate_and_collect_carboxyls(mol, aromatic_ring_atoms=frozenset(), extra_
         if atom.GetIdx() in extra_accounted_atoms:
             continue
         atomic_num = atom.GetAtomicNum()
-        if atomic_num not in _ALLOWED_ATOMIC_NUMS:
+        if atomic_num not in _ALLOWED_ATOMIC_NUMS and atom.GetIdx() not in aromatic_ring_atoms:
             raise UnsupportedStructure(
                 "heteroatoms other than carboxylic-acid oxygens (P-65.1.1) "
                 "and halogen substituents (P-35.2.1) are not supported yet"
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+        if atom.GetIdx() in aromatic_ring_atoms and atomic_num != 6:
+            continue
         if atomic_num == 6:
             has_carbon = True
             if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
@@ -457,25 +462,28 @@ def _name_phenyl_chain_carboxylic_acid(
     mol, ring_atoms, extra_names=None, required_atoms=frozenset(), extra_accounted_atoms=frozenset()
 ):
     """Name a carboxylic acid whose -COOH lies on a chain hanging off one
-    atom of a benzene ring -- e.g. 2-phenylethanoic acid. The ring is
-    cited as a 'phenyl' (or, if the ring's other atoms each carry a
-    single halogen/alkyl substituent, e.g. '4-chlorophenyl') substituent
-    prefix (via `name_branch`'s aromatic-ring recognition) on the chain,
-    which is the parent hydride, mirroring `_alcohol.py`'s
-    `_name_ring_substituent_chain_alcohol` for a plain saturated ring.
-    The chain itself may branch (`longest_branched_chain` picks one of
-    the longest chains containing the -COOH carbon, per P-44.3.2,
-    absorbing a branch into the parent chain whenever that makes it
-    longer) -- e.g. ibuprofen's alpha-methyl becomes part of 'propanoic
+    atom of a benzene or plain heteroaromatic-monocycle ring (pyridine/
+    furan/thiophene/pyrrole, P-29.3.4.1) -- e.g. 2-phenylethanoic acid, or
+    2-(pyridin-3-yl)acetic acid (PubChem CID 108). The ring is cited as a
+    'phenyl'/'pyridin-3-yl'/etc. (or, for a plain benzene ring whose other
+    atoms each carry a single halogen/alkyl substituent, e.g.
+    '4-chlorophenyl') substituent prefix (via `name_branch`'s aromatic-ring
+    recognition) on the chain, which is the parent hydride, mirroring
+    `_alcohol.py`'s `_name_ring_substituent_chain_alcohol` for a plain
+    saturated ring. The chain itself may branch (`longest_branched_chain`
+    picks one of the longest chains containing the -COOH carbon, per
+    P-44.3.2, absorbing a branch into the parent chain whenever that makes
+    it longer) -- e.g. ibuprofen's alpha-methyl becomes part of 'propanoic
     acid' rather than a substituent on a shorter 'ethanoic acid'
     (`CC(C)Cc1ccc(cc1)C(C)C(=O)O` -> '2-[4-(2-methylpropyl)phenyl]
     propanoic acid', PubChem CID 3672). Narrower than the acyclic path
     above: exactly one -COOH, no coexisting standalone hydroxyl, no
-    chain unsaturation, no specified stereocenter, and no non-halogen/
-    non-alkyl ring substituent alongside the chain -- each is a separate
-    follow-up (see
-    `tasks/phenyl-substituent-on-carboxylic-acid-chain.md`'s scope note)
-    rather than being combined with the ring case in this first slice.
+    chain unsaturation, no specified stereocenter, and (for a plain
+    benzene ring) no non-halogen/non-alkyl ring substituent alongside the
+    chain (a substituent on the heteroaromatic ring's own other atoms is
+    out of scope for now, same restriction) -- each is a separate
+    follow-up rather than being combined with the ring case in this first
+    slice.
 
     `extra_names`/`required_atoms`/`extra_accounted_atoms`: same injection
     point as `_name_acyclic_carboxylic_acid`
@@ -817,6 +825,14 @@ def name_carboxylic_acid(mol) -> str:
         if is_plain_benzene_ring(mol, ring_atoms):
             if _has_carboxyl_directly_on_ring(mol, ring_atoms):
                 return _name_benzoic_acid(mol, ring_atoms)
+            return _name_phenyl_chain_carboxylic_acid(mol, ring_atoms)
+        if heteroaromatic_monocycle_name(mol, ring_cycle(adjacency(mol), list(ring_atoms))) is not None:
+            if _has_carboxyl_directly_on_ring(mol, ring_atoms):
+                raise UnsupportedStructure(
+                    "a -COOH group directly on a heteroaromatic ring uses "
+                    "a different suffix-naming construction, out of scope "
+                    "for this module's chain-substituent path"
+                )
             return _name_phenyl_chain_carboxylic_acid(mol, ring_atoms)
         if not any(mol.GetAtomWithIdx(idx).GetIsAromatic() for idx in ring_atoms):
             return _name_ring_carboxylic_acid(mol, ring_atoms, specified_stereocenters(mol))

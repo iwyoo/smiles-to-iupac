@@ -84,6 +84,17 @@ def test_substituted_ring_substituent_raises():
         name_branch(graph, 1, 0)
 
 
+def test_heteroaromatic_ring_substituent():
+    # A plain pyridine ring hanging off atom 0, attached at the ring carbon
+    # two bonds from the nitrogen -- "pyridin-3-yl" (P-29.3.4.1), same
+    # `name_branch` path as plain "phenyl" but recognizing the ring's own
+    # heteroatom composition via `mol` instead of just its graph shape.
+    mol = Chem.MolFromSmiles("Cc1cccnc1")
+    graph = adjacency(mol)
+    aromatic_atoms = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+    assert name_branch(graph, 1, 0, aromatic_atoms=aromatic_atoms, mol=mol) == ("pyridin-3-yl", True)
+
+
 def test_ring_substituent_with_own_hydroxyl():
     # A 6-membered ring (1-2-3-4-5-6-1) hanging off atom 0, attached at
     # ring atom 1, with a hydroxyl oxygen (7) on the ring atom directly
