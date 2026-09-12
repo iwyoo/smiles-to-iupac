@@ -102,6 +102,7 @@ from ._polycyclic_component_fusion import (
 from ._anthracene_fusion import has_anthracene_fusion_name, name_anthracene_fusion
 from ._tetracene_fusion import has_tetracene_fusion_name, name_tetracene_fusion
 from ._pentacene_fusion import has_pentacene_fusion_name, name_pentacene_fusion
+from ._hexacene_fusion import has_hexacene_fusion_name, name_hexacene_fusion
 from ._phenanthrene_fusion import has_phenanthrene_fusion_name, name_phenanthrene_fusion
 from ._pyrene_fusion import has_pyrene_fusion_name, name_pyrene_fusion
 from ._chrysene_fusion import has_chrysene_fusion_name, name_chrysene_fusion
@@ -453,6 +454,16 @@ def smiles_to_iupac(smiles: str) -> str:
     # through to `_aromatic.py`'s own hexacene recognition unchanged.
     if has_pentacene_fusion_name(mol):
         return name_pentacene_fusion(mol)
+
+    # benzo[a]hexacene (same mechanism again, for hexacene as the base
+    # component -- the fourth plain catacondensed-chain base, after
+    # anthracene/tetracene/pentacene) must be routed here for the same
+    # reason as the checks just above. The linear ('heptacene') shape is
+    # deliberately excluded from `has_hexacene_fusion_name` itself so it
+    # still falls through to `_aromatic.py`'s own heptacene recognition
+    # unchanged.
+    if has_hexacene_fusion_name(mol):
+        return name_hexacene_fusion(mol)
 
     # chrysene/benzo[c]phenanthrene (same mechanism once more, for
     # phenanthrene as the base component) -- routed here for the same
