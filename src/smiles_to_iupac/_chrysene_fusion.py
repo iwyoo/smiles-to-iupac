@@ -45,8 +45,7 @@ one plain, unsubstituted benzo ring ortho-fused onto chrysene at the
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
-from ._fusion_locant_letter import find_fusion_letter
+from ._fusion_component_registry import make_fusion_component_functions
 
 _CHRYSENE_REF = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=C2C=CC4=CC=CC=C43")
 _LETTER_BY_PAIR = {
@@ -62,23 +61,12 @@ _LETTER_BY_PAIR = {
 _EXCLUDED_LETTERS = set()
 _RETAINED_NAME_BY_LETTER = {"a": "picene"}
 
-
-def _find_core(mol):
-    return find_fusion_letter(mol, _CHRYSENE_REF, _LETTER_BY_PAIR, _EXCLUDED_LETTERS, num_atoms=22, num_rings=5)
-
-
-def has_chrysene_fusion_name(mol) -> bool:
-    return _find_core(mol) is not None
-
-
-def name_chrysene_fusion(mol) -> str:
-    letter = _find_core(mol)
-    if letter is None:
-        raise UnsupportedStructure(
-            "this pentacyclic system is not a supported benzo-fused "
-            "chrysene shape (see P-25.3.1.3)"
-        )
-    retained_name = _RETAINED_NAME_BY_LETTER.get(letter)
-    if retained_name is not None:
-        return retained_name
-    return f"benzo[{letter}]chrysene"
+has_chrysene_fusion_name, name_chrysene_fusion = make_fusion_component_functions(
+    "chrysene",
+    _CHRYSENE_REF,
+    _LETTER_BY_PAIR,
+    _EXCLUDED_LETTERS,
+    num_atoms=22,
+    num_rings=5,
+    retained_name_by_letter=_RETAINED_NAME_BY_LETTER,
+)
