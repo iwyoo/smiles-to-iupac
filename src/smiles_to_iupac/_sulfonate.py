@@ -56,12 +56,14 @@ one alongside them, and no C=C/C#N double-bond E/Z element -- gets a
 from rdkit import Chem
 
 from ._common import (
-    elides_before,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
     bfs,
+    bond_locant,
+    bond_locants,
     carbon_adjacency,
+    elides_before,
     halogen_substituents,
     lowest_locant_set,
     non_single_bonds,
@@ -295,24 +297,6 @@ def _longest_chains(graph):
     return chains
 
 
-def _bond_locant(chain, bond_atoms):
-    bond_set = set(bond_atoms)
-    for i in range(len(chain) - 1):
-        if {chain[i], chain[i + 1]} == bond_set:
-            return i + 1
-    return None
-
-
-def _bond_locants(chain, bonds):
-    ene, yne = [], []
-    for a, b, order in bonds:
-        locant = _bond_locant(chain, (a, b))
-        if locant is None:
-            return None
-        (ene if order == _ENE_ORDER else yne).append(locant)
-    return ene, yne
-
-
 def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
@@ -342,14 +326,14 @@ def _name_acyclic_sulfonate(mol, sulfur_idx, so3_carbon, bonds, stereo=None):
         chain_set = set(chain)
         if so3_carbon not in chain_set:
             continue
-        if bonds and _bond_locants(chain, bonds) is None:
+        if bonds and bond_locants(chain, bonds) is None:
             continue
         if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
             continue
         eligible.append(chain)
     if not eligible:
         if stereo is not None and any(
-            so3_carbon in c and (not bonds or _bond_locants(c, bonds) is not None) for c in chains
+            so3_carbon in c and (not bonds or bond_locants(c, bonds) is not None) for c in chains
         ):
             raise UnsupportedStructure(
                 "a stereocenter on a substituent branch rather than the "
@@ -368,7 +352,7 @@ def _name_acyclic_sulfonate(mol, sulfur_idx, so3_carbon, bonds, stereo=None):
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             so3_locant = position_of[so3_carbon]
-            ene_locants, yne_locants = _bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
             substituents = _substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
             key, name = _candidate_key(chain_length, so3_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:

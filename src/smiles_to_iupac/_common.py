@@ -570,6 +570,24 @@ def bond_locants(chain, bonds):
     return ene, yne
 
 
+def ring_bond_locant(position_of, bond_atoms, ring_size):
+    """1-based ring locant of the lower-numbered atom of a ring bond, under
+    `position_of` (atom index -> 1-based position), wrapping so the bond
+    between positions 1 and `ring_size` reports as `ring_size`."""
+    pa, pb = position_of[bond_atoms[0]], position_of[bond_atoms[1]]
+    return ring_size if {pa, pb} == {1, ring_size} else min(pa, pb)
+
+
+def ring_bond_locants(position_of, bonds, ring_size):
+    """(ene_locants, yne_locants), both sorted, for every ring C=C/C#C bond
+    under this ring numbering."""
+    ene, yne = [], []
+    for a, b, order in bonds:
+        locant = ring_bond_locant(position_of, (a, b), ring_size)
+        (ene if order == ENE_BOND_ORDER else yne).append(locant)
+    return sorted(ene), sorted(yne)
+
+
 def specified_stereocenters(mol):
     """Scan `mol` for stereo elements (RDKit's `Chem.FindPotentialStereo`).
     If there are none at all, or every one present is left unspecified
