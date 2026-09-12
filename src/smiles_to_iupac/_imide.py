@@ -76,9 +76,9 @@ from ._common import (
     carbon_adjacency,
     halogen_substituents,
     is_plain_benzene_ring,
+    longest_branched_chain,
     lowest_locant_set,
     non_single_bonds,
-    ordered_chain,
     path_between,
     ring_chain_attachment,
 )
@@ -308,9 +308,20 @@ def _acyl_prefix_name(chain_length, grouped):
 def _validate_and_collect_phenyl_chain_imide(mol, ring1_atoms, ring2_atoms):
     """Like `_validate_and_collect_imide`, but each acyl chain is allowed
     to end in one of the two given plain-benzene rings (see module
-    docstring). Returns (ordered_chain1, ring_atom1, ordered_chain2,
-    ring_atom2), each chain ordered acyl-carbon-first (matching
-    `_best_branch`'s own numbering)."""
+    docstring). Each chain is anchored on its own acyl carbon via
+    `longest_branched_chain` (P-44.3.2, the same general branch-absorbing
+    search `_carboxylic_acid.py`'s own ring-chain case uses, anchored the
+    same way on the suffix's own principal-characteristic-group carbon so
+    a longer side branch can never bump the acyl carbon itself off the
+    main chain) -- so a branch hanging off either chain (e.g.
+    '2-methyl-...') is supported like any other suffix module, not just
+    the single-ring-substituent shape a plain `ordered_chain` walk would
+    allow. Returns (chain1, branches1, chain2, branches2, ring_atoms_all,
+    halogens); each chain is a 1-based, acyl-carbon-first atom list
+    (matching `_best_branch`'s own numbering) and each `branches` is
+    `longest_branched_chain`'s own {position -> [branch_root_atom, ...]},
+    including the terminal ring atom as an ordinary branch root at the
+    chain's last position."""
     cores = _imide_cores(mol)
     if not cores:
         raise UnsupportedStructure(
@@ -387,44 +398,28 @@ def _validate_and_collect_phenyl_chain_imide(mol, ring1_atoms, ring2_atoms):
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
     graph = adjacency(mol)
-    excluded = {imide_n, carbonyl_o1, carbonyl_o2}
-    attachment1 = ring_chain_attachment(graph, ring1_atoms, set())
-    attachment2 = ring_chain_attachment(graph, ring2_atoms, set())
-    if attachment1 is None or attachment2 is None:
+    if ring_chain_attachment(graph, ring1_atoms, set()) is None or ring_chain_attachment(graph, ring2_atoms, set()) is None:
         raise UnsupportedStructure(
             "a benzene ring with more than one exocyclic substituent is "
             "out of scope for this module"
         )
-    ring_atom1, chain_root1 = attachment1
-    ring_atom2, chain_root2 = attachment2
-    chain1 = ordered_chain(graph, chain_root1, ring_atom1, excluded)
-    chain2 = ordered_chain(graph, chain_root2, ring_atom2, excluded)
-    if chain1 is None or chain2 is None:
-        raise UnsupportedStructure(
-            "a branched chain hanging off a benzene ring is out of scope "
-            "for this module"
-        )
-    if {chain1[-1], chain2[-1]} != {acyl1, acyl2}:
-        raise UnsupportedStructure(
-            "each benzene ring must lie on its own acyl chain, terminating "
-            "at one of the imide's own acyl carbons"
-        )
-    if chain1[-1] != acyl1:
-        chain1, chain2 = chain2, chain1
-        ring_atom1, ring_atom2 = ring_atom2, ring_atom1
+    halogens = halogen_substituents(mol)
+    chain1, branches1 = longest_branched_chain(graph, acyl1, ring_atoms_all, imide_atoms, halogens=halogens)
+    chain2, branches2 = longest_branched_chain(graph, acyl2, ring_atoms_all, imide_atoms, halogens=halogens)
     if len(chain1) < 2 or len(chain2) < 2:
         raise UnsupportedStructure(
             "a benzene ring directly attached to an acyl carbon "
             "(benzoyl-style) uses a separate construction, out of scope "
             "for this module"
         )
-    return list(reversed(chain1)), ring_atom1, list(reversed(chain2)), ring_atom2
+    return chain1, branches1, chain2, branches2, ring_atoms_all, halogens
 
 
-def _phenyl_chain_grouped(graph, halogens, ordered_chain, ring_atom, ring_atoms, mol=None):
-    chain_root = ordered_chain[-1]
-    position = len(ordered_chain)
-    substituents = {position: [name_branch(graph, ring_atom, chain_root, halogens, ring_atoms, mol=mol)]}
+def _phenyl_chain_grouped(graph, halogens, chain, branches, ring_atoms, mol=None):
+    substituents = {
+        position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms, mol=mol) for root in roots]
+        for position, roots in branches.items()
+    }
     return _group(substituents)
 
 
@@ -442,14 +437,13 @@ def _combine_symmetric_branches(length1, grouped1, length2, grouped2):
 
 
 def _name_phenyl_chain_imide(mol, ring1_atoms, ring2_atoms):
-    ordered1, ring_atom1, ordered2, ring_atom2 = _validate_and_collect_phenyl_chain_imide(
+    chain1, branches1, chain2, branches2, ring_atoms_all, halogens = _validate_and_collect_phenyl_chain_imide(
         mol, ring1_atoms, ring2_atoms
     )
     graph = adjacency(mol)
-    halogens = halogen_substituents(mol)
-    grouped1 = _phenyl_chain_grouped(graph, halogens, ordered1, ring_atom1, ring1_atoms, mol=mol)
-    grouped2 = _phenyl_chain_grouped(graph, halogens, ordered2, ring_atom2, ring2_atoms, mol=mol)
-    return _combine_symmetric_branches(len(ordered1), grouped1, len(ordered2), grouped2)
+    grouped1 = _phenyl_chain_grouped(graph, halogens, chain1, branches1, ring_atoms_all, mol=mol)
+    grouped2 = _phenyl_chain_grouped(graph, halogens, chain2, branches2, ring_atoms_all, mol=mol)
+    return _combine_symmetric_branches(len(chain1), grouped1, len(chain2), grouped2)
 
 
 def name_imide(mol) -> str:
