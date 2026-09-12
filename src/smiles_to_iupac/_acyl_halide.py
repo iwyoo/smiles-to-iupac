@@ -48,12 +48,14 @@ no substituted benzene/naphthalene -- each a separate follow-up.
 from rdkit import Chem
 
 from ._common import (
-    elides_before,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
     bfs,
+    bond_locant,
+    bond_locants,
     carbon_adjacency,
+    elides_before,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain,
@@ -281,24 +283,6 @@ def _longest_chains(graph):
     return chains
 
 
-def _bond_locant(chain, bond_atoms):
-    bond_set = set(bond_atoms)
-    for i in range(len(chain) - 1):
-        if {chain[i], chain[i + 1]} == bond_set:
-            return i + 1
-    return None
-
-
-def _bond_locants(chain, bonds):
-    ene, yne = [], []
-    for a, b, order in bonds:
-        locant = _bond_locant(chain, (a, b))
-        if locant is None:
-            return None
-        (ene if order == _ENE_ORDER else yne).append(locant)
-    return ene, yne
-
-
 def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
@@ -398,7 +382,7 @@ def name_acyl_halide(mol) -> str:
     for chain in chains:
         if acyl_carbon not in chain:
             continue
-        if bonds and _bond_locants(chain, bonds) is None:
+        if bonds and bond_locants(chain, bonds) is None:
             continue
         chain_set = set(chain)
         if any(atom not in chain_set for atom in stereo_atoms):
@@ -406,7 +390,7 @@ def name_acyl_halide(mol) -> str:
         eligible.append(chain)
     if not eligible:
         if stereo_atoms and any(
-            acyl_carbon in chain and (not bonds or _bond_locants(chain, bonds) is not None)
+            acyl_carbon in chain and (not bonds or bond_locants(chain, bonds) is not None)
             for chain in chains
         ):
             raise UnsupportedStructure(
@@ -429,7 +413,7 @@ def name_acyl_halide(mol) -> str:
                 # docstring); a direction that doesn't start there is
                 # never valid.
                 continue
-            ene_locants, yne_locants = _bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
             substituents = _substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, halide_word, substituents)
             if best_key is None or key < best_key:

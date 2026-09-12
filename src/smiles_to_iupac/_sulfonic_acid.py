@@ -71,18 +71,22 @@ numbering search with the retained name 'benzene' as stem -- the
 from rdkit import Chem
 
 from ._common import (
-    elides_before,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
     bfs,
+    bond_locant,
+    bond_locants,
     carbon_adjacency,
+    elides_before,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain_through,
     lowest_locant_set,
     non_single_bonds,
     path_between,
+    ring_bond_locant,
+    ring_bond_locants,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     ring_cycle,
@@ -317,24 +321,6 @@ def _longest_chains(graph):
     return chains
 
 
-def _bond_locant(chain, bond_atoms):
-    bond_set = set(bond_atoms)
-    for i in range(len(chain) - 1):
-        if {chain[i], chain[i + 1]} == bond_set:
-            return i + 1
-    return None
-
-
-def _bond_locants(chain, bonds):
-    ene, yne = [], []
-    for a, b, order in bonds:
-        locant = _bond_locant(chain, (a, b))
-        if locant is None:
-            return None
-        (ene if order == _ENE_ORDER else yne).append(locant)
-    return ene, yne
-
-
 def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
@@ -392,22 +378,6 @@ def _ring_candidate_key(ring_size, so3h_locant, ene_locants, yne_locants, substi
     ene_locant_set = lowest_locant_set(ene_locants)
     name = _ring_name_from_substituents(ring_size, so3h_locant, ene_locants, yne_locants, grouped)
     return so3h_locant, combined_locant_set, ene_locant_set, locant_set, citation_locants, name
-
-
-def _ring_bond_locant(position_of, bond_atoms, ring_size):
-    pa, pb = position_of[bond_atoms[0]], position_of[bond_atoms[1]]
-    return ring_size if {pa, pb} == {1, ring_size} else min(pa, pb)
-
-
-def _ring_bond_locants(position_of, bonds, ring_size):
-    """(ene_locants, yne_locants), both sorted, for every ring C=C/C#C bond
-    under this ring numbering -- mirrors `_ketone.py`/`_thiol.py`'s
-    identical helper."""
-    ene, yne = [], []
-    for a, b, order in bonds:
-        locant = _ring_bond_locant(position_of, (a, b), ring_size)
-        (ene if order == _ENE_ORDER else yne).append(locant)
-    return sorted(ene), sorted(yne)
 
 
 def _ring_branch_stereo_display(graph, ring_order, excluded, stereo, halogens, mol=None):
@@ -484,7 +454,7 @@ def _name_cyclic_sulfonic_acid(mol, sulfur_idx, so3h_carbon, stereo=None, bonds=
             if branch_stereo is not None:
                 branch_ring_atom, display = branch_stereo
                 substituents[position_of[branch_ring_atom]] = [(display, False)]
-            ene_locants, yne_locants = _ring_bond_locants(position_of, bonds, ring_size)
+            ene_locants, yne_locants = ring_bond_locants(position_of, bonds, ring_size)
             key = _ring_candidate_key(ring_size, so3h_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, key[-1], position_of
@@ -748,7 +718,7 @@ def _name_acyclic_sulfonic_acid(
             continue
         if not required_atoms <= chain_set:
             continue
-        if bonds and _bond_locants(chain, bonds) is None:
+        if bonds and bond_locants(chain, bonds) is None:
             continue
         if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
             continue
@@ -757,7 +727,7 @@ def _name_acyclic_sulfonic_acid(
         if stereo is not None and any(
             so3h_carbon in c
             and required_atoms <= set(c)
-            and (not bonds or _bond_locants(c, bonds) is not None)
+            and (not bonds or bond_locants(c, bonds) is not None)
             for c in chains
         ):
             raise UnsupportedStructure(
@@ -777,7 +747,7 @@ def _name_acyclic_sulfonic_acid(
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             so3h_locant = position_of[so3h_carbon]
-            ene_locants, yne_locants = _bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
             substituents = _substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
             key, name = _candidate_key(chain_length, so3h_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
