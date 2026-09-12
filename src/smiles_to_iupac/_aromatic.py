@@ -80,24 +80,11 @@ from ._common import (
     group_substituents,
     halogen_substituents,
     lowest_locant_set,
+    ring_cycle,
     specified_stereocenters,
     validate_atoms_and_bonds,
 )
 from ._substituents import alpha_sort_key, branch_atom_locant, format_substituent_prefixes, name_branch
-
-
-def _ring_cycle(graph, ring_atoms):
-    """Order a ring's atoms into a cyclic sequence by walking its bonds
-    (works for aromatic rings too -- adjacency doesn't encode bond order)."""
-    ring_set = set(ring_atoms)
-    order = [ring_atoms[0]]
-    previous = None
-    while len(order) < len(ring_atoms):
-        current = order[-1]
-        next_atom = next(n for n in graph[current] if n in ring_set and n != previous)
-        order.append(next_atom)
-        previous = current
-    return order
 
 
 def _run_between(cycle, a, b):
@@ -237,7 +224,7 @@ def _classify_shape(graph, atom_rings, ring_order, fusion_bonds_by_pair):
     shape = []
     for pos in range(1, len(ring_order) - 1):
         ring_idx = ring_order[pos]
-        cycle = _ring_cycle(graph, list(atom_rings[ring_idx]))
+        cycle = ring_cycle(graph, list(atom_rings[ring_idx]))
         left_edge = _edge_index(cycle, *fusion_bonds_by_pair[frozenset((ring_order[pos - 1], ring_idx))])
         right_edge = _edge_index(cycle, *fusion_bonds_by_pair[frozenset((ring_idx, ring_order[pos + 1]))])
         diff = (left_edge - right_edge) % 6
@@ -347,8 +334,8 @@ def _anthracene_candidates(graph, ring_atom_sets, fusion_bonds_by_pair, ring_ord
     for r1, r2, r3 in ((ring_order[0], ring_order[1], ring_order[2]), (ring_order[2], ring_order[1], ring_order[0])):
         x1, x2 = fusion_bonds_by_pair[frozenset((r1, r2))]
         y1, y2 = fusion_bonds_by_pair[frozenset((r2, r3))]
-        run1_cycle = _ring_cycle(graph, list(ring_atom_sets[r1]))
-        run3_cycle = _ring_cycle(graph, list(ring_atom_sets[r3]))
+        run1_cycle = ring_cycle(graph, list(ring_atom_sets[r1]))
+        run3_cycle = ring_cycle(graph, list(ring_atom_sets[r3]))
         for near_x, far_x in ((x1, x2), (x2, x1)):
             # near_x ("9a") is adjacent to position 1; far_x ("4a") to position 4.
             pos1, pos2, pos3, pos4 = _run_between(run1_cycle, near_x, far_x)
@@ -392,8 +379,8 @@ def _phenanthrene_candidates(graph, ring_atom_sets, fusion_bonds_by_pair, ring_o
         other_x = x2 if bay_x == x1 else x1
         other_y = y2 if bay_y == y1 else y1
 
-        pos4, pos3, pos2, pos1 = _run_between(_ring_cycle(graph, list(ring_atom_sets[r1])), bay_x, other_x)
-        pos5, pos6, pos7, pos8 = _run_between(_ring_cycle(graph, list(ring_atom_sets[r3])), bay_y, other_y)
+        pos4, pos3, pos2, pos1 = _run_between(ring_cycle(graph, list(ring_atom_sets[r1])), bay_x, other_x)
+        pos5, pos6, pos7, pos8 = _run_between(ring_cycle(graph, list(ring_atom_sets[r3])), bay_y, other_y)
 
         k1 = next(a for a in graph[other_y] if a in ring_atom_sets[r2] and a != bay_y)
         k2 = next(a for a in graph[k1] if a in ring_atom_sets[r2] and a != other_y)
@@ -408,7 +395,7 @@ def _phenanthrene_candidates(graph, ring_atom_sets, fusion_bonds_by_pair, ring_o
 
 
 def _benzene_candidates(graph, ring_atoms):
-    cycle = _ring_cycle(graph, list(ring_atoms))
+    cycle = ring_cycle(graph, list(ring_atoms))
     n = len(cycle)
     candidates = []
     for start in range(n):

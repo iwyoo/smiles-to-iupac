@@ -27,12 +27,12 @@ rings (terphenyl etc.), or non-benzene ring assemblies are out of scope and
 fall through to `UnsupportedStructure` elsewhere in the dispatch chain.
 """
 
-from ._cyclic import _ring_cycle
 from ._common import (
     adjacency,
     group_substituents,
     halogen_substituents,
     lowest_locant_set,
+    ring_cycle,
     validate_atoms_and_bonds,
 )
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -76,7 +76,7 @@ def find_ring_assembly_core(mol):
 
 
 def _numberings_from_attachment(graph, ring_atoms, attach, prime):
-    cycle = _ring_cycle(graph, list(ring_atoms))
+    cycle = ring_cycle(graph, list(ring_atoms))
     start = cycle.index(attach)
     rotated = cycle[start:] + cycle[:start]
     suffix = "'" if prime else ""

@@ -285,6 +285,7 @@ from ._common import (
     ring_bond_locants,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
+    ring_cycle,
     specified_stereocenters,
 )
 from ._hetero_monocyclic import (
@@ -807,7 +808,7 @@ def _name_ring_with_ketone_chain_ketone(mol, ketones):
         graph, chain_root, ring_atom, {**halogens, **{o: "oxo" for o in chain_ketones}}, mol=mol
     )
 
-    ring_order = _ring_cycle(graph, list(ring_atoms))
+    ring_order = ring_cycle(graph, list(ring_atoms))
     ring_size = len(ring_order)
     best_key = None
     best_name = None
@@ -821,18 +822,6 @@ def _name_ring_with_ketone_chain_ketone(mol, ketones):
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
     return best_name
-
-
-def _ring_cycle(graph, ring_atoms):
-    ring_set = set(ring_atoms)
-    order = [ring_atoms[0]]
-    previous = None
-    while len(order) < len(ring_atoms):
-        current = order[-1]
-        next_atom = next(n for n in graph[current] if n in ring_set and n != previous)
-        order.append(next_atom)
-        previous = current
-    return order
 
 
 def _substituents_for_ring(graph, ring_order, halogens, ketones, mol=None):
@@ -933,7 +922,7 @@ def _name_cyclic_ketone(mol, ketones, hydroxyls, stereo=None, bonds=()):
     halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}}
     ring_info = mol.GetRingInfo()
     ring_atoms = list(ring_info.AtomRings()[0])
-    ring_order = _ring_cycle(graph, ring_atoms)
+    ring_order = ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
     branch_stereo = None
     if stereo is not None and any(atom not in ring_order for atom, _ in stereo):
@@ -1054,7 +1043,7 @@ def _validate_and_collect_hetero_ring_ketone(
     graph = adjacency(mol)
     ring_info = mol.GetRingInfo()
     ring_atoms = list(ring_info.AtomRings()[0])
-    ring_order = _ring_cycle(graph, ring_atoms)
+    ring_order = ring_cycle(graph, ring_atoms)
     ring_set = set(ring_atoms)
     full_carbon_graph = (
         carbon_adjacency(mol) if allow_n_substituent or allow_ring_carbon_substituent else None
@@ -1225,7 +1214,7 @@ def _hetero_ring_two_heteroatoms(mol):
     if elements not in _TWO_HETERO_RING_ELEMENT_PAIRS:
         return None
     graph = adjacency(mol)
-    ring_order = _ring_cycle(graph, list(ring_atoms))
+    ring_order = ring_cycle(graph, list(ring_atoms))
     if abs(ring_order.index(het1) - ring_order.index(het2)) != _TWO_HETERO_RING_SIZE // 2:
         # Not the 1,4 (antipodal) relationship morpholine/piperazine/
         # thiomorpholine need -- e.g. a 1,2- or 1,3-diheteroatom ring,
@@ -1284,7 +1273,7 @@ def _hetero_ring_seven_membered_1_4(mol):
     if elements not in _SEVEN_MEMBERED_1_4_RING_ELEMENT_PAIRS:
         return None
     graph = adjacency(mol)
-    ring_order = _ring_cycle(graph, list(ring_atoms))
+    ring_order = ring_cycle(graph, list(ring_atoms))
     diff = abs(ring_order.index(het1) - ring_order.index(het2))
     if min(diff, _SEVEN_MEMBERED_1_4_RING_SIZE - diff) != _SEVEN_MEMBERED_1_4_RING_SIZE // 2:
         return None
@@ -1577,7 +1566,7 @@ def _five_membered_1_2_numbering(mol, het1, het2, elements_by_atom, ketones):
     seniority-over-locants rule as the 1,3-case. When identical, both
     starts are tried and the one minimizing the ketone locant set wins."""
     graph = adjacency(mol)
-    ring_order = _ring_cycle(graph, list(mol.GetRingInfo().AtomRings()[0]))
+    ring_order = ring_cycle(graph, list(mol.GetRingInfo().AtomRings()[0]))
 
     def candidates(start, other):
         rotated_start = ring_order.index(start)

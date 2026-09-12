@@ -497,6 +497,26 @@ def linear_branch(graph, root, coming_from):
         length += 1
 
 
+def unbranched_chain_length(mol, root_idx, exclude_idx):
+    """Length of the straight, unbranched, saturated all-carbon chain
+    starting at `root_idx` and walking away from `exclude_idx` -- or None
+    if the chain branches, rings, or leaves carbon at any point."""
+    length = 0
+    previous = exclude_idx
+    current = root_idx
+    while True:
+        atom = mol.GetAtomWithIdx(current)
+        if atom.GetAtomicNum() != 6 or atom.GetIsAromatic():
+            return None
+        neighbors = [n.GetIdx() for n in atom.GetNeighbors() if n.GetIdx() != previous]
+        length += 1
+        if not neighbors:
+            return length
+        if len(neighbors) > 1:
+            return None
+        previous, current = current, neighbors[0]
+
+
 def lowest_locant_set(locants):
     return tuple(sorted(locants))
 

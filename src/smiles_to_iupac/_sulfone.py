@@ -23,29 +23,8 @@ handled separately by `_selenone.py`.
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, non_single_bonds
+from ._common import UnsupportedStructure, non_single_bonds, unbranched_chain_length
 from ._numerals import alkane_name
-
-
-def _unbranched_chain_length(mol, root_idx, exclude_idx):
-    """Length of the straight, unbranched, saturated all-carbon chain
-    starting at `root_idx` and walking away from `exclude_idx` -- or None if
-    the chain branches, rings, or leaves carbon at any point. Mirrors
-    `_sulfoxide.py`'s identical helper."""
-    length = 0
-    previous = exclude_idx
-    current = root_idx
-    while True:
-        atom = mol.GetAtomWithIdx(current)
-        if atom.GetAtomicNum() != 6 or atom.GetIsAromatic():
-            return None
-        neighbors = [n.GetIdx() for n in atom.GetNeighbors() if n.GetIdx() != previous]
-        length += 1
-        if not neighbors:
-            return length
-        if len(neighbors) > 1:
-            return None
-        previous, current = current, neighbors[0]
 
 
 def _sulfonyl_sulfur_atoms(mol):
@@ -110,8 +89,8 @@ def name_sulfone(mol) -> str:
     s_idx = sulfur.GetIdx()
     c1_idx, c2_idx = (n.GetIdx() for n in sulfur.GetNeighbors() if n.GetAtomicNum() == 6)
 
-    len1 = _unbranched_chain_length(mol, c1_idx, s_idx)
-    len2 = _unbranched_chain_length(mol, c2_idx, s_idx)
+    len1 = unbranched_chain_length(mol, c1_idx, s_idx)
+    len2 = unbranched_chain_length(mol, c2_idx, s_idx)
     if len1 is None or len2 is None:
         raise UnsupportedStructure(
             "a branched R or R' group is out of scope for this module (see "
