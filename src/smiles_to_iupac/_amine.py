@@ -257,33 +257,44 @@ def _group(substituents):
     return grouped
 
 
-def _add_n_names(grouped, n_names):
+def _add_n_names(grouped, n_names, n_locants=None):
     """Merge N-substituent names (P-66.4) into a parent-chain `grouped`
-    dict, each getting the non-numeric locant 'N' -- for display only
+    dict, each getting a non-numeric locant -- for display only
     (`format_substituent_prefixes`'s alphabetical citation, P-14.5.2, sorts
     by name regardless of locant type, and `_locant_sort_key` in
-    `_substituents.py` puts 'N' after every numeric locant when the same
-    name also occurs on the numbered chain). Never mutates the input
-    `grouped` -- callers still need the original, numeric-only version for
-    both chain-orientation ranking and the `chain_length`-based
-    locant-omission branches below, neither of which an 'N' locant may
-    enter (it doesn't move when the chain is renumbered, and its presence
+    `_substituents.py` puts a non-numeric locant after every numeric one
+    when the same name also occurs on the numbered chain). Never mutates
+    the input `grouped` -- callers still need the original, numeric-only
+    version for both chain-orientation ranking and the `chain_length`-based
+    locant-omission branches below, neither of which this locant may enter
+    (it doesn't move when the chain is renumbered, and its presence
     doesn't make the amine's own carbon locant any less omittable).
 
     `n_names`: (name, is_compound) pairs, one per N-substituent -- the same
     shape `name_branch` returns, so a branched/compound N-substituent (e.g.
     'propan-2-yl') gets its own enclosing marks via
-    `format_substituent_prefixes` exactly like any other compound prefix."""
+    `format_substituent_prefixes` exactly like any other compound prefix.
+
+    `n_locants`: parallel to `n_names`, or None. A single amine nitrogen
+    (the only kind this project supported until P-16.9.2's two-amine case)
+    has no locant of its own to disambiguate, so its N-substituents just
+    get the bare 'N' -- `n_locants=None`, or an entry of `None`, both mean
+    that. With two coexisting amine nitrogens, each entry is instead that
+    nitrogen's own parent-chain locant, producing 'N<k>' (e.g. 'N2') per
+    P-16.9.2 (superseding the older N/N'-prime convention for this exact
+    case -- see `_name_two_amine_chain`'s docstring)."""
     if not n_names:
         return grouped
     display = {name: {"locants": list(info["locants"]), "compound": info["compound"]} for name, info in grouped.items()}
-    for name, is_compound in n_names:
+    for i, (name, is_compound) in enumerate(n_names):
+        locant = n_locants[i] if n_locants is not None else None
+        display_locant = "N" if locant is None else f"N{locant}"
         info = display.setdefault(name, {"locants": [], "compound": is_compound})
-        info["locants"].append("N")
+        info["locants"].append(display_locant)
     return display
 
 
-def _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locants, grouped, n_names=()):
+def _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locants, grouped, n_names=(), n_locants=None):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     has_unsaturation = bool(ene_locants or yne_locants)
 
@@ -296,7 +307,7 @@ def _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locant
         stem = alkane_name(1)
         if amine_word[0] in "aeiouy":
             stem = stem[:-1]
-        prefix = format_substituent_prefixes(_add_n_names(grouped, n_names), omit_locants=True)
+        prefix = format_substituent_prefixes(_add_n_names(grouped, n_names, n_locants), omit_locants=True)
         return prefix + stem + amine_word
 
     if chain_length == 2 and not has_unsaturation and total_subs == 0 and len(amine_locants) == 1:
@@ -306,10 +317,10 @@ def _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locant
         # N-substituent doesn't change this (it doesn't create any
         # carbon-position asymmetry), but still needs its own 'N-' prefix,
         # e.g. 'N-ethylethanamine'.
-        prefix = format_substituent_prefixes(_add_n_names(grouped, n_names))
+        prefix = format_substituent_prefixes(_add_n_names(grouped, n_names, n_locants))
         return prefix + alkane_name(2)[:-1] + "amine"
 
-    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names))
+    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names, n_locants))
     if has_unsaturation:
         stem = alkane_name(chain_length)[:-3]
         needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
@@ -323,18 +334,20 @@ def _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locant
     return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
 
 
-def _candidate_key(chain_length, amine_locants, ene_locants, yne_locants, substituents, n_names=()):
+def _candidate_key(chain_length, amine_locants, ene_locants, yne_locants, substituents, n_names=(), n_locants=None):
     """Sort key implementing P-44.4.1.8 (suffix locants) ahead of
     P-44.4.1.10 (ene/yne locants) ahead of P-45.2 (substituent-prefix
     locants), most-preferred first.
 
-    `n_names`: N-substituent names (P-66.4) from a secondary/tertiary
-    amine's other N-linked chain(s), passed straight through to
-    `_name_from_substituents` (which folds them into the *displayed* name
-    via `_add_n_names` so they interleave alphabetically with any
-    parent-chain substituent prefix, P-14.5.2, e.g. '2-chloro-N-ethyl...')
-    but excluded from every locant-set computation below since 'N' is
-    never a candidate for the lowest-locant chain-orientation tie-break."""
+    `n_names`/`n_locants`: N-substituent names (P-66.4) from a secondary/
+    tertiary amine's other N-linked chain(s) (`n_locants` parallel, or None
+    for a single amine nitrogen -- see `_add_n_names`), passed straight
+    through to `_name_from_substituents` (which folds them into the
+    *displayed* name via `_add_n_names` so they interleave alphabetically
+    with any parent-chain substituent prefix, P-14.5.2, e.g.
+    '2-chloro-N-ethyl...') but excluded from every locant-set computation
+    below since an N-locant is never a candidate for the lowest-locant
+    chain-orientation tie-break."""
     grouped = _group(substituents)
     total_count = sum(len(info["locants"]) for info in grouped.values())
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
@@ -346,7 +359,7 @@ def _candidate_key(chain_length, amine_locants, ene_locants, yne_locants, substi
     amine_locant_set = lowest_locant_set(amine_locants)
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
-    name = _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locants, grouped, n_names)
+    name = _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locants, grouped, n_names, n_locants)
     return (
         (
             amine_locant_set,
@@ -424,7 +437,9 @@ def _substituents_for_chain(graph, chain, halogens, amines, mol=None):
     return substituents
 
 
-def _best_chain_name(carbon_graph, graph, halogens, amines, bonds, stereo=None, n_names=(), mol=None):
+def _best_chain_name(
+    carbon_graph, graph, halogens, amines, bonds, stereo=None, n_names=(), mol=None, n_names_by_nitrogen=None
+):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
     include every stereocenter are eligible (P-92: a stereocenter on a
@@ -435,7 +450,17 @@ def _best_chain_name(carbon_graph, graph, halogens, amines, bonds, stereo=None, 
     `n_names`: a secondary/tertiary amine's other N-substituent name(s)
     (P-66.4), passed straight through to `_candidate_key` so they're
     already correctly interleaved into `name` itself (P-14.5.2) -- the
-    caller no longer glues an 'N-' prefix on afterward."""
+    caller no longer glues an 'N-' prefix on afterward. Ignored when
+    `n_names_by_nitrogen` is given.
+
+    `n_names_by_nitrogen`: for `_name_two_amine_chain`'s two-coexisting-
+    amines case (P-16.9.2) -- `{nitrogen_atom_idx: [(name, is_compound),
+    ...]}`. Each nitrogen's own chain locant depends on which orientation
+    of which candidate chain wins, so (unlike the single-amine `n_names`
+    above) this can't be resolved by the caller ahead of time -- it's
+    recomputed per candidate below, from that candidate's own
+    `position_of`, into the flat `n_names`/`n_locants` pair
+    `_candidate_key` expects."""
     chains = _longest_chains(carbon_graph)
     chain_length = len(chains[0])
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
@@ -468,7 +493,18 @@ def _best_chain_name(carbon_graph, graph, halogens, amines, bonds, stereo=None, 
             amine_locants = _amine_locants(position_of, amines, graph)
             ene_locants, yne_locants = _bond_locants(candidate, bonds) if bonds else ([], [])
             substituents = _substituents_for_chain(graph, candidate, halogens, amines, mol=mol)
-            key, name = _candidate_key(chain_length, amine_locants, ene_locants, yne_locants, substituents, n_names)
+            if n_names_by_nitrogen is not None:
+                candidate_n_names = []
+                candidate_n_locants = []
+                for n_idx, locant in zip(amines, amine_locants):
+                    for sub_name, is_compound in n_names_by_nitrogen.get(n_idx, []):
+                        candidate_n_names.append((sub_name, is_compound))
+                        candidate_n_locants.append(locant)
+            else:
+                candidate_n_names, candidate_n_locants = n_names, None
+            key, name = _candidate_key(
+                chain_length, amine_locants, ene_locants, yne_locants, substituents, candidate_n_names, candidate_n_locants
+            )
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of
     return best_name, best_position_of
@@ -588,12 +624,116 @@ def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=
     return best_name
 
 
+def _name_two_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None):
+    """Two coexisting amine nitrogens on one shared parent chain, at least
+    one of which is secondary/tertiary (e.g. 'NCCN(C)C',
+    N2,N2-dimethylethane-1,2-diamine). Each extra N-substituent is named
+    exactly like `_name_acyclic_secondary_tertiary_amine` already does for
+    a single amine -- via `name_branch` on its own connected-component
+    root, isolated from the rest of the carbon skeleton by the same
+    "N isn't in the carbon-only graph" property that function relies on --
+    but is now tagged with *that nitrogen's own chain locant* rather than
+    a bare 'N', per P-16.9.2:
+
+    > "Superscript arabic numbers, which are the locants of the parent
+    > structure, are used to differentiate the nitrogen atoms of di- and
+    > polyamines... except for geminal amines." Worked PIN example:
+    > 'N1-ethyl-N2-methylethane-1,2-diamine' -- superseding the older
+    > N/N'-prime convention (still seen in some database autonames, e.g.
+    > PubChem's 'N,N'-dimethyl...' for the same shape) for this exact
+    > case.
+
+    A nitrogen's locant depends on which candidate chain orientation wins
+    (P-44 lowest-locant tie-breaks), so it can't be resolved here --
+    `_best_chain_name`'s `n_names_by_nitrogen` recomputes it per candidate
+    instead of this function gluing on a fixed prefix like the
+    single-amine case does.
+
+    Scope, deliberately narrow (see `tasks/amine-cross-cutting-
+    generalization.md`): exactly two amine nitrogens, both contributing to
+    one shared chain (geminal -- both on the same carbon -- is explicitly
+    excluded by P-16.9.2 itself and raises here); each nitrogen's extra
+    substituents are plain saturated (branched/halogenated) alkyl only, no
+    unsaturation (mirroring `_name_acyclic_secondary_tertiary_amine`'s own
+    unbranched-only unsaturated-N-substituent support would need its own
+    per-nitrogen locant plumbing there too -- future work)."""
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    full_carbon_graph = carbon_adjacency(mol)
+
+    all_n_carbons = [c for n in amines for c in n_carbons_by_nitrogen[n]]
+    components = {c: _component_subgraph(full_carbon_graph, c) for c in all_n_carbons}
+    # The shared parent chain is whichever connected carbon component has a
+    # neighbor from *every* nitrogen -- not simply the largest component,
+    # which a same-sized N-substituent fragment (e.g. an N-ethyl tied with
+    # a 2-carbon real backbone) could otherwise be mistaken for.
+    distinct_components = {frozenset(comp) for comp in components.values()}
+    shared_components = [
+        comp
+        for comp in distinct_components
+        if all(any(c in comp for c in n_carbons_by_nitrogen[n]) for n in amines)
+    ]
+    if len(shared_components) != 1:
+        raise UnsupportedStructure(
+            "the two amine nitrogens must share exactly one connected "
+            "carbon backbone for this naming path"
+        )
+    chain_component = shared_components[0]
+
+    n_names_by_nitrogen = {}
+    excluded_atoms = set()
+    chain_anchors = set()
+    for n in amines:
+        on_chain = [c for c in n_carbons_by_nitrogen[n] if c in chain_component]
+        if len(on_chain) != 1:
+            raise UnsupportedStructure(
+                "two amine nitrogens sharing the same carbon (geminal) is "
+                "excluded from P-16.9.2's superscript-locant convention "
+                "and is not supported yet"
+            )
+        chain_anchors.add(on_chain[0])
+        extra_roots = [c for c in n_carbons_by_nitrogen[n] if c not in chain_component]
+        names = []
+        for root in extra_roots:
+            root_component = set(components[root])
+            if any(a in root_component and b in root_component for a, b, _ in bonds):
+                raise UnsupportedStructure(
+                    "an unsaturated N-substituent alongside a second amine "
+                    "nitrogen is not supported yet"
+                )
+            names.append(name_branch(graph, root, n, halogens, mol=mol))
+            excluded_atoms |= root_component
+        n_names_by_nitrogen[n] = names
+    if len(chain_anchors) != len(amines):
+        raise UnsupportedStructure(
+            "two amine nitrogens sharing the same carbon (geminal) is "
+            "excluded from P-16.9.2's superscript-locant convention "
+            "and is not supported yet"
+        )
+
+    parent_carbon_graph = {k: v for k, v in full_carbon_graph.items() if k not in excluded_atoms}
+    parent_bonds = [b for b in bonds if b[0] in parent_carbon_graph and b[1] in parent_carbon_graph]
+
+    best_name, best_position_of = _best_chain_name(
+        parent_carbon_graph, graph, halogens, amines, parent_bonds, stereo,
+        mol=mol, n_names_by_nitrogen=n_names_by_nitrogen,
+    )
+    if stereo is not None:
+        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+        return f"({prefix})-{best_name}"
+    return best_name
+
+
 def _name_acyclic_amine(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None):
     if len(amines) == 1:
         (n_idx,) = amines
         n_carbons = n_carbons_by_nitrogen[n_idx]
         if len(n_carbons) > 1:
             return _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo)
+
+    if len(amines) == 2 and any(len(n_carbons_by_nitrogen[n]) > 1 for n in amines):
+        return _name_two_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo)
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -1068,9 +1208,9 @@ def name_amine(mol) -> str:
             "a secondary/tertiary amine nitrogen on or attached to a ring "
             "is out of scope for this module"
         )
-    if has_secondary_or_tertiary and len(amines) > 1:
+    if has_secondary_or_tertiary and len(amines) > 2:
         raise UnsupportedStructure(
-            "more than one amine nitrogen where at least one is "
+            "more than two amine nitrogens where at least one is "
             "secondary/tertiary is out of scope for this module"
         )
     if num_rings == 0:
