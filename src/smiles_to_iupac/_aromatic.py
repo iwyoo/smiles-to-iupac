@@ -5,9 +5,10 @@ per the IUPAC 2013 Recommendations ("the Blue Book"):
 - P-25.1.1 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf): fused
   ring nomenclature for polycyclic mancude ring systems.
 - P-25.1.2.1 / P-25.1.2.2: the retained names 'benzene' (one ring, PIN),
-  'naphthalene', 'anthracene', 'tetracene', 'pentacene' (the linear
-  "polyacene" family, P-25.1.2.1) and 'phenanthrene' (the first
-  "polyaphene", n=3, P-25.1.2.2, an *angular* three-ring chain).
+  'naphthalene', 'anthracene', 'tetracene', 'pentacene', 'hexacene',
+  'heptacene' (the linear "polyacene" family, P-25.1.2.1, Table 28.1)
+  and 'phenanthrene' (the first "polyaphene", n=3, P-25.1.2.2, an
+  *angular* three-ring chain).
 - P-25.3.1.3: "ortho-fusion" -- two rings sharing exactly one bond (two
   atoms); a ring atom shared by three or more rings is *peri*-fusion
   (e.g. pyrene, acenaphthylene) and out of scope here.
@@ -46,7 +47,7 @@ per the IUPAC 2013 Recommendations ("the Blue Book"):
 Scope, deliberately narrow (this is a hard, novel domain for this project):
 only a simple *chain* of ortho-fused benzenoid rings (each ring fused to at
 most two others, no ring-adjacency cycles, no atom shared by three or more
-rings) is handled, and only when the whole system carries one of six
+rings) is handled, and only when the whole system carries one of eight
 retained names:
 
 - 1 ring: benzene.
@@ -54,10 +55,10 @@ retained names:
 - 3 rings, straight (both fusion bonds of the middle ring are opposite
   hexagon edges): anthracene, traditional numbering.
 - 3 rings, angular (bent): phenanthrene, traditional numbering.
-- 4 rings, straight: tetracene, general algorithm.
-- 5 rings, straight: pentacene, general algorithm.
+- 4/5/6/7 rings, straight: tetracene/pentacene/hexacene/heptacene,
+  general algorithm.
 - Anything else -- 4+ rings that aren't a straight chain (angular
-  "polyphenes" beyond phenanthrene, e.g. chrysene/benz[a]anthracene), 6+
+  "polyphenes" beyond phenanthrene, e.g. chrysene/benz[a]anthracene), 8+
   rings, peri-fusion, a branched or cyclic ring-adjacency graph, or any
   heteroatom in the ring system -- raises `UnsupportedStructure`. These
   would require genuine `benzo[x,y-z]fusion[...]` name construction
@@ -459,6 +460,8 @@ _RETAINED_NAMES = {
     (3, ("bent",)): "phenanthrene",
     (4, ("straight", "straight")): "tetracene",
     (5, ("straight", "straight", "straight")): "pentacene",
+    (6, ("straight", "straight", "straight", "straight")): "hexacene",
+    (7, ("straight", "straight", "straight", "straight", "straight")): "heptacene",
 }
 
 
@@ -553,10 +556,11 @@ def name_aromatic_fused(mol, core) -> str:
             raise UnsupportedStructure(
                 "this ortho-fused aromatic ring chain does not have one of "
                 "the retained names supported so far (benzene, naphthalene, "
-                "anthracene, phenanthrene, tetracene, pentacene); longer or "
-                "angular (polyphene, n>=4) chains require systematic "
-                "benzo[x,y-z]fusion[...] name construction, which is out of "
-                "scope for now (see P-25.3.1-P-25.3.3)"
+                "anthracene, phenanthrene, tetracene, pentacene, hexacene, "
+                "heptacene); longer or angular (polyphene, n>=4) chains "
+                "require systematic benzo[x,y-z]fusion[...] name "
+                "construction, which is out of scope for now (see "
+                "P-25.3.1-P-25.3.3)"
             )
         omit_single_locant = False
         if parent == "anthracene":
