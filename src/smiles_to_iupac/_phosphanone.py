@@ -45,7 +45,7 @@ phosphorus), per the IUPAC 2013 Recommendations ("the Blue Book"):
   is cited as a 'phenyl' substituent -- the Blue Book's own two worked
   examples above are exactly this shape (a lone phenyl, and three
   identical phenyls), so it's supported outright rather than deferred.
-  Detection mirrors `_carbamate.py`'s `_plain_phenyl_substituent_atoms`
+  Detection mirrors `_carbamate.py`'s `plain_phenyl_substituent_atoms`
   (`is_plain_benzene_ring` + `ring_chain_attachment`), adapted for
   phosphorus's own direct-neighbor substituent roots instead of a
   chain-root carbon one hop away from the parent heteroatom.
@@ -70,6 +70,7 @@ from ._common import (
     is_plain_benzene_ring,
     linear_branch,
     non_single_bonds,
+    plain_phenyl_substituent_atoms,
     ring_chain_attachment,
 )
 from ._numerals import alkyl_name
@@ -99,29 +100,6 @@ def has_phosphanone_shape(mol) -> bool:
     return _find_phosphanone_phosphorus(mol) is not None
 
 
-def _plain_phenyl_substituent_atoms(mol, graph, roots):
-    """Union of ring atoms for every plain, unsubstituted benzene ring in
-    `mol` that hangs directly off one of `roots` (the phosphanone
-    phosphorus's own substituent neighbors) with no other exocyclic
-    attachment -- i.e. a lone 'phenyl' substituent directly on phosphorus.
-    Mirrors `_carbamate.py`'s identical helper; here `roots` are the
-    parent heteroatom's direct neighbors themselves (a ring bonded
-    straight to phosphorus, chain length zero) rather than a chain-root
-    carbon one hop away."""
-    atoms = set()
-    for ring in mol.GetRingInfo().AtomRings():
-        ring_atoms = set(ring)
-        if not is_plain_benzene_ring(mol, ring_atoms):
-            continue
-        attachment = ring_chain_attachment(graph, ring_atoms, set())
-        if attachment is None:
-            continue
-        ring_atom, _ = attachment
-        if ring_atom in roots:
-            atoms |= ring_atoms
-    return atoms
-
-
 def _validate_and_collect_substituents(mol):
     found = _find_phosphanone_phosphorus(mol)
     if found is None:
@@ -132,7 +110,7 @@ def _validate_and_collect_substituents(mol):
     phosphorus, oxo = found
     graph = adjacency(mol)
     roots = {r for r in graph[phosphorus.GetIdx()] if r != oxo.GetIdx()}
-    phenyl_atoms = _plain_phenyl_substituent_atoms(mol, graph, roots)
+    phenyl_atoms = plain_phenyl_substituent_atoms(mol, graph, roots)
 
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() not in (15, 6, 8):

@@ -100,16 +100,16 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 from rdkit import Chem
 
 from ._common import (
-    elides_before,
     ENE_BOND_ORDER,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     YNE_BOND_ORDER,
     adjacency,
-    bfs,
     bond_locant,
     bond_locants,
     carbon_adjacency,
+    component_subgraph,
+    elides_before,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
@@ -325,12 +325,6 @@ def _candidate_key(chain_length, ene_locants, yne_locants, substituents):
     )
 
 
-def _component_subgraph(graph, start):
-    dist, _ = bfs(graph, start)
-    nodes = set(dist)
-    return {node: [n for n in graph[node] if n in nodes] for node in nodes}
-
-
 def _substituents_for_chain(graph, chain, halogens, excluded_oxygens, mol=None):
     chain_set = set(chain)
     substituents = {}
@@ -381,7 +375,7 @@ def _name_acyl_part(
     acyl_carbon_idx = acyl_carbon.GetIdx()
     excluded_oxygens = {carbonyl_oxygen_idx, ester_oxygen_idx}
 
-    acyl_graph = _component_subgraph(carbon_graph, acyl_carbon_idx)
+    acyl_graph = component_subgraph(carbon_graph, acyl_carbon_idx)
     chains = longest_chains(acyl_graph)
     chain_length = len(chains[0])
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []

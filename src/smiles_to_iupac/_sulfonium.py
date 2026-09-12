@@ -33,7 +33,7 @@ substituents), per the IUPAC 2013 Recommendations ("the Blue Book"):
   identical quaternary-phosphonium extension (PR #398); the sulfonium
   cation's own valence of 3 never triggers a lambda-convention label,
   same as that module's degree 0-3 phosphane-reuse path. Detection
-  reuses the same `_plain_phenyl_substituent_atoms` pattern
+  reuses the same `plain_phenyl_substituent_atoms` pattern
   (`is_plain_benzene_ring` + `ring_chain_attachment`).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
@@ -67,6 +67,7 @@ from ._common import (
     is_plain_benzene_ring,
     linear_branch,
     non_single_bonds,
+    plain_phenyl_substituent_atoms,
     ring_chain_attachment,
     specified_stereocenters,
 )
@@ -94,26 +95,6 @@ def has_sulfonium_shape(mol) -> bool:
         n.GetAtomicNum() == 6 and mol.GetBondBetweenAtoms(sulfur.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
         for n in sulfur.GetNeighbors()
     )
-
-
-def _plain_phenyl_substituent_atoms(mol, graph, roots):
-    """Union of ring atoms for every plain, unsubstituted benzene ring in
-    `mol` that hangs directly off one of `roots` (the sulfonium sulfur's
-    own substituent neighbors) with no other exocyclic attachment -- i.e.
-    a lone 'phenyl' substituent directly on sulfur. Mirrors
-    `_phosphonium.py`'s identical helper."""
-    atoms = set()
-    for ring in mol.GetRingInfo().AtomRings():
-        ring_atoms = set(ring)
-        if not is_plain_benzene_ring(mol, ring_atoms):
-            continue
-        attachment = ring_chain_attachment(graph, ring_atoms, set())
-        if attachment is None:
-            continue
-        ring_atom, _ = attachment
-        if ring_atom in roots:
-            atoms |= ring_atoms
-    return atoms
 
 
 def name_sulfonium(mol) -> str:
@@ -157,7 +138,7 @@ def name_sulfonium(mol) -> str:
 
     graph = adjacency(mol)
     roots = set(graph[sulfur.GetIdx()])
-    phenyl_atoms = _plain_phenyl_substituent_atoms(mol, graph, roots)
+    phenyl_atoms = plain_phenyl_substituent_atoms(mol, graph, roots)
 
     other_atoms = [atom for atom in mol.GetAtoms() if atom.GetIdx() != sulfur.GetIdx()]
     for atom in other_atoms:
