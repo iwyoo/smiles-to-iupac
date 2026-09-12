@@ -282,7 +282,7 @@ def _add_n_names(grouped, n_names, n_locants=None):
     that. With two coexisting amine nitrogens, each entry is instead that
     nitrogen's own parent-chain locant, producing 'N<k>' (e.g. 'N2') per
     P-16.9.2 (superseding the older N/N'-prime convention for this exact
-    case -- see `_name_two_amine_chain`'s docstring)."""
+    case -- see `_name_multi_amine_chain`'s docstring)."""
     if not n_names:
         return grouped
     display = {name: {"locants": list(info["locants"]), "compound": info["compound"]} for name, info in grouped.items()}
@@ -453,7 +453,7 @@ def _best_chain_name(
     caller no longer glues an 'N-' prefix on afterward. Ignored when
     `n_names_by_nitrogen` is given.
 
-    `n_names_by_nitrogen`: for `_name_two_amine_chain`'s two-coexisting-
+    `n_names_by_nitrogen`: for `_name_multi_amine_chain`'s coexisting-
     amines case (P-16.9.2) -- `{nitrogen_atom_idx: [(name, is_compound),
     ...]}`. Each nitrogen's own chain locant depends on which orientation
     of which candidate chain wins, so (unlike the single-amine `n_names`
@@ -624,16 +624,17 @@ def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=
     return best_name
 
 
-def _name_two_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None):
-    """Two coexisting amine nitrogens on one shared parent chain, at least
-    one of which is secondary/tertiary (e.g. 'NCCN(C)C',
-    N2,N2-dimethylethane-1,2-diamine). Each extra N-substituent is named
-    exactly like `_name_acyclic_secondary_tertiary_amine` already does for
-    a single amine -- via `name_branch` on its own connected-component
-    root, isolated from the rest of the carbon skeleton by the same
-    "N isn't in the carbon-only graph" property that function relies on --
-    but is now tagged with *that nitrogen's own chain locant* rather than
-    a bare 'N', per P-16.9.2:
+def _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None):
+    """Two or more coexisting amine nitrogens on one shared parent chain,
+    at least one of which is secondary/tertiary (e.g. 'NCCN(C)C',
+    N2,N2-dimethylethane-1,2-diamine; 'NCC(N)C(N)CN(C)C',
+    N1,N1-dimethylbutane-1,2,3,4-tetramine). Each extra N-substituent is
+    named exactly like `_name_acyclic_secondary_tertiary_amine` already
+    does for a single amine -- via `name_branch` on its own connected-
+    component root, isolated from the rest of the carbon skeleton by the
+    same "N isn't in the carbon-only graph" property that function relies
+    on -- but is now tagged with *that nitrogen's own chain locant* rather
+    than a bare 'N', per P-16.9.2:
 
     > "Superscript arabic numbers, which are the locants of the parent
     > structure, are used to differentiate the nitrogen atoms of di- and
@@ -650,13 +651,15 @@ def _name_two_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None
     single-amine case does.
 
     Scope, deliberately narrow (see `tasks/amine-cross-cutting-
-    generalization.md`): exactly two amine nitrogens, both contributing to
-    one shared chain (geminal -- both on the same carbon -- is explicitly
-    excluded by P-16.9.2 itself and raises here); each nitrogen's extra
-    substituents are plain saturated (branched/halogenated) alkyl only, no
-    unsaturation (mirroring `_name_acyclic_secondary_tertiary_amine`'s own
-    unbranched-only unsaturated-N-substituent support would need its own
-    per-nitrogen locant plumbing there too -- future work)."""
+    generalization.md`): every amine nitrogen must contribute to one
+    shared chain (geminal -- two nitrogens on the same carbon -- is
+    explicitly excluded by P-16.9.2 itself and raises here, as does a
+    nitrogen not reachable from every other one via a single carbon
+    backbone); each nitrogen's extra substituents are plain saturated
+    (branched/halogenated) alkyl only, no unsaturation (mirroring
+    `_name_acyclic_secondary_tertiary_amine`'s own unbranched-only
+    unsaturated-N-substituent support would need its own per-nitrogen
+    locant plumbing there too -- future work)."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     full_carbon_graph = carbon_adjacency(mol)
@@ -675,8 +678,8 @@ def _name_two_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None
     ]
     if len(shared_components) != 1:
         raise UnsupportedStructure(
-            "the two amine nitrogens must share exactly one connected "
-            "carbon backbone for this naming path"
+            "every amine nitrogen must share exactly one connected carbon "
+            "backbone for this naming path"
         )
     chain_component = shared_components[0]
 
@@ -687,7 +690,7 @@ def _name_two_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None
         on_chain = [c for c in n_carbons_by_nitrogen[n] if c in chain_component]
         if len(on_chain) != 1:
             raise UnsupportedStructure(
-                "two amine nitrogens sharing the same carbon (geminal) is "
+                "two or more amine nitrogens sharing the same carbon (geminal) is "
                 "excluded from P-16.9.2's superscript-locant convention "
                 "and is not supported yet"
             )
@@ -698,7 +701,7 @@ def _name_two_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None
             root_component = set(components[root])
             if any(a in root_component and b in root_component for a, b, _ in bonds):
                 raise UnsupportedStructure(
-                    "an unsaturated N-substituent alongside a second amine "
+                    "an unsaturated N-substituent alongside another coexisting amine "
                     "nitrogen is not supported yet"
                 )
             names.append(name_branch(graph, root, n, halogens, mol=mol))
@@ -706,7 +709,7 @@ def _name_two_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None
         n_names_by_nitrogen[n] = names
     if len(chain_anchors) != len(amines):
         raise UnsupportedStructure(
-            "two amine nitrogens sharing the same carbon (geminal) is "
+            "two or more amine nitrogens sharing the same carbon (geminal) is "
             "excluded from P-16.9.2's superscript-locant convention "
             "and is not supported yet"
         )
@@ -732,8 +735,8 @@ def _name_acyclic_amine(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None):
         if len(n_carbons) > 1:
             return _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo)
 
-    if len(amines) == 2 and any(len(n_carbons_by_nitrogen[n]) > 1 for n in amines):
-        return _name_two_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo)
+    if len(amines) >= 2 and any(len(n_carbons_by_nitrogen[n]) > 1 for n in amines):
+        return _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo)
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -1207,11 +1210,6 @@ def name_amine(mol) -> str:
         raise UnsupportedStructure(
             "a secondary/tertiary amine nitrogen on or attached to a ring "
             "is out of scope for this module"
-        )
-    if has_secondary_or_tertiary and len(amines) > 2:
-        raise UnsupportedStructure(
-            "more than two amine nitrogens where at least one is "
-            "secondary/tertiary is out of scope for this module"
         )
     if num_rings == 0:
         return _name_acyclic_amine(mol, amines, n_carbons_by_nitrogen, bonds, stereo)
