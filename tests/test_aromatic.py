@@ -35,12 +35,16 @@ from smiles_to_iupac._common import UnsupportedStructure
         # pentacene: straight 5-ring chain, same general algorithm one ring
         # further. Cross-checked against PubChem CID 8671.
         ("C1=CC=C2C=C3C=C4C=C5C=CC=CC5=CC4=CC3=CC2=C1", "pentacene"),
-        # hexacene/heptacene (P-25.1.2.1 Table 28.1, both genuine retained
-        # names -- confirmed in the cached Blue Book text): same general
-        # algorithm, one and two rings further than pentacene. Cross-checked
-        # against PubChem CID 123044/5460712.
+        # hexacene through nonacene (P-25.1.2.1 Table 28.1, all genuine
+        # retained names -- confirmed in the cached Blue Book text): same
+        # general algorithm, generated via `_retained_chain_name`'s regular
+        # numerical-term + "acene" formula rather than one hardcoded name
+        # per ring count. Cross-checked against PubChem CID 123044/5460712/
+        # 5460708/6857587.
         ("c1ccc2cc3cc4cc5cc6ccccc6cc5cc4cc3cc2c1", "hexacene"),
         ("c1ccc2cc3cc4cc5cc6cc7ccccc7cc6cc5cc4cc3cc2c1", "heptacene"),
+        ("c1ccc2cc3cc4cc5cc6cc7cc8ccccc8cc7cc6cc5cc4cc3cc2c1", "octacene"),
+        ("c1ccc2cc3cc4cc5cc6cc7cc8cc9ccccc9cc8cc7cc6cc5cc4cc3cc2c1", "nonacene"),
         # Halogen substituents (P-35.2.1), reusing the existing
         # halogen_substituents/name_branch machinery, cross-checked against
         # PubChem: chlorobenzene (CID 7964), 2-chloronaphthalene (CID 7056).
@@ -124,6 +128,15 @@ def test_angular_four_ring_resolves_via_phenanthrene_fusion():
     # `_phenanthrene_fusion.py` first, which recognizes it as the
     # retained name 'chrysene' via its fusion-locant-letter mechanism.
     assert smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=C2C=CC4=CC=CC=C43") == "chrysene"
+
+
+def test_straight_ten_ring_chain_raises():
+    # decacene (10-ring straight chain): Table 28.1's retained-name
+    # enumeration stops at nonacene (n=9), so `_retained_chain_name`
+    # deliberately doesn't extrapolate its regular numerical-term pattern
+    # past that -- this must still raise, not silently invent a name.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccc2cc3cc4cc5cc6cc7cc8cc9cc%10ccccc%10cc9cc8cc7cc6cc5cc4cc3cc2c1")
 
 
 def test_saturated_rings_still_resolve_unaffected():
