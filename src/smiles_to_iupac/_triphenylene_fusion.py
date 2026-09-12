@@ -27,22 +27,26 @@ Letter 'a's shape turns out to be the exact same compound as
 structure and matching InChI), so only one of the two base components
 may claim it -- P-25.3.2.4's parent-component seniority criteria decide
 which. Chrysene and triphenylene tie on every criterion through (f) (same
-ring count, same all-6-membered profile, no heteroatoms), so it comes
-down to (g), "the greatest number of rings in a horizontal row when
-drawn in the preferred orientation" (P-25.3.2.3) -- an orientation
-algorithm this project hasn't implemented (`_aromatic.py`'s own docstring
-already flags "the full P-25.3.2.3.3 orientation search" as out of
-scope). 'a' is excluded here so chrysene claims the shape instead, which
-is *probably* right (P-25.3.2.4(g)'s own worked example already places
-chrysene and pyrene at the same "2 rings in a horizontal row" tier, and
-triphenylene's standard depiction is also usually drawn at 2-in-a-row, so
-the two most likely tie all the way through P-25.3.2.4's list and fall
-to plain alphabetical order, favoring chrysene) -- but this is a reasoned
-guess, not a verified one; revisit once P-25.3.2.3's orientation
-algorithm exists. Letter 'b' doesn't match any retained name or other
-base's output; PubChem's own autoname agrees independently
-('benzo[b]triphenylene', CID 9164), so it's supported here as the one
-genuinely new name this base adds.
+ring count, same all-6-membered profile, no heteroatoms) and also on (g),
+"the greatest number of rings in a horizontal row when drawn in the
+preferred orientation" (P-25.3.2.3): `_fusion_orientation.py`'s algorithm
+confirms both give 2. Criteria (h)/(i) (heteroatom locants) don't apply
+either (no heteroatoms), so the real tiebreak is (j), "the lower locants
+for the peripheral fusion carbon atoms" -- a numbering-based rule
+(P-25.3.3.1) this project hasn't implemented yet. 'a' is excluded here so
+chrysene claims the shape instead, which PubChem's own autonaming agrees
+with independently, but is not yet a verified application of (j) itself;
+revisit once a full peripheral-numbering algorithm exists. (An earlier
+version of this comment guessed the tie extended to P-25.3.2.3.3's
+quadrant sub-criteria (b)/(c)/(d) as well and fell through to plain
+alphabetical order -- both halves of that guess were wrong: those
+sub-criteria only pick a single preferred orientation for (g) itself, and
+aren't separate P-25.3.2.4 list entries at all, and the actual next entry
+after (g) is (j)'s locant rule, not alphabetical order. See
+`_fusion_orientation.py`'s module docstring and issue #570.) Letter 'b'
+doesn't match any retained name or other base's output; PubChem's own
+autoname agrees independently ('benzo[b]triphenylene', CID 9164), so it's
+supported here as the one genuinely new name this base adds.
 
 Scope, deliberately narrow, matching the sibling fusion modules: exactly
 one plain, unsubstituted benzo ring ortho-fused onto triphenylene at the

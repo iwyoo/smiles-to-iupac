@@ -74,12 +74,18 @@ def test_straight_pentacene_all_five_in_row():
 def test_triphenylene_branching_two_in_row():
     # Triphenylene's ring-fusion graph is branched (one central ring
     # ortho-fused to three others), not a simple chain -- the first
-    # branching case this module supports. `_triphenylene_fusion.py`'s own
-    # docstring documents that chrysene and triphenylene tie on every
-    # criterion through (f) and are only distinguished starting at (g)
-    # ("greatest number of rings in a horizontal row"), which requires
-    # both to compute the same row count here.
-    mol = Chem.MolFromSmiles("c1ccc2c(c1)ccc1c2ccc2ccccc21")
+    # branching case this module supports. PubChem CID 9170, InChIKey
+    # SLGBZMMZGDRARJ-UHFFFAOYSA-N confirms this is real triphenylene (an
+    # earlier version of this SMILES, still used elsewhere in this
+    # project's git history, was actually a *linear* 4-ring chain
+    # isomer -- caught during #570's PubChem cross-check, see
+    # `test_chrysene_beats_triphenylene_on_criterion_b`).
+    # `_triphenylene_fusion.py`'s own docstring documents that chrysene and
+    # triphenylene tie on every P-25.3.2.4 criterion through (f) and are
+    # only distinguished starting at (g) ("greatest number of rings in a
+    # horizontal row"), which requires both to compute the same row count
+    # here.
+    mol = Chem.MolFromSmiles("c1ccc2c(c1)c1ccccc1c1ccccc21")
     assert count_rings_in_horizontal_row(mol) == 2
 
 
@@ -119,15 +125,19 @@ def test_tetraphene_criterion_b_needs_orientation_search():
     assert rings_in_upper_right_quadrant(mol) == 1.75
 
 
-def test_chrysene_and_triphenylene_tie_on_criterion_b_too():
-    # `_triphenylene_fusion.py`'s own docstring already guesses chrysene
-    # and triphenylene tie all the way down P-25.3.2.4's seniority list
-    # and fall to alphabetical order -- this confirms that guess one
-    # criterion further: they tie on (b) as well as (a) (both computed
-    # here as 2.5), not just (a).
+def test_chrysene_beats_triphenylene_on_criterion_b():
+    # They tie on (a) (both 2 rings in a horizontal row), but genuine
+    # triphenylene (PubChem CID 9170) does NOT tie chrysene on (b) - an
+    # earlier, mislabeled SMILES for "triphenylene" (actually a linear
+    # 4-ring chain isomer, caught during #570's PubChem cross-check) gave
+    # a false tie at 2.5 for both. With the real, branched triphenylene,
+    # chrysene's 2.5 already beats triphenylene's 1.5, so P-25.3.2.4(g)'s
+    # seniority question between them is settled at (b) - no need for (c),
+    # (d), or any fallback further down the seniority list.
     chrysene = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=C2C=CC4=CC=CC=C43")
-    triphenylene = Chem.MolFromSmiles("c1ccc2c(c1)ccc1c2ccc2ccccc21")
-    assert rings_in_upper_right_quadrant(chrysene) == rings_in_upper_right_quadrant(triphenylene) == 2.5
+    triphenylene = Chem.MolFromSmiles("c1ccc2c(c1)c1ccccc1c1ccccc21")
+    assert rings_in_upper_right_quadrant(chrysene) == 2.5
+    assert rings_in_upper_right_quadrant(triphenylene) == 1.5
 
 
 def test_phenanthrene_criteria_c_and_d():
@@ -142,15 +152,15 @@ def test_tetraphene_criteria_c_and_d():
     assert rings_above_horizontal_row(mol) == 2.5
 
 
-def test_chrysene_and_triphenylene_tie_through_the_full_cascade():
-    # The tie persists through (c) and (d) too, not just (a) and (b) -
-    # strong evidence the two are decided by plain alphabetical order
-    # further down P-25.3.2.4's seniority list, not by these orientation
-    # criteria at all (see the module docstring).
-    chrysene = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=C2C=CC4=CC=CC=C43")
-    triphenylene = Chem.MolFromSmiles("c1ccc2c(c1)ccc1c2ccc2ccccc21")
-    assert rings_in_lower_left_quadrant(chrysene) == rings_in_lower_left_quadrant(triphenylene) == 0.5
-    assert rings_above_horizontal_row(chrysene) == rings_above_horizontal_row(triphenylene) == 3.0
+def test_triphenylene_criteria_c_and_d():
+    # Regression values for genuine triphenylene on a branched ring-fusion
+    # graph - not tie-breakers for the chrysene comparison, since neither
+    # (b) nor (c)/(d) are themselves P-25.3.2.4 seniority criteria (see
+    # `test_chrysene_beats_triphenylene_on_criterion_b` and the module
+    # docstring).
+    triphenylene = Chem.MolFromSmiles("c1ccc2c(c1)c1ccccc1c1ccccc21")
+    assert rings_in_lower_left_quadrant(triphenylene) == 0.5
+    assert rings_above_horizontal_row(triphenylene) == 2.0
 
 
 @pytest.mark.parametrize(
@@ -159,7 +169,7 @@ def test_chrysene_and_triphenylene_tie_through_the_full_cascade():
         "c1ccc2ccc3ccccc3c2c1",  # phenanthrene
         "C1=CC=C2C(=C1)C=CC3=CC4=CC=CC=C4C=C32",  # tetraphene
         "C1=CC=C2C(=C1)C=CC3=C2C=CC4=CC=CC=C43",  # chrysene
-        "c1ccc2c(c1)ccc1c2ccc2ccccc21",  # triphenylene
+        "c1ccc2c(c1)c1ccccc1c1ccccc21",  # triphenylene
         "c1ccc2cc3ccccc3cc2c1",  # anthracene
         "c1ccc2cc3cc4cc5ccccc5cc4cc3cc2c1",  # pentacene
     ],
@@ -172,3 +182,58 @@ def test_above_plus_below_equals_total_ring_count(smiles):
     n = mol.GetRingInfo().NumRings()
     above = rings_above_horizontal_row(mol)
     assert 0 <= above <= n
+
+
+# Random-sample validation for issue #570: 14 previously-untested,
+# tree-shaped (catacondensed or branched) aromatic ring systems pulled
+# live from PubChem (CanonicalSMILES via PUG REST), none of which were
+# used to build or tune this module - this is what caught the mislabeled
+# "triphenylene" SMILES above (its PubChem cross-check, CID 9170,
+# InChIKey SLGBZMMZGDRARJ-UHFFFAOYSA-N, is what exposed the earlier test
+# suite's linear-chain impostor). Values pinned here are regression
+# anchors on this implementation, not independently Blue-Book-verified
+# per compound (only phenanthrene/tetraphene/chrysene/anthracene/pentacene
+# above have primary-source-cited values) - the property under test is
+# that the algorithm runs to completion and stays internally consistent
+# (quadrant/row counts sum to the total ring count) on real structures it
+# has never seen, not that each named value matches a hand-checked source.
+_PUBCHEM_SAMPLE = [
+    # (PubChem CID, name, SMILES, expected rings-in-horizontal-row)
+    (7080, "naphthacene", "C1=CC=C2C=C3C=C4C=CC=CC4=CC3=CC2=C1", 4),
+    (8671, "pentacene", "C1=CC=C2C=C3C=C4C=C5C=CC=CC5=CC4=CC3=CC2=C1", 5),
+    (9162, "picene", "C1=CC=C2C(=C1)C=CC3=C2C=CC4=C3C=CC5=CC=CC=C54", 4),
+    (519935, "pentaphene", "C1=CC=C2C=C3C(=CC2=C1)C=CC4=CC5=CC=CC=C5C=C43", 3),
+    (9135, "benzo[c]chrysene", "C1=CC=C2C(=C1)C=CC3=C2C=CC4=C3C5=CC=CC=C5C=C4", 4),
+    (9140, "benzo[g]chrysene", "C1=CC=C2C(=C1)C=CC3=C2C4=CC=CC=C4C5=CC=CC=C35", 4),
+    (9164, "dibenzo[a,c]anthracene", "C1=CC=C2C=C3C4=CC=CC=C4C5=CC=CC=C5C3=CC2=C1", 3),
+    (5889, "dibenz[a,h]anthracene", "C1=CC=C2C(=C1)C=CC3=CC4=C(C=CC5=CC=CC=C54)C=C32", 3),
+    (9176, "dibenz[a,j]anthracene", "C1=CC=C2C(=C1)C=CC3=CC4=C(C=C32)C5=CC=CC=C5C=C4", 4),
+    (5954, "benzo[a]anthracene", "C1=CC=C2C(=C1)C=CC3=CC4=CC=CC=C4C=C32", 3),
+    (9167, "dibenzo[a,c]naphthacene", "C1=CC=C2C=C3C=C4C5=CC=CC=C5C6=CC=CC=C6C4=CC3=CC2=C1", 4),
+    (98863, "hexahelicene", "C1=CC=C2C(=C1)C=CC3=C2C4=C(C=C3)C=CC5=C4C6=CC=CC=C6C=C5", 6),
+]
+
+
+@pytest.mark.parametrize("cid,name,smiles,expected_row", _PUBCHEM_SAMPLE, ids=[s[1] for s in _PUBCHEM_SAMPLE])
+def test_pubchem_random_sample_row_count_and_consistency(cid, name, smiles, expected_row):
+    mol = Chem.MolFromSmiles(smiles)
+    n = mol.GetRingInfo().NumRings()
+    assert count_rings_in_horizontal_row(mol) == expected_row
+    ur = rings_in_upper_right_quadrant(mol)
+    ll = rings_in_lower_left_quadrant(mol)
+    above = rings_above_horizontal_row(mol)
+    assert 0 <= ur <= n
+    assert 0 <= ll <= n
+    assert 0 <= above <= n
+    assert above + (n - above) == n
+
+
+def test_pubchem_sample_peri_fused_case_still_unsupported():
+    # dibenzo[def,p]chrysene (PubChem CID 9119) from the same random pull -
+    # a real, registered peri-fused structure (an atom shared by three
+    # rings), confirming the tree-only scope boundary against a structure
+    # this module was never tuned against, not just the hand-built
+    # `test_pyrene_peri_fused_still_unsupported` case above.
+    mol = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=C3C=CC4=C5C3=C2C6=CC=CC=C6C5=CC=C4")
+    with pytest.raises(UnsupportedStructure):
+        count_rings_in_horizontal_row(mol)
