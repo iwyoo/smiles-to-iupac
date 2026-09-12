@@ -24,12 +24,25 @@ touching any other ring-fusion atom is.
 
 Letter 'a's shape turns out to be the exact same compound as
 `_chrysene_fusion.py`'s letter 'g' (confirmed by building the fused
-structure and matching InChI) -- chrysene is the senior base component
-for that shape (already produced there), so 'a' is excluded here to
-avoid a second, redundant route to it. Letter 'b' doesn't match any
-retained name or other base's output; PubChem's own autoname agrees
-independently ('benzo[b]triphenylene', CID 9164), so it's supported
-here as the one genuinely new name this base adds.
+structure and matching InChI), so only one of the two base components
+may claim it -- P-25.3.2.4's parent-component seniority criteria decide
+which. Chrysene and triphenylene tie on every criterion through (f) (same
+ring count, same all-6-membered profile, no heteroatoms), so it comes
+down to (g), "the greatest number of rings in a horizontal row when
+drawn in the preferred orientation" (P-25.3.2.3) -- an orientation
+algorithm this project hasn't implemented (`_aromatic.py`'s own docstring
+already flags "the full P-25.3.2.3.3 orientation search" as out of
+scope). 'a' is excluded here so chrysene claims the shape instead, which
+is *probably* right (P-25.3.2.4(g)'s own worked example already places
+chrysene and pyrene at the same "2 rings in a horizontal row" tier, and
+triphenylene's standard depiction is also usually drawn at 2-in-a-row, so
+the two most likely tie all the way through P-25.3.2.4's list and fall
+to plain alphabetical order, favoring chrysene) -- but this is a reasoned
+guess, not a verified one; revisit once P-25.3.2.3's orientation
+algorithm exists. Letter 'b' doesn't match any retained name or other
+base's output; PubChem's own autoname agrees independently
+('benzo[b]triphenylene', CID 9164), so it's supported here as the one
+genuinely new name this base adds.
 
 Scope, deliberately narrow, matching the sibling fusion modules: exactly
 one plain, unsubstituted benzo ring ortho-fused onto triphenylene at the
