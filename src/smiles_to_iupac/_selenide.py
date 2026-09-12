@@ -46,6 +46,7 @@ from ._common import (
     adjacency,
     bfs,
     carbon_adjacency,
+    component_subgraph,
     is_plain_benzene_ring,
     non_single_bonds,
     ring_chain_attachment,
@@ -58,12 +59,6 @@ _SELENIUM = 34
 
 def _selanyl_prefix(name: str) -> str:
     return name + "selanyl"
-
-
-def _component_subgraph(graph, start):
-    dist, _ = bfs(graph, start)
-    nodes = set(dist)
-    return {node: [n for n in graph[node] if n in nodes] for node in nodes}
 
 
 def has_selenide_shape(mol) -> bool:
@@ -175,12 +170,12 @@ def name_selenide(mol) -> str:
 
     full_graph = adjacency(mol)
     carbon_graph = carbon_adjacency(mol)
-    size1 = len(_component_subgraph(carbon_graph, n1))
-    size2 = len(_component_subgraph(carbon_graph, n2))
+    size1 = len(component_subgraph(carbon_graph, n1))
+    size2 = len(component_subgraph(carbon_graph, n2))
 
     if size1 == size2:
-        graph_a = _component_subgraph(carbon_graph, n1)
-        graph_b = _component_subgraph(carbon_graph, n2)
+        graph_a = component_subgraph(carbon_graph, n1)
+        graph_b = component_subgraph(carbon_graph, n2)
         len_a, len_b = longest_chain_length(graph_a), longest_chain_length(graph_b)
         if len_a > len_b:
             parent_root, sub_root = n1, n2
@@ -203,6 +198,6 @@ def name_selenide(mol) -> str:
     if sub_compound:
         sub_name = f"({sub_name})"
 
-    parent_carbon_graph = _component_subgraph(carbon_graph, parent_root)
+    parent_carbon_graph = component_subgraph(carbon_graph, parent_root)
     terminals = {selenium_idx: _selanyl_prefix(sub_name)}
     return name_from_carbon_graph(full_graph, parent_carbon_graph, terminals, mol=mol)

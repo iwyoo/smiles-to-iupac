@@ -96,10 +96,10 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    bfs,
     bond_locant,
     bond_locants,
     carbon_adjacency,
+    component_subgraph,
     elides_before,
     group_substituents,
     halogen_substituents,
@@ -455,12 +455,6 @@ def _best_chain_name(
     return best_name, best_position_of
 
 
-def _component_subgraph(graph, start):
-    dist, _ = bfs(graph, start)
-    nodes = set(dist)
-    return {node: [n for n in graph[node] if n in nodes] for node in nodes}
-
-
 def _unbranched_unsaturated_n_substituent_name(carbon_graph, root, bond):
     """The '-enyl'/'-ynyl' name (P-29.2) for a secondary/tertiary amine's
     N-substituent when it's a plain, unbranched carbon chain carrying
@@ -523,7 +517,7 @@ def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=
     # touch each other there -- each already starts its own disjoint
     # component, letting the largest one be isolated as the parent chain's
     # own graph before any chain search runs.
-    components = {c: _component_subgraph(full_carbon_graph, c) for c in n_carbons}
+    components = {c: component_subgraph(full_carbon_graph, c) for c in n_carbons}
     parent_root = max(n_carbons, key=lambda c: len(components[c]))
     other_roots = [c for c in n_carbons if c != parent_root]
 
@@ -610,7 +604,7 @@ def _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=No
     full_carbon_graph = carbon_adjacency(mol)
 
     all_n_carbons = [c for n in amines for c in n_carbons_by_nitrogen[n]]
-    components = {c: _component_subgraph(full_carbon_graph, c) for c in all_n_carbons}
+    components = {c: component_subgraph(full_carbon_graph, c) for c in all_n_carbons}
     # The shared parent chain is whichever connected carbon component has a
     # neighbor from *every* nitrogen -- not simply the largest component,
     # which a same-sized N-substituent fragment (e.g. an N-ethyl tied with

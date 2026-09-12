@@ -94,10 +94,9 @@ from rdkit import Chem
 from ._common import (
     UnsupportedStructure,
     adjacency,
-    is_plain_benzene_ring,
     non_single_bonds,
+    plain_phenyl_substituent_atoms,
     plain_saturated_ring_substituent_atoms,
-    ring_chain_attachment,
 )
 from ._substituents import alpha_sort_key, name_branch
 
@@ -162,27 +161,6 @@ def has_carbamate_shape(mol) -> bool:
     return bool(_carbamate_cores(mol))
 
 
-def _plain_phenyl_substituent_atoms(mol, graph, roots):
-    """Union of ring atoms for every plain, unsubstituted benzene ring in
-    `mol` that hangs directly off one of `roots` (the carbamate amide
-    nitrogen's substituent-carbon neighbors) with no other exocyclic
-    attachment -- i.e. a lone 'phenyl' N-substituent. Mirrors `_urea.py`'s
-    identical helper; deliberately never includes a ring on the R
-    (ester-alkoxy) side, which stays out of scope."""
-    atoms = set()
-    for ring in mol.GetRingInfo().AtomRings():
-        ring_atoms = set(ring)
-        if not is_plain_benzene_ring(mol, ring_atoms):
-            continue
-        attachment = ring_chain_attachment(graph, ring_atoms, set())
-        if attachment is None:
-            continue
-        ring_atom, _ = attachment
-        if ring_atom in roots:
-            atoms |= ring_atoms
-    return atoms
-
-
 def name_carbamate(mol) -> str:
     cores = _carbamate_cores(mol)
     if len(cores) != 1:
@@ -193,7 +171,7 @@ def name_carbamate(mol) -> str:
     carbamate_c, carbonyl_o, ester_o, alkyl_c, amide_n, n_alkyl_cs = cores[0]
 
     full_graph = adjacency(mol)
-    phenyl_atoms = _plain_phenyl_substituent_atoms(mol, full_graph, n_alkyl_cs)
+    phenyl_atoms = plain_phenyl_substituent_atoms(mol, full_graph, n_alkyl_cs)
     if phenyl_atoms and any(c in phenyl_atoms for c in n_alkyl_cs) and len(n_alkyl_cs) > 1:
         raise UnsupportedStructure(
             "a phenyl N-substituent alongside another substituent on the "

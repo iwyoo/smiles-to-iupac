@@ -37,7 +37,7 @@ P-73.1.1.2), per the IUPAC 2013 Recommendations ("the Blue Book"):
   gets this for free via `_phosphane.py`'s own identical extension (PR
   #397) through the neutralize-then-rename path above; the quaternary
   degree-4 case needs its own copy of that same detection (mirroring
-  `_phosphane.py`'s `_plain_phenyl_substituent_atoms`) since it's built
+  `_phosphane.py`'s `plain_phenyl_substituent_atoms`) since it's built
   directly rather than reusing `name_simple_phosphane`. Confirmed via
   PubChem PUG REST: `c1ccccc1[P+](c1ccccc1)(c1ccccc1)c1ccccc1` ->
   "tetraphenylphosphanium" (CID 164912).
@@ -71,10 +71,9 @@ from rdkit import Chem
 from ._common import (
     UnsupportedStructure,
     adjacency,
-    is_plain_benzene_ring,
     linear_branch,
     non_single_bonds,
-    ring_chain_attachment,
+    plain_phenyl_substituent_atoms,
     specified_stereocenters,
 )
 from ._numerals import alkyl_name
@@ -155,30 +154,10 @@ def name_phosphonium(mol) -> str:
     return phosphane_name[:-1] + "ium"
 
 
-def _plain_phenyl_substituent_atoms(mol, graph, roots):
-    """Union of ring atoms for every plain, unsubstituted benzene ring in
-    `mol` that hangs directly off one of `roots` (the quaternary
-    phosphonium phosphorus's own substituent neighbors) with no other
-    exocyclic attachment -- i.e. a lone 'phenyl' substituent directly on
-    phosphorus. Mirrors `_phosphane.py`'s identical helper."""
-    atoms = set()
-    for ring in mol.GetRingInfo().AtomRings():
-        ring_atoms = set(ring)
-        if not is_plain_benzene_ring(mol, ring_atoms):
-            continue
-        attachment = ring_chain_attachment(graph, ring_atoms, set())
-        if attachment is None:
-            continue
-        ring_atom, _ = attachment
-        if ring_atom in roots:
-            atoms |= ring_atoms
-    return atoms
-
-
 def _name_quaternary_phosphonium(mol, phosphorus) -> str:
     graph = adjacency(mol)
     roots = set(graph[phosphorus.GetIdx()])
-    phenyl_atoms = _plain_phenyl_substituent_atoms(mol, graph, roots)
+    phenyl_atoms = plain_phenyl_substituent_atoms(mol, graph, roots)
 
     other_atoms = [atom for atom in mol.GetAtoms() if atom.GetIdx() != phosphorus.GetIdx()]
     for atom in other_atoms:

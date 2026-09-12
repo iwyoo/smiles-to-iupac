@@ -82,9 +82,8 @@ from ._common import (
     adjacency,
     bfs,
     carbon_adjacency,
-    is_plain_benzene_ring,
     non_single_bonds,
-    ring_chain_attachment,
+    plain_phenyl_substituent_atoms,
 )
 from ._numerals import multiplying_prefix
 from ._substituents import alpha_sort_key, name_branch
@@ -154,26 +153,6 @@ def _substituent_names(full_graph, nitrogen_idx, substituent_carbons, aromatic_a
     ]
 
 
-def _plain_phenyl_substituent_atoms(mol, graph, roots):
-    """Union of ring atoms for every plain, unsubstituted benzene ring in
-    `mol` that hangs directly off one of `roots` (a guanidine nitrogen's
-    substituent-carbon neighbors) with no other exocyclic attachment --
-    i.e. a lone 'phenyl' N-substituent, as opposed to a fused or
-    otherwise-substituted ring. Mirrors `_urea.py`'s identical helper."""
-    atoms = set()
-    for ring in mol.GetRingInfo().AtomRings():
-        ring_atoms = set(ring)
-        if not is_plain_benzene_ring(mol, ring_atoms):
-            continue
-        attachment = ring_chain_attachment(graph, ring_atoms, set())
-        if attachment is None:
-            continue
-        ring_atom, _ = attachment
-        if ring_atom in roots:
-            atoms |= ring_atoms
-    return atoms
-
-
 def _substituent_chain_atoms(carbon_graph, substituent_carbons):
     atoms = set()
     for root in substituent_carbons:
@@ -238,7 +217,7 @@ def name_guanidine(mol) -> str:
     imino_carbons = _n_substituent_carbons(mol, imino_idx, carbon_idx)
 
     full_graph = adjacency(mol)
-    phenyl_atoms = _plain_phenyl_substituent_atoms(
+    phenyl_atoms = plain_phenyl_substituent_atoms(
         mol, full_graph, n1_carbons + n2_carbons + imino_carbons
     )
     if phenyl_atoms and (
