@@ -100,6 +100,7 @@ from ._polycyclic_component_fusion import (
     name_polycyclic_component_fusion,
 )
 from ._anthracene_fusion import has_anthracene_fusion_name, name_anthracene_fusion
+from ._tetracene_fusion import has_tetracene_fusion_name, name_tetracene_fusion
 from ._phenanthrene_fusion import has_phenanthrene_fusion_name, name_phenanthrene_fusion
 from ._pyrene_fusion import has_pyrene_fusion_name, name_pyrene_fusion
 from ._chrysene_fusion import has_chrysene_fusion_name, name_chrysene_fusion
@@ -431,6 +432,17 @@ def smiles_to_iupac(smiles: str) -> str:
     # so it still falls through to that tetracene recognition unchanged.
     if has_anthracene_fusion_name(mol):
         return name_anthracene_fusion(mol)
+
+    # benzo[a]tetracene (same mechanism again, for tetracene as the base
+    # component -- the second plain catacondensed-chain base, after
+    # anthracene) must be routed here for the same reason as the check
+    # just above: before `_aromatic.py`'s own pentacyclic dispatch, which
+    # only recognizes the *linear* fusion (pentacene) and would otherwise
+    # reject the angular one outright. The linear shape is deliberately
+    # excluded from `has_tetracene_fusion_name` itself so it still falls
+    # through to that pentacene recognition unchanged.
+    if has_tetracene_fusion_name(mol):
+        return name_tetracene_fusion(mol)
 
     # chrysene/benzo[c]phenanthrene (same mechanism once more, for
     # phenanthrene as the base component) -- routed here for the same
