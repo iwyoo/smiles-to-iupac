@@ -81,6 +81,22 @@ def test_symmetric_imide_phenyl_chain(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_imide_phenyl_chain_with_branch():
+    # Each acyl chain's own alpha-methyl is absorbed into the parent
+    # chain instead of being rejected as "a branched chain hanging off a
+    # benzene ring is out of scope" (P-44.3.2, via `longest_branched_chain`
+    # anchored on each acyl carbon -- see
+    # `_validate_and_collect_phenyl_chain_imide`'s docstring). PubChem CID
+    # 134921336's InChI matches this structure exactly; its own raw
+    # IUPACName ("2-phenyl-N-(2-phenylpropanoyl)propanamide") uses a
+    # different prefix order than this project's established N-acyl-first
+    # convention (same divergence as the two unbranched cases above).
+    assert (
+        smiles_to_iupac("c1ccccc1C(C)C(=O)NC(=O)C(C)c1ccccc1")
+        == "N-(2-phenylpropanoyl)-2-phenylpropanamide"
+    )
+
+
 def test_imide_phenyl_chain_unsymmetric_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("c1ccccc1CC(=O)NC(=O)CCc1ccccc1")
