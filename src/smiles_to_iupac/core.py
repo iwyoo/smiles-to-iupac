@@ -470,12 +470,11 @@ def smiles_to_iupac(smiles: str) -> str:
     if has_anthracene_fusion_name(mol):
         return name_anthracene_fusion(mol)
 
-    # benzo[c]phenanthrene (same mechanism once more, for phenanthrene as
-    # the base component) -- routed here for the same reason as the two
-    # checks just above. The other two structurally possible letters on
-    # phenanthrene are deliberately excluded from
-    # `has_phenanthrene_fusion_name` itself: 'a' is chrysene (a retained
-    # name not yet implemented anywhere), and 'b' is benzo[a]anthracene,
+    # chrysene/benzo[c]phenanthrene (same mechanism once more, for
+    # phenanthrene as the base component) -- routed here for the same
+    # reason as the two checks just above. The third structurally
+    # possible letter on phenanthrene is deliberately excluded from
+    # `has_phenanthrene_fusion_name` itself: 'b' is benzo[a]anthracene,
     # the exact same compound the anthracene check just above already
     # names via a different (senior) base component.
     if has_phenanthrene_fusion_name(mol):

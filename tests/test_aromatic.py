@@ -110,13 +110,14 @@ def test_substituted_heteroaromatic_fused_raises():
         smiles_to_iupac("Cc1ccc2ncccc2c1")
 
 
-def test_angular_four_ring_raises():
-    # chrysene (CID 9171): a bent/angular 4-ring chain (polyphene, n=4) --
-    # explicitly out of scope for this PR (only the straight 4-ring
-    # tetracene is supported; an angular n>=4 chain has no single retained
-    # name and would need genuine benzo[x,y-z]fusion[...] construction).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=C2C=CC4=CC=CC=C43")
+def test_angular_four_ring_resolves_via_phenanthrene_fusion():
+    # chrysene (CID 9171): a bent/angular 4-ring chain (polyphene, n=4).
+    # `_aromatic.py`'s own general chain algorithm still doesn't handle
+    # angular n>=4 chains directly (only the straight tetracene/pentacene
+    # shapes), but core.py now routes this shape to
+    # `_phenanthrene_fusion.py` first, which recognizes it as the
+    # retained name 'chrysene' via its fusion-locant-letter mechanism.
+    assert smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=C2C=CC4=CC=CC=C43") == "chrysene"
 
 
 def test_saturated_rings_still_resolve_unaffected():
