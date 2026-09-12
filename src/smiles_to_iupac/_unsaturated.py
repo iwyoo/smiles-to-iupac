@@ -96,6 +96,8 @@ from ._common import (
     UnsupportedStructure,
     adjacency,
     bfs,
+    bond_locant,
+    bond_locants,
     carbon_adjacency,
     halogen_substituents,
     lowest_locant_set,
@@ -154,28 +156,6 @@ def _group(substituents):
             info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
             info["locants"].append(position)
     return grouped
-
-
-def _bond_locant(chain, bond_atoms):
-    """1-based locant of the lower-numbered atom of a multiple bond under
-    this chain ordering, or None if the bond isn't an edge of this chain."""
-    bond_set = set(bond_atoms)
-    for i in range(len(chain) - 1):
-        if {chain[i], chain[i + 1]} == bond_set:
-            return i + 1
-    return None
-
-
-def _bond_locants(chain, bonds):
-    """(ene_locants, yne_locants) for every bond under this chain ordering,
-    or None if any bond isn't an edge of this chain."""
-    ene, yne = [], []
-    for a, b, order in bonds:
-        locant = _bond_locant(chain, (a, b))
-        if locant is None:
-            return None
-        (ene if order == _ENE_ORDER else yne).append(locant)
-    return ene, yne
 
 
 def _multiplied_word(count, base):
@@ -323,7 +303,7 @@ def name_acyclic_unsaturated(mol) -> str:
     # every multiple bond in the molecule can be the principal chain (a bond
     # left off the chain would need an alkenyl/alkynyl substituent prefix,
     # out of scope here).
-    chains_with_all_bonds = [c for c in chains if _bond_locants(c, bonds) is not None]
+    chains_with_all_bonds = [c for c in chains if bond_locants(c, bonds) is not None]
     if not chains_with_all_bonds:
         raise UnsupportedStructure(
             "not every multiple bond lies on a single longest chain; "
@@ -336,7 +316,7 @@ def name_acyclic_unsaturated(mol) -> str:
     best_candidate = None
     for chain in chains_with_all_bonds:
         for candidate in (chain, list(reversed(chain))):
-            ene_locants, yne_locants = _bond_locants(candidate, bonds)
+            ene_locants, yne_locants = bond_locants(candidate, bonds)
             substituents = _substituents_for_chain(graph, candidate, halogens, mol=mol)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
@@ -347,7 +327,7 @@ def name_acyclic_unsaturated(mol) -> str:
         # ascending locant order (a bare "(E)-"/"(Z)-" is only for the ring
         # systems P-91.2.2 lists, not acyclic chains).
         labels = sorted(
-            (_bond_locant(best_candidate, (mol.GetBondWithIdx(bond_idx).GetBeginAtomIdx(),
+            (bond_locant(best_candidate, (mol.GetBondWithIdx(bond_idx).GetBeginAtomIdx(),
                                             mol.GetBondWithIdx(bond_idx).GetEndAtomIdx())), code)
             for bond_idx, code in stereo
         )

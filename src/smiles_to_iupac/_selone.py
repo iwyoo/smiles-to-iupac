@@ -64,7 +64,6 @@ of scope for this module.
 from rdkit import Chem
 
 from ._common import (
-    elides_before,
     ENE_BOND_ORDER,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -72,6 +71,7 @@ from ._common import (
     adjacency,
     bond_locants,
     carbon_adjacency,
+    elides_before,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
@@ -81,6 +81,8 @@ from ._common import (
     multiplied_word,
     non_single_bonds,
     ordered_chain,
+    ring_bond_locant,
+    ring_bond_locants,
     ring_chain_attachment,
     ring_cycle,
     specified_stereocenters,
@@ -379,21 +381,6 @@ def _ring_candidate_key(ring_size, selone_locants, ene_locants, yne_locants, sub
     return selone_locant_set, combined_locant_set, ene_locant_set, locant_set, citation_locants, name
 
 
-def _ring_bond_locant(position_of, bond_atoms, ring_size):
-    pa, pb = position_of[bond_atoms[0]], position_of[bond_atoms[1]]
-    return ring_size if {pa, pb} == {1, ring_size} else min(pa, pb)
-
-
-def _ring_bond_locants(position_of, bonds, ring_size):
-    """(ene_locants, yne_locants), both sorted, for every ring C=C/C#C bond
-    under this ring numbering -- mirrors `_thione.py`'s identical helper."""
-    ene, yne = [], []
-    for a, b, order in bonds:
-        locant = _ring_bond_locant(position_of, (a, b), ring_size)
-        (ene if order == ENE_BOND_ORDER else yne).append(locant)
-    return sorted(ene), sorted(yne)
-
-
 def _ring_branch_stereo_display(graph, ring_order, selones, stereo, halogens, mol=None):
     """Mirrors `_ketone.py`'s identical helper (itself mirroring
     `_aromatic.py`'s `_stereo_display`): if the ring carries exactly one
@@ -472,7 +459,7 @@ def _name_cyclic_selone(mol, selones, stereo=None, bonds=()):
             if branch_stereo is not None:
                 branch_ring_atom, display = branch_stereo
                 substituents[position_of[branch_ring_atom]] = [(display, False)]
-            ene_locants, yne_locants = _ring_bond_locants(position_of, bonds, ring_size)
+            ene_locants, yne_locants = ring_bond_locants(position_of, bonds, ring_size)
             key = _ring_candidate_key(ring_size, selone_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, key[-1], position_of

@@ -57,12 +57,14 @@ part of a C=C/C#C bond.
 from rdkit import Chem
 
 from ._common import (
-    elides_before,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
     bfs,
+    bond_locant,
+    bond_locants,
     carbon_adjacency,
+    elides_before,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
@@ -341,24 +343,6 @@ def _longest_chains(graph):
     return chains
 
 
-def _bond_locant(chain, bond_atoms):
-    bond_set = set(bond_atoms)
-    for i in range(len(chain) - 1):
-        if {chain[i], chain[i + 1]} == bond_set:
-            return i + 1
-    return None
-
-
-def _bond_locants(chain, bonds):
-    ene, yne = [], []
-    for a, b, order in bonds:
-        locant = _bond_locant(chain, (a, b))
-        if locant is None:
-            return None
-        (ene if order == _ENE_ORDER else yne).append(locant)
-    return ene, yne
-
-
 def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
@@ -521,7 +505,7 @@ def name_diazonium(mol) -> str:
     for chain in chains:
         if diazonium_carbon not in chain:
             continue
-        if bonds and _bond_locants(chain, bonds) is None:
+        if bonds and bond_locants(chain, bonds) is None:
             continue
         eligible.append(chain)
     if not eligible:
@@ -537,7 +521,7 @@ def name_diazonium(mol) -> str:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             diazonium_locant = position_of[diazonium_carbon]
-            ene_locants, yne_locants = _bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
             substituents = _substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
             key, name = _candidate_key(chain_length, diazonium_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:

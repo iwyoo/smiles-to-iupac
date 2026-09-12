@@ -94,18 +94,22 @@ stereocenter, so a specified one is always rejected here too).
 from rdkit import Chem
 
 from ._common import (
-    elides_before,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
     bfs,
+    bond_locant,
+    bond_locants,
     carbon_adjacency,
+    elides_before,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain_through,
     lowest_locant_set,
     non_single_bonds,
     path_between,
+    ring_bond_locant,
+    ring_bond_locants,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     ring_cycle,
@@ -384,24 +388,6 @@ def _longest_chains(graph):
     return chains
 
 
-def _bond_locant(chain, bond_atoms):
-    bond_set = set(bond_atoms)
-    for i in range(len(chain) - 1):
-        if {chain[i], chain[i + 1]} == bond_set:
-            return i + 1
-    return None
-
-
-def _bond_locants(chain, bonds):
-    ene, yne = [], []
-    for a, b, order in bonds:
-        locant = _bond_locant(chain, (a, b))
-        if locant is None:
-            return None
-        (ene if order == _ENE_ORDER else yne).append(locant)
-    return ene, yne
-
-
 def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
@@ -463,22 +449,6 @@ def _ring_candidate_key(ring_size, so_nh2_locant, ene_locants, yne_locants, subs
     return so_nh2_locant, combined_locant_set, ene_locant_set, locant_set, citation_locants, name
 
 
-def _ring_bond_locant(position_of, bond_atoms, ring_size):
-    pa, pb = position_of[bond_atoms[0]], position_of[bond_atoms[1]]
-    return ring_size if {pa, pb} == {1, ring_size} else min(pa, pb)
-
-
-def _ring_bond_locants(position_of, bonds, ring_size):
-    """(ene_locants, yne_locants), both sorted, for every ring C=C/C#C bond
-    under this ring numbering -- mirrors `_sulfonamide.py`'s identical
-    helper."""
-    ene, yne = [], []
-    for a, b, order in bonds:
-        locant = _ring_bond_locant(position_of, (a, b), ring_size)
-        (ene if order == _ENE_ORDER else yne).append(locant)
-    return sorted(ene), sorted(yne)
-
-
 def _name_cyclic_sulfinamide(mol, sulfur_idx, so_nh2_carbon, n_names, bonds=()):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -506,7 +476,7 @@ def _name_cyclic_sulfinamide(mol, sulfur_idx, so_nh2_carbon, n_names, bonds=()):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             so_nh2_locant = position_of[so_nh2_carbon]
             substituents = _substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
-            ene_locants, yne_locants = _ring_bond_locants(position_of, bonds, ring_size)
+            ene_locants, yne_locants = ring_bond_locants(position_of, bonds, ring_size)
             key = _ring_candidate_key(ring_size, so_nh2_locant, ene_locants, yne_locants, substituents, n_names)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
@@ -794,7 +764,7 @@ def name_sulfinamide(mol) -> str:
     for chain in chains:
         if so_nh2_carbon not in chain:
             continue
-        if bonds and _bond_locants(chain, bonds) is None:
+        if bonds and bond_locants(chain, bonds) is None:
             continue
         eligible.append(chain)
     if not eligible:
@@ -810,7 +780,7 @@ def name_sulfinamide(mol) -> str:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             so_nh2_locant = position_of[so_nh2_carbon]
-            ene_locants, yne_locants = _bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
             substituents = _substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
             key, name = _candidate_key(chain_length, so_nh2_locant, ene_locants, yne_locants, substituents, n_names)
             if best_key is None or key < best_key:
