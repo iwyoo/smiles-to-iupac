@@ -16,6 +16,25 @@ def test_acenaphthylene():
     assert smiles_to_iupac("C1=CC2=CC=CC3=C2C(=C1)C=C3") == "acenaphthylene"
 
 
+def test_fluoranthene():
+    # cross-checked against PubChem CID 9154 (fluoranthene), C16H10 -- a
+    # plain benzo ring ortho-fused onto acenaphthylene's own C1=C2 bond.
+    assert smiles_to_iupac("C1=CC=C2C(=C1)C3=CC=CC4=C3C2=CC=C4") == "fluoranthene"
+
+
+def test_aceanthrylene():
+    # cross-checked against PubChem CID 107781 (aceanthrylene), C16H10 --
+    # a plain benzo ring ortho-fused onto acenaphthylene's ring, linear
+    # arrangement (the C6C6C6C5 shape distinct from acephenanthrylene).
+    assert smiles_to_iupac("C1=CC=C2C3=C4C(=CC=CC4=CC2=C1)C=C3") == "aceanthrylene"
+
+
+def test_acephenanthrylene():
+    # cross-checked against PubChem CID 9143 (acephenanthrylene), C16H10
+    # -- the angular counterpart of aceanthrylene.
+    assert smiles_to_iupac("C1=CC=C2C(=C1)C=C3C=CC4=C3C2=CC=C4") == "acephenanthrylene"
+
+
 def test_substituted_pyrene_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("Cc1cc2ccc3cccc4ccc(c1)c2c34")
@@ -24,6 +43,11 @@ def test_substituted_pyrene_raises():
 def test_substituted_acenaphthylene_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("Cc1ccc2cccc3C=Cc1c23")
+
+
+def test_substituted_fluoranthene_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccc2c(c1)-c1cccc3cccc-2c13")
 
 
 def test_unrelated_peri_fused_shape_raises():

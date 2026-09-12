@@ -360,11 +360,12 @@ def smiles_to_iupac(smiles: str) -> str:
     if has_fullerene_name(mol):
         return name_fullerene(mol)
 
-    # pyrene/acenaphthylene (P-25.1.2's peri-fused retained names) are
-    # recognized by exact whole-molecule match, independent of every other
-    # branch below -- see _peri_fused_aromatic.py's module docstring for
-    # why (acenaphthylene in particular has a non-6-membered, non-aromatic
-    # ring that none of the other dispatch branches expect).
+    # pyrene/acenaphthylene/fluoranthene/aceanthrylene/acephenanthrylene
+    # (P-25.1.2's peri-fused retained names) are recognized by exact
+    # whole-molecule match, independent of every other branch below -- see
+    # _peri_fused_aromatic.py's module docstring for why (each has a
+    # non-6-membered, non-aromatic ring that none of the other dispatch
+    # branches expect).
     if has_retained_peri_fused_name(mol):
         return name_retained_peri_fused(mol)
 
