@@ -41,8 +41,7 @@ at one of the six candidate periphery bonds, excluding the linear
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
-from ._fusion_locant_letter import find_fusion_letter
+from ._fusion_component_registry import make_fusion_component_functions
 
 _ANTHRACENE_REF = Chem.MolFromSmiles("c1cccc2cc3ccccc3cc12")
 _LETTER_BY_PAIR = {
@@ -55,20 +54,6 @@ _LETTER_BY_PAIR = {
 }
 _EXCLUDED_LETTERS = {"b"}
 
-
-def _find_core(mol):
-    return find_fusion_letter(mol, _ANTHRACENE_REF, _LETTER_BY_PAIR, _EXCLUDED_LETTERS, num_atoms=18, num_rings=4)
-
-
-def has_anthracene_fusion_name(mol) -> bool:
-    return _find_core(mol) is not None
-
-
-def name_anthracene_fusion(mol) -> str:
-    letter = _find_core(mol)
-    if letter is None:
-        raise UnsupportedStructure(
-            "this tetracyclic system is not a supported benzo-fused "
-            "anthracene shape (see P-25.3.1.3)"
-        )
-    return f"benzo[{letter}]anthracene"
+has_anthracene_fusion_name, name_anthracene_fusion = make_fusion_component_functions(
+    "anthracene", _ANTHRACENE_REF, _LETTER_BY_PAIR, _EXCLUDED_LETTERS, num_atoms=18, num_rings=4
+)
