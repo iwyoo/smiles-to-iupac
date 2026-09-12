@@ -42,8 +42,7 @@ one position. Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
-from ._fusion_locant_letter import find_fusion_letter
+from ._fusion_component_registry import make_fusion_component_functions
 
 _HEXACENE_REF = Chem.MolFromSmiles("c1ccc2cc3cc4cc5cc6ccccc6cc5cc4cc3cc2c1")
 _LETTER_BY_PAIR = {
@@ -56,20 +55,6 @@ _LETTER_BY_PAIR = {
 }
 _EXCLUDED_LETTERS = frozenset({"b"})
 
-
-def _find_core(mol):
-    return find_fusion_letter(mol, _HEXACENE_REF, _LETTER_BY_PAIR, _EXCLUDED_LETTERS, num_atoms=30, num_rings=7)
-
-
-def has_hexacene_fusion_name(mol) -> bool:
-    return _find_core(mol) is not None
-
-
-def name_hexacene_fusion(mol) -> str:
-    letter = _find_core(mol)
-    if letter is None:
-        raise UnsupportedStructure(
-            "this heptacyclic system is not a supported benzo-fused "
-            "hexacene shape (see P-25.3.1.3)"
-        )
-    return f"benzo[{letter}]hexacene"
+has_hexacene_fusion_name, name_hexacene_fusion = make_fusion_component_functions(
+    "hexacene", _HEXACENE_REF, _LETTER_BY_PAIR, _EXCLUDED_LETTERS, num_atoms=30, num_rings=7
+)
