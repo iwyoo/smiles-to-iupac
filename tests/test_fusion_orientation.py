@@ -2,7 +2,10 @@ import pytest
 from rdkit import Chem
 
 from smiles_to_iupac._common import UnsupportedStructure
-from smiles_to_iupac._fusion_orientation import count_rings_in_horizontal_row
+from smiles_to_iupac._fusion_orientation import (
+    count_rings_in_horizontal_row,
+    rings_in_upper_right_quadrant,
+)
 
 
 def test_anthracene_all_three_in_row():
@@ -84,3 +87,31 @@ def test_pyrene_peri_fused_still_unsupported():
     mol = Chem.MolFromSmiles("c1cc2ccc3cccc4ccc(c1)c2c34")
     with pytest.raises(UnsupportedStructure):
         count_rings_in_horizontal_row(mol)
+
+
+def test_phenanthrene_criterion_b_matches_primary_source():
+    # P-25.3.2.3.3(b)'s own worked example: "phenanthrene (1 1/2 rings in
+    # the upper right quadrant) is senior to phenalene [1 ring]." Phenalene
+    # itself is peri-fused (an atom shared by three rings) and stays out
+    # of scope, so only the phenanthrene half of that example is asserted.
+    mol = Chem.MolFromSmiles("c1ccc2ccc3ccccc3c2c1")
+    assert rings_in_upper_right_quadrant(mol) == 1.5
+
+
+def test_naphthalene_criterion_b_half_ring():
+    # A 2-ring row's center is the shared bond's midpoint; the one ring on
+    # the positive-x side of it is bisected by the horizontal axis, so it
+    # contributes exactly its upper half.
+    mol = Chem.MolFromSmiles("c1ccc2ccccc2c1")
+    assert rings_in_upper_right_quadrant(mol) == 0.5
+
+
+def test_chrysene_and_triphenylene_tie_on_criterion_b_too():
+    # `_triphenylene_fusion.py`'s own docstring already guesses chrysene
+    # and triphenylene tie all the way down P-25.3.2.4's seniority list
+    # and fall to alphabetical order -- this confirms that guess one
+    # criterion further: they tie on (b) as well as (a) (both computed
+    # here as 2.5), not just (a).
+    chrysene = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=C2C=CC4=CC=CC=C43")
+    triphenylene = Chem.MolFromSmiles("c1ccc2c(c1)ccc1c2ccc2ccccc21")
+    assert rings_in_upper_right_quadrant(chrysene) == rings_in_upper_right_quadrant(triphenylene) == 2.5
