@@ -40,17 +40,31 @@ row's center point, even a bond midpoint -- lands on an integer (see
 integer comparison, never a float tolerance. A ring exactly on one axis
 counts as a half (P-25.3.2.3.3(b): "those rings that are divided by an
 axis are considered as two halves"), and a ring at the intersection of
-both axes as a quarter. Validated against phenanthrene = 1.5, the primary
-source's own worked example -- and, once computed, chrysene and
-triphenylene tie at 2.5 as well as at criterion (a)'s 2, one further data
-point supporting `_triphenylene_fusion.py`'s existing guess that the two
-tie all the way through P-25.3.2.4's seniority list and fall to plain
-alphabetical order, rather than being decided by these quadrant criteria
-at all -- worth re-checking once (c)/(d) exist too, since if the tie
-really does persist through all four, chasing it further with (c)/(d) is
-the wrong next step for resolving *this specific* comparison (though (c)/
-(d) are still needed generally, for other ties and for a single
-structure's own preferred-orientation choice).
+both axes as a quarter.
+
+P-25.3.2.3.3 doesn't fix a left-right/up-down handedness for a tree's
+embedding on its own, only that the *preferred* orientation -- among
+every one that already ties for criterion (a)'s maximum row count, since
+more than one axis can tie, and independently a given axis has 4 mirror
+choices -- is whichever maximizes criterion (b) (`rings_in_upper_right_
+quadrant` searches all of them, `_best`-style, via `_max_row_residues` x
+`_REFLECTIONS`). An earlier version of this module picked one arbitrary
+candidate instead of searching, which happened to already equal
+phenanthrene's correct maximum (1.5) by luck, but undercounted
+tetraphene/benzo[a]anthracene (0.75 instead of the correct 1.75, caught
+by comparing against P-25.3.2.3.3(b)'s own second worked example, "3
+rings in horizontal row, 1<sup>3</sup>/<sub>4</sub> rings in upper right
+quadrant"). Chrysene and triphenylene still tie at 2.5 even after this
+fix (not just at criterion (a)'s 2), reinforcing (now on firmer footing
+than the earlier, unmaximized computation) `_triphenylene_fusion.py`'s
+existing guess that the two tie all the way through P-25.3.2.4's
+seniority list and fall to plain alphabetical order, rather than being
+decided by these quadrant criteria at all -- worth re-checking again once
+(c)/(d) exist, since if the tie really does persist through all four,
+chasing it further with (c)/(d) is the wrong next step for resolving
+*this specific* comparison (though (c)/(d) are still needed generally,
+for other ties and for a single structure's own preferred-orientation
+choice).
 
 Scope, still narrow: the ring-fusion graph must be a tree (no cycle) --
 peri-fused systems (e.g. pyrene, fluoranthene: an atom shared by three or
@@ -147,6 +161,18 @@ def max_rings_in_horizontal_row(adj, direction, n):
     return max(_rings_on_axis(adj, direction, residue) for residue in range(3))
 
 
+def _max_row_residues(adj, direction, n):
+    """Every axis residue (0, 1, or 2) that achieves criterion (a)'s
+    maximum row count -- there can be more than one, and each is a
+    separate candidate preferred orientation for criterion (b) (and
+    beyond) to choose among (see `_best_orientation`)."""
+    if n <= 1:
+        return [0]
+    counts = {residue: _rings_on_axis(adj, direction, residue) for residue in range(3)}
+    best = max(counts.values())
+    return [residue for residue, count in counts.items() if count == best]
+
+
 def _prepare(mol):
     """Shared preamble for every P-25.3.2.3.3 criterion: validate `mol` is
     a plain all-carbon aromatic mancude ring system with a tree-shaped
@@ -188,12 +214,20 @@ def count_rings_in_horizontal_row(mol) -> int:
 _HEX_DELTA = {0: (2, 0), 1: (1, 1), 2: (-1, 1), 3: (-2, 0), 4: (-1, -1), 5: (1, -1)}
 
 
-def _ring_positions(adj, direction, winning_residue, n):
+_REFLECTIONS = ((1, 1), (-1, 1), (1, -1), (-1, -1))
+
+
+def _ring_positions(adj, direction, winning_residue, n, reflect=(1, 1)):
     """Integer (x, y) position for every ring (see `_HEX_DELTA`), oriented
     so bonds on `winning_residue`'s axis (criterion (a)'s winning axis)
-    run horizontally. Positions are relative to an arbitrary ring (index
-    0) at the origin, not yet shifted to the row's center -- see
+    run horizontally. `reflect`: (sign_x, sign_y) -- P-25.3.2.3.3 doesn't
+    fix a left-right/up-down handedness on its own, only that the
+    *preferred* one is whichever maximizes criterion (b) (see
+    `_best_orientation`), so this lets the same tree be placed in any of
+    the 4 mirror variants. Positions are relative to an arbitrary ring
+    (index 0) at the origin, not yet shifted to the row's center -- see
     `_row_center`."""
+    sx, sy = reflect
     position = {0: (0, 0)}
     visited = {0}
     queue = [0]
@@ -206,7 +240,7 @@ def _ring_positions(adj, direction, winning_residue, n):
             raw = direction[frozenset((current, neighbor))]
             dx, dy = _HEX_DELTA[(raw - winning_residue) % 6]
             cx, cy = position[current]
-            position[neighbor] = (cx + dx, cy + dy)
+            position[neighbor] = (cx + sx * dx, cy + sy * dy)
             queue.append(neighbor)
     return position
 
@@ -251,25 +285,12 @@ def _row_center(adj, direction, position, winning_residue, n):
     return center_ring
 
 
-def rings_in_upper_right_quadrant(mol) -> float:
-    """P-25.3.2.3.3 criterion (b): the number of rings in the upper right
-    quadrant relative to the horizontal row's center, per criterion (a).
-    A ring exactly on one axis counts as a half (attributed to whichever
-    of the two quadrants that axis's side actually borders); a ring at
-    the exact intersection of both axes counts as a quarter. Raises
-    `UnsupportedStructure` under the same conditions as
-    `count_rings_in_horizontal_row`.
-
-    Validated against the primary source's own worked example
-    (P-25.3.2.3.3(b)): phenanthrene = 1.5 (phenalene, the other half of
-    that example, is peri-fused and out of scope here)."""
-    _atom_rings, adj, _fusion_bonds_by_pair, direction, n = _prepare(mol)
-    if n <= 1:
-        return 0.25 if n == 1 else 0.0
-    winning_residue = max(range(3), key=lambda r: _rings_on_axis(adj, direction, r))
-    position = _ring_positions(adj, direction, winning_residue, n)
-    center_x, center_y = _row_center(adj, direction, position, winning_residue, n)
-
+def _upper_right_count(adj, direction, residue, reflect, n):
+    """Criterion (b)'s value for one specific candidate orientation
+    (a winning-axis `residue` plus a `reflect` mirror choice, see
+    `_ring_positions`) -- not yet maximized over candidates."""
+    position = _ring_positions(adj, direction, residue, n, reflect)
+    center_x, center_y = _row_center(adj, direction, position, residue, n)
     total = 0.0
     for ring_idx in range(n):
         x = position[ring_idx][0] - center_x
@@ -285,3 +306,37 @@ def rings_in_upper_right_quadrant(mol) -> float:
         elif x > 0 and y > 0:
             total += 1.0
     return total
+
+
+def rings_in_upper_right_quadrant(mol) -> float:
+    """P-25.3.2.3.3 criterion (b): the number of rings in the upper right
+    quadrant relative to the horizontal row's center, for the *preferred*
+    orientation -- i.e. the maximum over every candidate orientation that
+    already ties for criterion (a)'s maximum row count (there can be more
+    than one winning axis, and independently 4 mirror choices per axis;
+    P-25.3.2.3.3 doesn't fix a handedness, only that whichever orientation
+    is drawn must maximize (b) among the (a)-maximizers). A ring exactly
+    on one axis counts as a half (attributed to whichever of the two
+    quadrants that axis's side actually borders); a ring at the exact
+    intersection of both axes counts as a quarter. Raises
+    `UnsupportedStructure` under the same conditions as
+    `count_rings_in_horizontal_row`.
+
+    Validated against the primary source's own worked examples
+    (P-25.3.2.3.3(b)): phenanthrene = 1.5, tetraphene/benzo[a]anthracene =
+    1.75 (phenalene, the other half of the phenanthrene example, is
+    peri-fused and out of scope here). Tetraphene is the case that caught
+    an earlier version of this function returning an arbitrary,
+    non-maximized candidate's value (0.75) instead of searching -- a
+    single fixed embedding happened to already give phenanthrene's
+    correct maximum, which is why that gap wasn't caught until a less
+    symmetric structure was tried."""
+    _atom_rings, adj, _fusion_bonds_by_pair, direction, n = _prepare(mol)
+    if n <= 1:
+        return 0.25 if n == 1 else 0.0
+    residues = _max_row_residues(adj, direction, n)
+    return max(
+        _upper_right_count(adj, direction, residue, reflect, n)
+        for residue in residues
+        for reflect in _REFLECTIONS
+    )
