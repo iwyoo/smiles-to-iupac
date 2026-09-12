@@ -101,6 +101,7 @@ from ._polycyclic_component_fusion import (
 )
 from ._anthracene_fusion import has_anthracene_fusion_name, name_anthracene_fusion
 from ._tetracene_fusion import has_tetracene_fusion_name, name_tetracene_fusion
+from ._pentacene_fusion import has_pentacene_fusion_name, name_pentacene_fusion
 from ._phenanthrene_fusion import has_phenanthrene_fusion_name, name_phenanthrene_fusion
 from ._pyrene_fusion import has_pyrene_fusion_name, name_pyrene_fusion
 from ._chrysene_fusion import has_chrysene_fusion_name, name_chrysene_fusion
@@ -443,6 +444,17 @@ def smiles_to_iupac(smiles: str) -> str:
     # through to that pentacene recognition unchanged.
     if has_tetracene_fusion_name(mol):
         return name_tetracene_fusion(mol)
+
+    # benzo[a]pentacene (same mechanism again, for pentacene as the base
+    # component -- the third plain catacondensed-chain base, after
+    # anthracene/tetracene) must be routed here for the same reason as
+    # the checks just above. The linear ('hexacene') shape is deliberately
+    # excluded from `has_pentacene_fusion_name` itself, even though
+    # `_aromatic.py` doesn't recognize hexacene yet (a separate, known
+    # gap) -- so it still raises `UnsupportedStructure` unchanged, same
+    # as before this module existed.
+    if has_pentacene_fusion_name(mol):
+        return name_pentacene_fusion(mol)
 
     # chrysene/benzo[c]phenanthrene (same mechanism once more, for
     # phenanthrene as the base component) -- routed here for the same
