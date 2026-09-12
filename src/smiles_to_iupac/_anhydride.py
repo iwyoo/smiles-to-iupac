@@ -42,12 +42,12 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    bfs,
     carbon_adjacency,
+    group_substituents,
     halogen_substituents,
+    longest_chains,
     lowest_locant_set,
     non_single_bonds,
-    path_between,
     specified_stereocenters,
 )
 from ._numerals import alkane_name
@@ -171,35 +171,6 @@ def _validate_and_collect_anhydride(mol):
     return acyl1, acyl2
 
 
-def _longest_chains(graph):
-    nodes = list(graph)
-    distances = {}
-    parents = {}
-    for node in nodes:
-        dist, parent = bfs(graph, node)
-        distances[node] = dist
-        parents[node] = parent
-
-    diameter = max(d for dist in distances.values() for d in dist.values())
-    chains = []
-    seen = set()
-    for u in nodes:
-        for v, d in distances[u].items():
-            if d == diameter and (v, u) not in seen:
-                seen.add((u, v))
-                chains.append(path_between(parents[u], u, v))
-    return chains
-
-
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
-
-
 def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
@@ -221,7 +192,7 @@ def _acid_stem_name(chain_length, grouped):
 
 
 def _candidate_key(substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc
@@ -250,7 +221,7 @@ def _branch_acid_name(chains, graph, halogens, acyl_carbon, carbonyl_oxygen, exc
         substituents = _substituents_for_chain(graph, candidate, halogens, excluded | {carbonyl_oxygen}, mol=mol)
         key = _candidate_key(substituents)
         if best_key is None or key < best_key:
-            grouped = _group(substituents)
+            grouped = group_substituents(substituents)
             best_key, best_name = key, _acid_stem_name(chain_length, grouped)
     return best_name
 
@@ -273,7 +244,7 @@ def name_anhydride(mol) -> str:
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     excluded = {bridging_o}
-    chains = _longest_chains(carbon_adjacency(mol))
+    chains = longest_chains(carbon_adjacency(mol))
     name1 = _branch_acid_name(chains, graph, halogens, acyl1, carbonyl_o1, excluded, mol=mol)
     name2 = _branch_acid_name(chains, graph, halogens, acyl2, carbonyl_o2, excluded, mol=mol)
     if name1 != name2:

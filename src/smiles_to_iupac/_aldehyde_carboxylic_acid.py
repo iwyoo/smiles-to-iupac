@@ -32,12 +32,12 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    bfs,
     carbon_adjacency,
+    group_substituents,
     halogen_substituents,
+    longest_chains,
     lowest_locant_set,
     non_single_bonds,
-    path_between,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -146,15 +146,6 @@ def _validate(mol, excluded_oxygens):
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
 
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
-
-
 def _name_from_substituents(chain_length, grouped):
     prefix = format_substituent_prefixes(grouped)
     stem = alkane_name(chain_length)[:-1]
@@ -170,26 +161,6 @@ def _candidate_key(chain_length, grouped):
     )
     name = _name_from_substituents(chain_length, grouped)
     return (locant_set, citation_locants, name), name
-
-
-def _longest_chains(graph):
-    nodes = list(graph)
-    distances = {}
-    parents = {}
-    for node in nodes:
-        dist, parent = bfs(graph, node)
-        distances[node] = dist
-        parents[node] = parent
-
-    diameter = max(d for dist in distances.values() for d in dist.values())
-    chains = []
-    seen = set()
-    for u in nodes:
-        for v, d in distances[u].items():
-            if d == diameter and (v, u) not in seen:
-                seen.add((u, v))
-                chains.append(path_between(parents[u], u, v))
-    return chains
 
 
 def _substituents_for_chain(graph, chain, names, excluded, mol=None):
@@ -237,7 +208,7 @@ def name_aldehyde_carboxylic_acid(mol) -> str:
     graph = adjacency(mol)
     names = {**halogen_substituents(mol), **{o: "oxo" for o in aldehydes}}
     acid_carbon_idx = acid_carbon.GetIdx()
-    chains = _longest_chains(carbon_adjacency(mol))
+    chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
 
     eligible = []
@@ -265,7 +236,7 @@ def name_aldehyde_carboxylic_acid(mol) -> str:
                 # never valid.
                 continue
             substituents = _substituents_for_chain(graph, candidate, names, excluded_acid_oxygens, mol=mol)
-            grouped = _group(substituents)
+            grouped = group_substituents(substituents)
             key, name = _candidate_key(chain_length, grouped)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name

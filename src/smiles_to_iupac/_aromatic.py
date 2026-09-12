@@ -74,10 +74,10 @@ every other ring size here, ring positions are chemically distinct and a
 single substituent's locant is always cited.
 """
 
-from ._cyclic import _group
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    group_substituents,
     halogen_substituents,
     lowest_locant_set,
     specified_stereocenters,
@@ -434,7 +434,7 @@ def _ring_substituents(graph, locants, ring_atoms, halogens, mol=None):
 
 def _candidate_key(parent, locants, ring_atoms, graph, halogens, omit_single_locant, stereo_display=None, mol=None):
     substituents = _ring_substituents(graph, locants, ring_atoms, halogens, mol=mol)
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc

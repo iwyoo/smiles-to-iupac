@@ -59,18 +59,19 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    bfs,
     bond_locant,
     bond_locants,
     carbon_adjacency,
     elides_before,
+    group_substituents,
     halogen_substituents,
+    longest_chains,
     lowest_locant_set,
+    multiplied_word,
     non_single_bonds,
-    path_between,
     specified_stereocenters,
 )
-from ._numerals import alkane_name, numerical_term
+from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _ENE_ORDER = 2.0
@@ -175,23 +176,12 @@ def _reject_enesulfonate_carbon(so3_carbon, bonds):
         )
 
 
-def _multiplied_word(count, base):
-    if count == 0:
-        return ""
-    if count == 1:
-        return base
-    prefix = numerical_term(count)
-    if prefix.endswith("a") and base[:1] in "ao":
-        prefix = prefix[:-1]
-    return prefix + base
-
-
 def _suffix_body(ene_locants, yne_locants, so3_locant):
     segments = []
     if ene_locants:
-        segments.append((sorted(ene_locants), _multiplied_word(len(ene_locants), "ene")))
+        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
     if yne_locants:
-        segments.append((sorted(yne_locants), _multiplied_word(len(yne_locants), "yne")))
+        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
     segments.append(([so3_locant], "sulfonate"))
 
     words = [word for _, word in segments]
@@ -204,15 +194,6 @@ def _suffix_body(ene_locants, yne_locants, so3_locant):
         for (locants, _), word in zip(segments, words)
     ]
     return "-".join(parts)
-
-
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
 
 
 def _name_from_substituents(chain_length, so3_locant, ene_locants, yne_locants, grouped):
@@ -252,7 +233,7 @@ def _name_from_substituents(chain_length, so3_locant, ene_locants, yne_locants, 
 
 
 def _candidate_key(chain_length, so3_locant, ene_locants, yne_locants, substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     total_count = sum(len(info["locants"]) for info in grouped.values())
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -277,26 +258,6 @@ def _candidate_key(chain_length, so3_locant, ene_locants, yne_locants, substitue
     )
 
 
-def _longest_chains(graph):
-    nodes = list(graph)
-    distances = {}
-    parents = {}
-    for node in nodes:
-        dist, parent = bfs(graph, node)
-        distances[node] = dist
-        parents[node] = parent
-
-    diameter = max(d for dist in distances.values() for d in dist.values())
-    chains = []
-    seen = set()
-    for u in nodes:
-        for v, d in distances[u].items():
-            if d == diameter and (v, u) not in seen:
-                seen.add((u, v))
-                chains.append(path_between(parents[u], u, v))
-    return chains
-
-
 def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
     chain_set = set(chain)
     substituents = {}
@@ -317,7 +278,7 @@ def _name_acyclic_sulfonate(mol, sulfur_idx, so3_carbon, bonds, stereo=None):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     excluded = {sulfur_idx}
-    chains = _longest_chains(carbon_adjacency(mol))
+    chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 

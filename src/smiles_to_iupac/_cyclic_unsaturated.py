@@ -53,8 +53,10 @@ and is not handled here.
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    group_substituents,
     halogen_substituents,
     lowest_locant_set,
+    multiplied_word,
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name, numerical_term
@@ -155,38 +157,14 @@ def _substituents_for_ring(graph, ring_order, halogens, mol=None):
     return substituents
 
 
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
-
-
-def _multiplied_word(count, base):
-    """P-31.1.1.2: 'ene'/'yne' with a multiplying prefix ('di', 'tri', ...)
-    for two or more bonds of the same kind; bare 'ene'/'yne' for exactly
-    one; '' for none (mirrors `_unsaturated.py`'s helper of the same
-    name)."""
-    if count == 0:
-        return ""
-    if count == 1:
-        return base
-    prefix = numerical_term(count)
-    if prefix.endswith("a") and base[:1] in "ao":
-        prefix = prefix[:-1]
-    return prefix + base
-
-
 def _unsaturation_suffix(ene_locants, yne_locants):
     """Locant-and-suffix string (e.g. '1,3-dien-5-yne') plus whether the
     parent stem needs its euphonic trailing 'a' -- mirrors
     `_unsaturated.py`'s helper of the same name; see P-31.1.1.1/
     P-31.1.3.1 for the shared 'ene' precedes 'yne' rule."""
     ene_count, yne_count = len(ene_locants), len(yne_locants)
-    ene_word = _multiplied_word(ene_count, "ene")
-    yne_word = _multiplied_word(yne_count, "yne")
+    ene_word = multiplied_word(ene_count, "ene")
+    yne_word = multiplied_word(yne_count, "yne")
 
     if ene_count and yne_count:
         ene_part = ene_word[:-1] if yne_word[0] in "aeiouy" else ene_word
@@ -215,7 +193,7 @@ def _name_from_substituents(ring_size, ene_locants, yne_locants, grouped):
 
 
 def _candidate_key(ring_size, ene_locants, yne_locants, substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc

@@ -159,15 +159,6 @@ def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
     return site.GetIdx(), {attach.GetIdx(), terminal.GetIdx()}
 
 
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
-
-
 def _name_from_substituents(chain_length, locant, grouped):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
 
@@ -188,7 +179,7 @@ def _name_from_substituents(chain_length, locant, grouped):
 
 
 def _candidate_key(chain_length, locant, substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     total_count = sum(len(info["locants"]) for info in grouped.values())
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(

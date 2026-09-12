@@ -101,20 +101,22 @@ from ._common import (
     bond_locants,
     carbon_adjacency,
     elides_before,
+    group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain_through,
+    longest_chains,
     lowest_locant_set,
+    multiplied_word,
     non_single_bonds,
     ordered_chain,
-    path_between,
     ring_bond_locant,
     ring_bond_locants,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     specified_stereocenters,
 )
-from ._numerals import alkane_name, alkyl_name, numerical_term
+from ._numerals import alkane_name, alkyl_name
 from ._substituents import (
     alpha_sort_key,
     branch_atom_locant,
@@ -213,20 +215,6 @@ def _reject_enamine_carbons(graph, amines, bonds):
                 )
 
 
-def _multiplied_word(count, base):
-    """P-16.3.3: a multiplying prefix's terminal 'a' is elided before a
-    suffix beginning with 'a' or 'o' (see `_common.py`'s `multiplied_word`
-    docstring for the confirmed examples this mirrors)."""
-    if count == 0:
-        return ""
-    if count == 1:
-        return base
-    prefix = numerical_term(count)
-    if prefix.endswith("a") and base[:1] in "ao":
-        prefix = prefix[:-1]
-    return prefix + base
-
-
 def _suffix_body(ene_locants, yne_locants, amine_locants):
     """Locant-and-suffix string for the combined 'ene'/'yne'/'amine' endings
     (e.g. '4-en-1-amine'), plus whether the stem's trailing 'e' should be
@@ -234,10 +222,10 @@ def _suffix_body(ene_locants, yne_locants, amine_locants):
     no 'ene'/'yne', see `_name_from_substituents`)."""
     segments = []
     if ene_locants:
-        segments.append((sorted(ene_locants), _multiplied_word(len(ene_locants), "ene")))
+        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
     if yne_locants:
-        segments.append((sorted(yne_locants), _multiplied_word(len(yne_locants), "yne")))
-    segments.append((sorted(amine_locants), _multiplied_word(len(amine_locants), "amine")))
+        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
+    segments.append((sorted(amine_locants), multiplied_word(len(amine_locants), "amine")))
 
     words = [word for _, word in segments]
     for i in range(len(words) - 1):
@@ -250,15 +238,6 @@ def _suffix_body(ene_locants, yne_locants, amine_locants):
     ]
     elide_stem = words[0][0] in "aeiouy"
     return "-".join(parts), elide_stem
-
-
-def _group(substituents):
-    grouped = {}
-    for position, entries in substituents.items():
-        for name, is_compound in entries:
-            info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
-            info["locants"].append(position)
-    return grouped
 
 
 def _add_n_names(grouped, n_names, n_locants=None):
@@ -307,7 +286,7 @@ def _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locant
         # are always '1' and never cited -- an 'N-' locant is never
         # omittable though (see `_add_n_names`/`format_substituent_prefixes`,
         # it marks a different atom than the mononuclear carbon itself).
-        amine_word = _multiplied_word(len(amine_locants), "amine")
+        amine_word = multiplied_word(len(amine_locants), "amine")
         stem = alkane_name(1)
         if amine_word[0] in "aeiouy":
             stem = stem[:-1]
@@ -352,7 +331,7 @@ def _candidate_key(chain_length, amine_locants, ene_locants, yne_locants, substi
     '2-chloro-N-ethyl...') but excluded from every locant-set computation
     below since an N-locant is never a candidate for the lowest-locant
     chain-orientation tie-break."""
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     total_count = sum(len(info["locants"]) for info in grouped.values())
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -376,26 +355,6 @@ def _candidate_key(chain_length, amine_locants, ene_locants, yne_locants, substi
         ),
         name,
     )
-
-
-def _longest_chains(graph):
-    nodes = list(graph)
-    distances = {}
-    parents = {}
-    for node in nodes:
-        dist, parent = bfs(graph, node)
-        distances[node] = dist
-        parents[node] = parent
-
-    diameter = max(d for dist in distances.values() for d in dist.values())
-    chains = []
-    seen = set()
-    for u in nodes:
-        for v, d in distances[u].items():
-            if d == diameter and (v, u) not in seen:
-                seen.add((u, v))
-                chains.append(path_between(parents[u], u, v))
-    return chains
 
 
 def _amine_locants(position_of, amines, graph):
@@ -447,7 +406,7 @@ def _best_chain_name(
     recomputed per candidate below, from that candidate's own
     `position_of`, into the flat `n_names`/`n_locants` pair
     `_candidate_key` expects."""
-    chains = _longest_chains(carbon_graph)
+    chains = longest_chains(carbon_graph)
     chain_length = len(chains[0])
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
@@ -762,7 +721,7 @@ def _ring_name_from_substituents(ring_size, amine_locants, ene_locants, yne_loca
     total_subs = sum(len(info["locants"]) for info in grouped.values())
 
     if not has_unsaturation:
-        amine_word = _multiplied_word(len(amine_locants), "amine")
+        amine_word = multiplied_word(len(amine_locants), "amine")
         elide = amine_word[0] in "aeiouy"
         stem = parent[:-1] if elide else parent
         if total_subs == 0 and len(amine_locants) == 1:
@@ -785,7 +744,7 @@ def _ring_name_from_substituents(ring_size, amine_locants, ene_locants, yne_loca
 
 
 def _ring_candidate_key(ring_size, amine_locants, ene_locants, yne_locants, substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc
@@ -901,7 +860,7 @@ def _aniline_name_from_substituents(grouped):
 
 
 def _aniline_candidate_key(amine_locant, substituents):
-    grouped = _group(substituents)
+    grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
         loc

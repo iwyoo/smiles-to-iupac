@@ -91,8 +91,7 @@ fallback in `core.py`, since `find_bridged_naphthalene_core`/
 """
 
 from ._aromatic import _anthracene_candidates, _straight_chain_candidates
-from ._cyclic import _group
-from ._common import adjacency, halogen_substituents, lowest_locant_set
+from ._common import adjacency, group_substituents, halogen_substituents, lowest_locant_set
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
 _BRIDGE_PREFIXES = {6: "methano", 8: "epoxy"}
@@ -215,7 +214,7 @@ def name_bridged_naphthalene(mol, core) -> str:
             branch_roots = [n for n in graph[atom] if n not in excluded]
             if branch_roots:
                 substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-        grouped = _group(substituents)
+        grouped = group_substituents(substituents)
         locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
         citation_locants = tuple(
             loc
