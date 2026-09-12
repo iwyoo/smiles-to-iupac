@@ -122,6 +122,10 @@ from ._hetero_monocyclic import (
     name_hetero_monocyclic,
     name_hetero_monocyclic_substituent,
 )
+from ._benzo_bis_heterocycle_fusion import (
+    has_benzo_bis_heterocycle_fusion_name,
+    name_benzo_bis_heterocycle_fusion,
+)
 from ._bridgehead_heteroatom_fusion import (
     has_bridgehead_heteroatom_fusion_name,
     name_bridgehead_heteroatom_fusion,
@@ -582,6 +586,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # `_hetero_monocyclic.py` below, same reason as above.
     if has_bridgehead_heteroatom_fusion_name(mol):
         return name_bridgehead_heteroatom_fusion(mol)
+
+    # benzo[1,2-b:4,5-b']dithiophene etc. (P-25.3.4.1.3's multiparent
+    # fusion -- one benzo ring bridging two identical five-membered
+    # heteromonocycles) -- also routed here before `_hetero_monocyclic.py`
+    # below, same reason as above.
+    if has_benzo_bis_heterocycle_fusion_name(mol):
+        return name_benzo_bis_heterocycle_fusion(mol)
 
     # oxirane/thiane/piperidine etc. (P-22.2.1's Hantzsch-Widman
     # saturated-monocyclic retained names) are recognized the same way --
