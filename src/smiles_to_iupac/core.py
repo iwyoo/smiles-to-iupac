@@ -107,6 +107,8 @@ from ._heptacene_fusion import has_heptacene_fusion_name, name_heptacene_fusion
 from ._phenanthrene_fusion import has_phenanthrene_fusion_name, name_phenanthrene_fusion
 from ._pyrene_fusion import has_pyrene_fusion_name, name_pyrene_fusion
 from ._chrysene_fusion import has_chrysene_fusion_name, name_chrysene_fusion
+from ._picene_fusion import has_picene_fusion_name, name_picene_fusion
+from ._pentaphene_fusion import has_pentaphene_fusion_name, name_pentaphene_fusion
 from ._triphenylene_fusion import has_triphenylene_fusion_name, name_triphenylene_fusion
 from ._fluoranthene_fusion import has_fluoranthene_fusion_name, name_fluoranthene_fusion
 from ._aceanthrylene_fusion import has_aceanthrylene_fusion_name, name_aceanthrylene_fusion
@@ -500,6 +502,18 @@ def smiles_to_iupac(smiles: str) -> str:
     # checks above.
     if has_chrysene_fusion_name(mol):
         return name_chrysene_fusion(mol)
+
+    # benzo[b]picene/benzo[c]picene (same mechanism again, for picene as
+    # the base component -- picene itself is `_chrysene_fusion.py`'s
+    # letter 'a') -- routed here for the same reason as the checks above.
+    if has_picene_fusion_name(mol):
+        return name_picene_fusion(mol)
+
+    # benzo[a]pentaphene/hexaphene/benzo[c]pentaphene (same mechanism
+    # again, for pentaphene as the base component) -- routed here for the
+    # same reason as the checks above.
+    if has_pentaphene_fusion_name(mol):
+        return name_pentaphene_fusion(mol)
 
     # benzo[b]triphenylene (same mechanism again, for triphenylene as the
     # base component) -- routed here for the same reason as the checks
