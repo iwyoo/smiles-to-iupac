@@ -66,6 +66,15 @@ carbon (with or without other ring substituents), e.g.
 acid' (CID 6925), mirroring `_name_cyclic_sulfonic_acid`'s ring-
 numbering search with the retained name 'benzene' as stem -- the
 -SO3H's own locant is never cited here, unlike the cycloalkane case.
+
+`_name_phenyl_chain_sulfonic_acid`'s chain-substituent shape also
+extends to a simple heteroaromatic monocycle (pyridine/furan/thiophene/
+pyrrole, P-29.3.4.1), e.g. 'pyridin-3-ylmethanesulfonic acid'. A
+heteroaromatic ring with -SO3H bonded directly to it (unlike benzene)
+stays out of scope: benzene's own numbering is free to start at the
+-SO3H carbon regardless, but a heteroaromatic ring's numbering must fix
+the heteroatom at locant 1 and search for the -SO3H's own lowest locant
+relative to it -- ring-locant-search machinery not built here yet.
 """
 
 from rdkit import Chem
@@ -80,6 +89,7 @@ from ._common import (
     elides_before,
     group_substituents,
     halogen_substituents,
+    heteroaromatic_monocycle_name,
     is_plain_benzene_ring,
     longest_branched_chain_through,
     longest_chains,
@@ -139,11 +149,12 @@ def has_sulfonic_acid_shape(mol) -> bool:
 def _validate_and_collect_sulfonic_acids(mol, aromatic_ring_atoms=frozenset()):
     """`aromatic_ring_atoms`: atom indices already independently verified
     (by the caller, before this function runs) to form a single plain
-    benzene ring with exactly one exocyclic attachment -- exempted from
-    the aromatic-atom rejection below so `name_sulfonic_acid`'s benzene-
-    ring-substituent path (see `_name_phenyl_chain_sulfonic_acid`) can
-    reuse this same validation for the rest of the molecule. Empty by
-    default, so every other caller's behavior is unchanged."""
+    benzene or heteroaromatic-monocycle ring with exactly one exocyclic
+    attachment -- exempted from the aromatic-atom rejection below so
+    `name_sulfonic_acid`'s ring-substituent path (see
+    `_name_phenyl_chain_sulfonic_acid`) can reuse this same validation for
+    the rest of the molecule. Empty by default, so every other caller's
+    behavior is unchanged."""
     sulfur_atoms = _sulfonic_sulfur_atoms(mol)
     if not sulfur_atoms:
         raise UnsupportedStructure(
@@ -174,10 +185,11 @@ def _validate_and_collect_sulfonic_acids(mol, aromatic_ring_atoms=frozenset()):
                 raise UnsupportedStructure(
                     "a halogen atom must be a monovalent substituent (P-35.2.1)"
                 )
-        elif atom.GetIdx() not in sulfonic_atom_idxs:
+        elif atom.GetIdx() not in sulfonic_atom_idxs and atom.GetIdx() not in aromatic_ring_atoms:
             raise UnsupportedStructure(
-                "heteroatoms other than a sulfonic acid group (P-65.3.1) "
-                "and halogen substituents (P-35.2.1) are not supported "
+                "heteroatoms other than a sulfonic acid group (P-65.3.1), "
+                "a heteroaromatic ring's own heteroatom (P-29.3.4.1), and "
+                "halogen substituents (P-35.2.1) are not supported "
                 "yet -- in particular a coexisting carboxylic acid or "
                 "other characteristic group needs acid-vs-acid Table 3.3 "
                 "seniority handling not yet implemented here"
@@ -486,13 +498,13 @@ def _name_benzenesulfonic_acid(mol, ring_atoms):
 def _name_phenyl_chain_sulfonic_acid(mol, ring_atoms):
     """Name a sulfonic acid whose -SO3H lies entirely on a single
     unbranched chain hanging off one atom of an otherwise-plain,
-    unsubstituted benzene ring -- e.g. 3-phenylpropane-1-sulfonic acid.
-    The ring is cited as a 'phenyl' substituent prefix (via
+    unsubstituted benzene or heteroaromatic-monocycle ring -- e.g.
+    3-phenylpropane-1-sulfonic acid, pyridin-3-ylmethanesulfonic acid.
+    The ring is cited as a 'phenyl'/heteroaromatic substituent prefix (via
     `name_branch`'s aromatic-ring recognition) on the chain, which is the
     parent hydride, mirroring `_ketone.py`'s `_name_phenyl_chain_ketone`.
     Narrower than the acyclic path above: no chain unsaturation and no
-    specified stereocenter -- each is a separate follow-up (see
-    tasks/phenyl-substituent-on-sulfonic-acid-chain.md's scope note)."""
+    specified stereocenter -- each is a separate follow-up."""
     sulfur_idx, so3h_carbon = _validate_and_collect_sulfonic_acids(mol, aromatic_ring_atoms=ring_atoms)
     if specified_stereocenters(mol):
         raise UnsupportedStructure(
@@ -590,9 +602,23 @@ def name_sulfonic_acid(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
-        if is_plain_benzene_ring(mol, ring_atoms):
+        is_benzene = is_plain_benzene_ring(mol, ring_atoms)
+        is_heteroaromatic = not is_benzene and (
+            heteroaromatic_monocycle_name(mol, ring_cycle(adjacency(mol), list(ring_atoms))) is not None
+        )
+        if is_benzene or is_heteroaromatic:
             sulfur_idx, so3h_carbon = _validate_and_collect_sulfonic_acids(mol, aromatic_ring_atoms=ring_atoms)
             if so3h_carbon in ring_atoms:
+                if is_heteroaromatic:
+                    # A heteroaromatic ring's numbering must fix the
+                    # heteroatom at locant 1 and search for the -SO3H's own
+                    # lowest locant relative to it -- unlike benzene, where
+                    # any ring-numbering start is equally valid, so no
+                    # locant is ever cited.
+                    raise UnsupportedStructure(
+                        "a sulfonic acid directly attached to a "
+                        "heteroaromatic ring is not supported yet"
+                    )
                 return _name_benzenesulfonic_acid(mol, ring_atoms)
             return _name_phenyl_chain_sulfonic_acid(mol, ring_atoms)
     sulfur_idx, so3h_carbon = _validate_and_collect_sulfonic_acids(mol)
