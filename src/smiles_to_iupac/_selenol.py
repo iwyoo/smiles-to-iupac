@@ -90,12 +90,40 @@ rings, unsaturation reaching outside the ring or a ring triple bond, an
 -SeH on a substituent branch off an otherwise-unsubstituted ring, a
 selenide (-Se- ether-analogue) or any other selenium-oxidation-state
 group, a tellurol or other chalcogen atom, and any oxygen or nitrogen
-atom at all. `_name_benzeneselenol` names a single -SeH directly on a
-benzene ring carbon (with or without other ring substituents), e.g.
-'benzeneselenol' (PubChem CID 69530), mirroring `_thiol.py`'s
-`_name_benzenethiol` exactly -- the -SeH's own locant is never cited,
-unlike the cycloalkane case; two or more -SeH groups directly on the
-ring remain out of scope.
+atom at all except a heteroaromatic ring's own (see below). `_name_
+benzeneselenol` names a single -SeH directly on a benzene ring carbon
+(with or without other ring substituents), e.g. 'benzeneselenol'
+(PubChem CID 69530), mirroring `_thiol.py`'s `_name_benzenethiol` exactly
+-- the -SeH's own locant is never cited, unlike the cycloalkane case;
+two or more -SeH groups directly on the ring remain out of scope.
+
+`_name_phenyl_chain_selenol`'s chain-substituent shape also extends to a
+simple heteroaromatic monocycle whose own heteroatom is nitrogen
+(pyridine/pyrrole, P-29.3.4.1) -- e.g. '(pyridin-3-yl)methaneselenol' --
+mirroring `_thiol.py`'s identical generalization. Selenium heteroaromatic-
+ring chain compounds are essentially unregistered in PubChem (unlike the
+sulfur analogues), so this extension is reviewed rather than
+independently structure-verified, the same standard already applied
+above to the halogenated/ring-double-bond selenol extensions.
+
+Furan/thiophene (O/S-heteroatom heteroaromatic rings) are deliberately
+NOT included here even though `heteroaromatic_monocycle_name` recognizes
+them structurally: `core.py`'s dispatch never reaches this module for
+those two at all -- `has_ether_shape`/`has_sulfide_shape` both key off
+"exactly one O/S atom in the whole molecule, degree 2, bonded to two
+carbons," which a furan/thiophene ring's own lone heteroatom satisfies on
+its own with no other O/S anywhere else in the molecule, so the whole
+molecule is claimed by `_ether.py`/`_sulfide.py` before `has_selenol_shape`
+is ever checked. This is a pre-existing gap in those two shared dispatch
+functions (they don't exclude a heteroaromatic ring's own heteroatom the
+way `_hydroperoxide.py`'s own oxygen-counting fix once had to), not
+specific to selenol -- fixing it is a separate, broader follow-up.
+
+A heteroaromatic ring with -SeH bonded directly to it (unlike benzene)
+stays out of scope regardless: benzene's own numbering is free to start
+at the -SeH carbon regardless, but a heteroaromatic ring's numbering must
+fix the heteroatom at locant 1 and search for the -SeH's own lowest
+locant relative to it -- ring-locant-search machinery not built here yet.
 """
 
 from rdkit import Chem
@@ -110,6 +138,7 @@ from ._common import (
     elides_before,
     group_substituents,
     halogen_substituents,
+    heteroaromatic_monocycle_name,
     is_plain_benzene_ring,
     longest_branched_chain_through,
     longest_chains,
@@ -138,16 +167,21 @@ def has_selenol_shape(mol) -> bool:
 def _validate_and_collect_selenols(mol, aromatic_ring_atoms=frozenset()):
     """`aromatic_ring_atoms`: atom indices already independently verified
     (by the caller, before this function runs) to form a single plain
-    benzene ring with exactly one exocyclic attachment -- exempted from
-    the aromatic-atom rejection below so `name_selenol`'s benzene-ring-
-    substituent path (see `_name_phenyl_chain_selenol`) can reuse this
-    same validation for the rest of the molecule. Empty by default, so
-    every other caller's behavior is unchanged. Mirrors `_thiol.py`'s
+    benzene or heteroaromatic-monocycle ring with exactly one exocyclic
+    attachment -- exempted from the aromatic-atom rejection below so
+    `name_selenol`'s ring-substituent path (see
+    `_name_phenyl_chain_selenol`) can reuse this same validation for the
+    rest of the molecule. Empty by default, so every other caller's
+    behavior is unchanged. Mirrors `_thiol.py`'s
     `_validate_and_collect_thiols`."""
     selenols = set()
     has_carbon = False
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
+        if atom.GetIdx() in aromatic_ring_atoms:
+            if atomic_num == 6:
+                has_carbon = True
+            continue
         if atomic_num not in _ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(
                 "heteroatoms other than a selenol selenium (P-63.1.1) and "
@@ -697,13 +731,18 @@ def name_selenol(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
-        if is_plain_benzene_ring(mol, ring_atoms):
-            ring_selenols = _validate_and_collect_selenols(mol, aromatic_ring_atoms=ring_atoms)
-            if len(ring_selenols) == 1:
-                (only_se,) = ring_selenols
-                (only_se_carbon,) = adjacency(mol)[only_se]
-                if only_se_carbon in ring_atoms:
-                    return _name_benzeneselenol(mol, ring_atoms)
+        is_benzene = is_plain_benzene_ring(mol, ring_atoms)
+        is_heteroaromatic = not is_benzene and (
+            heteroaromatic_monocycle_name(mol, ring_cycle(adjacency(mol), list(ring_atoms))) is not None
+        )
+        if is_benzene or is_heteroaromatic:
+            if is_benzene:
+                ring_selenols = _validate_and_collect_selenols(mol, aromatic_ring_atoms=ring_atoms)
+                if len(ring_selenols) == 1:
+                    (only_se,) = ring_selenols
+                    (only_se_carbon,) = adjacency(mol)[only_se]
+                    if only_se_carbon in ring_atoms:
+                        return _name_benzeneselenol(mol, ring_atoms)
             return _name_phenyl_chain_selenol(mol, ring_atoms)
     selenols = _validate_and_collect_selenols(mol)
     stereo = specified_stereocenters(mol)
