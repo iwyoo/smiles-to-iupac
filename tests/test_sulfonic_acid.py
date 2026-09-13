@@ -167,6 +167,31 @@ def test_phenyl_chain_sulfonic_acid_unsaturation_raises():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        # Structure verified against PubChem: CID 71650202.
+        ("OS(=O)(=O)Cc1cccnc1", "(pyridin-3-yl)methanesulfonic acid"),
+        # Structure verified against PubChem: CID 23361618.
+        ("OS(=O)(=O)Cc1cccs1", "(thiophen-2-yl)methanesulfonic acid"),
+        # Structure verified against PubChem: CID 18323441.
+        ("OS(=O)(=O)Cc1ccco1", "(furan-2-yl)methanesulfonic acid"),
+        # Structure verified against PubChem: CID 91804704.
+        ("OS(=O)(=O)Cc1cc[nH]c1", "(1H-pyrrol-3-yl)methanesulfonic acid"),
+    ],
+)
+def test_heteroaromatic_chain_sulfonic_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_heteroaromatic_direct_attachment_sulfonic_acid_raises():
+    # Unlike benzene, a heteroaromatic ring's numbering must fix the
+    # heteroatom at locant 1 and search for the -SO3H's own lowest locant
+    # relative to it -- ring-locant-search machinery out of scope here.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OS(=O)(=O)c1cccnc1")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         # A single specified tetrahedral stereocenter (P-92), same pattern
         # as `_carboxylic_acid.py`/`_aldehyde.py`/`_ketone.py` (CIP
         # computed entirely by RDKit's `rdCIPLabeler`). PubChem CID
