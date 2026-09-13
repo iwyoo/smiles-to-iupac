@@ -106,18 +106,13 @@ sulfur analogues), so this extension is reviewed rather than
 independently structure-verified, the same standard already applied
 above to the halogenated/ring-double-bond selenol extensions.
 
-Furan/thiophene (O/S-heteroatom heteroaromatic rings) are deliberately
-NOT included here even though `heteroaromatic_monocycle_name` recognizes
-them structurally: `core.py`'s dispatch never reaches this module for
-those two at all -- `has_ether_shape`/`has_sulfide_shape` both key off
-"exactly one O/S atom in the whole molecule, degree 2, bonded to two
-carbons," which a furan/thiophene ring's own lone heteroatom satisfies on
-its own with no other O/S anywhere else in the molecule, so the whole
-molecule is claimed by `_ether.py`/`_sulfide.py` before `has_selenol_shape`
-is ever checked. This is a pre-existing gap in those two shared dispatch
-functions (they don't exclude a heteroaromatic ring's own heteroatom the
-way `_hydroperoxide.py`'s own oxygen-counting fix once had to), not
-specific to selenol -- fixing it is a separate, broader follow-up.
+Furan/thiophene (O/S-heteroatom heteroaromatic rings) reuse the same
+`_name_phenyl_chain_selenol` path as the nitrogen case above (P-616 M4):
+`has_ether_shape`/`has_sulfide_shape` exclude a heteroaromatic ring's own
+O/S heteroatom from their "exactly one O/S atom" count, and `core.py`'s
+oxygen-gated branch checks `has_selenol_shape` before its own
+`name_alcohol` fallback, so the molecule reaches this module instead of
+being misclaimed by `_ether.py`/`_sulfide.py`.
 
 A heteroaromatic ring with -SeH bonded directly to it (unlike benzene)
 stays out of scope regardless: benzene's own numbering is free to start
