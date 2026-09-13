@@ -450,6 +450,63 @@ def test_bicyclic_alcohol_raises():
         smiles_to_iupac("OC1CC2CCC1CC2")
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Two separate simple monocycles joined by one direct bond, one a
+        # plain benzo/heteroaromatic ring with no substituent of its own
+        # (P-25 M1 step 3, #624) -- the hydroxyl-bearing ring's own
+        # dispatch (`_name_cyclic_alcohol`) is reused unchanged, with the
+        # aromatic ring cited as a substituent via `name_branch`, the same
+        # mechanism an ordinary alkyl ring substituent already uses (the
+        # identical generalization #622 made for `_ketone.py`).
+        # PubChem-confirmed: `OC1CCCCC1c1ccccc1` -> "2-phenylcyclohexan-
+        # 1-ol" (CID 300424), `OC1CCCCC1c1cccnc1" ->
+        # "2-(pyridin-3-yl)cyclohexan-1-ol" (CID 59486132).
+        ("OC1CCCCC1c1ccccc1", "2-phenylcyclohexan-1-ol"),
+        ("OC1CCCCC1c1cccnc1", "2-(pyridin-3-yl)cyclohexan-1-ol"),
+        ("OC1CCCCC1c1ccoc1", "2-(furan-3-yl)cyclohexan-1-ol"),
+        ("OC1CCCCC1c1cccs1", "2-(thiophen-2-yl)cyclohexan-1-ol"),
+        ("OC1CCCCC1c1ccc[nH]1", "2-(1H-pyrrol-2-yl)cyclohexan-1-ol"),
+        # The aromatic ring need not sit adjacent to the -OH -- ring
+        # numbering still picks the lower-locant direction (P-14.5.2).
+        ("OC1CCCC(c2ccccc2)C1", "3-phenylcyclohexan-1-ol"),
+        # Coexists with a plain ring alkyl substituent and with a second
+        # ring hydroxyl, same as this module's existing plain-ring-
+        # substituent cases.
+        ("OC1CC(C)CCC1c1ccccc1", "5-methyl-2-phenylcyclohexan-1-ol"),
+        ("OC1CCC(c2ccccc2)CC1O", "4-phenylcyclohexane-1,2-diol"),
+    ],
+)
+def test_two_ring_aromatic_substituent_alcohol(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_two_ring_aromatic_substituent_alcohol_substituted_ring_raises():
+    # The aromatic ring itself carrying an extra substituent beyond the
+    # one connecting bond is explicitly out of scope (#624's own scope
+    # note) -- falls through to the ordinary aromatic-carbon rejection.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OC1CCCC(c2ccc(C)cc2)C1")
+
+
+def test_two_ring_aromatic_substituent_alcohol_three_rings_raises():
+    # Three total rings is explicitly out of scope (#624's own scope
+    # note) -- still the generic "polycyclic and spiro" rejection.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OC1CCCC(c2ccccc2)C1c3ccccc3")
+
+
+def test_two_ring_aromatic_substituent_alcohol_chain_hydroxyl_raises():
+    # A hydroxyl entirely on a chain hanging off the non-aromatic ring,
+    # with the ring itself bearing none, is out of scope for this narrower
+    # first slice (see the module dispatch's own scope note) -- the ring
+    # would need its own compound name_branch-computed substituent name
+    # (carrying the aromatic ring) rather than a plain "cyclo..." prefix.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OCC1CCCCC1c1ccccc1")
+
+
 def test_ethoxyethanol():
     # A simple alkoxy ether coexisting with a hydroxyl on an acyclic
     # chain (P-29.3.3) is supported: PubChem's own name is

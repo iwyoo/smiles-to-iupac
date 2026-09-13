@@ -219,6 +219,7 @@ from ._common import (
     ring_cycle,
     specified_stereo_elements,
     specified_stereocenters,
+    two_separate_rings_with_plain_aromatic_substituent,
 )
 from ._cyclic_unsaturated import name_cyclic_unsaturated_yl
 from ._numerals import alkane_name, alkyl_name
@@ -306,17 +307,25 @@ def _validate_and_collect_hydroxyls(mol, aromatic_ring_atoms=frozenset()):
 
     `aromatic_ring_atoms`: atom indices already independently verified (by
     the caller, before this function runs) to form a single plain benzene
-    ring with exactly one exocyclic attachment -- exempted from the
-    aromatic-atom rejection below so `name_alcohol`'s benzene-ring-
-    substituent path (see `_name_phenyl_chain_alcohol`) can reuse this same
-    validation for the rest of the molecule. Empty by default, so every
-    other caller's behavior is unchanged."""
+    ring or heteroaromatic monocycle (pyridine/furan/thiophene/pyrrole)
+    with exactly one exocyclic attachment -- exempted here wholesale from
+    the per-atomic-number checks below (already independently verified by
+    that shape check itself) so `name_alcohol`'s benzene-ring-substituent
+    path (see `_name_phenyl_chain_alcohol`) and its `two_separate_rings_
+    with_plain_aromatic_substituent` shape (#624, mirroring `_ketone.py`'s
+    #622) can both reuse this same validation for the rest of the
+    molecule. Empty by default, so every other caller's behavior is
+    unchanged."""
     graph = adjacency(mol)
     ethers = _ether_oxygens(mol, graph)
     hydroxyls = set()
     has_carbon = False
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
+        if atom.GetIdx() in aromatic_ring_atoms:
+            if atomic_num == 6:
+                has_carbon = True
+            continue
         if atomic_num not in _ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(
                 "heteroatoms other than a hydroxyl oxygen (P-33.2.1), a "
@@ -327,7 +336,7 @@ def _validate_and_collect_hydroxyls(mol, aromatic_ring_atoms=frozenset()):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
+            if atom.GetIsAromatic():
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module (see "
                     "the separate aromatic-ring module)"
@@ -588,13 +597,15 @@ def _name_acyclic_alcohol(
     return best_name
 
 
-def _substituents_for_ring(graph, ring_order, halogens, hydroxyls, mol=None):
+def _substituents_for_ring(graph, ring_order, halogens, hydroxyls, mol=None, aromatic_atoms=frozenset()):
     ring_set = set(ring_order)
     substituents = {}
     for position, atom in enumerate(ring_order, start=1):
         branch_roots = [n for n in graph[atom] if n not in ring_set and n not in hydroxyls]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
+            substituents[position] = [
+                name_branch(graph, root, atom, halogens, aromatic_atoms, mol=mol) for root in branch_roots
+            ]
     return substituents
 
 
@@ -707,7 +718,7 @@ def _name_phenol(mol, ring_atoms):
     return best_name
 
 
-def _ring_branch_stereo_display(graph, ring_order, hydroxyls, stereo, halogens, mol=None):
+def _ring_branch_stereo_display(graph, ring_order, hydroxyls, stereo, halogens, mol=None, aromatic_atoms=frozenset()):
     """Mirrors `_aromatic.py`'s `_stereo_display`: if the ring carries
     exactly one specified stereocenter and that stereocenter sits off the
     ring on the ring's own sole substituent branch (P-92), return that
@@ -731,14 +742,14 @@ def _ring_branch_stereo_display(graph, ring_order, hydroxyls, stereo, halogens, 
     if len(branch_attachments) != 1:
         return None
     ring_atom, branch_root = branch_attachments[0]
-    branch_name, branch_compound = name_branch(graph, branch_root, ring_atom, halogens, mol=mol)
+    branch_name, branch_compound = name_branch(graph, branch_root, ring_atom, halogens, aromatic_atoms, mol=mol)
     site_locant = branch_atom_locant(graph, branch_root, ring_atom, stereo_atom, halogens, mol=mol)
     descriptor = f"({site_locant}{r_or_s})-{branch_name}"
     display = f"[{descriptor}]" if branch_compound else f"({descriptor})"
     return ring_atom, display
 
 
-def _name_cyclic_alcohol(mol, hydroxyls, stereo=None, bonds=()):
+def _name_cyclic_alcohol(mol, hydroxyls, stereo=None, bonds=(), ring_atoms=None, aromatic_atoms=frozenset()):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, every stereocenter must
     normally lie on the ring itself (P-92: a stereocenter on a
@@ -755,22 +766,39 @@ def _name_cyclic_alcohol(mol, hydroxyls, stereo=None, bonds=()):
     prefix.
     `bonds`: ring C=C double bonds (P-31.1.3), empty by default -- see
     `_ketone.py`'s identical `bonds` parameter for the shared reasoning
-    (hydroxyl locant fixed first, then minimized ene locant)."""
+    (hydroxyl locant fixed first, then minimized ene locant).
+
+    `ring_atoms`/`aromatic_atoms`: when the hydroxyl-bearing ring reaches
+    this function as one half of a `two_separate_rings_with_plain_
+    aromatic_substituent` shape (#624, mirroring `_ketone.py`'s #622), the
+    caller passes the hydroxyl-bearing ring's own atoms explicitly
+    (RDKit's SSSR would otherwise list either of the two disjoint rings
+    first) along with the other, aromatic ring's atoms, cited as a plain
+    substituent (phenyl or a heteroaromatic monocycle) via `name_branch`
+    the same way an ordinary alkyl ring substituent already is.
+    `ring_atoms=None` (default) preserves the original single-ring
+    dispatch unchanged."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    ring_info = mol.GetRingInfo()
-    ring_atoms = list(ring_info.AtomRings()[0])
+    if ring_atoms is None:
+        ring_atoms = list(mol.GetRingInfo().AtomRings()[0])
+    else:
+        ring_atoms = list(ring_atoms)
     ring_order = ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
     branch_stereo = None
     if stereo is not None and any(atom not in ring_order for atom, _ in stereo):
-        branch_stereo = _ring_branch_stereo_display(graph, ring_order, hydroxyls, stereo, halogens, mol=mol)
+        branch_stereo = _ring_branch_stereo_display(
+            graph, ring_order, hydroxyls, stereo, halogens, mol=mol, aromatic_atoms=aromatic_atoms
+        )
         if branch_stereo is None:
             raise UnsupportedStructure(
                 "a stereocenter on a substituent branch rather than the ring "
                 "itself is not supported yet (see P-92)"
             )
-    if bonds and any(_substituents_for_ring(graph, ring_order, halogens, hydroxyls, mol=mol).values()):
+    if bonds and any(
+        _substituents_for_ring(graph, ring_order, halogens, hydroxyls, mol=mol, aromatic_atoms=aromatic_atoms).values()
+    ):
         raise UnsupportedStructure(
             "a substituent alongside both a ring double/triple bond and a "
             "hydroxyl is not supported yet (see module docstring)"
@@ -789,7 +817,9 @@ def _name_cyclic_alcohol(mol, hydroxyls, stereo=None, bonds=()):
                     "a hydroxyl not on the ring itself (e.g. on a "
                     "substituent branch) is not supported yet"
                 )
-            substituents = _substituents_for_ring(graph, candidate, halogens, hydroxyls, mol=mol)
+            substituents = _substituents_for_ring(
+                graph, candidate, halogens, hydroxyls, mol=mol, aromatic_atoms=aromatic_atoms
+            )
             if branch_stereo is not None:
                 branch_ring_atom, display = branch_stereo
                 substituents[position_of[branch_ring_atom]] = [(display, False)]
@@ -1060,9 +1090,35 @@ def name_alcohol(mol) -> str:
             if not ethers and hydroxyls == ring_hydroxyls and len(hydroxyls) == 1:
                 return _name_phenol(mol, ring_atoms)
             return _name_phenyl_chain_alcohol(mol, ring_atoms)
-    hydroxyls, ethers = _validate_and_collect_hydroxyls(mol)
+
+    # Two separate simple monocycles joined by one direct bond, one a plain
+    # benzo/heteroaromatic ring with no substituent of its own (P-25 M1
+    # step 3, #624) -- e.g. 2-phenylcyclohexan-1-ol -- reuses the existing
+    # single-ring `_name_cyclic_alcohol` dispatch below with the aromatic
+    # ring's atoms passed through as an exemption/substituent, the same
+    # generalization #622 made for `_ketone.py`. Narrower than that: only
+    # the "every hydroxyl is ring-borne" split is handled below (matching
+    # this shape's only verified real structures) -- a hydroxyl entirely
+    # on a chain hanging off the non-aromatic ring, with the ring itself
+    # bearing no -OH, would need the ring cited as a substituent on that
+    # chain, but the ring would then carry *two* exocyclic branches (the
+    # aromatic ring and the chain) and would need its own name_branch-
+    # computed compound name instead of a plain "cyclo..." prefix --
+    # deferred as a separate, more involved follow-up.
+    aromatic_shape = None
+    if ring_info.NumRings() == 2:
+        aromatic_shape = two_separate_rings_with_plain_aromatic_substituent(mol, adjacency(mol))
+    aromatic_atoms = aromatic_shape[1] if aromatic_shape is not None else frozenset()
+
+    hydroxyls, ethers = _validate_and_collect_hydroxyls(mol, aromatic_ring_atoms=aromatic_atoms)
     graph = adjacency(mol)
-    all_non_single = non_single_bonds(mol)
+    # Exclude a bond entirely inside the aromatic-substituent ring above --
+    # its aromatic bond order (1.5) isn't a real chain/ring 'ene'/'yne'
+    # bond either, and is already accounted for by naming that ring via
+    # `name_branch` instead (mirrors `_ketone.py`'s identical exclusion).
+    all_non_single = [
+        b for b in non_single_bonds(mol) if not (b[0] in aromatic_atoms and b[1] in aromatic_atoms)
+    ]
     bonds = [b for b in all_non_single if b[2] in (_ENE_ORDER, _YNE_ORDER)]
     if len(bonds) != len(all_non_single):
         raise UnsupportedStructure(
@@ -1127,6 +1183,23 @@ def name_alcohol(mol) -> str:
                 "comparison is not supported yet (see P-92)"
             )
         return _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls)
+    if num_rings == 2 and aromatic_shape is not None:
+        ring_atoms, _, _, _ = aromatic_shape
+        chain_hydroxyls = hydroxyls - {o for o in hydroxyls if next(iter(graph[o])) in ring_atoms}
+        if chain_hydroxyls:
+            raise UnsupportedStructure(
+                "a hydroxyl on a chain hanging off the ring, with the ring "
+                "itself bearing no hydroxyl of its own, alongside this "
+                "two-ring aromatic-substituent shape is not supported yet"
+            )
+        if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in bonds):
+            raise UnsupportedStructure(
+                "unsaturated rings are not supported yet (see P-31.1.3, "
+                "cycloalkenes and cycloalkynes)"
+            )
+        return _name_cyclic_alcohol(
+            mol, hydroxyls, stereo, bonds, ring_atoms=ring_atoms, aromatic_atoms=aromatic_atoms
+        )
     if stereo is not None:
         raise UnsupportedStructure(
             "a stereocenter on a polycyclic/spiro skeleton is not "
