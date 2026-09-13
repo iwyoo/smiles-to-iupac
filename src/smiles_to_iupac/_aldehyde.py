@@ -81,6 +81,7 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    heteroaromatic_monocycle_name,
     is_plain_benzene_ring,
     longest_branched_chain,
     longest_chains,
@@ -91,6 +92,7 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     specified_stereocenters,
+    two_separate_rings_with_plain_aromatic_substituent,
 )
 from ._numerals import alkane_name
 from ._substituents import (
@@ -113,16 +115,24 @@ def _validate_and_collect_aldehydes(mol, aromatic_ring_atoms=frozenset()):
 
     `aromatic_ring_atoms`: atom indices already independently verified (by
     the caller, before this function runs) to form a single plain benzene
-    ring with exactly one exocyclic attachment -- exempted from the
-    aromatic-atom rejection below so `name_aldehyde`'s benzene-ring-
-    substituent path (see `_name_phenyl_chain_aldehyde`) can reuse this
-    same validation for the rest of the molecule. Empty by default, so
-    every other caller's behavior is unchanged."""
+    ring or heteroaromatic monocycle (pyridine/furan/thiophene/pyrrole)
+    with exactly one exocyclic attachment -- exempted wholesale from the
+    per-atomic-number checks below (already independently verified by that
+    shape check itself) so `name_aldehyde`'s benzene/heteroaromatic-ring-
+    substituent path (see `_name_phenyl_chain_aldehyde`) and its
+    `two_separate_rings_with_plain_aromatic_substituent` shape (mirroring
+    `_nitrile.py`'s #631) can both reuse this same validation for the rest
+    of the molecule. Empty by default, so every other caller's behavior is
+    unchanged."""
     aldehydes = set()
     hydroxyls = set()
     has_carbon = False
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
+        if atom.GetIdx() in aromatic_ring_atoms:
+            if atomic_num == 6:
+                has_carbon = True
+            continue
         if atomic_num not in _ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(
                 "heteroatoms other than an aldehyde carbonyl oxygen (P-33.3) "
@@ -132,7 +142,7 @@ def _validate_and_collect_aldehydes(mol, aromatic_ring_atoms=frozenset()):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
+            if atom.GetIsAromatic():
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module (see "
                     "the separate aromatic-ring module)"
@@ -377,17 +387,22 @@ def _name_acyclic_aldehyde(
     return best_name
 
 
-def _ring_substituents(graph, ring_order, halogens, excluded, mol=None):
+def _ring_substituents(graph, ring_order, halogens, excluded, mol=None, aromatic_atoms=frozenset()):
     """{ring position -> [substituent name, ...]}, mirroring
     `_carboxylic_acid.py`'s identically-named helper -- every branch
     hanging off a ring atom other than the aldehyde carbon itself (in
-    `excluded`) is a plain substituent prefix (alkyl/halogen)."""
+    `excluded`) is a plain substituent prefix (alkyl/halogen), or the
+    aromatic ring itself (phenyl or a heteroaromatic monocycle, via
+    `name_branch`) when reached as one half of a
+    `two_separate_rings_with_plain_aromatic_substituent` shape."""
     ring_set = set(ring_order)
     substituents = {}
     for position, atom in enumerate(ring_order, start=1):
         branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
+            substituents[position] = [
+                name_branch(graph, root, atom, halogens, aromatic_atoms, mol=mol) for root in branch_roots
+            ]
     return substituents
 
 
@@ -414,7 +429,7 @@ def _ring_candidate_key(ring_size, al_locant, substituents):
     return al_locant, locant_set, citation_locants, name
 
 
-def _name_ring_aldehyde(mol, ring_atoms, stereo=None):
+def _name_ring_aldehyde(mol, ring_atoms, stereo=None, aromatic_atoms=frozenset()):
     """P-66.6.1.1.3: "The suffix 'carbaldehyde' is used when the -CHO
     group is attached to a carbon atom of a ring" -- e.g.
     'cyclohexanecarbaldehyde (PIN)'. Unlike the chain-parent 'al' suffix
@@ -432,8 +447,16 @@ def _name_ring_aldehyde(mol, ring_atoms, stereo=None):
     `stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- every stereocenter must lie on the ring
     itself (a stereocenter on the -CHO substituent branch is out of scope
-    for now)."""
-    aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol)
+    for now).
+
+    `aromatic_atoms`: when the aldehyde-bearing ring reaches this function
+    as one half of a `two_separate_rings_with_plain_aromatic_substituent`
+    shape (mirroring `_nitrile.py`'s #631), the other, aromatic ring's
+    atoms -- cited as a plain substituent (phenyl or a heteroaromatic
+    monocycle) via `name_branch` the same way an ordinary alkyl ring
+    substituent already is. Empty by default, so the original single-ring
+    dispatch is unchanged."""
+    aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol, aromatic_ring_atoms=aromatic_atoms)
     if hydroxyls:
         raise UnsupportedStructure(
             "a standalone hydroxyl alongside a ring aldehyde is not "
@@ -448,7 +471,13 @@ def _name_ring_aldehyde(mol, ring_atoms, stereo=None):
 
     graph = adjacency(mol)
     (aldehyde_carbon,) = graph[aldehyde_oxygen]
-    all_non_single = [b for b in non_single_bonds(mol) if b[0] != aldehyde_oxygen and b[1] != aldehyde_oxygen]
+    all_non_single = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] != aldehyde_oxygen
+        and b[1] != aldehyde_oxygen
+        and not (b[0] in aromatic_atoms and b[1] in aromatic_atoms)
+    ]
     if all_non_single:
         raise UnsupportedStructure(
             "an unsaturated ring alongside an aldehyde substituent is not "
@@ -481,7 +510,9 @@ def _name_ring_aldehyde(mol, ring_atoms, stereo=None):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             al_locant = position_of[ring_atom]
-            substituents = _ring_substituents(graph, candidate, halogens, {aldehyde_carbon}, mol=mol)
+            substituents = _ring_substituents(
+                graph, candidate, halogens, {aldehyde_carbon}, mol=mol, aromatic_atoms=aromatic_atoms
+            )
             key = _ring_candidate_key(ring_size, al_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, key[-1], position_of
@@ -648,7 +679,11 @@ def name_aldehyde(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
-        if is_plain_benzene_ring(mol, ring_atoms):
+        is_benzene = is_plain_benzene_ring(mol, ring_atoms)
+        is_heteroaromatic = not is_benzene and (
+            heteroaromatic_monocycle_name(mol, ring_cycle(adjacency(mol), list(ring_atoms))) is not None
+        )
+        if is_benzene or is_heteroaromatic:
             aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol, aromatic_ring_atoms=ring_atoms)
             if not hydroxyls and len(aldehydes) == 1:
                 (only_oxygen,) = aldehydes
@@ -656,7 +691,15 @@ def name_aldehyde(mol) -> str:
                 (only_carbon,) = graph[only_oxygen]
                 ring_neighbors = [n for n in graph[only_carbon] if n in ring_atoms]
                 if len(ring_neighbors) == 1:
-                    return _name_benzaldehyde(mol, ring_atoms)
+                    if is_benzene:
+                        return _name_benzaldehyde(mol, ring_atoms)
+                    raise UnsupportedStructure(
+                        "an aldehyde directly attached to a heteroaromatic "
+                        "ring is not supported yet (only a plain benzene "
+                        "ring's 'benzaldehyde' direct-attachment path, or a "
+                        "heteroaromatic ring cited as a chain substituent, "
+                        "is)"
+                    )
             return _name_phenyl_chain_aldehyde(mol, ring_atoms)
         aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol)
         if not hydroxyls and len(aldehydes) == 1:
@@ -666,6 +709,45 @@ def name_aldehyde(mol) -> str:
             ring_neighbors = [n for n in graph[only_carbon] if n in ring_atoms]
             if len(ring_neighbors) == 1:
                 return _name_ring_aldehyde(mol, ring_atoms, specified_stereocenters(mol))
+
+    # Two separate simple monocycles joined by one direct bond, one a plain
+    # benzo/heteroaromatic ring with no substituent of its own (mirroring
+    # `_nitrile.py`'s #631) -- e.g. 2-phenylcyclohexane-1-carbaldehyde --
+    # reuses `_name_ring_aldehyde` with the aromatic ring's atoms passed
+    # through as an exemption/substituent. Narrower than that: only the
+    # "every aldehyde is ring-borne" split is handled below (matching this
+    # shape's only verified real structures), mirroring #622/#624/#628/
+    # #631's identical scoping decision.
+    if ring_info.NumRings() == 2:
+        aromatic_shape = two_separate_rings_with_plain_aromatic_substituent(mol, adjacency(mol))
+        if aromatic_shape is not None:
+            ring_atoms, aromatic_atoms, _, _ = aromatic_shape
+            aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol, aromatic_ring_atoms=aromatic_atoms)
+            if hydroxyls:
+                raise UnsupportedStructure(
+                    "a standalone hydroxyl alongside this two-ring "
+                    "aromatic-substituent shape is not supported yet"
+                )
+            if len(aldehydes) != 1:
+                raise UnsupportedStructure(
+                    "more than one aldehyde group alongside this two-ring "
+                    "aromatic-substituent shape is not supported yet"
+                )
+            (only_oxygen,) = aldehydes
+            graph = adjacency(mol)
+            (only_carbon,) = graph[only_oxygen]
+            ring_neighbors = [n for n in graph[only_carbon] if n in ring_atoms]
+            if len(ring_neighbors) != 1:
+                raise UnsupportedStructure(
+                    "an aldehyde on a chain hanging off the non-aromatic "
+                    "ring, with the ring itself bearing no aldehyde of its "
+                    "own, alongside this two-ring aromatic-substituent "
+                    "shape is not supported yet"
+                )
+            return _name_ring_aldehyde(
+                mol, ring_atoms, specified_stereocenters(mol), aromatic_atoms=aromatic_atoms
+            )
+
     aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol)
     stereo = specified_stereocenters(mol)
     graph = adjacency(mol)

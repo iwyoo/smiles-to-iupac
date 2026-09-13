@@ -120,6 +120,85 @@ def test_phenyl_chain_aldehyde_unsaturation_raises():
         smiles_to_iupac("C=Cc1ccccc1CC=O")
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single aromatic (benzo or heteroaromatic monocycle) ring
+        # substituent on a chain that also carries the aldehyde -- the
+        # shared heteroaromatic-substituent naming engine (#620) now
+        # reaches this shape once `_aldehyde.py`'s own single-ring gate
+        # accepts a heteroaromatic ring alongside plain benzene (M2 step
+        # 3, mirroring `_nitrile.py`'s #631). PubChem-confirmed:
+        # `O=CCc1cccnc1` -> "2-pyridin-3-ylacetaldehyde" (CID 11073404;
+        # this project's convention parenthesizes the compound
+        # substituent, matching `_carboxylic_acid.py`'s
+        # "2-(pyridin-3-yl)ethanoic acid").
+        ("O=CCc1cccnc1", "2-(pyridin-3-yl)ethanal"),
+        # PubChem-confirmed: `O=CCc1cccs1` -> "2-thiophen-2-ylacetaldehyde"
+        # (CID 6430722).
+        ("O=CCc1cccs1", "2-(thiophen-2-yl)ethanal"),
+        # PubChem-confirmed: `O=CCc1cc[nH]c1` ->
+        # "2-(1H-pyrrol-3-yl)acetaldehyde" (CID 21314538).
+        ("O=CCc1cc[nH]c1", "2-(1H-pyrrol-3-yl)ethanal"),
+        # Two separate simple monocycles joined by one direct bond, one a
+        # plain benzo/heteroaromatic ring with no substituent of its own
+        # -- the aldehyde-bearing ring's own dispatch (`_name_ring_
+        # aldehyde`) is reused unchanged, with the aromatic ring cited as
+        # a substituent via `name_branch`, the same generalization
+        # #622/#624/#628/#631 made for `_ketone.py`/`_alcohol.py`/
+        # `_thiol.py`/`_nitrile.py`. PubChem-confirmed:
+        # `O=CC1CCCCC1c1ccccc1` -> "2-phenylcyclohexane-1-carbaldehyde"
+        # (CID 15554880).
+        ("O=CC1CCCCC1c1ccccc1", "2-phenylcyclohexane-1-carbaldehyde"),
+        # PubChem-confirmed: `O=CC1CCCCCC1c1ccccc1` ->
+        # "2-phenylcycloheptane-1-carbaldehyde" (CID 87968077).
+        ("O=CC1CCCCCC1c1ccccc1", "2-phenylcycloheptane-1-carbaldehyde"),
+        # The aromatic ring need not sit adjacent to the aldehyde -- ring
+        # numbering still picks the lower-locant direction (P-14.5.2).
+        ("O=CC1CCCC(c2ccccc2)C1", "3-phenylcyclohexane-1-carbaldehyde"),
+    ],
+)
+def test_two_ring_and_heteroaromatic_chain_aldehyde(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_two_ring_aromatic_substituent_aldehyde_substituted_ring_raises():
+    # The aromatic ring itself carrying an extra substituent beyond the
+    # one connecting bond is explicitly out of scope (M2 step 3's own
+    # scope note, mirroring #628/#631) -- falls through to the ordinary
+    # aromatic-carbon rejection.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=CC1CCCC(c2ccc(C)cc2)C1")
+
+
+def test_two_ring_aromatic_substituent_aldehyde_three_rings_raises():
+    # Three total rings is explicitly out of scope (M2 step 3's own scope
+    # note, mirroring #628/#631) -- still the generic aromatic-ring
+    # rejection.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=CC1CCCC(c2ccccc2)C1c3ccccc3")
+
+
+def test_two_ring_aromatic_substituent_aldehyde_chain_aldehyde_raises():
+    # An aldehyde entirely on a chain hanging off the non-aromatic ring,
+    # with the ring itself bearing none, is out of scope for this
+    # narrower slice (see the module dispatch's own scope note, mirroring
+    # #628/#631's identical decision) -- the ring would need its own
+    # compound name_branch-computed substituent name (carrying the
+    # aromatic ring) rather than a plain "cyclo..." prefix.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=CCC1CCCCC1c1ccccc1")
+
+
+def test_heteroaromatic_ring_directly_attached_aldehyde_raises():
+    # An aldehyde directly attached to a heteroaromatic ring carbon (a
+    # pyridine-3-carbaldehyde-type structure) needs its own ring-parent
+    # naming construction, not covered by this module's chain-substituent
+    # or benzaldehyde paths -- explicitly out of scope for now.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=Cc1cccnc1")
+
+
 def test_alcohol_aldehyde_mix_names_hydroxy_prefix():
     # 'al' outranks 'ol' in Table 3.3, so a coexisting -OH is cited as the
     # 'hydroxy' substituent prefix rather than rejected.
