@@ -82,11 +82,14 @@ single substituent's locant is always cited.
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    carbon_adjacency,
     group_substituents,
     halogen_substituents,
     lowest_locant_set,
+    non_single_bonds,
     ring_cycle,
     specified_stereocenters,
+    unbranched_unsaturated_substituent_name,
     validate_atoms_and_bonds,
 )
 from ._numerals import numerical_term
@@ -143,13 +146,26 @@ def find_aromatic_fused_core(mol):
     return atom_rings, [set(r) for r in atom_rings], fusion_bond_idxs
 
 
-def _validate_aromatic_bonds(mol):
+def _validate_aromatic_bonds(mol, ring_atoms=frozenset()):
+    """A non-aromatic multiple bond lying entirely on an exocyclic branch
+    (both atoms outside `ring_atoms`) is exempted -- P-61.2.3/P-31.1.3.4:
+    a cyclic hydrocarbon substituted by an unsaturated chain is named
+    with the ring as parent and the chain cited as an ordinary
+    'alkenyl'/'alkynyl' substituent prefix (see
+    `unbranched_unsaturated_substituent_name`), e.g. 'ethenylbenzene'
+    (PIN; 'styrene' is a retained name restricted to general nomenclature
+    only, P-31.1.3.4). A bond straddling the ring and a branch, or one
+    entirely inside the ring itself (or a second, non-aromatic ring),
+    stays rejected exactly as before."""
     for bond in mol.GetBonds():
         if bond.GetBondTypeAsDouble() == 1.0 or bond.GetIsAromatic():
             continue
+        a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+        if a not in ring_atoms and b not in ring_atoms:
+            continue
         raise UnsupportedStructure(
             "a non-aromatic multiple bond is not supported within or "
-            "attached to an aromatic ring system (see P-25.3.1.3)"
+            "attached to an aromatic ring system (see P-61.2.3)"
         )
 
 
@@ -411,7 +427,52 @@ def _benzene_candidates(graph, ring_atoms):
     return candidates
 
 
-def _ring_substituents(graph, locants, ring_atoms, halogens, mol=None):
+def _branch_atoms(graph, root, ring_atoms):
+    """Every atom reachable from `root` without crossing back into
+    `ring_atoms` -- the whole exocyclic branch hanging off one ring atom,
+    regardless of whether it turns out to be a simple unbranched chain or
+    branches further."""
+    seen = {root}
+    stack = [root]
+    while stack:
+        current = stack.pop()
+        for neighbor in graph[current]:
+            if neighbor in ring_atoms or neighbor in seen:
+                continue
+            seen.add(neighbor)
+            stack.append(neighbor)
+    return seen
+
+
+def _branch_name(graph, carbon_graph, root, ring_atom, ring_atoms, halogens, unsaturated_bonds, mol=None):
+    """`name_branch` (`_substituents.py`) has no ene/yne machinery of its
+    own yet, so a branch carrying one of `unsaturated_bonds` (already
+    confirmed by `_validate_aromatic_bonds` to lie entirely outside
+    `ring_atoms`) is named directly via
+    `unbranched_unsaturated_substituent_name` instead (P-61.2.3), mirroring
+    `_amine.py`'s identical N-substituent construction. A branch with no
+    such bond falls through to the ordinary `name_branch` path unchanged."""
+    branch_atoms = _branch_atoms(graph, root, ring_atoms)
+    branch_bonds = [b for b in unsaturated_bonds if b[0] in branch_atoms and b[1] in branch_atoms]
+    if not branch_bonds:
+        return name_branch(graph, root, ring_atom, halogens, mol=mol)
+    if len(branch_bonds) > 1:
+        raise UnsupportedStructure(
+            "more than one non-aromatic multiple bond on a single "
+            "exocyclic branch is not supported yet"
+        )
+    name = unbranched_unsaturated_substituent_name(
+        carbon_graph, root, branch_bonds[0], coming_from=ring_atom, excluded=ring_atoms
+    )
+    if name is None:
+        raise UnsupportedStructure(
+            "a branched unsaturated exocyclic substituent is not "
+            "supported yet"
+        )
+    return name, False
+
+
+def _ring_substituents(graph, locants, ring_atoms, halogens, mol=None, carbon_graph=None, unsaturated_bonds=()):
     """Like `_cyclic._substituents_for_ring`, but `locants` (nonfusion atom
     -> integer position) covers only part of the ring skeleton -- a fusion
     carbon has no free valence and so is never itself a locant -- while
@@ -421,12 +482,28 @@ def _ring_substituents(graph, locants, ring_atoms, halogens, mol=None):
     for atom, position in locants.items():
         branch_roots = [n for n in graph[atom] if n not in ring_atoms]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
+            substituents[position] = [
+                _branch_name(graph, carbon_graph, root, atom, ring_atoms, halogens, unsaturated_bonds, mol=mol)
+                for root in branch_roots
+            ]
     return substituents
 
 
-def _candidate_key(parent, locants, ring_atoms, graph, halogens, omit_single_locant, stereo_display=None, mol=None):
-    substituents = _ring_substituents(graph, locants, ring_atoms, halogens, mol=mol)
+def _candidate_key(
+    parent,
+    locants,
+    ring_atoms,
+    graph,
+    halogens,
+    omit_single_locant,
+    stereo_display=None,
+    mol=None,
+    carbon_graph=None,
+    unsaturated_bonds=(),
+):
+    substituents = _ring_substituents(
+        graph, locants, ring_atoms, halogens, mol=mol, carbon_graph=carbon_graph, unsaturated_bonds=unsaturated_bonds
+    )
     grouped = group_substituents(substituents)
     locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
     citation_locants = tuple(
@@ -544,10 +621,13 @@ def _stereo_display(mol, graph, n, ring_atoms, halogens):
 
 def name_aromatic_fused(mol, core) -> str:
     validate_atoms_and_bonds(mol)
-    _validate_aromatic_bonds(mol)
 
     atom_rings, ring_atom_sets, fusion_bond_idxs = core
     n = len(atom_rings)
+    ring_atoms = set()
+    for s in ring_atom_sets:
+        ring_atoms |= s
+    _validate_aromatic_bonds(mol, ring_atoms)
 
     membership = _atom_ring_membership(atom_rings)
     if any(len(rings) >= 3 for rings in membership.values()):
@@ -562,11 +642,15 @@ def name_aromatic_fused(mol, core) -> str:
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    ring_atoms = set()
-    for s in ring_atom_sets:
-        ring_atoms |= s
+    unsaturated_bonds = [b for b in non_single_bonds(mol) if b[0] not in ring_atoms and b[1] not in ring_atoms]
+    carbon_graph = carbon_adjacency(mol) if unsaturated_bonds else None
 
     stereo_display = _stereo_display(mol, graph, n, ring_atoms, halogens)
+    if stereo_display is not None and unsaturated_bonds:
+        raise UnsupportedStructure(
+            "a specified stereocenter combined with an unsaturated "
+            "exocyclic substituent is not supported yet"
+        )
 
     if n == 1:
         candidates = _benzene_candidates(graph, ring_atom_sets[0])
@@ -596,7 +680,18 @@ def name_aromatic_fused(mol, core) -> str:
     best_key = None
     best_name = None
     for locants in candidates:
-        key = _candidate_key(parent, locants, ring_atoms, graph, halogens, omit_single_locant, stereo_display, mol=mol)
+        key = _candidate_key(
+            parent,
+            locants,
+            ring_atoms,
+            graph,
+            halogens,
+            omit_single_locant,
+            stereo_display,
+            mol=mol,
+            carbon_graph=carbon_graph,
+            unsaturated_bonds=unsaturated_bonds,
+        )
         if best_key is None or key < best_key:
             best_key, best_name = key, key[-1]
     return best_name
