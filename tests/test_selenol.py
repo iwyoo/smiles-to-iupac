@@ -264,12 +264,6 @@ def test_heteroaromatic_direct_attachment_selenol_raises():
         smiles_to_iupac("[SeH]c1cccnc1")
 
 
-def test_oxygen_or_sulfur_heteroaromatic_chain_selenol_not_yet_reached():
-    # Furan/thiophene aren't reachable yet: `core.py`'s dispatch routes
-    # these to `_ether.py`/`_sulfide.py` first (see module docstring) --
-    # a separate, pre-existing dispatch gap, not specific to selenol.
-    # Both still raise `UnsupportedStructure` rather than a wrong name.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[SeH]Cc1cccs1")
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[SeH]Cc1ccco1")
+def test_oxygen_or_sulfur_heteroaromatic_chain_selenol():
+    assert smiles_to_iupac("[SeH]Cc1cccs1") == "(thiophen-2-yl)methaneselenol"
+    assert smiles_to_iupac("[SeH]Cc1ccco1") == "(furan-2-yl)methaneselenol"

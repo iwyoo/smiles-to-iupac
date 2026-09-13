@@ -908,4 +908,7 @@ def _name_acyclic_thiol(
 
 
 def has_thiol_shape(mol) -> bool:
-    return any(atom.GetAtomicNum() == 16 for atom in mol.GetAtoms())
+    """Excludes a thiophene ring's own aromatic sulfur: otherwise it would
+    satisfy this check ahead of `has_selenol_shape` in `core.py`'s
+    chalcogen-chain dispatch (P-616 M4)."""
+    return any(atom.GetAtomicNum() == 16 and not atom.GetIsAromatic() for atom in mol.GetAtoms())

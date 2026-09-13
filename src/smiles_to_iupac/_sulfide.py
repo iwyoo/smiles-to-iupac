@@ -67,8 +67,10 @@ def _sulfanyl_prefix(name: str) -> str:
 def has_sulfide_shape(mol) -> bool:
     """True iff `mol` has exactly one sulfur atom, singly bonded to two
     carbons (a plain sulfide -S-, P-63.2.1) -- the shape this module
-    accepts."""
-    sulfurs = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 16]
+    accepts. A thiophene ring's own aromatic sulfur is excluded from the
+    count so it doesn't misclaim a molecule whose real functional group
+    lies elsewhere (P-616 M4)."""
+    sulfurs = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 16 and not atom.GetIsAromatic()]
     if len(sulfurs) != 1:
         return False
     (sulfur,) = sulfurs
