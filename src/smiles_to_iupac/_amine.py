@@ -32,7 +32,7 @@ compound-prefix parenthesization, see `_amide.py`), and
 'N-(2-chloroethyl)propan-1-amine' (PubChem CID 3045065). An N-substituent
 may also carry a single C=C/C#C bond as long as it's otherwise unbranched
 (`name_branch` has no ene/yne machinery of its own yet, so this narrow
-case is named directly by `_unbranched_unsaturated_n_substituent_name`
+case is named directly by `unbranched_unsaturated_substituent_name`
 instead), e.g. 'N-prop-2-enylpentan-1-amine' (PubChem CID 12442641),
 'N-prop-2-ynylbutan-1-amine' (PubChem CID 3465926). A halogen substituent
 on the parent chain also coexists with this (P-14.5.2: the 'N-' prefix
@@ -116,6 +116,7 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     specified_stereocenters,
+    unbranched_unsaturated_substituent_name,
 )
 from ._numerals import alkane_name, alkyl_name
 from ._substituents import (
@@ -456,40 +457,6 @@ def _best_chain_name(
     return best_name, best_position_of
 
 
-def _unbranched_unsaturated_n_substituent_name(carbon_graph, root, bond):
-    """The '-enyl'/'-ynyl' name (P-29.2) for a secondary/tertiary amine's
-    N-substituent when it's a plain, unbranched carbon chain carrying
-    exactly one C=C/C#C bond -- `name_branch` has no ene/yne machinery of
-    its own yet (see the module docstring), so this narrow case is
-    handled directly instead: `root` (the N-attached carbon) is always
-    locant 1, mirroring every other substituent-naming convention in this
-    project. None if the substituent branches at all (`ordered_chain`
-    returning None) or `bond` doesn't lie on it.
-
-    P-14.3.4.2(b): a 2-carbon chain has only one possible structure, so
-    the 'en'/'yn' locant is omitted, e.g. 'ethenyl' (PubChem CID
-    20276167's 'N-ethenylbutan-1-amine') -- the attachment point's own
-    locant is never cited at all (it's always C1 by this function's own
-    fixed convention, same as `_hetero_monocyclic.py`'s already-verified
-    'prop-2-enyl', not 'prop-2-en-1-yl'), so a longer chain cites only
-    the 'en'/'yn' locant, e.g. 'prop-2-enyl' (PubChem CID 12442641's
-    'N-prop-2-enylpentan-1-amine')."""
-    chain = ordered_chain(carbon_graph, root, None, frozenset())
-    if chain is None:
-        return None
-    position_of = {atom: i + 1 for i, atom in enumerate(chain)}
-    a, b, order = bond
-    if a not in position_of or b not in position_of:
-        return None
-    chain_length = len(chain)
-    locant = min(position_of[a], position_of[b])
-    suffix = "en" if order == _ENE_ORDER else "yn"
-    stem = alkane_name(chain_length)[:-3]
-    if chain_length == 2:
-        return stem + suffix + "yl"
-    return f"{stem}-{locant}-{suffix}yl"
-
-
 def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=None):
     """Name a secondary/tertiary amine: the N-linked carbon starting the
     largest carbon skeleton becomes the parent chain (suffixed '-amine' via
@@ -502,7 +469,7 @@ def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=
     project's established compound-prefix parenthesization, see
     `_amide.py`), 'N-(2-chloroethyl)propan-1-amine' (PubChem CID 3045065).
     An unbranched N-substituent may also carry one C=C/C#C bond, named
-    directly by `_unbranched_unsaturated_n_substituent_name` instead
+    directly by `unbranched_unsaturated_substituent_name` instead
     (`name_branch` has no ene/yne machinery of its own yet) -- e.g.
     'N-prop-2-enylpentan-1-amine' (PubChem CID 12442641).
 
@@ -532,7 +499,7 @@ def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=
                     "more than one multiple bond on an N-substituent is "
                     "not supported yet"
                 )
-            name = _unbranched_unsaturated_n_substituent_name(full_carbon_graph, other, other_bonds[0])
+            name = unbranched_unsaturated_substituent_name(full_carbon_graph, other, other_bonds[0])
             if name is None:
                 raise UnsupportedStructure(
                     "a branched unsaturated N-substituent is not supported yet"
@@ -546,7 +513,7 @@ def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=
         excluded_atoms |= set(components[other])
     parent_carbon_graph = {k: v for k, v in full_carbon_graph.items() if k not in excluded_atoms}
     # A multiple bond entirely on an N-substituent's own component (now
-    # named directly by `_unbranched_unsaturated_n_substituent_name`
+    # named directly by `unbranched_unsaturated_substituent_name`
     # above) isn't part of the parent chain at all -- passing it through
     # unfiltered would make `_best_chain_name`'s `bond_locants` unable to
     # place it on any candidate chain, since none of them contain its

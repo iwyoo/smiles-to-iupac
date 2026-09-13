@@ -25,7 +25,7 @@ naming modules.
 from rdkit import Chem
 from rdkit.Chem import rdCIPLabeler
 
-from ._numerals import numerical_term
+from ._numerals import alkane_name, numerical_term
 
 
 class UnsupportedStructure(NotImplementedError):
@@ -344,6 +344,44 @@ def ordered_chain(graph, root, coming_from, excluded):
             return None
         previous, current = current, neighbors[0]
         chain.append(current)
+
+
+def unbranched_unsaturated_substituent_name(carbon_graph, root, bond, coming_from=None, excluded=frozenset()):
+    """The '-enyl'/'-ynyl' name (P-29.2) for a plain, unbranched carbon-
+    chain substituent carrying exactly one C=C/C#C bond -- `name_branch`
+    (`_substituents.py`) has no ene/yne machinery of its own yet (several
+    modules note this directly, e.g. `_amine.py`'s N-substituent
+    handling, which this helper was promoted from once `_aromatic.py`
+    needed the identical construction for an exocyclic ring substituent).
+    `root` is always locant 1, mirroring every other substituent-naming
+    convention in this project. `coming_from`/`excluded` are passed
+    straight through to `ordered_chain` (e.g. a ring's own atom set, so
+    the chain search can't walk back into the ring). Returns None if the
+    substituent branches at all (`ordered_chain` returning None) or
+    `bond` doesn't lie on the resulting chain.
+
+    P-14.3.4.2(b): a 2-carbon chain has only one possible structure, so
+    the 'en'/'yn' locant is omitted, e.g. 'ethenyl' (PubChem CID
+    20276167's 'N-ethenylbutan-1-amine') -- the attachment point's own
+    locant is never cited at all (it's always C1 by this function's own
+    fixed convention, same as `_hetero_monocyclic.py`'s already-verified
+    'prop-2-enyl', not 'prop-2-en-1-yl'), so a longer chain cites only
+    the 'en'/'yn' locant, e.g. 'prop-2-enyl' (PubChem CID 12442641's
+    'N-prop-2-enylpentan-1-amine')."""
+    chain = ordered_chain(carbon_graph, root, coming_from, excluded)
+    if chain is None:
+        return None
+    position_of = {atom: i + 1 for i, atom in enumerate(chain)}
+    a, b, order = bond
+    if a not in position_of or b not in position_of:
+        return None
+    chain_length = len(chain)
+    locant = min(position_of[a], position_of[b])
+    suffix = "en" if order == ENE_BOND_ORDER else "yn"
+    stem = alkane_name(chain_length)[:-3]
+    if chain_length == 2:
+        return stem + suffix + "yl"
+    return f"{stem}-{locant}-{suffix}yl"
 
 
 def longest_branched_chain(graph, source, ring_boundary, excluded=frozenset(), halogens=frozenset()):
