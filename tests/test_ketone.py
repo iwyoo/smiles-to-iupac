@@ -704,3 +704,57 @@ def test_phenyl_substituent_ketone_branched_chain():
     # carbon can sit anywhere along the resulting chain rather than
     # always at C1. PubChem PUG REST-verified "3-phenylbutan-2-one".
     assert smiles_to_iupac("c1ccccc1C(C)C(=O)C") == "3-phenylbutan-2-one"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Two separate simple monocycles joined by one direct bond, one a
+        # plain benzo/heteroaromatic ring with no substituent of its own
+        # (P-25 M1 step 2, #622) -- the ketone-bearing ring's own dispatch
+        # (`_name_cyclic_ketone`) is reused unchanged, with the aromatic
+        # ring cited as a substituent via `name_branch`, the same
+        # mechanism an ordinary alkyl ring substituent already uses.
+        # PubChem-confirmed: `O=C1CCCCC1c1ccccc1` -> "2-phenylcyclohexan-
+        # 1-one" (CID 74357), `O=C1CCCCC1c1cccnc1` ->
+        # "2-(pyridin-3-yl)cyclohexan-1-one" (CID 22100878).
+        ("O=C1CCCCC1c1ccccc1", "2-phenylcyclohexan-1-one"),
+        ("O=C1CCCCC1c1cccnc1", "2-(pyridin-3-yl)cyclohexan-1-one"),
+        ("O=C1CCCCC1c1ccoc1", "2-(furan-3-yl)cyclohexan-1-one"),
+        ("O=C1CCCCC1c1cccs1", "2-(thiophen-2-yl)cyclohexan-1-one"),
+        ("O=C1CCCCC1c1ccc[nH]1", "2-(1H-pyrrol-2-yl)cyclohexan-1-one"),
+        # The aromatic ring need not sit adjacent to the carbonyl -- ring
+        # numbering still picks the lower-locant direction (P-14.5.2).
+        ("O=C1CCCC(c2ccccc2)C1", "3-phenylcyclohexan-1-one"),
+        # Coexists with a second ring ketone (P-33.4, Table 3.3) and with
+        # a ring hydroxyl (P-41's 'hydroxy' demotion), same as this
+        # module's existing plain-ring-substituent cases.
+        ("O=C1CC(=O)CCC1c1ccccc1", "4-phenylcyclohexane-1,3-dione"),
+        ("O=C1CCC(O)C(c2ccccc2)C1", "4-hydroxy-3-phenylcyclohexan-1-one"),
+    ],
+)
+def test_two_ring_aromatic_substituent_ketone(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_two_ring_aromatic_substituent_ketone_substituted_ring_raises():
+    # The aromatic ring itself carrying an extra substituent beyond the
+    # one connecting bond is explicitly out of scope (#622's own scope
+    # note) -- falls through to the ordinary aromatic-carbon rejection.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1CCCC(c2ccc(C)cc2)C1")
+
+
+def test_two_ring_aromatic_substituent_ketone_three_rings_raises():
+    # Three total rings is explicitly out of scope (#622's own scope
+    # note) -- still the generic "polycyclic and spiro" rejection.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1CCCC(c2ccccc2)C1c3ccccc3")
+
+
+def test_two_ring_aromatic_substituent_ketone_ring_bond_raises():
+    # A ring double bond on the ketone-bearing ring alongside the
+    # aromatic-ring substituent hits this module's existing "substituent
+    # alongside a ring double bond" rejection unchanged.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1C=CCCC1c1ccccc1")
