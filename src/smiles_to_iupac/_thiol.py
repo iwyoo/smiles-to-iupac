@@ -87,6 +87,7 @@ from ._common import (
     elides_before,
     group_substituents,
     halogen_substituents,
+    heteroaromatic_monocycle_name,
     is_plain_benzene_ring,
     longest_branched_chain_through,
     longest_chains,
@@ -100,6 +101,7 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     specified_stereocenters,
+    two_separate_rings_with_plain_aromatic_substituent,
 )
 from ._numerals import alkane_name, alkyl_name
 from ._substituents import (
@@ -118,15 +120,23 @@ _ALLOWED_ATOMIC_NUMS = {6, 16, *HALOGEN_PREFIXES}
 def _validate_and_collect_thiols(mol, aromatic_ring_atoms=frozenset()):
     """`aromatic_ring_atoms`: atom indices already independently verified
     (by the caller, before this function runs) to form a single plain
-    benzene ring with exactly one exocyclic attachment -- exempted from
-    the aromatic-atom rejection below so `name_thiol`'s benzene-ring-
-    substituent path (see `_name_phenyl_chain_thiol`) can reuse this same
-    validation for the rest of the molecule. Empty by default, so every
-    other caller's behavior is unchanged."""
+    benzene ring or heteroaromatic monocycle (pyridine/furan/thiophene/
+    pyrrole) with exactly one exocyclic attachment -- exempted here
+    wholesale from the per-atomic-number checks below (already
+    independently verified by that shape check itself) so `name_thiol`'s
+    benzene-ring-substituent path (see `_name_phenyl_chain_thiol`) and its
+    `two_separate_rings_with_plain_aromatic_substituent` shape (#628,
+    mirroring `_ketone.py`'s #622/`_alcohol.py`'s #624) can both reuse
+    this same validation for the rest of the molecule. Empty by default,
+    so every other caller's behavior is unchanged."""
     thiols = set()
     has_carbon = False
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
+        if atom.GetIdx() in aromatic_ring_atoms:
+            if atomic_num == 6:
+                has_carbon = True
+            continue
         if atomic_num not in _ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(
                 "heteroatoms other than a thiol sulfur (P-63.1.1) and "
@@ -139,7 +149,7 @@ def _validate_and_collect_thiols(mol, aromatic_ring_atoms=frozenset()):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
+            if atom.GetIsAromatic():
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module"
                 )
@@ -287,13 +297,15 @@ def _substituents_for_chain(graph, chain, halogens, thiols, mol=None):
     return substituents
 
 
-def _substituents_for_ring(graph, ring_order, halogens, thiols, mol=None):
+def _substituents_for_ring(graph, ring_order, halogens, thiols, mol=None, aromatic_atoms=frozenset()):
     ring_set = set(ring_order)
     substituents = {}
     for position, atom in enumerate(ring_order, start=1):
         branch_roots = [n for n in graph[atom] if n not in ring_set and n not in thiols]
         if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
+            substituents[position] = [
+                name_branch(graph, root, atom, halogens, aromatic_atoms, mol=mol) for root in branch_roots
+            ]
     return substituents
 
 
@@ -338,7 +350,7 @@ def _ring_candidate_key(ring_size, sh_locants, ene_locants, yne_locants, substit
     return sh_locant_set, combined_locant_set, ene_locant_set, locant_set, citation_locants, name
 
 
-def _ring_branch_stereo_display(graph, ring_order, thiols, stereo, halogens, mol=None):
+def _ring_branch_stereo_display(graph, ring_order, thiols, stereo, halogens, mol=None, aromatic_atoms=frozenset()):
     """Mirrors `_alcohol.py`/`_ketone.py`'s identical helper (itself
     mirroring `_aromatic.py`'s `_stereo_display`): if the ring carries
     exactly one specified stereocenter and that stereocenter sits off the
@@ -360,14 +372,14 @@ def _ring_branch_stereo_display(graph, ring_order, thiols, stereo, halogens, mol
     if len(branch_attachments) != 1:
         return None
     ring_atom, branch_root = branch_attachments[0]
-    branch_name, branch_compound = name_branch(graph, branch_root, ring_atom, halogens, mol=mol)
+    branch_name, branch_compound = name_branch(graph, branch_root, ring_atom, halogens, aromatic_atoms, mol=mol)
     site_locant = branch_atom_locant(graph, branch_root, ring_atom, stereo_atom, halogens, mol=mol)
     descriptor = f"({site_locant}{r_or_s})-{branch_name}"
     display = f"[{descriptor}]" if branch_compound else f"({descriptor})"
     return ring_atom, display
 
 
-def _name_cyclic_thiol(mol, thiols, stereo=None, bonds=()):
+def _name_cyclic_thiol(mol, thiols, stereo=None, bonds=(), ring_atoms=None, aromatic_atoms=frozenset()):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, every stereocenter must normally
     lie on the ring itself (P-92: a stereocenter on a substituent branch is
@@ -378,22 +390,39 @@ def _name_cyclic_thiol(mol, thiols, stereo=None, bonds=()):
     (`_ring_branch_stereo_display`, mirroring `_alcohol.py`/`_ketone.py`'s
     own case): exactly one stereocenter on the ring's sole substituent
     branch instead embeds a bracketed descriptor into that substituent's
-    own name, in place of the usual ring-locant prefix."""
+    own name, in place of the usual ring-locant prefix.
+
+    `ring_atoms`/`aromatic_atoms`: when the thiol-bearing ring reaches
+    this function as one half of a `two_separate_rings_with_plain_
+    aromatic_substituent` shape (#628, mirroring `_ketone.py`'s #622/
+    `_alcohol.py`'s #624), the caller passes the thiol-bearing ring's own
+    atoms explicitly (RDKit's SSSR would otherwise list either of the two
+    disjoint rings first) along with the other, aromatic ring's atoms,
+    cited as a plain substituent (phenyl or a heteroaromatic monocycle)
+    via `name_branch` the same way an ordinary alkyl ring substituent
+    already is. `ring_atoms=None` (default) preserves the original
+    single-ring dispatch unchanged."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    ring_info = mol.GetRingInfo()
-    ring_atoms = list(ring_info.AtomRings()[0])
+    if ring_atoms is None:
+        ring_atoms = list(mol.GetRingInfo().AtomRings()[0])
+    else:
+        ring_atoms = list(ring_atoms)
     ring_order = ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
     branch_stereo = None
     if stereo is not None and any(atom not in ring_order for atom, _ in stereo):
-        branch_stereo = _ring_branch_stereo_display(graph, ring_order, thiols, stereo, halogens, mol=mol)
+        branch_stereo = _ring_branch_stereo_display(
+            graph, ring_order, thiols, stereo, halogens, mol=mol, aromatic_atoms=aromatic_atoms
+        )
         if branch_stereo is None:
             raise UnsupportedStructure(
                 "a stereocenter on a substituent branch rather than the ring "
                 "itself is not supported yet (see P-92)"
             )
-    if bonds and any(_substituents_for_ring(graph, ring_order, halogens, thiols, mol=mol).values()):
+    if bonds and any(
+        _substituents_for_ring(graph, ring_order, halogens, thiols, mol=mol, aromatic_atoms=aromatic_atoms).values()
+    ):
         raise UnsupportedStructure(
             "a substituent alongside both a ring double/triple bond and a "
             "thiol is not supported yet (see module docstring)"
@@ -407,7 +436,9 @@ def _name_cyclic_thiol(mol, thiols, stereo=None, bonds=()):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             sh_locants = _sh_locants(position_of, thiols, graph)
-            substituents = _substituents_for_ring(graph, candidate, halogens, thiols, mol=mol)
+            substituents = _substituents_for_ring(
+                graph, candidate, halogens, thiols, mol=mol, aromatic_atoms=aromatic_atoms
+            )
             if branch_stereo is not None:
                 branch_ring_atom, display = branch_stereo
                 substituents[position_of[branch_ring_atom]] = [(display, False)]
@@ -688,18 +719,47 @@ def name_thiol(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
-        if is_plain_benzene_ring(mol, ring_atoms):
-            ring_thiols = _validate_and_collect_thiols(mol, aromatic_ring_atoms=ring_atoms)
-            if len(ring_thiols) == 1:
-                (only_s,) = ring_thiols
-                (only_s_carbon,) = adjacency(mol)[only_s]
-                if only_s_carbon in ring_atoms:
-                    return _name_benzenethiol(mol, ring_atoms)
+        is_benzene = is_plain_benzene_ring(mol, ring_atoms)
+        is_heteroaromatic = not is_benzene and (
+            heteroaromatic_monocycle_name(mol, ring_cycle(adjacency(mol), list(ring_atoms))) is not None
+        )
+        if is_benzene or is_heteroaromatic:
+            if is_benzene:
+                ring_thiols = _validate_and_collect_thiols(mol, aromatic_ring_atoms=ring_atoms)
+                if len(ring_thiols) == 1:
+                    (only_s,) = ring_thiols
+                    (only_s_carbon,) = adjacency(mol)[only_s]
+                    if only_s_carbon in ring_atoms:
+                        return _name_benzenethiol(mol, ring_atoms)
             return _name_phenyl_chain_thiol(mol, ring_atoms)
-    thiols = _validate_and_collect_thiols(mol)
+
+    # Two separate simple monocycles joined by one direct bond, one a plain
+    # benzo/heteroaromatic ring with no substituent of its own (P-25 M2
+    # step 1, #628) -- e.g. 2-phenylcyclohexane-1-thiol -- reuses the
+    # existing single-ring `_name_cyclic_thiol` dispatch below with the
+    # aromatic ring's atoms passed through as an exemption/substituent,
+    # the same generalization #622/#624 made for `_ketone.py`/
+    # `_alcohol.py`. Narrower than that: only the "every thiol is
+    # ring-borne" split is handled below (matching this shape's only
+    # verified real structures), mirroring #624's identical scoping
+    # decision -- a thiol entirely on a chain hanging off the
+    # non-aromatic ring, with the ring itself bearing none, is deferred as
+    # a separate, more involved follow-up.
+    aromatic_shape = None
+    if ring_info.NumRings() == 2:
+        aromatic_shape = two_separate_rings_with_plain_aromatic_substituent(mol, adjacency(mol))
+    aromatic_atoms = aromatic_shape[1] if aromatic_shape is not None else frozenset()
+
+    thiols = _validate_and_collect_thiols(mol, aromatic_ring_atoms=aromatic_atoms)
     stereo = specified_stereocenters(mol)
     graph = adjacency(mol)
-    all_non_single = non_single_bonds(mol)
+    # Exclude a bond entirely inside the aromatic-substituent ring above --
+    # its aromatic bond order (1.5) isn't a real chain/ring 'ene'/'yne'
+    # bond either, and is already accounted for by naming that ring via
+    # `name_branch` instead (mirrors `_ketone.py`'s identical exclusion).
+    all_non_single = [
+        b for b in non_single_bonds(mol) if not (b[0] in aromatic_atoms and b[1] in aromatic_atoms)
+    ]
     bonds = [b for b in all_non_single if b[2] in (_ENE_ORDER, _YNE_ORDER)]
     if len(bonds) != len(all_non_single):
         raise UnsupportedStructure(
@@ -710,6 +770,24 @@ def name_thiol(mol) -> str:
 
     ring_info = mol.GetRingInfo()
     num_rings = ring_info.NumRings()
+    if num_rings == 2 and aromatic_shape is not None:
+        ring_atoms, _, _, _ = aromatic_shape
+        chain_thiols = thiols - {s for s in thiols if next(iter(graph[s])) in ring_atoms}
+        if chain_thiols:
+            raise UnsupportedStructure(
+                "a thiol on a chain hanging off the ring, with the ring "
+                "itself bearing no thiol of its own, alongside this "
+                "two-ring aromatic-substituent shape is not supported yet"
+            )
+        if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in bonds):
+            raise UnsupportedStructure(
+                "unsaturation outside the ring alongside a cyclic thiol is "
+                "not supported yet (see P-31.1.3, cycloalkenes and "
+                "cycloalkynes)"
+            )
+        return _name_cyclic_thiol(
+            mol, thiols, stereo, bonds, ring_atoms=ring_atoms, aromatic_atoms=aromatic_atoms
+        )
     if num_rings > 1:
         raise UnsupportedStructure(
             "polycyclic/spiro thiols are not supported yet (this module "

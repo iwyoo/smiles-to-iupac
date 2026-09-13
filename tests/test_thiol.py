@@ -268,3 +268,64 @@ def test_thiol_unspecified_stereocenter_unaffected():
 def test_thiol_partially_specified_stereocenters_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("S[C@H]1CCCCC1Cl")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A single aromatic (benzo or heteroaromatic monocycle) ring
+        # substituent on a chain that also carries the thiol -- the
+        # shared heteroaromatic-substituent naming engine (#620) now
+        # reaches this shape once `_thiol.py`'s own single-ring gate
+        # accepts a heteroaromatic ring alongside plain benzene (P-25 M2
+        # step 1, #628). PubChem-confirmed: `SCCc1cccnc1` ->
+        # "2-pyridin-3-ylethanethiol" (CID 13969158; this project's
+        # convention parenthesizes the compound substituent, matching
+        # `_carboxylic_acid.py`'s "2-(pyridin-3-yl)ethanoic acid").
+        ("SCCc1cccnc1", "2-(pyridin-3-yl)ethane-1-thiol"),
+        ("SCCc1ccccc1", "2-phenylethane-1-thiol"),
+        # Two separate simple monocycles joined by one direct bond, one a
+        # plain benzo/heteroaromatic ring with no substituent of its own
+        # -- the thiol-bearing ring's own dispatch (`_name_cyclic_thiol`)
+        # is reused unchanged, with the aromatic ring cited as a
+        # substituent via `name_branch`, the same generalization #622/
+        # #624 made for `_ketone.py`/`_alcohol.py`. PubChem-confirmed:
+        # `SC1CCCCC1c1ccccc1` -> "2-phenylcyclohexane-1-thiol"
+        # (CID 105402027).
+        ("SC1CCCCC1c1ccccc1", "2-phenylcyclohexane-1-thiol"),
+        ("SC1CCCCC1c1cccnc1", "2-(pyridin-3-yl)cyclohexane-1-thiol"),
+        ("SC1CCCCC1c1cccs1", "2-(thiophen-2-yl)cyclohexane-1-thiol"),
+        ("SC1CCCCC1c1ccc[nH]1", "2-(1H-pyrrol-2-yl)cyclohexane-1-thiol"),
+        # The aromatic ring need not sit adjacent to the thiol -- ring
+        # numbering still picks the lower-locant direction (P-14.5.2).
+        ("SC1CCCC(c2ccccc2)C1", "3-phenylcyclohexane-1-thiol"),
+    ],
+)
+def test_two_ring_and_heteroaromatic_chain_thiol(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_two_ring_aromatic_substituent_thiol_substituted_ring_raises():
+    # The aromatic ring itself carrying an extra substituent beyond the
+    # one connecting bond is explicitly out of scope (#628's own scope
+    # note) -- falls through to the ordinary aromatic-carbon rejection.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("SC1CCCC(c2ccc(C)cc2)C1")
+
+
+def test_two_ring_aromatic_substituent_thiol_three_rings_raises():
+    # Three total rings is explicitly out of scope (#628's own scope
+    # note) -- still the generic "polycyclic/spiro" rejection.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("SC1CCCC(c2ccccc2)C1c3ccccc3")
+
+
+def test_two_ring_aromatic_substituent_thiol_chain_thiol_raises():
+    # A thiol entirely on a chain hanging off the non-aromatic ring, with
+    # the ring itself bearing none, is out of scope for this narrower
+    # first slice (see the module dispatch's own scope note, mirroring
+    # #624's identical decision for `_alcohol.py`) -- the ring would need
+    # its own compound name_branch-computed substituent name (carrying
+    # the aromatic ring) rather than a plain "cyclo..." prefix.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("SCC1CCCCC1c1ccccc1")
