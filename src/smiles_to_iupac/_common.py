@@ -260,6 +260,55 @@ def heteroaromatic_monocycle_yl_name(mol, ring_order, attachment_atom):
     return f"{indicated_hydrogen}{stem}-{locant}-yl"
 
 
+def two_separate_rings_with_plain_aromatic_substituent(mol, graph):
+    """If `mol`'s RDKit SSSR reports exactly two rings sharing no atoms,
+    joined by exactly one direct bond (not a longer chain -- a distinct,
+    separately-handled shape), and exactly one of the two is a plain,
+    otherwise-unsubstituted aromatic monocycle (a benzene ring or one of
+    the four simple heteroaromatic monocycles, `is_plain_benzene_ring`/
+    `heteroaromatic_monocycle_name`), return (other_ring_atoms,
+    aromatic_ring_atoms, other_attachment_atom, aromatic_attachment_atom)
+    -- else None (three or more rings, a genuinely fused/bridged/spiro
+    system whose SSSR rings share atoms, more than one connecting bond,
+    neither or both rings aromatic, or the aromatic ring carrying any
+    exocyclic substituent of its own beyond the one connecting bond).
+    Used by any parent-hydride module (`_ketone.py`, ...) generalizing its
+    existing single-ring-plus-plain-substituent dispatch to also accept
+    this shape, citing the aromatic ring as a substituent via `name_branch`
+    the same way it already cites a plain alkyl ring substituent."""
+    rings = [set(r) for r in mol.GetRingInfo().AtomRings()]
+    if len(rings) != 2:
+        return None
+    ring_x, ring_y = rings
+    if ring_x & ring_y:
+        return None
+    connections = [(a, b) for a in ring_x for b in graph[a] if b in ring_y]
+    if len(connections) != 1:
+        return None
+    x_atom, y_atom = connections[0]
+
+    def is_aromatic_monocycle(ring):
+        if is_plain_benzene_ring(mol, ring):
+            return True
+        return heteroaromatic_monocycle_name(mol, ring_cycle(graph, list(ring))) is not None
+
+    x_is_aromatic = is_aromatic_monocycle(ring_x)
+    y_is_aromatic = is_aromatic_monocycle(ring_y)
+    if x_is_aromatic == y_is_aromatic:
+        return None
+    if x_is_aromatic:
+        aromatic_ring, aromatic_atom, other_ring, other_atom = ring_x, x_atom, ring_y, y_atom
+    else:
+        aromatic_ring, aromatic_atom, other_ring, other_atom = ring_y, y_atom, ring_x, x_atom
+
+    for atom in aromatic_ring:
+        for neighbor in graph[atom]:
+            if neighbor not in aromatic_ring and neighbor != other_atom:
+                return None
+
+    return other_ring, aromatic_ring, other_atom, aromatic_atom
+
+
 def plain_phenyl_substituent_atoms(mol, graph, roots):
     """Union of ring atoms for every plain, unsubstituted benzene ring in
     `mol` that hangs directly off one of `roots` with no other exocyclic
