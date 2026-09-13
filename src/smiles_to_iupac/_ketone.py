@@ -252,11 +252,21 @@ to sit on an otherwise plain, unbranched, saturated chain hanging off one
 atom of an unsubstituted benzene ring -- the ring is then cited as a
 'phenyl' substituent prefix on the chain (P-44/P-52.2.8), mirroring
 `_carboxylic_acid.py`'s identical first slice
-(`_name_phenyl_chain_carboxylic_acid`,
-`tasks/aromatic-ring-substituent-parent-selection.md`'s scope note). A
-carbonyl carbon directly attached to the ring (an aryl ketone) still stays
-out of scope. PubChem-confirmed: `CC(=O)Cc1ccccc1` -> '1-phenylpropan-2-one'
-(CID 7678), `CC(=O)CCc1ccccc1` -> '4-phenylbutan-2-one' (CID 17355).
+(`_name_phenyl_chain_carboxylic_acid`). A carbonyl carbon directly
+attached to the ring (an aryl ketone) still stays out of scope.
+PubChem-confirmed: `CC(=O)Cc1ccccc1` -> '1-phenylpropan-2-one' (CID 7678),
+`CC(=O)CCc1ccccc1` -> '4-phenylbutan-2-one' (CID 17355).
+
+The same chain-substituent shape also extends to a simple heteroaromatic
+monocycle (pyridine/pyrrole/furan/thiophene, P-29.3.4.1) in place of
+benzene (P-616 M2 step 7) -- e.g. `CC(=O)Cc1cccnc1` ->
+'1-(pyridin-3-yl)propan-2-one' (PubChem CID 238414), `CC(=O)Cc1ccco1` ->
+'1-(furan-2-yl)propan-2-one' (CID 228583), `CC(=O)Cc1cccs1` ->
+'1-(thiophen-2-yl)propan-2-one' (CID 529394), `CC(=O)Cc1cc[nH]c1` ->
+'1-(1H-pyrrol-3-yl)propan-2-one' (CID 18383973), mirroring `_thiol.py`'s/
+`_selenol.py`'s/`_tellurol.py`'s identical generalization. A ketone
+carbon directly attached to a heteroaromatic ring stays out of scope,
+same as the benzene case.
 """
 
 from rdkit import Chem
@@ -273,6 +283,7 @@ from ._common import (
     elides_before,
     group_substituents,
     halogen_substituents,
+    heteroaromatic_monocycle_name,
     is_plain_benzene_ring,
     linear_branch,
     longest_branched_chain_through,
@@ -1807,7 +1818,11 @@ def name_ketone(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
-        if is_plain_benzene_ring(mol, ring_atoms):
+        is_benzene = is_plain_benzene_ring(mol, ring_atoms)
+        is_heteroaromatic = not is_benzene and (
+            heteroaromatic_monocycle_name(mol, ring_cycle(adjacency(mol), list(ring_atoms))) is not None
+        )
+        if is_benzene or is_heteroaromatic:
             return _name_phenyl_chain_ketone(mol, ring_atoms)
 
     # Two separate simple monocycles joined by one direct bond, one a plain

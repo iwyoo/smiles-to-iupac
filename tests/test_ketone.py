@@ -138,6 +138,26 @@ def test_phenyl_substituent_ketone_naphthalene_raises():
         smiles_to_iupac("c1ccc2ccccc2c1CC(C)=O")
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC(=O)Cc1cccnc1", "1-(pyridin-3-yl)propan-2-one"),
+        ("CC(=O)Cc1ccco1", "1-(furan-2-yl)propan-2-one"),
+        ("CC(=O)Cc1cccs1", "1-(thiophen-2-yl)propan-2-one"),
+        ("CC(=O)Cc1cc[nH]c1", "1-(1H-pyrrol-3-yl)propan-2-one"),
+    ],
+)
+def test_heteroaromatic_substituent_ketone(smiles, expected):
+    # PubChem PUG REST-verified: CID 238414 (pyridine), 228583 (furan),
+    # 529394 (thiophene), 18383973 (pyrrole).
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_heteroaromatic_substituent_ketone_directly_on_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=O)c1cccnc1")
+
+
 def test_bicyclic_ketone_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O=C1CC2CCC1CC2")
