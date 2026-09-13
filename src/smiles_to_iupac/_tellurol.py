@@ -76,12 +76,36 @@ rings, unsaturation reaching outside the ring or a ring triple bond, a
 -TeH on a substituent branch off an otherwise-unsubstituted ring, a
 telluride (-Te- ether-analogue) or any other tellurium-oxidation-state
 group, a thiol/selenol or other chalcogen atom, and any oxygen or
-nitrogen atom at all. `_name_benzenetellurol` names a single -TeH
-directly on a benzene ring carbon (with or without other ring
-substituents), e.g. 'benzenetellurol' (PubChem CID 5246059), mirroring
-`_thiol.py`'s/`_selenol.py`'s identical construction -- the -TeH's own
-locant is never cited, unlike the cycloalkane case; two or more -TeH
-groups directly on the ring remain out of scope.
+nitrogen atom at all except a heteroaromatic ring's own (see below).
+`_name_benzenetellurol` names a single -TeH directly on a benzene ring
+carbon (with or without other ring substituents), e.g. 'benzenetellurol'
+(PubChem CID 5246059), mirroring `_thiol.py`'s/`_selenol.py`'s identical
+construction -- the -TeH's own locant is never cited, unlike the
+cycloalkane case; two or more -TeH groups directly on the ring remain out
+of scope.
+
+`_name_phenyl_chain_tellurol`'s chain-substituent shape also extends to a
+simple heteroaromatic monocycle whose own heteroatom is nitrogen
+(pyridine/pyrrole, P-29.3.4.1) -- e.g. '(pyridin-3-yl)methanetellurol' --
+mirroring `_thiol.py`'s/`_selenol.py`'s identical generalization.
+Tellurium heteroaromatic-ring chain compounds are essentially
+unregistered in PubChem (even more so than the selenium analogues), so
+this extension is reviewed rather than independently structure-verified,
+the same standard already applied above to the halogenated/ring-double-
+bond tellurol extensions.
+
+Furan/thiophene (O/S-heteroatom heteroaromatic rings) reuse the same
+`_name_phenyl_chain_tellurol` path as the nitrogen case above (P-616 M2
+step 6): `core.py`'s nitrogen- and oxygen-gated branches each check
+`has_tellurol_shape` before their respective `name_amine`/`name_alcohol`
+fallback, so the molecule reaches this module instead of being misclaimed
+by `_amine.py`/`_alcohol.py`.
+
+A heteroaromatic ring with -TeH bonded directly to it (unlike benzene)
+stays out of scope regardless: benzene's own numbering is free to start
+at the -TeH carbon regardless, but a heteroaromatic ring's numbering must
+fix the heteroatom at locant 1 and search for the -TeH's own lowest
+locant relative to it -- ring-locant-search machinery not built here yet.
 """
 
 from rdkit import Chem
@@ -96,6 +120,7 @@ from ._common import (
     elides_before,
     group_substituents,
     halogen_substituents,
+    heteroaromatic_monocycle_name,
     is_plain_benzene_ring,
     longest_branched_chain_through,
     longest_chains,
@@ -124,16 +149,21 @@ def has_tellurol_shape(mol) -> bool:
 def _validate_and_collect_tellurols(mol, aromatic_ring_atoms=frozenset()):
     """`aromatic_ring_atoms`: atom indices already independently verified
     (by the caller, before this function runs) to form a single plain
-    benzene ring with exactly one exocyclic attachment -- exempted from
-    the aromatic-atom rejection below so `name_tellurol`'s benzene-ring-
-    substituent path (see `_name_phenyl_chain_tellurol`) can reuse this
-    same validation for the rest of the molecule. Empty by default, so
-    every other caller's behavior is unchanged. Mirrors `_thiol.py`'s
-    `_validate_and_collect_thiols`."""
+    benzene or heteroaromatic-monocycle ring with exactly one exocyclic
+    attachment -- exempted from the aromatic-atom rejection below so
+    `name_tellurol`'s ring-substituent path (see
+    `_name_phenyl_chain_tellurol`) can reuse this same validation for the
+    rest of the molecule. Empty by default, so every other caller's
+    behavior is unchanged. Mirrors `_thiol.py`'s/`_selenol.py`'s
+    `_validate_and_collect_thiols`/`_validate_and_collect_selenols`."""
     tellurols = set()
     has_carbon = False
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
+        if atom.GetIdx() in aromatic_ring_atoms:
+            if atomic_num == 6:
+                has_carbon = True
+            continue
         if atomic_num not in _ALLOWED_ATOMIC_NUMS:
             raise UnsupportedStructure(
                 "heteroatoms other than a tellurol tellurium (P-63.1.1) and "
@@ -685,13 +715,18 @@ def name_tellurol(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
-        if is_plain_benzene_ring(mol, ring_atoms):
-            ring_tellurols = _validate_and_collect_tellurols(mol, aromatic_ring_atoms=ring_atoms)
-            if len(ring_tellurols) == 1:
-                (only_te,) = ring_tellurols
-                (only_te_carbon,) = adjacency(mol)[only_te]
-                if only_te_carbon in ring_atoms:
-                    return _name_benzenetellurol(mol, ring_atoms)
+        is_benzene = is_plain_benzene_ring(mol, ring_atoms)
+        is_heteroaromatic = not is_benzene and (
+            heteroaromatic_monocycle_name(mol, ring_cycle(adjacency(mol), list(ring_atoms))) is not None
+        )
+        if is_benzene or is_heteroaromatic:
+            if is_benzene:
+                ring_tellurols = _validate_and_collect_tellurols(mol, aromatic_ring_atoms=ring_atoms)
+                if len(ring_tellurols) == 1:
+                    (only_te,) = ring_tellurols
+                    (only_te_carbon,) = adjacency(mol)[only_te]
+                    if only_te_carbon in ring_atoms:
+                        return _name_benzenetellurol(mol, ring_atoms)
             return _name_phenyl_chain_tellurol(mol, ring_atoms)
     tellurols = _validate_and_collect_tellurols(mol)
     stereo = specified_stereocenters(mol)

@@ -1230,6 +1230,8 @@ def smiles_to_iupac(smiles: str) -> str:
             return name_thiol(mol)
         if has_selenol_shape(mol):
             return name_selenol(mol)
+        if has_tellurol_shape(mol):
+            return name_tellurol(mol)
         return name_alcohol(mol)
     if any(atom.GetAtomicNum() == 7 for atom in mol.GetAtoms()):
         # An aminide anion (-NH(-), P-72.2.2.2.3) has a formal-charge -1
@@ -1385,6 +1387,12 @@ def smiles_to_iupac(smiles: str) -> str:
         # chalcogen row down.
         if has_selenol_shape(mol):
             return name_selenol(mol)
+        # A tellurol coexisting with a nitrogen that isn't a real amine at
+        # all has no coexisting-amine shape above to catch it either --
+        # same reasoning as the thiol/selenol checks just above, the next
+        # chalcogen row down.
+        if has_tellurol_shape(mol):
+            return name_tellurol(mol)
         return name_amine(mol)
     if has_thione_shape(mol):
         # A thione (C=S, P-64.6.1) has no oxygen or nitrogen, so it only

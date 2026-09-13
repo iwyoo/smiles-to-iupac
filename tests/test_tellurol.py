@@ -221,3 +221,29 @@ def test_phenyl_chain_tellurol_unsaturation_raises():
 def test_phenyl_chain_ditellurol_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("c1ccccc1C([TeH])CC[TeH]")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[TeH]Cc1cccnc1", "(pyridin-3-yl)methanetellurol"),
+        ("[TeH]Cc1cc[nH]c1", "(1H-pyrrol-3-yl)methanetellurol"),
+    ],
+)
+def test_heteroaromatic_chain_tellurol(smiles, expected):
+    # Reviewed, not independently PubChem-verified (tellurium
+    # heteroaromatic-chain compounds are essentially unregistered there) --
+    # reuses the exact same locant machinery already independently
+    # verified for `_thiol.py`'s/`_selenol.py`'s identical shape, just
+    # swapping the chalcogen (see module docstring).
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_heteroaromatic_direct_attachment_tellurol_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[TeH]c1cccnc1")
+
+
+def test_oxygen_or_sulfur_heteroaromatic_chain_tellurol():
+    assert smiles_to_iupac("[TeH]Cc1cccs1") == "(thiophen-2-yl)methanetellurol"
+    assert smiles_to_iupac("[TeH]Cc1ccco1") == "(furan-2-yl)methanetellurol"
