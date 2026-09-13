@@ -1352,6 +1352,18 @@ def smiles_to_iupac(smiles: str) -> str:
         # "coexisting sulfur" rejection.
         if has_thiol_amine_shape(mol):
             return name_thiol_amine(mol)
+        # A thiol coexisting with a nitrogen that isn't a real amine at all
+        # (e.g. a heteroaromatic ring substituent's own pyridine/pyrrole
+        # nitrogen, now recognized by `_thiol.py` itself -- P-25 M2 step 1,
+        # #628) has no coexisting-amine shape above to catch it (those all
+        # require an actual primary amine), so it would otherwise fall
+        # through to `name_amine`'s own unconditional rejection of a
+        # nitrogen-free molecule it doesn't recognize as amine-shaped at
+        # all -- must be routed here first, mirroring `_ketone.py`'s/
+        # `_alcohol.py`'s own unconditional fallback to their suffix
+        # module regardless of a coexisting non-functional nitrogen.
+        if has_thiol_shape(mol):
+            return name_thiol(mol)
         return name_amine(mol)
     if has_thione_shape(mol):
         # A thione (C=S, P-64.6.1) has no oxygen or nitrogen, so it only
