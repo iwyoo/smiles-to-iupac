@@ -241,3 +241,35 @@ def test_phenyl_chain_selenol_unsaturation_raises():
 def test_phenyl_chain_diselenol_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("c1ccccc1C([SeH])CC[SeH]")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[SeH]Cc1cccnc1", "(pyridin-3-yl)methaneselenol"),
+        ("[SeH]Cc1cc[nH]c1", "(1H-pyrrol-3-yl)methaneselenol"),
+    ],
+)
+def test_heteroaromatic_chain_selenol(smiles, expected):
+    # Reviewed, not independently PubChem-verified (selenium
+    # heteroaromatic-chain compounds are essentially unregistered there) --
+    # reuses the exact same locant machinery already independently
+    # verified for `_thiol.py`'s identical shape, just swapping the
+    # chalcogen (see module docstring).
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_heteroaromatic_direct_attachment_selenol_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[SeH]c1cccnc1")
+
+
+def test_oxygen_or_sulfur_heteroaromatic_chain_selenol_not_yet_reached():
+    # Furan/thiophene aren't reachable yet: `core.py`'s dispatch routes
+    # these to `_ether.py`/`_sulfide.py` first (see module docstring) --
+    # a separate, pre-existing dispatch gap, not specific to selenol.
+    # Both still raise `UnsupportedStructure` rather than a wrong name.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[SeH]Cc1cccs1")
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[SeH]Cc1ccco1")
