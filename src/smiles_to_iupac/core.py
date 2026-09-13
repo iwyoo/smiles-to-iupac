@@ -1364,6 +1364,13 @@ def smiles_to_iupac(smiles: str) -> str:
         # module regardless of a coexisting non-functional nitrogen.
         if has_thiol_shape(mol):
             return name_thiol(mol)
+        # A selenol coexisting with a nitrogen that isn't a real amine at
+        # all (e.g. a heteroaromatic ring substituent's own pyridine/
+        # pyrrole nitrogen) has no coexisting-amine shape above to catch
+        # it either -- same reasoning as the thiol check just above, one
+        # chalcogen row down.
+        if has_selenol_shape(mol):
+            return name_selenol(mol)
         return name_amine(mol)
     if has_thione_shape(mol):
         # A thione (C=S, P-64.6.1) has no oxygen or nitrogen, so it only
