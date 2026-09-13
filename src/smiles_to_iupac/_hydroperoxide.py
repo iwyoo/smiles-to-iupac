@@ -48,7 +48,18 @@ case, -OOH with no chain at all bonded straight to the ring: unlike
 for this, so PubChem confirms benzene stays the parent with '-OOH' as a
 plain 'hydroperoxy' prefix instead -- `OOc1ccccc1` -> "hydroperoxybenzene"
 (same shape as `_nitro.py`'s 'nitrobenzene', not a suffix construction).
-A substituted phenyl ring is still out of scope.
+The direct case also extends to a simple heteroaromatic monocycle
+(pyridine/furan/thiophene/pyrrole, P-29.3.4.1) -- e.g. `OOc1cccnc1` ->
+"3-hydroperoxypyridine" -- with the substituent's locant found relative
+to the heteroatom fixed at locant 1. The chain-substituent shape does
+NOT extend to a heteroaromatic ring, though: PubChem's own computed name
+for the already-supported plain-benzene chain case (`OOCCc1ccccc1`,
+CID 151230) is "2-hydroxyperoxyethylbenzene" (ring parent, alkyl-
+hydroperoxide prefix), which diverges from this module's own shipped
+convention "2-phenylethaneperoxol" (chain parent, phenyl prefix) -- an
+unresolved ring-vs-chain seniority/convention question that heteroaromatic
+support shouldn't guess past. A substituted aromatic ring, or more than
+one ring, is still out of scope either way.
 """
 
 from rdkit import Chem
@@ -60,12 +71,15 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    heteroaromatic_monocycle_name,
+    heteroaromatic_monocycle_prefix_name,
     is_plain_benzene_ring,
     longest_branched_chain_through,
     longest_chains,
     lowest_locant_set,
     non_single_bonds,
     ring_chain_attachment,
+    ring_cycle,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -78,8 +92,13 @@ def _hydroperoxide_oxygens(mol):
     two oxygens singly bonded to each other, one of degree 2 (bonded to a
     carbon) and the other of degree 1 with exactly one hydrogen -- or None
     if `mol` doesn't have exactly two oxygens shaped this way. Distinct
-    from `_peroxide.py`'s R-O-O-R' shape, where both oxygens are degree 2."""
-    oxygens = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 8]
+    from `_peroxide.py`'s R-O-O-R' shape, where both oxygens are degree 2.
+    Aromatic oxygens (e.g. furan's own ring oxygen) are excluded before
+    counting -- a hydroperoxide's own two oxygens are never aromatic, so a
+    heteroaromatic ring's own oxygen must not be mistaken for a third
+    hydroperoxide oxygen and reject the molecule before any ring-aware
+    code runs."""
+    oxygens = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 8 and not atom.GetIsAromatic()]
     if len(oxygens) != 2:
         return None
     o1, o2 = oxygens
@@ -112,19 +131,20 @@ def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
 
     `aromatic_ring_atoms`: atom indices already independently verified (by
     the caller, before this function runs) to form a single plain benzene
-    ring with exactly one exocyclic attachment -- exempted from the
-    aromatic-atom rejection below so `name_hydroperoxide`'s benzene-ring-
-    substituent path (see `_name_phenyl_chain_hydroperoxide`) can reuse
-    this same validation for the rest of the molecule. Empty by default,
-    so every other caller's behavior is unchanged."""
+    or heteroaromatic-monocycle ring with exactly one exocyclic
+    attachment -- exempted from the aromatic-atom rejection below so
+    `name_hydroperoxide`'s ring-substituent path (see
+    `_name_phenyl_chain_hydroperoxide`) can reuse this same validation for
+    the rest of the molecule. Empty by default, so every other caller's
+    behavior is unchanged."""
     has_carbon = False
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
-        if atomic_num not in _ALLOWED_ATOMIC_NUMS:
+        if atomic_num not in _ALLOWED_ATOMIC_NUMS and atom.GetIdx() not in aromatic_ring_atoms:
             raise UnsupportedStructure(
                 "heteroatoms other than a hydroperoxide's own two oxygens "
-                "(P-56.1) and halogen substituents (P-35.2.1) are not "
-                "supported yet"
+                "(P-56.1), a heteroaromatic ring's own heteroatom (P-29.3.4.1), "
+                "and halogen substituents (P-35.2.1) are not supported yet"
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
@@ -201,15 +221,19 @@ def _substituents_for_chain(graph, chain, halogens, exclude, mol=None):
     return substituents
 
 
-def _name_phenyl_chain_hydroperoxide(mol, ring_atoms):
+def _name_phenyl_chain_hydroperoxide(mol, ring_atoms, ring_order):
     """Name a hydroperoxide whose -OOH lies entirely on a single
     unbranched chain hanging off one atom of an otherwise-plain,
-    unsubstituted benzene ring -- e.g. 2-phenylethaneperoxol. The ring is
-    cited as a 'phenyl' substituent prefix on the chain, which is the
-    parent hydride, mirroring `_alcohol.py`'s `_name_phenyl_chain_alcohol`.
-    Narrower than the acyclic path above: no chain unsaturation. Also
-    handles the direct case (-OOH with no chain, bonded straight to the
-    ring) as 'hydroperoxybenzene' -- see module docstring."""
+    unsubstituted benzene or heteroaromatic-monocycle ring -- e.g.
+    2-phenylethaneperoxol. The ring is cited as a 'phenyl' substituent
+    prefix on the chain, which is the parent hydride, mirroring
+    `_alcohol.py`'s `_name_phenyl_chain_alcohol`. Narrower than the acyclic
+    path above: no chain unsaturation. Also handles the direct case (-OOH
+    with no chain, bonded straight to the ring) as 'hydroperoxybenzene' /
+    a heteroaromatic-ring 'hydroperoxy' prefix name -- see module
+    docstring. The heteroaromatic ring-as-chain-substituent case (e.g. a
+    pyridin-3-yl analogue of 2-phenylethaneperoxol) is out of scope -- see
+    module docstring's naming-convention-ambiguity note."""
     site, exclude = _validate_and_collect(mol, aromatic_ring_atoms=ring_atoms)
     non_ring_unsaturation = [
         b for b in non_single_bonds(mol) if b[0] not in ring_atoms and b[1] not in ring_atoms
@@ -228,12 +252,21 @@ def _name_phenyl_chain_hydroperoxide(mol, ring_atoms):
             "alongside a chain hydroperoxide is not supported yet"
         )
     ring_atom, chain_root = attachment
+    hetero_name = heteroaromatic_monocycle_name(mol, ring_order)
     if chain_root in exclude:
         # P-56.1 has no retained ring-plus-suffix name the way `_alcohol.py`'s
-        # 'phenol' does for -OH; PubChem confirms benzene stays the parent
+        # 'phenol' does for -OH; PubChem confirms the ring stays the parent
         # with '-OOH' cited as a plain 'hydroperoxy' prefix instead (same
         # shape as `_nitro.py`'s 'nitrobenzene', not a suffix construction).
+        if hetero_name is not None:
+            return heteroaromatic_monocycle_prefix_name(mol, ring_order, ring_atom, "hydroperoxy")
         return "hydroperoxybenzene"
+    if hetero_name is not None:
+        raise UnsupportedStructure(
+            "a heteroaromatic ring cited as a chain substituent is not "
+            "supported yet (unresolved ring-vs-chain naming-convention "
+            "question, see module docstring)"
+        )
     chain, branches = longest_branched_chain_through(graph, site, ring_atoms, exclude, halogens=halogen_substituents(mol))
     branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
 
@@ -302,8 +335,10 @@ def name_hydroperoxide(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
-        if is_plain_benzene_ring(mol, ring_atoms):
-            return _name_phenyl_chain_hydroperoxide(mol, ring_atoms)
+        graph = adjacency(mol)
+        ring_order = ring_cycle(graph, list(ring_atoms))
+        if is_plain_benzene_ring(mol, ring_atoms) or heteroaromatic_monocycle_name(mol, ring_order) is not None:
+            return _name_phenyl_chain_hydroperoxide(mol, ring_atoms, ring_order)
     site, exclude = _validate_and_collect(mol)
     if non_single_bonds(mol):
         raise UnsupportedStructure(

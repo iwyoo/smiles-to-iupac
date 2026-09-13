@@ -74,3 +74,32 @@ def test_phenyl_substituted_benzene_ring_hydroperoxide_raises():
 def test_phenyl_chain_hydroperoxide_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CCOO")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Structure verified against PubChem: CID 89276110.
+        ("OOc1cccnc1", "3-hydroperoxypyridine"),
+        # Structure verified against PubChem: CID 53695321.
+        ("OOc1ccco1", "2-hydroperoxyfuran"),
+        # Structure verified against PubChem: CID 21924219.
+        ("OOc1cccs1", "2-hydroperoxythiophene"),
+        # Structure verified against PubChem: CID 22672960. Pyrrole's own
+        # indicated hydrogen (P-25.7.1.3) is still cited since the
+        # substitution isn't at the N-H position.
+        ("OOc1ccc[nH]1", "2-hydroperoxy-1H-pyrrole"),
+    ],
+)
+def test_heteroaromatic_ring_direct_attachment_hydroperoxide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_heteroaromatic_ring_chain_hydroperoxide_raises():
+    # Ring-cited-as-chain-substituent is deliberately out of scope: the
+    # already-supported plain-benzene chain case has an unresolved
+    # ring-vs-chain naming-convention question (see module docstring), so
+    # extending it to a heteroaromatic ring would risk guessing a
+    # non-PIN convention rather than being confirmed against PubChem.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OOCCc1cccnc1")
