@@ -1216,6 +1216,20 @@ def smiles_to_iupac(smiles: str) -> str:
         # `_alcohol.py`'s own "coexisting nitrogen" rejection.
         if has_alcohol_amine_shape(mol):
             return name_alcohol_amine(mol)
+        # A real nitrile/thiol/selenol coexisting with an oxygen that isn't
+        # a real alcohol at all (e.g. a furan ring substituent's own
+        # non-functional ring oxygen, now recognized by these modules
+        # themselves -- P-616 M4) has no coexisting-alcohol shape above to
+        # catch it, so it would otherwise fall through to `name_alcohol`'s
+        # own unconditional fallback -- must be routed here first, mirroring
+        # the nitrogen-gated branch's own thiol/selenol checks before its
+        # `name_amine` fallback below.
+        if has_nitrile_shape(mol):
+            return name_nitrile(mol)
+        if has_thiol_shape(mol):
+            return name_thiol(mol)
+        if has_selenol_shape(mol):
+            return name_selenol(mol)
         return name_alcohol(mol)
     if any(atom.GetAtomicNum() == 7 for atom in mol.GetAtoms()):
         # An aminide anion (-NH(-), P-72.2.2.2.3) has a formal-charge -1

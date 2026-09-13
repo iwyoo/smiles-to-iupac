@@ -92,8 +92,11 @@ def _oxy_prefix(name: str) -> str:
 
 def has_ether_shape(mol) -> bool:
     """True iff `mol` has exactly one oxygen atom, singly bonded to two
-    carbons (a plain ether -O-, P-63.2.1) — the shape this module accepts."""
-    oxygens = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 8]
+    carbons (a plain ether -O-, P-63.2.1) — the shape this module accepts.
+    A furan ring's own aromatic oxygen is excluded from the count so it
+    doesn't misclaim a molecule whose real functional group lies
+    elsewhere (P-616 M4)."""
+    oxygens = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 8 and not atom.GetIsAromatic()]
     if len(oxygens) != 1:
         return False
     (oxygen,) = oxygens
