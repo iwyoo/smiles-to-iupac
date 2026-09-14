@@ -105,10 +105,11 @@ from ._common import (
     multiplied_word,
     non_single_bonds,
     specified_double_bond_stereo,
+    substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch
 
 _ENE_ORDER = 2.0
 _YNE_ORDER = 3.0
@@ -197,13 +198,7 @@ def _candidate_key(chain_length, ene_locants, yne_locants, substituents):
     """Sort key implementing P-14.4(e)/P-44.4.1.10 then P-45.2.1-P-45.2.3,
     most-preferred first."""
     grouped = group_substituents(substituents)
-    total_count = sum(len(info["locants"]) for info in grouped.values())
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
     name = _name_from_substituents(chain_length, ene_locants, yne_locants, grouped)
