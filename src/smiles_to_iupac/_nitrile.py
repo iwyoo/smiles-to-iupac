@@ -97,6 +97,7 @@ from ._common import (
     ring_cycle,
     specified_stereocenters,
     substituent_locant_set_and_citation,
+    suffix_body,
     two_separate_rings_with_plain_aromatic_substituent,
 )
 from ._numerals import alkane_name
@@ -215,30 +216,6 @@ def _validate_and_collect_nitriles(mol, aromatic_ring_atoms=frozenset()):
     return nitriles
 
 
-def _suffix_body(ene_locants, yne_locants, nitrile_count):
-    """Locant-and-suffix string for the combined 'ene'/'yne'/'nitrile'
-    ending (e.g. '4-enenitrile'). Like `_aldehyde.py`'s '-al', 'nitrile'
-    never carries its own locant (see module docstring), so it is glued
-    directly onto the preceding word instead of getting a hyphenated locant
-    segment of its own; unlike '-al', it never elides a preceding stem's
-    trailing 'e' either, since 'nitrile' starts with a consonant."""
-    segments = []
-    if ene_locants:
-        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
-    if yne_locants:
-        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
-
-    nitrile_word = multiplied_word(nitrile_count, "nitrile")
-    words = [word for _, word in segments] + [nitrile_word]
-
-    locanted_parts = [
-        f"{','.join(str(loc) for loc in locants)}-{word}"
-        for (locants, _), word in zip(segments, words[:-1])
-    ]
-    body = "-".join(locanted_parts) + words[-1] if locanted_parts else words[-1]
-    return body
-
-
 def _name_from_substituents(chain_length, nitrile_count, ene_locants, yne_locants, grouped):
     has_unsaturation = bool(ene_locants or yne_locants)
     prefix = format_substituent_prefixes(grouped)
@@ -249,7 +226,7 @@ def _name_from_substituents(chain_length, nitrile_count, ene_locants, yne_locant
         stem = alkane_name(chain_length)
         needs_stem_a = False
 
-    body = _suffix_body(ene_locants, yne_locants, nitrile_count)
+    body = suffix_body(ene_locants, yne_locants, multiplied_word(nitrile_count, "nitrile"))[0]
     separator = "-" if has_unsaturation else ""
     return prefix + stem + ("a" if needs_stem_a else "") + separator + body
 
