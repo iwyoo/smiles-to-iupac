@@ -32,13 +32,13 @@ from ._common import (
     group_substituents,
     halogen_substituents,
     longest_chains,
-    lowest_locant_set,
     non_single_bonds,
     specified_stereocenters,
+    substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch
 
 
 def _substituents_for_chain(graph, chain, halogens, mol=None):
@@ -77,13 +77,7 @@ def _name_from_substituents(chain_length, grouped):
 def _candidate_key(chain_length, substituents):
     """Sort key implementing P-45.2.1-P-45.2.3, most-preferred first."""
     grouped = group_substituents(substituents)
-    total_count = sum(len(info["locants"]) for info in grouped.values())
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
     name = _name_from_substituents(chain_length, grouped)
     # Higher substituent count and lower locants are preferred, so negate the count
     # to sort every field in ascending "most preferred first" order.
