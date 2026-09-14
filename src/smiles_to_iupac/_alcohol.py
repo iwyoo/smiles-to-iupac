@@ -183,6 +183,14 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   ether alongside it — a single ring -OH on an otherwise-plain benzene
   ring is handled by `_name_phenol` (P-63.1.1), a separate follow-up from
   this narrower multi-group combination.
+- -OH directly on a heteroaromatic ring (pyridine/pyrrole/furan/thiophene)
+  — unlike benzene's free numbering, a heteroaromatic ring's numbering
+  must fix the heteroatom at locant 1, so `_name_phenol`'s retained-name
+  construction does not apply there; only the chain-substituent shape
+  (`_name_phenyl_chain_alcohol`, e.g. `pyridin-3-ylmethanol`) extends to
+  a heteroaromatic ring (P-616 M2 step 8), mirroring `_thiol.py`'s/
+  `_selenol.py`'s/`_tellurol.py`'s/`_ketone.py`'s identical
+  generalization.
 - -OH on a von Baeyer polycyclic (bicyclic through pentacyclic) or spiro
   skeleton — deferred; those modules' internal numbering would need real
   integration work to prioritize a suffix locant correctly.
@@ -206,6 +214,7 @@ from ._common import (
     elides_before,
     group_substituents,
     halogen_substituents,
+    heteroaromatic_monocycle_name,
     is_plain_benzene_ring,
     longest_branched_chain_through,
     longest_chains,
@@ -996,17 +1005,17 @@ def _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls):
 
 def _name_phenyl_chain_alcohol(mol, ring_atoms):
     """Name an alcohol whose -OH lies entirely on a single unbranched chain
-    hanging off one atom of a benzene ring -- e.g. 2-phenylethanol. The
-    ring is cited as a 'phenyl' (or, if the ring's other atoms each carry a
-    single halogen, e.g. '4-chlorophenyl') substituent prefix (via
-    `name_branch`'s aromatic-ring recognition) on the chain, which is the
-    parent hydride, mirroring `_carboxylic_acid.py`'s
+    hanging off one atom of a benzene or heteroaromatic-monocycle ring --
+    e.g. 2-phenylethanol, pyridin-3-ylmethanol (P-616 M2 step 8). The ring
+    is cited as a 'phenyl' (or, if the ring's other atoms each carry a
+    single halogen, e.g. '4-chlorophenyl') or heteroaromatic substituent
+    prefix (via `name_branch`'s aromatic-ring recognition) on the chain,
+    which is the parent hydride, mirroring `_carboxylic_acid.py`'s
     `_name_phenyl_chain_carboxylic_acid` and this module's own
     `_name_ring_substituent_chain_alcohol` for a plain saturated ring.
     Narrower than either: exactly one -OH, no coexisting alkoxy ether, no
     chain unsaturation, no specified stereocenter, and no non-halogen ring
-    substituent alongside the chain -- each is a separate follow-up (see
-    `tasks/phenyl-substituent-on-alcohol-chain.md`'s scope note) rather
+    substituent alongside the chain -- each is a separate follow-up rather
     than being combined with this first slice."""
     hydroxyls, ethers = _validate_and_collect_hydroxyls(mol, aromatic_ring_atoms=ring_atoms)
     if ethers:
@@ -1083,12 +1092,24 @@ def name_alcohol(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
-        if is_plain_benzene_ring(mol, ring_atoms):
+        is_benzene = is_plain_benzene_ring(mol, ring_atoms)
+        is_heteroaromatic = not is_benzene and (
+            heteroaromatic_monocycle_name(mol, ring_cycle(adjacency(mol), list(ring_atoms))) is not None
+        )
+        if is_benzene or is_heteroaromatic:
             hydroxyls, ethers = _validate_and_collect_hydroxyls(mol, aromatic_ring_atoms=ring_atoms)
             graph = adjacency(mol)
             ring_hydroxyls = {o for o in hydroxyls if next(iter(graph[o])) in ring_atoms}
-            if not ethers and hydroxyls == ring_hydroxyls and len(hydroxyls) == 1:
+            if is_benzene and not ethers and hydroxyls == ring_hydroxyls and len(hydroxyls) == 1:
                 return _name_phenol(mol, ring_atoms)
+            if is_heteroaromatic and ring_hydroxyls:
+                raise UnsupportedStructure(
+                    "a hydroxyl directly on a heteroaromatic ring is not "
+                    "supported yet (a heteroaromatic ring's numbering must "
+                    "fix the heteroatom at locant 1, unlike benzene's free "
+                    "numbering, so 'phenol'-style naming does not apply "
+                    "here)"
+                )
             return _name_phenyl_chain_alcohol(mol, ring_atoms)
 
     # Two separate simple monocycles joined by one direct bond, one a plain

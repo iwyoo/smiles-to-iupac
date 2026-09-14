@@ -387,6 +387,27 @@ def test_phenyl_chain_ring_ethyl():
     assert smiles_to_iupac("CCc1ccc(cc1)CO") == "(4-ethylphenyl)methanol"
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OCc1cccnc1", "(pyridin-3-yl)methanol"),
+        ("OCCc1cccnc1", "2-(pyridin-3-yl)ethan-1-ol"),
+        ("OCc1ccco1", "(furan-2-yl)methanol"),
+        ("OCc1cccs1", "(thiophen-2-yl)methanol"),
+        ("OCc1cc[nH]c1", "(1H-pyrrol-3-yl)methanol"),
+    ],
+)
+def test_heteroaromatic_substituent_alcohol(smiles, expected):
+    # PubChem PUG REST-verified: CID 7510 (pyridine), 7361 (furan), 69467
+    # (thiophene), 21983502 (pyrrole).
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_heteroaromatic_substituent_alcohol_directly_on_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Oc1cccnc1")
+
+
 def test_substituted_ring_with_chain_hydroxyl_raises():
     # the ring itself carries an extra substituent (not just the OH-bearing
     # chain) -- out of this module's minimal scope.
