@@ -116,11 +116,11 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     specified_stereocenters,
+    substituent_locant_set_and_citation,
     unbranched_unsaturated_substituent_name,
 )
 from ._numerals import alkane_name, alkyl_name
 from ._substituents import (
-    alpha_sort_key,
     branch_atom_locant,
     format_substituent_prefixes,
     name_branch,
@@ -334,13 +334,7 @@ def _candidate_key(chain_length, amine_locants, ene_locants, yne_locants, substi
     below since an N-locant is never a candidate for the lowest-locant
     chain-orientation tie-break."""
     grouped = group_substituents(substituents)
-    total_count = sum(len(info["locants"]) for info in grouped.values())
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
     amine_locant_set = lowest_locant_set(amine_locants)
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
@@ -695,12 +689,7 @@ def _ring_name_from_substituents(ring_size, amine_locants, ene_locants, yne_loca
 
 def _ring_candidate_key(ring_size, amine_locants, ene_locants, yne_locants, substituents):
     grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     amine_locant_set = lowest_locant_set(amine_locants)
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
@@ -811,12 +800,7 @@ def _aniline_name_from_substituents(grouped):
 
 def _aniline_candidate_key(amine_locant, substituents):
     grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     name = _aniline_name_from_substituents(grouped)
     return amine_locant, locant_set, citation_locants, name
 
