@@ -22,10 +22,15 @@ naming modules.
   primary source text, not derived from this project's own reasoning.
 """
 
+import re
+
 from rdkit import Chem
 from rdkit.Chem import rdCIPLabeler
 
 from ._numerals import alkane_name, numerical_term
+
+_LEADING_LOCANTS_RE = re.compile(r"^[\d,\-]+")
+_ITALIC_PREFIX_RE = re.compile(r"^(tert|sec|iso)-")
 
 
 class UnsupportedStructure(NotImplementedError):
@@ -754,6 +759,33 @@ def group_substituents(substituents):
             info = grouped.setdefault(name, {"locants": [], "compound": is_compound})
             info["locants"].append(position)
     return grouped
+
+
+def alpha_sort_key(name: str) -> str:
+    """P-14.5.2: alphanumerical ordering ignores locants and italicized
+    prefixes like 'tert-' -- only the rest of the name counts (so
+    'tert-butyl' sorts under 'b', not 't')."""
+    stripped = _LEADING_LOCANTS_RE.sub("", name)
+    stripped = _ITALIC_PREFIX_RE.sub("", stripped)
+    return stripped.lower()
+
+
+def substituent_locant_set_and_citation(grouped):
+    """The P-45.2.1-2.3 "lowest-locant-set, then alphabetical citation
+    order" computation shared by every suffix module's own `_candidate_key`/
+    `_ring_candidate_key` sort key: `grouped` is `group_substituents`'s own
+    output. Returns `(locant_set, total_count, citation_locants)` -- each
+    module's own extra suffix/ene/yne locant-set fields, final sort-key
+    tuple assembly, and name construction stay module-specific and are not
+    part of this shared computation."""
+    total_count = sum(len(info["locants"]) for info in grouped.values())
+    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
+    citation_locants = tuple(
+        loc
+        for name in sorted(grouped, key=alpha_sort_key)
+        for loc in sorted(grouped[name]["locants"])
+    )
+    return locant_set, total_count, citation_locants
 
 
 def longest_chains(graph):

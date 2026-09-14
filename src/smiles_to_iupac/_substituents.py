@@ -62,22 +62,17 @@ ordinary cycle-detection path (see `_simple_ring_substituent`'s own
 docstring for exactly which zero-substituent shapes it recognizes).
 """
 
-import re
-
-from ._common import UnsupportedStructure, heteroaromatic_monocycle_yl_name, lowest_locant_set, multiplied_word
+from ._common import (
+    UnsupportedStructure,
+    alpha_sort_key,
+    heteroaromatic_monocycle_yl_name,
+    lowest_locant_set,
+    multiplied_word,
+)
 from ._numerals import alkane_name, alkyl_name, multiplying_prefix
 
-_LEADING_LOCANTS_RE = re.compile(r"^[\d,\-]+")
-_ITALIC_PREFIX_RE = re.compile(r"^(tert|sec|iso)-")
-
-
-def alpha_sort_key(name: str) -> str:
-    """P-14.5.2: alphanumerical ordering ignores locants and italicized
-    prefixes like 'tert-' -- only the rest of the name counts (so
-    'tert-butyl' sorts under 'b', not 't')."""
-    stripped = _LEADING_LOCANTS_RE.sub("", name)
-    stripped = _ITALIC_PREFIX_RE.sub("", stripped)
-    return stripped.lower()
+# alpha_sort_key lives in _common.py now; re-imported here (not redefined)
+# since ~67 modules already import it from this module.
 
 
 def _locant_sort_key(locant):

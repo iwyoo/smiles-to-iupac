@@ -228,12 +228,12 @@ from ._common import (
     ring_cycle,
     specified_stereo_elements,
     specified_stereocenters,
+    substituent_locant_set_and_citation,
     two_separate_rings_with_plain_aromatic_substituent,
 )
 from ._cyclic_unsaturated import name_cyclic_unsaturated_yl
 from ._numerals import alkane_name, alkyl_name
 from ._substituents import (
-    alpha_sort_key,
     branch_atom_locant,
     format_substituent_prefixes,
     name_branch,
@@ -469,13 +469,7 @@ def _candidate_key(chain_length, oh_locants, ene_locants, yne_locants, substitue
     P-44.4.1.10 (ene/yne locants) ahead of P-45.2 (substituent-prefix
     locants), most-preferred first."""
     grouped = group_substituents(substituents)
-    total_count = sum(len(info["locants"]) for info in grouped.values())
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
     oh_locant_set = lowest_locant_set(oh_locants)
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
@@ -648,12 +642,7 @@ def _ring_name_from_substituents(ring_size, oh_locants, ene_locants, yne_locants
 
 def _ring_candidate_key(ring_size, oh_locants, ene_locants, yne_locants, substituents):
     grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     oh_locant_set = lowest_locant_set(oh_locants)
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
@@ -675,12 +664,7 @@ def _phenol_name_from_substituents(grouped):
 
 def _phenol_candidate_key(oh_locant, substituents):
     grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     name = _phenol_name_from_substituents(grouped)
     return oh_locant, locant_set, citation_locants, name
 

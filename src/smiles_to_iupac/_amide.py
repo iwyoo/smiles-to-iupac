@@ -135,6 +135,7 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     specified_stereocenters,
+    substituent_locant_set_and_citation,
 )
 from ._numerals import alkane_name
 from ._substituents import (
@@ -378,13 +379,7 @@ def _candidate_key(chain_length, ene_locants, yne_locants, substituents):
     own locant isn't part of this key: candidates are pre-filtered so the
     amide carbon always sits at C1 (see `_name_acyclic_amide`)."""
     grouped = group_substituents(substituents)
-    total_count = sum(len(info["locants"]) for info in grouped.values())
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
     name = _name_from_substituents(chain_length, ene_locants, yne_locants, grouped)
@@ -603,12 +598,7 @@ def _ring_name_from_substituents(ring_size, amide_locant, grouped):
 
 def _ring_candidate_key(ring_size, amide_locant, substituents):
     grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     name = _ring_name_from_substituents(ring_size, amide_locant, grouped)
     return amide_locant, locant_set, citation_locants, name
 
@@ -699,12 +689,7 @@ def _benzamide_name_from_substituents(grouped):
 
 def _benzamide_candidate_key(amide_locant, substituents):
     grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     name = _benzamide_name_from_substituents(grouped)
     return amide_locant, locant_set, citation_locants, name
 

@@ -85,15 +85,15 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
-    lowest_locant_set,
     non_single_bonds,
     ring_cycle,
     specified_stereocenters,
+    substituent_locant_set_and_citation,
     unbranched_unsaturated_substituent_name,
     validate_atoms_and_bonds,
 )
 from ._numerals import numerical_term
-from ._substituents import alpha_sort_key, branch_atom_locant, format_substituent_prefixes, name_branch
+from ._substituents import branch_atom_locant, format_substituent_prefixes, name_branch
 
 
 def _run_between(cycle, a, b):
@@ -505,13 +505,7 @@ def _candidate_key(
         graph, locants, ring_atoms, halogens, mol=mol, carbon_graph=carbon_graph, unsaturated_bonds=unsaturated_bonds
     )
     grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
-    total_count = sum(len(info["locants"]) for info in grouped.values())
+    locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
     if not grouped:
         name = parent
     elif omit_single_locant and total_count == 1:
