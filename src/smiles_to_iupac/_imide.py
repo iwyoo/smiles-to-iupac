@@ -78,12 +78,12 @@ from ._common import (
     is_plain_benzene_ring,
     longest_branched_chain,
     longest_chains,
-    lowest_locant_set,
     non_single_bonds,
     ring_chain_attachment,
+    substituent_locant_set_and_citation,
 )
 from ._numerals import alkane_name
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, 8, *HALOGEN_PREFIXES}
 
@@ -220,12 +220,7 @@ def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
 
 def _candidate_key(substituents):
     grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     return locant_set, citation_locants
 
 
