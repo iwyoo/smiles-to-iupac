@@ -749,6 +749,56 @@ def elides_before(word: str) -> bool:
     return word[:1] in "aeiouy"
 
 
+def suffix_body(ene_locants, yne_locants, own_word, own_locants=None):
+    """Locant-and-suffix string combining 'ene'/'yne' unsaturation segments
+    with a module's own functional-group suffix (e.g. '4-en-1-ol',
+    '2-enoate'), plus whether the chain stem's trailing 'e' should be
+    elided at the stem/first-segment boundary (only relevant when there's
+    no 'ene'/'yne' segment).
+
+    `own_word` is the already-multiplied suffix word (`multiplied_word`
+    applied by the caller with that module's own count -- what's being
+    counted varies per functional group, so this stays caller-owned).
+    `own_locants` selects citation shape: a non-empty iterable cites those
+    locants as one more hyphenated segment just like ene/yne (e.g.
+    '1-ol', '1-sulfonic acid'); `None`/empty glues `own_word` directly
+    onto the end with no locant cited (P-14.3.3: this group's own locant
+    is always 1 and never written), e.g. 'oate', 'oic', 'imidamide'."""
+    segments = []
+    if ene_locants:
+        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
+    if yne_locants:
+        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
+
+    if own_locants:
+        segments.append((sorted(own_locants), own_word))
+        words = [word for _, word in segments]
+        for i in range(len(words) - 1):
+            if words[i].endswith("e") and elides_before(words[i + 1]):
+                words[i] = words[i][:-1]
+        parts = [
+            f"{','.join(str(loc) for loc in locants)}-{word}"
+            for (locants, _), word in zip(segments, words)
+        ]
+        body = "-".join(parts)
+    else:
+        words = [word for _, word in segments] + [own_word]
+        for i in range(len(words) - 1):
+            if words[i].endswith("e") and elides_before(words[i + 1]):
+                words[i] = words[i][:-1]
+        if segments:
+            locant_parts = [
+                f"{','.join(str(loc) for loc in locants)}-{word}"
+                for (locants, _), word in zip(segments, words[:-1])
+            ]
+            body = "-".join(locant_parts) + words[-1]
+        else:
+            body = words[-1]
+
+    elide_stem = words[0][0] in "aeiouy"
+    return body, elide_stem
+
+
 def group_substituents(substituents):
     """{position -> [(name, is_compound), ...]} -> {name -> {"locants": [...],
     "compound": bool}}, merging same-named substituents at different

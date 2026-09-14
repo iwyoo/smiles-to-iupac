@@ -82,7 +82,6 @@ from ._common import (
     adjacency,
     bond_locants,
     carbon_adjacency,
-    elides_before,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
@@ -98,6 +97,7 @@ from ._common import (
     ring_cycle,
     specified_stereocenters,
     substituent_locant_set_and_citation,
+    suffix_body,
 )
 from ._numerals import alkane_name, alkyl_name
 from ._substituents import branch_atom_locant, format_substituent_prefixes, name_branch
@@ -195,27 +195,6 @@ def _validate_and_collect_thiones(mol, aromatic_ring_atoms=frozenset()):
     return thiones
 
 
-def _suffix_body(ene_locants, yne_locants, thione_locants):
-    segments = []
-    if ene_locants:
-        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
-    if yne_locants:
-        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
-    segments.append((sorted(thione_locants), multiplied_word(len(thione_locants), "thione")))
-
-    words = [word for _, word in segments]
-    for i in range(len(words) - 1):
-        if words[i].endswith("e") and elides_before(words[i + 1]):
-            words[i] = words[i][:-1]
-
-    parts = [
-        f"{','.join(str(loc) for loc in locants)}-{word}"
-        for (locants, _), word in zip(segments, words)
-    ]
-    elide_stem = words[0][0] in "aeiouy"
-    return "-".join(parts), elide_stem
-
-
 def _name_from_substituents(chain_length, thione_locants, ene_locants, yne_locants, grouped):
     has_unsaturation = bool(ene_locants or yne_locants)
     prefix = format_substituent_prefixes(grouped)
@@ -226,7 +205,7 @@ def _name_from_substituents(chain_length, thione_locants, ene_locants, yne_locan
         stem = alkane_name(chain_length)
         needs_stem_a = False
 
-    body, elide_stem = _suffix_body(ene_locants, yne_locants, thione_locants)
+    body, elide_stem = suffix_body(ene_locants, yne_locants, multiplied_word(len(thione_locants), "thione"), thione_locants)
     if not has_unsaturation and elide_stem:
         stem = stem[:-1]
     return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
@@ -368,7 +347,7 @@ def _ring_name_from_substituents(ring_size, thione_locants, ene_locants, yne_loc
     stem = parent[:-3]
     needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
     prefix = format_substituent_prefixes(grouped)
-    body, elide_stem = _suffix_body(ene_locants, yne_locants, thione_locants)
+    body, elide_stem = suffix_body(ene_locants, yne_locants, multiplied_word(len(thione_locants), "thione"), thione_locants)
     return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
 
 

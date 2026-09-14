@@ -98,7 +98,6 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 from rdkit import Chem
 
 from ._common import (
-    elides_before,
     ENE_BOND_ORDER,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -120,6 +119,7 @@ from ._common import (
     ring_cycle,
     specified_stereocenters,
     substituent_locant_set_and_citation,
+    suffix_body,
 )
 from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch, plain_alkyl_ring_substituents
@@ -278,36 +278,6 @@ def _validate_and_collect_carboxyls(mol, aromatic_ring_atoms=frozenset(), extra_
     return carboxyl_carbons, carboxyl_oxygens, extra_hydroxyls
 
 
-def _suffix_body(ene_locants, yne_locants, acid_count):
-    """Locant-and-suffix string for the combined 'ene'/'yne'/'oic' endings
-    (e.g. '2-enoic', '2-enedioic'); the acid group's own locant is never
-    cited (P-14.3.3, see module docstring). Also returns whether the stem's
-    trailing 'e' should be elided at the stem/first-segment boundary (only
-    relevant when there is no 'ene'/'yne', see `_name_from_substituents`)."""
-    segments = []
-    if ene_locants:
-        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
-    if yne_locants:
-        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
-    acid_word = multiplied_word(acid_count, "oic")
-
-    words = [word for _, word in segments] + [acid_word]
-    for i in range(len(words) - 1):
-        if words[i].endswith("e") and elides_before(words[i + 1]):
-            words[i] = words[i][:-1]
-
-    if segments:
-        locant_parts = [
-            f"{','.join(str(loc) for loc in locants)}-{word}"
-            for (locants, _), word in zip(segments, words[:-1])
-        ]
-        body = "-".join(locant_parts) + words[-1]
-    else:
-        body = words[-1]
-    elide_stem = words[0][0] in "aeiouy"
-    return body, elide_stem
-
-
 def _name_from_substituents(chain_length, acid_count, ene_locants, yne_locants, grouped):
     has_unsaturation = bool(ene_locants or yne_locants)
     # P-14.3.4.2(a): a mononuclear parent's substituent locant is always
@@ -320,7 +290,7 @@ def _name_from_substituents(chain_length, acid_count, ene_locants, yne_locants, 
         stem = alkane_name(chain_length)
         needs_stem_a = False
 
-    body, elide_stem = _suffix_body(ene_locants, yne_locants, acid_count)
+    body, elide_stem = suffix_body(ene_locants, yne_locants, multiplied_word(acid_count, "oic"))
     if not has_unsaturation and elide_stem:
         stem = stem[:-1]
     separator = "-" if (ene_locants or yne_locants) else ""
