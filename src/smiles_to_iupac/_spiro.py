@@ -36,12 +36,12 @@ from ._common import (
     adjacency,
     group_substituents,
     halogen_substituents,
-    lowest_locant_set,
     non_single_bonds,
+    substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name
-from ._substituents import alpha_sort_key, format_substituent_prefixes
+from ._substituents import format_substituent_prefixes
 
 
 def find_monospiro_atom(mol):
@@ -73,12 +73,7 @@ def _walk_ring_from_spiro(graph, ring_set, spiro, start):
 
 def _candidate_key(parent, substituents, heteroatom_locant=None, nondetachable_prefix=""):
     grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     if prefix and nondetachable_prefix:
         prefix += "-"

@@ -31,11 +31,11 @@ from ._common import (
     adjacency,
     group_substituents,
     halogen_substituents,
-    lowest_locant_set,
     ring_cycle,
+    substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch
 
 
 def _bond_between(bond, atoms_a, atoms_b):
@@ -92,12 +92,7 @@ def _candidate_key(locants, ring_atoms, graph, halogens, mol=None):
             substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
 
     grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     if prefix:
         prefix += "-"
