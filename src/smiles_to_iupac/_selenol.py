@@ -146,9 +146,10 @@ from ._common import (
     ring_chain_attachment,
     ring_cycle,
     specified_stereocenters,
+    substituent_locant_set_and_citation,
 )
 from ._numerals import alkane_name, alkyl_name
-from ._substituents import alpha_sort_key, branch_atom_locant, format_substituent_prefixes, name_branch
+from ._substituents import branch_atom_locant, format_substituent_prefixes, name_branch
 
 _YNE_BOND_ORDER = 3.0
 _SELENIUM = 34
@@ -289,13 +290,7 @@ def _name_from_substituents(chain_length, se_locants, ene_locants, yne_locants, 
 
 def _candidate_key(chain_length, se_locants, ene_locants, yne_locants, substituents):
     grouped = group_substituents(substituents)
-    total_count = sum(len(info["locants"]) for info in grouped.values())
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
     se_locant_set = lowest_locant_set(se_locants)
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
@@ -371,12 +366,7 @@ def _ring_name_from_substituents(ring_size, se_locants, ene_locants, yne_locants
 
 def _ring_candidate_key(ring_size, se_locants, ene_locants, yne_locants, substituents):
     grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     se_locant_set = lowest_locant_set(se_locants)
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
@@ -482,12 +472,7 @@ def _benzeneselenol_name_from_substituents(se_locants, grouped):
 
 def _benzeneselenol_candidate_key(se_locants, substituents):
     grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     se_locant_set = lowest_locant_set(se_locants)
     name = _benzeneselenol_name_from_substituents(se_locants, grouped)
     return se_locant_set, locant_set, citation_locants, name

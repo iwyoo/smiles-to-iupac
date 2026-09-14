@@ -66,8 +66,8 @@ from ._common import (
     UnsupportedStructure,
     alpha_sort_key,
     heteroaromatic_monocycle_yl_name,
-    lowest_locant_set,
     multiplied_word,
+    substituent_locant_set_and_citation,
 )
 from ._numerals import alkane_name, alkyl_name, multiplying_prefix
 
@@ -330,13 +330,7 @@ def _candidate_key(grouped):
     """Sort key implementing P-46's analogue of P-45.2.1-P-45.2.3, most
     preferred first (chain length is fixed by the caller, so it is not part
     of this key)."""
-    total_count = sum(len(info["locants"]) for info in grouped.values())
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
     return -total_count, locant_set, citation_locants
 
 

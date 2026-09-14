@@ -92,12 +92,12 @@ from ._common import (
     adjacency,
     group_substituents,
     halogen_substituents,
-    lowest_locant_set,
     non_single_bonds,
+    substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name, numerical_term
-from ._substituents import alpha_sort_key, format_substituent_prefixes
+from ._substituents import format_substituent_prefixes
 
 
 def _strip_leaves(graph):
@@ -362,12 +362,7 @@ def _candidate_key(parent, substituents, heteroatom_locant=None, nondetachable_p
     `outer_key` (which the caller combines with this function's return
     value)."""
     grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     if prefix and nondetachable_prefix:
         prefix += "-"
