@@ -76,13 +76,13 @@ from ._common import (
     is_plain_benzene_ring,
     longest_branched_chain_through,
     longest_chains,
-    lowest_locant_set,
     non_single_bonds,
     ring_chain_attachment,
     ring_cycle,
+    substituent_locant_set_and_citation,
 )
 from ._numerals import alkane_name
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
 
@@ -200,13 +200,7 @@ def _name_from_substituents(chain_length, locant, grouped):
 
 def _candidate_key(chain_length, locant, substituents):
     grouped = group_substituents(substituents)
-    total_count = sum(len(info["locants"]) for info in grouped.values())
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
     name = _name_from_substituents(chain_length, locant, grouped)
     return (locant, -total_count, locant_set, citation_locants, name), name
 

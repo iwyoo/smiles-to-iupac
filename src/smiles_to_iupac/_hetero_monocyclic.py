@@ -234,11 +234,11 @@ from ._common import (
     UnsupportedStructure,
     adjacency,
     halogen_substituents,
-    lowest_locant_set,
     non_single_bonds,
     ring_cycle,
+    substituent_locant_set_and_citation,
 )
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch
 
 _SUBSTITUENT_ATOMIC_NUMS = {6, *HALOGEN_PREFIXES}
 
@@ -572,12 +572,7 @@ def _candidate_key(grouped):
     for the substituted atoms as a whole wins first (P-14.4), ties broken
     by which alphabetically-ordered substituent gets the lower individual
     locant (P-14.5.2), mirroring `_alcohol.py`'s `_ring_candidate_key`."""
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     return locant_set, citation_locants
 
 

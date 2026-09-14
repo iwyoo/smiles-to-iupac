@@ -56,13 +56,13 @@ from ._common import (
     adjacency,
     group_substituents,
     halogen_substituents,
-    lowest_locant_set,
     non_single_bonds,
     ring_cycle,
+    substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch
 
 
 def _substituents_for_ring(graph, ring_order, halogens, mol=None):
@@ -95,12 +95,7 @@ def _candidate_key(ring_size, substituents):
     substituent count is fixed for a given ring, so unlike the acyclic case
     there is no P-45.2.1 dimension to break ties on)."""
     grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     name = _name_from_substituents(ring_size, grouped)
     return locant_set, citation_locants, name
 
