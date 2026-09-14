@@ -77,7 +77,6 @@ Explicitly out of scope (raise `UnsupportedStructure`), mirroring
 from rdkit import Chem
 
 from ._common import (
-    elides_before,
     ENE_BOND_ORDER,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -92,12 +91,12 @@ from ._common import (
     longest_branched_chain,
     longest_chains,
     lowest_locant_set,
-    multiplied_word,
     non_single_bonds,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     specified_stereocenters,
     substituent_locant_set_and_citation,
+    suffix_body,
 )
 from ._numerals import alkane_name, alkyl_name, multiplying_prefix
 from ._substituents import (
@@ -274,33 +273,6 @@ def _validate_and_collect_amidine(mol, aromatic_ring_atoms=frozenset()):
     return amidine_carbon, imino_nitrogen, amino_nitrogen, imino_subs, amino_subs
 
 
-def _suffix_body(ene_locants, yne_locants):
-    """Locant-and-suffix string for the combined 'ene'/'yne'/'imidamide'
-    ending (e.g. '3-enimidamide'); the amidine group's own locant is never
-    cited (P-14.3.3, see module docstring)."""
-    segments = []
-    if ene_locants:
-        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
-    if yne_locants:
-        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
-
-    words = [word for _, word in segments] + ["imidamide"]
-    for i in range(len(words) - 1):
-        if words[i].endswith("e") and elides_before(words[i + 1]):
-            words[i] = words[i][:-1]
-
-    if segments:
-        locant_parts = [
-            f"{','.join(str(loc) for loc in locants)}-{word}"
-            for (locants, _), word in zip(segments, words[:-1])
-        ]
-        body = "-".join(locant_parts) + words[-1]
-    else:
-        body = words[-1]
-    elide_stem = words[0][0] in "aeiouy"
-    return body, elide_stem
-
-
 def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped):
     has_unsaturation = bool(ene_locants or yne_locants)
     prefix = format_substituent_prefixes(grouped)
@@ -311,7 +283,7 @@ def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped):
         stem = alkane_name(chain_length)
         needs_stem_a = False
 
-    body, elide_stem = _suffix_body(ene_locants, yne_locants)
+    body, elide_stem = suffix_body(ene_locants, yne_locants, "imidamide")
     if not has_unsaturation and elide_stem:
         stem = stem[:-1]
     separator = "-" if has_unsaturation else ""

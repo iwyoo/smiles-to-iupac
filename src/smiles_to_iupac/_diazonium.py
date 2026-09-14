@@ -63,18 +63,17 @@ from ._common import (
     bond_locant,
     bond_locants,
     carbon_adjacency,
-    elides_before,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain_through,
     longest_chains,
     lowest_locant_set,
-    multiplied_word,
     non_single_bonds,
     ring_chain_attachment,
     ring_cycle,
     substituent_locant_set_and_citation,
+    suffix_body,
 )
 from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch
@@ -228,26 +227,6 @@ def _reject_enediazonium_carbon(graph, diazonium_carbon, bonds):
         )
 
 
-def _suffix_body(ene_locants, yne_locants, diazonium_locant):
-    segments = []
-    if ene_locants:
-        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
-    if yne_locants:
-        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
-    segments.append(([diazonium_locant], "diazonium"))
-
-    words = [word for _, word in segments]
-    for i in range(len(words) - 1):
-        if words[i].endswith("e") and elides_before(words[i + 1]):
-            words[i] = words[i][:-1]
-
-    parts = [
-        f"{','.join(str(loc) for loc in locants)}-{word}"
-        for (locants, _), word in zip(segments, words)
-    ]
-    return "-".join(parts)
-
-
 def _name_from_substituents(chain_length, diazonium_locant, ene_locants, yne_locants, grouped):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     has_unsaturation = bool(ene_locants or yne_locants)
@@ -271,7 +250,7 @@ def _name_from_substituents(chain_length, diazonium_locant, ene_locants, yne_loc
         stem = alkane_name(chain_length)
         needs_stem_a = False
 
-    body = _suffix_body(ene_locants, yne_locants, diazonium_locant)
+    body = suffix_body(ene_locants, yne_locants, "diazonium", [diazonium_locant])[0]
     return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
 
 

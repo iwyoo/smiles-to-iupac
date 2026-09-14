@@ -211,7 +211,6 @@ from ._common import (
     bond_locant,
     bond_locants,
     carbon_adjacency,
-    elides_before,
     group_substituents,
     halogen_substituents,
     heteroaromatic_monocycle_name,
@@ -229,6 +228,7 @@ from ._common import (
     specified_stereo_elements,
     specified_stereocenters,
     substituent_locant_set_and_citation,
+    suffix_body,
     two_separate_rings_with_plain_aromatic_substituent,
 )
 from ._cyclic_unsaturated import name_cyclic_unsaturated_yl
@@ -406,31 +406,6 @@ def _reject_enol_carbons(graph, hydroxyls, bonds):
             )
 
 
-def _suffix_body(ene_locants, yne_locants, oh_locants):
-    """Locant-and-suffix string for the combined 'ene'/'yne'/'ol' endings
-    (e.g. '4-en-1-ol'), plus whether the stem's trailing 'e' should be
-    elided at the stem/first-segment boundary (only relevant when there is
-    no 'ene'/'yne', see `_name_from_substituents`)."""
-    segments = []
-    if ene_locants:
-        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
-    if yne_locants:
-        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
-    segments.append((sorted(oh_locants), multiplied_word(len(oh_locants), "ol")))
-
-    words = [word for _, word in segments]
-    for i in range(len(words) - 1):
-        if words[i].endswith("e") and elides_before(words[i + 1]):
-            words[i] = words[i][:-1]
-
-    parts = [
-        f"{','.join(str(loc) for loc in locants)}-{word}"
-        for (locants, _), word in zip(segments, words)
-    ]
-    elide_stem = words[0][0] in "aeiouy"
-    return "-".join(parts), elide_stem
-
-
 def _name_from_substituents(chain_length, oh_locants, ene_locants, yne_locants, grouped):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     has_unsaturation = bool(ene_locants or yne_locants)
@@ -458,7 +433,7 @@ def _name_from_substituents(chain_length, oh_locants, ene_locants, yne_locants, 
         stem = alkane_name(chain_length)
         needs_stem_a = False
 
-    body, elide_stem = _suffix_body(ene_locants, yne_locants, oh_locants)
+    body, elide_stem = suffix_body(ene_locants, yne_locants, multiplied_word(len(oh_locants), "ol"), oh_locants)
     if not has_unsaturation and elide_stem:
         stem = stem[:-1]
     return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
@@ -636,7 +611,7 @@ def _ring_name_from_substituents(ring_size, oh_locants, ene_locants, yne_locants
     stem = parent[:-3]
     needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
     prefix = format_substituent_prefixes(grouped)
-    body, elide_stem = _suffix_body(ene_locants, yne_locants, oh_locants)
+    body, elide_stem = suffix_body(ene_locants, yne_locants, multiplied_word(len(oh_locants), "ol"), oh_locants)
     return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
 
 
