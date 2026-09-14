@@ -69,9 +69,10 @@ from ._common import (
     non_single_bonds,
     ring_chain_attachment,
     specified_stereocenters,
+    substituent_locant_set_and_citation,
 )
 from ._numerals import alkane_name
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, 34, *HALOGEN_PREFIXES}
 _CHALCOGENS = (8, 34)
@@ -181,13 +182,7 @@ def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped):
 
 def _candidate_key(chain_length, ene_locants, yne_locants, substituents):
     grouped = group_substituents(substituents)
-    total_count = sum(len(info["locants"]) for info in grouped.values())
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
     name = _name_from_substituents(chain_length, ene_locants, yne_locants, grouped)

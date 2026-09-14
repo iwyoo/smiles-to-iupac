@@ -96,11 +96,11 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     specified_stereocenters,
+    substituent_locant_set_and_citation,
     two_separate_rings_with_plain_aromatic_substituent,
 )
 from ._numerals import alkane_name
 from ._substituents import (
-    alpha_sort_key,
     format_substituent_prefixes,
     name_branch,
     plain_alkyl_ring_substituents,
@@ -261,13 +261,7 @@ def _candidate_key(chain_length, nitrile_locants, ene_locants, yne_locants, subs
     orientation choice even though it is never printed (see module
     docstring)."""
     grouped = group_substituents(substituents)
-    total_count = sum(len(info["locants"]) for info in grouped.values())
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
     nitrile_locant_set = lowest_locant_set(nitrile_locants)
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
@@ -389,12 +383,7 @@ def _ring_name_from_substituents(ring_size, cn_locant, grouped):
 
 def _ring_candidate_key(ring_size, cn_locant, substituents):
     grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     name = _ring_name_from_substituents(ring_size, cn_locant, grouped)
     return cn_locant, locant_set, citation_locants, name
 
@@ -494,12 +483,7 @@ def _benzonitrile_name_from_substituents(grouped):
 
 def _benzonitrile_candidate_key(cn_locant, substituents):
     grouped = group_substituents(substituents)
-    locant_set = lowest_locant_set(loc for info in grouped.values() for loc in info["locants"])
-    citation_locants = tuple(
-        loc
-        for name in sorted(grouped, key=alpha_sort_key)
-        for loc in sorted(grouped[name]["locants"])
-    )
+    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     name = _benzonitrile_name_from_substituents(grouped)
     return cn_locant, locant_set, citation_locants, name
 
