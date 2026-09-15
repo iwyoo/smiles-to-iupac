@@ -297,9 +297,9 @@ from ._common import (
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     ring_cycle,
+    ring_name_from_substituents,
     specified_stereocenters,
     substituent_locant_set_and_citation,
-    suffix_body,
     two_separate_rings_with_plain_aromatic_substituent,
 )
 from ._hetero_monocyclic import (
@@ -311,7 +311,7 @@ from ._hetero_monocyclic import (
     saturated_seven_membered_1_4_two_heteroatom_ring_name,
     saturated_two_heteroatom_1_4_ring_name,
 )
-from ._numerals import alkane_name, alkyl_name
+from ._numerals import alkyl_name
 from ._substituents import (
     branch_atom_locant,
     format_substituent_prefixes,
@@ -818,31 +818,11 @@ def _substituents_for_ring(graph, ring_order, halogens, ketones, mol=None, aroma
 
 
 def _ring_name_from_substituents(ring_size, one_locants, ene_locants, yne_locants, grouped):
-    has_unsaturation = bool(ene_locants or yne_locants)
-    parent = "cyclo" + alkane_name(ring_size)
     total_subs = sum(len(info["locants"]) for info in grouped.values())
-
-    if not has_unsaturation:
-        one_word = multiplied_word(len(one_locants), "one")
-        elide = one_word[0] in "aeiouy"
-        stem = parent[:-1] if elide else parent
-        if total_subs == 0 and len(one_locants) == 1:
-            # P-14.3.3: the sole substituent on an otherwise unsubstituted
-            # ring has no locant to distinguish, e.g. 'cyclohexanone'.
-            return stem + one_word
-        prefix = format_substituent_prefixes(grouped)
-        loc_str = ",".join(str(loc) for loc in sorted(one_locants))
-        return f"{prefix}{stem}-{loc_str}-{one_word}"
-
-    # A competing ring double/triple bond (P-31.1.3) means the ketone's
-    # locant is never omittable even when it's the sole substituent, e.g.
-    # 'cyclohex-2-en-1-one' (confirmed via PubChem), unlike the bare case
-    # above.
-    stem = parent[:-3]
-    needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
     prefix = format_substituent_prefixes(grouped)
-    body, elide_stem = suffix_body(ene_locants, yne_locants, multiplied_word(len(one_locants), "one"), one_locants)
-    return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
+    return ring_name_from_substituents(
+        ring_size, ene_locants, yne_locants, prefix, total_subs, multiplied_word(len(one_locants), "one"), one_locants
+    )
 
 
 def _ring_candidate_key(ring_size, one_locants, ene_locants, yne_locants, substituents):
