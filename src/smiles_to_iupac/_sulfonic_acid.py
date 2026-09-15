@@ -16,8 +16,8 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   'methane' + 'sulfonic acid' -> 'methanesulfonic acid' -- since 'sulfonic'
   begins with a consonant, matching `_thiol.py`'s reasoning for 'thiol'.
 - P-14.3.4.2(a)/(b) (Chapter P-1): the same locant-omission rules as
-  `_thiol.py`/`_alcohol.py` apply (mononuclear parent, or a homogeneous
-  two-carbon chain with exactly one substituent in total), e.g.
+  `_thiol.py`/`_alcohol.py` apply (mononuclear parent, or a saturated
+  two-carbon chain, regardless of other substituents), e.g.
   'ethanesulfonic acid'.
 - P-44.4.1.8 / P-45.2: the -SO3H locant is minimized before ene/yne locants,
   which are minimized before substituent-prefix locants -- same ordering
@@ -101,7 +101,6 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     ring_name_from_substituents,
-    should_omit_mononuclear_locants,
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
@@ -221,13 +220,10 @@ def _reject_enesulfonic_carbon(graph, so3h_carbon, bonds):
 
 
 def _name_from_substituents(chain_length, so3h_locant, ene_locants, yne_locants, grouped):
-    total_subs = sum(len(info["locants"]) for info in grouped.values())
-    has_unsaturation = bool(ene_locants or yne_locants)
-    omit_locants = should_omit_mononuclear_locants(chain_length, [so3h_locant], total_subs, has_unsaturation)
-    prefix = format_substituent_prefixes(grouped, omit_locants=omit_locants)
-    return prefix + name_from_substituents(
-        chain_length, ene_locants, yne_locants, "sulfonic acid", [so3h_locant], total_subs
-    )
+    # Only chain_length == 1 omits a substituent prefix's own locant too
+    # (see `_alcohol.py`'s equivalent comment).
+    prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "sulfonic acid", [so3h_locant])
 
 
 def _candidate_key(chain_length, so3h_locant, ene_locants, yne_locants, substituents):

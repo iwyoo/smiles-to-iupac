@@ -12,10 +12,10 @@ from smiles_to_iupac._seniority import SUFFIX_CLASS_RANK, senior_class
         ("SCS(=O)(=O)O", "sulfanylmethanesulfonic acid"),
         # Two-carbon chain: not the P-14.3.4.2(b) no-locant case, since a
         # thiol substituent is present in addition to the -SO3H suffix.
-        ("SCCS(=O)(=O)O", "2-sulfanylethane-1-sulfonic acid"),
+        ("SCCS(=O)(=O)O", "2-sulfanylethanesulfonic acid"),
         ("SCCCS(=O)(=O)O", "3-sulfanylpropane-1-sulfonic acid"),
         # Halogen coexisting alongside the sulfonic acid/thiol pair.
-        ("ClC(S)CS(=O)(=O)O", "2-chloro-2-sulfanylethane-1-sulfonic acid"),
+        ("ClC(S)CS(=O)(=O)O", "2-chloro-2-sulfanylethanesulfonic acid"),
         # Multiple thiols (multiplying prefix).
         ("SCC(S)CS(=O)(=O)O", "2,3-disulfanylpropane-1-sulfonic acid"),
     ],

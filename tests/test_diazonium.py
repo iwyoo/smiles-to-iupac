@@ -28,7 +28,7 @@ def test_chloroethane_diazonium():
     # Locant cited once a substituent is present on a 2-carbon chain, the
     # same project-wide convention as '2-chloroethane-1-selenol'
     # (PubChem's own generated name, "2-chloroethanediazonium", omits it).
-    assert smiles_to_iupac("ClCC[N+]#N") == "2-chloroethane-1-diazonium"
+    assert smiles_to_iupac("ClCC[N+]#N") == "2-chloroethanediazonium"
 
 
 def test_pent_4_ene_1_diazonium():
@@ -93,7 +93,7 @@ def test_phenyl_chain_diazonium():
     # locant here, same known, out-of-scope-here limitation already
     # established elsewhere in this project (e.g. `_thiol.py`'s own
     # phenyl-chain two-carbon case).
-    assert smiles_to_iupac("c1ccccc1CC[N+]#N") == "2-phenylethane-1-diazonium"
+    assert smiles_to_iupac("c1ccccc1CC[N+]#N") == "2-phenylethanediazonium"
     assert smiles_to_iupac("c1ccccc1CCC[N+]#N") == "3-phenylpropane-1-diazonium"
 
 

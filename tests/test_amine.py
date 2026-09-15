@@ -199,8 +199,8 @@ def test_secondary_amine_with_halogen_on_parent_chain():
     # P-14.5.2: the 'N-' prefix interleaves alphabetically with the
     # halogen prefix rather than always citing first (PubChem:
     # "2-chloro-N-ethylethanamine"; this project keeps the amine's own
-    # locant, same established style as "2-phenylethan-1-amine" above).
-    assert smiles_to_iupac("ClCCNCC") == "2-chloro-N-ethylethan-1-amine"
+    # locant, same established style as "2-phenylethanamine" above).
+    assert smiles_to_iupac("ClCCNCC") == "2-chloro-N-ethylethanamine"
 
 
 def test_secondary_amine_with_dihalogen_on_parent_chain():
@@ -306,11 +306,11 @@ def test_phenyl_chain_amine():
     # `test_phenyl_chain_thiol`): the ring is cited as a "phenyl"
     # substituent prefix. PubChem PUG REST: "phenylmethanamine"/
     # "3-phenylpropan-1-amine" (both exact matches; the two-carbon case
-    # "2-phenylethan-1-amine" keeps its locant unlike PubChem's
+    # "2-phenylethanamine" keeps its locant unlike PubChem's
     # locant-omitted "2-phenylethanamine" -- same known, out-of-scope-here
     # limitation as `_thiol.py`'s own two-carbon phenyl-chain case).
     assert smiles_to_iupac("c1ccccc1CN") == "phenylmethanamine"
-    assert smiles_to_iupac("c1ccccc1CCN") == "2-phenylethan-1-amine"
+    assert smiles_to_iupac("c1ccccc1CCN") == "2-phenylethanamine"
     assert smiles_to_iupac("c1ccccc1CCCN") == "3-phenylpropan-1-amine"
 
 
@@ -330,7 +330,7 @@ def test_phenyl_substituted_benzene_ring_amine_ortho_methyl():
     # A ring methyl substituent is now supported (see
     # tasks/aromatic-ring-methyl-rollout-4.md) -- PubChem PUG
     # REST-verified "2-(2-methylphenyl)ethanamine".
-    assert smiles_to_iupac("Cc1ccccc1CCN") == "2-(2-methylphenyl)ethan-1-amine"
+    assert smiles_to_iupac("Cc1ccccc1CCN") == "2-(2-methylphenyl)ethanamine"
 
 
 def test_phenyl_chain_amine_ring_halogen():
@@ -348,7 +348,7 @@ def test_phenyl_chain_amine_ring_ethyl():
     # PubChem PUG REST IUPACName match: any plain, fully saturated
     # acyclic alkyl ring substituent (not just methyl) is now supported,
     # reusing `name_branch` itself via `plain_alkyl_ring_substituents`.
-    assert smiles_to_iupac("CCc1ccc(cc1)CCN") == "2-(4-ethylphenyl)ethan-1-amine"
+    assert smiles_to_iupac("CCc1ccc(cc1)CCN") == "2-(4-ethylphenyl)ethanamine"
 
 
 def test_phenyl_chain_amine_unsaturation_raises():
@@ -392,7 +392,7 @@ def test_ring_substituent_chain_amine_internal_locant():
     # PubChem PUG REST: "1-cyclohexylethanamine" (CID 110733) -- the
     # locant is not omitted here, the same known limitation as
     # `test_phenyl_chain_amine`'s two-carbon case.
-    assert smiles_to_iupac("NC(C)C1CCCCC1") == "1-cyclohexylethan-1-amine"
+    assert smiles_to_iupac("NC(C)C1CCCCC1") == "1-cyclohexylethanamine"
 
 
 def test_ring_substituent_chain_amine_ring_with_substituent_raises():

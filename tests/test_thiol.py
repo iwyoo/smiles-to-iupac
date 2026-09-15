@@ -109,7 +109,7 @@ def test_ring_substituent_chain_thiol():
 
 def test_ring_substituent_chain_thiol_internal_locant():
     # PubChem PUG REST: "1-cyclohexylethanethiol" (CID 18994009).
-    assert smiles_to_iupac("SC(C)C1CCCCC1") == "1-cyclohexylethane-1-thiol"
+    assert smiles_to_iupac("SC(C)C1CCCCC1") == "1-cyclohexylethanethiol"
 
 
 def test_ring_substituent_chain_thiol_ring_with_substituent_raises():
@@ -183,7 +183,7 @@ def test_two_direct_ring_thiols_not_supported():
 def test_phenyl_substituted_benzene_ring_thiol_ortho_methyl():
     # A ring methyl substituent is now supported (see
     # tasks/aromatic-ring-methyl-rollout-2.md).
-    assert smiles_to_iupac("Cc1ccccc1CCS") == "2-(2-methylphenyl)ethane-1-thiol"
+    assert smiles_to_iupac("Cc1ccccc1CCS") == "2-(2-methylphenyl)ethanethiol"
 
 
 def test_phenyl_chain_thiol_ring_halogen():
@@ -282,8 +282,8 @@ def test_thiol_partially_specified_stereocenters_raises():
         # "2-pyridin-3-ylethanethiol" (CID 13969158; this project's
         # convention parenthesizes the compound substituent, matching
         # `_carboxylic_acid.py`'s "2-(pyridin-3-yl)ethanoic acid").
-        ("SCCc1cccnc1", "2-(pyridin-3-yl)ethane-1-thiol"),
-        ("SCCc1ccccc1", "2-phenylethane-1-thiol"),
+        ("SCCc1cccnc1", "2-(pyridin-3-yl)ethanethiol"),
+        ("SCCc1ccccc1", "2-phenylethanethiol"),
         # Two separate simple monocycles joined by one direct bond, one a
         # plain benzo/heteroaromatic ring with no substituent of its own
         # -- the thiol-bearing ring's own dispatch (`_name_cyclic_thiol`)

@@ -27,7 +27,7 @@ def test_unsaturated_sulfinic_acid():
 
 
 def test_halogen_substituent():
-    assert smiles_to_iupac("CC(Cl)S(=O)O") == "1-chloroethane-1-sulfinic acid"
+    assert smiles_to_iupac("CC(Cl)S(=O)O") == "1-chloroethanesulfinic acid"
 
 
 def test_ene_carbon_not_supported():
@@ -167,7 +167,7 @@ def test_substituted_benzenesulfinic_acid():
 def test_phenyl_substituted_benzene_ring_sulfinic_acid_ortho_methyl():
     # A ring methyl substituent is now supported (see
     # tasks/aromatic-ring-methyl-rollout-2.md).
-    assert smiles_to_iupac("Cc1ccccc1CCS(=O)O") == "2-(2-methylphenyl)ethane-1-sulfinic acid"
+    assert smiles_to_iupac("Cc1ccccc1CCS(=O)O") == "2-(2-methylphenyl)ethanesulfinic acid"
 
 
 def test_phenyl_chain_sulfinic_acid_ring_halogen():

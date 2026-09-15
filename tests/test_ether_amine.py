@@ -13,9 +13,9 @@ from smiles_to_iupac._common import UnsupportedStructure
         # chain (see e.g. plain `_amine.py`'s 'propan-1-amine'), so these
         # differ from PubChem only in that locant-omission style, not in
         # substance.
-        ("COCCN", "2-methoxyethan-1-amine"),
-        ("CCOCCN", "2-ethoxyethan-1-amine"),
-        ("CCCOCCN", "2-propoxyethan-1-amine"),
+        ("COCCN", "2-methoxyethanamine"),
+        ("CCOCCN", "2-ethoxyethanamine"),
+        ("CCCOCCN", "2-propoxyethanamine"),
     ],
 )
 def test_smiles_to_iupac_ether_amine(smiles, expected):
@@ -26,7 +26,7 @@ def test_branched_alkoxy_r_prime():
     # Mirrors `_ether.py`'s own enclosure convention: the whole 'yloxy'
     # group (including 'oxy') is parenthesized when it carries its own
     # internal locant, e.g. '(butan-2-yloxy)' -- P-16.3.3.
-    assert smiles_to_iupac("CC(C)OCCN") == "2-(propan-2-yloxy)ethan-1-amine"
+    assert smiles_to_iupac("CC(C)OCCN") == "2-(propan-2-yloxy)ethanamine"
 
 
 def test_halogen_on_main_chain_still_works():

@@ -98,7 +98,6 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     ring_name_from_substituents,
-    should_omit_mononuclear_locants,
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
@@ -214,13 +213,10 @@ def _reject_enesulfinic_carbon(graph, so2h_carbon, bonds):
 
 
 def _name_from_substituents(chain_length, so2h_locant, ene_locants, yne_locants, grouped):
-    total_subs = sum(len(info["locants"]) for info in grouped.values())
-    has_unsaturation = bool(ene_locants or yne_locants)
-    omit_locants = should_omit_mononuclear_locants(chain_length, [so2h_locant], total_subs, has_unsaturation)
-    prefix = format_substituent_prefixes(grouped, omit_locants=omit_locants)
-    return prefix + name_from_substituents(
-        chain_length, ene_locants, yne_locants, "sulfinic acid", [so2h_locant], total_subs
-    )
+    # Only chain_length == 1 omits a substituent prefix's own locant too
+    # (see `_alcohol.py`'s equivalent comment).
+    prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "sulfinic acid", [so2h_locant])
 
 
 def _candidate_key(chain_length, so2h_locant, ene_locants, yne_locants, substituents):

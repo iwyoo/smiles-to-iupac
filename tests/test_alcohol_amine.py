@@ -13,7 +13,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         # from that convention for a substituted ethanol (e.g. its own
         # '2-ethoxyethan-1-ol' test), so this module follows that same
         # pre-existing convention instead.
-        ("NCCO", "2-aminoethan-1-ol"),
+        ("NCCO", "2-aminoethanol"),
         # 3-aminopropan-1-ol: PubChem-verified exactly (CID 7269).
         ("NCCCO", "3-aminopropan-1-ol"),
         # 2-aminopropan-1-ol: PubChem-verified exactly (the -OH gets the
@@ -24,7 +24,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("NCC(O)CO", "3-aminopropane-1,2-diol"),
         # A halogen substituent coexists with both the hydroxyl and the
         # amine.
-        ("NC(Cl)CO", "2-amino-2-chloroethan-1-ol"),
+        ("NC(Cl)CO", "2-amino-2-chloroethanol"),
     ],
 )
 def test_smiles_to_iupac_alcohol_amine(smiles, expected):
