@@ -54,18 +54,17 @@ from ._common import (
     bond_locant,
     bond_locants,
     carbon_adjacency,
-    elides_before,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain,
     longest_chains,
     lowest_locant_set,
-    multiplied_word,
     non_single_bonds,
     ring_chain_attachment,
     specified_stereocenters,
     substituent_locant_set_and_citation,
+    suffix_body,
 )
 from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch
@@ -172,34 +171,6 @@ def _validate_and_collect_acyl_halides(mol, aromatic_ring_atoms=frozenset()):
     return acyl_carbon, carbonyl_oxygen, acyl_halogen
 
 
-def _suffix_body(ene_locants, yne_locants):
-    """Locant-and-suffix string for the combined 'ene'/'yne'/'oyl' endings
-    (e.g. '2-enoyl'); the acyl halide's own locant is never cited (P-14.3.3,
-    see module docstring)."""
-    segments = []
-    if ene_locants:
-        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
-    if yne_locants:
-        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
-    oyl_word = "oyl"
-
-    words = [word for _, word in segments] + [oyl_word]
-    for i in range(len(words) - 1):
-        if words[i].endswith("e") and elides_before(words[i + 1]):
-            words[i] = words[i][:-1]
-
-    if segments:
-        locant_parts = [
-            f"{','.join(str(loc) for loc in locants)}-{word}"
-            for (locants, _), word in zip(segments, words[:-1])
-        ]
-        body = "-".join(locant_parts) + words[-1]
-    else:
-        body = words[-1]
-    elide_stem = words[0][0] in "aeiouy"
-    return body, elide_stem
-
-
 def _name_from_substituents(chain_length, ene_locants, yne_locants, halide_word, grouped):
     has_unsaturation = bool(ene_locants or yne_locants)
     prefix = format_substituent_prefixes(grouped)
@@ -210,7 +181,7 @@ def _name_from_substituents(chain_length, ene_locants, yne_locants, halide_word,
         stem = alkane_name(chain_length)
         needs_stem_a = False
 
-    body, elide_stem = _suffix_body(ene_locants, yne_locants)
+    body, elide_stem = suffix_body(ene_locants, yne_locants, "oyl")
     if not has_unsaturation and elide_stem:
         stem = stem[:-1]
     separator = "-" if (ene_locants or yne_locants) else ""

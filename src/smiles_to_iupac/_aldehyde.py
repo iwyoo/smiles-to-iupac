@@ -70,7 +70,6 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 from rdkit import Chem
 
 from ._common import (
-    elides_before,
     ENE_BOND_ORDER,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -93,6 +92,7 @@ from ._common import (
     ring_cycle,
     specified_stereocenters,
     substituent_locant_set_and_citation,
+    suffix_body,
     two_separate_rings_with_plain_aromatic_substituent,
 )
 from ._numerals import alkane_name
@@ -209,33 +209,6 @@ def _validate_and_collect_aldehydes(mol, aromatic_ring_atoms=frozenset()):
     return aldehydes, hydroxyls
 
 
-def _suffix_body(ene_locants, yne_locants, al_count):
-    """Locant-and-suffix string for the combined 'ene'/'yne'/'al' ending
-    (e.g. '4-enal'). Unlike `_ketone.py`'s '-one', 'al'/'dial' never carries
-    its own locant (see module docstring), so it is glued directly onto the
-    preceding word instead of getting a hyphenated locant segment of its
-    own."""
-    segments = []
-    if ene_locants:
-        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
-    if yne_locants:
-        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
-
-    al_word = multiplied_word(al_count, "al")
-    words = [word for _, word in segments] + [al_word]
-    for i in range(len(words) - 1):
-        if words[i].endswith("e") and elides_before(words[i + 1]):
-            words[i] = words[i][:-1]
-
-    locanted_parts = [
-        f"{','.join(str(loc) for loc in locants)}-{word}"
-        for (locants, _), word in zip(segments, words[:-1])
-    ]
-    body = "-".join(locanted_parts) + words[-1] if locanted_parts else words[-1]
-    elide_stem = words[0][0] in "aeiouy"
-    return body, elide_stem
-
-
 def _name_from_substituents(chain_length, al_count, ene_locants, yne_locants, grouped):
     has_unsaturation = bool(ene_locants or yne_locants)
     prefix = format_substituent_prefixes(grouped)
@@ -246,7 +219,7 @@ def _name_from_substituents(chain_length, al_count, ene_locants, yne_locants, gr
         stem = alkane_name(chain_length)
         needs_stem_a = False
 
-    body, elide_stem = _suffix_body(ene_locants, yne_locants, al_count)
+    body, elide_stem = suffix_body(ene_locants, yne_locants, multiplied_word(al_count, "al"))
     if not has_unsaturation and elide_stem:
         stem = stem[:-1]
     separator = "-" if has_unsaturation else ""
