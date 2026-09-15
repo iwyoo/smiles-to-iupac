@@ -65,14 +65,13 @@ from ._common import (
     longest_branched_chain,
     longest_chains,
     lowest_locant_set,
+    name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     specified_stereocenters,
     substituent_locant_set_and_citation,
-    suffix_body,
 )
-from ._numerals import alkane_name
 from ._substituents import (
     format_substituent_prefixes,
     name_branch,
@@ -145,20 +144,7 @@ def _find_thioate_group(mol):
 
 
 def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped):
-    has_unsaturation = bool(ene_locants or yne_locants)
-    prefix = format_substituent_prefixes(grouped)
-    if has_unsaturation:
-        stem = alkane_name(chain_length)[:-3]
-        needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
-    else:
-        stem = alkane_name(chain_length)
-        needs_stem_a = False
-
-    body, elide_stem = suffix_body(ene_locants, yne_locants, "thioate")
-    if not has_unsaturation and elide_stem:
-        stem = stem[:-1]
-    separator = "-" if (ene_locants or yne_locants) else ""
-    return prefix + stem + ("a" if needs_stem_a else "") + separator + body
+    return format_substituent_prefixes(grouped) + name_from_substituents(chain_length, ene_locants, yne_locants, "thioate")
 
 
 def _candidate_key(chain_length, ene_locants, yne_locants, substituents):

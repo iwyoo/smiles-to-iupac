@@ -851,6 +851,34 @@ def suffix_body(ene_locants, yne_locants, own_word, own_locants=None):
     return body, elide_stem
 
 
+def name_from_substituents(chain_length, ene_locants, yne_locants, own_word, own_locants=None):
+    """Assemble `<stem>[a]<separator><suffix body>` for an acyclic
+    chain-parent suffix module (the caller still prepends its own
+    `format_substituent_prefixes(grouped)` -- `_substituents.py` already
+    imports from this module, so this one can't import back from it):
+    pick the alkane stem (unsaturated form with `-ene`/`-yne` elided when
+    `ene_locants`/`yne_locants` are present, inserting the linking `a` for
+    2+ multiple bonds), delegate the ene/yne-plus-own-suffix segment to
+    `suffix_body`, then glue everything together -- hyphenated whenever
+    the suffix body starts with a cited locant (either because the chain
+    is unsaturated, P-14.3.4.2(b)/(c), or because `own_locants` was
+    passed, P-31.1.4.3.4), glued directly otherwise (P-14.3.3: a group
+    whose own locant is always 1 is never cited)."""
+    has_unsaturation = bool(ene_locants or yne_locants)
+    if has_unsaturation:
+        stem = alkane_name(chain_length)[:-3]
+        needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
+    else:
+        stem = alkane_name(chain_length)
+        needs_stem_a = False
+
+    body, elide_stem = suffix_body(ene_locants, yne_locants, own_word, own_locants)
+    if not has_unsaturation and elide_stem:
+        stem = stem[:-1]
+    separator = "-" if (has_unsaturation or own_locants) else ""
+    return stem + ("a" if needs_stem_a else "") + separator + body
+
+
 def group_substituents(substituents):
     """{position -> [(name, is_compound), ...]} -> {name -> {"locants": [...],
     "compound": bool}}, merging same-named substituents at different
