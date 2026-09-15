@@ -93,6 +93,7 @@ from ._common import (
     longest_branched_chain_through,
     longest_chains,
     lowest_locant_set,
+    name_from_substituents,
     non_single_bonds,
     ring_bond_locant,
     ring_bond_locants,
@@ -100,11 +101,11 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     ring_name_from_substituents,
+    should_omit_mononuclear_locants,
     specified_stereocenters,
     substituent_locant_set_and_citation,
-    suffix_body,
 )
-from ._numerals import alkane_name, alkyl_name
+from ._numerals import alkyl_name
 from ._substituents import (
     branch_atom_locant,
     format_substituent_prefixes,
@@ -222,28 +223,11 @@ def _reject_enesulfonic_carbon(graph, so3h_carbon, bonds):
 def _name_from_substituents(chain_length, so3h_locant, ene_locants, yne_locants, grouped):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     has_unsaturation = bool(ene_locants or yne_locants)
-
-    if chain_length == 1:
-        # P-14.3.4.2(a): a mononuclear parent's locant is always '1' and
-        # never cited.
-        return format_substituent_prefixes(grouped, omit_locants=True) + alkane_name(1) + "sulfonic acid"
-
-    if chain_length == 2 and not has_unsaturation and total_subs == 0:
-        # P-14.3.4.2(b): a homogeneous two-carbon chain with exactly one
-        # substituent (the sole -SO3H) in total omits the locant, e.g.
-        # 'ethanesulfonic acid'.
-        return alkane_name(2) + "sulfonic acid"
-
-    prefix = format_substituent_prefixes(grouped)
-    if has_unsaturation:
-        stem = alkane_name(chain_length)[:-3]
-        needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
-    else:
-        stem = alkane_name(chain_length)
-        needs_stem_a = False
-
-    body = suffix_body(ene_locants, yne_locants, "sulfonic acid", [so3h_locant])[0]
-    return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
+    omit_locants = should_omit_mononuclear_locants(chain_length, [so3h_locant], total_subs, has_unsaturation)
+    prefix = format_substituent_prefixes(grouped, omit_locants=omit_locants)
+    return prefix + name_from_substituents(
+        chain_length, ene_locants, yne_locants, "sulfonic acid", [so3h_locant], total_subs
+    )
 
 
 def _candidate_key(chain_length, so3h_locant, ene_locants, yne_locants, substituents):
