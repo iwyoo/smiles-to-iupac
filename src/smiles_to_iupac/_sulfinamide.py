@@ -107,12 +107,14 @@ from ._common import (
     longest_branched_chain_through,
     longest_chains,
     lowest_locant_set,
+    name_from_substituents,
     non_single_bonds,
     ring_bond_locant,
     ring_bond_locants,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     ring_cycle,
+    should_omit_mononuclear_locants,
     specified_stereocenters,
     substituent_locant_set_and_citation,
     suffix_body,
@@ -269,35 +271,15 @@ def _n_alkyl_info(full_graph, full_carbon_graph, nitrogen_idx, n_alkyl_carbons, 
 def _name_from_substituents(chain_length, so_nh2_locant, ene_locants, yne_locants, grouped, n_names=()):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     has_unsaturation = bool(ene_locants or yne_locants)
-
-    if chain_length == 1:
-        # P-14.3.4.2(a): a mononuclear parent's locant is always '1' and
-        # never cited -- an 'N-' locant is never omittable though (see
-        # `_add_n_names`/`format_substituent_prefixes`).
-        return (
-            format_substituent_prefixes(_add_n_names(grouped, n_names), omit_locants=True)
-            + alkane_name(1)
-            + "sulfinamide"
-        )
-
-    if chain_length == 2 and not has_unsaturation and total_subs == 0:
-        # P-14.3.4.2(b): a homogeneous two-carbon chain with exactly one
-        # substituent (the sole -S(=O)NH2) in total omits the locant, e.g.
-        # 'ethanesulfinamide' -- an N-substituent still needs its own
-        # 'N-' prefix.
-        prefix = format_substituent_prefixes(_add_n_names(grouped, n_names))
-        return prefix + alkane_name(2) + "sulfinamide"
-
-    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names))
-    if has_unsaturation:
-        stem = alkane_name(chain_length)[:-3]
-        needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
-    else:
-        stem = alkane_name(chain_length)
-        needs_stem_a = False
-
-    body = suffix_body(ene_locants, yne_locants, "sulfinamide", [so_nh2_locant])[0]
-    return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
+    # An 'N-' locant is never omittable, even when omit_locants applies to
+    # the chain's own mononuclear/homogeneous-chain locants (see
+    # `_add_n_names`/`format_substituent_prefixes`: it marks a different
+    # atom than the chain itself, so the two locant kinds coexist safely).
+    omit_locants = should_omit_mononuclear_locants(chain_length, [so_nh2_locant], total_subs, has_unsaturation)
+    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names), omit_locants=omit_locants)
+    return prefix + name_from_substituents(
+        chain_length, ene_locants, yne_locants, "sulfinamide", [so_nh2_locant], total_subs
+    )
 
 
 def _candidate_key(chain_length, so_nh2_locant, ene_locants, yne_locants, substituents, n_names=()):

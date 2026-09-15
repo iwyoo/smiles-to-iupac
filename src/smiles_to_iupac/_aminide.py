@@ -46,15 +46,15 @@ from ._common import (
     longest_branched_chain_through,
     longest_chains,
     lowest_locant_set,
+    name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
+    should_omit_mononuclear_locants,
     substituent_locant_set_and_citation,
-    suffix_body,
     ENE_BOND_ORDER,
     YNE_BOND_ORDER,
 )
-from ._numerals import alkane_name
 from ._substituents import (
     format_substituent_prefixes,
     name_branch,
@@ -98,32 +98,11 @@ def _find_aminide_group(mol):
 
 
 def _name_from_substituents(chain_length, n_locant, ene_locants, yne_locants, grouped):
-    if chain_length == 1:
-        # P-14.3.4.2(a): a mononuclear parent's locants are always '1' and
-        # never cited, however many substituents there are.
-        stem = alkane_name(1)[:-1]  # 'aminide' starts with a vowel
-        return format_substituent_prefixes(grouped, omit_locants=True) + stem + "aminide"
-
     has_unsaturation = bool(ene_locants or yne_locants)
     total_subs = sum(len(info["locants"]) for info in grouped.values())
-    if chain_length == 2 and not has_unsaturation and total_subs == 0:
-        # P-14.3.4.2(b): a homogeneous two-carbon chain bearing exactly one
-        # substituent (here, the sole -NH(-)) in total has only one
-        # possible structure, so the locant is omittable.
-        return alkane_name(2)[:-1] + "aminide"
-
-    prefix = format_substituent_prefixes(grouped)
-    if has_unsaturation:
-        stem = alkane_name(chain_length)[:-3]
-        needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
-    else:
-        stem = alkane_name(chain_length)
-        needs_stem_a = False
-
-    body, elide_stem = suffix_body(ene_locants, yne_locants, "aminide", [n_locant])
-    if not has_unsaturation and elide_stem:
-        stem = stem[:-1]
-    return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
+    omit_locants = should_omit_mononuclear_locants(chain_length, [n_locant], total_subs, has_unsaturation)
+    prefix = format_substituent_prefixes(grouped, omit_locants=omit_locants)
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "aminide", [n_locant], total_subs)
 
 
 def _candidate_key(chain_length, n_locant, ene_locants, yne_locants, substituents):

@@ -107,6 +107,7 @@ from ._common import (
     longest_chains,
     lowest_locant_set,
     multiplied_word,
+    name_from_substituents,
     non_single_bonds,
     ordered_chain,
     ring_bond_locant,
@@ -115,12 +116,12 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     ring_name_from_substituents,
+    should_omit_mononuclear_locants,
     specified_stereocenters,
     substituent_locant_set_and_citation,
-    suffix_body,
     unbranched_unsaturated_substituent_name,
 )
-from ._numerals import alkane_name, alkyl_name
+from ._numerals import alkyl_name
 from ._substituents import (
     branch_atom_locant,
     format_substituent_prefixes,
@@ -259,41 +260,20 @@ def _add_n_names(grouped, n_names, n_locants=None):
 def _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locants, grouped, n_names=(), n_locants=None):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     has_unsaturation = bool(ene_locants or yne_locants)
-
-    if chain_length == 1:
-        # P-14.3.4.2(a): a mononuclear parent's locants (prefix or suffix)
-        # are always '1' and never cited -- an 'N-' locant is never
-        # omittable though (see `_add_n_names`/`format_substituent_prefixes`,
-        # it marks a different atom than the mononuclear carbon itself).
-        amine_word = multiplied_word(len(amine_locants), "amine")
-        stem = alkane_name(1)
-        if amine_word[0] in "aeiouy":
-            stem = stem[:-1]
-        prefix = format_substituent_prefixes(_add_n_names(grouped, n_names, n_locants), omit_locants=True)
-        return prefix + stem + amine_word
-
-    if chain_length == 2 and not has_unsaturation and total_subs == 0 and len(amine_locants) == 1:
-        # P-14.3.4.2(b): a homogeneous two-carbon chain bearing exactly one
-        # substituent (here, the sole -NH2) in total has only one possible
-        # structure, so the locant is omittable, e.g. 'ethanamine' -- an
-        # N-substituent doesn't change this (it doesn't create any
-        # carbon-position asymmetry), but still needs its own 'N-' prefix,
-        # e.g. 'N-ethylethanamine'.
-        prefix = format_substituent_prefixes(_add_n_names(grouped, n_names, n_locants))
-        return prefix + alkane_name(2)[:-1] + "amine"
-
-    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names, n_locants))
-    if has_unsaturation:
-        stem = alkane_name(chain_length)[:-3]
-        needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
-    else:
-        stem = alkane_name(chain_length)
-        needs_stem_a = False
-
-    body, elide_stem = suffix_body(ene_locants, yne_locants, multiplied_word(len(amine_locants), "amine"), amine_locants)
-    if not has_unsaturation and elide_stem:
-        stem = stem[:-1]
-    return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
+    # An 'N-' locant is never omittable, even when omit_locants applies to
+    # the chain's own mononuclear/homogeneous-chain locants (see
+    # `_add_n_names`/`format_substituent_prefixes`: it marks a different
+    # atom than the chain itself, so the two locant kinds coexist safely).
+    omit_locants = should_omit_mononuclear_locants(chain_length, amine_locants, total_subs, has_unsaturation)
+    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names, n_locants), omit_locants=omit_locants)
+    return prefix + name_from_substituents(
+        chain_length,
+        ene_locants,
+        yne_locants,
+        multiplied_word(len(amine_locants), "amine"),
+        amine_locants,
+        total_subs,
+    )
 
 
 def _candidate_key(chain_length, amine_locants, ene_locants, yne_locants, substituents, n_names=(), n_locants=None):

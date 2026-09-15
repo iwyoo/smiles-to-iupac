@@ -138,6 +138,7 @@ from ._common import (
     longest_chains,
     lowest_locant_set,
     multiplied_word,
+    name_from_substituents,
     non_single_bonds,
     ordered_chain,
     ring_bond_locant,
@@ -145,11 +146,11 @@ from ._common import (
     ring_chain_attachment,
     ring_cycle,
     ring_name_from_substituents,
+    should_omit_mononuclear_locants,
     specified_stereocenters,
     substituent_locant_set_and_citation,
-    suffix_body,
 )
-from ._numerals import alkane_name, alkyl_name
+from ._numerals import alkyl_name
 from ._substituents import branch_atom_locant, format_substituent_prefixes, name_branch, ring_branch_stereo_display
 
 _YNE_BOND_ORDER = 3.0
@@ -244,29 +245,11 @@ def _reject_eneselenol_carbons(graph, selenols, bonds):
 def _name_from_substituents(chain_length, se_locants, ene_locants, yne_locants, grouped):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     has_unsaturation = bool(ene_locants or yne_locants)
-
-    if chain_length == 1:
-        # P-14.3.4.2(a): a mononuclear parent's locants are always '1' and
-        # never cited.
-        selenol_word = multiplied_word(len(se_locants), "selenol")
-        return format_substituent_prefixes(grouped, omit_locants=True) + alkane_name(1) + selenol_word
-
-    if chain_length == 2 and not has_unsaturation and total_subs == 0 and len(se_locants) == 1:
-        # P-14.3.4.2(b): a homogeneous two-carbon chain with exactly one
-        # substituent (here, the sole -SeH) in total omits the locant, e.g.
-        # 'ethaneselenol'.
-        return alkane_name(2) + "selenol"
-
-    prefix = format_substituent_prefixes(grouped)
-    if has_unsaturation:
-        stem = alkane_name(chain_length)[:-3]
-        needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
-    else:
-        stem = alkane_name(chain_length)
-        needs_stem_a = False
-
-    body = suffix_body(ene_locants, yne_locants, multiplied_word(len(se_locants), "selenol"), se_locants)[0]
-    return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
+    omit_locants = should_omit_mononuclear_locants(chain_length, se_locants, total_subs, has_unsaturation)
+    prefix = format_substituent_prefixes(grouped, omit_locants=omit_locants)
+    return prefix + name_from_substituents(
+        chain_length, ene_locants, yne_locants, multiplied_word(len(se_locants), "selenol"), se_locants, total_subs
+    )
 
 
 def _candidate_key(chain_length, se_locants, ene_locants, yne_locants, substituents):

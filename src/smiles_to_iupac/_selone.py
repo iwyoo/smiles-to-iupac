@@ -186,8 +186,9 @@ def _validate_and_collect_selones(mol, aromatic_ring_atoms=frozenset()):
 
 
 def _name_from_substituents(chain_length, selone_locants, ene_locants, yne_locants, grouped):
+    total_subs = sum(len(info["locants"]) for info in grouped.values())
     return format_substituent_prefixes(grouped) + name_from_substituents(
-        chain_length, ene_locants, yne_locants, multiplied_word(len(selone_locants), "selone"), selone_locants
+        chain_length, ene_locants, yne_locants, multiplied_word(len(selone_locants), "selone"), selone_locants, total_subs
     )
 
 

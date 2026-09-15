@@ -861,7 +861,21 @@ def suffix_body(ene_locants, yne_locants, own_word, own_locants=None):
     return body, elide_stem
 
 
-def name_from_substituents(chain_length, ene_locants, yne_locants, own_word, own_locants=None):
+def should_omit_mononuclear_locants(chain_length, own_locants, total_subs, has_unsaturation):
+    """True when P-14.3.4.2(a) (`chain_length == 1`) or P-14.3.4.2(b) (a
+    homogeneous two-carbon chain bearing exactly one substituent in total,
+    that substituent being this suffix's own) applies, so the caller's own
+    `format_substituent_prefixes` call should pass `omit_locants=True`.
+    Safe even when non-numeric (e.g. 'N-') locants are also present in that
+    call, since `format_substituent_prefixes` never omits those regardless
+    of `omit_locants` -- see its own docstring."""
+    own_locants = own_locants or ()
+    if chain_length == 1:
+        return True
+    return chain_length == 2 and not has_unsaturation and total_subs == 0 and len(own_locants) == 1
+
+
+def name_from_substituents(chain_length, ene_locants, yne_locants, own_word, own_locants=None, total_subs=0):
     """Assemble `<stem>[a]<separator><suffix body>` for an acyclic
     chain-parent suffix module (the caller still prepends its own
     `format_substituent_prefixes(grouped)` -- `_substituents.py` already
@@ -873,8 +887,21 @@ def name_from_substituents(chain_length, ene_locants, yne_locants, own_word, own
     the suffix body starts with a cited locant (either because the chain
     is unsaturated, P-14.3.4.2(b)/(c), or because `own_locants` was
     passed, P-31.1.4.3.4), glued directly otherwise (P-14.3.3: a group
-    whose own locant is always 1 is never cited)."""
+    whose own locant is always 1 is never cited).
+
+    `total_subs` (substituent-prefix count excluding this suffix's own
+    locants -- the caller's `sum(len(info["locants"]) for info in
+    grouped.values())`) only matters for the P-14.3.4.2(a)/(b) early return
+    via `should_omit_mononuclear_locants`; existing callers that never
+    reach `chain_length` 1 or 2 can omit it."""
     has_unsaturation = bool(ene_locants or yne_locants)
+
+    if should_omit_mononuclear_locants(chain_length, own_locants, total_subs, has_unsaturation):
+        stem = alkane_name(chain_length)
+        if own_word[0] in "aeiouy":
+            stem = stem[:-1]
+        return stem + own_word
+
     if has_unsaturation:
         stem = alkane_name(chain_length)[:-3]
         needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
