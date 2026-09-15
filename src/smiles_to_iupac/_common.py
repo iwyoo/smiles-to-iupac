@@ -879,6 +879,39 @@ def name_from_substituents(chain_length, ene_locants, yne_locants, own_word, own
     return stem + ("a" if needs_stem_a else "") + separator + body
 
 
+def ring_name_from_substituents(ring_size, ene_locants, yne_locants, prefix, total_subs, own_word, own_locants):
+    """Assemble a ring-parent suffix name from `"cyclo" + alkane_name(ring_size)`,
+    the caller-supplied `prefix` (`format_substituent_prefixes(grouped)` --
+    see `name_from_substituents` for why this stays caller-owned) and
+    `total_subs` (`sum(len(info["locants"]) for info in grouped.values())`).
+
+    Saturated ring (no `ene_locants`/`yne_locants`): elides the stem's
+    trailing vowel-initial `own_word` (`cyclohexan` + `one`), and when
+    `own_word`'s locants are the ring's only substituent (P-14.3.3) omits
+    the locant entirely, e.g. 'cyclohexanone'; otherwise cites it as a
+    hyphenated segment, e.g. '4-methylcyclohexan-1-one'.
+
+    Unsaturated ring (P-31.1.3): the ring double/triple bond means the
+    suffix locant is never omittable even when it's the sole substituent,
+    e.g. 'cyclohex-2-en-1-one' -- delegates the ene/yne-plus-own-suffix
+    segment to `suffix_body`."""
+    has_unsaturation = bool(ene_locants or yne_locants)
+    parent = "cyclo" + alkane_name(ring_size)
+
+    if not has_unsaturation:
+        elide = own_word[0] in "aeiouy"
+        stem = parent[:-1] if elide else parent
+        if total_subs == 0 and len(own_locants) == 1:
+            return stem + own_word
+        loc_str = ",".join(str(loc) for loc in sorted(own_locants))
+        return f"{prefix}{stem}-{loc_str}-{own_word}"
+
+    stem = parent[:-3]
+    needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
+    body, _ = suffix_body(ene_locants, yne_locants, own_word, own_locants)
+    return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
+
+
 def group_substituents(substituents):
     """{position -> [(name, is_compound), ...]} -> {name -> {"locants": [...],
     "compound": bool}}, merging same-named substituents at different
