@@ -239,6 +239,7 @@ from ._substituents import (
     format_substituent_prefixes,
     name_branch,
     plain_alkyl_ring_substituents,
+    ring_branch_stereo_display,
 )
 
 _ENE_ORDER = 2.0
@@ -668,34 +669,7 @@ def _name_phenol(mol, ring_atoms):
 
 
 def _ring_branch_stereo_display(graph, ring_order, hydroxyls, stereo, halogens, mol=None, aromatic_atoms=frozenset()):
-    """Mirrors `_aromatic.py`'s `_stereo_display`: if the ring carries
-    exactly one specified stereocenter and that stereocenter sits off the
-    ring on the ring's own sole substituent branch (P-92), return that
-    branch's ring-attachment atom plus its bracketed
-    "[(<locant><R/S>)-<name>]" display (P-91.3) -- e.g. the '1' atom and
-    '[(2S)-butan-2-yl]' in '1-[(2S)-butan-2-yl]cyclohexan-1-ol' (PubChem
-    CID confirmed). Returns None (the caller keeps its existing outright
-    rejection) for more than one stereocenter, or the ring having more or
-    fewer than one substituent in total -- both a genuinely more general
-    case this narrow slice doesn't attempt."""
-    if len(stereo) != 1:
-        return None
-    stereo_atom, r_or_s = stereo[0]
-    ring_set = set(ring_order)
-    branch_attachments = [
-        (ring_atom, neighbor)
-        for ring_atom in ring_order
-        for neighbor in graph[ring_atom]
-        if neighbor not in ring_set and neighbor not in hydroxyls
-    ]
-    if len(branch_attachments) != 1:
-        return None
-    ring_atom, branch_root = branch_attachments[0]
-    branch_name, branch_compound = name_branch(graph, branch_root, ring_atom, halogens, aromatic_atoms, mol=mol)
-    site_locant = branch_atom_locant(graph, branch_root, ring_atom, stereo_atom, halogens, mol=mol)
-    descriptor = f"({site_locant}{r_or_s})-{branch_name}"
-    display = f"[{descriptor}]" if branch_compound else f"({descriptor})"
-    return ring_atom, display
+    return ring_branch_stereo_display(graph, ring_order, hydroxyls, stereo, halogens, mol=mol, aromatic_atoms=aromatic_atoms)
 
 
 def _name_cyclic_alcohol(mol, hydroxyls, stereo=None, bonds=(), ring_atoms=None, aromatic_atoms=frozenset()):
