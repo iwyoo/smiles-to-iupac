@@ -37,18 +37,17 @@ from rdkit import Chem
 
 from ._aldehyde import _name_acyclic_aldehyde
 from ._common import (
-    HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
     bfs,
     carbon_adjacency,
     non_single_bonds,
     specified_stereocenters,
+    validate_allowed_atoms,
 )
 from ._ether import _oxy_prefix
 from ._substituents import name_branch
 
-_ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
 
 
 def _find_ether_oxygens(mol):
@@ -105,43 +104,19 @@ def has_ether_aldehyde_shape(mol) -> bool:
 
 
 def _validate(mol, ether_oxygen, aldehyde_oxygen):
-    has_carbon = False
-    for atom in mol.GetAtoms():
-        atomic_num = atom.GetAtomicNum()
-        if atomic_num not in _ALLOWED_ATOMIC_NUMS:
-            raise UnsupportedStructure(
-                "heteroatoms other than a plain ether oxygen (P-63.2.1) "
-                "and an aldehyde carbonyl oxygen (P-33.3) are not "
-                "supported yet"
-            )
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
-            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atomic_num == 6:
-            has_carbon = True
-            if atom.GetIsAromatic():
-                raise UnsupportedStructure(
-                    "aromatic rings are out of scope for this module (see "
-                    "the separate aromatic-ring module)"
-                )
-        elif atomic_num == 8:
-            if atom.GetIdx() not in (ether_oxygen, aldehyde_oxygen):
-                raise UnsupportedStructure(
-                    "an oxygen that isn't the single plain ether oxygen or "
-                    "the single aldehyde carbonyl is out of scope for this "
-                    "module"
-                )
-        else:
-            if atom.GetDegree() != 1:
-                raise UnsupportedStructure(
-                    "a halogen atom must be a monovalent substituent (P-35.2.1)"
-                )
-    if not has_carbon:
-        raise UnsupportedStructure(
-            "a structure with no carbon atom has no hydrocarbon parent "
-            "hydride to substitute"
-        )
-    if len(Chem.GetMolFrags(mol)) > 1:
-        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+    validate_allowed_atoms(
+        mol,
+        "heteroatoms other than a plain ether oxygen (P-63.2.1) and an "
+        "aldehyde carbonyl oxygen (P-33.3) are not supported yet",
+        [
+            (
+                8,
+                {ether_oxygen, aldehyde_oxygen},
+                "an oxygen that isn't the single plain ether oxygen or the "
+                "single aldehyde carbonyl is out of scope for this module",
+            ),
+        ],
+    )
 
 
 def name_ether_aldehyde(mol) -> str:
