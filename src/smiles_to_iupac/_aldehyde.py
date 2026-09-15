@@ -86,13 +86,13 @@ from ._common import (
     longest_chains,
     lowest_locant_set,
     multiplied_word,
+    name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     ring_cycle,
     specified_stereocenters,
     substituent_locant_set_and_citation,
-    suffix_body,
     two_separate_rings_with_plain_aromatic_substituent,
 )
 from ._numerals import alkane_name
@@ -210,20 +210,9 @@ def _validate_and_collect_aldehydes(mol, aromatic_ring_atoms=frozenset()):
 
 
 def _name_from_substituents(chain_length, al_count, ene_locants, yne_locants, grouped):
-    has_unsaturation = bool(ene_locants or yne_locants)
-    prefix = format_substituent_prefixes(grouped)
-    if has_unsaturation:
-        stem = alkane_name(chain_length)[:-3]
-        needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
-    else:
-        stem = alkane_name(chain_length)
-        needs_stem_a = False
-
-    body, elide_stem = suffix_body(ene_locants, yne_locants, multiplied_word(al_count, "al"))
-    if not has_unsaturation and elide_stem:
-        stem = stem[:-1]
-    separator = "-" if has_unsaturation else ""
-    return prefix + stem + ("a" if needs_stem_a else "") + separator + body
+    return format_substituent_prefixes(grouped) + name_from_substituents(
+        chain_length, ene_locants, yne_locants, multiplied_word(al_count, "al")
+    )
 
 
 def _candidate_key(chain_length, al_locants, ene_locants, yne_locants, substituents):
