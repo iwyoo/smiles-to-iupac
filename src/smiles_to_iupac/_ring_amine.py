@@ -25,6 +25,17 @@ Recommendations ("the Blue Book"):
   is parenthesized, this project's usual convention over PubChem's own
   unparenthesized raw name ('1-propan-2-ylpiperidine' -> this module's
   '1-(propan-2-yl)piperidine').
+- The single-heteroatom path (only) also supports at most one more plain
+  alkyl/halogenated substituent on a ring carbon, besides the ring
+  nitrogen's own -- e.g. 'CN1CCCC1C' -> '1,2-dimethylpyrrolidine'
+  (PubChem CID 102483) and 'CCN1CCCC1C' -> '1-ethyl-2-methylpyrrolidine'
+  (CID 566953). The ring numbering direction (N is always locant 1, per
+  P-22.2.1) is chosen to give the ring-carbon substituent the lower of
+  its two possible locants, then both substituents are combined via the
+  same `group_substituents`/`format_substituent_prefixes` machinery
+  `_ketone.py`/`_alcohol.py` use for their own multi-substituent ring
+  citation (P-14.5.2 alphanumerical order, multiplying prefix when the
+  two substituents happen to share a name, as in the dimethyl example).
 - A second path handles the 1,4-two-heteroatom sibling rings
   (morpholine/piperazine/thiomorpholine, the same six-membered element
   pairs `_ketone.py`'s `_hetero_ring_two_heteroatoms` already recognizes)
@@ -93,8 +104,11 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   scope), a Se/Te two-heteroatom pair (no PubChem-registered N-substituted
   name to confirm the locant, same reasoning as `_ketone.py`'s identical
   exclusion), N,N'-disubstituted piperazine (both nitrogens substituted --
-  a separate follow-up), any substituent on the ring itself, or any ring
-  unsaturation.
+  a separate follow-up), more than one substituent on the ring carbons (a
+  substituent on the ring nitrogen plus at most one more on a ring
+  carbon is supported -- see below), a ring-carbon substituent combined
+  with a sulfonyl N-substituent (the two-substituent path and the
+  sulfonyl path don't combine yet), or any ring unsaturation.
 - Any other heteroatom, charged/isotopically modified atom, or
   multi-fragment structure.
 """
@@ -105,12 +119,13 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
+    group_substituents,
     halogen_substituents,
     non_single_bonds,
     ring_cycle,
 )
 from ._hetero_monocyclic import saturated_ring_name, saturated_two_heteroatom_1_4_ring_name
-from ._substituents import name_branch
+from ._substituents import format_substituent_prefixes, name_branch
 
 _RING_SIZES = (5, 6, 7)
 _ALLOWED_SUBSTITUENT_ATOMIC_NUMS = {6, *HALOGEN_PREFIXES}
@@ -129,13 +144,17 @@ _TWO_HETERO_PRIORITY = {"O": 0, "S": 1, "N": 2}
 
 
 def _ring_amine_shape(mol):
-    """(n_idx, ring_atoms, substituent_root_idx) if `mol` has exactly one
-    plain, saturated, monocyclic ring (5/6/7-membered) with one nitrogen
-    heteroatom bearing exactly one exocyclic substituent -- else None. A
-    *second*, unrelated ring may still exist inside that one substituent
-    (e.g. a cyclopropyl N-substituent) -- `name_branch` recognizes that
-    shape on its own; only the amine ring itself is required to be the
-    sole N-heterocycle here."""
+    """(n_idx, ring_atoms, n_substituent_root_idx, ring_carbon_substituent)
+    if `mol` has exactly one plain, saturated, monocyclic ring (5/6/7-
+    membered) with one nitrogen heteroatom bearing exactly one exocyclic
+    substituent, and at most one other ring atom (always a carbon) also
+    bearing exactly one exocyclic substituent -- else None.
+    `ring_carbon_substituent` is `(ring_carbon_idx, root_idx)` for that
+    second substituent, or `None` if every non-nitrogen ring atom is
+    unsubstituted. A *second*, unrelated ring may still exist inside
+    either substituent (e.g. a cyclopropyl N-substituent) -- `name_branch`
+    recognizes that shape on its own; only the amine ring itself is
+    required to be the sole N-heterocycle here."""
     ring_info = mol.GetRingInfo()
     candidates = [
         set(ring)
@@ -156,19 +175,30 @@ def _ring_amine_shape(mol):
         return None
     if mol.GetBondBetweenAtoms(n_idx, exo[0].GetIdx()).GetBondTypeAsDouble() != 1.0:
         return None
+    ring_carbon_substituent = None
     for a in ring_atoms:
         if a == n_idx:
             continue
         atom = mol.GetAtomWithIdx(a)
         if atom.GetAtomicNum() != 6 or atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             return None
-        if any(n.GetIdx() not in ring_atoms for n in atom.GetNeighbors()):
+        carbon_exo = [n for n in atom.GetNeighbors() if n.GetIdx() not in ring_atoms]
+        if len(carbon_exo) > 1:
             return None
-        if atom.GetTotalNumHs() != 2:
+        if not carbon_exo:
+            if atom.GetTotalNumHs() != 2:
+                return None
+            continue
+        if ring_carbon_substituent is not None:
             return None
+        if mol.GetBondBetweenAtoms(a, carbon_exo[0].GetIdx()).GetBondTypeAsDouble() != 1.0:
+            return None
+        if atom.GetTotalNumHs() != 1:
+            return None
+        ring_carbon_substituent = (a, carbon_exo[0].GetIdx())
     if any(a in ring_atoms and b in ring_atoms for a, b, _ in non_single_bonds(mol)):
         return None
-    return n_idx, ring_atoms, exo[0].GetIdx()
+    return n_idx, ring_atoms, exo[0].GetIdx(), ring_carbon_substituent
 
 
 def _two_hetero_ring_amine_shape(mol):
@@ -267,7 +297,9 @@ def has_ring_amine_sulfonyl_shape(mol) -> bool:
     exactly one exists, not what it is)."""
     shape = _ring_amine_shape(mol)
     if shape is not None:
-        n_idx, _, root = shape
+        n_idx, _, root, ring_carbon_substituent = shape
+        if ring_carbon_substituent is not None:
+            return False
         return _sulfonyl_root_shape(mol, root, n_idx) is not None
     shape2 = _two_hetero_ring_amine_shape(mol)
     if shape2 is not None:
@@ -315,7 +347,7 @@ def _validate_and_name_substituent(mol, ring_atoms, n_idx, root):
             continue
         if atom.GetAtomicNum() not in _ALLOWED_SUBSTITUENT_ATOMIC_NUMS:
             raise UnsupportedStructure(
-                "an N-substituent containing anything other than carbon, "
+                "a substituent containing anything other than carbon, "
                 "halogens, and a sulfonyl group is not supported yet for "
                 "this ring-amine path"
             )
@@ -323,7 +355,7 @@ def _validate_and_name_substituent(mol, ring_atoms, n_idx, root):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atom.GetIsAromatic():
             raise UnsupportedStructure(
-                "an aromatic N-substituent is not supported yet for this "
+                "an aromatic substituent is not supported yet for this "
                 "ring-amine path"
             )
         if atom.GetAtomicNum() in HALOGEN_PREFIXES and atom.GetDegree() != 1:
@@ -335,7 +367,7 @@ def _validate_and_name_substituent(mol, ring_atoms, n_idx, root):
         a not in ring_atoms and b not in ring_atoms and not ({a, b} <= extra_allowed)
         for a, b, _ in non_single_bonds(mol)
     ):
-        raise UnsupportedStructure("unsaturation in the N-substituent is not supported yet")
+        raise UnsupportedStructure("unsaturation in a substituent is not supported yet")
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -349,7 +381,7 @@ def _validate_and_name_substituent(mol, ring_atoms, n_idx, root):
 def name_ring_amine(mol) -> str:
     shape = _ring_amine_shape(mol)
     if shape is not None:
-        n_idx, ring_atoms, root = shape
+        n_idx, ring_atoms, root, ring_carbon_substituent = shape
         name, is_compound = _validate_and_name_substituent(mol, ring_atoms, n_idx, root)
         stem = saturated_ring_name("N", len(ring_atoms))
         if stem is None:
@@ -357,8 +389,24 @@ def name_ring_amine(mol) -> str:
                 f"no retained/Hantzsch-Widman name for a {len(ring_atoms)}-membered "
                 f"N-heteroatom saturated ring (P-22.2.1)"
             )
-        sub_name = f"({name})" if is_compound else name
-        return f"1-{sub_name}{stem}"
+        if ring_carbon_substituent is None:
+            sub_name = f"({name})" if is_compound else name
+            return f"1-{sub_name}{stem}"
+
+        ring_carbon_idx, carbon_root = ring_carbon_substituent
+        graph = adjacency(mol)
+        halogens = halogen_substituents(mol)
+        carbon_name, carbon_is_compound = name_branch(graph, carbon_root, ring_carbon_idx, halogens, mol=mol)
+        ring_order = ring_cycle(graph, list(ring_atoms))
+        n_pos = ring_order.index(n_idx)
+        rotated = ring_order[n_pos:] + ring_order[:n_pos]
+        forward_locant = rotated.index(ring_carbon_idx) + 1
+        backward_locant = len(rotated) - rotated.index(ring_carbon_idx) + 1
+        carbon_locant = min(forward_locant, backward_locant)
+        grouped = group_substituents(
+            {1: [(name, is_compound)], carbon_locant: [(carbon_name, carbon_is_compound)]}
+        )
+        return f"{format_substituent_prefixes(grouped)}{stem}"
 
     shape2 = _two_hetero_ring_amine_shape(mol)
     if shape2 is not None:

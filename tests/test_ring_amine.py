@@ -105,9 +105,29 @@ def test_unsaturated_n_substituent_raises():
         smiles_to_iupac("C=CN1CCCCC1")
 
 
-def test_substituted_ring_raises():
+def test_dimethylpyrrolidine():
+    # PubChem CID 102483 "1,2-dimethylpyrrolidine".
+    assert smiles_to_iupac("CN1CCCC1C") == "1,2-dimethylpyrrolidine"
+
+
+def test_ethylmethylpyrrolidine():
+    # PubChem CID 566953 "1-ethyl-2-methylpyrrolidine".
+    assert smiles_to_iupac("CCN1CCCC1C") == "1-ethyl-2-methylpyrrolidine"
+
+
+def test_dimethylpiperidine():
+    # PubChem CID 136514 "1,4-dimethylpiperidine".
+    assert smiles_to_iupac("CN1CCC(C)CC1") == "1,4-dimethylpiperidine"
+
+
+def test_ring_amine_two_ring_carbon_substituents_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CN1CCC(C)CC1")
+        smiles_to_iupac("CN1CC(C)C(C)C1")
+
+
+def test_ring_amine_sulfonyl_with_ring_carbon_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CS(=O)(=O)N1CCC(C)CC1")
 
 
 def test_methylsulfonylpiperidine():
