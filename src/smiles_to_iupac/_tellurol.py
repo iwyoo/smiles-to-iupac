@@ -131,6 +131,7 @@ from ._common import (
     ring_bond_locants,
     ring_chain_attachment,
     ring_cycle,
+    ring_name_from_substituents,
     specified_stereocenters,
     substituent_locant_set_and_citation,
     suffix_body,
@@ -307,28 +308,11 @@ def _substituents_for_ring(graph, ring_order, halogens, tellurols, mol=None):
 
 
 def _ring_name_from_substituents(ring_size, te_locants, ene_locants, yne_locants, grouped):
-    has_unsaturation = bool(ene_locants or yne_locants)
-    stem = "cyclo" + alkane_name(ring_size)
     total_subs = sum(len(info["locants"]) for info in grouped.values())
-
-    if not has_unsaturation:
-        tellurol_word = multiplied_word(len(te_locants), "tellurol")
-        if total_subs == 0 and len(te_locants) == 1:
-            # P-14.3.3: the sole substituent on an otherwise unsubstituted
-            # ring has no locant to distinguish, e.g. 'cyclohexanetellurol'.
-            return stem + tellurol_word
-        prefix = format_substituent_prefixes(grouped)
-        loc_str = ",".join(str(loc) for loc in sorted(te_locants))
-        return f"{prefix}{stem}-{loc_str}-{tellurol_word}"
-
-    # A competing ring double/triple bond (P-31.1.3) means the tellurol's
-    # locant is never omittable even when it's the sole substituent --
-    # mirrors `_thiol.py`/`_selenol.py`'s identical treatment.
-    unsaturated_stem = stem[:-3]
-    needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
     prefix = format_substituent_prefixes(grouped)
-    body = suffix_body(ene_locants, yne_locants, multiplied_word(len(te_locants), "tellurol"), te_locants)[0]
-    return prefix + unsaturated_stem + ("a" if needs_stem_a else "") + "-" + body
+    return ring_name_from_substituents(
+        ring_size, ene_locants, yne_locants, prefix, total_subs, multiplied_word(len(te_locants), "tellurol"), te_locants
+    )
 
 
 def _ring_candidate_key(ring_size, te_locants, ene_locants, yne_locants, substituents):

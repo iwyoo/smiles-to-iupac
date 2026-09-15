@@ -117,6 +117,7 @@ from ._common import (
     non_single_bonds,
     ring_chain_attachment_with_halogens,
     ring_cycle,
+    ring_name_from_substituents,
     specified_stereocenters,
     substituent_locant_set_and_citation,
     suffix_body,
@@ -550,14 +551,9 @@ def _ring_substituents(graph, ring_order, halogens, excluded, mol=None):
 
 
 def _ring_name_from_substituents(ring_size, carboxyl_locant, grouped, suffix="carboxylic acid"):
-    stem = "cyclo" + alkane_name(ring_size)
     total_subs = sum(len(info["locants"]) for info in grouped.values())
-    if total_subs == 0:
-        # P-14.3.3: the sole substituent on an otherwise unsubstituted ring
-        # has no locant to distinguish, e.g. 'cyclohexanecarboxylic acid'.
-        return stem + suffix
     prefix = format_substituent_prefixes(grouped)
-    return f"{prefix}{stem}-{carboxyl_locant}-{suffix}"
+    return ring_name_from_substituents(ring_size, [], [], prefix, total_subs, suffix, [carboxyl_locant])
 
 
 def _ring_candidate_key(ring_size, carboxyl_locant, substituents, suffix="carboxylic acid"):
