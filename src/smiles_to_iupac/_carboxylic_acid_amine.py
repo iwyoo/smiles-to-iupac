@@ -45,7 +45,6 @@ from rdkit import Chem
 
 from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
-    HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
     group_substituents,
@@ -56,12 +55,12 @@ from ._common import (
     ring_chain_attachment,
     specified_stereocenters,
     substituent_locant_set_and_citation,
+    validate_allowed_atoms,
 )
 from ._carboxylic_acid import _name_acyclic_carboxylic_acid
 from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch
 
-_ALLOWED_ATOMIC_NUMS = {6, 7, 8, *HALOGEN_PREFIXES}
 
 
 def _find_carboxylic_acid_carbon(mol):
@@ -124,50 +123,29 @@ def has_carboxylic_acid_amine_shape(mol) -> bool:
 
 
 def _validate(mol, excluded_oxygens, amines, aromatic_ring_atoms=frozenset()):
-    has_carbon = False
-    for atom in mol.GetAtoms():
-        atomic_num = atom.GetAtomicNum()
-        if atomic_num not in _ALLOWED_ATOMIC_NUMS:
-            raise UnsupportedStructure(
-                "heteroatoms other than the acid's own oxygens, a primary "
-                "amine nitrogen (P-41, Table 3.3), and halogen substituents "
-                "(P-35.2.1) are not supported yet"
-            )
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
-            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atomic_num == 6:
-            has_carbon = True
-            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
-                raise UnsupportedStructure(
-                    "aromatic rings are out of scope for this module (see "
-                    "the separate aromatic-ring module)"
-                )
-        elif atomic_num == 8:
-            if atom.GetIdx() not in excluded_oxygens:
-                raise UnsupportedStructure(
-                    "an oxygen that isn't part of the single carboxylic "
-                    "acid group is out of scope for this module (e.g. a "
-                    "coexisting hydroxyl, ether, or carbonyl)"
-                )
-        elif atomic_num == 7:
-            if atom.GetIdx() not in amines:
-                raise UnsupportedStructure(
-                    "a nitrogen that isn't a plain primary amine (-NH2) is "
-                    "out of scope for this module (secondary/tertiary "
-                    "amines, imines, and nitriles are not supported)"
-                )
-        else:
-            if atom.GetDegree() != 1:
-                raise UnsupportedStructure(
-                    "a halogen atom must be a monovalent substituent (P-35.2.1)"
-                )
-    if not has_carbon:
-        raise UnsupportedStructure(
-            "a structure with no carbon atom has no hydrocarbon parent "
-            "hydride to substitute"
-        )
-    if len(Chem.GetMolFrags(mol)) > 1:
-        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+    validate_allowed_atoms(
+        mol,
+        "heteroatoms other than the acid's own oxygens, a primary amine "
+        "nitrogen (P-41, Table 3.3), and halogen substituents (P-35.2.1) "
+        "are not supported yet",
+        [
+            (
+                8,
+                excluded_oxygens,
+                "an oxygen that isn't part of the single carboxylic acid "
+                "group is out of scope for this module (e.g. a coexisting "
+                "hydroxyl, ether, or carbonyl)",
+            ),
+            (
+                7,
+                amines,
+                "a nitrogen that isn't a plain primary amine (-NH2) is out "
+                "of scope for this module (secondary/tertiary amines, "
+                "imines, and nitriles are not supported)",
+            ),
+        ],
+        aromatic_ring_atoms=aromatic_ring_atoms,
+    )
 
 
 def _name_from_substituents(chain_length, grouped):
