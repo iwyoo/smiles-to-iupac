@@ -22,10 +22,7 @@ amide, a coexisting hydroxyl/ether/other heteroatom, and any ketone not
 captured by a single longest chain.
 """
 
-from rdkit import Chem
-
 from ._common import (
-    HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
     carbon_adjacency,
@@ -37,11 +34,10 @@ from ._common import (
     non_single_bonds,
     ring_chain_attachment,
     substituent_locant_set_and_citation,
+    validate_allowed_atoms,
 )
 from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch
-
-_ALLOWED_ATOMIC_NUMS = {6, 7, 8, *HALOGEN_PREFIXES}
 
 
 def _find_amide_carbon(mol):
@@ -97,50 +93,28 @@ def has_ketone_amide_shape(mol) -> bool:
 
 
 def _validate(mol, excluded_oxygens, amide_nitrogen, aromatic_ring_atoms=frozenset()):
-    has_carbon = False
-    for atom in mol.GetAtoms():
-        atomic_num = atom.GetAtomicNum()
-        if atomic_num not in _ALLOWED_ATOMIC_NUMS:
-            raise UnsupportedStructure(
-                "heteroatoms other than the amide's own oxygen/nitrogen and "
-                "ketone carbonyl oxygens (P-41, Table 3.3) and halogen "
-                "substituents (P-35.2.1) are not supported yet"
-            )
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
-            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atomic_num == 6:
-            has_carbon = True
-            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
-                raise UnsupportedStructure(
-                    "aromatic rings are out of scope for this module (see "
-                    "the separate aromatic-ring module)"
-                )
-        elif atomic_num == 8:
-            if atom.GetIdx() in excluded_oxygens:
-                continue
-            raise UnsupportedStructure(
+    validate_allowed_atoms(
+        mol,
+        "heteroatoms other than the amide's own oxygen/nitrogen and "
+        "ketone carbonyl oxygens (P-41, Table 3.3) and halogen "
+        "substituents (P-35.2.1) are not supported yet",
+        [
+            (
+                8,
+                excluded_oxygens,
                 "an oxygen that isn't the amide's own carbonyl oxygen or a "
                 "ketone-shaped carbonyl is out of scope for this module "
-                "(e.g. a coexisting hydroxyl or ether)"
-            )
-        elif atomic_num == 7:
-            if atom.GetIdx() != amide_nitrogen.GetIdx():
-                raise UnsupportedStructure(
-                    "more than one nitrogen, or a nitrogen that isn't the "
-                    "amide's own, is out of scope for this module"
-                )
-        else:
-            if atom.GetDegree() != 1:
-                raise UnsupportedStructure(
-                    "a halogen atom must be a monovalent substituent (P-35.2.1)"
-                )
-    if not has_carbon:
-        raise UnsupportedStructure(
-            "a structure with no carbon atom has no hydrocarbon parent "
-            "hydride to substitute"
-        )
-    if len(Chem.GetMolFrags(mol)) > 1:
-        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+                "(e.g. a coexisting hydroxyl or ether)",
+            ),
+            (
+                7,
+                {amide_nitrogen.GetIdx()},
+                "more than one nitrogen, or a nitrogen that isn't the "
+                "amide's own, is out of scope for this module",
+            ),
+        ],
+        aromatic_ring_atoms=aromatic_ring_atoms,
+    )
 
 
 def _name_from_substituents(chain_length, grouped):

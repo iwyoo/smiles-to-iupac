@@ -41,18 +41,15 @@ example to verify this shape against, so it is left out of this module's
 scope.
 """
 
-from rdkit import Chem
-
 from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
-    HALOGEN_PREFIXES,
     UnsupportedStructure,
     non_single_bonds,
+    validate_allowed_atoms,
 )
 from ._carboxylic_acid import _name_acyclic_carboxylic_acid
 
 _SELENIUM = 34
-_ALLOWED_ATOMIC_NUMS = {6, 8, _SELENIUM, *HALOGEN_PREFIXES}
 
 
 def _seleninic_selenium_atoms(mol):
@@ -154,49 +151,27 @@ def _validate_and_collect(mol):
 
     accounted_oxygen_idxs = carboxyl_oxygens | seleninic_oxygens
 
-    has_carbon = False
-    for atom in mol.GetAtoms():
-        atomic_num = atom.GetAtomicNum()
-        if atomic_num not in _ALLOWED_ATOMIC_NUMS:
-            raise UnsupportedStructure(
-                "heteroatoms other than the carboxylic/seleninic acid "
-                "groups' own oxygens (P-65.1.1/P-65.3.1) and halogen "
-                "substituents (P-35.2.1) are not supported yet"
-            )
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
-            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atomic_num == 6:
-            has_carbon = True
-            if atom.GetIsAromatic():
-                raise UnsupportedStructure(
-                    "aromatic rings are out of scope for this module (see "
-                    "the separate aromatic-ring module)"
-                )
-        elif atomic_num == 8:
-            if atom.GetIdx() not in accounted_oxygen_idxs:
-                raise UnsupportedStructure(
-                    "an oxygen that isn't part of the carboxylic/seleninic "
-                    "acid groups is out of scope for this module (e.g. a "
-                    "coexisting hydroxyl, ether, or carbonyl)"
-                )
-        elif atomic_num == _SELENIUM:
-            if atom.GetIdx() not in seleninic_idxs:
-                raise UnsupportedStructure(
-                    "a selenium atom not shaped like a seleninic acid "
-                    "group is out of scope for this module"
-                )
-        else:
-            if atom.GetDegree() != 1:
-                raise UnsupportedStructure(
-                    "a halogen atom must be a monovalent substituent (P-35.2.1)"
-                )
-    if not has_carbon:
-        raise UnsupportedStructure(
-            "a structure with no carbon atom has no hydrocarbon parent "
-            "hydride to substitute"
-        )
-    if len(Chem.GetMolFrags(mol)) > 1:
-        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+    validate_allowed_atoms(
+        mol,
+        "heteroatoms other than the carboxylic/seleninic acid groups' "
+        "own oxygens (P-65.1.1/P-65.3.1) and halogen substituents "
+        "(P-35.2.1) are not supported yet",
+        [
+            (
+                8,
+                accounted_oxygen_idxs,
+                "an oxygen that isn't part of the carboxylic/seleninic "
+                "acid groups is out of scope for this module (e.g. a "
+                "coexisting hydroxyl, ether, or carbonyl)",
+            ),
+            (
+                _SELENIUM,
+                seleninic_idxs,
+                "a selenium atom not shaped like a seleninic acid group "
+                "is out of scope for this module",
+            ),
+        ],
+    )
 
     return carboxyl_carbon.GetIdx(), carboxyl_oxygens, seleninic_idxs
 
