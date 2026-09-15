@@ -39,7 +39,6 @@ from rdkit import Chem
 
 from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
-    HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
     group_substituents,
@@ -50,13 +49,13 @@ from ._common import (
     ring_chain_attachment,
     specified_stereocenters,
     substituent_locant_set_and_citation,
+    validate_allowed_atoms,
 )
 from ._numerals import alkane_name
 from ._seniority import senior_class
 from ._substituents import format_substituent_prefixes, name_branch
 from ._sulfonic_acid import _name_acyclic_sulfonic_acid
 
-_ALLOWED_ATOMIC_NUMS = {6, 8, 16, *HALOGEN_PREFIXES}
 
 # Decided once, at import time, by consulting the shared rank table rather
 # than hardcoding the conclusion in prose the way the older pairwise
@@ -146,49 +145,28 @@ def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
 
     accounted_sulfur_idxs = {sulfonic_sulfur.GetIdx()} | thiol_idxs
 
-    has_carbon = False
-    for atom in mol.GetAtoms():
-        atomic_num = atom.GetAtomicNum()
-        if atomic_num not in _ALLOWED_ATOMIC_NUMS:
-            raise UnsupportedStructure(
-                "heteroatoms other than the sulfonic acid group's own "
-                "oxygens (P-65.3.1), a plain thiol (-SH, P-41 Table 4.4), "
-                "and halogen substituents (P-35.2.1) are not supported yet"
-            )
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
-            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atomic_num == 6:
-            has_carbon = True
-            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
-                raise UnsupportedStructure(
-                    "aromatic rings are out of scope for this module (see "
-                    "the separate aromatic-ring module)"
-                )
-        elif atomic_num == 8:
-            if atom.GetIdx() not in sulfonic_oxygens:
-                raise UnsupportedStructure(
-                    "an oxygen that isn't part of the single sulfonic acid "
-                    "group is out of scope for this module (e.g. a "
-                    "coexisting hydroxyl, ether, or carbonyl)"
-                )
-        elif atomic_num == 16:
-            if atom.GetIdx() not in accounted_sulfur_idxs:
-                raise UnsupportedStructure(
-                    "a sulfur atom not shaped like the sulfonic acid group "
-                    "or a plain thiol is out of scope for this module"
-                )
-        else:
-            if atom.GetDegree() != 1:
-                raise UnsupportedStructure(
-                    "a halogen atom must be a monovalent substituent (P-35.2.1)"
-                )
-    if not has_carbon:
-        raise UnsupportedStructure(
-            "a structure with no carbon atom has no hydrocarbon parent "
-            "hydride to substitute"
-        )
-    if len(Chem.GetMolFrags(mol)) > 1:
-        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+    validate_allowed_atoms(
+        mol,
+        "heteroatoms other than the sulfonic acid group's own oxygens "
+        "(P-65.3.1), a plain thiol (-SH, P-41 Table 4.4), and halogen "
+        "substituents (P-35.2.1) are not supported yet",
+        [
+            (
+                8,
+                sulfonic_oxygens,
+                "an oxygen that isn't part of the single sulfonic acid "
+                "group is out of scope for this module (e.g. a coexisting "
+                "hydroxyl, ether, or carbonyl)",
+            ),
+            (
+                16,
+                accounted_sulfur_idxs,
+                "a sulfur atom not shaped like the sulfonic acid group or "
+                "a plain thiol is out of scope for this module",
+            ),
+        ],
+        aromatic_ring_atoms=aromatic_ring_atoms,
+    )
 
     return sulfonic_sulfur.GetIdx(), so3h_carbon.GetIdx(), thiol_idxs
 
