@@ -31,12 +31,12 @@ from ._common import (
     is_plain_benzene_ring,
     longest_branched_chain,
     longest_chains,
+    name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
     substituent_locant_set_and_citation,
     validate_allowed_atoms,
 )
-from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch
 
 
@@ -118,9 +118,7 @@ def _validate(mol, excluded_oxygens, amide_nitrogen, aromatic_ring_atoms=frozens
 
 
 def _name_from_substituents(chain_length, grouped):
-    prefix = format_substituent_prefixes(grouped)
-    stem = alkane_name(chain_length)[:-1]
-    return prefix + stem + "amide"
+    return format_substituent_prefixes(grouped) + name_from_substituents(chain_length, [], [], "amide")
 
 
 def _candidate_key(chain_length, grouped):
