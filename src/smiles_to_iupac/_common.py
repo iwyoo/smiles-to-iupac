@@ -143,6 +143,16 @@ def non_single_bonds(mol):
     ]
 
 
+def reject_unsaturated_substituents(mol, atoms):
+    """Raise `UnsupportedStructure` if any bond in `mol` touching `atoms`
+    (a characteristic-group module's own N-substituent atom indices) is
+    unsaturated -- shared by every urea-family module (urea/thiourea/
+    selenourea/tellurourea/guanidine), none of which support an
+    unsaturated N-substituent yet."""
+    if any(b[0] in atoms or b[1] in atoms for b in non_single_bonds(mol)):
+        raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
+
+
 def adjacency(mol):
     graph = {atom.GetIdx(): [] for atom in mol.GetAtoms()}
     for bond in mol.GetBonds():
