@@ -96,11 +96,11 @@ from ._common import (
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     ring_cycle,
+    ring_name_from_substituents,
     specified_stereocenters,
     substituent_locant_set_and_citation,
     two_separate_rings_with_plain_aromatic_substituent,
 )
-from ._numerals import alkane_name
 from ._substituents import (
     format_substituent_prefixes,
     name_branch,
@@ -339,14 +339,9 @@ def _ring_substituents(graph, ring_order, halogens, excluded, mol=None, aromatic
 
 
 def _ring_name_from_substituents(ring_size, cn_locant, grouped):
-    stem = "cyclo" + alkane_name(ring_size)
     total_subs = sum(len(info["locants"]) for info in grouped.values())
-    if total_subs == 0:
-        # P-14.3.3: the sole substituent on an otherwise unsubstituted ring
-        # has no locant to distinguish, e.g. 'cyclohexanecarbonitrile'.
-        return stem + "carbonitrile"
     prefix = format_substituent_prefixes(grouped)
-    return f"{prefix}{stem}-{cn_locant}-carbonitrile"
+    return ring_name_from_substituents(ring_size, [], [], prefix, total_subs, "carbonitrile", [cn_locant])
 
 
 def _ring_candidate_key(ring_size, cn_locant, substituents):

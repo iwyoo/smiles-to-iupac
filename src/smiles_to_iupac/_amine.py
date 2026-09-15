@@ -114,6 +114,7 @@ from ._common import (
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     ring_cycle,
+    ring_name_from_substituents,
     specified_stereocenters,
     substituent_locant_set_and_citation,
     suffix_body,
@@ -635,31 +636,17 @@ def _substituents_for_ring(graph, ring_order, halogens, amines, mol=None):
 
 
 def _ring_name_from_substituents(ring_size, amine_locants, ene_locants, yne_locants, grouped):
-    has_unsaturation = bool(ene_locants or yne_locants)
-    parent = "cyclo" + alkane_name(ring_size)
     total_subs = sum(len(info["locants"]) for info in grouped.values())
-
-    if not has_unsaturation:
-        amine_word = multiplied_word(len(amine_locants), "amine")
-        elide = amine_word[0] in "aeiouy"
-        stem = parent[:-1] if elide else parent
-        if total_subs == 0 and len(amine_locants) == 1:
-            # P-14.3.3: the sole substituent on an otherwise unsubstituted
-            # ring has no locant to distinguish, e.g. 'cyclohexanamine'.
-            return stem + amine_word
-        prefix = format_substituent_prefixes(grouped)
-        loc_str = ",".join(str(loc) for loc in sorted(amine_locants))
-        return f"{prefix}{stem}-{loc_str}-{amine_word}"
-
-    # A competing ring double/triple bond (P-31.1.3) means the amine's
-    # locant is never omittable even when it's the sole substituent, e.g.
-    # 'cyclohex-2-en-1-amine' (confirmed via PubChem) -- mirrors
-    # `_ketone.py`'s identical treatment.
-    stem = parent[:-3]
-    needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
     prefix = format_substituent_prefixes(grouped)
-    body, elide_stem = suffix_body(ene_locants, yne_locants, multiplied_word(len(amine_locants), "amine"), amine_locants)
-    return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
+    return ring_name_from_substituents(
+        ring_size,
+        ene_locants,
+        yne_locants,
+        prefix,
+        total_subs,
+        multiplied_word(len(amine_locants), "amine"),
+        amine_locants,
+    )
 
 
 def _ring_candidate_key(ring_size, amine_locants, ene_locants, yne_locants, substituents):
