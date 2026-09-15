@@ -180,4 +180,15 @@ def name_salt(mol) -> str:
     anion_name = namer(anion_frag)
     if anion_count == 1:
         return f"{cation_name} {anion_name}"
-    return f"{cation_name} {multiplying_prefix(anion_count)}{anion_name}"
+    # P-16.3.4(a)/P-16.3.5(a): an anion name carrying its own substituent
+    # prefix (always locant-leading in this project's convention, since
+    # the anion's own suffix carbon is always C1 and never cited) is a
+    # compound prefix and multiplies with 'bis'/'tris'/... in parentheses,
+    # not the plain 'di'/'tri' used for an unsubstituted anion name (e.g.
+    # 'calcium diethanoate', P-65.6.2.1's own worked example) -- confirmed
+    # against PubChem's 'calcium bis(2-methyl-2-phenylhexanoate)'.
+    is_compound = anion_name[0].isdigit()
+    prefix = multiplying_prefix(anion_count, compound=is_compound)
+    if is_compound:
+        return f"{cation_name} {prefix}({anion_name})"
+    return f"{cation_name} {prefix}{anion_name}"

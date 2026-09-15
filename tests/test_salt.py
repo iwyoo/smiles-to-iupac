@@ -31,6 +31,19 @@ def test_calcium_diethanoate():
     assert smiles_to_iupac("[Ca+2].CC(=O)[O-].CC(=O)[O-]") == "calcium diethanoate"
 
 
+def test_calcium_bis_compound_carboxylate():
+    # PubChem CID 175225015 "calcium bis(2-methyl-2-phenylhexanoate)" --
+    # a substituted (compound) anion name multiplies with 'bis(...)'
+    # (P-16.3.5(a)), not the plain 'di...' used for an unsubstituted
+    # anion name like test_calcium_diethanoate above (P-16.3.4(a)).
+    assert (
+        smiles_to_iupac(
+            "[Ca+2].CCCCC(C)(C(=O)[O-])c1ccccc1.CCCCC(C)(C(=O)[O-])c1ccccc1"
+        )
+        == "calcium bis(2-methyl-2-phenylhexanoate)"
+    )
+
+
 def test_aluminium_tripropanoate():
     assert (
         smiles_to_iupac("[Al+3].CCC(=O)[O-].CCC(=O)[O-].CCC(=O)[O-]")
