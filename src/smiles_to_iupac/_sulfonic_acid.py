@@ -99,6 +99,7 @@ from ._common import (
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     ring_cycle,
+    ring_name_from_substituents,
     specified_stereocenters,
     substituent_locant_set_and_citation,
     suffix_body,
@@ -285,28 +286,11 @@ def _substituents_for_ring(graph, ring_order, halogens, excluded, mol=None):
 
 
 def _ring_name_from_substituents(ring_size, so3h_locant, ene_locants, yne_locants, grouped):
-    has_unsaturation = bool(ene_locants or yne_locants)
-    stem = "cyclo" + alkane_name(ring_size)
     total_subs = sum(len(info["locants"]) for info in grouped.values())
-
-    if not has_unsaturation:
-        if total_subs == 0:
-            # P-14.3.3: the sole substituent on an otherwise unsubstituted
-            # ring has no locant to distinguish, e.g.
-            # 'cyclohexanesulfonic acid'.
-            return stem + "sulfonic acid"
-        prefix = format_substituent_prefixes(grouped)
-        return f"{prefix}{stem}-{so3h_locant}-sulfonic acid"
-
-    # A competing ring double/triple bond (P-31.1.3) means the sulfonic
-    # acid's locant is never omittable even when it's the sole
-    # substituent -- mirrors `_ketone.py`/`_thiol.py`'s identical
-    # treatment.
-    unsaturated_stem = stem[:-3]
-    needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
     prefix = format_substituent_prefixes(grouped)
-    body = suffix_body(ene_locants, yne_locants, "sulfonic acid", [so3h_locant])[0]
-    return prefix + unsaturated_stem + ("a" if needs_stem_a else "") + "-" + body
+    return ring_name_from_substituents(
+        ring_size, ene_locants, yne_locants, prefix, total_subs, "sulfonic acid", [so3h_locant]
+    )
 
 
 def _ring_candidate_key(ring_size, so3h_locant, ene_locants, yne_locants, substituents):
