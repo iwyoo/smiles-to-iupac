@@ -35,11 +35,11 @@ from ._common import (
     group_substituents,
     halogen_substituents,
     longest_chains,
+    name_from_substituents,
     non_single_bonds,
     substituent_locant_set_and_citation,
     validate_allowed_atoms,
 )
-from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch
 
 
@@ -123,9 +123,7 @@ def _validate(mol, excluded_oxygens):
 
 
 def _name_from_substituents(chain_length, grouped):
-    prefix = format_substituent_prefixes(grouped)
-    stem = alkane_name(chain_length)[:-1]
-    return prefix + stem + "oic acid"
+    return format_substituent_prefixes(grouped) + name_from_substituents(chain_length, [], [], "oic acid")
 
 
 def _candidate_key(chain_length, grouped):
