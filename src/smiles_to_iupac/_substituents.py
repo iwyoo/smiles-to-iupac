@@ -859,3 +859,39 @@ def branch_atom_locant(graph, root, coming_from, atom_idx, halogens=None, mol=No
             "principal chain (P-46) is not supported yet"
         )
     return chain.index(atom_idx) + 1
+
+
+def ring_branch_stereo_display(graph, ring_order, group_locants, stereo, halogens, mol=None, aromatic_atoms=frozenset()):
+    """If the ring carries exactly one specified stereocenter and that
+    stereocenter sits off the ring on the ring's own sole substituent
+    branch (P-92), return that branch's ring-attachment atom plus its
+    bracketed "[(<locant><R/S>)-<name>]" display (P-91.3) -- e.g. the '1'
+    atom and '[(2S)-butan-2-yl]' in '1-[(2S)-butan-2-yl]cyclohexan-1-ol'
+    (PubChem CID confirmed). Returns None (the caller keeps its existing
+    outright rejection) for more than one stereocenter, or the ring
+    having more or fewer than one substituent in total -- both a
+    genuinely more general case this narrow slice doesn't attempt.
+
+    `group_locants`: the calling module's own characteristic-group atom
+    indices on the ring (e.g. hydroxyls, amines, ketones) -- excluded
+    from the branch-attachment search the same way `ring_order` itself
+    is, so the group's own atom is never mistaken for a substituent
+    branch."""
+    if len(stereo) != 1:
+        return None
+    stereo_atom, r_or_s = stereo[0]
+    ring_set = set(ring_order)
+    branch_attachments = [
+        (ring_atom, neighbor)
+        for ring_atom in ring_order
+        for neighbor in graph[ring_atom]
+        if neighbor not in ring_set and neighbor not in group_locants
+    ]
+    if len(branch_attachments) != 1:
+        return None
+    ring_atom, branch_root = branch_attachments[0]
+    branch_name, branch_compound = name_branch(graph, branch_root, ring_atom, halogens, aromatic_atoms, mol=mol)
+    site_locant = branch_atom_locant(graph, branch_root, ring_atom, stereo_atom, halogens, mol=mol)
+    descriptor = f"({site_locant}{r_or_s})-{branch_name}"
+    display = f"[{descriptor}]" if branch_compound else f"({descriptor})"
+    return ring_atom, display
