@@ -46,18 +46,14 @@ heteroatom, a specified stereocenter, and any carboxylic acid/sulfonamide
 not captured by a single longest chain.
 """
 
-from rdkit import Chem
-
 from ._coexisting_groups import name_via_senior_acyclic, name_via_senior_phenyl_chain
 from ._common import (
-    HALOGEN_PREFIXES,
     UnsupportedStructure,
     is_plain_benzene_ring,
     non_single_bonds,
+    validate_allowed_atoms,
 )
 from ._carboxylic_acid import _name_acyclic_carboxylic_acid, _name_phenyl_chain_carboxylic_acid
-
-_ALLOWED_ATOMIC_NUMS = {6, 7, 8, 16, *HALOGEN_PREFIXES}
 
 
 def _sulfonamide_sulfur_atoms(mol):
@@ -161,57 +157,35 @@ def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
 
     accounted_oxygen_idxs = carboxyl_oxygens | sulfonamide_oxygens
 
-    has_carbon = False
-    for atom in mol.GetAtoms():
-        atomic_num = atom.GetAtomicNum()
-        if atomic_num not in _ALLOWED_ATOMIC_NUMS:
-            raise UnsupportedStructure(
-                "heteroatoms other than the carboxylic acid group's own "
-                "oxygens, a plain sulfonamide's -NH2 nitrogen/oxygens "
-                "(P-65.1.1/P-65.3.1), and halogen substituents (P-35.2.1) "
-                "are not supported yet"
-            )
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
-            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atomic_num == 6:
-            has_carbon = True
-            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
-                raise UnsupportedStructure(
-                    "aromatic rings are out of scope for this module (see "
-                    "the separate aromatic-ring module)"
-                )
-        elif atomic_num == 7:
-            if atom.GetIdx() not in sulfonamide_nitrogens:
-                raise UnsupportedStructure(
-                    "a nitrogen that isn't part of a plain -SO2NH2 "
-                    "sulfonamide is out of scope for this module (e.g. an "
-                    "N-substituted sulfonamide or a coexisting amine)"
-                )
-        elif atomic_num == 8:
-            if atom.GetIdx() not in accounted_oxygen_idxs:
-                raise UnsupportedStructure(
-                    "an oxygen that isn't part of the carboxylic acid or "
-                    "sulfonamide groups is out of scope for this module "
-                    "(e.g. a coexisting hydroxyl, ether, or carbonyl)"
-                )
-        elif atomic_num == 16:
-            if atom.GetIdx() not in sulfonamide_idxs:
-                raise UnsupportedStructure(
-                    "a sulfur atom not shaped like a plain unsubstituted "
-                    "sulfonamide is out of scope for this module"
-                )
-        else:
-            if atom.GetDegree() != 1:
-                raise UnsupportedStructure(
-                    "a halogen atom must be a monovalent substituent (P-35.2.1)"
-                )
-    if not has_carbon:
-        raise UnsupportedStructure(
-            "a structure with no carbon atom has no hydrocarbon parent "
-            "hydride to substitute"
-        )
-    if len(Chem.GetMolFrags(mol)) > 1:
-        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+    validate_allowed_atoms(
+        mol,
+        "heteroatoms other than the carboxylic acid group's own oxygens, "
+        "a plain sulfonamide's -NH2 nitrogen/oxygens (P-65.1.1/P-65.3.1), "
+        "and halogen substituents (P-35.2.1) are not supported yet",
+        [
+            (
+                7,
+                sulfonamide_nitrogens,
+                "a nitrogen that isn't part of a plain -SO2NH2 sulfonamide "
+                "is out of scope for this module (e.g. an N-substituted "
+                "sulfonamide or a coexisting amine)",
+            ),
+            (
+                8,
+                accounted_oxygen_idxs,
+                "an oxygen that isn't part of the carboxylic acid or "
+                "sulfonamide groups is out of scope for this module (e.g. "
+                "a coexisting hydroxyl, ether, or carbonyl)",
+            ),
+            (
+                16,
+                sulfonamide_idxs,
+                "a sulfur atom not shaped like a plain unsubstituted "
+                "sulfonamide is out of scope for this module",
+            ),
+        ],
+        aromatic_ring_atoms=aromatic_ring_atoms,
+    )
 
     return carboxyl_carbon.GetIdx(), carboxyl_oxygens, sulfonamide_idxs
 
