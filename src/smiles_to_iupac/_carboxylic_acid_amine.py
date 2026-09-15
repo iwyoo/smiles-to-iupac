@@ -51,6 +51,7 @@ from ._common import (
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain,
+    name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
     specified_stereocenters,
@@ -58,7 +59,6 @@ from ._common import (
     validate_allowed_atoms,
 )
 from ._carboxylic_acid import _name_acyclic_carboxylic_acid
-from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch
 
 
@@ -149,9 +149,7 @@ def _validate(mol, excluded_oxygens, amines, aromatic_ring_atoms=frozenset()):
 
 
 def _name_from_substituents(chain_length, grouped):
-    prefix = format_substituent_prefixes(grouped)
-    stem = alkane_name(chain_length)[:-1]
-    return prefix + stem + "oic acid"
+    return format_substituent_prefixes(grouped) + name_from_substituents(chain_length, [], [], "oic acid")
 
 
 def _candidate_key(chain_length, grouped):
