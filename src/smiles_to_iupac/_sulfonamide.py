@@ -106,14 +106,12 @@ from ._common import (
     bond_locant,
     bond_locants,
     carbon_adjacency,
-    elides_before,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain_through,
     longest_chains,
     lowest_locant_set,
-    multiplied_word,
     non_single_bonds,
     ring_bond_locant,
     ring_bond_locants,
@@ -122,6 +120,7 @@ from ._common import (
     ring_cycle,
     specified_stereocenters,
     substituent_locant_set_and_citation,
+    suffix_body,
 )
 from ._numerals import alkane_name, alkyl_name
 from ._substituents import (
@@ -276,26 +275,6 @@ def _n_alkyl_info(full_graph, full_carbon_graph, nitrogen_idx, n_alkyl_carbons, 
     return n_names, n_substituent_atoms
 
 
-def _suffix_body(ene_locants, yne_locants, so2nh2_locant):
-    segments = []
-    if ene_locants:
-        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
-    if yne_locants:
-        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
-    segments.append(([so2nh2_locant], "sulfonamide"))
-
-    words = [word for _, word in segments]
-    for i in range(len(words) - 1):
-        if words[i].endswith("e") and elides_before(words[i + 1]):
-            words[i] = words[i][:-1]
-
-    parts = [
-        f"{','.join(str(loc) for loc in locants)}-{word}"
-        for (locants, _), word in zip(segments, words)
-    ]
-    return "-".join(parts)
-
-
 def _name_from_substituents(chain_length, so2nh2_locant, ene_locants, yne_locants, grouped, n_names=()):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     has_unsaturation = bool(ene_locants or yne_locants)
@@ -326,7 +305,7 @@ def _name_from_substituents(chain_length, so2nh2_locant, ene_locants, yne_locant
         stem = alkane_name(chain_length)
         needs_stem_a = False
 
-    body = _suffix_body(ene_locants, yne_locants, so2nh2_locant)
+    body = suffix_body(ene_locants, yne_locants, "sulfonamide", [so2nh2_locant])[0]
     return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
 
 
@@ -393,7 +372,7 @@ def _ring_name_from_substituents(ring_size, so2nh2_locant, ene_locants, yne_loca
     unsaturated_stem = stem[:-3]
     needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
     prefix = format_substituent_prefixes(_add_n_names(grouped, n_names))
-    body = _suffix_body(ene_locants, yne_locants, so2nh2_locant)
+    body = suffix_body(ene_locants, yne_locants, "sulfonamide", [so2nh2_locant])[0]
     return prefix + unsaturated_stem + ("a" if needs_stem_a else "") + "-" + body
 
 

@@ -35,7 +35,6 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 from rdkit import Chem
 
 from ._common import (
-    elides_before,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
@@ -47,11 +46,11 @@ from ._common import (
     longest_branched_chain_through,
     longest_chains,
     lowest_locant_set,
-    multiplied_word,
     non_single_bonds,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     substituent_locant_set_and_citation,
+    suffix_body,
     ENE_BOND_ORDER,
     YNE_BOND_ORDER,
 )
@@ -98,27 +97,6 @@ def _find_aminide_group(mol):
     return matches[0]
 
 
-def _suffix_body(ene_locants, yne_locants, n_locant):
-    segments = []
-    if ene_locants:
-        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
-    if yne_locants:
-        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
-    segments.append(([n_locant], "aminide"))
-
-    words = [word for _, word in segments]
-    for i in range(len(words) - 1):
-        if words[i].endswith("e") and elides_before(words[i + 1]):
-            words[i] = words[i][:-1]
-
-    parts = [
-        f"{','.join(str(loc) for loc in locants)}-{word}"
-        for (locants, _), word in zip(segments, words)
-    ]
-    elide_stem = words[0][0] in "aeiouy"
-    return "-".join(parts), elide_stem
-
-
 def _name_from_substituents(chain_length, n_locant, ene_locants, yne_locants, grouped):
     if chain_length == 1:
         # P-14.3.4.2(a): a mononuclear parent's locants are always '1' and
@@ -142,7 +120,7 @@ def _name_from_substituents(chain_length, n_locant, ene_locants, yne_locants, gr
         stem = alkane_name(chain_length)
         needs_stem_a = False
 
-    body, elide_stem = _suffix_body(ene_locants, yne_locants, n_locant)
+    body, elide_stem = suffix_body(ene_locants, yne_locants, "aminide", [n_locant])
     if not has_unsaturation and elide_stem:
         stem = stem[:-1]
     return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
