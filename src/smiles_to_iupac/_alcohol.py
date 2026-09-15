@@ -219,6 +219,7 @@ from ._common import (
     longest_chains,
     lowest_locant_set,
     multiplied_word,
+    name_from_substituents,
     non_single_bonds,
     ring_bond_locant,
     ring_bond_locants,
@@ -226,14 +227,14 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     ring_name_from_substituents,
+    should_omit_mononuclear_locants,
     specified_stereo_elements,
     specified_stereocenters,
     substituent_locant_set_and_citation,
-    suffix_body,
     two_separate_rings_with_plain_aromatic_substituent,
 )
 from ._cyclic_unsaturated import name_cyclic_unsaturated_yl
-from ._numerals import alkane_name, alkyl_name
+from ._numerals import alkyl_name
 from ._substituents import (
     branch_atom_locant,
     format_substituent_prefixes,
@@ -411,34 +412,11 @@ def _reject_enol_carbons(graph, hydroxyls, bonds):
 def _name_from_substituents(chain_length, oh_locants, ene_locants, yne_locants, grouped):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     has_unsaturation = bool(ene_locants or yne_locants)
-
-    if chain_length == 1:
-        # P-14.3.4.2(a): a mononuclear parent's locants (prefix or suffix)
-        # are always '1' and never cited.
-        ol_word = multiplied_word(len(oh_locants), "ol")
-        stem = alkane_name(1)
-        if ol_word[0] in "aeiouy":
-            stem = stem[:-1]
-        return format_substituent_prefixes(grouped, omit_locants=True) + stem + ol_word
-
-    if chain_length == 2 and not has_unsaturation and total_subs == 0 and len(oh_locants) == 1:
-        # P-14.3.4.2(b): a homogeneous two-carbon chain bearing exactly one
-        # substituent (here, the sole -OH) in total has only one possible
-        # structure, so the locant is omittable, e.g. 'ethanol (PIN)'.
-        return alkane_name(2)[:-1] + "ol"
-
-    prefix = format_substituent_prefixes(grouped)
-    if has_unsaturation:
-        stem = alkane_name(chain_length)[:-3]
-        needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
-    else:
-        stem = alkane_name(chain_length)
-        needs_stem_a = False
-
-    body, elide_stem = suffix_body(ene_locants, yne_locants, multiplied_word(len(oh_locants), "ol"), oh_locants)
-    if not has_unsaturation and elide_stem:
-        stem = stem[:-1]
-    return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
+    omit_locants = should_omit_mononuclear_locants(chain_length, oh_locants, total_subs, has_unsaturation)
+    prefix = format_substituent_prefixes(grouped, omit_locants=omit_locants)
+    return prefix + name_from_substituents(
+        chain_length, ene_locants, yne_locants, multiplied_word(len(oh_locants), "ol"), oh_locants, total_subs
+    )
 
 
 def _candidate_key(chain_length, oh_locants, ene_locants, yne_locants, substituents):
