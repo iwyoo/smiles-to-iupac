@@ -80,6 +80,58 @@ def validate_atoms_and_bonds(mol):
         )
 
 
+def validate_allowed_atoms(mol, heteroatom_message, group_checks, aromatic_ring_atoms=frozenset()):
+    """The same "every atom's atomic number is in this module's own
+    allowlist, and no charge/isotope" validation loop shared by every
+    two-characteristic-group-coexistence module (e.g. `_aldehyde_amine.py`,
+    `_thiol_amine.py`): carbon (tracked for a final "has any carbon" check,
+    and rejected if aromatic outside `aromatic_ring_atoms`), a monovalent
+    halogen substituent (P-35.2.1), or an atom matching one of
+    `group_checks` are allowed; anything else raises `heteroatom_message`
+    verbatim (module-specific wording, not reconstructed here).
+
+    `group_checks`: an ordered list of `(atomic_num, allowed_idxs, message)`
+    triples, one per non-carbon/non-halogen heteroatom kind the calling
+    module allows -- an atom of that atomic number is accepted only if its
+    index is in `allowed_idxs`, else `message` is raised. Two groups that
+    share an atomic number (e.g. an ether oxygen and an aldehyde carbonyl
+    oxygen, both O) are expressed as a single triple with the caller's own
+    union of both groups' indices and one combined message, mirroring how
+    the modules with this shape already merge that check themselves."""
+    allowed_atomic_nums = {6, *HALOGEN_PREFIXES} | {atomic_num for atomic_num, _, _ in group_checks}
+    checks_by_atomic_num = {atomic_num: (allowed_idxs, message) for atomic_num, allowed_idxs, message in group_checks}
+    has_carbon = False
+    for atom in mol.GetAtoms():
+        atomic_num = atom.GetAtomicNum()
+        if atomic_num not in allowed_atomic_nums:
+            raise UnsupportedStructure(heteroatom_message)
+        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+        if atomic_num == 6:
+            has_carbon = True
+            if atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
+                raise UnsupportedStructure(
+                    "aromatic rings are out of scope for this module (see "
+                    "the separate aromatic-ring module)"
+                )
+        elif atomic_num in HALOGEN_PREFIXES:
+            if atom.GetDegree() != 1:
+                raise UnsupportedStructure(
+                    "a halogen atom must be a monovalent substituent (P-35.2.1)"
+                )
+        else:
+            allowed_idxs, message = checks_by_atomic_num[atomic_num]
+            if atom.GetIdx() not in allowed_idxs:
+                raise UnsupportedStructure(message)
+    if not has_carbon:
+        raise UnsupportedStructure(
+            "a structure with no carbon atom has no hydrocarbon parent "
+            "hydride to substitute"
+        )
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+
+
 def non_single_bonds(mol):
     """List of (begin_atom_idx, end_atom_idx, bond_order) for every bond whose
     order isn't 1.0 (single). Used to classify a molecule's degree of
