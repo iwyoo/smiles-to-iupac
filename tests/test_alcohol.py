@@ -78,7 +78,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         # (consistent with the halogen case already handled the same way),
         # so this is an accepted, reviewed result rather than a PubChem-
         # confirmed one.
-        ("OCCC1CCCCC1", "2-cyclohexylethan-1-ol"),
+        ("OCCC1CCCCC1", "2-cyclohexylethanol"),
         # Same ring-is-substituent shape, but the ring itself carries a
         # C=C double bond (P-31.1.3 + P-29.2): the free valence pins the
         # ring's numbering at position 1, so -- unlike the plain
@@ -99,7 +99,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("OCC1=CC=CCC1", "(cyclohexa-1,3-dien-1-yl)methanol"),
         # A longer chain between the ring and the -OH still routes through
         # the same unsaturated-ring-substituent naming.
-        ("OCCC1CC=CCC1", "2-(cyclohex-3-en-1-yl)ethan-1-ol"),
+        ("OCCC1CC=CCC1", "2-(cyclohex-3-en-1-yl)ethanol"),
         # A single specified tetrahedral stereocenter (P-92): the Blue Book's own
         # worked example for this exact suffix, cross-checked against
         # PubChem CID 84682/444683 for the two enantiomers.
@@ -133,7 +133,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         # prefix is present. PubChem's own name for this SMILES
         # ('2-phenylethanol', CID 6054) omits the locant; not used as a
         # cross-check here for the same reason as the cyclohexyl case.
-        ("c1ccccc1CCO", "2-phenylethan-1-ol"),
+        ("c1ccccc1CCO", "2-phenylethanol"),
         # -OH mid-chain rather than at the far terminus from the ring.
         ("c1ccccc1CC(O)C", "1-phenylpropan-2-ol"),
     ],
@@ -348,7 +348,7 @@ def test_phenyl_substituted_benzene_ring_ortho_methyl():
     # A ring methyl substituent is now supported (see
     # tasks/aromatic-ring-methyl-substituent.md) -- PubChem PUG
     # REST-verified "2-(2-methylphenyl)ethanol".
-    assert smiles_to_iupac("Cc1ccccc1CCO") == "2-(2-methylphenyl)ethan-1-ol"
+    assert smiles_to_iupac("Cc1ccccc1CCO") == "2-(2-methylphenyl)ethanol"
 
 
 def test_phenyl_chain_with_second_hydroxyl_raises():
@@ -365,19 +365,19 @@ def test_phenyl_chain_ring_halogen():
     # The ring's other atoms may each carry a single halogen alongside the
     # -OH chain attachment (PubChem CID 18825 IUPACName "1-(4-chlorophenyl)
     # ethanol").
-    assert smiles_to_iupac("OC(C)c1ccc(Cl)cc1") == "1-(4-chlorophenyl)ethan-1-ol"
+    assert smiles_to_iupac("OC(C)c1ccc(Cl)cc1") == "1-(4-chlorophenyl)ethanol"
 
 
 def test_phenyl_chain_ring_dihalogen():
     # PubChem CID 244558 "2-(3,4-dichlorophenyl)ethanol".
-    assert smiles_to_iupac("Clc1ccc(cc1Cl)CCO") == "2-(3,4-dichlorophenyl)ethan-1-ol"
+    assert smiles_to_iupac("Clc1ccc(cc1Cl)CCO") == "2-(3,4-dichlorophenyl)ethanol"
 
 
 def test_phenyl_chain_ring_methyl():
     # PubChem PUG REST-verified "2-(4-methylphenyl)ethanol" -- same
     # non-halogen-specific mechanism as the halogen cases above, now fed
     # a plain methyl ring substituent instead.
-    assert smiles_to_iupac("CC1=CC=C(CCO)C=C1") == "2-(4-methylphenyl)ethan-1-ol"
+    assert smiles_to_iupac("CC1=CC=C(CCO)C=C1") == "2-(4-methylphenyl)ethanol"
 
 
 def test_phenyl_chain_ring_ethyl():
@@ -391,7 +391,7 @@ def test_phenyl_chain_ring_ethyl():
     "smiles,expected",
     [
         ("OCc1cccnc1", "(pyridin-3-yl)methanol"),
-        ("OCCc1cccnc1", "2-(pyridin-3-yl)ethan-1-ol"),
+        ("OCCc1cccnc1", "2-(pyridin-3-yl)ethanol"),
         ("OCc1ccco1", "(furan-2-yl)methanol"),
         ("OCc1cccs1", "(thiophen-2-yl)methanol"),
         ("OCc1cc[nH]c1", "(1H-pyrrol-3-yl)methanol"),
@@ -536,7 +536,7 @@ def test_ethoxyethanol():
     # '2-cyclohexylethan-1-ol' above -- this module always cites the -OH
     # locant once a substituent is present, an accepted, reviewed result
     # rather than a PubChem-confirmed one for this specific chain length.
-    assert smiles_to_iupac("OCCOCC") == "2-ethoxyethan-1-ol"
+    assert smiles_to_iupac("OCCOCC") == "2-ethoxyethanol"
 
 
 def test_methoxypropanol():
@@ -594,7 +594,7 @@ def test_amine_hetero_mix_dispatches_to_alcohol_amine():
     # convention for a substituted ethanol (e.g. '2-ethoxyethan-1-ol'
     # above), so '_alcohol_amine.py' follows that same pre-existing
     # convention instead.
-    assert smiles_to_iupac("OCCN") == "2-aminoethan-1-ol"
+    assert smiles_to_iupac("OCCN") == "2-aminoethanol"
 
 
 def test_branch_point_prefers_halogen_bearing_arm_over_plain_alkyl_arm():

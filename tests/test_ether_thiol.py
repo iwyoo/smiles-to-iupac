@@ -12,8 +12,8 @@ from smiles_to_iupac._common import UnsupportedStructure
         # always cites it explicitly for a substituted chain (see e.g.
         # plain `_thiol.py`'s 'propane-1-thiol'), so these differ from
         # PubChem only in that locant-omission style, not in substance.
-        ("COCCS", "2-methoxyethane-1-thiol"),
-        ("CCOCCS", "2-ethoxyethane-1-thiol"),
+        ("COCCS", "2-methoxyethanethiol"),
+        ("CCOCCS", "2-ethoxyethanethiol"),
     ],
 )
 def test_smiles_to_iupac_ether_thiol(smiles, expected):
@@ -21,7 +21,7 @@ def test_smiles_to_iupac_ether_thiol(smiles, expected):
 
 
 def test_branched_alkoxy_r_prime():
-    assert smiles_to_iupac("CC(C)OCCS") == "2-(propan-2-yloxy)ethane-1-thiol"
+    assert smiles_to_iupac("CC(C)OCCS") == "2-(propan-2-yloxy)ethanethiol"
 
 
 def test_halogen_on_main_chain_still_works():

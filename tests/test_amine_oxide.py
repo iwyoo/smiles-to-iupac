@@ -39,7 +39,7 @@ def test_amine_oxide_halogen_on_parent_chain():
     # (P-14.5.2) -- PubChem "2-chloro-N,N-diethylethanamine oxide" (this
     # project uses the primary source's own 'N-oxide' wording and keeps
     # the amine's own locant, per `_amine.py`'s established conventions).
-    assert smiles_to_iupac("ClCC[N+](CC)(CC)[O-]") == "2-chloro-N,N-diethylethan-1-amine N-oxide"
+    assert smiles_to_iupac("ClCC[N+](CC)(CC)[O-]") == "2-chloro-N,N-diethylethanamine N-oxide"
 
 
 def test_plain_tertiary_amine_still_works():

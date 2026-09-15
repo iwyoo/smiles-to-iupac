@@ -22,13 +22,10 @@ Recommendations ("the Blue Book"):
   where they sit, confirmed via PubChem: 'CC(Cl)S(=O)(=O)[O-]' ->
   '1-chloroethanesulfonate' (CID 19003700), 'ClCS(=O)(=O)[O-]' ->
   'chloromethanesulfonate', 'ClCC(Cl)S(=O)(=O)[O-]' ->
-  '1,2-dichloroethanesulfonate'. This is broader than
-  `_sulfonic_acid.py`'s equivalent check (which only omits the locant when
-  no other substituent is present) -- that module has the same latent
-  gap (confirmed live: 'CC(Cl)S(=O)(=O)O' -> the module's current
-  '1-chloroethane-1-sulfonic acid' vs. PubChem's
-  '1-chloroethanesulfonic acid'), left as a follow-up there rather than
-  fixed as part of this module's own scope.
+  '1,2-dichloroethanesulfonate'. Same rule `_sulfonic_acid.py` (and every
+  other acyclic chain-parent suffix module sharing `_common.py`'s
+  `name_from_substituents` hook) already applies via
+  `should_omit_mononuclear_locants`.
 - Unlike `_sulfonic_acid.py`, this first pass only supports an acyclic
   chain (no ring/benzene-ring path yet -- follow-up work, mirroring how
   `_carboxylate.py`/`_thioate.py` started acyclic-first relative to their

@@ -117,24 +117,17 @@ Recommendations ("the Blue Book"):
   entirely, multiplying prefixes 'di'/'tri' for >=2 bonds of a kind, 'ene'
   before 'yne', euphonic stem 'a' before a multiplied ending).
 - P-14.3.4.2(a)/(b) (Chapter P-1, as already applied to halogens in
-  `_acyclic.py`): a locant is omitted from a mononuclear (one-carbon) parent
-  regardless of how many substituents/suffixes it carries ('methanol'), and
-  from a homogeneous two-carbon chain bearing *exactly one* substituent in
-  total, suffix or prefix ('ethanol'; 'ethane-1,2-diol' still needs locants
-  because it has two -OH's, not one). This module applies the same
-  precondition uniformly to prefix and suffix locants alike, since 'ethanol'
-  is itself the Blue Book's own worked example of this omission applied to a
-  suffix (see P-30 above). NOTE: for a two-carbon chain carrying exactly one
-  halogen prefix *and* the -OH suffix together (two different substituents,
-  so the omission precondition above is not met), whether the -OH locant
-  must still be cited in the strict PIN is not fully resolved here — PubChem's
-  auto-generated name for this exact case ('2-chloroethanol') omits it, but
-  this module's tests deliberately avoid that specific ambiguous case and
-  this module instead always cites both locants once the omission
-  precondition fails (e.g. '3-chloropropan-1-ol', unambiguous since a
-  three-carbon-or-longer chain never qualifies for omission at all), for
-  consistency with the general locant-citation rule already used everywhere
-  else in this project.
+  `_acyclic.py`): a substituent prefix's own locant is omitted from a
+  mononuclear (one-carbon) parent regardless of how many
+  substituents/suffixes it carries ('methanol'); the -OH suffix's own
+  locant is additionally omitted from a saturated two-carbon chain
+  regardless of any other substituent present or where it sits, since
+  P-44.4.1.8 always forces the suffix locant to be C1 there ('ethanol';
+  'ethane-1,2-diol' still needs locants because it has two -OH's, not
+  one; a substituent prefix's own locant, unlike the suffix's, is *not*
+  omitted at two carbons since its position is still real distinguishing
+  information -- '2-chloroethanol', not 'chloroethanol'). Both forms
+  confirmed directly via PubChem PUG REST.
 - P-35.2.1 (Chapter P-3): halogen substituents are prefix-only and coexist
   freely with the -OH suffix (they never compete for suffix status), reusing
   `halogen_substituents`/`format_substituent_prefixes` unchanged.
@@ -227,7 +220,6 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     ring_name_from_substituents,
-    should_omit_mononuclear_locants,
     specified_stereo_elements,
     specified_stereocenters,
     substituent_locant_set_and_citation,
@@ -410,12 +402,16 @@ def _reject_enol_carbons(graph, hydroxyls, bonds):
 
 
 def _name_from_substituents(chain_length, oh_locants, ene_locants, yne_locants, grouped):
-    total_subs = sum(len(info["locants"]) for info in grouped.values())
-    has_unsaturation = bool(ene_locants or yne_locants)
-    omit_locants = should_omit_mononuclear_locants(chain_length, oh_locants, total_subs, has_unsaturation)
-    prefix = format_substituent_prefixes(grouped, omit_locants=omit_locants)
+    # Only a truly mononuclear parent (a single carbon) makes every
+    # substituent's own locant trivially '1' -- at chain_length == 2 the
+    # suffix's own locant is separately omittable (see
+    # `name_from_substituents`/`should_omit_mononuclear_locants`), but a
+    # substituent prefix can still sit at either carbon, so its locant
+    # stays meaningful and must not be omitted, e.g. '2-aminoethanethiol'
+    # (PubChem-verified) keeps its '2-' even though the thiol locant drops.
+    prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
     return prefix + name_from_substituents(
-        chain_length, ene_locants, yne_locants, multiplied_word(len(oh_locants), "ol"), oh_locants, total_subs
+        chain_length, ene_locants, yne_locants, multiplied_word(len(oh_locants), "ol"), oh_locants
     )
 
 

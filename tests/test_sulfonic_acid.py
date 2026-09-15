@@ -138,7 +138,7 @@ def test_phenyl_substituted_benzene_ring_sulfonic_acid_ortho_methyl():
     # A ring methyl substituent is now supported (see
     # tasks/aromatic-ring-methyl-rollout-2.md) -- PubChem PUG
     # REST-verified "2-(2-methylphenyl)ethanesulfonic acid".
-    assert smiles_to_iupac("Cc1ccccc1CCS(=O)(=O)O") == "2-(2-methylphenyl)ethane-1-sulfonic acid"
+    assert smiles_to_iupac("Cc1ccccc1CCS(=O)(=O)O") == "2-(2-methylphenyl)ethanesulfonic acid"
 
 
 def test_phenyl_chain_sulfonic_acid_ring_halogen():
@@ -206,14 +206,10 @@ def test_acyclic_sulfonic_acid_stereocenter(smiles, expected):
 
 def test_acyclic_sulfonic_acid_stereocenter_with_coexisting_substituent():
     # A stereocenter that also bears a halogen substituent: the suffix's
-    # own locant is still cited on the 2-carbon chain despite the
-    # substituent sharing its position (this project's own established
-    # convention, unaffected by this PR -- see the identical pre-existing
-    # 'CC(Cl)S(=O)(=O)O' -> '1-chloroethane-1-sulfonic acid'). PubChem's
-    # own auto-generated name omits that locant ('(1R)-1-chloroethanesulfonic
-    # acid', CID 124389840) -- a non-PIN quirk already documented elsewhere
-    # in this project -- so only the structure is cross-checked there.
-    assert smiles_to_iupac("C[C@@H](Cl)S(=O)(=O)O") == "(1R)-1-chloroethane-1-sulfonic acid"
+    # own locant is still forced to be C1 by P-44.4.1.8, so it's omitted
+    # here too (P-14.3.4.2(b)) even though the halogen shares that
+    # position -- PubChem CID 124389840 confirms this PIN form directly.
+    assert smiles_to_iupac("C[C@@H](Cl)S(=O)(=O)O") == "(1R)-1-chloroethanesulfonic acid"
 
 
 def test_cyclic_sulfonic_acid_stereocenter():

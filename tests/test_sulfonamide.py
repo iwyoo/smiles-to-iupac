@@ -33,7 +33,7 @@ def test_2_chloroethane_1_sulfonamide():
     # '2-chloroethane-1-selenol'/'2-chloroethane-1-thiol' (PubChem's own
     # generated name omits the locant here; that divergence is accepted
     # project-wide, see test_selenol.py's identical case).
-    assert smiles_to_iupac("ClCCS(=O)(=O)N") == "2-chloroethane-1-sulfonamide"
+    assert smiles_to_iupac("ClCCS(=O)(=O)N") == "2-chloroethanesulfonamide"
 
 
 def test_pent_4_ene_1_sulfonamide():
@@ -161,7 +161,7 @@ def test_phenyl_chain_sulfonamide_n_alkyl_raises():
 def test_phenyl_substituted_benzene_ring_sulfonamide_ortho_methyl():
     # A ring methyl substituent is now supported (see
     # tasks/aromatic-ring-methyl-rollout-3.md).
-    assert smiles_to_iupac("Cc1ccccc1CCS(=O)(=O)N") == "2-(2-methylphenyl)ethane-1-sulfonamide"
+    assert smiles_to_iupac("Cc1ccccc1CCS(=O)(=O)N") == "2-(2-methylphenyl)ethanesulfonamide"
 
 
 def test_phenyl_chain_sulfonamide_ring_halogen():
@@ -272,13 +272,10 @@ def test_acyclic_sulfonamide_stereocenter(smiles, expected):
 
 def test_acyclic_sulfonamide_stereocenter_with_coexisting_substituent():
     # A stereocenter that also bears a halogen substituent: the suffix's
-    # own locant is still cited on the 2-carbon chain despite the
-    # substituent sharing its position, same project-wide convention as
-    # the identical pre-existing 'ClC(C)S(=O)(=O)N' case. PubChem's own
-    # auto-generated name omits that locant ('(1R)-1-chloroethanesulfonamide',
-    # CID 92264750) -- a non-PIN quirk already documented elsewhere in this
-    # project -- so only the structure is cross-checked there.
-    assert smiles_to_iupac("C[C@@H](Cl)S(=O)(=O)N") == "(1R)-1-chloroethane-1-sulfonamide"
+    # own locant is still forced to be C1 by P-44.4.1.8, so it's omitted
+    # here too (P-14.3.4.2(b)) even though the halogen shares that
+    # position -- PubChem CID 92264750 confirms this PIN form directly.
+    assert smiles_to_iupac("C[C@@H](Cl)S(=O)(=O)N") == "(1R)-1-chloroethanesulfonamide"
 
 
 def test_cyclic_sulfonamide_stereocenter():

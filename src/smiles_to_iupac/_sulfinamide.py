@@ -15,7 +15,7 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   + 'sulfinamide' -> 'methanesulfinamide' (PubChem structure match).
 - P-14.3.4.2(a)/(b) (Chapter P-1): the same locant-omission rules as
   `_sulfinic_acid.py`/`_sulfonamide.py` apply (mononuclear parent, or a
-  homogeneous two-carbon chain with exactly one substituent in total), e.g.
+  saturated two-carbon chain, regardless of other substituents), e.g.
   'ethanesulfinamide' (PubChem structure match).
 - P-44.4.1.8 / P-45.2: the -S(=O)NH2 locant is minimized before ene/yne
   locants, which are minimized before substituent-prefix locants -- same
@@ -114,7 +114,6 @@ from ._common import (
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     ring_cycle,
-    should_omit_mononuclear_locants,
     specified_stereocenters,
     substituent_locant_set_and_citation,
     suffix_body,
@@ -269,17 +268,12 @@ def _n_alkyl_info(full_graph, full_carbon_graph, nitrogen_idx, n_alkyl_carbons, 
 
 
 def _name_from_substituents(chain_length, so_nh2_locant, ene_locants, yne_locants, grouped, n_names=()):
-    total_subs = sum(len(info["locants"]) for info in grouped.values())
-    has_unsaturation = bool(ene_locants or yne_locants)
-    # An 'N-' locant is never omittable, even when omit_locants applies to
-    # the chain's own mononuclear/homogeneous-chain locants (see
-    # `_add_n_names`/`format_substituent_prefixes`: it marks a different
-    # atom than the chain itself, so the two locant kinds coexist safely).
-    omit_locants = should_omit_mononuclear_locants(chain_length, [so_nh2_locant], total_subs, has_unsaturation)
-    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names), omit_locants=omit_locants)
-    return prefix + name_from_substituents(
-        chain_length, ene_locants, yne_locants, "sulfinamide", [so_nh2_locant], total_subs
-    )
+    # Only chain_length == 1 omits a substituent prefix's own locant too
+    # (see `_alcohol.py`'s equivalent comment) -- an 'N-' locant is never
+    # omitted either way (see `_add_n_names`/`format_substituent_prefixes`:
+    # it marks a different atom than the chain itself).
+    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names), omit_locants=chain_length == 1)
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "sulfinamide", [so_nh2_locant])
 
 
 def _candidate_key(chain_length, so_nh2_locant, ene_locants, yne_locants, substituents, n_names=()):

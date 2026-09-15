@@ -17,8 +17,8 @@ Book"):
   locants) — this module deliberately mirrors that module's structure so
   the two stay easy to compare.
 - P-14.3.4.2(a)/(b) (Chapter P-1): the same locant-omission rules as
-  `_alcohol.py` apply here too (mononuclear parent, or a homogeneous
-  two-carbon chain with exactly one substituent in total), e.g.
+  `_alcohol.py` apply here too (mononuclear parent, or a saturated
+  two-carbon chain, regardless of other substituents), e.g.
   'ethanethiol'.
 - P-35.2.1 (Chapter P-3): halogen substituents are prefix-only and coexist
   freely with the -SH suffix, same as in `_alcohol.py`.
@@ -101,7 +101,6 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     ring_name_from_substituents,
-    should_omit_mononuclear_locants,
     specified_stereocenters,
     substituent_locant_set_and_citation,
     two_separate_rings_with_plain_aromatic_substituent,
@@ -206,12 +205,13 @@ def _reject_enethiol_carbons(graph, thiols, bonds):
 
 
 def _name_from_substituents(chain_length, sh_locants, ene_locants, yne_locants, grouped):
-    total_subs = sum(len(info["locants"]) for info in grouped.values())
-    has_unsaturation = bool(ene_locants or yne_locants)
-    omit_locants = should_omit_mononuclear_locants(chain_length, sh_locants, total_subs, has_unsaturation)
-    prefix = format_substituent_prefixes(grouped, omit_locants=omit_locants)
+    # Only chain_length == 1 omits a substituent prefix's own locant too
+    # (see `_alcohol.py`'s equivalent comment) -- at chain_length == 2 a
+    # substituent can still sit at either carbon, e.g. '2-aminoethanethiol'
+    # (PubChem-verified) keeps its '2-' even though the thiol locant drops.
+    prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
     return prefix + name_from_substituents(
-        chain_length, ene_locants, yne_locants, multiplied_word(len(sh_locants), "thiol"), sh_locants, total_subs
+        chain_length, ene_locants, yne_locants, multiplied_word(len(sh_locants), "thiol"), sh_locants
     )
 
 

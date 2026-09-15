@@ -50,7 +50,6 @@ from ._common import (
     non_single_bonds,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
-    should_omit_mononuclear_locants,
     substituent_locant_set_and_citation,
     ENE_BOND_ORDER,
     YNE_BOND_ORDER,
@@ -98,11 +97,10 @@ def _find_aminide_group(mol):
 
 
 def _name_from_substituents(chain_length, n_locant, ene_locants, yne_locants, grouped):
-    has_unsaturation = bool(ene_locants or yne_locants)
-    total_subs = sum(len(info["locants"]) for info in grouped.values())
-    omit_locants = should_omit_mononuclear_locants(chain_length, [n_locant], total_subs, has_unsaturation)
-    prefix = format_substituent_prefixes(grouped, omit_locants=omit_locants)
-    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "aminide", [n_locant], total_subs)
+    # Only chain_length == 1 omits a substituent prefix's own locant too
+    # (see `_alcohol.py`'s equivalent comment).
+    prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "aminide", [n_locant])
 
 
 def _candidate_key(chain_length, n_locant, ene_locants, yne_locants, substituents):

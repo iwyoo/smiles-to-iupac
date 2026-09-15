@@ -52,7 +52,7 @@ def test_ring_substituent_chain_thione():
     # substituent prefix on the chain, mirroring `_name_phenyl_chain_
     # thione`/`_ketone.py`'s `_name_ring_substituent_chain_ketone`.
     # PubChem PUG REST-verified "1-cyclohexylethanethione" (CID 13294348).
-    assert smiles_to_iupac("CC(=S)C1CCCCC1") == "1-cyclohexylethane-1-thione"
+    assert smiles_to_iupac("CC(=S)C1CCCCC1") == "1-cyclohexylethanethione"
 
 
 def test_ring_substituent_chain_thione_ring_with_substituent_raises():

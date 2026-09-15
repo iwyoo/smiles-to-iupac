@@ -70,13 +70,13 @@ def test_quaternary_ammonium_asymmetric():
 def test_tertiary_ammonium_with_halogen_on_parent_chain():
     # Inherited from `_amine.py`'s N-prefix/halogen interleaving fix
     # (P-14.5.2) via the secondary/tertiary path's own name_amine call.
-    assert smiles_to_iupac("ClCC[NH+](CC)CC") == "2-chloro-N,N-diethylethan-1-aminium"
+    assert smiles_to_iupac("ClCC[NH+](CC)CC") == "2-chloro-N,N-diethylethanaminium"
 
 
 def test_quaternary_ammonium_with_halogen_on_parent_chain():
     # Same fix, reached via the quaternary path's direct call to
     # `_amine.py`'s `_name_acyclic_secondary_tertiary_amine`.
-    assert smiles_to_iupac("ClCC[N+](CC)(CC)CC") == "2-chloro-N,N,N-triethylethan-1-aminium"
+    assert smiles_to_iupac("ClCC[N+](CC)(CC)CC") == "2-chloro-N,N,N-triethylethanaminium"
 
 
 def test_ring_ammonium_raises():

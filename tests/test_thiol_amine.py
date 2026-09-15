@@ -13,7 +13,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         # diverges from that convention for a substituted ethanethiol
         # (its own '-1-thiol' locant citation once a substituent exists),
         # so this module follows that same pre-existing convention instead.
-        ("NCCS", "2-aminoethane-1-thiol"),
+        ("NCCS", "2-aminoethanethiol"),
         # 3-aminopropane-1-thiol: PubChem-verified exactly.
         ("NCCCS", "3-aminopropane-1-thiol"),
         # 2-aminopropane-1-thiol: PubChem-verified exactly (the -SH gets
@@ -21,7 +21,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("CC(N)CS", "2-aminopropane-1-thiol"),
         # A halogen substituent coexists with both the thiol and the
         # amine.
-        ("NC(Cl)CS", "2-amino-2-chloroethane-1-thiol"),
+        ("NC(Cl)CS", "2-amino-2-chloroethanethiol"),
     ],
 )
 def test_smiles_to_iupac_thiol_amine(smiles, expected):
