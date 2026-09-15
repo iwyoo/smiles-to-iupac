@@ -68,7 +68,6 @@ from ._common import (
     non_single_bonds,
     ring_chain_attachment,
     ring_cycle,
-    should_omit_mononuclear_locants,
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
@@ -191,13 +190,10 @@ def _reject_eneseleninic_carbon(graph, seoh_carbon, bonds):
 
 
 def _name_from_substituents(chain_length, seoh_locant, ene_locants, yne_locants, grouped):
-    total_subs = sum(len(info["locants"]) for info in grouped.values())
-    has_unsaturation = bool(ene_locants or yne_locants)
-    omit_locants = should_omit_mononuclear_locants(chain_length, [seoh_locant], total_subs, has_unsaturation)
-    prefix = format_substituent_prefixes(grouped, omit_locants=omit_locants)
-    return prefix + name_from_substituents(
-        chain_length, ene_locants, yne_locants, "seleninic acid", [seoh_locant], total_subs
-    )
+    # Only chain_length == 1 omits a substituent prefix's own locant too
+    # (see `_alcohol.py`'s equivalent comment).
+    prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "seleninic acid", [seoh_locant])
 
 
 def _candidate_key(chain_length, seoh_locant, ene_locants, yne_locants, substituents):

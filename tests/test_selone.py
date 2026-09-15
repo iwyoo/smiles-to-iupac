@@ -45,7 +45,7 @@ def test_ring_substituent_chain_selone():
     # structure for this exact molecule (sparse selone coverage), so this
     # is a structural/regression check on the mechanism ported verbatim
     # from `_ketone.py`/`_thione.py`.
-    assert smiles_to_iupac("CC(=[Se])C1CCCCC1") == "1-cyclohexylethane-1-selone"
+    assert smiles_to_iupac("CC(=[Se])C1CCCCC1") == "1-cyclohexylethaneselone"
 
 
 def test_ring_substituent_chain_selone_ring_with_substituent_raises():

@@ -630,7 +630,7 @@ def test_ring_substituent_chain_ketone():
     # substituent prefix on the chain, mirroring `_alcohol.py`'s
     # `_name_ring_substituent_chain_alcohol`. PubChem PUG REST-verified
     # "1-cyclohexylethanone" (CID 13207).
-    assert smiles_to_iupac("CC(=O)C1CCCCC1") == "1-cyclohexylethan-1-one"
+    assert smiles_to_iupac("CC(=O)C1CCCCC1") == "1-cyclohexylethanone"
 
 
 def test_ring_substituent_chain_ketone_longer_chain():

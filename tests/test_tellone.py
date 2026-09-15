@@ -50,7 +50,7 @@ def test_ring_substituent_chain_tellone():
     # structure for this exact molecule (sparse tellone coverage), so
     # this is a structural/regression check on the mechanism ported
     # verbatim from `_ketone.py`/`_thione.py`.
-    assert smiles_to_iupac("CC(=[Te])C1CCCCC1") == "1-cyclohexylethane-1-tellone"
+    assert smiles_to_iupac("CC(=[Te])C1CCCCC1") == "1-cyclohexylethanetellone"
 
 
 def test_ring_substituent_chain_tellone_ring_with_substituent_raises():

@@ -26,7 +26,7 @@ def test_unsaturated_seleninic_acid():
 
 
 def test_halogen_substituent():
-    assert smiles_to_iupac("CC(Cl)[Se](=O)O") == "1-chloroethane-1-seleninic acid"
+    assert smiles_to_iupac("CC(Cl)[Se](=O)O") == "1-chloroethaneseleninic acid"
 
 
 def test_ene_carbon_not_supported():

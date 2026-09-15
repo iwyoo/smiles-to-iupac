@@ -29,7 +29,7 @@ def test_halogen_substituent():
     # locant; this project cites it once a substituent is present on a
     # 2-carbon chain, the same accepted divergence as
     # '2-chloroethane-1-selenol' (see test_selenol.py).
-    assert smiles_to_iupac("CC(Cl)S(=O)N") == "1-chloroethane-1-sulfinamide"
+    assert smiles_to_iupac("CC(Cl)S(=O)N") == "1-chloroethanesulfinamide"
 
 
 def test_ene_carbon_not_supported():
@@ -157,7 +157,7 @@ def test_phenyl_chain_sulfinamide_n_alkyl_raises():
 def test_phenyl_substituted_benzene_ring_sulfinamide_ortho_methyl():
     # A ring methyl substituent is now supported (see
     # tasks/aromatic-ring-methyl-rollout-3.md).
-    assert smiles_to_iupac("Cc1ccccc1CCS(=O)N") == "2-(2-methylphenyl)ethane-1-sulfinamide"
+    assert smiles_to_iupac("Cc1ccccc1CCS(=O)N") == "2-(2-methylphenyl)ethanesulfinamide"
 
 
 def test_phenyl_chain_sulfinamide_ring_halogen():

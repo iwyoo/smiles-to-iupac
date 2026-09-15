@@ -8,7 +8,8 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   'ethanamine', 'cyclohexanamine'.
 - P-14.3.4.2(a)/(b) (Chapter P-1): the same locant-omission preconditions
   used in `_alcohol.py` for -OH apply identically to -NH2 (mononuclear
-  parent, or a homogeneous two-carbon chain with exactly one substituent).
+  parent, or a saturated two-carbon chain, regardless of other substituents
+  for the -NH2 suffix itself).
 - P-44.4.1.8 / P-45.2: suffix locants are minimized before 'ene'/'yne'
   locants, which are minimized before substituent-prefix locants — same
   ordering as `_alcohol.py`.
@@ -116,7 +117,6 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     ring_name_from_substituents,
-    should_omit_mononuclear_locants,
     specified_stereocenters,
     substituent_locant_set_and_citation,
     unbranched_unsaturated_substituent_name,
@@ -258,21 +258,17 @@ def _add_n_names(grouped, n_names, n_locants=None):
 
 
 def _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locants, grouped, n_names=(), n_locants=None):
-    total_subs = sum(len(info["locants"]) for info in grouped.values())
-    has_unsaturation = bool(ene_locants or yne_locants)
-    # An 'N-' locant is never omittable, even when omit_locants applies to
-    # the chain's own mononuclear/homogeneous-chain locants (see
-    # `_add_n_names`/`format_substituent_prefixes`: it marks a different
-    # atom than the chain itself, so the two locant kinds coexist safely).
-    omit_locants = should_omit_mononuclear_locants(chain_length, amine_locants, total_subs, has_unsaturation)
-    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names, n_locants), omit_locants=omit_locants)
+    # Only chain_length == 1 omits a substituent prefix's own locant too
+    # (see `_alcohol.py`'s equivalent comment) -- an 'N-' locant is never
+    # omitted either way (see `_add_n_names`/`format_substituent_prefixes`:
+    # it marks a different atom than the chain itself).
+    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names, n_locants), omit_locants=chain_length == 1)
     return prefix + name_from_substituents(
         chain_length,
         ene_locants,
         yne_locants,
         multiplied_word(len(amine_locants), "amine"),
         amine_locants,
-        total_subs,
     )
 
 

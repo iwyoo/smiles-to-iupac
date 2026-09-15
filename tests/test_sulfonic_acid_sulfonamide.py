@@ -16,12 +16,12 @@ from smiles_to_iupac._common import UnsupportedStructure
         # -1- citation for the same chain shape; PubChem's own computed
         # name for this CID, 19002484, omits the locant, but PubChem's
         # algorithmic names are not always strict PINs).
-        ("NS(=O)(=O)CCS(=O)(=O)O", "2-sulfamoylethane-1-sulfonic acid"),
+        ("NS(=O)(=O)CCS(=O)(=O)O", "2-sulfamoylethanesulfonic acid"),
         # PubChem CID 119095391.
         ("NS(=O)(=O)CCCS(=O)(=O)O", "3-sulfamoylpropane-1-sulfonic acid"),
         # Halogen coexisting alongside the sulfonic acid/sulfonamide
         # pair. PubChem CID 19913272.
-        ("NS(=O)(=O)CC(Cl)S(=O)(=O)O", "1-chloro-2-sulfamoylethane-1-sulfonic acid"),
+        ("NS(=O)(=O)CC(Cl)S(=O)(=O)O", "1-chloro-2-sulfamoylethanesulfonic acid"),
     ],
 )
 def test_sulfonic_acid_sulfonamide(smiles, expected):

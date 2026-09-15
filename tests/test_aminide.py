@@ -44,7 +44,7 @@ def test_aminide_with_halogen_on_two_carbon_chain():
     # Mirrors this project's established '2-fluoroethan-1-ol'/
     # '2-fluoroethan-1-olate' locant-citation convention (a substituent
     # breaks the 2-carbon chain's symmetry, so the locant is cited).
-    assert smiles_to_iupac("FCC[NH-]") == "2-fluoroethan-1-aminide"
+    assert smiles_to_iupac("FCC[NH-]") == "2-fluoroethanaminide"
 
 
 def test_aromatic_aminide_raises():
@@ -73,7 +73,7 @@ def test_phenyl_chain_aminide():
     # phenyl-chain path): the ring is cited as a "phenyl" substituent
     # prefix. PubChem structure match only (this module already uses its
     # own '-aminide' convention rather than PubChem's 'azanide' naming).
-    assert smiles_to_iupac("c1ccccc1CC[NH-]") == "2-phenylethan-1-aminide"
+    assert smiles_to_iupac("c1ccccc1CC[NH-]") == "2-phenylethanaminide"
     assert smiles_to_iupac("c1ccccc1CCC[NH-]") == "3-phenylpropan-1-aminide"
 
 
@@ -90,11 +90,11 @@ def test_phenyl_chain_aminide_ring_methyl():
     # test_carboxylic_acid.py's identical methylated-ring cases; this
     # project's own 'aminide' suffix convention as in the
     # unsubstituted-ring test above).
-    assert smiles_to_iupac("Cc1ccccc1CC[NH-]") == "2-(2-methylphenyl)ethan-1-aminide"
+    assert smiles_to_iupac("Cc1ccccc1CC[NH-]") == "2-(2-methylphenyl)ethanaminide"
 
 
 def test_phenyl_chain_aminide_ring_methyl_para():
-    assert smiles_to_iupac("CC1=CC=C(CC[NH-])C=C1") == "2-(4-methylphenyl)ethan-1-aminide"
+    assert smiles_to_iupac("CC1=CC=C(CC[NH-])C=C1") == "2-(4-methylphenyl)ethanaminide"
 
 
 def test_phenyl_chain_aminide_ring_ethyl():
@@ -106,7 +106,7 @@ def test_phenyl_chain_aminide_ring_ethyl():
     # matching structure ('2-(4-ethylphenyl)ethylazanide'), confirming
     # the structure but not this module's own '-aminide' suffix
     # convention (see module docstring).
-    assert smiles_to_iupac("CCc1ccc(cc1)CC[NH-]") == "2-(4-ethylphenyl)ethan-1-aminide"
+    assert smiles_to_iupac("CCc1ccc(cc1)CC[NH-]") == "2-(4-ethylphenyl)ethanaminide"
 
 
 def test_phenyl_chain_aminide_ring_halogen():

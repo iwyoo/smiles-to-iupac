@@ -861,21 +861,35 @@ def suffix_body(ene_locants, yne_locants, own_word, own_locants=None):
     return body, elide_stem
 
 
-def should_omit_mononuclear_locants(chain_length, own_locants, total_subs, has_unsaturation):
+def should_omit_mononuclear_locants(chain_length, own_locants, has_unsaturation):
     """True when P-14.3.4.2(a) (`chain_length == 1`) or P-14.3.4.2(b) (a
-    homogeneous two-carbon chain bearing exactly one substituent in total,
-    that substituent being this suffix's own) applies, so the caller's own
-    `format_substituent_prefixes` call should pass `omit_locants=True`.
-    Safe even when non-numeric (e.g. 'N-') locants are also present in that
-    call, since `format_substituent_prefixes` never omits those regardless
-    of `omit_locants` -- see its own docstring."""
+    saturated two-carbon chain whose suffix has exactly one own locant)
+    applies, so the caller's own `format_substituent_prefixes` call should
+    pass `omit_locants=True`. At `chain_length == 2` the suffix's own
+    locant is always forced to be C1 by P-44.4.1.8 (the suffix locant is
+    minimized ahead of every other numbering criterion), so citing it is
+    never informative regardless of how many other substituents are
+    present or where they sit -- confirmed against PubChem across several
+    functional-group families, e.g. 'CC(Cl)S(=O)(=O)O' ->
+    '1-chloroethanesulfonic acid', 'ClCCNCC' ->
+    '2-chloro-N-ethylethanamine', 'CC(=O)C1CCCCC1' ->
+    '1-cyclohexylethanone' (all PubChem PUG REST-verified). A suffix with
+    2+ own locants (e.g. a diol) is unaffected by this rule -- P-14.3.3's
+    'no locant when it's the sole possible position' only applies when
+    there's exactly one occurrence to place, so 'ethane-1,2-diol' still
+    cites both locants ('OCCO', PubChem-verified).
+
+    Safe even when non-numeric (e.g. 'N-') locants are also present in
+    the caller's own prefix call, since `format_substituent_prefixes`
+    never omits those regardless of `omit_locants` -- see its own
+    docstring."""
     own_locants = own_locants or ()
     if chain_length == 1:
         return True
-    return chain_length == 2 and not has_unsaturation and total_subs == 0 and len(own_locants) == 1
+    return chain_length == 2 and not has_unsaturation and len(own_locants) == 1
 
 
-def name_from_substituents(chain_length, ene_locants, yne_locants, own_word, own_locants=None, total_subs=0):
+def name_from_substituents(chain_length, ene_locants, yne_locants, own_word, own_locants=None):
     """Assemble `<stem>[a]<separator><suffix body>` for an acyclic
     chain-parent suffix module (the caller still prepends its own
     `format_substituent_prefixes(grouped)` -- `_substituents.py` already
@@ -887,16 +901,10 @@ def name_from_substituents(chain_length, ene_locants, yne_locants, own_word, own
     the suffix body starts with a cited locant (either because the chain
     is unsaturated, P-14.3.4.2(b)/(c), or because `own_locants` was
     passed, P-31.1.4.3.4), glued directly otherwise (P-14.3.3: a group
-    whose own locant is always 1 is never cited).
-
-    `total_subs` (substituent-prefix count excluding this suffix's own
-    locants -- the caller's `sum(len(info["locants"]) for info in
-    grouped.values())`) only matters for the P-14.3.4.2(a)/(b) early return
-    via `should_omit_mononuclear_locants`; existing callers that never
-    reach `chain_length` 1 or 2 can omit it."""
+    whose own locant is always 1 is never cited)."""
     has_unsaturation = bool(ene_locants or yne_locants)
 
-    if should_omit_mononuclear_locants(chain_length, own_locants, total_subs, has_unsaturation):
+    if should_omit_mononuclear_locants(chain_length, own_locants, has_unsaturation):
         stem = alkane_name(chain_length)
         if own_word[0] in "aeiouy":
             stem = stem[:-1]

@@ -39,7 +39,7 @@ def test_2_chloroethane_1_tellurol():
     # not an independently verified one: the mechanism itself already has
     # independent confirmation via `_selenol.py`'s/`_thiol.py`'s own
     # identical '2-chloroethane-1-selenol'/'2-chloroethane-1-thiol' cases.
-    assert smiles_to_iupac("ClCC[TeH]") == "2-chloroethane-1-tellurol"
+    assert smiles_to_iupac("ClCC[TeH]") == "2-chloroethanetellurol"
 
 
 def test_ethane_1_2_ditellurol():

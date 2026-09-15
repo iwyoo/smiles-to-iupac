@@ -146,7 +146,6 @@ from ._common import (
     ring_chain_attachment,
     ring_cycle,
     ring_name_from_substituents,
-    should_omit_mononuclear_locants,
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
@@ -243,12 +242,11 @@ def _reject_eneselenol_carbons(graph, selenols, bonds):
 
 
 def _name_from_substituents(chain_length, se_locants, ene_locants, yne_locants, grouped):
-    total_subs = sum(len(info["locants"]) for info in grouped.values())
-    has_unsaturation = bool(ene_locants or yne_locants)
-    omit_locants = should_omit_mononuclear_locants(chain_length, se_locants, total_subs, has_unsaturation)
-    prefix = format_substituent_prefixes(grouped, omit_locants=omit_locants)
+    # Only chain_length == 1 omits a substituent prefix's own locant too
+    # (see `_alcohol.py`'s equivalent comment).
+    prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
     return prefix + name_from_substituents(
-        chain_length, ene_locants, yne_locants, multiplied_word(len(se_locants), "selenol"), se_locants, total_subs
+        chain_length, ene_locants, yne_locants, multiplied_word(len(se_locants), "selenol"), se_locants
     )
 
 

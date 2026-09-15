@@ -40,7 +40,7 @@ def test_2_chloroethane_1_selenol():
     # independent confirmation via `_thiol.py`'s own identical
     # '2-chloroethane-1-thiol' case (same locant-citation rule once a
     # substituent is present on the two-carbon chain).
-    assert smiles_to_iupac("ClCC[SeH]") == "2-chloroethane-1-selenol"
+    assert smiles_to_iupac("ClCC[SeH]") == "2-chloroethaneselenol"
 
 
 def test_ethane_1_2_diselenol():

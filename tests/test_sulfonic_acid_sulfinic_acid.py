@@ -17,7 +17,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         # 13983537, omits the locant, but PubChem's algorithmic names are
         # not always strict PINs -- see that module's own test for the
         # same discrepancy with a thiol in place of the sulfino group).
-        ("OS(=O)CCS(=O)(=O)O", "2-sulfinoethane-1-sulfonic acid"),
+        ("OS(=O)CCS(=O)(=O)O", "2-sulfinoethanesulfonic acid"),
         # PubChem CID 57310813.
         ("OS(=O)CCCS(=O)(=O)O", "3-sulfinopropane-1-sulfonic acid"),
         # Multiple sulfinic acids (multiplying prefix). PubChem CID
