@@ -58,8 +58,8 @@ from ._common import (
     adjacency,
     bfs,
     carbon_adjacency,
-    non_single_bonds,
     plain_phenyl_substituent_atoms,
+    reject_unsaturated_substituents,
 )
 from ._substituents import alpha_sort_key, name_branch
 
@@ -117,8 +117,7 @@ def _substituent_chain_atoms(carbon_graph, substituent_carbons):
 
 
 def _reject_unsaturated_substituents(mol, atoms):
-    if any(b[0] in atoms or b[1] in atoms for b in non_single_bonds(mol)):
-        raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
+    reject_unsaturated_substituents(mol, atoms)
 
 
 def _di_name(name, is_compound):
