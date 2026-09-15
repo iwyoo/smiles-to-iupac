@@ -62,15 +62,14 @@ from ._common import (
     bond_locant,
     bond_locants,
     carbon_adjacency,
-    elides_before,
     group_substituents,
     halogen_substituents,
     longest_chains,
     lowest_locant_set,
-    multiplied_word,
     non_single_bonds,
     specified_stereocenters,
     substituent_locant_set_and_citation,
+    suffix_body,
 )
 from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch
@@ -177,26 +176,6 @@ def _reject_enesulfonate_carbon(so3_carbon, bonds):
         )
 
 
-def _suffix_body(ene_locants, yne_locants, so3_locant):
-    segments = []
-    if ene_locants:
-        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
-    if yne_locants:
-        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
-    segments.append(([so3_locant], "sulfonate"))
-
-    words = [word for _, word in segments]
-    for i in range(len(words) - 1):
-        if words[i].endswith("e") and elides_before(words[i + 1]):
-            words[i] = words[i][:-1]
-
-    parts = [
-        f"{','.join(str(loc) for loc in locants)}-{word}"
-        for (locants, _), word in zip(segments, words)
-    ]
-    return "-".join(parts)
-
-
 def _name_from_substituents(chain_length, so3_locant, ene_locants, yne_locants, grouped):
     has_unsaturation = bool(ene_locants or yne_locants)
 
@@ -229,7 +208,7 @@ def _name_from_substituents(chain_length, so3_locant, ene_locants, yne_locants, 
         stem = alkane_name(chain_length)
         needs_stem_a = False
 
-    body = _suffix_body(ene_locants, yne_locants, so3_locant)
+    body = suffix_body(ene_locants, yne_locants, "sulfonate", [so3_locant])[0]
     return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
 
 

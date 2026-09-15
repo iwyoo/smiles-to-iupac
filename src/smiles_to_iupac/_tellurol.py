@@ -117,7 +117,6 @@ from ._common import (
     adjacency,
     bond_locants,
     carbon_adjacency,
-    elides_before,
     group_substituents,
     halogen_substituents,
     heteroaromatic_monocycle_name,
@@ -134,6 +133,7 @@ from ._common import (
     ring_cycle,
     specified_stereocenters,
     substituent_locant_set_and_citation,
+    suffix_body,
 )
 from ._numerals import alkane_name, alkyl_name
 from ._substituents import branch_atom_locant, format_substituent_prefixes, name_branch
@@ -227,26 +227,6 @@ def _reject_enetellurol_carbons(graph, tellurols, bonds):
             )
 
 
-def _suffix_body(ene_locants, yne_locants, te_locants):
-    segments = []
-    if ene_locants:
-        segments.append((sorted(ene_locants), multiplied_word(len(ene_locants), "ene")))
-    if yne_locants:
-        segments.append((sorted(yne_locants), multiplied_word(len(yne_locants), "yne")))
-    segments.append((sorted(te_locants), multiplied_word(len(te_locants), "tellurol")))
-
-    words = [word for _, word in segments]
-    for i in range(len(words) - 1):
-        if words[i].endswith("e") and elides_before(words[i + 1]):
-            words[i] = words[i][:-1]
-
-    parts = [
-        f"{','.join(str(loc) for loc in locants)}-{word}"
-        for (locants, _), word in zip(segments, words)
-    ]
-    return "-".join(parts)
-
-
 def _name_from_substituents(chain_length, te_locants, ene_locants, yne_locants, grouped):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     has_unsaturation = bool(ene_locants or yne_locants)
@@ -271,7 +251,7 @@ def _name_from_substituents(chain_length, te_locants, ene_locants, yne_locants, 
         stem = alkane_name(chain_length)
         needs_stem_a = False
 
-    body = _suffix_body(ene_locants, yne_locants, te_locants)
+    body = suffix_body(ene_locants, yne_locants, multiplied_word(len(te_locants), "tellurol"), te_locants)[0]
     return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
 
 
@@ -347,7 +327,7 @@ def _ring_name_from_substituents(ring_size, te_locants, ene_locants, yne_locants
     unsaturated_stem = stem[:-3]
     needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
     prefix = format_substituent_prefixes(grouped)
-    body = _suffix_body(ene_locants, yne_locants, te_locants)
+    body = suffix_body(ene_locants, yne_locants, multiplied_word(len(te_locants), "tellurol"), te_locants)[0]
     return prefix + unsaturated_stem + ("a" if needs_stem_a else "") + "-" + body
 
 
