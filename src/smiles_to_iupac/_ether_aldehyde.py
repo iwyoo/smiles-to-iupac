@@ -41,26 +41,13 @@ from ._common import (
     adjacency,
     bfs,
     carbon_adjacency,
+    find_ether_oxygens,
     non_single_bonds,
     specified_stereocenters,
     validate_allowed_atoms,
 )
 from ._ether import _oxy_prefix
 from ._substituents import name_branch
-
-
-
-def _find_ether_oxygens(mol):
-    """The molecule's sole ether-shaped oxygen among possibly several --
-    see `_ether_ketone.py`'s identical helper (an aldehyde molecule may
-    have a second oxygen, its own carbonyl)."""
-    return [
-        atom
-        for atom in mol.GetAtoms()
-        if atom.GetAtomicNum() == 8
-        and atom.GetDegree() == 2
-        and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors())
-    ]
 
 
 def _find_aldehydes(mol):
@@ -93,7 +80,7 @@ def _find_aldehydes(mol):
 def has_ether_aldehyde_shape(mol) -> bool:
     if mol.GetRingInfo().NumRings() > 0:
         return False
-    ethers = _find_ether_oxygens(mol)
+    ethers = find_ether_oxygens(mol)
     if len(ethers) != 1:
         return False
     aldehydes = _find_aldehydes(mol)
@@ -125,7 +112,7 @@ def name_ether_aldehyde(mol) -> str:
             "an ether/aldehyde combination on/in a ring uses a different "
             "naming construction, out of scope for this acyclic-only module"
         )
-    ethers = _find_ether_oxygens(mol)
+    ethers = find_ether_oxygens(mol)
     if len(ethers) != 1:
         raise UnsupportedStructure(
             "exactly one plain ether oxygen coexisting with an aldehyde "

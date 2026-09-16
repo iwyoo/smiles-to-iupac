@@ -47,6 +47,7 @@ from ._common import (
     adjacency,
     bfs,
     carbon_adjacency,
+    find_ether_oxygens,
     find_primary_amines,
     halogen_substituents,
     non_single_bonds,
@@ -57,28 +58,10 @@ from ._ether import _oxy_prefix
 from ._substituents import name_branch
 
 
-
-def _find_ether_oxygens(mol):
-    """The molecule's sole oxygen, if it's a plain ether (degree 2, both
-    neighbors carbon) -- or [] otherwise. Requiring the *only* oxygen in
-    the whole molecule (mirroring `_ether.py`'s own `has_ether_shape`
-    exactly) is what keeps this from misfiring on a carbamate/ester/
-    lactone's own bridging R-O-C(=O)- oxygen, which has the same local
-    degree-2-both-carbons shape but always has a second oxygen (the
-    carbonyl) elsewhere -- those are routed to their own modules earlier
-    in `core.py`, well before this one is even tried."""
-    oxygens = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 8]
-    if len(oxygens) != 1:
-        return []
-    (oxygen,) = oxygens
-    if oxygen.GetDegree() == 2 and all(n.GetAtomicNum() == 6 for n in oxygen.GetNeighbors()):
-        return [oxygen]
-    return []
-
 def has_ether_amine_shape(mol) -> bool:
     if mol.GetRingInfo().NumRings() > 0:
         return False
-    ethers = _find_ether_oxygens(mol)
+    ethers = find_ether_oxygens(mol, require_sole=True)
     if len(ethers) != 1:
         return False
     amines = find_primary_amines(mol, set())
@@ -114,7 +97,7 @@ def name_ether_amine(mol) -> str:
             "an ether/amine combination on/in a ring uses a different "
             "naming construction, out of scope for this acyclic-only module"
         )
-    ethers = _find_ether_oxygens(mol)
+    ethers = find_ether_oxygens(mol, require_sole=True)
     if len(ethers) != 1:
         raise UnsupportedStructure(
             "exactly one plain ether oxygen coexisting with a primary "
