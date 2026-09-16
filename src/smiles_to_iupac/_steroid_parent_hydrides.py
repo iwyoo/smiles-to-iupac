@@ -55,6 +55,18 @@ different canonical SMILES string. None of Rule 2.1/3S-2.2/3S-2.3 assign
 ring-fusion stereochemistry beyond this one natural configuration per
 skeleton -- a differently configured stereoisomer (e.g. 5-beta) needs its
 own descriptor and lookup row, out of scope here (tracked separately).
+
+Each skeleton's own PubChem CID above sometimes leaves the C5 ring-fusion
+stereocenter unspecified in its own isomeric SMILES record (a PubChem
+data-depiction quirk, not a chemistry fact -- C5 is a genuine stereocenter
+in every skeleton here) -- confirmed for gonane/androstane/estrane/
+cholestane/ergostane/campestane/poriferastane/stigmastane (only pregnane
+and cholane's own CID records happen to already be fully specified). Each
+of those 8 skeletons therefore also has a second natural-configuration
+entry below, from that skeleton's own dedicated "5alpha-<name>" PubChem
+name/CID, which does fully specify C5 -- additive alongside the
+already-registered partially-specified one, so a real input matching
+either still resolves correctly.
 """
 
 from rdkit import Chem
@@ -81,6 +93,16 @@ _PARENT_HYDRIDES = {
     "C[C@H](CC[C@@H](C)C(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CCC4[C@@]3(CCCC4)C)C": "campestane",
     "CC[C@@H](CC[C@@H](C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CCC4[C@@]3(CCCC4)C)C)C(C)C": "poriferastane",
     "CC[C@H](CC[C@@H](C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CCC4[C@@]3(CCCC4)C)C)C(C)C": "stigmastane",
+    # Fully C5-specified natural-configuration entries (see module
+    # docstring), from each skeleton's own "5alpha-<name>" PubChem CID.
+    "C1CC[C@H]2[C@H](C1)CC[C@@H]3[C@@H]2CC[C@H]4[C@H]3CCC4": "gonane",
+    "C[C@@]12CCC[C@H]1[C@@H]3CC[C@H]4CCCC[C@@]4([C@H]3CC2)C": "androstane",
+    "C[C@@]12CCC[C@H]1[C@@H]3CC[C@H]4CCCC[C@@H]4[C@H]3CC2": "estrane",
+    "C[C@H](CCCC(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@@H]4[C@@]3(CCCC4)C)C": "cholestane",
+    "C[C@H](CC[C@H](C)C(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@@H]4[C@@]3(CCCC4)C)C": "ergostane",
+    "C[C@H](CC[C@@H](C)C(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@@H]4[C@@]3(CCCC4)C)C": "campestane",
+    "CC[C@@H](CC[C@@H](C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@@H]4[C@@]3(CCCC4)C)C)C(C)C": "poriferastane",
+    "CC[C@H](CC[C@@H](C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@@H]4[C@@]3(CCCC4)C)C)C(C)C": "stigmastane",
 }
 _CANONICAL_TO_NAME = {Chem.CanonSmiles(smiles): name for smiles, name in _PARENT_HYDRIDES.items()}
 assert len(_CANONICAL_TO_NAME) == len(_PARENT_HYDRIDES), (

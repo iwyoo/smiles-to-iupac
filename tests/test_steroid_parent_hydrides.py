@@ -75,18 +75,19 @@ def test_c24_epimer_skeletons_resolve_to_retained_name_without_collision():
 
 
 def test_non_natural_stereo_specified_parent_hydrides_still_fall_through_to_von_baeyer():
-    # A stereo-specified input that doesn't match either the stereo-free
-    # entries or a natural-configuration entry above (a ring-fusion epimer,
-    # or a partially-specified structure) still falls through to the
-    # general von Baeyer engine, since it produces a different canonical
-    # SMILES from every lookup entry.
+    # A partially-specified stereo input that doesn't match either the
+    # stereo-free entries or any natural-configuration entry above still
+    # falls through to the general von Baeyer engine, since it produces a
+    # different canonical SMILES from every lookup entry. (This function
+    # used to also assert this for a second, differently-partially-
+    # specified androstane SMILES -- that one turned out to actually BE
+    # androstane's own fully-C5-specified natural form once fetched fresh
+    # from its dedicated "5alpha-androstane" CID, see
+    # test_fully_c5_specified_parent_hydrides_resolve_to_retained_name;
+    # the assertion was simply wrong, not a regression.)
     assert (
         smiles_to_iupac("C1CCC2[C@H](C1)CCC3C2CCC4C3CCC4")
         == "tetracyclo[8.7.0.0^2,7.0^11,15]heptadecane"
-    )
-    assert (
-        smiles_to_iupac("C[C@@]12CCC[C@H]1[C@@H]3CC[C@H]4CCCC[C@@]4([C@H]3CC2)C")
-        == "2,15-dimethyltetracyclo[8.7.0.0^2,7.0^11,15]heptadecane"
     )
 
 
@@ -123,4 +124,42 @@ def test_extra_methyl_beyond_each_parent_hydride_falls_through_to_von_baeyer():
     assert (
         smiles_to_iupac("CC(C)C(C)CC(C)C1CCC2C1(CCC3C2CCC4C3(CCCC4)C)C")
         == "14-(4,5-dimethylhexan-2-yl)-2,15-dimethyltetracyclo[8.7.0.0^2,7.0^11,15]heptadecane"
+    )
+
+
+def test_fully_c5_specified_parent_hydrides_resolve_to_retained_name():
+    # 8 of the 10 registered natural-configuration entries left the C5
+    # ring-fusion stereocenter unspecified (a PubChem data-depiction quirk
+    # on those particular CIDs -- see module docstring); each skeleton's
+    # own dedicated "5alpha-<name>" PubChem CID fully specifies it instead
+    # (94144, 6857525, 6857465, 2723895, 164641, 6857533, 188005, 5491914).
+    assert (
+        smiles_to_iupac("C[C@@]12CCC[C@H]1[C@@H]3CC[C@H]4CCCC[C@@]4([C@H]3CC2)C")
+        == "androstane"
+    )
+    assert (
+        smiles_to_iupac("C1CC[C@H]2[C@H](C1)CC[C@@H]3[C@@H]2CC[C@H]4[C@H]3CCC4") == "gonane"
+    )
+    assert (
+        smiles_to_iupac("C[C@@]12CCC[C@H]1[C@@H]3CC[C@H]4CCCC[C@@H]4[C@H]3CC2") == "estrane"
+    )
+    assert (
+        smiles_to_iupac("C[C@H](CCCC(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@@H]4[C@@]3(CCCC4)C)C")
+        == "cholestane"
+    )
+    assert (
+        smiles_to_iupac("C[C@H](CC[C@H](C)C(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@@H]4[C@@]3(CCCC4)C)C")
+        == "ergostane"
+    )
+    assert (
+        smiles_to_iupac("C[C@H](CC[C@@H](C)C(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@@H]4[C@@]3(CCCC4)C)C")
+        == "campestane"
+    )
+    assert (
+        smiles_to_iupac("CC[C@@H](CC[C@@H](C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@@H]4[C@@]3(CCCC4)C)C)C(C)C")
+        == "poriferastane"
+    )
+    assert (
+        smiles_to_iupac("CC[C@H](CC[C@@H](C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@@H]4[C@@]3(CCCC4)C)C)C(C)C")
+        == "stigmastane"
     )
