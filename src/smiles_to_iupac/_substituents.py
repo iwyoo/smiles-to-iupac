@@ -655,6 +655,22 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
     return name, is_compound
 
 
+def substituents_for_chain(graph, chain, halogens, excluded=frozenset(), mol=None):
+    """{position (1-based) -> [(name, is_compound), ...]} for every branch
+    hanging off a candidate principal chain -- shared by every module whose
+    parent hydride is an acyclic chain (P-29.2). `excluded`: atom indices to
+    skip besides the chain itself, e.g. a functional-group atom the caller
+    already accounts for separately (an amine nitrogen, a carbonyl oxygen,
+    ...) so it's never mistaken for a substituent branch."""
+    chain_set = set(chain)
+    substituents = {}
+    for position, atom in enumerate(chain, start=1):
+        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
+    return substituents
+
+
 def _substituent_entries_along_chain(graph, chain, first_previous, halogens, extra_exclusions=None, mol=None):
     """(position, name, is_compound) for every branch hanging off `chain`
     (a chosen principal chain, root/free-valence somewhere on it), position
