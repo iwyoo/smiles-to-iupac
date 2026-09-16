@@ -38,12 +38,16 @@ gonane skeleton as "tetracyclo[8.7.0.0^2,7.0^11,15]heptadecane" if nothing
 here intercepts it first -- confirmed by direct testing).
 
 `Chem.MolToSmiles` includes stereo markers (@/@@) when present on the input
-mol, so any stereo-specified ring-fusion or side-chain input naturally
-fails to match these stereo-free canonical keys and falls through the same
-way -- none of Rule 2.1/3S-2.2/3S-2.3 specify ring-fusion stereochemistry,
-and Table 1's cholane/cholestane/ergostane side-chain stereocenters (C20,
-and C24 for ergostane) are likewise left to the general engine once
-specified.
+mol, so a stereo-specified ring-fusion or side-chain input only matches if
+it's the exact natural configuration listed below (Rule 3S-2.2/2.3/2.4's
+own worked structures, PubChem's own isomeric SMILES for each CID above)
+-- any other stereoisomer (a ring-fusion epimer, a partially-specified
+input, or a side-chain epimer at C20/C24 not matching the natural series)
+still falls through to the general engine unmatched, since it produces a
+different canonical SMILES string. None of Rule 2.1/3S-2.2/3S-2.3 assign
+ring-fusion stereochemistry beyond this one natural configuration per
+skeleton -- a differently configured stereoisomer (e.g. 5-beta) needs its
+own descriptor and lookup row, out of scope here (tracked separately).
 """
 
 from rdkit import Chem
@@ -56,6 +60,17 @@ _PARENT_HYDRIDES = {
     "CCCC(C)C1CCC2C1(CCC3C2CCC4C3(CCCC4)C)C": "cholane",
     "CC(C)CCCC(C)C1CCC2C1(CCC3C2CCC4C3(CCCC4)C)C": "cholestane",
     "CC(C)C(C)CCC(C)C1CCC2C1(CCC3C2CCC4C3(CCCC4)C)C": "ergostane",
+    # Natural-configuration isomeric SMILES, one per skeleton above (same
+    # PubChem CIDs), additive alongside the stereo-free entries -- these
+    # are the shape essentially every real-world instance of these
+    # compounds actually has.
+    "C1CCC2CC[C@H]3[C@@H]4CCC[C@H]4CC[C@@H]3[C@H]2C1": "gonane",
+    "C[C@@]12CCC[C@H]1[C@@H]3CCC4CCCC[C@@]4([C@H]3CC2)C": "androstane",
+    "C[C@@]12CCC[C@H]1[C@@H]3CCC4CCCC[C@@H]4[C@H]3CC2": "estrane",
+    "CC[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@H]4[C@@]3(CCCC4)C)C": "pregnane",
+    "CCC[C@@H](C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@H]4[C@@]3(CCCC4)C)C": "cholane",
+    "C[C@H](CCCC(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CCC4[C@@]3(CCCC4)C)C": "cholestane",
+    "C[C@H](CC[C@H](C)C(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CCC4[C@@]3(CCCC4)C)C": "ergostane",
 }
 _CANONICAL_TO_NAME = {Chem.CanonSmiles(smiles): name for smiles, name in _PARENT_HYDRIDES.items()}
 
