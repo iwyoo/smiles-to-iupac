@@ -35,20 +35,19 @@ heteroatom, and any carbonyl not captured by a single longest chain.
 
 from rdkit import Chem
 
+from ._aldehyde import _name_acyclic_aldehyde
+from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    carbon_adjacency,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain,
-    longest_chains,
     name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
-    substituent_locant_set_and_citation,
 )
 from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
 
@@ -173,13 +172,6 @@ def _name_from_substituents(chain_length, grouped):
     return format_substituent_prefixes(grouped) + name_from_substituents(chain_length, [], [], "al")
 
 
-def _candidate_key(chain_length, al_locant, substituents):
-    grouped = group_substituents(substituents)
-    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
-    name = _name_from_substituents(chain_length, grouped)
-    return (al_locant, locant_set, citation_locants, name), name
-
-
 def _name_phenyl_chain_aldehyde_ketone(mol, ring_atoms):
     """Name an aldehyde+ketone combination whose -CHO lies entirely on a
     single unbranched chain hanging off one atom of an otherwise-plain,
@@ -257,39 +249,12 @@ def name_aldehyde_ketone(mol) -> str:
         )
 
     graph = adjacency(mol)
-    (aldehyde_o,) = aldehydes
-    (aldehyde_carbon,) = graph[aldehyde_o]
-    names = {**halogen_substituents(mol), **{o: "oxo" for o in ketones}}
-    chains = longest_chains(carbon_adjacency(mol))
-    chain_length = len(chains[0])
-
-    eligible = []
-    for chain in chains:
-        if aldehyde_carbon not in chain:
-            continue
-        chain_set = set(chain)
-        if any(graph[o][0] not in chain_set for o in ketones):
-            continue
-        eligible.append(chain)
-    if not eligible:
-        raise UnsupportedStructure(
-            "not every aldehyde/ketone-bearing carbon lies on a single "
-            "longest carbon chain; a shorter principal chain is not "
-            "supported yet"
-        )
-
-    best_key = None
-    best_name = None
-    for chain in eligible:
-        for candidate in (chain, list(reversed(chain))):
-            if candidate[0] != aldehyde_carbon:
-                # The aldehyde carbon must sit at C1 (P-14.3.3, see module
-                # docstring); a direction that doesn't start there is
-                # never valid.
-                continue
-            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
-            substituents = substituents_for_chain(graph, candidate, names, aldehydes, mol=mol)
-            key, name = _candidate_key(chain_length, position_of[aldehyde_carbon], substituents)
-            if best_key is None or key < best_key:
-                best_key, best_name = key, name
-    return best_name
+    ketone_carbons = {graph[o][0] for o in ketones}
+    return name_via_senior_acyclic(
+        _name_acyclic_aldehyde,
+        "aldehyde",
+        "ketone",
+        (mol, aldehydes, set(), []),
+        {o: "oxo" for o in ketones},
+        required_atoms=ketone_carbons,
+    )
