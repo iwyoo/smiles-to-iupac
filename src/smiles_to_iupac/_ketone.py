@@ -298,6 +298,7 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     ring_name_from_substituents,
+    specified_stereo_elements,
     specified_stereocenters,
     substituent_locant_set_and_citation,
     two_separate_rings_with_plain_aromatic_substituent,
@@ -519,14 +520,18 @@ def _substituents_for_chain(graph, chain, halogens, ketones, mol=None):
 def _name_acyclic_ketone(
     mol, ketones, hydroxyls, bonds, stereo=None, extra_names=None, required_atoms=frozenset(), carbon_graph=None
 ):
-    """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
-    `specified_stereocenters` -- if given, only chain candidates that
-    include every stereocenter are eligible (P-92: a stereocenter on a
-    substituent branch rather than the principal chain is out of scope,
-    mirroring `_carboxylic_acid.py`/`_aldehyde.py`'s identical treatment),
-    and the winning candidate's own locants are used to format a
-    "(<locant><R/S>,...)-" prefix onto the name, ascending locant order
-    (P-91.3).
+    """`stereo`: None, or a list of ("atom"/"bond", idx, "R"/"S"/"E"/"Z")
+    from `specified_stereo_elements`/`specified_stereocenters` -- if given,
+    only chain candidates that include every tetrahedral stereocenter are
+    eligible (P-92: a stereocenter on a substituent branch rather than the
+    principal chain is out of scope, mirroring
+    `_carboxylic_acid.py`/`_aldehyde.py`'s identical treatment; a
+    double-bond E/Z element's atoms are already required to lie on the
+    chain via `bonds`, so no separate check is needed for those), and the
+    winning candidate's own locants are used to format a
+    "(<locant><R/S/E/Z>,...)-" prefix onto the name, ascending locant order
+    (P-91.3, including when both kinds coexist -- only reachable from the
+    acyclic caller, see `name_ketone`).
 
     `extra_names`: optional {atom_idx -> prefix name} for a coexisting
     characteristic group demoted to a substituent prefix by
@@ -548,7 +553,7 @@ def _name_acyclic_ketone(
     halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}, **(extra_names or {})}
     chains = longest_chains(carbon_graph if carbon_graph is not None else carbon_adjacency(mol))
     chain_length = len(chains[0])
-    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
+    stereo_atoms = [idx for kind, idx, _ in stereo if kind == "atom"] if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -594,7 +599,15 @@ def _name_acyclic_ketone(
                 best_key, best_name, best_position_of = key, name, position_of
 
     if stereo is not None:
-        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        labels = []
+        for kind, idx, code in stereo:
+            if kind == "atom":
+                locant = best_position_of[idx]
+            else:
+                bond = mol.GetBondWithIdx(idx)
+                locant = min(best_position_of[bond.GetBeginAtomIdx()], best_position_of[bond.GetEndAtomIdx()])
+            labels.append((locant, code))
+        labels.sort()
         prefix = ",".join(f"{locant}{code}" for locant, code in labels)
         return f"({prefix})-{best_name}"
     return best_name
@@ -1750,7 +1763,6 @@ def name_ketone(mol) -> str:
     aromatic_atoms = aromatic_shape[1] if aromatic_shape is not None else frozenset()
 
     ketones, hydroxyls = _validate_and_collect_ketones(mol, aromatic_ring_atoms=aromatic_atoms)
-    stereo = specified_stereocenters(mol)
     graph = adjacency(mol)
     # Exclude each C=O carbonyl bond itself: `non_single_bonds` reports it as
     # order 2.0 same as a C=C, but it isn't a chain 'ene' bond (one endpoint
@@ -1785,7 +1797,12 @@ def name_ketone(mol) -> str:
     ring_info = mol.GetRingInfo()
     num_rings = ring_info.NumRings()
     if num_rings == 0:
-        return _name_acyclic_ketone(mol, ketones, hydroxyls, bonds, stereo)
+        # No ring is ever involved past this point, so a specified C=C
+        # double-bond E/Z element may coexist with a specified tetrahedral
+        # stereocenter (P-91.3), mirroring `_alcohol.py`'s identical
+        # acyclic-only combined-stereo split.
+        return _name_acyclic_ketone(mol, ketones, hydroxyls, bonds, specified_stereo_elements(mol))
+    stereo = specified_stereocenters(mol)
     if num_rings == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in bonds):
