@@ -63,7 +63,7 @@ from ._common import (
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch, substituents_for_ring
 
 _ENE_ORDER = 2.0
 _YNE_ORDER = 3.0
@@ -214,14 +214,6 @@ def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
     return substituents
 
 
-def _substituents_for_ring(graph, ring_order, halogens, excluded, mol=None):
-    ring_set = set(ring_order)
-    substituents = {}
-    for position, atom in enumerate(ring_order, start=1):
-        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
 
 
 def _benzeneselenonic_acid_name_from_substituents(grouped):
@@ -267,7 +259,7 @@ def _name_benzeneselenonic_acid(mol, ring_atoms):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             seo3h_locant = position_of[seo3h_carbon]
-            substituents = _substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
+            substituents = substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
             key = _benzeneselenonic_acid_candidate_key(seo3h_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]

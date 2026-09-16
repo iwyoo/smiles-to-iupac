@@ -123,6 +123,7 @@ from ._substituents import (
     format_substituent_prefixes,
     name_branch,
     plain_alkyl_ring_substituents,
+    substituents_for_ring,
 )
 
 _ENE_ORDER = 2.0
@@ -306,14 +307,6 @@ def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
     return substituents
 
 
-def _substituents_for_ring(graph, ring_order, halogens, excluded, mol=None):
-    ring_set = set(ring_order)
-    substituents = {}
-    for position, atom in enumerate(ring_order, start=1):
-        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
 
 
 def _ring_name_from_substituents(ring_size, so_nh2_locant, ene_locants, yne_locants, grouped, n_names=()):
@@ -360,7 +353,7 @@ def _name_cyclic_sulfinamide(mol, sulfur_idx, so_nh2_carbon, n_names, bonds=()):
     ring_atoms = list(ring_info.AtomRings()[0])
     ring_order = ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
-    if bonds and any(_substituents_for_ring(graph, ring_order, halogens, excluded, mol=mol).values()):
+    if bonds and any(substituents_for_ring(graph, ring_order, halogens, excluded, mol=mol).values()):
         raise UnsupportedStructure(
             "a substituent alongside both a ring double/triple bond and a "
             "sulfinamide is not supported yet (see module docstring)"
@@ -378,7 +371,7 @@ def _name_cyclic_sulfinamide(mol, sulfur_idx, so_nh2_carbon, n_names, bonds=()):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             so_nh2_locant = position_of[so_nh2_carbon]
-            substituents = _substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
+            substituents = substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
             ene_locants, yne_locants = ring_bond_locants(position_of, bonds, ring_size)
             key = _ring_candidate_key(ring_size, so_nh2_locant, ene_locants, yne_locants, substituents, n_names)
             if best_key is None or key < best_key:
@@ -459,7 +452,7 @@ def _name_benzenesulfinamide(mol, ring_atoms):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             so_nh2_locant = position_of[so_nh2_carbon]
-            substituents = _substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
+            substituents = substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
             key = _benzenesulfinamide_candidate_key(so_nh2_locant, substituents, n_names)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]

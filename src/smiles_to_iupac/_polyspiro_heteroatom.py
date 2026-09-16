@@ -59,10 +59,9 @@ from ._common import (
     non_single_bonds,
     substituent_locant_set_and_citation,
 )
-from ._cyclic import _substituents_for_ring
 from ._numerals import alkane_name, numerical_term
 from ._polyspiro import _arc_choice_options, _build_sequence, _chain_direction_candidates
-from ._substituents import format_substituent_prefixes
+from ._substituents import format_substituent_prefixes, substituents_for_ring
 
 _HETEROATOM_PREFIXES = {8: "oxa", 7: "aza", 16: "thia"}
 _ALLOWED_ATOMIC_NUMS = {6, *_HETEROATOM_PREFIXES, *HALOGEN_PREFIXES}
@@ -161,7 +160,7 @@ def name_linear_polyspiro_heteroatom(mol, chain) -> str:
                     heteroatom_locant = locants[heteroatom_idx]
                     parent = f"{heteroatom_locant}-{a_prefix}{spiro_prefix}[{descriptor_str}]{alkane_name(len(seq))}"
                     spiro_locants = tuple(sorted(locants[s] for s in spiros))
-                    substituents = _substituents_for_ring(graph, seq, halogens)
+                    substituents = substituents_for_ring(graph, seq, halogens)
                     key = _candidate_key(parent, spiro_locants, tuple(descriptor), heteroatom_locant, substituents)
                     if best_key is None or key < best_key:
                         best_key = key

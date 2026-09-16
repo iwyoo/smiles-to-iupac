@@ -473,7 +473,7 @@ def _branch_name(graph, carbon_graph, root, ring_atom, ring_atoms, halogens, uns
 
 
 def _ring_substituents(graph, locants, ring_atoms, halogens, mol=None, carbon_graph=None, unsaturated_bonds=()):
-    """Like `_cyclic._substituents_for_ring`, but `locants` (nonfusion atom
+    """Like `_substituents.substituents_for_ring`, but `locants` (nonfusion atom
     -> integer position) covers only part of the ring skeleton -- a fusion
     carbon has no free valence and so is never itself a locant -- while
     `ring_atoms` (the full skeleton, fusion included) is what a neighboring

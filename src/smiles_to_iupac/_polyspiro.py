@@ -75,7 +75,6 @@ systems are out of scope for this module.
 
 from itertools import product
 
-from ._cyclic import _substituents_for_ring
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -87,7 +86,7 @@ from ._common import (
 )
 from ._numerals import alkane_name, numerical_term
 from ._spiro import _walk_ring_from_spiro
-from ._substituents import format_substituent_prefixes
+from ._substituents import format_substituent_prefixes, substituents_for_ring
 
 
 def find_linear_polyspiro_chain(mol):
@@ -352,7 +351,7 @@ def name_linear_polyspiro(mol, chain) -> str:
                     )
                     parent = f"{prefix}[{descriptor_str}]{alkane_name(len(seq))}"
                     spiro_locants = tuple(sorted(locants[s] for s in spiros))
-                    substituents = _substituents_for_ring(graph, seq, halogens)
+                    substituents = substituents_for_ring(graph, seq, halogens)
                     key = _candidate_key(parent, spiro_locants, tuple(descriptor), substituents)
                     if best_key is None or key < best_key:
                         best_key, best_name = key, key[-1]
@@ -460,7 +459,7 @@ def name_branched_polyspiro(mol, hub_data) -> str:
                 )
                 parent = f"{prefix}[{descriptor_str}]{alkane_name(len(seq))}"
                 spiro_locants = tuple(sorted(locants[s] for s in hub_spiro_atoms))
-                substituents = _substituents_for_ring(graph, seq, halogens)
+                substituents = substituents_for_ring(graph, seq, halogens)
                 key = _candidate_key(parent, spiro_locants, tuple(descriptor), substituents)
                 if best_key is None or key < best_key:
                     best_key, best_name = key, key[-1]

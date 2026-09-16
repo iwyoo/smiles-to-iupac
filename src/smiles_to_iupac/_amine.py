@@ -130,6 +130,7 @@ from ._substituents import (
     plain_alkyl_ring_substituents,
     ring_branch_stereo_display,
     substituents_for_chain,
+    substituents_for_ring,
 )
 
 _ENE_ORDER = 2.0
@@ -623,14 +624,6 @@ def _name_acyclic_amine(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None):
     return best_name
 
 
-def _substituents_for_ring(graph, ring_order, halogens, amines, mol=None):
-    ring_set = set(ring_order)
-    substituents = {}
-    for position, atom in enumerate(ring_order, start=1):
-        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in amines]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
 
 
 def _ring_name_from_substituents(ring_size, amine_locants, ene_locants, yne_locants, grouped):
@@ -687,7 +680,7 @@ def _name_cyclic_amine(mol, amines, stereo=None, bonds=()):
                 "a stereocenter on a substituent branch rather than the ring "
                 "itself is not supported yet (see P-92)"
             )
-    if bonds and any(_substituents_for_ring(graph, ring_order, halogens, amines, mol=mol).values()):
+    if bonds and any(substituents_for_ring(graph, ring_order, halogens, amines, mol=mol).values()):
         raise UnsupportedStructure(
             "a substituent alongside both a ring double/triple bond and a "
             "primary amine is not supported yet (see module docstring)"
@@ -706,7 +699,7 @@ def _name_cyclic_amine(mol, amines, stereo=None, bonds=()):
                     "a primary amine not on the ring itself (e.g. on a "
                     "substituent branch) is not supported yet"
                 )
-            substituents = _substituents_for_ring(graph, candidate, halogens, amines, mol=mol)
+            substituents = substituents_for_ring(graph, candidate, halogens, amines, mol=mol)
             if branch_stereo is not None:
                 branch_ring_atom, display = branch_stereo
                 substituents[position_of[branch_ring_atom]] = [(display, False)]
@@ -776,7 +769,7 @@ def _name_aniline(mol, ring_atoms):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             amine_locant = position_of[amine_carbon]
-            substituents = _substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
+            substituents = substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
             key = _aniline_candidate_key(amine_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]

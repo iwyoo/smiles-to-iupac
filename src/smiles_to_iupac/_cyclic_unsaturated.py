@@ -75,7 +75,7 @@ from ._common import (
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name, numerical_term
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, substituents_for_ring
 
 _ENE_ORDER = 2.0
 _YNE_ORDER = 3.0
@@ -147,15 +147,6 @@ def _ring_multi_bond_locants(ring_order, bonds):
     return sorted(ene), sorted(yne)
 
 
-def _substituents_for_ring(graph, ring_order, halogens, mol=None):
-    ring_set = set(ring_order)
-    substituents = {}
-    for position, atom in enumerate(ring_order, start=1):
-        branch_roots = [n for n in graph[atom] if n not in ring_set]
-        if not branch_roots:
-            continue
-        substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
 
 
 def _unsaturation_suffix(ene_locants, yne_locants):
@@ -286,7 +277,7 @@ def name_cyclic_unsaturated(mol, ring_atoms) -> str:
         rotated = ring_order[start:] + ring_order[:start]
         for candidate in (rotated, list(reversed(rotated))):
             ene_locants, yne_locants = _ring_multi_bond_locants(candidate, bonds)
-            substituents = _substituents_for_ring(graph, candidate, halogens, mol=mol)
+            substituents = substituents_for_ring(graph, candidate, halogens, mol=mol)
             key = _candidate_key(ring_size, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]

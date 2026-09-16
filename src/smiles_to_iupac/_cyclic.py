@@ -62,18 +62,9 @@ from ._common import (
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch, substituents_for_ring
 
 
-def _substituents_for_ring(graph, ring_order, halogens, mol=None):
-    ring_set = set(ring_order)
-    substituents = {}
-    for position, atom in enumerate(ring_order, start=1):
-        branch_roots = [n for n in graph[atom] if n not in ring_set]
-        if not branch_roots:
-            continue
-        substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
 
 
 def _name_from_substituents(ring_size, grouped):
@@ -239,7 +230,7 @@ def name_cycloalkane(mol) -> str:
     for start in range(ring_size):
         rotated = ring_order[start:] + ring_order[:start]
         for candidate in (rotated, list(reversed(rotated))):
-            substituents = _substituents_for_ring(graph, candidate, halogens, mol=mol)
+            substituents = substituents_for_ring(graph, candidate, halogens, mol=mol)
             key = _candidate_key(ring_size, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
