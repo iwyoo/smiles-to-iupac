@@ -281,6 +281,28 @@ def test_aldehyde_partially_specified_stereocenters_raises():
         smiles_to_iupac("C[C@H](Cl)C(Cl)C=O")
 
 
+def test_acyclic_aldehyde_specified_ez_double_bond():
+    # Standalone specified C=C E/Z stereo, no stereocenter -- mirrors
+    # `_ketone.py`'s identical PR #710 case. PubChem CID 447466 confirms
+    # the structure (SMILES "C/C=C/C=O"), though PubChem's own
+    # auto-generated name is "(E)-but-2-enal" (no locant); this project's
+    # existing convention is to always cite the locant explicitly.
+    assert smiles_to_iupac("O=C/C=C/C") == "(2E)-but-2-enal"
+
+
+def test_acyclic_aldehyde_stereocenter_with_ez_double_bond_coexistence():
+    # P-91.3: a specified tetrahedral stereocenter and a specified C=C
+    # double-bond E/Z element on the same acyclic aldehyde chain are cited
+    # together in one ascending-locant group, mirroring `_alcohol.py`'s/
+    # `_ketone.py`'s identical case. PubChem CIDs 101710438/131246396
+    # confirm both structures (SMILES "C/C=C/[C@@H](C)C=O" /
+    # "C/C=C/[C@H](C)C=O"), though PubChem's own names group by type
+    # ("(E,2R)-...") rather than by ascending locant -- the expected
+    # locant-ascending form here is the primary source's own P-91.3 rule.
+    assert smiles_to_iupac("O=C[C@H](C)/C=C/C") == "(2R,3E)-2-methylpent-3-enal"
+    assert smiles_to_iupac("O=C[C@@H](C)/C=C/C") == "(2S,3E)-2-methylpent-3-enal"
+
+
 def test_cyclic_aldehyde_ring_stereocenter():
     # A specified stereocenter on the ring itself, alongside the ring's
     # sole -CHO substituent (P-92), same pattern as
