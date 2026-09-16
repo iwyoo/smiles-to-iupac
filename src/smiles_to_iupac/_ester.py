@@ -286,6 +286,7 @@ def _name_acyl_part(
     ring_atoms=frozenset(),
     extra_names=None,
     required_atoms=frozenset(),
+    extra_excluded_atoms=frozenset(),
 ):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
@@ -310,12 +311,18 @@ def _name_acyl_part(
     `extra_names`/`required_atoms`: same coexisting-group injection point
     as `_amide.py`'s `_name_acyclic_amide`, reused by `_ester_amine.py` via
     `_coexisting_groups.py` -- both empty/None by default so existing
-    callers are unaffected."""
+    callers are unaffected. `extra_excluded_atoms`: a junior group's own
+    non-single-bonded atoms (e.g. a coexisting ketone's carbonyl oxygen,
+    `_ketone_ester.py`) that this function's own unsaturation scan must
+    also skip, the same way it already skips `carbonyl_oxygen_idx`/
+    `ester_oxygen_idx` -- empty by default so existing callers are
+    unaffected."""
     full_graph = adjacency(mol)
     carbon_graph = carbon_adjacency(mol)
     halogens = {**halogen_substituents(mol), **(extra_names or {})}
     acyl_carbon_idx = acyl_carbon.GetIdx()
     excluded_oxygens = {carbonyl_oxygen_idx, ester_oxygen_idx}
+    bond_scan_excluded = excluded_oxygens | extra_excluded_atoms
 
     acyl_graph = component_subgraph(carbon_graph, acyl_carbon_idx)
     chains = longest_chains(acyl_graph)
@@ -325,8 +332,8 @@ def _name_acyl_part(
     all_non_single = [
         b
         for b in non_single_bonds(mol)
-        if b[0] not in excluded_oxygens
-        and b[1] not in excluded_oxygens
+        if b[0] not in bond_scan_excluded
+        and b[1] not in bond_scan_excluded
         and not (b[0] in ring_atoms and b[1] in ring_atoms)
     ]
     bonds = [b for b in all_non_single if b[2] in (ENE_BOND_ORDER, YNE_BOND_ORDER)]
