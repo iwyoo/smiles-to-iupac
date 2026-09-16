@@ -54,6 +54,7 @@ from ._common import (
     name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
+    specified_stereo_elements,
     specified_stereocenters,
     substituent_locant_set_and_citation,
     validate_allowed_atoms,
@@ -296,7 +297,7 @@ def name_carboxylic_acid_amine(mol) -> str:
 
     graph = adjacency(mol)
     acid_carbon_idx = acid_carbon.GetIdx()
-    stereo = specified_stereocenters(mol)
+    stereo = specified_stereo_elements(mol)
     amine_carbons = {graph[n][0] for n in amines}
     return name_via_senior_acyclic(
         _name_acyclic_carboxylic_acid,
