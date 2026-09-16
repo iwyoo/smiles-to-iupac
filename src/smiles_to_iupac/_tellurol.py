@@ -137,7 +137,7 @@ from ._common import (
     substituent_locant_set_and_citation,
 )
 from ._numerals import alkyl_name
-from ._substituents import branch_atom_locant, format_substituent_prefixes, name_branch, ring_branch_stereo_display
+from ._substituents import branch_atom_locant, format_substituent_prefixes, name_branch, ring_branch_stereo_display, substituents_for_ring
 
 _YNE_BOND_ORDER = 3.0
 _TELLURIUM = 52
@@ -278,16 +278,6 @@ def _substituents_for_chain(graph, chain, halogens, tellurols, mol=None):
     return substituents
 
 
-def _substituents_for_ring(graph, ring_order, halogens, tellurols, mol=None):
-    ring_set = set(ring_order)
-    substituents = {}
-    for position, atom in enumerate(ring_order, start=1):
-        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in tellurols]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
-
-
 def _ring_name_from_substituents(ring_size, te_locants, ene_locants, yne_locants, grouped):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     prefix = format_substituent_prefixes(grouped)
@@ -336,7 +326,7 @@ def _name_cyclic_tellurol(mol, tellurols, stereo=None, bonds=()):
                 "a stereocenter on a substituent branch rather than the ring "
                 "itself is not supported yet (see P-92)"
             )
-    if bonds and any(_substituents_for_ring(graph, ring_order, halogens, tellurols, mol=mol).values()):
+    if bonds and any(substituents_for_ring(graph, ring_order, halogens, tellurols, mol=mol).values()):
         raise UnsupportedStructure(
             "a substituent alongside both a ring double/triple bond and a "
             "tellurol is not supported yet (see module docstring)"
@@ -350,7 +340,7 @@ def _name_cyclic_tellurol(mol, tellurols, stereo=None, bonds=()):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             te_locants = _te_locants(position_of, tellurols, graph)
-            substituents = _substituents_for_ring(graph, candidate, halogens, tellurols, mol=mol)
+            substituents = substituents_for_ring(graph, candidate, halogens, tellurols, mol=mol)
             if branch_stereo is not None:
                 branch_ring_atom, display = branch_stereo
                 substituents[position_of[branch_ring_atom]] = [(display, False)]
@@ -418,7 +408,7 @@ def _name_benzenetellurol(mol, ring_atoms):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             te_locants = _te_locants(position_of, tellurols, graph)
-            substituents = _substituents_for_ring(graph, candidate, halogens, tellurols, mol=mol)
+            substituents = substituents_for_ring(graph, candidate, halogens, tellurols, mol=mol)
             key = _benzenetellurol_candidate_key(te_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
