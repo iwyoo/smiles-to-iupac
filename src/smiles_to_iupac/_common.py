@@ -734,6 +734,42 @@ def find_ether_oxygens(mol, exclude=frozenset(), require_sole=False):
     ]
 
 
+def unsubstituted_sulfonamide_sulfur_atoms(mol):
+    """Sulfur atoms shaped like an *unsubstituted* sulfonamide group
+    (-SO2NH2): bonded to exactly one carbon, two double-bonded (terminal)
+    oxygens, and one single-bonded nitrogen that is itself terminal (two
+    hydrogens, no other substituents). N-alkylated sulfonamides don't
+    match -- deliberately narrower than `_sulfonamide.py`'s own sulfonamide-
+    sulfur finder (which does accept N-alkylated forms), shared by the
+    coexisting-functional-group pairwise modules that only support the
+    unsubstituted case (`_carboxylic_acid_sulfonamide.py`,
+    `_sulfonic_acid_sulfonamide.py`)."""
+    matches = []
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 16 or atom.GetDegree() != 4:
+            continue
+        neighbors = atom.GetNeighbors()
+        carbons = [n for n in neighbors if n.GetAtomicNum() == 6]
+        oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
+        nitrogens = [n for n in neighbors if n.GetAtomicNum() == 7]
+        if len(carbons) != 1 or len(oxygens) != 2 or len(nitrogens) != 1:
+            continue
+        double_os = [
+            o
+            for o in oxygens
+            if mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
+        ]
+        if len(double_os) != 2 or any(o.GetDegree() != 1 for o in double_os):
+            continue
+        (nitrogen,) = nitrogens
+        if mol.GetBondBetweenAtoms(atom.GetIdx(), nitrogen.GetIdx()).GetBondTypeAsDouble() != 1.0:
+            continue
+        if nitrogen.GetDegree() != 1 or nitrogen.GetTotalNumHs() != 2:
+            continue
+        matches.append(atom)
+    return matches
+
+
 def bfs(graph, start):
     dist = {start: 0}
     parent = {start: None}

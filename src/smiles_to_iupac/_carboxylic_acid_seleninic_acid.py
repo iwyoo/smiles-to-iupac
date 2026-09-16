@@ -42,6 +42,7 @@ scope.
 """
 
 from ._coexisting_groups import name_via_senior_acyclic
+from ._seleninic_acid import _seleninic_selenium_atoms
 from ._common import (
     UnsupportedStructure,
     non_single_bonds,
@@ -50,41 +51,6 @@ from ._common import (
 from ._carboxylic_acid import _name_acyclic_carboxylic_acid
 
 _SELENIUM = 34
-
-
-def _seleninic_selenium_atoms(mol):
-    """Selenium atoms shaped like a seleninic acid group: bonded to
-    exactly one carbon, one double-bonded (terminal) oxygen, and one
-    single-bonded hydroxyl oxygen (terminal, one H). Mirrors
-    `_seleninic_acid.py`'s identical helper."""
-    matches = []
-    for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != _SELENIUM or atom.GetDegree() != 3:
-            continue
-        neighbors = atom.GetNeighbors()
-        carbons = [n for n in neighbors if n.GetAtomicNum() == 6]
-        oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
-        if len(carbons) != 1 or len(oxygens) != 2:
-            continue
-        double_os = [
-            o
-            for o in oxygens
-            if mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
-        ]
-        hydroxyl_os = [
-            o
-            for o in oxygens
-            if mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 1.0
-        ]
-        if len(double_os) != 1 or len(hydroxyl_os) != 1:
-            continue
-        if any(o.GetDegree() != 1 for o in double_os):
-            continue
-        (hydroxyl_o,) = hydroxyl_os
-        if hydroxyl_o.GetDegree() != 1 or hydroxyl_o.GetTotalNumHs() != 1:
-            continue
-        matches.append(atom)
-    return matches
 
 
 def _carboxyl_carbons(mol):

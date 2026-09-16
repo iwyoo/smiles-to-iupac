@@ -54,7 +54,7 @@ from ._common import (
 )
 from ._seniority import senior_class
 from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
-from ._sulfonic_acid import _name_acyclic_sulfonic_acid
+from ._sulfonic_acid import _name_acyclic_sulfonic_acid, _sulfonic_sulfur_atoms
 
 
 # Decided once, at import time, by consulting the shared rank table rather
@@ -64,42 +64,6 @@ from ._sulfonic_acid import _name_acyclic_sulfonic_acid
 # rewritten anyway, but the assertion makes that discrepancy loud instead
 # of silently producing a wrong name.
 assert senior_class("sulfonic_acid", "alcohol") == "sulfonic_acid"
-
-
-def _sulfonic_sulfur_atoms(mol):
-    """Sulfur atoms shaped like a sulfonic acid group: bonded to exactly
-    one carbon, two double-bonded (terminal) oxygens, and one
-    single-bonded hydroxyl oxygen (terminal, one H). Mirrors
-    `_sulfonic_acid.py`'s identical helper."""
-    matches = []
-    for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != 16 or atom.GetDegree() != 4:
-            continue
-        neighbors = atom.GetNeighbors()
-        carbons = [n for n in neighbors if n.GetAtomicNum() == 6]
-        oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
-        if len(carbons) != 1 or len(oxygens) != 3:
-            continue
-        double_os = [
-            o
-            for o in oxygens
-            if mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
-        ]
-        hydroxyl_os = [
-            o
-            for o in oxygens
-            if mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 1.0
-        ]
-        if len(double_os) != 2 or len(hydroxyl_os) != 1:
-            continue
-        if any(o.GetDegree() != 1 for o in double_os):
-            continue
-        (hydroxyl_o,) = hydroxyl_os
-        if hydroxyl_o.GetDegree() != 1 or hydroxyl_o.GetTotalNumHs() != 1:
-            continue
-        matches.append(atom)
-    return matches
-
 
 def _thiol_sulfur_atoms(mol):
     """Sulfur atoms shaped like a plain thiol group (-SH): degree 1, one
