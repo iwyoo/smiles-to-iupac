@@ -28,25 +28,23 @@ chain's single longest path.
 
 from rdkit import Chem
 
+from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     UnsupportedStructure,
     adjacency,
     carbon_adjacency,
-    component_subgraph,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     linear_branch,
     longest_branched_chain,
-    longest_chains,
     non_single_bonds,
     ring_chain_attachment,
-    substituent_locant_set_and_citation,
     validate_allowed_atoms,
 )
+from ._ester import _name_acyl_part
 from ._numerals import alkane_name, alkyl_name
 from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
-
 
 
 def _find_ester_group(mol):
@@ -177,58 +175,6 @@ def _name_from_substituents(chain_length, grouped):
     return prefix + stem + "oate"
 
 
-def _candidate_key(chain_length, grouped):
-    locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
-    name = _name_from_substituents(chain_length, grouped)
-    return (locant_set, citation_locants, name), name
-
-
-def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, ketones):
-    full_graph = adjacency(mol)
-    carbon_graph = carbon_adjacency(mol)
-    names = {**halogen_substituents(mol), **{o: "oxo" for o in ketones}}
-    acyl_carbon_idx = acyl_carbon.GetIdx()
-    excluded_oxygens = {carbonyl_oxygen_idx, ester_oxygen_idx}
-
-    acyl_graph = component_subgraph(carbon_graph, acyl_carbon_idx)
-    chains = longest_chains(acyl_graph)
-    chain_length = len(chains[0])
-
-    eligible = []
-    for chain in chains:
-        chain_set = set(chain)
-        if any(full_graph[o][0] not in chain_set for o in ketones):
-            continue
-        eligible.append(chain)
-    if not eligible:
-        raise UnsupportedStructure(
-            "not every ketone-bearing carbon lies on the acyl chain's single "
-            "longest carbon chain; a shorter principal chain is not "
-            "supported yet"
-        )
-
-    best_key = None
-    best_name = None
-    for chain in eligible:
-        for candidate in (chain, list(reversed(chain))):
-            if candidate[0] != acyl_carbon_idx:
-                # The ester carbon must sit at C1 (P-14.3.3, see module
-                # docstring); a direction that doesn't start there is
-                # never valid.
-                continue
-            substituents = substituents_for_chain(full_graph, candidate, names, excluded_oxygens, mol=mol)
-            grouped = group_substituents(substituents)
-            key, name = _candidate_key(chain_length, grouped)
-            if best_key is None or key < best_key:
-                best_key, best_name = key, name
-    if best_name is None:
-        raise UnsupportedStructure(
-            "the ester's acyl carbon does not lie on a single longest "
-            "carbon chain; a shorter principal chain is not supported yet"
-        )
-    return best_name
-
-
 def _name_phenyl_chain_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, ketones, ring_atoms):
     """Name the acyl part (R) of a ketone+ester combination whose acyl
     chain hangs off a single unbranched chain from one atom of an
@@ -348,6 +294,16 @@ def name_ketone_ester(mol) -> str:
             "demotion is out of scope for this module"
         )
 
+    graph = adjacency(mol)
+    ketone_carbons = {graph[o][0] for o in ketones}
     alcohol_name = _name_alcohol_part(mol, alcohol_carbon, ester_oxygen.GetIdx())
-    acyl_name = _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx(), ketones)
+    acyl_name = name_via_senior_acyclic(
+        _name_acyl_part,
+        "ester",
+        "ketone",
+        (mol, acyl_carbon, carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx()),
+        {o: "oxo" for o in ketones},
+        required_atoms=ketone_carbons,
+        extra_excluded_atoms=ketones,
+    )
     return f"{alcohol_name} {acyl_name}"
