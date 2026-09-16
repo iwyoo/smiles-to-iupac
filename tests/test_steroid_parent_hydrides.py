@@ -163,3 +163,26 @@ def test_fully_c5_specified_parent_hydrides_resolve_to_retained_name():
         smiles_to_iupac("CC[C@H](CC[C@@H](C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@@H]4[C@@]3(CCCC4)C)C)C(C)C")
         == "stigmastane"
     )
+
+
+def test_5beta_androstane_resolves_via_c5_cip_computation():
+    # etiocholane (5-beta-androstane), PubChem CID 6857462 -- differs from
+    # the natural (5-alpha) entry only at the C5 ring-fusion stereocenter,
+    # recognized via CIP computation (not a hardcoded row -- see module
+    # docstring/`_androstane_5beta_name`).
+    assert (
+        smiles_to_iupac("C[C@@]12CCC[C@H]1[C@@H]3CC[C@@H]4CCCC[C@@]4([C@H]3CC2)C")
+        == "5-beta-androstane"
+    )
+
+
+def test_androstane_other_diastereomer_not_misnamed_5beta():
+    # A ring-fusion stereocenter *other* than C5 differing from the
+    # natural configuration (here C9) is a genuinely different
+    # diastereomer, not simply "the 5-beta epimer" -- stays out of scope
+    # (falls through to the general von Baeyer engine), same as this
+    # module's existing policy for every other non-natural stereoisomer.
+    assert (
+        smiles_to_iupac("C[C@@]12CCC[C@H]1[C@H]3CC[C@H]4CCCC[C@@]4([C@H]3CC2)C")
+        != "5-beta-androstane"
+    )
