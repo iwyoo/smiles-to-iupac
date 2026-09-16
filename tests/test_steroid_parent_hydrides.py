@@ -53,6 +53,27 @@ def test_natural_configuration_parent_hydrides_resolve_to_retained_name():
     )
 
 
+def test_c24_epimer_skeletons_resolve_to_retained_name_without_collision():
+    # campestane (CID 6857532) and stigmastane (CID 6857438) are the C24
+    # epimers of ergostane and poriferastane (CID 6857528) respectively --
+    # same constitution, opposite configuration at that one carbon. Each
+    # resolves to its own distinct retained name, not its epimer's or
+    # ergostane's, confirming the epic's collision concern doesn't
+    # materialize (see module docstring).
+    assert (
+        smiles_to_iupac("C[C@H](CC[C@@H](C)C(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CCC4[C@@]3(CCCC4)C)C")
+        == "campestane"
+    )
+    assert (
+        smiles_to_iupac("CC[C@@H](CC[C@@H](C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CCC4[C@@]3(CCCC4)C)C)C(C)C")
+        == "poriferastane"
+    )
+    assert (
+        smiles_to_iupac("CC[C@H](CC[C@@H](C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CCC4[C@@]3(CCCC4)C)C)C(C)C")
+        == "stigmastane"
+    )
+
+
 def test_non_natural_stereo_specified_parent_hydrides_still_fall_through_to_von_baeyer():
     # A stereo-specified input that doesn't match either the stereo-free
     # entries or a natural-configuration entry above (a ring-fusion epimer,
