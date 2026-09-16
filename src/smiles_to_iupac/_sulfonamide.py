@@ -125,6 +125,7 @@ from ._common import (
 )
 from ._numerals import alkane_name, alkyl_name
 from ._substituents import (
+    substituents_for_ring,
     branch_atom_locant,
     format_substituent_prefixes,
     name_branch,
@@ -316,16 +317,6 @@ def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
     return substituents
 
 
-def _substituents_for_ring(graph, ring_order, halogens, excluded, mol=None):
-    ring_set = set(ring_order)
-    substituents = {}
-    for position, atom in enumerate(ring_order, start=1):
-        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
-
-
 def _ring_name_from_substituents(ring_size, so2nh2_locant, ene_locants, yne_locants, grouped, n_names=()):
     has_unsaturation = bool(ene_locants or yne_locants)
     stem = "cyclo" + alkane_name(ring_size)
@@ -393,7 +384,7 @@ def _name_cyclic_sulfonamide(mol, sulfur_idx, so2nh2_carbon, n_names, stereo=Non
                 "a stereocenter on a substituent branch rather than the ring "
                 "itself is not supported yet (see P-92)"
             )
-    if bonds and any(_substituents_for_ring(graph, ring_order, halogens, excluded, mol=mol).values()):
+    if bonds and any(substituents_for_ring(graph, ring_order, halogens, excluded, mol=mol).values()):
         raise UnsupportedStructure(
             "a substituent alongside both a ring double/triple bond and a "
             "sulfonamide is not supported yet (see module docstring)"
@@ -412,7 +403,7 @@ def _name_cyclic_sulfonamide(mol, sulfur_idx, so2nh2_carbon, n_names, stereo=Non
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             so2nh2_locant = position_of[so2nh2_carbon]
-            substituents = _substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
+            substituents = substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
             if branch_stereo is not None:
                 branch_ring_atom, display = branch_stereo
                 substituents[position_of[branch_ring_atom]] = [(display, False)]
@@ -503,7 +494,7 @@ def _name_benzenesulfonamide(mol, ring_atoms):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             so2nh2_locant = position_of[so2nh2_carbon]
-            substituents = _substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
+            substituents = substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
             key = _benzenesulfonamide_candidate_key(so2nh2_locant, substituents, n_names)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
