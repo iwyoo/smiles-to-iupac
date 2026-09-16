@@ -83,7 +83,7 @@ from ._common import (
     substituent_locant_set_and_citation,
 )
 from ._numerals import alkane_name
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, 8, *HALOGEN_PREFIXES}
 
@@ -208,16 +208,6 @@ def _validate_and_collect_imide(mol):
     return acyl1, acyl2
 
 
-def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
-
-
 def _candidate_key(substituents):
     grouped = group_substituents(substituents)
     locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
@@ -242,7 +232,7 @@ def _best_branch(chains, graph, halogens, acyl_carbon, carbonyl_oxygen, excluded
         # `_validate_and_collect_imide`), so it can only ever be a chain
         # endpoint, never interior.
         candidate = chain if chain[0] == acyl_carbon else list(reversed(chain))
-        substituents = _substituents_for_chain(graph, candidate, halogens, excluded | {carbonyl_oxygen}, mol=mol)
+        substituents = substituents_for_chain(graph, candidate, halogens, excluded | {carbonyl_oxygen}, mol=mol)
         key = _candidate_key(substituents)
         if best_key is None or key < best_key:
             best_key, best_grouped = key, group_substituents(substituents)

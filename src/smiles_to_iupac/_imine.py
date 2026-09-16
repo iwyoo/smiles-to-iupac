@@ -109,6 +109,7 @@ from ._common import (
     substituent_locant_set_and_citation,
 )
 from ._substituents import (
+    substituents_for_chain,
     format_substituent_prefixes,
     name_branch,
     plain_alkyl_ring_substituents,
@@ -264,16 +265,6 @@ def _n_substituent_prefix(graph, imine_nitrogen, n_substituent_root, oxime_oxyge
     return None
 
 
-def _substituents_for_chain(graph, chain, halogens, exclude, mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in exclude]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
-
-
 def _name_from_substituents(chain_length, imine_locant, grouped):
     # P-14.3.4.2(a): a mononuclear parent's substituent locants (not just
     # the imine's own) are always '1' and never cited either -- unreachable
@@ -312,7 +303,7 @@ def _name_acyclic_imine_with_locant(mol, imine_carbon, exclude):
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             imine_locant = _imine_locant(position_of, imine_carbon)
-            substituents = _substituents_for_chain(graph, candidate, halogens, exclude, mol=mol)
+            substituents = substituents_for_chain(graph, candidate, halogens, exclude, mol=mol)
             key, name = _candidate_key(chain_length, imine_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name

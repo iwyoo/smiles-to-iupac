@@ -76,7 +76,7 @@ from ._common import (
     substituent_locant_set_and_citation,
 )
 from ._numerals import alkane_name
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
 
 _ENE_ORDER = 2.0
 _YNE_ORDER = 3.0
@@ -254,16 +254,6 @@ def _candidate_key(chain_length, diazonium_locant, ene_locants, yne_locants, sub
     )
 
 
-def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
-
-
 def _ring_substituents_diazonium(graph, ring_order, halogens, excluded, mol=None):
     """Mirrors `_sulfonic_acid.py`'s/`_carboxylic_acid.py`'s identically-
     named ring-substituent helpers: every branch hanging off a ring atom
@@ -428,7 +418,7 @@ def name_diazonium(mol) -> str:
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             diazonium_locant = position_of[diazonium_carbon]
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
+            substituents = substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
             key, name = _candidate_key(chain_length, diazonium_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
