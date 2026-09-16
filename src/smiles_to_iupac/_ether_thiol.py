@@ -44,6 +44,7 @@ from ._common import (
     adjacency,
     bfs,
     carbon_adjacency,
+    find_ether_oxygens,
     non_single_bonds,
     specified_stereocenters,
     validate_allowed_atoms,
@@ -51,21 +52,6 @@ from ._common import (
 from ._ether import _oxy_prefix
 from ._substituents import name_branch
 from ._thiol import _name_acyclic_thiol
-
-
-
-def _find_ether_oxygens(mol):
-    """The molecule's sole oxygen, if it's a plain ether -- see
-    `_ether_amine.py`'s identical helper for why requiring the *only*
-    oxygen avoids misfiring on an ester/carbamate/lactone's own bridging
-    oxygen."""
-    oxygens = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 8]
-    if len(oxygens) != 1:
-        return []
-    (oxygen,) = oxygens
-    if oxygen.GetDegree() == 2 and all(n.GetAtomicNum() == 6 for n in oxygen.GetNeighbors()):
-        return [oxygen]
-    return []
 
 
 def _find_thiols(mol):
@@ -85,7 +71,7 @@ def _find_thiols(mol):
 def has_ether_thiol_shape(mol) -> bool:
     if mol.GetRingInfo().NumRings() > 0:
         return False
-    if len(_find_ether_oxygens(mol)) != 1:
+    if len(find_ether_oxygens(mol, require_sole=True)) != 1:
         return False
     return len(_find_thiols(mol)) == 1
 
@@ -118,7 +104,7 @@ def name_ether_thiol(mol) -> str:
             "an ether/thiol combination on/in a ring uses a different "
             "naming construction, out of scope for this acyclic-only module"
         )
-    ethers = _find_ether_oxygens(mol)
+    ethers = find_ether_oxygens(mol, require_sole=True)
     if len(ethers) != 1:
         raise UnsupportedStructure(
             "exactly one plain ether oxygen coexisting with a thiol is "

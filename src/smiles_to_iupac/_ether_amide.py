@@ -43,26 +43,13 @@ from ._common import (
     adjacency,
     bfs,
     carbon_adjacency,
+    find_ether_oxygens,
     non_single_bonds,
     specified_stereocenters,
     validate_allowed_atoms,
 )
 from ._ether import _oxy_prefix
 from ._substituents import name_branch
-
-
-
-def _find_ether_oxygens(mol):
-    """The molecule's sole ether-shaped oxygen among possibly several --
-    see `_ether_ketone.py`'s identical helper (an amide molecule has a
-    second oxygen, its own carbonyl)."""
-    return [
-        atom
-        for atom in mol.GetAtoms()
-        if atom.GetAtomicNum() == 8
-        and atom.GetDegree() == 2
-        and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors())
-    ]
 
 
 def _find_amide(mol):
@@ -109,7 +96,7 @@ def _find_amide(mol):
 def has_ether_amide_shape(mol) -> bool:
     if mol.GetRingInfo().NumRings() > 0:
         return False
-    ethers = _find_ether_oxygens(mol)
+    ethers = find_ether_oxygens(mol)
     if len(ethers) != 1:
         return False
     amide = _find_amide(mol)
@@ -148,7 +135,7 @@ def name_ether_amide(mol) -> str:
             "an ether/amide combination on/in a ring uses a different "
             "naming construction, out of scope for this acyclic-only module"
         )
-    ethers = _find_ether_oxygens(mol)
+    ethers = find_ether_oxygens(mol)
     if len(ethers) != 1:
         raise UnsupportedStructure(
             "exactly one plain ether oxygen coexisting with an amide is "
