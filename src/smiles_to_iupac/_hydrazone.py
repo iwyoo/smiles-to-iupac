@@ -38,16 +38,23 @@ on acyclic saturated carbon chains, per the IUPAC 2013 Recommendations
   PubChem PUG REST: CID 163551743 (`ClCC=NN`) ->
   "2-chloroethylidenehydrazine", CID 174934626 (`ClCCC=NN`) ->
   "3-chloropropylidenehydrazine".
-- P-92 stereocenters: this
-  module's own C=N bond is *always* flagged by RDKit's
-  `Chem.FindPotentialStereo` as an unspecified potential Bond_Double
-  stereo element, regardless of substituents -- same conclusion as
-  `_amidine.py`'s C=NH (PR #209). Any specified tetrahedral stereocenter
-  on the R2C side therefore always coexists with this unspecified C=N
-  bond, and `_common.specified_stereocenters` correctly rejects the
-  combination as partially specified (P-92/P-93) rather than silently
-  dropping either one. This module only ever explicitly rejects a
-  specified stereocenter rather than attempting to cite one.
+- P-91.2(e)/P-93.1 (E/Z stereo): when this module's own C=N bond has its
+  geometry specified in the input, a bare `"(E)-"`/`"(Z)-"` prefix (no
+  locant, confirmed against PubChem's own auto-generated name even for a
+  ketone-shaped attachment whose own name already carries one, e.g.
+  `"(E)-butan-2-ylidenehydrazine"`) is added via
+  `_common.specified_double_bond_stereo`, the same helper `_imine.py`
+  uses for its own C=N. A prior revision of this docstring claimed
+  RDKit's `Chem.FindPotentialStereo` *always* flags this bond as an
+  unspecified potential stereo element regardless of input -- that claim
+  no longer holds against the currently pinned RDKit (confirmed:
+  `C/C=N/N` now reports it as specified) and was corrected here, mirroring
+  the identical correction already made in `_imine.py`. A specified
+  tetrahedral chain stereocenter coexisting with the C=N bond (specified
+  or not) is still rejected, since combining the two kinds of descriptor
+  is out of scope for this module (P-92/P-93). `_azine.py`/`_amidine.py`
+  share the identical (now-stale) rejection pattern independently -- not
+  updated by this change.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - An N-substituted hydrazone (=N-NH-R, the terminal nitrogen bearing an
@@ -83,7 +90,7 @@ from ._common import (
     halogen_substituents,
     longest_chains,
     lowest_locant_set,
-    specified_stereocenters,
+    specified_double_bond_stereo,
 )
 from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
@@ -255,18 +262,14 @@ def _name_hydrazone_carbon(mol, carbon_idx, imine_n_idx):
 
 def name_hydrazone(mol) -> str:
     carbon_idx, imine_n_idx = _validate_and_find_hydrazone(mol)
-    if specified_stereocenters(mol) is not None:
-        # This hydrazone's own C=N bond is always flagged by RDKit's
-        # `Chem.FindPotentialStereo` as an unspecified potential
-        # Bond_Double stereo element, regardless of substituents (module
-        # docstring) -- so any specified stereocenter on the R2C side
-        # always coexists with it, and `specified_stereocenters`
-        # correctly rejects the combination (P-92/P-93) instead of the
-        # silent drop this project's stereodescriptor safety net exists
-        # to fix, same conclusion as `_amidine.py` (PR #209).
-        raise UnsupportedStructure(
-            "a specified stereocenter alongside this hydrazone's own "
-            "always-unspecified C=N bond is not supported yet (see "
-            "P-92/P-93, module docstring)"
-        )
-    return _name_hydrazone_carbon(mol, carbon_idx, imine_n_idx) + "hydrazine"
+    stereo = specified_double_bond_stereo(mol)
+    name = _name_hydrazone_carbon(mol, carbon_idx, imine_n_idx) + "hydrazine"
+    if stereo is not None:
+        # PubChem registers this stereo separately and its own
+        # auto-generated name already cites it as a bare "(E)-"/"(Z)-"
+        # prefix with no locant, even for a "ketone-shaped" attachment
+        # whose own name already carries one (e.g. "(E)-butan-2-
+        # ylidenehydrazine") -- confirmed directly (module docstring).
+        ((_, code),) = stereo
+        name = f"({code})-{name}"
+    return name
