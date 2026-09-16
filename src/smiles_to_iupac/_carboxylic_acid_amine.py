@@ -47,6 +47,7 @@ from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    find_primary_amines,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
@@ -88,25 +89,6 @@ def _find_carboxylic_acid_carbon(mol):
             return atom, carbonyls[0], hydroxyls[0]
     return None
 
-
-def _find_primary_amines(mol):
-    amines = set()
-    for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != 7:
-            continue
-        if atom.GetDegree() != 1:
-            continue
-        (bond,) = atom.GetBonds()
-        if bond.GetBondTypeAsDouble() != 1.0:
-            continue
-        if atom.GetTotalNumHs() != 2:
-            continue
-        (neighbor,) = atom.GetNeighbors()
-        if neighbor.GetAtomicNum() == 6:
-            amines.add(atom.GetIdx())
-    return amines
-
-
 def _amine_on_a_different_carbon(mol, acid_carbon_idx, amines):
     """False if some amine nitrogen is bonded directly to the acid carbon
     itself (H2N-COOH, carbamic acid -- a distinct retained functional class,
@@ -119,7 +101,7 @@ def has_carboxylic_acid_amine_shape(mol) -> bool:
     found = _find_carboxylic_acid_carbon(mol)
     if found is None:
         return False
-    amines = _find_primary_amines(mol)
+    amines = find_primary_amines(mol)
     return bool(amines) and _amine_on_a_different_carbon(mol, found[0].GetIdx(), amines)
 
 
@@ -179,7 +161,7 @@ def _name_phenyl_chain_carboxylic_acid_amine(mol, ring_atoms):
         )
     acid_carbon, carbonyl_oxygen, hydroxyl_oxygen = found
     excluded_acid_oxygens = {carbonyl_oxygen.GetIdx(), hydroxyl_oxygen.GetIdx()}
-    amines = _find_primary_amines(mol)
+    amines = find_primary_amines(mol)
     if len(amines) != 1:
         raise UnsupportedStructure(
             "exactly one primary amine (-NH2) coexisting with the single "
@@ -259,7 +241,7 @@ def name_carboxylic_acid_amine(mol) -> str:
         )
     acid_carbon, carbonyl_oxygen, hydroxyl_oxygen = found
     excluded_acid_oxygens = {carbonyl_oxygen.GetIdx(), hydroxyl_oxygen.GetIdx()}
-    amines = _find_primary_amines(mol)
+    amines = find_primary_amines(mol)
     if len(amines) != 1:
         raise UnsupportedStructure(
             "exactly one primary amine (-NH2) coexisting with the single "

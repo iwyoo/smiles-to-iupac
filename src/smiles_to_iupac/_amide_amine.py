@@ -36,6 +36,7 @@ from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    find_primary_amines,
     non_single_bonds,
     specified_stereocenters,
     validate_allowed_atoms,
@@ -67,25 +68,11 @@ def _find_amide(mol):
     return found
 
 
-def _find_primary_amines(mol, exclude):
-    amines = set()
-    for atom in mol.GetAtoms():
-        if atom.GetIdx() == exclude or atom.GetAtomicNum() != 7 or atom.GetDegree() != 1:
-            continue
-        (bond,) = atom.GetBonds()
-        if bond.GetBondTypeAsDouble() != 1.0 or atom.GetTotalNumHs() != 2:
-            continue
-        (neighbor,) = atom.GetNeighbors()
-        if neighbor.GetAtomicNum() == 6:
-            amines.add(atom.GetIdx())
-    return amines
-
-
 def has_amide_amine_shape(mol) -> bool:
     amide = _find_amide(mol)
     if amide is None:
         return False
-    return len(_find_primary_amines(mol, amide[2])) == 1
+    return len(find_primary_amines(mol, {amide[2]})) == 1
 
 
 def _validate(mol, amide_atoms, amines):
@@ -129,7 +116,7 @@ def name_amide_amine(mol) -> str:
             "plain amide)"
         )
     amide_carbon, amide_oxygen, amide_nitrogen = amide
-    amines = _find_primary_amines(mol, amide_nitrogen)
+    amines = find_primary_amines(mol, {amide_nitrogen})
     if len(amines) != 1:
         raise UnsupportedStructure(
             "exactly one primary amine (-NH2) coexisting with the single "

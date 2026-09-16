@@ -36,26 +36,12 @@ from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    find_primary_amines,
     non_single_bonds,
     specified_stereocenters,
     validate_allowed_atoms,
 )
 from ._hydroperoxide import _hydroperoxide_oxygens, _name_acyclic_hydroperoxide
-
-
-
-def _find_primary_amines(mol, exclude):
-    amines = set()
-    for atom in mol.GetAtoms():
-        if atom.GetIdx() in exclude or atom.GetAtomicNum() != 7 or atom.GetDegree() != 1:
-            continue
-        (bond,) = atom.GetBonds()
-        if bond.GetBondTypeAsDouble() != 1.0 or atom.GetTotalNumHs() != 2:
-            continue
-        (neighbor,) = atom.GetNeighbors()
-        if neighbor.GetAtomicNum() == 6:
-            amines.add(atom.GetIdx())
-    return amines
 
 
 def has_hydroperoxide_amine_shape(mol) -> bool:
@@ -65,7 +51,7 @@ def has_hydroperoxide_amine_shape(mol) -> bool:
     if oxygens is None:
         return False
     attach, terminal = oxygens
-    amines = _find_primary_amines(mol, {attach.GetIdx(), terminal.GetIdx()})
+    amines = find_primary_amines(mol, {attach.GetIdx(), terminal.GetIdx()})
     return len(amines) == 1
 
 
@@ -112,7 +98,7 @@ def name_hydroperoxide_amine(mol) -> str:
     (site,) = (n for n in attach.GetNeighbors() if n.GetIdx() != terminal.GetIdx())
     site_idx = site.GetIdx()
 
-    amines = _find_primary_amines(mol, exclude)
+    amines = find_primary_amines(mol, exclude)
     if len(amines) != 1:
         raise UnsupportedStructure(
             "exactly one primary amine (-NH2) coexisting with the single "
