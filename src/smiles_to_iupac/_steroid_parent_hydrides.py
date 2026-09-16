@@ -21,6 +21,13 @@ ortho-fused):
   terminus (C25-C27). CID 6857534.
 - ergostane: cholestane's side chain extended by one more methyl branch at
   C24 (C28). CID 6857535.
+- campestane: ergostane's C24 epimer -- identical constitution (a
+  5,6-dimethylheptan-2-yl side chain), opposite configuration at that
+  carbon. CID 6857532.
+- poriferastane: a 5-ethyl-6-methylheptan-2-yl side chain (ergostane's
+  extra C24 methyl replaced by an ethyl group). CID 6857528.
+- stigmastane: poriferastane's C24 epimer -- identical constitution,
+  opposite configuration at that carbon. CID 6857438.
 
 Each entry below was independently confirmed by removing the next
 skeleton's side-chain/methyl carbons from its canonical SMILES and
@@ -71,8 +78,15 @@ _PARENT_HYDRIDES = {
     "CCC[C@@H](C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@H]4[C@@]3(CCCC4)C)C": "cholane",
     "C[C@H](CCCC(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CCC4[C@@]3(CCCC4)C)C": "cholestane",
     "C[C@H](CC[C@H](C)C(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CCC4[C@@]3(CCCC4)C)C": "ergostane",
+    "C[C@H](CC[C@@H](C)C(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CCC4[C@@]3(CCCC4)C)C": "campestane",
+    "CC[C@@H](CC[C@@H](C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CCC4[C@@]3(CCCC4)C)C)C(C)C": "poriferastane",
+    "CC[C@H](CC[C@@H](C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CCC4[C@@]3(CCCC4)C)C)C(C)C": "stigmastane",
 }
 _CANONICAL_TO_NAME = {Chem.CanonSmiles(smiles): name for smiles, name in _PARENT_HYDRIDES.items()}
+assert len(_CANONICAL_TO_NAME) == len(_PARENT_HYDRIDES), (
+    "two entries above canonicalized to the same key -- a real name "
+    "collision, not just a duplicate row (see module docstring)"
+)
 
 
 def has_steroid_parent_hydride_name(mol) -> bool:
