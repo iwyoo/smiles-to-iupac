@@ -82,7 +82,7 @@ from ._common import (
     ring_cycle,
     substituent_locant_set_and_citation,
 )
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
 
@@ -191,16 +191,6 @@ def _candidate_key(chain_length, locant, substituents):
     return (locant, -total_count, locant_set, citation_locants, name), name
 
 
-def _substituents_for_chain(graph, chain, halogens, exclude, mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in exclude]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
-
-
 def _name_phenyl_chain_hydroperoxide(mol, ring_atoms, ring_order):
     """Name a hydroperoxide whose -OOH lies entirely on a single
     unbranched chain hanging off one atom of an otherwise-plain,
@@ -304,7 +294,7 @@ def _name_acyclic_hydroperoxide(
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             locant = position_of[site]
-            substituents = _substituents_for_chain(graph, candidate, halogens, exclude, mol=mol)
+            substituents = substituents_for_chain(graph, candidate, halogens, exclude, mol=mol)
             key, name = _candidate_key(chain_length, locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name

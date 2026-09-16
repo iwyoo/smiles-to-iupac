@@ -93,7 +93,7 @@ from ._common import (
     specified_double_bond_stereo,
 )
 from ._numerals import alkane_name
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch, substituents_for_chain
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
 
@@ -193,16 +193,6 @@ def _validate_and_find_hydrazone(mol):
     return carbon.GetIdx(), imine_n.GetIdx()
 
 
-def _substituents_for_chain(graph, chain, halogens, exclude, mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in exclude]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
-
-
 def _ylidene_name(chain_length, locant, substituents):
     grouped = group_substituents(substituents)
     prefix = format_substituent_prefixes(grouped)
@@ -253,7 +243,7 @@ def _name_hydrazone_carbon(mol, carbon_idx, imine_n_idx):
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             locant = position_of[carbon_idx]
-            substituents = _substituents_for_chain(graph, candidate, halogens, {imine_n_idx}, mol=mol)
+            substituents = substituents_for_chain(graph, candidate, halogens, {imine_n_idx}, mol=mol)
             key, name = _ylidene_name(chain_length, locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
