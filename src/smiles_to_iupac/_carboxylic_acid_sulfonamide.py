@@ -51,42 +51,10 @@ from ._common import (
     UnsupportedStructure,
     is_plain_benzene_ring,
     non_single_bonds,
+    unsubstituted_sulfonamide_sulfur_atoms,
     validate_allowed_atoms,
 )
 from ._carboxylic_acid import _name_acyclic_carboxylic_acid, _name_phenyl_chain_carboxylic_acid
-
-
-def _sulfonamide_sulfur_atoms(mol):
-    """Sulfur atoms shaped like an *unsubstituted* sulfonamide group
-    (-SO2NH2): bonded to exactly one carbon, two double-bonded (terminal)
-    oxygens, and one single-bonded nitrogen that is itself terminal (two
-    hydrogens, no other substituents). Mirrors
-    `_sulfonic_acid_sulfonamide.py`'s identical helper. N-alkylated
-    sulfonamides are excluded -- out of scope for this narrow module."""
-    matches = []
-    for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != 16 or atom.GetDegree() != 4:
-            continue
-        neighbors = atom.GetNeighbors()
-        carbons = [n for n in neighbors if n.GetAtomicNum() == 6]
-        oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
-        nitrogens = [n for n in neighbors if n.GetAtomicNum() == 7]
-        if len(carbons) != 1 or len(oxygens) != 2 or len(nitrogens) != 1:
-            continue
-        double_os = [
-            o
-            for o in oxygens
-            if mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
-        ]
-        if len(double_os) != 2 or any(o.GetDegree() != 1 for o in double_os):
-            continue
-        (nitrogen,) = nitrogens
-        if mol.GetBondBetweenAtoms(atom.GetIdx(), nitrogen.GetIdx()).GetBondTypeAsDouble() != 1.0:
-            continue
-        if nitrogen.GetDegree() != 1 or nitrogen.GetTotalNumHs() != 2:
-            continue
-        matches.append(atom)
-    return matches
 
 
 def _carboxyl_carbons(mol):
@@ -125,7 +93,7 @@ def _carboxyl_carbons(mol):
 
 
 def has_carboxylic_acid_sulfonamide_shape(mol) -> bool:
-    return bool(_carboxyl_carbons(mol)) and bool(_sulfonamide_sulfur_atoms(mol))
+    return bool(_carboxyl_carbons(mol)) and bool(unsubstituted_sulfonamide_sulfur_atoms(mol))
 
 
 def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
@@ -139,7 +107,7 @@ def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
     (carboxyl_carbon,) = carboxyl_carbons
     carboxyl_oxygens = {n.GetIdx() for n in carboxyl_carbon.GetNeighbors() if n.GetAtomicNum() == 8}
 
-    sulfonamides = _sulfonamide_sulfur_atoms(mol)
+    sulfonamides = unsubstituted_sulfonamide_sulfur_atoms(mol)
     if not sulfonamides:
         raise UnsupportedStructure(
             "no unsubstituted sulfonamide found; this module only "
