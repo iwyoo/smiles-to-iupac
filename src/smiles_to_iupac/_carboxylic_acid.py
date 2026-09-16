@@ -119,6 +119,7 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     ring_name_from_substituents,
+    specified_stereo_elements,
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
@@ -332,13 +333,16 @@ def _name_acyclic_carboxylic_acid(
     extra_names=None,
     required_atoms=frozenset(),
 ):
-    """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
-    `specified_stereocenters` -- if given, only chain candidates that
-    include every stereocenter are eligible (P-92: a stereocenter on a
-    substituent branch rather than the principal chain is out of scope,
-    mirroring `_alcohol.py`'s `_name_acyclic_alcohol`), and the winning
-    candidate's own locants are used to format a "(<locant><R/S>,...)-"
-    prefix onto the name, ascending locant order (P-91.3) -- same
+    """`stereo`: None, or a list of ("atom"/"bond", idx, "R"/"S"/"E"/"Z")
+    from `specified_stereo_elements`/`specified_stereocenters` -- if given,
+    only chain candidates that include every tetrahedral stereocenter are
+    eligible (P-92: a stereocenter on a substituent branch rather than the
+    principal chain is out of scope, mirroring `_alcohol.py`'s
+    `_name_acyclic_alcohol`; a double-bond E/Z element's atoms are already
+    required to lie on the chain via `bonds`, so no separate check is
+    needed for those), and the winning candidate's own locants are used to
+    format a "(<locant><R/S/E/Z>,...)-" prefix onto the name, ascending
+    locant order (P-91.3, including when both kinds coexist) -- same
     mechanism as `_alcohol.py`, since a -COOH carbon's own fixed C1
     position (see module docstring) already decides numbering before
     stereo is even considered.
@@ -361,7 +365,7 @@ def _name_acyclic_carboxylic_acid(
     chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
     acid_count = len(carboxyl_carbons)
-    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
+    stereo_atoms = [idx for kind, idx, _ in stereo if kind == "atom"] if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -409,7 +413,15 @@ def _name_acyclic_carboxylic_acid(
                 best_key, best_name, best_position_of = key, name, position_of
 
     if stereo is not None:
-        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        labels = []
+        for kind, idx, code in stereo:
+            if kind == "atom":
+                locant = best_position_of[idx]
+            else:
+                bond = mol.GetBondWithIdx(idx)
+                locant = min(best_position_of[bond.GetBeginAtomIdx()], best_position_of[bond.GetEndAtomIdx()])
+            labels.append((locant, code))
+        labels.sort()
         prefix = ",".join(f"{locant}{code}" for locant, code in labels)
         return f"({prefix})-{best_name}"
     return best_name
@@ -790,7 +802,7 @@ def name_carboxylic_acid(mol) -> str:
             "acyclic-only module"
         )
     carboxyl_carbons, carboxyl_oxygens, hydroxyls = _validate_and_collect_carboxyls(mol)
-    stereo = specified_stereocenters(mol)
+    stereo = specified_stereo_elements(mol)
 
     all_non_single = [
         b for b in non_single_bonds(mol) if b[0] not in carboxyl_oxygens and b[1] not in carboxyl_oxygens
