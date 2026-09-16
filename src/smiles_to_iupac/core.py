@@ -54,6 +54,7 @@ from ._bridged_aromatic import (
 )
 from ._borane import has_simple_borane_shape, name_simple_borane
 from ._boronic_acid import has_boronic_acid_shape, name_boronic_acid
+from ._borinic_acid import has_borinic_acid_shape, name_borinic_acid
 from ._branched_fused_aromatic import has_retained_branched_fused_name, name_retained_branched_fused
 from ._carboxylate import has_carboxylate_shape, name_carboxylate
 from ._selenoate import has_selenoate_shape, name_selenoate
@@ -398,6 +399,12 @@ def smiles_to_iupac(smiles: str) -> str:
     # -OH oxygens as unsupported heteroatoms.
     if has_boronic_acid_shape(mol):
         return name_boronic_acid(mol)
+
+    # A borinic acid (P-68.1.4.1's R2-B-OH) has the same borane-shape
+    # collision as boronic acid above, so it must be routed here for the
+    # same reason.
+    if has_borinic_acid_shape(mol):
+        return name_borinic_acid(mol)
 
     # A boron atom (P-68's borane substitutive nomenclature, the same shape
     # as phosphane above with boron in place of phosphorus) must be routed
