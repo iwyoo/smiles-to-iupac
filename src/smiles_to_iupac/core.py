@@ -185,6 +185,7 @@ from ._naphthalene_benzene_phane import (
 from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
 from ._phosphanone import has_phosphanone_shape, name_phosphanone
 from ._phosphonic_acid import has_phosphonic_acid_shape, name_phosphonic_acid
+from ._phosphinic_acid import has_phosphinic_acid_shape, name_phosphinic_acid
 from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
 from ._hydroperoxide import has_hydroperoxide_shape, name_hydroperoxide
@@ -365,6 +366,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # `name_phosphanone`'s validation, so this must be routed first.
     if has_phosphonic_acid_shape(mol):
         return name_phosphonic_acid(mol)
+
+    # A phosphinic acid (P-67.1.1's R2-P(=O)-OH) has the same
+    # phosphanone-shape collision as phosphonic acid above (its own
+    # hydroxyl oxygen isn't expected by `_phosphanone.py`), so it must be
+    # routed here for the same reason.
+    if has_phosphinic_acid_shape(mol):
+        return name_phosphinic_acid(mol)
 
     # A phosphine oxide (P-68.3.2.3.1's '-phosphanone' suffix, R-P(=O)<)
     # has its own phosphorus-bonded oxygen that `_phosphane.py` doesn't
