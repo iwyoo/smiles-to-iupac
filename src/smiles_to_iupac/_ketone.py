@@ -320,6 +320,7 @@ from ._substituents import (
     plain_alkyl_ring_substituents,
     ring_branch_stereo_display,
     substituents_for_chain,
+    substituents_for_ring,
 )
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
@@ -809,18 +810,6 @@ def _name_ring_with_ketone_chain_ketone(mol, ketones):
     return best_name
 
 
-def _substituents_for_ring(graph, ring_order, halogens, ketones, mol=None, aromatic_atoms=frozenset()):
-    ring_set = set(ring_order)
-    substituents = {}
-    for position, atom in enumerate(ring_order, start=1):
-        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in ketones]
-        if branch_roots:
-            substituents[position] = [
-                name_branch(graph, root, atom, halogens, aromatic_atoms, mol=mol) for root in branch_roots
-            ]
-    return substituents
-
-
 def _ring_name_from_substituents(ring_size, one_locants, ene_locants, yne_locants, grouped):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     prefix = format_substituent_prefixes(grouped)
@@ -884,7 +873,7 @@ def _name_cyclic_ketone(mol, ketones, hydroxyls, stereo=None, bonds=(), ring_ato
                 "itself is not supported yet (see P-92)"
             )
     if bonds and any(
-        _substituents_for_ring(graph, ring_order, halogens, ketones, mol=mol, aromatic_atoms=aromatic_atoms).values()
+        substituents_for_ring(graph, ring_order, halogens, ketones, mol=mol, aromatic_atoms=aromatic_atoms).values()
     ):
         raise UnsupportedStructure(
             "a substituent alongside both a ring double/triple bond and a "
@@ -904,7 +893,7 @@ def _name_cyclic_ketone(mol, ketones, hydroxyls, stereo=None, bonds=(), ring_ato
                     "a ketone not on the ring itself (e.g. on a substituent "
                     "branch) is not supported yet"
                 )
-            substituents = _substituents_for_ring(
+            substituents = substituents_for_ring(
                 graph, candidate, halogens, ketones, mol=mol, aromatic_atoms=aromatic_atoms
             )
             if branch_stereo is not None:
