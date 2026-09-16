@@ -91,11 +91,42 @@ def test_hydrazone_unspecified_stereocenter_unaffected():
 
 
 def test_hydrazone_specified_chain_stereocenter_raises():
-    # This hydrazone's own C=N bond is always an unspecified potential
-    # Bond_Double stereo element to RDKit, regardless of substituents
-    # (module docstring) -- so a specified chain stereocenter here always
-    # coexists with it, and `specified_stereocenters` correctly rejects
-    # the combination (P-92/P-93) instead of the silent drop this
-    # project's stereodescriptor safety net exists to fix.
+    # A specified chain tetrahedral stereocenter alongside this
+    # hydrazone's own (here left unspecified) C=N bond is a partially
+    # specified molecule, out of scope (P-92/P-93) -- same policy as
+    # `_imine.py`/`_unsaturated.py`.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC[C@@H](C)C(C)=NN")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Real, distinctly registered PubChem CIDs, each matching
+        # PubChem's own auto-generated name exactly (unlike the imine/
+        # oxime case, this module's plain-name convention already matches
+        # PubChem's own pattern -- see module docstring):
+        # 11332413/16126811 (ethylidenehydrazine),
+        ("C/C=N/N", "(E)-ethylidenehydrazine"),
+        ("C/C=N\\N", "(Z)-ethylidenehydrazine"),
+        # 14684667/140712004 (propylidenehydrazine),
+        ("CC/C=N/N", "(E)-propylidenehydrazine"),
+        ("CC/C=N\\N", "(Z)-propylidenehydrazine"),
+        # 10964410/131875712 (2-methylpropylidenehydrazine),
+        ("CC(C)/C=N/N", "(E)-2-methylpropylidenehydrazine"),
+        ("CC(C)/C=N\\N", "(Z)-2-methylpropylidenehydrazine"),
+        # 20703198/143347514 (butylidenehydrazine).
+        ("CCC/C=N/N", "(E)-butylidenehydrazine"),
+        ("CCC/C=N\\N", "(Z)-butylidenehydrazine"),
+        # 12546268/21719952 (butan-2-ylidenehydrazine) -- a "ketone-shaped"
+        # attachment whose own name already carries a locant still gets a
+        # bare, unlocanted (E)-/(Z)- prefix, confirmed directly against
+        # PubChem's own auto-generated name.
+        ("CC/C(C)=N/N", "(E)-butan-2-ylidenehydrazine"),
+        ("CC/C(C)=N\\N", "(Z)-butan-2-ylidenehydrazine"),
+        # 15569665 (pentan-2-ylidenehydrazine).
+        ("CCC/C(C)=N/N", "(E)-pentan-2-ylidenehydrazine"),
+    ],
+)
+def test_specified_double_bond_stereo(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
