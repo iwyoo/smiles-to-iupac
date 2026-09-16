@@ -53,6 +53,7 @@ from ._bridged_aromatic import (
     name_bridged_naphthalene,
 )
 from ._borane import has_simple_borane_shape, name_simple_borane
+from ._boronic_acid import has_boronic_acid_shape, name_boronic_acid
 from ._branched_fused_aromatic import has_retained_branched_fused_name, name_retained_branched_fused
 from ._carboxylate import has_carboxylate_shape, name_carboxylate
 from ._selenoate import has_selenoate_shape, name_selenoate
@@ -381,6 +382,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # with no phosphorus handling.
     if has_simple_phosphane_shape(mol):
         return name_simple_phosphane(mol)
+
+    # A boronic acid (P-68.1.4.1's R-B(OH)2) has two hydroxyl oxygens on
+    # boron that `_borane.py`'s own plain-borane shape doesn't expect --
+    # `has_simple_borane_shape` matches any molecule with a boron atom at
+    # all, so this must be routed first, before it misfires on the two
+    # -OH oxygens as unsupported heteroatoms.
+    if has_boronic_acid_shape(mol):
+        return name_boronic_acid(mol)
 
     # A boron atom (P-68's borane substitutive nomenclature, the same shape
     # as phosphane above with boron in place of phosphorus) must be routed
