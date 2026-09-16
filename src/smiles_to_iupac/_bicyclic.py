@@ -39,7 +39,6 @@ scope and raise UnsupportedStructure.
 
 from itertools import permutations
 
-from ._cyclic import _substituents_for_ring
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -50,7 +49,7 @@ from ._common import (
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name
-from ._substituents import format_substituent_prefixes
+from ._substituents import format_substituent_prefixes, substituents_for_ring
 
 
 def _strip_leaves(graph):
@@ -180,7 +179,7 @@ def name_bicycloalkane(mol, core) -> str:
     best_key = None
     best_name = None
     for full_order in iter_bicyclic_numberings(core):
-        substituents = _substituents_for_ring(graph, full_order, halogens)
+        substituents = substituents_for_ring(graph, full_order, halogens)
         key = _candidate_key(parent, substituents)
         if best_key is None or key < best_key:
             best_key, best_name = key, key[-1]

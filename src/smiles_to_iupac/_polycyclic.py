@@ -86,7 +86,6 @@ Flagship validation cases:
 
 from itertools import combinations, permutations
 
-from ._cyclic import _substituents_for_ring
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -97,7 +96,7 @@ from ._common import (
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name, numerical_term
-from ._substituents import format_substituent_prefixes
+from ._substituents import format_substituent_prefixes, substituents_for_ring
 
 
 def _strip_leaves(graph):
@@ -386,7 +385,7 @@ def name_polycycloalkane(mol, core, ring_count) -> str:
     best_key = None
     best_name = None
     for full_order, parent, outer_key in iter_polycyclic_candidates(core, ring_count):
-        substituents = _substituents_for_ring(graph, full_order, halogens)
+        substituents = substituents_for_ring(graph, full_order, halogens)
         key = outer_key + _candidate_key(parent, substituents)
         if best_key is None or key < best_key:
             best_key, best_name = key, key[-1]

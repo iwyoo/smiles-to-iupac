@@ -671,6 +671,21 @@ def substituents_for_chain(graph, chain, halogens, excluded=frozenset(), mol=Non
     return substituents
 
 
+def substituents_for_ring(graph, ring_order, halogens, excluded=frozenset(), mol=None):
+    """{position (1-based) -> [(name, is_compound), ...]} for every branch
+    hanging off a candidate ring numbering -- the ring-parent analogue of
+    `substituents_for_chain` (P-29.2). `excluded`: atom indices to skip
+    besides the ring itself, e.g. a functional-group atom the caller
+    already accounts for separately."""
+    ring_set = set(ring_order)
+    substituents = {}
+    for position, atom in enumerate(ring_order, start=1):
+        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
+        if branch_roots:
+            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
+    return substituents
+
+
 def _substituent_entries_along_chain(graph, chain, first_previous, halogens, extra_exclusions=None, mol=None):
     """(position, name, is_compound) for every branch hanging off `chain`
     (a chosen principal chain, root/free-valence somewhere on it), position
