@@ -109,25 +109,11 @@ from ._common import (
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
 
 _ENE_ORDER = 2.0
 _YNE_ORDER = 3.0
 _VALID_ORDERS = (_ENE_ORDER, _YNE_ORDER)
-
-
-def _substituents_for_chain(graph, chain, halogens, mol=None):
-    """Return {position (1-based) -> [(name, is_compound), ...]} for a
-    candidate chain."""
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set]
-        if not branch_roots:
-            continue
-        substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
-
 
 def _unsaturation_suffix(ene_locants, yne_locants):
     """Locant-and-suffix string (e.g. '1,3-dien-5-yne') plus whether the
@@ -266,7 +252,7 @@ def name_acyclic_unsaturated(mol) -> str:
     for chain in chains_with_all_bonds:
         for candidate in (chain, list(reversed(chain))):
             ene_locants, yne_locants = bond_locants(candidate, bonds)
-            substituents = _substituents_for_chain(graph, candidate, halogens, mol=mol)
+            substituents = substituents_for_chain(graph, candidate, halogens, mol=mol)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_candidate = key, name, candidate
