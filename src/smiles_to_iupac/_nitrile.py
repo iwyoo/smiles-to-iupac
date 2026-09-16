@@ -97,6 +97,7 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     ring_name_from_substituents,
+    specified_stereo_elements,
     specified_stereocenters,
     substituent_locant_set_and_citation,
     two_separate_rings_with_plain_aromatic_substituent,
@@ -269,17 +270,20 @@ def _substituents_for_chain(graph, chain, halogens, nitriles, mol=None):
 
 
 def _name_acyclic_nitrile(mol, nitriles, bonds, stereo=None):
-    """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
-    `specified_stereocenters` -- if given, only chain candidates that
-    include every stereocenter are eligible (P-92: a stereocenter on a
-    substituent branch is out of scope), and the winning candidate's own
-    locants are used to format a "(<locant><R/S>,...)-" prefix onto the
-    final name."""
+    """`stereo`: None, or a list of ("atom"/"bond", idx, "R"/"S"/"E"/"Z")
+    from `specified_stereo_elements`/`specified_stereocenters` -- if given,
+    only chain candidates that include every tetrahedral stereocenter are
+    eligible (P-92: a stereocenter on a substituent branch is out of
+    scope; a double-bond E/Z element's atoms are already required to lie
+    on the chain via `bonds`, so no separate check is needed for those),
+    and the winning candidate's own locants are used to format a
+    "(<locant><R/S/E/Z>,...)-" prefix onto the final name, ascending
+    locant order (P-91.3, including when both kinds coexist)."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
-    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
+    stereo_atoms = [idx for kind, idx, _ in stereo if kind == "atom"] if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -313,7 +317,15 @@ def _name_acyclic_nitrile(mol, nitriles, bonds, stereo=None):
                 best_key, best_name, best_position_of = key, name, position_of
 
     if stereo is not None:
-        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        labels = []
+        for kind, idx, code in stereo:
+            if kind == "atom":
+                locant = best_position_of[idx]
+            else:
+                bond = mol.GetBondWithIdx(idx)
+                locant = min(best_position_of[bond.GetBeginAtomIdx()], best_position_of[bond.GetEndAtomIdx()])
+            labels.append((locant, code))
+        labels.sort()
         prefix = ",".join(f"{locant}{code}" for locant, code in labels)
         return f"({prefix})-{best_name}"
     return best_name
@@ -636,7 +648,7 @@ def name_nitrile(mol) -> str:
             )
 
     nitriles = _validate_and_collect_nitriles(mol)
-    stereo = specified_stereocenters(mol)
+    stereo = specified_stereo_elements(mol)
     graph = adjacency(mol)
     # Exclude each C#N nitrile bond itself: `non_single_bonds` reports it as
     # order 3.0 same as a C#C, but it isn't a chain 'yne' bond (one endpoint
