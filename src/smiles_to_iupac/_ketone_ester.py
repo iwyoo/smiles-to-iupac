@@ -45,7 +45,7 @@ from ._common import (
     validate_allowed_atoms,
 )
 from ._numerals import alkane_name, alkyl_name
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
 
 
 
@@ -183,18 +183,6 @@ def _candidate_key(chain_length, grouped):
     return (locant_set, citation_locants, name), name
 
 
-def _substituents_for_chain(graph, chain, names, excluded_oxygens, ring_atoms=frozenset(), mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded_oxygens]
-        if branch_roots:
-            substituents[position] = [
-                name_branch(graph, root, atom, names, ring_atoms, mol=mol) for root in branch_roots
-            ]
-    return substituents
-
-
 def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, ketones):
     full_graph = adjacency(mol)
     carbon_graph = carbon_adjacency(mol)
@@ -228,7 +216,7 @@ def _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_oxygen_idx, ket
                 # docstring); a direction that doesn't start there is
                 # never valid.
                 continue
-            substituents = _substituents_for_chain(full_graph, candidate, names, excluded_oxygens, mol=mol)
+            substituents = substituents_for_chain(full_graph, candidate, names, excluded_oxygens, mol=mol)
             grouped = group_substituents(substituents)
             key, name = _candidate_key(chain_length, grouped)
             if best_key is None or key < best_key:
@@ -276,7 +264,7 @@ def _name_phenyl_chain_acyl_part(mol, acyl_carbon, carbonyl_oxygen_idx, ester_ox
         )
 
     chain_length = len(chain)
-    substituents = _substituents_for_chain(full_graph, chain, names, excluded_oxygens, ring_atoms, mol=mol)
+    substituents = substituents_for_chain(full_graph, chain, names, excluded_oxygens, mol=mol, aromatic_atoms=ring_atoms)
     grouped = group_substituents(substituents)
     return _name_from_substituents(chain_length, grouped)
 
