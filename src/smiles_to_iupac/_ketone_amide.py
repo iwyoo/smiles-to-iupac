@@ -37,7 +37,7 @@ from ._common import (
     substituent_locant_set_and_citation,
     validate_allowed_atoms,
 )
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
 
 
 def _find_amide_carbon(mol):
@@ -127,18 +127,6 @@ def _candidate_key(chain_length, grouped):
     return (locant_set, citation_locants, name), name
 
 
-def _substituents_for_chain(graph, chain, names, excluded, ring_atoms=frozenset(), mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
-        if branch_roots:
-            substituents[position] = [
-                name_branch(graph, root, atom, names, ring_atoms, mol=mol) for root in branch_roots
-            ]
-    return substituents
-
-
 def _name_phenyl_chain_ketone_amide(mol, ring_atoms):
     """Name a ketone+amide combination whose -CONH2 lies entirely on a
     single unbranched chain hanging off one atom of an otherwise-plain,
@@ -199,7 +187,7 @@ def _name_phenyl_chain_ketone_amide(mol, ring_atoms):
         )
 
     chain_length = len(chain)
-    substituents = _substituents_for_chain(graph, chain, names, own_excluded, ring_atoms, mol=mol)
+    substituents = substituents_for_chain(graph, chain, names, own_excluded, mol=mol, aromatic_atoms=ring_atoms)
     grouped = group_substituents(substituents)
     return _name_from_substituents(chain_length, grouped)
 
@@ -270,7 +258,7 @@ def name_ketone_amide(mol) -> str:
                 # docstring); a direction that doesn't start there is
                 # never valid.
                 continue
-            substituents = _substituents_for_chain(graph, candidate, names, own_excluded, mol=mol)
+            substituents = substituents_for_chain(graph, candidate, names, own_excluded, mol=mol)
             grouped = group_substituents(substituents)
             key, name = _candidate_key(chain_length, grouped)
             if best_key is None or key < best_key:
