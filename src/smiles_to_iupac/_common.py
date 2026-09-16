@@ -704,6 +704,36 @@ def find_primary_amines(mol, exclude=frozenset()):
     return amines
 
 
+def find_ether_oxygens(mol, exclude=frozenset(), require_sole=False):
+    """Atom(s) shaped like a plain ether oxygen (degree 2, both neighbors
+    carbon) -- shared by every coexisting-functional-group pairwise
+    module whose junior group is an ether. `require_sole=False`
+    (default): every ether-shaped oxygen in the molecule not in
+    `exclude` (a caller's own bridging oxygen with the same local shape,
+    e.g. an ester's R-CO-O-R'). `require_sole=True`: the molecule's
+    *sole* oxygen overall, only if it's ether-shaped -- a genuinely
+    different, stricter shape (a molecule with a second, non-ether-shaped
+    oxygen is rejected outright, not just filtered), used by a junior
+    module whose senior group's own oxygen(s) aren't otherwise excluded
+    at the call site."""
+    if require_sole:
+        oxygens = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 8]
+        if len(oxygens) != 1:
+            return []
+        (oxygen,) = oxygens
+        if oxygen.GetDegree() == 2 and all(n.GetAtomicNum() == 6 for n in oxygen.GetNeighbors()):
+            return [oxygen]
+        return []
+    return [
+        atom
+        for atom in mol.GetAtoms()
+        if atom.GetAtomicNum() == 8
+        and atom.GetIdx() not in exclude
+        and atom.GetDegree() == 2
+        and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors())
+    ]
+
+
 def bfs(graph, start):
     dist = {start: 0}
     parent = {start: None}

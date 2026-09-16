@@ -40,6 +40,7 @@ from ._common import (
     adjacency,
     bfs,
     carbon_adjacency,
+    find_ether_oxygens,
     non_single_bonds,
     specified_stereocenters,
     validate_allowed_atoms,
@@ -47,7 +48,6 @@ from ._common import (
 from ._ester import _name_acyl_part, _name_alcohol_part
 from ._ether import _oxy_prefix
 from ._substituents import name_branch
-
 
 
 def _find_ester_group(mol):
@@ -86,23 +86,6 @@ def _find_ester_group(mol):
     alcohol_carbon = next(n for n in ester_oxygen.GetNeighbors() if n.GetIdx() != acyl_carbon.GetIdx())
     return acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon
 
-
-def _find_ether_oxygens(mol, exclude=frozenset()):
-    """Every ether-shaped oxygen (degree 2, both neighbors carbon) not in
-    `exclude` -- an ester's own bridging R-CO-O-R' oxygen has this exact
-    local shape too, so the caller must exclude it explicitly (unlike
-    `_ether_ketone.py`'s identical-looking helper, where a ketone's own
-    carbonyl oxygen never matches this shape in the first place)."""
-    return [
-        atom
-        for atom in mol.GetAtoms()
-        if atom.GetAtomicNum() == 8
-        and atom.GetIdx() not in exclude
-        and atom.GetDegree() == 2
-        and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors())
-    ]
-
-
 def has_ether_ester_shape(mol) -> bool:
     if mol.GetRingInfo().NumRings() > 0:
         return False
@@ -110,7 +93,7 @@ def has_ether_ester_shape(mol) -> bool:
     if ester is None:
         return False
     acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon = ester
-    ethers = _find_ether_oxygens(mol, exclude={ester_oxygen.GetIdx()})
+    ethers = find_ether_oxygens(mol, exclude={ester_oxygen.GetIdx()})
     if len(ethers) != 1:
         return False
     total_oxygens = sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 8)
@@ -149,7 +132,7 @@ def name_ether_ester(mol) -> str:
         )
     acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon = ester
 
-    ethers = _find_ether_oxygens(mol, exclude={ester_oxygen.GetIdx()})
+    ethers = find_ether_oxygens(mol, exclude={ester_oxygen.GetIdx()})
     if len(ethers) != 1:
         raise UnsupportedStructure(
             "exactly one plain ether oxygen coexisting with an ester is "

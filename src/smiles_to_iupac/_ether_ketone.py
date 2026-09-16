@@ -38,6 +38,7 @@ from ._common import (
     adjacency,
     bfs,
     carbon_adjacency,
+    find_ether_oxygens,
     non_single_bonds,
     specified_stereocenters,
     validate_allowed_atoms,
@@ -45,24 +46,6 @@ from ._common import (
 from ._ether import _oxy_prefix
 from ._ketone import _name_acyclic_ketone
 from ._substituents import name_branch
-
-
-
-def _find_ether_oxygens(mol):
-    """The molecule's sole oxygen, if it's a plain ether -- see
-    `_ether_amine.py`'s identical helper for why requiring the *only*
-    oxygen avoids misfiring on an ester/carbamate/lactone's own bridging
-    oxygen. Since a ketone molecule may have a *second* oxygen (its own
-    carbonyl), this module instead requires exactly one *ether-shaped*
-    oxygen among possibly several, with the other(s) validated as the
-    ketone's own carbonyl in `_validate` below."""
-    return [
-        atom
-        for atom in mol.GetAtoms()
-        if atom.GetAtomicNum() == 8
-        and atom.GetDegree() == 2
-        and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors())
-    ]
 
 
 def _find_ketones(mol):
@@ -85,7 +68,7 @@ def _find_ketones(mol):
 def has_ether_ketone_shape(mol) -> bool:
     if mol.GetRingInfo().NumRings() > 0:
         return False
-    ethers = _find_ether_oxygens(mol)
+    ethers = find_ether_oxygens(mol)
     if len(ethers) != 1:
         return False
     ketones = _find_ketones(mol)
@@ -117,7 +100,7 @@ def name_ether_ketone(mol) -> str:
             "an ether/ketone combination on/in a ring uses a different "
             "naming construction, out of scope for this acyclic-only module"
         )
-    ethers = _find_ether_oxygens(mol)
+    ethers = find_ether_oxygens(mol)
     if len(ethers) != 1:
         raise UnsupportedStructure(
             "exactly one plain ether oxygen coexisting with a ketone is "
