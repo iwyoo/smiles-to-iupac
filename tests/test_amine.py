@@ -300,6 +300,49 @@ def test_amine_partially_specified_stereocenters_raises():
         smiles_to_iupac("N[C@H]1CCCCC1Cl")
 
 
+def test_acyclic_amine_specified_ez_double_bond():
+    # Standalone specified C=C E/Z stereo, no stereocenter -- mirrors
+    # `_ketone.py`/`_aldehyde.py`/`_carboxylic_acid.py`/`_nitrile.py`'s
+    # identical PR #710/#713/#715/#717 case. PubChem CID 6433772 confirms
+    # the structure (SMILES "C/C=C/CN"), though PubChem's own
+    # auto-generated name is "(E)-but-2-en-1-amine" (no locant); this
+    # project's existing convention is to always cite the locant
+    # explicitly.
+    assert smiles_to_iupac("NC/C=C/C") == "(2E)-but-2-en-1-amine"
+
+
+def test_acyclic_primary_amine_stereocenter_with_ez_double_bond_coexistence():
+    # P-91.3: a specified tetrahedral stereocenter and a specified C=C
+    # double-bond E/Z element on the same acyclic primary-amine chain are
+    # cited together in one ascending-locant group, mirroring
+    # `_alcohol.py`'s/`_ketone.py`'s/`_aldehyde.py`'s/
+    # `_carboxylic_acid.py`'s/`_nitrile.py`'s identical case. PubChem CIDs
+    # 58781915/93518073 confirm both structures (SMILES
+    # "C/C=C/[C@@H](C)N" / "C/C=C/[C@H](C)N"), though PubChem's own names
+    # group by type ("(E,2R)-...") rather than by ascending locant -- the
+    # expected locant-ascending form here is the primary source's own
+    # P-91.3 rule.
+    assert smiles_to_iupac("C/C=C/[C@@H](C)N") == "(2R,3E)-pent-3-en-2-amine"
+    assert smiles_to_iupac("C/C=C/[C@H](C)N") == "(2S,3E)-pent-3-en-2-amine"
+
+
+def test_acyclic_secondary_amine_stereocenter_with_ez_double_bond_coexistence():
+    # Same combined-descriptor mechanism, reached via
+    # `_name_acyclic_secondary_tertiary_amine` instead of the simple
+    # primary-amine path -- a mechanical side effect of sharing
+    # `_best_chain_name`/the stereo format with the primary-amine case,
+    # not independently PubChem-verified (see issue #718).
+    assert smiles_to_iupac("CN[C@H](C)/C=C/C") == "(2R,3E)-N-methylpent-3-en-2-amine"
+
+
+def test_ammonium_stereocenter_with_ez_double_bond_coexistence():
+    # `_ammonium.py` reuses `_name_acyclic_secondary_tertiary_amine`
+    # directly (see issue #718's `_carboxylic_acid_amine.py`-style hidden
+    # caller finding) -- confirms its own stereo computation was also
+    # updated to the combined-capable helper.
+    assert smiles_to_iupac("C[N+](C)(C)[C@H](C)/C=C/C") == "(2R,3E)-N,N,N-trimethylpent-3-en-2-aminium"
+
+
 def test_phenyl_chain_amine():
     # A plain, unsubstituted benzene ring on the chain (P-2/P-3
     # aromatic-ring-substituent extension, mirroring `_thiol.py`'s
