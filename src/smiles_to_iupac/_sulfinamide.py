@@ -124,6 +124,7 @@ from ._substituents import (
     name_branch,
     plain_alkyl_ring_substituents,
     substituents_for_ring,
+    substituents_for_chain,
 )
 
 _ENE_ORDER = 2.0
@@ -295,19 +296,6 @@ def _candidate_key(chain_length, so_nh2_locant, ene_locants, yne_locants, substi
         ),
         name,
     )
-
-
-def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
-
-
-
 
 def _ring_name_from_substituents(ring_size, so_nh2_locant, ene_locants, yne_locants, grouped, n_names=()):
     has_unsaturation = bool(ene_locants or yne_locants)
@@ -672,7 +660,7 @@ def name_sulfinamide(mol) -> str:
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             so_nh2_locant = position_of[so_nh2_carbon]
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
+            substituents = substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
             key, name = _candidate_key(chain_length, so_nh2_locant, ene_locants, yne_locants, substituents, n_names)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name

@@ -89,7 +89,7 @@ from ._common import (
     substituent_locant_set_and_citation,
 )
 from ._numerals import alkyl_name
-from ._substituents import branch_atom_locant, format_substituent_prefixes, name_branch, ring_branch_stereo_display, substituents_for_ring
+from ._substituents import branch_atom_locant, format_substituent_prefixes, name_branch, ring_branch_stereo_display, substituents_for_ring, substituents_for_chain
 
 _TELLURIUM = 52
 _ALLOWED_ATOMIC_NUMS = {6, _TELLURIUM, *HALOGEN_PREFIXES}
@@ -220,17 +220,6 @@ def _tellone_locants(position_of, tellones, graph):
         locants.append(position_of[carbon])
     return locants
 
-
-def _substituents_for_chain(graph, chain, halogens, tellones, mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in tellones]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
-
-
 def _name_acyclic_tellone(mol, tellones, bonds, stereo=None):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
@@ -280,7 +269,7 @@ def _name_acyclic_tellone(mol, tellones, bonds, stereo=None):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             tellone_locants = _tellone_locants(position_of, tellones, graph)
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, tellones, mol=mol)
+            substituents = substituents_for_chain(graph, candidate, halogens, tellones, mol=mol)
             key, name = _candidate_key(chain_length, tellone_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of
