@@ -12,7 +12,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         # though PubChem's own auto-namer returns the opposite seniority
         # conclusion for this pair ("2-hydroperoxyethanamine" for
         # 'NCCOO'); see _hydroperoxide_amine.py's module docstring.
-        ("NCCOO", "2-aminoethane-1-peroxol"),
+        ("NCCOO", "2-aminoethaneperoxol"),
         ("NCCCOO", "3-aminopropane-1-peroxol"),
     ],
 )

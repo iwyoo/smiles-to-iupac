@@ -86,7 +86,7 @@ def test_acyclic_telluronic_acid_stereocenter(smiles, expected):
 
 
 def test_acyclic_telluronic_acid_stereocenter_with_coexisting_substituent():
-    assert smiles_to_iupac("C[C@@H](Cl)[Te](=O)(=O)O") == "(1S)-1-chloroethane-1-telluronic acid"
+    assert smiles_to_iupac("C[C@@H](Cl)[Te](=O)(=O)O") == "(1S)-1-chloroethanetelluronic acid"
 
 
 def test_telluronic_acid_unspecified_stereocenter_unaffected():

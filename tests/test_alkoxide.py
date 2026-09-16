@@ -40,7 +40,7 @@ def test_alkoxide_with_halogen_on_two_carbon_chain():
     # established citing the '-1-' locant here for the neutral alcohol
     # ('2-fluoroethan-1-ol', PubChem CID divergence accepted project-wide),
     # so the anion mirrors that same convention with 'ate' appended.
-    assert smiles_to_iupac("FCC[O-]") == "2-fluoroethan-1-olate"
+    assert smiles_to_iupac("FCC[O-]") == "2-fluoroethanolate"
 
 
 def test_alkoxide_with_unsaturation():
@@ -156,7 +156,7 @@ def test_phenyl_chain_alkoxide():
     # "3-phenylpropan-1-olate" (the two-carbon case keeps its locant here,
     # same known, out-of-scope-here limitation already established by this
     # module's own `test_fluoroethanolate_locant` for the halogen case).
-    assert smiles_to_iupac("c1ccccc1CC[O-]") == "2-phenylethan-1-olate"
+    assert smiles_to_iupac("c1ccccc1CC[O-]") == "2-phenylethanolate"
     assert smiles_to_iupac("c1ccccc1CCC[O-]") == "3-phenylpropan-1-olate"
 
 

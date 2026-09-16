@@ -21,16 +21,10 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   omitted regardless of chain length.
 - P-14.3.4.2(a)/(b): a mononuclear (one-carbon) chain never cites a
   locant (CID 123139, "methanimine", not "methan-1-imine"), and a
-  homogeneous two-carbon chain omits the locant too -- but, unlike this
-  project's own `_alcohol.py`/`_ketone.py`, that omission is *not* gated
-  on having zero other substituents: CID 54110962 (`ClCC=N`) ->
-  "2-chloroethanimine", not "2-chloroethan-1-imine". This module
-  therefore omits the locant for any two-carbon aldimine chain outright
-  (this looks like a more complete implementation of P-14.3.4.2(b) than
-  `_alcohol.py`/`_ketone.py`'s own "total substituents == 0" gate, which
-  is a known, already-documented limitation there -- see
-  `_alcohol.py`'s "2-cyclohexylethan-1-ol" test comment -- but fixing
-  those other modules is out of scope here).
+  homogeneous two-carbon chain omits the locant too, regardless of other
+  substituents present: CID 54110962 (`ClCC=N`) -> "2-chloroethanimine",
+  not "2-chloroethan-1-imine". Same rule the shared `_common.py`
+  `name_from_substituents` hook now implements project-wide.
 - P-62.3.1.1: an N-substituent (imine nitrogen bonded to one additional
   carbon group instead of H) is cited as an "N-" prefix with no locant
   (nitrogen is never part of the numbered chain), same style already used
@@ -104,13 +98,13 @@ from ._common import (
     is_plain_benzene_ring,
     longest_branched_chain_through,
     longest_chains,
+    name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
-from ._numerals import alkane_name
 from ._substituents import (
     format_substituent_prefixes,
     name_branch,
@@ -284,24 +278,7 @@ def _name_from_substituents(chain_length, imine_locant, grouped):
     # methanimine carbon has no room for any other substituent), so this
     # branch was never previously exercised.
     prefix = format_substituent_prefixes(grouped, omit_locants=(chain_length == 1))
-    # 'imine' always starts with a vowel, so the alkane stem's trailing 'e'
-    # is always elided (P-16.3.3 / P-16.6), whether or not a locant lands
-    # between them -- 'methanimine', 'propan-2-imine', not 'methaneimine'/
-    # 'propane-2-imine'.
-    stem = alkane_name(chain_length)[:-1]
-
-    if chain_length in (1, 2):
-        # P-14.3.4.2(a): a mononuclear chain never cites a locant. (b): a
-        # two-carbon aldimine chain has only one possible imine position
-        # (there is no room for a second carbon neighbor, so it's always
-        # an aldimine) -- this project's own `_alcohol.py`/`_ketone.py`
-        # additionally require zero other substituents for this omission,
-        # but the real rule doesn't gate on that (see module docstring's
-        # "2-chloroethanimine" citation), so it's omitted here regardless
-        # of any halogen prefix already present.
-        return prefix + stem + "imine"
-
-    return f"{prefix}{stem}-{imine_locant}-imine"
+    return prefix + name_from_substituents(chain_length, [], [], "imine", [imine_locant])
 
 
 def _candidate_key(chain_length, imine_locant, substituents):

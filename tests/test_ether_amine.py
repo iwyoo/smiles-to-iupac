@@ -7,12 +7,9 @@ from smiles_to_iupac._common import UnsupportedStructure
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        # PubChem's own IUPACName omits the amine's locant
-        # ('2-methoxyethanamine'/'2-ethoxyethanamine'); this project's
-        # existing convention always cites it explicitly for a substituted
-        # chain (see e.g. plain `_amine.py`'s 'propan-1-amine'), so these
-        # differ from PubChem only in that locant-omission style, not in
-        # substance.
+        # PubChem CID matches confirm the amine locant is omitted at
+        # chain length 2 regardless of the alkoxy substituent (unlike a
+        # chain length 3+, e.g. plain `_amine.py`'s 'propan-1-amine').
         ("COCCN", "2-methoxyethanamine"),
         ("CCOCCN", "2-ethoxyethanamine"),
         ("CCCOCCN", "2-propoxyethanamine"),
