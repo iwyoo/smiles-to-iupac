@@ -62,8 +62,9 @@ def test_mixed_enyne_ring():
     # P-31.1.3.1's own worked example (Blue Book Chapter P-3): the double
     # bond is allocated locant '1' and the triple bond '4' -- lower
     # locants go to the double bond specifically once the combined
-    # {1,4}/{1,2}... locant-set choice is tied. Stereodescriptor omitted
-    # (E/Z on ring multiple bonds is out of this module's scope).
+    # {1,4}/{1,2}... locant-set choice is tied. No stereo specified in the
+    # input here, so no descriptor -- a specified E/Z double bond combined
+    # with a triple bond is out of scope (see the E/Z tests below).
     assert smiles_to_iupac("C1=CCC#CCCCCCCCCCC1") == "cyclopentadec-1-en-4-yne"
 
 
@@ -80,3 +81,61 @@ def test_exocyclic_double_bond_not_supported():
 def test_exocyclic_triple_bond_substituent_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1(C#CC)CCCCC1")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Real, distinctly registered PubChem CIDs: 638079 ((Z)-cyclooctene),
+        # 5463599 ((E)-cyclooctene), 5463153/5463190 (cyclononene Z/E),
+        # 5365612/5364362 (cyclodecene Z/E). PubChem's own auto-generated
+        # IUPACName for all six is just the bare parent name with no
+        # descriptor at all (its namer has the same gap this module did) --
+        # correctness is verified directly against P-91.2.2's own worked
+        # example ('(Z)-cyclooctene', '(E)-cyclooctene', no locant) instead.
+        ("C1CCC/C=C\\CC1", "(Z)-cyclooctene"),
+        ("C1CCC/C=C/CC1", "(E)-cyclooctene"),
+        ("C1CCCC/C=C\\CC1", "(Z)-cyclononene"),
+        ("C1CCCC/C=C/CC1", "(E)-cyclononene"),
+        ("C1CCCCC/C=C\\CC1", "(Z)-cyclodecene"),
+        ("C1CCCCC/C=C/CC1", "(E)-cyclodecene"),
+    ],
+)
+def test_ring_double_bond_stereo(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        # A 3-7-membered ring's C=C is not a genuine stereogenic unit
+        # (P-91.2.2: 'Z' is the only physically realizable configuration
+        # there) -- RDKit's own `Chem.FindPotentialStereo` already agrees
+        # (no element reported), so a stereo marker in the input is
+        # silently ignored, same as today.
+        "C1CC=CC1",
+        "C1CCC=CC1",
+        "C1CCC/C=C\\C1",
+    ],
+)
+def test_small_ring_stereo_marker_has_no_effect(smiles):
+    unmarked = smiles.replace("/", "").replace("\\", "")
+    assert smiles_to_iupac(smiles) == smiles_to_iupac(unmarked)
+
+
+def test_ring_double_bond_stereo_with_unspecified_ring_stereocenter_raises():
+    # The methyl-bearing ring carbon is a genuine (here left unspecified)
+    # tetrahedral stereocenter of its own -- a specified double bond
+    # alongside an unspecified stereocenter elsewhere is a partially
+    # specified molecule, out of scope everywhere in this project (P-92/
+    # P-93), not just here.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC1CCC/C=C\\CC1")
+
+
+def test_ring_double_bond_stereo_multiple_bonds_raises():
+    # P-91.2.2's multi-bond citation rule (locants become non-redundant
+    # once 2+ double bonds are present) needs separate verification --
+    # not attempted here.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1CC/C=C\\C/C=C\\C1")
