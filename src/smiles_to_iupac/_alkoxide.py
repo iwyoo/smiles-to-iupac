@@ -92,14 +92,13 @@ from ._common import (
     longest_branched_chain_through,
     longest_chains,
     lowest_locant_set,
+    name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
     ring_cycle,
     specified_stereocenters,
     substituent_locant_set_and_citation,
-    suffix_body,
 )
-from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch
 
 _RETAINED_ALKOXIDES = {1: "methoxide", 2: "ethoxide", 3: "propoxide", 4: "butoxide"}
@@ -148,25 +147,8 @@ def _find_alkoxide_group(mol):
 
 
 def _name_from_substituents(chain_length, o_locant, ene_locants, yne_locants, grouped):
-    if chain_length == 1:
-        # P-14.3.4.2(a): a mononuclear parent's locants are always '1' and
-        # never cited, however many substituents there are.
-        stem = alkane_name(1)[:-1]  # 'olate' starts with a vowel
-        return format_substituent_prefixes(grouped, omit_locants=True) + stem + "olate"
-
-    has_unsaturation = bool(ene_locants or yne_locants)
-    prefix = format_substituent_prefixes(grouped)
-    if has_unsaturation:
-        stem = alkane_name(chain_length)[:-3]
-        needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
-    else:
-        stem = alkane_name(chain_length)
-        needs_stem_a = False
-
-    body, elide_stem = suffix_body(ene_locants, yne_locants, "olate", [o_locant])
-    if not has_unsaturation and elide_stem:
-        stem = stem[:-1]
-    return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
+    prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "olate", [o_locant])
 
 
 def _candidate_key(chain_length, o_locant, ene_locants, yne_locants, substituents):

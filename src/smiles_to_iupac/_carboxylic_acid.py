@@ -114,15 +114,14 @@ from ._common import (
     longest_chains,
     lowest_locant_set,
     multiplied_word,
+    name_from_substituents,
     non_single_bonds,
     ring_chain_attachment_with_halogens,
     ring_cycle,
     ring_name_from_substituents,
     specified_stereocenters,
     substituent_locant_set_and_citation,
-    suffix_body,
 )
-from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch, plain_alkyl_ring_substituents
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
@@ -280,22 +279,14 @@ def _validate_and_collect_carboxyls(mol, aromatic_ring_atoms=frozenset(), extra_
 
 
 def _name_from_substituents(chain_length, acid_count, ene_locants, yne_locants, grouped):
-    has_unsaturation = bool(ene_locants or yne_locants)
     # P-14.3.4.2(a): a mononuclear parent's substituent locant is always
     # '1' and never cited.
     prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
-    if has_unsaturation:
-        stem = alkane_name(chain_length)[:-3]
-        needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
-    else:
-        stem = alkane_name(chain_length)
-        needs_stem_a = False
-
-    body, elide_stem = suffix_body(ene_locants, yne_locants, multiplied_word(acid_count, "oic"))
-    if not has_unsaturation and elide_stem:
-        stem = stem[:-1]
-    separator = "-" if (ene_locants or yne_locants) else ""
-    return prefix + stem + ("a" if needs_stem_a else "") + separator + body + " acid"
+    return (
+        prefix
+        + name_from_substituents(chain_length, ene_locants, yne_locants, multiplied_word(acid_count, "oic"))
+        + " acid"
+    )
 
 
 def _candidate_key(chain_length, acid_count, ene_locants, yne_locants, substituents):

@@ -61,13 +61,12 @@ from ._common import (
     is_plain_benzene_ring,
     longest_chains,
     lowest_locant_set,
+    name_from_substituents,
     non_single_bonds,
     ring_cycle,
     specified_stereocenters,
     substituent_locant_set_and_citation,
-    suffix_body,
 )
-from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch
 
 _ENE_ORDER = 2.0
@@ -185,30 +184,8 @@ def _reject_enetelluronic_carbon(graph, teo3h_carbon, bonds):
 
 
 def _name_from_substituents(chain_length, teo3h_locant, ene_locants, yne_locants, grouped):
-    total_subs = sum(len(info["locants"]) for info in grouped.values())
-    has_unsaturation = bool(ene_locants or yne_locants)
-
-    if chain_length == 1:
-        # P-14.3.4.2(a): a mononuclear parent's locant is always '1' and
-        # never cited.
-        return format_substituent_prefixes(grouped, omit_locants=True) + alkane_name(1) + "telluronic acid"
-
-    if chain_length == 2 and not has_unsaturation and total_subs == 0:
-        # P-14.3.4.2(b): a homogeneous two-carbon chain with exactly one
-        # substituent (the sole -Te(=O)(=O)OH) in total omits the locant,
-        # e.g. 'ethanetelluronic acid'.
-        return alkane_name(2) + "telluronic acid"
-
-    prefix = format_substituent_prefixes(grouped)
-    if has_unsaturation:
-        stem = alkane_name(chain_length)[:-3]
-        needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
-    else:
-        stem = alkane_name(chain_length)
-        needs_stem_a = False
-
-    body = suffix_body(ene_locants, yne_locants, "telluronic acid", [teo3h_locant])[0]
-    return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
+    prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "telluronic acid", [teo3h_locant])
 
 
 def _candidate_key(chain_length, teo3h_locant, ene_locants, yne_locants, substituents):

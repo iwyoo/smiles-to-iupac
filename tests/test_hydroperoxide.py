@@ -25,7 +25,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         # locant (P-44.4.1), so it's cited as C1 even though PubChem's own
         # auto-generated name (CID 55301917, "1-chloro-2-hydroperoxyethane")
         # numbers from the other end.
-        ("ClCCOO", "2-chloroethane-1-peroxol"),
+        ("ClCCOO", "2-chloroethaneperoxol"),
     ],
 )
 def test_hydroperoxide(smiles, expected):

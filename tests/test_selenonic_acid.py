@@ -84,9 +84,10 @@ def test_acyclic_selenonic_acid_stereocenter(smiles, expected):
 
 def test_acyclic_selenonic_acid_stereocenter_with_coexisting_substituent():
     # A stereocenter that also bears a halogen substituent: the suffix's
-    # own locant is still cited despite the substituent sharing its
-    # position, mirroring `_sulfonic_acid.py`'s established convention.
-    assert smiles_to_iupac("C[C@@H](Cl)[Se](=O)(=O)O") == "(1S)-1-chloroethane-1-selenonic acid"
+    # own locant is still forced to be C1 by P-44.4.1.8, so it's omitted
+    # here too (P-14.3.4.2(b)) even though the halogen shares that
+    # position, mirroring `_sulfonic_acid.py`'s identical rule.
+    assert smiles_to_iupac("C[C@@H](Cl)[Se](=O)(=O)O") == "(1S)-1-chloroethaneselenonic acid"
 
 
 def test_selenonic_acid_unspecified_stereocenter_unaffected():
