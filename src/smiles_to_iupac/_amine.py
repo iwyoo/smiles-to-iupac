@@ -129,6 +129,7 @@ from ._substituents import (
     name_branch,
     plain_alkyl_ring_substituents,
     ring_branch_stereo_display,
+    substituents_for_chain,
 )
 
 _ENE_ORDER = 2.0
@@ -322,14 +323,6 @@ def _amine_locants(position_of, amines, graph):
     return locants
 
 
-def _substituents_for_chain(graph, chain, halogens, amines, mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in amines]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
 
 
 def _best_chain_name(
@@ -390,7 +383,7 @@ def _best_chain_name(
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             amine_locants = _amine_locants(position_of, amines, graph)
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, amines, mol=mol)
+            substituents = substituents_for_chain(graph, candidate, halogens, amines, mol=mol)
             if n_names_by_nitrogen is not None:
                 candidate_n_names = []
                 candidate_n_locants = []

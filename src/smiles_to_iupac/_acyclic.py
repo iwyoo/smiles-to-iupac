@@ -38,20 +38,7 @@ from ._common import (
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name
-from ._substituents import format_substituent_prefixes, name_branch
-
-
-def _substituents_for_chain(graph, chain, halogens, mol=None):
-    """Return {position (1-based) -> [(name, is_compound), ...]} for a
-    candidate chain."""
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set]
-        if not branch_roots:
-            continue
-        substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
+from ._substituents import format_substituent_prefixes, substituents_for_chain
 
 
 def _name_from_substituents(chain_length, grouped):
@@ -113,7 +100,7 @@ def _best_candidate(full_graph, carbon_graph, terminals, mol=None):
     best_name = None
     for chain in chains:
         for candidate in (chain, list(reversed(chain))):
-            substituents = _substituents_for_chain(full_graph, candidate, terminals, mol=mol)
+            substituents = substituents_for_chain(full_graph, candidate, terminals, mol=mol)
             key, name = _candidate_key(chain_length, substituents)
             if best_key is None or key < best_key:
                 best_key, best_chain, best_name = key, candidate, name

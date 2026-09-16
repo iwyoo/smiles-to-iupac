@@ -101,6 +101,7 @@ from ._substituents import (
     format_substituent_prefixes,
     name_branch,
     plain_alkyl_ring_substituents,
+    substituents_for_chain,
 )
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
@@ -252,14 +253,6 @@ def _al_locants(position_of, aldehydes, graph):
     return locants
 
 
-def _substituents_for_chain(graph, chain, halogens, aldehydes, mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in aldehydes]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
 
 
 def _name_acyclic_aldehyde(
@@ -334,7 +327,7 @@ def _name_acyclic_aldehyde(
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             al_locants = _al_locants(position_of, aldehydes, graph)
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, aldehydes, mol=mol)
+            substituents = substituents_for_chain(graph, candidate, halogens, aldehydes, mol=mol)
             key, name = _candidate_key(chain_length, al_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of
