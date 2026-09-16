@@ -717,6 +717,28 @@ def test_ketone_partially_specified_stereocenters_raises():
         smiles_to_iupac("C[C@H](Cl)C(Cl)C(C)=O")
 
 
+def test_acyclic_ketone_specified_ez_double_bond():
+    # Standalone specified C=C E/Z stereo, no stereocenter -- PubChem CID
+    # 637920 confirms the structure (SMILES "C/C=C/C(=O)C"), though
+    # PubChem's own auto-generated name is "(E)-pent-3-en-2-one" (no
+    # locant); this project's existing convention (see `_unsaturated.py`)
+    # is to always cite the locant explicitly.
+    assert smiles_to_iupac("CC(=O)/C=C/C") == "(3E)-pent-3-en-2-one"
+
+
+def test_acyclic_ketone_stereocenter_with_ez_double_bond_coexistence():
+    # P-91.3: a specified tetrahedral stereocenter and a specified C=C
+    # double-bond E/Z element on the same acyclic ketone chain are cited
+    # together in one ascending-locant group, mirroring `_alcohol.py`'s
+    # identical case. PubChem CIDs 45085013/45085012 confirm both
+    # structures (SMILES "C/C=C/[C@@H](C)C(=O)C" /
+    # "C/C=C/[C@H](C)C(=O)C"), though PubChem's own names group by type
+    # ("(E,3R)-...") rather than by ascending locant -- the expected
+    # locant-ascending form here is the primary source's own P-91.3 rule.
+    assert smiles_to_iupac("CC(=O)[C@H](C)/C=C/C") == "(3R,4E)-3-methylhex-4-en-2-one"
+    assert smiles_to_iupac("CC(=O)[C@@H](C)/C=C/C") == "(3S,4E)-3-methylhex-4-en-2-one"
+
+
 def test_phenyl_substituent_ketone_branched_chain():
     # A branch at the ring-adjacent carbon is absorbed into the parent
     # chain (`longest_branched_chain_through`, P-44.3.2), same principle
