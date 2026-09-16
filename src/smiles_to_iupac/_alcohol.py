@@ -234,6 +234,7 @@ from ._substituents import (
     plain_alkyl_ring_substituents,
     ring_branch_stereo_display,
     substituents_for_chain,
+    substituents_for_ring,
 )
 
 _ENE_ORDER = 2.0
@@ -544,18 +545,6 @@ def _name_acyclic_alcohol(
     return best_name
 
 
-def _substituents_for_ring(graph, ring_order, halogens, hydroxyls, mol=None, aromatic_atoms=frozenset()):
-    ring_set = set(ring_order)
-    substituents = {}
-    for position, atom in enumerate(ring_order, start=1):
-        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in hydroxyls]
-        if branch_roots:
-            substituents[position] = [
-                name_branch(graph, root, atom, halogens, aromatic_atoms, mol=mol) for root in branch_roots
-            ]
-    return substituents
-
-
 def _ring_name_from_substituents(ring_size, oh_locants, ene_locants, yne_locants, grouped):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     prefix = format_substituent_prefixes(grouped)
@@ -628,7 +617,7 @@ def _name_phenol(mol, ring_atoms):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             oh_locant = position_of[oh_carbon]
-            substituents = _substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
+            substituents = substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
             key = _phenol_candidate_key(oh_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
@@ -687,7 +676,7 @@ def _name_cyclic_alcohol(mol, hydroxyls, stereo=None, bonds=(), ring_atoms=None,
                 "itself is not supported yet (see P-92)"
             )
     if bonds and any(
-        _substituents_for_ring(graph, ring_order, halogens, hydroxyls, mol=mol, aromatic_atoms=aromatic_atoms).values()
+        substituents_for_ring(graph, ring_order, halogens, hydroxyls, mol=mol, aromatic_atoms=aromatic_atoms).values()
     ):
         raise UnsupportedStructure(
             "a substituent alongside both a ring double/triple bond and a "
@@ -707,7 +696,7 @@ def _name_cyclic_alcohol(mol, hydroxyls, stereo=None, bonds=(), ring_atoms=None,
                     "a hydroxyl not on the ring itself (e.g. on a "
                     "substituent branch) is not supported yet"
                 )
-            substituents = _substituents_for_ring(
+            substituents = substituents_for_ring(
                 graph, candidate, halogens, hydroxyls, mol=mol, aromatic_atoms=aromatic_atoms
             )
             if branch_stereo is not None:

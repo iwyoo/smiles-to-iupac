@@ -113,6 +113,7 @@ from ._substituents import (
     plain_alkyl_ring_substituents,
     ring_branch_stereo_display,
     substituents_for_chain,
+    substituents_for_ring,
 )
 
 _ENE_ORDER = 2.0
@@ -246,18 +247,6 @@ def _sh_locants(position_of, thiols, graph):
         locants.append(position_of[carbon])
     return locants
 
-def _substituents_for_ring(graph, ring_order, halogens, thiols, mol=None, aromatic_atoms=frozenset()):
-    ring_set = set(ring_order)
-    substituents = {}
-    for position, atom in enumerate(ring_order, start=1):
-        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in thiols]
-        if branch_roots:
-            substituents[position] = [
-                name_branch(graph, root, atom, halogens, aromatic_atoms, mol=mol) for root in branch_roots
-            ]
-    return substituents
-
-
 def _ring_name_from_substituents(ring_size, sh_locants, ene_locants, yne_locants, grouped):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     prefix = format_substituent_prefixes(grouped)
@@ -322,7 +311,7 @@ def _name_cyclic_thiol(mol, thiols, stereo=None, bonds=(), ring_atoms=None, arom
                 "itself is not supported yet (see P-92)"
             )
     if bonds and any(
-        _substituents_for_ring(graph, ring_order, halogens, thiols, mol=mol, aromatic_atoms=aromatic_atoms).values()
+        substituents_for_ring(graph, ring_order, halogens, thiols, mol=mol, aromatic_atoms=aromatic_atoms).values()
     ):
         raise UnsupportedStructure(
             "a substituent alongside both a ring double/triple bond and a "
@@ -337,7 +326,7 @@ def _name_cyclic_thiol(mol, thiols, stereo=None, bonds=(), ring_atoms=None, arom
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             sh_locants = _sh_locants(position_of, thiols, graph)
-            substituents = _substituents_for_ring(
+            substituents = substituents_for_ring(
                 graph, candidate, halogens, thiols, mol=mol, aromatic_atoms=aromatic_atoms
             )
             if branch_stereo is not None:
@@ -409,7 +398,7 @@ def _name_benzenethiol(mol, ring_atoms):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             sh_locants = _sh_locants(position_of, thiols, graph)
-            substituents = _substituents_for_ring(graph, candidate, halogens, thiols, mol=mol)
+            substituents = substituents_for_ring(graph, candidate, halogens, thiols, mol=mol)
             key = _benzenethiol_candidate_key(sh_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
