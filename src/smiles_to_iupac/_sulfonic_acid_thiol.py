@@ -53,7 +53,7 @@ from ._common import (
     validate_allowed_atoms,
 )
 from ._seniority import senior_class
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
 from ._sulfonic_acid import _name_acyclic_sulfonic_acid
 
 
@@ -182,17 +182,6 @@ def _candidate_key(chain_length, so3h_locant, substituents):
     name = _name_from_substituents(chain_length, so3h_locant, grouped)
     return (so3h_locant, locant_set, citation_locants, name), name
 
-
-def _substituents_for_chain(graph, chain, names, excluded, mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, names, mol=mol) for root in branch_roots]
-    return substituents
-
-
 def _name_phenyl_chain_sulfonic_acid_thiol(mol, ring_atoms):
     """Name a sulfonic acid plus one or more thiols, all lying on a single
     unbranched chain hanging off one atom of an otherwise-plain,
@@ -263,7 +252,7 @@ def _name_phenyl_chain_sulfonic_acid_thiol(mol, ring_atoms):
     for candidate in (chain, list(reversed(chain))):
         position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
         so3h_locant = position_of[so3h_carbon]
-        substituents = _substituents_for_chain(graph, candidate, names, excluded, mol=mol)
+        substituents = substituents_for_chain(graph, candidate, names, excluded, mol=mol)
         ring_entry = name_branch(graph, ring_atom, chain_root, names, ring_atoms, mol=mol)
         substituents.setdefault(position_of[chain_root], []).append(ring_entry)
         key, name = _candidate_key(chain_length, so3h_locant, substituents)

@@ -63,7 +63,7 @@ from ._common import (
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
-from ._substituents import format_substituent_prefixes, name_branch, ring_branch_stereo_display, substituents_for_ring
+from ._substituents import format_substituent_prefixes, name_branch, ring_branch_stereo_display, substituents_for_ring, substituents_for_chain
 
 _ENE_ORDER = 2.0
 _YNE_ORDER = 3.0
@@ -203,19 +203,6 @@ def _candidate_key(chain_length, seo3h_locant, ene_locants, yne_locants, substit
         name,
     )
 
-
-def _substituents_for_chain(graph, chain, halogens, excluded, mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
-
-
-
-
 def _benzeneselenonic_acid_name_from_substituents(grouped):
     # Mirrors `_sulfonic_acid.py`'s `_benzenesulfonic_acid_name_from_substituents`:
     # the mancude ring's own numbering is always free to start at the
@@ -331,7 +318,7 @@ def name_selenonic_acid(mol) -> str:
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             seo3h_locant = position_of[seo3h_carbon]
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
+            substituents = substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
             key, name = _candidate_key(chain_length, seo3h_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of

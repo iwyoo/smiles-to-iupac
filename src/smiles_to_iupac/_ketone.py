@@ -319,6 +319,7 @@ from ._substituents import (
     name_branch,
     plain_alkyl_ring_substituents,
     ring_branch_stereo_display,
+    substituents_for_chain,
 )
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
@@ -506,17 +507,6 @@ def _one_locants(position_of, ketones, graph):
         locants.append(position_of[carbon])
     return locants
 
-
-def _substituents_for_chain(graph, chain, halogens, ketones, mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in ketones]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
-
-
 def _name_acyclic_ketone(
     mol, ketones, hydroxyls, bonds, stereo=None, extra_names=None, required_atoms=frozenset(), carbon_graph=None
 ):
@@ -593,7 +583,7 @@ def _name_acyclic_ketone(
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             one_locants = _one_locants(position_of, ketones, graph)
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, ketones, mol=mol)
+            substituents = substituents_for_chain(graph, candidate, halogens, ketones, mol=mol)
             key, name = _candidate_key(chain_length, one_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of
