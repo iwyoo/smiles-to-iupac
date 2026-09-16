@@ -125,6 +125,7 @@ from ._common import (
 )
 from ._carboxylic_acid import _name_benzo_attached_carboxyl, _name_ring_attached_carboxyl
 from ._substituents import (
+    substituents_for_chain,
     format_substituent_prefixes,
     name_branch,
     plain_alkyl_ring_substituents,
@@ -276,16 +277,6 @@ def _candidate_key(chain_length, ene_locants, yne_locants, substituents):
     )
 
 
-def _substituents_for_chain(graph, chain, halogens, excluded_oxygens, mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded_oxygens]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
-
-
 def _name_acyl_part(
     mol,
     acyl_carbon,
@@ -378,7 +369,7 @@ def _name_acyl_part(
                 # direction that doesn't start there is never valid.
                 continue
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(full_graph, candidate, halogens, excluded_oxygens, mol=mol)
+            substituents = substituents_for_chain(full_graph, candidate, halogens, excluded_oxygens, mol=mol)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 position_of = {atom: i + 1 for i, atom in enumerate(candidate)}

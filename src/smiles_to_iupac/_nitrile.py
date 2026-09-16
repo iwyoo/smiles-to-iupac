@@ -103,6 +103,7 @@ from ._common import (
     two_separate_rings_with_plain_aromatic_substituent,
 )
 from ._substituents import (
+    substituents_for_chain,
     format_substituent_prefixes,
     name_branch,
     plain_alkyl_ring_substituents,
@@ -259,16 +260,6 @@ def _nitrile_locants(position_of, nitriles, graph):
     return locants
 
 
-def _substituents_for_chain(graph, chain, halogens, nitriles, mol=None):
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set and n not in nitriles]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
-
-
 def _name_acyclic_nitrile(mol, nitriles, bonds, stereo=None):
     """`stereo`: None, or a list of ("atom"/"bond", idx, "R"/"S"/"E"/"Z")
     from `specified_stereo_elements`/`specified_stereocenters` -- if given,
@@ -311,7 +302,7 @@ def _name_acyclic_nitrile(mol, nitriles, bonds, stereo=None):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             nitrile_locants = _nitrile_locants(position_of, nitriles, graph)
             ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
-            substituents = _substituents_for_chain(graph, candidate, halogens, nitriles, mol=mol)
+            substituents = substituents_for_chain(graph, candidate, halogens, nitriles, mol=mol)
             key, name = _candidate_key(chain_length, nitrile_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of
