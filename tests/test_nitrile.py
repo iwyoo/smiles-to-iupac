@@ -277,6 +277,30 @@ def test_nitrile_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("CCC(C)C#N") == "2-methylbutanenitrile"
 
 
+def test_acyclic_nitrile_specified_ez_double_bond():
+    # Standalone specified C=C E/Z stereo, no stereocenter -- mirrors
+    # `_ketone.py`/`_aldehyde.py`/`_carboxylic_acid.py`'s identical
+    # PR #710/#713/#715 case. PubChem CID 637921 confirms the structure
+    # (SMILES "C/C=C/C#N"), though PubChem's own auto-generated name is
+    # "(E)-but-2-enenitrile" (no locant); this project's existing
+    # convention is to always cite the locant explicitly.
+    assert smiles_to_iupac("N#C/C=C/C") == "(2E)-but-2-enenitrile"
+
+
+def test_acyclic_nitrile_stereocenter_with_ez_double_bond_coexistence():
+    # P-91.3: a specified tetrahedral stereocenter and a specified C=C
+    # double-bond E/Z element on the same acyclic nitrile chain are cited
+    # together in one ascending-locant group, mirroring `_alcohol.py`'s/
+    # `_ketone.py`'s/`_aldehyde.py`'s/`_carboxylic_acid.py`'s identical
+    # case. PubChem CIDs 92976641/92976642 confirm both structures
+    # (SMILES "C/C=C/[C@@H](C)C#N" / "C/C=C/[C@H](C)C#N"), though
+    # PubChem's own names group by type ("(E,2R)-...") rather than by
+    # ascending locant -- the expected locant-ascending form here is the
+    # primary source's own P-91.3 rule.
+    assert smiles_to_iupac("N#C[C@H](C)/C=C/C") == "(2R,3E)-2-methylpent-3-enenitrile"
+    assert smiles_to_iupac("N#C[C@@H](C)/C=C/C") == "(2S,3E)-2-methylpent-3-enenitrile"
+
+
 def test_cyclic_nitrile_ring_stereocenter():
     # A specified stereocenter on the ring itself, alongside the ring's
     # sole -C#N substituent (P-92), same pattern as
