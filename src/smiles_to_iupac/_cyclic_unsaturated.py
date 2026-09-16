@@ -36,6 +36,19 @@ per the IUPAC 2013 Recommendations ("the Blue Book"):
 - P-29.4 / P-46 (Chapter P-2, P-4) and P-35.2.1 (Chapter P-3): ring
   substituents (simple/compound alkyl groups, halogens) are named exactly
   as in `_cyclic.py`.
+- P-91.2.2 (Chapter P-9): a specified ring C=C double bond gets a bare
+  `(Z)-`/`(E)-` prefix, no locant (redundant for the same reason the
+  bond's own locant is already omitted above), but only when the ring is
+  large enough for the geometry to be a genuine stereogenic unit --
+  confirmed directly from the primary source text: a 3-7-membered ring's
+  double bond is always 'Z' (the only physically realizable form) and the
+  descriptor is correspondingly always omitted, while an 8+-membered
+  ring's requires it. `_common.specified_double_bond_stereo` already
+  delegates this exact size distinction to RDKit's own stereo perception
+  (`Chem.FindPotentialStereo` reports no element at all for the small-ring
+  case regardless of input markers), so no ring-size branching is
+  hand-coded here. A ring with two or more double bonds needing
+  locant-bearing citation is a separate, unverified case, out of scope.
 
 Scope, deliberately narrow: a single monocyclic, all-carbon ring bearing
 one or more carbon-carbon ring double and/or triple bonds (no exocyclic
@@ -46,8 +59,7 @@ exactly matching this shape falls through to another module in
 are not supported yet" message still applies to out-of-scope cases like
 a ring triple bond outside a monocycle, or one alongside an exocyclic
 multiple bond). A polycyclic/spiro ring bearing a triple bond is out of
-scope (see `tasks/cyclic-unsaturated-triple-bond.md`'s own scope note)
-and is not handled here.
+scope and is not handled here.
 """
 
 from ._common import (
@@ -58,6 +70,7 @@ from ._common import (
     lowest_locant_set,
     multiplied_word,
     ring_cycle,
+    specified_double_bond_stereo,
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
@@ -241,9 +254,29 @@ def name_cyclic_unsaturated(mol, ring_atoms) -> str:
                 "alkylidene/alkylidyne substituent) is not supported yet"
             )
 
+    bonds = _multi_bonds(mol)
+    stereo = specified_double_bond_stereo(mol)
+    if stereo is not None:
+        # RDKit's own `Chem.FindPotentialStereo` already tells apart a
+        # 3-7-membered ring's genuinely non-stereogenic double bond (no
+        # element reported, `stereo` stays None regardless of input
+        # markers) from an 8+-membered ring's genuinely stereogenic one
+        # (P-91.2.2) -- no ring-size branching needed here at all.
+        if any(order == _YNE_ORDER for _, _, order in bonds):
+            raise UnsupportedStructure(
+                "a specified double-bond E/Z stereo element combined with "
+                "a triple bond is not supported yet (see P-93)"
+            )
+        if len(stereo) != 1 or len(bonds) != 1:
+            raise UnsupportedStructure(
+                "a ring with more than one double bond, or one where not "
+                "every double bond is specified, is not supported yet -- "
+                "P-91.2.2's multi-bond citation rule needs separate "
+                "verification"
+            )
+
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    bonds = _multi_bonds(mol)
     ring_order = ring_cycle(graph, list(ring_atoms))
     ring_size = len(ring_order)
 
@@ -258,4 +291,11 @@ def name_cyclic_unsaturated(mol, ring_atoms) -> str:
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
 
+    if stereo is not None:
+        # P-91.2.2's own worked example ('(Z)-cyclooctene', '(E)-cyclooctene')
+        # cites no locant -- redundant for the same reason the ring's own
+        # double-bond locant is already omitted in the parent name
+        # (P-14.3.3).
+        ((_, code),) = stereo
+        return f"({code})-{best_name}"
     return best_name
