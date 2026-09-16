@@ -21,26 +21,24 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   ordering as every other suffix module here.
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with
   the -SO2H suffix.
-- P-92 stereocenters: unlike
-  `_sulfonic_acid.py`'s sulfur (two identical =O, never stereogenic), this
-  module's sulfinic sulfur (-R, =O, -OH, a lone pair) is *itself* a
-  potential stereocenter in essentially every real -SO2H molecule --
-  confirmed via RDKit's `Chem.FindPotentialStereo` on e.g. plain
-  `CC(C)S(=O)O` (no chain stereocenter at all), which still flags the
-  sulfur atom. That means any input with a specified *chain* stereocenter
-  almost always has this second, unspecified sulfur stereocenter riding
-  along, and `_common.specified_stereocenters` correctly rejects that
-  combination as partially specified (P-92) rather than silently ignoring
-  either one. A specified sulfur configuration is out of scope too, since
-  this project has no established locant/prefix convention for a
-  heteroatom-centered (rather than carbon-centered) stereodescriptor, and
-  PubChem itself doesn't distinguish the two sulfur configurations of a
-  test case (`CCC[S@](=O)O`/`CCC[S@@](=O)O`, both CID 643586, same
-  unstereo name) -- so this module only ever explicitly rejects a
-  specified stereocenter (chain carbon or sulfur alike) rather than
-  attempting to cite one; see the module below for the R/S support this
-  project *does* provide (`_carboxylic_acid.py`/`_aldehyde.py`/
-  `_ketone.py`/`_sulfonic_acid.py`, none of which have this complication).
+- P-92/P-93.3.4.1 stereocenters: unlike `_sulfonic_acid.py`'s sulfur (two
+  identical =O, never stereogenic), this module's sulfinic sulfur
+  (-R, =O, -OH, a lone pair) is *itself* a potential stereocenter in
+  essentially every real -SO2H molecule -- confirmed via RDKit's
+  `Chem.FindPotentialStereo` on e.g. plain `CC(C)S(=O)O` (no chain
+  stereocenter at all), which still flags the sulfur atom. That means any
+  input with a specified *chain* stereocenter almost always has this
+  second, unspecified sulfur stereocenter riding along, and
+  `_common.specified_stereocenters` correctly rejects that combination as
+  partially specified (P-92) rather than silently ignoring either one.
+  When the sulfur is the molecule's *sole* specified stereocenter,
+  `_common.heteroatom_stereo_prefix` cites it with a bare "(R)-"/"(S)-"
+  prefix -- P-93.3.4.1 assigns an ordinary R/S descriptor to this kind of
+  trigonal pyramidal center, in the manner described for tetrahedral
+  centers, e.g. "(R)-propane-1-sulfinic acid". A specified sulfur
+  stereocenter *combined with* a specified chain/ring carbon stereocenter
+  remains out of scope (two descriptors to combine into one citation
+  group is a separate design question).
 
 Scope, deliberately narrow (mirrors `_sulfonic_acid.py`'s own first pass):
 a single -SO2H on an acyclic chain or on a single saturated carbon ring
@@ -86,6 +84,7 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    heteroatom_stereo_prefix,
     is_plain_benzene_ring,
     longest_branched_chain_through,
     longest_chains,
@@ -98,7 +97,6 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     ring_name_from_substituents,
-    specified_stereocenters,
     substituent_locant_set_and_citation,
 )
 from ._numerals import alkyl_name
@@ -313,16 +311,7 @@ def _name_benzenesulfinic_acid(mol, ring_atoms):
     'benzene' as stem in place of 'cyclo' + alkane_name; an aromatic ring
     has no ene/yne locants of its own."""
     sulfur_idx, so2h_carbon = _validate_and_collect_sulfinic_acids(mol, aromatic_ring_atoms=ring_atoms)
-    if specified_stereocenters(mol) is not None:
-        # See module docstring: the sulfinic sulfur is itself a potential
-        # stereocenter in virtually every real -SO2H molecule, and this
-        # project has no established way to cite one -- reject
-        # unconditionally, same as the acyclic/chain paths.
-        raise UnsupportedStructure(
-            "a specified stereocenter (ring carbon or the sulfinic "
-            "sulfur itself) is not supported yet for sulfinic acids (see "
-            "P-92, module docstring)"
-        )
+    stereo_prefix = heteroatom_stereo_prefix(mol, sulfur_idx) or ""
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -341,7 +330,7 @@ def _name_benzenesulfinic_acid(mol, ring_atoms):
             key = _benzenesulfinic_acid_candidate_key(so2h_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
-    return best_name
+    return stereo_prefix + best_name
 
 
 def _name_phenyl_chain_sulfinic_acid(mol, ring_atoms):
@@ -355,16 +344,7 @@ def _name_phenyl_chain_sulfinic_acid(mol, ring_atoms):
     above: no chain unsaturation -- a separate follow-up (see
     tasks/phenyl-substituent-on-sulfinic-acid-chain.md's scope note)."""
     sulfur_idx, so2h_carbon = _validate_and_collect_sulfinic_acids(mol, aromatic_ring_atoms=ring_atoms)
-    if specified_stereocenters(mol) is not None:
-        # See module docstring: the sulfinic sulfur is itself a potential
-        # stereocenter in virtually every real -SO2H molecule, and this
-        # project has no established way to cite one -- reject
-        # unconditionally, same as the acyclic path below.
-        raise UnsupportedStructure(
-            "a specified stereocenter (chain carbon or the sulfinic "
-            "sulfur itself) is not supported yet for sulfinic acids (see "
-            "P-92, module docstring)"
-        )
+    stereo_prefix = heteroatom_stereo_prefix(mol, sulfur_idx) or ""
     excluded = {sulfur_idx}
     non_ring_unsaturation = [
         b
@@ -402,7 +382,7 @@ def _name_phenyl_chain_sulfinic_acid(mol, ring_atoms):
         key, name = _candidate_key(chain_length, so2h_locant, [], [], substituents)
         if best_key is None or key < best_key:
             best_key, best_name = key, name
-    return best_name
+    return stereo_prefix + best_name
 
 
 def _name_ring_substituent_chain_sulfinic_acid(mol, sulfur_idx, so2h_carbon):
@@ -462,17 +442,7 @@ def name_sulfinic_acid(mol) -> str:
                 return _name_benzenesulfinic_acid(mol, ring_atoms)
             return _name_phenyl_chain_sulfinic_acid(mol, ring_atoms)
     sulfur_idx, so2h_carbon = _validate_and_collect_sulfinic_acids(mol)
-    if specified_stereocenters(mol) is not None:
-        # Unlike `_sulfonic_acid.py`'s sulfur, this module's sulfinic
-        # sulfur is itself a potential stereocenter in virtually every real
-        # -SO2H molecule (module docstring), and this project has no
-        # established way to cite a heteroatom-centered stereodescriptor --
-        # explicitly reject rather than silently drop the marker (P-92).
-        raise UnsupportedStructure(
-            "a specified stereocenter (chain carbon or the sulfinic sulfur "
-            "itself) is not supported yet for sulfinic acids (see P-92, "
-            "module docstring)"
-        )
+    stereo_prefix = heteroatom_stereo_prefix(mol, sulfur_idx) or ""
     graph = adjacency(mol)
     all_non_single = non_single_bonds(mol)
     bonds = [b for b in all_non_single if b[2] in (_ENE_ORDER, _YNE_ORDER) and sulfur_idx not in (b[0], b[1])]
@@ -509,12 +479,12 @@ def name_sulfinic_acid(mol) -> str:
             )
         if so2h_carbon not in ring_atoms:
             if not bonds:
-                return _name_ring_substituent_chain_sulfinic_acid(mol, sulfur_idx, so2h_carbon)
+                return stereo_prefix + _name_ring_substituent_chain_sulfinic_acid(mol, sulfur_idx, so2h_carbon)
             raise UnsupportedStructure(
                 "a sulfinic acid on a substituent branch chain rather "
                 "than the ring itself is not supported yet"
             )
-        return _name_cyclic_sulfinic_acid(mol, sulfur_idx, so2h_carbon, bonds)
+        return stereo_prefix + _name_cyclic_sulfinic_acid(mol, sulfur_idx, so2h_carbon, bonds)
 
     halogens = halogen_substituents(mol)
     excluded = {sulfur_idx}
@@ -546,4 +516,4 @@ def name_sulfinic_acid(mol) -> str:
             key, name = _candidate_key(chain_length, so2h_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
-    return best_name
+    return stereo_prefix + best_name

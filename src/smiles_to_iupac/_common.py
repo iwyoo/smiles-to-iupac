@@ -1202,6 +1202,31 @@ def specified_stereocenters(mol):
     return labels
 
 
+def heteroatom_stereo_prefix(mol, heteroatom_idx):
+    """None if `mol` has no specified stereocenter at all (the caller
+    proceeds exactly as before). "(R)-"/"(S)-" if the molecule's sole
+    specified stereocenter is `heteroatom_idx` itself -- P-93.3.3.2/
+    P-93.3.4.1: a trigonal pyramidal center (a sulfoxide/sulfinyl/
+    seleninyl sulfur or selenium, one lone pair standing in for a phantom
+    low-priority ligand) is assigned an ordinary R/S descriptor "in the
+    manner described for tetrahedral stereogenic centers," cited with no
+    locant when it's the molecule's only stereocenter (Blue Book worked
+    examples: "(S)-(methanesulfinyl)ethane", "ethyl (R)-4-nitrobenzene-
+    1-sulfinate"). Raises `UnsupportedStructure` for every other
+    specified-stereocenter shape (a chain/ring carbon, more than one
+    specified center, ...) -- still out of scope, same rejection every
+    caller already had before this existed."""
+    stereo = specified_stereocenters(mol)
+    if stereo is None:
+        return None
+    if len(stereo) == 1 and stereo[0][0] == heteroatom_idx:
+        return f"({stereo[0][1]})-"
+    raise UnsupportedStructure(
+        "a specified stereocenter other than the sole heteroatom center "
+        "is not supported yet (see P-92/P-93.3.4.1)"
+    )
+
+
 def specified_double_bond_stereo(mol):
     """`Bond_Double` analogue of `specified_stereocenters` above (see its
     docstring for the same unspecified-vs-rejected reasoning). None if

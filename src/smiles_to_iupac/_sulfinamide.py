@@ -23,18 +23,17 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with
   the -S(=O)NH2 suffix. Confirmed via PubChem: 'cyclohexanesulfinamide'
   (O=S(N)C1CCCCC1).
-- P-92 stereocenters: like
-  `_sulfinic_acid.py`'s sulfur (and unlike `_sulfonamide.py`'s, whose two
-  identical =O substituents keep it non-stereogenic), this module's
-  sulfinamide sulfur (one =O, one N, one C, one lone pair -- four distinct
-  "substituents") is itself a potential stereocenter in virtually every
-  real -S(=O)NH2 molecule, confirmed via RDKit `FindPotentialStereo` on
-  `CC(C)S(=O)N` (flags the sulfur even with no chain stereocenter at all).
-  This project has no established way to cite a heteroatom-centered
-  stereodescriptor, so this module only ever explicitly rejects a
-  specified stereocenter (chain carbon or sulfur alike) rather than
-  attempting real R/S support, mirroring `_sulfinic_acid.py`'s identical
-  policy.
+- P-92/P-93.3.4.1 stereocenters: like `_sulfinic_acid.py`'s sulfur (and
+  unlike `_sulfonamide.py`'s, whose two identical =O substituents keep it
+  non-stereogenic), this module's sulfinamide sulfur (one =O, one N, one
+  C, one lone pair -- four distinct "substituents") is itself a potential
+  stereocenter in virtually every real -S(=O)NH2 molecule, confirmed via
+  RDKit `FindPotentialStereo` on `CC(C)S(=O)N` (flags the sulfur even
+  with no chain stereocenter at all). Same mechanism as
+  `_sulfinic_acid.py`: `_common.heteroatom_stereo_prefix` cites a bare
+  "(R)-"/"(S)-" prefix when the sulfur is the molecule's sole specified
+  stereocenter (P-93.3.4.1); a specified sulfur stereocenter combined
+  with a specified chain/ring carbon one remains out of scope.
 - The sulfinamide nitrogen may carry zero, one, or two plain,
   unsubstituted, saturated, acyclic alkyl substituents (branched or
   unbranched), each cited as its own 'N-'-prefixed substituent directly
@@ -86,9 +85,9 @@ carbon (with or without other ring substituents), e.g.
 'benzenesulfinamide' (PubChem PUG REST match for c1ccccc1S(=O)N),
 mirroring `_sulfonamide.py`'s `_name_benzenesulfonamide` with the
 retained name 'benzene' as stem -- the -S(=O)NH2's own locant is never
-cited here; narrower than the acyclic path: no N-alkyl substitution and
-no specified stereocenter (every sulfinamide sulfur is a potential
-stereocenter, so a specified one is always rejected here too).
+cited here; narrower than the acyclic path: no N-alkyl substitution
+(a specified sole sulfur stereocenter is supported, see module docstring,
+P-93.3.4.1).
 """
 
 from rdkit import Chem
@@ -103,6 +102,7 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    heteroatom_stereo_prefix,
     is_plain_benzene_ring,
     longest_branched_chain_through,
     longest_chains,
@@ -114,7 +114,6 @@ from ._common import (
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     ring_cycle,
-    specified_stereocenters,
     substituent_locant_set_and_citation,
     suffix_body,
 )
@@ -410,18 +409,12 @@ def _name_benzenesulfinamide(mol, ring_atoms):
     path (`name_sulfinamide`), merged into the ring citation via
     `_add_n_names` (so a coinciding name, e.g. 'N,4-dimethyl...',
     collapses into one multiplied citation like PubChem's own name). A
-    specified stereocenter is always rejected (module docstring: the
-    sulfinamide sulfur is itself a
-    potential stereocenter with no established way to cite it)."""
+    specified sulfur stereocenter (with no ring-carbon one alongside it)
+    gets a bare (R)-/(S)- prefix -- see module docstring, P-93.3.4.1."""
     sulfur_idx, so_nh2_carbon, nitrogen_idx, n_alkyl_carbons = _validate_and_collect_sulfinamides(
         mol, aromatic_ring_atoms=ring_atoms
     )
-    if specified_stereocenters(mol) is not None:
-        raise UnsupportedStructure(
-            "a specified stereocenter (chain carbon or the sulfinamide "
-            "sulfur itself) is not supported yet for sulfinamides (see "
-            "P-92, module docstring)"
-        )
+    stereo_prefix = heteroatom_stereo_prefix(mol, sulfur_idx) or ""
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -444,7 +437,7 @@ def _name_benzenesulfinamide(mol, ring_atoms):
             key = _benzenesulfinamide_candidate_key(so_nh2_locant, substituents, n_names)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
-    return best_name
+    return stereo_prefix + best_name
 
 
 def _name_phenyl_chain_sulfinamide(mol, ring_atoms):
@@ -465,16 +458,7 @@ def _name_phenyl_chain_sulfinamide(mol, ring_atoms):
             "an N-alkyl-substituted sulfinamide alongside a benzene-ring "
             "substituent is not supported yet"
         )
-    if specified_stereocenters(mol) is not None:
-        # See module docstring: the sulfinamide sulfur is itself a
-        # potential stereocenter in virtually every real -S(=O)NH2
-        # molecule, and this project has no established way to cite one
-        # -- reject unconditionally, same as the acyclic path below.
-        raise UnsupportedStructure(
-            "a specified stereocenter (chain carbon or the sulfinamide "
-            "sulfur itself) is not supported yet for sulfinamides (see "
-            "P-92, module docstring)"
-        )
+    stereo_prefix = heteroatom_stereo_prefix(mol, sulfur_idx) or ""
     excluded = {sulfur_idx}
     non_ring_unsaturation = [
         b
@@ -512,7 +496,7 @@ def _name_phenyl_chain_sulfinamide(mol, ring_atoms):
         key, name = _candidate_key(chain_length, so_nh2_locant, [], [], substituents)
         if best_key is None or key < best_key:
             best_key, best_name = key, name
-    return best_name
+    return stereo_prefix + best_name
 
 
 def _name_ring_substituent_chain_sulfinamide(mol, sulfur_idx, so_nh2_carbon):
@@ -573,17 +557,7 @@ def name_sulfinamide(mol) -> str:
                 return _name_benzenesulfinamide(mol, ring_atoms)
             return _name_phenyl_chain_sulfinamide(mol, ring_atoms)
     sulfur_idx, so_nh2_carbon, nitrogen_idx, n_alkyl_carbons = _validate_and_collect_sulfinamides(mol)
-    if specified_stereocenters(mol) is not None:
-        # The sulfinamide sulfur is itself a potential stereocenter in
-        # virtually every real -S(=O)NH2 molecule (module docstring), and
-        # this project has no established way to cite a heteroatom-centered
-        # stereodescriptor -- explicitly reject rather than silently drop
-        # the marker (P-92), mirroring `_sulfinic_acid.py`.
-        raise UnsupportedStructure(
-            "a specified stereocenter (chain carbon or the sulfinamide "
-            "sulfur itself) is not supported yet for sulfinamides (see "
-            "P-92, module docstring)"
-        )
+    stereo_prefix = heteroatom_stereo_prefix(mol, sulfur_idx) or ""
     graph = adjacency(mol)
     all_non_single = non_single_bonds(mol)
     bonds = [b for b in all_non_single if b[2] in (_ENE_ORDER, _YNE_ORDER) and sulfur_idx not in (b[0], b[1])]
@@ -625,12 +599,12 @@ def name_sulfinamide(mol) -> str:
             )
         if so_nh2_carbon not in ring_atoms:
             if not bonds and not n_alkyl_carbons:
-                return _name_ring_substituent_chain_sulfinamide(mol, sulfur_idx, so_nh2_carbon)
+                return stereo_prefix + _name_ring_substituent_chain_sulfinamide(mol, sulfur_idx, so_nh2_carbon)
             raise UnsupportedStructure(
                 "a sulfinamide on a substituent branch chain rather than "
                 "the ring itself is not supported yet"
             )
-        return _name_cyclic_sulfinamide(mol, sulfur_idx, so_nh2_carbon, n_names, bonds)
+        return stereo_prefix + _name_cyclic_sulfinamide(mol, sulfur_idx, so_nh2_carbon, n_names, bonds)
 
     halogens = halogen_substituents(mol)
     excluded = {sulfur_idx}
@@ -664,4 +638,4 @@ def name_sulfinamide(mol) -> str:
             key, name = _candidate_key(chain_length, so_nh2_locant, ene_locants, yne_locants, substituents, n_names)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
-    return best_name
+    return stereo_prefix + best_name

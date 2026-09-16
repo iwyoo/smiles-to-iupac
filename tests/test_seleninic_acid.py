@@ -101,9 +101,12 @@ def test_substituted_benzeneseleninic_acid():
     assert smiles_to_iupac("Cc1ccc(cc1)[Se](=O)O") == "4-methylbenzeneseleninic acid"  # PubChem PUG REST
 
 
-def test_benzeneseleninic_acid_specified_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1[Se@](=O)O")
+def test_benzeneseleninic_acid_specified_stereocenter_cited():
+    # The seleninic selenium is a trigonal pyramidal stereocenter (P-93.3.4.1),
+    # cited with a bare (R)-/(S)- prefix when it's the molecule's sole
+    # specified stereocenter.
+    assert smiles_to_iupac("c1ccccc1[Se@](=O)O") == "(R)-benzeneseleninic acid"
+    assert smiles_to_iupac("c1ccccc1[Se@@](=O)O") == "(S)-benzeneseleninic acid"
 
 
 def test_phenyl_substituted_benzene_ring_seleninic_acid_raises():

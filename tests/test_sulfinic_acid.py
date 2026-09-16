@@ -121,16 +121,16 @@ def test_sulfinic_acid_specified_chain_stereocenter_raises():
         smiles_to_iupac("CC[C@@H](C)S(=O)O")
 
 
-def test_sulfinic_acid_specified_sulfur_stereocenter_raises():
-    # A specified sulfur configuration, with no chain stereocenter at all
-    # (CCC[S@](=O)O), is explicitly out of scope too -- this project has
-    # no established locant/prefix convention for a heteroatom-centered
-    # stereodescriptor, and PubChem itself doesn't distinguish the two
-    # sulfur configurations for this molecule (CCC[S@](=O)O and
-    # CCC[S@@](=O)O both resolve to PubChem CID 643586 with the same,
-    # unstereo name).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCC[S@](=O)O")
+def test_sulfinic_acid_specified_sulfur_stereocenter_cited():
+    # A specified sulfur configuration, with no chain stereocenter
+    # alongside it, gets a bare (R)-/(S)- prefix per P-93.3.4.1 (the
+    # sulfinic sulfur is a trigonal pyramidal stereocenter, cited the same
+    # way as a tetrahedral one). PubChem itself doesn't distinguish the
+    # two sulfur configurations for this molecule (CCC[S@](=O)O and
+    # CCC[S@@](=O)O both resolve to CID 643586 with the same, unstereo
+    # name) -- confirmed instead against RDKit's own CIP assignment.
+    assert smiles_to_iupac("CCC[S@](=O)O") == "(R)-propane-1-sulfinic acid"
+    assert smiles_to_iupac("CCC[S@@](=O)O") == "(S)-propane-1-sulfinic acid"
 
 
 def test_ring_sulfinic_acid_non_stereocenter_marker_unaffected():
