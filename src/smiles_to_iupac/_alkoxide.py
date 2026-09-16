@@ -99,7 +99,7 @@ from ._common import (
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
-from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
+from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain, substituents_for_ring
 
 _RETAINED_ALKOXIDES = {1: "methoxide", 2: "ethoxide", 3: "propoxide", 4: "butoxide"}
 _CHALCOGENS = (8, 16, 34, 52)
@@ -348,14 +348,6 @@ def _phenoxide_candidate_key(o_locant, substituents):
     return o_locant, locant_set, citation_locants, name
 
 
-def _substituents_for_ring(graph, ring_order, halogens, excluded, mol=None):
-    ring_set = set(ring_order)
-    substituents = {}
-    for position, atom in enumerate(ring_order, start=1):
-        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
 
 
 def _name_phenoxide(mol, ring_atoms, oxygen):
@@ -406,7 +398,7 @@ def _name_phenoxide(mol, ring_atoms, oxygen):
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             o_locant = position_of[oxygen_carbon]
-            substituents = _substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
+            substituents = substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
             key = _phenoxide_candidate_key(o_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]

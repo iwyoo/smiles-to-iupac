@@ -78,7 +78,7 @@ from ._common import (
     halogen_substituents,
     non_single_bonds,
 )
-from ._cyclic import _substituents_for_ring
+from ._substituents import substituents_for_ring
 from ._numerals import numerical_term
 from ._polycyclic import _candidate_key as _polycyclic_candidate_key, iter_polycyclic_candidates
 
@@ -169,7 +169,7 @@ def name_von_baeyer_heteroatom(mol, core) -> str:
     best_key = None
     for full_order in iter_bicyclic_numberings(core):
         heteroatom_locant = full_order.index(heteroatom_idx) + 1
-        substituents = _substituents_for_ring(graph, full_order, halogens)
+        substituents = substituents_for_ring(graph, full_order, halogens)
         key = _candidate_key(
             parent,
             substituents,
@@ -229,7 +229,7 @@ def name_von_baeyer_heteroatom_multi(mol, core) -> str:
     best_key = None
     for full_order in iter_bicyclic_numberings(core):
         heteroatom_locants = tuple(sorted(full_order.index(h) + 1 for h in ring_heteroatoms))
-        substituents = _substituents_for_ring(graph, full_order, halogens)
+        substituents = substituents_for_ring(graph, full_order, halogens)
         locant_citation = ",".join(str(loc) for loc in heteroatom_locants)
         key = _candidate_key(
             parent,
@@ -294,7 +294,7 @@ def name_von_baeyer_heteroatom_mixed(mol, core) -> str:
         locant_set = tuple(sorted(loc for _, loc in by_seniority))
         heteroatom_key = (locant_set, tuple(loc for _, loc in by_seniority))
         nondetachable_prefix = "-".join(f"{loc}-{_HETEROATOM_PREFIXES[elem]}" for elem, loc in by_seniority)
-        substituents = _substituents_for_ring(graph, full_order, halogens)
+        substituents = substituents_for_ring(graph, full_order, halogens)
         key = _candidate_key(
             parent,
             substituents,
@@ -348,7 +348,7 @@ def name_von_baeyer_heteroatom_polycyclic(mol, core, ring_count) -> str:
     best_key = None
     for full_order, parent, outer_key in iter_polycyclic_candidates(core, ring_count):
         heteroatom_locant = full_order.index(heteroatom_idx) + 1
-        substituents = _substituents_for_ring(graph, full_order, halogens)
+        substituents = substituents_for_ring(graph, full_order, halogens)
         key = outer_key + _polycyclic_candidate_key(
             parent,
             substituents,

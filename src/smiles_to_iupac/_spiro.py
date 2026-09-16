@@ -30,7 +30,6 @@ Fused, bridged, and polyspiro ring systems are out of scope for this module
 and raise UnsupportedStructure.
 """
 
-from ._cyclic import _substituents_for_ring
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -41,7 +40,7 @@ from ._common import (
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name
-from ._substituents import format_substituent_prefixes
+from ._substituents import format_substituent_prefixes, substituents_for_ring
 
 
 def find_monospiro_atom(mol):
@@ -129,7 +128,7 @@ def name_monospiro(mol, spiro_atom) -> str:
     best_key = None
     best_name = None
     for parent, full_order in iter_monospiro_numberings(mol, spiro_atom):
-        substituents = _substituents_for_ring(graph, full_order, halogens)
+        substituents = substituents_for_ring(graph, full_order, halogens)
         key = _candidate_key(parent, substituents)
         if best_key is None or key < best_key:
             best_key, best_name = key, key[-1]
