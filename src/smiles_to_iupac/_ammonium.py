@@ -42,7 +42,7 @@ family, P-73.1.1.2), per the IUPAC 2013 Recommendations ("the Blue Book"):
   molecule, so they inherited full R/S support automatically once
   `_amine.py` gained it. The quaternary (4-substituted) path calls
   `_name_acyclic_secondary_tertiary_amine` directly and now passes
-  `specified_stereocenters(mol)` through the same way, e.g.
+  `specified_stereo_elements(mol)` through the same way, e.g.
   '(2R)-N,N,N-trimethylbutan-2-aminium'.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
@@ -61,7 +61,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 from rdkit import Chem
 
 from ._amine import _name_acyclic_secondary_tertiary_amine, name_amine
-from ._common import UnsupportedStructure, non_single_bonds, specified_stereocenters
+from ._common import UnsupportedStructure, non_single_bonds, specified_stereo_elements
 
 
 def has_ammonium_shape(mol) -> bool:
@@ -144,7 +144,7 @@ def name_ammonium(mol) -> str:
                 "supported (see P-31.1.1.1)"
             )
         n_carbons = tuple(neighbor.GetIdx() for neighbor in neighbors)
-        stereo = specified_stereocenters(mol)
+        stereo = specified_stereo_elements(mol)
         amine_name = _name_acyclic_secondary_tertiary_amine(mol, nitrogen.GetIdx(), n_carbons, bonds, stereo)
         return amine_name[:-1] + "ium"
 

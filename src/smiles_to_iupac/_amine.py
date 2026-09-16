@@ -117,6 +117,7 @@ from ._common import (
     ring_chain_attachment_with_halogens,
     ring_cycle,
     ring_name_from_substituents,
+    specified_stereo_elements,
     specified_stereocenters,
     substituent_locant_set_and_citation,
     unbranched_unsaturated_substituent_name,
@@ -334,12 +335,15 @@ def _substituents_for_chain(graph, chain, halogens, amines, mol=None):
 def _best_chain_name(
     carbon_graph, graph, halogens, amines, bonds, stereo=None, n_names=(), mol=None, n_names_by_nitrogen=None
 ):
-    """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
-    `specified_stereocenters` -- if given, only chain candidates that
-    include every stereocenter are eligible (P-92: a stereocenter on a
-    substituent branch is out of scope). Returns (name, position_of) so a
-    caller wrapping a stereo prefix around `name` can still place it
-    outermost using the winning chain's own locants.
+    """`stereo`: None, or a list of ("atom"/"bond", idx, "R"/"S"/"E"/"Z")
+    from `specified_stereo_elements`/`specified_stereocenters` -- if
+    given, only chain candidates that include every tetrahedral
+    stereocenter are eligible (P-92: a stereocenter on a substituent
+    branch is out of scope; a double-bond E/Z element's atoms are already
+    required to lie on the chain via `bonds`, so no separate check is
+    needed for those). Returns (name, position_of) so a caller wrapping a
+    stereo prefix around `name` can still place it outermost using the
+    winning chain's own locants.
 
     `n_names`: a secondary/tertiary amine's other N-substituent name(s)
     (P-66.4), passed straight through to `_candidate_key` so they're
@@ -357,7 +361,7 @@ def _best_chain_name(
     `_candidate_key` expects."""
     chains = longest_chains(carbon_graph)
     chain_length = len(chains[0])
-    stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
+    stereo_atoms = [idx for kind, idx, _ in stereo if kind == "atom"] if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -472,7 +476,15 @@ def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=
     )
 
     if stereo is not None:
-        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        labels = []
+        for kind, idx, code in stereo:
+            if kind == "atom":
+                locant = best_position_of[idx]
+            else:
+                bond = mol.GetBondWithIdx(idx)
+                locant = min(best_position_of[bond.GetBeginAtomIdx()], best_position_of[bond.GetEndAtomIdx()])
+            labels.append((locant, code))
+        labels.sort()
         prefix = ",".join(f"{locant}{code}" for locant, code in labels)
         return f"({prefix})-{best_name}"
     return best_name
@@ -576,7 +588,15 @@ def _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=No
         mol=mol, n_names_by_nitrogen=n_names_by_nitrogen,
     )
     if stereo is not None:
-        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        labels = []
+        for kind, idx, code in stereo:
+            if kind == "atom":
+                locant = best_position_of[idx]
+            else:
+                bond = mol.GetBondWithIdx(idx)
+                locant = min(best_position_of[bond.GetBeginAtomIdx()], best_position_of[bond.GetEndAtomIdx()])
+            labels.append((locant, code))
+        labels.sort()
         prefix = ",".join(f"{locant}{code}" for locant, code in labels)
         return f"({prefix})-{best_name}"
     return best_name
@@ -596,7 +616,15 @@ def _name_acyclic_amine(mol, amines, n_carbons_by_nitrogen, bonds, stereo=None):
     halogens = halogen_substituents(mol)
     best_name, best_position_of = _best_chain_name(carbon_adjacency(mol), graph, halogens, amines, bonds, stereo, mol=mol)
     if stereo is not None:
-        labels = sorted((best_position_of[atom], code) for atom, code in stereo)
+        labels = []
+        for kind, idx, code in stereo:
+            if kind == "atom":
+                locant = best_position_of[idx]
+            else:
+                bond = mol.GetBondWithIdx(idx)
+                locant = min(best_position_of[bond.GetBeginAtomIdx()], best_position_of[bond.GetEndAtomIdx()])
+            labels.append((locant, code))
+        labels.sort()
         prefix = ",".join(f"{locant}{code}" for locant, code in labels)
         return f"({prefix})-{best_name}"
     return best_name
@@ -969,7 +997,6 @@ def name_amine(mol) -> str:
                         return _name_aniline(mol, ring_atoms)
             return _name_phenyl_chain_amine(mol, ring_atoms)
     amines, n_carbons_by_nitrogen = _validate_and_collect_amines(mol)
-    stereo = specified_stereocenters(mol)
     graph = adjacency(mol)
     all_non_single = non_single_bonds(mol)
     bonds = [b for b in all_non_single if b[2] in (_ENE_ORDER, _YNE_ORDER)]
@@ -989,7 +1016,12 @@ def name_amine(mol) -> str:
             "is out of scope for this module"
         )
     if num_rings == 0:
-        return _name_acyclic_amine(mol, amines, n_carbons_by_nitrogen, bonds, stereo)
+        # No ring is ever involved past this point, so a specified C=C
+        # double-bond E/Z element may coexist with a specified tetrahedral
+        # stereocenter (P-91.3), mirroring `_ketone.py`'s identical
+        # acyclic-only combined-stereo split (#710).
+        return _name_acyclic_amine(mol, amines, n_carbons_by_nitrogen, bonds, specified_stereo_elements(mol))
+    stereo = specified_stereocenters(mol)
     if num_rings == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in bonds):
