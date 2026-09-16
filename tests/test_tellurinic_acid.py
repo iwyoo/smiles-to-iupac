@@ -29,7 +29,7 @@ def test_unsaturated_tellurinic_acid():
 
 
 def test_halogen_substituent():
-    assert smiles_to_iupac("CC(Cl)[Te](=O)O") == "1-chloroethane-1-tellurinic acid"
+    assert smiles_to_iupac("CC(Cl)[Te](=O)O") == "1-chloroethanetellurinic acid"
 
 
 def test_ene_carbon_not_supported():

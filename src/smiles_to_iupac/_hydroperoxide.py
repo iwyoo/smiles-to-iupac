@@ -22,8 +22,8 @@ Book"):
   locants.
 - P-14.3.4.2(a)/(b) (Chapter P-1): the same locant-omission rules as
   `_alcohol.py`/`_thiol.py` apply here too (mononuclear parent, or a
-  homogeneous two-carbon chain with exactly one substituent in total),
-  e.g. 'ethaneperoxol' needs no locant.
+  saturated two-carbon chain, regardless of other substituents), e.g.
+  'ethaneperoxol' needs no locant.
 - P-35.2.1 (Chapter P-3): halogen substituents are prefix-only and
   coexist freely with the 'peroxol' suffix, same as in `_alcohol.py`.
 
@@ -76,12 +76,12 @@ from ._common import (
     is_plain_benzene_ring,
     longest_branched_chain_through,
     longest_chains,
+    name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
     ring_cycle,
     substituent_locant_set_and_citation,
 )
-from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
@@ -180,22 +180,8 @@ def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
 
 
 def _name_from_substituents(chain_length, locant, grouped):
-    total_subs = sum(len(info["locants"]) for info in grouped.values())
-
-    if chain_length == 1:
-        # P-14.3.4.2(a): a mononuclear parent's locant is always '1' and
-        # never cited.
-        return format_substituent_prefixes(grouped, omit_locants=True) + alkane_name(1) + "peroxol"
-
-    if chain_length == 2 and total_subs == 0:
-        # P-14.3.4.2(b): a homogeneous two-carbon chain with exactly one
-        # substituent (here, the sole -OOH) in total omits the locant,
-        # e.g. 'ethaneperoxol' (the Blue Book's own worked example).
-        return alkane_name(2) + "peroxol"
-
-    prefix = format_substituent_prefixes(grouped)
-    stem = alkane_name(chain_length)
-    return f"{prefix}{stem}-{locant}-peroxol"
+    prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
+    return prefix + name_from_substituents(chain_length, [], [], "peroxol", [locant])
 
 
 def _candidate_key(chain_length, locant, substituents):

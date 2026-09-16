@@ -45,13 +45,13 @@ from ._common import (
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain_through,
+    name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
     specified_stereocenters,
     substituent_locant_set_and_citation,
     validate_allowed_atoms,
 )
-from ._numerals import alkane_name
 from ._seniority import senior_class
 from ._substituents import format_substituent_prefixes, name_branch
 from ._sulfonic_acid import _name_acyclic_sulfonic_acid
@@ -172,19 +172,8 @@ def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
 
 
 def _name_from_substituents(chain_length, so3h_locant, grouped):
-    total_subs = sum(len(info["locants"]) for info in grouped.values())
-
-    if chain_length == 1:
-        # P-14.3.4.2(a): a mononuclear parent's locant is always '1' and
-        # never cited.
-        return format_substituent_prefixes(grouped, omit_locants=True) + alkane_name(1) + "sulfonic acid"
-    if chain_length == 2 and total_subs == 0:
-        # P-14.3.4.2(b): a homogeneous two-carbon chain with exactly one
-        # substituent (the sole -SO3H) in total omits the locant.
-        return alkane_name(2) + "sulfonic acid"
-
-    prefix = format_substituent_prefixes(grouped)
-    return f"{prefix}{alkane_name(chain_length)}-{so3h_locant}-sulfonic acid"
+    prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
+    return prefix + name_from_substituents(chain_length, [], [], "sulfonic acid", [so3h_locant])
 
 
 def _candidate_key(chain_length, so3h_locant, substituents):

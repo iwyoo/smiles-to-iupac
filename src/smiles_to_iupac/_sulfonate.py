@@ -63,12 +63,11 @@ from ._common import (
     halogen_substituents,
     longest_chains,
     lowest_locant_set,
+    name_from_substituents,
     non_single_bonds,
     specified_stereocenters,
     substituent_locant_set_and_citation,
-    suffix_body,
 )
-from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch
 
 _ENE_ORDER = 2.0
@@ -174,39 +173,8 @@ def _reject_enesulfonate_carbon(so3_carbon, bonds):
 
 
 def _name_from_substituents(chain_length, so3_locant, ene_locants, yne_locants, grouped):
-    has_unsaturation = bool(ene_locants or yne_locants)
-
-    if chain_length == 1:
-        # P-14.3.4.2(a): a mononuclear parent's locant is always '1' and
-        # never cited.
-        return format_substituent_prefixes(grouped, omit_locants=True) + alkane_name(1) + "sulfonate"
-
-    if chain_length == 2 and not has_unsaturation:
-        # P-14.3.4.2(b): on a two-carbon chain the sulfonate carbon is
-        # always forced to be C1 (the principal characteristic group gets
-        # the lowest locant), so citing '1' is never informative -- the
-        # locant is omitted regardless of how many other substituents are
-        # present or where they sit, e.g. 'ethanesulfonate',
-        # '1-chloroethanesulfonate', '2-chloroethanesulfonate',
-        # '1,2-dichloroethanesulfonate' (all confirmed via PubChem PUG
-        # REST). This is broader than `_sulfonic_acid.py`'s equivalent
-        # check (`total_subs == 0` only) -- that module has the same
-        # latent gap, confirmed live against
-        # '1-chloroethanesulfonic acid'/'2-chloroethanesulfonic acid'/
-        # '1,2-dichloroethanesulfonic acid', tracked as a follow-up there
-        # rather than fixed in this module's own scope.
-        return format_substituent_prefixes(grouped) + alkane_name(2) + "sulfonate"
-
-    prefix = format_substituent_prefixes(grouped)
-    if has_unsaturation:
-        stem = alkane_name(chain_length)[:-3]
-        needs_stem_a = (len(ene_locants) >= 2) if ene_locants else (len(yne_locants) >= 2)
-    else:
-        stem = alkane_name(chain_length)
-        needs_stem_a = False
-
-    body = suffix_body(ene_locants, yne_locants, "sulfonate", [so3_locant])[0]
-    return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
+    prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "sulfonate", [so3_locant])
 
 
 def _candidate_key(chain_length, so3_locant, ene_locants, yne_locants, substituents):
