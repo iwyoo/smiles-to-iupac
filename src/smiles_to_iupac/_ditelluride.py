@@ -60,7 +60,7 @@ from ._common import (
     substituent_locant_set_and_citation,
 )
 from ._numerals import alkane_name
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain_forced_compound_terminals
 
 _TELLURIUM = 52
 _BARE_TERMINAL_NAME = "ditellanyl"
@@ -148,28 +148,6 @@ def _validate_and_find_ditelluride(mol, aromatic_ring_atoms=frozenset()):
     return te1.GetIdx(), te2.GetIdx(), c1, c2
 
 
-def _substituents_for_chain(graph, chain, terminals, mol=None):
-    """Like `_acyclic._substituents_for_chain`, but a `terminals` leaf is
-    always cited as a compound (parenthesized) substituent -- see module
-    docstring for why the ditellanyl prefix needs this, unlike the plain
-    `terminals` shortcut `_sulfide.py`/`_selenide.py`/`_peroxide.py`
-    share via `_acyclic.name_from_carbon_graph`."""
-    chain_set = set(chain)
-    substituents = {}
-    for position, atom in enumerate(chain, start=1):
-        branch_roots = [n for n in graph[atom] if n not in chain_set]
-        if not branch_roots:
-            continue
-        entries = []
-        for root in branch_roots:
-            if root in terminals:
-                entries.append((terminals[root], True))
-            else:
-                entries.append(name_branch(graph, root, atom, {}, mol=mol))
-        substituents[position] = entries
-    return substituents
-
-
 def _name_from_substituents(chain_length, grouped):
     if chain_length == 1 and grouped:
         (name,) = grouped
@@ -218,7 +196,7 @@ def _name_parent_chain(full_graph, carbon_graph, terminals, mol=None):
     best_chain = None
     for chain in chains:
         for candidate in (chain, list(reversed(chain))):
-            substituents = _substituents_for_chain(full_graph, candidate, terminals, mol=mol)
+            substituents = substituents_for_chain_forced_compound_terminals(full_graph, candidate, terminals, mol=mol)
             key, name = _candidate_key(chain_length, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_chain = key, name, candidate
