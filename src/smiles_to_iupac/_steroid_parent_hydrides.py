@@ -70,6 +70,7 @@ either still resolves correctly.
 """
 
 from rdkit import Chem
+from rdkit.Chem import rdCIPLabeler
 
 _PARENT_HYDRIDES = {
     "C1CCCC2CCC3C(C12)CCC4C3CCC4": "gonane",
@@ -111,9 +112,64 @@ assert len(_CANONICAL_TO_NAME) == len(_PARENT_HYDRIDES), (
 )
 
 
+
+# Androstane's own bare-skeleton constitution (no stereo), in the same atom
+# order as every stereo-specified androstane entry above (confirmed by
+# substructure match: parsing this string always yields an identity
+# mapping onto each specified entry's atom indices, since adding/removing
+# only stereo markers never reorders RDKit's own SMILES atom parse order).
+# `_ANDROSTANE_FUSION_ATOMS` are its six ring-fusion stereocenters (the two
+# quaternary angular-methyl carbons, C10/C13, plus the four ring-fusion CH
+# carbons, C5/C8/C9/C14); `_ANDROSTANE_C5_ATOM` (index 9) is C5 specifically
+# -- the one ring-fusion stereocenter whose configuration distinguishes the
+# 5-alpha (natural) and 5-beta series, confirmed via `rdCIPLabeler`: it's
+# 'R' in the natural-configuration entry above and 'S' in real 5-beta-
+# androstane (etiocholane, PubChem CID 6857462), while every other fusion
+# stereocenter's CIP label is unchanged between the two.
+_ANDROSTANE_PLAIN = Chem.MolFromSmiles("CC12CCCC1C3CCC4CCCCC4(C3CC2)C")
+_ANDROSTANE_FUSION_ATOMS = (1, 5, 6, 9, 14, 15)
+_ANDROSTANE_C5_ATOM = 9
+_ANDROSTANE_NATURAL_CIP = {1: "S", 5: "S", 6: "S", 9: "R", 14: "S", 15: "S"}
+
+
+def _androstane_5beta_name(mol):
+    """If `mol`'s constitution (ignoring stereo) is exactly the androstane
+    skeleton, and every one of its six ring-fusion stereocenters is
+    specified and matches the natural configuration except C5 (which is
+    the opposite, non-natural configuration), return "5-beta-androstane".
+    Otherwise return None -- constitution mismatch, a stereocenter left
+    unspecified, or any fusion stereocenter other than C5 not matching
+    the natural configuration (a different diastereomer entirely, not
+    simply "the 5-beta epimer") are all out of scope here, same as the
+    module's existing exact-match-only policy for every other case."""
+    stripped = Chem.Mol(mol)
+    Chem.RemoveStereochemistry(stripped)
+    if Chem.MolToSmiles(stripped) != Chem.MolToSmiles(_ANDROSTANE_PLAIN):
+        return None
+    match = mol.GetSubstructMatch(_ANDROSTANE_PLAIN)
+    if not match:
+        return None
+    rdCIPLabeler.AssignCIPLabels(mol)
+    codes = {}
+    for plain_idx in _ANDROSTANE_FUSION_ATOMS:
+        atom = mol.GetAtomWithIdx(match[plain_idx])
+        if not atom.HasProp("_CIPCode"):
+            return None
+        codes[plain_idx] = atom.GetProp("_CIPCode")
+    mismatched = [idx for idx in _ANDROSTANE_FUSION_ATOMS if codes[idx] != _ANDROSTANE_NATURAL_CIP[idx]]
+    if mismatched == [_ANDROSTANE_C5_ATOM]:
+        return "5-beta-androstane"
+    return None
+
+
 def has_steroid_parent_hydride_name(mol) -> bool:
-    return Chem.MolToSmiles(mol) in _CANONICAL_TO_NAME
+    if Chem.MolToSmiles(mol) in _CANONICAL_TO_NAME:
+        return True
+    return _androstane_5beta_name(mol) is not None
 
 
 def name_steroid_parent_hydride(mol) -> str:
-    return _CANONICAL_TO_NAME[Chem.MolToSmiles(mol)]
+    key = Chem.MolToSmiles(mol)
+    if key in _CANONICAL_TO_NAME:
+        return _CANONICAL_TO_NAME[key]
+    return _androstane_5beta_name(mol)
