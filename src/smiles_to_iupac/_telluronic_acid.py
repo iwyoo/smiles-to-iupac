@@ -67,7 +67,7 @@ from ._common import (
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import format_substituent_prefixes, name_branch, ring_branch_stereo_display
 
 _ENE_ORDER = 2.0
 _YNE_ORDER = 3.0
@@ -254,17 +254,22 @@ def _name_benzenetelluronic_acid(mol, ring_atoms):
     retained name 'benzene' as stem; the -Te(=O)(=O)OH's own locant is
     never cited here."""
     tellurium_idx, teo3h_carbon = _validate_and_collect_telluronic_acids(mol, aromatic_ring_atoms=ring_atoms)
-    if specified_stereocenters(mol) is not None:
-        raise UnsupportedStructure(
-            "a specified stereocenter alongside benzenetelluronic acid is "
-            "not supported yet"
-        )
+    stereo = specified_stereocenters(mol)
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     excluded = {tellurium_idx}
     ring_order = ring_cycle(graph, list(ring_atoms))
     ring_size = len(ring_order)
+
+    branch_stereo = None
+    if stereo:
+        branch_stereo = ring_branch_stereo_display(graph, ring_order, excluded, stereo, halogens, mol=mol)
+        if branch_stereo is None:
+            raise UnsupportedStructure(
+                "a specified stereocenter alongside benzenetelluronic acid is "
+                "not supported yet"
+            )
 
     best_key = None
     best_name = None
@@ -274,6 +279,9 @@ def _name_benzenetelluronic_acid(mol, ring_atoms):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             teo3h_locant = position_of[teo3h_carbon]
             substituents = _substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
+            if branch_stereo is not None:
+                branch_ring_atom, display = branch_stereo
+                substituents[position_of[branch_ring_atom]] = [(display, False)]
             key = _benzenetelluronic_acid_candidate_key(teo3h_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]

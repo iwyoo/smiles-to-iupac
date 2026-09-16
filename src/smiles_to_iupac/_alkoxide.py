@@ -99,7 +99,13 @@ from ._common import (
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
-from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain, substituents_for_ring
+from ._substituents import (
+    format_substituent_prefixes,
+    name_branch,
+    ring_branch_stereo_display,
+    substituents_for_chain,
+    substituents_for_ring,
+)
 
 _RETAINED_ALKOXIDES = {1: "methoxide", 2: "ethoxide", 3: "propoxide", 4: "butoxide"}
 _CHALCOGENS = (8, 16, 34, 52)
@@ -376,8 +382,6 @@ def _name_phenoxide(mol, ring_atoms, oxygen):
     C=C was found dropped this way too: '[O-]c1ccc(CC=C)cc1' misnamed
     '4-propylphenoxide' instead of raising)."""
     oxygen, _excluded_atoms, bonds, stereo = _validate_and_prepare_alkoxide(mol, aromatic_ring_atoms=ring_atoms)
-    if stereo:
-        raise UnsupportedStructure("a specified stereocenter alongside phenoxide is not supported yet")
     if bonds:
         raise UnsupportedStructure(
             "chain unsaturation alongside phenoxide is not supported yet"
@@ -391,6 +395,12 @@ def _name_phenoxide(mol, ring_atoms, oxygen):
     ring_order = ring_cycle(graph, list(ring_atoms))
     ring_size = len(ring_order)
 
+    branch_stereo = None
+    if stereo:
+        branch_stereo = ring_branch_stereo_display(graph, ring_order, excluded, stereo, halogens, mol=mol)
+        if branch_stereo is None:
+            raise UnsupportedStructure("a specified stereocenter alongside phenoxide is not supported yet")
+
     best_key = None
     best_name = None
     for start in range(ring_size):
@@ -399,6 +409,9 @@ def _name_phenoxide(mol, ring_atoms, oxygen):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             o_locant = position_of[oxygen_carbon]
             substituents = substituents_for_ring(graph, candidate, halogens, excluded, mol=mol)
+            if branch_stereo is not None:
+                branch_ring_atom, display = branch_stereo
+                substituents[position_of[branch_ring_atom]] = [(display, False)]
             key = _phenoxide_candidate_key(o_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
