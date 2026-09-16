@@ -101,7 +101,7 @@ from ._common import (
     substituent_locant_set_and_citation,
 )
 from ._numerals import alkyl_name
-from ._substituents import branch_atom_locant, format_substituent_prefixes, name_branch, ring_branch_stereo_display
+from ._substituents import branch_atom_locant, format_substituent_prefixes, name_branch, ring_branch_stereo_display, substituents_for_ring
 
 _SULFUR = 16
 _ALLOWED_ATOMIC_NUMS = {6, _SULFUR, *HALOGEN_PREFIXES}
@@ -304,16 +304,6 @@ def _name_acyclic_thione(mol, thiones, bonds, stereo=None):
     return best_name
 
 
-def _substituents_for_ring(graph, ring_order, halogens, thiones, mol=None):
-    ring_set = set(ring_order)
-    substituents = {}
-    for position, atom in enumerate(ring_order, start=1):
-        branch_roots = [n for n in graph[atom] if n not in ring_set and n not in thiones]
-        if branch_roots:
-            substituents[position] = [name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots]
-    return substituents
-
-
 def _ring_name_from_substituents(ring_size, thione_locants, ene_locants, yne_locants, grouped):
     total_subs = sum(len(info["locants"]) for info in grouped.values())
     prefix = format_substituent_prefixes(grouped)
@@ -368,7 +358,7 @@ def _name_cyclic_thione(mol, thiones, stereo=None, bonds=()):
                 "a stereocenter on a substituent branch rather than the ring "
                 "itself is not supported yet (see P-92)"
             )
-    if bonds and any(_substituents_for_ring(graph, ring_order, halogens, thiones, mol=mol).values()):
+    if bonds and any(substituents_for_ring(graph, ring_order, halogens, thiones, mol=mol).values()):
         raise UnsupportedStructure(
             "a substituent alongside both a ring double/triple bond and a "
             "thione is not supported yet (see module docstring)"
@@ -387,7 +377,7 @@ def _name_cyclic_thione(mol, thiones, stereo=None, bonds=()):
                     "a thione not on the ring itself (e.g. on a "
                     "substituent branch) is not supported yet"
                 )
-            substituents = _substituents_for_ring(graph, candidate, halogens, thiones, mol=mol)
+            substituents = substituents_for_ring(graph, candidate, halogens, thiones, mol=mol)
             if branch_stereo is not None:
                 branch_ring_atom, display = branch_stereo
                 substituents[position_of[branch_ring_atom]] = [(display, False)]
