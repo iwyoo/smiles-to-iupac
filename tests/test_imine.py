@@ -98,14 +98,84 @@ def test_imine_unspecified_stereocenter_unaffected():
 
 
 def test_imine_specified_chain_stereocenter_raises():
-    # This module's own C=N bond is always an unspecified potential
-    # Bond_Double stereo element to RDKit, regardless of substituents
-    # (module docstring) -- so a specified chain stereocenter here always
-    # coexists with it, and `specified_stereocenters` correctly rejects
-    # the combination (P-92/P-93) instead of the silent drop this
-    # project's stereodescriptor safety net exists to fix.
+    # A specified chain tetrahedral stereocenter alongside this module's
+    # own (here left unspecified) C=N bond is a partially-specified
+    # molecule, out of scope (P-92/P-93) -- same policy as
+    # `_unsaturated.py`/`_alcohol.py`.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC[C@@H](C)C(C)=N")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem CID 5324279/5324280 (real, distinctly registered
+        # stereoisomers -- acetaldehyde oxime).
+        ("C/C=N/O", "(1E)-N-hydroxyethanimine"),
+        ("C/C=N\\O", "(1Z)-N-hydroxyethanimine"),
+        # CID 5324471/5324472 (propionaldehyde oxime).
+        ("CC/C=N/O", "(1E)-N-hydroxypropan-1-imine"),
+        ("CC/C=N\\O", "(1Z)-N-hydroxypropan-1-imine"),
+        # CID 5324282/5324281 (isobutyraldehyde oxime).
+        ("CC(C)/C=N/O", "(1E)-N-hydroxy-2-methylpropan-1-imine"),
+        ("CC(C)/C=N\\O", "(1Z)-N-hydroxy-2-methylpropan-1-imine"),
+        # CID 9601699/5365331 (valeraldehyde oxime).
+        ("CCCC/C=N/O", "(1E)-N-hydroxypentan-1-imine"),
+        ("CCCC/C=N\\O", "(1Z)-N-hydroxypentan-1-imine"),
+        # CID 5357349/5365332 (isovaleraldehyde oxime).
+        ("CC(C)C/C=N/O", "(1E)-N-hydroxy-3-methylbutan-1-imine"),
+        ("CC(C)C/C=N\\O", "(1Z)-N-hydroxy-3-methylbutan-1-imine"),
+    ],
+)
+def test_specified_double_bond_stereo_oxime(smiles, expected):
+    # Real PubChem oxime structures: unlike a plain N-H/N-alkyl imine
+    # (chemically too configurationally unstable to isolate as separate
+    # E/Z entries -- PubChem folds e.g. both `C/C=N/C` and `C/C=N\C`
+    # queries to the same achiral CID 144069), an oxime's C=N is
+    # configurationally stable enough to be separately registered.
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Not separately registered by PubChem (see above), but chemically
+        # valid and RDKit-CIP-computable all the same -- plain N-alkyl
+        # aldimine/ketimine E/Z, both dispatch paths (acyclic chain and
+        # phenyl-ring-substituent chain).
+        ("C/C=N/C", "(1E)-N-methylethanimine"),
+        ("C/C=N\\C", "(1Z)-N-methylethanimine"),
+        ("CC/C(C)=N\\C", "(2Z)-N-methylbutan-2-imine"),
+        ("c1ccccc1CC/C=N/C", "(1E)-N-methyl-3-phenylpropan-1-imine"),
+    ],
+)
+def test_specified_double_bond_stereo_n_alkyl_imine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_specified_double_bond_stereo_symmetric_ketimine_unaffected():
+    # A geometry marker on a C=N bond whose imine carbon has two identical
+    # substituents is chemically meaningless -- RDKit correctly reports no
+    # stereo element at all here, so this names exactly like the unmarked
+    # input, not as an error.
+    assert smiles_to_iupac("C/C(C)=N/C") == "N-methylpropan-2-imine"
+    assert smiles_to_iupac("CC(C)=NC") == "N-methylpropan-2-imine"
+
+
+def test_specified_double_bond_stereo_phenyl_directly_attached():
+    # CID 5324611/5324470 (benzaldehyde oxime) -- the ring is directly
+    # bonded to the imine carbon itself (mononuclear "chain"), not via an
+    # intervening chain carbon.
+    assert smiles_to_iupac("C1=CC=C(C=C1)/C=N/O") == "(1E)-N-hydroxyphenylmethanimine"
+    assert smiles_to_iupac("C1=CC=C(C=C1)/C=N\\O") == "(1Z)-N-hydroxyphenylmethanimine"
+
+
+def test_specified_double_bond_stereo_combined_with_tetrahedral_raises():
+    # CID 12917320 ((2S)-2-methylbutylidene oxime): a specified tetrahedral
+    # stereocenter alongside a specified C=N is a combined R/S+E/Z
+    # descriptor, out of scope for this module (P-91.3, module docstring).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC[C@H](C)/C=N/O")
 
 
 def test_phenyl_chain_imine():

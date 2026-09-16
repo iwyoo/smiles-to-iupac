@@ -55,18 +55,21 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   the Blue Book's own direct PIN citation instead, consistent with this
   project's established practice elsewhere (see e.g. `_hydroxylamine.py`,
   `_sulfoxide.py`, `_nitro.py`).
-- P-92 stereocenters: this
-  module's own C=N bond is *always* flagged by RDKit's
-  `Chem.FindPotentialStereo` as an unspecified potential Bond_Double
-  stereo element, regardless of substituents, N-substitution, or oxime
-  form -- same conclusion as `_amidine.py`/`_hydrazone.py`. Any specified
-  chain tetrahedral stereocenter therefore always coexists with this
-  unspecified C=N bond, and `_common.specified_stereocenters` correctly
-  rejects the combination as partially specified (P-92/P-93) rather than
-  silently dropping either one. This module only ever explicitly rejects
-  a specified stereocenter rather than attempting to cite one; `_azine.py`
-  (which reuses this module's internal chain-assembly helper directly)
-  carries the identical restriction independently.
+- P-91.2(e)/P-93.1 (E/Z stereo): when this module's own C=N bond has its
+  geometry specified in the input (`/`/`\\`), a locanted `"(nE)-"`/`"(nZ)-"`
+  prefix is added to the whole name (including any `N-` substituent
+  prefix), the same way `_unsaturated.py` handles an acyclic C=C bond, via
+  `_common.specified_double_bond_stereo`. A prior revision of this
+  docstring claimed RDKit's `Chem.FindPotentialStereo` *always* flags this
+  bond as an unspecified potential stereo element regardless of input --
+  that claim no longer holds against the currently pinned RDKit
+  (confirmed: `C/C=N/C` now reports it as specified) and was corrected
+  here; a specified tetrahedral chain stereocenter coexisting with the
+  imine bond (specified or not) is still rejected, since combining the two
+  kinds of descriptor is out of scope for this module (P-92/P-93).
+  `_hydrazone.py`/`_azine.py`/`_amidine.py` share the identical
+  (now-stale) rejection pattern independently -- not updated by this
+  change.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any ring anywhere in the molecule (cyclic/aromatic imines, e.g.
@@ -102,7 +105,7 @@ from ._common import (
     non_single_bonds,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
-    specified_stereocenters,
+    specified_double_bond_stereo,
     substituent_locant_set_and_citation,
 )
 from ._substituents import (
@@ -288,7 +291,9 @@ def _candidate_key(chain_length, imine_locant, substituents):
     return (imine_locant, locant_set, citation_locants, name), name
 
 
-def _name_acyclic_imine(mol, imine_carbon, exclude):
+def _name_acyclic_imine_with_locant(mol, imine_carbon, exclude):
+    """Like `_name_acyclic_imine`, but also returns the winning candidate's
+    imine locant (needed to place a `(nE)-`/`(nZ)-` stereodescriptor)."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     chains = longest_chains(carbon_adjacency(mol))
@@ -311,7 +316,12 @@ def _name_acyclic_imine(mol, imine_carbon, exclude):
             key, name = _candidate_key(chain_length, imine_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
-    return best_name
+    return best_name, best_key[0]
+
+
+def _name_acyclic_imine(mol, imine_carbon, exclude):
+    name, _ = _name_acyclic_imine_with_locant(mol, imine_carbon, exclude)
+    return name
 
 
 def _name_phenyl_chain_imine(mol, ring_atoms):
@@ -338,12 +348,7 @@ def _name_phenyl_chain_imine(mol, ring_atoms):
             "an oxime O-alkyl ether alongside a benzene-ring substituent "
             "chain is not supported yet"
         )
-    if specified_stereocenters(mol) is not None:
-        raise UnsupportedStructure(
-            "a specified stereocenter alongside this module's own "
-            "always-unspecified C=N bond is not supported yet (see "
-            "P-92/P-93, module docstring)"
-        )
+    stereo = specified_double_bond_stereo(mol)
 
     exclude = {imine_nitrogen}
     non_ring_unsaturation = [
@@ -387,6 +392,9 @@ def _name_phenyl_chain_imine(mol, ring_atoms):
     if n_name is not None:
         separator = "-" if best_name[0].isdigit() else ""
         best_name = f"N-{n_name}{separator}{best_name}"
+    if stereo is not None:
+        ((_, code),) = stereo
+        best_name = f"({best_key[0]}{code})-{best_name}"
     return best_name
 
 
@@ -400,28 +408,21 @@ def name_imine(mol) -> str:
     imine_carbon, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root = _validate_and_find_imine(
         mol
     )
-    if specified_stereocenters(mol) is not None:
-        # This module's own C=N bond is always flagged by RDKit's
-        # `Chem.FindPotentialStereo` as an unspecified potential
-        # Bond_Double stereo element, regardless of substituents,
-        # N-substitution, or oxime form (module docstring) -- so any
-        # specified chain stereocenter always coexists with it, and
-        # `specified_stereocenters` correctly rejects the combination
-        # (P-92/P-93) instead of the silent drop this project's
-        # stereodescriptor safety net exists to fix, same conclusion as
-        # `_amidine.py` (PR #209) / `_hydrazone.py` (PR #210).
-        raise UnsupportedStructure(
-            "a specified stereocenter alongside this module's own "
-            "always-unspecified C=N bond is not supported yet (see "
-            "P-92/P-93, module docstring)"
-        )
+    stereo = specified_double_bond_stereo(mol)
     graph = adjacency(mol)
     exclude = {imine_nitrogen}
-    name = _name_acyclic_imine(mol, imine_carbon, exclude)
+    name, imine_locant = _name_acyclic_imine_with_locant(mol, imine_carbon, exclude)
 
     n_name = _n_substituent_prefix(graph, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root, mol=mol)
 
     if n_name is not None:
         separator = "-" if name[0].isdigit() else ""
         name = f"N-{n_name}{separator}{name}"
+    if stereo is not None:
+        # `_validate_and_find_imine` already rejects a second C=N/other
+        # non-single bond anywhere else in the molecule, so this module's
+        # own imine bond is the only stereo element `stereo` can ever
+        # contain -- no locant-sorting/grouping needed (P-91.3).
+        ((_, code),) = stereo
+        name = f"({imine_locant}{code})-{name}"
     return name
