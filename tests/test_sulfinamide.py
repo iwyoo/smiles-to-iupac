@@ -240,12 +240,12 @@ def test_sulfinamide_specified_chain_stereocenter_raises():
         smiles_to_iupac("CC[C@@H](C)S(=O)N")
 
 
-def test_sulfinamide_specified_sulfur_stereocenter_raises():
-    # A specified sulfur configuration, with no chain stereocenter at all,
-    # is explicitly out of scope too -- this project has no established
-    # locant/prefix convention for a heteroatom-centered stereodescriptor.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCC[S@](=O)N")
+def test_sulfinamide_specified_sulfur_stereocenter_cited():
+    # The sulfinamide sulfur is a trigonal pyramidal stereocenter
+    # (P-93.3.4.1), cited with a bare (R)-/(S)- prefix when it's the
+    # molecule's sole specified stereocenter.
+    assert smiles_to_iupac("CCC[S@](=O)N") == "(S)-propane-1-sulfinamide"
+    assert smiles_to_iupac("CCC[S@@](=O)N") == "(R)-propane-1-sulfinamide"
 
 
 def test_ring_sulfinamide_non_stereocenter_marker_unaffected():

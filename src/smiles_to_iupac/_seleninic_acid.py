@@ -22,16 +22,16 @@ Recommendations ("the Blue Book"):
   ordering as `_sulfinic_acid.py`.
 - P-35.2.1: halogen substituents are prefix-only and coexist freely with
   the -Se(=O)OH suffix.
-- P-92 stereocenters:
-  like `_sulfinic_acid.py`'s sulfur, this module's seleninic selenium
-  (-R, =O, -OH, a lone pair) is *itself* a potential stereocenter in
-  essentially every real -Se(=O)OH molecule -- confirmed via RDKit's
-  `Chem.FindPotentialStereo` on `CC(C)[Se](=O)O` (no chain stereocenter
-  at all), which still flags the selenium atom. Same conclusion as
-  sulfinic acid: this module only ever explicitly rejects a specified
-  stereocenter (chain carbon or selenium alike) rather than attempting to
-  cite one, for the same reasons documented in `_sulfinic_acid.py`'s
-  module docstring.
+- P-92/P-93.3.4.1 stereocenters: like `_sulfinic_acid.py`'s sulfur, this
+  module's seleninic selenium (-R, =O, -OH, a lone pair) is *itself* a
+  potential stereocenter in essentially every real -Se(=O)OH molecule --
+  confirmed via RDKit's `Chem.FindPotentialStereo` on `CC(C)[Se](=O)O`
+  (no chain stereocenter at all), which still flags the selenium atom.
+  Same mechanism as `_sulfinic_acid.py`: `_common.heteroatom_stereo_prefix`
+  cites a bare "(R)-"/"(S)-" prefix when the selenium is the molecule's
+  sole specified stereocenter (P-93.3.4.1); a specified selenium
+  stereocenter combined with a specified chain/ring carbon one remains
+  out of scope.
 
 Scope, deliberately narrow, mirroring `_selenonic_acid.py`'s own
 chain-only first pass (no monocyclic seleninic acid has been found
@@ -60,6 +60,7 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    heteroatom_stereo_prefix,
     is_plain_benzene_ring,
     longest_branched_chain_through,
     longest_chains,
@@ -68,7 +69,6 @@ from ._common import (
     non_single_bonds,
     ring_chain_attachment,
     ring_cycle,
-    specified_stereocenters,
     substituent_locant_set_and_citation,
 )
 from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain, substituents_for_ring
@@ -216,8 +216,6 @@ def _candidate_key(chain_length, seoh_locant, ene_locants, yne_locants, substitu
     )
 
 
-
-
 def _benzeneseleninic_acid_name_from_substituents(grouped):
     # Mirrors `_sulfonic_acid.py`'s `_benzenesulfonic_acid_name_from_substituents`:
     # the mancude ring's own numbering is always free to start at the
@@ -241,16 +239,10 @@ def _name_benzeneseleninic_acid(mol, ring_atoms):
     PubChem PUG REST matches). Mirrors `_sulfonic_acid.py`'s
     `_name_benzenesulfonic_acid` with the retained name 'benzene' as
     stem; the -Se(=O)OH's own locant is never cited here. A specified
-    stereocenter is always rejected (module docstring: the seleninic
-    selenium is itself a potential stereocenter with no established way
-    to cite it)."""
+    selenium stereocenter (with no ring-carbon one alongside it) gets a
+    bare (R)-/(S)- prefix -- see module docstring, P-93.3.4.1."""
     selenium_idx, seoh_carbon = _validate_and_collect_seleninic_acids(mol, aromatic_ring_atoms=ring_atoms)
-    if specified_stereocenters(mol) is not None:
-        raise UnsupportedStructure(
-            "a specified stereocenter (chain carbon or the seleninic "
-            "selenium itself) is not supported yet for seleninic acids "
-            "(see P-92, module docstring)"
-        )
+    stereo_prefix = heteroatom_stereo_prefix(mol, selenium_idx) or ""
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -269,7 +261,7 @@ def _name_benzeneseleninic_acid(mol, ring_atoms):
             key = _benzeneseleninic_acid_candidate_key(seoh_locant, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
-    return best_name
+    return stereo_prefix + best_name
 
 
 def _name_phenyl_chain_seleninic_acid(mol, ring_atoms):
@@ -282,16 +274,7 @@ def _name_phenyl_chain_seleninic_acid(mol, ring_atoms):
     `_name_phenyl_chain_sulfinic_acid`. Narrower than the acyclic path
     above: no chain unsaturation."""
     selenium_idx, seoh_carbon = _validate_and_collect_seleninic_acids(mol, aromatic_ring_atoms=ring_atoms)
-    if specified_stereocenters(mol) is not None:
-        # See module docstring: the seleninic selenium is itself a
-        # potential stereocenter in virtually every real -Se(=O)OH
-        # molecule, and this project has no established way to cite one --
-        # reject unconditionally, same as the acyclic path below.
-        raise UnsupportedStructure(
-            "a specified stereocenter (chain carbon or the seleninic "
-            "selenium itself) is not supported yet for seleninic acids "
-            "(see P-92, module docstring)"
-        )
+    stereo_prefix = heteroatom_stereo_prefix(mol, selenium_idx) or ""
     excluded = {selenium_idx}
     non_ring_unsaturation = [
         b
@@ -328,7 +311,7 @@ def _name_phenyl_chain_seleninic_acid(mol, ring_atoms):
         key, name = _candidate_key(chain_length, seoh_locant, [], [], substituents)
         if best_key is None or key < best_key:
             best_key, best_name = key, name
-    return best_name
+    return stereo_prefix + best_name
 
 
 def name_seleninic_acid(mol) -> str:
@@ -341,18 +324,7 @@ def name_seleninic_acid(mol) -> str:
                 return _name_benzeneseleninic_acid(mol, ring_atoms)
             return _name_phenyl_chain_seleninic_acid(mol, ring_atoms)
     selenium_idx, seoh_carbon = _validate_and_collect_seleninic_acids(mol)
-    if specified_stereocenters(mol) is not None:
-        # Unlike `_sulfonic_acid.py`'s sulfur, this module's seleninic
-        # selenium is itself a potential stereocenter in virtually every
-        # real -Se(=O)OH molecule (module docstring), and this project has
-        # no established way to cite a heteroatom-centered
-        # stereodescriptor -- explicitly reject rather than silently drop
-        # the marker (P-92), same as `_sulfinic_acid.py`.
-        raise UnsupportedStructure(
-            "a specified stereocenter (chain carbon or the seleninic "
-            "selenium itself) is not supported yet for seleninic acids "
-            "(see P-92, module docstring)"
-        )
+    stereo_prefix = heteroatom_stereo_prefix(mol, selenium_idx) or ""
     graph = adjacency(mol)
     all_non_single = non_single_bonds(mol)
     bonds = [b for b in all_non_single if b[2] in (_ENE_ORDER, _YNE_ORDER) and selenium_idx not in (b[0], b[1])]
@@ -395,4 +367,4 @@ def name_seleninic_acid(mol) -> str:
             key, name = _candidate_key(chain_length, seoh_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
-    return best_name
+    return stereo_prefix + best_name
