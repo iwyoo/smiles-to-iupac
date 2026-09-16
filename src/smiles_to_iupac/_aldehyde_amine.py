@@ -38,6 +38,7 @@ from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    find_primary_amines,
     non_single_bonds,
     specified_stereocenters,
     validate_allowed_atoms,
@@ -61,23 +62,8 @@ def _find_aldehydes(mol):
             aldehydes.add(atom.GetIdx())
     return aldehydes
 
-
-def _find_primary_amines(mol):
-    amines = set()
-    for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != 7 or atom.GetDegree() != 1:
-            continue
-        (bond,) = atom.GetBonds()
-        if bond.GetBondTypeAsDouble() != 1.0 or atom.GetTotalNumHs() != 2:
-            continue
-        (neighbor,) = atom.GetNeighbors()
-        if neighbor.GetAtomicNum() == 6:
-            amines.add(atom.GetIdx())
-    return amines
-
-
 def has_aldehyde_amine_shape(mol) -> bool:
-    return len(_find_aldehydes(mol)) == 1 and len(_find_primary_amines(mol)) == 1
+    return len(_find_aldehydes(mol)) == 1 and len(find_primary_amines(mol)) == 1
 
 
 def _validate(mol, aldehydes, amines):
@@ -112,7 +98,7 @@ def name_aldehyde_amine(mol) -> str:
             "naming construction, out of scope for this acyclic-only module"
         )
     aldehydes = _find_aldehydes(mol)
-    amines = _find_primary_amines(mol)
+    amines = find_primary_amines(mol)
     if len(aldehydes) != 1:
         raise UnsupportedStructure(
             "exactly one aldehyde coexisting with a primary amine is "

@@ -35,26 +35,12 @@ from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    find_primary_amines,
     non_single_bonds,
     specified_stereocenters,
     validate_allowed_atoms,
 )
 from ._ester import _find_ester_group, _name_acyl_part, _name_alcohol_part
-
-
-
-def _find_primary_amines(mol, exclude):
-    amines = set()
-    for atom in mol.GetAtoms():
-        if atom.GetIdx() in exclude or atom.GetAtomicNum() != 7 or atom.GetDegree() != 1:
-            continue
-        (bond,) = atom.GetBonds()
-        if bond.GetBondTypeAsDouble() != 1.0 or atom.GetTotalNumHs() != 2:
-            continue
-        (neighbor,) = atom.GetNeighbors()
-        if neighbor.GetAtomicNum() == 6:
-            amines.add(atom.GetIdx())
-    return amines
 
 
 def has_ester_amine_shape(mol) -> bool:
@@ -64,7 +50,7 @@ def has_ester_amine_shape(mol) -> bool:
         acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon = _find_ester_group(mol)
     except UnsupportedStructure:
         return False
-    amines = _find_primary_amines(mol, {ester_oxygen.GetIdx(), carbonyl_oxygen.GetIdx()})
+    amines = find_primary_amines(mol, {ester_oxygen.GetIdx(), carbonyl_oxygen.GetIdx()})
     return len(amines) == 1
 
 
@@ -102,7 +88,7 @@ def name_ester_amine(mol) -> str:
         )
     acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon = _find_ester_group(mol)
     excluded = {ester_oxygen.GetIdx(), carbonyl_oxygen.GetIdx()}
-    amines = _find_primary_amines(mol, excluded)
+    amines = find_primary_amines(mol, excluded)
     if len(amines) != 1:
         raise UnsupportedStructure(
             "exactly one primary amine (-NH2) coexisting with the single "

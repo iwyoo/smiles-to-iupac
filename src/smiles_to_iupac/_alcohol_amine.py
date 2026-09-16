@@ -37,6 +37,7 @@ from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    find_primary_amines,
     non_single_bonds,
     specified_stereocenters,
     validate_allowed_atoms,
@@ -57,23 +58,8 @@ def _find_hydroxyls(mol):
             hydroxyls.add(atom.GetIdx())
     return hydroxyls
 
-
-def _find_primary_amines(mol):
-    amines = set()
-    for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != 7 or atom.GetDegree() != 1:
-            continue
-        (bond,) = atom.GetBonds()
-        if bond.GetBondTypeAsDouble() != 1.0 or atom.GetTotalNumHs() != 2:
-            continue
-        (neighbor,) = atom.GetNeighbors()
-        if neighbor.GetAtomicNum() == 6:
-            amines.add(atom.GetIdx())
-    return amines
-
-
 def has_alcohol_amine_shape(mol) -> bool:
-    return bool(_find_hydroxyls(mol)) and len(_find_primary_amines(mol)) == 1
+    return bool(_find_hydroxyls(mol)) and len(find_primary_amines(mol)) == 1
 
 
 def _validate(mol, hydroxyls, amines):
@@ -108,7 +94,7 @@ def name_alcohol_amine(mol) -> str:
             "naming construction, out of scope for this acyclic-only module"
         )
     hydroxyls = _find_hydroxyls(mol)
-    amines = _find_primary_amines(mol)
+    amines = find_primary_amines(mol)
     if len(amines) != 1:
         raise UnsupportedStructure(
             "exactly one primary amine (-NH2) coexisting with one or more "

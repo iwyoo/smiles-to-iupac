@@ -47,6 +47,7 @@ from ._common import (
     adjacency,
     bfs,
     carbon_adjacency,
+    find_primary_amines,
     halogen_substituents,
     non_single_bonds,
     specified_stereocenters,
@@ -74,28 +75,13 @@ def _find_ether_oxygens(mol):
         return [oxygen]
     return []
 
-
-def _find_primary_amines(mol, exclude):
-    amines = set()
-    for atom in mol.GetAtoms():
-        if atom.GetIdx() in exclude or atom.GetAtomicNum() != 7 or atom.GetDegree() != 1:
-            continue
-        (bond,) = atom.GetBonds()
-        if bond.GetBondTypeAsDouble() != 1.0 or atom.GetTotalNumHs() != 2:
-            continue
-        (neighbor,) = atom.GetNeighbors()
-        if neighbor.GetAtomicNum() == 6:
-            amines.add(atom.GetIdx())
-    return amines
-
-
 def has_ether_amine_shape(mol) -> bool:
     if mol.GetRingInfo().NumRings() > 0:
         return False
     ethers = _find_ether_oxygens(mol)
     if len(ethers) != 1:
         return False
-    amines = _find_primary_amines(mol, set())
+    amines = find_primary_amines(mol, set())
     return len(amines) == 1
 
 
@@ -137,7 +123,7 @@ def name_ether_amine(mol) -> str:
     (ether_oxygen,) = ethers
     ether_oxygen_idx = ether_oxygen.GetIdx()
 
-    amines = _find_primary_amines(mol, set())
+    amines = find_primary_amines(mol, set())
     if len(amines) != 1:
         raise UnsupportedStructure(
             "exactly one primary amine (-NH2) coexisting with the single "

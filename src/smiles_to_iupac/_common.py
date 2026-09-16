@@ -684,6 +684,26 @@ def halogen_substituents(mol):
     }
 
 
+def find_primary_amines(mol, exclude=frozenset()):
+    """Atom indices of every primary amine nitrogen in `mol` (-NH2 bonded
+    to exactly one carbon) not in `exclude` -- shared by every coexisting-
+    functional-group pairwise module whose junior group is a primary
+    amine (`_alcohol_amine.py`, `_carboxylic_acid_amine.py`, ...); a
+    caller with an atom to exclude (e.g. an already-accounted-for amide/
+    ester/ether oxygen's own attachment) passes it in `exclude`."""
+    amines = set()
+    for atom in mol.GetAtoms():
+        if atom.GetIdx() in exclude or atom.GetAtomicNum() != 7 or atom.GetDegree() != 1:
+            continue
+        (bond,) = atom.GetBonds()
+        if bond.GetBondTypeAsDouble() != 1.0 or atom.GetTotalNumHs() != 2:
+            continue
+        (neighbor,) = atom.GetNeighbors()
+        if neighbor.GetAtomicNum() == 6:
+            amines.add(atom.GetIdx())
+    return amines
+
+
 def bfs(graph, start):
     dist = {start: 0}
     parent = {start: None}
