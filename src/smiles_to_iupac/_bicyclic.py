@@ -31,25 +31,44 @@ sharing two or more atoms, fused or bridged), per the IUPAC 2013 Recommendations
 - P-23.0: "This Section deals only with saturated polyalicyclic ring systems
   named by the von Baeyer system; for unsaturated systems, see Section
   P-31.1.4."
+- P-31.1.4.1 (`_name_bicyclic_unsaturated`): a bicyclic ring system bearing
+  one or more C=C/C#C double/triple bonds still uses the identical
+  'bicyclo[x.y.z]' numbering above -- the 'ane' ending is simply replaced
+  with 'ene'/'yne' (`_unsaturated.py`'s own ending-construction helper,
+  reused unchanged), and the bond locant(s) are folded into the existing
+  numbering tie-break ahead of substituent locants, mirroring
+  `_von_baeyer_heteroatom.py`'s identical heteroatom-locant priority.
+  Only the "simple case" is covered here: every bond's two atoms must land
+  on numerically adjacent locants under some valid numbering (no
+  ring-wraparound the way a plain monocyclic ring allows, since a von
+  Baeyer parent's high/low numbering ends aren't bonded to each other in
+  general) -- confirmed against the Blue Book's own worked example
+  'bicyclo[3.2.1]oct-2-ene (PIN)'. A molecule needing a compound-locant
+  descriptor (no numbering makes every bond's atoms adjacent) is deferred
+  to a separate follow-up milestone.
 
-Tricyclic and higher polycyclic systems (P-23.2.5, P-23.2.6), unsaturated
-bicyclics (P-31.1.4), and heteroatom-containing bicyclics (P-23.3) are out of
-scope and raise UnsupportedStructure.
+Tricyclic and higher polycyclic systems (P-23.2.5, P-23.2.6), a compound-
+locant unsaturated bicyclic (see above), and heteroatom-containing
+bicyclics (P-23.3) are out of scope and raise UnsupportedStructure.
 """
 
 from itertools import permutations
 
 from ._common import (
+    ENE_BOND_ORDER,
+    YNE_BOND_ORDER,
     UnsupportedStructure,
     adjacency,
     group_substituents,
     halogen_substituents,
+    lowest_locant_set,
     non_single_bonds,
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, substituents_for_ring
+from ._unsaturated import _unsaturation_suffix
 
 
 def _strip_leaves(graph):
@@ -173,13 +192,62 @@ def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=N
     return locant_set, citation_locants, name
 
 
+def _name_bicyclic_unsaturated(mol, core, bonds) -> str:
+    """P-31.1.4.1's simple ('consecutive-locant') case: every double/triple
+    bond's two atoms land on adjacent locants under some von Baeyer
+    numbering (`iter_bicyclic_numberings`), no ring-wraparound the way a
+    plain monocyclic ring's own `_common.ring_bond_locant` allows (a von
+    Baeyer parent's high/low numbering ends aren't bonded to each other in
+    general). A bond whose two atoms are never adjacent under any
+    candidate numbering means the whole molecule needs a compound-locant
+    descriptor instead -- a separate follow-up milestone, not attempted
+    here."""
+    invalid_orders = [order for _, _, order in bonds if order not in (ENE_BOND_ORDER, YNE_BOND_ORDER)]
+    if invalid_orders:
+        raise UnsupportedStructure(
+            "a bond order other than single, double, or triple is not "
+            "supported (see P-31.1.1.1)"
+        )
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    stem = bicyclic_parent_name(core)[:-3]
+
+    best_key = None
+    for full_order in iter_bicyclic_numberings(core):
+        position = {atom: i + 1 for i, atom in enumerate(full_order)}
+        ene_locants = []
+        yne_locants = []
+        for a, b, order in bonds:
+            pa, pb = position[a], position[b]
+            if abs(pa - pb) != 1:
+                break
+            (ene_locants if order == ENE_BOND_ORDER else yne_locants).append(min(pa, pb))
+        else:
+            combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
+            ene_locant_set = lowest_locant_set(ene_locants)
+            body, needs_stem_a = _unsaturation_suffix(ene_locants, yne_locants)
+            parent = stem + ("a" if needs_stem_a else "") + "-" + body
+            substituents = substituents_for_ring(graph, full_order, halogens)
+            key = _candidate_key(parent, substituents, suffix_locant=(combined_locant_set, ene_locant_set))
+            if best_key is None or key < best_key:
+                best_key = key
+
+    if best_key is None:
+        raise UnsupportedStructure(
+            "no von Baeyer numbering makes every double/triple bond's two "
+            "atoms consecutively numbered (P-31.1.4.1); a compound-locant "
+            "descriptor is a separate follow-up milestone, not supported "
+            "yet"
+        )
+    return best_key[-1]
+
+
 def name_bicycloalkane(mol, core) -> str:
     validate_atoms_and_bonds(mol)
-    if non_single_bonds(mol):
-        raise UnsupportedStructure(
-            "unsaturated bicyclic ring systems are not supported yet (see "
-            "P-31.1.4, unsaturated von Baeyer ring systems)"
-        )
+    bonds = non_single_bonds(mol)
+    if bonds:
+        return _name_bicyclic_unsaturated(mol, core, bonds)
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
