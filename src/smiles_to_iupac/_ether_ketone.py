@@ -6,9 +6,11 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   all (class 41, junior even to plain carbon compounds) -- exactly the
   same reasoning `_ether_amine.py`/`_ether_thiol.py` document in full: an
   ether oxygen is *always* the 'R-oxy' substituent prefix (P-63.2.2.1.1),
-  never the parent, so there is no seniority competition to resolve. This
-  module mirrors `_ether_thiol.py`'s structure, swapping in `_ketone.py`'s
-  own chain-naming machinery.
+  never the parent, so there is no seniority competition to resolve --
+  still wired through `_coexisting_groups.name_via_senior_acyclic` for its
+  formal `_seniority.senior_class` assertion, mirroring the other migrated
+  pairwise modules. This module mirrors `_ether_thiol.py`'s structure,
+  swapping in `_ketone.py`'s own chain-naming machinery.
 - `COCC(C)=O` -> PubChem's own '1-methoxypropan-2-one' confirms the
   ketone is always the suffix parent, the ether always the 'alkoxy'
   prefix.
@@ -33,6 +35,7 @@ any specified stereocenter.
 
 from rdkit import Chem
 
+from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -159,4 +162,11 @@ def name_ether_ketone(mol) -> str:
         oxy_term = f"({oxy_term})"
     extra_names = {ether_oxygen_idx: oxy_term}
 
-    return _name_acyclic_ketone(mol, ketones, set(), (), carbon_graph=main_carbon_graph, extra_names=extra_names)
+    return name_via_senior_acyclic(
+        _name_acyclic_ketone,
+        "ketone",
+        "ether",
+        (mol, ketones, set(), ()),
+        extra_names,
+        carbon_graph=main_carbon_graph,
+    )

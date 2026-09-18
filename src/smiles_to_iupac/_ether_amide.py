@@ -7,9 +7,11 @@ carbon skeleton, per the IUPAC 2013 Recommendations ("the Blue Book"):
   same reasoning `_ether_amine.py`/`_ether_thiol.py`/`_ether_ketone.py`/
   `_ether_aldehyde.py` document in full: an ether oxygen is *always* the
   'R-oxy' substituent prefix (P-63.2.2.1.1), never the parent, so there is
-  no seniority competition to resolve. This module mirrors
-  `_ether_aldehyde.py`'s structure, swapping in `_amide.py`'s own
-  chain-naming machinery.
+  no seniority competition to resolve -- still wired through
+  `_coexisting_groups.name_via_senior_acyclic` for its formal
+  `_seniority.senior_class` assertion, mirroring the other migrated
+  pairwise modules. This module mirrors `_ether_aldehyde.py`'s structure,
+  swapping in `_amide.py`'s own chain-naming machinery.
 - `COCC(N)=O` -> PubChem's own '2-methoxyacetamide' confirms the amide is
   always the suffix parent, the ether always the 'alkoxy' prefix (this
   project keeps its existing 'ethanamide' stem convention rather than
@@ -38,6 +40,7 @@ own C=O, and any specified stereocenter.
 from rdkit import Chem
 
 from ._amide import _is_carbonyl_carbon, _name_acyclic_amide
+from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -189,14 +192,11 @@ def name_ether_amide(mol) -> str:
         oxy_term = f"({oxy_term})"
     extra_names = {ether_oxygen_idx: oxy_term}
 
-    return _name_acyclic_amide(
-        mol,
-        amide_carbon,
-        amide_nitrogen,
-        excluded,
-        (),
-        set(),
-        (),
-        extra_names=extra_names,
+    return name_via_senior_acyclic(
+        _name_acyclic_amide,
+        "amide",
+        "ether",
+        (mol, amide_carbon, amide_nitrogen, excluded, (), set(), ()),
+        extra_names,
         extra_excluded_carbons=frozenset(r_prime_component),
     )

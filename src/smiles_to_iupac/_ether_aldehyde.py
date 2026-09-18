@@ -7,8 +7,11 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   same reasoning `_ether_amine.py`/`_ether_thiol.py`/`_ether_ketone.py`
   document in full: an ether oxygen is *always* the 'R-oxy' substituent
   prefix (P-63.2.2.1.1), never the parent, so there is no seniority
-  competition to resolve. This module mirrors `_ether_ketone.py`'s
-  structure, swapping in `_aldehyde.py`'s own chain-naming machinery.
+  competition to resolve -- still wired through
+  `_coexisting_groups.name_via_senior_acyclic` for its formal
+  `_seniority.senior_class` assertion, mirroring the other migrated
+  pairwise modules. This module mirrors `_ether_ketone.py`'s structure,
+  swapping in `_aldehyde.py`'s own chain-naming machinery.
 - `COCC=O` -> PubChem's own '2-methoxyacetaldehyde' confirms the aldehyde
   is always the suffix parent, the ether always the 'alkoxy' prefix (this
   project keeps its existing 'ethanal' stem convention, matching
@@ -36,6 +39,7 @@ stereocenter.
 from rdkit import Chem
 
 from ._aldehyde import _name_acyclic_aldehyde
+from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -171,6 +175,11 @@ def name_ether_aldehyde(mol) -> str:
         oxy_term = f"({oxy_term})"
     extra_names = {ether_oxygen_idx: oxy_term}
 
-    return _name_acyclic_aldehyde(
-        mol, aldehydes, set(), (), carbon_graph=main_carbon_graph, extra_names=extra_names
+    return name_via_senior_acyclic(
+        _name_acyclic_aldehyde,
+        "aldehyde",
+        "ether",
+        (mol, aldehydes, set(), ()),
+        extra_names,
+        carbon_graph=main_carbon_graph,
     )
