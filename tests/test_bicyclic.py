@@ -48,9 +48,8 @@ def test_two_separate_rings_still_raises():
         smiles_to_iupac("C1CCCCC1C1CCCCC1")
 
 
-def test_unsaturated_bicyclic_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CC2CC=C1C2")
+def test_unsaturated_bicyclic_name():
+    assert smiles_to_iupac("C1CC2CC=C1C2") == "bicyclo[2.2.1]hept-1-ene"
 
 
 def test_monospiro_still_resolves_via_spiro_module():
