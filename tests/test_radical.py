@@ -90,3 +90,53 @@ def test_multiple_radical_centers_raises():
 def test_halogen_substituted_radical_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[CH2]C(Cl)")
+
+
+def test_methylidene_radical_name():
+    # Blue Book P-71.2.2.1 worked example: methylidene (mononuclear
+    # divalent radical, degree 0, like methyl's own mononuclear case).
+    assert smiles_to_iupac("[CH2]") == "methylidene"
+
+
+def test_methylidyne_radical_name():
+    # Blue Book P-71.2.2.1 worked example: methylidyne (mononuclear
+    # trivalent radical).
+    assert smiles_to_iupac("[CH]") == "methylidyne"
+
+
+def test_ethylidene_radical_name():
+    # Blue Book P-71.2.2.1 worked example: a divalent radical on a chain
+    # terminus, one 'idene' appended after the '-yl' name.
+    assert smiles_to_iupac("[CH]C") == "ethylidene"
+
+
+def test_ethylidyne_radical_name():
+    # Blue Book P-71.2.2.1 worked example: a trivalent radical on a chain
+    # terminus, 'idyne' appended after the '-yl' name.
+    assert smiles_to_iupac("[C]C") == "ethylidyne"
+
+
+def test_propylidene_radical_name():
+    assert smiles_to_iupac("[CH]CC") == "propylidene"
+
+
+def test_propylidyne_radical_name():
+    assert smiles_to_iupac("[C]CC") == "propylidyne"
+
+
+def test_cyclohexylidene_radical_name():
+    # Blue Book P-71.2.2.1 worked example: a divalent radical on a
+    # monocyclic ring.
+    assert smiles_to_iupac("[C]1CCCCC1") == "cyclohexylidene"
+
+
+def test_cyclobutylidene_radical_name():
+    assert smiles_to_iupac("[C]1CCC1") == "cyclobutylidene"
+
+
+def test_branch_point_divalent_radical_raises():
+    # A trivalent radical carbon can never itself be a branch point
+    # (3 unpaired electrons leave room for at most one more bond), so only
+    # the divalent case needs this check.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[C](C)C")
