@@ -352,23 +352,29 @@ def iter_polycyclic_candidates(core, ring_count):
                     yield full_order, parent, outer_key
 
 
-def _candidate_key(parent, substituents, heteroatom_locant=None, nondetachable_prefix=""):
+def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=None, nondetachable_prefix=""):
     """`heteroatom_locant`/`nondetachable_prefix`: shared with
     `_von_baeyer_heteroatom.py`'s polycyclic (ring_count>=3) case, mirroring
-    `_bicyclic._candidate_key`'s same two optional parameters -- see that
-    function's callers for why the heteroatom locant is ranked ahead of
-    substituent locants but after `iter_polycyclic_candidates`'s own
-    `outer_key` (which the caller combines with this function's return
-    value)."""
+    `_bicyclic._candidate_key`'s same parameters -- see that function's
+    callers for why the heteroatom locant is ranked ahead of substituent
+    locants but after `iter_polycyclic_candidates`'s own `outer_key`
+    (which the caller combines with this function's return value).
+    `suffix_locant`: the analogous rank for a characteristic-group suffix
+    (e.g. a von Baeyer alcohol's -OH, `_alcohol.py`'s `_name_von_baeyer_
+    alcohol`) instead of a skeletal replacement heteroatom -- see
+    `_bicyclic._candidate_key`'s identical parameter for why the two
+    never coexist here."""
     grouped = group_substituents(substituents)
     locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     if prefix and nondetachable_prefix:
         prefix += "-"
     name = prefix + nondetachable_prefix + parent
-    if heteroatom_locant is None:
-        return locant_set, citation_locants, name
-    return heteroatom_locant, locant_set, citation_locants, name
+    if heteroatom_locant is not None:
+        return heteroatom_locant, locant_set, citation_locants, name
+    if suffix_locant is not None:
+        return suffix_locant, locant_set, citation_locants, name
+    return locant_set, citation_locants, name
 
 
 def name_polycycloalkane(mol, core, ring_count) -> str:
