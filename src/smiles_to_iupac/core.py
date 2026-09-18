@@ -136,6 +136,7 @@ from ._bridgehead_heteroatom_fusion import (
 from ._hydroxylamine import has_hydroxylamine_shape, name_hydroxylamine
 from ._imine import has_simple_imine_shape, name_imine
 from ._isotope import has_isotope_shape, name_isotope
+from ._isotope_alcohol import has_isotope_alcohol_shape, name_isotope_alcohol
 from ._pyridine_bis_heterocycle_fusion import (
     has_pyridine_bis_heterocycle_fusion_name,
     name_pyridine_bis_heterocycle_fusion,
@@ -292,6 +293,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # routed here before every other branch below, for the same reason.
     if has_hydrohalide_salt_shape(mol):
         return name_hydrohalide_salt(mol, smiles_to_iupac)
+
+    # An isotopically labeled hydroxyl oxygen and/or skeletal carbon
+    # combined with the '-ol' suffix (P-82.5.1/P-82.5.2) must be routed
+    # here before `_isotope.py`'s own plain chain/methane path just below,
+    # which rejects any oxygen outright.
+    if has_isotope_alcohol_shape(mol):
+        return name_isotope_alcohol(mol)
 
     # An isotopically labeled atom (P-82's isotope descriptor nomenclature)
     # must be routed here before every other branch below: RDKit represents
