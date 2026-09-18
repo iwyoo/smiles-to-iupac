@@ -38,14 +38,29 @@
   keeps its retained PIN 'tert-butyl' rather than the rule's own
   '2-methylpropan-2-yl'.
 
+- P-71.2.2.1: a divalent or trivalent radical center (`=CH2` methylidene,
+  `#CH` methylidyne, ...) on the same unbranched-chain-terminus or
+  monocyclic-ring shape is named the identical way, just appending
+  'idene'/'idyne' after the '-yl' name instead of using it bare -- e.g.
+  'methyl' + 'idene' -> 'methylidene', 'cyclohexyl' + 'idene' ->
+  'cyclohexylidene' (worked examples confirmed against `tmp/bluebook/
+  P7.txt` lines ~284-315). RDKit's `GetNumRadicalElectrons()` reports this
+  free valence directly (2 or 3), with no bond-order difference from the
+  monovalent case -- `[CH]C` (ethylidene) and `[C]C` (ethylidyne) both
+  have a degree-1 radical carbon, same as a monovalent chain terminus.
+
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any branch off the radical carbon that is itself further branched
   (P-29.5, "complex substituent groups") -- only the radical carbon itself
   may be a branch point.
-- Divalent/trivalent radicals ('-ylidene'/'-ylidyne', P-71.2.2), more than
-  one radical center (P-71.2.3), a radical on a functional group (P-71.3),
-  on an aromatic ring, on a polycyclic/spiro skeleton, or coexisting with
-  any heteroatom, halogen, charge, or isotopic modification.
+- A divalent/trivalent radical carbon that is itself a branch point
+  (P-29.3.2.2's general method is monovalent-only here; the branched case
+  for '-ylidene'/'-ylidyne' needs its own locant-citation research, not
+  done yet).
+- More than one radical center (P-71.2.3), a radical on a functional
+  group (P-71.3), on an aromatic ring, on a polycyclic/spiro skeleton, or
+  coexisting with any heteroatom, halogen, charge, or isotopic
+  modification.
 """
 
 from rdkit import Chem
@@ -68,13 +83,14 @@ def name_radical(mol) -> str:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
     radicals = [atom for atom in mol.GetAtoms() if atom.GetNumRadicalElectrons() != 0]
-    if len(radicals) != 1 or radicals[0].GetNumRadicalElectrons() != 1:
+    if len(radicals) != 1 or radicals[0].GetNumRadicalElectrons() not in (1, 2, 3):
         raise UnsupportedStructure(
-            "only a single, monovalent radical center is supported yet "
-            "(P-71.2.1.1); zero, multiple, or higher-valence radical "
-            "centers are not supported"
+            "only a single radical center of valence 1, 2, or 3 is "
+            "supported yet (P-71.2.1.1/P-71.2.2.1); zero, multiple, or "
+            "higher-valence radical centers are not supported"
         )
     (radical,) = radicals
+    valence = radical.GetNumRadicalElectrons()
 
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() != 6:
@@ -92,19 +108,34 @@ def name_radical(mol) -> str:
     ring_info = mol.GetRingInfo()
     num_rings = ring_info.NumRings()
     if num_rings == 0:
-        return _name_chain_radical(mol, radical)
+        return _name_chain_radical(mol, radical, valence)
     if num_rings == 1:
-        return _name_ring_radical(mol, ring_info)
+        return _name_ring_radical(mol, ring_info, valence)
     raise UnsupportedStructure("polycyclic and spiro radicals are not supported yet")
 
 
-def _name_chain_radical(mol, radical) -> str:
+def _radical_suffix(yl_name: str, valence: int) -> str:
+    """P-71.2.2.1: the divalent/trivalent suffix is formed by appending
+    'idene'/'idyne' after the '-yl' name (not replacing it), e.g.
+    'methyl' -> 'methylidene'/'methylidyne'."""
+    if valence == 1:
+        return yl_name
+    return yl_name + ("idene" if valence == 2 else "idyne")
+
+
+def _name_chain_radical(mol, radical, valence) -> str:
     if mol.GetNumAtoms() == 1:
         # P-71.2.1.1's own wording covers this directly: "a mononuclear
         # parent hydride of an element of Group 14" -- methyl (*CH3) has
         # no bond to another atom, so degree 0 rather than 1.
-        return alkyl_name(1)
+        return _radical_suffix(alkyl_name(1), valence)
     if radical.GetDegree() != 1:
+        if valence != 1:
+            raise UnsupportedStructure(
+                "a divalent/trivalent radical carbon that is itself a "
+                "branch point is out of scope for this module (see module "
+                "docstring)"
+            )
         return _name_branch_point_radical(mol, radical)
     for atom in mol.GetAtoms():
         if atom.GetDegree() > 2:
@@ -112,7 +143,7 @@ def _name_chain_radical(mol, radical) -> str:
                 "a branched chain is out of scope for this module "
                 "(P-71.2.1.2, the 'general method')"
             )
-    return alkyl_name(mol.GetNumAtoms())
+    return _radical_suffix(alkyl_name(mol.GetNumAtoms()), valence)
 
 
 def _name_branch_point_radical(mol, radical) -> str:
@@ -155,7 +186,7 @@ def _name_branch_point_radical(mol, radical) -> str:
     return f"{prefix}{stem}-{root_locant}-yl"
 
 
-def _name_ring_radical(mol, ring_info) -> str:
+def _name_ring_radical(mol, ring_info, valence) -> str:
     (ring_atoms,) = ring_info.AtomRings()
     if len(ring_atoms) != mol.GetNumAtoms():
         raise UnsupportedStructure(
@@ -168,4 +199,4 @@ def _name_ring_radical(mol, ring_info) -> str:
                 "a monocyclic radical ring must otherwise be unsubstituted "
                 "(P-71.2.1.1)"
             )
-    return "cyclo" + alkyl_name(len(ring_atoms))
+    return _radical_suffix("cyclo" + alkyl_name(len(ring_atoms)), valence)
