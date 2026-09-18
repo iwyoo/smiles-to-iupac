@@ -454,13 +454,11 @@ def test_phenol_multiple_hydroxyls_raises():
         smiles_to_iupac("Oc1ccccc1O")
 
 
-def test_bicyclic_alcohol_raises():
+def test_bicyclic_alcohol_name():
     # Same skeleton as test_halogens.py's 'ClC1CC2CCC1CC2' ->
-    # '2-chlorobicyclo[2.2.2]octane', with the halogen swapped for -OH: a
-    # real, nameable compound ('bicyclo[2.2.2]octan-2-ol', confirmed via
-    # PubChem), but von Baeyer polycyclic alcohols are explicitly deferred.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1CC2CCC1CC2")
+    # '2-chlorobicyclo[2.2.2]octane', with the halogen swapped for -OH
+    # (PubChem-confirmed 'bicyclo[2.2.2]octan-2-ol').
+    assert smiles_to_iupac("OC1CC2CCC1CC2") == "bicyclo[2.2.2]octan-2-ol"
 
 
 @pytest.mark.parametrize(

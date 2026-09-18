@@ -152,16 +152,25 @@ def iter_bicyclic_numberings(core):
             yield [start] + main_ring_first + [other] + list(reversed(main_ring_second)) + main_bridge
 
 
-def _candidate_key(parent, substituents, heteroatom_locant=None, nondetachable_prefix=""):
+def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=None, nondetachable_prefix=""):
+    """`suffix_locant`: like `heteroatom_locant` (same tie-break rank,
+    ahead of substituent locants) but for a characteristic-group suffix
+    (e.g. a von Baeyer alcohol's -OH, `_alcohol.py`'s `_name_von_baeyer_
+    alcohol`) instead of a skeletal replacement heteroatom -- the two
+    never coexist in this codebase yet (a plain carbocyclic ring's own
+    suffix vs. a skeletal-replacement heteroatom), so their relative
+    priority when both are given is left unresolved."""
     grouped = group_substituents(substituents)
     locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     if prefix and nondetachable_prefix:
         prefix += "-"
     name = prefix + nondetachable_prefix + parent
-    if heteroatom_locant is None:
-        return locant_set, citation_locants, name
-    return heteroatom_locant, locant_set, citation_locants, name
+    if heteroatom_locant is not None:
+        return heteroatom_locant, locant_set, citation_locants, name
+    if suffix_locant is not None:
+        return suffix_locant, locant_set, citation_locants, name
+    return locant_set, citation_locants, name
 
 
 def name_bicycloalkane(mol, core) -> str:
