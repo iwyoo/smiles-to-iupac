@@ -61,6 +61,10 @@ SUFFIX_CLASS_RANK = {
     "hydroperoxide": 50,
     "amine": 51,
     "imine": 52,
+    # Not a Table 4.4 numbered suffix at all -- an ether has no suffix
+    # form (P-41 Table 4.1 class 41), so it is always cited as an
+    # 'R-oxy' prefix (P-63.2.2.1.1), junior even to every class above.
+    "ether": 53,
 }
 
 

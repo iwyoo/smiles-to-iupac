@@ -7,9 +7,12 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   same reasoning `_ether_amine.py`/`_ether_thiol.py`/`_ether_ketone.py`/
   `_ether_aldehyde.py`/`_ether_amide.py` document in full: an ether
   oxygen is *always* the 'R-oxy' substituent prefix (P-63.2.2.1.1), never
-  the parent, so there is no seniority competition to resolve. This
-  module mirrors `_ether_thiol.py`'s structure, swapping in
-  `_hydroperoxide.py`'s own chain-naming machinery.
+  the parent, so there is no seniority competition to resolve -- still
+  wired through `_coexisting_groups.name_via_senior_acyclic` for its
+  formal `_seniority.senior_class` assertion, mirroring the other
+  migrated pairwise modules. This module mirrors `_ether_thiol.py`'s
+  structure, swapping in `_hydroperoxide.py`'s own chain-naming
+  machinery.
 - **Note on PubChem divergence** (same situation `_hydroperoxide_amine.py`
   already documents, PR #426): PubChem's own auto-generated IUPACName for
   'COCCOO' is "1-hydroperoxy-2-methoxyethane" -- naming the molecule as a
@@ -33,6 +36,7 @@ than one ether oxygen or hydroperoxide, any other heteroatom, any ring,
 any chain unsaturation (ene/yne), and any specified stereocenter.
 """
 
+from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -176,6 +180,11 @@ def name_ether_hydroperoxide(mol) -> str:
         oxy_term = f"({oxy_term})"
     extra_names = {ether_oxygen_idx: oxy_term}
 
-    return _name_acyclic_hydroperoxide(
-        mol, site_idx, hydroperoxide_atoms, carbon_graph=main_carbon_graph, extra_names=extra_names
+    return name_via_senior_acyclic(
+        _name_acyclic_hydroperoxide,
+        "hydroperoxide",
+        "ether",
+        (mol, site_idx, hydroperoxide_atoms),
+        extra_names,
+        carbon_graph=main_carbon_graph,
     )
