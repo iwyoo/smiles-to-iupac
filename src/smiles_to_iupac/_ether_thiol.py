@@ -6,9 +6,12 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   all (class 41, junior even to plain carbon compounds) -- exactly the
   same reasoning `_ether_amine.py` documents in full: an ether oxygen is
   *always* the 'R-oxy' substituent prefix (P-63.2.2.1.1), never the
-  parent, so there is no seniority competition to resolve. This module
-  mirrors `_ether_amine.py`'s structure, swapping in `_thiol.py`'s own
-  chain-naming machinery.
+  parent, so there is no seniority competition to resolve -- still wired
+  through `_coexisting_groups.name_via_senior_acyclic` for its formal
+  `_seniority.senior_class` assertion (senior key 'alcohol', shared with
+  thiol as a chalcogen analogue), mirroring the other migrated pairwise
+  modules. This module mirrors `_ether_amine.py`'s structure, swapping in
+  `_thiol.py`'s own chain-naming machinery.
 - `COCCS` -> PubChem's own '2-methoxyethanethiol' confirms the thiol is
   always the suffix parent, the ether always the 'alkoxy' prefix.
 - `_alcohol.py` already supports a coexisting ether natively (its own
@@ -39,6 +42,7 @@ and any specified stereocenter.
 
 from rdkit import Chem
 
+from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -162,4 +166,11 @@ def name_ether_thiol(mol) -> str:
         oxy_term = f"({oxy_term})"
     extra_names = {ether_oxygen_idx: oxy_term}
 
-    return _name_acyclic_thiol(mol, thiols, (), carbon_graph=main_carbon_graph, extra_names=extra_names)
+    return name_via_senior_acyclic(
+        _name_acyclic_thiol,
+        "alcohol",
+        "ether",
+        (mol, thiols, ()),
+        extra_names,
+        carbon_graph=main_carbon_graph,
+    )
