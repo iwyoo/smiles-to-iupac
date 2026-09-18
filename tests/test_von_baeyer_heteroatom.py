@@ -32,12 +32,13 @@ def test_smiles_to_iupac_von_baeyer_heteroatom(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_heteroatom_outside_ring_raises():
+def test_heteroatom_outside_ring_is_not_this_modules_territory():
     # a plain hydrocarbon bicyclic with an exocyclic -OH substituent: the
-    # single heteroatom isn't a *skeletal* ring atom, so this is a
-    # different module's territory (deferred, see _alcohol.py).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1CC2CCC1C2")
+    # single heteroatom isn't a *skeletal* ring atom, so this module's own
+    # `has_single_ring_heteroatom_shape` correctly leaves it alone --
+    # `_alcohol.py`'s own von Baeyer suffix-locant path names it instead
+    # ('bicyclo[2.2.1]heptan-2-ol', see test_alcohol.py).
+    assert smiles_to_iupac("OC1CC2CCC1C2") == "bicyclo[2.2.1]heptan-2-ol"
 
 
 def test_unsupported_heteroatom_element_raises():
