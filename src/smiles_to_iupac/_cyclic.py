@@ -38,11 +38,17 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   would need separate, unperformed verification for each pattern -- pure
   geometry avoids that entirely. Confirmed against PubChem's own isomeric
   SMILES for cis-/trans-1,2-dimethylcyclohexane (CID 16628/23313).
-  A ring stereocenter combination other than exactly this shape (a single
-  specified stereocenter, more than two, an asymmetric 1,2-pair, or any
-  left unspecified alongside a specified one) raises `UnsupportedStructure`
-  explicitly rather than silently dropping the stereochemistry, mirroring
-  `_alcohol.py`'s R/S and `_unsaturated.py`'s E/Z handling.
+  A ring stereocenter combination other than exactly this shape (more than
+  two, an asymmetric 1,2-pair, or any left unspecified alongside a
+  specified one) raises `UnsupportedStructure` explicitly rather than
+  silently dropping the stereochemistry, mirroring `_alcohol.py`'s R/S and
+  `_unsaturated.py`'s E/Z handling. A single specified stereocenter *not*
+  on the ring itself (i.e. on the ring's own sole substituent branch)
+  instead gets `_alcohol.py`'s `ring_branch_stereo_display` treatment --
+  a bracketed "[(<locant><R/S>)-<name>]" branch display in place of the
+  usual ring-locant prefix (P-92); a single specified stereocenter that
+  *is* on the ring itself, with no cis/trans partner, remains out of
+  scope.
 
 Fused, bridged, and spiro ring systems are out of scope for this module and
 raise NotImplementedError.
@@ -58,11 +64,12 @@ from ._common import (
     halogen_substituents,
     non_single_bonds,
     ring_cycle,
+    specified_stereocenters,
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name
-from ._substituents import format_substituent_prefixes, name_branch, substituents_for_ring
+from ._substituents import format_substituent_prefixes, name_branch, ring_branch_stereo_display, substituents_for_ring
 
 
 
@@ -220,17 +227,32 @@ def name_cycloalkane(mol) -> str:
     ring_order = ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
 
-    stereo_atoms = _ring_stereocenters(mol, ring_set)
+    stereo = specified_stereocenters(mol)
+    branch_stereo = None
+    if stereo is not None and any(atom not in ring_order for atom, _ in stereo):
+        branch_stereo = ring_branch_stereo_display(graph, ring_order, frozenset(), stereo, halogens, mol=mol)
+        if branch_stereo is None:
+            raise UnsupportedStructure(
+                "a stereocenter on a substituent branch rather than the "
+                "ring itself is not supported yet (see P-92)"
+            )
+
     cis_trans = None
-    if stereo_atoms is not None:
-        cis_trans = _cis_trans_prefix(mol, graph, ring_atoms, ring_set, halogens, stereo_atoms)
+    if branch_stereo is None:
+        stereo_atoms = _ring_stereocenters(mol, ring_set)
+        if stereo_atoms is not None:
+            cis_trans = _cis_trans_prefix(mol, graph, ring_atoms, ring_set, halogens, stereo_atoms)
 
     best_key = None
     best_name = None
     for start in range(ring_size):
         rotated = ring_order[start:] + ring_order[:start]
         for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             substituents = substituents_for_ring(graph, candidate, halogens, mol=mol)
+            if branch_stereo is not None:
+                branch_ring_atom, display = branch_stereo
+                substituents[position_of[branch_ring_atom]] = [(display, False)]
             key = _candidate_key(ring_size, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
