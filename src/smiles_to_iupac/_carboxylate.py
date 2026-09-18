@@ -16,6 +16,10 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   formal-charge -1 oxygen, both on the same carbon. Reuses the same
   chain-numbering and 'ene'/'yne' mechanics as `_carboxylic_acid.py` (the
   carboxylate carbon is always C1, its own locant never cited, P-14.3.3).
+- `_name_acyclic_carboxylate` takes an optional `extra_names` map (mirrors
+  `_carboxylic_acid.py`'s identical extension point) so `_zwitterion.py`
+  can inject a coexisting ammonium nitrogen's prefix name without
+  reimplementing this module's own chain search.
 - Unlike `_carboxylic_acid.py`, this first pass only supports exactly one
   -COO- group (no 'dioate'), mirroring `_ester.py`'s own single-group scope
   and reusing its `_suffix_body` construction (no ' acid' word, 'oate'
@@ -193,16 +197,26 @@ def _candidate_key(chain_length, ene_locants, yne_locants, substituents):
 
 
 
-def _name_acyclic_carboxylate(mol, carboxylate_carbon_idx, excluded_oxygens, bonds, stereo=None):
+def _name_acyclic_carboxylate(
+    mol, carboxylate_carbon_idx, excluded_oxygens, bonds, stereo=None, extra_names=None, required_atoms=frozenset()
+):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
     include every stereocenter are eligible (P-92: a stereocenter on a
     substituent branch rather than the principal chain is out of scope,
     mirroring `_carboxylic_acid.py`), and the winning candidate's own
     locants are used to format a "(<locant><R/S>,...)-" prefix onto the
-    final name."""
+    final name.
+
+    `extra_names`: optional {atom_idx -> prefix name} for a coexisting
+    characteristic group cited as a substituent prefix (e.g. a
+    zwitterion's ammonium-nitrogen 'azaniumyl'-family prefix, see
+    `_zwitterion.py`), mirroring `_carboxylic_acid.py`'s identical
+    extension point. `None` keeps the original halogen-only behavior
+    unchanged. `required_atoms`: additional atoms a candidate chain must
+    also carry -- empty by default so existing callers are unaffected."""
     graph = adjacency(mol)
-    halogens = halogen_substituents(mol)
+    halogens = {**halogen_substituents(mol), **(extra_names or {})}
     chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
@@ -211,15 +225,20 @@ def _name_acyclic_carboxylate(mol, carboxylate_carbon_idx, excluded_oxygens, bon
     for chain in chains:
         if carboxylate_carbon_idx not in chain:
             continue
+        chain_set = set(chain)
+        if not required_atoms <= chain_set:
+            continue
         if bonds and bond_locants(chain, bonds) is None:
             continue
-        chain_set = set(chain)
         if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
             continue
         eligible.append(chain)
     if not eligible:
         if stereo is not None and any(
-            carboxylate_carbon_idx in c and (not bonds or bond_locants(c, bonds) is not None) for c in chains
+            carboxylate_carbon_idx in c
+            and required_atoms <= set(c)
+            and (not bonds or bond_locants(c, bonds) is not None)
+            for c in chains
         ):
             raise UnsupportedStructure(
                 "a stereocenter on a substituent branch rather than the "

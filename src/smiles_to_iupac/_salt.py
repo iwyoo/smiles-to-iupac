@@ -80,7 +80,7 @@ from rdkit import Chem
 from ._alkoxide import has_alkoxide_shape, name_alkoxide
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._carboxylate import has_carboxylate_shape, name_carboxylate
-from ._common import HALOGEN_PREFIXES
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure
 from ._numerals import multiplying_prefix
 from ._selenoate import has_selenoate_shape, name_selenoate
 from ._thioate import has_thioate_shape, name_thioate
@@ -139,7 +139,22 @@ def _cation(frag):
     if cation is not None:
         return cation
     if has_ammonium_shape(frag):
-        return name_ammonium(frag), 1
+        # `has_ammonium_shape` only looks at the charged nitrogen itself,
+        # ignoring the rest of the fragment -- when called (as below) on a
+        # would-be *single*-fragment "cation" that is actually a whole
+        # zwitterion, `name_ammonium` then tries to name the entire
+        # fragment as if it were just the ammonium compound and fails
+        # deeper in (e.g. on a coexisting carboxylate oxygen). That failure
+        # means this fragment was never a real bare cation, not that
+        # `_split_cation_anions` itself should crash -- `has_zwitterion_shape`
+        # (see `_zwitterion.py`) is routed ahead of this module for the
+        # zwitterion case specifically, but this catch stays regardless as
+        # a defensive fallback for any other shape that superficially
+        # matches on the nitrogen alone.
+        try:
+            return name_ammonium(frag), 1
+        except UnsupportedStructure:
+            return None
     return None
 
 

@@ -1,5 +1,6 @@
 from rdkit import Chem
 
+from ._zwitterion import has_zwitterion_shape, name_zwitterion
 from ._salt import has_salt_shape, name_salt
 from ._hydrohalide_salt import has_hydrohalide_salt_shape, name_hydrohalide_salt
 from ._acyclic import name_acyclic_alkane
@@ -268,6 +269,16 @@ def smiles_to_iupac(smiles: str) -> str:
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError(f"invalid SMILES: {smiles!r}")
+
+    # An amino-acid/betaine-type zwitterion (P-74.1.3's ammonium-nitrogen-
+    # prefix-on-a-carboxylate-parent citation order) must be routed here
+    # before `has_salt_shape` below: it's a single connected fragment that
+    # nonetheless has an ammonium-shaped nitrogen, which `_salt.py`'s own
+    # cation loop would otherwise try (and fail) to name as if the entire
+    # molecule were a bare ammonium cation, crashing rather than falling
+    # through.
+    if has_zwitterion_shape(mol):
+        return name_zwitterion(mol)
 
     # A multi-fragment SMILES (P-77 salts) must be routed here before every
     # other branch below: those all assume one connected molecule and would
