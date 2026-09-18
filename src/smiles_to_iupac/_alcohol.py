@@ -464,19 +464,18 @@ def _oh_locants(position_of, hydroxyls, graph):
 
 
 
-def _name_acyclic_alcohol(
+def _best_acyclic_alcohol_candidate(
     mol, hydroxyls, bonds, stereo=None, ethers=None, extra_names=None, required_atoms=frozenset()
 ):
-    """`stereo`: None, or a list of ("atom"/"bond", idx, "R"/"S"/"E"/"Z")
-    from `specified_stereo_elements` -- if given, only chain candidates
-    that include *every* tetrahedral stereocenter are eligible (P-92: a
-    stereocenter on a substituent branch rather than the principal chain
-    is out of scope, see module docstring; a double-bond E/Z element's
-    atoms are already required to lie on the chain via `bonds`, so no
-    separate check is needed for those), and the winning candidate's own
-    locants for each element are used to format a
-    "(<locant><R/S/E/Z>,...)-" prefix onto the name, ascending locant
-    order (P-91.3, including when both kinds coexist).
+    """(best_name, best_position_of) -- the winning chain numbering
+    (P-44.4.1.8's own suffix-locant-first tie-break) and its
+    fully-formatted name, factored out of `_name_acyclic_alcohol` (which
+    just adds the stereo-descriptor prefix on top) so `_isotope_alcohol.py`
+    can reuse the identical numbering decision: P-82.5.1 states the
+    presence of isotopic nuclides is "considered last" among numbering
+    criteria, so an isotope label never changes which candidate wins here,
+    and that module only needs `best_position_of` to independently compute
+    its own isotope descriptor's locant.
 
     `ethers`: optional {ether_o_idx: alkoxy_name} (see `_ether_oxygens`)
     -- merged into `halogens` so `name_branch` resolves each ether oxygen
@@ -541,6 +540,27 @@ def _name_acyclic_alcohol(
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of
 
+    return best_name, best_position_of
+
+
+def _name_acyclic_alcohol(
+    mol, hydroxyls, bonds, stereo=None, ethers=None, extra_names=None, required_atoms=frozenset()
+):
+    """`stereo`: None, or a list of ("atom"/"bond", idx, "R"/"S"/"E"/"Z")
+    from `specified_stereo_elements` -- if given, only chain candidates
+    that include *every* tetrahedral stereocenter are eligible (P-92: a
+    stereocenter on a substituent branch rather than the principal chain
+    is out of scope, see module docstring; a double-bond E/Z element's
+    atoms are already required to lie on the chain via `bonds`, so no
+    separate check is needed for those), and the winning candidate's own
+    locants for each element are used to format a
+    "(<locant><R/S/E/Z>,...)-" prefix onto the name, ascending locant
+    order (P-91.3, including when both kinds coexist). See
+    `_best_acyclic_alcohol_candidate` for `ethers`/`extra_names`/
+    `required_atoms`."""
+    best_name, best_position_of = _best_acyclic_alcohol_candidate(
+        mol, hydroxyls, bonds, stereo, ethers, extra_names, required_atoms
+    )
     if stereo is not None:
         labels = []
         for kind, idx, code in stereo:
