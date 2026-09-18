@@ -64,16 +64,33 @@ chloride', `[Ca+2].[Cl-].[Cl-]` -> 'calcium dichloride'. This is a
 distinct shape from `_hydrohalide_salt.py`'s bare *neutral* HX fragment
 (P-77.1.3(3) general nomenclature for an organic base) -- no overlap.
 
+The anion may also be a single fixed-formula polyatomic inorganic ion --
+sulfate (SO4^2-), carbonate (CO3^2-), nitrate (NO3^-), or phosphate
+(PO4^3-) (`_is_bare_polyatomic_ion`, accepting any resonance depiction of
+the charge split across the oxygens) -- each with its own plain retained
+name (no organic-acid-derived namer to reuse, unlike carboxylate/
+alkoxide/thioate/selenoate above). This anion shape is the *opposite* of
+every other one above: exactly *one* anion fragment, balanced by
+`magnitude / cation_charge` copies of *one* cation type (monoatomic or
+ammonium) when that division is exact, with the multiplying prefix now on
+the *cation* side instead -- e.g. 2 K+ for 1 SO4^2- -> 'dipotassium
+sulfate', 2 Na+ for 1 CO3^2- -> 'disodium carbonate' (P-65.6.2's own
+worked example), 1 K+ for 1 NO3- -> 'potassium nitrate' (no prefix). A
+charge ratio that doesn't divide evenly (e.g. Al3+ with SO4^2-, needing
+mixed 2:3 cation:anion counts) is out of scope, not attempted here.
+
 Explicitly out of scope (raise `UnsupportedStructure`, or -- for
 `has_salt_shape` -- simply return False so the shape falls through to
 every other branch's own, usually less helpful, rejection): any metal
 cation other than the fixed-valence ones above (transition metals need
 Stock/oxidation-number disambiguation, not attempted here), any anion
-other than a plain carboxylate or (singly-charged-cation-only)
-alkoxide/thioate/selenoate, mixed/different anions on the same cation, a
-2+/3+ metal cation paired with one of the singly-charged-cation-only
-anions (see above), and more than one cation fragment (multi-cation
-salts, e.g. 'potassium sodium butanedioate', are unattempted here)."""
+other than a plain carboxylate, (singly-charged-cation-only) alkoxide/
+thioate/selenoate, halide, or the four polyatomic inorganic anions above,
+mixed/different anions on the same cation, more than one cation *type*
+(multi-cation salts, e.g. 'potassium sodium butanedioate', are
+unattempted here), a 2+/3+ metal cation paired with one of the singly-
+charged-cation-only organic anions (see above), and a polyatomic-anion
+charge magnitude that isn't evenly divisible by the cation's own charge."""
 
 from rdkit import Chem
 
@@ -105,6 +122,83 @@ _ANION_KINDS = [
     (has_selenoate_shape, name_selenoate),
     (_has_halide_anion_shape, _name_halide_anion),
 ]
+
+
+def _is_bare_polyatomic_ion(frag, center_atomic_num, num_oxygens, total_charge):
+    """True iff `frag` is a single central atom (`center_atomic_num`, formal
+    charge 0) bonded to exactly `num_oxygens` monovalent oxygens and
+    nothing else, with the fragment's combined formal charge exactly
+    `total_charge` -- accepts any resonance depiction of the charge split
+    across the oxygens (e.g. sulfate's two anionic + two neutral
+    doubly-bonded oxygens), since only the stoichiometry and net charge
+    matter for naming these fixed-formula ions (P-65.6.2)."""
+    if frag.GetNumAtoms() != 1 + num_oxygens:
+        return False
+    centers = [a for a in frag.GetAtoms() if a.GetAtomicNum() == center_atomic_num]
+    if len(centers) != 1:
+        return False
+    (center,) = centers
+    # The central atom's own formal charge varies by resonance depiction
+    # (e.g. nitrate's N is routinely written charge +1, '[O-][N+](=O)[O-]',
+    # to satisfy valence -- unlike carbonate's neutral-C depiction) --
+    # only the fragment's *combined* charge below is checked, not any
+    # individual atom's.
+    if center.GetIsotope() != 0 or center.GetDegree() != num_oxygens:
+        return False
+    others = [a for a in frag.GetAtoms() if a.GetIdx() != center.GetIdx()]
+    if any(a.GetAtomicNum() != 8 or a.GetDegree() != 1 or a.GetIsotope() != 0 for a in others):
+        return False
+    return sum(a.GetFormalCharge() for a in frag.GetAtoms()) == total_charge
+
+
+def has_sulfate_shape(frag) -> bool:
+    return _is_bare_polyatomic_ion(frag, 16, 4, -2)
+
+
+def name_sulfate(frag) -> str:
+    return "sulfate"
+
+
+def has_carbonate_shape(frag) -> bool:
+    return _is_bare_polyatomic_ion(frag, 6, 3, -2)
+
+
+def name_carbonate(frag) -> str:
+    return "carbonate"
+
+
+def has_nitrate_shape(frag) -> bool:
+    return _is_bare_polyatomic_ion(frag, 7, 3, -1)
+
+
+def name_nitrate(frag) -> str:
+    return "nitrate"
+
+
+def has_phosphate_shape(frag) -> bool:
+    return _is_bare_polyatomic_ion(frag, 15, 4, -3)
+
+
+def name_phosphate(frag) -> str:
+    return "phosphate"
+
+
+_POLYATOMIC_ANION_KINDS = [
+    (has_sulfate_shape, name_sulfate),
+    (has_carbonate_shape, name_carbonate),
+    (has_nitrate_shape, name_nitrate),
+    (has_phosphate_shape, name_phosphate),
+]
+
+
+def _polyatomic_anion(frag):
+    """(namer, charge_magnitude) for `frag` if it matches one of the fixed-
+    formula polyatomic anions above, else None."""
+    for has_shape, namer in _POLYATOMIC_ANION_KINDS:
+        if has_shape(frag):
+            magnitude = -sum(atom.GetFormalCharge() for atom in frag.GetAtoms())
+            return namer, magnitude
+    return None
 
 _SINGLY_CHARGED_CATION_ONLY_ANIONS = {name_alkoxide, name_thioate, name_selenoate}
 
@@ -159,7 +253,20 @@ def _cation(frag):
 
 
 def _split_cation_anions(mol):
+    """(cation_name, cation_count, namer, anion_frag, anion_count), or None.
+
+    Two distinct charge-balancing shapes are tried:
+    - One cation fragment (charge `c`) balanced by `c` singly-charged (-1)
+      anion fragments of the same organic-anion kind (the original shape
+      this module supported, e.g. 'calcium diethanoate').
+    - One polyatomic-inorganic anion fragment (charge magnitude `k`,
+      P-65.6.2's sulfate/carbonate/nitrate/phosphate) balanced by `k / c`
+      copies of one cation type of charge `c`, when that division is exact
+      (e.g. 2 K+ for 1 SO4^2-, 'dipotassium sulfate') -- a mismatched
+      charge ratio (e.g. Al3+ with SO4^2-) would need mixed cation/anion
+      counts and stays out of scope, not attempted here."""
     frags = Chem.GetMolFrags(mol, asMols=True)
+
     for i, cation_frag in enumerate(frags):
         cation = _cation(cation_frag)
         if cation is None:
@@ -182,7 +289,31 @@ def _split_cation_anions(mol):
             smiles = {Chem.MolToSmiles(frag) for frag in anion_frags}
             if len(smiles) != 1:
                 continue
-            return cation_name, namer, anion_frags[0], len(anion_frags)
+            return cation_name, 1, namer, anion_frags[0], len(anion_frags)
+
+    for i, anion_frag in enumerate(frags):
+        polyatomic = _polyatomic_anion(anion_frag)
+        if polyatomic is None:
+            continue
+        namer, magnitude = polyatomic
+        cation_frags = frags[:i] + frags[i + 1 :]
+        if not cation_frags:
+            continue
+        cation = _cation(cation_frags[0])
+        if cation is None:
+            continue
+        cation_name, charge = cation
+        if magnitude % charge != 0:
+            continue
+        required_count = magnitude // charge
+        if len(cation_frags) != required_count:
+            continue
+        if any(_cation(frag) != cation for frag in cation_frags):
+            continue
+        smiles = {Chem.MolToSmiles(frag) for frag in cation_frags}
+        if len(smiles) != 1:
+            continue
+        return cation_name, required_count, namer, anion_frag, 1
     return None
 
 
@@ -191,10 +322,17 @@ def has_salt_shape(mol) -> bool:
 
 
 def name_salt(mol) -> str:
-    cation_name, namer, anion_frag, anion_count = _split_cation_anions(mol)
+    cation_name, cation_count, namer, anion_frag, anion_count = _split_cation_anions(mol)
     anion_name = namer(anion_frag)
+
+    # A cation name is never itself a compound/substituted prefix (it's
+    # always a fixed element/retained-cation-name lookup), so it always
+    # multiplies with the plain 'di'/'tri' word, never 'bis'/'tris' --
+    # confirmed against PubChem's own 'disodium carbonate' (P-65.6.2).
+    cation_part = f"{multiplying_prefix(cation_count)}{cation_name}" if cation_count > 1 else cation_name
+
     if anion_count == 1:
-        return f"{cation_name} {anion_name}"
+        return f"{cation_part} {anion_name}"
     # P-16.3.4(a)/P-16.3.5(a): an anion name carrying its own substituent
     # prefix (always locant-leading in this project's convention, since
     # the anion's own suffix carbon is always C1 and never cited) is a
@@ -205,5 +343,5 @@ def name_salt(mol) -> str:
     is_compound = anion_name[0].isdigit()
     prefix = multiplying_prefix(anion_count, compound=is_compound)
     if is_compound:
-        return f"{cation_name} {prefix}({anion_name})"
-    return f"{cation_name} {prefix}{anion_name}"
+        return f"{cation_part} {prefix}({anion_name})"
+    return f"{cation_part} {prefix}{anion_name}"
