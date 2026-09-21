@@ -60,10 +60,10 @@ def test_unsaturated_von_baeyer_ring_raises():
         smiles_to_iupac("OC1CC2C=CC1C2")
 
 
-def test_spiro_alcohol_still_raises():
-    # A spiro atom's degree-4 shape never matches `find_bicyclic_core`/
-    # `find_polycyclic_core`'s own degree-2/3 core requirement, so this
-    # regression check confirms the new von Baeyer routing doesn't
-    # misfire on a genuinely still-unsupported spiro alcohol.
+def test_disjoint_rings_alcohol_still_raises():
+    # Two rings joined only by a single bond (not fused, bridged, or
+    # spiro) never matches `find_bicyclic_core`/`find_polycyclic_core`'s
+    # own core requirement, so this regression check confirms the new
+    # von Baeyer routing doesn't misfire on this still-unsupported shape.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OC1(CCCC1)C1CCCC1")
