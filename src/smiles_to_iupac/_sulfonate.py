@@ -102,6 +102,22 @@ def _sulfonate_sulfur_atoms(mol):
     return matches
 
 
+def _find_sulfonate_group(mol):
+    """Locate the molecule's single sulfonate group and return
+    (sulfonate_carbon, sulfur) atoms -- raises `UnsupportedStructure` if
+    there isn't exactly one, mirroring `_carboxylate.py`'s
+    `_find_carboxylate_group` (used by `_zwitterion.py` the same way)."""
+    sulfurs = _sulfonate_sulfur_atoms(mol)
+    if len(sulfurs) != 1:
+        raise UnsupportedStructure(
+            "exactly one sulfonate (-SO3-) group is required; zero or "
+            "multiple such groups are not supported yet"
+        )
+    (sulfur,) = sulfurs
+    (carbon,) = (n for n in sulfur.GetNeighbors() if n.GetAtomicNum() == 6)
+    return carbon, sulfur
+
+
 def has_sulfonate_shape(mol) -> bool:
     return bool(_sulfonate_sulfur_atoms(mol))
 
@@ -196,15 +212,20 @@ def _candidate_key(chain_length, so3_locant, ene_locants, yne_locants, substitue
         name,
     )
 
-def _name_acyclic_sulfonate(mol, sulfur_idx, so3_carbon, bonds, stereo=None):
+def _name_acyclic_sulfonate(mol, sulfur_idx, so3_carbon, bonds, stereo=None, extra_names=None, required_atoms=frozenset()):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
     include every stereocenter are eligible (P-92), and the winning
     candidate's own locants are used to format a "(<locant><R/S>,...)-"
     prefix onto the final name, mirroring `_sulfonic_acid.py`'s
-    `_name_acyclic_sulfonic_acid`."""
+    `_name_acyclic_sulfonic_acid`.
+
+    `extra_names`/`required_atoms`: same coexisting-group injection point
+    as `_carboxylate.py`'s `_name_acyclic_carboxylate` -- both empty/None
+    by default so existing callers are unaffected. Reused by
+    `_zwitterion.py` to inject an ammonium-nitrogen substituent prefix."""
     graph = adjacency(mol)
-    halogens = halogen_substituents(mol)
+    halogens = {**halogen_substituents(mol), **(extra_names or {})}
     excluded = {sulfur_idx}
     chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
@@ -214,6 +235,8 @@ def _name_acyclic_sulfonate(mol, sulfur_idx, so3_carbon, bonds, stereo=None):
     for chain in chains:
         chain_set = set(chain)
         if so3_carbon not in chain_set:
+            continue
+        if not required_atoms <= chain_set:
             continue
         if bonds and bond_locants(chain, bonds) is None:
             continue
