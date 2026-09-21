@@ -79,6 +79,23 @@ worked example), 1 K+ for 1 NO3- -> 'potassium nitrate' (no prefix). A
 charge ratio that doesn't divide evenly (e.g. Al3+ with SO4^2-, needing
 mixed 2:3 cation:anion counts) is out of scope, not attempted here.
 
+A polyatomic-inorganic anion (only) may also be balanced by two or more
+*different* cation types together instead of several copies of one type
+-- e.g. 1 NH4+ + 1 K+ for 1 SO4^2- -> 'azanium potassium sulfate', or a
+mix of charges, e.g. 1 Ca2+ + 1 Na+ for 1 PO4^3- -> 'calcium sodium
+phosphate' -- each cation cited once (no multiplying prefix, since the
+cations differ) in alphabetical order, as long as their charges sum
+exactly to the anion's magnitude (P-65.6.2's own worked examples:
+'potassium sodium butanedioate', 'ammonium potassium hexanedioate' --
+those two are themselves dicarboxylate examples this module still can't
+reach, since a 'dioate' multi-carboxylate anion doesn't exist anywhere in
+this project yet, but the same charge-balancing mechanism they illustrate
+is what this covers for the polyatomic-anion side). A repeated cation
+type is always resolved by the multiplying-prefix shape above instead,
+even alongside a different second cation type (e.g. two Na+ and one K+
+for a -3 anion is not attempted -- only "all one type" or "one copy each
+of all-different types" are).
+
 Explicitly out of scope (raise `UnsupportedStructure`, or -- for
 `has_salt_shape` -- simply return False so the shape falls through to
 every other branch's own, usually less helpful, rejection): any metal
@@ -87,10 +104,13 @@ Stock/oxidation-number disambiguation, not attempted here), any anion
 other than a plain carboxylate, (singly-charged-cation-only) alkoxide/
 thioate/selenoate, halide, or the four polyatomic inorganic anions above,
 mixed/different anions on the same cation, more than one cation *type*
-(multi-cation salts, e.g. 'potassium sodium butanedioate', are
-unattempted here), a 2+/3+ metal cation paired with one of the singly-
-charged-cation-only organic anions (see above), and a polyatomic-anion
-charge magnitude that isn't evenly divisible by the cation's own charge."""
+balancing anything other than one of the four polyatomic inorganic
+anions above (a multi-cation carboxylate/alkoxide/thioate/selenoate/
+halide salt is still unattempted here), a 2+/3+ metal cation paired with
+one of the singly-charged-cation-only organic anions (see above), a
+repeated cation type alongside a different second type (see above), and
+a polyatomic-anion charge magnitude that no combination of the
+fixed-valence cations above sums to exactly."""
 
 from rdkit import Chem
 
@@ -253,9 +273,13 @@ def _cation(frag):
 
 
 def _split_cation_anions(mol):
-    """(cation_name, cation_count, namer, anion_frag, anion_count), or None.
+    """(cation_parts, namer, anion_frag, anion_count), or None -- where
+    `cation_parts` is the already-ordered list of cation display strings
+    (each with its own multiplying prefix already baked in when it's
+    multiple copies of one cation type) to join with spaces before the
+    anion name.
 
-    Two distinct charge-balancing shapes are tried:
+    Three distinct charge-balancing shapes are tried:
     - One cation fragment (charge `c`) balanced by `c` singly-charged (-1)
       anion fragments of the same organic-anion kind (the original shape
       this module supported, e.g. 'calcium diethanoate').
@@ -264,7 +288,15 @@ def _split_cation_anions(mol):
       copies of one cation type of charge `c`, when that division is exact
       (e.g. 2 K+ for 1 SO4^2-, 'dipotassium sulfate') -- a mismatched
       charge ratio (e.g. Al3+ with SO4^2-) would need mixed cation/anion
-      counts and stays out of scope, not attempted here."""
+      counts and stays out of scope, not attempted here.
+    - One polyatomic-inorganic anion fragment balanced by a combination of
+      *different* cation types (each appearing once, no multiplying prefix
+      needed since the cations differ), cited in alphabetical order by
+      cation name (P-65.6.2's own worked examples: 'potassium sodium
+      butanedioate', 'ammonium potassium hexanedioate') -- tried only
+      after the single-cation-type shape above fails, so a molecule with
+      several copies of the *same* cation type still prefers the
+      multiplying-prefix form."""
     frags = Chem.GetMolFrags(mol, asMols=True)
 
     for i, cation_frag in enumerate(frags):
@@ -289,7 +321,7 @@ def _split_cation_anions(mol):
             smiles = {Chem.MolToSmiles(frag) for frag in anion_frags}
             if len(smiles) != 1:
                 continue
-            return cation_name, 1, namer, anion_frags[0], len(anion_frags)
+            return [cation_name], namer, anion_frags[0], len(anion_frags)
 
     for i, anion_frag in enumerate(frags):
         polyatomic = _polyatomic_anion(anion_frag)
@@ -313,7 +345,26 @@ def _split_cation_anions(mol):
         smiles = {Chem.MolToSmiles(frag) for frag in cation_frags}
         if len(smiles) != 1:
             continue
-        return cation_name, required_count, namer, anion_frag, 1
+        cation_part = f"{multiplying_prefix(required_count)}{cation_name}" if required_count > 1 else cation_name
+        return [cation_part], namer, anion_frag, 1
+
+    for i, anion_frag in enumerate(frags):
+        polyatomic = _polyatomic_anion(anion_frag)
+        if polyatomic is None:
+            continue
+        namer, magnitude = polyatomic
+        cation_frags = frags[:i] + frags[i + 1 :]
+        cations = [_cation(frag) for frag in cation_frags]
+        if any(c is None for c in cations):
+            continue
+        names = [name for name, _ in cations]
+        if len(set(names)) != len(names):
+            # A repeated cation type here is the previous shape's
+            # territory (a multiplying prefix), not this one's.
+            continue
+        if sum(charge for _, charge in cations) != magnitude:
+            continue
+        return sorted(names), namer, anion_frag, 1
     return None
 
 
@@ -322,14 +373,18 @@ def has_salt_shape(mol) -> bool:
 
 
 def name_salt(mol) -> str:
-    cation_name, cation_count, namer, anion_frag, anion_count = _split_cation_anions(mol)
+    cation_parts, namer, anion_frag, anion_count = _split_cation_anions(mol)
     anion_name = namer(anion_frag)
 
     # A cation name is never itself a compound/substituted prefix (it's
-    # always a fixed element/retained-cation-name lookup), so it always
-    # multiplies with the plain 'di'/'tri' word, never 'bis'/'tris' --
-    # confirmed against PubChem's own 'disodium carbonate' (P-65.6.2).
-    cation_part = f"{multiplying_prefix(cation_count)}{cation_name}" if cation_count > 1 else cation_name
+    # always a fixed element/retained-cation-name lookup), so a repeated
+    # cation type always multiplies with the plain 'di'/'tri' word, never
+    # 'bis'/'tris' -- confirmed against PubChem's own 'disodium carbonate'
+    # (P-65.6.2). Several *different* cation types are cited side by side
+    # instead, each already alphabetically ordered by `_split_cation_
+    # anions` with no multiplying prefix of its own (P-65.6.2's own
+    # 'potassium sodium butanedioate'-style worked examples).
+    cation_part = " ".join(cation_parts)
 
     if anion_count == 1:
         return f"{cation_part} {anion_name}"
