@@ -48,3 +48,35 @@ def test_diester_acyloxy_naming(smiles, expected):
 def test_diester_acyloxy_out_of_scope(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Three or more *identical*-acid esters on a single plain
+        # unbranched chain generalize the same diyl+multiplicative
+        # mechanism to triyl/tetrayl, per the Blue Book's own worked
+        # example 'propane-1,2,3-triyl triacetate (PIN)'. Real PubChem
+        # structures confirmed (glyceryl triacetate CID 5541, tripropionin
+        # CID 8763, the four-ester case CID 539117) -- PubChem's own
+        # auto-generated name uses the substitutive acyloxy-prefix style
+        # instead (the same gap this module's 2-ester identical-acid path
+        # already departs from), not the PIN form checked here.
+        ("CC(=O)OCC(OC(C)=O)COC(C)=O", "propane-1,2,3-triyl triethanoate"),
+        ("CCC(=O)OCC(OC(=O)CC)COC(=O)CC", "propane-1,2,3-triyl tripropanoate"),
+        ("CC(=O)OCC(OC(C)=O)C(OC(C)=O)COC(C)=O", "butane-1,2,3,4-tetrayl tetraethanoate"),
+        # A non-consecutive locant set (an interior position left plain)
+        # is still a single unbranched chain, so it's in scope too.
+        ("CC(=O)OCCC(OC(C)=O)COC(C)=O", "butane-1,2,4-triyl triethanoate"),
+    ],
+)
+def test_diester_acyloxy_n_ary_identical_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_diester_acyloxy_n_ary_differing_acid_raises():
+    # Three or more *differing* acyl groups on one polyol needs
+    # P-65.6.3.3.3.2's separate method-1 mechanism (not yet built) -- the
+    # 2-ester acyloxy-prefix path stays exactly-two-esters only.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=O)OCC(OC(C)=O)COC(=O)CC")
