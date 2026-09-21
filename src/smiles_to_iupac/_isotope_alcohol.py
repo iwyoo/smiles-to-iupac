@@ -68,13 +68,28 @@ def has_isotope_alcohol_shape(mol) -> bool:
     be an acyclic alcohol -- deliberately loose (see module docstring for
     the real scope); `name_isotope_alcohol` raises for every detail this
     doesn't cover. Used by `core.py` to route here before `_isotope.py`'s
-    own plain chain/methane path, which rejects any oxygen outright."""
+    own plain chain/methane path, which rejects any oxygen outright.
+
+    Excludes a carboxylic acid's own -OH (a carbon bearing this oxygen
+    that's also doubly-bonded to a second oxygen is a -COOH, not a plain
+    alcohol) so this doesn't shadow `_isotope_carboxylic_acid.py`'s own
+    routing -- confirmed necessary (2026-09-21): a plain -OH-shape check
+    alone also matches a carboxylic acid's hydroxyl once any isotope is
+    present anywhere in the molecule, and `core.py` checks this module
+    first."""
     if not any(atom.GetIsotope() != 0 for atom in mol.GetAtoms()):
         return False
     if mol.GetRingInfo().NumRings() > 0:
         return False
     return any(
-        atom.GetAtomicNum() == 8 and atom.GetDegree() == 1 and atom.GetTotalNumHs() == 1
+        atom.GetAtomicNum() == 8
+        and atom.GetDegree() == 1
+        and atom.GetTotalNumHs() == 1
+        and not any(
+            o.GetAtomicNum() == 8 and o.GetIdx() != atom.GetIdx() and mol.GetBondBetweenAtoms(n.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
+            for n in atom.GetNeighbors()
+            for o in n.GetNeighbors()
+        )
         for atom in mol.GetAtoms()
     )
 

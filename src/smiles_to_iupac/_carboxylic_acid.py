@@ -313,7 +313,7 @@ def _candidate_key(chain_length, acid_count, ene_locants, yne_locants, substitue
     )
 
 
-def _name_acyclic_carboxylic_acid(
+def _best_acyclic_carboxylic_acid_candidate(
     mol,
     carboxyl_carbons,
     carboxyl_oxygens,
@@ -323,19 +323,11 @@ def _name_acyclic_carboxylic_acid(
     extra_names=None,
     required_atoms=frozenset(),
 ):
-    """`stereo`: None, or a list of ("atom"/"bond", idx, "R"/"S"/"E"/"Z")
-    from `specified_stereo_elements`/`specified_stereocenters` -- if given,
-    only chain candidates that include every tetrahedral stereocenter are
-    eligible (P-92: a stereocenter on a substituent branch rather than the
-    principal chain is out of scope, mirroring `_alcohol.py`'s
-    `_name_acyclic_alcohol`; a double-bond E/Z element's atoms are already
-    required to lie on the chain via `bonds`, so no separate check is
-    needed for those), and the winning candidate's own locants are used to
-    format a "(<locant><R/S/E/Z>,...)-" prefix onto the name, ascending
-    locant order (P-91.3, including when both kinds coexist) -- same
-    mechanism as `_alcohol.py`, since a -COOH carbon's own fixed C1
-    position (see module docstring) already decides numbering before
-    stereo is even considered.
+    """(best_name, best_position_of) -- the winning chain numbering and its
+    fully-formatted name, factored out of `_name_acyclic_carboxylic_acid`
+    (which just adds the stereo-descriptor prefix on top) so
+    `_isotope_carboxylic_acid.py` can reuse the identical numbering
+    decision, mirroring `_alcohol.py`'s/`_ketone.py`'s identical factoring.
 
     `extra_names`: optional {atom_idx -> prefix name} for a coexisting
     characteristic group demoted to a substituent prefix by
@@ -402,6 +394,36 @@ def _name_acyclic_carboxylic_acid(
                 position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
                 best_key, best_name, best_position_of = key, name, position_of
 
+    return best_name, best_position_of
+
+
+def _name_acyclic_carboxylic_acid(
+    mol,
+    carboxyl_carbons,
+    carboxyl_oxygens,
+    hydroxyls,
+    bonds,
+    stereo=None,
+    extra_names=None,
+    required_atoms=frozenset(),
+):
+    """`stereo`: None, or a list of ("atom"/"bond", idx, "R"/"S"/"E"/"Z")
+    from `specified_stereo_elements`/`specified_stereocenters` -- if given,
+    only chain candidates that include every tetrahedral stereocenter are
+    eligible (P-92: a stereocenter on a substituent branch rather than the
+    principal chain is out of scope, mirroring `_alcohol.py`'s
+    `_name_acyclic_alcohol`; a double-bond E/Z element's atoms are already
+    required to lie on the chain via `bonds`, so no separate check is
+    needed for those), and the winning candidate's own locants are used to
+    format a "(<locant><R/S/E/Z>,...)-" prefix onto the name, ascending
+    locant order (P-91.3, including when both kinds coexist) -- same
+    mechanism as `_alcohol.py`, since a -COOH carbon's own fixed C1
+    position (see module docstring) already decides numbering before
+    stereo is even considered. See `_best_acyclic_carboxylic_acid_candidate`
+    for `extra_names`/`required_atoms`."""
+    best_name, best_position_of = _best_acyclic_carboxylic_acid_candidate(
+        mol, carboxyl_carbons, carboxyl_oxygens, hydroxyls, bonds, stereo, extra_names, required_atoms
+    )
     if stereo is not None:
         labels = []
         for kind, idx, code in stereo:
