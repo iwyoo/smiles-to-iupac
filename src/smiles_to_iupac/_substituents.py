@@ -923,6 +923,53 @@ def branch_atom_locant(graph, root, coming_from, atom_idx, halogens=None, mol=No
     return chain.index(atom_idx) + 1
 
 
+def _ring_branch_stereo_core(graph, ring_order, group_locants, stereo, halogens, mol=None, aromatic_atoms=frozenset()):
+    """Shared lookup behind `ring_branch_stereo_display` and
+    `ring_and_branch_stereo_display` (#776) -- see those two for the
+    exact shapes each one exposes. Returns `(ring_atom, display,
+    ring_r_or_s)`: `ring_atom`/`display` are the branch's ring-attachment
+    atom and its bracketed "[(<locant><R/S>)-<name>]" descriptor (P-91.3)
+    exactly as before; `ring_r_or_s` is `None` when the ring atom itself
+    isn't a stereocenter, or its own "R"/"S" code when it is (the ring
+    atom being additionally a stereocenter is only possible for a ring
+    whose own symmetry is already broken -- e.g. by a ring double bond --
+    since a plain saturated ring's ring-walk symmetry from a
+    singly-substituted atom keeps it from ever being one, see
+    `_cyclic_unsaturated.py`). Returns `None` for zero, one-not-matching-
+    the-branch, or more than two stereocenters, more than one off-ring
+    stereocenter, an off-ring stereocenter not on the ring's sole
+    substituent branch, or the ring having other than exactly one
+    substituent in total.
+
+    `group_locants`: the calling module's own characteristic-group atom
+    indices on the ring (e.g. hydroxyls, amines, ketones) -- excluded
+    from the branch-attachment search the same way `ring_order` itself
+    is, so the group's own atom is never mistaken for a substituent
+    branch."""
+    if len(stereo) not in (1, 2):
+        return None
+    ring_set = set(ring_order)
+    branch_attachments = [
+        (ring_atom, neighbor)
+        for ring_atom in ring_order
+        for neighbor in graph[ring_atom]
+        if neighbor not in ring_set and neighbor not in group_locants
+    ]
+    if len(branch_attachments) != 1:
+        return None
+    ring_atom, branch_root = branch_attachments[0]
+    remaining = dict(stereo)
+    ring_r_or_s = remaining.pop(ring_atom, None)
+    if len(remaining) != 1:
+        return None
+    stereo_atom, r_or_s = next(iter(remaining.items()))
+    branch_name, branch_compound = name_branch(graph, branch_root, ring_atom, halogens, aromatic_atoms, mol=mol)
+    site_locant = branch_atom_locant(graph, branch_root, ring_atom, stereo_atom, halogens, mol=mol)
+    descriptor = f"({site_locant}{r_or_s})-{branch_name}"
+    display = f"[{descriptor}]" if branch_compound else f"({descriptor})"
+    return ring_atom, display, ring_r_or_s
+
+
 def ring_branch_stereo_display(graph, ring_order, group_locants, stereo, halogens, mol=None, aromatic_atoms=frozenset()):
     """If the ring carries exactly one specified stereocenter and that
     stereocenter sits off the ring on the ring's own sole substituent
@@ -941,19 +988,26 @@ def ring_branch_stereo_display(graph, ring_order, group_locants, stereo, halogen
     branch."""
     if len(stereo) != 1:
         return None
-    stereo_atom, r_or_s = stereo[0]
-    ring_set = set(ring_order)
-    branch_attachments = [
-        (ring_atom, neighbor)
-        for ring_atom in ring_order
-        for neighbor in graph[ring_atom]
-        if neighbor not in ring_set and neighbor not in group_locants
-    ]
-    if len(branch_attachments) != 1:
+    result = _ring_branch_stereo_core(graph, ring_order, group_locants, stereo, halogens, mol=mol, aromatic_atoms=aromatic_atoms)
+    if result is None:
         return None
-    ring_atom, branch_root = branch_attachments[0]
-    branch_name, branch_compound = name_branch(graph, branch_root, ring_atom, halogens, aromatic_atoms, mol=mol)
-    site_locant = branch_atom_locant(graph, branch_root, ring_atom, stereo_atom, halogens, mol=mol)
-    descriptor = f"({site_locant}{r_or_s})-{branch_name}"
-    display = f"[{descriptor}]" if branch_compound else f"({descriptor})"
+    ring_atom, display, _ring_r_or_s = result
     return ring_atom, display
+
+
+def ring_and_branch_stereo_display(graph, ring_order, group_locants, stereo, halogens, mol=None, aromatic_atoms=frozenset()):
+    """Like `ring_branch_stereo_display`, but also accepts the ring's
+    branch-attachment atom itself being a second, independent specified
+    stereocenter alongside the one on its substituent branch (#776) --
+    confirmed real via PubChem (2026-09-21):
+    'CC[C@H](C)[C@H]1CCC=CC1' -> '(4S)-4-[(2S)-butan-2-yl]cyclohexene'
+    (CID 175915978). The front "(4S)-" is the ring atom's own ordinary
+    on-ring locant+R/S (P-91.3, the same mechanism used for an
+    all-on-ring stereocenter set); the bracketed "[(2S)-butan-2-yl]" is
+    the branch's own descriptor, built exactly as
+    `ring_branch_stereo_display` already does.
+
+    Returns `(ring_atom, display, ring_r_or_s)` -- see
+    `_ring_branch_stereo_core` for the exact shape and rejection
+    conditions."""
+    return _ring_branch_stereo_core(graph, ring_order, group_locants, stereo, halogens, mol=mol, aromatic_atoms=aromatic_atoms)
