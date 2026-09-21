@@ -82,9 +82,13 @@ def test_substituted_ring_radical_raises():
         smiles_to_iupac("CC1CC[CH]C1")
 
 
-def test_multiple_radical_centers_raises():
+def test_two_radical_centers_diyl_name():
+    assert smiles_to_iupac("[CH2][CH2]") == "ethane-1,2-diyl"
+
+
+def test_three_radical_centers_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[CH2][CH2]")
+        smiles_to_iupac("[CH2][CH][CH2]")
 
 
 def test_halogen_substituted_radical_raises():
