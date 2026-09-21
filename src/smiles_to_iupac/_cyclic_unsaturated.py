@@ -62,6 +62,8 @@ multiple bond). A polycyclic/spiro ring bearing a triple bond is out of
 scope and is not handled here.
 """
 
+from rdkit import Chem
+
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -71,11 +73,12 @@ from ._common import (
     multiplied_word,
     ring_cycle,
     specified_double_bond_stereo,
+    specified_stereocenters,
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name, numerical_term
-from ._substituents import format_substituent_prefixes, substituents_for_ring
+from ._substituents import format_substituent_prefixes, ring_and_branch_stereo_display, substituents_for_ring
 
 _ENE_ORDER = 2.0
 _YNE_ORDER = 3.0
@@ -246,47 +249,90 @@ def name_cyclic_unsaturated(mol, ring_atoms) -> str:
             )
 
     bonds = _multi_bonds(mol)
-    stereo = specified_double_bond_stereo(mol)
-    if stereo is not None:
-        # RDKit's own `Chem.FindPotentialStereo` already tells apart a
-        # 3-7-membered ring's genuinely non-stereogenic double bond (no
-        # element reported, `stereo` stays None regardless of input
-        # markers) from an 8+-membered ring's genuinely stereogenic one
-        # (P-91.2.2) -- no ring-size branching needed here at all.
-        if any(order == _YNE_ORDER for _, _, order in bonds):
-            raise UnsupportedStructure(
-                "a specified double-bond E/Z stereo element combined with "
-                "a triple bond is not supported yet (see P-93)"
-            )
-        if len(stereo) != 1 or len(bonds) != 1:
-            raise UnsupportedStructure(
-                "a ring with more than one double bond, or one where not "
-                "every double bond is specified, is not supported yet -- "
-                "P-91.2.2's multi-bond citation rule needs separate "
-                "verification"
-            )
+
+    # A specified tetrahedral stereocenter and a specified ring C=C E/Z
+    # element are mutually exclusive shapes here (P-92 vs. P-93) --
+    # `Chem.FindPotentialStereo`'s own element types decide which of
+    # `_common`'s two dedicated checks applies, so neither one is called
+    # on a molecule shaped for the other (each would otherwise reject the
+    # other's shape outright as "beyond" its own kind, see #776).
+    stereo_elements = Chem.FindPotentialStereo(mol)
+    specified_elements = [e for e in stereo_elements if e.specified == Chem.StereoSpecified.Specified]
+    tetrahedral_specified = specified_elements and all(
+        e.type == Chem.StereoType.Atom_Tetrahedral for e in specified_elements
+    )
+
+    bond_stereo = None
+    stereo = None
+    if tetrahedral_specified:
+        stereo = specified_stereocenters(mol)
+    else:
+        bond_stereo = specified_double_bond_stereo(mol)
+        if bond_stereo is not None:
+            # RDKit's own `Chem.FindPotentialStereo` already tells apart a
+            # 3-7-membered ring's genuinely non-stereogenic double bond (no
+            # element reported, `bond_stereo` stays None regardless of input
+            # markers) from an 8+-membered ring's genuinely stereogenic one
+            # (P-91.2.2) -- no ring-size branching needed here at all.
+            if any(order == _YNE_ORDER for _, _, order in bonds):
+                raise UnsupportedStructure(
+                    "a specified double-bond E/Z stereo element combined with "
+                    "a triple bond is not supported yet (see P-93)"
+                )
+            if len(bond_stereo) != 1 or len(bonds) != 1:
+                raise UnsupportedStructure(
+                    "a ring with more than one double bond, or one where not "
+                    "every double bond is specified, is not supported yet -- "
+                    "P-91.2.2's multi-bond citation rule needs separate "
+                    "verification"
+                )
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     ring_order = ring_cycle(graph, list(ring_atoms))
     ring_size = len(ring_order)
 
+    branch_stereo = None
+    if stereo is not None and any(atom not in ring_set for atom, _ in stereo):
+        branch_stereo = ring_and_branch_stereo_display(graph, ring_order, frozenset(), stereo, halogens, mol=mol)
+        if branch_stereo is None:
+            raise UnsupportedStructure(
+                "a stereocenter on a substituent branch, other than the "
+                "ring's own attachment atom paired with it, is not "
+                "supported yet (see P-92)"
+            )
+
     best_key = None
     best_name = None
+    best_position_of = None
     for start in range(ring_size):
         rotated = ring_order[start:] + ring_order[:start]
         for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             ene_locants, yne_locants = _ring_multi_bond_locants(candidate, bonds)
             substituents = substituents_for_ring(graph, candidate, halogens, mol=mol)
+            if branch_stereo is not None:
+                branch_ring_atom, display, _ring_r_or_s = branch_stereo
+                substituents[position_of[branch_ring_atom]] = [(display, False)]
             key = _candidate_key(ring_size, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
-                best_key, best_name = key, key[-1]
+                best_key, best_name, best_position_of = key, key[-1], position_of
 
+    if branch_stereo is not None:
+        branch_ring_atom, _display, ring_r_or_s = branch_stereo
+        if ring_r_or_s is not None:
+            locant = best_position_of[branch_ring_atom]
+            return f"({locant}{ring_r_or_s})-{best_name}"
+        return best_name
     if stereo is not None:
+        labels = sorted((best_position_of[atom], r_or_s) for atom, r_or_s in stereo)
+        prefix = ",".join(f"{locant}{r_or_s}" for locant, r_or_s in labels)
+        return f"({prefix})-{best_name}"
+    if bond_stereo is not None:
         # P-91.2.2's own worked example ('(Z)-cyclooctene', '(E)-cyclooctene')
         # cites no locant -- redundant for the same reason the ring's own
         # double-bond locant is already omitted in the parent name
         # (P-14.3.3).
-        ((_, code),) = stereo
+        ((_, code),) = bond_stereo
         return f"({code})-{best_name}"
     return best_name
