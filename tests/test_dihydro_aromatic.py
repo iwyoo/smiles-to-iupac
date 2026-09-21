@@ -49,3 +49,24 @@ def test_substituted_dihydronaphthalene_raises():
 def test_halogen_substituted_dihydronaphthalene_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("ClC1CC=Cc2ccccc12")
+
+
+def test_decahydronaphthalene():
+    # decahydronaphthalene (decalin): PubChem CID 7044 gives
+    # "1,2,3,4,4a,5,6,7,8,8a-decahydronaphthalene" -- this project follows
+    # the Blue Book's own plain worked example instead (P-31.2.3.3.2:
+    # total hydrogenation locants are redundant and omitted, P-14.3.4.5).
+    assert smiles_to_iupac("C1CCC2CCCCC2C1") == "decahydronaphthalene"
+
+
+def test_decahydronaphthalene_not_von_baeyer():
+    # Same molecule as above, written starting from a different atom --
+    # must not be mistaken for a von Baeyer bicyclic (see #814).
+    assert smiles_to_iupac("C1CCCC2CCCCC12") == "decahydronaphthalene"
+
+
+def test_bridged_bicyclic_is_not_decahydronaphthalene():
+    # bicyclo[2.2.2]octane has the same atom/bond count shape narrowed
+    # down by num_rings==2, but a nonzero third bridge -- must still be
+    # named via _bicyclic.py, not mistaken for naphthalene's skeleton.
+    assert smiles_to_iupac("C1CC2CCC1CC2") == "bicyclo[2.2.2]octane"

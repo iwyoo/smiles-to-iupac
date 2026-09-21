@@ -16,9 +16,10 @@ from smiles_to_iupac._common import UnsupportedStructure
         # 2 (see _bicyclic.py's find_bicyclic_core docstring), so this is the
         # key regression case for not gating detection on NumRings().
         ("C1CC2CCC1CC2", "bicyclo[2.2.2]octane"),
-        # decahydronaphthalene (decalin): two fused six-membered rings
-        # sharing a bond -> bridges 4, 4, 0.
-        ("C1CCC2CCCCC2C1", "bicyclo[4.4.0]decane"),
+        # A bare, unsubstituted two-fused-six-membered-ring skeleton
+        # (bridges 4, 4, 0) is decahydronaphthalene, not a von Baeyer
+        # name at all -- see test_dihydro_aromatic.py's own coverage,
+        # routed ahead of this module in core.py.
         # bicyclo[3.3.0]octane: two fused five-membered rings sharing a bond
         # -> bridges 3, 3, 0.
         ("C12CCCC1CCC2", "bicyclo[3.3.0]octane"),

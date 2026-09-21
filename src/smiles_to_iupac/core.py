@@ -81,7 +81,12 @@ from ._carboxylic_acid_sulfonic_acid import (
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
-from ._dihydro_aromatic import find_dihydronaphthalene_core, name_dihydronaphthalene
+from ._dihydro_aromatic import (
+    find_decahydronaphthalene_core,
+    find_dihydronaphthalene_core,
+    name_decahydronaphthalene,
+    name_dihydronaphthalene,
+)
 from ._diester_acyloxy import has_diester_shape, name_diester_acyloxy
 from ._ester import has_ester_shape, name_ester
 from ._cyanate import has_cyanate_shape, name_cyanate
@@ -1566,6 +1571,14 @@ def smiles_to_iupac(smiles: str) -> str:
         dihydro_core = find_dihydronaphthalene_core(mol)
         if dihydro_core is not None:
             return name_dihydronaphthalene(mol, dihydro_core)
+        # A fully-saturated naphthalene skeleton (decalin) is a mancude
+        # ring system's hydro derivative (P-31.2.3.3.2), not a von Baeyer
+        # system, even though its carbon skeleton is graph-isomorphic to
+        # one -- must be routed here before find_bicyclic_core below for
+        # the same reason the partial-hydro case above already is.
+        decahydro_core = find_decahydronaphthalene_core(mol)
+        if decahydro_core is not None:
+            return name_decahydronaphthalene(mol, decahydro_core)
     if num_rings == 0:
         bonds = non_single_bonds(mol)
         if not bonds:
