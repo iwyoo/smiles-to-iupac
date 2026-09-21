@@ -394,6 +394,19 @@ def _name_acyl_part(
     return best_name
 
 
+def _name_acyclic_ester(mol, acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon, extra_names=None):
+    """The single senior-module entry point `_coexisting_groups.
+    name_via_senior_acyclic` needs: joins `_name_alcohol_part`/
+    `_name_acyl_part`'s two separate calls into the one finished
+    two-word ester name, mirroring what `_ether_ester.py` used to do
+    inline before it had this to delegate to."""
+    alcohol_name = _name_alcohol_part(mol, alcohol_carbon, ester_oxygen.GetIdx())
+    acyl_name = _name_acyl_part(
+        mol, acyl_carbon, carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx(), extra_names=extra_names
+    )
+    return f"{alcohol_name} {acyl_name}"
+
+
 def _validate_ester_atoms(mol, aromatic_ring_atoms=frozenset()):
     """Check the molecule's atoms fit this module's scope (see module
     docstring): only C/O/halogen, no charges/isotopes, no aromatic carbon
