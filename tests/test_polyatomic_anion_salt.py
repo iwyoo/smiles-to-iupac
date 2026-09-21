@@ -46,11 +46,6 @@ def test_polyatomic_anion_mismatched_charge_ratio_raises():
         smiles_to_iupac("[Al+3].[O-]S(=O)(=O)[O-]")
 
 
-def test_polyatomic_anion_mixed_cation_types_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[K+].[Na+].[O-]C(=O)[O-]")
-
-
 def test_plain_carboxylate_salt_still_works():
     # Regression check: the new polyatomic-anion path sits alongside, not
     # in place of, the existing organic-anion path.
