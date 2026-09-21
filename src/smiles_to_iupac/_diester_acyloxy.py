@@ -1,31 +1,33 @@
-"""Naming of a diester on a plain unbranched diol chain, where one ester
-stays the suffix parent and the other is demoted to an 'acyloxy'
-substituent prefix, per the IUPAC 2013 Recommendations ("the Blue Book"):
+"""Naming of a diester on a plain unbranched diol chain, per the IUPAC
+2013 Recommendations ("the Blue Book"):
 
-- P-65.6.3: a compound with two ester groups sharing one alcohol-derived
-  chain is not named with a multiplied 'oate' suffix ('diacetate' etc.);
-  instead one ester is chosen as the principal characteristic group
-  (suffix parent, "...yl <acid>oate") and the other acyl group is cited as
-  an '<acid>yloxy' substituent prefix on the alcohol chain, e.g.
-  'CC(=O)OCCOC(=O)CC' (mixed acetate/propanoate diester) ->
-  '2-acetyloxyethyl propanoate' in PubChem's own (retained-name) style;
-  this project's systematic-name convention (see `_ester.py`'s own
+- P-65.6.3.3.3.1: when both acyl groups are **identical**, the PIN cites
+  the diol backbone as a multivalent organyl group ('...diyl') followed
+  by the multiplied anion name -- the chapter's own worked example is
+  'ethane-1,2-diyl diacetate (PIN)' (`tmp/bluebook/P6.txt` ~line 7118).
+  This project's systematic-name convention (see `_ester.py`'s own
   'methyl methanoate'/'methyl ethanoate', not 'methyl formate'/'methyl
-  acetate') carries over here too, so this module produces
-  '2-methanoyloxyethyl ethanoate'-style names instead.
-- Which acid wins the suffix-parent slot: confirmed via PubChem PUG REST
-  across three differing-length pairs (methanoic/ethanoic, ethanoic/
-  propanoic, ethanoic/butanoic acid) that the longer acyl chain is always
-  the suffix parent and the shorter one is demoted to the acyloxy prefix
-  -- e.g. 'CCCC(=O)OCCOC(=O)C' (butanoic + ethanoic) ->
-  '2-<acid>yloxyethyl butanoate', never the reverse. When both acyl chains
-  have the same length (e.g. 'CC(=O)OCCCOC(=O)C', ethanoic acid on both
-  ends of a propane-1,3-diyl backbone), the choice is structurally
-  symmetric -- either ester may be called the suffix parent, since the
-  resulting name is identical either way.
-- Scope of this first pass, deliberately narrow (see
-  tasks/diester-acyloxy-naming.md's open questions -- only the two-ester,
-  plain-unbranched-backbone case is resolved so far): exactly two ester
+  acetate') carries over here too, so this module produces 'ethane-1,2-
+  diyl diethanoate'-style names instead of PubChem's retained-name
+  'diacetate'.
+- P-65.6.3.3.2 (method 2): a **differing**-acid diester instead cites one
+  ester as the principal characteristic group (suffix parent, "...yl
+  <acid>oate") and the other acyl group as an '<acid>yloxy' substituent
+  prefix on the alcohol chain, e.g. 'CC(=O)OCCOC(=O)CC' (mixed acetate/
+  propanoate diester) -> '2-acetyloxyethyl propanoate' in PubChem's own
+  (retained-name) style, '2-methanoyloxyethyl ethanoate'-style in this
+  project's systematic convention -- this is only sanctioned as general
+  nomenclature, not the PIN, but there's no PIN alternative implemented
+  for the differing-acid case yet (P-65.6.3.3.3.2's method-1 form is a
+  separate, not-yet-built mechanism), so it remains this module's output
+  there.
+- Which acid wins the suffix-parent slot in the differing-acid case:
+  confirmed via PubChem PUG REST across three differing-length pairs
+  (methanoic/ethanoic, ethanoic/propanoic, ethanoic/butanoic acid) that
+  the longer acyl chain is always the suffix parent and the shorter one
+  is demoted to the acyloxy prefix -- e.g. 'CCCC(=O)OCCOC(=O)C' (butanoic
+  + ethanoic) -> '2-<acid>yloxyethyl butanoate', never the reverse.
+- Scope of this first pass, deliberately narrow: exactly two ester
   groups, both acyl chains plain (unbranched, saturated, no
   halogens/stereocenters), and the alcohol backbone connecting the two
   ester oxygens a single plain unbranched saturated carbon chain with no
@@ -40,7 +42,7 @@ substituent prefix, per the IUPAC 2013 Recommendations ("the Blue Book"):
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, non_single_bonds, ordered_chain
-from ._numerals import alkane_name, alkyl_name
+from ._numerals import alkane_name, alkyl_name, multiplying_prefix
 
 _ALLOWED_ATOMIC_NUMS = {6, 8}
 
@@ -144,6 +146,11 @@ def name_diester_acyloxy(mol) -> str:
 
     length_1 = _acyl_chain_length(mol, acyl_1, ester_o_1.GetIdx(), carbonyl_1.GetIdx())
     length_2 = _acyl_chain_length(mol, acyl_2, ester_o_2.GetIdx(), carbonyl_2.GetIdx())
+
+    if length_1 == length_2:
+        diyl_name = f"{alkane_name(len(backbone))}-1,{len(backbone)}-diyl"
+        acid_name = f"{multiplying_prefix(2)}{_acid_stem(length_1)}oate"
+        return f"{diyl_name} {acid_name}"
 
     if length_2 > length_1:
         suffix_length, acyloxy_length = length_2, length_1
