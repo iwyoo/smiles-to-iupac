@@ -238,6 +238,11 @@ from ._polycyclic import (
     find_polycyclic_core,
     iter_polycyclic_candidates,
 )
+from ._spiro import (
+    _candidate_key as _spiro_candidate_key,
+    find_monospiro_atom,
+    iter_monospiro_numberings,
+)
 from ._substituents import (
     branch_atom_locant,
     format_substituent_prefixes,
@@ -825,6 +830,53 @@ def _name_von_baeyer_alcohol(mol, hydroxyls, stereo, bonds, bicyclic_core, polyc
     return best_key[-1]
 
 
+def _name_monospiro_alcohol(mol, hydroxyls, stereo, spiro_atom):
+    """P-24.2.1's monospiro numbering (`_spiro.py`), extended with a
+    single -OH suffix the same way `_name_von_baeyer_alcohol` extends the
+    von Baeyer bicyclic/polycyclic numbering above: iterate every
+    P-24.2.1-valid numbering (`iter_monospiro_numberings`), compute the
+    -OH carbon's own locant per candidate, and rank it ahead of
+    substituent locants via `_spiro_candidate_key`'s `suffix_locant`
+    parameter. Confirmed against a real registered structure (PubChem CID
+    90762054, 'OC1CCCC2(C1)CCCCC2')."""
+    if len(hydroxyls) != 1:
+        raise UnsupportedStructure(
+            "more than one hydroxyl on a monospiro ring system is not "
+            "supported yet"
+        )
+    if non_single_bonds(mol):
+        raise UnsupportedStructure(
+            "an unsaturated monospiro ring system is not supported yet "
+            "(see P-31.1.5)"
+        )
+    if stereo is not None:
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a monospiro alcohol is "
+            "not supported yet (see P-92)"
+        )
+
+    (oh_oxygen,) = hydroxyls
+    graph = adjacency(mol)
+    (oh_carbon,) = graph[oh_oxygen]
+    ring_atoms = {atom for ring in mol.GetRingInfo().AtomRings() for atom in ring}
+    if oh_carbon not in ring_atoms:
+        raise UnsupportedStructure(
+            "a hydroxyl not on the monospiro ring system itself (e.g. on "
+            "a substituent branch) is not supported yet"
+        )
+
+    halogens = halogen_substituents(mol)
+    best_key = None
+    for parent, full_order in iter_monospiro_numberings(mol, spiro_atom):
+        oh_locant = full_order.index(oh_carbon) + 1
+        substituents = substituents_for_ring(graph, full_order, halogens, hydroxyls, mol=mol)
+        suffixed_parent = parent[:-1] + f"-{oh_locant}-ol"
+        key = _spiro_candidate_key(suffixed_parent, substituents, suffix_locant=oh_locant)
+        if best_key is None or key < best_key:
+            best_key = key
+    return best_key[-1]
+
+
 def _name_ring_substituent_chain_alcohol(mol, hydroxyls):
     """Name an alcohol whose -OH lies entirely on a single unbranched chain
     hanging off one atom of an otherwise-plain monocyclic ring (the ring
@@ -1223,12 +1275,21 @@ def name_alcohol(mol) -> str:
             mol, hydroxyls, stereo, bonds, bicyclic_core, polycyclic_core, von_baeyer_ring_count
         )
 
+    # A monospiro skeleton (P-24.2.1, `_spiro.py`) also tries its own
+    # dedicated numbering extension before the generic fused-ring
+    # rejection below -- `find_monospiro_atom` only matches the exact
+    # two-rings-sharing-one-atom shape, so this never misfires on a
+    # fused (non-spiro) polycyclic system.
+    spiro_atom = find_monospiro_atom(mol)
+    if spiro_atom is not None:
+        return _name_monospiro_alcohol(mol, hydroxyls, stereo, spiro_atom)
+
     if stereo is not None:
         raise UnsupportedStructure(
             "a stereocenter on a polycyclic/spiro skeleton is not "
             "supported yet (see P-92)"
         )
     raise UnsupportedStructure(
-        "polycyclic and spiro alcohols are not supported yet (P-23/P-24/"
+        "polycyclic and fused-ring alcohols are not supported yet (P-23/"
         "P-25 numbering integration with a suffix group is future work)"
     )

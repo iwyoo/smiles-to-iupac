@@ -70,16 +70,24 @@ def _walk_ring_from_spiro(graph, ring_set, spiro, start):
         previous, current = current, next_atom
 
 
-def _candidate_key(parent, substituents, heteroatom_locant=None, nondetachable_prefix=""):
+def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=None, nondetachable_prefix=""):
+    """`heteroatom_locant`: shared with `_spiro_heteroatom.py`'s skeletal
+    replacement-heteroatom case. `suffix_locant`: the analogous rank for a
+    characteristic-group suffix (e.g. a monospiro alcohol's -OH,
+    `_alcohol.py`'s `_name_monospiro_alcohol`) instead -- mirrors
+    `_bicyclic._candidate_key`'s identical pair of parameters; the two
+    never coexist here."""
     grouped = group_substituents(substituents)
     locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     if prefix and nondetachable_prefix:
         prefix += "-"
     name = prefix + nondetachable_prefix + parent
-    if heteroatom_locant is None:
-        return locant_set, citation_locants, name
-    return heteroatom_locant, locant_set, citation_locants, name
+    if heteroatom_locant is not None:
+        return heteroatom_locant, locant_set, citation_locants, name
+    if suffix_locant is not None:
+        return suffix_locant, locant_set, citation_locants, name
+    return locant_set, citation_locants, name
 
 
 def iter_monospiro_numberings(mol, spiro_atom):
