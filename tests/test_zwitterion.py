@@ -33,6 +33,14 @@ from smiles_to_iupac._common import UnsupportedStructure
         # style) gets 'yl' appended and is parenthesized since it carries
         # its own internal locant.
         ("C[N+](C)(C)CC(=O)[O-]", "2-(N,N-dimethylmethanaminiumyl)ethanoate"),
+        # Taurine zwitterion (PubChem CID 1123's own structure, neutral
+        # tautomer NH2CH2CH2SO3H) -- the ammonium+sulfonate family (WS2).
+        ("[NH3+]CCS(=O)(=O)[O-]", "2-azaniumylethanesulfonate"),
+        # Homotaurine zwitterion (PubChem CID 1646's own structure).
+        ("[NH3+]CCCS(=O)(=O)[O-]", "3-azaniumylpropane-1-sulfonate"),
+        # A quaternary-nitrogen sulfobetaine, same shape as the
+        # trimethylglycine case above but on a sulfonate parent.
+        ("C[N+](C)(C)CCS(=O)(=O)[O-]", "2-(N,N-dimethylmethanaminiumyl)ethanesulfonate"),
     ],
 )
 def test_zwitterion_name(smiles, expected):
@@ -54,6 +62,21 @@ def test_zwitterion_ionic_center_in_ring_raises():
 def test_zwitterion_multiple_carboxylates_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C(C(=O)[O-])(C(=O)[O-])[NH3+]")
+
+
+def test_zwitterion_ammonium_bonded_directly_to_sulfonate_carbon_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[NH3+]C(S(=O)(=O)[O-])")
+
+
+def test_zwitterion_sulfonate_ionic_center_in_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1CC([NH3+])C1S(=O)(=O)[O-]")
+
+
+def test_zwitterion_multiple_sulfonates_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C(S(=O)(=O)[O-])(S(=O)(=O)[O-])[NH3+]")
 
 
 def test_plain_metal_carboxylate_salt_still_works():

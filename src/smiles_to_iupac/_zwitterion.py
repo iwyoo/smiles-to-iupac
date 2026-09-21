@@ -1,13 +1,14 @@
 """Naming of an amino-acid/betaine-type zwitterion -- a single-fragment,
 net-neutral molecule carrying exactly one ammonium-shaped (+1) nitrogen
-and exactly one carboxylate-shaped (-1) oxygen pair on the same acyclic
-carbon chain -- per the IUPAC 2013 Recommendations ("the Blue Book"):
+and exactly one anionic group (a carboxylate-shaped -1 oxygen pair, or a
+sulfonate-shaped -1 -SO3- group) on the same acyclic carbon chain -- per
+the IUPAC 2013 Recommendations ("the Blue Book"):
 
 - P-74.1.3: "anionic centers are preferred for lower locants and become
   the parent structure, into which the cationic part is substituted [as a
-  prefix]." This project's mechanism: the carboxylate is always the
-  parent (`_carboxylate.py`), the ammonium nitrogen is always cited as a
-  substituent prefix.
+  prefix]." This project's mechanism: the anion is always the parent
+  (`_carboxylate.py` or `_sulfonate.py`), the ammonium nitrogen is always
+  cited as a substituent prefix.
 - The ammonium-nitrogen prefix itself is built by isolating the nitrogen
   and its own substituents into a standalone fragment (replacing the bond
   toward the rest of the chain with an extra hydrogen -- the same "cut a
@@ -23,23 +24,28 @@ carbon chain -- per the IUPAC 2013 Recommendations ("the Blue Book"):
   (`C[N+](C)(C)CC(=O)[O-]`) trimethyl-substituted nitrogen isolates to
   (CH3)3NH+ (trimethylammonium) -> `name_ammonium`'s own
   'N,N-dimethylmethanaminium' -> 'N,N-dimethylmethanaminiumyl'.
-- Reuses `_carboxylate.py`'s `_name_acyclic_carboxylate` directly (its
-  `extra_names` extension point, mirroring `_carboxylic_acid_amine.py`'s
-  identical 'amino' injection) rather than `_coexisting_groups.py`'s
-  `name_via_senior_acyclic`: an ammonium prefix isn't a suffix-vs-suffix
-  seniority demotion at all (ammonium has no entry in
-  `_seniority.SUFFIX_CLASS_RANK`) -- P-74's zwitterion citation order is
-  its own, separate mechanism (anion always the parent, full stop, no
-  seniority comparison to make).
+- Reuses `_carboxylate.py`'s `_name_acyclic_carboxylate` (carboxylate
+  anion) or `_sulfonate.py`'s `_name_acyclic_sulfonate` (sulfonate anion)
+  directly via each module's own `extra_names` extension point, mirroring
+  `_carboxylic_acid_amine.py`'s identical 'amino' injection, rather than
+  `_coexisting_groups.py`'s `name_via_senior_acyclic`: an ammonium prefix
+  isn't a suffix-vs-suffix seniority demotion at all (ammonium has no
+  entry in `_seniority.SUFFIX_CLASS_RANK`) -- P-74's zwitterion citation
+  order is its own, separate mechanism (anion always the parent, full
+  stop, no seniority comparison to make). The sulfonate case reuses the
+  identical isolation/prefix/injection mechanism the carboxylate case
+  (M1, #781) already built -- confirmed real via PubChem (taurine CID
+  1123, homotaurine CID 1646), only the anion-group-finding and final
+  namer call differ.
 
-Scope, deliberately narrow (M1 of this project's zwitterion coverage):
-exactly one +1 ammonium-shaped nitrogen and exactly one -1 carboxylate
-oxygen pair, both on one connected, saturated, acyclic all-carbon-chain-
-plus-one-nitrogen fragment, net formal charge 0, no other heteroatom,
-halogen, or charge.
+Scope, deliberately narrow (M2 of this project's zwitterion coverage,
+WS2): exactly one +1 ammonium-shaped nitrogen and exactly one -1
+carboxylate or sulfonate anion, both on one connected, saturated,
+acyclic all-carbon-chain-plus-one-nitrogen fragment, net formal charge 0,
+no other heteroatom, halogen, or charge.
 Explicitly out of scope (raise `UnsupportedStructure`): the ionic center
 in a ring, more than one of either ionic center, the ammonium nitrogen
-bonded directly to the carboxylate carbon itself (P-74.1.1/1.2's
+bonded directly to the anion's own carbon/sulfur itself (P-74.1.1/1.2's
 same-parent case -- a different mechanism, not handled here), any chain
 unsaturation, and any specified stereocenter.
 """
@@ -49,30 +55,50 @@ from rdkit import Chem
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._carboxylate import _find_carboxylate_group, _name_acyclic_carboxylate
 from ._common import UnsupportedStructure, adjacency, bfs, specified_stereocenters
+from ._sulfonate import _find_sulfonate_group, _name_acyclic_sulfonate
+
+
+def _find_anion(mol):
+    """(kind, carbon_idx, heteroatom_idxs, sulfur_idx) for `mol`'s single
+    carboxylate or sulfonate anion group, or None -- `heteroatom_idxs` is
+    every atom of the group other than its own carbon (the two
+    carboxylate oxygens, or the sulfonate sulfur plus its three oxygens),
+    used both to exclude them from the generic atom/bond validation below
+    and, for carboxylate, as the `excluded_oxygens` the final namer call
+    needs. `sulfur_idx` is `None` for a carboxylate anion."""
+    try:
+        carbon, carbonyl_oxygen, anion_oxygen = _find_carboxylate_group(mol)
+    except UnsupportedStructure:
+        pass
+    else:
+        return "carboxylate", carbon.GetIdx(), {carbonyl_oxygen.GetIdx(), anion_oxygen.GetIdx()}, None
+    try:
+        carbon, sulfur = _find_sulfonate_group(mol)
+    except UnsupportedStructure:
+        return None
+    oxygens = {n.GetIdx() for n in sulfur.GetNeighbors() if n.GetAtomicNum() == 8}
+    return "sulfonate", carbon.GetIdx(), {sulfur.GetIdx()} | oxygens, sulfur.GetIdx()
 
 
 def has_zwitterion_shape(mol) -> bool:
-    """True if `mol` looks like an amino-acid/betaine-type zwitterion --
-    used by `core.py` to route here before `has_salt_shape`, since
-    `_salt.py`'s cation loop would otherwise crash trying (and failing) to
-    name the whole single-fragment molecule as a bare ammonium cation."""
+    """True if `mol` looks like an amino-acid/betaine-type (carboxylate)
+    or taurine-type (sulfonate) zwitterion -- used by `core.py` to route
+    here before `has_salt_shape`, since `_salt.py`'s cation loop would
+    otherwise crash trying (and failing) to name the whole single-fragment
+    molecule as a bare ammonium cation."""
     if len(Chem.GetMolFrags(mol)) > 1:
         return False
     if not has_ammonium_shape(mol):
         return False
-    try:
-        _find_carboxylate_group(mol)
-    except UnsupportedStructure:
-        return False
-    return True
+    return _find_anion(mol) is not None
 
 
-def _chain_neighbor(mol, nitrogen_idx, carboxylate_carbon_idx):
+def _chain_neighbor(mol, nitrogen_idx, anion_carbon_idx):
     """The one carbon neighbor of the nitrogen that lies on the same side
-    as the carboxylate carbon (as opposed to a plain N-alkyl substituent
+    as the anion's own carbon (as opposed to a plain N-alkyl substituent
     that goes nowhere else) -- the molecule is a tree once the nitrogen
     itself is removed, so exactly one neighbor's component contains the
-    carboxylate carbon."""
+    anion carbon."""
     graph = adjacency(mol)
     graph_without_nitrogen = {
         atom: [n for n in neighbors if n != nitrogen_idx]
@@ -81,7 +107,7 @@ def _chain_neighbor(mol, nitrogen_idx, carboxylate_carbon_idx):
     }
     for neighbor in graph[nitrogen_idx]:
         dist, _ = bfs(graph_without_nitrogen, neighbor)
-        if carboxylate_carbon_idx in dist:
+        if anion_carbon_idx in dist:
             return neighbor
     return None
 
@@ -126,59 +152,66 @@ def name_zwitterion(mol) -> str:
 
     (nitrogen,) = (atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 7 and atom.GetFormalCharge() == 1)
     nitrogen_idx = nitrogen.GetIdx()
-    carboxylate_carbon, carbonyl_oxygen, anion_oxygen = _find_carboxylate_group(mol)
-    carboxylate_carbon_idx = carboxylate_carbon.GetIdx()
-    excluded_oxygens = {carbonyl_oxygen.GetIdx(), anion_oxygen.GetIdx()}
+    anion_kind, anion_carbon_idx, anion_heteroatoms, sulfur_idx = _find_anion(mol)
 
     for atom in mol.GetAtoms():
         idx = atom.GetIdx()
-        if idx == nitrogen_idx or idx in excluded_oxygens:
+        if idx == nitrogen_idx or idx in anion_heteroatoms:
             continue
         if atom.GetAtomicNum() != 6:
             raise UnsupportedStructure(
                 "heteroatoms other than the single ammonium nitrogen and "
-                "the single carboxylate's own oxygens are not supported "
-                "yet"
+                "the single anion's own atoms are not supported yet"
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure(
                 "a charged or isotopically modified atom other than the "
-                "ammonium nitrogen and carboxylate anion oxygen is not "
+                "ammonium nitrogen and anion's own atoms is not "
                 "supported yet"
             )
         if atom.GetIsAromatic():
             raise UnsupportedStructure("aromatic rings are out of scope for this module")
 
     if any(bond.GetBondTypeAsDouble() not in (1.0, 2.0) for bond in mol.GetBonds()):
-        raise UnsupportedStructure("a bond order other than single or the carbonyl double bond is not supported")
-    non_carbonyl_unsaturation = [
+        raise UnsupportedStructure("a bond order other than single or the anion's own double bond(s) is not supported")
+    non_anion_unsaturation = [
         bond
         for bond in mol.GetBonds()
         if bond.GetBondTypeAsDouble() == 2.0
-        and {bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()} != {carboxylate_carbon_idx, carbonyl_oxygen.GetIdx()}
+        and not {bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()} <= (anion_heteroatoms | {anion_carbon_idx})
     ]
-    if non_carbonyl_unsaturation:
+    if non_anion_unsaturation:
         raise UnsupportedStructure(
             "chain unsaturation (ene/yne) alongside a zwitterion's own "
-            "carboxylate/ammonium pair is out of scope for this module "
+            "anion/ammonium pair is out of scope for this module "
             "(1st-pass scope: saturated only)"
         )
     if specified_stereocenters(mol):
         raise UnsupportedStructure("a specified stereocenter alongside a zwitterion is not supported yet")
 
-    chain_neighbor_idx = _chain_neighbor(mol, nitrogen_idx, carboxylate_carbon_idx)
-    if chain_neighbor_idx is None or chain_neighbor_idx == carboxylate_carbon_idx:
+    chain_neighbor_idx = _chain_neighbor(mol, nitrogen_idx, anion_carbon_idx)
+    if chain_neighbor_idx is None or chain_neighbor_idx == anion_carbon_idx:
         raise UnsupportedStructure(
-            "an ammonium nitrogen bonded directly to the carboxylate "
-            "carbon itself uses a different naming construction (P-74.1.1/"
-            "1.2's same-parent case), out of scope for this module"
+            "an ammonium nitrogen bonded directly to the anion's own "
+            "carbon/sulfur itself uses a different naming construction "
+            "(P-74.1.1/1.2's same-parent case), out of scope for this "
+            "module"
         )
 
     prefix = _ammonium_prefix(mol, nitrogen_idx, chain_neighbor_idx)
-    return _name_acyclic_carboxylate(
+    if anion_kind == "carboxylate":
+        return _name_acyclic_carboxylate(
+            mol,
+            anion_carbon_idx,
+            anion_heteroatoms,
+            (),
+            extra_names={nitrogen_idx: prefix},
+            required_atoms={chain_neighbor_idx},
+        )
+    return _name_acyclic_sulfonate(
         mol,
-        carboxylate_carbon_idx,
-        excluded_oxygens,
+        sulfur_idx,
+        anion_carbon_idx,
         (),
         extra_names={nitrogen_idx: prefix},
         required_atoms={chain_neighbor_idx},
