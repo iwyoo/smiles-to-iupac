@@ -14,9 +14,13 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   prefix on the acyl chain (this project keeps its existing 'ethanoate'
   stem convention rather than PubChem's retained '-acetate', matching
   `_aldehyde.py`/`_amide.py`'s analogous stem choices).
-- Unlike every earlier pilot in this series, `_ester.py`'s
-  `_name_acyl_part` needed **no** `carbon_graph` parameter addition: it
-  already isolates the acyl carbon's own reachable component via
+- Wired through `_coexisting_groups.name_via_senior_acyclic` like every
+  other module in this milestone, via `_ester.py`'s own
+  `_name_acyclic_ester` entry point (a thin join of its existing
+  `_name_alcohol_part`/`_name_acyl_part` calls). Unlike every earlier
+  pilot in this series, `_ester.py`'s `_name_acyl_part` needed **no**
+  `carbon_graph` parameter addition: it already isolates the acyl
+  carbon's own reachable component via
   `_component_subgraph(carbon_graph, acyl_carbon_idx)` before searching
   for the principal chain, and an ether oxygen (not itself a carbon)
   already breaks that reachability at the ether, so the alkoxy branch's
@@ -35,6 +39,7 @@ unsaturation (ene/yne), and any specified stereocenter.
 
 from rdkit import Chem
 
+from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -45,7 +50,7 @@ from ._common import (
     specified_stereocenters,
     validate_allowed_atoms,
 )
-from ._ester import _name_acyl_part, _name_alcohol_part
+from ._ester import _name_acyclic_ester
 from ._ether import _oxy_prefix
 from ._substituents import name_branch
 
@@ -181,8 +186,10 @@ def name_ether_ester(mol) -> str:
         oxy_term = f"({oxy_term})"
     extra_names = {ether_oxygen_idx: oxy_term}
 
-    alcohol_name = _name_alcohol_part(mol, alcohol_carbon, ester_oxygen.GetIdx())
-    acyl_name = _name_acyl_part(
-        mol, acyl_carbon, carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx(), extra_names=extra_names
+    return name_via_senior_acyclic(
+        _name_acyclic_ester,
+        "ester",
+        "ether",
+        (mol, acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon),
+        extra_names,
     )
-    return f"{alcohol_name} {acyl_name}"
