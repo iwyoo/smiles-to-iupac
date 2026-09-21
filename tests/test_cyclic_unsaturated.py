@@ -139,3 +139,46 @@ def test_ring_double_bond_stereo_multiple_bonds_raises():
     # not attempted here.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1CC/C=C\\C/C=C\\C1")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # A tetrahedral stereocenter on the ring itself (#776) -- a ring
+        # double bond breaks the two-ring-walk-direction symmetry a
+        # saturated ring has, so the sole substituent-bearing atom is a
+        # genuine stereocenter even with no branch stereocenter of its
+        # own. Real, distinctly registered PubChem CIDs: 25113480
+        # (4-methyl), 96449479 (4-ethyl), 124507122 (4-propyl), 102028993
+        # (4-propan-2-yl), 12463333 (4-tert-butyl).
+        ("C[C@H]1CCC=CC1", "(4S)-4-methylcyclohexene"),
+        ("CC[C@H]1CCC=CC1", "(4S)-4-ethylcyclohexene"),
+        ("CCC[C@H]1CCC=CC1", "(4S)-4-propylcyclohexene"),
+        ("CC(C)[C@H]1CCC=CC1", "(4S)-4-(propan-2-yl)cyclohexene"),
+        ("CC(C)(C)[C@H]1CCC=CC1", "(4S)-4-tert-butylcyclohexene"),
+        # The ring attachment atom *and* a stereocenter on its substituent
+        # branch, both specified together -- PubChem CID 175915978
+        # confirms the citation form combines the ring's own ordinary
+        # on-ring "(4S)-" prefix with the branch's existing bracketed
+        # descriptor. The three diastereomers/regiomers aren't themselves
+        # separately registered CIDs, but exercise the same mechanism
+        # with each independent R/S combination.
+        ("CC[C@H](C)[C@H]1CCC=CC1", "(4S)-4-[(2S)-butan-2-yl]cyclohexene"),
+        ("CC[C@H](C)[C@@H]1CCC=CC1", "(4R)-4-[(2S)-butan-2-yl]cyclohexene"),
+        ("CC[C@@H](C)[C@H]1CCC=CC1", "(4S)-4-[(2R)-butan-2-yl]cyclohexene"),
+        ("CC[C@@H](C)[C@@H]1CCC=CC1", "(4R)-4-[(2R)-butan-2-yl]cyclohexene"),
+        ("C[C@@H](CC)[C@@H]1CCC=CC1", "(4R)-4-[(2S)-butan-2-yl]cyclohexene"),
+    ],
+)
+def test_ring_tetrahedral_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_ring_stereocenter_with_two_substituents_raises():
+    # More than one substituent-bearing ring position alongside a
+    # specified tetrahedral stereocenter is out of scope for this narrow
+    # slice (see module docstring / #776) -- the ring's sole-substituent
+    # restriction `ring_and_branch_stereo_display` shares with
+    # `ring_branch_stereo_display` still applies.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC[C@H](C)[C@H]1CC(C)C=CC1")
