@@ -87,16 +87,20 @@ Flagship validation cases:
 from itertools import combinations, permutations
 
 from ._common import (
+    ENE_BOND_ORDER,
+    YNE_BOND_ORDER,
     UnsupportedStructure,
     adjacency,
     group_substituents,
     halogen_substituents,
+    lowest_locant_set,
     non_single_bonds,
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name, numerical_term
 from ._substituents import format_substituent_prefixes, substituents_for_ring
+from ._unsaturated import _unsaturation_suffix
 
 
 def _strip_leaves(graph):
@@ -377,13 +381,62 @@ def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=N
     return locant_set, citation_locants, name
 
 
+def _name_polycyclic_unsaturated(mol, core, ring_count, bonds) -> str:
+    """P-31.1.4.1's simple ('consecutive-locant') case for a ring_count>=3
+    polycyclic, mirroring `_bicyclic._name_bicyclic_unsaturated` exactly:
+    every double/triple bond's two atoms must land on adjacent locants
+    under some valid numbering (`iter_polycyclic_candidates`), folded into
+    `_candidate_key`'s existing `suffix_locant` slot ahead of substituent
+    locants. A bond whose two atoms are never adjacent under any candidate
+    numbering means the whole molecule needs a compound-locant descriptor
+    instead -- the same follow-up milestone `_bicyclic.py` defers to."""
+    invalid_orders = [order for _, _, order in bonds if order not in (ENE_BOND_ORDER, YNE_BOND_ORDER)]
+    if invalid_orders:
+        raise UnsupportedStructure(
+            "a bond order other than single, double, or triple is not "
+            "supported (see P-31.1.1.1)"
+        )
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+
+    best_key = None
+    for full_order, parent, outer_key in iter_polycyclic_candidates(core, ring_count):
+        position = {atom: i + 1 for i, atom in enumerate(full_order)}
+        ene_locants = []
+        yne_locants = []
+        for a, b, order in bonds:
+            pa, pb = position[a], position[b]
+            if abs(pa - pb) != 1:
+                break
+            (ene_locants if order == ENE_BOND_ORDER else yne_locants).append(min(pa, pb))
+        else:
+            combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
+            ene_locant_set = lowest_locant_set(ene_locants)
+            body, needs_stem_a = _unsaturation_suffix(ene_locants, yne_locants)
+            suffixed_parent = parent[:-3] + ("a" if needs_stem_a else "") + "-" + body
+            substituents = substituents_for_ring(graph, full_order, halogens)
+            key = outer_key + _candidate_key(
+                suffixed_parent, substituents, suffix_locant=(combined_locant_set, ene_locant_set)
+            )
+            if best_key is None or key < best_key:
+                best_key = key
+
+    if best_key is None:
+        raise UnsupportedStructure(
+            "no von Baeyer numbering makes every double/triple bond's two "
+            "atoms consecutively numbered (P-31.1.4.1); a compound-locant "
+            "descriptor is a separate follow-up milestone, not supported "
+            "yet"
+        )
+    return best_key[-1]
+
+
 def name_polycycloalkane(mol, core, ring_count) -> str:
     validate_atoms_and_bonds(mol)
-    if non_single_bonds(mol):
-        raise UnsupportedStructure(
-            "unsaturated polycyclic ring systems are not supported yet (see "
-            "P-31.1.4, unsaturated von Baeyer ring systems)"
-        )
+    bonds = non_single_bonds(mol)
+    if bonds:
+        return _name_polycyclic_unsaturated(mol, core, ring_count, bonds)
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
