@@ -49,6 +49,21 @@
   monovalent case -- `[CH]C` (ethylidene) and `[C]C` (ethylidyne) both
   have a degree-1 radical carbon, same as a monovalent chain terminus.
 
+- P-71.2.3: two separate monovalent radical centers on different atoms of
+  the same unbranched acyclic chain or monocyclic ring is a distinct
+  '-diyl' mechanism (`_name_chain_diradical`/`_name_ring_diradical`), not
+  a generalization of the single-center '-yl'/'-ylidene'/'-ylidyne' cases
+  above: the parent's numbering is chosen to give the lowest *combined*
+  locant set to both radical positions together (mirroring how
+  `_isotope.py`'s multi-position deuterium and `_alcohol.py`'s multi-
+  hydroxyl chains already pick numbering direction), and both locants are
+  always cited explicitly (e.g. 'ethane-1,2-diyl', 'propane-1,3-diyl',
+  'butane-1,4-diyl'), never elided the way a single terminal '-yl' is --
+  P-14.3.3's single-position omission never applies once there are two
+  positions to distinguish. No elision of the parent stem's trailing 'e'
+  before '-diyl' either, mirroring the analogous '-ylidene'/'-ylidyne'
+  non-elided pattern.
+
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any branch off the radical carbon that is itself further branched
   (P-29.5, "complex substituent groups") -- only the radical carbon itself
@@ -57,15 +72,18 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   (P-29.3.2.2's general method is monovalent-only here; the branched case
   for '-ylidene'/'-ylidyne' needs its own locant-citation research, not
   done yet).
-- More than one radical center (P-71.2.3), a radical on a functional
-  group (P-71.3), on an aromatic ring, on a polycyclic/spiro skeleton, or
+- A '-diyl' radical carbon that is itself a branch point (mirrors the
+  single-center exclusion above), three or more radical centers, a mixed
+  monovalent+divalent/trivalent combination on the same molecule (P-71.6's
+  'ethan-1-yl-2-ylidene'-shaped case), a radical on a functional group
+  (P-71.3), on an aromatic ring, on a polycyclic/spiro skeleton, or
   coexisting with any heteroatom, halogen, charge, or isotopic
   modification.
 """
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, linear_branch
+from ._common import UnsupportedStructure, adjacency, linear_branch, ring_cycle
 from ._numerals import alkane_name, alkyl_name
 from ._substituents import format_substituent_prefixes
 
@@ -78,20 +96,7 @@ def has_radical_shape(mol) -> bool:
     return any(atom.GetNumRadicalElectrons() != 0 for atom in mol.GetAtoms())
 
 
-def name_radical(mol) -> str:
-    if len(Chem.GetMolFrags(mol)) > 1:
-        raise UnsupportedStructure("multi-fragment structures are not supported yet")
-
-    radicals = [atom for atom in mol.GetAtoms() if atom.GetNumRadicalElectrons() != 0]
-    if len(radicals) != 1 or radicals[0].GetNumRadicalElectrons() not in (1, 2, 3):
-        raise UnsupportedStructure(
-            "only a single radical center of valence 1, 2, or 3 is "
-            "supported yet (P-71.2.1.1/P-71.2.2.1); zero, multiple, or "
-            "higher-valence radical centers are not supported"
-        )
-    (radical,) = radicals
-    valence = radical.GetNumRadicalElectrons()
-
+def _validate_carbon_skeleton(mol):
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() != 6:
             raise UnsupportedStructure(
@@ -104,6 +109,34 @@ def name_radical(mol) -> str:
     for bond in mol.GetBonds():
         if bond.GetBondTypeAsDouble() != 1.0:
             raise UnsupportedStructure("unsaturated skeletons are not supported yet")
+
+
+def name_radical(mol) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+
+    radicals = [atom for atom in mol.GetAtoms() if atom.GetNumRadicalElectrons() != 0]
+    if len(radicals) == 2 and all(r.GetNumRadicalElectrons() == 1 for r in radicals):
+        _validate_carbon_skeleton(mol)
+        ring_info = mol.GetRingInfo()
+        num_rings = ring_info.NumRings()
+        if num_rings == 0:
+            return _name_chain_diradical(mol, radicals)
+        if num_rings == 1:
+            return _name_ring_diradical(mol, ring_info, radicals)
+        raise UnsupportedStructure("polycyclic and spiro radicals are not supported yet")
+
+    if len(radicals) != 1 or radicals[0].GetNumRadicalElectrons() not in (1, 2, 3):
+        raise UnsupportedStructure(
+            "only a single radical center of valence 1, 2, or 3, or two "
+            "monovalent radical centers (P-71.2.3), is supported yet; "
+            "zero, three or more, or a mixed-valence combination of "
+            "radical centers is not supported"
+        )
+    (radical,) = radicals
+    valence = radical.GetNumRadicalElectrons()
+
+    _validate_carbon_skeleton(mol)
 
     ring_info = mol.GetRingInfo()
     num_rings = ring_info.NumRings()
@@ -200,3 +233,72 @@ def _name_ring_radical(mol, ring_info, valence) -> str:
                 "(P-71.2.1.1)"
             )
     return _radical_suffix("cyclo" + alkyl_name(len(ring_atoms)), valence)
+
+
+def _name_chain_diradical(mol, radicals) -> str:
+    for atom in mol.GetAtoms():
+        if atom.GetDegree() > 2:
+            raise UnsupportedStructure(
+                "a branched chain is out of scope for this module "
+                "(P-71.2.1.2, the 'general method')"
+            )
+
+    n = mol.GetNumAtoms()
+    graph = adjacency(mol)
+    termini = [idx for idx, neighbors in graph.items() if len(neighbors) <= 1]
+    if len(termini) != 2:
+        raise UnsupportedStructure(
+            "not a single unbranched chain (P-71.2.1.1, unbranched chains only)"
+        )
+    (start, _) = termini
+    order = [start]
+    previous, current = None, start
+    while len(order) < n:
+        next_atoms = [a for a in graph[current] if a != previous]
+        if not next_atoms:
+            break
+        previous, current = current, next_atoms[0]
+        order.append(current)
+    if len(order) != n:
+        raise UnsupportedStructure(
+            "not a single unbranched chain (P-71.2.1.1, unbranched chains only)"
+        )
+
+    r1, r2 = radicals[0].GetIdx(), radicals[1].GetIdx()
+    positions_fwd = {atom: i + 1 for i, atom in enumerate(order)}
+    positions_rev = {atom: n - i for i, atom in enumerate(order)}
+    locants_fwd = tuple(sorted((positions_fwd[r1], positions_fwd[r2])))
+    locants_rev = tuple(sorted((positions_rev[r1], positions_rev[r2])))
+    lo, hi = min(locants_fwd, locants_rev)
+    return f"{alkane_name(n)}-{lo},{hi}-diyl"
+
+
+def _name_ring_diradical(mol, ring_info, radicals) -> str:
+    (ring_atoms,) = ring_info.AtomRings()
+    if len(ring_atoms) != mol.GetNumAtoms():
+        raise UnsupportedStructure(
+            "a substituent hanging off the ring (other than the radical "
+            "centers) is out of scope for this module"
+        )
+    for atom in mol.GetAtoms():
+        if atom.GetDegree() != 2:
+            raise UnsupportedStructure(
+                "a monocyclic radical ring must otherwise be unsubstituted "
+                "(P-71.2.1.1)"
+            )
+
+    graph = adjacency(mol)
+    ring_order = ring_cycle(graph, list(ring_atoms))
+    ring_size = len(ring_order)
+    r1, r2 = radicals[0].GetIdx(), radicals[1].GetIdx()
+
+    best = None
+    for start in range(ring_size):
+        rotated = ring_order[start:] + ring_order[:start]
+        for candidate in (rotated, list(reversed(rotated))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            locants = tuple(sorted((position_of[r1], position_of[r2])))
+            if best is None or locants < best:
+                best = locants
+    lo, hi = best
+    return f"cyclo{alkane_name(ring_size)}-{lo},{hi}-diyl"
