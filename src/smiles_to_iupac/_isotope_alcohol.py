@@ -11,53 +11,57 @@ Recommendations ("the Blue Book"):
   path would already pick for the isotopically-unmodified structure,
   reused directly via `_best_acyclic_alcohol_candidate` on a neutralized
   (isotope-stripped) copy of the molecule rather than re-derived here.
-- The isotope descriptor is inserted directly before the '-ol' suffix it
-  modifies, confirmed by two worked examples already documented in
-  `_isotope.py`'s own module docstring: 'methan(2H,18O)ol (PIN)'
-  (mononuclear parent, no locant at all) and 'ethan(2H)ol (PIN)' (a
-  2-carbon chain, whose own -OH locant is already omitted per
-  `_alcohol.py`'s established P-44.4.1.8 rule regardless of isotopes).
-  Since the descriptor always appears directly in front of the literal,
-  unmodified 'ol' tail of `_alcohol.py`'s own plain name (elision only
-  ever touches the *stem*'s trailing letter, never the bare suffix word
-  itself), this module splices the descriptor in immediately before that
-  tail rather than re-deriving the stem/elision/prefix logic itself.
-- A skeletal carbon isotope's own locant is cited exactly like an
-  ordinary substituent's (never omitted, even when it lands on the same
-  carbon whose own suffix locant *is* omitted -- confirmed by
-  `_alcohol.py`'s own established precedent 'CC(Cl)S(=O)(=O)O' ->
-  '1-chloroethanesulfonic acid', where the chlorine's locant is cited
-  despite sitting on the very carbon whose sulfonic-acid suffix locant is
-  omitted). This resolves `_isotope.py`'s own "2-carbon chain, single
-  isotope, no halogen" ambiguity for the bare-alkane case: an alcohol's
-  own -OH already breaks the 2-carbon symmetry (P-44.4.1.8 fixes which
-  carbon is C1), so the carbon-isotope's locant is never actually
-  ambiguous here, unlike the plain, suffix-less 2-carbon chain case
-  `_isotope.py` itself must defer on.
-- P-82.3.1's alphabetical nuclide-symbol order ('C' before 'O') puts the
-  carbon-isotope part first when both are present in one descriptor
-  group, mirroring `_isotope.py`'s own carbon-before-hydrogen ordering.
+- Placement depends on which atom carries the isotope, corrected
+  2026-09-21 (#804) after cross-checking more of `tmp/bluebook/P8.txt`'s
+  own worked examples than the original pass did:
+  - An isotope on the hydroxyl oxygen itself (the suffix-defining atom)
+    is inserted directly before the '-ol' suffix: 'methan(18O)ol'-style,
+    confirmed by '1-(aminomethyl)cyclopentan-1-(18O)ol (PIN)' (line 187)
+    -- the oxygen IS that molecule's own suffix-defining atom too.
+  - A skeletal-carbon isotope (not the suffix-defining atom) instead goes
+    at the front of the whole name, per P-82.2.5's own general rule ("In
+    a name consisting of one word, the isotopic descriptor is placed
+    before the name ... preferred to ... placing the descriptor before
+    the implied name of the characteristic group") and confirmed
+    directly on this exact ethanol shape: '(2-13C)ethan-1-ol (PIN)'
+    (line ~178) -- **not** 'ethan(2-13C)ol' as an earlier pass of this
+    module produced. A 2-carbon chain's own -OH locant, normally omitted
+    (P-44.4.1.8, plain 'ethanol' never says 'ethan-1-ol'), is restored
+    and explicitly cited once this front-of-name descriptor is present,
+    exactly as the confirmed PIN shows. A 1-carbon (methanol) parent
+    never cites a locant at all, mirroring P-82.2.1's own '(14C)methane'
+    (not '(1-14C)methane').
+  - No confirmed worked example was found for a skeletal-carbon isotope
+    and a hydroxyl-oxygen isotope combined in the same name once an
+    internal locant is actually possible (i.e. a 2-carbon chain) --
+    'methan(2H,18O)ol (PIN)' merges both into one descriptor, but only
+    for the locant-free 1-carbon case, which doesn't resolve how (or
+    whether) the two would split for a 2-carbon chain. This module raises
+    `UnsupportedStructure` for that combination rather than guessing,
+    matching this project's established practice (see e.g.
+    `_isotope_ketone.py`'s identical deferral for its own combined case).
 
 Scope, deliberately narrow (P82-WS2 M1 step 1 pilot, chain length 1-2
-only -- matching the two confirmed worked examples above exactly): a
-1- or 2-carbon acyclic alcohol chain, with halogen substituents allowed
+only -- matching the confirmed worked examples above exactly): a 1- or
+2-carbon acyclic alcohol chain, with halogen substituents allowed
 (mirrors `_alcohol.py`'s own scope), bearing a skeletal carbon isotope
-and/or a hydroxyl-oxygen isotope. A longer chain, where the -OH's own
-suffix locant would itself be cited (P-44.4.1.8), has no confirmed worked
-example for where the isotope descriptor then splices in relative to
-that locant, so it is deferred to a later step rather than guessed at.
-Explicitly out of scope (raise `UnsupportedStructure`): any ring, any
-chain unsaturation, any ether, deuterium or any other heteroatom besides
-the hydroxyl oxygen and halogens, more than one hydroxyl, a specified
-stereocenter, mixing different carbon-isotope nuclides, a carbon isotope
-on a branch off the 1-2-carbon chain, and a chain length of 3 or more
-carrying any isotope label at all (see above).
+XOR a hydroxyl-oxygen isotope (not both, see above). A longer chain, where
+the -OH's own suffix locant would already be cited regardless of any
+isotope, has no confirmed worked example for exactly how it interacts
+with a skeletal-carbon isotope's own front-of-name placement, so it is
+deferred to a later step rather than guessed at. Explicitly out of scope
+(raise `UnsupportedStructure`): any ring, any chain unsaturation, any
+ether, deuterium or any other heteroatom besides the hydroxyl oxygen and
+halogens, more than one hydroxyl, a specified stereocenter, mixing
+different carbon-isotope nuclides, a carbon isotope on a branch off the
+1-2-carbon chain, a chain length of 3 or more carrying any isotope label
+at all, and both isotope kinds present together (see above).
 """
 
 from rdkit import Chem
 
 from ._alcohol import _best_acyclic_alcohol_candidate, _validate_and_collect_hydroxyls
-from ._common import UnsupportedStructure, non_single_bonds, specified_stereocenters
+from ._common import UnsupportedStructure, adjacency, non_single_bonds, specified_stereocenters
 from ._isotope import _CARBON_ISOTOPES
 
 _OXYGEN_ISOTOPES = {17, 18}
@@ -168,20 +172,30 @@ def name_isotope_alcohol(mol) -> str:
             "locant, P-44.4.1.8, is unconfirmed)"
         )
 
-    descriptor_parts = []
+    if has_carbon_isotope and has_oxygen_isotope:
+        raise UnsupportedStructure(
+            "a skeletal-carbon isotope combined with a hydroxyl-oxygen "
+            "isotope in the same name has no confirmed worked example yet "
+            "(see module docstring)"
+        )
+
     if has_carbon_isotope:
         if any(c not in best_position_of for c in carbon_isotope_positions):
             raise UnsupportedStructure(
                 "a carbon isotope on a substituent branch rather than the "
                 "principal chain is not supported yet"
             )
-        carbon_isotope_locants = sorted(best_position_of[c] for c in carbon_isotope_positions)
         nuclide = next(iter(carbon_isotopes))
         symbol = f"{nuclide}C" + (str(len(carbon_isotope_positions)) if len(carbon_isotope_positions) > 1 else "")
+        if chain_length == 1:
+            # A mononuclear parent never cites a locant (P-82.2.1's own
+            # '(14C)methane', not '(1-14C)methane').
+            return f"({symbol}){best_name}"
+        carbon_isotope_locants = sorted(best_position_of[c] for c in carbon_isotope_positions)
         locants_str = ",".join(str(loc) for loc in carbon_isotope_locants)
-        descriptor_parts.append(f"{locants_str}-{symbol}")
-    if has_oxygen_isotope:
-        descriptor_parts.append(f"{oxygen_isotope}O")
+        (oh_carbon,) = adjacency(neutral_mol)[oh_oxygen_idx]
+        oh_locant = best_position_of[oh_carbon]
+        stem = best_name[:-2]
+        return f"({locants_str}-{symbol}){stem}-{oh_locant}-ol"
 
-    descriptor = ",".join(descriptor_parts)
-    return best_name[:-2] + f"({descriptor})ol"
+    return best_name[:-2] + f"({oxygen_isotope}O)ol"
