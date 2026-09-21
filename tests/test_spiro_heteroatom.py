@@ -39,12 +39,12 @@ def test_two_ring_heteroatoms_raises():
         smiles_to_iupac("C1CC2(OCCC2)OC1")
 
 
-def test_heteroatom_outside_ring_raises():
+def test_heteroatom_outside_ring_is_not_this_modules_territory():
     # a plain hydrocarbon spiro skeleton with an exocyclic -OH
-    # substituent: the heteroatom isn't a *ring* atom, so this is a
-    # different module's territory (deferred, see _alcohol.py).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CC2(CCCCC2)C1O")
+    # substituent: the heteroatom isn't a *ring* atom, so this is
+    # `_alcohol.py`'s territory, not this module's -- confirmed by its
+    # own `test_spiro_alcohol.py`'s identical shape.
+    assert smiles_to_iupac("C1CC2(CCCCC2)C1O") == "spiro[3.5]nonan-1-ol"
 
 
 def test_unsupported_heteroatom_element_raises():
