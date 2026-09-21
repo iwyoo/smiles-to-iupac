@@ -58,7 +58,12 @@ def has_isotope_ketone_shape(mol) -> bool:
     an acyclic ketone -- deliberately loose (see module docstring for the
     real scope); `name_isotope_ketone` raises for every detail this
     doesn't cover. Used by `core.py` to route here before `_isotope.py`'s
-    own plain chain/methane path, which rejects any oxygen outright."""
+    own plain chain/methane path, which rejects any oxygen outright.
+
+    Excludes a -COOH carbon (a carbonyl carbon that also carries a
+    single-bonded hydroxyl) so this doesn't shadow
+    `_isotope_carboxylic_acid.py`'s own routing, mirroring
+    `_isotope_alcohol.py`'s identical carboxylic-acid exclusion."""
     if not any(atom.GetIsotope() != 0 for atom in mol.GetAtoms()):
         return False
     if mol.GetRingInfo().NumRings() > 0:
@@ -67,6 +72,13 @@ def has_isotope_ketone_shape(mol) -> bool:
         atom.GetAtomicNum() == 6
         and any(
             n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            for n in atom.GetNeighbors()
+        )
+        and not any(
+            n.GetAtomicNum() == 8
+            and n.GetDegree() == 1
+            and n.GetTotalNumHs() == 1
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
             for n in atom.GetNeighbors()
         )
         for atom in mol.GetAtoms()
