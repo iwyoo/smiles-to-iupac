@@ -508,21 +508,17 @@ def _one_locants(position_of, ketones, graph):
         locants.append(position_of[carbon])
     return locants
 
-def _name_acyclic_ketone(
+def _best_acyclic_ketone_candidate(
     mol, ketones, hydroxyls, bonds, stereo=None, extra_names=None, required_atoms=frozenset(), carbon_graph=None
 ):
-    """`stereo`: None, or a list of ("atom"/"bond", idx, "R"/"S"/"E"/"Z")
-    from `specified_stereo_elements`/`specified_stereocenters` -- if given,
-    only chain candidates that include every tetrahedral stereocenter are
-    eligible (P-92: a stereocenter on a substituent branch rather than the
-    principal chain is out of scope, mirroring
-    `_carboxylic_acid.py`/`_aldehyde.py`'s identical treatment; a
-    double-bond E/Z element's atoms are already required to lie on the
-    chain via `bonds`, so no separate check is needed for those), and the
-    winning candidate's own locants are used to format a
-    "(<locant><R/S/E/Z>,...)-" prefix onto the name, ascending locant order
-    (P-91.3, including when both kinds coexist -- only reachable from the
-    acyclic caller, see `name_ketone`).
+    """(best_name, best_position_of) -- the winning chain numbering and its
+    fully-formatted name, factored out of `_name_acyclic_ketone` (which
+    just adds the stereo-descriptor prefix on top) so `_isotope_ketone.py`
+    can reuse the identical numbering decision: P-82.5.1 states the
+    presence of isotopic nuclides is "considered last" among numbering
+    criteria, so an isotope label never changes which candidate wins here,
+    and that module only needs `best_position_of` to independently compute
+    its own isotope descriptor's locant.
 
     `extra_names`: optional {atom_idx -> prefix name} for a coexisting
     characteristic group demoted to a substituent prefix by
@@ -589,6 +585,28 @@ def _name_acyclic_ketone(
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of
 
+    return best_name, best_position_of
+
+
+def _name_acyclic_ketone(
+    mol, ketones, hydroxyls, bonds, stereo=None, extra_names=None, required_atoms=frozenset(), carbon_graph=None
+):
+    """`stereo`: None, or a list of ("atom"/"bond", idx, "R"/"S"/"E"/"Z")
+    from `specified_stereo_elements`/`specified_stereocenters` -- if given,
+    only chain candidates that include every tetrahedral stereocenter are
+    eligible (P-92: a stereocenter on a substituent branch rather than the
+    principal chain is out of scope, mirroring
+    `_carboxylic_acid.py`/`_aldehyde.py`'s identical treatment; a
+    double-bond E/Z element's atoms are already required to lie on the
+    chain via `bonds`, so no separate check is needed for those), and the
+    winning candidate's own locants are used to format a
+    "(<locant><R/S/E/Z>,...)-" prefix onto the name, ascending locant order
+    (P-91.3, including when both kinds coexist -- only reachable from the
+    acyclic caller, see `name_ketone`). See `_best_acyclic_ketone_candidate`
+    for `extra_names`/`required_atoms`/`carbon_graph`."""
+    best_name, best_position_of = _best_acyclic_ketone_candidate(
+        mol, ketones, hydroxyls, bonds, stereo, extra_names, required_atoms, carbon_graph
+    )
     if stereo is not None:
         labels = []
         for kind, idx, code in stereo:
