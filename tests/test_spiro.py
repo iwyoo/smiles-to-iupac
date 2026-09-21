@@ -38,9 +38,9 @@ def test_bridged_bicyclic_is_not_spiro():
 
 def test_fused_bicyclic_is_not_spiro():
     # decahydronaphthalene (decalin): two fused six-membered rings sharing
-    # one bond (two atoms), not a single spiro atom; handled by _bicyclic.py,
-    # not this module (see test_bicyclic.py for the expected name).
-    assert smiles_to_iupac("C1CCC2CCCCC2C1") == "bicyclo[4.4.0]decane"
+    # one bond (two atoms), not a single spiro atom; handled by
+    # _dihydro_aromatic.py, not this module.
+    assert smiles_to_iupac("C1CCC2CCCCC2C1") == "decahydronaphthalene"
 
 
 def test_two_separate_rings_raises():

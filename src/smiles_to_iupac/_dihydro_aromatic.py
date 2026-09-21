@@ -45,7 +45,10 @@
 Explicitly out of scope (raise `UnsupportedStructure` via the generic
 P-23/P-24/P-25 fallback in `core.py`, since `find_dihydronaphthalene_core`
 below simply returns None for any of these):
-- More than one 'hydro' pair (tetrahydronaphthalene/"tetralin" and beyond).
+- More than one 'hydro' pair short of full saturation (tetrahydro-/
+  hexahydro-/octahydronaphthalene -- a genuinely bigger generalization,
+  needing locant computation and lowest-locant tie-breaking this module's
+  two-function pair doesn't attempt).
 - Any fused ring system other than the plain 2-ring naphthalene shape
   (anthracene, indole, heteroaromatics, ...).
 - Any indicated-hydrogen-requiring parent (not applicable to naphthalene
@@ -53,14 +56,33 @@ below simply returns None for any of these):
 - Substituents of any kind, including halogens (P-35.2.1) -- every ring
   atom must have exactly its "bare" degree (2 for a CH/CH2 position, 3 for
   a fusion carbon), so any substituent is rejected by construction.
-- Bridged derivatives (methanonaphthalene, etc.) -- `tasks/
-  bridged-fused-ring-naming.md`'s territory, a separate, larger task that
-  this one is a prerequisite for.
+- Bridged derivatives (methanonaphthalene, etc.), a separate, larger
+  prerequisite task.
+
+- **Full saturation (`decahydronaphthalene`)**: every ring double bond
+  removed, not just one pair. Unlike the partial-hydro case above, this
+  needs no locant computation at all -- P-31.2.3.3.2's own worked example
+  cites total hydrogenation with no locants (P-14.3.4.5: a fully-cited
+  hydro count is redundant once every ring position is saturated), so
+  `find_decahydronaphthalene_core`/`name_decahydronaphthalene` below just
+  detect the bare skeleton and return the literal string unconditionally.
+  This landed before the general partial-hydrogenation case above because
+  it's structurally simpler, not because it's a subset of it -- confirmed
+  via PubChem PUG REST (CID 7044: `1,2,3,4,4a,5,6,7,8,8a-
+  decahydronaphthalene`, though the Blue Book's own plain `decahydro-
+  naphthalene (PIN)` omits the redundant locants PubChem always cites).
+  Reuses `_bicyclic.py`'s `find_bicyclic_core` for the actual skeleton
+  detection (a 0-bridge 6,6 bicyclic is exactly this shape) rather than
+  reimplementing ring-walking here; this is deliberately routed ahead of
+  `_bicyclic.py`'s own von Baeyer naming in `core.py`; a von Baeyer name
+  for this skeleton has been wrong all along (P-23's own naming method is
+  reserved for skeletons with no competing mancude-ring-system name).
 """
 
 from rdkit import Chem
 
 from ._aromatic import _periphery_cycle, _straight_chain_candidates
+from ._bicyclic import find_bicyclic_core
 
 
 def find_dihydronaphthalene_core(mol):
@@ -153,3 +175,30 @@ def name_dihydronaphthalene(mol, core) -> str:
             best_locants = pair
 
     return f"{best_locants[0]},{best_locants[1]}-dihydronaphthalene"
+
+
+def find_decahydronaphthalene_core(mol):
+    """Return `_bicyclic.py`'s bicyclic core if `mol` is naphthalene's
+    carbon skeleton fully saturated (a bare, unsubstituted 0-bridge 6,6
+    bicyclic all-carbon hydrocarbon), else None."""
+    if mol.GetNumAtoms() != 10:
+        return None
+    if len(Chem.GetMolFrags(mol)) > 1:
+        return None
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 6 or atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+            return None
+    for bond in mol.GetBonds():
+        if bond.GetBondTypeAsDouble() != 1.0:
+            return None
+    core = find_bicyclic_core(mol)
+    if core is None:
+        return None
+    _, _, bridges = core
+    if sorted(len(bridge) for bridge in bridges) != [0, 4, 4]:
+        return None
+    return core
+
+
+def name_decahydronaphthalene(mol, core) -> str:
+    return "decahydronaphthalene"
