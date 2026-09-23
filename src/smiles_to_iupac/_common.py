@@ -1127,6 +1127,46 @@ def bond_locants(chain, bonds):
     return ene, yne
 
 
+def von_baeyer_bond_citation(position, a, b):
+    """(primary_locant, display, is_compound) for one double/triple bond
+    of a von Baeyer bicyclic/polycyclic parent under a fixed `position`
+    numbering (atom index -> 1-based locant) -- P-31.1.4.1's simple case
+    when the two atoms have consecutive locants ('2', no parentheses),
+    P-31.1.4.2(1)'s compound-locant case otherwise (the higher locant
+    cited in parentheses after the lower one, e.g. '1(7)'). Unlike a
+    chain's or a monocyclic ring's own bond locant, a von Baeyer parent's
+    numbering has no ring-wraparound between its highest and lowest
+    locants in general, so this never wraps."""
+    pa, pb = position[a], position[b]
+    lo, hi = min(pa, pb), max(pa, pb)
+    if hi - lo == 1:
+        return lo, str(lo), False
+    return lo, f"{lo}({hi})", True
+
+
+def von_baeyer_unsaturation_citations(position, bonds):
+    """(ene_citations, yne_citations, compound_count, primary_locants,
+    full_locants) for every (a, b, order) von Baeyer bond under a fixed
+    `position` numbering -- each citation is a (primary_locant, display)
+    pair from `von_baeyer_bond_citation`. `primary_locants` is every
+    bond's own primary (never-parenthesized) locant, for P-31.1.4.2(2)'s
+    "ignore parenthesized numbers" comparison; `full_locants` additionally
+    includes each compound bond's own parenthesized locant, for
+    P-31.1.4.2(3)'s full-locant-set tie-break."""
+    ene_citations, yne_citations = [], []
+    compound_count = 0
+    primary_locants, full_locants = [], []
+    for a, b, order in bonds:
+        primary, display, is_compound = von_baeyer_bond_citation(position, a, b)
+        primary_locants.append(primary)
+        full_locants.append(primary)
+        if is_compound:
+            full_locants.append(max(position[a], position[b]))
+            compound_count += 1
+        (ene_citations if order == ENE_BOND_ORDER else yne_citations).append((primary, display))
+    return ene_citations, yne_citations, compound_count, primary_locants, full_locants
+
+
 def ring_bond_locant(position_of, bond_atoms, ring_size):
     """1-based ring locant of the lower-numbered atom of a ring bond, under
     `position_of` (atom index -> 1-based position), wrapping so the bond
