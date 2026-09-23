@@ -12,27 +12,22 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   here too, so this module produces 'ethane-1,2-diyl diethanoate'/
   'propane-1,2,3-triyl triethanoate'-style names instead of PubChem's
   retained-name 'diacetate'/'triacetate'.
-- P-65.6.3.3.2 (method 2): a **differing**-acid diester instead cites one
-  ester as the principal characteristic group (suffix parent, "...yl
-  <acid>oate") and the other acyl group as an '<acid>yloxy' substituent
-  prefix on the alcohol chain, e.g. 'CC(=O)OCCOC(=O)CC' (mixed acetate/
-  propanoate diester) -> '2-acetyloxyethyl propanoate' in PubChem's own
-  (retained-name) style, '2-methanoyloxyethyl ethanoate'-style in this
-  project's systematic convention -- this is only sanctioned as general
-  nomenclature, not the PIN, but there's no PIN alternative implemented
-  for the differing-acid case yet (P-65.6.3.3.3.2's method-1 form is a
-  separate, not-yet-built mechanism), so it remains this module's output
-  there. This differing-acid path stays exactly-two-esters only
-  (unchanged) -- three or more differing acyl groups on one polyol is out
-  of scope until that method-1 mechanism exists (not attempted here by
-  guessing at a generalization).
-- Which acid wins the suffix-parent slot in the differing-acid (2-ester)
-  case: confirmed via PubChem PUG REST across three differing-length
-  pairs (methanoic/ethanoic, ethanoic/propanoic, ethanoic/butanoic acid)
-  that the longer acyl chain is always the suffix parent and the shorter
-  one is demoted to the acyloxy prefix -- e.g. 'CCCC(=O)OCCOC(=O)C'
-  (butanoic + ethanoic) -> '2-<acid>yloxyethyl butanoate', never the
-  reverse.
+- P-65.6.3.3.3.2 (method 1): when the acyl groups **differ** (two or
+  more), the PIN instead cites each distinct acid as its own anion name,
+  in alphanumerical order, each with its own locant set and multiplying
+  prefix (`di`/`tri`/...) if it covers more than one position -- e.g.
+  'propane-1,2,3-triyl 1,2-diacetate 3-propanoate (PIN)'. For exactly two
+  esters, no acid locant is cited at all: the backbone's own two-fold
+  symmetry (either numbering direction describes the identical molecule)
+  makes one redundant, confirmed directly from the Blue Book's own
+  'methylene acetate formate (PIN)' and '1,4-phenylene acetate
+  dichloroacetate (PIN)' examples, neither of which cites one. Three or
+  more positions lose that symmetry (an interior position is
+  constitutionally distinct from the ends), so every group's locant(s)
+  are always cited there. Method 2 (citing one ester as the suffix parent
+  and the rest as '<acid>yloxy' prefixes) is sanctioned general
+  nomenclature only, not implemented here -- this module always returns
+  the method-1 PIN for the differing-acid case.
 - Scope, deliberately narrow: two or more ester groups, all acyl chains
   plain (unbranched, saturated, no halogens/stereocenters), and every
   ester's alcohol-side carbon lying on a single plain unbranched
@@ -43,15 +38,14 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   point/quaternary carbon (e.g. pentaerythritol's tetrahedral center) is
   its own separate, not-yet-scoped shape -- not attempted here even for
   identical acids, since it isn't a single chain at all. A branched
-  backbone, a branched or unsaturated/halogenated acyl chain,
-  three or more *differing* acyl groups, and any ring are all out of
-  scope and raise `UnsupportedStructure`.
+  backbone, a branched or unsaturated/halogenated acyl chain, and any
+  ring are all out of scope and raise `UnsupportedStructure`.
 """
 
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, non_single_bonds, ordered_chain
-from ._numerals import alkane_name, alkyl_name, multiplying_prefix
+from ._numerals import alkane_name, multiplying_prefix
 
 _ALLOWED_ATOMIC_NUMS = {6, 8}
 
@@ -178,39 +172,53 @@ def name_diester_acyloxy(mol) -> str:
 
     lengths = [_acyl_chain_length(mol, acyl, ester_o.GetIdx(), carbonyl.GetIdx()) for acyl, carbonyl, ester_o, _ in matches]
 
-    if len(matches) == 2 and lengths[0] != lengths[1]:
-        length_1, length_2 = lengths
-        if length_2 > length_1:
-            suffix_length, acyloxy_length = length_2, length_1
-            backbone = list(reversed(backbone))
-        else:
-            suffix_length, acyloxy_length = length_1, length_2
-
-        acyloxy_locant = len(backbone)
-        alcohol_chain_name = alkyl_name(len(backbone))
-        acyloxy_prefix = f"{acyloxy_locant}-{_acid_stem(acyloxy_length)}oyloxy"
-        suffix_acid_name = _acid_stem(suffix_length) + "oate"
-
-        return f"{acyloxy_prefix}{alcohol_chain_name} {suffix_acid_name}"
-
-    if any(length != lengths[0] for length in lengths):
-        raise UnsupportedStructure(
-            "a polyester with three or more differing acyl groups is not "
-            "supported yet (see module docstring; only the identical-acid "
-            "case is in scope beyond two esters)"
-        )
-
     alcohol_atoms = {alcohol.GetIdx() for _, _, _, alcohol in matches}
     best_locants = None
+    best_position_of = None
     for candidate in (backbone, list(reversed(backbone))):
         position_of = {idx: i + 1 for i, idx in enumerate(candidate)}
         locants = sorted(position_of[idx] for idx in alcohol_atoms)
         if best_locants is None or locants < best_locants:
-            best_locants = locants
+            best_locants, best_position_of = locants, position_of
 
     yl_prefix = multiplying_prefix(len(matches))
     locant_str = ",".join(str(loc) for loc in best_locants)
     group_name = f"{alkane_name(len(backbone))}-{locant_str}-{yl_prefix}yl"
-    acid_name = f"{yl_prefix}{_acid_stem(lengths[0])}oate"
 
-    return f"{group_name} {acid_name}"
+    if len(set(lengths)) == 1:
+        acid_name = f"{yl_prefix}{_acid_stem(lengths[0])}oate"
+        return f"{group_name} {acid_name}"
+
+    # P-65.6.3.3.3.2 method 1: differing acyl groups are cited as separate
+    # anion names, each with its own locant set and multiplying prefix (if
+    # repeated), in alphanumerical order of the acid name -- the PIN, in
+    # place of the acyloxy-prefix method 2 this module used to return here
+    # (general nomenclature only, still `_diester_acyloxy.py`'s territory
+    # for reference in the module docstring, not this function's output).
+    groups = {}
+    for length, (_, _, _, alcohol) in zip(lengths, matches):
+        groups.setdefault(length, []).append(best_position_of[alcohol.GetIdx()])
+
+    # For exactly two esters, the backbone's own two-fold symmetry (either
+    # numbering direction describes the identical molecule) means no
+    # locant is needed to know which acid sits where -- confirmed against
+    # the Blue Book's own 'methylene acetate formate (PIN)' and
+    # '1,4-phenylene acetate dichloroacetate (PIN)' examples, neither of
+    # which cites an acid locant. Three or more positions lose that
+    # symmetry (an interior position is constitutionally distinct from
+    # the ends), so every group's locant(s) must be cited there, per the
+    # 'propane-1,2,3-triyl 1,2-diacetate 3-propanoate (PIN)' example.
+    cite_locants = len(matches) != 2
+
+    acid_parts = []
+    for length in sorted(groups, key=lambda length: _acid_stem(length)):
+        locants = sorted(groups[length])
+        count = len(locants)
+        prefix = multiplying_prefix(count) if count > 1 else ""
+        acid_name = f"{prefix}{_acid_stem(length)}oate"
+        if cite_locants:
+            loc_str = ",".join(str(loc) for loc in locants)
+            acid_name = f"{loc_str}-{acid_name}"
+        acid_parts.append(acid_name)
+
+    return f"{group_name} " + " ".join(acid_parts)
