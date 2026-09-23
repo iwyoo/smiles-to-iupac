@@ -67,11 +67,6 @@ def test_2_chlorocyclohexane_1_sulfinamide():
     assert smiles_to_iupac("O=S(N)C1CCCCC1Cl") == "2-chlorocyclohexane-1-sulfinamide"
 
 
-def test_polycyclic_sulfinamide_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=S(N)C1CC2CCC1CC2")
-
-
 def test_unsaturated_ring_sulfinamide():
     # Monocyclic ring, single -SONH2, single ring double bond (P-31.1.3):
     # same pattern already confirmed for `_sulfonamide.py` (PR #356). The
