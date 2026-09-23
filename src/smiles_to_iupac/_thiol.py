@@ -56,11 +56,15 @@ ring triple bond, and any other substituent alongside the ring double
 bond, are both still explicitly rejected pending further verification.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-polycyclic/spiro rings, unsaturation reaching outside the ring or a ring
-triple bond, an -SH on a substituent branch off an otherwise-unsubstituted
-*saturated* ring, a sulfide (-S- ether-analogue)
-or any other sulfur-oxidation-state group (sulfonic acid, etc.), and any
-oxygen or nitrogen atom at all. Two *aromatic*-ring cases:
+more than one thiol, or a specified stereocenter, on a von Baeyer
+polycyclic or spiro skeleton (a single -SH on such a skeleton is
+supported, P-23/P-24 numbering integration via `_polycyclic_suffix.py`
+with `elide_e=False`, since 'thiol' begins with a consonant); ring
+unsaturation reaching outside the ring or a ring triple bond, an -SH on a
+substituent branch off an otherwise-unsubstituted *saturated* ring, a
+sulfide (-S- ether-analogue) or any other sulfur-oxidation-state group
+(sulfonic acid, etc.), and any oxygen or nitrogen atom at all. Two
+*aromatic*-ring cases:
 `_name_phenyl_chain_thiol` names one or more -SH groups on a chain
 hanging off a plain, unsubstituted benzene ring (e.g.
 '3-phenylpropane-1-thiol', '3-phenylpropane-1,2-dithiol'), mirroring
@@ -105,7 +109,11 @@ from ._common import (
     substituent_locant_set_and_citation,
     two_separate_rings_with_plain_aromatic_substituent,
 )
+from ._bicyclic import find_bicyclic_core
 from ._numerals import alkyl_name
+from ._polycyclic import find_polycyclic_core
+from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
+from ._spiro import find_monospiro_atom
 from ._substituents import (
     branch_atom_locant,
     format_substituent_prefixes,
@@ -600,6 +608,68 @@ def _name_ring_with_thiol_chain_thiol(mol, thiols):
     return best_name
 
 
+def _name_von_baeyer_or_spiro_thiol(mol, thiols, stereo, bonds):
+    """P-23.2.1/P-24.2.1's von Baeyer bicyclic/polycyclic/monospiro
+    numbering extended with a single -SH suffix, via
+    `_polycyclic_suffix.name_von_baeyer_suffix`/`name_monospiro_suffix`'s
+    `elide_e=False` (P-16.3.3: 'thiol' begins with a consonant, so the
+    parent stem's final 'e' is kept, e.g. 'bicyclo[2.2.1]heptane-2-thiol',
+    not '...heptan-2-thiol' -- PubChem CID 13487780). Mirrors
+    `_amine.py`'s/`_ketone.py`'s own bicyclic/polycyclic-before-spiro
+    dispatch order and restrictions: exactly one thiol on the ring system
+    itself, no ring unsaturation, no specified stereocenter."""
+    if len(thiols) != 1:
+        raise UnsupportedStructure(
+            "more than one thiol on a von Baeyer bicyclic/polycyclic or "
+            "monospiro ring system is not supported yet"
+        )
+    if bonds:
+        raise UnsupportedStructure(
+            "an unsaturated von Baeyer bicyclic/polycyclic or monospiro "
+            "ring system is not supported yet (see P-31.1.4/P-31.1.5)"
+        )
+    if stereo is not None:
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a von Baeyer bicyclic/"
+            "polycyclic or monospiro thiol is not supported yet (see P-92)"
+        )
+
+    (sulfur,) = thiols
+    graph = adjacency(mol)
+    (thiol_carbon,) = graph[sulfur]
+
+    bicyclic_core = find_bicyclic_core(mol)
+    polycyclic_core = None
+    von_baeyer_ring_count = None
+    if bicyclic_core is None:
+        for candidate_ring_count in (3, 4, 5, 6):
+            polycyclic_core = find_polycyclic_core(mol, candidate_ring_count)
+            if polycyclic_core is not None:
+                von_baeyer_ring_count = candidate_ring_count
+                break
+    if bicyclic_core is not None or polycyclic_core is not None:
+        return name_von_baeyer_suffix(
+            mol,
+            thiol_carbon,
+            thiols,
+            "thiol",
+            "thiol",
+            bicyclic_core,
+            polycyclic_core,
+            von_baeyer_ring_count,
+            elide_e=False,
+        )
+
+    spiro_atom = find_monospiro_atom(mol)
+    if spiro_atom is not None:
+        return name_monospiro_suffix(mol, thiol_carbon, thiols, "thiol", "thiol", spiro_atom, elide_e=False)
+
+    raise UnsupportedStructure(
+        "polycyclic and fused-ring thiols are not supported yet (P-23/"
+        "P-25 numbering integration with a suffix group is future work)"
+    )
+
+
 def name_thiol(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
@@ -674,10 +744,7 @@ def name_thiol(mol) -> str:
             mol, thiols, stereo, bonds, ring_atoms=ring_atoms, aromatic_atoms=aromatic_atoms
         )
     if num_rings > 1:
-        raise UnsupportedStructure(
-            "polycyclic/spiro thiols are not supported yet (this module "
-            "only handles acyclic chains and a single saturated ring)"
-        )
+        return _name_von_baeyer_or_spiro_thiol(mol, thiols, stereo, bonds)
     if num_rings == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in bonds):

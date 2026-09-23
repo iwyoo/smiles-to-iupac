@@ -93,11 +93,6 @@ def test_cyclopentanethiol():
     assert smiles_to_iupac("SC1CCCC1") == "cyclopentanethiol"
 
 
-def test_polycyclic_thiol_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SC1CC2CCC1CC2")
-
-
 def test_ring_substituent_chain_thiol():
     # A thiol entirely on a chain hanging off a plain saturated ring (the
     # ring itself bears no thiol) -- the ring is cited as a "cyclo..."
