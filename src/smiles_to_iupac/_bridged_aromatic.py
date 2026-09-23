@@ -1,10 +1,10 @@
-"""Naming of the single-atom-bridged fused-aromatic case (1,4-type methano/
-epoxy/sulfano/azano bridges on a terminal ring of any plain all-carbon
-ortho-fused mancude polycyclic aromatic parent this project can already
-name -- naphthalene ("benzonorbornadiene"), phenanthrene, tetracene, etc.
--- plus the anthracene analogue bridging the 9,10 meso positions,
-"9,10-dihydro-9,10-methanoanthracene"), per the IUPAC 2013 Recommendations
-("the Blue Book"):
+"""Naming of the single- and two-atom-bridged fused-aromatic case (1,4-type
+methano/epoxy/sulfano/azano/ethano bridges on a terminal ring of any plain
+all-carbon ortho-fused mancude polycyclic aromatic parent this project can
+already name -- naphthalene ("benzonorbornadiene"), phenanthrene,
+tetracene, etc. -- plus the anthracene analogue bridging the 9,10 meso
+positions, "9,10-dihydro-9,10-methanoanthracene"), per the IUPAC 2013
+Recommendations ("the Blue Book"):
 
 - P-25.4 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf): a
   one-atom bridge across two nonadjacent ('1,4'-type) positions of a
@@ -19,11 +19,20 @@ name -- naphthalene ("benzonorbornadiene"), phenanthrene, tetracene, etc.
   structurally identical in shape to 'epoxy' (single bridge atom, no
   further substitution) -- verified against real PubChem structures (CID
   68694281 for the sulfano case, CID 138429 for the azano case). Se/Te
-  analogues ('selano'/'tellano') and the multi-atom acyclic bridges
-  ('ethano', 'propano', 'etheno', 'disulfano') are out of scope here --
-  no real registered structure was found for the former, and the latter
-  need a two-bridge-atom shape this module's single-bridge-atom core-
-  finder doesn't recognize.
+  analogues ('selano'/'tellano') and the multi-atom acyclic bridges other
+  than ethano ('propano', 'etheno', 'disulfano') remain out of scope here
+  -- no real registered structure was found for the former, and the
+  latter each need their own variable-length/internal-unsaturation
+  handling, a further extension of the two-atom-bridge mechanism below.
+- P-25.4.2.1.1: a two-carbon -CH2-CH2- bridge is 'ethano' (preferred
+  prefix). P-25.4.4's own worked example gives '1,4-ethanonaphthalene
+  (PIN)' for the bare numbering rule, but the *complete* PIN needs the
+  same 'dihydro' added-hydrogen prefix as the single-atom bridges above --
+  confirmed directly by a separate worked example in the same primary
+  source, P-25.4.4.1(j): "1,4-dihydro-1,4-ethanoanthracene (PIN) (not
+  1,2,3,4-tetrahydro-1,4-ethenoanthracene)" (`tmp/bluebook/P2.txt`
+  ~5892), not a guess or an extrapolation from the abbreviated numbering-
+  only example.
 - Structural necessity for 'dihydro' (P-31.1.4.2): bridging naphthalene's
   1,4-positions forces both bridgehead carbons to sp3 (a bridged atom can't
   stay part of a mancude/aromatic ring), so the correct name is
@@ -141,15 +150,46 @@ def _bridge_candidates(mol):
     return candidates
 
 
+def _is_bridge_ch2(atom):
+    return (
+        not atom.GetIsAromatic()
+        and atom.GetDegree() == 2
+        and atom.GetAtomicNum() == 6
+        and atom.GetTotalNumHs() == 2
+        and atom.GetHybridization().name == "SP3"
+    )
+
+
+def _ethano_bridge_candidates(mol):
+    """Two mutually-bonded -CH2- atoms, each also bonded to exactly one
+    other (bridgehead) atom -- a 2-atom -CH2-CH2- ('ethano', P-25.4.2.1.1)
+    bridge chain, as a `(atom, atom)` pair per candidate."""
+    seen_pairs = set()
+    candidates = []
+    for atom in mol.GetAtoms():
+        if not _is_bridge_ch2(atom):
+            continue
+        for neighbor in atom.GetNeighbors():
+            if not _is_bridge_ch2(neighbor):
+                continue
+            pair_key = tuple(sorted((atom.GetIdx(), neighbor.GetIdx())))
+            if pair_key in seen_pairs:
+                continue
+            seen_pairs.add(pair_key)
+            candidates.append((atom, neighbor))
+    return candidates
+
+
 def find_bridged_aromatic_core(mol):
     """Return (atom_rings, ring_atom_sets, fusion_bond_idxs, bridgeheads,
-    bridge_prefix, bridge_idx) if `mol` is a plain all-carbon ortho-fused
+    bridge_prefix, bridge_idxs) if `mol` is a plain all-carbon ortho-fused
     mancude polycyclic aromatic parent -- any parent `_aromatic.py`'s
     `find_aromatic_fused_core`/`name_aromatic_fused` can already name
     (naphthalene, anthracene, phenanthrene, tetracene..nonacene) -- plus
-    exactly one -CH2- or -O- bridge across one ring's 1,4-type positions
-    (see module docstring), optionally with halogen substituents on the
-    rest of the aromatic system, else None.
+    exactly one single-atom bridge (-CH2-, -O-, -S-, -NH-) or one
+    two-atom -CH2-CH2- ('ethano') bridge across one ring's 1,4-type
+    positions (see module docstring), optionally with halogen
+    substituents on the rest of the aromatic system, else None.
 
     RDKit's own ring perception can't be trusted for the bridged ring
     itself (see module docstring: it finds two 5-membered artifact rings
@@ -171,21 +211,35 @@ def find_bridged_aromatic_core(mol):
             return None
 
     bridge_candidates = _bridge_candidates(mol)
-    if len(bridge_candidates) != 1:
+    if len(bridge_candidates) == 1:
+        bridge_atoms = [bridge_candidates[0]]
+        bridge_prefix = _BRIDGE_PREFIXES[bridge_atoms[0].GetAtomicNum()]
+    else:
+        ethano_candidates = _ethano_bridge_candidates(mol)
+        if len(ethano_candidates) != 1:
+            return None
+        bridge_atoms = list(ethano_candidates[0])
+        bridge_prefix = "ethano"
+    if any(a.GetFormalCharge() != 0 or a.GetIsotope() != 0 for a in bridge_atoms):
         return None
-    bridge_atom = bridge_candidates[0]
-    if bridge_atom.GetFormalCharge() != 0 or bridge_atom.GetIsotope() != 0:
-        return None
-    bridge_prefix = _BRIDGE_PREFIXES[bridge_atom.GetAtomicNum()]
+    bridge_idxs = {a.GetIdx() for a in bridge_atoms}
 
     for atom in mol.GetAtoms():
-        if atom.GetIdx() == bridge_atom.GetIdx() or atom.GetIdx() in halogens:
+        if atom.GetIdx() in bridge_idxs or atom.GetIdx() in halogens:
             continue
         if atom.GetAtomicNum() != 6 or atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             return None
 
-    bridgeheads = list(bridge_atom.GetNeighbors())
-    if len(bridgeheads) != 2:
+    if len(bridge_atoms) == 1:
+        bridgeheads = list(bridge_atoms[0].GetNeighbors())
+    else:
+        bridgeheads = []
+        for bridge_atom in bridge_atoms:
+            externals = [n for n in bridge_atom.GetNeighbors() if n.GetIdx() not in bridge_idxs]
+            if len(externals) != 1:
+                return None
+            bridgeheads.append(externals[0])
+    if len(bridgeheads) != 2 or bridgeheads[0].GetIdx() == bridgeheads[1].GetIdx():
         return None
     for bh in bridgeheads:
         if bh.GetIsAromatic() or bh.GetDegree() != 3 or bh.GetTotalNumHs() != 1:
@@ -195,7 +249,7 @@ def find_bridged_aromatic_core(mol):
 
     fusion_atoms, ene_atoms = [], []
     for bh in bridgeheads:
-        others = [n for n in bh.GetNeighbors() if n.GetIdx() != bridge_atom.GetIdx()]
+        others = [n for n in bh.GetNeighbors() if n.GetIdx() not in bridge_idxs]
         if len(others) != 2:
             return None
         found_fusion = [n for n in others if n.GetIsAromatic() and n.GetDegree() == 3 and n.GetTotalNumHs() == 0]
@@ -238,7 +292,7 @@ def find_bridged_aromatic_core(mol):
     for s in ring_atom_sets:
         full_ring_atoms |= s
     other_atoms = {
-        atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIdx() != bridge_atom.GetIdx() and atom.GetIdx() not in halogens
+        atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIdx() not in bridge_idxs and atom.GetIdx() not in halogens
     }
     if other_atoms - full_ring_atoms:
         # A substituent other than a halogen (see module docstring) --
@@ -261,18 +315,18 @@ def find_bridged_aromatic_core(mol):
     fusion_bond_idxs = {b for b, c in bond_ring_count.items() if c >= 2}
 
     bridgehead_idxs = (bridgeheads[0].GetIdx(), bridgeheads[1].GetIdx())
-    return atom_rings, ring_atom_sets, fusion_bond_idxs, bridgehead_idxs, bridge_prefix, bridge_atom.GetIdx()
+    return atom_rings, ring_atom_sets, fusion_bond_idxs, bridgehead_idxs, bridge_prefix, bridge_idxs
 
 
 def name_bridged_aromatic(mol, core) -> str:
-    atom_rings, ring_atom_sets, fusion_bond_idxs, bridgeheads, bridge_prefix, bridge_idx = core
+    atom_rings, ring_atom_sets, fusion_bond_idxs, bridgeheads, bridge_prefix, bridge_idxs = core
     n = len(atom_rings)
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     full_ring_atoms = set()
     for s in ring_atom_sets:
         full_ring_atoms |= s
-    excluded = full_ring_atoms | {bridge_idx}
+    excluded = full_ring_atoms | set(bridge_idxs)
 
     adj, fusion_bonds_by_pair = _ring_adjacency(atom_rings, ring_atom_sets, fusion_bond_idxs, mol)
     ring_order = _ring_path_order(adj, n)
