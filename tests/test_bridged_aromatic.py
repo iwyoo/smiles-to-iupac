@@ -45,12 +45,13 @@ def test_dihydronaphthalene_itself_is_unaffected():
     assert smiles_to_iupac("C1CC=Cc2ccccc12") == "1,2-dihydronaphthalene"
 
 
-def test_fully_saturated_bridge_raises():
-    # the bridged reduced ring must still carry the "ene" double bond
-    # (P-25.4's bridge doesn't itself imply further saturation) -- a fully
-    # saturated bridgehead pair is a different, out-of-scope shape.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CC2CC1c1ccccc12")
+def test_fully_saturated_bridge_is_von_baeyer_not_fusion_name():
+    # a fully saturated bridgehead pair (no "ene" double bond in the
+    # reduced ring) is a different molecule from `test_bridged_naphthalene`
+    # above -- P-25.4's fusion+bridge name doesn't apply, but the aromatic
+    # ring is still a valid von Baeyer Kekule cyclohexatriene (P-31.1.4.2).
+    # PubChem CID 138272 confirms this exact name.
+    assert smiles_to_iupac("C1CC2CC1c1ccccc12") == "tricyclo[6.2.1.0^2,7]undeca-2,4,6-triene"
 
 
 def test_substituted_bridge_atom_raises():

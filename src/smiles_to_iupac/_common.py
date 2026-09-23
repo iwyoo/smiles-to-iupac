@@ -143,6 +143,35 @@ def non_single_bonds(mol):
     ]
 
 
+def kekulized_copy(mol):
+    """Kekulizes `mol`'s aromatic bonds (P-31.1.4.2's "a benzene ring is
+    treated as a cyclohexatriene" rule) only when doing so is unambiguous
+    and within this project's current von Baeyer scope: exactly one
+    fully-aromatic ring, and no other non-single bond anywhere else in the
+    molecule. Two (or more) independently-aromatic rings (e.g. a
+    cyclophane), or genuine unsaturation coexisting outside the aromatic
+    ring (e.g. a dihydronaphthalene's own ring double bond, or a
+    substituent on the bridged-aromatic shape `_bridged_aromatic.py`
+    doesn't cover yet), are deliberately left alone -- returns `mol`
+    unchanged for those (and for the ordinary all-saturated case), so
+    every other caller's existing "not supported yet" behavior stays
+    intact. Atom indices are preserved when a copy is made: `Chem.Kekulize`
+    only rewrites bond orders/aromatic flags in place, never renumbers
+    atoms -- so an already-computed atom-index-based ring topology (e.g. a
+    von Baeyer `core`) stays valid against the result."""
+    ring_info = mol.GetRingInfo()
+    aromatic_rings = [
+        ring for ring in ring_info.AtomRings() if all(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring)
+    ]
+    if len(aromatic_rings) != 1:
+        return mol
+    if any(not bond.GetIsAromatic() and bond.GetBondTypeAsDouble() != 1.0 for bond in mol.GetBonds()):
+        return mol
+    copy = Chem.RWMol(mol)
+    Chem.Kekulize(copy, clearAromaticFlags=True)
+    return copy.GetMol()
+
+
 def reject_unsaturated_substituents(mol, atoms):
     """Raise `UnsupportedStructure` if any bond in `mol` touching `atoms`
     (a characteristic-group module's own N-substituent atom indices) is
