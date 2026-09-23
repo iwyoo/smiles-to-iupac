@@ -135,3 +135,49 @@ def test_substituted_bridged_anthracene_bridge_raises():
 def test_substituted_bridged_anthracene_aromatic_ring_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("Cc1ccc2c(c1)C1c3ccccc3C2C1")
+
+
+def test_bridged_anthracene_on_terminal_ring():
+    # A 1,4-type bridge on one of anthracene's own *terminal* rings, not
+    # the already-tested 9,10 meso positions -- structurally the same
+    # "one fusion neighbor + one ene neighbor per bridgehead" shape
+    # `test_bridged_naphthalene` exercises, just on a 3-ring parent, so
+    # this is the case `find_bridged_aromatic_core`'s generalization now
+    # reaches via `_anthracene_candidates` (previously only reachable via
+    # `find_bridged_naphthalene_core`'s hardcoded 11-atom, 2-ring-only
+    # match). PubChem CID 606064 confirms both the structure and this
+    # exact name as a registered synonym ("1,4-Dihydro-1,4-methanoanthracene",
+    # alongside the alternate CAS index name "Naphtho[2,3-b]norbornadiene").
+    assert smiles_to_iupac("C1=CC2CC1c1cc3ccccc3cc12") == "1,4-dihydro-1,4-methanoanthracene"
+
+
+def test_halogen_on_bridged_anthracene_terminal_ring():
+    assert (
+        smiles_to_iupac("Clc1ccc2cc3c(cc2c1)C1C=CC3C1") == "6-chloro-1,4-dihydro-1,4-methanoanthracene"
+    )
+
+
+def test_bridged_phenanthrene():
+    # A 1,4-type bridge on one terminal ring of phenanthrene (a *bent*
+    # 3-ring chain, unlike anthracene's straight one) -- exercises
+    # `_phenanthrene_candidates` via the same generalized core-finder.
+    # PubChem CID 606062 confirms the structure (its own registered
+    # synonym uses the alternate CAS norbornadiene-base convention,
+    # "Naphtho[1,2-b]norbornadiene", rather than this fusion+bridge
+    # style -- P-25.4.1.2 requires the bridge to attach to an
+    # already-named *fused ring system*, so the mancude phenanthrene
+    # system, not the non-mancude bridged bicyclic, is the correct P-25.4
+    # base component; the terminal-ring-anthracene case above
+    # independently confirms this project's mechanism produces a real,
+    # registered name for the identical shape on a different parent).
+    assert smiles_to_iupac("C1=CC2CC1c1ccc3ccccc3c12") == "1,4-dihydro-1,4-methanophenanthrene"
+
+
+def test_bridged_tetracene():
+    # A 1,4-type bridge on one terminal ring of a straight 4-ring chain
+    # (tetracene) -- exercises the polyacene branch of
+    # `_retained_chain_name`/`_straight_chain_candidates` via the same
+    # generalized core-finder. PubChem CID 13082583 confirms the
+    # structure (same CAS-convention-vs-P-25.4 caveat as the phenanthrene
+    # case above).
+    assert smiles_to_iupac("C1=CC2CC1c1cc3cc4ccccc4cc3cc12") == "1,4-dihydro-1,4-methanotetracene"
