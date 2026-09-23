@@ -1,5 +1,5 @@
-"""Naming of symmetric trialkyl phosphate esters (P(=O)(OR)3, all three R
-identical), per the IUPAC 2013 Recommendations ("the Blue Book"):
+"""Naming of trialkyl phosphate esters (P(=O)(OR)3, R groups identical or
+mixed), per the IUPAC 2013 Recommendations ("the Blue Book"):
 
 - P-67.1.3.2 (Chapter P-6a, https://iupac.qmul.ac.uk/BlueBook/PDF/P6a.pdf):
   esters of mononuclear noncarbon oxoacids are named by citing the
@@ -12,21 +12,29 @@ identical), per the IUPAC 2013 Recommendations ("the Blue Book"):
   ordinary P-14.2.1/P-14.2.2 multiplying-prefix convention already used
   throughout this project (`_numerals.multiplying_prefix`), not a
   substituent-prefix-on-a-parent-hydride construction.
+- Mixed-alkyl esters (P-14.5.2): each distinct R name is its own word
+  (multiplying-prefixed if it appears more than once), words cited in
+  alphanumeric order via `alpha_sort_key` -- e.g. `ethyl methyl phenyl
+  phosphate` (PubChem CID 12494385/12494386, all three distinct) and
+  `diethyl methyl phosphate` (PubChem CID 120420, two identical + one
+  distinct). Both PubChem-computed names are directly usable here (no
+  von-Baeyer ambiguity, unlike a ring parent).
 
 Scope: a single phosphorus atom shaped like a phosphate ester -- one P=O
-double bond, three P-O-R single bonds, all three R groups named
-identically via `name_branch` (a plain alkyl chain, a branched chain, or a
-plain benzene ring, and their halogenated variants, exactly like
-`_phosphonic_acid.py`'s R). Explicitly out of scope (raise
-`UnsupportedStructure`): mixed-alkyl esters (different R groups per ester
-oxygen), partial ("hydrogen") esters (a remaining P-OH), phosphite esters
-(no P=O -- routed to a different module entirely, see `_phosphane.py`),
-any chalcogen-replacement analogue, and any other heteroatom.
+double bond, three P-O-R single bonds, each R named via `name_branch` (a
+plain alkyl chain, a branched chain, or a plain benzene ring, and their
+halogenated variants, exactly like `_phosphonic_acid.py`'s R), identical
+or mixed freely. Explicitly out of scope (raise `UnsupportedStructure`):
+partial ("hydrogen") esters (a remaining P-OH), phosphite esters (no P=O
+-- routed to a different module entirely, see `_phosphane.py`), any
+chalcogen-replacement analogue, and any other heteroatom.
 """
 
 from rdkit import Chem
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
+from collections import Counter
+
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._numerals import multiplying_prefix
 from ._substituents import name_branch
 
@@ -114,12 +122,6 @@ def name_phosphate(mol) -> str:
         roots.append((root, oxygen_idx))
 
     names = [name_branch(graph, root, coming_from, halogens, aromatic_atoms, mol=mol)[0] for root, coming_from in roots]
-    (first_name, *rest) = names
-    if any(name != first_name for name in rest):
-        raise UnsupportedStructure(
-            "a mixed-alkyl phosphate ester (different substituents on "
-            "different ester oxygens) is not supported yet"
-        )
 
     # P-67.1.3.2's own worked examples confirm this ester word-citation
     # style is NOT the same as the substituent-prefix-on-a-parent-hydride
@@ -131,8 +133,17 @@ def name_phosphate(mol) -> str:
     # 'tris(2-chloroethyl) phosphate' -- enclosing marks are needed there
     # purely to keep the leading digit from reading as part of the
     # multiplying term itself, confirmed against real PubChem structures
-    # for both shapes (see PR description).
-    needs_enclosure = first_name[0].isdigit()
-    prefix = multiplying_prefix(3, compound=needs_enclosure)
-    group = f"({first_name})" if needs_enclosure else first_name
-    return f"{prefix}{group} phosphate"
+    # for both shapes (see PR description). A mixed-alkyl ester (P-14.5.2)
+    # groups identical R names under one multiplied word each, the words
+    # then cited in alphanumeric order (e.g. 'diethyl methyl phosphate',
+    # PubChem CID 120420) -- three identical names collapse to the same
+    # single-word case this module already produced.
+    counts = Counter(names)
+    words = []
+    for name in sorted(counts, key=alpha_sort_key):
+        count = counts[name]
+        needs_enclosure = name[0].isdigit()
+        group = f"({name})" if needs_enclosure else name
+        prefix = multiplying_prefix(count, compound=needs_enclosure) if count > 1 else ""
+        words.append(f"{prefix}{group}")
+    return " ".join(words) + " phosphate"
