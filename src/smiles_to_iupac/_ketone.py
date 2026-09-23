@@ -61,8 +61,11 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - A hydroxyl on a carbon that is also part of a C=C/C#C bond (an enol,
   tautomeric with a more senior carbonyl form) — same restriction as
   `_alcohol.py`'s own enol check.
-- -one on a von Baeyer polycyclic or spiro skeleton — deferred, same as
-  `_alcohol.py`.
+- More than one ketone, or a coexisting hydroxyl, on a von Baeyer
+  polycyclic or spiro skeleton, or a specified stereocenter alongside
+  one — deferred (see `_name_von_baeyer_or_spiro_ketone`); a single
+  -one on such a skeleton is supported (P-23/P-24 numbering
+  integration, `_polycyclic_suffix.py`).
 
 A narrow extra path handles one or more ketone carbonyls on an otherwise
 unsubstituted, saturated, single- or two-heteroatom (N/O/S) monocyclic
@@ -303,6 +306,7 @@ from ._common import (
     substituent_locant_set_and_citation,
     two_separate_rings_with_plain_aromatic_substituent,
 )
+from ._bicyclic import find_bicyclic_core
 from ._hetero_monocyclic import (
     saturated_five_membered_1_2_two_heteroatom_ring_name,
     saturated_five_membered_1_3_two_heteroatom_ring_name,
@@ -313,6 +317,9 @@ from ._hetero_monocyclic import (
     saturated_two_heteroatom_1_4_ring_name,
 )
 from ._numerals import alkyl_name
+from ._polycyclic import find_polycyclic_core
+from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
+from ._spiro import find_monospiro_atom
 from ._substituents import (
     branch_atom_locant,
     format_substituent_prefixes,
@@ -1847,7 +1854,66 @@ def name_ketone(mol) -> str:
         return _name_cyclic_ketone(
             mol, ketones, hydroxyls, stereo, bonds, ring_atoms=ring_atoms, aromatic_atoms=aromatic_atoms
         )
+    return _name_von_baeyer_or_spiro_ketone(mol, ketones, hydroxyls, stereo, bonds)
+
+
+def _name_von_baeyer_or_spiro_ketone(mol, ketones, hydroxyls, stereo, bonds):
+    """P-23.2.1/P-24.2.1's von Baeyer bicyclic/polycyclic/monospiro
+    numbering extended with a single ketone (=O) suffix, via
+    `_polycyclic_suffix.name_von_baeyer_suffix`/`name_monospiro_suffix`
+    (the shared mechanism `_alcohol.py`'s/`_amine.py`'s equivalent
+    dispatch already uses, #822/#831 M2). Mirrors `_amine.py`'s own
+    bicyclic/polycyclic-before-spiro dispatch order -- a spiro atom's
+    degree-4 shape never matches `find_bicyclic_core`/`find_polycyclic_
+    core`'s own degree-2/3 core requirement, so this never misfires on a
+    genuine spiro system. Restricted to exactly one ketone on the ring
+    system itself, no coexisting hydroxyl, no ring unsaturation, and no
+    specified stereocenter -- a coexisting hydroxyl and the remaining 12
+    suffix modules are out of scope for this step (M2's later steps)."""
+    if hydroxyls:
+        raise UnsupportedStructure(
+            "a hydroxyl alongside a von Baeyer bicyclic/polycyclic or "
+            "monospiro ketone is not supported yet"
+        )
+    if len(ketones) != 1:
+        raise UnsupportedStructure(
+            "more than one ketone on a von Baeyer bicyclic/polycyclic or "
+            "monospiro ring system is not supported yet"
+        )
+    if bonds:
+        raise UnsupportedStructure(
+            "an unsaturated von Baeyer bicyclic/polycyclic or monospiro "
+            "ring system is not supported yet (see P-31.1.4/P-31.1.5)"
+        )
+    if stereo is not None:
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a von Baeyer bicyclic/"
+            "polycyclic or monospiro ketone is not supported yet (see P-92)"
+        )
+
+    (ketone_oxygen,) = ketones
+    graph = adjacency(mol)
+    (ketone_carbon,) = graph[ketone_oxygen]
+
+    bicyclic_core = find_bicyclic_core(mol)
+    polycyclic_core = None
+    von_baeyer_ring_count = None
+    if bicyclic_core is None:
+        for candidate_ring_count in (3, 4, 5, 6):
+            polycyclic_core = find_polycyclic_core(mol, candidate_ring_count)
+            if polycyclic_core is not None:
+                von_baeyer_ring_count = candidate_ring_count
+                break
+    if bicyclic_core is not None or polycyclic_core is not None:
+        return name_von_baeyer_suffix(
+            mol, ketone_carbon, ketones, "one", "ketone", bicyclic_core, polycyclic_core, von_baeyer_ring_count
+        )
+
+    spiro_atom = find_monospiro_atom(mol)
+    if spiro_atom is not None:
+        return name_monospiro_suffix(mol, ketone_carbon, ketones, "one", "ketone", spiro_atom)
+
     raise UnsupportedStructure(
-        "polycyclic and spiro ketones are not supported yet (P-23/P-24/P-25 "
-        "numbering integration with a suffix group is future work)"
+        "polycyclic and fused-ring ketones are not supported yet (P-23/"
+        "P-25 numbering integration with a suffix group is future work)"
     )
