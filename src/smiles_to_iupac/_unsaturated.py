@@ -147,6 +147,31 @@ def _unsaturation_suffix(ene_locants, yne_locants):
     return body, needs_stem_a
 
 
+def _unsaturation_suffix_from_citations(ene_citations, yne_citations):
+    """Like `_unsaturation_suffix`, but each locant is a (primary_locant,
+    display) pair (`_common.von_baeyer_unsaturation_citations`) instead of
+    a plain integer -- P-31.1.4.2(1)'s compound-locant display (e.g.
+    '1(7)') for a von Baeyer bicyclic/polycyclic parent, sorted by each
+    bond's own primary (never-parenthesized) locant."""
+    ene_citations = sorted(ene_citations)
+    yne_citations = sorted(yne_citations)
+    ene_count, yne_count = len(ene_citations), len(yne_citations)
+    ene_word = multiplied_word(ene_count, "ene")
+    yne_word = multiplied_word(yne_count, "yne")
+
+    ene_str = ",".join(display for _, display in ene_citations)
+    yne_str = ",".join(display for _, display in yne_citations)
+    if ene_count and yne_count:
+        body = f"{ene_str}-{ene_word[:-1]}-{yne_str}-{yne_word}"
+    elif ene_count:
+        body = f"{ene_str}-{ene_word}"
+    else:
+        body = f"{yne_str}-{yne_word}"
+
+    needs_stem_a = (ene_count >= 2) if ene_count else (yne_count >= 2)
+    return body, needs_stem_a
+
+
 def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped):
     prefix = format_substituent_prefixes(grouped)
     stem = alkane_name(chain_length)[:-3]

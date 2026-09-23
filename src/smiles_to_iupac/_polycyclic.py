@@ -97,10 +97,11 @@ from ._common import (
     non_single_bonds,
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
+    von_baeyer_unsaturation_citations,
 )
 from ._numerals import alkane_name, numerical_term
 from ._substituents import format_substituent_prefixes, substituents_for_ring
-from ._unsaturated import _unsaturation_suffix
+from ._unsaturated import _unsaturation_suffix_from_citations
 
 
 def _strip_leaves(graph):
@@ -382,14 +383,13 @@ def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=N
 
 
 def _name_polycyclic_unsaturated(mol, core, ring_count, bonds) -> str:
-    """P-31.1.4.1's simple ('consecutive-locant') case for a ring_count>=3
-    polycyclic, mirroring `_bicyclic._name_bicyclic_unsaturated` exactly:
-    every double/triple bond's two atoms must land on adjacent locants
-    under some valid numbering (`iter_polycyclic_candidates`), folded into
-    `_candidate_key`'s existing `suffix_locant` slot ahead of substituent
-    locants. A bond whose two atoms are never adjacent under any candidate
-    numbering means the whole molecule needs a compound-locant descriptor
-    instead -- the same follow-up milestone `_bicyclic.py` defers to."""
+    """P-31.1.4.1's simple case and P-31.1.4.2's compound-locant case for a
+    ring_count>=3 polycyclic, mirroring `_bicyclic._name_bicyclic_
+    unsaturated` exactly: every candidate numbering
+    (`iter_polycyclic_candidates`) always yields *some* valid citation via
+    `_common.von_baeyer_unsaturation_citations`, ranked by P-31.1.4.2's own
+    3-step tie-break folded into `_candidate_key`'s existing
+    `suffix_locant` slot ahead of substituent locants."""
     invalid_orders = [order for _, _, order in bonds if order not in (ENE_BOND_ORDER, YNE_BOND_ORDER)]
     if invalid_orders:
         raise UnsupportedStructure(
@@ -403,31 +403,28 @@ def _name_polycyclic_unsaturated(mol, core, ring_count, bonds) -> str:
     best_key = None
     for full_order, parent, outer_key in iter_polycyclic_candidates(core, ring_count):
         position = {atom: i + 1 for i, atom in enumerate(full_order)}
-        ene_locants = []
-        yne_locants = []
-        for a, b, order in bonds:
-            pa, pb = position[a], position[b]
-            if abs(pa - pb) != 1:
-                break
-            (ene_locants if order == ENE_BOND_ORDER else yne_locants).append(min(pa, pb))
-        else:
-            combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
-            ene_locant_set = lowest_locant_set(ene_locants)
-            body, needs_stem_a = _unsaturation_suffix(ene_locants, yne_locants)
-            suffixed_parent = parent[:-3] + ("a" if needs_stem_a else "") + "-" + body
-            substituents = substituents_for_ring(graph, full_order, halogens)
-            key = outer_key + _candidate_key(
-                suffixed_parent, substituents, suffix_locant=(combined_locant_set, ene_locant_set)
-            )
-            if best_key is None or key < best_key:
-                best_key = key
+        ene_citations, yne_citations, compound_count, primary_locants, full_locants = (
+            von_baeyer_unsaturation_citations(position, bonds)
+        )
+        primary_locant_set = lowest_locant_set(primary_locants)
+        full_locant_set = lowest_locant_set(full_locants)
+        ene_locant_set = lowest_locant_set([locant for locant, _ in ene_citations])
+        body, needs_stem_a = _unsaturation_suffix_from_citations(ene_citations, yne_citations)
+        suffixed_parent = parent[:-3] + ("a" if needs_stem_a else "") + "-" + body
+        substituents = substituents_for_ring(graph, full_order, halogens)
+        key = outer_key + _candidate_key(
+            suffixed_parent,
+            substituents,
+            suffix_locant=(compound_count, primary_locant_set, full_locant_set, ene_locant_set),
+        )
+        if best_key is None or key < best_key:
+            best_key = key
 
     if best_key is None:
         raise UnsupportedStructure(
-            "no von Baeyer numbering makes every double/triple bond's two "
-            "atoms consecutively numbered (P-31.1.4.1); a compound-locant "
-            "descriptor is a separate follow-up milestone, not supported "
-            "yet"
+            "this polycyclic topology is not supported yet (see "
+            "_polycyclic.py's module docstring for the scope this module "
+            "covers)"
         )
     return best_key[-1]
 
