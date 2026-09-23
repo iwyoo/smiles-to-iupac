@@ -41,15 +41,27 @@ def von_baeyer_core_atoms(bicyclic_core, polycyclic_core):
     return set(branch_atoms) | {atom for _, _, path in bridges for atom in path}
 
 
+def _suffixed_parent(base_parent, locant, suffix_word, elide_e):
+    """P-16.3.3: the parent stem's final 'e' is elided before a
+    vowel-initial suffix ('heptane' + '-2-ol' -> 'heptan-2-ol') but kept
+    before a consonant-initial one ('heptane' + '-2-thiol' ->
+    'heptane-2-thiol', confirmed by `_thiol.py`'s own module docstring
+    and existing acyclic/cyclic naming, PubChem CID 13487780). `elide_e`
+    defaults to True (`-ol`/`-amine`/`-one`, every suffix piloted so far)
+    so existing callers are unaffected."""
+    stem = base_parent[:-1] if elide_e else base_parent
+    return stem + f"-{locant}-{suffix_word}"
+
+
 def name_von_baeyer_suffix(
-    mol, suffix_carbon, excluded, suffix_word, noun, bicyclic_core, polycyclic_core, ring_count
+    mol, suffix_carbon, excluded, suffix_word, noun, bicyclic_core, polycyclic_core, ring_count, elide_e=True
 ):
     """`suffix_carbon`: the single ring atom the suffix is attached to.
     `excluded`: heteroatom indices to keep out of `substituents_for_ring`'s
     own substituent enumeration (the suffix group's own atom(s)).
-    `suffix_word`: appended after the parent stem's elided final 'e'
-    (e.g. 'ol' -> 'bicyclo[2.2.1]heptan-2-ol', 'amine' ->
-    'bicyclo[2.2.1]heptan-2-amine'). `noun`: used only in the
+    `suffix_word`: appended after the parent stem (see `_suffixed_parent`
+    for the `elide_e` rule, e.g. 'ol' -> 'bicyclo[2.2.1]heptan-2-ol',
+    'thiol' -> 'bicyclo[2.2.1]heptane-2-thiol'). `noun`: used only in the
     not-on-the-ring-system error message (e.g. 'hydroxyl', 'amine')."""
     core_atoms = von_baeyer_core_atoms(bicyclic_core, polycyclic_core)
     if suffix_carbon not in core_atoms:
@@ -66,7 +78,7 @@ def name_von_baeyer_suffix(
         for full_order in iter_bicyclic_numberings(bicyclic_core):
             locant = full_order.index(suffix_carbon) + 1
             substituents = substituents_for_ring(graph, full_order, halogens, excluded, mol=mol)
-            parent = base_parent[:-1] + f"-{locant}-{suffix_word}"
+            parent = _suffixed_parent(base_parent, locant, suffix_word, elide_e)
             key = _bicyclic_candidate_key(parent, substituents, suffix_locant=locant)
             if best_key is None or key < best_key:
                 best_key = key
@@ -75,7 +87,7 @@ def name_von_baeyer_suffix(
     for full_order, parent, outer_key in iter_polycyclic_candidates(polycyclic_core, ring_count):
         locant = full_order.index(suffix_carbon) + 1
         substituents = substituents_for_ring(graph, full_order, halogens, excluded, mol=mol)
-        suffixed_parent = parent[:-1] + f"-{locant}-{suffix_word}"
+        suffixed_parent = _suffixed_parent(parent, locant, suffix_word, elide_e)
         key = outer_key + _polycyclic_candidate_key(suffixed_parent, substituents, suffix_locant=locant)
         if best_key is None or key < best_key:
             best_key = key
@@ -89,7 +101,7 @@ def name_von_baeyer_suffix(
     return best_key[-1]
 
 
-def name_monospiro_suffix(mol, suffix_carbon, excluded, suffix_word, noun, spiro_atom):
+def name_monospiro_suffix(mol, suffix_carbon, excluded, suffix_word, noun, spiro_atom, elide_e=True):
     """Same mechanism as `name_von_baeyer_suffix`, for a monospiro
     skeleton (`_spiro.py`)."""
     ring_atoms = {atom for ring in mol.GetRingInfo().AtomRings() for atom in ring}
@@ -105,7 +117,7 @@ def name_monospiro_suffix(mol, suffix_carbon, excluded, suffix_word, noun, spiro
     for parent, full_order in iter_monospiro_numberings(mol, spiro_atom):
         locant = full_order.index(suffix_carbon) + 1
         substituents = substituents_for_ring(graph, full_order, halogens, excluded, mol=mol)
-        suffixed_parent = parent[:-1] + f"-{locant}-{suffix_word}"
+        suffixed_parent = _suffixed_parent(parent, locant, suffix_word, elide_e)
         key = _spiro_candidate_key(suffixed_parent, substituents, suffix_locant=locant)
         if best_key is None or key < best_key:
             best_key = key
