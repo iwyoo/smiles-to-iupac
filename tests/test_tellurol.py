@@ -85,9 +85,10 @@ def test_substituted_ring_tellurol_locant_cited():
     assert smiles_to_iupac("CC1CCCCC1[TeH]") == "2-methylcyclohexane-1-tellurol"
 
 
-def test_polycyclic_tellurol_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C12(CCC(CC1)CC2)[TeH]")
+def test_von_baeyer_tellurol_now_supported():
+    # A single tellurol on a von Baeyer bicyclic/polycyclic or monospiro
+    # ring system is supported (see `test_von_baeyer_spiro_tellurol.py`).
+    assert smiles_to_iupac("C12(CCC(CC1)CC2)[TeH]") == "bicyclo[2.2.2]octane-1-tellurol"
 
 
 def test_ring_substituent_chain_tellurol():

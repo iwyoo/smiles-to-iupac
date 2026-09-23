@@ -71,12 +71,24 @@ combination is already PubChem-confirmed ('prop-2-ene-1-tellurol', CID
 substituent alongside the ring double bond, are both still explicitly
 rejected pending further verification.
 
-Explicitly out of scope (raise `UnsupportedStructure`): polycyclic/spiro
-rings, unsaturation reaching outside the ring or a ring triple bond, a
--TeH on a substituent branch off an otherwise-unsubstituted ring, a
-telluride (-Te- ether-analogue) or any other tellurium-oxidation-state
-group, a thiol/selenol or other chalcogen atom, and any oxygen or
-nitrogen atom at all except a heteroaromatic ring's own (see below).
+A single tellurol on a von Baeyer bicyclic/polycyclic or monospiro ring
+system is supported (P-23/P-24 numbering integration via
+`_polycyclic_suffix.py` with `elide_e=False`, mirroring `_thiol.py`/
+`_selenol.py`) -- the exact ring structures aren't PubChem-registered
+(same sparse-coverage reason as the monocyclic case above), verified
+instead by structural analogy against the already-shipped, PubChem-
+cross-checked thiol/selenol cases on the identical ring shapes, same
+method this module's own existing tests and its sibling `_tellone.py`'s
+polycyclic step (#887/#892) already use.
+
+Explicitly out of scope (raise `UnsupportedStructure`): more than one
+tellurol or a specified stereocenter on a von Baeyer polycyclic/spiro
+skeleton, fused-ring tellurols (a separate epic, #852), unsaturation
+reaching outside the ring or a ring triple bond, a -TeH on a substituent
+branch off an otherwise-unsubstituted ring, a telluride (-Te-
+ether-analogue) or any other tellurium-oxidation-state group, a
+thiol/selenol or other chalcogen atom, and any oxygen or nitrogen atom at
+all except a heteroaromatic ring's own (see below).
 `_name_benzenetellurol` names a single -TeH directly on a benzene ring
 carbon (with or without other ring substituents), e.g. 'benzenetellurol'
 (PubChem CID 5246059), mirroring `_thiol.py`'s/`_selenol.py`'s identical
@@ -136,7 +148,11 @@ from ._common import (
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
+from ._bicyclic import find_bicyclic_core
 from ._numerals import alkyl_name
+from ._polycyclic import find_polycyclic_core
+from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
+from ._spiro import find_monospiro_atom
 from ._substituents import branch_atom_locant, format_substituent_prefixes, name_branch, ring_branch_stereo_display, substituents_for_ring, substituents_for_chain
 
 _YNE_BOND_ORDER = 3.0
@@ -595,6 +611,67 @@ def _name_ring_with_tellurol_chain_tellurol(mol, tellurols):
     return best_name
 
 
+def _name_von_baeyer_or_spiro_tellurol(mol, tellurols, stereo, bonds):
+    """P-23.2.1/P-24.2.1's von Baeyer bicyclic/polycyclic/monospiro
+    numbering extended with a single -TeH suffix, via
+    `_polycyclic_suffix.name_von_baeyer_suffix`/`name_monospiro_suffix`'s
+    `elide_e=False` ('tellurol' begins with a consonant, P-16.3.3, same as
+    `_thiol.py`'s/`_selenol.py`'s own choice). Mirrors `_thiol.py`'s own
+    bicyclic/polycyclic-before-spiro dispatch order and restrictions:
+    exactly one tellurol on the ring system itself, no ring unsaturation,
+    no specified stereocenter."""
+    if len(tellurols) != 1:
+        raise UnsupportedStructure(
+            "more than one tellurol on a von Baeyer bicyclic/polycyclic or "
+            "monospiro ring system is not supported yet"
+        )
+    if bonds:
+        raise UnsupportedStructure(
+            "an unsaturated von Baeyer bicyclic/polycyclic or monospiro "
+            "ring system is not supported yet (see P-31.1.4/P-31.1.5)"
+        )
+    if stereo is not None:
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a von Baeyer bicyclic/"
+            "polycyclic or monospiro tellurol is not supported yet (see P-92)"
+        )
+
+    (tellurium,) = tellurols
+    graph = adjacency(mol)
+    (tellurol_carbon,) = graph[tellurium]
+
+    bicyclic_core = find_bicyclic_core(mol)
+    polycyclic_core = None
+    von_baeyer_ring_count = None
+    if bicyclic_core is None:
+        for candidate_ring_count in (3, 4, 5, 6):
+            polycyclic_core = find_polycyclic_core(mol, candidate_ring_count)
+            if polycyclic_core is not None:
+                von_baeyer_ring_count = candidate_ring_count
+                break
+    if bicyclic_core is not None or polycyclic_core is not None:
+        return name_von_baeyer_suffix(
+            mol,
+            tellurol_carbon,
+            tellurols,
+            "tellurol",
+            "tellurol",
+            bicyclic_core,
+            polycyclic_core,
+            von_baeyer_ring_count,
+            elide_e=False,
+        )
+
+    spiro_atom = find_monospiro_atom(mol)
+    if spiro_atom is not None:
+        return name_monospiro_suffix(mol, tellurol_carbon, tellurols, "tellurol", "tellurol", spiro_atom, elide_e=False)
+
+    raise UnsupportedStructure(
+        "polycyclic and fused-ring tellurols are not supported yet (P-23/"
+        "P-25 numbering integration with a suffix group is future work)"
+    )
+
+
 def name_tellurol(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
@@ -627,10 +704,7 @@ def name_tellurol(mol) -> str:
     ring_info = mol.GetRingInfo()
     num_rings = ring_info.NumRings()
     if num_rings > 1:
-        raise UnsupportedStructure(
-            "polycyclic/spiro tellurols are not supported yet (this module "
-            "only handles acyclic chains and a single saturated ring)"
-        )
+        return _name_von_baeyer_or_spiro_tellurol(mol, tellurols, stereo, bonds)
     if num_rings == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in bonds):
