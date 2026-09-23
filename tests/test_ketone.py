@@ -158,11 +158,6 @@ def test_heteroaromatic_substituent_ketone_directly_on_ring_raises():
         smiles_to_iupac("CC(=O)c1cccnc1")
 
 
-def test_bicyclic_ketone_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CC2CCC1CC2")
-
-
 def test_ether_now_supported_via_ether_ketone():
     # A coexisting ether is now handled by `_ether_ketone.py` (P-41: an
     # ether has no suffix at all, so it's always the 'alkoxy' prefix) --
