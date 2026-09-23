@@ -83,6 +83,7 @@ from rdkit import Chem
 
 from ._aromatic import _periphery_cycle, _straight_chain_candidates
 from ._bicyclic import find_bicyclic_core
+from ._common import multiplied_word
 
 
 def find_dihydronaphthalene_core(mol):
@@ -202,3 +203,116 @@ def find_decahydronaphthalene_core(mol):
 
 def name_decahydronaphthalene(mol, core) -> str:
     return "decahydronaphthalene"
+
+
+def _hydro_locant_sort_key(label):
+    digits = "".join(c for c in label if c.isdigit())
+    letters = "".join(c for c in label if c.isalpha())
+    return int(digits), letters
+
+
+# Naphthalene's own reference Kekule structure (P-25.3.3.1.1's fixed
+# numbering, the symmetric form with the 4a-8a fusion bond double) -- the
+# 5-edge perfect matching every valid partial-hydrogenation state below
+# (M2 step 1, #828) is checked as a subset of, per the issue's own scope
+# ("removing double bonds from naphthalene's own Kekule structure one at a
+# time" -- this project's practical scope, not every one of naphthalene's
+# 3 possible Kekule structures).
+_REFERENCE_KEKULE_PAIRS = ((1, 2), (3, 4), ("4a", "8a"), (5, 6), (7, 8))
+
+
+def find_partially_unsaturated_naphthalene_core(mol):
+    """Return a sorted hydro-locant list (e.g. `["1", "2", "3", "4", "4a",
+    "8a"]`) if `mol` is naphthalene's carbon skeleton with 1-4 ring double
+    bonds forming a valid partial-hydrogenation state of
+    `_REFERENCE_KEKULE_PAIRS` (see module docstring), else None. Unlike
+    `find_dihydronaphthalene_core` above, no ring atom may be RDKit
+    aromatic-flagged -- a literally-aromatic-ring case is that function's
+    own, narrower shape."""
+    if mol.GetNumAtoms() != 10:
+        return None
+    if len(Chem.GetMolFrags(mol)) > 1:
+        return None
+
+    ring_info = mol.GetRingInfo()
+    atom_rings = ring_info.AtomRings()
+    if len(atom_rings) != 2 or any(len(r) != 6 for r in atom_rings):
+        return None
+    for ring in atom_rings:
+        for idx in ring:
+            atom = mol.GetAtomWithIdx(idx)
+            if atom.GetAtomicNum() != 6 or atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+                return None
+            if atom.GetIsAromatic():
+                return None
+
+    bond_ring_count = {}
+    for bonds in ring_info.BondRings():
+        for b in bonds:
+            bond_ring_count[b] = bond_ring_count.get(b, 0) + 1
+    fusion_bond_idxs = {b for b, c in bond_ring_count.items() if c >= 2}
+    if len(fusion_bond_idxs) != 1:
+        return None
+
+    ring_atom_sets = [set(r) for r in atom_rings]
+    fusion_atoms = ring_atom_sets[0] & ring_atom_sets[1]
+    if len(fusion_atoms) != 2:
+        return None
+    for a in fusion_atoms:
+        if mol.GetAtomWithIdx(a).GetDegree() != 3:
+            return None
+    non_fusion_atoms = (ring_atom_sets[0] | ring_atom_sets[1]) - fusion_atoms
+    for a in non_fusion_atoms:
+        if mol.GetAtomWithIdx(a).GetDegree() != 2:
+            return None
+
+    double_bond_pairs = set()
+    for bond in mol.GetBonds():
+        order = bond.GetBondTypeAsDouble()
+        if order == 1.0:
+            continue
+        if order != 2.0:
+            return None
+        double_bond_pairs.add(frozenset((bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())))
+    if not 1 <= len(double_bond_pairs) <= 4:
+        return None
+
+    atom_rings_tuples = [tuple(s) for s in ring_atom_sets]
+    candidates = _straight_chain_candidates(mol, atom_rings_tuples, ring_atom_sets, fusion_bond_idxs, [0, 1])
+
+    best_labels = None
+    for locants in candidates:
+        atom_by_locant = {v: k for k, v in locants.items()}
+        atom4a = next(
+            a for a in fusion_atoms if a in {n.GetIdx() for n in mol.GetAtomWithIdx(atom_by_locant[4]).GetNeighbors()}
+        )
+        atom8a = next(a for a in fusion_atoms if a != atom4a)
+        label_of_atom = {atom: str(locant) for atom, locant in locants.items()}
+        label_of_atom[atom4a] = "4a"
+        label_of_atom[atom8a] = "8a"
+
+        reference_edges = {
+            frozenset(
+                (
+                    atom8a if pos == "8a" else atom4a if pos == "4a" else atom_by_locant[pos]
+                    for pos in pair
+                )
+            )
+            for pair in _REFERENCE_KEKULE_PAIRS
+        }
+        if not double_bond_pairs <= reference_edges:
+            continue
+
+        removed_pairs = reference_edges - double_bond_pairs
+        sp3_atoms = {atom for pair in removed_pairs for atom in pair}
+        labels = sorted((label_of_atom[atom] for atom in sp3_atoms), key=_hydro_locant_sort_key)
+        key = tuple(_hydro_locant_sort_key(label) for label in labels)
+        if best_labels is None or key < tuple(_hydro_locant_sort_key(label) for label in best_labels):
+            best_labels = labels
+
+    return best_labels
+
+
+def name_partially_unsaturated_naphthalene(mol, core) -> str:
+    hydro_word = multiplied_word(len(core), "hydro")
+    return f"{','.join(core)}-{hydro_word}naphthalene"

@@ -70,3 +70,54 @@ def test_bridged_bicyclic_is_not_decahydronaphthalene():
     # down by num_rings==2, but a nonzero third bridge -- must still be
     # named via _bicyclic.py, not mistaken for naphthalene's skeleton.
     assert smiles_to_iupac("C1CC2CCC1CC2") == "bicyclo[2.2.2]octane"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Octahydro (1 double bond remaining, the fusion pair 7-8): both
+        # PubChem-confirmed (CID 565677's own structure, cited directly
+        # in #828's own scoping).
+        ("C1CC2CCCCC2C=C1", "1,2,3,4,4a,5,6,8a-octahydronaphthalene"),
+        # Hexahydro (2 double bonds remaining): PubChem CID 561877.
+        ("C1=CC2CCCCC2C=C1", "1,2,3,4,4a,8a-hexahydronaphthalene"),
+        # Hexahydro, a different double-bond arrangement (5-6 and 7-8
+        # kept, 1-2/3-4/4a-8a saturated): PubChem CID 22035261.
+        ("C1CC2C=CCCC2C=C1", "1,2,4a,5,6,8a-hexahydronaphthalene"),
+        # Hexahydro, yet another arrangement (1-2 and 5-6 kept):
+        # PubChem CID 14120284.
+        ("C1CC2CCC=CC2C=C1", "1,2,4a,7,8,8a-hexahydronaphthalene"),
+        # Tetrahydro (3 double bonds remaining): PubChem CID 13056319.
+        ("C1=CC2C=CCCC2C=C1", "1,2,4a,8a-tetrahydronaphthalene"),
+        # Dihydro via the fusion-bond-only pair (4a,8a both saturated,
+        # all four "peripheral" double bonds kept) -- a real, distinct
+        # compound from `test_smiles_to_iupac_dihydronaphthalene`'s
+        # 1,2-/1,4-dihydronaphthalene above (those keep the fusion bond
+        # double and saturate a peripheral pair instead; this module's
+        # own aromatic-ring requirement means neither ring here is
+        # RDKit-aromatic-flagged, so `find_dihydronaphthalene_core`
+        # correctly leaves this one to this newer, more general
+        # detector). PubChem CID 15555390.
+        ("C1=CC2C=CC=CC2C=C1", "4a,8a-dihydronaphthalene"),
+    ],
+)
+def test_partially_unsaturated_naphthalene(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_arbitrary_double_bond_placement_not_matched():
+    # A double-bond arrangement that isn't reachable by removing bonds
+    # from naphthalene's own reference Kekule structure (#828's own scope
+    # note) -- falls through to the pre-existing (unrelated to this
+    # module) von Baeyer path rather than being misnamed as a hydro
+    # derivative.
+    assert smiles_to_iupac("C1CC2CC=CCC2C=C1") == "bicyclo[4.4.0]deca-2,8-diene"
+
+
+def test_partially_unsaturated_naphthalene_substituent_falls_through():
+    # A substituent means `find_partially_unsaturated_naphthalene_core`'s
+    # own 10-atom bare-skeleton check returns None (mirrors the existing
+    # dihydro/decahydro detectors' identical restriction), so this still
+    # falls through to the pre-existing (unrelated to this task) von
+    # Baeyer path rather than raising.
+    assert smiles_to_iupac("CC1CC2CCCCC2C=C1") == "4-methylbicyclo[4.4.0]dec-2-ene"
