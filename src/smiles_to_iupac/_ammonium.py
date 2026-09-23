@@ -110,6 +110,16 @@ def name_ammonium(mol) -> str:
             "only a single, singly-charged, non-isotopically-modified "
             "ammonium nitrogen is supported (P-73.1.1.2)"
         )
+    if any(
+        atom.GetIdx() != nitrogen.GetIdx() and (atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0)
+        for atom in mol.GetAtoms()
+    ):
+        # A second charged atom elsewhere (e.g. a carbanion) makes this a
+        # dipolar/ylide species (P-74.2), not a plain ammonium salt cation
+        # -- `has_ammonium_shape` only inspects the nitrogen's own local
+        # bonding, so it matches both shapes identically; without this
+        # check the ylide's second charge center was silently dropped.
+        raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
 
     degree = nitrogen.GetDegree()
     if degree == 0:
