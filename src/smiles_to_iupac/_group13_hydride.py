@@ -1,6 +1,7 @@
-"""Naming of simple Group 13 organometallics (a single aluminium, gallium,
-indium, or thallium atom bearing 1-3 alkyl/phenyl substituents), per the
-IUPAC 2013 Recommendations ("the Blue Book"):
+"""Naming of simple Group 13 (aluminium, gallium, indium, thallium) and
+Group 14 (germanium, tin, lead) mononuclear organometallics (a single metal
+atom bearing 1-3 Group 13 / 1-4 Group 14 alkyl/phenyl substituents), per
+the IUPAC 2013 Recommendations ("the Blue Book"):
 
 - P-69.1 (Chapter P-6a, https://iupac.qmul.ac.uk/BlueBook/PDF/P6a.pdf):
   organometallic compounds of Groups 13-16 are named substitutively, the
@@ -9,34 +10,41 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   element table), with substituents cited as prefixes via
   `format_mononuclear_prefixes`. Confirmed worked examples
   (`tmp/bluebook/P6a.txt` lines 8602-8613): `Al(CH2-CH3)3` ->
-  'triethylalumane', `Pb(CH2-CH3)4` -> 'tetraethylplumbane' (Group 14,
-  out of scope here), `BrSb(CH=CH2)2` -> 'bromodi(ethenyl)stibane'
-  (Group 15, out of scope here), `HIn(CH3)2` -> 'dimethylindigane'.
-  Thallium's own stem name, 'thallane', is confirmed at
-  `tmp/bluebook/P6a.txt` line 5459 (preselected name).
+  'triethylalumane', `Pb(CH2-CH3)4` -> 'tetraethylplumbane',
+  `BrSb(CH=CH2)2` -> 'bromodi(ethenyl)stibane' (Group 15, out of scope
+  here), `HIn(CH3)2` -> 'dimethylindigane'. Thallium's own stem name,
+  'thallane', is confirmed at `tmp/bluebook/P6a.txt` line 5459
+  (preselected name).
 - This module is structurally identical to `_borane.py` with the boron
-  atomic number swapped for one of Al/Ga/In/Tl (each a Group 13, trivalent
-  element like boron itself) -- same validation shape (max 3
-  substituents, plain/halogenated-phenyl support, halogen-on-metal
-  support), same `format_mononuclear_prefixes` assembly, generalized here
-  as ONE shared mechanism parameterized by atomic number rather than 4
-  separate near-duplicate modules (this milestone's own generalization
-  check).
+  atomic number swapped for one of Al/Ga/In/Tl/Ge/Sn/Pb -- same
+  validation shape (plain/halogenated-phenyl support, halogen-on-metal
+  support), same `format_mononuclear_prefixes` assembly, differing only
+  in the stems dict (atomic number -> parent-hydride name) and the
+  maximum substituent count (3 for the trivalent Group 13 elements, 4 for
+  the tetravalent Group 14 ones) -- generalized here as ONE shared
+  mechanism parameterized by both, rather than a separate near-duplicate
+  module per group (this milestone's own generalization check, applied a
+  second time: first to unify Al/Ga/In/Tl into one module instead of
+  four, now to share that same module's logic with Ge/Sn/Pb instead of
+  copying it a second time).
 
 Scope: exactly the same as `_borane.py`'s (see that module's own
 docstring for the full derivation of every rule below, all unchanged with
 the metal swapped in): a plain/branched alkyl substituent, a plain phenyl
 substituent, a halogen-substituted-phenyl substituent, a halogen bonded
-directly to the metal, up to 3 substituents total (never more -- these
-are all trivalent, like boron), mixed freely except a halogenated-phenyl
-group may not mix with a differently-named substituent.
+directly to the metal, up to `max_substituents` substituents total (3 for
+Group 13, 4 for Group 14 -- never more, these are all trivalent/
+tetravalent respectively, like boron/carbon), mixed freely except a
+halogenated-phenyl group may not mix with a differently-named substituent.
 
 Explicitly out of scope (raise `UnsupportedStructure`): any of
 `_borane.py`'s own out-of-scope cases (more than one metal atom, an
 unsaturated substituent, a non-phenyl aromatic ring, charged/isotopically
 modified atoms, coexistence with any other heteroatom including another
-Group 13/14/15/16 element), plus Group 14 elements (Ge/Sn/Pb -- a
-different valence, a separate milestone step).
+Group 13/14/15/16 element), plus silicon (organosilicon naming is a
+separate, already-established area of this project, `_silane_chain.py`,
+not part of this mononuclear-organometallic mechanism) and Group 15/16
+elements (a different scope, separate milestone steps).
 """
 
 from rdkit import Chem
@@ -58,19 +66,29 @@ GROUP_13_STEMS = {
     81: "thallane",
 }
 
+GROUP_14_STEMS = {
+    32: "germane",
+    50: "stannane",
+    82: "plumbane",
+}
+
 
 def has_group13_hydride_shape(mol) -> bool:
     return any(atom.GetAtomicNum() in GROUP_13_STEMS for atom in mol.GetAtoms())
 
 
-def _validate_and_collect_substituents(mol, metal):
+def has_group14_hydride_shape(mol) -> bool:
+    return any(atom.GetAtomicNum() in GROUP_14_STEMS for atom in mol.GetAtoms())
+
+
+def _validate_and_collect_substituents(mol, metal, stems, max_substituents):
     metal_atomic_num = metal.GetAtomicNum()
     if metal.GetFormalCharge() != 0 or metal.GetIsotope() != 0:
         raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-    if metal.GetDegree() > 3:
+    if metal.GetDegree() > max_substituents:
         raise UnsupportedStructure(
-            f"a {GROUP_13_STEMS[metal_atomic_num]}-forming atom with more than "
-            "three substituents is not supported"
+            f"a {stems[metal_atomic_num]}-forming atom with more than "
+            f"{max_substituents} substituents is not supported"
         )
 
     graph = adjacency(mol)
@@ -92,7 +110,7 @@ def _validate_and_collect_substituents(mol, metal):
         is_halogen = atom.GetAtomicNum() in HALOGEN_PREFIXES
         if atom.GetAtomicNum() not in (metal_atomic_num, 6) and not is_halogen:
             raise UnsupportedStructure(
-                f"heteroatoms other than the {GROUP_13_STEMS[metal_atomic_num]}'s "
+                f"heteroatoms other than the {stems[metal_atomic_num]}'s "
                 "own metal atom are not supported yet (see P-69.1)"
             )
         if is_halogen and idx in halophenyl_halogen_atoms:
@@ -162,14 +180,22 @@ def _validate_and_collect_substituents(mol, metal):
     return substituent_names
 
 
-def name_group13_hydride(mol) -> str:
-    metal_atoms = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() in GROUP_13_STEMS]
+def _name_mononuclear_hydride(mol, stems, max_substituents, error_label) -> str:
+    metal_atoms = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() in stems]
     if len(metal_atoms) != 1:
-        raise UnsupportedStructure("more than one Group 13 metal atom is not supported yet")
+        raise UnsupportedStructure(f"more than one {error_label} metal atom is not supported yet")
     (metal,) = metal_atoms
-    stem = GROUP_13_STEMS[metal.GetAtomicNum()]
+    stem = stems[metal.GetAtomicNum()]
 
-    substituent_names = _validate_and_collect_substituents(mol, metal)
+    substituent_names = _validate_and_collect_substituents(mol, metal, stems, max_substituents)
     if not substituent_names:
         return stem
     return format_mononuclear_prefixes(substituent_names) + stem
+
+
+def name_group13_hydride(mol) -> str:
+    return _name_mononuclear_hydride(mol, GROUP_13_STEMS, 3, "Group 13")
+
+
+def name_group14_hydride(mol) -> str:
+    return _name_mononuclear_hydride(mol, GROUP_14_STEMS, 4, "Group 14")
