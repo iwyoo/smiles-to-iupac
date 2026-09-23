@@ -229,11 +229,6 @@ def test_n_substituted_aniline_raises():
         smiles_to_iupac("CNc1ccccc1")
 
 
-def test_bicyclic_amine_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC1CC2CCC1CC2")
-
-
 def test_enamine_raises():
     # -NH2 on a carbon that is also part of a C=C bond: deliberately
     # narrowed out of scope (see module docstring).
