@@ -89,6 +89,12 @@ def _extra_aldehydes(mol, excluded_oxygens):
         oxygen_neighbors = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 8]
         if len(oxygen_neighbors) != 1:
             continue
+        # A genuine aldehyde carbon has no nitrogen neighbor either -- one
+        # means this is really an amide carbon (an amic acid's coexisting
+        # -CO-NH2, #820), a separate shape this module doesn't handle,
+        # not an aldehyde miscounted by only checking carbon neighbors.
+        if any(n.GetAtomicNum() == 7 for n in carbon.GetNeighbors()):
+            continue
         carbon_neighbors = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6]
         if len(carbon_neighbors) == 1:
             aldehydes.add(atom.GetIdx())

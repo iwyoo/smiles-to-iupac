@@ -18,6 +18,7 @@ from ._aldehyde_carboxylic_acid import (
     has_aldehyde_carboxylic_acid_shape,
     name_aldehyde_carboxylic_acid,
 )
+from ._carboxylic_acid_amide import has_carboxylic_acid_amide_shape, name_carboxylic_acid_amide
 from ._aldehyde_ketone import has_aldehyde_ketone_shape, name_aldehyde_ketone
 from ._acetal import has_acetal_shape, name_acetal
 from ._amide import has_amide_shape, name_amide
@@ -1189,6 +1190,13 @@ def smiles_to_iupac(smiles: str) -> str:
             # `_carboxylic_acid.py`'s own "coexisting oxygen" rejection.
             if has_aldehyde_carboxylic_acid_shape(mol):
                 return name_aldehyde_carboxylic_acid(mol)
+            # P-66.1.1.3.3: 'oic acid' also outranks 'amide', so a
+            # carboxylic acid that also carries a coexisting primary amide
+            # (an amic acid) names the acid as the suffix and demotes the
+            # amide to 'amino'+'oxo' prefixes instead of
+            # `_carboxylic_acid.py`'s own "coexisting nitrogen" rejection.
+            if has_carboxylic_acid_amide_shape(mol):
+                return name_carboxylic_acid_amide(mol)
             # P-41/Table 3.3: 'oic acid' also far outranks 'amine', so a
             # carboxylic acid that also carries a primary amine names the
             # acid as the suffix and demotes the amine to an 'amino' prefix
