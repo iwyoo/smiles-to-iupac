@@ -36,17 +36,45 @@ Book"):
 
 Scope: a plain/branched alkyl substituent or a plain phenyl substituent,
 1 substituent for Group 1 (Li/Na/K), 1-2 identical substituents for
-Group 2 (Mg/Ca). Explicitly out of scope (raise `UnsupportedStructure`):
-a halogen substituent (the Grignard-reagent-shaped R-M-X compositional
-case is a separate milestone step), 2 different substituents on a Group 2
-metal, more than one metal atom, an unsaturated substituent, an aromatic
-substituent other than plain phenyl, charged/isotopically modified atoms,
-and coexistence with any other heteroatom.
+Group 2 (Mg/Ca). Also: a Group 2 metal bearing exactly one organic
+substituent and one halogen (the Grignard-reagent-shaped R-M-X case) --
+P-69.3's own worked example (`tmp/bluebook/P6a.txt` lines 8859-8863):
+`[MgMe]I` -> 'methylmagnesium iodide (compositional name; the formally
+electropositive component named by additive nomenclature)'. This is a
+*different* citation style from the plain R-M/R2-M case above: the
+organic-group-name-fused-to-metal word (identical to the single-
+substituent case), then a separate, space-delimited word for the halide's
+anion name (`HALIDE_WORDS`, the same `fluoride`/`chloride`/`bromide`/
+`iodide` dict `_acyl_halide.py` already uses), not the `fluoro`/`chloro`/
+... substituent-prefix form. Group 1 metals are monovalent, so an R-M-X
+shape isn't chemically possible for them (would need valence 2).
+PubChem's own registered entries for this shape are the same
+fully-dissociated-ionic, auto-generated-name-not-real-nomenclature
+situation already documented above for the plain R-M case -- their
+existence (e.g. methylmagnesium iodide, ethylmagnesium bromide,
+phenylmagnesium chloride are all well-known, commonly-registered Grignard
+reagents) confirms these are real compounds, but verification is against
+the primary source's own worked example plus structural consistency, not
+an exact PubChem name match.
+
+Explicitly out of scope (raise `UnsupportedStructure`): a halogen on a
+Group 1 metal, two organic substituents alongside a halogen, two
+different organic substituents on a Group 2 metal (with or without a
+halogen), more than one metal atom, an unsaturated substituent, an
+aromatic substituent other than plain phenyl, charged/isotopically
+modified atoms, and coexistence with any other heteroatom.
 """
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, non_single_bonds, plain_phenyl_substituent_atoms
+from ._common import (
+    HALIDE_WORDS,
+    HALOGEN_PREFIXES,
+    UnsupportedStructure,
+    adjacency,
+    non_single_bonds,
+    plain_phenyl_substituent_atoms,
+)
 from ._numerals import multiplying_prefix
 from ._substituents import name_branch
 
@@ -70,32 +98,48 @@ def name_group1_2_organometallic(mol) -> str:
     if metal.GetFormalCharge() != 0 or metal.GetIsotope() != 0:
         raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
 
+    graph = adjacency(mol)
+    metal_neighbors = list(metal.GetNeighbors())
+    halogen_neighbors = [n for n in metal_neighbors if n.GetAtomicNum() in HALOGEN_PREFIXES]
+    has_halide = bool(halogen_neighbors)
+
+    if has_halide and atomic_num in _GROUP1_ELEMENTS:
+        raise UnsupportedStructure(
+            "a halogen on a Group 1 metal is not a valid organometallic "
+            "shape for this module (a monovalent metal has no room for "
+            "both an organic group and a halide)"
+        )
+    if len(halogen_neighbors) > 1:
+        raise UnsupportedStructure("more than one halogen on the same metal atom is not supported yet")
+
     # A neutral Group 1 metal is monovalent (exactly 1 organic
-    # substituent) and a neutral Group 2 metal is divalent (exactly 2,
-    # for a closed-shell R2M species) -- a Group 2 metal with only 1
-    # organic substituent and no halide would be an open-shell radical,
-    # not a real compound (the Grignard-shaped R-M-X case, 1 organic + 1
-    # halide, is a separate milestone step).
+    # substituent) and a neutral Group 2 metal is divalent -- either a
+    # closed-shell R2M species (2 organic substituents) or, if one
+    # neighbor is a halogen, the Grignard-shaped R-M-X compositional case
+    # (1 organic + 1 halide). A Group 2 metal with only 1 organic
+    # substituent and no halide would be an open-shell radical, not a
+    # real compound.
     required_substituents = 1 if atomic_num in _GROUP1_ELEMENTS else 2
     if metal.GetDegree() != required_substituents:
         raise UnsupportedStructure(
             f"a {element_name} atom must have exactly {required_substituents} "
-            "organic substituent(s) to be supported here"
+            "organic/halide substituent(s) to be supported here"
         )
 
-    graph = adjacency(mol)
-    roots = set(graph[metal.GetIdx()])
+    roots = {n.GetIdx() for n in metal_neighbors} - {n.GetIdx() for n in halogen_neighbors}
     phenyl_atoms = plain_phenyl_substituent_atoms(mol, graph, roots)
 
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() not in (atomic_num, 6):
+        idx = atom.GetIdx()
+        is_metal_halogen = has_halide and idx == halogen_neighbors[0].GetIdx()
+        if atom.GetAtomicNum() not in (atomic_num, 6) and not is_metal_halogen:
             raise UnsupportedStructure(
                 f"heteroatoms other than the {element_name} atom itself are "
                 "not supported yet (see P-69.3)"
             )
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and atom.GetIdx() not in phenyl_atoms:
+        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and idx not in phenyl_atoms:
             raise UnsupportedStructure(
                 "an aromatic substituent other than a plain phenyl group is "
                 "out of scope for this module"
@@ -125,6 +169,15 @@ def name_group1_2_organometallic(mol) -> str:
             "two different substituents on the same Group 2 metal is not "
             "supported yet"
         )
+
+    if has_halide:
+        # P-69.3's compositional-name worked example (`[MgMe]I` ->
+        # 'methylmagnesium iodide') cites the organic group fused to the
+        # metal exactly like the plain single-substituent case, then a
+        # separate, space-delimited word for the halide's own anion name
+        # -- not the `fluoro`/`chloro`/... substituent-prefix form.
+        halide_word = HALIDE_WORDS[halogen_neighbors[0].GetAtomicNum()]
+        return f"{first_name}{element_name} {halide_word}"
 
     if len(names) == 1:
         return f"{first_name}{element_name}"
