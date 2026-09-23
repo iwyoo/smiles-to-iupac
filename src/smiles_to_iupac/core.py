@@ -50,9 +50,9 @@ from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
 from ._bridged_aromatic import (
     find_bridged_anthracene_core,
-    find_bridged_naphthalene_core,
+    find_bridged_aromatic_core,
     name_bridged_anthracene,
-    name_bridged_naphthalene,
+    name_bridged_aromatic,
 )
 from ._borane import has_simple_borane_shape, name_simple_borane
 from ._boronic_acid import has_boronic_acid_shape, name_boronic_acid
@@ -720,15 +720,16 @@ def smiles_to_iupac(smiles: str) -> str:
     if polyspiro_chain is not None and has_single_polyspiro_heteroatom_shape(mol, polyspiro_chain):
         return name_linear_polyspiro_heteroatom(mol, polyspiro_chain)
 
-    # A naphthalene skeleton with a single -CH2- or -O- bridge across one
-    # ring's 1,4-positions (1,4-dihydro-1,4-methano-/epoxynaphthalene) must
-    # be routed here before the plain "any O atom" branch below (the -O-
-    # bridge variant would otherwise be misdetected as a plain ether) -- see
+    # A fused aromatic parent (naphthalene, phenanthrene, tetracene, ...)
+    # with a single -CH2- or -O- bridge across one ring's 1,4-positions
+    # (1,4-dihydro-1,4-methano-/epoxy-<parent>) must be routed here before
+    # the plain "any O atom" branch below (the -O- bridge variant would
+    # otherwise be misdetected as a plain ether) -- see
     # _bridged_aromatic.py's module docstring for why RDKit's own ring
     # perception can't be trusted for this shape either.
-    bridged_core = find_bridged_naphthalene_core(mol)
+    bridged_core = find_bridged_aromatic_core(mol)
     if bridged_core is not None:
-        return name_bridged_naphthalene(mol, bridged_core)
+        return name_bridged_aromatic(mol, bridged_core)
 
     # Same shape, one ring larger: an anthracene skeleton bridged across
     # its own 9,10 meso positions (see _bridged_aromatic.py's module
