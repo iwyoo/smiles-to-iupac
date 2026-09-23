@@ -1,7 +1,8 @@
-"""Naming of simple Group 13 (aluminium, gallium, indium, thallium) and
-Group 14 (germanium, tin, lead) mononuclear organometallics (a single metal
-atom bearing 1-3 Group 13 / 1-4 Group 14 alkyl/phenyl substituents), per
-the IUPAC 2013 Recommendations ("the Blue Book"):
+"""Naming of simple Group 13 (aluminium, gallium, indium, thallium), Group
+14 (germanium, tin, lead), and Group 15 (arsenic, antimony, bismuth)
+mononuclear organometallics (a single metal atom bearing 1-3 Group 13/15 /
+1-4 Group 14 alkyl/phenyl substituents), per the IUPAC 2013 Recommendations
+("the Blue Book"):
 
 - P-69.1 (Chapter P-6a, https://iupac.qmul.ac.uk/BlueBook/PDF/P6a.pdf):
   organometallic compounds of Groups 13-16 are named substitutively, the
@@ -11,40 +12,48 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   `format_mononuclear_prefixes`. Confirmed worked examples
   (`tmp/bluebook/P6a.txt` lines 8602-8613): `Al(CH2-CH3)3` ->
   'triethylalumane', `Pb(CH2-CH3)4` -> 'tetraethylplumbane',
-  `BrSb(CH=CH2)2` -> 'bromodi(ethenyl)stibane' (Group 15, out of scope
-  here), `HIn(CH3)2` -> 'dimethylindigane'. Thallium's own stem name,
-  'thallane', is confirmed at `tmp/bluebook/P6a.txt` line 5459
-  (preselected name).
+  `BrSb(CH=CH2)2` -> 'bromodi(ethenyl)stibane' (unsaturated substituent,
+  out of scope here -- see below), `HIn(CH3)2` -> 'dimethylindigane'.
+  Thallium's own stem name, 'thallane', is confirmed at
+  `tmp/bluebook/P6a.txt` line 5459 (preselected name). The Group 15 stems
+  themselves are confirmed separately: `ethylarsane (PIN)` (line 7810),
+  `trimethylbismuthane (PIN)` (line 8010); `stibane` is confirmed by the
+  `bromodi(ethenyl)stibane` example above (its own unsaturated
+  substituent is out of scope, but the stem name itself is real).
 - This module is structurally identical to `_borane.py` with the boron
-  atomic number swapped for one of Al/Ga/In/Tl/Ge/Sn/Pb -- same
+  atomic number swapped for one of Al/Ga/In/Tl/Ge/Sn/Pb/As/Sb/Bi -- same
   validation shape (plain/halogenated-phenyl support, halogen-on-metal
   support), same `format_mononuclear_prefixes` assembly, differing only
   in the stems dict (atomic number -> parent-hydride name) and the
-  maximum substituent count (3 for the trivalent Group 13 elements, 4 for
-  the tetravalent Group 14 ones) -- generalized here as ONE shared
+  maximum substituent count (3 for the trivalent Group 13/15 elements, 4
+  for the tetravalent Group 14 ones) -- generalized here as ONE shared
   mechanism parameterized by both, rather than a separate near-duplicate
   module per group (this milestone's own generalization check, applied a
-  second time: first to unify Al/Ga/In/Tl into one module instead of
-  four, now to share that same module's logic with Ge/Sn/Pb instead of
-  copying it a second time).
+  third time: first to unify Al/Ga/In/Tl into one module instead of four,
+  then to share that same module's logic with Ge/Sn/Pb, now with As/Sb/Bi
+  too -- each addition purely a stems dict + a valence number, no new
+  logic).
 
 Scope: exactly the same as `_borane.py`'s (see that module's own
 docstring for the full derivation of every rule below, all unchanged with
 the metal swapped in): a plain/branched alkyl substituent, a plain phenyl
 substituent, a halogen-substituted-phenyl substituent, a halogen bonded
 directly to the metal, up to `max_substituents` substituents total (3 for
-Group 13, 4 for Group 14 -- never more, these are all trivalent/
+Group 13/15, 4 for Group 14 -- never more, these are all trivalent/
 tetravalent respectively, like boron/carbon), mixed freely except a
 halogenated-phenyl group may not mix with a differently-named substituent.
 
 Explicitly out of scope (raise `UnsupportedStructure`): any of
 `_borane.py`'s own out-of-scope cases (more than one metal atom, an
-unsaturated substituent, a non-phenyl aromatic ring, charged/isotopically
+unsaturated substituent -- including the Group 15 epic's own
+`bromodi(ethenyl)stibane` worked example, which needs unsaturated-
+substituent support this shared mechanism doesn't have yet, a separate
+follow-up step -- a non-phenyl aromatic ring, charged/isotopically
 modified atoms, coexistence with any other heteroatom including another
-Group 13/14/15/16 element), plus silicon (organosilicon naming is a
-separate, already-established area of this project, `_silane_chain.py`,
-not part of this mononuclear-organometallic mechanism) and Group 15/16
-elements (a different scope, separate milestone steps).
+Group 13/14/15/16 element), plus silicon/carbon (organosilicon naming is
+a separate, already-established area of this project, `_silane_chain.py`,
+not part of this mononuclear-organometallic mechanism) and Group 16
+elements (a different scope, a separate milestone).
 """
 
 from rdkit import Chem
@@ -72,6 +81,12 @@ GROUP_14_STEMS = {
     82: "plumbane",
 }
 
+GROUP_15_STEMS = {
+    33: "arsane",
+    51: "stibane",
+    83: "bismuthane",
+}
+
 
 def has_group13_hydride_shape(mol) -> bool:
     return any(atom.GetAtomicNum() in GROUP_13_STEMS for atom in mol.GetAtoms())
@@ -79,6 +94,10 @@ def has_group13_hydride_shape(mol) -> bool:
 
 def has_group14_hydride_shape(mol) -> bool:
     return any(atom.GetAtomicNum() in GROUP_14_STEMS for atom in mol.GetAtoms())
+
+
+def has_group15_hydride_shape(mol) -> bool:
+    return any(atom.GetAtomicNum() in GROUP_15_STEMS for atom in mol.GetAtoms())
 
 
 def _validate_and_collect_substituents(mol, metal, stems, max_substituents):
@@ -199,3 +218,7 @@ def name_group13_hydride(mol) -> str:
 
 def name_group14_hydride(mol) -> str:
     return _name_mononuclear_hydride(mol, GROUP_14_STEMS, 4, "Group 14")
+
+
+def name_group15_hydride(mol) -> str:
+    return _name_mononuclear_hydride(mol, GROUP_15_STEMS, 3, "Group 15")

@@ -61,8 +61,10 @@ from ._group1_2_organometallic import has_group1_2_organometallic_shape, name_gr
 from ._group13_hydride import (
     has_group13_hydride_shape,
     has_group14_hydride_shape,
+    has_group15_hydride_shape,
     name_group13_hydride,
     name_group14_hydride,
+    name_group15_hydride,
 )
 from ._branched_fused_aromatic import has_retained_branched_fused_name, name_retained_branched_fused
 from ._carboxylate import has_carboxylate_shape, name_carboxylate
@@ -488,6 +490,8 @@ def smiles_to_iupac(smiles: str) -> str:
         return name_group13_hydride(mol)
     if has_group14_hydride_shape(mol):
         return name_group14_hydride(mol)
+    if has_group15_hydride_shape(mol):
+        return name_group15_hydride(mol)
 
     # A Group 1/2 metal (Li/Na/K/Mg/Ca, P-69.3) is a different additive
     # naming mechanism from Group 13 above, but the same reasoning for
