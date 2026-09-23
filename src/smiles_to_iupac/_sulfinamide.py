@@ -70,7 +70,11 @@ explicitly rejected pending further verification.
 Explicitly out of scope (raise
 `UnsupportedStructure`): an unsaturated or ring-bearing N-substituent (a
 branched but otherwise plain saturated acyclic N-substituent is
-supported, see above), polycyclic/spiro rings, unsaturation reaching
+supported, see above); an N-substituted sulfinamide, more than one
+sulfinamide, or a specified stereocenter, on a von Baeyer polycyclic or
+spiro skeleton (a single primary -S(=O)NH2 on such a skeleton is
+supported, P-23/P-24 numbering integration via `_polycyclic_suffix.py`
+with `elide_e=False`, mirroring `_thiol.py`); unsaturation reaching
 outside the ring or a ring triple bond, a -S(=O)NH2 on a
 substituent branch off an otherwise-unsubstituted *saturated* ring, two
 or more -S(=O)NH2 groups, and a sulfinamide on a carbon that is also part
@@ -117,7 +121,11 @@ from ._common import (
     substituent_locant_set_and_citation,
     suffix_body,
 )
+from ._bicyclic import find_bicyclic_core
 from ._numerals import alkane_name, alkyl_name
+from ._polycyclic import find_polycyclic_core
+from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
+from ._spiro import find_monospiro_atom
 from ._substituents import (
     format_substituent_prefixes,
     name_branch,
@@ -547,6 +555,69 @@ def _name_ring_substituent_chain_sulfinamide(mol, sulfur_idx, so_nh2_carbon):
     return best_name
 
 
+def _name_von_baeyer_or_spiro_sulfinamide(mol, sulfur_idx, so_nh2_carbon, n_alkyl_carbons, bonds, stereo_prefix):
+    """P-23.2.1/P-24.2.1's von Baeyer bicyclic/polycyclic/monospiro
+    numbering extended with a single sulfinamide (-S(=O)NH2) suffix, via
+    `_polycyclic_suffix.name_von_baeyer_suffix`/`name_monospiro_suffix`'s
+    `elide_e=False` ('sulfinamide' begins with a consonant, P-16.3.3, same
+    as `_thiol.py`'s 'thiol' -- e.g. 'bicyclo[2.2.1]heptane-2-
+    sulfinamide', PubChem CID 165459501). Mirrors `_thiol.py`'s own
+    bicyclic/polycyclic-before-spiro dispatch order and restrictions:
+    exactly one primary sulfinamide on the ring system itself, no ring
+    unsaturation, no specified stereocenter (on the ring or the
+    sulfinamide sulfur itself)."""
+    if n_alkyl_carbons:
+        raise UnsupportedStructure(
+            "an N-substituted sulfinamide on a von Baeyer bicyclic/"
+            "polycyclic or monospiro ring system is not supported yet"
+        )
+    if bonds:
+        raise UnsupportedStructure(
+            "an unsaturated von Baeyer bicyclic/polycyclic or monospiro "
+            "ring system is not supported yet (see P-31.1.4/P-31.1.5)"
+        )
+    if stereo_prefix:
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a von Baeyer bicyclic/"
+            "polycyclic or monospiro sulfinamide is not supported yet "
+            "(see P-92)"
+        )
+
+    bicyclic_core = find_bicyclic_core(mol)
+    polycyclic_core = None
+    von_baeyer_ring_count = None
+    if bicyclic_core is None:
+        for candidate_ring_count in (3, 4, 5, 6):
+            polycyclic_core = find_polycyclic_core(mol, candidate_ring_count)
+            if polycyclic_core is not None:
+                von_baeyer_ring_count = candidate_ring_count
+                break
+    if bicyclic_core is not None or polycyclic_core is not None:
+        return name_von_baeyer_suffix(
+            mol,
+            so_nh2_carbon,
+            {sulfur_idx},
+            "sulfinamide",
+            "sulfinamide",
+            bicyclic_core,
+            polycyclic_core,
+            von_baeyer_ring_count,
+            elide_e=False,
+        )
+
+    spiro_atom = find_monospiro_atom(mol)
+    if spiro_atom is not None:
+        return name_monospiro_suffix(
+            mol, so_nh2_carbon, {sulfur_idx}, "sulfinamide", "sulfinamide", spiro_atom, elide_e=False
+        )
+
+    raise UnsupportedStructure(
+        "polycyclic and fused-ring sulfinamides are not supported yet "
+        "(P-23/P-25 numbering integration with a suffix group is future "
+        "work)"
+    )
+
+
 def name_sulfinamide(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
@@ -578,10 +649,8 @@ def name_sulfinamide(mol) -> str:
     ring_info = mol.GetRingInfo()
     num_rings = ring_info.NumRings()
     if num_rings > 1:
-        raise UnsupportedStructure(
-            "polycyclic/spiro sulfinamides are not supported yet (this "
-            "module only handles acyclic chains and a single saturated "
-            "ring)"
+        return _name_von_baeyer_or_spiro_sulfinamide(
+            mol, sulfur_idx, so_nh2_carbon, n_alkyl_carbons, bonds, stereo_prefix
         )
     if num_rings == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
