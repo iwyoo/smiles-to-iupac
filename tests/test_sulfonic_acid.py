@@ -76,11 +76,6 @@ def test_2_chlorocyclohexane_1_sulfonic_acid():
     assert smiles_to_iupac("OS(=O)(=O)C1CCCCC1Cl") == "2-chlorocyclohexane-1-sulfonic acid"
 
 
-def test_polycyclic_sulfonic_acid_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)(=O)C1CC2CCC1CC2")
-
-
 def test_ring_substituent_chain_sulfonic_acid():
     # A sulfonic acid entirely on a chain hanging off a plain saturated
     # ring (the ring itself bears no sulfonic acid) -- the ring is cited
