@@ -181,3 +181,54 @@ def test_bridged_tetracene():
     # structure (same CAS-convention-vs-P-25.4 caveat as the phenanthrene
     # case above).
     assert smiles_to_iupac("C1=CC2CC1c1cc3cc4ccccc4cc3cc12") == "1,4-dihydro-1,4-methanotetracene"
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        # PubChem CID 68694281, structure/formula (C10H8S) cross-checked
+        # via ConnectivitySMILES "C1=CC=C2C3C=CC(C2=C1)S3" -- same
+        # von-Baeyer-name limitation as the epoxy case above.
+        "C1=CC2SC1c1ccccc12",
+        # Same molecule, atom order starting from the intact aromatic ring.
+        "c1ccc2c(c1)C1C=CC2S1",
+    ],
+)
+def test_bridged_naphthalene_sulfano(smiles):
+    assert smiles_to_iupac(smiles) == "1,4-dihydro-1,4-sulfanonaphthalene"
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        # PubChem CID 138429, structure/formula (C10H9N) cross-checked via
+        # ConnectivitySMILES "C1=CC=C2C3C=CC(C2=C1)N3" -- same
+        # von-Baeyer-name limitation as the epoxy/sulfano cases above.
+        "C1=CC2NC1c1ccccc12",
+        # Same molecule, atom order starting from the intact aromatic ring.
+        "c1ccc2c(c1)C1C=CC2N1",
+    ],
+)
+def test_bridged_naphthalene_azano(smiles):
+    assert smiles_to_iupac(smiles) == "1,4-dihydro-1,4-azanonaphthalene"
+
+
+def test_halogen_on_bridged_naphthalene_sulfano_aromatic_ring():
+    # the sulfano analogue of the chlorinated methano/epoxy cases above --
+    # same mechanism, not bridge-prefix-specific.
+    assert smiles_to_iupac("Clc1ccc2c(c1)C1C=CC2S1") == "6-chloro-1,4-dihydro-1,4-sulfanonaphthalene"
+
+
+def test_substituted_sulfano_aromatic_ring_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccc2c(c1)C1C=CC2S1")
+
+
+def test_bridged_anthracene_terminal_ring_sulfano():
+    # A 1,4-type sulfano bridge on one terminal ring of anthracene (the
+    # same terminal-ring shape as `test_bridged_naphthalene_sulfano`, on a
+    # 3-ring chain instead of a 2-ring one) -- exercises the same
+    # generalized core-finder's anthracene-parent branch. Not to be
+    # confused with `find_bridged_anthracene_core`'s deliberately
+    # methano-only 9,10-meso bridge (see that function's own docstring).
+    assert smiles_to_iupac("C1=CC2SC1c1cc3ccccc3cc12") == "1,4-dihydro-1,4-sulfanoanthracene"
