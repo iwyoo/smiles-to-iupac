@@ -83,8 +83,12 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, linear_branch, ring_cycle
+from ._bicyclic import find_bicyclic_core
+from ._common import UnsupportedStructure, adjacency, linear_branch, ring_cycle, specified_stereocenters
 from ._numerals import alkane_name, alkyl_name
+from ._polycyclic import find_polycyclic_core
+from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
+from ._spiro import find_monospiro_atom
 from ._substituents import format_substituent_prefixes
 
 
@@ -144,7 +148,7 @@ def name_radical(mol) -> str:
         return _name_chain_radical(mol, radical, valence)
     if num_rings == 1:
         return _name_ring_radical(mol, ring_info, valence)
-    raise UnsupportedStructure("polycyclic and spiro radicals are not supported yet")
+    return _name_von_baeyer_or_spiro_radical(mol, radical, valence)
 
 
 def _radical_suffix(yl_name: str, valence: int) -> str:
@@ -154,6 +158,50 @@ def _radical_suffix(yl_name: str, valence: int) -> str:
     if valence == 1:
         return yl_name
     return yl_name + ("idene" if valence == 2 else "idyne")
+
+
+def _name_von_baeyer_or_spiro_radical(mol, radical, valence) -> str:
+    """P-23.2.1/P-24.2.1's von Baeyer bicyclic/polycyclic/monospiro
+    numbering extended with a single radical suffix, via
+    `_polycyclic_suffix.name_von_baeyer_suffix`/`name_monospiro_suffix`
+    (the shared mechanism `_alcohol.py`/`_carbenium.py` already use, the
+    latter structurally parallel to this one -- both cite a single
+    free-valence/charge locant on the ring skeleton with no suffix
+    elision needed). The '-yl' name is computed first, then P-71.2.2.1's
+    'idene'/'idyne' suffix is appended on top for a divalent/trivalent
+    radical center, exactly as `_radical_suffix` already does for the
+    chain/monocyclic-ring cases. Restricted to no specified stereocenter,
+    matching `_carbenium.py`'s initial scope."""
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a von Baeyer bicyclic/"
+            "polycyclic or monospiro radical is not supported yet (see P-92)"
+        )
+
+    bicyclic_core = find_bicyclic_core(mol)
+    polycyclic_core = None
+    von_baeyer_ring_count = None
+    if bicyclic_core is None:
+        for candidate_ring_count in (3, 4, 5, 6):
+            polycyclic_core = find_polycyclic_core(mol, candidate_ring_count)
+            if polycyclic_core is not None:
+                von_baeyer_ring_count = candidate_ring_count
+                break
+    if bicyclic_core is not None or polycyclic_core is not None:
+        yl_name = name_von_baeyer_suffix(
+            mol, radical.GetIdx(), set(), "yl", "radical", bicyclic_core, polycyclic_core, von_baeyer_ring_count
+        )
+        return _radical_suffix(yl_name, valence)
+
+    spiro_atom = find_monospiro_atom(mol)
+    if spiro_atom is not None:
+        yl_name = name_monospiro_suffix(mol, radical.GetIdx(), set(), "yl", "radical", spiro_atom)
+        return _radical_suffix(yl_name, valence)
+
+    raise UnsupportedStructure(
+        "polycyclic and fused-ring radicals are not supported yet (P-23/"
+        "P-25 numbering integration with a suffix group is future work)"
+    )
 
 
 def _name_chain_radical(mol, radical, valence) -> str:
