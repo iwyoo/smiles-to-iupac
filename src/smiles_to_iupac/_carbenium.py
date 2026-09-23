@@ -35,21 +35,36 @@ Book"):
   isomer's name instead of erroring), so this project's usual
   verification bar isn't met for that wider case yet.
 
+- P-23.2.1/P-24.2.1: a single cation on a von Baeyer bicyclic/polycyclic
+  or monospiro ring system is named the same way as `_alcohol.py`'s/
+  `_amine.py`'s own polycyclic/spiro suffix support -- the parent's
+  already-established skeleton numbering picks the cation's locant, and
+  `-ylium` is appended per P-73.2.2.1.1/.2 above (`_polycyclic_suffix.py`,
+  shared mechanism). PubChem doesn't reliably register/verify these
+  charged structures either (see above), so verification for this case
+  cross-checks the neutral parent-hydride skeleton's own name instead of
+  the charged species' name directly.
+
 Explicitly out of scope (raise `UnsupportedStructure`):
 - A cation carbon that is a branch point with other than exactly two
   branches (three-branch shapes, and the associated 'tert-butyl'-style
   retained-name question, are deferred -- see above), or where either
   branch is itself further branched (P-29.5-style "complex substituent
   groups").
-- More than one cationic center, a cation on a polycyclic/spiro skeleton
-  or an aromatic ring, or coexisting with any heteroatom, halogen,
-  unsaturation, or isotopic modification.
+- More than one cationic center, a cation on an aromatic ring, a
+  specified stereocenter alongside a polycyclic/spiro cation, or
+  coexisting with any heteroatom, halogen, unsaturation, or isotopic
+  modification.
 """
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, linear_branch
+from ._bicyclic import find_bicyclic_core
+from ._common import UnsupportedStructure, adjacency, linear_branch, specified_stereocenters
 from ._numerals import alkane_name, alkyl_name
+from ._polycyclic import find_polycyclic_core
+from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
+from ._spiro import find_monospiro_atom
 
 
 def has_carbenium_shape(mol) -> bool:
@@ -110,7 +125,50 @@ def name_carbenium(mol) -> str:
         return _name_chain_carbenium(mol, cation)
     if num_rings == 1:
         return _name_ring_carbenium(mol, ring_info)
-    raise UnsupportedStructure("polycyclic and spiro carbenium cations are not supported yet")
+    return _name_von_baeyer_or_spiro_carbenium(mol, cation)
+
+
+def _name_von_baeyer_or_spiro_carbenium(mol, cation):
+    """P-23.2.1/P-24.2.1's von Baeyer bicyclic/polycyclic/monospiro
+    numbering extended with a single carbenium suffix, via
+    `_polycyclic_suffix.name_von_baeyer_suffix`/`name_monospiro_suffix`
+    (the shared mechanism `_alcohol.py`/`_amine.py` already use). The
+    cation carries no separate heteroatom to exclude from substituent
+    enumeration -- the charge sits directly on a ring carbon, unlike
+    alcohol's oxygen or amine's nitrogen -- so `excluded` is empty.
+    Restricted to no specified stereocenter, matching every other WS2
+    step's initial scope (unsaturation is already rejected earlier in
+    `name_carbenium`, for every ring count)."""
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a von Baeyer bicyclic/"
+            "polycyclic or monospiro carbenium cation is not supported "
+            "yet (see P-92)"
+        )
+
+    bicyclic_core = find_bicyclic_core(mol)
+    polycyclic_core = None
+    von_baeyer_ring_count = None
+    if bicyclic_core is None:
+        for candidate_ring_count in (3, 4, 5, 6):
+            polycyclic_core = find_polycyclic_core(mol, candidate_ring_count)
+            if polycyclic_core is not None:
+                von_baeyer_ring_count = candidate_ring_count
+                break
+    if bicyclic_core is not None or polycyclic_core is not None:
+        return name_von_baeyer_suffix(
+            mol, cation.GetIdx(), set(), "ylium", "carbenium", bicyclic_core, polycyclic_core, von_baeyer_ring_count
+        )
+
+    spiro_atom = find_monospiro_atom(mol)
+    if spiro_atom is not None:
+        return name_monospiro_suffix(mol, cation.GetIdx(), set(), "ylium", "carbenium", spiro_atom)
+
+    raise UnsupportedStructure(
+        "polycyclic and fused-ring carbenium cations are not supported "
+        "yet (P-23/P-25 numbering integration with a suffix group is "
+        "future work)"
+    )
 
 
 def _name_chain_carbenium(mol, cation) -> str:

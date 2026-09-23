@@ -70,11 +70,6 @@ def test_substituted_ring_carbenium_raises():
         smiles_to_iupac("CC1CC[CH+]C1")
 
 
-def test_polycyclic_carbenium_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[C+]12CCC1CC2")
-
-
 def test_multiple_carbenium_centers_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[CH2+][CH2+]")
