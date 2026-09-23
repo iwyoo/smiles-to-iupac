@@ -93,6 +93,7 @@ from ._common import (
     adjacency,
     group_substituents,
     halogen_substituents,
+    kekulized_copy,
     lowest_locant_set,
     non_single_bonds,
     substituent_locant_set_and_citation,
@@ -431,6 +432,7 @@ def _name_polycyclic_unsaturated(mol, core, ring_count, bonds) -> str:
 
 def name_polycycloalkane(mol, core, ring_count) -> str:
     validate_atoms_and_bonds(mol)
+    mol = kekulized_copy(mol)
     bonds = non_single_bonds(mol)
     if bonds:
         return _name_polycyclic_unsaturated(mol, core, ring_count, bonds)
