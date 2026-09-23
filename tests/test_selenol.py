@@ -101,9 +101,13 @@ def test_substituted_ring_selenol_locant_cited():
     assert smiles_to_iupac("CC1CCCCC1[SeH]") == "2-methylcyclohexane-1-selenol"
 
 
-def test_polycyclic_selenol_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C12(CCC(CC1)CC2)[SeH]")
+def test_polycyclic_selenol_on_bridgehead():
+    # A selenol on the bridgehead atom itself (locant 1), not one of the
+    # bridge atoms this module's other von Baeyer tests cover -- no
+    # PubChem-registered structure for this exact molecule (rare at this
+    # scale, see `test_von_baeyer_spiro_selenol.py`'s identical rarity
+    # note), reviewed rather than independently confirmed.
+    assert smiles_to_iupac("C12(CCC(CC1)CC2)[SeH]") == "bicyclo[2.2.2]octane-1-selenol"
 
 
 def test_ring_substituent_chain_selenol():
