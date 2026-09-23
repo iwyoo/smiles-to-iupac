@@ -1,0 +1,112 @@
+"""Shared mechanism for citing a single principal-characteristic-group
+suffix locant on an already-numbered von Baeyer bicyclic/polycyclic
+(P-23.2.1) or monospiro (P-24.2.1) parent hydride.
+
+Extracted from `_alcohol.py`'s original `_name_von_baeyer_alcohol`/
+`_name_monospiro_alcohol` (#782, M1), which already implemented this end
+to end for -OH: given the parent's already-established skeleton
+numbering, the only per-suffix pieces are (1) which atom carries the
+suffix, (2) the excluded-heteroatom set passed to `substituents_for_ring`
+so the suffix atom itself is never also treated as a substituent branch,
+(3) the suffix word appended to the parent stem, and (4) the noun used in
+the "not on the ring system itself" error message. Everything else --
+candidate iteration, substituent enumeration, ranking via each shape's own
+`_candidate_key`'s `suffix_locant` parameter -- is suffix-agnostic (#822,
+M2 step 1).
+
+Lives in its own module rather than `_common.py` because `_bicyclic.py`/
+`_polycyclic.py`/`_spiro.py` already import from `_common.py` -- importing
+them back from there would be circular.
+"""
+
+from ._bicyclic import (
+    _candidate_key as _bicyclic_candidate_key,
+    bicyclic_parent_name,
+    iter_bicyclic_numberings,
+)
+from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._polycyclic import (
+    _candidate_key as _polycyclic_candidate_key,
+    iter_polycyclic_candidates,
+)
+from ._spiro import _candidate_key as _spiro_candidate_key, iter_monospiro_numberings
+from ._substituents import substituents_for_ring
+
+
+def von_baeyer_core_atoms(bicyclic_core, polycyclic_core):
+    if bicyclic_core is not None:
+        bh1, bh2, bridges = bicyclic_core
+        return {bh1, bh2} | {atom for bridge in bridges for atom in bridge}
+    branch_atoms, bridges = polycyclic_core
+    return set(branch_atoms) | {atom for _, _, path in bridges for atom in path}
+
+
+def name_von_baeyer_suffix(
+    mol, suffix_carbon, excluded, suffix_word, noun, bicyclic_core, polycyclic_core, ring_count
+):
+    """`suffix_carbon`: the single ring atom the suffix is attached to.
+    `excluded`: heteroatom indices to keep out of `substituents_for_ring`'s
+    own substituent enumeration (the suffix group's own atom(s)).
+    `suffix_word`: appended after the parent stem's elided final 'e'
+    (e.g. 'ol' -> 'bicyclo[2.2.1]heptan-2-ol', 'amine' ->
+    'bicyclo[2.2.1]heptan-2-amine'). `noun`: used only in the
+    not-on-the-ring-system error message (e.g. 'hydroxyl', 'amine')."""
+    core_atoms = von_baeyer_core_atoms(bicyclic_core, polycyclic_core)
+    if suffix_carbon not in core_atoms:
+        raise UnsupportedStructure(
+            f"a {noun} not on the bicyclic/polycyclic ring system itself "
+            "(e.g. on a substituent branch) is not supported yet"
+        )
+
+    halogens = halogen_substituents(mol)
+    graph = adjacency(mol)
+    best_key = None
+    if bicyclic_core is not None:
+        base_parent = bicyclic_parent_name(bicyclic_core)
+        for full_order in iter_bicyclic_numberings(bicyclic_core):
+            locant = full_order.index(suffix_carbon) + 1
+            substituents = substituents_for_ring(graph, full_order, halogens, excluded, mol=mol)
+            parent = base_parent[:-1] + f"-{locant}-{suffix_word}"
+            key = _bicyclic_candidate_key(parent, substituents, suffix_locant=locant)
+            if best_key is None or key < best_key:
+                best_key = key
+        return best_key[-1]
+
+    for full_order, parent, outer_key in iter_polycyclic_candidates(polycyclic_core, ring_count):
+        locant = full_order.index(suffix_carbon) + 1
+        substituents = substituents_for_ring(graph, full_order, halogens, excluded, mol=mol)
+        suffixed_parent = parent[:-1] + f"-{locant}-{suffix_word}"
+        key = outer_key + _polycyclic_candidate_key(suffixed_parent, substituents, suffix_locant=locant)
+        if best_key is None or key < best_key:
+            best_key = key
+    if best_key is None:
+        raise UnsupportedStructure(
+            "this polycyclic topology is not supported yet (disjoint ring "
+            "systems joined only by an acyclic linker are out of scope; "
+            "see _polycyclic.py's name_polycycloalkane for the analogous "
+            "non-suffix guard)"
+        )
+    return best_key[-1]
+
+
+def name_monospiro_suffix(mol, suffix_carbon, excluded, suffix_word, noun, spiro_atom):
+    """Same mechanism as `name_von_baeyer_suffix`, for a monospiro
+    skeleton (`_spiro.py`)."""
+    ring_atoms = {atom for ring in mol.GetRingInfo().AtomRings() for atom in ring}
+    if suffix_carbon not in ring_atoms:
+        raise UnsupportedStructure(
+            f"a {noun} not on the monospiro ring system itself (e.g. on a "
+            "substituent branch) is not supported yet"
+        )
+
+    halogens = halogen_substituents(mol)
+    graph = adjacency(mol)
+    best_key = None
+    for parent, full_order in iter_monospiro_numberings(mol, spiro_atom):
+        locant = full_order.index(suffix_carbon) + 1
+        substituents = substituents_for_ring(graph, full_order, halogens, excluded, mol=mol)
+        suffixed_parent = parent[:-1] + f"-{locant}-{suffix_word}"
+        key = _spiro_candidate_key(suffixed_parent, substituents, suffix_locant=locant)
+        if best_key is None or key < best_key:
+            best_key = key
+    return best_key[-1]
