@@ -38,6 +38,7 @@ class UnsupportedStructure(NotImplementedError):
 
 
 HALOGEN_PREFIXES = {9: "fluoro", 17: "chloro", 35: "bromo", 53: "iodo"}
+HALIDE_WORDS = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 _ALLOWED_ATOMIC_NUMS = {6, *HALOGEN_PREFIXES}
 
 ENE_BOND_ORDER = 2.0

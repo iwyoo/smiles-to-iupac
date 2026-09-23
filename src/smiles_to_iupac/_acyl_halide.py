@@ -48,6 +48,7 @@ no substituted benzene/naphthalene -- each a separate follow-up.
 from rdkit import Chem
 
 from ._common import (
+    HALIDE_WORDS,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
@@ -71,8 +72,6 @@ from ._substituents import format_substituent_prefixes, name_branch, substituent
 _ENE_ORDER = 2.0
 _YNE_ORDER = 3.0
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
-
-_HALIDE_WORDS = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 
 
 def _acyl_halide_carbons(mol):
@@ -240,7 +239,7 @@ def _name_phenyl_chain_acyl_halide(mol, ring_atoms):
         )
 
     chain_length = len(chain)
-    halide_word = _HALIDE_WORDS[mol.GetAtomWithIdx(acyl_halogen).GetAtomicNum()]
+    halide_word = HALIDE_WORDS[mol.GetAtomWithIdx(acyl_halogen).GetAtomicNum()]
     halogens = halogen_substituents(mol)
     substituents = {
         position: [name_branch(graph, root, chain[position - 1], halogens, ring_atoms, mol=mol) for root in roots]
@@ -272,7 +271,7 @@ def name_acyl_halide(mol) -> str:
             "supported (see P-31.1.1.1)"
         )
     graph = adjacency(mol)
-    halide_word = _HALIDE_WORDS[mol.GetAtomWithIdx(acyl_halogen).GetAtomicNum()]
+    halide_word = HALIDE_WORDS[mol.GetAtomWithIdx(acyl_halogen).GetAtomicNum()]
     halogens = halogen_substituents(mol)
     chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
