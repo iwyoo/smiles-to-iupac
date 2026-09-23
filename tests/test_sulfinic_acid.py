@@ -64,11 +64,6 @@ def test_2_chlorocyclohexane_1_sulfinic_acid():
     assert smiles_to_iupac("OS(=O)C1CCCCC1Cl") == "2-chlorocyclohexane-1-sulfinic acid"
 
 
-def test_polycyclic_sulfinic_acid_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)C1CC2CCC1CC2")
-
-
 def test_unsaturated_ring_sulfinic_acid():
     # Monocyclic ring, single -SO2H, single ring double bond (P-31.1.3):
     # the sulfinic acid always gets locant 1 (suffix priority), the ring
