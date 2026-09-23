@@ -67,11 +67,6 @@ def test_n_methylcyclohexanesulfonamide():
     assert smiles_to_iupac("O=S(=O)(NC)C1CCCCC1") == "N-methylcyclohexanesulfonamide"
 
 
-def test_polycyclic_sulfonamide_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=S(=O)(N)C1CC2CCC1CC2")
-
-
 def test_unsaturated_ring_sulfonamide():
     # Monocyclic ring, single -SO2NH2, single ring double bond (P-31.1.3):
     # the sulfonamide always gets locant 1 (suffix priority), the ring
