@@ -57,6 +57,7 @@ from ._bridged_aromatic import (
 from ._borane import has_simple_borane_shape, name_simple_borane
 from ._boronic_acid import has_boronic_acid_shape, name_boronic_acid
 from ._borinic_acid import has_borinic_acid_shape, name_borinic_acid
+from ._group13_hydride import has_group13_hydride_shape, name_group13_hydride
 from ._branched_fused_aromatic import has_retained_branched_fused_name, name_retained_branched_fused
 from ._carboxylate import has_carboxylate_shape, name_carboxylate
 from ._selenoate import has_selenoate_shape, name_selenoate
@@ -463,6 +464,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # boron at all.
     if has_simple_borane_shape(mol):
         return name_simple_borane(mol)
+
+    # A Group 13 metal (Al/Ga/In/Tl, P-69.1) is the same substitutive-
+    # naming shape as boron/phosphorus above, generalized as one shared
+    # mechanism -- must be routed here for the same reason: none of the
+    # branches below recognize any of these elements at all.
+    if has_group13_hydride_shape(mol):
+        return name_group13_hydride(mol)
 
     # buckminsterfullerene (P-27's '[60]fullerene', a fixed 12-pentagon/
     # 20-hexagon cage) is recognized by exact whole-molecule match --
