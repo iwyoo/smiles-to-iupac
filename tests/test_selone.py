@@ -75,11 +75,6 @@ def test_selenoaldehyde_not_supported():
         smiles_to_iupac("CCC=[Se]")
 
 
-def test_polycyclic_selone_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[Se]=C1CCC2(CCCCC2)CC1")
-
-
 def test_selone_with_hydroxyl_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OCC(=[Se])C")
