@@ -32,9 +32,24 @@ def test_phosphate_ester_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_mixed_alkyl_phosphate_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCOP(=O)(OC)OC")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # All three R groups distinct: three separate un-prefixed words,
+        # alphabetic order. PubChem CID 12494385/12494386.
+        ("CCOP(=O)(OC)Oc1ccccc1", "ethyl methyl phenyl phosphate"),
+        # Two identical R groups + one distinct: one multiplied word plus
+        # one plain word, ordered by each word's own base name (ignoring
+        # the multiplying prefix). PubChem CID 120420.
+        ("CCOP(=O)(OCC)OC", "diethyl methyl phosphate"),
+        # Same shape, roles reversed (two methyls, one ethyl) -- exercises
+        # the same grouping/ordering mechanism as CID 120420 above with a
+        # different element assignment.
+        ("CCOP(=O)(OC)OC", "ethyl dimethyl phosphate"),
+    ],
+)
+def test_mixed_alkyl_phosphate_ester_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_partial_hydrogen_ester_raises():
