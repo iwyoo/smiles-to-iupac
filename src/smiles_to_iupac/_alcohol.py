@@ -225,24 +225,12 @@ from ._common import (
     substituent_locant_set_and_citation,
     two_separate_rings_with_plain_aromatic_substituent,
 )
-from ._bicyclic import (
-    _candidate_key as _bicyclic_candidate_key,
-    bicyclic_parent_name,
-    find_bicyclic_core,
-    iter_bicyclic_numberings,
-)
+from ._bicyclic import find_bicyclic_core
 from ._cyclic_unsaturated import name_cyclic_unsaturated_yl
 from ._numerals import alkyl_name
-from ._polycyclic import (
-    _candidate_key as _polycyclic_candidate_key,
-    find_polycyclic_core,
-    iter_polycyclic_candidates,
-)
-from ._spiro import (
-    _candidate_key as _spiro_candidate_key,
-    find_monospiro_atom,
-    iter_monospiro_numberings,
-)
+from ._polycyclic import find_polycyclic_core
+from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
+from ._spiro import find_monospiro_atom
 from ._substituents import (
     branch_atom_locant,
     format_substituent_prefixes,
@@ -750,24 +738,12 @@ def _name_cyclic_alcohol(mol, hydroxyls, stereo=None, bonds=(), ring_atoms=None,
     return best_name
 
 
-def _von_baeyer_core_atoms(bicyclic_core, polycyclic_core):
-    if bicyclic_core is not None:
-        bh1, bh2, bridges = bicyclic_core
-        return {bh1, bh2} | {atom for bridge in bridges for atom in bridge}
-    branch_atoms, bridges = polycyclic_core
-    return set(branch_atoms) | {atom for _, _, path in bridges for atom in path}
-
-
 def _name_von_baeyer_alcohol(mol, hydroxyls, stereo, bonds, bicyclic_core, polycyclic_core, ring_count):
     """P-23.2.1's bicyclic/polycyclic ('bicyclo[x.y.z]alkane'/
     'tricyclo[...]alkane'/...) numbering (P-23.2.3-P-23.2.6), extended
-    with a single -OH suffix the same way `_von_baeyer_heteroatom.py`
-    extends it with a skeletal replacement heteroatom: iterate every von
-    Baeyer-valid numbering (`iter_bicyclic_numberings`/
-    `iter_polycyclic_candidates`), compute the -OH carbon's own locant per
-    candidate, and rank it ahead of substituent locants via
-    `_bicyclic_candidate_key`/`_polycyclic_candidate_key`'s new
-    `suffix_locant` parameter. Unlike a chain's own principal
+    with a single -OH suffix via `_polycyclic_suffix.name_von_baeyer_suffix`
+    (the mechanism this function originally implemented and was later
+    extracted from, #822 M2 step 1). Unlike a chain's own principal
     characteristic-group carbon (always the fixed C1, its locant never
     cited, P-14.3.3), a von Baeyer parent's atom 1 is always a bridgehead
     by P-23.2.3's own numbering rule regardless of where the -OH sits, so
@@ -793,52 +769,16 @@ def _name_von_baeyer_alcohol(mol, hydroxyls, stereo, bonds, bicyclic_core, polyc
     (oh_oxygen,) = hydroxyls
     graph = adjacency(mol)
     (oh_carbon,) = graph[oh_oxygen]
-    core_atoms = _von_baeyer_core_atoms(bicyclic_core, polycyclic_core)
-    if oh_carbon not in core_atoms:
-        raise UnsupportedStructure(
-            "a hydroxyl not on the bicyclic/polycyclic ring system itself "
-            "(e.g. on a substituent branch) is not supported yet"
-        )
-
-    halogens = halogen_substituents(mol)
-    best_key = None
-    if bicyclic_core is not None:
-        base_parent = bicyclic_parent_name(bicyclic_core)
-        for full_order in iter_bicyclic_numberings(bicyclic_core):
-            oh_locant = full_order.index(oh_carbon) + 1
-            substituents = substituents_for_ring(graph, full_order, halogens, hydroxyls, mol=mol)
-            parent = base_parent[:-1] + f"-{oh_locant}-ol"
-            key = _bicyclic_candidate_key(parent, substituents, suffix_locant=oh_locant)
-            if best_key is None or key < best_key:
-                best_key = key
-        return best_key[-1]
-
-    for full_order, parent, outer_key in iter_polycyclic_candidates(polycyclic_core, ring_count):
-        oh_locant = full_order.index(oh_carbon) + 1
-        substituents = substituents_for_ring(graph, full_order, halogens, hydroxyls, mol=mol)
-        suffixed_parent = parent[:-1] + f"-{oh_locant}-ol"
-        key = outer_key + _polycyclic_candidate_key(suffixed_parent, substituents, suffix_locant=oh_locant)
-        if best_key is None or key < best_key:
-            best_key = key
-    if best_key is None:
-        raise UnsupportedStructure(
-            "this polycyclic topology is not supported yet (disjoint ring "
-            "systems joined only by an acyclic linker are out of scope; "
-            "see _polycyclic.py's name_polycycloalkane for the analogous "
-            "non-alcohol guard)"
-        )
-    return best_key[-1]
+    return name_von_baeyer_suffix(
+        mol, oh_carbon, hydroxyls, "ol", "hydroxyl", bicyclic_core, polycyclic_core, ring_count
+    )
 
 
 def _name_monospiro_alcohol(mol, hydroxyls, stereo, spiro_atom):
     """P-24.2.1's monospiro numbering (`_spiro.py`), extended with a
-    single -OH suffix the same way `_name_von_baeyer_alcohol` extends the
-    von Baeyer bicyclic/polycyclic numbering above: iterate every
-    P-24.2.1-valid numbering (`iter_monospiro_numberings`), compute the
-    -OH carbon's own locant per candidate, and rank it ahead of
-    substituent locants via `_spiro_candidate_key`'s `suffix_locant`
-    parameter. Confirmed against a real registered structure (PubChem CID
-    90762054, 'OC1CCCC2(C1)CCCCC2')."""
+    single -OH suffix via `_polycyclic_suffix.name_monospiro_suffix`
+    (see `_name_von_baeyer_alcohol` above). Confirmed against a real
+    registered structure (PubChem CID 90762054, 'OC1CCCC2(C1)CCCCC2')."""
     if len(hydroxyls) != 1:
         raise UnsupportedStructure(
             "more than one hydroxyl on a monospiro ring system is not "
@@ -858,23 +798,7 @@ def _name_monospiro_alcohol(mol, hydroxyls, stereo, spiro_atom):
     (oh_oxygen,) = hydroxyls
     graph = adjacency(mol)
     (oh_carbon,) = graph[oh_oxygen]
-    ring_atoms = {atom for ring in mol.GetRingInfo().AtomRings() for atom in ring}
-    if oh_carbon not in ring_atoms:
-        raise UnsupportedStructure(
-            "a hydroxyl not on the monospiro ring system itself (e.g. on "
-            "a substituent branch) is not supported yet"
-        )
-
-    halogens = halogen_substituents(mol)
-    best_key = None
-    for parent, full_order in iter_monospiro_numberings(mol, spiro_atom):
-        oh_locant = full_order.index(oh_carbon) + 1
-        substituents = substituents_for_ring(graph, full_order, halogens, hydroxyls, mol=mol)
-        suffixed_parent = parent[:-1] + f"-{oh_locant}-ol"
-        key = _spiro_candidate_key(suffixed_parent, substituents, suffix_locant=oh_locant)
-        if best_key is None or key < best_key:
-            best_key = key
-    return best_key[-1]
+    return name_monospiro_suffix(mol, oh_carbon, hydroxyls, "ol", "hydroxyl", spiro_atom)
 
 
 def _name_ring_substituent_chain_alcohol(mol, hydroxyls):

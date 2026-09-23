@@ -63,8 +63,11 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   an otherwise-plain benzene ring is handled by `_name_aniline`
   (P-62.2.1.1.1), a separate follow-up from this narrower N-substituted/
   multi-group combination.
-- -NH2 on a von Baeyer polycyclic or spiro skeleton — deferred, same as
-  `_alcohol.py`.
+- A secondary/tertiary amine, or more than one amine, on a von Baeyer
+  polycyclic or spiro skeleton, or a specified stereocenter alongside
+  one — deferred (see `_name_von_baeyer_or_spiro_amine`); a single
+  primary -NH2 on such a skeleton is supported (P-23/P-24 numbering
+  integration, `_polycyclic_suffix.py`).
 - An amine nitrogen on a carbon that is also part of a C=C/C#C bond (an
   enamine) — scoped out for the same reason `_alcohol.py` scopes out enols.
 
@@ -122,7 +125,11 @@ from ._common import (
     substituent_locant_set_and_citation,
     unbranched_unsaturated_substituent_name,
 )
+from ._bicyclic import find_bicyclic_core
 from ._numerals import alkyl_name
+from ._polycyclic import find_polycyclic_core
+from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
+from ._spiro import find_monospiro_atom
 from ._substituents import (
     branch_atom_locant,
     format_substituent_prefixes,
@@ -1040,7 +1047,61 @@ def name_amine(mol) -> str:
                 )
             return _name_ring_with_amine_chain_amine(mol, amines, n_carbons_by_nitrogen)
         return _name_cyclic_amine(mol, amines, stereo, bonds)
+    return _name_von_baeyer_or_spiro_amine(mol, amines, n_carbons_by_nitrogen, stereo, bonds)
+
+
+def _name_von_baeyer_or_spiro_amine(mol, amines, n_carbons_by_nitrogen, stereo, bonds):
+    """P-23.2.1/P-24.2.1's von Baeyer bicyclic/polycyclic/monospiro
+    numbering extended with a single primary -NH2 suffix, via
+    `_polycyclic_suffix.name_von_baeyer_suffix`/`name_monospiro_suffix`
+    (the shared mechanism `_alcohol.py`'s `_name_von_baeyer_alcohol`/
+    `_name_monospiro_alcohol` already used, #822 M2 step 1). Mirrors
+    `_alcohol.py`'s own bicyclic/polycyclic-before-spiro dispatch order
+    (`name_alcohol`) -- a spiro atom's degree-4 shape never matches
+    `find_bicyclic_core`/`find_polycyclic_core`'s own degree-2/3 core
+    requirement, so this never misfires on a genuine spiro system.
+    Restricted to exactly one primary amine on the ring system itself, no
+    ring unsaturation, and no specified stereocenter -- secondary/tertiary
+    polycyclic amines and unsaturated/stereo combinations are out of scope
+    for this step (M2's later steps)."""
+    if len(amines) != 1:
+        raise UnsupportedStructure(
+            "more than one amine on a von Baeyer bicyclic/polycyclic or "
+            "monospiro ring system is not supported yet"
+        )
+    if bonds:
+        raise UnsupportedStructure(
+            "an unsaturated von Baeyer bicyclic/polycyclic or monospiro "
+            "ring system is not supported yet (see P-31.1.4/P-31.1.5)"
+        )
+    if stereo is not None:
+        raise UnsupportedStructure(
+            "a specified stereocenter alongside a von Baeyer bicyclic/"
+            "polycyclic or monospiro amine is not supported yet (see P-92)"
+        )
+
+    (n_idx,) = amines
+    (amine_carbon,) = n_carbons_by_nitrogen[n_idx]
+
+    bicyclic_core = find_bicyclic_core(mol)
+    polycyclic_core = None
+    von_baeyer_ring_count = None
+    if bicyclic_core is None:
+        for candidate_ring_count in (3, 4, 5, 6):
+            polycyclic_core = find_polycyclic_core(mol, candidate_ring_count)
+            if polycyclic_core is not None:
+                von_baeyer_ring_count = candidate_ring_count
+                break
+    if bicyclic_core is not None or polycyclic_core is not None:
+        return name_von_baeyer_suffix(
+            mol, amine_carbon, amines, "amine", "amine", bicyclic_core, polycyclic_core, von_baeyer_ring_count
+        )
+
+    spiro_atom = find_monospiro_atom(mol)
+    if spiro_atom is not None:
+        return name_monospiro_suffix(mol, amine_carbon, amines, "amine", "amine", spiro_atom)
+
     raise UnsupportedStructure(
-        "polycyclic and spiro amines are not supported yet (P-23/P-24/P-25 "
-        "numbering integration with a suffix group is future work)"
+        "polycyclic and fused-ring amines are not supported yet (P-23/"
+        "P-25 numbering integration with a suffix group is future work)"
     )
