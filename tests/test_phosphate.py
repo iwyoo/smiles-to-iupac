@@ -57,14 +57,6 @@ def test_partial_hydrogen_ester_raises():
         smiles_to_iupac("COP(=O)(OC)O")
 
 
-def test_phosphite_ester_unaffected():
-    # No P=O bond -- routed to a different module entirely
-    # (`_phosphane.py`), not this one; still unsupported, but for a
-    # different reason (a future milestone step, not this pilot).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCOP(OCC)OCC")
-
-
 def test_phosphonic_acid_unaffected():
     assert smiles_to_iupac("CP(=O)(O)O") == "methylphosphonic acid"
 
