@@ -81,9 +81,11 @@ def test_telluroaldehyde_not_supported():
         smiles_to_iupac("CCC=[Te]")
 
 
-def test_polycyclic_tellone_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[Te]=C1CCC2(CCCCC2)CC1")
+def test_von_baeyer_spiro_tellone_now_supported():
+    # A single tellone on a von Baeyer bicyclic/polycyclic or monospiro
+    # ring system is supported (see `test_von_baeyer_spiro_tellone.py`);
+    # this SMILES is a spiro shape.
+    assert smiles_to_iupac("[Te]=C1CCC2(CCCCC2)CC1") == "spiro[5.5]undecane-3-tellone"
 
 
 def test_tellurol_not_confused_with_tellone():
