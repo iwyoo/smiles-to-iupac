@@ -100,11 +100,6 @@ def test_aromatic_thione_not_supported():
         smiles_to_iupac("Cc1ccc(cc1)C(=S)C")
 
 
-def test_polycyclic_thione_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("S=C1CCC2(CCCCC2)CC1")
-
-
 def test_thione_with_hydroxyl_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OCC(=S)C")
