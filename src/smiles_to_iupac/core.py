@@ -85,8 +85,10 @@ from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsat
 from ._dihydro_aromatic import (
     find_decahydronaphthalene_core,
     find_dihydronaphthalene_core,
+    find_partially_unsaturated_naphthalene_core,
     name_decahydronaphthalene,
     name_dihydronaphthalene,
+    name_partially_unsaturated_naphthalene,
 )
 from ._diester_acyloxy import has_diester_shape, name_diester_acyloxy
 from ._ester import has_ester_shape, name_ester
@@ -1587,6 +1589,15 @@ def smiles_to_iupac(smiles: str) -> str:
         decahydro_core = find_decahydronaphthalene_core(mol)
         if decahydro_core is not None:
             return name_decahydronaphthalene(mol, decahydro_core)
+        # A naphthalene skeleton with 1-4 plain (non-aromatic) Kekule ring
+        # double bonds -- anywhere between the dihydro case above and full
+        # saturation -- is likewise a mancude ring system's hydro
+        # derivative (P-31.2.3.3.2), not a von Baeyer system (#828, M2
+        # step 1); must be routed here for the same reason as the two
+        # cases above.
+        partial_core = find_partially_unsaturated_naphthalene_core(mol)
+        if partial_core is not None:
+            return name_partially_unsaturated_naphthalene(mol, partial_core)
     if num_rings == 0:
         bonds = non_single_bonds(mol)
         if not bonds:
