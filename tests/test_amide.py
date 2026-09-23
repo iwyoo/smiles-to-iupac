@@ -361,3 +361,36 @@ def test_amide_ring_stereocenter_unspecified_unaffected():
 def test_amide_ring_partially_specified_stereocenters_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("NC(=O)[C@H]1CCCCC1Cl")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Hydroxamic acids (R-CO-NH-OH) are named as N-hydroxy amides per
+        # P-66.1.1.3.2, not a separate suffix. Real, distinct PubChem CIDs:
+        # 1990 (N-hydroxyacetamide), 75743 (N-hydroxypropanamide).
+        ("CC(=O)NO", "N-hydroxyethanamide"),
+        ("CCC(=O)NO", "N-hydroxypropanamide"),
+    ],
+)
+def test_hydroxamic_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_hydroxamic_acid_on_ring():
+    # PubChem CID 3432579: N-hydroxycyclohexanecarboxamide.
+    assert smiles_to_iupac("C1CCC(CC1)C(=O)NO") == "N-hydroxycyclohexanecarboxamide"
+
+
+def test_hydroxamic_acid_with_n_alkyl_raises():
+    # An N-alkyl substituent alongside the N-hydroxy one is out of scope
+    # for this narrow slice (see module docstring).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=O)N(C)O")
+
+
+def test_hydroxamic_acid_on_benzamide_raises():
+    # N-substitution alongside a benzamide-shaped ring is out of scope
+    # (mirrors the existing N-alkyl-substituted-benzamide restriction).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1ccc(cc1)C(=O)NO")

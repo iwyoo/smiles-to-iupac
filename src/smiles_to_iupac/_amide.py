@@ -157,17 +157,35 @@ def _is_carbonyl_carbon(mol, carbon_atom):
     )
 
 
+def _is_plain_hydroxyl_oxygen(mol, oxygen_atom, other_atom_idx):
+    """True if `oxygen_atom` is a bare -OH: degree 1, singly bonded to
+    `other_atom_idx`, and exactly one implicit/explicit hydrogen. Shared by
+    `has_amide_shape` and `_validate_and_collect_amide` to recognize a
+    hydroxamic acid's N-hydroxy oxygen (P-66.1.1.3.2) the same way as any
+    other plain standalone hydroxyl in this module."""
+    return (
+        oxygen_atom.GetAtomicNum() == 8
+        and oxygen_atom.GetDegree() == 1
+        and oxygen_atom.GetTotalNumHs() == 1
+        and mol.GetBondBetweenAtoms(other_atom_idx, oxygen_atom.GetIdx()).GetBondTypeAsDouble() == 1.0
+    )
+
+
 def has_amide_shape(mol) -> bool:
     """True if some carbon carries a doubly-bonded, monovalent carbonyl
-    oxygen and a singly-bonded nitrogen with 0-2 carbon substituents, no
-    other heavy-atom neighbor, and no *other* carbonyl-carbon neighbor (a
-    -CON(R)(R') pattern, R/R' either H or an unbranched alkyl carbon),
-    regardless of whether the rest of the molecule is in scope. Used by
-    `core.py` to route ahead of the aldehyde/ketone dispatch, since an amide
-    carbon would otherwise look aldehyde-shaped to those modules (both have
-    exactly one carbon neighbor besides the carbonyl). A nitrogen bonded to
-    two carbonyl carbons (a symmetric imide) is excluded here so `core.py`'s
-    later `has_imide_shape` check still gets a chance at it."""
+    oxygen and a singly-bonded nitrogen with 0-2 carbon substituents (or a
+    single plain hydroxyl substituent, P-66.1.1.3.2's N-hydroxy amide/
+    hydroxamic acid shape), no other heavy-atom neighbor, and no *other*
+    carbonyl-carbon neighbor (a -CON(R)(R') pattern, R/R' either H, an
+    unbranched alkyl carbon, or -OH), regardless of whether the rest of the
+    molecule is in scope. Used by `core.py` to route ahead of the aldehyde/
+    ketone dispatch, since an amide carbon would otherwise look aldehyde-
+    shaped to those modules (both have exactly one carbon neighbor besides
+    the carbonyl, and that count ignores a nitrogen substituent -- the same
+    routing trap `core.py`'s own `_is_aldehyde_shaped` comment already names
+    directly). A nitrogen bonded to two carbonyl carbons (a symmetric imide)
+    is excluded here so `core.py`'s later `has_imide_shape` check still gets
+    a chance at it."""
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() != 6:
             continue
@@ -176,7 +194,11 @@ def has_amide_shape(mol) -> bool:
         has_amide_n = any(
             n.GetAtomicNum() == 7
             and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
-            and all(nn.GetAtomicNum() == 6 for nn in n.GetNeighbors() if nn.GetIdx() != atom.GetIdx())
+            and all(
+                nn.GetAtomicNum() == 6 or _is_plain_hydroxyl_oxygen(mol, nn, n.GetIdx())
+                for nn in n.GetNeighbors()
+                if nn.GetIdx() != atom.GetIdx()
+            )
             and sum(1 for nn in n.GetNeighbors() if _is_carbonyl_carbon(mol, nn)) == 1
             for n in atom.GetNeighbors()
         )
@@ -188,9 +210,11 @@ def has_amide_shape(mol) -> bool:
 def _validate_and_collect_amide(mol, aromatic_ring_atoms=frozenset()):
     """Check the molecule fits this module's scope (see module docstring)
     and return (amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons,
-    hydroxyls): the single -CON(R)(R') carbon/oxygen/nitrogen atom indices,
-    a tuple of 0-2 N-alkyl substituent carbon indices, and the set of any
-    coexisting standalone hydroxyl-oxygen atom indices.
+    hydroxyls, n_hydroxy_oxygen): the single -CON(R)(R') carbon/oxygen/
+    nitrogen atom indices, a tuple of 0-2 N-alkyl substituent carbon
+    indices, the set of any coexisting standalone (chain) hydroxyl-oxygen
+    atom indices, and the amide nitrogen's own hydroxyl-oxygen atom index
+    if it has one (a hydroxamic acid, P-66.1.1.3.2) else None.
 
     `aromatic_ring_atoms`: atom indices already independently verified (by
     the caller, before this function runs) to form a single plain benzene
@@ -204,6 +228,7 @@ def _validate_and_collect_amide(mol, aromatic_ring_atoms=frozenset()):
     amide_oxygen_by_carbon = {}
     amide_nitrogen_by_carbon = {}
     n_alkyl_carbons_by_nitrogen = {}
+    n_hydroxy_by_nitrogen = {}
     hydroxyls = set()
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
@@ -232,6 +257,11 @@ def _validate_and_collect_amide(mol, aromatic_ring_atoms=frozenset()):
                 )
             (bond,) = atom.GetBonds()
             (carbon,) = atom.GetNeighbors()
+            if carbon.GetAtomicNum() == 7:
+                # A hydroxamic acid's N-hydroxy oxygen (P-66.1.1.3.2) --
+                # the nitrogen branch below validates and collects it, not
+                # this generic chain/ring-hydroxyl path.
+                continue
             if carbon.GetAtomicNum() != 6:
                 raise UnsupportedStructure("an amide/hydroxyl oxygen must be attached to a carbon atom")
             bond_order = bond.GetBondTypeAsDouble()
@@ -251,11 +281,16 @@ def _validate_and_collect_amide(mol, aromatic_ring_atoms=frozenset()):
             amide_oxygen_by_carbon.setdefault(carbon.GetIdx(), []).append(atom.GetIdx())
         elif atomic_num == 7:
             neighbors = list(atom.GetNeighbors())
-            if any(n.GetAtomicNum() != 6 for n in neighbors):
+            non_carbon_neighbors = [n for n in neighbors if n.GetAtomicNum() != 6]
+            if len(non_carbon_neighbors) > 1 or any(
+                not _is_plain_hydroxyl_oxygen(mol, n, atom.GetIdx()) for n in non_carbon_neighbors
+            ):
                 raise UnsupportedStructure(
                     "an amide nitrogen bonded to anything other than "
-                    "carbon is out of scope for this module"
+                    "carbon, or a single plain hydroxyl (P-66.1.1.3.2), is "
+                    "out of scope for this module"
                 )
+            n_hydroxy_oxygen = non_carbon_neighbors[0].GetIdx() if non_carbon_neighbors else None
             if len(neighbors) > 3:
                 raise UnsupportedStructure(
                     "an amide nitrogen with more than two substituents "
@@ -268,16 +303,19 @@ def _validate_and_collect_amide(mol, aromatic_ring_atoms=frozenset()):
                         "an amide nitrogen must be singly bonded to all its neighbors"
                     )
 
-            carbonyl_neighbors = [n for n in neighbors if _is_carbonyl_carbon(mol, n)]
+            carbonyl_neighbors = [n for n in neighbors if n.GetAtomicNum() == 6 and _is_carbonyl_carbon(mol, n)]
             if len(carbonyl_neighbors) != 1:
                 raise UnsupportedStructure(
                     "a nitrogen bonded to zero or multiple carbonyl carbons "
                     "is not a valid amide nitrogen for this module"
                 )
             (carbonyl_carbon,) = carbonyl_neighbors
-            n_alkyl_carbons = tuple(n.GetIdx() for n in neighbors if n.GetIdx() != carbonyl_carbon.GetIdx())
+            n_alkyl_carbons = tuple(
+                n.GetIdx() for n in neighbors if n.GetIdx() != carbonyl_carbon.GetIdx() and n.GetAtomicNum() == 6
+            )
             amide_nitrogen_by_carbon.setdefault(carbonyl_carbon.GetIdx(), []).append(atom.GetIdx())
             n_alkyl_carbons_by_nitrogen[atom.GetIdx()] = n_alkyl_carbons
+            n_hydroxy_by_nitrogen[atom.GetIdx()] = n_hydroxy_oxygen
         else:
             if atom.GetDegree() != 1:
                 raise UnsupportedStructure(
@@ -324,9 +362,10 @@ def _validate_and_collect_amide(mol, aromatic_ring_atoms=frozenset()):
     (amide_oxygen,) = amide_oxygen_by_carbon[amide_carbon]
     (amide_nitrogen,) = amide_nitrogen_by_carbon[amide_carbon]
     n_alkyl_carbons = n_alkyl_carbons_by_nitrogen[amide_nitrogen]
+    n_hydroxy_oxygen = n_hydroxy_by_nitrogen[amide_nitrogen]
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    return amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls
+    return amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls, n_hydroxy_oxygen
 
 
 def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped):
@@ -371,6 +410,7 @@ def _name_acyclic_amide(
     required_atoms=frozenset(),
     extra_excluded_carbons=frozenset(),
     phenyl_atoms=frozenset(),
+    n_hydroxy_oxygen=None,
 ):
     """`stereo`: None, or a list of (stereocenter_atom_idx, "R"/"S") from
     `specified_stereocenters` -- if given, only chain candidates that
@@ -442,6 +482,12 @@ def _name_acyclic_amide(
         n_names.append(name_branch(graph, n_alkyl_c, amide_nitrogen, {}, mol=mol))
         n_substituent_atoms |= n_atoms
 
+    if n_hydroxy_oxygen is not None:
+        # P-66.1.1.3.2: a hydroxamic acid is just an amide with a plain
+        # 'hydroxy' N-substituent, cited via the same "N-" prefix
+        # machinery below as any N-alkyl substituent.
+        n_names.append(("hydroxy", False))
+
     # N-alkyl substituent carbons hang off the (excluded) amide nitrogen, not
     # off any acyl-chain carbon, so they form their own isolated component(s)
     # in the carbon-only graph; the whole subtree must be removed before
@@ -503,7 +549,7 @@ def _name_acyclic_amide(
                 position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
                 best_key, best_name, best_position_of = key, name, position_of
 
-    if n_alkyl_carbons:
+    if n_names:
         if len(n_names) == 2 and n_names[0][0] == n_names[1][0]:
             name, is_compound = n_names[0]
             di_name = f"({name})" if is_compound else name
@@ -568,7 +614,9 @@ def _name_ring_amide(mol, ring_atoms, stereo=None):
     `specified_stereocenters` -- every stereocenter must lie on the ring
     itself (a stereocenter on the -CONH2 substituent branch is out of
     scope for now)."""
-    amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(mol)
+    amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls, n_hydroxy_oxygen = (
+        _validate_and_collect_amide(mol)
+    )
     if n_alkyl_carbons:
         raise UnsupportedStructure("an N-alkyl-substituted ring amide is not supported yet")
     if hydroxyls:
@@ -617,6 +665,10 @@ def _name_ring_amide(mol, ring_atoms, stereo=None):
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, key[-1], position_of
 
+    if n_hydroxy_oxygen is not None:
+        separator = "-" if best_name[0].isdigit() else ""
+        best_name = f"N-hydroxy{separator}{best_name}"
+
     if stereo:
         labels = sorted((best_position_of[atom], r_or_s) for atom, r_or_s in stereo)
         prefix = ",".join(f"{locant}{r_or_s}" for locant, r_or_s in labels)
@@ -652,11 +704,11 @@ def _name_benzamide(mol, ring_atoms):
     retained name 'benzamide' replacing 'cyclo' + alkane_name +
     'carboxamide' as the whole suffix unit (no locant is ever cited for
     the -CONH2 position itself)."""
-    amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(
-        mol, aromatic_ring_atoms=ring_atoms
+    amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls, n_hydroxy_oxygen = (
+        _validate_and_collect_amide(mol, aromatic_ring_atoms=ring_atoms)
     )
-    if n_alkyl_carbons:
-        raise UnsupportedStructure("an N-alkyl-substituted benzamide is not supported yet")
+    if n_alkyl_carbons or n_hydroxy_oxygen is not None:
+        raise UnsupportedStructure("an N-substituted benzamide is not supported yet")
     if hydroxyls:
         raise UnsupportedStructure(
             "a standalone hydroxyl alongside benzamide is not supported "
@@ -718,17 +770,16 @@ def _name_phenyl_chain_amide(mol, ring_atoms):
     cited as a 'phenyl' substituent prefix (via `name_branch`'s aromatic-
     ring recognition) on the chain, which is the parent hydride, mirroring
     `_aldehyde.py`'s `_name_phenyl_chain_aldehyde`. Narrower than the
-    acyclic path above: no N-alkyl substitution, no coexisting standalone
+    acyclic path above: no N-substitution, no coexisting standalone
     hydroxyl, no chain unsaturation, and no specified stereocenter -- each
-    is a separate follow-up (see
-    tasks/phenyl-substituent-on-amide-chain.md's scope note)."""
-    amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(
-        mol, aromatic_ring_atoms=ring_atoms
+    is a separate follow-up."""
+    amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls, n_hydroxy_oxygen = (
+        _validate_and_collect_amide(mol, aromatic_ring_atoms=ring_atoms)
     )
-    if n_alkyl_carbons:
+    if n_alkyl_carbons or n_hydroxy_oxygen is not None:
         raise UnsupportedStructure(
-            "an N-alkyl-substituted amide alongside a benzene-ring "
-            "substituent is not supported yet"
+            "an N-substituted amide alongside a benzene-ring substituent "
+            "is not supported yet"
         )
     if hydroxyls:
         raise UnsupportedStructure(
@@ -783,10 +834,10 @@ def _name_amide_with_n_phenyl(mol, ring_atoms):
     formatting unchanged. A second substituent sharing the same nitrogen
     (phenyl+alkyl, or two phenyls) is out of scope, same restriction as
     those modules; each is a separate follow-up."""
-    amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(
-        mol, aromatic_ring_atoms=ring_atoms
+    amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls, n_hydroxy_oxygen = (
+        _validate_and_collect_amide(mol, aromatic_ring_atoms=ring_atoms)
     )
-    if len(n_alkyl_carbons) != 1:
+    if len(n_alkyl_carbons) != 1 or n_hydroxy_oxygen is not None:
         raise UnsupportedStructure(
             "a phenyl N-substituent alongside another substituent on the "
             "same nitrogen is not supported yet"
@@ -831,22 +882,24 @@ def name_amide(mol) -> str:
             attachment = ring_chain_attachment(graph, ring_atoms, set())
             if attachment is not None and mol.GetAtomWithIdx(attachment[1]).GetAtomicNum() == 7:
                 return _name_amide_with_n_phenyl(mol, ring_atoms)
-            amide_carbon, _, _, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(
+            amide_carbon, _, _, n_alkyl_carbons, hydroxyls, n_hydroxy_oxygen = _validate_and_collect_amide(
                 mol, aromatic_ring_atoms=ring_atoms
             )
-            if not n_alkyl_carbons and not hydroxyls:
+            if not n_alkyl_carbons and not hydroxyls and n_hydroxy_oxygen is None:
                 graph = adjacency(mol)
                 ring_neighbors = [n for n in graph[amide_carbon] if n in ring_atoms]
                 if len(ring_neighbors) == 1:
                     return _name_benzamide(mol, ring_atoms)
             return _name_phenyl_chain_amide(mol, ring_atoms)
-        amide_carbon, _, _, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(mol)
+        amide_carbon, _, _, n_alkyl_carbons, hydroxyls, n_hydroxy_oxygen = _validate_and_collect_amide(mol)
         if not n_alkyl_carbons and not hydroxyls:
             graph = adjacency(mol)
             ring_neighbors = [n for n in graph[amide_carbon] if n in ring_atoms]
             if len(ring_neighbors) == 1:
                 return _name_ring_amide(mol, ring_atoms, specified_stereocenters(mol))
-    amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls = _validate_and_collect_amide(mol)
+    amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls, n_hydroxy_oxygen = (
+        _validate_and_collect_amide(mol)
+    )
     stereo = specified_stereocenters(mol)
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure(
@@ -855,6 +908,11 @@ def name_amide(mol) -> str:
             "ring unsaturation, or a ring other than a single saturated "
             "monocyclic/benzene one) is out of scope for this module's "
             "'carboxamide' suffix path (P-66.1.1.1.1.3)"
+        )
+    if n_alkyl_carbons and n_hydroxy_oxygen is not None:
+        raise UnsupportedStructure(
+            "an N-alkyl substituent alongside a hydroxamic acid's own "
+            "N-hydroxy substituent is not supported yet (P-66.1.1.3.2)"
         )
 
     excluded = {amide_oxygen, amide_nitrogen}
@@ -876,4 +934,14 @@ def name_amide(mol) -> str:
                 "is out of scope for this module (P-31.1.4.2.4)"
             )
 
-    return _name_acyclic_amide(mol, amide_carbon, amide_nitrogen, excluded, n_alkyl_carbons, hydroxyls, bonds, stereo)
+    return _name_acyclic_amide(
+        mol,
+        amide_carbon,
+        amide_nitrogen,
+        excluded,
+        n_alkyl_carbons,
+        hydroxyls,
+        bonds,
+        stereo,
+        n_hydroxy_oxygen=n_hydroxy_oxygen,
+    )
