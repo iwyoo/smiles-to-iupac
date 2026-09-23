@@ -1,8 +1,8 @@
 """Naming of the single-atom-bridged fused-aromatic case (1,4-type methano/
-epoxy bridges on a terminal ring of any plain all-carbon ortho-fused
-mancude polycyclic aromatic parent this project can already name --
-naphthalene ("benzonorbornadiene"), phenanthrene, tetracene, etc. -- plus
-the anthracene analogue bridging the 9,10 meso positions,
+epoxy/sulfano/azano bridges on a terminal ring of any plain all-carbon
+ortho-fused mancude polycyclic aromatic parent this project can already
+name -- naphthalene ("benzonorbornadiene"), phenanthrene, tetracene, etc.
+-- plus the anthracene analogue bridging the 9,10 meso positions,
 "9,10-dihydro-9,10-methanoanthracene"), per the IUPAC 2013 Recommendations
 ("the Blue Book"):
 
@@ -13,7 +13,17 @@ the anthracene analogue bridging the 9,10 meso positions,
 - P-25.4.2.1.4: the preselected bridge prefix for a divalent -O- bridge is
   'epoxy', confirmed directly in the primary text ("epoxy (preselected
   prefix) -O- (not epoxidano)") -- not a guess. A single-carbon -CH2-
-  bridge is 'methano' (P-25.4.2.1.1), already supported below.
+  bridge is 'methano' (P-25.4.2.1.1), already supported below. The same
+  section gives the divalent -S- bridge as 'sulfano' and the trivalent-
+  with-one-H -NH- bridge as 'azano' (`tmp/bluebook/P2.txt` ~5178-5433),
+  structurally identical in shape to 'epoxy' (single bridge atom, no
+  further substitution) -- verified against real PubChem structures (CID
+  68694281 for the sulfano case, CID 138429 for the azano case). Se/Te
+  analogues ('selano'/'tellano') and the multi-atom acyclic bridges
+  ('ethano', 'propano', 'etheno', 'disulfano') are out of scope here --
+  no real registered structure was found for the former, and the latter
+  need a two-bridge-atom shape this module's single-bridge-atom core-
+  finder doesn't recognize.
 - Structural necessity for 'dihydro' (P-31.1.4.2): bridging naphthalene's
   1,4-positions forces both bridgehead carbons to sp3 (a bridged atom can't
   stay part of a mancude/aromatic ring), so the correct name is
@@ -113,7 +123,7 @@ from ._aromatic import (
 from ._common import UnsupportedStructure, adjacency, group_substituents, halogen_substituents, lowest_locant_set, ring_cycle
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
-_BRIDGE_PREFIXES = {6: "methano", 8: "epoxy"}
+_BRIDGE_PREFIXES = {6: "methano", 7: "azano", 8: "epoxy", 16: "sulfano"}
 
 
 def _bridge_candidates(mol):
@@ -124,7 +134,9 @@ def _bridge_candidates(mol):
         atomic_num = atom.GetAtomicNum()
         if atomic_num == 6 and atom.GetTotalNumHs() == 2 and atom.GetHybridization().name == "SP3":
             candidates.append(atom)
-        elif atomic_num == 8 and atom.GetTotalNumHs() == 0:
+        elif atomic_num == 7 and atom.GetTotalNumHs() == 1:
+            candidates.append(atom)
+        elif atomic_num in (8, 16) and atom.GetTotalNumHs() == 0:
             candidates.append(atom)
     return candidates
 
