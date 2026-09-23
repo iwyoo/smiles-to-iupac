@@ -25,9 +25,13 @@ double bond, three P-O-R single bonds, each R named via `name_branch` (a
 plain alkyl chain, a branched chain, or a plain benzene ring, and their
 halogenated variants, exactly like `_phosphonic_acid.py`'s R), identical
 or mixed freely. Explicitly out of scope (raise `UnsupportedStructure`):
-partial ("hydrogen") esters (a remaining P-OH), phosphite esters (no P=O
--- routed to a different module entirely, see `_phosphane.py`), any
-chalcogen-replacement analogue, and any other heteroatom.
+partial ("hydrogen") esters (a remaining P-OH), any chalcogen-replacement
+analogue, and any other heteroatom.
+
+The word-assembly step (group identical R names, multiplying-prefix +
+enclosure per group, alphanumeric word order) is shared with the
+phosphite ester case (no P=O, P(III) instead of P(V)) via
+`format_ester_words`, exported for `_phosphite.py` to reuse.
 """
 
 from rdkit import Chem
@@ -122,22 +126,26 @@ def name_phosphate(mol) -> str:
         roots.append((root, oxygen_idx))
 
     names = [name_branch(graph, root, coming_from, halogens, aromatic_atoms, mol=mol)[0] for root, coming_from in roots]
+    return format_ester_words(names) + " phosphate"
 
-    # P-67.1.3.2's own worked examples confirm this ester word-citation
-    # style is NOT the same as the substituent-prefix-on-a-parent-hydride
-    # convention (`format_mononuclear_prefixes`'s P-16.5.1.3.1 rule,
-    # which would parenthesize even a lone compound name): PubChem's own
-    # PIN-matching name for a branched-but-internally-locanted R gives
-    # 'tripropan-2-yl phosphate' (no parens, plain 'tri'), while a R whose
-    # own name starts with a locant digit ('2-chloroethyl') gives
-    # 'tris(2-chloroethyl) phosphate' -- enclosing marks are needed there
-    # purely to keep the leading digit from reading as part of the
-    # multiplying term itself, confirmed against real PubChem structures
-    # for both shapes (see PR description). A mixed-alkyl ester (P-14.5.2)
-    # groups identical R names under one multiplied word each, the words
-    # then cited in alphanumeric order (e.g. 'diethyl methyl phosphate',
-    # PubChem CID 120420) -- three identical names collapse to the same
-    # single-word case this module already produced.
+
+def format_ester_words(names) -> str:
+    """P-67.1.3.2's own worked examples confirm this ester word-citation
+    style is NOT the same as the substituent-prefix-on-a-parent-hydride
+    convention (`format_mononuclear_prefixes`'s P-16.5.1.3.1 rule, which
+    would parenthesize even a lone compound name): PubChem's own
+    PIN-matching name for a branched-but-internally-locanted R gives
+    'tripropan-2-yl phosphate' (no parens, plain 'tri'), while a R whose
+    own name starts with a locant digit ('2-chloroethyl') gives
+    'tris(2-chloroethyl) phosphate' -- enclosing marks are needed there
+    purely to keep the leading digit from reading as part of the
+    multiplying term itself, confirmed against real PubChem structures for
+    both shapes. A mixed-alkyl ester (P-14.5.2) groups identical R names
+    under one multiplied word each, the words then cited in alphanumeric
+    order (e.g. 'diethyl methyl phosphate', PubChem CID 120420) -- three
+    identical names collapse to the same single-word case. Shared with
+    `_phosphite.py` (same P-67.1.3.2 citation style, a different anion
+    word appended by the caller)."""
     counts = Counter(names)
     words = []
     for name in sorted(counts, key=alpha_sort_key):
@@ -146,4 +154,4 @@ def name_phosphate(mol) -> str:
         group = f"({name})" if needs_enclosure else name
         prefix = multiplying_prefix(count, compound=needs_enclosure) if count > 1 else ""
         words.append(f"{prefix}{group}")
-    return " ".join(words) + " phosphate"
+    return " ".join(words)
