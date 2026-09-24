@@ -1,5 +1,5 @@
 from smiles_to_iupac import smiles_to_iupac
-from smiles_to_iupac._fullerene import _FULLERENE_C60_SMILES
+from smiles_to_iupac._fullerene import _FULLERENE_C60_SMILES, _FULLERENE_C70_SMILES
 
 
 def test_buckminsterfullerene():
@@ -7,6 +7,13 @@ def test_buckminsterfullerene():
     # SMILES: 60 all-carbon atoms, every atom degree 3, ring perception of
     # exactly 12 five-membered and 20 six-membered rings.
     assert smiles_to_iupac(_FULLERENE_C60_SMILES) == "[60]fullerene"
+
+
+def test_c70_fullerene():
+    # C70-D5h(6), cross-checked against PubChem CID 16131935's own
+    # connectivity SMILES: 70 all-carbon atoms, every atom degree 3, ring
+    # perception of exactly 12 five-membered and 25 six-membered rings.
+    assert smiles_to_iupac(_FULLERENE_C70_SMILES) == "(C70-D5h(6))[5,6]fullerene"
 
 
 def test_benzene_still_resolves():
