@@ -35,3 +35,36 @@ def test_single_ring_exocyclic_double_bond_unaffected():
     # Not a ring assembly at all -- one ring, one open-chain =CH-CH3 tail.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1CCCCC1=CC")
+
+
+def test_bicyclic_ring_assembly_ylidene_matches_pin_worked_example():
+    # The primary source's own literal PIN worked example
+    # (tmp/bluebook/P2.txt ~7826): two bicyclo[2.2.1]heptane rings, each
+    # attached at position 2, joined by a C=C double bond.
+    assert (
+        smiles_to_iupac("C1CC2CC1CC2=C1CC2CCC1C2")
+        == "2,2'-bi(bicyclo[2.2.1]heptanylidene)"
+    )
+
+
+def test_bicyclic_ring_assembly_ylidene_bridge_carbon_attachment():
+    # Attached at the one-carbon bridge (locant 7) instead of locant 2.
+    assert (
+        smiles_to_iupac("C1CC2CCC1C2=C1C2CCC1CC2")
+        == "7,7'-bi(bicyclo[2.2.1]heptanylidene)"
+    )
+
+
+def test_bicyclic_ring_assembly_ylidene_mismatched_bridge_lengths_raises():
+    # One side is bicyclo[2.2.1]heptane, the other a different bridge-length
+    # bicyclic skeleton -- not "identical cyclic systems" (P-28.1).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1CCC2C(=C3CC4CCC3C4)CCC2C1")
+
+
+def test_bicyclic_ring_assembly_ylidene_halogen_substituent_raises():
+    # A halogen substituent on a bicyclic side is deferred (see this
+    # module's own docstring for why) -- confirms it's rejected outright,
+    # not silently mis-numbered.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("ClC1CC2CCC1C2=C1CC2CCC1C2")

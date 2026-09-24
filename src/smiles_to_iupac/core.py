@@ -1708,14 +1708,20 @@ def smiles_to_iupac(smiles: str) -> str:
             return name_cyclic_unsaturated(mol, unsaturated_ring)
         return name_cycloalkane(mol)
 
-    # Two disjoint (unfused) identical-size saturated rings joined by a C=C
-    # double bond -- e.g. bi(cyclopentylidene) -- must be routed here before
-    # find_bicyclic_core/find_polycyclic_core below, for the same reason
-    # the aromatic num_rings == 2 ring-assembly case above is.
-    if num_rings == 2:
-        ring_assembly_ylidene_core = find_ring_assembly_ylidene_core(mol)
-        if ring_assembly_ylidene_core is not None:
-            return name_ring_assembly_ylidene(mol, ring_assembly_ylidene_core)
+    # Two disjoint (unfused) identical rings or ring systems joined by a C=C
+    # double bond -- e.g. bi(cyclopentylidene), bi(bicyclo[2.2.1]heptan-
+    # ylidene) -- must be routed here before find_bicyclic_core/
+    # find_polycyclic_core below, for the same reason the aromatic
+    # num_rings == 2 ring-assembly case above is. Not gated on a specific
+    # num_rings value, same reasoning as the bicyclic detection below it:
+    # a von Baeyer bicyclic side's own SSSR ring count can overcount for
+    # symmetric bridging, and a bicyclic-sided assembly has two rings per
+    # side to begin with (4 total, not 2) -- find_ring_assembly_ylidene_core
+    # itself does the real, cheap shape check (exactly one non-aromatic C=C
+    # bond, degree 3 on both ends).
+    ring_assembly_ylidene_core = find_ring_assembly_ylidene_core(mol)
+    if ring_assembly_ylidene_core is not None:
+        return name_ring_assembly_ylidene(mol, ring_assembly_ylidene_core)
 
     # num_rings >= 2 from here on. RDKit's SSSR can overcount rings for
     # symmetric bridged bicyclics (see _bicyclic.py's find_bicyclic_core
