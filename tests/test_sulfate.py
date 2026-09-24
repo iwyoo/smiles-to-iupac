@@ -36,6 +36,6 @@ def test_partial_hydrogen_sulfate_ester_raises():
         smiles_to_iupac("COS(=O)(=O)O")
 
 
-def test_sulfite_ester_still_unsupported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COS(=O)OC")
+def test_sulfite_ester_unaffected():
+    # One fewer double-bonded O routes to `_sulfite.py` instead, unchanged.
+    assert smiles_to_iupac("COS(=O)OC") == "dimethyl sulfite"
