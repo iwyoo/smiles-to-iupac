@@ -67,11 +67,9 @@ module's own primed-locant one.
   ring's own (if it also needs one) at the very front of the whole
   assembly name, before any substituent prefix (confirmed via a real
   PubChem structure, CID 260036, canonical SMILES `C1=CNC(=C1)C2=CC=CN2`,
-  PIN `1H,1'H-2,2'-bipyrrole`). This mechanism is P-28.2.3-scoped to
-  *two*-component assemblies specifically (its own section header) --
-  `_ring_assembly_chain.py`'s 3-6-ring case has no primary-source-
-  confirmed indicated-hydrogen rule and stays out of scope here (a
-  separate, unconfirmed follow-up, not this module's job).
+  PIN `1H,1'H-2,2'-bipyrrole`). `_ring_assembly_chain.py`'s own 3-6-ring
+  case has the analogous mechanism (P-28.3.1's composite-locant citation
+  format) for its own pyrrole support, per its own docstring.
 """
 
 from ._common import (
@@ -86,6 +84,7 @@ from ._numerals import alkane_name
 from ._ring_assembly_chain import (
     _NON_NH_ROLE_SEQUENCES,
     _hetero_ring_alignments,
+    _pyrrole_ring_kind,
     _ring_kind,
     validate_hetero_ring_assembly_atoms,
 )
@@ -102,25 +101,6 @@ _INDICATED_HYDROGEN_BARE_NAMES = {"1H-pyrrole": "pyrrole"}
 def _bond_between(bond, atoms_a, atoms_b):
     x, y = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
     return (x in atoms_a and y in atoms_b) or (x in atoms_b and y in atoms_a)
-
-
-def _pyrrole_ring_kind(mol, ring):
-    """("1H-pyrrole", 5) if `ring` is a mancude 5-membered ring with one
-    N and four C (element-only match against `_ROLE_SEQUENCES`'s own
-    "1H-pyrrole" entry, via `_hetero_ring_alignments`), else None --
-    `_ring_kind` itself excludes 1H-pyrrole (it's not in
-    `_NON_NH_ROLE_SEQUENCES`, see that module's own docstring), so this
-    module checks it separately rather than widening that shared table
-    (which would also, wrongly, enable it for `_ring_assembly_chain.py`'s
-    own N=3-6 case -- see this module's docstring on why that stays out
-    of scope)."""
-    atoms = [mol.GetAtomWithIdx(i) for i in ring]
-    if len(ring) != 5 or not all(a.GetIsAromatic() for a in atoms):
-        return None
-    graph = adjacency(mol)
-    if any(True for _ in _hetero_ring_alignments(mol, graph, ring, "1H-pyrrole")):
-        return "1H-pyrrole", 5
-    return None
 
 
 def find_ring_assembly_core(mol):
