@@ -108,10 +108,16 @@ def test_two_thiazole_rings_still_out_of_scope():
         smiles_to_iupac("c1csc(-c2cscn2)n1")
 
 
-def test_two_pyrrole_rings_still_out_of_scope():
-    # 1H-pyrrole is excluded (N-H tautomer ambiguity).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[nH]1cccc1-c1ccc[nH]1")
+def test_bipyrrole_carbon_attached_indicated_hydrogen():
+    # Real PubChem structure, CID 260036 -- joined through carbon, so
+    # each ring keeps its own N-H, cited at the front of the name (P-28.2.3).
+    assert smiles_to_iupac("C1=CNC(=C1)C2=CC=CN2") == "1H,1'H-2,2'-bipyrrole"
+
+
+def test_bipyrrole_nitrogen_attached_no_indicated_hydrogen():
+    # Joined through the ring nitrogens themselves, so each ring's own N-H
+    # position is occupied by the junction and needs no indicated-H prefix.
+    assert smiles_to_iupac("c1ccn(-n2cccc2)c1") == "1,1'-bipyrrole"
 
 
 def test_mixed_benzo_and_pyridine_raises():
