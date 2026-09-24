@@ -64,21 +64,30 @@
   before '-diyl' either, mirroring the analogous '-ylidene'/'-ylidyne'
   non-elided pattern.
 
-- P-71.3.1: an unbranched acyclic acid-derived radical ("acyl" radical --
-  a carbon bearing a formal C=O double bond, one radical electron, and an
-  otherwise unbranched all-carbon chain) is named by replacing the parent
-  acid's '-oic acid' suffix with '-oyl', reusing `_carboxylic_acid.py`'s
-  own chain-length stem (`alkane_name`) directly rather than routing
-  through that module -- `has_radical_shape` (`core.py`) already sends
-  any radical-bearing molecule here first, ahead of every other module.
-  Confirmed worked example `hexanoyl (PIN)`, `tmp/bluebook/P7.txt`
-  ~477-490. Always the systematic stem (`methanoyl`, `ethanoyl`, ...),
-  never a retained name like 'formyl'/'acetyl', mirroring this project's
-  existing `_carboxylic_acid.py` policy of never special-casing
-  'formic'/'acetic acid' either. A *branched* acid-derived radical, a
-  ring-attached one ('benzoyl'/'cyclohexanecarbonyl'), and the amine/
-  imine/amide/hydroxy-derived radical families (P-71.3.2-.4) are each a
-  separate follow-up step, not this one.
+- P-71.3.1: an acid-derived radical ("acyl" radical -- a carbon bearing a
+  formal C=O double bond and one radical electron) is named by replacing
+  the parent acid's '-oic acid'/'carboxylic acid' ending with '-oyl'/
+  '-carbonyl' -- `has_radical_shape` (`core.py`) already sends any
+  radical-bearing molecule here first, ahead of every other module.
+  Always the systematic stem (`methanoyl`, `ethanoyl`, ...), never a
+  retained name like 'formyl'/'acetyl', mirroring this project's existing
+  `_carboxylic_acid.py` policy of never special-casing 'formic'/'acetic
+  acid' either. Two shapes, both reusing `_carboxylic_acid.py`'s own
+  chain-/ring-numbering machinery directly rather than duplicating it
+  (that module's ring-attached kernels are already suffix/word-
+  parameterized and reused the same way by `_ester.py`):
+  - An acyclic chain (unbranched or branched), radical carbon fixed at
+    C1 like `-COOH`'s own carbon: `_common.py`'s generic
+    `name_from_substituents`/`longest_chains`/`substituents_for_chain`
+    assemble the name, own_word `"oyl"`. Confirmed worked example
+    `hexanoyl (PIN)`, `tmp/bluebook/P7.txt` ~477-490.
+  - A ring-attached acyl carbon (P-65.1.7's '-carbonyl'/'benzoyl'
+    construction): `_carboxylic_acid.py`'s `_name_ring_attached_carboxyl`/
+    `_name_benzo_attached_carboxyl` reused with `suffix="carbonyl"`/
+    `word="benzoyl"`. Confirmed worked examples `benzoyl (PIN)`,
+    `cyclohexanecarbonyl (PIN)`, `tmp/bluebook/P7.txt` ~504-521.
+  The amine/imine/amide/hydroxy-derived radical families (P-71.3.2-.4)
+  are each a separate follow-up step, not this one.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any branch off the radical carbon that is itself further branched
@@ -91,22 +100,37 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - A '-diyl' radical carbon that is itself a branch point (mirrors the
   single-center exclusion above), three or more radical centers, a mixed
   monovalent+divalent/trivalent combination on the same molecule (P-71.6's
-  'ethan-1-yl-2-ylidene'-shaped case), a radical on a functional group
-  other than the unbranched acyclic acyl case above (P-71.3.1), on an
-  aromatic ring, on a polycyclic/spiro skeleton, or coexisting with any
-  heteroatom other than that one acyl oxygen, any halogen, charge, or
-  isotopic modification.
+  'ethan-1-yl-2-ylidene'-shaped case), a radical center that itself sits
+  on an aromatic ring or a polycyclic/spiro skeleton (the acyl case
+  above's radical carbon is always exocyclic to its own ring, never on
+  it), a radical on a functional group other than the acyl case above
+  (P-71.3.1), or coexisting with any heteroatom other than that one acyl
+  oxygen, any halogen, charge, or isotopic modification.
 """
 
 from rdkit import Chem
 
 from ._bicyclic import find_bicyclic_core
-from ._common import UnsupportedStructure, adjacency, linear_branch, ring_cycle, specified_stereocenters
+from ._carboxylic_acid import _name_benzo_attached_carboxyl, _name_ring_attached_carboxyl
+from ._common import (
+    UnsupportedStructure,
+    adjacency,
+    carbon_adjacency,
+    group_substituents,
+    halogen_substituents,
+    linear_branch,
+    longest_chains,
+    name_from_substituents,
+    non_single_bonds,
+    ring_cycle,
+    specified_stereocenters,
+    substituent_locant_set_and_citation,
+)
 from ._numerals import alkane_name, alkyl_name
 from ._polycyclic import find_polycyclic_core
 from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
 from ._spiro import find_monospiro_atom
-from ._substituents import format_substituent_prefixes
+from ._substituents import format_substituent_prefixes, substituents_for_chain
 
 
 def has_radical_shape(mol) -> bool:
@@ -132,13 +156,12 @@ def _validate_carbon_skeleton(mol):
             raise UnsupportedStructure("unsaturated skeletons are not supported yet")
 
 
-def _acyl_radical_chain_length(mol):
-    """Chain-carbon count n (>=1) if `mol` is P-71.3.1's unbranched
-    acyclic acid-derived acyl radical shape -- a single monovalent
-    radical carbon double-bonded to one terminal oxygen and, for n>1,
-    single-bonded onward to an unbranched all-carbon chain -- else None.
-    Checked ahead of `_validate_carbon_skeleton` (which would otherwise
-    reject the carbonyl oxygen outright as a non-carbon atom)."""
+def _acyl_radical_core(mol):
+    """(radical_atom, oxygen_atom) if `mol` has P-71.3.1's basic acyl-
+    radical charge/bond pattern -- a single monovalent carbon radical
+    double-bonded to one terminal oxygen -- else None. Doesn't itself
+    constrain the rest of the skeleton (chain branching, ring membership)
+    -- `_acyl_radical_acyclic_name`/`_acyl_radical_ring_name` do that."""
     radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons() != 0]
     if len(radicals) != 1 or radicals[0].GetNumRadicalElectrons() != 1:
         return None
@@ -149,8 +172,6 @@ def _acyl_radical_chain_length(mol):
         or radical.GetIsotope() != 0
         or radical.GetIsAromatic()
     ):
-        return None
-    if mol.GetRingInfo().NumRings() != 0:
         return None
 
     oxygens = [a for a in mol.GetAtoms() if a.GetAtomicNum() == 8]
@@ -166,37 +187,120 @@ def _acyl_radical_chain_length(mol):
         or oxygen.GetIsotope() != 0
     ):
         return None
+    return radical, oxygen
+
+
+def _acyl_radical_acyclic_name(mol):
+    """Name if `mol` is P-71.3.1's acyclic (unbranched or branched) acid-
+    derived acyl radical shape -- the radical carbon fixed at C1, mirroring
+    `_carboxylic_acid.py`'s own -COOH-carbon-at-C1 convention -- else None.
+    Reuses `_common.py`'s generic `name_from_substituents`/`longest_chains`/
+    `substituents_for_chain` (the same building blocks `_carboxylic_acid.py`'s
+    own acyclic path wraps) directly, since P-71.3.1's 'oyl' suffix needs
+    the identical chain-numbering/substituent-citation logic, just a
+    different trailing suffix word than '-oic acid'."""
+    core = _acyl_radical_core(mol)
+    if core is None:
+        return None
+    radical, oxygen = core
+    if mol.GetRingInfo().NumRings() != 0:
+        return None
 
     chain_atoms = [a for a in mol.GetAtoms() if a.GetIdx() != oxygen.GetIdx()]
     for atom in chain_atoms:
-        if (
-            atom.GetAtomicNum() != 6
-            or atom.GetFormalCharge() != 0
-            or atom.GetIsotope() != 0
-            or atom.GetIsAromatic()
-        ):
+        if atom.GetAtomicNum() != 6 or atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0 or atom.GetIsAromatic():
             return None
-        # `GetDegree()` counts bonded atoms, not bond order, so the radical
-        # carbon's own C=O bond to `oxygen` already counts as just one of
-        # its (at most two) connections here -- no separate adjustment
-        # needed to keep it, like every other chain atom, capped at an
-        # unbranched chain's own max degree.
-        if atom.GetDegree() > 2:
-            return None
+    carbonyl_bond_idx = mol.GetBondBetweenAtoms(radical.GetIdx(), oxygen.GetIdx()).GetIdx()
     for bond in mol.GetBonds():
-        if bond.GetIdx() != carbonyl_bond.GetIdx() and bond.GetBondTypeAsDouble() != 1.0:
+        if bond.GetIdx() != carbonyl_bond_idx and bond.GetBondTypeAsDouble() != 1.0:
             return None
 
-    return len(chain_atoms)
+    graph = carbon_adjacency(mol)
+    chains = [chain for chain in longest_chains(graph) if radical.GetIdx() in chain]
+    if not chains:
+        return None
+
+    best_key = None
+    best_name = None
+    for chain in chains:
+        for candidate in (chain, list(reversed(chain))):
+            if candidate[0] != radical.GetIdx():
+                # The radical carbon must sit at C1, same as `-COOH`'s own
+                # carbon in `_carboxylic_acid.py` -- a direction that
+                # doesn't start there is never valid.
+                continue
+            chain_length = len(candidate)
+            substituents = substituents_for_chain(graph, candidate, {}, mol=mol)
+            grouped = group_substituents(substituents)
+            locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
+            name = format_substituent_prefixes(grouped) + name_from_substituents(chain_length, [], [], "oyl")
+            key = (locant_set, citation_locants, name)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, name
+    return best_name
+
+
+def _acyl_radical_ring_name(mol):
+    """Name if `mol` is P-71.3.1's ring-attached acyl radical shape (the
+    '-carbonyl'/'benzoyl' construction) -- the radical carbon hanging off
+    exactly one atom of an otherwise-plain carbocyclic ring -- else None.
+    Reuses `_carboxylic_acid.py`'s own ring-numbering kernels directly
+    (`_name_ring_attached_carboxyl`/`_name_benzo_attached_carboxyl`, both
+    already suffix/word-parameterized and reused the same way by
+    `_ester.py`), only the trailing suffix word ('carbonyl'/'benzoyl'
+    instead of 'carboxylic acid'/'benzoic acid') differs."""
+    core = _acyl_radical_core(mol)
+    if core is None:
+        return None
+    radical, oxygen = core
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() != 1:
+        return None
+    ring_atoms = set(ring_info.AtomRings()[0])
+    if radical.GetIdx() in ring_atoms:
+        return None
+
+    graph = adjacency(mol)
+    other_neighbors = [n for n in graph[radical.GetIdx()] if n != oxygen.GetIdx()]
+    if other_neighbors == [] or len(other_neighbors) != 1 or other_neighbors[0] not in ring_atoms:
+        return None
+    ring_atom = other_neighbors[0]
+    if any(n for n in graph[ring_atom] if n not in ring_atoms and n != radical.GetIdx()):
+        return None
+    if any(mol.GetAtomWithIdx(atom).GetAtomicNum() != 6 for atom in ring_atoms):
+        return None
+
+    carbonyl_bond_idx = mol.GetBondBetweenAtoms(radical.GetIdx(), oxygen.GetIdx()).GetIdx()
+    ring_is_aromatic = all(mol.GetAtomWithIdx(atom).GetIsAromatic() for atom in ring_atoms)
+    if ring_is_aromatic:
+        if len(ring_atoms) != 6:
+            return None
+    else:
+        if any(mol.GetAtomWithIdx(atom).GetIsAromatic() for atom in ring_atoms):
+            return None
+        if any(
+            bond.GetIdx() != carbonyl_bond_idx and (bond.GetBeginAtomIdx() in ring_atoms or bond.GetEndAtomIdx() in ring_atoms)
+            for bond in mol.GetBonds()
+            if bond.GetBondTypeAsDouble() != 1.0
+        ):
+            return None
+
+    halogens = halogen_substituents(mol)
+    if ring_is_aromatic:
+        return _name_benzo_attached_carboxyl(graph, ring_atoms, radical.GetIdx(), halogens, word="benzoyl", mol=mol)
+    return _name_ring_attached_carboxyl(graph, ring_atoms, radical.GetIdx(), halogens, suffix="carbonyl", mol=mol)
 
 
 def name_radical(mol) -> str:
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
-    acyl_chain_length = _acyl_radical_chain_length(mol)
-    if acyl_chain_length is not None:
-        return alkane_name(acyl_chain_length)[:-1] + "oyl"
+    acyl_name = _acyl_radical_acyclic_name(mol)
+    if acyl_name is not None:
+        return acyl_name
+    acyl_name = _acyl_radical_ring_name(mol)
+    if acyl_name is not None:
+        return acyl_name
 
     radicals = [atom for atom in mol.GetAtoms() if atom.GetNumRadicalElectrons() != 0]
     if len(radicals) == 2 and all(r.GetNumRadicalElectrons() == 1 for r in radicals):
