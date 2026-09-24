@@ -32,11 +32,13 @@ def test_two_pyridine_rings_still_out_of_scope():
         smiles_to_iupac("c1ccc(-c2ccccn2)nc1")
 
 
-def test_other_heteroaromatic_ring_still_out_of_scope():
-    # furan (a different role-sequence/symmetry) is a separate follow-up,
-    # not attempted here.
+def test_locant_prefixed_hantzsch_widman_ring_still_out_of_scope():
+    # 1,3-thiazole matches a _ROLE_SEQUENCES parent but is excluded from
+    # `_NON_NH_ROLE_SEQUENCES` (see _ring_assembly_chain.py's own note)
+    # since its name starts with a locant and P-28.3.1 has no confirmed
+    # worked example for how 'ter' composes with such a name.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc(-c2ccc(-c3ccco3)o2)o1")
+        smiles_to_iupac("c1csc(-c2csc(-c3cscn3)n2)n1")
 
 
 def test_mixed_pyridine_and_benzo_raises():
