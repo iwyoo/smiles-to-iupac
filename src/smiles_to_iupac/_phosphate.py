@@ -19,14 +19,25 @@ mixed), per the IUPAC 2013 Recommendations ("the Blue Book"):
   `diethyl methyl phosphate` (PubChem CID 120420, two identical + one
   distinct). Both PubChem-computed names are directly usable here (no
   von-Baeyer ambiguity, unlike a ring parent).
+- Partial esters (P-67.1.3.2, `tmp/bluebook/P6a.txt` ~4022-4102): 1 or 2
+  of the three acidic P-OH positions may be left unesterified, cited by
+  inserting the word "hydrogen" (2 R groups, 1 remaining OH) or
+  "dihydrogen" (1 R group, 2 remaining OH) between the R-group word(s)
+  and "phosphate" -- confirmed worked example `P(O)(O-CH3)(OH)2` ->
+  "methyl dihydrogen phosphate (PIN)", and by direct analogy (same rule,
+  one more R group) the 2-R "hydrogen" case, both confirmed real via
+  PubChem (CIDs 13130/74190 for the 1-R case, 13134/654 for the 2-R
+  case).
 
 Scope: a single phosphorus atom shaped like a phosphate ester -- one P=O
-double bond, three P-O-R single bonds, each R named via `name_branch` (a
+double bond, and three more P-O positions, each either an ester (P-O-R)
+or, for a partial ester, a plain P-OH, each R named via `name_branch` (a
 plain alkyl chain, a branched chain, or a plain benzene ring, and their
 halogenated variants, exactly like `_phosphonic_acid.py`'s R), identical
 or mixed freely. Explicitly out of scope (raise `UnsupportedStructure`):
-partial ("hydrogen") esters (a remaining P-OH), any chalcogen-replacement
-analogue, and any other heteroatom.
+a salt of a partial ester (a deprotonated P-O^- instead of P-OH -- a
+separate, later step), any chalcogen-replacement analogue, and any
+other heteroatom.
 
 The word-assembly step (group identical R names, multiplying-prefix +
 enclosure per group, alphanumeric word order) is shared with the
@@ -46,10 +57,17 @@ _PHOSPHORUS = 15
 
 
 def _phosphate_phosphorus_atoms(mol):
-    """Phosphorus atoms shaped like a fully-esterified phosphate: bonded
-    to exactly one double-bonded (terminal) oxygen and exactly three
-    single-bonded ester oxygens (each degree 2 -- P plus one R carbon;
-    this excludes a hydroxyl oxygen, degree 1, i.e. a partial ester)."""
+    """Phosphorus atoms shaped like a fully- or partially-esterified
+    phosphate: bonded to exactly one double-bonded (terminal) oxygen and
+    exactly three more single-bonded oxygens, each either an ester
+    oxygen (degree 2 -- P plus one R carbon) or, for a partial ester
+    (P-67.1.3.2), a plain uncharged hydroxyl (degree 1) -- at least one
+    of the three must be an ester oxygen (all three being hydroxyl would
+    be phosphoric acid itself, not an ester, out of scope here). A
+    charged (deprotonated) oxygen -- a salt of a partial ester -- is
+    deliberately excluded here (formal charge 0 required) so it falls
+    through to future salt-specific handling instead of being silently
+    treated as a neutral partial ester."""
     matches = []
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() != _PHOSPHORUS or atom.GetDegree() != 4 or atom.GetFormalCharge() != 0:
@@ -61,15 +79,19 @@ def _phosphate_phosphorus_atoms(mol):
         double_os = [
             o for o in oxygens if mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
         ]
-        ester_os = [
+        single_os = [
             o for o in oxygens if mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 1.0
         ]
-        if len(double_os) != 1 or len(ester_os) != 3:
+        if len(double_os) != 1 or len(single_os) != 3:
             continue
         (double_o,) = double_os
         if double_o.GetDegree() != 1:
             continue
-        if any(o.GetDegree() != 2 for o in ester_os):
+        if any(o.GetFormalCharge() != 0 for o in single_os):
+            continue
+        ester_os = [o for o in single_os if o.GetDegree() == 2]
+        hydroxyl_os = [o for o in single_os if o.GetDegree() == 1]
+        if len(ester_os) + len(hydroxyl_os) != 3 or not ester_os:
             continue
         matches.append(atom)
     return matches
@@ -114,7 +136,9 @@ def name_phosphate(mol) -> str:
         if n.GetAtomicNum() == 8
         and mol.GetBondBetweenAtoms(phosphorus.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
     )
-    ester_oxygens = [idx for idx in group_oxygens if idx != double_o.GetIdx()]
+    single_oxygens = [idx for idx in group_oxygens if idx != double_o.GetIdx()]
+    ester_oxygens = [idx for idx in single_oxygens if mol.GetAtomWithIdx(idx).GetDegree() == 2]
+    hydroxyl_count = len(single_oxygens) - len(ester_oxygens)
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -126,7 +150,16 @@ def name_phosphate(mol) -> str:
         roots.append((root, oxygen_idx))
 
     names = [name_branch(graph, root, coming_from, halogens, aromatic_atoms, mol=mol)[0] for root, coming_from in roots]
-    return format_ester_words(names) + " phosphate"
+    ester_words = format_ester_words(names)
+    # P-67.1.3.2: a partial ester of a polybasic acid inserts the word
+    # "hydrogen" (with a multiplying prefix if more than one remaining
+    # acidic P-OH) between the R-group word(s) and the anion name --
+    # confirmed worked examples "methyl dihydrogen phosphate (PIN)" and
+    # "dimethyl hydrogen phosphate (PIN)" (`tmp/bluebook/P6a.txt` ~4060).
+    if hydroxyl_count:
+        hydrogen_word = multiplying_prefix(hydroxyl_count) + "hydrogen" if hydroxyl_count > 1 else "hydrogen"
+        return f"{ester_words} {hydrogen_word} phosphate"
+    return ester_words + " phosphate"
 
 
 def format_ester_words(names) -> str:
