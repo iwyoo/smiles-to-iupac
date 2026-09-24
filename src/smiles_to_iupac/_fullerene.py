@@ -53,8 +53,33 @@ C76 is recognized the same way, as a third exact-match entry:
   PIN form as C70 above, since C76 (like C70) has more than one distinct
   fullerene isomer at that atom count.
 
+A single skeletal-silicon replacement on the C60-Ih cage is recognized
+the same way, as a fourth exact-match entry:
+
+- Reference structure taken from PubChem CID 101063510 (formula C59Si)'s
+  own connectivity SMILES, cross-checked here via RDKit: 60 skeletal
+  atoms total, every carbon degree 3, the one silicon atom degree 3 with
+  0 H and 0 radical electrons (silicon's standard valence 4 is satisfied
+  the same way carbon's is in the cage's aromatic system, unlike a
+  trivalent heteroatom which would need an added hydrogen), ring
+  perception of exactly 12 five-membered and 20 six-membered rings --
+  identical to the plain C60-Ih entry above, just one vertex relabeled.
+- Named `sila(C60-Ih)[5,6]fullerene` per P-27.5.1's own worked example,
+  with no locant for the replacement position: every one of C60-Ih's 60
+  carbon atoms is symmetry-equivalent (a single orbit under the Ih point
+  group), so no locant is needed to disambiguate regardless of which
+  vertex was replaced -- the point-group symbol in the name is the
+  parent fullerene's own symmetry label, unchanged by the substitution.
+- A trivalent heteroatom replacement (aza, phospha, ...), a
+  multi-heteroatom replacement, or any heteroatom replacement on the
+  C70/C76 cages (both have multiple symmetry-inequivalent carbon orbits,
+  so a single replacement there would need a locant, which needs real
+  fullerene numbering (P-27.3) this project doesn't have yet) are each
+  out of scope.
+
 Explicitly out of scope: any substituent, any other fullerene cage size
-or isomer, and anything not exactly matching one of these three
+or isomer, any heteroatom replacement other than the single-silicon
+C60-Ih case above, and anything not exactly matching one of these four
 structures. `has_fullerene_name` returns False for all of these, so
 `core.py`'s existing dispatch continues to raise `UnsupportedStructure`
 for them, unchanged.
@@ -79,10 +104,17 @@ _FULLERENE_C76_SMILES = (
     "C%15=C%14C%10=C%13C2=C7C9=C5C8=C63"
 )
 
+_SILA_C60_SMILES = (
+    "C12=C3C4=C5C6=C7C8=C9C(=C61)C1=C6C%10=C%11C(=C21)C1=C3C2=C4C3=C4C5=C7C5=C7C8="
+    "C8C9=C6C6=C%10C9=C%10C%11=C1C1=C2C2=C3C3=C%11C%12=C2C1=C%10C1=C9C2=C9C(=C7C(="
+    "C%11[Si]9=C1%12)C5=C43)C8=C62"
+)
+
 _FULLERENE_NAMES = {
     Chem.CanonSmiles(_FULLERENE_C60_SMILES): "[60]fullerene",
     Chem.CanonSmiles(_FULLERENE_C70_SMILES): "(C70-D5h(6))[5,6]fullerene",
     Chem.CanonSmiles(_FULLERENE_C76_SMILES): "(C76-D2)[5,6]fullerene",
+    Chem.CanonSmiles(_SILA_C60_SMILES): "sila(C60-Ih)[5,6]fullerene",
 }
 
 
