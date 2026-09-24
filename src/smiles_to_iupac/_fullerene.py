@@ -41,8 +41,20 @@ C70 is recognized the same way, as a second exact-match entry:
   (e.g. D5h(5) is a distinct one), so the systematic PIN form carrying
   the point group is used instead of a bare `[70]fullerene` trivial form.
 
+C76 is recognized the same way, as a third exact-match entry:
+
+- Reference structure taken from PubChem CID 56846604 (InChIKey
+  `DEJYFPHYOINFQD-UHFFFAOYSA-N`)'s own connectivity SMILES, cross-checked
+  here via RDKit: 76 all-carbon atoms, every atom degree 3, ring
+  perception of exactly 12 five-membered and 28 six-membered rings.
+- Named `(C76-D2)[5,6]fullerene`: D2 is C76's sole isolable
+  isolated-pentagon-rule isomer, so it's the isomer PubChem/CAS register
+  under the plain "Fullerene C76" name -- the same point-group-qualified
+  PIN form as C70 above, since C76 (like C70) has more than one distinct
+  fullerene isomer at that atom count.
+
 Explicitly out of scope: any substituent, any other fullerene cage size
-or isomer, and anything not exactly matching one of these two
+or isomer, and anything not exactly matching one of these three
 structures. `has_fullerene_name` returns False for all of these, so
 `core.py`'s existing dispatch continues to raise `UnsupportedStructure`
 for them, unchanged.
@@ -60,10 +72,17 @@ _FULLERENE_C70_SMILES = (
     "C1=C3C2=C3C%10=C%13C%14=C3C1=C8C1=C3C5=C%12C5=C8C%11=C%11C9=C7C7=C9C6=C4C2=C2"
     "C%10=C4C(=C29)C2=C6C(=C8C8=C9C6=C4C%13=C9C(=C%141)C3=C85)C%11=C27"
 )
+_FULLERENE_C76_SMILES = (
+    "C12=C3C4=C5C6=C1C7=C8C2=C9C1=C2C%10=C%11C(=C13)C1=C4C3=C4C%12=C%13C3=C5C3=C6"
+    "C5=C7C6=C7C5=C5C3=C%13C3=C%13C%12=C%12C%14=C%15C%16=C%17C%18=C%19C%20=C%16C"
+    "(=C%13%14)C(=C35)C7=C%20C3=C%19C5=C7C%18=C%13C%17=C%14C%15=C%15C%12=C4C1=C%11"
+    "C%15=C%14C%10=C%13C2=C7C9=C5C8=C63"
+)
 
 _FULLERENE_NAMES = {
     Chem.CanonSmiles(_FULLERENE_C60_SMILES): "[60]fullerene",
     Chem.CanonSmiles(_FULLERENE_C70_SMILES): "(C70-D5h(6))[5,6]fullerene",
+    Chem.CanonSmiles(_FULLERENE_C76_SMILES): "(C76-D2)[5,6]fullerene",
 }
 
 
