@@ -1,8 +1,16 @@
 """Naming of unbranched ring assemblies of 3-6 identical benzene rings
 (terphenyl/quaterphenyl/quinquephenyl/sexiphenyl), identical monocyclic
 saturated all-carbon rings (tercyclopropane, tercyclohexane, ...), or
-identical pyridine rings (terpyridine, quaterpyridine, ...), per the
-IUPAC 2013 Recommendations ("the Blue Book"):
+identical mancude heteroaromatic rings whose own numbering is fixed by a
+role sequence with no N-H tautomer ambiguity and whose own parent-hydride
+name doesn't start with a locant -- pyridine (terpyridine,
+quaterpyridine, ...) and, since this module now reuses
+`_hetero_monocyclic.py`'s own `_ROLE_SEQUENCES` table directly instead of
+special-casing pyridine alone, furan, thiophene, selenophene,
+tellurophene, pyridazine, pyrimidine, and pyrazine too (terthiophene,
+terfuran, terpyrimidine, ... e.g. -- see `_NON_NH_ROLE_SEQUENCES` for why
+the Hantzsch-Widman oxazole/thiazole/selenazole/tellurazole parents are
+excluded for now), per the IUPAC 2013 Recommendations ("the Blue Book"):
 
 - P-28.3.1 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf): an
   unbranched chain of N (>=3) identical cyclic parent hydrides, each
@@ -37,19 +45,28 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   PIN worked examples `11,21:22,31-tercyclopropane` (not
   "tercyclopropyl") and `12,25:22,34-terpyridine`, `tmp/bluebook/P2.txt`
   ~7904, ~7933-7938.
-- **Numbering for a ring whose own numbering isn't free** (pyridine):
+- **Numbering for a ring whose own numbering isn't free** (any
+  `_ROLE_SEQUENCES` parent other than the 3 N-H tautomer-ambiguous ones):
   P-28.2.1's text, shared by P-28.2.1/P-28.2.2/P-28.3 alike, states "Each
   cyclic system is numbered in the traditional way... Lowest possible
   locants must be used to denote the positions of attachment" -- for a
   symmetric ring (benzo/cycloalkane) "traditional way" leaves every
   rotation/direction equally valid, which is what `_ring_numberings`
-  already searches over. Pyridine's own numbering isn't free: its
-  nitrogen is always locant 1 (confirmed by the worked example
-  `2,2'-bipyridine`, `tmp/bluebook/P2.txt` ~7799), so only the
-  *direction* from that fixed point is chosen, by the same
-  lowest-junction-locant rule -- `name_ring_assembly_chain` reuses
-  `_ring_numberings` unchanged for this too, just starting from each
-  ring's own nitrogen atom instead of its junction atom(s).
+  already searches over. A heteroaromatic parent's own numbering isn't
+  free: its heteroatom(s) sit at fixed role-sequence positions (confirmed
+  for pyridine by the worked example `2,2'-bipyridine`,
+  `tmp/bluebook/P2.txt` ~7799, and the same "traditional way" text
+  applies identically to every other role-sequence parent), so only the
+  alignments (rotation + direction) whose element pattern actually
+  matches that parent's role sequence are considered --
+  `_hetero_ring_alignments` reuses `_hetero_monocyclic.py`'s own
+  `_ring_alignments`/`_ROLE_SEQUENCES` matching machinery for this,
+  rather than a per-parent special case, and `name_ring_assembly_chain`
+  picks among the resulting candidates by the same lowest-junction-locant
+  rule as every other ring kind. Excludes 1H-pyrrole/1H-imidazole/
+  1H-pyrazole (real N-H prototropic-tautomer ambiguity -- which ring
+  nitrogen is "N1" isn't fixed by structure alone -- needs extra
+  disambiguation this module doesn't do yet).
 - P-35.2.1 (Chapter P-3): halogen substituents hang off a ring atom the
   same way as in every other ring module, cited under the same
   composite-locant scheme; a substituent locant only breaks a tie left
@@ -59,7 +76,9 @@ IUPAC 2013 Recommendations ("the Blue Book"):
 Scope: an unbranched chain of 3-6 disjoint, identical (same kind, same
 size) rings -- 6-membered all-carbon aromatic (benzo), monocyclic
 saturated all-carbon (any one ring size, e.g. all cyclopropane or all
-cyclohexane, not mixed), or 6-membered pyridine -- each consecutive pair
+cyclohexane, not mixed), or any mancude 5- or 6-membered ring matching a
+`_NON_NH_ROLE_SEQUENCES` parent (pyridine, furan, thiophene, selenophene,
+tellurophene, pyridazine, pyrimidine, pyrazine) -- each consecutive pair
 joined by exactly one single (non-aromatic) bond and no other inter-ring
 bond (a branched or cyclic ring-assembly topology -- P-28.5/P-28.6 -- is
 out of scope and must fall through to `UnsupportedStructure` elsewhere,
@@ -67,12 +86,13 @@ not be misnamed), each ring optionally bearing halogen substituents.
 Explicitly out of scope (raise `UnsupportedStructure` via the generic
 fallback in `core.py`, since `find_ring_assembly_chain_core` below simply
 returns None for any of these): N=2 (stays `_ring_assembly.py`'s own
-job, and doesn't yet handle pyridine either -- a separate gap), N>6, any
-heteroaromatic ring other than pyridine (furan/thiophene/pyrrole/... --
-each has its own role-sequence/symmetry and is its own follow-up), mixed
-ring kinds/sizes, any branched/cyclic ring-assembly topology, and
-indicated hydrogen (P-28.2.3 -- not reachable by any ring kind here
-anyway).
+job, and doesn't yet handle any heteroaromatic ring either -- a separate
+gap), N>6, 1H-pyrrole/1H-imidazole/1H-pyrazole (real N-H tautomer
+ambiguity -- its own follow-up), the locant-prefixed Hantzsch-Widman
+parents (1,3-/1,2-oxazole/thiazole/selenazole/tellurazole -- unconfirmed
+composite-name formatting, see `_NON_NH_ROLE_SEQUENCES`), mixed ring
+kinds/sizes, any branched/cyclic ring-assembly topology, and indicated
+hydrogen (P-28.2.3 -- not reachable by any ring kind here anyway).
 """
 
 from itertools import product
@@ -87,35 +107,100 @@ from ._common import (
     validate_allowed_atoms,
     validate_atoms_and_bonds,
 )
+from ._hetero_monocyclic import _ROLE_SEQUENCES, _TAUTOMER_AMBIGUOUS_UNLESS_N1, _ring_alignments
 from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch
 
 _MIN_RINGS, _MAX_RINGS = 3, 6
 _MULTIPLIER = {3: "ter", 4: "quater", 5: "quinque", 6: "sexi"}
 
+_NON_NH_ROLE_SEQUENCES = {
+    name: seq
+    for name, seq in _ROLE_SEQUENCES.items()
+    # Excludes the N-H tautomer-ambiguous parents (pyrrole/imidazole/
+    # pyrazole, see the module docstring) and, separately, the 8
+    # Hantzsch-Widman parents whose own name starts with a locant
+    # (1,3-/1,2-oxazole/thiazole/selenazole/tellurazole) -- P-28.3.1's own
+    # worked examples only ever concatenate 'ter'/'quater'/... directly in
+    # front of a plain-word parent name (e.g. 'terpyrimidine'), and this
+    # project has no confirmed primary-source example of how that
+    # concatenation is meant to read when the parent name itself starts
+    # with a locant (bare 'ter1,3-thiazole' is ambiguous; general IUPAC
+    # practice elsewhere in this same chapter encloses such a name in
+    # square brackets when composing it into a larger name, e.g.
+    # 'spiroter[[1,3,2]benzodioxathiole]', `tmp/bluebook/P2.txt` ~2744 --
+    # but that is P-24's dispiro/spiro construction, not P-28.3's, so it
+    # is not assumed to carry over here without its own worked example).
+    if name not in _TAUTOMER_AMBIGUOUS_UNLESS_N1 and not name[0].isdigit()
+}
+
+
+def _match_hetero_ring_parent(mol, graph, ring):
+    """The `_ROLE_SEQUENCES` parent name (e.g. "pyridine", "thiophene",
+    "pyrazine") this aromatic ring's element/H-count pattern matches, or
+    None if it matches none of them -- reuses `_hetero_monocyclic.py`'s
+    own role-sequence table and `_ring_alignments` (every rotation +
+    direction of the ring's actual atom order) instead of a per-parent
+    special case. Excludes the 3 N-H tautomer-ambiguous parents (pyrrole/
+    imidazole/pyrazole -- see the module docstring)."""
+    ring_order = ring_cycle(graph, list(ring))
+    elements = {atom: mol.GetAtomWithIdx(atom).GetSymbol() for atom in ring}
+    h_counts = {atom: mol.GetAtomWithIdx(atom).GetTotalNumHs() for atom in ring}
+    if any(mol.GetAtomWithIdx(atom).GetFormalCharge() != 0 or mol.GetAtomWithIdx(atom).GetIsotope() != 0 for atom in ring):
+        return None
+    for parent_name, role_sequence in _NON_NH_ROLE_SEQUENCES.items():
+        if len(role_sequence) != len(ring):
+            continue
+        for candidate in _ring_alignments(ring_order):
+            valid = True
+            for position, atom in enumerate(candidate, start=1):
+                role_element, role_has_h = role_sequence[position - 1]
+                if elements[atom] != role_element:
+                    valid = False
+                    break
+                if role_has_h:
+                    if h_counts[atom] not in (0, 1):
+                        valid = False
+                        break
+                elif h_counts[atom] != 0:
+                    valid = False
+                    break
+            if valid:
+                return parent_name
+    return None
+
+
+def _hetero_ring_alignments(mol, graph, ring, parent_name):
+    """Every valid {atom: local_position} numbering of one ring consistent
+    with `parent_name`'s own fixed role sequence (P-28.2.1's "traditional
+    numbering" applied to a ring whose heteroatom(s) fix its own
+    numbering) -- unlike `_match_hetero_ring_parent`, returns every
+    matching alignment (there can be more than one when the role
+    sequence has its own rotational/reflective symmetry, e.g. pyrazine's
+    N,C,C,N,C,C), since the caller picks among them by the whole
+    assembly's junction-locant rule, not a per-ring choice."""
+    ring_order = ring_cycle(graph, list(ring))
+    role_sequence = _ROLE_SEQUENCES[parent_name]
+    elements = {atom: mol.GetAtomWithIdx(atom).GetSymbol() for atom in ring}
+    for candidate in _ring_alignments(ring_order):
+        position_of = {atom: position for position, atom in enumerate(candidate, start=1)}
+        if all(elements[atom] == role_sequence[position - 1][0] for atom, position in position_of.items()):
+            yield position_of
+
 
 def _ring_kind(mol, ring):
-    """("aromatic", 6) for an all-carbon benzo ring, ("pyridine", 6) for a
-    mancude 6-ring with exactly one ring nitrogen (no H, no charge -- the
-    pyridine-type "no spare valence" nitrogen, P-25.2.1) and five ring
-    carbons (each bearing 0 or 1 H, degree 3 only when it's a junction/
-    substituent-bearing atom), ("saturated", n) for an n-membered
-    monocyclic all-carbon ring with only single ring bonds, else None."""
+    """("aromatic", 6) for an all-carbon benzo ring, (parent_name, size)
+    for a mancude 5- or 6-ring matching one of `_ROLE_SEQUENCES`'s non-NH
+    parents (e.g. ("pyridine", 6), ("thiophene", 5), ("pyrazine", 6)),
+    ("saturated", n) for an n-membered monocyclic all-carbon ring with
+    only single ring bonds, else None."""
     atoms = [mol.GetAtomWithIdx(i) for i in ring]
-    if len(ring) == 6 and all(a.GetIsAromatic() for a in atoms):
-        atomic_nums = [a.GetAtomicNum() for a in atoms]
-        if all(n == 6 for n in atomic_nums):
+    if len(ring) in (5, 6) and all(a.GetIsAromatic() for a in atoms):
+        if len(ring) == 6 and all(a.GetAtomicNum() == 6 for a in atoms):
             return "aromatic", 6
-        nitrogens = [a for a in atoms if a.GetAtomicNum() == 7]
-        carbons = [a for a in atoms if a.GetAtomicNum() == 6]
-        if len(nitrogens) != 1 or len(carbons) != 5:
-            return None
-        (nitrogen,) = nitrogens
-        if nitrogen.GetTotalNumHs() != 0 or nitrogen.GetFormalCharge() != 0 or nitrogen.GetIsotope() != 0:
-            return None
-        if any(c.GetTotalNumHs() not in (0, 1) or c.GetFormalCharge() != 0 for c in carbons):
-            return None
-        return "pyridine", 6
+        graph = adjacency(mol)
+        parent_name = _match_hetero_ring_parent(mol, graph, ring)
+        return (parent_name, len(ring)) if parent_name is not None else None
     if any(a.GetAtomicNum() != 6 or a.GetIsAromatic() for a in atoms):
         return None
     ring_set = set(ring)
@@ -223,22 +308,24 @@ def name_ring_assembly_chain(mol, core) -> str:
     for ring in path:
         ring_atoms_all |= set(ring)
 
-    if kind == "pyridine":
-        nitrogen_idxs = {idx for idx in ring_atoms_all if mol.GetAtomWithIdx(idx).GetAtomicNum() == 7}
+    if kind in _NON_NH_ROLE_SEQUENCES:
+        heteroatom_idxs = {idx for idx in ring_atoms_all if mol.GetAtomWithIdx(idx).GetAtomicNum() != 6}
+        atomic_nums_present = {mol.GetAtomWithIdx(idx).GetAtomicNum() for idx in heteroatom_idxs}
         validate_allowed_atoms(
             mol,
-            "heteroatoms other than the pyridine rings' own nitrogens and a "
+            f"heteroatoms other than the {kind} rings' own heteroatoms and a "
             "halogen substituent are not supported yet",
             [
                 (
-                    7,
-                    nitrogen_idxs,
-                    "a nitrogen atom outside the pyridine rings' own is not supported yet",
+                    atomic_num,
+                    {idx for idx in heteroatom_idxs if mol.GetAtomWithIdx(idx).GetAtomicNum() == atomic_num},
+                    f"a heteroatom outside the {kind} rings' own is not supported yet",
                 )
+                for atomic_num in atomic_nums_present
             ],
             aromatic_ring_atoms=ring_atoms_all,
         )
-        ring_word = "pyridine"
+        ring_word = kind
     else:
         validate_atoms_and_bonds(mol)
         ring_word = "phenyl" if kind == "aromatic" else "cyclo" + alkane_name(ring_size)
@@ -279,19 +366,21 @@ def name_ring_assembly_chain(mol, core) -> str:
 
         per_ring_candidates = []
         for i in range(n):
-            if kind == "pyridine":
+            if kind in _NON_NH_ROLE_SEQUENCES:
                 # P-28.2.1's "each cyclic system is numbered in the
-                # traditional way" -- pyridine's own numbering always
-                # fixes its nitrogen at locant 1 (confirmed by the
-                # primary source's own '2,2'-bipyridine' worked example);
-                # only the direction (which of `_ring_numberings`' two
-                # candidates starting there) is chosen freely, by the
+                # traditional way" -- a heteroaromatic parent's own
+                # numbering always fixes its heteroatom(s) at their role-
+                # sequence positions (confirmed for pyridine by the
+                # primary source's own '2,2'-bipyridine' worked example,
+                # and the same text applies identically to every other
+                # role-sequence parent); only the choice among the
+                # resulting (possibly several, if the role sequence has
+                # its own symmetry) alignments is made freely, by the
                 # same lowest-junction-locant rule as every other kind.
-                (nitrogen,) = [idx for idx in order[i] if mol.GetAtomWithIdx(idx).GetAtomicNum() == 7]
-                starts = {nitrogen}
+                per_ring_candidates.append(list(_hetero_ring_alignments(mol, graph, order[i], kind)))
             else:
                 starts = attach_sets[i]
-            per_ring_candidates.append(list(_ring_numberings(graph, order[i], starts)))
+                per_ring_candidates.append(list(_ring_numberings(graph, order[i], starts)))
         for combo in product(*per_ring_candidates):
             locants = {}
             for i in range(n):
