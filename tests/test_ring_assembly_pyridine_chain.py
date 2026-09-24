@@ -25,11 +25,11 @@ def test_halogen_substituent():
     )
 
 
-def test_two_pyridine_rings_still_out_of_scope():
-    # N=2 is out of scope here -- `_ring_assembly.py` (benzo-only) doesn't
-    # claim it either, a separate gap not part of this milestone.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc(-c2ccccn2)nc1")
+def test_two_pyridine_rings_routes_to_ring_assembly_module():
+    # N=2 is `_ring_assembly.py`'s own job (P-28.2.1, not this module's
+    # P-28.3 composite-locant scheme) -- confirms the N=3-6 module here no
+    # longer claims (and mis-fails on) the N=2 shape.
+    assert smiles_to_iupac("c1ccc(-c2ccccn2)nc1") == "2,2'-bipyridine"
 
 
 def test_locant_prefixed_hantzsch_widman_ring_still_out_of_scope():

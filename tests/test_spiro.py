@@ -43,11 +43,11 @@ def test_fused_bicyclic_is_not_spiro():
     assert smiles_to_iupac("C1CCC2CCCCC2C1") == "decahydronaphthalene"
 
 
-def test_two_separate_rings_raises():
+def test_two_separate_rings_routes_to_ring_assembly_module():
     # two cyclohexane rings joined by a single bond: two rings, but they
-    # share no atom at all, so this is not a spiro system either.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCC1C1CCCCC1")
+    # share no atom at all, so this is not a spiro system -- it's
+    # `_ring_assembly.py`'s own P-28.2.1 ring-assembly shape instead.
+    assert smiles_to_iupac("C1CCCCC1C1CCCCC1") == "1,1'-bi(cyclohexane)"
 
 
 def test_unsaturated_spiro_raises():
