@@ -104,11 +104,15 @@ def test_hexanoylium_acylium_cation_name():
     assert smiles_to_iupac("CCCCC[C+]=O") == "hexanoylium"
 
 
-def test_branched_acylium_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)C[C+]=O")
+def test_branched_acylium_name():
+    assert smiles_to_iupac("CC(C)C[C+]=O") == "3-methylbutanoylium"
 
 
-def test_ring_attached_acylium_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=[C+]C1CCCCC1")
+def test_cyclohexanecarbonylium_acylium_name():
+    # Blue Book P-73.2.3.1 worked example: the ring-attached
+    # '-carbonylium' construction.
+    assert smiles_to_iupac("O=[C+]C1CCCCC1") == "cyclohexanecarbonylium"
+
+
+def test_benzoylium_acylium_name():
+    assert smiles_to_iupac("O=[C+]c1ccccc1") == "benzoylium"

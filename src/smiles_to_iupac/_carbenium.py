@@ -46,25 +46,36 @@ Book"):
   the charged species' name directly.
 
 - P-73.2.3.1 (acylium cations): a +1-charged carbon bearing a formal C=O
-  double bond and an otherwise unbranched all-carbon chain is named by
-  replacing the parent acid's '-oic acid'/'-ic acid' ending with '-oylium'/
-  '-ylium', per the rule's own text, "in accordance with the rules for
-  naming neutral acyl groups" (P-65.1.7) -- unlike `_radical.py`'s own
-  acyl-radical support (#952), this project has no separate acyl-group-
-  name module to reuse yet, so `_ACYLIUM_RETAINED_STEMS` below covers just
-  the two P-65.1.7 retained short stems this milestone step actually needs
-  (formyl/acetyl for n=1/2), with every longer chain using the systematic
-  '-oyl' stem (`_radical.py`'s own construction) plus 'ium'. Confirmed
-  worked example `acetylium (PIN)`, `tmp/bluebook/P7.txt` ~2071-2098 --
-  note this is a *different* choice than `_carboxylic_acid.py`'s own
-  policy of never special-casing 'acetic acid' for the neutral acid,
-  because here the retained short stem is the Blue Book's own explicitly
-  confirmed PIN, not merely an alternative name for an otherwise-
-  systematic construction. This shape needs its own `has_acylium_shape`
-  dispatch check in `core.py` (not just a downstream validation change
-  the way #952's acyl radical did) -- `has_carbenium_shape`'s own
-  "degree + H == 3" precondition never matches an acylium carbon (a C=O
-  double bond plus one chain single bond gives degree 2, not 3).
+  double bond is named by replacing the parent acid's '-oic acid'/'-ic
+  acid'/'carboxylic acid' ending with '-oylium'/'-ylium'/'-carbonylium',
+  per the rule's own text, "in accordance with the rules for naming
+  neutral acyl groups" (P-65.1.7). This shape needs its own
+  `has_acylium_shape` dispatch check in `core.py` (not just a downstream
+  validation change the way `_radical.py`'s acyl-radical support does) --
+  `has_carbenium_shape`'s own "degree + H == 3" precondition never matches
+  an acylium carbon (a C=O double bond plus one chain single bond gives
+  degree 2, not 3). Three shapes, mirroring `_radical.py`'s own acyl-
+  radical mechanism exactly (a +1 charge instead of a radical electron):
+  - An unbranched or branched acyclic chain, cation carbon fixed at C1:
+    the two P-65.1.7 retained short stems (`_ACYLIUM_RETAINED_STEMS`,
+    formyl/acetyl for n=1/2) apply only to the unsubstituted case; a
+    branched chain always uses the systematic '-oyl' stem
+    (`_common.py`'s `name_from_substituents`) plus 'ium'. Confirmed
+    worked example `acetylium (PIN)`, `tmp/bluebook/P7.txt` ~2071-2098 --
+    a *different* choice than `_carboxylic_acid.py`'s own policy of never
+    special-casing 'acetic acid' for the neutral acid, because here the
+    retained short stem is the Blue Book's own explicitly confirmed PIN,
+    not merely an alternative name for an otherwise-systematic
+    construction.
+  - A ring-attached acylium carbon: `_carboxylic_acid.py`'s
+    `_name_ring_attached_carboxyl`/`_name_benzo_attached_carboxyl`
+    reused with `suffix="carbonylium"`/`word="benzoylium"` (the same
+    kernels `_ester.py` reuses with `suffix="carboxylate"`/
+    `word="benzoate"`, and `_radical.py` with `suffix="carbonyl"`/
+    `word="benzoyl"`). Confirmed worked example `cyclohexanecarbonylium
+    (PIN)`, `tmp/bluebook/P7.txt` ~2071-2098; `benzoylium` has no
+    explicit Blue Book worked example but follows the identical
+    systematic pattern the rule's own text describes.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - A cation carbon that is a branch point with other than exactly two
@@ -76,20 +87,32 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   specified stereocenter alongside a polycyclic/spiro cation, or
   coexisting with any heteroatom, halogen, unsaturation, or isotopic
   modification.
-- For the acylium case specifically: a branched acid-derived cation, a
-  ring-attached acylium ('cyclohexanecarbonylium'), and the amine/imine/
-  amide- and hydroxy-derived cation families (P-73.2.3.2/.3) entirely --
-  each is its own separate milestone step.
+- For the acylium case specifically: the amine/imine/amide- and hydroxy-
+  derived cation families (P-73.2.3.2/.3) entirely -- each is its own
+  separate milestone step.
 """
 
 from rdkit import Chem
 
 from ._bicyclic import find_bicyclic_core
-from ._common import UnsupportedStructure, adjacency, linear_branch, specified_stereocenters
+from ._carboxylic_acid import _name_benzo_attached_carboxyl, _name_ring_attached_carboxyl
+from ._common import (
+    UnsupportedStructure,
+    adjacency,
+    carbon_adjacency,
+    group_substituents,
+    halogen_substituents,
+    linear_branch,
+    longest_chains,
+    name_from_substituents,
+    specified_stereocenters,
+    substituent_locant_set_and_citation,
+)
 from ._numerals import alkane_name, alkyl_name
 from ._polycyclic import find_polycyclic_core
 from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
 from ._spiro import find_monospiro_atom
+from ._substituents import format_substituent_prefixes, substituents_for_chain
 
 
 def has_carbenium_shape(mol) -> bool:
@@ -266,14 +289,14 @@ def _name_ring_carbenium(mol, ring_info) -> str:
 _ACYLIUM_RETAINED_STEMS = {1: "formyl", 2: "acetyl"}
 
 
-def _acylium_chain_length(mol):
-    """Chain-carbon count n (>=1) if `mol` is P-73.2.3.1's unbranched
-    acyclic acid-derived acylium cation shape -- a single +1-charged
-    carbon double-bonded to one terminal oxygen and, for n>1, single-
-    bonded onward to an unbranched all-carbon chain -- else None. Mirrors
-    `_radical.py`'s own `_acyl_radical_chain_length` (a +1 charge instead
-    of a radical electron); checked ahead of `has_carbenium_shape`'s own
-    precondition, which never matches this shape (see module docstring)."""
+def _acylium_core(mol):
+    """(cation_atom, oxygen_atom) if `mol` has P-73.2.3.1's basic acylium
+    charge/bond pattern -- a single +1-charged carbon double-bonded to one
+    terminal oxygen -- else None. Mirrors `_radical.py`'s own
+    `_acyl_radical_core` (a +1 charge instead of a radical electron);
+    doesn't itself constrain the rest of the skeleton (chain branching,
+    ring membership) -- `_acylium_acyclic_name`/`_acylium_ring_name` do
+    that."""
     charged_carbons = [
         atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 6 and atom.GetFormalCharge() == 1
     ]
@@ -281,8 +304,6 @@ def _acylium_chain_length(mol):
         return None
     (cation,) = charged_carbons
     if cation.GetIsotope() != 0 or cation.GetIsAromatic():
-        return None
-    if mol.GetRingInfo().NumRings() != 0:
         return None
 
     oxygens = [a for a in mol.GetAtoms() if a.GetAtomicNum() == 8]
@@ -298,6 +319,22 @@ def _acylium_chain_length(mol):
         or oxygen.GetIsotope() != 0
     ):
         return None
+    return cation, oxygen
+
+
+def _acylium_acyclic_name(mol):
+    """Name if `mol` is P-73.2.3.1's acyclic (unbranched or branched)
+    acid-derived acylium cation shape -- the cation carbon fixed at C1,
+    mirroring `_radical.py`'s own `_acyl_radical_acyclic_name` -- else
+    None. The two P-65.1.7 retained short stems (formyl/acetyl) only
+    apply to the unsubstituted n=1/2 chains; a branched chain always uses
+    the systematic '-oyl' stem plus 'ium'."""
+    core = _acylium_core(mol)
+    if core is None:
+        return None
+    cation, oxygen = core
+    if mol.GetRingInfo().NumRings() != 0:
+        return None
 
     chain_atoms = [a for a in mol.GetAtoms() if a.GetIdx() != oxygen.GetIdx()]
     for atom in chain_atoms:
@@ -305,23 +342,95 @@ def _acylium_chain_length(mol):
             return None
         if atom.GetIdx() != cation.GetIdx() and atom.GetFormalCharge() != 0:
             return None
-        if atom.GetDegree() > 2:
-            return None
+    carbonyl_bond_idx = mol.GetBondBetweenAtoms(cation.GetIdx(), oxygen.GetIdx()).GetIdx()
     for bond in mol.GetBonds():
-        if bond.GetIdx() != carbonyl_bond.GetIdx() and bond.GetBondTypeAsDouble() != 1.0:
+        if bond.GetIdx() != carbonyl_bond_idx and bond.GetBondTypeAsDouble() != 1.0:
             return None
 
-    return len(chain_atoms)
+    graph = carbon_adjacency(mol)
+    chains = [chain for chain in longest_chains(graph) if cation.GetIdx() in chain]
+    if not chains:
+        return None
+
+    best_key = None
+    best_name = None
+    for chain in chains:
+        for candidate in (chain, list(reversed(chain))):
+            if candidate[0] != cation.GetIdx():
+                continue
+            chain_length = len(candidate)
+            substituents = substituents_for_chain(graph, candidate, {}, mol=mol)
+            grouped = group_substituents(substituents)
+            locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
+            if grouped:
+                name = format_substituent_prefixes(grouped) + name_from_substituents(chain_length, [], [], "oyl") + "ium"
+            else:
+                stem = _ACYLIUM_RETAINED_STEMS.get(chain_length) or (alkane_name(chain_length)[:-1] + "oyl")
+                name = stem + "ium"
+            key = (locant_set, citation_locants, name)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, name
+    return best_name
+
+
+def _acylium_ring_name(mol):
+    """Name if `mol` is P-73.2.3.1's ring-attached acylium cation shape
+    (the '-carbonylium'/'benzoylium' construction) -- mirrors
+    `_radical.py`'s own `_acyl_radical_ring_name` (a +1 charge instead of
+    a radical electron), reusing `_carboxylic_acid.py`'s own ring-
+    numbering kernels directly -- else None."""
+    core = _acylium_core(mol)
+    if core is None:
+        return None
+    cation, oxygen = core
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() != 1:
+        return None
+    ring_atoms = set(ring_info.AtomRings()[0])
+    if cation.GetIdx() in ring_atoms:
+        return None
+
+    graph = adjacency(mol)
+    other_neighbors = [n for n in graph[cation.GetIdx()] if n != oxygen.GetIdx()]
+    if len(other_neighbors) != 1 or other_neighbors[0] not in ring_atoms:
+        return None
+    ring_atom = other_neighbors[0]
+    if any(n for n in graph[ring_atom] if n not in ring_atoms and n != cation.GetIdx()):
+        return None
+    if any(mol.GetAtomWithIdx(atom).GetAtomicNum() != 6 for atom in ring_atoms):
+        return None
+
+    carbonyl_bond_idx = mol.GetBondBetweenAtoms(cation.GetIdx(), oxygen.GetIdx()).GetIdx()
+    ring_is_aromatic = all(mol.GetAtomWithIdx(atom).GetIsAromatic() for atom in ring_atoms)
+    if ring_is_aromatic:
+        if len(ring_atoms) != 6:
+            return None
+    else:
+        if any(mol.GetAtomWithIdx(atom).GetIsAromatic() for atom in ring_atoms):
+            return None
+        if any(
+            bond.GetIdx() != carbonyl_bond_idx and (bond.GetBeginAtomIdx() in ring_atoms or bond.GetEndAtomIdx() in ring_atoms)
+            for bond in mol.GetBonds()
+            if bond.GetBondTypeAsDouble() != 1.0
+        ):
+            return None
+
+    halogens = halogen_substituents(mol)
+    if ring_is_aromatic:
+        return _name_benzo_attached_carboxyl(graph, ring_atoms, cation.GetIdx(), halogens, word="benzoylium", mol=mol)
+    return _name_ring_attached_carboxyl(graph, ring_atoms, cation.GetIdx(), halogens, suffix="carbonylium", mol=mol)
 
 
 def has_acylium_shape(mol) -> bool:
-    """True if `mol` matches `_acylium_chain_length`'s own acylium shape.
-    Used by `core.py` to route here ahead of `has_carbenium_shape`, whose
-    own precondition never matches this shape (see module docstring)."""
-    return _acylium_chain_length(mol) is not None
+    """True if `mol` matches `_acylium_acyclic_name`/`_acylium_ring_name`'s
+    own acylium shape. Used by `core.py` to route here ahead of
+    `has_carbenium_shape`, whose own precondition never matches this
+    shape (see module docstring)."""
+    return _acylium_acyclic_name(mol) is not None or _acylium_ring_name(mol) is not None
 
 
 def name_acylium(mol) -> str:
-    n = _acylium_chain_length(mol)
-    stem = _ACYLIUM_RETAINED_STEMS.get(n) or (alkane_name(n)[:-1] + "oyl")
-    return stem + "ium"
+    name = _acylium_acyclic_name(mol)
+    if name is not None:
+        return name
+    return _acylium_ring_name(mol)
