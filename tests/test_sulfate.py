@@ -55,3 +55,13 @@ def test_sulfuric_acid_itself_raises():
 def test_sulfite_ester_unaffected():
     # One fewer double-bonded O routes to `_sulfite.py` instead, unchanged.
     assert smiles_to_iupac("COS(=O)OC") == "dimethyl sulfite"
+
+
+def test_salt_of_partial_ester():
+    # Real PubChem structure (P-67.1.3.2), CID 2735086.
+    assert smiles_to_iupac("COS(=O)(=O)[O-].[Na+]") == "sodium methyl sulfate"
+
+
+def test_salt_of_partial_ester_multivalent_cation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("COS(=O)(=O)[O-].[Ca+2]")
