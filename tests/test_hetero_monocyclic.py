@@ -426,6 +426,19 @@ def test_three_heteroatom_mancude_ring_raises():
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        ("c1c[nH]nn1", "1H-1,2,3-triazole"),
+        ("c1cn[nH]n1", "2H-1,2,3-triazole"),
+        ("c1[nH]nnn1", "1H-tetrazole"),
+        ("c1n[nH]nn1", "2H-tetrazole"),
+    ],
+)
+def test_triazole_tetrazole_indicated_hydrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         ("C1=CC=COC1", "2H-pyran"),  # PubChem CID 186148
         ("C1C=COC=C1", "4H-pyran"),  # PubChem CID 136135
     ],
