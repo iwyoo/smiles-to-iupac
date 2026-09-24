@@ -39,8 +39,9 @@ def test_mixed_ring_sizes_raises():
         smiles_to_iupac("C1CC1C1CCCC1C1CC1")
 
 
-def test_two_rings_still_out_of_scope():
-    # N=2 is out of scope here even for a saturated pair -- neither this
-    # module nor `_ring_assembly.py` (benzo-only) claims it.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CC1C1CC1")
+def test_two_rings_routes_to_ring_assembly_module():
+    # N=2 is `_ring_assembly.py`'s own job (P-28.2.1's primed-locant
+    # scheme, not this module's composite-locant one) -- this just
+    # confirms the N=3-6 module here no longer claims (and mis-fails on)
+    # the N=2 shape.
+    assert smiles_to_iupac("C1CC1C1CC1") == "1,1'-bi(cyclopropane)"

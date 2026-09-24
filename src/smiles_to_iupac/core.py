@@ -334,6 +334,19 @@ def smiles_to_iupac(smiles: str) -> str:
         if ring_assembly_chain_core is not None:
             return name_ring_assembly_chain(mol, ring_assembly_chain_core)
 
+    # Two disjoint (unfused) identical rings joined by a single bond -- e.g.
+    # biphenyl, bipyridine, bifuran -- must likewise be routed here before
+    # every single-heteroatom dispatch branch below, for the same reason as
+    # the 3-6-ring case just above (and before find_aromatic_fused_core
+    # further down: that function only checks each SSSR ring is a
+    # 6-membered aromatic carbocycle and doesn't require the rings to be
+    # fused, so it would otherwise claim the benzo case too and then fail in
+    # name_aromatic_fused's ring-fusion-graph validation).
+    if mol.GetRingInfo().NumRings() == 2:
+        ring_assembly_core = find_ring_assembly_core(mol)
+        if ring_assembly_core is not None:
+            return name_ring_assembly(mol, ring_assembly_core)
+
     # An isotopically labeled hydroxyl oxygen and/or skeletal carbon
     # combined with the '-ol' suffix (P-82.5.1/P-82.5.2) must be routed
     # here before `_isotope.py`'s own plain chain/methane path just below,
@@ -1638,16 +1651,6 @@ def smiles_to_iupac(smiles: str) -> str:
         return name_tellurol(mol)
 
     num_rings = mol.GetRingInfo().NumRings()
-    # Two disjoint (unfused) benzene rings joined by a single bond -- e.g.
-    # biphenyl -- must be routed here before find_aromatic_fused_core: that
-    # function only checks each SSSR ring is a 6-membered aromatic carbocycle
-    # and doesn't require the rings to be fused, so it would otherwise claim
-    # this shape too and then fail in name_aromatic_fused's ring-fusion-graph
-    # validation (no shared bond means no fusion edge at all).
-    if num_rings == 2:
-        ring_assembly_core = find_ring_assembly_core(mol)
-        if ring_assembly_core is not None:
-            return name_ring_assembly(mol, ring_assembly_core)
     # Aromatic rings carry non-single (order 1.5) bonds, which every other
     # ring module's non_single_bonds check rejects; an aromatic ring
     # system's carbon skeleton can also be graph-isomorphic to a *saturated*

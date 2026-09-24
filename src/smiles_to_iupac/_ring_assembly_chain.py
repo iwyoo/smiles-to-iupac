@@ -299,6 +299,29 @@ def _ring_numberings(graph, ring_atoms, attach_atoms):
             yield {atom: position for position, atom in enumerate(seq, start=1)}
 
 
+def validate_hetero_ring_assembly_atoms(mol, ring_atoms_all, kind):
+    """Reject any heteroatom outside `ring_atoms_all`'s own `kind`-role
+    heteroatoms (plus a halogen substituent, per `validate_allowed_atoms`)
+    -- shared by this module's own 3-6-ring case and `_ring_assembly.py`'s
+    N=2 case for a `_NON_NH_ROLE_SEQUENCES` ring kind."""
+    heteroatom_idxs = {idx for idx in ring_atoms_all if mol.GetAtomWithIdx(idx).GetAtomicNum() != 6}
+    atomic_nums_present = {mol.GetAtomWithIdx(idx).GetAtomicNum() for idx in heteroatom_idxs}
+    validate_allowed_atoms(
+        mol,
+        f"heteroatoms other than the {kind} rings' own heteroatoms and a "
+        "halogen substituent are not supported yet",
+        [
+            (
+                atomic_num,
+                {idx for idx in heteroatom_idxs if mol.GetAtomWithIdx(idx).GetAtomicNum() == atomic_num},
+                f"a heteroatom outside the {kind} rings' own is not supported yet",
+            )
+            for atomic_num in atomic_nums_present
+        ],
+        aromatic_ring_atoms=ring_atoms_all,
+    )
+
+
 def name_ring_assembly_chain(mol, core) -> str:
     path, connections, ring_kind = core
     n = len(path)
@@ -309,22 +332,7 @@ def name_ring_assembly_chain(mol, core) -> str:
         ring_atoms_all |= set(ring)
 
     if kind in _NON_NH_ROLE_SEQUENCES:
-        heteroatom_idxs = {idx for idx in ring_atoms_all if mol.GetAtomWithIdx(idx).GetAtomicNum() != 6}
-        atomic_nums_present = {mol.GetAtomWithIdx(idx).GetAtomicNum() for idx in heteroatom_idxs}
-        validate_allowed_atoms(
-            mol,
-            f"heteroatoms other than the {kind} rings' own heteroatoms and a "
-            "halogen substituent are not supported yet",
-            [
-                (
-                    atomic_num,
-                    {idx for idx in heteroatom_idxs if mol.GetAtomWithIdx(idx).GetAtomicNum() == atomic_num},
-                    f"a heteroatom outside the {kind} rings' own is not supported yet",
-                )
-                for atomic_num in atomic_nums_present
-            ],
-            aromatic_ring_atoms=ring_atoms_all,
-        )
+        validate_hetero_ring_assembly_atoms(mol, ring_atoms_all, kind)
         ring_word = kind
     else:
         validate_atoms_and_bonds(mol)

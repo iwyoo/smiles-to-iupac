@@ -1,7 +1,6 @@
 import pytest
 
 from smiles_to_iupac import smiles_to_iupac
-from smiles_to_iupac._common import UnsupportedStructure
 
 
 @pytest.mark.parametrize(
@@ -75,11 +74,11 @@ def test_bicyclic_is_not_tricyclic():
     assert smiles_to_iupac("C1CC2CCC1CC2") == "bicyclo[2.2.2]octane"
 
 
-def test_two_separate_rings_still_raises():
+def test_two_separate_rings_routes_to_ring_assembly_module():
     # two cyclohexane rings joined by a single bond: share no atom at all,
-    # not a polycyclic ring system by any of these modules' definitions.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCC1C1CCCCC1")
+    # not a polycyclic ring system -- it's `_ring_assembly.py`'s own
+    # P-28.2.1 ring-assembly shape instead.
+    assert smiles_to_iupac("C1CCCCC1C1CCCCC1") == "1,1'-bi(cyclohexane)"
 
 
 def test_pentagonal_prism_is_not_tricyclic():

@@ -47,3 +47,73 @@ def test_terphenyl_routes_to_ring_assembly_chain_module():
     # tests/test_ring_assembly_chain.py) -- this just confirms the N=2
     # module here no longer claims (and mis-fails on) the N=3 shape.
     assert smiles_to_iupac("c1ccc(cc1)-c1ccc(cc1)-c1ccccc1") == "11,21:24,31-terphenyl"
+
+
+def test_bicyclopropane():
+    # PIN worked example `tmp/bluebook/P2.txt` ~7787: 1,1'-bi(cyclopropane)
+    # -- parentheses needed here (unlike every other case below) to avoid
+    # misreading as a von Baeyer 'bicyclo...' name.
+    assert smiles_to_iupac("C1CC1C1CC1") == "1,1'-bi(cyclopropane)"
+
+
+def test_bicyclopropane_with_halogen():
+    assert smiles_to_iupac("C1CC1(Cl)C1CC1") == "1-chloro-1,1'-bi(cyclopropane)"
+
+
+def test_bipyridine():
+    # Real PubChem structure, CID 1474 (2,2'-bipyridine).
+    assert smiles_to_iupac("C1=CC=NC(=C1)C2=CC=CC=N2") == "2,2'-bipyridine"
+
+
+def test_bifuran():
+    # Real PubChem structure, CID 80006 (2,2'-bifuran).
+    assert smiles_to_iupac("C1=COC(=C1)C2=CC=CO2") == "2,2'-bifuran"
+
+
+def test_bithiophene():
+    # Real PubChem structure, CID 68120 (2,2'-bithiophene).
+    assert smiles_to_iupac("C1=CSC(=C1)C2=CC=CS2") == "2,2'-bithiophene"
+
+
+def test_biselenophene():
+    # Real PubChem structure, CID 5141513 (2,2'-biselenophene).
+    assert smiles_to_iupac("C1=C[Se]C(=C1)C2=CC=C[Se]2") == "2,2'-biselenophene"
+
+
+def test_bipyrimidine():
+    # Real PubChem structure, CID 123444 (2,2'-bipyrimidine).
+    assert smiles_to_iupac("C1=CN=C(N=C1)C2=NC=CC=N2") == "2,2'-bipyrimidine"
+
+
+def test_bipyridazine_lowest_attachment_locant():
+    # Real PubChem structure, CID 12464241 (3,3'-bipyridazine) -- confirms
+    # the attachment point is numbered 3 (the lower of pyridazine's two
+    # symmetry-equivalent non-nitrogen alpha positions), not 6.
+    assert smiles_to_iupac("C1=CC(=NN=C1)C2=NN=CC=C2") == "3,3'-bipyridazine"
+
+
+def test_bipyrazine():
+    # Real PubChem structure, CID 153669 (2,2'-bipyrazine).
+    assert smiles_to_iupac("C1=CN=C(C=N1)C2=NC=CN=C2") == "2,2'-bipyrazine"
+
+
+def test_halogen_on_bipyridine():
+    assert smiles_to_iupac("c1ccc(Cl)c(-c2ccccn2)n1") == "3-chloro-2,2'-bipyridine"
+
+
+def test_two_thiazole_rings_still_out_of_scope():
+    # 1,3-thiazole is excluded by `_NON_NH_ROLE_SEQUENCES` (locant-prefixed
+    # Hantzsch-Widman name, see `_ring_assembly_chain.py`'s own note).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1csc(-c2cscn2)n1")
+
+
+def test_two_pyrrole_rings_still_out_of_scope():
+    # 1H-pyrrole is excluded (N-H tautomer ambiguity).
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[nH]1cccc1-c1ccc[nH]1")
+
+
+def test_mixed_benzo_and_pyridine_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccc(-c2ccccn2)cc1")
