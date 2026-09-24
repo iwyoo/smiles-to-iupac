@@ -568,12 +568,15 @@ _ROLE_SEQUENCES = {
     "pyrazine": (_role("N"), _C, _C, _role("N"), _C, _C),
 }
 
-# imidazole/pyrazole's N-H can migrate to the *other* ring nitrogen
-# (a real prototropic tautomer, not a naming choice) -- this only
-# reshuffles which ring carbon counts as adjacent to N1, so a substituent
-# set that includes N1 (locant 1, replacing the H directly) is unaffected
-# and always safe; one that doesn't touch N1 at all is excluded below (see
-# `_match_hetero_monocyclic_substituents`).
+# imidazole/pyrazole's own N-H is a real prototropic tautomer -- for a
+# *single* ring this doesn't create any actual naming ambiguity (see
+# `_match_hetero_monocyclic_substituents`'s own role-sequence search,
+# which derives the one structurally-valid alignment directly from the
+# input molecule's real N-H position), but `_ring_assembly_chain.py`'s
+# P-28.3 multi-ring assembly numbering has its own separate, still-open
+# question of how per-ring tautomer choice interacts with an assembly-
+# wide locant search, so that module excludes these two names from its
+# own ring-parent table pending its own dedicated research.
 _TAUTOMER_AMBIGUOUS_UNLESS_N1 = {"1H-imidazole", "1H-pyrazole"}
 
 
@@ -614,9 +617,8 @@ def _match_hetero_monocyclic_substituents(mol):
     substituents that matches one of `_ROLE_SEQUENCES`'s 19 parents; None if
     the molecule doesn't fit that shape at all (a second ring anywhere, a
     ring atom bearing more than one exocyclic branch, a ring size/
-    heteroatom pattern outside the table, a substituent sitting on a
-    non-substitutable heteroatom, or -- for imidazole/pyrazole only -- no
-    substituent at the tautomer-fixing N-H position)."""
+    heteroatom pattern outside the table, or a substituent sitting on a
+    non-substitutable heteroatom)."""
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() != 1:
         return None
@@ -695,15 +697,6 @@ def _match_hetero_monocyclic_substituents(mol):
                     valid = False
                     break
             if not valid:
-                continue
-            if parent_name in _TAUTOMER_AMBIGUOUS_UNLESS_N1 and all(
-                position_of[atom] != 1 for atom in substituted_atoms
-            ):
-                # None of the substituents sits at the N-H-derived locant
-                # 1 -- a real prototropic-tautomer ambiguity (see
-                # `_TAUTOMER_AMBIGUOUS_UNLESS_N1`'s note), so this
-                # alignment (and, since the ring is otherwise rigid, every
-                # alignment for this parent) can't be trusted.
                 continue
             grouped = _group(
                 {position_of[atom]: names_by_atom[atom] for atom in substituted_atoms}
