@@ -231,6 +231,7 @@ from ._polyspiro_heteroatom import (
 )
 from ._ring_assembly import find_ring_assembly_core, name_ring_assembly
 from ._ring_assembly_chain import find_ring_assembly_chain_core, name_ring_assembly_chain
+from ._ring_assembly_ylidene import find_ring_assembly_ylidene_core, name_ring_assembly_ylidene
 from ._silane_chain import has_silane_chain_shape, name_silane_chain
 from ._spiro import find_monospiro_atom, name_monospiro
 from ._spiro_heteroatom import (
@@ -1697,6 +1698,15 @@ def smiles_to_iupac(smiles: str) -> str:
         if unsaturated_ring is not None:
             return name_cyclic_unsaturated(mol, unsaturated_ring)
         return name_cycloalkane(mol)
+
+    # Two disjoint (unfused) identical-size saturated rings joined by a C=C
+    # double bond -- e.g. bi(cyclopentylidene) -- must be routed here before
+    # find_bicyclic_core/find_polycyclic_core below, for the same reason
+    # the aromatic num_rings == 2 ring-assembly case above is.
+    if num_rings == 2:
+        ring_assembly_ylidene_core = find_ring_assembly_ylidene_core(mol)
+        if ring_assembly_ylidene_core is not None:
+            return name_ring_assembly_ylidene(mol, ring_assembly_ylidene_core)
 
     # num_rings >= 2 from here on. RDKit's SSSR can overcount rings for
     # symmetric bridged bicyclics (see _bicyclic.py's find_bicyclic_core
