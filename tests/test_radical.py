@@ -144,3 +144,19 @@ def test_branch_point_divalent_radical_raises():
     # the divalent case needs this check.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[C](C)C")
+
+
+def test_hexanoyl_acyl_radical_name():
+    # Blue Book P-71.3.1 worked example: an unbranched acid-derived
+    # ('acyl') radical, '-oic acid' replaced by '-oyl'.
+    assert smiles_to_iupac("[C](=O)CCCCC") == "hexanoyl"
+
+
+def test_branched_acyl_radical_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[C](=O)C(C)CCC")
+
+
+def test_ring_attached_acyl_radical_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[C](=O)C1CCCCC1")

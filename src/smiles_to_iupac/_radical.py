@@ -64,6 +64,22 @@
   before '-diyl' either, mirroring the analogous '-ylidene'/'-ylidyne'
   non-elided pattern.
 
+- P-71.3.1: an unbranched acyclic acid-derived radical ("acyl" radical --
+  a carbon bearing a formal C=O double bond, one radical electron, and an
+  otherwise unbranched all-carbon chain) is named by replacing the parent
+  acid's '-oic acid' suffix with '-oyl', reusing `_carboxylic_acid.py`'s
+  own chain-length stem (`alkane_name`) directly rather than routing
+  through that module -- `has_radical_shape` (`core.py`) already sends
+  any radical-bearing molecule here first, ahead of every other module.
+  Confirmed worked example `hexanoyl (PIN)`, `tmp/bluebook/P7.txt`
+  ~477-490. Always the systematic stem (`methanoyl`, `ethanoyl`, ...),
+  never a retained name like 'formyl'/'acetyl', mirroring this project's
+  existing `_carboxylic_acid.py` policy of never special-casing
+  'formic'/'acetic acid' either. A *branched* acid-derived radical, a
+  ring-attached one ('benzoyl'/'cyclohexanecarbonyl'), and the amine/
+  imine/amide/hydroxy-derived radical families (P-71.3.2-.4) are each a
+  separate follow-up step, not this one.
+
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any branch off the radical carbon that is itself further branched
   (P-29.5, "complex substituent groups") -- only the radical carbon itself
@@ -76,9 +92,10 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   single-center exclusion above), three or more radical centers, a mixed
   monovalent+divalent/trivalent combination on the same molecule (P-71.6's
   'ethan-1-yl-2-ylidene'-shaped case), a radical on a functional group
-  (P-71.3), on an aromatic ring, on a polycyclic/spiro skeleton, or
-  coexisting with any heteroatom, halogen, charge, or isotopic
-  modification.
+  other than the unbranched acyclic acyl case above (P-71.3.1), on an
+  aromatic ring, on a polycyclic/spiro skeleton, or coexisting with any
+  heteroatom other than that one acyl oxygen, any halogen, charge, or
+  isotopic modification.
 """
 
 from rdkit import Chem
@@ -115,9 +132,71 @@ def _validate_carbon_skeleton(mol):
             raise UnsupportedStructure("unsaturated skeletons are not supported yet")
 
 
+def _acyl_radical_chain_length(mol):
+    """Chain-carbon count n (>=1) if `mol` is P-71.3.1's unbranched
+    acyclic acid-derived acyl radical shape -- a single monovalent
+    radical carbon double-bonded to one terminal oxygen and, for n>1,
+    single-bonded onward to an unbranched all-carbon chain -- else None.
+    Checked ahead of `_validate_carbon_skeleton` (which would otherwise
+    reject the carbonyl oxygen outright as a non-carbon atom)."""
+    radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons() != 0]
+    if len(radicals) != 1 or radicals[0].GetNumRadicalElectrons() != 1:
+        return None
+    (radical,) = radicals
+    if (
+        radical.GetAtomicNum() != 6
+        or radical.GetFormalCharge() != 0
+        or radical.GetIsotope() != 0
+        or radical.GetIsAromatic()
+    ):
+        return None
+    if mol.GetRingInfo().NumRings() != 0:
+        return None
+
+    oxygens = [a for a in mol.GetAtoms() if a.GetAtomicNum() == 8]
+    if len(oxygens) != 1:
+        return None
+    (oxygen,) = oxygens
+    carbonyl_bond = mol.GetBondBetweenAtoms(radical.GetIdx(), oxygen.GetIdx())
+    if (
+        carbonyl_bond is None
+        or carbonyl_bond.GetBondTypeAsDouble() != 2.0
+        or oxygen.GetDegree() != 1
+        or oxygen.GetFormalCharge() != 0
+        or oxygen.GetIsotope() != 0
+    ):
+        return None
+
+    chain_atoms = [a for a in mol.GetAtoms() if a.GetIdx() != oxygen.GetIdx()]
+    for atom in chain_atoms:
+        if (
+            atom.GetAtomicNum() != 6
+            or atom.GetFormalCharge() != 0
+            or atom.GetIsotope() != 0
+            or atom.GetIsAromatic()
+        ):
+            return None
+        # `GetDegree()` counts bonded atoms, not bond order, so the radical
+        # carbon's own C=O bond to `oxygen` already counts as just one of
+        # its (at most two) connections here -- no separate adjustment
+        # needed to keep it, like every other chain atom, capped at an
+        # unbranched chain's own max degree.
+        if atom.GetDegree() > 2:
+            return None
+    for bond in mol.GetBonds():
+        if bond.GetIdx() != carbonyl_bond.GetIdx() and bond.GetBondTypeAsDouble() != 1.0:
+            return None
+
+    return len(chain_atoms)
+
+
 def name_radical(mol) -> str:
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
+
+    acyl_chain_length = _acyl_radical_chain_length(mol)
+    if acyl_chain_length is not None:
+        return alkane_name(acyl_chain_length)[:-1] + "oyl"
 
     radicals = [atom for atom in mol.GetAtoms() if atom.GetNumRadicalElectrons() != 0]
     if len(radicals) == 2 and all(r.GetNumRadicalElectrons() == 1 for r in radicals):
