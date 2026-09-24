@@ -41,6 +41,7 @@ from ._amine_oxide import has_amine_oxide_shape, name_amine_oxide
 from ._aminide import has_aminide_shape, name_aminide
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._ylide import has_nitrogen_ylide_shape, name_nitrogen_ylide
+from ._amine_imide import has_amine_imide_shape, name_amine_imide
 from ._phosphonium import has_phosphonium_shape, name_phosphonium
 from ._oxonium import has_oxonium_shape, name_oxonium
 from ._carbenium import has_acylium_shape, has_carbenium_shape, name_acylium, name_carbenium
@@ -405,6 +406,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # naming it, per that module's own docstring.
     if has_nitrogen_ylide_shape(mol):
         return name_nitrogen_ylide(mol)
+
+    # An amine imide (P-74.2.1.3's zwitterionic hydrazinium-ide naming)
+    # has two charged nitrogens (one +1, one -1) -- checked before
+    # `has_ammonium_shape` below for the same reason as the nitrogen
+    # ylide above: its own +1 nitrogen would otherwise match ammonium's
+    # shape check and get misnamed as a plain quaternary ammonium,
+    # silently dropping the -1 nitrogen fragment.
+    if has_amine_imide_shape(mol):
+        return name_amine_imide(mol)
 
     # A charged ammonium nitrogen (P-73.1.1.2's hydron-addition cation
     # naming) must be routed here before every other branch below: none of
