@@ -120,6 +120,26 @@ def test_bipyrrole_nitrogen_attached_no_indicated_hydrogen():
     assert smiles_to_iupac("c1ccn(-n2cccc2)c1") == "1,1'-bipyrrole"
 
 
+def test_biimidazole_nitrogen_attached():
+    # Real PubChem structure, CID 15034216. Both rings' own N-H position
+    # is the junction, so no indicated hydrogen is needed (same mechanism
+    # as bipyrrole above).
+    assert smiles_to_iupac("c1cn(-n2ccnc2)cn1") == "1,1'-biimidazole"
+
+
+def test_bipyrazole_nitrogen_attached():
+    # Real PubChem structure, CID 21981271.
+    assert smiles_to_iupac("c1cnn(-n2cccn2)c1") == "1,1'-bipyrazole"
+
+
+def test_biimidazole_carbon_attached_still_out_of_scope():
+    # A carbon-attached junction leaves a real prototropic-tautomer
+    # ambiguity unresolved (which ring nitrogen is "N1"), unlike the
+    # N-N-attached case above -- deferred, not yet supported.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1c[nH]c(-c2[nH]ccn2)n1")
+
+
 def test_mixed_benzo_and_pyridine_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("c1ccc(-c2ccccn2)cc1")
