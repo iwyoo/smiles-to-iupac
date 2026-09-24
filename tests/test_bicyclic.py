@@ -1,7 +1,6 @@
 import pytest
 
 from smiles_to_iupac import smiles_to_iupac
-from smiles_to_iupac._common import UnsupportedStructure
 
 
 @pytest.mark.parametrize(
@@ -41,12 +40,13 @@ def test_pentagonal_prism_is_not_bicyclic():
     assert smiles_to_iupac("C12C3C4C1C1C2C2C3C4C12") == "hexacyclo[4.4.0.0^2,5.0^3,9.0^4,8.0^7,10]decane"
 
 
-def test_two_separate_rings_still_raises():
-    # two cyclohexane rings joined by a single bond: two rings sharing no
-    # atom at all, so not a bicyclic system (P-23.2.2 requires "two or more
-    # atoms in common").
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCC1C1CCCCC1")
+def test_two_separate_rings_routes_to_ring_assembly_module():
+    # Two disjoint cyclohexane rings joined by a single bond share no
+    # atom at all, so this is not a bicyclic system -- it's
+    # `_ring_assembly.py`'s own P-28.2.1 ring-assembly shape instead.
+    assert smiles_to_iupac("C1CCCCC1C1CCCCC1") == "1,1'-bi(cyclohexane)"
+
+
 
 
 def test_unsaturated_bicyclic_name():

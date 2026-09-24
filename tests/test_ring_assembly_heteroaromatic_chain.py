@@ -62,11 +62,11 @@ def test_halogen_substituent_on_thiophene_chain():
     )
 
 
-def test_two_thiophene_rings_still_out_of_scope():
-    # N=2 is `_ring_assembly.py`'s own job (a separate gap, #934), not
-    # this module's.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc(-c2cccs2)s1")
+def test_two_thiophene_rings_routes_to_ring_assembly_module():
+    # N=2 is `_ring_assembly.py`'s own job (P-28.2.1, not this module's
+    # P-28.3 composite-locant scheme) -- confirms the N=3-6 module here no
+    # longer claims (and mis-fails on) the N=2 shape.
+    assert smiles_to_iupac("c1ccc(-c2cccs2)s1") == "2,2'-bithiophene"
 
 
 def test_mixed_thiophene_and_furan_raises():

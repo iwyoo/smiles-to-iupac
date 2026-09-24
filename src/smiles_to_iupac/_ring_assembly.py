@@ -1,33 +1,50 @@
-"""Naming of the biphenyl ring assembly (two benzene rings joined by a single
-bond, sharing no atom), per the IUPAC 2013 Recommendations ("the Blue Book"):
+"""Naming of the ring assembly of two identical cyclic systems joined by a
+single bond, sharing no atom, per the IUPAC 2013 Recommendations ("the Blue
+Book"):
 
 - P-28.2.1 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf): two
   identical cyclic parent hydrides joined directly by a single bond are named
-  as a ring assembly using the parent hydride's name preceded by 'bi'; two
-  benzene rings joined this way have the retained name 'biphenyl'. The
-  locants of the two ring-joining atoms are compulsorily cited as '1,1'' even
-  when the compound is otherwise unsubstituted, giving the PIN
-  '1,1'-biphenyl'.
-- P-28.2.2 / P-14.3.2 (numbering): each ring is numbered independently,
-  starting at its own point of attachment (locant 1), with one ring's
-  locants left unprimed and the other's primed. Substituent locants are
-  chosen to be as low as possible as a set, where an unprimed locant is
-  considered lower than the same number primed -- this module reuses the
-  same lowest-locant-set/citation-order tie-break machinery as every other
-  ring module (`_cyclic.py`, `_aromatic.py`), just with string locants (e.g.
-  "4", "4'") instead of plain integers so ordinary tuple/string comparison
-  already encodes that "unprimed < primed at the same number" rule.
+  as a ring assembly using the parent hydride's name preceded by 'bi',
+  enclosed in parentheses "if necessary" to avoid confusion with a von Baeyer
+  name -- confirmed PIN worked examples `1,1'-bi(cyclopropane)` (parens
+  needed: 'bicyclopropane' would misread as a von Baeyer bicyclic name),
+  `2,2'-bipyridine`, `1,2'-binaphthalene`, `2,3'-bifuran` (no parens needed
+  for any of these -- none start with 'cyclo'), `tmp/bluebook/P2.txt`
+  ~7770-7808. Two benzene rings joined this way instead use the retained
+  substituent-group name 'biphenyl' (method (2) of the same rule), giving the
+  PIN '1,1'-biphenyl' -- the sole named exception to the plain parent-hydride
+  construction. The locants of the two ring-joining atoms are compulsorily
+  cited even when the compound is otherwise unsubstituted.
+- Numbering: each ring is numbered independently, one with unprimed locants,
+  the other with primed locants, and "lowest possible locants must be used
+  to denote the positions of attachment" (same P-28.2.1 text
+  `_ring_assembly_chain.py` already cites for the 3-6-ring case). For a
+  symmetric ring (benzo/cycloalkane) this is trivially satisfied by starting
+  each ring's own numbering at its attachment atom (locant 1 always), then
+  choosing the numbering direction to minimize substituent locants as a
+  tie-break. For a heteroaromatic parent whose own numbering is fixed by its
+  role sequence (any `_ring_assembly_chain.py`'s `_NON_NH_ROLE_SEQUENCES`
+  parent, e.g. pyridine's nitrogen always at locant 1), the attachment point
+  isn't automatically locant 1 -- among the ring's own valid role-sequence
+  alignments (`_hetero_ring_alignments`, reused unchanged from that module),
+  the one giving the lowest locant to the attachment atom is chosen first,
+  confirmed by the worked example `2,2'-bipyridine` (attachment at the lower
+  of pyridine's two symmetry-equivalent non-nitrogen alpha positions, 2 not
+  6).
 - P-35.2.1 (Chapter P-3): halogen substituents hang off a ring atom the same
   way as in every other ring module.
 
-Scope, deliberately narrow: only two *identical* benzene rings connected by
-exactly one single (non-aromatic) bond, each bearing at most simple
-substituents (halogens, alkyl). A different pair of rings or non-benzene
-ring assemblies are out of scope and fall through to `UnsupportedStructure`
-elsewhere in the dispatch chain. Three to six benzene rings in an
-unbranched chain (terphenyl etc.) are `_ring_assembly_chain.py`'s job
-instead -- a separate composite-locant numbering scheme (P-28.3), not a
-generalization of this module's own primed-locant one.
+Scope: two *identical* rings connected by exactly one single (non-aromatic)
+bond -- 6-membered all-carbon aromatic (benzo), monocyclic saturated
+all-carbon (any one ring size), or any mancude 5- or 6-membered ring
+matching a `_NON_NH_ROLE_SEQUENCES` parent (pyridine, furan, thiophene,
+selenophene, tellurophene, pyridazine, pyrimidine, pyrazine -- same
+exclusions as that module: no N-H tautomer-ambiguous parent, no
+locant-prefixed Hantzsch-Widman parent), each ring optionally bearing
+halogen substituents. Three to six identical rings in an unbranched chain
+(terphenyl etc.) are `_ring_assembly_chain.py`'s own job instead -- a
+separate composite-locant numbering scheme (P-28.3), not a generalization of
+this module's own primed-locant one.
 """
 
 from ._common import (
@@ -38,6 +55,13 @@ from ._common import (
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
+from ._numerals import alkane_name
+from ._ring_assembly_chain import (
+    _NON_NH_ROLE_SEQUENCES,
+    _hetero_ring_alignments,
+    _ring_kind,
+    validate_hetero_ring_assembly_atoms,
+)
 from ._substituents import format_substituent_prefixes, name_branch
 
 
@@ -47,20 +71,18 @@ def _bond_between(bond, atoms_a, atoms_b):
 
 
 def find_ring_assembly_core(mol):
-    """Return (ring0_atoms, ring1_atoms, attach0, attach1) if `mol` is
-    exactly two disjoint 6-membered all-carbon aromatic rings joined by one
-    single bond, else None."""
+    """Return (ring0_atoms, ring1_atoms, attach0, attach1, kind) if `mol` is
+    exactly two disjoint identical-kind rings (`_ring_kind`'s own
+    ("aromatic", 6), ("saturated", n), or a `_NON_NH_ROLE_SEQUENCES` parent
+    name) joined by one single bond, else None."""
     ring_info = mol.GetRingInfo()
     atom_rings = ring_info.AtomRings()
     if len(atom_rings) != 2:
         return None
-    for ring in atom_rings:
-        if len(ring) != 6:
-            return None
-        for idx in ring:
-            atom = mol.GetAtomWithIdx(idx)
-            if atom.GetAtomicNum() != 6 or not atom.GetIsAromatic():
-                return None
+    kinds = {_ring_kind(mol, ring) for ring in atom_rings}
+    if len(kinds) != 1 or None in kinds:
+        return None
+    (kind,) = kinds
 
     ring0, ring1 = set(atom_rings[0]), set(atom_rings[1])
     if ring0 & ring1:
@@ -75,7 +97,7 @@ def find_ring_assembly_core(mol):
 
     x, y = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
     attach0, attach1 = (x, y) if x in ring0 else (y, x)
-    return atom_rings[0], atom_rings[1], attach0, attach1
+    return atom_rings[0], atom_rings[1], attach0, attach1, kind
 
 
 def _numberings_from_attachment(graph, ring_atoms, attach, prime):
@@ -87,7 +109,13 @@ def _numberings_from_attachment(graph, ring_atoms, attach, prime):
         yield {atom: f"{position}{suffix}" for position, atom in enumerate(seq, start=1)}
 
 
-def _candidate_key(locants, ring_atoms, graph, halogens, mol=None):
+def _hetero_numberings_from_attachment(mol, graph, ring_atoms, parent_name, prime):
+    suffix = "'" if prime else ""
+    for alignment in _hetero_ring_alignments(mol, graph, ring_atoms, parent_name):
+        yield {atom: f"{position}{suffix}" for atom, position in alignment.items()}
+
+
+def _candidate_key(locants, ring_atoms, graph, halogens, attach_a, attach_b, ring_word, mol=None):
     substituents = {}
     for atom, position in locants.items():
         branch_roots = [n for n in graph[atom] if n not in ring_atoms]
@@ -99,17 +127,41 @@ def _candidate_key(locants, ring_atoms, graph, halogens, mol=None):
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     if prefix:
         prefix += "-"
-    name = prefix + "1,1'-biphenyl"
-    return locant_set, citation_locants, name
+    # P-28.2.1's "lowest possible locants must be used to denote the
+    # positions of attachment" governs the choice among candidates before
+    # substituent locants do -- for benzo/cycloalkane this pair is always
+    # ("1", "1'") since `_numberings_from_attachment` starts at the
+    # attachment atom, so including it here doesn't change that branch's
+    # own behavior; for a heteroaromatic parent whose numbering is fixed by
+    # role sequence instead, it's the deciding factor (confirmed by
+    # `2,2'-bipyridine`, not `6,2'-bipyridine` or `6,6'-bipyridine`).
+    attach_pair = tuple(sorted((locants[attach_a], locants[attach_b])))
+    name = f"{prefix}{attach_pair[0]},{attach_pair[1]}-{ring_word}"
+    return attach_pair, locant_set, citation_locants, name
 
 
 def name_ring_assembly(mol, core) -> str:
-    validate_atoms_and_bonds(mol)
+    ring0_atoms, ring1_atoms, attach0, attach1, ring_kind = core
+    parent_name, ring_size = ring_kind
 
-    ring0_atoms, ring1_atoms, attach0, attach1 = core
+    ring_atoms = set(ring0_atoms) | set(ring1_atoms)
+
+    if parent_name in _NON_NH_ROLE_SEQUENCES:
+        validate_hetero_ring_assembly_atoms(mol, ring_atoms, parent_name)
+        ring_word = "bi" + parent_name
+        numberings = lambda graph, ring_atoms_i, attach_i, prime: _hetero_numberings_from_attachment(
+            mol, graph, ring_atoms_i, parent_name, prime
+        )
+    else:
+        validate_atoms_and_bonds(mol)
+        if parent_name == "aromatic":
+            ring_word = "biphenyl"
+        else:
+            ring_word = f"bi(cyclo{alkane_name(ring_size)})"
+        numberings = _numberings_from_attachment
+
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    ring_atoms = set(ring0_atoms) | set(ring1_atoms)
 
     best_key = None
     best_name = None
@@ -117,10 +169,10 @@ def name_ring_assembly(mol, core) -> str:
         ((ring0_atoms, attach0), (ring1_atoms, attach1)),
         ((ring1_atoms, attach1), (ring0_atoms, attach0)),
     ):
-        for locants_a in _numberings_from_attachment(graph, ring_a, attach_a, prime=False):
-            for locants_b in _numberings_from_attachment(graph, ring_b, attach_b, prime=True):
+        for locants_a in numberings(graph, ring_a, attach_a, False):
+            for locants_b in numberings(graph, ring_b, attach_b, True):
                 locants = {**locants_a, **locants_b}
-                key = _candidate_key(locants, ring_atoms, graph, halogens, mol=mol)
+                key = _candidate_key(locants, ring_atoms, graph, halogens, attach_a, attach_b, ring_word, mol=mol)
                 if best_key is None or key < best_key:
                     best_key, best_name = key, key[-1]
 
