@@ -120,11 +120,11 @@ def test_quaternary_ammonium_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("CCC(C)[N+](C)(C)C") == "N,N,N-trimethylbutan-2-aminium"
 
 
-def test_nitrogen_ylide_raises_not_misnamed_as_ammonium():
+def test_nitrogen_ylide_not_misnamed_as_ammonium():
     # `has_ammonium_shape` only inspects the nitrogen's own local bonding,
     # which a genuine quaternary ammonium and a nitrogen ylide (a P-74.2
     # dipolar compound, e.g. trimethylammonium methylide) both match
     # identically -- without an explicit check this silently dropped the
-    # carbanion and returned "N,N,N-trimethylmethanaminium".
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[CH2-][N+](C)(C)C")
+    # carbanion and returned "N,N,N-trimethylmethanaminium" instead of the
+    # real zwitterion name (`_ylide.py`, P-74.2.1.1.1).
+    assert smiles_to_iupac("[CH2-][N+](C)(C)C") == "(N,N-dimethylmethanaminiumyl)methanide"
