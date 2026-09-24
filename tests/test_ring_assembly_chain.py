@@ -64,6 +64,18 @@ def test_seven_ring_chain_raises():
         )
 
 
-def test_non_benzene_ring_chain_raises():
+def test_non_benzene_ring_chain_routes_to_saturated_case():
+    # Cycloalkane chains are `_ring_assembly_chain.py`'s own job too now
+    # (see tests/test_ring_assembly_cycloalkane_chain.py) -- this just
+    # confirms the aromatic-only branch no longer mis-fails on it.
+    assert smiles_to_iupac("C1CC1C1CC1C1CC1") == "11,21:22,31-tercyclopropane"
+
+
+def test_mixed_ring_kinds_still_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CC1C1CC1C1CC1")
+        smiles_to_iupac("C1CC1c1ccc(-c2ccccc2)cc1")
+
+
+def test_mixed_ring_sizes_still_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1CC1C1CCCC1C1CC1")

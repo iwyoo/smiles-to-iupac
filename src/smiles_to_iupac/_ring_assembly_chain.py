@@ -1,6 +1,7 @@
 """Naming of unbranched ring assemblies of 3-6 identical benzene rings
-(terphenyl/quaterphenyl/quinquephenyl/sexiphenyl), per the IUPAC 2013
-Recommendations ("the Blue Book"):
+(terphenyl/quaterphenyl/quinquephenyl/sexiphenyl) or identical monocyclic
+saturated all-carbon rings (tercyclopropane, tercyclohexane, ...), per the
+IUPAC 2013 Recommendations ("the Blue Book"):
 
 - P-28.3.1 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf): an
   unbranched chain of N (>=3) identical cyclic parent hydrides, each
@@ -29,24 +30,36 @@ Recommendations ("the Blue Book"):
   instead of the general 'ter'+parent-hydride-name construction --
   confirmed PIN worked examples `11,21:24,31-terphenyl` and
   `11,21:23,31:33,41-quaterphenyl` (`tmp/bluebook/P2.txt` ~7970-7978).
+- P-28.3.1's *general* rule applies as-is to any other identical cyclic
+  parent hydride: the Latin multiplying prefix directly in front of the
+  plain parent-hydride name (not a substituent-group name) -- confirmed
+  PIN worked example `11,21:22,31-tercyclopropane` (not "tercyclopropyl"),
+  `tmp/bluebook/P2.txt` ~7904. This module covers that general rule only
+  for a monocyclic *saturated* all-carbon ring (any size) -- a
+  heteroaromatic ring (e.g. pyridine, `terpyridine`) needs its own
+  numbering-hierarchy research (a heteroatom's fixed low locant vs. this
+  mechanism's own "start at the attachment atom" convention) and is a
+  separate follow-up, not attempted here.
 - P-35.2.1 (Chapter P-3): halogen substituents hang off a ring atom the
   same way as in every other ring module, cited under the same
   composite-locant scheme; a substituent locant only breaks a tie left
   after the junction-locant-set rule above is already satisfied (P-28.3.1
   gives the junction points numbering priority, not substituents).
 
-Scope: an unbranched chain of 3-6 disjoint, identical (same size, same
-substitution) 6-membered all-carbon aromatic rings, each consecutive pair
-joined by exactly one single (non-aromatic) bond and no other inter-ring
-bond (a branched or cyclic ring-assembly topology -- P-28.5/P-28.6 -- is
-out of scope and must fall through to `UnsupportedStructure` elsewhere,
-not be misnamed), each ring optionally bearing halogen substituents.
-Explicitly out of scope (raise `UnsupportedStructure` via the generic
-fallback in `core.py`, since `find_ring_assembly_chain_core` below simply
-returns None for any of these): N=2 (stays `_ring_assembly.py`'s own
-job), N>6, a non-benzene ring (P-28.3.1's general case -- a follow-up
-step), any branched/cyclic ring-assembly topology, and indicated hydrogen
-(P-28.2.3 -- not reachable by any benzo ring anyway).
+Scope: an unbranched chain of 3-6 disjoint, identical (same kind, same
+size) rings -- either all 6-membered all-carbon aromatic (benzo) or all
+monocyclic saturated all-carbon (any one ring size, e.g. all cyclopropane
+or all cyclohexane, not mixed) -- each consecutive pair joined by exactly
+one single (non-aromatic) bond and no other inter-ring bond (a branched or
+cyclic ring-assembly topology -- P-28.5/P-28.6 -- is out of scope and must
+fall through to `UnsupportedStructure` elsewhere, not be misnamed), each
+ring optionally bearing halogen substituents. Explicitly out of scope
+(raise `UnsupportedStructure` via the generic fallback in `core.py`, since
+`find_ring_assembly_chain_core` below simply returns None for any of
+these): N=2 (stays `_ring_assembly.py`'s own job), N>6, a heteroaromatic or
+any other non-carbocyclic ring, mixed ring kinds/sizes, any branched/
+cyclic ring-assembly topology, and indicated hydrogen (P-28.2.3 -- not
+reachable by any all-carbon ring anyway).
 """
 
 from itertools import product
@@ -60,34 +73,51 @@ from ._common import (
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
+from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch
 
 _MIN_RINGS, _MAX_RINGS = 3, 6
 _MULTIPLIER = {3: "ter", 4: "quater", 5: "quinque", 6: "sexi"}
 
 
-def _is_benzo_ring(mol, ring):
-    return len(ring) == 6 and all(
-        mol.GetAtomWithIdx(i).GetAtomicNum() == 6 and mol.GetAtomWithIdx(i).GetIsAromatic() for i in ring
-    )
+def _ring_kind(mol, ring):
+    """("aromatic", 6) for an all-carbon benzo ring, ("saturated", n) for
+    an n-membered monocyclic all-carbon ring with only single ring bonds,
+    else None."""
+    atoms = [mol.GetAtomWithIdx(i) for i in ring]
+    if any(a.GetAtomicNum() != 6 for a in atoms):
+        return None
+    if len(ring) == 6 and all(a.GetIsAromatic() for a in atoms):
+        return "aromatic", 6
+    if any(a.GetIsAromatic() for a in atoms):
+        return None
+    ring_set = set(ring)
+    for bond in mol.GetBonds():
+        a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+        if a in ring_set and b in ring_set and bond.GetBondTypeAsDouble() != 1.0:
+            return None
+    return "saturated", len(ring)
 
 
 def find_ring_assembly_chain_core(mol):
-    """Return (path, connections) if `mol` is an unbranched chain of 3-6
-    disjoint benzene rings, consecutive rings joined by exactly one single
-    non-aromatic bond and no other inter-ring bond, else None. `path` is
-    a list of ring atom-index tuples in one arbitrary path order (either
-    end may become "ring 1" -- both are tried when numbering);
+    """Return (path, connections, ring_kind) if `mol` is an unbranched
+    chain of 3-6 disjoint identical-kind-and-size rings (all benzo, or all
+    one saturated ring size), consecutive rings joined by exactly one
+    single non-aromatic bond and no other inter-ring bond, else None.
+    `path` is a list of ring atom-index tuples in one arbitrary path order
+    (either end may become "ring 1" -- both are tried when numbering);
     `connections` is a list of (attach_in_ring_i, attach_in_ring_i+1)
-    atom-idx pairs, one per consecutive pair along `path`."""
+    atom-idx pairs, one per consecutive pair along `path`; `ring_kind` is
+    `_ring_kind`'s own ("aromatic", 6) or ("saturated", n)."""
     ring_info = mol.GetRingInfo()
     atom_rings = ring_info.AtomRings()
     n = len(atom_rings)
     if not (_MIN_RINGS <= n <= _MAX_RINGS):
         return None
-    for ring in atom_rings:
-        if not _is_benzo_ring(mol, ring):
-            return None
+    kinds = {_ring_kind(mol, ring) for ring in atom_rings}
+    if len(kinds) != 1 or None in kinds:
+        return None
+    (ring_kind,) = kinds
 
     ring_sets = [set(r) for r in atom_rings]
     for i in range(n):
@@ -141,7 +171,7 @@ def find_ring_assembly_chain_core(mol):
         connections.append((entry[1], entry[2]))
 
     path = [atom_rings[idx] for idx in order]
-    return path, connections
+    return path, connections, ring_kind
 
 
 def _ring_numberings(graph, ring_atoms, attach_atoms):
@@ -160,8 +190,10 @@ def _ring_numberings(graph, ring_atoms, attach_atoms):
 def name_ring_assembly_chain(mol, core) -> str:
     validate_atoms_and_bonds(mol)
 
-    path, connections = core
+    path, connections, ring_kind = core
     n = len(path)
+    kind, ring_size = ring_kind
+    ring_word = "phenyl" if kind == "aromatic" else "cyclo" + alkane_name(ring_size)
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
 
@@ -230,7 +262,6 @@ def name_ring_assembly_chain(mol, core) -> str:
             junction_str = ":".join(
                 f"{a[0]}{a[1]},{b[0]}{b[1]}" for a, b in junction_pairs
             )
-            ring_word = "phenyl"
             base = f"{junction_str}-{_MULTIPLIER[n]}{ring_word}"
             name = base if not prefix else f"{prefix}-{base}"
 
