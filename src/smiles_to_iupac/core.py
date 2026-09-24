@@ -218,6 +218,7 @@ from ._naphthalene_benzene_phane import (
 from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
 from ._phosphanone import has_phosphanone_shape, name_phosphanone
 from ._phosphate import has_phosphate_shape, name_phosphate
+from ._dinuclear_oxoacid import has_dinuclear_oxoacid_shape, name_dinuclear_oxoacid
 from ._phosphite import has_phosphite_shape, name_phosphite
 from ._sulfate import has_sulfate_shape, name_sulfate
 from ._sulfite import has_sulfite_shape, name_sulfite
@@ -483,6 +484,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # routed here for the same reason.
     if has_phosphinic_acid_shape(mol):
         return name_phosphinic_acid(mol)
+
+    # Diphosphoric acid (P-67.2.1's own preselected dinuclear-acid name)
+    # has each phosphorus individually shaped like a phosphate ester (the
+    # other phosphorus group standing in as the "R" of a P-O-R ester
+    # oxygen), so `has_phosphate_shape` would otherwise also match it and
+    # then fail inside `name_phosphate`'s own single-phosphorus-only
+    # validation -- must be routed here first.
+    if has_dinuclear_oxoacid_shape(mol):
+        return name_dinuclear_oxoacid(mol)
 
     # A phosphate ester (P-67.1.3.2's P(=O)(OR)3) has three P-O-R ester
     # oxygens that `_phosphanone.py`'s own phosphine-oxide shape doesn't
