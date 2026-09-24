@@ -3,6 +3,7 @@ from smiles_to_iupac._fullerene import (
     _FULLERENE_C60_SMILES,
     _FULLERENE_C70_SMILES,
     _FULLERENE_C76_SMILES,
+    _SILA_C60_SMILES,
 )
 
 
@@ -25,6 +26,16 @@ def test_c76_fullerene():
     # connectivity SMILES: 76 all-carbon atoms, every atom degree 3, ring
     # perception of exactly 12 five-membered and 28 six-membered rings.
     assert smiles_to_iupac(_FULLERENE_C76_SMILES) == "(C76-D2)[5,6]fullerene"
+
+
+def test_sila_c60_fullerene():
+    # sila(C60-Ih), cross-checked against PubChem CID 101063510's own
+    # connectivity SMILES: 60 skeletal atoms (59 carbon + 1 silicon),
+    # every carbon degree 3, silicon degree 3 with 0 H and 0 radical
+    # electrons, ring perception of exactly 12 five-membered and 20
+    # six-membered rings -- P-27.5.1's own worked example cites no locant
+    # since every C60-Ih vertex is symmetry-equivalent.
+    assert smiles_to_iupac(_SILA_C60_SMILES) == "sila(C60-Ih)[5,6]fullerene"
 
 
 def test_benzene_still_resolves():
