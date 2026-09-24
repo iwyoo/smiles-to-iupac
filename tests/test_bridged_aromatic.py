@@ -273,3 +273,31 @@ def test_bridged_anthracene_terminal_ring_ethano():
     # Directly confirmed by the primary source's own worked example (see
     # module docstring): "1,4-dihydro-1,4-ethanoanthracene (PIN)".
     assert smiles_to_iupac("C1=CC2CCC1c1cc3ccccc3cc12") == "1,4-dihydro-1,4-ethanoanthracene"
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        # P-25.4.2.1.1's own consecutive worked-example table gives
+        # "methano"/"ethano"/"propano" together (`tmp/bluebook/P2.txt`
+        # ~5306) -- the same 'dihydro' structural-necessity reasoning as
+        # the methano/ethano cases (#899) applies unchanged, this being
+        # one more length of the same acyclic carbon-chain bridge, now
+        # generalized (#905) instead of hardcoded per length. Structure
+        # existence confirmed via PubChem (CID 14689353's connectivity).
+        "C1=CC2CCCC1c1ccccc12",
+        # Same molecule, atom order starting from the intact aromatic ring.
+        "c1ccc2c(c1)C1C=CC2CCC1",
+    ],
+)
+def test_bridged_naphthalene_propano(smiles):
+    assert smiles_to_iupac(smiles) == "1,4-dihydro-1,4-propanonaphthalene"
+
+
+def test_substituted_propano_bridge_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1=CC2C(C)CCC1c1ccccc12")
+
+
+def test_bridged_anthracene_terminal_ring_propano():
+    assert smiles_to_iupac("C1=CC2CCCC1c1cc3ccccc3cc12") == "1,4-dihydro-1,4-propanoanthracene"
