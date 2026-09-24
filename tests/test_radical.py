@@ -182,3 +182,16 @@ def test_amidyl_radical_name():
 
 def test_substituted_aminyl_radical_name():
     assert smiles_to_iupac("C[N](C)") == "N-methylmethanaminyl"
+
+
+def test_vinyl_carbene_name():
+    # Blue Book P-74.2.2.3.4 worked example.
+    assert smiles_to_iupac("C=C[CH]") == "prop-2-en-1-ylidene"
+
+
+def test_vinyl_carbene_longer_chain_name():
+    assert smiles_to_iupac("C=CC[CH]") == "but-3-en-1-ylidene"
+
+
+def test_vinyl_carbyne_name():
+    assert smiles_to_iupac("C#C[CH]") == "prop-2-yn-1-ylidene"
