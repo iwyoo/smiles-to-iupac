@@ -196,6 +196,7 @@ from ._isocyanide import has_isocyanide_shape, name_isocyanide
 from ._isoselenocyanate import has_isoselenocyanate_shape, name_isoselenocyanate
 from ._isotellurocyanate import has_isotellurocyanate_shape, name_isotellurocyanate
 from ._isothiocyanate import has_isothiocyanate_shape, name_isothiocyanate
+from ._nitrate_ester import has_nitrate_ester_shape, name_nitrate_ester
 from ._nitro import has_nitro_shape, name_nitro
 from ._nitroso import has_nitroso_shape, name_nitroso
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
@@ -458,6 +459,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # ether-oxygen-rejection reason as sulfate above.
     if has_sulfite_shape(mol):
         return name_sulfite(mol)
+
+    # A nitrate ester (P-67.1.3.2's O-NO2) has an N-O-R ester oxygen
+    # `_nitro.py`'s own nitrogen shape doesn't expect (that module
+    # requires a direct N-C bond) -- routed here for the same early-ester
+    # reasoning as sulfate/sulfite above.
+    if has_nitrate_ester_shape(mol):
+        return name_nitrate_ester(mol)
 
     # A phosphine oxide (P-68.3.2.3.1's '-phosphanone' suffix, R-P(=O)<)
     # has its own phosphorus-bonded oxygen that `_phosphane.py` doesn't
