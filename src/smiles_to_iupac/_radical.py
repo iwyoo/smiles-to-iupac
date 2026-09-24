@@ -125,6 +125,24 @@
   groups" machinery doesn't reach from `_radical.py` yet -- separate,
   larger follow-up steps, not this one.
 
+- P-71.3.4: a radical derived by removing the hydrogen from a hydroxy
+  group or its chalcogen analogue (a single terminal O/S/Se radical
+  bonded to one plain hydrocarbon substituent) is named additively --
+  oxygen uses one of seven retained short names (`_OXYL_RETAINED`,
+  confirmed worked examples `methoxyl (PIN)`, `phenoxyl (PIN)`),
+  sulfur/selenium have no retained contractions and are always
+  systematic (`<R>sulfanyl`/`<R>selanyl`, confirmed worked examples
+  `phenylsulfanyl (PIN)`, `methylselanyl (PIN)`). `_chalcogen_radical_
+  name` reuses `_substituents.py`'s own `name_branch` directly for R
+  (the same plain alkyl/branched/halogenated/phenyl scope `_nitrate_
+  ester.py`/`_sulfate.py`'s own R already covers) -- no new substituent-
+  naming logic needed. The acid-derived acyloxy radical (R-CO-O•, needs
+  a coexisting carbonyl), peroxyl/chalcogen-chain radicals (R-O-O•/
+  R-S-S•, a 2-chalcogen chain terminating in a radical instead of
+  `_disulfide.py`'s own -SH/-R' termini), and aminoxyl (an amine
+  substituent on the radical oxygen) are each a separate follow-up step,
+  not this one.
+
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any branch off the radical carbon that is itself further branched
   (P-29.5, "complex substituent groups") -- only the radical carbon itself
@@ -169,7 +187,7 @@ from ._numerals import alkane_name, alkyl_name
 from ._polycyclic import find_polycyclic_core
 from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
 from ._spiro import find_monospiro_atom
-from ._substituents import format_substituent_prefixes, substituents_for_chain
+from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
 
 
 def has_radical_shape(mol) -> bool:
@@ -417,6 +435,51 @@ def _vinyl_carbene_name(mol, radical, valence):
     return name_from_substituents(n, ene_locants, yne_locants, own_word, own_locants=[1])
 
 
+# P-71.3.4's own seven retained short 'oxyl' names, minus 'aminoxyl'
+# (out of scope, see module docstring) -- only the oxygen case has
+# retained contractions; sulfur/selenium are always systematic.
+_OXYL_RETAINED = {
+    "methyl": "methoxyl",
+    "ethyl": "ethoxyl",
+    "propyl": "propoxyl",
+    "butyl": "butoxyl",
+    "tert-butyl": "tert-butoxyl",
+    "phenyl": "phenoxyl",
+}
+_CHALCOGEN_RADICAL_SUFFIXES = {8: "oxyl", 16: "sulfanyl", 34: "selanyl"}
+
+
+def _chalcogen_radical_name(mol):
+    """Name if `mol` is P-71.3.4's single-chalcogen terminal radical shape
+    -- one O/S/Se atom bearing exactly one radical electron, bonded to
+    exactly one carbon root, the rest of the molecule matching
+    `name_branch`'s own plain-hydrocarbon scope -- else None."""
+    radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons() != 0]
+    if len(radicals) != 1 or radicals[0].GetNumRadicalElectrons() != 1:
+        return None
+    (radical,) = radicals
+    suffix = _CHALCOGEN_RADICAL_SUFFIXES.get(radical.GetAtomicNum())
+    if suffix is None or radical.GetFormalCharge() != 0 or radical.GetIsotope() != 0 or radical.GetDegree() != 1:
+        return None
+    if len(Chem.GetMolFrags(mol)) > 1:
+        return None
+
+    graph = adjacency(mol)
+    (root,) = graph[radical.GetIdx()]
+    halogens = halogen_substituents(mol)
+    aromatic_atoms = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic()}
+    try:
+        name, compound = name_branch(graph, root, radical.GetIdx(), halogens, aromatic_atoms, mol=mol)
+    except UnsupportedStructure:
+        return None
+    if compound:
+        return None
+
+    if radical.GetAtomicNum() == 8 and name in _OXYL_RETAINED:
+        return _OXYL_RETAINED[name]
+    return name + suffix
+
+
 def name_radical(mol) -> str:
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
@@ -424,6 +487,10 @@ def name_radical(mol) -> str:
     characteristic_group_name = _characteristic_group_radical_name(mol)
     if characteristic_group_name is not None:
         return characteristic_group_name
+
+    chalcogen_radical_name = _chalcogen_radical_name(mol)
+    if chalcogen_radical_name is not None:
+        return chalcogen_radical_name
 
     acyl_name = _acyl_radical_acyclic_name(mol)
     if acyl_name is not None:
