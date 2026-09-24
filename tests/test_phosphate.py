@@ -68,11 +68,15 @@ def test_partial_hydrogen_phosphate_ester_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_salt_of_partial_ester_raises():
-    # A deprotonated (charged) P-O- instead of a neutral P-OH is a salt
-    # of a partial ester -- out of scope here, a separate later step.
+def test_salt_of_partial_ester():
+    assert smiles_to_iupac("COP(=O)(O)[O-].[Na+]") == "sodium methyl hydrogen phosphate"
+    assert smiles_to_iupac("CCOP(=O)(O)[O-].[Na+]") == "sodium ethyl hydrogen phosphate"
+    assert smiles_to_iupac("COP(=O)(O)[O-].[K+]") == "potassium methyl hydrogen phosphate"
+
+
+def test_salt_of_partial_ester_multivalent_cation_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COP(=O)(O)[O-].[Na+]")
+        smiles_to_iupac("COP(=O)(O)[O-].[Ca+2]")
 
 
 def test_phosphoric_acid_itself_unaffected():
