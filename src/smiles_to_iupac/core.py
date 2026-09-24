@@ -293,12 +293,16 @@ from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
 from ._von_baeyer_heteroatom import (
     has_mixed_element_heteroatom_shape as has_mixed_bicyclic_heteroatom_shape,
+    has_mixed_element_heteroatom_shape_polycyclic,
     has_multi_ring_heteroatom_shape as has_multi_bicyclic_heteroatom_shape,
+    has_multi_ring_heteroatom_shape_polycyclic,
     has_single_ring_heteroatom_shape as has_single_bicyclic_heteroatom_shape,
     has_single_ring_heteroatom_shape_polycyclic,
     name_von_baeyer_heteroatom,
     name_von_baeyer_heteroatom_mixed,
+    name_von_baeyer_heteroatom_mixed_polycyclic,
     name_von_baeyer_heteroatom_multi,
+    name_von_baeyer_heteroatom_multi_polycyclic,
     name_von_baeyer_heteroatom_polycyclic,
 )
 
@@ -921,12 +925,16 @@ def smiles_to_iupac(smiles: str) -> str:
     # "any O atom" branch below (a degree-2 ring oxygen would otherwise be
     # misdetected as a plain ether, which explicitly rejects rings) -- see
     # _von_baeyer_heteroatom.py's module docstring.
-    for ring_count in (3, 4, 5):
+    for ring_count in (3, 4, 5, 6):
         polycyclic_hetero_core = find_polycyclic_core(mol, ring_count)
-        if polycyclic_hetero_core is not None and has_single_ring_heteroatom_shape_polycyclic(
-            mol, polycyclic_hetero_core
-        ):
+        if polycyclic_hetero_core is None:
+            continue
+        if has_single_ring_heteroatom_shape_polycyclic(mol, polycyclic_hetero_core):
             return name_von_baeyer_heteroatom_polycyclic(mol, polycyclic_hetero_core, ring_count)
+        if has_multi_ring_heteroatom_shape_polycyclic(mol, polycyclic_hetero_core):
+            return name_von_baeyer_heteroatom_multi_polycyclic(mol, polycyclic_hetero_core, ring_count)
+        if has_mixed_element_heteroatom_shape_polycyclic(mol, polycyclic_hetero_core):
+            return name_von_baeyer_heteroatom_mixed_polycyclic(mol, polycyclic_hetero_core, ring_count)
 
     # A sulfonic acid coexisting with a thiol (P-41/P-43, see
     # `_seniority.py`) has the same three-oxygen sulfonic sulfur as plain

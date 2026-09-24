@@ -166,9 +166,19 @@ def test_smiles_to_iupac_von_baeyer_heteroatom_tricyclic(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_two_ring_heteroatoms_tricyclic_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O1C2CC3CC1CC(C2)N3")
+def test_two_different_ring_heteroatoms_tricyclic():
+    assert smiles_to_iupac("O1C2CC3CC1CC(C2)N3") == "2-oxa-6-azatricyclo[3.3.1.1^3,7]decane"
+
+
+def test_two_same_element_ring_heteroatoms_tricyclic():
+    assert smiles_to_iupac("O1C2CC3OC1CC(C2)C3") == "2,4-dioxatricyclo[3.3.1.1^3,7]decane"
+
+
+def test_single_ring_heteroatom_hexacyclic():
+    # Same all-carbon hexacyclodecane skeleton as
+    # tests/test_hexacyclic.py's own case, one bridgehead carbon replaced
+    # by nitrogen.
+    assert smiles_to_iupac("N12C3C4C1C1C2C2C3C4C12") == "1-azahexacyclo[4.4.0.0^2,5.0^3,9.0^4,8.0^7,10]decane"
 
 
 def test_unsaturated_heteroatom_tricyclic_raises():
