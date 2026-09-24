@@ -107,6 +107,24 @@
   '-ylidene' version of this same suffix family are each a separate
   follow-up step, not this one.
 
+- P-74.2.2.3.4 (vinyl carbenes): a divalent/trivalent radical at one
+  terminus of an otherwise-plain unbranched all-carbon chain that also
+  carries exactly one C=C/C#C multiple bond elsewhere on the chain is
+  named via the ordinary '-ylidene'/'-ylidyne' suffix combined with the
+  chain's own ene/yne locant -- `_vinyl_carbene_name` reuses `_common.py`'s
+  generic `name_from_substituents(chain_length, ene_locants, yne_locants,
+  own_word, own_locants=[1])` directly (the radical terminus is always
+  numbered first, P-74.2.2.3.4's own "low locants... to the suffix"
+  rule), the same shared ene/yne-vs-suffix priority logic every other
+  suffix module in this project already uses -- no new locant research
+  needed. Confirmed worked example `prop-2-en-1-ylidene (PIN)`,
+  `tmp/bluebook/P7.txt` ~3288-3291. The other three "carbene type"
+  subtypes in this same Blue Book section (acyl carbenes, imidoyl
+  carbenes, imidoyl nitrenes, P-74.2.2.3.1-.3) each need a coexisting
+  characteristic-group substituent this project's general "coexisting
+  groups" machinery doesn't reach from `_radical.py` yet -- separate,
+  larger follow-up steps, not this one.
+
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any branch off the radical carbon that is itself further branched
   (P-29.5, "complex substituent groups") -- only the radical carbon itself
@@ -355,6 +373,50 @@ def _characteristic_group_radical_name(mol):
     return neutral_name[:-1] + "yl"
 
 
+def _vinyl_carbene_name(mol, radical, valence):
+    """Name if `mol` is P-74.2.2.3.4's vinyl-carbene shape -- a divalent
+    or trivalent radical at one terminus of an otherwise-plain unbranched
+    all-carbon chain that also carries exactly one C=C/C#C multiple bond
+    -- else None. Reuses `_common.py`'s generic `name_from_substituents`
+    (own_word 'ylidene'/'ylidyne', own_locants=[1] since the radical
+    terminus is always numbered first per P-74.2.2.3.4's own "low locants
+    ... to the suffix" rule) rather than any new locant-priority logic."""
+    if valence not in (2, 3) or radical.GetDegree() != 1:
+        return None
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 6 or atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0 or atom.GetIsAromatic():
+            return None
+        if atom.GetDegree() > 2:
+            return None
+    if mol.GetRingInfo().NumRings() != 0:
+        return None
+
+    bonds = non_single_bonds(mol)
+    if len(bonds) != 1 or bonds[0][2] not in (2.0, 3.0):
+        return None
+    a, b, order = bonds[0]
+    (neighbor,) = [n.GetIdx() for n in radical.GetNeighbors()]
+    if mol.GetBondBetweenAtoms(radical.GetIdx(), neighbor).GetBondTypeAsDouble() != 1.0:
+        return None
+
+    graph = adjacency(mol)
+    n = mol.GetNumAtoms()
+    order_list = [radical.GetIdx()]
+    previous, current = None, radical.GetIdx()
+    while len(order_list) < n:
+        next_atoms = [atom for atom in graph[current] if atom != previous]
+        if not next_atoms:
+            return None
+        previous, current = current, next_atoms[0]
+        order_list.append(current)
+    position_of = {atom: i + 1 for i, atom in enumerate(order_list)}
+    bond_locant = min(position_of[a], position_of[b])
+    own_word = "ylidene" if valence == 2 else "ylidyne"
+    ene_locants = [bond_locant] if order == 2.0 else []
+    yne_locants = [bond_locant] if order == 3.0 else []
+    return name_from_substituents(n, ene_locants, yne_locants, own_word, own_locants=[1])
+
+
 def name_radical(mol) -> str:
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
@@ -371,6 +433,10 @@ def name_radical(mol) -> str:
         return acyl_name
 
     radicals = [atom for atom in mol.GetAtoms() if atom.GetNumRadicalElectrons() != 0]
+    if len(radicals) == 1 and radicals[0].GetNumRadicalElectrons() in (2, 3):
+        vinyl_carbene_name = _vinyl_carbene_name(mol, radicals[0], radicals[0].GetNumRadicalElectrons())
+        if vinyl_carbene_name is not None:
+            return vinyl_carbene_name
     if len(radicals) == 2 and all(r.GetNumRadicalElectrons() == 1 for r in radicals):
         _validate_carbon_skeleton(mol)
         ring_info = mol.GetRingInfo()
