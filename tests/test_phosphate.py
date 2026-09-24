@@ -52,9 +52,34 @@ def test_mixed_alkyl_phosphate_ester_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_partial_hydrogen_ester_raises():
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Real PubChem structures (P-67.1.3.2), partial ("hydrogen")
+        # esters -- one R group + two remaining P-OH ("dihydrogen") or
+        # two R groups + one remaining P-OH ("hydrogen").
+        ("COP(=O)(O)O", "methyl dihydrogen phosphate"),  # CID 13130
+        ("CCOP(=O)(O)O", "ethyl dihydrogen phosphate"),  # CID 74190
+        ("COP(=O)(O)OC", "dimethyl hydrogen phosphate"),  # CID 13134
+        ("CCOP(=O)(O)OCC", "diethyl hydrogen phosphate"),  # CID 654
+    ],
+)
+def test_partial_hydrogen_phosphate_ester_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_salt_of_partial_ester_raises():
+    # A deprotonated (charged) P-O- instead of a neutral P-OH is a salt
+    # of a partial ester -- out of scope here, a separate later step.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COP(=O)(OC)O")
+        smiles_to_iupac("COP(=O)(O)[O-].[Na+]")
+
+
+def test_phosphoric_acid_itself_unaffected():
+    # All three P-O positions are plain hydroxyl (no R group at all) --
+    # the parent acid itself, not an ester, still out of scope.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OP(=O)(O)O")
 
 
 def test_phosphonic_acid_unaffected():
