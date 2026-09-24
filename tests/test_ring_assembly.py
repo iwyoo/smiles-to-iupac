@@ -42,6 +42,8 @@ def test_naphthalene_still_raises_not_ring_assembly():
     assert smiles_to_iupac("c1ccc2ccccc2c1") == "naphthalene"
 
 
-def test_terphenyl_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc(cc1)-c1ccc(cc1)-c1ccccc1")
+def test_terphenyl_routes_to_ring_assembly_chain_module():
+    # Three or more rings are now `_ring_assembly_chain.py`'s job (see
+    # tests/test_ring_assembly_chain.py) -- this just confirms the N=2
+    # module here no longer claims (and mis-fails on) the N=3 shape.
+    assert smiles_to_iupac("c1ccc(cc1)-c1ccc(cc1)-c1ccccc1") == "11,21:24,31-terphenyl"

@@ -22,9 +22,12 @@ bond, sharing no atom), per the IUPAC 2013 Recommendations ("the Blue Book"):
 
 Scope, deliberately narrow: only two *identical* benzene rings connected by
 exactly one single (non-aromatic) bond, each bearing at most simple
-substituents (halogens, alkyl). A different pair of rings, three or more
-rings (terphenyl etc.), or non-benzene ring assemblies are out of scope and
-fall through to `UnsupportedStructure` elsewhere in the dispatch chain.
+substituents (halogens, alkyl). A different pair of rings or non-benzene
+ring assemblies are out of scope and fall through to `UnsupportedStructure`
+elsewhere in the dispatch chain. Three to six benzene rings in an
+unbranched chain (terphenyl etc.) are `_ring_assembly_chain.py`'s job
+instead -- a separate composite-locant numbering scheme (P-28.3), not a
+generalization of this module's own primed-locant one.
 """
 
 from ._common import (
