@@ -154,6 +154,12 @@ from ._bridgehead_heteroatom_fusion import (
 )
 from ._hydroxylamine import has_hydroxylamine_shape, name_hydroxylamine
 from ._imine import has_simple_imine_shape, name_imine
+from ._dipole_oxide import (
+    has_nitrile_oxide_shape,
+    has_nitrone_shape,
+    name_nitrile_oxide,
+    name_nitrone,
+)
 from ._isotope import has_isotope_shape, name_isotope
 from ._isotope_alcohol import has_isotope_alcohol_shape, name_isotope_alcohol
 from ._isotope_carboxylic_acid import has_isotope_carboxylic_acid_shape, name_isotope_carboxylic_acid
@@ -1011,6 +1017,20 @@ def smiles_to_iupac(smiles: str) -> str:
     # sulfoxide/selenoxide.
     if has_telluroxide_shape(mol):
         return name_telluroxide(mol)
+    # A nitrone (imine N-oxide, P-74.2.1.2) has its own N+/O- dipole
+    # pair the plain imine/oxime checks below don't expect, and it's
+    # C=N-bonded (like an ordinary imine) so it would otherwise be
+    # swallowed by the oxime-gated `has_simple_imine_shape` branch further
+    # down and misrouted into `_imine.py`'s own rejection there -- must be
+    # routed before it.
+    if has_nitrone_shape(mol):
+        return name_nitrone(mol)
+    # A nitrile oxide (P-74.2.2.2.1.2) has the same dipole-pair issue as
+    # nitrone above, checked here for the same reason (before it would
+    # otherwise fall through to a general heteroatom-allowlist rejection
+    # further down, none of which know about this shape).
+    if has_nitrile_oxide_shape(mol):
+        return name_nitrile_oxide(mol)
     # A nitro group (-NO2, P-61.5.1) has its own nitrogen and two oxygens
     # neither the ether/carbonyl/alcohol checks below nor the plain-amine
     # branch further down expect, so it must be routed before both -- a
