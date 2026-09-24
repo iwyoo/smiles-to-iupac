@@ -152,11 +152,16 @@ def test_hexanoyl_acyl_radical_name():
     assert smiles_to_iupac("[C](=O)CCCCC") == "hexanoyl"
 
 
-def test_branched_acyl_radical_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[C](=O)C(C)CCC")
+def test_branched_acyl_radical_name():
+    assert smiles_to_iupac("[C](=O)C(C)CCC") == "2-methylpentanoyl"
 
 
-def test_ring_attached_acyl_radical_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[C](=O)C1CCCCC1")
+def test_cyclohexanecarbonyl_acyl_radical_name():
+    # Blue Book P-71.3.1 worked example: the ring-attached '-carbonyl'
+    # construction.
+    assert smiles_to_iupac("[C](=O)C1CCCCC1") == "cyclohexanecarbonyl"
+
+
+def test_benzoyl_acyl_radical_name():
+    # Blue Book P-71.3.1 worked example: the retained 'benzoyl' name.
+    assert smiles_to_iupac("[C](=O)c1ccccc1") == "benzoyl"
