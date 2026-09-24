@@ -63,10 +63,28 @@ excluded for now), per the IUPAC 2013 Recommendations ("the Blue Book"):
   `_ring_alignments`/`_ROLE_SEQUENCES` matching machinery for this,
   rather than a per-parent special case, and `name_ring_assembly_chain`
   picks among the resulting candidates by the same lowest-junction-locant
-  rule as every other ring kind. Excludes 1H-pyrrole/1H-imidazole/
-  1H-pyrazole (real N-H prototropic-tautomer ambiguity -- which ring
-  nitrogen is "N1" isn't fixed by structure alone -- needs extra
-  disambiguation this module doesn't do yet).
+  rule as every other ring kind. Excludes 1H-imidazole/1H-pyrazole (real
+  N-H prototropic-tautomer ambiguity -- which ring nitrogen is "N1" isn't
+  fixed by structure alone -- needs extra disambiguation this module
+  doesn't do yet); 1H-pyrrole is handled separately below.
+- P-28.2.3 (indicated hydrogen, extended to N>=3 chains): 1H-pyrrole is
+  the one N-H tautomer-ambiguous parent supported here (see
+  `_ring_assembly.py`'s own N=2 case, #949, for why imidazole/pyrazole
+  stay excluded -- a second "pyridine-type" nitrogen with no spare
+  valence of its own, unlike every one of pyrrole's five positions).
+  Confirmed PIN worked examples `11H,33H-13,23:23,33-terindole` and
+  `12H,22H,24H,32H-11,21:23,31-terpyrimidine` (`tmp/bluebook/P2.txt`
+  ~7920-7927) establish the composite-locant indicated-hydrogen citation
+  format for N>=3 chains: front-of-name, comma-separated per occupied
+  ring, each using that ring's own composite locant. For pyrrole
+  specifically this reduces to the same per-ring check #949 already
+  shipped for N=2 (every one of pyrrole's positions -- including its own
+  N -- is a direct 1-for-1 substitution with no double-bond
+  recalculation, unlike the pyrimidine case above): a ring needs
+  indicated hydrogen at its own N-derived composite locant (always that
+  ring's "...1", since 1H-pyrrole's N is fixed at role-sequence position
+  1) if and only if none of that ring's own junction bonds sit at its own
+  N.
 - P-35.2.1 (Chapter P-3): halogen substituents hang off a ring atom the
   same way as in every other ring module, cited under the same
   composite-locant scheme; a substituent locant only breaks a tie left
@@ -76,23 +94,22 @@ excluded for now), per the IUPAC 2013 Recommendations ("the Blue Book"):
 Scope: an unbranched chain of 3-6 disjoint, identical (same kind, same
 size) rings -- 6-membered all-carbon aromatic (benzo), monocyclic
 saturated all-carbon (any one ring size, e.g. all cyclopropane or all
-cyclohexane, not mixed), or any mancude 5- or 6-membered ring matching a
+cyclohexane, not mixed), any mancude 5- or 6-membered ring matching a
 `_NON_NH_ROLE_SEQUENCES` parent (pyridine, furan, thiophene, selenophene,
-tellurophene, pyridazine, pyrimidine, pyrazine) -- each consecutive pair
-joined by exactly one single (non-aromatic) bond and no other inter-ring
-bond (a branched or cyclic ring-assembly topology -- P-28.5/P-28.6 -- is
-out of scope and must fall through to `UnsupportedStructure` elsewhere,
-not be misnamed), each ring optionally bearing halogen substituents.
+tellurophene, pyridazine, pyrimidine, pyrazine), or 1H-pyrrole -- each
+consecutive pair joined by exactly one single (non-aromatic) bond and no
+other inter-ring bond (a branched or cyclic ring-assembly topology --
+P-28.5/P-28.6 -- is out of scope and must fall through to
+`UnsupportedStructure` elsewhere, not be misnamed), each ring optionally
+bearing halogen substituents.
 Explicitly out of scope (raise `UnsupportedStructure` via the generic
 fallback in `core.py`, since `find_ring_assembly_chain_core` below simply
 returns None for any of these): N=2 (stays `_ring_assembly.py`'s own
-job, and doesn't yet handle any heteroaromatic ring either -- a separate
-gap), N>6, 1H-pyrrole/1H-imidazole/1H-pyrazole (real N-H tautomer
-ambiguity -- its own follow-up), the locant-prefixed Hantzsch-Widman
-parents (1,3-/1,2-oxazole/thiazole/selenazole/tellurazole -- unconfirmed
-composite-name formatting, see `_NON_NH_ROLE_SEQUENCES`), mixed ring
-kinds/sizes, any branched/cyclic ring-assembly topology, and indicated
-hydrogen (P-28.2.3 -- not reachable by any ring kind here anyway).
+job), N>6, 1H-imidazole/1H-pyrazole (real N-H tautomer ambiguity -- its
+own follow-up), the locant-prefixed Hantzsch-Widman parents (1,3-/1,2-
+oxazole/thiazole/selenazole/tellurazole -- unconfirmed composite-name
+formatting, see `_NON_NH_ROLE_SEQUENCES`), mixed ring kinds/sizes, and
+any branched/cyclic ring-assembly topology.
 """
 
 from itertools import product
@@ -211,6 +228,25 @@ def _ring_kind(mol, ring):
     return "saturated", len(ring)
 
 
+def _pyrrole_ring_kind(mol, ring):
+    """("1H-pyrrole", 5) if `ring` is a mancude 5-membered ring with one
+    N and four C (element-only match against `_ROLE_SEQUENCES`'s own
+    "1H-pyrrole" entry, via `_hetero_ring_alignments`), else None --
+    `_ring_kind` itself excludes 1H-pyrrole (it's not in
+    `_NON_NH_ROLE_SEQUENCES`, see the module docstring), so this is
+    checked separately rather than widening that shared table (which
+    would also, wrongly, enable 1H-imidazole/1H-pyrazole-style
+    complications this module doesn't handle). Shared by this module's
+    own 3-6-ring case and `_ring_assembly.py`'s N=2 case."""
+    atoms = [mol.GetAtomWithIdx(i) for i in ring]
+    if len(ring) != 5 or not all(a.GetIsAromatic() for a in atoms):
+        return None
+    graph = adjacency(mol)
+    if any(True for _ in _hetero_ring_alignments(mol, graph, ring, "1H-pyrrole")):
+        return "1H-pyrrole", 5
+    return None
+
+
 def find_ring_assembly_chain_core(mol):
     """Return (path, connections, ring_kind) if `mol` is an unbranched
     chain of 3-6 disjoint identical-kind-and-size rings (all benzo, or all
@@ -220,13 +256,14 @@ def find_ring_assembly_chain_core(mol):
     (either end may become "ring 1" -- both are tried when numbering);
     `connections` is a list of (attach_in_ring_i, attach_in_ring_i+1)
     atom-idx pairs, one per consecutive pair along `path`; `ring_kind` is
-    `_ring_kind`'s own ("aromatic", 6) or ("saturated", n)."""
+    `_ring_kind`'s own ("aromatic", 6) or ("saturated", n), or
+    `_pyrrole_ring_kind`'s own ("1H-pyrrole", 5)."""
     ring_info = mol.GetRingInfo()
     atom_rings = ring_info.AtomRings()
     n = len(atom_rings)
     if not (_MIN_RINGS <= n <= _MAX_RINGS):
         return None
-    kinds = {_ring_kind(mol, ring) for ring in atom_rings}
+    kinds = {_ring_kind(mol, ring) or _pyrrole_ring_kind(mol, ring) for ring in atom_rings}
     if len(kinds) != 1 or None in kinds:
         return None
     (ring_kind,) = kinds
@@ -334,6 +371,9 @@ def name_ring_assembly_chain(mol, core) -> str:
     if kind in _NON_NH_ROLE_SEQUENCES:
         validate_hetero_ring_assembly_atoms(mol, ring_atoms_all, kind)
         ring_word = kind
+    elif kind == "1H-pyrrole":
+        validate_hetero_ring_assembly_atoms(mol, ring_atoms_all, kind)
+        ring_word = "pyrrole"
     else:
         validate_atoms_and_bonds(mol)
         ring_word = "phenyl" if kind == "aromatic" else "cyclo" + alkane_name(ring_size)
@@ -372,9 +412,23 @@ def name_ring_assembly_chain(mol, core) -> str:
         else:
             attach_sets = attach_atoms_per_ring
 
+        indicated_hydrogen_needed = []
+        if kind == "1H-pyrrole":
+            # Structural (not numbering-dependent, see `_ring_assembly.py`'s
+            # own N=2 case): a ring needs indicated hydrogen at its own
+            # N-derived composite locant iff none of its own junction bonds
+            # sit at its own N -- 1H-pyrrole's N is always role-sequence
+            # position 1 (`_pyrrole_ring_kind`'s docstring), so that locant
+            # is always "<ring-number>1".
+            for i in range(n):
+                n_atom = next(atom for atom in order[i] if mol.GetAtomWithIdx(atom).GetAtomicNum() == 7)
+                if n_atom not in attach_sets[i]:
+                    indicated_hydrogen_needed.append(f"{i + 1}1H")
+        indicated_hydrogen_prefix = ",".join(indicated_hydrogen_needed) + "-" if indicated_hydrogen_needed else ""
+
         per_ring_candidates = []
         for i in range(n):
-            if kind in _NON_NH_ROLE_SEQUENCES:
+            if kind in _NON_NH_ROLE_SEQUENCES or kind == "1H-pyrrole":
                 # P-28.2.1's "each cyclic system is numbered in the
                 # traditional way" -- a heteroaromatic parent's own
                 # numbering always fixes its heteroatom(s) at their role-
@@ -418,7 +472,10 @@ def name_ring_assembly_chain(mol, core) -> str:
                 f"{a[0]}{a[1]},{b[0]}{b[1]}" for a, b in junction_pairs
             )
             base = f"{junction_str}-{_MULTIPLIER[n]}{ring_word}"
-            name = base if not prefix else f"{prefix}-{base}"
+            # P-28.2.3: indicated hydrogen, if any, is cited at the very
+            # front of the name -- ahead of the substituent prefix too
+            # (same placement `_ring_assembly.py`'s own N=2 case uses).
+            name = indicated_hydrogen_prefix + (base if not prefix else f"{prefix}-{base}")
 
             key = (junction_locant_set, junction_citation, sub_locant_set, sub_citation, name)
             if best_key is None or key < best_key:
