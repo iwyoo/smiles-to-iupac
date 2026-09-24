@@ -3,6 +3,7 @@ from rdkit import Chem
 from ._zwitterion import has_zwitterion_shape, name_zwitterion
 from ._salt import has_salt_shape, name_salt
 from ._hydrohalide_salt import has_hydrohalide_salt_shape, name_hydrohalide_salt
+from ._hydrate_adduct import has_hydrate_adduct_shape, name_hydrate_adduct
 from ._acyclic import name_acyclic_alkane
 from ._acyl_halide import has_acyl_halide_shape, name_acyl_halide
 from ._anhydride import has_anhydride_shape, name_anhydride
@@ -339,6 +340,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # routed here before every other branch below, for the same reason.
     if has_hydrohalide_salt_shape(mol):
         return name_hydrohalide_salt(mol, smiles_to_iupac)
+
+    # A hydrate adduct (P-14.8's em-dash notation, see
+    # _hydrate_adduct.py) -- one organic fragment plus one or more
+    # separate water molecules -- must likewise be routed here before
+    # every other branch below, for the same reason.
+    if has_hydrate_adduct_shape(mol):
+        return name_hydrate_adduct(mol, smiles_to_iupac)
 
     # An unbranched chain of 3-6 disjoint mancude rings (aromatic benzo,
     # saturated cycloalkane, or pyridine -- P-28.3) -- e.g. terphenyl,
