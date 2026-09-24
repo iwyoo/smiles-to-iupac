@@ -159,16 +159,12 @@ def test_hetero_monocyclic_substituent_with_unsaturated_branch_raises():
         smiles_to_iupac("C=CCc1ccnc(Cl)c1Cl")
 
 
-def test_imidazole_multi_substituent_without_n1_raises():
-    # Same tautomer ambiguity as the single-substituent case below, but
-    # with two ring-carbon substituents and neither at the N-H-derived
-    # locant 1: PubChem's own name for this exact SMILES ("2-chloro-
-    # 5-methyl-1H-imidazole", CID 313195) doesn't match this input's own
-    # literal, structurally-fixed N-H position (which would give locants
-    # 2 and 4), confirming PubChem silently renormalizes to its own
-    # canonical tautomer before naming.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1cnc(Cl)[nH]1")
+def test_imidazole_multi_substituent_without_n1():
+    # Two ring-carbon substituents, neither at the N-H-derived locant 1:
+    # the role-sequence search still derives the one structurally-valid
+    # alignment directly from the real N-H position, matching PubChem's
+    # own name for this exact SMILES (CID 313195).
+    assert smiles_to_iupac("Cc1cnc(Cl)[nH]1") == "2-chloro-5-methyl-1H-imidazole"
 
 
 def test_ring_size_outside_scope_raises():
@@ -396,25 +392,34 @@ def test_unsupported_heteroatom_element_raises():
         smiles_to_iupac("C1CCCCP1")
 
 
-def test_imidazole_ring_carbon_substituent_raises():
+def test_imidazole_ring_carbon_substituent():
     # A substituent on imidazole's ring carbon (any locant other than 1,
-    # the N-H position itself) is deliberately rejected rather than named:
-    # imidazole's N-H can migrate to the *other* nitrogen (a real
-    # prototropic tautomer), which reshuffles which carbon counts as
-    # adjacent to N1 -- PubChem's own name for this exact SMILES
-    # ("5-methyl-1H-imidazole", CID 13195) doesn't match this input's own
-    # literal, structurally-fixed N-H position (locant 4), confirming
-    # PubChem silently renormalizes to its own canonical tautomer before
-    # naming. Without the Blue Book's own tie-breaking rule for this case,
-    # the locant can't be trusted yet.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1cnc[nH]1")
+    # the N-H position itself): the role-sequence search derives the one
+    # structurally-valid alignment directly from the real N-H position,
+    # matching PubChem's own name for this exact SMILES (CID 13195).
+    assert smiles_to_iupac("Cc1cnc[nH]1") == "5-methyl-1H-imidazole"
 
 
-def test_pyrazole_ring_carbon_substituent_raises():
-    # Same tautomer ambiguity as imidazole above, one ring family over.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1cc[nH]n1")
+def test_pyrazole_ring_carbon_substituent():
+    # Same mechanism as imidazole above, one ring family over -- here the
+    # substituent sits adjacent to the non-H nitrogen instead (locant 3).
+    assert smiles_to_iupac("Cc1cc[nH]n1") == "3-methyl-1H-pyrazole"
+
+
+def test_imidazole_ring_carbon_halogen_substituent():
+    # Matches PubChem's own name for this exact SMILES (CID 140019).
+    assert smiles_to_iupac("Clc1cnc[nH]1") == "5-chloro-1H-imidazole"
+
+
+def test_pyrazole_multi_substituent_flanking_both_nitrogens():
+    # Substituents adjacent to each nitrogen (locants 3 and 5), matching
+    # PubChem's own name for this exact SMILES (CID 6210).
+    assert smiles_to_iupac("Cc1cc(C)[nH]n1") == "3,5-dimethyl-1H-pyrazole"
+
+
+def test_imidazole_multi_substituent_flanking_nh():
+    # Matches PubChem's own name for this exact SMILES (CID 75306).
+    assert smiles_to_iupac("Cc1nc[nH]c1C") == "4,5-dimethyl-1H-imidazole"
 
 
 def test_three_heteroatom_mancude_ring_raises():
