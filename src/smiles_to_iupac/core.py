@@ -230,6 +230,7 @@ from ._polyspiro_heteroatom import (
     name_linear_polyspiro_heteroatom,
 )
 from ._ring_assembly import find_ring_assembly_core, name_ring_assembly
+from ._ring_assembly_chain import find_ring_assembly_chain_core, name_ring_assembly_chain
 from ._silane_chain import has_silane_chain_shape, name_silane_chain
 from ._spiro import find_monospiro_atom, name_monospiro
 from ._spiro_heteroatom import (
@@ -1633,6 +1634,13 @@ def smiles_to_iupac(smiles: str) -> str:
         ring_assembly_core = find_ring_assembly_core(mol)
         if ring_assembly_core is not None:
             return name_ring_assembly(mol, ring_assembly_core)
+    # An unbranched chain of 3-6 disjoint benzene rings -- e.g. terphenyl --
+    # must likewise be routed here before find_aromatic_fused_core, for the
+    # same reason as the num_rings == 2 biphenyl case just above.
+    if 3 <= num_rings <= 6:
+        ring_assembly_chain_core = find_ring_assembly_chain_core(mol)
+        if ring_assembly_chain_core is not None:
+            return name_ring_assembly_chain(mol, ring_assembly_chain_core)
     # Aromatic rings carry non-single (order 1.5) bonds, which every other
     # ring module's non_single_bonds check rejects; an aromatic ring
     # system's carbon skeleton can also be graph-isomorphic to a *saturated*
