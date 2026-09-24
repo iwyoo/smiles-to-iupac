@@ -12,14 +12,19 @@ mononuclear organometallics (a single metal atom bearing 1-3 Group 13/15 /
   `format_mononuclear_prefixes`. Confirmed worked examples
   (`tmp/bluebook/P6a.txt` lines 8602-8613): `Al(CH2-CH3)3` ->
   'triethylalumane', `Pb(CH2-CH3)4` -> 'tetraethylplumbane',
-  `BrSb(CH=CH2)2` -> 'bromodi(ethenyl)stibane' (unsaturated substituent,
-  out of scope here -- see below), `HIn(CH3)2` -> 'dimethylindigane'.
-  Thallium's own stem name, 'thallane', is confirmed at
-  `tmp/bluebook/P6a.txt` line 5459 (preselected name). The Group 15 stems
-  themselves are confirmed separately: `ethylarsane (PIN)` (line 7810),
-  `trimethylbismuthane (PIN)` (line 8010); `stibane` is confirmed by the
-  `bromodi(ethenyl)stibane` example above (its own unsaturated
-  substituent is out of scope, but the stem name itself is real).
+  `BrSb(CH=CH2)2` -> 'bromodi(ethenyl)stibane', `HIn(CH3)2` ->
+  'dimethylindigane'. Thallium's own stem name, 'thallane', is confirmed
+  at `tmp/bluebook/P6a.txt` line 5459 (preselected name). The Group 15
+  stems themselves are confirmed separately: `ethylarsane (PIN)` (line
+  7810), `trimethylbismuthane (PIN)` (line 8010); `stibane` is confirmed
+  by the `bromodi(ethenyl)stibane` example above.
+- An unsaturated acyclic substituent (e.g. the `bromodi(ethenyl)stibane`
+  example's vinyl groups) is named the same way `name_branch` already
+  names one anywhere else in this project (confirmed by real PubChem
+  structures: CID 23271262 "tris(ethenyl)arsane", CID 81998
+  "tributyl(ethenyl)stannane") -- only a multiple bond *directly to the
+  metal itself* (a fundamentally different, ylidene-shaped bonding
+  pattern this module was never built for) is rejected.
 - This module is structurally identical to `_borane.py` with the boron
   atomic number swapped for one of Al/Ga/In/Tl/Ge/Sn/Pb/As/Sb/Bi -- same
   validation shape (plain/halogenated-phenyl support, halogen-on-metal
@@ -43,17 +48,14 @@ Group 13/15, 4 for Group 14 -- never more, these are all trivalent/
 tetravalent respectively, like boron/carbon), mixed freely except a
 halogenated-phenyl group may not mix with a differently-named substituent.
 
-Explicitly out of scope (raise `UnsupportedStructure`): any of
-`_borane.py`'s own out-of-scope cases (more than one metal atom, an
-unsaturated substituent -- including the Group 15 epic's own
-`bromodi(ethenyl)stibane` worked example, which needs unsaturated-
-substituent support this shared mechanism doesn't have yet, a separate
-follow-up step -- a non-phenyl aromatic ring, charged/isotopically
-modified atoms, coexistence with any other heteroatom including another
-Group 13/14/15/16 element), plus silicon/carbon (organosilicon naming is
-a separate, already-established area of this project, `_silane_chain.py`,
-not part of this mononuclear-organometallic mechanism) and Group 16
-elements (a different scope, a separate milestone).
+Explicitly out of scope (raise `UnsupportedStructure`): more than one
+metal atom, a multiple bond directly to the metal, a non-phenyl aromatic
+ring, charged/isotopically modified atoms, coexistence with any other
+heteroatom including another Group 13/14/15/16 element, plus silicon/
+carbon (organosilicon naming is a separate, already-established area of
+this project, `_silane_chain.py`, not part of this mononuclear-
+organometallic mechanism) and Group 16 elements (a different scope, a
+separate milestone).
 """
 
 from rdkit import Chem
@@ -62,9 +64,11 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
+    carbon_adjacency,
     halogen_substituents,
     non_single_bonds,
     plain_phenyl_substituent_atoms,
+    unbranched_unsaturated_substituent_name,
 )
 from ._substituents import format_mononuclear_prefixes, halogenated_phenyl_substituent, name_branch
 
@@ -86,6 +90,24 @@ GROUP_15_STEMS = {
     51: "stibane",
     83: "bismuthane",
 }
+
+
+def _branch_atoms(graph, root, boundary):
+    """Every atom reachable from `root` without crossing into `boundary`
+    (here, just the metal atom) -- mirrors `_aromatic.py`'s identical
+    local helper, used the same way: to isolate one substituent's own
+    branch so an unsaturated bond can be attributed to the branch that
+    contains it."""
+    seen = {root}
+    stack = [root]
+    while stack:
+        current = stack.pop()
+        for neighbor in graph[current]:
+            if neighbor in boundary or neighbor in seen:
+                continue
+            seen.add(neighbor)
+            stack.append(neighbor)
+    return seen
 
 
 def has_group13_hydride_shape(mol) -> bool:
@@ -159,18 +181,14 @@ def _validate_and_collect_substituents(mol, metal, stems, max_substituents):
             "substituent directly on the metal is out of scope for this "
             "module"
         )
-    non_ring_unsaturation = [
-        b
-        for b in non_single_bonds(mol)
-        if b[0] not in phenyl_atoms
-        and b[1] not in phenyl_atoms
-        and b[0] not in halophenyl_ring_atoms
-        and b[1] not in halophenyl_ring_atoms
-    ]
-    if non_ring_unsaturation:
-        raise UnsupportedStructure("an unsaturated substituent is out of scope for this module (see P-69.1)")
+    metal_idx = metal.GetIdx()
+    if any(b[0] == metal_idx or b[1] == metal_idx for b in non_single_bonds(mol)):
+        raise UnsupportedStructure("a multiple bond directly to the metal is out of scope for this module")
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
+
+    unsaturated_bonds = [b for b in non_single_bonds(mol) if b[0] != metal_idx and b[1] != metal_idx]
+    carbon_graph = carbon_adjacency(mol) if unsaturated_bonds else None
 
     substituent_names = []
     for root in roots:
@@ -185,6 +203,25 @@ def _validate_and_collect_substituents(mol, metal, stems, max_substituents):
         if root_atomic_num in HALOGEN_PREFIXES:
             substituent_names.append((HALOGEN_PREFIXES[root_atomic_num], False))
             continue
+        if unsaturated_bonds:
+            branch_atoms = _branch_atoms(graph, root, {metal_idx})
+            branch_bonds = [b for b in unsaturated_bonds if b[0] in branch_atoms and b[1] in branch_atoms]
+            if branch_bonds:
+                if len(branch_bonds) > 1:
+                    raise UnsupportedStructure(
+                        "more than one unsaturated bond on a single substituent branch is not supported yet"
+                    )
+                # `name_branch` has no ene/yne machinery of its own (see
+                # `_aromatic.py`'s identical construction) -- named
+                # directly via the shared unbranched-alkenyl/alkynyl
+                # helper instead. Enclosed in parentheses (is_compound
+                # True) to match the Blue Book's own worked example,
+                # `bromodi(ethenyl)stibane (PIN)`.
+                name = unbranched_unsaturated_substituent_name(carbon_graph, root, branch_bonds[0], coming_from=metal_idx)
+                if name is None:
+                    raise UnsupportedStructure("a branched unsaturated substituent is out of scope for this module")
+                substituent_names.append((name, True))
+                continue
         substituent_names.append(name_branch(graph, root, metal.GetIdx(), {}, mol=mol))
 
     distinct_names = {name for name, _ in substituent_names}

@@ -221,14 +221,24 @@ def format_mononuclear_prefixes(entries) -> str:
         wrapped = f"({name})" if compound_of[name] else name
         return multiplying_prefix(count, compound=needs_kis) + wrapped
 
-    if any(counts[name] > 1 and compound_of[name] for name in counts):
+    ordered = sorted(counts, key=alpha_sort_key)
+    if counts[ordered[0]] > 1 and compound_of[ordered[0]]:
+        # Unlike a non-first multiplied compound name (confirmed below via
+        # 'bromodi(ethenyl)stibane (PIN)', `tmp/bluebook/P6a.txt`
+        # ~8608-8609 -- the multiplying prefix and enclosing marks both
+        # land correctly on a non-first name in the loop below), no
+        # worked example confirms whether a multiplied compound name
+        # that sorts *first* still needs its own enclosing marks (the
+        # loop below's `name if i == 0 else f"({name})"` bare-first
+        # shortcut, written for a plain first name, would silently drop
+        # them) -- left unsupported rather than guessed.
         raise UnsupportedStructure(
-            "a multiplied compound substituent alongside a different "
-            "substituent is not supported yet (P-16.5.1.3.1 "
-            "parenthesization for this combination is unconfirmed)"
+            "a multiplied compound substituent sorting alphabetically "
+            "first, alongside a different substituent, is not supported "
+            "yet (P-16.5.1.3.1 parenthesization for this combination is "
+            "unconfirmed)"
         )
 
-    ordered = sorted(counts, key=alpha_sort_key)
     parts = []
     for i, name in enumerate(ordered):
         count = counts[name]
