@@ -49,8 +49,22 @@ symmetric pattern as the other three. The N+O pair (oxazole/isoxazole)
 has no listed Se/Te analogue in Table 2.2, so that combination stays out
 of scope.
 
-Three-or-more heteroatom rings (triazole, tetrazole, etc.) and 2-or-more
-substituents are out of scope -- separate future tasks.
+Three-or-more heteroatom rings, unsubstituted only (P-22.2.2.1.7):
+1,2,3-triazole and tetrazole -- both real, structurally distinct
+N-H tautomers of each (confirmed via RDKit: `c1c[nH]nn1`/`c1cn[nH]n1`
+and `c1[nH]nnn1`/`c1n[nH]nn1` are four separate canonical structures,
+though PubChem itself collapses each ring's pair into a single CID --
+67516 and 67519 respectively). P-22.2.2.1.2's "lowest possible locants
+are assigned to heteroatoms, locant 1 being assigned to one of the
+heteroatoms" gives the ring position count with no choice left (3 or 4
+N's fill every position but one), so the indicated-hydrogen locant alone
+distinguishes the tautomers: the "outer" (carbon-adjacent) N-H tautomer
+is locant 1 (`1H-1,2,3-triazole`, `1H-tetrazole`, the latter without a
+heteroatom-locant set at all per the worked example "1H-tetrazole (not
+1H-1,2,3,4-tetrazole)"), the "inner" (nitrogen-flanked) one locant 2
+(`2H-1,2,3-triazole`, `2H-tetrazole`). 1,2,4-triazole and every other
+three-or-more heteroatom ring, plus 2-or-more substituents on any ring
+here, are out of scope -- separate future tasks.
 
 Pyran (6-membered, one O, five C -- P-25.7.1.3.1's indicated-hydrogen
 case, `has_pyran_indicated_hydrogen_name`/`name_pyran_indicated_hydrogen`):
@@ -366,6 +380,12 @@ _TWO_HETEROATOM_MANCUDE_NAME_SMILES = {
     ("1,3-tellurazole", 5): ("1,3-tellurazole", "c1cnc[te]1"),
     ("1,2-tellurazole", 5): ("1,2-tellurazole", "c1ccn[te]1"),
 }
+_THREE_OR_FOUR_HETEROATOM_MANCUDE_NAME_SMILES = {
+    "1H-1,2,3-triazole": ("1H-1,2,3-triazole", "c1c[nH]nn1"),
+    "2H-1,2,3-triazole": ("2H-1,2,3-triazole", "c1cn[nH]n1"),
+    "1H-tetrazole": ("1H-tetrazole", "c1[nH]nnn1"),
+    "2H-tetrazole": ("2H-tetrazole", "c1n[nH]nn1"),
+}
 _CANONICAL_TO_NAME = {
     Chem.CanonSmiles(smiles): name
     for name, smiles in (
@@ -378,6 +398,7 @@ _CANONICAL_TO_NAME = {
         *_SEVEN_MEMBERED_1_3_TWO_HETEROATOM_NAME_SMILES.values(),
         *_SEVEN_MEMBERED_1_2_TWO_HETEROATOM_NAME_SMILES.values(),
         *_TWO_HETEROATOM_MANCUDE_NAME_SMILES.values(),
+        *_THREE_OR_FOUR_HETEROATOM_MANCUDE_NAME_SMILES.values(),
     )
 }
 
