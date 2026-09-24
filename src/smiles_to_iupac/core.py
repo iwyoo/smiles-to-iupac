@@ -208,6 +208,7 @@ from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
 from ._phosphanone import has_phosphanone_shape, name_phosphanone
 from ._phosphate import has_phosphate_shape, name_phosphate
 from ._phosphite import has_phosphite_shape, name_phosphite
+from ._sulfate import has_sulfate_shape, name_sulfate
 from ._phosphonic_acid import has_phosphonic_acid_shape, name_phosphonic_acid
 from ._phosphinic_acid import has_phosphinic_acid_shape, name_phosphinic_acid
 from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
@@ -443,6 +444,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # phosphate above.
     if has_phosphite_shape(mol):
         return name_phosphite(mol)
+
+    # A sulfate ester (P-67.1.3.2's S(=O)(=O)(OR)2) has two S-O-R ester
+    # oxygens no other sulfur module expects (they all assume a direct
+    # S-C bond) -- must be routed before any of them for the same
+    # ether-oxygen-rejection reason phosphate/phosphite are routed early.
+    if has_sulfate_shape(mol):
+        return name_sulfate(mol)
 
     # A phosphine oxide (P-68.3.2.3.1's '-phosphanone' suffix, R-P(=O)<)
     # has its own phosphorus-bonded oxygen that `_phosphane.py` doesn't
