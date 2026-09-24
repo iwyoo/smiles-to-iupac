@@ -42,3 +42,12 @@ def test_sulfurous_acid_itself_raises():
 def test_sulfate_ester_unaffected():
     # A second S=O bond routes to `_sulfate.py` instead, unchanged.
     assert smiles_to_iupac("COS(=O)(=O)OC") == "dimethyl sulfate"
+
+
+def test_salt_of_partial_ester():
+    assert smiles_to_iupac("COS(=O)[O-].[Na+]") == "sodium methyl sulfite"
+
+
+def test_salt_of_partial_ester_multivalent_cation_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("COS(=O)[O-].[Ca+2]")
