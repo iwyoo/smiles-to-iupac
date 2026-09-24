@@ -40,6 +40,7 @@ from ._ring_amine import has_ring_amine_shape, has_ring_amine_sulfonyl_shape, na
 from ._amine_oxide import has_amine_oxide_shape, name_amine_oxide
 from ._aminide import has_aminide_shape, name_aminide
 from ._ammonium import has_ammonium_shape, name_ammonium
+from ._ylide import has_nitrogen_ylide_shape, name_nitrogen_ylide
 from ._phosphonium import has_phosphonium_shape, name_phosphonium
 from ._oxonium import has_oxonium_shape, name_oxonium
 from ._carbenium import has_acylium_shape, has_carbenium_shape, name_acylium, name_carbenium
@@ -391,6 +392,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # hydrogen is missing.
     if has_radical_shape(mol):
         return name_radical(mol)
+
+    # A nitrogen ylide (P-74.2.1.1.1's zwitterionic anion-carbon-parent
+    # naming) has its own charged nitrogen too -- checked before
+    # `has_ammonium_shape` below, whose own check already explicitly
+    # excludes this shape (a second charged atom elsewhere) rather than
+    # naming it, per that module's own docstring.
+    if has_nitrogen_ylide_shape(mol):
+        return name_nitrogen_ylide(mol)
 
     # A charged ammonium nitrogen (P-73.1.1.2's hydron-addition cation
     # naming) must be routed here before every other branch below: none of
