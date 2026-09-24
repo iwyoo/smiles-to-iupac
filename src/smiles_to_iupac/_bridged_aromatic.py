@@ -3,7 +3,10 @@ methano/epoxy/sulfano/azano/ethano bridges on a terminal ring of any plain
 all-carbon ortho-fused mancude polycyclic aromatic parent this project can
 already name -- naphthalene ("benzonorbornadiene"), phenanthrene,
 tetracene, etc. -- plus the anthracene analogue bridging the 9,10 meso
-positions, "9,10-dihydro-9,10-methanoanthracene"), per the IUPAC 2013
+positions, "9,10-dihydro-9,10-methanoanthracene"), plus a benzo-ring
+bridge specifically across anthracene's own 9,10 meso positions
+(triptycene, "9,10-dihydro-9,10-[1,2]benzenoanthracene" --
+`_find_bridged_anthracene_benzo_core`/P-25.4.2.1.3), per the IUPAC 2013
 Recommendations ("the Blue Book"):
 
 - P-25.4 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf): a
@@ -410,6 +413,19 @@ def name_bridged_aromatic(mol, core) -> str:
 
 def find_bridged_anthracene_core(mol):
     """Return (ring_atom_sets, fusion_bonds_by_pair, bridgeheads,
+    bridge_prefix) if `mol` is anthracene's meso (9,10-type) positions
+    bridged either by a single -CH2- atom ('methano', see
+    `_find_bridged_anthracene_methano_core`) or by a benzo ring sharing
+    its own ortho pair with the two bridgeheads ('[1,2]benzeno', see
+    `_find_bridged_anthracene_benzo_core` -- triptycene), else None."""
+    core = _find_bridged_anthracene_methano_core(mol)
+    if core is not None:
+        return core
+    return _find_bridged_anthracene_benzo_core(mol)
+
+
+def _find_bridged_anthracene_methano_core(mol):
+    """Return (ring_atom_sets, fusion_bonds_by_pair, bridgeheads,
     bridge_prefix) if `mol` is anthracene's carbon skeleton plus exactly
     one -CH2- bridge ('methano') across the middle ring's two meso
     (9,10-type) positions, else None. Unlike naphthalene's bridgeheads
@@ -496,6 +512,89 @@ def find_bridged_anthracene_core(mol):
     }
     bridgehead_idxs = (bridgeheads[0].GetIdx(), bridgeheads[1].GetIdx())
     return ring_atom_sets, fusion_bonds_by_pair, bridgehead_idxs, bridge_prefix
+
+
+def _find_bridged_anthracene_benzo_core(mol):
+    """Return (ring_atom_sets, fusion_bonds_by_pair, bridgeheads,
+    bridge_prefix) if `mol` is triptycene's shape: two sp3 bridgeheads,
+    each bonded to three aromatic ring atoms (not two ring atoms plus a
+    shared bridge atom, unlike the methano case above) -- one from each
+    of three separate benzo rings, none of which are fused to one
+    another directly. Each ring's own ortho pair (one atom bonded to
+    each bridgehead) is a P-25.4.2.1.3 '[1,2]benzeno' bridge; choosing
+    any two of the three rings to play the role of anthracene's own
+    terminal rings (their ortho pairs becoming the middle ring's fusion
+    bonds, exactly as `_find_bridged_anthracene_methano_core` already
+    does for its single bridge atom) leaves the third as the bridge.
+    Confirmed via PubChem CID 92764 (triptycene)'s own CAS synonym,
+    '9,10-Dihydro-9,10-[1,2]benzenoanthracene' -- by the cage's 3-fold
+    symmetry any of the three choices of which ring is the bridge gives
+    the identical name, so this function always picks the first two
+    fusion pairs found as the terminal rings; a *substituted* triptycene
+    (where that choice would matter) is out of scope here (see module
+    docstring)."""
+    if mol.GetNumAtoms() != 20:
+        return None
+    for atom in mol.GetAtoms():
+        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+            return None
+
+    bridgeheads = [
+        a
+        for a in mol.GetAtoms()
+        if not a.GetIsAromatic() and a.GetDegree() == 3 and a.GetTotalNumHs() == 1 and a.GetHybridization().name == "SP3"
+    ]
+    if len(bridgeheads) != 2:
+        return None
+
+    neighbor_sets = []
+    for bh in bridgeheads:
+        others = list(bh.GetNeighbors())
+        if len(others) != 3:
+            return None
+        for n in others:
+            if not n.GetIsAromatic() or n.GetDegree() != 3 or n.GetTotalNumHs() != 0:
+                return None
+        neighbor_sets.append({n.GetIdx() for n in others})
+
+    fusion_pairs = [(a, b) for a in neighbor_sets[0] for b in neighbor_sets[1] if mol.GetBondBetweenAtoms(a, b)]
+    if len(fusion_pairs) != 3:
+        return None
+    if {a for a, _ in fusion_pairs} != neighbor_sets[0] or {b for _, b in fusion_pairs} != neighbor_sets[1]:
+        return None
+
+    rings = []
+    for a, b in fusion_pairs:
+        bond = mol.GetBondBetweenAtoms(a, b)
+        if not bond.GetIsAromatic():
+            return None
+        found = None
+        for ring in mol.GetRingInfo().AtomRings():
+            idx_set = set(ring)
+            if len(ring) == 6 and a in idx_set and b in idx_set and all(
+                mol.GetAtomWithIdx(i).GetIsAromatic() for i in ring
+            ):
+                found = idx_set
+                break
+        if found is None:
+            return None
+        rings.append(found)
+    if len(rings[0] | rings[1] | rings[2]) != 18:
+        return None
+
+    bridgehead_idxs = (bridgeheads[0].GetIdx(), bridgeheads[1].GetIdx())
+    all_expected = set(bridgehead_idxs) | rings[0] | rings[1] | rings[2]
+    if {a.GetIdx() for a in mol.GetAtoms()} != all_expected:
+        return None
+
+    used = {fusion_pairs[0][0], fusion_pairs[0][1], fusion_pairs[1][0], fusion_pairs[1][1]}
+    middle_ring_atoms = set(bridgehead_idxs) | used
+    ring_atom_sets = [rings[0], middle_ring_atoms, rings[1]]
+    fusion_bonds_by_pair = {
+        frozenset((0, 1)): fusion_pairs[0],
+        frozenset((1, 2)): fusion_pairs[1],
+    }
+    return ring_atom_sets, fusion_bonds_by_pair, bridgehead_idxs, "[1,2]benzeno"
 
 
 def name_bridged_anthracene(mol, core) -> str:

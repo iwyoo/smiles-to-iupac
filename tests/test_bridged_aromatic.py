@@ -301,3 +301,31 @@ def test_substituted_propano_bridge_raises():
 
 def test_bridged_anthracene_terminal_ring_propano():
     assert smiles_to_iupac("C1=CC2CCCC1c1cc3ccccc3cc12") == "1,4-dihydro-1,4-propanoanthracene"
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        # Triptycene: PubChem CID 92764. Its own CAS synonym list
+        # includes the exact bridged-fusion name this module produces,
+        # "9,10-Dihydro-9,10-[1,2]benzenoanthracene" -- unlike this
+        # module's other bridge cases (methano/epoxy/...), this one is
+        # directly name-verified, not just structure-matched.
+        "c1ccc2c(c1)C1c3ccccc3C2c2ccccc21",
+        # Same molecule, PubChem's own (kekulized) ConnectivitySMILES for
+        # CID 92764 -- a different atom-traversal order through the
+        # SMILES. The three benzo rings are chemically equivalent, so
+        # whichever two this module's ring search happens to pick first
+        # as the "anthracene" pair must still normalize to the same name.
+        "C1=CC=C2C3C4=CC=CC=C4C(C2=C1)C5=CC=CC=C35",
+    ],
+)
+def test_bridged_anthracene_benzo(smiles):
+    assert smiles_to_iupac(smiles) == "9,10-dihydro-9,10-[1,2]benzenoanthracene"
+
+
+def test_substituted_triptycene_raises():
+    # A bridgehead substituent (9-methyltriptycene, PubChem CID 522717)
+    # is out of scope for this module's fully-unsubstituted-only case.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC12C3=CC=CC=C3C(C4=CC=CC=C41)C5=CC=CC=C25")
