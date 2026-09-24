@@ -42,7 +42,7 @@ from ._aminide import has_aminide_shape, name_aminide
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._phosphonium import has_phosphonium_shape, name_phosphonium
 from ._oxonium import has_oxonium_shape, name_oxonium
-from ._carbenium import has_carbenium_shape, name_carbenium
+from ._carbenium import has_acylium_shape, has_carbenium_shape, name_acylium, name_carbenium
 from ._sulfonium import has_sulfonium_shape, name_sulfonium
 from ._diazonium import has_diazonium_shape, name_diazonium
 from ._radical import has_radical_shape, name_radical
@@ -425,6 +425,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # before every other branch.
     if has_oxonium_shape(mol):
         return name_oxonium(mol)
+
+    # An acylium cation (P-73.2.3.1's 'oylium'/'ylium' suffix naming) has
+    # a charged carbon too, checked ahead of the plain carbenium case
+    # below since a C=O double bond gives the cation carbon degree 2, not
+    # `has_carbenium_shape`'s own required degree 3 -- the two shapes
+    # never overlap, so order between them doesn't otherwise matter.
+    if has_acylium_shape(mol):
+        return name_acylium(mol)
 
     # A carbenium cation (P-73.2.2.1.1's 'ylium' suffix naming) has a
     # charged carbon too, for the same reason as ammonium above -- routed
