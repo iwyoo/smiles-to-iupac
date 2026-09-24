@@ -195,3 +195,28 @@ def test_vinyl_carbene_longer_chain_name():
 
 def test_vinyl_carbyne_name():
     assert smiles_to_iupac("C#C[CH]") == "prop-2-yn-1-ylidene"
+
+
+def test_methoxyl_radical_name():
+    # Blue Book P-71.3.4 worked example.
+    assert smiles_to_iupac("C[O]") == "methoxyl"
+
+
+def test_butoxyl_radical_name():
+    assert smiles_to_iupac("CCCC[O]") == "butoxyl"
+
+
+def test_tert_butoxyl_radical_name():
+    assert smiles_to_iupac("CC(C)(C)[O]") == "tert-butoxyl"
+
+
+def test_phenoxyl_radical_name():
+    assert smiles_to_iupac("c1ccccc1[O]") == "phenoxyl"
+
+
+def test_phenylsulfanyl_radical_name():
+    assert smiles_to_iupac("c1ccccc1[S]") == "phenylsulfanyl"
+
+
+def test_methylselanyl_radical_name():
+    assert smiles_to_iupac("C[Se]") == "methylselanyl"
