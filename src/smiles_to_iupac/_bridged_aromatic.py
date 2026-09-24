@@ -130,9 +130,15 @@ from ._aromatic import (
     _straight_chain_candidates,
 )
 from ._common import UnsupportedStructure, adjacency, group_substituents, halogen_substituents, lowest_locant_set, ring_cycle
+from ._numerals import alkane_name
 from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
 
-_BRIDGE_PREFIXES = {6: "methano", 7: "azano", 8: "epoxy", 16: "sulfano"}
+_BRIDGE_PREFIXES = {7: "azano", 8: "epoxy", 16: "sulfano"}
+
+# No verifiable worked example or registered structure was found for an
+# acyclic carbon-chain bridge longer than this (see #905) -- an explicit,
+# documented cap rather than an unbounded chain-walk with no way to test it.
+_MAX_CARBON_CHAIN_BRIDGE_LENGTH = 6
 
 
 def _bridge_candidates(mol):
@@ -141,9 +147,7 @@ def _bridge_candidates(mol):
         if atom.GetIsAromatic() or atom.GetDegree() != 2:
             continue
         atomic_num = atom.GetAtomicNum()
-        if atomic_num == 6 and atom.GetTotalNumHs() == 2 and atom.GetHybridization().name == "SP3":
-            candidates.append(atom)
-        elif atomic_num == 7 and atom.GetTotalNumHs() == 1:
+        if atomic_num == 7 and atom.GetTotalNumHs() == 1:
             candidates.append(atom)
         elif atomic_num in (8, 16) and atom.GetTotalNumHs() == 0:
             candidates.append(atom)
@@ -160,23 +164,52 @@ def _is_bridge_ch2(atom):
     )
 
 
-def _ethano_bridge_candidates(mol):
-    """Two mutually-bonded -CH2- atoms, each also bonded to exactly one
-    other (bridgehead) atom -- a 2-atom -CH2-CH2- ('ethano', P-25.4.2.1.1)
-    bridge chain, as a `(atom, atom)` pair per candidate."""
-    seen_pairs = set()
+def _carbon_chain_bridge_candidates(mol):
+    """A maximal simple chain of N (1 <= N <= `_MAX_CARBON_CHAIN_BRIDGE_LENGTH`)
+    mutually-bonded -CH2- atoms, each chain-interior atom bonded only to
+    its two chain neighbors and each chain endpoint bonded to exactly one
+    external (bridgehead) atom -- the acyclic hydrocarbon bridge of
+    P-25.4.2.1.1 ('methano' for N=1, 'ethano' for N=2, 'propano' for N=3,
+    ...), as a tuple of atoms per candidate, ordered along the chain."""
+    ch2_atoms = {atom.GetIdx(): atom for atom in mol.GetAtoms() if _is_bridge_ch2(atom)}
+    seen = set()
     candidates = []
-    for atom in mol.GetAtoms():
-        if not _is_bridge_ch2(atom):
+    for start_idx, start_atom in ch2_atoms.items():
+        if start_idx in seen:
             continue
-        for neighbor in atom.GetNeighbors():
-            if not _is_bridge_ch2(neighbor):
+        ch2_neighbors = [n for n in start_atom.GetNeighbors() if n.GetIdx() in ch2_atoms]
+        if len(ch2_neighbors) > 1:
+            # An interior atom of some other chain -- it'll be reached
+            # (and validated) by walking from that chain's own endpoint.
+            continue
+        chain = [start_atom]
+        chain_idxs = {start_idx}
+        current = start_atom
+        while True:
+            next_candidates = [n for n in current.GetNeighbors() if n.GetIdx() in ch2_atoms and n.GetIdx() not in chain_idxs]
+            if len(next_candidates) != 1:
+                break
+            current = next_candidates[0]
+            chain.append(current)
+            chain_idxs.add(current.GetIdx())
+            if len(chain) > _MAX_CARBON_CHAIN_BRIDGE_LENGTH:
+                break
+        seen |= chain_idxs
+        if len(chain) > _MAX_CARBON_CHAIN_BRIDGE_LENGTH:
+            continue
+        if len(chain) == 1:
+            # The lone atom's own two neighbors (no in-chain neighbor to
+            # exclude) are the two bridgeheads directly.
+            externals = [n for n in chain[0].GetNeighbors() if n.GetIdx() not in chain_idxs]
+            if len(externals) != 2:
                 continue
-            pair_key = tuple(sorted((atom.GetIdx(), neighbor.GetIdx())))
-            if pair_key in seen_pairs:
+        else:
+            endpoint_externals = [
+                [n for n in atom.GetNeighbors() if n.GetIdx() not in chain_idxs] for atom in (chain[0], chain[-1])
+            ]
+            if any(len(externals) != 1 for externals in endpoint_externals):
                 continue
-            seen_pairs.add(pair_key)
-            candidates.append((atom, neighbor))
+        candidates.append(tuple(chain))
     return candidates
 
 
@@ -186,9 +219,10 @@ def find_bridged_aromatic_core(mol):
     mancude polycyclic aromatic parent -- any parent `_aromatic.py`'s
     `find_aromatic_fused_core`/`name_aromatic_fused` can already name
     (naphthalene, anthracene, phenanthrene, tetracene..nonacene) -- plus
-    exactly one single-atom bridge (-CH2-, -O-, -S-, -NH-) or one
-    two-atom -CH2-CH2- ('ethano') bridge across one ring's 1,4-type
-    positions (see module docstring), optionally with halogen
+    exactly one single-atom heteroatom bridge (-O-, -S-, -NH-) or one
+    acyclic all-carbon chain bridge of 1 to `_MAX_CARBON_CHAIN_BRIDGE_LENGTH`
+    -CH2- atoms ('methano'/'ethano'/'propano'/...) across one ring's
+    1,4-type positions (see module docstring), optionally with halogen
     substituents on the rest of the aromatic system, else None.
 
     RDKit's own ring perception can't be trusted for the bridged ring
@@ -210,16 +244,16 @@ def find_bridged_aromatic_core(mol):
         if mol.GetAtomWithIdx(idx).GetDegree() != 1:
             return None
 
-    bridge_candidates = _bridge_candidates(mol)
-    if len(bridge_candidates) == 1:
-        bridge_atoms = [bridge_candidates[0]]
+    heteroatom_candidates = _bridge_candidates(mol)
+    carbon_chain_candidates = _carbon_chain_bridge_candidates(mol)
+    if len(heteroatom_candidates) + len(carbon_chain_candidates) != 1:
+        return None
+    if heteroatom_candidates:
+        bridge_atoms = [heteroatom_candidates[0]]
         bridge_prefix = _BRIDGE_PREFIXES[bridge_atoms[0].GetAtomicNum()]
     else:
-        ethano_candidates = _ethano_bridge_candidates(mol)
-        if len(ethano_candidates) != 1:
-            return None
-        bridge_atoms = list(ethano_candidates[0])
-        bridge_prefix = "ethano"
+        bridge_atoms = list(carbon_chain_candidates[0])
+        bridge_prefix = alkane_name(len(bridge_atoms))[:-1] + "o"
     if any(a.GetFormalCharge() != 0 or a.GetIsotope() != 0 for a in bridge_atoms):
         return None
     bridge_idxs = {a.GetIdx() for a in bridge_atoms}
@@ -233,8 +267,10 @@ def find_bridged_aromatic_core(mol):
     if len(bridge_atoms) == 1:
         bridgeheads = list(bridge_atoms[0].GetNeighbors())
     else:
+        # Only the chain's two endpoints (not interior atoms, which have
+        # no external neighbor at all) are bonded to a bridgehead.
         bridgeheads = []
-        for bridge_atom in bridge_atoms:
+        for bridge_atom in (bridge_atoms[0], bridge_atoms[-1]):
             externals = [n for n in bridge_atom.GetNeighbors() if n.GetIdx() not in bridge_idxs]
             if len(externals) != 1:
                 return None
@@ -393,13 +429,13 @@ def find_bridged_anthracene_core(mol):
     if mol.GetNumAtoms() != 15:
         return None
 
-    bridge_candidates = [a for a in _bridge_candidates(mol) if a.GetAtomicNum() == 6]
+    bridge_candidates = [a for a in mol.GetAtoms() if _is_bridge_ch2(a)]
     if len(bridge_candidates) != 1:
         return None
     bridge_atom = bridge_candidates[0]
     if bridge_atom.GetFormalCharge() != 0 or bridge_atom.GetIsotope() != 0:
         return None
-    bridge_prefix = _BRIDGE_PREFIXES[bridge_atom.GetAtomicNum()]
+    bridge_prefix = "methano"
 
     for atom in mol.GetAtoms():
         if atom.GetIdx() == bridge_atom.GetIdx():
