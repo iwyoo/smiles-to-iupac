@@ -165,3 +165,20 @@ def test_cyclohexanecarbonyl_acyl_radical_name():
 def test_benzoyl_acyl_radical_name():
     # Blue Book P-71.3.1 worked example: the retained 'benzoyl' name.
     assert smiles_to_iupac("[C](=O)c1ccccc1") == "benzoyl"
+
+
+def test_aminyl_radical_name():
+    # Blue Book P-71.3.2 worked example.
+    assert smiles_to_iupac("C[NH]") == "methanaminyl"
+
+
+def test_iminyl_radical_name():
+    assert smiles_to_iupac("CC=[N]") == "ethaniminyl"
+
+
+def test_amidyl_radical_name():
+    assert smiles_to_iupac("CC(=O)[NH]") == "ethanamidyl"
+
+
+def test_substituted_aminyl_radical_name():
+    assert smiles_to_iupac("C[N](C)") == "N-methylmethanaminyl"

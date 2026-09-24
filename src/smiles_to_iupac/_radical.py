@@ -86,8 +86,26 @@
     `_name_benzo_attached_carboxyl` reused with `suffix="carbonyl"`/
     `word="benzoyl"`. Confirmed worked examples `benzoyl (PIN)`,
     `cyclohexanecarbonyl (PIN)`, `tmp/bluebook/P7.txt` ~504-521.
-  The amine/imine/amide/hydroxy-derived radical families (P-71.3.2-.4)
-  are each a separate follow-up step, not this one.
+  The hydroxy-derived radical family (P-71.3.4) is a separate follow-up
+  step, not this one.
+
+- P-71.3.2: a radical derived from an amine, imine, or amide
+  characteristic group (a single nitrogen bearing one radical electron)
+  is named by taking the neutral parent's own name and eliding its final
+  'e', then appending 'yl' (`methanamine` -> `methanaminyl`) --
+  `_characteristic_group_radical_name` reconstructs that neutral parent
+  (one additional explicit hydrogen replacing the radical electron,
+  mirroring `_dipole_oxide.py`'s own "strip the dipole atom's charge/
+  electron, sanitize, delegate to the plain neutral namer" pattern) and
+  delegates to whichever of `_imine.py`/`_amide.py`/`_amine.py` claims
+  the reconstructed shape. The same string-transformation mechanism
+  `_ylide.py`'s own `amine_name[:-1] + "ium"` already proves works for an
+  arbitrary substituted amine name (confirmed worked example
+  `methanaminyl (PIN)`, `tmp/bluebook/P7.txt` ~529-590). P-71.3.3's own
+  polyamine/polyimine/polyamide multiplicative radicals (two or more
+  radical centers on separate characteristic groups) and a divalent
+  '-ylidene' version of this same suffix family are each a separate
+  follow-up step, not this one.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any branch off the radical carbon that is itself further branched
@@ -110,6 +128,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
+from ._amide import has_amide_shape, name_amide
+from ._amine import name_amine
 from ._bicyclic import find_bicyclic_core
 from ._carboxylic_acid import _name_benzo_attached_carboxyl, _name_ring_attached_carboxyl
 from ._common import (
@@ -126,6 +146,7 @@ from ._common import (
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
+from ._imine import has_simple_imine_shape, name_imine
 from ._numerals import alkane_name, alkyl_name
 from ._polycyclic import find_polycyclic_core
 from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
@@ -291,9 +312,56 @@ def _acyl_radical_ring_name(mol):
     return _name_ring_attached_carboxyl(graph, ring_atoms, radical.GetIdx(), halogens, suffix="carbonyl", mol=mol)
 
 
+def _characteristic_group_radical_name(mol):
+    """Name if `mol` is P-71.3.2's amine/imine/amide radical shape -- a
+    single nitrogen bearing exactly one radical electron, formal charge
+    0, not aromatic -- else None. Reconstructs the neutral parent
+    (replacing the radical electron with one additional explicit
+    hydrogen, mirroring `_dipole_oxide.py`'s own "strip the dipole atom's
+    charge/electron, sanitize, delegate to the plain neutral namer"
+    pattern) and delegates to whichever of `_imine.py`/`_amide.py`/
+    `_amine.py` claims the reconstructed shape, then transforms that
+    name: strip the trailing 'e' and append 'yl' (the same string
+    transformation `_ylide.py`'s own `amine_name[:-1] + "ium"` already
+    proves works for an arbitrary substituted amine name)."""
+    radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons() != 0]
+    if len(radicals) != 1 or radicals[0].GetNumRadicalElectrons() != 1:
+        return None
+    (radical,) = radicals
+    if radical.GetAtomicNum() != 7 or radical.GetFormalCharge() != 0 or radical.GetIsotope() != 0 or radical.GetIsAromatic():
+        return None
+
+    rw = Chem.RWMol(mol)
+    n_idx = radical.GetIdx()
+    atom = rw.GetAtomWithIdx(n_idx)
+    atom.SetNoImplicit(True)
+    atom.SetNumExplicitHs(mol.GetAtomWithIdx(n_idx).GetTotalNumHs() + 1)
+    atom.SetNumRadicalElectrons(0)
+    neutral_mol = rw.GetMol()
+    try:
+        Chem.SanitizeMol(neutral_mol)
+    except (Chem.rdchem.AtomValenceException, Chem.rdchem.KekulizeException):
+        return None
+
+    if has_simple_imine_shape(neutral_mol):
+        neutral_name = name_imine(neutral_mol)
+    elif has_amide_shape(neutral_mol):
+        neutral_name = name_amide(neutral_mol)
+    else:
+        try:
+            neutral_name = name_amine(neutral_mol)
+        except UnsupportedStructure:
+            return None
+    return neutral_name[:-1] + "yl"
+
+
 def name_radical(mol) -> str:
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
+
+    characteristic_group_name = _characteristic_group_radical_name(mol)
+    if characteristic_group_name is not None:
+        return characteristic_group_name
 
     acyl_name = _acyl_radical_acyclic_name(mol)
     if acyl_name is not None:
