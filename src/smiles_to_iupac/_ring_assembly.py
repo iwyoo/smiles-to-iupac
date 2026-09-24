@@ -36,15 +36,42 @@ Book"):
 
 Scope: two *identical* rings connected by exactly one single (non-aromatic)
 bond -- 6-membered all-carbon aromatic (benzo), monocyclic saturated
-all-carbon (any one ring size), or any mancude 5- or 6-membered ring
-matching a `_NON_NH_ROLE_SEQUENCES` parent (pyridine, furan, thiophene,
-selenophene, tellurophene, pyridazine, pyrimidine, pyrazine -- same
-exclusions as that module: no N-H tautomer-ambiguous parent, no
-locant-prefixed Hantzsch-Widman parent), each ring optionally bearing
-halogen substituents. Three to six identical rings in an unbranched chain
-(terphenyl etc.) are `_ring_assembly_chain.py`'s own job instead -- a
-separate composite-locant numbering scheme (P-28.3), not a generalization of
-this module's own primed-locant one.
+all-carbon (any one ring size), any mancude 5- or 6-membered ring matching a
+`_NON_NH_ROLE_SEQUENCES` parent (pyridine, furan, thiophene, selenophene,
+tellurophene, pyridazine, pyrimidine, pyrazine -- same exclusions as that
+module: no N-H tautomer-ambiguous parent, no locant-prefixed Hantzsch-Widman
+parent), or 1H-pyrrole (see below), each ring optionally bearing halogen
+substituents. Three to six identical rings in an unbranched chain (terphenyl
+etc.) are `_ring_assembly_chain.py`'s own job instead -- a separate
+composite-locant numbering scheme (P-28.3), not a generalization of this
+module's own primed-locant one.
+
+- P-28.2.3 (indicated hydrogen of a two-component ring assembly, same
+  `tmp/bluebook/P2.txt` ~7831): 1H-pyrrole is the one N-H tautomer-
+  unambiguous `_ROLE_SEQUENCES` parent (a single ring nitrogen, no
+  prototropic choice about which atom is "N1" the way imidazole/pyrazole
+  have -- those stay deferred, see #936's own investigation) whose own
+  indicated-hydrogen position can be a ring-assembly junction. Per
+  P-28.2.3's own text, indicated hydrogen is "ignoring the indicated
+  hydrogen atoms of the component rings... maximum number of noncumulative
+  double bonds is then added taking into account the junction
+  positions... remaining saturated ring positions are designated as
+  indicated hydrogen, placed... at the front of the name of the assembly"
+  -- for pyrrole specifically this reduces to a simple per-ring check
+  (only one candidate saturated position, the N, exists at all): if a
+  ring's own junction bond sits at the N itself, that position is already
+  occupied and needs no indicated-H citation for that ring (confirmed PIN
+  worked example `1,1'-bipyrrole`, "no indicated hydrogen needed"); if the
+  junction is elsewhere (through a ring carbon instead), the N keeps its
+  own H and that ring's `1`/`1'` locant is cited together with the other
+  ring's own (if it also needs one) at the very front of the whole
+  assembly name, before any substituent prefix (confirmed via a real
+  PubChem structure, CID 260036, canonical SMILES `C1=CNC(=C1)C2=CC=CN2`,
+  PIN `1H,1'H-2,2'-bipyrrole`). This mechanism is P-28.2.3-scoped to
+  *two*-component assemblies specifically (its own section header) --
+  `_ring_assembly_chain.py`'s 3-6-ring case has no primary-source-
+  confirmed indicated-hydrogen rule and stays out of scope here (a
+  separate, unconfirmed follow-up, not this module's job).
 """
 
 from ._common import (
@@ -64,22 +91,49 @@ from ._ring_assembly_chain import (
 )
 from ._substituents import format_substituent_prefixes, name_branch
 
+# 1H-pyrrole's own P-28.2.3 indicated-hydrogen citation (see module
+# docstring) needs the bare parent-hydride name ("pyrrole", not
+# "1H-pyrrole" itself) for the "bi"-prefixed ring word -- unlike every
+# `_NON_NH_ROLE_SEQUENCES` parent, whose own name never carries an
+# indicated-hydrogen prefix to strip in the first place.
+_INDICATED_HYDROGEN_BARE_NAMES = {"1H-pyrrole": "pyrrole"}
+
 
 def _bond_between(bond, atoms_a, atoms_b):
     x, y = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
     return (x in atoms_a and y in atoms_b) or (x in atoms_b and y in atoms_a)
 
 
+def _pyrrole_ring_kind(mol, ring):
+    """("1H-pyrrole", 5) if `ring` is a mancude 5-membered ring with one
+    N and four C (element-only match against `_ROLE_SEQUENCES`'s own
+    "1H-pyrrole" entry, via `_hetero_ring_alignments`), else None --
+    `_ring_kind` itself excludes 1H-pyrrole (it's not in
+    `_NON_NH_ROLE_SEQUENCES`, see that module's own docstring), so this
+    module checks it separately rather than widening that shared table
+    (which would also, wrongly, enable it for `_ring_assembly_chain.py`'s
+    own N=3-6 case -- see this module's docstring on why that stays out
+    of scope)."""
+    atoms = [mol.GetAtomWithIdx(i) for i in ring]
+    if len(ring) != 5 or not all(a.GetIsAromatic() for a in atoms):
+        return None
+    graph = adjacency(mol)
+    if any(True for _ in _hetero_ring_alignments(mol, graph, ring, "1H-pyrrole")):
+        return "1H-pyrrole", 5
+    return None
+
+
 def find_ring_assembly_core(mol):
     """Return (ring0_atoms, ring1_atoms, attach0, attach1, kind) if `mol` is
     exactly two disjoint identical-kind rings (`_ring_kind`'s own
-    ("aromatic", 6), ("saturated", n), or a `_NON_NH_ROLE_SEQUENCES` parent
-    name) joined by one single bond, else None."""
+    ("aromatic", 6), ("saturated", n), a `_NON_NH_ROLE_SEQUENCES` parent
+    name, or `_pyrrole_ring_kind`'s own ("1H-pyrrole", 5)) joined by one
+    single bond, else None."""
     ring_info = mol.GetRingInfo()
     atom_rings = ring_info.AtomRings()
     if len(atom_rings) != 2:
         return None
-    kinds = {_ring_kind(mol, ring) for ring in atom_rings}
+    kinds = {_ring_kind(mol, ring) or _pyrrole_ring_kind(mol, ring) for ring in atom_rings}
     if len(kinds) != 1 or None in kinds:
         return None
     (kind,) = kinds
@@ -115,7 +169,9 @@ def _hetero_numberings_from_attachment(mol, graph, ring_atoms, parent_name, prim
         yield {atom: f"{position}{suffix}" for atom, position in alignment.items()}
 
 
-def _candidate_key(locants, ring_atoms, graph, halogens, attach_a, attach_b, ring_word, mol=None):
+def _candidate_key(
+    locants, ring_atoms, graph, halogens, attach_a, attach_b, ring_word, mol=None, indicated_hydrogen_prefix=""
+):
     substituents = {}
     for atom, position in locants.items():
         branch_roots = [n for n in graph[atom] if n not in ring_atoms]
@@ -136,7 +192,11 @@ def _candidate_key(locants, ring_atoms, graph, halogens, attach_a, attach_b, rin
     # role sequence instead, it's the deciding factor (confirmed by
     # `2,2'-bipyridine`, not `6,2'-bipyridine` or `6,6'-bipyridine`).
     attach_pair = tuple(sorted((locants[attach_a], locants[attach_b])))
-    name = f"{prefix}{attach_pair[0]},{attach_pair[1]}-{ring_word}"
+    # P-28.2.3: indicated hydrogen, if any, is "placed... at the front of
+    # the name of the assembly" -- ahead of the substituent prefix too,
+    # not folded next to the ring word the way a single ring's own "nH-"
+    # sits (see module docstring).
+    name = f"{indicated_hydrogen_prefix}{prefix}{attach_pair[0]},{attach_pair[1]}-{ring_word}"
     return attach_pair, locant_set, citation_locants, name
 
 
@@ -146,9 +206,9 @@ def name_ring_assembly(mol, core) -> str:
 
     ring_atoms = set(ring0_atoms) | set(ring1_atoms)
 
-    if parent_name in _NON_NH_ROLE_SEQUENCES:
+    if parent_name in _NON_NH_ROLE_SEQUENCES or parent_name in _INDICATED_HYDROGEN_BARE_NAMES:
         validate_hetero_ring_assembly_atoms(mol, ring_atoms, parent_name)
-        ring_word = "bi" + parent_name
+        ring_word = "bi" + _INDICATED_HYDROGEN_BARE_NAMES.get(parent_name, parent_name)
         numberings = lambda graph, ring_atoms_i, attach_i, prime: _hetero_numberings_from_attachment(
             mol, graph, ring_atoms_i, parent_name, prime
         )
@@ -169,10 +229,33 @@ def name_ring_assembly(mol, core) -> str:
         ((ring0_atoms, attach0), (ring1_atoms, attach1)),
         ((ring1_atoms, attach1), (ring0_atoms, attach0)),
     ):
+        indicated_hydrogen_prefix = ""
+        if parent_name in _INDICATED_HYDROGEN_BARE_NAMES:
+            # The ring's own N is always role-sequence position 1 (see
+            # `_pyrrole_ring_kind`'s docstring), regardless of which
+            # numbering direction wins below, so whether indicated
+            # hydrogen is needed depends only on whether the junction atom
+            # itself is that N -- not on any per-candidate numbering
+            # choice.
+            needed = [
+                f"1{suffix}H" for attach, suffix in ((attach_a, ""), (attach_b, "'")) if mol.GetAtomWithIdx(attach).GetAtomicNum() != 7
+            ]
+            if needed:
+                indicated_hydrogen_prefix = ",".join(needed) + "-"
         for locants_a in numberings(graph, ring_a, attach_a, False):
             for locants_b in numberings(graph, ring_b, attach_b, True):
                 locants = {**locants_a, **locants_b}
-                key = _candidate_key(locants, ring_atoms, graph, halogens, attach_a, attach_b, ring_word, mol=mol)
+                key = _candidate_key(
+                    locants,
+                    ring_atoms,
+                    graph,
+                    halogens,
+                    attach_a,
+                    attach_b,
+                    ring_word,
+                    mol=mol,
+                    indicated_hydrogen_prefix=indicated_hydrogen_prefix,
+                )
                 if best_key is None or key < best_key:
                     best_key, best_name = key, key[-1]
 
