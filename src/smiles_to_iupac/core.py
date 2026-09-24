@@ -139,8 +139,10 @@ from ._acephenanthrylene_fusion import (
 from ._hetero_monocyclic import (
     has_hetero_monocyclic_name,
     has_hetero_monocyclic_substituent_name,
+    has_pyran_indicated_hydrogen_name,
     name_hetero_monocyclic,
     name_hetero_monocyclic_substituent,
+    name_pyran_indicated_hydrogen,
 )
 from ._benzo_bis_heterocycle_fusion import (
     has_benzo_bis_heterocycle_fusion_name,
@@ -796,6 +798,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # matching this uses instead of the exact-match table above.
     if has_hetero_monocyclic_substituent_name(mol):
         return name_hetero_monocyclic_substituent(mol)
+
+    # 2H-pyran/4H-pyran (P-25.7.1.3.1's indicated-hydrogen case) -- unlike
+    # furan/thiophene above, RDKit doesn't treat this ring as aromatic at
+    # all, so it needs its own recognition shape rather than an extension
+    # of `_ROLE_SEQUENCES`; must be routed here before `_ether.py` below,
+    # which otherwise rejects any ring outright.
+    if has_pyran_indicated_hydrogen_name(mol):
+        return name_pyran_indicated_hydrogen(mol)
 
     # A single O/N/S skeletal atom in an otherwise-carbon von Baeyer
     # bicyclic ring (P-23.2.1's 'a'-prefix skeletal replacement) or

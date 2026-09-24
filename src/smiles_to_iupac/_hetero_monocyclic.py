@@ -49,11 +49,23 @@ symmetric pattern as the other three. The N+O pair (oxazole/isoxazole)
 has no listed Se/Te analogue in Table 2.2, so that combination stays out
 of scope.
 
-Three-or-more heteroatom rings (triazole, tetrazole, etc.), 6-membered
-O/S/Se/Te rings (pyran/thiopyran/selenopyran/telluropyran, which need an
-indicated-hydrogen prefix themselves since they aren't fully mancude with
-a single chalcogen), and 2-or-more substituents are out of scope --
-separate future tasks.
+Three-or-more heteroatom rings (triazole, tetrazole, etc.) and 2-or-more
+substituents are out of scope -- separate future tasks.
+
+Pyran (6-membered, one O, five C -- P-25.7.1.3.1's indicated-hydrogen
+case, `has_pyran_indicated_hydrogen_name`/`name_pyran_indicated_hydrogen`):
+unlike furan/thiophene, RDKit does not treat this ring as aromatic at all
+-- it Kekulizes to one sp3 ring carbon (2 H, no double bond) and four
+other ring carbons each carrying one double bond, O itself always
+single-bonded on both sides. O is fixed at locant 1 (P-2.txt ~522-529's
+'2H-pyran'/'4H-pyran' worked examples, same numbering convention as
+furan/thiophene); which locant needs the indicated 'H' depends on where
+the sp3 carbon actually sits, so both ring directions from O are tried
+and the lower locant wins (P-14.4), same tie-breaking principle as
+`_ring_alignments` above. Confirmed against PubChem: 2H-pyran (CID
+186148) and 4H-pyran (CID 136135). Unsubstituted only, and the S/Se/Te
+analogues (thiopyran/selenopyran/telluropyran) are out of scope for this
+function -- separate future task.
 
 Since this module's core job (`has_hetero_monocyclic_name`/
 `name_hetero_monocyclic`) is recognizing the exact unsubstituted parent
@@ -705,3 +717,49 @@ def name_hetero_monocyclic_substituent(mol) -> str:
     prefix = format_substituent_prefixes(grouped)
     separator = "-" if parent_name[0].isdigit() else ""
     return f"{prefix}{separator}{parent_name}"
+
+
+def _match_pyran_indicated_hydrogen(mol):
+    """The indicated-hydrogen locant for an unsubstituted 6-membered,
+    one-oxygen, five-carbon mancude ring (2H-pyran/4H-pyran), or None if
+    `mol` doesn't fit that shape at all."""
+    if mol.GetNumAtoms() != 6:
+        return None
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() != 1:
+        return None
+    ring_atoms = list(ring_info.AtomRings()[0])
+    if len(ring_atoms) != 6:
+        return None
+    if any(mol.GetAtomWithIdx(atom).GetIsAromatic() for atom in ring_atoms):
+        return None
+    oxygens = [atom for atom in ring_atoms if mol.GetAtomWithIdx(atom).GetAtomicNum() == 8]
+    if len(oxygens) != 1 or mol.GetAtomWithIdx(oxygens[0]).GetTotalNumHs() != 0:
+        return None
+    o_atom = oxygens[0]
+    carbons = [atom for atom in ring_atoms if atom != o_atom]
+    if any(mol.GetAtomWithIdx(atom).GetAtomicNum() != 6 for atom in carbons):
+        return None
+    sp3_carbons = [atom for atom in carbons if mol.GetAtomWithIdx(atom).GetTotalNumHs() == 2]
+    if len(sp3_carbons) != 1:
+        return None
+    sp3_atom = sp3_carbons[0]
+    if any(mol.GetAtomWithIdx(atom).GetTotalNumHs() != 1 for atom in carbons if atom != sp3_atom):
+        return None
+
+    graph = adjacency(mol)
+    ring_order = ring_cycle(graph, ring_atoms)
+    start = ring_order.index(o_atom)
+    ring_order = ring_order[start:] + ring_order[:start]
+    forward_locant = ring_order.index(sp3_atom) + 1
+    backward_locant = len(ring_order) - forward_locant + 2
+    return min(forward_locant, backward_locant)
+
+
+def has_pyran_indicated_hydrogen_name(mol) -> bool:
+    return _match_pyran_indicated_hydrogen(mol) is not None
+
+
+def name_pyran_indicated_hydrogen(mol) -> str:
+    locant = _match_pyran_indicated_hydrogen(mol)
+    return f"{locant}H-pyran"

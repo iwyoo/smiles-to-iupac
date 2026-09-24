@@ -421,3 +421,21 @@ def test_three_heteroatom_mancude_ring_raises():
     # 1,2,4-triazole: three ring heteroatoms, out of scope here.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("c1nc[nH]n1")
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C1=CC=COC1", "2H-pyran"),  # PubChem CID 186148
+        ("C1C=COC=C1", "4H-pyran"),  # PubChem CID 136135
+    ],
+)
+def test_pyran_indicated_hydrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_pyran_substituent_raises():
+    # Substituted pyran isn't in scope yet -- only the unsubstituted
+    # indicated-hydrogen parent is recognized.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC1=CC=COC1")
