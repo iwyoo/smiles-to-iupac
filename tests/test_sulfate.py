@@ -31,9 +31,25 @@ def test_mixed_alkyl_sulfate_ester_name():
     assert smiles_to_iupac("CCOS(=O)(=O)OC") == "ethyl methyl sulfate"
 
 
-def test_partial_hydrogen_sulfate_ester_raises():
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Real PubChem structures (P-67.1.3.2), partial ("hydrogen")
+        # sulfate esters -- one R group + one remaining S-OH.
+        ("COS(=O)(=O)O", "methyl hydrogen sulfate"),  # CID 6412
+        ("CCOS(=O)(=O)O", "ethyl hydrogen sulfate"),  # CID 6004
+        ("CCCOS(=O)(=O)O", "propyl hydrogen sulfate"),  # CID 70469
+    ],
+)
+def test_partial_hydrogen_sulfate_ester_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_sulfuric_acid_itself_raises():
+    # Both S-O positions are plain hydroxyl (no R group at all) -- the
+    # parent acid itself, not an ester, still out of scope.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COS(=O)(=O)O")
+        smiles_to_iupac("OS(=O)(=O)O")
 
 
 def test_sulfite_ester_unaffected():

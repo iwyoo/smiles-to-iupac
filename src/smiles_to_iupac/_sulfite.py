@@ -11,14 +11,20 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   and the absence of a second S=O bond.
 - Word-assembly logic is shared verbatim with `_phosphate.py` via its
   exported `format_ester_words`.
+- Partial esters (P-67.1.3.2): sulfite is dibasic, so a partial ester
+  always has exactly one R group and one remaining S-OH, cited the same
+  way `_sulfate.py`'s own partial ester is -- confirmed worked example
+  "methyl hydrogen sulfite" (PubChem CID 358915).
 
 Scope: a single sulfur atom shaped like a sulfite ester -- one S=O
-double bond, two S-O-R single bonds, each R named via `name_branch` (a
+double bond, and two more S-O positions, each either an ester (S-O-R)
+or, for a partial ester, a plain S-OH, each R named via `name_branch` (a
 plain alkyl chain, a branched chain, or a plain benzene ring, and their
 halogenated variants, exactly like `_sulfate.py`'s R), identical or
-mixed freely. Explicitly out of scope (raise `UnsupportedStructure`):
-partial ("hydrogen") esters (a remaining S-OH), any chalcogen-
-replacement analogue, and any other heteroatom.
+mixed freely. Explicitly out of scope (raise `UnsupportedStructure`): a
+salt of a partial ester (a deprotonated S-O^- instead of S-OH -- a
+separate, later step), any chalcogen-replacement analogue, and any
+other heteroatom.
 """
 
 from rdkit import Chem
@@ -31,10 +37,17 @@ _SULFUR = 16
 
 
 def _sulfite_sulfur_atoms(mol):
-    """Sulfur atoms shaped like a fully-esterified sulfite: bonded to
-    exactly one double-bonded (terminal) oxygen and exactly two single-
-    bonded ester oxygens (each degree 2 -- S plus one R carbon; this
-    excludes a hydroxyl oxygen, degree 1, i.e. a partial ester)."""
+    """Sulfur atoms shaped like a fully- or partially-esterified sulfite:
+    bonded to exactly one double-bonded (terminal) oxygen and exactly
+    two more single-bonded oxygens, each either an ester oxygen (degree
+    2 -- S plus one R carbon) or, for a partial ester (P-67.1.3.2), a
+    plain uncharged hydroxyl (degree 1) -- at least one of the two must
+    be an ester oxygen (both being hydroxyl would be sulfurous acid
+    itself, not an ester, out of scope here). A charged (deprotonated)
+    oxygen -- a salt of a partial ester -- is deliberately excluded here
+    (formal charge 0 required) so it falls through to future salt-
+    specific handling instead of being silently treated as a neutral
+    partial ester."""
     matches = []
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() != _SULFUR or atom.GetDegree() != 3 or atom.GetFormalCharge() != 0:
@@ -46,14 +59,18 @@ def _sulfite_sulfur_atoms(mol):
         double_os = [
             o for o in oxygens if mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0
         ]
-        ester_os = [
+        single_os = [
             o for o in oxygens if mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 1.0
         ]
-        if len(double_os) != 1 or len(ester_os) != 2:
+        if len(double_os) != 1 or len(single_os) != 2:
             continue
         if any(o.GetDegree() != 1 for o in double_os):
             continue
-        if any(o.GetDegree() != 2 for o in ester_os):
+        if any(o.GetFormalCharge() != 0 for o in single_os):
+            continue
+        ester_os = [o for o in single_os if o.GetDegree() == 2]
+        hydroxyl_os = [o for o in single_os if o.GetDegree() == 1]
+        if len(ester_os) + len(hydroxyl_os) != 2 or not ester_os:
             continue
         matches.append(atom)
     return matches
@@ -98,7 +115,9 @@ def name_sulfite(mol) -> str:
         if n.GetAtomicNum() == 8
         and mol.GetBondBetweenAtoms(sulfur.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
     }
-    ester_oxygens = [idx for idx in group_oxygens if idx not in double_os]
+    single_oxygens = [idx for idx in group_oxygens if idx not in double_os]
+    ester_oxygens = [idx for idx in single_oxygens if mol.GetAtomWithIdx(idx).GetDegree() == 2]
+    has_hydroxyl = len(single_oxygens) != len(ester_oxygens)
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -110,4 +129,10 @@ def name_sulfite(mol) -> str:
         roots.append((root, oxygen_idx))
 
     names = [name_branch(graph, root, coming_from, halogens, aromatic_atoms, mol=mol)[0] for root, coming_from in roots]
-    return format_ester_words(names) + " sulfite"
+    ester_words = format_ester_words(names)
+    # P-67.1.3.2: mirrors `_sulfate.py`'s own partial-ester citation,
+    # confirmed worked example "methyl hydrogen sulfite" (PubChem CID
+    # 358915).
+    if has_hydroxyl:
+        return f"{ester_words} hydrogen sulfite"
+    return ester_words + " sulfite"
