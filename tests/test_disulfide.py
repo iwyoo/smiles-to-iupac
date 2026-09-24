@@ -34,9 +34,19 @@ def test_branched_disulfanyl_substituent_not_supported():
         smiles_to_iupac("CC(C)SSC(C)C")
 
 
-def test_trisulfur_chain_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CSSSC")
+def test_trisulfide_chain():
+    # PubChem CID 19310.
+    assert smiles_to_iupac("CSSSC") == "(methyltrisulfanyl)methane"
+
+
+def test_trisulfide_chain_ethyl():
+    # PubChem CID 77151.
+    assert smiles_to_iupac("CCSSSCC") == "(ethyltrisulfanyl)ethane"
+
+
+def test_tetrasulfide_chain():
+    # PubChem CID 79828.
+    assert smiles_to_iupac("CSSSSC") == "(methyltetrasulfanyl)methane"
 
 
 def test_terminal_persulfide_methane():
