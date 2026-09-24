@@ -42,13 +42,28 @@ def test_other_heteroatom_raises():
         smiles_to_iupac("CO[As](C)C")
 
 
-def test_unsaturated_substituent_raises():
-    # The epic's own cited worked example, `BrSb(CH=CH2)2` ->
-    # 'bromodi(ethenyl)stibane (PIN)', needs unsaturated-substituent
-    # support this shared mechanism doesn't have yet -- a separate,
-    # larger follow-up step, not this one.
+def test_unsaturated_substituent_name():
+    # The epic's own cited worked example (`tmp/bluebook/P6a.txt`
+    # ~8608-8609): `BrSb(CH=CH2)2` -> 'bromodi(ethenyl)stibane (PIN)'.
+    assert smiles_to_iupac("Br[Sb](C=C)C=C") == "bromodi(ethenyl)stibane"
+
+
+def test_unsaturated_substituent_across_groups():
+    # PubChem-confirmed: CID 23271262 "tris(ethenyl)arsane" (this
+    # project's own PIN-style plain multiplying prefix, not PubChem's
+    # 'tris'), CID 81998 "tributyl(ethenyl)stannane".
+    assert smiles_to_iupac("C=C[As](C=C)C=C") == "tri(ethenyl)arsane"
+    assert smiles_to_iupac("CCCC[Sn](CCCC)(CCCC)C=C") == "tributyl(ethenyl)stannane"
+
+
+def test_multiple_bond_directly_to_metal_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Br[Sb](C=C)C=C")
+        smiles_to_iupac("C=[Sb]CC")
+
+
+def test_branched_unsaturated_substituent_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C(=C)(C)[Sb](CC)CC")
 
 
 def test_group13_hydride_unaffected():
