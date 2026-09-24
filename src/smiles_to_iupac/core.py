@@ -216,6 +216,10 @@ from ._naphthalene_benzene_phane import (
     name_naphthalene_benzene_phane,
 )
 from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
+from ._functional_replacement_oxoacid import (
+    has_functional_replacement_oxoacid_shape,
+    name_functional_replacement_oxoacid,
+)
 from ._phosphanone import has_phosphanone_shape, name_phosphanone
 from ._phosphate import has_phosphate_shape, name_phosphate
 from ._dinuclear_oxoacid import has_dinuclear_oxoacid_shape, name_dinuclear_oxoacid
@@ -544,6 +548,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # has_phosphane_chain_shape above.
     if has_phosphanone_shape(mol):
         return name_phosphanone(mol)
+
+    # Thiophosphoric acid (P-67.1.2's own preselected infix-modified
+    # oxoacid name) has a phosphorus with 4 substituents (=S plus three
+    # -OH), which `_phosphane.py` rejects outright (more than three
+    # substituents) -- must be routed here first.
+    if has_functional_replacement_oxoacid_shape(mol):
+        return name_functional_replacement_oxoacid(mol)
 
     # A phosphorus atom (P-68's phosphane substitutive nomenclature) must
     # be routed here before every other branch below: none of them
