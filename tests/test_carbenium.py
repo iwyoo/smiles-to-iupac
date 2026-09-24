@@ -91,3 +91,24 @@ def test_radical_not_confused_with_carbenium():
 
 def test_ammonium_not_confused_with_carbenium():
     assert smiles_to_iupac("[NH4+]") == "azanium"
+
+
+def test_acetylium_acylium_cation_name():
+    # Blue Book P-73.2.3.1 worked example: the retained short acyl stem
+    # 'acetyl' plus 'ium', not the systematic 'ethanoylium'.
+    assert smiles_to_iupac("C[C+]=O") == "acetylium"
+
+
+def test_hexanoylium_acylium_cation_name():
+    # Systematic '-oyl' stem plus 'ium' for a longer chain.
+    assert smiles_to_iupac("CCCCC[C+]=O") == "hexanoylium"
+
+
+def test_branched_acylium_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(C)C[C+]=O")
+
+
+def test_ring_attached_acylium_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=[C+]C1CCCCC1")
