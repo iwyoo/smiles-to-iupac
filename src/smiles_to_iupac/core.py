@@ -208,6 +208,7 @@ from ._isoselenocyanate import has_isoselenocyanate_shape, name_isoselenocyanate
 from ._isotellurocyanate import has_isotellurocyanate_shape, name_isotellurocyanate
 from ._isothiocyanate import has_isothiocyanate_shape, name_isothiocyanate
 from ._nitrate_ester import has_nitrate_ester_shape, name_nitrate_ester
+from ._carbonic_acid import has_carbonic_acid_shape, name_carbonic_acid
 from ._nitrite_ester import has_nitrite_ester_shape, name_nitrite_ester
 from ._nitro import has_nitro_shape, name_nitro
 from ._nitroso import has_nitroso_shape, name_nitroso
@@ -568,6 +569,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # as nitrate above, for the same N-O-R ester-oxygen reason.
     if has_nitrite_ester_shape(mol):
         return name_nitrite_ester(mol)
+
+    # Carbonic acid or one of its esters (P-65.2.1's O=C(OR)(OR')) has a
+    # central carbon with two -O-R/-OH oxygens neither `_ether.py` (which
+    # rejects an oxygen bonded to more than one heavy atom outright) nor
+    # `_carboxylic_acid.py` (which expects exactly one -OH, not two)
+    # expects -- routed here for the same early-ester reasoning as
+    # sulfate/nitrate above.
+    if has_carbonic_acid_shape(mol):
+        return name_carbonic_acid(mol)
 
     # A phosphine oxide (P-68.3.2.3.1's '-phosphanone' suffix, R-P(=O)<)
     # has its own phosphorus-bonded oxygen that `_phosphane.py` doesn't
