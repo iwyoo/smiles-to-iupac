@@ -40,11 +40,13 @@ all-carbon (any one ring size), any mancude 5- or 6-membered ring matching a
 `_NON_NH_ROLE_SEQUENCES` parent (pyridine, furan, thiophene, selenophene,
 tellurophene, pyridazine, pyrimidine, pyrazine -- same exclusions as that
 module: no N-H tautomer-ambiguous parent, no locant-prefixed Hantzsch-Widman
-parent), or 1H-pyrrole (see below), each ring optionally bearing halogen
-substituents. Three to six identical rings in an unbranched chain (terphenyl
-etc.) are `_ring_assembly_chain.py`'s own job instead -- a separate
-composite-locant numbering scheme (P-28.3), not a generalization of this
-module's own primed-locant one.
+parent), 1H-pyrrole (see below), or 1H-imidazole/1H-pyrazole joined through
+both rings' own N-H nitrogen only (see below -- a carbon-attached junction
+for either of these two stays out of scope), each ring optionally bearing
+halogen substituents. Three to six identical rings in an unbranched chain
+(terphenyl etc.) are `_ring_assembly_chain.py`'s own job instead -- a
+separate composite-locant numbering scheme (P-28.3), not a generalization of
+this module's own primed-locant one.
 
 - P-28.2.3 (indicated hydrogen of a two-component ring assembly, same
   `tmp/bluebook/P2.txt` ~7831): 1H-pyrrole is the one N-H tautomer-
@@ -70,6 +72,24 @@ module's own primed-locant one.
   PIN `1H,1'H-2,2'-bipyrrole`). `_ring_assembly_chain.py`'s own 3-6-ring
   case has the analogous mechanism (P-28.3.1's composite-locant citation
   format) for its own pyrrole support, per its own docstring.
+- 1H-imidazole/1H-pyrazole: unlike pyrrole (a single ring nitrogen, no
+  tautomer choice), these have two ring nitrogens and a real prototropic-
+  tautomer ambiguity about which one is "N1" -- `_hetero_monocyclic.py`'s
+  own `_TAUTOMER_AMBIGUOUS_UNLESS_N1` resolves the analogous single-ring
+  substituent case by only trusting a substituent that sits directly on
+  the N-H position itself. This module trusts the same "safe" condition
+  for a ring-assembly junction: when the junction bond itself replaces a
+  ring nitrogen's H (`_tautomer_fixed_ring_kind`), that nitrogen *is* N1
+  by construction -- no remaining tautomer choice, and (mirroring
+  pyrrole's own N-N-attached case) no indicated hydrogen needed for
+  either ring, since the one candidate saturated position on each ring is
+  already occupied by the junction. Confirmed PIN worked examples
+  `1,1'-biimidazole` (PubChem CID 15034216) and `1,1'-bipyrazole` (CID
+  21981271). A carbon-attached junction (e.g. `2,2'-biimidazole`, CID
+  101463) is deferred -- no confirmed primary-source worked example for
+  whether C2 (flanked by both ring nitrogens) is actually safe the same
+  way N1 is, or needs the same conservative rejection the single-ring
+  case already applies to imidazole's C2-substituted case.
 """
 
 from ._common import (
@@ -90,12 +110,17 @@ from ._ring_assembly_chain import (
 )
 from ._substituents import format_substituent_prefixes, name_branch
 
-# 1H-pyrrole's own P-28.2.3 indicated-hydrogen citation (see module
-# docstring) needs the bare parent-hydride name ("pyrrole", not
-# "1H-pyrrole" itself) for the "bi"-prefixed ring word -- unlike every
-# `_NON_NH_ROLE_SEQUENCES` parent, whose own name never carries an
-# indicated-hydrogen prefix to strip in the first place.
-_INDICATED_HYDROGEN_BARE_NAMES = {"1H-pyrrole": "pyrrole"}
+# 1H-pyrrole/1H-imidazole/1H-pyrazole's own P-28.2.3 indicated-hydrogen
+# citation (see module docstring) needs the bare parent-hydride name
+# ("pyrrole"/"imidazole"/"pyrazole", not the "1H-"-prefixed form) for the
+# "bi"-prefixed ring word -- unlike every `_NON_NH_ROLE_SEQUENCES` parent,
+# whose own name never carries an indicated-hydrogen prefix to strip in
+# the first place.
+_INDICATED_HYDROGEN_BARE_NAMES = {
+    "1H-pyrrole": "pyrrole",
+    "1H-imidazole": "imidazole",
+    "1H-pyrazole": "pyrazole",
+}
 
 
 def _bond_between(bond, atoms_a, atoms_b):
@@ -103,20 +128,42 @@ def _bond_between(bond, atoms_a, atoms_b):
     return (x in atoms_a and y in atoms_b) or (x in atoms_b and y in atoms_a)
 
 
+def _tautomer_fixed_ring_kind(mol, graph, ring, attach_atom):
+    """("1H-imidazole", 5) or ("1H-pyrazole", 5) if `ring` matches one of
+    these two N-H tautomer-ambiguous parents' element pattern
+    (`_hetero_ring_alignments`, element-only match) and `attach_atom` is
+    one of the ring's own two nitrogens, else None. This module only
+    trusts a ring-assembly junction landing on a ring nitrogen for these
+    two parents (see module docstring): the junction bond itself replaces
+    that nitrogen's H, fixing it as N1 with no remaining prototropic-
+    tautomer choice -- structurally guaranteed here since an unsubstituted
+    imidazole/pyrazole ring's own reflective symmetry lets *either* ring
+    nitrogen be numbered role-sequence position 1 (`_hetero_ring_alignments`
+    finds a matching alignment for the physically-substituted one
+    specifically because of that symmetry, not because both are
+    interchangeable at once). A carbon-attached junction is deferred
+    (`attach_atom` never matches a role-sequence N-position, so no
+    alignment exists and this returns None, same as an outright
+    non-match)."""
+    if mol.GetAtomWithIdx(attach_atom).GetAtomicNum() != 7:
+        return None
+    for parent_name in ("1H-imidazole", "1H-pyrazole"):
+        if any(True for _ in _hetero_ring_alignments(mol, graph, ring, parent_name)):
+            return parent_name, 5
+    return None
+
+
 def find_ring_assembly_core(mol):
     """Return (ring0_atoms, ring1_atoms, attach0, attach1, kind) if `mol` is
     exactly two disjoint identical-kind rings (`_ring_kind`'s own
     ("aromatic", 6), ("saturated", n), a `_NON_NH_ROLE_SEQUENCES` parent
-    name, or `_pyrrole_ring_kind`'s own ("1H-pyrrole", 5)) joined by one
-    single bond, else None."""
+    name, `_pyrrole_ring_kind`'s own ("1H-pyrrole", 5), or
+    `_tautomer_fixed_ring_kind`'s own ("1H-imidazole", 5)/
+    ("1H-pyrazole", 5)) joined by one single bond, else None."""
     ring_info = mol.GetRingInfo()
     atom_rings = ring_info.AtomRings()
     if len(atom_rings) != 2:
         return None
-    kinds = {_ring_kind(mol, ring) or _pyrrole_ring_kind(mol, ring) for ring in atom_rings}
-    if len(kinds) != 1 or None in kinds:
-        return None
-    (kind,) = kinds
 
     ring0, ring1 = set(atom_rings[0]), set(atom_rings[1])
     if ring0 & ring1:
@@ -131,7 +178,26 @@ def find_ring_assembly_core(mol):
 
     x, y = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
     attach0, attach1 = (x, y) if x in ring0 else (y, x)
-    return atom_rings[0], atom_rings[1], attach0, attach1, kind
+
+    # `_tautomer_fixed_ring_kind` needs the junction atom (unlike every
+    # other ring kind here), so it's checked per-ring only after the
+    # junction itself is known, not folded into a single kind-per-ring set
+    # the way the junction-agnostic kinds are.
+    graph = adjacency(mol)
+    kind0 = (
+        _ring_kind(mol, atom_rings[0])
+        or _pyrrole_ring_kind(mol, atom_rings[0])
+        or _tautomer_fixed_ring_kind(mol, graph, atom_rings[0], attach0)
+    )
+    kind1 = (
+        _ring_kind(mol, atom_rings[1])
+        or _pyrrole_ring_kind(mol, atom_rings[1])
+        or _tautomer_fixed_ring_kind(mol, graph, atom_rings[1], attach1)
+    )
+    if kind0 is None or kind0 != kind1:
+        return None
+
+    return atom_rings[0], atom_rings[1], attach0, attach1, kind0
 
 
 def _numberings_from_attachment(graph, ring_atoms, attach, prime):
