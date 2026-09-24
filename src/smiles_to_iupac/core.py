@@ -40,7 +40,7 @@ from ._ring_amine import has_ring_amine_shape, has_ring_amine_sulfonyl_shape, na
 from ._amine_oxide import has_amine_oxide_shape, name_amine_oxide
 from ._aminide import has_aminide_shape, name_aminide
 from ._ammonium import has_ammonium_shape, name_ammonium
-from ._ylide import has_nitrogen_ylide_shape, name_nitrogen_ylide
+from ._ylide import has_nitrogen_ylide_shape, has_pos_ylide_shape, name_nitrogen_ylide, name_pos_ylide
 from ._amine_imide import has_amine_imide_shape, name_amine_imide
 from ._phosphonium import has_phosphonium_shape, name_phosphonium
 from ._oxonium import has_oxonium_shape, name_oxonium
@@ -406,6 +406,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # naming it, per that module's own docstring.
     if has_nitrogen_ylide_shape(mol):
         return name_nitrogen_ylide(mol)
+
+    # A phosphorus/oxygen/sulfur ylide (P-74.2.1.1.2/.3/.4) has its own
+    # charged cation atom too -- checked before `has_phosphonium_shape`/
+    # `has_oxonium_shape`/`has_sulfonium_shape` below for the same reason
+    # as the nitrogen ylide above.
+    if has_pos_ylide_shape(mol):
+        return name_pos_ylide(mol)
 
     # An amine imide (P-74.2.1.3's zwitterionic hydrazinium-ide naming)
     # has two charged nitrogens (one +1, one -1) -- checked before

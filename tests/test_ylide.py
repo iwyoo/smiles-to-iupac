@@ -29,3 +29,33 @@ def test_tertiary_ammonium_ylide_raises():
     # bond plus two methyls) isn't yet supported.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[CH2-][N+](C)C")
+
+
+def test_trimethylphosphonium_methylide():
+    assert smiles_to_iupac("[CH2-][P+](C)(C)C") == "(trimethylphosphaniumyl)methanide"
+
+
+def test_dimethyloxidanium_methylide():
+    assert smiles_to_iupac("[CH2-][O+](C)C") == "(dimethyloxidaniumyl)methanide"
+
+
+def test_dimethylsulfanium_methylide():
+    assert smiles_to_iupac("[CH2-][S+](C)C") == "(dimethylsulfaniumyl)methanide"
+
+
+def test_mixed_substituent_phosphonium_ylide():
+    assert smiles_to_iupac("[CH2-][P+](C)(C)CC") == "(ethyldi(methyl)phosphaniumyl)methanide"
+
+
+def test_mixed_substituent_oxonium_ylide():
+    assert smiles_to_iupac("[CH2-][O+](C)CC") == "(ethyl(methyl)oxidaniumyl)methanide"
+
+
+def test_mixed_substituent_sulfonium_ylide():
+    assert smiles_to_iupac("[CH2-][S+](C)CC") == "(ethyl(methyl)sulfaniumyl)methanide"
+
+
+@pytest.mark.parametrize("smiles", ["C[CH-][P+](C)(C)C", "C[CH-][O+](C)C", "C[CH-][S+](C)C"])
+def test_pos_ylide_branched_anion_carbon_raises(smiles):
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac(smiles)
