@@ -57,15 +57,21 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   alongside a plain hydrocarbon bicyclic — a different module's
   territory).
 - Any heteroatom other than O, N, or S.
-- Multiple heteroatoms in a ring_count>=3 polycyclic system (the
-  ring_count>=3 case below still only accepts exactly one) -- this
-  module's multi-heteroatom axis is bicyclic-only, and the mixed-element
-  extension inherits that same bicyclic-only limit.
-- Hexacyclic (ring_count=6) or larger polycyclic rings -- `_polycyclic.py`
+- Heptacyclic (ring_count=7) or larger polycyclic rings -- `_polycyclic.py`
   itself doesn't support these yet, independent of the heteroatom question.
 - Unsaturation, charged/isotopic atoms, or anything else
   `_bicyclic.name_bicycloalkane`/`_polycyclic.name_polycycloalkane`'s own
   validation already rejects for the all-carbon case.
+
+`has_multi_ring_heteroatom_shape_polycyclic`/`name_von_baeyer_heteroatom_
+multi_polycyclic` and `has_mixed_element_heteroatom_shape_polycyclic`/
+`name_von_baeyer_heteroatom_mixed_polycyclic` are the ring_count>=3
+counterparts to the bicyclic multi-/mixed-element functions above (same
+same-element/different-element scope, `iter_polycyclic_candidates`'s own
+`outer_key` prepended to the per-candidate key the same way `name_von_
+baeyer_heteroatom_polycyclic` already does for the single-heteroatom
+case) -- `core.py`'s own `ring_count in (3, 4, 5, 6)` dispatch loop tries
+all three (single/multi/mixed) polycyclic shapes per ring count.
 """
 
 from rdkit import Chem
@@ -354,6 +360,139 @@ def name_von_baeyer_heteroatom_polycyclic(mol, core, ring_count) -> str:
             substituents,
             heteroatom_locant=heteroatom_locant,
             nondetachable_prefix=f"{heteroatom_locant}-{a_prefix}",
+        )
+        if best_key is None or key < best_key:
+            best_key = key
+
+    if best_key is None:
+        raise UnsupportedStructure(
+            "this polycyclic topology is not supported yet (disjoint ring "
+            "systems joined only by an acyclic linker are out of scope; "
+            "see _polycyclic.py's name_polycycloalkane for the analogous "
+            "non-heteroatom guard)"
+        )
+
+    return best_key[-1]
+
+
+def has_multi_ring_heteroatom_shape_polycyclic(mol, core) -> bool:
+    """Polycyclic (`_polycyclic.find_polycyclic_core`) counterpart to
+    `has_multi_ring_heteroatom_shape` -- two or more skeletal ring
+    heteroatoms, all the same element."""
+    ring_heteroatoms = _ring_heteroatoms_polycyclic(mol, core)
+    if len(ring_heteroatoms) < 2:
+        return False
+    elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in ring_heteroatoms}
+    return len(elements) == 1
+
+
+def name_von_baeyer_heteroatom_multi_polycyclic(mol, core, ring_count) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
+    _validate_atoms(mol)
+    if non_single_bonds(mol):
+        raise UnsupportedStructure(
+            "unsaturated polycyclic ring systems are not supported yet (see "
+            "P-31.1.4, unsaturated von Baeyer ring systems)"
+        )
+
+    ring_heteroatoms = _ring_heteroatoms_polycyclic(mol, core)
+    all_heteroatoms = [atom.GetIdx() for atom in mol.GetAtoms() if atom.GetAtomicNum() in _HETEROATOM_PREFIXES]
+    elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in ring_heteroatoms}
+    if len(ring_heteroatoms) < 2 or len(elements) != 1 or set(all_heteroatoms) != set(ring_heteroatoms):
+        raise UnsupportedStructure(
+            "two or more skeletal ring heteroatoms are only supported when "
+            "all of the same element (P-23.2.1's 'a'-prefix ordering for "
+            "mixed heteroatom kinds is out of scope here), and any "
+            "heteroatom outside the ring skeleton is also out of scope"
+        )
+    (element,) = elements
+    a_prefix = _HETEROATOM_PREFIXES[element]
+    multiplied_a_prefix = _replacement_multiplied_word(len(ring_heteroatoms), a_prefix)
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+
+    best_key = None
+    for full_order, parent, outer_key in iter_polycyclic_candidates(core, ring_count):
+        heteroatom_locants = tuple(sorted(full_order.index(h) + 1 for h in ring_heteroatoms))
+        substituents = substituents_for_ring(graph, full_order, halogens)
+        locant_citation = ",".join(str(loc) for loc in heteroatom_locants)
+        key = outer_key + _polycyclic_candidate_key(
+            parent,
+            substituents,
+            heteroatom_locant=heteroatom_locants,
+            nondetachable_prefix=f"{locant_citation}-{multiplied_a_prefix}",
+        )
+        if best_key is None or key < best_key:
+            best_key = key
+
+    if best_key is None:
+        raise UnsupportedStructure(
+            "this polycyclic topology is not supported yet (disjoint ring "
+            "systems joined only by an acyclic linker are out of scope; "
+            "see _polycyclic.py's name_polycycloalkane for the analogous "
+            "non-heteroatom guard)"
+        )
+
+    return best_key[-1]
+
+
+def has_mixed_element_heteroatom_shape_polycyclic(mol, core) -> bool:
+    """Polycyclic (`_polycyclic.find_polycyclic_core`) counterpart to
+    `has_mixed_element_heteroatom_shape` -- exactly two skeletal ring
+    heteroatoms of two different elements, one each."""
+    ring_heteroatoms = _ring_heteroatoms_polycyclic(mol, core)
+    if len(ring_heteroatoms) != 2:
+        return False
+    elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in ring_heteroatoms}
+    return len(elements) == 2
+
+
+def name_von_baeyer_heteroatom_mixed_polycyclic(mol, core, ring_count) -> str:
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure(
+            "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
+        )
+    _validate_atoms(mol)
+    if non_single_bonds(mol):
+        raise UnsupportedStructure(
+            "unsaturated polycyclic ring systems are not supported yet (see "
+            "P-31.1.4, unsaturated von Baeyer ring systems)"
+        )
+
+    ring_heteroatoms = _ring_heteroatoms_polycyclic(mol, core)
+    all_heteroatoms = [atom.GetIdx() for atom in mol.GetAtoms() if atom.GetAtomicNum() in _HETEROATOM_PREFIXES]
+    elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in ring_heteroatoms}
+    if len(ring_heteroatoms) != 2 or len(elements) != 2 or set(all_heteroatoms) != set(ring_heteroatoms):
+        raise UnsupportedStructure(
+            "exactly one skeletal ring heteroatom of each of two different "
+            "elements is supported (Table 2.8 seniority ordering for three "
+            "or more heteroatoms, or a repeated element mixed with another, "
+            "is out of scope here), and any heteroatom outside the ring "
+            "skeleton is also out of scope"
+        )
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+
+    best_key = None
+    for full_order, parent, outer_key in iter_polycyclic_candidates(core, ring_count):
+        by_seniority = sorted(
+            ((mol.GetAtomWithIdx(a).GetAtomicNum(), full_order.index(a) + 1) for a in ring_heteroatoms),
+            key=lambda pair: _ELEMENT_SENIORITY[pair[0]],
+        )
+        locant_set = tuple(sorted(loc for _, loc in by_seniority))
+        heteroatom_key = (locant_set, tuple(loc for _, loc in by_seniority))
+        nondetachable_prefix = "-".join(f"{loc}-{_HETEROATOM_PREFIXES[elem]}" for elem, loc in by_seniority)
+        substituents = substituents_for_ring(graph, full_order, halogens)
+        key = outer_key + _polycyclic_candidate_key(
+            parent,
+            substituents,
+            heteroatom_locant=heteroatom_key,
+            nondetachable_prefix=nondetachable_prefix,
         )
         if best_key is None or key < best_key:
             best_key = key
