@@ -321,6 +321,19 @@ def smiles_to_iupac(smiles: str) -> str:
     if has_hydrohalide_salt_shape(mol):
         return name_hydrohalide_salt(mol, smiles_to_iupac)
 
+    # An unbranched chain of 3-6 disjoint mancude rings (aromatic benzo,
+    # saturated cycloalkane, or pyridine -- P-28.3) -- e.g. terphenyl,
+    # tercyclopropane, terpyridine -- must be routed here before every
+    # single-heteroatom dispatch branch below: a pyridine-ring assembly's
+    # own nitrogen atoms would otherwise reach `_amine.py`'s own
+    # nitrogen-presence branch (which has no ring-assembly awareness) long
+    # before this shape's own num_rings==3..6 check would run if it stayed
+    # down with the other ring modules further below.
+    if 3 <= mol.GetRingInfo().NumRings() <= 6:
+        ring_assembly_chain_core = find_ring_assembly_chain_core(mol)
+        if ring_assembly_chain_core is not None:
+            return name_ring_assembly_chain(mol, ring_assembly_chain_core)
+
     # An isotopically labeled hydroxyl oxygen and/or skeletal carbon
     # combined with the '-ol' suffix (P-82.5.1/P-82.5.2) must be routed
     # here before `_isotope.py`'s own plain chain/methane path just below,
@@ -1635,13 +1648,6 @@ def smiles_to_iupac(smiles: str) -> str:
         ring_assembly_core = find_ring_assembly_core(mol)
         if ring_assembly_core is not None:
             return name_ring_assembly(mol, ring_assembly_core)
-    # An unbranched chain of 3-6 disjoint benzene rings -- e.g. terphenyl --
-    # must likewise be routed here before find_aromatic_fused_core, for the
-    # same reason as the num_rings == 2 biphenyl case just above.
-    if 3 <= num_rings <= 6:
-        ring_assembly_chain_core = find_ring_assembly_chain_core(mol)
-        if ring_assembly_chain_core is not None:
-            return name_ring_assembly_chain(mol, ring_assembly_chain_core)
     # Aromatic rings carry non-single (order 1.5) bonds, which every other
     # ring module's non_single_bonds check rejects; an aromatic ring
     # system's carbon skeleton can also be graph-isomorphic to a *saturated*
