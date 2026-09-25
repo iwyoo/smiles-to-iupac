@@ -21,17 +21,12 @@ from smiles_to_iupac._common import UnsupportedStructure
         # and an ordinary substituent group and alphabetize/cite together
         # correctly.
         ("CC(C)(C(=O)O)N", "2-amino-2-methylpropanoic acid"),
-        # glycine: the amine and acid on the same (only) chain carbon.
-        # PubChem's own PIN ('2-aminoacetic acid', CID 750) uses the
-        # retained 'acetic acid' stem; this project's own
-        # `_carboxylic_acid.py` always uses the systematic 'ethanoic acid'
-        # stem instead (see that module's tests), so this module follows
-        # that same pre-existing convention rather than introducing a new
-        # divergence (see module docstring).
-        ("NCC(=O)O", "2-aminoethanoic acid"),
         # a halogen substituent coexists with both the acid and the amine --
-        # same reasoning as glycine above for the acid-stem divergence
-        # (PubChem CID 10308266 gives '2-amino-2-chloroacetic acid').
+        # this project's own systematic 'ethanoic acid' stem convention
+        # (see `_carboxylic_acid.py`'s tests), not PubChem's retained
+        # 'acetic acid' stem (CID 10308266 gives '2-amino-2-chloroacetic
+        # acid'); out of `_amino_acid.py`'s scope (a halogen substituent),
+        # so this stays on the systematic path unchanged.
         ("NC(Cl)C(=O)O", "2-amino-2-chloroethanoic acid"),
     ],
 )
@@ -86,18 +81,16 @@ def test_plain_amine_still_works():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        # L-alanine / D-alanine: PubChem-verified exactly (CID 5950's
-        # '(2S)-2-aminopropanoic acid' and CID 71080's
-        # '(2R)-2-aminopropanoic acid'), same P-91.3/P-92 mechanism as
-        # `_carboxylic_acid.py`'s own stereocenter test (CIP computed
-        # entirely by RDKit's `rdCIPLabeler`, not reimplemented here).
-        ("C[C@H](N)C(=O)O", "(2S)-2-aminopropanoic acid"),
-        ("C[C@@H](N)C(=O)O", "(2R)-2-aminopropanoic acid"),
-        # L-valine / D-valine: PubChem-verified exactly (CID 6287's
-        # '(2S)-2-amino-3-methylbutanoic acid' and CID 439610's
-        # '(2R)-2-amino-3-methylbutanoic acid').
-        ("CC(C)[C@H](N)C(=O)O", "(2S)-2-amino-3-methylbutanoic acid"),
-        ("CC(C)[C@@H](N)C(=O)O", "(2R)-2-amino-3-methylbutanoic acid"),
+        # A stereocenter on a side chain this module still handles (not
+        # one of `_amino_acid.py`'s 4 retained-name shapes -- AIB has no
+        # stereocenter at all since C2 bears two identical methyl groups,
+        # so use 2-aminobutanoic acid's C2 stereocenter instead, same
+        # P-91.3/P-92 mechanism as `_carboxylic_acid.py`'s own stereocenter
+        # test). PubChem-verified exactly (CID 439574's
+        # '(2S)-2-aminobutanoic acid' and CID 6647563's
+        # '(2R)-2-aminobutanoic acid').
+        ("CC[C@H](N)C(=O)O", "(2S)-2-aminobutanoic acid"),
+        ("CC[C@@H](N)C(=O)O", "(2R)-2-aminobutanoic acid"),
     ],
 )
 def test_carboxylic_acid_amine_stereocenter(smiles, expected):
@@ -108,7 +101,9 @@ def test_carboxylic_acid_amine_unspecified_stereocenter_unaffected():
     # A genuine stereocenter left unspecified (no @/@@) is named exactly
     # as before -- no stereo prefix, matching this project's long-standing
     # convention (see `_common.py`'s `specified_stereocenters` docstring).
-    assert smiles_to_iupac("CC(N)C(=O)O") == "2-aminopropanoic acid"
+    # 2-aminobutanoic acid, not alanine, since alanine's shape is now
+    # `_amino_acid.py`'s territory (see that module's own tests).
+    assert smiles_to_iupac("CCC(N)C(=O)O") == "2-aminobutanoic acid"
 
 
 def test_phenyl_chain_carboxylic_acid_amine():

@@ -14,6 +14,7 @@ from ._alkoxide import has_alkoxide_shape, name_alkoxide
 from ._aldehyde import name_aldehyde
 from ._aldehyde_amine import has_aldehyde_amine_shape, name_aldehyde_amine
 from ._ketone_amine import has_ketone_amine_shape, name_ketone_amine
+from ._amino_acid import has_amino_acid_shape, name_amino_acid
 from ._carboxylic_acid_amine import has_carboxylic_acid_amine_shape, name_carboxylic_acid_amine
 from ._aldehyde_carboxylic_acid import (
     has_aldehyde_carboxylic_acid_shape,
@@ -1497,6 +1498,12 @@ def smiles_to_iupac(smiles: str) -> str:
             # `_carboxylic_acid.py`'s own "coexisting nitrogen" rejection.
             if has_carboxylic_acid_amide_shape(mol):
                 return name_carboxylic_acid_amide(mol)
+            # P-103.1.1.1: glycine/alanine/valine/leucine's plain
+            # hydrocarbon side chains get their own retained name + L/D
+            # descriptor instead of `has_carboxylic_acid_amine_shape`
+            # below's generic CIP-only, no-retained-name naming.
+            if has_amino_acid_shape(mol):
+                return name_amino_acid(mol)
             # P-41/Table 3.3: 'oic acid' also far outranks 'amine', so a
             # carboxylic acid that also carries a primary amine names the
             # acid as the suffix and demotes the amine to an 'amino' prefix
