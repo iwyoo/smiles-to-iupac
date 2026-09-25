@@ -115,6 +115,7 @@ from ._ether_ketone import has_ether_ketone_shape, name_ether_ketone
 from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
 from ._fullerene import has_fullerene_name, name_fullerene
 from ._homo_steroid import has_homo_steroid_shape, name_homo_steroid
+from ._dinor_steroid import has_dinor_steroid_shape, name_dinor_steroid
 from ._nor_steroid import has_nor_steroid_shape, name_nor_steroid
 from ._seco_steroid import has_seco_steroid_shape, name_seco_steroid
 from ._steroid_parent_hydrides import (
@@ -703,6 +704,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # is exactly estrane) is already claimed by that check first.
     if has_nor_steroid_shape(mol):
         return name_nor_steroid(mol)
+
+    # A steroid parent hydride missing two non-fusion ring atoms/angular
+    # methyls together (P-101.3.1.1's 'dinor' prefix) is checked right
+    # after the single-atom 'nor' check above, for the same dispatch-
+    # ordering reason.
+    if has_dinor_steroid_shape(mol):
+        return name_dinor_steroid(mol)
 
     # A steroid parent hydride with one extra methylene inserted into a
     # ring bond or angular methyl (P-101.3.2's 'homo' prefix) is checked
