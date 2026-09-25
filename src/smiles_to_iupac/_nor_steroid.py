@@ -42,65 +42,9 @@ not) re-claim it under a `nor` name.
 """
 
 from rdkit import Chem
-from rdkit.Chem import BondType, RWMol
+from rdkit.Chem import RWMol
 
-from ._steroid_parent_hydrides import _CANONICAL_TO_NAME, _PARENT_HYDRIDES
-
-_RAW_PARENTS = {
-    "gonane": "C1CCCC2CCC3C(C12)CCC4C3CCC4",
-    "androstane": "CC12CCCC1C3CCC4CCCCC4(C3CC2)C",
-    "estrane": "CC12CCCC1C1CCC3CCCCC3C1CC2",
-    "pregnane": "CCC1CCC2C1(CCC3C2CCC4C3(CCCC4)C)C",
-    "cholane": "CCCC(C)C1CCC2C1(CCC3C2CCC4C3(CCCC4)C)C",
-    "cholestane": "CC(C)CCCC(C)C1CCC2C1(CCC3C2CCC4C3(CCCC4)C)C",
-    "ergostane": "CC(C)C(C)CCC(C)C1CCC2C1(CCC3C2CCC4C3(CCCC4)C)C",
-}
-assert set(_RAW_PARENTS.values()) <= set(_PARENT_HYDRIDES), (
-    "_RAW_PARENTS drifted from _steroid_parent_hydrides.py's own raw entries"
-)
-
-
-def _build_locant_query(extra_locants):
-    rw = RWMol()
-    atom_idx = {}
-    for locant in range(1, 18):
-        atom_idx[locant] = rw.AddAtom(Chem.Atom(6))
-    for locant in extra_locants:
-        atom_idx[locant] = rw.AddAtom(Chem.Atom(6))
-
-    def bond(a, b):
-        rw.AddBond(atom_idx[a], atom_idx[b], BondType.SINGLE)
-
-    bond(1, 2), bond(2, 3), bond(3, 4), bond(4, 5), bond(5, 6), bond(6, 7)
-    bond(7, 8), bond(8, 9), bond(9, 10), bond(10, 1), bond(5, 10)
-    bond(9, 11), bond(11, 12), bond(12, 13), bond(13, 14), bond(14, 8)
-    bond(13, 17), bond(17, 16), bond(16, 15), bond(15, 14)
-    if 18 in extra_locants:
-        bond(13, 18)
-    if 19 in extra_locants:
-        bond(10, 19)
-
-    mol = rw.GetMol()
-    Chem.SanitizeMol(mol)
-    return mol, atom_idx
-
-
-_RING_QUERY, _RING_QUERY_IDX = _build_locant_query(())
-_ESTRANE_QUERY, _ESTRANE_QUERY_IDX = _build_locant_query((18,))
-_ANDROSTANE_QUERY, _ANDROSTANE_QUERY_IDX = _build_locant_query((18, 19))
-
-_QUERY_BY_PARENT = {
-    "gonane": (_RING_QUERY, _RING_QUERY_IDX),
-    "estrane": (_ESTRANE_QUERY, _ESTRANE_QUERY_IDX),
-}
-
-
-def _locant_map(name, mol):
-    query, query_idx = _QUERY_BY_PARENT.get(name, (_ANDROSTANE_QUERY, _ANDROSTANE_QUERY_IDX))
-    matches = mol.GetSubstructMatches(query, uniquify=False)
-    assert len(matches) == 1, f"{name}'s steroid-numbering query matched {len(matches)} times, expected 1"
-    match = matches[0]
-    return {locant: match[idx] for locant, idx in query_idx.items()}
+from ._steroid_parent_hydrides import _CANONICAL_TO_NAME, _PARENT_HYDRIDES, _RAW_PARENTS, _locant_map
 
 
 def _nor_smiles(name, smiles, locant, atom_idx):
