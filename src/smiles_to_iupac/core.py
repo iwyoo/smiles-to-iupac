@@ -116,6 +116,7 @@ from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
 from ._fullerene import has_fullerene_name, name_fullerene
 from ._homo_steroid import has_homo_steroid_shape, name_homo_steroid
 from ._nor_steroid import has_nor_steroid_shape, name_nor_steroid
+from ._seco_steroid import has_seco_steroid_shape, name_seco_steroid
 from ._steroid_parent_hydrides import (
     has_steroid_parent_hydride_name,
     name_steroid_parent_hydride,
@@ -710,6 +711,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # above (none found empirically, but the ordering stays defensive).
     if has_homo_steroid_shape(mol):
         return name_homo_steroid(mol)
+
+    # A steroid parent hydride missing one ring bond (P-101.3.4.1's
+    # 'seco' prefix) is checked right after 'homo' for the same
+    # dispatch-ordering reason -- checked before the general von Baeyer
+    # engine below, which either misnames a plain-ring-bond cleavage as
+    # an unrelated tricyclic system or outright rejects a ring-fusion
+    # cleavage as an unsupported polycyclic shape.
+    if has_seco_steroid_shape(mol):
+        return name_seco_steroid(mol)
 
     # triphenylene (P-25.1.2's branched-fusion retained name) is recognized
     # the same way -- see _branched_fused_aromatic.py's module docstring;
