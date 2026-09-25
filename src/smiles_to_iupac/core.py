@@ -15,6 +15,7 @@ from ._aldehyde import name_aldehyde
 from ._aldehyde_amine import has_aldehyde_amine_shape, name_aldehyde_amine
 from ._ketone_amine import has_ketone_amine_shape, name_ketone_amine
 from ._amino_acid import has_amino_acid_shape, name_amino_acid
+from ._histidine import has_histidine_shape, name_histidine
 from ._proline import has_proline_shape, name_proline
 from ._carboxylic_acid_amine import has_carboxylic_acid_amine_shape, name_carboxylic_acid_amine
 from ._aldehyde_carboxylic_acid import (
@@ -1511,6 +1512,13 @@ def smiles_to_iupac(smiles: str) -> str:
             # below's generic CIP-only, no-retained-name naming.
             if has_amino_acid_shape(mol):
                 return name_amino_acid(mol)
+            # P-103.1.1.1: histidine's imidazol-4-ylmethyl side chain also
+            # gets its own retained name + L/D descriptor -- must be
+            # checked before `has_carboxylic_acid_amine_shape` below,
+            # whose own ring dispatch only recognizes a plain benzene ring
+            # and would otherwise reject this shape outright.
+            if has_histidine_shape(mol):
+                return name_histidine(mol)
             # P-41/Table 3.3: 'oic acid' also far outranks 'amine', so a
             # carboxylic acid that also carries a primary amine names the
             # acid as the suffix and demotes the amine to an 'amino' prefix
