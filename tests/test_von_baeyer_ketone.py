@@ -33,9 +33,12 @@ def test_multiple_ring_ketones_raises():
         smiles_to_iupac("O=C1CC2CCC1C(=O)C2")
 
 
-def test_ketone_hydroxyl_combination_on_ring_system_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CC2CCC1C2O")
+def test_ketone_hydroxyl_combination_on_ring_system():
+    # A coexisting hydroxyl on a von Baeyer bicyclic/polycyclic ketone is
+    # supported (#1029) -- cited as a "hydroxy" prefix, same PubChem
+    # structure as tests/test_ketone_hydroxyl_vonbaeyer.py's own
+    # CID 85551307 case, written from a different starting atom here.
+    assert smiles_to_iupac("O=C1CC2CCC1C2O") == "7-hydroxybicyclo[2.2.1]heptan-2-one"
 
 
 def test_unsaturated_von_baeyer_ketone_raises():

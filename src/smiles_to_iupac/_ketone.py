@@ -1897,9 +1897,10 @@ def _name_von_baeyer_or_spiro_ketone(mol, ketones, hydroxyls, stereo, bonds):
     degree-4 shape never matches `find_bicyclic_core`/`find_polycyclic_
     core`'s own degree-2/3 core requirement, so this never misfires on a
     genuine spiro system. Restricted to exactly one ketone on the ring
-    system itself, no coexisting hydroxyl, no ring unsaturation -- a
-    coexisting hydroxyl and the remaining 12 suffix modules are out of
-    scope for this step (M2's later steps).
+    system itself, no ring unsaturation. A coexisting hydroxyl is
+    supported on the bicyclic/polycyclic branch only (#1029) -- the
+    monospiro branch and the remaining 12 suffix modules are out of scope
+    for this step (M2's later steps).
 
     A recognized steroid parent hydride skeleton (#1025 M1 step 1) is
     checked before the specified-stereocenter rejection below, not after:
@@ -1908,12 +1909,10 @@ def _name_von_baeyer_or_spiro_ketone(mol, ketones, hydroxyls, stereo, bonds):
     cite stereodescriptors (P-92 citation on a steroid name is separate,
     unimplemented future work) -- so a steroid match's own stereo is
     deliberately dropped rather than rejected, while a non-steroid
-    polycyclic ketone's stereo is rejected exactly as before."""
-    if hydroxyls:
-        raise UnsupportedStructure(
-            "a hydroxyl alongside a von Baeyer bicyclic/polycyclic or "
-            "monospiro ketone is not supported yet"
-        )
+    polycyclic ketone's stereo is rejected exactly as before. A coexisting
+    hydroxyl also isn't supported yet on a steroid parent (#1027's own
+    scope note), so the steroid check is skipped entirely when one is
+    present."""
     if len(ketones) != 1:
         raise UnsupportedStructure(
             "more than one ketone on a von Baeyer bicyclic/polycyclic or "
@@ -1929,9 +1928,10 @@ def _name_von_baeyer_or_spiro_ketone(mol, ketones, hydroxyls, stereo, bonds):
     graph = adjacency(mol)
     (ketone_carbon,) = graph[ketone_oxygen]
 
-    steroid_name = _steroid_ketone_name(mol, ketone_oxygen, ketone_carbon)
-    if steroid_name is not None:
-        return steroid_name
+    if not hydroxyls:
+        steroid_name = _steroid_ketone_name(mol, ketone_oxygen, ketone_carbon)
+        if steroid_name is not None:
+            return steroid_name
 
     if stereo is not None:
         raise UnsupportedStructure(
@@ -1949,8 +1949,22 @@ def _name_von_baeyer_or_spiro_ketone(mol, ketones, hydroxyls, stereo, bonds):
                 von_baeyer_ring_count = candidate_ring_count
                 break
     if bicyclic_core is not None or polycyclic_core is not None:
+        extra_substituents = {oxygen: "hydroxy" for oxygen in hydroxyls}
         return name_von_baeyer_suffix(
-            mol, ketone_carbon, ketones, "one", "ketone", bicyclic_core, polycyclic_core, von_baeyer_ring_count
+            mol,
+            ketone_carbon,
+            ketones,
+            "one",
+            "ketone",
+            bicyclic_core,
+            polycyclic_core,
+            von_baeyer_ring_count,
+            extra_substituents=extra_substituents,
+        )
+
+    if hydroxyls:
+        raise UnsupportedStructure(
+            "a hydroxyl alongside a monospiro ketone is not supported yet"
         )
 
     spiro_atom = find_monospiro_atom(mol)
