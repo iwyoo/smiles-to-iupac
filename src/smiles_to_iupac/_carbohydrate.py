@@ -55,7 +55,14 @@ Recommendations ("the Blue Book"), Chapter P-10
   priority order never depends on the configuration further round the
   ring: the ring-oxygen branch always outranks the exocyclic-hydroxyl
   branch on reaching a carbon vs. a lone hydrogen one atom out, a purely
-  local comparison). L-series pyranoses and furanoses (5-membered ring)
+  local comparison). A D-aldohexofuranose (the 5-membered ring form --
+  C-1 through C-4 in the ring, C-5/C-6 an exocyclic -CH(OH)-CH2OH tail on
+  C-4) reuses the identical mechanism, with the ring-closing carbon one
+  position earlier (C-4 instead of C-5): the same alpha='S'/beta='R'
+  anomeric mapping holds unchanged, but the CIP-flip position shifts to
+  C-3 instead of C-4 (confirmed against 4 real PubChem D-hexofuranose
+  structures, #1039 M2 step 2) -- see `_ring_stem_pattern`'s own
+  `flip_index` parameter. L-series pyranoses/furanoses and ketofuranoses
   are out of scope here (later M2 steps).
 
 Scope, deliberately narrow (first pass at carbohydrate nomenclature,
@@ -63,16 +70,17 @@ Scope, deliberately narrow (first pass at carbohydrate nomenclature,
 2-ketose (WS1/M1 step 2) backbone -- a terminal aldehyde or a C-2
 carbonyl flanked by a terminal -CH2OH, 1 to 5 more -CH(OH)-
 chirality-bearing carbons, and a second terminal -CH2OH, 3 to 7 (aldose)
-or 4 to 6 (2-ketose) carbons total; or a D-aldohexopyranose cyclic form
-(WS2/M2 step 1) -- see above. Every stereocenter's configuration must be
-specified, with no substituent anywhere beyond each ring/chain carbon's
-own single -OH (or, at the terminal/anomeric carbons, none beyond what
-the aldehyde/-CH2OH/carbonyl/ring-hemiacetal shape itself requires). A
-ketose with its carbonyl at C-3 or higher (#1041's own later scope), any
-aldose/ketose beyond 7 carbons (octoses/nonoses/decoses each have their
-own group-count shape, later M1 steps), an L-series or furanose cyclic
-form or a cyclic ketose (later M2 steps), deoxy/amino sugars, glycosides,
-and any other substituent are all out of scope here -- a molecule
+or 4 to 6 (2-ketose) carbons total; or a D-aldohexopyranose or
+D-aldohexofuranose cyclic form (WS2/M2 steps 1/2) -- see above. Every
+stereocenter's configuration must be specified, with no substituent
+anywhere beyond each ring/chain carbon's own single -OH (or, at the
+terminal/anomeric carbons, none beyond what the aldehyde/-CH2OH/
+carbonyl/ring-hemiacetal shape itself requires). A ketose with its
+carbonyl at C-3 or higher (#1041's own later scope), any aldose/ketose
+beyond 7 carbons (octoses/nonoses/decoses each have their own
+group-count shape, later M1 steps), an L-series cyclic form or a cyclic
+ketose (later M2 steps), deoxy/amino sugars, glycosides, and any other
+substituent are all out of scope here -- a molecule
 matching any of those still falls through to whatever it names today
 (generic acyclic-aldehyde/ketone/polyol naming for an open chain, or
 `_ketone.py`'s hetero-ring-ketone path for most cyclic shapes -- see that
@@ -339,6 +347,22 @@ def name_open_chain_2_ketose(mol) -> str:
 _ANOMERIC_DESCRIPTORS = {"S": "alpha", "R": "beta"}
 
 
+def _exocyclic_oxygen(graph, oxygens, ring_set, atom_idx):
+    """The single exocyclic oxygen substituent on ring atom `atom_idx`, or
+    None if it doesn't have exactly one. Shared by the pyranose/furanose
+    ring-shape detectors below."""
+    candidates = [n for n in graph[atom_idx] if n in oxygens and n not in ring_set]
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def _exocyclic_carbon(graph, oxygens, ring_set, atom_idx):
+    """The single exocyclic carbon substituent on ring atom `atom_idx`, or
+    None if it doesn't have exactly one. Shared by the pyranose/furanose
+    ring-shape detectors below."""
+    candidates = [n for n in graph[atom_idx] if n not in ring_set and n not in oxygens]
+    return candidates[0] if len(candidates) == 1 else None
+
+
 def _pyranose_ring_order(mol):
     """`(C-1, C-2, C-3, C-4, C-5, C-6)` for a plain D-aldohexopyranose
     ring, or None if `mol` doesn't have this exact shape (see module
@@ -370,12 +394,10 @@ def _pyranose_ring_order(mol):
         return None
 
     def exocyclic_oxygen(atom_idx):
-        candidates = [n for n in graph[atom_idx] if n in oxygens and n not in ring_set]
-        return candidates[0] if len(candidates) == 1 else None
+        return _exocyclic_oxygen(graph, oxygens, ring_set, atom_idx)
 
     def exocyclic_carbon(atom_idx):
-        candidates = [n for n in graph[atom_idx] if n not in ring_set and n not in oxygens]
-        return candidates[0] if len(candidates) == 1 else None
+        return _exocyclic_carbon(graph, oxygens, ring_set, atom_idx)
 
     c1 = c5 = None
     for candidate in ring_neighbors:
@@ -414,25 +436,116 @@ def _pyranose_ring_order(mol):
     return order + (c6,)
 
 
-def _ring_stem_pattern(mol, order):
+def _furanose_ring_order(mol):
+    """`(C-1, C-2, C-3, C-4, C-5, C-6)` for a plain D-aldohexofuranose
+    ring, or None if `mol` doesn't have this exact shape (P-102.3.4.1): a
+    single saturated, non-aromatic 5-membered ring with exactly one ring
+    oxygen; one ring carbon adjacent to it (C-1, the anomeric carbon)
+    bearing one exocyclic -OH; the ring oxygen's other neighbor (C-4)
+    bearing one exocyclic -CH(OH)- (C-5) that itself bears one plain
+    -CH2OH (C-6); and the remaining 2 ring carbons (C-2, C-3 -- one fewer
+    than pyranose's 3, since the ring itself is one atom smaller) each
+    bearing exactly one exocyclic -OH -- no other substituent, and no
+    heavy atom anywhere in the molecule outside the ring, C-5/C-6, and
+    these oxygens."""
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() != 1:
+        return None
+    ring = ring_info.AtomRings()[0]
+    if len(ring) != 5 or any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring):
+        return None
+    ring_set = set(ring)
+    ring_oxygens = [a for a in ring if mol.GetAtomWithIdx(a).GetSymbol() == "O"]
+    if len(ring_oxygens) != 1:
+        return None
+    (ring_oxygen,) = ring_oxygens
+    if any(mol.GetAtomWithIdx(a).GetSymbol() != "C" for a in ring if a != ring_oxygen):
+        return None
+
+    graph = adjacency(mol)
+    oxygens = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetSymbol() == "O"}
+    ring_neighbors = [n for n in graph[ring_oxygen] if n in ring_set]
+    if len(ring_neighbors) != 2:
+        return None
+
+    def exocyclic_oxygen(atom_idx):
+        return _exocyclic_oxygen(graph, oxygens, ring_set, atom_idx)
+
+    def exocyclic_carbon(atom_idx):
+        return _exocyclic_carbon(graph, oxygens, ring_set, atom_idx)
+
+    c1 = c4 = None
+    for candidate in ring_neighbors:
+        if mol.GetAtomWithIdx(candidate).GetDegree() != 3:
+            return None
+        if exocyclic_oxygen(candidate) is not None:
+            c1 = candidate
+        elif exocyclic_carbon(candidate) is not None:
+            c4 = candidate
+    if c1 is None or c4 is None or c1 == c4:
+        return None
+
+    anomeric_oxygen = exocyclic_oxygen(c1)
+    if mol.GetBondBetweenAtoms(c1, anomeric_oxygen).GetBondTypeAsDouble() != 1.0:
+        return None
+    if mol.GetAtomWithIdx(anomeric_oxygen).GetTotalNumHs() != 1:
+        return None
+
+    for middle_carbon in ring_set - {ring_oxygen, c1, c4}:
+        if mol.GetAtomWithIdx(middle_carbon).GetDegree() != 3:
+            return None
+        if exocyclic_oxygen(middle_carbon) is None:
+            return None
+
+    c5 = exocyclic_carbon(c4)
+    if c5 is None or mol.GetAtomWithIdx(c5).GetDegree() != 3:
+        return None
+    c5_oxygen = _exocyclic_oxygen(graph, oxygens, ring_set | {c5}, c5)
+    if c5_oxygen is None or mol.GetBondBetweenAtoms(c5, c5_oxygen).GetBondTypeAsDouble() != 1.0:
+        return None
+    if mol.GetAtomWithIdx(c5_oxygen).GetTotalNumHs() != 1:
+        return None
+    c6_candidates = [n for n in graph[c5] if n not in ring_set and n != c5_oxygen]
+    if len(c6_candidates) != 1:
+        return None
+    (c6,) = c6_candidates
+    if not _is_terminal_ch2oh(mol, graph, oxygens, c6):
+        return None
+
+    if mol.GetNumAtoms() != 12:
+        return None
+
+    rotated = ring[ring.index(ring_oxygen) :] + ring[: ring.index(ring_oxygen)]
+    order = rotated[1:]
+    if order[0] == c4:
+        order = tuple(reversed(order))
+    return order + (c5, c6)
+
+
+def _ring_stem_pattern(mol, order, flip_index):
     """The open-chain-equivalent CIP pattern at C-2..C-5, for lookup in
-    `_D_ALDOSE_PATTERNS`, or None if any is unspecified. C-4's own CIP
-    label (the pattern's third entry) must be flipped relative to what
-    `_cip_pattern` reads directly off the ring atom: its priority order
-    depends on which neighboring branch (towards C-3 vs. towards C-5)
-    ranks higher, and the ring closure changes that ranking without
-    changing the spatial configuration at all -- in the open-chain form
-    C-5 is a plain -CH(OH)-, but in the ring C-5 is bonded to the ring
-    oxygen (which itself continues on to the anomeric C-1), a
-    higher-priority substituent than the open-chain form's own -OH ever
-    was, which reorders C-4's two ring-ward branches and flips its CIP
-    label even though nothing physically moved. Confirmed empirically
-    against all 8 D-hexopyranose stem names (#1039 M2 step 1) -- C-2,
-    C-3, and C-5's own labels are unaffected."""
+    `_D_ALDOSE_PATTERNS`, or None if any is unspecified. The entry at
+    `flip_index` must be flipped relative to what `_cip_pattern` reads
+    directly off the ring atom: its priority order depends on which
+    neighboring branch (towards the anomeric C-1 side vs. towards the
+    ring-closing carbon side) ranks higher, and the ring closure changes
+    that ranking without changing the spatial configuration at all -- in
+    the open-chain form the ring-closing carbon's own position is a plain
+    -CH(OH)-, but in the ring it's bonded to the ring oxygen (which
+    itself continues on to the anomeric C-1), a higher-priority
+    substituent than the open-chain form's own -OH ever was, which
+    reorders that carbon's ring-ward neighbor's two branches and flips
+    its CIP label even though nothing physically moved. `flip_index` is
+    2 for a pyranose (the ring-closing carbon is C-5, so C-4's label
+    flips, #1039 M2 step 1) and 1 for a furanose (the ring-closing carbon
+    is C-4, so C-3's label flips, #1039 M2 step 2) -- confirmed
+    empirically for each against real D-hexose structures spanning all 8
+    stem names (pyranose) or 3 stem names (furanose); every other
+    position is unaffected in both ring sizes."""
     pattern = _cip_pattern(mol, order[1:5])
     if pattern is None:
         return None
-    return pattern[:2] + (_FLIP_CIP[pattern[2]],) + pattern[3:]
+    return pattern[:flip_index] + (_FLIP_CIP[pattern[flip_index]],) + pattern[flip_index + 1 :]
 
 
 def has_cyclic_aldopyranose_shape(mol) -> bool:
@@ -442,12 +555,30 @@ def has_cyclic_aldopyranose_shape(mol) -> bool:
     anomeric_pattern = _cip_pattern(mol, [order[0]])
     if anomeric_pattern is None or anomeric_pattern[0] not in _ANOMERIC_DESCRIPTORS:
         return False
-    pattern = _ring_stem_pattern(mol, order)
+    pattern = _ring_stem_pattern(mol, order, flip_index=2)
     return pattern is not None and pattern in _D_ALDOSE_PATTERNS
 
 
 def name_cyclic_aldopyranose(mol) -> str:
     order = _pyranose_ring_order(mol)
     anomeric_descriptor = _ANOMERIC_DESCRIPTORS[_cip_pattern(mol, [order[0]])[0]]
-    stem = _D_ALDOSE_PATTERNS[_ring_stem_pattern(mol, order)]
+    stem = _D_ALDOSE_PATTERNS[_ring_stem_pattern(mol, order, flip_index=2)]
     return f"{anomeric_descriptor}-D-{stem[:-2]}pyranose"
+
+
+def has_cyclic_aldofuranose_shape(mol) -> bool:
+    order = _furanose_ring_order(mol)
+    if order is None:
+        return False
+    anomeric_pattern = _cip_pattern(mol, [order[0]])
+    if anomeric_pattern is None or anomeric_pattern[0] not in _ANOMERIC_DESCRIPTORS:
+        return False
+    pattern = _ring_stem_pattern(mol, order, flip_index=1)
+    return pattern is not None and pattern in _D_ALDOSE_PATTERNS
+
+
+def name_cyclic_aldofuranose(mol) -> str:
+    order = _furanose_ring_order(mol)
+    anomeric_descriptor = _ANOMERIC_DESCRIPTORS[_cip_pattern(mol, [order[0]])[0]]
+    stem = _D_ALDOSE_PATTERNS[_ring_stem_pattern(mol, order, flip_index=1)]
+    return f"{anomeric_descriptor}-D-{stem[:-2]}furanose"
