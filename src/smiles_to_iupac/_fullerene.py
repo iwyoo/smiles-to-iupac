@@ -77,10 +77,44 @@ the same way, as a fourth exact-match entry:
   fullerene numbering (P-27.3) this project doesn't have yet) are each
   out of scope.
 
+A single methylene bridge across a 6,6-bond of the C60-Ih cage
+(P-27.4.1's homofullerene case) is recognized the same way, as a fifth
+exact-match entry:
+
+- Reference structure taken from PubChem CID 11422743 (formula C61H2,
+  InChIKey `JURXXEICUOUOOF-UHFFFAOYSA-N`)'s own connectivity SMILES,
+  cross-checked here via RDKit: 61 skeletal atoms, ring perception of
+  exactly 12 five-membered, 20 six-membered, and one new three-membered
+  ring (the bridging carbon fused across two former cage carbons).
+  Removing the bridging carbon and its two bonds leaves a graph whose
+  InChI connectivity layer is identical to the plain C60-Ih entry above
+  (only the two former bridgehead atoms' own implicit hydrogen count
+  differs, an artifact of re-sanitizing the cage without its third bond
+  restored, not a real structural difference) -- confirming this is the
+  same C60-Ih cage with one extra methylene bridged across an existing
+  bond, not a different cage. The two bridgehead atoms both belong to
+  two six-membered rings together (in addition to the new bridge ring),
+  confirming the bridge sits on a 6,6-bond (between two hexagons), not a
+  5,6-bond.
+- Named `1(9)aH-1(9)a-homo(C60-Ih)[5,6]fullerene` -- P-27.4.1's own
+  literal worked example (`tmp/bluebook/P2.txt` ~7483). C60-Ih's 6,6-
+  bonds form a single symmetry orbit (all 30 of them equivalent under
+  the Ih point group, the well-known basis for "the" 6,6-bond in
+  fullerene chemistry, e.g. PCBM-style methanofullerenes), so P-27.3's
+  systematic numbering always normalizes a 6,6-bond bridge to locants
+  1/9 regardless of which physical bond was bridged -- the literal
+  worked-example locant string applies to any such structure, not just
+  one specific orientation, so no separate general numbering
+  implementation is needed for this one exact-match case.
+- A bridge across a 5,6-bond instead, more than one bridge, the
+  homofullerene case on the C70/C76/sila-C60 cages, and the nor-/seco-/
+  cyclo- prefix families (P-27.4.2/.3/.4) are each out of scope --
+  separate, unresearched follow-up work.
+
 Explicitly out of scope: any substituent, any other fullerene cage size
-or isomer, any heteroatom replacement other than the single-silicon
-C60-Ih case above, and anything not exactly matching one of these four
-structures. `has_fullerene_name` returns False for all of these, so
+or isomer, any heteroatom or homo-bridge replacement other than the two
+single-site cases above, and anything not exactly matching one of these
+five structures. `has_fullerene_name` returns False for all of these, so
 `core.py`'s existing dispatch continues to raise `UnsupportedStructure`
 for them, unchanged.
 """
@@ -110,11 +144,18 @@ _SILA_C60_SMILES = (
     "C%11[Si]9=C1%12)C5=C43)C8=C62"
 )
 
+_HOMO_C60_SMILES = (
+    "C1C23C14C5=C6C7=C8C9=C1C%10=C%11C%12=C%13C%14=C%10C%10=C1C1=C%15C%16=C%17C%18="
+    "C%19C%20=C%21C%22=C%23C%24=C%25C%26=C(C7=C9C%11=C%26C%12=C%24C%22=C%13C%20=C%14"
+    "C%18=C%10%16)C7=C%25C9=C(C4=C76)C4=C2C(=C%17C3=C%15C5=C81)C%19=C%21C4=C%239"
+)
+
 _FULLERENE_NAMES = {
     Chem.CanonSmiles(_FULLERENE_C60_SMILES): "[60]fullerene",
     Chem.CanonSmiles(_FULLERENE_C70_SMILES): "(C70-D5h(6))[5,6]fullerene",
     Chem.CanonSmiles(_FULLERENE_C76_SMILES): "(C76-D2)[5,6]fullerene",
     Chem.CanonSmiles(_SILA_C60_SMILES): "sila(C60-Ih)[5,6]fullerene",
+    Chem.CanonSmiles(_HOMO_C60_SMILES): "1(9)aH-1(9)a-homo(C60-Ih)[5,6]fullerene",
 }
 
 
