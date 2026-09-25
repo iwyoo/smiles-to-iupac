@@ -36,6 +36,7 @@ from ._common import (
     group_substituents,
     halogen_substituents,
     non_single_bonds,
+    specified_stereocenters,
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
@@ -135,10 +136,28 @@ def name_monospiro(mol, spiro_atom) -> str:
 
     best_key = None
     best_name = None
+    best_order = None
     for parent, full_order in iter_monospiro_numberings(mol, spiro_atom):
         substituents = substituents_for_ring(graph, full_order, halogens)
         key = _candidate_key(parent, substituents)
         if best_key is None or key < best_key:
-            best_key, best_name = key, key[-1]
+            best_key, best_name, best_order = key, key[-1], full_order
 
-    return best_name
+    stereo = specified_stereocenters(mol)
+    if stereo is None:
+        return best_name
+
+    # P-92: every specified stereocenter must lie on one of the two spiro
+    # rings themselves (P-92 doesn't affect which numbering wins -- the
+    # locants below just read off the already-chosen best_order, same as
+    # `_acyclic.py`'s identical principal-chain-only restriction). A
+    # stereocenter on a substituent branch off a ring atom is out of scope.
+    position_of = {atom: i + 1 for i, atom in enumerate(best_order)}
+    if any(atom not in position_of for atom, _ in stereo):
+        raise UnsupportedStructure(
+            "a stereocenter on a substituent branch rather than the spiro "
+            "ring skeleton itself is not supported yet (see P-92)"
+        )
+    labels = sorted((position_of[atom], code) for atom, code in stereo)
+    prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+    return f"({prefix})-{best_name}"
