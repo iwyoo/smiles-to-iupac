@@ -169,3 +169,27 @@ def test_two_different_halogenated_phenyls_raises():
     # Unregistered in PubChem (CID 0) -- punctuation unconfirmed.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("Clc1ccc(cc1)P(c1ccc(F)cc1)")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem CID 20632106 -- five identical substituents, the P-14.1
+        # λ-convention worked example's own bonding number (5).
+        ("CP(C)(C)(C)C", "pentamethyl-λ5-phosphane"),
+        # PubChem CID 87256851 -- a mixed substituent set. PubChem's own
+        # computed name ("ethyl(tetramethyl)-lambda5-phosphane") doesn't
+        # follow this project's already-established, Blue-Book-confirmed
+        # multiplying-prefix-outside-parens rule (see the module's own
+        # "ethyldi(methyl)phosphane (PIN)" worked example above) -- not
+        # trusted for punctuation, only for structure existence.
+        ("CCP(C)(C)(C)C", "ethyltetra(methyl)-λ5-phosphane"),
+        # Blue Book P-14.1.3's own worked example: (C6H5)3PH2 (three
+        # phenyl substituents plus two explicit ring-nitrogen-free H's,
+        # bonding number 5 reached via bracket-notation H count rather
+        # than five written substituents).
+        ("c1ccccc1[PH2](c1ccccc1)c1ccccc1", "triphenyl-λ5-phosphane"),
+    ],
+)
+def test_lambda5_phosphane(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
