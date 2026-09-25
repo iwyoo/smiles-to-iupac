@@ -1272,6 +1272,26 @@ def specified_stereocenters(mol):
     return labels
 
 
+def stereo_locants_prefix(stereo, position_of):
+    """Format `specified_stereocenters`' `(atom_idx, "R"/"S")` pairs into a
+    `"(<locant><R/S>,...)-"` prefix (P-91.3's ascending-locant citation
+    order), once the caller's own numbering has fixed each atom's locant
+    via `position_of` (`{atom_idx: locant}`). Raises `UnsupportedStructure`
+    if any stereocenter isn't a key of `position_of` -- P-92: a
+    stereocenter outside the caller's own principal chain/ring skeleton
+    (e.g. on a substituent branch) is out of scope everywhere this is
+    used. Shared by `_acyclic.py`, `_spiro.py`, and `_spiro_heteroatom.py`
+    (each otherwise had its own copy of this exact formatting logic)."""
+    if any(atom not in position_of for atom, _ in stereo):
+        raise UnsupportedStructure(
+            "a stereocenter on a substituent branch rather than the "
+            "principal chain/ring skeleton is not supported yet (see P-92)"
+        )
+    labels = sorted((position_of[atom], code) for atom, code in stereo)
+    prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+    return f"({prefix})-"
+
+
 def heteroatom_stereo_prefix(mol, heteroatom_idx):
     """None if `mol` has no specified stereocenter at all (the caller
     proceeds exactly as before). "(R)-"/"(S)-" if the molecule's sole

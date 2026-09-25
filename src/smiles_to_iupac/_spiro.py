@@ -37,6 +37,7 @@ from ._common import (
     halogen_substituents,
     non_single_bonds,
     specified_stereocenters,
+    stereo_locants_prefix,
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
@@ -153,11 +154,4 @@ def name_monospiro(mol, spiro_atom) -> str:
     # `_acyclic.py`'s identical principal-chain-only restriction). A
     # stereocenter on a substituent branch off a ring atom is out of scope.
     position_of = {atom: i + 1 for i, atom in enumerate(best_order)}
-    if any(atom not in position_of for atom, _ in stereo):
-        raise UnsupportedStructure(
-            "a stereocenter on a substituent branch rather than the spiro "
-            "ring skeleton itself is not supported yet (see P-92)"
-        )
-    labels = sorted((position_of[atom], code) for atom, code in stereo)
-    prefix = ",".join(f"{locant}{code}" for locant, code in labels)
-    return f"({prefix})-{best_name}"
+    return stereo_locants_prefix(stereo, position_of) + best_name
