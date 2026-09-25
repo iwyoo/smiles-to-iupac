@@ -34,7 +34,15 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents, non_single_bonds
+from ._common import (
+    HALOGEN_PREFIXES,
+    UnsupportedStructure,
+    adjacency,
+    halogen_substituents,
+    non_single_bonds,
+    specified_stereocenters,
+    stereo_locants_prefix,
+)
 from ._substituents import substituents_for_ring
 from ._spiro import _candidate_key, iter_monospiro_numberings
 
@@ -107,6 +115,7 @@ def name_spiro_heteroatom(mol, spiro_atom) -> str:
     halogens = halogen_substituents(mol)
 
     best_key = None
+    best_order = None
     for parent, full_order in iter_monospiro_numberings(mol, spiro_atom):
         heteroatom_locant = full_order.index(heteroatom_idx) + 1
         substituents = substituents_for_ring(graph, full_order, halogens)
@@ -117,6 +126,16 @@ def name_spiro_heteroatom(mol, spiro_atom) -> str:
             nondetachable_prefix=f"{heteroatom_locant}-{a_prefix}",
         )
         if best_key is None or key < best_key:
-            best_key = key
+            best_key, best_order = key, full_order
 
-    return best_key[-1]
+    best_name = best_key[-1]
+    stereo = specified_stereocenters(mol)
+    if stereo is None:
+        return best_name
+
+    # P-92: same restriction and mechanism as `_spiro.py`'s identical
+    # stereo-prefix wiring -- every specified stereocenter must lie on
+    # one of the two spiro rings themselves (the ring heteroatom itself
+    # is a legitimate stereocenter position here too).
+    position_of = {atom: i + 1 for i, atom in enumerate(best_order)}
+    return stereo_locants_prefix(stereo, position_of) + best_name
