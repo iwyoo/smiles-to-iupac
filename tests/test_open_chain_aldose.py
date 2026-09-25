@@ -56,12 +56,14 @@ def test_open_chain_aldose_naming(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_ketose_still_falls_through_unchanged():
-    # keto-D-fructose (PubChem CID 5984) -- a ketose, not an aldose, so
-    # it's still out of scope here (later M1 step, #1041) and must keep
-    # getting the existing generic substitutive ketone name unchanged.
-    assert smiles_to_iupac("C([C@H]([C@H]([C@@H](C(=O)CO)O)O)O)O") == (
-        "(3S,4R,5R)-1,3,4,5,6-pentahydroxyhexan-2-one"
+def test_3_ulose_still_falls_through_unchanged():
+    # A ketose with its carbonyl at C-3 (not a 2-ketose) has no retained
+    # name (P-102.5.2.3) and stays out of scope here (see
+    # test_open_chain_2_ketose.py for the 2-ketose case, #1041), so it
+    # must keep getting the existing generic substitutive ketone name
+    # unchanged.
+    assert smiles_to_iupac("OC[C@H](O)C(=O)[C@H](O)[C@H](O)CO") == (
+        "(2S,4R,5R)-1,2,4,5,6-pentahydroxyhexan-3-one"
     )
 
 
