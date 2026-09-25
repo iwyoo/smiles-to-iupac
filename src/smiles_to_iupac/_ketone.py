@@ -318,9 +318,9 @@ from ._hetero_monocyclic import (
 )
 from ._numerals import alkyl_name
 from ._polycyclic import find_polycyclic_core
-from ._polycyclic_suffix import _suffixed_parent, name_monospiro_suffix, name_von_baeyer_suffix
+from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
 from ._spiro import find_monospiro_atom
-from ._steroid_parent_hydrides import _PLAIN_CANONICAL_TO_NAME, _locant_map
+from ._steroid_parent_hydrides import steroid_suffix_name
 from ._substituents import (
     branch_atom_locant,
     format_substituent_prefixes,
@@ -1859,32 +1859,11 @@ def name_ketone(mol) -> str:
 
 
 def _steroid_ketone_name(mol, ketone_oxygen, ketone_carbon):
-    """If the ring system, with the ketone's oxygen replaced by two
-    hydrogens, exactly matches one of `_steroid_parent_hydrides.py`'s
-    seven bare parent skeletons (constitution only, stereochemistry
-    ignored -- see `_PLAIN_CANONICAL_TO_NAME`'s own docstring note), return
-    the retained steroid name with the ketone's fixed steroid locant (e.g.
-    'androstan-3-one'). Otherwise return None -- a non-steroid polycyclic
-    ketone, or a steroid skeleton not among the seven recognized here (see
-    P-31/P-101 epic #1025 M1 step 1)."""
-    rw = Chem.RWMol(mol)
-    rw.RemoveAtom(ketone_oxygen)
-    stripped = rw.GetMol()
-    try:
-        Chem.SanitizeMol(stripped)
-    except Chem.rdchem.KekulizeException:
-        return None
-    Chem.RemoveStereochemistry(stripped)
-    name = _PLAIN_CANONICAL_TO_NAME.get(Chem.MolToSmiles(stripped))
-    if name is None:
-        return None
-
-    new_ketone_carbon = ketone_carbon - (1 if ketone_carbon > ketone_oxygen else 0)
-    locant_of_atom = {atom: locant for locant, atom in _locant_map(name, stripped).items()}
-    locant = locant_of_atom.get(new_ketone_carbon)
-    if locant is None:
-        return None
-    return _suffixed_parent(name, locant, "one", elide_e=True)
+    """Thin `_ketone.py`-specific wrapper over `_steroid_parent_hydrides.
+    steroid_suffix_name` (originally implemented here directly, #1027;
+    extracted into a suffix-agnostic shared helper and reused by
+    `_alcohol.py` in #1025 M1 step 2)."""
+    return steroid_suffix_name(mol, ketone_oxygen, ketone_carbon, "one")
 
 
 def _name_von_baeyer_or_spiro_ketone(mol, ketones, hydroxyls, stereo, bonds):

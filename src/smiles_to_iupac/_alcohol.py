@@ -231,6 +231,7 @@ from ._numerals import alkyl_name
 from ._polycyclic import find_polycyclic_core
 from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
 from ._spiro import find_monospiro_atom
+from ._steroid_parent_hydrides import steroid_suffix_name
 from ._substituents import (
     branch_atom_locant,
     format_substituent_prefixes,
@@ -749,7 +750,18 @@ def _name_von_baeyer_alcohol(mol, hydroxyls, stereo, bonds, bicyclic_core, polyc
     by P-23.2.3's own numbering rule regardless of where the -OH sits, so
     the -OH's own locant is never structurally forced and is always
     explicitly cited, e.g. 'bicyclo[2.2.1]heptan-2-ol' (confirmed against
-    PubChem's own IUPACName for CID 19809, 'OC1CC2CCC1C2')."""
+    PubChem's own IUPACName for CID 19809, 'OC1CC2CCC1C2').
+
+    A recognized steroid parent hydride skeleton (#1025 M1 step 1/step 2)
+    is checked before the specified-stereocenter rejection below, not
+    after -- mirrors `_ketone.py`'s identical steroid-before-stereo-gate
+    ordering (`_name_von_baeyer_or_spiro_ketone`): a real steroid
+    alcohol's own isomeric SMILES is normally fully stereo-specified, and
+    this project's steroid retained names don't yet cite stereodescriptors
+    (P-92 citation on a steroid name is separate, unimplemented future
+    work), so a steroid match's own stereo is deliberately dropped rather
+    than rejected, while a non-steroid polycyclic alcohol's stereo is
+    rejected exactly as before."""
     if len(hydroxyls) != 1:
         raise UnsupportedStructure(
             "more than one hydroxyl on a von Baeyer bicyclic/polycyclic "
@@ -760,15 +772,19 @@ def _name_von_baeyer_alcohol(mol, hydroxyls, stereo, bonds, bicyclic_core, polyc
             "an unsaturated von Baeyer bicyclic/polycyclic ring system is "
             "not supported yet (see P-31.1.4)"
         )
+
+    (oh_oxygen,) = hydroxyls
+    graph = adjacency(mol)
+    (oh_carbon,) = graph[oh_oxygen]
+    steroid_name = steroid_suffix_name(mol, oh_oxygen, oh_carbon, "ol")
+    if steroid_name is not None:
+        return steroid_name
+
     if stereo is not None:
         raise UnsupportedStructure(
             "a specified stereocenter alongside a von Baeyer bicyclic/"
             "polycyclic alcohol is not supported yet (see P-92)"
         )
-
-    (oh_oxygen,) = hydroxyls
-    graph = adjacency(mol)
-    (oh_carbon,) = graph[oh_oxygen]
     return name_von_baeyer_suffix(
         mol, oh_carbon, hydroxyls, "ol", "hydroxyl", bicyclic_core, polycyclic_core, ring_count
     )
