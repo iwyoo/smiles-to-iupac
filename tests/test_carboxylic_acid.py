@@ -271,15 +271,13 @@ def test_phenyl_substituent_carboxylic_acid_branched_acid_chain():
 
 
 def test_amine_coexisting_demotes_to_amino_prefix():
-    # glycine (H2N-CH2-COOH): a coexisting primary amine is junior to -COOH
-    # (Table 3.3) and demoted to the 'amino' prefix (see
-    # _carboxylic_acid_amine.py) rather than rejected. This project's own
-    # `_carboxylic_acid.py` always uses the systematic 'ethanoic acid' stem
-    # rather than the retained 'acetic acid' PubChem uses for glycine's
-    # actual PIN ('2-aminoacetic acid', CID 750) -- see
-    # _carboxylic_acid_amine.py's module docstring for that pre-existing,
-    # inherited divergence.
-    assert smiles_to_iupac("NCC(=O)O") == "2-aminoethanoic acid"
+    # 3-aminobutanoic acid (CC(N)CC(=O)O): a coexisting primary amine is
+    # junior to -COOH (Table 3.3) and demoted to the 'amino' prefix (see
+    # _carboxylic_acid_amine.py) rather than rejected. Not glycine (the
+    # module's own former example) -- glycine now gets its own P-103
+    # retained name via `_amino_acid.py`, so this molecule keeps
+    # exercising the plain demotion path this test is actually about.
+    assert smiles_to_iupac("CC(N)CC(=O)O") == "3-aminobutanoic acid"
 
 
 def test_alcohol_mix_names_hydroxy_prefix():
