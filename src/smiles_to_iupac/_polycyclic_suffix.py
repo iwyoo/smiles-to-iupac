@@ -54,7 +54,16 @@ def _suffixed_parent(base_parent, locant, suffix_word, elide_e):
 
 
 def name_von_baeyer_suffix(
-    mol, suffix_carbon, excluded, suffix_word, noun, bicyclic_core, polycyclic_core, ring_count, elide_e=True
+    mol,
+    suffix_carbon,
+    excluded,
+    suffix_word,
+    noun,
+    bicyclic_core,
+    polycyclic_core,
+    ring_count,
+    elide_e=True,
+    extra_substituents=None,
 ):
     """`suffix_carbon`: the single ring atom the suffix is attached to.
     `excluded`: heteroatom indices to keep out of `substituents_for_ring`'s
@@ -62,7 +71,14 @@ def name_von_baeyer_suffix(
     `suffix_word`: appended after the parent stem (see `_suffixed_parent`
     for the `elide_e` rule, e.g. 'ol' -> 'bicyclo[2.2.1]heptan-2-ol',
     'thiol' -> 'bicyclo[2.2.1]heptane-2-thiol'). `noun`: used only in the
-    not-on-the-ring-system error message (e.g. 'hydroxyl', 'amine')."""
+    not-on-the-ring-system error message (e.g. 'hydroxyl', 'amine').
+    `extra_substituents`: an optional `{atom_idx: name}` dict merged
+    alongside the usual halogen substituents (e.g. a coexisting hydroxyl
+    cited as a prefix, mirroring `_name_cyclic_ketone`'s identical
+    monocyclic pattern, #1029) -- unlike `excluded`, these atoms are NOT
+    excluded from `substituents_for_ring`'s own branch-root search; they
+    must still be found as a branch root there so this dict's name gets
+    attached to them."""
     core_atoms = von_baeyer_core_atoms(bicyclic_core, polycyclic_core)
     if suffix_carbon not in core_atoms:
         raise UnsupportedStructure(
@@ -70,7 +86,7 @@ def name_von_baeyer_suffix(
             "(e.g. on a substituent branch) is not supported yet"
         )
 
-    halogens = halogen_substituents(mol)
+    halogens = {**halogen_substituents(mol), **(extra_substituents or {})}
     graph = adjacency(mol)
     best_key = None
     if bicyclic_core is not None:
