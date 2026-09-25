@@ -15,6 +15,7 @@ from ._aldehyde import name_aldehyde
 from ._aldehyde_amine import has_aldehyde_amine_shape, name_aldehyde_amine
 from ._ketone_amine import has_ketone_amine_shape, name_ketone_amine
 from ._amino_acid import has_amino_acid_shape, name_amino_acid
+from ._proline import has_proline_shape, name_proline
 from ._carboxylic_acid_amine import has_carboxylic_acid_amine_shape, name_carboxylic_acid_amine
 from ._aldehyde_carboxylic_acid import (
     has_aldehyde_carboxylic_acid_shape,
@@ -1417,6 +1418,12 @@ def smiles_to_iupac(smiles: str) -> str:
         # false-claim reasoning as the aldopyranose/aldofuranose checks above.
         if has_cyclic_ketohexopyranose_shape(mol):
             return name_cyclic_ketohexopyranose(mol)
+        # Proline's pyrrolidine ring (P-103.1.2) is a plain secondary
+        # cyclic amine, not an actual ring ketone either -- same
+        # `has_hetero_ring_ketone_shape` false-claim reasoning as the
+        # sugar-ring checks above.
+        if has_proline_shape(mol):
+            return name_proline(mol)
         # A ketone carbonyl directly bonded to a saturated single- or
         # 1,4-two-heteroatom ring's own O/S heteroatom (a lactone, e.g.
         # oxan-2-one/1,4-dioxan-2-one) looks ester-shaped to
