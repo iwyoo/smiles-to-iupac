@@ -61,11 +61,11 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 - A hydroxyl on a carbon that is also part of a C=C/C#C bond (an enol,
   tautomeric with a more senior carbonyl form) — same restriction as
   `_alcohol.py`'s own enol check.
-- More than one ketone, or a coexisting hydroxyl, on a von Baeyer
-  polycyclic or spiro skeleton, or a specified stereocenter alongside
-  one — deferred (see `_name_von_baeyer_or_spiro_ketone`); a single
-  -one on such a skeleton is supported (P-23/P-24 numbering
-  integration, `_polycyclic_suffix.py`).
+- More than one ketone, or a specified stereocenter, on a von Baeyer
+  polycyclic or spiro skeleton — deferred (see
+  `_name_von_baeyer_or_spiro_ketone`); a single -one on such a skeleton,
+  optionally with one or more coexisting hydroxyls, is supported (P-23/
+  P-24 numbering integration, `_polycyclic_suffix.py`, #1029/#1047).
 
 A narrow extra path handles one or more ketone carbonyls on an otherwise
 unsubstituted, saturated, single- or two-heteroatom (N/O/S) monocyclic
@@ -1877,9 +1877,10 @@ def _name_von_baeyer_or_spiro_ketone(mol, ketones, hydroxyls, stereo, bonds):
     core`'s own degree-2/3 core requirement, so this never misfires on a
     genuine spiro system. Restricted to exactly one ketone on the ring
     system itself, no ring unsaturation. A coexisting hydroxyl is
-    supported on the bicyclic/polycyclic branch only (#1029) -- the
-    monospiro branch and the remaining 12 suffix modules are out of scope
-    for this step (M2's later steps).
+    supported on both the bicyclic/polycyclic branch (#1029) and the
+    monospiro branch (#1047) -- the remaining suffix modules that share
+    `_polycyclic_suffix.py` are out of scope for this step (later M3
+    steps).
 
     A recognized steroid parent hydride skeleton (#1025 M1 step 1) is
     checked before the specified-stereocenter rejection below, not after:
@@ -1941,14 +1942,12 @@ def _name_von_baeyer_or_spiro_ketone(mol, ketones, hydroxyls, stereo, bonds):
             extra_substituents=extra_substituents,
         )
 
-    if hydroxyls:
-        raise UnsupportedStructure(
-            "a hydroxyl alongside a monospiro ketone is not supported yet"
-        )
-
     spiro_atom = find_monospiro_atom(mol)
     if spiro_atom is not None:
-        return name_monospiro_suffix(mol, ketone_carbon, ketones, "one", "ketone", spiro_atom)
+        extra_substituents = {oxygen: "hydroxy" for oxygen in hydroxyls}
+        return name_monospiro_suffix(
+            mol, ketone_carbon, ketones, "one", "ketone", spiro_atom, extra_substituents=extra_substituents
+        )
 
     raise UnsupportedStructure(
         "polycyclic and fused-ring ketones are not supported yet (P-23/"
