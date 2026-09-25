@@ -21,7 +21,12 @@ from ._aldehyde_carboxylic_acid import (
 )
 from ._carboxylic_acid_amide import has_carboxylic_acid_amide_shape, name_carboxylic_acid_amide
 from ._aldehyde_ketone import has_aldehyde_ketone_shape, name_aldehyde_ketone
-from ._carbohydrate import has_open_chain_aldose_shape, name_open_chain_aldose
+from ._carbohydrate import (
+    has_open_chain_2_ketose_shape,
+    has_open_chain_aldose_shape,
+    name_open_chain_2_ketose,
+    name_open_chain_aldose,
+)
 from ._acetal import has_acetal_shape, name_acetal
 from ._amide import has_amide_shape, name_amide
 from ._amide_amine import has_amide_amine_shape, name_amide_amine
@@ -1566,6 +1571,14 @@ def smiles_to_iupac(smiles: str) -> str:
                 return name_open_chain_aldose(mol)
             if any(_is_aldehyde_shaped(o) for o in carbonyl_oxygens):
                 return name_aldehyde(mol)
+            # A plain open-chain 2-ketose (P-102.5.2.1/P-102.5.2.2, #1039
+            # M1 step 2) is itself ketone-shaped (a non-terminal
+            # carbonyl), so it must be routed before the generic ketone
+            # fallback below, which would otherwise name it as a plain
+            # polyhydroxy-ketone substitutive name instead of its
+            # carbohydrate name.
+            if has_open_chain_2_ketose_shape(mol):
+                return name_open_chain_2_ketose(mol)
             return name_ketone(mol)
         # P-41/Table 3.3: '-ol' also outranks 'amine', so one or more
         # hydroxyls coexisting with a primary amine names the alcohol as
