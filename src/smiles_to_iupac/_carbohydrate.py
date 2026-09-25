@@ -41,23 +41,43 @@ Recommendations ("the Blue Book"), Chapter P-10
   PubChem structures (#1039 M1 step 2). A ketose whose carbonyl sits at
   C-3 or higher has no retained name at all (P-102.5.2.3's own examples
   compose a configurational-prefix name instead), out of scope here.
+- P-102.3.4.1/P-102.3.4.2: a D-aldohexopyranose (the 6-membered cyclic
+  hemiacetal form -- C-1 through C-5 in the ring, the ring oxygen
+  bridging C-1 and C-5, C-6 an exocyclic -CH2OH on C-5) reuses the
+  open-chain D-hexose machinery above unchanged: the CIP pattern at
+  C-2..C-5 (in that ring order) is looked up in the exact same
+  `_D_ALDOSE_PATTERNS` table for its D/L descriptor and stem name, and
+  the newly-formed anomeric center at C-1 gets its own alpha/beta
+  descriptor from its own CIP label alone -- confirmed empirically
+  (against 14 real PubChem D-hexopyranose structures spanning 7 stem
+  names, both anomers, #1039 M2 step 1) that C-1's CIP is always 'S' for
+  alpha and 'R' for beta, regardless of stem name (C-1's own CIP
+  priority order never depends on the configuration further round the
+  ring: the ring-oxygen branch always outranks the exocyclic-hydroxyl
+  branch on reaching a carbon vs. a lone hydrogen one atom out, a purely
+  local comparison). L-series pyranoses and furanoses (5-membered ring)
+  are out of scope here (later M2 steps).
 
-Scope, deliberately narrow (first pass at carbohydrate nomenclature, WS1
-of #1039): a plain, unbranched, acyclic aldose (M1 steps 1/3) or 2-ketose
-(M1 step 2) backbone only -- a terminal aldehyde or a C-2 carbonyl
-flanked by a terminal -CH2OH, 1 to 5 more -CH(OH)- chirality-bearing
-carbons, and a second terminal -CH2OH, 3 to 7 (aldose) or 4 to 6
-(2-ketose) carbons total, with every stereocenter's configuration
-specified and no substituent anywhere beyond each chain carbon's own
-single -OH (or, at the terminal carbons, none beyond what the aldehyde/
--CH2OH/carbonyl shape itself requires). A ketose with its carbonyl at
-C-3 or higher (#1041's own later scope), any aldose/ketose beyond 7
-carbons (octoses/nonoses/decoses each have their own group-count shape,
-later M1 steps), any cyclic/ring form (P-102.3.4, this project's M2/#85),
-deoxy/amino sugars, glycosides, and any other substituent are all out of
-scope here -- a molecule matching any of those still falls through to
-the existing generic acyclic-aldehyde/ketone/polyol naming unchanged,
-same as it does today.
+Scope, deliberately narrow (first pass at carbohydrate nomenclature,
+#1039): a plain, unbranched, acyclic aldose (WS1/M1 steps 1/3) or
+2-ketose (WS1/M1 step 2) backbone -- a terminal aldehyde or a C-2
+carbonyl flanked by a terminal -CH2OH, 1 to 5 more -CH(OH)-
+chirality-bearing carbons, and a second terminal -CH2OH, 3 to 7 (aldose)
+or 4 to 6 (2-ketose) carbons total; or a D-aldohexopyranose cyclic form
+(WS2/M2 step 1) -- see above. Every stereocenter's configuration must be
+specified, with no substituent anywhere beyond each ring/chain carbon's
+own single -OH (or, at the terminal/anomeric carbons, none beyond what
+the aldehyde/-CH2OH/carbonyl/ring-hemiacetal shape itself requires). A
+ketose with its carbonyl at C-3 or higher (#1041's own later scope), any
+aldose/ketose beyond 7 carbons (octoses/nonoses/decoses each have their
+own group-count shape, later M1 steps), an L-series or furanose cyclic
+form or a cyclic ketose (later M2 steps), deoxy/amino sugars, glycosides,
+and any other substituent are all out of scope here -- a molecule
+matching any of those still falls through to whatever it names today
+(generic acyclic-aldehyde/ketone/polyol naming for an open chain, or
+`_ketone.py`'s hetero-ring-ketone path for most cyclic shapes -- see that
+function's own docstring for why a plain pyranose collides with it),
+unchanged.
 """
 
 from rdkit.Chem import rdCIPLabeler
@@ -312,3 +332,122 @@ def name_open_chain_2_ketose(mol) -> str:
         return f"D-{_D_2_KETOSE_PATTERNS[pattern]}"
     flipped = tuple(_FLIP_CIP[c] for c in pattern)
     return f"L-{_D_2_KETOSE_PATTERNS[flipped]}"
+
+
+# C-1's own CIP label (no D/L-series or stem-name dependence -- see module
+# docstring) -> anomeric descriptor.
+_ANOMERIC_DESCRIPTORS = {"S": "alpha", "R": "beta"}
+
+
+def _pyranose_ring_order(mol):
+    """`(C-1, C-2, C-3, C-4, C-5, C-6)` for a plain D-aldohexopyranose
+    ring, or None if `mol` doesn't have this exact shape (see module
+    docstring): a single saturated, non-aromatic 6-membered ring with
+    exactly one ring oxygen; one ring carbon adjacent to it (C-1, the
+    anomeric carbon) bearing one exocyclic -OH; the ring oxygen's other
+    neighbor (C-5) bearing one exocyclic plain -CH2OH (C-6); and the
+    remaining 3 ring carbons (C-2..C-4) each bearing exactly one exocyclic
+    -OH -- no other substituent, and no heavy atom anywhere in the
+    molecule outside the ring and these oxygens."""
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() != 1:
+        return None
+    ring = ring_info.AtomRings()[0]
+    if len(ring) != 6 or any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring):
+        return None
+    ring_set = set(ring)
+    ring_oxygens = [a for a in ring if mol.GetAtomWithIdx(a).GetSymbol() == "O"]
+    if len(ring_oxygens) != 1:
+        return None
+    (ring_oxygen,) = ring_oxygens
+    if any(mol.GetAtomWithIdx(a).GetSymbol() != "C" for a in ring if a != ring_oxygen):
+        return None
+
+    graph = adjacency(mol)
+    oxygens = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetSymbol() == "O"}
+    ring_neighbors = [n for n in graph[ring_oxygen] if n in ring_set]
+    if len(ring_neighbors) != 2:
+        return None
+
+    def exocyclic_oxygen(atom_idx):
+        candidates = [n for n in graph[atom_idx] if n in oxygens and n not in ring_set]
+        return candidates[0] if len(candidates) == 1 else None
+
+    def exocyclic_carbon(atom_idx):
+        candidates = [n for n in graph[atom_idx] if n not in ring_set and n not in oxygens]
+        return candidates[0] if len(candidates) == 1 else None
+
+    c1 = c5 = None
+    for candidate in ring_neighbors:
+        if mol.GetAtomWithIdx(candidate).GetDegree() != 3:
+            return None
+        if exocyclic_oxygen(candidate) is not None:
+            c1 = candidate
+        elif exocyclic_carbon(candidate) is not None:
+            c5 = candidate
+    if c1 is None or c5 is None or c1 == c5:
+        return None
+
+    anomeric_oxygen = exocyclic_oxygen(c1)
+    if mol.GetBondBetweenAtoms(c1, anomeric_oxygen).GetBondTypeAsDouble() != 1.0:
+        return None
+    if mol.GetAtomWithIdx(anomeric_oxygen).GetTotalNumHs() != 1:
+        return None
+
+    c6 = exocyclic_carbon(c5)
+    if not _is_terminal_ch2oh(mol, graph, oxygens, c6):
+        return None
+
+    for middle_carbon in ring_set - {ring_oxygen, c1, c5}:
+        if mol.GetAtomWithIdx(middle_carbon).GetDegree() != 3:
+            return None
+        if exocyclic_oxygen(middle_carbon) is None:
+            return None
+
+    if mol.GetNumAtoms() != 12:
+        return None
+
+    rotated = ring[ring.index(ring_oxygen) :] + ring[: ring.index(ring_oxygen)]
+    order = rotated[1:]
+    if order[0] == c5:
+        order = tuple(reversed(order))
+    return order + (c6,)
+
+
+def _ring_stem_pattern(mol, order):
+    """The open-chain-equivalent CIP pattern at C-2..C-5, for lookup in
+    `_D_ALDOSE_PATTERNS`, or None if any is unspecified. C-4's own CIP
+    label (the pattern's third entry) must be flipped relative to what
+    `_cip_pattern` reads directly off the ring atom: its priority order
+    depends on which neighboring branch (towards C-3 vs. towards C-5)
+    ranks higher, and the ring closure changes that ranking without
+    changing the spatial configuration at all -- in the open-chain form
+    C-5 is a plain -CH(OH)-, but in the ring C-5 is bonded to the ring
+    oxygen (which itself continues on to the anomeric C-1), a
+    higher-priority substituent than the open-chain form's own -OH ever
+    was, which reorders C-4's two ring-ward branches and flips its CIP
+    label even though nothing physically moved. Confirmed empirically
+    against all 8 D-hexopyranose stem names (#1039 M2 step 1) -- C-2,
+    C-3, and C-5's own labels are unaffected."""
+    pattern = _cip_pattern(mol, order[1:5])
+    if pattern is None:
+        return None
+    return pattern[:2] + (_FLIP_CIP[pattern[2]],) + pattern[3:]
+
+
+def has_cyclic_aldopyranose_shape(mol) -> bool:
+    order = _pyranose_ring_order(mol)
+    if order is None:
+        return False
+    anomeric_pattern = _cip_pattern(mol, [order[0]])
+    if anomeric_pattern is None or anomeric_pattern[0] not in _ANOMERIC_DESCRIPTORS:
+        return False
+    pattern = _ring_stem_pattern(mol, order)
+    return pattern is not None and pattern in _D_ALDOSE_PATTERNS
+
+
+def name_cyclic_aldopyranose(mol) -> str:
+    order = _pyranose_ring_order(mol)
+    anomeric_descriptor = _ANOMERIC_DESCRIPTORS[_cip_pattern(mol, [order[0]])[0]]
+    stem = _D_ALDOSE_PATTERNS[_ring_stem_pattern(mol, order)]
+    return f"{anomeric_descriptor}-D-{stem[:-2]}pyranose"
