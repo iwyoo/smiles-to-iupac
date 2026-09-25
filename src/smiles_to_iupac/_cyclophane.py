@@ -1,8 +1,8 @@
 """Naming of a symmetric phane ring assembly -- N identical, unsubstituted
 benzene "superatoms" (N >= 2), each attached to its two ring neighbors by a
-bridge of the same length L, all bridges the same length, and every ring
-using the same para (1,4) or meta (1,3) local attachment pattern -- per the
-IUPAC 2013 Recommendations ("the Blue Book"):
+plain -CH2-...-CH2- bridge (bridges not necessarily the same length, #1030),
+and every ring using the same para (1,4) or meta (1,3) local attachment
+pattern -- per the IUPAC 2013 Recommendations ("the Blue Book"):
 
 - P-26 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf): phane
   nomenclature names a ring assembly of a macrocycle ("...phane") built from
@@ -20,26 +20,33 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   have (identical rings, symmetric attachment points, equal bridge length)
   and computes the name algorithmically for any N/L/pattern combination
   fitting that shape -- not just these three specific structures.
-- Composite locant derivation: since every ring is identical and every
-  bridge the same length L, the N superatoms sit at evenly-spaced positions
-  around the macrocycle -- each superatom counts as ONE macrocycle position
-  (not six; P-26's superatom simplification), so with N superatoms and N
-  bridges of L atoms each, the macrocycle has N*(1+L) total positions and
-  the superatoms sit at 1, 1+(1+L), 1+2*(1+L), .... This reproduces
-  '1,4' for N=2/L=2 (macrocycle size 6, "cyclohexaphane") and '1,3,5,7' for
-  N=4/L=1 (macrocycle size 8, "cyclooctaphane") exactly, without needing to
-  actually trace a specific starting ring/direction in the input molecule
-  (rotational symmetry makes the locant *set* independent of which ring is
-  "first"). The parenthesized local locant ('1,4' for para, '1,3' for meta)
-  is the same for every ring since this module requires a uniform pattern.
-  The multiplying prefix on 'benzena' (P-26.2.3.1/P-26.2.2.1) is the plain
+- Composite locant derivation: each superatom counts as ONE macrocycle
+  position (not six; P-26's superatom simplification), so with N superatoms
+  and N bridges, the macrocycle has N + sum(bridge lengths) total positions
+  and superatom `i`'s locant is 1 plus the running total of (1 + bridge
+  length) for every superatom before it in the walk. When every bridge
+  happens to share the same length L this reduces to the simpler
+  1 + i*(1+L) form, reproducing '1,4' for N=2/L=2 (macrocycle size 6,
+  "cyclohexaphane") and '1,3,5,7' for N=4/L=1 (macrocycle size 8,
+  "cyclooctaphane") exactly. Unlike the equal-bridge case, the locant *set*
+  now genuinely depends on which ring is picked as the walk's start and
+  which direction it goes (P-26.4.1.1: lowest set of locants, compared
+  term by term in ascending order) -- `name_cyclophane` tries all N
+  rotations of the bridge sequence in both directions (2N candidates) and
+  keeps whichever gives the lexicographically lowest locant list; putting
+  the shortest bridge first, ties broken by the next bridge, and so on,
+  always wins by construction, so this reduces to the equal-bridge case's
+  single fixed answer whenever every bridge length is the same. The
+  parenthesized local locant ('1,4' for para, '1,3' for meta) is the same
+  for every ring since this module requires a uniform pattern. The
+  multiplying prefix on 'benzena' (P-26.2.3.1/P-26.2.2.1) is the plain
   basic numerical term ('di', 'tetra', ...), confirmed by both worked
   examples above -- not the 'bis'/'tetrakis' compound-substituent form.
-- Since every ring/bridge is required identical, this is deliberately a
-  narrower shape than the general phane algorithm (which would also need
-  to handle different ring kinds, asymmetric attachment points, and a
-  non-trivial attachment-locant-ordering rule for those, still open for
-  that broader case).
+- Since every ring is still required identical (plain benzene) with a
+  uniform attachment pattern, this is deliberately narrower than the
+  general phane algorithm (which would also need to handle different ring
+  kinds -- see `_naphthalene_benzene_phane.py` for that separate,
+  partially-built-out direction -- and a non-uniform attachment pattern).
 
 Formulas/structures cross-checked (same three compounds as before this
 generalization): [2.2]Paracyclophane (C16H16, PubChem CID 74210),
@@ -59,10 +66,9 @@ these, so `core.py`'s existing dispatch continues to raise
 - A non-uniform attachment pattern (some rings para, others meta), an
   ortho (1,2) attachment pattern, or a ring with other than exactly two
   attachment points.
-- Bridges of unequal length, a bridge that isn't a plain unbranched
-  -CH2-...-CH2- chain, or a superatom "supergraph" that isn't a single
-  simple cycle covering every ring exactly once (e.g. a branched or
-  multiply-connected assembly).
+- A bridge that isn't a plain unbranched -CH2-...-CH2- chain, or a
+  superatom "supergraph" that isn't a single simple cycle covering every
+  ring exactly once (e.g. a branched or multiply-connected assembly).
 - Any substituent anywhere.
 """
 
@@ -74,8 +80,11 @@ _LOCAL_LOCANTS = {"para": "1,4", "meta": "1,3"}
 
 
 def _find_symmetric_phane(mol):
-    """Return (ring_count, bridge_length, pattern) if `mol` fits the shape
-    this module supports (see module docstring), else None."""
+    """Return (ring_count, bridge_lengths, pattern) if `mol` fits the shape
+    this module supports (see module docstring), else None. `bridge_lengths`
+    is a list of `ring_count` bridge lengths, in the same cyclic ring order
+    as the walk that discovers them (arbitrary starting ring/direction --
+    `name_cyclophane` tries every rotation/direction itself)."""
     ring_info = mol.GetRingInfo()
     benzene_rings = []
     for ring in ring_info.AtomRings():
@@ -131,9 +140,13 @@ def _find_symmetric_phane(mol):
         return None
     pattern = patterns[0]
 
-    bridge_lengths = set()
+    # Each bridge is its own edge, identified by its own index below (not
+    # by which pair of rings it connects) -- with only 2 rings, both
+    # bridges connect the same ring pair, so a ring-pair-keyed lookup
+    # can't tell two parallel bridges of different lengths apart.
+    edges = []
     seen_starts = set()
-    super_adj = {i: [] for i in range(n)}
+    incident = {i: [] for i in range(n)}
     for ring_idx, atts in enumerate(attachments):
         for ring_atom, start in atts:
             if start in seen_starts:
@@ -160,41 +173,78 @@ def _find_symmetric_phane(mol):
                         return None
                     seen_starts.add(start)
                     seen_starts.add(chain[-1])
-                    bridge_lengths.add(len(chain))
-                    super_adj[ring_idx].append(other_ring)
-                    super_adj[other_ring].append(ring_idx)
+                    edge_idx = len(edges)
+                    edges.append((ring_idx, other_ring, len(chain)))
+                    incident[ring_idx].append(edge_idx)
+                    incident[other_ring].append(edge_idx)
                     break
                 if len(chain) > 20:
                     return None
                 chain.append(nxt)
                 prev, cur = cur, nxt
 
-    if len(bridge_lengths) != 1 or any(len(neighbors) != 2 for neighbors in super_adj.values()):
+    if any(len(edge_idxs) != 2 for edge_idxs in incident.values()):
         return None
-    # Every ring has exactly 2 super-edges; confirm they form one single
-    # cycle spanning all N rings, not several disjoint smaller cycles.
+    # Every ring has exactly 2 super-edges; walk them one at a time
+    # (always the incident edge not just arrived on) to confirm they form
+    # one single cycle spanning all N rings, not several disjoint smaller
+    # cycles, collecting each bridge's length in that same walk order.
     order = [0]
-    previous, current = None, 0
+    bridge_lengths = []
+    used_edge, current = None, 0
     while len(order) < n:
-        next_ring = next((r for r in super_adj[current] if r != previous), None)
-        if next_ring is None or next_ring == 0:
+        next_edge = next((e for e in incident[current] if e != used_edge), None)
+        if next_edge is None:
             return None
+        a, b, length = edges[next_edge]
+        next_ring = b if a == current else a
+        if next_ring in order:
+            return None
+        bridge_lengths.append(length)
         order.append(next_ring)
-        previous, current = current, next_ring
-    if 0 not in super_adj[current]:
+        used_edge, current = next_edge, next_ring
+    closing_edge = next((e for e in incident[current] if e != used_edge), None)
+    if closing_edge is None:
         return None
-    return n, next(iter(bridge_lengths)), pattern
+    a, b, length = edges[closing_edge]
+    closing_ring = b if a == current else a
+    if closing_ring != 0:
+        return None
+    bridge_lengths.append(length)
+    return n, bridge_lengths, pattern
 
 
 def has_cyclophane_name(mol) -> bool:
     return _find_symmetric_phane(mol) is not None
 
 
+def _macro_locants(bridge_lengths):
+    locants = []
+    position = 1
+    for length in bridge_lengths:
+        locants.append(position)
+        position += 1 + length
+    return locants
+
+
 def name_cyclophane(mol) -> str:
-    n, bridge_length, pattern = _find_symmetric_phane(mol)
-    macro_locants = [1 + i * (1 + bridge_length) for i in range(n)]
-    macro_str = ",".join(str(loc) for loc in macro_locants)
+    n, bridge_lengths, pattern = _find_symmetric_phane(mol)
+
+    # P-26.4.1.1: the lowest set of superatom locants wins, compared term
+    # by term in ascending order -- try every rotation of the bridge
+    # sequence in both directions (2N candidates; harmless duplicates when
+    # the sequence has its own symmetry) and keep the smallest resulting
+    # locant list. Putting the shortest bridge first always wins the first
+    # point of difference, so this reduces to the single fixed answer the
+    # equal-bridge case already had when every bridge length is the same.
+    reversed_lengths = list(reversed(bridge_lengths))
+    candidates = [
+        seq[start:] + seq[:start] for seq in (bridge_lengths, reversed_lengths) for start in range(n)
+    ]
+    best_locants = min(_macro_locants(candidate) for candidate in candidates)
+
+    macro_str = ",".join(str(loc) for loc in best_locants)
     local_str = _LOCAL_LOCANTS[pattern]
-    macrocycle_size = n * (1 + bridge_length)
+    macrocycle_size = n + sum(bridge_lengths)
     multiplier = numerical_term(n)
     return f"{macro_str}({local_str})-{multiplier}benzenacyclo{numerical_term(macrocycle_size)}phane"

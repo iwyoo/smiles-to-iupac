@@ -75,6 +75,43 @@ def test_three_ring_symmetric_phane():
     )
 
 
+def test_unequal_bridge_paracyclophane():
+    # [2.3]paracyclophane-shaped: bridges of different lengths (2 and 3)
+    # between the same pair of para-attached benzene rings -- the shortest
+    # bridge wins the lowest superatom locant (P-26.4.1.1), giving '1,4'
+    # (locant 4 = 1 + 1 + 2, the 2-carbon bridge placed first) rather than
+    # '1,5' (which the 3-carbon-bridge-first ordering would give). Real
+    # registered structure, confirmed via InChIKey against PubChem
+    # CID 12486031 during scoping (#1030) -- PubChem's own computed name
+    # is von-Baeyer-style, same limitation as every other case here.
+    assert smiles_to_iupac("c1cc2ccc1CCCc1ccc(cc1)CC2") == "1,4(1,4)-dibenzenacycloheptaphane"
+
+
+def test_unequal_bridge_paracyclophane_other_combination():
+    # Same shape, bridges 2 and 4 -- PubChem CID 12307341.
+    assert smiles_to_iupac("c1cc2ccc1CCCCc1ccc(cc1)CC2") == "1,4(1,4)-dibenzenacyclooctaphane"
+
+
+def test_unequal_bridge_paracyclophane_third_combination():
+    # Bridges 3 and 4 -- PubChem CID 14241722. Neither bridge is length 2,
+    # exercising the general "shortest bridge first" rule rather than a
+    # hardcoded "2 first" special case.
+    assert smiles_to_iupac("c1cc2ccc1CCCCc1ccc(cc1)CCC2") == "1,5(1,4)-dibenzenacyclononaphane"
+
+
+def test_unequal_bridge_metacyclophane():
+    # Bridges 2 and 3, meta-attached -- PubChem CID 12888137.
+    assert smiles_to_iupac("c1cc2cc(c1)CCc1cccc(c1)CCC2") == "1,4(1,3)-dibenzenacycloheptaphane"
+
+
+def test_unequal_bridge_locant_independent_of_smiles_direction():
+    # The same [2.3]paracyclophane structure as above, written starting
+    # from the opposite bridge/direction -- the winning locant set must
+    # come out identical regardless of which ring/direction the input
+    # SMILES happens to start from.
+    assert smiles_to_iupac("c1cc2ccc1CCc1ccc(cc1)CCC2") == "1,4(1,4)-dibenzenacycloheptaphane"
+
+
 def test_mixed_local_pattern_raises():
     # one ring para-attached, the other meta-attached (built from scratch
     # via RDKit's RWMol) -- a non-uniform pattern, out of scope for this
