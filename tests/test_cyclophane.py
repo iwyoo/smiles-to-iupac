@@ -120,6 +120,39 @@ def test_mixed_local_pattern_raises():
         smiles_to_iupac("c1cc2cc(c1)CCc1ccc(cc1)CC2")
 
 
+def test_substituted_paracyclophane_methyl():
+    # 4-methyl[2.2]paracyclophane -- PubChem's registered name for this
+    # exact structure; a genuine registered compound, not a synthetic
+    # example (#1038). PubChem's own computed name is von-Baeyer-style,
+    # same limitation as the unsubstituted structures above, so
+    # verification is by structure/connectivity match only.
+    assert smiles_to_iupac("Cc1cc2ccc1CCc1ccc(cc1)CC2") == "2-methyl-1,4(1,4)-dibenzenacyclohexaphane"
+
+
+def test_substituted_paracyclophane_bromo():
+    # 4-bromo[2.2]paracyclophane, PubChem CID 21689168-family.
+    assert smiles_to_iupac("Brc1cc2ccc1CCc1ccc(cc1)CC2") == "2-bromo-1,4(1,4)-dibenzenacyclohexaphane"
+
+
+def test_substituted_paracyclophane_hydroxy():
+    # 4-hydroxy[2.2]paracyclophane, PubChem CID 13842062-family.
+    assert smiles_to_iupac("Oc1cc2ccc1CCc1ccc(cc1)CC2") == "2-hydroxy-1,4(1,4)-dibenzenacyclohexaphane"
+
+
+def test_two_substituents_on_one_ring_raises():
+    # More than one substituent total is out of scope this step (#1038's
+    # own scope note) -- still falls through unchanged.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1c2ccc(c1C)CCc1ccc(cc1)CC2")
+
+
+def test_substituents_on_two_rings_raises():
+    # A substituent on more than one component ring is out of scope this
+    # step too, even with only one substituent per ring.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cc1cc2ccc1CCc1ccc(c(C)c1)CC2")
+
+
 def test_two_separate_paracyclophane_units_not_misread_as_one_n4_phane():
     # two independent [2.2]paracyclophane-like units (four rings total,
     # forming two separate 2-cycles, not one single 4-cycle spanning all
