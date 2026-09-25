@@ -522,6 +522,108 @@ def _furanose_ring_order(mol):
     return order + (c5, c6)
 
 
+def _ketohexopyranose_ring_order(mol):
+    """`(C-1, C-2, C-3, C-4, C-5, C-6)` for a plain D-2-ketohexopyranose
+    ring, or None if `mol` doesn't have this exact shape: a single
+    saturated, non-aromatic 6-membered ring with exactly one ring oxygen;
+    one ring carbon adjacent to it (C-2, the anomeric carbon -- P-102.5.2.1
+    puts the carbonyl at C-2 for a 2-ketose) bearing both an exocyclic -OH
+    and an exocyclic plain -CH2OH (C-1), making it quaternary (degree 4)
+    unlike an aldopyranose's anomeric carbon; the ring oxygen's other
+    neighbor (C-6) a plain ring -CH2- with no exocyclic heavy atom at all
+    (degree 2, unlike an aldopyranose's C-5, which still carries the
+    -CH2OH branch itself since an aldose's C-6 sits one position further
+    out); and the remaining 3 ring carbons (C-3, C-4, C-5) each bearing
+    exactly one exocyclic -OH -- no other substituent,
+    and no heavy atom anywhere in the molecule outside the ring, C-1, and
+    these oxygens. Unlike `_pyranose_ring_order`, no CIP flip is needed at
+    C-3..C-5 to match the open-chain `_D_2_KETOSE_PATTERNS` pattern --
+    confirmed empirically against 6 real D-hexopyranose (fructo-, tagato-,
+    sorbo-, psico-) structures spanning both anomeric forms (#1039 M2
+    step 3); the ring-closure CIP reordering `_ring_stem_pattern` corrects
+    for in the aldose case doesn't recur here."""
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() != 1:
+        return None
+    ring = ring_info.AtomRings()[0]
+    if len(ring) != 6 or any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring):
+        return None
+    ring_set = set(ring)
+    ring_oxygens = [a for a in ring if mol.GetAtomWithIdx(a).GetSymbol() == "O"]
+    if len(ring_oxygens) != 1:
+        return None
+    (ring_oxygen,) = ring_oxygens
+    if any(mol.GetAtomWithIdx(a).GetSymbol() != "C" for a in ring if a != ring_oxygen):
+        return None
+
+    graph = adjacency(mol)
+    oxygens = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetSymbol() == "O"}
+    ring_neighbors = [n for n in graph[ring_oxygen] if n in ring_set]
+    if len(ring_neighbors) != 2:
+        return None
+
+    c2 = c6 = None
+    for candidate in ring_neighbors:
+        degree = mol.GetAtomWithIdx(candidate).GetDegree()
+        if degree == 4:
+            c2 = candidate
+        elif degree == 2:
+            c6 = candidate
+    if c2 is None or c6 is None or c2 == c6:
+        return None
+
+    anomeric_oxygen = _exocyclic_oxygen(graph, oxygens, ring_set, c2)
+    c1 = _exocyclic_carbon(graph, oxygens, ring_set, c2)
+    if anomeric_oxygen is None or c1 is None:
+        return None
+    if mol.GetBondBetweenAtoms(c2, anomeric_oxygen).GetBondTypeAsDouble() != 1.0:
+        return None
+    if mol.GetAtomWithIdx(anomeric_oxygen).GetTotalNumHs() != 1:
+        return None
+    if not _is_terminal_ch2oh(mol, graph, oxygens, c1):
+        return None
+
+    if mol.GetAtomWithIdx(c6).GetTotalNumHs() != 2:
+        return None
+    if any(n not in ring_set for n in graph[c6]):
+        return None
+
+    for middle_carbon in ring_set - {ring_oxygen, c2, c6}:
+        if mol.GetAtomWithIdx(middle_carbon).GetDegree() != 3:
+            return None
+        if _exocyclic_oxygen(graph, oxygens, ring_set, middle_carbon) is None:
+            return None
+
+    if mol.GetNumAtoms() != 12:
+        return None
+
+    rotated = ring[ring.index(ring_oxygen) :] + ring[: ring.index(ring_oxygen)]
+    order = rotated[1:]
+    if order[0] != c2:
+        order = tuple(reversed(order))
+    return (c1,) + order
+
+
+def has_cyclic_ketohexopyranose_shape(mol) -> bool:
+    order = _ketohexopyranose_ring_order(mol)
+    if order is None:
+        return False
+    _, c2, c3, c4, c5, _ = order
+    anomeric_pattern = _cip_pattern(mol, [c2])
+    if anomeric_pattern is None or anomeric_pattern[0] not in _ANOMERIC_DESCRIPTORS:
+        return False
+    pattern = _cip_pattern(mol, (c3, c4, c5))
+    return pattern is not None and pattern in _D_2_KETOSE_PATTERNS
+
+
+def name_cyclic_ketohexopyranose(mol) -> str:
+    order = _ketohexopyranose_ring_order(mol)
+    _, c2, c3, c4, c5, _ = order
+    anomeric_descriptor = _ANOMERIC_DESCRIPTORS[_cip_pattern(mol, [c2])[0]]
+    stem = _D_2_KETOSE_PATTERNS[_cip_pattern(mol, (c3, c4, c5))]
+    return f"{anomeric_descriptor}-D-{stem[:-2]}pyranose"
+
+
 def _ring_stem_pattern(mol, order, flip_index):
     """The open-chain-equivalent CIP pattern at C-2..C-5, for lookup in
     `_D_ALDOSE_PATTERNS`, or None if any is unspecified. The entry at
