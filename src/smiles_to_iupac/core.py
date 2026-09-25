@@ -114,6 +114,7 @@ from ._ether_hydroperoxide import has_ether_hydroperoxide_shape, name_ether_hydr
 from ._ether_ketone import has_ether_ketone_shape, name_ether_ketone
 from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
 from ._fullerene import has_fullerene_name, name_fullerene
+from ._nor_steroid import has_nor_steroid_shape, name_nor_steroid
 from ._steroid_parent_hydrides import (
     has_steroid_parent_hydride_name,
     name_steroid_parent_hydride,
@@ -692,6 +693,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # come first or gonane would never be reached.
     if has_steroid_parent_hydride_name(mol):
         return name_steroid_parent_hydride(mol)
+
+    # A steroid parent hydride missing one non-fusion ring atom or angular
+    # methyl (P-101.3.1's 'nor' prefix) is checked right after the exact
+    # parent match above, so a structure that happens to reproduce a
+    # different retained-name parent (e.g. androstane minus its C19 methyl
+    # is exactly estrane) is already claimed by that check first.
+    if has_nor_steroid_shape(mol):
+        return name_nor_steroid(mol)
 
     # triphenylene (P-25.1.2's branched-fusion retained name) is recognized
     # the same way -- see _branched_fused_aromatic.py's module docstring;
