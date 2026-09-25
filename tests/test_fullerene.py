@@ -3,6 +3,7 @@ from smiles_to_iupac._fullerene import (
     _FULLERENE_C60_SMILES,
     _FULLERENE_C70_SMILES,
     _FULLERENE_C76_SMILES,
+    _HOMO_C60_SMILES,
     _SILA_C60_SMILES,
 )
 
@@ -36,6 +37,16 @@ def test_sila_c60_fullerene():
     # six-membered rings -- P-27.5.1's own worked example cites no locant
     # since every C60-Ih vertex is symmetry-equivalent.
     assert smiles_to_iupac(_SILA_C60_SMILES) == "sila(C60-Ih)[5,6]fullerene"
+
+
+def test_homofullerene_c60():
+    # 1(9)aH-1(9)a-homo(C60-Ih), cross-checked against PubChem CID
+    # 11422743's own connectivity SMILES: a single methylene bridged
+    # across a 6,6-bond of the C60-Ih cage (formula C61H2), matching
+    # P-27.4.1's own literal worked example -- C60-Ih's 6,6-bonds are a
+    # single symmetry orbit, so the locant is fixed regardless of which
+    # bond was bridged.
+    assert smiles_to_iupac(_HOMO_C60_SMILES) == "1(9)aH-1(9)a-homo(C60-Ih)[5,6]fullerene"
 
 
 def test_benzene_still_resolves():
