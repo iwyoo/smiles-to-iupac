@@ -22,8 +22,10 @@ from ._aldehyde_carboxylic_acid import (
 from ._carboxylic_acid_amide import has_carboxylic_acid_amide_shape, name_carboxylic_acid_amide
 from ._aldehyde_ketone import has_aldehyde_ketone_shape, name_aldehyde_ketone
 from ._carbohydrate import (
+    has_cyclic_aldopyranose_shape,
     has_open_chain_2_ketose_shape,
     has_open_chain_aldose_shape,
+    name_cyclic_aldopyranose,
     name_open_chain_2_ketose,
     name_open_chain_aldose,
 )
@@ -1392,6 +1394,15 @@ def smiles_to_iupac(smiles: str) -> str:
         # before those.
         if has_sulfonate_shape(mol):
             return name_sulfonate(mol)
+        # A D-aldohexopyranose ring (a hemiacetal, no actual ring C=O
+        # anywhere) still matches `has_hetero_ring_ketone_shape` below --
+        # that check claims any saturated single-heteroatom 5/6/7-membered
+        # ring purely by shape, regardless of whether a ketone is actually
+        # present, so a plain pyranose would otherwise fall into
+        # `_ketone.py`'s hetero-ring-ketone path and have its hydroxyls
+        # rejected as unrecognized substituents. Must be routed first.
+        if has_cyclic_aldopyranose_shape(mol):
+            return name_cyclic_aldopyranose(mol)
         # A ketone carbonyl directly bonded to a saturated single- or
         # 1,4-two-heteroatom ring's own O/S heteroatom (a lactone, e.g.
         # oxan-2-one/1,4-dioxan-2-one) looks ester-shaped to
