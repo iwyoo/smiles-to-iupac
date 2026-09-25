@@ -1,6 +1,7 @@
-"""Naming of simple phosphanes (PH3 bearing 1-3 unbranched, saturated alkyl
-and/or plain phenyl substituents), per the IUPAC 2013 Recommendations
-("the Blue Book"):
+"""Naming of simple phosphanes (PH3 bearing 1-5 unbranched, saturated alkyl
+and/or plain phenyl substituents -- four or five triggering the P-14.1
+λ-convention, #1018), per the IUPAC 2013 Recommendations ("the Blue
+Book"):
 
 - P-68 (Chapter P-6, https://iupac.qmul.ac.uk/BlueBook/PDF/P6.pdf):
   unlike amines (`_amine.py`, where a carbon chain is the parent hydride
@@ -118,6 +119,23 @@ and/or plain phenyl substituents), per the IUPAC 2013 Recommendations
   one phosphorus aren't registered in PubChem at all (CID 0) -- so neither
   is trusted. Detection reuses `_substituents.halogenated_phenyl_substituent`
   (shared with `_borane.py`).
+- The λ-convention (P-14.1, #1018): four or five substituents (a bonding
+  number of 5, since RDKit's own default valence model for neutral
+  phosphorus fills any unwritten valence to the nearest of {3, 5}, never
+  stopping at 4 for a plain SMILES with no bracket atom -- confirmed:
+  `CP(C)(C)(C)C`, four explicit substituents with no bracket notation,
+  parses with `GetTotalValence() == 5`) exceeds the normal bonding number
+  of 3, so a 'λ5-' label is inserted directly before 'phosphane' --
+  mirrors `_phosphanone.py`'s identical mechanism for the P=O case, and
+  confirmed directly by the Blue Book's own worked example (P-14.1.3):
+  '(C6H5)3PH2 -> triphenyl-λ5-phosphane (PIN)'. A bonding number of
+  exactly 4 is not handled: the only reachable SMILES shape for it
+  (explicit bracket notation forcing valence 4 on a neutral phosphorus,
+  e.g. `[PH](C)(C)C`) is a genuine phosphoranyl radical (1 unpaired
+  electron, confirmed via `GetNumRadicalElectrons()`), not a closed-shell
+  phosphane at all -- already routed to `_radical.py` by `core.py`'s
+  dispatch before this module is ever reached, so no real input can reach
+  this module with `GetTotalValence() == 4`.
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any atom other than phosphorus, carbon, hydrogen, and a halogen bonded
@@ -164,8 +182,6 @@ def _validate_and_collect_substituents(mol):
     (phosphorus,) = phosphorus_atoms
     if phosphorus.GetFormalCharge() != 0 or phosphorus.GetIsotope() != 0:
         raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-    if phosphorus.GetDegree() > 3:
-        raise UnsupportedStructure("a phosphorus atom with more than three substituents is not a phosphane")
 
     graph = adjacency(mol)
     roots = set(graph[phosphorus.GetIdx()])
@@ -269,6 +285,18 @@ def _validate_and_collect_substituents(mol):
 
 def name_simple_phosphane(mol) -> str:
     substituent_names = _validate_and_collect_substituents(mol)
+    (phosphorus,) = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 15]
+    valence = phosphorus.GetTotalValence()
+    # A neutral, non-radical phosphorus is only ever trivalent or
+    # pentavalent (P-14.1) -- a bonding number of 4 has no valid neutral
+    # closed-shell Lewis structure (confirmed: the only reachable SMILES
+    # shape for it, e.g. "[PH](C)(C)C", is a genuine phosphoranyl radical,
+    # already routed to `_radical.py` before this module is ever reached
+    # -- see #1018), so it's not handled here.
+    if valence not in (3, 5):
+        raise UnsupportedStructure(f"a phosphorus bonding number of {valence} is not supported yet")
+    parent = f"λ{valence}-phosphane" if valence == 5 else "phosphane"
     if not substituent_names:
-        return "phosphane"
-    return format_mononuclear_prefixes(substituent_names) + "phosphane"
+        return parent
+    prefix = format_mononuclear_prefixes(substituent_names)
+    return f"{prefix}-{parent}" if valence == 5 else prefix + parent
