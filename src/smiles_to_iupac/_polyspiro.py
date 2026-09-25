@@ -81,6 +81,8 @@ from ._common import (
     group_substituents,
     halogen_substituents,
     non_single_bonds,
+    specified_stereocenters,
+    stereo_locants_prefix,
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
@@ -332,6 +334,7 @@ def name_linear_polyspiro(mol, chain) -> str:
 
     best_key = None
     best_name = None
+    best_locants = None
     for order, spiros in _chain_direction_candidates(ring_order, spiro_atoms, atom_rings):
         arc_options = _arc_choice_options(graph, atom_rings, order, spiros)
         first_ring_non_spiro = set(atom_rings[order[0]]) - {spiros[0]}
@@ -354,9 +357,12 @@ def name_linear_polyspiro(mol, chain) -> str:
                     substituents = substituents_for_ring(graph, seq, halogens)
                     key = _candidate_key(parent, spiro_locants, tuple(descriptor), substituents)
                     if best_key is None or key < best_key:
-                        best_key, best_name = key, key[-1]
+                        best_key, best_name, best_locants = key, key[-1], locants
 
-    return best_name
+    stereo = specified_stereocenters(mol)
+    if stereo is None:
+        return best_name
+    return stereo_locants_prefix(stereo, best_locants) + best_name
 
 
 def _hub_cycle_from(graph, hub_atoms, start, first_step):
@@ -435,6 +441,7 @@ def name_branched_polyspiro(mol, hub_data) -> str:
 
     best_key = None
     best_name = None
+    best_locants = None
     for start_spiro in hub_spiro_atoms:
         hub_neighbors = [a for a in graph[start_spiro] if a in hub_atoms]
         for first_step in hub_neighbors:
@@ -462,6 +469,9 @@ def name_branched_polyspiro(mol, hub_data) -> str:
                 substituents = substituents_for_ring(graph, seq, halogens)
                 key = _candidate_key(parent, spiro_locants, tuple(descriptor), substituents)
                 if best_key is None or key < best_key:
-                    best_key, best_name = key, key[-1]
+                    best_key, best_name, best_locants = key, key[-1], locants
 
-    return best_name
+    stereo = specified_stereocenters(mol)
+    if stereo is None:
+        return best_name
+    return stereo_locants_prefix(stereo, best_locants) + best_name

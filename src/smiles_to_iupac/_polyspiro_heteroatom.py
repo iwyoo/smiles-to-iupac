@@ -57,6 +57,8 @@ from ._common import (
     group_substituents,
     halogen_substituents,
     non_single_bonds,
+    specified_stereocenters,
+    stereo_locants_prefix,
     substituent_locant_set_and_citation,
 )
 from ._numerals import alkane_name, numerical_term
@@ -140,6 +142,7 @@ def name_linear_polyspiro_heteroatom(mol, chain) -> str:
     spiro_prefix = numerical_term(spiro_count) + "spiro"
 
     best_key = None
+    best_locants = None
     for order, spiros in _chain_direction_candidates(ring_order, spiro_atoms, atom_rings):
         arc_options = _arc_choice_options(graph, atom_rings, order, spiros)
         first_ring_non_spiro = set(atom_rings[order[0]]) - {spiros[0]}
@@ -163,6 +166,9 @@ def name_linear_polyspiro_heteroatom(mol, chain) -> str:
                     substituents = substituents_for_ring(graph, seq, halogens)
                     key = _candidate_key(parent, spiro_locants, tuple(descriptor), heteroatom_locant, substituents)
                     if best_key is None or key < best_key:
-                        best_key = key
+                        best_key, best_locants = key, locants
 
-    return best_key[-1]
+    stereo = specified_stereocenters(mol)
+    if stereo is None:
+        return best_key[-1]
+    return stereo_locants_prefix(stereo, best_locants) + best_key[-1]
