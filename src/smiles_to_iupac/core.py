@@ -24,10 +24,12 @@ from ._aldehyde_ketone import has_aldehyde_ketone_shape, name_aldehyde_ketone
 from ._carbohydrate import (
     has_cyclic_aldofuranose_shape,
     has_cyclic_aldopyranose_shape,
+    has_cyclic_ketohexopyranose_shape,
     has_open_chain_2_ketose_shape,
     has_open_chain_aldose_shape,
     name_cyclic_aldofuranose,
     name_cyclic_aldopyranose,
+    name_cyclic_ketohexopyranose,
     name_open_chain_2_ketose,
     name_open_chain_aldose,
 )
@@ -1409,6 +1411,11 @@ def smiles_to_iupac(smiles: str) -> str:
         # `has_hetero_ring_ketone_shape`'s own accepted ring sizes too.
         if has_cyclic_aldofuranose_shape(mol):
             return name_cyclic_aldofuranose(mol)
+        # A D-2-ketohexopyranose ring (e.g. fructopyranose) is a hemiketal,
+        # not an actual ring ketone either -- same `has_hetero_ring_ketone_shape`
+        # false-claim reasoning as the aldopyranose/aldofuranose checks above.
+        if has_cyclic_ketohexopyranose_shape(mol):
+            return name_cyclic_ketohexopyranose(mol)
         # A ketone carbonyl directly bonded to a saturated single- or
         # 1,4-two-heteroatom ring's own O/S heteroatom (a lactone, e.g.
         # oxan-2-one/1,4-dioxan-2-one) looks ester-shaped to
