@@ -34,6 +34,7 @@ from ._common import (
     longest_chains,
     non_single_bonds,
     specified_stereocenters,
+    stereo_locants_prefix,
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
@@ -165,11 +166,4 @@ def name_acyclic_alkane(mol) -> str:
     # chain; one on a substituent branch is out of scope, mirroring
     # `_ether.py`'s identical treatment.
     position_of = {atom: i + 1 for i, atom in enumerate(chain)}
-    if any(atom not in position_of for atom, _ in stereo):
-        raise UnsupportedStructure(
-            "a stereocenter on a substituent branch rather than the "
-            "principal chain is not supported yet (see P-92)"
-        )
-    labels = sorted((position_of[atom], code) for atom, code in stereo)
-    prefix = ",".join(f"{locant}{code}" for locant, code in labels)
-    return f"({prefix})-{name}"
+    return stereo_locants_prefix(stereo, position_of) + name
