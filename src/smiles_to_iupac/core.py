@@ -114,6 +114,7 @@ from ._ether_hydroperoxide import has_ether_hydroperoxide_shape, name_ether_hydr
 from ._ether_ketone import has_ether_ketone_shape, name_ether_ketone
 from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
 from ._fullerene import has_fullerene_name, name_fullerene
+from ._homo_steroid import has_homo_steroid_shape, name_homo_steroid
 from ._nor_steroid import has_nor_steroid_shape, name_nor_steroid
 from ._steroid_parent_hydrides import (
     has_steroid_parent_hydride_name,
@@ -701,6 +702,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # is exactly estrane) is already claimed by that check first.
     if has_nor_steroid_shape(mol):
         return name_nor_steroid(mol)
+
+    # A steroid parent hydride with one extra methylene inserted into a
+    # ring bond or angular methyl (P-101.3.2's 'homo' prefix) is checked
+    # right after 'nor' for the same reason -- an insertion happening to
+    # reproduce a different retained-name parent would already be claimed
+    # above (none found empirically, but the ordering stays defensive).
+    if has_homo_steroid_shape(mol):
+        return name_homo_steroid(mol)
 
     # triphenylene (P-25.1.2's branched-fusion retained name) is recognized
     # the same way -- see _branched_fused_aromatic.py's module docstring;
