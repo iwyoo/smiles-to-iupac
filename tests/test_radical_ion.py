@@ -27,6 +27,28 @@ def test_secondary_aminiumyl():
     assert smiles_to_iupac("C[NH+]C") == "N-methylmethanaminiumyl"
 
 
+def test_methyloxidaniumyl():
+    # C[OH+], the oxidaniumyl radical cation (P-75.3.2): methyloxidanium
+    # (already-supported oxonium cation) minus one radical hydrogen.
+    assert smiles_to_iupac("C[OH+]") == "methyloxidaniumyl"
+
+
+def test_ethyloxidaniumyl():
+    assert smiles_to_iupac("CC[OH+]") == "ethyloxidaniumyl"
+
+
+def test_ethylsulfaniumyl():
+    # note: _sulfonium.py's own established output is "sulfanium", not
+    # "sulfonium".
+    assert smiles_to_iupac("CC[SH+]") == "ethylsulfaniumyl"
+
+
+def test_oxonium_still_resolves():
+    # a sanity check that the new radical-ion dispatch doesn't misfire on
+    # a plain, non-radical oxonium cation.
+    assert smiles_to_iupac("C[OH2+]") == "methyloxidanium"
+
+
 def test_ammonium_still_resolves():
     # a sanity check that the new radical-ion dispatch doesn't misfire on
     # a plain, non-radical ammonium cation.

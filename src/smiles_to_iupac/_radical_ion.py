@@ -43,27 +43,50 @@
   - `C[NH+]C` (radical=1) -> reconstructs to `C[NH2+]C` ->
     "N-methylmethanaminium" -> "N-methylmethanaminiumyl".
 
+- The `oxidaniumyl`/`sulfaniumyl` family (P-75.3.2): the same mechanism
+  extended to oxygen/sulfur -- an ordinary oxonium/sulfonium cation
+  (`_oxonium.py`/`_sulfonium.py`'s own shape, P-73.1.1.2) with one
+  hydrogen further removed as a radical. Confirmed worked example
+  `propyloxidaniumyl (PIN)`, `tmp/bluebook/P7.txt` ~3496-3512 -- the exact
+  same "protonate to the full-valence cation, then remove one radical H"
+  pattern as `aminiumyl` above, just for O/S instead of N. Confirmed this
+  session:
+
+  - `C[OH+]`  (radical=1) -> reconstructs to `C[OH2+]`  -> "methyloxidanium"
+    -> "methyloxidaniumyl".
+  - `CC[SH+]` (radical=1) -> reconstructs to `CC[SH2+]` -> "ethylsulfanium"
+    (note: `_sulfonium.py`'s own established output is "sulfanium", not
+    "sulfonium") -> "ethylsulfaniumyl".
+
 Explicitly out of scope (raise `UnsupportedStructure`):
-- More than one radical electron on the nitrogen, a coexisting charge or
-  radical elsewhere in the molecule, or an isotopically modified
-  nitrogen.
+- More than one radical electron on the charged atom, a coexisting charge
+  or radical elsewhere in the molecule, or an isotopically modified atom.
 - Any shape where the reconstructed neutral-radical-healed molecule
-  doesn't match `_ammonium.py`'s own `has_ammonium_shape` (e.g. a
-  substitution pattern `_ammonium.py` itself doesn't support standalone).
+  doesn't match the corresponding module's own `has_*_shape` (e.g. a
+  substitution pattern that module itself doesn't support standalone).
 - The 'ylium'-derived remainder of P-73.2.3.2 (`acetamidyliumyl`-style,
   needing a *double* reconstruction all the way back to the neutral
-  amine/imine/amide) and the P-75.3.2 hydroxy/chalcogen analogue
-  (`oxidaniumyl`/`sulfaniumyl`) -- each a separate follow-up step, not
-  this one.
+  amine/imine/amide) -- a separate follow-up step, not this one.
+- Selenium (a `propylselaniumyl`-style analogue, if selenonium is
+  separately supported) -- not investigated this session, don't assume
+  reachability from the oxygen/sulfur pattern alone.
 """
 
 from rdkit import Chem
 
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._common import UnsupportedStructure
+from ._oxonium import has_oxonium_shape, name_oxonium
+from ._sulfonium import has_sulfonium_shape, name_sulfonium
+
+_IONIC_SUFFIX_FAMILIES = (
+    (7, has_ammonium_shape, name_ammonium),
+    (8, has_oxonium_shape, name_oxonium),
+    (16, has_sulfonium_shape, name_sulfonium),
+)
 
 
-def _healed_ammonium(mol, radical):
+def _healed(mol, radical):
     rw = Chem.RWMol(mol)
     idx = radical.GetIdx()
     atom = rw.GetAtomWithIdx(idx)
@@ -78,12 +101,15 @@ def _healed_ammonium(mol, radical):
     return healed
 
 
-def _aminiumyl_radical(mol):
+def _ionic_suffix_radical(mol):
     radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons() != 0]
     if len(radicals) != 1 or radicals[0].GetNumRadicalElectrons() != 1:
         return None
     (radical,) = radicals
-    if radical.GetAtomicNum() != 7 or radical.GetFormalCharge() != 1 or radical.GetIsotope() != 0:
+    if radical.GetFormalCharge() != 1 or radical.GetIsotope() != 0:
+        return None
+    family = next((f for f in _IONIC_SUFFIX_FAMILIES if f[0] == radical.GetAtomicNum()), None)
+    if family is None:
         return None
     if any(
         atom.GetIdx() != radical.GetIdx() and (atom.GetFormalCharge() != 0 or atom.GetNumRadicalElectrons() != 0)
@@ -91,25 +117,28 @@ def _aminiumyl_radical(mol):
     ):
         return None
 
-    healed = _healed_ammonium(mol, radical)
-    if healed is None or not has_ammonium_shape(healed):
+    _, has_shape, name_fn = family
+    healed = _healed(mol, radical)
+    if healed is None or not has_shape(healed):
         return None
-    return name_ammonium(healed) + "yl"
+    return name_fn(healed) + "yl"
 
 
 def has_radical_ion_shape(mol) -> bool:
-    """True if `mol` matches `_aminiumyl_radical`'s own P-75.3.1 shape.
-    Used by `core.py` to route here ahead of `has_radical_shape`, whose
-    own broader "any nonzero radical electron count" check would
+    """True if `mol` matches `_ionic_suffix_radical`'s own P-75.3.1/.2
+    shape. Used by `core.py` to route here ahead of `has_radical_shape`,
+    whose own broader "any nonzero radical electron count" check would
     otherwise claim this charge+radical combination first and misroute it
     into the plain-radical dispatch."""
-    return _aminiumyl_radical(mol) is not None
+    return _ionic_suffix_radical(mol) is not None
 
 
 def name_radical_ion(mol) -> str:
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    name = _aminiumyl_radical(mol)
+    name = _ionic_suffix_radical(mol)
     if name is None:
-        raise UnsupportedStructure("only the aminiumyl radical cation is supported yet (P-75.3.1)")
+        raise UnsupportedStructure(
+            "only the aminiumyl/oxidaniumyl/sulfaniumyl radical cations are supported yet (P-75.3.1/.2)"
+        )
     return name
