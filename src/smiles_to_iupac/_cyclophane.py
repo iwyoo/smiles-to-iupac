@@ -56,6 +56,27 @@ generalization): [2.2]Paracyclophane (C16H16, PubChem CID 74210),
 bridged-ring name, not a phane name, so it isn't usable for verifying any
 name this module returns -- only the Blue Book's own worked examples are.
 
+A single simple substituent (halogen, hydroxyl, amino, or a plain alkyl
+branch) on exactly one component ring is also supported (#1038), cited as
+an ordinary prefix before the phane name at that ring's own local locant
+-- P-26.4.1.2: an amplificant's local numbering follows the numbering
+rules of the parent name it's derived from (plain benzene: lowest
+locants), independent of the macrocycle's own composite locants for that
+ring. Confirmed directly against a Blue Book PIN worked example citing a
+substituent this exact way (P-4, `4-substituted...phane` shape):
+`3-chloro-2-(naphthalen-2-yl)-1(2)-naphthalena-3,5(1,4),7(1)-tribenzenaheptaphane
+(PIN)`. Verified reachable against 3 real, named PubChem structures of
+the simplest case this module handles (a single-substituent [2.2]para-
+cyclophane): 4-methyl-, 4-bromo-, and 4-hydroxy-[2.2]paracyclophane --
+PubChem's own computed name for these is again a von Baeyer name, not
+usable for comparison (same caveat as the unsubstituted structures
+above), so verification is by structure/connectivity match. The ring's
+two bridge attachment points keep priority for the lowest available
+local locants (P-29.2's free-valence-first principle, same reasoning
+that already fixes the unsubstituted '1,4'/'1,3' convention); among the
+numbering choices that preserve that, the substituent gets whichever
+remaining locant is lowest.
+
 Explicitly out of scope (the detector below simply returns None for any of
 these, so `core.py`'s existing dispatch continues to raise
 `UnsupportedStructure`, unchanged):
@@ -65,68 +86,34 @@ these, so `core.py`'s existing dispatch continues to raise
   names too, e.g. naphthalena, but none are supported here).
 - A non-uniform attachment pattern (some rings para, others meta), an
   ortho (1,2) attachment pattern, or a ring with other than exactly two
-  attachment points.
+  bridge attachment points.
 - A bridge that isn't a plain unbranched -CH2-...-CH2- chain, or a
   superatom "supergraph" that isn't a single simple cycle covering every
   ring exactly once (e.g. a branched or multiply-connected assembly).
-- Any substituent anywhere.
+- More than one substituent total, or substituents on more than one
+  component ring -- deferred to a follow-up (#1038's own scope note).
+- A substituent whose own branch loops back into the phane's ring system.
 """
 
-from ._common import adjacency
+from ._common import adjacency, halogen_substituents
 from ._numerals import numerical_term
 from ._polyspiro import _ring_cyclic_order
+from ._substituents import name_branch
 
 _LOCAL_LOCANTS = {"para": "1,4", "meta": "1,3"}
 
 
-def _find_symmetric_phane(mol):
-    """Return (ring_count, bridge_lengths, pattern) if `mol` fits the shape
-    this module supports (see module docstring), else None. `bridge_lengths`
-    is a list of `ring_count` bridge lengths, in the same cyclic ring order
-    as the walk that discovers them (arbitrary starting ring/direction --
-    `name_cyclophane` tries every rotation/direction itself)."""
-    ring_info = mol.GetRingInfo()
-    benzene_rings = []
-    for ring in ring_info.AtomRings():
-        if len(ring) != 6:
-            continue
-        if not all(
-            mol.GetAtomWithIdx(a).GetIsAromatic() and mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in ring
-        ):
-            continue
-        benzene_rings.append(set(ring))
+def _pattern_and_bridges(mol, graph, benzene_rings, ring_of, attachment_pairs):
+    """(pattern, bridge_lengths) if every ring's two `attachment_pairs`
+    entries share the same para/meta local pattern and the bridges between
+    them form a single macrocycle spanning every ring in `benzene_rings`,
+    else None. `attachment_pairs`: exactly 2 `(ring_atom, exo_atom)` tuples
+    per ring, in `benzene_rings` order -- the two genuine bridge
+    attachment points, already disambiguated from any substituent by the
+    caller."""
     n = len(benzene_rings)
-    if n < 2:
-        return None
-    for i in range(n):
-        for j in range(i + 1, n):
-            if benzene_rings[i] & benzene_rings[j]:
-                return None
-
-    graph = adjacency(mol)
-    ring_of = {a: idx for idx, ring in enumerate(benzene_rings) for a in ring}
-
-    attachments = []
-    for ring in benzene_rings:
-        atts = []
-        for a in ring:
-            atom = mol.GetAtomWithIdx(a)
-            if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
-                return None
-            exo = [nb for nb in graph[a] if nb not in ring]
-            if not exo:
-                if atom.GetDegree() != 2 or atom.GetTotalNumHs() != 1:
-                    return None
-                continue
-            if len(exo) != 1 or atom.GetDegree() != 3 or atom.GetTotalNumHs() != 0:
-                return None
-            atts.append((a, exo[0]))
-        if len(atts) != 2:
-            return None
-        attachments.append(atts)
-
     patterns = []
-    for ring, atts in zip(benzene_rings, attachments):
+    for ring, atts in zip(benzene_rings, attachment_pairs):
         cyc = _ring_cyclic_order(graph, list(ring), atts[0][0])
         dist = cyc.index(atts[1][0])
         dist = min(dist, len(cyc) - dist)
@@ -147,7 +134,7 @@ def _find_symmetric_phane(mol):
     edges = []
     seen_starts = set()
     incident = {i: [] for i in range(n)}
-    for ring_idx, atts in enumerate(attachments):
+    for ring_idx, atts in enumerate(attachment_pairs):
         for ring_atom, start in atts:
             if start in seen_starts:
                 continue
@@ -211,7 +198,114 @@ def _find_symmetric_phane(mol):
     if closing_ring != 0:
         return None
     bridge_lengths.append(length)
-    return n, bridge_lengths, pattern
+    return pattern, bridge_lengths
+
+
+def _branch_touches_rings(graph, root, coming_from, ring_of, limit=30):
+    """True if the branch hanging off `root` (reached from `coming_from`)
+    ever reaches one of the phane's own component-ring atoms -- ruling out
+    a mis-picked "substituent" that's really another bridge, or a
+    substituent fused back into the ring system, both out of scope."""
+    seen = {coming_from}
+    stack = [root]
+    while stack:
+        if len(seen) > limit:
+            return True
+        atom_idx = stack.pop()
+        if atom_idx in seen:
+            continue
+        seen.add(atom_idx)
+        if atom_idx in ring_of:
+            return True
+        stack.extend(n for n in graph[atom_idx] if n not in seen)
+    return False
+
+
+def _find_symmetric_phane(mol):
+    """Return `(ring_count, bridge_lengths, pattern, substituent)` if `mol`
+    fits the shape this module supports (see module docstring), else None.
+    `bridge_lengths` is a list of `ring_count` bridge lengths, in the same
+    cyclic ring order as the walk that discovers them (arbitrary starting
+    ring/direction -- `name_cyclophane` tries every rotation/direction
+    itself). `substituent` is None (the plain, fully symmetric case) or
+    `(ring_atom, exo_atom, other_att_a, other_att_b)` for the one
+    component ring carrying a substituent -- `ring_atom`/`exo_atom` the
+    substituted ring atom and its exocyclic branch root, `other_att_a`/
+    `other_att_b` that same ring's two genuine bridge attachment atoms
+    (needed to re-derive the ring's own local numbering when naming it)."""
+    ring_info = mol.GetRingInfo()
+    benzene_rings = []
+    for ring in ring_info.AtomRings():
+        if len(ring) != 6:
+            continue
+        if not all(
+            mol.GetAtomWithIdx(a).GetIsAromatic() and mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in ring
+        ):
+            continue
+        benzene_rings.append(set(ring))
+    n = len(benzene_rings)
+    if n < 2:
+        return None
+    for i in range(n):
+        for j in range(i + 1, n):
+            if benzene_rings[i] & benzene_rings[j]:
+                return None
+
+    graph = adjacency(mol)
+    ring_of = {a: idx for idx, ring in enumerate(benzene_rings) for a in ring}
+
+    attachments = []
+    for ring in benzene_rings:
+        atts = []
+        for a in ring:
+            atom = mol.GetAtomWithIdx(a)
+            if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+                return None
+            exo = [nb for nb in graph[a] if nb not in ring]
+            if not exo:
+                if atom.GetDegree() != 2 or atom.GetTotalNumHs() != 1:
+                    return None
+                continue
+            if len(exo) != 1 or atom.GetDegree() != 3 or atom.GetTotalNumHs() != 0:
+                return None
+            atts.append((a, exo[0]))
+        if len(atts) not in (2, 3):
+            return None
+        attachments.append(atts)
+
+    substituted_rings = [i for i, atts in enumerate(attachments) if len(atts) == 3]
+    if len(substituted_rings) > 1:
+        return None
+
+    if not substituted_rings:
+        result = _pattern_and_bridges(mol, graph, benzene_rings, ring_of, attachments)
+        if result is None:
+            return None
+        pattern, bridge_lengths = result
+        return n, bridge_lengths, pattern, None
+
+    (sub_ring_idx,) = substituted_rings
+    candidates3 = attachments[sub_ring_idx]
+    successes = []
+    for drop in range(3):
+        bridge_pair = [candidates3[i] for i in range(3) if i != drop]
+        substituent_ring_atom, substituent_exo_atom = candidates3[drop]
+        trial = list(attachments)
+        trial[sub_ring_idx] = bridge_pair
+        result = _pattern_and_bridges(mol, graph, benzene_rings, ring_of, trial)
+        if result is None:
+            continue
+        if _branch_touches_rings(graph, substituent_exo_atom, substituent_ring_atom, ring_of):
+            continue
+        pattern, bridge_lengths = result
+        successes.append((pattern, bridge_lengths, substituent_ring_atom, substituent_exo_atom, bridge_pair))
+
+    if len(successes) != 1:
+        return None
+    pattern, bridge_lengths, substituent_ring_atom, substituent_exo_atom, bridge_pair = successes[0]
+    (att_a, _), (att_b, _) = bridge_pair
+    substituent = (substituent_ring_atom, substituent_exo_atom, att_a, att_b)
+    return n, bridge_lengths, pattern, substituent
 
 
 def has_cyclophane_name(mol) -> bool:
@@ -227,8 +321,54 @@ def _macro_locants(bridge_lengths):
     return locants
 
 
+def _substituent_ring_prefix(mol, graph, substituent):
+    """`"<local-locant>-<name>"` for the one substituent `_find_symmetric_
+    phane` found, per P-26.4.1.2: the substituted ring's own local
+    numbering follows plain benzene numbering with the two bridge
+    attachment points (the ring's "free valences" into the macrocycle)
+    kept at the lowest available locants first (P-29.2), same principle
+    that already fixes the unsubstituted case's '1,4'/'1,3' convention.
+    For a para ring this alone leaves a genuine tie -- the other
+    attachment sits exactly 3 steps away in *either* direction around a
+    6-ring, so both directions from a given start atom already put it at
+    local position 4 -- so all 4 combinations of (start atom, direction)
+    are tried and whichever gives the lowest substituent locant among
+    those tied for the lowest attachment locant wins (confirmed against
+    two independently-built SMILES for the same real structure giving the
+    same locant only once this tie was handled explicitly, not just
+    picking `_ring_cyclic_order`'s own arbitrary walk direction)."""
+    ring_atom, exo_atom, att_a, att_b = substituent
+    ring = next(
+        r
+        for r in mol.GetRingInfo().AtomRings()
+        if ring_atom in r and len(r) == 6 and all(mol.GetAtomWithIdx(a).GetIsAromatic() for a in r)
+    )
+    ring_set = set(ring)
+    candidates = []
+    for start, other in ((att_a, att_b), (att_b, att_a)):
+        cyc = _ring_cyclic_order(graph, list(ring_set), start)
+        idx = cyc.index(other)
+        candidates.append((idx, cyc))
+        candidates.append((len(cyc) - idx, [cyc[0]] + list(reversed(cyc[1:]))))
+    best_other_locant = min(idx for idx, _ in candidates)
+    tied = [cyc for idx, cyc in candidates if idx == best_other_locant]
+    best_order = min(tied, key=lambda order: order.index(ring_atom))
+    local_locant = best_order.index(ring_atom) + 1
+
+    prefixes = dict(halogen_substituents(mol))
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() == 8 and atom.GetDegree() == 1 and atom.GetTotalNumHs() == 1:
+            prefixes[atom.GetIdx()] = "hydroxy"
+        elif atom.GetAtomicNum() == 7 and atom.GetDegree() == 1 and atom.GetTotalNumHs() == 2:
+            prefixes[atom.GetIdx()] = "amino"
+
+    name, is_compound = name_branch(graph, exo_atom, ring_atom, prefixes, mol=mol)
+    display = f"({name})" if is_compound else name
+    return f"{local_locant}-{display}"
+
+
 def name_cyclophane(mol) -> str:
-    n, bridge_lengths, pattern = _find_symmetric_phane(mol)
+    n, bridge_lengths, pattern, substituent = _find_symmetric_phane(mol)
 
     # P-26.4.1.1: the lowest set of superatom locants wins, compared term
     # by term in ascending order -- try every rotation of the bridge
@@ -247,4 +387,8 @@ def name_cyclophane(mol) -> str:
     local_str = _LOCAL_LOCANTS[pattern]
     macrocycle_size = n + sum(bridge_lengths)
     multiplier = numerical_term(n)
-    return f"{macro_str}({local_str})-{multiplier}benzenacyclo{numerical_term(macrocycle_size)}phane"
+    phane_name = f"{macro_str}({local_str})-{multiplier}benzenacyclo{numerical_term(macrocycle_size)}phane"
+    if substituent is None:
+        return phane_name
+    graph = adjacency(mol)
+    return f"{_substituent_ring_prefix(mol, graph, substituent)}-{phane_name}"
