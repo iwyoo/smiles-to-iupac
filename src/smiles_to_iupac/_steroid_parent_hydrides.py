@@ -70,7 +70,7 @@ either still resolves correctly.
 """
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
+from rdkit.Chem import BondType, RWMol, rdCIPLabeler
 
 _PARENT_HYDRIDES = {
     "C1CCCC2CCC3C(C12)CCC4C3CCC4": "gonane",
@@ -111,6 +111,70 @@ assert len(_CANONICAL_TO_NAME) == len(_PARENT_HYDRIDES), (
     "collision, not just a duplicate row (see module docstring)"
 )
 
+# The plain (no-stereo) entries above, keyed by name instead of SMILES --
+# used by both `_nor_steroid.py`'s skeletal-modification prefixes and
+# `_ketone.py`'s steroid-suffix integration (#1027) to recognize a
+# constitution match irrespective of stereochemistry: a suffix-bearing
+# steroid's own stereo, if any, is already rejected upstream (P-92
+# descriptor citation on a retained steroid name is separate, unimplemented
+# future work), so only the ring skeleton's constitution -- not its
+# configuration -- is ever checked here.
+_RAW_PARENTS = {name: smiles for smiles, name in _PARENT_HYDRIDES.items() if "@" not in smiles}
+_PLAIN_CANONICAL_TO_NAME = {Chem.CanonSmiles(smiles): name for name, smiles in _RAW_PARENTS.items()}
+
+
+def _build_locant_query(extra_locants):
+    """A hand-built query graph encoding the standard steroid numbering
+    (Table 10.1: ring positions 1-17, angular methyls 18/19), used to map
+    a recognized parent's own atom indices onto their steroid locants via
+    substructure match -- not the raw SMILES entries' own atom order,
+    which isn't guaranteed to follow locant order. `extra_locants`: which
+    of the two angular methyls (18 at C13, 19 at C10) the target parent
+    also has (gonane has neither, estrane has only 18, every androstane-
+    family parent has both)."""
+    rw = RWMol()
+    atom_idx = {}
+    for locant in range(1, 18):
+        atom_idx[locant] = rw.AddAtom(Chem.Atom(6))
+    for locant in extra_locants:
+        atom_idx[locant] = rw.AddAtom(Chem.Atom(6))
+
+    def bond(a, b):
+        rw.AddBond(atom_idx[a], atom_idx[b], BondType.SINGLE)
+
+    bond(1, 2), bond(2, 3), bond(3, 4), bond(4, 5), bond(5, 6), bond(6, 7)
+    bond(7, 8), bond(8, 9), bond(9, 10), bond(10, 1), bond(5, 10)
+    bond(9, 11), bond(11, 12), bond(12, 13), bond(13, 14), bond(14, 8)
+    bond(13, 17), bond(17, 16), bond(16, 15), bond(15, 14)
+    if 18 in extra_locants:
+        bond(13, 18)
+    if 19 in extra_locants:
+        bond(10, 19)
+
+    mol = rw.GetMol()
+    Chem.SanitizeMol(mol)
+    return mol, atom_idx
+
+
+_RING_QUERY, _RING_QUERY_IDX = _build_locant_query(())
+_ESTRANE_QUERY, _ESTRANE_QUERY_IDX = _build_locant_query((18,))
+_ANDROSTANE_QUERY, _ANDROSTANE_QUERY_IDX = _build_locant_query((18, 19))
+
+_QUERY_BY_PARENT = {
+    "gonane": (_RING_QUERY, _RING_QUERY_IDX),
+    "estrane": (_ESTRANE_QUERY, _ESTRANE_QUERY_IDX),
+}
+
+
+def _locant_map(name, mol):
+    """`{locant: atom_idx}` for `mol`'s own occurrence of the named
+    parent's ring skeleton (`mol` must actually contain it, e.g. already
+    confirmed via `_CANONICAL_TO_NAME`/`_PLAIN_CANONICAL_TO_NAME`)."""
+    query, query_idx = _QUERY_BY_PARENT.get(name, (_ANDROSTANE_QUERY, _ANDROSTANE_QUERY_IDX))
+    matches = mol.GetSubstructMatches(query, uniquify=False)
+    assert len(matches) == 1, f"{name}'s steroid-numbering query matched {len(matches)} times, expected 1"
+    match = matches[0]
+    return {locant: match[idx] for locant, idx in query_idx.items()}
 
 
 # Androstane's own bare-skeleton constitution (no stereo), in the same atom
