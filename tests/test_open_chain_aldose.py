@@ -67,13 +67,36 @@ def test_3_ulose_still_falls_through_unchanged():
     )
 
 
-def test_heptose_still_falls_through_unchanged():
-    # D-glycero-D-gluco-heptose (PubChem CID 87131842) -- 7 carbons, out
-    # of scope here (P-102.5.1.1.2's multi-prefix systematic composition,
-    # later M1 step, #1042).
-    assert smiles_to_iupac("C([C@H]([C@H]([C@H]([C@@H]([C@H](C=O)O)O)O)O)O)O") == (
-        "(2R,3S,4R,5R,6R)-2,3,4,5,6,7-hexahydroxyheptanal"
-    )
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # Real PubChem open-chain heptose structures -- each C-2..C-5
+        # group and lone C-6 group get their own D/L descriptor
+        # (P-102.5.1.1.2, #1042).
+        (
+            "C([C@H]([C@H]([C@H]([C@@H]([C@H](C=O)O)O)O)O)O)O",
+            "D-glycero-D-gluco-heptose",
+        ),  # CID 87131842
+        (
+            "C([C@H]([C@@H]([C@@H]([C@H]([C@@H](C=O)O)O)O)O)O)O",
+            "D-glycero-L-gluco-heptose",
+        ),  # CID 21139463 (mixed-series case)
+        (
+            "C([C@H]([C@H]([C@H]([C@H]([C@@H](C=O)O)O)O)O)O)O",
+            "D-glycero-D-altro-heptose",
+        ),  # CID 101415672
+    ],
+)
+def test_open_chain_heptose_naming(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_octose_still_falls_through_unchanged():
+    # 8 carbons (6 chirality centers) -- a different group-count shape
+    # (4+2, P-102.5.1.1.2) than heptose's 4+1, out of scope here.
+    assert smiles_to_iupac(
+        "C([C@H]([C@H]([C@H]([C@H]([C@@H]([C@H](C=O)O)O)O)O)O)O)O"
+    ) == "(2R,3S,4R,5R,6R,7R)-2,3,4,5,6,7,8-heptahydroxyoctanal"
 
 
 def test_unspecified_stereo_aldose_still_falls_through_unchanged():

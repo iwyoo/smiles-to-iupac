@@ -1,7 +1,9 @@
 """Naming of open-chain (Fischer-projection) monosaccharides -- currently
-plain aldoses of 3-6 carbons and plain 2-ketoses of 4-6 carbons, each
-named via their retained stem name -- per the IUPAC 2013 Recommendations
-("the Blue Book"), Chapter P-10 (https://iupac.qmul.ac.uk/BlueBook/P10.html):
+plain aldoses of 3-7 carbons and plain 2-ketoses of 4-6 carbons, each
+named via their retained stem name (3-6 carbons) or, for the 7-carbon
+heptoses, a two-segment configurational-prefix name -- per the IUPAC 2013
+Recommendations ("the Blue Book"), Chapter P-10
+(https://iupac.qmul.ac.uk/BlueBook/P10.html):
 
 - P-102.3.2/P-102.3.3: the 'D'/'L' stereodescriptor is assigned from the
   CIP configuration of the highest-numbered chirality center (the carbon
@@ -20,6 +22,16 @@ named via their retained stem name -- per the IUPAC 2013 Recommendations
   L-series pattern is always the exact CIP mirror (every R flipped to S
   and vice versa) of its D-series counterpart -- confirmed against 4
   more real L-series structures (#1039 M1 step 1).
+- P-102.5.1.1.2: a heptose (7 carbons, 5 chirality centers) has no
+  single retained name -- its C-2..C-5 centers (adjacent to the
+  aldehyde) and its lone C-6 center (adjacent to the terminal -CH2OH)
+  each get their own independent D/L descriptor and configurational-
+  prefix word, with the C-6 group's prefix cited first. The C-2..C-5
+  group reuses the hexose stem-name table above stripped to its prefix
+  form (`glucose` -> `gluco`, etc.); the lone C-6 group uses its own
+  table (`glyceraldehyde`'s prefix `glycero`, which doesn't follow that
+  same strip rule) -- confirmed against 3 real PubChem heptose
+  structures spanning both matching and mixed D/L series (#1042).
 - P-102.5.2.1/P-102.5.2.2 (Table 10.3): a *2*-ketose (the carbonyl at
   C-2, one carbon in from the -CH2OH end that becomes C-1) follows the
   identical D/L rule at its own highest-numbered chirality center, and
@@ -31,20 +43,21 @@ named via their retained stem name -- per the IUPAC 2013 Recommendations
   compose a configurational-prefix name instead), out of scope here.
 
 Scope, deliberately narrow (first pass at carbohydrate nomenclature, WS1
-of #1039): a plain, unbranched, acyclic aldose (M1 step 1) or 2-ketose
+of #1039): a plain, unbranched, acyclic aldose (M1 steps 1/3) or 2-ketose
 (M1 step 2) backbone only -- a terminal aldehyde or a C-2 carbonyl
-flanked by a terminal -CH2OH, 1 to 4 more -CH(OH)- chirality-bearing
-carbons, and a second terminal -CH2OH, 3 to 6 (aldose) or 4 to 6
+flanked by a terminal -CH2OH, 1 to 5 more -CH(OH)- chirality-bearing
+carbons, and a second terminal -CH2OH, 3 to 7 (aldose) or 4 to 6
 (2-ketose) carbons total, with every stereocenter's configuration
 specified and no substituent anywhere beyond each chain carbon's own
 single -OH (or, at the terminal carbons, none beyond what the aldehyde/
 -CH2OH/carbonyl shape itself requires). A ketose with its carbonyl at
-C-3 or higher (#1041's own later scope), any aldose/ketose beyond 6
-carbons (P-102.5.1.1.2, #1042), any cyclic/ring form (P-102.3.4, this
-project's M2/#85), deoxy/amino sugars, glycosides, and any other
-substituent are all out of scope here -- a molecule matching any of
-those still falls through to the existing generic acyclic-aldehyde/
-ketone/polyol naming unchanged, same as it does today.
+C-3 or higher (#1041's own later scope), any aldose/ketose beyond 7
+carbons (octoses/nonoses/decoses each have their own group-count shape,
+later M1 steps), any cyclic/ring form (P-102.3.4, this project's M2/#85),
+deoxy/amino sugars, glycosides, and any other substituent are all out of
+scope here -- a molecule matching any of those still falls through to
+the existing generic acyclic-aldehyde/ketone/polyol naming unchanged,
+same as it does today.
 """
 
 from rdkit.Chem import rdCIPLabeler
@@ -77,12 +90,30 @@ _D_ALDOSE_PATTERNS = {
 
 _FLIP_CIP = {"R": "S", "S": "R"}
 
+# The heptose's lone C-6 group (P-102.5.1.1.2) -- 'glycero', the
+# configurational-prefix form of glyceraldehyde, doesn't follow the
+# hexose table's own strip-to-prefix rule so it needs its own table.
+_D_GLYCERO_PATTERNS = {
+    ("R",): "glycero",
+}
+
+
+def _segment_descriptor(pattern, patterns_table):
+    """`(D/L, stem-name)` for one heptose group's own CIP pattern against
+    `patterns_table` -- the stem word itself never changes between the D
+    and L series, only which descriptor letter is cited (P-102.3.3
+    applied to a single group rather than the whole molecule)."""
+    if pattern in patterns_table:
+        return "D", patterns_table[pattern]
+    flipped = tuple(_FLIP_CIP[c] for c in pattern)
+    return "L", patterns_table[flipped]
+
 
 def _open_chain_aldose_backbone(mol):
     """The aldose backbone's carbon chain, aldehyde carbon first and
     terminal -CH2OH carbon last, or None if `mol` doesn't have this exact
     shape (see module docstring): acyclic, exactly one terminal aldehyde,
-    an unbranched carbon chain of 3-6 atoms from it, every chain carbon
+    an unbranched carbon chain of 3-7 atoms from it, every chain carbon
     bearing exactly one single-bonded oxygen substituent (an -OH, or the
     aldehyde's own =O at C-1), and no heavy atom anywhere in the molecule
     outside that chain and those oxygens."""
@@ -105,7 +136,7 @@ def _open_chain_aldose_backbone(mol):
     graph = adjacency(mol)
     oxygens = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetSymbol() == "O"}
     chain = ordered_chain(graph, aldehyde_carbon, -1, oxygens)
-    if chain is None or not 3 <= len(chain) <= 6:
+    if chain is None or not 3 <= len(chain) <= 7:
         return None
     if mol.GetNumAtoms() != 2 * len(chain):
         return None
@@ -151,6 +182,11 @@ def has_open_chain_aldose_shape(mol) -> bool:
     pattern = _cip_pattern(mol, chain[1:-1])
     if pattern is None:
         return False
+    if len(pattern) == 5:
+        # A heptose's near/far group split (P-102.5.1.1.2) always
+        # resolves: the hexose and glycero tables' D-series entries plus
+        # their CIP mirrors cover every possible 4- and 1-length pattern.
+        return True
     if pattern in _D_ALDOSE_PATTERNS:
         return True
     flipped = tuple(_FLIP_CIP[c] for c in pattern)
@@ -160,6 +196,11 @@ def has_open_chain_aldose_shape(mol) -> bool:
 def name_open_chain_aldose(mol) -> str:
     chain = _open_chain_aldose_backbone(mol)
     pattern = _cip_pattern(mol, chain[1:-1])
+    if len(pattern) == 5:
+        near, far = pattern[:4], pattern[4:]
+        near_dl, near_stem = _segment_descriptor(near, _D_ALDOSE_PATTERNS)
+        far_dl, far_prefix = _segment_descriptor(far, _D_GLYCERO_PATTERNS)
+        return f"{far_dl}-{far_prefix}-{near_dl}-{near_stem[:-2]}-heptose"
     if pattern in _D_ALDOSE_PATTERNS:
         return f"D-{_D_ALDOSE_PATTERNS[pattern]}"
     flipped = tuple(_FLIP_CIP[c] for c in pattern)
