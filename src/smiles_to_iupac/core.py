@@ -49,6 +49,7 @@ from ._carbenium import has_acylium_shape, has_carbenium_shape, name_acylium, na
 from ._sulfonium import has_sulfonium_shape, name_sulfonium
 from ._diazonium import has_diazonium_shape, name_diazonium
 from ._radical import has_radical_shape, name_radical
+from ._radical_ion import has_radical_ion_shape, name_radical_ion
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
 from ._bridged_aromatic import (
@@ -402,6 +403,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # heteroatom.
     if has_isotope_shape(mol):
         return name_isotope(mol)
+
+    # A radical ion on an ionic suffix group (P-75.3.1's 'aminiumyl'
+    # radical cation) has both a charge and a radical electron on the
+    # same nitrogen -- checked ahead of `has_radical_shape` below, whose
+    # own broader "any nonzero radical electron count" check would
+    # otherwise claim it first and misroute it into the plain-radical
+    # dispatch, which rejects any charged atom outright.
+    if has_radical_ion_shape(mol):
+        return name_radical_ion(mol)
 
     # A radical center (P-71.2.1.1's 'yl' radical naming) must be routed
     # here before every other branch below: none of them recognize a
