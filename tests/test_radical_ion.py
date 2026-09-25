@@ -43,6 +43,28 @@ def test_ethylsulfaniumyl():
     assert smiles_to_iupac("CC[SH+]") == "ethylsulfaniumyl"
 
 
+def test_methanaminyliumyl():
+    # C[N+], the aminyliumyl radical cation (P-73.2.3.2's 'ylium' cation
+    # plus P-75.3.1's radical 'yl', stacked): needs a double
+    # reconstruction all the way back to neutral methanamine, since the
+    # intermediate 'methanaminylium' cation is itself still radical-
+    # carrying.
+    assert smiles_to_iupac("C[N+]") == "methanaminyliumyl"
+
+
+def test_ethaniminyliumyl():
+    assert smiles_to_iupac("CC=[N+]") == "ethaniminyliumyl"
+
+
+def test_ethanamidyliumyl():
+    # matches the Blue Book's own literal worked example shape
+    # `acetamidyliumyl (PIN)`, tmp/bluebook/P7.txt ~3478-3496 -- this
+    # project's own established never-special-case-acetic/formic policy
+    # gives the systematic "ethanamidyliumyl" instead of the retained
+    # "acetamidyliumyl".
+    assert smiles_to_iupac("CC(=O)[N+]") == "ethanamidyliumyl"
+
+
 def test_oxonium_still_resolves():
     # a sanity check that the new radical-ion dispatch doesn't misfire on
     # a plain, non-radical oxonium cation.
