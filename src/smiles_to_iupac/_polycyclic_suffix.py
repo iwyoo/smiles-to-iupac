@@ -117,9 +117,14 @@ def name_von_baeyer_suffix(
     return best_key[-1]
 
 
-def name_monospiro_suffix(mol, suffix_carbon, excluded, suffix_word, noun, spiro_atom, elide_e=True):
+def name_monospiro_suffix(
+    mol, suffix_carbon, excluded, suffix_word, noun, spiro_atom, elide_e=True, extra_substituents=None
+):
     """Same mechanism as `name_von_baeyer_suffix`, for a monospiro
-    skeleton (`_spiro.py`)."""
+    skeleton (`_spiro.py`). `extra_substituents`: see that function's own
+    docstring (#1029) -- an optional `{atom_idx: name}` dict merged
+    alongside the usual halogen substituents, e.g. a coexisting hydroxyl
+    cited as a prefix."""
     ring_atoms = {atom for ring in mol.GetRingInfo().AtomRings() for atom in ring}
     if suffix_carbon not in ring_atoms:
         raise UnsupportedStructure(
@@ -127,7 +132,7 @@ def name_monospiro_suffix(mol, suffix_carbon, excluded, suffix_word, noun, spiro
             "substituent branch) is not supported yet"
         )
 
-    halogens = halogen_substituents(mol)
+    halogens = {**halogen_substituents(mol), **(extra_substituents or {})}
     graph = adjacency(mol)
     best_key = None
     for parent, full_order in iter_monospiro_numberings(mol, spiro_atom):
