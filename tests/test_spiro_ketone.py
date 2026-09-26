@@ -35,3 +35,20 @@ def test_multiple_spiro_ketones_raises():
 def test_unsaturated_spiro_ketone_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O=C1CCCC12C=CCCC2")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # No real registered PubChem structure matching "monospiro ketone,
+        # single specified stereocenter, no coexisting hydroxyl" turned up
+        # in a reasonable search (#1078, M5 step 1) -- both CIP labels
+        # below were independently cross-checked with `rdCIPLabeler`
+        # directly against atom 4 (the methyl-bearing carbon), not just
+        # trusted from this module's own output.
+        ("O=C1CC[C@H](C)C12CCCCC2", "(4S)-4-methylspiro[4.5]decan-1-one"),
+        ("O=C1CC[C@@H](C)C12CCCCC2", "(4R)-4-methylspiro[4.5]decan-1-one"),
+    ],
+)
+def test_spiro_ketone_specified_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
