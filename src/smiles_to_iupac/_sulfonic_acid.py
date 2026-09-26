@@ -498,17 +498,11 @@ def _name_von_baeyer_or_spiro_sulfonic_acid(mol, sulfur_idx, so3h_carbon, bonds,
     sulfonic acid', PubChem CID 14579878). Mirrors `_sulfinic_acid.py`'s
     own bicyclic/polycyclic-before-spiro dispatch order and restrictions:
     exactly one sulfonic acid on the ring system itself, no ring
-    unsaturation, no specified stereocenter."""
+    unsaturation."""
     if bonds:
         raise UnsupportedStructure(
             "an unsaturated von Baeyer bicyclic/polycyclic or monospiro "
             "ring system is not supported yet (see P-31.1.4/P-31.1.5)"
-        )
-    if stereo is not None:
-        raise UnsupportedStructure(
-            "a specified stereocenter alongside a von Baeyer bicyclic/"
-            "polycyclic or monospiro sulfonic acid is not supported yet "
-            "(see P-92)"
         )
 
     bicyclic_core = find_bicyclic_core(mol)
@@ -531,12 +525,13 @@ def _name_von_baeyer_or_spiro_sulfonic_acid(mol, sulfur_idx, so3h_carbon, bonds,
             polycyclic_core,
             von_baeyer_ring_count,
             elide_e=False,
+            stereo=stereo,
         )
 
     spiro_atom = find_monospiro_atom(mol)
     if spiro_atom is not None:
         return name_monospiro_suffix(
-            mol, so3h_carbon, {sulfur_idx}, "sulfonic acid", "sulfonic acid", spiro_atom, elide_e=False
+            mol, so3h_carbon, {sulfur_idx}, "sulfonic acid", "sulfonic acid", spiro_atom, elide_e=False, stereo=stereo
         )
 
     raise UnsupportedStructure(

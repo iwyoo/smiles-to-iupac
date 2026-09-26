@@ -616,8 +616,8 @@ def _name_von_baeyer_or_spiro_thiol(mol, thiols, stereo, bonds):
     parent stem's final 'e' is kept, e.g. 'bicyclo[2.2.1]heptane-2-thiol',
     not '...heptan-2-thiol' -- PubChem CID 13487780). Mirrors
     `_amine.py`'s/`_ketone.py`'s own bicyclic/polycyclic-before-spiro
-    dispatch order and restrictions: exactly one thiol on the ring system
-    itself, no ring unsaturation, no specified stereocenter."""
+    dispatch order and restrictions: exactly one thiol on the ring
+    system itself, no ring unsaturation."""
     if len(thiols) != 1:
         raise UnsupportedStructure(
             "more than one thiol on a von Baeyer bicyclic/polycyclic or "
@@ -627,11 +627,6 @@ def _name_von_baeyer_or_spiro_thiol(mol, thiols, stereo, bonds):
         raise UnsupportedStructure(
             "an unsaturated von Baeyer bicyclic/polycyclic or monospiro "
             "ring system is not supported yet (see P-31.1.4/P-31.1.5)"
-        )
-    if stereo is not None:
-        raise UnsupportedStructure(
-            "a specified stereocenter alongside a von Baeyer bicyclic/"
-            "polycyclic or monospiro thiol is not supported yet (see P-92)"
         )
 
     (sulfur,) = thiols
@@ -658,11 +653,14 @@ def _name_von_baeyer_or_spiro_thiol(mol, thiols, stereo, bonds):
             polycyclic_core,
             von_baeyer_ring_count,
             elide_e=False,
+            stereo=stereo,
         )
 
     spiro_atom = find_monospiro_atom(mol)
     if spiro_atom is not None:
-        return name_monospiro_suffix(mol, thiol_carbon, thiols, "thiol", "thiol", spiro_atom, elide_e=False)
+        return name_monospiro_suffix(
+            mol, thiol_carbon, thiols, "thiol", "thiol", spiro_atom, elide_e=False, stereo=stereo
+        )
 
     raise UnsupportedStructure(
         "polycyclic and fused-ring thiols are not supported yet (P-23/"
