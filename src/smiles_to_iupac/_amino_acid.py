@@ -1,71 +1,75 @@
 """Naming of a common alpha-amino carboxylic acid using its P-103 retained
-name and L/D stereodescriptor, for the plain-hydrocarbon side chains
-(glycine, alanine, valine, leucine), the two single-heteroatom-terminated
-side chains (serine, cysteine), and the two second-carboxylic-acid side
-chains (aspartic acid, glutamic acid), per the IUPAC 2013 Recommendations
-("the Blue Book"):
+name and L/D stereodescriptor, for the side chains below, per the IUPAC
+2013 Recommendations ("the Blue Book"):
 
-- P-103.1.1.1 (Table 10.4): the retained names for these eight.
+- P-103.1.1.1 (Table 10.4): the retained names, keyed by a canonical
+  fragment SMILES of the side chain itself (see `_SIDE_CHAIN_TABLE`)
+  rather than a hand-coded graph walk per shape -- a growing per-shape
+  `if`/`elif` chain (this module's own earlier form, #1057/#1068/#1070)
+  is a narrow-enumeration smell even when each addition individually
+  looks justified; a canonical-fragment table lookup is the general
+  mechanism that actually covers the whole family in one place. New side
+  chains are added by extending the table, not by writing a new
+  structural walk.
 - P-103.1.3.1: 'L' corresponds to the CIP 'S' configuration at the
   alpha-carbon for every common amino acid *except* cysteine, whose
   side-chain sulfur outranks the ring-ward carbon in CIP priority and so
-  flips the correspondence to L='R'/D='S' -- confirmed this session
-  against cysteine's real PubChem L-/D- structures (CIDs 92851, 5862).
-  'D' corresponds to 'R' (or 'S' for cysteine). Confirmed against real
+  flips the correspondence to L='R'/D='S' -- confirmed against
+  cysteine's real PubChem L-/D- structures (CIDs 92851, 5862). 'D'
+  corresponds to 'R' (or 'S' for cysteine). Confirmed against real
   PubChem L-/D- structures for alanine/valine/leucine/serine/aspartic
   acid/glutamic acid during scoping (#1056 M1 steps 1-3) -- no exception
   for aspartic/glutamic acid, the ordinary S=L/R=D rule holds. Glycine's
   alpha-carbon bears two hydrogens, so it's never a stereocenter and gets
   no L-/D- prefix at all.
 
-Scope, deliberately narrow (#1057, extended by #1068 and #1070): exactly
-the eight side-chain shapes below, each already correctly recognized as a
-plain alpha-amino-acid backbone by `_carboxylic_acid_amine.py`'s shared
+Scope, deliberately narrow (table entries only): exactly the side chains
+in `_SIDE_CHAIN_TABLE`, each already correctly recognized as a plain
+alpha-amino-acid backbone by `_carboxylic_acid_amine.py`'s shared
 detection -- this module only intercepts those specific side chains
 ahead of that module's own generic (CIP-only, no-retained-name) fallback
 in `core.py`'s dispatch order, unchanged for every other amino acid or
 amine/acid combination (including isoleucine/threonine, which have a
 second side-chain stereocenter and their own 'allo' complexity, and every
-other heteroatom-bearing or aromatic side chain, all deferred to a later
-batch-rollout step).
+ring-containing side chain -- the top-level `NumRings() > 0` guard below
+rejects those regardless of the table, deferred to a later step once
+this mechanism is extended to handle a ring-bearing side chain).
 """
+
+from rdkit import Chem
 
 from ._common import adjacency, find_primary_amines, specified_stereocenters
 
-_UNRECOGNIZED = None
-
 _ALPHA_TO_LD = {"S": "L", "R": "D"}
 _ALPHA_TO_LD_CYSTEINE = {"R": "L", "S": "D"}  # P-103.1.3.1's stated exception
+
+_SIDE_CHAIN_SMILES = {
+    "alanine": "*C",
+    "valine": "*C(C)C",
+    "leucine": "*CC(C)C",
+    "serine": "*CO",
+    "cysteine": "*CS",
+    "aspartic acid": "*CC(=O)O",
+    "glutamic acid": "*CCC(=O)O",
+}
+# Canonicalized at import time (rather than hardcoding the already-
+# canonical strings above) so a future RDKit version's canonicalization
+# doesn't silently desync the table from what `_side_chain_fragment`
+# actually produces.
+_SIDE_CHAIN_TABLE = {Chem.CanonSmiles(smiles): name for name, smiles in _SIDE_CHAIN_SMILES.items()}
 
 
 def _is_plain_carbon(atom):
     return atom.GetAtomicNum() == 6 and atom.GetFormalCharge() == 0 and atom.GetIsotope() == 0
 
 
-def _is_terminal_methyl(mol, graph, atom_idx, coming_from):
-    atom = mol.GetAtomWithIdx(atom_idx)
-    neighbors = [n for n in graph[atom_idx] if n != coming_from]
-    return _is_plain_carbon(atom) and not neighbors and atom.GetTotalNumHs() == 3
-
-
-def _is_terminal_heteroatom(mol, graph, atom_idx, coming_from):
-    """True for a terminal -OH/-SH heteroatom (degree 1, one hydrogen, no
-    charge/isotope) hanging off `coming_from` -- serine/cysteine's own
-    side-chain terminus, distinguished from an ether/thioether or a
-    charged/isotopically modified variant."""
-    atom = mol.GetAtomWithIdx(atom_idx)
-    if atom.GetAtomicNum() not in (8, 16):
-        return False
-    if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
-        return False
-    neighbors = [n for n in graph[atom_idx] if n != coming_from]
-    return not neighbors and atom.GetTotalNumHs() == 1
-
-
 def _is_terminal_carboxylic_acid_carbon(mol, graph, atom_idx, coming_from):
     """True for a terminal -COOH carbon (bonded only to `coming_from` and
-    its own carbonyl/hydroxyl oxygens) hanging off `coming_from` --
-    aspartic/glutamic acid's own side-chain terminus."""
+    its own carbonyl/hydroxyl oxygens) hanging off `coming_from` -- used
+    to find the *main-chain* acid carbon among the alpha-carbon's own
+    neighbors, not for side-chain recognition (aspartic/glutamic acid's
+    second, side-chain-terminal carboxylic acid is matched via
+    `_SIDE_CHAIN_TABLE` instead, like every other side chain)."""
     atom = mol.GetAtomWithIdx(atom_idx)
     if not _is_plain_carbon(atom):
         return False
@@ -91,59 +95,43 @@ def _is_terminal_carboxylic_acid_carbon(mol, graph, atom_idx, coming_from):
     return len(carbonyls) == 1 and len(hydroxyls) == 1
 
 
-def _side_chain_name(mol, graph, root, coming_from):
-    """'alanine', 'valine', 'leucine', 'serine', 'cysteine', 'aspartic
-    acid', 'glutamic acid', or `_UNRECOGNIZED` for the side-chain branch
-    hanging off `root` (the alpha-carbon's own side-chain neighbor,
-    already confirmed to exist -- glycine's no-side-chain case is handled
-    by the caller before this is reached)."""
-    atom = mol.GetAtomWithIdx(root)
-    if not _is_plain_carbon(atom):
-        return _UNRECOGNIZED
-    neighbors = [n for n in graph[root] if n != coming_from]
-    if not neighbors:
-        return "alanine" if atom.GetTotalNumHs() == 3 else _UNRECOGNIZED
-    if len(neighbors) == 2 and atom.GetTotalNumHs() == 1:
-        if all(_is_terminal_methyl(mol, graph, n, root) for n in neighbors):
-            return "valine"
-        return _UNRECOGNIZED
-    if len(neighbors) == 1 and atom.GetTotalNumHs() == 2:
-        (next_atom,) = neighbors
-        next_obj = mol.GetAtomWithIdx(next_atom)
-        if _is_terminal_heteroatom(mol, graph, next_atom, root):
-            return "serine" if next_obj.GetAtomicNum() == 8 else "cysteine"
-        if _is_terminal_carboxylic_acid_carbon(mol, graph, next_atom, root):
-            return "aspartic acid"
-        next_neighbors = [n for n in graph[next_atom] if n != root]
-        if (
-            _is_plain_carbon(next_obj)
-            and next_obj.GetTotalNumHs() == 1
-            and len(next_neighbors) == 2
-            and all(_is_terminal_methyl(mol, graph, n, next_atom) for n in next_neighbors)
-        ):
-            return "leucine"
-        if _is_plain_carbon(next_obj) and next_obj.GetTotalNumHs() == 2 and len(next_neighbors) == 1:
-            (next_next_atom,) = next_neighbors
-            if _is_terminal_carboxylic_acid_carbon(mol, graph, next_next_atom, next_atom):
-                return "glutamic acid"
-        return _UNRECOGNIZED
-    return _UNRECOGNIZED
+def _side_chain_fragment(mol, alpha_carbon, other_alpha_neighbors):
+    """The side-chain fragment hanging off `alpha_carbon`, as an RDKit Mol
+    plus its canonical SMILES -- the cut bond to `alpha_carbon` is marked
+    by a dummy atom (`*`) so the fragment's canonical form is stable
+    regardless of what's on the other side of that bond (the amine/acid
+    this module already excludes). `(None, None)` if `alpha_carbon` isn't
+    itself a plain, unbranched attachment point (shouldn't happen given
+    how callers use this, but keeps this function total)."""
+    rw = Chem.RWMol(mol)
+    for neighbor in other_alpha_neighbors:
+        rw.RemoveBond(alpha_carbon, neighbor)
+    dummy = rw.GetAtomWithIdx(alpha_carbon)
+    dummy.SetAtomicNum(0)
+    dummy.SetFormalCharge(0)
+    dummy.SetNoImplicit(True)
+    dummy.SetNumExplicitHs(0)
+    frag_mol = rw.GetMol()
+    Chem.SanitizeMol(frag_mol)
+    for frag in Chem.GetMolFrags(frag_mol, asMols=True, sanitizeFrags=True):
+        if any(a.GetAtomicNum() == 0 for a in frag.GetAtoms()):
+            return frag, Chem.MolToSmiles(frag)
+    return None, None
 
 
 def _match(mol):
     """(retained_name, alpha_carbon_idx_or_None) if `mol` is a plain
-    acyclic alpha-amino acid whose side chain is glycine/alanine/valine/
-    leucine/serine/cysteine/aspartic acid/glutamic acid's shape, else
-    None. `alpha_carbon_idx` is None only for glycine (no stereocenter to
-    look up an L/D descriptor for).
+    acyclic alpha-amino acid whose side chain matches a `_SIDE_CHAIN_TABLE`
+    entry, else None. `alpha_carbon_idx` is None only for glycine (no
+    stereocenter to look up an L/D descriptor for).
 
     Finds the *main-chain* acid carbon by looking directly at the
     alpha-carbon's own neighbors, rather than `_find_carboxylic_acid_carbon`'s
     whole-molecule first-match search -- aspartic/glutamic acid also carry
     a second, side-chain-terminal carboxylic-acid-shaped carbon, and that
-    whole-molecule search can find the wrong one first (confirmed this
-    session: for 'OC(=O)C[C@H](N)C(=O)O', it returned the side-chain acid
-    carbon, not the one bonded to the alpha carbon)."""
+    whole-molecule search can find the wrong one first (confirmed:
+    for 'OC(=O)C[C@H](N)C(=O)O', it returned the side-chain acid carbon,
+    not the one bonded to the alpha carbon)."""
     if mol.GetRingInfo().NumRings() > 0:
         return None
     amines = find_primary_amines(mol)
@@ -165,42 +153,33 @@ def _match(mol):
     if len(acid_candidates) != 1:
         return None
     (acid_carbon_idx,) = acid_candidates
-    acid_oxygens = [n for n in graph[acid_carbon_idx] if n != alpha_carbon]
-    carbonyl_oxygen = next(
-        o for o in acid_oxygens if mol.GetBondBetweenAtoms(acid_carbon_idx, o).GetBondTypeAsDouble() == 2.0
-    )
-    hydroxyl_oxygen = next(o for o in acid_oxygens if o != carbonyl_oxygen)
 
-    exclude = {amine_n, acid_carbon_idx}
-    side_neighbors = [n for n in graph[alpha_carbon] if n not in exclude]
-
-    excluded_acid_oxygens = {carbonyl_oxygen, hydroxyl_oxygen}
-    accounted = exclude | excluded_acid_oxygens
+    side_neighbors = [n for n in graph[alpha_carbon] if n not in (amine_n, acid_carbon_idx)]
 
     if not side_neighbors:
         if alpha_atom.GetTotalNumHs() != 2:
             return None
-        if mol.GetNumAtoms() != len(accounted) + 1:
+        # amine N + acid C + its 2 oxygens + alpha C, nothing else anywhere
+        # in the molecule (rejects e.g. a disconnected salt fragment).
+        if mol.GetNumAtoms() != 5:
             return None
         return "glycine", None
 
     if len(side_neighbors) != 1 or alpha_atom.GetTotalNumHs() != 1:
         return None
-    (side_root,) = side_neighbors
-    name = _side_chain_name(mol, graph, side_root, alpha_carbon)
+
+    frag, frag_smiles = _side_chain_fragment(mol, alpha_carbon, (amine_n, acid_carbon_idx))
+    if frag_smiles is None:
+        return None
+    name = _SIDE_CHAIN_TABLE.get(frag_smiles)
     if name is None:
         return None
-
-    side_chain_atoms = {
-        "alanine": 1,
-        "valine": 3,
-        "leucine": 4,
-        "serine": 2,
-        "cysteine": 2,
-        "aspartic acid": 4,
-        "glutamic acid": 5,
-    }[name]
-    if mol.GetNumAtoms() != len(accounted) + 1 + side_chain_atoms:
+    # amine N + acid C + its 2 oxygens + alpha C + the side chain's own
+    # atoms (frag includes a dummy atom standing in for alpha_carbon, so
+    # its real atom count is frag.GetNumAtoms() - 1) - same disconnected-
+    # fragment guard as glycine's case above, generalized via the
+    # fragment's own atom count instead of a per-name lookup table.
+    if mol.GetNumAtoms() != 4 + frag.GetNumAtoms():
         return None
     return name, alpha_carbon
 
