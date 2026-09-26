@@ -23,6 +23,14 @@ def test_glycine():
         # L-/D-leucine: PubChem CID 6106 / CID 439524.
         ("CC(C)C[C@@H](C(=O)O)N", "L-leucine"),
         ("CC(C)C[C@H](C(=O)O)N", "D-leucine"),
+        # L-/D-serine: PubChem CID 71077 / CID 5951.
+        ("C([C@@H](C(=O)O)N)O", "L-serine"),
+        ("C([C@H](C(=O)O)N)O", "D-serine"),
+        # L-/D-cysteine: PubChem CID 92851 / CID 5862. P-103.1.3.1's
+        # exception -- L is CIP 'R' here, not 'S' like every other case
+        # in this table.
+        ("C([C@@H](C(=O)O)N)S", "L-cysteine"),
+        ("C([C@H](C(=O)O)N)S", "D-cysteine"),
     ],
 )
 def test_common_amino_acid_ld(smiles, expected):
@@ -42,12 +50,20 @@ def test_isoleucine_still_generic():
     assert smiles_to_iupac("CC[C@H](C)[C@@H](N)C(=O)O") == "(2R,3S)-2-amino-3-methylpentanoic acid"
 
 
-def test_serine_still_unsupported():
-    # A heteroatom-bearing side chain (hydroxyl) trips an unrelated
-    # coexisting-oxygen guard, unaffected by this module -- deferred to a
-    # batch-rollout step.
+def test_methionine_still_unsupported():
+    # A two-carbon side chain to a thioether (not a terminal thiol) is a
+    # different shape from cysteine's -CH2-SH -- still falls through to
+    # the coexisting-heteroatom guard, deferred to a batch-rollout step.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC[C@@H](N)C(=O)O")
+        smiles_to_iupac("CSCC[C@@H](N)C(=O)O")
+
+
+def test_threonine_still_unsupported():
+    # A second side-chain stereocenter (and 'allo' complexity), same as
+    # isoleucine -- out of scope for this step even though its side chain
+    # also carries a hydroxyl.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[C@@H](O)[C@H](N)C(=O)O")
 
 
 def test_phenylalanine_still_unsupported():

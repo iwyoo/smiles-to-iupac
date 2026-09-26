@@ -1,26 +1,31 @@
 """Naming of a common alpha-amino carboxylic acid using its P-103 retained
-name and L/D stereodescriptor, for the plain-hydrocarbon-side-chain subset
-(glycine, alanine, valine, leucine), per the IUPAC 2013 Recommendations
-("the Blue Book"):
+name and L/D stereodescriptor, for the plain-hydrocarbon side chains
+(glycine, alanine, valine, leucine) plus the two single-heteroatom-
+terminated side chains (serine, cysteine), per the IUPAC 2013
+Recommendations ("the Blue Book"):
 
-- P-103.1.1.1 (Table 10.4): the retained names for these four.
+- P-103.1.1.1 (Table 10.4): the retained names for these six.
 - P-103.1.3.1: 'L' corresponds to the CIP 'S' configuration at the
-  alpha-carbon for every common amino acid except cysteine (out of scope
-  here -- cysteine's side-chain sulfur flips the correspondence to L='R',
-  #1057's own explicit exclusion); 'D' corresponds to 'R'. Confirmed
-  against real PubChem L-/D- structures for alanine/valine/leucine during
-  scoping (#1056 M1 step 1). Glycine's alpha-carbon bears two hydrogens,
-  so it's never a stereocenter and gets no L-/D- prefix at all.
+  alpha-carbon for every common amino acid *except* cysteine, whose
+  side-chain sulfur outranks the ring-ward carbon in CIP priority and so
+  flips the correspondence to L='R'/D='S' -- confirmed this session
+  against cysteine's real PubChem L-/D- structures (CIDs 92851, 5862).
+  'D' corresponds to 'R' (or 'S' for cysteine). Confirmed against real
+  PubChem L-/D- structures for alanine/valine/leucine/serine during
+  scoping (#1056 M1 steps 1-2). Glycine's alpha-carbon bears two
+  hydrogens, so it's never a stereocenter and gets no L-/D- prefix at
+  all.
 
-Scope, deliberately narrow (#1057): exactly the four side-chain shapes
-below, each already correctly recognized as a plain alpha-amino-acid
-backbone by `_carboxylic_acid_amine.py`'s shared detection -- this module
-only intercepts those four specific side chains ahead of that module's
-own generic (CIP-only, no-retained-name) fallback in `core.py`'s dispatch
-order, unchanged for every other amino acid or amine/acid combination
-(including isoleucine, which has a second side-chain stereocenter and its
-own 'allo' complexity, and every heteroatom-bearing or aromatic side
-chain, all deferred to a later batch-rollout step).
+Scope, deliberately narrow (#1057, extended by #1068): exactly the six
+side-chain shapes below, each already correctly recognized as a plain
+alpha-amino-acid backbone by `_carboxylic_acid_amine.py`'s shared
+detection -- this module only intercepts those specific side chains
+ahead of that module's own generic (CIP-only, no-retained-name) fallback
+in `core.py`'s dispatch order, unchanged for every other amino acid or
+amine/acid combination (including isoleucine/threonine, which have a
+second side-chain stereocenter and their own 'allo' complexity, and every
+other heteroatom-bearing or aromatic side chain, all deferred to a later
+batch-rollout step).
 """
 
 from ._carboxylic_acid_amine import _amine_on_a_different_carbon, _find_carboxylic_acid_carbon
@@ -29,6 +34,7 @@ from ._common import adjacency, find_primary_amines, specified_stereocenters
 _UNRECOGNIZED = None
 
 _ALPHA_TO_LD = {"S": "L", "R": "D"}
+_ALPHA_TO_LD_CYSTEINE = {"R": "L", "S": "D"}  # P-103.1.3.1's stated exception
 
 
 def _is_plain_carbon(atom):
@@ -41,11 +47,26 @@ def _is_terminal_methyl(mol, graph, atom_idx, coming_from):
     return _is_plain_carbon(atom) and not neighbors and atom.GetTotalNumHs() == 3
 
 
+def _is_terminal_heteroatom(mol, graph, atom_idx, coming_from):
+    """True for a terminal -OH/-SH heteroatom (degree 1, one hydrogen, no
+    charge/isotope) hanging off `coming_from` -- serine/cysteine's own
+    side-chain terminus, distinguished from an ether/thioether or a
+    charged/isotopically modified variant."""
+    atom = mol.GetAtomWithIdx(atom_idx)
+    if atom.GetAtomicNum() not in (8, 16):
+        return False
+    if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+        return False
+    neighbors = [n for n in graph[atom_idx] if n != coming_from]
+    return not neighbors and atom.GetTotalNumHs() == 1
+
+
 def _side_chain_name(mol, graph, root, coming_from):
-    """'alanine', 'valine', 'leucine', or `_UNRECOGNIZED` for the side-
-    chain branch hanging off `root` (the alpha-carbon's own side-chain
-    neighbor, already confirmed to exist -- glycine's no-side-chain case
-    is handled by the caller before this is reached)."""
+    """'alanine', 'valine', 'leucine', 'serine', 'cysteine', or
+    `_UNRECOGNIZED` for the side-chain branch hanging off `root` (the
+    alpha-carbon's own side-chain neighbor, already confirmed to exist --
+    glycine's no-side-chain case is handled by the caller before this is
+    reached)."""
     atom = mol.GetAtomWithIdx(root)
     if not _is_plain_carbon(atom):
         return _UNRECOGNIZED
@@ -59,6 +80,8 @@ def _side_chain_name(mol, graph, root, coming_from):
     if len(neighbors) == 1 and atom.GetTotalNumHs() == 2:
         (next_atom,) = neighbors
         next_obj = mol.GetAtomWithIdx(next_atom)
+        if _is_terminal_heteroatom(mol, graph, next_atom, root):
+            return "serine" if next_obj.GetAtomicNum() == 8 else "cysteine"
         next_neighbors = [n for n in graph[next_atom] if n != root]
         if (
             _is_plain_carbon(next_obj)
@@ -118,7 +141,7 @@ def _match(mol):
     if name is None:
         return None
 
-    side_chain_atoms = {"alanine": 1, "valine": 3, "leucine": 4}[name]
+    side_chain_atoms = {"alanine": 1, "valine": 3, "leucine": 4, "serine": 2, "cysteine": 2}[name]
     if mol.GetNumAtoms() != len(accounted) + 1 + side_chain_atoms:
         return None
     return name, alpha_carbon
@@ -138,4 +161,5 @@ def name_amino_acid(mol) -> str:
     labels = {atom_idx: label for atom_idx, label in stereo}
     if alpha_carbon not in labels:
         return name
-    return f"{_ALPHA_TO_LD[labels[alpha_carbon]]}-{name}"
+    mapping = _ALPHA_TO_LD_CYSTEINE if name == "cysteine" else _ALPHA_TO_LD
+    return f"{mapping[labels[alpha_carbon]]}-{name}"

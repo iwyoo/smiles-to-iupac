@@ -1507,7 +1507,8 @@ def smiles_to_iupac(smiles: str) -> str:
             if has_carboxylic_acid_amide_shape(mol):
                 return name_carboxylic_acid_amide(mol)
             # P-103.1.1.1: glycine/alanine/valine/leucine's plain
-            # hydrocarbon side chains get their own retained name + L/D
+            # hydrocarbon side chains, plus serine/cysteine's single-
+            # heteroatom side chains, get their own retained name + L/D
             # descriptor instead of `has_carboxylic_acid_amine_shape`
             # below's generic CIP-only, no-retained-name naming.
             if has_amino_acid_shape(mol):
