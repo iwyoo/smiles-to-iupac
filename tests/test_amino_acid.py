@@ -102,24 +102,28 @@ def test_remaining_single_stereocenter_amino_acid_ld(smiles, expected):
 
 
 def test_arginine_unspecified_stereo_resolves():
-    # The retained name resolves for the unspecified-stereo case (correct,
-    # no L-/D- prefix per this project's convention), but a *specified*
-    # stereocenter currently still fails -- see
-    # test_arginine_specified_stereo_still_unsupported below, a separate,
-    # shared limitation unrelated to this module's own side-chain table.
+    # No L-/D- prefix per this project's convention for an unspecified
+    # stereocenter.
     assert smiles_to_iupac("NC(=N)NCCCC(N)C(=O)O") == "arginine"
 
 
-def test_arginine_specified_stereo_still_unsupported():
-    # `_common.specified_stereocenters` rejects any C=N double bond in the
-    # whole molecule, including a non-stereogenic symmetric one like the
-    # guanidino group's own C(=N)(N)N -- a separate, shared limitation
-    # (affects every module that calls this helper, not just amino acids),
-    # out of scope for this step. Filed as a follow-up rather than fixed
-    # here to avoid widening this PR into `_common.py`'s general
-    # double-bond-stereo detection.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(=N)NCCC[C@H](N)C(=O)O")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # L-/D-arginine: PubChem CID 6322 / CID 71070. The guanidino
+        # group's own C(=N)(N)N bond is a genuine potential stereo
+        # element per RDKit (its two carbon-side substituents are
+        # graph-distinct), but it's never configurationally specified in
+        # practice (rapid tautomeric/resonance exchange across the three
+        # nitrogens) -- `_alpha_stereo_label` ignores any stereo element
+        # entirely confined to the recognized side chain, so this no
+        # longer blocks the alpha-carbon's own specified descriptor.
+        ("NC(=N)NCCC[C@H](N)C(=O)O", "L-arginine"),
+        ("NC(=N)NCCC[C@@H](N)C(=O)O", "D-arginine"),
+    ],
+)
+def test_arginine_specified_stereo_resolves(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_threonine_still_unsupported():
