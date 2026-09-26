@@ -1,24 +1,26 @@
 """Naming of a common alpha-amino carboxylic acid using its P-103 retained
 name and L/D stereodescriptor, for the plain-hydrocarbon side chains
-(glycine, alanine, valine, leucine) plus the two single-heteroatom-
-terminated side chains (serine, cysteine), per the IUPAC 2013
-Recommendations ("the Blue Book"):
+(glycine, alanine, valine, leucine), the two single-heteroatom-terminated
+side chains (serine, cysteine), and the two second-carboxylic-acid side
+chains (aspartic acid, glutamic acid), per the IUPAC 2013 Recommendations
+("the Blue Book"):
 
-- P-103.1.1.1 (Table 10.4): the retained names for these six.
+- P-103.1.1.1 (Table 10.4): the retained names for these eight.
 - P-103.1.3.1: 'L' corresponds to the CIP 'S' configuration at the
   alpha-carbon for every common amino acid *except* cysteine, whose
   side-chain sulfur outranks the ring-ward carbon in CIP priority and so
   flips the correspondence to L='R'/D='S' -- confirmed this session
   against cysteine's real PubChem L-/D- structures (CIDs 92851, 5862).
   'D' corresponds to 'R' (or 'S' for cysteine). Confirmed against real
-  PubChem L-/D- structures for alanine/valine/leucine/serine during
-  scoping (#1056 M1 steps 1-2). Glycine's alpha-carbon bears two
-  hydrogens, so it's never a stereocenter and gets no L-/D- prefix at
-  all.
+  PubChem L-/D- structures for alanine/valine/leucine/serine/aspartic
+  acid/glutamic acid during scoping (#1056 M1 steps 1-3) -- no exception
+  for aspartic/glutamic acid, the ordinary S=L/R=D rule holds. Glycine's
+  alpha-carbon bears two hydrogens, so it's never a stereocenter and gets
+  no L-/D- prefix at all.
 
-Scope, deliberately narrow (#1057, extended by #1068): exactly the six
-side-chain shapes below, each already correctly recognized as a plain
-alpha-amino-acid backbone by `_carboxylic_acid_amine.py`'s shared
+Scope, deliberately narrow (#1057, extended by #1068 and #1070): exactly
+the eight side-chain shapes below, each already correctly recognized as a
+plain alpha-amino-acid backbone by `_carboxylic_acid_amine.py`'s shared
 detection -- this module only intercepts those specific side chains
 ahead of that module's own generic (CIP-only, no-retained-name) fallback
 in `core.py`'s dispatch order, unchanged for every other amino acid or
@@ -28,7 +30,6 @@ other heteroatom-bearing or aromatic side chain, all deferred to a later
 batch-rollout step).
 """
 
-from ._carboxylic_acid_amine import _amine_on_a_different_carbon, _find_carboxylic_acid_carbon
 from ._common import adjacency, find_primary_amines, specified_stereocenters
 
 _UNRECOGNIZED = None
@@ -61,12 +62,41 @@ def _is_terminal_heteroatom(mol, graph, atom_idx, coming_from):
     return not neighbors and atom.GetTotalNumHs() == 1
 
 
+def _is_terminal_carboxylic_acid_carbon(mol, graph, atom_idx, coming_from):
+    """True for a terminal -COOH carbon (bonded only to `coming_from` and
+    its own carbonyl/hydroxyl oxygens) hanging off `coming_from` --
+    aspartic/glutamic acid's own side-chain terminus."""
+    atom = mol.GetAtomWithIdx(atom_idx)
+    if not _is_plain_carbon(atom):
+        return False
+    neighbors = [n for n in graph[atom_idx] if n != coming_from]
+    if len(neighbors) != 2:
+        return False
+    oxygens = [n for n in neighbors if mol.GetAtomWithIdx(n).GetAtomicNum() == 8]
+    if len(oxygens) != 2:
+        return False
+    carbonyls = [
+        o
+        for o in oxygens
+        if mol.GetAtomWithIdx(o).GetDegree() == 1
+        and mol.GetBondBetweenAtoms(atom_idx, o).GetBondTypeAsDouble() == 2.0
+    ]
+    hydroxyls = [
+        o
+        for o in oxygens
+        if mol.GetAtomWithIdx(o).GetDegree() == 1
+        and mol.GetBondBetweenAtoms(atom_idx, o).GetBondTypeAsDouble() == 1.0
+        and mol.GetAtomWithIdx(o).GetTotalNumHs() == 1
+    ]
+    return len(carbonyls) == 1 and len(hydroxyls) == 1
+
+
 def _side_chain_name(mol, graph, root, coming_from):
-    """'alanine', 'valine', 'leucine', 'serine', 'cysteine', or
-    `_UNRECOGNIZED` for the side-chain branch hanging off `root` (the
-    alpha-carbon's own side-chain neighbor, already confirmed to exist --
-    glycine's no-side-chain case is handled by the caller before this is
-    reached)."""
+    """'alanine', 'valine', 'leucine', 'serine', 'cysteine', 'aspartic
+    acid', 'glutamic acid', or `_UNRECOGNIZED` for the side-chain branch
+    hanging off `root` (the alpha-carbon's own side-chain neighbor,
+    already confirmed to exist -- glycine's no-side-chain case is handled
+    by the caller before this is reached)."""
     atom = mol.GetAtomWithIdx(root)
     if not _is_plain_carbon(atom):
         return _UNRECOGNIZED
@@ -82,6 +112,8 @@ def _side_chain_name(mol, graph, root, coming_from):
         next_obj = mol.GetAtomWithIdx(next_atom)
         if _is_terminal_heteroatom(mol, graph, next_atom, root):
             return "serine" if next_obj.GetAtomicNum() == 8 else "cysteine"
+        if _is_terminal_carboxylic_acid_carbon(mol, graph, next_atom, root):
+            return "aspartic acid"
         next_neighbors = [n for n in graph[next_atom] if n != root]
         if (
             _is_plain_carbon(next_obj)
@@ -90,6 +122,10 @@ def _side_chain_name(mol, graph, root, coming_from):
             and all(_is_terminal_methyl(mol, graph, n, next_atom) for n in next_neighbors)
         ):
             return "leucine"
+        if _is_plain_carbon(next_obj) and next_obj.GetTotalNumHs() == 2 and len(next_neighbors) == 1:
+            (next_next_atom,) = next_neighbors
+            if _is_terminal_carboxylic_acid_carbon(mol, graph, next_next_atom, next_atom):
+                return "glutamic acid"
         return _UNRECOGNIZED
     return _UNRECOGNIZED
 
@@ -97,34 +133,48 @@ def _side_chain_name(mol, graph, root, coming_from):
 def _match(mol):
     """(retained_name, alpha_carbon_idx_or_None) if `mol` is a plain
     acyclic alpha-amino acid whose side chain is glycine/alanine/valine/
-    leucine's shape, else None. `alpha_carbon_idx` is None only for
-    glycine (no stereocenter to look up an L/D descriptor for)."""
+    leucine/serine/cysteine/aspartic acid/glutamic acid's shape, else
+    None. `alpha_carbon_idx` is None only for glycine (no stereocenter to
+    look up an L/D descriptor for).
+
+    Finds the *main-chain* acid carbon by looking directly at the
+    alpha-carbon's own neighbors, rather than `_find_carboxylic_acid_carbon`'s
+    whole-molecule first-match search -- aspartic/glutamic acid also carry
+    a second, side-chain-terminal carboxylic-acid-shaped carbon, and that
+    whole-molecule search can find the wrong one first (confirmed this
+    session: for 'OC(=O)C[C@H](N)C(=O)O', it returned the side-chain acid
+    carbon, not the one bonded to the alpha carbon)."""
     if mol.GetRingInfo().NumRings() > 0:
         return None
-    found = _find_carboxylic_acid_carbon(mol)
-    if found is None:
-        return None
-    acid_carbon, carbonyl_oxygen, hydroxyl_oxygen = found
     amines = find_primary_amines(mol)
     if len(amines) != 1:
-        return None
-    if not _amine_on_a_different_carbon(mol, acid_carbon.GetIdx(), amines):
         return None
     (amine_n,) = amines
 
     graph = adjacency(mol)
-    acid_carbon_idx = acid_carbon.GetIdx()
     alpha_carbon = graph[amine_n][0]
-    if acid_carbon_idx not in graph[alpha_carbon]:
-        return None
-
-    exclude = {amine_n, acid_carbon_idx}
-    side_neighbors = [n for n in graph[alpha_carbon] if n not in exclude]
     alpha_atom = mol.GetAtomWithIdx(alpha_carbon)
     if not _is_plain_carbon(alpha_atom):
         return None
 
-    excluded_acid_oxygens = {carbonyl_oxygen.GetIdx(), hydroxyl_oxygen.GetIdx()}
+    acid_candidates = [
+        n
+        for n in graph[alpha_carbon]
+        if n != amine_n and _is_terminal_carboxylic_acid_carbon(mol, graph, n, alpha_carbon)
+    ]
+    if len(acid_candidates) != 1:
+        return None
+    (acid_carbon_idx,) = acid_candidates
+    acid_oxygens = [n for n in graph[acid_carbon_idx] if n != alpha_carbon]
+    carbonyl_oxygen = next(
+        o for o in acid_oxygens if mol.GetBondBetweenAtoms(acid_carbon_idx, o).GetBondTypeAsDouble() == 2.0
+    )
+    hydroxyl_oxygen = next(o for o in acid_oxygens if o != carbonyl_oxygen)
+
+    exclude = {amine_n, acid_carbon_idx}
+    side_neighbors = [n for n in graph[alpha_carbon] if n not in exclude]
+
+    excluded_acid_oxygens = {carbonyl_oxygen, hydroxyl_oxygen}
     accounted = exclude | excluded_acid_oxygens
 
     if not side_neighbors:
@@ -141,7 +191,15 @@ def _match(mol):
     if name is None:
         return None
 
-    side_chain_atoms = {"alanine": 1, "valine": 3, "leucine": 4, "serine": 2, "cysteine": 2}[name]
+    side_chain_atoms = {
+        "alanine": 1,
+        "valine": 3,
+        "leucine": 4,
+        "serine": 2,
+        "cysteine": 2,
+        "aspartic acid": 4,
+        "glutamic acid": 5,
+    }[name]
     if mol.GetNumAtoms() != len(accounted) + 1 + side_chain_atoms:
         return None
     return name, alpha_carbon
