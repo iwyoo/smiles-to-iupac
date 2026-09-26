@@ -32,9 +32,10 @@ def test_different_ring_sizes_raises():
 
 
 def test_single_ring_exocyclic_double_bond_unaffected():
-    # Not a ring assembly at all -- one ring, one open-chain =CH-CH3 tail.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCC1=CC")
+    # Not a ring assembly at all -- one ring, one open-chain =CH-CH3 tail
+    # -- correctly falls through to `_cyclic.py`'s own exocyclic-ylidene
+    # handling instead of being misrouted here.
+    assert smiles_to_iupac("C1CCCCC1=CC") == "ethylidenecyclohexane"
 
 
 def test_bicyclic_ring_assembly_ylidene_matches_pin_worked_example():
