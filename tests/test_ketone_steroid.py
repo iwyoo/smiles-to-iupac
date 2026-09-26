@@ -53,13 +53,13 @@ def test_hydroxyl_alongside_steroid_ketone_still_raises():
         smiles_to_iupac("CC12CCC3C(C1CCC2O)CCC4=CC(=O)CCC34")
 
 
-def test_non_steroid_von_baeyer_ketone_with_stereo_still_raises():
+def test_non_steroid_von_baeyer_ketone_with_stereo_now_resolves():
     # A specified stereocenter on a non-steroid von Baeyer polycyclic
-    # ketone must still be rejected exactly as before this change -- the
-    # steroid check only bypasses the stereo gate for a real steroid
-    # skeleton match.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CC2CCC1[C@@H]2C")
+    # ketone is no longer rejected (#1078, M5 step 1) -- the steroid check
+    # only ever bypassed the stereo gate for a real steroid skeleton
+    # match; the non-steroid path now cites the stereocenter instead of
+    # rejecting it, same as this module's steroid branch already did.
+    assert smiles_to_iupac("O=C1C[C@@H]2CC[C@H]1[C@@H]2C") == "(1S,4S,7R)-7-methylbicyclo[2.2.1]heptan-2-one"
 
 
 def test_non_steroid_von_baeyer_ketone_without_stereo_still_resolves():
