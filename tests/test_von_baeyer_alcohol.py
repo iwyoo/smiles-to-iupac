@@ -67,3 +67,32 @@ def test_disjoint_rings_alcohol_still_raises():
     # von Baeyer routing doesn't misfire on this still-unsupported shape.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OC1(CCCC1)C1CCCC1")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-confirmed real structures, each PubChem's own IUPACName
+        # property matches exactly (#1079, M5 step 2, mirroring #1078's
+        # identical ketone extension): the bicyclic suffix engine never
+        # learned to cite a specified stereocenter for an alcohol before
+        # this, unconditionally rejecting every one of these.
+        ("C[C@@]12CC[C@@H](C1(C)C)C[C@H]2O", "(1R,2R,4R)-1,7,7-trimethylbicyclo[2.2.1]heptan-2-ol"),  # isoborneol, CID 6321405
+        ("C[C@]12CC[C@H](C1(C)C)C[C@H]2O", "(1S,2R,4S)-1,7,7-trimethylbicyclo[2.2.1]heptan-2-ol"),  # (1S,2R,4S)-borneol, CID 1201518
+        ("C[C@@]12CC[C@@H](C1(C)C)C[C@@H]2O", "(1R,2S,4R)-1,7,7-trimethylbicyclo[2.2.1]heptan-2-ol"),  # (1R,2S,4R)-borneol, CID 6552009
+    ],
+)
+def test_von_baeyer_alcohol_specified_stereocenter(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_myrtenol_exocyclic_hydroxyl_still_raises():
+    # Superficially similar to the ring-unsaturation shape this module
+    # handles, but the hydroxyl sits on an exocyclic CH2 off the ring, not
+    # on the ring itself -- ruled out during M6 step 2's own investigation
+    # (#1082) by running it through smiles_to_iupac() directly rather than
+    # trusting its PubChem name's "...enyl)methanol" phrasing. Still
+    # raises today (ring unsaturation, unrelated to this step), unaffected
+    # by this stereocenter-citation change.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC1(C2CC=C(C1C2)CO)C")

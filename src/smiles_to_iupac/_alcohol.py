@@ -760,8 +760,10 @@ def _name_von_baeyer_alcohol(mol, hydroxyls, stereo, bonds, bicyclic_core, polyc
     this project's steroid retained names don't yet cite stereodescriptors
     (P-92 citation on a steroid name is separate, unimplemented future
     work), so a steroid match's own stereo is deliberately dropped rather
-    than rejected, while a non-steroid polycyclic alcohol's stereo is
-    rejected exactly as before."""
+    than rejected, while a non-steroid polycyclic alcohol's own specified
+    stereocenter(s) are cited via `_polycyclic_suffix.py`'s `stereo`
+    parameter instead of being rejected (#1079, M5 step 2, mirroring
+    `_ketone.py`'s identical extension, #1078)."""
     if len(hydroxyls) != 1:
         raise UnsupportedStructure(
             "more than one hydroxyl on a von Baeyer bicyclic/polycyclic "
@@ -780,13 +782,8 @@ def _name_von_baeyer_alcohol(mol, hydroxyls, stereo, bonds, bicyclic_core, polyc
     if steroid_name is not None:
         return steroid_name
 
-    if stereo is not None:
-        raise UnsupportedStructure(
-            "a specified stereocenter alongside a von Baeyer bicyclic/"
-            "polycyclic alcohol is not supported yet (see P-92)"
-        )
     return name_von_baeyer_suffix(
-        mol, oh_carbon, hydroxyls, "ol", "hydroxyl", bicyclic_core, polycyclic_core, ring_count
+        mol, oh_carbon, hydroxyls, "ol", "hydroxyl", bicyclic_core, polycyclic_core, ring_count, stereo=stereo
     )
 
 
