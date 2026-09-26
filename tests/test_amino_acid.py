@@ -31,6 +31,14 @@ def test_glycine():
         # in this table.
         ("C([C@@H](C(=O)O)N)S", "L-cysteine"),
         ("C([C@H](C(=O)O)N)S", "D-cysteine"),
+        # L-/D-aspartic acid: PubChem CID 5960 / CID 83887. No exception --
+        # ordinary S=L/R=D rule, confirmed against PubChem's own IUPACName
+        # (an earlier guess at which SMILES tag was L got this backwards).
+        ("OC(=O)C[C@H](N)C(=O)O", "L-aspartic acid"),
+        ("OC(=O)C[C@@H](N)C(=O)O", "D-aspartic acid"),
+        # L-/D-glutamic acid: PubChem CID 33032 / CID 23327.
+        ("OC(=O)CC[C@H](N)C(=O)O", "L-glutamic acid"),
+        ("OC(=O)CC[C@@H](N)C(=O)O", "D-glutamic acid"),
     ],
 )
 def test_common_amino_acid_ld(smiles, expected):
@@ -48,6 +56,13 @@ def test_isoleucine_still_generic():
     # is out of scope for this step -- still falls through to the generic
     # CIP-labeled path unchanged.
     assert smiles_to_iupac("CC[C@H](C)[C@@H](N)C(=O)O") == "(2R,3S)-2-amino-3-methylpentanoic acid"
+
+
+def test_asparagine_still_unsupported():
+    # An amide terminus (-CO-NH2), not a second carboxylic acid -- a
+    # different guard/module entirely from aspartic acid's shape.
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NC(=O)C[C@@H](N)C(=O)O")
 
 
 def test_methionine_still_unsupported():
