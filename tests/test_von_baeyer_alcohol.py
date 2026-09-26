@@ -55,9 +55,10 @@ def test_hydroxyl_on_substituent_branch_raises():
         smiles_to_iupac("OCC1CC2CCC1C2")
 
 
-def test_unsaturated_von_baeyer_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1CC2C=CC1C2")
+def test_unsaturated_von_baeyer_ring_now_resolves():
+    # Ring unsaturation alongside a hydroxyl suffix is no longer rejected
+    # (#1082, M6 step 2) -- same skeleton as PubChem CID 96066.
+    assert smiles_to_iupac("OC1CC2C=CC1C2") == "bicyclo[2.2.1]hept-5-en-2-ol"
 
 
 def test_disjoint_rings_alcohol_still_raises():
@@ -91,8 +92,32 @@ def test_myrtenol_exocyclic_hydroxyl_still_raises():
     # handles, but the hydroxyl sits on an exocyclic CH2 off the ring, not
     # on the ring itself -- ruled out during M6 step 2's own investigation
     # (#1082) by running it through smiles_to_iupac() directly rather than
-    # trusting its PubChem name's "...enyl)methanol" phrasing. Still
-    # raises today (ring unsaturation, unrelated to this step), unaffected
-    # by this stereocenter-citation change.
+    # trusting its PubChem name's "...enyl)methanol" phrasing. Now that
+    # ring unsaturation itself is composed with the hydroxyl suffix
+    # (#1082), this correctly falls through to the "not on the ring
+    # system itself" rejection instead of the old, coincidentally-correct
+    # blanket unsaturation rejection.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC1(C2CC=C(C1C2)CO)C")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-confirmed real structures, each PubChem's own IUPACName
+        # property matches exactly (#1082, M6 step 2, mirroring #1081's
+        # identical ketone extension): the bicyclic suffix engine never
+        # learned to compose ring unsaturation with a hydroxyl suffix
+        # before this.
+        ("C1C2CC(C1C=C2)O", "bicyclo[2.2.1]hept-5-en-2-ol"),  # CID 96066
+        ("C1CC2C=CC1CC2O", "bicyclo[2.2.2]oct-5-en-2-ol"),  # CID 138810
+    ],
+)
+def test_von_baeyer_alcohol_ring_unsaturation(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_von_baeyer_alcohol_unsaturation_with_stereocenter_composes():
+    # Composes for free with the already-existing stereocenter citation
+    # (#1079, M5 step 2), same as verbenone did for ketone (#1081).
+    assert smiles_to_iupac("CC1=C[C@@H]([C@@H]2C[C@H]1C2(C)C)O") == "(1R,2S,5R)-4,6,6-trimethylbicyclo[3.1.1]hept-3-en-2-ol"  # trans-verbenol, CID 89664
