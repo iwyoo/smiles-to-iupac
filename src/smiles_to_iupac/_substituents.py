@@ -266,7 +266,7 @@ def _group_substituents(entries):
     return grouped
 
 
-def _longest_chains_from_root(graph, root, coming_from, halogens, mol=None):
+def _longest_chains_from_root(graph, root, coming_from, halogens, mol=None, aromatic_atoms=frozenset()):
     """All maximum-length simple paths starting at `root`, extending into the
     subtree away from `coming_from`. Used both for the ordinary case where
     `root` is the free valence itself (P-46: fixed at locant 1, so only one
@@ -293,7 +293,15 @@ def _longest_chains_from_root(graph, root, coming_from, halogens, mol=None):
     'ethyl' *and* a vinyl substituent came out as '2,3-diethylphenol', the
     double bond silently vanishing -- for this bond-order gap). `None`
     (the default) keeps every not-yet-migrated caller's original behavior
-    unchanged."""
+    unchanged.
+
+    `aromatic_atoms`: when `mol` is also given, a neighbor that is itself
+    the sole attachment point of a separate, plain, unsubstituted ring
+    (checked via `_simple_ring_substituent`) ends the walk there instead
+    of descending into it, so a compound substituent like
+    '(3-cyclohexylpropyl)' or '(3-phenylpropyl)' is reachable at all --
+    without this, the walk would keep going around that ring's own bonds
+    and hit its cycle-detection rejection just below."""
     best_length = 0
     best_paths = []
 
@@ -314,6 +322,16 @@ def _longest_chains_from_root(graph, root, coming_from, halogens, mol=None):
                 "supported yet"
             )
         neighbors = [n for n in graph[node] if n != previous and n not in halogens]
+        if mol is not None:
+            neighbors = [
+                n
+                for n in neighbors
+                if not (
+                    mol.GetAtomWithIdx(n).IsInRing()
+                    and mol.GetBondBetweenAtoms(node, n).GetBondTypeAsDouble() == 1.0
+                    and _simple_ring_substituent(graph, n, node, aromatic_atoms, mol=mol) is not None
+                )
+            ]
         if not neighbors:
             if len(path) > best_length:
                 best_length, best_paths = len(path), [list(path)]
@@ -661,7 +679,7 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
         name_word = multiplied_word(len(locants), name)
         return f"{loc_str}-{name_word}cyclo{alkyl_name(ring_size)}", True
 
-    _, _, name, is_compound = _select_winning_structure(graph, root, coming_from, halogens, mol)
+    _, _, name, is_compound = _select_winning_structure(graph, root, coming_from, halogens, mol, aromatic_atoms)
     return name, is_compound
 
 
@@ -727,7 +745,9 @@ def substituents_for_ring(graph, ring_order, halogens, excluded=frozenset(), mol
     return substituents
 
 
-def _substituent_entries_along_chain(graph, chain, first_previous, halogens, extra_exclusions=None, mol=None):
+def _substituent_entries_along_chain(
+    graph, chain, first_previous, halogens, extra_exclusions=None, mol=None, aromatic_atoms=frozenset()
+):
     """(position, name, is_compound) for every branch hanging off `chain`
     (a chosen principal chain, root/free-valence somewhere on it), position
     1-based along `chain`. `first_previous`: the atom to exclude when
@@ -752,19 +772,19 @@ def _substituent_entries_along_chain(graph, chain, first_previous, halogens, ext
         for branch_root in graph[atom]:
             if branch_root == previous or branch_root == excluded or branch_root in chain_set:
                 continue
-            sub_name, sub_compound = name_branch(graph, branch_root, atom, halogens, mol=mol)
+            sub_name, sub_compound = name_branch(graph, branch_root, atom, halogens, aromatic_atoms, mol=mol)
             entries.append((position, sub_name, sub_compound))
     return entries
 
 
-def _select_winning_chain(graph, root, coming_from, halogens, mol=None):
+def _select_winning_chain(graph, root, coming_from, halogens, mol=None, aromatic_atoms=frozenset()):
     """The ordinary (non-branch-point) P-46 tie-break: `root` is fixed at
     locant 1 (the free valence is always a chain terminus here). Returns
     (chain, root_position, name, is_compound); `root_position` is always 1,
     kept in the return shape so callers can treat this and
     `_branch_point_candidate_chains` interchangeably via
     `_select_winning_structure`."""
-    chains = _longest_chains_from_root(graph, root, coming_from, halogens, mol)
+    chains = _longest_chains_from_root(graph, root, coming_from, halogens, mol, aromatic_atoms)
     chain_length = len(chains[0])
 
     best_key = None
@@ -772,7 +792,7 @@ def _select_winning_chain(graph, root, coming_from, halogens, mol=None):
     best_name = None
     best_compound = None
     for chain in chains:
-        entries = _substituent_entries_along_chain(graph, chain, coming_from, halogens, mol=mol)
+        entries = _substituent_entries_along_chain(graph, chain, coming_from, halogens, mol=mol, aromatic_atoms=aromatic_atoms)
         grouped = _group_substituents(entries)
         if grouped and chain_length == 1:
             # P-14.3.4.2(a): the branch's own chain is a single (mononuclear)
@@ -791,7 +811,7 @@ def _select_winning_chain(graph, root, coming_from, halogens, mol=None):
     return best_chain, 1, best_name, best_compound
 
 
-def _branch_point_candidate_chains(graph, root, coming_from, halogens, mol=None):
+def _branch_point_candidate_chains(graph, root, coming_from, halogens, mol=None, aromatic_atoms=frozenset()):
     """P-29.3.2.2: when the free-valence atom `root` itself forks into two
     or more branches, the principal chain runs *through* it -- `root`
     becomes an internal locant of the chain (e.g. isopropyl's carbon is
@@ -816,7 +836,7 @@ def _branch_point_candidate_chains(graph, root, coming_from, halogens, mol=None)
     if len(branch_roots) < 2:
         return None
 
-    paths = {b: _longest_chains_from_root(graph, b, root, halogens, mol) for b in branch_roots}
+    paths = {b: _longest_chains_from_root(graph, b, root, halogens, mol, aromatic_atoms) for b in branch_roots}
     lengths = {b: len(paths[b][0]) for b in branch_roots}
 
     if (
@@ -879,7 +899,8 @@ def _branch_point_candidate_chains(graph, root, coming_from, halogens, mol=None)
                 # not-in-chain-set/not-`previous`/not-`excluded` check --
                 # a separate pass over it here would double-count it.
                 entries = _substituent_entries_along_chain(
-                    graph, spine, None, halogens, extra_exclusions={root_locant: coming_from}, mol=mol
+                    graph, spine, None, halogens, extra_exclusions={root_locant: coming_from}, mol=mol,
+                    aromatic_atoms=aromatic_atoms,
                 )
                 grouped = _group_substituents(entries)
                 prefix = format_substituent_prefixes(grouped)
@@ -894,7 +915,7 @@ def _branch_point_candidate_chains(graph, root, coming_from, halogens, mol=None)
     return best_chain, best_position, best_name, True
 
 
-def _select_winning_structure(graph, root, coming_from, halogens, mol=None):
+def _select_winning_structure(graph, root, coming_from, halogens, mol=None, aromatic_atoms=frozenset()):
     """(chain, root_position, name, is_compound) for the substituent group
     hanging off `root`: the P-29.3.2.2 branch-point chain
     (`_branch_point_candidate_chains`) when `root` forks into two or more
@@ -903,10 +924,10 @@ def _select_winning_structure(graph, root, coming_from, halogens, mol=None):
     the name) and `branch_atom_locant` below (which also needs to know
     which chain won and where `root` sits on it), so the two can never
     disagree about which chain was chosen."""
-    branch_point = _branch_point_candidate_chains(graph, root, coming_from, halogens, mol)
+    branch_point = _branch_point_candidate_chains(graph, root, coming_from, halogens, mol, aromatic_atoms)
     if branch_point is not None:
         return branch_point
-    return _select_winning_chain(graph, root, coming_from, halogens, mol)
+    return _select_winning_chain(graph, root, coming_from, halogens, mol, aromatic_atoms)
 
 
 def branch_atom_locant(graph, root, coming_from, atom_idx, halogens=None, mol=None):

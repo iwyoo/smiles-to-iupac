@@ -143,6 +143,13 @@ def find_aromatic_fused_core(mol):
         for b in bonds:
             bond_ring_count[b] = bond_ring_count.get(b, 0) + 1
     fusion_bond_idxs = {b for b, c in bond_ring_count.items() if c >= 2}
+    # Two or more all-aromatic rings sharing no fusion bond at all aren't a
+    # "ring system" in the P-25.3.1.3 sense (a chain of rings joined by an
+    # acyclic bridge, or with no bridge -- disjoint 'phenyl' substituents
+    # on some other parent), so let a different dispatch branch handle
+    # them instead of this module's own fused-only shape.
+    if len(atom_rings) > 1 and not fusion_bond_idxs:
+        return None
     return atom_rings, [set(r) for r in atom_rings], fusion_bond_idxs
 
 
