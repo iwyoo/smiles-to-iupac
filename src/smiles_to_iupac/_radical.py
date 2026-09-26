@@ -554,13 +554,8 @@ def _name_von_baeyer_or_spiro_radical(mol, radical, valence) -> str:
     elision needed). The '-yl' name is computed first, then P-71.2.2.1's
     'idene'/'idyne' suffix is appended on top for a divalent/trivalent
     radical center, exactly as `_radical_suffix` already does for the
-    chain/monocyclic-ring cases. Restricted to no specified stereocenter,
-    matching `_carbenium.py`'s initial scope."""
-    if specified_stereocenters(mol):
-        raise UnsupportedStructure(
-            "a specified stereocenter alongside a von Baeyer bicyclic/"
-            "polycyclic or monospiro radical is not supported yet (see P-92)"
-        )
+    chain/monocyclic-ring cases."""
+    stereo = specified_stereocenters(mol)
 
     bicyclic_core = find_bicyclic_core(mol)
     polycyclic_core = None
@@ -573,13 +568,14 @@ def _name_von_baeyer_or_spiro_radical(mol, radical, valence) -> str:
                 break
     if bicyclic_core is not None or polycyclic_core is not None:
         yl_name = name_von_baeyer_suffix(
-            mol, radical.GetIdx(), set(), "yl", "radical", bicyclic_core, polycyclic_core, von_baeyer_ring_count
+            mol, radical.GetIdx(), set(), "yl", "radical", bicyclic_core, polycyclic_core, von_baeyer_ring_count,
+            stereo=stereo,
         )
         return _radical_suffix(yl_name, valence)
 
     spiro_atom = find_monospiro_atom(mol)
     if spiro_atom is not None:
-        yl_name = name_monospiro_suffix(mol, radical.GetIdx(), set(), "yl", "radical", spiro_atom)
+        yl_name = name_monospiro_suffix(mol, radical.GetIdx(), set(), "yl", "radical", spiro_atom, stereo=stereo)
         return _radical_suffix(yl_name, valence)
 
     raise UnsupportedStructure(

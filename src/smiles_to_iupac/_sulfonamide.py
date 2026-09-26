@@ -620,7 +620,7 @@ def _name_von_baeyer_or_spiro_sulfonamide(mol, sulfur_idx, so2nh2_carbon, n_alky
     sulfonamide', PubChem CID 45080580). Mirrors `_sulfinamide.py`'s own
     bicyclic/polycyclic-before-spiro dispatch order and restrictions:
     exactly one primary sulfonamide on the ring system itself, no ring
-    unsaturation, no specified stereocenter."""
+    unsaturation."""
     if n_alkyl_carbons:
         raise UnsupportedStructure(
             "an N-substituted sulfonamide on a von Baeyer bicyclic/"
@@ -630,12 +630,6 @@ def _name_von_baeyer_or_spiro_sulfonamide(mol, sulfur_idx, so2nh2_carbon, n_alky
         raise UnsupportedStructure(
             "an unsaturated von Baeyer bicyclic/polycyclic or monospiro "
             "ring system is not supported yet (see P-31.1.4/P-31.1.5)"
-        )
-    if stereo is not None:
-        raise UnsupportedStructure(
-            "a specified stereocenter alongside a von Baeyer bicyclic/"
-            "polycyclic or monospiro sulfonamide is not supported yet "
-            "(see P-92)"
         )
 
     bicyclic_core = find_bicyclic_core(mol)
@@ -658,12 +652,13 @@ def _name_von_baeyer_or_spiro_sulfonamide(mol, sulfur_idx, so2nh2_carbon, n_alky
             polycyclic_core,
             von_baeyer_ring_count,
             elide_e=False,
+            stereo=stereo,
         )
 
     spiro_atom = find_monospiro_atom(mol)
     if spiro_atom is not None:
         return name_monospiro_suffix(
-            mol, so2nh2_carbon, {sulfur_idx}, "sulfonamide", "sulfonamide", spiro_atom, elide_e=False
+            mol, so2nh2_carbon, {sulfur_idx}, "sulfonamide", "sulfonamide", spiro_atom, elide_e=False, stereo=stereo
         )
 
     raise UnsupportedStructure(

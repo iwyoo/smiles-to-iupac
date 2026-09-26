@@ -634,8 +634,7 @@ def _name_von_baeyer_or_spiro_selone(mol, selones, stereo, bonds):
     `_thiol.py`'s 'thiol' -- e.g. 'bicyclo[2.2.1]heptane-2-selone',
     PubChem CID 175998577). Mirrors `_thiol.py`'s own bicyclic/polycyclic-
     before-spiro dispatch order and restrictions: exactly one selone on
-    the ring system itself, no ring unsaturation, no specified
-    stereocenter."""
+    the ring system itself, no ring unsaturation."""
     if len(selones) != 1:
         raise UnsupportedStructure(
             "more than one selone on a von Baeyer bicyclic/polycyclic or "
@@ -645,11 +644,6 @@ def _name_von_baeyer_or_spiro_selone(mol, selones, stereo, bonds):
         raise UnsupportedStructure(
             "an unsaturated von Baeyer bicyclic/polycyclic or monospiro "
             "ring system is not supported yet (see P-31.1.4/P-31.1.5)"
-        )
-    if stereo is not None:
-        raise UnsupportedStructure(
-            "a specified stereocenter alongside a von Baeyer bicyclic/"
-            "polycyclic or monospiro selone is not supported yet (see P-92)"
         )
 
     (selenium,) = selones
@@ -676,11 +670,14 @@ def _name_von_baeyer_or_spiro_selone(mol, selones, stereo, bonds):
             polycyclic_core,
             von_baeyer_ring_count,
             elide_e=False,
+            stereo=stereo,
         )
 
     spiro_atom = find_monospiro_atom(mol)
     if spiro_atom is not None:
-        return name_monospiro_suffix(mol, selone_carbon, selones, "selone", "selone", spiro_atom, elide_e=False)
+        return name_monospiro_suffix(
+            mol, selone_carbon, selones, "selone", "selone", spiro_atom, elide_e=False, stereo=stereo
+        )
 
     raise UnsupportedStructure(
         "polycyclic and fused-ring selones are not supported yet (P-23/"
