@@ -110,7 +110,7 @@ from ._carboxylic_acid_sulfonic_acid import (
     name_carboxylic_acid_sulfonic_acid,
 )
 from ._common import UnsupportedStructure, non_single_bonds
-from ._cyclic import name_cycloalkane
+from ._cyclic import find_exocyclic_ylidene_core, name_cycloalkane, name_exocyclic_ylidene
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
 from ._dihydro_aromatic import (
     find_decahydronaphthalene_core,
@@ -1959,6 +1959,16 @@ def smiles_to_iupac(smiles: str) -> str:
         unsaturated_ring = find_cyclic_unsaturated_core(mol)
         if unsaturated_ring is not None:
             return name_cyclic_unsaturated(mol, unsaturated_ring)
+        # A plain exocyclic double bond (e.g. '=CH2'/'=CHR') on an
+        # otherwise saturated, unsubstituted ring -- e.g.
+        # methylidenecyclohexane -- is a different shape from both the
+        # ring-internal-unsaturation case above and `name_cycloalkane`'s
+        # own plain saturated ring below, so it must be routed here first;
+        # `name_cycloalkane` itself now rejects any exocyclic non-single
+        # bond that reaches it unclaimed (see its own docstring comment).
+        exocyclic_ylidene_core = find_exocyclic_ylidene_core(mol)
+        if exocyclic_ylidene_core is not None:
+            return name_exocyclic_ylidene(mol, exocyclic_ylidene_core)
         return name_cycloalkane(mol)
 
     # Two disjoint (unfused) identical rings or ring systems joined by a C=C
