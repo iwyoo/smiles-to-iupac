@@ -763,27 +763,39 @@ def _name_von_baeyer_alcohol(mol, hydroxyls, stereo, bonds, bicyclic_core, polyc
     than rejected, while a non-steroid polycyclic alcohol's own specified
     stereocenter(s) are cited via `_polycyclic_suffix.py`'s `stereo`
     parameter instead of being rejected (#1079, M5 step 2, mirroring
-    `_ketone.py`'s identical extension, #1078)."""
+    `_ketone.py`'s identical extension, #1078). Ring unsaturation is cited
+    the same way via `_polycyclic_suffix.py`'s `bonds` parameter (#1082,
+    M6 step 2, mirroring `_ketone.py`'s identical extension, #1081) --
+    the steroid check is skipped entirely when unsaturation is present
+    (steroid ring unsaturation is a separate, unscoped gap, see #1025's
+    M6 pre-slicing comment), mirroring how the steroid check is already
+    skipped when a coexisting hydroxyl is present in `_ketone.py`."""
     if len(hydroxyls) != 1:
         raise UnsupportedStructure(
             "more than one hydroxyl on a von Baeyer bicyclic/polycyclic "
             "ring system is not supported yet"
         )
-    if bonds:
-        raise UnsupportedStructure(
-            "an unsaturated von Baeyer bicyclic/polycyclic ring system is "
-            "not supported yet (see P-31.1.4)"
-        )
 
     (oh_oxygen,) = hydroxyls
     graph = adjacency(mol)
     (oh_carbon,) = graph[oh_oxygen]
-    steroid_name = steroid_suffix_name(mol, oh_oxygen, oh_carbon, "ol")
-    if steroid_name is not None:
-        return steroid_name
+
+    if not bonds:
+        steroid_name = steroid_suffix_name(mol, oh_oxygen, oh_carbon, "ol")
+        if steroid_name is not None:
+            return steroid_name
 
     return name_von_baeyer_suffix(
-        mol, oh_carbon, hydroxyls, "ol", "hydroxyl", bicyclic_core, polycyclic_core, ring_count, stereo=stereo
+        mol,
+        oh_carbon,
+        hydroxyls,
+        "ol",
+        "hydroxyl",
+        bicyclic_core,
+        polycyclic_core,
+        ring_count,
+        stereo=stereo,
+        bonds=bonds,
     )
 
 
