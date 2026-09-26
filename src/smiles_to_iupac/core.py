@@ -36,6 +36,7 @@ from ._carbohydrate import (
     name_open_chain_2_ketose,
     name_open_chain_aldose,
 )
+from ._inositol import has_inositol_shape, name_inositol
 from ._acetal import has_acetal_shape, name_acetal
 from ._amide import has_amide_shape, name_amide
 from ._amide_amine import has_amide_amine_shape, name_amide_amine
@@ -1661,6 +1662,14 @@ def smiles_to_iupac(smiles: str) -> str:
             return name_selenol(mol)
         if has_tellurol_shape(mol):
             return name_tellurol(mol)
+        # One of the 9 retained-name inositol stereoisomers (P-104.2.1) is
+        # itself a plain cyclohexane-1,2,3,4,5,6-hexol shape, so it must be
+        # routed before the generic systematic fallback below, which would
+        # otherwise name it with CIP descriptors instead of its retained
+        # name -- mirrors the open-chain-aldose/2-ketose carbohydrate-name-
+        # before-generic-fallback pattern above.
+        if has_inositol_shape(mol):
+            return name_inositol(mol)
         return name_alcohol(mol)
     if any(atom.GetAtomicNum() == 7 for atom in mol.GetAtoms()):
         # An aminide anion (-NH(-), P-72.2.2.2.3) has a formal-charge -1
