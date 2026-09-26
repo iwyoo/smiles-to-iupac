@@ -628,17 +628,14 @@ def _name_von_baeyer_or_spiro_selenol(mol, selenols, stereo, bonds):
     parent stem's final 'e' is kept, e.g. 'adamantane-2-selenol', not
     '...adamantan-2-selenol' -- PubChem CID 101086150). Mirrors
     `_thiol.py`'s own bicyclic/polycyclic-before-spiro dispatch order and
-    restrictions: exactly one selenol on the ring system itself, no ring
-    unsaturation."""
+    restrictions: exactly one selenol on the ring system itself; ring
+    unsaturation composes on the bicyclic/polycyclic branch (mirrors
+    `_ketone.py`'s identical extension) but not the monospiro branch,
+    which has no base mechanism yet (P-31.1.5)."""
     if len(selenols) != 1:
         raise UnsupportedStructure(
             "more than one selenol on a von Baeyer bicyclic/polycyclic or "
             "monospiro ring system is not supported yet"
-        )
-    if bonds:
-        raise UnsupportedStructure(
-            "an unsaturated von Baeyer bicyclic/polycyclic or monospiro "
-            "ring system is not supported yet (see P-31.1.4/P-31.1.5)"
         )
 
     (selenium,) = selenols
@@ -666,6 +663,13 @@ def _name_von_baeyer_or_spiro_selenol(mol, selenols, stereo, bonds):
             von_baeyer_ring_count,
             elide_e=False,
             stereo=stereo,
+            bonds=bonds,
+        )
+
+    if bonds:
+        raise UnsupportedStructure(
+            "an unsaturated monospiro ring system is not supported yet "
+            "(see P-31.1.5)"
         )
 
     spiro_atom = find_monospiro_atom(mol)

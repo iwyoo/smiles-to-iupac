@@ -1053,16 +1053,14 @@ def name_amine(mol) -> str:
 def _name_von_baeyer_or_spiro_amine(mol, amines, n_carbons_by_nitrogen, stereo, bonds):
     """P-23.2.1/P-24.2.1: von Baeyer/monospiro numbering with a single
     primary -NH2 suffix. A spiro atom's degree-4 shape never matches the
-    bicyclic/polycyclic core check, so bicyclic-before-spiro never misfires."""
+    bicyclic/polycyclic core check, so bicyclic-before-spiro never
+    misfires. Ring unsaturation composes on the bicyclic/polycyclic
+    branch (matches `_ketone.py`'s bicyclic/polycyclic-vs-monospiro split) but not the
+    monospiro branch, which has no base mechanism yet (P-31.1.5)."""
     if len(amines) != 1:
         raise UnsupportedStructure(
             "more than one amine on a von Baeyer bicyclic/polycyclic or "
             "monospiro ring system is not supported yet"
-        )
-    if bonds:
-        raise UnsupportedStructure(
-            "an unsaturated von Baeyer bicyclic/polycyclic or monospiro "
-            "ring system is not supported yet (see P-31.1.4/P-31.1.5)"
         )
 
     (n_idx,) = amines
@@ -1081,6 +1079,13 @@ def _name_von_baeyer_or_spiro_amine(mol, amines, n_carbons_by_nitrogen, stereo, 
         return name_von_baeyer_suffix(
             mol, amine_carbon, amines, "amine", "amine", bicyclic_core, polycyclic_core, von_baeyer_ring_count,
             stereo=stereo,
+            bonds=bonds,
+        )
+
+    if bonds:
+        raise UnsupportedStructure(
+            "an unsaturated monospiro ring system is not supported yet "
+            "(see P-31.1.5)"
         )
 
     spiro_atom = find_monospiro_atom(mol)

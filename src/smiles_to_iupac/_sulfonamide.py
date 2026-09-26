@@ -619,17 +619,14 @@ def _name_von_baeyer_or_spiro_sulfonamide(mol, sulfur_idx, so2nh2_carbon, n_alky
     same as `_thiol.py`'s 'thiol' -- e.g. 'bicyclo[2.2.1]heptane-2-
     sulfonamide', PubChem CID 45080580). Mirrors `_sulfinamide.py`'s own
     bicyclic/polycyclic-before-spiro dispatch order and restrictions:
-    exactly one primary sulfonamide on the ring system itself, no ring
-    unsaturation."""
+    exactly one primary sulfonamide on the ring system itself; ring
+    unsaturation composes on the bicyclic/polycyclic branch (mirrors
+    `_ketone.py`'s identical extension) but not the monospiro branch,
+    which has no base mechanism yet (P-31.1.5)."""
     if n_alkyl_carbons:
         raise UnsupportedStructure(
             "an N-substituted sulfonamide on a von Baeyer bicyclic/"
             "polycyclic or monospiro ring system is not supported yet"
-        )
-    if bonds:
-        raise UnsupportedStructure(
-            "an unsaturated von Baeyer bicyclic/polycyclic or monospiro "
-            "ring system is not supported yet (see P-31.1.4/P-31.1.5)"
         )
 
     bicyclic_core = find_bicyclic_core(mol)
@@ -653,6 +650,13 @@ def _name_von_baeyer_or_spiro_sulfonamide(mol, sulfur_idx, so2nh2_carbon, n_alky
             von_baeyer_ring_count,
             elide_e=False,
             stereo=stereo,
+            bonds=bonds,
+        )
+
+    if bonds:
+        raise UnsupportedStructure(
+            "an unsaturated monospiro ring system is not supported yet "
+            "(see P-31.1.5)"
         )
 
     spiro_atom = find_monospiro_atom(mol)

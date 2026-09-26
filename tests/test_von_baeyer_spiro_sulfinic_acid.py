@@ -36,6 +36,13 @@ def test_von_baeyer_spiro_sulfinic_acid_reviewed(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_unsaturated_von_baeyer_sulfinic_acid_raises():
+def test_von_baeyer_sulfinic_acid_ring_unsaturation():
+    # Ring unsaturation composes with the sulfinic acid suffix locant on
+    # the bicyclic/polycyclic branch, mirroring `_ketone.py`'s identical
+    # extension -- reviewed rather than independently PubChem-confirmed.
+    assert smiles_to_iupac("OS(=O)C1CC2C=CC1C2") == "bicyclo[2.2.1]hept-5-ene-2-sulfinic acid"
+
+
+def test_unsaturated_monospiro_sulfinic_acid_still_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)C1CC2C=CC1C2")
+        smiles_to_iupac("OS(=O)C1CCCC2(C1)C=CCCC2")

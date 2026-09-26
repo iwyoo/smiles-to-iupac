@@ -36,6 +36,13 @@ def test_multiple_ring_selones_raises():
         smiles_to_iupac("[Se]=C1CC2CCC1C(=[Se])C2")
 
 
-def test_unsaturated_von_baeyer_selone_raises():
+def test_von_baeyer_selone_ring_unsaturation():
+    # Ring unsaturation composes with the selone suffix locant on the
+    # bicyclic/polycyclic branch, mirroring `_ketone.py`'s identical
+    # extension -- reviewed rather than independently PubChem-confirmed.
+    assert smiles_to_iupac("[Se]=C1CC2C=CC1C2") == "bicyclo[2.2.1]hept-5-ene-2-selone"
+
+
+def test_unsaturated_monospiro_selone_still_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[Se]=C1CC2C=CC1C2")
+        smiles_to_iupac("[Se]=C1CCCC2(C1)C=CCCC2")

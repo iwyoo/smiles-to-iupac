@@ -447,14 +447,11 @@ def _name_von_baeyer_or_spiro_sulfinic_acid(mol, sulfur_idx, so2h_carbon, bonds,
     same as `_thiol.py`'s 'thiol' -- e.g. 'bicyclo[2.2.1]heptane-2-
     sulfinic acid', PubChem CID 20739363). Mirrors `_sulfinamide.py`'s
     own bicyclic/polycyclic-before-spiro dispatch order and restrictions:
-    exactly one sulfinic acid on the ring system itself, no ring
-    unsaturation, no specified stereocenter (on the ring or the sulfinic
-    sulfur itself)."""
-    if bonds:
-        raise UnsupportedStructure(
-            "an unsaturated von Baeyer bicyclic/polycyclic or monospiro "
-            "ring system is not supported yet (see P-31.1.4/P-31.1.5)"
-        )
+    exactly one sulfinic acid on the ring system itself, no specified
+    stereocenter (on the ring or the sulfinic sulfur itself); ring
+    unsaturation composes on the bicyclic/polycyclic branch (mirrors
+    `_ketone.py`'s identical extension) but not the monospiro branch,
+    which has no base mechanism yet (P-31.1.5)."""
     if stereo_prefix:
         raise UnsupportedStructure(
             "a specified stereocenter alongside a von Baeyer bicyclic/"
@@ -482,6 +479,13 @@ def _name_von_baeyer_or_spiro_sulfinic_acid(mol, sulfur_idx, so2h_carbon, bonds,
             polycyclic_core,
             von_baeyer_ring_count,
             elide_e=False,
+            bonds=bonds,
+        )
+
+    if bonds:
+        raise UnsupportedStructure(
+            "an unsaturated monospiro ring system is not supported yet "
+            "(see P-31.1.5)"
         )
 
     spiro_atom = find_monospiro_atom(mol)
