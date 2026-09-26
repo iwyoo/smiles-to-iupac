@@ -28,16 +28,16 @@ def test_ring_substituted_histidine_still_unsupported():
 
 def test_phenylalanine_still_resolves():
     # A plain benzene side chain, not imidazole -- unaffected by this
-    # module, still routed to `_carboxylic_acid_amine.py`'s existing
-    # phenyl-chain path.
-    assert smiles_to_iupac("c1ccccc1CC(N)C(=O)O") == "2-amino-3-phenylpropanoic acid"
+    # module, resolved by `_amino_acid.py`'s own table now (see
+    # test_amino_acid.py) rather than `_carboxylic_acid_amine.py`'s
+    # systematic phenyl-chain path.
+    assert smiles_to_iupac("c1ccccc1CC(N)C(=O)O") == "phenylalanine"
 
 
-def test_tryptophan_still_unsupported():
-    # A bicyclic (indole) side chain is out of scope here, deferred to a
-    # separate later step.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N[C@@H](Cc1c[nH]c2ccccc12)C(=O)O")
+def test_tryptophan_still_resolves():
+    # A bicyclic (indole) side chain -- now resolved by `_amino_acid.py`'s
+    # table (see test_amino_acid.py), unaffected by this module.
+    assert smiles_to_iupac("N[C@@H](Cc1c[nH]c2ccccc12)C(=O)O") == "L-tryptophan"
 
 
 def test_plain_imidazole_still_resolves():

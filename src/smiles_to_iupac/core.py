@@ -370,6 +370,18 @@ def smiles_to_iupac(smiles: str) -> str:
     if has_hydrate_adduct_shape(mol):
         return name_hydrate_adduct(mol, smiles_to_iupac)
 
+    # P-103.1.1.1: a common amino acid's retained name + L/D descriptor
+    # must be routed here, before every ring-count/functional-group
+    # dispatch branch below: a side chain recognized by `_amino_acid.py`'s
+    # table can carry its own extra nitrogen (lysine, arginine) or its
+    # own ring (phenylalanine, tyrosine, tryptophan), which would
+    # otherwise be misrouted first -- confirmed empirically: arginine's
+    # guanidino C=N was caught by `_imine.py`'s dispatch and tryptophan's
+    # indole ring by the bicyclic-heteroatom dispatch, both well before
+    # this check's original position further down ever ran.
+    if has_amino_acid_shape(mol):
+        return name_amino_acid(mol)
+
     # An unbranched chain of 3-6 disjoint mancude rings (aromatic benzo,
     # saturated cycloalkane, or pyridine -- P-28.3) -- e.g. terphenyl,
     # tercyclopropane, terpyridine -- must be routed here before every
@@ -1506,13 +1518,6 @@ def smiles_to_iupac(smiles: str) -> str:
             # `_carboxylic_acid.py`'s own "coexisting nitrogen" rejection.
             if has_carboxylic_acid_amide_shape(mol):
                 return name_carboxylic_acid_amide(mol)
-            # P-103.1.1.1: glycine/alanine/valine/leucine's plain
-            # hydrocarbon side chains, plus serine/cysteine's single-
-            # heteroatom side chains, get their own retained name + L/D
-            # descriptor instead of `has_carboxylic_acid_amine_shape`
-            # below's generic CIP-only, no-retained-name naming.
-            if has_amino_acid_shape(mol):
-                return name_amino_acid(mol)
             # P-103.1.1.1: histidine's imidazol-4-ylmethyl side chain also
             # gets its own retained name + L/D descriptor -- must be
             # checked before `has_carboxylic_acid_amine_shape` below,
