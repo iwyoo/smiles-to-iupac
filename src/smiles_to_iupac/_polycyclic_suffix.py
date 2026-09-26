@@ -25,10 +25,14 @@ from ._bicyclic import (
     iter_bicyclic_numberings,
 )
 from ._common import (
+    ENE_BOND_ORDER,
+    YNE_BOND_ORDER,
     UnsupportedStructure,
     adjacency,
     halogen_substituents,
+    lowest_locant_set,
     stereo_locants_prefix,
+    von_baeyer_unsaturation_citations,
 )
 from ._polycyclic import (
     _candidate_key as _polycyclic_candidate_key,
@@ -36,6 +40,7 @@ from ._polycyclic import (
 )
 from ._spiro import _candidate_key as _spiro_candidate_key, iter_monospiro_numberings
 from ._substituents import substituents_for_ring
+from ._unsaturated import _unsaturation_suffix_from_citations
 
 
 def von_baeyer_core_atoms(bicyclic_core, polycyclic_core):
@@ -56,6 +61,45 @@ def _suffixed_parent(base_parent, locant, suffix_word, elide_e):
     so existing callers are unaffected."""
     stem = base_parent[:-1] if elide_e else base_parent
     return stem + f"-{locant}-{suffix_word}"
+
+
+def _validate_bond_orders(bonds):
+    invalid_orders = [order for _, _, order in bonds if order not in (ENE_BOND_ORDER, YNE_BOND_ORDER)]
+    if invalid_orders:
+        raise UnsupportedStructure(
+            "a bond order other than single, double, or triple is not "
+            "supported (see P-31.1.1.1)"
+        )
+
+
+def _suffixed_parent_and_key(base_parent, locant, suffix_word, elide_e, bonds, full_order):
+    """Builds the suffixed parent name and its `_candidate_key` tie-break
+    slot, composing ring unsaturation (P-31.1.4.1/.2) with the suffix
+    locant when `bonds` is given (#1081, M6 step 1) -- mirrors
+    `_bicyclic._name_bicyclic_unsaturated`/`_polycyclic._name_polycyclic_
+    unsaturated`'s own unsaturated-stem construction and tie-break exactly,
+    except the suffix atom's own locant is compared first and the
+    unsaturation-citation quality only breaks ties among numberings that
+    already agree on it (P-31.1.4.3's "lowest locant to the principal
+    characteristic group suffix first" precedent, `tests/test_ketone_
+    hydroxyl_monospiro.py`). `base_parent`: the plain saturated parent
+    name ending in '...ane' (`bicyclic_parent_name`'s or `iter_polycyclic_
+    candidates`'s own output)."""
+    if not bonds:
+        return _suffixed_parent(base_parent, locant, suffix_word, elide_e), locant
+
+    position = {atom: i + 1 for i, atom in enumerate(full_order)}
+    ene_citations, yne_citations, compound_count, primary_locants, full_locants = (
+        von_baeyer_unsaturation_citations(position, bonds)
+    )
+    primary_locant_set = lowest_locant_set(primary_locants)
+    full_locant_set = lowest_locant_set(full_locants)
+    ene_locant_set = lowest_locant_set([bond_locant for bond_locant, _ in ene_citations])
+    body, needs_stem_a = _unsaturation_suffix_from_citations(ene_citations, yne_citations)
+    unsaturated_stem = base_parent[:-3] + ("a" if needs_stem_a else "") + "-" + body
+    parent = _suffixed_parent(unsaturated_stem, locant, suffix_word, elide_e)
+    key = (locant, compound_count, primary_locant_set, full_locant_set, ene_locant_set)
+    return parent, key
 
 
 def _with_stereo_prefix(stereo, full_order, name):
@@ -82,6 +126,7 @@ def name_von_baeyer_suffix(
     elide_e=True,
     extra_substituents=None,
     stereo=None,
+    bonds=None,
 ):
     """`suffix_carbon`: the single ring atom the suffix is attached to.
     `excluded`: heteroatom indices to keep out of `substituents_for_ring`'s
@@ -98,13 +143,17 @@ def name_von_baeyer_suffix(
     must still be found as a branch root there so this dict's name gets
     attached to them. `stereo`: optional `specified_stereocenters(mol)`
     result, cited via `_with_stereo_prefix` against the winning candidate's
-    own numbering (#1078, M5 step 1)."""
+    own numbering (#1078, M5 step 1). `bonds`: optional `non_single_bonds
+    (mol)` result, composed into the parent stem and numbering tie-break
+    via `_suffixed_parent_and_key` (#1081, M6 step 1)."""
     core_atoms = von_baeyer_core_atoms(bicyclic_core, polycyclic_core)
     if suffix_carbon not in core_atoms:
         raise UnsupportedStructure(
             f"a {noun} not on the bicyclic/polycyclic ring system itself "
             "(e.g. on a substituent branch) is not supported yet"
         )
+    if bonds:
+        _validate_bond_orders(bonds)
 
     halogens = {**halogen_substituents(mol), **(extra_substituents or {})}
     graph = adjacency(mol)
@@ -115,8 +164,8 @@ def name_von_baeyer_suffix(
         for full_order in iter_bicyclic_numberings(bicyclic_core):
             locant = full_order.index(suffix_carbon) + 1
             substituents = substituents_for_ring(graph, full_order, halogens, excluded, mol=mol)
-            parent = _suffixed_parent(base_parent, locant, suffix_word, elide_e)
-            key = _bicyclic_candidate_key(parent, substituents, suffix_locant=locant)
+            parent, suffix_key = _suffixed_parent_and_key(base_parent, locant, suffix_word, elide_e, bonds, full_order)
+            key = _bicyclic_candidate_key(parent, substituents, suffix_locant=suffix_key)
             if best_key is None or key < best_key:
                 best_key, best_order = key, full_order
         return _with_stereo_prefix(stereo, best_order, best_key[-1])
@@ -124,8 +173,8 @@ def name_von_baeyer_suffix(
     for full_order, parent, outer_key in iter_polycyclic_candidates(polycyclic_core, ring_count):
         locant = full_order.index(suffix_carbon) + 1
         substituents = substituents_for_ring(graph, full_order, halogens, excluded, mol=mol)
-        suffixed_parent = _suffixed_parent(parent, locant, suffix_word, elide_e)
-        key = outer_key + _polycyclic_candidate_key(suffixed_parent, substituents, suffix_locant=locant)
+        suffixed_parent, suffix_key = _suffixed_parent_and_key(parent, locant, suffix_word, elide_e, bonds, full_order)
+        key = outer_key + _polycyclic_candidate_key(suffixed_parent, substituents, suffix_locant=suffix_key)
         if best_key is None or key < best_key:
             best_key, best_order = key, full_order
     if best_key is None:

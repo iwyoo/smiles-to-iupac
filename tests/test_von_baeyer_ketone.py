@@ -41,9 +41,11 @@ def test_ketone_hydroxyl_combination_on_ring_system():
     assert smiles_to_iupac("O=C1CC2CCC1C2O") == "7-hydroxybicyclo[2.2.1]heptan-2-one"
 
 
-def test_unsaturated_von_baeyer_ketone_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CC2C=CC1C2")
+def test_unsaturated_von_baeyer_ketone_now_resolves():
+    # Ring unsaturation alongside a ketone suffix is no longer rejected
+    # (#1081, M6 step 1) -- same skeleton as PubChem CID 136511, written
+    # from a different starting atom here.
+    assert smiles_to_iupac("O=C1CC2C=CC1C2") == "bicyclo[2.2.1]hept-5-en-2-one"
 
 
 @pytest.mark.parametrize(
@@ -72,8 +74,38 @@ def test_von_baeyer_ketone_stereocenter_with_coexisting_hydroxyl_still_raises():
         smiles_to_iupac("O=C1C[C@H]2CC[C@H]1[C@@H]2O")
 
 
-def test_von_baeyer_ketone_stereocenter_with_ring_unsaturation_still_raises():
-    # Ring unsaturation alongside a stereocenter is separately unsupported
-    # (M6) -- confirm the unsaturation guard still fires first.
+def test_von_baeyer_ketone_stereocenter_with_ring_unsaturation_now_resolves():
+    # Stereocenter citation (#1078, M5 step 1) and unsaturation composition
+    # (#1081, M6 step 1) compose for free -- stereo citation only wraps
+    # the already-built name as a final prefix, so no extra engineering
+    # was needed for this combination once both mechanisms existed.
+    assert smiles_to_iupac("CC1=CC(=O)[C@@H]2C[C@H]1C2(C)C") == "(1R,5R)-4,6,6-trimethylbicyclo[3.1.1]hept-3-en-2-one"  # verbenone, CID 65724
+
+
+def test_von_baeyer_ketone_unsaturation_with_coexisting_hydroxyl_still_raises():
+    # Ring unsaturation alongside a *coexisting hydroxyl* is a separate,
+    # still-unsupported combination (M6 step 2) -- mirrors the analogous
+    # stereocenter+hydroxyl restriction above.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC1=CC(=O)[C@@H]2C[C@H]1C2(C)C")  # verbenone, CID 65724
+        smiles_to_iupac("O=C1CC2C=CC1C2O")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # PubChem-confirmed real structures, each PubChem's own IUPACName
+        # property matches exactly (#1081, M6 step 1): the bicyclic/
+        # polycyclic suffix engine never learned to compose ring
+        # unsaturation with a suffix locant at all before this.
+        ("C1C2CC(=O)C1C=C2", "bicyclo[2.2.1]hept-5-en-2-one"),  # CID 136511
+        ("C1CC2C=CC1CC2=O", "bicyclo[2.2.2]oct-5-en-2-one"),  # CID 137507
+        ("C1C2CC(=O)CC1C=C2", "bicyclo[3.2.1]oct-6-en-3-one"),  # CID 556383
+    ],
+)
+def test_von_baeyer_ketone_ring_unsaturation(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_von_baeyer_ketone_unsaturation_with_multiple_ketones_still_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C1CC2C=CC1C(=O)C2")
