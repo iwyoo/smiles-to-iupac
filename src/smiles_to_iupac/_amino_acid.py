@@ -29,11 +29,14 @@ alpha-amino-acid backbone by `_carboxylic_acid_amine.py`'s shared
 detection -- this module only intercepts those specific side chains
 ahead of that module's own generic (CIP-only, no-retained-name) fallback
 in `core.py`'s dispatch order, unchanged for every other amino acid or
-amine/acid combination (including isoleucine/threonine, which have a
-second side-chain stereocenter and their own 'allo' complexity, and every
-ring-containing side chain -- the top-level `NumRings() > 0` guard below
-rejects those regardless of the table, deferred to a later step once
-this mechanism is extended to handle a ring-bearing side chain).
+amine/acid combination. The backbone-anchor check in `_match` (see its
+own docstring) tolerates a side chain with its own extra nitrogen
+(lysine, arginine) or its own ring (phenylalanine, tyrosine, tryptophan)
+as long as the table recognizes it -- an *unrecognized* multi-amine or
+ring-bearing shape still falls through unmatched, same as any other
+unrecognized side chain. Isoleucine/threonine (a second side-chain
+stereocenter and 'allo' complexity) remain out of scope regardless, since
+this whole mechanism only ever looks up *one* alpha-stereocenter.
 """
 
 from rdkit import Chem
@@ -51,6 +54,14 @@ _SIDE_CHAIN_SMILES = {
     "cysteine": "*CS",
     "aspartic acid": "*CC(=O)O",
     "glutamic acid": "*CCC(=O)O",
+    "asparagine": "*CC(=O)N",
+    "glutamine": "*CCC(=O)N",
+    "methionine": "*CCSC",
+    "lysine": "*CCCCN",
+    "arginine": "*CCCNC(N)=N",
+    "phenylalanine": "*Cc1ccccc1",
+    "tyrosine": "*Cc1ccc(O)cc1",
+    "tryptophan": "*Cc1c[nH]c2ccccc12",
 }
 # Canonicalized at import time (rather than hardcoding the already-
 # canonical strings above) so a future RDKit version's canonicalization
@@ -119,32 +130,23 @@ def _side_chain_fragment(mol, alpha_carbon, other_alpha_neighbors):
     return None, None
 
 
-def _match(mol):
-    """(retained_name, alpha_carbon_idx_or_None) if `mol` is a plain
-    acyclic alpha-amino acid whose side chain matches a `_SIDE_CHAIN_TABLE`
-    entry, else None. `alpha_carbon_idx` is None only for glycine (no
-    stereocenter to look up an L/D descriptor for).
-
-    Finds the *main-chain* acid carbon by looking directly at the
-    alpha-carbon's own neighbors, rather than `_find_carboxylic_acid_carbon`'s
-    whole-molecule first-match search -- aspartic/glutamic acid also carry
-    a second, side-chain-terminal carboxylic-acid-shaped carbon, and that
-    whole-molecule search can find the wrong one first (confirmed:
-    for 'OC(=O)C[C@H](N)C(=O)O', it returned the side-chain acid carbon,
-    not the one bonded to the alpha carbon)."""
-    if mol.GetRingInfo().NumRings() > 0:
+def _backbone_candidate(mol, graph, amine_n):
+    """(alpha_carbon, acid_carbon_idx) if `amine_n` directly anchors a
+    plain alpha-amino-acid backbone (bonded to a plain carbon that itself
+    has exactly one terminal-carboxylic-acid-carbon neighbor), else None.
+    Doesn't care whether `mol` has other amines or rings elsewhere -- a
+    side chain with its own extra nitrogen (lysine, arginine) or its own
+    ring (phenylalanine, tyrosine, tryptophan) is fine, as long as
+    exactly one amine in the whole molecule anchors a backbone this way;
+    that side chain is handled entirely by `_side_chain_fragment` +
+    `_SIDE_CHAIN_TABLE` below, not by this function."""
+    neighbors = graph[amine_n]
+    if len(neighbors) != 1:
         return None
-    amines = find_primary_amines(mol)
-    if len(amines) != 1:
-        return None
-    (amine_n,) = amines
-
-    graph = adjacency(mol)
-    alpha_carbon = graph[amine_n][0]
+    (alpha_carbon,) = neighbors
     alpha_atom = mol.GetAtomWithIdx(alpha_carbon)
     if not _is_plain_carbon(alpha_atom):
         return None
-
     acid_candidates = [
         n
         for n in graph[alpha_carbon]
@@ -152,7 +154,35 @@ def _match(mol):
     ]
     if len(acid_candidates) != 1:
         return None
-    (acid_carbon_idx,) = acid_candidates
+    return alpha_carbon, acid_candidates[0]
+
+
+def _match(mol):
+    """(retained_name, alpha_carbon_idx_or_None) if `mol` is a plain
+    alpha-amino acid whose side chain matches a `_SIDE_CHAIN_TABLE` entry,
+    else None. `alpha_carbon_idx` is None only for glycine (no
+    stereocenter to look up an L/D descriptor for).
+
+    Anchors the backbone by finding which amine (of possibly several --
+    lysine/arginine's side chains carry their own extra nitrogen) is
+    directly bonded to a plain carbon that itself neighbors a terminal
+    carboxylic acid carbon, rather than requiring the *whole molecule*
+    have exactly one amine and no ring anywhere (confirmed this session:
+    that whole-molecule check rejected lysine/arginine/asparagine/
+    glutamine outright over their side chain's own nitrogen, and
+    phenylalanine/tyrosine/tryptophan over their side chain's own ring,
+    long before side-chain matching was ever reached)."""
+    graph = adjacency(mol)
+    amines = find_primary_amines(mol)
+    backbones = []
+    for amine_n in amines:
+        found = _backbone_candidate(mol, graph, amine_n)
+        if found is not None:
+            backbones.append((amine_n, *found))
+    if len(backbones) != 1:
+        return None
+    amine_n, alpha_carbon, acid_carbon_idx = backbones[0]
+    alpha_atom = mol.GetAtomWithIdx(alpha_carbon)
 
     side_neighbors = [n for n in graph[alpha_carbon] if n not in (amine_n, acid_carbon_idx)]
 
