@@ -132,6 +132,7 @@ from ._ether_ketone import has_ether_ketone_shape, name_ether_ketone
 from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
 from ._fullerene import has_fullerene_name, name_fullerene
 from ._nucleoside import has_nucleoside_name, name_nucleoside
+from ._metallocene import has_metallocene_name, name_metallocene
 from ._homo_steroid import has_homo_steroid_shape, name_homo_steroid
 from ._cyclo_steroid import has_cyclo_steroid_shape, name_cyclo_steroid
 from ._dinor_steroid import has_dinor_steroid_shape, name_dinor_steroid
@@ -351,6 +352,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # aromatic-ring shape long before any ring-count-specific check runs.
     if has_nucleoside_name(mol):
         return name_nucleoside(mol)
+
+    # The 7 retained metallocene names (P-69.2.7) are likewise recognized
+    # by exact whole-molecule match and must be routed here for the same
+    # reason: a bare metal atom plus two disjoint cyclopentadienyl/
+    # cyclopentadienide fragments has no shape any other branch below
+    # expects, and reaches a radical/carbanide dispatch that rejects the
+    # multi-fragment SMILES outright long before any ring-count check.
+    if has_metallocene_name(mol):
+        return name_metallocene(mol)
 
     # An amino-acid/betaine-type zwitterion (P-74.1.3's ammonium-nitrogen-
     # prefix-on-a-carboxylate-parent citation order) must be routed here
