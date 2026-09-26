@@ -41,6 +41,8 @@ def test_thiol_on_substituent_branch_raises():
         smiles_to_iupac("SCC1CC2CCC1C2")
 
 
-def test_unsaturated_von_baeyer_thiol_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SC1CC2C=CC1C2")
+def test_von_baeyer_thiol_ring_unsaturation():
+    # Ring unsaturation composes with the thiol suffix locant, mirroring
+    # `_ketone.py`'s identical extension -- PubChem CID 73114971, matches
+    # its own IUPACName exactly.
+    assert smiles_to_iupac("C1C2CC(C1C=C2)S") == "bicyclo[2.2.1]hept-5-ene-2-thiol"

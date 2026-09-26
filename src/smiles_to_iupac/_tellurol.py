@@ -618,16 +618,13 @@ def _name_von_baeyer_or_spiro_tellurol(mol, tellurols, stereo, bonds):
     `elide_e=False` ('tellurol' begins with a consonant, P-16.3.3, same as
     `_thiol.py`'s/`_selenol.py`'s own choice). Mirrors `_thiol.py`'s own
     bicyclic/polycyclic-before-spiro dispatch order and restrictions:
-    exactly one tellurol on the ring system itself, no ring unsaturation."""
+    exactly one tellurol on the ring system itself; ring unsaturation
+    composes on the bicyclic/polycyclic branch (matches `_ketone.py`'s bicyclic/polycyclic-vs-monospiro split) but not the monospiro branch, which has no base
+    mechanism yet (P-31.1.5)."""
     if len(tellurols) != 1:
         raise UnsupportedStructure(
             "more than one tellurol on a von Baeyer bicyclic/polycyclic or "
             "monospiro ring system is not supported yet"
-        )
-    if bonds:
-        raise UnsupportedStructure(
-            "an unsaturated von Baeyer bicyclic/polycyclic or monospiro "
-            "ring system is not supported yet (see P-31.1.4/P-31.1.5)"
         )
 
     (tellurium,) = tellurols
@@ -655,6 +652,13 @@ def _name_von_baeyer_or_spiro_tellurol(mol, tellurols, stereo, bonds):
             von_baeyer_ring_count,
             elide_e=False,
             stereo=stereo,
+            bonds=bonds,
+        )
+
+    if bonds:
+        raise UnsupportedStructure(
+            "an unsaturated monospiro ring system is not supported yet "
+            "(see P-31.1.5)"
         )
 
     spiro_atom = find_monospiro_atom(mol)

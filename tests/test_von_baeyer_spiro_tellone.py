@@ -33,6 +33,13 @@ def test_multiple_ring_tellones_raises():
         smiles_to_iupac("[Te]=C1CC2CCC1C(=[Te])C2")
 
 
-def test_unsaturated_von_baeyer_tellone_raises():
+def test_von_baeyer_tellone_ring_unsaturation():
+    # Ring unsaturation composes with the tellone suffix locant on the
+    # bicyclic/polycyclic branch, mirroring `_ketone.py`'s identical
+    # extension -- reviewed rather than independently PubChem-confirmed.
+    assert smiles_to_iupac("[Te]=C1CC2C=CC1C2") == "bicyclo[2.2.1]hept-5-ene-2-tellone"
+
+
+def test_unsaturated_monospiro_tellone_still_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[Te]=C1CC2C=CC1C2")
+        smiles_to_iupac("[Te]=C1CCCC2(C1)C=CCCC2")

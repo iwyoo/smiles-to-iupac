@@ -38,9 +38,11 @@ def test_amine_on_substituent_branch_raises():
         smiles_to_iupac("NCC1CC2CCC1C2")
 
 
-def test_unsaturated_von_baeyer_amine_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC1CC2C=CC1C2")
+def test_von_baeyer_amine_ring_unsaturation():
+    # Ring unsaturation composes with the amine suffix locant, mirroring
+    # `_ketone.py`'s identical extension -- PubChem CID 12841951, matches
+    # its own IUPACName exactly.
+    assert smiles_to_iupac("C1C2CC(C1C=C2)N") == "bicyclo[2.2.1]hept-5-en-2-amine"
 
 
 def test_von_baeyer_amine_specified_stereocenter():
