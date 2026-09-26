@@ -131,6 +131,7 @@ from ._ether_hydroperoxide import has_ether_hydroperoxide_shape, name_ether_hydr
 from ._ether_ketone import has_ether_ketone_shape, name_ether_ketone
 from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
 from ._fullerene import has_fullerene_name, name_fullerene
+from ._nucleoside import has_nucleoside_name, name_nucleoside
 from ._homo_steroid import has_homo_steroid_shape, name_homo_steroid
 from ._cyclo_steroid import has_cyclo_steroid_shape, name_cyclo_steroid
 from ._dinor_steroid import has_dinor_steroid_shape, name_dinor_steroid
@@ -341,6 +342,15 @@ def smiles_to_iupac(smiles: str) -> str:
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError(f"invalid SMILES: {smiles!r}")
+
+    # The 7 retained nucleoside names (P-105.1) are recognized by exact
+    # whole-molecule match, so they must be routed before every other
+    # branch below: a purine/pyrimidine base's fused-ring nitrogen pattern
+    # crashes the ring-assembly-chain detector (thymidine/uridine, an
+    # unrelated pre-existing bug) or gets misrouted as an amino-acid/
+    # aromatic-ring shape long before any ring-count-specific check runs.
+    if has_nucleoside_name(mol):
+        return name_nucleoside(mol)
 
     # An amino-acid/betaine-type zwitterion (P-74.1.3's ammonium-nitrogen-
     # prefix-on-a-carboxylate-parent citation order) must be routed here
