@@ -50,10 +50,11 @@ def test_steroid_alcohol_naming(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_non_steroid_von_baeyer_alcohol_with_stereo_still_raises():
+def test_non_steroid_von_baeyer_alcohol_with_stereo_now_resolves():
     # A specified stereocenter on a non-steroid von Baeyer polycyclic
-    # alcohol must still be rejected exactly as before this change -- the
-    # steroid check only bypasses the stereo gate for a real steroid
-    # skeleton match.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O[C@H]1CC2CCC1(C)C2")
+    # alcohol is no longer rejected (#1079, M5 step 2) -- the steroid
+    # check only ever bypassed the stereo gate for a real steroid
+    # skeleton match; the non-steroid path now cites the stereocenter
+    # instead of rejecting it, same as this module's steroid branch
+    # already did.
+    assert smiles_to_iupac("O[C@H]1C[C@@H]2CC[C@]1(C)C2") == "(1R,2S,4R)-1-methylbicyclo[2.2.1]heptan-2-ol"
