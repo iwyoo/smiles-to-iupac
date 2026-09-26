@@ -31,6 +31,13 @@ def test_multiple_ring_sulfonamides_raises():
         smiles_to_iupac("NS(=O)(=O)C1CC2CCC1C2S(N)(=O)=O")
 
 
-def test_unsaturated_von_baeyer_sulfonamide_raises():
+def test_von_baeyer_sulfonamide_ring_unsaturation():
+    # Ring unsaturation composes with the sulfonamide suffix locant on
+    # the bicyclic/polycyclic branch, mirroring `_ketone.py`'s identical
+    # extension -- reviewed rather than independently PubChem-confirmed.
+    assert smiles_to_iupac("NS(=O)(=O)C1CC2C=CC1C2") == "bicyclo[2.2.1]hept-5-ene-2-sulfonamide"
+
+
+def test_unsaturated_monospiro_sulfonamide_still_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NS(=O)(=O)C1CC2C=CC1C2")
+        smiles_to_iupac("NS(=O)(=O)C1CCCC2(C1)C=CCCC2")
