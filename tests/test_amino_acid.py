@@ -2,8 +2,17 @@ import pytest
 from rdkit import Chem
 
 from smiles_to_iupac import smiles_to_iupac
-from smiles_to_iupac._amino_acid import has_amino_acid_shape
+from smiles_to_iupac._amino_acid import _SIDE_CHAIN_TABLE, has_amino_acid_shape
 from smiles_to_iupac._common import UnsupportedStructure
+
+
+def test_side_chain_table_has_no_collisions():
+    # 7 non-glycine side chains (glycine has no fragment, handled as a
+    # special zero-neighbor case) -- each canonical fragment SMILES must
+    # map to exactly one retained name, or two different amino acids
+    # would silently get the same name.
+    assert len(_SIDE_CHAIN_TABLE) == 7
+    assert len(set(_SIDE_CHAIN_TABLE.values())) == 7
 
 
 def test_glycine():
