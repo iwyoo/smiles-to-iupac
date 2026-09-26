@@ -183,16 +183,8 @@ def _name_von_baeyer_or_spiro_carbenium(mol, cation):
     (the shared mechanism `_alcohol.py`/`_amine.py` already use). The
     cation carries no separate heteroatom to exclude from substituent
     enumeration -- the charge sits directly on a ring carbon, unlike
-    alcohol's oxygen or amine's nitrogen -- so `excluded` is empty.
-    Restricted to no specified stereocenter, matching every other WS2
-    step's initial scope (unsaturation is already rejected earlier in
-    `name_carbenium`, for every ring count)."""
-    if specified_stereocenters(mol):
-        raise UnsupportedStructure(
-            "a specified stereocenter alongside a von Baeyer bicyclic/"
-            "polycyclic or monospiro carbenium cation is not supported "
-            "yet (see P-92)"
-        )
+    alcohol's oxygen or amine's nitrogen -- so `excluded` is empty."""
+    stereo = specified_stereocenters(mol)
 
     bicyclic_core = find_bicyclic_core(mol)
     polycyclic_core = None
@@ -205,12 +197,13 @@ def _name_von_baeyer_or_spiro_carbenium(mol, cation):
                 break
     if bicyclic_core is not None or polycyclic_core is not None:
         return name_von_baeyer_suffix(
-            mol, cation.GetIdx(), set(), "ylium", "carbenium", bicyclic_core, polycyclic_core, von_baeyer_ring_count
+            mol, cation.GetIdx(), set(), "ylium", "carbenium", bicyclic_core, polycyclic_core, von_baeyer_ring_count,
+            stereo=stereo,
         )
 
     spiro_atom = find_monospiro_atom(mol)
     if spiro_atom is not None:
-        return name_monospiro_suffix(mol, cation.GetIdx(), set(), "ylium", "carbenium", spiro_atom)
+        return name_monospiro_suffix(mol, cation.GetIdx(), set(), "ylium", "carbenium", spiro_atom, stereo=stereo)
 
     raise UnsupportedStructure(
         "polycyclic and fused-ring carbenium cations are not supported "

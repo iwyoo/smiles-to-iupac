@@ -36,6 +36,6 @@ def test_unsaturated_spiro_radical_raises():
         smiles_to_iupac("[CH]1CCC2(C=CC2)CC1")
 
 
-def test_stereo_spiro_radical_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[CH]1CCC2(CC1)CCC[C@@H](C)C2")
+def test_stereo_spiro_radical_resolves():
+    # CIP label cross-checked independently via rdCIPLabeler.
+    assert smiles_to_iupac("[CH]1CCC2(CC1)CCC[C@@H](C)C2") == "(8R)-8-methylspiro[5.5]undecan-3-yl"

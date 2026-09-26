@@ -41,3 +41,8 @@ def test_amine_on_substituent_branch_raises():
 def test_unsaturated_von_baeyer_amine_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("NC1CC2C=CC1C2")
+
+
+def test_von_baeyer_amine_specified_stereocenter():
+    # PubChem CID 10240785; matches its own IUPACName exactly.
+    assert smiles_to_iupac("C1C[C@@H]2C[C@H]1C[C@H]2N") == "(1R,2R,4S)-bicyclo[2.2.1]heptan-2-amine"
