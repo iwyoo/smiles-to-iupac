@@ -1896,23 +1896,30 @@ def _name_von_baeyer_or_spiro_ketone(mol, ketones, hydroxyls, stereo, bonds):
     `_polycyclic_suffix.py`'s `stereo` parameter (#1078, M5 step 1) as long
     as no hydroxyl coexists -- stereo alongside a coexisting hydroxyl is
     still out of scope (that combination compounds this step with #1029/
-    #1047's own mechanism and needs its own verification pass, M5 step 2)."""
+    #1047's own mechanism and needs its own verification pass, M5 step 2).
+
+    A **bicyclic/polycyclic** ketone's own ring unsaturation is cited via
+    `_polycyclic_suffix.py`'s `bonds` parameter (#1081, M6 step 1), as
+    long as no hydroxyl coexists (same reasoning as the stereo case just
+    above -- a separate composition, M6 step 2) and the ring system isn't
+    a recognized steroid parent (steroid ring unsaturation is a distinct,
+    unscoped follow-on, see #1025's M6 pre-slicing comment). Composing
+    unsaturation with a stereocenter, both without a coexisting hydroxyl,
+    falls out of the two mechanisms for free (verified against real
+    PubChem CID 65724, verbenone) since stereo citation only wraps the
+    already-built name as a final prefix. Monospiro ring unsaturation has
+    no base naming mechanism at all yet (P-31.1.5) and stays rejected."""
     if len(ketones) != 1:
         raise UnsupportedStructure(
             "more than one ketone on a von Baeyer bicyclic/polycyclic or "
             "monospiro ring system is not supported yet"
-        )
-    if bonds:
-        raise UnsupportedStructure(
-            "an unsaturated von Baeyer bicyclic/polycyclic or monospiro "
-            "ring system is not supported yet (see P-31.1.4/P-31.1.5)"
         )
 
     (ketone_oxygen,) = ketones
     graph = adjacency(mol)
     (ketone_carbon,) = graph[ketone_oxygen]
 
-    if not hydroxyls:
+    if not hydroxyls and not bonds:
         steroid_name = _steroid_ketone_name(mol, ketone_oxygen, ketone_carbon)
         if steroid_name is not None:
             return steroid_name
@@ -1922,6 +1929,12 @@ def _name_von_baeyer_or_spiro_ketone(mol, ketones, hydroxyls, stereo, bonds):
             "a specified stereocenter alongside a von Baeyer bicyclic/"
             "polycyclic or monospiro ketone with a coexisting hydroxyl is "
             "not supported yet (see P-92)"
+        )
+    if hydroxyls and bonds:
+        raise UnsupportedStructure(
+            "ring unsaturation alongside a coexisting hydroxyl on a von "
+            "Baeyer bicyclic/polycyclic or monospiro ketone is not "
+            "supported yet"
         )
 
     bicyclic_core = find_bicyclic_core(mol)
@@ -1946,6 +1959,13 @@ def _name_von_baeyer_or_spiro_ketone(mol, ketones, hydroxyls, stereo, bonds):
             von_baeyer_ring_count,
             extra_substituents=extra_substituents,
             stereo=stereo,
+            bonds=bonds,
+        )
+
+    if bonds:
+        raise UnsupportedStructure(
+            "an unsaturated monospiro ring system is not supported yet "
+            "(see P-31.1.5)"
         )
 
     spiro_atom = find_monospiro_atom(mol)
