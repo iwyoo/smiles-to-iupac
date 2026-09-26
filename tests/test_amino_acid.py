@@ -7,12 +7,12 @@ from smiles_to_iupac._common import UnsupportedStructure
 
 
 def test_side_chain_table_has_no_collisions():
-    # 7 non-glycine side chains (glycine has no fragment, handled as a
+    # 15 non-glycine side chains (glycine has no fragment, handled as a
     # special zero-neighbor case) -- each canonical fragment SMILES must
     # map to exactly one retained name, or two different amino acids
     # would silently get the same name.
-    assert len(_SIDE_CHAIN_TABLE) == 7
-    assert len(set(_SIDE_CHAIN_TABLE.values())) == 7
+    assert len(_SIDE_CHAIN_TABLE) == 15
+    assert len(set(_SIDE_CHAIN_TABLE.values())) == 15
 
 
 def test_glycine():
@@ -67,19 +67,59 @@ def test_isoleucine_still_generic():
     assert smiles_to_iupac("CC[C@H](C)[C@@H](N)C(=O)O") == "(2R,3S)-2-amino-3-methylpentanoic acid"
 
 
-def test_asparagine_still_unsupported():
-    # An amide terminus (-CO-NH2), not a second carboxylic acid -- a
-    # different guard/module entirely from aspartic acid's shape.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(=O)C[C@@H](N)C(=O)O")
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # L-/D-asparagine: PubChem CID 6267 / CID 439600.
+        ("NC(=O)C[C@H](N)C(=O)O", "L-asparagine"),
+        ("NC(=O)C[C@@H](N)C(=O)O", "D-asparagine"),
+        # L-/D-glutamine: PubChem CID 5961 / CID 145815.
+        ("NC(=O)CC[C@H](N)C(=O)O", "L-glutamine"),
+        ("NC(=O)CC[C@@H](N)C(=O)O", "D-glutamine"),
+        # L-/D-methionine: PubChem CID 6137 / CID 84815.
+        ("CSCC[C@H](N)C(=O)O", "L-methionine"),
+        ("CSCC[C@@H](N)C(=O)O", "D-methionine"),
+        # L-/D-lysine: PubChem CID 5962 / CID 57449. Its own extra side-chain
+        # amine no longer trips the whole-molecule "exactly one amine" guard
+        # -- `_match` anchors the backbone amine directly instead.
+        ("NCCCC[C@H](N)C(=O)O", "L-lysine"),
+        ("NCCCC[C@@H](N)C(=O)O", "D-lysine"),
+        # L-/D-phenylalanine: PubChem CID 6140 / CID 71567. Its ring-bearing
+        # side chain no longer trips the whole-molecule "no rings" guard.
+        ("N[C@@H](Cc1ccccc1)C(=O)O", "L-phenylalanine"),
+        ("N[C@H](Cc1ccccc1)C(=O)O", "D-phenylalanine"),
+        # L-/D-tyrosine: PubChem CID 6057 / CID 71098.
+        ("N[C@@H](Cc1ccc(O)cc1)C(=O)O", "L-tyrosine"),
+        ("N[C@H](Cc1ccc(O)cc1)C(=O)O", "D-tyrosine"),
+        # L-/D-tryptophan: PubChem CID 6305 / CID 9060.
+        ("N[C@@H](Cc1c[nH]c2ccccc12)C(=O)O", "L-tryptophan"),
+        ("N[C@H](Cc1c[nH]c2ccccc12)C(=O)O", "D-tryptophan"),
+    ],
+)
+def test_remaining_single_stereocenter_amino_acid_ld(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
-def test_methionine_still_unsupported():
-    # A two-carbon side chain to a thioether (not a terminal thiol) is a
-    # different shape from cysteine's -CH2-SH -- still falls through to
-    # the coexisting-heteroatom guard, deferred to a batch-rollout step.
+def test_arginine_unspecified_stereo_resolves():
+    # The retained name resolves for the unspecified-stereo case (correct,
+    # no L-/D- prefix per this project's convention), but a *specified*
+    # stereocenter currently still fails -- see
+    # test_arginine_specified_stereo_still_unsupported below, a separate,
+    # shared limitation unrelated to this module's own side-chain table.
+    assert smiles_to_iupac("NC(=N)NCCCC(N)C(=O)O") == "arginine"
+
+
+def test_arginine_specified_stereo_still_unsupported():
+    # `_common.specified_stereocenters` rejects any C=N double bond in the
+    # whole molecule, including a non-stereogenic symmetric one like the
+    # guanidino group's own C(=N)(N)N -- a separate, shared limitation
+    # (affects every module that calls this helper, not just amino acids),
+    # out of scope for this step. Filed as a follow-up rather than fixed
+    # here to avoid widening this PR into `_common.py`'s general
+    # double-bond-stereo detection.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CSCC[C@@H](N)C(=O)O")
+        smiles_to_iupac("NC(=N)NCCC[C@H](N)C(=O)O")
 
 
 def test_threonine_still_unsupported():
@@ -88,11 +128,6 @@ def test_threonine_still_unsupported():
     # also carries a hydroxyl.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C[C@@H](O)[C@H](N)C(=O)O")
-
-
-def test_phenylalanine_still_unsupported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N[C@@H](Cc1ccccc1)C(=O)O")
 
 
 def test_two_amino_acid_shaped_stereocenters_not_matched():

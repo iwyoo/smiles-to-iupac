@@ -112,9 +112,11 @@ def test_phenyl_chain_carboxylic_acid_amine():
     # `_carboxylic_acid.py`'s phenyl-chain path): the ring is cited as a
     # "phenyl" substituent prefix alongside the demoted amine's "amino"
     # prefix -- the phenylalanine/homophenylalanine structural pattern.
-    # PubChem PUG REST: "2-amino-3-phenylpropanoic acid"/
-    # "2-amino-4-phenylbutanoic acid".
-    assert smiles_to_iupac("c1ccccc1CC(N)C(=O)O") == "2-amino-3-phenylpropanoic acid"
+    # The 3-carbon-chain case is exactly phenylalanine's own retained-name
+    # shape, so `_amino_acid.py`'s table now intercepts it first (see
+    # test_amino_acid.py); the 4-carbon homophenylalanine case still
+    # resolves via this module's own systematic naming.
+    assert smiles_to_iupac("c1ccccc1CC(N)C(=O)O") == "phenylalanine"
     assert smiles_to_iupac("c1ccccc1CCC(N)C(=O)O") == "2-amino-4-phenylbutanoic acid"
 
 
