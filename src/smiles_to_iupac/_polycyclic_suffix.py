@@ -24,7 +24,12 @@ from ._bicyclic import (
     bicyclic_parent_name,
     iter_bicyclic_numberings,
 )
-from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._common import (
+    UnsupportedStructure,
+    adjacency,
+    halogen_substituents,
+    stereo_locants_prefix,
+)
 from ._polycyclic import (
     _candidate_key as _polycyclic_candidate_key,
     iter_polycyclic_candidates,
@@ -53,6 +58,18 @@ def _suffixed_parent(base_parent, locant, suffix_word, elide_e):
     return stem + f"-{locant}-{suffix_word}"
 
 
+def _with_stereo_prefix(stereo, full_order, name):
+    """Prefix `name` with its P-92 stereodescriptor(s), once the winning
+    candidate's own `full_order` numbering is known -- mirrors `_spiro.py`'s
+    `name_monospiro` (the un-suffixed monospiro parent naming), which
+    already proved this exact pattern for a bare ring system. `stereo`:
+    the caller's own `specified_stereocenters(mol)` result, or None."""
+    if stereo is None:
+        return name
+    position_of = {atom: i + 1 for i, atom in enumerate(full_order)}
+    return stereo_locants_prefix(stereo, position_of) + name
+
+
 def name_von_baeyer_suffix(
     mol,
     suffix_carbon,
@@ -64,6 +81,7 @@ def name_von_baeyer_suffix(
     ring_count,
     elide_e=True,
     extra_substituents=None,
+    stereo=None,
 ):
     """`suffix_carbon`: the single ring atom the suffix is attached to.
     `excluded`: heteroatom indices to keep out of `substituents_for_ring`'s
@@ -78,7 +96,9 @@ def name_von_baeyer_suffix(
     monocyclic pattern, #1029) -- unlike `excluded`, these atoms are NOT
     excluded from `substituents_for_ring`'s own branch-root search; they
     must still be found as a branch root there so this dict's name gets
-    attached to them."""
+    attached to them. `stereo`: optional `specified_stereocenters(mol)`
+    result, cited via `_with_stereo_prefix` against the winning candidate's
+    own numbering (#1078, M5 step 1)."""
     core_atoms = von_baeyer_core_atoms(bicyclic_core, polycyclic_core)
     if suffix_carbon not in core_atoms:
         raise UnsupportedStructure(
@@ -89,6 +109,7 @@ def name_von_baeyer_suffix(
     halogens = {**halogen_substituents(mol), **(extra_substituents or {})}
     graph = adjacency(mol)
     best_key = None
+    best_order = None
     if bicyclic_core is not None:
         base_parent = bicyclic_parent_name(bicyclic_core)
         for full_order in iter_bicyclic_numberings(bicyclic_core):
@@ -97,8 +118,8 @@ def name_von_baeyer_suffix(
             parent = _suffixed_parent(base_parent, locant, suffix_word, elide_e)
             key = _bicyclic_candidate_key(parent, substituents, suffix_locant=locant)
             if best_key is None or key < best_key:
-                best_key = key
-        return best_key[-1]
+                best_key, best_order = key, full_order
+        return _with_stereo_prefix(stereo, best_order, best_key[-1])
 
     for full_order, parent, outer_key in iter_polycyclic_candidates(polycyclic_core, ring_count):
         locant = full_order.index(suffix_carbon) + 1
@@ -106,7 +127,7 @@ def name_von_baeyer_suffix(
         suffixed_parent = _suffixed_parent(parent, locant, suffix_word, elide_e)
         key = outer_key + _polycyclic_candidate_key(suffixed_parent, substituents, suffix_locant=locant)
         if best_key is None or key < best_key:
-            best_key = key
+            best_key, best_order = key, full_order
     if best_key is None:
         raise UnsupportedStructure(
             "this polycyclic topology is not supported yet (disjoint ring "
@@ -114,17 +135,26 @@ def name_von_baeyer_suffix(
             "see _polycyclic.py's name_polycycloalkane for the analogous "
             "non-suffix guard)"
         )
-    return best_key[-1]
+    return _with_stereo_prefix(stereo, best_order, best_key[-1])
 
 
 def name_monospiro_suffix(
-    mol, suffix_carbon, excluded, suffix_word, noun, spiro_atom, elide_e=True, extra_substituents=None
+    mol,
+    suffix_carbon,
+    excluded,
+    suffix_word,
+    noun,
+    spiro_atom,
+    elide_e=True,
+    extra_substituents=None,
+    stereo=None,
 ):
     """Same mechanism as `name_von_baeyer_suffix`, for a monospiro
     skeleton (`_spiro.py`). `extra_substituents`: see that function's own
     docstring (#1029) -- an optional `{atom_idx: name}` dict merged
     alongside the usual halogen substituents, e.g. a coexisting hydroxyl
-    cited as a prefix."""
+    cited as a prefix. `stereo`: see `name_von_baeyer_suffix`'s own
+    docstring (#1078, M5 step 1)."""
     ring_atoms = {atom for ring in mol.GetRingInfo().AtomRings() for atom in ring}
     if suffix_carbon not in ring_atoms:
         raise UnsupportedStructure(
@@ -135,11 +165,12 @@ def name_monospiro_suffix(
     halogens = {**halogen_substituents(mol), **(extra_substituents or {})}
     graph = adjacency(mol)
     best_key = None
+    best_order = None
     for parent, full_order in iter_monospiro_numberings(mol, spiro_atom):
         locant = full_order.index(suffix_carbon) + 1
         substituents = substituents_for_ring(graph, full_order, halogens, excluded, mol=mol)
         suffixed_parent = _suffixed_parent(parent, locant, suffix_word, elide_e)
         key = _spiro_candidate_key(suffixed_parent, substituents, suffix_locant=locant)
         if best_key is None or key < best_key:
-            best_key = key
-    return best_key[-1]
+            best_key, best_order = key, full_order
+    return _with_stereo_prefix(stereo, best_order, best_key[-1])
