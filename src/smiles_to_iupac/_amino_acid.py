@@ -40,8 +40,9 @@ this whole mechanism only ever looks up *one* alpha-stereocenter.
 """
 
 from rdkit import Chem
+from rdkit.Chem import rdCIPLabeler
 
-from ._common import adjacency, find_primary_amines, specified_stereocenters
+from ._common import UnsupportedStructure, adjacency, find_primary_amines
 
 _ALPHA_TO_LD = {"S": "L", "R": "D"}
 _ALPHA_TO_LD_CYSTEINE = {"R": "L", "S": "D"}  # P-103.1.3.1's stated exception
@@ -106,6 +107,64 @@ def _is_terminal_carboxylic_acid_carbon(mol, graph, atom_idx, coming_from):
     return len(carbonyls) == 1 and len(hydroxyls) == 1
 
 
+def _side_chain_atom_indices(graph, alpha_carbon, side_root):
+    """Every atom reachable from `side_root` without passing back through
+    `alpha_carbon` -- the side chain's own atoms, in the original
+    molecule's indexing (unlike `_side_chain_fragment`'s reindexed copy).
+    Used only to scope the stereo check below to the side chain, not for
+    side-chain identification itself (that's `_side_chain_fragment` +
+    `_SIDE_CHAIN_TABLE`)."""
+    seen = {side_root}
+    stack = [side_root]
+    while stack:
+        current = stack.pop()
+        for neighbor in graph[current]:
+            if neighbor != alpha_carbon and neighbor not in seen:
+                seen.add(neighbor)
+                stack.append(neighbor)
+    return seen
+
+
+def _alpha_stereo_label(mol, alpha_carbon, side_chain_atoms):
+    """The alpha-carbon's own CIP label ('R'/'S'), or None if it has no
+    specified stereocenter -- ignoring any potential stereo element
+    entirely confined to `side_chain_atoms` (e.g. arginine's guanidino
+    C=N, which RDKit reports as a genuine potential E/Z element even
+    though it's never configurationally specified in practice -- the
+    tautomeric/resonance exchange across the guanidino nitrogens makes it
+    non-configurational, not something RDKit's graph-only stereo
+    perception can infer on its own). A stereo element outside the
+    recognized side chain (there is at most the alpha-carbon itself,
+    given this module's own narrow scope) still applies the ordinary
+    all-specified-or-none rule, same as `_common.specified_stereocenters`
+    -- this is a narrower, side-chain-aware version of that shared
+    helper, not a replacement for it elsewhere."""
+    elements = Chem.FindPotentialStereo(mol)
+    relevant = []
+    for element in elements:
+        if element.type == Chem.StereoType.Bond_Double:
+            bond = mol.GetBondWithIdx(element.centeredOn)
+            if bond.GetBeginAtomIdx() in side_chain_atoms and bond.GetEndAtomIdx() in side_chain_atoms:
+                continue
+        elif element.type == Chem.StereoType.Atom_Tetrahedral and element.centeredOn in side_chain_atoms:
+            continue
+        relevant.append(element)
+    specified = [e for e in relevant if e.specified == Chem.StereoSpecified.Specified]
+    if not specified:
+        return None
+    if len(specified) != len(relevant) or any(e.type != Chem.StereoType.Atom_Tetrahedral for e in specified):
+        raise UnsupportedStructure(
+            "stereochemistry beyond the alpha-carbon's own specified "
+            "tetrahedral stereocenter (with no unspecified one alongside "
+            "it, outside the recognized side chain) is not supported yet"
+        )
+    rdCIPLabeler.AssignCIPLabels(mol)
+    for element in specified:
+        if element.centeredOn == alpha_carbon:
+            return mol.GetAtomWithIdx(alpha_carbon).GetPropsAsDict().get("_CIPCode")
+    return None
+
+
 def _side_chain_fragment(mol, alpha_carbon, other_alpha_neighbors):
     """The side-chain fragment hanging off `alpha_carbon`, as an RDKit Mol
     plus its canonical SMILES -- the cut bond to `alpha_carbon` is marked
@@ -158,10 +217,11 @@ def _backbone_candidate(mol, graph, amine_n):
 
 
 def _match(mol):
-    """(retained_name, alpha_carbon_idx_or_None) if `mol` is a plain
-    alpha-amino acid whose side chain matches a `_SIDE_CHAIN_TABLE` entry,
-    else None. `alpha_carbon_idx` is None only for glycine (no
-    stereocenter to look up an L/D descriptor for).
+    """(retained_name, alpha_carbon_idx_or_None, side_chain_atoms) if
+    `mol` is a plain alpha-amino acid whose side chain matches a
+    `_SIDE_CHAIN_TABLE` entry, else None. `alpha_carbon_idx` is None only
+    for glycine (no stereocenter to look up an L/D descriptor for, and no
+    side chain either -- `side_chain_atoms` is empty in that case).
 
     Anchors the backbone by finding which amine (of possibly several --
     lysine/arginine's side chains carry their own extra nitrogen) is
@@ -193,10 +253,11 @@ def _match(mol):
         # in the molecule (rejects e.g. a disconnected salt fragment).
         if mol.GetNumAtoms() != 5:
             return None
-        return "glycine", None
+        return "glycine", None, frozenset()
 
     if len(side_neighbors) != 1 or alpha_atom.GetTotalNumHs() != 1:
         return None
+    (side_root,) = side_neighbors
 
     frag, frag_smiles = _side_chain_fragment(mol, alpha_carbon, (amine_n, acid_carbon_idx))
     if frag_smiles is None:
@@ -211,7 +272,7 @@ def _match(mol):
     # fragment's own atom count instead of a per-name lookup table.
     if mol.GetNumAtoms() != 4 + frag.GetNumAtoms():
         return None
-    return name, alpha_carbon
+    return name, alpha_carbon, _side_chain_atom_indices(graph, alpha_carbon, side_root)
 
 
 def has_amino_acid_shape(mol) -> bool:
@@ -219,14 +280,11 @@ def has_amino_acid_shape(mol) -> bool:
 
 
 def name_amino_acid(mol) -> str:
-    name, alpha_carbon = _match(mol)
+    name, alpha_carbon, side_chain_atoms = _match(mol)
     if alpha_carbon is None:
         return name
-    stereo = specified_stereocenters(mol)
-    if not stereo:
-        return name
-    labels = {atom_idx: label for atom_idx, label in stereo}
-    if alpha_carbon not in labels:
+    label = _alpha_stereo_label(mol, alpha_carbon, side_chain_atoms)
+    if label is None:
         return name
     mapping = _ALPHA_TO_LD_CYSTEINE if name == "cysteine" else _ALPHA_TO_LD
-    return f"{mapping[labels[alpha_carbon]]}-{name}"
+    return f"{mapping[label]}-{name}"
