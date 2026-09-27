@@ -68,9 +68,51 @@ def test_3h_indole_tautomer_raises():
         smiles_to_iupac("C1(C=Nc2ccccc12)")
 
 
-def test_other_heteroaromatic_fused_shape_raises():
-    # purine: a different retained-name heteroaromatic fused system, not
-    # in this module's scope yet -- must not accidentally match quinoline
-    # or indole.
+def test_phenazine():
+    # C12H8N2, cross-checked against PubChem CID 4757's canonical SMILES.
+    assert smiles_to_iupac("c1ccc2nc3ccccc3nc2c1") == "phenazine"
+
+
+def test_acridine():
+    # C13H9N, cross-checked against PubChem CID 9215's canonical SMILES.
+    assert smiles_to_iupac("c1ccc2nc3ccccc3cc2c1") == "acridine"
+
+
+def test_phenanthridine():
+    # C13H9N, cross-checked against PubChem CID 9189's canonical SMILES.
+    assert smiles_to_iupac("c1ccc2c(c1)cnc1ccccc12") == "phenanthridine"
+
+
+def test_carbazole():
+    # C12H9N, cross-checked against PubChem CID 6854's canonical SMILES.
+    # The pyrrole-type N-H isn't forced to one position by the skeleton
+    # alone, so the PIN cites it explicitly as 9H-carbazole.
+    assert smiles_to_iupac("c1ccc2c(c1)[nH]c1ccccc12") == "9H-carbazole"
+
+
+def test_quinolizine():
+    # C9H9N, cross-checked against PubChem CID 9548687's canonical SMILES.
+    assert smiles_to_iupac("C1=CCN2C=CC=CC2=C1") == "4H-quinolizine"
+
+
+def test_purine():
+    # C5H4N4, cross-checked against PubChem CID 1044's canonical SMILES.
+    assert smiles_to_iupac("c1ncc2[nH]cnc2n1") == "7H-purine"
+
+
+def test_xanthene():
+    # C13H10O, cross-checked against PubChem CID 7107's canonical SMILES.
+    assert smiles_to_iupac("c1ccc2c(c1)Cc1ccccc1O2") == "9H-xanthene"
+
+
+def test_thioxanthene():
+    # C13H10S, cross-checked against PubChem CID 67495's canonical SMILES.
+    assert smiles_to_iupac("c1ccc2c(c1)Cc1ccccc1S2") == "9H-thioxanthene"
+
+
+def test_phenanthroline_raises():
+    # phenanthroline bare names no single structure -- 1,7-/1,10-/4,7-
+    # isomers are distinct real compounds, so this needs locants, not a
+    # retained parent-hydride name; deliberately out of scope here.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ncc2[nH]cnc2n1")
+        smiles_to_iupac("c1cc2ccc3cccnc3c2nc1")
