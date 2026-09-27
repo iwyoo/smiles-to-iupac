@@ -275,6 +275,55 @@ def _androstane_5beta_name(mol):
     return None
 
 
+def _steroid_unsaturated_name(mol):
+    """If `mol` is exactly one of the seven bare steroid parent skeletons
+    (constitution only, per `_PLAIN_CANONICAL_TO_NAME`) plus exactly one
+    ring C=C double bond at a standard, sequential steroid locant pair
+    (n, n+1) -- not a ring-fusion pair like C5-C10, whose own compound-
+    locant citation (e.g. 'estra-5(10)-ene') is separate, unimplemented
+    machinery -- return the retained name with an '-ene' suffix at the
+    double bond's lower locant (e.g. 'androst-5-ene'). Otherwise None.
+
+    Mirrors `steroid_suffix_name`'s own strip-then-match-then-locate
+    approach, except no atom is removed here (only a bond order change),
+    so the original atom indices stay valid for `_locant_map` directly."""
+    double_bonds = [
+        (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
+        for bond in mol.GetBonds()
+        if bond.GetBondTypeAsDouble() == 2.0
+    ]
+    if len(double_bonds) != 1:
+        return None
+    (a, b) = double_bonds[0]
+    if mol.GetAtomWithIdx(a).GetAtomicNum() != 6 or mol.GetAtomWithIdx(b).GetAtomicNum() != 6:
+        return None
+
+    rw = Chem.RWMol(mol)
+    rw.GetBondBetweenAtoms(a, b).SetBondType(BondType.SINGLE)
+    for idx in (a, b):
+        atom = rw.GetAtomWithIdx(idx)
+        atom.SetNoImplicit(False)
+        atom.SetNumExplicitHs(0)
+    stripped = rw.GetMol()
+    try:
+        Chem.SanitizeMol(stripped)
+    except Chem.rdchem.KekulizeException:
+        return None
+    Chem.RemoveStereochemistry(stripped)
+    name = _PLAIN_CANONICAL_TO_NAME.get(Chem.MolToSmiles(stripped))
+    if name is None:
+        return None
+
+    locant_of_atom = {atom: locant for locant, atom in _locant_map(name, stripped).items()}
+    locant_a, locant_b = locant_of_atom.get(a), locant_of_atom.get(b)
+    if locant_a is None or locant_b is None:
+        return None
+    lower, upper = sorted((locant_a, locant_b))
+    if upper != lower + 1:
+        return None
+    return name[:-3] + f"-{lower}-ene"
+
+
 def has_steroid_parent_hydride_name(mol) -> bool:
     if Chem.MolToSmiles(mol) in _CANONICAL_TO_NAME:
         return True
@@ -286,3 +335,11 @@ def name_steroid_parent_hydride(mol) -> str:
     if key in _CANONICAL_TO_NAME:
         return _CANONICAL_TO_NAME[key]
     return _androstane_5beta_name(mol)
+
+
+def has_steroid_unsaturated_name(mol) -> bool:
+    return _steroid_unsaturated_name(mol) is not None
+
+
+def name_steroid_unsaturated(mol) -> str:
+    return _steroid_unsaturated_name(mol)

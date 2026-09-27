@@ -150,7 +150,9 @@ from ._nor_steroid import has_nor_steroid_shape, name_nor_steroid
 from ._seco_steroid import has_seco_steroid_shape, name_seco_steroid
 from ._steroid_parent_hydrides import (
     has_steroid_parent_hydride_name,
+    has_steroid_unsaturated_name,
     name_steroid_parent_hydride,
+    name_steroid_unsaturated,
 )
 from ._heteroaromatic_fused import has_retained_heteroaromatic_fused_name, name_retained_heteroaromatic_fused
 from ._polycyclic_component_fusion import (
@@ -827,6 +829,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # come first or gonane would never be reached.
     if has_steroid_parent_hydride_name(mol):
         return name_steroid_parent_hydride(mol)
+
+    # A steroid parent hydride with exactly one ring C=C double bond at a
+    # standard, non-ring-fusion locant (e.g. 'androst-5-ene') must be
+    # checked right alongside the bare-skeleton case above, for the same
+    # von-Baeyer-engine-would-otherwise-claim-it reason.
+    if has_steroid_unsaturated_name(mol):
+        return name_steroid_unsaturated(mol)
 
     # A steroid parent hydride missing one non-fusion ring atom or angular
     # methyl (P-101.3.1's 'nor' prefix) is checked right after the exact
