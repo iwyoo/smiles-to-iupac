@@ -135,6 +135,7 @@ from ._fullerene import has_fullerene_name, name_fullerene
 from ._nucleoside import has_nucleoside_name, name_nucleoside
 from ._metallocene import has_metallocene_name, name_metallocene
 from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
+from ._pyridinone import has_pyridinone_shape, name_pyridinone
 from ._homo_steroid import has_homo_steroid_shape, name_homo_steroid
 from ._cyclo_steroid import has_cyclo_steroid_shape, name_cyclo_steroid
 from ._dinor_steroid import has_dinor_steroid_shape, name_dinor_steroid
@@ -370,6 +371,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # or aromatic dispatch below ever gets a chance to reject it outright.
     if has_hetero_ring_oxide_shape(mol):
         return name_hetero_ring_oxide(mol)
+
+    # The pyridinone tautomer (P-31.1.4.3.4's indicated-hydrogen oxo form)
+    # keeps its ring-carbon aromatic despite the exocyclic oxo, so it must
+    # be routed here before `_ketone.py`'s own generic aryl-ketone
+    # rejection below ever gets a chance to claim it.
+    if has_pyridinone_shape(mol):
+        return name_pyridinone(mol)
 
     # An amino-acid/betaine-type zwitterion (P-74.1.3's ammonium-nitrogen-
     # prefix-on-a-carboxylate-parent citation order) must be routed here
