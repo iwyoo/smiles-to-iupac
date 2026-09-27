@@ -28,6 +28,19 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("CC(=O)OCCOC(=O)C", "ethane-1,2-diyl diethanoate"),
         ("CC(=O)OCCCOC(=O)C", "propane-1,3-diyl diethanoate"),
         ("CCC(=O)OCCCCOC(=O)CC", "butane-1,4-diyl dipropanoate"),
+        # An interior alcohol carbon with a plain terminal carbon beyond
+        # it (e.g. propanediol/butanediol diacetate's own methyl end) is
+        # still a genuinely unbranched carbon skeleton -- both esters plus
+        # every plain chain end are found via `carbon_adjacency`'s own
+        # connected-component/leaf search, not a naive single-direction
+        # walk from one ester. PubChem CID 12198/66193.
+        ("CC(OC(C)=O)COC(C)=O", "propane-1,2-diyl diethanoate"),
+        ("CC(=O)OC(C)COC(=O)C", "propane-1,2-diyl diethanoate"),
+        ("CC(OC(C)=O)C(C)OC(C)=O", "butane-2,3-diyl diethanoate"),
+        # A genuine one-carbon alkyl branch (not reducible to a straight
+        # chain) hanging off a non-terminal backbone carbon, for the
+        # exactly-two-identical-esters case only.
+        ("CC(COC(C)=O)COC(C)=O", "2-methylpropane-1,3-diyl diethanoate"),
     ],
 )
 def test_diester_acyloxy_naming(smiles, expected):
@@ -37,13 +50,18 @@ def test_diester_acyloxy_naming(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        # A branched backbone (a real alkyl branch alongside the second
-        # ester attachment) needs the full name_branch-style longest-chain
-        # machinery, deferred -- see the module docstring.
-        "CC(=O)OC(C)COC(=O)C",
         # A halogen on the backbone is out of scope for this narrow first
         # pass.
         "CC(=O)OCC(Cl)OC(=O)C",
+        # A branch point that itself carries an ester (pentaerythritol-
+        # shaped) is a separate, not-yet-scoped shape, not a single chain
+        # at all.
+        "CC(=O)OCC(COC(C)=O)(COC(C)=O)COC(C)=O",
+        # A differing-acid diester with a branch: the branch's own
+        # interaction with per-position acid citation isn't verified.
+        "CC(COC(C)=O)COC(=O)CC",
+        # Three identical esters with a branch.
+        "CC(COC(C)=O)C(COC(C)=O)COC(C)=O",
     ],
 )
 def test_diester_acyloxy_out_of_scope(smiles):
