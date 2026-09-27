@@ -111,6 +111,7 @@ from ._carboxylic_acid_sulfonic_acid import (
 )
 from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import find_exocyclic_ylidene_core, name_cycloalkane, name_exocyclic_ylidene
+from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
 from ._dihydro_aromatic import (
     find_decahydronaphthalene_core,
@@ -2034,6 +2035,13 @@ def smiles_to_iupac(smiles: str) -> str:
     propellane_core = find_propellane_core(mol)
     if propellane_core is not None:
         return name_propellane(mol, propellane_core)
+    # Two disjoint plain rings joined only through an acyclic bridge (e.g.
+    # dicyclohexylmethane) have no shared atom and no ring-to-ring bond, so
+    # none of the fused/spiro/bridged/assembly checks above ever claim
+    # them -- must be routed last, right before the catch-all rejection.
+    disjoint_ring_pair_core = find_disjoint_ring_pair_core(mol)
+    if disjoint_ring_pair_core is not None:
+        return name_disjoint_ring_pair(mol, disjoint_ring_pair_core)
     raise UnsupportedStructure(
         "polycyclic ring systems are not supported yet (see P-23/P-24/P-25)"
     )
