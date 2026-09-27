@@ -63,6 +63,7 @@ from ._phosphonium import has_phosphonium_shape, name_phosphonium
 from ._oxonium import has_oxonium_shape, name_oxonium
 from ._carbenium import has_acylium_shape, has_carbenium_shape, name_acylium, name_carbenium
 from ._carbanide import has_carbanide_shape, name_carbanide
+from ._cyclopentadienide import has_cyclopentadienide_shape, name_cyclopentadienide
 from ._sulfonium import has_sulfonium_shape, name_sulfonium
 from ._diazonium import has_diazonium_shape, name_diazonium
 from ._radical import has_radical_shape, name_radical
@@ -577,6 +578,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # here, unconditionally, before every other branch.
     if has_carbenium_shape(mol):
         return name_carbenium(mol)
+
+    # The cyclopentadienide anion (P-72.2.2.1's ring worked example) has a
+    # charged ring carbon too, but `_carbanide.py` below is explicitly
+    # acyclic-only and would reject any ring outright -- so this shape must
+    # be routed here first.
+    if has_cyclopentadienide_shape(mol):
+        return name_cyclopentadienide(mol)
 
     # A carbanion center (P-72.2.2.1's '-ide' suffix naming) has a charged
     # carbon too, the anionic mirror of carbenium above -- routed here,
