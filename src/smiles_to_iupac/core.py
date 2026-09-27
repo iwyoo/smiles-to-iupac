@@ -63,6 +63,7 @@ from ._phosphonium import has_phosphonium_shape, name_phosphonium
 from ._oxonium import has_oxonium_shape, name_oxonium
 from ._carbenium import has_acylium_shape, has_carbenium_shape, name_acylium, name_carbenium
 from ._carbanide import has_carbanide_shape, name_carbanide
+from ._benzenide import has_benzenide_shape, name_benzenide
 from ._cyclopentadienide import has_cyclopentadienide_shape, name_cyclopentadienide
 from ._sulfonium import has_sulfonium_shape, name_sulfonium
 from ._diazonium import has_diazonium_shape, name_diazonium
@@ -595,6 +596,12 @@ def smiles_to_iupac(smiles: str) -> str:
     # be routed here first.
     if has_cyclopentadienide_shape(mol):
         return name_cyclopentadienide(mol)
+
+    # The benzenide anion (phenyl anion, P-72.2.2.1's other ring worked
+    # example) has a charged ring carbon too, for the same reason as the
+    # cyclopentadienide case above -- routed here, right alongside it.
+    if has_benzenide_shape(mol):
+        return name_benzenide(mol)
 
     # A carbanion center (P-72.2.2.1's '-ide' suffix naming) has a charged
     # carbon too, the anionic mirror of carbenium above -- routed here,
