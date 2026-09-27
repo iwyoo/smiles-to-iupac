@@ -31,9 +31,10 @@ def test_branched_substituent_not_supported():
         smiles_to_iupac("CC(C)S(=O)C")
 
 
-def test_ring_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=S1CCCCC1")
+def test_ring_resolves_via_hetero_ring_oxide():
+    # A ring sulfoxide is a different shape (_hetero_ring_oxide.py's own
+    # single-heteroatom-ring reduction), not this module's own territory.
+    assert smiles_to_iupac("O=S1CCCCC1") == "thiane 1-oxide"
 
 
 def test_unsaturated_chain_not_supported():

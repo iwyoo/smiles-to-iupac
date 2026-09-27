@@ -134,6 +134,7 @@ from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
 from ._fullerene import has_fullerene_name, name_fullerene
 from ._nucleoside import has_nucleoside_name, name_nucleoside
 from ._metallocene import has_metallocene_name, name_metallocene
+from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
 from ._homo_steroid import has_homo_steroid_shape, name_homo_steroid
 from ._cyclo_steroid import has_cyclo_steroid_shape, name_cyclo_steroid
 from ._dinor_steroid import has_dinor_steroid_shape, name_dinor_steroid
@@ -362,6 +363,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # multi-fragment SMILES outright long before any ring-count check.
     if has_metallocene_name(mol):
         return name_metallocene(mol)
+
+    # A chalcogen ring-oxide (P-62.5's functional-class "oxide" pattern,
+    # not limited to acyclic amines) breaks the ring's own aromaticity as
+    # RDKit perceives it, so it must be routed here before any ring-shape
+    # or aromatic dispatch below ever gets a chance to reject it outright.
+    if has_hetero_ring_oxide_shape(mol):
+        return name_hetero_ring_oxide(mol)
 
     # An amino-acid/betaine-type zwitterion (P-74.1.3's ammonium-nitrogen-
     # prefix-on-a-carboxylate-parent citation order) must be routed here
