@@ -1005,7 +1005,9 @@ def should_omit_mononuclear_locants(chain_length, own_locants, has_unsaturation)
     return chain_length == 2 and not has_unsaturation and len(own_locants) == 1
 
 
-def name_from_substituents(chain_length, ene_locants, yne_locants, own_word, own_locants=None):
+def name_from_substituents(
+    chain_length, ene_locants, yne_locants, own_word, own_locants=None, force_own_locant=False
+):
     """Assemble `<stem>[a]<separator><suffix body>` for an acyclic
     chain-parent suffix module (the caller still prepends its own
     `format_substituent_prefixes(grouped)` -- `_substituents.py` already
@@ -1017,10 +1019,17 @@ def name_from_substituents(chain_length, ene_locants, yne_locants, own_word, own
     the suffix body starts with a cited locant (either because the chain
     is unsaturated, P-14.3.4.2(b)/(c), or because `own_locants` was
     passed, P-31.1.4.3.4), glued directly otherwise (P-14.3.3: a group
-    whose own locant is always 1 is never cited)."""
+    whose own locant is always 1 is never cited).
+
+    `force_own_locant=True` skips the P-14.3.4.2(b) two-carbon omission
+    for a caller whose own suffix locant coincides with a cited
+    substituent-prefix locant, where the Blue Book cites it anyway (e.g.
+    P-72.2.2.1's 'acetyl anion' -> '1-oxoethan-1-ide (PIN)', not
+    'ethanide' as it would be for the same suffix alone -- `_carbanide.py`
+    is the only caller that passes this)."""
     has_unsaturation = bool(ene_locants or yne_locants)
 
-    if should_omit_mononuclear_locants(chain_length, own_locants, has_unsaturation):
+    if not force_own_locant and should_omit_mononuclear_locants(chain_length, own_locants, has_unsaturation):
         stem = alkane_name(chain_length)
         if own_word[0] in "aeiouy":
             stem = stem[:-1]
