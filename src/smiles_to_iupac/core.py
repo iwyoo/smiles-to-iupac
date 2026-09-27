@@ -186,6 +186,7 @@ from ._hetero_monocyclic import (
     name_hetero_monocyclic_substituent,
     name_pyran_indicated_hydrogen,
 )
+from ._didehydro_ring import has_didehydro_ring_name, name_didehydro_ring
 from ._benzo_bis_heterocycle_fusion import (
     has_benzo_bis_heterocycle_fusion_name,
     name_benzo_bis_heterocycle_fusion,
@@ -1067,6 +1068,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # `_hetero_monocyclic.py` below, same reason as above.
     if has_pyridine_bis_heterocycle_fusion_name(mol):
         return name_pyridine_bis_heterocycle_fusion(mol)
+
+    # 2,3-didehydrooxepane etc. (P-31.2.2/P-31.2.4.1's 'didehydro' prefix,
+    # adding one ring double bond to a saturated Hantzsch-Widman/retained
+    # parent) -- routed here before the exact-match check below, since a
+    # didehydro ring's extra double bond means it never matches that
+    # check's fully-saturated canonical SMILES anyway, but grouped here
+    # for the shared `saturated_ring_name` dependency.
+    if has_didehydro_ring_name(mol):
+        return name_didehydro_ring(mol)
 
     # oxirane/thiane/piperidine etc. (P-22.2.1's Hantzsch-Widman
     # saturated-monocyclic retained names) are recognized the same way --
