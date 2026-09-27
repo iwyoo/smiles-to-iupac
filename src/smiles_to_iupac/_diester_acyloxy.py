@@ -30,11 +30,16 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   the method-1 PIN for the differing-acid case.
 - Scope, deliberately narrow: two or more ester groups, all acyl chains
   plain (unbranched, saturated, no halogens/stereocenters), and every
-  ester's alcohol-side carbon lying on a single plain unbranched
-  saturated carbon chain with no other substituent anywhere on it (a
-  real alkyl branch on the backbone, e.g. a methyl group alongside an
-  ester attachment, needs the full `name_branch`-style longest-chain/
-  lowest-locant machinery and is deferred). A backbone with a branch
+  ester's alcohol-side carbon lying on a single plain carbon chain --
+  either fully unbranched, or, for the exactly-two-identical-esters case
+  only, carrying up to one plain saturated alkyl substituent (no ester,
+  no ring, no unsaturation, no heteroatom) hanging off a non-terminal
+  backbone carbon (e.g. 'propane-1,2-diyl diethanoate',
+  '2-methylpropane-1,3-diyl diethanoate'). Three or more identical
+  esters with a branch, and a differing-acid diester with a branch, are
+  both still out of scope (raise `UnsupportedStructure`) -- the branch's
+  own interaction with per-position acid citation (P-65.6.3.3.3.2 method
+  1) isn't verified here. A backbone with a branch
   point/quaternary carbon (e.g. pentaerythritol's tetrahedral center) is
   its own separate, not-yet-scoped shape -- not attempted here even for
   identical acids, since it isn't a single chain at all. A branched
@@ -44,8 +49,8 @@ IUPAC 2013 Recommendations ("the Blue Book"):
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, non_single_bonds, ordered_chain
-from ._numerals import alkane_name, multiplying_prefix
+from ._common import UnsupportedStructure, adjacency, carbon_adjacency, non_single_bonds, ordered_chain, path_between
+from ._numerals import alkane_name, alkyl_name, multiplying_prefix
 
 _ALLOWED_ATOMIC_NUMS = {6, 8}
 
@@ -83,35 +88,93 @@ def has_diester_shape(mol) -> bool:
     return len(_find_ester_carbons(mol)) >= 2
 
 
+def _tree_path(sub, start, end):
+    parent = {start: None}
+    queue = [start]
+    while queue:
+        node = queue.pop(0)
+        for neighbor in sub[node]:
+            if neighbor not in parent:
+                parent[neighbor] = node
+                queue.append(neighbor)
+    return path_between(parent, start, end)
+
+
 def _find_full_chain(mol, graph, matches):
-    """The single plain, unbranched, saturated carbon chain that carries
-    every one of `matches`' alcohol-side carbons, tried from each match in
-    turn as the starting end -- None if no such chain exists (a genuine
-    branch point, a heteroatom on the path, or the esters simply aren't
-    all on one chain). Excluding every *other* match's own ester oxygen
-    from the walk (not just the two-ester case's single "other" oxygen)
-    is what lets an interior attachment point (e.g. glycerol's middle
-    carbon) pass through without `ordered_chain` mistaking its own ester
-    oxygen for a second, branching neighbor."""
-    ester_oxygens = {m[2].GetIdx() for m in matches}
+    """(chain, branch, attachment_atom) for the polyol backbone carrying
+    every one of `matches`' alcohol-side carbons: `chain` is the main
+    carbon path (as an atom-index list), `branch` is either `[]` (a fully
+    unbranched backbone) or the plain alkyl substituent's own atom-index
+    list (its own root first, not including `attachment_atom`), and
+    `attachment_atom` (`None` when `branch` is empty) is the specific
+    `chain` atom the branch hangs off -- or None (just the one value, not
+    a triple) if no such shape exists at all.
+
+    Found via `carbon_adjacency` (ester oxygens are never part of this
+    graph at all, so they can never masquerade as a branch) rather than a
+    single-direction walk from one ester: the backbone's own connected
+    carbon-only component is a tree with either no degree-3+ node (a
+    plain chain -- its own two leaves are exactly the chain's two ends,
+    including any plain terminal carbon beyond the outermost ester, e.g.
+    propanediol diacetate's own terminal methyl) or exactly one (the
+    branch point), in which case that tree always has exactly three
+    leaves, and exactly one of the three ways to pick two of them as the
+    main chain's own ends leaves every ester on the chain and none on the
+    leftover leaf's own path (the branch) -- more than one degree-3+ node,
+    or a degree-4+ node (two or more branches off one atom), is out of
+    scope and returns None here."""
     alcohol_atoms = {m[3].GetIdx() for m in matches}
-    for _acyl, _carbonyl, start_oxygen, start_alcohol in matches:
-        excluded = ester_oxygens - {start_oxygen.GetIdx()}
-        chain = ordered_chain(graph, start_alcohol.GetIdx(), start_oxygen.GetIdx(), excluded)
-        if chain is None:
+    carbon_graph = carbon_adjacency(mol)
+
+    component = set()
+    stack = [next(iter(alcohol_atoms))]
+    while stack:
+        node = stack.pop()
+        if node in component:
             continue
-        if any(mol.GetAtomWithIdx(idx).GetAtomicNum() != 6 for idx in chain):
+        component.add(node)
+        stack.extend(carbon_graph[node])
+    if not alcohol_atoms <= component:
+        return None
+
+    sub = {node: [n for n in carbon_graph[node] if n in component] for node in component}
+    degree = {node: len(neighbors) for node, neighbors in sub.items()}
+    if any(d >= 4 for d in degree.values()):
+        return None
+    branch_points = [node for node, d in degree.items() if d >= 3]
+    if len(branch_points) > 1:
+        return None
+    # Sorted by atom index so a fully symmetric backbone (every position
+    # substituted, both numbering directions equally valid per P-14.4)
+    # gets a single deterministic direction here -- `name_diester_acyloxy`'s
+    # own candidate loop still tries the reverse too, for the ordinary case
+    # where the two directions genuinely differ in their locant set.
+    leaves = sorted(node for node, d in degree.items() if d <= 1)
+
+    if not branch_points:
+        if len(component) == 1:
+            return list(component), [], None
+        if len(leaves) != 2:
+            return None
+        chain = _tree_path(sub, leaves[0], leaves[1])
+        if set(chain) != component or not alcohol_atoms <= set(chain):
+            return None
+        return chain, [], None
+
+    (branch_point,) = branch_points
+    if len(leaves) != 3:
+        return None
+    for branch_leaf in leaves:
+        chain_leaves = [leaf for leaf in leaves if leaf != branch_leaf]
+        chain = _tree_path(sub, chain_leaves[0], chain_leaves[1])
+        branch_path = _tree_path(sub, branch_point, branch_leaf)[1:]
+        if not alcohol_atoms <= set(chain):
             continue
-        if chain[-1] not in alcohol_atoms:
-            # The chain must terminate exactly at an ester's own alcohol
-            # carbon, not run past it into a further plain substituent --
-            # that plain tail is a real alkyl branch off the ester
-            # backbone (out of scope, see module docstring), not part of
-            # a longer multivalent-organyl parent chain.
+        if alcohol_atoms & set(branch_path):
             continue
-        if {idx for idx in chain if idx in alcohol_atoms} != alcohol_atoms:
+        if set(chain) | set(branch_path) != component:
             continue
-        return chain
+        return chain, branch_path, branch_point
     return None
 
 
@@ -163,27 +226,40 @@ def name_diester_acyloxy(mol) -> str:
         raise UnsupportedStructure("unsaturation alongside a polyester's ester groups is not supported yet")
 
     graph = adjacency(mol)
-    backbone = _find_full_chain(mol, graph, matches)
-    if backbone is None:
+    found = _find_full_chain(mol, graph, matches)
+    if found is None:
         raise UnsupportedStructure(
-            "the esters must share a single plain, unbranched, saturated "
-            "carbon chain with no other substituent (see module docstring)"
+            "the esters must share a single plain carbon chain, with at "
+            "most one plain alkyl branch, and no other substituent (see "
+            "module docstring)"
         )
+    backbone, branch, attachment_atom = found
 
     lengths = [_acyl_chain_length(mol, acyl, ester_o.GetIdx(), carbonyl.GetIdx()) for acyl, carbonyl, ester_o, _ in matches]
 
+    if branch and (len(matches) != 2 or len(set(lengths)) != 1):
+        raise UnsupportedStructure(
+            "a plain alkyl branch on the backbone is only supported for "
+            "exactly two identical-acid esters (see module docstring)"
+        )
+
     alcohol_atoms = {alcohol.GetIdx() for _, _, _, alcohol in matches}
-    best_locants = None
+    best_key = None
     best_position_of = None
     for candidate in (backbone, list(reversed(backbone))):
         position_of = {idx: i + 1 for i, idx in enumerate(candidate)}
         locants = sorted(position_of[idx] for idx in alcohol_atoms)
-        if best_locants is None or locants < best_locants:
-            best_locants, best_position_of = locants, position_of
+        key = (locants, position_of[attachment_atom]) if branch else (locants,)
+        if best_key is None or key < best_key:
+            best_key, best_position_of = key, position_of
+    best_locants = best_key[0]
 
     yl_prefix = multiplying_prefix(len(matches))
     locant_str = ",".join(str(loc) for loc in best_locants)
     group_name = f"{alkane_name(len(backbone))}-{locant_str}-{yl_prefix}yl"
+    if branch:
+        branch_locant = best_position_of[attachment_atom]
+        group_name = f"{branch_locant}-{alkyl_name(len(branch))}{group_name}"
 
     if len(set(lengths)) == 1:
         acid_name = f"{yl_prefix}{_acid_stem(lengths[0])}oate"
