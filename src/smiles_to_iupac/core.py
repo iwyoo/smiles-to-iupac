@@ -136,6 +136,7 @@ from ._nucleoside import has_nucleoside_name, name_nucleoside
 from ._metallocene import has_metallocene_name, name_metallocene
 from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
 from ._pyridinone import has_pyridinone_shape, name_pyridinone
+from ._pyrimidinone import has_pyrimidinone_shape, name_pyrimidinone
 from ._homo_steroid import has_homo_steroid_shape, name_homo_steroid
 from ._cyclo_steroid import has_cyclo_steroid_shape, name_cyclo_steroid
 from ._dinor_steroid import has_dinor_steroid_shape, name_dinor_steroid
@@ -378,6 +379,12 @@ def smiles_to_iupac(smiles: str) -> str:
     # rejection below ever gets a chance to claim it.
     if has_pyridinone_shape(mol):
         return name_pyridinone(mol)
+
+    # The pyrimidinone tautomer (a second ring nitrogen alongside the
+    # pyridinone shape above) is checked right after it, for the same
+    # aromatic-aryl-ketone dispatch-ordering reason.
+    if has_pyrimidinone_shape(mol):
+        return name_pyrimidinone(mol)
 
     # An amino-acid/betaine-type zwitterion (P-74.1.3's ammonium-nitrogen-
     # prefix-on-a-carboxylate-parent citation order) must be routed here
