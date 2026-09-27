@@ -53,12 +53,33 @@ def test_thieno_3_2_b_furan():
     assert smiles_to_iupac("C1=COC2=C1SC=C2") == "thieno[3,2-b]furan"
 
 
-def test_pyrrole_thiophene_raises():
-    # N is out of scope -- only the chalcogen (O/S/Se/Te) slice of
-    # P-25.3.2.4(a)'s seniority order is implemented (see module
-    # docstring).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1cc2cc[nH]c2s1")
+def test_thieno_2_3_b_pyrrole():
+    # C6H5NS, cross-checked against PubChem CID 819116's IUPACName field
+    # and ConnectivitySMILES ("C1=CNC2=C1C=CS2"). Pyrrole's N-H needs the
+    # whole-system-numbering-derived "6H-" prefix furan/thiophene never do
+    # (see module docstring).
+    assert smiles_to_iupac("c1cc2cc[nH]c2s1") == "6H-thieno[2,3-b]pyrrole"
+
+
+def test_thieno_3_2_b_pyrrole():
+    # C6H5NS, cross-checked against PubChem CID 12730414's IUPACName field
+    # and ConnectivitySMILES ("C1=CNC2=C1SC=C2") -- the other attachment
+    # direction of the same fusion bond, with a different indicated-
+    # hydrogen locant (4, not 6) confirming it's genuinely computed per
+    # orientation, not a fixed value.
+    assert smiles_to_iupac("C1=CNC2=C1SC=C2") == "4H-thieno[3,2-b]pyrrole"
+
+
+def test_furo_3_2_b_pyrrole():
+    # C6H5NO, cross-checked against PubChem CID 21679450's IUPACName field
+    # and ConnectivitySMILES ("C1=CNC2=C1OC=C2").
+    assert smiles_to_iupac("C1=CNC2=C1OC=C2") == "4H-furo[3,2-b]pyrrole"
+
+
+def test_furo_2_3_b_pyrrole():
+    # C6H5NO, cross-checked against PubChem CID 21868890's IUPACName field
+    # and ConnectivitySMILES ("C1=CNC2=C1C=CO2").
+    assert smiles_to_iupac("C1=CNC2=C1C=CO2") == "6H-furo[2,3-b]pyrrole"
 
 
 def test_substituted_thieno_thiophene_raises():
