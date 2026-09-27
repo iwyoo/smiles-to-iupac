@@ -77,6 +77,7 @@ from ._bridged_aromatic import (
     name_bridged_anthracene,
     name_bridged_aromatic,
 )
+from ._bridged_alicyclic_parent import has_bridged_steroid_name, name_bridged_steroid_parent
 from ._borane import has_simple_borane_shape, name_simple_borane
 from ._boronic_acid import has_boronic_acid_shape, name_boronic_acid
 from ._borinic_acid import has_borinic_acid_shape, name_borinic_acid
@@ -845,6 +846,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # alongside the single-double-bond case above, for the same reason.
     if has_steroid_aromatic_a_ring_name(mol):
         return name_steroid_aromatic_a_ring(mol)
+
+    # A steroid parent hydride plus one O/S/N one-atom bridge across an
+    # already-adjacent ring bond (e.g. '5,6-epoxycholestane') is checked
+    # right alongside the other steroid-skeleton-plus-one-modification
+    # cases above, for the same reason.
+    if has_bridged_steroid_name(mol):
+        return name_bridged_steroid_parent(mol)
 
     # A steroid parent hydride missing one non-fusion ring atom or angular
     # methyl (P-101.3.1's 'nor' prefix) is checked right after the exact
