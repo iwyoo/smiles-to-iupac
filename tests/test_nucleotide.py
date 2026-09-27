@@ -10,8 +10,10 @@ from smiles_to_iupac._common import UnsupportedStructure
         # PubChem CID 6083's isomeric SMILES for AMP confirms this exact
         # structure.
         ("C1=NC(=C2C(=N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)COP(=O)(O)O)O)O)N", "5'-adenylic acid"),
-        ("C1=NC2=C(N1[C@H]3[C@@H]([C@@H]([C@H](O3)COP(=O)(O)O)O)O)N=C(NC2=O)N", "5'-guanylic acid"),
-        ("C1=NC2=C(C(=O)N1)N=CN2[C@H]3[C@@H]([C@@H]([C@H](O3)COP(=O)(O)O)O)O", "5'-inosinic acid"),
+        # PubChem CID 6804 (GMP).
+        ("C1=NC2=C(N1[C@H]3[C@@H]([C@@H]([C@H](O3)COP(=O)(O)O)O)O)NC(=NC2=O)N", "5'-guanylic acid"),
+        # PubChem CID 8582 (IMP).
+        ("C1=NC(=O)C2=C(N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)COP(=O)(O)O)O)O", "5'-inosinic acid"),
         # Xanthylic acid is esterified at 3', not 5', unlike the other six.
         ("C1=NC2=C(N1[C@H]3[C@@H]([C@@H]([C@H](O3)CO)OP(=O)(O)O)O)NC(=O)NC2=O", "3'-xanthylic acid"),
         ("C1=CN(C(=O)N=C1N)[C@H]2[C@@H]([C@@H]([C@H](O2)COP(=O)(O)O)O)O", "5'-cytidylic acid"),
@@ -57,6 +59,26 @@ def test_nucleoside_phosphorylated_at_wrong_position_raises():
         (
             "C1=NC2=C(N1[C@H]3[C@@H]([C@@H]([C@H](O3)CO)OP(=O)(O)OP(=O)(O)O)O)NC(=O)NC2=O",
             "xanthosine 3'-(trihydrogen diphosphate)",
+        ),
+        # GDP, PubChem CID 8977.
+        (
+            "C1=NC2=C(N1[C@H]3[C@@H]([C@@H]([C@H](O3)COP(=O)(O)OP(=O)(O)O)O)O)NC(=NC2=O)N",
+            "guanosine 5'-(trihydrogen diphosphate)",
+        ),
+        # GTP, PubChem CID 6830.
+        (
+            "C1=NC2=C(N1[C@H]3[C@@H]([C@@H]([C@H](O3)COP(=O)(O)OP(=O)(O)OP(=O)(O)O)O)O)NC(=NC2=O)N",
+            "guanosine 5'-(tetrahydrogen triphosphate)",
+        ),
+        # IDP.
+        (
+            "C1=NC(=O)C2=C(N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)COP(=O)(O)OP(=O)(O)O)O)O",
+            "inosine 5'-(trihydrogen diphosphate)",
+        ),
+        # ITP.
+        (
+            "C1=NC(=O)C2=C(N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)COP(=O)(O)OP(=O)(O)OP(=O)(O)O)O)O",
+            "inosine 5'-(tetrahydrogen triphosphate)",
         ),
     ],
 )
