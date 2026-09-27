@@ -34,8 +34,40 @@ def test_nucleoside_phosphorylated_at_wrong_position_raises():
         smiles_to_iupac("C1=NC(=C2C(=N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)CO)OP(=O)(O)O)O)N")
 
 
-def test_nucleoside_diphosphate_raises():
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # ADP, PubChem CID 6022.
+        (
+            "C1=NC(=C2C(=N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)COP(=O)(O)OP(=O)(O)O)O)O)N",
+            "adenosine 5'-(trihydrogen diphosphate)",
+        ),
+        # ATP, PubChem CID 5957.
+        (
+            "C1=NC(=C2C(=N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)COP(=O)(O)OP(=O)(O)OP(=O)(O)O)O)O)N",
+            "adenosine 5'-(tetrahydrogen triphosphate)",
+        ),
+        # P-106.2's own worked examples (tmp/bluebook/P10.txt lines
+        # 4536-4553): uridine 5'-triphosphate, and xanthosine's own
+        # 3'-diphosphate (esterified at 3', not 5', like its monophosphate).
+        (
+            "C1=CN(C(=O)NC1=O)[C@H]2[C@@H]([C@@H]([C@H](O2)COP(=O)(O)OP(=O)(O)OP(=O)(O)O)O)O",
+            "uridine 5'-(tetrahydrogen triphosphate)",
+        ),
+        (
+            "C1=NC2=C(N1[C@H]3[C@@H]([C@@H]([C@H](O3)CO)OP(=O)(O)OP(=O)(O)O)O)NC(=O)NC2=O",
+            "xanthosine 3'-(trihydrogen diphosphate)",
+        ),
+    ],
+)
+def test_nucleoside_di_triphosphate_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_nucleoside_triphosphate_chain_raises():
+    # A chain longer than triphosphate is out of scope.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(
-            "C1=NC(=C2C(=N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)COP(=O)(O)OP(=O)(O)O)O)O)N"
+            "C1=NC(=C2C(=N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)"
+            "COP(=O)(O)OP(=O)(O)OP(=O)(O)OP(=O)(O)O)O)O)N"
         )
