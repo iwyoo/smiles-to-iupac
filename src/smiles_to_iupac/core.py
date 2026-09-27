@@ -139,6 +139,7 @@ from ._metallacycle import has_metallacycle_shape, name_metallacycle
 from ._metallocene import has_metallocene_name, name_metallocene
 from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
 from ._pyridinone import has_pyridinone_shape, name_pyridinone
+from ._pyrimidinedione import has_pyrimidinedione_shape, name_pyrimidinedione
 from ._pyrimidinone import has_pyrimidinone_shape, name_pyrimidinone
 from ._homo_steroid import has_homo_steroid_shape, name_homo_steroid
 from ._cyclo_steroid import has_cyclo_steroid_shape, name_cyclo_steroid
@@ -397,6 +398,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # aromatic-aryl-ketone dispatch-ordering reason.
     if has_pyrimidinone_shape(mol):
         return name_pyrimidinone(mol)
+
+    # The uracil/thymine diketo tautomer (both ring nitrogens carrying
+    # their own indicated hydrogen, P-58.2.2's parenthesized multi-locant
+    # convention) is checked right after the single-oxo pyrimidinone case
+    # above, for the same aromatic-aryl-ketone dispatch-ordering reason.
+    if has_pyrimidinedione_shape(mol):
+        return name_pyrimidinedione(mol)
 
     # An amino-acid/betaine-type zwitterion (P-74.1.3's ammonium-nitrogen-
     # prefix-on-a-carboxylate-parent citation order) must be routed here
