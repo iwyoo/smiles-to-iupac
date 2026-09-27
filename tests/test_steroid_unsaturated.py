@@ -25,3 +25,15 @@ def test_ring_fusion_double_bond_still_falls_through():
     result = smiles_to_iupac("CC12CCCC1C1CCC3=C(CCCC3)C1CC2")
     assert "estra" not in result
     assert "ene" in result
+
+
+def test_estra_1_3_5_10_triene():
+    # PubChem CID 150899 (aromatic A-ring on the estrane skeleton).
+    assert smiles_to_iupac("CC12CCC3C(CCc4ccccc34)C1CCC2") == "estra-1,3,5(10)-triene"
+
+
+def test_estra_1_3_5_10_triene_alternate_kekule_form():
+    # Same connectivity, PubChem's own alternating-double-bond (non-
+    # lowercase-aromatic) SMILES for CID 150899 -- both Kekule forms of
+    # the same delocalized ring must resolve to the identical name.
+    assert smiles_to_iupac("CC12CCCC1C3CCC4=CC=CC=C4C3CC2") == "estra-1,3,5(10)-triene"
