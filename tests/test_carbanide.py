@@ -62,3 +62,25 @@ def test_carbanide_with_unsaturation_raises():
 def test_carbanide_with_heteroatom_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OC[CH2-]")
+
+
+def test_acetyl_anion_with_oxo_on_anion_carbon():
+    # P-72.2.2.1's own worked example: 'acetyl anion' -> '1-oxoethan-1-ide
+    # (PIN)' -- unlike the plain two-carbon 'ethanide' above, the '-ide'
+    # suffix locant is cited here since it coincides with the cited 'oxo'
+    # substituent locant (tmp/bluebook/P7.txt lines 887-891/1218).
+    assert smiles_to_iupac("C[C-]=O") == "1-oxoethan-1-ide"
+
+
+def test_oxo_substituent_elsewhere_on_chain():
+    assert smiles_to_iupac("CCC(=O)[CH-]C") == "3-oxopentan-2-ide"
+
+
+def test_carbanide_with_second_ketone_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=CC(=O)[CH-]C")
+
+
+def test_carbanide_with_aldehyde_shaped_carbonyl_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("O=C[CH-]C")

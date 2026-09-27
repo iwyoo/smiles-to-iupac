@@ -18,17 +18,25 @@ per the IUPAC 2013 Recommendations ("the Blue Book"):
   anion-carbon search and substituent-branch machinery `_alkoxide.py` uses
   for its own oxygen substituent, e.g. `C[CH-]C` (isopropyl anion) ->
   'propan-2-ide'.
+- A single ketone (`C=O`) elsewhere on the chain -- or on the anion carbon
+  itself, e.g. the acetyl anion `CH3-C(=O)-` -- is cited as the 'oxo'
+  substituent prefix rather than rejected outright (P-72.2.2.1's own
+  worked example, `tmp/bluebook/P7.txt` lines 887-891/1218: 'acetyl anion
+  / 1-oxoethan-1-ide (PIN)'). At a two-carbon parent this also forces the
+  '-ide' suffix's own locant to be cited (`name_from_substituents`'s
+  `force_own_locant`), unlike the plain unfunctionalized case below, since
+  the Blue Book cites '1-oxoethan-1-ide' rather than '1-oxoethanide'.
 
 Explicitly out of scope (raise `UnsupportedStructure`), mirroring
 `_alkoxide.py`'s own acyclic-only pilot scope but narrower still:
 - Any ring anywhere in the molecule.
-- Any halogen substituent or other heteroatom.
-- Any unsaturation (a C=C/C#C bond) anywhere in the molecule.
+- Any halogen substituent or other heteroatom, or any second ketone.
+- A ketone-shaped carbonyl carbon with only one carbon neighbor (an
+  aldehyde) other than the anion carbon itself.
+- Any unsaturation (a C=C/C#C bond) other than the single ketone's own
+  C=O, anywhere in the molecule.
 - More than one carbanion center, or a charged/isotopically modified atom
   other than the single carbanion carbon's own formal charge -1.
-- A "functionalized" carbanion where the anion carbon is also part of a
-  characteristic group (e.g. the acetyl anion, '1-oxoethan-1-ide') --
-  that combination needs its own, separate module.
 """
 
 from rdkit import Chem
@@ -72,6 +80,24 @@ def has_carbanide_shape(mol) -> bool:
     return bool(_find_carbanide_carbons(mol))
 
 
+def _find_ketone_oxygen(mol):
+    candidates = [
+        atom
+        for atom in mol.GetAtoms()
+        if atom.GetAtomicNum() == 8
+        and atom.GetDegree() == 1
+        and atom.GetFormalCharge() == 0
+        and atom.GetIsotope() == 0
+        and next(iter(atom.GetBonds())).GetBondTypeAsDouble() == 2.0
+    ]
+    if len(candidates) > 1:
+        raise UnsupportedStructure(
+            "more than one ketone substituent is out of scope for this "
+            "module (P-72.2.2.1)"
+        )
+    return candidates[0] if candidates else None
+
+
 def _validate_and_find_carbanide(mol):
     matches = _find_carbanide_carbons(mol)
     if len(matches) != 1:
@@ -87,8 +113,22 @@ def _validate_and_find_carbanide(mol):
     if mol.GetRingInfo().NumRings() > 0:
         raise UnsupportedStructure("a ring is out of scope for this acyclic-only module")
 
+    ketone_oxygen = _find_ketone_oxygen(mol)
+    ketone_carbon_idx = None
+    if ketone_oxygen is not None:
+        (ketone_carbon,) = ketone_oxygen.GetNeighbors()
+        ketone_carbon_idx = ketone_carbon.GetIdx()
+        if ketone_carbon_idx != anion.GetIdx():
+            carbon_neighbors = [n for n in ketone_carbon.GetNeighbors() if n.GetAtomicNum() == 6]
+            if len(carbon_neighbors) != 2:
+                raise UnsupportedStructure(
+                    "an aldehyde-shaped or otherwise non-ketone carbonyl "
+                    "carbon is out of scope for this module"
+                )
+
+    allowed_extra_oxygen = {ketone_oxygen.GetIdx()} if ketone_oxygen is not None else set()
     for atom in mol.GetAtoms():
-        if atom.GetIdx() == anion.GetIdx():
+        if atom.GetIdx() == anion.GetIdx() or atom.GetIdx() in allowed_extra_oxygen:
             continue
         if atom.GetAtomicNum() != 6:
             raise UnsupportedStructure(
@@ -102,35 +142,47 @@ def _validate_and_find_carbanide(mol):
             )
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
+    allowed_double_bond = (
+        {ketone_oxygen.GetIdx(), ketone_carbon_idx} if ketone_oxygen is not None else set()
+    )
     for bond in mol.GetBonds():
         if bond.GetBondTypeAsDouble() != 1.0:
+            if {bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()} == allowed_double_bond:
+                continue
             raise UnsupportedStructure(
                 "unsaturation is out of scope for this pilot carbanide module"
             )
-    return anion
+    return anion, ketone_oxygen, ketone_carbon_idx
 
 
-def _candidate_key(chain_length, locant, substituents):
+def _candidate_key(chain_length, locant, substituents, force_own_locant=False):
     grouped = group_substituents(substituents)
     locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
     prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
-    name = prefix + name_from_substituents(chain_length, [], [], "ide", [locant])
+    name = prefix + name_from_substituents(
+        chain_length, [], [], "ide", [locant], force_own_locant=force_own_locant
+    )
     return (locant, -total_count, locant_set, citation_locants, name), name
 
 
 def name_carbanide(mol) -> str:
-    anion = _validate_and_find_carbanide(mol)
+    anion, ketone_oxygen, ketone_carbon_idx = _validate_and_find_carbanide(mol)
     anion_idx = anion.GetIdx()
     graph = adjacency(mol)
     chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
 
     eligible = [chain for chain in chains if anion_idx in chain]
+    if ketone_carbon_idx is not None:
+        eligible = [chain for chain in eligible if ketone_carbon_idx in chain]
     if not eligible:
         raise UnsupportedStructure(
             "the carbanion center does not lie on a single longest carbon "
             "chain"
         )
+
+    names = {ketone_oxygen.GetIdx(): "oxo"} if ketone_oxygen is not None else {}
+    force_own_locant = ketone_oxygen is not None and chain_length == 2
 
     best_key = None
     best_name = None
@@ -138,8 +190,8 @@ def name_carbanide(mol) -> str:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             locant = position_of[anion_idx]
-            substituents = substituents_for_chain(graph, candidate, {}, mol=mol)
-            key, name = _candidate_key(chain_length, locant, substituents)
+            substituents = substituents_for_chain(graph, candidate, names, mol=mol)
+            key, name = _candidate_key(chain_length, locant, substituents, force_own_locant)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
     return best_name
