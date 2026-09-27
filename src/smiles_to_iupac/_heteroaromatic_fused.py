@@ -6,7 +6,12 @@ Recommendations ("the Blue Book"):
 - P-25.2.1 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf):
   'quinoline' and 'indole' are retained names for these two benzo-fused
   heteroaromatic ring systems (quinoline = benzo + pyridine, indole =
-  benzo + pyrrole).
+  benzo + pyrrole). 'isoquinoline' (Table 2.8, `tmp/bluebook/P2.txt` lines
+  3214/3309) is the other benzo-fused-pyridine PIN, structurally
+  distinguished from quinoline by which ring-fusion carbon the nitrogen
+  sits next to; it needs no indicated-hydrogen prefix either, for the same
+  pyridine-type-nitrogen reason as quinoline. Confirmed against PubChem
+  CID 8405, whose IUPACName is bare 'isoquinoline'.
 - P-25.7.1.3 / indicated hydrogen: indole's pyrrole-type nitrogen carries
   an aromatic N-H that isn't structurally forced to one position by the
   ring skeleton alone -- a second, non-aromatic tautomer (3H-indole,
@@ -44,12 +49,12 @@ Recommendations ("the Blue Book"):
   match against each retained name's unsubstituted structure is both
   sufficient and simplest for this narrow scope (no locants to assign).
 
-Formulas cross-checked: quinoline C9H7N, indole (1H-indole) C8H7N,
-benzofuran/isobenzofuran C8H6O, benzothiophene/isobenzothiophene C8H6S;
-quinoline/indole reference SMILES independently verified against
-PubChem's canonical SMILES for CID 7047 (quinoline) and CID 798 (indole);
-1-benzofuran's reference SMILES independently verified against PubChem's
-canonical SMILES for CID 9223.
+Formulas cross-checked: quinoline/isoquinoline C9H7N, indole (1H-indole)
+C8H7N, benzofuran/isobenzofuran C8H6O, benzothiophene/isobenzothiophene
+C8H6S; quinoline/indole reference SMILES independently verified against
+PubChem's canonical SMILES for CID 7047 (quinoline) and CID 798 (indole),
+isoquinoline's against CID 8405; 1-benzofuran's reference SMILES
+independently verified against PubChem's canonical SMILES for CID 9223.
 
 Explicitly out of scope: any substituted derivative, any other retained-
 name heteroaromatic fused system (purine, carbazole, etc. -- P-25.2.1
@@ -64,6 +69,7 @@ from rdkit import Chem
 
 _RETAINED_NAME_SMILES = {
     "quinoline": "c1ccc2ncccc2c1",
+    "isoquinoline": "c1ccc2cnccc2c1",
     "1H-indole": "c1ccc2[nH]ccc2c1",
     "1-benzofuran": "c1ccc2occc2c1",
     "2-benzofuran": "c1ccc2cocc2c1",
