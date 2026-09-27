@@ -72,6 +72,7 @@ either still resolves correctly.
 from rdkit import Chem
 from rdkit.Chem import BondType, RWMol, rdCIPLabeler
 
+from ._parent_hydride_stripping import strip_substituents
 from ._polycyclic_suffix import _suffixed_parent
 
 _PARENT_HYDRIDES = {
@@ -180,40 +181,19 @@ def _locant_map(name, mol):
 
 
 def steroid_suffix_name(mol, suffix_atom, attachment_carbon, suffix_word, elide_e=True):
-    """Suffix-agnostic generalization of `_ketone.py`'s original
-    `_steroid_ketone_name` (#1027): if the ring system, with `suffix_atom`
-    (the suffix group's own heteroatom -- a ketone's =O or an alcohol's
-    -OH oxygen) removed, exactly matches one of the seven bare steroid
-    parent skeletons above (constitution only, stereochemistry ignored --
-    see `_PLAIN_CANONICAL_TO_NAME`'s own docstring note), return the
-    retained steroid name with `attachment_carbon`'s fixed steroid locant
-    and `suffix_word` suffixed on (e.g. 'androstan-3-one', 'androstan-3-
-    ol'). Otherwise return None -- a non-steroid polycyclic parent, or a
-    steroid skeleton not among the seven recognized here (see P-31/P-101
-    epic #1025 M1 step 1/step 2).
-
-    Removing a single-bonded suffix atom (e.g. an -OH oxygen) leaves its
-    ring-carbon neighbor's valence short by one. Unlike removing a
-    double-bonded ketone oxygen (whose carbon has no explicit H count set
-    by the SMILES parser, so `Chem.SanitizeMol` alone recomputes the right
-    implicit H count), a bracket-atom carbon like the `[C@H]` a hydroxyl's
-    own carbon is normally written as already has its H count fixed as
-    *explicit*, not implicit -- sanitizing alone leaves it under-valent
-    (confirmed: produces a malformed `[CH]` radical instead of raising).
-    `SetNoImplicit(False)` + `SetNumExplicitHs(0)` before sanitizing makes
-    RDKit recompute that atom's H count from scratch, the same way it
-    already does for a plain (non-bracket) carbon."""
-    rw = Chem.RWMol(mol)
-    rw.RemoveAtom(suffix_atom)
-    stripped = rw.GetMol()
-    new_attachment_carbon = attachment_carbon - (1 if attachment_carbon > suffix_atom else 0)
-    neighbor_atom = stripped.GetAtomWithIdx(new_attachment_carbon)
-    neighbor_atom.SetNoImplicit(False)
-    neighbor_atom.SetNumExplicitHs(0)
-    try:
-        Chem.SanitizeMol(stripped)
-    except Chem.rdchem.KekulizeException:
+    """Suffix-agnostic: if the ring system, with `suffix_atom` (the suffix
+    group's own heteroatom -- a ketone's =O or an alcohol's -OH oxygen)
+    removed, exactly matches one of the seven bare steroid parent skeletons
+    above (constitution only, stereochemistry ignored -- see
+    `_PLAIN_CANONICAL_TO_NAME`'s own docstring note), return the retained
+    steroid name with `attachment_carbon`'s fixed steroid locant and
+    `suffix_word` suffixed on (e.g. 'androstan-3-one', 'androstan-3-ol').
+    Otherwise return None -- a non-steroid polycyclic parent, or a steroid
+    skeleton not among the seven recognized here."""
+    stripped, old_to_new = strip_substituents(mol, {suffix_atom})
+    if stripped is None:
         return None
+    new_attachment_carbon = old_to_new[attachment_carbon]
     Chem.RemoveStereochemistry(stripped)
     name = _PLAIN_CANONICAL_TO_NAME.get(Chem.MolToSmiles(stripped))
     if name is None:
