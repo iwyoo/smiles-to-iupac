@@ -135,6 +135,7 @@ from ._ether_ketone import has_ether_ketone_shape, name_ether_ketone
 from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
 from ._fullerene import has_fullerene_name, name_fullerene
 from ._nucleoside import has_nucleoside_name, name_nucleoside
+from ._nucleotide import has_nucleotide_name, name_nucleotide
 from ._metallacycle import has_metallacycle_shape, name_metallacycle
 from ._metallocene import has_metallocene_name, name_metallocene
 from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
@@ -360,6 +361,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # aromatic-ring shape long before any ring-count-specific check runs.
     if has_nucleoside_name(mol):
         return name_nucleoside(mol)
+
+    # The 7 retained nucleotide names (P-106.1) are likewise recognized by
+    # exact whole-molecule match and must be routed right after the
+    # nucleoside case above, for the same dispatch-ordering reason: the
+    # phosphate ester's own oxygens would otherwise reach `_phosphate.py`'s
+    # generic dispatch, which has no path for a nucleoside-shaped R group.
+    if has_nucleotide_name(mol):
+        return name_nucleotide(mol)
 
     # The 7 retained metallocene names (P-69.2.7) are likewise recognized
     # by exact whole-molecule match and must be routed here for the same
