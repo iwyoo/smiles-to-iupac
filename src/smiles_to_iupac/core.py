@@ -134,6 +134,7 @@ from ._ether_ketone import has_ether_ketone_shape, name_ether_ketone
 from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
 from ._fullerene import has_fullerene_name, name_fullerene
 from ._nucleoside import has_nucleoside_name, name_nucleoside
+from ._metallacycle import has_metallacycle_shape, name_metallacycle
 from ._metallocene import has_metallocene_name, name_metallocene
 from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
 from ._pyridinone import has_pyridinone_shape, name_pyridinone
@@ -366,6 +367,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # multi-fragment SMILES outright long before any ring-count check.
     if has_metallocene_name(mol):
         return name_metallocene(mol)
+
+    # A bare metallacyclic parent hydride (P-69.4's skeletal-replacement
+    # ring, e.g. '1-titanacyclobutane') has a transition-metal ring atom
+    # too, for the same reason as the metallocene case above: no other
+    # branch below recognizes a non-carbon ring atom, so it must be routed
+    # here before the generic cycloalkane dispatch's own heteroatom
+    # rejection would otherwise claim it.
+    if has_metallacycle_shape(mol):
+        return name_metallacycle(mol)
 
     # A chalcogen ring-oxide (P-62.5's functional-class "oxide" pattern,
     # not limited to acyclic amines) breaks the ring's own aromaticity as
