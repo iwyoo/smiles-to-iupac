@@ -206,53 +206,119 @@ def steroid_suffix_name(mol, suffix_atom, attachment_carbon, suffix_word, elide_
     return _suffixed_parent(name, locant, suffix_word, elide_e=elide_e)
 
 
-# Androstane's own bare-skeleton constitution (no stereo), in the same atom
-# order as every stereo-specified androstane entry above (confirmed by
-# substructure match: parsing this string always yields an identity
-# mapping onto each specified entry's atom indices, since adding/removing
-# only stereo markers never reorders RDKit's own SMILES atom parse order).
-# `_ANDROSTANE_FUSION_ATOMS` are its six ring-fusion stereocenters (the two
-# quaternary angular-methyl carbons, C10/C13, plus the four ring-fusion CH
-# carbons, C5/C8/C9/C14); `_ANDROSTANE_C5_ATOM` (index 9) is C5 specifically
-# -- the one ring-fusion stereocenter whose configuration distinguishes the
-# 5-alpha (natural) and 5-beta series, confirmed via `rdCIPLabeler`: it's
-# 'R' in the natural-configuration entry above and 'S' in real 5-beta-
-# androstane (etiocholane, PubChem CID 6857462), while every other fusion
-# stereocenter's CIP label is unchanged between the two.
-_ANDROSTANE_PLAIN = Chem.MolFromSmiles("CC12CCCC1C3CCC4CCCCC4(C3CC2)C")
-_ANDROSTANE_FUSION_ATOMS = (1, 5, 6, 9, 14, 15)
-_ANDROSTANE_C5_ATOM = 9
-_ANDROSTANE_NATURAL_CIP = {1: "S", 5: "S", 6: "S", 9: "R", 14: "S", 15: "S"}
+# P-101.2.6.1.1's alpha/beta symbolism (`tmp/bluebook/P10.txt` lines
+# 222-246): "an atom or group attached to the ring is called 'alpha' if it
+# lies below or 'beta' if it lies above the plane of the paper" in the
+# standard steroid projection. The same primary text's own worked example
+# ("5beta,9beta,10alpha-pregnane") states which configuration each of
+# C8/C9/C10/C13/C14 is in *when unspecified/matching the fundamental
+# parent structure* (8/10/13 = beta, 9/14 = alpha) -- those five are
+# therefore only cited when *inverted* from that implied configuration.
+# C5 is different: the same text says C5's configuration "when relevant,
+# is indicated by alpha, beta, or xi" with no default implied by the bare
+# parent name at all, so it's always cited once specified -- consistent
+# with this module's own pre-existing convention of registering a second,
+# fully C5-specified natural-configuration entry per skeleton under a
+# "5alpha-<name>" PubChem name (see the module docstring), confirming
+# 5-alpha is the label used for the natural/commonly-drawn configuration.
+_ALPHA_BETA_NATURAL_LABEL = {5: "alpha", 8: "beta", 9: "alpha", 10: "beta", 13: "beta", 14: "alpha"}
+_ALPHA_BETA_OPPOSITE = {"alpha": "beta", "beta": "alpha"}
+_ALPHA_BETA_ALWAYS_CITE = frozenset({5})
 
 
-def _androstane_5beta_name(mol):
-    """If `mol`'s constitution (ignoring stereo) is exactly the androstane
-    skeleton, and every one of its six ring-fusion stereocenters is
-    specified and matches the natural configuration except C5 (which is
-    the opposite, non-natural configuration), return "5-beta-androstane".
-    Otherwise return None -- constitution mismatch, a stereocenter left
-    unspecified, or any fusion stereocenter other than C5 not matching
-    the natural configuration (a different diastereomer entirely, not
-    simply "the 5-beta epimer") are all out of scope here, same as the
-    module's existing exact-match-only policy for every other case."""
+def _natural_cip_by_locant(name):
+    """The androstane-numbered ring-fusion locants (a subset of
+    5/8/9/10/13/14, whichever exist as stereocenters for this particular
+    skeleton -- gonane/estrane lack one or both angular methyls) mapped to
+    their real CIP code in `name`'s own natural-configuration reference
+    entry above, computed fresh per family rather than reused across
+    families: the same spatial (alpha/beta) configuration gets a
+    *different* CIP letter in different families, since CIP priority
+    depends on the whole local substituent environment (e.g. the C17 side
+    chain), not just spatial arrangement -- confirmed by direct
+    computation (androstane's natural C13 is CIP 'S', pregnane's is 'R',
+    same spatial 'beta' configuration both times). Picks whichever
+    stereo-specified entry for `name` has the most fusion locants with a
+    specified CIP code (the fully C5-specified second-block entry, when
+    one exists per the module docstring's own note about which skeletons
+    have it)."""
+    best = {}
+    for smiles, entry_name in _PARENT_HYDRIDES.items():
+        if entry_name != name or "@" not in smiles:
+            continue
+        mol = Chem.MolFromSmiles(smiles)
+        rdCIPLabeler.AssignCIPLabels(mol)
+        locant_map = _locant_map(name, mol)
+        codes = {}
+        for locant in _ALPHA_BETA_NATURAL_LABEL:
+            atom_idx = locant_map.get(locant)
+            if atom_idx is None:
+                continue
+            atom = mol.GetAtomWithIdx(atom_idx)
+            if atom.HasProp("_CIPCode"):
+                codes[locant] = atom.GetProp("_CIPCode")
+        if len(codes) > len(best):
+            best = codes
+    return best
+
+
+_NATURAL_CIP_BY_LOCANT_BY_NAME = {name: _natural_cip_by_locant(name) for name in _PLAIN_CANONICAL_TO_NAME.values()}
+
+
+def _alpha_beta_stereo_prefix(name, mol):
+    """`"<locants>-"` alpha/beta stereodescriptor prefix (P-101.2.6.1.1)
+    for `mol`, an occurrence of the named steroid parent skeleton `name`
+    (already confirmed via `_PLAIN_CANONICAL_TO_NAME`), or `""` if `mol`
+    has no specified stereochemistry at all, or `None` if it has some
+    specified ring-fusion stereocenters but not every locant this family
+    has a natural-configuration reference for -- a partially-specified
+    input is out of scope, same all-or-nothing policy the module's prior
+    single-locant mechanism already had. Locant 5, when specified, is
+    always cited (the bare parent name never implies its configuration);
+    each of 8/9/10/13/14 is cited only when *inverted* from the implied
+    natural configuration, omitted when it matches."""
+    natural = _NATURAL_CIP_BY_LOCANT_BY_NAME.get(name, {})
+    if not natural:
+        return ""
+    if not any(atom.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for atom in mol.GetAtoms()):
+        return ""
+    rdCIPLabeler.AssignCIPLabels(mol)
+    locant_map = _locant_map(name, mol)
+    parts = []
+    for locant, natural_cip in sorted(natural.items()):
+        atom_idx = locant_map.get(locant)
+        atom = mol.GetAtomWithIdx(atom_idx) if atom_idx is not None else None
+        if atom is None or not atom.HasProp("_CIPCode"):
+            return None
+        actual_cip = atom.GetProp("_CIPCode")
+        natural_label = _ALPHA_BETA_NATURAL_LABEL[locant]
+        if actual_cip == natural_cip:
+            if locant in _ALPHA_BETA_ALWAYS_CITE:
+                parts.append((locant, natural_label))
+        else:
+            parts.append((locant, _ALPHA_BETA_OPPOSITE[natural_label]))
+    if not parts:
+        return ""
+    return ",".join(f"{locant}{label}" for locant, label in parts) + "-"
+
+
+def _stereo_specified_parent_hydride_name(mol):
+    """If `mol`'s constitution (ignoring stereo) matches one of the seven
+    bare steroid parent skeletons, and its ring-fusion stereocenters are
+    either all unspecified or all specified, return the alpha/beta-
+    prefixed name (e.g. "5beta,9beta,10alpha-pregnane", or plain
+    "androstane" if every fusion locant matches the natural configuration
+    and none needs citing). Returns None for a constitution mismatch or a
+    partially-specified stereocenter (out of scope, same as before)."""
     stripped = Chem.Mol(mol)
     Chem.RemoveStereochemistry(stripped)
-    if Chem.MolToSmiles(stripped) != Chem.MolToSmiles(_ANDROSTANE_PLAIN):
+    name = _PLAIN_CANONICAL_TO_NAME.get(Chem.MolToSmiles(stripped))
+    if name is None:
         return None
-    match = mol.GetSubstructMatch(_ANDROSTANE_PLAIN)
-    if not match:
+    prefix = _alpha_beta_stereo_prefix(name, mol)
+    if prefix is None:
         return None
-    rdCIPLabeler.AssignCIPLabels(mol)
-    codes = {}
-    for plain_idx in _ANDROSTANE_FUSION_ATOMS:
-        atom = mol.GetAtomWithIdx(match[plain_idx])
-        if not atom.HasProp("_CIPCode"):
-            return None
-        codes[plain_idx] = atom.GetProp("_CIPCode")
-    mismatched = [idx for idx in _ANDROSTANE_FUSION_ATOMS if codes[idx] != _ANDROSTANE_NATURAL_CIP[idx]]
-    if mismatched == [_ANDROSTANE_C5_ATOM]:
-        return "5-beta-androstane"
-    return None
+    return prefix + name
 
 
 def _steroid_unsaturated_name(mol):
@@ -360,14 +426,14 @@ def _steroid_aromatic_a_ring_name(mol):
 def has_steroid_parent_hydride_name(mol) -> bool:
     if Chem.MolToSmiles(mol) in _CANONICAL_TO_NAME:
         return True
-    return _androstane_5beta_name(mol) is not None
+    return _stereo_specified_parent_hydride_name(mol) is not None
 
 
 def name_steroid_parent_hydride(mol) -> str:
     key = Chem.MolToSmiles(mol)
     if key in _CANONICAL_TO_NAME:
         return _CANONICAL_TO_NAME[key]
-    return _androstane_5beta_name(mol)
+    return _stereo_specified_parent_hydride_name(mol)
 
 
 def has_steroid_unsaturated_name(mol) -> bool:

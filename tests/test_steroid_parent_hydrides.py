@@ -168,21 +168,33 @@ def test_fully_c5_specified_parent_hydrides_resolve_to_retained_name():
 def test_5beta_androstane_resolves_via_c5_cip_computation():
     # etiocholane (5-beta-androstane), PubChem CID 6857462 -- differs from
     # the natural (5-alpha) entry only at the C5 ring-fusion stereocenter,
-    # recognized via CIP computation (not a hardcoded row -- see module
-    # docstring/`_androstane_5beta_name`).
+    # recognized via the general per-locant alpha/beta mechanism (not a
+    # hardcoded row -- see module docstring/`_alpha_beta_stereo_prefix`).
     assert (
         smiles_to_iupac("C[C@@]12CCC[C@H]1[C@@H]3CC[C@@H]4CCCC[C@@]4([C@H]3CC2)C")
-        == "5-beta-androstane"
+        == "5beta-androstane"
     )
 
 
-def test_androstane_other_diastereomer_not_misnamed_5beta():
+def test_androstane_other_diastereomer_gets_its_own_alpha_beta_citation():
     # A ring-fusion stereocenter *other* than C5 differing from the
-    # natural configuration (here C9) is a genuinely different
-    # diastereomer, not simply "the 5-beta epimer" -- stays out of scope
-    # (falls through to the general von Baeyer engine), same as this
-    # module's existing policy for every other non-natural stereoisomer.
+    # natural configuration is a genuinely different diastereomer, not
+    # simply "the 5-beta epimer" -- but the general per-locant mechanism
+    # (unlike the old single-case hardcoded one) still names it correctly
+    # rather than falling through to the general von Baeyer engine.
     assert (
         smiles_to_iupac("C[C@@]12CCC[C@H]1[C@H]3CC[C@H]4CCCC[C@@]4([C@H]3CC2)C")
-        != "5-beta-androstane"
+        == "5alpha,8alpha-androstane"
+    )
+
+
+def test_blue_book_worked_example_pregnane_multi_locant_inversion():
+    # The Blue Book's own P-101.2.6.1.1 worked example: pregnane with C9
+    # and C10 inverted from the natural configuration, plus C5 (always
+    # cited once specified) -- "5beta,9beta,10alpha-pregnane"
+    # (`tmp/bluebook/P10.txt` ~245), reproduced exactly here by inverting
+    # locants 5/9/10 of the natural-configuration entry.
+    assert (
+        smiles_to_iupac("CC[C@H]1CC[C@H]2[C@@H]3CC[C@H]4CCCC[C@@]4(C)[C@@H]3CC[C@]12C")
+        == "5beta,9beta,10alpha-pregnane"
     )
