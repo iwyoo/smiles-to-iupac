@@ -58,12 +58,17 @@ def test_compound_substituents(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_disjoint_ring_pair_substituent_resolves():
+    # Two separate cyclopropane rings joined by a chain (PubChem CID
+    # 524617): a disjoint-ring-pair shape, not a cyclic substituent.
+    assert smiles_to_iupac("C1CC1CCCCC1CC1") == "(4-cyclopropylbutyl)cyclopropane"
+
+
 def test_polycyclic_substituent_raises():
-    # Two separate cyclopropane rings joined by a chain: more than one ring
-    # overall, so this is rejected before a cyclic substituent could even be
-    # considered (see smiles_to_iupac.core's polycyclic check).
+    # A plain ring joined by a chain to a genuinely polycyclic (bicyclic,
+    # not just a second plain monocyclic) ring system is still rejected.
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CC1CCCCC1CC1")
+        smiles_to_iupac("C1CCCCC1CC1CC2CCC1C2")
 
 
 def test_simple_ring_substituent():
