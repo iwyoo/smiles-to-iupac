@@ -23,6 +23,17 @@ def test_nitrile_oxide_propane():
     assert smiles_to_iupac("CCC#[N+][O-]") == "propanenitrile oxide"
 
 
+def test_nitrile_oxide_fulminic_acid():
+    # Real PubChem structure, CID 521293 -- PubChem's own IUPACName agrees
+    # with the Blue Book PIN 'formonitrile oxide' (P-61.10) verbatim.
+    assert smiles_to_iupac("C#[N+][O-]") == "formonitrile oxide"
+
+
+def test_bare_nitrile_still_out_of_scope():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C#N")
+
+
 def test_plain_imine_not_confused_with_nitrone():
     assert smiles_to_iupac("CC=NC") == "N-methylethanimine"
 
