@@ -126,9 +126,28 @@ def name_nitrone(mol) -> str:
     return f"{name_imine(stripped)} N-oxide"
 
 
+def _is_bare_hydrogen_nitrile(mol) -> bool:
+    """True if `mol` is exactly HC#N (fulminic acid's stripped parent) --
+    `_nitrile.py` itself treats a zero-carbon-neighbor nitrile carbon as
+    out of scope (no substitutive '-nitrile' suffix name exists for a bare
+    terminus), so this shape is special-cased here directly rather than
+    reached through that module (P-61.10's own retained 'formonitrile'
+    name for this exact parent)."""
+    if mol.GetNumAtoms() != 2:
+        return False
+    carbons = [a for a in mol.GetAtoms() if a.GetAtomicNum() == 6]
+    if len(carbons) != 1:
+        return False
+    (carbon,) = carbons
+    (bond,) = carbon.GetBonds()
+    return bond.GetBondTypeAsDouble() == 3.0 and bond.GetOtherAtom(carbon).GetAtomicNum() == 7
+
+
 def name_nitrile_oxide(mol) -> str:
     nitrogen, oxygen = _dipole_nitrogen_oxygen(mol)
     stripped = _strip_dipole_oxygen(mol, nitrogen.GetIdx(), oxygen.GetIdx())
+    if _is_bare_hydrogen_nitrile(stripped):
+        return "formonitrile oxide"
     parent_name = name_nitrile(stripped)
     parent_name = _NITRILE_OXIDE_RETAINED_OVERRIDES.get(parent_name, parent_name)
     return f"{parent_name} oxide"
