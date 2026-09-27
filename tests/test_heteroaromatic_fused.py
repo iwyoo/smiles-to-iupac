@@ -9,6 +9,11 @@ def test_quinoline():
     assert smiles_to_iupac("c1ccc2ncccc2c1") == "quinoline"
 
 
+def test_isoquinoline():
+    # C9H7N, cross-checked against PubChem CID 8405's canonical SMILES.
+    assert smiles_to_iupac("c1ccc2cnccc2c1") == "isoquinoline"
+
+
 def test_indole():
     # C8H7N, cross-checked against PubChem CID 798's canonical SMILES.
     # The PIN cites the indicated hydrogen explicitly (1H-indole), since
