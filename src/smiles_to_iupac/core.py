@@ -138,6 +138,7 @@ from ._nucleoside import has_nucleoside_name, name_nucleoside
 from ._nucleotide import has_nucleotide_name, name_nucleotide
 from ._metallacycle import has_metallacycle_shape, name_metallacycle
 from ._metallocene import has_metallocene_name, name_metallocene
+from ._fused_hetero_ring_oxide import has_fused_hetero_ring_oxide_shape, name_fused_hetero_ring_oxide
 from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
 from ._pyridinone import has_pyridinone_shape, name_pyridinone
 from ._pyrimidinedione import has_pyrimidinedione_shape, name_pyrimidinedione
@@ -394,6 +395,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # or aromatic dispatch below ever gets a chance to reject it outright.
     if has_hetero_ring_oxide_shape(mol):
         return name_hetero_ring_oxide(mol)
+
+    # The fused-bicyclic analogue of the chalcogen ring-oxide above (e.g.
+    # benzothiophene 1-oxide) has the same aromaticity-breaking shape, and
+    # would otherwise be misrouted into the von Baeyer bicyclic-heteroatom
+    # dispatch further below -- routed here, right alongside its
+    # single-ring sibling.
+    if has_fused_hetero_ring_oxide_shape(mol):
+        return name_fused_hetero_ring_oxide(mol)
 
     # The pyridinone tautomer (P-31.1.4.3.4's indicated-hydrogen oxo form)
     # keeps its ring-carbon aromatic despite the exocyclic oxo, so it must
