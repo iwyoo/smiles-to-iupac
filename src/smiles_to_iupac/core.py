@@ -149,8 +149,10 @@ from ._dinor_steroid import has_dinor_steroid_shape, name_dinor_steroid
 from ._nor_steroid import has_nor_steroid_shape, name_nor_steroid
 from ._seco_steroid import has_seco_steroid_shape, name_seco_steroid
 from ._steroid_parent_hydrides import (
+    has_steroid_aromatic_a_ring_name,
     has_steroid_parent_hydride_name,
     has_steroid_unsaturated_name,
+    name_steroid_aromatic_a_ring,
     name_steroid_parent_hydride,
     name_steroid_unsaturated,
 )
@@ -836,6 +838,12 @@ def smiles_to_iupac(smiles: str) -> str:
     # von-Baeyer-engine-would-otherwise-claim-it reason.
     if has_steroid_unsaturated_name(mol):
         return name_steroid_unsaturated(mol)
+
+    # A steroid parent hydride whose A-ring is aromatic (the mancude
+    # 1,3,5(10)-triene, e.g. 'estra-1,3,5(10)-triene') is checked right
+    # alongside the single-double-bond case above, for the same reason.
+    if has_steroid_aromatic_a_ring_name(mol):
+        return name_steroid_aromatic_a_ring(mol)
 
     # A steroid parent hydride missing one non-fusion ring atom or angular
     # methyl (P-101.3.1's 'nor' prefix) is checked right after the exact

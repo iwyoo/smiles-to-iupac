@@ -324,6 +324,59 @@ def _steroid_unsaturated_name(mol):
     return name[:-3] + f"-{lower}-ene"
 
 
+def _steroid_aromatic_a_ring_name(mol):
+    """If `mol` has exactly one aromatic ring, a 6-membered benzo ring at
+    the standard steroid A-ring locants (1,2,3,4,5,10), and de-aromatizing
+    it (to plain single bonds, recomputing each ring atom's H count) yields
+    exactly one of the seven bare steroid parent skeletons, return the
+    retained name with the standard mancude-aromatic-A-ring suffix, e.g.
+    'estra-1,3,5(10)-triene'. The A-ring's locants are fixed by P-31
+    steroid numbering for every recognized parent, so the triene locant
+    set is always this one literal string, never computed per-molecule.
+    Otherwise None -- any other aromatic ring shape, position, or count is
+    out of scope here."""
+    aromatic_atoms = {a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic()}
+    if len(aromatic_atoms) != 6:
+        return None
+    ring_info = mol.GetRingInfo()
+    aromatic_rings = [
+        ring
+        for ring in ring_info.AtomRings()
+        if len(ring) == 6 and all(idx in aromatic_atoms for idx in ring)
+    ]
+    if len(aromatic_rings) != 1:
+        return None
+    (ring,) = aromatic_rings
+    if any(mol.GetAtomWithIdx(idx).GetAtomicNum() != 6 for idx in ring):
+        return None
+
+    rw = Chem.RWMol(mol)
+    ring_set = set(ring)
+    for bond in list(rw.GetBonds()):
+        if bond.GetBeginAtomIdx() in ring_set and bond.GetEndAtomIdx() in ring_set:
+            bond.SetBondType(BondType.SINGLE)
+            bond.SetIsAromatic(False)
+    for idx in ring:
+        atom = rw.GetAtomWithIdx(idx)
+        atom.SetIsAromatic(False)
+        atom.SetNoImplicit(False)
+        atom.SetNumExplicitHs(0)
+    stripped = rw.GetMol()
+    try:
+        Chem.SanitizeMol(stripped)
+    except Chem.rdchem.KekulizeException:
+        return None
+    Chem.RemoveStereochemistry(stripped)
+    name = _PLAIN_CANONICAL_TO_NAME.get(Chem.MolToSmiles(stripped))
+    if name is None:
+        return None
+
+    locant_of_atom = {atom: locant for locant, atom in _locant_map(name, stripped).items()}
+    if {locant_of_atom.get(idx) for idx in ring} != {1, 2, 3, 4, 5, 10}:
+        return None
+    return name[:-3] + "a-1,3,5(10)-triene"
+
+
 def has_steroid_parent_hydride_name(mol) -> bool:
     if Chem.MolToSmiles(mol) in _CANONICAL_TO_NAME:
         return True
@@ -343,3 +396,11 @@ def has_steroid_unsaturated_name(mol) -> bool:
 
 def name_steroid_unsaturated(mol) -> str:
     return _steroid_unsaturated_name(mol)
+
+
+def has_steroid_aromatic_a_ring_name(mol) -> bool:
+    return _steroid_aromatic_a_ring_name(mol) is not None
+
+
+def name_steroid_aromatic_a_ring(mol) -> str:
+    return _steroid_aromatic_a_ring_name(mol)
