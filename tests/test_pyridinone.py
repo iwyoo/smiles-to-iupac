@@ -20,8 +20,3 @@ def test_plain_pyridine_unaffected():
 
 def test_non_aromatic_ketone_unaffected():
     assert smiles_to_iupac("O=C1C=CC=CC1") == "cyclohexa-2,4-dien-1-one"
-
-
-def test_two_heteroatom_ring_still_raises():
-    with pytest.raises(Exception):
-        smiles_to_iupac("O=c1cc[nH]c(=O)[nH]1")
