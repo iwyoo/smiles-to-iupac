@@ -7,8 +7,8 @@ from smiles_to_iupac import smiles_to_iupac
     "smiles,expected",
     [
         ("C1=NC(=C2C(=N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)CO)O)O)N", "adenosine"),  # PubChem CID 60961
-        ("C1=NC2=C(N1[C@H]3[C@@H]([C@@H]([C@H](O3)CO)O)O)N=C(NC2=O)N", "guanosine"),  # CID 135398635
-        ("C1=NC2=C(C(=O)N1)N=CN2[C@H]3[C@@H]([C@@H]([C@H](O3)CO)O)O", "inosine"),  # CID 135398641
+        ("C1=NC2=C(N1[C@H]3[C@@H]([C@@H]([C@H](O3)CO)O)O)NC(=NC2=O)N", "guanosine"),  # CID 6802
+        ("C1=NC(=O)C2=C(N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)CO)O)O", "inosine"),  # CID 6021
         ("C1=NC2=C(N1[C@H]3[C@@H]([C@@H]([C@H](O3)CO)O)O)NC(=O)NC2=O", "xanthosine"),  # CID 64959
         ("C1=CN(C(=O)N=C1N)[C@H]2[C@@H]([C@@H]([C@H](O2)CO)O)O", "cytidine"),  # CID 6175
         ("CC1=CN(C(=O)NC1=O)[C@H]2C[C@@H]([C@H](O2)CO)O", "thymidine"),  # CID 5789
