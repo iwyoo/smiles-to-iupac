@@ -2,6 +2,7 @@ import pytest
 
 from smiles_to_iupac import smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure
+from smiles_to_iupac._heteroaromatic_fused import _RETAINED_NAME_SMILES
 
 
 def test_quinoline():
@@ -110,9 +111,9 @@ def test_thioxanthene():
     assert smiles_to_iupac("c1ccc2c(c1)Cc1ccccc1S2") == "9H-thioxanthene"
 
 
-def test_phenanthroline_raises():
-    # phenanthroline bare names no single structure -- 1,7-/1,10-/4,7-
-    # isomers are distinct real compounds, so this needs locants, not a
-    # retained parent-hydride name; deliberately out of scope here.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1cc2ccc3cccnc3c2nc1")
+def test_phenanthroline_still_needs_locants():
+    # bare "phenanthroline" names no single structure -- 1,7-/1,10-/4,7-
+    # isomers are distinct real compounds (see _phenanthroline_naphthyridine.py,
+    # which supplies the locanted names); this dict deliberately has no
+    # unlocanted entry for it.
+    assert "phenanthroline" not in _RETAINED_NAME_SMILES.values()

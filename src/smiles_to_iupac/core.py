@@ -159,6 +159,10 @@ from ._steroid_parent_hydrides import (
     name_steroid_unsaturated,
 )
 from ._heteroaromatic_fused import has_retained_heteroaromatic_fused_name, name_retained_heteroaromatic_fused
+from ._phenanthroline_naphthyridine import (
+    find_phenanthroline_naphthyridine_core,
+    name_phenanthroline_naphthyridine,
+)
 from ._polycyclic_component_fusion import (
     has_polycyclic_component_fusion_name,
     name_polycyclic_component_fusion,
@@ -914,6 +918,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # dispatch would never even consider them.
     if has_retained_heteroaromatic_fused_name(mol):
         return name_retained_heteroaromatic_fused(mol)
+
+    # phenanthroline/naphthyridine (P-2 Table 2.8's locanted diaza retained
+    # names) must be routed here too, before the fusion-letter dispatches
+    # below and _aromatic.py's own all-carbon dispatch, which would reject
+    # the nitrogen atoms outright.
+    phenanthroline_naphthyridine_core = find_phenanthroline_naphthyridine_core(mol)
+    if phenanthroline_naphthyridine_core is not None:
+        return name_phenanthroline_naphthyridine(mol, phenanthroline_naphthyridine_core)
 
     # benzo[g]indole/benzo[e][1]benzofuran/benzo[g][1]benzofuran (P-25.3.1.3's
     # computed fusion-locant-letter mechanism, this time for a plain benzo
