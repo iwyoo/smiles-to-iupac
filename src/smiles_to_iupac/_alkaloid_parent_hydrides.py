@@ -1,74 +1,18 @@
-"""Naming of the morphinan retained parent hydride (Appendix 3 / P-101,
-`tmp/bluebook/app3/morphinan.gif` -- numbered 1-17, N at 17), by
-skeleton-dict recognition analogous to `_steroid_parent_hydrides.py`,
-generalized via `_parent_hydride_stripping.py`'s multi-atom stripping to
-handle morphine/codeine's several simultaneous substituents plus a
-transannular ether bridge, per the IUPAC 2013 Recommendations ("the Blue
-Book"):
-
-- Bare morphinan (C16H21N) has one aromatic ring (locants 1-4, 11, 12),
-  two saturated six-membered rings, and an N17-containing ring, all
-  ortho-fused into one bridged tetracyclic system with a quaternary
-  bridgehead at C13. Verified structurally, not assumed: derived by
-  reversing morphine's own known modifications (PubChem CID 5288826) --
-  removing its N17-methyl, its two O-substituents (locants 3, 6), and
-  its transannular ether-bridge oxygen (locants 4, 5), then saturating
-  its one extra ring C=C (locants 7, 8) -- confirming the result is
-  exactly 17 ring atoms with molecular formula C16H21N, matching
-  morphinan's own known formula independently.
-- Locants 3 (phenol/methoxy in morphine/codeine), 4 and 5 (the epoxy
-  bridge attachment -- 4 aromatic, 5 not, three bonds apart through the
-  existing skeleton before the bridge is added, i.e. a transannular span
-  per `_bridged_alicyclic_parent.py`), 6 (the second -ol), 7 and 8 (the
-  'didehydro' double bond), and 17 (the ring nitrogen) are the only
-  locants morphine/codeine's own names ever cite -- confirmed against
-  their adjacency directly (3-4 adjacent aromatic positions; 4 adjacent
-  to ring-fusion carbon 12; 5 adjacent to bridgehead 13 and to 6; 6-7-8
-  forming the second ring in sequence; 8 adjacent to bridgehead 14). The
-  remaining ring atoms (the two-carbon chain from ring-fusion carbon 11
-  to N17, the two-carbon chain from N17 to bridgehead 13, and
-  bridgeheads 13/14 themselves -- real morphinan locants 9/10/13/14/15/
-  16) are never substituted or cited in morphine/codeine's own name
-  (see below), so this module's locant query leaves the unused ones
-  (9/10/15/16) unlabeled -- a future alkaloid needing one of them cited
-  would need this filled in first.
-- P-101.8's worked example (`tmp/bluebook/P10.txt` lines 1512-1516) gives
-  morphine's PIN via fusion nomenclature
-  ('furo[2′,3′,4′,5′:4,12,13,5]morphinan'), not yet built here (needs
-  general N-ring fusion-orientation work not yet done). This module
-  instead produces the same primary source's own sanctioned
-  alternative bridge-prefix form (`tmp/bluebook/P1.txt` lines 556-557),
-  '4,5-epoxy-17-methyl-7,8-didehydromorphinan-3,6-diol' for morphine
-  (codeine analogously) -- a real, correct, primary-source-verified
-  name, not a compromise, modulo one deliberate scope limit below.
-- Stereodescriptor citation is out of scope here, by the same explicit
-  policy `_bridged_alicyclic_parent.py` already established for its
-  sibling epoxy-bridge mechanism (see that module's own docstring):
-  matching and naming by constitution only. The primary source's full
-  name additionally cites '4,5alpha-epoxy' and '3,6alpha-diol' (the
-  bridge's own face, and the C6 stereocenter's configuration
-  respectively) -- unlike `_steroid_parent_hydrides.py`'s leading
-  '<locants>-' alpha/beta block convention, these attach locally to the
-  bridge prefix and to the suffix, a different citation shape not yet
-  implemented anywhere in this project. Getting this wrong silently
-  would be worse than omitting it, so a real input's stereochemistry,
-  if any, is simply not reflected in this module's output (tracked as
-  real follow-on work once the local-attachment stereo citation shape
-  exists).
-- Bridge citation follows `_bridged_alicyclic_parent.py`'s one-atom
-  bridge-prefix mechanism (P-25.4.2.1.4), generalized there to the
-  transannular case; re-derived here directly since that module is
-  scoped to the seven bare steroid parents only. Unsaturation citation
-  follows the 'didehydro' convention
-  (P-31.2.2/P-31.2.4.1, `_didehydro_ring.py`'s sibling mechanism,
-  re-derived here directly since that module's own scope is restricted
-  to a plain monocyclic ring).
+"""Morphinan retained parent hydride (Appendix 3/P-101, `morphinan.gif`,
+locants 1-17, N=17), skeleton-dict matched like `_steroid_parent_hydrides.py`.
+Cites the transannular O-bridge as P-25.4.2.1.5's `furo[2',3',4',5':...]`
+heterocyclic-bridge form when the bridge closes a furan-shaped ring
+(morphine/codeine's real shape), falling back to the plain `epoxy` prefix
+otherwise. Stereodescriptors (alpha/beta on the bridge/suffix) are out of
+scope: no local-attachment citation shape exists yet in this project.
 """
 
 from rdkit import Chem
-from rdkit.Chem import BondType, RWMol
+from rdkit.Chem import BondType, RWMol, rdmolops
 
 from ._parent_hydride_stripping import strip_substituents
+
+_FURAN_PRIMES = ("2′", "3′", "4′", "5′")
 
 
 def _build_morphinan_query():
@@ -104,7 +48,7 @@ _QUERY, _QUERY_IDX = _build_morphinan_query()
 # (PubChem CID 5288826): internal 0=N17, 3=C13, 4=C14, 10=C3, 11=C4,
 # 13=C5, 14=C6, 15=C7, 16=C8 (internal 7/8/9/12 = real morphinan C11,
 # C1, C2, C12 -- correct but never cited by morphine/codeine, omitted).
-_LOCANT_OF_INTERNAL = {0: 17, 3: 13, 4: 14, 10: 3, 11: 4, 13: 5, 14: 6, 15: 7, 16: 8}
+_LOCANT_OF_INTERNAL = {0: 17, 3: 13, 4: 14, 10: 3, 11: 4, 12: 12, 13: 5, 14: 6, 15: 7, 16: 8}
 
 
 def _locant_map(mol):
@@ -207,6 +151,7 @@ def find_alkaloid_morphinan_core(mol):
         "o_substituents": {},
         "bridge_locants": None,
         "didehydro_locants": None,
+        "furan_bridge_path": None,
     }
 
     for ring_atom_old in o_substituents:
@@ -218,15 +163,28 @@ def find_alkaloid_morphinan_core(mol):
 
     bridge_neighbors = [n.GetIdx() for n in mol.GetAtomWithIdx(bridge_atom).GetNeighbors()]
     bridge_locants = []
+    bridge_new_idx = []
     for n in bridge_neighbors:
         new_idx = old_to_new.get(n)
         locant = locant_of_new_atom.get(new_idx)
         if locant is None:
             return None
         bridge_locants.append(locant)
+        bridge_new_idx.append(new_idx)
     if len(bridge_locants) != 2:
         return None
     result["bridge_locants"] = tuple(sorted(bridge_locants))
+
+    # P-25.4.2.1.5: a transannular bridge whose own path plus the bridge
+    # atom closes a 5-membered ring (furan's own shape) is cited by furan's
+    # conventional 2',3',4',5' locants against that path, not the plain
+    # bridge prefix -- pick whichever walk direction gives lower locants.
+    path = list(rdmolops.GetShortestPath(saturated, bridge_new_idx[0], bridge_new_idx[1]))
+    if len(path) == 4:
+        path_locants = [locant_of_new_atom.get(i) for i in path]
+        if all(l is not None for l in path_locants):
+            reversed_locants = list(reversed(path_locants))
+            result["furan_bridge_path"] = min(path_locants, reversed_locants)
 
     if double_bonds:
         (a, b) = double_bonds[0]
@@ -254,9 +212,6 @@ def name_alkaloid_morphinan(mol) -> str:
         a, b = core["didehydro_locants"]
         didehydro_prefix = f"{a},{b}-didehydro"
 
-    bridge_a, bridge_b = core["bridge_locants"]
-    bridge_prefix = f"{bridge_a},{bridge_b}-epoxy-"
-
     hydroxy_locants = sorted(l for l, kind in subs.items() if kind == "hydroxy")
     if len(hydroxy_locants) == 2:
         suffix = f"-{hydroxy_locants[0]},{hydroxy_locants[1]}-diol"
@@ -265,6 +220,13 @@ def name_alkaloid_morphinan(mol) -> str:
     else:
         suffix = ""
 
+    if core["furan_bridge_path"]:
+        path_locants = ",".join(str(l) for l in core["furan_bridge_path"])
+        bridge_prefix = f"furo[{','.join(_FURAN_PRIMES)}:{path_locants}]"
+        return methoxy_prefix + n17_prefix + didehydro_prefix + bridge_prefix + "morphinan" + suffix
+
+    bridge_a, bridge_b = core["bridge_locants"]
+    bridge_prefix = f"{bridge_a},{bridge_b}-epoxy-"
     return bridge_prefix + methoxy_prefix + n17_prefix + didehydro_prefix + "morphinan" + suffix
 
 
