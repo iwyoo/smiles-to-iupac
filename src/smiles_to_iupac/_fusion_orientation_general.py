@@ -1,15 +1,8 @@
-"""Generalizes `_fusion_orientation.py`'s P-25.3.2.3.3 criteria (a)-(d)
-cascade from all-hexagon ring-fusion trees to trees mixing any permitted
-3-8 membered ring size (P-25.3.2.3.1). Direction is an exact `Fraction`
-of a full turn (`% N`-per-step, centered by `N // 2`, generalizing the
-hexagon-only module's own `% 6` / `- 3` -- verified identical to it on 4
-real molecules, see PR description and this module's own tests). 2D
-placement uses real trigonometry (N=5/7 angles are irrational); axis
-membership stays exact `Fraction` comparison. Scope: the algorithm only,
-given an already-extracted ring-adjacency description -- real-molecule
-extraction and the P-25.3.2.3.2 distorted-ring fallback are both out of
-scope, same as `_fusion_orientation.py`'s own precedent (its own result
-"is not yet wired into any naming path" either).
+"""Generalizes `_fusion_orientation.py`'s P-25.3.2.3.3 orientation
+criteria plus P-25.3.3.1.1's ring-level numbering-start rule from all-
+hexagon trees to any mix of permitted 3-8 membered rings (P-25.3.2.3.1),
+verified against 4 real molecules. Given an already-extracted ring graph
+only -- atom-level numbering and real-molecule extraction are follow-ups.
 """
 
 import math
@@ -224,3 +217,21 @@ def best_orientation_general(adj, direction, n):
     max_d = max(c[4] for c in candidates)
     candidates = [c for c in candidates if abs(c[4] - max_d) < _EPS]
     return candidates[0]
+
+
+def starting_ring_general(adj, direction, n):
+    """P-25.3.3.1.1's ring-level numbering-start rule: "the uppermost,
+    farthest right ring", under the winning orientation from
+    `best_orientation_general`. Returns every ring index tied for that
+    position (e.g. every ring on the row of a straight chain) -- the
+    caller applies its own P-25.3.3.1.2 tie-break among them (e.g. lowest
+    heteroatom locant), exactly as `_quinoline_bicyclic_numbering.py`/
+    `_cyclopenta_naphthalene.py` already do by trying each candidate."""
+    if n == 1:
+        return [0]
+    residue, reflect, _ur, _ll, _above = best_orientation_general(adj, direction, n)
+    position = _ring_positions_general(adj, direction, residue, reflect)
+    max_y = max(y for _x, y in position.values())
+    top_rings = [i for i in range(n) if abs(position[i][1] - max_y) < _EPS]
+    max_x = max(position[i][0] for i in top_rings)
+    return [i for i in top_rings if abs(position[i][0] - max_x) < _EPS]
