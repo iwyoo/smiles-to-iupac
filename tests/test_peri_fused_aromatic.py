@@ -35,6 +35,18 @@ def test_acephenanthrylene():
     assert smiles_to_iupac("C1=CC=C2C(=C1)C=C3C=CC4=C3C2=CC=C4") == "acephenanthrylene"
 
 
+def test_coronene():
+    # cross-checked against PubChem CID 9115 (coronene), C24H12; PIN per
+    # tmp/bluebook/P2.txt line 2956.
+    assert smiles_to_iupac("C1=CC2=C3C4=C1C=CC5=C4C6=C(C=C5)C=CC7=C6C3=C(C=C2)C=C7") == "coronene"
+
+
+def test_perylene():
+    # cross-checked against PubChem CID 9142 (perylene), C20H12; PIN per
+    # tmp/bluebook/P2.txt line 2962.
+    assert smiles_to_iupac("C1=CC2=C3C(=C1)C4=CC=CC5=C4C(=CC=C5)C3=CC=C2") == "perylene"
+
+
 def test_substituted_pyrene_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("Cc1cc2ccc3cccc4ccc(c1)c2c34")

@@ -1,6 +1,6 @@
 """Naming the best-known *peri*-fused mancude (aromatic) ring systems --
-pyrene, acenaphthylene, fluoranthene, aceanthrylene, and
-acephenanthrylene -- by hardcoded retained-name recognition of the
+pyrene, acenaphthylene, fluoranthene, aceanthrylene, acephenanthrylene,
+coronene, and perylene -- by hardcoded retained-name recognition of the
 unsubstituted parent hydride only, per the IUPAC 2013 Recommendations
 ("the Blue Book"):
 
@@ -45,8 +45,16 @@ unsubstituted parent hydride only, per the IUPAC 2013 Recommendations
 Formulas cross-checked: pyrene C16H10, acenaphthylene C12H8, fluoranthene/
 aceanthrylene/acephenanthrylene each C16H10 (PubChem CID 9154/107781/9143).
 
+coronene and perylene are two more P-25.1.1 PINs of this same "cyclic
+peri-fusion graph, no fixed-numbering sub-piece to reuse" shape
+(`tmp/bluebook/P2.txt` lines 2956/2962 list both as PINs) -- confirmed
+against PubChem CID 9115 (coronene, C24H12) and CID 9142 (perylene,
+C20H12). Both were previously unsupported (`UnsupportedStructure`),
+raised by the same "peri-fused... not supported" guard this module's
+dict already resolves for the other five names.
+
 Explicitly out of scope: any substituted derivative, any peri-fused ring
-system other than these five exact compounds, and combining any of them
+system other than these seven exact compounds, and combining any of them
 with another fused/bridged/spiro system. `has_retained_peri_fused_name`
 simply returns False for all of these, so `core.py`'s existing dispatch
 handles them (and continues to raise `UnsupportedStructure`, unchanged).
@@ -60,6 +68,8 @@ _RETAINED_NAME_SMILES = {
     "fluoranthene": "C1=CC=C2C(=C1)C3=CC=CC4=C3C2=CC=C4",
     "aceanthrylene": "C1=CC=C2C3=C4C(=CC=CC4=CC2=C1)C=C3",
     "acephenanthrylene": "C1=CC=C2C(=C1)C=C3C=CC4=C3C2=CC=C4",
+    "coronene": "C1=CC2=C3C4=C1C=CC5=C4C6=C(C=C5)C=CC7=C6C3=C(C=C2)C=C7",
+    "perylene": "C1=CC2=C3C(=C1)C4=CC=CC5=C4C(=CC=C5)C3=CC=C2",
 }
 _CANONICAL_TO_NAME = {Chem.CanonSmiles(smiles): name for name, smiles in _RETAINED_NAME_SMILES.items()}
 
