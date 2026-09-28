@@ -285,6 +285,7 @@ from ._fluorene_parent import has_fluorene_parent_name, name_fluorene_parent
 from ._cyclopenta_naphthalene import has_cyclopenta_naphthalene_name, name_cyclopenta_naphthalene
 from ._azulene_parent import has_azulene_parent_name, name_azulene_parent
 from ._benzo_cd_indole import has_benzo_cd_indole_name, name_benzo_cd_indole
+from ._pyrrolo_ij_quinoline import has_pyrrolo_ij_quinoline_name, name_pyrrolo_ij_quinoline
 from ._hydroperoxide import has_hydroperoxide_shape, name_hydroperoxide
 from ._hydroperoxide_amine import has_hydroperoxide_amine_shape, name_hydroperoxide_amine
 from ._peroxide import has_peroxide_shape, name_peroxide
@@ -839,6 +840,11 @@ def smiles_to_iupac(smiles: str) -> str:
     # central pyrrole-derived ring isn't fully aromatic in this tautomer.
     if has_benzo_cd_indole_name(mol):
         return name_benzo_cd_indole(mol)
+
+    # 4H-pyrrolo[3,2,1-ij]quinoline (P-25.3.1.3) is the same peri-fused
+    # shape, a different base/attached-component pair.
+    if has_pyrrolo_ij_quinoline_name(mol):
+        return name_pyrrolo_ij_quinoline(mol)
 
     # [2.2]paracyclophane/[2.2]metacyclophane (P-26's phane nomenclature
     # retained-name-style recognition, see module docstring) are recognized
