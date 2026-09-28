@@ -77,6 +77,7 @@ from ._bridged_aromatic import (
     name_bridged_anthracene,
     name_bridged_aromatic,
 )
+from ._alkaloid_parent_hydrides import has_alkaloid_morphinan_name, name_alkaloid_morphinan
 from ._bridged_alicyclic_parent import has_bridged_steroid_name, name_bridged_steroid_parent
 from ._borane import has_simple_borane_shape, name_simple_borane
 from ._boronic_acid import has_boronic_acid_shape, name_boronic_acid
@@ -853,6 +854,14 @@ def smiles_to_iupac(smiles: str) -> str:
     # cases above, for the same reason.
     if has_bridged_steroid_name(mol):
         return name_bridged_steroid_parent(mol)
+
+    # The morphinan retained parent hydride (Appendix 3 / P-101), with
+    # morphine/codeine's exact substituent shape (N-methyl, one or two
+    # O-substituents, a transannular epoxy bridge, one extra ring
+    # double bond) is checked right alongside the other skeleton-dict
+    # cases above, for the same reason.
+    if has_alkaloid_morphinan_name(mol):
+        return name_alkaloid_morphinan(mol)
 
     # A steroid parent hydride missing one non-fusion ring atom or angular
     # methyl (P-101.3.1's 'nor' prefix) is checked right after the exact
