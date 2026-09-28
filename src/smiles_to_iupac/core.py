@@ -163,6 +163,7 @@ from ._polycyclic_component_fusion import (
     has_polycyclic_component_fusion_name,
     name_polycyclic_component_fusion,
 )
+from ._pyridine_bicyclic_fusion import has_pyridine_bicyclic_fusion_name, name_pyridine_bicyclic_fusion
 from ._anthracene_fusion import has_anthracene_fusion_name, name_anthracene_fusion
 from ._tetracene_fusion import has_tetracene_fusion_name, name_tetracene_fusion
 from ._pentacene_fusion import has_pentacene_fusion_name, name_pentacene_fusion
@@ -921,6 +922,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # further below, which doesn't recognize a heteroatom at all.
     if has_polycyclic_component_fusion_name(mol):
         return name_polycyclic_component_fusion(mol)
+
+    # benzo[g]quinoline/benzo[h]isoquinoline (P-25.3.1.3's same computed
+    # fusion-locant-letter mechanism, this time for quinoline/isoquinoline
+    # as the base) must be routed here for the same reason as the check
+    # just above.
+    if has_pyridine_bicyclic_fusion_name(mol):
+        return name_pyridine_bicyclic_fusion(mol)
 
     # benzo[a]anthracene (P-25.3.1.3's computed fusion-locant-letter
     # mechanism again, this time for a plain benzo ring fused onto
