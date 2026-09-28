@@ -3,16 +3,36 @@ skeleton-dict-matched alicyclic parent hydride (currently the seven
 1989 IUPAC steroid parents in `_steroid_parent_hydrides.py`), not just
 `_bridged_aromatic.py`'s all-carbon mancude hex-lattice bases.
 
-Structurally this is a different bridge shape from `_bridged_aromatic.py`'s
-1,4-type transannular bridge: here the bridge atom's two neighbors are
-*already* directly bonded to each other in the bare parent skeleton (e.g.
-steroid ring-A locants 5 and 6, adjacent ring carbons), so the bridge adds
-a fused three-membered ring (an oxirane, for the O case) across an existing
-ring bond, rather than spanning two non-adjacent positions of a larger
-ring. No added/subtracted hydrogen prefix is needed either way, since the
-bare steroid skeleton is already fully saturated (unlike the aromatic
-case, where bridging forces two ring atoms out of the mancude system and
-so needs 'dihydro').
+Covers both bridge shapes: the bridge atom's two neighbors already
+directly bonded to each other in the bare parent skeleton (e.g. steroid
+ring-A locants 5 and 6 -- adds a fused three-membered ring, an oxirane
+for the O case, across an existing ring bond), and the transannular case
+where the two neighbors are connected only via a longer existing path
+through the skeleton (e.g. morphinan's locants 4 and 5, three bonds apart
+-- this is the same P-25.4 shape `_bridged_aromatic.py` already names for
+its all-carbon mancude bases, generalized here to a skeleton-dict match
+instead of the hex-lattice one). `strip_substituents`/canonical-match
+doesn't care about the graph distance between the bridge atom's two
+neighbors, only that removing the bridge atom leaves a molecule matching
+a known bare skeleton -- so one code path handles both shapes; no
+separate adjacency branch is needed.
+
+No added/subtracted hydrogen prefix is needed either way, since the bare
+steroid skeleton is already fully saturated (unlike the aromatic case,
+where bridging forces two ring atoms out of the mancude system and so
+needs 'dihydro').
+
+Verified for the transannular case with a synthetic test (a constructed
+multi-substituent case, not a specific named real compound, since the
+single-substituent adjacent-neighbor mechanism is separately verified
+against a real structure below): androstane with an oxygen bridging
+locants 1 and 3 (not directly bonded in the bare skeleton). The
+real-world case motivating this generalization is morphine's
+furan-forming ether bridge (PubChem CID 5288826, morphinan locants 4/5),
+whose actual PIN uses this same bridge-prefix form as a Blue
+Book-sanctioned alternative to the harder `furo[...]morphinan` fusion
+name (`tmp/bluebook/P1.txt` lines 556-557) -- but morphine itself isn't
+recognized here yet, since no morphinan skeleton dict exists.
 
 - P-25.4.2.1.4 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf):
   the preselected bridge prefix for a divalent -O- bridge is 'epoxy' (not
@@ -42,13 +62,10 @@ raising `UnsupportedStructure` if nothing else claims it):
 - A bridge atom of any other identity than O/S/N (the vocabulary
   `_bridged_aromatic._BRIDGE_PREFIXES` already covers) or with any
   substituent of its own.
-- More than one bridge, or a bridge whose two neighbors are *not* already
-  directly bonded (a genuine 1,4-type transannular span across a larger
-  ring, rather than an ortho-fused three-membered ring) -- a structurally
-  different case not attempted here.
+- More than one bridge.
 - Any skeleton other than the seven bare steroid parent hydrides (no
-  alkaloid skeleton dict exists yet, see #1065/#1144's tracked follow-on
-  work) or any substituent on the ring system beyond the bridge itself.
+  alkaloid skeleton dict exists yet) or any substituent on the ring
+  system beyond the bridge itself.
 """
 
 from rdkit import Chem
@@ -71,9 +88,6 @@ def _bridge_candidates(mol):
             continue
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             continue
-        a, b = atom.GetNeighbors()
-        if mol.GetBondBetweenAtoms(a.GetIdx(), b.GetIdx()) is None:
-            continue
         candidates.append(atom)
     return candidates
 
@@ -81,8 +95,8 @@ def _bridge_candidates(mol):
 def find_bridged_steroid_core(mol):
     """Return (bridge_atom_idx, bridge_prefix, skeleton_name, stripped_mol,
     old_to_new) if `mol` is exactly one of the seven bare steroid parent
-    skeletons plus one O/S/N one-atom bridge across an already-adjacent
-    ring bond, else None."""
+    skeletons plus one O/S/N one-atom bridge (adjacent-neighbor or
+    transannular), else None."""
     candidates = _bridge_candidates(mol)
     if len(candidates) != 1:
         return None
