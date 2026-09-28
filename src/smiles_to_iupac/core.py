@@ -280,6 +280,7 @@ from ._phosphonic_acid import has_phosphonic_acid_shape, name_phosphonic_acid
 from ._phosphinic_acid import has_phosphinic_acid_shape, name_phosphinic_acid
 from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
+from ._fluorene_parent import has_fluorene_parent_name, name_fluorene_parent
 from ._hydroperoxide import has_hydroperoxide_shape, name_hydroperoxide
 from ._hydroperoxide_amine import has_hydroperoxide_amine_shape, name_hydroperoxide_amine
 from ._peroxide import has_peroxide_shape, name_peroxide
@@ -814,6 +815,11 @@ def smiles_to_iupac(smiles: str) -> str:
     # branches expect).
     if has_retained_peri_fused_name(mol):
         return name_retained_peri_fused(mol)
+
+    # 9H-fluorene (P-25.1.2) is recognized the same way -- its central
+    # ring's sp3 CH2 fails the aromatic-fused dispatch's precondition too.
+    if has_fluorene_parent_name(mol):
+        return name_fluorene_parent(mol)
 
     # [2.2]paracyclophane/[2.2]metacyclophane (P-26's phane nomenclature
     # retained-name-style recognition, see module docstring) are recognized
