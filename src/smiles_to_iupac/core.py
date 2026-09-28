@@ -168,6 +168,7 @@ from ._polycyclic_component_fusion import (
     name_polycyclic_component_fusion,
 )
 from ._pyridine_bicyclic_fusion import has_pyridine_bicyclic_fusion_name, name_pyridine_bicyclic_fusion
+from ._furano_bridge_quinoline import has_furano_bridge_quinoline_name, name_furano_bridge_quinoline
 from ._anthracene_fusion import has_anthracene_fusion_name, name_anthracene_fusion
 from ._tetracene_fusion import has_tetracene_fusion_name, name_tetracene_fusion
 from ._pentacene_fusion import has_pentacene_fusion_name, name_pentacene_fusion
@@ -953,6 +954,11 @@ def smiles_to_iupac(smiles: str) -> str:
     # just above.
     if has_pyridine_bicyclic_fusion_name(mol):
         return name_pyridine_bicyclic_fusion(mol)
+
+    # P-25.4.2.1.5 heterocyclic-bridge citation: an intact furan ring
+    # bonded via two new bonds to a benzo[g]quinoline base's meso locants.
+    if has_furano_bridge_quinoline_name(mol):
+        return name_furano_bridge_quinoline(mol)
 
     # benzo[a]anthracene (P-25.3.1.3's computed fusion-locant-letter
     # mechanism again, this time for a plain benzo ring fused onto
