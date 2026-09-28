@@ -283,6 +283,7 @@ from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
 from ._fluorene_parent import has_fluorene_parent_name, name_fluorene_parent
 from ._cyclopenta_naphthalene import has_cyclopenta_naphthalene_name, name_cyclopenta_naphthalene
+from ._azulene_parent import has_azulene_parent_name, name_azulene_parent
 from ._hydroperoxide import has_hydroperoxide_shape, name_hydroperoxide
 from ._hydroperoxide_amine import has_hydroperoxide_amine_shape, name_hydroperoxide_amine
 from ._peroxide import has_peroxide_shape, name_peroxide
@@ -827,6 +828,11 @@ def smiles_to_iupac(smiles: str) -> str:
     # for the same reason -- its 5-ring is never fully aromatic either.
     if has_cyclopenta_naphthalene_name(mol):
         return name_cyclopenta_naphthalene(mol)
+
+    # azulene (P-25.1.1 item 17) needs the same early dispatch -- its 5-
+    # and 7-membered rings both fail the all-6-membered-ring precondition.
+    if has_azulene_parent_name(mol):
+        return name_azulene_parent(mol)
 
     # [2.2]paracyclophane/[2.2]metacyclophane (P-26's phane nomenclature
     # retained-name-style recognition, see module docstring) are recognized
