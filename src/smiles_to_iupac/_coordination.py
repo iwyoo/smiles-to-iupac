@@ -14,6 +14,7 @@ from ._common import (
     non_single_bonds,
     plain_phenyl_substituent_atoms,
 )
+from ._metal_pair import _STEMS as _CLASS2_STEMS, _brackets, _metal_group_name
 from ._numerals import multiplying_prefix
 from ._substituents import name_branch
 
@@ -143,6 +144,15 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
         if atomic_num in HALOGEN_PREFIXES and len(atoms) == 1:
             label = _HALIDO[atomic_num]
             simple_labels.add(label)
+        elif atomic_num in _CLASS2_STEMS:
+            if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms):
+                raise UnsupportedStructure("charged ligands are not supported yet")
+            roots = {n.GetIdx() for i in atoms if mol.GetAtomWithIdx(i).GetAtomicNum() in _CLASS2_STEMS for n in mol.GetAtomWithIdx(i).GetNeighbors()}
+            phenyl = plain_phenyl_substituent_atoms(mol, graph, roots)
+            if any(mol.GetAtomWithIdx(i).GetAtomicNum() not in (6, *_CLASS2_STEMS) for i in atoms):
+                raise UnsupportedStructure("this metal-group ligand is not supported yet")
+            label = _brackets(_metal_group_name(mol, graph, phenyl, donor.GetIdx(), metal.GetIdx()))
+            organic.add(label)
         elif atomic_num == 6 and _carbonyl(mol, donor, atoms):
             label = "carbonyl"
             simple_labels.add(label)

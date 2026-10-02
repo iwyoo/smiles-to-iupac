@@ -22,15 +22,15 @@ def test_metallocene_retained_names(smiles, expected):
 
 
 def test_metallocene_wrong_metal_is_not_matched():
-    with pytest.raises(Exception):
-        smiles_to_iupac("C1=C[CH]C=C1.C1=C[CH]C=C1.[Zn]")
+    # no retained "-ocene" name applies; the general P-69.2 name is used
+    assert smiles_to_iupac("C1=C[CH]C=C1.C1=C[CH]C=C1.[Zn]") == "bis(\u03b75-cyclopenta-2,4-dien-1-yl)zinc"
 
 
 def test_metallocene_three_rings_is_not_matched():
-    with pytest.raises(Exception):
-        smiles_to_iupac("C1=C[CH]C=C1.C1=C[CH]C=C1.C1=C[CH]C=C1.[Fe]")
+    # no retained "-ocene" name applies; the general P-69.2 name is used
+    assert smiles_to_iupac("C1=C[CH]C=C1.C1=C[CH]C=C1.C1=C[CH]C=C1.[Fe]") == "tris(\u03b75-cyclopenta-2,4-dien-1-yl)iron"
 
 
 def test_metallocene_single_ring_is_not_matched():
-    with pytest.raises(Exception):
-        smiles_to_iupac("C1=C[CH]C=C1.[Fe]")
+    # no retained "-ocene" name applies; the general P-69.2 name is used
+    assert smiles_to_iupac("C1=C[CH]C=C1.[Fe]") == "(\u03b75-cyclopenta-2,4-dien-1-yl)iron"
