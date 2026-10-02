@@ -1,9 +1,9 @@
 from smiles_to_iupac import smiles_to_iupac
 from smiles_to_iupac._fullerene import (
+    _CYCLOPROPA_C60_SMILES,
     _FULLERENE_C60_SMILES,
     _FULLERENE_C70_SMILES,
     _FULLERENE_C76_SMILES,
-    _HOMO_C60_SMILES,
     _SILA_C60_SMILES,
 )
 
@@ -39,14 +39,17 @@ def test_sila_c60_fullerene():
     assert smiles_to_iupac(_SILA_C60_SMILES) == "sila(C60-Ih)[5,6]fullerene"
 
 
-def test_homofullerene_c60():
-    # 1(9)aH-1(9)a-homo(C60-Ih), cross-checked against PubChem CID
-    # 11422743's own connectivity SMILES: a single methylene bridged
-    # across a 6,6-bond of the C60-Ih cage (formula C61H2), matching
-    # P-27.4.1's own literal worked example -- C60-Ih's 6,6-bonds are a
+def test_cyclopropa_c60_fullerene():
+    # 3'H-cyclopropa[1,9](C60-Ih), cross-checked against PubChem CID
+    # 11422743's own connectivity SMILES: a single methylene fused across
+    # an intact 6,6-bond of the C60-Ih cage (formula C61H2) -- the two
+    # bridgehead cage atoms remain directly bonded to each other, forming
+    # a fused cyclopropane, matching P-27.6.1's own literal worked example
+    # (not P-27.4.1's homofullerene, which has no such direct bond --
+    # see _fullerene.py's module docstring). C60-Ih's 6,6-bonds are a
     # single symmetry orbit, so the locant is fixed regardless of which
-    # bond was bridged.
-    assert smiles_to_iupac(_HOMO_C60_SMILES) == "1(9)aH-1(9)a-homo(C60-Ih)[5,6]fullerene"
+    # bond was used.
+    assert smiles_to_iupac(_CYCLOPROPA_C60_SMILES) == "3'H-cyclopropa[1,9](C60-Ih)[5,6]fullerene"
 
 
 def test_benzene_still_resolves():
