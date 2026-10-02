@@ -182,6 +182,7 @@ from ._heptacene_fusion import has_heptacene_fusion_name, name_heptacene_fusion
 from ._phenanthrene_fusion import has_phenanthrene_fusion_name, name_phenanthrene_fusion
 from ._pyrene_fusion import has_pyrene_fusion_name, name_pyrene_fusion
 from ._perylene_fusion import has_perylene_fusion_name, name_perylene_fusion
+from ._perylene_peri_fusion import has_perylene_peri_fusion_name, name_perylene_peri_fusion
 from ._chrysene_fusion import has_chrysene_fusion_name, name_chrysene_fusion
 from ._picene_fusion import has_picene_fusion_name, name_picene_fusion
 from ._pentaphene_fusion import has_pentaphene_fusion_name, name_pentaphene_fusion
@@ -1063,6 +1064,11 @@ def smiles_to_iupac(smiles: str) -> str:
     # base -- a second peri-fused base, same reason as the check above).
     if has_perylene_fusion_name(mol):
         return name_perylene_fusion(mol)
+
+    # benzo[ghi]perylene (same base, but the third ring spans three
+    # consecutive periphery bonds -- a peri, not ortho, fusion shape).
+    if has_perylene_peri_fusion_name(mol):
+        return name_perylene_peri_fusion(mol)
 
     # benzo[b]chrysene/benzo[c]chrysene/benzo[g]chrysene/picene (same
     # mechanism again, for chrysene as the base component -- chrysene
