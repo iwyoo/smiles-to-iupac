@@ -235,6 +235,10 @@ from ._two_component_heterocycle_fusion import (
     has_two_component_heterocycle_fusion_name,
     name_two_component_heterocycle_fusion,
 )
+from ._furan_pyran_fusion import (
+    has_furan_pyran_fusion_name,
+    name_furan_pyran_fusion,
+)
 from ._ketone import (
     has_five_membered_1_2_ring_ketone_shape,
     has_five_membered_1_3_ring_ketone_shape,
@@ -1165,6 +1169,12 @@ def smiles_to_iupac(smiles: str) -> str:
     # here before `_hetero_monocyclic.py` below, same reason as above.
     if has_pyridine_heterocycle_fusion_name(mol):
         return name_pyridine_heterocycle_fusion(mol)
+
+    # furo[x,y-z]pyran's own indicated-H whole-system numbering isn't
+    # verified yet -- routed here only for a precise, honest error
+    # instead of a generic fallback failure.
+    if has_furan_pyran_fusion_name(mol):
+        return name_furan_pyran_fusion(mol)
 
     # imidazo[1,2-a]pyridine/imidazo[2,1-b]thiazole etc. (P-25.3.2.5.1's
     # bridgehead-heteroatom fusion -- the shared fusion atom is itself a
