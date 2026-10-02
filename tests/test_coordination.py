@@ -32,7 +32,7 @@ def test_coordination_name(smiles, expected):
         "C[Ti](Cl)(Cl)Cl.[Na+]",
         "C[Pt](C)(C)(C)[Pd](C)(C)C",
         "[Fe](C=C)Cl",
-        "C[Hg]c1ccc(C(=O)O)cc1",
+        "C[Hg]c1ccc(S(=O)(=O)O)cc1",
     ],
 )
 def test_coordination_out_of_scope_raises(smiles):
@@ -56,9 +56,24 @@ def test_metal_pair_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_metal_pair_linked_by_carbon_chain_raises():
-    with pytest.raises(UnsupportedStructure):
+def test_metal_pair_linked_by_carbon_chain():
+    assert (
         smiles_to_iupac("c1ccccc1[Bi](c1ccccc1)CCC[Pb](CC)(CC)CC")
+        == "diphenyl[3-(triethylplumbyl)propyl]bismuthane"
+    )
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("c1cc(C(=O)O)ccc1[Hg]C", "(4-carboxyphenyl)(methyl)mercury"),
+        ("C[Hg]c1ccc([Sb](c2ccccc2)c2ccccc2)cc1", "[4-(diphenylstibanyl)phenyl](methyl)mercury"),
+        ("c1ccc(cc1)[Hg]c1ccc([Sb](c2ccccc2)c2ccccc2)cc1", "[4-(diphenylstibanyl)phenyl](phenyl)mercury"),
+        ("CC[Sn](CC)(CC)c1ccc(cc1)[Ge](C)(C)C", "trimethyl[4-(triethylstannyl)phenyl]germane"),
+    ],
+)
+def test_substituted_aryl_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(

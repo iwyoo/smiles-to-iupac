@@ -14,7 +14,7 @@ from ._common import (
     non_single_bonds,
     plain_phenyl_substituent_atoms,
 )
-from ._metal_pair import _STEMS as _CLASS2_STEMS, _brackets, _metal_group_name
+from ._metal_pair import _STEMS as _CLASS2_STEMS, _brackets, _metal_group_name, substituted_aryl_name
 from ._numerals import multiplying_prefix
 from ._substituents import name_branch
 
@@ -228,11 +228,10 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
         elif atomic_num in _CLASS2_STEMS:
             if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms):
                 raise UnsupportedStructure("charged ligands are not supported yet")
-            roots = {n.GetIdx() for i in atoms if mol.GetAtomWithIdx(i).GetAtomicNum() in _CLASS2_STEMS for n in mol.GetAtomWithIdx(i).GetNeighbors()}
-            phenyl = plain_phenyl_substituent_atoms(mol, graph, roots)
-            if any(mol.GetAtomWithIdx(i).GetAtomicNum() not in (6, *_CLASS2_STEMS) for i in atoms):
+            seen: set[int] = set()
+            label = _brackets(_metal_group_name(mol, graph, donor.GetIdx(), metal.GetIdx(), seen))
+            if seen != atoms:
                 raise UnsupportedStructure("this metal-group ligand is not supported yet")
-            label = _brackets(_metal_group_name(mol, graph, phenyl, donor.GetIdx(), metal.GetIdx()))
             organic.add(label)
         elif atomic_num == 6 and _carbonyl(mol, donor, atoms):
             label = "carbonyl"
@@ -240,15 +239,15 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
         elif atomic_num == 6:
             if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms):
                 raise UnsupportedStructure("charged ligands are not supported yet")
-            phenyl = plain_phenyl_substituent_atoms(mol, graph, {donor.GetIdx()})
-            if phenyl:
-                if atoms != phenyl:
-                    raise UnsupportedStructure("a substituted phenyl ligand is out of scope here")
-                label = "phenyl"
+            if donor.GetIsAromatic():
+                seen = set()
+                label = _brackets(substituted_aryl_name(mol, graph, donor.GetIdx(), metal.GetIdx(), seen)[0])
+                if seen != atoms:
+                    raise UnsupportedStructure("this aryl ligand is not supported yet")
             else:
                 for i in atoms:
                     if mol.GetAtomWithIdx(i).GetAtomicNum() != 6 or mol.GetAtomWithIdx(i).IsInRing():
-                        raise UnsupportedStructure("only acyclic alkyl and phenyl carbon ligands are supported here")
+                        raise UnsupportedStructure("only acyclic alkyl and aryl carbon ligands are supported here")
                 if any(b[0] in atoms or b[1] in atoms for b in non_single_bonds(mol)):
                     raise UnsupportedStructure("an unsaturated ligand is out of scope here")
                 label = name_branch(graph, donor.GetIdx(), metal.GetIdx(), {}, mol=mol)[0]
@@ -376,10 +375,8 @@ def _format_ligands(counts, simple_labels, organic, neutral, tags=None) -> str:
     for position, label in enumerate(sorted(counts, key=lambda s: s.lstrip("(").replace("\u03b75-", "").lower())):
         n = counts[label]
         simple = label in simple_labels or (label in organic and label not in neutral and _is_simple(label))
-        if n > 1:
-            text = multiplying_prefix(n, compound=not simple) + (label if simple else f"({label})")
-        else:
-            text = label if simple else f"({label})"
+        wrapped = label if simple or label.startswith("[") else f"({label})"
+        text = (multiplying_prefix(n, compound=not simple) if n > 1 else "") + wrapped
         if label in organic and position > 0 and simple and not text.startswith("("):
             text = f"({text})"
         out.append(text + tags.get(label, ""))

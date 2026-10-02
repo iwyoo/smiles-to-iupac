@@ -29,7 +29,7 @@ from rdkit.Chem import rdCIPLabeler
 
 from ._numerals import alkane_name, numerical_term
 
-_LEADING_LOCANTS_RE = re.compile(r"^[\d,\-]+")
+_LEADING_LOCANTS_RE = re.compile(r"^\x01?(?:[\d,\-]+\(?)?")
 _ITALIC_PREFIX_RE = re.compile(r"^(tert|sec|iso)-")
 
 
