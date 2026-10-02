@@ -422,6 +422,12 @@ def smiles_to_iupac(smiles: str) -> str:
     if has_metallacycle_shape(mol):
         return name_metallacycle(mol)
 
+    # Group 3-12 metal complexes (P-69.2 coordination naming) must precede
+    # every heteroatom-parent dispatch below, which would otherwise claim
+    # a metal-bound phosphane/amine/ether ligand's donor atom.
+    if has_coordination_shape(mol):
+        return name_coordination(mol)
+
     # A chalcogen ring-oxide (P-62.5's functional-class "oxide" pattern,
     # not limited to acyclic amines) breaks the ring's own aromaticity as
     # RDKit perceives it, so it must be routed here before any ring-shape
@@ -830,11 +836,6 @@ def smiles_to_iupac(smiles: str) -> str:
     # these elements at all.
     if has_group1_2_organometallic_shape(mol):
         return name_group1_2_organometallic(mol)
-
-    # A Group 3-12 metal (P-69.2.3 coordination naming) is likewise
-    # unrecognized by every branch below.
-    if has_coordination_shape(mol):
-        return name_coordination(mol)
 
     # buckminsterfullerene (P-27's '[60]fullerene', a fixed 12-pentagon/
     # 20-hexagon cage) is recognized by exact whole-molecule match --

@@ -1,19 +1,22 @@
 """Naming of mononuclear neutral Group 3-12 organometallics with
-monodentate sigma-bound ligands (P-69.2.3, Chapter P-6a,
-`tmp/bluebook/P6a.txt` lines 8680-8710): ligand names in alphanumerical
+monodentate sigma-bound ligands (P-69.2.1-P-69.2.3, Chapter P-6a,
+`tmp/bluebook/P6a.txt` lines 8614-8710): ligand names in alphanumerical
 order, then the metal name, e.g. 'trichlorido(methyl)titanium'.
 
 Anionic inorganic ligands take the '-ido' form (hydrido, chlorido, ...);
-carbon ligands use their substituent-group names, which the Blue Book
-lists as an accepted alternative to the '-ide' (methanido) form. A
-multiplied simple name takes 'di'/'tri'; a name with a locant takes
-'bis'/'tris'. Organic ligands after the first are enclosed in
-parentheses, as in the worked examples.
+carbon ligands use their substituent-group names (an accepted
+alternative to '-ide'); H2O, NH3 and CO are 'aqua', 'ammine' and
+'carbonyl'; any other neutral donor molecule (R3P, R3N, ethers, ...) keeps
+its own name, obtained by naming the ligand with the metal removed. A
+multiplied simple name takes 'di'/'tri', a name with a locant, a
+parenthesis or a neutral-molecule name takes 'bis'/'tris'. Ligand names
+after the first are enclosed in parentheses unless they are simple
+inorganic names, as in the worked examples.
 
-Out of scope (raise `UnsupportedStructure`): charged atoms, more than one
-metal, ring metals, ligands other than hydrogen/halogen/alkyl/phenyl
-(carbonyl, aqua, ammine, phosphane, hapto and bridging ligands), and
-oxidation-state/charge descriptors.
+Out of scope (raise `UnsupportedStructure`): charged complexes, more than
+one metal, ring metals, multidentate/chelating, hapto and bridging
+ligands, anionic heteroatom donors (amido, alkoxido), and
+oxidation-state descriptors.
 """
 
 from rdkit import Chem
@@ -38,6 +41,7 @@ _METAL_NAMES = {
     77: "iridium", 78: "platinum", 79: "gold", 80: "mercury",
 }
 _HALIDO = {9: "fluorido", 17: "chlorido", 35: "bromido", 53: "iodido"}
+_NEUTRAL_VALENCE = {7: 3, 8: 2, 15: 3, 16: 2, 33: 3}
 
 
 def has_coordination_shape(mol) -> bool:
@@ -46,6 +50,51 @@ def has_coordination_shape(mol) -> bool:
 
 def _is_simple(name: str) -> bool:
     return not any(ch.isdigit() for ch in name) and "(" not in name
+
+
+def _component(graph, start, metal_idx):
+    seen, stack = set(), [start]
+    while stack:
+        a = stack.pop()
+        if a in seen:
+            continue
+        seen.add(a)
+        stack.extend(n for n in graph[a] if n != metal_idx)
+    return seen
+
+
+def _carbonyl(mol, donor, atoms):
+    if len(atoms) != 2:
+        return False
+    other = next(i for i in atoms if i != donor.GetIdx())
+    bond = mol.GetBondBetweenAtoms(donor.GetIdx(), other)
+    return mol.GetAtomWithIdx(other).GetAtomicNum() == 8 and bond.GetBondTypeAsDouble() >= 2
+
+
+def _neutral_ligand_name(mol, metal, donor, atoms):
+    atomic_num = donor.GetAtomicNum()
+    if atomic_num not in _NEUTRAL_VALENCE:
+        raise UnsupportedStructure("this donor atom is not supported as a ligand yet")
+    own = [n for n in donor.GetNeighbors() if n.GetIdx() != metal.GetIdx()]
+    valence = sum(mol.GetBondBetweenAtoms(donor.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() for n in own)
+    if valence + donor.GetNumExplicitHs() != _NEUTRAL_VALENCE[atomic_num] or donor.GetFormalCharge() != 0:
+        raise UnsupportedStructure("an anionic or multiply bonded heteroatom ligand is not supported yet")
+    if atomic_num == 8 and not own and donor.GetNumExplicitHs() == 2:
+        return "aqua"
+    if atomic_num == 7 and not own and donor.GetNumExplicitHs() == 3:
+        return "ammine"
+
+    rw = Chem.RWMol(mol)
+    keep = sorted(atoms)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - set(keep), reverse=True):
+        rw.RemoveAtom(idx)
+    ligand = rw.GetMol()
+    for a in ligand.GetAtoms():
+        a.SetNoImplicit(False)
+    Chem.SanitizeMol(ligand)
+    from .core import smiles_to_iupac
+
+    return smiles_to_iupac(Chem.MolToSmiles(ligand))
 
 
 def name_coordination(mol) -> str:
@@ -57,52 +106,69 @@ def name_coordination(mol) -> str:
         raise UnsupportedStructure("a ring metal atom is not supported here (see P-69.4)")
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    if any(a.GetFormalCharge() != 0 or a.GetIsotope() != 0 for a in mol.GetAtoms()):
+    if metal.GetFormalCharge() != 0 or any(a.GetIsotope() != 0 for a in mol.GetAtoms()):
         raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
 
     graph = adjacency(mol)
-    neighbors = list(metal.GetNeighbors())
-    halogens = [n for n in neighbors if n.GetAtomicNum() in HALOGEN_PREFIXES]
-    carbons = [n for n in neighbors if n.GetAtomicNum() == 6]
-    if len(halogens) + len(carbons) != len(neighbors):
-        raise UnsupportedStructure("ligands other than hydrogen, halogen, alkyl and phenyl are not supported yet")
-
-    roots = {n.GetIdx() for n in carbons}
-    phenyl_atoms = plain_phenyl_substituent_atoms(mol, graph, roots)
-    halogen_idx = {n.GetIdx() for n in halogens}
-    for atom in mol.GetAtoms():
-        idx = atom.GetIdx()
-        if atom.GetAtomicNum() not in (6, metal.GetAtomicNum()) and idx not in halogen_idx:
-            raise UnsupportedStructure("heteroatoms other than the metal and its halido ligands are not supported yet")
-        if atom.GetAtomicNum() == 6 and atom.GetIsAromatic() and idx not in phenyl_atoms:
-            raise UnsupportedStructure("an aromatic ligand other than plain phenyl is out of scope here")
-    ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
-    if ring_atoms - phenyl_atoms:
-        raise UnsupportedStructure("a ring ligand other than plain phenyl is out of scope here")
-    if any(b[0] not in phenyl_atoms and b[1] not in phenyl_atoms for b in non_single_bonds(mol)):
-        raise UnsupportedStructure("an unsaturated ligand is out of scope here")
-
     counts: dict[str, int] = {}
+    simple_labels: set[str] = set()
     organic: set[str] = set()
+    neutral: set[str] = set()
     if metal.GetTotalNumHs():
         counts["hydrido"] = metal.GetTotalNumHs()
-    for n in halogens:
-        label = _HALIDO[n.GetAtomicNum()]
+        simple_labels.add("hydrido")
+
+    seen: set[int] = set()
+    for donor in metal.GetNeighbors():
+        if donor.GetIdx() in seen:
+            continue
+        atoms = _component(graph, donor.GetIdx(), metal.GetIdx())
+        seen |= atoms
+        if sum(1 for n in metal.GetNeighbors() if n.GetIdx() in atoms) > 1:
+            raise UnsupportedStructure("chelating, hapto and bridging ligands are not supported yet")
+        atomic_num = donor.GetAtomicNum()
+        if atomic_num in HALOGEN_PREFIXES and len(atoms) == 1:
+            label = _HALIDO[atomic_num]
+            simple_labels.add(label)
+        elif atomic_num == 6 and _carbonyl(mol, donor, atoms):
+            label = "carbonyl"
+            simple_labels.add(label)
+        elif atomic_num == 6:
+            if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms):
+                raise UnsupportedStructure("charged ligands are not supported yet")
+            phenyl = plain_phenyl_substituent_atoms(mol, graph, {donor.GetIdx()})
+            if phenyl:
+                if atoms != phenyl:
+                    raise UnsupportedStructure("a substituted phenyl ligand is out of scope here")
+                label = "phenyl"
+            else:
+                for i in atoms:
+                    if mol.GetAtomWithIdx(i).GetAtomicNum() != 6 or mol.GetAtomWithIdx(i).IsInRing():
+                        raise UnsupportedStructure("only acyclic alkyl and phenyl carbon ligands are supported here")
+                if any(b[0] in atoms or b[1] in atoms for b in non_single_bonds(mol)):
+                    raise UnsupportedStructure("an unsaturated ligand is out of scope here")
+                label = name_branch(graph, donor.GetIdx(), metal.GetIdx(), {}, mol=mol)[0]
+            organic.add(label)
+        else:
+            if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms):
+                raise UnsupportedStructure("charged ligands are not supported yet")
+            label = _neutral_ligand_name(mol, metal, donor, atoms)
+            if label in ("aqua", "ammine"):
+                simple_labels.add(label)
+            else:
+                organic.add(label)
+                neutral.add(label)
         counts[label] = counts.get(label, 0) + 1
-    for root in roots:
-        label = "phenyl" if root in phenyl_atoms else name_branch(graph, root, metal.GetIdx(), {}, mol=mol)[0]
-        counts[label] = counts.get(label, 0) + 1
-        organic.add(label)
 
     out = []
     for position, label in enumerate(sorted(counts, key=lambda s: s.lstrip("(").lower())):
         n = counts[label]
-        simple = _is_simple(label)
+        simple = label in simple_labels or (label in organic and label not in neutral and _is_simple(label))
         if n > 1:
             text = multiplying_prefix(n, compound=not simple) + (label if simple else f"({label})")
         else:
             text = label if simple else f"({label})"
-        if label in organic and position > 0 and simple:
+        if label in organic and position > 0 and simple and not text.startswith("("):
             text = f"({text})"
         out.append(text)
     return "".join(out) + _METAL_NAMES[metal.GetAtomicNum()]
