@@ -1,8 +1,8 @@
-"""Mononuclear Group 3-12 organometallic naming (P-69.2.1-P-69.2.3,
-`tmp/bluebook/P6a.txt` lines 8614-8710): ligands in alphanumerical order,
-then the metal ('trichlorido(methyl)titanium'); charged complexes take
-'(n+)'/'-ate(n-)' plus simple counter-ions. Chelating, hapto and bridging
-ligands are out of scope.
+"""Group 3-12 organometallic naming (P-69.2.1-P-69.2.3, `tmp/bluebook/P6a.txt`
+lines 8614-8710): ligands in alphanumerical order, then the metal
+('trichlorido(methyl)titanium'); charged complexes, M-M bonds and
+mu-bridging atoms included. Not SMILES-expressible, hence out of this
+repo's scope: eta-n hapto ligands (other than the separate [CH-] Cp fragment).
 """
 
 from rdkit import Chem
@@ -98,6 +98,17 @@ _CATIONS = {3: "lithium", 11: "sodium", 19: "potassium"}
 _ANIONS = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 
 
+def _net_charge(mol) -> int:
+    carbonyl_o = {
+        n.GetIdx()
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() == 6 and any(m.GetAtomicNum() in _METAL_NAMES for m in a.GetNeighbors())
+        for n in a.GetNeighbors()
+        if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(a.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() >= 2.0
+    }
+    return sum(a.GetFormalCharge() for a in mol.GetAtoms() if a.GetIdx() not in carbonyl_o)
+
+
 def _charge_text(charge: int) -> str:
     return f"({abs(charge)}{'+' if charge > 0 else '-'})"
 
@@ -114,6 +125,67 @@ def _counter_ion_words(frags):
         word = table[atom.GetAtomicNum()]
         counts[word] = counts.get(word, 0) + 1
     return " ".join((multiplying_prefix(n) if n > 1 else "") + w for w, n in sorted(counts.items()))
+
+
+def _simple_anion_label(mol, donor, atoms):
+    z, own = donor.GetAtomicNum(), [n for n in donor.GetNeighbors() if n.GetAtomicNum() in _METAL_NAMES]
+    if len(atoms) == 1 and z in (8, 16):
+        bond_orders = [mol.GetBondBetweenAtoms(donor.GetIdx(), m.GetIdx()).GetBondTypeAsDouble() for m in own]
+        hydrogens = donor.GetNumExplicitHs() + donor.GetNumImplicitHs()
+        if hydrogens == 1 and donor.GetFormalCharge() == 0 and bond_orders == [1.0]:
+            return "hydroxido" if z == 8 else "sulfanido"
+        if hydrogens == 0 and donor.GetFormalCharge() in (0, -1):
+            return "oxido" if z == 8 else "sulfido"
+    if len(atoms) == 1 and z == 7 and donor.GetNumExplicitHs() == 2 and donor.GetDegree() == 1:
+        return "azanido"
+    if len(atoms) == 2:
+        other = next(mol.GetAtomWithIdx(i) for i in atoms if i != donor.GetIdx())
+        bond = mol.GetBondBetweenAtoms(donor.GetIdx(), other.GetIdx()).GetBondTypeAsDouble()
+        if z == 6 and other.GetAtomicNum() == 7 and bond == 3.0 and donor.GetFormalCharge() == 0:
+            return "cyanido"
+        if z == 7 and other.GetAtomicNum() == 8 and bond == 2.0:
+            return "nitrosyl"
+    return None
+
+
+def _ligand_fragment_name(mol, donor, atoms, cap_atomic_num, cap_bond=Chem.BondType.SINGLE):
+    rw = Chem.RWMol(mol)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - set(atoms), reverse=True):
+        rw.RemoveAtom(idx)
+    new_donor = sorted(atoms).index(donor.GetIdx())
+    cap = rw.AddAtom(Chem.Atom(cap_atomic_num))
+    rw.AddBond(new_donor, cap, cap_bond)
+    ligand = rw.GetMol()
+    for a in ligand.GetAtoms():
+        a.SetFormalCharge(0)
+        a.SetNoImplicit(False)
+    Chem.SanitizeMol(ligand)
+    from .core import smiles_to_iupac
+
+    return smiles_to_iupac(Chem.MolToSmiles(ligand))
+
+
+def _alkoxido_name(mol, metal, donor, atoms):
+    alcohol = _ligand_fragment_name(mol, donor, atoms, 1)
+    if not alcohol.endswith("ol") or any(ch.isdigit() for ch in alcohol[-4:]):
+        raise UnsupportedStructure("this alkoxide ligand is not supported yet")
+    return alcohol[:-2] + "olato"
+
+
+def _is_acyl(mol, donor):
+    return any(
+        n.GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(donor.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for n in donor.GetNeighbors()
+    )
+
+
+def _acyl_name(mol, metal, donor, atoms):
+    if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms):
+        raise UnsupportedStructure("charged ligands are not supported yet")
+    name = _ligand_fragment_name(mol, donor, atoms, 17)
+    if not name.endswith(" chloride"):
+        raise UnsupportedStructure("this acyl ligand is not supported yet")
+    return {"ethanoyl": "acetyl", "benzenecarbonyl": "benzoyl", "methanoyl": "formyl"}.get(name[: -len(" chloride")], name[: -len(" chloride")])
 
 
 def collect_ligands(mol, metal, graph, skip=frozenset()):
@@ -144,6 +216,15 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
         if atomic_num in HALOGEN_PREFIXES and len(atoms) == 1:
             label = _HALIDO[atomic_num]
             simple_labels.add(label)
+        elif _simple_anion_label(mol, donor, atoms) is not None:
+            label = _simple_anion_label(mol, donor, atoms)
+            simple_labels.add(label)
+        elif atomic_num == 8 and len(atoms) > 1 and donor.GetDegree() == 2 and donor.GetNumExplicitHs() == 0 and donor.GetFormalCharge() in (0, -1):
+            label = _alkoxido_name(mol, metal, donor, atoms)
+            organic.add(label)
+        elif atomic_num == 6 and _is_acyl(mol, donor):
+            label = _acyl_name(mol, metal, donor, atoms)
+            organic.add(label)
         elif atomic_num in _CLASS2_STEMS:
             if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms):
                 raise UnsupportedStructure("charged ligands are not supported yet")
@@ -215,7 +296,7 @@ def name_coordination(mol) -> str:
     cp_count = sum(c is not None for c in cp_charges)
     others = [f for f, c in zip(others, cp_charges) if c is None]
     metal = next(a for a in complex_mol.GetAtoms() if a.GetAtomicNum() in _METAL_NAMES)
-    charge = metal.GetFormalCharge() + sum(c for c in cp_charges if c is not None)
+    charge = _net_charge(complex_mol) + sum(c for c in cp_charges if c is not None)
     name = _name_complex(complex_mol, {_CP_LABEL: cp_count} if cp_count else None, charge)
     if not others:
         return name
@@ -273,7 +354,7 @@ def _name_complex(mol, extra=None, charge=None) -> str:
     if any(a.GetIsotope() != 0 for a in mol.GetAtoms()):
         raise UnsupportedStructure("isotopically modified atoms are not supported yet")
     if charge is None:
-        charge = metal.GetFormalCharge()
+        charge = _net_charge(mol)
 
     graph = adjacency(mol)
     counts, simple_labels, organic, neutral, _ = collect_ligands(mol, metal, graph)

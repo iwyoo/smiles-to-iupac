@@ -31,7 +31,6 @@ def test_coordination_name(smiles, expected):
     [
         "C[Ti](Cl)(Cl)Cl.[Na+]",
         "C[Pt](C)(C)(C)[Pd](C)(C)C",
-        "C[Ti](=O)(Cl)Cl",
         "[Fe](C=C)Cl",
         "C[Hg]c1ccc(C(=O)O)cc1",
     ],
@@ -95,4 +94,20 @@ def test_dinuclear_and_hapto_names(smiles, expected):
     ],
 )
 def test_class1_metal_with_class2_metal_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[Ti](=O)(Cl)Cl", "dichlorido(methyl)oxidotitanium"),
+        ("[Ti](O)(O)(O)O", "tetrahydroxidotitanium"),
+        ("N#C[Au]C#N", "dicyanidogold"),
+        ("[Ti](OC)(OC)(OC)OC", "tetramethanolatotitanium"),
+        ("[Ti](OCC)(Cl)(Cl)Cl", "trichlorido(ethanolato)titanium"),
+        ("CC(=O)[Pt](C)(P(CC)(CC)CC)P(CC)(CC)CC", "acetyl(methyl)bis(triethylphosphane)platinum"),
+        ("[Fe](N=O)(C#[O+])C", "carbonyl(methyl)nitrosyliron"),
+    ],
+)
+def test_anionic_and_acyl_ligands(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
