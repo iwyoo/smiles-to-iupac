@@ -1,9 +1,8 @@
 """P-25.4.2.1.5 heterocyclic-bridge citation for an intact pyran ring
-whose own para C2/C5 atoms (C2 adjacent to O) each bond to a
+whose own para C2/C5 atoms (C2 adjacent to O) bond to a
 `_pyridine_bicyclic_fusion.py` base; 'epi' distinguishes the bridge
-prefix from pyran's identical fusion prefix. Verified deductively
-against `tmp/bluebook/p25_bridge_examples/page112-112.png` (no PubChem
-structure exists for this worked example)."""
+prefix from pyran's own fusion prefix. Verified deductively against
+the Blue Book's own page-112 diagram (no PubChem structure exists)."""
 
 from rdkit import Chem
 
