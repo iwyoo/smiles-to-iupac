@@ -1,8 +1,8 @@
 """Generalizes `_fusion_orientation.py`'s P-25.3.2.3.3 orientation
-criteria plus P-25.3.3.1.1's ring-level numbering-start rule from all-
-hexagon trees to any mix of permitted 3-8 membered rings (P-25.3.2.3.1),
-verified against 4 real molecules. Given an already-extracted ring graph
-only -- atom-level numbering and real-molecule extraction are follow-ups.
+criteria plus P-25.3.3.1.1's numbering-start rule to any mix of permitted
+3-8 membered rings. `_PENTAGON_TABLE` encodes P-25.3.2.3.1's real (non-
+regular) house shape, pixel-measured off `tmp/bluebook/p25_shapes/*.png`.
+Verified against 2 of 3 real cyclopenta-naphthalene isomers.
 """
 
 import math
@@ -11,6 +11,24 @@ from fractions import Fraction
 from ._common import UnsupportedStructure
 
 HALF_TURN = Fraction(1, 2)
+
+# Index i = outward-normal angle of edge i for P-25.3.2.3.1's apex-up
+# "house" pentagon (edge 0 = right vertical, then bottom/left-vertical/
+# left-roof/right-roof), pixel-measured off the Blue Book's own diagram.
+_PENTAGON_TABLE = [Fraction(0), Fraction(3, 4), Fraction(1, 2), Fraction(1, 3), Fraction(1, 6)]
+_SHAPE_TABLES = {5: _PENTAGON_TABLE}
+
+
+def _relative_turn(ref_edge, this_edge, n_current):
+    """Real diagram-derived edge geometry where a shape table exists
+    (currently n=5 only); the old regular-polygon formula otherwise,
+    unchanged (exact for the already-regular sizes 3/4/6)."""
+    table = _SHAPE_TABLES.get(n_current)
+    if table is not None:
+        return (table[ref_edge] - table[this_edge] - HALF_TURN) % 1
+    diff = (ref_edge - this_edge) % n_current
+    centered = diff - (n_current // 2)
+    return Fraction(centered, n_current)
 
 
 def assign_bond_directions_general(adj, edge_index_of, ring_sizes, n):
@@ -54,10 +72,8 @@ def assign_bond_directions_general(adj, edge_index_of, ring_sizes, n):
                 )
             visited.add(neighbor)
             this_edge = edge_index_of[(current, neighbor)]
-            diff = (ref_edge - this_edge) % n_current
-            centered = diff - (n_current // 2)
             direction[frozenset((current, neighbor))] = (
-                direction[frozenset((current, parent))] + Fraction(centered, n_current)
+                direction[frozenset((current, parent))] + _relative_turn(ref_edge, this_edge, n_current)
             ) % 1
             processed_ref[neighbor] = current
             queue.append(neighbor)
@@ -198,10 +214,11 @@ def _quadrant_counts_general(adj, direction, residue, reflect, n):
     return upper_right, lower_left, above
 
 
-def best_orientation_general(adj, direction, n):
-    """The single preferred orientation, per P-25.3.2.3.3's full (a) ->
-    (b) -> (c) -> (d) cascade, generalized to mixed ring sizes. Returns
-    (residue, reflect, upper_right, lower_left, above) for the winner."""
+def _all_best_orientations(adj, direction, n):
+    """Every (residue, reflect, upper_right, lower_left, above) tied
+    through the full (a)->(b)->(c)->(d) cascade -- an irregular ring size
+    can make two tied candidates pick different rings as "uppermost",
+    since criteria (a)-(d) never compare ring shapes."""
     residues = _axis_candidates(direction)
     best_a = max(_rings_on_axis_general(adj, direction, r) for r in residues)
     residues = [r for r in residues if _rings_on_axis_general(adj, direction, r) == best_a]
@@ -216,22 +233,30 @@ def best_orientation_general(adj, direction, n):
     candidates = [c for c in candidates if abs(c[3] - min_c) < _EPS]
     max_d = max(c[4] for c in candidates)
     candidates = [c for c in candidates if abs(c[4] - max_d) < _EPS]
-    return candidates[0]
+    return candidates
+
+
+def best_orientation_general(adj, direction, n):
+    """The single preferred orientation, per P-25.3.2.3.3's full (a) ->
+    (b) -> (c) -> (d) cascade, generalized to mixed ring sizes. Returns
+    (residue, reflect, upper_right, lower_left, above) for the winner --
+    the first of possibly several criteria-tied candidates, see
+    `_all_best_orientations`."""
+    return _all_best_orientations(adj, direction, n)[0]
 
 
 def starting_ring_general(adj, direction, n):
-    """P-25.3.3.1.1's ring-level numbering-start rule: "the uppermost,
-    farthest right ring", under the winning orientation from
-    `best_orientation_general`. Returns every ring index tied for that
-    position (e.g. every ring on the row of a straight chain) -- the
-    caller applies its own P-25.3.3.1.2 tie-break among them (e.g. lowest
-    heteroatom locant), exactly as `_quinoline_bicyclic_numbering.py`/
-    `_cyclopenta_naphthalene.py` already do by trying each candidate."""
+    """P-25.3.3.1.1's "uppermost, farthest right ring" rule, unioned
+    across every criteria-(a)-(d)-tied orientation (see
+    `_all_best_orientations`). Caller applies its own P-25.3.3.1.2
+    tie-break among the returned candidates."""
     if n == 1:
         return [0]
-    residue, reflect, _ur, _ll, _above = best_orientation_general(adj, direction, n)
-    position = _ring_positions_general(adj, direction, residue, reflect)
-    max_y = max(y for _x, y in position.values())
-    top_rings = [i for i in range(n) if abs(position[i][1] - max_y) < _EPS]
-    max_x = max(position[i][0] for i in top_rings)
-    return [i for i in top_rings if abs(position[i][0] - max_x) < _EPS]
+    winners = set()
+    for residue, reflect, _ur, _ll, _above in _all_best_orientations(adj, direction, n):
+        position = _ring_positions_general(adj, direction, residue, reflect)
+        max_y = max(y for _x, y in position.values())
+        top_rings = [i for i in range(n) if abs(position[i][1] - max_y) < _EPS]
+        max_x = max(position[i][0] for i in top_rings)
+        winners.update(i for i in top_rings if abs(position[i][0] - max_x) < _EPS)
+    return sorted(winners)

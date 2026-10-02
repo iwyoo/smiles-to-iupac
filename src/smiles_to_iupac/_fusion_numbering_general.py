@@ -1,16 +1,9 @@
 """Atom-level P-25.3.3.1 peripheral numbering for a tree of ortho-fused
-mancude rings, built on `_fusion_orientation_general.py`'s ring-level
-starting-ring engine, plus P-25.3.3.1.2's heteroatom/indicated-H
-tie-break. Exactly reproduces the already-verified all-hexagon
-benzo[g]quinoline numbering. NOT yet trustworthy for a tree containing a
-non-hexagonal ring: cross-checking against the two other real numberings
-this session shipped by hand (1H-/3H-cyclopenta[a]naphthalene, 1H-
-cyclopenta[b]naphthalene) shows the ring-level engine picks the wrong
-starting ring for them -- its Fraction-of-a-turn model treats every ring
-size as a regular polygon, but P-25.3.2.3.1's actual permitted shapes are
-fixed, non-regular drawings (see issue filed against this finding).
-Deliberately NOT wired into `core.py`: it would silently regress those
-two already-correct real cases.
+mancude rings, on `_fusion_orientation_general.py`'s starting-ring engine
+plus P-25.3.3.1.2's heteroatom-lowest-locants tie-break only. Picks the
+right starting ring for 2 of 3 real cyclopenta-naphthalene isomers; the
+3rd needs a further structural tie-break this module lacks. Deliberately
+NOT wired into `core.py` until that gap closes.
 """
 
 from collections import defaultdict
