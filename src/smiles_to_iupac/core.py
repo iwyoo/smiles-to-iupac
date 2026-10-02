@@ -772,6 +772,17 @@ def smiles_to_iupac(smiles: str) -> str:
     if has_functional_replacement_oxoacid_shape(mol):
         return name_functional_replacement_oxoacid(mol)
 
+    # Phosphinine/phosphinoline/isophosphinoline (P-25's own P-ring
+    # counterparts to pyridine/quinoline/isoquinoline) have P in a ring,
+    # which `_phosphane.py` never expects -- routed here first.
+    if any(atom.GetAtomicNum() == 15 for atom in mol.GetAtoms()):
+        if has_hetero_monocyclic_name(mol):
+            return name_hetero_monocyclic(mol)
+        if has_hetero_monocyclic_substituent_name(mol):
+            return name_hetero_monocyclic_substituent(mol)
+        if has_retained_heteroaromatic_fused_name(mol):
+            return name_retained_heteroaromatic_fused(mol)
+
     # A phosphorus atom (P-68's phosphane substitutive nomenclature) must
     # be routed here before every other branch below: none of them
     # recognize phosphorus at all, and a phosphane carbon substituent would

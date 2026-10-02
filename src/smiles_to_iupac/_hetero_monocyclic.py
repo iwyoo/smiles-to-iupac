@@ -167,7 +167,7 @@ unsubstituted-only functions above:
 
 - Scope: one or more substituents (a halogen, or a plain hydrocarbon
   group `name_branch` can name -- repeats and mixed kinds both allowed)
-  on one of the 19 mancude parents listed in `_MANCUDE_NAME_SMILES`/
+  on one of the 20 mancude parents listed in `_MANCUDE_NAME_SMILES`/
   `_TWO_HETEROATOM_MANCUDE_NAME_SMILES` above (single-heteroatom 5/6-
   membered plus two-heteroatom 5/6-membered, Se/Te analogues included)
   -- everything else about the parent (ring size, unsaturation,
@@ -292,6 +292,7 @@ _MANCUDE_NAME_SMILES = {
     ("Te", 5): ("tellurophene", "c1cc[te]c1"),
     ("N", 5): ("1H-pyrrole", "c1cc[nH]c1"),
     ("N", 6): ("pyridine", "c1ccncc1"),
+    ("P", 6): ("phosphinine", "c1ccpcc1"),
 }
 _TWO_HETEROATOM_SATURATED_NAME_SMILES = {
     frozenset(("N", "O")): ("morpholine", "C1COCCN1"),
@@ -553,6 +554,7 @@ _ROLE_SEQUENCES = {
     "tellurophene": (_role("Te"), _C, _C, _C, _C),
     "1H-pyrrole": (_role("N", has_h=True), _C, _C, _C, _C),
     "pyridine": (_role("N"), _C, _C, _C, _C, _C),
+    "phosphinine": (_role("P"), _C, _C, _C, _C, _C),
     "1H-imidazole": (_role("N", has_h=True), _C, _role("N"), _C, _C),
     "1H-pyrazole": (_role("N", has_h=True), _role("N"), _C, _C, _C),
     "1,3-oxazole": (_role("O"), _C, _role("N"), _C, _C),
@@ -614,7 +616,7 @@ def _candidate_key(grouped):
 
 def _match_hetero_monocyclic_substituents(mol):
     """(parent_name, grouped, graph) for a mancude ring carrying one or more
-    substituents that matches one of `_ROLE_SEQUENCES`'s 19 parents; None if
+    substituents that matches one of `_ROLE_SEQUENCES`'s 20 parents; None if
     the molecule doesn't fit that shape at all (a second ring anywhere, a
     ring atom bearing more than one exocyclic branch, a ring size/
     heteroatom pattern outside the table, or a substituent sitting on a

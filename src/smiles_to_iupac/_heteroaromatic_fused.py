@@ -72,6 +72,11 @@ no single structure -- 1,7-/1,10-/4,7-phenanthroline are three distinct
 real compounds (PubChem CIDs 67473/1318/67472), so naming it needs locants,
 not a bare retained name.
 
+phosphinoline/isophosphinoline (phosphorus's own benzo+phosphinine
+analogues of quinoline/isoquinoline) are recognized the same way,
+cross-checked against PubChem CIDs 18624333/136065, whose own IUPACName
+fields give these bare names with no locants or indicated hydrogen.
+
 Explicitly out of scope: any substituted derivative, any other retained-
 name heteroaromatic fused system not listed above, a second ring
 heteroatom, and non-aromatic tautomers (e.g. 3H-indole) or partially
@@ -99,6 +104,8 @@ _RETAINED_NAME_SMILES = {
     "7H-purine": "c1ncc2[nH]cnc2n1",
     "9H-xanthene": "c1ccc2c(c1)Cc1ccccc1O2",
     "9H-thioxanthene": "c1ccc2c(c1)Cc1ccccc1S2",
+    "phosphinoline": "c1ccc2pcccc2c1",
+    "isophosphinoline": "c1ccc2cpccc2c1",
 }
 _CANONICAL_TO_NAME = {Chem.CanonSmiles(smiles): name for name, smiles in _RETAINED_NAME_SMILES.items()}
 
