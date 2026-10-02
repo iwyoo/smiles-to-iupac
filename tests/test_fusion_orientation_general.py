@@ -123,17 +123,12 @@ def test_hexagon_chain_bent_matches_phenanthrene_row_two():
 
 
 def test_exactly_one_edge_gap_per_ring_size_gives_straight_row_three():
-    # For every permitted P-25.3.2.3.1 ring size N=3..8, there is exactly
-    # one edge-index gap k (between the middle ring's two fusion bonds)
-    # that achieves criterion (a)'s row=3 "straight-through" alignment --
-    # always k = ceil(N/2), the ring's own closest analogue to a
-    # hexagon's antipodal edge pair (verified here for every k, not
-    # assumed): N=6 reproduces the real anthracene/phenanthrene distinction
-    # above; N=3,4,5,7,8 have no real-molecule ground truth available (see
-    # module docstring), so these are self-consistency checks of the same
-    # formula, not independently verified against an external source.
+    # Each permitted P-25.3.2.3.1 ring size has exactly one edge-index gap
+    # giving criterion (a)'s row=3 alignment. N=5 uses the real diagram-
+    # derived pentagon table (gap=2), not the naive regular-pentagon ceil(5/2)=3.
+    expected_by_n = {3: 2, 4: 2, 5: 2, 6: 3, 7: 4, 8: 4}
     for N in (3, 4, 5, 6, 7, 8):
-        expected_straight_k = math.ceil(N / 2)
+        expected_straight_k = expected_by_n[N]
         straight_ks = []
         for k in range(1, N):
             adj, edge_index_of, ring_sizes, n = _synthetic_chain((6, N, 6), (0, k))
