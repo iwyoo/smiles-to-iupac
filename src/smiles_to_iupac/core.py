@@ -82,6 +82,7 @@ from ._bridged_alicyclic_parent import has_bridged_steroid_name, name_bridged_st
 from ._borane import has_simple_borane_shape, name_simple_borane
 from ._boronic_acid import has_boronic_acid_shape, name_boronic_acid
 from ._borinic_acid import has_borinic_acid_shape, name_borinic_acid
+from ._metal_pair import has_metal_pair_shape, name_metal_pair
 from ._coordination import has_coordination_shape, name_coordination
 from ._group1_2_organometallic import has_group1_2_organometallic_shape, name_group1_2_organometallic
 from ._group13_hydride import (
@@ -427,6 +428,11 @@ def smiles_to_iupac(smiles: str) -> str:
     # a metal-bound phosphane/amine/ether ligand's donor atom.
     if has_coordination_shape(mol):
         return name_coordination(mol)
+
+    # Two or more Group 13-15 metals (P-69.5.3) must precede the
+    # single-metal hydride dispatches below, which reject a second metal.
+    if has_metal_pair_shape(mol):
+        return name_metal_pair(mol)
 
     # A chalcogen ring-oxide (P-62.5's functional-class "oxide" pattern,
     # not limited to acyclic amines) breaks the ring's own aromaticity as

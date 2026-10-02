@@ -39,3 +39,24 @@ def test_coordination_name(smiles, expected):
 def test_coordination_out_of_scope_raises(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[BiH2][GeH3]", "germylbismuthane"),
+        ("[SbH2][SnH3]", "stannylstibane"),
+        ("CC[Pb](CC)(CC)[Bi](C)C", "dimethyl(triethylplumbyl)bismuthane"),
+        ("c1ccccc1[Bi](c1ccccc1)[Sn](C)(C)C", "diphenyl(trimethylstannyl)bismuthane"),
+        ("C[Sb]([Sn](C)(C)C)[Sn](C)(C)C", "methyldi(trimethylstannyl)stibane"),
+        ("CCC[Bi](C)[GeH3]", "germyl(methyl)(propyl)bismuthane"),
+        ("C[Sb](C)[Ge](C)(C)[Sn](C)(C)C", "[dimethyl(trimethylstannyl)germyl]di(methyl)stibane"),
+    ],
+)
+def test_metal_pair_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_metal_pair_linked_by_carbon_chain_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccccc1[Bi](c1ccccc1)CCC[Pb](CC)(CC)CC")
