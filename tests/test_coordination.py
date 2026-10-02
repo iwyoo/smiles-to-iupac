@@ -30,7 +30,7 @@ def test_coordination_name(smiles, expected):
     "smiles",
     [
         "C[Ti](Cl)(Cl)Cl.[Na+]",
-        "C[Pt](C)(C)(C)[Pd](C)(C)C",
+        "C[Pt](C)[Pt](C)[Pt](C)C",
         "[Fe](C=C)Cl",
         "C[Hg]c1ccc(S(=O)(=O)O)cc1",
     ],
@@ -125,4 +125,22 @@ def test_class1_metal_with_class2_metal_group(smiles, expected):
     ],
 )
 def test_anionic_and_acyl_ligands(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "O=[C]1[Fe]23([C]#[O+])([C]#[O+])([C]#[O+])[C](=O)[Fe]12([C]#[O+])([C]#[O+])([C]#[O+])[C]3=O",
+            "tri-\u03bc-carbonyl-hexacarbonyl-1\u03ba3C,2\u03ba3C-diiron(Fe\u2014Fe)",
+        ),
+        ("Cl[Pd]1(Cl)Cl[Pd](Cl)(Cl)Cl1", "di-\u03bc-chlorido-tetrachlorido-1\u03ba2Cl,2\u03ba2Cl-dipalladium"),
+        (
+            "Cl[Pd-]1(Cl)Cl[Pd-](Cl)(Cl)Cl1.[Na+].[Na+]",
+            "disodium di-\u03bc-chlorido-tetrachlorido-1\u03ba2Cl,2\u03ba2Cl-dipalladate(2-)",
+        ),
+    ],
+)
+def test_mu_bridged_dinuclear(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
