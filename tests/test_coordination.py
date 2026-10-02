@@ -144,3 +144,18 @@ def test_anionic_and_acyl_ligands(smiles, expected):
 )
 def test_mu_bridged_dinuclear(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[Pb]([SnH3])([SnH3])([SnH3])[SnH3]", "plumbanetetrayltetrakis(stannane)"),
+        ("[PbH2]([SnH3])[SnH3]", "plumbanediylbis(stannane)"),
+        ("CC[Sn](CC)(CC)[Sn](CC)(CC)CC", "1,1,1,2,2,2-hexaethyldistannane"),
+        ("[GeH3][GeH2][GeH2][GeH3]", "tetragermane"),
+        ("CC[Sn](Cl)(CC)[Sn](CC)(CC)Cl", "1,2-dichloro-1,1,2,2-tetraethyldistannane"),
+        ("C[Sb](C)[Sb](C)C", "1,1,2,2-tetramethyldistibane"),
+    ],
+)
+def test_metal_chain_and_multiplicative_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

@@ -173,13 +173,15 @@ def name_metal_pair(mol) -> str:
     metals = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _STEMS]
     parent_num = next(n for n in _SENIORITY if any(a.GetAtomicNum() == n for a in metals))
     parents = [a for a in metals if a.GetAtomicNum() == parent_num]
-    if len(parents) != 1:
-        raise UnsupportedStructure("more than one atom of the senior metal is not supported yet")
-    (parent,) = parents
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
     if any(a.GetFormalCharge() != 0 or a.GetIsotope() != 0 for a in mol.GetAtoms()):
         raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+    if len(parents) != 1:
+        from ._metal_chain import name_metal_chain
+
+        return name_metal_chain(mol, adjacency(mol), _STEMS, metals, parent_num, _MAX_VALENCE[parent_num])
+    (parent,) = parents
     for a, b, *_ in non_single_bonds(mol):
         atoms = (mol.GetAtomWithIdx(a), mol.GetAtomWithIdx(b))
         if not any(x.GetIsAromatic() or x.GetAtomicNum() == 8 for x in atoms):
