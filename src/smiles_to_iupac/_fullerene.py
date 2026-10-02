@@ -128,8 +128,10 @@ atlas/spiral-code cross-reference tool": it computes the given cage's own
 canonical ring spiral (the Fowler-Manolopoulos algorithm, from the
 structure's planar embedding, not from any lookup shortcut) and matches it
 against the 24 known IPR isomers' published spirals. See that module's
-docstring for the full algorithm and its sourcing/validation. `has_fullerene_name`/`name_fullerene` fall through to it for any 84-carbon
-cage that isn't one of this module's own five hardcoded entries.
+docstring for the full algorithm and its sourcing/validation.
+`has_fullerene_name`/`name_fullerene` fall through to it for any
+84-carbon cage that isn't one of this module's own five hardcoded
+entries.
 
 Explicitly out of scope: any substituent, any heteroatom replacement or
 cyclopropane fusion other than the two single-site C60 cases above, any
