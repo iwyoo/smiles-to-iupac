@@ -1181,9 +1181,9 @@ def smiles_to_iupac(smiles: str) -> str:
     if has_pyridine_heterocycle_fusion_name(mol):
         return name_pyridine_heterocycle_fusion(mol)
 
-    # furo[x,y-z]pyran's own indicated-H whole-system numbering isn't
-    # verified yet -- routed here only for a precise, honest error
-    # instead of a generic fallback failure.
+    # furo[x,y-z]pyran (P-25.3.2.4(c)'s own worked example, pyran as
+    # base) -- routed here before `_hetero_monocyclic.py` below, same
+    # reason as above.
     if has_furan_pyran_fusion_name(mol):
         return name_furan_pyran_fusion(mol)
 
