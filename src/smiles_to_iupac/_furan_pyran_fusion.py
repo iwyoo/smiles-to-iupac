@@ -1,21 +1,23 @@
-"""Structural detection (not yet full naming) for furan ortho-fused onto
-pyran, both ring oxygens (P-25.3.2.4(c): pyran is base; Blue Book's own
-"2H-furo[3,2-b]pyran (PIN)", `tmp/bluebook/P2.txt` ~3998). The fusion
-descriptor is verified correct, but this project's own whole-system
-numbering for this hexagon+pentagon pair contradicts that "2H" --
-`name_furan_pyran_fusion` refuses to guess rather than risk a wrong H."""
+"""Furan ortho-fused onto pyran, both ring oxygens (P-25.3.2.4(c): pyran
+is base; Blue Book's own "2H-furo[3,2-b]pyran (PIN)", `tmp/bluebook/
+P2.txt` ~3998). The numbered diagram for this example (`P2.pdf` p.75)
+shows the fusion bond itself *single*, with furan's own oxygen-adjacent
+carbon as the sp3 position -- not a fully aromatic furan ring forcing
+sp3 into pyran, as first assumed; with that fixed, the existing
+whole-system numbering helper reproduces "2H" exactly, unchanged."""
 
 from rdkit import Chem
 
 from ._common import UnsupportedStructure
 from ._pyridine_heterocycle_fusion import _base_bond_letter
-from ._two_component_heterocycle_fusion import _local_numbering
+from ._two_component_heterocycle_fusion import _local_numbering, _whole_system_locants
 
 
 def find_furan_pyran_fusion_core(mol):
     """Return (pyran_ring, furan_ring, pyran_o, furan_o, fusion_atoms,
-    sp3_carbon) if `mol` is exactly furan ortho-fused to pyran, else
-    None."""
+    sp3_carbon) if `mol` is exactly furan ortho-fused to pyran via a
+    single fusion bond with furan's own oxygen-adjacent carbon as the
+    sp3 indicated-hydrogen position, else None."""
     if mol.GetNumAtoms() != 9:
         return None
     ring_info = mol.GetRingInfo()
@@ -28,10 +30,6 @@ def find_furan_pyran_fusion_core(mol):
     pyran_ring = next(r for r in atom_rings if len(r) == 6)
     furan_ring = next(r for r in atom_rings if len(r) == 5)
 
-    for idx in furan_ring:
-        atom = mol.GetAtomWithIdx(idx)
-        if not atom.GetIsAromatic() or atom.GetFormalCharge() != 0:
-            return None
     furan_hetero = [idx for idx in furan_ring if mol.GetAtomWithIdx(idx).GetAtomicNum() != 6]
     if len(furan_hetero) != 1 or mol.GetAtomWithIdx(furan_hetero[0]).GetAtomicNum() != 8:
         return None
@@ -41,37 +39,41 @@ def find_furan_pyran_fusion_core(mol):
     if len(pyran_hetero) != 1 or mol.GetAtomWithIdx(pyran_hetero[0]).GetAtomicNum() != 8:
         return None
     pyran_o = pyran_hetero[0]
-    if mol.GetAtomWithIdx(pyran_o).GetTotalNumHs() != 0 or mol.GetAtomWithIdx(pyran_o).GetFormalCharge() != 0:
-        return None
+    for o in (furan_o, pyran_o):
+        atom = mol.GetAtomWithIdx(o)
+        if atom.GetTotalNumHs() != 0 or atom.GetFormalCharge() != 0:
+            return None
 
     shared = set(pyran_ring) & set(furan_ring)
     if len(shared) != 2 or pyran_o in shared or furan_o in shared:
         return None
     a, b = shared
-    if b not in {n.GetIdx() for n in mol.GetAtomWithIdx(a).GetNeighbors()}:
+    fusion_bond = mol.GetBondBetweenAtoms(a, b)
+    if fusion_bond is None or fusion_bond.GetBondTypeAsDouble() != 1.0:
         return None
 
     sp3 = [
         idx
-        for idx in pyran_ring
+        for idx in furan_ring
         if idx not in shared
-        and idx != pyran_o
         and mol.GetAtomWithIdx(idx).GetAtomicNum() == 6
+        and furan_o in {n.GetIdx() for n in mol.GetAtomWithIdx(idx).GetNeighbors()}
+        and mol.GetAtomWithIdx(idx).GetTotalNumHs() == 2
         and all(bond.GetBondTypeAsDouble() == 1.0 for bond in mol.GetAtomWithIdx(idx).GetBonds())
     ]
     if len(sp3) != 1:
         return None
-    for idx in pyran_ring:
-        if idx in shared or idx == pyran_o or idx == sp3[0]:
-            continue
+
+    for idx in (set(furan_ring) | set(pyran_ring)) - shared - {furan_o, pyran_o, sp3[0]}:
         atom = mol.GetAtomWithIdx(idx)
         if atom.GetAtomicNum() != 6 or atom.GetFormalCharge() != 0:
             return None
         if not any(bond.GetBondTypeAsDouble() == 2.0 for bond in atom.GetBonds()):
             return None
+    for idx in shared:
+        if not any(bond.GetBondTypeAsDouble() == 2.0 for bond in mol.GetAtomWithIdx(idx).GetBonds()):
+            return None
 
-    if mol.GetNumAtoms() != len(set(pyran_ring) | set(furan_ring)):
-        return None
     if len(Chem.GetMolFrags(mol)) > 1:
         return None
 
@@ -89,7 +91,7 @@ def name_furan_pyran_fusion(mol) -> str:
             "this two-ring system is not a supported furan + pyran "
             "ortho-fusion (see P-25.3.1.3)"
         )
-    pyran_ring, furan_ring, pyran_o, furan_o, fusion_atoms, _sp3_carbon = core
+    pyran_ring, furan_ring, pyran_o, furan_o, fusion_atoms, sp3_carbon = core
     graph = {atom.GetIdx(): [n.GetIdx() for n in atom.GetNeighbors()] for atom in mol.GetAtoms()}
 
     base = _base_bond_letter(graph, pyran_ring, pyran_o, fusion_atoms)
@@ -109,11 +111,7 @@ def name_furan_pyran_fusion(mol) -> str:
     base_low, base_high = sorted(fusion_atoms, key=lambda atom: base_numbering[atom])
     citation = f"{furan_numbering[base_low]},{furan_numbering[base_high]}"
 
-    raise UnsupportedStructure(
-        f"furo[{citation}-{letter}]pyran's fusion descriptor is known, but "
-        "this project's whole-system P-25.3.3.1.1 numbering for a "
-        "hexagon+pentagon heterocyclic pair is not yet verified against "
-        "the Blue Book's own indicated-hydrogen answer -- "
-        "refusing to guess the H locant rather than risk a silently "
-        "wrong name"
-    )
+    whole_system_locants = _whole_system_locants(graph, [pyran_ring, furan_ring], fusion_atoms, mol)
+    indicated_h, _is_fusion = whole_system_locants[sp3_carbon]
+
+    return f"{indicated_h}H-furo[{citation}-{letter}]pyran"
