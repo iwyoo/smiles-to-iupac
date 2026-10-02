@@ -1,15 +1,8 @@
-"""Naming of organometallics with two or more Group 13-15 metals bonded
-directly to each other (P-69.5.3, Chapter P-6a, `tmp/bluebook/P6a.txt`
-lines 8971-8985): substitutive nomenclature, the parent hydride chosen by
-the P-41 order As > Sb > Bi > Ge > Sn > Pb > Al > Ga > In > Tl, every other
-metal cited as a '-yl' substituent group, e.g. 'germylbismuthane'.
-
-Scope: a single atom of the senior element, other metals attached to it
-(directly or through further metal-metal bonds) bearing hydrogen and
-plain alkyl/phenyl groups; the senior metal bears the same. Anything
-else (carbon chains linking two metals, halogens, rings other than
-phenyl, multiple bonds, charges, the multiplicative 'plumbanetetrayl'
-form) raises `UnsupportedStructure`.
+"""Directly bonded Group 13-15 metal pairs (P-69.5.3, `tmp/bluebook/P6a.txt`
+lines 8971-8985): the senior metal (As > Sb > Bi > Ge > Sn > Pb > Al > Ga >
+In > Tl) is the parent hydride, other metals are '-yl' groups
+('germylbismuthane'). Carbon chains linking metals and the multiplicative
+'plumbanetetrayl' form are out of scope.
 """
 
 from rdkit import Chem

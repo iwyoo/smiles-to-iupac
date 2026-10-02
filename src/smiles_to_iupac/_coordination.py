@@ -1,22 +1,8 @@
-"""Naming of mononuclear neutral Group 3-12 organometallics with
-monodentate sigma-bound ligands (P-69.2.1-P-69.2.3, Chapter P-6a,
-`tmp/bluebook/P6a.txt` lines 8614-8710): ligand names in alphanumerical
-order, then the metal name, e.g. 'trichlorido(methyl)titanium'.
-
-Anionic inorganic ligands take the '-ido' form (hydrido, chlorido, ...);
-carbon ligands use their substituent-group names (an accepted
-alternative to '-ide'); H2O, NH3 and CO are 'aqua', 'ammine' and
-'carbonyl'; any other neutral donor molecule (R3P, R3N, ethers, ...) keeps
-its own name, obtained by naming the ligand with the metal removed. A
-multiplied simple name takes 'di'/'tri', a name with a locant, a
-parenthesis or a neutral-molecule name takes 'bis'/'tris'. Ligand names
-after the first are enclosed in parentheses unless they are simple
-inorganic names, as in the worked examples.
-
-Out of scope (raise `UnsupportedStructure`): charged complexes, more than
-one metal, ring metals, multidentate/chelating, hapto and bridging
-ligands, anionic heteroatom donors (amido, alkoxido), and
-oxidation-state descriptors.
+"""Mononuclear Group 3-12 organometallic naming (P-69.2.1-P-69.2.3,
+`tmp/bluebook/P6a.txt` lines 8614-8710): ligands in alphanumerical order,
+then the metal ('trichlorido(methyl)titanium'); charged complexes take
+'(n+)'/'-ate(n-)' plus simple counter-ions. Chelating, hapto and bridging
+ligands are out of scope.
 """
 
 from rdkit import Chem
@@ -129,36 +115,9 @@ def _counter_ion_words(frags):
     return " ".join((multiplying_prefix(n) if n > 1 else "") + w for w, n in sorted(counts.items()))
 
 
-def name_coordination(mol) -> str:
-    frags = Chem.GetMolFrags(mol, asMols=True)
-    if len(frags) == 1:
-        return _name_complex(mol)
-    complexes = [f for f in frags if has_coordination_shape(f)]
-    if len(complexes) != 1:
-        raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    (complex_mol,) = complexes
-    others = [f for f in frags if f is not complex_mol]
-    metal = next(a for a in complex_mol.GetAtoms() if a.GetAtomicNum() in _METAL_NAMES)
-    charge = metal.GetFormalCharge()
-    if charge == 0:
-        raise UnsupportedStructure("a neutral complex with counter-ions is not supported")
-    name = _name_complex(complex_mol)
-    words = _counter_ion_words(others)
-    return f"{name} {words}" if charge > 0 else f"{words} {name}"
-
-
-def _name_complex(mol) -> str:
-    metals = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _METAL_NAMES]
-    if len(metals) != 1:
-        raise UnsupportedStructure("more than one transition-metal atom is not supported yet")
-    (metal,) = metals
-    if metal.IsInRing():
-        raise UnsupportedStructure("a ring metal atom is not supported here (see P-69.4)")
-    if any(a.GetIsotope() != 0 for a in mol.GetAtoms()):
-        raise UnsupportedStructure("isotopically modified atoms are not supported yet")
-    charge = metal.GetFormalCharge()
-
-    graph = adjacency(mol)
+def collect_ligands(mol, metal, graph, skip=frozenset()):
+    """Ligand labels on `metal` -> counts, plus the label classes used for
+    enclosure; neighbors in `skip` (e.g. ring atoms) are not ligands."""
     counts: dict[str, int] = {}
     simple_labels: set[str] = set()
     organic: set[str] = set()
@@ -169,6 +128,8 @@ def _name_complex(mol) -> str:
 
     seen: set[int] = set()
     for donor in metal.GetNeighbors():
+        if donor.GetIdx() in skip:
+            continue
         if donor.GetIdx() in seen:
             continue
         atoms = _component(graph, donor.GetIdx(), metal.GetIdx())
@@ -208,6 +169,41 @@ def _name_complex(mol) -> str:
                 organic.add(label)
                 neutral.add(label)
         counts[label] = counts.get(label, 0) + 1
+    return counts, simple_labels, organic, neutral
+
+
+def name_coordination(mol) -> str:
+    frags = Chem.GetMolFrags(mol, asMols=True)
+    if len(frags) == 1:
+        return _name_complex(mol)
+    complexes = [f for f in frags if has_coordination_shape(f)]
+    if len(complexes) != 1:
+        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+    (complex_mol,) = complexes
+    others = [f for f in frags if f is not complex_mol]
+    metal = next(a for a in complex_mol.GetAtoms() if a.GetAtomicNum() in _METAL_NAMES)
+    charge = metal.GetFormalCharge()
+    if charge == 0:
+        raise UnsupportedStructure("a neutral complex with counter-ions is not supported")
+    name = _name_complex(complex_mol)
+    words = _counter_ion_words(others)
+    return f"{name} {words}" if charge > 0 else f"{words} {name}"
+
+
+def _name_complex(mol) -> str:
+    metals = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _METAL_NAMES]
+    if len(metals) != 1:
+        raise UnsupportedStructure("more than one transition-metal atom is not supported yet")
+    (metal,) = metals
+    if metal.IsInRing():
+        raise UnsupportedStructure("a ring metal atom is not supported here (see P-69.4)")
+    if any(a.GetIsotope() != 0 for a in mol.GetAtoms()):
+        raise UnsupportedStructure("isotopically modified atoms are not supported yet")
+    charge = metal.GetFormalCharge()
+
+    graph = adjacency(mol)
+    counts, simple_labels, organic, neutral = collect_ligands(mol, metal, graph)
+
 
     out = []
     for position, label in enumerate(sorted(counts, key=lambda s: s.lstrip("(").lower())):
