@@ -171,6 +171,10 @@ from ._pyridine_bicyclic_fusion import has_pyridine_bicyclic_fusion_name, name_p
 from ._furano_bridge_quinoline import has_furano_bridge_quinoline_name, name_furano_bridge_quinoline
 from ._pyrano_bridge_quinoline import has_pyrano_bridge_quinoline_name, name_pyrano_bridge_quinoline
 from ._anthracene_fusion import has_anthracene_fusion_name, name_anthracene_fusion
+from ._anthracene_cyclopenta_fusion import (
+    has_anthracene_cyclopenta_fusion_name,
+    name_anthracene_cyclopenta_fusion,
+)
 from ._tetracene_fusion import has_tetracene_fusion_name, name_tetracene_fusion
 from ._pentacene_fusion import has_pentacene_fusion_name, name_pentacene_fusion
 from ._hexacene_fusion import has_hexacene_fusion_name, name_hexacene_fusion
@@ -1120,6 +1124,12 @@ def smiles_to_iupac(smiles: str) -> str:
     # benzo[a]/[e]/[f]azulene (same mechanism, azulene as the base).
     if has_azulene_fusion_name(mol):
         return name_azulene_fusion(mol)
+
+    # cyclopenta[a]/[b]anthracene (a non-aromatic attachment this time,
+    # so the fusion letter alone isn't enough -- the indicated-H locant
+    # needs a fresh whole-system numbering, see the module docstring).
+    if has_anthracene_cyclopenta_fusion_name(mol):
+        return name_anthracene_cyclopenta_fusion(mol)
 
     # thieno[2,3-b]thiophene/furo[2,3-b]furan/thieno[2,3-b]furan etc.
     # (P-25.3.1.3's computed fusion-locant-letter mechanism, for two

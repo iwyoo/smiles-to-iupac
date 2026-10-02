@@ -27,7 +27,15 @@ from rdkit import Chem
 
 
 def find_fusion_letter(
-    mol, ref, letter_by_pair, excluded_letters, num_atoms, num_rings, nonaromatic_ref_atoms=frozenset()
+    mol,
+    ref,
+    letter_by_pair,
+    excluded_letters,
+    num_atoms,
+    num_rings,
+    nonaromatic_ref_atoms=frozenset(),
+    num_extra_atoms=4,
+    nonaromatic_extra_atom_count=0,
 ):
     """`ref`: the base's reference molecule (all-carbon, aromatic aside
     from any `nonaromatic_ref_atoms`). `letter_by_pair`: {frozenset of the
@@ -38,11 +46,13 @@ def find_fusion_letter(
     via a different, more senior base component) -- returns None for
     those, same as a non-match, so the caller falls through to whichever
     module does claim that shape. `num_atoms`/`num_rings`: the exact
-    fused (base + one benzo ring) molecule's expected atom and ring
-    count, ruling out every other size before the more expensive
-    substructure search below runs. `nonaromatic_ref_atoms`: `ref`-index
-    atoms expected to be non-aromatic (see module docstring); every other
-    atom in the fused molecule must be aromatic.
+    fused molecule's expected atom and ring count, ruling out every other
+    size before the more expensive substructure search below runs.
+    `nonaromatic_ref_atoms`: `ref`-index atoms expected to be non-aromatic
+    (see module docstring). `num_extra_atoms`/`nonaromatic_extra_atom_count`:
+    the attached ring's own atom count/non-aromatic count beyond the two
+    shared fusion atoms (default 4/0, a plain aromatic benzo ring; a
+    non-aromatic attachment like cyclopenta passes a smaller/nonzero pair).
 
     Returns the winning letter (alphabetically lowest among every
     automorphism of `ref` that matches, per P-25.3.1.3's own tie-break),
@@ -51,7 +61,8 @@ def find_fusion_letter(
         return None
     if mol.GetRingInfo().NumRings() != num_rings:
         return None
-    if sum(1 for atom in mol.GetAtoms() if not atom.GetIsAromatic()) != len(nonaromatic_ref_atoms):
+    expected_nonaromatic = len(nonaromatic_ref_atoms) + nonaromatic_extra_atom_count
+    if sum(1 for atom in mol.GetAtoms() if not atom.GetIsAromatic()) != expected_nonaromatic:
         return None
     for atom in mol.GetAtoms():
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
@@ -66,12 +77,11 @@ def find_fusion_letter(
     for match in matches:
         core = set(match)
         extra = [a.GetIdx() for a in mol.GetAtoms() if a.GetIdx() not in core]
-        if len(extra) != 4:
+        if len(extra) != num_extra_atoms:
             continue
-        if any(
-            mol.GetAtomWithIdx(a).GetAtomicNum() != 6 or not mol.GetAtomWithIdx(a).GetIsAromatic()
-            for a in extra
-        ):
+        if any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in extra):
+            continue
+        if sum(1 for a in extra if not mol.GetAtomWithIdx(a).GetIsAromatic()) != nonaromatic_extra_atom_count:
             continue
         target_to_ref_idx = {match[i]: i for i in range(len(match))}
         if any(
