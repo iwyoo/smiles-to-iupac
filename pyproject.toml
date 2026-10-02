@@ -21,6 +21,7 @@ classifiers = [
 ]
 dependencies = [
     "rdkit>=2023.9.1",
+    "networkx>=3.0",
 ]
 
 [project.optional-dependencies]

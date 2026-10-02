@@ -119,15 +119,30 @@ exact-match entry:
   and the nor-/seco-/cyclo- prefix families (P-27.4.2/.3/.4) are each
   out of scope -- separate, unresearched follow-up work.
 
-Explicitly out of scope: any substituent, any other fullerene cage size
-or isomer, any heteroatom replacement or cyclopropane fusion other than
-the two single-site cases above, and anything not exactly matching one
-of these five structures. `has_fullerene_name` returns False for all of
-these, so `core.py`'s existing dispatch continues to raise
-`UnsupportedStructure` for them, unchanged.
+C84 cage sizes are handled differently from the five exact-match entries
+above: C84 has 24 distinct isolated-pentagon-rule isomers (unlike C60/C70/
+C76, which each have only one isomer -- or one isolable isomer -- at that
+size), so no single reference SMILES can cover it. `_fullerene_spiral.py`
+implements the real fix for what issue #997 called a missing "isomer-
+atlas/spiral-code cross-reference tool": it computes the given cage's own
+canonical ring spiral (the Fowler-Manolopoulos algorithm, from the
+structure's planar embedding, not from any lookup shortcut) and matches it
+against the 24 known IPR isomers' published spirals. See that module's
+docstring for the full algorithm and its sourcing/validation. `has_fullerene_name`/`name_fullerene` fall through to it for any 84-carbon
+cage that isn't one of this module's own five hardcoded entries.
+
+Explicitly out of scope: any substituent, any heteroatom replacement or
+cyclopropane fusion other than the two single-site C60 cases above, any
+cage size other than 60/70/76/84, and (even at size 84) any non-IPR
+isomer or isomer not among the 24 in `_fullerene_spiral.py`'s table.
+`has_fullerene_name` returns False for all of these, so `core.py`'s
+existing dispatch continues to raise `UnsupportedStructure` for them,
+unchanged.
 """
 
 from rdkit import Chem
+
+from ._fullerene_spiral import match_c84_isomer
 
 _FULLERENE_C60_SMILES = (
     "C12=C3C4=C5C6=C1C7=C8C9=C1C%10=C%11C(=C29)C3=C2C3=C4C4=C5C5=C9C6=C7C6=C7C8=C1"
@@ -158,6 +173,17 @@ _CYCLOPROPA_C60_SMILES = (
     "C%18=C%10%16)C7=C%25C9=C(C4=C76)C4=C2C(=C%17C3=C%15C5=C81)C%19=C%21C4=C%239"
 )
 
+# Reference structure for one of C84's 24 IPR isomers (isomer #24, D6h),
+# used only as a test fixture for `_fullerene_spiral.py`'s general spiral-
+# matching mechanism -- see that module's docstring. Taken from PubChem CID
+# 133108900 (InChIKey FQRWAZOLUJHNDT-UHFFFAOYSA-N).
+_C84_D6H_ISOMER_24_SMILES = (
+    "C12=C3C4=C5C6=C7C8=C9C%10=C%11C%12=C%13C%14=C%15C%16=C%17C%18=C%19C%20=C%21C"
+    "%22=C(C1=C1C(=C36)C(=C7%10)C(=C%11%14)C(=C%18%15)C1=C%22%19)C1=C2C2=C4C3=C4"
+    "C5=C8C5=C6C9=C%12C7=C8C%13=C%16C9=C%10C%17=C%20C%11=C%12C%21=C1C1=C2C2=C3C3="
+    "C%13C%14=C2C1=C%12C1=C%14C2=C(C%10=C%111)C9=C8C1=C2C%13=C(C5=C43)C6=C71"
+)
+
 _FULLERENE_NAMES = {
     Chem.CanonSmiles(_FULLERENE_C60_SMILES): "[60]fullerene",
     Chem.CanonSmiles(_FULLERENE_C70_SMILES): "(C70-D5h(6))[5,6]fullerene",
@@ -168,8 +194,13 @@ _FULLERENE_NAMES = {
 
 
 def has_fullerene_name(mol) -> bool:
-    return Chem.MolToSmiles(mol) in _FULLERENE_NAMES
+    if Chem.MolToSmiles(mol) in _FULLERENE_NAMES:
+        return True
+    return match_c84_isomer(mol) is not None
 
 
 def name_fullerene(mol) -> str:
-    return _FULLERENE_NAMES[Chem.MolToSmiles(mol)]
+    smi = Chem.MolToSmiles(mol)
+    if smi in _FULLERENE_NAMES:
+        return _FULLERENE_NAMES[smi]
+    return match_c84_isomer(mol)
