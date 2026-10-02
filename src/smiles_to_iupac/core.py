@@ -82,6 +82,7 @@ from ._bridged_alicyclic_parent import has_bridged_steroid_name, name_bridged_st
 from ._borane import has_simple_borane_shape, name_simple_borane
 from ._boronic_acid import has_boronic_acid_shape, name_boronic_acid
 from ._borinic_acid import has_borinic_acid_shape, name_borinic_acid
+from ._coordination import has_coordination_shape, name_coordination
 from ._group1_2_organometallic import has_group1_2_organometallic_shape, name_group1_2_organometallic
 from ._group13_hydride import (
     has_group13_hydride_shape,
@@ -829,6 +830,11 @@ def smiles_to_iupac(smiles: str) -> str:
     # these elements at all.
     if has_group1_2_organometallic_shape(mol):
         return name_group1_2_organometallic(mol)
+
+    # A Group 3-12 metal (P-69.2.3 coordination naming) is likewise
+    # unrecognized by every branch below.
+    if has_coordination_shape(mol):
+        return name_coordination(mol)
 
     # buckminsterfullerene (P-27's '[60]fullerene', a fixed 12-pentagon/
     # 20-hexagon cage) is recognized by exact whole-molecule match --
