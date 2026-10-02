@@ -1,5 +1,6 @@
 from smiles_to_iupac import smiles_to_iupac
 from smiles_to_iupac._fullerene import (
+    _C84_D6H_ISOMER_24_SMILES,
     _CYCLOPROPA_C60_SMILES,
     _FULLERENE_C60_SMILES,
     _FULLERENE_C70_SMILES,
@@ -50,6 +51,17 @@ def test_cyclopropa_c60_fullerene():
     # single symmetry orbit, so the locant is fixed regardless of which
     # bond was used.
     assert smiles_to_iupac(_CYCLOPROPA_C60_SMILES) == "3'H-cyclopropa[1,9](C60-Ih)[5,6]fullerene"
+
+
+def test_c84_isomer_24_via_spiral_match():
+    # (C84-D6h(24)), a real structure (PubChem CID 133108900, InChIKey
+    # FQRWAZOLUJHNDT-UHFFFAOYSA-N) not in _fullerene.py's exact-match table:
+    # identified instead via _fullerene_spiral.py's general ring-spiral
+    # algorithm against the 24 known C84 IPR isomers -- the #997 "isomer
+    # atlas" mechanism. Independently confirmed by a real paper's title,
+    # "A minor isomer of C84 fullerene, D6h-C84(24)" (ScienceDirect), naming
+    # this same isomer the same way.
+    assert smiles_to_iupac(_C84_D6H_ISOMER_24_SMILES) == "(C84-D6h(24))[5,6]fullerene"
 
 
 def test_benzene_still_resolves():
