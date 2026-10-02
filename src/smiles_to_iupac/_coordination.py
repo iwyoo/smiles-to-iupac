@@ -97,17 +97,66 @@ def _neutral_ligand_name(mol, metal, donor, atoms):
     return smiles_to_iupac(Chem.MolToSmiles(ligand))
 
 
+_ATE_NAMES = {
+    21: "scandate", 22: "titanate", 23: "vanadate", 24: "chromate",
+    25: "manganate", 26: "ferrate", 27: "cobaltate", 28: "nickelate",
+    29: "cuprate", 30: "zincate", 39: "yttrate", 40: "zirconate",
+    41: "niobate", 42: "molybdate", 43: "technetate", 44: "ruthenate",
+    45: "rhodate", 46: "palladate", 47: "argentate", 48: "cadmate",
+    72: "hafnate", 73: "tantalate", 74: "tungstate", 75: "rhenate",
+    76: "osmate", 77: "iridate", 78: "platinate", 79: "aurate",
+    80: "mercurate",
+}
+_CATIONS = {3: "lithium", 11: "sodium", 19: "potassium"}
+_ANIONS = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
+
+
+def _charge_text(charge: int) -> str:
+    return f"({abs(charge)}{'+' if charge > 0 else '-'})"
+
+
+def _counter_ion_words(frags):
+    counts: dict[str, int] = {}
+    for frag in frags:
+        atom = frag.GetAtomWithIdx(0)
+        if frag.GetNumAtoms() != 1:
+            raise UnsupportedStructure("polyatomic counter-ions are not supported yet")
+        table, charge = (_CATIONS, 1) if atom.GetFormalCharge() > 0 else (_ANIONS, -1)
+        if atom.GetFormalCharge() != charge or atom.GetAtomicNum() not in table:
+            raise UnsupportedStructure("this counter-ion is not supported yet")
+        word = table[atom.GetAtomicNum()]
+        counts[word] = counts.get(word, 0) + 1
+    return " ".join((multiplying_prefix(n) if n > 1 else "") + w for w, n in sorted(counts.items()))
+
+
 def name_coordination(mol) -> str:
+    frags = Chem.GetMolFrags(mol, asMols=True)
+    if len(frags) == 1:
+        return _name_complex(mol)
+    complexes = [f for f in frags if has_coordination_shape(f)]
+    if len(complexes) != 1:
+        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+    (complex_mol,) = complexes
+    others = [f for f in frags if f is not complex_mol]
+    metal = next(a for a in complex_mol.GetAtoms() if a.GetAtomicNum() in _METAL_NAMES)
+    charge = metal.GetFormalCharge()
+    if charge == 0:
+        raise UnsupportedStructure("a neutral complex with counter-ions is not supported")
+    name = _name_complex(complex_mol)
+    words = _counter_ion_words(others)
+    return f"{name} {words}" if charge > 0 else f"{words} {name}"
+
+
+def _name_complex(mol) -> str:
     metals = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _METAL_NAMES]
     if len(metals) != 1:
         raise UnsupportedStructure("more than one transition-metal atom is not supported yet")
     (metal,) = metals
     if metal.IsInRing():
         raise UnsupportedStructure("a ring metal atom is not supported here (see P-69.4)")
-    if len(Chem.GetMolFrags(mol)) > 1:
-        raise UnsupportedStructure("multi-fragment structures are not supported yet")
-    if metal.GetFormalCharge() != 0 or any(a.GetIsotope() != 0 for a in mol.GetAtoms()):
-        raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+    if any(a.GetIsotope() != 0 for a in mol.GetAtoms()):
+        raise UnsupportedStructure("isotopically modified atoms are not supported yet")
+    charge = metal.GetFormalCharge()
 
     graph = adjacency(mol)
     counts: dict[str, int] = {}
@@ -171,4 +220,7 @@ def name_coordination(mol) -> str:
         if label in organic and position > 0 and simple and not text.startswith("("):
             text = f"({text})"
         out.append(text)
-    return "".join(out) + _METAL_NAMES[metal.GetAtomicNum()]
+    if charge < 0:
+        return "".join(out) + _ATE_NAMES[metal.GetAtomicNum()] + _charge_text(charge)
+    metal_name = _METAL_NAMES[metal.GetAtomicNum()]
+    return "".join(out) + metal_name + (_charge_text(charge) if charge else "")

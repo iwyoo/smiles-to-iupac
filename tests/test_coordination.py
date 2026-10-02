@@ -60,3 +60,15 @@ def test_metal_pair_name(smiles, expected):
 def test_metal_pair_linked_by_carbon_chain_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("c1ccccc1[Bi](c1ccccc1)CCC[Pb](CC)(CC)CC")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC[Os+]([NH3])([NH3])([NH3])([NH3])[NH3].[Cl-]", "pentaammine(ethyl)osmium(1+) chloride"),
+        ("Cl[Fe-](Cl)(Cl)Cl.[Na+]", "sodium tetrachloridoferrate(1-)"),
+        ("Cl[Pt-2](Cl)(Cl)(Cl)(Cl)Cl.[K+].[K+]", "dipotassium hexachloridoplatinate(2-)"),
+    ],
+)
+def test_charged_complex_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
