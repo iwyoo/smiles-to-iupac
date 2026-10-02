@@ -183,6 +183,7 @@ from ._phenanthrene_fusion import has_phenanthrene_fusion_name, name_phenanthren
 from ._pyrene_fusion import has_pyrene_fusion_name, name_pyrene_fusion
 from ._perylene_fusion import has_perylene_fusion_name, name_perylene_fusion
 from ._perylene_peri_fusion import has_perylene_peri_fusion_name, name_perylene_peri_fusion
+from ._anthanthrene_fusion import has_anthanthrene_fusion_name, name_anthanthrene_fusion
 from ._chrysene_fusion import has_chrysene_fusion_name, name_chrysene_fusion
 from ._picene_fusion import has_picene_fusion_name, name_picene_fusion
 from ._pentaphene_fusion import has_pentaphene_fusion_name, name_pentaphene_fusion
@@ -1077,6 +1078,13 @@ def smiles_to_iupac(smiles: str) -> str:
     # checks above.
     if has_chrysene_fusion_name(mol):
         return name_chrysene_fusion(mol)
+
+    # dibenzo[def,mno]chrysene (anthanthrene) -- two peri-fused benzo
+    # rings on chrysene at once, each spanning three consecutive
+    # periphery bonds (chrysene's own C2 symmetry maps one span onto
+    # the other) -- routed here for the same reason as the checks above.
+    if has_anthanthrene_fusion_name(mol):
+        return name_anthanthrene_fusion(mol)
 
     # benzo[b]picene/benzo[c]picene (same mechanism again, for picene as
     # the base component -- picene itself is `_chrysene_fusion.py`'s
