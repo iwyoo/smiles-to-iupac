@@ -283,6 +283,8 @@ from ._phosphinic_acid import has_phosphinic_acid_shape, name_phosphinic_acid
 from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
 from ._fluorene_parent import has_fluorene_parent_name, name_fluorene_parent
+from ._fluorene_fusion import has_fluorene_fusion_name, name_fluorene_fusion
+from ._azulene_fusion import has_azulene_fusion_name, name_azulene_fusion
 from ._cyclopenta_naphthalene import has_cyclopenta_naphthalene_name, name_cyclopenta_naphthalene
 from ._azulene_parent import has_azulene_parent_name, name_azulene_parent
 from ._benzo_cd_indole import has_benzo_cd_indole_name, name_benzo_cd_indole
@@ -1109,6 +1111,15 @@ def smiles_to_iupac(smiles: str) -> str:
     # second route to them.
     if has_acephenanthrylene_fusion_name(mol):
         return name_acephenanthrylene_fusion(mol)
+
+    # benzo[a]/[b]/[c]fluorene (same mechanism, fluorene as the base --
+    # its sp3 CH2 gets a fresh indicated-H locant on the bigger system).
+    if has_fluorene_fusion_name(mol):
+        return name_fluorene_fusion(mol)
+
+    # benzo[a]/[e]/[f]azulene (same mechanism, azulene as the base).
+    if has_azulene_fusion_name(mol):
+        return name_azulene_fusion(mol)
 
     # thieno[2,3-b]thiophene/furo[2,3-b]furan/thieno[2,3-b]furan etc.
     # (P-25.3.1.3's computed fusion-locant-letter mechanism, for two
