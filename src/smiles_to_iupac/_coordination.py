@@ -122,6 +122,7 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
     simple_labels: set[str] = set()
     organic: set[str] = set()
     neutral: set[str] = set()
+    donors: dict[str, str] = {}
     if metal.GetTotalNumHs():
         counts["hydrido"] = metal.GetTotalNumHs()
         simple_labels.add("hydrido")
@@ -134,6 +135,8 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
             continue
         atoms = _component(graph, donor.GetIdx(), metal.GetIdx())
         seen |= atoms
+        if any(mol.GetAtomWithIdx(i).GetAtomicNum() in _METAL_NAMES for i in atoms):
+            raise UnsupportedStructure("bridging ligands and metal-metal bonds are not supported here")
         if sum(1 for n in metal.GetNeighbors() if n.GetIdx() in atoms) > 1:
             raise UnsupportedStructure("chelating, hapto and bridging ligands are not supported yet")
         atomic_num = donor.GetAtomicNum()
@@ -169,7 +172,24 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
                 organic.add(label)
                 neutral.add(label)
         counts[label] = counts.get(label, 0) + 1
-    return counts, simple_labels, organic, neutral
+        donors[label] = donor.GetSymbol()
+    if "hydrido" in counts:
+        donors["hydrido"] = "H"
+    return counts, simple_labels, organic, neutral, donors
+
+
+_CP_LABEL = "\u03b75-cyclopenta-2,4-dien-1-yl"
+_CP_ANION = Chem.CanonSmiles("[CH-]1C=CC=C1")
+_CP_RADICAL = Chem.CanonSmiles("[CH]1C=CC=C1")
+
+
+def _cp_charge(frag):
+    smiles = Chem.MolToSmiles(frag)
+    if smiles == _CP_ANION:
+        return -1
+    if smiles == _CP_RADICAL:
+        return 0
+    return None
 
 
 def name_coordination(mol) -> str:
@@ -181,17 +201,60 @@ def name_coordination(mol) -> str:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
     (complex_mol,) = complexes
     others = [f for f in frags if f is not complex_mol]
+    cp_charges = [_cp_charge(f) for f in others]
+    cp_count = sum(c is not None for c in cp_charges)
+    others = [f for f, c in zip(others, cp_charges) if c is None]
     metal = next(a for a in complex_mol.GetAtoms() if a.GetAtomicNum() in _METAL_NAMES)
-    charge = metal.GetFormalCharge()
+    charge = metal.GetFormalCharge() + sum(c for c in cp_charges if c is not None)
+    name = _name_complex(complex_mol, {_CP_LABEL: cp_count} if cp_count else None, charge)
+    if not others:
+        return name
+    words = _counter_ion_words(others)
     if charge == 0:
         raise UnsupportedStructure("a neutral complex with counter-ions is not supported")
-    name = _name_complex(complex_mol)
-    words = _counter_ion_words(others)
     return f"{name} {words}" if charge > 0 else f"{words} {name}"
 
 
-def _name_complex(mol) -> str:
+def _name_dinuclear(mol, metals) -> str:
+    first, second = metals
+    if (
+        first.GetAtomicNum() != second.GetAtomicNum()
+        or mol.GetBondBetweenAtoms(first.GetIdx(), second.GetIdx()) is None
+        or first.IsInRing()
+        or any(m.GetFormalCharge() != 0 for m in metals)
+        or any(a.GetIsotope() != 0 for a in mol.GetAtoms())
+    ):
+        raise UnsupportedStructure("only a neutral, directly bonded homodinuclear complex is supported here")
+    graph = adjacency(mol)
+    per_metal = [collect_ligands(mol, m, graph, skip={o.GetIdx()}) for m, o in ((first, second), (second, first))]
+    per_metal.sort(key=lambda r: -sum(r[0].values()))
+    counts: dict[str, int] = {}
+    simple_labels, organic, neutral, donors = set(), set(), set(), {}
+    for c, sl, org, neu, don in per_metal:
+        for label, n in c.items():
+            counts[label] = counts.get(label, 0) + n
+        simple_labels |= sl
+        organic |= org
+        neutral |= neu
+        donors.update(don)
+    tags = {}
+    for label in counts:
+        parts = []
+        for i, (c, *_rest) in enumerate(per_metal, start=1):
+            n = c.get(label, 0)
+            if n:
+                parts.append(f"{i}\u03ba{n if n > 1 else ''}{donors[label]}")
+        tags[label] = "-" + ",".join(parts) + "-"
+    ligands = _format_ligands(counts, simple_labels, organic, neutral, tags)
+    metal_name = _METAL_NAMES[first.GetAtomicNum()]
+    symbol = first.GetSymbol()
+    return f"{ligands}di{metal_name}({symbol}\u2014{symbol})"
+
+
+def _name_complex(mol, extra=None, charge=None) -> str:
     metals = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _METAL_NAMES]
+    if len(metals) == 2:
+        return _name_dinuclear(mol, metals)
     if len(metals) != 1:
         raise UnsupportedStructure("more than one transition-metal atom is not supported yet")
     (metal,) = metals
@@ -199,14 +262,27 @@ def _name_complex(mol) -> str:
         raise UnsupportedStructure("a ring metal atom is not supported here (see P-69.4)")
     if any(a.GetIsotope() != 0 for a in mol.GetAtoms()):
         raise UnsupportedStructure("isotopically modified atoms are not supported yet")
-    charge = metal.GetFormalCharge()
+    if charge is None:
+        charge = metal.GetFormalCharge()
 
     graph = adjacency(mol)
-    counts, simple_labels, organic, neutral = collect_ligands(mol, metal, graph)
+    counts, simple_labels, organic, neutral, _ = collect_ligands(mol, metal, graph)
+    for label, n in (extra or {}).items():
+        counts[label] = counts.get(label, 0) + n
+        organic.add(label)
 
 
+    out = _format_ligands(counts, simple_labels, organic, neutral)
+    if charge < 0:
+        return out + _ATE_NAMES[metal.GetAtomicNum()] + _charge_text(charge)
+    metal_name = _METAL_NAMES[metal.GetAtomicNum()]
+    return out + metal_name + (_charge_text(charge) if charge else "")
+
+
+def _format_ligands(counts, simple_labels, organic, neutral, tags=None) -> str:
+    tags = tags or {}
     out = []
-    for position, label in enumerate(sorted(counts, key=lambda s: s.lstrip("(").lower())):
+    for position, label in enumerate(sorted(counts, key=lambda s: s.lstrip("(").replace("\u03b75-", "").lower())):
         n = counts[label]
         simple = label in simple_labels or (label in organic and label not in neutral and _is_simple(label))
         if n > 1:
@@ -215,8 +291,5 @@ def _name_complex(mol) -> str:
             text = label if simple else f"({label})"
         if label in organic and position > 0 and simple and not text.startswith("("):
             text = f"({text})"
-        out.append(text)
-    if charge < 0:
-        return "".join(out) + _ATE_NAMES[metal.GetAtomicNum()] + _charge_text(charge)
-    metal_name = _METAL_NAMES[metal.GetAtomicNum()]
-    return "".join(out) + metal_name + (_charge_text(charge) if charge else "")
+        out.append(text + tags.get(label, ""))
+    return "".join(out)

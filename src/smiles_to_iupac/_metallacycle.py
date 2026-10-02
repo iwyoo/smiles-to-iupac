@@ -114,7 +114,7 @@ def name_metallacycle(mol) -> str:
         candidates.append((doubles, all_locants, grouped))
     doubles, _, grouped = min(candidates, key=lambda c: (c[0], c[1]))
 
-    counts, simple_labels, organic, neutral = collect_ligands(mol, metal, graph, skip=ring_set)
+    counts, simple_labels, organic, neutral, _ = collect_ligands(mol, metal, graph, skip=ring_set)
     if "hydrido" in counts:
         raise UnsupportedStructure("a hydrido ligand on the metal is not supported here yet")
     for label, n in counts.items():

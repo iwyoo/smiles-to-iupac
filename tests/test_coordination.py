@@ -72,3 +72,16 @@ def test_metal_pair_linked_by_carbon_chain_raises():
 )
 def test_charged_complex_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[Mn]([Mn](C#[O+])(C#[O+])(C#[O+])(C#[O+])C#[O+])(C#[O+])(C#[O+])(C#[O+])(C#[O+])C#[O+]", "decacarbonyl-1κ5C,2κ5C-dimanganese(Mn—Mn)"),
+        ("[Fe]([Fe](C#[O+])C#[O+])(C#[O+])(C#[O+])C#[O+]", "pentacarbonyl-1κ3C,2κ2C-diiron(Fe—Fe)"),
+        ("[Ti](Cl)Cl.C1=C[CH]C=C1.C1=C[CH]C=C1", "dichloridobis(η5-cyclopenta-2,4-dien-1-yl)titanium"),
+        ("[Mo+](C#[O+])(C#[O+])(C#[O+])C.C1=C[CH-]C=C1", "tricarbonyl(η5-cyclopenta-2,4-dien-1-yl)(methyl)molybdenum"),
+    ],
+)
+def test_dinuclear_and_hapto_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
