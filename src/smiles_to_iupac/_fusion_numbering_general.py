@@ -1,9 +1,8 @@
 """Atom-level P-25.3.3.1 peripheral numbering for a tree of ortho-fused
-mancude rings, on `_fusion_orientation_general.py`'s starting-ring engine
-plus P-25.3.3.1.2's heteroatom-lowest-locants tie-break only. Picks the
-right starting ring for 2 of 3 real cyclopenta-naphthalene isomers; the
-3rd needs a further structural tie-break this module lacks. Deliberately
-NOT wired into `core.py` until that gap closes.
+mancude rings, on `_fusion_orientation_general.py`'s starting-ring engine,
+a structural ring-junction tie-break, and P-25.3.3.1.2's heteroatom-
+lowest-locants tie-break. Verified against all 3 real cyclopenta-
+naphthalene isomers. Deliberately NOT wired into `core.py` yet.
 """
 
 from collections import defaultdict
@@ -107,12 +106,28 @@ def _numbering_from(cycle, fusion_atoms, start_i, direction):
     return locants
 
 
+def _privileged_fusion_atoms(ring_idx, atom_rings, fusion_atoms, cycle, idx_of):
+    """A ring's own fusion atom that also peripherally touches a fusion
+    atom of a DIFFERENT ring (a 3-ring-junction point) is structurally
+    distinguished, independent of locant value, per P-25.3.3.1.2's
+    numbering-direction rules -- not a free tie to minimize over."""
+    privileged = set()
+    for f in atom_rings[ring_idx] & fusion_atoms:
+        i = idx_of[f]
+        for step in (1, -1):
+            neighbor = cycle[(i + step) % len(cycle)]
+            if neighbor in fusion_atoms and neighbor not in atom_rings[ring_idx]:
+                privileged.add(f)
+                break
+    return privileged
+
+
 def general_peripheral_numbering(mol):
     """{atom_idx: locant_str} for a tree of ortho-fused mancude rings of
     any size, or None if the fusion graph isn't a simple ortho-fused tree.
-    Heteroatom-lowest-locants is the only P-25.3.3.1.2 tie-break applied;
-    ties beyond that resolve by ring/atom traversal order, not further
-    Blue Book sub-criteria (P-25.3.3.1.2(d)-(f) are not implemented)."""
+    A structurally-privileged fusion atom (see `_privileged_fusion_atoms`)
+    fixes the start when exactly one exists; otherwise heteroatom-lowest-
+    locants is the only further P-25.3.3.1.2 tie-break applied."""
     atom_rings, adj, edge_index_of, ring_sizes, n = _ring_graph(mol)
     if n < 2 or sum(len(v) for v in adj.values()) // 2 != n - 1:
         return None
@@ -126,7 +141,10 @@ def general_peripheral_numbering(mol):
 
     candidates = []
     for ring_idx in start_rings:
-        for f_atom in atom_rings[ring_idx] & fusion_atoms:
+        ring_fusion_atoms = atom_rings[ring_idx] & fusion_atoms
+        privileged = _privileged_fusion_atoms(ring_idx, atom_rings, fusion_atoms, cycle, idx_of)
+        start_atoms = privileged if len(privileged) == 1 else ring_fusion_atoms
+        for f_atom in start_atoms:
             i = idx_of[f_atom]
             for step in (1, -1):
                 neighbor = cycle[(i + step) % len(cycle)]
