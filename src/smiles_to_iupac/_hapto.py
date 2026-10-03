@@ -83,6 +83,13 @@ def hapto_label(mol, metal, donors_in, atoms):
     donor_idx = {d.GetIdx() for d in donors_in}
     if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms):
         raise UnsupportedStructure("a charged hapto ligand is not supported yet")
+    if not any(
+        b.GetBeginAtomIdx() in donor_idx
+        and b.GetEndAtomIdx() in donor_idx
+        and (b.GetIsAromatic() or b.GetBondTypeAsDouble() >= 2.0)
+        for b in mol.GetBonds()
+    ):
+        raise UnsupportedStructure("a metal bonded to several saturated carbons is not a hapto ligand")
     info = mol.GetRingInfo()
     ring = next((set(r) for r in info.AtomRings() if donor_idx <= set(r) and set(r) <= atoms), None)
     n = len(donor_idx)

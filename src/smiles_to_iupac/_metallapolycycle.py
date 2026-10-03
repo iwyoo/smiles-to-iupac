@@ -1,19 +1,27 @@
-"""Bicyclic metallacycles (P-69.4, `tmp/bluebook/P6a.txt` line
-8905: '6,6-di(eta5-cyclopenta-2,4-dien-1-yl)-6-titanabicyclo[3.2.0]heptane'):
-one Group 4-12 ring metal in a von Baeyer bicyclic carbon skeleton, named
-with the 'a' prefix on 'bicyclo[x.y.z]alkane'. Cp rings arrive as separate
-[CH-]/[CH] fragments; ring C=C gives 'ene' names. Polycyclic and
-hetero-atom rings are out of scope.
+"""Bicyclic, spiro and polycyclic von Baeyer metallacycles (P-69.4,
+`tmp/bluebook/P6a.txt` lines 8905-8940: '6,6-di(eta5-cyclopenta-2,4-dien-1-yl)-
+6-titanabicyclo[3.2.0]heptane'): one Group 4-12 metal in a carbon skeleton,
+named with the 'a' prefix on the bicyclo/tricyclo/spiro parent. Ligand
+components are split off the skeleton; Cp rings arrive as [CH-]/[CH]
+fragments. Fused (mancude) parents other than anthracene are out of scope.
 """
 
 from rdkit import Chem
 
-from ._bicyclic import _strip_leaves, _walk_bridge, bicyclic_parent_name, iter_bicyclic_numberings
-from ._numerals import alkane_name
+from ._bicyclic import _strip_leaves, bicyclic_parent_name, find_bicyclic_core, iter_bicyclic_numberings
 from ._common import UnsupportedStructure, adjacency, non_single_bonds
 from ._coordination import _CP_LABEL, _cp_charge, _net_charge, collect_ligands
 from ._metal_pair import _brackets
-from ._metallacycle import _METAL_A_PREFIXES, _substituent_entries, apply_repeats, ring_ligand_entries, skeleton_atoms
+from ._metallacycle import (
+    _METAL_A_PREFIXES,
+    _substituent_entries,
+    apply_repeats,
+    ring_ligand_entries,
+    skeleton_atoms,
+)
+from ._numerals import alkane_name
+from ._polycyclic import find_polycyclic_core, iter_polycyclic_candidates
+from ._spiro import find_monospiro_atom, iter_monospiro_numberings
 from ._substituents import format_substituent_prefixes
 
 
@@ -29,63 +37,73 @@ def _split(mol):
     return complexes[0], len(others), sum(cp_charges)
 
 
-def find_bicyclic_core(mol):
-    """Bicyclic core of the metal-bearing skeleton (ligand components and
-    their rings are excluded): (bridgehead1, bridgehead2, bridges) or None."""
-    metals = [a.GetIdx() for a in mol.GetAtoms() if a.GetSymbol() in _METAL_A_PREFIXES and a.IsInRing()]
-    if len(metals) != 1:
-        return None
-    full = adjacency(mol)
-    skeleton = skeleton_atoms(mol, metals[0], full)
-    core = _strip_leaves({a: {n for n in full[a] if n in skeleton} for a in skeleton})
+def _submol(mol, atoms):
+    keep = sorted(atoms)
+    rw = Chem.RWMol(mol)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - set(keep), reverse=True):
+        rw.RemoveAtom(idx)
+    sub = rw.GetMol()
+    sub.UpdatePropertyCache(strict=False)
+    Chem.FastFindRings(sub)
+    return sub, keep
+
+
+def _candidates(sub):
+    graph = adjacency(sub)
+    core = _strip_leaves(graph)
     if not core:
         return None
-    if sum(len(v) for v in core.values()) // 2 - len(core) + 1 != 2:
+    rings = sum(len(v) for v in core.values()) // 2 - len(core) + 1
+    if rings == 2:
+        bicyclic = find_bicyclic_core(sub)
+        if bicyclic is not None:
+            parent = bicyclic_parent_name(bicyclic)
+            return [(order, parent, ()) for order in iter_bicyclic_numberings(bicyclic)]
+        spiro = find_monospiro_atom(sub)
+        if spiro is not None:
+            return [(order, parent, ()) for parent, order in iter_monospiro_numberings(sub, spiro)]
         return None
-    if any(len(v) not in (2, 3) for v in core.values()):
-        return None
-    heads = [a for a, v in core.items() if len(v) == 3]
-    if len(heads) != 2:
-        return None
-    bh1, bh2 = heads
-    bridges = [_walk_bridge(core, bh1, bh2, start) for start in core[bh1]]
-    if any(b is None for b in bridges):
-        return None
-    return bh1, bh2, bridges
+    if rings >= 3:
+        polycyclic = find_polycyclic_core(sub, rings)
+        if polycyclic is not None:
+            return list(iter_polycyclic_candidates(polycyclic, rings))
+    return None
 
 
-def has_metallabicycle_shape(mol) -> bool:
-    split = _split(mol)
-    if split is None:
-        return False
-    core = find_bicyclic_core(split[0])
-    if core is None:
-        return False
-    bh1, bh2, bridges = core
-    atoms = [bh1, bh2] + [a for b in bridges for a in b]
-    metals = [a for a in atoms if split[0].GetAtomWithIdx(a).GetSymbol() in _METAL_A_PREFIXES]
+def _analyse(complex_mol):
+    metals = [a.GetIdx() for a in complex_mol.GetAtoms() if a.GetSymbol() in _METAL_A_PREFIXES and a.IsInRing()]
     if len(metals) != 1:
-        return False
-    in_core = [n for n in split[0].GetAtomWithIdx(metals[0]).GetNeighbors() if n.GetIdx() in atoms]
-    return len(in_core) == 2
+        return None
+    graph = adjacency(complex_mol)
+    skeleton = skeleton_atoms(complex_mol, metals[0], graph)
+    nbrs = [n for n in graph[metals[0]] if n in skeleton]
+    if len(nbrs) < 2 or (len(nbrs) > 2 and any(b in graph[a] for a in nbrs for b in nbrs)):
+        return None
+    sub, orig = _submol(complex_mol, skeleton)
+    candidates = _candidates(sub)
+    if candidates is None:
+        return None
+    return metals[0], graph, orig, candidates
 
 
-def name_metallabicycle(mol) -> str:
+def has_metallapolycycle_shape(mol) -> bool:
+    split = _split(mol)
+    return split is not None and _analyse(split[0]) is not None
+
+
+def name_metallapolycycle(mol) -> str:
     complex_mol, cp_count, cp_charge = _split(mol)
-    core = find_bicyclic_core(complex_mol)
-    bh1, bh2, bridges = core
-    core_atoms = {bh1, bh2, *(a for b in bridges for a in b)}
+    metal_idx, graph, orig, candidates = _analyse(complex_mol)
+    metal = complex_mol.GetAtomWithIdx(metal_idx)
+    core_atoms = {orig[i] for i in candidates[0][0]}
     if _net_charge(complex_mol) + cp_charge != 0:
         raise UnsupportedStructure("a charged complex is not supported here")
     if any(a.GetIsotope() != 0 for a in complex_mol.GetAtoms()):
         raise UnsupportedStructure("isotopically modified atoms are not supported yet")
-    metal_idx = next(a for a in core_atoms if complex_mol.GetAtomWithIdx(a).GetSymbol() in _METAL_A_PREFIXES)
-    metal = complex_mol.GetAtomWithIdx(metal_idx)
     for a in core_atoms - {metal_idx}:
         atom = complex_mol.GetAtomWithIdx(a)
         if atom.GetAtomicNum() != 6 or atom.GetIsAromatic() or atom.GetFormalCharge() != 0:
             raise UnsupportedStructure("only a carbon skeleton besides the metal is supported here")
-    graph = adjacency(complex_mol)
     double_bonds = []
     for a, b, *_ in non_single_bonds(complex_mol):
         in_core = (a in core_atoms, b in core_atoms)
@@ -107,12 +125,12 @@ def name_metallabicycle(mol) -> str:
     if cp_count:
         ligand_entries.append((f"({_CP_LABEL})", False, cp_count))
 
-    parent = bicyclic_parent_name(core)
     best = None
-    for order in iter_bicyclic_numberings(core):
-        locant = {atom: i + 1 for i, atom in enumerate(order)}
+    for order, parent, outer_key in candidates:
+        full_order = [orig[i] for i in order]
+        locant = {atom: i + 1 for i, atom in enumerate(full_order)}
         grouped: dict = {}
-        for atom in order:
+        for atom in full_order:
             if atom == metal_idx:
                 continue
             for name, compound in _substituent_entries(complex_mol, graph, atom, core_atoms):
@@ -125,21 +143,22 @@ def name_metallabicycle(mol) -> str:
             entry["locants"].sort()
         ene = sorted(tuple(sorted((locant[a], locant[b]))) for a, b in double_bonds)
         key = (
+            tuple(outer_key),
             locant[metal_idx],
             ene,
             sorted(l for e in grouped.values() for l in e["locants"]),
             [grouped[k]["locants"] for k in sorted(grouped)],
         )
         if best is None or key < best[0]:
-            best = (key, locant[metal_idx], grouped, ene)
-    _, metal_locant, grouped, ene = best
+            best = (key, locant[metal_idx], grouped, ene, parent, len(full_order))
+    _, metal_locant, grouped, ene, parent, size = best
     prefixes = apply_repeats(_brackets(format_substituent_prefixes(grouped)), repeats, metal_locant)
     if ene:
-        base = alkane_name(sum(len(b) for b in bridges) + 2)[:-3]
+        base = alkane_name(size)[:-3]
         locs = ",".join(str(lo) if hi - lo == 1 else f"{lo}({hi})" for lo, hi in ene)
-        suffix = {1: "ene", 2: "diene", 3: "triene"}.get(len(ene))
+        suffix = {1: "ene", 2: "diene", 3: "triene", 4: "tetraene"}.get(len(ene))
         if suffix is None:
             raise UnsupportedStructure("this unsaturation count is not supported here")
-        parent = parent[: parent.index("]") + 1] + f"{base}{'a' if len(ene) > 1 else ''}-{locs}-{suffix}"
+        parent = parent[: parent.rindex("]") + 1] + f"{base}{'a' if len(ene) > 1 else ''}-{locs}-{suffix}"
     stem = f"{metal_locant}-{_METAL_A_PREFIXES[metal.GetSymbol()]}{parent}"
     return f"{prefixes}{'-' if prefixes else ''}{stem}"
