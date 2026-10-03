@@ -174,9 +174,8 @@ def test_stereodescriptors_on_the_parent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_stereodescriptors_on_a_substituent_are_rejected_not_dropped():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Oc1ccc(cc1)[C@H](C)Cl")
+def test_stereodescriptors_on_a_substituent_are_rejected_not_dropped_is_named():
+    assert smiles_to_iupac("Oc1ccc(cc1)[C@H](C)Cl") == "4-[(1S)-1-chloroethyl]phenol"
 
 
 @pytest.mark.parametrize(
@@ -343,4 +342,19 @@ def test_heteroaromatic_ring_assembly_substituents_are_rejected_not_misnamed():
     ],
 )
 def test_acyl_prefixes_with_substituents_and_alkoxycarbonylamino(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("Oc1ccc(cc1)[C@H](C)Cl", "4-[(1S)-1-chloroethyl]phenol"),
+        ("OC[C@H]1CCCC[C@@H]1C", "[(1S,2S)-2-methylcyclohexyl]methanol"),
+        ("OC(=O)CC[C@H]1CCCC[C@@H]1C", "3-[(1R,2S)-2-methylcyclohexyl]propanoic acid"),
+        ("NC[C@H](Cl)c1ccc(O)cc1", "4-[(1R)-2-amino-1-chloroethyl]phenol"),
+        ("c1ccccc1O[C@H](C)CC", "{[(2R)-butan-2-yl]oxy}benzene"),
+        ("OCCO[C@H](C)CC", "2-{[(2R)-butan-2-yl]oxy}ethanol"),
+    ],
+)
+def test_stereodescriptors_inside_substituent_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

@@ -60,9 +60,8 @@ def test_unspecified_stereocenter_ignored():
     assert smiles_to_iupac("CCC(C)SCC") == "2-ethylsulfanylbutane"
 
 
-def test_stereocenter_on_substituent_branch_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCCCCS[C@H](C)CC")
+def test_stereocenter_on_substituent_branch():
+    assert smiles_to_iupac("CCCCCS[C@H](C)CC") == "1-{[(2R)-butan-2-yl]sulfanyl}pentane"
 
 
 @pytest.mark.parametrize(
@@ -102,6 +101,5 @@ def test_benzene_ring_multiple_substituents():
     assert smiles_to_iupac("CSc1ccccc1SC") == "1,2-bis(methylsulfanyl)benzene"
 
 
-def test_benzene_ring_stereocenter_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1S[C@H](C)CC")
+def test_benzene_ring_stereocenter():
+    assert smiles_to_iupac("c1ccccc1S[C@H](C)CC") == "{[(2R)-butan-2-yl]sulfanyl}benzene"

@@ -68,6 +68,8 @@ ordinary cycle-detection path (see `_simple_ring_substituent`'s own
 docstring for exactly which zero-substituent shapes it recognizes).
 """
 
+import contextvars
+
 from ._multiplicative_text import enclose
 from ._common import (
     UnsupportedStructure,
@@ -1140,6 +1142,40 @@ def _unsaturated_ring_branch(graph, root, coming_from, ring_size, attach_order, 
     return _ring_base_name(ring_size, ene, yne, attach_order), bool(ene or yne)
 
 
+BRANCH_STEREO = contextvars.ContextVar("branch_stereo", default=None)
+
+
+def _branch_stereo_entries(positions, ring=False, record=False):
+    """[(locant, code)] for the stereo elements of the enclosing molecule that
+    lie on a substituent chain or ring numbered by `positions`
+    ({atom: locant}); set by the polyfunctional engine through
+    `BRANCH_STEREO` (atoms: {idx: code}, bonds: {(a, b): code}, used: set)."""
+    context = BRANCH_STEREO.get()
+    if not context:
+        return []
+    entries = []
+    for atom, code in context["atoms"].items():
+        if atom in positions:
+            entries.append((positions[atom], code))
+            if record:
+                context["used"].add(("atom", atom))
+    if not ring:
+        for (a, b), code in context["bonds"].items():
+            if a in positions and b in positions and abs(positions[a] - positions[b]) == 1:
+                entries.append((min(positions[a], positions[b]), code))
+                if record:
+                    context["used"].add(("bond", (a, b)))
+    return sorted(entries)
+
+
+def _branch_stereo_rank(entries):
+    return tuple(0 if code in "RZ" else 1 for _, code in entries)
+
+
+def _branch_stereo_prefix(entries):
+    return "(" + ",".join(f"{locant}{code}" for locant, code in entries) + ")-" if entries else ""
+
+
 def _substituted_ring_branch(graph, root, coming_from, halogens, aromatic_atoms, mol, attach_order):
     """A monocyclic carbocyclic (or benzene) substituent group that carries
     substituents of its own (P-29.3.3, P-32.1.2): the free valence is locant
@@ -1194,10 +1230,13 @@ def _substituted_ring_branch(graph, root, coming_from, halogens, aromatic_atoms,
         prefix = format_substituent_prefixes(grouped)
         base = "phenyl" if aromatic else _ring_base_name(len(order), ene, yne, attach_order)
         name = prefix + base
-        key = (sorted(ene + yne), sorted(ene), locant_set, citation, name)
+        stereo_entries = _branch_stereo_entries({atom: i for i, atom in enumerate(direction, start=1)}, ring=True)
+        key = (sorted(ene + yne), sorted(ene), locant_set, citation, _branch_stereo_rank(stereo_entries), name)
         if best is None or key < best[0]:
-            best = (key, name, bool(prefix) or bool(ene or yne))
-    return best[1], best[2]
+            best = (key, name, bool(prefix) or bool(ene or yne), direction)
+    positions = {atom: i for i, atom in enumerate(best[3], start=1)}
+    stereo_prefix = _branch_stereo_prefix(_branch_stereo_entries(positions, ring=True, record=True))
+    return stereo_prefix + best[1], best[2] or bool(stereo_prefix)
 
 
 def _chain_children(graph, node, parent, halogens, mol, aromatic_atoms):
@@ -1305,11 +1344,18 @@ def _select_unsaturated_structure(graph, root, coming_from, halogens, mol, aroma
             len(chain), root_position, suffix, ene, yne, grouped, tert_butyl=_is_tert_butyl(graph, root, coming_from, halogens)
         )
         multiple = sorted(ene + yne)
-        key = (-len(multiple), -len(ene), root_position, multiple, sorted(ene), -total_count, locant_set, citation, name)
+        stereo_rank = _branch_stereo_rank(_branch_stereo_entries({a: i for i, a in enumerate(chain, start=1)}))
+        key = (
+            -len(multiple), -len(ene), root_position, multiple, sorted(ene), -total_count, locant_set, citation,
+            stereo_rank, name,
+        )
         if best is None or key < best[0]:
             best = (key, chain, root_position, name, is_compound)
     _, chain, root_position, name, is_compound = best
-    return chain, root_position, name, is_compound
+    stereo_prefix = _branch_stereo_prefix(
+        _branch_stereo_entries({a: i for i, a in enumerate(chain, start=1)}, record=True)
+    )
+    return chain, root_position, stereo_prefix + name, is_compound or bool(stereo_prefix)
 
 
 def _is_tert_butyl(graph, root, coming_from, halogens):

@@ -213,13 +213,8 @@ def test_ring_branch_stereocenter_supported():
     assert smiles_to_iupac("OC1(CCCCC1)[C@@H](C)CC") == "1-[(2S)-butan-2-yl]cyclohexan-1-ol"
 
 
-def test_ring_branch_two_stereocenters_raises():
-    # more than one specified stereocenter on the branch is outside this
-    # narrow slice's scope (mirrors `_aromatic.py`'s identical limit),
-    # still falling through to the general "stereocenter on a substituent
-    # branch" rejection rather than being (mis)handled.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1(CCCCC1)[C@@H]([C@H](C)Cl)CC")
+def test_ring_branch_two_stereocenters():
+    assert smiles_to_iupac("OC1(CCCCC1)[C@@H]([C@H](C)Cl)CC") == "1-[(2S,3S)-2-chloropentan-3-yl]cyclohexan-1-ol"
 
 
 def test_polycyclic_ring_stereocenter_raises():

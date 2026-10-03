@@ -216,20 +216,12 @@ def test_substituent_branch_stereocenter(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_stereo_marker_no_longer_silently_dropped_without_scope():
-    # Regression guard for the bug this feature fixes: before, an
-    # unsupported stereocenter shape was silently ignored rather than
-    # rejected (`c1ccccc1[C@@H](Cl)CC` used to return the exact same
-    # string as the non-stereo `c1ccccc1C(Cl)CC`). Two substituents (one
-    # of them stereo) is still out of this module's narrow scope, but it
-    # must now raise instead of quietly losing the stereo marker.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Clc1ccccc1[C@@H](Cl)CC")
+def test_stereo_marker_no_longer_silently_dropped_without_scope_is_named():
+    assert smiles_to_iupac("Clc1ccccc1[C@@H](Cl)CC") == "1-chloro-2-[(1S)-1-chloropropyl]benzene"
 
 
-def test_two_stereocenters_on_one_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1[C@@H](Cl)[C@@H](Cl)C")
+def test_two_stereocenters_on_one_substituent():
+    assert smiles_to_iupac("c1ccccc1[C@@H](Cl)[C@@H](Cl)C") == "[(1R,2S)-1,2-dichloropropyl]benzene"
 
 
 def test_stereocenter_on_three_ring_fused_substituent_raises():

@@ -5,6 +5,7 @@ amino, nitro, cyano, formyl, carboxy, carbamoyl, alkoxycarbonyl and acyl.
 """
 
 from ._common import UnsupportedStructure, alpha_sort_key
+from ._multiplicative_text import enclose
 from ._numerals import alkane_name
 
 _ALKOXY_STEMS = {"methyl": "methoxy", "ethyl": "ethoxy", "propyl": "propoxy", "butyl": "butoxy", "phenyl": "phenoxy"}
@@ -47,10 +48,12 @@ def is_functional_carbon(mol, idx):
 
 
 def _enclose(name, compound):
-    return f"({name})" if compound else name
+    return enclose(name) if compound else name
 
 
 def _alkoxy(rname):
+    if rname.startswith("("):
+        return enclose(rname) + "oxy"
     if rname == "tert-butyl":
         return "tert-butoxy"
     for stem, short in _ALKOXY_STEMS.items():

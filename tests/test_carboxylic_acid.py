@@ -345,15 +345,8 @@ def test_cyclic_carboxylic_acid_ring_stereocenter():
     )
 
 
-def test_carboxylic_acid_ring_branch_stereocenter_raises():
-    # A stereocenter on a substituent branch elsewhere on the ring (not
-    # the -COOH carbon's own ring atom) is out of scope for now -- only
-    # a stereocenter on the ring itself is supported (see
-    # `tasks/carbo-suffix-ring-stereocenter.md` stage 1; stage 2 will
-    # extend this to the ring's sole substituent branch, mirroring
-    # `_sulfonic_acid.py`'s `_ring_branch_stereo_display`).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)[C@H]1CC[C@H](C[C@@H](C)CC)C1")
+def test_carboxylic_acid_ring_branch_stereocenter():
+    assert smiles_to_iupac("OC(=O)[C@H]1CC[C@H](C[C@@H](C)CC)C1") == "(1S,3R)-3-[(2S)-2-methylbutyl]cyclopentane-1-carboxylic acid"
 
 
 def test_carboxylic_acid_ring_stereocenter_unspecified_unaffected():
