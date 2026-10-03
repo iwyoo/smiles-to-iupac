@@ -31,13 +31,9 @@ def test_plain_amide_still_works():
     assert smiles_to_iupac("CCC(=O)N") == "propanamide"
 
 
-def test_n_substituted_amide_raises():
-    # An N-alkyl-substituted amide alongside the acid is out of scope for
-    # this narrow slice (see module docstring).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)CC(=O)NC")
+def test_n_substituted_amide():
+    assert smiles_to_iupac("OC(=O)CC(=O)NC") == "2-(methylcarbamoyl)ethanoic acid"
 
 
-def test_amide_on_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)C1CCCCC1C(=O)N")
+def test_amide_on_ring():
+    assert smiles_to_iupac("OC(=O)C1CCCCC1C(=O)N") == "2-carbamoylcyclohexane-1-carboxylic acid"

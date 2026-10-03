@@ -41,14 +41,12 @@ def test_two_esters_names_polyester():
     assert smiles_to_iupac("COCC(=O)OCOC(=O)C") == "methylene ethanoate 2-methoxyethanoate"
 
 
-def test_two_ethers_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COCC(OC)C(=O)OC")
+def test_two_ethers():
+    assert smiles_to_iupac("COCC(OC)C(=O)OC") == "methyl 2,3-dimethoxypropanoate"
 
 
-def test_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C(OC)C1CCCCC1COC")
+def test_ring():
+    assert smiles_to_iupac("O=C(OC)C1CCCCC1COC") == "methyl 2-(methoxymethyl)cyclohexane-1-carboxylate"
 
 
 def test_specified_stereocenter_raises():

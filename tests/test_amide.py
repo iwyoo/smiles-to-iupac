@@ -139,9 +139,8 @@ def test_n_substituted_lactam_named_via_ketone_module():
     assert smiles_to_iupac("O=C1CCCN1C") == "1-methylpyrrolidin-2-one"
 
 
-def test_diamide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(=O)CC(N)=O")
+def test_diamide():
+    assert smiles_to_iupac("NC(=O)CC(N)=O") == "propanediamide"
 
 
 def test_ester_not_misnamed_as_amide():
@@ -220,14 +219,12 @@ def test_phenyl_chain_amide_ring_dihalogen():
     assert smiles_to_iupac("Clc1cc(Cl)ccc1CC(N)=O") == "2-(2,4-dichlorophenyl)ethanamide"
 
 
-def test_phenyl_chain_amide_with_hydroxyl_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCc1ccccc1CC(N)=O")
+def test_phenyl_chain_amide_with_hydroxyl():
+    assert smiles_to_iupac("OCc1ccccc1CC(N)=O") == "2-[2-(hydroxymethyl)phenyl]ethanamide"
 
 
-def test_phenyl_chain_amide_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC(N)=O")
+def test_phenyl_chain_amide_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CC(N)=O") == "2-(2-ethenylphenyl)ethanamide"
 
 
 def test_n_phenyl_amide():
@@ -293,9 +290,8 @@ def test_alcohol_mix_names_hydroxy_prefix():
     assert smiles_to_iupac("NC(=O)CCO") == "3-hydroxypropanamide"
 
 
-def test_amide_enol_mix_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC=CC(N)=O")
+def test_amide_enol_mix():
+    assert smiles_to_iupac("OC=CC(N)=O") == "3-hydroxyprop-2-enamide"
 
 
 def test_n_substituent_with_hydroxyl_raises():

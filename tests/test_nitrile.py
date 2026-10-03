@@ -63,9 +63,8 @@ def test_trinitrile_raises():
         smiles_to_iupac("N#CC(CC#N)CC#N")
 
 
-def test_dinitrile_alongside_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N#CC1CCC(C#N)CC1")
+def test_dinitrile_alongside_ring():
+    assert smiles_to_iupac("N#CC1CCC(C#N)CC1") == "cyclohexane-1,4-dicarbonitrile"
 
 
 def test_benzonitrile():
@@ -163,9 +162,8 @@ def test_phenyl_chain_nitrile_ring_ethyl():
     assert smiles_to_iupac("CCc1ccc(cc1)CC#N") == "2-(4-ethylphenyl)ethanenitrile"
 
 
-def test_phenyl_chain_nitrile_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC#N")
+def test_phenyl_chain_nitrile_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CC#N") == "2-(2-ethenylphenyl)ethanenitrile"
 
 
 @pytest.mark.parametrize(
@@ -214,40 +212,20 @@ def test_two_ring_and_heteroaromatic_chain_nitrile(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_two_ring_aromatic_substituent_nitrile_substituted_ring_raises():
-    # The aromatic ring itself carrying an extra substituent beyond the
-    # one connecting bond is explicitly out of scope (M2 step 2's own
-    # scope note, mirroring #628) -- falls through to the ordinary
-    # aromatic-carbon rejection.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N#CC1CCCC(c2ccc(C)cc2)C1")
+def test_two_ring_aromatic_substituent_nitrile_substituted_ring():
+    assert smiles_to_iupac("N#CC1CCCC(c2ccc(C)cc2)C1") == "3-(4-methylphenyl)cyclohexane-1-carbonitrile"
 
 
-def test_two_ring_aromatic_substituent_nitrile_three_rings_raises():
-    # Three total rings is explicitly out of scope (M2 step 2's own scope
-    # note, mirroring #628) -- still the generic aromatic-ring rejection.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N#CC1CCCC(c2ccccc2)C1c3ccccc3")
+def test_two_ring_aromatic_substituent_nitrile_three_rings():
+    assert smiles_to_iupac("N#CC1CCCC(c2ccccc2)C1c3ccccc3") == "2,3-diphenylcyclohexane-1-carbonitrile"
 
 
-def test_two_ring_aromatic_substituent_nitrile_chain_nitrile_raises():
-    # A nitrile entirely on a chain hanging off the non-aromatic ring,
-    # with the ring itself bearing none, is out of scope for this
-    # narrower slice (see the module dispatch's own scope note,
-    # mirroring #628's identical decision for `_thiol.py`) -- the ring
-    # would need its own compound name_branch-computed substituent name
-    # (carrying the aromatic ring) rather than a plain "cyclo..." prefix.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N#CCC1CCCCC1c1ccccc1")
+def test_two_ring_aromatic_substituent_nitrile_chain_nitrile():
+    assert smiles_to_iupac("N#CCC1CCCCC1c1ccccc1") == "2-(2-phenylcyclohexyl)ethanenitrile"
 
 
-def test_heteroaromatic_ring_directly_attached_nitrile_raises():
-    # A nitrile directly attached to a heteroaromatic ring carbon (a
-    # pyridine-3-carbonitrile-type structure) needs its own ring-parent
-    # naming construction, not covered by this module's chain-substituent
-    # or benzonitrile paths -- explicitly out of scope for now.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N#Cc1cccnc1")
+def test_heteroaromatic_ring_directly_attached_nitrile():
+    assert smiles_to_iupac("N#Cc1cccnc1") == "pyridine-3-carbonitrile"
 
 
 @pytest.mark.parametrize(

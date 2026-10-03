@@ -110,14 +110,12 @@ def test_phenyl_chain_aldehyde_ring_ethyl():
     assert smiles_to_iupac("CCc1ccc(cc1)CC=O") == "2-(4-ethylphenyl)ethanal"
 
 
-def test_phenyl_chain_aldehyde_with_hydroxyl_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCc1ccccc1CC=O")
+def test_phenyl_chain_aldehyde_with_hydroxyl():
+    assert smiles_to_iupac("OCc1ccccc1CC=O") == "2-[2-(hydroxymethyl)phenyl]ethanal"
 
 
-def test_phenyl_chain_aldehyde_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC=O")
+def test_phenyl_chain_aldehyde_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CC=O") == "2-(2-ethenylphenyl)ethanal"
 
 
 @pytest.mark.parametrize(
@@ -162,41 +160,20 @@ def test_two_ring_and_heteroaromatic_chain_aldehyde(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_two_ring_aromatic_substituent_aldehyde_substituted_ring_raises():
-    # The aromatic ring itself carrying an extra substituent beyond the
-    # one connecting bond is explicitly out of scope (M2 step 3's own
-    # scope note, mirroring #628/#631) -- falls through to the ordinary
-    # aromatic-carbon rejection.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=CC1CCCC(c2ccc(C)cc2)C1")
+def test_two_ring_aromatic_substituent_aldehyde_substituted_ring():
+    assert smiles_to_iupac("O=CC1CCCC(c2ccc(C)cc2)C1") == "3-(4-methylphenyl)cyclohexane-1-carbaldehyde"
 
 
-def test_two_ring_aromatic_substituent_aldehyde_three_rings_raises():
-    # Three total rings is explicitly out of scope (M2 step 3's own scope
-    # note, mirroring #628/#631) -- still the generic aromatic-ring
-    # rejection.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=CC1CCCC(c2ccccc2)C1c3ccccc3")
+def test_two_ring_aromatic_substituent_aldehyde_three_rings():
+    assert smiles_to_iupac("O=CC1CCCC(c2ccccc2)C1c3ccccc3") == "2,3-diphenylcyclohexane-1-carbaldehyde"
 
 
-def test_two_ring_aromatic_substituent_aldehyde_chain_aldehyde_raises():
-    # An aldehyde entirely on a chain hanging off the non-aromatic ring,
-    # with the ring itself bearing none, is out of scope for this
-    # narrower slice (see the module dispatch's own scope note, mirroring
-    # #628/#631's identical decision) -- the ring would need its own
-    # compound name_branch-computed substituent name (carrying the
-    # aromatic ring) rather than a plain "cyclo..." prefix.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=CCC1CCCCC1c1ccccc1")
+def test_two_ring_aromatic_substituent_aldehyde_chain_aldehyde():
+    assert smiles_to_iupac("O=CCC1CCCCC1c1ccccc1") == "2-(2-phenylcyclohexyl)ethanal"
 
 
-def test_heteroaromatic_ring_directly_attached_aldehyde_raises():
-    # An aldehyde directly attached to a heteroaromatic ring carbon (a
-    # pyridine-3-carbaldehyde-type structure) needs its own ring-parent
-    # naming construction, not covered by this module's chain-substituent
-    # or benzaldehyde paths -- explicitly out of scope for now.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=Cc1cccnc1")
+def test_heteroaromatic_ring_directly_attached_aldehyde():
+    assert smiles_to_iupac("O=Cc1cccnc1") == "pyridine-3-carbaldehyde"
 
 
 def test_alcohol_aldehyde_mix_names_hydroxy_prefix():
@@ -209,11 +186,8 @@ def test_aldehyde_alcohol_mix_on_longer_chain():
     assert smiles_to_iupac("OCCCC=O") == "4-hydroxybutanal"
 
 
-def test_aldehyde_enol_mix_raises():
-    # A hydroxyl on a C=C carbon (an enol) is a tautomer of a more senior
-    # carbonyl form and out of scope, same as `_alcohol.py`'s own enol check.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC=CC=O")
+def test_aldehyde_enol_mix():
+    assert smiles_to_iupac("OC=CC=O") == "3-hydroxyprop-2-enal"
 
 
 def test_ring_aldehyde():
@@ -229,9 +203,8 @@ def test_ring_aldehyde():
     assert smiles_to_iupac("O=CC1(C)CCCCC1") == "1-methylcyclohexane-1-carbaldehyde"
 
 
-def test_ring_aldehyde_multiple_groups_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=CC1CCC(C=O)CC1")
+def test_ring_aldehyde_multiple_groups():
+    assert smiles_to_iupac("O=CC1CCC(C=O)CC1") == "cyclohexane-1,4-dicarbaldehyde"
 
 
 def test_aldehyde_carbon_off_the_longest_chain():

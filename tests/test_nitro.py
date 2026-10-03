@@ -37,14 +37,12 @@ def test_two_carbon_chain_omits_locant():
     assert smiles_to_iupac("CC[N+](=O)[O-]") == "nitroethane"
 
 
-def test_ring_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCC([N+](=O)[O-])CC1")
+def test_ring():
+    assert smiles_to_iupac("C1CCC([N+](=O)[O-])CC1") == "nitrocyclohexane"
 
 
-def test_unsaturated_chain_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CC[N+](=O)[O-]")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("C=CC[N+](=O)[O-]") == "3-nitroprop-1-ene"
 
 
 def test_phenyl_nitro_direct_bond():
@@ -74,11 +72,9 @@ def test_phenyl_nitro_halogen_coexistence():
     assert smiles_to_iupac("c1ccccc1CC(Cl)[N+](=O)[O-]") == "(2-chloro-2-nitroethyl)benzene"
 
 
-def test_phenyl_nitro_substituted_ring_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1C[N+](=O)[O-]")
+def test_phenyl_nitro_substituted_ring():
+    assert smiles_to_iupac("Cc1ccccc1C[N+](=O)[O-]") == "1-methyl-2-(nitromethyl)benzene"
 
 
-def test_phenyl_nitro_unsaturation_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1C[N+](=O)[O-]")
+def test_phenyl_nitro_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1C[N+](=O)[O-]") == "1-ethenyl-2-(nitromethyl)benzene"

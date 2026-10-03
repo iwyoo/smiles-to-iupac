@@ -30,24 +30,20 @@ def test_halogen_on_main_chain_still_works():
     assert smiles_to_iupac("COCC(Cl)CN") == "2-chloro-3-methoxypropan-1-amine"
 
 
-def test_two_amines_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC(N)COC")
+def test_two_amines():
+    assert smiles_to_iupac("NCC(N)COC") == "3-methoxypropane-1,2-diamine"
 
 
-def test_two_ethers_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COCC(OC)CN")
+def test_two_ethers():
+    assert smiles_to_iupac("COCC(OC)CN") == "2,3-dimethoxypropan-1-amine"
 
 
-def test_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC1CCCCC1COC")
+def test_ring():
+    assert smiles_to_iupac("NC1CCCCC1COC") == "2-(methoxymethyl)cyclohexan-1-amine"
 
 
-def test_unsaturated_chain_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC=CCOC")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("NCC=CCOC") == "4-methoxybut-2-en-1-amine"
 
 
 def test_specified_stereocenter_raises():
@@ -55,9 +51,8 @@ def test_specified_stereocenter_raises():
         smiles_to_iupac("N[C@@H](C)COC")
 
 
-def test_hydroxyl_coexisting_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC(O)COC")
+def test_hydroxyl_coexisting():
+    assert smiles_to_iupac("NCC(O)COC") == "1-amino-3-methoxypropan-2-ol"
 
 
 def test_plain_ether_still_works():

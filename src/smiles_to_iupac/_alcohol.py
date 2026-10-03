@@ -609,7 +609,7 @@ def _phenol_candidate_key(oh_locant, substituents):
     return oh_locant, locant_set, citation_locants, name
 
 
-def _name_phenol(mol, ring_atoms):
+def _name_phenol(mol, ring_atoms, exempt_atoms=None):
     """P-63.1.1: -OH attached directly to a benzene ring carbon -- e.g.
     'phenol' (PubChem CID 996), '4-methylphenol' (CID 2879), '2-
     chlorophenol' (CID 7245). Mirrors `_sulfonic_acid.py`'s
@@ -618,7 +618,7 @@ def _name_phenol(mol, ring_atoms):
     ring case: exactly one hydroxyl (directly on the ring, no coexisting
     alkoxy ether), and no specified stereocenter -- more than one ring
     hydroxyl (resorcinol-style) is a separate follow-up."""
-    hydroxyls, ethers = _validate_and_collect_hydroxyls(mol, aromatic_ring_atoms=ring_atoms)
+    hydroxyls, ethers = _validate_and_collect_hydroxyls(mol, aromatic_ring_atoms=exempt_atoms or ring_atoms)
     if ethers:
         raise UnsupportedStructure("an alkoxy ether alongside phenol is not supported yet")
     if len(hydroxyls) != 1:
@@ -1076,7 +1076,13 @@ def name_alcohol(mol) -> str:
     ring_info = mol.GetRingInfo()
     aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
     if aromatic_rings is not None:
-        return _name_phenyl_chain_alcohol(mol, set().union(*aromatic_rings))
+        union = set().union(*aromatic_rings)
+        hydroxyls, ethers = _validate_and_collect_hydroxyls(mol, aromatic_ring_atoms=union)
+        graph = adjacency(mol)
+        hosts = [r for r in aromatic_rings if any(next(iter(graph[o])) in r for o in hydroxyls)]
+        if len(hosts) == 1 and is_plain_benzene_ring(mol, hosts[0]) and len(hydroxyls) == 1 and not ethers:
+            return _name_phenol(mol, hosts[0], union)
+        return _name_phenyl_chain_alcohol(mol, union)
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         is_benzene = is_plain_benzene_ring(mol, ring_atoms)

@@ -39,19 +39,16 @@ def test_ester_still_routes_correctly():
     assert smiles_to_iupac("COC(C)=O") == "methyl ethanoate"
 
 
-def test_two_ketones_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=CC(=O)COC")
+def test_two_ketones():
+    assert smiles_to_iupac("O=CC(=O)COC") == "3-methoxy-2-oxopropanal"
 
 
-def test_two_ethers_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COCC(OC)C(C)=O")
+def test_two_ethers():
+    assert smiles_to_iupac("COCC(OC)C(C)=O") == "3,4-dimethoxybutan-2-one"
 
 
-def test_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CCCCC1COC")
+def test_ring():
+    assert smiles_to_iupac("O=C1CCCCC1COC") == "2-(methoxymethyl)cyclohexan-1-one"
 
 
 def test_specified_stereocenter_raises():

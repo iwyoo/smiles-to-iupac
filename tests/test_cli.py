@@ -35,11 +35,11 @@ def test_invalid_smiles_reports_error_and_nonzero_exit(capsys):
 
 
 def test_unsupported_structure_reports_error_and_nonzero_exit(capsys):
-    exit_code = main(["CN(C)C1CCCCC1"])
+    exit_code = main(["O=C1NC(=O)C(N1)(c1ccccc1)c1ccccc1"])
     captured = capsys.readouterr()
     assert exit_code != 0
     assert captured.out == ""
-    assert "CN(C)C1CCCCC1" in captured.err
+    assert "O=C1NC(=O)C(N1)(c1ccccc1)c1ccccc1" in captured.err
 
 
 def test_continues_after_error(capsys):

@@ -136,16 +136,8 @@ def test_substituted_hetero_monocyclic_raises():
         smiles_to_iupac("CC1CCCCO1")
 
 
-def test_hetero_monocyclic_substituent_with_non_alkyl_branch_raises():
-    # A branch containing a heteroatom (here, an amine nitrogen and a
-    # carboxylic acid) must not be silently walked as if it were a plain
-    # carbon chain and named as a fictitious alkyl substituent -- found
-    # via real-data testing: this exact SMILES was misnamed
-    # '3-chloro-2-(3,4-dimethylpentyl)pyridine' (PubChem PIN is
-    # '2-amino-4-(3-chloro-2-pyridinyl)butanoic acid'), silently dropping
-    # both the amino and carboxylic acid groups.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(CCc1ncccc1Cl)C(=O)O")
+def test_hetero_monocyclic_substituent_with_non_alkyl_branch():
+    assert smiles_to_iupac("NC(CCc1ncccc1Cl)C(=O)O") == "2-amino-4-(3-chloropyridin-2-yl)butanoic acid"
 
 
 def test_hetero_monocyclic_substituent_with_unsaturated_branch_keeps_the_double_bond():

@@ -25,29 +25,24 @@ def test_smiles_to_iupac_aldehyde_amine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_secondary_amine_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CNCC=O")
+def test_secondary_amine():
+    assert smiles_to_iupac("CNCC=O") == "2-(methylamino)ethanal"
 
 
-def test_two_amines_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(N)C=O")
+def test_two_amines():
+    assert smiles_to_iupac("NC(N)C=O") == "2,2-diaminoethanal"
 
 
-def test_two_aldehydes_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=CC(N)C=O")
+def test_two_aldehydes():
+    assert smiles_to_iupac("O=CC(N)C=O") == "2-aminopropanedial"
 
 
-def test_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC1CCC(C=O)CC1")
+def test_ring():
+    assert smiles_to_iupac("NC1CCC(C=O)CC1") == "4-aminocyclohexane-1-carbaldehyde"
 
 
-def test_unsaturated_chain_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC=CC=O")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("NCC=CC=O") == "4-aminobut-2-enal"
 
 
 def test_specified_stereocenter_raises():
@@ -63,8 +58,5 @@ def test_plain_amine_still_works():
     assert smiles_to_iupac("CCCN") == "propan-1-amine"
 
 
-def test_hydroxyl_coexisting_raises():
-    # A standalone hydroxyl alongside the aldehyde/amine pair is out of
-    # scope for this first pairwise pilot on `_aldehyde.py`.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(CO)C=O")
+def test_hydroxyl_coexisting():
+    assert smiles_to_iupac("NC(CO)C=O") == "2-amino-3-hydroxypropanal"

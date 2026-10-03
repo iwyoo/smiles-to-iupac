@@ -119,6 +119,7 @@ from ._common import (
     ring_bond_locants,
     ring_chain_attachment,
     ring_chain_attachments_with_halogens,
+    ring_hosting_anchors,
     separate_aromatic_monocycles,
     ring_chain_attachment_with_halogens,
     ring_cycle,
@@ -764,7 +765,7 @@ def _name_n_substituted_aniline(mol, benzene_rings):
     return best[-1]
 
 
-def _name_aniline(mol, ring_atoms):
+def _name_aniline(mol, ring_atoms, exempt_atoms=None):
     """P-62.2.1.1.1: -NH2 attached directly to a benzene ring carbon --
     e.g. 'aniline' (PubChem CID 6115), '4-methylaniline' (CID 7864), '2-
     chloroaniline' (CID 8863). Mirrors `_alcohol.py`'s `_name_phenol`
@@ -773,7 +774,7 @@ def _name_aniline(mol, ring_atoms):
     (directly on the ring, no N-alkyl substituent -- N-substituted
     aniline, e.g. 'N-methylaniline (PIN)', is a separate follow-up), and
     no specified stereocenter."""
-    amines, n_carbons_by_nitrogen = _validate_and_collect_amines(mol, aromatic_ring_atoms=ring_atoms)
+    amines, n_carbons_by_nitrogen = _validate_and_collect_amines(mol, aromatic_ring_atoms=exempt_atoms or ring_atoms)
     if len(amines) != 1:
         raise UnsupportedStructure(
             "more than one amine nitrogen directly on a benzene ring is "
@@ -982,28 +983,33 @@ def _name_phenyl_chain_amine(mol, ring_atoms):
             "exocyclic substituent alongside a chain amine is not "
             "supported yet"
         )
-    reach = {c: len(_reachable(graph, c, n_idx)) for c in n_carbons}
-    carbon = max(n_carbons, key=lambda c: reach[c])
-    n_names = [
-        name_branch(graph, other, n_idx, halogens, ring_atoms, mol=mol) for other in n_carbons if other != carbon
-    ]
-    chain, branches = longest_branched_chain_through(graph, carbon, ring_atoms, amines, halogens=halogen_substituents(mol))
-    branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
-
-    chain_length = len(chain)
-    best_key = None
-    best_name = None
-    for candidate in (chain, list(reversed(chain))):
-        position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
-        amine_locants = _amine_locants(position_of, amines, graph)
-        substituents = {
-            position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms, mol=mol) for root in roots]
-            for atom, roots in branches_by_atom.items()
-        }
-        key, name = _candidate_key(chain_length, amine_locants, [], [], substituents, n_names)
-        if best_key is None or key < best_key:
-            best_key, best_name = key, name
-    return best_name
+    best_overall = None
+    for carbon in n_carbons_by_nitrogen[n_idx]:
+        chain, branches = longest_branched_chain_through(graph, carbon, ring_atoms, amines, halogens=halogen_substituents(mol))
+        branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
+        n_names = [
+            name_branch(graph, other, n_idx, halogens, ring_atoms, mol=mol)
+            for other in n_carbons_by_nitrogen[n_idx]
+            if other != carbon
+        ]
+        chain_length = len(chain)
+        best_key = None
+        best_name = None
+        for candidate in (chain, list(reversed(chain))):
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            amine_locants = _amine_locants(position_of, amines, graph)
+            substituents = {
+                position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms, mol=mol) for root in roots]
+                for atom, roots in branches_by_atom.items()
+            }
+            key, name = _candidate_key(chain_length, amine_locants, [], [], substituents, n_names)
+            if best_key is None or key < best_key:
+                best_key, best_name = key, name
+        substituent_count = sum(len(roots) for roots in branches_by_atom.values())
+        overall = (-chain_length, -substituent_count, best_name)
+        if best_overall is None or overall < best_overall:
+            best_overall = overall
+    return best_overall[-1]
 
 
 def _reachable(graph, start, blocked):
@@ -1032,6 +1038,9 @@ def name_amine(mol) -> str:
             if len(n_carbons_by_nitrogen[n_idx]) > 1 and any(c in r for c in n_carbons_by_nitrogen[n_idx] for r in benzene_rings):
                 return _name_n_substituted_aniline(mol, benzene_rings)
         if len(aromatic_rings) > 1:
+            host = ring_hosting_anchors(mol, adjacency(mol), aromatic_rings, list(amines))
+            if host is not None:
+                return _name_aniline(mol, host, union)
             return _name_phenyl_chain_amine(mol, union)
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])

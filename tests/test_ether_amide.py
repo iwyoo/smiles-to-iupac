@@ -37,19 +37,16 @@ def test_n_alkyl_amide_raises():
         smiles_to_iupac("CNC(=O)COC")
 
 
-def test_two_amides_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(=O)C(COC)C(N)=O")
+def test_two_amides():
+    assert smiles_to_iupac("NC(=O)C(COC)C(N)=O") == "2-(methoxymethyl)propanediamide"
 
 
-def test_two_ethers_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COCC(OC)C(N)=O")
+def test_two_ethers():
+    assert smiles_to_iupac("COCC(OC)C(N)=O") == "2,3-dimethoxypropanamide"
 
 
-def test_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(=O)C1CCCCC1COC")
+def test_ring():
+    assert smiles_to_iupac("NC(=O)C1CCCCC1COC") == "2-(methoxymethyl)cyclohexane-1-carboxamide"
 
 
 def test_specified_stereocenter_raises():

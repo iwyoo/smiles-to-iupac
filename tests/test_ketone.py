@@ -590,11 +590,8 @@ def test_cyclic_ketone_alcohol_mix_names_hydroxy_prefix():
     assert smiles_to_iupac("OC1CCC(=O)CC1") == "4-hydroxycyclohexan-1-one"
 
 
-def test_ketone_enol_mix_raises():
-    # A hydroxyl on a C=C carbon (an enol) is a tautomer of a more senior
-    # carbonyl form and out of scope, same as `_alcohol.py`'s own enol check.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC=CC(=O)C")
+def test_ketone_enol_mix():
+    assert smiles_to_iupac("OC=CC(=O)C") == "4-hydroxybut-3-en-2-one"
 
 
 def test_unsaturated_ring_ketone_with_substituent_raises():
@@ -765,19 +762,12 @@ def test_two_ring_aromatic_substituent_ketone(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_two_ring_aromatic_substituent_ketone_substituted_ring_raises():
-    # The aromatic ring itself carrying an extra substituent beyond the
-    # one connecting bond is explicitly out of scope (#622's own scope
-    # note) -- falls through to the ordinary aromatic-carbon rejection.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CCCC(c2ccc(C)cc2)C1")
+def test_two_ring_aromatic_substituent_ketone_substituted_ring():
+    assert smiles_to_iupac("O=C1CCCC(c2ccc(C)cc2)C1") == "3-(4-methylphenyl)cyclohexan-1-one"
 
 
-def test_two_ring_aromatic_substituent_ketone_three_rings_raises():
-    # Three total rings is explicitly out of scope (#622's own scope
-    # note) -- still the generic "polycyclic and spiro" rejection.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CCCC(c2ccccc2)C1c3ccccc3")
+def test_two_ring_aromatic_substituent_ketone_three_rings():
+    assert smiles_to_iupac("O=C1CCCC(c2ccccc2)C1c3ccccc3") == "2,3-diphenylcyclohexan-1-one"
 
 
 def test_two_ring_aromatic_substituent_ketone_ring_bond_raises():
