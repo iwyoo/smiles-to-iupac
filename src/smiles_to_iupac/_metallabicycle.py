@@ -8,11 +8,12 @@ hetero-atom rings are out of scope.
 
 from rdkit import Chem
 
-from ._bicyclic import bicyclic_parent_name, find_bicyclic_core, iter_bicyclic_numberings
+from ._bicyclic import _strip_leaves, _walk_bridge, bicyclic_parent_name, iter_bicyclic_numberings
 from ._numerals import alkane_name
 from ._common import UnsupportedStructure, adjacency, non_single_bonds
 from ._coordination import _CP_LABEL, _cp_charge, _net_charge, collect_ligands
-from ._metallacycle import _HALO_FOR_LIGAND, _METAL_A_PREFIXES, _is_plain, _substituent_entries
+from ._metal_pair import _brackets
+from ._metallacycle import _METAL_A_PREFIXES, _substituent_entries, apply_repeats, ring_ligand_entries, skeleton_atoms
 from ._substituents import format_substituent_prefixes
 
 
@@ -26,6 +27,31 @@ def _split(mol):
     if any(c is None for c in cp_charges):
         return None
     return complexes[0], len(others), sum(cp_charges)
+
+
+def find_bicyclic_core(mol):
+    """Bicyclic core of the metal-bearing skeleton (ligand components and
+    their rings are excluded): (bridgehead1, bridgehead2, bridges) or None."""
+    metals = [a.GetIdx() for a in mol.GetAtoms() if a.GetSymbol() in _METAL_A_PREFIXES and a.IsInRing()]
+    if len(metals) != 1:
+        return None
+    full = adjacency(mol)
+    skeleton = skeleton_atoms(mol, metals[0], full)
+    core = _strip_leaves({a: {n for n in full[a] if n in skeleton} for a in skeleton})
+    if not core:
+        return None
+    if sum(len(v) for v in core.values()) // 2 - len(core) + 1 != 2:
+        return None
+    if any(len(v) not in (2, 3) for v in core.values()):
+        return None
+    heads = [a for a, v in core.items() if len(v) == 3]
+    if len(heads) != 2:
+        return None
+    bh1, bh2 = heads
+    bridges = [_walk_bridge(core, bh1, bh2, start) for start in core[bh1]]
+    if any(b is None for b in bridges):
+        return None
+    return bh1, bh2, bridges
 
 
 def has_metallabicycle_shape(mol) -> bool:
@@ -69,16 +95,15 @@ def name_metallabicycle(mol) -> str:
             double_bonds.append((a, b))
         elif any(in_core):
             raise UnsupportedStructure("an exocyclic double bond on the ring is not supported here")
-        elif not any(metal_idx in graph[x] for x in (a, b)):
+        elif not any(metal_idx in graph[x] for x in (a, b)) and not (
+            complex_mol.GetAtomWithIdx(a).GetIsAromatic() and complex_mol.GetAtomWithIdx(b).GetIsAromatic()
+        ):
             raise UnsupportedStructure("an unsaturated substituent is out of scope here")
 
     counts, simple_labels, organic, neutral, _ = collect_ligands(complex_mol, metal, graph, skip=core_atoms)
     if "hydrido" in counts:
         raise UnsupportedStructure("a hydrido ligand on the metal is not supported here yet")
-    ligand_entries = []
-    for label, n in counts.items():
-        compound = label in neutral or not (label in simple_labels or _is_plain(label))
-        ligand_entries.append((_HALO_FOR_LIGAND.get(label, label), compound, n))
+    ligand_entries, repeats = ring_ligand_entries(counts, simple_labels, neutral)
     if cp_count:
         ligand_entries.append((f"({_CP_LABEL})", False, cp_count))
 
@@ -108,7 +133,7 @@ def name_metallabicycle(mol) -> str:
         if best is None or key < best[0]:
             best = (key, locant[metal_idx], grouped, ene)
     _, metal_locant, grouped, ene = best
-    prefixes = format_substituent_prefixes(grouped)
+    prefixes = apply_repeats(_brackets(format_substituent_prefixes(grouped)), repeats, metal_locant)
     if ene:
         base = alkane_name(sum(len(b) for b in bridges) + 2)[:-3]
         locs = ",".join(str(lo) if hi - lo == 1 else f"{lo}({hi})" for lo, hi in ene)

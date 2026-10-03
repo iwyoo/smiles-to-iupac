@@ -452,7 +452,14 @@ def _format_ligands(counts, simple_labels, organic, neutral, tags=None, bridges=
     out = []
     for position, (label, n, is_bridge) in enumerate(entries):
         simple = label in simple_labels or (label in organic and label not in neutral and _is_simple(label))
-        wrapped = label if simple or label.startswith("[") else f"({label})"
+        if simple or label.startswith("["):
+            wrapped = label
+        elif "[" in label:
+            wrapped = "{" + label + "}"
+        elif "(" in label:
+            wrapped = "[" + label + "]"
+        else:
+            wrapped = f"({label})"
         text = (multiplying_prefix(n, compound=not simple) if n > 1 else "") + wrapped
         if is_bridge:
             out.append((multiplying_prefix(n) + "-" if n > 1 else "") + "\u03bc-" + label + "-")

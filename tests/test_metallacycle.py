@@ -99,3 +99,24 @@ def test_unsaturated_bicyclic_metallacycles(smiles, expected):
 )
 def test_metallaanthracene_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "C1c2ccccc2[Pt]2(P(C)(C)CP2(C)C)c2ccccc12",
+            "9,9-[methylenebis(dimethylphosphane)]-10H-9-platinaanthracene",
+        ),
+        (
+            "[Pt]1(P(c2ccccc2)(c2ccccc2)c2ccccc2)(P(c2ccccc2)(c2ccccc2)c2ccccc2)C2CC1C(OC)CCC2OC",
+            "2,5-dimethoxy-7,7-bis(triphenylphosphane)-7-platinabicyclo[4.1.1]octane",
+        ),
+        (
+            "CC1=C(C)[Pt](P(c2ccccc2)(c2ccccc2)c2ccccc2)(P(c2ccccc2)(c2ccccc2)c2ccccc2)C(C)=C1C",
+            "2,3,4,5-tetramethyl-1,1-bis(triphenylphosphane)-1-platinacyclopenta-2,4-diene",
+        ),
+    ],
+)
+def test_metallacycles_with_ring_and_chelating_ligands(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

@@ -283,6 +283,7 @@ from ._naphthalene_benzene_phane import (
     name_naphthalene_benzene_phane,
 )
 from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
+from ._polyphosphane import has_polyphosphane_shape, name_polyphosphane
 from ._functional_replacement_oxoacid import (
     has_functional_replacement_oxoacid_shape,
     name_functional_replacement_oxoacid,
@@ -807,6 +808,8 @@ def smiles_to_iupac(smiles: str) -> str:
     # recognize phosphorus at all, and a phosphane carbon substituent would
     # otherwise reach the plain acyclic-alkane/amine dispatch further down
     # with no phosphorus handling.
+    if has_polyphosphane_shape(mol):
+        return name_polyphosphane(mol)
     if has_simple_phosphane_shape(mol):
         return name_simple_phosphane(mol)
 

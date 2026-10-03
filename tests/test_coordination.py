@@ -181,3 +181,22 @@ def test_chelating_ligands(smiles, expected):
 )
 def test_naphthyl_ligands(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CP(C)CP(C)C", "methylenebis(dimethylphosphane)"),
+        ("CP(C)CCP(C)C", "ethane-1,2-diylbis(dimethylphosphane)"),
+        ("c1ccccc1P(c1ccccc1)CCP(c1ccccc1)c1ccccc1", "ethane-1,2-diylbis(diphenylphosphane)"),
+        ("CP(C)c1ccccc1P(C)C", "benzene-1,2-diylbis(dimethylphosphane)"),
+        ("CP(C)CCP(CC)CC", "[2-(dimethylphosphanyl)ethyl]di(ethyl)phosphane"),
+        ("Cl[Pd]1(Cl)P(C)(C)CCP1(C)C", "dichlorido[ethane-1,2-diylbis(dimethylphosphane)-κ2P,P']palladium"),
+        (
+            "[Cl][Pd]1([Cl])<-[n]2ccccc2-c2cccc[n]->12",
+            "(2,2'-bipyridine-κ2N,N')dichloridopalladium",
+        ),
+    ],
+)
+def test_polyphosphane_and_chelates(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

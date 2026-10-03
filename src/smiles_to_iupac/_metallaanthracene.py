@@ -9,24 +9,24 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, non_single_bonds
 from ._coordination import collect_ligands
-from ._metallacycle import _HALO_FOR_LIGAND, _METAL_A_PREFIXES, _is_plain, _substituent_entries
+from ._metal_pair import _brackets
+from ._metallacycle import _METAL_A_PREFIXES, _substituent_entries, apply_repeats, ring_ligand_entries
 from ._substituents import format_substituent_prefixes
 
 
 def _system(mol):
-    info = mol.GetRingInfo()
-    rings = [set(r) for r in info.AtomRings()]
-    if len(rings) != 3 or any(len(r) != 6 for r in rings):
+    rings = [set(r) for r in mol.GetRingInfo().AtomRings() if len(r) == 6]
+    metals = [a.GetIdx() for a in mol.GetAtoms() if a.GetSymbol() in _METAL_A_PREFIXES]
+    if len(metals) != 1:
         return None
-    middle = [r for r in rings if all(r & other for other in rings if other is not r)]
+    middle = [r for r in rings if metals[0] in r]
     if len(middle) != 1:
         return None
     mid = middle[0]
-    outer = [r for r in rings if r is not mid]
-    if outer[0] & outer[1]:
+    outer = [r for r in rings if r is not mid and len(r & mid) == 2]
+    if len(outer) != 2 or outer[0] & outer[1]:
         return None
-    metals = [i for i in mid if mol.GetAtomWithIdx(i).GetSymbol() in _METAL_A_PREFIXES]
-    if len(metals) != 1:
+    if any(mol.GetAtomWithIdx(i).GetAtomicNum() not in (6,) for i in mid - {metals[0]}):
         return None
     return mid, outer, metals[0]
 
@@ -66,10 +66,7 @@ def name_metallaanthracene(mol) -> str:
     counts, simple_labels, organic, neutral, _ = collect_ligands(mol, metal, graph, skip=system)
     if "hydrido" in counts:
         raise UnsupportedStructure("a hydrido ligand on the metal is not supported here yet")
-    ligand_entries = [
-        (_HALO_FOR_LIGAND.get(label, label), label in neutral or not (label in simple_labels or _is_plain(label)), n)
-        for label, n in counts.items()
-    ]
+    ligand_entries, repeats = ring_ligand_entries(counts, simple_labels, neutral)
 
     metal_nbrs = [n for n in graph[metal_idx] if n in system]
     best = None
@@ -114,5 +111,5 @@ def name_metallaanthracene(mol) -> str:
         )
         if best is None or key < best[0]:
             best = (key, grouped)
-    prefixes = format_substituent_prefixes(best[1])
+    prefixes = apply_repeats(_brackets(format_substituent_prefixes(best[1])), repeats, 9)
     return f"{prefixes}{'-' if prefixes else ''}10H-9-{_METAL_A_PREFIXES[metal.GetSymbol()]}anthracene"
