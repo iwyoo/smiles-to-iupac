@@ -40,26 +40,21 @@ def test_plain_sulfonamide_still_routes_normally():
     assert smiles_to_iupac("CS(=O)(=O)N") == "methanesulfonamide"
 
 
-def test_multiple_sulfonic_acids_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)(=O)CCS(=O)(=O)O")
+def test_multiple_sulfonic_acids():
+    assert smiles_to_iupac("OS(=O)(=O)CCS(=O)(=O)O") == "ethane-1,2-disulfonic acid"
 
 
-def test_n_substituted_sulfonamide_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CNS(=O)(=O)CCS(=O)(=O)O")
+def test_n_substituted_sulfonamide():
+    assert smiles_to_iupac("CNS(=O)(=O)CCS(=O)(=O)O") == "2-(methylsulfamoyl)ethanesulfonic acid"
 
 
-def test_other_heteroatom_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC(S(=O)(=O)N)S(=O)(=O)O")
+def test_other_heteroatom():
+    assert smiles_to_iupac("OCC(S(=O)(=O)N)S(=O)(=O)O") == "2-hydroxy-1-sulfoethanesulfonamide"
 
 
-def test_unsaturated_chain_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CC(S(=O)(=O)N)S(=O)(=O)O")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("C=CC(S(=O)(=O)N)S(=O)(=O)O") == "1-sulfoprop-2-ene-1-sulfonamide"
 
 
-def test_ring_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCC(S(=O)(=O)N)(CC1)S(=O)(=O)O")
+def test_ring():
+    assert smiles_to_iupac("C1CCC(S(=O)(=O)N)(CC1)S(=O)(=O)O") == "1-sulfamoylcyclohexane-1-sulfonic acid"

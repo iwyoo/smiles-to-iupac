@@ -47,24 +47,20 @@ def test_plain_sulfonic_acid_still_routes_normally():
     assert smiles_to_iupac("CS(=O)(=O)O") == "methanesulfonic acid"
 
 
-def test_multiple_carboxylic_acids_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)CC(S(=O)(=O)O)C(=O)O")
+def test_multiple_carboxylic_acids():
+    assert smiles_to_iupac("OC(=O)CC(S(=O)(=O)O)C(=O)O") == "2-sulfobutanedioic acid"
 
 
-def test_other_heteroatom_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)C(O)CS(=O)(=O)O")
+def test_other_heteroatom():
+    assert smiles_to_iupac("OC(=O)C(O)CS(=O)(=O)O") == "2-hydroxy-3-sulfopropanoic acid"
 
 
-def test_unsaturated_chain_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)C=CCS(=O)(=O)O")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("OC(=O)C=CCS(=O)(=O)O") == "4-sulfobut-2-enoic acid"
 
 
-def test_ring_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)C1CCC(S(=O)(=O)O)CC1")
+def test_ring():
+    assert smiles_to_iupac("OC(=O)C1CCC(S(=O)(=O)O)CC1") == "4-sulfocyclohexane-1-carboxylic acid"
 
 
 @pytest.mark.parametrize(
@@ -83,14 +79,9 @@ def test_phenyl_chain_carboxylic_acid_sulfonic_acid(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_phenyl_ring_with_second_substituent_raises():
-    # A benzene ring with two exocyclic attachments (carboxylic acid
-    # directly on the ring plus a separate sulfonic-acid-bearing chain)
-    # is out of scope for this single-chain-substituent module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)c1ccccc1S(=O)(=O)O")
+def test_phenyl_ring_with_second_substituent():
+    assert smiles_to_iupac("OC(=O)c1ccccc1S(=O)(=O)O") == "2-sulfobenzoic acid"
 
 
-def test_phenyl_chain_carboxylic_acid_sulfonic_acid_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC(S(=O)(=O)O)C(=O)O")
+def test_phenyl_chain_carboxylic_acid_sulfonic_acid_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CC(S(=O)(=O)O)C(=O)O") == "3-(2-ethenylphenyl)-2-sulfopropanoic acid"

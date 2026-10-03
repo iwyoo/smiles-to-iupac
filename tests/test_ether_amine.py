@@ -46,9 +46,8 @@ def test_unsaturated_chain():
     assert smiles_to_iupac("NCC=CCOC") == "4-methoxybut-2-en-1-amine"
 
 
-def test_specified_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N[C@@H](C)COC")
+def test_specified_stereocenter():
+    assert smiles_to_iupac("N[C@@H](C)COC") == "(2S)-1-methoxypropan-2-amine"
 
 
 def test_hydroxyl_coexisting():

@@ -662,6 +662,26 @@ def _ring_has_other_substituents(graph, mol, root, coming_from):
     return any(n not in ring and not (a == root and n == coming_from) for a in ring for n in graph[a])
 
 
+def _ring_system_branch(graph, mol, root, coming_from):
+    """Fused rings and non-aromatic heterocycles are named as substituent
+    groups by the ring-system machinery (pyrrolidin-1-yl, naphthalen-2-yl, ...);
+    None for the carbocycles and aromatic monocycles handled elsewhere."""
+    ring_info = mol.GetRingInfo()
+    ring = next(r for r in ring_info.AtomRings() if root in r)
+    fused = any(ring_info.NumAtomRings(a) != 1 for a in ring)
+    hetero = any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in ring)
+    aromatic = all(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring)
+    if not (fused or (hetero and not aromatic)):
+        return None
+    if fused and not any(mol.GetAtomWithIdx(a).GetIsAromatic() for r in ring_info.AtomRings() for a in r if a in ring):
+        raise UnsupportedStructure("a saturated fused or bridged ring substituent needs hydro or von Baeyer naming here")
+    if mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
+        raise UnsupportedStructure("a ring system attached by a multiple bond is not supported yet")
+    from ._diester_ring_diyl import ring_substituent_name
+
+    return ring_substituent_name(mol, graph, root, coming_from)
+
+
 def _hetero_ring_branch(mol, root, coming_from):
     """A ring substituent containing a heteroatom: named through the monocycle
     machinery (pyridinyl, furanyl, ...) or rejected rather than misnamed."""
@@ -722,6 +742,10 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
         if hetero is not None:
             return hetero
 
+    if mol is not None and mol.GetAtomWithIdx(root).IsInRing():
+        system_name = _ring_system_branch(graph, mol, root, coming_from)
+        if system_name is not None:
+            return system_name
     if (
         mol is not None
         and mol.GetAtomWithIdx(root).IsInRing()
@@ -1079,6 +1103,16 @@ def _substituted_ring_branch(graph, root, coming_from, halogens, aromatic_atoms,
     )
     if ring_atoms is None or any(ring_info.NumAtomRings(a) != 1 for a in ring_atoms):
         raise cyclic_error
+    from ._multiplicative import _bare_key
+
+    own_key = _bare_key(mol, set(ring_atoms))
+    for atom in ring_atoms:
+        for neighbor in graph[atom]:
+            other = next((r for r in ring_info.AtomRings() if neighbor in r and atom not in r), None)
+            if other is not None and neighbor not in ring_atoms and _bare_key(mol, set(other)) == own_key:
+                raise UnsupportedStructure(
+                    "a ring assembly as a substituent group (biphenylyl, ...) is not supported yet (P-28)"
+                )
     atoms = [mol.GetAtomWithIdx(a) for a in ring_atoms]
     aromatic = all(a.GetIsAromatic() for a in atoms)
     if any(a.GetAtomicNum() != 6 for a in atoms) or (not aromatic and any(a.GetIsAromatic() for a in atoms)):

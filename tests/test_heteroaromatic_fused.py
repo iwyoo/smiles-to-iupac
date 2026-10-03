@@ -47,19 +47,16 @@ def test_isobenzothiophene():
     assert smiles_to_iupac("c1ccc2cscc2c1") == "2-benzothiophene"
 
 
-def test_substituted_benzofuran_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccc2occc2c1")
+def test_substituted_benzofuran():
+    assert smiles_to_iupac("Cc1ccc2occc2c1") == "5-methyl-1-benzofuran"
 
 
-def test_substituted_quinoline_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccc2ncccc2c1")
+def test_substituted_quinoline():
+    assert smiles_to_iupac("Cc1ccc2ncccc2c1") == "6-methylquinoline"
 
 
-def test_substituted_indole_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccc2[nH]ccc2c1")
+def test_substituted_indole():
+    assert smiles_to_iupac("Cc1ccc2[nH]ccc2c1") == "5-methyl-1H-indole"
 
 
 def test_3h_indole_tautomer_raises():

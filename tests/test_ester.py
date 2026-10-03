@@ -133,9 +133,8 @@ def test_ring_acyl_ester_substituted():
     )
 
 
-def test_ring_acyl_ester_unsaturated_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C(OC)C1CCCC=C1")
+def test_ring_acyl_ester_unsaturated_ring():
+    assert smiles_to_iupac("O=C(OC)C1CCCC=C1") == "methyl cyclohex-2-ene-1-carboxylate"
 
 
 def test_ring_acyl_ester_substituent_on_acyl_ring_atom():
@@ -261,4 +260,19 @@ def test_ester_unspecified_stereocenter_unaffected():
     ],
 )
 def test_ester_named_from_its_alkyl_and_acid_parts(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC(=O)OCCO", "2-hydroxyethyl ethanoate"),
+        ("CC(=O)OCC(=O)C", "2-oxopropyl ethanoate"),
+        ("O=C(OCCN(C)C)c1ccccc1", "2-(dimethylamino)ethyl benzoate"),
+        ("CC(=O)OCCSC", "2-(methylsulfanyl)ethyl ethanoate"),
+        ("O=C(OCCO)C=C", "2-hydroxyethyl prop-2-enoate"),
+        ("CC(=O)OCC(=O)O", "2-(ethanoyloxy)ethanoic acid"),
+    ],
+)
+def test_ester_alkyl_part_with_heteroatom_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

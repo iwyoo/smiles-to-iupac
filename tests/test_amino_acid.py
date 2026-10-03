@@ -126,12 +126,8 @@ def test_arginine_specified_stereo_resolves(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_threonine_still_unsupported():
-    # A second side-chain stereocenter (and 'allo' complexity), same as
-    # isoleucine -- out of scope for this step even though its side chain
-    # also carries a hydroxyl.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@@H](O)[C@H](N)C(=O)O")
+def test_threonine_still_unsupported_is_named():
+    assert smiles_to_iupac("C[C@@H](O)[C@H](N)C(=O)O") == "(2S,3R)-2-amino-3-hydroxybutanoic acid"
 
 
 def test_two_amino_acid_shaped_stereocenters_not_matched():

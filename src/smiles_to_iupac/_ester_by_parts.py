@@ -13,7 +13,20 @@ from ._substituents import name_branch
 _ESTER = Chem.MolFromSmarts("[CX3;!R](=O)[OX2;!R][#6]")
 _FREE_ACID = Chem.MolFromSmarts("[CX3](=O)[OX2H1]")
 _HYDROGEN_WORDS = {1: "hydrogen", 2: "dihydrogen", 3: "trihydrogen"}
-_ALKYL_ATOMS = {6, 9, 17, 35, 53}
+
+
+def _carbonyl_with_heteroatom(mol, idx):
+    atom = mol.GetAtomWithIdx(idx)
+    if atom.GetAtomicNum() != 6:
+        return False
+    has_double_o = any(
+        n.GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(idx, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for n in atom.GetNeighbors()
+    )
+    return has_double_o and any(
+        n.GetAtomicNum() in (7, 8, 16, 9, 17, 35, 53) and mol.GetBondBetweenAtoms(idx, n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        for n in atom.GetNeighbors()
+    )
 
 
 def _anion_name(acid_name):
@@ -46,8 +59,10 @@ def name_ester_by_parts(mol) -> str:
     alkyl_atoms = _branch_atoms(graph, alkyl_carbon, ester_oxygen)
     if acyl_carbon in alkyl_atoms:
         raise UnsupportedStructure("a ring-closing ester (lactone) is not named part-wise")
-    if any(mol.GetAtomWithIdx(a).GetAtomicNum() not in _ALKYL_ATOMS for a in alkyl_atoms):
-        raise UnsupportedStructure("an alkyl part with heteroatoms is not supported in part-wise ester naming")
+    if any(_carbonyl_with_heteroatom(mol, a) for a in alkyl_atoms):
+        raise UnsupportedStructure("an acid or ester group inside the alkyl part outranks this ester")
+    if any(mol.GetAtomWithIdx(a).GetIsotope() or mol.GetAtomWithIdx(a).GetNumRadicalElectrons() for a in alkyl_atoms):
+        raise UnsupportedStructure("isotopes and radicals in the alkyl part are not supported")
 
     editable = Chem.RWMol(mol)
     editable.RemoveBond(ester_oxygen, alkyl_carbon)

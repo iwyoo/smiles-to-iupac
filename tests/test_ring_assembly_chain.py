@@ -76,6 +76,5 @@ def test_mixed_ring_kinds_still_raises():
         smiles_to_iupac("C1CC1c1ccc(-c2ccccc2)cc1")
 
 
-def test_mixed_ring_sizes_still_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CC1C1CCCC1C1CC1")
+def test_mixed_ring_sizes():
+    assert smiles_to_iupac("C1CC1C1CCCC1C1CC1") == "1,2-dicyclopropylcyclopentane"

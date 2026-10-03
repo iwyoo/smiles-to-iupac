@@ -41,9 +41,8 @@ def test_plain_sulfinic_acid_still_routes_normally():
     assert smiles_to_iupac("CS(=O)O") == "methanesulfinic acid"
 
 
-def test_multiple_sulfonic_acids_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)(=O)CCS(=O)(=O)O")
+def test_multiple_sulfonic_acids():
+    assert smiles_to_iupac("OS(=O)(=O)CCS(=O)(=O)O") == "ethane-1,2-disulfonic acid"
 
 
 def test_other_heteroatom_not_supported():

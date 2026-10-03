@@ -127,9 +127,8 @@ def test_phenyl_substituent_ketone_ring_ethyl():
     assert smiles_to_iupac("CCc1ccc(cc1)CC(=O)C") == "1-(4-ethylphenyl)propan-2-one"
 
 
-def test_phenyl_substituent_ketone_naphthalene_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc2ccccc2c1CC(C)=O")
+def test_phenyl_substituent_ketone_naphthalene():
+    assert smiles_to_iupac("c1ccc2ccccc2c1CC(C)=O") == "1-(naphthalen-1-yl)propan-2-one"
 
 
 @pytest.mark.parametrize(

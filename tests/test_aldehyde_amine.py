@@ -45,9 +45,8 @@ def test_unsaturated_chain():
     assert smiles_to_iupac("NCC=CC=O") == "4-aminobut-2-enal"
 
 
-def test_specified_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@H](N)C=O")
+def test_specified_stereocenter():
+    assert smiles_to_iupac("C[C@H](N)C=O") == "(2S)-2-aminopropanal"
 
 
 def test_plain_aldehyde_still_works():

@@ -129,6 +129,7 @@ from ._dihydro_aromatic import (
 )
 from ._diester_acyloxy import has_diester_shape, has_polyester_of_one_polyol_shape, name_diester_acyloxy
 from ._ester import has_ester_shape, name_ester
+from ._ester_by_parts import name_ester_by_parts
 from ._polyfunctional import name_polyfunctional
 from ._cyanate import has_cyanate_shape, name_cyanate
 from ._ether import has_ether_shape, name_ether
@@ -389,15 +390,27 @@ def _is_aldehyde_shaped(carbonyl_oxygen):
     return carbon.GetAtomicNum() == 6 and sum(1 for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6) == 1
 
 
+_FALLBACKS_RUNNING = set()
+
+
 def smiles_to_iupac(smiles: str) -> str:
     try:
         return _smiles_to_iupac_dispatch(smiles)
     except UnsupportedStructure as original:
         mol = Chem.MolFromSmiles(smiles)
-        try:
-            return name_polyfunctional(mol)
-        except UnsupportedStructure:
+        key = Chem.MolToSmiles(mol)
+        if key in _FALLBACKS_RUNNING:
             raise original
+        _FALLBACKS_RUNNING.add(key)
+        try:
+            for fallback in (name_polyfunctional, name_ester_by_parts):
+                try:
+                    return fallback(mol)
+                except UnsupportedStructure:
+                    continue
+        finally:
+            _FALLBACKS_RUNNING.discard(key)
+        raise original
 
 
 def _smiles_to_iupac_dispatch(smiles: str) -> str:

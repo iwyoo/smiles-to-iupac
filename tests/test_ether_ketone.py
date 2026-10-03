@@ -51,9 +51,8 @@ def test_ring():
     assert smiles_to_iupac("O=C1CCCCC1COC") == "2-(methoxymethyl)cyclohexan-1-one"
 
 
-def test_specified_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COC[C@@H](C)C(C)=O")
+def test_specified_stereocenter():
+    assert smiles_to_iupac("COC[C@@H](C)C(C)=O") == "(3R)-4-methoxy-3-methylbutan-2-one"
 
 
 def test_plain_ether_still_works():

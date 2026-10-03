@@ -15,15 +15,16 @@ from ._common import (
     lowest_locant_set,
     multiplied_word,
     name_from_substituents,
+    ring_cycle,
     specified_stereo_elements,
     substituent_locant_set_and_citation,
 )
 from ._hetero_prefixes import is_functional_carbon
 from ._multiplicative import _bare_key
-from ._multiplicative_ring import _SUFFIX_WORDS, _citation_key, _join, _prefix_text, _suffix_text, monocycle_spec, numberings
+from ._multiplicative_ring import _SUFFIX_WORDS, _citation_key, _join, _prefix_text, _suffix_text, monocycle_spec, name_ring_component, numberings
 from ._substituents import format_substituent_prefixes, name_branch
 
-_SENIORITY = ["acid", "amide", "nitrile", "aldehyde", "ketone", "alcohol", "thiol", "amine"]
+_SENIORITY = ["acid", "sulfonic", "amide", "sulfonamide", "nitrile", "aldehyde", "ketone", "alcohol", "thiol", "amine"]
 _TERMINAL = {"acid", "amide", "nitrile", "aldehyde"}
 _MAX_ATOMS = 80
 
@@ -47,6 +48,62 @@ def _single_neighbors(mol, carbon, atomic_num):
 def _terminal_heteroatom(mol, idx, hydrogens):
     atom = mol.GetAtomWithIdx(idx)
     return atom.GetDegree() == 1 and atom.GetTotalNumHs() == hydrogens and not atom.GetFormalCharge()
+
+
+_CHALCOGEN_KETONE_OK = {"acid", "sulfonic", "amide", "sulfonamide", "nitrile", "aldehyde"}
+
+
+def _chalcogen_ketone(mol, atom):
+    """A carbon double-bonded to S, Se or Te (thione, selone, tellone)."""
+    if atom.GetAtomicNum() != 6:
+        return False
+    return any(
+        n.GetAtomicNum() in (16, 34, 52)
+        and n.GetDegree() == 1
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for n in atom.GetNeighbors()
+    )
+
+
+def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
+    """An amide nitrogen carrying only carbon substituents (no acyl group, so
+    not an imide) -- named with 'N-' prefixes on the amide parent."""
+    if nitrogen.GetFormalCharge() or nitrogen.IsInRing() or nitrogen.GetIsAromatic():
+        return False
+    others = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != carbonyl]
+    return bool(others) and all(
+        n.GetAtomicNum() == 6
+        and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        and not _double_oxygens(mol, n.GetIdx())
+        and not is_functional_carbon(mol, n.GetIdx())
+        for n in others
+    )
+
+
+def _sulfonyl_group(mol, s_idx, attached):
+    """("sulfonic" | "sulfonamide", owned atoms) for an S(=O)(=O)X group whose
+    X is OH or an amine nitrogen and whose other neighbor is `attached`."""
+    sulfur = mol.GetAtomWithIdx(s_idx)
+    if sulfur.GetAtomicNum() != 16 or sulfur.GetFormalCharge() or sulfur.GetDegree() != 4:
+        return None
+    oxygens = [
+        n.GetIdx()
+        for n in sulfur.GetNeighbors()
+        if n.GetAtomicNum() == 8
+        and n.GetDegree() == 1
+        and mol.GetBondBetweenAtoms(s_idx, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    ]
+    rest = [n for n in sulfur.GetNeighbors() if n.GetIdx() not in oxygens and n.GetIdx() != attached]
+    if len(oxygens) != 2 or len(rest) != 1:
+        return None
+    other = rest[0]
+    if other.GetAtomicNum() == 8 and _terminal_heteroatom(mol, other.GetIdx(), 1):
+        return "sulfonic", {s_idx, *oxygens, other.GetIdx()}
+    if other.GetAtomicNum() == 7 and (
+        _terminal_heteroatom(mol, other.GetIdx(), 2) or _plain_amide_nitrogen(mol, other, s_idx)
+    ):
+        return "sulfonamide", {s_idx, *oxygens, other.GetIdx()}
+    return None
 
 
 def _group_of(mol, carbon):
@@ -88,7 +145,14 @@ def _group_of(mol, carbon):
                 return "acid", {oxygens[0], other.GetIdx()}
             if other.GetAtomicNum() == 7 and _terminal_heteroatom(mol, other.GetIdx(), 2):
                 return "amide", {oxygens[0], other.GetIdx()}
+            if other.GetAtomicNum() == 7 and _plain_amide_nitrogen(mol, other, carbon):
+                return "amide", {oxygens[0], other.GetIdx()}
         return None
+    for n in atom.GetNeighbors():
+        if n.GetAtomicNum() == 16 and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0:
+            sulfonyl = _sulfonyl_group(mol, n.GetIdx(), carbon)
+            if sulfonyl is not None:
+                return sulfonyl
     for z, hydrogens, name in ((8, 1, "alcohol"), (16, 1, "thiol"), (7, 2, "amine")):
         for n in _single_neighbors(mol, carbon, z):
             if _terminal_heteroatom(mol, n, hydrogens):
@@ -112,21 +176,64 @@ def _paths(adj, eligible):
 
 
 def name_polyfunctional(mol) -> str:
-    _check_scope(mol)
-    multiplicative = _multiplicative_name(mol)
+    stereo = _check_scope(mol)
+    multiplicative = _multiplicative_name(mol, stereo)
     if multiplicative is not None:
         return multiplicative
-    return _select(mol)[1]
+    _, name, parts = _select(mol, stereo=stereo)
+    return _stereo_prefix(stereo, parts[4], ring_parent=parts[5]) + name
 
 
 def _check_scope(mol):
+    """The specified stereo elements as ("atom", idx, code) or
+    ("bond", (a, b), code); [] when the molecule has none."""
     if mol.GetNumAtoms() > _MAX_ATOMS or len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("this molecule is out of scope for the polyfunctional chain engine")
-    if specified_stereo_elements(mol):
-        raise UnsupportedStructure("stereodescriptors are not supported by the polyfunctional chain engine yet")
+    elements = specified_stereo_elements(mol) or []
+    located = []
+    for kind, idx, code in elements:
+        if kind == "bond":
+            bond = mol.GetBondWithIdx(idx)
+            located.append(("bond", (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()), code))
+        else:
+            located.append((kind, idx, code))
+    return located
 
 
-def _select(mol, attach=None, n_names=()):
+def _stereo_entries(stereo, position_of, ring_parent=False):
+    """[(locant, code)] for the stereo elements found on the parent, plus
+    whether every element was placed."""
+    entries, complete = [], True
+    for kind, where, code in stereo or []:
+        if kind == "atom":
+            if where in position_of:
+                entries.append((position_of[where], code))
+            else:
+                complete = False
+        else:
+            a, b = where
+            if ring_parent or a not in position_of or b not in position_of:
+                complete = False
+            else:
+                entries.append((min(position_of[a], position_of[b]), code))
+    return sorted(entries), complete
+
+
+def _stereo_rank(stereo, position_of, ring_parent=False):
+    entries, _ = _stereo_entries(stereo, position_of, ring_parent)
+    return tuple(0 if code in "RZ" else 1 for _, code in entries)
+
+
+def _stereo_prefix(stereo, position_of, ring_parent=False):
+    if not stereo:
+        return ""
+    entries, complete = _stereo_entries(stereo, position_of, ring_parent)
+    if not complete:
+        raise UnsupportedStructure("stereodescriptors outside the parent are not supported by the chain engine yet")
+    return "(" + ",".join(f"{locant}{code}" for locant, code in entries) + ")-"
+
+
+def _select(mol, attach=None, n_names=(), stereo=None):
     """(key, name, parts) of the best parent. `attach`: an atom that carries a
     free valence (a multiplicative unit); it takes the lowest locant after
     the principal groups and multiple bonds."""
@@ -142,6 +249,8 @@ def _select(mol, attach=None, n_names=()):
     ring_groups = _ring_occurrences(mol)
     classes = set(groups) | {c for c, _, _ in ring_groups}
     principal = next((name for name in _SENIORITY if name in classes), None)
+    if any(_chalcogen_ketone(mol, a) for a in mol.GetAtoms()) and principal not in _CHALCOGEN_KETONE_OK:
+        raise UnsupportedStructure("a thioketone-type group outranks the parents this engine can build here")
     for atom in mol.GetAtoms():
         if atom.GetIsotope() or atom.GetNumRadicalElectrons():
             raise UnsupportedStructure("isotopes and radicals are not supported by the polyfunctional chain engine")
@@ -151,20 +260,49 @@ def _select(mol, attach=None, n_names=()):
             atom.GetAtomicNum() == 6
             and not atom.IsInRing()
             and principal != "acid"
+            and not (principal in ("amide", "sulfonamide") and atom.GetIdx() in groups.get(principal, {}))
             and _is_ester_like(mol, atom.GetIdx())
         ):
             raise UnsupportedStructure("an ester outranks every parent this engine can build except an acid")
     if principal in (None, "amine") and any(_substituted_amine_nitrogen(mol, a) for a in mol.GetAtoms()):
         if attach is not None or n_names:
             raise UnsupportedStructure("N-substituted amines inside a unit are not handled by the chain engine")
+        if stereo:
+            raise UnsupportedStructure("stereodescriptors with an N-substituted amine parent are not supported yet")
         return _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups)
 
     if principal is None:
         if attach is not None:
             raise UnsupportedStructure("a unit without a principal group is not supported")
-        return _plain_parent(mol, graph, halogens, aromatic_atoms)
+        return _plain_parent(mol, graph, halogens, aromatic_atoms, stereo)
+
+    if principal in ("amide", "sulfonamide"):
+        amide_ns = _amide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal)
+        if amide_ns:
+            if attach is not None or n_names:
+                raise UnsupportedStructure("an N-substituted amide inside a unit is not handled by the chain engine")
+            n_names = amide_ns
+
+    anchors = set(groups.get(principal, {}))
+    for cls, _, owned in ring_groups:
+        if cls == principal:
+            anchors.add(min(owned, key=lambda a: (mol.GetAtomWithIdx(a).GetAtomicNum() != 6, a)))
+    total_principal = len(anchors)
+    group_atoms = set().union(*groups.get(principal, {}).values(), *(g[2] for g in ring_groups if g[0] == principal))
+    group_atoms |= set(groups.get(principal, {}))
+
+    def _finish(result):
+        carried = -result[0][0] if isinstance(result[0][0], int) else 0
+        if attach is None and not n_names and carried < total_principal and _identical_group_units(
+            mol, graph, group_atoms
+        ):
+            raise UnsupportedStructure(
+                "identical parents joined through a linking group need a multiplicative name (P-15.3)"
+            )
+        return result
 
     chain_best = None
+    chain_error = None
     principal_atoms = groups.get(principal, {})
     if principal_atoms:
         owned = set().union(*principal_atoms.values())
@@ -175,46 +313,88 @@ def _select(mol, attach=None, n_names=()):
             and not a.IsInRing()
             and (a.GetIdx() in principal_atoms or not is_functional_carbon(mol, a.GetIdx()))
         }
-        for path in _paths(graph, eligible):
-            for chain in (path, path[::-1]):
-                candidate = _evaluate(
-                    mol, graph, halogens, aromatic_atoms, chain, principal, principal_atoms, owned, attach, n_names
-                )
-                if chain_best is None or candidate[0] < chain_best[0]:
-                    chain_best = candidate
+        try:
+            for path in _paths(graph, eligible):
+                for chain in (path, path[::-1]):
+                    candidate = _evaluate(
+                        mol, graph, halogens, aromatic_atoms, chain, principal, principal_atoms, owned, attach, n_names, stereo
+                    )
+                    if chain_best is None or candidate[0] < chain_best[0]:
+                        chain_best = candidate
+        except UnsupportedStructure as error:
+            chain_error, chain_best = error, None
         if chain_best is not None and chain_best[0][0] == 1:
             chain_best = None
     chain_count = -chain_best[0][0] if chain_best else 0
 
+    assembly = _assembly_parent(
+        mol, graph, halogens, aromatic_atoms, principal, [g for g in ring_groups if g[0] == principal], stereo
+    )
+    if assembly is not None and assembly[0] >= chain_count:
+        if attach is not None or n_names:
+            raise UnsupportedStructure("a ring assembly inside a unit is not supported yet")
+        return _finish(assembly[1])
+
     ring_best = _best_ring(
-        mol, graph, halogens, aromatic_atoms, principal, [g for g in ring_groups if g[0] == principal], n_names
+        mol, graph, halogens, aromatic_atoms, principal, [g for g in ring_groups if g[0] == principal], n_names, stereo
     )
     ring_count = ring_best[0] if ring_best else 0
 
+    if chain_error is not None and not (ring_count and ring_count >= total_principal):
+        raise chain_error
     if ring_count and ring_count >= chain_count:
         if attach is not None:
             raise UnsupportedStructure("a ring parent inside a multiplicative unit is not supported yet")
-        return ring_best[1]
+        return _finish(ring_best[1])
     if chain_best is None:
         raise UnsupportedStructure("no parent carries the principal group")
     if principal in _TERMINAL and chain_count < len(principal_atoms):
-        raise UnsupportedStructure("principal groups that need a 'carbo' suffix are not supported yet")
+        carbo = _carbo_best(mol, graph, halogens, aromatic_atoms, principal, principal_atoms, stereo)
+        if carbo is not None and -carbo[0][0] > chain_count:
+            return _finish(carbo)
     if principal in _TERMINAL and chain_best[0][1] == -1:
         raise UnsupportedStructure("one-carbon acid, amide, nitrile and aldehyde parents use retained names")
-    return chain_best
+    return _finish(chain_best)
 
 
-def _plain_parent(mol, graph, halogens, aromatic_atoms):
+def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     """Parent without a principal group: the monocycle when there is one
     (P-44.1.2.2), else the longest chain, with every substituent a prefix."""
     ring_info = mol.GetRingInfo()
     rings = [r for r in ring_info.AtomRings()]
+    if len(rings) == 2:
+        assembly = _assembly_parent(mol, graph, halogens, aromatic_atoms, None, [], stereo)
+        if assembly is not None:
+            return assembly[1]
+    if rings and any(ring_info.NumAtomRings(a) != 1 for r in rings for a in r):
+        from ._diester_ring_diyl import _system_of
+
+        system_rings, system_atoms = _system_of(mol, rings[0][0])
+        _require_mancude_system(mol, system_atoms)
+        if len(system_rings) != len(rings):
+            raise UnsupportedStructure("a fused system beside other rings is not named by the chain engine")
+        from ._diester_ring_diyl import evaluate_skeleton
+
+        found = evaluate_skeleton(mol, graph, "ring", system_rings, system_atoms, [], set(), "")
+        if found is None:
+            raise UnsupportedStructure("this fused ring system has no supported numbering")
+        return ((0,), found[1], (None, None, None, 0, found[2], True))
     if rings:
-        if len(rings) != 1 or any(ring_info.NumAtomRings(a) != 1 for a in rings[0]):
+        if any(ring_info.NumAtomRings(a) != 1 for r in rings for a in r):
             raise UnsupportedStructure("several rings without a principal group are not named by the chain engine")
-        spec = monocycle_spec(mol, rings[0])
+        ranked = sorted(rings, key=lambda r: tuple(-x for x in _ring_rank(mol, r[0])))
+        if len(ranked) > 1 and _ring_rank(mol, ranked[0][0]) == _ring_rank(mol, ranked[1][0]):
+            raise UnsupportedStructure("equally ranked rings without a principal group need ring-assembly naming")
+        parent_ring = ranked[0]
+        spec = monocycle_spec(mol, parent_ring)
         if spec is None:
-            raise UnsupportedStructure("this ring is not supported as a parent by the chain engine")
+            from ._diester_ring_diyl import evaluate_skeleton
+
+            found = evaluate_skeleton(mol, graph, "ring", [parent_ring], set(parent_ring), [], set(), "")
+            if found is None:
+                raise UnsupportedStructure("this ring has no supported name")
+            return ((0,), found[1], (None, None, None, 0, found[2], True))
+        rings = [parent_ring]
         ring_set = set(rings[0])
         roots = [
             (r, n.GetIdx())
@@ -232,10 +412,11 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms):
             key = (
                 tuple(sorted(locants[r] for r, _, _ in entries)),
                 _citation_key([(locants[r], name) for r, name, _ in entries]),
+                _stereo_rank(stereo, locants),
             )
             if best is None or key < best[0]:
                 best = (key, locants)
-        if len(entries) == 1:
+        if len(entries) == 1 and spec.hetero is None:
             _, only_name, only_compound = entries[0]
             prefix_text = format_substituent_prefixes(
                 {only_name: {"locants": [1], "compound": only_compound}}, omit_locants=True
@@ -243,7 +424,7 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms):
         else:
             prefix_text = _prefix_text(entries, best[1])
         name = _join(prefix_text, spec.parent)
-        return ((0,), name, None)
+        return ((0,), name, (None, None, None, 0, best[1], True))
 
     eligible = {
         a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and not is_functional_carbon(mol, a.GetIdx())
@@ -251,7 +432,7 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms):
     best = None
     for path in _paths(graph, eligible):
         for chain in (path, path[::-1]):
-            candidate = _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain)
+            candidate = _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo)
             if best is None or candidate[0] < best[0]:
                 best = candidate
     if best is None:
@@ -259,7 +440,7 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms):
     return best
 
 
-def _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain):
+def _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo=None):
     position_of = {atom: i + 1 for i, atom in enumerate(chain)}
     chain_set = set(chain)
     ene, yne = [], []
@@ -297,14 +478,215 @@ def _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain):
         -total_count,
         locant_set,
         citation,
+        _stereo_rank(stereo, position_of),
         name,
     )
-    return key, name, None
+    return key, name, (None, None, None, 0, position_of, False)
+
+
+_CARBO_WORDS = {"acid": "carboxylic acid", "amide": "carboxamide", "nitrile": "carbonitrile", "aldehyde": "carbaldehyde"}
+
+
+def _carbo_best(mol, graph, halogens, aromatic_atoms, principal, principal_atoms, stereo):
+    """The chain whose attached group carbons are cited as 'carbo' suffixes
+    (propane-1,2,3-tricarboxylic acid), or None."""
+    owned = set().union(*principal_atoms.values())
+    group_carbons = set(principal_atoms)
+    eligible = {
+        a.GetIdx()
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() == 6
+        and not a.IsInRing()
+        and a.GetIdx() not in group_carbons
+        and not is_functional_carbon(mol, a.GetIdx())
+    }
+    best = None
+    for path in _paths(graph, eligible):
+        for chain in (path, path[::-1]):
+            candidate = _evaluate_carbo(
+                mol, graph, halogens, aromatic_atoms, chain, principal, group_carbons, owned, stereo
+            )
+            if candidate is not None and (best is None or candidate[0] < best[0]):
+                best = candidate
+    return best
+
+
+def _evaluate_carbo(mol, graph, halogens, aromatic_atoms, chain, principal, group_carbons, owned, stereo):
+    position_of = {atom: i + 1 for i, atom in enumerate(chain)}
+    chain_set = set(chain)
+    attached = {}
+    for g in group_carbons:
+        host = [n for n in graph[g] if n in chain_set]
+        if host:
+            attached[g] = host[0]
+    if not attached:
+        return None
+    suffix_locants = sorted(position_of[a] for a in attached.values())
+    ene, yne = [], []
+    for a, b in zip(chain, chain[1:]):
+        order = mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble()
+        if order == 2.0:
+            ene.append(position_of[a])
+        elif order == 3.0:
+            yne.append(position_of[a])
+    entries = {}
+    for atom in chain:
+        for neighbor in graph[atom]:
+            if neighbor in chain_set or neighbor in attached:
+                continue
+            name, compound = name_branch(graph, neighbor, atom, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+            entries.setdefault(position_of[atom], []).append((name, compound))
+    grouped = group_substituents(entries)
+    locant_set, total_count, citation = substituent_locant_set_and_citation(grouped)
+    count = len(attached)
+    length = len(chain)
+    word = _CARBO_WORDS[principal]
+    prefix = format_substituent_prefixes(grouped)
+    body = name_from_substituents(length, ene, yne, multiplied_word(count, word), suffix_locants)
+    name = prefix + body
+    key = (
+        -count,
+        -length,
+        tuple(suffix_locants),
+        -(len(ene) + len(yne)),
+        lowest_locant_set(ene + yne),
+        -total_count,
+        locant_set,
+        citation,
+        _stereo_rank(stereo, position_of),
+        name,
+    )
+    return key, name, (prefix, body, "", 0, position_of, False)
+
+
+def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo):
+    """P-28: two identical benzene or cycloalkane rings joined by a single
+    bond -- [1,1'-biphenyl]-4-ol, 4-nitro-1,1'-biphenyl. Returns
+    (principal count, (key, name, parts)) or None when `mol` is not one."""
+    ring_info = mol.GetRingInfo()
+    rings = [list(r) for r in ring_info.AtomRings()]
+    if len(rings) != 2 or set(rings[0]) & set(rings[1]):
+        return None
+    specs = [monocycle_spec(mol, r) for r in rings]
+    if any(sp is None or sp.hetero is not None for sp in specs):
+        return None
+    if specs[0].kind != specs[1].kind or len(rings[0]) != len(rings[1]):
+        return None
+    if _bare_key(mol, set(rings[0])) != _bare_key(mol, set(rings[1])):
+        return None
+    joins = [(a, b) for a in rings[0] for b in rings[1] if mol.GetBondBetweenAtoms(a, b) is not None]
+    if len(joins) != 1:
+        return None
+    if stereo:
+        raise UnsupportedStructure("stereodescriptors in a ring assembly are not supported yet")
+    owned = set().union(*(o[2] for o in occurrences)) if occurrences else set()
+    ring_atoms = set(rings[0]) | set(rings[1])
+    roots = [
+        (r, n.GetIdx())
+        for r in ring_atoms
+        for n in mol.GetAtomWithIdx(r).GetNeighbors()
+        if n.GetIdx() not in ring_atoms and n.GetIdx() not in owned
+    ]
+    entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
+    junction = {0: joins[0][0], 1: joins[0][1]}
+    cycles = [ring_cycle(graph, rings[0]), ring_cycle(graph, rings[1])]
+
+    def orientations(index):
+        cycle = cycles[index]
+        start = cycle.index(junction[index])
+        rotated = cycle[start:] + cycle[:start]
+        return [rotated, [rotated[0]] + rotated[:0:-1]]
+
+    best = None
+    for unprimed in (0, 1):
+        for first in orientations(unprimed):
+            for second in orientations(1 - unprimed):
+                locants = {atom: (0, i + 1) for i, atom in enumerate(first)}
+                locants.update({atom: (1, i + 1) for i, atom in enumerate(second)})
+                key = (
+                    tuple(sorted(locants[o[1]] for o in occurrences)),
+                    tuple(sorted(locants[r] for r, _, _ in entries)),
+                    _citation_key([(locants[r], name) for r, name, _ in entries]),
+                )
+                if best is None or key < best[0]:
+                    best = (key, locants)
+    locants = best[1]
+
+    def cite(locant):
+        return f"{locant[1]}{chr(39) * locant[0]}"
+
+    grouped = {}
+    for r, name, compound in entries:
+        grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(cite(locants[r]))
+    for info in grouped.values():
+        info["locants"].sort(key=lambda text: (text.count(chr(39)), int(text.rstrip(chr(39)))))
+    prefix = format_substituent_prefixes(grouped) if grouped else ""
+    if specs[0].kind == "benzene":
+        base = "1,1'-biphenyl"
+    else:
+        base = f"1,1'-bi({specs[0].parent})"
+    count = len(occurrences)
+    if principal is None:
+        core = base
+    else:
+        word = multiplied_word(count, _SUFFIX_WORDS[_RING_SUFFIX[principal]])
+        spots = ",".join(cite(locants[o[1]]) for o in sorted(occurrences, key=lambda o: locants[o[1]]))
+        core = f"[{base}]-{spots}-{word}"
+    name = f"{prefix}-{core}" if prefix else core
+    return count, ((-count,), name, (None, None, None, 0, locants, True))
+
+
+def _require_mancude_system(mol, atoms):
+    """Only fully aromatic fused systems (arenes, mancude heterocycles): partly
+    hydrogenated, bridged and spiro systems need hydro/von Baeyer names."""
+    if not all(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms):
+        raise UnsupportedStructure("a partly saturated, bridged or spiro ring system is not handled by the chain engine")
+    member_rings = [r for r in mol.GetRingInfo().AtomRings() if set(r) <= set(atoms)]
+    carbon_hexagons = all(
+        len(r) == 6 and all(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in r) for r in member_rings
+    )
+    if len(member_rings) > 3 or (len(member_rings) == 3 and not carbon_hexagons):
+        raise UnsupportedStructure("the numbering of this larger fused system is not verified here")
+
+
+_FUSED_SUFFIX = {
+    "acid": "carboxylic acid",
+    "sulfonic": "sulfonic acid",
+    "amide": "carboxamide",
+    "sulfonamide": "sulfonamide",
+    "nitrile": "carbonitrile",
+    "aldehyde": "carbaldehyde",
+    "alcohol": "ol",
+    "thiol": "thiol",
+    "amine": "amine",
+}
+
+
+def _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo):
+    """A fused ring system bearing the principal groups, named through the
+    ring-system numbering and parent names used for diyl groups."""
+    from ._diester_ring_diyl import _system_of, evaluate_skeleton
+
+    if n_names or stereo or principal not in _FUSED_SUFFIX:
+        raise UnsupportedStructure("this fused-ring parent is not supported by the chain engine yet")
+    rings, atoms = _system_of(mol, here[0][1])
+    if len(rings) > 1:
+        _require_mancude_system(mol, atoms)
+    on_system = [o for o in occurrences if o[1] in atoms]
+    attach = [o[1] for o in on_system]
+    blocked = set().union(*(o[2] for o in on_system))
+    found = evaluate_skeleton(mol, graph, "ring", rings, atoms, attach, blocked, _FUSED_SUFFIX[principal])
+    if found is None:
+        raise UnsupportedStructure("this fused ring system has no supported numbering")
+    count = len(on_system)
+    return count, ((-count,), found[1], (None, None, None, 0, found[2], True))
 
 
 _RING_SUFFIX = {
     "acid": "carboxylic_acid",
+    "sulfonic": "sulfonic_acid",
     "amide": "amide",
+    "sulfonamide": "sulfonamide",
     "nitrile": "nitrile",
     "aldehyde": "aldehyde",
     "ketone": "ketone",
@@ -314,22 +696,30 @@ _RING_SUFFIX = {
 }
 
 
-def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names=()):
+def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names=(), stereo=None):
     """(principal group count, (key, name, parts)) of the monocycle bearing
     the most principal groups, or None."""
     if not occurrences:
         return None
     ring_info = mol.GetRingInfo()
     candidates = []
+    seen_systems = []
     for ring in ring_info.AtomRings():
         here = [o for o in occurrences if o[1] in ring]
         if not here:
             continue
         if any(ring_info.NumAtomRings(a) != 1 for a in ring):
-            raise UnsupportedStructure("a fused or bridged ring parent is not handled by the chain engine")
+            from ._diester_ring_diyl import _system_of
+
+            _, system_atoms = _system_of(mol, here[0][1])
+            if any(set(system_atoms) == seen for seen in seen_systems):
+                continue
+            seen_systems.append(set(system_atoms))
+            here = [o for o in occurrences if o[1] in system_atoms]
+        if any(ring_info.NumAtomRings(a) != 1 for a in ring):
+            candidates.append((len(here), ring, None, here))
+            continue
         spec = monocycle_spec(mol, ring)
-        if spec is None:
-            raise UnsupportedStructure("this ring is not supported as a parent by the chain engine")
         candidates.append((len(here), ring, spec, here))
     if not candidates:
         return None
@@ -338,6 +728,8 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
     if len(leading) > 1:
         raise UnsupportedStructure("several rings bear the principal group; a multiplicative name is needed")
     count, ring, spec, here = leading[0]
+    if spec is None:
+        return _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo)
     owned = set().union(*(o[2] for o in here))
     ring_set = set(ring)
     roots = [
@@ -360,6 +752,7 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
             tuple(sorted(locants[a] for a in principal_atoms)),
             tuple(sorted(locants[r] for r, _, _ in entries)),
             _citation_key([(locants[r], name) for r, name, _ in entries]),
+            _stereo_rank(stereo, locants, True),
         )
         if best is None or key < best[0]:
             best = (key, locants)
@@ -374,7 +767,7 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
     else:
         core, _ = _suffix_text(spec.parent, suffix_name, suffix_locants, spec)
     name = _join(prefix_text, core)
-    return count, (((-count,), name, None), name, None)
+    return count, ((-count,), name, (None, None, None, 0, locants, True))
 
 
 def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups):
@@ -449,6 +842,31 @@ def _chain_size(mol, idx):
     return max((len(p) for p in _paths(graph, eligible) if idx in p), default=0)
 
 
+def _identical_group_units(mol, graph, group_atoms):
+    """True when two disjoint, identical, non-trivial fragments hanging off
+    different acyclic bonds each carry a principal group -- the shape that
+    P-15.3 names multiplicatively."""
+    sides = []
+    for bond in mol.GetBonds():
+        if bond.IsInRing() or bond.GetBondTypeAsDouble() != 1.0:
+            continue
+        a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+        for root, other in ((b, a), (a, b)):
+            neighbor = mol.GetAtomWithIdx(other)
+            if neighbor.GetAtomicNum() == 6 and not neighbor.IsInRing():
+                continue
+            atoms = _arm_atoms(graph, root, other)
+            if other in atoms or not atoms & group_atoms or not atoms - group_atoms:
+                continue
+            canonical, _ = _unit_molecule(mol, atoms, root)
+            sides.append((bond.GetIdx(), atoms, Chem.MolToSmiles(canonical)))
+    for i, (bi, ai, si) in enumerate(sides):
+        for bj, aj, sj in sides[:i]:
+            if bi != bj and si == sj and not ai & aj:
+                return True
+    return False
+
+
 _LINKER_WORDS = {8: "oxy", 16: "sulfanediyl", 34: "selanediyl"}
 
 
@@ -462,7 +880,7 @@ def _arm_atoms(graph, start, blocked):
     return seen
 
 
-def _multiplicative_name(mol):
+def _multiplicative_name(mol, stereo=None):
     """P-15.3: identical chain parents joined through one oxygen, chalcogen,
     NH or N atom are named multiplicatively (2,2'-oxydi(ethan-1-ol))."""
     graph = adjacency(mol)
@@ -497,17 +915,80 @@ def _multiplicative_name(mol):
         keys = {Chem.MolToSmiles(unit[0]) for unit in units}
         if len(keys) != 1:
             continue
+        if stereo:
+            raise UnsupportedStructure("stereodescriptors in a multiplicative name are not supported yet")
         unit, attach = units[0]
         _, _, parts = _select(unit, attach)
-        prefix, body, tail, locant = parts
-        locants = ",".join(str(locant) + "'" * i for i in range(arms))
+        prefix, body, tail, locant = parts[:4]
+        lead = ",".join(str(locant) + "'" * i for i in range(arms)) + "-" if locant is not None else ""
         text = prefix + body
         if prefix:
             word = {2: "bis", 3: "tris"}[arms]
-            return f"{locants}-{linker}{word}({text}){tail}"
+            return f"{lead}{linker}{word}({text}){tail}"
         word = {2: "di", 3: "tri"}[arms]
         unit_text = f"({text})" if any(ch.isdigit() or ch == "-" for ch in text) else text
-        return f"{locants}-{linker}{word}{unit_text}{tail}"
+        return f"{lead}{linker}{word}{unit_text}{tail}"
+    return _ring_linker_name(mol, graph, stereo)
+
+
+def _ring_linker_name(mol, graph, stereo):
+    """Two identical chain parents on one monocycle: 2,2'-(1,4-phenylene)di(ethan-1-ol)."""
+    ring_info = mol.GetRingInfo()
+    for ring in ring_info.AtomRings():
+        if any(ring_info.NumAtomRings(a) != 1 for a in ring):
+            continue
+        ring_set = set(ring)
+        attachments = [
+            (r, n.GetIdx())
+            for r in ring
+            for n in mol.GetAtomWithIdx(r).GetNeighbors()
+            if n.GetIdx() not in ring_set
+        ]
+        if len(attachments) != 2:
+            continue
+        spec = monocycle_spec(mol, ring)
+        arms = [_arm_atoms(graph, root, r) for r, root in attachments]
+        if arms[0] & arms[1] or len(arms[0]) + len(arms[1]) + len(ring) != mol.GetNumAtoms():
+            continue
+        if any(
+            mol.GetAtomWithIdx(root).GetAtomicNum() != 6
+            or mol.GetAtomWithIdx(root).GetIsAromatic()
+            or mol.GetBondBetweenAtoms(r, root).GetBondTypeAsDouble() != 1.0
+            for r, root in attachments
+        ):
+            continue
+        units = [_unit_molecule(mol, atoms, root) for atoms, (_, root) in zip(arms, attachments)]
+        if len({Chem.MolToSmiles(unit[0]) for unit in units}) != 1:
+            continue
+        unit, attach = units[0]
+        try:
+            _, _, parts = _select(unit, attach)
+        except UnsupportedStructure:
+            continue
+        if spec is not None:
+            linker = name_ring_component(mol, ring, attachments, [], None)
+        else:
+            from ._diester_ring_diyl import evaluate_skeleton
+
+            try:
+                found = evaluate_skeleton(
+                    mol, graph, "ring", [ring], ring_set, [r for r, _ in attachments], arms[0] | arms[1], "yl"
+                )
+            except UnsupportedStructure:
+                found = None
+            linker = (found[1], False) if found else None
+        if linker is None:
+            continue
+        if stereo:
+            raise UnsupportedStructure("stereodescriptors in a multiplicative name are not supported yet")
+        prefix, body, tail, locant = parts[:4]
+        lead = f"{locant},{locant}'-" if locant is not None else ""
+        text = prefix + body
+        linker_text = f"({linker[0]})"
+        if prefix:
+            return f"{lead}{linker_text}bis({text}){tail}"
+        unit_text = f"({text})" if any(ch.isdigit() or ch == "-" for ch in text) else text
+        return f"{lead}{linker_text}di{unit_text}{tail}"
     return None
 
 
@@ -549,7 +1030,7 @@ def _is_ester_like(mol, carbon):
 
 
 def _substituted_amine_nitrogen(mol, atom):
-    if atom.GetAtomicNum() != 7 or atom.GetFormalCharge() or atom.GetIsAromatic():
+    if atom.GetAtomicNum() != 7 or atom.GetFormalCharge() or atom.GetIsAromatic() or atom.IsInRing():
         return False
     carbons = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
     return len(carbons) >= 2
@@ -574,6 +1055,10 @@ def _ring_occurrences(mol):
                 found.append(("alcohol", r, {i}))
             elif z == 16 and _terminal_heteroatom(mol, i, 1):
                 found.append(("thiol", r, {i}))
+            elif z == 16 and order == 1.0:
+                sulfonyl = _sulfonyl_group(mol, i, r)
+                if sulfonyl is not None:
+                    found.append((sulfonyl[0], r, sulfonyl[1]))
             elif z == 7 and _terminal_heteroatom(mol, i, 2):
                 found.append(("amine", r, {i}))
             elif z == 6:
@@ -599,7 +1084,31 @@ def _ring_prefix_text(entries, locants, n_names):
     return format_substituent_prefixes(_with_n_names(grouped, n_names)) if (grouped or n_names) else ""
 
 
-def _evaluate(mol, graph, halogens, aromatic_atoms, chain, principal, principal_atoms, owned, attach=None, n_names=()):
+def _amide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls="amide"):
+    """N-prefix names when the single amide group is N-substituted, else []."""
+    members = {c: owned for c, owned in groups.get(cls, {}).items()}
+    for group_cls, ring_atom, owned in ring_groups:
+        if group_cls == cls:
+            key = next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 6), ring_atom)
+            members[key] = owned
+    substituted = []
+    for carbon, owned in members.items():
+        nitrogen = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7)
+        center = next((a for a in graph[nitrogen] if a in owned), carbon)
+        subs = [n for n in graph[nitrogen] if n != center]
+        if subs:
+            substituted.append((nitrogen, subs))
+    if not substituted:
+        return []
+    if len(members) != 1:
+        raise UnsupportedStructure("several amide groups with N-substitution are not handled by the chain engine")
+    nitrogen, subs = substituted[0]
+    return [name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in subs]
+
+
+def _evaluate(
+    mol, graph, halogens, aromatic_atoms, chain, principal, principal_atoms, owned, attach=None, n_names=(), stereo=None
+):
     position_of = {atom: i + 1 for i, atom in enumerate(chain)}
     chain_set = set(chain)
     if attach is not None and attach not in chain_set:
@@ -626,7 +1135,7 @@ def _evaluate(mol, graph, halogens, aromatic_atoms, chain, principal, principal_
     suffix_locants = sorted(position_of[a] for a in on_chain)
     count = len(on_chain)
     length = len(chain)
-    force = attach is not None
+    force = attach is not None and length != 1
     prefix = format_substituent_prefixes(
         _with_n_names(grouped, n_names), omit_locants=length == 1 and not force and not n_names
     )
@@ -640,12 +1149,20 @@ def _evaluate(mol, graph, halogens, aromatic_atoms, chain, principal, principal_
     elif principal == "aldehyde":
         body = name_from_substituents(length, ene, yne, multiplied_word(count, "al"))
     else:
-        word = {"ketone": "one", "alcohol": "ol", "thiol": "thiol", "amine": "amine"}[principal]
+        word = {
+            "ketone": "one",
+            "alcohol": "ol",
+            "thiol": "thiol",
+            "amine": "amine",
+            "sulfonic": "sulfonic acid",
+            "sulfonamide": "sulfonamide",
+        }[principal]
         body = name_from_substituents(
             length, ene, yne, multiplied_word(count, word), suffix_locants, force_own_locant=force
         )
     name = prefix + body + tail
     attach_locant = position_of[attach] if attach is not None else 0
+    reported_attach = None if (attach is not None and length == 1) else attach_locant
     key = (
         -count,
         -length,
@@ -658,6 +1175,7 @@ def _evaluate(mol, graph, halogens, aromatic_atoms, chain, principal, principal_
         -total_count,
         locant_set,
         citation,
+        _stereo_rank(stereo, position_of),
         name,
     )
-    return key, name, (prefix, body, tail, attach_locant)
+    return key, name, (prefix, body, tail, reported_attach, position_of, False)

@@ -17,6 +17,7 @@ from ._aromatic import (
 from ._common import UnsupportedStructure, adjacency
 
 _NAME_BY_PARENT = {"naphthalene": "naphthyridine", "phenanthrene": "phenanthroline"}
+_BENZODIAZINES = {(1, 2): "cinnoline", (1, 3): "quinazoline", (1, 4): "quinoxaline", (2, 3): "phthalazine"}
 
 
 def find_phenanthroline_naphthyridine_core(mol):
@@ -80,10 +81,23 @@ def name_phenanthroline_naphthyridine(mol, core) -> str:
     else:
         candidates = _straight_chain_candidates(mol, atom_rings, ring_atom_sets, fusion_bond_idxs, ring_order)
 
+    ring_of = [next(i for i, ring in enumerate(ring_atom_sets) if n in ring) for n in nitrogens]
+    same_ring = ring_of[0] == ring_of[1]
+    if parent == "phenanthrene" and (same_ring or set(ring_of) != {ring_order[0], ring_order[-1]}):
+        raise UnsupportedStructure(
+            "a diazaphenanthrene without one nitrogen in each terminal ring is not a phenanthroline"
+        )
+
     best = None
     for locants in candidates:
         pair = tuple(sorted(locants[a] for a in nitrogens))
         if best is None or pair < best:
             best = pair
 
+    if parent == "naphthalene" and same_ring:
+        # Both nitrogens in one ring: the benzodiazines keep their own retained names (P-25.2.2.4).
+        retained = _BENZODIAZINES.get(best)
+        if retained is None:
+            raise UnsupportedStructure("this benzodiazine locant pattern has no retained name")
+        return retained
     return f"{best[0]},{best[1]}-{_NAME_BY_PARENT[parent]}"

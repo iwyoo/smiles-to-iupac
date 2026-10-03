@@ -40,9 +40,8 @@ def test_pent_4_ene_1_sulfonamide():
     assert smiles_to_iupac("C=CCCCS(=O)(=O)N") == "pent-4-ene-1-sulfonamide"
 
 
-def test_disulfonamide_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NS(=O)(=O)CCS(=O)(=O)N")
+def test_disulfonamide():
+    assert smiles_to_iupac("NS(=O)(=O)CCS(=O)(=O)N") == "ethane-1,2-disulfonamide"
 
 
 def test_cyclohexanesulfonamide():
@@ -76,9 +75,8 @@ def test_unsaturated_ring_sulfonamide():
     assert smiles_to_iupac("O=S(=O)(N)C1CC=CCC1") == "cyclohex-3-ene-1-sulfonamide"
 
 
-def test_unsaturated_ring_sulfonamide_with_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=S(=O)(N)C1CCCC=C1C")
+def test_unsaturated_ring_sulfonamide_with_substituent():
+    assert smiles_to_iupac("O=S(=O)(N)C1CCCC=C1C") == "2-methylcyclohex-2-ene-1-sulfonamide"
 
 
 def test_unsaturated_ring_sulfonamide_triple_bond_raises():
@@ -100,14 +98,12 @@ def test_ring_substituent_chain_sulfonamide():
     assert smiles_to_iupac("NS(=O)(=O)CC1CCCCC1") == "cyclohexylmethanesulfonamide"
 
 
-def test_ring_substituent_chain_sulfonamide_ring_with_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NS(=O)(=O)CC1CCC(C)CC1")
+def test_ring_substituent_chain_sulfonamide_ring_with_substituent():
+    assert smiles_to_iupac("NS(=O)(=O)CC1CCC(C)CC1") == "(4-methylcyclohexyl)methanesulfonamide"
 
 
-def test_sulfonamide_with_alcohol_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NS(=O)(=O)CCO")
+def test_sulfonamide_with_alcohol():
+    assert smiles_to_iupac("NS(=O)(=O)CCO") == "2-hydroxyethanesulfonamide"
 
 
 def test_phenyl_chain_sulfonamide():
@@ -148,9 +144,8 @@ def test_substituted_benzenesulfonamide_n_alkyl():
     assert smiles_to_iupac("Cc1ccc(cc1)S(=O)(=O)NC") == "N,4-dimethylbenzenesulfonamide"
 
 
-def test_phenyl_chain_sulfonamide_n_alkyl_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1CCCS(=O)(=O)NC")
+def test_phenyl_chain_sulfonamide_n_alkyl():
+    assert smiles_to_iupac("c1ccccc1CCCS(=O)(=O)NC") == "N-methyl-3-phenylpropane-1-sulfonamide"
 
 
 def test_phenyl_substituted_benzene_ring_sulfonamide_ortho_methyl():
@@ -177,9 +172,8 @@ def test_phenyl_chain_sulfonamide_ring_ethyl():
     assert smiles_to_iupac("CCc1ccc(cc1)CS(N)(=O)=O") == "(4-ethylphenyl)methanesulfonamide"
 
 
-def test_phenyl_chain_sulfonamide_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CCS(=O)(=O)N")
+def test_phenyl_chain_sulfonamide_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CCS(=O)(=O)N") == "2-(2-ethenylphenyl)ethanesulfonamide"
 
 
 def test_n_methylmethanesulfonamide():
@@ -238,18 +232,12 @@ def test_cyclic_n_alkyl_coinciding_with_ring_substituent_name():
     assert smiles_to_iupac("CNS(=O)(=O)C1(C)CCCCC1") == "N,1-dimethylcyclohexane-1-sulfonamide"
 
 
-def test_halogenated_n_substituent_not_supported():
-    # A halogen on the N-substituent is out of scope (module docstring) --
-    # previously silently misnamed instead of rejected (invisible to the
-    # old carbon-only chain-length check, same bug `_amide.py` found and
-    # fixed, PR #335).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CS(=O)(=O)NCCCl")
+def test_halogenated_n_substituent():
+    assert smiles_to_iupac("CS(=O)(=O)NCCCl") == "N-(2-chloroethyl)methanesulfonamide"
 
 
-def test_unsaturated_n_substituted_sulfonamide_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CS(=O)(=O)NCC=C")
+def test_unsaturated_n_substituted_sulfonamide():
+    assert smiles_to_iupac("CS(=O)(=O)NCC=C") == "N-(prop-2-en-1-yl)methanesulfonamide"
 
 
 @pytest.mark.parametrize(

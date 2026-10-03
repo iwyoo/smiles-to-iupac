@@ -32,9 +32,8 @@ def test_pent_4_ene_1_sulfonic_acid():
     assert smiles_to_iupac("C=CCCCS(=O)(=O)O") == "pent-4-ene-1-sulfonic acid"
 
 
-def test_disulfonic_acid_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)(=O)CCS(=O)(=O)O")
+def test_disulfonic_acid():
+    assert smiles_to_iupac("OS(=O)(=O)CCS(=O)(=O)O") == "ethane-1,2-disulfonic acid"
 
 
 def test_cyclohexanesulfonic_acid():
@@ -51,9 +50,8 @@ def test_unsaturated_ring_sulfonic_acid():
     assert smiles_to_iupac("OS(=O)(=O)C1CC=CCC1") == "cyclohex-3-ene-1-sulfonic acid"
 
 
-def test_unsaturated_ring_sulfonic_acid_with_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)(=O)C1CCCC=C1C")
+def test_unsaturated_ring_sulfonic_acid_with_substituent():
+    assert smiles_to_iupac("OS(=O)(=O)C1CCCC=C1C") == "2-methylcyclohex-2-ene-1-sulfonic acid"
 
 
 def test_unsaturated_ring_sulfonic_acid_triple_bond_raises():
@@ -86,19 +84,16 @@ def test_ring_substituent_chain_sulfonic_acid():
     assert smiles_to_iupac("OS(=O)(=O)CC1CCCCC1") == "cyclohexylmethanesulfonic acid"
 
 
-def test_ring_substituent_chain_sulfonic_acid_ring_with_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)(=O)CC1CCC(C)CC1")
+def test_ring_substituent_chain_sulfonic_acid_ring_with_substituent():
+    assert smiles_to_iupac("OS(=O)(=O)CC1CCC(C)CC1") == "(4-methylcyclohexyl)methanesulfonic acid"
 
 
-def test_ring_substituent_chain_sulfonic_acid_unsaturated_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)(=O)CC1CCCC=C1")
+def test_ring_substituent_chain_sulfonic_acid_unsaturated_ring():
+    assert smiles_to_iupac("OS(=O)(=O)CC1CCCC=C1") == "(cyclohex-2-en-1-yl)methanesulfonic acid"
 
 
-def test_sulfonic_acid_with_alcohol_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)(=O)CCO")
+def test_sulfonic_acid_with_alcohol():
+    assert smiles_to_iupac("OS(=O)(=O)CCO") == "2-hydroxyethanesulfonic acid"
 
 
 def test_phenyl_chain_sulfonic_acid():
@@ -154,9 +149,8 @@ def test_phenyl_chain_sulfonic_acid_ring_ethyl():
     assert smiles_to_iupac("CCc1ccc(cc1)CS(=O)(=O)O") == "(4-ethylphenyl)methanesulfonic acid"
 
 
-def test_phenyl_chain_sulfonic_acid_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CCS(=O)(=O)O")
+def test_phenyl_chain_sulfonic_acid_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CCS(=O)(=O)O") == "2-(2-ethenylphenyl)ethanesulfonic acid"
 
 
 @pytest.mark.parametrize(
@@ -176,12 +170,8 @@ def test_heteroaromatic_chain_sulfonic_acid(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_heteroaromatic_direct_attachment_sulfonic_acid_raises():
-    # Unlike benzene, a heteroaromatic ring's numbering must fix the
-    # heteroatom at locant 1 and search for the -SO3H's own lowest locant
-    # relative to it -- ring-locant-search machinery out of scope here.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)(=O)c1cccnc1")
+def test_heteroaromatic_direct_attachment_sulfonic_acid():
+    assert smiles_to_iupac("OS(=O)(=O)c1cccnc1") == "pyridine-3-sulfonic acid"
 
 
 @pytest.mark.parametrize(

@@ -40,9 +40,8 @@ def test_unsaturated_chain():
     assert smiles_to_iupac("NCC=CC(C)=O") == "5-aminopent-3-en-2-one"
 
 
-def test_specified_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@H](N)C(C)=O")
+def test_specified_stereocenter():
+    assert smiles_to_iupac("C[C@H](N)C(C)=O") == "(3S)-3-aminobutan-2-one"
 
 
 def test_plain_ketone_still_works():

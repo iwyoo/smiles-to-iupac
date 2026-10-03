@@ -38,29 +38,24 @@ def test_plain_sulfonamide_still_routes_normally():
     assert smiles_to_iupac("CS(=O)(=O)N") == "methanesulfonamide"
 
 
-def test_multiple_carboxylic_acids_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)CC(S(=O)(=O)N)C(=O)O")
+def test_multiple_carboxylic_acids():
+    assert smiles_to_iupac("OC(=O)CC(S(=O)(=O)N)C(=O)O") == "2-sulfamoylbutanedioic acid"
 
 
-def test_n_substituted_sulfonamide_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)CCS(=O)(=O)NC")
+def test_n_substituted_sulfonamide():
+    assert smiles_to_iupac("OC(=O)CCS(=O)(=O)NC") == "3-(methylsulfamoyl)propanoic acid"
 
 
-def test_other_heteroatom_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)C(O)CS(=O)(=O)N")
+def test_other_heteroatom():
+    assert smiles_to_iupac("OC(=O)C(O)CS(=O)(=O)N") == "2-hydroxy-3-sulfamoylpropanoic acid"
 
 
-def test_unsaturated_chain_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)C=CCS(=O)(=O)N")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("OC(=O)C=CCS(=O)(=O)N") == "4-sulfamoylbut-2-enoic acid"
 
 
-def test_ring_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)C1CCC(S(=O)(=O)N)CC1")
+def test_ring():
+    assert smiles_to_iupac("OC(=O)C1CCC(S(=O)(=O)N)CC1") == "4-sulfamoylcyclohexane-1-carboxylic acid"
 
 
 def test_phenyl_chain_carboxylic_acid_sulfonamide():
@@ -71,14 +66,9 @@ def test_phenyl_chain_carboxylic_acid_sulfonamide():
     assert smiles_to_iupac("c1ccccc1CC(S(=O)(=O)N)C(=O)O") == "3-phenyl-2-sulfamoylpropanoic acid"  # CID 70062822
 
 
-def test_phenyl_ring_with_second_substituent_raises():
-    # A benzene ring with two exocyclic attachments (carboxylic acid
-    # directly on the ring plus a separate sulfonamide-bearing chain) is
-    # out of scope for this single-chain-substituent module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)c1ccccc1S(=O)(=O)N")
+def test_phenyl_ring_with_second_substituent():
+    assert smiles_to_iupac("OC(=O)c1ccccc1S(=O)(=O)N") == "2-sulfamoylbenzoic acid"
 
 
-def test_phenyl_chain_carboxylic_acid_sulfonamide_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC(S(=O)(=O)N)C(=O)O")
+def test_phenyl_chain_carboxylic_acid_sulfonamide_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CC(S(=O)(=O)N)C(=O)O") == "3-(2-ethenylphenyl)-2-sulfamoylpropanoic acid"

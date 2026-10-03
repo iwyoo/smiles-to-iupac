@@ -44,9 +44,8 @@ def test_unsaturated_chain():
     assert smiles_to_iupac("NCC=CCS") == "4-aminobut-2-ene-1-thiol"
 
 
-def test_specified_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@H](N)CS")
+def test_specified_stereocenter():
+    assert smiles_to_iupac("C[C@H](N)CS") == "(2S)-2-aminopropane-1-thiol"
 
 
 def test_plain_thiol_still_works():

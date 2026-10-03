@@ -66,12 +66,8 @@ def test_n_n_disubstituted_amide_with_locant_leading_parent_name():
     )
 
 
-def test_halogenated_n_substituent_not_supported():
-    # A halogen on the N-substituent is out of scope (module docstring:
-    # "plain, unsubstituted" N-substituent only) -- previously silently
-    # misnamed instead of rejected (see comment above).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)NCCCl")
+def test_halogenated_n_substituent():
+    assert smiles_to_iupac("CC(=O)NCCCl") == "N-(2-chloroethyl)ethanamide"
 
 
 def test_n_substituted_amide_with_locant_leading_parent_name_raises():
@@ -118,9 +114,8 @@ def test_two_different_n_substituents_alphabetized_ignoring_italic_prefix():
     assert smiles_to_iupac("CC(=O)N(CC)C(C)(C)C") == "N-tert-butyl-N-ethylethanamide"
 
 
-def test_unsaturated_n_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)NC=C")
+def test_unsaturated_n_substituent():
+    assert smiles_to_iupac("CC(=O)NC=C") == "N-ethenylethanamide"
 
 
 def test_lactam_is_named_via_ketone_module():
@@ -178,9 +173,8 @@ def test_phenyl_directly_attached_amide():
     assert smiles_to_iupac("c1ccccc1C(N)=O") == "benzamide"
 
 
-def test_phenyl_chain_amide_n_alkyl_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1CCC(=O)NC")
+def test_phenyl_chain_amide_n_alkyl():
+    assert smiles_to_iupac("c1ccccc1CCC(=O)NC") == "N-methyl-3-phenylpropanamide"
 
 
 def test_phenyl_chain_amide_ring_methyl():
@@ -242,16 +236,12 @@ def test_n_phenyl_formamide():
     assert smiles_to_iupac("O=CNc1ccccc1") == "N-phenylmethanamide"
 
 
-def test_n_phenyl_amide_with_second_n_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)N(C)c1ccccc1")
+def test_n_phenyl_amide_with_second_n_substituent():
+    assert smiles_to_iupac("CC(=O)N(C)c1ccccc1") == "N-methyl-N-phenylethanamide"
 
 
-def test_n_phenyl_amide_substituted_ring_raises():
-    # A substituted phenyl (e.g. 4-hydroxyphenyl, as in paracetamol) is out
-    # of scope -- only a plain, unsubstituted benzene ring is supported.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)Nc1ccc(O)cc1")
+def test_n_phenyl_amide_substituted_ring():
+    assert smiles_to_iupac("CC(=O)Nc1ccc(O)cc1") == "N-(4-hydroxyphenyl)ethanamide"
 
 
 def test_carboxylic_acid_not_misnamed_as_amide():
@@ -294,13 +284,8 @@ def test_amide_enol_mix():
     assert smiles_to_iupac("OC=CC(N)=O") == "3-hydroxyprop-2-enamide"
 
 
-def test_n_substituent_with_hydroxyl_raises():
-    # A hydroxyl on the N-substituent itself (not the acyl chain) is
-    # invisible to the carbon-only chain walk that measures N-substituent
-    # length, so it must be checked separately -- only a plain,
-    # unsubstituted alkyl N-substituent is in scope (module docstring).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(O)NC(=O)C")
+def test_n_substituent_with_hydroxyl():
+    assert smiles_to_iupac("CC(O)NC(=O)C") == "N-(1-hydroxyethyl)ethanamide"
 
 
 @pytest.mark.parametrize(

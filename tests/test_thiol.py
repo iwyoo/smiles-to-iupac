@@ -73,9 +73,8 @@ def test_unsaturated_ring_thiol():
     assert smiles_to_iupac("SC1CC=CCC1") == "cyclohex-3-ene-1-thiol"
 
 
-def test_unsaturated_ring_thiol_with_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SC1CCCC=C1C")
+def test_unsaturated_ring_thiol_with_substituent():
+    assert smiles_to_iupac("SC1CCCC=C1C") == "2-methylcyclohex-2-ene-1-thiol"
 
 
 def test_unsaturated_ring_thiol_triple_bond_raises():

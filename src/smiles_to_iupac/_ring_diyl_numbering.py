@@ -85,6 +85,12 @@ def _yl(valence):
 def _tail(stem, locants, valence, suffix="yl"):
     if suffix == "carboxylate":
         return f"{stem}-{_locs(locants)}-carboxylate"
+    if suffix == "":
+        return stem
+    if suffix != "yl":
+        word = multiplied_word(valence, suffix)
+        base = stem[:-1] if stem.endswith("e") and word[0] in "aeiouy" else stem
+        return f"{base}-{_locs(locants)}-{word}"
     if valence == 1:
         base = stem[:-1] if stem.endswith("e") else stem
         return f"{base}-{locants[0]}-yl"
@@ -244,9 +250,12 @@ def _saturated_name(elements, hetero):
     return _with_hetero_locants(stem, elements, hetero) if stem[0].isalpha() else stem
 
 
+_RETAINED_WITHOUT_LOCANTS = {"piperazine", "morpholine", "thiomorpholine", "imidazolidine", "pyrazolidine"}
+
+
 def _with_hetero_locants(stem, elements, hetero):
     names = [e for e in elements if e != "C"]
-    if len(names) < 2 or elements.count("C") <= 1:
+    if stem in _RETAINED_WITHOUT_LOCANTS or len(names) < 2 or elements.count("C") <= 1:
         return stem
     pairs = sorted(zip(names, [p for p, _ in hetero]), key=lambda ep: (_RANK[ep[0]], ep[1]))
     return ",".join(str(p) for _, p in pairs) + "-" + stem

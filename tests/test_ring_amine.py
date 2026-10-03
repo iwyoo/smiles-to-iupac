@@ -100,9 +100,8 @@ def test_plain_morpholine_and_piperazine_unaffected():
     assert smiles_to_iupac("C1CNCCN1") == "piperazine"
 
 
-def test_unsaturated_n_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CN1CCCCC1")
+def test_unsaturated_n_substituent():
+    assert smiles_to_iupac("C=CN1CCCCC1") == "1-ethenylpiperidine"
 
 
 def test_dimethylpyrrolidine():
@@ -120,9 +119,8 @@ def test_dimethylpiperidine():
     assert smiles_to_iupac("CN1CCC(C)CC1") == "1,4-dimethylpiperidine"
 
 
-def test_ring_amine_two_ring_carbon_substituents_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CN1CC(C)C(C)C1")
+def test_ring_amine_two_ring_carbon_substituents():
+    assert smiles_to_iupac("CN1CC(C)C(C)C1") == "1,3,4-trimethylpyrrolidine"
 
 
 def test_ring_amine_sulfonyl_with_ring_carbon_substituent_raises():
