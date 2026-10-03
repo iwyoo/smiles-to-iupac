@@ -9,6 +9,7 @@ out of scope.
 from rdkit import Chem
 
 from ._bicyclic import bicyclic_parent_name, find_bicyclic_core, iter_bicyclic_numberings
+from ._numerals import alkane_name
 from ._common import UnsupportedStructure, adjacency, non_single_bonds
 from ._coordination import _CP_LABEL, _cp_charge, _net_charge, collect_ligands
 from ._metallacycle import _HALO_FOR_LIGAND, _METAL_A_PREFIXES, _is_plain, _substituent_entries
@@ -55,13 +56,17 @@ def name_metallabicycle(mol) -> str:
         if atom.GetAtomicNum() != 6 or atom.GetIsAromatic() or atom.GetFormalCharge() != 0:
             raise UnsupportedStructure("only a carbon skeleton besides the metal is supported here")
     graph = adjacency(complex_mol)
+    double_bonds = []
     for a, b, *_ in non_single_bonds(complex_mol):
-        if (a in core_atoms or b in core_atoms) and not any(x == metal_idx for x in (a, b)):
-            raise UnsupportedStructure("an unsaturated ring is not supported here")
-        if not (a in core_atoms and b in core_atoms) and not any(metal_idx in graph[x] for x in (a, b)):
+        in_core = (a in core_atoms, b in core_atoms)
+        if all(in_core):
+            if metal_idx in (a, b) or complex_mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 2.0:
+                raise UnsupportedStructure("only ring C=C double bonds are supported here")
+            double_bonds.append((a, b))
+        elif any(in_core):
+            raise UnsupportedStructure("an exocyclic double bond on the ring is not supported here")
+        elif not any(metal_idx in graph[x] for x in (a, b)):
             raise UnsupportedStructure("an unsaturated substituent is out of scope here")
-        if a in core_atoms and b in core_atoms:
-            raise UnsupportedStructure("an unsaturated ring is not supported here")
 
     counts, simple_labels, organic, neutral, _ = collect_ligands(complex_mol, metal, graph, skip=core_atoms)
     if "hydrido" in counts:
@@ -89,14 +94,23 @@ def name_metallabicycle(mol) -> str:
             entry["locants"] += [locant[metal_idx]] * n
         for entry in grouped.values():
             entry["locants"].sort()
+        ene = sorted(tuple(sorted((locant[a], locant[b]))) for a, b in double_bonds)
         key = (
             locant[metal_idx],
+            ene,
             sorted(l for e in grouped.values() for l in e["locants"]),
             [grouped[k]["locants"] for k in sorted(grouped)],
         )
         if best is None or key < best[0]:
-            best = (key, locant[metal_idx], grouped)
-    _, metal_locant, grouped = best
+            best = (key, locant[metal_idx], grouped, ene)
+    _, metal_locant, grouped, ene = best
     prefixes = format_substituent_prefixes(grouped)
+    if ene:
+        base = alkane_name(sum(len(b) for b in bridges) + 2)[:-3]
+        locs = ",".join(str(lo) if hi - lo == 1 else f"{lo}({hi})" for lo, hi in ene)
+        suffix = {1: "ene", 2: "diene", 3: "triene"}.get(len(ene))
+        if suffix is None:
+            raise UnsupportedStructure("this unsaturation count is not supported here")
+        parent = parent[: parent.index("]") + 1] + f"{base}{'a' if len(ene) > 1 else ''}-{locs}-{suffix}"
     stem = f"{metal_locant}-{_METAL_A_PREFIXES[metal.GetSymbol()]}{parent}"
     return f"{prefixes}{'-' if prefixes else ''}{stem}"
