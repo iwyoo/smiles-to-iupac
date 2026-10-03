@@ -54,11 +54,8 @@ def test_azepane_amine_3():
     assert smiles_to_iupac("NC1CCCCNC1") == "azepan-3-amine"
 
 
-def test_ring_nitrogen_substituent_raises():
-    # The ring nitrogen itself carrying a substituent is `_ring_amine.py`'s
-    # shape, not this module's -- out of scope here.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CN1CCC(N)CC1")
+def test_ring_nitrogen_substituent():
+    assert smiles_to_iupac("CN1CCC(N)CC1") == "1-methylpiperidin-4-amine"
 
 
 def test_secondary_exocyclic_amine_raises():
@@ -66,6 +63,5 @@ def test_secondary_exocyclic_amine_raises():
         smiles_to_iupac("CNC1CCNCC1")
 
 
-def test_two_exocyclic_amines_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC1CCNC(N)C1")
+def test_two_exocyclic_amines():
+    assert smiles_to_iupac("NC1CCNC(N)C1") == "piperidine-2,4-diamine"

@@ -42,9 +42,8 @@ def test_unsaturated_chain():
     assert smiles_to_iupac("SCC=CCOC") == "4-methoxybut-2-ene-1-thiol"
 
 
-def test_specified_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("S[C@@H](C)COC")
+def test_specified_stereocenter():
+    assert smiles_to_iupac("S[C@@H](C)COC") == "(2S)-1-methoxypropane-2-thiol"
 
 
 def test_plain_ether_still_works():

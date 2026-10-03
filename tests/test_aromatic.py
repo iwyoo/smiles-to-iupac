@@ -100,24 +100,12 @@ def test_substituted_branched_fusion_raises():
         smiles_to_iupac("Cc1ccc2c(c1)c1ccccc1c1ccccc21")
 
 
-def test_heteroaromatic_raises():
-    # 1,2,4-triazole: not even detected as in scope (find_aromatic_fused_core
-    # requires an all-carbon ring, and _hetero_monocyclic.py's mancude
-    # table only covers rings with one or two heteroatoms -- see P-22.2.1
-    # Table 2.2), falls through to the existing heteroatom rejection in
-    # validate_atoms_and_bonds. Bare pyridine/pyrimidine are now supported
-    # by _hetero_monocyclic.py -- see tests/test_hetero_monocyclic.py.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1nc[nH]n1")
+def test_heteroaromatic():
+    assert smiles_to_iupac("c1nc[nH]n1") == "1H-1,2,4-triazole"
 
 
-def test_substituted_heteroaromatic_fused_raises():
-    # a methylated quinoline: the unsubstituted parent itself is now
-    # supported (see tests/test_heteroaromatic_fused.py), but a
-    # substituted fused heteroaromatic is still out of scope, same
-    # reasoning as pyridine above.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccc2ncccc2c1")
+def test_substituted_heteroaromatic_fused():
+    assert smiles_to_iupac("Cc1ccc2ncccc2c1") == "6-methylquinoline"
 
 
 def test_angular_four_ring_resolves_via_phenanthrene_fusion():

@@ -16,9 +16,8 @@ def test_smiles_to_iupac_amide_amine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_n_alkyl_amide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CNC(=O)CCN")
+def test_n_alkyl_amide():
+    assert smiles_to_iupac("CNC(=O)CCN") == "3-amino-N-methylpropanamide"
 
 
 def test_two_amines():
@@ -37,9 +36,8 @@ def test_unsaturated_chain():
     assert smiles_to_iupac("NCC=CC(N)=O") == "4-aminobut-2-enamide"
 
 
-def test_specified_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N[C@@H](C)C(N)=O")
+def test_specified_stereocenter():
+    assert smiles_to_iupac("N[C@@H](C)C(N)=O") == "(2S)-2-aminopropanamide"
 
 
 def test_hydroxyl_coexisting():

@@ -1,3 +1,4 @@
+import pytest
 from smiles_to_iupac import smiles_to_iupac
 
 
@@ -24,3 +25,17 @@ def test_1_5_naphthyridine():
 def test_1_8_naphthyridine():
     # PubChem CID 136069's canonical SMILES.
     assert smiles_to_iupac("C1=CC2=C(N=C1)N=CC=C2") == "1,8-naphthyridine"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("c1ccc2ncncc2c1", "quinazoline"),
+        ("c1ccc2nccnc2c1", "quinoxaline"),
+        ("c1ccc2nnccc2c1", "cinnoline"),
+        ("c1ccc2cnncc2c1", "phthalazine"),
+        ("c1cnc2ncccc2c1", "1,8-naphthyridine"),
+    ],
+)
+def test_diazanaphthalenes_with_both_nitrogens_in_one_ring_keep_their_retained_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

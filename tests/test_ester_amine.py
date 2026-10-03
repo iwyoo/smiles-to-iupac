@@ -16,9 +16,8 @@ def test_smiles_to_iupac_ester_amine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_amine_on_alcohol_part_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)OCCN")
+def test_amine_on_alcohol_part():
+    assert smiles_to_iupac("CC(=O)OCCN") == "2-aminoethyl ethanoate"
 
 
 def test_two_amines():
@@ -33,9 +32,8 @@ def test_ring():
     assert smiles_to_iupac("NC1CCCCC1C(=O)OC") == "methyl 2-aminocyclohexane-1-carboxylate"
 
 
-def test_unsaturated_chain_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC=CC(=O)OC")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("NCC=CC(=O)OC") == "methyl 4-aminobut-2-enoate"
 
 
 def test_specified_stereocenter_raises():

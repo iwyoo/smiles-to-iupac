@@ -82,9 +82,8 @@ def test_furo_2_3_b_pyrrole():
     assert smiles_to_iupac("C1=CNC2=C1C=CO2") == "6H-furo[2,3-b]pyrrole"
 
 
-def test_substituted_thieno_thiophene_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1csc2ccsc12")
+def test_substituted_thieno_thiophene():
+    assert smiles_to_iupac("Cc1csc2ccsc12") == "3-methylthieno[3,2-b]thiophene"
 
 
 def test_selenopheno_selenophene():

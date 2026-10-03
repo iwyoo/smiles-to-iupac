@@ -30,9 +30,8 @@ def test_branched_silane_raises():
         smiles_to_iupac("[SiH3][Si]([SiH3])([SiH3])[SiH3]")
 
 
-def test_cyclic_silane_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[SiH2]1[SiH2][SiH2][SiH2][SiH2]1")
+def test_cyclic_silane():
+    assert smiles_to_iupac("[SiH2]1[SiH2][SiH2][SiH2][SiH2]1") == "pentasilolane"
 
 
 def test_carbon_silicon_mix_raises():

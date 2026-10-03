@@ -32,19 +32,16 @@ def test_plain_ketone_still_works():
     assert smiles_to_iupac("CC(=O)C") == "propan-2-one"
 
 
-def test_unsaturated_chain_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CC(=O)CC(=O)OC")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("C=CC(=O)CC(=O)OC") == "methyl 3-oxopent-4-enoate"
 
 
-def test_ring_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COC(=O)C1CCC1=O")
+def test_ring():
+    assert smiles_to_iupac("COC(=O)C1CCC1=O") == "methyl 2-oxocyclobutane-1-carboxylate"
 
 
-def test_hydroxyl_coexistence_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC(=O)CC(=O)OC")
+def test_hydroxyl_coexistence():
+    assert smiles_to_iupac("OCC(=O)CC(=O)OC") == "methyl 4-hydroxy-3-oxobutanoate"
 
 
 def test_acyl_carbon_off_longest_chain():
@@ -65,6 +62,5 @@ def test_phenyl_chain_ketone_ester():
     assert smiles_to_iupac("c1ccccc1CCC(=O)C(=O)OC") == "methyl 2-oxo-4-phenylbutanoate"
 
 
-def test_phenyl_chain_ketone_ester_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC(=O)CC(=O)OC")
+def test_phenyl_chain_ketone_ester_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CC(=O)CC(=O)OC") == "methyl 4-(2-ethenylphenyl)-3-oxobutanoate"

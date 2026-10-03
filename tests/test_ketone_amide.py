@@ -42,9 +42,8 @@ def test_hydroxyl_coexistence():
     assert smiles_to_iupac("OCC(=O)CC(N)=O") == "4-hydroxy-3-oxobutanamide"
 
 
-def test_n_substituted_amide_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CNC(=O)CC(=O)C")
+def test_n_substituted_amide():
+    assert smiles_to_iupac("CNC(=O)CC(=O)C") == "N-methyl-3-oxobutanamide"
 
 
 def test_phenyl_chain_ketone_amide():

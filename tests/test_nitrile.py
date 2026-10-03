@@ -56,11 +56,8 @@ def test_dinitrile_halogen_substituent():
     assert smiles_to_iupac("ClC(C#N)CC#N") == "2-chlorobutanedinitrile"
 
 
-def test_trinitrile_raises():
-    # A third nitrile can't sit on both chain termini, and there is no
-    # 'cyano' substituent-prefix support yet for a branch-mounted one.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N#CC(CC#N)CC#N")
+def test_trinitrile():
+    assert smiles_to_iupac("N#CC(CC#N)CC#N") == "propane-1,2,3-tricarbonitrile"
 
 
 def test_dinitrile_alongside_ring():

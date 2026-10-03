@@ -61,13 +61,8 @@ def test_unsaturated_von_baeyer_ring_now_resolves():
     assert smiles_to_iupac("OC1CC2C=CC1C2") == "bicyclo[2.2.1]hept-5-en-2-ol"
 
 
-def test_disjoint_rings_alcohol_still_raises():
-    # Two rings joined only by a single bond (not fused, bridged, or
-    # spiro) never matches `find_bicyclic_core`/`find_polycyclic_core`'s
-    # own core requirement, so this regression check confirms the new
-    # von Baeyer routing doesn't misfire on this still-unsupported shape.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1(CCCC1)C1CCCC1")
+def test_directly_joined_identical_rings_form_a_ring_assembly():
+    assert smiles_to_iupac("OC1(CCCC1)C1CCCC1") == "[1,1'-bi(cyclopentane)]-1-ol"
 
 
 @pytest.mark.parametrize(

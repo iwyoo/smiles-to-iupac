@@ -82,9 +82,8 @@ def test_ring_carboxylic_acid_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_ring_carboxylic_acid_unsaturated_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1=CCCC1C(=O)O")
+def test_ring_carboxylic_acid_unsaturated_ring():
+    assert smiles_to_iupac("C1=CCCC1C(=O)O") == "cyclopent-2-ene-1-carboxylic acid"
 
 
 def test_ring_carboxylic_acid_standalone_hydroxyl():
@@ -147,9 +146,8 @@ def test_phenyl_substituent_carboxylic_acid_substituted_ring_ortho_methyl():
     assert smiles_to_iupac("Cc1ccccc1CC(=O)O") == "2-(2-methylphenyl)ethanoic acid"
 
 
-def test_phenyl_substituent_carboxylic_acid_naphthalene_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc2ccccc2c1CC(=O)O")
+def test_phenyl_substituent_carboxylic_acid_naphthalene():
+    assert smiles_to_iupac("c1ccc2ccccc2c1CC(=O)O") == "2-(naphthalen-1-yl)ethanoic acid"
 
 
 def test_pyridine_substituent_carboxylic_acid():

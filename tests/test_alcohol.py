@@ -344,7 +344,7 @@ def test_phenyl_substituted_benzene_ring_ortho_methyl():
 
 
 def test_phenyl_chain_with_second_hydroxyl():
-    assert smiles_to_iupac("OCc1ccccc1CO") == "[2-(hydroxymethyl)phenyl]methanol"
+    assert smiles_to_iupac("OCc1ccccc1CO") == "(1,2-phenylene)dimethanol"
 
 
 def test_phenyl_chain_unsaturation():
@@ -532,12 +532,8 @@ def test_enol():
     assert smiles_to_iupac("OC=CC") == "prop-1-en-1-ol"
 
 
-def test_unsaturated_ring_alcohol_with_substituent_raises():
-    # A substituent alongside both a ring double bond and a ring hydroxyl
-    # needs more careful numbering-priority verification than this first
-    # pass covers.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1CCCC=C1C")
+def test_unsaturated_ring_alcohol_with_substituent():
+    assert smiles_to_iupac("OC1CCCC=C1C") == "2-methylcyclohex-2-en-1-ol"
 
 
 def test_unsaturated_ring_alcohol_triple_bond_raises():

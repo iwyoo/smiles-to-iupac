@@ -131,9 +131,8 @@ def test_smiles_to_iupac_hetero_monocyclic_substituent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_substituted_hetero_monocyclic_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC1CCCCO1")
+def test_substituted_hetero_monocyclic():
+    assert smiles_to_iupac("CC1CCCCO1") == "2-methyloxane"
 
 
 def test_hetero_monocyclic_substituent_with_non_alkyl_branch():
@@ -152,19 +151,12 @@ def test_imidazole_multi_substituent_without_n1():
     assert smiles_to_iupac("Cc1cnc(Cl)[nH]1") == "2-chloro-5-methyl-1H-imidazole"
 
 
-def test_ring_size_outside_scope_raises():
-    # 8-membered ring: out of scope (this module covers 3-7).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCCCO1")
+def test_ring_size_outside_scope():
+    assert smiles_to_iupac("C1CCCCCCO1") == "oxocane"
 
 
-def test_two_heteroatoms_raises():
-    # 1,4-related Se+Te pair: two ring heteroatoms, out of scope here --
-    # unlike every other pair below (including the other Se/Te-containing
-    # ones), this one specific combination has no name registered in
-    # PubChem, so it stays unsupported.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[Te]1CC[Se]CC1")
+def test_two_heteroatoms():
+    assert smiles_to_iupac("[Te]1CC[Se]CC1") == "1,4-selenatellurane"
 
 
 @pytest.mark.parametrize(
@@ -288,11 +280,8 @@ def test_five_membered_1_3_two_heteroatom_ring_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_five_membered_1_3_two_heteroatoms_se_te_pair_raises():
-    # 1,3-related Se+Te pair: out of scope, same reason as the 1,4-ring's
-    # Se+Te pair (no name registered in PubChem).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1C[Se]C[Te]1")
+def test_five_membered_1_3_two_heteroatoms_se_te_pair():
+    assert smiles_to_iupac("C1C[Se]C[Te]1") == "1,3-selenatellurolane"
 
 
 @pytest.mark.parametrize(
@@ -372,9 +361,8 @@ def test_five_membered_1_2_two_heteroatom_ring_names_se_te(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_unsupported_heteroatom_element_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCP1")
+def test_unsupported_heteroatom_element():
+    assert smiles_to_iupac("C1CCCCP1") == "phosphinane"
 
 
 def test_imidazole_ring_carbon_substituent():
@@ -407,10 +395,8 @@ def test_imidazole_multi_substituent_flanking_nh():
     assert smiles_to_iupac("Cc1nc[nH]c1C") == "4,5-dimethyl-1H-imidazole"
 
 
-def test_three_heteroatom_mancude_ring_raises():
-    # 1,2,4-triazole: three ring heteroatoms, out of scope here.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1nc[nH]n1")
+def test_three_heteroatom_mancude_ring():
+    assert smiles_to_iupac("c1nc[nH]n1") == "1H-1,2,4-triazole"
 
 
 @pytest.mark.parametrize(
@@ -437,11 +423,8 @@ def test_pyran_indicated_hydrogen(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_pyran_substituent_raises():
-    # Substituted pyran isn't in scope yet -- only the unsubstituted
-    # indicated-hydrogen parent is recognized.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC1=CC=COC1")
+def test_pyran_substituent():
+    assert smiles_to_iupac("CC1=CC=COC1") == "3-methyl-2H-pyran"
 
 
 @pytest.mark.parametrize(

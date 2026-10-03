@@ -99,7 +99,7 @@ def _group_names(graph, mol, atoms, parent, halogens, aromatic_atoms):
             mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(a, n).GetBondTypeAsDouble() == 2.0
             for n in graph[a]
         ):
-            out.append((_acyl_name(mol, graph, a, parent), True))
+            out.append((_acyl_name(mol, graph, a, parent), False))
         else:
             out.append(name_branch(graph, a, parent, halogens, aromatic_atoms, mol=mol))
     return out
@@ -150,6 +150,8 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         rname, _ = name_branch(graph, other, root, halogens, aromatic_atoms, mol=mol)
         name = _alkoxy(rname)
         return name, _compound(name)
+    if z == 16 and atom.GetDegree() > 2:
+        return _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if z == 16:
         if order != 1.0 or len(others) > 1 or atom.GetDegree() > 2:
             raise UnsupportedStructure("this sulfur-linked group is not supported yet")
@@ -208,5 +210,41 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
         name = _amino(_group_names(graph, mol, subs, x, halogens, aromatic_atoms))
         return name[: -len("amino")] + "carbamoyl", True
     if z == 6:
-        return _acyl_name(mol, graph, root, coming_from), True
+        return _acyl_name(mol, graph, root, coming_from), False
     raise UnsupportedStructure("this carbonyl-derived substituent is not supported yet")
+
+
+def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
+    """-SO3H (sulfo), -SO2NR2 (sulfamoyl), -SO2R (R-sulfonyl), -SOR (R-sulfinyl)."""
+    from ._substituents import name_branch
+
+    atom = mol.GetAtomWithIdx(root)
+    if mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0 or atom.GetFormalCharge():
+        raise UnsupportedStructure("this sulfur-linked group is not supported yet")
+    others = [n for n in graph[root] if n != coming_from]
+    oxygens = [
+        n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 2.0
+    ]
+    rest = [n for n in others if n not in oxygens]
+    if len(rest) != 1 or len(oxygens) not in (1, 2):
+        raise UnsupportedStructure("this sulfur-linked group is not supported yet")
+    x = rest[0]
+    zx = mol.GetAtomWithIdx(x).GetAtomicNum()
+    if len(oxygens) == 2 and zx == 8 and mol.GetAtomWithIdx(x).GetDegree() == 1:
+        return "sulfo", False
+    if len(oxygens) == 2 and zx == 7:
+        subs = [n for n in graph[x] if n != root]
+        if not subs:
+            return "sulfamoyl", False
+        name = _amino(_group_names(graph, mol, subs, x, halogens, aromatic_atoms))
+        return name[: -len("amino")] + "sulfamoyl", True
+    if zx != 6:
+        raise UnsupportedStructure("this sulfur-linked group is not supported yet")
+    rname, _ = name_branch(graph, x, root, halogens, aromatic_atoms, mol=mol)
+    if rname == "phenyl":
+        stem = "benzene"
+    elif rname.endswith("yl") and rname[:-2] in ("meth", "eth", "prop", "but", "pent", "hex", "hept", "oct"):
+        stem = rname[:-2] + "ane"
+    else:
+        raise UnsupportedStructure("this sulfonyl group is not supported yet")
+    return stem + ("sulfonyl" if len(oxygens) == 2 else "sulfinyl"), True
