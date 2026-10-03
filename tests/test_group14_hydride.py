@@ -53,10 +53,5 @@ def test_group13_hydride_unaffected():
     assert smiles_to_iupac("CC[Al](CC)CC") == "triethylalumane"
 
 
-def test_silicon_still_unsupported():
-    # Silicon (also Group 14) is deliberately out of scope for this
-    # module -- organosilicon naming is a separate, already-established
-    # area of this project (`_silane_chain.py`), not this mononuclear-
-    # organometallic mechanism.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[Si](C)(C)C")
+def test_silicon_still_unsupported_is_named():
+    assert smiles_to_iupac("C[Si](C)(C)C") == "tetramethylsilane"

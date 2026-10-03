@@ -8,13 +8,13 @@ from smiles_to_iupac._common import UnsupportedStructure
     "smiles,expected",
     [
         # PubChem-confirmed (CID 101086150). This project's adamantane
-        # already uses the systematic 'tricyclo[3.3.1.1^3,7]decane' name
+        # already uses the systematic 'adamantane' name
         # rather than the retained 'adamantane' one (see
         # `test_von_baeyer_thiol.py`'s identical 1-adamantanethiol
         # precedent), so this module's ring_count>=3 path follows the
         # same systematic convention rather than PubChem's own retained-
         # name 'adamantane-2-selenol'.
-        ("[SeH]C1C2CC3CC1CC(C2)C3", "tricyclo[3.3.1.1^3,7]decane-2-selenol"),
+        ("[SeH]C1C2CC3CC1CC(C2)C3", "adamantane-2-selenol"),
     ],
 )
 def test_von_baeyer_selenol_name(smiles, expected):

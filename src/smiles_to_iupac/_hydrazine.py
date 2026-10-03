@@ -88,6 +88,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
+from ._multiplicative_text import enclose
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -189,7 +190,7 @@ def name_hydrazine(mol) -> str:
         return "hydrazine"
     if total == 1:
         ((name, compound),) = names_n1 + names_n2
-        return (f"({name})" if compound and name[0].isdigit() else name) + "hydrazine"
+        return (enclose(name) if compound and name[0].isdigit() else name) + "hydrazine"
 
     candidates = []
     for first, second in ((names_n1, names_n2), (names_n2, names_n1)):

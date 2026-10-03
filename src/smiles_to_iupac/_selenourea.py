@@ -49,6 +49,7 @@ benzene ring, and a ring-fused selenourea.
 
 from rdkit import Chem
 
+from ._multiplicative_text import enclose
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -120,7 +121,7 @@ def _reject_unsaturated_substituents(mol, atoms):
 
 
 def _di_name(name, is_compound):
-    return f"({name})" if is_compound else name
+    return enclose(name) if is_compound else name
 
 
 def _n_letter_entry(letter, name, is_compound):

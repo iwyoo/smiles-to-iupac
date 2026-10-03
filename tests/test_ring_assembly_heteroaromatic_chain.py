@@ -69,6 +69,5 @@ def test_two_thiophene_rings_routes_to_ring_assembly_module():
     assert smiles_to_iupac("c1ccc(-c2cccs2)s1") == "2,2'-bithiophene"
 
 
-def test_mixed_thiophene_and_furan_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc(-c2ccc(-c3ccco3)s2)s1")
+def test_mixed_thiophene_and_furan():
+    assert smiles_to_iupac("c1ccc(-c2ccc(-c3ccco3)s2)s1") == "2-([2,2'-bithiophen]-5-yl)furan"

@@ -77,6 +77,7 @@ from collections import defaultdict
 
 from rdkit import Chem
 
+from ._multiplicative_text import enclose
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -170,7 +171,7 @@ def _prime_rank(letter):
 
 
 def _di_name(name, is_compound):
-    return f"({name})" if is_compound else name
+    return enclose(name) if is_compound else name
 
 
 def _combine_prefixes(letters_and_entries):

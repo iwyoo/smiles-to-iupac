@@ -52,6 +52,7 @@ from rdkit import Chem
 
 from collections import Counter
 
+from ._multiplicative_text import enclose
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._numerals import multiplying_prefix
 from ._salt import _MONOATOMIC_CATION_NAMES
@@ -211,7 +212,7 @@ def format_ester_words(names) -> str:
     for name in sorted(counts, key=alpha_sort_key):
         count = counts[name]
         needs_enclosure = name[0].isdigit()
-        group = f"({name})" if needs_enclosure else name
+        group = enclose(name) if needs_enclosure else name
         prefix = multiplying_prefix(count, compound=needs_enclosure) if count > 1 else ""
         words.append(f"{prefix}{group}")
     return " ".join(words)

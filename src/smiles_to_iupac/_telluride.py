@@ -42,6 +42,7 @@ chain spacer are supported, confirmed via PubChem PUG REST (CID 5325650
 
 from rdkit import Chem
 
+from ._multiplicative_text import enclose
 from ._acyclic import longest_chain_length, name_from_carbon_graph, winning_chain_with_key
 from ._common import (
     UnsupportedStructure,
@@ -130,7 +131,7 @@ def _name_benzene_ring_telluride_chain(mol, ring_atoms) -> str:
         (r_prime,) = [n for n in graph[tellurium_idx] if n != ring_atom]
         sub_name, sub_compound = name_branch(graph, r_prime, tellurium_idx, {}, mol=mol)
         if sub_compound:
-            sub_name = f"({sub_name})"
+            sub_name = enclose(sub_name)
         return f"{_tellanyl_prefix(sub_name)}benzene"
 
     blocked_graph = {node: [n for n in neighbors if n != tellurium_idx] for node, neighbors in graph.items()}
@@ -140,7 +141,7 @@ def _name_benzene_ring_telluride_chain(mol, ring_atoms) -> str:
 
     sub_name, sub_compound = name_branch(graph, r_prime, tellurium_idx, {}, mol=mol)
     if sub_compound:
-        sub_name = f"({sub_name})"
+        sub_name = enclose(sub_name)
     tellanyl_term = _tellanyl_prefix(sub_name)
     branch_name, is_compound = name_branch(graph, chain_root, ring_atom, {tellurium_idx: tellanyl_term}, mol=mol)
     if not is_compound:
@@ -186,8 +187,8 @@ def name_telluride(mol) -> str:
         else:
             name_a, compound_a = name_branch(full_graph, n1, tellurium_idx, {}, mol=mol)
             name_b, compound_b = name_branch(full_graph, n2, tellurium_idx, {}, mol=mol)
-            sub_from_a = f"({name_a})" if compound_a else name_a
-            sub_from_b = f"({name_b})" if compound_b else name_b
+            sub_from_a = enclose(name_a) if compound_a else name_a
+            sub_from_b = enclose(name_b) if compound_b else name_b
             key_a, _, _ = winning_chain_with_key(full_graph, graph_a, {tellurium_idx: _tellanyl_prefix(sub_from_b)}, mol=mol)
             key_b, _, _ = winning_chain_with_key(full_graph, graph_b, {tellurium_idx: _tellanyl_prefix(sub_from_a)}, mol=mol)
             parent_root, sub_root = (n1, n2) if key_a <= key_b else (n2, n1)
@@ -198,7 +199,7 @@ def name_telluride(mol) -> str:
 
     sub_name, sub_compound = name_branch(full_graph, sub_root, tellurium_idx, {}, mol=mol)
     if sub_compound:
-        sub_name = f"({sub_name})"
+        sub_name = enclose(sub_name)
 
     parent_carbon_graph = component_subgraph(carbon_graph, parent_root)
     terminals = {tellurium_idx: _tellanyl_prefix(sub_name)}

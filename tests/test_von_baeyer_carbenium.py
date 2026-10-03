@@ -27,7 +27,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         # secondary ring position -- same tricyclic skeleton and
         # systematic-name convention as `test_von_baeyer_amine.py`'s
         # 1-adamantanamine analog.
-        ("[C+]12CC3CC(CC(C3)C1)C2", "tricyclo[3.3.1.1^3,7]decan-1-ylium"),
+        ("[C+]12CC3CC(CC(C3)C1)C2", "adamantan-1-ylium"),
     ],
 )
 def test_von_baeyer_carbenium_name(smiles, expected):

@@ -13,7 +13,7 @@ from smiles_to_iupac import smiles_to_iupac
         # P-23.2.5.2 (see _tricyclic.py's module docstring): with main
         # bridgeheads numbered 1 and 5, the other two bridgeheads land at the
         # midpoints of the two 3-atom main-ring segments, positions 3 and 7.
-        ("C1C2CC3CC1CC(C2)C3", "tricyclo[3.3.1.1^3,7]decane"),
+        ("C1C2CC3CC1CC(C2)C3", "adamantane"),
         # twistane: built from scratch (not copied from a SMILES database) to
         # match the descriptor tricyclo[4.4.0.0^3,8]decane reported by
         # Wikipedia/ChemSpider (CAS 253-14-5) -- main bridgeheads directly

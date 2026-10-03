@@ -29,14 +29,14 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("ClC1CC2CCC1C(O)C2", "6-chlorobicyclo[2.2.2]octan-2-ol"),
         # 1-adamantanol (PubChem CID 12178's own structure) -- this
         # project's adamantane already uses the systematic
-        # 'tricyclo[3.3.1.1^3,7]decane' name rather than the retained
+        # 'adamantane' name rather than the retained
         # 'adamantane' one (see test_tricyclic.py), so this module's
         # ring_count>=3 path follows the same systematic convention:
-        # 'tricyclo[3.3.1.1^3,7]decan-1-ol', not 'adamantan-1-ol'.
-        ("OC12CC3CC(CC(C3)C1)C2", "tricyclo[3.3.1.1^3,7]decan-1-ol"),
+        # 'adamantan-1-ol', not 'adamantan-1-ol'.
+        ("OC12CC3CC(CC(C3)C1)C2", "adamantan-1-ol"),
         # 2-adamantanol (PubChem CID 68159's own structure), same
         # systematic-name divergence as 1-adamantanol above.
-        ("OC1C2CC3CC1CC(C2)C3", "tricyclo[3.3.1.1^3,7]decan-2-ol"),
+        ("OC1C2CC3CC1CC(C2)C3", "adamantan-2-ol"),
     ],
 )
 def test_von_baeyer_alcohol_name(smiles, expected):
@@ -62,7 +62,7 @@ def test_unsaturated_von_baeyer_ring_now_resolves():
 
 
 def test_directly_joined_identical_rings_form_a_ring_assembly():
-    assert smiles_to_iupac("OC1(CCCC1)C1CCCC1") == "[1,1'-bi(cyclopentane)]-1-ol"
+    assert smiles_to_iupac("OC1(CCCC1)C1CCCC1") == "[1,1'-bi(cyclopentan)]-1-ol"
 
 
 @pytest.mark.parametrize(

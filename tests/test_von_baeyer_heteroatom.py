@@ -149,7 +149,7 @@ def test_three_mixed_element_heteroatoms_raises():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        # 2-oxaadamantane: adamantane (tricyclo[3.3.1.1^3,7]decane, see
+        # 2-oxaadamantane: adamantane (adamantane, see
         # tests/test_polycyclic.py) with a non-bridgehead -CH2- replaced by
         # -O-. Cross-checked against PubChem's own computed IUPACName for
         # this exact SMILES ("2-oxatricyclo[3.3.1.1{3,7}]decane",
@@ -187,7 +187,7 @@ def test_unsaturated_heteroatom_tricyclic_raises():
 
 
 def test_tricyclic_hydrocarbon_itself_is_unaffected():
-    assert smiles_to_iupac("C1C2CC3CC1CC(C2)C3") == "tricyclo[3.3.1.1^3,7]decane"
+    assert smiles_to_iupac("C1C2CC3CC1CC(C2)C3") == "adamantane"
 
 
 def test_disjoint_ring_systems_joined_by_chain_raises():

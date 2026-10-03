@@ -19,7 +19,7 @@ from ._common import (
     specified_stereo_elements,
     substituent_locant_set_and_citation,
 )
-from ._hetero_prefixes import is_functional_carbon
+from ._hetero_prefixes import MONONUCLEAR_HYDRIDES, is_functional_carbon
 from ._multiplicative import _bare_key
 from ._multiplicative_ring import _SUFFIX_WORDS, _citation_key, _join, _prefix_text, _suffix_text, monocycle_spec, name_ring_component, numberings
 from ._substituents import format_substituent_prefixes, name_branch
@@ -414,9 +414,37 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
     return (-len(roots), best[0][0], name), ((0,), name, (None, None, None, 0, best[1], True))
 
 
+def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
+    """A single Si, Ge, P, B, ... atom with only organyl substituents is the
+    senior parent hydride when there is no principal group (P-44.1.2):
+    'trimethyl(phenyl)silane'."""
+    from ._substituents import format_mononuclear_prefixes
+
+    stem, _, valence = MONONUCLEAR_HYDRIDES[center.GetAtomicNum()]
+    index = center.GetIdx()
+    neighbors = [n for n in graph[index]]
+    if (
+        center.GetFormalCharge()
+        or center.GetIsotope()
+        or len(neighbors) > valence
+        or any(
+            mol.GetAtomWithIdx(n).GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(index, n).GetBondTypeAsDouble() != 1.0
+            for n in neighbors
+        )
+    ):
+        return None
+    entries = [name_branch(graph, n, index, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in neighbors]
+    return format_mononuclear_prefixes(entries) + stem
+
+
 def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     """Parent without a principal group: the monocycle when there is one
     (P-44.1.2.2), else the longest chain, with every substituent a prefix."""
+    centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() in MONONUCLEAR_HYDRIDES and not a.IsInRing()]
+    if len(centers) == 1:
+        named = _mononuclear_parent(mol, graph, halogens, aromatic_atoms, centers[0])
+        if named is not None:
+            return ((0,), named, (None, None, None, 0, {}, False))
     ring_info = mol.GetRingInfo()
     rings = [r for r in ring_info.AtomRings()]
     if len(rings) == 2:
@@ -585,33 +613,57 @@ def _evaluate_carbo(mol, graph, halogens, aromatic_atoms, chain, principal, grou
     return key, name, (prefix, body, "", 0, position_of, False)
 
 
-def _assembly_numbering(graph, rings, join, marked, entries):
+def _locant_order(locant):
+    """Primed locants follow the unprimed one of the same number: 1 < 1' < 2."""
+    return locant[1], locant[0]
+
+
+def _assembly_numbering(graph, rings, join, marked, entries, specs=None):
     """Atom -> (prime count, locant) for the best numbering of two directly
-    joined identical rings: the junction atoms are 1 and 1', then the marked
-    atoms (principal groups or a free valence), then the substituents."""
-    junction = {0: join[0], 1: join[1]}
+    joined identical rings. Benzene and cycloalkane rings number from the
+    junction (1 and 1'); heteroaromatic rings keep their fixed numbering and
+    the junction takes the lowest locants, then the marked atoms (principal
+    groups or a free valence), then the substituents."""
+    hetero = bool(specs) and specs[0].hetero is not None
     cycles = [ring_cycle(graph, rings[0]), ring_cycle(graph, rings[1])]
 
     def orientations(index):
+        if hetero:
+            return [numbering for numbering in numberings(specs[index])]
         cycle = cycles[index]
-        start = cycle.index(junction[index])
+        start = cycle.index(join[index])
         rotated = cycle[start:] + cycle[:start]
-        return [rotated, [rotated[0]] + rotated[:0:-1]]
+        return [
+            {atom: i + 1 for i, atom in enumerate(order)} for order in (rotated, [rotated[0]] + rotated[:0:-1])
+        ]
 
     best = None
     for unprimed in (0, 1):
         for first in orientations(unprimed):
             for second in orientations(1 - unprimed):
-                locants = {atom: (0, i + 1) for i, atom in enumerate(first)}
-                locants.update({atom: (1, i + 1) for i, atom in enumerate(second)})
+                locants = {atom: (0, number) for atom, number in first.items()}
+                locants.update({atom: (1, number) for atom, number in second.items()})
                 key = (
-                    tuple(sorted(locants[a] for a in marked)),
-                    tuple(sorted(locants[r] for r, _, _ in entries)),
-                    _citation_key([(locants[r], name) for r, name, _ in entries]),
+                    (locants[join[unprimed]][1], locants[join[1 - unprimed]][1]),
+                    tuple(sorted(_locant_order(locants[a]) for a in marked)),
+                    tuple(sorted(_locant_order(locants[r]) for r, _, _ in entries)),
+                    _citation_key([(_locant_order(locants[r]), name) for r, name, _ in entries]),
                 )
                 if best is None or key < best[0]:
                     best = (key, locants)
     return best[1]
+
+
+def _assembly_base(specs, locants, join, elide):
+    """'1,1'-biphenyl', '1,1'-bi(cyclohexane)', '2,2'-bipyridine'; the final
+    'e' goes before a vowel-initial suffix."""
+    spec = specs[0]
+    if spec.kind == "benzene":
+        return "1,1'-biphenyl"
+    unprimed, primed = sorted(join, key=lambda atom: locants[atom][0])
+    stem = spec.parent[:-1] if elide and spec.parent.endswith("e") else spec.parent
+    spots = f"{locants[unprimed][1]},{locants[primed][1]}'"
+    return f"{spots}-bi({stem})" if spec.hetero is None else f"{spots}-bi{stem}"
 
 
 def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms):
@@ -630,7 +682,7 @@ def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms
     if len(joins) != 1 or _bare_key(mol, set(own)) != _bare_key(mol, set(other)):
         return None
     specs = [monocycle_spec(mol, r) for r in (own, other)]
-    if any(sp is None or sp.hetero is not None for sp in specs) or specs[0].kind != specs[1].kind:
+    if any(sp is None or sp.kind == "pyrrole" for sp in specs) or specs[0].kind != specs[1].kind:
         return None
     ring_atoms = set(own) | set(other)
     roots = [
@@ -641,15 +693,15 @@ def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms
     ]
     entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
     rings = [own, other]
-    locants = _assembly_numbering(graph, rings, joins[0], [root], entries)
+    locants = _assembly_numbering(graph, rings, joins[0], [root], entries, specs)
     grouped = {}
     for r, name, compound in entries:
         spot = locants[r]
         grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(f"{spot[1]}{chr(39) * spot[0]}")
     for info in grouped.values():
-        info["locants"].sort(key=lambda text: (text.count(chr(39)), int(text.rstrip(chr(39)))))
+        info["locants"].sort(key=lambda text: (int(text.rstrip(chr(39))), text.count(chr(39))))
     prefix = format_substituent_prefixes(grouped) if grouped else ""
-    base = "1,1'-biphenyl" if specs[0].kind == "benzene" else f"1,1'-bi({specs[0].parent})"
+    base = _assembly_base(specs, locants, joins[0], elide=True)
     spot = locants[root]
     core = f"[{base}]-{spot[1]}{chr(39) * spot[0]}-yl"
     return (f"{prefix}-{core}" if prefix else core), True
@@ -659,12 +711,14 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
     """P-28: two identical benzene or cycloalkane rings joined by a single
     bond -- [1,1'-biphenyl]-4-ol, 4-nitro-1,1'-biphenyl. Returns
     (principal count, (key, name, parts)) or None when `mol` is not one."""
+    if principal is not None and not occurrences:
+        return None
     ring_info = mol.GetRingInfo()
     rings = [list(r) for r in ring_info.AtomRings()]
     if len(rings) != 2 or set(rings[0]) & set(rings[1]):
         return None
     specs = [monocycle_spec(mol, r) for r in rings]
-    if any(sp is None or sp.hetero is not None for sp in specs):
+    if any(sp is None or sp.kind == "pyrrole" for sp in specs):
         return None
     if specs[0].kind != specs[1].kind or len(rings[0]) != len(rings[1]):
         return None
@@ -684,7 +738,7 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
         if n.GetIdx() not in ring_atoms and n.GetIdx() not in owned
     ]
     entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
-    locants = _assembly_numbering(graph, rings, joins[0], [o[1] for o in occurrences], entries)
+    locants = _assembly_numbering(graph, rings, joins[0], [o[1] for o in occurrences], entries, specs)
 
     def cite(locant):
         return f"{locant[1]}{chr(39) * locant[0]}"
@@ -693,18 +747,15 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
     for r, name, compound in entries:
         grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(cite(locants[r]))
     for info in grouped.values():
-        info["locants"].sort(key=lambda text: (text.count(chr(39)), int(text.rstrip(chr(39)))))
+        info["locants"].sort(key=lambda text: (int(text.rstrip(chr(39))), text.count(chr(39))))
     prefix = format_substituent_prefixes(grouped) if grouped else ""
-    if specs[0].kind == "benzene":
-        base = "1,1'-biphenyl"
-    else:
-        base = f"1,1'-bi({specs[0].parent})"
     count = len(occurrences)
     if principal is None:
-        core = base
+        core = _assembly_base(specs, locants, joins[0], elide=False)
     else:
         word = multiplied_word(count, _SUFFIX_WORDS[_RING_SUFFIX[principal]])
-        spots = ",".join(cite(locants[o[1]]) for o in sorted(occurrences, key=lambda o: locants[o[1]]))
+        base = _assembly_base(specs, locants, joins[0], elide=word[0] in "aeiouy")
+        spots = ",".join(cite(locants[o[1]]) for o in sorted(occurrences, key=lambda o: _locant_order(locants[o[1]])))
         core = f"[{base}]-{spots}-{word}"
     name = f"{prefix}-{core}" if prefix else core
     return count, ((-count,), name, (None, None, None, 0, locants, True))
@@ -1259,3 +1310,9 @@ def _evaluate(
         name,
     )
     return key, name, (prefix, body, tail, reported_attach, position_of, False)
+
+
+def _stereo_free(mol):
+    return not any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()) and not any(
+        b.GetStereo() != Chem.BondStereo.STEREONONE for b in mol.GetBonds()
+    )

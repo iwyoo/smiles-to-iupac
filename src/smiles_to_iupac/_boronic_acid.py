@@ -30,6 +30,7 @@ analogue (thioboronic acid etc.).
 
 from rdkit import Chem
 
+from ._multiplicative_text import enclose
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
 from ._substituents import name_branch
 
@@ -98,5 +99,5 @@ def name_boronic_acid(mol) -> str:
     aromatic_atoms = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic()}
 
     name, is_compound = name_branch(graph, root, boron.GetIdx(), halogens, aromatic_atoms, mol=mol)
-    prefix = f"({name})" if is_compound else name
+    prefix = enclose(name) if is_compound else name
     return f"{prefix}boronic acid"

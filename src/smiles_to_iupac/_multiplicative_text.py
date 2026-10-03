@@ -10,11 +10,15 @@ _OPENERS = {"(": 0, "[": 1, "{": 2}
 _MARKS = ["()", "[]", "{}"]
 
 
-_ASSEMBLY_BRACKETS = re.compile(r"\[\d+,\d+'-bi(?:\([a-z]+\)|[a-z]+)\]")
+_ASSEMBLY_BRACKETS = re.compile(
+    r"\[\d+,\d+'-bi(?:\([a-z]+\)|[a-z]+)\]"  # [1,1'-biphenyl]
+    r"|\[[\d.^,]+\]"  # von Baeyer and spiro descriptors: [3.3.1.1^3,7], [4.5]
+    r"|\[[\d,']*-?[a-z]{1,2}\]"  # fusion descriptors: [b], [3,2-b]
+)
 
 
 def enclose(text):
-    # The brackets of a ring-assembly name ([1,1'-biphenyl]) belong to the name, not to the nesting.
+    # Descriptor brackets (ring assembly, von Baeyer, spiro, fusion) belong to the name, not to the nesting.
     levels = [_OPENERS[ch] for ch in _ASSEMBLY_BRACKETS.sub("", text) if ch in _OPENERS]
     level = (max(levels) + 1) % 3 if levels else 0
     left, right = _MARKS[level]

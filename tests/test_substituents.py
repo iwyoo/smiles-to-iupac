@@ -150,7 +150,7 @@ def test_mol_defends_against_unvalidated_heteroatom_branch():
     graph = adjacency(mol)
     assert name_branch(graph, 1, 0, {}) == ("propyl", False)
     assert name_branch(graph, 1, 0, {}, mol=mol) == ("2-aminoethyl", True)
-    unsupported = Chem.MolFromSmiles("CCCP")
+    unsupported = Chem.MolFromSmiles("CCC[Se]C#N")
     with pytest.raises(UnsupportedStructure):
         name_branch(adjacency(unsupported), 1, 0, {}, mol=unsupported)
 

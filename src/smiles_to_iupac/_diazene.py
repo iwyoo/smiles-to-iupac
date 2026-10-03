@@ -74,6 +74,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
+from ._multiplicative_text import enclose
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents, non_single_bonds
 from ._numerals import multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, name_branch
@@ -152,7 +153,7 @@ def name_diazene(mol) -> str:
         return "diazene"
     if len(substituents) == 1:
         (name, compound), = substituents
-        return (f"({name})" if compound and name[0].isdigit() else name) + "diazene"
+        return (enclose(name) if compound and name[0].isdigit() else name) + "diazene"
 
     (name_a, compound_a), (name_b, compound_b) = substituents
     if name_a == name_b:
