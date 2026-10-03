@@ -364,6 +364,7 @@ from ._telluroic_acid import has_telluroic_acid_shape, name_telluroic_acid
 from ._thioic_acid import has_thioic_acid_shape, name_thioic_acid
 from ._thiol import has_thiol_shape, name_thiol
 from ._thiol_amine import has_thiol_amine_shape, name_thiol_amine
+from ._phosphanyl_group import contract_phosphanyl_groups
 from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
 from ._von_baeyer_heteroatom import (
@@ -391,6 +392,19 @@ def smiles_to_iupac(smiles: str) -> str:
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError(f"invalid SMILES: {smiles!r}")
+    try:
+        return _name_mol(mol)
+    except UnsupportedStructure:
+        contracted = contract_phosphanyl_groups(mol)
+        if contracted is None:
+            raise
+        name = _name_mol(contracted)
+        if "iodo" in name and not any(a.GetAtomicNum() == 53 for a in mol.GetAtoms()):
+            raise UnsupportedStructure("a phosphanyl group could not be cited as a prefix here") from None
+        return name
+
+
+def _name_mol(mol) -> str:
 
     # The 7 retained nucleoside names (P-105.1) are recognized by exact
     # whole-molecule match, so they must be routed before every other

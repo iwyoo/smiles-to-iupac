@@ -13,6 +13,7 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
+    alpha_sort_key,
     non_single_bonds,
     plain_phenyl_substituent_atoms,
 )
@@ -521,7 +522,7 @@ def _name_complex(mol, extra=None, charge=None) -> str:
 
 def _sort_key(label: str) -> str:
     stripped = re.sub(r"^[\[(]*(?:[\d,]+-\u03b7\)-)?(?:\u03b7\d+-)?[\d,\-]*", "", label)
-    return stripped.lower()
+    return alpha_sort_key(stripped)
 
 
 def _format_ligands(counts, simple_labels, organic, neutral, tags=None, bridges=None) -> str:

@@ -275,7 +275,7 @@ def _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locant
     # (see `_alcohol.py`'s equivalent comment) -- an 'N-' locant is never
     # omitted either way (see `_add_n_names`/`format_substituent_prefixes`:
     # it marks a different atom than the chain itself).
-    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names, n_locants), omit_locants=chain_length == 1)
+    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names, n_locants), omit_locants=chain_length == 1 and not n_names)
     return prefix + name_from_substituents(
         chain_length,
         ene_locants,
@@ -953,7 +953,8 @@ def _name_phenyl_chain_amine(mol, ring_atoms):
             "substituent is not supported yet"
         )
     (n_idx,) = amines
-    if len(n_carbons_by_nitrogen[n_idx]) > 1:
+    n_carbons = n_carbons_by_nitrogen[n_idx]
+    if any(c in ring_atoms for c in n_carbons):
         raise UnsupportedStructure(
             "a secondary/tertiary amine nitrogen on or attached to a ring "
             "is out of scope for this module"
@@ -981,7 +982,11 @@ def _name_phenyl_chain_amine(mol, ring_atoms):
             "exocyclic substituent alongside a chain amine is not "
             "supported yet"
         )
-    (carbon,) = n_carbons_by_nitrogen[n_idx]
+    reach = {c: len(_reachable(graph, c, n_idx)) for c in n_carbons}
+    carbon = max(n_carbons, key=lambda c: reach[c])
+    n_names = [
+        name_branch(graph, other, n_idx, halogens, ring_atoms, mol=mol) for other in n_carbons if other != carbon
+    ]
     chain, branches = longest_branched_chain_through(graph, carbon, ring_atoms, amines, halogens=halogen_substituents(mol))
     branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
 
@@ -995,10 +1000,21 @@ def _name_phenyl_chain_amine(mol, ring_atoms):
             position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms, mol=mol) for root in roots]
             for atom, roots in branches_by_atom.items()
         }
-        key, name = _candidate_key(chain_length, amine_locants, [], [], substituents)
+        key, name = _candidate_key(chain_length, amine_locants, [], [], substituents, n_names)
         if best_key is None or key < best_key:
             best_key, best_name = key, name
     return best_name
+
+
+def _reachable(graph, start, blocked):
+    seen = {start}
+    stack = [start]
+    while stack:
+        for v in graph[stack.pop()]:
+            if v != blocked and v not in seen:
+                seen.add(v)
+                stack.append(v)
+    return seen
 
 
 def name_amine(mol) -> str:

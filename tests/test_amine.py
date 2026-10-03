@@ -404,12 +404,18 @@ def test_phenyl_chain_diamine_raises():
         smiles_to_iupac("c1ccccc1C(N)CCN")
 
 
-def test_phenyl_chain_secondary_amine_raises():
-    # A secondary/tertiary amine nitrogen alongside a ring is out of
-    # scope, same as the existing (non-phenyl-chain) ring guard in
-    # `name_amine`.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1CCNC")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("c1ccccc1CCNC", "N-methyl-2-phenylethanamine"),
+        ("CN(C)Cc1ccccc1", "N,N-dimethyl-1-phenylmethanamine"),
+        ("CC(N(C)C)c1ccccc1", "N,N-dimethyl-1-phenylethanamine"),
+        ("CC(N(C)C)c1ccccc1P(c1ccccc1)c1ccccc1", "1-[2-(diphenylphosphanyl)phenyl]-N,N-dimethylethanamine"),
+        ("NCCc1ccccc1P(C)C", "2-[2-(dimethylphosphanyl)phenyl]ethanamine"),
+    ],
+)
+def test_phenyl_chain_secondary_tertiary_amine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_unsaturated_ring_amine_with_substituent_raises():

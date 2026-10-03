@@ -12,6 +12,7 @@ from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency
 from ._numerals import alkane_name
+from ._phosphanyl_group import phosphanyl_name
 from ._substituents import format_substituent_prefixes, name_branch
 
 _ETA = "η"
@@ -44,6 +45,8 @@ def _entries(mol, graph, atom, exclude, allowed):
         z = mol.GetAtomWithIdx(n).GetAtomicNum()
         if z in HALOGEN_PREFIXES:
             out.append((HALOGEN_PREFIXES[z], False))
+        elif z == 15:
+            out.append((phosphanyl_name(mol, graph, n, atom), True))
         elif z == 6:
             out.append(name_branch(graph, n, atom, {}, mol=mol))
         else:
@@ -180,7 +183,12 @@ def _phenyl_substituent(mol, graph, ring, atoms, full):
         if at < 0:
             continue
         if at and full[at - 1] not in "([{-":
-            raise UnsupportedStructure("an eta6-phenyl among several equivalent substituents is not supported yet")
+            multiplier = next((m for m in ("di", "tri", "tetra") if full[:at].endswith(m)), None)
+            start = at - len(multiplier) if multiplier else at
+            if prefixes or not multiplier or (start and full[start - 1] not in "([{-"):
+                raise UnsupportedStructure("this eta6-phenyl among equivalent substituents is not supported yet")
+            rest = {"di": "phenyl", "tri": "diphenyl", "tetra": "triphenyl"}[multiplier]
+            return full[:start] + f"({_ETA}6-phenyl){rest}" + full[at + len(plain):]
         return full[:at] + hapto + full[at + len(plain):]
     return None
 

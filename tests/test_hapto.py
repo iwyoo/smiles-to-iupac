@@ -39,11 +39,15 @@ def test_hapto_names(smiles, expected):
     [
         (
             "NCC[c]12->[Cr]3456([C]#[O+])([C]#[O+])([C]#[O+])<-[cH]([cH]->3[cH]->41)[cH]->5[cH]->62",
-            f"[2-({H}6-phenyl)ethanamine]tricarbonylchromium",
+            f"tricarbonyl[2-({H}6-phenyl)ethanamine]chromium",
         ),
         (
             "C[c]12->[Cr]3456([C]#[O+])([C]#[O+])([C]#[O+])<-[cH]([cH]->3[cH]->4[c]->51CCN)[cH]->62",
-            f"[2-(2-methyl-{H}6-phenyl)ethanamine]tricarbonylchromium",
+            f"tricarbonyl[2-(2-methyl-{H}6-phenyl)ethanamine]chromium",
+        ),
+        (
+            "CC(N(C)C)[c]12->[Cr]3456([C]#[O+])([C]#[O+])([C]#[O+])<-[cH]([cH]->3[cH]->4[c]->51P(c1ccccc1)c1ccccc1)[cH]->62",
+            f"tricarbonyl{{1-[2-(diphenylphosphanyl)-{H}6-phenyl]-N,N-dimethylethanamine}}chromium",
         ),
         (
             "C[c]12->[Cr]3456([C]#[O+])([C]#[O+])([C]#[O+])<-[cH]([cH]->3[cH]->4[cH]->51)[cH]->62",
