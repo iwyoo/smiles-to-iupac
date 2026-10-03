@@ -21,6 +21,7 @@ from ._common import (
 )
 from ._hetero_prefixes import MONONUCLEAR_HYDRIDES, is_functional_carbon
 from ._multiplicative import _bare_key
+from ._multiplicative_text import enclose
 from ._multiplicative_ring import _SUFFIX_WORDS, _citation_key, _join, _prefix_text, _suffix_text, monocycle_spec, name_ring_component, numberings
 from ._substituents import format_substituent_prefixes, name_branch
 
@@ -764,8 +765,8 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
 def _require_mancude_system(mol, atoms):
     """Only fully aromatic fused systems (arenes, mancude heterocycles): partly
     hydrogenated, bridged and spiro systems need hydro/von Baeyer names."""
-    if not all(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms):
-        raise UnsupportedStructure("a partly saturated, bridged or spiro ring system is not handled by the chain engine")
+    if not any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms):
+        raise UnsupportedStructure("a saturated, bridged or spiro ring system is not handled by the chain engine")
     member_rings = [r for r in mol.GetRingInfo().AtomRings() if set(r) <= set(atoms)]
     carbon_hexagons = all(
         len(r) == 6 and all(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in r) for r in member_rings
@@ -794,6 +795,8 @@ def _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo):
 
     if n_names or stereo or principal not in _FUSED_SUFFIX:
         raise UnsupportedStructure("this fused-ring parent is not supported by the chain engine yet")
+    if principal == "ketone":
+        raise UnsupportedStructure("a ketone on a fused ring needs added hydrogen, not supported yet")
     rings, atoms = _system_of(mol, here[0][1])
     if len(rings) > 1:
         _require_mancude_system(mol, atoms)
@@ -1059,27 +1062,117 @@ def _multiplicative_name(mol, stereo=None):
         word = {2: "di", 3: "tri"}[arms]
         unit_text = f"({text})" if any(ch.isdigit() or ch == "-" for ch in text) else text
         return f"{lead}{linker}{word}{unit_text}{tail}"
-    return _ring_linker_name(mol, graph, stereo)
+    return _ring_linker_name(mol, graph, stereo) or _composite_linker_name(mol, graph, stereo)
+
+
+_CENTER_WORDS = {8: "oxy", 16: "sulfanediyl", 34: "selanediyl"}
+
+
+def _composite_linker_name(mol, graph, stereo):
+    """Two identical chain parents on benzene rings joined through one atom:
+    2,2'-[oxybis(4,1-phenylene)]di(ethan-1-ol), 2,2'-[methylenebis(4,1-phenylene)]diethanoic acid."""
+    for center in mol.GetAtoms():
+        z = center.GetAtomicNum()
+        if center.IsInRing() or center.GetDegree() != 2 or center.GetFormalCharge() or center.GetIsotope():
+            continue
+        if z in _CENTER_WORDS and center.GetTotalNumHs() == 0:
+            word = _CENTER_WORDS[z]
+        elif z == 7 and center.GetTotalNumHs() == 1:
+            word = "azanediyl"
+        elif z == 6 and center.GetTotalNumHs() == 2:
+            word = "methylene"
+        else:
+            continue
+        index = center.GetIdx()
+        sides = []
+        for ring_atom in graph[index]:
+            ring = next((r for r in mol.GetRingInfo().AtomRings() if ring_atom in r), None)
+            if ring is None or any(mol.GetRingInfo().NumAtomRings(a) != 1 for a in ring):
+                sides = []
+                break
+            spec = monocycle_spec(mol, ring)
+            if spec is None or spec.kind != "benzene":
+                sides = []
+                break
+            ring_set = set(ring)
+            others = [
+                (r, n.GetIdx())
+                for r in ring
+                for n in mol.GetAtomWithIdx(r).GetNeighbors()
+                if n.GetIdx() not in ring_set and n.GetIdx() != index
+            ]
+            if len(others) != 1:
+                sides = []
+                break
+            sides.append((ring, ring_atom, others[0]))
+        if len(sides) != 2:
+            continue
+        arms = [_arm_atoms(graph, root, r) for _, _, (r, root) in sides]
+        ring_total = sum(len(ring) for ring, _, _ in sides)
+        if arms[0] & arms[1] or len(arms[0]) + len(arms[1]) + ring_total + 1 != mol.GetNumAtoms():
+            continue
+        if any(
+            mol.GetAtomWithIdx(root).GetAtomicNum() != 6
+            or mol.GetAtomWithIdx(root).GetIsAromatic()
+            or mol.GetBondBetweenAtoms(r, root).GetBondTypeAsDouble() != 1.0
+            for _, _, (r, root) in sides
+        ):
+            continue
+        units = [_unit_molecule(mol, atoms, root) for atoms, (_, _, (_, root)) in zip(arms, sides)]
+        if len({Chem.MolToSmiles(unit[0]) for unit in units}) != 1:
+            continue
+        components = []
+        for ring, ring_atom, (r, root) in sides:
+            named = name_ring_component(
+                mol, ring, [(r, root), (ring_atom, index)], [], None, directed=(r, ring_atom)
+            )
+            components.append(named[0] if named else None)
+        if components[0] is None or components[0] != components[1]:
+            continue
+        unit, attach = units[0]
+        try:
+            _, _, parts = _select(unit, attach)
+        except UnsupportedStructure:
+            continue
+        if stereo:
+            raise UnsupportedStructure("stereodescriptors in a multiplicative name are not supported yet")
+        prefix, body, tail, locant = parts[:4]
+        lead = f"{locant},{locant}'-" if locant is not None else ""
+        linker = enclose(f"{word}bis({components[0]})")
+        text = prefix + body
+        if prefix:
+            return f"{lead}{linker}bis({text}){tail}"
+        unit_text = f"({text})" if any(ch.isdigit() or ch == "-" for ch in text) else text
+        return f"{lead}{linker}di{unit_text}{tail}"
+    return None
 
 
 def _ring_linker_name(mol, graph, stereo):
     """Two identical chain parents on one monocycle: 2,2'-(1,4-phenylene)di(ethan-1-ol)."""
+    from ._multiplicative import _ring_systems
+
     ring_info = mol.GetRingInfo()
-    for ring in ring_info.AtomRings():
-        if any(ring_info.NumAtomRings(a) != 1 for a in ring):
-            continue
-        ring_set = set(ring)
+    for system in _ring_systems(mol):
+        ring_set = set(system)
+        member_rings = [list(r) for r in ring_info.AtomRings() if set(r) <= ring_set]
+        fused = len(member_rings) > 1
+        if fused:
+            try:
+                _require_mancude_system(mol, ring_set)
+            except UnsupportedStructure:
+                continue
+        ring = member_rings[0]
         attachments = [
             (r, n.GetIdx())
-            for r in ring
+            for r in ring_set
             for n in mol.GetAtomWithIdx(r).GetNeighbors()
             if n.GetIdx() not in ring_set
         ]
         if len(attachments) != 2:
             continue
-        spec = monocycle_spec(mol, ring)
+        spec = None if fused else monocycle_spec(mol, ring)
         arms = [_arm_atoms(graph, root, r) for r, root in attachments]
-        if arms[0] & arms[1] or len(arms[0]) + len(arms[1]) + len(ring) != mol.GetNumAtoms():
+        if arms[0] & arms[1] or len(arms[0]) + len(arms[1]) + len(ring_set) != mol.GetNumAtoms():
             continue
         if any(
             mol.GetAtomWithIdx(root).GetAtomicNum() != 6
@@ -1103,7 +1196,7 @@ def _ring_linker_name(mol, graph, stereo):
 
             try:
                 found = evaluate_skeleton(
-                    mol, graph, "ring", [ring], ring_set, [r for r, _ in attachments], arms[0] | arms[1], "yl"
+                    mol, graph, "ring", member_rings, ring_set, [r for r, _ in attachments], arms[0] | arms[1], "yl"
                 )
             except UnsupportedStructure:
                 found = None

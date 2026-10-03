@@ -307,6 +307,7 @@ from ._phosphinic_acid import has_phosphinic_acid_shape, name_phosphinic_acid
 from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
 from ._fluorene_parent import has_fluorene_parent_name, name_fluorene_parent
+from ._indene_parent import has_indene_parent_name, name_indene_parent
 from ._fluorene_fusion import has_fluorene_fusion_name, name_fluorene_fusion
 from ._azulene_fusion import has_azulene_fusion_name, name_azulene_fusion
 from ._cyclopenta_naphthalene import has_cyclopenta_naphthalene_name, name_cyclopenta_naphthalene
@@ -984,6 +985,8 @@ def _name_mol(mol) -> str:
     # ring's sp3 CH2 fails the aromatic-fused dispatch's precondition too.
     if has_fluorene_parent_name(mol):
         return name_fluorene_parent(mol)
+    if has_indene_parent_name(mol):
+        return name_indene_parent(mol)
 
     # cyclopenta[a/b]naphthalene (P-25.3.1.3) needs the same early dispatch
     # for the same reason -- its 5-ring is never fully aromatic either.
