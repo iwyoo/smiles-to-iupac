@@ -354,87 +354,151 @@ def name_coordination(mol) -> str:
     return f"{name} {words}" if charge > 0 else f"{words} {name}"
 
 
-def _bridge_label(mol, atom):
-    z, nbrs = atom.GetAtomicNum(), atom.GetNeighbors()
-    metal_nbrs = [n for n in nbrs if n.GetAtomicNum() in _METAL_NAMES]
-    others = [n for n in nbrs if n.GetAtomicNum() not in _METAL_NAMES]
+def _branch_atoms(graph, start, blocked):
+    seen, stack = set(), [start]
+    while stack:
+        x = stack.pop()
+        if x in seen or x in blocked:
+            continue
+        seen.add(x)
+        stack.extend(graph[x])
+    return seen
+
+
+def _bridge_label(mol, graph, atom):
+    z = atom.GetAtomicNum()
+    metal_ids = {n.GetIdx() for n in atom.GetNeighbors() if n.GetAtomicNum() in _METAL_NAMES}
+    others = [n for n in atom.GetNeighbors() if n.GetAtomicNum() not in _METAL_NAMES]
+    hydrogens = atom.GetNumExplicitHs() + atom.GetNumImplicitHs()
+    if z == 1 and not others:
+        return "hydrido"
     if z in _HALIDO and not others:
         return _HALIDO[z]
     if z in (8, 16) and not others:
-        hydrogens = atom.GetNumExplicitHs() + atom.GetNumImplicitHs()
         if hydrogens == 1 and z == 8:
             return "hydroxido"
         if hydrogens == 0:
             return "oxido" if z == 8 else "sulfido"
     if z == 6 and len(others) == 1 and others[0].GetAtomicNum() == 8 and others[0].GetDegree() == 1:
         return "carbonyl"
+    if z in (8, 16) and len(others) == 1 and others[0].GetAtomicNum() == 6:
+        atoms = {atom.GetIdx()} | _branch_atoms(graph, others[0].GetIdx(), metal_ids | {atom.GetIdx()})
+        from ._anion_ligands import _neutral_name
+
+        name = _neutral_name(mol, atoms)
+        suffix = "ol" if z == 8 else "thiol"
+        if name.endswith(suffix):
+            return name + "ato"
+    if z in (7, 15) and others and hydrogens + len(others) == 2:
+        from ._anion_ligands import _prefixed
+
+        metal_idx = next(iter(metal_ids))
+        return _prefixed(mol, graph, atom.GetIdx(), metal_idx, "azanido" if z == 7 else "phosphanido", set())
     raise UnsupportedStructure("this bridging ligand is not supported yet")
 
 
-def _name_dinuclear(mol, metals) -> str:
-    first, second = metals
+_CLUSTER_WORDS = {(3, 3): "triangulo", (4, 6): "tetrahedro", (4, 4): "quadro"}
+
+
+def _name_polynuclear(mol, metals) -> str:
     if any(a.GetIsotope() != 0 for a in mol.GetAtoms()):
         raise UnsupportedStructure("isotopically modified atoms are not supported yet")
     graph = adjacency(mol)
-    pair = {first.GetIdx(), second.GetIdx()}
+    ids = [m.GetIdx() for m in metals]
+    metal_set = set(ids)
+    bonds = [
+        (a, b)
+        for i, a in enumerate(ids)
+        for b in ids[i + 1:]
+        if mol.GetBondBetweenAtoms(a, b) is not None
+    ]
     bridge_atoms = [
         a for a in mol.GetAtoms()
-        if a.GetAtomicNum() not in _METAL_NAMES and {n.GetIdx() for n in a.GetNeighbors()} & pair == pair
+        if a.GetAtomicNum() not in _METAL_NAMES and len({n.GetIdx() for n in a.GetNeighbors()} & metal_set) >= 2
     ]
-    bonded = mol.GetBondBetweenAtoms(first.GetIdx(), second.GetIdx()) is not None
-    if not bonded and not bridge_atoms:
-        raise UnsupportedStructure("the two metal atoms are not connected")
-    bridges: dict[str, int] = {}
+    parent = {i: i for i in ids}
+
+    def find(x):
+        while parent[x] != x:
+            x = parent[x]
+        return x
+
+    for a, b in bonds:
+        parent[find(a)] = find(b)
     for atom in bridge_atoms:
-        label = _bridge_label(mol, atom)
-        bridges[label] = bridges.get(label, 0) + 1
-    skip = pair | {a.GetIdx() for a in bridge_atoms}
-    per_metal = [collect_ligands(mol, m, graph, skip=skip) for m in (first, second)]
-    if first.GetAtomicNum() == second.GetAtomicNum():
-        per_metal.sort(key=lambda r: -sum(r[0].values()))
-        order = [first, second]
-    else:
-        order = sorted(metals, key=lambda m: _METAL_NAMES[m.GetAtomicNum()])
-        per_metal = [collect_ligands(mol, m, graph, skip=skip) for m in order]
-    counts: dict[str, int] = {}
-    simple_labels, organic, neutral, donors = set(), set(), set(), {}
-    for c, sl, org, neu, don in per_metal:
+        linked = [n.GetIdx() for n in atom.GetNeighbors() if n.GetIdx() in metal_set]
+        for other in linked[1:]:
+            parent[find(other)] = find(linked[0])
+    if len({find(i) for i in ids}) != 1:
+        raise UnsupportedStructure("the metal atoms are not all connected to each other")
+
+    bridge_info = {}
+    for atom in bridge_atoms:
+        label = _bridge_label(mol, graph, atom)
+        mu = len({n.GetIdx() for n in atom.GetNeighbors()} & metal_set)
+        bridge_info[(label, mu)] = bridge_info.get((label, mu), 0) + 1
+    skip = metal_set | {a.GetIdx() for a in bridge_atoms}
+
+    raw = {i: collect_ligands(mol, mol.GetAtomWithIdx(i), graph, skip=skip) for i in ids}
+    order = sorted(ids, key=lambda i: (_METAL_NAMES[mol.GetAtomWithIdx(i).GetAtomicNum()], -sum(raw[i][0].values()), i))
+    number = {atom: k for k, atom in enumerate(order, start=1)}
+
+    counts, simple_labels, organic, neutral, donors, per_label = {}, set(), set(), set(), {}, {}
+    for i in order:
+        c, sl, org, neu, don = raw[i]
         for label, n in c.items():
-            counts[label] = counts.get(label, 0) + n
-        simple_labels |= sl
-        organic |= org
-        neutral |= neu
-        donors.update(don)
-    if any("\u03ba" in label for label in counts):
-        raise UnsupportedStructure("a chelating ligand on a dinuclear complex is not supported yet")
+            shown = label.replace("-κ", f"-{number[i]}κ", 1) if "κ" in label else label
+            counts[shown] = counts.get(shown, 0) + n
+            per_label.setdefault(shown, {})[number[i]] = n
+            if label in sl:
+                simple_labels.add(shown)
+            if label in org:
+                organic.add(shown)
+            if label in neu or "κ" in label:
+                neutral.add(shown)
+            donors[shown] = don[label]
     tags = {}
-    for label in counts:
-        parts = []
-        for i, (c, *_rest) in enumerate(per_metal, start=1):
-            n = c.get(label, 0)
-            if n:
-                parts.append(f"{i}\u03ba{n if n > 1 else ''}{donors[label]}")
+    for label, by_metal in per_label.items():
+        if "κ" in label or donors[label] in ("κ", "η"):
+            continue
+        parts = [f"{k}κ{n if n > 1 else ''}{donors[label]}" for k, n in sorted(by_metal.items())]
         tags[label] = "-" + ",".join(parts) + "-"
-    simple_labels |= set(bridges)
-    ligands = _format_ligands(counts, simple_labels, organic, neutral, tags, bridges)
+    for label in counts:
+        if "κ" in label and label not in tags:
+            tags[label] = "-"
+    simple_labels |= {label for label, _ in bridge_info}
+    ligands = _format_ligands(counts, simple_labels, organic, neutral, tags, bridge_info)
+
     charge = _net_charge(mol)
-    names = [_METAL_NAMES[m.GetAtomicNum()] for m in order]
+    names = [_METAL_NAMES[mol.GetAtomWithIdx(i).GetAtomicNum()] for i in order]
+    distinct = sorted(set(names))
     if charge < 0:
-        if len(set(names)) != 1:
+        if len(distinct) != 1:
             raise UnsupportedStructure("a heteronuclear anionic complex is not supported yet")
-        metal_part = "di" + _ATE_NAMES[first.GetAtomicNum()] + _charge_text(charge)
+        metal_part = multiplying_prefix(len(order)) + _ATE_NAMES[mol.GetAtomWithIdx(order[0]).GetAtomicNum()]
     else:
-        metal_part = ("di" + names[0] if len(set(names)) == 1 else "".join(names)) + (_charge_text(charge) if charge else "")
-    bond = f"({order[0].GetSymbol()}\u2014{order[1].GetSymbol()})" if bonded else ""
-    return f"{ligands}{metal_part}{bond}"
+        metal_part = "".join(
+            (multiplying_prefix(names.count(n)) if names.count(n) > 1 else "") + n for n in distinct
+        )
+    metal_part += _charge_text(charge) if charge else ""
+    cluster = _CLUSTER_WORDS.get((len(order), len(bonds)), "")
+    if cluster:
+        ligands += cluster + "-"
+    pair_counts: dict[str, int] = {}
+    for a, b in bonds:
+        sa, sb = sorted((mol.GetAtomWithIdx(a).GetSymbol(), mol.GetAtomWithIdx(b).GetSymbol()))
+        pair_counts[f"{sa}—{sb}"] = pair_counts.get(f"{sa}—{sb}", 0) + 1
+    descriptor = ""
+    if pair_counts:
+        parts = [f"{n} {text}" if n > 1 else text for text, n in sorted(pair_counts.items())]
+        descriptor = "(" + ", ".join(parts) + ")"
+    return f"{ligands}{metal_part}{descriptor}"
 
 
 def _name_complex(mol, extra=None, charge=None) -> str:
     metals = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _METAL_NAMES]
-    if len(metals) == 2:
-        return _name_dinuclear(mol, metals)
-    if len(metals) != 1:
-        raise UnsupportedStructure("more than one transition-metal atom is not supported yet")
+    if len(metals) >= 2:
+        return _name_polynuclear(mol, metals)
     (metal,) = metals
     if any(a.GetIsotope() != 0 for a in mol.GetAtoms()):
         raise UnsupportedStructure("isotopically modified atoms are not supported yet")
@@ -462,10 +526,12 @@ def _sort_key(label: str) -> str:
 
 def _format_ligands(counts, simple_labels, organic, neutral, tags=None, bridges=None) -> str:
     tags = tags or {}
-    entries = [(label, n, False) for label, n in counts.items()] + [(label, n, True) for label, n in (bridges or {}).items()]
-    entries.sort(key=lambda e: (_sort_key(e[0]), 0 if e[2] else 1))
+    entries = [(label, n, False, 0) for label, n in counts.items()] + [
+        (label, n, True, mu) for (label, mu), n in (bridges or {}).items()
+    ]
+    entries.sort(key=lambda e: (_sort_key(e[0]), 0 if e[2] else 1, e[3]))
     out = []
-    for position, (label, n, is_bridge) in enumerate(entries):
+    for position, (label, n, is_bridge, mu) in enumerate(entries):
         simple = label in simple_labels or (label in organic and label not in neutral and _is_simple(label))
         if simple or label.startswith("["):
             wrapped = label
@@ -477,7 +543,7 @@ def _format_ligands(counts, simple_labels, organic, neutral, tags=None, bridges=
             wrapped = f"({label})"
         text = (multiplying_prefix(n, compound=not simple) if n > 1 else "") + wrapped
         if is_bridge:
-            out.append((multiplying_prefix(n) + "-" if n > 1 else "") + "\u03bc-" + label + "-")
+            out.append((multiplying_prefix(n) + "-" if n > 1 else "") + "\u03bc" + (str(mu) if mu > 2 else "") + "-" + label + "-")
             continue
         if label in organic and position > 0 and simple and not text.startswith("("):
             text = f"({text})"
