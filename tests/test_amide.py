@@ -327,12 +327,8 @@ def test_cyclic_amide_ring_stereocenter():
     )
 
 
-def test_amide_ring_branch_stereocenter_raises():
-    # A stereocenter on a substituent branch elsewhere on the ring (not
-    # the -CONH2 carbon's own ring atom) is out of scope for now (see
-    # `tasks/carbo-suffix-ring-stereocenter.md` stage 1).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(=O)[C@H]1CC[C@H](C[C@@H](C)CC)C1")
+def test_amide_ring_branch_stereocenter():
+    assert smiles_to_iupac("NC(=O)[C@H]1CC[C@H](C[C@@H](C)CC)C1") == "(1S,3R)-3-[(2S)-2-methylbutyl]cyclopentane-1-carboxamide"
 
 
 def test_amide_ring_stereocenter_unspecified_unaffected():

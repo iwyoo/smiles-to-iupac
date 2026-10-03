@@ -176,12 +176,23 @@ def _paths(adj, eligible):
 
 
 def name_polyfunctional(mol) -> str:
+    from ._substituents import BRANCH_STEREO
+
     stereo = _check_scope(mol)
-    multiplicative = _multiplicative_name(mol, stereo)
-    if multiplicative is not None:
-        return multiplicative
-    _, name, parts = _select(mol, stereo=stereo)
-    return _stereo_prefix(stereo, parts[4], ring_parent=parts[5]) + name
+    context = {
+        "atoms": {where: code for kind, where, code in stereo if kind == "atom"},
+        "bonds": {where: code for kind, where, code in stereo if kind == "bond"},
+        "used": set(),
+    }
+    token = BRANCH_STEREO.set(context if stereo else None)
+    try:
+        multiplicative = _multiplicative_name(mol, stereo)
+        if multiplicative is not None:
+            return multiplicative
+        _, name, parts = _select(mol, stereo=stereo)
+        return _stereo_prefix(stereo, parts[4], ring_parent=parts[5], used=context["used"]) + name
+    finally:
+        BRANCH_STEREO.reset(token)
 
 
 def _check_scope(mol):
@@ -200,20 +211,21 @@ def _check_scope(mol):
     return located
 
 
-def _stereo_entries(stereo, position_of, ring_parent=False):
+def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset()):
     """[(locant, code)] for the stereo elements found on the parent, plus
-    whether every element was placed."""
+    whether every element was placed (on the parent or inside a substituent)."""
     entries, complete = [], True
     for kind, where, code in stereo or []:
         if kind == "atom":
             if where in position_of:
                 entries.append((position_of[where], code))
-            else:
+            elif ("atom", where) not in used:
                 complete = False
         else:
             a, b = where
             if ring_parent or a not in position_of or b not in position_of:
-                complete = False
+                if ("bond", where) not in used:
+                    complete = False
             else:
                 entries.append((min(position_of[a], position_of[b]), code))
     return sorted(entries), complete
@@ -224,12 +236,14 @@ def _stereo_rank(stereo, position_of, ring_parent=False):
     return tuple(0 if code in "RZ" else 1 for _, code in entries)
 
 
-def _stereo_prefix(stereo, position_of, ring_parent=False):
+def _stereo_prefix(stereo, position_of, ring_parent=False, used=frozenset()):
     if not stereo:
         return ""
-    entries, complete = _stereo_entries(stereo, position_of, ring_parent)
+    entries, complete = _stereo_entries(stereo, position_of, ring_parent, used)
     if not complete:
         raise UnsupportedStructure("stereodescriptors outside the parent are not supported by the chain engine yet")
+    if not entries:
+        return ""
     return "(" + ",".join(f"{locant}{code}" for locant, code in entries) + ")-"
 
 

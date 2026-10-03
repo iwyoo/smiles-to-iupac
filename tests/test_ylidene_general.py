@@ -174,7 +174,6 @@ def test_name_branch_without_mol_still_reads_every_bond_as_single():
 @pytest.mark.parametrize(
     "smiles",
     [
-        "C/C=C/C1CCCCC1",
         "C/C=C1\\CCCCC1C",
         "C/C=C/C=C",
     ],
@@ -182,3 +181,7 @@ def test_name_branch_without_mol_still_reads_every_bond_as_single():
 def test_specified_double_bond_geometry_on_a_prefix_is_not_silently_dropped(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
+
+
+def test_double_bond_geometry_on_a_prefix_is_cited_inside_the_prefix():
+    assert smiles_to_iupac("C/C=C/C1CCCCC1") == "[(1E)-prop-1-en-1-yl]cyclohexane"

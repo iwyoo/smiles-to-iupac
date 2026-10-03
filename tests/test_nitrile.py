@@ -283,12 +283,8 @@ def test_cyclic_nitrile_ring_stereocenter():
     )
 
 
-def test_nitrile_ring_branch_stereocenter_raises():
-    # A stereocenter on a substituent branch elsewhere on the ring (not
-    # the -C#N carbon's own ring atom) is out of scope for now (see
-    # `tasks/carbo-suffix-ring-stereocenter.md` stage 1).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N#C[C@H]1CC[C@H](C[C@@H](C)CC)C1")
+def test_nitrile_ring_branch_stereocenter():
+    assert smiles_to_iupac("N#C[C@H]1CC[C@H](C[C@@H](C)CC)C1") == "(1S,3R)-3-[(2S)-2-methylbutyl]cyclopentane-1-carbonitrile"
 
 
 def test_nitrile_ring_stereocenter_unspecified_unaffected():
