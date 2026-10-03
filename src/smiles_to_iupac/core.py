@@ -459,18 +459,19 @@ def _name_mol(mol) -> str:
     # branch below recognizes a non-carbon ring atom, so it must be routed
     # here before the generic cycloalkane dispatch's own heteroatom
     # rejection would otherwise claim it.
-    if has_metallacycle_shape(mol):
-        try:
-            return name_metallacycle(mol)
-        except UnsupportedStructure as first:
+    for has_shape, namer in (
+        (has_metallacycle_shape, name_metallacycle),
+        (has_metallafused_shape, name_metallafused),
+        (has_metallapolycycle_shape, name_metallapolycycle),
+    ):
+        if has_shape(mol):
             try:
-                return name_metallacycle_as_group(mol)
-            except UnsupportedStructure:
-                raise first
-    if has_metallafused_shape(mol):
-        return name_metallafused(mol)
-    if has_metallapolycycle_shape(mol):
-        return name_metallapolycycle(mol)
+                return namer(mol)
+            except UnsupportedStructure as first:
+                try:
+                    return name_metallacycle_as_group(mol)
+                except UnsupportedStructure:
+                    raise first
 
     # Group 3-12 metal complexes (P-69.2 coordination naming) must precede
     # every heteroatom-parent dispatch below, which would otherwise claim

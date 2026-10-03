@@ -181,3 +181,14 @@ def test_metallacycle_cited_as_a_substituent_group():
     smiles = "COC(=O)C(C)CC1C[Pt](C)(I)(P(CC)(CC)CC)(P(CC)(CC)CC)C1"
     expected = "methyl 3-[1-iodo-1-methyl-1,1-bis(triethylphosphane)-1-platinacyclobutan-3-yl]-2-methylpropanoate"
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OC(=O)CC1CC2CC[Pt](Cl)(Cl)C12", "2-{2,2-dichloro-2-platinabicyclo[3.2.0]heptan-7-yl}ethanoic acid"),
+        ("OC(=O)CC1C[Pt](Cl)(Cl)c2ccccc12", "2-(1,1-dichloro-2,3-dihydro-1-platinainden-3-yl)ethanoic acid"),
+    ],
+)
+def test_polycyclic_metallacycle_cited_as_a_substituent_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

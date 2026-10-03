@@ -1,12 +1,13 @@
-"""A monocyclic metallacycle cited as a substituent group ('1-iodo-1-methyl-
-...-1-platinacyclobutan-3-yl', P-69.4) of a more senior parent named by the
-other modules; the ring is contracted to a placeholder carrying its name.
+"""A metallacycle (mono-, poly- or fused) cited as a substituent group
+('1-iodo-1-methyl-...-1-platinacyclobutan-3-yl', P-69.4) of a more senior
+parent named by the other modules; the ring is contracted to a placeholder
+carrying its name.
 """
 
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency
-from ._metallacycle import FREE_VALENCE_PROP, _find_ring_metal, name_metallacycle
+from ._metallacycle import _METAL_A_PREFIXES, FREE_VALENCE_PROP
 from ._phosphanyl_group import PREFIX_PROP
 from ._prefix_groups import enclose
 
@@ -24,23 +25,20 @@ def _reach(graph, start, cut):
 
 
 def name_metallacycle_as_group(mol):
-    found = _find_ring_metal(mol)
-    if found is None:
-        raise UnsupportedStructure("no metallacycle here")
-    metals, ring_atoms = found
     graph = adjacency(mol)
-    ring = set(ring_atoms)
     from .core import _name_mol
 
-    for a in ring_atoms:
-        if a in metals:
+    for bond in mol.GetBonds():
+        if bond.GetBondTypeAsDouble() != 1.0 or bond.IsInRing():
             continue
-        for x in graph[a]:
-            if x in ring or mol.GetAtomWithIdx(x).GetAtomicNum() != 6:
+        for a, x in ((bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()), (bond.GetEndAtomIdx(), bond.GetBeginAtomIdx())):
+            if mol.GetAtomWithIdx(x).GetAtomicNum() != 6 or mol.GetAtomWithIdx(a).GetAtomicNum() != 6 or not mol.GetAtomWithIdx(a).IsInRing():
                 continue
-            cut = {a, x}
-            ring_side = _reach(graph, a, cut)
-            if x in ring_side:
+            ring_side = _reach(graph, a, {a, x})
+            if x in ring_side or not any(
+                mol.GetAtomWithIdx(i).GetSymbol() in _METAL_A_PREFIXES and mol.GetAtomWithIdx(i).IsInRing()
+                for i in ring_side
+            ):
                 continue
             group_mol = Chem.RWMol(mol)
             group_mol.GetAtomWithIdx(a).SetProp(FREE_VALENCE_PROP, "1")
@@ -49,8 +47,10 @@ def name_metallacycle_as_group(mol):
             group_mol = group_mol.GetMol()
             Chem.SanitizeMol(group_mol)
             try:
-                group_name = name_metallacycle(group_mol)
+                group_name = _name_mol(group_mol)
             except UnsupportedStructure:
+                continue
+            if not group_name.endswith("yl"):
                 continue
             rw = Chem.RWMol(mol)
             marker = rw.AddAtom(Chem.Atom(53))

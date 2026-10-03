@@ -12,6 +12,7 @@ from ._common import UnsupportedStructure, adjacency, non_single_bonds
 from ._coordination import _CP_LABEL, _cp_charge, _net_charge, collect_ligands
 from ._metal_pair import _brackets
 from ._metallacycle import (
+    FREE_VALENCE_PROP,
     _HETERO_A,
     _HETERO_ORDER,
     _METAL_A_PREFIXES,
@@ -167,7 +168,8 @@ def name_metallapolycycle(mol) -> str:
     if cp_count:
         ligand_entries[metals[0]].append((f"({_CP_LABEL})", False, cp_count, 1))
 
-    principal = principal_kind(complex_mol, graph, core_atoms, metals[0])
+    free = [a.GetIdx() for a in complex_mol.GetAtoms() if a.HasProp(FREE_VALENCE_PROP)]
+    principal = "yl" if free else principal_kind(complex_mol, graph, core_atoms, metals[0])
     best = None
     for order, parent, outer_key in candidates:
         full_order = [orig[i] for i in order]
@@ -189,6 +191,7 @@ def name_metallapolycycle(mol) -> str:
             for name, compound in found:
                 entry = grouped.setdefault(name, {"locants": [], "compound": compound})
                 entry["locants"].append(locant[atom])
+        suffix_locants += [locant[i] for i in free]
         for m in metals:
             add_ligands(grouped, ligand_entries[m], locant[m])
         stereo = ring_stereo(complex_mol, core_atoms, locant)

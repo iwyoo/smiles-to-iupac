@@ -11,7 +11,7 @@ from ._common import UnsupportedStructure, adjacency, non_single_bonds
 from ._coordination import _net_charge, collect_ligands
 from ._metal_pair import _brackets
 from ._numerals import multiplying_prefix
-from ._metallacycle import _METAL_A_PREFIXES
+from ._metallacycle import FREE_VALENCE_PROP, _METAL_A_PREFIXES
 from ._ring_extras import add_ligands, check_charge, ionic_stem, ring_ligand_entries, ring_stereo, stereo_prefix
 from ._ring_groups import add_n_entries, is_carboxyl_bond, is_exocyclic_oxo, principal_kind, ring_substituents, with_suffix
 from ._substituents import format_substituent_prefixes
@@ -168,7 +168,8 @@ def name_metallafused(mol) -> str:
     counts, simple_labels, organic, neutral, _ = collect_ligands(mol, metal, graph, skip=system)
     ligand_entries = ring_ligand_entries(counts, simple_labels, neutral)
     charge = check_charge(mol, metal_idx, system, _net_charge(mol))
-    principal = principal_kind(mol, graph, system, metal_idx)
+    free = [a.GetIdx() for a in mol.GetAtoms() if a.HasProp(FREE_VALENCE_PROP)]
+    principal = "yl" if free else principal_kind(mol, graph, system, metal_idx)
 
     best = None
     for mapping in maps:
@@ -183,6 +184,7 @@ def name_metallafused(mol) -> str:
             for name, compound in found:
                 entry = grouped.setdefault(name, {"locants": [], "compound": compound})
                 entry["locants"].append(int(locant[atom]))
+        suffix_locants += [locant[i] for i in free]
         add_ligands(grouped, ligand_entries, int(locant[metal_idx]))
         stereo = ring_stereo(mol, system, locant)
         for entry in grouped.values():

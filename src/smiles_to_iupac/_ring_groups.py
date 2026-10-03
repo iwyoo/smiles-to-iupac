@@ -118,7 +118,13 @@ def _has_stereo(mol, graph, n, ring_atom):
             if v != ring_atom and v not in group:
                 group.add(v)
                 stack.append(v)
-    return any(mol.GetAtomWithIdx(i).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for i in group)
+    hetero_multiple = any(
+        {b.GetBeginAtomIdx(), b.GetEndAtomIdx()} <= group
+        and b.GetBondTypeAsDouble() >= 2.0
+        and any(mol.GetAtomWithIdx(i).GetAtomicNum() != 6 for i in (b.GetBeginAtomIdx(), b.GetEndAtomIdx()))
+        for b in mol.GetBonds()
+    )
+    return hetero_multiple or any(mol.GetAtomWithIdx(i).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for i in group)
 
 
 def _branch_with_stereo(mol, graph, n, ring_atom):
@@ -130,6 +136,10 @@ def _branch_with_stereo(mol, graph, n, ring_atom):
             if v != ring_atom and v not in group:
                 group.add(v)
                 stack.append(v)
+    for bond in mol.GetBonds():
+        if {bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()} <= group and bond.GetBondTypeAsDouble() >= 2.0:
+            if any(mol.GetAtomWithIdx(i).GetAtomicNum() != 6 for i in (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())):
+                raise UnsupportedStructure("a characteristic group inside a ring substituent is out of scope here")
     specified = [i for i in group if mol.GetAtomWithIdx(i).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED]
     if not specified:
         return name, compound
