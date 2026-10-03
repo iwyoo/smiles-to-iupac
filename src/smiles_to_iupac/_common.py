@@ -709,7 +709,7 @@ def halogen_substituents(mol):
     and exclude halogens from a compound substituent's own internal chain
     search, the same way `carbon_adjacency` does for a parent hydride."""
     return {
-        atom.GetIdx(): HALOGEN_PREFIXES[atom.GetAtomicNum()]
+        atom.GetIdx(): atom.GetProp("_named_prefix") if atom.HasProp("_named_prefix") else HALOGEN_PREFIXES[atom.GetAtomicNum()]
         for atom in mol.GetAtoms()
         if atom.GetAtomicNum() in HALOGEN_PREFIXES
     }
