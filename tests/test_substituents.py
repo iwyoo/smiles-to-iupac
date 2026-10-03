@@ -39,7 +39,7 @@ from smiles_to_iupac._substituents import name_branch
         # two identical compound substituents: 'bis', not 'di' (P-14.2.2).
         (
             "CCCCC(C(C)CC)CCCCC(C(C)CC)CCCCC",
-            "5,10-bis(butan-2-yl)pentadecane",
+            "5,10-di(butan-2-yl)pentadecane",
         ),
         # a branch-point root forking three ways, not all methyls (unlike
         # tert-butyl above) -- found via real-data testing: the "extra"

@@ -3,13 +3,18 @@
 cited as suffixes in that seniority order and the rest as prefixes).
 """
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, plain_phenyl_substituent_atoms
+import re
+
+from rdkit import Chem
+from rdkit.Chem import rdCIPLabeler
+
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, halogen_substituents, plain_phenyl_substituent_atoms
 from ._numerals import multiplying_prefix
+from ._prefix_groups import PrefixNamer, _oxy
 from ._substituents import format_mononuclear_prefixes, name_branch
 
 KINDS = ("acid", "one", "ol", "amine")
 _PREFIX_FORM = {"acid": "carboxy", "one": "oxo", "ol": "hydroxy", "amine": "amino"}
-_CONTRACTED = {"methyl": "methoxy", "ethyl": "ethoxy", "propyl": "propoxy", "butyl": "butoxy", "phenyl": "phenoxy"}
 
 
 def _is_carboxyl(mol, n, ring_atom):
@@ -58,16 +63,6 @@ def principal_kind(mol, graph, ring_set, skip):
     return next((k for k in KINDS if k in found), None)
 
 
-def _oxy(name, compound):
-    if name in _CONTRACTED:
-        return _CONTRACTED[name], False
-    if name.endswith("phenyl") and not compound:
-        return name[: -len("phenyl")] + "phenoxy", True
-    if name.endswith(("methyl", "ethyl", "propyl", "butyl")) and "cyclo" not in name:
-        return name[:-2] + "oxy", compound or any(ch.isdigit() for ch in name)
-    return name + "oxy", compound or any(ch.isdigit() for ch in name)
-
-
 def _amino(mol, graph, ring_atom, n):
     subs = [name_branch(graph, x, n, {}, mol=mol) for x in graph[n] if x != ring_atom]
     return (format_mononuclear_prefixes(subs) + "amino", True) if subs else ("amino", False)
@@ -81,6 +76,7 @@ def ring_substituents(mol, graph, ring_atom, ring_set, principal):
     """(prefix entries, n-entries, principal count) for one ring atom;
     n-entries are N-substituents of a principal amine (locant 'N')."""
     entries, n_entries, count = [], [], 0
+    namer = PrefixNamer(mol, graph)
     for n in graph[ring_atom]:
         if n in ring_set:
             continue
@@ -101,19 +97,41 @@ def ring_substituents(mol, graph, ring_atom, ring_set, principal):
             if plain_phenyl_substituent_atoms(mol, graph, {n}):
                 entries.append(("phenyl", False))
             else:
-                entries.append(name_branch(graph, n, ring_atom, {}, mol=mol))
+                entries.append(_branch_with_stereo(mol, graph, n, ring_atom))
         elif z == 8 and atom.GetDegree() == 2 and atom.GetTotalNumHs() == 0:
             carbon = next(x for x in graph[n] if x != ring_atom)
             if mol.GetAtomWithIdx(carbon).GetAtomicNum() != 6:
                 raise UnsupportedStructure("this ring substituent is not supported here")
             entries.append(_oxy(*name_branch(graph, carbon, n, {}, mol=mol)))
         else:
-            raise UnsupportedStructure("this ring substituent is not supported here")
+            entries.append(namer.name(n, ring_atom))
     return entries, n_entries, count
 
 
+def _branch_with_stereo(mol, graph, n, ring_atom):
+    name, compound = name_branch(graph, n, ring_atom, halogen_substituents(mol), mol=mol)
+    group, stack = {n}, [n]
+    while stack:
+        for v in graph[stack.pop()]:
+            if v != ring_atom and v not in group:
+                group.add(v)
+                stack.append(v)
+    specified = [i for i in group if mol.GetAtomWithIdx(i).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED]
+    if not specified:
+        return name, compound
+    if specified != [n]:
+        raise UnsupportedStructure("a stereocentre inside a substituent is not supported here")
+    probe = Chem.Mol(mol)
+    rdCIPLabeler.AssignCIPLabels(probe)
+    atom = probe.GetAtomWithIdx(n)
+    if not atom.HasProp("_CIPCode"):
+        raise UnsupportedStructure("the stereocentre of this substituent has no R/S descriptor")
+    locant = re.search(r"-(\d+)-yl$", name)
+    return f"({locant.group(1) if locant else 1}{atom.GetProp('_CIPCode')})-{name}", True
+
+
 def add_n_entries(grouped, n_entries):
-    out = {k: {"locants": list(v["locants"]), "compound": v["compound"]} for k, v in grouped.items()}
+    out = {k: {**v, "locants": list(v["locants"])} for k, v in grouped.items()}
     for name, compound in n_entries:
         out.setdefault(name, {"locants": [], "compound": compound})["locants"].append("N")
     return out
@@ -133,12 +151,12 @@ def with_suffix(stem, locants, kind):
 
 
 def is_exocyclic_oxo(mol, a, b, ring_set):
-    """True for a C=O bond whose carbon is in `ring_set` and oxygen is not."""
+    """True for an exocyclic C=O or C=C(H..) bond on a ring carbon (oxo /
+    ylidene substituent); the other end must not be in `ring_set`."""
     ring_end, other = (a, b) if a in ring_set else (b, a)
     atom = mol.GetAtomWithIdx(other)
-    return (
-        other not in ring_set
-        and atom.GetAtomicNum() == 8
-        and atom.GetDegree() == 1
-        and mol.GetAtomWithIdx(ring_end).GetAtomicNum() == 6
-    )
+    if other in ring_set or mol.GetAtomWithIdx(ring_end).GetAtomicNum() != 6:
+        return False
+    if mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 2.0:
+        return False
+    return (atom.GetAtomicNum() == 8 and atom.GetDegree() == 1) or (atom.GetAtomicNum() == 6 and not atom.GetIsAromatic())

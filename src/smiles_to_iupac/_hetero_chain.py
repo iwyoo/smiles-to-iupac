@@ -10,13 +10,12 @@ from rdkit import Chem
 from ._common import UnsupportedStructure, adjacency
 from ._numerals import alkane_name, multiplying_prefix
 from ._phosphanyl_group import PREFIX_PROP
-from ._ring_groups import _oxy
-from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
+from ._prefix_groups import PrefixNamer
+from ._substituents import format_substituent_prefixes, name_branch
 
 _ALLOWED = {6, 7, 8, 16}
 _A_PREFIX = {8: "oxa", 16: "thia", 7: "aza"}
 _SENIORITY = [8, 16, 7]
-_SIMPLE = {"amino", "hydroxy", "sulfanyl", "methoxy", "ethoxy", "propoxy", "butoxy", "phenoxy"}
 
 
 def has_stereo(mol) -> bool:
@@ -101,55 +100,19 @@ def _beyond(graph, start, parent):
     return seen
 
 
-def _enclose(name):
-    if name in _SIMPLE:
-        return name
-    if "{" in name:
-        return f"[{name}]"
-    if "[" in name:
-        return "{" + name + "}"
-    if "(" in name:
-        return f"[{name}]"
-    return f"({name})"
-
-
 class _Contractor:
     def __init__(self, mol, graph, comps):
         self.mol, self.graph, self.comps = mol, graph, comps
+        self.namer = PrefixNamer(mol, graph)
         self.names: dict[int, str] = {}
 
     def _component_of(self, carbon):
         return next(c for c in self.comps if carbon in c)
 
-    def _branch(self, root, came_from):
-        halogens = {}
-        for c in self._component_of(root):
-            for y in self.graph[c]:
-                if y != came_from and self.mol.GetAtomWithIdx(y).GetAtomicNum() != 6:
-                    halogens[y] = self.group(y, c)
-        return name_branch(self.graph, root, came_from, halogens, mol=self.mol)
-
     def group(self, x, parent):
-        if x in self.names:
-            return self.names[x]
-        atom = self.mol.GetAtomWithIdx(x)
-        others = [q for q in self.graph[x] if q != parent]
-        if any(self.mol.GetAtomWithIdx(q).GetAtomicNum() != 6 for q in others):
-            raise UnsupportedStructure("adjacent heteroatoms are not supported here")
-        entries = [self._branch(q, x) for q in others]
-        z = atom.GetAtomicNum()
-        if z == 8:
-            if atom.GetTotalNumHs():
-                name = "hydroxy"
-            else:
-                name = _oxy(*entries[0])[0]
-        elif z == 16:
-            name = "sulfanyl" if not entries else format_mononuclear_prefixes(entries) + "sulfanyl"
-        else:
-            name = "amino" if not entries else format_mononuclear_prefixes(entries) + "amino"
-        name = _enclose(name)
-        self.names[x] = name
-        return name
+        if x not in self.names:
+            self.names[x] = self.namer.placeholder(x, parent)
+        return self.names[x]
 
 
 def contract_hetero_groups(mol):

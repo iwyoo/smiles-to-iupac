@@ -30,3 +30,55 @@ def test_metallacycle_ring_groups(smiles, expected):
 )
 def test_hydro_fused_metallacycles(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C=C1CC[Pt]1(Cl)Cl", "1,1-dichloro-2-methylidene-1-platinacyclobutane"),
+        ("CC=C1CCC[Pt]1(Cl)Cl", "1,1-dichloro-2-ethylidene-1-platinacyclopentane"),
+        ("C1CC[Pt]1([H])Cl", "1-chloro-1-hydrido-1-platinacyclobutane"),
+        ("C1CC[Pt]1([H])[H]", "1,1-dihydrido-1-platinacyclobutane"),
+        ("C1CC[Pt+]1(Cl)Cl", "1,1-dichloro-1-platinacyclobutan-1-ium"),
+        ("C1CC[Pt-]1(Cl)Cl", "1,1-dichloro-1-platinacyclobutan-1-ide"),
+        ("C1CC[Pd]1(Cl)Cl", "1,1-dichloro-1-palladacyclobutane"),
+        ("C1CC[Zr]1(Cl)Cl", "1,1-dichloro-1-zirconacyclobutane"),
+        ("C1CCC[Rh]1(Cl)", "1-chloro-1-rhodacyclopentane"),
+    ],
+)
+def test_metallacycle_ylidene_hydrido_ionic_and_metals(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[C@H]1CC[Pt]1(Cl)Cl", "(2S)-1,1-dichloro-2-methyl-1-platinacyclobutane"),
+        ("C[C@@H]1CC[Pt]1(Cl)Cl", "(2R)-1,1-dichloro-2-methyl-1-platinacyclobutane"),
+        ("C[C@H]1C[C@@H](C)C[Pt]1(Cl)Cl", "(2S,4R)-1,1-dichloro-2,4-dimethyl-1-platinacyclopentane"),
+    ],
+)
+def test_metallacycle_ring_stereo(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_metallacycle_stereo_outside_ring_is_rejected():
+    with pytest.raises(Exception):
+        smiles_to_iupac("C1CC[Pt]1(Cl)(Cl)[C@H](C)CC")
+
+
+def test_metallacycle_two_chelates():
+    smiles = "C[P]1(C)CC[P](C)(C)[Pt]123([CH2]C[CH2]2)[P](C)(C)CC[P]3(C)C"
+    assert smiles_to_iupac(smiles) == "1,1,1,1-bis[ethane-1,2-diylbis(dimethylphosphane)]-1-platinacyclobutane"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1CN[Pt]1(Cl)Cl", "2,2-dichloro-1-aza-2-platinacyclobutane"),
+        ("C1CO[Pt]1(Cl)Cl", "2,2-dichloro-1-oxa-2-platinacyclobutane"),
+        ("C1CC[Pt]1=C", "1-methylidene-1-platinacyclobutane"),
+    ],
+)
+def test_heteroatom_rings_and_ylidene_on_ring_metal(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

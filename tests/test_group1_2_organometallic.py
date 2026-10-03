@@ -55,35 +55,26 @@ def test_grignard_rmx_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_halogen_on_group1_metal_raises():
-    # A Group 1 metal is monovalent -- no room for both an organic group
-    # and a halide.
+def test_inorganic_halide_of_group1_metal_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[Li]Cl")
 
 
-def test_two_halogens_on_metal_raises():
+def test_inorganic_dihalide_of_group2_metal_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("Cl[Mg]Cl")
 
 
-def test_mixed_substituents_on_group2_metal_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[Mg]CC")
-
-
-def test_single_substituent_group2_metal_raises():
-    # A neutral Group 2 metal with only 1 organic substituent and no
-    # halide would be an open-shell radical, not a real closed-shell
-    # compound (unlike the Grignard-shaped R-M-X case, 1 organic + 1
-    # halide, which is supported -- see `test_grignard_rmx_name` below).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[Mg]")
-
-
-def test_three_substituents_on_group2_metal_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[Mg](C)C")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[Mg]CC", "ethyl(methyl)magnesium"),
+        ("C[Mg](C)C", "trimethylmagnesium"),
+        ("C[Mg]", "methylmagnesium"),
+    ],
+)
+def test_group2_additive_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_two_metal_atoms_raises():
@@ -91,10 +82,31 @@ def test_two_metal_atoms_raises():
         smiles_to_iupac("[Li]C.[Na]CC")
 
 
-def test_other_heteroatom_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[Li]CO")
+def test_group1_metal_with_substituted_alkyl():
+    assert smiles_to_iupac("[Li]CO") == "hydroxymethyllithium"
 
 
 def test_group13_hydride_unaffected():
     assert smiles_to_iupac("CC[Al](CC)CC") == "triethylalumane"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC[BeH]", "ethylhydridoberyllium"),
+        ("C[Be]C", "dimethylberyllium"),
+    ],
+)
+def test_beryllium_additive_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[Li][CH3][Li]", "μ-methyl-dilithium"),
+        ("[Li]C[Li]", "μ-methanediyl-dilithium"),
+    ],
+)
+def test_carbon_bridged_dilithium(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

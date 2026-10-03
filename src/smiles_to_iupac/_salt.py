@@ -116,6 +116,7 @@ from rdkit import Chem
 
 from ._alkoxide import has_alkoxide_shape, name_alkoxide
 from ._ammonium import has_ammonium_shape, name_ammonium
+from ._carbanide import name_carbanide
 from ._carboxylate import has_carboxylate_shape, name_carboxylate
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure
 from ._numerals import multiplying_prefix
@@ -135,12 +136,23 @@ def _name_halide_anion(frag) -> str:
     return prefix[:-1] + "ide"
 
 
+def _has_carbanide_anion_shape(frag):
+    if sum(a.GetFormalCharge() for a in frag.GetAtoms()) != -1:
+        return False
+    try:
+        name_carbanide(frag)
+    except UnsupportedStructure:
+        return False
+    return True
+
+
 _ANION_KINDS = [
     (has_carboxylate_shape, name_carboxylate),
     (has_alkoxide_shape, name_alkoxide),
     (has_thioate_shape, name_thioate),
     (has_selenoate_shape, name_selenoate),
     (_has_halide_anion_shape, _name_halide_anion),
+    (_has_carbanide_anion_shape, name_carbanide),
 ]
 
 
@@ -220,7 +232,7 @@ def _polyatomic_anion(frag):
             return namer, magnitude
     return None
 
-_SINGLY_CHARGED_CATION_ONLY_ANIONS = {name_alkoxide, name_thioate, name_selenoate}
+_SINGLY_CHARGED_CATION_ONLY_ANIONS = {name_alkoxide, name_thioate, name_selenoate, name_carbanide}
 
 _MONOATOMIC_CATION_NAMES = {
     ("Li", 1): "lithium",

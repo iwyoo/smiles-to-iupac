@@ -1,9 +1,8 @@
-"""Bicyclic, spiro and polycyclic von Baeyer metallacycles (P-69.4,
-`tmp/bluebook/P6a.txt` lines 8905-8940: '6,6-di(eta5-cyclopenta-2,4-dien-1-yl)-
-6-titanabicyclo[3.2.0]heptane'): one Group 4-12 metal in a carbon skeleton,
-named with the 'a' prefix on the bicyclo/tricyclo/spiro parent. Ligand
-components are split off the skeleton; Cp rings arrive as [CH-]/[CH]
-fragments. Fused (mancude) parents other than anthracene are out of scope.
+"""Bicyclic, spiro and polycyclic von Baeyer metallacycles (P-69.4, e.g.
+'6,6-di(eta5-cyclopenta-2,4-dien-1-yl)-6-titanabicyclo[3.2.0]heptane'): one
+metal in a carbon skeleton named with the 'a' prefix on the bicyclo/tricyclo/
+spiro parent, with ene, suffix groups, substituent rings and stereodescriptors.
+Ligand components are split off the skeleton; Cp rings arrive as fragments.
 """
 
 from rdkit import Chem
@@ -13,12 +12,15 @@ from ._common import UnsupportedStructure, adjacency, non_single_bonds
 from ._coordination import _CP_LABEL, _cp_charge, _net_charge, collect_ligands
 from ._metal_pair import _brackets
 from ._metallacycle import (
+    _HETERO_A,
+    _HETERO_ORDER,
     _METAL_A_PREFIXES,
-    apply_repeats,
-    ring_ligand_entries,
+    _hetero_text,
+    _metal_rank,
     skeleton_atoms,
 )
 from ._numerals import alkane_name
+from ._ring_extras import add_ligands, check_charge, ionic_stem, ring_ligand_entries, ring_stereo, stereo_prefix
 from ._ring_groups import add_n_entries, is_carboxyl_bond, is_exocyclic_oxo, principal_kind, ring_substituents, with_suffix
 from ._polycyclic import find_polycyclic_core, iter_polycyclic_candidates
 from ._spiro import find_monospiro_atom, iter_monospiro_numberings
@@ -101,18 +103,24 @@ def _ring_core(graph, skeleton, start):
 
 def _analyse(complex_mol):
     metals = [a.GetIdx() for a in complex_mol.GetAtoms() if a.GetSymbol() in _METAL_A_PREFIXES and a.IsInRing()]
-    if len(metals) != 1:
+    if not metals:
         return None
     graph = adjacency(complex_mol)
-    skeleton = skeleton_atoms(complex_mol, metals[0], graph)
-    nbrs = [n for n in graph[metals[0]] if n in skeleton]
-    if len(nbrs) < 2 or (len(nbrs) > 2 and any(b in graph[a] for a in nbrs for b in nbrs)):
+    skeleton = set(metals)
+    for m in metals:
+        skeleton |= skeleton_atoms(complex_mol, m, graph)
+    for m in metals:
+        nbrs = [n for n in graph[m] if n in skeleton]
+        if len(nbrs) < 2 or (len(nbrs) > 2 and any(b in graph[a] for a in nbrs for b in nbrs)):
+            return None
+    core = _ring_core(graph, skeleton, metals[0])
+    if not set(metals) <= core or any(n in metals for m in metals for n in graph[m] if n in core):
         return None
-    sub, orig = _submol(complex_mol, _ring_core(graph, skeleton, metals[0]))
+    sub, orig = _submol(complex_mol, core)
     candidates = _candidates(sub)
     if candidates is None:
         return None
-    return metals[0], graph, orig, candidates
+    return tuple(metals), graph, orig, candidates
 
 
 def has_metallapolycycle_shape(mol) -> bool:
@@ -122,73 +130,89 @@ def has_metallapolycycle_shape(mol) -> bool:
 
 def name_metallapolycycle(mol) -> str:
     complex_mol, cp_count, cp_charge = _split(mol)
-    metal_idx, graph, orig, candidates = _analyse(complex_mol)
-    metal = complex_mol.GetAtomWithIdx(metal_idx)
+    metals, graph, orig, candidates = _analyse(complex_mol)
+    metal_set = set(metals)
     core_atoms = {orig[i] for i in candidates[0][0]}
-    if _net_charge(complex_mol) + cp_charge != 0:
-        raise UnsupportedStructure("a charged complex is not supported here")
+    charge = _net_charge(complex_mol) + cp_charge
+    if len(metals) == 1:
+        if charge or complex_mol.GetAtomWithIdx(metals[0]).GetFormalCharge():
+            charge = check_charge(complex_mol, metals[0], core_atoms, _net_charge(complex_mol)) if not cp_charge else 0
+    elif charge or any(complex_mol.GetAtomWithIdx(i).GetFormalCharge() for i in core_atoms):
+        raise UnsupportedStructure("a charged ring with several metals is not supported here")
     if any(a.GetIsotope() != 0 for a in complex_mol.GetAtoms()):
         raise UnsupportedStructure("isotopically modified atoms are not supported yet")
-    for a in core_atoms - {metal_idx}:
+    for a in core_atoms - metal_set:
         atom = complex_mol.GetAtomWithIdx(a)
-        if atom.GetAtomicNum() != 6 or atom.GetIsAromatic() or atom.GetFormalCharge() != 0:
-            raise UnsupportedStructure("only a carbon skeleton besides the metal is supported here")
+        if (atom.GetAtomicNum() != 6 and atom.GetAtomicNum() not in _HETERO_A) or atom.GetIsAromatic() or atom.GetFormalCharge() != 0:
+            raise UnsupportedStructure("this ring atom is not supported here")
     double_bonds = []
     for a, b, *_ in non_single_bonds(complex_mol):
         in_core = (a in core_atoms, b in core_atoms)
         if all(in_core):
-            if metal_idx in (a, b) or complex_mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 2.0:
+            if complex_mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 2.0:
                 raise UnsupportedStructure("only ring C=C double bonds are supported here")
             double_bonds.append((a, b))
         elif any(in_core):
-            if not is_exocyclic_oxo(complex_mol, a, b, core_atoms):
+            if not is_exocyclic_oxo(complex_mol, a, b, core_atoms) and not (metal_set & {a, b}):
                 raise UnsupportedStructure("an exocyclic double bond on the ring is not supported here")
-        elif not any(metal_idx in graph[x] for x in (a, b)) and not (
+        elif not any(m in graph[x] for x in (a, b) for m in metal_set) and not (
             complex_mol.GetAtomWithIdx(a).GetIsAromatic() and complex_mol.GetAtomWithIdx(b).GetIsAromatic()
         ) and not is_carboxyl_bond(complex_mol, a, b):
             raise UnsupportedStructure("an unsaturated substituent is out of scope here")
 
-    counts, simple_labels, organic, neutral, _ = collect_ligands(complex_mol, metal, graph, skip=core_atoms)
-    if "hydrido" in counts:
-        raise UnsupportedStructure("a hydrido ligand on the metal is not supported here yet")
-    ligand_entries, repeats = ring_ligand_entries(counts, simple_labels, neutral)
+    ligand_entries = {}
+    for m in metals:
+        counts, simple_labels, organic, neutral, _ = collect_ligands(complex_mol, complex_mol.GetAtomWithIdx(m), graph, skip=core_atoms)
+        ligand_entries[m] = ring_ligand_entries(counts, simple_labels, neutral)
     if cp_count:
-        ligand_entries.append((f"({_CP_LABEL})", False, cp_count))
+        ligand_entries[metals[0]].append((f"({_CP_LABEL})", False, cp_count, 1))
 
-    principal = principal_kind(complex_mol, graph, core_atoms, metal_idx)
+    principal = principal_kind(complex_mol, graph, core_atoms, metals[0])
     best = None
     for order, parent, outer_key in candidates:
         full_order = [orig[i] for i in order]
         locant = {atom: i + 1 for i, atom in enumerate(full_order)}
         grouped: dict = {}
         suffix_locants, n_entries = [], []
+        by_z: dict = {}
+        metal_locants: dict = {}
         for atom in full_order:
-            if atom == metal_idx:
+            if atom in metal_set:
+                metal_locants.setdefault(complex_mol.GetAtomWithIdx(atom).GetSymbol(), []).append(locant[atom])
                 continue
+            z = complex_mol.GetAtomWithIdx(atom).GetAtomicNum()
+            if z != 6:
+                by_z.setdefault(z, []).append(locant[atom])
             found, n_found, count = ring_substituents(complex_mol, graph, atom, core_atoms, principal)
             suffix_locants += [locant[atom]] * count
             n_entries += n_found
             for name, compound in found:
                 entry = grouped.setdefault(name, {"locants": [], "compound": compound})
                 entry["locants"].append(locant[atom])
-        for name, compound, n in ligand_entries:
-            entry = grouped.setdefault(name, {"locants": [], "compound": compound})
-            entry["locants"] += [locant[metal_idx]] * n
+        for m in metals:
+            add_ligands(grouped, ligand_entries[m], locant[m])
+        stereo = ring_stereo(complex_mol, core_atoms, locant)
         for entry in grouped.values():
             entry["locants"].sort()
         ene = sorted(tuple(sorted((locant[a], locant[b]))) for a, b in double_bonds)
+        hetero_locants = sorted([l for v in by_z.values() for l in v] + [locant[m] for m in metals])
+        seniority = [tuple(sorted(by_z.get(z, []))) for z in _HETERO_ORDER] + [
+            tuple(sorted(metal_locants[sym])) for sym in sorted(metal_locants, key=_metal_rank)
+        ]
         key = (
             tuple(outer_key),
-            locant[metal_idx],
+            hetero_locants,
+            seniority,
             sorted(suffix_locants),
             ene,
             sorted(l for e in grouped.values() for l in e["locants"]),
             [grouped[k]["locants"] for k in sorted(grouped)],
+            [c for _, c in stereo],
         )
         if best is None or key < best[0]:
-            best = (key, locant[metal_idx], grouped, ene, parent, len(full_order), suffix_locants, n_entries)
-    _, metal_locant, grouped, ene, parent, size, suffix_locants, n_entries = best
-    prefixes = apply_repeats(_brackets(format_substituent_prefixes(add_n_entries(grouped, n_entries))), repeats, metal_locant)
+            best = (key, metal_locants, by_z, grouped, ene, parent, len(full_order), suffix_locants, n_entries, stereo)
+    _, metal_locants, by_z, grouped, ene, parent, size, suffix_locants, n_entries, stereo = best
+    prefixes = _brackets(format_substituent_prefixes(add_n_entries(grouped, n_entries)))
     if ene:
         base = alkane_name(size)[:-3]
         locs = ",".join(str(lo) if hi - lo == 1 else f"{lo}({hi})" for lo, hi in ene)
@@ -196,5 +220,6 @@ def name_metallapolycycle(mol) -> str:
         if suffix is None:
             raise UnsupportedStructure("this unsaturation count is not supported here")
         parent = parent[: parent.rindex("]") + 1] + f"{base}{'a' if len(ene) > 1 else ''}-{locs}-{suffix}"
-    stem = f"{metal_locant}-{_METAL_A_PREFIXES[metal.GetSymbol()]}{with_suffix(parent, suffix_locants, principal)}"
-    return f"{prefixes}{'-' if prefixes else ''}{stem}"
+    only = next(iter(metal_locants.values()))[0]
+    named = ionic_stem(with_suffix(parent, suffix_locants, principal), only, charge)
+    return f"{stereo_prefix(stereo)}{prefixes}{'-' if prefixes else ''}{_hetero_text(by_z, metal_locants)}{named}"

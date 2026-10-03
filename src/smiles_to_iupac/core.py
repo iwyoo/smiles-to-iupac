@@ -144,7 +144,7 @@ from ._nucleotide import has_nucleotide_name, name_nucleotide
 from ._metallacycle import has_metallacycle_shape, name_metallacycle
 from ._metallafused import has_metallafused_shape, name_metallafused
 from ._metallapolycycle import has_metallapolycycle_shape, name_metallapolycycle
-from ._metallocene import has_metallocene_name, name_metallocene
+from ._ocene import has_ocene_shape, name_ocene
 from ._fused_hetero_ring_oxide import has_fused_hetero_ring_oxide_shape, name_fused_hetero_ring_oxide
 from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
 from ._pyridinone import has_pyridinone_shape, name_pyridinone
@@ -449,8 +449,8 @@ def _name_mol(mol) -> str:
     # cyclopentadienide fragments has no shape any other branch below
     # expects, and reaches a radical/carbanide dispatch that rejects the
     # multi-fragment SMILES outright long before any ring-count check.
-    if has_metallocene_name(mol):
-        return name_metallocene(mol)
+    if has_ocene_shape(mol):
+        return name_ocene(mol)
 
     # A bare metallacyclic parent hydride (P-69.4's skeletal-replacement
     # ring, e.g. '1-titanacyclobutane') has a transition-metal ring atom
@@ -469,6 +469,11 @@ def _name_mol(mol) -> str:
     # every heteroatom-parent dispatch below, which would otherwise claim
     # a metal-bound phosphane/amine/ether ligand's donor atom.
     if has_coordination_shape(mol):
+        if has_group1_2_organometallic_shape(mol):
+            try:
+                return name_group1_2_organometallic(mol)
+            except UnsupportedStructure:
+                pass
         return name_coordination(mol)
 
     # Two or more Group 13-15 metals (P-69.5.3) must precede the
