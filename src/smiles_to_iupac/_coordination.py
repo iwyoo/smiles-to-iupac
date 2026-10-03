@@ -60,6 +60,14 @@ def _carbonyl(mol, donor, atoms):
     return mol.GetAtomWithIdx(other).GetAtomicNum() == 8 and bond.GetBondTypeAsDouble() >= 2
 
 
+def _monodentate_anion(mol, metal, donor, atoms):
+    if donor.GetAtomicNum() in HALOGEN_PREFIXES or donor.GetAtomicNum() == 6:
+        return None
+    from ._anion_ligands import monodentate_anion
+
+    return monodentate_anion(mol, metal, donor, atoms)
+
+
 def _chelate_label(mol, metal, donors_in, atoms):
     symbols = []
     for donor in donors_in:
@@ -240,7 +248,9 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
                 label = hapto_label(mol, metal, donors_in, atoms)
                 donors[label] = "\u03b7"
             else:
-                label = _chelate_label(mol, metal, donors_in, atoms)
+                from ._anion_ligands import bidentate_anion
+
+                label = bidentate_anion(mol, metal, donors_in, atoms) or _chelate_label(mol, metal, donors_in, atoms)
                 donors[label] = "\u03ba"
             organic.add(label)
             neutral.add(label)
@@ -253,6 +263,9 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
         elif _simple_anion_label(mol, donor, atoms) is not None:
             label = _simple_anion_label(mol, donor, atoms)
             simple_labels.add(label)
+        elif (anion := _monodentate_anion(mol, metal, donor, atoms)) is not None:
+            label = anion
+            organic.add(label)
         elif atomic_num == 8 and len(atoms) > 1 and donor.GetDegree() == 2 and donor.GetNumExplicitHs() == 0 and donor.GetFormalCharge() in (0, -1):
             label = _alkoxido_name(mol, metal, donor, atoms)
             organic.add(label)
@@ -295,6 +308,8 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
             else:
                 organic.add(label)
                 neutral.add(label)
+        if "\u03ba" in label or (label.endswith(("azanido", "phosphanido")) and label not in ("azanido", "phosphanido")):
+            neutral.add(label)
         counts[label] = counts.get(label, 0) + 1
         donors[label] = donor.GetSymbol()
     if "hydrido" in counts:
