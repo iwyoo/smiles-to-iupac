@@ -1,11 +1,7 @@
-"""Polyhedral symbol, configuration index and chirality symbol of a
-mononuclear complex with monodentate ligands (Red Book IR-9.3, `(OC-6-22)-`,
-`(SP-4-2)-`, `(TBPY-5-11)-`, `(T-4-S)-`). The geometry comes from the
-OpenSMILES square-planar / trigonal-bipyramidal / octahedral / tetrahedral
-tags on the metal, ligating atoms are ranked by a sphere-wise CIP comparison,
-and every descriptor is read off idealised coordinates. Chelate complexes need
-the priming and skew-line conventions and are refused, so no stereo
-information is silently dropped.
+"""Stereodescriptors of metal complexes (Red Book IR-9.3, P-93.3): polyhedral
+symbol, configuration index (CIP-ranked ligating atoms, priming for chelates)
+and C/A or Delta/Lambda chirality, read off idealised coordinates for
+T-4, SP-4, TBPY-5 and OC-6, also per metal in polynuclear complexes.
 """
 
 import itertools

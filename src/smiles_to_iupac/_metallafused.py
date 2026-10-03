@@ -18,7 +18,6 @@ from ._substituents import format_substituent_prefixes
 
 
 def _template(labels, edges):
-    index = {name: i for i, name in enumerate(labels)}
     adj = {name: set() for name in labels}
     for a, b in edges:
         adj[a].add(b)
@@ -98,7 +97,7 @@ def _find(mol):
     start = [r for r in rings if metal in r]
     if len(start) != 1:
         return None
-    system, frontier = set(start[0]), [start[0]]
+    system = set(start[0])
     used = [start[0]]
     changed = True
     while changed:

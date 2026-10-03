@@ -1,9 +1,7 @@
-"""Hapto ligands beyond a lone carbocyclic ring (P-69.2.4, P-69.2.6):
-acyclic polyenyls and partially bound chains, partially bound or radical
-carbocycles, mono-heteroatom five/six-membered rings (pyrrolyl, thiophene),
-and fused carbocycles (naphthalene, indenyl, fluorenyl, azulene ...). Names
-are built from the ligand's own numbering so that locant sets such as
-'(1-3-eta)' can be cited; the metal binds the donors as a delocalised unit.
+"""Hapto ligands beyond a lone carbocyclic ring (P-69.2.4, P-69.2.6): chains,
+partially bound or radical rings, mono-heteroatom rings and fused carbocycles.
+Names use the ligand's own numbering so locant sets like '(1-3-eta)' can be
+cited; the metal binds the donors as a delocalised unit.
 """
 
 import re

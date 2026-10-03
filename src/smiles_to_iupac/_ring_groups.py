@@ -3,8 +3,6 @@
 cited as suffixes in that seniority order and the rest as prefixes).
 """
 
-import re
-
 from rdkit import Chem
 from rdkit.Chem import rdCIPLabeler
 
@@ -124,7 +122,7 @@ def _has_stereo(mol, graph, n, ring_atom):
 
 
 def _branch_with_stereo(mol, graph, n, ring_atom):
-    halogens = halogen_substituents(mol)
+    halogens = {**halogen_substituents(mol), **PrefixNamer(mol, graph)._region_halogens(n, ring_atom)}
     name, compound = name_branch(graph, n, ring_atom, halogens, mol=mol)
     group, stack = {n}, [n]
     while stack:

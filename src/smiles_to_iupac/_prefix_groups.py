@@ -202,7 +202,7 @@ class PrefixNamer:
         hetero = [a for a in ring if self._z(a) != 6]
         if len(ring) not in (5, 6) or not all(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring) or len(hetero) != 1:
             return None
-        from ._hapto_ext import _HETERO5, _HETERO6, _ring_orders, _yl, lkey
+        from ._hapto_ext import _HETERO5, _HETERO6, _ring_orders, _yl
 
         table = _HETERO5 if len(ring) == 5 else _HETERO6
         z = self._z(hetero[0])
