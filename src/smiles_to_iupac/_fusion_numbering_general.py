@@ -122,6 +122,46 @@ def _privileged_fusion_atoms(ring_idx, atom_rings, fusion_atoms, cycle, idx_of):
     return privileged
 
 
+def general_peripheral_numberings(mol, ignore_indicated=False):
+    """Every numbering tied for best by `general_peripheral_numbering`'s own ordering, as a list of
+    {atom_idx: locant_str}; None if the fusion graph isn't a simple ortho-fused tree."""
+    atom_rings, adj, edge_index_of, ring_sizes, n = _ring_graph(mol)
+    if n < 2 or sum(len(v) for v in adj.values()) // 2 != n - 1:
+        return None
+
+    direction = assign_bond_directions_general(adj, edge_index_of, ring_sizes, n)
+    start_rings = starting_ring_general(adj, direction, n)
+
+    cycle, fusion_atoms = _periphery_cycle_and_fusion_atoms(mol)
+    idx_of = {a: i for i, a in enumerate(cycle)}
+    hetero = [a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() != 6]
+
+    candidates = []
+    for ring_idx in start_rings:
+        ring_fusion_atoms = atom_rings[ring_idx] & fusion_atoms
+        privileged = _privileged_fusion_atoms(ring_idx, atom_rings, fusion_atoms, cycle, idx_of)
+        start_atoms = privileged if len(privileged) == 1 else ring_fusion_atoms
+        for f_atom in start_atoms:
+            i = idx_of[f_atom]
+            for step in (1, -1):
+                neighbor = cycle[(i + step) % len(cycle)]
+                if neighbor in atom_rings[ring_idx] and neighbor not in fusion_atoms:
+                    candidates.append(_numbering_from(cycle, fusion_atoms, (i + step) % len(cycle), step))
+
+    if not candidates:
+        return None
+
+    indicated_h = [a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and a.GetTotalNumHs() == 2]
+
+    def sort_key(locants):
+        hetero_key = sorted(int(locants[h].rstrip("abcdefgh")) for h in hetero)
+        indicated_key = [] if ignore_indicated else sorted(int(locants[h].rstrip("abcdefgh")) for h in indicated_h)
+        return (hetero_key, indicated_key)
+
+    best = min(sort_key(c) for c in candidates)
+    return [c for c in candidates if sort_key(c) == best]
+
+
 def general_peripheral_numbering(mol):
     """{atom_idx: locant_str} for a tree of ortho-fused mancude rings of
     any size, or None if the fusion graph isn't a simple ortho-fused tree.

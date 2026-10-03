@@ -114,23 +114,14 @@ def test_smiles_to_iupac_multiply_unsaturated(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_unsaturated_branch_not_on_principal_chain_raises():
-    # The double bond sits on a short branch whose own arm can never be as
-    # long as the two 6-carbon arms of the main chain, so no longest chain
-    # contains it; expressing it would need an alkenyl substituent prefix
-    # (P-29.2/P-32.1), which is out of scope for this module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCCCCC(C=C)CCCCCC")
+def test_unsaturated_branch_not_on_principal_chain_is_a_prefix():
+    # P-44.3: the longest chain wins over unsaturation, so the double bond
+    # sits in an ethenyl prefix (P-32.1.1).
+    assert smiles_to_iupac("CCCCCC(C=C)CCCCCC") == "6-ethenyldodecane"
 
 
-def test_unsaturated_not_all_multiple_bonds_on_one_chain_raises():
-    # Same short branch as above, but the main chain now also carries its
-    # own double bond. That bond alone would be fine, but the branch's
-    # double bond still can't be expressed without an alkenyl substituent
-    # prefix, so the whole molecule stays out of scope (P-44.4.1.1: only a
-    # chain carrying *every* multiple bond is eligible as principal chain).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CCCCC(C=C)CCCCCC")
+def test_unsaturated_branch_alongside_chain_double_bond():
+    assert smiles_to_iupac("C=CCCCC(C=C)CCCCCC") == "6-ethenyldodec-1-ene"
 
 
 @pytest.mark.parametrize(

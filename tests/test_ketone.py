@@ -61,11 +61,10 @@ def test_carboxylic_acid_not_misread_as_ketone():
     assert smiles_to_iupac("CC(=O)O") == "ethanoic acid"
 
 
-def test_aryl_ketone_raises():
-    # A carbonyl on an aromatic ring (an aryl ketone) is out of scope for
-    # this module (separate, in-progress aromatic-ring module's territory).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)c1ccccc1")
+def test_aryl_ketone_cites_the_ring_as_a_substituent():
+    assert smiles_to_iupac("CC(=O)c1ccccc1") == "1-phenylethanone"
+    assert smiles_to_iupac("O=C(c1ccccc1)c1ccccc1") == "diphenylmethanone"
+    assert smiles_to_iupac("O=C(c1ccc(Cl)cc1)c1ccccc1") == "(4-chlorophenyl)phenylmethanone"
 
 
 def test_phenyl_substituent_ketone():
@@ -81,13 +80,8 @@ def test_phenyl_substituent_ketone_matches_locant_mechanism():
     assert smiles_to_iupac("CC(=O)CCc1ccccc1") == "4-phenylbutan-2-one"
 
 
-def test_phenyl_substituent_ketone_directly_on_ring_raises():
-    # No intervening chain carbon between the ring and the carbonyl carbon
-    # is the aryl-ketone case, already covered by test_aryl_ketone_raises --
-    # this is the same rejection reached through the new benzene-ring code
-    # path instead of falling through to the old blanket ring rejection.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C(=O)C")
+def test_phenyl_substituent_ketone_directly_on_ring():
+    assert smiles_to_iupac("c1ccccc1C(=O)C") == "1-phenylethanone"
 
 
 def test_phenyl_substituent_ketone_substituted_ring_ortho_methyl():
@@ -153,9 +147,8 @@ def test_heteroaromatic_substituent_ketone(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_heteroaromatic_substituent_ketone_directly_on_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)c1cccnc1")
+def test_heteroaromatic_substituent_ketone_directly_on_ring():
+    assert smiles_to_iupac("CC(=O)c1cccnc1") == "1-(pyridin-3-yl)ethanone"
 
 
 def test_ether_now_supported_via_ether_ketone():
@@ -635,16 +628,14 @@ def test_ring_substituent_chain_ketone_longer_chain():
     assert smiles_to_iupac("CCC(=O)C1CCCCC1") == "1-cyclohexylpropan-1-one"
 
 
-def test_ring_substituent_chain_ketone_ring_with_substituent_raises():
+def test_ring_substituent_chain_ketone_ring_with_substituent():
     # A ring atom other than the chain attachment carrying its own
     # substituent is out of scope for this first pass.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)C1CCC(C)CC1")
+    assert smiles_to_iupac("CC(=O)C1CCC(C)CC1") == "1-(4-methylcyclohexyl)ethanone"
 
 
-def test_ring_substituent_chain_ketone_unsaturated_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)C1CCCC=C1")
+def test_ring_substituent_chain_ketone_unsaturated_ring():
+    assert smiles_to_iupac("CC(=O)C1CCCC=C1") == "1-(cyclohex-2-en-1-yl)ethanone"
 
 
 def test_ring_with_ketone_chain_ketone_tie():

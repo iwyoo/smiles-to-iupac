@@ -56,14 +56,15 @@ from ._common import (
     UnsupportedStructure,
     YNE_BOND_ORDER,
     adjacency,
-    bond_locants,
+    all_chains,
     carbon_adjacency,
+    chain_bond_locants,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain,
-    longest_chains,
     lowest_locant_set,
+    most_multiple_bonds,
     name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
@@ -170,15 +171,12 @@ def _name_acyclic_selenoate(mol, selenoate_carbon_idx, excluded_atoms, bonds, st
     the final name."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    chains = longest_chains(carbon_adjacency(mol))
-    chain_length = len(chains[0])
+    chains = all_chains(carbon_adjacency(mol))
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     eligible = []
     for chain in chains:
         if selenoate_carbon_idx not in chain:
-            continue
-        if bonds and bond_locants(chain, bonds) is None:
             continue
         chain_set = set(chain)
         if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
@@ -186,7 +184,7 @@ def _name_acyclic_selenoate(mol, selenoate_carbon_idx, excluded_atoms, bonds, st
         eligible.append(chain)
     if not eligible:
         if stereo is not None and any(
-            selenoate_carbon_idx in c and (not bonds or bond_locants(c, bonds) is not None) for c in chains
+            selenoate_carbon_idx in c for c in chains
         ):
             raise UnsupportedStructure(
                 "a stereocenter on a substituent branch rather than the "
@@ -200,12 +198,14 @@ def _name_acyclic_selenoate(mol, selenoate_carbon_idx, excluded_atoms, bonds, st
     best_key = None
     best_name = None
     best_position_of = None
+    chain_length = max(len(c) for c in eligible)
+    eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             if candidate[0] != selenoate_carbon_idx:
                 continue
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
-            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, excluded_atoms, mol=mol)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:

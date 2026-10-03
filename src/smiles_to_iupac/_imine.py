@@ -105,6 +105,8 @@ from ._common import (
     non_single_bonds,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
+    ring_chain_attachments_with_halogens,
+    separate_aromatic_monocycles,
     specified_double_bond_stereo,
     substituent_locant_set_and_citation,
 )
@@ -355,8 +357,9 @@ def _name_phenyl_chain_imine(mol, ring_atoms):
 
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
-    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
-    if attachment is None:
+    rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
+    attachment = ring_chain_attachments_with_halogens(graph, rings, set(), halogens)
+    if not attachment:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "
             "exocyclic substituent alongside a chain imine is not "
@@ -390,6 +393,9 @@ def _name_phenyl_chain_imine(mol, ring_atoms):
 
 
 def name_imine(mol) -> str:
+    aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
+    if aromatic_rings is not None:
+        return _name_phenyl_chain_imine(mol, set().union(*aromatic_rings))
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])

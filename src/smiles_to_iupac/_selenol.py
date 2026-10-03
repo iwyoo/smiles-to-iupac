@@ -128,15 +128,16 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    bond_locants,
+    all_chains,
     carbon_adjacency,
+    chain_bond_locants,
     group_substituents,
     halogen_substituents,
     heteroaromatic_monocycle_name,
     is_plain_benzene_ring,
     longest_branched_chain_through,
-    longest_chains,
     lowest_locant_set,
+    most_multiple_bonds,
     multiplied_word,
     name_from_substituents,
     non_single_bonds,
@@ -719,51 +720,37 @@ def name_selenol(mol) -> str:
         return _name_von_baeyer_or_spiro_selenol(mol, selenols, stereo, bonds)
     if num_rings == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
-        if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in bonds):
-            raise UnsupportedStructure(
-                "unsaturation outside the ring alongside a cyclic selenol "
-                "is not supported yet (see P-31.1.3, cycloalkenes and "
-                "cycloalkynes)"
-            )
-        if any(order == _YNE_BOND_ORDER for _, _, order in bonds):
+        ring_bonds = [b for b in bonds if b[0] in ring_atoms and b[1] in ring_atoms]
+        if any(order == _YNE_BOND_ORDER for _, _, order in ring_bonds):
             raise UnsupportedStructure(
                 "a ring triple bond (cycloalkyne) alongside a selenol is "
                 "not supported yet -- only a ring double bond is in scope "
                 "for this first pass (see P-31.1.3)"
             )
         ring_selenols = {s for s in selenols if next(iter(graph[s])) in ring_atoms}
-        if not bonds and not ring_selenols:
-            if stereo is not None:
+        if ring_selenols:
+            if not bonds and ring_selenols and ring_selenols != selenols:
+                if stereo is not None:
+                    raise UnsupportedStructure(
+                        "a stereocenter alongside a ring-vs-chain selenol "
+                        "comparison is not supported yet (see P-92)"
+                    )
+                return _name_ring_with_selenol_chain_selenol(mol, selenols)
+            if ring_selenols != selenols:
                 raise UnsupportedStructure(
-                    "a stereocenter on a substituent branch rather than "
-                    "the ring itself is not supported yet (see P-92)"
+                    "a selenol on a substituent branch chain rather than the "
+                    "ring itself is not supported yet"
                 )
-            return _name_ring_substituent_chain_selenol(mol, selenols)
-        if not bonds and ring_selenols and ring_selenols != selenols:
-            if stereo is not None:
-                raise UnsupportedStructure(
-                    "a stereocenter alongside a ring-vs-chain selenol "
-                    "comparison is not supported yet (see P-92)"
-                )
-            return _name_ring_with_selenol_chain_selenol(mol, selenols)
-        if ring_selenols != selenols:
-            raise UnsupportedStructure(
-                "a selenol on a substituent branch chain rather than the "
-                "ring itself is not supported yet"
-            )
-        return _name_cyclic_selenol(mol, selenols, stereo, bonds)
+            return _name_cyclic_selenol(mol, selenols, stereo, ring_bonds)
 
     halogens = halogen_substituents(mol)
-    chains = longest_chains(carbon_adjacency(mol))
-    chain_length = len(chains[0])
+    chains = all_chains(carbon_adjacency(mol))
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     eligible = []
     for chain in chains:
         position_of = {atom: i + 1 for i, atom in enumerate(chain)}
         if _se_locants(position_of, selenols, graph) is None:
-            continue
-        if bonds and bond_locants(chain, bonds) is None:
             continue
         chain_set = set(chain)
         if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
@@ -772,7 +759,6 @@ def name_selenol(mol) -> str:
     if not eligible:
         if stereo is not None and any(
             _se_locants({a: i + 1 for i, a in enumerate(c)}, selenols, graph) is not None
-            and (not bonds or bond_locants(c, bonds) is not None)
             for c in chains
         ):
             raise UnsupportedStructure(
@@ -789,11 +775,13 @@ def name_selenol(mol) -> str:
     best_key = None
     best_name = None
     best_position_of = None
+    chain_length = max(len(c) for c in eligible)
+    eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             se_locants = _se_locants(position_of, selenols, graph)
-            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, selenols, mol=mol)
             key, name = _candidate_key(chain_length, se_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:

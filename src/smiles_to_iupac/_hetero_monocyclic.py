@@ -622,9 +622,24 @@ def _match_hetero_monocyclic_substituents(mol):
     heteroatom pattern outside the table, or a substituent sitting on a
     non-substitutable heteroatom)."""
     ring_info = mol.GetRingInfo()
-    if ring_info.NumRings() != 1:
+    parent_rings = [
+        r for r in ring_info.AtomRings() if any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in r)
+    ]
+    if len(parent_rings) != 1:
         return None
-    ring_atoms = list(ring_info.AtomRings()[0])
+    ring_atoms = list(parent_rings[0])
+    substituent_ring_atoms = {a for r in ring_info.AtomRings() if r != parent_rings[0] for a in r}
+    if substituent_ring_atoms & set(ring_atoms):
+        return None
+    if any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in substituent_ring_atoms):
+        return None
+    if any(
+        b.GetBeginAtomIdx() in substituent_ring_atoms
+        and b.GetEndAtomIdx() in substituent_ring_atoms
+        and not b.IsInRing()
+        for b in mol.GetBonds()
+    ):
+        return None
     if len(ring_atoms) not in (5, 6):
         return None
     if not all(mol.GetAtomWithIdx(atom).GetIsAromatic() for atom in ring_atoms):
@@ -645,18 +660,6 @@ def _match_hetero_monocyclic_substituents(mol):
         # falls through to a module that actually understands the other
         # heteroatoms, rather than claim a shape this module can't safely
         # name.
-        return None
-    if any(a not in ring_set or b not in ring_set for a, b, _ in non_single_bonds(mol)):
-        # Same blind spot as the atom-type check above, but for bond order:
-        # `name_branch`'s chain-walking fallback doesn't check bond order
-        # either, so a C=C in an exocyclic branch would silently be
-        # counted as if it were a saturated chain (confirmed via real-data
-        # testing: 'C=CCc1ccnc(Cl)c1Cl' was misnamed
-        # '2,3-dichloro-4-propylpyridine', dropping the branch's own
-        # double bond -- the correct 'prop-2-enyl' substituent never even
-        # gets considered). Ring-internal bonds (aromatic, bond order 1.5)
-        # are fine and excluded by the `a not in ring_set or b not in
-        # ring_set` check.
         return None
     exo_by_atom = {}
     for atom in ring_atoms:

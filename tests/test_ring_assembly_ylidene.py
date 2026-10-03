@@ -26,9 +26,8 @@ def test_biphenyl_still_routes_to_single_bond_module():
     assert smiles_to_iupac("c1ccccc1-c1ccccc1") == "1,1'-biphenyl"
 
 
-def test_different_ring_sizes_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCC1=C1CCCC1")
+def test_different_ring_sizes_is_not_an_assembly():
+    assert smiles_to_iupac("C1CCC1=C1CCCC1") == "cyclobutylidenecyclopentane"
 
 
 def test_single_ring_exocyclic_double_bond_unaffected():

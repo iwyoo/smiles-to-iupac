@@ -140,6 +140,5 @@ def test_biimidazole_carbon_attached_still_out_of_scope():
         smiles_to_iupac("c1c[nH]c(-c2[nH]ccn2)n1")
 
 
-def test_mixed_benzo_and_pyridine_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc(-c2ccccn2)cc1")
+def test_mixed_benzo_and_pyridine_is_substitutive():
+    assert smiles_to_iupac("c1ccc(-c2ccccn2)cc1") == "2-phenylpyridine"

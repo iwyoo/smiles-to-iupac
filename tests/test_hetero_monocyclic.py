@@ -148,15 +148,8 @@ def test_hetero_monocyclic_substituent_with_non_alkyl_branch_raises():
         smiles_to_iupac("NC(CCc1ncccc1Cl)C(=O)O")
 
 
-def test_hetero_monocyclic_substituent_with_unsaturated_branch_raises():
-    # A branch containing a C=C double bond must not be silently walked
-    # as if it were a saturated chain -- found via real-data testing:
-    # this exact SMILES (an allyl-substituted pyridine) was misnamed
-    # '2,3-dichloro-4-propylpyridine' (PubChem PIN is
-    # '2,3-dichloro-4-prop-2-enylpyridine'), silently dropping the
-    # branch's own double bond.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CCc1ccnc(Cl)c1Cl")
+def test_hetero_monocyclic_substituent_with_unsaturated_branch_keeps_the_double_bond():
+    assert smiles_to_iupac("C=CCc1ccnc(Cl)c1Cl") == "2,3-dichloro-4-(prop-2-en-1-yl)pyridine"
 
 
 def test_imidazole_multi_substituent_without_n1():
@@ -457,3 +450,23 @@ def test_pyran_substituent_raises():
     # indicated-hydrogen parent is recognized.
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC1=CC=COC1")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("c1ccncc1CCc1ccccc1", "3-(2-phenylethyl)pyridine"),
+        ("c1ccncc1C1CCCCC1", "3-cyclohexylpyridine"),
+        ("c1ccncc1C1=CCCCC1", "3-(cyclohex-1-en-1-yl)pyridine"),
+        ("C=CCc1ccnc(Cl)c1Cl", "2,3-dichloro-4-(prop-2-en-1-yl)pyridine"),
+        ("C#Cc1ccncc1", "4-ethynylpyridine"),
+        ("c1ccc(-c2ccccn2)cc1", "2-phenylpyridine"),
+    ],
+)
+def test_hetero_ring_parent_with_ring_and_unsaturated_substituents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_biphenylyl_substituent_on_pyridine_is_not_misnamed():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccc(-c2ccc(-c3ccccn3)cc2)cc1")

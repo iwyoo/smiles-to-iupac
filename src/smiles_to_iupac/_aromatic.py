@@ -89,7 +89,6 @@ from ._common import (
     ring_cycle,
     specified_stereocenters,
     substituent_locant_set_and_citation,
-    unbranched_unsaturated_substituent_name,
     validate_atoms_and_bonds,
 )
 from ._numerals import numerical_term
@@ -452,31 +451,7 @@ def _branch_atoms(graph, root, ring_atoms):
 
 
 def _branch_name(graph, carbon_graph, root, ring_atom, ring_atoms, halogens, unsaturated_bonds, mol=None):
-    """`name_branch` (`_substituents.py`) has no ene/yne machinery of its
-    own yet, so a branch carrying one of `unsaturated_bonds` (already
-    confirmed by `_validate_aromatic_bonds` to lie entirely outside
-    `ring_atoms`) is named directly via
-    `unbranched_unsaturated_substituent_name` instead (P-61.2.3), mirroring
-    `_amine.py`'s identical N-substituent construction. A branch with no
-    such bond falls through to the ordinary `name_branch` path unchanged."""
-    branch_atoms = _branch_atoms(graph, root, ring_atoms)
-    branch_bonds = [b for b in unsaturated_bonds if b[0] in branch_atoms and b[1] in branch_atoms]
-    if not branch_bonds:
-        return name_branch(graph, root, ring_atom, halogens, mol=mol)
-    if len(branch_bonds) > 1:
-        raise UnsupportedStructure(
-            "more than one non-aromatic multiple bond on a single "
-            "exocyclic branch is not supported yet"
-        )
-    name = unbranched_unsaturated_substituent_name(
-        carbon_graph, root, branch_bonds[0], coming_from=ring_atom, excluded=ring_atoms
-    )
-    if name is None:
-        raise UnsupportedStructure(
-            "a branched unsaturated exocyclic substituent is not "
-            "supported yet"
-        )
-    return name, False
+    return name_branch(graph, root, ring_atom, halogens, mol=mol)
 
 
 def _ring_substituents(graph, locants, ring_atoms, halogens, mol=None, carbon_graph=None, unsaturated_bonds=()):

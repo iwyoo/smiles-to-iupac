@@ -58,6 +58,5 @@ def test_phenyl_cyanate_chain_spacer_not_supported():
         smiles_to_iupac("c1ccccc1COC#N")
 
 
-def test_phenyl_cyanate_substituted_ring_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1OC#N")
+def test_phenyl_cyanate_substituted_ring():
+    assert smiles_to_iupac("Cc1ccccc1OC#N") == "2-methylphenyl cyanate"

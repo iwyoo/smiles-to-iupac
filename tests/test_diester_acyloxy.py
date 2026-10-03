@@ -48,20 +48,26 @@ def test_diester_acyloxy_naming(smiles, expected):
 
 
 @pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC(=O)OCC(Cl)OC(=O)C", "1-chloroethane-1,2-diyl diethanoate"),
+        ("CC(=O)OCC(COC(C)=O)(COC(C)=O)COC(C)=O", "2,2-bis[(ethanoyloxy)methyl]propane-1,3-diyl diethanoate"),
+        ("CC(COC(C)=O)COC(=O)CC", "2-methylpropane-1,3-diyl ethanoate propanoate"),
+        ("CC(=O)OCC(O)COC(C)=O", "2-hydroxypropane-1,3-diyl diethanoate"),
+        ("CC(=O)OCC=CCOC(C)=O", "but-2-ene-1,4-diyl diethanoate"),
+        ("CC(=O)OCOC(C)=O", "methylene diethanoate"),
+        ("CC(=O)OC(OC(C)=O)OC(C)=O", "methanetriyl triethanoate"),
+    ],
+)
+def test_diester_acyloxy_generalized_backbones(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles",
     [
-        # A halogen on the backbone is out of scope for this narrow first
-        # pass.
-        "CC(=O)OCC(Cl)OC(=O)C",
-        # A branch point that itself carries an ester (pentaerythritol-
-        # shaped) is a separate, not-yet-scoped shape, not a single chain
-        # at all.
-        "CC(=O)OCC(COC(C)=O)(COC(C)=O)COC(C)=O",
-        # A differing-acid diester with a branch: the branch's own
-        # interaction with per-position acid citation isn't verified.
-        "CC(COC(C)=O)COC(=O)CC",
-        # Three identical esters with a branch.
-        "CC(COC(C)=O)C(COC(C)=O)COC(C)=O",
+        "CC(=O)OCCOCCOC(C)=O",
+        "CC(=O)OCC(=C)COC(C)=O",
     ],
 )
 def test_diester_acyloxy_out_of_scope(smiles):

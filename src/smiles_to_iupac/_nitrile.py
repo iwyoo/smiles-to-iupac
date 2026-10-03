@@ -80,25 +80,30 @@ from ._common import (
     UnsupportedStructure,
     YNE_BOND_ORDER,
     adjacency,
+    all_chains,
     bond_locant,
-    bond_locants,
     carbon_adjacency,
+    carbon_on_ring,
+    chain_bond_locants,
     group_substituents,
     halogen_substituents,
     heteroaromatic_monocycle_name,
     is_plain_benzene_ring,
     longest_branched_chain,
-    longest_chains,
     lowest_locant_set,
+    most_multiple_bonds,
     multiplied_word,
     name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
+    ring_chain_attachments_with_halogens,
+    separate_aromatic_monocycles,
     ring_cycle,
     ring_name_from_substituents,
     specified_stereo_elements,
     specified_stereocenters,
+    stereo_element_atoms,
     substituent_locant_set_and_citation,
     two_separate_rings_with_plain_aromatic_substituent,
 )
@@ -272,16 +277,13 @@ def _name_acyclic_nitrile(mol, nitriles, bonds, stereo=None):
     locant order (P-91.3, including when both kinds coexist)."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    chains = longest_chains(carbon_adjacency(mol))
-    chain_length = len(chains[0])
-    stereo_atoms = [idx for kind, idx, _ in stereo if kind == "atom"] if stereo is not None else []
+    chains = all_chains(carbon_adjacency(mol))
+    stereo_atoms = stereo_element_atoms(mol, stereo) if stereo is not None else []
 
     eligible = []
     for chain in chains:
         position_of = {atom: i + 1 for i, atom in enumerate(chain)}
         if _nitrile_locants(position_of, nitriles, graph) is None:
-            continue
-        if bonds and bond_locants(chain, bonds) is None:
             continue
         if stereo is not None and any(atom not in position_of for atom in stereo_atoms):
             continue
@@ -297,11 +299,13 @@ def _name_acyclic_nitrile(mol, nitriles, bonds, stereo=None):
     best_key = None
     best_name = None
     best_position_of = None
+    chain_length = max(len(c) for c in eligible)
+    eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             nitrile_locants = _nitrile_locants(position_of, nitriles, graph)
-            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, nitriles, mol=mol)
             key, name = _candidate_key(chain_length, nitrile_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
@@ -389,6 +393,8 @@ def _name_ring_nitrile(mol, ring_atoms, stereo=None, aromatic_atoms=frozenset())
         for b in non_single_bonds(mol)
         if b[0] != nitrile_nitrogen
         and b[1] != nitrile_nitrogen
+        and b[0] in ring_atoms
+        and b[1] in ring_atoms
         and not (b[0] in aromatic_atoms and b[1] in aromatic_atoms)
     ]
     if all_non_single:
@@ -468,19 +474,6 @@ def _name_benzonitrile(mol, ring_atoms):
 
     graph = adjacency(mol)
     (nitrile_carbon,) = graph[nitrile_nitrogen]
-    all_non_single = [
-        b
-        for b in non_single_bonds(mol)
-        if b[0] != nitrile_nitrogen
-        and b[1] != nitrile_nitrogen
-        and (b[0] not in ring_atoms or b[1] not in ring_atoms)
-    ]
-    if all_non_single:
-        raise UnsupportedStructure(
-            "unsaturation outside the ring alongside benzonitrile is not "
-            "supported yet"
-        )
-
     ring_neighbors = [n for n in graph[nitrile_carbon] if n in ring_atoms]
     if len(ring_neighbors) != 1:
         raise UnsupportedStructure(
@@ -543,8 +536,9 @@ def _name_phenyl_chain_nitrile(mol, ring_atoms):
 
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
-    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
-    if attachment is None:
+    rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
+    attachment = ring_chain_attachments_with_halogens(graph, rings, set(), halogens)
+    if not attachment:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "
             "exocyclic substituent alongside a chain nitrile is not "
@@ -564,6 +558,9 @@ def _name_phenyl_chain_nitrile(mol, ring_atoms):
 
 
 def name_nitrile(mol) -> str:
+    aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
+    if aromatic_rings is not None:
+        return _name_phenyl_chain_nitrile(mol, set().union(*aromatic_rings))
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
@@ -652,7 +649,7 @@ def name_nitrile(mol) -> str:
             "supported (see P-31.1.1.1)"
         )
 
-    if mol.GetRingInfo().NumRings() != 0:
+    if carbon_on_ring(mol, adjacency(mol), [c for n in nitriles for c in adjacency(mol)[n]]):
         raise UnsupportedStructure(
             "this ring shape alongside a nitrile (ring unsaturation, or a "
             "ring other than a single saturated monocyclic/benzene one) is "

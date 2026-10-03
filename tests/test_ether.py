@@ -39,7 +39,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("CCCCOC(C)C", "1-(propan-2-yloxy)butane"),
         # Longer R' side also branched: PubChem CID 28488 confirms the
         # structure ("2-methyl-2-propan-2-yloxypropane").
-        ("CC(C)OC(C)(C)C", "2-(propan-2-yloxy)-2-methylpropane"),
+        ("CC(C)OC(C)(C)C", "2-methyl-2-(propan-2-yloxy)propane"),
     ],
 )
 def test_ether(smiles, expected):

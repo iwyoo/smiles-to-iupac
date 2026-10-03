@@ -118,20 +118,24 @@ from ._common import (
     UnsupportedStructure,
     YNE_BOND_ORDER,
     adjacency,
+    all_chains,
     bfs,
     bond_locant,
-    bond_locants,
     carbon_adjacency,
+    carbon_on_ring,
+    chain_bond_locants,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain,
-    longest_chains,
     lowest_locant_set,
+    most_multiple_bonds,
     name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
+    ring_chain_attachments_with_halogens,
+    separate_aromatic_monocycles,
     ring_cycle,
     ring_name_from_substituents,
     specified_stereocenters,
@@ -500,8 +504,7 @@ def _name_acyclic_amide(
         if k not in excluded_carbons
     }
 
-    chains = longest_chains(carbon_graph)
-    chain_length = len(chains[0])
+    chains = all_chains(carbon_graph)
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     eligible = []
@@ -509,8 +512,6 @@ def _name_acyclic_amide(
         if amide_carbon not in chain:
             continue
         if not required_atoms <= set(chain):
-            continue
-        if bonds and bond_locants(chain, bonds) is None:
             continue
         chain_set = set(chain)
         if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
@@ -520,7 +521,6 @@ def _name_acyclic_amide(
         if stereo is not None and any(
             amide_carbon in c
             and required_atoms <= set(c)
-            and (not bonds or bond_locants(c, bonds) is not None)
             for c in chains
         ):
             raise UnsupportedStructure(
@@ -536,13 +536,15 @@ def _name_acyclic_amide(
     best_key = None
     best_name = None
     best_position_of = None
+    chain_length = max(len(c) for c in eligible)
+    eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             if candidate[0] != amide_carbon:
                 # The amide carbon must sit at C1 (see module docstring); a
                 # direction that doesn't start there is never valid.
                 continue
-            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
@@ -627,7 +629,11 @@ def _name_ring_amide(mol, ring_atoms, stereo=None):
 
     graph = adjacency(mol)
     excluded_atoms = {amide_oxygen, amide_nitrogen}
-    all_non_single = [b for b in non_single_bonds(mol) if b[0] not in excluded_atoms and b[1] not in excluded_atoms]
+    all_non_single = [
+        b
+        for b in non_single_bonds(mol)
+        if b[0] not in excluded_atoms and b[1] not in excluded_atoms and b[0] in ring_atoms and b[1] in ring_atoms
+    ]
     if all_non_single:
         raise UnsupportedStructure(
             "an unsaturated ring alongside an amide substituent is not "
@@ -717,19 +723,6 @@ def _name_benzamide(mol, ring_atoms):
 
     graph = adjacency(mol)
     excluded_atoms = {amide_oxygen, amide_nitrogen}
-    all_non_single = [
-        b
-        for b in non_single_bonds(mol)
-        if b[0] not in excluded_atoms
-        and b[1] not in excluded_atoms
-        and (b[0] not in ring_atoms or b[1] not in ring_atoms)
-    ]
-    if all_non_single:
-        raise UnsupportedStructure(
-            "unsaturation outside the ring alongside benzamide is not "
-            "supported yet"
-        )
-
     ring_neighbors = [n for n in graph[amide_carbon] if n in ring_atoms]
     if len(ring_neighbors) != 1:
         raise UnsupportedStructure(
@@ -806,8 +799,9 @@ def _name_phenyl_chain_amide(mol, ring_atoms):
 
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
-    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
-    if attachment is None:
+    rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
+    attachment = ring_chain_attachments_with_halogens(graph, rings, set(), halogens)
+    if not attachment:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "
             "exocyclic substituent alongside a chain amide is not "
@@ -874,6 +868,9 @@ def _name_amide_with_n_phenyl(mol, ring_atoms):
 
 
 def name_amide(mol) -> str:
+    aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
+    if aromatic_rings is not None:
+        return _name_phenyl_chain_amide(mol, set().union(*aromatic_rings))
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
@@ -901,7 +898,7 @@ def name_amide(mol) -> str:
         _validate_and_collect_amide(mol)
     )
     stereo = specified_stereocenters(mol)
-    if mol.GetRingInfo().NumRings() > 0:
+    if carbon_on_ring(mol, adjacency(mol), [amide_carbon]):
         raise UnsupportedStructure(
             "this ring shape alongside an amide (a true lactam, N-alkyl "
             "substitution, more than one amide, a standalone hydroxyl, "

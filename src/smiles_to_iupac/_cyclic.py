@@ -50,6 +50,10 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   *is* on the ring itself, with no cis/trans partner, remains out of
   scope.
 
+- P-29.2 / P-31.1.4.3.4 (Chapter P-2/P-3): an exocyclic multiple bond makes the
+  substituent an ylidene/enyl/ynyl prefix ('ethylidene', 'prop-1-en-1-yl',
+  ...) named by `name_branch` and numbered like any detachable prefix.
+
 Fused, bridged, and spiro ring systems are out of scope for this module and
 raise NotImplementedError.
 """
@@ -219,27 +223,12 @@ def name_cycloalkane(mol) -> str:
     halogens = halogen_substituents(mol)
     ring_atoms = list(ring_info.AtomRings()[0])
     ring_set = set(ring_atoms)
-    # A ring-internal non-single bond makes the ring itself unsaturated --
-    # checked separately from any exocyclic one below (e.g. an
-    # '=CH2'/'=CHR' substituent) since that's a different, still-
-    # saturated-ring shape (`find_exocyclic_ylidene_core`/`name_exocyclic_
-    # ylidene`, dispatched by `core.py` before this function is ever
-    # reached) with its own distinct message -- but this function's own
-    # `substituents_for_ring`/`name_branch` walk below has no bond-order
-    # awareness at all, so a non-single bond that reaches here unclaimed
-    # by that earlier dispatch (anything other than that one recognized
-    # shape) must still be rejected outright rather than silently walked
-    # as if it were a plain single-bonded substituent.
-    bonds = non_single_bonds(mol)
-    if any(a in ring_set and b in ring_set for a, b, _ in bonds):
+    # `core.py` routes a ring-internal multiple bond to `_cyclic_unsaturated.py`
+    # first, so one reaching here is an unsupported shape.
+    if any(a in ring_set and b in ring_set for a, b, _ in non_single_bonds(mol)):
         raise UnsupportedStructure(
             "unsaturated rings are not supported yet (see P-31.1.3, "
             "cycloalkenes and cycloalkynes)"
-        )
-    if bonds:
-        raise UnsupportedStructure(
-            "an exocyclic double or triple bond is not supported here "
-            "(see P-29.2)"
         )
     ring_order = ring_cycle(graph, ring_atoms)
     ring_size = len(ring_order)
@@ -266,7 +255,7 @@ def name_cycloalkane(mol) -> str:
         rotated = ring_order[start:] + ring_order[:start]
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
-            substituents = substituents_for_ring(graph, candidate, halogens, mol=mol)
+            substituents = substituents_for_ring(graph, candidate, halogens, mol=mol, unsaturated=True)
             if branch_stereo is not None:
                 branch_ring_atom, display = branch_stereo
                 substituents[position_of[branch_ring_atom]] = [(display, False)]
@@ -278,61 +267,3 @@ def name_cycloalkane(mol) -> str:
         prefix, _ = cis_trans
         return f"{prefix}{best_name}"
     return best_name
-
-
-def find_exocyclic_ylidene_core(mol):
-    """(ring_atoms, ring_atom, root) if `mol` is a plain, saturated,
-    all-carbon monocyclic ring bearing exactly one exocyclic C=C double
-    bond to an otherwise plain carbon chain, and no other substituent
-    anywhere on the ring -- e.g. methylidenecyclohexane (PubChem CID
-    14502, 'C1CCC(=C)CC1') -- else None. Deliberately narrow (P-29.2):
-    any other ring substituent, a second exocyclic double bond, or a
-    triple bond leaves this unmatched, falling through to
-    `name_cycloalkane`'s own now-unconditional rejection of a remaining
-    non-single bond (see its own docstring comment)."""
-    ring_info = mol.GetRingInfo()
-    if ring_info.NumRings() != 1:
-        return None
-    ring_atoms = set(ring_info.AtomRings()[0])
-    for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != 6 or atom.GetIsAromatic():
-            return None
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0 or atom.GetNumRadicalElectrons() != 0:
-            return None
-
-    bonds = non_single_bonds(mol)
-    if len(bonds) != 1 or bonds[0][2] != 2.0:
-        return None
-    a, b, _ = bonds[0]
-    if (a in ring_atoms) == (b in ring_atoms):
-        return None
-    ring_atom, root = (a, b) if a in ring_atoms else (b, a)
-
-    graph = adjacency(mol)
-    for atom_idx in ring_atoms:
-        outside = [n for n in graph[atom_idx] if n not in ring_atoms]
-        if atom_idx == ring_atom:
-            if outside != [root]:
-                return None
-        elif outside:
-            return None
-    return ring_atoms, ring_atom, root
-
-
-def name_exocyclic_ylidene(mol, core) -> str:
-    """P-29.2's own '=CH2'/'=CHR' ylidene substituent-prefix construction
-    (the same alkyl-name-plus-'idene' mechanism `_radical.py`'s
-    `_radical_suffix` uses for its own divalent radical suffix, reused
-    here as a prefix instead) on an otherwise plain, unsubstituted
-    saturated monocyclic ring parent -- e.g. 'methylidenecyclohexane'.
-    P-14.3.3: the ring's own locant is never cited here, since it's the
-    ring's sole substituent (mirrors `_name_from_substituents`'s
-    identical single-substituent citation above)."""
-    ring_atoms, ring_atom, root = core
-    graph = adjacency(mol)
-    ring_order = ring_cycle(graph, list(ring_atoms))
-    ring_size = len(ring_order)
-    yl_name, is_compound = name_branch(graph, root, ring_atom, {}, mol=mol)
-    ylidene_name = yl_name + "idene"
-    grouped = group_substituents({1: [(ylidene_name, is_compound)]})
-    return _name_from_substituents(ring_size, grouped)

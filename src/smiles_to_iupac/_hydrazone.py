@@ -230,11 +230,10 @@ def _name_hydrazone_carbon(mol, carbon_idx, imine_n_idx):
 
     if best_locant == 1:
         # P-29.2: the free valence is always locant 1 of a substituent
-        # prefix and never cited -- the exact numbering/branch-naming
-        # `name_branch` already applies for an ordinary '-yl' substituent
-        # rooted at its own attachment point (see module docstring).
+        # prefix and never cited; `name_branch` reads the C=N bond order
+        # and returns the '-ylidene' form directly.
         branch_name, _ = name_branch(graph, carbon_idx, imine_n_idx, halogens, mol=mol)
-        return branch_name + "idene"
+        return branch_name
 
     chain_length = len(chains[0])
     best_key = None

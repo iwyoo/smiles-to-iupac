@@ -96,11 +96,8 @@ def test_ring_carboxylic_acid_standalone_hydroxyl_raises():
         smiles_to_iupac("OC1CCCCC1C(=O)O")
 
 
-def test_ring_carboxylic_acid_intervening_chain_carbon_raises():
-    # A -COOH one chain carbon away from the ring (rather than directly
-    # attached) is still out of scope for this first slice.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCC(CC1)CC(=O)O")
+def test_ring_carboxylic_acid_intervening_chain_carbon():
+    assert smiles_to_iupac("C1CCC(CC1)CC(=O)O") == "2-cyclohexylethanoic acid"
 
 
 def test_ring_carboxylic_acid_two_carboxyls_raises():

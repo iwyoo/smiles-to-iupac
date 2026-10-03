@@ -116,7 +116,7 @@ from ._carboxylic_acid_sulfonic_acid import (
     name_carboxylic_acid_sulfonic_acid,
 )
 from ._common import UnsupportedStructure, non_single_bonds
-from ._cyclic import find_exocyclic_ylidene_core, name_cycloalkane, name_exocyclic_ylidene
+from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
 from ._dihydro_aromatic import (
@@ -127,7 +127,7 @@ from ._dihydro_aromatic import (
     name_dihydronaphthalene,
     name_partially_unsaturated_naphthalene,
 )
-from ._diester_acyloxy import has_diester_shape, name_diester_acyloxy
+from ._diester_acyloxy import has_diester_shape, has_polyester_of_one_polyol_shape, name_diester_acyloxy
 from ._ester import has_ester_shape, name_ester
 from ._cyanate import has_cyanate_shape, name_cyanate
 from ._ether import has_ether_shape, name_ether
@@ -138,6 +138,7 @@ from ._ether_hydroperoxide import has_ether_hydroperoxide_shape, name_ether_hydr
 from ._ether_ketone import has_ether_ketone_shape, name_ether_ketone
 from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
 from ._fullerene import has_fullerene_name, name_fullerene
+from ._multiplicative import name_if_multiplicative
 from ._nucleoside import has_nucleoside_name, name_nucleoside
 from ._nucleotide import has_nucleotide_name, name_nucleotide
 from ._metallacycle import has_metallacycle_shape, name_metallacycle
@@ -441,6 +442,11 @@ def smiles_to_iupac(smiles: str) -> str:
     if has_metal_pair_shape(mol):
         return name_metal_pair(mol)
 
+    # A ring-system diester of one polyol (P-65.6.3.3.3) is claimed before every
+    # ring/functional-group shape check below, which would misread its esters.
+    if has_polyester_of_one_polyol_shape(mol):
+        return name_diester_acyloxy(mol)
+
     # A chalcogen ring-oxide (P-62.5's functional-class "oxide" pattern,
     # not limited to acyclic amines) breaks the ring's own aromaticity as
     # RDKit perceives it, so it must be routed here before any ring-shape
@@ -517,6 +523,10 @@ def smiles_to_iupac(smiles: str) -> str:
     # this check's original position further down ever ran.
     if has_amino_acid_shape(mol):
         return name_amino_acid(mol)
+
+    multiplicative_name = name_if_multiplicative(mol)
+    if multiplicative_name is not None:
+        return multiplicative_name
 
     # An unbranched chain of 3-6 disjoint mancude rings (aromatic benzo,
     # saturated cycloalkane, or pyridine -- P-28.3) -- e.g. terphenyl,
@@ -2243,16 +2253,6 @@ def smiles_to_iupac(smiles: str) -> str:
         unsaturated_ring = find_cyclic_unsaturated_core(mol)
         if unsaturated_ring is not None:
             return name_cyclic_unsaturated(mol, unsaturated_ring)
-        # A plain exocyclic double bond (e.g. '=CH2'/'=CHR') on an
-        # otherwise saturated, unsubstituted ring -- e.g.
-        # methylidenecyclohexane -- is a different shape from both the
-        # ring-internal-unsaturation case above and `name_cycloalkane`'s
-        # own plain saturated ring below, so it must be routed here first;
-        # `name_cycloalkane` itself now rejects any exocyclic non-single
-        # bond that reaches it unclaimed (see its own docstring comment).
-        exocyclic_ylidene_core = find_exocyclic_ylidene_core(mol)
-        if exocyclic_ylidene_core is not None:
-            return name_exocyclic_ylidene(mol, exocyclic_ylidene_core)
         return name_cycloalkane(mol)
 
     # Two disjoint (unfused) identical rings or ring systems joined by a C=C

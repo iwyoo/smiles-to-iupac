@@ -60,14 +60,13 @@ def test_ring_substituent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_substituted_phenyl_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1N=N")
+def test_substituted_phenyl():
+    assert smiles_to_iupac("Cc1ccccc1N=N") == "(2-methylphenyl)diazene"
 
 
 def test_chloroethyldiazene_name():
     # PubChem auto-generated name matches exactly.
-    assert smiles_to_iupac("ClCCN=N") == "2-chloroethyldiazene"
+    assert smiles_to_iupac("ClCCN=N") == "(2-chloroethyl)diazene"
 
 
 def test_bis_chloroethyldiazene_name():

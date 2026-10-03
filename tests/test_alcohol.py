@@ -400,11 +400,9 @@ def test_heteroaromatic_substituent_alcohol_directly_on_ring_raises():
         smiles_to_iupac("Oc1cccnc1")
 
 
-def test_substituted_ring_with_chain_hydroxyl_raises():
-    # the ring itself carries an extra substituent (not just the OH-bearing
-    # chain) -- out of this module's minimal scope.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC1CCCCC1C")
+def test_substituted_ring_cited_as_substituent_of_chain_alcohol():
+    assert smiles_to_iupac("OCC1CCCCC1C") == "(2-methylcyclohexyl)methanol"
+    assert smiles_to_iupac("OCCC1CCCCC1C") == "2-(2-methylcyclohexyl)ethanol"
 
 
 def test_branched_chain_hydroxyl_on_ring():
@@ -600,3 +598,17 @@ def test_branch_point_prefers_halogen_bearing_arm_over_plain_alkyl_arm():
         smiles_to_iupac("CC(O)(Cc1cccc(F)c1)C(F)(F)Br")
         == "1-bromo-1,1-difluoro-3-(3-fluorophenyl)-2-methylpropan-2-ol"
     )
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OC(c1ccccc1)c1ccccc1", "diphenylmethanol"),
+        ("OC(c1ccccc1)(c1ccccc1)c1ccccc1", "triphenylmethanol"),
+        ("OC(Cc1ccccc1)c1ccccc1", "1,2-diphenylethanol"),
+        ("OC(Cc1ccc(Cl)cc1)c1ccccc1", "2-(4-chlorophenyl)-1-phenylethanol"),
+        ("OC(c1ccccc1)c1ccccn1", "phenyl(pyridin-2-yl)methanol"),
+    ],
+)
+def test_chain_alcohol_with_several_aromatic_ring_substituents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

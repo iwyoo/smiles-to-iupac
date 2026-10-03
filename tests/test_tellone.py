@@ -53,14 +53,12 @@ def test_ring_substituent_chain_tellone():
     assert smiles_to_iupac("CC(=[Te])C1CCCCC1") == "1-cyclohexylethanetellone"
 
 
-def test_ring_substituent_chain_tellone_ring_with_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=[Te])C1CCC(C)CC1")
+def test_ring_substituent_chain_tellone_ring_with_substituent():
+    assert smiles_to_iupac("CC(=[Te])C1CCC(C)CC1") == "1-(4-methylcyclohexyl)ethanetellone"
 
 
-def test_ring_substituent_chain_tellone_unsaturated_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=[Te])C1CCCC=C1")
+def test_ring_substituent_chain_tellone_unsaturated_ring():
+    assert smiles_to_iupac("CC(=[Te])C1CCCC=C1") == "1-(cyclohex-2-en-1-yl)ethanetellone"
 
 
 def test_ring_with_tellone_chain_tellone_tie():

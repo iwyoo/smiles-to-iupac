@@ -105,16 +105,18 @@ from ._common import (
     UnsupportedStructure,
     YNE_BOND_ORDER,
     adjacency,
+    all_chains,
     bond_locant,
     bond_locants,
     carbon_adjacency,
+    chain_bond_locants,
     component_subgraph,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain,
-    longest_chains,
     lowest_locant_set,
+    most_multiple_bonds,
     name_from_substituents,
     non_single_bonds,
     plain_saturated_ring_substituent_atoms,
@@ -243,13 +245,6 @@ def _name_alcohol_part(mol, alcohol_carbon, ester_oxygen_idx):
                 "the alcohol part (R') must be a plain alkyl group; "
                 "heteroatoms/halogens there are not supported yet (P-65.6.3)"
             )
-    for a, b, _ in non_single_bonds(mol):
-        if a in component and b in component:
-            raise UnsupportedStructure(
-                "unsaturation in the alcohol part (R') is not supported yet "
-                "(P-65.6.3)"
-            )
-
     name, _ = name_branch(full_graph, alcohol_carbon.GetIdx(), ester_oxygen_idx, {}, mol=mol)
     return name
 
@@ -319,14 +314,18 @@ def _name_acyl_part(
     unaffected."""
     full_graph = adjacency(mol)
     carbon_graph = carbon_adjacency(mol)
+    named_carbons = {a for a in (extra_names or {}) if a in carbon_graph}
+    if named_carbons:
+        carbon_graph = {
+            a: [n for n in ns if n not in named_carbons] for a, ns in carbon_graph.items() if a not in named_carbons
+        }
     halogens = {**halogen_substituents(mol), **(extra_names or {})}
     acyl_carbon_idx = acyl_carbon.GetIdx()
     excluded_oxygens = {carbonyl_oxygen_idx, ester_oxygen_idx}
     bond_scan_excluded = excluded_oxygens | extra_excluded_atoms
 
     acyl_graph = component_subgraph(carbon_graph, acyl_carbon_idx)
-    chains = longest_chains(acyl_graph)
-    chain_length = len(chains[0])
+    chains = all_chains(acyl_graph)
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     all_non_single = [
@@ -345,18 +344,14 @@ def _name_acyl_part(
 
     eligible = []
     for chain in chains:
-        if not required_atoms <= set(chain):
-            continue
-        if bonds and bond_locants(chain, bonds) is None:
+        if acyl_carbon_idx not in chain or not required_atoms <= set(chain):
             continue
         chain_set = set(chain)
         if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
             continue
         eligible.append(chain)
     if not eligible:
-        if stereo is not None and any(
-            not bonds or bond_locants(c, bonds) is not None for c in chains
-        ):
+        if stereo is not None:
             raise UnsupportedStructure(
                 "a stereocenter on a substituent branch rather than the "
                 "principal chain is not supported yet (see P-92)"
@@ -369,13 +364,15 @@ def _name_acyl_part(
     best_key = None
     best_name = None
     best_position_of = None
+    chain_length = max(len(c) for c in eligible)
+    eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             if candidate[0] != acyl_carbon_idx:
                 # The ester carbon must sit at C1 (see module docstring); a
                 # direction that doesn't start there is never valid.
                 continue
-            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(full_graph, candidate, halogens, excluded_oxygens, mol=mol)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
@@ -531,22 +528,10 @@ def _name_benzoate_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_ox
             "supported yet"
         )
     excluded_oxygens = {carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx()}
-    all_non_single = non_single_bonds(mol)
-    if any(
-        a not in excluded_oxygens
-        and b not in excluded_oxygens
-        and (a not in ring_atoms or b not in ring_atoms)
-        for a, b, _ in all_non_single
-    ):
-        raise UnsupportedStructure(
-            "unsaturation outside the ring alongside a benzoate ester is "
-            "not supported yet"
-        )
-
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     alcohol_name = _name_alcohol_part(mol, alcohol_carbon, ester_oxygen.GetIdx())
-    acyl_name = _name_benzo_attached_carboxyl(graph, ring_atoms, acyl_carbon.GetIdx(), halogens, word="benzoate")
+    acyl_name = _name_benzo_attached_carboxyl(graph, ring_atoms, acyl_carbon.GetIdx(), halogens, word="benzoate", mol=mol)
     return f"{alcohol_name} {acyl_name}"
 
 
@@ -576,7 +561,10 @@ def _name_ring_acyl_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_o
         )
     excluded_oxygens = {carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx()}
     all_non_single = non_single_bonds(mol)
-    if any(a not in excluded_oxygens and b not in excluded_oxygens for a, b, _ in all_non_single):
+    if any(
+        a not in excluded_oxygens and b not in excluded_oxygens and a in ring_atoms and b in ring_atoms
+        for a, b, _ in all_non_single
+    ):
         raise UnsupportedStructure(
             "an unsaturated ring alongside a ring-attached ester acyl "
             "group is not supported yet (see P-31.1.3)"
@@ -584,7 +572,7 @@ def _name_ring_acyl_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_o
 
     halogens = halogen_substituents(mol)
     alcohol_name = _name_alcohol_part(mol, alcohol_carbon, ester_oxygen.GetIdx())
-    acyl_name = _name_ring_attached_carboxyl(graph, ring_atoms, acyl_idx, halogens, suffix="carboxylate")
+    acyl_name = _name_ring_attached_carboxyl(graph, ring_atoms, acyl_idx, halogens, suffix="carboxylate", mol=mol)
     return f"{alcohol_name} {acyl_name}"
 
 

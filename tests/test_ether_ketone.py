@@ -28,7 +28,7 @@ def test_branched_alkoxy_r_prime_on_main_chain():
     # `test_ether.py`'s own note on the same bug across all 8 ether
     # modules. PubChem-verified reference:
     # '4,4-dimethyl-5-propan-2-yloxypentan-2-one'.
-    assert smiles_to_iupac("CC(=O)CC(C)(C)COC(C)C") == "5-(propan-2-yloxy)-4,4-dimethylpentan-2-one"
+    assert smiles_to_iupac("CC(=O)CC(C)(C)COC(C)C") == "4,4-dimethyl-5-(propan-2-yloxy)pentan-2-one"
 
 
 def test_halogen_on_main_chain_still_works():

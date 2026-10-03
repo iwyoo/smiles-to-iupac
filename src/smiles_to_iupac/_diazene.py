@@ -151,8 +151,8 @@ def name_diazene(mol) -> str:
     if not substituents:
         return "diazene"
     if len(substituents) == 1:
-        (name, _), = substituents
-        return name + "diazene"
+        (name, compound), = substituents
+        return (f"({name})" if compound and name[0].isdigit() else name) + "diazene"
 
     (name_a, compound_a), (name_b, compound_b) = substituents
     if name_a == name_b:

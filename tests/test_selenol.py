@@ -122,14 +122,12 @@ def test_ring_substituent_chain_selenol():
     assert smiles_to_iupac("C1CCCCC1C[SeH]") == "cyclohexylmethaneselenol"
 
 
-def test_ring_substituent_chain_selenol_ring_with_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCC(C)CC1C[SeH]")
+def test_ring_substituent_chain_selenol_ring_with_substituent():
+    assert smiles_to_iupac("C1CCC(C)CC1C[SeH]") == "(3-methylcyclohexyl)methaneselenol"
 
 
-def test_ring_substituent_chain_selenol_unsaturated_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1=CCCCC1C[SeH]")
+def test_ring_substituent_chain_selenol_unsaturated_ring():
+    assert smiles_to_iupac("C1=CCCCC1C[SeH]") == "(cyclohex-2-en-1-yl)methaneselenol"
 
 
 def test_ring_with_selenol_chain_selenol_tie():

@@ -82,19 +82,22 @@ from ._common import (
     UnsupportedStructure,
     YNE_BOND_ORDER,
     adjacency,
-    bond_locants,
+    all_chains,
     carbon_adjacency,
+    chain_bond_locants,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     linear_branch,
     longest_branched_chain,
-    longest_chains,
     lowest_locant_set,
+    most_multiple_bonds,
     name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
+    ring_chain_attachments_with_halogens,
+    separate_aromatic_monocycles,
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
@@ -397,14 +400,11 @@ def _name_acyclic_amidine(
     n_alkyl_atoms = n_alkyl_atoms | set(extra_excluded_carbons)
 
     carbon_graph = {k: v for k, v in full_carbon_graph.items() if k not in n_alkyl_atoms}
-    chains = longest_chains(carbon_graph)
-    chain_length = len(chains[0])
+    chains = all_chains(carbon_graph)
 
     eligible = []
     for chain in chains:
         if amidine_carbon not in chain:
-            continue
-        if bonds and bond_locants(chain, bonds) is None:
             continue
         eligible.append(chain)
     if not eligible:
@@ -416,13 +416,15 @@ def _name_acyclic_amidine(
 
     best_key = None
     best_name = None
+    chain_length = max(len(c) for c in eligible)
+    eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             if candidate[0] != amidine_carbon:
                 # The amidine carbon must sit at C1 (see module docstring);
                 # a direction that doesn't start there is never valid.
                 continue
-            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
@@ -472,8 +474,9 @@ def _name_phenyl_chain_amidine(mol, ring_atoms):
 
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
-    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
-    if attachment is None:
+    rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
+    attachment = ring_chain_attachments_with_halogens(graph, rings, set(), halogens)
+    if not attachment:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "
             "exocyclic substituent alongside a chain amidine is not "
@@ -575,6 +578,9 @@ def _name_amidine_with_n_phenyl(mol, ring_atoms):
 
 
 def name_amidine(mol) -> str:
+    aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
+    if aromatic_rings is not None:
+        return _name_phenyl_chain_amidine(mol, set().union(*aromatic_rings))
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])

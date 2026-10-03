@@ -68,7 +68,6 @@ from ._common import (
     halogen_substituents,
     non_single_bonds,
     plain_phenyl_substituent_atoms,
-    unbranched_unsaturated_substituent_name,
 )
 from ._substituents import format_mononuclear_prefixes, halogenated_phenyl_substituent, name_branch
 
@@ -207,19 +206,8 @@ def _validate_and_collect_substituents(mol, metal, stems, max_substituents):
             branch_atoms = _branch_atoms(graph, root, {metal_idx})
             branch_bonds = [b for b in unsaturated_bonds if b[0] in branch_atoms and b[1] in branch_atoms]
             if branch_bonds:
-                if len(branch_bonds) > 1:
-                    raise UnsupportedStructure(
-                        "more than one unsaturated bond on a single substituent branch is not supported yet"
-                    )
-                # `name_branch` has no ene/yne machinery of its own (see
-                # `_aromatic.py`'s identical construction) -- named
-                # directly via the shared unbranched-alkenyl/alkynyl
-                # helper instead. Enclosed in parentheses (is_compound
-                # True) to match the Blue Book's own worked example,
-                # `bromodi(ethenyl)stibane (PIN)`.
-                name = unbranched_unsaturated_substituent_name(carbon_graph, root, branch_bonds[0], coming_from=metal_idx)
-                if name is None:
-                    raise UnsupportedStructure("a branched unsaturated substituent is out of scope for this module")
+                # The Blue Book's worked example cites it as `bromodi(ethenyl)stibane (PIN)`.
+                name, _ = name_branch(graph, root, metal_idx, {}, mol=mol)
                 substituent_names.append((name, True))
                 continue
         substituent_names.append(name_branch(graph, root, metal.GetIdx(), {}, mol=mol))

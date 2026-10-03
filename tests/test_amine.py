@@ -103,23 +103,19 @@ def test_secondary_amine_halogenated_n_substituent():
 
 
 def test_secondary_amine_allyl_n_substituent():
-    # PubChem CID 12442641: 'N-prop-2-enylpentan-1-amine' -- the allyl
-    # group is the smaller N-linked chain here (pentyl is longer and
-    # becomes the parent), so it's cited as the N-substituent. The
-    # attachment locant is never cited (matches `_hetero_monocyclic.py`'s
-    # already-verified 'prop-2-enyl', not 'prop-2-en-1-yl').
-    assert smiles_to_iupac("C=CCNCCCCC") == "N-prop-2-enylpentan-1-amine"
+    # PubChem CID 12442641 lists 'N-prop-2-enylpentan-1-amine'; the PIN cites
+    # the free-valence locant (P-32.1.1: 'prop-2-en-1-yl').
+    assert smiles_to_iupac("C=CCNCCCCC") == "N-(prop-2-en-1-yl)pentan-1-amine"
 
 
 def test_secondary_amine_butenyl_n_substituent():
-    # PubChem CID 11018968: 'N-but-3-enylpentan-1-amine' -- a longer
-    # unsaturated N-substituent, double-bond locant '3' cited.
-    assert smiles_to_iupac("C=CCCNCCCCC") == "N-but-3-enylpentan-1-amine"
+    # PubChem CID 11018968 lists 'N-but-3-enylpentan-1-amine'; PIN style cites '1'.
+    assert smiles_to_iupac("C=CCCNCCCCC") == "N-(but-3-en-1-yl)pentan-1-amine"
 
 
 def test_secondary_amine_propargyl_n_substituent():
-    # PubChem CID 3465926: 'N-prop-2-ynylbutan-1-amine'.
-    assert smiles_to_iupac("C#CCNCCCC") == "N-prop-2-ynylbutan-1-amine"
+    # PubChem CID 3465926 lists 'N-prop-2-ynylbutan-1-amine'; PIN style cites '1'.
+    assert smiles_to_iupac("C#CCNCCCC") == "N-(prop-2-yn-1-yl)butan-1-amine"
 
 
 def test_secondary_amine_vinyl_n_substituent_raises():
@@ -131,14 +127,12 @@ def test_secondary_amine_vinyl_n_substituent_raises():
         smiles_to_iupac("C=CNCCCC")
 
 
-def test_secondary_amine_branched_unsaturated_n_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CC(C)NCCCCC")
+def test_secondary_amine_branched_unsaturated_n_substituent():
+    assert smiles_to_iupac("C=CC(C)NCCCCC") == "N-(but-3-en-2-yl)pentan-1-amine"
 
 
-def test_secondary_amine_two_multiple_bonds_on_n_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CC=CCNCCCCCCC")
+def test_secondary_amine_two_multiple_bonds_on_n_substituent():
+    assert smiles_to_iupac("C=CC=CCNCCCCCCC") == "N-(penta-2,4-dien-1-yl)heptan-1-amine"
 
 
 def test_secondary_amine_on_ring_raises():
@@ -224,9 +218,20 @@ def test_aniline():
     assert smiles_to_iupac("Nc1ccccc1Cl") == "2-chloroaniline"
 
 
-def test_n_substituted_aniline_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CNc1ccccc1")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CNc1ccccc1", "N-methylaniline"),
+        ("CN(C)c1ccccc1", "N,N-dimethylaniline"),
+        ("CCNc1ccc(Cl)cc1", "4-chloro-N-ethylaniline"),
+        ("c1ccccc1Nc1ccccc1", "N-phenylaniline"),
+        ("c1ccccc1N(c1ccccc1)c1ccccc1", "N,N-diphenylaniline"),
+        ("c1ccccc1CNc1ccccc1", "N-benzylaniline"),
+        ("NC(c1ccccc1)c1ccccc1", "diphenylmethanamine"),
+    ],
+)
+def test_n_substituted_aniline_and_multi_ring_chain_amine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_enamine_raises():
@@ -433,17 +438,15 @@ def test_ring_substituent_chain_amine_internal_locant():
     assert smiles_to_iupac("NC(C)C1CCCCC1") == "1-cyclohexylethanamine"
 
 
-def test_ring_substituent_chain_amine_ring_with_substituent_raises():
+def test_ring_substituent_chain_amine_ring_with_substituent():
     # A ring atom other than the chain attachment carrying its own
     # substituent is out of scope for this first pass -- mirrors
     # `_name_ring_substituent_chain_alcohol`'s identical restriction.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC1CCC(C)CC1")
+    assert smiles_to_iupac("NCC1CCC(C)CC1") == "(4-methylcyclohexyl)methanamine"
 
 
-def test_ring_substituent_chain_amine_unsaturated_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC1CCCC=C1")
+def test_ring_substituent_chain_amine_unsaturated_ring():
+    assert smiles_to_iupac("NCC1CCCC=C1") == "(cyclohex-2-en-1-yl)methanamine"
 
 
 def test_ring_with_amine_chain_amine_tie():

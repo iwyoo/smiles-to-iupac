@@ -234,11 +234,10 @@ def test_ring_aldehyde_multiple_groups_raises():
         smiles_to_iupac("O=CC1CCC(C=O)CC1")
 
 
-def test_bicyclic_carbon_skeleton_with_stray_aldehyde_raises():
-    # A -CHO group whose carbon is not on any single longest chain of the
-    # molecule (here, a branch off a longer chain) is out of scope.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCCCC(C=O)CCCC")
+def test_aldehyde_carbon_off_the_longest_chain():
+    # P-44.1.1: the principal chain must carry the -CHO even when a longer
+    # chain exists elsewhere.
+    assert smiles_to_iupac("CCCCC(C=O)CCCC") == "2-butylhexanal"
 
 
 @pytest.mark.parametrize(

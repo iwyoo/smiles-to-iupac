@@ -93,11 +93,8 @@ def test_ring_nitrile():
     assert smiles_to_iupac("N#CC1(C)CCCCC1") == "1-methylcyclohexane-1-carbonitrile"
 
 
-def test_bicyclic_carbon_skeleton_with_stray_nitrile_raises():
-    # A -C#N group whose carbon is not on any single longest chain of the
-    # molecule (here, a branch off a longer chain) is out of scope.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCCCC(C#N)CCCC")
+def test_nitrile_carbon_off_the_longest_chain():
+    assert smiles_to_iupac("CCCCC(C#N)CCCC") == "2-butylhexanenitrile"
 
 
 def test_amine_still_routes_to_amine_module():

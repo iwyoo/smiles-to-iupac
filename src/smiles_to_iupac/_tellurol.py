@@ -127,15 +127,16 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    bond_locants,
+    all_chains,
     carbon_adjacency,
+    chain_bond_locants,
     group_substituents,
     halogen_substituents,
     heteroaromatic_monocycle_name,
     is_plain_benzene_ring,
     longest_branched_chain_through,
-    longest_chains,
     lowest_locant_set,
+    most_multiple_bonds,
     multiplied_word,
     name_from_substituents,
     non_single_bonds,
@@ -708,51 +709,37 @@ def name_tellurol(mol) -> str:
         return _name_von_baeyer_or_spiro_tellurol(mol, tellurols, stereo, bonds)
     if num_rings == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
-        if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in bonds):
-            raise UnsupportedStructure(
-                "unsaturation outside the ring alongside a cyclic tellurol "
-                "is not supported yet (see P-31.1.3, cycloalkenes and "
-                "cycloalkynes)"
-            )
-        if any(order == _YNE_BOND_ORDER for _, _, order in bonds):
+        ring_bonds = [b for b in bonds if b[0] in ring_atoms and b[1] in ring_atoms]
+        if any(order == _YNE_BOND_ORDER for _, _, order in ring_bonds):
             raise UnsupportedStructure(
                 "a ring triple bond (cycloalkyne) alongside a tellurol is "
                 "not supported yet -- only a ring double bond is in scope "
                 "for this first pass (see P-31.1.3)"
             )
         ring_tellurols = {t for t in tellurols if next(iter(graph[t])) in ring_atoms}
-        if not bonds and not ring_tellurols:
-            if stereo is not None:
+        if ring_tellurols:
+            if not bonds and ring_tellurols and ring_tellurols != tellurols:
+                if stereo is not None:
+                    raise UnsupportedStructure(
+                        "a stereocenter alongside a ring-vs-chain tellurol "
+                        "comparison is not supported yet (see P-92)"
+                    )
+                return _name_ring_with_tellurol_chain_tellurol(mol, tellurols)
+            if ring_tellurols != tellurols:
                 raise UnsupportedStructure(
-                    "a stereocenter on a substituent branch rather than "
-                    "the ring itself is not supported yet (see P-92)"
+                    "a tellurol on a substituent branch chain rather than the "
+                    "ring itself is not supported yet"
                 )
-            return _name_ring_substituent_chain_tellurol(mol, tellurols)
-        if not bonds and ring_tellurols and ring_tellurols != tellurols:
-            if stereo is not None:
-                raise UnsupportedStructure(
-                    "a stereocenter alongside a ring-vs-chain tellurol "
-                    "comparison is not supported yet (see P-92)"
-                )
-            return _name_ring_with_tellurol_chain_tellurol(mol, tellurols)
-        if ring_tellurols != tellurols:
-            raise UnsupportedStructure(
-                "a tellurol on a substituent branch chain rather than the "
-                "ring itself is not supported yet"
-            )
-        return _name_cyclic_tellurol(mol, tellurols, stereo, bonds)
+            return _name_cyclic_tellurol(mol, tellurols, stereo, ring_bonds)
 
     halogens = halogen_substituents(mol)
-    chains = longest_chains(carbon_adjacency(mol))
-    chain_length = len(chains[0])
+    chains = all_chains(carbon_adjacency(mol))
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     eligible = []
     for chain in chains:
         position_of = {atom: i + 1 for i, atom in enumerate(chain)}
         if _te_locants(position_of, tellurols, graph) is None:
-            continue
-        if bonds and bond_locants(chain, bonds) is None:
             continue
         chain_set = set(chain)
         if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
@@ -761,7 +748,6 @@ def name_tellurol(mol) -> str:
     if not eligible:
         if stereo is not None and any(
             _te_locants({a: i + 1 for i, a in enumerate(c)}, tellurols, graph) is not None
-            and (not bonds or bond_locants(c, bonds) is not None)
             for c in chains
         ):
             raise UnsupportedStructure(
@@ -778,11 +764,13 @@ def name_tellurol(mol) -> str:
     best_key = None
     best_name = None
     best_position_of = None
+    chain_length = max(len(c) for c in eligible)
+    eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             te_locants = _te_locants(position_of, tellurols, graph)
-            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, tellurols, mol=mol)
             key, name = _candidate_key(chain_length, te_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
