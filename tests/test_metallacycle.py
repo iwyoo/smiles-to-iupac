@@ -41,3 +41,21 @@ def test_metallacycle_with_unsaturated_ligand_raises():
 def test_metallacycle_with_two_metals_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[Ni]1CC[Ni]C1")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "[Si]1(Cl)(Cl)[Fe](C#[O+])(C#[O+])(C#[O+])(C#[O+])CCC1",
+            "2,2,2,2-tetracarbonyl-1,1-dichloro-1-sila-2-ferracyclopentane",
+        ),
+        (
+            "CC1=CC(C)=C[Ir](C#[O+])(P(CC)(CC)CC)(P(CC)(CC)CC)=C1",
+            "1-carbonyl-3,5-dimethyl-1,1-bis(triethylphosphane)-1-iridabenzene",
+        ),
+        ("C[Ir]1(C#[O+])=CC(C)=CC(C)=C1", "1-carbonyl-1,3,5-trimethyl-1-iridabenzene"),
+    ],
+)
+def test_hetero_and_metallabenzene_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
