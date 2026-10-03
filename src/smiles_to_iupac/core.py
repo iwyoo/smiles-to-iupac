@@ -129,6 +129,7 @@ from ._dihydro_aromatic import (
 )
 from ._diester_acyloxy import has_diester_shape, has_polyester_of_one_polyol_shape, name_diester_acyloxy
 from ._ester import has_ester_shape, name_ester
+from ._polyfunctional import name_polyfunctional
 from ._cyanate import has_cyanate_shape, name_cyanate
 from ._ether import has_ether_shape, name_ether
 from ._ether_amine import has_ether_amine_shape, name_ether_amine
@@ -389,6 +390,17 @@ def _is_aldehyde_shaped(carbonyl_oxygen):
 
 
 def smiles_to_iupac(smiles: str) -> str:
+    try:
+        return _smiles_to_iupac_dispatch(smiles)
+    except UnsupportedStructure as original:
+        mol = Chem.MolFromSmiles(smiles)
+        try:
+            return name_polyfunctional(mol)
+        except UnsupportedStructure:
+            raise original
+
+
+def _smiles_to_iupac_dispatch(smiles: str) -> str:
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError(f"invalid SMILES: {smiles!r}")

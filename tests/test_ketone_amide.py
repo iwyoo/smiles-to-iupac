@@ -30,19 +30,16 @@ def test_plain_ketone_still_works():
     assert smiles_to_iupac("CC(=O)C") == "propan-2-one"
 
 
-def test_unsaturated_chain_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CC(=O)CC(N)=O")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("C=CC(=O)CC(N)=O") == "3-oxopent-4-enamide"
 
 
-def test_ring_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(=O)C1CCC1=O")
+def test_ring():
+    assert smiles_to_iupac("NC(=O)C1CCC1=O") == "2-oxocyclobutane-1-carboxamide"
 
 
-def test_hydroxyl_coexistence_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC(=O)CC(N)=O")
+def test_hydroxyl_coexistence():
+    assert smiles_to_iupac("OCC(=O)CC(N)=O") == "4-hydroxy-3-oxobutanamide"
 
 
 def test_n_substituted_amide_not_supported():
@@ -61,6 +58,5 @@ def test_phenyl_chain_ketone_amide():
     assert smiles_to_iupac("c1ccccc1CCC(=O)C(N)=O") == "2-oxo-4-phenylbutanamide"
 
 
-def test_phenyl_chain_ketone_amide_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC(=O)CC(N)=O")
+def test_phenyl_chain_ketone_amide_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CC(=O)CC(N)=O") == "4-(2-ethenylphenyl)-3-oxobutanamide"

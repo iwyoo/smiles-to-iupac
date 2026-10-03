@@ -2,7 +2,7 @@ import pytest
 from rdkit import Chem
 
 from smiles_to_iupac import smiles_to_iupac
-from smiles_to_iupac._common import UnsupportedStructure, adjacency
+from smiles_to_iupac._common import halogen_substituents, UnsupportedStructure, adjacency
 from smiles_to_iupac._substituents import name_branch
 
 
@@ -149,8 +149,10 @@ def test_mol_defends_against_unvalidated_heteroatom_branch():
     mol = Chem.MolFromSmiles("CCCN")
     graph = adjacency(mol)
     assert name_branch(graph, 1, 0, {}) == ("propyl", False)
+    assert name_branch(graph, 1, 0, {}, mol=mol) == ("2-aminoethyl", True)
+    unsupported = Chem.MolFromSmiles("CCCP")
     with pytest.raises(UnsupportedStructure):
-        name_branch(graph, 1, 0, {}, mol=mol)
+        name_branch(adjacency(unsupported), 1, 0, {}, mol=unsupported)
 
 
 def test_mol_names_unsaturated_branch():
@@ -185,3 +187,29 @@ def test_halogenated_phenyl_substituent_non_tied_locant_set():
     # unaffected by the alphabetical tiebreak added above. PubChem CID
     # 83724710.
     assert smiles_to_iupac("CC(=O)Cc1c(Cl)c(Br)ccc1") == "1-(3-bromo-2-chlorophenyl)propan-2-one"
+
+
+@pytest.mark.parametrize(
+    "smiles,root,parent,expected",
+    [
+        ("OCOC", 1, 0, ("methoxymethyl", True)),
+        ("OCOc1ccccc1", 1, 0, ("phenoxymethyl", True)),
+        ("OCOC(C)C", 1, 0, ("(propan-2-yloxy)methyl", True)),
+        ("OCOCCCl", 1, 0, ("(2-chloroethoxy)methyl", True)),
+        ("OCSC", 1, 0, ("(methylsulfanyl)methyl", True)),
+        ("OCN(C)C", 1, 0, ("(dimethylamino)methyl", True)),
+        ("OCN(C)CC", 1, 0, ("[ethyl(methyl)amino]methyl", True)),
+        ("OCNc1ccccc1", 1, 0, ("anilinomethyl", True)),
+        ("OCC#N", 1, 0, ("cyanomethyl", True)),
+        ("OCC(=O)C", 1, 0, ("2-oxopropyl", True)),
+        ("OCC=O", 1, 0, ("2-oxoethyl", True)),
+        ("OCC(=O)O", 1, 0, ("carboxymethyl", True)),
+        ("OCC(=O)OC", 1, 0, ("(methoxycarbonyl)methyl", True)),
+        ("OCC(N)=O", 1, 0, ("carbamoylmethyl", True)),
+        ("OCOCc1ccccc1", 1, 0, ("(benzyloxy)methyl", True)),
+    ],
+)
+def test_heteroatom_linked_substituent_prefixes(smiles, root, parent, expected):
+    mol = Chem.MolFromSmiles(smiles)
+    graph = adjacency(mol)
+    assert name_branch(graph, root, parent, halogen_substituents(mol), mol=mol) == expected

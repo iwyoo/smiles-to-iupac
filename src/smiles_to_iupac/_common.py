@@ -274,6 +274,21 @@ def separate_aromatic_monocycles(mol, graph):
     return rings
 
 
+def ring_hosting_anchors(mol, graph, rings, anchors):
+    """The benzene ring directly bearing a functional group (one of `anchors`
+    is bonded to one of its atoms) among several disjoint aromatic rings, or
+    None when the group sits on a chain. Raises when two rings bear it or
+    the hosting ring is not a plain benzene ring."""
+    hosts = [r for r in rings if any(n in r for a in anchors for n in graph[a])]
+    if not hosts:
+        return None
+    if len(hosts) > 1 or not is_plain_benzene_ring(mol, hosts[0]):
+        raise UnsupportedStructure(
+            "a functional group directly on a ring alongside another aromatic ring is not supported here yet"
+        )
+    return hosts[0]
+
+
 def ring_chain_attachments_with_halogens(graph, rings, excluded, halogens):
     """`ring_chain_attachment_with_halogens` for several rings: one
     (ring_atom, chain_root) per ring that carries a non-halogen branch, or

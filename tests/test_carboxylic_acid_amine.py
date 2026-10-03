@@ -45,29 +45,24 @@ def test_carbamic_acid_not_this_module():
         smiles_to_iupac("OC(N)=O")
 
 
-def test_secondary_amine_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CNCC(=O)O")
+def test_secondary_amine():
+    assert smiles_to_iupac("CNCC(=O)O") == "2-(methylamino)ethanoic acid"
 
 
-def test_two_amines_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(N)CC(=O)O")
+def test_two_amines():
+    assert smiles_to_iupac("NC(N)CC(=O)O") == "3,3-diaminopropanoic acid"
 
 
-def test_two_carboxylic_acids_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(C(=O)O)C(=O)O")
+def test_two_carboxylic_acids():
+    assert smiles_to_iupac("NC(C(=O)O)C(=O)O") == "2-aminopropanedioic acid"
 
 
-def test_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC1CCC(C(=O)O)CC1")
+def test_ring():
+    assert smiles_to_iupac("NC1CCC(C(=O)O)CC1") == "4-aminocyclohexane-1-carboxylic acid"
 
 
-def test_unsaturated_chain_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC=CC(=O)O")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("NCC=CC(=O)O") == "4-aminobut-2-enoic acid"
 
 
 def test_plain_carboxylic_acid_still_works():
@@ -130,11 +125,9 @@ def test_phenyl_directly_attached_to_amine_carbon():
     assert smiles_to_iupac("c1ccccc1C(N)C(=O)O") == "2-amino-2-phenylethanoic acid"
 
 
-def test_phenyl_substituted_benzene_ring_carboxylic_acid_amine_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC(N)C(=O)O")
+def test_phenyl_substituted_benzene_ring_carboxylic_acid_amine():
+    assert smiles_to_iupac("Cc1ccccc1CC(N)C(=O)O") == "2-amino-3-(2-methylphenyl)propanoic acid"
 
 
-def test_phenyl_chain_carboxylic_acid_amine_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC(N)C(=O)O")
+def test_phenyl_chain_carboxylic_acid_amine_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CC(N)C(=O)O") == "2-amino-3-(2-ethenylphenyl)propanoic acid"

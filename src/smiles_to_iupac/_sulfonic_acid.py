@@ -104,6 +104,7 @@ from ._common import (
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     ring_chain_attachments_with_halogens,
+    ring_hosting_anchors,
     separate_aromatic_monocycles,
     ring_cycle,
     ring_name_from_substituents,
@@ -354,7 +355,7 @@ def _benzenesulfonic_acid_candidate_key(so3h_locant, substituents):
     return so3h_locant, locant_set, citation_locants, name
 
 
-def _name_benzenesulfonic_acid(mol, ring_atoms):
+def _name_benzenesulfonic_acid(mol, ring_atoms, exempt_atoms=None):
     """P-65.3.1: -SO3H attached directly to a benzene ring carbon -- e.g.
     'benzenesulfonic acid' (PubChem CID 7371), '2-methylbenzenesulfonic
     acid' (CID 6925), '4-methylbenzenesulfonic acid' (CID 6101). Mirrors
@@ -362,7 +363,7 @@ def _name_benzenesulfonic_acid(mol, ring_atoms):
     aromatic retained name 'benzene' as stem in place of 'cyclo' +
     alkane_name; an aromatic ring has no ene/yne ring-bond locants of its
     own, so those are always empty here."""
-    sulfur_idx, so3h_carbon = _validate_and_collect_sulfonic_acids(mol, aromatic_ring_atoms=ring_atoms)
+    sulfur_idx, so3h_carbon = _validate_and_collect_sulfonic_acids(mol, aromatic_ring_atoms=exempt_atoms or ring_atoms)
     if specified_stereocenters(mol):
         raise UnsupportedStructure(
             "a specified stereocenter alongside benzenesulfonic acid is "
@@ -551,7 +552,13 @@ def _name_von_baeyer_or_spiro_sulfonic_acid(mol, sulfur_idx, so3h_carbon, bonds,
 def name_sulfonic_acid(mol) -> str:
     aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
     if aromatic_rings is not None:
-        return _name_phenyl_chain_sulfonic_acid(mol, set().union(*aromatic_rings))
+        union = set().union(*aromatic_rings)
+        sulfur_idx, _ = _validate_and_collect_sulfonic_acids(mol, aromatic_ring_atoms=union)
+        anchors = [sulfur_idx]
+        host = ring_hosting_anchors(mol, adjacency(mol), aromatic_rings, anchors)
+        if host is not None:
+            return _name_benzenesulfonic_acid(mol, host, union)
+        return _name_phenyl_chain_sulfonic_acid(mol, union)
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])

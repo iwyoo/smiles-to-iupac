@@ -135,6 +135,7 @@ from ._common import (
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     ring_chain_attachments_with_halogens,
+    ring_hosting_anchors,
     separate_aromatic_monocycles,
     ring_cycle,
     ring_name_from_substituents,
@@ -372,11 +373,14 @@ def _validate_and_collect_amide(mol, aromatic_ring_atoms=frozenset()):
     return amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls, n_hydroxy_oxygen
 
 
-def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped):
-    return format_substituent_prefixes(grouped) + name_from_substituents(chain_length, ene_locants, yne_locants, "amide")
+def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped, n_names=()):
+    from ._amine import _add_n_names
+
+    prefix = format_substituent_prefixes(_add_n_names(grouped, n_names))
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "amide")
 
 
-def _candidate_key(chain_length, ene_locants, yne_locants, substituents):
+def _candidate_key(chain_length, ene_locants, yne_locants, substituents, n_names=()):
     """Sort key implementing P-44.4.1.10 (ene/yne locants) ahead of P-45.2
     (substituent-prefix locants), most-preferred first. The amide group's
     own locant isn't part of this key: candidates are pre-filtered so the
@@ -385,7 +389,7 @@ def _candidate_key(chain_length, ene_locants, yne_locants, substituents):
     locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
-    name = _name_from_substituents(chain_length, ene_locants, yne_locants, grouped)
+    name = _name_from_substituents(chain_length, ene_locants, yne_locants, grouped, n_names)
     return (
         (
             combined_locant_set,
@@ -546,23 +550,10 @@ def _name_acyclic_amide(
                 continue
             ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
-            key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
+            key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents, n_names)
             if best_key is None or key < best_key:
                 position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
                 best_key, best_name, best_position_of = key, name, position_of
-
-    if n_names:
-        if len(n_names) == 2 and n_names[0][0] == n_names[1][0]:
-            name, is_compound = n_names[0]
-            di_name = f"({name})" if is_compound else name
-            n_prefix = f"N,N-di{di_name}"
-        else:
-            n_prefix = "-".join(
-                f"N-({name})" if is_compound else f"N-{name}"
-                for name, is_compound in sorted(n_names, key=lambda e: alpha_sort_key(e[0]))
-            )
-        separator = "-" if best_name[0].isdigit() else ""
-        best_name = f"{n_prefix}{separator}{best_name}"
 
     if stereo is not None:
         labels = sorted((best_position_of[atom], code) for atom, code in stereo)
@@ -699,7 +690,7 @@ def _benzamide_candidate_key(amide_locant, substituents):
     return amide_locant, locant_set, citation_locants, name
 
 
-def _name_benzamide(mol, ring_atoms):
+def _name_benzamide(mol, ring_atoms, exempt_atoms=None):
     """P-66.1.1.1.2.1: 'benzamide' is one of only four retained amide
     names that are preferred IUPAC names and can be substituted -- itself
     the PIN for a -CONH2 hanging directly off one carbon of an otherwise-
@@ -711,7 +702,7 @@ def _name_benzamide(mol, ring_atoms):
     'carboxamide' as the whole suffix unit (no locant is ever cited for
     the -CONH2 position itself)."""
     amide_carbon, amide_oxygen, amide_nitrogen, n_alkyl_carbons, hydroxyls, n_hydroxy_oxygen = (
-        _validate_and_collect_amide(mol, aromatic_ring_atoms=ring_atoms)
+        _validate_and_collect_amide(mol, aromatic_ring_atoms=exempt_atoms or ring_atoms)
     )
     if n_alkyl_carbons or n_hydroxy_oxygen is not None:
         raise UnsupportedStructure("an N-substituted benzamide is not supported yet")
@@ -870,7 +861,15 @@ def _name_amide_with_n_phenyl(mol, ring_atoms):
 def name_amide(mol) -> str:
     aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
     if aromatic_rings is not None:
-        return _name_phenyl_chain_amide(mol, set().union(*aromatic_rings))
+        union = set().union(*aromatic_rings)
+        amide_carbon, _, amide_nitrogen, *_ = _validate_and_collect_amide(mol, aromatic_ring_atoms=union)
+        if any(n in union for n in adjacency(mol)[amide_nitrogen]):
+            raise UnsupportedStructure("an N-aryl amide alongside a second aromatic ring is not supported yet")
+        anchors = [amide_carbon]
+        host = ring_hosting_anchors(mol, adjacency(mol), aromatic_rings, anchors)
+        if host is not None:
+            return _name_benzamide(mol, host, union)
+        return _name_phenyl_chain_amide(mol, union)
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])

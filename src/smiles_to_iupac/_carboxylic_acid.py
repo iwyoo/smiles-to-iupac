@@ -119,6 +119,7 @@ from ._common import (
     non_single_bonds,
     ring_chain_attachment_with_halogens,
     ring_chain_attachments_with_halogens,
+    ring_hosting_anchors,
     separate_aromatic_monocycles,
     ring_cycle,
     ring_name_from_substituents,
@@ -723,7 +724,7 @@ def _name_benzo_attached_carboxyl(graph, ring_atoms, carboxyl_carbon, halogens, 
     return best_name
 
 
-def _name_benzoic_acid(mol, ring_atoms):
+def _name_benzoic_acid(mol, ring_atoms, exempt_atoms=None):
     """P-65.1.1: 'benzoic acid' is a retained name that is itself the PIN
     for a -COOH hanging directly off one carbon of an otherwise-plain (or
     substituted) benzene ring -- e.g. 'benzoic acid' (PubChem CID 243),
@@ -736,7 +737,7 @@ def _name_benzoic_acid(mol, ring_atoms):
     for the -COOH position itself, unlike the cycloalkane case, since
     'benzoic acid' carries no positional stem at all)."""
     carboxyl_carbons, carboxyl_oxygens, extra_hydroxyls = _validate_and_collect_carboxyls(
-        mol, aromatic_ring_atoms=ring_atoms
+        mol, aromatic_ring_atoms=exempt_atoms or ring_atoms
     )
     if extra_hydroxyls:
         raise UnsupportedStructure(
@@ -780,8 +781,14 @@ def _has_carboxyl_directly_on_ring(mol, ring_atoms):
 
 def name_carboxylic_acid(mol) -> str:
     aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
-    if aromatic_rings is not None and not any(_has_carboxyl_directly_on_ring(mol, r) for r in aromatic_rings):
-        return _name_phenyl_chain_carboxylic_acid(mol, set().union(*aromatic_rings))
+    if aromatic_rings is not None:
+        union = set().union(*aromatic_rings)
+        carboxyl_carbons, *_ = _validate_and_collect_carboxyls(mol, aromatic_ring_atoms=union)
+        anchors = list(carboxyl_carbons)
+        host = ring_hosting_anchors(mol, adjacency(mol), aromatic_rings, anchors)
+        if host is not None:
+            return _name_benzoic_acid(mol, host, union)
+        return _name_phenyl_chain_carboxylic_acid(mol, union)
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])

@@ -343,14 +343,12 @@ def test_phenyl_substituted_benzene_ring_ortho_methyl():
     assert smiles_to_iupac("Cc1ccccc1CCO") == "2-(2-methylphenyl)ethanol"
 
 
-def test_phenyl_chain_with_second_hydroxyl_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCc1ccccc1CO")
+def test_phenyl_chain_with_second_hydroxyl():
+    assert smiles_to_iupac("OCc1ccccc1CO") == "[2-(hydroxymethyl)phenyl]methanol"
 
 
-def test_phenyl_chain_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CO")
+def test_phenyl_chain_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CO") == "(2-ethenylphenyl)methanol"
 
 
 def test_phenyl_chain_ring_halogen():
@@ -395,9 +393,8 @@ def test_heteroaromatic_substituent_alcohol(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_heteroaromatic_substituent_alcohol_directly_on_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Oc1cccnc1")
+def test_heteroaromatic_substituent_alcohol_directly_on_ring():
+    assert smiles_to_iupac("Oc1cccnc1") == "pyridin-3-ol"
 
 
 def test_substituted_ring_cited_as_substituent_of_chain_alcohol():
@@ -447,9 +444,8 @@ def test_phenol():
     assert smiles_to_iupac("Oc1ccccc1Cl") == "2-chlorophenol"
 
 
-def test_phenol_multiple_hydroxyls_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Oc1ccccc1O")
+def test_phenol_multiple_hydroxyls():
+    assert smiles_to_iupac("Oc1ccccc1O") == "benzene-1,2-diol"
 
 
 def test_bicyclic_alcohol_name():
@@ -491,29 +487,16 @@ def test_two_ring_aromatic_substituent_alcohol(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_two_ring_aromatic_substituent_alcohol_substituted_ring_raises():
-    # The aromatic ring itself carrying an extra substituent beyond the
-    # one connecting bond is explicitly out of scope (#624's own scope
-    # note) -- falls through to the ordinary aromatic-carbon rejection.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1CCCC(c2ccc(C)cc2)C1")
+def test_two_ring_aromatic_substituent_alcohol_substituted_ring():
+    assert smiles_to_iupac("OC1CCCC(c2ccc(C)cc2)C1") == "3-(4-methylphenyl)cyclohexan-1-ol"
 
 
-def test_two_ring_aromatic_substituent_alcohol_three_rings_raises():
-    # Three total rings is explicitly out of scope (#624's own scope
-    # note) -- still the generic "polycyclic and spiro" rejection.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1CCCC(c2ccccc2)C1c3ccccc3")
+def test_two_ring_aromatic_substituent_alcohol_three_rings():
+    assert smiles_to_iupac("OC1CCCC(c2ccccc2)C1c3ccccc3") == "2,3-diphenylcyclohexan-1-ol"
 
 
-def test_two_ring_aromatic_substituent_alcohol_chain_hydroxyl_raises():
-    # A hydroxyl entirely on a chain hanging off the non-aromatic ring,
-    # with the ring itself bearing none, is out of scope for this narrower
-    # first slice (see the module dispatch's own scope note) -- the ring
-    # would need its own compound name_branch-computed substituent name
-    # (carrying the aromatic ring) rather than a plain "cyclo..." prefix.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC1CCCCC1c1ccccc1")
+def test_two_ring_aromatic_substituent_alcohol_chain_hydroxyl():
+    assert smiles_to_iupac("OCC1CCCCC1c1ccccc1") == "(2-phenylcyclohexyl)methanol"
 
 
 def test_ethoxyethanol():
@@ -537,21 +520,16 @@ def test_two_alkoxy_ethers():
     assert smiles_to_iupac("OCC(OC)COC") == "2,3-dimethoxypropan-1-ol"
 
 
-def test_branched_ether_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCCOC(C)C")
+def test_branched_ether():
+    assert smiles_to_iupac("OCCOC(C)C") == "2-(propan-2-yloxy)ethanol"
 
 
-def test_ether_on_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1CCCCC1OC")
+def test_ether_on_ring():
+    assert smiles_to_iupac("OC1CCCCC1OC") == "2-methoxycyclohexan-1-ol"
 
 
-def test_enol_raises():
-    # -OH on a carbon that is also part of a C=C bond: deliberately
-    # narrowed out of scope (see module docstring).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC=CC")
+def test_enol():
+    assert smiles_to_iupac("OC=CC") == "prop-1-en-1-ol"
 
 
 def test_unsaturated_ring_alcohol_with_substituent_raises():

@@ -28,14 +28,12 @@ def test_nitro_not_misnamed_as_nitroso():
     assert smiles_to_iupac("C[N+](=O)[O-]") == "nitromethane"
 
 
-def test_ring_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCC1N=O")
+def test_ring():
+    assert smiles_to_iupac("C1CCCCC1N=O") == "nitrosocyclohexane"
 
 
-def test_unsaturated_chain_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CN=O")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("C=CN=O") == "nitrosoethene"
 
 
 def test_phenyl_nitroso_direct_bond():
@@ -56,11 +54,9 @@ def test_phenyl_nitroso_chain():
     assert smiles_to_iupac("c1ccccc1CCN=O") == "(2-nitrosoethyl)benzene"
 
 
-def test_phenyl_nitroso_substituted_ring_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CN=O")
+def test_phenyl_nitroso_substituted_ring():
+    assert smiles_to_iupac("Cc1ccccc1CN=O") == "1-methyl-2-(nitrosomethyl)benzene"
 
 
-def test_phenyl_nitroso_unsaturation_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CN=O")
+def test_phenyl_nitroso_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CN=O") == "1-ethenyl-2-(nitrosomethyl)benzene"

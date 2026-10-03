@@ -118,13 +118,8 @@ def test_secondary_amine_propargyl_n_substituent():
     assert smiles_to_iupac("C#CCNCCCC") == "N-(prop-2-yn-1-yl)butan-1-amine"
 
 
-def test_secondary_amine_vinyl_n_substituent_raises():
-    # N directly on the alkene carbon (not one bond further away, as the
-    # allyl/butenyl/propargyl cases above are) is still out of scope --
-    # a real enamine-shaped nitrogen, rejected by `_reject_enamine_carbons`
-    # regardless of which side of the amine it sits on.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CNCCCC")
+def test_secondary_amine_vinyl_n_substituent():
+    assert smiles_to_iupac("C=CNCCCC") == "N-ethenylbutan-1-amine"
 
 
 def test_secondary_amine_branched_unsaturated_n_substituent():
@@ -135,9 +130,8 @@ def test_secondary_amine_two_multiple_bonds_on_n_substituent():
     assert smiles_to_iupac("C=CC=CCNCCCCCCC") == "N-(penta-2,4-dien-1-yl)heptan-1-amine"
 
 
-def test_secondary_amine_on_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CN(C)C1CCCCC1")
+def test_secondary_amine_on_ring():
+    assert smiles_to_iupac("CN(C)C1CCCCC1") == "N,N-dimethylcyclohexanamine"
 
 
 def test_diamine_with_tertiary_nitrogen():
@@ -234,11 +228,8 @@ def test_n_substituted_aniline_and_multi_ring_chain_amine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_enamine_raises():
-    # -NH2 on a carbon that is also part of a C=C bond: deliberately
-    # narrowed out of scope (see module docstring).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC=CC")
+def test_enamine():
+    assert smiles_to_iupac("NC=CC") == "prop-1-en-1-amine"
 
 
 @pytest.mark.parametrize(
@@ -394,14 +385,12 @@ def test_phenyl_chain_amine_ring_ethyl():
     assert smiles_to_iupac("CCc1ccc(cc1)CCN") == "2-(4-ethylphenyl)ethanamine"
 
 
-def test_phenyl_chain_amine_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CCN")
+def test_phenyl_chain_amine_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CCN") == "2-(2-ethenylphenyl)ethanamine"
 
 
-def test_phenyl_chain_diamine_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C(N)CCN")
+def test_phenyl_chain_diamine():
+    assert smiles_to_iupac("c1ccccc1C(N)CCN") == "1-phenylpropane-1,3-diamine"
 
 
 @pytest.mark.parametrize(
@@ -412,6 +401,11 @@ def test_phenyl_chain_diamine_raises():
         ("CC(N(C)C)c1ccccc1", "N,N-dimethyl-1-phenylethanamine"),
         ("CC(N(C)C)c1ccccc1P(c1ccccc1)c1ccccc1", "1-[2-(diphenylphosphanyl)phenyl]-N,N-dimethylethanamine"),
         ("NCCc1ccccc1P(C)C", "2-[2-(dimethylphosphanyl)phenyl]ethanamine"),
+        ("c1ccccc1CNC", "N-methyl-1-phenylmethanamine"),
+        ("c1ccccc1CN(C)C", "N,N-dimethyl-1-phenylmethanamine"),
+        ("c1ccccc1CNCc1ccccc1", "N-benzyl-1-phenylmethanamine"),
+        ("CC(C)NCc1ccccc1", "N-benzylpropan-2-amine"),
+        ("ClCNC", "1-chloro-N-methylmethanamine"),
     ],
 )
 def test_phenyl_chain_secondary_tertiary_amine(smiles, expected):

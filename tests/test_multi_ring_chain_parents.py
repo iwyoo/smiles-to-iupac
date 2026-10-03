@@ -21,14 +21,24 @@ def test_chain_parent_cites_each_aromatic_ring_as_a_substituent(smiles, expected
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles,expected",
     [
-        "OC(=O)c1ccc(Cc2ccccc2)cc1",
-        "O=Cc1ccc(Cc2ccccc2)cc1",
-        "N#Cc1ccc(Cc2ccccc2)cc1",
-        "Sc1ccc(Cc2ccccc2)cc1",
+        ("OC(=O)c1ccc(Cc2ccccc2)cc1", "4-benzylbenzoic acid"),
+        ("O=Cc1ccc(Cc2ccccc2)cc1", "4-benzylbenzaldehyde"),
+        ("N#Cc1ccc(Cc2ccccc2)cc1", "4-benzylbenzonitrile"),
+        ("Sc1ccc(Cc2ccccc2)cc1", "4-benzylbenzenethiol"),
+        ("NC(=O)c1ccc(Cc2ccccc2)cc1", "4-benzylbenzamide"),
+        ("OS(=O)(=O)c1ccc(Cc2ccccc2)cc1", "4-benzylbenzenesulfonic acid"),
+        ("NS(=O)(=O)c1ccc(Cc2ccccc2)cc1", "4-benzylbenzenesulfonamide"),
+        ("Nc1ccc(Cc2ccccc2)cc1", "4-benzylaniline"),
+        ("Oc1ccc(Cc2ccccc2)cc1", "4-benzylphenol"),
+        ("Oc1cc(Cl)ccc1Cc1ccccc1", "2-benzyl-5-chlorophenol"),
+        ("OC(=O)c1ccc(Cc2ccccn2)cc1", "4-[(pyridin-2-yl)methyl]benzoic acid"),
     ],
 )
-def test_functional_group_on_a_ring_is_not_misnamed_as_a_chain_parent(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_ring_parent_cites_other_aromatic_rings_as_substituents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_functional_group_on_a_heteroaromatic_ring_beside_another_ring_is_rejected_is_named():
+    assert smiles_to_iupac("OC(=O)c1ccncc1Cc1ccccc1") == "3-benzylpyridine-4-carboxylic acid"
