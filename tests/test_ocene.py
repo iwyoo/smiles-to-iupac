@@ -49,3 +49,13 @@ def test_two_ferrocenes_in_a_ring_are_named_as_a_phane():
         "[Fe]56789%11%12(<-[CH]%13=[CH]->5[CH2]->6[C]->71=[CH]->8%13)<-[CH](=[CH]->9[CH2]->%113)[CH]->%12=4)=[CH]->%102"
     )
     assert smiles_to_iupac(smiles) == f"1,3(1,1{PRIME})-diferrocenacyclotetraphane"
+
+
+def test_three_ferrocenes_in_a_ring_are_named_as_a_phane():
+    smiles = (
+        "C1[C]23->[Fe]456789%10(<-[CH](=[CH]->4[CH2]->52)[CH]->6=3)<-[CH]2=[CH]->7[CH2]->8[C]->9(C[C]34->[Fe]"
+        "56789%11%12(<-[CH](=[CH]->5[CH2]->63)[CH]->7=4)<-[CH]3=[CH]->8[CH2]->9[C]->%11(C[C]45->[Fe]6789%11%1"
+        "3%14(<-[CH]%15=[CH]->6[CH2]->7[C]->81=[CH]->9%15)<-[CH](=[CH]->%11[CH2]->%134)[CH]->%14=5)=[CH]->%12"
+        "3)=[CH]->%102"
+    )
+    assert smiles_to_iupac(smiles) == f"1,3,5(1,1{PRIME})-triferrocenacyclohexaphane"

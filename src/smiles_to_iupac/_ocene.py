@@ -83,7 +83,7 @@ def find_ocene(mol):
 
 def _paired_ocenes(mol):
     metals = [a for a in mol.GetAtoms() if a.GetSymbol() in OCENES]
-    if len(metals) != 2:
+    if len(metals) < 2:
         return None
     graph = adjacency(mol)
     rings = _cp_rings(mol, graph)
@@ -284,16 +284,17 @@ def _linker_name(graph, atoms, ends):
 
 
 def _name_phane(mol, units, graph, parent):
-    """Two 1,1'-linked ocenes and CH2 nodes forming one ring (P-52.2.5):
+    """Ocenes joined 1,1'- in one ring through CH2 nodes (P-52.2.5):
     '1,3(1,1')-diferrocenacyclotetraphane'."""
     unit_atoms = [{m} | set(r[0]) | set(r[1]) for m, r in units]
-    every = unit_atoms[0] | unit_atoms[1]
-    roots = [(a, x) for m, rs in units for r in rs for a in r for x in graph[a] if x not in every and x != m]
-    if len(roots) != 4:
-        return None
-    comps = _components(graph, every, roots)
+    every = set().union(*unit_atoms)
     owner = {a: k for k, atoms in enumerate(unit_atoms) for a in atoms}
-    paths = {}
+    roots = [(a, x) for m, rs in units for r in rs for a in r for x in graph[a] if x not in every and x != m]
+    if len(roots) != 2 * len(units):
+        return None
+    ring_of = {a: ri for _, rs in units for ri, r in enumerate(rs) for a in r}
+    comps = _components(graph, every, roots)
+    links = {}
     for a, x in roots:
         comp = comps[x]
         if any(
@@ -302,17 +303,38 @@ def _name_phane(mol, units, graph, parent):
             for i in comp
         ):
             return None
-        ends = sorted((owner[a2], x2) for a2, x2 in roots if x2 in comp)
-        paths[frozenset(comp)] = (len(comp), ends)
-    if len(paths) != 2 or any(len(e) != 2 or e[0][0] == e[1][0] for _, e in paths.values()):
+        links.setdefault(frozenset(comp), []).append((owner[a], ring_of[a]))
+    if any(len(e) != 2 or e[0][0] == e[1][0] for e in links.values()):
         return None
-    lengths = sorted(n for n, _ in paths.values())
-    total = 2 + sum(lengths)
-    second = [2 + lengths[0], 2 + lengths[1]]
-    locants = sorted([1, min(second)])
-    term = numerical_term(total)
+    exits = {}
+    for comp, ends in links.items():
+        for (u, r), (v, rv) in (ends, ends[::-1]):
+            exits[(u, r)] = (v, rv, len(comp))
+    cycle, unit, ring = [], 0, 0
+    while True:
+        v, rv, length = exits[(unit, ring)]
+        cycle.append((unit, length))
+        unit, ring = v, 1 - rv
+        if unit == 0:
+            break
+    if len(cycle) != len(units) or ring != 0:
+        return None
+    total = sum(1 + n for _, n in cycle)
+    lengths = [n for _, n in cycle]
+    best = None
+    for seq in (lengths, [lengths[(-k - 2) % len(lengths)] for k in range(len(lengths))]):
+        for start in range(len(seq)):
+            rotated = seq[start:] + seq[:start]
+            positions, pos = [], 1
+            for n in rotated:
+                positions.append(pos)
+                pos += 1 + n
+            if best is None or positions < best:
+                best = positions
+    count = len(units)
+    mult = multiplying_prefix(count)
     stem = parent[:-1] + "a"
-    return f"{locants[0]},{locants[1]}(1,1{_PRIME})-di{stem}cyclo{term}phane"
+    return f"{','.join(map(str, best))}(1,1{_PRIME})-{mult}{stem}cyclo{numerical_term(total)}phane"
 
 
 def _name_paired_ocenes(mol, units, graph):
@@ -323,6 +345,8 @@ def _name_paired_ocenes(mol, units, graph):
     phane = _name_phane(mol, units, graph, parent)
     if phane:
         return phane
+    if len(units) != 2:
+        raise UnsupportedStructure("this arrangement of several metallocenes is not supported here")
     unit_atoms = [{m} | set(r[0]) | set(r[1]) for m, r in units]
     every = unit_atoms[0] | unit_atoms[1]
     roots = [(a, x, k) for k, (m, rs) in enumerate(units) for r in rs for a in r for x in graph[a] if x not in every and x != m]
