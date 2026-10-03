@@ -61,10 +61,29 @@ def _chain_atoms(graph, root, boundary):
     return atoms
 
 
+def _naphthyl_name(mol, graph, root, came_from, seen):
+    info = mol.GetRingInfo()
+    rings = [set(r) for r in info.AtomRings() if root in r or any(root in r2 for r2 in info.AtomRings() if set(r2) & set(r))]
+    system = set().union(*rings) if rings else set()
+    if len(system) != 10 or len(rings) != 2 or any(len(r) != 6 for r in rings):
+        return None
+    if any(mol.GetAtomWithIdx(i).GetAtomicNum() != 6 or not mol.GetAtomWithIdx(i).GetIsAromatic() for i in system):
+        return None
+    if any(set(graph[i]) - system for i in system if i != root) or set(graph[root]) - system - {came_from}:
+        return None
+    fusion = rings[0] & rings[1]
+    seen.update(system)
+    position = 1 if set(graph[root]) & fusion else 2
+    return f"naphthalen-{position}-yl"
+
+
 def substituted_aryl_name(mol, graph, root, came_from, seen):
     """Benzene ring attached at `root` (locant 1) whose other positions carry
     halogen, alkyl, carboxy or metal-group substituents."""
     info = mol.GetRingInfo()
+    naphthyl = _naphthyl_name(mol, graph, root, came_from, seen)
+    if naphthyl is not None:
+        return naphthyl, True
     ring = next((r for r in info.AtomRings() if root in r), None)
     if (
         ring is None

@@ -170,3 +170,14 @@ def test_metal_chain_and_multiplicative_names(smiles, expected):
 )
 def test_chelating_ligands(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[ReH2]c1ccc2ccccc2c1", "dihydrido(naphthalen-2-yl)rhenium"),
+        ("C[Hg]c1cccc2ccccc12", "methyl(naphthalen-1-yl)mercury"),
+    ],
+)
+def test_naphthyl_ligands(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
