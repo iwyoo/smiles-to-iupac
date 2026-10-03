@@ -41,9 +41,8 @@ def test_locant_prefixed_hantzsch_widman_ring_still_out_of_scope():
         smiles_to_iupac("c1csc(-c2csc(-c3cscn3)n2)n1")
 
 
-def test_mixed_pyridine_and_benzo_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc(-c2ccc(-c3ccccn3)cc2)cc1")
+def test_mixed_pyridine_and_benzo():
+    assert smiles_to_iupac("c1ccc(-c2ccc(-c3ccccn3)cc2)cc1") == "2-([1,1'-biphenyl]-4-yl)pyridine"
 
 
 def test_benzo_and_cycloalkane_chains_unaffected():

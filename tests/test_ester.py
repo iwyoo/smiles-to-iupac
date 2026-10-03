@@ -49,9 +49,8 @@ def test_ester_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_diester_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COC(=O)CC(=O)OC")
+def test_diester():
+    assert smiles_to_iupac("COC(=O)CC(=O)OC") == "dimethyl propanedioate"
 
 
 def test_ring_embedded_lactone_raises():
@@ -92,9 +91,8 @@ def test_plain_cyclyl_alcohol_ester():
     assert smiles_to_iupac("CCC(=O)OC1CCCCC1") == "cyclohexyl propanoate"
 
 
-def test_substituted_cyclyl_alcohol_ester_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)OC1CCC(C)CC1")
+def test_substituted_cyclyl_alcohol_ester():
+    assert smiles_to_iupac("CC(=O)OC1CCC(C)CC1") == "4-methylcyclohexyl ethanoate"
 
 
 def test_amine_coexisting_now_supported_via_ester_amine():
@@ -134,14 +132,12 @@ def test_ring_acyl_ester_substituted():
     )
 
 
-def test_ring_acyl_ester_unsaturated_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C(OC)C1CCCC=C1")
+def test_ring_acyl_ester_unsaturated_ring():
+    assert smiles_to_iupac("O=C(OC)C1CCCC=C1") == "methyl cyclohex-2-ene-1-carboxylate"
 
 
-def test_ring_acyl_ester_substituent_on_acyl_ring_atom_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C(OC)C1(C)CCCCC1")
+def test_ring_acyl_ester_substituent_on_acyl_ring_atom():
+    assert smiles_to_iupac("O=C(OC)C1(C)CCCCC1") == "methyl 1-methylcyclohexane-1-carboxylate"
 
 
 def test_ring_acyl_chain_ester():
@@ -154,23 +150,16 @@ def test_ring_acyl_chain_ester():
     assert smiles_to_iupac("O=C(OC)CC1CCCCC1") == "methyl 2-cyclohexylethanoate"
 
 
-def test_ring_acyl_chain_ester_ring_with_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C(OC)CC1CCC(C)CC1")
+def test_ring_acyl_chain_ester_ring_with_substituent():
+    assert smiles_to_iupac("O=C(OC)CC1CCC(C)CC1") == "methyl 2-(4-methylcyclohexyl)ethanoate"
 
 
-def test_ring_acyl_chain_ester_unsaturated_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C(OC)CC1CCCC=C1")
+def test_ring_acyl_chain_ester_unsaturated_ring():
+    assert smiles_to_iupac("O=C(OC)CC1CCCC=C1") == "methyl 2-(cyclohex-2-en-1-yl)ethanoate"
 
 
-def test_ring_on_alcohol_chain_ester_still_raises():
-    # A saturated ring reachable only from the alcohol side (not the acyl
-    # side) is still out of scope -- this task only covers rings on the
-    # acyl side (directly, or via a chain); a ring on the alcohol side via
-    # a chain is a separate, unscoped gap.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)OCC1CCCCC1")
+def test_ring_on_alcohol_chain_ester():
+    assert smiles_to_iupac("CC(=O)OCC1CCCCC1") == "cyclohexylmethyl ethanoate"
 
 
 def test_phenyl_ester_oxygen_side():
@@ -183,11 +172,8 @@ def test_phenyl_ester_oxygen_side():
     assert smiles_to_iupac("CCC(=O)Oc1ccccc1") == "phenyl propanoate"
 
 
-def test_phenyl_ester_oxygen_side_substituted_ring_raises():
-    # A phenol ring with another substituent besides the ester oxygen is
-    # still out of scope for this first pass.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)Oc1ccccc1C")
+def test_phenyl_ester_oxygen_side_substituted_ring():
+    assert smiles_to_iupac("CC(=O)Oc1ccccc1C") == "2-methylphenyl ethanoate"
 
 
 def test_phenyl_acyl_chain_ring_methyl():
@@ -230,9 +216,8 @@ def test_phenyl_acyl_chain_ring_dihalogen():
     assert smiles_to_iupac("COC(=O)Cc1ccc(Cl)c(Cl)c1") == "methyl 2-(3,4-dichlorophenyl)ethanoate"
 
 
-def test_phenyl_acyl_chain_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC(=O)OC")
+def test_phenyl_acyl_chain_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CC(=O)OC") == "methyl 2-(2-ethenylphenyl)ethanoate"
 
 
 def test_acyl_carbon_off_longest_chain():
@@ -259,3 +244,49 @@ def test_ester_unspecified_stereocenter_unaffected():
     # as before -- no stereo prefix, matching this project's long-standing
     # convention.
     assert smiles_to_iupac("CCC(C)C(=O)OCC") == "ethyl 2-methylbutanoate"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("COC(=O)C(c1ccccc1)c1ccccc1", "methyl 2,2-diphenylethanoate"),
+        ("CC(=O)OC(c1ccccc1)c1ccccc1", "diphenylmethyl ethanoate"),
+        ("CC(=O)OC(c1ccccc1)(c1ccccc1)c1ccccc1", "triphenylmethyl ethanoate"),
+        ("O=C(OCc1ccccc1)c1ccccc1", "benzyl benzoate"),
+        ("O=C(OC)c1ccc(Cc2ccccc2)cc1", "methyl 4-benzylbenzoate"),
+        ("CC(=O)OCc1ccc(Cl)cc1", "(4-chlorophenyl)methyl ethanoate"),
+        ("CC(=O)OCCc1ccc(Cl)cc1", "2-(4-chlorophenyl)ethyl ethanoate"),
+    ],
+)
+def test_ester_named_from_its_alkyl_and_acid_parts(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC(=O)OCCO", "2-hydroxyethyl ethanoate"),
+        ("CC(=O)OCC(=O)C", "2-oxopropyl ethanoate"),
+        ("O=C(OCCN(C)C)c1ccccc1", "2-(dimethylamino)ethyl benzoate"),
+        ("CC(=O)OCCSC", "2-(methylsulfanyl)ethyl ethanoate"),
+        ("O=C(OCCO)C=C", "2-hydroxyethyl prop-2-enoate"),
+        ("CC(=O)OCC(=O)O", "2-(ethanoyloxy)ethanoic acid"),
+    ],
+)
+def test_ester_alkyl_part_with_heteroatom_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CCOC(=O)CC(=O)OCC", "diethyl propanedioate"),
+        ("COC(=O)CC(=O)OCC", "ethyl methyl propanedioate"),
+        ("COC(=O)c1ccccc1C(=O)OC", "dimethyl benzene-1,2-dicarboxylate"),
+        ("CCOC(=O)CC(O)(CC(=O)OCC)C(=O)OCC", "triethyl 2-hydroxypropane-1,2,3-tricarboxylate"),
+        ("ClCCOC(=O)CC(=O)OCCCl", "bis(2-chloroethyl) propanedioate"),
+        ("CC(C)OC(=O)CC(=O)OC(C)C", "bis(propan-2-yl) propanedioate"),
+    ],
+)
+def test_esters_of_one_polyacid_cite_every_alkyl_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

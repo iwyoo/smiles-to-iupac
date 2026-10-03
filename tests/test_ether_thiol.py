@@ -26,29 +26,24 @@ def test_halogen_on_main_chain_still_works():
     assert smiles_to_iupac("COCC(Cl)CS") == "2-chloro-3-methoxypropane-1-thiol"
 
 
-def test_two_thiols_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SCC(S)COC")
+def test_two_thiols():
+    assert smiles_to_iupac("SCC(S)COC") == "3-methoxypropane-1,2-dithiol"
 
 
-def test_two_ethers_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COCC(OC)CS")
+def test_two_ethers():
+    assert smiles_to_iupac("COCC(OC)CS") == "2,3-dimethoxypropane-1-thiol"
 
 
-def test_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SC1CCCCC1COC")
+def test_ring():
+    assert smiles_to_iupac("SC1CCCCC1COC") == "2-(methoxymethyl)cyclohexane-1-thiol"
 
 
-def test_unsaturated_chain_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SCC=CCOC")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("SCC=CCOC") == "4-methoxybut-2-ene-1-thiol"
 
 
-def test_specified_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("S[C@@H](C)COC")
+def test_specified_stereocenter():
+    assert smiles_to_iupac("S[C@@H](C)COC") == "(2S)-1-methoxypropane-2-thiol"
 
 
 def test_plain_ether_still_works():

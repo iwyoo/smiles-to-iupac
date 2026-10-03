@@ -32,24 +32,20 @@ def test_ester_still_routes_correctly():
     assert smiles_to_iupac("COC=O") == "methyl methanoate"
 
 
-def test_two_aldehydes_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=CC(COC)C=O")
+def test_two_aldehydes():
+    assert smiles_to_iupac("O=CC(COC)C=O") == "2-(methoxymethyl)propanedial"
 
 
-def test_two_ethers_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COCC(OC)C=O")
+def test_two_ethers():
+    assert smiles_to_iupac("COCC(OC)C=O") == "2,3-dimethoxypropanal"
 
 
-def test_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=CC1CCCCC1COC")
+def test_ring():
+    assert smiles_to_iupac("O=CC1CCCCC1COC") == "2-(methoxymethyl)cyclohexane-1-carbaldehyde"
 
 
-def test_specified_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COC[C@@H](C)C=O")
+def test_specified_stereocenter():
+    assert smiles_to_iupac("COC[C@@H](C)C=O") == "(2R)-3-methoxy-2-methylpropanal"
 
 
 def test_plain_ether_still_works():

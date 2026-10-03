@@ -32,29 +32,24 @@ def test_carbamate_still_routes_correctly():
     assert smiles_to_iupac("CCOC(N)=O") == "ethyl carbamate"
 
 
-def test_n_alkyl_amide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CNC(=O)COC")
+def test_n_alkyl_amide():
+    assert smiles_to_iupac("CNC(=O)COC") == "2-methoxy-N-methylethanamide"
 
 
-def test_two_amides_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(=O)C(COC)C(N)=O")
+def test_two_amides():
+    assert smiles_to_iupac("NC(=O)C(COC)C(N)=O") == "2-(methoxymethyl)propanediamide"
 
 
-def test_two_ethers_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COCC(OC)C(N)=O")
+def test_two_ethers():
+    assert smiles_to_iupac("COCC(OC)C(N)=O") == "2,3-dimethoxypropanamide"
 
 
-def test_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(=O)C1CCCCC1COC")
+def test_ring():
+    assert smiles_to_iupac("NC(=O)C1CCCCC1COC") == "2-(methoxymethyl)cyclohexane-1-carboxamide"
 
 
-def test_specified_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COC[C@@H](C)C(N)=O")
+def test_specified_stereocenter():
+    assert smiles_to_iupac("COC[C@@H](C)C(N)=O") == "(2R)-3-methoxy-2-methylpropanamide"
 
 
 def test_plain_ether_still_works():

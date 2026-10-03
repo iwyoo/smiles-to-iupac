@@ -31,27 +31,24 @@ def test_smiles_to_iupac_alcohol_amine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_secondary_amine_named():
+def test_secondary_amine():
     assert smiles_to_iupac("CNCCO") == "2-(methylamino)ethanol"
 
 
-def test_two_amines_named():
+def test_two_amines():
     assert smiles_to_iupac("NC(N)CO") == "2,2-diaminoethanol"
 
 
-def test_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC1CCC(O)CC1")
+def test_ring():
+    assert smiles_to_iupac("NC1CCC(O)CC1") == "4-aminocyclohexan-1-ol"
 
 
-def test_unsaturated_chain_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC=CCO")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("NCC=CCO") == "4-aminobut-2-en-1-ol"
 
 
-def test_specified_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@H](N)CO")
+def test_specified_stereocenter():
+    assert smiles_to_iupac("C[C@H](N)CO") == "(2S)-2-aminopropan-1-ol"
 
 
 def test_plain_alcohol_still_works():
@@ -62,5 +59,5 @@ def test_plain_amine_still_works():
     assert smiles_to_iupac("CCCN") == "propan-1-amine"
 
 
-def test_ether_coexisting_named():
+def test_ether_coexisting():
     assert smiles_to_iupac("NCC(O)COCC") == "1-amino-3-ethoxypropan-2-ol"

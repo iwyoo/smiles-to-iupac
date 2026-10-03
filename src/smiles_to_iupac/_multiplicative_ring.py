@@ -15,11 +15,12 @@ from ._common import (
     heteroaromatic_monocycle_name,
     multiplied_word,
     ring_cycle,
+    unsaturation_suffix,
 )
 from ._multiplicative_groups import SUFFIX_RANKS
 from ._multiplicative_prefix import SIMPLE_PREFIXES, prefix_name, probe_name, subtree
 from ._numerals import alkane_name, alkyl_name
-from ._substituents import format_substituent_prefixes
+from ._substituents import _ring_base_name, format_substituent_prefixes
 
 _SUFFIX_WORDS = {
     "carboxylic_acid": "carboxylic acid",
@@ -51,6 +52,7 @@ class RingSpec:
     cycle: list
     kind: str
     hetero: object
+    multiple: tuple = ()
 
     @property
     def parent(self):
@@ -67,6 +69,52 @@ class UnitText:
     junction_locant: object
     substituted: bool
     has_locants: bool
+
+
+def ene_spec(mol, ring_atoms):
+    """A non-aromatic carbocycle with ring double or triple bonds, for the
+    multiplicative unit, substituent and linker namers (cyclohex-2-en-1-yl)."""
+    ring_atoms = list(ring_atoms)
+    graph = {a: [n.GetIdx() for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in ring_atoms] for a in ring_atoms}
+    cycle = ring_cycle(graph, ring_atoms)
+    atoms = [mol.GetAtomWithIdx(a) for a in cycle]
+    if any(a.GetFormalCharge() or a.GetIsotope() or a.GetIsAromatic() or a.GetAtomicNum() != 6 for a in atoms):
+        return None
+    bonds = []
+    for i in range(len(cycle)):
+        a, b = cycle[i], cycle[(i + 1) % len(cycle)]
+        order = mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble()
+        if order not in (1.0, 2.0, 3.0):
+            return None
+        if order > 1.0:
+            bonds.append((a, b, order))
+    if not bonds or any(order == 3.0 for _, _, order in bonds) and len(cycle) < 8:
+        return None
+    return RingSpec(cycle, "cycloalkene", None, tuple(bonds))
+
+
+def spec_of(mol, ring_atoms):
+    return monocycle_spec(mol, ring_atoms) or ene_spec(mol, ring_atoms)
+
+
+def multiple_locants(spec, locants):
+    ene, yne = [], []
+    n = len(spec.cycle)
+    for a, b, order in spec.multiple:
+        low, high = sorted((locants[a], locants[b]))
+        locant = n if (low, high) == (1, n) else low
+        (ene if order == 2.0 else yne).append(locant)
+    return sorted(ene), sorted(yne)
+
+
+def parent_text(spec, locants):
+    if spec.kind != "cycloalkene":
+        return spec.parent
+    ene, yne = multiple_locants(spec, locants)
+    count = len(ene) + len(yne)
+    stem = "cyclo" + alkane_name(len(spec.cycle))[:-3]
+    body, needs_a = unsaturation_suffix(ene, yne)
+    return f"{stem}{'a' if needs_a else ''}-{body}" if count else spec.parent
 
 
 def monocycle_spec(mol, ring_atoms):
@@ -159,7 +207,7 @@ def ring_substituent_name(mol, ring_atoms, attach_atom, from_atom, groups, suffi
     `attach_atom`, or None when the ring isn't a supported monocycle."""
     if sum(1 for r in mol.GetRingInfo().AtomRings() if set(r) & set(ring_atoms)) != 1:
         return None
-    spec = monocycle_spec(mol, ring_atoms)
+    spec = spec_of(mol, ring_atoms)
     if spec is None:
         return None
     entries = _prefix_entries(mol, _ring_roots(mol, spec, {(attach_atom, from_atom)}), groups, suffix_group, name_function)
@@ -167,6 +215,7 @@ def ring_substituent_name(mol, ring_atoms, attach_atom, from_atom, groups, suffi
     for locants in numberings(spec):
         key = (
             locants[attach_atom],
+            multiple_locants(spec, locants),
             tuple(sorted(locants[r] for r, _, _ in entries)),
             _citation_key([(locants[r], name) for r, name, _ in entries]),
         )
@@ -177,11 +226,14 @@ def ring_substituent_name(mol, ring_atoms, attach_atom, from_atom, groups, suffi
         core = "phenyl"
     elif spec.kind == "cycloalkane":
         core = "cyclo" + alkyl_name(len(spec.cycle))
+    elif spec.kind == "cycloalkene":
+        ene, yne = multiple_locants(spec, locants)
+        core = _ring_base_name(len(spec.cycle), ene, yne, 1.0)
     else:
         parent = spec.parent
         core = f"{parent[:-1] if parent.endswith('e') else parent}-{locants[attach_atom]}-yl"
     prefix_text = _prefix_text(entries, locants)
-    return _join(prefix_text, core), bool(prefix_text) or spec.hetero is not None
+    return _join(prefix_text, core), bool(prefix_text) or spec.hetero is not None or spec.kind == "cycloalkene"
 
 
 def _prefix_entries(mol, roots, groups, suffix_group, name_function):
@@ -209,7 +261,7 @@ def name_monocyclic_unit(mol, ring_atoms, junction, linker_atom, groups, unit_at
     """UnitText for a monocyclic multiplied parent attached to its linker
     through ring atom `junction`; None when the unit's principal class can't
     be expressed as a suffix on this ring."""
-    spec = monocycle_spec(mol, ring_atoms)
+    spec = spec_of(mol, ring_atoms)
     if spec is None:
         raise UnsupportedStructure("this monocyclic ring is not supported as a multiplied parent structure yet")
     principal = principal_rank_of(groups, unit_atoms)
@@ -235,6 +287,7 @@ def name_monocyclic_unit(mol, ring_atoms, junction, linker_atom, groups, unit_at
     for locants in numberings(spec):
         key = (
             tuple(sorted(locants[a] for a in suffix_atoms)),
+            multiple_locants(spec, locants),
             locants[junction],
             tuple(sorted(locants[r] for r, _, _ in entries)),
             _citation_key([(locants[r], name) for r, name, _ in entries]),
@@ -244,9 +297,9 @@ def name_monocyclic_unit(mol, ring_atoms, junction, linker_atom, groups, unit_at
     locants = best[1]
 
     if suffix_name is not None:
-        core, has_locants = _suffix_text(spec.parent, suffix_name, [locants[a] for a in suffix_atoms], spec)
+        core, has_locants = _suffix_text(parent_text(spec, locants), suffix_name, [locants[a] for a in suffix_atoms], spec)
     else:
-        core, has_locants = spec.parent, False
+        core, has_locants = parent_text(spec, locants), False
     prefix_text = _prefix_text(entries, locants)
     return UnitText(
         _join(prefix_text, core), locants[junction], bool(prefix_text), has_locants or any(ch.isdigit() for ch in core)
@@ -258,7 +311,7 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
     None. `attachments`: [(ring_atom, external_atom)] for each free valence;
     `directed`: (unit_side_atom, center_side_atom) for a concatenated arm,
     where the unit-side atom takes the lowest locant (P-15.3.1.2.2.4)."""
-    spec = monocycle_spec(mol, ring_atoms)
+    spec = spec_of(mol, ring_atoms)
     if spec is None:
         return None
     free_atoms = [a for a, _ in attachments]
@@ -272,6 +325,7 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
             free_key = tuple(sorted(locants[a] for a in free_atoms))
         key = (
             free_key,
+            multiple_locants(spec, locants),
             tuple(sorted(locants[r] for r, _, _ in entries)),
             _citation_key([(locants[r], name) for r, name, _ in entries]),
         )
@@ -289,7 +343,7 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
         word = _VALENCE_WORDS.get(len(cited))
         if word is None:
             return None
-        body = f"{spec.parent}-{loc}-{word}"
+        body = f"{parent_text(spec, locants)}-{loc}-{word}"
     prefix_text = _prefix_text(entries, locants)
     return _join(prefix_text, body), bool(prefix_text)
 

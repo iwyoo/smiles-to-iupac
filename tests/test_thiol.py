@@ -73,9 +73,8 @@ def test_unsaturated_ring_thiol():
     assert smiles_to_iupac("SC1CC=CCC1") == "cyclohex-3-ene-1-thiol"
 
 
-def test_unsaturated_ring_thiol_with_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SC1CCCC=C1C")
+def test_unsaturated_ring_thiol_with_substituent():
+    assert smiles_to_iupac("SC1CCCC=C1C") == "2-methylcyclohex-2-ene-1-thiol"
 
 
 def test_unsaturated_ring_thiol_triple_bond_raises():
@@ -135,9 +134,8 @@ def test_ring_with_thiol_chain_thiol_ring_wins_outright():
     )
 
 
-def test_thiol_with_alcohol_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SCCO")
+def test_thiol_with_alcohol():
+    assert smiles_to_iupac("SCCO") == "2-sulfanylethanol"
 
 
 def test_phenyl_chain_thiol():
@@ -168,9 +166,8 @@ def test_substituted_benzenethiol():
     assert smiles_to_iupac("Cc1ccccc1S") == "2-methylbenzenethiol"  # CID 8712
 
 
-def test_two_direct_ring_thiols_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Sc1ccccc1S")
+def test_two_direct_ring_thiols():
+    assert smiles_to_iupac("Sc1ccccc1S") == "benzene-1,2-dithiol"
 
 
 def test_phenyl_substituted_benzene_ring_thiol_ortho_methyl():
@@ -197,9 +194,8 @@ def test_phenyl_chain_thiol_ring_ethyl():
     assert smiles_to_iupac("CCc1ccc(cc1)CS") == "(4-ethylphenyl)methanethiol"
 
 
-def test_phenyl_chain_thiol_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CCS")
+def test_phenyl_chain_thiol_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CCS") == "2-(2-ethenylphenyl)ethanethiol"
 
 
 def test_phenyl_chain_dithiol():
@@ -298,27 +294,13 @@ def test_two_ring_and_heteroaromatic_chain_thiol(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_two_ring_aromatic_substituent_thiol_substituted_ring_raises():
-    # The aromatic ring itself carrying an extra substituent beyond the
-    # one connecting bond is explicitly out of scope (#628's own scope
-    # note) -- falls through to the ordinary aromatic-carbon rejection.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SC1CCCC(c2ccc(C)cc2)C1")
+def test_two_ring_aromatic_substituent_thiol_substituted_ring():
+    assert smiles_to_iupac("SC1CCCC(c2ccc(C)cc2)C1") == "3-(4-methylphenyl)cyclohexane-1-thiol"
 
 
-def test_two_ring_aromatic_substituent_thiol_three_rings_raises():
-    # Three total rings is explicitly out of scope (#628's own scope
-    # note) -- still the generic "polycyclic/spiro" rejection.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SC1CCCC(c2ccccc2)C1c3ccccc3")
+def test_two_ring_aromatic_substituent_thiol_three_rings():
+    assert smiles_to_iupac("SC1CCCC(c2ccccc2)C1c3ccccc3") == "2,3-diphenylcyclohexane-1-thiol"
 
 
-def test_two_ring_aromatic_substituent_thiol_chain_thiol_raises():
-    # A thiol entirely on a chain hanging off the non-aromatic ring, with
-    # the ring itself bearing none, is out of scope for this narrower
-    # first slice (see the module dispatch's own scope note, mirroring
-    # #624's identical decision for `_alcohol.py`) -- the ring would need
-    # its own compound name_branch-computed substituent name (carrying
-    # the aromatic ring) rather than a plain "cyclo..." prefix.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SCC1CCCCC1c1ccccc1")
+def test_two_ring_aromatic_substituent_thiol_chain_thiol():
+    assert smiles_to_iupac("SCC1CCCCC1c1ccccc1") == "(2-phenylcyclohexyl)methanethiol"

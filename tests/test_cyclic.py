@@ -66,20 +66,12 @@ def test_non_stereogenic_ring_position_unaffected():
     assert smiles_to_iupac("C[C@H]1CCCCC1") == "methylcyclohexane"
 
 
-def test_asymmetric_1_2_disubstituted_stereo_raises():
-    # methyl and ethyl (different substituents) on adjacent ring carbons,
-    # both specified: P-93.5.1.3's full reference-substituent selection
-    # rules would be needed, out of this module's minimal scope.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@@H]1CCCC[C@H]1CC")
+def test_asymmetric_1_2_disubstituted_stereo():
+    assert smiles_to_iupac("C[C@@H]1CCCC[C@H]1CC") == "(1R,2R)-1-ethyl-2-methylcyclohexane"
 
 
-def test_1_3_disubstituted_stereo_raises():
-    # same symmetric substituents, but not adjacent (1,3- instead of
-    # 1,2-) -- the geometric-plane-check logic isn't verified for this
-    # position pattern, out of scope.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@@H]1C[C@H](C)CCC1")
+def test_1_3_disubstituted_stereo():
+    assert smiles_to_iupac("C[C@@H]1C[C@H](C)CCC1") == "(1R,3S)-1,3-dimethylcyclohexane"
 
 
 def test_single_ring_stereocenter_raises():

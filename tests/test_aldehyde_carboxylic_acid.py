@@ -30,16 +30,13 @@ def test_plain_aldehyde_still_works():
     assert smiles_to_iupac("CCC=O") == "propanal"
 
 
-def test_unsaturated_chain_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CCC(=O)CC(=O)O")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("C=CCC(=O)CC(=O)O") == "3-oxohex-5-enoic acid"
 
 
-def test_ring_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)C1CCC1=O")
+def test_ring():
+    assert smiles_to_iupac("OC(=O)C1CCC1=O") == "2-oxocyclobutane-1-carboxylic acid"
 
 
-def test_hydroxyl_coexistence_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC(=O)CC(=O)O")
+def test_hydroxyl_coexistence():
+    assert smiles_to_iupac("OCC(=O)CC(=O)O") == "4-hydroxy-3-oxobutanoic acid"

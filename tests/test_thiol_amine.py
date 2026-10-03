@@ -28,29 +28,24 @@ def test_smiles_to_iupac_thiol_amine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_secondary_amine_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CNCCS")
+def test_secondary_amine():
+    assert smiles_to_iupac("CNCCS") == "2-(methylamino)ethanethiol"
 
 
-def test_two_amines_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(N)CS")
+def test_two_amines():
+    assert smiles_to_iupac("NC(N)CS") == "2,2-diaminoethanethiol"
 
 
-def test_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC1CCC(S)CC1")
+def test_ring():
+    assert smiles_to_iupac("NC1CCC(S)CC1") == "4-aminocyclohexane-1-thiol"
 
 
-def test_unsaturated_chain_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC=CCS")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("NCC=CCS") == "4-aminobut-2-ene-1-thiol"
 
 
-def test_specified_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@H](N)CS")
+def test_specified_stereocenter():
+    assert smiles_to_iupac("C[C@H](N)CS") == "(2S)-2-aminopropane-1-thiol"
 
 
 def test_plain_thiol_still_works():
@@ -61,8 +56,5 @@ def test_plain_amine_still_works():
     assert smiles_to_iupac("CCCN") == "propan-1-amine"
 
 
-def test_sulfide_coexisting_raises():
-    # A sulfide alongside the thiol/amine pair is out of scope for this
-    # first pairwise pilot on `_thiol.py`.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC(S)CSCC")
+def test_sulfide_coexisting():
+    assert smiles_to_iupac("NCC(S)CSCC") == "1-amino-3-(ethylsulfanyl)propane-2-thiol"

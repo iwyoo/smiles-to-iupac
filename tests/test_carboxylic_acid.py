@@ -47,12 +47,8 @@ def test_mononuclear_parent_omits_locant():
     assert smiles_to_iupac("OC(=O)Cl") == "chloromethanoic acid"
 
 
-def test_ether_raises():
-    # An ether coexisting with a carboxylic acid (as opposed to a plain
-    # ether on its own, now handled by the separate ether module) is still
-    # out of scope for this module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCOCC(=O)O")
+def test_ether():
+    assert smiles_to_iupac("CCOCC(=O)O") == "2-ethoxyethanoic acid"
 
 
 @pytest.mark.parametrize(
@@ -86,23 +82,20 @@ def test_ring_carboxylic_acid_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_ring_carboxylic_acid_unsaturated_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1=CCCC1C(=O)O")
+def test_ring_carboxylic_acid_unsaturated_ring():
+    assert smiles_to_iupac("C1=CCCC1C(=O)O") == "cyclopent-2-ene-1-carboxylic acid"
 
 
-def test_ring_carboxylic_acid_standalone_hydroxyl_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1CCCCC1C(=O)O")
+def test_ring_carboxylic_acid_standalone_hydroxyl():
+    assert smiles_to_iupac("OC1CCCCC1C(=O)O") == "2-hydroxycyclohexane-1-carboxylic acid"
 
 
 def test_ring_carboxylic_acid_intervening_chain_carbon():
     assert smiles_to_iupac("C1CCC(CC1)CC(=O)O") == "2-cyclohexylethanoic acid"
 
 
-def test_ring_carboxylic_acid_two_carboxyls_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)C1CCC(C(=O)O)CC1")
+def test_ring_carboxylic_acid_two_carboxyls():
+    assert smiles_to_iupac("OC(=O)C1CCC(C(=O)O)CC1") == "cyclohexane-1,4-dicarboxylic acid"
 
 
 def test_benzoic_acid():
@@ -153,9 +146,8 @@ def test_phenyl_substituent_carboxylic_acid_substituted_ring_ortho_methyl():
     assert smiles_to_iupac("Cc1ccccc1CC(=O)O") == "2-(2-methylphenyl)ethanoic acid"
 
 
-def test_phenyl_substituent_carboxylic_acid_naphthalene_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc2ccccc2c1CC(=O)O")
+def test_phenyl_substituent_carboxylic_acid_naphthalene():
+    assert smiles_to_iupac("c1ccc2ccccc2c1CC(=O)O") == "2-(naphthalen-1-yl)ethanoic acid"
 
 
 def test_pyridine_substituent_carboxylic_acid():
@@ -189,12 +181,8 @@ def test_pyrrole_n_substituent_carboxylic_acid_no_indicated_hydrogen():
     assert smiles_to_iupac("OC(=O)Cn1cccc1") == "2-(pyrrol-1-yl)ethanoic acid"
 
 
-def test_heteroaromatic_substituent_carboxylic_acid_directly_on_ring_raises():
-    # A -COOH directly on a heteroaromatic ring (e.g. nicotinic acid) needs
-    # a different suffix construction than this chain-substituent path --
-    # out of scope for this step.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC(=O)c1cccnc1")
+def test_heteroaromatic_substituent_carboxylic_acid_directly_on_ring():
+    assert smiles_to_iupac("OC(=O)c1cccnc1") == "pyridine-3-carboxylic acid"
 
 
 def test_phenyl_substituent_carboxylic_acid_ring_halogen():
@@ -283,11 +271,8 @@ def test_alcohol_mix_names_hydroxy_prefix():
     assert smiles_to_iupac("OC(=O)CCO") == "3-hydroxypropanoic acid"
 
 
-def test_carboxylic_acid_enol_mix_raises():
-    # A hydroxyl on a C=C carbon (an enol) is a tautomer of a more senior
-    # carbonyl form and out of scope, same as `_alcohol.py`'s own enol check.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC=CC(=O)O")
+def test_carboxylic_acid_enol_mix():
+    assert smiles_to_iupac("OC=CC(=O)O") == "3-hydroxyprop-2-enoic acid"
 
 
 @pytest.mark.parametrize(

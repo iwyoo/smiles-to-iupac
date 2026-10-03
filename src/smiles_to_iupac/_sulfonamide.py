@@ -124,6 +124,7 @@ from ._common import (
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     ring_chain_attachments_with_halogens,
+    ring_hosting_anchors,
     separate_aromatic_monocycles,
     ring_cycle,
     specified_stereocenters,
@@ -456,7 +457,7 @@ def _benzenesulfonamide_candidate_key(so2nh2_locant, substituents, n_names=()):
     return so2nh2_locant, locant_set, citation_locants, name
 
 
-def _name_benzenesulfonamide(mol, ring_atoms):
+def _name_benzenesulfonamide(mol, ring_atoms, exempt_atoms=None):
     """P-65.3.1: -SO2NH2 attached directly to a benzene ring carbon -- e.g.
     'benzenesulfonamide', '4-methylbenzenesulfonamide', and now
     'N-methylbenzenesulfonamide'/'N,N-dimethylbenzenesulfonamide'/
@@ -470,7 +471,7 @@ def _name_benzenesulfonamide(mol, ring_atoms):
     identically-named pair (e.g. two 'methyl's) collapses into one
     multiplied citation exactly like PubChem's own name."""
     sulfur_idx, so2nh2_carbon, nitrogen_idx, n_alkyl_carbons = _validate_and_collect_sulfonamides(
-        mol, aromatic_ring_atoms=ring_atoms
+        mol, aromatic_ring_atoms=exempt_atoms or ring_atoms
     )
     if specified_stereocenters(mol):
         raise UnsupportedStructure(
@@ -679,7 +680,13 @@ def _name_von_baeyer_or_spiro_sulfonamide(mol, sulfur_idx, so2nh2_carbon, n_alky
 def name_sulfonamide(mol) -> str:
     aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
     if aromatic_rings is not None:
-        return _name_phenyl_chain_sulfonamide(mol, set().union(*aromatic_rings))
+        union = set().union(*aromatic_rings)
+        sulfur_idx, *_ = _validate_and_collect_sulfonamides(mol, aromatic_ring_atoms=union)
+        anchors = [sulfur_idx]
+        host = ring_hosting_anchors(mol, adjacency(mol), aromatic_rings, anchors)
+        if host is not None:
+            return _name_benzenesulfonamide(mol, host, union)
+        return _name_phenyl_chain_sulfonamide(mol, union)
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])

@@ -11,23 +11,27 @@ class NonPreferredNameWarning(UserWarning):
     pass
 
 
-def begin():
-    _state.reasons = []
+def enter():
+    depth = getattr(_state, "depth", 0)
+    if depth == 0:
+        _state.reasons = []
+    _state.depth = depth + 1
 
 
 def mark(name, reason):
-    if hasattr(_state, "reasons"):
+    if getattr(_state, "depth", 0):
         _state.reasons.append(reason)
     return name
 
 
-def finish(name):
-    reasons = getattr(_state, "reasons", [])
-    _state.reasons = []
-    if reasons:
+def leave(name):
+    _state.depth -= 1
+    if _state.depth:
+        return
+    reasons, _state.reasons = _state.reasons, []
+    if name is not None and reasons:
         warnings.warn(
             f"{name!r} is a valid name but not a preferred IUPAC name: {reasons[0]}",
             NonPreferredNameWarning,
             stacklevel=3,
         )
-    return name

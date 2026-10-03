@@ -93,6 +93,7 @@ from ._common import (
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
     ring_chain_attachments_with_halogens,
+    ring_hosting_anchors,
     separate_aromatic_monocycles,
     ring_cycle,
     ring_name_from_substituents,
@@ -496,7 +497,7 @@ def _benzaldehyde_candidate_key(al_locant, substituents):
     return al_locant, locant_set, citation_locants, name
 
 
-def _name_benzaldehyde(mol, ring_atoms):
+def _name_benzaldehyde(mol, ring_atoms, exempt_atoms=None):
     """P-66.6.1.1.3: 'benzaldehyde' is a retained name that is itself the
     PIN for a -CHO hanging directly off one carbon of an otherwise-plain
     (or substituted) benzene ring -- e.g. 'benzaldehyde' (PubChem CID
@@ -506,7 +507,7 @@ def _name_benzaldehyde(mol, ring_atoms):
     with the retained name 'benzaldehyde' replacing 'cyclo' + alkane_name
     + 'carbaldehyde' as the whole suffix unit (no locant is ever cited
     for the -CHO position itself)."""
-    aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol, aromatic_ring_atoms=ring_atoms)
+    aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol, aromatic_ring_atoms=exempt_atoms or ring_atoms)
     if hydroxyls:
         raise UnsupportedStructure(
             "a standalone hydroxyl alongside benzaldehyde is not "
@@ -618,7 +619,13 @@ def _name_phenyl_chain_aldehyde(mol, ring_atoms):
 def name_aldehyde(mol) -> str:
     aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
     if aromatic_rings is not None:
-        return _name_phenyl_chain_aldehyde(mol, set().union(*aromatic_rings))
+        union = set().union(*aromatic_rings)
+        aldehydes, _ = _validate_and_collect_aldehydes(mol, aromatic_ring_atoms=union)
+        anchors = [next(iter(adjacency(mol)[o])) for o in aldehydes]
+        host = ring_hosting_anchors(mol, adjacency(mol), aromatic_rings, anchors)
+        if host is not None:
+            return _name_benzaldehyde(mol, host, union)
+        return _name_phenyl_chain_aldehyde(mol, union)
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])

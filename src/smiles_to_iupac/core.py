@@ -129,6 +129,8 @@ from ._dihydro_aromatic import (
 )
 from ._diester_acyloxy import has_diester_shape, has_polyester_of_one_polyol_shape, name_diester_acyloxy
 from ._ester import has_ester_shape, name_ester
+from ._ester_by_parts import name_ester_by_parts
+from ._polyfunctional import name_polyfunctional
 from ._cyanate import has_cyanate_shape, name_cyanate
 from ._ether import has_ether_shape, name_ether
 from ._ether_amine import has_ether_amine_shape, name_ether_amine
@@ -146,7 +148,7 @@ from ._metallacycle_group import name_metallacycle_as_group
 from ._metallafused import has_metallafused_shape, name_metallafused
 from ._metallapolycycle import has_metallapolycycle_shape, name_metallapolycycle
 from ._ocene import has_ocene_shape, name_ocene
-from ._pin import begin, finish, mark
+from ._pin import enter, leave, mark
 from ._fused_hetero_ring_oxide import has_fused_hetero_ring_oxide_shape, name_fused_hetero_ring_oxide
 from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
 from ._pyridinone import has_pyridinone_shape, name_pyridinone
@@ -393,30 +395,57 @@ def _is_aldehyde_shaped(carbonyl_oxygen):
 
 _NO_PIN_ORGANOMETALLIC = "the Blue Book defines no PIN for this class of organometallic compound (P-69.0)"
 
+_FALLBACKS_RUNNING = set()
+
 
 def smiles_to_iupac(smiles: str) -> str:
+    enter()
+    name = None
+    try:
+        try:
+            name = _smiles_to_iupac_dispatch(smiles)
+        except UnsupportedStructure as original:
+            name = _run_fallbacks(smiles, original)
+        return name
+    finally:
+        leave(name)
+
+
+def _run_fallbacks(smiles, original):
+    mol = Chem.MolFromSmiles(smiles)
+    key = Chem.MolToSmiles(mol)
+    if key in _FALLBACKS_RUNNING:
+        raise original
+    _FALLBACKS_RUNNING.add(key)
+    try:
+        for skeletal in (name_skeletal_chain, name_hetero_macrocycle):
+            try:
+                name = skeletal(mol)
+            except UnsupportedStructure:
+                continue
+            if name is not None:
+                return name
+        for fallback in (name_polyfunctional, name_ester_by_parts):
+            try:
+                return fallback(mol)
+            except UnsupportedStructure:
+                continue
+        name = _name_via_fallbacks(mol)
+        if name is not None:
+            return name
+    finally:
+        _FALLBACKS_RUNNING.discard(key)
+    raise original
+
+
+def _smiles_to_iupac_dispatch(smiles: str) -> str:
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError(f"invalid SMILES: {smiles!r}")
-    begin()
-    try:
-        return finish(_name_mol(mol))
-    except UnsupportedStructure as first:
-        name = _name_via_fallbacks(mol)
-        if name is None:
-            begin()
-            raise first
-        return finish(name)
+    return _name_mol(mol)
 
 
 def _name_via_fallbacks(mol):
-    for skeletal in (name_skeletal_chain, name_hetero_macrocycle):
-        try:
-            name = skeletal(mol)
-        except UnsupportedStructure:
-            continue
-        if name is not None:
-            return name
     for contract in (contract_phosphanyl_groups, contract_hetero_groups):
         try:
             contracted = contract(mol)

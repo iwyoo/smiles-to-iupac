@@ -29,24 +29,20 @@ def test_plain_sulfonic_acid_still_routes_normally():
     assert smiles_to_iupac("CS(=O)(=O)O") == "methanesulfonic acid"
 
 
-def test_multiple_sulfonic_acids_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)(=O)CCS(=O)(=O)O")
+def test_multiple_sulfonic_acids():
+    assert smiles_to_iupac("OS(=O)(=O)CCS(=O)(=O)O") == "ethane-1,2-disulfonic acid"
 
 
-def test_other_heteroatom_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCCS(=O)(=O)O")
+def test_other_heteroatom():
+    assert smiles_to_iupac("OCCS(=O)(=O)O") == "2-hydroxyethanesulfonic acid"
 
 
-def test_unsaturated_chain_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CC(S)S(=O)(=O)O")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("C=CC(S)S(=O)(=O)O") == "1-sulfanylprop-2-ene-1-sulfonic acid"
 
 
-def test_ring_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCC(S)(CC1)S(=O)(=O)O")
+def test_ring():
+    assert smiles_to_iupac("C1CCC(S)(CC1)S(=O)(=O)O") == "1-sulfanylcyclohexane-1-sulfonic acid"
 
 
 @pytest.mark.parametrize(
@@ -64,17 +60,12 @@ def test_phenyl_chain_sulfonic_acid_thiol(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_phenyl_ring_with_second_substituent_raises():
-    # A benzene ring with two exocyclic attachments (a thiol directly on
-    # the ring plus a separate sulfonic-acid-bearing chain) is out of
-    # scope for this single-chain-substituent module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Sc1ccccc1CS(=O)(=O)O")
+def test_phenyl_ring_with_second_substituent():
+    assert smiles_to_iupac("Sc1ccccc1CS(=O)(=O)O") == "(2-sulfanylphenyl)methanesulfonic acid"
 
 
-def test_phenyl_chain_sulfonic_acid_thiol_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC(S)S(=O)(=O)O")
+def test_phenyl_chain_sulfonic_acid_thiol_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CC(S)S(=O)(=O)O") == "2-(2-ethenylphenyl)-1-sulfanylethanesulfonic acid"
 
 
 def test_senior_class_ranks_sulfonic_acid_over_alcohol():

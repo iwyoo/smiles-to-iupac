@@ -20,34 +20,28 @@ def test_smiles_to_iupac_ketone_amine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_secondary_amine_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CNCC(C)=O")
+def test_secondary_amine():
+    assert smiles_to_iupac("CNCC(C)=O") == "1-(methylamino)propan-2-one"
 
 
-def test_two_amines_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(N)C(C)=O")
+def test_two_amines():
+    assert smiles_to_iupac("NC(N)C(C)=O") == "1,1-diaminopropan-2-one"
 
 
-def test_two_ketones_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC(=O)CC(C)=O")
+def test_two_ketones():
+    assert smiles_to_iupac("NCC(=O)CC(C)=O") == "1-aminopentane-2,4-dione"
 
 
-def test_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC1CCC(=O)CC1")
+def test_ring():
+    assert smiles_to_iupac("NC1CCC(=O)CC1") == "4-aminocyclohexan-1-one"
 
 
-def test_unsaturated_chain_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC=CC(C)=O")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("NCC=CC(C)=O") == "5-aminopent-3-en-2-one"
 
 
-def test_specified_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@H](N)C(C)=O")
+def test_specified_stereocenter():
+    assert smiles_to_iupac("C[C@H](N)C(C)=O") == "(3S)-3-aminobutan-2-one"
 
 
 def test_plain_ketone_still_works():
@@ -58,8 +52,5 @@ def test_plain_amine_still_works():
     assert smiles_to_iupac("CCCN") == "propan-1-amine"
 
 
-def test_hydroxyl_coexisting_raises():
-    # A standalone hydroxyl alongside the ketone/amine pair is out of
-    # scope for this first pairwise pilot on `_ketone.py`.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC(=O)CO")
+def test_hydroxyl_coexisting():
+    assert smiles_to_iupac("NCC(=O)CO") == "1-amino-3-hydroxypropan-2-one"

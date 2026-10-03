@@ -39,24 +39,20 @@ def test_plain_ketone_still_works():
     assert smiles_to_iupac("CC(=O)C") == "propan-2-one"
 
 
-def test_two_aldehydes_with_ketone_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=CC(=O)CC=O")
+def test_two_aldehydes_with_ketone():
+    assert smiles_to_iupac("O=CC(=O)CC=O") == "2-oxobutanedial"
 
 
-def test_unsaturated_chain_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CC(=O)CC=O")
+def test_unsaturated_chain():
+    assert smiles_to_iupac("C=CC(=O)CC=O") == "3-oxopent-4-enal"
 
 
-def test_ring_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=CC1CCC(=O)C1")
+def test_ring():
+    assert smiles_to_iupac("O=CC1CCC(=O)C1") == "3-oxocyclopentane-1-carbaldehyde"
 
 
-def test_hydroxyl_coexistence_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC(=O)CC=O")
+def test_hydroxyl_coexistence():
+    assert smiles_to_iupac("OCC(=O)CC=O") == "4-hydroxy-3-oxobutanal"
 
 
 def test_phenyl_chain_aldehyde_ketone():
@@ -77,11 +73,9 @@ def test_phenyl_directly_attached_to_ketone_carbon():
     assert smiles_to_iupac("c1ccccc1C(=O)CC=O") == "3-oxo-3-phenylpropanal"
 
 
-def test_phenyl_substituted_benzene_ring_aldehyde_ketone_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC(=O)CC=O")
+def test_phenyl_substituted_benzene_ring_aldehyde_ketone():
+    assert smiles_to_iupac("Cc1ccccc1CC(=O)CC=O") == "4-(2-methylphenyl)-3-oxobutanal"
 
 
-def test_phenyl_chain_aldehyde_ketone_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC(=O)CC=O")
+def test_phenyl_chain_aldehyde_ketone_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CC(=O)CC=O") == "4-(2-ethenylphenyl)-3-oxobutanal"

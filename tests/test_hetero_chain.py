@@ -13,7 +13,7 @@ from smiles_to_iupac import smiles_to_iupac
         ("CSCCSCCSCCSC", "2,5,8,11-tetrathiadodecane"),
         ("CNCCNCCNCCNC", "2,5,8,11-tetraazadodecane"),
         ("CSCCSC", "1,2-bis(methylsulfanyl)ethane"),
-        ("NCCNCCN", "N1-(2-aminoethyl)ethane-1,2-diamine"),
+        ("NCCNCCN", "2,2'-azanediyldi(ethan-1-amine)"),
         ("NCCN(C)CCN", "N1-(2-aminoethyl)-N1-methylethane-1,2-diamine"),
         ("NCCNCCNCCN", "N1-{2-[(2-aminoethyl)amino]ethyl}ethane-1,2-diamine"),
         ("C1COCCOCCOCCO1", "1,4,7,10-tetraoxacyclododecane"),
@@ -29,7 +29,7 @@ def test_hetero_chain_and_macrocycle_names(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("[Cl][Pt]12<-[NH2]CC[NH]->1CC[NH2]->2", "chlorido[N1-(2-aminoethyl)ethane-1,2-diamine-κ3N,N',N'']platinum"),
+        ("[Cl][Pt]12<-[NH2]CC[NH]->1CC[NH2]->2", "[2,2'-azanediyldi(ethan-1-amine)-κ3N,N',N'']chloridoplatinum"),
         ("C[O]1CC[O](C)->[Pt]<-1([Cl])[Cl]", "dichlorido(1,2-dimethoxyethane-κ2O,O')platinum"),
         (
             "C1C[O]2->[K]3456<-[O]1CC[O]->3CC[O]->4CC[O]->5CC[O]->6CC2",

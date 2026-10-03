@@ -40,9 +40,8 @@ def test_ring_alongside_isotope_carboxylic_acid_raises():
         smiles_to_iupac("[13CH2](C(=O)O)C1CCCCC1")
 
 
-def test_chain_unsaturation_alongside_isotope_carboxylic_acid_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[13CH3]C(=O)OC=C")
+def test_chain_unsaturation_alongside_isotope_carboxylic_acid():
+    assert smiles_to_iupac("[13CH3]C(=O)OC=C") == "ethenyl (2-13C)ethanoate"
 
 
 def test_specified_stereocenter_alongside_isotope_carboxylic_acid_raises():

@@ -680,7 +680,7 @@ def _name_cyclyl_ester(mol, ring_atoms, acyl_carbon, carbonyl_oxygen, ester_oxyg
     return f"{alcohol_name} {acyl_name}"
 
 
-def name_ester(mol) -> str:
+def _name_ester_direct(mol) -> str:
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
@@ -731,3 +731,15 @@ def name_ester(mol) -> str:
     alcohol_name = _name_alcohol_part(mol, alcohol_carbon, ester_oxygen.GetIdx())
     acyl_name = _name_acyl_part(mol, acyl_carbon, carbonyl_oxygen.GetIdx(), ester_oxygen.GetIdx(), stereo)
     return f"{alcohol_name} {acyl_name}"
+
+
+def name_ester(mol) -> str:
+    try:
+        return _name_ester_direct(mol)
+    except UnsupportedStructure as original:
+        from ._ester_by_parts import name_ester_by_parts
+
+        try:
+            return name_ester_by_parts(mol)
+        except UnsupportedStructure:
+            raise original

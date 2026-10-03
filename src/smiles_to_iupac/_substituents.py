@@ -68,6 +68,7 @@ ordinary cycle-detection path (see `_simple_ring_substituent`'s own
 docstring for exactly which zero-substituent shapes it recognizes).
 """
 
+from ._multiplicative_text import enclose
 from ._common import (
     UnsupportedStructure,
     alpha_sort_key,
@@ -160,14 +161,7 @@ def format_substituent_prefixes(grouped, omit_locants: bool = False) -> str:
         # a name that already contains its own '(' (e.g. '4-(2-methylpropyl)
         # phenyl') needs the next mark up, or two same-kind marks would abut
         # ambiguously (PubChem '2-[4-(2-methylpropyl)phenyl]propanoic acid').
-        if not info["compound"]:
-            display_name = name
-        elif "(" not in name:
-            display_name = f"({name})"
-        elif "[" not in name:
-            display_name = f"[{name}]"
-        else:
-            display_name = "{" + name + "}"
+        display_name = enclose(name) if info["compound"] else name
         explicit = (not omit_locants) or any(isinstance(loc, str) for loc in locants)
         if explicit:
             loc_str = ",".join(str(loc) for loc in locants)
@@ -380,7 +374,7 @@ def _longest_chains_from_root(graph, root, coming_from, halogens, mol=None, arom
                 if not (
                     mol.GetAtomWithIdx(n).IsInRing()
                     and mol.GetBondBetweenAtoms(node, n).GetBondTypeAsDouble() == 1.0
-                    and _simple_ring_substituent(graph, n, node, aromatic_atoms, mol=mol) is not None
+                    and _is_ring_branch_root(graph, n, node, aromatic_atoms, mol)
                 )
             ]
         if not neighbors:
@@ -411,6 +405,23 @@ def _candidate_key(grouped):
     of this key)."""
     locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
     return -total_count, locant_set, citation_locants
+
+
+def _is_ring_branch_root(graph, root, coming_from, aromatic_atoms, mol):
+    """True when `root` starts a ring substituent that is cited as a unit
+    rather than walked as chain: a plain ring, or a monocyclic carbocycle
+    (benzene included) carrying substituents of its own."""
+    if _simple_ring_substituent(graph, root, coming_from, aromatic_atoms, mol=mol) is not None:
+        return True
+    ring_info = mol.GetRingInfo()
+    ring = next((r for r in ring_info.AtomRings() if root in r), None)
+    if ring is None or any(ring_info.NumAtomRings(a) != 1 for a in ring):
+        return False
+    atoms = [mol.GetAtomWithIdx(a) for a in ring]
+    if any(a.GetAtomicNum() != 6 for a in atoms):
+        return False
+    aromatic = all(a.GetIsAromatic() for a in atoms)
+    return (aromatic and len(ring) == 6) or not any(a.GetIsAromatic() for a in atoms)
 
 
 def _simple_ring_substituent(graph, root, coming_from, aromatic_atoms=frozenset(), mol=None):
@@ -681,6 +692,60 @@ def _all_carbon_branch(mol, graph, root, coming_from):
     return True
 
 
+def _ring_of_root_is_all_carbon(mol, root):
+    ring = next((r for r in mol.GetRingInfo().AtomRings() if root in r), None)
+    return ring is None or all(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in ring)
+
+
+def _ring_has_other_substituents(graph, mol, root, coming_from):
+    ring = next(r for r in mol.GetRingInfo().AtomRings() if root in r)
+    return any(n not in ring and not (a == root and n == coming_from) for a in ring for n in graph[a])
+
+
+def _ring_system_branch(graph, mol, root, coming_from):
+    """Fused rings and non-aromatic heterocycles are named as substituent
+    groups by the ring-system machinery (pyrrolidin-1-yl, naphthalen-2-yl, ...);
+    None for the carbocycles and aromatic monocycles handled elsewhere."""
+    ring_info = mol.GetRingInfo()
+    ring = next(r for r in ring_info.AtomRings() if root in r)
+    fused = any(ring_info.NumAtomRings(a) != 1 for a in ring)
+    hetero = any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in ring)
+    aromatic = all(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring)
+    if not (fused or (hetero and not aromatic)):
+        return None
+    if fused and not any(mol.GetAtomWithIdx(a).GetIsAromatic() for r in ring_info.AtomRings() for a in r if a in ring):
+        raise UnsupportedStructure("a saturated fused or bridged ring substituent needs hydro or von Baeyer naming here")
+    if mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
+        raise UnsupportedStructure("a ring system attached by a multiple bond is not supported yet")
+    from ._diester_ring_diyl import ring_substituent_name
+
+    return ring_substituent_name(mol, graph, root, coming_from)
+
+
+def _hetero_ring_branch(mol, root, coming_from):
+    """A ring substituent containing a heteroatom: named through the monocycle
+    machinery (pyridinyl, furanyl, ...) or rejected rather than misnamed."""
+    from ._multiplicative_groups import classify
+    from ._multiplicative_ring import ring_substituent_name
+
+    ring_atoms = next(set(r) for r in mol.GetRingInfo().AtomRings() if root in r)
+    if mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
+        raise UnsupportedStructure("a heterocyclic substituent attached by a multiple bond is not supported yet")
+    from ._multiplicative import _bare_key
+
+    own_key = _bare_key(mol, ring_atoms)
+    for ring in mol.GetRingInfo().AtomRings():
+        joined = set(ring) != ring_atoms and any(
+            mol.GetBondBetweenAtoms(a, b) is not None for a in ring_atoms for b in ring
+        )
+        if joined and not set(ring) & ring_atoms and _bare_key(mol, set(ring)) == own_key:
+            raise UnsupportedStructure("a heteroaromatic ring assembly as a substituent group is not supported yet")
+    result = ring_substituent_name(mol, ring_atoms, root, coming_from, classify(mol) or [], None)
+    if result is None:
+        raise UnsupportedStructure("this heterocyclic substituent group is not supported yet")
+    return result
+
+
 def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mol=None, unsaturated=None):
     """Name the substituent group hanging off `root`, reached from
     `coming_from` (the parent chain/ring atom). Returns (name, is_compound);
@@ -719,6 +784,25 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
         attach_order = _bond_order(mol, root, coming_from)
         aromatic_atoms = aromatic_atoms or frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
 
+    if mol is not None and unsaturated:
+        from ._hetero_prefixes import hetero_branch_name
+
+        hetero = hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol)
+        if hetero is not None:
+            return hetero
+
+    if mol is not None and mol.GetAtomWithIdx(root).IsInRing():
+        system_name = _ring_system_branch(graph, mol, root, coming_from)
+        if system_name is not None:
+            return system_name
+    if (
+        mol is not None
+        and mol.GetAtomWithIdx(root).IsInRing()
+        and not _ring_of_root_is_all_carbon(mol, root)
+        and _ring_has_other_substituents(graph, mol, root, coming_from)
+    ):
+        return _hetero_ring_branch(mol, root, coming_from)
+
     ring_result = _simple_ring_substituent(graph, root, coming_from, aromatic_atoms, mol=mol)
     if ring_result is not None:
         ring_size, is_aromatic, heteroaromatic_name = ring_result
@@ -730,7 +814,7 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
             return _unsaturated_ring_branch(graph, root, coming_from, ring_size, attach_order, mol)
         return "cyclo" + alkyl_name(ring_size), False
 
-    if aromatic_atoms:
+    if aromatic_atoms and (mol is None or _ring_of_root_is_all_carbon(mol, root)):
         halophenyl = halogenated_phenyl_substituent(graph, aromatic_atoms, root, coming_from, halogens)
         if halophenyl is not None:
             name, _, _ = halophenyl
@@ -1068,6 +1152,21 @@ def _substituted_ring_branch(graph, root, coming_from, halogens, aromatic_atoms,
     )
     if ring_atoms is None or any(ring_info.NumAtomRings(a) != 1 for a in ring_atoms):
         raise cyclic_error
+    from ._multiplicative import _bare_key
+
+    own_key = _bare_key(mol, set(ring_atoms))
+    for atom in ring_atoms:
+        for neighbor in graph[atom]:
+            other = next((r for r in ring_info.AtomRings() if neighbor in r and atom not in r), None)
+            if other is not None and neighbor not in ring_atoms and _bare_key(mol, set(other)) == own_key:
+                from ._polyfunctional import assembly_substituent
+
+                assembly = assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms)
+                if assembly is None:
+                    raise UnsupportedStructure(
+                        "this ring assembly as a substituent group is not supported yet (P-28)"
+                    )
+                return assembly
     atoms = [mol.GetAtomWithIdx(a) for a in ring_atoms]
     aromatic = all(a.GetIsAromatic() for a in atoms)
     if any(a.GetAtomicNum() != 6 for a in atoms) or (not aromatic and any(a.GetIsAromatic() for a in atoms)):
@@ -1111,13 +1210,17 @@ def _chain_children(graph, node, parent, halogens, mol, aromatic_atoms):
             "a heteroatom in a compound substituent branch, other than "
             "a recognized halogen/named group, is not supported yet"
         )
+    from ._hetero_prefixes import is_functional_carbon
+
     children = []
     for n in graph[node]:
         if n == parent or n in halogens:
             continue
+        if mol.GetAtomWithIdx(n).GetAtomicNum() != 6 or is_functional_carbon(mol, n):
+            continue
         if (
             mol.GetAtomWithIdx(n).IsInRing()
-            and _simple_ring_substituent(graph, n, node, aromatic_atoms, mol=mol) is not None
+            and _is_ring_branch_root(graph, n, node, aromatic_atoms, mol)
         ):
             continue
         children.append(n)
@@ -1218,7 +1321,7 @@ def _is_tert_butyl(graph, root, coming_from, halogens):
 def _unsaturated_chain_name(length, root_position, suffix, ene, yne, grouped, tert_butyl):
     if tert_butyl and suffix == "yl" and not ene and not yne:
         return "tert-butyl", False
-    if length == 1 and list(grouped) == ["phenyl"]:
+    if length == 1 and list(grouped) == ["phenyl"] and len(grouped["phenyl"]["locants"]) == 1:
         # P-29.6.2.1: 'benzyl'/'benzylidene'/'benzylidyne' are the preferred prefixes when unsubstituted.
         return "benz" + suffix, False
     prefix = format_substituent_prefixes(grouped, omit_locants=(length == 1)) if grouped else ""
