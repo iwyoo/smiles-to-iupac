@@ -3,7 +3,8 @@ monocyclic ring with one Group 4-12 metal (and optional main-group hetero
 atoms) replacing ring carbons, named by skeletal replacement
 ('1-sila-2-ferracyclopentane', '1-iridabenzene'). The Hantzsch-Widman
 alternative ('platinole') names the same structures and is not emitted.
-Fused and bridged rings are out of scope.
+Bicyclic and anthracene-type rings: _metallabicycle.py, _metallaanthracene.py;
+tricyclic and other fused metallacycles are out of scope.
 """
 
 from rdkit import Chem

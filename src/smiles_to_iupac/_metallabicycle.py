@@ -1,9 +1,9 @@
-"""Saturated bicyclic metallacycles (P-69.4, `tmp/bluebook/P6a.txt` line
+"""Bicyclic metallacycles (P-69.4, `tmp/bluebook/P6a.txt` line
 8905: '6,6-di(eta5-cyclopenta-2,4-dien-1-yl)-6-titanabicyclo[3.2.0]heptane'):
 one Group 4-12 ring metal in a von Baeyer bicyclic carbon skeleton, named
 with the 'a' prefix on 'bicyclo[x.y.z]alkane'. Cp rings arrive as separate
-[CH-]/[CH] fragments. Unsaturated, polycyclic and hetero-atom rings are
-out of scope.
+[CH-]/[CH] fragments; ring C=C gives 'ene' names. Polycyclic and
+hetero-atom rings are out of scope.
 """
 
 from rdkit import Chem
