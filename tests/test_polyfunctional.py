@@ -302,7 +302,6 @@ def test_heterocyclic_parents(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        "c1ccc(-c2ccc(-c3ccccn3)cc2)cc1",
         "S=C1CCCC=C1C",
         "OCCC1CCC2CCCCC2C1",
     ],
@@ -310,3 +309,38 @@ def test_heterocyclic_parents(smiles, expected):
 def test_ring_assembly_substituents_thioketones_and_saturated_fused_rings_are_rejected(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OCCc1ccc(cc1)-c1ccccc1", "2-([1,1'-biphenyl]-4-yl)ethanol"),
+        ("OC(=O)Cc1ccc(cc1)-c1ccccc1", "2-([1,1'-biphenyl]-4-yl)ethanoic acid"),
+        ("Clc1ccc(cc1)-c1ccc(CCO)cc1", "2-(4'-chloro-[1,1'-biphenyl]-4-yl)ethanol"),
+        ("OCCC1CCC(CC1)C1CCCCC1", "2-([1,1'-bi(cyclohexane)]-4-yl)ethanol"),
+        ("NCc1ccccc1-c1ccccc1", "([1,1'-biphenyl]-2-yl)methanamine"),
+        ("c1ccc(-c2ccc(-c3ccccn3)cc2)cc1", "2-([1,1'-biphenyl]-4-yl)pyridine"),
+    ],
+)
+def test_ring_assembly_substituents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_heteroaromatic_ring_assembly_substituents_are_rejected_not_misnamed():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("c1ccc(-c2ccc(-c3ccco3)s2)s1")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC(C)(C)OC(=O)NCC(=O)O", "2-[(tert-butoxycarbonyl)amino]ethanoic acid"),
+        ("NCC(=O)NCC(=O)O", "2-[(2-aminoethanoyl)amino]ethanoic acid"),
+        ("O=C(O)CNC(=O)c1ccccc1", "2-(benzoylamino)ethanoic acid"),
+        ("OC(=O)CNC(=O)OCc1ccccc1", "2-[(benzyloxycarbonyl)amino]ethanoic acid"),
+        ("NCC(=O)Oc1ccc(cc1)C(O)=O", "4-[(2-aminoethanoyl)oxy]benzoic acid"),
+        ("CC(=O)Nc1ccc(cc1)C(O)=O", "4-(ethanoylamino)benzoic acid"),
+    ],
+)
+def test_acyl_prefixes_with_substituents_and_alkoxycarbonylamino(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

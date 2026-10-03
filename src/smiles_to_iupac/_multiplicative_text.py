@@ -2,14 +2,20 @@
 multiplying prefixes) shared by the unit, linker and assembly modules.
 """
 
+import re
+
 from ._numerals import numerical_term
 
 _OPENERS = {"(": 0, "[": 1, "{": 2}
 _MARKS = ["()", "[]", "{}"]
 
 
+_ASSEMBLY_BRACKETS = re.compile(r"\[\d+,\d+'-bi(?:\([a-z]+\)|[a-z]+)\]")
+
+
 def enclose(text):
-    levels = [_OPENERS[ch] for ch in text if ch in _OPENERS]
+    # The brackets of a ring-assembly name ([1,1'-biphenyl]) belong to the name, not to the nesting.
+    levels = [_OPENERS[ch] for ch in _ASSEMBLY_BRACKETS.sub("", text) if ch in _OPENERS]
     level = (max(levels) + 1) % 3 if levels else 0
     left, right = _MARKS[level]
     return f"{left}{text}{right}"

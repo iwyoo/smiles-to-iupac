@@ -442,6 +442,5 @@ def test_hetero_ring_parent_with_ring_and_unsaturated_substituents(smiles, expec
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_biphenylyl_substituent_on_pyridine_is_not_misnamed():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc(-c2ccc(-c3ccccn3)cc2)cc1")
+def test_biphenylyl_substituent_on_pyridine_is_not_misnamed_is_named():
+    assert smiles_to_iupac("c1ccc(-c2ccc(-c3ccccn3)cc2)cc1") == "2-([1,1'-biphenyl]-4-yl)pyridine"

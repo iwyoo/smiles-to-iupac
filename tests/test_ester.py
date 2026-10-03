@@ -49,9 +49,8 @@ def test_ester_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_diester_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COC(=O)CC(=O)OC")
+def test_diester():
+    assert smiles_to_iupac("COC(=O)CC(=O)OC") == "dimethyl propanedioate"
 
 
 def test_ring_embedded_lactone_raises():
@@ -275,4 +274,19 @@ def test_ester_named_from_its_alkyl_and_acid_parts(smiles, expected):
     ],
 )
 def test_ester_alkyl_part_with_heteroatom_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CCOC(=O)CC(=O)OCC", "diethyl propanedioate"),
+        ("COC(=O)CC(=O)OCC", "ethyl methyl propanedioate"),
+        ("COC(=O)c1ccccc1C(=O)OC", "dimethyl benzene-1,2-dicarboxylate"),
+        ("CCOC(=O)CC(O)(CC(=O)OCC)C(=O)OCC", "triethyl 2-hydroxypropane-1,2,3-tricarboxylate"),
+        ("ClCCOC(=O)CC(=O)OCCCl", "bis(2-chloroethyl) propanedioate"),
+        ("CC(C)OC(=O)CC(=O)OC(C)C", "bis(propan-2-yl) propanedioate"),
+    ],
+)
+def test_esters_of_one_polyacid_cite_every_alkyl_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

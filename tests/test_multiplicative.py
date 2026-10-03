@@ -160,3 +160,38 @@ def test_substituted_fused_unit_raises():
 
 def test_benzene_units_are_senior_to_cyclohexane_linker():
     assert smiles_to_iupac("c1ccccc1CC1CCC(CC1)Cc1ccccc1") == "1,1'-[cyclohexane-1,4-diylbis(methylene)]dibenzene"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1=CCCCC1CC1C=CCCC1", "3,3'-methylenedi(cyclohex-1-ene)"),
+        ("C1CC=CCC1CC1CCC=CC1", "4,4'-methylenedi(cyclohex-1-ene)"),
+        ("C1=CCCCC1OC1C=CCCC1", "3,3'-oxydi(cyclohex-1-ene)"),
+        ("C1=CCCCC1CCC1C=CCCC1", "3,3'-(ethane-1,2-diyl)di(cyclohex-1-ene)"),
+    ],
+)
+def test_cycloalkene_units(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1=CCCCC1CC1CCCCC1", "3-(cyclohexylmethyl)cyclohex-1-ene"),
+        ("C1=CCCCC1CC1=CCCCC1", "1-[(cyclohex-2-en-1-yl)methyl]cyclohex-1-ene"),
+        ("c1ccsc1Cc1ccco1", "2-[(thiophen-2-yl)methyl]furan"),
+        ("CC1CCCCC1CC1CCCCC1", "1-(cyclohexylmethyl)-2-methylcyclohexane"),
+    ],
+)
+def test_unequal_rings_are_ranked_by_unsaturation_heteroatom_and_substituent_count(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    ["c1c[nH]c(-c2[nH]ccn2)n1", "C1=CCCCC1C1=CCCCC1C1=CCCCC1", "c1ccc(cc1)Oc1cccc(Oc2cccc(Oc3ccccc3)c2)c1"],
+)
+def test_identical_rings_joined_directly_and_long_ring_chains_are_not_named_substitutively(smiles):
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac(smiles)

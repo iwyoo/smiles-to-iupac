@@ -7,7 +7,8 @@ works as an ester acyl part.
 
 from rdkit import Chem
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
+from ._numerals import multiplying_prefix
 from ._substituents import name_branch
 
 _ESTER = Chem.MolFromSmarts("[CX3;!R](=O)[OX2;!R][#6]")
@@ -52,33 +53,53 @@ def name_ester_by_parts(mol) -> str:
     from .core import smiles_to_iupac
 
     matches = mol.GetSubstructMatches(_ESTER)
-    if len(matches) != 1:
-        raise UnsupportedStructure("exactly one acyclic ester group is required for part-wise ester naming")
-    acyl_carbon, _, ester_oxygen, alkyl_carbon = matches[0]
+    if not matches:
+        raise UnsupportedStructure("an acyclic ester group is required for part-wise ester naming")
     graph = adjacency(mol)
-    alkyl_atoms = _branch_atoms(graph, alkyl_carbon, ester_oxygen)
-    if acyl_carbon in alkyl_atoms:
-        raise UnsupportedStructure("a ring-closing ester (lactone) is not named part-wise")
-    if any(_carbonyl_with_heteroatom(mol, a) for a in alkyl_atoms):
-        raise UnsupportedStructure("an acid or ester group inside the alkyl part outranks this ester")
-    if any(mol.GetAtomWithIdx(a).GetIsotope() or mol.GetAtomWithIdx(a).GetNumRadicalElectrons() for a in alkyl_atoms):
-        raise UnsupportedStructure("isotopes and radicals in the alkyl part are not supported")
+    halogens = halogen_substituents(mol)
+    arms = []
+    for acyl_carbon, _, ester_oxygen, alkyl_carbon in matches:
+        atoms = _branch_atoms(graph, alkyl_carbon, ester_oxygen)
+        if acyl_carbon in atoms:
+            raise UnsupportedStructure("a ring-closing ester (lactone) is not named part-wise")
+        if any(_carbonyl_with_heteroatom(mol, a) for a in atoms):
+            raise UnsupportedStructure("an acid or ester group inside the alkyl part outranks this ester")
+        if any(mol.GetAtomWithIdx(a).GetIsotope() or mol.GetAtomWithIdx(a).GetNumRadicalElectrons() for a in atoms):
+            raise UnsupportedStructure("isotopes and radicals in the alkyl part are not supported")
+        arms.append(atoms)
+    removed = set().union(*arms)
+    if sum(len(a) for a in arms) != len(removed):
+        raise UnsupportedStructure("the alkyl parts share atoms, so these esters are of a polyol, not a polyacid")
 
     editable = Chem.RWMol(mol)
-    editable.RemoveBond(ester_oxygen, alkyl_carbon)
-    oxygen = editable.GetAtomWithIdx(ester_oxygen)
-    oxygen.SetNumExplicitHs(1)
-    oxygen.SetNoImplicit(True)
-    fragments = Chem.GetMolFrags(editable, asMols=True, sanitizeFrags=False)
-    acid = next(f for f in fragments if f.GetNumAtoms() != len(alkyl_atoms) or f.GetNumAtoms() == mol.GetNumAtoms() - len(alkyl_atoms))
+    for _, _, ester_oxygen, _ in matches:
+        oxygen = editable.GetAtomWithIdx(ester_oxygen)
+        oxygen.SetNumExplicitHs(1)
+        oxygen.SetNoImplicit(True)
+    for idx in sorted(removed, reverse=True):
+        editable.RemoveAtom(idx)
+    acid = editable.GetMol()
+    if len(Chem.GetMolFrags(acid)) != 1:
+        raise UnsupportedStructure("the acid parts of these esters are separate groups")
     Chem.SanitizeMol(acid)
     anion = _anion_name(smiles_to_iupac(Chem.MolToSmiles(acid)))
 
-    halogens = halogen_substituents(mol)
-    alkyl_name, _ = name_branch(graph, alkyl_carbon, ester_oxygen, halogens, mol=mol)
-    free = len(acid.GetSubstructMatches(_FREE_ACID)) - 1
+    named = {}
+    for acyl_carbon, _, ester_oxygen, alkyl_carbon in matches:
+        name, compound = name_branch(graph, alkyl_carbon, ester_oxygen, halogens, mol=mol)
+        entry = named.setdefault(name, [0, compound])
+        entry[0] += 1
+    parts = []
+    for name in sorted(named, key=alpha_sort_key):
+        count, compound = named[name]
+        if count == 1:
+            parts.append(name)
+        else:
+            multiplier = multiplying_prefix(count, compound=compound)
+            parts.append(f"{multiplier}({name})" if compound else f"{multiplier}{name}")
+    free = len(acid.GetSubstructMatches(_FREE_ACID)) - len(matches)
     if free > 0:
         if free not in _HYDROGEN_WORDS:
-            raise UnsupportedStructure("too many free acid groups beside the ester")
-        return f"{alkyl_name} {_HYDROGEN_WORDS[free]} {anion}"
-    return f"{alkyl_name} {anion}"
+            raise UnsupportedStructure("too many free acid groups beside the esters")
+        parts.append(_HYDROGEN_WORDS[free])
+    return " ".join(parts + [anion])
