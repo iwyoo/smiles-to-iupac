@@ -12,6 +12,7 @@ from rdkit import Chem
 from ._common import UnsupportedStructure, adjacency
 from ._numerals import alkane_name, multiplying_prefix, numerical_term
 from ._phosphanyl_group import PREFIX_PROP
+from ._pin import mark
 from ._prefix_groups import PrefixNamer, enclose
 from ._substituents import format_substituent_prefixes
 
@@ -283,58 +284,141 @@ def _linker_name(graph, atoms, ends):
     return f"{alkane_name(len(atoms))}-1,{len(atoms)}-diyl" if len(atoms) > 1 else "methylene"
 
 
+def _chain_path(graph, comp, start, goal):
+    parents, stack = {start: None}, [start]
+    while stack:
+        u = stack.pop()
+        for v in graph[u]:
+            if v in comp and v not in parents:
+                parents[v] = u
+                stack.append(v)
+    if goal not in parents:
+        return None
+    path, node = [], goal
+    while node is not None:
+        path.append(node)
+        node = parents[node]
+    return path[::-1]
+
+
+def _ring_locants(graph, ring, link_atom, direction, primes):
+    return {a: (k, primes) for k, a in enumerate(_cycle_order(graph, ring, link_atom, direction), start=1)}
+
+
 def _name_phane(mol, units, graph, parent):
-    """Ocenes joined 1,1'- in one ring through CH2 nodes (P-52.2.5):
-    '1,3(1,1')-diferrocenacyclotetraphane'."""
+    """Ocenes joined 1,1'- in one ring through carbon nodes (P-52.2.5, P-26):
+    '1,3(1,1')-diferrocenacyclotetraphane'; substituent locants on amplificant
+    atoms are composite ('1^2')."""
     unit_atoms = [{m} | set(r[0]) | set(r[1]) for m, r in units]
     every = set().union(*unit_atoms)
     owner = {a: k for k, atoms in enumerate(unit_atoms) for a in atoms}
-    roots = [(a, x) for m, rs in units for r in rs for a in r for x in graph[a] if x not in every and x != m]
-    if len(roots) != 2 * len(units):
-        return None
     ring_of = {a: ri for _, rs in units for ri, r in enumerate(rs) for a in r}
+    roots = [(a, x) for m, rs in units for r in rs for a in r for x in graph[a] if x not in every and x != m]
     comps = _components(graph, every, roots)
-    links = {}
+    by_comp = {}
     for a, x in roots:
-        comp = comps[x]
-        if any(
-            mol.GetAtomWithIdx(i).GetAtomicNum() != 6 or mol.GetAtomWithIdx(i).GetIsAromatic()
-            or mol.GetAtomWithIdx(i).GetTotalNumHs() != 2 or mol.GetAtomWithIdx(i).GetDegree() != 2
-            for i in comp
-        ):
+        by_comp.setdefault(frozenset(comps[x]), []).append((a, x))
+    links, ring_subs = [], []
+    for comp, ends in by_comp.items():
+        if len(ends) == 2 and owner[ends[0][0]] != owner[ends[1][0]]:
+            links.append((ends, comp))
+        elif len(ends) == 1:
+            ring_subs.append(ends[0])
+        else:
             return None
-        links.setdefault(frozenset(comp), []).append((owner[a], ring_of[a]))
-    if any(len(e) != 2 or e[0][0] == e[1][0] for e in links.values()):
+    count = len(units)
+    if len(links) != count:
         return None
-    exits = {}
-    for comp, ends in links.items():
-        for (u, r), (v, rv) in (ends, ends[::-1]):
-            exits[(u, r)] = (v, rv, len(comp))
-    cycle, unit, ring = [], 0, 0
+    namer = PrefixNamer(mol, graph)
+    link_at = {}
+    chains = []
+    chain_subs = {}
+    for li, (ends, comp) in enumerate(links):
+        for side, (a, x) in enumerate(ends):
+            if (owner[a], ring_of[a]) in link_at:
+                return None
+            link_at[(owner[a], ring_of[a])] = (li, side)
+        path = _chain_path(graph, comp, ends[0][1], ends[1][1])
+        if path is None or any(
+            mol.GetAtomWithIdx(i).GetAtomicNum() != 6 or mol.GetAtomWithIdx(i).GetIsAromatic() for i in path
+        ) or any(b.GetBondTypeAsDouble() != 1.0 for i in comp for b in mol.GetAtomWithIdx(i).GetBonds()):
+            return None
+        chains.append(path)
+        for c in path:
+            for n in graph[c]:
+                if n in comp and n not in path and n not in chain_subs.get(c, []):
+                    if _component_kind(mol, graph, _group_atoms(graph, n, set(path) | every)):
+                        return None
+                    chain_subs.setdefault(c, []).append(n)
+    if len(link_at) != 2 * count:
+        return None
+    for a, x in ring_subs:
+        if _suffix_kind(mol, graph, a, x) or _component_kind(mol, graph, comps[x]):
+            return None
+
+    seq, unit, ring = [], 0, 0
     while True:
-        v, rv, length = exits[(unit, ring)]
-        cycle.append((unit, length))
-        unit, ring = v, 1 - rv
+        li, side = link_at[(unit, ring)]
+        path = chains[li] if side == 0 else chains[li][::-1]
+        seq.append((unit, ring, path))
+        (a, _), = [links[li][0][1 - side]]
+        unit, ring = owner[a], 1 - ring_of[a]
         if unit == 0:
             break
-    if len(cycle) != len(units) or ring != 0:
+    if len(seq) != count or ring != 0:
         return None
-    total = sum(1 + n for _, n in cycle)
-    lengths = [n for _, n in cycle]
+
+    forward = seq
+    backward = [(seq[i][0], 1 - seq[i][1], seq[i - 1][2][::-1]) for i in range(count - 1, -1, -1)]
     best = None
-    for seq in (lengths, [lengths[(-k - 2) % len(lengths)] for k in range(len(lengths))]):
-        for start in range(len(seq)):
-            rotated = seq[start:] + seq[:start]
-            positions, pos = [], 1
-            for n in rotated:
+    for stations in (forward, backward):
+        for start in range(count):
+            order = stations[start:] + stations[:start]
+            subs, positions, pos = [], [], 1
+            node_of = {}
+            for u, exit_ring, path in order:
                 positions.append(pos)
-                pos += 1 + n
-            if best is None or positions < best:
-                best = positions
-    count = len(units)
+                node_of[u] = pos
+                for off, c in enumerate(path, start=1):
+                    for n in chain_subs.get(c, []):
+                        subs.append((pos + off, namer.name(n, c)))
+                pos += 1 + len(path)
+            unit_choice = {}
+            for u, exit_ring, path in order:
+                rs = units[u][1]
+                link_atoms = {r: next(a for a, _ in [e for ends, _ in links for e in ends] if owner[a] == u and ring_of[a] == r) for r in (0, 1)}
+                local = [(a, x) for a, x in ring_subs if owner[a] == u]
+                options = []
+                for unprimed in (0, 1):
+                    for d0 in (0, 1):
+                        for d1 in (0, 1):
+                            loc = {}
+                            loc.update(_ring_locants(graph, rs[unprimed], link_atoms[unprimed], d0, 0))
+                            loc.update(_ring_locants(graph, rs[1 - unprimed], link_atoms[1 - unprimed], d1, 1))
+                            named = [(loc[a], namer.name(x, a)) for a, x in local]
+                            options.append((sorted((l, n[0]) for l, n in named), named))
+                unit_choice[u] = min(options, key=lambda o: o[0])
+            ring_entries = [(node_of[u], l, n) for u, (_, named) in unit_choice.items() for l, n in named]
+            key = (
+                positions,
+                sorted([p[0] for p in subs] + [e[0] for e in ring_entries]),
+                sorted([(p[0], 0, 0) for p in subs] + [(e[0], e[1][0], e[1][1]) for e in ring_entries]),
+            )
+            if best is None or key < best[0]:
+                best = (key, positions, subs, ring_entries)
+    _, positions, subs, ring_entries = best
+    grouped = {}
+    for loc, (name, compound) in subs:
+        grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(str(loc))
+    for node, (k, primes), (name, compound) in ring_entries:
+        grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(f"{node}^{k}{_PRIME * primes}")
+    for entry in grouped.values():
+        entry["locants"].sort(key=lambda t: (int(t.split("^")[0]), t))
+    total = sum(1 + len(p) for _, _, p in forward)
+    prefixes = format_substituent_prefixes(grouped) if grouped else ""
     mult = multiplying_prefix(count)
     stem = parent[:-1] + "a"
-    return f"{','.join(map(str, best))}(1,1{_PRIME})-{mult}{stem}cyclo{numerical_term(total)}phane"
+    return f"{prefixes}{'-' if prefixes else ''}{','.join(map(str, positions))}(1,1{_PRIME})-{mult}{stem}cyclo{numerical_term(total)}phane"
 
 
 def _name_paired_ocenes(mol, units, graph):
@@ -592,7 +676,10 @@ def _as_bridge(mol, unit, roots, comps, parent):
         raise UnsupportedStructure("the metallocene bridge could not be cited as a divalent group here")
     first, second = match.group(1), match.group(2)
     rest = name[match.end():].lstrip("-")
-    return f"{first},{second}-({parent}-1,1{_PRIME}-diyl){rest}"
+    result = f"{first},{second}-({parent}-1,1{_PRIME}-diyl){rest}"
+    if rest.endswith("ane") and "-" not in rest:
+        return mark(result, "a phane name needs two or more ring systems (P-52.2.5.1), so no PIN is defined for a single bridged metallocene")
+    return result
 
 
 def _is_acyl_oxo(mol, atom_idx, bond):

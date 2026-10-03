@@ -59,3 +59,36 @@ def test_three_ferrocenes_in_a_ring_are_named_as_a_phane():
         "3)=[CH]->%102"
     )
     assert smiles_to_iupac(smiles) == f"1,3,5(1,1{PRIME})-triferrocenacyclohexaphane"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "C[C]12->[Fe]3456789%10<-[CH]%11=[CH]->3[CH2]->4[C]->5(C[C]34->[Fe]5%12%13%14%15%16%17(<-[CH](=[CH]->5[CH2]->%123)[CH]->%13=4)<-[CH]3=[CH]->%14[CH2]->%15[C]->%16(C[C]->6=1[CH2]->7[CH]->8=[CH]->92)=[CH]->%173)=[CH]->%10%11",
+            "1^2-methyl-1,3(1,1′)-diferrocenacyclotetraphane",
+        ),
+        (
+            "CC1[C]23->[Fe]456789%10(<-[CH]%11=[CH]->4[CH2]->5[C]->6(C[C]45->[Fe]6%12%13%14%15%16%17(<-[CH](=[CH]->6[CH2]->%124)[CH]->%13=5)<-[CH]4=[CH]->%14[CH2]->%15[C]->%161=[CH]->%174)=[CH]->7%11)<-[CH](=[CH]->8[CH2]->92)[CH]->%10=3",
+            "2-methyl-1,3(1,1′)-diferrocenacyclotetraphane",
+        ),
+        (
+            "CC1[C]23->[Fe]456789%10(<-[CH]%11=[CH]->4[CH2]->5[C]->6(C[C]45->[Fe]6%12%13%14%15%16%17(<-[CH](=[CH]->6[CH2]->%124)[CH]->%13=5)<-[CH]4=[CH]->%14[CH]->%15(C)[C]->%161=[CH]->%174)=[CH]->7%11)<-[CH](=[CH]->8[C]->9=2C)[CH2]->%103",
+            "1^2,2,3^2-trimethyl-1,3(1,1′)-diferrocenacyclotetraphane",
+        ),
+        (
+            "CC1C[C]23->[Fe]456789%10(<-[CH](=[CH]->4[CH2]->52)[CH]->6=3)<-[CH]2=[CH]->7[CH2]->8[C]->9(C[C]34->[Fe]56789%11%12(<-[CH](=[CH]->5[CH2]->63)[CH]->7=4)<-[CH]3=[CH]->8[CH2]->9[C]->%11(C[C]45->[Fe]6789%11%13%14(<-[CH](=[CH]->6[CH2]->74)[CH]->8=5)<-[CH]4=[C]->9(C)[CH]->%11=[C]->%131[CH2]->%144)=[CH]->%123)=[CH]->%102",
+            "1^3,7-dimethyl-1,3,5(1,1′)-triferrocenacycloheptaphane",
+        ),
+    ],
+)
+def test_substituted_phanes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_single_bridged_ferrocene_warns_that_no_pin_is_defined():
+    from smiles_to_iupac import NonPreferredNameWarning
+
+    with pytest.warns(NonPreferredNameWarning, match="phane"):
+        name = smiles_to_iupac("C(CC[c-]1cccc1)[c-]1cccc1.[Fe+2]")
+    assert name == f"1,3-(ferrocene-1,1{PRIME}-diyl)propane"
