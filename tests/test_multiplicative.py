@@ -137,17 +137,6 @@ def test_linker_stereodescriptors(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        "OC(=O)Cc1ccc(Cc2ccc(CC(=O)O)cc2)cc1",
-    ],
-)
-def test_senior_class_outside_units_is_not_multiplicative(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
 def test_linear_phane_is_not_named_multiplicatively():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("c1ccccc1Oc1cccc(Oc2cccc(Oc3ccccc3)c2)c1")
@@ -195,3 +184,22 @@ def test_unequal_rings_are_ranked_by_unsaturation_heteroatom_and_substituent_cou
 def test_identical_rings_joined_directly_and_long_ring_chains_are_not_named_substitutively(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OCCc1ccc(cc1)Oc1ccc(CCO)cc1", "2,2'-[oxybis(4,1-phenylene)]di(ethan-1-ol)"),
+        ("OCCc1ccc(cc1)Cc1ccc(CCO)cc1", "2,2'-[methylenebis(4,1-phenylene)]di(ethan-1-ol)"),
+        ("OC(=O)Cc1ccc(cc1)Oc1ccc(CC(O)=O)cc1", "2,2'-[oxybis(4,1-phenylene)]diethanoic acid"),
+        ("OC(=O)Cc1ccc(Cc2ccc(CC(=O)O)cc2)cc1", "2,2'-[methylenebis(4,1-phenylene)]diethanoic acid"),
+        ("NCCc1ccc(cc1)Sc1ccc(CCN)cc1", "2,2'-[sulfanediylbis(4,1-phenylene)]di(ethan-1-amine)"),
+        ("OCCc1cccc(c1)Oc1cccc(CCO)c1", "2,2'-[oxybis(3,1-phenylene)]di(ethan-1-ol)"),
+        ("OCCc1cc2ccccc2cc1CCO", "2,2'-(naphthalene-2,3-diyl)di(ethan-1-ol)"),
+        ("OCCc1ccc2cc(CCO)ccc2c1", "2,2'-(naphthalene-2,6-diyl)di(ethan-1-ol)"),
+        ("OCCc1ccc2[nH]c(CCO)cc2c1", "2,2'-(1H-indole-2,5-diyl)di(ethan-1-ol)"),
+        ("OCCN1CCN(CCO)CC1", "2,2'-(piperazine-1,4-diyl)di(ethan-1-ol)"),
+    ],
+)
+def test_chain_units_on_fused_and_composite_linkers(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

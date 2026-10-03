@@ -59,11 +59,8 @@ def test_substituted_indole():
     assert smiles_to_iupac("Cc1ccc2[nH]ccc2c1") == "5-methyl-1H-indole"
 
 
-def test_3h_indole_tautomer_raises():
-    # 3H-indole (indolenine): a distinct, non-aromatic-at-C3 tautomer,
-    # not the same molecule as 1H-indole -- must not accidentally match.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1(C=Nc2ccccc12)")
+def test_3h_indole_tautomer_is_distinct_from_1h_indole():
+    assert smiles_to_iupac("C1(C=Nc2ccccc12)") == "3H-indole"
 
 
 def test_phenazine():

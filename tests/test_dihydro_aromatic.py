@@ -32,23 +32,16 @@ def test_naphthalene_itself_is_unaffected():
     assert smiles_to_iupac("c1ccc2ccccc2c1") == "naphthalene"
 
 
-def test_tetrahydronaphthalene_raises():
-    # more than one hydro pair (tetralin) is out of scope for this module
-    # (see docstring) -- must not be mistaken for the single-pair case.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCc2ccccc12")
+def test_tetrahydronaphthalene():
+    assert smiles_to_iupac("C1CCCc2ccccc12") == "1,2,3,4-tetrahydronaphthalene"
 
 
-def test_substituted_dihydronaphthalene_raises():
-    # any substituent is out of scope -- every ring atom must have exactly
-    # its "bare" degree.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC1CC=Cc2ccccc12")
+def test_substituted_dihydronaphthalene():
+    assert smiles_to_iupac("CC1CC=Cc2ccccc12") == "1-methyl-1,2-dihydronaphthalene"
 
 
-def test_halogen_substituted_dihydronaphthalene_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("ClC1CC=Cc2ccccc12")
+def test_halogen_substituted_dihydronaphthalene():
+    assert smiles_to_iupac("ClC1CC=Cc2ccccc12") == "1-chloro-1,2-dihydronaphthalene"
 
 
 def test_decahydronaphthalene():

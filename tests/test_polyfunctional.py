@@ -451,3 +451,22 @@ def test_heteroaromatic_substituents_are_not_read_as_phenyl(smiles, expected):
 )
 def test_nested_enclosing_marks_escalate_in_ring_parent_modules(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, name",
+    [
+        ("OC1CCc2ccccc2C1", "1,2,3,4-tetrahydronaphthalen-2-ol"),
+        ("Oc1cccc2CCCCc12", "5,6,7,8-tetrahydronaphthalen-1-ol"),
+        ("OC(=O)C1CCc2ccccc2C1", "1,2,3,4-tetrahydronaphthalene-2-carboxylic acid"),
+        ("C1=Cc2ccccc2C1", "1H-indene"),
+        ("C1Cc2ccccc2C1", "2,3-dihydro-1H-indene"),
+        ("OC1CCc2ccccc12", "2,3-dihydro-1H-inden-1-ol"),
+        ("OC1Cc2ccccc2C1", "2,3-dihydro-1H-inden-2-ol"),
+        ("Oc1ccc2CCCc2c1", "2,3-dihydro-1H-inden-5-ol"),
+        ("Cc1ccc2CC=Cc2c1", "5-methyl-1H-indene"),
+        ("OCC1CCc2ccccc12", "(2,3-dihydro-1H-inden-1-yl)methanol"),
+    ],
+)
+def test_partly_hydrogenated_fused_parents(smiles, name):
+    assert smiles_to_iupac(smiles) == name
