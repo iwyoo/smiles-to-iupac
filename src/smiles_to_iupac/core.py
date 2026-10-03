@@ -144,9 +144,11 @@ from ._multiplicative import name_if_multiplicative
 from ._nucleoside import has_nucleoside_name, name_nucleoside
 from ._nucleotide import has_nucleotide_name, name_nucleotide
 from ._metallacycle import has_metallacycle_shape, name_metallacycle
+from ._metallacycle_group import name_metallacycle_as_group
 from ._metallafused import has_metallafused_shape, name_metallafused
 from ._metallapolycycle import has_metallapolycycle_shape, name_metallapolycycle
-from ._metallocene import has_metallocene_name, name_metallocene
+from ._ocene import has_ocene_shape, name_ocene
+from ._pin import enter, leave, mark
 from ._fused_hetero_ring_oxide import has_fused_hetero_ring_oxide_shape, name_fused_hetero_ring_oxide
 from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
 from ._pyridinone import has_pyridinone_shape, name_pyridinone
@@ -366,6 +368,7 @@ from ._telluroic_acid import has_telluroic_acid_shape, name_telluroic_acid
 from ._thioic_acid import has_thioic_acid_shape, name_thioic_acid
 from ._thiol import has_thiol_shape, name_thiol
 from ._thiol_amine import has_thiol_amine_shape, name_thiol_amine
+from ._hetero_chain import contract_hetero_groups, name_hetero_macrocycle, name_skeletal_chain
 from ._phosphanyl_group import contract_phosphanyl_groups
 from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
@@ -390,43 +393,71 @@ def _is_aldehyde_shaped(carbonyl_oxygen):
     return carbon.GetAtomicNum() == 6 and sum(1 for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6) == 1
 
 
+_NO_PIN_ORGANOMETALLIC = "the Blue Book defines no PIN for this class of organometallic compound (P-69.0)"
+
 _FALLBACKS_RUNNING = set()
 
 
 def smiles_to_iupac(smiles: str) -> str:
+    enter()
+    name = None
     try:
-        return _smiles_to_iupac_dispatch(smiles)
-    except UnsupportedStructure as original:
-        mol = Chem.MolFromSmiles(smiles)
-        key = Chem.MolToSmiles(mol)
-        if key in _FALLBACKS_RUNNING:
-            raise original
-        _FALLBACKS_RUNNING.add(key)
         try:
-            for fallback in (name_polyfunctional, name_ester_by_parts):
-                try:
-                    return fallback(mol)
-                except UnsupportedStructure:
-                    continue
-        finally:
-            _FALLBACKS_RUNNING.discard(key)
+            name = _smiles_to_iupac_dispatch(smiles)
+        except UnsupportedStructure as original:
+            name = _run_fallbacks(smiles, original)
+        return name
+    finally:
+        leave(name)
+
+
+def _run_fallbacks(smiles, original):
+    mol = Chem.MolFromSmiles(smiles)
+    key = Chem.MolToSmiles(mol)
+    if key in _FALLBACKS_RUNNING:
         raise original
+    _FALLBACKS_RUNNING.add(key)
+    try:
+        for skeletal in (name_skeletal_chain, name_hetero_macrocycle):
+            try:
+                name = skeletal(mol)
+            except UnsupportedStructure:
+                continue
+            if name is not None:
+                return name
+        for fallback in (name_polyfunctional, name_ester_by_parts):
+            try:
+                return fallback(mol)
+            except UnsupportedStructure:
+                continue
+        name = _name_via_fallbacks(mol)
+        if name is not None:
+            return name
+    finally:
+        _FALLBACKS_RUNNING.discard(key)
+    raise original
 
 
 def _smiles_to_iupac_dispatch(smiles: str) -> str:
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError(f"invalid SMILES: {smiles!r}")
-    try:
-        return _name_mol(mol)
-    except UnsupportedStructure:
-        contracted = contract_phosphanyl_groups(mol)
-        if contracted is None:
-            raise
-        name = _name_mol(contracted)
+    return _name_mol(mol)
+
+
+def _name_via_fallbacks(mol):
+    for contract in (contract_phosphanyl_groups, contract_hetero_groups):
+        try:
+            contracted = contract(mol)
+            if contracted is None:
+                continue
+            name = _name_mol(contracted)
+        except UnsupportedStructure:
+            continue
         if "iodo" in name and not any(a.GetAtomicNum() == 53 for a in mol.GetAtoms()):
-            raise UnsupportedStructure("a phosphanyl group could not be cited as a prefix here") from None
+            continue
         return name
+    return None
 
 
 def _name_mol(mol) -> str:
@@ -454,8 +485,8 @@ def _name_mol(mol) -> str:
     # cyclopentadienide fragments has no shape any other branch below
     # expects, and reaches a radical/carbanide dispatch that rejects the
     # multi-fragment SMILES outright long before any ring-count check.
-    if has_metallocene_name(mol):
-        return name_metallocene(mol)
+    if has_ocene_shape(mol):
+        return name_ocene(mol)
 
     # A bare metallacyclic parent hydride (P-69.4's skeletal-replacement
     # ring, e.g. '1-titanacyclobutane') has a transition-metal ring atom
@@ -463,18 +494,30 @@ def _name_mol(mol) -> str:
     # branch below recognizes a non-carbon ring atom, so it must be routed
     # here before the generic cycloalkane dispatch's own heteroatom
     # rejection would otherwise claim it.
-    if has_metallacycle_shape(mol):
-        return name_metallacycle(mol)
-    if has_metallafused_shape(mol):
-        return name_metallafused(mol)
-    if has_metallapolycycle_shape(mol):
-        return name_metallapolycycle(mol)
+    for has_shape, namer in (
+        (has_metallacycle_shape, name_metallacycle),
+        (has_metallafused_shape, name_metallafused),
+        (has_metallapolycycle_shape, name_metallapolycycle),
+    ):
+        if has_shape(mol):
+            try:
+                return mark(namer(mol), _NO_PIN_ORGANOMETALLIC)
+            except UnsupportedStructure as first:
+                try:
+                    return mark(name_metallacycle_as_group(mol), _NO_PIN_ORGANOMETALLIC)
+                except UnsupportedStructure:
+                    raise first
 
     # Group 3-12 metal complexes (P-69.2 coordination naming) must precede
     # every heteroatom-parent dispatch below, which would otherwise claim
     # a metal-bound phosphane/amine/ether ligand's donor atom.
     if has_coordination_shape(mol):
-        return name_coordination(mol)
+        if has_group1_2_organometallic_shape(mol):
+            try:
+                return mark(name_group1_2_organometallic(mol), _NO_PIN_ORGANOMETALLIC)
+            except UnsupportedStructure:
+                pass
+        return mark(name_coordination(mol), _NO_PIN_ORGANOMETALLIC)
 
     # Two or more Group 13-15 metals (P-69.5.3) must precede the
     # single-metal hydride dispatches below, which reject a second metal.
@@ -899,7 +942,7 @@ def _name_mol(mol) -> str:
     # dispatch order applies: none of the branches below recognize any of
     # these elements at all.
     if has_group1_2_organometallic_shape(mol):
-        return name_group1_2_organometallic(mol)
+        return mark(name_group1_2_organometallic(mol), _NO_PIN_ORGANOMETALLIC)
 
     # buckminsterfullerene (P-27's '[60]fullerene', a fixed 12-pentagon/
     # 20-hexagon cage) is recognized by exact whole-molecule match --

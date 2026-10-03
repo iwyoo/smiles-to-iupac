@@ -84,7 +84,7 @@ def _acyl_halide_carbons(mol):
         if atom.GetAtomicNum() != 6:
             continue
         oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8]
-        halogens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() in HALOGEN_PREFIXES]
+        halogens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() in HALOGEN_PREFIXES and not n.HasProp("_named_prefix")]
         if len(oxygens) != 1 or len(halogens) != 1:
             continue
         (oxygen,) = oxygens

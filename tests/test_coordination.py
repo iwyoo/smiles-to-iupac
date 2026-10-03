@@ -8,6 +8,7 @@ from smiles_to_iupac._common import UnsupportedStructure
     "smiles,expected",
     [
         ("C[Ti](Cl)(Cl)Cl", "trichlorido(methyl)titanium"),
+        ("[Fe](C=C)Cl", "chlorido(ethenyl)iron"),
         ("CC[Ti](C)(Cl)Cl", "dichlorido(ethyl)(methyl)titanium"),
         ("C[Hg]C", "dimethylmercury"),
         ("C[Hg]Cl", "chlorido(methyl)mercury"),
@@ -30,7 +31,6 @@ def test_coordination_name(smiles, expected):
     "smiles",
     [
         "C[Ti](Cl)(Cl)Cl.[Na+]",
-        "[Fe](C=C)Cl",
         "C[Hg]c1ccc(S(=O)(=O)O)cc1",
     ],
 )
@@ -211,7 +211,7 @@ DASH = "\u2014"
     [
         (
             "O=[C]1[Fe]23([C]#[O+])([C]#[O+])([C]#[O+])[C](=O)[Fe]12([C]#[O+])([C]#[O+])([C]#[O+])[Fe]3([C]#[O+])([C]#[O+])([C]#[O+])[C]#[O+]",
-            f"di-{MU}-carbonyl-decacarbonyl-1{K}4C,2{K}3C,3{K}3C-triangulo-triiron(3 Fe{DASH}Fe)",
+            f"di-{MU}-carbonyl-decacarbonyl-1{K}3C,2{K}3C,3{K}4C-triangulo-triiron(3 Fe{DASH}Fe)",
         ),
         (
             "[O+]#[C][Ru]1([C]#[O+])([C]#[O+])([C]#[O+])[Ru]([C]#[O+])([C]#[O+])([C]#[O+])([C]#[O+])[Ru]1([C]#[O+])([C]#[O+])([C]#[O+])[C]#[O+]",
@@ -219,7 +219,7 @@ DASH = "\u2014"
         ),
         (
             "[O+]#[C][Mn]([C]#[O+])([C]#[O+])([C]#[O+])([C]#[O+])[Re]([C]#[O+])([C]#[O+])([C]#[O+])([C]#[O+])[C]#[O+]",
-            f"decacarbonyl-1{K}5C,2{K}5C-manganeserhenium(Mn{DASH}Re)",
+            f"decacarbonyl-1{K}5C,2{K}5C-rheniummanganese(Re{DASH}Mn)",
         ),
         ("C[O]1->[Cu]([Cl])[O](C)->[Cu]1[Cl]", f"dichlorido-1{K}Cl,2{K}Cl-di-{MU}-methanolato-dicopper"),
         (
@@ -230,3 +230,20 @@ DASH = "\u2014"
 )
 def test_polynuclear_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C=[Pt](Cl)Cl", "dichlorido(methylidene)platinum"),
+        ("CC=[Pt](Cl)Cl", "dichlorido(ethylidene)platinum"),
+        ("C#[W](Cl)(Cl)Cl", "trichlorido(methylidyne)tungsten"),
+    ],
+)
+def test_alkylidene_and_alkylidyne_ligands(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_heteronuclear_central_atoms_follow_table_vi():
+    smiles = "[O+]#[C][Re]([C]#[O+])([C]#[O+])([C]#[O+])([C]#[O+])[Co]([C]#[O+])([C]#[O+])([C]#[O+])[C]#[O+]"
+    assert smiles_to_iupac(smiles) == f"nonacarbonyl-1{K}5C,2{K}4C-rheniumcobalt(Re{DASH}Co)"

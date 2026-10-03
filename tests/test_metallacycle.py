@@ -33,14 +33,21 @@ def test_metallacycle_with_ligands_and_substituents(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_metallacycle_with_unsaturated_ligand_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[Ni]1(C=C)CCCC1")
+def test_metallacycle_with_unsaturated_ligand():
+    assert smiles_to_iupac("[Ni]1(C=C)CCCC1") == "1-ethenyl-1-nickelacyclopentane"
 
 
-def test_metallacycle_with_two_metals_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[Ni]1CC[Ni]C1")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1[Pt](Cl)(Cl)C[Pt]1(Cl)Cl", "1,1,3,3-tetrachloro-1,3-diplatinacyclobutane"),
+        ("C1[Pt](Cl)(Cl)C[Pd]1(Cl)Cl", "1,1,3,3-tetrachloro-1-pallada-3-platinacyclobutane"),
+        ("C1[Ti](Cl)(Cl)C[Zr]1(Cl)Cl", "1,1,3,3-tetrachloro-1-titana-3-zirconacyclobutane"),
+        ("C1[Pt](Cl)(Cl)O[Pt]1(Cl)Cl", "1,1,3,3-tetrachloro-2-oxa-1,3-diplatinacyclobutane"),
+    ],
+)
+def test_metallacycle_with_several_metals(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -148,4 +155,40 @@ def test_fused_metallacycles(smiles, expected):
     ],
 )
 def test_spiro_and_polycyclic_metallacycles(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC[C@H](C)C1CC[Pt](Cl)(Cl)C1", "3-[(2S)-butan-2-yl]-1,1-dichloro-1-platinacyclopentane"),
+        ("C[C@H](Cl)C1CC[Pt](Cl)(Cl)C1", "1,1-dichloro-3-[(1S)-1-chloroethyl]-1-platinacyclopentane"),
+        ("C[C@H](Cl)CC1C[Pt](Cl)(Cl)C1", "1,1-dichloro-3-[(2S)-2-chloropropyl]-1-platinacyclobutane"),
+        ("C[C@H](O)CC1C[Pt](Cl)(Cl)C1", "1,1-dichloro-3-[(2S)-2-hydroxypropyl]-1-platinacyclobutane"),
+        ("C[C@H](Cl)C[C@@H](C)C1C[Pt](Cl)(Cl)C1", "1,1-dichloro-3-[(2R,4S)-4-chloropentan-2-yl]-1-platinacyclobutane"),
+    ],
+)
+def test_metallacycle_substituent_stereocentre(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_stereocentre_on_a_metal_ligand_is_not_dropped():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[C@H](Cl)[Pt]1(Cl)CCCC1")
+
+
+def test_metallacycle_cited_as_a_substituent_group():
+    smiles = "COC(=O)C(C)CC1C[Pt](C)(I)(P(CC)(CC)CC)(P(CC)(CC)CC)C1"
+    expected = "methyl 3-[1-iodo-1-methyl-1,1-bis(triethylphosphane)-1-platinacyclobutan-3-yl]-2-methylpropanoate"
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OC(=O)CC1CC2CC[Pt](Cl)(Cl)C12", "2-{2,2-dichloro-2-platinabicyclo[3.2.0]heptan-7-yl}ethanoic acid"),
+        ("OC(=O)CC1C[Pt](Cl)(Cl)c2ccccc12", "2-(1,1-dichloro-2,3-dihydro-1-platinainden-3-yl)ethanoic acid"),
+    ],
+)
+def test_polycyclic_metallacycle_cited_as_a_substituent_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

@@ -143,12 +143,8 @@ def test_diamine_with_tertiary_nitrogen():
     assert smiles_to_iupac("NCCN(C)C") == "N1,N1-dimethylethane-1,2-diamine"
 
 
-def test_disconnected_amine_nitrogens_raise():
-    # The three nitrogens here don't share one connected carbon backbone
-    # (each pair is only bridged through a nitrogen, not a C-C bond) -- a
-    # different, unimplemented naming path, not this module's job.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCCN(C)CCN")
+def test_disconnected_amine_nitrogens_named():
+    assert smiles_to_iupac("NCCN(C)CCN") == "N1-(2-aminoethyl)-N1-methylethane-1,2-diamine"
 
 
 def test_triamine_with_tertiary_nitrogen():

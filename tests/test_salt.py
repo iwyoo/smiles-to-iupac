@@ -196,3 +196,8 @@ def test_ammonium_chloride():
 def test_mixed_halide_anions_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[Ca+2].[Cl-].[Br-]")
+
+
+def test_carbanide_salt_names():
+    assert smiles_to_iupac("[CH3-].[Li+]") == "lithium methanide"
+    assert smiles_to_iupac("C[CH2-].[Na+]") == "sodium ethanide"

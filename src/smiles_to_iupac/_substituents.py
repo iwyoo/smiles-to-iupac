@@ -96,6 +96,27 @@ def _locant_sort_key(locant):
     return (0, str(locant)) if isinstance(locant, str) else (1, locant)
 
 
+_PLAIN_STEM_PREFIX = None
+
+
+def is_plain_stem_prefix(name: str) -> bool:
+    """True for a prefix that is only a parent stem with its own locants
+    ('propan-2-yl', 'prop-2-en-1-yl', 'cyclohex-2-en-1-yl'): such a prefix is
+    multiplied with 'di'/'tri' in parentheses, while a substituted prefix
+    ('2-chloroethyl', 'bromomethyl') takes 'bis'/'tris' (P-16.3.5, P-16.3.2)."""
+    global _PLAIN_STEM_PREFIX
+    if _PLAIN_STEM_PREFIX is None:
+        import re
+
+        stems = {alkane_name(n)[:-3] for n in range(1, 41) if alkane_name(n).endswith("ane")}
+        stems |= {"meth", "eth", "prop", "but", "naphthalen", "anthracen", "phenanthren"}
+        escaped = "|".join(sorted(map(re.escape, stems), key=len, reverse=True))
+        _PLAIN_STEM_PREFIX = re.compile(
+            rf"^(?:\d+H-)?(?:cyclo)?(?:{escaped})(?:a|an)?(?:-[\d,]+-(?:di|tri|tetra)?(?:en|yn))*-?[\d,]*-?(?:(?:di|tri|tetra)?(?:en|yn))?(?:yl|ylidene|ylidyne|diyl)$"
+        )
+    return bool(_PLAIN_STEM_PREFIX.match(name))
+
+
 def format_substituent_prefixes(grouped, omit_locants: bool = False) -> str:
     """grouped: {name -> {"locants": [int or 'N', ...], "compound": bool}}.
     Return the assembled, alphanumerically ordered prefix string
@@ -130,8 +151,12 @@ def format_substituent_prefixes(grouped, omit_locants: bool = False) -> str:
         info = grouped[name]
         locants = sorted(info["locants"], key=_locant_sort_key)
         all_non_numeric = all(isinstance(loc, str) for loc in locants)
-        multiplier_compound = info["compound"] and not all_non_numeric
+        multiplier_compound = (
+            info["compound"] and not is_plain_stem_prefix(name)
+        ) or (name[:1] in "([{" and not name.startswith("(\u03b7"))
         multiplier = multiplying_prefix(len(locants), compound=multiplier_compound) if len(locants) > 1 else ""
+        if "multiplier" in info:
+            multiplier = info["multiplier"]
         # P-16.3.3: enclosing marks escalate one level, (), [], {}, ... --
         # a name that already contains its own '(' (e.g. '4-(2-methylpropyl)
         # phenyl') needs the next mark up, or two same-kind marks would abut
@@ -152,6 +177,21 @@ def format_substituent_prefixes(grouped, omit_locants: bool = False) -> str:
             sep = "-" if (explicit or entries[i - 1][1]) else ""
             result += sep + text
     return result
+
+
+def wrap_marks(name: str) -> str:
+    """Enclose `name` with the next mark in the nesting order ( ) [ ] { } (P-16.5.4)."""
+    if name[:1] in "([{" and name[-1:] in ")]}":
+        return name
+    if name.startswith("\x01"):
+        return f"({name})"
+    if "{" in name:
+        return f"({name})"
+    if "[" in name:
+        return "{" + name + "}"
+    if "(" in name:
+        return f"[{name}]"
+    return f"({name})"
 
 
 def format_mononuclear_prefixes(entries) -> str:
@@ -212,7 +252,7 @@ def format_mononuclear_prefixes(entries) -> str:
             # left bare above) -- confirmed via PubChem PUG REST:
             # `Clc1ccc(cc1)P` -> '(4-chlorophenyl)phosphane' (CID 17762777).
             if compound_of[name] and name[0].isdigit():
-                return f"({name})"
+                return wrap_marks(name)
             return name
         # A digit-leading compound name is itself a *substituted*
         # substituent group (e.g. '4-chlorophenyl' = phenyl substituted by
@@ -222,8 +262,8 @@ def format_mononuclear_prefixes(entries) -> str:
         # ('tri(propan-2-yl)phosphane', PubChem CID 80969, plain 'tri').
         # Confirmed via PubChem PUG REST: three (4-chlorophenyl) groups on
         # one phosphorus -> 'tris(4-chlorophenyl)phosphane' (CID 70874).
-        needs_kis = compound_of[name] and name[0].isdigit()
-        wrapped = f"({name})" if compound_of[name] else name
+        needs_kis = compound_of[name] and not is_plain_stem_prefix(name)
+        wrapped = wrap_marks(name) if compound_of[name] else name
         return multiplying_prefix(count, compound=needs_kis) + wrapped
 
     ordered = sorted(counts, key=alpha_sort_key)
@@ -253,12 +293,12 @@ def format_mononuclear_prefixes(entries) -> str:
             # Book's own 'ethyldi(methyl)phosphane (PIN)' worked example
             # (`tmp/bluebook/P1.html`), so the prefix sits outside the
             # parens at any position, not just the first.
-            needs_kis = compound_of[name] and name[0].isdigit()
-            parts.append(multiplying_prefix(count, compound=needs_kis) + (name if i == 0 else f"({name})"))
+            needs_kis = compound_of[name] and not is_plain_stem_prefix(name)
+            parts.append(multiplying_prefix(count, compound=needs_kis) + (name if i == 0 else wrap_marks(name)))
         elif compound_of[name]:
-            parts.append(f"({name})")
+            parts.append(wrap_marks(name))
         else:
-            parts.append(name if i == 0 else f"({name})")
+            parts.append(name if i == 0 else wrap_marks(name))
     return "".join(parts)
 
 
@@ -1337,7 +1377,9 @@ def branch_atom_locant(graph, root, coming_from, atom_idx, halogens=None, mol=No
     module doesn't assign to anything, so it's out of scope rather than
     silently wrong."""
     halogens = halogens or {}
-    chain, _, _, _ = _select_winning_structure(graph, root, coming_from, halogens, mol)
+    chain, _, _, _ = _select_winning_structure(
+        graph, root, coming_from, halogens, mol, unsaturated=mol is not None
+    )
     if atom_idx not in chain:
         raise UnsupportedStructure(
             "a specified stereocenter that isn't on the substituent's own "
