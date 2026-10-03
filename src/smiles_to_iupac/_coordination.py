@@ -5,6 +5,8 @@ mu-bridging atoms included. Not SMILES-expressible, hence out of this
 repo's scope: eta-n hapto ligands (other than the separate [CH-] Cp fragment).
 """
 
+import re
+
 from rdkit import Chem
 
 from ._common import (
@@ -232,11 +234,17 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
             raise UnsupportedStructure("bridging ligands and metal-metal bonds are not supported here")
         donors_in = [n for n in metal.GetNeighbors() if n.GetIdx() in atoms]
         if len(donors_in) > 1:
-            label = _chelate_label(mol, metal, donors_in, atoms)
+            if all(d.GetAtomicNum() == 6 for d in donors_in):
+                from ._hapto import hapto_label
+
+                label = hapto_label(mol, metal, donors_in, atoms)
+                donors[label] = "\u03b7"
+            else:
+                label = _chelate_label(mol, metal, donors_in, atoms)
+                donors[label] = "\u03ba"
             organic.add(label)
             neutral.add(label)
             counts[label] = counts.get(label, 0) + 1
-            donors[label] = "\u03ba"
             continue
         atomic_num = donor.GetAtomicNum()
         if atomic_num in HALOGEN_PREFIXES and len(atoms) == 1:
@@ -432,10 +440,15 @@ def _name_complex(mol, extra=None, charge=None) -> str:
     return out + metal_name + (_charge_text(charge) if charge else "")
 
 
+def _sort_key(label: str) -> str:
+    stripped = re.sub(r"^[\[(]*(?:[\d,]+-\u03b7\)-)?(?:\u03b7\d+-)?[\d,\-]*", "", label)
+    return stripped.lower()
+
+
 def _format_ligands(counts, simple_labels, organic, neutral, tags=None, bridges=None) -> str:
     tags = tags or {}
     entries = [(label, n, False) for label, n in counts.items()] + [(label, n, True) for label, n in (bridges or {}).items()]
-    entries.sort(key=lambda e: (e[0].lstrip("(").replace("\u03b75-", "").lower(), 0 if e[2] else 1))
+    entries.sort(key=lambda e: (_sort_key(e[0]), 0 if e[2] else 1))
     out = []
     for position, (label, n, is_bridge) in enumerate(entries):
         simple = label in simple_labels or (label in organic and label not in neutral and _is_simple(label))

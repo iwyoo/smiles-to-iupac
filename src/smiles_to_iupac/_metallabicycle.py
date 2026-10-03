@@ -37,7 +37,11 @@ def has_metallabicycle_shape(mol) -> bool:
         return False
     bh1, bh2, bridges = core
     atoms = [bh1, bh2] + [a for b in bridges for a in b]
-    return sum(split[0].GetAtomWithIdx(a).GetSymbol() in _METAL_A_PREFIXES for a in atoms) == 1
+    metals = [a for a in atoms if split[0].GetAtomWithIdx(a).GetSymbol() in _METAL_A_PREFIXES]
+    if len(metals) != 1:
+        return False
+    in_core = [n for n in split[0].GetAtomWithIdx(metals[0]).GetNeighbors() if n.GetIdx() in atoms]
+    return len(in_core) == 2
 
 
 def name_metallabicycle(mol) -> str:
