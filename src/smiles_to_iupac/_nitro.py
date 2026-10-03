@@ -35,6 +35,7 @@ extension:
 
 from rdkit import Chem
 
+from ._multiplicative_text import enclose
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -166,7 +167,7 @@ def _name_benzene_ring_nitro_chain(mol, nitro_nitrogens, nitro_atom_idxs, ring_a
         terminals[n.GetIdx()] = "nitro"
 
     branch_name, is_compound = name_branch(graph, chain_root, ring_atom, terminals, mol=mol)
-    display = f"({branch_name})" if is_compound else branch_name
+    display = enclose(branch_name) if is_compound else branch_name
     return f"{display}benzene"
 
 

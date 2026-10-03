@@ -61,6 +61,7 @@ raise NotImplementedError.
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
+from ._multiplicative_text import enclose
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -86,7 +87,7 @@ def _name_from_substituents(ring_size, grouped):
     if total_count == 1:
         # P-14.3.3: the locant is not essential on an otherwise unsubstituted ring.
         (name,) = grouped
-        display_name = f"({name})" if grouped[name]["compound"] else name
+        display_name = enclose(name) if grouped[name]["compound"] else name
         return f"{display_name}{parent}"
     prefix = format_substituent_prefixes(grouped)
     return prefix + parent

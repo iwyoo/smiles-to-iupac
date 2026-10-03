@@ -44,6 +44,7 @@ REST (CID 555335 'c1ccccc1N=C=[Se]' -> 'isoselenocyanatobenzene', CID
 
 from rdkit import Chem
 
+from ._multiplicative_text import enclose
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -196,7 +197,7 @@ def _name_benzene_ring_isoselenocyanate_chain(mol, n1, group_atom_idxs, ring_ato
 
     terminals = {n1.GetIdx(): "isoselenocyanato"}
     branch_name, is_compound = name_branch(graph, chain_root, ring_atom, terminals, mol=mol)
-    display = f"({branch_name})" if is_compound else branch_name
+    display = enclose(branch_name) if is_compound else branch_name
     return f"{display}benzene"
 
 

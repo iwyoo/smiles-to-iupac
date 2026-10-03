@@ -45,6 +45,7 @@ length. Confirmed via PubChem PUG REST (CID 7673 'c1ccccc1N=C=S' ->
 
 from rdkit import Chem
 
+from ._multiplicative_text import enclose
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -195,7 +196,7 @@ def _name_benzene_ring_isothiocyanate_chain(mol, n1, group_atom_idxs, ring_atoms
 
     terminals = {n1.GetIdx(): "isothiocyanato"}
     branch_name, is_compound = name_branch(graph, chain_root, ring_atom, terminals, mol=mol)
-    display = f"({branch_name})" if is_compound else branch_name
+    display = enclose(branch_name) if is_compound else branch_name
     return f"{display}benzene"
 
 

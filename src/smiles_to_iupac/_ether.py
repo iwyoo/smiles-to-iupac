@@ -69,6 +69,7 @@ round ones when a '(...)oxy' term already sits inside the branch.
 
 from rdkit import Chem
 
+from ._multiplicative_text import enclose
 from ._acyclic import longest_chain_length, winning_chain_from_carbon_graph, winning_chain_with_key
 from ._common import (
     UnsupportedStructure,
@@ -171,7 +172,7 @@ def _name_benzene_ring_ether_chain(mol, ring_atoms) -> str:
         sub_name, sub_compound = name_branch(graph, r_prime, oxygen_idx, {}, mol=mol)
         oxy_term = _oxy_prefix(sub_name)
         if sub_compound:
-            oxy_term = f"({oxy_term})"
+            oxy_term = enclose(oxy_term)
         return f"{oxy_term}benzene"
 
     blocked_graph = {node: [n for n in neighbors if n != oxygen_idx] for node, neighbors in graph.items()}
@@ -182,7 +183,7 @@ def _name_benzene_ring_ether_chain(mol, ring_atoms) -> str:
     sub_name, sub_compound = name_branch(graph, r_prime, oxygen_idx, {}, mol=mol)
     oxy_term = _oxy_prefix(sub_name)
     if sub_compound:
-        oxy_term = f"({oxy_term})"
+        oxy_term = enclose(oxy_term)
     branch_name, is_compound = name_branch(graph, chain_root, ring_atom, {oxygen_idx: oxy_term}, mol=mol)
     if not is_compound:
         return f"{branch_name}benzene"
@@ -230,9 +231,9 @@ def name_ether(mol) -> str:
             oxy_from_a = _oxy_prefix(name_a)
             oxy_from_b = _oxy_prefix(name_b)
             if compound_a:
-                oxy_from_a = f"({oxy_from_a})"
+                oxy_from_a = enclose(oxy_from_a)
             if compound_b:
-                oxy_from_b = f"({oxy_from_b})"
+                oxy_from_b = enclose(oxy_from_b)
             key_a, _, _ = winning_chain_with_key(full_graph, graph_a, {oxygen_idx: oxy_from_b}, mol=mol)
             key_b, _, _ = winning_chain_with_key(full_graph, graph_b, {oxygen_idx: oxy_from_a}, mol=mol)
             parent_root, sub_root = (n1, n2) if key_a <= key_b else (n2, n1)
@@ -244,7 +245,7 @@ def name_ether(mol) -> str:
     sub_name, sub_compound = name_branch(full_graph, sub_root, oxygen_idx, {}, mol=mol)
     oxy_term = _oxy_prefix(sub_name)
     if sub_compound:
-        oxy_term = f"({oxy_term})"
+        oxy_term = enclose(oxy_term)
 
     parent_carbon_graph = component_subgraph(carbon_graph, parent_root)
     terminals = {oxygen_idx: oxy_term}

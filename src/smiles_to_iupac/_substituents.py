@@ -70,6 +70,8 @@ docstring for exactly which zero-substituent shapes it recognizes).
 
 import contextvars
 
+from rdkit import Chem
+
 from ._multiplicative_text import enclose
 from ._common import (
     UnsupportedStructure,
@@ -704,6 +706,17 @@ def _ring_has_other_substituents(graph, mol, root, coming_from):
     return any(n not in ring and not (a == root and n == coming_from) for a in ring for n in graph[a])
 
 
+_ADAMANTANE_SKELETON = Chem.MolFromSmarts("[#6]12[#6][#6]3[#6][#6]([#6][#6]([#6]3)[#6]1)[#6]2")
+
+
+def _is_adamantane(mol, root):
+    """True when the ring system holding `root` is exactly the adamantane skeleton."""
+    from ._diester_ring_diyl import _system_of
+
+    _, atoms = _system_of(mol, root)
+    return len(atoms) == 10 and any(set(match) == set(atoms) for match in mol.GetSubstructMatches(_ADAMANTANE_SKELETON))
+
+
 def _ring_system_branch(graph, mol, root, coming_from):
     """Fused rings and non-aromatic heterocycles are named as substituent
     groups by the ring-system machinery (pyrrolidin-1-yl, naphthalen-2-yl, ...);
@@ -715,7 +728,11 @@ def _ring_system_branch(graph, mol, root, coming_from):
     aromatic = all(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring)
     if not (fused or (hetero and not aromatic)):
         return None
-    if fused and not any(mol.GetAtomWithIdx(a).GetIsAromatic() for r in ring_info.AtomRings() for a in r if a in ring):
+    if (
+        fused
+        and not any(mol.GetAtomWithIdx(a).GetIsAromatic() for r in ring_info.AtomRings() for a in r if a in ring)
+        and not _is_adamantane(mol, root)
+    ):
         raise UnsupportedStructure("a saturated fused or bridged ring substituent needs hydro or von Baeyer naming here")
     if mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
         raise UnsupportedStructure("a ring system attached by a multiple bond is not supported yet")
@@ -741,7 +758,16 @@ def _hetero_ring_branch(mol, root, coming_from):
             mol.GetBondBetweenAtoms(a, b) is not None for a in ring_atoms for b in ring
         )
         if joined and not set(ring) & ring_atoms and _bare_key(mol, set(ring)) == own_key:
-            raise UnsupportedStructure("a heteroaromatic ring assembly as a substituent group is not supported yet")
+            from ._common import adjacency, halogen_substituents
+            from ._polyfunctional import assembly_substituent
+
+            graph = adjacency(mol)
+            halogens = halogen_substituents(mol)
+            aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+            assembly = assembly_substituent(mol, graph, root, coming_from, halogens, aromatic)
+            if assembly is None:
+                raise UnsupportedStructure("this heteroaromatic ring assembly as a substituent is not supported yet")
+            return assembly
     result = ring_substituent_name(mol, ring_atoms, root, coming_from, classify(mol) or [], None)
     if result is None:
         raise UnsupportedStructure("this heterocyclic substituent group is not supported yet")
@@ -811,6 +837,10 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
         if is_aromatic:
             if heteroaromatic_name is not None:
                 return heteroaromatic_name, True
+            if mol is not None and not _ring_of_root_is_all_carbon(mol, root):
+                from ._diester_ring_diyl import ring_substituent_name
+
+                return ring_substituent_name(mol, graph, root, coming_from)
             return "phenyl", False
         if unsaturated:
             return _unsaturated_ring_branch(graph, root, coming_from, ring_size, attach_order, mol)
@@ -1370,7 +1400,15 @@ def _unsaturated_chain_name(length, root_position, suffix, ene, yne, grouped, te
     if length == 1 and list(grouped) == ["phenyl"] and len(grouped["phenyl"]["locants"]) == 1:
         # P-29.6.2.1: 'benzyl'/'benzylidene'/'benzylidyne' are the preferred prefixes when unsubstituted.
         return "benz" + suffix, False
-    prefix = format_substituent_prefixes(grouped, omit_locants=(length == 1)) if grouped else ""
+    prefix = ""
+    if grouped and length == 1 and len(grouped) >= 2:
+        flat = [(name, info["compound"]) for name, info in grouped.items() for _ in info["locants"]]
+        try:
+            prefix = format_mononuclear_prefixes(flat)
+        except UnsupportedStructure:
+            prefix = ""
+    if not prefix:
+        prefix = format_substituent_prefixes(grouped, omit_locants=(length == 1)) if grouped else ""
     multiple = len(ene) + len(yne)
     if not multiple:
         if root_position == 1:

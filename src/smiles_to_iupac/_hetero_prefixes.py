@@ -14,6 +14,21 @@ _SIMPLE_NAMES = {
     "nitro", "nitroso", "cyano", "sulfanyl", "formyl", "carboxy", "carbamoyl",
 }
 _MULTIPLE_TARGETS = {7, 8, 16}
+MONONUCLEAR_HYDRIDES = {
+    5: ("borane", "boranyl", 3),
+    13: ("alumane", "alumanyl", 3),
+    14: ("silane", "silyl", 4),
+    15: ("phosphane", "phosphanyl", 3),
+    31: ("gallane", "gallanyl", 3),
+    32: ("germane", "germyl", 4),
+    33: ("arsane", "arsanyl", 3),
+    49: ("indigane", "indiganyl", 3),
+    50: ("stannane", "stannyl", 4),
+    51: ("stibane", "stibanyl", 3),
+    81: ("thallane", "thallanyl", 3),
+    82: ("plumbane", "plumbyl", 4),
+    83: ("bismuthane", "bismuthanyl", 3),
+}
 _SIMPLE_ACYLS = {"methanoyl", "ethanoyl", "propanoyl", "butanoyl", "benzoyl"}
 
 
@@ -154,6 +169,8 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if is_functional_carbon(mol, root) or _carbonyl_oxygen(mol, root) is not None:
             return _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol)
         return None
+    if z in MONONUCLEAR_HYDRIDES:
+        return _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if atom.GetFormalCharge() and z != 7:
         raise UnsupportedStructure("a charged atom in a substituent group is not supported yet")
     if atom.IsInRing():
@@ -166,6 +183,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if not others:
             return "hydroxy", False
         (other,) = others
+        if mol.GetAtomWithIdx(other).GetAtomicNum() in MONONUCLEAR_HYDRIDES:
+            silyl, _ = _mononuclear_group(graph, other, root, halogens, aromatic_atoms, mol)
+            return _enclose(silyl, True) + "oxy", True
         if mol.GetAtomWithIdx(other).GetAtomicNum() != 6:
             raise UnsupportedStructure("this oxygen-linked group is not supported yet")
         if is_functional_carbon(mol, other):
@@ -183,6 +203,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             raise UnsupportedStructure("this sulfur-linked group is not supported yet")
         if not others:
             return "sulfanyl", False
+        if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in MONONUCLEAR_HYDRIDES:
+            silyl, _ = _mononuclear_group(graph, others[0], root, halogens, aromatic_atoms, mol)
+            return _enclose(silyl, True) + "sulfanyl", True
         if mol.GetAtomWithIdx(others[0]).GetAtomicNum() != 6:
             raise UnsupportedStructure("a chalcogen chain (disulfanyl, ...) is not supported yet")
         from ._substituents import name_branch
@@ -200,6 +223,22 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0 for n in others
         ):
             raise UnsupportedStructure("this nitrogen-linked group is not supported yet")
+        if len(others) == 1 and mol.GetAtomWithIdx(others[0]).GetAtomicNum() == 7:
+            far = mol.GetAtomWithIdx(others[0])
+            if far.GetDegree() == 1 and far.GetTotalNumHs() == 2 and not far.GetFormalCharge():
+                return "hydrazinyl", False
+        if any(mol.GetAtomWithIdx(n).GetAtomicNum() in MONONUCLEAR_HYDRIDES for n in others) and all(
+            mol.GetAtomWithIdx(n).GetAtomicNum() in MONONUCLEAR_HYDRIDES or mol.GetAtomWithIdx(n).GetAtomicNum() == 6
+            for n in others
+        ):
+            names = []
+            for n in others:
+                if mol.GetAtomWithIdx(n).GetAtomicNum() in MONONUCLEAR_HYDRIDES:
+                    names.append(_mononuclear_group(graph, n, root, halogens, aromatic_atoms, mol))
+                else:
+                    names.extend(_group_names(graph, mol, [n], root, halogens, aromatic_atoms))
+            name = _amino(names)
+            return name, _compound(name)
         if any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in others):
             raise UnsupportedStructure("this nitrogen-linked group is not supported yet")
         name = _amino(_group_names(graph, mol, others, root, halogens, aromatic_atoms))
@@ -275,3 +314,25 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     else:
         raise UnsupportedStructure("this sulfonyl group is not supported yet")
     return stem + ("sulfonyl" if len(oxygens) == 2 else "sulfinyl"), True
+
+
+def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
+    """silyl, germyl, phosphanyl, boranyl, ... with organyl substituents:
+    '(trimethylsilyl)', '[dimethyl(phenyl)silyl]' (P-29.3.1)."""
+    from ._substituents import format_mononuclear_prefixes, name_branch
+
+    atom = mol.GetAtomWithIdx(root)
+    _, base, valence = MONONUCLEAR_HYDRIDES[atom.GetAtomicNum()]
+    if atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope():
+        raise UnsupportedStructure("this mononuclear group is not supported yet")
+    if mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
+        raise UnsupportedStructure("a mononuclear ylidene group is not supported yet")
+    others = [n for n in graph[root] if n != coming_from]
+    if len(others) > valence - 1 or any(
+        mol.GetAtomWithIdx(n).GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0
+        for n in others
+    ):
+        raise UnsupportedStructure("this mononuclear group carries something other than organyl groups")
+    entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in others]
+    prefix = format_mononuclear_prefixes(entries) if entries else ""
+    return prefix + base, bool(entries)

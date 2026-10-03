@@ -1,3 +1,5 @@
+import re
+
 from rdkit import Chem
 
 from ._zwitterion import has_zwitterion_shape, name_zwitterion
@@ -130,6 +132,7 @@ from ._dihydro_aromatic import (
 from ._diester_acyloxy import has_diester_shape, has_polyester_of_one_polyol_shape, name_diester_acyloxy
 from ._ester import has_ester_shape, name_ester
 from ._ester_by_parts import name_ester_by_parts
+from ._heteroacyclic import name_heteroacyclic
 from ._polyfunctional import name_polyfunctional
 from ._cyanate import has_cyanate_shape, name_cyanate
 from ._ether import has_ether_shape, name_ether
@@ -398,10 +401,27 @@ _NO_PIN_ORGANOMETALLIC = "the Blue Book defines no PIN for this class of organom
 _FALLBACKS_RUNNING = set()
 
 
+_ADAMANTANE = re.compile(r"(?<![a-z])tricyclo\[3\.3\.1\.1\^3,7\]decan(?=e|-)")
+
+
+def _retained_polycycle_names(name):
+    """P-23.7: 'adamantane' replaces tricyclo[3.3.1.1^3,7]decane; the numbering is the same."""
+    return _ADAMANTANE.sub("adamantan", name)
+
+
 def smiles_to_iupac(smiles: str) -> str:
+    return _retained_polycycle_names(_smiles_to_iupac_unabridged(smiles))
+
+
+def _smiles_to_iupac_unabridged(smiles: str) -> str:
     enter()
     name = None
     try:
+        parsed = Chem.MolFromSmiles(smiles)
+        if parsed is not None:
+            name = name_heteroacyclic(parsed)
+            if name is not None:
+                return name
         try:
             name = _smiles_to_iupac_dispatch(smiles)
         except UnsupportedStructure as original:

@@ -25,7 +25,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         # A bridgehead radical (degree 3, no hydrogen) rather than a
         # secondary ring position -- same tricyclic (adamantane) skeleton
         # as `test_von_baeyer_carbenium.py`'s bridgehead case.
-        ("[C]12CC3CC(CC(C3)C1)C2", "tricyclo[3.3.1.1^3,7]decan-1-yl"),
+        ("[C]12CC3CC(CC(C3)C1)C2", "adamantan-1-yl"),
     ],
 )
 def test_von_baeyer_radical_name(smiles, expected):

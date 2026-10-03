@@ -50,11 +50,8 @@ def test_smiles_to_iupac_simple_phosphane(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_halogen_substituted_alkyl_chain_raises():
-    # a halogen embedded partway along a carbon chain (rather than bonded
-    # directly to phosphorus) is out of scope for this module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("ClCCP")
+def test_halogen_substituted_alkyl_chain():
+    assert smiles_to_iupac("ClCCP") == "(2-chloroethyl)phosphane"
 
 
 @pytest.mark.parametrize(
@@ -90,9 +87,8 @@ def test_multiplied_compound_substituent_with_different_substituent_raises():
         smiles_to_iupac("CCCP(C(C)C)C(C)C")
 
 
-def test_unsaturated_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CP")
+def test_unsaturated_substituent():
+    assert smiles_to_iupac("C=CP") == "ethenylphosphane"
 
 
 @pytest.mark.parametrize(
@@ -119,15 +115,12 @@ def test_mixed_alkyl_and_phenyl_substituents():
     assert smiles_to_iupac("CP(c1ccccc1)C") == "dimethyl(phenyl)phosphane"
 
 
-def test_substituted_phenyl_raises():
-    # A substituted ring is not the plain 'phenyl' shape.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1P")
+def test_substituted_phenyl():
+    assert smiles_to_iupac("Cc1ccccc1P") == "(2-methylphenyl)phosphane"
 
 
-def test_non_aromatic_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCC1P")
+def test_non_aromatic_ring():
+    assert smiles_to_iupac("C1CCCCC1P") == "cyclohexylphosphane"
 
 
 @pytest.mark.parametrize(
@@ -156,19 +149,12 @@ def test_halogenated_phenyl_substituent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_halogenated_phenyl_mixed_with_alkyl_raises():
-    # PubChem's own raw name for this shape ('(4-chlorophenyl)-
-    # methylphosphane') doesn't follow the already-established
-    # P-16.5.1.3.1 parenthesization rule (contrast 'ethyl(methyl)phosphane'),
-    # so it isn't trusted.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CP(c1ccc(Cl)cc1)")
+def test_halogenated_phenyl_mixed_with_alkyl():
+    assert smiles_to_iupac("CP(c1ccc(Cl)cc1)") == "(4-chlorophenyl)(methyl)phosphane"
 
 
-def test_two_different_halogenated_phenyls_raises():
-    # Unregistered in PubChem (CID 0) -- punctuation unconfirmed.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Clc1ccc(cc1)P(c1ccc(F)cc1)")
+def test_two_different_halogenated_phenyls():
+    assert smiles_to_iupac("Clc1ccc(cc1)P(c1ccc(F)cc1)") == "(4-chlorophenyl)(4-fluorophenyl)phosphane"
 
 
 @pytest.mark.parametrize(

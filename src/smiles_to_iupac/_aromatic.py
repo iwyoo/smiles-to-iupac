@@ -79,6 +79,7 @@ every other ring size here, ring positions are chemically distinct and a
 single substituent's locant is always cited.
 """
 
+from ._multiplicative_text import enclose
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -497,7 +498,7 @@ def _candidate_key(
             display = stereo_display
         else:
             (only_name,) = grouped
-            display = f"({only_name})" if grouped[only_name]["compound"] else only_name
+            display = enclose(only_name) if grouped[only_name]["compound"] else only_name
         name = f"{display}{parent}"
     else:
         if stereo_display is not None:

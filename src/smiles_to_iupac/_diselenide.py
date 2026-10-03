@@ -55,6 +55,7 @@ monoselenide, or oxidized selenium, are separate functional groups).
 
 from rdkit import Chem
 
+from ._multiplicative_text import enclose
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -184,7 +185,7 @@ def _name_from_substituents(chain_length, grouped):
         if name == _BARE_TERMINAL_NAME:
             display_name = name
         else:
-            display_name = f"({name})" if grouped[name]["compound"] else name
+            display_name = enclose(name) if grouped[name]["compound"] else name
         return display_name + alkane_name(chain_length)
     prefix = format_substituent_prefixes(grouped)
     return prefix + alkane_name(chain_length)

@@ -19,12 +19,12 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("SC1CC2CCC1CC2", "bicyclo[2.2.2]octane-2-thiol"),
         ("SC1CC2CCC2C1", "bicyclo[3.2.0]heptane-3-thiol"),
         # 1-adamantanethiol -- this project's adamantane already uses the
-        # systematic 'tricyclo[3.3.1.1^3,7]decane' name rather than the
+        # systematic 'adamantane' name rather than the
         # retained 'adamantane' one (see `test_von_baeyer_alcohol.py`'s
         # identical 1-/2-adamantanol precedent), so this module's
         # ring_count>=3 path follows the same systematic convention
         # rather than PubChem's own retained-name 'adamantane-1-thiol'.
-        ("SC12CC3CC(CC(C3)C1)C2", "tricyclo[3.3.1.1^3,7]decane-1-thiol"),
+        ("SC12CC3CC(CC(C3)C1)C2", "adamantane-1-thiol"),
     ],
 )
 def test_von_baeyer_thiol_name(smiles, expected):

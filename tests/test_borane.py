@@ -36,11 +36,8 @@ def test_smiles_to_iupac_simple_borane(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_halogen_substituted_alkyl_chain_raises():
-    # a halogen embedded partway along a carbon chain (rather than bonded
-    # directly to boron) is out of scope for this module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("ClCCB")
+def test_halogen_substituted_alkyl_chain():
+    assert smiles_to_iupac("ClCCB") == "(2-chloroethyl)borane"
 
 
 def test_borane_chain_raises():
@@ -62,9 +59,8 @@ def test_branched_substituent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_unsaturated_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CB")
+def test_unsaturated_substituent():
+    assert smiles_to_iupac("C=CB") == "ethenylborane"
 
 
 @pytest.mark.parametrize(
@@ -91,15 +87,12 @@ def test_mixed_alkyl_and_phenyl_substituents():
     assert smiles_to_iupac("CB(c1ccccc1)C") == "dimethyl(phenyl)borane"
 
 
-def test_substituted_phenyl_raises():
-    # A substituted ring is not the plain 'phenyl' shape.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1B")
+def test_substituted_phenyl():
+    assert smiles_to_iupac("Cc1ccccc1B") == "(2-methylphenyl)borane"
 
 
-def test_non_aromatic_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCC1B")
+def test_non_aromatic_ring():
+    assert smiles_to_iupac("C1CCCCC1B") == "cyclohexylborane"
 
 
 @pytest.mark.parametrize(
@@ -117,6 +110,5 @@ def test_halogenated_phenyl_substituent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_halogenated_phenyl_mixed_with_alkyl_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CB(c1ccc(Cl)cc1)")
+def test_halogenated_phenyl_mixed_with_alkyl():
+    assert smiles_to_iupac("CB(c1ccc(Cl)cc1)") == "(4-chlorophenyl)(methyl)borane"

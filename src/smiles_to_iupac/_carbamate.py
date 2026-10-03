@@ -91,6 +91,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
+from ._multiplicative_text import enclose
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -246,7 +247,7 @@ def name_carbamate(mol) -> str:
 
     if len(n_entries) == 2 and n_entries[0][0] == n_entries[1][0]:
         name, is_compound = n_entries[0]
-        di_name = f"({name})" if is_compound else name
+        di_name = enclose(name) if is_compound else name
         n_prefix = f"N,N-di{di_name}"
     else:
         n_prefix = "-".join(

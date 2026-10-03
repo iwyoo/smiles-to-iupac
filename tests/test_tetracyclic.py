@@ -70,7 +70,7 @@ def test_tricyclic_is_not_tetracyclic():
     # adamantane: genuinely tricyclic (cyclomatic number 3, four branch
     # atoms), still resolved by _tricyclic.py unaffected by tetracyclic
     # support.
-    assert smiles_to_iupac("C1C2CC3CC1CC(C2)C3") == "tricyclo[3.3.1.1^3,7]decane"
+    assert smiles_to_iupac("C1C2CC3CC1CC(C2)C3") == "adamantane"
 
 
 def test_pentacyclic_is_not_tetracyclic():

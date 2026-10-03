@@ -16,12 +16,12 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("O=C1CC2CCC1CC2", "bicyclo[2.2.2]octan-2-one"),
         ("O=C1CC2CCC2C1", "bicyclo[3.2.0]heptan-3-one"),
         # 1-adamantanone -- this project's adamantane already uses the
-        # systematic 'tricyclo[3.3.1.1^3,7]decane' name rather than the
+        # systematic 'adamantane' name rather than the
         # retained 'adamantane' one (see `test_von_baeyer_alcohol.py`'s
         # identical 1-/2-adamantanol precedent), so this module's
         # ring_count>=3 path follows the same systematic convention
         # rather than PubChem's own retained-name 'adamantan-2-one'.
-        ("O=C1C2CC3CC1CC(C2)C3", "tricyclo[3.3.1.1^3,7]decan-2-one"),
+        ("O=C1C2CC3CC1CC(C2)C3", "adamantan-2-one"),
     ],
 )
 def test_von_baeyer_ketone_name(smiles, expected):

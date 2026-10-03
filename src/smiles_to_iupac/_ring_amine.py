@@ -115,6 +115,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
+from ._multiplicative_text import enclose
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -390,7 +391,7 @@ def name_ring_amine(mol) -> str:
                 f"N-heteroatom saturated ring (P-22.2.1)"
             )
         if ring_carbon_substituent is None:
-            sub_name = f"({name})" if is_compound else name
+            sub_name = enclose(name) if is_compound else name
             return f"1-{sub_name}{stem}"
 
         ring_carbon_idx, carbon_root = ring_carbon_substituent
@@ -418,7 +419,7 @@ def name_ring_amine(mol) -> str:
                 "no retained name for this 1,4-two-heteroatom saturated "
                 "ring element pair (P-22.2.1)"
             )
-        sub_name = f"({name})" if is_compound else name
+        sub_name = enclose(name) if is_compound else name
         return f"{n_locant}-{sub_name}{stem}"
 
     raise UnsupportedStructure(

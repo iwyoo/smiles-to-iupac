@@ -68,6 +68,7 @@ imide nitrogen, and two branches that name differently (unsymmetric).
 
 from rdkit import Chem
 
+from ._multiplicative_text import enclose
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -387,7 +388,7 @@ def _combine_symmetric_branches(length1, grouped1, length2, grouped2):
         )
     amide_name = _amide_name(length1, grouped1)
     acyl_name, acyl_is_compound = _acyl_prefix_name(length2, grouped2)
-    acyl_part = f"({acyl_name})" if acyl_is_compound else acyl_name
+    acyl_part = enclose(acyl_name) if acyl_is_compound else acyl_name
     separator = "-" if amide_name[0].isdigit() else ""
     return f"N-{acyl_part}{separator}{amide_name}"
 

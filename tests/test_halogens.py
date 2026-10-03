@@ -73,10 +73,5 @@ def test_lone_halogen_atom_raises():
         smiles_to_iupac("FCl")
 
 
-def test_non_halogen_heteroatom_still_raises():
-    # A benzene ring with a non-halogen heteroatom substituent this
-    # project doesn't handle at all (P-21.2.3 skeletal replacement) --
-    # unlike the aromatic ammonium example this test used to use, which
-    # `_amine.py`'s aniline support now handles.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1[SiH3]")
+def test_non_halogen_heteroatom():
+    assert smiles_to_iupac("c1ccccc1[SiH3]") == "phenylsilane"

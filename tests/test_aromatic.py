@@ -132,7 +132,7 @@ def test_saturated_rings_still_resolve_unaffected():
     # not shadow or interfere with existing saturated-ring detection.
     assert smiles_to_iupac("C1CCCCC1") == "cyclohexane"
     assert smiles_to_iupac("C1CC2CCC1C2") == "bicyclo[2.2.1]heptane"
-    assert smiles_to_iupac("C1C2CC3CC1CC(C2)C3") == "tricyclo[3.3.1.1^3,7]decane"
+    assert smiles_to_iupac("C1C2CC3CC1CC(C2)C3") == "adamantane"
     assert smiles_to_iupac("C1C2C3C2C4C1C34") == "tetracyclo[3.2.0.0^2,7.0^4,6]heptane"
 
 

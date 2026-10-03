@@ -52,6 +52,7 @@ unsaturation, and any specified stereocenter.
 
 from rdkit import Chem
 
+from ._multiplicative_text import enclose
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._carboxylate import _find_carboxylate_group, _name_acyclic_carboxylate
 from ._common import UnsupportedStructure, adjacency, bfs, specified_stereocenters
@@ -139,7 +140,7 @@ def _ammonium_prefix(mol, nitrogen_idx, chain_neighbor_idx):
     # itself before injection, the same way `_ether.py`'s callers wrap a
     # compound alkoxy substituent (P-29.4).
     if "-" in prefix:
-        prefix = f"({prefix})"
+        prefix = enclose(prefix)
     return prefix
 
 

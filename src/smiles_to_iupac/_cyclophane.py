@@ -95,6 +95,7 @@ these, so `core.py`'s existing dispatch continues to raise
 - A substituent whose own branch loops back into the phane's ring system.
 """
 
+from ._multiplicative_text import enclose
 from ._common import adjacency, halogen_substituents
 from ._numerals import numerical_term
 from ._polyspiro import _ring_cyclic_order
@@ -363,7 +364,7 @@ def _substituent_ring_prefix(mol, graph, substituent):
             prefixes[atom.GetIdx()] = "amino"
 
     name, is_compound = name_branch(graph, exo_atom, ring_atom, prefixes, mol=mol)
-    display = f"({name})" if is_compound else name
+    display = enclose(name) if is_compound else name
     return f"{local_locant}-{display}"
 
 
