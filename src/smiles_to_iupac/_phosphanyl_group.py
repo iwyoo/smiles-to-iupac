@@ -54,7 +54,10 @@ def contract_phosphanyl_groups(mol):
             name = phosphanyl_name(mol, graph, p, ordered[0])
         except UnsupportedStructure:
             continue
-        groups.append((p, ordered[0], {p} | sides[ordered[1]] | sides[ordered[2]], name))
+        removed = {p} | sides[ordered[1]] | sides[ordered[2]]
+        if any(mol.GetAtomWithIdx(i).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for i in removed):
+            continue
+        groups.append((p, ordered[0], removed, name))
     if not groups:
         return None
     rw = Chem.RWMol(mol)

@@ -30,12 +30,30 @@ _METAL_NAMES = {
     73: "tantalum", 74: "tungsten", 75: "rhenium", 76: "osmium",
     77: "iridium", 78: "platinum", 79: "gold", 80: "mercury",
 }
+_S_BLOCK_NAMES = {
+    3: "lithium", 11: "sodium", 12: "magnesium", 19: "potassium", 20: "calcium",
+    37: "rubidium", 38: "strontium", 55: "caesium", 56: "barium",
+}
+_METAL_NAMES.update(_S_BLOCK_NAMES)
 _HALIDO = {9: "fluorido", 17: "chlorido", 35: "bromido", 53: "iodido"}
 _NEUTRAL_VALENCE = {7: 3, 8: 2, 15: 3, 16: 2, 33: 3}
 
 
+def _ate(z):
+    if z not in _ATE_NAMES:
+        raise UnsupportedStructure("an anionic complex of this metal is not supported yet")
+    return _ATE_NAMES[z]
+
+
+def _is_metal(atom) -> bool:
+    z = atom.GetAtomicNum()
+    if z in _S_BLOCK_NAMES:
+        return sum(1 for n in atom.GetNeighbors() if n.GetAtomicNum() in (7, 8, 15, 16)) >= 2
+    return z in _METAL_NAMES
+
+
 def has_coordination_shape(mol) -> bool:
-    return any(atom.GetAtomicNum() in _METAL_NAMES for atom in mol.GetAtoms())
+    return any(_is_metal(atom) for atom in mol.GetAtoms())
 
 
 def _is_simple(name: str) -> bool:
@@ -133,7 +151,7 @@ def _net_charge(mol) -> int:
     carbonyl_o = {
         n.GetIdx()
         for a in mol.GetAtoms()
-        if a.GetAtomicNum() == 6 and any(m.GetAtomicNum() in _METAL_NAMES for m in a.GetNeighbors())
+        if a.GetAtomicNum() == 6 and any(_is_metal(m) for m in a.GetNeighbors())
         for n in a.GetNeighbors()
         if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(a.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() >= 2.0
     }
@@ -159,7 +177,7 @@ def _counter_ion_words(frags):
 
 
 def _simple_anion_label(mol, donor, atoms):
-    z, own = donor.GetAtomicNum(), [n for n in donor.GetNeighbors() if n.GetAtomicNum() in _METAL_NAMES]
+    z, own = donor.GetAtomicNum(), [n for n in donor.GetNeighbors() if _is_metal(n)]
     if len(atoms) == 1 and z in (8, 16):
         bond_orders = [mol.GetBondBetweenAtoms(donor.GetIdx(), m.GetIdx()).GetBondTypeAsDouble() for m in own]
         hydrogens = donor.GetNumExplicitHs() + donor.GetNumImplicitHs()
@@ -239,7 +257,7 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
             continue
         atoms = _component(graph, donor.GetIdx(), metal.GetIdx())
         seen |= atoms
-        if any(mol.GetAtomWithIdx(i).GetAtomicNum() in _METAL_NAMES for i in atoms):
+        if any(_is_metal(mol.GetAtomWithIdx(i)) for i in atoms):
             raise UnsupportedStructure("bridging ligands and metal-metal bonds are not supported here")
         donors_in = [n for n in metal.GetNeighbors() if n.GetIdx() in atoms]
         if len(donors_in) > 1:
@@ -344,7 +362,7 @@ def name_coordination(mol) -> str:
     cp_charges = [_cp_charge(f) for f in others]
     cp_count = sum(c is not None for c in cp_charges)
     others = [f for f, c in zip(others, cp_charges) if c is None]
-    metal = next(a for a in complex_mol.GetAtoms() if a.GetAtomicNum() in _METAL_NAMES)
+    metal = next(a for a in complex_mol.GetAtoms() if _is_metal(a))
     charge = _net_charge(complex_mol) + sum(c for c in cp_charges if c is not None)
     name = _name_complex(complex_mol, {_CP_LABEL: cp_count} if cp_count else None, charge)
     if not others:
@@ -368,8 +386,8 @@ def _branch_atoms(graph, start, blocked):
 
 def _bridge_label(mol, graph, atom):
     z = atom.GetAtomicNum()
-    metal_ids = {n.GetIdx() for n in atom.GetNeighbors() if n.GetAtomicNum() in _METAL_NAMES}
-    others = [n for n in atom.GetNeighbors() if n.GetAtomicNum() not in _METAL_NAMES]
+    metal_ids = {n.GetIdx() for n in atom.GetNeighbors() if _is_metal(n)}
+    others = [n for n in atom.GetNeighbors() if not _is_metal(n)]
     hydrogens = atom.GetNumExplicitHs() + atom.GetNumImplicitHs()
     if z == 1 and not others:
         return "hydrido"
@@ -415,7 +433,7 @@ def _name_polynuclear(mol, metals) -> str:
     ]
     bridge_atoms = [
         a for a in mol.GetAtoms()
-        if a.GetAtomicNum() not in _METAL_NAMES and len({n.GetIdx() for n in a.GetNeighbors()} & metal_set) >= 2
+        if not _is_metal(a) and len({n.GetIdx() for n in a.GetNeighbors()} & metal_set) >= 2
     ]
     parent = {i: i for i in ids}
 
@@ -476,7 +494,7 @@ def _name_polynuclear(mol, metals) -> str:
     if charge < 0:
         if len(distinct) != 1:
             raise UnsupportedStructure("a heteronuclear anionic complex is not supported yet")
-        metal_part = multiplying_prefix(len(order)) + _ATE_NAMES[mol.GetAtomWithIdx(order[0]).GetAtomicNum()]
+        metal_part = multiplying_prefix(len(order)) + _ate(mol.GetAtomWithIdx(order[0]).GetAtomicNum())
     else:
         metal_part = "".join(
             (multiplying_prefix(names.count(n)) if names.count(n) > 1 else "") + n for n in distinct
@@ -497,7 +515,7 @@ def _name_polynuclear(mol, metals) -> str:
 
 
 def _name_complex(mol, extra=None, charge=None) -> str:
-    metals = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _METAL_NAMES]
+    metals = [a for a in mol.GetAtoms() if _is_metal(a)]
     if len(metals) >= 2:
         return _name_polynuclear(mol, metals)
     (metal,) = metals
@@ -515,7 +533,7 @@ def _name_complex(mol, extra=None, charge=None) -> str:
 
     out = _format_ligands(counts, simple_labels, organic, neutral)
     if charge < 0:
-        return out + _ATE_NAMES[metal.GetAtomicNum()] + _charge_text(charge)
+        return out + _ate(metal.GetAtomicNum()) + _charge_text(charge)
     metal_name = _METAL_NAMES[metal.GetAtomicNum()]
     return out + metal_name + (_charge_text(charge) if charge else "")
 
@@ -536,6 +554,8 @@ def _format_ligands(counts, simple_labels, organic, neutral, tags=None, bridges=
         simple = label in simple_labels or (label in organic and label not in neutral and _is_simple(label))
         if simple or label.startswith("["):
             wrapped = label
+        elif "{" in label:
+            wrapped = f"({label})"
         elif "[" in label:
             wrapped = "{" + label + "}"
         elif "(" in label:

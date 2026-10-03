@@ -11,11 +11,12 @@ import re
 
 from rdkit import Chem
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, non_single_bonds, plain_phenyl_substituent_atoms
+from ._common import UnsupportedStructure, adjacency, non_single_bonds
 from ._coordination import collect_ligands
 from ._metal_pair import _brackets
 from ._numerals import alkane_name, multiplying_prefix
-from ._substituents import format_substituent_prefixes, name_branch
+from ._ring_groups import add_n_entries, is_carboxyl_bond, is_exocyclic_oxo, principal_kind, ring_substituents, with_suffix
+from ._substituents import format_substituent_prefixes
 
 _METAL_A_PREFIXES = {
     "Ti": "titana",
@@ -81,30 +82,6 @@ def has_metallacycle_shape(mol) -> bool:
     return _find_ring_metal(mol) is not None
 
 
-def _substituent_entries(mol, graph, ring_atom, ring_set):
-    entries = []
-    for n in graph[ring_atom]:
-        if n in ring_set:
-            continue
-        atom = mol.GetAtomWithIdx(n)
-        if atom.GetAtomicNum() in HALOGEN_PREFIXES:
-            entries.append((HALOGEN_PREFIXES[atom.GetAtomicNum()], False))
-        elif atom.GetAtomicNum() == 6:
-            if plain_phenyl_substituent_atoms(mol, graph, {n}):
-                entries.append(("phenyl", False))
-            else:
-                entries.append(name_branch(graph, n, ring_atom, {}, mol=mol))
-        elif atom.GetAtomicNum() == 8 and atom.GetDegree() == 2 and atom.GetTotalNumHs() == 0:
-            carbon = next(x for x in graph[n] if x != ring_atom)
-            alkyl = name_branch(graph, carbon, n, {}, mol=mol)[0]
-            if not alkyl.endswith("yl") or any(ch.isdigit() or ch in "()" for ch in alkyl):
-                raise UnsupportedStructure("only a plain alkoxy ring substituent is supported here")
-            entries.append((alkyl[:-2] + "oxy", False))
-        else:
-            raise UnsupportedStructure("only halogen, alkyl, alkoxy and phenyl ring substituents are supported here")
-    return entries
-
-
 def _ring_stem(size: int, double_locants, benzene: bool) -> str:
     if benzene:
         return "benzene"
@@ -139,10 +116,11 @@ def _ring_double_bonds(mol, graph, ring_set, metal_idx):
                 raise UnsupportedStructure("only ring C=C and metal=C double bonds are supported here")
             doubles.append((a, b))
         elif any(in_ring):
-            raise UnsupportedStructure("an exocyclic double bond on the ring is not supported here")
+            if not is_exocyclic_oxo(mol, a, b, ring_set):
+                raise UnsupportedStructure("an exocyclic double bond on the ring is not supported here")
         elif not any(metal_idx in graph[x] for x in (a, b)) and not (
             mol.GetAtomWithIdx(a).GetIsAromatic() and mol.GetAtomWithIdx(b).GetIsAromatic()
-        ):
+        ) and not is_carboxyl_bond(mol, a, b):
             raise UnsupportedStructure("an unsaturated substituent is out of scope here")
     return doubles
 
@@ -171,6 +149,7 @@ def name_metallacycle(mol) -> str:
     if "hydrido" in counts:
         raise UnsupportedStructure("a hydrido ligand on the metal is not supported here yet")
     ligand_entries, repeats = ring_ligand_entries(counts, simple_labels, neutral)
+    principal = principal_kind(mol, graph, ring_set, metal_idx)
 
     candidates = []
     for offset in range(size):
@@ -195,10 +174,14 @@ def name_metallacycle(mol) -> str:
             hetero_locants = sorted([l for v in by_z.values() for l in v] + [locant[metal_idx]])
             seniority = [tuple(sorted(by_z.get(z, []))) for z in _HETERO_ORDER] + [(locant[metal_idx],)]
             grouped: dict = {}
+            suffix_locants, n_entries = [], []
             for atom in order:
                 if atom == metal_idx:
                     continue
-                for name, compound in _substituent_entries(mol, graph, atom, ring_set):
+                found, n_found, count = ring_substituents(mol, graph, atom, ring_set, principal)
+                suffix_locants += [locant[atom]] * count
+                n_entries += n_found
+                for name, compound in found:
                     entry = grouped.setdefault(name, {"locants": [], "compound": compound})
                     entry["locants"].append(locant[atom])
             for name, compound, n in ligand_entries:
@@ -208,16 +191,17 @@ def name_metallacycle(mol) -> str:
                 entry["locants"].sort()
             all_locants = sorted(l for e in grouped.values() for l in e["locants"])
             citation = [grouped[k]["locants"] for k in sorted(grouped)]
-            key = (hetero_locants, seniority, doubles, all_locants, citation)
-            candidates.append((key, by_z, locant[metal_idx], doubles, grouped))
+            key = (hetero_locants, seniority, sorted(suffix_locants), doubles, all_locants, citation)
+            candidates.append((key, by_z, locant[metal_idx], doubles, grouped, suffix_locants, n_entries))
     if not candidates:
         raise UnsupportedStructure("this ring's double-bond pattern is not supported here")
-    _, by_z, metal_locant, doubles, grouped = min(candidates, key=lambda c: c[0])
+    _, by_z, metal_locant, doubles, grouped, suffix_locants, n_entries = min(candidates, key=lambda c: c[0])
 
     benzene = size == 6 and len(doubles) == 3
-    prefixes = apply_repeats(_brackets(format_substituent_prefixes(grouped)), repeats, metal_locant)
+    prefixes = apply_repeats(_brackets(format_substituent_prefixes(add_n_entries(grouped, n_entries))), repeats, metal_locant)
     hetero = _hetero_text(by_z, metal_locant, _METAL_A_PREFIXES[metal.GetSymbol()])
-    return f"{prefixes}{'-' if prefixes else ''}{hetero}{_ring_stem(size, doubles, benzene)}"
+    stem = with_suffix(_ring_stem(size, doubles, benzene), suffix_locants, principal)
+    return f"{prefixes}{'-' if prefixes else ''}{hetero}{stem}"
 
 
 def ring_ligand_entries(counts, simple_labels, neutral):

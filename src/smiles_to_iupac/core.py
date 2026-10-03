@@ -364,6 +364,7 @@ from ._telluroic_acid import has_telluroic_acid_shape, name_telluroic_acid
 from ._thioic_acid import has_thioic_acid_shape, name_thioic_acid
 from ._thiol import has_thiol_shape, name_thiol
 from ._thiol_amine import has_thiol_amine_shape, name_thiol_amine
+from ._hetero_chain import contract_hetero_groups, name_hetero_macrocycle, name_skeletal_chain
 from ._phosphanyl_group import contract_phosphanyl_groups
 from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
@@ -394,14 +395,33 @@ def smiles_to_iupac(smiles: str) -> str:
         raise ValueError(f"invalid SMILES: {smiles!r}")
     try:
         return _name_mol(mol)
-    except UnsupportedStructure:
-        contracted = contract_phosphanyl_groups(mol)
-        if contracted is None:
-            raise
-        name = _name_mol(contracted)
-        if "iodo" in name and not any(a.GetAtomicNum() == 53 for a in mol.GetAtoms()):
-            raise UnsupportedStructure("a phosphanyl group could not be cited as a prefix here") from None
+    except UnsupportedStructure as first:
+        name = _name_via_fallbacks(mol)
+        if name is None:
+            raise first
         return name
+
+
+def _name_via_fallbacks(mol):
+    for skeletal in (name_skeletal_chain, name_hetero_macrocycle):
+        try:
+            name = skeletal(mol)
+        except UnsupportedStructure:
+            continue
+        if name is not None:
+            return name
+    for contract in (contract_phosphanyl_groups, contract_hetero_groups):
+        try:
+            contracted = contract(mol)
+            if contracted is None:
+                continue
+            name = _name_mol(contracted)
+        except UnsupportedStructure:
+            continue
+        if "iodo" in name and not any(a.GetAtomicNum() == 53 for a in mol.GetAtoms()):
+            continue
+        return name
+    return None
 
 
 def _name_mol(mol) -> str:

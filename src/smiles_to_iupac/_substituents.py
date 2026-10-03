@@ -129,7 +129,7 @@ def format_substituent_prefixes(grouped, omit_locants: bool = False) -> str:
         info = grouped[name]
         locants = sorted(info["locants"], key=_locant_sort_key)
         all_non_numeric = all(isinstance(loc, str) for loc in locants)
-        multiplier_compound = info["compound"] and not all_non_numeric
+        multiplier_compound = (info["compound"] or (name[:1] in "([{" and not name.startswith("(\u03b7"))) and not all_non_numeric
         multiplier = multiplying_prefix(len(locants), compound=multiplier_compound) if len(locants) > 1 else ""
         # P-16.3.3: enclosing marks escalate one level, (), [], {}, ... --
         # a name that already contains its own '(' (e.g. '4-(2-methylpropyl)
@@ -139,8 +139,10 @@ def format_substituent_prefixes(grouped, omit_locants: bool = False) -> str:
             display_name = name
         elif "(" not in name:
             display_name = f"({name})"
-        else:
+        elif "[" not in name:
             display_name = f"[{name}]"
+        else:
+            display_name = "{" + name + "}"
         explicit = (not omit_locants) or any(isinstance(loc, str) for loc in locants)
         if explicit:
             loc_str = ",".join(str(loc) for loc in locants)

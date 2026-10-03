@@ -33,9 +33,8 @@ def test_cyclic_acetal_raises():
         smiles_to_iupac("C1CCC(OC)(OC)CC1")
 
 
-def test_branched_alkoxy_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCC(OC(C)C)OCC")
+def test_branched_alkoxy_named():
+    assert smiles_to_iupac("CCC(OC(C)C)OCC") == "1-ethoxy-1-(propan-2-yloxy)propane"
 
 
 def test_unsaturated_acetal_raises():

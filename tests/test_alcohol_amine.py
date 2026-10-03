@@ -31,14 +31,12 @@ def test_smiles_to_iupac_alcohol_amine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_secondary_amine_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CNCCO")
+def test_secondary_amine_named():
+    assert smiles_to_iupac("CNCCO") == "2-(methylamino)ethanol"
 
 
-def test_two_amines_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(N)CO")
+def test_two_amines_named():
+    assert smiles_to_iupac("NC(N)CO") == "2,2-diaminoethanol"
 
 
 def test_ring_raises():
@@ -64,9 +62,5 @@ def test_plain_amine_still_works():
     assert smiles_to_iupac("CCCN") == "propan-1-amine"
 
 
-def test_ether_coexisting_raises():
-    # An ether alongside the hydroxyl/amine pair is out of scope for this
-    # first pairwise pilot on `_alcohol.py` -- `_alcohol.py`'s own
-    # `ethers` extra-names slot is not exercised by this module.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC(O)COCC")
+def test_ether_coexisting_named():
+    assert smiles_to_iupac("NCC(O)COCC") == "1-amino-3-ethoxypropan-2-ol"

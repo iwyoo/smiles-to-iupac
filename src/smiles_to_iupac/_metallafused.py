@@ -11,7 +11,9 @@ from rdkit import Chem
 from ._common import UnsupportedStructure, adjacency, non_single_bonds
 from ._coordination import collect_ligands
 from ._metal_pair import _brackets
-from ._metallacycle import _METAL_A_PREFIXES, _substituent_entries, apply_repeats, ring_ligand_entries
+from ._numerals import multiplying_prefix
+from ._metallacycle import _METAL_A_PREFIXES, apply_repeats, ring_ligand_entries
+from ._ring_groups import add_n_entries, is_carboxyl_bond, is_exocyclic_oxo, principal_kind, ring_substituents, with_suffix
 from ._substituents import format_substituent_prefixes
 
 
@@ -153,29 +155,34 @@ def name_metallafused(mol) -> str:
             for b in mol.GetAtomWithIdx(i).GetBonds()
         )
     ]
-    if len(sp3) != (len(system) - 1) % 2:
-        raise UnsupportedStructure("this sp3 ring-carbon pattern (hydro prefixes) is not supported here")
+    if len(sp3) % 2 != (len(system) - 1) % 2:
+        raise UnsupportedStructure("this sp3 ring-carbon pattern is not a hydro derivative of the mancude parent")
     for a, b, *_ in non_single_bonds(mol):
         if (a in system) != (b in system):
-            if not any(metal_idx in graph[x] for x in (a, b)):
+            if not any(metal_idx in graph[x] for x in (a, b)) and not is_exocyclic_oxo(mol, a, b, system):
                 raise UnsupportedStructure("an exocyclic double bond on the ring is not supported here")
         elif a not in system and not any(metal_idx in graph[x] for x in (a, b)) and not (
             mol.GetAtomWithIdx(a).GetIsAromatic() and mol.GetAtomWithIdx(b).GetIsAromatic()
-        ):
+        ) and not is_carboxyl_bond(mol, a, b):
             raise UnsupportedStructure("an unsaturated substituent is out of scope here")
 
     counts, simple_labels, organic, neutral, _ = collect_ligands(mol, metal, graph, skip=system)
     if "hydrido" in counts:
         raise UnsupportedStructure("a hydrido ligand on the metal is not supported here yet")
     ligand_entries, repeats = ring_ligand_entries(counts, simple_labels, neutral)
+    principal = principal_kind(mol, graph, system, metal_idx)
 
     best = None
     for mapping in maps:
         locant = mapping
         metal_locant = _locant_key(locant[metal_idx])
         grouped: dict = {}
+        suffix_locants, n_entries = [], []
         for atom in system - {metal_idx}:
-            for name, compound in _substituent_entries(mol, graph, atom, system):
+            found, n_found, count = ring_substituents(mol, graph, atom, system, principal)
+            suffix_locants += [locant[atom]] * count
+            n_entries += n_found
+            for name, compound in found:
                 entry = grouped.setdefault(name, {"locants": [], "compound": compound})
                 entry["locants"].append(int(locant[atom]))
         for name, compound, n in ligand_entries:
@@ -183,17 +190,23 @@ def name_metallafused(mol) -> str:
             entry["locants"] += [int(locant[metal_idx])] * n
         for entry in grouped.values():
             entry["locants"].sort()
-        indicated = locant[sp3[0]] if sp3 else None
+        sp3_locants = sorted((locant[i] for i in sp3), key=_locant_key)
+        indicated = sp3_locants[0] if len(sp3) % 2 else None
+        hydro = sp3_locants[1:] if len(sp3) % 2 else sp3_locants
         key = (
             metal_locant,
             _locant_key(indicated) if indicated else (0, ""),
+            sorted(suffix_locants, key=_locant_key),
+            [_locant_key(h) for h in hydro],
             sorted(l for e in grouped.values() for l in e["locants"]),
             [grouped[k]["locants"] for k in sorted(grouped)],
         )
         if best is None or key < best[0]:
-            best = (key, int(locant[metal_idx]), indicated, grouped)
-    _, metal_locant, indicated, grouped = best
-    prefixes = apply_repeats(_brackets(format_substituent_prefixes(grouped)), repeats, metal_locant)
+            best = (key, int(locant[metal_idx]), indicated, hydro, grouped, suffix_locants, n_entries)
+    _, metal_locant, indicated, hydro, grouped, suffix_locants, n_entries = best
+    prefixes = apply_repeats(_brackets(format_substituent_prefixes(add_n_entries(grouped, n_entries))), repeats, metal_locant)
     hydrogen = f"{indicated}H-" if indicated else ""
-    stem = f"{hydrogen}{metal_locant}-{_METAL_A_PREFIXES[metal.GetSymbol()]}{parent}"
-    return f"{prefixes}{'-' if prefixes else ''}{stem}"
+    hydro_text = f"{','.join(hydro)}-{multiplying_prefix(len(hydro)) if len(hydro) > 1 else ''}hydro-" if hydro else ""
+    name = with_suffix(parent, suffix_locants, principal)
+    stem = f"{hydrogen}{metal_locant}-{_METAL_A_PREFIXES[metal.GetSymbol()]}{name}"
+    return f"{prefixes}{'-' if prefixes else ''}{hydro_text}{stem}"

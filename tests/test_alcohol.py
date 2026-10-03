@@ -537,9 +537,8 @@ def test_two_alkoxy_ethers():
     assert smiles_to_iupac("OCC(OC)COC") == "2,3-dimethoxypropan-1-ol"
 
 
-def test_branched_ether_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCCOC(C)C")
+def test_branched_ether_named():
+    assert smiles_to_iupac("OCCOC(C)C") == "2-(propan-2-yloxy)ethanol"
 
 
 def test_ether_on_ring_raises():

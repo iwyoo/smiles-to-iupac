@@ -14,12 +14,12 @@ from ._coordination import _CP_LABEL, _cp_charge, _net_charge, collect_ligands
 from ._metal_pair import _brackets
 from ._metallacycle import (
     _METAL_A_PREFIXES,
-    _substituent_entries,
     apply_repeats,
     ring_ligand_entries,
     skeleton_atoms,
 )
 from ._numerals import alkane_name
+from ._ring_groups import add_n_entries, is_carboxyl_bond, is_exocyclic_oxo, principal_kind, ring_substituents, with_suffix
 from ._polycyclic import find_polycyclic_core, iter_polycyclic_candidates
 from ._spiro import find_monospiro_atom, iter_monospiro_numberings
 from ._substituents import format_substituent_prefixes
@@ -70,6 +70,35 @@ def _candidates(sub):
     return None
 
 
+def _ring_core(graph, skeleton, start):
+    """Atoms reachable from `start` over non-bridge bonds: the ring skeleton
+    without substituent rings that hang off it through a single bond."""
+    order, low, bridges = {}, {}, set()
+
+    def visit(node, parent):
+        order[node] = low[node] = len(order)
+        for nxt in graph[node]:
+            if nxt not in skeleton or nxt == parent:
+                continue
+            if nxt in order:
+                low[node] = min(low[node], order[nxt])
+            else:
+                visit(nxt, node)
+                low[node] = min(low[node], low[nxt])
+                if low[nxt] > order[node]:
+                    bridges.add(frozenset((node, nxt)))
+
+    visit(start, None)
+    core, stack = {start}, [start]
+    while stack:
+        x = stack.pop()
+        for y in graph[x]:
+            if y in skeleton and y not in core and frozenset((x, y)) not in bridges:
+                core.add(y)
+                stack.append(y)
+    return core
+
+
 def _analyse(complex_mol):
     metals = [a.GetIdx() for a in complex_mol.GetAtoms() if a.GetSymbol() in _METAL_A_PREFIXES and a.IsInRing()]
     if len(metals) != 1:
@@ -79,7 +108,7 @@ def _analyse(complex_mol):
     nbrs = [n for n in graph[metals[0]] if n in skeleton]
     if len(nbrs) < 2 or (len(nbrs) > 2 and any(b in graph[a] for a in nbrs for b in nbrs)):
         return None
-    sub, orig = _submol(complex_mol, skeleton)
+    sub, orig = _submol(complex_mol, _ring_core(graph, skeleton, metals[0]))
     candidates = _candidates(sub)
     if candidates is None:
         return None
@@ -112,10 +141,11 @@ def name_metallapolycycle(mol) -> str:
                 raise UnsupportedStructure("only ring C=C double bonds are supported here")
             double_bonds.append((a, b))
         elif any(in_core):
-            raise UnsupportedStructure("an exocyclic double bond on the ring is not supported here")
+            if not is_exocyclic_oxo(complex_mol, a, b, core_atoms):
+                raise UnsupportedStructure("an exocyclic double bond on the ring is not supported here")
         elif not any(metal_idx in graph[x] for x in (a, b)) and not (
             complex_mol.GetAtomWithIdx(a).GetIsAromatic() and complex_mol.GetAtomWithIdx(b).GetIsAromatic()
-        ):
+        ) and not is_carboxyl_bond(complex_mol, a, b):
             raise UnsupportedStructure("an unsaturated substituent is out of scope here")
 
     counts, simple_labels, organic, neutral, _ = collect_ligands(complex_mol, metal, graph, skip=core_atoms)
@@ -125,15 +155,20 @@ def name_metallapolycycle(mol) -> str:
     if cp_count:
         ligand_entries.append((f"({_CP_LABEL})", False, cp_count))
 
+    principal = principal_kind(complex_mol, graph, core_atoms, metal_idx)
     best = None
     for order, parent, outer_key in candidates:
         full_order = [orig[i] for i in order]
         locant = {atom: i + 1 for i, atom in enumerate(full_order)}
         grouped: dict = {}
+        suffix_locants, n_entries = [], []
         for atom in full_order:
             if atom == metal_idx:
                 continue
-            for name, compound in _substituent_entries(complex_mol, graph, atom, core_atoms):
+            found, n_found, count = ring_substituents(complex_mol, graph, atom, core_atoms, principal)
+            suffix_locants += [locant[atom]] * count
+            n_entries += n_found
+            for name, compound in found:
                 entry = grouped.setdefault(name, {"locants": [], "compound": compound})
                 entry["locants"].append(locant[atom])
         for name, compound, n in ligand_entries:
@@ -145,14 +180,15 @@ def name_metallapolycycle(mol) -> str:
         key = (
             tuple(outer_key),
             locant[metal_idx],
+            sorted(suffix_locants),
             ene,
             sorted(l for e in grouped.values() for l in e["locants"]),
             [grouped[k]["locants"] for k in sorted(grouped)],
         )
         if best is None or key < best[0]:
-            best = (key, locant[metal_idx], grouped, ene, parent, len(full_order))
-    _, metal_locant, grouped, ene, parent, size = best
-    prefixes = apply_repeats(_brackets(format_substituent_prefixes(grouped)), repeats, metal_locant)
+            best = (key, locant[metal_idx], grouped, ene, parent, len(full_order), suffix_locants, n_entries)
+    _, metal_locant, grouped, ene, parent, size, suffix_locants, n_entries = best
+    prefixes = apply_repeats(_brackets(format_substituent_prefixes(add_n_entries(grouped, n_entries))), repeats, metal_locant)
     if ene:
         base = alkane_name(size)[:-3]
         locs = ",".join(str(lo) if hi - lo == 1 else f"{lo}({hi})" for lo, hi in ene)
@@ -160,5 +196,5 @@ def name_metallapolycycle(mol) -> str:
         if suffix is None:
             raise UnsupportedStructure("this unsaturation count is not supported here")
         parent = parent[: parent.rindex("]") + 1] + f"{base}{'a' if len(ene) > 1 else ''}-{locs}-{suffix}"
-    stem = f"{metal_locant}-{_METAL_A_PREFIXES[metal.GetSymbol()]}{parent}"
+    stem = f"{metal_locant}-{_METAL_A_PREFIXES[metal.GetSymbol()]}{with_suffix(parent, suffix_locants, principal)}"
     return f"{prefixes}{'-' if prefixes else ''}{stem}"
