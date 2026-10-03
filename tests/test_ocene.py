@@ -41,3 +41,11 @@ def test_two_ruthenocenes_joined_by_a_chain():
 def test_benzoferrocene():
     smiles = "c1cc[c]23->[Fe]456789%10(<-[CH]%11=[CH]->4[CH2]->5[CH]->6=[CH]->7%11)<-[CH](=[CH]->8[c]->92c1)[CH2]->%103"
     assert smiles_to_iupac(smiles) == "benzoferrocene"
+
+
+def test_two_ferrocenes_in_a_ring_are_named_as_a_phane():
+    smiles = (
+        "C1[C]23->[Fe]456789%10(<-[CH](=[CH]->4[CH2]->52)[CH]->6=3)<-[CH]2=[CH]->7[CH2]->8[C]->9(C[C]34->"
+        "[Fe]56789%11%12(<-[CH]%13=[CH]->5[CH2]->6[C]->71=[CH]->8%13)<-[CH](=[CH]->9[CH2]->%113)[CH]->%12=4)=[CH]->%102"
+    )
+    assert smiles_to_iupac(smiles) == f"1,3(1,1{PRIME})-diferrocenacyclotetraphane"

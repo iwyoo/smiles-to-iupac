@@ -10,7 +10,7 @@ import itertools
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency
-from ._numerals import alkane_name, multiplying_prefix
+from ._numerals import alkane_name, multiplying_prefix, numerical_term
 from ._phosphanyl_group import PREFIX_PROP
 from ._prefix_groups import PrefixNamer, enclose
 from ._substituents import format_substituent_prefixes
@@ -283,11 +283,46 @@ def _linker_name(graph, atoms, ends):
     return f"{alkane_name(len(atoms))}-1,{len(atoms)}-diyl" if len(atoms) > 1 else "methylene"
 
 
+def _name_phane(mol, units, graph, parent):
+    """Two 1,1'-linked ocenes and CH2 nodes forming one ring (P-52.2.5):
+    '1,3(1,1')-diferrocenacyclotetraphane'."""
+    unit_atoms = [{m} | set(r[0]) | set(r[1]) for m, r in units]
+    every = unit_atoms[0] | unit_atoms[1]
+    roots = [(a, x) for m, rs in units for r in rs for a in r for x in graph[a] if x not in every and x != m]
+    if len(roots) != 4:
+        return None
+    comps = _components(graph, every, roots)
+    owner = {a: k for k, atoms in enumerate(unit_atoms) for a in atoms}
+    paths = {}
+    for a, x in roots:
+        comp = comps[x]
+        if any(
+            mol.GetAtomWithIdx(i).GetAtomicNum() != 6 or mol.GetAtomWithIdx(i).GetIsAromatic()
+            or mol.GetAtomWithIdx(i).GetTotalNumHs() != 2 or mol.GetAtomWithIdx(i).GetDegree() != 2
+            for i in comp
+        ):
+            return None
+        ends = sorted((owner[a2], x2) for a2, x2 in roots if x2 in comp)
+        paths[frozenset(comp)] = (len(comp), ends)
+    if len(paths) != 2 or any(len(e) != 2 or e[0][0] == e[1][0] for _, e in paths.values()):
+        return None
+    lengths = sorted(n for n, _ in paths.values())
+    total = 2 + sum(lengths)
+    second = [2 + lengths[0], 2 + lengths[1]]
+    locants = sorted([1, min(second)])
+    term = numerical_term(total)
+    stem = parent[:-1] + "a"
+    return f"{locants[0]},{locants[1]}(1,1{_PRIME})-di{stem}cyclo{term}phane"
+
+
 def _name_paired_ocenes(mol, units, graph):
     parents = {OCENES[mol.GetAtomWithIdx(m).GetSymbol()] for m, _ in units}
     if len(parents) != 1 or any(a.GetIsotope() for a in mol.GetAtoms()):
         raise UnsupportedStructure("different metallocenes joined together are not supported here")
     parent = parents.pop()
+    phane = _name_phane(mol, units, graph, parent)
+    if phane:
+        return phane
     unit_atoms = [{m} | set(r[0]) | set(r[1]) for m, r in units]
     every = unit_atoms[0] | unit_atoms[1]
     roots = [(a, x, k) for k, (m, rs) in enumerate(units) for r in rs for a in r for x in graph[a] if x not in every and x != m]
