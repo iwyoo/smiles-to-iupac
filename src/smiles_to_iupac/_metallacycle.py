@@ -39,6 +39,9 @@ def _find_ring_metal(mol):
     metals = [idx for idx in ring_atoms if mol.GetAtomWithIdx(idx).GetSymbol() in _METAL_A_PREFIXES]
     if len(metals) != 1 or len(ring_atoms) < 3:
         return None
+    donors = {7, 8, 15, 16, 33}
+    if any(n.GetIdx() in ring_atoms and n.GetAtomicNum() in donors for n in mol.GetAtomWithIdx(metals[0]).GetNeighbors()):
+        return None
     return metals[0], ring_atoms
 
 

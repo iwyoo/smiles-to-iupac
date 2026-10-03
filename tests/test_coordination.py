@@ -159,3 +159,14 @@ def test_mu_bridged_dinuclear(smiles, expected):
 )
 def test_metal_chain_and_multiplicative_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("Cl[Pt]1(Cl)[NH2]CC[NH2]1", "dichlorido(ethane-1,2-diamine-κ2N,N')platinum"),
+        ("[Co]123([NH2]CC[NH2]1)([NH2]CC[NH2]2)[NH2]CC[NH2]3", "tris(ethane-1,2-diamine-κ2N,N')cobalt"),
+    ],
+)
+def test_chelating_ligands(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

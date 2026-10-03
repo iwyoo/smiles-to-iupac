@@ -58,6 +58,26 @@ def _carbonyl(mol, donor, atoms):
     return mol.GetAtomWithIdx(other).GetAtomicNum() == 8 and bond.GetBondTypeAsDouble() >= 2
 
 
+def _chelate_label(mol, metal, donors_in, atoms):
+    symbols = []
+    for donor in donors_in:
+        z = donor.GetAtomicNum()
+        own = [n for n in donor.GetNeighbors() if n.GetIdx() != metal.GetIdx()]
+        valence = sum(mol.GetBondBetweenAtoms(donor.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() for n in own)
+        if z not in _NEUTRAL_VALENCE or donor.GetFormalCharge() != 0 or valence + donor.GetNumExplicitHs() != _NEUTRAL_VALENCE[z]:
+            raise UnsupportedStructure("only neutral heteroatom donors are supported in a chelating ligand")
+        symbols.append(donor.GetSymbol())
+    if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms):
+        raise UnsupportedStructure("charged ligands are not supported yet")
+    name = _neutral_ligand_name(mol, metal, donors_in[0], atoms)
+    seen: dict[str, int] = {}
+    cited = []
+    for symbol in sorted(symbols):
+        cited.append(symbol + "'" * seen.get(symbol, 0))
+        seen[symbol] = seen.get(symbol, 0) + 1
+    return f"{name}-\u03ba{len(symbols)}{','.join(cited)}"
+
+
 def _neutral_ligand_name(mol, metal, donor, atoms):
     atomic_num = donor.GetAtomicNum()
     if atomic_num not in _NEUTRAL_VALENCE:
@@ -210,8 +230,14 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
         seen |= atoms
         if any(mol.GetAtomWithIdx(i).GetAtomicNum() in _METAL_NAMES for i in atoms):
             raise UnsupportedStructure("bridging ligands and metal-metal bonds are not supported here")
-        if sum(1 for n in metal.GetNeighbors() if n.GetIdx() in atoms) > 1:
-            raise UnsupportedStructure("chelating, hapto and bridging ligands are not supported yet")
+        donors_in = [n for n in metal.GetNeighbors() if n.GetIdx() in atoms]
+        if len(donors_in) > 1:
+            label = _chelate_label(mol, metal, donors_in, atoms)
+            organic.add(label)
+            neutral.add(label)
+            counts[label] = counts.get(label, 0) + 1
+            donors[label] = "\u03ba"
+            continue
         atomic_num = donor.GetAtomicNum()
         if atomic_num in HALOGEN_PREFIXES and len(atoms) == 1:
             label = _HALIDO[atomic_num]
@@ -356,6 +382,8 @@ def _name_dinuclear(mol, metals) -> str:
         organic |= org
         neutral |= neu
         donors.update(don)
+    if any("\u03ba" in label for label in counts):
+        raise UnsupportedStructure("a chelating ligand on a dinuclear complex is not supported yet")
     tags = {}
     for label in counts:
         parts = []
@@ -385,8 +413,6 @@ def _name_complex(mol, extra=None, charge=None) -> str:
     if len(metals) != 1:
         raise UnsupportedStructure("more than one transition-metal atom is not supported yet")
     (metal,) = metals
-    if metal.IsInRing():
-        raise UnsupportedStructure("a ring metal atom is not supported here (see P-69.4)")
     if any(a.GetIsotope() != 0 for a in mol.GetAtoms()):
         raise UnsupportedStructure("isotopically modified atoms are not supported yet")
     if charge is None:
