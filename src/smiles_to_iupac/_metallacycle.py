@@ -163,6 +163,9 @@ def _ring_double_bonds(mol, graph, ring_set, metal_set):
     return doubles
 
 
+FREE_VALENCE_PROP = "_free_valence"
+
+
 def name_metallacycle(mol) -> str:
     metals, ring_atoms = _find_ring_metal(mol)
     metal_set = set(metals)
@@ -191,7 +194,8 @@ def name_metallacycle(mol) -> str:
     for m in metals:
         counts, simple_labels, organic, neutral, _ = collect_ligands(mol, mol.GetAtomWithIdx(m), graph, skip=ring_set)
         ligand_entries[m] = ring_ligand_entries(counts, simple_labels, neutral)
-    principal = principal_kind(mol, graph, ring_set, metals[0])
+    free = [a.GetIdx() for a in mol.GetAtoms() if a.HasProp(FREE_VALENCE_PROP)]
+    principal = "yl" if free else principal_kind(mol, graph, ring_set, metals[0])
 
     candidates = []
     for offset in range(size):
@@ -231,6 +235,7 @@ def name_metallacycle(mol) -> str:
                 for name, compound in found:
                     entry = grouped.setdefault(name, {"locants": [], "compound": compound})
                     entry["locants"].append(locant[atom])
+            suffix_locants += [locant[i] for i in free]
             for m in metals:
                 add_ligands(grouped, ligand_entries[m], locant[m])
             stereo = ring_stereo(mol, ring_atoms, locant)

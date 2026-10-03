@@ -175,3 +175,9 @@ def test_metallacycle_substituent_stereocentre(smiles, expected):
 def test_stereocentre_on_a_metal_ligand_is_not_dropped():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C[C@H](Cl)[Pt]1(Cl)CCCC1")
+
+
+def test_metallacycle_cited_as_a_substituent_group():
+    smiles = "COC(=O)C(C)CC1C[Pt](C)(I)(P(CC)(CC)CC)(P(CC)(CC)CC)C1"
+    expected = "methyl 3-[1-iodo-1-methyl-1,1-bis(triethylphosphane)-1-platinacyclobutan-3-yl]-2-methylpropanoate"
+    assert smiles_to_iupac(smiles) == expected

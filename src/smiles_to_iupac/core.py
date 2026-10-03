@@ -142,6 +142,7 @@ from ._multiplicative import name_if_multiplicative
 from ._nucleoside import has_nucleoside_name, name_nucleoside
 from ._nucleotide import has_nucleotide_name, name_nucleotide
 from ._metallacycle import has_metallacycle_shape, name_metallacycle
+from ._metallacycle_group import name_metallacycle_as_group
 from ._metallafused import has_metallafused_shape, name_metallafused
 from ._metallapolycycle import has_metallapolycycle_shape, name_metallapolycycle
 from ._ocene import has_ocene_shape, name_ocene
@@ -459,7 +460,13 @@ def _name_mol(mol) -> str:
     # here before the generic cycloalkane dispatch's own heteroatom
     # rejection would otherwise claim it.
     if has_metallacycle_shape(mol):
-        return name_metallacycle(mol)
+        try:
+            return name_metallacycle(mol)
+        except UnsupportedStructure as first:
+            try:
+                return name_metallacycle_as_group(mol)
+            except UnsupportedStructure:
+                raise first
     if has_metallafused_shape(mol):
         return name_metallafused(mol)
     if has_metallapolycycle_shape(mol):
