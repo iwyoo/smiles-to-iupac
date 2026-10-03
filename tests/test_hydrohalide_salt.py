@@ -53,6 +53,5 @@ def test_plain_mixture_raises():
         smiles_to_iupac("CCO.CCO")
 
 
-def test_unsupported_base_fragment_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1CC(=O)Nc1ccccc1C(=O)OCCCC.Cl")
+def test_unsupported_base_fragment():
+    assert smiles_to_iupac("c1ccccc1CC(=O)Nc1ccccc1C(=O)OCCCC.Cl") == "butyl 2-[(2-phenylethanoyl)amino]benzoate;hydrochloride"

@@ -13,6 +13,7 @@ _SIMPLE_NAMES = {
     "nitro", "nitroso", "cyano", "sulfanyl", "formyl", "carboxy", "carbamoyl",
 }
 _MULTIPLE_TARGETS = {7, 8, 16}
+_SIMPLE_ACYLS = {"methanoyl", "ethanoyl", "propanoyl", "butanoyl", "benzoyl"}
 
 
 def _carbonyl_oxygen(mol, idx):
@@ -62,9 +63,13 @@ def _compound(name):
     return name not in _SIMPLE_NAMES
 
 
-def _acyl_name(mol, graph, carbon, from_atom):
+def _acyl_name(mol, graph, carbon, from_atom, halogens=None, aromatic_atoms=None):
+    """alkanoyl or benzoyl prefix for R-C(=O)-: an unbranched saturated chain
+    whose carbons may carry substituents (2-aminoethanoyl), or phenyl."""
     from ._substituents import name_branch
 
+    halogens = halogens or {}
+    aromatic_atoms = aromatic_atoms or frozenset()
     others = [n for n in graph[carbon] if n != from_atom and mol.GetBondBetweenAtoms(carbon, n).GetBondTypeAsDouble() == 1.0]
     (alkyl,) = others
     if mol.GetAtomWithIdx(alkyl).GetIsAromatic():
@@ -72,22 +77,40 @@ def _acyl_name(mol, graph, carbon, from_atom):
         if name == "phenyl":
             return "benzoyl"
         raise UnsupportedStructure("this aroyl group is not supported yet")
-    count = 1
-    node, parent = alkyl, carbon
+    chain = [carbon, alkyl]
     while True:
+        node, parent = chain[-1], chain[-2]
         atom = mol.GetAtomWithIdx(node)
         if atom.GetAtomicNum() != 6 or atom.IsInRing() or is_functional_carbon(mol, node):
             raise UnsupportedStructure("this acyl group is not supported yet")
-        onward = [n for n in graph[node] if n != parent]
-        if any(mol.GetBondBetweenAtoms(node, n).GetBondTypeAsDouble() != 1.0 for n in onward):
+        if mol.GetBondBetweenAtoms(node, parent).GetBondTypeAsDouble() != 1.0:
             raise UnsupportedStructure("an unsaturated acyl group is not supported yet")
-        count += 1
-        if not onward:
-            break
+        onward = [
+            n
+            for n in graph[node]
+            if n != parent and mol.GetAtomWithIdx(n).GetAtomicNum() == 6 and not mol.GetAtomWithIdx(n).IsInRing()
+            and not is_functional_carbon(mol, n)
+        ]
         if len(onward) > 1:
             raise UnsupportedStructure("a branched acyl group is not supported yet")
-        node, parent = onward[0], node
-    return alkane_name(count)[:-1] + "oyl"
+        if not onward:
+            break
+        chain.append(onward[0])
+    entries = {}
+    chain_set = set(chain)
+    for position, atom_idx in enumerate(chain, start=1):
+        for n in graph[atom_idx]:
+            if n in chain_set or (atom_idx == carbon and n == from_atom):
+                continue
+            if atom_idx == carbon:
+                continue
+            name, compound = name_branch(graph, n, atom_idx, halogens, aromatic_atoms, mol=mol)
+            entries.setdefault(position, []).append((name, compound))
+    from ._common import group_substituents
+    from ._substituents import format_substituent_prefixes
+
+    prefix = format_substituent_prefixes(group_substituents(entries), omit_locants=len(chain) == 1) if entries else ""
+    return prefix + alkane_name(len(chain))[:-1] + "oyl"
 
 
 def _group_names(graph, mol, atoms, parent, halogens, aromatic_atoms):
@@ -99,7 +122,7 @@ def _group_names(graph, mol, atoms, parent, halogens, aromatic_atoms):
             mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(a, n).GetBondTypeAsDouble() == 2.0
             for n in graph[a]
         ):
-            out.append((_acyl_name(mol, graph, a, parent), False))
+            out.append(_functional_carbon(graph, a, parent, halogens, aromatic_atoms, mol))
         else:
             out.append(name_branch(graph, a, parent, halogens, aromatic_atoms, mol=mol))
     return out
@@ -144,7 +167,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             raise UnsupportedStructure("this oxygen-linked group is not supported yet")
         if is_functional_carbon(mol, other):
             (acyl,) = _group_names(graph, mol, [other], root, halogens, aromatic_atoms)
-            return acyl[0] + "oxy", True
+            return _enclose(acyl[0], acyl[1]) + "oxy", True
         from ._substituents import name_branch
 
         rname, _ = name_branch(graph, other, root, halogens, aromatic_atoms, mol=mol)
@@ -210,7 +233,8 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
         name = _amino(_group_names(graph, mol, subs, x, halogens, aromatic_atoms))
         return name[: -len("amino")] + "carbamoyl", True
     if z == 6:
-        return _acyl_name(mol, graph, root, coming_from), False
+        name = _acyl_name(mol, graph, root, coming_from, halogens, aromatic_atoms)
+        return name, name not in _SIMPLE_ACYLS
     raise UnsupportedStructure("this carbonyl-derived substituent is not supported yet")
 
 

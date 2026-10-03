@@ -30,11 +30,9 @@ def test_three_disjoint_rings_multiply_the_two_terminal_rings():
     )
 
 
-def test_ring_with_extra_substituent_still_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC1CCCCC1CC1CCCCC1")
+def test_ring_with_extra_substituent():
+    assert smiles_to_iupac("CC1CCCCC1CC1CCCCC1") == "1-(cyclohexylmethyl)-2-methylcyclohexane"
 
 
-def test_unsaturated_ring_in_a_pair_is_not_misnamed_as_saturated():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1=CCCCC1CC1=CCCCC1")
+def test_unsaturated_ring_in_a_pair_is_not_misnamed_as_saturated_is_named():
+    assert smiles_to_iupac("C1=CCCCC1CC1=CCCCC1") == "1-[(cyclohex-2-en-1-yl)methyl]cyclohex-1-ene"

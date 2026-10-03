@@ -691,6 +691,15 @@ def _hetero_ring_branch(mol, root, coming_from):
     ring_atoms = next(set(r) for r in mol.GetRingInfo().AtomRings() if root in r)
     if mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
         raise UnsupportedStructure("a heterocyclic substituent attached by a multiple bond is not supported yet")
+    from ._multiplicative import _bare_key
+
+    own_key = _bare_key(mol, ring_atoms)
+    for ring in mol.GetRingInfo().AtomRings():
+        joined = set(ring) != ring_atoms and any(
+            mol.GetBondBetweenAtoms(a, b) is not None for a in ring_atoms for b in ring
+        )
+        if joined and not set(ring) & ring_atoms and _bare_key(mol, set(ring)) == own_key:
+            raise UnsupportedStructure("a heteroaromatic ring assembly as a substituent group is not supported yet")
     result = ring_substituent_name(mol, ring_atoms, root, coming_from, classify(mol) or [], None)
     if result is None:
         raise UnsupportedStructure("this heterocyclic substituent group is not supported yet")
@@ -1110,9 +1119,14 @@ def _substituted_ring_branch(graph, root, coming_from, halogens, aromatic_atoms,
         for neighbor in graph[atom]:
             other = next((r for r in ring_info.AtomRings() if neighbor in r and atom not in r), None)
             if other is not None and neighbor not in ring_atoms and _bare_key(mol, set(other)) == own_key:
-                raise UnsupportedStructure(
-                    "a ring assembly as a substituent group (biphenylyl, ...) is not supported yet (P-28)"
-                )
+                from ._polyfunctional import assembly_substituent
+
+                assembly = assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms)
+                if assembly is None:
+                    raise UnsupportedStructure(
+                        "this ring assembly as a substituent group is not supported yet (P-28)"
+                    )
+                return assembly
     atoms = [mol.GetAtomWithIdx(a) for a in ring_atoms]
     aromatic = all(a.GetIsAromatic() for a in atoms)
     if any(a.GetAtomicNum() != 6 for a in atoms) or (not aromatic and any(a.GetIsAromatic() for a in atoms)):
