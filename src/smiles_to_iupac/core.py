@@ -146,6 +146,7 @@ from ._metallacycle_group import name_metallacycle_as_group
 from ._metallafused import has_metallafused_shape, name_metallafused
 from ._metallapolycycle import has_metallapolycycle_shape, name_metallapolycycle
 from ._ocene import has_ocene_shape, name_ocene
+from ._pin import begin, finish, mark
 from ._fused_hetero_ring_oxide import has_fused_hetero_ring_oxide_shape, name_fused_hetero_ring_oxide
 from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
 from ._pyridinone import has_pyridinone_shape, name_pyridinone
@@ -390,17 +391,22 @@ def _is_aldehyde_shaped(carbonyl_oxygen):
     return carbon.GetAtomicNum() == 6 and sum(1 for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6) == 1
 
 
+_NO_PIN_ORGANOMETALLIC = "the Blue Book defines no PIN for this class of organometallic compound (P-69.0)"
+
+
 def smiles_to_iupac(smiles: str) -> str:
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError(f"invalid SMILES: {smiles!r}")
+    begin()
     try:
-        return _name_mol(mol)
+        return finish(_name_mol(mol))
     except UnsupportedStructure as first:
         name = _name_via_fallbacks(mol)
         if name is None:
+            begin()
             raise first
-        return name
+        return finish(name)
 
 
 def _name_via_fallbacks(mol):
@@ -466,10 +472,10 @@ def _name_mol(mol) -> str:
     ):
         if has_shape(mol):
             try:
-                return namer(mol)
+                return mark(namer(mol), _NO_PIN_ORGANOMETALLIC)
             except UnsupportedStructure as first:
                 try:
-                    return name_metallacycle_as_group(mol)
+                    return mark(name_metallacycle_as_group(mol), _NO_PIN_ORGANOMETALLIC)
                 except UnsupportedStructure:
                     raise first
 
@@ -479,10 +485,10 @@ def _name_mol(mol) -> str:
     if has_coordination_shape(mol):
         if has_group1_2_organometallic_shape(mol):
             try:
-                return name_group1_2_organometallic(mol)
+                return mark(name_group1_2_organometallic(mol), _NO_PIN_ORGANOMETALLIC)
             except UnsupportedStructure:
                 pass
-        return name_coordination(mol)
+        return mark(name_coordination(mol), _NO_PIN_ORGANOMETALLIC)
 
     # Two or more Group 13-15 metals (P-69.5.3) must precede the
     # single-metal hydride dispatches below, which reject a second metal.
@@ -907,7 +913,7 @@ def _name_mol(mol) -> str:
     # dispatch order applies: none of the branches below recognize any of
     # these elements at all.
     if has_group1_2_organometallic_shape(mol):
-        return name_group1_2_organometallic(mol)
+        return mark(name_group1_2_organometallic(mol), _NO_PIN_ORGANOMETALLIC)
 
     # buckminsterfullerene (P-27's '[60]fullerene', a fixed 12-pentagon/
     # 20-hexagon cage) is recognized by exact whole-molecule match --
