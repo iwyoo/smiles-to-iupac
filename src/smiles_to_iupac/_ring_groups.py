@@ -11,7 +11,7 @@ from rdkit.Chem import rdCIPLabeler
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, halogen_substituents, plain_phenyl_substituent_atoms
 from ._numerals import multiplying_prefix
 from ._prefix_groups import PrefixNamer, _oxy
-from ._substituents import format_mononuclear_prefixes, name_branch
+from ._substituents import branch_atom_locant, format_mononuclear_prefixes, name_branch
 
 KINDS = ("acid", "one", "ol", "amine")
 _PREFIX_FORM = {"acid": "carboxy", "one": "oxo", "ol": "hydroxy", "amine": "amino"}
@@ -97,7 +97,12 @@ def ring_substituents(mol, graph, ring_atom, ring_set, principal):
             if plain_phenyl_substituent_atoms(mol, graph, {n}):
                 entries.append(("phenyl", False))
             else:
-                entries.append(_branch_with_stereo(mol, graph, n, ring_atom))
+                try:
+                    entries.append(_branch_with_stereo(mol, graph, n, ring_atom))
+                except UnsupportedStructure:
+                    if _has_stereo(mol, graph, n, ring_atom):
+                        raise
+                    entries.append(namer.name(n, ring_atom))
         elif z == 8 and atom.GetDegree() == 2 and atom.GetTotalNumHs() == 0:
             carbon = next(x for x in graph[n] if x != ring_atom)
             if mol.GetAtomWithIdx(carbon).GetAtomicNum() != 6:
@@ -108,8 +113,19 @@ def ring_substituents(mol, graph, ring_atom, ring_set, principal):
     return entries, n_entries, count
 
 
+def _has_stereo(mol, graph, n, ring_atom):
+    group, stack = {n}, [n]
+    while stack:
+        for v in graph[stack.pop()]:
+            if v != ring_atom and v not in group:
+                group.add(v)
+                stack.append(v)
+    return any(mol.GetAtomWithIdx(i).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for i in group)
+
+
 def _branch_with_stereo(mol, graph, n, ring_atom):
-    name, compound = name_branch(graph, n, ring_atom, halogen_substituents(mol), mol=mol)
+    halogens = halogen_substituents(mol)
+    name, compound = name_branch(graph, n, ring_atom, halogens, mol=mol)
     group, stack = {n}, [n]
     while stack:
         for v in graph[stack.pop()]:
@@ -119,15 +135,16 @@ def _branch_with_stereo(mol, graph, n, ring_atom):
     specified = [i for i in group if mol.GetAtomWithIdx(i).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED]
     if not specified:
         return name, compound
-    if specified != [n]:
-        raise UnsupportedStructure("a stereocentre inside a substituent is not supported here")
     probe = Chem.Mol(mol)
     rdCIPLabeler.AssignCIPLabels(probe)
-    atom = probe.GetAtomWithIdx(n)
-    if not atom.HasProp("_CIPCode"):
-        raise UnsupportedStructure("the stereocentre of this substituent has no R/S descriptor")
-    locant = re.search(r"-(\d+)-yl$", name)
-    return f"({locant.group(1) if locant else 1}{atom.GetProp('_CIPCode')})-{name}", True
+    cited = []
+    for i in specified:
+        atom = probe.GetAtomWithIdx(i)
+        if not atom.HasProp("_CIPCode"):
+            raise UnsupportedStructure("the stereocentre of this substituent has no R/S descriptor")
+        cited.append((branch_atom_locant(graph, n, ring_atom, i, halogens, mol=mol), atom.GetProp("_CIPCode")))
+    cited.sort()
+    return f"({','.join(f'{l}{c}' for l, c in cited)})-{name}", True
 
 
 def add_n_entries(grouped, n_entries):

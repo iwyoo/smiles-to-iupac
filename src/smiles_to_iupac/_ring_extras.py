@@ -63,6 +63,21 @@ def check_charge(mol, metal_idx, ring_atoms, net_charge):
 _NONMETAL_RING_ATOMS = {5, 6, 7, 8, 14, 15, 16, 32, 33, 34}
 
 
+def _branch_atoms(mol, ring):
+    """Atoms of the substituent groups hanging off non-metal ring atoms."""
+    found, stack = set(), [a for a in ring if mol.GetAtomWithIdx(a).GetAtomicNum() in _NONMETAL_RING_ATOMS]
+    seen = set(stack)
+    while stack:
+        for n in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
+            i = n.GetIdx()
+            if i in ring or i in seen or n.GetAtomicNum() not in _NONMETAL_RING_ATOMS:
+                continue
+            seen.add(i)
+            found.add(i)
+            stack.append(i)
+    return found
+
+
 def ring_stereo(mol, ring_atoms, locant):
     """Sorted (locant, 'R'/'S') for the specified ring stereocentres, or [].
 
@@ -70,6 +85,7 @@ def ring_stereo(mol, ring_atoms, locant):
     namer; any other one, or a double bond, is rejected so no descriptor is
     silently dropped."""
     ring = set(ring_atoms)
+    branches = _branch_atoms(mol, ring)
     probe = Chem.Mol(mol)
     rdCIPLabeler.AssignCIPLabels(probe)
     labels = []
@@ -79,9 +95,7 @@ def ring_stereo(mol, ring_atoms, locant):
         if not atom.HasProp("_CIPCode"):
             raise UnsupportedStructure("a stereocentre outside the ring skeleton is not supported here")
         if atom.GetIdx() not in ring:
-            if atom.GetAtomicNum() == 6 and any(
-                n.GetIdx() in ring and n.GetAtomicNum() in _NONMETAL_RING_ATOMS for n in atom.GetNeighbors()
-            ):
+            if atom.GetIdx() in branches:
                 continue
             raise UnsupportedStructure("a stereocentre outside the ring skeleton is not supported here")
         labels.append((locant[atom.GetIdx()], atom.GetProp("_CIPCode")))

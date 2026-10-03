@@ -1274,7 +1274,9 @@ def branch_atom_locant(graph, root, coming_from, atom_idx, halogens=None, mol=No
     module doesn't assign to anything, so it's out of scope rather than
     silently wrong."""
     halogens = halogens or {}
-    chain, _, _, _ = _select_winning_structure(graph, root, coming_from, halogens, mol)
+    chain, _, _, _ = _select_winning_structure(
+        graph, root, coming_from, halogens, mol, unsaturated=mol is not None
+    )
     if atom_idx not in chain:
         raise UnsupportedStructure(
             "a specified stereocenter that isn't on the substituent's own "

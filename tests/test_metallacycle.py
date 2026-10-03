@@ -163,6 +163,8 @@ def test_spiro_and_polycyclic_metallacycles(smiles, expected):
     [
         ("CC[C@H](C)C1CC[Pt](Cl)(Cl)C1", "3-[(2S)-butan-2-yl]-1,1-dichloro-1-platinacyclopentane"),
         ("C[C@H](Cl)C1CC[Pt](Cl)(Cl)C1", "1,1-dichloro-3-[(1S)-1-chloroethyl]-1-platinacyclopentane"),
+        ("C[C@H](Cl)CC1C[Pt](Cl)(Cl)C1", "1,1-dichloro-3-[(2S)-2-chloropropyl]-1-platinacyclobutane"),
+        ("C[C@H](Cl)C[C@@H](C)C1C[Pt](Cl)(Cl)C1", "1,1-dichloro-3-[(2R,4S)-4-chloropentan-2-yl]-1-platinacyclobutane"),
     ],
 )
 def test_metallacycle_substituent_stereocentre(smiles, expected):
