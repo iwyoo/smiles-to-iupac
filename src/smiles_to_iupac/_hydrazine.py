@@ -188,8 +188,8 @@ def name_hydrazine(mol) -> str:
     if total == 0:
         return "hydrazine"
     if total == 1:
-        ((name, _),) = names_n1 + names_n2
-        return name + "hydrazine"
+        ((name, compound),) = names_n1 + names_n2
+        return (f"({name})" if compound and name[0].isdigit() else name) + "hydrazine"
 
     candidates = []
     for first, second in ((names_n1, names_n2), (names_n2, names_n1)):

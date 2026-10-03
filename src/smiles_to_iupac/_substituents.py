@@ -28,6 +28,12 @@ Recommendations ("the Blue Book"):
   'bromo', 'iodo') with no locants or nested prefixes of its own — the base
   case in `name_branch` below.
 
+- P-29.2, P-32.1.1, P-46.1 (Chapters P-2/P-3/P-4): with the molecule's bond
+  orders available (`mol`), the principal chain of a substituent group is
+  the longest chain through the free-valence atom, then the one with more
+  multiple bonds, then lower free-valence, multiple-bond, and substituent
+  locants; the free-valence bond itself selects 'yl', 'ylidene', or 'ylidyne'.
+
 Cyclic substituent groups (P-29.3.3) are out of scope and raise
 UnsupportedStructure, except the minimal case: a plain, unsubstituted
 saturated monocyclic ring hanging off the parent chain (e.g. "cyclohexyl" in
@@ -65,9 +71,12 @@ docstring for exactly which zero-substituent shapes it recognizes).
 from ._common import (
     UnsupportedStructure,
     alpha_sort_key,
+    group_substituents,
     heteroaromatic_monocycle_yl_name,
     multiplied_word,
+    ring_cycle,
     substituent_locant_set_and_citation,
+    unsaturation_suffix,
 )
 from ._numerals import alkane_name, alkyl_name, multiplying_prefix
 
@@ -630,7 +639,7 @@ def _all_carbon_branch(mol, graph, root, coming_from):
     return True
 
 
-def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mol=None):
+def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mol=None, unsaturated=None):
     """Name the substituent group hanging off `root`, reached from
     `coming_from` (the parent chain/ring atom). Returns (name, is_compound);
     is_compound is True iff the name carries its own locants/nested prefixes
@@ -651,11 +660,22 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
     `mol`: see `_longest_chains_from_root` -- pass this through whenever
     the branch hasn't already been fully validated as carbon-plus-
     `halogens` by the caller, so an unrecognized heteroatom in it raises
-    instead of being silently treated as carbon."""
+    instead of being silently treated as carbon.
+
+    `unsaturated` (default: whenever `mol` is given): bond orders are read from `mol`, so the
+    branch's own C=C/C#C bonds become 'ene'/'yne' endings and the bond
+    joining it to `coming_from` becomes 'yl'/'ylidene'/'ylidyne'
+    (P-29.2, P-32.1.1, P-46.1); without `mol` every bond reads as single."""
     halogens = halogens or {}
     aromatic_atoms = aromatic_atoms or frozenset()
     if root in halogens:
         return halogens[root], False
+    if unsaturated is None:
+        unsaturated = mol is not None
+    attach_order = 1.0
+    if unsaturated:
+        attach_order = _bond_order(mol, root, coming_from)
+        aromatic_atoms = aromatic_atoms or frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
 
     ring_result = _simple_ring_substituent(graph, root, coming_from, aromatic_atoms, mol=mol)
     if ring_result is not None:
@@ -664,6 +684,8 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
             if heteroaromatic_name is not None:
                 return heteroaromatic_name, True
             return "phenyl", False
+        if unsaturated:
+            return _unsaturated_ring_branch(graph, root, coming_from, ring_size, attach_order, mol)
         return "cyclo" + alkyl_name(ring_size), False
 
     if aromatic_atoms:
@@ -677,13 +699,21 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
         ring_size, name, locants = ring_with_named_atoms
         loc_str = ",".join(str(loc) for loc in locants)
         name_word = multiplied_word(len(locants), name)
-        return f"{loc_str}-{name_word}cyclo{alkyl_name(ring_size)}", True
+        ring_name = f"{loc_str}-{name_word}cyclo{alkyl_name(ring_size)}"
+        return _free_valence_suffix(ring_name, attach_order), True
 
-    _, _, name, is_compound = _select_winning_structure(graph, root, coming_from, halogens, mol, aromatic_atoms)
+    if unsaturated and mol.GetAtomWithIdx(root).IsInRing():
+        return _substituted_ring_branch(graph, root, coming_from, halogens, aromatic_atoms, mol, attach_order)
+
+    _, _, name, is_compound = _select_winning_structure(
+        graph, root, coming_from, halogens, mol, aromatic_atoms, unsaturated
+    )
     return name, is_compound
 
 
-def substituents_for_chain(graph, chain, halogens, excluded=frozenset(), mol=None, aromatic_atoms=frozenset()):
+def substituents_for_chain(
+    graph, chain, halogens, excluded=frozenset(), mol=None, aromatic_atoms=frozenset(), unsaturated=None
+):
     """{position (1-based) -> [(name, is_compound), ...]} for every branch
     hanging off a candidate principal chain -- shared by every module whose
     parent hydride is an acyclic chain (P-29.2). `excluded`: atom indices to
@@ -698,7 +728,8 @@ def substituents_for_chain(graph, chain, halogens, excluded=frozenset(), mol=Non
         branch_roots = [n for n in graph[atom] if n not in chain_set and n not in excluded]
         if branch_roots:
             substituents[position] = [
-                name_branch(graph, root, atom, halogens, aromatic_atoms, mol=mol) for root in branch_roots
+                name_branch(graph, root, atom, halogens, aromatic_atoms, mol=mol, unsaturated=unsaturated)
+                for root in branch_roots
             ]
     return substituents
 
@@ -727,7 +758,9 @@ def substituents_for_chain_forced_compound_terminals(graph, chain, terminals, mo
     return substituents
 
 
-def substituents_for_ring(graph, ring_order, halogens, excluded=frozenset(), mol=None, aromatic_atoms=frozenset()):
+def substituents_for_ring(
+    graph, ring_order, halogens, excluded=frozenset(), mol=None, aromatic_atoms=frozenset(), unsaturated=None
+):
     """{position (1-based) -> [(name, is_compound), ...]} for every branch
     hanging off a candidate ring numbering -- the ring-parent analogue of
     `substituents_for_chain` (P-29.2). `excluded`: atom indices to skip
@@ -740,7 +773,8 @@ def substituents_for_ring(graph, ring_order, halogens, excluded=frozenset(), mol
         branch_roots = [n for n in graph[atom] if n not in ring_set and n not in excluded]
         if branch_roots:
             substituents[position] = [
-                name_branch(graph, root, atom, halogens, aromatic_atoms, mol=mol) for root in branch_roots
+                name_branch(graph, root, atom, halogens, aromatic_atoms, mol=mol, unsaturated=unsaturated)
+                for root in branch_roots
             ]
     return substituents
 
@@ -915,7 +949,258 @@ def _branch_point_candidate_chains(graph, root, coming_from, halogens, mol=None,
     return best_chain, best_position, best_name, True
 
 
-def _select_winning_structure(graph, root, coming_from, halogens, mol=None, aromatic_atoms=frozenset()):
+_FREE_VALENCE_SUFFIX = {1.0: "yl", 2.0: "ylidene", 3.0: "ylidyne"}
+
+
+def _bond_order(mol, a, b):
+    order = mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble()
+    if order not in _FREE_VALENCE_SUFFIX and order != 1.5:
+        raise UnsupportedStructure(
+            "a bond order other than single, double, or triple is not supported in a substituent group"
+        )
+    return order
+
+
+def _free_valence_suffix(alkyl_style_name, order):
+    """Swap a trailing 'yl' for 'ylidene'/'ylidyne' per the bond order joining
+    the group to its parent (P-29.2)."""
+    suffix = _FREE_VALENCE_SUFFIX[order]
+    return alkyl_style_name[: -len("yl")] + suffix
+
+
+def _ring_walk_from(graph, root, coming_from):
+    ring_neighbors = [n for n in graph[root] if n != coming_from]
+    order = [root]
+    previous, current = root, ring_neighbors[0]
+    while current != root:
+        order.append(current)
+        (following,) = [n for n in graph[current] if n != previous]
+        previous, current = current, following
+    return order
+
+
+def _ring_base_name(ring_size, ene, yne, attach_order):
+    if not ene and not yne:
+        return _free_valence_suffix("cyclo" + alkyl_name(ring_size), attach_order)
+    body, needs_a = unsaturation_suffix(ene, yne)
+    stem = "cyclo" + alkane_name(ring_size)[:-3] + ("a" if needs_a else "")
+    return f"{stem}-{body[:-1]}-1-{_FREE_VALENCE_SUFFIX[attach_order]}"
+
+
+def _ring_multiple_bond_locants(mol, direction):
+    ene, yne = [], []
+    for i, atom in enumerate(direction):
+        order = _bond_order(mol, atom, direction[(i + 1) % len(direction)])
+        if order == 1.0:
+            continue
+        if order not in (2.0, 3.0):
+            raise UnsupportedStructure("an unsupported bond order inside a ring substituent")
+        (ene if order == 2.0 else yne).append(i + 1)
+    return ene, yne
+
+
+def _unsaturated_ring_branch(graph, root, coming_from, ring_size, attach_order, mol):
+    """Name a plain monocyclic ring substituent attached at `root` with the
+    free valence fixed at locant 1 (P-32.1.2): 'cyclohexyl',
+    'cyclohexylidene', 'cyclohex-2-en-1-yl', ..."""
+    ring = _ring_walk_from(graph, root, coming_from)
+    best = None
+    for direction in (ring, [ring[0]] + ring[:0:-1]):
+        ene, yne = _ring_multiple_bond_locants(mol, direction)
+        candidate = (sorted(ene + yne), sorted(ene), ene, yne)
+        if best is None or candidate < best:
+            best = candidate
+    _, _, ene, yne = best
+    return _ring_base_name(ring_size, ene, yne, attach_order), bool(ene or yne)
+
+
+def _substituted_ring_branch(graph, root, coming_from, halogens, aromatic_atoms, mol, attach_order):
+    """A monocyclic carbocyclic (or benzene) substituent group that carries
+    substituents of its own (P-29.3.3, P-32.1.2): the free valence is locant
+    1, then the ring's multiple bonds and the prefixes take lowest locants,
+    e.g. '2-methylcyclohexyl', '2-methylidenecyclohexyl', '4-methylphenyl'."""
+    ring_info = mol.GetRingInfo()
+    ring_atoms = next((r for r in ring_info.AtomRings() if root in r), None)
+    cyclic_error = UnsupportedStructure(
+        "cyclic substituent groups are not supported yet (see P-29.3.3, P-46 for cyclic substituent groups)"
+    )
+    if ring_atoms is None or any(ring_info.NumAtomRings(a) != 1 for a in ring_atoms):
+        raise cyclic_error
+    atoms = [mol.GetAtomWithIdx(a) for a in ring_atoms]
+    aromatic = all(a.GetIsAromatic() for a in atoms)
+    if any(a.GetAtomicNum() != 6 for a in atoms) or (not aromatic and any(a.GetIsAromatic() for a in atoms)):
+        raise cyclic_error
+    if aromatic and len(ring_atoms) != 6:
+        raise cyclic_error
+    order = ring_cycle(graph, list(ring_atoms))
+    order = order[order.index(root):] + order[: order.index(root)]
+    ring_set = set(ring_atoms)
+
+    best = None
+    for direction in (order, [order[0]] + order[:0:-1]):
+        ene, yne = ([], []) if aromatic else _ring_multiple_bond_locants(mol, direction)
+        entries = []
+        for position, atom in enumerate(direction, start=1):
+            for neighbor in graph[atom]:
+                if neighbor in ring_set or (atom == root and neighbor == coming_from):
+                    continue
+                sub_name, sub_compound = name_branch(
+                    graph, neighbor, atom, halogens, aromatic_atoms, mol=mol, unsaturated=True
+                )
+                entries.append((position, sub_name, sub_compound))
+        grouped = _group_substituents(entries)
+        locant_set, _, citation = substituent_locant_set_and_citation(grouped)
+        prefix = format_substituent_prefixes(grouped)
+        base = "phenyl" if aromatic else _ring_base_name(len(order), ene, yne, attach_order)
+        name = prefix + base
+        key = (sorted(ene + yne), sorted(ene), locant_set, citation, name)
+        if best is None or key < best[0]:
+            best = (key, name, bool(prefix) or bool(ene or yne))
+    return best[1], best[2]
+
+
+def _chain_children(graph, node, parent, halogens, mol, aromatic_atoms):
+    """Neighbors of `node` the substituent's own principal chain may extend
+    into: every carbon except atoms named as one-atom prefixes (`halogens`)
+    and the root of a plain ring substituent, which are cited as
+    substituents of the chain instead."""
+    if mol.GetAtomWithIdx(node).GetAtomicNum() != 6:
+        raise UnsupportedStructure(
+            "a heteroatom in a compound substituent branch, other than "
+            "a recognized halogen/named group, is not supported yet"
+        )
+    children = []
+    for n in graph[node]:
+        if n == parent or n in halogens:
+            continue
+        if (
+            mol.GetAtomWithIdx(n).IsInRing()
+            and _simple_ring_substituent(graph, n, node, aromatic_atoms, mol=mol) is not None
+        ):
+            continue
+        children.append(n)
+    return children
+
+
+def _longest_arms(graph, node, parent, halogens, mol, aromatic_atoms, visited):
+    """Every longest simple path starting at `node` and descending away from
+    `parent`."""
+    if node in visited:
+        raise UnsupportedStructure(
+            "cyclic substituent groups are not supported yet (see P-29.3.3, P-46 for cyclic substituent groups)"
+        )
+    visited = visited | {node}
+    best = [[node]]
+    for child in _chain_children(graph, node, parent, halogens, mol, aromatic_atoms):
+        for arm in _longest_arms(graph, child, node, halogens, mol, aromatic_atoms, visited):
+            candidate = [node] + arm
+            if len(candidate) > len(best[0]):
+                best = [candidate]
+            elif len(candidate) == len(best[0]) and len(candidate) > 1:
+                best.append(candidate)
+    return best
+
+
+def _unsaturated_candidate_chains(graph, root, coming_from, halogens, mol, aromatic_atoms):
+    """Every longest chain through `root` (P-46.1(b)): root-terminated when it
+    has a single way onward, running through it along its two longest arms
+    otherwise (P-29.3.2.2)."""
+    children = _chain_children(graph, root, coming_from, halogens, mol, aromatic_atoms)
+    visited = frozenset({root})
+    if len(children) <= 1:
+        return [list(arm) for arm in _longest_arms(graph, root, coming_from, halogens, mol, aromatic_atoms, frozenset())]
+    arms = {c: _longest_arms(graph, c, root, halogens, mol, aromatic_atoms, visited) for c in children}
+    total = sorted((len(arms[c][0]) for c in children), reverse=True)
+    target = total[0] + total[1]
+    chains = []
+    for a in children:
+        for b in children:
+            if a != b and len(arms[a][0]) + len(arms[b][0]) == target:
+                for before in arms[a]:
+                    for after in arms[b]:
+                        chains.append(list(reversed(before)) + [root] + after)
+    return chains
+
+
+def _select_unsaturated_structure(graph, root, coming_from, halogens, mol, aromatic_atoms):
+    """`_select_winning_structure`'s bond-order-aware counterpart: the
+    principal chain of a substituent group whose chain or free valence
+    carries multiple bonds (P-46.1: longest chain, then most multiple
+    bonds, then most double bonds, then lowest free-valence, multiple-bond,
+    and substituent locants). Returns (chain, root_position, name,
+    is_compound)."""
+    attach_order = _bond_order(mol, root, coming_from)
+    if attach_order not in _FREE_VALENCE_SUFFIX:
+        raise UnsupportedStructure("an aromatic bond joining a chain substituent to its parent is not supported")
+    suffix = _FREE_VALENCE_SUFFIX[attach_order]
+
+    best = None
+    for chain in _unsaturated_candidate_chains(graph, root, coming_from, halogens, mol, aromatic_atoms):
+        chain_set = set(chain)
+        root_position = chain.index(root) + 1
+        ene, yne = [], []
+        for i in range(len(chain) - 1):
+            order = _bond_order(mol, chain[i], chain[i + 1])
+            if order == 2.0:
+                ene.append(i + 1)
+            elif order == 3.0:
+                yne.append(i + 1)
+        entries = []
+        for position, atom in enumerate(chain, start=1):
+            for neighbor in graph[atom]:
+                if neighbor in chain_set or (atom == root and neighbor == coming_from):
+                    continue
+                sub_name, sub_compound = name_branch(
+                    graph, neighbor, atom, halogens, aromatic_atoms, mol=mol, unsaturated=True
+                )
+                entries.append((position, sub_name, sub_compound))
+        grouped = _group_substituents(entries)
+        locant_set, total_count, citation = substituent_locant_set_and_citation(grouped)
+        name, is_compound = _unsaturated_chain_name(
+            len(chain), root_position, suffix, ene, yne, grouped, tert_butyl=_is_tert_butyl(graph, root, coming_from, halogens)
+        )
+        multiple = sorted(ene + yne)
+        key = (-len(multiple), -len(ene), root_position, multiple, sorted(ene), -total_count, locant_set, citation, name)
+        if best is None or key < best[0]:
+            best = (key, chain, root_position, name, is_compound)
+    _, chain, root_position, name, is_compound = best
+    return chain, root_position, name, is_compound
+
+
+def _is_tert_butyl(graph, root, coming_from, halogens):
+    # P-29.6.1: the unsubstituted (CH3)3C- group keeps its retained name.
+    others = [n for n in graph[root] if n != coming_from]
+    return len(others) == 3 and all(len(graph[n]) == 1 and n not in halogens for n in others)
+
+
+def _unsaturated_chain_name(length, root_position, suffix, ene, yne, grouped, tert_butyl):
+    if tert_butyl and suffix == "yl" and not ene and not yne:
+        return "tert-butyl", False
+    if length == 1 and list(grouped) == ["phenyl"]:
+        # P-29.6.2.1: 'benzyl'/'benzylidene'/'benzylidyne' are the preferred prefixes when unsubstituted.
+        return "benz" + suffix, False
+    prefix = format_substituent_prefixes(grouped, omit_locants=(length == 1)) if grouped else ""
+    multiple = len(ene) + len(yne)
+    if not multiple:
+        if root_position == 1:
+            base = alkyl_name(length)[: -len("yl")] + suffix
+        else:
+            base = f"{alkane_name(length)[:-1]}-{root_position}-{suffix}"
+    else:
+        stem = alkane_name(length)[:-3]
+        if length == 2 and multiple == 1:
+            bond = stem + ("en" if ene else "yn")
+            base = f"{bond}-{root_position}-{suffix}" if grouped else bond + suffix
+        else:
+            body, needs_a = unsaturation_suffix(ene, yne)
+            base = f"{stem}{'a' if needs_a else ''}-{body[:-1]}-{root_position}-{suffix}"
+    # P-14.3.4.4: only the unsubstituted two-carbon group is unambiguous without locants.
+    return prefix + base, bool(prefix) or "-" in base
+
+
+def _select_winning_structure(
+    graph, root, coming_from, halogens, mol=None, aromatic_atoms=frozenset(), unsaturated=None
+):
     """(chain, root_position, name, is_compound) for the substituent group
     hanging off `root`: the P-29.3.2.2 branch-point chain
     (`_branch_point_candidate_chains`) when `root` forks into two or more
@@ -924,6 +1209,8 @@ def _select_winning_structure(graph, root, coming_from, halogens, mol=None, arom
     the name) and `branch_atom_locant` below (which also needs to know
     which chain won and where `root` sits on it), so the two can never
     disagree about which chain was chosen."""
+    if unsaturated:
+        return _select_unsaturated_structure(graph, root, coming_from, halogens, mol, aromatic_atoms)
     branch_point = _branch_point_candidate_chains(graph, root, coming_from, halogens, mol, aromatic_atoms)
     if branch_point is not None:
         return branch_point

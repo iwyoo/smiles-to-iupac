@@ -94,9 +94,8 @@ def test_ring_substituent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_substituted_phenyl_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1NN")
+def test_substituted_phenyl():
+    assert smiles_to_iupac("Cc1ccccc1NN") == "(2-methylphenyl)hydrazine"
 
 
 def test_halogen_on_nitrogen_raises():
@@ -106,7 +105,7 @@ def test_halogen_on_nitrogen_raises():
 
 def test_chloroethylhydrazine_name():
     # PubChem auto-generated name matches exactly.
-    assert smiles_to_iupac("ClCCNN") == "2-chloroethylhydrazine"
+    assert smiles_to_iupac("ClCCNN") == "(2-chloroethyl)hydrazine"
 
 
 def test_bis_chloroethylhydrazine_name():
@@ -128,4 +127,4 @@ def test_halogenated_branched_substituent_name():
     # reviewed result following the same name_branch mechanism already
     # confirmed for the plain-branched and halogenated-unbranched cases
     # above.
-    assert smiles_to_iupac("ClC(C)(C)NN") == "2-chloropropan-2-ylhydrazine"
+    assert smiles_to_iupac("ClC(C)(C)NN") == "(2-chloropropan-2-yl)hydrazine"

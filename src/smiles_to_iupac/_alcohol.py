@@ -201,16 +201,17 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
+    all_chains,
     bond_locant,
-    bond_locants,
     carbon_adjacency,
+    chain_bond_locants,
     group_substituents,
     halogen_substituents,
     heteroaromatic_monocycle_name,
     is_plain_benzene_ring,
     longest_branched_chain_through,
-    longest_chains,
     lowest_locant_set,
+    most_multiple_bonds,
     multiplied_word,
     name_from_substituents,
     non_single_bonds,
@@ -218,10 +219,13 @@ from ._common import (
     ring_bond_locants,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
+    ring_chain_attachments_with_halogens,
+    separate_aromatic_monocycles,
     ring_cycle,
     ring_name_from_substituents,
     specified_stereo_elements,
     specified_stereocenters,
+    stereo_element_atoms,
     substituent_locant_set_and_citation,
     two_separate_rings_with_plain_aromatic_substituent,
 )
@@ -487,9 +491,8 @@ def _best_acyclic_alcohol_candidate(
     empty/None by default so existing callers are unaffected."""
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **(ethers or {}), **(extra_names or {})}
-    chains = longest_chains(carbon_adjacency(mol))
-    chain_length = len(chains[0])
-    stereo_atoms = [idx for kind, idx, _ in stereo if kind == "atom"] if stereo is not None else []
+    chains = all_chains(carbon_adjacency(mol))
+    stereo_atoms = stereo_element_atoms(mol, stereo) if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -498,8 +501,6 @@ def _best_acyclic_alcohol_candidate(
             continue
         if not required_atoms <= set(chain):
             continue
-        if bonds and bond_locants(chain, bonds) is None:
-            continue
         if stereo is not None and any(atom not in chain for atom in stereo_atoms):
             continue
         eligible.append(chain)
@@ -507,11 +508,10 @@ def _best_acyclic_alcohol_candidate(
         if stereo is not None and any(
             _oh_locants({a: i + 1 for i, a in enumerate(c)}, hydroxyls, graph) is not None
             and required_atoms <= set(c)
-            and (not bonds or bond_locants(c, bonds) is not None)
             for c in chains
         ):
             raise UnsupportedStructure(
-                "a stereocenter on a substituent branch rather than the "
+                "a stereo element on a substituent branch rather than the "
                 "principal chain is not supported yet (see P-92)"
             )
         raise UnsupportedStructure(
@@ -524,11 +524,13 @@ def _best_acyclic_alcohol_candidate(
     best_key = None
     best_name = None
     best_position_of = None
+    chain_length = max(len(c) for c in eligible)
+    eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             oh_locants = _oh_locants(position_of, hydroxyls, graph)
-            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, hydroxyls, mol=mol)
             key, name = _candidate_key(chain_length, oh_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
@@ -1026,15 +1028,15 @@ def _name_phenyl_chain_alcohol(mol, ring_atoms):
 
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
-    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
-    if attachment is None:
+    rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
+    attachments = ring_chain_attachments_with_halogens(graph, rings, set(), halogens)
+    if not attachments:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "
             "exocyclic substituent alongside a chain alcohol is not "
             "supported yet"
         )
-    ring_atom, chain_root = attachment
-    if chain_root in hydroxyls:
+    if any(chain_root in hydroxyls for _, chain_root in attachments):
         raise UnsupportedStructure(
             "a hydroxyl directly on the benzene ring (phenol-type) "
             "combined with a second hydroxyl elsewhere is not supported "
@@ -1072,6 +1074,9 @@ def _name_phenyl_chain_alcohol(mol, ring_atoms):
 
 def name_alcohol(mol) -> str:
     ring_info = mol.GetRingInfo()
+    aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
+    if aromatic_rings is not None:
+        return _name_phenyl_chain_alcohol(mol, set().union(*aromatic_rings))
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         is_benzene = is_plain_benzene_ring(mol, ring_atoms)
@@ -1151,35 +1156,18 @@ def name_alcohol(mol) -> str:
         ring_atoms = set(ring_info.AtomRings()[0])
         ring_hydroxyls = {o for o in hydroxyls if next(iter(graph[o])) in ring_atoms}
         chain_hydroxyls = hydroxyls - ring_hydroxyls
-        if bonds:
-            # A ring C=C double bond coexisting with a suffix -OH is
-            # supported for the "chain is parent, ring has no -OH of its
-            # own" shape (P-31.1.3 + P-29.2, see
-            # `_name_ring_substituent_chain_alcohol`) and for the "-OH is
-            # on the ring itself, no separate chain -OH" shape (P-31.1.3,
-            # see `_name_cyclic_alcohol`'s own `bonds` parameter, mirroring
-            # `_ketone.py`'s identical extension); a ring double bond
-            # alongside *both* a ring -OH and a separate chain -OH, or
-            # unsaturation reaching outside the ring (an exocyclic double
-            # bond, or a triple bond), stays unsupported.
-            ring_only_double_bonds = all(
-                order == _ENE_ORDER and a in ring_atoms and b in ring_atoms
-                for a, b, order in bonds
+        ring_bonds = [b for b in bonds if b[0] in ring_atoms and b[1] in ring_atoms]
+        # Bonds outside the ring become ylidene/enyl prefixes (ring parent) or
+        # chain unsaturation (ring cited as a substituent of the chain parent).
+        if any(order != _ENE_ORDER for _, _, order in ring_bonds) or (bonds and ring_hydroxyls and chain_hydroxyls):
+            raise UnsupportedStructure(
+                "unsaturated rings are not supported yet (see P-31.1.3, "
+                "cycloalkenes and cycloalkynes)"
             )
-            if not ring_only_double_bonds or (ring_hydroxyls and chain_hydroxyls):
-                raise UnsupportedStructure(
-                    "unsaturated rings are not supported yet (see P-31.1.3, "
-                    "cycloalkenes and cycloalkynes)"
-                )
         if not ring_hydroxyls:
-            if stereo is not None:
-                raise UnsupportedStructure(
-                    "a stereocenter on a substituent branch rather than "
-                    "the ring itself is not supported yet (see P-92)"
-                )
-            return _name_ring_substituent_chain_alcohol(mol, hydroxyls)
+            return _name_acyclic_alcohol(mol, hydroxyls, bonds, specified_stereo_elements(mol))
         if not chain_hydroxyls:
-            return _name_cyclic_alcohol(mol, hydroxyls, stereo, bonds)
+            return _name_cyclic_alcohol(mol, hydroxyls, stereo, ring_bonds)
         if stereo is not None:
             raise UnsupportedStructure(
                 "a stereocenter alongside a ring-vs-chain hydroxyl "
@@ -1195,13 +1183,9 @@ def name_alcohol(mol) -> str:
                 "itself bearing no hydroxyl of its own, alongside this "
                 "two-ring aromatic-substituent shape is not supported yet"
             )
-        if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in bonds):
-            raise UnsupportedStructure(
-                "unsaturated rings are not supported yet (see P-31.1.3, "
-                "cycloalkenes and cycloalkynes)"
-            )
+        ring_bonds = [b for b in bonds if b[0] in ring_atoms and b[1] in ring_atoms]
         return _name_cyclic_alcohol(
-            mol, hydroxyls, stereo, bonds, ring_atoms=ring_atoms, aromatic_atoms=aromatic_atoms
+            mol, hydroxyls, stereo, ring_bonds, ring_atoms=ring_atoms, aromatic_atoms=aromatic_atoms
         )
 
     # A von Baeyer bicyclic or polycyclic (ring_count>=3) skeleton (P-23,

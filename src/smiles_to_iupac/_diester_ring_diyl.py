@@ -1,0 +1,299 @@
+"""Polyesters of one polyol (P-65.6.3.3.3): the polyol's best skeleton -- a ring system or an acyclic chain
+carrying the most ester oxygens -- is cited as a multivalent group ('cyclohexane-1,2-diyl', 'naphthalene-2,3-diyl',
+'butane-1,4-diyl') before the anions; other esters become acyloxy prefixes (P-65.6.3.3.4.2). Numbering follows
+P-31.1.4: heteroatoms, indicated hydrogen, free valences, hydro/ene, all prefixes, citation order, anion locants,
+CIP descriptors. Two esters on a symmetric group cite no acid locants (P-65.6.3.3.3.2).
+"""
+
+from rdkit import Chem
+
+from . import _aromatic
+from ._common import (
+    UnsupportedStructure,
+    adjacency,
+    carbon_adjacency,
+    group_substituents,
+    halogen_substituents,
+    ring_cycle,
+    substituent_locant_set_and_citation,
+)
+from ._diester_anions import acid_anions, anion_locant_key, cip_labels, cite_anions
+from ._functional_prefixes import functional_names, nitro_atoms
+from ._ring_diyl_numbering import chain_numberings, monocycle_numberings, system_numberings
+from ._substituents import format_substituent_prefixes, name_branch
+
+_DESCRIPTOR_ORDER = {"R": 0, "S": 1, "r": 2, "s": 3}
+
+
+def _component(graph, start, blocked):
+    seen = set()
+    stack = [start]
+    while stack:
+        node = stack.pop()
+        if node in seen:
+            continue
+        seen.add(node)
+        stack.extend(n for n in graph[node] if n not in blocked and n not in seen)
+    return seen
+
+
+def _diyl_is_symmetric(mol, keep, ester_oxygens):
+    rw = Chem.RWMol(mol)
+    kept = sorted(keep | set(ester_oxygens))
+    for idx in sorted(set(range(mol.GetNumAtoms())) - set(kept), reverse=True):
+        rw.RemoveAtom(idx)
+    sub = rw.GetMol()
+    Chem.SanitizeMol(sub, catchErrors=True)
+    ranks = list(Chem.CanonicalRankAtoms(sub, breakTies=False, includeChirality=False))
+    position = {idx: i for i, idx in enumerate(kept)}
+    return len({ranks[position[o]] for o in ester_oxygens}) == 1
+
+
+def _system_of(mol, atom):
+    ring_info = mol.GetRingInfo()
+    rings = [set(r) for r in ring_info.AtomRings()]
+    start = next((r for r in rings if atom in r), None)
+    if start is None:
+        return None
+    members = [start]
+    atoms = set(start)
+    grew = True
+    while grew:
+        grew = False
+        for r in rings:
+            if r not in members and r & atoms:
+                members.append(r)
+                atoms |= r
+                grew = True
+    return [tuple(r) for r in ring_info.AtomRings() if set(r) in members], atoms
+
+
+def _chain_paths(graph, component, alcohol_atoms):
+    sub = {a: [n for n in graph[a] if n in component] for a in component}
+    best = (0, 0)
+    paths = []
+    for u in component:
+        parent = {u: None}
+        queue = [u]
+        while queue:
+            node = queue.pop(0)
+            for n in sub[node]:
+                if n not in parent:
+                    parent[n] = node
+                    queue.append(n)
+        for v in component:
+            if v not in parent or (v < u):
+                continue
+            path = [v]
+            while path[-1] != u:
+                path.append(parent[path[-1]])
+            score = (sum(1 for a in path if a in alcohol_atoms), len(path))
+            if score > best:
+                best, paths = score, []
+            if score == best:
+                paths.append(path)
+    return best, paths
+
+
+def select_skeleton(mol, graph, matches):
+    """(kind, rings_or_paths, atoms) of the single best ring system or chain, or None when no skeleton carries
+    an ester oxygen; raises when several equally ranked units tie (multiplicative/ring-assembly names)."""
+    alcohol = {m[3].GetIdx() for m in matches}
+    ring_info = mol.GetRingInfo()
+    units = []
+    seen = set()
+    for idx in sorted(alcohol):
+        if ring_info.NumAtomRings(idx):
+            rings, atoms = _system_of(mol, idx)
+            if frozenset(atoms) not in seen:
+                seen.add(frozenset(atoms))
+                units.append(("ring", len([a for a in alcohol if a in atoms]), rings, atoms))
+    chain_atoms = {
+        a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and not ring_info.NumAtomRings(a.GetIdx())
+    }
+    done = set()
+    for idx in sorted(alcohol):
+        if idx not in chain_atoms or idx in done:
+            continue
+        component = set()
+        stack = [idx]
+        while stack:
+            node = stack.pop()
+            if node not in component:
+                component.add(node)
+                stack.extend(n for n in graph[node] if n in chain_atoms and n not in component)
+        done |= component
+        (valence, _), paths = _chain_paths(graph, component, alcohol)
+        units.append(("chain", valence, paths, set().union(*(set(p) for p in paths))))
+    if not units:
+        return None
+    top = max(u[1] for u in units)
+    best = [u for u in units if u[1] == top]
+    if any(u[0] == "ring" for u in best):
+        best = [u for u in best if u[0] == "ring"]
+    if len(best) > 1:
+        raise UnsupportedStructure(
+            "several equally ranked ring/chain units carry the esters (multiplicative or ring-assembly names, "
+            "P-15.3/P-28) -- not handled here"
+        )
+    kind, _, body, atoms = best[0]
+    return kind, body, atoms
+
+
+def name_diester_ring_diyl(mol, matches):
+    graph = adjacency(mol)
+    nitro = nitro_atoms(mol)
+    if any((a.GetFormalCharge() != 0 and a.GetIdx() not in nitro) or a.GetIsotope() != 0 for a in mol.GetAtoms()):
+        raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+
+    selection = select_skeleton(mol, graph, matches)
+    if selection is None:
+        raise UnsupportedStructure("no ring system or chain carries the ester oxygens")
+    kind, body, pool = selection
+    options = [(kind, [path], set(path)) for path in body] if kind == "chain" else [(kind, body, pool)]
+
+    best = None
+    for option_kind, option_body, option_pool in options:
+        matches_on = [m for m in matches if m[3].GetIdx() in option_pool]
+        result = _best_for_option(mol, graph, option_kind, option_body, option_pool, matches_on)
+        if result is not None and (best is None or result[0] < best[0]):
+            best = result
+    if best is None:
+        raise UnsupportedStructure("no admissible numbering places every attachment and substituent on this skeleton")
+    return best[1]
+
+
+def _best_for_option(mol, graph, kind, body, pool, matches_on):
+    alcohol_idxs = [m[3].GetIdx() for m in matches_on]
+    ester_oxygens = [m[2].GetIdx() for m in matches_on]
+    anions = acid_anions(mol, matches_on)
+    found = evaluate_skeleton(
+        mol, graph, kind, body, pool, alcohol_idxs, set(ester_oxygens), "yl", anions=anions, matches_on=matches_on
+    )
+    if found is None:
+        return None
+    key, group_name, position_of, ring_stereo, side = found
+    valence = len(matches_on)
+    locants = [position_of[a] for a in alcohol_idxs]
+    names = {name for name, _ in anions}
+    cite = len(names) > 1 and not (valence == 2 and not ring_stereo and _diyl_is_symmetric(mol, side, ester_oxygens))
+    return key, f"{group_name} {cite_anions(anions, locants, cite)}"
+
+
+def evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=()):
+    """Best numbering of a ring system or chain with free valences/suffix at `attach`; returns
+    (key, group_name, position_of, ring_stereo, side) or None."""
+    valence = len(attach)
+    halogens = halogen_substituents(mol)
+    carbon_graph = carbon_adjacency(mol)
+
+    if kind == "chain":
+        numberings = chain_numberings(mol, body, valence)
+    elif len(body) == 1:
+        numberings = monocycle_numberings(mol, ring_cycle(graph, list(body[0])), set(), valence)
+    else:
+        numberings = system_numberings(mol, graph, body, pool)
+
+    cache = {}
+
+    def analyze(skeleton):
+        key = frozenset(skeleton)
+        if key in cache:
+            return cache[key]
+        side = _component(graph, next(iter(skeleton)), blocked)
+        if any(a in side for m in matches_on for a in (m[0].GetIdx(), m[1].GetIdx())):
+            raise UnsupportedStructure(
+                "a lactone or macrocyclic diester is a heterocyclic pseudoketone (P-65.6.3.5), not an ester of a "
+                "polyol, and is named by the heterocycle rules"
+            )
+        seeds = [(a, n) for a in skeleton for n in graph[a] if n not in skeleton and n not in blocked]
+        named, shown, covered = functional_names(mol, graph, seeds, set(skeleton) | blocked, halogens)
+        unsaturated = [
+            (b.GetBeginAtomIdx(), b.GetEndAtomIdx(), b.GetBondTypeAsDouble())
+            for b in mol.GetBonds()
+            if b.GetBondTypeAsDouble() != 1.0
+            and b.GetBeginAtomIdx() in side
+            and b.GetEndAtomIdx() in side
+            and not (b.GetBeginAtomIdx() in skeleton and b.GetEndAtomIdx() in skeleton)
+            and not b.GetIsAromatic()
+            and b.GetBeginAtomIdx() not in covered
+            and b.GetEndAtomIdx() not in covered
+        ]
+
+        def branch(root, atom):
+            if root in named:
+                return named[root]
+            atoms = _component(graph, root, set(skeleton) | blocked)
+            bonds = [b for b in unsaturated if b[0] in atoms and b[1] in atoms]
+            if bonds and any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in atoms):
+                raise UnsupportedStructure("an unsaturated substituent bearing other groups is not supported yet")
+            if bonds:
+                return _aromatic._branch_name(
+                    graph, carbon_graph, root, atom, set(skeleton) | blocked, shown, unsaturated, mol=mol
+                )
+            return name_branch(graph, root, atom, shown, mol=mol)
+
+        cache[key] = (side, branch)
+        return cache[key]
+
+    stereo_all = None
+    candidates = []
+    for numbering in numberings:
+        position_of = numbering.position_of
+        if any(a not in position_of for a in attach):
+            continue
+        skeleton = pool if kind == "ring" else set(position_of)
+        side, branch = analyze(skeleton)
+        if stereo_all is None:
+            stereo_all = cip_labels(mol, side)
+        substituents = {}
+        for atom in position_of:
+            roots = [n for n in graph[atom] if n not in skeleton and n not in blocked]
+            if roots:
+                substituents[position_of[atom]] = [branch(root, atom) for root in roots]
+        grouped = group_substituents(substituents)
+        locant_set, _, citation = substituent_locant_set_and_citation(grouped)
+        free = tuple(sorted(position_of[a] for a in attach))
+        ring_stereo = [(a, c) for a, c in stereo_all if a in skeleton]
+        if len(ring_stereo) != len(stereo_all):
+            raise UnsupportedStructure("a stereocenter on a substituent is not supported yet")
+        acid_key = anion_locant_key(anions, [position_of[a] for a in attach]) if anions else ()
+        stereo_key = tuple(
+            _DESCRIPTOR_ORDER.get(code, 9) for _, code in sorted((position_of[a], c) for a, c in ring_stereo)
+        )
+        key = (numbering.pre_key, free, numbering.unsat_key, locant_set, citation, acid_key, stereo_key)
+        candidates.append((key, numbering, grouped, free, ring_stereo, side))
+    if not candidates:
+        return None
+    key, numbering, grouped, free, ring_stereo, side = min(candidates, key=lambda c: c[0])
+    position_of = numbering.position_of
+
+    substituted = frozenset(loc for info in grouped.values() for loc in info["locants"])
+    parent = numbering.text(free, valence, substituted, suffix)
+    prefixes = format_substituent_prefixes(grouped)
+    if prefixes and parent[0].isdigit():
+        prefixes += "-"
+    group_name = prefixes + parent
+    if ring_stereo:
+        labels = ",".join(f"{loc}{code}" for loc, code in sorted((position_of[a], c) for a, c in ring_stereo))
+        group_name = f"({labels})-{group_name}"
+    return key, group_name, position_of, ring_stereo, side
+
+
+def ring_substituent_name(mol, graph, root, parent):
+    """(name, is_compound) of the ring system entered at `root` from `parent`, as a substituent prefix."""
+    rings, atoms = _system_of(mol, root)
+    found = evaluate_skeleton(mol, graph, "ring", rings, atoms, [root], {parent}, "yl")
+    if found is None:
+        raise UnsupportedStructure("this ring substituent has no supported name yet")
+    name = found[1]
+    return name, any(ch.isdigit() or ch in "(-" for ch in name)
+
+
+def ring_carboxylate_name(mol, graph, acyl_idx, ring_atom):
+    """Anion name of a ring-attached carboxylate ('benzoate', 'pyridine-3-carboxylate') and the ring atoms."""
+    rings, atoms = _system_of(mol, ring_atom)
+    found = evaluate_skeleton(mol, graph, "ring", rings, atoms, [ring_atom], {acyl_idx}, "carboxylate")
+    if found is None:
+        raise UnsupportedStructure("this ring carboxylate has no supported name yet")
+    return found[1], atoms

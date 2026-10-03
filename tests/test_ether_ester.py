@@ -37,9 +37,8 @@ def test_ether_on_alcohol_part_raises():
         smiles_to_iupac("CC(=O)OCCOC")
 
 
-def test_two_esters_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COCC(=O)OCOC(=O)C")
+def test_two_esters_names_polyester():
+    assert smiles_to_iupac("COCC(=O)OCOC(=O)C") == "methylene ethanoate 2-methoxyethanoate"
 
 
 def test_two_ethers_raises():

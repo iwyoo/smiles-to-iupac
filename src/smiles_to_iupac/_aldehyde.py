@@ -75,25 +75,30 @@ from ._common import (
     UnsupportedStructure,
     YNE_BOND_ORDER,
     adjacency,
+    all_chains,
     bond_locant,
-    bond_locants,
     carbon_adjacency,
+    carbon_on_ring,
+    chain_bond_locants,
     group_substituents,
     halogen_substituents,
     heteroaromatic_monocycle_name,
     is_plain_benzene_ring,
     longest_branched_chain,
-    longest_chains,
     lowest_locant_set,
+    most_multiple_bonds,
     multiplied_word,
     name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
+    ring_chain_attachments_with_halogens,
+    separate_aromatic_monocycles,
     ring_cycle,
     ring_name_from_substituents,
     specified_stereo_elements,
     specified_stereocenters,
+    stereo_element_atoms,
     substituent_locant_set_and_citation,
     two_separate_rings_with_plain_aromatic_substituent,
 )
@@ -285,9 +290,8 @@ def _name_acyclic_aldehyde(
     #428/#429)."""
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}, **(extra_names or {})}
-    chains = longest_chains(carbon_graph if carbon_graph is not None else carbon_adjacency(mol))
-    chain_length = len(chains[0])
-    stereo_atoms = [idx for kind, idx, _ in stereo if kind == "atom"] if stereo is not None else []
+    chains = all_chains(carbon_graph if carbon_graph is not None else carbon_adjacency(mol))
+    stereo_atoms = stereo_element_atoms(mol, stereo) if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -295,8 +299,6 @@ def _name_acyclic_aldehyde(
         if _al_locants(position_of, aldehydes, graph) is None:
             continue
         if not required_atoms <= set(chain):
-            continue
-        if bonds and bond_locants(chain, bonds) is None:
             continue
         chain_set = set(chain)
         if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
@@ -306,11 +308,10 @@ def _name_acyclic_aldehyde(
         if stereo is not None and any(
             _al_locants({a: i + 1 for i, a in enumerate(c)}, aldehydes, graph) is not None
             and required_atoms <= set(c)
-            and (not bonds or bond_locants(c, bonds) is not None)
             for c in chains
         ):
             raise UnsupportedStructure(
-                "a stereocenter on a substituent branch rather than the "
+                "a stereo element on a substituent branch rather than the "
                 "principal chain is not supported yet (see P-92)"
             )
         raise UnsupportedStructure(
@@ -322,11 +323,13 @@ def _name_acyclic_aldehyde(
     best_key = None
     best_name = None
     best_position_of = None
+    chain_length = max(len(c) for c in eligible)
+    eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             al_locants = _al_locants(position_of, aldehydes, graph)
-            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, aldehydes, mol=mol)
             key, name = _candidate_key(chain_length, al_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
@@ -426,6 +429,8 @@ def _name_ring_aldehyde(mol, ring_atoms, stereo=None, aromatic_atoms=frozenset()
         for b in non_single_bonds(mol)
         if b[0] != aldehyde_oxygen
         and b[1] != aldehyde_oxygen
+        and b[0] in ring_atoms
+        and b[1] in ring_atoms
         and not (b[0] in aromatic_atoms and b[1] in aromatic_atoms)
     ]
     if all_non_single:
@@ -516,17 +521,6 @@ def _name_benzaldehyde(mol, ring_atoms):
 
     graph = adjacency(mol)
     (aldehyde_carbon,) = graph[aldehyde_oxygen]
-    all_non_single = [
-        b
-        for b in non_single_bonds(mol)
-        if b[0] != aldehyde_oxygen and b[1] != aldehyde_oxygen and (b[0] not in ring_atoms or b[1] not in ring_atoms)
-    ]
-    if all_non_single:
-        raise UnsupportedStructure(
-            "unsaturation outside the ring alongside benzaldehyde is not "
-            "supported yet"
-        )
-
     ring_neighbors = [n for n in graph[aldehyde_carbon] if n in ring_atoms]
     if len(ring_neighbors) != 1:
         raise UnsupportedStructure(
@@ -600,8 +594,9 @@ def _name_phenyl_chain_aldehyde(mol, ring_atoms):
 
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
-    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
-    if attachment is None:
+    rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
+    attachment = ring_chain_attachments_with_halogens(graph, rings, set(), halogens)
+    if not attachment:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "
             "exocyclic substituent alongside a chain aldehyde is not "
@@ -621,6 +616,9 @@ def _name_phenyl_chain_aldehyde(mol, ring_atoms):
 
 
 def name_aldehyde(mol) -> str:
+    aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
+    if aromatic_rings is not None:
+        return _name_phenyl_chain_aldehyde(mol, set().union(*aromatic_rings))
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
@@ -716,7 +714,7 @@ def name_aldehyde(mol) -> str:
                 "is out of scope for this module (P-31.1.4.2.4)"
             )
 
-    if mol.GetRingInfo().NumRings() != 0:
+    if carbon_on_ring(mol, graph, [c for o in aldehydes for c in graph[o]]):
         raise UnsupportedStructure(
             "this ring shape alongside an aldehyde (more than one -CHO on "
             "the ring, other ring unsaturation, a standalone hydroxyl, or "

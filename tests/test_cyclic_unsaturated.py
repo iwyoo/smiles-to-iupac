@@ -80,9 +80,8 @@ def test_exocyclic_double_bond_now_resolves():
     assert smiles_to_iupac("C1(=C)CCCCC1") == "methylidenecyclohexane"
 
 
-def test_exocyclic_triple_bond_substituent_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1(C#CC)CCCCC1")
+def test_exocyclic_triple_bond_substituent_resolves():
+    assert smiles_to_iupac("C1(C#CC)CCCCC1") == "(prop-1-yn-1-yl)cyclohexane"
 
 
 @pytest.mark.parametrize(

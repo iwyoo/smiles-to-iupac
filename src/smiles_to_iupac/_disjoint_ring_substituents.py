@@ -9,11 +9,12 @@ only through an acyclic bridge -- e.g. dicyclohexylmethane, 1-cyclohexyl-
   general P-46 chain-selection mechanism, extended (see
   `_substituents.py`'s `_longest_chains_from_root` docstring) to let a
   chain walk terminate at a separate plain ring instead of raising.
-- Between an aromatic and a saturated ring, the aromatic ring is senior
-  (P-44.1.1's own seniority-of-rings order); between two rings of the same
-  class the choice doesn't change the resulting name for the molecules in
-  scope here (each such case in this module's own tests is a symmetric
-  pair of identical rings), so either is picked.
+- The parent ring is the one with more skeletal atoms, then the aromatic
+  one (P-44.2.1(e), P-44.4.1.1); for two otherwise equal rings the lower
+  parent attachment locant wins, then the alphanumerically earlier name --
+  the Blue Book gives no further criterion for that tie. A bridge may
+  carry multiple bonds and may join the parent ring through a double
+  bond, e.g. '(cyclohexylidenemethyl)benzene' (P-44.4.1.1's own example).
 - Scope: exactly two disjoint plain rings (no shared atom, no direct
   ring-to-ring bond -- already claimed by `_ring_assembly.py` before this
   module runs), each bearing no substituent of its own besides the single
@@ -30,8 +31,9 @@ only through an acyclic bridge -- e.g. dicyclohexylmethane, 1-cyclohexyl-
   string).
 """
 
-from ._common import UnsupportedStructure, adjacency
-from ._numerals import alkane_name
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key
+from ._multiplicative_ring import monocycle_spec, numberings
+from ._multiplicative_text import enclose
 from ._substituents import _simple_ring_substituent, name_branch
 
 
@@ -55,16 +57,6 @@ def _ring_attachment(mol, graph, ring):
             "supported yet (see P-29.2)"
         )
     (attach_atom, bridge_atom), = external
-    if mol.GetBondBetweenAtoms(attach_atom, bridge_atom).GetBondTypeAsDouble() != 1.0:
-        # e.g. a ring-assembly-ylidene shape (two rings joined by a C=C),
-        # already claimed elsewhere in core.py if it fits that shape --
-        # `name_branch`'s own chain walk has no bond-order awareness for
-        # this first, ring-external bond either (see its docstring), so it
-        # must be checked here rather than silently dropped.
-        raise UnsupportedStructure(
-            "a non-single bond joining a ring to the rest of the molecule "
-            "is not supported in this disjoint-ring-pair shape"
-        )
     return attach_atom, bridge_atom
 
 
@@ -73,23 +65,41 @@ def name_disjoint_ring_pair(mol, core) -> str:
     graph = adjacency(mol)
     aromatic_atoms = frozenset(atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic())
 
-    attach_a, bridge_a = _ring_attachment(mol, graph, ring_a)
-    attach_b, bridge_b = _ring_attachment(mol, graph, ring_b)
-    shape_a = _simple_ring_substituent(graph, attach_a, bridge_a, aromatic_atoms, mol=mol)
-    shape_b = _simple_ring_substituent(graph, attach_b, bridge_b, aromatic_atoms, mol=mol)
-    if shape_a is None or shape_b is None:
-        raise UnsupportedStructure(
-            "a fused, spiro, or otherwise non-simple ring, alongside a "
-            "second disjoint ring elsewhere in the molecule, is not "
-            "supported yet (see P-23/P-24/P-25)"
-        )
-    size_a, aromatic_a, _ = shape_a
-    size_b, aromatic_b, _ = shape_b
+    rings = []
+    for ring in (ring_a, ring_b):
+        attach, bridge = _ring_attachment(mol, graph, ring)
+        shape = _simple_ring_substituent(graph, attach, bridge, aromatic_atoms, mol=mol)
+        if shape is None:
+            raise UnsupportedStructure(
+                "a fused, spiro, or otherwise non-simple ring, alongside a "
+                "second disjoint ring elsewhere in the molecule, is not "
+                "supported yet (see P-23/P-24/P-25)"
+            )
+        spec = monocycle_spec(mol, ring)
+        if spec is None:
+            raise UnsupportedStructure(
+                "an unsaturated or otherwise unsupported monocycle, alongside a "
+                "second disjoint ring elsewhere in the molecule, is not "
+                "supported yet (see P-31.1.4, P-44.2)"
+            )
+        rings.append((attach, bridge, spec))
 
-    if aromatic_b and not aromatic_a:
-        attach_a, bridge_a, size_a, aromatic_a = attach_b, bridge_b, size_b, aromatic_b
+    def rank(spec):
+        nitrogen = any(mol.GetAtomWithIdx(a).GetAtomicNum() == 7 for a in spec.cycle)
+        hetero = 2 if nitrogen else 1 if spec.hetero is not None else 0
+        return hetero, len(spec.cycle), spec.kind != "cycloalkane"
 
-    name, is_compound = name_branch(graph, bridge_a, attach_a, {}, aromatic_atoms, mol=mol)
-    display_name = f"({name})" if is_compound else name
-    parent = "benzene" if aromatic_a else "cyclo" + alkane_name(size_a)
-    return f"{display_name}{parent}"
+    best = max(rank(spec) for _, _, spec in rings)
+    names = []
+    for attach, bridge, spec in rings:
+        if rank(spec) != best:
+            continue
+        name, is_compound = name_branch(graph, bridge, attach, {}, aromatic_atoms, mol=mol, unsaturated=True)
+        display_name = enclose(name) if is_compound else name
+        if spec.hetero is None:
+            names.append((0, f"{display_name}{spec.parent}"))
+            continue
+        locant = min(numberings(spec), key=lambda loc: loc[attach])[attach]
+        joiner = "-" if spec.parent[0].isdigit() else ""
+        names.append((locant, f"{locant}-{display_name}{joiner}{spec.parent}"))
+    return min(names, key=lambda item: (item[0], alpha_sort_key(item[1])))[1]

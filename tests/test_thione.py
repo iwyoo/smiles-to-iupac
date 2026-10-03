@@ -55,14 +55,12 @@ def test_ring_substituent_chain_thione():
     assert smiles_to_iupac("CC(=S)C1CCCCC1") == "1-cyclohexylethanethione"
 
 
-def test_ring_substituent_chain_thione_ring_with_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=S)C1CCC(C)CC1")
+def test_ring_substituent_chain_thione_ring_with_substituent():
+    assert smiles_to_iupac("CC(=S)C1CCC(C)CC1") == "1-(4-methylcyclohexyl)ethanethione"
 
 
-def test_ring_substituent_chain_thione_unsaturated_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=S)C1CCCC=C1")
+def test_ring_substituent_chain_thione_unsaturated_ring():
+    assert smiles_to_iupac("CC(=S)C1CCCC=C1") == "1-(cyclohex-2-en-1-yl)ethanethione"
 
 
 def test_ring_with_thione_chain_thione_tie():

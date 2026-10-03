@@ -158,12 +158,11 @@ def test_saturated_rings_still_resolve_unaffected():
         # for general nomenclature (P-31.1.3.4), the PIN is systematic.
         # PubChem-confirmed: `C=Cc1ccccc1` -> "ethenylbenzene" (CID 7501).
         ("C=Cc1ccccc1", "ethenylbenzene"),
-        # PubChem-confirmed: `C=CCc1ccccc1` -> "prop-2-enylbenzene"
-        # (CID 9309).
-        ("C=CCc1ccccc1", "prop-2-enylbenzene"),
-        # A longer unbranched chain: PubChem-confirmed
-        # "but-3-enylbenzene" (CID 13033).
-        ("C=CCCc1ccccc1", "but-3-enylbenzene"),
+        # PubChem (CID 9309) lists "prop-2-enylbenzene"; the PIN cites the
+        # free-valence locant (P-32.1.1).
+        ("C=CCc1ccccc1", "(prop-2-en-1-yl)benzene"),
+        # PubChem (CID 13033) lists "but-3-enylbenzene".
+        ("C=CCCc1ccccc1", "(but-3-en-1-yl)benzene"),
         # A triple bond works the same way: PubChem-confirmed
         # "ethynylbenzene" (CID 10821).
         ("C#Cc1ccccc1", "ethynylbenzene"),
@@ -180,33 +179,20 @@ def test_exocyclic_unsaturated_substituent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_exocyclic_branched_unsaturated_substituent_raises():
-    # A branched exocyclic substituent carrying the multiple bond is out
-    # of scope for this narrow first slice (mirrors `_amine.py`'s
-    # identical N-substituent restriction) -- `unbranched_unsaturated_
-    # substituent_name` returns None once `ordered_chain` finds a branch.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C(=C)(C)c1ccccc1")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C(=C)(C)c1ccccc1", "(prop-1-en-2-yl)benzene"),
+        ("CC(C)=Cc1ccccc1", "(2-methylprop-1-en-1-yl)benzene"),
+        ("C=CC=Cc1ccccc1", "(buta-1,3-dien-1-yl)benzene"),
+    ],
+)
+def test_exocyclic_branched_or_polyunsaturated_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
-def test_exocyclic_two_unsaturated_bonds_on_one_branch_raises():
-    # More than one non-aromatic multiple bond on a single exocyclic
-    # branch is out of scope, mirroring `_amine.py`'s identical
-    # more-than-one-multiple-bond restriction on an N-substituent.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CC=Cc1ccccc1")
-
-
-def test_stilbene_shaped_disjoint_rings_raises():
-    # Two disjoint benzo rings joined by an exocyclic C=C (a
-    # "stilbene"-shaped molecule) is out of scope: `find_aromatic_fused_
-    # core` finds two separate 6-membered aromatic rings, but they share
-    # no fusion bond, so `_ring_path_order` rejects the disconnected
-    # ring-fusion arrangement before this PR's exocyclic-bond handling
-    # ever comes into play -- there's no single ring system to be this
-    # module's parent hydride.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C(=Cc1ccccc1)c1ccccc1")
+def test_stilbene_shaped_disjoint_rings_is_multiplicative():
+    assert smiles_to_iupac("C(=Cc1ccccc1)c1ccccc1") == "1,1'-(ethene-1,2-diyl)dibenzene"
 
 
 @pytest.mark.parametrize(

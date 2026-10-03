@@ -61,7 +61,7 @@ def test_compound_substituents(smiles, expected):
 def test_disjoint_ring_pair_substituent_resolves():
     # Two separate cyclopropane rings joined by a chain (PubChem CID
     # 524617): a disjoint-ring-pair shape, not a cyclic substituent.
-    assert smiles_to_iupac("C1CC1CCCCC1CC1") == "(4-cyclopropylbutyl)cyclopropane"
+    assert smiles_to_iupac("C1CC1CCCCC1CC1") == "1,1'-(butane-1,4-diyl)dicyclopropane"
 
 
 def test_polycyclic_substituent_raises():
@@ -153,24 +153,15 @@ def test_mol_defends_against_unvalidated_heteroatom_branch():
         name_branch(graph, 1, 0, {}, mol=mol)
 
 
-def test_mol_defends_against_unsaturated_branch():
-    # Same bug class, a different dimension: `_longest_chains_from_root`
-    # checked atom type (above) but not bond order, so a branch with its
-    # own internal double bond was silently walked as if it were a plain
-    # saturated chain -- name_branch has no ene/yne machinery to name it
-    # correctly instead. Found via real-data testing:
-    # 'C=Cc1cccc(O)c1CC' (a phenol ring bearing a plain ethyl *and* a
-    # vinyl substituent) was misnamed '2,3-diethylphenol', the double
-    # bond vanishing entirely.
-    # The double bond sits one hop past the attachment point (not on the
-    # attachment bond itself, which some callers -- e.g. `_hydrazone.py`'s
-    # '-ylidene' construction -- legitimately make double; see the `mol`
-    # parameter's own docstring note on `_longest_chains_from_root`).
+def test_mol_names_unsaturated_branch():
+    # Without `mol` bond orders are invisible, so a double bond would vanish
+    # silently; with it the branch is named with its 'ene' ending.
     mol = Chem.MolFromSmiles("CCC=C")
     graph = adjacency(mol)
     assert name_branch(graph, 1, 0, {}) == ("propyl", False)
+    assert name_branch(graph, 1, 0, {}, mol=mol) == ("prop-2-en-1-yl", True)
     with pytest.raises(UnsupportedStructure):
-        name_branch(graph, 1, 0, {}, mol=mol)
+        name_branch(graph, 1, 0, {}, mol=mol, unsaturated=False)
 
 
 def test_halogenated_phenyl_substituent_alphabetical_tiebreak():

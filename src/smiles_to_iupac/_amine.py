@@ -100,16 +100,17 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
+    all_chains,
     bond_locant,
-    bond_locants,
     carbon_adjacency,
+    chain_bond_locants,
     component_subgraph,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain_through,
-    longest_chains,
     lowest_locant_set,
+    most_multiple_bonds,
     multiplied_word,
     name_from_substituents,
     non_single_bonds,
@@ -117,13 +118,15 @@ from ._common import (
     ring_bond_locant,
     ring_bond_locants,
     ring_chain_attachment,
+    ring_chain_attachments_with_halogens,
+    separate_aromatic_monocycles,
     ring_chain_attachment_with_halogens,
     ring_cycle,
     ring_name_from_substituents,
     specified_stereo_elements,
     specified_stereocenters,
+    stereo_element_atoms,
     substituent_locant_set_and_citation,
-    unbranched_unsaturated_substituent_name,
 )
 from ._bicyclic import find_bicyclic_core
 from ._numerals import alkyl_name
@@ -360,16 +363,13 @@ def _best_chain_name(
     recomputed per candidate below, from that candidate's own
     `position_of`, into the flat `n_names`/`n_locants` pair
     `_candidate_key` expects."""
-    chains = longest_chains(carbon_graph)
-    chain_length = len(chains[0])
-    stereo_atoms = [idx for kind, idx, _ in stereo if kind == "atom"] if stereo is not None else []
+    chains = all_chains(carbon_graph)
+    stereo_atoms = stereo_element_atoms(mol, stereo) if stereo is not None else []
 
     eligible = []
     for chain in chains:
         position_of = {atom: i + 1 for i, atom in enumerate(chain)}
         if _amine_locants(position_of, amines, graph) is None:
-            continue
-        if bonds and bond_locants(chain, bonds) is None:
             continue
         if stereo is not None and any(atom not in position_of for atom in stereo_atoms):
             continue
@@ -386,11 +386,13 @@ def _best_chain_name(
     best_key = None
     best_name = None
     best_position_of = None
+    chain_length = max(len(c) for c in eligible)
+    eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             amine_locants = _amine_locants(position_of, amines, graph)
-            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, amines, mol=mol)
             if n_names_by_nitrogen is not None:
                 candidate_n_names = []
@@ -443,21 +445,6 @@ def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=
 
     n_names = []
     for other in other_roots:
-        other_atoms = set(components[other])
-        other_bonds = [b for b in non_single_bonds(mol) if b[0] in other_atoms and b[1] in other_atoms]
-        if other_bonds:
-            if len(other_bonds) > 1:
-                raise UnsupportedStructure(
-                    "more than one multiple bond on an N-substituent is "
-                    "not supported yet"
-                )
-            name = unbranched_unsaturated_substituent_name(full_carbon_graph, other, other_bonds[0])
-            if name is None:
-                raise UnsupportedStructure(
-                    "a branched unsaturated N-substituent is not supported yet"
-                )
-            n_names.append((name, False))
-            continue
         n_names.append(name_branch(graph, other, n_idx, halogens, mol=mol))
 
     excluded_atoms = set()
@@ -722,21 +709,59 @@ def _name_cyclic_amine(mol, amines, stereo=None, bonds=()):
     return best_name
 
 
-def _aniline_name_from_substituents(grouped):
+def _aniline_name_from_substituents(grouped, n_names=()):
     # P-62.2.1.1.1: the retained name 'aniline' stands for the whole
     # ring+NH2 system (like 'phenol'/'phenoxide' in `_alcohol.py`/
     # `_alkoxide.py`), so the amine's own ring locant is never cited --
     # e.g. '4-methylaniline (PIN)', not '4-methylaniline-1-amine'.
-    if not grouped:
+    display = _add_n_names(grouped, n_names)
+    if not display:
         return "aniline"
-    return f"{format_substituent_prefixes(grouped)}aniline"
+    return f"{format_substituent_prefixes(display)}aniline"
 
 
-def _aniline_candidate_key(amine_locant, substituents):
+def _aniline_candidate_key(amine_locant, substituents, n_names=()):
     grouped = group_substituents(substituents)
     locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
-    name = _aniline_name_from_substituents(grouped)
+    name = _aniline_name_from_substituents(grouped, n_names)
     return amine_locant, locant_set, citation_locants, name
+
+
+def _name_n_substituted_aniline(mol, benzene_rings):
+    """P-62.2.2 / P-44.1.2.2: a secondary or tertiary amine with at least one
+    nitrogen-bound carbon on a benzene ring takes the ring (aniline) as the
+    parent; every other N-bound group is an 'N-' prefix. The parent is the
+    candidate ring with the most ring substituents (P-45.1), then the lowest
+    locants and alphanumerical order."""
+    amines, n_carbons_by_nitrogen = _validate_and_collect_amines(mol, aromatic_ring_atoms=set().union(*benzene_rings))
+    if len(amines) != 1:
+        raise UnsupportedStructure("more than one amine nitrogen alongside an N-aryl group is not supported yet")
+    if specified_stereocenters(mol):
+        raise UnsupportedStructure("a specified stereocenter alongside an N-substituted aniline is not supported yet")
+    (n_idx,) = amines
+    n_carbons = n_carbons_by_nitrogen[n_idx]
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    best = None
+    for ring in benzene_rings:
+        attached = [c for c in n_carbons if c in ring]
+        if len(attached) != 1:
+            continue
+        (amine_carbon,) = attached
+        n_names = [name_branch(graph, other, n_idx, halogens, mol=mol) for other in n_carbons if other != amine_carbon]
+        ring_order = ring_cycle(graph, list(ring))
+        for start in range(len(ring_order)):
+            rotated = ring_order[start:] + ring_order[:start]
+            for candidate in (rotated, list(reversed(rotated))):
+                position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+                substituents = substituents_for_ring(graph, candidate, halogens, {n_idx}, mol=mol)
+                count = sum(len(v) for v in substituents.values())
+                key = (-count, *_aniline_candidate_key(position_of[amine_carbon], substituents, n_names))
+                if best is None or key < best:
+                    best = key
+    if best is None:
+        raise UnsupportedStructure("an N-substituted aniline with no single benzene ring on nitrogen is not supported yet")
+    return best[-1]
 
 
 def _name_aniline(mol, ring_atoms):
@@ -949,8 +974,8 @@ def _name_phenyl_chain_amine(mol, ring_atoms):
 
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
-    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
-    if attachment is None:
+    rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
+    if not ring_chain_attachments_with_halogens(graph, rings, set(), halogens):
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "
             "exocyclic substituent alongside a chain amine is not "
@@ -978,6 +1003,20 @@ def _name_phenyl_chain_amine(mol, ring_atoms):
 
 def name_amine(mol) -> str:
     ring_info = mol.GetRingInfo()
+    aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
+    if aromatic_rings is None and ring_info.NumRings() == 1:
+        only_ring = set(ring_info.AtomRings()[0])
+        aromatic_rings = [only_ring] if is_plain_benzene_ring(mol, only_ring) else None
+    if aromatic_rings is not None:
+        benzene_rings = [r for r in aromatic_rings if is_plain_benzene_ring(mol, r)]
+        union = set().union(*aromatic_rings)
+        amines, n_carbons_by_nitrogen = _validate_and_collect_amines(mol, aromatic_ring_atoms=union)
+        if len(amines) == 1:
+            (n_idx,) = amines
+            if len(n_carbons_by_nitrogen[n_idx]) > 1 and any(c in r for c in n_carbons_by_nitrogen[n_idx] for r in benzene_rings):
+                return _name_n_substituted_aniline(mol, benzene_rings)
+        if len(aromatic_rings) > 1:
+            return _name_phenyl_chain_amine(mol, union)
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         if is_plain_benzene_ring(mol, ring_atoms):
@@ -1017,13 +1056,8 @@ def name_amine(mol) -> str:
     stereo = specified_stereocenters(mol)
     if num_rings == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
-        if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in bonds):
-            raise UnsupportedStructure(
-                "unsaturation outside the ring alongside a cyclic amine "
-                "is not supported yet (see P-31.1.3, cycloalkenes and "
-                "cycloalkynes)"
-            )
-        if any(order == _YNE_ORDER for _, _, order in bonds):
+        ring_bonds = [b for b in bonds if b[0] in ring_atoms and b[1] in ring_atoms]
+        if any(order == _YNE_ORDER for _, _, order in ring_bonds):
             raise UnsupportedStructure(
                 "a ring triple bond (cycloalkyne) alongside an amine is "
                 "not supported yet -- only a ring double bond is in scope "
@@ -1032,13 +1066,8 @@ def name_amine(mol) -> str:
         ring_amines = {
             n for n in amines if next(iter(n_carbons_by_nitrogen[n])) in ring_atoms
         }
-        if not bonds and not ring_amines:
-            if stereo is not None:
-                raise UnsupportedStructure(
-                    "a stereocenter on a substituent branch rather than "
-                    "the ring itself is not supported yet (see P-92)"
-                )
-            return _name_ring_substituent_chain_amine(mol, amines, n_carbons_by_nitrogen)
+        if not ring_amines:
+            return _name_acyclic_amine(mol, amines, n_carbons_by_nitrogen, bonds, specified_stereo_elements(mol))
         if not bonds and ring_amines and ring_amines != amines:
             if stereo is not None:
                 raise UnsupportedStructure(
@@ -1046,7 +1075,7 @@ def name_amine(mol) -> str:
                     "comparison is not supported yet (see P-92)"
                 )
             return _name_ring_with_amine_chain_amine(mol, amines, n_carbons_by_nitrogen)
-        return _name_cyclic_amine(mol, amines, stereo, bonds)
+        return _name_cyclic_amine(mol, amines, stereo, ring_bonds)
     return _name_von_baeyer_or_spiro_amine(mol, amines, n_carbons_by_nitrogen, stereo, bonds)
 
 

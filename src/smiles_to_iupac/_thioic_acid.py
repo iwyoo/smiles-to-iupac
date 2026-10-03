@@ -64,6 +64,8 @@ from ._common import (
     longest_branched_chain,
     non_single_bonds,
     ring_chain_attachment_with_halogens,
+    ring_chain_attachments_with_halogens,
+    separate_aromatic_monocycles,
     unbranched_chain_length,
 )
 from ._numerals import alkane_name
@@ -175,8 +177,9 @@ def _name_phenyl_chain_thioic_acid(mol, ring_atoms):
     acid_carbon, label, acid_atom_idxs = _validate_and_collect_thioic_acid(mol, aromatic_ring_atoms=ring_atoms)
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
-    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
-    if attachment is None:
+    rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
+    attachment = ring_chain_attachments_with_halogens(graph, rings, set(), halogens)
+    if not attachment:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "
             "exocyclic substituent alongside a chain thioic acid is not "
@@ -203,6 +206,9 @@ def _name_phenyl_chain_thioic_acid(mol, ring_atoms):
 
 
 def name_thioic_acid(mol) -> str:
+    aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
+    if aromatic_rings is not None:
+        return _name_phenyl_chain_thioic_acid(mol, set().union(*aromatic_rings))
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure(
             "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"

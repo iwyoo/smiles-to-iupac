@@ -82,22 +82,25 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
+    all_chains,
     bond_locant,
-    bond_locants,
     carbon_adjacency,
+    chain_bond_locants,
     group_substituents,
     halogen_substituents,
     heteroatom_stereo_prefix,
     is_plain_benzene_ring,
     longest_branched_chain_through,
-    longest_chains,
     lowest_locant_set,
+    most_multiple_bonds,
     name_from_substituents,
     non_single_bonds,
     ring_bond_locant,
     ring_bond_locants,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
+    ring_chain_attachments_with_halogens,
+    separate_aromatic_monocycles,
     ring_cycle,
     ring_name_from_substituents,
     substituent_locant_set_and_citation,
@@ -366,8 +369,9 @@ def _name_phenyl_chain_sulfinic_acid(mol, ring_atoms):
 
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
-    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
-    if attachment is None:
+    rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
+    attachment = ring_chain_attachments_with_halogens(graph, rings, set(), halogens)
+    if not attachment:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "
             "exocyclic substituent alongside a chain sulfinic acid is "
@@ -502,6 +506,9 @@ def _name_von_baeyer_or_spiro_sulfinic_acid(mol, sulfur_idx, so2h_carbon, bonds,
 
 
 def name_sulfinic_acid(mol) -> str:
+    aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
+    if aromatic_rings is not None:
+        return _name_phenyl_chain_sulfinic_acid(mol, set().union(*aromatic_rings))
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
@@ -530,13 +537,8 @@ def name_sulfinic_acid(mol) -> str:
         return _name_von_baeyer_or_spiro_sulfinic_acid(mol, sulfur_idx, so2h_carbon, bonds, stereo_prefix)
     if num_rings == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
-        if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in bonds):
-            raise UnsupportedStructure(
-                "unsaturation outside the ring alongside a cyclic sulfinic "
-                "acid is not supported yet (see P-31.1.3, cycloalkenes and "
-                "cycloalkynes)"
-            )
-        if any(order == _YNE_ORDER for _, _, order in bonds):
+        ring_bonds = [b for b in bonds if b[0] in ring_atoms and b[1] in ring_atoms]
+        if any(order == _YNE_ORDER for _, _, order in ring_bonds):
             raise UnsupportedStructure(
                 "a ring triple bond (cycloalkyne) alongside a sulfinic "
                 "acid is not supported yet -- only a ring double bond is "
@@ -553,14 +555,11 @@ def name_sulfinic_acid(mol) -> str:
 
     halogens = halogen_substituents(mol)
     excluded = {sulfur_idx}
-    chains = longest_chains(carbon_adjacency(mol))
-    chain_length = len(chains[0])
+    chains = all_chains(carbon_adjacency(mol))
 
     eligible = []
     for chain in chains:
         if so2h_carbon not in chain:
-            continue
-        if bonds and bond_locants(chain, bonds) is None:
             continue
         eligible.append(chain)
     if not eligible:
@@ -572,11 +571,13 @@ def name_sulfinic_acid(mol) -> str:
 
     best_key = None
     best_name = None
+    chain_length = max(len(c) for c in eligible)
+    eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             so2h_locant = position_of[so2h_carbon]
-            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
             key, name = _candidate_key(chain_length, so2h_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:

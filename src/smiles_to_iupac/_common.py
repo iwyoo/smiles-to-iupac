@@ -31,6 +31,7 @@ from ._numerals import alkane_name, numerical_term
 
 _LEADING_LOCANTS_RE = re.compile(r"^\x01?(?:[\d,\-]+\(?)?")
 _ITALIC_PREFIX_RE = re.compile(r"^(tert|sec|iso)-")
+_LEADING_STEREO_RE = re.compile(r"^\([\dRSEZrsez,' ]+\)-")
 
 
 class UnsupportedStructure(NotImplementedError):
@@ -253,6 +254,44 @@ def ring_chain_attachment_with_halogens(graph, ring_atoms, excluded, halogens):
     return chain_attachment
 
 
+def separate_aromatic_monocycles(mol, graph):
+    """The disjoint plain aromatic monocycles (benzene or a one-heteroatom
+    5/6-membered ring) when every ring in `mol` is one and no two rings
+    share an atom or are bonded directly; else None. Lets a chain-parent
+    module cite each as a substituent via `name_branch`."""
+    rings = [set(r) for r in mol.GetRingInfo().AtomRings()]
+    if len(rings) < 2:
+        return None
+    for i, ring in enumerate(rings):
+        if not (
+            is_plain_benzene_ring(mol, ring)
+            or heteroaromatic_monocycle_name(mol, ring_cycle(graph, list(ring))) is not None
+        ):
+            return None
+        for other in rings[:i]:
+            if ring & other or any(n in other for a in ring for n in graph[a]):
+                return None
+    return rings
+
+
+def ring_chain_attachments_with_halogens(graph, rings, excluded, halogens):
+    """`ring_chain_attachment_with_halogens` for several rings: one
+    (ring_atom, chain_root) per ring that carries a non-halogen branch, or
+    None if any ring has an atom with more than one exocyclic neighbor or
+    more than one non-halogen branch."""
+    attachments = []
+    for ring in rings:
+        attachment = ring_chain_attachment_with_halogens(graph, ring, excluded, halogens)
+        if attachment is None:
+            if any(len([n for n in graph[a] if n not in ring and n not in excluded]) > 1 for a in ring):
+                return None
+            if any(n not in halogens for a in ring for n in graph[a] if n not in ring and n not in excluded):
+                return None
+            continue
+        attachments.append(attachment)
+    return attachments
+
+
 def plain_saturated_ring_substituent_atoms(mol, graph, coming_from, root):
     """Ring atom set if `root` sits on a single plain, unsubstituted,
     saturated monocyclic ring whose only exocyclic bond is to
@@ -470,44 +509,6 @@ def ordered_chain(graph, root, coming_from, excluded):
             return None
         previous, current = current, neighbors[0]
         chain.append(current)
-
-
-def unbranched_unsaturated_substituent_name(carbon_graph, root, bond, coming_from=None, excluded=frozenset()):
-    """The '-enyl'/'-ynyl' name (P-29.2) for a plain, unbranched carbon-
-    chain substituent carrying exactly one C=C/C#C bond -- `name_branch`
-    (`_substituents.py`) has no ene/yne machinery of its own yet (several
-    modules note this directly, e.g. `_amine.py`'s N-substituent
-    handling, which this helper was promoted from once `_aromatic.py`
-    needed the identical construction for an exocyclic ring substituent).
-    `root` is always locant 1, mirroring every other substituent-naming
-    convention in this project. `coming_from`/`excluded` are passed
-    straight through to `ordered_chain` (e.g. a ring's own atom set, so
-    the chain search can't walk back into the ring). Returns None if the
-    substituent branches at all (`ordered_chain` returning None) or
-    `bond` doesn't lie on the resulting chain.
-
-    P-14.3.4.2(b): a 2-carbon chain has only one possible structure, so
-    the 'en'/'yn' locant is omitted, e.g. 'ethenyl' (PubChem CID
-    20276167's 'N-ethenylbutan-1-amine') -- the attachment point's own
-    locant is never cited at all (it's always C1 by this function's own
-    fixed convention, same as `_hetero_monocyclic.py`'s already-verified
-    'prop-2-enyl', not 'prop-2-en-1-yl'), so a longer chain cites only
-    the 'en'/'yn' locant, e.g. 'prop-2-enyl' (PubChem CID 12442641's
-    'N-prop-2-enylpentan-1-amine')."""
-    chain = ordered_chain(carbon_graph, root, coming_from, excluded)
-    if chain is None:
-        return None
-    position_of = {atom: i + 1 for i, atom in enumerate(chain)}
-    a, b, order = bond
-    if a not in position_of or b not in position_of:
-        return None
-    chain_length = len(chain)
-    locant = min(position_of[a], position_of[b])
-    suffix = "en" if order == ENE_BOND_ORDER else "yn"
-    stem = alkane_name(chain_length)[:-3]
-    if chain_length == 2:
-        return stem + suffix + "yl"
-    return f"{stem}-{locant}-{suffix}yl"
 
 
 def longest_branched_chain(graph, source, ring_boundary, excluded=frozenset(), halogens=frozenset()):
@@ -1098,7 +1099,12 @@ def alpha_sort_key(name: str) -> str:
     """P-14.5.2: alphanumerical ordering ignores locants and italicized
     prefixes like 'tert-' -- only the rest of the name counts (so
     'tert-butyl' sorts under 'b', not 't')."""
-    stripped = _LEADING_LOCANTS_RE.sub("", name)
+    stripped = name
+    previous = None
+    while stripped != previous:
+        previous = stripped
+        stripped = _LEADING_STEREO_RE.sub("", stripped)
+        stripped = _LEADING_LOCANTS_RE.sub("", stripped).lstrip("([{")
     stripped = _ITALIC_PREFIX_RE.sub("", stripped)
     return stripped.lower()
 
@@ -1143,6 +1149,69 @@ def longest_chains(graph):
     return chains
 
 
+def _cycle_nodes(graph):
+    """Nodes lying on a cycle of `graph`: what remains after repeatedly
+    stripping degree-1 nodes is the cycle-bearing core, and a node of that
+    core on no cycle is a bridge path between rings, so the test is a
+    reachability one."""
+    degree = {n: len(nbrs) for n, nbrs in graph.items()}
+    stack = [n for n, d in degree.items() if d <= 1]
+    removed = set()
+    while stack:
+        n = stack.pop()
+        if n in removed:
+            continue
+        removed.add(n)
+        for m in graph[n]:
+            if m not in removed:
+                degree[m] -= 1
+                if degree[m] <= 1:
+                    stack.append(m)
+    core = set(graph) - removed
+    on_cycle = set()
+    for n in core:
+        for m in graph[n]:
+            if m in core:
+                seen, queue = {n}, [m]
+                found = False
+                while queue and not found:
+                    x = queue.pop()
+                    if x == n:
+                        found = True
+                        break
+                    if x in seen:
+                        continue
+                    seen.add(x)
+                    queue.extend(y for y in graph[x] if y in core and not (x == m and y == n))
+                if found:
+                    on_cycle.add(n)
+                    break
+    return on_cycle
+
+
+def carbon_on_ring(mol, graph, carbons):
+    """True if any of the group-bearing `carbons` is bonded to a ring atom
+    (a ring-attached group takes the 'carbo...' suffix instead of a chain)."""
+    ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
+    return any(n in ring_atoms for c in carbons for n in graph[c])
+
+
+def all_chains(graph):
+    """Every simple path (one orientation each, including single atoms) through
+    an undirected acyclic `graph` -- the candidates among which the principal
+    chain is the longest one still carrying every principal characteristic
+    group (P-44.1.1, then P-44.3)."""
+    ring_atoms = _cycle_nodes(graph)
+    graph = {n: [m for m in nbrs if m not in ring_atoms] for n, nbrs in graph.items() if n not in ring_atoms}
+    chains = []
+    for start in graph:
+        dist, parent = bfs(graph, start)
+        for end in dist:
+            if end >= start:
+                chains.append(path_between(parent, start, end))
+    return chains
+
+
 def bond_locant(chain, bond_atoms):
     """1-based position along `chain` of the bond between `bond_atoms` (a
     2-tuple of atom indices), or None if that bond doesn't lie on `chain`."""
@@ -1164,6 +1233,64 @@ def bond_locants(chain, bonds):
             return None
         (ene if order == ENE_BOND_ORDER else yne).append(locant)
     return ene, yne
+
+
+def unsaturation_suffix(ene_locants, yne_locants):
+    """Locant-and-suffix string (e.g. '1,3-dien-5-yne') plus whether the
+    parent stem needs its euphonic trailing 'a' (P-31.1.1.2), for a chain's
+    full set of multiple bonds. 'ene' is always cited before 'yne'
+    (P-31.1.1.1), with its final 'e' always elided when a 'yne' part
+    follows, whether or not that 'yne' itself carries a multiplying
+    prefix -- the elision is triggered by the underlying 'yne' word
+    starting with a vowel sound, not by the final prefixed word's own
+    first letter ('deca-1,2,3-trien-5,7,9-triyne', PubChem-verified: a
+    'diyne'/'triyne' elides exactly like a plain 'yne' does, contrary to
+    this function's own former assumption that a multiplying-prefixed
+    'yne' word "begins with a consonant and elides nothing")."""
+    ene_locants = sorted(ene_locants)
+    yne_locants = sorted(yne_locants)
+    ene_count, yne_count = len(ene_locants), len(yne_locants)
+    ene_word = multiplied_word(ene_count, "ene")
+    yne_word = multiplied_word(yne_count, "yne")
+
+    if ene_count and yne_count:
+        ene_part = ene_word[:-1]
+        ene_loc_str = ",".join(str(loc) for loc in ene_locants)
+        yne_loc_str = ",".join(str(loc) for loc in yne_locants)
+        body = f"{ene_loc_str}-{ene_part}-{yne_loc_str}-{yne_word}"
+    elif ene_count:
+        body = f"{','.join(str(loc) for loc in ene_locants)}-{ene_word}"
+    else:
+        body = f"{','.join(str(loc) for loc in yne_locants)}-{yne_word}"
+
+    needs_stem_a = (ene_count >= 2) if ene_count else (yne_count >= 2)
+    return body, needs_stem_a
+
+
+def chain_bond_locants(chain, bonds):
+    """(ene_locants, yne_locants) for the multiple bonds lying on `chain`;
+    any other multiple bond is cited inside a substituent prefix."""
+    ene, yne = [], []
+    for a, b, order in bonds:
+        locant = bond_locant(chain, (a, b))
+        if locant is not None:
+            (ene if order == ENE_BOND_ORDER else yne).append(locant)
+    return ene, yne
+
+
+def most_multiple_bonds(chains, bonds):
+    """The `chains` carrying the greatest number of multiple bonds, then of
+    double bonds (P-44.4.1.1, P-44.4.1.2) -- the choice among chains already
+    tied on every senior criterion."""
+    if not bonds or not chains:
+        return chains
+
+    def score(chain):
+        ene, yne = chain_bond_locants(chain, bonds)
+        return len(ene) + len(yne), len(ene)
+
+    best = max(score(chain) for chain in chains)
+    return [chain for chain in chains if score(chain) == best]
 
 
 def von_baeyer_bond_citation(position, a, b):
@@ -1219,6 +1346,8 @@ def ring_bond_locants(position_of, bonds, ring_size):
     under this ring numbering."""
     ene, yne = [], []
     for a, b, order in bonds:
+        if a not in position_of or b not in position_of:
+            continue
         locant = ring_bond_locant(position_of, (a, b), ring_size)
         (ene if order == ENE_BOND_ORDER else yne).append(locant)
     return sorted(ene), sorted(yne)
@@ -1366,6 +1495,19 @@ def specified_double_bond_stereo(mol):
             )
         labels.append((bond_idx, bond.GetProp("_CIPCode")))
     return labels
+
+
+def stereo_element_atoms(mol, stereo):
+    """Every atom a `specified_stereo_elements` result touches (a bond
+    element contributes both ends), for requiring them all on the chain."""
+    atoms = []
+    for kind, idx, _ in stereo:
+        if kind == "atom":
+            atoms.append(idx)
+        else:
+            bond = mol.GetBondWithIdx(idx)
+            atoms.extend((bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()))
+    return atoms
 
 
 def specified_stereo_elements(mol):

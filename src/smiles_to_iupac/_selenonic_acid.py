@@ -49,14 +49,15 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
+    all_chains,
     bond_locant,
-    bond_locants,
     carbon_adjacency,
+    chain_bond_locants,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
-    longest_chains,
     lowest_locant_set,
+    most_multiple_bonds,
     name_from_substituents,
     non_single_bonds,
     ring_cycle,
@@ -283,22 +284,19 @@ def name_selenonic_acid(mol) -> str:
 
     halogens = halogen_substituents(mol)
     excluded = {selenium_idx}
-    chains = longest_chains(carbon_adjacency(mol))
-    chain_length = len(chains[0])
+    chains = all_chains(carbon_adjacency(mol))
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     eligible = []
     for chain in chains:
         if seo3h_carbon not in chain:
             continue
-        if bonds and bond_locants(chain, bonds) is None:
-            continue
         if stereo is not None and any(atom not in chain for atom in stereo_atoms):
             continue
         eligible.append(chain)
     if not eligible:
         if stereo is not None and any(
-            seo3h_carbon in c and (not bonds or bond_locants(c, bonds) is not None) for c in chains
+            seo3h_carbon in c for c in chains
         ):
             raise UnsupportedStructure(
                 "a stereocenter on a substituent branch rather than the "
@@ -313,11 +311,13 @@ def name_selenonic_acid(mol) -> str:
     best_key = None
     best_name = None
     best_position_of = None
+    chain_length = max(len(c) for c in eligible)
+    eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             seo3h_locant = position_of[seo3h_carbon]
-            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
             key, name = _candidate_key(chain_length, seo3h_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:

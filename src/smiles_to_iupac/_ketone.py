@@ -280,17 +280,18 @@ from ._common import (
     UnsupportedStructure,
     YNE_BOND_ORDER,
     adjacency,
+    all_chains,
     bond_locant,
-    bond_locants,
     carbon_adjacency,
+    chain_bond_locants,
     group_substituents,
     halogen_substituents,
     heteroaromatic_monocycle_name,
     is_plain_benzene_ring,
     linear_branch,
     longest_branched_chain_through,
-    longest_chains,
     lowest_locant_set,
+    most_multiple_bonds,
     multiplied_word,
     name_from_substituents,
     non_single_bonds,
@@ -299,10 +300,13 @@ from ._common import (
     ring_bond_locants,
     ring_chain_attachment,
     ring_chain_attachment_with_halogens,
+    ring_chain_attachments_with_halogens,
+    separate_aromatic_monocycles,
     ring_cycle,
     ring_name_from_substituents,
     specified_stereo_elements,
     specified_stereocenters,
+    stereo_element_atoms,
     substituent_locant_set_and_citation,
     two_separate_rings_with_plain_aromatic_substituent,
 )
@@ -478,7 +482,7 @@ def _validate_and_collect_ketones(mol, aromatic_ring_atoms=frozenset()):
 
 
 def _name_from_substituents(chain_length, one_locants, ene_locants, yne_locants, grouped):
-    return format_substituent_prefixes(grouped) + name_from_substituents(
+    return format_substituent_prefixes(grouped, omit_locants=chain_length == 1) + name_from_substituents(
         chain_length, ene_locants, yne_locants, multiplied_word(len(one_locants), "one"), one_locants
     )
 
@@ -546,9 +550,8 @@ def _best_acyclic_ketone_candidate(
     ketone-bearing chain in `longest_chains`' global-diameter search."""
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **{o: "hydroxy" for o in hydroxyls}, **(extra_names or {})}
-    chains = longest_chains(carbon_graph if carbon_graph is not None else carbon_adjacency(mol))
-    chain_length = len(chains[0])
-    stereo_atoms = [idx for kind, idx, _ in stereo if kind == "atom"] if stereo is not None else []
+    chains = all_chains(carbon_graph if carbon_graph is not None else carbon_adjacency(mol))
+    stereo_atoms = stereo_element_atoms(mol, stereo) if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -556,8 +559,6 @@ def _best_acyclic_ketone_candidate(
         if _one_locants(position_of, ketones, graph) is None:
             continue
         if not required_atoms <= set(chain):
-            continue
-        if bonds and bond_locants(chain, bonds) is None:
             continue
         chain_set = set(chain)
         if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
@@ -567,11 +568,10 @@ def _best_acyclic_ketone_candidate(
         if stereo is not None and any(
             _one_locants({a: i + 1 for i, a in enumerate(c)}, ketones, graph) is not None
             and required_atoms <= set(c)
-            and (not bonds or bond_locants(c, bonds) is not None)
             for c in chains
         ):
             raise UnsupportedStructure(
-                "a stereocenter on a substituent branch rather than the "
+                "a stereo element on a substituent branch rather than the "
                 "principal chain is not supported yet (see P-92)"
             )
         raise UnsupportedStructure(
@@ -583,11 +583,13 @@ def _best_acyclic_ketone_candidate(
     best_key = None
     best_name = None
     best_position_of = None
+    chain_length = max(len(c) for c in eligible)
+    eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             one_locants = _one_locants(position_of, ketones, graph)
-            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, ketones, mol=mol)
             key, name = _candidate_key(chain_length, one_locants, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
@@ -640,9 +642,7 @@ def _name_phenyl_chain_ketone(mol, ring_atoms):
     than the acyclic path above: exactly one ketone, no coexisting
     standalone hydroxyl, no chain unsaturation, and no specified
     stereocenter -- each is a separate follow-up rather than being combined
-    with the ring case in this first slice. A ketone carbon directly
-    attached to the ring (an aryl ketone) stays out of scope, same as the
-    module's existing acyclic-carbonyl check above."""
+    with the ring case in this first slice."""
     ketones, hydroxyls = _validate_and_collect_ketones(mol, aromatic_ring_atoms=ring_atoms)
     if hydroxyls:
         raise UnsupportedStructure(
@@ -675,22 +675,16 @@ def _name_phenyl_chain_ketone(mol, ring_atoms):
 
     graph = adjacency(mol)
     halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
-    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
-    if attachment is None:
+    rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
+    attachments = ring_chain_attachments_with_halogens(graph, rings, set(), halogens)
+    if not attachments:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "
             "exocyclic substituent alongside a chain ketone is not "
             "supported yet"
         )
-    ring_atom, chain_root = attachment
     (ketone_oxygen,) = ketones
     (ketone_carbon,) = graph[ketone_oxygen]
-    if ketone_carbon == chain_root:
-        raise UnsupportedStructure(
-            "a carbonyl carbon directly attached to the benzene ring (an "
-            "aryl ketone) is out of scope for this module (see the "
-            "separate aromatic-ring module)"
-        )
 
     chain, branches = longest_branched_chain_through(graph, ketone_carbon, ring_atoms, ketones, halogens=halogen_substituents(mol))
     branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
@@ -1747,6 +1741,9 @@ def name_ketone(mol) -> str:
     if seven_membered_1_4 is not None:
         return _name_seven_membered_1_4_ring_ketone(mol, *seven_membered_1_4)
     ring_info = mol.GetRingInfo()
+    aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
+    if aromatic_rings is not None:
+        return _name_phenyl_chain_ketone(mol, set().union(*aromatic_rings))
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
         is_benzene = is_plain_benzene_ring(mol, ring_atoms)
@@ -1810,26 +1807,16 @@ def name_ketone(mol) -> str:
     stereo = specified_stereocenters(mol)
     if num_rings == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
-        if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in bonds):
-            raise UnsupportedStructure(
-                "unsaturation outside the ring alongside a cyclic ketone is "
-                "not supported yet (see P-31.1.3, cycloalkenes and "
-                "cycloalkynes)"
-            )
-        if any(order == YNE_BOND_ORDER for _, _, order in bonds):
+        ring_bonds = [b for b in bonds if b[0] in ring_atoms and b[1] in ring_atoms]
+        if any(order == YNE_BOND_ORDER for _, _, order in ring_bonds):
             raise UnsupportedStructure(
                 "a ring triple bond (cycloalkyne) alongside a ketone is not "
                 "supported yet -- only a ring double bond is in scope for "
                 "this first pass (see P-31.1.3)"
             )
         ring_ketones = {o for o in ketones if next(iter(graph[o])) in ring_atoms}
-        if not bonds and not hydroxyls and not ring_ketones and len(ketones) == 1:
-            if stereo is not None:
-                raise UnsupportedStructure(
-                    "a stereocenter on a substituent branch rather than "
-                    "the ring itself is not supported yet (see P-92)"
-                )
-            return _name_ring_substituent_chain_ketone(mol, ketones)
+        if not ring_ketones:
+            return _name_acyclic_ketone(mol, ketones, hydroxyls, bonds, specified_stereo_elements(mol))
         if not bonds and not hydroxyls and ring_ketones and ring_ketones != ketones:
             if stereo is not None:
                 raise UnsupportedStructure(
@@ -1837,23 +1824,18 @@ def name_ketone(mol) -> str:
                     "comparison is not supported yet (see P-92)"
                 )
             return _name_ring_with_ketone_chain_ketone(mol, ketones)
-        return _name_cyclic_ketone(mol, ketones, hydroxyls, stereo, bonds)
+        return _name_cyclic_ketone(mol, ketones, hydroxyls, stereo, ring_bonds)
     if num_rings == 2 and aromatic_shape is not None:
         ring_atoms, _, _, _ = aromatic_shape
-        if any(a not in ring_atoms or b not in ring_atoms for a, b, _ in bonds):
-            raise UnsupportedStructure(
-                "unsaturation outside the ring alongside a cyclic ketone is "
-                "not supported yet (see P-31.1.3, cycloalkenes and "
-                "cycloalkynes)"
-            )
-        if any(order == YNE_BOND_ORDER for _, _, order in bonds):
+        ring_bonds = [b for b in bonds if b[0] in ring_atoms and b[1] in ring_atoms]
+        if any(order == YNE_BOND_ORDER for _, _, order in ring_bonds):
             raise UnsupportedStructure(
                 "a ring triple bond (cycloalkyne) alongside a ketone is not "
                 "supported yet -- only a ring double bond is in scope for "
                 "this first pass (see P-31.1.3)"
             )
         return _name_cyclic_ketone(
-            mol, ketones, hydroxyls, stereo, bonds, ring_atoms=ring_atoms, aromatic_atoms=aromatic_atoms
+            mol, ketones, hydroxyls, stereo, ring_bonds, ring_atoms=ring_atoms, aromatic_atoms=aromatic_atoms
         )
     return _name_von_baeyer_or_spiro_ketone(mol, ketones, hydroxyls, stereo, bonds)
 

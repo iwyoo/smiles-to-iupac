@@ -26,9 +26,8 @@ def test_two_amines_raises():
         smiles_to_iupac("NCC(N)C(=O)OC")
 
 
-def test_two_esters_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC(=O)OCOC(=O)C")
+def test_two_esters_names_polyester():
+    assert smiles_to_iupac("NCC(=O)OCOC(=O)C") == "methylene 2-aminoethanoate ethanoate"
 
 
 def test_ring_raises():

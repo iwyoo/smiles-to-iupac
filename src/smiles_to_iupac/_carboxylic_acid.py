@@ -103,24 +103,28 @@ from ._common import (
     UnsupportedStructure,
     YNE_BOND_ORDER,
     adjacency,
+    all_chains,
     bond_locant,
-    bond_locants,
     carbon_adjacency,
+    chain_bond_locants,
     group_substituents,
     halogen_substituents,
     heteroaromatic_monocycle_name,
     is_plain_benzene_ring,
     longest_branched_chain,
-    longest_chains,
     lowest_locant_set,
+    most_multiple_bonds,
     multiplied_word,
     name_from_substituents,
     non_single_bonds,
     ring_chain_attachment_with_halogens,
+    ring_chain_attachments_with_halogens,
+    separate_aromatic_monocycles,
     ring_cycle,
     ring_name_from_substituents,
     specified_stereo_elements,
     specified_stereocenters,
+    stereo_element_atoms,
     substituent_locant_set_and_citation,
 )
 from ._substituents import format_substituent_prefixes, name_branch, plain_alkyl_ring_substituents, substituents_for_chain
@@ -344,10 +348,9 @@ def _best_acyclic_carboxylic_acid_candidate(
         **{o: "hydroxy" for o in hydroxyls},
         **(extra_names or {}),
     }
-    chains = longest_chains(carbon_adjacency(mol))
-    chain_length = len(chains[0])
+    chains = all_chains(carbon_adjacency(mol))
     acid_count = len(carboxyl_carbons)
-    stereo_atoms = [idx for kind, idx, _ in stereo if kind == "atom"] if stereo is not None else []
+    stereo_atoms = stereo_element_atoms(mol, stereo) if stereo is not None else []
 
     eligible = []
     for chain in chains:
@@ -356,8 +359,6 @@ def _best_acyclic_carboxylic_acid_candidate(
             continue
         if not required_atoms <= chain_set:
             continue
-        if bonds and bond_locants(chain, bonds) is None:
-            continue
         if stereo is not None and any(atom not in chain_set for atom in stereo_atoms):
             continue
         eligible.append(chain)
@@ -365,11 +366,10 @@ def _best_acyclic_carboxylic_acid_candidate(
         if stereo is not None and any(
             carboxyl_carbons <= set(c)
             and required_atoms <= set(c)
-            and (not bonds or bond_locants(c, bonds) is not None)
             for c in chains
         ):
             raise UnsupportedStructure(
-                "a stereocenter on a substituent branch rather than the "
+                "a stereo element on a substituent branch rather than the "
                 "principal chain is not supported yet (see P-92)"
             )
         raise UnsupportedStructure(
@@ -381,13 +381,15 @@ def _best_acyclic_carboxylic_acid_candidate(
     best_key = None
     best_name = None
     best_position_of = None
+    chain_length = max(len(c) for c in eligible)
+    eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             if candidate[0] not in carboxyl_carbons:
                 # A -COOH carbon must sit at C1 (see module docstring); a
                 # direction that doesn't start there is never valid.
                 continue
-            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, carboxyl_oxygens, mol=mol)
             key, name = _candidate_key(chain_length, acid_count, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
@@ -514,8 +516,9 @@ def _name_phenyl_chain_carboxylic_acid(
         **plain_alkyl_ring_substituents(mol, graph, ring_atoms),
         **(extra_names or {}),
     }
-    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
-    if attachment is None:
+    rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
+    attachment = ring_chain_attachments_with_halogens(graph, rings, set(), halogens)
+    if not attachment:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "
             "exocyclic substituent alongside a chain carboxylic acid is "
@@ -650,7 +653,10 @@ def _name_ring_carboxylic_acid(mol, ring_atoms, stereo=None):
     (carboxyl_carbon,) = carboxyl_carbons
 
     all_non_single = non_single_bonds(mol)
-    if any(a not in carboxyl_oxygens and b not in carboxyl_oxygens for a, b, _ in all_non_single):
+    if any(
+        a not in carboxyl_oxygens and b not in carboxyl_oxygens and a in ring_atoms and b in ring_atoms
+        for a, b, _ in all_non_single
+    ):
         raise UnsupportedStructure(
             "an unsaturated ring alongside a carboxylic acid substituent "
             "is not supported yet (see P-31.1.3)"
@@ -744,18 +750,6 @@ def _name_benzoic_acid(mol, ring_atoms):
         )
     (carboxyl_carbon,) = carboxyl_carbons
 
-    all_non_single = non_single_bonds(mol)
-    if any(
-        a not in carboxyl_oxygens
-        and b not in carboxyl_oxygens
-        and (a not in ring_atoms or b not in ring_atoms)
-        for a, b, _ in all_non_single
-    ):
-        raise UnsupportedStructure(
-            "unsaturation outside the ring alongside benzoic acid is not "
-            "supported yet"
-        )
-
     graph = adjacency(mol)
     ring_neighbors = [n for n in graph[carboxyl_carbon] if n in ring_atoms]
     if len(ring_neighbors) != 1:
@@ -785,6 +779,9 @@ def _has_carboxyl_directly_on_ring(mol, ring_atoms):
 
 
 def name_carboxylic_acid(mol) -> str:
+    aromatic_rings = separate_aromatic_monocycles(mol, adjacency(mol))
+    if aromatic_rings is not None and not any(_has_carboxyl_directly_on_ring(mol, r) for r in aromatic_rings):
+        return _name_phenyl_chain_carboxylic_acid(mol, set().union(*aromatic_rings))
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])
@@ -801,13 +798,15 @@ def name_carboxylic_acid(mol) -> str:
                 )
             return _name_phenyl_chain_carboxylic_acid(mol, ring_atoms)
         if not any(mol.GetAtomWithIdx(idx).GetIsAromatic() for idx in ring_atoms):
-            return _name_ring_carboxylic_acid(mol, ring_atoms, specified_stereocenters(mol))
-        raise UnsupportedStructure(
-            "a -COOH group on/in a ring uses the separate 'carboxylic acid' "
-            "suffix construction (P-65.1.2.2.2), out of scope for this "
-            "acyclic-only module"
-        )
-    if ring_info.NumRings() > 0:
+            if _has_carboxyl_directly_on_ring(mol, ring_atoms):
+                return _name_ring_carboxylic_acid(mol, ring_atoms, specified_stereocenters(mol))
+        else:
+            raise UnsupportedStructure(
+                "a -COOH group on/in a ring uses the separate 'carboxylic acid' "
+                "suffix construction (P-65.1.2.2.2), out of scope for this "
+                "acyclic-only module"
+            )
+    elif ring_info.NumRings() > 0:
         raise UnsupportedStructure(
             "a -COOH group on/in a ring uses the separate 'carboxylic acid' "
             "suffix construction (P-65.1.2.2.2), out of scope for this "

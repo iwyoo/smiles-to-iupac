@@ -50,16 +50,11 @@ per the IUPAC 2013 Recommendations ("the Blue Book"):
   hand-coded here. A ring with two or more double bonds needing
   locant-bearing citation is a separate, unverified case, out of scope.
 
-Scope, deliberately narrow: a single monocyclic, all-carbon ring bearing
-one or more carbon-carbon ring double and/or triple bonds (no exocyclic
-unsaturation, no heteroatoms, no fused/bridged/spiro combination, no
-aromaticity -- benzene itself is `_aromatic.py`'s). Any molecule not
-exactly matching this shape falls through to another module in
-`core.py` (most commonly `_cyclic.py`, whose existing "unsaturated rings
-are not supported yet" message still applies to out-of-scope cases like
-a ring triple bond outside a monocycle, or one alongside an exocyclic
-multiple bond). A polycyclic/spiro ring bearing a triple bond is out of
-scope and is not handled here.
+Scope: a single monocyclic, all-carbon ring bearing one or more
+carbon-carbon ring double and/or triple bonds, plus any exocyclic
+substituents `name_branch` can name -- including ylidene/ylidyne and
+enyl/ynyl groups (P-29.2, P-32.1.1). No heteroatoms, no fused/bridged/spiro
+combination, no aromaticity (benzene itself is `_aromatic.py`'s).
 """
 
 from rdkit import Chem
@@ -109,9 +104,10 @@ def find_cyclic_unsaturated_core(mol):
         if order == 1.0:
             continue
         a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
-        if order not in _VALID_ORDERS or a not in ring_set or b not in ring_set:
+        if order not in _VALID_ORDERS:
             return None
-        has_ring_multi_bond = True
+        if a in ring_set and b in ring_set:
+            has_ring_multi_bond = True
     if not has_ring_multi_bond:
         return None
     return list(ring_atoms)
@@ -242,13 +238,8 @@ def name_cyclic_unsaturated(mol, ring_atoms) -> str:
                 "supported in a partially unsaturated ring (see "
                 "P-31.1.1.1)"
             )
-        if a not in ring_set or b not in ring_set:
-            raise UnsupportedStructure(
-                "a double or triple bond outside the ring (an exocyclic "
-                "alkylidene/alkylidyne substituent) is not supported yet"
-            )
 
-    bonds = _multi_bonds(mol)
+    bonds = [(a, b, order) for a, b, order in _multi_bonds(mol) if a in ring_set and b in ring_set]
 
     # A specified tetrahedral stereocenter and a specified ring C=C E/Z
     # element are mutually exclusive shapes here (P-92 vs. P-93) --
@@ -274,6 +265,10 @@ def name_cyclic_unsaturated(mol, ring_atoms) -> str:
             # element reported, `bond_stereo` stays None regardless of input
             # markers) from an 8+-membered ring's genuinely stereogenic one
             # (P-91.2.2) -- no ring-size branching needed here at all.
+            if len(_multi_bonds(mol)) != len(bonds):
+                raise UnsupportedStructure(
+                    "a specified E/Z double bond alongside an exocyclic multiple bond is not supported yet (see P-93)"
+                )
             if any(order == _YNE_ORDER for _, _, order in bonds):
                 raise UnsupportedStructure(
                     "a specified double-bond E/Z stereo element combined with "
@@ -310,7 +305,7 @@ def name_cyclic_unsaturated(mol, ring_atoms) -> str:
         for candidate in (rotated, list(reversed(rotated))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             ene_locants, yne_locants = _ring_multi_bond_locants(candidate, bonds)
-            substituents = substituents_for_ring(graph, candidate, halogens, mol=mol)
+            substituents = substituents_for_ring(graph, candidate, halogens, mol=mol, unsaturated=True)
             if branch_stereo is not None:
                 branch_ring_atom, display, _ring_r_or_s = branch_stereo
                 substituents[position_of[branch_ring_atom]] = [(display, False)]

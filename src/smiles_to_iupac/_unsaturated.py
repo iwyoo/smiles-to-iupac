@@ -31,17 +31,12 @@ chain, per the IUPAC 2013 Recommendations ("the Blue Book"):
   a longer chain, or a second multiple bond, the chain is always long enough
   that more than one position is possible, so the locant(s) are always
   essential and this omission never applies.
-- P-44.3.2 (Chapter P-4, https://iupac.qmul.ac.uk/BlueBook/PDF/P4.pdf):
-  chain length is chosen first (as in `_acyclic.py`), i.e. the principal
-  chain has the greatest number of skeletal atoms.
-- P-44.4.1.1 / P-44.4.1.2 (Chapter P-4): among chains tied for length, the
-  principal chain has the greater number of multiple bonds, then (if still
-  tied) the greater number of double bonds. This module only supports the
-  case where some candidate longest chain carries *every* multiple bond in
-  the molecule (any multiple bond left off the principal chain would need an
-  alkenyl/alkynyl substituent prefix, which is out of scope, see below), so
-  in practice this criterion reduces to: only longest chains containing all
-  multiple bonds are eligible as the principal chain.
+- P-44.3.2 / P-44.4.1.1 / P-44.4.1.2 (Chapter P-4,
+  https://iupac.qmul.ac.uk/BlueBook/PDF/P4.pdf): chain length is chosen first
+  (as in `_acyclic.py`), then the chain with the greater number of multiple
+  bonds, then of double bonds. A multiple bond left off the chain is cited
+  inside a substituent prefix -- 'ethenyl', 'prop-1-en-2-yl', 'methylidene',
+  ... -- via `name_branch` (P-32.1.1, P-29.2), e.g. '3-methylidenepentane'.
 - P-14.4(e) / P-44.4.1.10, P-44.4.1.10.1 (Chapter P-1 / P-4): numbering
   direction is chosen to give the lowest locants to the full set of multiple
   bonds (ene and yne together) ahead of substituent locants; if a choice
@@ -59,10 +54,7 @@ chain, per the IUPAC 2013 Recommendations ("the Blue Book"):
   carbon-carbon connectivity only (`carbon_adjacency`, see `_common.py`)
   while substituent detection still uses the full atom graph.
 
-A multiple bond located in a substituent rather than the principal chain
-(i.e. no candidate longest chain carries every multiple bond in the
-molecule), and unsaturation in a ring, are out of scope and raise
-`UnsupportedStructure`.
+Unsaturation in a ring is out of scope and raises `UnsupportedStructure`.
 
 - P-91.3 / P-93 (Chapter P-9, https://iupac.qmul.ac.uk/BlueBook/P9.html):
   when a C=C double bond's
@@ -96,7 +88,6 @@ from ._common import (
     UnsupportedStructure,
     adjacency,
     bond_locant,
-    bond_locants,
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
@@ -106,6 +97,7 @@ from ._common import (
     non_single_bonds,
     specified_double_bond_stereo,
     substituent_locant_set_and_citation,
+    unsaturation_suffix,
     validate_atoms_and_bonds,
 )
 from ._numerals import alkane_name
@@ -115,40 +107,8 @@ _ENE_ORDER = 2.0
 _YNE_ORDER = 3.0
 _VALID_ORDERS = (_ENE_ORDER, _YNE_ORDER)
 
-def _unsaturation_suffix(ene_locants, yne_locants):
-    """Locant-and-suffix string (e.g. '1,3-dien-5-yne') plus whether the
-    parent stem needs its euphonic trailing 'a' (P-31.1.1.2), for a chain's
-    full set of multiple bonds. 'ene' is always cited before 'yne'
-    (P-31.1.1.1), with its final 'e' always elided when a 'yne' part
-    follows, whether or not that 'yne' itself carries a multiplying
-    prefix -- the elision is triggered by the underlying 'yne' word
-    starting with a vowel sound, not by the final prefixed word's own
-    first letter ('deca-1,2,3-trien-5,7,9-triyne', PubChem-verified: a
-    'diyne'/'triyne' elides exactly like a plain 'yne' does, contrary to
-    this function's own former assumption that a multiplying-prefixed
-    'yne' word "begins with a consonant and elides nothing")."""
-    ene_locants = sorted(ene_locants)
-    yne_locants = sorted(yne_locants)
-    ene_count, yne_count = len(ene_locants), len(yne_locants)
-    ene_word = multiplied_word(ene_count, "ene")
-    yne_word = multiplied_word(yne_count, "yne")
-
-    if ene_count and yne_count:
-        ene_part = ene_word[:-1]
-        ene_loc_str = ",".join(str(loc) for loc in ene_locants)
-        yne_loc_str = ",".join(str(loc) for loc in yne_locants)
-        body = f"{ene_loc_str}-{ene_part}-{yne_loc_str}-{yne_word}"
-    elif ene_count:
-        body = f"{','.join(str(loc) for loc in ene_locants)}-{ene_word}"
-    else:
-        body = f"{','.join(str(loc) for loc in yne_locants)}-{yne_word}"
-
-    needs_stem_a = (ene_count >= 2) if ene_count else (yne_count >= 2)
-    return body, needs_stem_a
-
-
 def _unsaturation_suffix_from_citations(ene_citations, yne_citations):
-    """Like `_unsaturation_suffix`, but each locant is a (primary_locant,
+    """Like `unsaturation_suffix` (`_common.py`), but each locant is a (primary_locant,
     display) pair (`_common.von_baeyer_unsaturation_citations`) instead of
     a plain integer -- P-31.1.4.2(1)'s compound-locant display (e.g.
     '1(7)') for a von Baeyer bicyclic/polycyclic parent, sorted by each
@@ -174,6 +134,8 @@ def _unsaturation_suffix_from_citations(ene_citations, yne_citations):
 
 def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped):
     prefix = format_substituent_prefixes(grouped)
+    if not ene_locants and not yne_locants:
+        return prefix + alkane_name(chain_length)
     stem = alkane_name(chain_length)[:-3]
     single_bond = len(ene_locants) + len(yne_locants) == 1
     if single_bond and chain_length <= 3 and not prefix:
@@ -201,7 +163,7 @@ def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped):
         # baked into `prefix`) are still needed to distinguish isomers
         # like "1,2-" from "1,1-".
         return prefix + stem + suffix
-    body, needs_stem_a = _unsaturation_suffix(ene_locants, yne_locants)
+    body, needs_stem_a = unsaturation_suffix(ene_locants, yne_locants)
     return prefix + stem + ("a" if needs_stem_a else "") + "-" + body
 
 
@@ -218,9 +180,34 @@ def _candidate_key(chain_length, ene_locants, yne_locants, substituents):
     # locants are preferred, so negate the count to sort every field in
     # ascending "most preferred first" order.
     return (
-        (combined_locant_set, ene_locant_set, -total_count, locant_set, citation_locants, name),
+        (
+            -len(combined_locant_set),
+            -len(ene_locants),
+            combined_locant_set,
+            ene_locant_set,
+            -total_count,
+            locant_set,
+            citation_locants,
+            name,
+        ),
         name,
     )
+
+
+def _bond_atoms(mol, bond_idx):
+    bond = mol.GetBondWithIdx(bond_idx)
+    return bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+
+
+def _on_chain_bond_locants(chain, bonds):
+    """(ene_locants, yne_locants) for the multiple bonds lying on `chain`;
+    the rest are cited inside substituent prefixes."""
+    ene, yne = [], []
+    for a, b, order in bonds:
+        locant = bond_locant(chain, (a, b))
+        if locant is not None:
+            (ene if order == _ENE_ORDER else yne).append(locant)
+    return ene, yne
 
 
 def name_acyclic_unsaturated(mol) -> str:
@@ -259,30 +246,22 @@ def name_acyclic_unsaturated(mol) -> str:
     chains = longest_chains(carbon_adjacency(mol))
     chain_length = len(chains[0])
 
-    # P-44.3.2 / P-44.4.1.1: among the longest chains, only those containing
-    # every multiple bond in the molecule can be the principal chain (a bond
-    # left off the chain would need an alkenyl/alkynyl substituent prefix,
-    # out of scope here).
-    chains_with_all_bonds = [c for c in chains if bond_locants(c, bonds) is not None]
-    if not chains_with_all_bonds:
-        raise UnsupportedStructure(
-            "not every multiple bond lies on a single longest chain; "
-            "expressing one in a substituent (an alkenyl/alkynyl prefix) is "
-            "not supported yet (see P-29.2, P-32.1)"
-        )
-
     best_key = None
     best_name = None
     best_candidate = None
-    for chain in chains_with_all_bonds:
+    for chain in chains:
         for candidate in (chain, list(reversed(chain))):
-            ene_locants, yne_locants = bond_locants(candidate, bonds)
-            substituents = substituents_for_chain(graph, candidate, halogens, mol=mol)
+            ene_locants, yne_locants = _on_chain_bond_locants(candidate, bonds)
+            substituents = substituents_for_chain(graph, candidate, halogens, mol=mol, unsaturated=True)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:
                 best_key, best_name, best_candidate = key, name, candidate
 
     if stereo is not None:
+        if any(bond_locant(best_candidate, _bond_atoms(mol, bond_idx)) is None for bond_idx, _ in stereo):
+            raise UnsupportedStructure(
+                "a specified E/Z double bond inside a substituent group is not supported yet (see P-93)"
+            )
         # P-91.3: a locant always precedes each stereodescriptor, cited in
         # ascending locant order (a bare "(E)-"/"(Z)-" is only for the ring
         # systems P-91.2.2 lists, not acyclic chains).

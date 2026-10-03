@@ -52,15 +52,16 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
+    all_chains,
     bond_locant,
-    bond_locants,
     carbon_adjacency,
+    chain_bond_locants,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain,
-    longest_chains,
     lowest_locant_set,
+    most_multiple_bonds,
     name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
@@ -273,8 +274,7 @@ def name_acyl_halide(mol) -> str:
     graph = adjacency(mol)
     halide_word = HALIDE_WORDS[mol.GetAtomWithIdx(acyl_halogen).GetAtomicNum()]
     halogens = halogen_substituents(mol)
-    chains = longest_chains(carbon_adjacency(mol))
-    chain_length = len(chains[0])
+    chains = all_chains(carbon_adjacency(mol))
     stereo = specified_stereocenters(mol)
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
@@ -282,15 +282,13 @@ def name_acyl_halide(mol) -> str:
     for chain in chains:
         if acyl_carbon not in chain:
             continue
-        if bonds and bond_locants(chain, bonds) is None:
-            continue
         chain_set = set(chain)
         if any(atom not in chain_set for atom in stereo_atoms):
             continue
         eligible.append(chain)
     if not eligible:
         if stereo_atoms and any(
-            acyl_carbon in chain and (not bonds or bond_locants(chain, bonds) is not None)
+            acyl_carbon in chain
             for chain in chains
         ):
             raise UnsupportedStructure(
@@ -306,6 +304,8 @@ def name_acyl_halide(mol) -> str:
     best_key = None
     best_name = None
     best_position_of = None
+    chain_length = max(len(c) for c in eligible)
+    eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             if candidate[0] != acyl_carbon:
@@ -313,7 +313,7 @@ def name_acyl_halide(mol) -> str:
                 # docstring); a direction that doesn't start there is
                 # never valid.
                 continue
-            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
             key, name = _candidate_key(chain_length, ene_locants, yne_locants, halide_word, substituents)
             if best_key is None or key < best_key:

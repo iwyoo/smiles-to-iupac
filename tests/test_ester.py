@@ -235,9 +235,8 @@ def test_phenyl_acyl_chain_unsaturation_raises():
         smiles_to_iupac("C=Cc1ccccc1CC(=O)OC")
 
 
-def test_acyl_carbon_off_longest_chain_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COC(=O)C(CCC)CCCC")
+def test_acyl_carbon_off_longest_chain():
+    assert smiles_to_iupac("COC(=O)C(CCC)CCCC") == "methyl 2-propylhexanoate"
 
 
 @pytest.mark.parametrize(

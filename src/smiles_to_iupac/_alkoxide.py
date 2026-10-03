@@ -84,14 +84,15 @@ from ._common import (
     UnsupportedStructure,
     YNE_BOND_ORDER,
     adjacency,
-    bond_locants,
+    all_chains,
     carbon_adjacency,
+    chain_bond_locants,
     group_substituents,
     halogen_substituents,
     is_plain_benzene_ring,
     longest_branched_chain_through,
-    longest_chains,
     lowest_locant_set,
+    most_multiple_bonds,
     name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
@@ -208,8 +209,7 @@ def _name_acyclic_alkoxide(mol, oxygen_idx, excluded_atoms, bonds, stereo=None):
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     carbon_graph = carbon_adjacency(mol)
-    chains = longest_chains(carbon_graph)
-    chain_length = len(chains[0])
+    chains = all_chains(carbon_graph)
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
     (oxygen_carbon,) = [n.GetIdx() for n in mol.GetAtomWithIdx(oxygen_idx).GetNeighbors()]
@@ -218,14 +218,12 @@ def _name_acyclic_alkoxide(mol, oxygen_idx, excluded_atoms, bonds, stereo=None):
     for chain in chains:
         if oxygen_carbon not in chain:
             continue
-        if bonds and bond_locants(chain, bonds) is None:
-            continue
         if stereo is not None and any(atom not in chain for atom in stereo_atoms):
             continue
         eligible.append(chain)
     if not eligible:
         if stereo is not None and any(
-            oxygen_carbon in c and (not bonds or bond_locants(c, bonds) is not None) for c in chains
+            oxygen_carbon in c for c in chains
         ):
             raise UnsupportedStructure(
                 "a stereocenter on a substituent branch rather than the "
@@ -236,6 +234,7 @@ def _name_acyclic_alkoxide(mol, oxygen_idx, excluded_atoms, bonds, stereo=None):
             "single longest carbon chain"
         )
 
+    chain_length = max(len(c) for c in eligible)
     total_carbons = sum(1 for atom in mol.GetAtoms() if atom.GetAtomicNum() == 6)
     if (
         stereo is None
@@ -244,18 +243,21 @@ def _name_acyclic_alkoxide(mol, oxygen_idx, excluded_atoms, bonds, stereo=None):
         and not bonds
         and not halogen_atoms
     ):
-        terminal_positions = {chains[0][0], chains[0][-1]}
+        longest = next(c for c in eligible if len(c) == chain_length)
+        terminal_positions = {longest[0], longest[-1]}
         if oxygen_carbon in terminal_positions:
             return _RETAINED_ALKOXIDES[chain_length]
 
     best_key = None
     best_name = None
     best_position_of = None
+    chain_length = max(len(c) for c in eligible)
+    eligible = most_multiple_bonds([c for c in eligible if len(c) == chain_length], bonds)
     for chain in eligible:
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             o_locant = position_of[oxygen_carbon]
-            ene_locants, yne_locants = bond_locants(candidate, bonds) if bonds else ([], [])
+            ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, excluded_atoms, mol=mol)
             key, name = _candidate_key(chain_length, o_locant, ene_locants, yne_locants, substituents)
             if best_key is None or key < best_key:

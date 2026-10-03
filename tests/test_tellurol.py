@@ -102,14 +102,12 @@ def test_ring_substituent_chain_tellurol():
     assert smiles_to_iupac("C1CCCCC1C[TeH]") == "cyclohexylmethanetellurol"
 
 
-def test_ring_substituent_chain_tellurol_ring_with_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCC(C)CC1C[TeH]")
+def test_ring_substituent_chain_tellurol_ring_with_substituent():
+    assert smiles_to_iupac("C1CCC(C)CC1C[TeH]") == "(3-methylcyclohexyl)methanetellurol"
 
 
-def test_ring_substituent_chain_tellurol_unsaturated_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1=CCCCC1C[TeH]")
+def test_ring_substituent_chain_tellurol_unsaturated_ring():
+    assert smiles_to_iupac("C1=CCCCC1C[TeH]") == "(cyclohex-2-en-1-yl)methanetellurol"
 
 
 def test_ring_with_tellurol_chain_tellurol_tie():

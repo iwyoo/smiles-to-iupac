@@ -61,9 +61,8 @@ def test_multiple_bond_directly_to_metal_raises():
         smiles_to_iupac("C=[Sb]CC")
 
 
-def test_branched_unsaturated_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C(=C)(C)[Sb](CC)CC")
+def test_branched_unsaturated_substituent():
+    assert smiles_to_iupac("C(=C)(C)[Sb](CC)CC") == "diethyl(prop-1-en-2-yl)stibane"
 
 
 def test_group13_hydride_unaffected():

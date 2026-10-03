@@ -107,14 +107,12 @@ def test_ring_substituent_chain_thiol_internal_locant():
     assert smiles_to_iupac("SC(C)C1CCCCC1") == "1-cyclohexylethanethiol"
 
 
-def test_ring_substituent_chain_thiol_ring_with_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SCC1CCC(C)CC1")
+def test_ring_substituent_chain_thiol_ring_with_substituent():
+    assert smiles_to_iupac("SCC1CCC(C)CC1") == "(4-methylcyclohexyl)methanethiol"
 
 
-def test_ring_substituent_chain_thiol_unsaturated_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SCC1CCCC=C1")
+def test_ring_substituent_chain_thiol_unsaturated_ring():
+    assert smiles_to_iupac("SCC1CCCC=C1") == "(cyclohex-2-en-1-yl)methanethiol"
 
 
 def test_ring_with_thiol_chain_thiol_tie():

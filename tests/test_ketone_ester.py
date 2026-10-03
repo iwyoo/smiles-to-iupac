@@ -47,9 +47,11 @@ def test_hydroxyl_coexistence_not_supported():
         smiles_to_iupac("OCC(=O)CC(=O)OC")
 
 
-def test_acyl_carbon_off_longest_chain_not_supported():
-    with pytest.raises(UnsupportedStructure):
+def test_acyl_carbon_off_longest_chain():
+    assert (
         smiles_to_iupac("CCCCC(=O)C(CC(C)C)C(CC(C)C)C(=O)OC")
+        == "methyl 2,3-bis(2-methylpropyl)-4-oxooctanoate"
+    )
 
 
 def test_phenyl_chain_ketone_ester():
