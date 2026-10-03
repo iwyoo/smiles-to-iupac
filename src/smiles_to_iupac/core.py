@@ -82,6 +82,7 @@ from ._bridged_alicyclic_parent import has_bridged_steroid_name, name_bridged_st
 from ._borane import has_simple_borane_shape, name_simple_borane
 from ._boronic_acid import has_boronic_acid_shape, name_boronic_acid
 from ._borinic_acid import has_borinic_acid_shape, name_borinic_acid
+from ._metal_pair import has_metal_pair_shape, name_metal_pair
 from ._coordination import has_coordination_shape, name_coordination
 from ._group1_2_organometallic import has_group1_2_organometallic_shape, name_group1_2_organometallic
 from ._group13_hydride import (
@@ -140,6 +141,8 @@ from ._fullerene import has_fullerene_name, name_fullerene
 from ._nucleoside import has_nucleoside_name, name_nucleoside
 from ._nucleotide import has_nucleotide_name, name_nucleotide
 from ._metallacycle import has_metallacycle_shape, name_metallacycle
+from ._metallaanthracene import has_metallaanthracene_shape, name_metallaanthracene
+from ._metallabicycle import has_metallabicycle_shape, name_metallabicycle
 from ._metallocene import has_metallocene_name, name_metallocene
 from ._fused_hetero_ring_oxide import has_fused_hetero_ring_oxide_shape, name_fused_hetero_ring_oxide
 from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
@@ -421,6 +424,21 @@ def smiles_to_iupac(smiles: str) -> str:
     # rejection would otherwise claim it.
     if has_metallacycle_shape(mol):
         return name_metallacycle(mol)
+    if has_metallabicycle_shape(mol):
+        return name_metallabicycle(mol)
+    if has_metallaanthracene_shape(mol):
+        return name_metallaanthracene(mol)
+
+    # Group 3-12 metal complexes (P-69.2 coordination naming) must precede
+    # every heteroatom-parent dispatch below, which would otherwise claim
+    # a metal-bound phosphane/amine/ether ligand's donor atom.
+    if has_coordination_shape(mol):
+        return name_coordination(mol)
+
+    # Two or more Group 13-15 metals (P-69.5.3) must precede the
+    # single-metal hydride dispatches below, which reject a second metal.
+    if has_metal_pair_shape(mol):
+        return name_metal_pair(mol)
 
     # A chalcogen ring-oxide (P-62.5's functional-class "oxide" pattern,
     # not limited to acyclic amines) breaks the ring's own aromaticity as
@@ -830,11 +848,6 @@ def smiles_to_iupac(smiles: str) -> str:
     # these elements at all.
     if has_group1_2_organometallic_shape(mol):
         return name_group1_2_organometallic(mol)
-
-    # A Group 3-12 metal (P-69.2.3 coordination naming) is likewise
-    # unrecognized by every branch below.
-    if has_coordination_shape(mol):
-        return name_coordination(mol)
 
     # buckminsterfullerene (P-27's '[60]fullerene', a fixed 12-pentagon/
     # 20-hexagon cage) is recognized by exact whole-molecule match --
