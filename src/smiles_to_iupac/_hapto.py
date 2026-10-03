@@ -3,7 +3,9 @@ coordinated carbon (P-69.2.4/P-69.2.6, `tmp/bluebook/P6a.txt` lines
 8711-8775): full-ring arenes and polyenyls ('eta6-benzene',
 'eta5-cyclopenta-2,4-dien-1-yl'), allyl, and partially coordinated
 monocyclic/bicyclic polyenes with locants ('[(1,2,5,6-eta)-cycloocta-
-1,5-diene]'). Bridging (mu) and multiply attached ligands are not handled.
+1,5-diene]'), plus an eta6-phenyl cited inside a larger ligand name
+('[2-(eta6-phenyl)ethanamine]', 'triphenyl(eta6-phenyl)borato'). Bridging
+(mu) ligands are not handled.
 """
 
 from rdkit import Chem
@@ -81,6 +83,9 @@ def _ring_order(graph, ring_atoms, start, direction):
 def hapto_label(mol, metal, donors_in, atoms):
     graph = adjacency(mol)
     donor_idx = {d.GetIdx() for d in donors_in}
+    borate = _borate_label(mol, graph, donor_idx, atoms)
+    if borate:
+        return borate
     if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms):
         raise UnsupportedStructure("a charged hapto ligand is not supported yet")
     if not any(
@@ -107,12 +112,77 @@ def hapto_label(mol, metal, donors_in, atoms):
     if n == size:
         if size == 6 and all(a.GetIsAromatic() for a in ring_atoms):
             frag, _ = _fragment(mol, atoms)
-            return f"{_ETA}6-{_name_fragment(frag)}"
+            full = _name_fragment(frag)
+            return _phenyl_substituent(mol, graph, ring, atoms, full) or f"{_ETA}6-{full}"
         if size % 2 == 1:
             return _odd_ring(mol, graph, ring, size, atoms)
         frag, _ = _fragment(mol, atoms)
         return f"{_ETA}{n}-{_name_fragment(frag)}"
     return _partial(mol, atoms, donor_idx, n)
+
+
+def _borate_label(mol, graph, donor_idx, atoms):
+    """Tetraorganylborate whose one phenyl ring is the eta6 donor
+    ('triphenyl(eta6-phenyl)borato', P-69.2.6); None for any other ligand."""
+    boron = [i for i in atoms if mol.GetAtomWithIdx(i).GetAtomicNum() == 5]
+    if len(boron) != 1 or mol.GetAtomWithIdx(boron[0]).GetFormalCharge() != -1:
+        return None
+    if sum(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms) != 1 or len(graph[boron[0]]) != 4:
+        return None
+    ring = next((r for r in mol.GetRingInfo().AtomRings() if donor_idx == set(r) and len(r) == 6), None)
+    if ring is None or len([n for n in graph[boron[0]] if n in ring]) != 1:
+        return None
+    others = [n for n in graph[boron[0]] if n not in ring]
+    if len(atoms) != 1 + 6 + sum(len(_branch_atoms(graph, n, boron[0])) for n in others):
+        return None
+    grouped: dict = {}
+    for n in others:
+        name, compound = name_branch(graph, n, boron[0], {}, aromatic_atoms={a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic()}, mol=mol)
+        entry = grouped.setdefault(name, {"locants": [], "compound": compound})
+        entry["locants"].append(1)
+    prefixes = format_substituent_prefixes(grouped, omit_locants=True)
+    return f"{prefixes}({_ETA}6-phenyl)borato"
+
+
+def _branch_atoms(graph, root, parent):
+    seen = {root}
+    stack = [root]
+    while stack:
+        for v in graph[stack.pop()]:
+            if v != parent and v not in seen:
+                seen.add(v)
+                stack.append(v)
+    return seen
+
+
+def _phenyl_substituent(mol, graph, ring, atoms, full):
+    """eta6-phenyl cited inside the name of a larger ligand (P-69.2.6);
+    None when the ring is the parent of `full`."""
+    ring = list(ring)
+    attach = [(a, x) for a in ring for x in graph[a] if x in atoms and x not in ring]
+    for a, x in attach:
+        side = {x}
+        stack = [x]
+        while stack:
+            for v in graph[stack.pop()]:
+                if v in atoms and v not in ring and v not in side:
+                    side.add(v)
+                    stack.append(v)
+        allowed = atoms - side
+        orders = [_ring_order(graph, set(ring), a, d) for d in (0, 1)]
+        try:
+            prefixes, _ = _polyenyl(mol, graph, orders, allowed)
+        except UnsupportedStructure:
+            continue
+        plain = f"{prefixes}phenyl"
+        hapto = f"{prefixes}-{_ETA}6-phenyl" if prefixes else f"({_ETA}6-phenyl)"
+        at = full.find(plain)
+        if at < 0:
+            continue
+        if at and full[at - 1] not in "([{-":
+            raise UnsupportedStructure("an eta6-phenyl among several equivalent substituents is not supported yet")
+        return full[:at] + hapto + full[at + len(plain):]
+    return None
 
 
 def _odd_ring(mol, graph, ring, size, atoms):

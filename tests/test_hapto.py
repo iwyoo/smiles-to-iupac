@@ -32,3 +32,29 @@ H = "\u03b7"
 )
 def test_hapto_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "NCC[c]12->[Cr]3456([C]#[O+])([C]#[O+])([C]#[O+])<-[cH]([cH]->3[cH]->41)[cH]->5[cH]->62",
+            f"[2-({H}6-phenyl)ethanamine]tricarbonylchromium",
+        ),
+        (
+            "C[c]12->[Cr]3456([C]#[O+])([C]#[O+])([C]#[O+])<-[cH]([cH]->3[cH]->4[c]->51CCN)[cH]->62",
+            f"[2-(2-methyl-{H}6-phenyl)ethanamine]tricarbonylchromium",
+        ),
+        (
+            "C[c]12->[Cr]3456([C]#[O+])([C]#[O+])([C]#[O+])<-[cH]([cH]->3[cH]->4[cH]->51)[cH]->62",
+            f"tricarbonyl({H}6-methylbenzene)chromium",
+        ),
+        (
+            "c1ccc([B-](c2ccccc2)(c2ccccc2)[c]23->[Rh+]456789%10(<-[CH]%11=[CH]->4CC[CH]->5=[CH]->6CC%11)"
+            "<-[cH]([cH]->7[cH]->82)[cH]->9[cH]->%103)cc1",
+            f"[(1,2,5,6-{H})-cycloocta-1,5-diene][triphenyl({H}6-phenyl)borato]rhodium",
+        ),
+    ],
+)
+def test_hapto_ring_inside_larger_ligand(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
