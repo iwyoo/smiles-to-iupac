@@ -141,6 +141,7 @@ from ._fullerene import has_fullerene_name, name_fullerene
 from ._nucleoside import has_nucleoside_name, name_nucleoside
 from ._nucleotide import has_nucleotide_name, name_nucleotide
 from ._metallacycle import has_metallacycle_shape, name_metallacycle
+from ._metallabicycle import has_metallabicycle_shape, name_metallabicycle
 from ._metallocene import has_metallocene_name, name_metallocene
 from ._fused_hetero_ring_oxide import has_fused_hetero_ring_oxide_shape, name_fused_hetero_ring_oxide
 from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
@@ -422,6 +423,8 @@ def smiles_to_iupac(smiles: str) -> str:
     # rejection would otherwise claim it.
     if has_metallacycle_shape(mol):
         return name_metallacycle(mol)
+    if has_metallabicycle_shape(mol):
+        return name_metallabicycle(mol)
 
     # Group 3-12 metal complexes (P-69.2 coordination naming) must precede
     # every heteroatom-parent dispatch below, which would otherwise claim

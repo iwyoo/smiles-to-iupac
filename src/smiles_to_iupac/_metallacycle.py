@@ -59,8 +59,14 @@ def _substituent_entries(mol, graph, ring_atom, ring_set):
                 entries.append(("phenyl", False))
             else:
                 entries.append(name_branch(graph, n, ring_atom, {}, mol=mol))
+        elif atom.GetAtomicNum() == 8 and atom.GetDegree() == 2 and atom.GetTotalNumHs() == 0:
+            carbon = next(x for x in graph[n] if x != ring_atom)
+            alkyl = name_branch(graph, carbon, n, {}, mol=mol)[0]
+            if not alkyl.endswith("yl") or any(ch.isdigit() or ch in "()" for ch in alkyl):
+                raise UnsupportedStructure("only a plain alkoxy ring substituent is supported here")
+            entries.append((alkyl[:-2] + "oxy", False))
         else:
-            raise UnsupportedStructure("only halogen, alkyl and phenyl ring substituents are supported here")
+            raise UnsupportedStructure("only halogen, alkyl, alkoxy and phenyl ring substituents are supported here")
     return entries
 
 

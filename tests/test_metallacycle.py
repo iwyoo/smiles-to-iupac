@@ -59,3 +59,21 @@ def test_metallacycle_with_two_metals_raises():
 )
 def test_hetero_and_metallabenzene_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "C1CC2C(C1)C[Ti]2.C1=C[CH]C=C1.C1=C[CH]C=C1",
+            "6,6-di(η5-cyclopenta-2,4-dien-1-yl)-6-titanabicyclo[3.2.0]heptane",
+        ),
+        (
+            "[Pt]1(P(CC)(CC)CC)(P(CC)(CC)CC)C2CC1C(OC)CCC2OC",
+            "2,5-dimethoxy-7,7-bis(triethylphosphane)-7-platinabicyclo[4.1.1]octane",
+        ),
+        ("C1CC2C(C1)C[Ti]2(C)C", "6,6-dimethyl-6-titanabicyclo[3.2.0]heptane"),
+    ],
+)
+def test_bicyclic_metallacycle_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
