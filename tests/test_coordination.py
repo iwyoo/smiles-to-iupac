@@ -30,7 +30,6 @@ def test_coordination_name(smiles, expected):
     "smiles",
     [
         "C[Ti](Cl)(Cl)Cl.[Na+]",
-        "C[Pt](C)[Pt](C)[Pt](C)C",
         "[Fe](C=C)Cl",
         "C[Hg]c1ccc(S(=O)(=O)O)cc1",
     ],
@@ -180,4 +179,54 @@ def test_chelating_ligands(smiles, expected):
     ],
 )
 def test_naphthyl_ligands(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CP(C)CP(C)C", "methylenebis(dimethylphosphane)"),
+        ("CP(C)CCP(C)C", "ethane-1,2-diylbis(dimethylphosphane)"),
+        ("c1ccccc1P(c1ccccc1)CCP(c1ccccc1)c1ccccc1", "ethane-1,2-diylbis(diphenylphosphane)"),
+        ("CP(C)c1ccccc1P(C)C", "benzene-1,2-diylbis(dimethylphosphane)"),
+        ("CP(C)CCP(CC)CC", "[2-(dimethylphosphanyl)ethyl]di(ethyl)phosphane"),
+        ("Cl[Pd]1(Cl)P(C)(C)CCP1(C)C", "dichlorido[ethane-1,2-diylbis(dimethylphosphane)-κ2P,P']palladium"),
+        (
+            "[Cl][Pd]1([Cl])<-[n]2ccccc2-c2cccc[n]->12",
+            "(2,2'-bipyridine-κ2N,N')dichloridopalladium",
+        ),
+    ],
+)
+def test_polyphosphane_and_chelates(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+K = "\u03ba"
+MU = "\u03bc"
+DASH = "\u2014"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "O=[C]1[Fe]23([C]#[O+])([C]#[O+])([C]#[O+])[C](=O)[Fe]12([C]#[O+])([C]#[O+])([C]#[O+])[Fe]3([C]#[O+])([C]#[O+])([C]#[O+])[C]#[O+]",
+            f"di-{MU}-carbonyl-decacarbonyl-1{K}4C,2{K}3C,3{K}3C-triangulo-triiron(3 Fe{DASH}Fe)",
+        ),
+        (
+            "[O+]#[C][Ru]1([C]#[O+])([C]#[O+])([C]#[O+])[Ru]([C]#[O+])([C]#[O+])([C]#[O+])([C]#[O+])[Ru]1([C]#[O+])([C]#[O+])([C]#[O+])[C]#[O+]",
+            f"dodecacarbonyl-1{K}4C,2{K}4C,3{K}4C-triangulo-triruthenium(3 Ru{DASH}Ru)",
+        ),
+        (
+            "[O+]#[C][Mn]([C]#[O+])([C]#[O+])([C]#[O+])([C]#[O+])[Re]([C]#[O+])([C]#[O+])([C]#[O+])([C]#[O+])[C]#[O+]",
+            f"decacarbonyl-1{K}5C,2{K}5C-manganeserhenium(Mn{DASH}Re)",
+        ),
+        ("C[O]1->[Cu]([Cl])[O](C)->[Cu]1[Cl]", f"dichlorido-1{K}Cl,2{K}Cl-di-{MU}-methanolato-dicopper"),
+        (
+            "C(#[O+])[Ru]1([H]->[Ru]1(C#[O+])(C#[O+]))(C#[O+])C#[O+]",
+            f"pentacarbonyl-1{K}3C,2{K}2C-{MU}-hydrido-diruthenium(Ru{DASH}Ru)",
+        ),
+    ],
+)
+def test_polynuclear_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

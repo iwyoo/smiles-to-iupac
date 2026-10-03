@@ -3,14 +3,17 @@ monocyclic ring with one Group 4-12 metal (and optional main-group hetero
 atoms) replacing ring carbons, named by skeletal replacement
 ('1-sila-2-ferracyclopentane', '1-iridabenzene'). The Hantzsch-Widman
 alternative ('platinole') names the same structures and is not emitted.
-Bicyclic and anthracene-type rings: _metallabicycle.py, _metallaanthracene.py;
-tricyclic and other fused metallacycles are out of scope.
+Bicyclic/spiro/polycyclic: _metallapolycycle.py; fused benzo systems
+(naphthalene, anthracene, phenanthrene, indene, fluorene): _metallafused.py.
 """
+
+import re
 
 from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, non_single_bonds, plain_phenyl_substituent_atoms
 from ._coordination import collect_ligands
+from ._metal_pair import _brackets
 from ._numerals import alkane_name, multiplying_prefix
 from ._substituents import format_substituent_prefixes, name_branch
 
@@ -32,18 +35,46 @@ _HETERO_A = {8: "oxa", 16: "thia", 7: "aza", 15: "phospha", 33: "arsa", 14: "sil
 _HETERO_ORDER = [8, 16, 7, 15, 33, 14, 32, 50, 82, 5]
 
 
+_DONORS = {7, 8, 15, 16, 33}
+
+
+def skeleton_atoms(mol, metal_idx, graph=None):
+    """The metal plus every atom of a metal-bound component that returns to
+    the metal through two or more sigma bonds from non-donor atoms (the ring
+    skeleton and its substituents), as opposed to ordinary ligands."""
+    graph = graph or adjacency(mol)
+    skeleton, seen = {metal_idx}, set()
+    for start in graph[metal_idx]:
+        if start in seen:
+            continue
+        comp, stack = set(), [start]
+        while stack:
+            x = stack.pop()
+            if x in comp:
+                continue
+            comp.add(x)
+            stack.extend(y for y in graph[x] if y != metal_idx)
+        seen |= comp
+        sigma = [x for x in graph[metal_idx] if x in comp]
+        if len(sigma) >= 2 and all(mol.GetAtomWithIdx(x).GetAtomicNum() not in _DONORS for x in sigma):
+            skeleton |= comp
+    return skeleton
+
+
 def _find_ring_metal(mol):
-    ring_info = mol.GetRingInfo()
-    if ring_info.NumRings() != 1:
+    metals = [a.GetIdx() for a in mol.GetAtoms() if a.GetSymbol() in _METAL_A_PREFIXES and a.IsInRing()]
+    if len(metals) != 1:
         return None
-    ring_atoms = ring_info.AtomRings()[0]
-    metals = [idx for idx in ring_atoms if mol.GetAtomWithIdx(idx).GetSymbol() in _METAL_A_PREFIXES]
-    if len(metals) != 1 or len(ring_atoms) < 3:
+    metal_idx = metals[0]
+    skeleton = skeleton_atoms(mol, metal_idx)
+    rings = [r for r in mol.GetRingInfo().AtomRings() if set(r) <= skeleton]
+    metal_rings = [r for r in rings if metal_idx in r]
+    if len(metal_rings) != 1 or len(metal_rings[0]) < 3:
         return None
-    donors = {7, 8, 15, 16, 33}
-    if any(n.GetIdx() in ring_atoms and n.GetAtomicNum() in donors for n in mol.GetAtomWithIdx(metals[0]).GetNeighbors()):
+    ring = set(metal_rings[0])
+    if any(set(r) & ring for r in rings if r is not metal_rings[0]):
         return None
-    return metals[0], ring_atoms
+    return metal_idx, metal_rings[0]
 
 
 def has_metallacycle_shape(mol) -> bool:
@@ -109,7 +140,9 @@ def _ring_double_bonds(mol, graph, ring_set, metal_idx):
             doubles.append((a, b))
         elif any(in_ring):
             raise UnsupportedStructure("an exocyclic double bond on the ring is not supported here")
-        elif not any(metal_idx in graph[x] for x in (a, b)):
+        elif not any(metal_idx in graph[x] for x in (a, b)) and not (
+            mol.GetAtomWithIdx(a).GetIsAromatic() and mol.GetAtomWithIdx(b).GetIsAromatic()
+        ):
             raise UnsupportedStructure("an unsaturated substituent is out of scope here")
     return doubles
 
@@ -137,10 +170,7 @@ def name_metallacycle(mol) -> str:
     counts, simple_labels, organic, neutral, _ = collect_ligands(mol, metal, graph, skip=ring_set)
     if "hydrido" in counts:
         raise UnsupportedStructure("a hydrido ligand on the metal is not supported here yet")
-    ligand_entries = []
-    for label, n in counts.items():
-        compound = label in neutral or not (label in simple_labels or _is_plain(label))
-        ligand_entries.append((_HALO_FOR_LIGAND.get(label, label), compound, n))
+    ligand_entries, repeats = ring_ligand_entries(counts, simple_labels, neutral)
 
     candidates = []
     for offset in range(size):
@@ -185,9 +215,38 @@ def name_metallacycle(mol) -> str:
     _, by_z, metal_locant, doubles, grouped = min(candidates, key=lambda c: c[0])
 
     benzene = size == 6 and len(doubles) == 3
-    prefixes = format_substituent_prefixes(grouped)
+    prefixes = apply_repeats(_brackets(format_substituent_prefixes(grouped)), repeats, metal_locant)
     hetero = _hetero_text(by_z, metal_locant, _METAL_A_PREFIXES[metal.GetSymbol()])
     return f"{prefixes}{'-' if prefixes else ''}{hetero}{_ring_stem(size, doubles, benzene)}"
+
+
+def ring_ligand_entries(counts, simple_labels, neutral):
+    """Metal ligands as ring-name prefixes: halo forms, and a chelating
+    ligand cited once without its kappa tag. Returns (entries, repeats):
+    `repeats` maps a chelate name to its donor count, so the metal locant
+    can be repeated per donor ('9,9-[...]') instead of using 'bis'."""
+    entries, repeats = [], {}
+    for label, n in counts.items():
+        compound = label in neutral or not (label in simple_labels or _is_plain(label))
+        name = _HALO_FOR_LIGAND.get(label, label)
+        match = re.search(r"-\u03ba(\d+)", label)
+        if match and n == 1:
+            name = label[: match.start()]
+            repeats[name] = int(match.group(1))
+        elif match:
+            raise UnsupportedStructure("several chelating ligands on a ring metal are not supported here")
+        entries.append((name, compound, n))
+    return entries, repeats
+
+
+def apply_repeats(prefixes: str, repeats, metal_locant) -> str:
+    for name, k in repeats.items():
+        shown = f"[{name}]" if "(" in name else name
+        needle = f"{metal_locant}-{shown}"
+        if needle in prefixes:
+            tail = needle[len(str(metal_locant)):]
+            prefixes = prefixes.replace(needle, ",".join([str(metal_locant)] * k) + tail, 1)
+    return prefixes
 
 
 def _is_plain(name: str) -> bool:
