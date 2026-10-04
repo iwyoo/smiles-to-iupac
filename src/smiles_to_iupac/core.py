@@ -300,7 +300,8 @@ from ._nitrite_ester import has_nitrite_ester_shape, name_nitrite_ester
 from ._nitro import has_nitro_shape, name_nitro
 from ._nitroso import has_nitroso_shape, name_nitroso
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
-from ._cyclophane import has_cyclophane_name, name_cyclophane
+from ._cyclophane import has_cyclophane_name, name_cyclophane, name_nonpreferred_cyclophane
+from ._linear_phane import has_linear_phane_shape, name_linear_phane
 from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
 from ._polyphosphane import has_polyphosphane_shape, name_polyphosphane
 from ._functional_replacement_oxoacid import (
@@ -613,6 +614,10 @@ def _run_fallbacks(smiles, original):
         name = _name_via_fallbacks(mol)
         if name is not None:
             return name
+        try:
+            return name_nonpreferred_cyclophane(mol)
+        except UnsupportedStructure:
+            pass
     finally:
         _FALLBACKS_RUNNING.discard(key)
     raise original
@@ -1191,6 +1196,8 @@ def _name_mol(mol) -> str:
     # understand phane nomenclature at all.
     if has_cyclophane_name(mol):
         return name_cyclophane(mol)
+    if has_linear_phane_shape(mol):
+        return name_linear_phane(mol)
 
     # The seven 1989 IUPAC steroid parent ring hydrides (gonane through
     # ergostane, Rule 2.1/3S-2.2/2.3/2.4 -- see module docstring) are

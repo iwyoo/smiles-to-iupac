@@ -102,6 +102,9 @@ class Numbering:
         self.added = ()
         self.fully_hydro = False
         self.stem = None
+        self.parent_stem = None
+        self.hydro_positions = ()
+        self.added_positions = ()
 
 
 def _walks(ring_order):
@@ -486,15 +489,15 @@ def monocycle_numberings(mol, ring_order, attached, valence, ene_bonds_getter=No
     best_pre, results = _hetero_monocycle(mol, ring_order, attached)
     out = []
     for position_of, stem, ih, hydro, added in results:
-        out.append(
-            Numbering(
-                position_of,
-                _hetero_text(stem, ih, hydro, added),
-                pre_key=best_pre + (ih,),
-                unsat_key=(added, hydro),
-                ih=ih,
-            )
+        numbering = Numbering(
+            position_of,
+            _hetero_text(stem, ih, hydro, added),
+            pre_key=best_pre + (ih,),
+            unsat_key=(added, hydro),
+            ih=ih,
         )
+        numbering.parent_stem, numbering.hydro_positions, numbering.added_positions = stem, tuple(hydro), tuple(added)
+        out.append(numbering)
     return out
 
 
@@ -750,7 +753,9 @@ def _arene_chain(mol, graph, rings, skeleton_atoms):
         def text(locants, valence, substituted=frozenset(), suffix="yl", hydro=hydro, added=added):
             return _hydro_text(hydro) + _tail_added(parent, locants, valence, suffix, added)
 
-        out.append(Numbering(position_of, text, unsat_key=(added, hydro)))
+        numbering = Numbering(position_of, text, unsat_key=(added, hydro))
+        numbering.parent_stem, numbering.hydro_positions, numbering.added_positions = parent, tuple(hydro), tuple(added)
+        out.append(numbering)
     if not out:
         raise UnsupportedStructure("no numbering of this partly hydrogenated arene fits its hydro/added hydrogen")
     return out
@@ -849,6 +854,7 @@ def _fused_mancude(mol, skeleton_atoms):
 
         numbering = Numbering(position_of, text, pre_key=(ih,), unsat_key=(added, hydro), ih=ih)
         numbering.hydro, numbering.added, numbering.fully_hydro, numbering.stem = tuple(hydro), tuple(added), fully_saturated, stem
+        numbering.parent_stem, numbering.hydro_positions, numbering.added_positions = stem, tuple(hydro), tuple(added)
         out.append(numbering)
     if not out:
         raise UnsupportedStructure("no numbering of this partly hydrogenated fused system fits its hydro/indicated hydrogen")
