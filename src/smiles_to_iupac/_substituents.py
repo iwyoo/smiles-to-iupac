@@ -255,7 +255,7 @@ def format_mononuclear_prefixes(entries) -> str:
             # branched name whose own locant isn't leading ('propan-2-yl',
             # left bare above) -- confirmed via PubChem PUG REST:
             # `Clc1ccc(cc1)P` -> '(4-chlorophenyl)phosphane' (CID 17762777).
-            if compound_of[name] and name[0].isdigit():
+            if compound_of[name] and (name[0].isdigit() or "-" not in name):
                 return wrap_marks(name)
             return name
         # A digit-leading compound name is itself a *substituted*
