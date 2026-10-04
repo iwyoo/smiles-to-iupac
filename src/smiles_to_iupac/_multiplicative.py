@@ -6,6 +6,7 @@ by identical single bonds to one central group, optionally via identical arms.
 """
 
 import itertools
+import re
 from dataclasses import dataclass
 
 from rdkit import Chem
@@ -210,7 +211,7 @@ def _components(mol, linker_nodes, systems):
                 continue
             zb = n.GetAtomicNum()
             single = mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() == 1
-            if (za == 6 and zb == 6) or (za == zb and za in (8, 16, 34, 52) and single):
+            if (za == 6 and zb == 6) or (za == zb and za in (8, 16, 34, 52, 14) and single):
                 parent[find(a)] = find(b)
     comps = {}
     for a in atoms:
@@ -368,6 +369,9 @@ def _attempt(mol, groups, selected, tree, core, name_function):
     return _assemble(len(selected), unit, central, arm_parts)
 
 
+_MULTIPLIED_HYDRIDE_ARM = re.compile(r"(?:di|tri|tetra|penta|hexa|hepta|octa)(?:silane|germane|stannane|plumbane|phosphane|arsane)")
+
+
 def _assemble(count, unit, central, arm_parts):
     if not arm_parts:
         linker = enclose(central.text) if (central.has_prefix or central.has_locants) else central.text
@@ -375,7 +379,12 @@ def _assemble(count, unit, central, arm_parts):
         central_text = enclose(central.text) if central.has_prefix else central.text
         pieces = [enclose(p.text) if p.has_prefix and len(arm_parts) > 1 else p.text for p in arm_parts]
         arm_text = "".join(pieces)
-        single_locant_only = len(arm_parts) == 1 and arm_parts[0].has_locants and not arm_parts[0].has_prefix
+        single_locant_only = (
+            len(arm_parts) == 1
+            and arm_parts[0].has_locants
+            and not arm_parts[0].has_prefix
+            and not _MULTIPLIED_HYDRIDE_ARM.match(arm_text)
+        )
         multiplier = multiplier_word(count, use_bis=not single_locant_only)
         linker = enclose(central_text + multiplier + enclose(arm_text))
     if unit.substituted:
