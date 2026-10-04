@@ -219,6 +219,14 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
                 return "nitro", False
             if len(oxygens) == 1 and mol.GetBondBetweenAtoms(root, oxygens[0]).GetBondTypeAsDouble() == 2.0:
                 return "nitroso", False
+        if order == 2.0 and len(others) == 1 and mol.GetAtomWithIdx(others[0]).GetAtomicNum() == 7:
+            far = mol.GetAtomWithIdx(others[0])
+            if far.GetDegree() == 1 and far.GetTotalNumHs() == 2 and not far.GetFormalCharge() and not atom.GetFormalCharge():
+                return "hydrazinylidene", False
+        if order == 1.0 and not atom.GetFormalCharge() and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 7 for n in others):
+            far = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 7]
+            if not (len(others) == 1 and mol.GetAtomWithIdx(far[0]).GetDegree() == 1):
+                return _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
         if order != 1.0 or atom.GetFormalCharge() or any(
             mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0 for n in others
         ):
@@ -325,9 +333,14 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     _, base, valence = MONONUCLEAR_HYDRIDES[atom.GetAtomicNum()]
     if atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope():
         raise UnsupportedStructure("this mononuclear group is not supported yet")
-    if mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
-        raise UnsupportedStructure("a mononuclear ylidene group is not supported yet")
+    order = int(mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble())
     others = [n for n in graph[root] if n != coming_from]
+    if order > 1:
+        if any(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0 for n in others) or len(others) > valence - order:
+            raise UnsupportedStructure("this mononuclear ylidene group is not supported yet")
+        entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in others]
+        prefix = format_mononuclear_prefixes(entries) if entries else ""
+        return prefix + base[:-2] + ("ylidene" if order == 2 else "ylidyne"), bool(entries)
     if any(mol.GetAtomWithIdx(n).GetAtomicNum() == atom.GetAtomicNum() for n in others):
         return _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if atom.GetAtomicNum() == 14 and any(
@@ -336,25 +349,46 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         for n in others
     ):
         return _siloxanyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
-    if len(others) > valence - 1 or any(
-        mol.GetAtomWithIdx(n).GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0
-        for n in others
-    ):
-        raise UnsupportedStructure("this mononuclear group carries something other than organyl groups")
+    if len(others) > valence - 1 or any(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0 for n in others):
+        raise UnsupportedStructure("this mononuclear group carries a multiple bond")
+    if atom.GetAtomicNum() == 5 and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 8 for n in others):
+        raise UnsupportedStructure("a boron group with a hydroxy or alkoxy substituent is a boronic or borinic acid (P-67.1.1)")
     entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in others]
     prefix = format_mononuclear_prefixes(entries) if entries else ""
     return prefix + base, bool(entries)
 
 
+def _chain_stem(z):
+    return "azane" if z == 7 else MONONUCLEAR_HYDRIDES[z][0]
+
+
+def _chain_paths(graph, chain_atoms, root):
+    paths = []
+
+    def extend(path):
+        grew = False
+        for n in graph[path[-1]]:
+            if n in chain_atoms and n not in path:
+                grew = True
+                extend(path + [n])
+        if not grew and root in path:
+            paths.append(path)
+
+    for start in chain_atoms:
+        if sum(m in chain_atoms for m in graph[start]) <= 1:
+            extend([start])
+    return paths
+
+
 def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
-    """disilanyl, trisilan-2-yl, 1-methyltetrasilan-1-yl: an unbranched chain of one element attached through
-    a chain atom (P-29.3.1, P-29.4.1)."""
+    """disilanyl, triazan-1-yl, 3-silyltetrasilan-1-yl, 1-methyltetrasilan-1-yl: a homogeneous heteroatom chain
+    attached through one of its atoms; the longest chain through the free valence is the parent (P-29.4.1, P-44.3)."""
     from ._common import group_substituents, substituent_locant_set_and_citation
     from ._numerals import multiplying_prefix
     from ._substituents import format_substituent_prefixes, name_branch
 
     z = mol.GetAtomWithIdx(root).GetAtomicNum()
-    stem = MONONUCLEAR_HYDRIDES[z][0]
+    stem = _chain_stem(z)
     chain_atoms = {root}
     stack = [root]
     while stack:
@@ -362,10 +396,6 @@ def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
             if n != coming_from and n not in chain_atoms and mol.GetAtomWithIdx(n).GetAtomicNum() == z:
                 chain_atoms.add(n)
                 stack.append(n)
-    arms = [[n for n in graph[root] if n in chain_atoms]]
-    if any(sum(m in chain_atoms for m in graph[a]) > 2 for a in chain_atoms) or len(arms[0]) > 2:
-        raise UnsupportedStructure("a branched heteroatom chain substituent is not supported yet")
-    ends = [a for a in chain_atoms if sum(m in chain_atoms for m in graph[a]) <= 1]
     if any(
         mol.GetAtomWithIdx(a).IsInRing() or mol.GetAtomWithIdx(a).GetFormalCharge() or any(
             mol.GetBondBetweenAtoms(a, m).GetBondTypeAsDouble() != 1.0 for m in graph[a] if m in chain_atoms or m == coming_from
@@ -373,36 +403,27 @@ def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         for a in chain_atoms
     ):
         raise UnsupportedStructure("this heteroatom chain substituent is not supported yet")
-    walk, previous = [ends[0]], None
-    while True:
-        nxt = [n for n in graph[walk[-1]] if n in chain_atoms and n != previous]
-        if not nxt:
-            break
-        previous = walk[-1]
-        walk.append(nxt[0])
+    paths = _chain_paths(graph, chain_atoms, root)
+    longest = max(len(p) for p in paths)
     best = None
-    for candidate in (walk, walk[::-1]):
+    for walk in (p for p in paths if len(p) == longest):
         subs = {}
-        for i, atom in enumerate(candidate):
+        for i, atom in enumerate(walk):
             for n in graph[atom]:
-                if n in chain_atoms or n == coming_from:
+                if n in walk or n == coming_from:
                     continue
                 if mol.GetBondBetweenAtoms(atom, n).GetBondTypeAsDouble() != 1.0:
                     raise UnsupportedStructure("a multiple bond on a heteroatom chain substituent is not supported yet")
                 subs.setdefault(i + 1, []).append(name_branch(graph, n, atom, halogens, aromatic_atoms, mol=mol))
         grouped = group_substituents(subs)
         locant_set, _, citation = substituent_locant_set_and_citation(grouped)
-        attach = candidate.index(root) + 1
-        key = ((attach,), locant_set, citation)
+        attach = walk.index(root) + 1
+        key = ((attach,), -sum(len(v) for v in subs.values()), locant_set, citation)
         if best is None or key < best[0]:
             best = (key, grouped, attach)
     _, grouped, attach = best
-    count = len(walk)
-    word = multiplying_prefix(count) + stem[:-1]
-    if count == 2 and attach == 1:
-        base = word + "yl"
-    else:
-        base = f"{word}-{attach}-yl"
+    word = multiplying_prefix(longest) + stem[:-1]
+    base = word + "yl" if longest == 2 and attach == 1 else f"{word}-{attach}-yl"
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     return prefix + base, bool(prefix) or "-" in base
 

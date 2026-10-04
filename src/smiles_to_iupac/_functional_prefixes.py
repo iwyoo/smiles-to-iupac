@@ -181,6 +181,9 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
             bond = _bond_order(mol, node, parent)
             if bond == 3.0 and not kids:
                 continue
+            if bond == 2.0 and len(kids) == 1 and named.get(kids[0]) == ("amino", False) and _bond_order(mol, node, kids[0]) == 1.0:
+                record(node, "hydrazinylidene", False)
+                continue
             if bond != 1.0 or any(_bond_order(mol, node, k) != 1.0 for k in kids):
                 raise UnsupportedStructure("an imine/azo/nitroso-type substituent is not supported yet")
             if any(mol.GetAtomWithIdx(k).GetAtomicNum() != 6 for k in kids):

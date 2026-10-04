@@ -482,6 +482,11 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
         named = _mononuclear_parent(mol, graph, halogens, aromatic_atoms, centers[0])
         if named is not None:
             return ((0,), named, (None, None, None, 0, {}, False))
+    if centers or any(
+        b.GetBeginAtom().GetAtomicNum() == 7 and b.GetEndAtom().GetAtomicNum() == 7 and not b.IsInRing()
+        for b in mol.GetBonds()
+    ):
+        raise UnsupportedStructure("a heteroatom hydride is the senior parent when there is no principal group (P-44.1.2.2)")
     ring_info = mol.GetRingInfo()
     rings = [r for r in ring_info.AtomRings()]
     if len(rings) >= 2:
