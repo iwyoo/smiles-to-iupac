@@ -235,7 +235,7 @@ def variants(parent, cost=1, terminal_only=False):
     if terminal_only:
         nors = [a for a in nors if len(parent.adj[a]) == 1]
         sites = [site for site in sites if site[0] == "terminal"]
-        secos, dess, apos = [], [], []
+        secos, dess = [], []
     for _ in range(max_cost):
         nxt = []
         for skel in layers[-1]:

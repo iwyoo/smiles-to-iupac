@@ -284,7 +284,7 @@ def build(cand, view):
     removed = sorted((loc_key(op[1])[1] for op in cand.skel.ops if op[0] == "nor"), reverse=True)
     first = next((text for _, text in sorted(config.parent) if text[-1] in "αβ"), "")
     return Built(
-        name, cost, (cost, nondet > 0 or bool(fused_comps) or bool(bridge_comps) or bool(spiro_comps), -len(mapping), rearranged, tuple(-n for n in removed)),
+        name, cost, (cost, nondet > 0 or bool(fused_comps) or bool(bridge_comps) or bool(spiro_comps), -len(mapping), rearranged, tuple(-n for n in removed), len(config.parent) + len(config.side)),
         config.implied_total, config.implied_cited, first[-1] if first else "",
     )
 

@@ -23,6 +23,11 @@ def unsaturation(cand, view, fusion=frozenset()):
     parent = skel.parent
     aromatic_m = {i for bond in view.aromatic_bonds for i in bond}
     aromatic = {loc for loc, atom in mapping.items() if loc in parent.aromatic_atoms or atom in aromatic_m}
+    mancude_added = {
+        loc for loc in mapping
+        if loc not in parent.idx_of and sum(n in parent.aromatic_atoms for n in skel.adj[loc]) >= 2
+    }
+    aromatic |= mancude_added
     _, kind = stem_info(parent.name)
     saturated = {
         loc: all(skel.order.get(frozenset((loc, n)), 1) == 1 for n in skel.adj[loc]) and loc not in parent.aromatic_atoms
@@ -61,10 +66,6 @@ def unsaturation(cand, view, fusion=frozenset()):
         else:
             hydro += [a, b] * (order - other)
     donors = {loc for loc in cand.replaced if view.elem[mapping[loc]] in ("O", "S", "Se", "Te")}
-    mancude_added = {
-        loc for loc in mapping
-        if loc not in parent.idx_of and any(n in parent.aromatic_atoms for n in skel.adj[loc])
-    }
     for loc in aromatic | mancude_added:
         if loc in covered or loc in donors or (loc in parent.aromatic_atoms and mapping[loc] in aromatic_m):
             continue

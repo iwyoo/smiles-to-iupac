@@ -23,6 +23,7 @@ _MAX_HEAVY_ATOMS = 90
 _MAX_RINGS = 12
 _EXTRA_AROMATIC_ATOMS = 12
 _MIN_RINGS_FOR_OPERATIONS = 3
+_MAX_ATOMS_REMOVED_PER_OPERATION = 12
 
 
 def _cyclomatic(adj):
@@ -73,14 +74,14 @@ def _variants(name, cost, terminal_only=False):
 def _plausible(name, view, cost):
     """Cheap necessary conditions for a parent (modified by at most `cost` operations) to occur in the molecule."""
     cyc, rings, elements, aromatic, _ = _parent_facts(name)
-    if cyc - cost > view.cyclomatic or len(PARENTS) and get_parent(name).adj.__len__() - cost > len(view.adj):
+    if cyc - cost > view.cyclomatic or len(get_parent(name).adj) - cost * _MAX_ATOMS_REMOVED_PER_OPERATION > len(view.adj):
         return False
     if view.aromatic_atoms > aromatic + _EXTRA_AROMATIC_ATOMS:
         return False
     missing = sum(max(0, n - view.rings_by_size.get(size, 0)) for size, n in rings.items())
     if missing > 2 * cost + 2:
         return False
-    hetero_missing = sum(max(0, n - view.elements.get(el, 0)) for el, n in elements.items())
+    hetero_missing = sum(max(0, n - view.elements.get(el, 0)) for el, n in elements.items() if el != "C")
     return hetero_missing <= cost + _MAX_MODIFICATIONS
 
 
@@ -182,14 +183,14 @@ def _skeleton_facts(skel):
 _RING_SLACK = 3
 
 
-def _candidates(skel, view, cost):
+def _candidates(skel, view):
     size, cyclomatic, rings, elements = _skeleton_facts(skel)
     if size > len(view.adj) or cyclomatic > view.cyclomatic:
         return []
     secos = sum(1 for op in skel.ops if op[0] == "seco")
     if secos > 1 or (secos and cyclomatic < 2):
         return []
-    budget = cost - len(skel.ops)
+    budget = _MAX_MODIFICATIONS - len(skel.ops)
     missing = sum(max(0, n - view.rings_by_size.get(length, 0)) for length, n in rings.items())
     if missing > 2 * budget + _RING_SLACK:
         return []
@@ -227,13 +228,15 @@ def _name_once(mol):
             terminal_only = view.cyclomatic < 2
             skels = [Skel.of(parent)] if cost == 0 else _variants(name, cost, terminal_only)
             for skel in skels:
-                found += _candidates(skel, view, cost)
+                found += _candidates(skel, view)
         if cost == 0:
             exact = {c.parent.name for c in found}
         for cand in _best_per_skeleton(found, view):
             if cand.replaced and set(view.elements) == {"C"} and not view.has_stereo:
                 continue
             if len(cand.skel.ops) + len(cand.cyclo) + len(cand.replaced) > 1 and not view.has_stereo:
+                continue
+            if not view.has_stereo and any(op[0] == "des" for op in cand.skel.ops):
                 continue
             try:
                 built = build(cand, view)
