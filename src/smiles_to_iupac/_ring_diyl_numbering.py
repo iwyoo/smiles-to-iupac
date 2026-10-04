@@ -16,6 +16,7 @@ from ._common import (
     ring_bond_locants,
     von_baeyer_unsaturation_citations,
 )
+from ._fusion_numbering_hex import hex_numberings
 from ._fusion_numbering_general import general_peripheral_numberings
 from ._hetero_monocyclic import (
     _ROLE_SEQUENCES,
@@ -146,13 +147,27 @@ _RETAINED_NUMBERINGS = {
     "xanthene": (("1", "2", "3", "4", "4a", "10", "10a", "5", "6", "7", "8", "8a", "9", "9a"), {"10": "O"}, (("4a", "9a"), ("10a", "8a"))),
     "thioxanthene": (("1", "2", "3", "4", "4a", "10", "10a", "5", "6", "7", "8", "8a", "9", "9a"), {"10": "S"}, (("4a", "9a"), ("10a", "8a"))),
     "purine": (("1", "2", "3", "4", "5", "6", "7", "8", "9"), {"1": "N", "3": "N", "7": "N", "9": "N"}, (("4", "5"),)),
+    "fluoranthene": (
+        ("1", "2", "3", "3a", "4", "5", "6", "6a", "6b", "7", "8", "9", "10", "10a", "10b", "3a1"),
+        {},
+        (("3a1", "3a"), ("3a1", "6a"), ("3a1", "10b"), ("6b", "10a")),
+        15,
+    ),
+    "acenaphthylene": (
+        ("1", "2", "2a", "3", "4", "5", "5a", "6", "7", "8", "8a", "2a1"),
+        {},
+        (("2a1", "2a"), ("2a1", "5a"), ("2a1", "8a")),
+        11,
+    ),
 }
 
 
 def _retained_numberings(bare, stem):
-    locants, hetero, interior = _RETAINED_NUMBERINGS[stem]
+    entry = _RETAINED_NUMBERINGS[stem]
+    locants, hetero, interior = entry[:3]
     index = {loc: i for i, loc in enumerate(locants)}
-    edges = [(i, (i + 1) % len(locants)) for i in range(len(locants))] + [(index[a], index[b]) for a, b in interior]
+    ring_length = entry[3] if len(entry) == 4 else len(locants)
+    edges = [(i, (i + 1) % ring_length) for i in range(ring_length)] + [(index[a], index[b]) for a, b in interior]
     if stem == "purine":
         edges = [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 0), (3, 8), (8, 7), (7, 6), (6, 4)]
     if bare.GetNumBonds() != len(edges):
@@ -744,10 +759,13 @@ def _fused_mancude(mol, skeleton_atoms):
     stem = match.group(2) if match else parent
     if stem in _RETAINED_NUMBERINGS:
         numberings = _retained_numberings(bare, stem)
-    elif any(x in parent for x in _LACKS_REGULAR_NUMBERING):
+    elif parent in _LACKS_REGULAR_NUMBERING:
         raise UnsupportedStructure("this fused parent has a retained non-peripheral numbering not supported yet")
     else:
-        numberings = general_peripheral_numberings(bare, ignore_indicated=True)
+        all_six = all(len(r) == 6 for r in bare.GetRingInfo().AtomRings())
+        if not all_six and bare.GetRingInfo().NumRings() > 3:
+            raise UnsupportedStructure("the numbering of this larger fused system with a five- or seven-membered ring is not verified")
+        numberings = hex_numberings(bare) if all_six else general_peripheral_numberings(bare, ignore_indicated=True)
     if not numberings:
         raise UnsupportedStructure("this fused skeleton has no supported peripheral numbering as a diyl yet")
     adj, can_hold = _ring_graph(mol, skeleton_atoms)
@@ -808,8 +826,11 @@ def is_hydro_fusion_system(mol, skeleton_atoms):
 def system_numberings(mol, graph, rings, skeleton_atoms):
     if all(
         len(r) == 6 and all(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in r) for r in rings
-    ) and any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in skeleton_atoms):
-        arene = _arene_chain(mol, graph, rings, skeleton_atoms)
+    ) and len(rings) <= 3 and any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in skeleton_atoms):
+        try:
+            arene = _arene_chain(mol, graph, rings, skeleton_atoms)
+        except UnsupportedStructure:
+            arene = None
         if arene is not None:
             return arene
     if any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in skeleton_atoms):

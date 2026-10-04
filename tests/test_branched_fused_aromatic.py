@@ -12,9 +12,8 @@ def test_triphenylene():
     assert smiles_to_iupac("c1ccc2c(c1)c1ccccc1c1ccccc21") == "triphenylene"
 
 
-def test_substituted_triphenylene_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccc2c(c1)c1ccccc1c1ccccc21")
+def test_substituted_triphenylene_is_named():
+    assert smiles_to_iupac("Cc1ccc2c(c1)c1ccccc1c1ccccc21") == '2-methyltriphenylene'
 
 
 def test_unrelated_branched_shape_not_claimed_here():

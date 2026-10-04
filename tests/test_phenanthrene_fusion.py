@@ -29,6 +29,5 @@ def test_letter_l_defers_to_triphenylene():
     assert smiles_to_iupac("c1ccc2c(c1)c1ccccc1c1ccccc21") == "triphenylene"
 
 
-def test_substituted_chrysene_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccc2c(c1)ccc1c2ccc2ccccc21")
+def test_substituted_chrysene_is_named():
+    assert smiles_to_iupac("Cc1ccc2c(c1)ccc1c2ccc2ccccc21") == '2-methylchrysene'

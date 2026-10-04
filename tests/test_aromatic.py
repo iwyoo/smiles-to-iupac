@@ -81,23 +81,21 @@ def test_smiles_to_iupac_aromatic(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_substituted_peri_fused_raises():
+def test_substituted_peri_fused_is_named():
     # a methylated pyrene: the unsubstituted parent itself is now supported
     # (see tests/test_peri_fused_aromatic.py), but a substituted peri-fused
     # ring system is still explicitly out of scope (P-25.3.1.3).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1cc2ccc3cccc4ccc(c1)c2c34")
+    assert smiles_to_iupac("Cc1cc2ccc3cccc4ccc(c1)c2c34") == '2-methylpyrene'
 
 
-def test_substituted_branched_fusion_raises():
+def test_substituted_branched_fusion_is_named():
     # a methylated triphenylene: the unsubstituted parent itself is now
     # supported (see tests/test_branched_fused_aromatic.py), but a
     # substituted branched-fusion ring system is still explicitly out of
     # scope (P-25.3.1.3) -- verified via RDKit that its ring-adjacency
     # graph has a degree-3 node (three rings all ortho-fused to one
     # central ring), not a simple chain.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccc2c(c1)c1ccccc1c1ccccc21")
+    assert smiles_to_iupac("Cc1ccc2c(c1)c1ccccc1c1ccccc21") == '2-methyltriphenylene'
 
 
 def test_heteroaromatic():

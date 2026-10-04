@@ -47,19 +47,16 @@ def test_perylene():
     assert smiles_to_iupac("C1=CC2=C3C(=C1)C4=CC=CC5=C4C(=CC=C5)C3=CC=C2") == "perylene"
 
 
-def test_substituted_pyrene_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1cc2ccc3cccc4ccc(c1)c2c34")
+def test_substituted_pyrene_is_named():
+    assert smiles_to_iupac("Cc1cc2ccc3cccc4ccc(c1)c2c34") == '2-methylpyrene'
 
 
-def test_substituted_acenaphthylene_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccc2cccc3C=Cc1c23")
+def test_substituted_acenaphthylene_is_named():
+    assert smiles_to_iupac("Cc1ccc2cccc3C=Cc1c23") == '3-methylacenaphthylene'
 
 
-def test_substituted_fluoranthene_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccc2c(c1)-c1cccc3cccc-2c13")
+def test_substituted_fluoranthene_is_named():
+    assert smiles_to_iupac("Cc1ccc2c(c1)-c1cccc3cccc-2c13") == '8-methylfluoranthene'
 
 
 def test_unrelated_peri_fused_shape_raises():
