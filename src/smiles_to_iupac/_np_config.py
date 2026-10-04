@@ -1,0 +1,105 @@
+"""Configuration of a natural product on its parent: α/β faces, CIP descriptors and E/Z (P-101.2.6, P-101.6.2)."""
+
+from dataclasses import dataclass, field
+
+from rdkit import Chem
+from rdkit.Chem import rdCIPLabeler
+
+from ._common import UnsupportedStructure
+from ._np_core import FACES, center_signature, exo_faces, loc_key, parent_h
+
+
+@dataclass
+class Config:
+    parent: list = field(default_factory=list)
+    side: list = field(default_factory=list)
+    faces: dict = field(default_factory=dict)
+    exo: dict = field(default_factory=dict)
+
+
+def _natural(parent, loc, mol_h, atom, image):
+    ph = parent_h(parent.name)
+    pidx = parent.idx_of[loc]
+    plabels = {n.GetIdx(): parent.loc_of.get(n.GetIdx(), "~H") for n in ph.GetAtomWithIdx(pidx).GetNeighbors()}
+    mlabels = {n.GetIdx(): image.get(n.GetIdx(), "~H") for n in mol_h.GetAtomWithIdx(atom).GetNeighbors()}
+    if sorted(plabels.values()) != sorted(mlabels.values()):
+        return False
+    return center_signature(ph, pidx, plabels) == center_signature(mol_h, atom, mlabels)
+
+
+def _cip(mol, atom):
+    center = mol.GetAtomWithIdx(atom)
+    if not center.HasProp("_CIPCode") or center.GetProp("_CIPCode") not in ("R", "S"):
+        raise UnsupportedStructure("a natural-product centre has no CIP R/S label")
+    return center.GetProp("_CIPCode")
+
+
+def configuration(cand, view):
+    mol = view.mol
+    skel, mapping, parent = cand.skel, cand.mapping, cand.parent
+    mapped = set(mapping.values())
+    image = {a: loc for loc, a in mapping.items()}
+    potential = {e.centeredOn: e for e in Chem.FindPotentialStereo(mol) if e.type == Chem.StereoType.Atom_Tetrahedral}
+    specified = {a for a, e in potential.items() if e.specified == Chem.StereoSpecified.Specified}
+    config = Config()
+    bond_stereo = [
+        b for b in mol.GetBonds()
+        if b.GetBondTypeAsDouble() == 2.0 and not b.IsInRing()
+        and b.GetBeginAtomIdx() in mapped and b.GetEndAtomIdx() in mapped
+        and b.GetStereo() not in (Chem.BondStereo.STEREONONE, Chem.BondStereo.STEREOANY)
+    ]
+    if not (specified & mapped) and not bond_stereo:
+        return config
+    rdCIPLabeler.AssignCIPLabels(mol)
+    for bond in bond_stereo:
+        if not bond.HasProp("_CIPCode"):
+            raise UnsupportedStructure("a chain double bond has no E/Z label")
+        low = min((image[bond.GetBeginAtomIdx()], image[bond.GetEndAtomIdx()]), key=loc_key)
+        config.side.append((loc_key(low), f"{low}{bond.GetProp('_CIPCode')}"))
+    if not (specified & mapped):
+        return config
+    mol_h = Chem.AddHs(mol)
+    parent_atoms = {loc: a for loc, a in mapping.items() if loc in parent.idx_of}
+    faces = exo_faces(parent, mol_h, parent_atoms)
+    ring = skel.ring_atoms()
+    for loc, atom in mapping.items():
+        if atom not in potential or loc not in parent.idx_of:
+            continue
+        in_parent_ring = loc in parent.plane
+        exo = [
+            n.GetIdx() for n in mol_h.GetAtomWithIdx(atom).GetNeighbors()
+            if not (n.GetIdx() in mapped and frozenset((loc, image[n.GetIdx()])) in parent.plane_bonds)
+        ]
+        if loc in parent.centers:
+            if atom not in specified:
+                config.parent.append((loc_key(loc), f"{loc}ξ"))
+                continue
+            if loc in parent.implied and _natural(parent, loc, mol_h, atom, image):
+                continue
+            chosen = _exo_choice(exo, mapped, ring, image, mol_h)
+            if in_parent_ring and faces is not None and chosen in faces:
+                config.parent.append((loc_key(loc), f"{loc}{FACES[faces[chosen]]}"))
+            else:
+                config.side.append((loc_key(loc), f"{loc}{_cip(mol, atom)}"))
+            continue
+        if atom not in specified:
+            if in_parent_ring:
+                for n in exo:
+                    if mol_h.GetAtomWithIdx(n).GetAtomicNum() != 1 and n not in mapped:
+                        config.faces[n] = "x"
+            continue
+        if in_parent_ring and faces is not None and any(n in faces for n in exo):
+            for n in exo:
+                if n in faces and mol_h.GetAtomWithIdx(n).GetAtomicNum() != 1:
+                    config.faces[n] = faces[n]
+        else:
+            config.side.append((loc_key(loc), f"{loc}{_cip(mol, atom)}"))
+    return config
+
+
+def _exo_choice(exo, mapped, ring, image, mol_h):
+    skeleton = [n for n in exo if n in mapped and image[n] not in ring]
+    if skeleton:
+        return skeleton[0]
+    heavy = [n for n in exo if mol_h.GetAtomWithIdx(n).GetAtomicNum() != 1]
+    return heavy[0] if heavy else exo[0]
