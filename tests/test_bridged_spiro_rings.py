@@ -755,3 +755,20 @@ def test_von_baeyer_thiol_name(smiles, expected):
 
 def test_thiol_on_substituent_branch_is_a_prefix():
     assert smiles_to_iupac("SCC1CC2CCC1C2") == "(bicyclo[2.2.1]heptan-2-yl)methanethiol"
+
+
+def test_substituted_fullerene_stops_at_the_numbering_the_blue_book_leaves_open():
+    from rdkit import Chem
+    from smiles_to_iupac._common import UnsupportedStructure
+    from smiles_to_iupac._fullerene import _FULLERENE_C60_SMILES
+
+    cage = Chem.MolFromSmiles(_FULLERENE_C60_SMILES)
+    Chem.Kekulize(cage, clearAromaticFlags=True)
+    editable = Chem.RWMol(cage)
+    next(b for b in editable.GetAtomWithIdx(0).GetBonds() if b.GetBondTypeAsDouble() == 2.0).SetBondType(Chem.BondType.SINGLE)
+    carbon = editable.AddAtom(Chem.Atom(6))
+    editable.AddBond(0, carbon, Chem.BondType.SINGLE)
+    derivative = editable.GetMol()
+    Chem.SanitizeMol(derivative)
+    with pytest.raises(UnsupportedStructure, match="P-27.3"):
+        smiles_to_iupac(Chem.MolToSmiles(derivative))

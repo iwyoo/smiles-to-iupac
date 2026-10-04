@@ -7,6 +7,7 @@ amino, nitro, cyano, formyl, carboxy, carbamoyl, alkoxycarbonyl and acyl.
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, alpha_sort_key
+from ._free_valence import SUFFIX_OF_ORDER
 from ._multiplicative_text import enclose
 from ._numerals import alkane_name
 
@@ -45,6 +46,12 @@ def require_plain_chalcogen_kids(mol, z, kids):
                 for b in atom.GetBonds()
             ):
                 raise UnsupportedStructure("an acyl, carbamoyl or cyano group on selenium/tellurium is not a selanyl prefix")
+
+
+def _has_senior_principal_group(mol):
+    """A principal group senior to the hetero-hetero connection (hydroxylamine, hydrazine, peroxide classes) is
+    present, so that connection is expressed as a prefix (P-41, P-29.4.1)."""
+    return any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL)
 
 
 def require_senior_group(mol, z):
@@ -299,7 +306,12 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             silyl, _ = _mononuclear_group(graph, other, root, halogens, aromatic_atoms, mol)
             return _enclose(silyl, True) + "oxy", True
         if mol.GetAtomWithIdx(other).GetAtomicNum() != 6:
-            raise UnsupportedStructure("this oxygen-linked group is not supported yet")
+            if mol.GetAtomWithIdx(other).GetAtomicNum() == 8 or not _has_senior_principal_group(mol):
+                raise UnsupportedStructure("this oxygen-linked group is not supported yet")
+            from ._substituents import name_branch
+
+            rname, rcomp = name_branch(graph, other, root, halogens, aromatic_atoms, mol=mol)
+            return _enclose(rname, rcomp) + "oxy", True
         if is_functional_carbon(mol, other):
             (acyl,) = _group_names(graph, mol, [other], root, halogens, aromatic_atoms)
             return _enclose(acyl[0], acyl[1]) + "oxy", True
@@ -324,9 +336,13 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in MONONUCLEAR_HYDRIDES:
             silyl, _ = _mononuclear_group(graph, others[0], root, halogens, aromatic_atoms, mol)
             return _enclose(silyl, True) + word, True
-        if mol.GetAtomWithIdx(others[0]).GetAtomicNum() != 6:
-            raise UnsupportedStructure("a chalcogen chain (disulfanyl, ...) is not supported yet")
         from ._substituents import name_branch
+
+        if mol.GetAtomWithIdx(others[0]).GetAtomicNum() != 6:
+            if mol.GetAtomWithIdx(others[0]).GetAtomicNum() == z or not _has_senior_principal_group(mol):
+                raise UnsupportedStructure("a chalcogen chain (disulfanyl, ...) is not supported yet")
+            rname, rcomp = name_branch(graph, others[0], root, halogens, aromatic_atoms, mol=mol)
+            return _enclose(rname, rcomp) + word, True
 
         rname, rcomp = name_branch(graph, others[0], root, halogens, aromatic_atoms, mol=mol)
         return _enclose(rname, rcomp) + word, True
@@ -347,10 +363,21 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
                 return "nitro", False
             if len(oxygens) == 1 and mol.GetBondBetweenAtoms(root, oxygens[0]).GetBondTypeAsDouble() == 2.0:
                 return "nitroso", False
+        diazenyl = _diazenyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol, order, others)
+        if diazenyl is not None:
+            return diazenyl
         if order == 2.0 and len(others) == 1 and mol.GetAtomWithIdx(others[0]).GetAtomicNum() == 7:
             far = mol.GetAtomWithIdx(others[0])
             if far.GetDegree() == 1 and far.GetTotalNumHs() == 2 and not far.GetFormalCharge() and not atom.GetFormalCharge():
                 return "hydrazinylidene", False
+        if order == 2.0 and not atom.GetFormalCharge() and len(others) <= 1 and _has_senior_principal_group(mol):
+            if not others:
+                return "imino", False
+            if mol.GetBondBetweenAtoms(root, others[0]).GetBondTypeAsDouble() == 1.0:
+                from ._substituents import name_branch
+
+                rname, rcomp = name_branch(graph, others[0], root, halogens, aromatic_atoms, mol=mol)
+                return _enclose(rname, rcomp) + "imino", True
         if order == 1.0 and not atom.GetFormalCharge() and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 7 for n in others):
             far = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 7]
             if not (len(others) == 1 and mol.GetAtomWithIdx(far[0]).GetDegree() == 1):
@@ -363,20 +390,24 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             far = mol.GetAtomWithIdx(others[0])
             if far.GetDegree() == 1 and far.GetTotalNumHs() == 2 and not far.GetFormalCharge():
                 return "hydrazinyl", False
-        if any(mol.GetAtomWithIdx(n).GetAtomicNum() in MONONUCLEAR_HYDRIDES for n in others) and all(
-            mol.GetAtomWithIdx(n).GetAtomicNum() in MONONUCLEAR_HYDRIDES or mol.GetAtomWithIdx(n).GetAtomicNum() == 6
-            for n in others
+        if any(mol.GetAtomWithIdx(n).GetAtomicNum() not in (6,) + tuple(MONONUCLEAR_HYDRIDES) for n in others) and not (
+            _has_senior_principal_group(mol)
         ):
+            raise UnsupportedStructure("this nitrogen-linked group is not supported yet")
+        if any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in others):
+            from ._substituents import name_branch
+
             names = []
             for n in others:
-                if mol.GetAtomWithIdx(n).GetAtomicNum() in MONONUCLEAR_HYDRIDES:
+                z_n = mol.GetAtomWithIdx(n).GetAtomicNum()
+                if z_n in MONONUCLEAR_HYDRIDES:
                     names.append(_mononuclear_group(graph, n, root, halogens, aromatic_atoms, mol))
-                else:
+                elif z_n == 6:
                     names.extend(_group_names(graph, mol, [n], root, halogens, aromatic_atoms))
+                else:
+                    names.append(name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol))
             name = _amino(names)
             return name, _compound(name)
-        if any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in others):
-            raise UnsupportedStructure("this nitrogen-linked group is not supported yet")
         name = _amino(_group_names(graph, mol, others, root, halogens, aromatic_atoms))
         return name, _compound(name)
     raise UnsupportedStructure("this heteroatom-linked substituent is not supported yet")
@@ -471,7 +502,7 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
             raise UnsupportedStructure("this mononuclear ylidene group is not supported yet")
         entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in others]
         prefix = format_mononuclear_prefixes(entries) if entries else ""
-        return prefix + base[:-2] + ("ylidene" if order == 2 else "ylidyne"), bool(entries)
+        return prefix + base[:-2] + SUFFIX_OF_ORDER[order], bool(entries)
     if any(mol.GetAtomWithIdx(n).GetAtomicNum() == atom.GetAtomicNum() for n in others):
         return _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if atom.GetAtomicNum() == 14 and any(
@@ -509,6 +540,26 @@ def _chain_paths(graph, chain_atoms, root):
         if sum(m in chain_atoms for m in graph[start]) <= 1:
             extend([start])
     return paths
+
+
+def _diazenyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol, order, others):
+    """R-N=N- attached through the nitrogen next to the parent (P-29.3.2.2, P-68.3.1.3): diazenyl with the far
+    nitrogen's substituent cited as a prefix."""
+    if order != 1.0 or len(others) != 1 or mol.GetAtomWithIdx(root).GetFormalCharge() or not _has_senior_principal_group(mol):
+        return None
+    far = others[0]
+    far_atom = mol.GetAtomWithIdx(far)
+    if far_atom.GetAtomicNum() != 7 or far_atom.GetFormalCharge() or mol.GetBondBetweenAtoms(root, far).GetBondTypeAsDouble() != 2.0:
+        return None
+    tail = [n for n in graph[far] if n != root]
+    if not tail:
+        return "diazenyl", False
+    if len(tail) != 1 or mol.GetBondBetweenAtoms(far, tail[0]).GetBondTypeAsDouble() != 1.0:
+        return None
+    from ._substituents import name_branch
+
+    rname, rcomp = name_branch(graph, tail[0], far, halogens, aromatic_atoms, mol=mol)
+    return _enclose(rname, rcomp) + "diazenyl", True
 
 
 def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
@@ -555,6 +606,8 @@ def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     _, grouped, attach = best
     word = multiplying_prefix(longest) + stem[:-1]
     base = word + "yl" if longest == 2 and attach == 1 else f"{word}-{attach}-yl"
+    if z == 7 and longest == 2 and attach == 1:
+        base = "hydrazinyl"
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     return prefix + base, bool(prefix) or "-" in base
 

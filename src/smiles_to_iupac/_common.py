@@ -390,8 +390,7 @@ def _heteroaromatic_monocycle_locant(mol, ring_order, attachment_atom):
     needed, mirroring `_pyridine_heterocycle_fusion.py`'s identical
     `GetTotalNumHs() > 0` heuristic for the same tautomer distinction);
     pyridine/furan/thiophene never need this, since their heteroatom
-    carries no H to begin with. Shared by `heteroaromatic_monocycle_yl_name`
-    (ring cited as a substituent) and `heteroaromatic_monocycle_prefix_name`
+    carries no H to begin with. Used by `heteroaromatic_monocycle_prefix_name`
     (ring cited as the parent) -- the locant math is identical either way,
     only the surrounding name format differs."""
     n = len(ring_order)
@@ -406,20 +405,6 @@ def _heteroaromatic_monocycle_locant(mol, ring_order, attachment_atom):
     if hetero.GetAtomicNum() == 7 and (hetero.GetTotalNumHs() > 0 or hetero.GetDegree() == 3):
         indicated_hydrogen = "1H-"
     return locant, indicated_hydrogen
-
-
-def heteroaromatic_monocycle_yl_name(mol, ring_order, attachment_atom):
-    """"-yl" substituent name (e.g. "pyridin-3-yl", "1H-pyrrol-2-yl") for a
-    plain heteroaromatic monocycle recognized by
-    `heteroaromatic_monocycle_name`, with the free valence at
-    `attachment_atom`. Returns None if `ring_order` isn't one of the four
-    recognized rings."""
-    name = heteroaromatic_monocycle_name(mol, ring_order)
-    if name is None:
-        return None
-    locant, indicated_hydrogen = _heteroaromatic_monocycle_locant(mol, ring_order, attachment_atom)
-    stem = name[:-1] if name.endswith("e") else name
-    return f"{indicated_hydrogen}{stem}-{locant}-yl"
 
 
 def heteroaromatic_monocycle_prefix_name(mol, ring_order, attachment_atom, prefix):

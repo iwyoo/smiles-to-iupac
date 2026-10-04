@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from rdkit import Chem
 
+from ._free_valence import valence_word
 from ._common import (
     UnsupportedStructure,
     alpha_sort_key,
@@ -44,7 +45,7 @@ _RETAINED_BENZENE = {
 }
 _PRIMARY_NITROGEN = {"amide", "sulfonamide", "amine"}
 _HETERO_PARENTS = {"pyridine": "pyridine", "furan": "furan", "thiophene": "thiophene", "pyrrole": "1H-pyrrole"}
-_VALENCE_WORDS = {2: "diyl", 3: "triyl", 4: "tetrayl"}
+_VALENCE_COUNTS = (2, 3, 4)
 
 
 @dataclass
@@ -94,6 +95,9 @@ def ene_spec(mol, ring_atoms):
 
 
 def spec_of(mol, ring_atoms):
+    ring_info = mol.GetRingInfo()
+    if any(ring_info.NumAtomRings(a) != 1 for a in ring_atoms):
+        return None
     return monocycle_spec(mol, ring_atoms) or ene_spec(mol, ring_atoms)
 
 
@@ -313,7 +317,7 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
     where the unit-side atom takes the lowest locant (P-15.3.1.2.2.4)."""
     spec = spec_of(mol, ring_atoms)
     if spec is None:
-        return None
+        return _ring_system_component(mol, ring_atoms, attachments, directed)
     free_atoms = [a for a, _ in attachments]
     roots = _ring_roots(mol, spec, set(attachments))
     entries = _prefix_entries(mol, roots, groups, suffix_group, name_function)
@@ -340,12 +344,36 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
     if spec.kind == "benzene" and len(cited) == 2:
         body = f"{loc}-phenylene"
     else:
-        word = _VALENCE_WORDS.get(len(cited))
-        if word is None:
+        if len(cited) not in _VALENCE_COUNTS:
             return None
+        word = valence_word(len(cited))
         body = f"{parent_text(spec, locants)}-{loc}-{word}"
     prefix_text = _prefix_text(entries, locants)
     return _join(prefix_text, body), bool(prefix_text)
+
+
+def _ring_system_component(mol, ring_atoms, attachments, directed):
+    """Diyl group of any ring system (P-29.3.3, P-29.3.4) with its substituents, numbered by the general ring
+    namer; an arm needs the unit-side valence at the lowest locant, which that namer does not rank."""
+    if directed is not None:
+        return None
+    from ._common import adjacency
+    from ._diester_ring_diyl import _system_of, evaluate_skeleton
+
+    rings, atoms = _system_of(mol, next(iter(ring_atoms)))
+    free_atoms = [a for a, _ in attachments]
+    blocked = {external for _, external in attachments}
+    if len(free_atoms) not in _VALENCE_COUNTS or len(set(free_atoms)) != len(free_atoms):
+        return None
+    found = evaluate_skeleton(mol, adjacency(mol), "ring", rings, atoms, free_atoms, blocked, "yl")
+    if found is None:
+        return None
+    substituted = any(
+        n.GetIdx() not in atoms and n.GetIdx() not in blocked
+        for a in atoms
+        for n in mol.GetAtomWithIdx(a).GetNeighbors()
+    )
+    return found[1], substituted
 
 
 def bare_polycyclic_unit(mol, atoms, junction, name_function=None):

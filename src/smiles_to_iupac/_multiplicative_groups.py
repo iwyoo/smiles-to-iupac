@@ -30,7 +30,7 @@ SUFFIX_RANKS = {
 
 JUNIOR_RANK = 80
 
-_ALLOWED_ELEMENTS = {1, 5, 6, 7, 8, 9, 14, 15, 16, 17, 32, 33, 34, 35, 52, 53}
+_ALLOWED_ELEMENTS = {1, 5, 6, 7, 8, 9, 14, 15, 16, 17, 32, 33, 34, 35, 50, 51, 52, 53, 82, 83}
 
 _NOT_CARBONYL = "[#6;!$([#6]=[O,S,N])]"
 _CHALCOGEN2 = "[OX2,SX2,SeX2,TeX2;!R]"
@@ -63,6 +63,7 @@ _JUNIOR_PATTERNS = [
     f"{_NOT_CARBONYL}[SX4;!R](=O)(=O){_NOT_CARBONYL}",
     "[#6][N+](=O)[O-]",
     "[#6][NX2]=O",
+    "[#6][NX2;!R]=[NX2;!R][#6]",
 ]
 
 _CLASS_QUERIES = [(name, Chem.MolFromSmarts(smarts), anchor) for name, smarts, anchor in _CLASS_PATTERNS]

@@ -147,7 +147,14 @@ from ._ether_amide import has_ether_amide_shape, name_ether_amide
 from ._ether_hydroperoxide import has_ether_hydroperoxide_shape, name_ether_hydroperoxide
 from ._ether_ketone import has_ether_ketone_shape, name_ether_ketone
 from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
-from ._fullerene import has_fullerene_name, name_fullerene
+from ._fusion_prefix_namer import name_fusion_prefix_system
+from ._hetero_prefixes import _has_senior_principal_group
+from ._fullerene import (
+    has_fullerene_name,
+    has_substituted_fullerene_cage,
+    name_fullerene,
+    require_defined_fullerene_numbering,
+)
 from ._multiplicative import name_if_multiplicative
 from ._nucleoside import has_nucleoside_name, name_nucleoside
 from ._nucleoside_substituted import has_substituted_nucleoside_name, name_substituted_nucleoside
@@ -292,10 +299,6 @@ from ._nitro import has_nitro_shape, name_nitro
 from ._nitroso import has_nitroso_shape, name_nitroso
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._cyclophane import has_cyclophane_name, name_cyclophane
-from ._naphthalene_benzene_phane import (
-    has_naphthalene_benzene_phane_name,
-    name_naphthalene_benzene_phane,
-)
 from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
 from ._polyphosphane import has_polyphosphane_shape, name_polyphosphane
 from ._functional_replacement_oxoacid import (
@@ -433,6 +436,8 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
             return name_nucleoside(parsed)
         if parsed is not None and has_nucleotide_name(parsed):
             return name_nucleotide(parsed)
+        if parsed is not None and has_substituted_nucleoside_name(parsed):
+            return name_substituted_nucleoside(parsed)
         if parsed is not None:
             name = name_heteroacyclic(parsed)
             if name is not None:
@@ -540,7 +545,7 @@ def _run_fallbacks(smiles, original):
         raise original
     _FALLBACKS_RUNNING.add(key)
     try:
-        for skeletal in (name_skeletal_chain, name_hetero_macrocycle):
+        for skeletal in (name_skeletal_chain, name_hetero_macrocycle, name_fusion_prefix_system):
             try:
                 name = skeletal(mol)
             except UnsupportedStructure:
@@ -649,7 +654,7 @@ def _name_mol(mol) -> str:
 
     # Two or more Group 13-15 metals (P-69.5.3) must precede the
     # single-metal hydride dispatches below, which reject a second metal.
-    if has_metal_pair_shape(mol):
+    if has_metal_pair_shape(mol) and not _has_senior_principal_group(mol):
         return name_metal_pair(mol)
 
     # P-103.1.1.1: a common amino acid's retained name + L/D descriptor
@@ -1080,6 +1085,8 @@ def _name_mol(mol) -> str:
     # below understand a cage shape at all.
     if has_fullerene_name(mol):
         return name_fullerene(mol)
+    if has_substituted_fullerene_cage(mol):
+        require_defined_fullerene_numbering(mol, {a for r in mol.GetRingInfo().AtomRings() for a in r})
 
     # pyrene/acenaphthylene/fluoranthene/aceanthrylene/acephenanthrylene
     # (P-25.1.2's peri-fused retained names) are recognized by exact
@@ -1127,13 +1134,6 @@ def _name_mol(mol) -> str:
     # understand phane nomenclature at all.
     if has_cyclophane_name(mol):
         return name_cyclophane(mol)
-
-    # A naphthalene superatom + a benzene superatom joined by two bridges
-    # (P-26's "different ring kinds" phane case, see module docstring) is
-    # recognized the same way -- same reasoning as the plain cyclophane
-    # check above.
-    if has_naphthalene_benzene_phane_name(mol):
-        return name_naphthalene_benzene_phane(mol)
 
     # The seven 1989 IUPAC steroid parent ring hydrides (gonane through
     # ergostane, Rule 2.1/3S-2.2/2.3/2.4 -- see module docstring) are

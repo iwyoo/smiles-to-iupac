@@ -303,9 +303,8 @@ def test_unsaturated_substituent_across_groups():
     assert smiles_to_iupac("CCCC[Sn](CCCC)(CCCC)C=C") == "tributyl(ethenyl)stannane"
 
 
-def test_multiple_bond_directly_to_metal_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=[Sb]CC")
+def test_multiple_bond_directly_to_metal_is_a_ylidene_prefix():
+    assert smiles_to_iupac("C=[Sb]CC") == "ethyl(methylidene)stibane"
 
 
 @pytest.mark.parametrize(
@@ -872,3 +871,21 @@ def test_ylylidene_linkers(smiles, expected):
 def test_imine_linker_without_senior_unit_group_is_not_multiplicative():
     with pytest.raises(Exception):
         smiles_to_iupac("c1ccccc1C=NCCN=Cc1ccccc1")
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C=[SiH2]", "methylidenesilane"),
+        ("C=[GeH2]", "methylidenegermane"),
+        ("CC=[SnH2]", "ethylidenestannane"),
+        ("CC#[SiH]", "ethylidynesilane"),
+        ("CCC#[SiH]", "propylidynesilane"),
+        ("C=[Si](C)C", "dimethyl(methylidene)silane"),
+        ("C#[Si][Si]#CC", "ethylidyne(methylidyne)disilane"),
+        ("C=[SiH][SiH3]", "methylidenedisilane"),
+        ("C[Si](C)(C)[Si](C)(C)C", "hexamethyldisilane"),
+    ],
+)
+def test_ylidene_and_ylidyne_prefixes_on_group_14_hydrides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

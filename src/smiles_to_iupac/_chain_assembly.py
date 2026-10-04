@@ -5,6 +5,7 @@ rings becoming substituents (P-28.3, P-28.6): [11,21:24,31-terphenyl]-14-ol, 25-
 import re
 from itertools import product
 
+from ._free_valence import SUFFIX_OF_ORDER, valence_word
 from ._common import multiplied_word, ring_cycle
 from ._multiplicative import _bare_key
 from ._multiplicative_ring import _SUFFIX_WORDS, _citation_key, monocycle_spec, numberings
@@ -283,14 +284,13 @@ def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees):
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     base = _assembly_base(specs, locants, joins[0], elide=True)
     if mixed:
-        words = {1: "yl", 2: "ylidene", 3: "ylidyne"}
-        if any(order not in words for order in orders.values()):
+        if any(order not in SUFFIX_OF_ORDER for order in orders.values()):
             return None
         pieces = []
         for order in sorted(set(orders.values())):
             group = [a for a in marked if orders[a] == order]
             spots = ",".join(cite(c) for c in sorted((locants[m] for m in group), key=_locant_order))
-            pieces.append(f"{spots}-{multiplied_word(len(group), words[order])}")
+            pieces.append(f"{spots}-{valence_word(len(group), order)}")
         core = f"[{base}]-" + "-".join(pieces)
         return f"{prefix}-{core}" if prefix else core
     spots = ",".join(cite(c) for c in sorted((locants[m] for m in marked), key=_locant_order))

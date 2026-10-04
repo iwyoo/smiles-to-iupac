@@ -73,11 +73,12 @@ import contextvars
 from rdkit import Chem
 
 from ._multiplicative_text import enclose
+from ._free_valence import SUFFIX_OF_ORDER
 from ._common import (
     UnsupportedStructure,
     alpha_sort_key,
     group_substituents,
-    heteroaromatic_monocycle_yl_name,
+    heteroaromatic_monocycle_name,
     multiplied_word,
     ring_cycle,
     substituent_locant_set_and_citation,
@@ -429,25 +430,8 @@ def _is_ring_branch_root(graph, root, coming_from, aromatic_atoms, mol):
 
 
 def _simple_ring_substituent(graph, root, coming_from, aromatic_atoms=frozenset(), mol=None):
-    """If the branch hanging off `root` (away from `coming_from`) is a
-    single, simple, unsubstituted monocyclic ring with `root` as its only
-    attachment point, return (ring_size, is_aromatic, heteroaromatic_name);
-    else None (a non-ring branch, a ring bearing its own substituent, or
-    any polycyclic/spiro/fused shape all fall through to the ordinary
-    chain-walk in `name_branch`, which raises `UnsupportedStructure` via
-    `_longest_chains_from_root`'s cycle-detection check). `is_aromatic` is
-    True for a plain six-membered all-carbon ring whose every atom is in
-    `aromatic_atoms` (benzene as a substituent, i.e. 'phenyl'), or for one
-    of the four simple heteroaromatic monocycles `mol` and
-    `heteroaromatic_monocycle_name` recognize (pyridine/furan/thiophene/
-    pyrrole, P-29.3.4.1) -- in the latter case `heteroaromatic_name` is
-    that ring's own "-yl" substituent name (e.g. 'pyridin-3-yl'), else
-    None; a caller not passing `aromatic_atoms` (the default empty set)
-    only ever gets `is_aromatic=False`, matching every existing caller's
-    saturated-ring-only scope unchanged. Any other aromatic ring shape
-    (a size not matching plain benzene or one of the four heteroaromatic
-    monocycles) is out of scope (`UnsupportedStructure` via the ordinary
-    cycle-detection path, same as any other unrecognized ring shape)."""
+    """(ring_size, is_aromatic) when the branch at `root` is a single unsubstituted monocycle attached only at `root`
+    (benzene or a one-heteroatom aromatic monocycle count as aromatic), else None."""
     ring_neighbors = [n for n in graph[root] if n != coming_from]
     if len(ring_neighbors) != 2:
         return None
@@ -464,14 +448,12 @@ def _simple_ring_substituent(graph, root, coming_from, aromatic_atoms=frozenset(
             return None
         previous, current = current, neighbors[0]
     if aromatic_atoms and visited <= aromatic_atoms:
-        if mol is not None:
-            heteroaromatic_name = heteroaromatic_monocycle_yl_name(mol, order, root)
-            if heteroaromatic_name is not None:
-                return len(visited), True, heteroaromatic_name
+        if mol is not None and heteroaromatic_monocycle_name(mol, order) is not None:
+            return len(visited), True
         if len(visited) != 6:
             return None
-        return len(visited), True, None
-    return len(visited), False, None
+        return len(visited), True
+    return len(visited), False
 
 
 def _ring_substituent_with_named_atoms(graph, root, coming_from, halogens):
@@ -875,10 +857,8 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
 
     ring_result = _simple_ring_substituent(graph, root, coming_from, aromatic_atoms, mol=mol)
     if ring_result is not None:
-        ring_size, is_aromatic, heteroaromatic_name = ring_result
+        ring_size, is_aromatic = ring_result
         if is_aromatic:
-            if heteroaromatic_name is not None:
-                return heteroaromatic_name, True
             if mol is not None and not _ring_of_root_is_all_carbon(mol, root):
                 from ._diester_ring_diyl import ring_substituent_name
 
@@ -1149,7 +1129,7 @@ def _branch_point_candidate_chains(graph, root, coming_from, halogens, mol=None,
     return best_chain, best_position, best_name, True
 
 
-_FREE_VALENCE_SUFFIX = {1.0: "yl", 2.0: "ylidene", 3.0: "ylidyne"}
+_FREE_VALENCE_SUFFIX = {float(order): suffix for order, suffix in SUFFIX_OF_ORDER.items()}
 
 
 def _bond_order(mol, a, b):

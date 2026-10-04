@@ -8,7 +8,13 @@ import re
 from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, alpha_sort_key
-from ._hetero_prefixes import CHALCOGEN_PREFIXES, phosphoryl_name, require_plain_chalcogen_kids, require_senior_group
+from ._hetero_prefixes import (
+    CHALCOGEN_PREFIXES,
+    _has_senior_principal_group,
+    phosphoryl_name,
+    require_plain_chalcogen_kids,
+    require_senior_group,
+)
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 from ._substituents import name_branch
@@ -214,6 +220,19 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 continue
             if bond == 2.0 and len(kids) == 1 and named.get(kids[0]) == ("amino", False) and _bond_order(mol, node, kids[0]) == 1.0:
                 record(node, "hydrazinylidene", False)
+                continue
+            if (
+                bond == 2.0
+                and len(kids) <= 1
+                and not atom.GetFormalCharge()
+                and all(_bond_order(mol, node, k) == 1.0 for k in kids)
+                and _has_senior_principal_group(mol)
+            ):
+                if not kids:
+                    record(node, "imino", False)
+                else:
+                    rname, rcompound = child_name(kids[0], node)
+                    record(node, (_enclose(rname) if rcompound else rname) + "imino", True)
                 continue
             if bond != 1.0 or any(_bond_order(mol, node, k) != 1.0 for k in kids):
                 raise UnsupportedStructure("an imine/azo/nitroso-type substituent is not supported yet")
