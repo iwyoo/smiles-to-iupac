@@ -7,8 +7,8 @@ import re
 from dataclasses import dataclass, field
 
 from rdkit import Chem
+from rdkit.Chem import BondType, RWMol
 
-from ._alkaloid_parent_hydrides import _QUERY as _MORPHINAN, _QUERY_IDX as _MORPHINAN_INDEX
 from ._common import UnsupportedStructure, adjacency
 from ._multiplicative_groups import ring_seniority_key
 from ._ring_diyl_numbering import _PREFIX, _bare_skeleton, is_hydro_fusion_system, monocycle_numberings, system_numberings
@@ -18,6 +18,23 @@ _INDICATED_HYDROGEN = re.compile(r"^(\d+H(?:,\d+H)*)-")
 _LEADING_LOCANTS = re.compile(r"^(\d+[a-z]?(?:,\d+[a-z]?)*)-(?=[a-z])")
 _MULTIPLYING_START = ("bi", "tri", "tetra", "penta", "hexa", "hepta", "octa", "nona", "deca", "di")
 _LARGEST_HANTZSCH_WIDMAN_RING = 10
+def _build_morphinan_query():
+    rw = RWMol()
+    idx = {i: rw.AddAtom(Chem.Atom(7 if i == 0 else 6)) for i in range(17)}
+    for i in (7, 8, 9, 10, 11, 12):
+        rw.GetAtomWithIdx(idx[i]).SetIsAromatic(True)
+    single = [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 0), (5, 6), (6, 7), (12, 3), (3, 13), (13, 14), (14, 15), (15, 16), (16, 4)]
+    ring = [(7, 8), (8, 9), (9, 10), (10, 11), (11, 12), (12, 7)]
+    for a, b in single:
+        rw.AddBond(idx[a], idx[b], BondType.SINGLE)
+    for a, b in ring:
+        rw.AddBond(idx[a], idx[b], BondType.AROMATIC)
+    mol = rw.GetMol()
+    Chem.SanitizeMol(mol)
+    return mol, idx
+
+
+_MORPHINAN, _MORPHINAN_INDEX = _build_morphinan_query()
 _MORPHINAN_LOCANTS = {0: 17, 1: 16, 2: 15, 3: 13, 4: 14, 5: 9, 6: 10, 7: 11, 8: 1, 9: 2, 10: 3, 11: 4, 12: 12, 13: 5, 14: 6, 15: 7, 16: 8}
 
 

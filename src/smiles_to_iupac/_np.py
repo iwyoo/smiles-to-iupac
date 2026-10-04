@@ -6,6 +6,7 @@ from functools import lru_cache
 from rdkit import Chem
 
 from ._common import UnsupportedStructure
+from ._pin import mark
 from ._np_build import build
 from ._np_core import get_parent, loc_key
 from ._np_match import View, embeddings
@@ -15,6 +16,7 @@ from ._np_rings import components
 from ._np_skel import Skel, variants
 from ._np_text import stem_info
 
+_NO_PIN = "P-101 identifies no preferred IUPAC names for natural-product parent structures"
 SYSTEMATIC_PREFERRED = {"tropane", "bornane", "carane", "fenchane", "pinane", "thujane", "p-menthane", "bisabolane"}
 _MIN_HEAVY_ATOMS = 9
 _MAX_HEAVY_ATOMS = 90
@@ -239,6 +241,11 @@ def _plain(mol):
 
 
 def name_natural_product(mol):
+    name = _natural_product_name(mol)
+    return mark(name, _NO_PIN) if name else None
+
+
+def _natural_product_name(mol):
     """Natural-product name, with 'ent' for a full inversion and 'rac'/'rel' for stereo groups (P-101.8)."""
     groups = mol.GetStereoGroups()
     if groups:

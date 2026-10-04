@@ -133,6 +133,9 @@ def build(cand, view):
     if _pair_count(hydro, dehydro) + cost > _MAX_TOTAL_COST and not parent.name.endswith("carotene"):
         raise UnsupportedStructure("too many modifications for this parent")
     cost += _pair_count(hydro, dehydro)
+    modifications = len(skel.ops) + len(cand.cyclo) + len(cand.replaced) + len(bridge_comps) + len(fused_comps) + len(spiro_comps)
+    if not view.has_stereo and (modifications > 1 or cost > 2):
+        raise UnsupportedStructure("a heavily modified parent needs the configuration to be a natural product")
     hydro = sorted((final(x) for x in hydro), key=loc_key)
     dehydro = sorted((final(x) for x in dehydro), key=loc_key)
     enes = [locant_pair(skel, final, a, b) for a, b, o in enes_bonds if o == 2]
