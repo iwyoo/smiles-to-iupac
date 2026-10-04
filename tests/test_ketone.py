@@ -682,9 +682,8 @@ def test_ketone_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("CCC(Cl)C(C)=O") == "3-chloropentan-2-one"
 
 
-def test_ketone_partially_specified_stereocenters_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@H](Cl)C(Cl)C(C)=O")
+def test_ketone_partially_specified_stereocenters_cites_the_specified_elements():
+    assert smiles_to_iupac("C[C@H](Cl)C(Cl)C(C)=O") == '(4S)-3,4-dichloropentan-2-one'
 
 
 def test_acyclic_ketone_specified_ez_double_bond():

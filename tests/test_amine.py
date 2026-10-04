@@ -280,11 +280,10 @@ def test_amine_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("CCC(Cl)N") == "1-chloropropan-1-amine"
 
 
-def test_amine_partially_specified_stereocenters_raises():
+def test_amine_partially_specified_stereocenters_cites_the_specified_elements():
     # Only one of the ring's two genuine stereocenters is marked -- must
     # raise rather than silently dropping the marker.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N[C@H]1CCCCC1Cl")
+    assert smiles_to_iupac("N[C@H]1CCCCC1Cl") == '(1S)-2-chlorocyclohexan-1-amine'
 
 
 def test_acyclic_amine_specified_ez_double_bond():

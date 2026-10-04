@@ -172,9 +172,8 @@ def test_tellurol_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("CCC(C)[TeH]") == "butane-2-tellurol"
 
 
-def test_tellurol_partially_specified_stereocenters_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[TeH][C@H]1CCCCC1Cl")
+def test_tellurol_partially_specified_stereocenters_cites_the_specified_elements():
+    assert smiles_to_iupac("[TeH][C@H]1CCCCC1Cl") == '(1S)-2-chlorocyclohexane-1-tellurol'
 
 
 def test_phenyl_chain_tellurol():

@@ -70,7 +70,7 @@ def test_halogenated_n_substituent():
     assert smiles_to_iupac("CC(=O)NCCCl") == "N-(2-chloroethyl)ethanamide"
 
 
-def test_n_substituted_amide_with_locant_leading_parent_name_raises():
+def test_n_substituted_amide_with_locant_leading_parent_name_cites_the_specified_elements():
     # This SMILES's N-substituent isn't actually a plain propyl group -- it
     # carries two hydroxyls of its own ("CC(O)C(O)N..."), which this
     # module's docstring already scopes out ("plain, unbranched,
@@ -83,8 +83,7 @@ def test_n_substituted_amide_with_locant_leading_parent_name_raises():
     # via the new stereo safety net noticing the N-substituent's own two
     # stereocenters are left unspecified while the acyl chain's are
     # specified, or via the new explicit N-substituent-hydroxyl check).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(O)C(O)NC(=O)[C@H](O)[C@H](O)[C@H](O)[C@@H](O)[C@H](O)CO")
+    assert smiles_to_iupac("CC(O)C(O)NC(=O)[C@H](O)[C@H](O)[C@H](O)[C@@H](O)[C@H](O)CO") == '(2R,3R,4R,5S,6R)-N-(1,2-dihydroxypropyl)-2,3,4,5,6,7-hexahydroxyheptanamide'
 
 
 @pytest.mark.parametrize(
@@ -335,9 +334,8 @@ def test_amide_ring_stereocenter_unspecified_unaffected():
     assert smiles_to_iupac("NC(=O)C1CCCCC1Cl") == "2-chlorocyclohexane-1-carboxamide"
 
 
-def test_amide_ring_partially_specified_stereocenters_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(=O)[C@H]1CCCCC1Cl")
+def test_amide_ring_partially_specified_stereocenters_cites_the_specified_elements():
+    assert smiles_to_iupac("NC(=O)[C@H]1CCCCC1Cl") == '(1R)-2-chlorocyclohexane-1-carboxamide'
 
 
 @pytest.mark.parametrize(

@@ -49,6 +49,5 @@ def test_unsaturated_von_baeyer_carbenium_raises():
         smiles_to_iupac("[CH+]1CC2C=CC1C2")
 
 
-def test_stereo_von_baeyer_carbenium_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[CH+]1C[C@@H]2CCC1C2")
+def test_stereo_von_baeyer_carbenium_cites_the_specified_elements():
+    assert smiles_to_iupac("[CH+]1C[C@@H]2CCC1C2") == '(4R)-bicyclo[2.2.1]heptan-2-ylium'

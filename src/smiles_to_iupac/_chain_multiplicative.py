@@ -287,7 +287,7 @@ def _attempt(mol, graph, stereo, arms):
         for _, where, _ in stereo:
             touched = {where} if isinstance(where, int) else set(where)
             if not touched <= arm_atoms:
-                raise UnsupportedStructure("stereodescriptors in the linking group of a multiplicative name are not supported yet")
+                return None
     ctx = _make_context(mol, graph)
     kind, atoms = components[center]
     branches = len(edges[center])

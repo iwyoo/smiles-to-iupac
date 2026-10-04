@@ -451,6 +451,12 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
             name = _hydro_fusion_name(parsed) or name
         if parsed is not None and _has_specified_stereo(parsed):
             tokens = bool(_STEREO_TOKENS.search(name))
+            if tokens and name.startswith("("):
+                cited = _engine_name(parsed)
+                if cited is not None and cited.startswith("(") and cited != name:
+                    strip = lambda text: re.sub(r"^\([^()]*\)-", "", text)
+                    if strip(cited) == strip(name):
+                        name = cited
             if not tokens or parsed.GetRingInfo().NumRings() == 0:
                 cited = _engine_name(parsed)
                 strip = lambda text: re.sub(r"^\([^()]*\)-", "", text)
@@ -469,7 +475,7 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
 
 _HYDRO_FUSION_RUNNING = set()
 _STEREO_TOKENS = re.compile(
-    r"(?<=[\d'a-z])[RSEZ](?=[,)])|(?<=\d)[rs](?=[,)])|\((?:R|S|E|Z)\)|\b(?:[DL]|alpha|beta)-|\((?:T|SP|SS|TBPY|OC|SPY|TPR|PBPY|CU|SAPR|TPRS)-|cis-|trans-|rel-|rac-"
+    r"(?<=[\d'a-z])[RSEZ](?=[,)])|(?<=[\d'a])[rs](?=[,)])|\((?:R|S|E|Z)\)|\b(?:[DL]|alpha|beta)-|\((?:T|SP|SS|TBPY|OC|SPY|TPR|PBPY|CU|SAPR|TPRS)-|cis-|trans-|rel-|rac-"
 )
 
 

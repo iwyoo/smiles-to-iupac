@@ -232,9 +232,8 @@ def test_sulfonic_acid_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("CCC(Cl)S(=O)(=O)O") == "1-chloropropane-1-sulfonic acid"
 
 
-def test_sulfonic_acid_partially_specified_stereocenters_raises():
+def test_sulfonic_acid_partially_specified_stereocenters_cites_the_specified_elements():
     # Only one of the ring's two genuine stereocenters is marked -- the
     # bug this PR fixes used to silently drop the marker and emit an
     # incomplete/wrong name; it must now raise instead.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=S(=O)(O)[C@H]1CCCCC1Cl")
+    assert smiles_to_iupac("O=S(=O)(O)[C@H]1CCCCC1Cl") == '(1S)-2-chlorocyclohexane-1-sulfonic acid'

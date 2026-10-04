@@ -1194,7 +1194,7 @@ def _branch_stereo_entries(positions, ring=False, record=False):
 
 
 def _branch_stereo_rank(entries):
-    return tuple(0 if code in "RZ" else 1 for _, code in entries)
+    return tuple(0 if code in "RZr" else 1 for _, code in entries)
 
 
 def _branch_stereo_prefix(entries):

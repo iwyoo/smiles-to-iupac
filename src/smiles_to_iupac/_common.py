@@ -1398,7 +1398,7 @@ def specified_stereocenters(mol):
     specified = [e for e in elements if e.specified == Chem.StereoSpecified.Specified]
     if not specified:
         return None
-    if len(specified) != len(elements) or any(e.type != Chem.StereoType.Atom_Tetrahedral for e in specified):
+    if any(e.type != Chem.StereoType.Atom_Tetrahedral for e in specified):
         raise UnsupportedStructure(
             "stereochemistry beyond one or more specified tetrahedral "
             "stereocenters (with no unspecified one alongside them) is not "
@@ -1416,12 +1416,8 @@ def specified_stereocenters(mol):
                 "could not determine a CIP R/S label for this stereocenter"
             )
         code = atom.GetProp("_CIPCode")
-        if code not in ("R", "S"):
-            raise UnsupportedStructure(
-                "a pseudoasymmetric stereocenter (lowercase 'r'/'s') is not "
-                "supported yet -- only uppercase R/S stereocenters are in "
-                "scope"
-            )
+        if code not in ("R", "S", "r", "s"):
+            raise UnsupportedStructure("could not determine a CIP R/S/r/s label for this stereocenter")
         labels.append((atom_idx, code))
     return labels
 
@@ -1493,7 +1489,7 @@ def specified_double_bond_stereo(mol):
     specified = [e for e in elements if e.specified == Chem.StereoSpecified.Specified]
     if not specified:
         return None
-    if len(specified) != len(elements) or any(e.type != Chem.StereoType.Bond_Double for e in specified):
+    if any(e.type != Chem.StereoType.Bond_Double for e in specified):
         raise UnsupportedStructure(
             "stereochemistry beyond one or more specified C=C double-bond "
             "E/Z elements (with no unspecified one alongside them) is not "
@@ -1546,11 +1542,6 @@ def specified_stereo_elements(mol):
     specified = [e for e in elements if e.specified == Chem.StereoSpecified.Specified]
     if not specified:
         return None
-    if len(specified) != len(elements):
-        raise UnsupportedStructure(
-            "a specified stereo element alongside an unspecified one is "
-            "not supported yet (see P-92/P-93)"
-        )
     rdCIPLabeler.AssignCIPLabels(mol)
     labels = []
     for element in specified:
@@ -1561,12 +1552,8 @@ def specified_stereo_elements(mol):
                     "could not determine a CIP R/S label for this stereocenter"
                 )
             code = atom.GetProp("_CIPCode")
-            if code not in ("R", "S"):
-                raise UnsupportedStructure(
-                    "a pseudoasymmetric stereocenter (lowercase 'r'/'s') is "
-                    "not supported yet -- only uppercase R/S stereocenters "
-                    "are in scope"
-                )
+            if code not in ("R", "S", "r", "s"):
+                raise UnsupportedStructure("could not determine a CIP R/S/r/s label for this stereocenter")
             labels.append(("atom", element.centeredOn, code))
         elif element.type == Chem.StereoType.Bond_Double:
             bond = mol.GetBondWithIdx(element.centeredOn)
@@ -1595,4 +1582,4 @@ def stereo_locant_rank(mol, stereo, position_of):
         else:
             bond = mol.GetBondWithIdx(idx)
             labels.append((min(position_of.get(bond.GetBeginAtomIdx(), 0), position_of.get(bond.GetEndAtomIdx(), 0)), code))
-    return tuple(tuple(sorted(loc for loc, code in labels if code == wanted)) for wanted in ("Z", "R"))
+    return tuple(tuple(sorted(loc for loc, code in labels if code in wanted)) for wanted in (("Z",), ("R", "r")))

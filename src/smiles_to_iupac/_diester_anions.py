@@ -69,7 +69,7 @@ def cip_labels(mol, side):
     specified = [e for e in in_side if e.specified == Chem.StereoSpecified.Specified]
     if not specified:
         return []
-    if len(specified) != len(in_side) or any(e.type != Chem.StereoType.Atom_Tetrahedral for e in specified):
+    if any(e.type != Chem.StereoType.Atom_Tetrahedral for e in specified):
         raise UnsupportedStructure(
             "stereochemistry beyond fully specified tetrahedral stereocenters is not supported on the polyol side"
         )
