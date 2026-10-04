@@ -15,7 +15,7 @@ from rdkit import Chem
 from rdkit.Chem import rdCIPLabeler
 
 from ._appendix3_groups import SENIORITY, branch_counts, classify, reject_exotic
-from ._appendix3_naming import Choice, assemble
+from ._appendix3_naming import N_CLASSES, Choice, assemble, n_roots
 from ._appendix3_stereo import ParentStereo, describe, deviations
 from ._appendix3_stereo_data import STEREO
 from ._appendix3_table import SKELETONS
@@ -327,6 +327,7 @@ def _skeleton_choices(skeleton, mol, flat):
     for mapping in _candidates(skeleton, mol, flat):
         try:
             groups, branches, attach = classify(mol, mapping, skeleton.terminals)
+            attach = tuple(sorted(attach, key=lambda item: sort_key(item[0]))) if attach else None
             lost, gained, unsaturated, hydro = _unsaturation(skeleton, mol, mapping)
         except UnsupportedStructure:
             continue
@@ -338,7 +339,7 @@ def _choice_key(choice):
     principal = next((c for c in SENIORITY if any(g.cls == c for g in choice.groups)), None)
     return (
         len(choice.lost) + len(choice.hydro) + sum(p - q for _, q, p in choice.gained),
-        (sort_key(choice.attach),) if choice.attach else (),
+        tuple(sort_key(l) for l, _ in choice.attach) if choice.attach else (),
         tuple(sorted(sort_key(g.label) for g in choice.groups if g.cls == principal)),
         tuple(sorted(sort_key(l) for pair in choice.lost for l in pair)),
         tuple(sorted(sort_key(l) for pair, _, _ in choice.gained for l in pair)),
@@ -347,26 +348,45 @@ def _choice_key(choice):
     )
 
 
-def _parent_adequate(mol, choice):
-    """P-44.1.1: the skeleton is the parent only when it carries at least as many members of the most senior class
-    present as any side branch does."""
-    if choice.attach is not None:
-        return True
+def _senior_counts(mol, choice):
+    """(own, branch, arms): the members of each principal class on the skeleton, the most in one side branch, and
+    the classes of each plain side branch as (skeleton atom, root, Counter)."""
     mapped = set(choice.mapping.values())
     own = {}
     for group in choice.groups:
         cls = "ester" if group.cls == "ester_o" else group.cls
         own[cls] = own.get(cls, 0) + 1
+    arms = [
+        (choice.mapping[label], root, branch_counts(mol, root, choice.mapping[label], mapped))
+        for label, root in choice.branches
+    ]
+    reached = [(root, anchor) for anchor, root, _ in arms]
+    for group in choice.groups:
+        if group.cls in N_CLASSES:
+            reached += [
+                (root, nitrogen)
+                for _, nitrogen, roots in n_roots(mol, group)
+                for root in roots
+                if mol.GetAtomWithIdx(root).GetAtomicNum() == 6
+            ]
     branch = {}
-    for label, root in choice.branches:
-        for cls, count in branch_counts(mol, root, choice.mapping[label], mapped).items():
+    for root, anchor in reached:
+        for cls, count in branch_counts(mol, root, anchor, mapped).items():
             branch[cls] = max(branch.get(cls, 0), count)
+    return own, branch, arms
+
+
+def _parent_adequate(mol, choice):
+    """P-44.1.1: the skeleton is the parent only when it carries at least as many members of the most senior class
+    present as any side branch does."""
+    if choice.attach is not None:
+        return True
+    own, branch, _ = _senior_counts(mol, choice)
     top = next((c for c in SENIORITY if c in own or c in branch), None)
     return top is None or own.get(top, 0) >= max(1, branch.get(top, 0))
 
 
-def name_on_skeleton(mol, attach_allowed=False):
-    """(name, is_group) of `mol` on an Appendix 3 parent, or None."""
+def _best_skeleton(mol, attach_allowed):
     if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
         return None
     systems = _systems(mol.GetRingInfo().AtomRings())
@@ -389,14 +409,21 @@ def name_on_skeleton(mol, attach_allowed=False):
         rank = (skeleton.size, -changes, -deviations(mol, chosen.mapping, skeleton.stereo))
         if best is None or rank > best[0]:
             best = (rank, skeleton, chosen)
+    return best and best[1:]
+
+
+def name_on_skeleton(mol, attach_allowed=False):
+    """(name, valence, substituted) of `mol` on an Appendix 3 parent, or None."""
+    best = _best_skeleton(mol, attach_allowed)
     if best is None:
         return None
-    _, skeleton, choice = best
+    skeleton, choice = best
     reject_exotic(mol, set(choice.mapping.values()))
     if not _parent_adequate(mol, choice):
         return None
     stereo = describe(mol, skeleton, choice.mapping, sort_key, skeleton.stereo)
-    return assemble(mol, skeleton, choice, stereo, sort_key), choice.attach is not None
+    valence = len(choice.attach) if choice.attach else 0
+    return assemble(mol, skeleton, choice, stereo, sort_key), valence, len(mol.GetAtoms()) - valence > len(choice.mapping)
 
 
 def name_appendix3_skeleton(mol):
@@ -411,28 +438,24 @@ def name_appendix3_skeleton(mol):
 _MIN_SIZE = min(skeleton.size for skeleton in _SKELETONS.values())
 
 
-def appendix3_group(mol, graph, root, coming_from):
-    """(name, True) of the substituent group rooted at `root` when it is an Appendix 3 parent with a free valence at
-    `root` (P-101.7.3), else None. The atom it hangs from is kept as a dummy so that its centres keep their tags and
-    the CIP labels of the whole molecule."""
-    branch, stack = {root}, [root]
+def _branch_of(graph, roots, blocked):
+    branch, stack = set(roots), list(roots)
     while stack:
         for neighbor in graph[stack.pop()]:
-            if neighbor != coming_from and neighbor not in branch:
+            if neighbor not in blocked and neighbor not in branch:
                 branch.add(neighbor)
                 stack.append(neighbor)
+    return branch
+
+
+def _holds_a_skeleton(mol, branch):
     if len(branch) < _MIN_SIZE:
-        return None
+        return False
     rings = [ring for ring in mol.GetRingInfo().AtomRings() if branch.issuperset(ring)]
-    if not rings or not any(_contains(_systems(rings), skeleton.systems) for skeleton in _SKELETONS.values()):
-        return None
-    try:
-        fragment = _fragment(mol, branch, coming_from)
-        result = name_on_skeleton(fragment, attach_allowed=True)
-    except Exception:
-        return None
-    if not result or not result[1]:
-        return None
+    return bool(rings) and any(_contains(_systems(rings), skeleton.systems) for skeleton in _SKELETONS.values())
+
+
+def _cite_stereo(mol, branch):
     context = BRANCH_STEREO.get()
     if context:
         context["used"].update(("atom", a) for a in branch)
@@ -441,25 +464,84 @@ def appendix3_group(mol, graph, root, coming_from):
             for b in mol.GetBonds()
             if b.GetBeginAtomIdx() in branch and b.GetEndAtomIdx() in branch
         )
+
+
+def appendix3_group(mol, graph, root, coming_from):
+    """(name, True) of the substituent group rooted at `root` when it is an Appendix 3 parent with a free valence at
+    `root` (P-101.7.3), else None. The atom it hangs from is kept as a dummy so that its centres keep their tags and
+    the CIP labels of the whole molecule."""
+    branch = _branch_of(graph, [root], {coming_from})
+    if not _holds_a_skeleton(mol, branch):
+        return None
+    try:
+        result = name_on_skeleton(_fragment(mol, branch, [coming_from]), attach_allowed=True)
+    except Exception:
+        return None
+    if not result or result[1] != 1:
+        return None
+    _cite_stereo(mol, branch)
     return mark(result[0], _NO_PIN), True
 
 
-def _fragment(mol, branch, coming_from):
+def appendix3_multivalent_group(mol, graph, ring_atoms, attachments):
+    """(name, substituted, atoms) of the multivalent group on an Appendix 3 parent that contains the ring system `ring_atoms`
+    and is joined to the rest of the molecule by `attachments` ([(group atom, outside atom)]), or None (P-101.7.3,
+    P-15.3)."""
+    outside = {external for _, external in attachments}
+    if len(outside) != len(attachments):
+        return None
+    branch = _branch_of(graph, ring_atoms, outside)
+    if not _holds_a_skeleton(mol, branch) or any(external in branch for external in outside):
+        return None
+    try:
+        result = name_on_skeleton(_fragment(mol, branch, sorted(outside)), attach_allowed=True)
+    except Exception:
+        return None
+    if not result or result[1] != len(attachments):
+        return None
+    _cite_stereo(mol, branch)
+    return mark(result[0], _NO_PIN), result[2], branch
+
+
+def appendix3_central_group(mol, graph):
+    """(name, attachments, atoms) of the multivalent group of an Appendix 3 parent whose side branches carry the most
+    senior class present, while the parent carries none of it (P-15.3, P-44.1.1): `attachments` are the
+    [(skeleton atom, branch root)] pairs, `atoms` the group without the branches. None when there is no such parent."""
+    try:
+        best = _best_skeleton(mol, False)
+        if best is None:
+            return None
+        _, choice = best
+        own, branch, arms = _senior_counts(mol, choice)
+        top = next((c for c in SENIORITY if c in own or c in branch), None)
+        if top is None or own.get(top):
+            return None
+        attachments = [(atom, root) for atom, root, counts in arms if counts.get(top)]
+        if len(attachments) < 2:
+            return None
+        found = appendix3_multivalent_group(mol, graph, set(choice.mapping.values()), attachments)
+    except UnsupportedStructure:
+        return None
+    return None if found is None else (found[0], attachments, found[2])
+
+
+def _fragment(mol, branch, attached_to):
     labelled = Chem.Mol(mol)
     rdCIPLabeler.AssignCIPLabels(labelled)
-    keep = sorted(branch | {coming_from})
+    keep = sorted(branch | set(attached_to))
     editable = Chem.RWMol(labelled)
     for index in sorted((a.GetIdx() for a in mol.GetAtoms() if a.GetIdx() not in keep), reverse=True):
         editable.RemoveAtom(index)
     fragment = editable.GetMol()
-    dummy = fragment.GetAtomWithIdx(keep.index(coming_from))
-    dummy.SetAtomicNum(0)
-    dummy.SetFormalCharge(0)
-    dummy.SetIsotope(0)
-    dummy.SetNumExplicitHs(0)
-    dummy.SetNoImplicit(True)
-    dummy.SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
-    dummy.SetIsAromatic(False)
+    for atom in attached_to:
+        dummy = fragment.GetAtomWithIdx(keep.index(atom))
+        dummy.SetAtomicNum(0)
+        dummy.SetFormalCharge(0)
+        dummy.SetIsotope(0)
+        dummy.SetNumExplicitHs(0)
+        dummy.SetNoImplicit(True)
+        dummy.SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
+        dummy.SetIsAromatic(False)
     fragment.UpdatePropertyCache(strict=False)
     Chem.GetSymmSSSR(fragment)
     fragment.SetBoolProp("cip_assigned", True)

@@ -1322,7 +1322,8 @@ def _multiplicative_name(mol, stereo=None):
     from ._chain_multiplicative import chain_multiplicative_name
 
     return (
-        _ring_linker_name(mol, graph, stereo)
+        _natural_product_linker_name(mol, graph, stereo)
+        or _ring_linker_name(mol, graph, stereo)
         or _composite_linker_name(mol, graph, stereo)
         or chain_multiplicative_name(mol, stereo)
     )
@@ -1411,6 +1412,46 @@ def _composite_linker_name(mol, graph, stereo):
 
 def _is_phane_candidate(mol, ring_set):
     return len(ring_set) > 12 and any(len(r) == 6 and set(r) <= ring_set for r in mol.GetRingInfo().AtomRings())
+
+
+def _natural_product_linker_name(mol, graph, stereo):
+    """Two identical chain parents on an Appendix 3 parent: 3,3'-(yohimban-14,18-diyl)dipropanoic acid."""
+    from ._appendix3_skeletons import appendix3_central_group
+
+    found = appendix3_central_group(mol, graph)
+    if found is None or len(found[1]) != 2:
+        return None
+    linker, attachments, central = found
+    arms = [_arm_atoms(graph, root, r) for r, root in attachments]
+    if arms[0] & arms[1] or len(arms[0]) + len(arms[1]) + len(central) != mol.GetNumAtoms():
+        return None
+    if any(
+        mol.GetAtomWithIdx(root).GetAtomicNum() != 6
+        or mol.GetAtomWithIdx(root).GetIsAromatic()
+        or mol.GetBondBetweenAtoms(r, root).GetBondTypeAsDouble() != 1.0
+        for r, root in attachments
+    ):
+        return None
+    units = [_unit_molecule(mol, atoms, root) for atoms, (_, root) in zip(arms, attachments)]
+    if len({Chem.MolToSmiles(unit[0]) for unit in units}) != 1:
+        return None
+    try:
+        _, _, parts = _select(*units[0])
+    except UnsupportedStructure:
+        return None
+    if not all(_stereo_within(element, central) for element in stereo):
+        raise UnsupportedStructure("stereodescriptors in a multiplicative name are not supported yet")
+    prefix, body, tail, locant = parts[:4]
+    lead = f"{locant},{locant}'-" if locant is not None else ""
+    text = prefix + body
+    if prefix:
+        return f"{lead}{enclose(linker)}bis({text}){tail}"
+    return f"{lead}{enclose(linker)}di{unit_phrase(text, tail)}"
+
+
+def _stereo_within(element, atoms):
+    kind, where, _ = element
+    return where in atoms if kind == "atom" else all(a in atoms for a in where)
 
 
 def _ring_linker_name(mol, graph, stereo):
