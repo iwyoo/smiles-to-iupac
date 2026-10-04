@@ -10,19 +10,20 @@ import re
 from rdkit import Chem
 
 from . import _aromatic
+from ._free_valence import SUFFIX_OF_ORDER, attach, suffix_of
 from ._common import (
     UnsupportedStructure,
     adjacency,
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
-    multiplied_word,
     ring_cycle,
     substituent_locant_set_and_citation,
 )
+from ._fullerene import require_defined_fullerene_numbering
 from ._diester_anions import acid_anions, anion_locant_key, cip_labels, cite_anions
 from ._functional_prefixes import functional_names, nitro_atoms
-from ._ring_diyl_numbering import SUFFIX_ATOMS, _locs, _yl, chain_numberings, monocycle_numberings, system_numberings
+from ._ring_diyl_numbering import ANION_SUFFIX, SUFFIX_ATOMS, _locs, _yl, chain_numberings, monocycle_numberings, system_numberings
 from ._substituents import format_substituent_prefixes, name_branch
 
 _DESCRIPTOR_ORDER = {"R": 0, "S": 1, "r": 2, "s": 3}
@@ -189,33 +190,44 @@ def _mixed_valence_text(diyl, free, valence, position_of, orders):
     tail = f"-{_locs(free)}-{_yl(valence)}"
     if not diyl.endswith(tail):
         return None
-    stem = diyl[: -len(tail)]
-    words = {1: "yl", 2: "ylidene", 3: "ylidyne"}
     by_order = {}
     for atom, order in orders.items():
-        by_order.setdefault(order, []).append(position_of[atom])
-    if any(order not in words for order in by_order):
+        by_order.setdefault(int(order), []).append(position_of[atom])
+    if any(order not in SUFFIX_OF_ORDER for order in by_order):
         return None
-    pieces = [f"{_locs(sorted(locs))}-{multiplied_word(len(locs), words[order])}" for order, locs in sorted(by_order.items())]
-    if stem.endswith("e") and pieces[0].split("-", 1)[1][0] in "aeiouy":
-        stem = stem[:-1]
-    return f"{stem}-" + "-".join(pieces)
+    return attach(diyl[: -len(tail)], {order: sorted(locs) for order, locs in by_order.items()})
 
 
-def evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=(), orders=None):
+def evaluate_skeleton(
+    mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=(), orders=None, centers=(),
+    key_centers=(),
+):
     from ._substituents import BRANCH_STEREO
 
+    if kind == "ring":
+        require_defined_fullerene_numbering(mol, pool)
     token = SUFFIX_ATOMS.set(frozenset(attach))
     stereo_token = BRANCH_STEREO.set({"atoms": {}, "bonds": {}, "used": set()}) if BRANCH_STEREO.get() is None else None
+    anion_token = ANION_SUFFIX.set(
+        frozenset(attach) | frozenset(a for a, _ in key_centers) if suffix in ("ide", "uide") else frozenset()
+    )
+    if not centers and not key_centers:
+        centers = [c for c in _marked_centers(mol, pool) if c[0] not in attach or suffix in ("yl", "ylidene", "ylidyne")]
     try:
-        return _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, anions, matches_on, orders)
+        return _evaluate_skeleton(
+            mol, graph, kind, body, pool, attach, blocked, suffix, anions, matches_on, orders, centers, key_centers
+        )
     finally:
         SUFFIX_ATOMS.reset(token)
         if stereo_token is not None:
             BRANCH_STEREO.reset(stereo_token)
+        ANION_SUFFIX.reset(anion_token)
 
 
-def _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=(), orders=None):
+def _evaluate_skeleton(
+    mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=(), orders=None, centers=(),
+    key_centers=(),
+):
     """Best numbering of a ring system or chain with free valences/suffix at `attach`; returns
     (key, group_name, position_of, ring_stereo, side) or None."""
     valence = len(attach)
@@ -304,7 +316,13 @@ def _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, an
         stereo_key = tuple(
             _DESCRIPTOR_ORDER.get(code, 9) for _, code in sorted((position_of[a], c) for a, c in ring_stereo)
         )
-        key = (numbering.pre_key, free, cite, numbering.unsat_key, locant_set, citation, acid_key, stereo_key)
+        center_key = tuple(sorted(position_of[a] for a, _ in centers))
+        if key_centers:
+            center_key = (
+                tuple(sorted(position_of[a] for a, _ in key_centers)),
+                tuple(sorted(position_of[a] for a, word in key_centers if word == "uide")),
+            )
+        key = (numbering.pre_key, center_key, free, cite, numbering.unsat_key, locant_set, citation, acid_key, stereo_key)
         candidates.append((key, numbering, grouped, free, ring_stereo, side))
     if not candidates:
         return None
@@ -317,6 +335,8 @@ def _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, an
         parent = _mixed_valence_text(parent, free, valence, position_of, orders)
         if parent is None:
             return None
+    if centers:
+        parent = _with_anion_centers(parent, [(position_of[a], word) for a, word in centers])
     prefixes = format_substituent_prefixes(grouped)
     if prefixes and parent[0].isdigit():
         prefixes += "-"
@@ -325,6 +345,52 @@ def _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, an
         labels = ",".join(f"{loc}{code}" for loc, code in sorted((position_of[a], c) for a, c in ring_stereo))
         group_name = f"({labels})-{group_name}"
     return key, group_name, position_of, ring_stereo, side
+
+
+def _marked_centers(mol, atoms):
+    found = []
+    for a in atoms:
+        atom = mol.GetAtomWithIdx(a)
+        if atom.HasProp("_anion_word"):
+            found.extend([(a, atom.GetProp("_anion_word"))] * int(atom.GetProp("_anion_charge")))
+        elif atom.HasProp("_anion"):
+            found.extend([(a, "ide")] * int(atom.GetProp("_anion")))
+    return found
+
+
+def _with_anion_centers(parent, located):
+    """Cite 'ide'/'uide' centers (as 'id'/'uid') before the free-valence suffix (P-72.6.3)."""
+    words = {word for _, word in located}
+    if len(words) != 1:
+        raise UnsupportedStructure("ide and uide centers inside one substituent group are not supported yet")
+    locants = sorted(loc for loc, _ in located)
+    word = words.pop()
+    count = len(locants)
+    text = f"{','.join(str(x) for x in locants)}-{_COUNT_PREFIX[count]}{word[:-1]}"
+    match = re.search(r"(-\d+(?:,\d+)*-)?(?:di|tri)?(?:yl|ylidene|ylidyne)$", parent)
+    if match is None:
+        raise UnsupportedStructure("this substituent group cannot carry an anionic center yet")
+    start = match.start()
+    base = parent[:start]
+    if base.endswith("e"):
+        base = base[:-1]
+    return base + "-" + text + match.group(0)
+
+
+_COUNT_PREFIX = {1: "", 2: "di", 3: "tri"}
+
+
+def _assembly_group(mol, graph, root, parent, atoms):
+    from ._polyfunctional import _arm_atoms, assembly_substituent
+
+    arm = _arm_atoms(graph, root, parent)
+    joined = any(
+        a not in atoms and mol.GetAtomWithIdx(a).IsInRing() and any(n in atoms for n in graph[a]) for a in arm
+    )
+    if not joined:
+        return None
+    aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+    return assembly_substituent(mol, graph, root, parent, halogen_substituents(mol), aromatic)
 
 
 def ring_substituent_name(mol, graph, root, parent):
@@ -336,7 +402,10 @@ def ring_substituent_name(mol, graph, root, parent):
         return glycosyl
     rings, atoms = _system_of(mol, root)
     order = mol.GetBondBetweenAtoms(parent, root).GetBondTypeAsDouble()
-    suffix = {1.0: "yl", 2.0: "ylidene", 3.0: "ylidyne"}.get(order)
+    assembly = _assembly_group(mol, graph, root, parent, atoms)
+    if assembly is not None:
+        return assembly
+    suffix = suffix_of(order)
     if suffix is None:
         raise UnsupportedStructure("this ring substituent bond is not supported yet")
     found = evaluate_skeleton(mol, graph, "ring", rings, atoms, [root], {parent}, suffix)

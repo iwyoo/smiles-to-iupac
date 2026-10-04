@@ -111,6 +111,7 @@ from rdkit import Chem
 
 from ._alkoxide import has_alkoxide_shape, name_alkoxide
 from ._ammonium import has_ammonium_shape, name_ammonium
+from ._anion import has_general_anion_shape, name_anion
 from ._carbanide import name_carbanide
 from ._carboxylate import has_carboxylate_shape, name_carboxylate
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure
@@ -157,6 +158,7 @@ _ANION_KINDS = [
     (_has_halide_anion_shape, _name_halide_anion),
     (_has_hydroxide_anion_shape, _name_hydroxide_anion),
     (_has_carbanide_anion_shape, name_carbanide),
+    (has_general_anion_shape, name_anion),
 ]
 
 
@@ -224,6 +226,7 @@ _POLYATOMIC_ANION_KINDS = [
     (has_carbonate_shape, name_carbonate),
     (has_nitrate_shape, name_nitrate),
     (has_phosphate_shape, name_phosphate),
+    (has_general_anion_shape, name_anion),
 ]
 
 
@@ -236,7 +239,7 @@ def _polyatomic_anion(frag):
             return namer, magnitude
     return None
 
-_SINGLY_CHARGED_CATION_ONLY_ANIONS = {name_alkoxide, name_thioate, name_selenoate, name_carbanide}
+_SINGLY_CHARGED_CATION_ONLY_ANIONS = {name_alkoxide, name_thioate, name_selenoate, name_carbanide, name_anion}
 
 _MONOATOMIC_CATION_NAMES = {
     ("Li", 1): "lithium",

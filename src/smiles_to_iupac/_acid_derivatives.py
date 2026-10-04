@@ -263,6 +263,11 @@ _ACID_ENDING = re.compile(r"(?: (?:[A-Za-z]+(?:,[A-Za-z]+)*)-acid| acid)(\)?)$")
 
 def anion_name(acid_name):
     """P-65.6.1: the '-ic acid' ending becomes '-ate' (italic acid letters dropped)."""
+    from ._acid_lexicon import _LETTERED_TAIL
+
+    lettered = _LETTERED_TAIL.search(acid_name)
+    if lettered:
+        return acid_name[: lettered.start()] + f"({lettered.group(2)}-{lettered.group(1)}ate)"
     match = _ACID_ENDING.search(acid_name)
     if match is None:
         raise UnsupportedStructure("the acid part has no 'acid' ending to turn into an anion name")
@@ -349,7 +354,7 @@ def _multiplied(entries):
             text = f"{multiplier}{enclose(name)}" if compound else f"{multiplier}{name}"
         else:
             text = name
-        parts.append((f"{','.join(sorted(letters))}-" if any(letters) else "") + text)
+        parts.append((f"{','.join(sorted(letters, key=lambda t: (len(t), t)))}-" if any(letters) else "") + text)
     return " ".join(parts)
 
 
@@ -466,6 +471,7 @@ def name_ester(mol, links):
     context = _stereo_context(mol, removed)
     halogens = halogen_substituents(mol)
     named = {}
+    per_link = []
     token = BRANCH_STEREO.set(context)
     try:
         for l in chosen:
@@ -473,21 +479,50 @@ def name_ester(mol, links):
             entry = named.setdefault(name, [0, compound, []])
             entry[0] += 1
             entry[2].append(_letters(mol, l))
+            per_link.append((l, name))
     finally:
         BRANCH_STEREO.reset(token)
     if any(("atom", a) not in context["used"] for a in context["atoms"]) or any(
         ("bond", b) not in context["used"] for b in context["bonds"]
     ):
         raise UnsupportedStructure("a stereo element of the organyl part is not cited by any supported name")
-    entries = [(name, compound, count, letters) for name, (count, compound, letters) in named.items()]
-    free = sum(
-        1
+    free_centers = [
+        a
         for a in acid_atoms
         for n in mol.GetAtomWithIdx(a).GetNeighbors()
         if n.GetAtomicNum() in _SYMBOL and n.GetDegree() == 1 and n.GetTotalNumHs() == 1 and _center(mol, a) is not None
-    )
+    ]
+    free = len(free_centers)
+    cited = _ester_locants(mol, acid_atoms, per_link, free_centers) if (len(named) > 1 or free) and len(chosen) + free > 1 else None
+    entries = [
+        (name, compound, count, cited[name] if cited else letters) for name, (count, compound, letters) in named.items()
+    ]
     hydrogen = {0: "", 1: "hydrogen ", 2: "dihydrogen "}[free]
     return _multiplied(entries) + " " + hydrogen + anion
+
+
+def _ester_locants(mol, acid_atoms, per_link, free_centers):
+    """{organyl name: acid locants} when the acid positions are not equivalent (P-65.6.3.2.2: '16-ethyl 18-methyl
+    yohimban-16,18-dicarboxylate'), else None."""
+    ends = {a for l, _ in per_link for a in l.chain}
+    core = [
+        a
+        for a in acid_atoms
+        if a not in ends
+        and not (
+            mol.GetAtomWithIdx(a).GetAtomicNum() in _SYMBOL
+            and mol.GetAtomWithIdx(a).GetDegree() == 1
+            and mol.GetAtomWithIdx(a).GetTotalNumHs() == 1
+        )
+    ]
+    centers = sorted({l.center for l, _ in per_link} | set(free_centers))
+    locants, symmetric = _locants_of(mol, core, centers, with_symmetry=True)
+    if symmetric:
+        return None
+    cited = {}
+    for l, name in per_link:
+        cited.setdefault(name, []).append(str(locants[l.center]))
+    return {name: sorted(locs, key=lambda t: (len(t), t)) for name, locs in cited.items()}
 
 
 def _far_side(graph, root, blocked):
@@ -529,8 +564,9 @@ def _bridged_components(mol, links):
     return bridges, frags, owner
 
 
-def _locants_of(mol, atoms, centers):
-    """{centre: locant} of the acid groups `centers` in the substitutive name of the acid made of `atoms`."""
+def _locants_of(mol, atoms, centers, with_symmetry=False):
+    """{centre: locant} of the acid groups `centers` in the substitutive name of the acid made of `atoms`;
+    with `with_symmetry` also whether all the centres are equivalent in that acid (then no locants are needed)."""
     from ._polyfunctional import _select
 
     editable = Chem.RWMol(mol)
@@ -543,10 +579,15 @@ def _locants_of(mol, atoms, centers):
         editable.RemoveAtom(idx)
     acid = editable.GetMol()
     Chem.SanitizeMol(acid)
-    try:
-        _, _, parts = _select(acid)
-    except UnsupportedStructure:
-        raise
+    if with_symmetry:
+        plain = Chem.Mol(acid)
+        mapped = {a.GetAtomMapNum() - 1: a.GetIdx() for a in acid.GetAtoms()}
+        for atom in plain.GetAtoms():
+            atom.SetAtomMapNum(0)
+        ranks = Chem.CanonicalRankAtoms(plain, breakTies=False)
+        if len({ranks[mapped[c]] for c in centers if c in mapped}) == 1:
+            return {}, True
+    _, _, parts = _select(acid)
     position = {acid.GetAtomWithIdx(i).GetAtomMapNum() - 1: loc for i, loc in parts[4].items()}
     found = {}
     for center in centers:
@@ -557,7 +598,7 @@ def _locants_of(mol, atoms, centers):
         if len(attach) != 1:
             raise UnsupportedStructure("the locants of the anhydride groups are not available")
         found[center] = position[attach[0]]
-    return found
+    return (found, False) if with_symmetry else found
 
 
 def _multiplied_word(word, count):

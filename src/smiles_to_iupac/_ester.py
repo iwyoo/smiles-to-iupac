@@ -121,7 +121,7 @@ from ._common import (
     non_single_bonds,
     plain_saturated_ring_substituent_atoms,
     ring_chain_attachment,
-    ring_chain_attachment_with_halogens,
+    ring_branch_attachment,
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
@@ -131,7 +131,6 @@ from ._substituents import (
     substituents_for_chain,
     format_substituent_prefixes,
     name_branch,
-    plain_alkyl_ring_substituents,
 )
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
@@ -485,8 +484,8 @@ def _name_phenyl_acyl_ester(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
-    attachment = ring_chain_attachment_with_halogens(graph, ring_atoms, set(), halogens)
+    halogens = halogen_substituents(mol)
+    attachment = ring_branch_attachment(mol, graph, ring_atoms)
     if attachment is None:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "

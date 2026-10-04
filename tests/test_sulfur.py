@@ -441,6 +441,22 @@ def test_sulfonate_stereocenter(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_multiple_sulfonate_groups_is_named():
+    assert smiles_to_iupac("[O-]S(=O)(=O)CCCS(=O)(=O)[O-]") == "propane-1,3-disulfonate"
+
+
+def test_sulfonate_on_ring_is_named():
+    assert smiles_to_iupac("[O-]S(=O)(=O)C1CCCCC1") == "cyclohexanesulfonate"
+
+
+def test_sulfonate_carbon_in_double_bond_is_named():
+    assert smiles_to_iupac("C=CS(=O)(=O)[O-]") == "eth-1-ene-1-sulfonate"
+
+
+def test_sulfonate_other_heteroatom_is_named():
+    assert smiles_to_iupac("NCCS(=O)(=O)[O-]") == "2-aminoethanesulfonate"
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
@@ -553,6 +569,14 @@ def test_ring_resolves_via_hetero_ring_oxide():
     assert smiles_to_iupac("O=S1CCCCC1") == "thiane 1-oxide"
 
 
+def test_multiple_thioate_groups_is_named():
+    assert smiles_to_iupac("[S-]C(=O)CCC(=O)[S-]") == "butanebis(thioate)"
+
+
+def test_thioate_on_ring_is_named():
+    assert smiles_to_iupac("[S-]C(=O)C1CCCCC1") == "cyclohexanecarbothioate"
+
+
 def test_thioate_branched_r_group():
     assert smiles_to_iupac("CC(C)C(=O)[S-]") == "2-methylpropanethioate"
 
@@ -567,8 +591,16 @@ def test_thioate_stereocenter(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_phenyl_directly_attached_thioate_is_named():
+    assert smiles_to_iupac("c1ccccc1C(=O)[S-]") == "benzenecarbothioate"
+
+
 def test_phenyl_chain_thioate_ring_halogen():
     assert smiles_to_iupac("Clc1ccc(CC(=O)[S-])cc1") == "2-(4-chlorophenyl)ethanethioate"
+
+
+def test_phenyl_chain_thioate_unsaturation_is_named():
+    assert smiles_to_iupac("C=Cc1ccccc1CC(=O)[S-]") == "2-(2-ethenylphenyl)ethanethioate"
 
 
 def test_two_thiocyanate_groups_not_supported():

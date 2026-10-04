@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from rdkit import Chem
 
+from ._free_valence import valence_word
 from ._common import (
     UnsupportedStructure,
     alpha_sort_key,
@@ -35,6 +36,11 @@ class _SuffixWords(dict):
 
 
 _SUFFIX_WORDS = _SuffixWords({
+    "ide": "ide",
+    "peroxoic": "carboperoxoic acid",
+    "thioic": "carbothioic acid",
+    "imidic": "carboximidic acid",
+    "peroxol": "peroxol",
     "carboxylic_acid": "carboxylic acid",
     "sulfonic_acid": "sulfonic acid",
     "amide": "carboxamide",
@@ -57,7 +63,7 @@ _RETAINED_BENZENE = {
 }
 _PRIMARY_NITROGEN = {"amide", "sulfonamide", "amine"}
 _HETERO_PARENTS = {"pyridine": "pyridine", "furan": "furan", "thiophene": "thiophene", "pyrrole": "1H-pyrrole"}
-_VALENCE_WORDS = {2: "diyl", 3: "triyl", 4: "tetrayl"}
+_VALENCE_COUNTS = (2, 3, 4)
 
 
 @dataclass
@@ -107,6 +113,9 @@ def ene_spec(mol, ring_atoms):
 
 
 def spec_of(mol, ring_atoms):
+    ring_info = mol.GetRingInfo()
+    if any(ring_info.NumAtomRings(a) != 1 for a in ring_atoms):
+        return None
     return monocycle_spec(mol, ring_atoms) or ene_spec(mol, ring_atoms)
 
 
@@ -214,41 +223,6 @@ def _group_at(mol, groups, ring_atom, root):
     return None
 
 
-def ring_substituent_name(mol, ring_atoms, attach_atom, from_atom, groups, suffix_group, name_function=None):
-    """(name, is_compound) of a monocyclic substituent group ('phenyl',
-    '4-chlorophenyl', 'cyclohexyl', 'pyridin-2-yl') attached through
-    `attach_atom`, or None when the ring isn't a supported monocycle."""
-    if sum(1 for r in mol.GetRingInfo().AtomRings() if set(r) & set(ring_atoms)) != 1:
-        return None
-    spec = spec_of(mol, ring_atoms)
-    if spec is None:
-        return None
-    entries = _prefix_entries(mol, _ring_roots(mol, spec, {(attach_atom, from_atom)}), groups, suffix_group, name_function)
-    best = None
-    for locants in numberings(spec):
-        key = (
-            locants[attach_atom],
-            multiple_locants(spec, locants),
-            tuple(sorted(locants[r] for r, _, _ in entries)),
-            _citation_key([(locants[r], name) for r, name, _ in entries]),
-        )
-        if best is None or key < best[0]:
-            best = (key, locants)
-    locants = best[1]
-    if spec.kind == "benzene":
-        core = "phenyl"
-    elif spec.kind == "cycloalkane":
-        core = "cyclo" + alkyl_name(len(spec.cycle))
-    elif spec.kind == "cycloalkene":
-        ene, yne = multiple_locants(spec, locants)
-        core = _ring_base_name(len(spec.cycle), ene, yne, 1.0)
-    else:
-        parent = spec.parent
-        core = f"{parent[:-1] if parent.endswith('e') else parent}-{locants[attach_atom]}-yl"
-    prefix_text = _prefix_text(entries, locants)
-    return _join(prefix_text, core), bool(prefix_text) or spec.hetero is not None or spec.kind == "cycloalkene"
-
-
 def _prefix_entries(mol, roots, groups, suffix_group, name_function):
     entries = []
     for r, n in roots:
@@ -326,10 +300,13 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
     where the unit-side atom takes the lowest locant (P-15.3.1.2.2.4)."""
     spec = spec_of(mol, ring_atoms)
     if spec is None:
-        return None
+        return _ring_system_component(mol, ring_atoms, attachments, directed)
     free_atoms = [a for a, _ in attachments]
     roots = _ring_roots(mol, spec, set(attachments))
     entries = _prefix_entries(mol, roots, groups, suffix_group, name_function)
+    from ._diester_ring_diyl import _marked_centers, _with_anion_centers
+
+    centers = _marked_centers(mol, spec.cycle)
     best = None
     for locants in numberings(spec):
         if directed is not None:
@@ -337,6 +314,7 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
         else:
             free_key = tuple(sorted(locants[a] for a in free_atoms))
         key = (
+            tuple(sorted(locants[a] for a, _ in centers)),
             free_key,
             multiple_locants(spec, locants),
             tuple(sorted(locants[r] for r, _, _ in entries)),
@@ -350,15 +328,41 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
     else:
         cited = sorted(locants[a] for a in free_atoms)
     loc = ",".join(str(x) for x in cited)
-    if spec.kind == "benzene" and len(cited) == 2:
+    if spec.kind == "benzene" and len(cited) == 2 and not centers:
         body = f"{loc}-phenylene"
     else:
-        word = _VALENCE_WORDS.get(len(cited))
-        if word is None:
+        if len(cited) not in _VALENCE_COUNTS:
             return None
+        word = valence_word(len(cited))
         body = f"{parent_text(spec, locants)}-{loc}-{word}"
+        if centers:
+            body = _with_anion_centers(body, [(locants[a], w) for a, w in centers])
     prefix_text = _prefix_text(entries, locants)
     return _join(prefix_text, body), bool(prefix_text)
+
+
+def _ring_system_component(mol, ring_atoms, attachments, directed):
+    """Diyl group of any ring system (P-29.3.3, P-29.3.4) with its substituents, numbered by the general ring
+    namer; an arm needs the unit-side valence at the lowest locant, which that namer does not rank."""
+    if directed is not None:
+        return None
+    from ._common import adjacency
+    from ._diester_ring_diyl import _system_of, evaluate_skeleton
+
+    rings, atoms = _system_of(mol, next(iter(ring_atoms)))
+    free_atoms = [a for a, _ in attachments]
+    blocked = {external for _, external in attachments}
+    if len(free_atoms) not in _VALENCE_COUNTS or len(set(free_atoms)) != len(free_atoms):
+        return None
+    found = evaluate_skeleton(mol, adjacency(mol), "ring", rings, atoms, free_atoms, blocked, "yl")
+    if found is None:
+        return None
+    substituted = any(
+        n.GetIdx() not in atoms and n.GetIdx() not in blocked
+        for a in atoms
+        for n in mol.GetAtomWithIdx(a).GetNeighbors()
+    )
+    return found[1], substituted
 
 
 def bare_polycyclic_unit(mol, atoms, junction, name_function=None):

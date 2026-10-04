@@ -97,8 +97,7 @@ from ._common import (
     name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
-    ring_chain_attachment_with_halogens,
-    ring_chain_attachments_with_halogens,
+    ring_branch_attachments,
     ring_hosting_anchors,
     separate_aromatic_monocycles,
     ring_cycle,
@@ -113,7 +112,6 @@ from ._substituents import (
     substituents_for_chain,
     format_substituent_prefixes,
     name_branch,
-    plain_alkyl_ring_substituents,
 )
 
 _NITRILE_ORDER = 3.0
@@ -538,9 +536,9 @@ def _name_phenyl_chain_nitrile(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
+    halogens = halogen_substituents(mol)
     rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
-    attachment = ring_chain_attachments_with_halogens(graph, rings, set(), halogens)
+    attachment = ring_branch_attachments(mol, graph, rings)
     if not attachment:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "

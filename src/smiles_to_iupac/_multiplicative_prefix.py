@@ -119,6 +119,11 @@ def prefix_name(mol, root, from_atom, suffix_group=None, name_function=None, gro
     atom = mol.GetAtomWithIdx(root)
     if atom.GetAtomicNum() in HALOGEN_PREFIXES and atom.GetDegree() == 1:
         return HALOGEN_PREFIXES[atom.GetAtomicNum()], False
+    if not atom.IsInRing() and mol.GetBondBetweenAtoms(root, from_atom).GetBondTypeAsDouble() != 1.0:
+        from ._common import adjacency
+        from ._substituents import name_branch
+
+        return name_branch(adjacency(mol), root, from_atom, {}, frozenset(), mol=mol, unsaturated=True)
     if not atom.IsInRing():
         from ._common import adjacency
         from ._hetero_prefixes import MONONUCLEAR_HYDRIDES, hetero_branch_name
@@ -128,15 +133,10 @@ def prefix_name(mol, root, from_atom, suffix_group=None, name_function=None, gro
             if result is not None:
                 return result
     if atom.IsInRing():
-        from ._multiplicative_groups import classify
-        from ._multiplicative_ring import ring_substituent_name
+        from ._common import adjacency
+        from ._substituents import name_branch
 
-        ring_atoms = next(set(r) for r in mol.GetRingInfo().AtomRings() if root in r)
-        result = ring_substituent_name(
-            mol, ring_atoms, root, from_atom, groups if groups is not None else classify(mol), suffix_group, name_function
-        )
-        if result is not None:
-            return result
+        return name_branch(adjacency(mol), root, from_atom, {}, frozenset(), mol=mol)
     if suffix_group is not None and suffix_group not in SUFFIX_CARRIERS:
         raise UnsupportedStructure(f"substituents of a {suffix_group} parent are not supported yet")
     name = probe_name(_carrier_smiles(mol, root, from_atom, suffix_group), name_function)

@@ -5,9 +5,11 @@ other group, ring or branch is cited as a substituent prefix through
 group on a ring is not handled here.
 """
 
+import contextvars
 import re
 
 from rdkit import Chem
+from rdkit.Chem import CanonicalRankAtoms
 
 from ._common import (
     UnsupportedStructure,
@@ -21,6 +23,7 @@ from ._common import (
     specified_stereo_elements,
     substituent_locant_set_and_citation,
 )
+from ._anion import ANION_PROP, anion_weight
 from ._functional_prefixes import is_nitro_nitrogen
 from ._hetero_prefixes import EXTENDED_PREFIXES, MONONUCLEAR_HYDRIDES, is_functional_carbon
 from ._multiplicative import _bare_key
@@ -46,8 +49,11 @@ from ._acid_lexicon import carbo_suffix, chain_suffix, make_spec, rank_key, spec
 from ._retained_acids import retained_chain_acid
 from ._substituents import format_substituent_prefixes, name_branch
 
-_SENIORITY = ["acid", "sulfonic", "amide", "sulfonamide", "nitrile", "aldehyde", "ketone", "alcohol", "thiol", "amine"]
-_TERMINAL = {"acid", "amide", "nitrile", "aldehyde"}
+_SENIORITY = [
+    "ide", "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", "sulfonamide", "nitrile", "aldehyde", "ketone", "alcohol", "peroxol",
+    "thiol", "amine", "imine",
+]
+_TERMINAL = {"acid", "thioic", "peroxoic", "imidic", "amide", "nitrile", "aldehyde"}
 _PLAIN_ACID = make_spec("C", ["O"], ["O"])
 _PLAIN_SULFONIC = make_spec("S", ["O", "O"], ["O"])
 
@@ -62,6 +68,8 @@ def _acid_rank(name):
 
 
 def _principal_class(classes):
+    if "ide" in classes:
+        return "ide"
     acids = [c for c in classes if c in ("acid", "sulfonic") or _is_variant(c)]
     if acids:
         return min(acids, key=_acid_rank)
@@ -73,9 +81,10 @@ def _anionic_group_atom(mol, atom):
     if atom.GetFormalCharge() != -1 or atom.GetAtomicNum() not in (8, 16, 34, 52):
         return False
     for n in atom.GetNeighbors():
-        group = acid_group_at(mol, n.GetIdx())
-        if group is not None and group.spec.anion and atom.GetIdx() in group.owned:
-            return True
+        for start in (n, *n.GetNeighbors()):
+            group = acid_group_at(mol, start.GetIdx())
+            if group is not None and group.spec.anion and atom.GetIdx() in group.owned:
+                return True
     return False
 
 
@@ -101,6 +110,7 @@ def _junior_end_group(mol, idx):
 def _is_terminal(name):
     return name in _TERMINAL or (_is_variant(name) and spec_from_key(name).center == "C")
 _MAX_ATOMS = 80
+IDE_EXTRA = contextvars.ContextVar("ide_extra", default={})
 
 
 def _double_oxygens(mol, carbon):
@@ -124,7 +134,7 @@ def _terminal_heteroatom(mol, idx, hydrogens):
     return atom.GetDegree() == 1 and atom.GetTotalNumHs() == hydrogens and not atom.GetFormalCharge()
 
 
-_CHALCOGEN_KETONE_OK = {"acid", "sulfonic", "amide", "sulfonamide", "nitrile", "aldehyde"}
+_CHALCOGEN_KETONE_OK = {"acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", "sulfonamide", "nitrile", "aldehyde"}
 
 
 def _chalcogen_ketone(mol, atom):
@@ -373,8 +383,51 @@ def _select_with_prefixes(mol, attach=None, n_names=(), stereo=None):
         if found is not None:
             groups.setdefault(found[0], {})[atom.GetIdx()] = found[1]
     ring_groups = _ring_occurrences(mol)
+    marked = {a.GetIdx() for a in mol.GetAtoms() if a.HasProp(ANION_PROP)}
+    ide_extra = {}
+    if marked:
+        for idx in marked:
+            atom = mol.GetAtomWithIdx(idx)
+            if atom.GetAtomicNum() == 7 and any(
+                b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 6 for b in atom.GetBonds()
+            ):
+                carbon = next(b.GetOtherAtom(atom).GetIdx() for b in atom.GetBonds())
+                groups.setdefault("imine", {})[carbon] = {idx}
+            _peroxy_group(mol, atom, groups, ring_groups)
+            _carbonyl_variant_group(mol, atom, groups, ring_groups)
+            if atom.GetAtomicNum() != 6:
+                continue
+            if atom.IsInRing():
+                ring_groups += [("ide", idx, {idx})] * anion_weight(atom)
+            else:
+                groups.setdefault("ide", {})[idx] = {idx}
+        carbon_marks = {i for i in marked if mol.GetAtomWithIdx(i).GetAtomicNum() == 6}
+        has_group = any(cls != "ide" and any(o & marked - carbon_marks for o in members.values()) for cls, members in groups.items()) or any(
+            g[0] != "ide" and g[2] & marked - carbon_marks for g in ring_groups
+        )
+        if has_group and carbon_marks:
+            groups.pop("ide", None)
+            ring_groups = [g for g in ring_groups if g[0] != "ide"]
+            ide_extra = {i: anion_weight(mol.GetAtomWithIdx(i)) for i in carbon_marks}
+        groups = {
+            cls: kept
+            for cls, members in groups.items()
+            if (kept := {c: owned for c, owned in members.items() if owned & marked})
+        }
+        ring_groups = [g for g in ring_groups if g[2] & marked]
+        secondary = any(_substituted_amine_nitrogen(mol, mol.GetAtomWithIdx(i)) for i in marked)
+        if not groups and not ring_groups and not secondary:
+            raise UnsupportedStructure("this anionic group is not a principal-capable characteristic group")
     classes = set(groups) | {c for c, _, _ in ring_groups}
     principal = _principal_class(classes)
+    token = IDE_EXTRA.set(ide_extra)
+    try:
+        return _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal, attach, n_names, stereo)
+    finally:
+        IDE_EXTRA.reset(token)
+
+
+def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal, attach, n_names, stereo):
     if any(_chalcogen_ketone(mol, a) for a in mol.GetAtoms()) and principal not in _CHALCOGEN_KETONE_OK and not (principal and _is_variant(principal)):
         raise UnsupportedStructure("a thioketone-type group outranks the parents this engine can build here")
     for atom in mol.GetAtoms():
@@ -386,6 +439,7 @@ def _select_with_prefixes(mol, attach=None, n_names=(), stereo=None):
             atom.GetAtomicNum() == 6
             and not atom.IsInRing()
             and not _is_acid_family(principal)
+            and principal not in ("peroxoic", "thioic", "imidic")
             and not (principal in ("amide", "sulfonamide") and atom.GetIdx() in groups.get(principal, {}))
             and _is_ester_like(mol, atom.GetIdx())
         ):
@@ -491,7 +545,7 @@ def _select_with_prefixes(mol, attach=None, n_names=(), stereo=None):
             return _finish(carbo)
     if (
         _is_terminal(principal)
-        and chain_best[0][1] == -1
+        and len(chain_best[2][4]) == 1
         and not (_is_variant(principal) and attach is None)
         and not chain_best[1].endswith("formic acid")
     ):
@@ -555,11 +609,8 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
     if (
         center.GetFormalCharge()
         or center.GetIsotope()
-        or len(neighbors) > valence
-        or any(
-            mol.GetAtomWithIdx(n).GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(index, n).GetBondTypeAsDouble() != 1.0
-            for n in neighbors
-        )
+        or sum(mol.GetBondBetweenAtoms(index, n).GetBondTypeAsDouble() for n in neighbors) > valence
+        or any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in neighbors)
     ):
         return None
     entries = [name_branch(graph, n, index, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in neighbors]
@@ -971,14 +1022,23 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
     return count, ((-count,), name, (None, None, None, 0, {a: PrimedLocant(*loc) for a, loc in locants.items()}, True))
 
 
+_CYCLOPENTA_A_PHENANTHRENE = Chem.MolFromSmarts(
+    "[#6]1~[#6]~[#6]~[#6]2~[#6](~[#6]~1)~[#6]~[#6]~[#6]1~[#6]~2~[#6]~[#6]~[#6]2~[#6]~[#6]~[#6]~[#6]~1~2"
+)
+
+
 def _require_mancude_system(mol, atoms):
     """Only fully aromatic fused systems (arenes, mancude heterocycles): partly
     hydrogenated, bridged and spiro systems need hydro/von Baeyer names. Beyond three rings only
     all-six-membered systems and peri-fused ones with a retained numbering are verified."""
     if not any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms) and not is_hydro_fusion_system(mol, atoms):
         raise UnsupportedStructure("a saturated, bridged or spiro ring system is not handled by the chain engine")
+    if not any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms) and any(
+        set(match) == set(atoms) for match in mol.GetSubstructMatches(_CYCLOPENTA_A_PHENANTHRENE)
+    ):
+        raise UnsupportedStructure("a saturated cyclopenta[a]phenanthrene skeleton is a steroid parent hydride (P-101), not a hydro fusion name")
     member_rings = [r for r in mol.GetRingInfo().AtomRings() if set(r) <= set(atoms)]
-    if len(member_rings) > 3 and any(len(r) != 6 for r in member_rings):
+    if len(member_rings) > 3 and any(len(r) not in (5, 6, 7) for r in member_rings):
         if not any(sum(a in r for r in member_rings) > 2 for a in atoms):
             raise UnsupportedStructure("the numbering of this larger fused system is not verified here")
 
@@ -994,6 +1054,7 @@ class _FusedSuffix(dict):
 
 
 _FUSED_SUFFIX = _FusedSuffix({
+    "ide": "ide",
     "acid": "carboxylic acid",
     "sulfonic": "sulfonic acid",
     "amide": "carboxamide",
@@ -1037,6 +1098,11 @@ class _RingSuffix(dict):
 
 
 _RING_SUFFIX = _RingSuffix({
+    "ide": "ide",
+    "peroxoic": "peroxoic",
+    "peroxol": "peroxol",
+    "thioic": "thioic",
+    "imidic": "imidic",
     "acid": "carboxylic_acid",
     "sulfonic": "sulfonic_acid",
     "amide": "amide",
@@ -1081,11 +1147,30 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
         return None
     top = max(c[0] for c in candidates)
     leading = [c for c in candidates if c[0] == top]
-    if len(leading) > 1:
+    if len(leading) == 1:
+        return _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names, stereo, leading[0])[:2]
+    ranks = CanonicalRankAtoms(mol, breakTies=False)
+    if len({ranks[next(iter(c[3]))[1]] for c in leading}) == 1:
         raise UnsupportedStructure("several rings bear the principal group; a multiplicative name is needed")
-    count, ring, spec, here = leading[0]
+    ranked = []
+    for candidate in leading:
+        try:
+            ranked.append(
+                _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names, stereo, candidate)
+            )
+        except UnsupportedStructure:
+            continue
+    if not ranked:
+        raise UnsupportedStructure("several rings bear the principal group and none has a supported name")
+    count, found, _ = min(ranked, key=lambda r: r[2])
+    return count, found
+
+
+def _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names, stereo, candidate):
+    count, ring, spec, here = candidate
     if spec is None:
-        return _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo)
+        found = _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo)
+        return found[0], found[1], (0, (), (), found[1][1])
     owned = set().union(*(o[2] for o in here))
     ring_set = set(ring)
     roots = [
@@ -1094,17 +1179,23 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
         for n in mol.GetAtomWithIdx(r).GetNeighbors()
         if n.GetIdx() not in ring_set and n.GetIdx() not in owned
     ]
+    from ._diester_ring_diyl import _system_of
+
     for _, n in roots:
-        neighbor_ring = next((set(r) for r in ring_info.AtomRings() if n in r and not set(r) & ring_set), None)
-        if neighbor_ring is not None and _bare_key(mol, neighbor_ring) == _bare_key(mol, ring_set):
+        neighbor_system = _system_of(mol, n)
+        if neighbor_system is None or neighbor_system[1] & ring_set:
+            continue
+        if _bare_key(mol, neighbor_system[1]) == _bare_key(mol, ring_set):
             raise UnsupportedStructure("identical rings joined directly form a ring assembly (P-28)")
     entries = [
         (r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots
     ]
     principal_atoms = [o[1] for o in here]
+    ide_atoms = [a for a, w in IDE_EXTRA.get().items() if a in ring_set for _ in range(w)]
     best = None
     for locants in numberings(spec):
         key = (
+            tuple(sorted(locants[a] for a in ide_atoms)),
             tuple(sorted(locants[a] for a in principal_atoms)),
             tuple(sorted(locants[r] for r, _, _ in entries)),
             _citation_key([(locants[r], name) for r, name, _ in entries]),
@@ -1116,14 +1207,39 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
     suffix_name = _RING_SUFFIX[principal]
     suffix_locants = [locants[a] for a in principal_atoms]
     prefix_text = _ring_prefix_text(entries, locants, n_names)
-    if (spec.kind == "cycloalkane" or spec.kind == "benzene" and suffix_name not in _RETAINED_BENZENE) and count == 1 and not entries:
+    if ide_atoms:
+        core = _ring_compound_core(spec, suffix_name, locants, ide_atoms, principal_atoms)
+    elif (
+        count == 1
+        and not entries
+        and (spec.kind == "cycloalkane" or (spec.kind == "benzene" and suffix_name not in _RETAINED_BENZENE))
+    ):
         word = _SUFFIX_WORDS[suffix_name]
         stem = spec.parent[:-1] if word[0] in "aeiouy" else spec.parent
         core = stem + word
     else:
         core, _ = _suffix_text(spec.parent, suffix_name, suffix_locants, spec)
     name = _join(prefix_text, core)
-    return count, ((-count,), name, (None, None, None, 0, locants, True))
+    count += len(ide_atoms)
+    letters = re.sub(r"[^a-z]", "", name)
+    rank = (-len(entries), best[0][2], best[0][3], letters)
+    return count, ((-count,), name, (None, None, None, 0, locants, True)), rank
+
+
+def _ring_compound_core(spec, suffix_name, locants, ide_atoms, principal_atoms):
+    if spec.kind not in ("benzene", "cycloalkane"):
+        raise UnsupportedStructure("an anionic carbon beside a group on this ring is not supported yet")
+    word = _SUFFIX_WORDS[suffix_name]
+    ide_locants = sorted(locants[a] for a in ide_atoms)
+    ide_word = multiplied_word(len(ide_locants), "ide")
+    if word[0] in "aeiouy":
+        ide_word = ide_word[:-1]
+    group_locants = sorted(locants[a] for a in principal_atoms)
+    stem = spec.parent[:-1]
+    return (
+        f"{stem}-{','.join(str(x) for x in ide_locants)}-{ide_word}-"
+        f"{','.join(str(x) for x in group_locants)}-{multiplied_word(len(group_locants), word)}"
+    )
 
 
 def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups):
@@ -1406,6 +1522,10 @@ def _composite_linker_name(mol, graph, stereo):
     return None
 
 
+def _is_phane_candidate(mol, ring_set):
+    return len(ring_set) > 12 and any(len(r) == 6 and set(r) <= ring_set for r in mol.GetRingInfo().AtomRings())
+
+
 def _ring_linker_name(mol, graph, stereo):
     """Two identical chain parents on one monocycle: 2,2'-(1,4-phenylene)di(ethan-1-ol)."""
     from ._multiplicative import _ring_systems
@@ -1419,7 +1539,8 @@ def _ring_linker_name(mol, graph, stereo):
             try:
                 _require_mancude_system(mol, ring_set)
             except UnsupportedStructure:
-                continue
+                if not _is_phane_candidate(mol, ring_set):
+                    continue
         ring = member_rings[0]
         attachments = [
             (r, n.GetIdx())
@@ -1460,6 +1581,11 @@ def _ring_linker_name(mol, graph, stereo):
             except UnsupportedStructure:
                 found = None
             linker = (found[1], False) if found else None
+            if linker is None:
+                from ._phane_general import phane_diyl_name
+
+                phane = phane_diyl_name(mol, ring_set, [r for r, _ in attachments], arms[0] | arms[1])
+                linker = (phane, True) if phane else None
         if linker is None:
             continue
         if stereo:
@@ -1537,6 +1663,181 @@ def _is_nitro_part(atom):
         (n,) = atom.GetNeighbors()
         return _is_nitro_part(n)
     return False
+
+
+_CHALCOGEN_SYMBOL = {8: "O", 16: "S", 34: "Se"}
+
+
+def _peroxy_group(mol, atom, groups, ring_groups):
+    if atom.GetAtomicNum() not in _CHALCOGEN_SYMBOL or atom.GetDegree() != 1:
+        return
+    (y,) = atom.GetNeighbors()
+    if y.GetAtomicNum() not in _CHALCOGEN_SYMBOL or y.GetDegree() != 2 or y.IsInRing():
+        return
+    carbon = next((n for n in y.GetNeighbors() if n.GetIdx() != atom.GetIdx()), None)
+    if carbon is None or carbon.GetAtomicNum() != 6:
+        return
+    oxo = [
+        n.GetIdx()
+        for n in carbon.GetNeighbors()
+        if n.GetAtomicNum() in (8, 16, 34, 52)
+        and n.GetDegree() == 1
+        and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    ]
+    owned = {atom.GetIdx(), y.GetIdx()}
+    c = carbon.GetIdx()
+    if carbon.IsInRing():
+        if not oxo:
+            ring_groups.append(("peroxol", c, owned))
+        return
+    if oxo:
+        owned |= {oxo[0]}
+        groups.setdefault("peroxoic", {})[c] = owned
+        ring_groups.extend(("peroxoic", n.GetIdx(), {c} | owned) for n in carbon.GetNeighbors() if n.IsInRing())
+    else:
+        groups.setdefault("peroxol", {})[c] = owned
+
+
+def _carbonyl_variant_group(mol, atom, groups, ring_groups):
+    """Thio/seleno/telluro acid and imidic acid anions: a carbon with =Y and -X(-)."""
+    if atom.GetAtomicNum() not in (8, 16, 34, 52) or atom.GetDegree() != 1:
+        return
+    (carbon,) = atom.GetNeighbors()
+    if carbon.GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(atom.GetIdx(), carbon.GetIdx()).GetBondTypeAsDouble() != 1.0:
+        return
+    double = [
+        n
+        for n in carbon.GetNeighbors()
+        if n.GetIdx() != atom.GetIdx()
+        and n.GetDegree() == 1
+        and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    ]
+    if len(double) != 1:
+        return
+    other = double[0]
+    if other.GetAtomicNum() == 7 and other.GetTotalNumHs() == 1 and atom.GetAtomicNum() == 8:
+        cls = "imidic"
+    elif other.GetAtomicNum() in (8, 16, 34, 52) and not (atom.GetAtomicNum() == 8 and other.GetAtomicNum() == 8):
+        cls = "thioic"
+    else:
+        return
+    c = carbon.GetIdx()
+    owned = {atom.GetIdx(), other.GetIdx()}
+    groups.setdefault(cls, {})[c] = owned
+    ring_groups.extend((cls, n.GetIdx(), {c} | owned) for n in carbon.GetNeighbors() if n.IsInRing())
+
+
+def chalcogen_acid_variant(mol):
+    """'thio' / 'dithio' / 'seleno' / ... for the marked thio-acid groups, or None."""
+    variants = set()
+    for atom in mol.GetAtoms():
+        if not atom.HasProp(ANION_PROP) or atom.GetAtomicNum() not in (8, 16, 34, 52) or atom.GetDegree() != 1:
+            continue
+        (carbon,) = atom.GetNeighbors()
+        others = [
+            n
+            for n in carbon.GetNeighbors()
+            if n.GetIdx() != atom.GetIdx()
+            and n.GetDegree() == 1
+            and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        ]
+        if len(others) != 1 or others[0].GetAtomicNum() == 7:
+            continue
+        pair = sorted((atom.GetAtomicNum(), others[0].GetAtomicNum()))
+        if pair == [8, 8]:
+            continue
+        variants.add(tuple(pair))
+    if len(variants) > 1:
+        raise UnsupportedStructure("different chalcogen acid patterns in one name are not supported yet")
+    if not variants:
+        return None
+    pair = variants.pop()
+    words = {16: "thio", 34: "seleno", 52: "telluro"}
+    chalcogens = [z for z in pair if z != 8]
+    if len(chalcogens) == 2 and chalcogens[0] == chalcogens[1]:
+        return "di" + words[chalcogens[0]]
+    return "".join(words[z] for z in sorted(chalcogens, key=lambda z: {34: 0, 16: 1, 52: 2}[z]))
+
+
+def peroxy_carbonyl_thio(mol):
+    """'thio' / 'seleno' / 'telluro' when the carbonyl chalcogen of a peroxoic acid anion is not oxygen."""
+    words = {16: "thio", 34: "seleno", 52: "telluro"}
+    found = set()
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() in words and atom.GetDegree() == 1:
+            (carbon,) = atom.GetNeighbors()
+            if mol.GetBondBetweenAtoms(atom.GetIdx(), carbon.GetIdx()).GetBondTypeAsDouble() == 2.0 and any(
+                n.GetAtomicNum() in (8, 16, 34, 52) and n.GetDegree() == 2 and any(
+                    m.GetDegree() == 1 and m.HasProp(ANION_PROP) for m in n.GetNeighbors()
+                )
+                for n in carbon.GetNeighbors()
+            ):
+                found.add(words[atom.GetAtomicNum()])
+    return found.pop() if len(found) == 1 else ""
+
+
+def peroxy_variant(mol):
+    """('' | 'dithio' | 'diseleno' | '(XY-thio' ...) prefix of the 'peroxo' word for the marked groups."""
+    variants = set()
+    for atom in mol.GetAtoms():
+        if not atom.HasProp(ANION_PROP) or atom.GetAtomicNum() not in _CHALCOGEN_SYMBOL or atom.GetDegree() != 1:
+            continue
+        (y,) = atom.GetNeighbors()
+        if y.GetAtomicNum() not in _CHALCOGEN_SYMBOL or y.GetDegree() != 2:
+            continue
+        pair = (y.GetAtomicNum(), atom.GetAtomicNum())
+        if pair[0] == pair[1]:
+            variants.add({8: "", 16: "dithio", 34: "diseleno"}[pair[0]])
+        else:
+            thio = "thio" if 16 in pair else "seleno"
+            variants.add(f"({_CHALCOGEN_SYMBOL[pair[0]]}{_CHALCOGEN_SYMBOL[pair[1]]}-{thio}")
+    if len(variants) > 1:
+        raise UnsupportedStructure("different peroxy chalcogen patterns in one name are not supported yet")
+    return variants.pop() if variants else None
+
+
+_CHAIN_GROUP_WORDS = {
+    "acid": ("oic", " acid"),
+    "sulfonic": ("sulfonic acid", ""),
+    "alcohol": ("ol", ""),
+    "thiol": ("thiol", ""),
+    "amine": ("amine", ""),
+    "peroxoic": ("peroxoic", " acid"),
+    "peroxol": ("peroxol", ""),
+    "thioic": ("thioic", " acid"),
+    "imidic": ("imidic", " acid"),
+}
+
+
+def _chain_group_word(principal, count):
+    if principal not in _CHAIN_GROUP_WORDS:
+        raise UnsupportedStructure("an anionic carbon beside this group is not supported yet")
+    word, tail = _CHAIN_GROUP_WORDS[principal]
+    return multiplied_word(count, word), tail
+
+
+def _compound_word(ide_locants, group_locants, group_word):
+    ide_word = multiplied_word(len(ide_locants), "ide")
+    if group_word[0] in "aeiouy":
+        ide_word = ide_word[:-1]
+    return f"{ide_word}-{','.join(str(x) for x in group_locants)}-{group_word}"
+
+
+def _is_carboxylic_ester_carbon(mol, carbon):
+    """-CO-OR or -CO-NR2 on a carbon chain, kept in the chain as 'alkoxy...oxo' / 'amino...oxo' (P-65.6.3.2.3)."""
+    atom = mol.GetAtomWithIdx(carbon)
+    if atom.GetDegree() != 3 or atom.GetIsAromatic():
+        return False
+    oxo = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1]
+    if len(oxo) != 1 or mol.GetBondBetweenAtoms(carbon, oxo[0].GetIdx()).GetBondTypeAsDouble() != 2.0:
+        return False
+    ether = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 2]
+    if len(ether) == 1:
+        return all(n.GetAtomicNum() == 6 for n in ether[0].GetNeighbors() if n.GetIdx() != carbon)
+    amine = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 7 and not n.IsInRing() and not n.GetFormalCharge()]
+    if len(amine) != 1 or not any(a.HasProp(ANION_PROP) for a in mol.GetAtoms()):
+        return False
+    return all(n.GetAtomicNum() == 6 and not n.IsInRing() or n.GetIdx() == carbon for n in amine[0].GetNeighbors())
 
 
 def _is_ester_like(mol, carbon):
@@ -1659,6 +1960,8 @@ def _evaluate(
     if attach is not None and attach not in chain_set:
         return ((1,), "", None)
     on_chain = [a for a in principal_atoms if a in chain_set]
+    if principal == "ide":
+        on_chain = [a for a in on_chain for _ in range(anion_weight(mol.GetAtomWithIdx(a)))]
     if not on_chain or (_is_terminal(principal) and any(position_of[a] not in (1, len(chain)) for a in on_chain)):
         return ((1,), "", None)
     ene, yne = [], []
@@ -1679,13 +1982,23 @@ def _evaluate(
     locant_set, total_count, citation = substituent_locant_set_and_citation(grouped)
     suffix_locants = sorted(position_of[a] for a in on_chain)
     count = len(on_chain)
+    ide_locants = sorted(position_of[a] for a, w in IDE_EXTRA.get().items() if a in chain_set for _ in range(w))
     length = len(chain)
-    force = attach is not None and length != 1
+    force = (attach is not None and length != 1) or (principal == "ide" and bool(grouped) and length > 1)
     prefix = format_substituent_prefixes(
         _with_n_names(grouped, n_names), omit_locants=length == 1 and not force and not n_names
     )
     tail = ""
-    if _is_variant(principal):
+    if principal == "ide" and attach is None and length == 2 and not grouped and (ene or yne) and (count == 1 or yne):
+        word = multiplied_word(count, "ide")
+        stem = "ethyn" if yne else "ethen"
+        body = stem + word if word[0] in "aeiouy" else stem + "e" + word
+    elif ide_locants:
+        word, tail = _chain_group_word(principal, count)
+        body = name_from_substituents(
+            length, ene, yne, _compound_word(ide_locants, suffix_locants, word), ide_locants, force_own_locant=True
+        )
+    elif _is_variant(principal):
         spec = spec_from_key(principal)
         retained = None
         if attach is None and spec.anion and spec.oxo == ("O",) and spec.y == ("O",) and spec.center == "C":
@@ -1709,6 +2022,10 @@ def _evaluate(
             body, tail = name_from_substituents(length, ene, yne, multiplied_word(count, "oic")), " acid"
             if attach is not None and length == 2 and count == 1 and not ene and not yne:
                 body = "acetic"
+    elif principal in ("peroxoic", "thioic", "imidic"):
+        body, tail = name_from_substituents(length, ene, yne, multiplied_word(count, principal)), " acid"
+    elif principal == "peroxol":
+        body = name_from_substituents(length, ene, yne, multiplied_word(count, "peroxol"), suffix_locants)
     elif principal == "amide":
         body = name_from_substituents(length, ene, yne, multiplied_word(count, "amide"))
     elif principal == "nitrile":
@@ -1717,10 +2034,12 @@ def _evaluate(
         body = name_from_substituents(length, ene, yne, multiplied_word(count, "al"))
     else:
         word = {
+            "ide": "ide",
             "ketone": "one",
             "alcohol": "ol",
             "thiol": "thiol",
             "amine": "amine",
+            "imine": "imine",
             "sulfonic": "sulfonic acid",
             "sulfonamide": "sulfonamide",
         }[principal]
@@ -1731,7 +2050,10 @@ def _evaluate(
     attach_locant = position_of[attach] if attach is not None else 0
     reported_attach = None if (attach is not None and length == 1) else attach_locant
     key = (
+        -(count + len(ide_locants)),
+        -len(ide_locants),
         -count,
+        tuple(ide_locants),
         -length,
         -(len(ene) + len(yne)),
         -len(ene),

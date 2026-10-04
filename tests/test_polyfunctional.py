@@ -832,6 +832,10 @@ def test_acyl_prefixes_with_substituents_and_alkoxycarbonylamino(smiles, expecte
     [
         ("OC[C@H]1CCCC[C@@H]1C", "[(1S,2S)-2-methylcyclohexyl]methanol"),
         ("OC(=O)CC[C@H]1CCCC[C@@H]1C", "3-[(1R,2S)-2-methylcyclohexyl]propanoic acid"),
+        ("OC[C@H]1CCCC[C@@H]1Cl", "[(1R,2S)-2-chlorocyclohexyl]methanol"),
+        ("OC(=O)CNC(=O)[C@H](Cl)CC", "{[(2R)-2-chlorobutanoyl]amino}acetic acid"),
+        ("OC(=O)CNC(=O)[C@@H](N)c1ccccc1", "{[(2S)-amino(phenyl)acetyl]amino}acetic acid"),
+        ("OC(=O)CCOC(=O)[C@@H]1CCC[C@H]1C", "3-{[(1R,2R)-2-methylcyclopentane-1-carbonyl]oxy}propanoic acid"),
     ],
 )
 def test_stereodescriptors_inside_substituent_prefixes(smiles, expected):
@@ -1149,4 +1153,81 @@ def test_sulfide_coexisting():
     ],
 )
 def test_acid_functional_replacement_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OC(=O)c1ccc(cc1)c1ccc2ccccc2c1", "4-(naphthalen-2-yl)benzoic acid"),
+        ("OC(=O)c1ccc(cc1)c1cccc2ccccc12", "4-(naphthalen-1-yl)benzoic acid"),
+        ("OC(=O)c1ccc(cc1)c1ccc2cccnc2c1", "4-(quinolin-7-yl)benzoic acid"),
+        ("OC(=O)c1ccc(cc1)c1ccc2[nH]ccc2c1", "4-(1H-indol-5-yl)benzoic acid"),
+        ("OC(=O)c1ccc(cc1)c1cccc2cc3ccccc3cc12", "4-(anthracen-1-yl)benzoic acid"),
+        ("OC(=O)c1ccc(cc1)C12CC3CC(CC(C3)C1)C2", "4-(adamantan-1-yl)benzoic acid"),
+        ("OC(=O)C1CCC(CC1)C12CC3CC(CC(C3)C1)C2", "4-(adamantan-1-yl)cyclohexane-1-carboxylic acid"),
+        ("OC(=O)C1CCC(CC1)C1C2CC3CC(C2)CC1C3", "4-(adamantan-2-yl)cyclohexane-1-carboxylic acid"),
+        ("OC(=O)c1ccc(cc1)C1COCCOCCOCCOCCO1", "4-(1,4,7,10,13-pentaoxacyclopentadecan-2-yl)benzoic acid"),
+        ("OC(=O)c1ccc(cc1)C1COCCNCCOCCOCCN1", "4-(1,4,10-trioxa-7,13-diazacyclopentadecan-8-yl)benzoic acid"),
+    ],
+)
+def test_fused_bridged_and_macrocyclic_substituents_on_a_carboxylic_acid_ring(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OC(=O)c1ccc(cc1)NOc1ccccc1", "4-(phenoxyamino)benzoic acid"),
+        ("OC(=O)c1ccc(cc1)NOC", "4-(methoxyamino)benzoic acid"),
+        ("OC(=O)c1ccc(cc1)N(C)OC", "4-[methoxy(methyl)amino]benzoic acid"),
+        ("OC(=O)c1ccc(cc1)OSc1ccccc1", "4-[(phenylsulfanyl)oxy]benzoic acid"),
+        ("OC(=O)c1ccc(cc1)SNC", "4-[(methylamino)sulfanyl]benzoic acid"),
+        ("OC(=O)c1ccc(cc1)N=Nc1ccccc1", "4-(phenyldiazenyl)benzoic acid"),
+        ("OC(=O)c1ccc(cc1)N=N", "4-diazenylbenzoic acid"),
+        ("OC(=O)c1ccc(cc1)NNc1ccccc1", "4-(2-phenylhydrazinyl)benzoic acid"),
+    ],
+)
+def test_heteroatom_to_heteroatom_substituent_groups_on_a_carboxylic_acid_ring(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize("smiles", ["CNO", "OOC1CCCCC1", "COOCOC"])
+def test_heteroatom_connections_are_not_prefixes_without_a_senior_group(smiles):
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OC(=O)C1CCC(CC1)=N", "4-iminocyclohexane-1-carboxylic acid"),
+        ("OC(=O)C1CCC(CC1)=NC", "4-(methylimino)cyclohexane-1-carboxylic acid"),
+        ("OC(=O)C1CCC(CC1)=NO", "4-(hydroxyimino)cyclohexane-1-carboxylic acid"),
+        ("OC(=O)C1CCC(CC1)=NOC", "4-(methoxyimino)cyclohexane-1-carboxylic acid"),
+        ("OC(=O)CCC(=N)CCC(=O)O", "4-iminoheptanedioic acid"),
+        ("OC(=O)c1ccc(cc1)C=N", "4-(iminomethyl)benzoic acid"),
+    ],
+)
+def test_imino_prefixes_under_a_senior_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OC(=O)c1ccc(cc1)[SiH2]Cc1ccc(C)cc1", "4-{[(4-methylphenyl)methyl]silyl}benzoic acid"),
+        ("OC(=O)c1ccc(cc1)C1CCC2(CC1)CCCP2", "4-(1-phosphaspiro[4.5]decan-8-yl)benzoic acid"),
+        ("OC(=O)c1ccc(cc1)N1CC=NC2=NC=CN12", "4-[imidazo[1,2-b][1,2,4]triazin-1(2H)-yl]benzoic acid"),
+        ("OC(=O)Cc1ccc(S(C)(=O)=O)cc1", "[4-(methanesulfonyl)phenyl]acetic acid"),
+        ("OC(=O)Cc1cccc([SiH2]O[SiH3])n1", "(6-disiloxanylpyridin-2-yl)acetic acid"),
+        (
+            "OC(=O)C1CCC(CC1)=C1c2cccc(n2)Cc2cccc(n2)Cc2cccc(n2)Cc2cccc(n2)1",
+            "4-[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-2-ylidene]cyclohexane-1-carboxylic acid",
+        ),
+        ("OC(=O)c1ccc(cc1)[PH2]", "4-phosphanylbenzoic acid"),
+        ("OC(=O)C1CCC(CC1)=[BH]", "4-boranylidenecyclohexane-1-carboxylic acid"),
+    ],
+)
+def test_ring_and_hetero_groups_as_prefixes_use_one_ring_group_namer(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

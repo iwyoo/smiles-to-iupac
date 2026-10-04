@@ -114,8 +114,7 @@ from ._common import (
     multiplied_word,
     name_from_substituents,
     non_single_bonds,
-    ring_chain_attachment_with_halogens,
-    ring_chain_attachments_with_halogens,
+    ring_branch_attachments,
     ring_hosting_anchors,
     separate_aromatic_monocycles,
     ring_cycle,
@@ -126,7 +125,7 @@ from ._common import (
     substituent_locant_set_and_citation,
 )
 from ._retained_acids import retained_chain_acid
-from ._substituents import format_substituent_prefixes, name_branch, plain_alkyl_ring_substituents, substituents_for_chain
+from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
 
@@ -514,13 +513,9 @@ def _name_phenyl_chain_carboxylic_acid(
         )
 
     graph = adjacency(mol)
-    halogens = {
-        **halogen_substituents(mol),
-        **plain_alkyl_ring_substituents(mol, graph, ring_atoms),
-        **(extra_names or {}),
-    }
+    halogens = {**halogen_substituents(mol), **(extra_names or {})}
     rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
-    attachment = ring_chain_attachments_with_halogens(graph, rings, set(), halogens)
+    attachment = ring_branch_attachments(mol, graph, rings, known=extra_names or ())
     if not attachment:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "

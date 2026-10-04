@@ -227,31 +227,40 @@ def ring_chain_attachment(graph, ring_atoms, excluded):
     return ring_atom, branch_roots[0]
 
 
-def ring_chain_attachment_with_halogens(graph, ring_atoms, excluded, halogens):
-    """Like `ring_chain_attachment`, but tolerates the ring's other atoms
-    each carrying a single plain halogen substituent (an exocyclic
-    neighbor found in `halogens`) instead of requiring `ring_atoms` to be
-    completely unsubstituted apart from the one chain -- lets a "phenyl
-    chain" module recognize e.g. 4-chlorophenyl the same way it already
-    recognizes plain phenyl (`name_branch`'s own halogenated-phenyl path
-    then names the ring). Returns (ring_atom, chain_root) for the sole
-    non-halogen exocyclic branch; else None (no such branch, more than one
-    non-halogen branch, or any ring atom with more than one exocyclic
-    neighbor)."""
-    chain_attachment = None
+def _is_plain_alkyl_branch(mol, graph, root, ring_atom):
+    seen = {root}
+    stack = [(root, ring_atom)]
+    while stack:
+        node, previous = stack.pop()
+        atom = mol.GetAtomWithIdx(node)
+        if atom.GetAtomicNum() != 6 or atom.GetIsAromatic() or atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope():
+            return False
+        for neighbor in graph[node]:
+            if neighbor != previous and neighbor not in seen:
+                seen.add(neighbor)
+                stack.append((neighbor, node))
+    return True
+
+
+def ring_branch_attachment(mol, graph, ring_atoms, excluded=frozenset(), known=()):
+    """(ring_atom, chain_root) for the one branch of `ring_atoms` that is not a ring substituent (a halogen, an
+    atom in `known`, or a plain acyclic all-carbon group, named by the general ring-group namer); None when there
+    is no such branch or several."""
+    halogens = halogen_substituents(mol)
+    attachment = None
     for atom in ring_atoms:
-        branch_roots = [n for n in graph[atom] if n not in ring_atoms and n not in excluded]
-        if not branch_roots:
+        roots = [n for n in graph[atom] if n not in ring_atoms and n not in excluded]
+        if not roots:
             continue
-        if len(branch_roots) != 1:
+        if len(roots) != 1:
             return None
-        (branch_root,) = branch_roots
-        if branch_root in halogens:
+        (root,) = roots
+        if root in halogens or root in known or _is_plain_alkyl_branch(mol, graph, root, atom):
             continue
-        if chain_attachment is not None:
+        if attachment is not None:
             return None
-        chain_attachment = (atom, branch_root)
-    return chain_attachment
+        attachment = (atom, root)
+    return attachment
 
 
 def separate_aromatic_monocycles(mol, graph):
@@ -289,18 +298,22 @@ def ring_hosting_anchors(mol, graph, rings, anchors):
     return hosts[0]
 
 
-def ring_chain_attachments_with_halogens(graph, rings, excluded, halogens):
-    """`ring_chain_attachment_with_halogens` for several rings: one
-    (ring_atom, chain_root) per ring that carries a non-halogen branch, or
-    None if any ring has an atom with more than one exocyclic neighbor or
-    more than one non-halogen branch."""
+def ring_branch_attachments(mol, graph, rings, excluded=frozenset(), known=()):
+    """`ring_branch_attachment` for several rings: one (ring_atom, chain_root) per ring that carries a branch, or
+    None if a ring atom has several exocyclic neighbors or a ring has several branches."""
     attachments = []
     for ring in rings:
-        attachment = ring_chain_attachment_with_halogens(graph, ring, excluded, halogens)
+        attachment = ring_branch_attachment(mol, graph, ring, excluded, known)
         if attachment is None:
             if any(len([n for n in graph[a] if n not in ring and n not in excluded]) > 1 for a in ring):
                 return None
-            if any(n not in halogens for a in ring for n in graph[a] if n not in ring and n not in excluded):
+            halogens = halogen_substituents(mol)
+            if any(
+                n not in halogens and n not in known and not _is_plain_alkyl_branch(mol, graph, n, a)
+                for a in ring
+                for n in graph[a]
+                if n not in ring and n not in excluded
+            ):
                 return None
             continue
         attachments.append(attachment)
@@ -390,8 +403,7 @@ def _heteroaromatic_monocycle_locant(mol, ring_order, attachment_atom):
     needed, mirroring `_pyridine_heterocycle_fusion.py`'s identical
     `GetTotalNumHs() > 0` heuristic for the same tautomer distinction);
     pyridine/furan/thiophene never need this, since their heteroatom
-    carries no H to begin with. Shared by `heteroaromatic_monocycle_yl_name`
-    (ring cited as a substituent) and `heteroaromatic_monocycle_prefix_name`
+    carries no H to begin with. Used by `heteroaromatic_monocycle_prefix_name`
     (ring cited as the parent) -- the locant math is identical either way,
     only the surrounding name format differs."""
     n = len(ring_order)
@@ -406,20 +418,6 @@ def _heteroaromatic_monocycle_locant(mol, ring_order, attachment_atom):
     if hetero.GetAtomicNum() == 7 and (hetero.GetTotalNumHs() > 0 or hetero.GetDegree() == 3):
         indicated_hydrogen = "1H-"
     return locant, indicated_hydrogen
-
-
-def heteroaromatic_monocycle_yl_name(mol, ring_order, attachment_atom):
-    """"-yl" substituent name (e.g. "pyridin-3-yl", "1H-pyrrol-2-yl") for a
-    plain heteroaromatic monocycle recognized by
-    `heteroaromatic_monocycle_name`, with the free valence at
-    `attachment_atom`. Returns None if `ring_order` isn't one of the four
-    recognized rings."""
-    name = heteroaromatic_monocycle_name(mol, ring_order)
-    if name is None:
-        return None
-    locant, indicated_hydrogen = _heteroaromatic_monocycle_locant(mol, ring_order, attachment_atom)
-    stem = name[:-1] if name.endswith("e") else name
-    return f"{indicated_hydrogen}{stem}-{locant}-yl"
 
 
 def heteroaromatic_monocycle_prefix_name(mol, ring_order, attachment_atom, prefix):
@@ -1120,7 +1118,9 @@ def alpha_sort_key(name: str) -> str:
     while stripped != previous:
         previous = stripped
         stripped = _LEADING_STEREO_RE.sub("", stripped)
-        stripped = _LEADING_LOCANTS_RE.sub("", stripped).lstrip("([{")
+        stripped = _LEADING_LOCANTS_RE.sub("", stripped)
+        if stripped[:1] in ("(", "[", "{") and not _LEADING_STEREO_RE.match(stripped):
+            stripped = stripped[1:]
     stripped = _ITALIC_PREFIX_RE.sub("", stripped)
     return stripped.lower()
 

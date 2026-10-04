@@ -269,6 +269,18 @@ def test_carboxylate_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_dicarboxylate_is_named():
+    assert smiles_to_iupac("[O-]C(=O)CC(=O)[O-]") == "propanedioate"
+
+
+def test_ring_carboxylate_is_named():
+    assert smiles_to_iupac("[O-]C(=O)C1CCCCC1") == "cyclohexanecarboxylate"
+
+
+def test_amine_coexisting_is_named():
+    assert smiles_to_iupac("NCC(=O)[O-]") == "aminoacetate"
+
+
 @pytest.mark.parametrize(
     "smiles,expected",
     [
@@ -279,8 +291,16 @@ def test_carboxylate_stereocenter(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_phenyl_directly_attached_carboxylate_is_named():
+    assert smiles_to_iupac("c1ccccc1C(=O)[O-]") == "benzoate"
+
+
 def test_phenyl_chain_carboxylate_ring_halogen():
     assert smiles_to_iupac("Clc1ccc(CCC(=O)[O-])cc1") == "3-(4-chlorophenyl)propanoate"
+
+
+def test_phenyl_chain_carboxylate_unsaturation_is_named():
+    assert smiles_to_iupac("C=Cc1ccccc1CC(=O)[O-]") == "(2-ethenylphenyl)acetate"
 
 
 @pytest.mark.parametrize(
@@ -302,7 +322,7 @@ def test_heteroaromatic_substituent_carboxylic_acid_directly_on_ring():
 
 
 def test_phenyl_substituent_carboxylic_acid_ring_branched_alkyl():
-    assert smiles_to_iupac("CC(C)c1ccc(cc1)CC(=O)O") == "(4-propan-2-ylphenyl)acetic acid"
+    assert smiles_to_iupac("CC(C)c1ccc(cc1)CC(=O)O") == "[4-(propan-2-yl)phenyl]acetic acid"
 
 
 def test_phenyl_substituent_carboxylic_acid_ring_tert_butyl():

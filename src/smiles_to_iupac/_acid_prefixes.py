@@ -93,6 +93,9 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
         return None
     z_idx = rest[0]
     zn = mol.GetAtomWithIdx(z_idx).GetAtomicNum()
+    z_atom = mol.GetAtomWithIdx(z_idx)
+    if z_atom.GetFormalCharge() or z_atom.HasProp("_anion") or z_atom.HasProp("_anion_word"):
+        return None
     if zn in _HALIDE_INFIX:
         if n_entries:
             return None
@@ -109,10 +112,12 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
         subs = [n for n in graph[z_idx] if n != root]
         if mol.GetAtomWithIdx(z_idx).GetFormalCharge() or any(_bond(mol, z_idx, n) != 1.0 for n in subs):
             return None
-        from ._hetero_prefixes import _amino, _group_names
+        from ._hetero_prefixes import _amino, _group_names, _is_amino_nitrogen
 
         if not subs and not n_entries:
             return _CARBAM[x], False
+        if x == "O" and len(subs) == 1 and _is_amino_nitrogen(mol, subs[0], z_idx):
+            return "hydrazinecarbonyl", True
         stem = _CARBAM[x]
         amino = _amino(_group_names(graph, mol, subs, z_idx, halogens, aromatic_atoms)) if subs else "amino"
         if n_entries:

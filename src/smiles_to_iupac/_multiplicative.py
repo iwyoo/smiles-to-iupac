@@ -19,7 +19,7 @@ from ._multiplicative_ring import bare_polycyclic_unit, name_monocyclic_unit, pr
 from ._multiplicative_text import enclose, multiplier_word, primed_locants
 
 _MAX_GROUP = 8
-_SENIOR_HYDRIDE_ATOMS = {5, 14, 15, 32, 33}
+_SENIOR_HYDRIDE_ATOMS = {5, 14, 15, 32, 33, 50, 51, 82, 83}
 
 
 @dataclass
@@ -198,6 +198,9 @@ def _class_gate(mol, groups, selected, systems, node_of):
     )
 
 
+_HOMONUCLEAR_RUNS = (7, 8, 14, 15, 16, 32, 33, 34, 50, 51, 52, 82, 83)
+
+
 def _components(mol, linker_nodes, systems):
     parent = {}
 
@@ -218,8 +221,9 @@ def _components(mol, linker_nodes, systems):
             if b not in atom_set:
                 continue
             zb = n.GetAtomicNum()
-            single = mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() == 1
-            if (za == 6 and zb == 6) or (za == zb and za in (8, 16, 34, 52, 14) and single):
+            order = mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble()
+            single = order == 1
+            if (za == 6 and zb == 6) or (za == zb and za in _HOMONUCLEAR_RUNS and (single or (za == 7 and order == 2))):
                 parent[find(a)] = find(b)
     comps = {}
     for a in atoms:
@@ -332,6 +336,12 @@ def _attempt(mol, groups, selected, tree, core, name_function):
     if principal is None and any(a.GetAtomicNum() in _SENIOR_HYDRIDE_ATOMS for a in mol.GetAtoms()):
         return None
     if principal is None and any(g.name == "imine" for g in groups):
+        return None
+    if principal is None and any(
+        len(members) >= 2 and mol.GetAtomWithIdx(members[0]).GetAtomicNum() == 7
+        for component_kind, members in components.values()
+        if component_kind == "hetero"
+    ):
         return None
     principal_group = None
     if principal is not None:

@@ -14,11 +14,12 @@ from ._multiplicative_linker import DecompositionRejected, name_component
 from ._multiplicative_text import enclose, multiplier_word, unit_phrase
 from ._substituents import name_branch
 
-_LINKER_ELEMENTS = {5, 7, 8, 14, 15, 16, 32, 33, 34, 52}
-_RUN_ELEMENTS = {8, 16, 34, 52, 14}
+_LINKER_ELEMENTS = {5, 7, 8, 14, 15, 16, 32, 33, 34, 50, 51, 52, 82, 83}
+_RUN_ELEMENTS = {7, 8, 14, 15, 16, 32, 33, 34, 50, 51, 52, 82, 83}
 _MAX_UNITS = 6
 _SUBSTITUTED_PREFIX = re.compile(r"(?:carboxy|hydroxy|amino|chloro|bromo|fluoro|iodo|cyano|oxo|nitro|sulfanyl|methoxy|ethoxy)[a-z]+")
 _SKELETAL_UNITS = 4
+_DIACYL_LINKER = re.compile(r"\(1,\d+-dioxo([a-z]+?)ane-1,\d+-diyl\)")
 
 
 def _arm(graph, start, blocked):
@@ -45,7 +46,8 @@ def _is_linker_atom(mol, atom):
         return False
     for bond in atom.GetBonds():
         other = bond.GetOtherAtom(atom)
-        if bond.GetBondTypeAsDouble() != 1.0:
+        azo = atom.GetAtomicNum() == 7 and other.GetAtomicNum() == 7 and bond.GetBondTypeAsDouble() == 2.0
+        if bond.GetBondTypeAsDouble() != 1.0 and not azo:
             return False
         if other.GetAtomicNum() == 6 and is_functional_carbon(mol, other.GetIdx()):
             return False
@@ -428,6 +430,11 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
         if text is None:
             return None
         lead = ""
+        if unit_kind == "anion":
+            linker = _DIACYL_LINKER.sub(
+                lambda m: f"{m.group(1)}anedioyl", _linker_text(branches, central, arm_parts, True)
+            )
+            return f"{linker}{multiplier_word(count, True)}({text})"
         if unit_kind == "amide":
             lead = ",".join("N" + "'" * i for i in range(count)) + "-"
         elif _MULTIPLIED_HYDRIDE.match(text):
@@ -476,7 +483,32 @@ def _unit_name_by_pipeline(unit, unit_kind):
         return None
     if unit_kind == "amide":
         return name if name.endswith("amide") else None
+    if unit_kind == "anion":
+        return name if re.search(r"(?:ide|uide|ate)$", name) else None
     return name if name.endswith(_HYDRIDE_ENDINGS) else None
+
+
+def anion_multiplicative_name(mol, centers):
+    """Identical anionic parents joined by a linker, e.g. (1,4-phenylene)bis(phosphanide) (P-72.5.1.1)."""
+    if len(Chem.GetMolFrags(mol)) != 1 or len(centers) < 2:
+        return None
+    graph = adjacency(mol)
+    candidates = {}
+    for r in centers:
+        if mol.GetAtomWithIdx(r).IsInRing():
+            continue
+        for h in graph[r]:
+            atoms = _arm(graph, r, h)
+            if h in atoms or any(c in atoms for c in centers if c != r and c not in graph[r]):
+                continue
+            candidates.setdefault(_key(mol, atoms, r), []).append((r, h, atoms))
+    for arms in _rank_candidates(candidates, None):
+        if len(arms) != len(centers):
+            continue
+        name = _attempt(mol, graph, [], arms, "anion")
+        if name is not None:
+            return name
+    return None
 
 
 def _rank_candidates(candidates, anchors, heads=None, mol=None):

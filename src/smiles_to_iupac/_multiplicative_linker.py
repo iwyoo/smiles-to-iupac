@@ -5,6 +5,7 @@ first), single and homonuclear heteroatom groups, and ring components.
 
 from dataclasses import dataclass
 
+from ._free_valence import SUFFIX_OF_ORDER, citation
 from ._common import ENE_BOND_ORDER, UnsupportedStructure, alpha_sort_key, multiplied_word, suffix_body
 from ._multiplicative_prefix import SIMPLE_PREFIXES, prefix_name, subtree
 from ._multiplicative_ring import name_ring_component
@@ -20,7 +21,7 @@ _SUBSTITUTABLE_WORDS = {
     32: ("germanediyl", "germanetriyl"),
     33: ("arsanediyl", "arsanetriyl"),
 }
-_CHAIN_STEMS = {14: "silane", 15: "phosphane", 32: "germane", 33: "arsane", 50: "stannane", 82: "plumbane"}
+_CHAIN_STEMS = {7: "azane", 14: "silane", 15: "phosphane", 32: "germane", 33: "arsane", 50: "stannane", 51: "stibane", 82: "plumbane", 83: "bismuthane"}
 _SINGLE_CARBON_MULTIPLE_WORDS = {(1, 2): "methanylylidene", (2, 2): "methanediylidene", (1, 3): "methanylylidyne"}
 _YLYLIDENE_WORDS = {7: "azanylylidene", 15: "phosphanylylidene"}
 _HOMO_RUN_WORDS = {(8, 2): "peroxy", (16, 2): "disulfanediyl", (34, 2): "diselanediyl", (52, 2): "ditellanediyl"}
@@ -73,7 +74,7 @@ def _primary(mol, group):
     return len(hetero) == 1 and mol.GetAtomWithIdx(hetero[0]).GetTotalNumHs() == 2
 
 
-def _hydride_chain_part(mol, atoms, attachments, pend, ctx, stem, directed=None):
+def _hydride_chain_part(mol, atoms, attachments, pend, ctx, stem, directed=None, whole=None):
     ends = [a for a, _, _ in attachments]
     walk, seen = [ends[0]], {ends[0]}
     while len(walk) < len(atoms):
@@ -96,7 +97,8 @@ def _hydride_chain_part(mol, atoms, attachments, pend, ctx, stem, directed=None)
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     n = len(atoms)
     free = best[2]
-    body = f"{multiplied_word(n, stem)}-{free[1]},{free[0]}-diyl" if directed else f"{multiplied_word(n, stem)}-1,{n}-diyl"
+    name = whole or multiplied_word(n, stem)
+    body = f"{name}-{free[1]},{free[0]}-diyl" if directed else f"{name}-1,{n}-diyl"
     return Part(prefix + body, bool(prefix), True)
 
 
@@ -106,7 +108,17 @@ def _hetero_part(mol, atoms, attachments, ctx, directed=None):
     z = mol.GetAtomWithIdx(atoms[0]).GetAtomicNum()
     if len(atoms) >= 2:
         if z in _CHAIN_STEMS and len(attachments) == 2 and all(mol.GetAtomWithIdx(a).GetAtomicNum() == z for a in atoms):
-            return _hydride_chain_part(mol, atoms, attachments, pend, ctx, _CHAIN_STEMS[z], directed)
+            whole = None
+            if z == 7 and len(atoms) == 2:
+                double = mol.GetBondBetweenAtoms(*atoms).GetBondTypeAsDouble() == 2
+                whole = "diazene" if double else "hydrazine"
+            elif z == 7 and any(
+                mol.GetBondBetweenAtoms(a, b) is not None and mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1
+                for a in atoms
+                for b in atoms
+            ):
+                raise UnsupportedStructure("an unsaturated nitrogen chain longer than two atoms is not supported as a linker")
+            return _hydride_chain_part(mol, atoms, attachments, pend, ctx, _CHAIN_STEMS[z], directed, whole)
         word = _HOMO_RUN_WORDS.get((z, len(atoms)))
         if len(atoms) != 2 or word is None or pend or len(attachments) != 2:
             raise UnsupportedStructure("this heteroatom chain is not supported as a multiplicative linker")
@@ -177,7 +189,6 @@ def _chain_descriptors(mol, ctx, position):
     return result
 
 
-_VALENCE_SUFFIXES = {1: "yl", 2: "ylidene", 3: "ylidyne"}
 
 
 def _carbon_part(mol, atoms, attachments, directed, ctx):
@@ -272,13 +283,9 @@ def _carbon_part(mol, atoms, attachments, directed, ctx):
         by_order = {}
         for a, _, order in attachments:
             by_order.setdefault(order, []).append(position[a])
-        words = [
-            (",".join(str(x) for x in sorted(locs)), multiplied_word(len(locs), _VALENCE_SUFFIXES[order]))
-            for order, locs in sorted(by_order.items())
-            if order in _VALENCE_SUFFIXES
-        ]
-        if len(words) != len(by_order):
+        if any(order not in SUFFIX_OF_ORDER for order in by_order):
             raise DecompositionRejected("unsupported free valence order")
+        words = citation({order: sorted(locs) for order, locs in by_order.items()})
         stem = alkane_name(length)
         if words[0][1][0] in "aeiouy":
             stem = stem[:-1]

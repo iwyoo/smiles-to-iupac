@@ -8,12 +8,21 @@ import re
 from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, alpha_sort_key
-from ._hetero_prefixes import CHALCOGEN_PREFIXES, phosphoryl_name, require_plain_chalcogen_kids, require_senior_group
+from ._hetero_prefixes import (
+    ANIONIC_PREFIXES,
+    CHALCOGEN_PREFIXES,
+    _functional_carbon,
+    _has_senior_principal_group,
+    phosphoryl_name,
+    require_plain_chalcogen_kids,
+    require_senior_group,
+)
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 from ._retained_acids import is_compound_acyl
 from ._substituents import name_branch
 
+_NATIVE_ROOTS = frozenset({6, 7, 8, 9, 16, 17, 34, 35, 52, 53})
 _RETAINED_ALKYL_END = re.compile(r"(meth|eth|prop|but)yl$")
 
 
@@ -128,7 +137,7 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
     nitro = nitro_atoms(mol)
     root_set = set() if chain_seeds else {root for _, root in seeds}
 
-    from ._diester_ring_diyl import _system_of, ring_substituent_name
+    from ._diester_ring_diyl import _system_of
 
     ring_info = mol.GetRingInfo()
     ring_entries = set()
@@ -139,6 +148,14 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
     skip = set()
     for node in ring_entries:
         skip |= subtree(node) - {node}
+    delegated = {}
+    for _, root in seeds:
+        if root in parent_of and root not in skip and mol.GetAtomWithIdx(root).GetAtomicNum() not in _NATIVE_ROOTS:
+            try:
+                delegated[root] = name_branch(graph, root, parent_of[root], shown, aromatic_atoms, mol=mol)
+            except UnsupportedStructure:
+                continue
+            skip |= subtree(root) - {root}
 
     def child_name(child, via):
         if child in named:
@@ -156,8 +173,11 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
         if node in skip:
             continue
         if node in ring_entries:
-            name, compound = ring_substituent_name(mol, graph, node, parent_of[node])
+            name, compound = name_branch(graph, node, parent_of[node], shown, aromatic_atoms, mol=mol)
             record(node, name, compound)
+            continue
+        if node in delegated:
+            record(node, *delegated[node])
             continue
         atom = mol.GetAtomWithIdx(node)
         z = atom.GetAtomicNum()
@@ -173,6 +193,9 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
         if node in nitro:
             if is_nitro_nitrogen(mol, node):
                 record(node, "nitro", False)
+            continue
+        if atom.HasProp("_anion") and not kids and _bond_order(mol, node, parent) == 1.0:
+            record(node, ANIONIC_PREFIXES[z], False)
             continue
         if z == 8 and node not in named:
             if _bond_order(mol, node, parent) == 2.0 and not kids:
@@ -209,13 +232,26 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 name = (_enclose(rname) if rcompound else rname) + word
                 record(node, name, True)
             else:
-                raise UnsupportedStructure("this chalcogen-bearing substituent is not supported yet")
+                record(node, *name_branch(graph, node, parent, shown, aromatic_atoms, mol=mol))
         elif z == 7:
             bond = _bond_order(mol, node, parent)
             if bond == 3.0 and not kids:
                 continue
             if bond == 2.0 and len(kids) == 1 and named.get(kids[0]) == ("amino", False) and _bond_order(mol, node, kids[0]) == 1.0:
                 record(node, "hydrazinylidene", False)
+                continue
+            if (
+                bond == 2.0
+                and len(kids) <= 1
+                and not atom.GetFormalCharge()
+                and all(_bond_order(mol, node, k) == 1.0 for k in kids)
+                and _has_senior_principal_group(mol)
+            ):
+                if not kids:
+                    record(node, "imino", False)
+                else:
+                    rname, rcompound = child_name(kids[0], node)
+                    record(node, (_enclose(rname) if rcompound else rname) + "imino", True)
                 continue
             if bond != 1.0 or any(_bond_order(mol, node, k) != 1.0 for k in kids):
                 raise UnsupportedStructure("an imine/azo/nitroso-type substituent is not supported yet")
@@ -237,13 +273,14 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 if len(carbonyl) != 1 or len(others) > 1:
                     raise UnsupportedStructure("this carbonyl substituent is not supported yet")
                 if any(mol.GetAtomWithIdx(k).GetAtomicNum() != 6 for k in others):
-                    raise UnsupportedStructure("an acid-derivative substituent is not supported yet")
+                    record(node, *_functional_carbon(graph, node, parent, shown, aromatic_atoms, mol))
+                    continue
                 name = "formyl" if not others else _acyl_prefix(mol, subtree(node), node, parent)
                 record(node, name, is_compound_acyl(name))
             elif carbonyl:
                 others = [k for k in kids if k not in carbonyl]
                 if any(mol.GetAtomWithIdx(k).GetAtomicNum() != 6 for k in others):
-                    raise UnsupportedStructure("an acid-derivative substituent is not supported yet")
+                    record(node, *_functional_carbon(graph, node, parent, shown, aromatic_atoms, mol))
     covered = set()
     for node in named:
         covered |= subtree(node)

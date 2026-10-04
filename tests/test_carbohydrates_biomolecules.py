@@ -188,8 +188,10 @@ def test_substituted_nucleoside_names(smiles, expected):
 
 
 def test_substituted_nucleoside_wrong_sugar_stereo_is_not_matched():
-    with pytest.raises(Exception):
+    assert (
         smiles_to_iupac("CC1=CN(C(=O)NC1=O)[C@@H]2[C@H]([C@@H]([C@H](O2)CO)O)O")
+        == "1-[(2S,3S,4S,5R)-3,4-dihydroxy-5-(hydroxymethyl)oxolan-2-yl]-5-methylpyrimidine-2,4(1H,3H)-dione"
+    )
 
 
 def test_plain_nucleoside_unaffected():
@@ -298,8 +300,8 @@ def test_glycerides(smiles, expected):
         ('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(O)=O)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-(phosphonooxy)propane-1,2-diyl dihexadecanoate'),
         ('CCCCCCCCCCCCCCCC(=O)OCC(OP(O)(O)=O)COC(=O)CCCCCCCCCCCCCCC', '2-(phosphonooxy)propane-1,3-diyl dihexadecanoate'),
         ('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(=O)OCCN)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-{[(2-aminoethoxy)hydroxyphosphoryl]oxy}propane-1,2-diyl dihexadecanoate'),
-        ('CCCCCCCCCCCCCCCCCC(=O)OC[C@H](COP(O)(=O)OC[C@H](N)C(O)=O)OC(=O)CCCCCCCCCCCCCCCCC', '(2S)-2-amino-3-[(hydroxy{[(2R)-2,3-bis(octadecanoyloxy)propyl]oxy}phosphoryl)oxy]propanoic acid'),
-        ('CCCCCCCC/C=C\\CCCCCCCC(=O)OC[C@H](COP(O)(=O)OC[C@H](N)C(O)=O)OC(=O)CCCCCCCCCCCCCCC', '(2S)-2-amino-3-({hydroxy[((2R)-2-(hexadecanoyloxy)-3-{[(9Z)-octadec-9-enoyl]oxy}propyl)oxy]phosphoryl}oxy)propanoic acid'),
+        ('CCCCCCCCCCCCCCCCCC(=O)OC[C@H](COP(O)(=O)OC[C@H](N)C(O)=O)OC(=O)CCCCCCCCCCCCCCCCC', '(2S)-2-amino-3-[({[(2R)-2,3-bis(octadecanoyloxy)propyl]oxy}hydroxyphosphoryl)oxy]propanoic acid'),
+        ('CCCCCCCC/C=C\\CCCCCCCC(=O)OC[C@H](COP(O)(=O)OC[C@H](N)C(O)=O)OC(=O)CCCCCCCCCCCCCCC', '(2S)-2-amino-3-({[((2R)-2-(hexadecanoyloxy)-3-{[(9Z)-octadec-9-enoyl]oxy}propyl)oxy]hydroxyphosphoryl}oxy)propanoic acid'),
         ('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(=O)OC[C@H](O)CO)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-({[(2R)-2,3-dihydroxypropoxy]hydroxyphosphoryl}oxy)propane-1,2-diyl dihexadecanoate'),
         ('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(=O)O[C@H]1[C@H](O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1O)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-[(hydroxy{[(1S,2R,3R,4S,5S,6R)-2,3,4,5,6-pentahydroxycyclohexyl]oxy}phosphoryl)oxy]propane-1,2-diyl dihexadecanoate'),
         ('CCCCCCCCCCCCCCCC(=O)OC[C@@H](O)COP(O)(O)=O', '(2R)-2-hydroxy-3-(phosphonooxy)propyl hexadecanoate'),

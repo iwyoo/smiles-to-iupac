@@ -111,6 +111,8 @@ def _infixes(spec, ending):
 
 def tautomer_letters(spec):
     """Element letters of the -Y-H chain when several chalcogens are present (P-65.1.5.1)."""
+    if len(spec.y) == 2:
+        return "".join(spec.y) if spec.y[0] != spec.y[1] else ""
     elements = {x for x in spec.oxo if x in CHALCOGENS} | set(spec.y)
     return "".join(spec.y) if len(elements) > 1 else ""
 
@@ -123,7 +125,13 @@ def _acid_tail(spec, count=1):
 _ANION_ENDING = re.compile(r"ic(?: [A-Za-z,]+-acid| acid)?(\)?)$")
 
 
+_LETTERED_TAIL = re.compile(r"\((\w+?)ic\) ([A-Za-z,]+)-acid$")
+
+
 def _anionic(text):
+    lettered = _LETTERED_TAIL.search(text)
+    if lettered:
+        return text[: lettered.start()] + f"({lettered.group(2)}-{lettered.group(1)}ate)"
     return _ANION_ENDING.sub(lambda m: "ate" + (m.group(1) or ""), text)
 
 

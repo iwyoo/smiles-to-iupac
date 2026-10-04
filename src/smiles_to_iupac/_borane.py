@@ -71,9 +71,8 @@ and/or plain phenyl substituents), per the IUPAC 2013 Recommendations
   `_phosphane.py`'s identical extension (see that module's docstring for
   the full derivation, including the 'bis'/'tris' multiplying and
   mixing-restriction rules, which apply here unchanged with boron in
-  place of phosphorus). Detection reuses
-  `_substituents.halogenated_phenyl_substituent` (shared with
-  `_phosphane.py`).
+  place of phosphorus). Ring groups are named by
+  `_hydride_ring_groups.hydride_ring_groups` (shared with `_phosphane.py`).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any atom other than boron, carbon, hydrogen, and a halogen bonded
@@ -107,7 +106,8 @@ from ._common import (
     plain_phenyl_substituent_atoms,
     ring_chain_attachment,
 )
-from ._substituents import format_mononuclear_prefixes, halogenated_phenyl_substituent, name_branch
+from ._hydride_ring_groups import hydride_ring_groups
+from ._substituents import format_mononuclear_prefixes, name_branch
 
 
 def has_simple_borane_shape(mol) -> bool:
@@ -131,26 +131,19 @@ def _validate_and_collect_substituents(mol):
     roots = set(graph[boron.GetIdx()])
     phenyl_atoms = plain_phenyl_substituent_atoms(mol, graph, roots)
 
-    halogens = halogen_substituents(mol)
-    aromatic_atoms = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic()}
-    halophenyl = {}
-    for root in roots - phenyl_atoms:
-        result = halogenated_phenyl_substituent(graph, aromatic_atoms, root, boron.GetIdx(), halogens)
-        if result is not None:
-            halophenyl[root] = result
-    halophenyl_ring_atoms = {a for _, ring_atoms, _ in halophenyl.values() for a in ring_atoms}
-    halophenyl_halogen_atoms = {a for _, _, halogen_atoms in halophenyl.values() for a in halogen_atoms}
+    ring_groups = hydride_ring_groups(mol, graph, roots - phenyl_atoms, boron.GetIdx())
+    group_atoms = {a for _, _, atoms in ring_groups.values() for a in atoms}
 
     for atom in mol.GetAtoms():
         idx = atom.GetIdx()
+        if idx in group_atoms:
+            continue
         is_halogen = atom.GetAtomicNum() in HALOGEN_PREFIXES
         if atom.GetAtomicNum() not in (5, 6) and not is_halogen:
             raise UnsupportedStructure(
                 "heteroatoms other than the borane boron itself are not "
                 "supported yet (see P-68)"
             )
-        if is_halogen and idx in halophenyl_halogen_atoms:
-            continue
         if is_halogen and (
             atom.GetDegree() != 1 or atom.GetNeighbors()[0].GetIdx() != boron.GetIdx()
         ):
@@ -165,14 +158,14 @@ def _validate_and_collect_substituents(mol):
             atom.GetAtomicNum() == 6
             and atom.GetIsAromatic()
             and idx not in phenyl_atoms
-            and idx not in halophenyl_ring_atoms
+            and idx not in group_atoms
         ):
             raise UnsupportedStructure(
                 "an aromatic substituent other than a plain or halogen-"
                 "substituted phenyl group is out of scope for this module"
             )
     all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
-    if all_ring_atoms - phenyl_atoms - halophenyl_ring_atoms:
+    if all_ring_atoms - phenyl_atoms - group_atoms:
         raise UnsupportedStructure(
             "a ring other than a plain or halogen-substituted phenyl "
             "substituent directly on boron is out of scope for this module"
@@ -182,8 +175,8 @@ def _validate_and_collect_substituents(mol):
         for b in non_single_bonds(mol)
         if b[0] not in phenyl_atoms
         and b[1] not in phenyl_atoms
-        and b[0] not in halophenyl_ring_atoms
-        and b[1] not in halophenyl_ring_atoms
+        and b[0] not in group_atoms
+        and b[1] not in group_atoms
     ]
     if non_ring_unsaturation:
         raise UnsupportedStructure(
@@ -198,9 +191,9 @@ def _validate_and_collect_substituents(mol):
         if root in phenyl_atoms:
             substituent_names.append(("phenyl", False))
             continue
-        if root in halophenyl:
-            name, _, _ = halophenyl[root]
-            substituent_names.append((name, True))
+        if root in ring_groups:
+            name, compound, _ = ring_groups[root]
+            substituent_names.append((name, compound))
             continue
         root_atomic_num = mol.GetAtomWithIdx(root).GetAtomicNum()
         if root_atomic_num in HALOGEN_PREFIXES:
