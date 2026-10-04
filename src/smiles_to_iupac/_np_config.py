@@ -104,6 +104,7 @@ def configuration(cand, view):
         return other if other in parent.idx_of else None
 
     faces = exo_faces(parent, mol_h, parent_atoms, alias)
+    ring_opened = any(op[0] == "seco" for op in skel.ops)
     ring = skel.ring_atoms()
     for loc, atom in mapping.items():
         if atom not in potential or loc not in parent.idx_of:
@@ -140,7 +141,7 @@ def configuration(cand, view):
                     if mol_h.GetAtomWithIdx(n).GetAtomicNum() != 1 and n not in mapped:
                         config.faces[n] = "x"
             continue
-        if in_parent_ring and faces is not None and any(n in faces for n in exo):
+        if in_parent_ring and faces is not None and not ring_opened and any(n in faces for n in exo):
             for n in exo:
                 if n in faces and mol_h.GetAtomWithIdx(n).GetAtomicNum() != 1:
                     config.faces[n] = faces[n]

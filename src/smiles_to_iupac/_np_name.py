@@ -246,14 +246,14 @@ def alkyl_count(cand, view, groups):
     return count
 
 
-def principal_groups_left_outside(view, classes, principal):
+def principal_groups_left_outside(view, classes, principal, mapped=frozenset()):
     """True when a group of the principal class or a senior one sits outside the parent (P-44.1.1.2, maximum number)."""
     senior = _SENIORITY if principal is None else _SENIORITY[: _SENIORITY.index(principal) + 1]
     for cls in senior:
         smarts = _COUNTED.get(cls)
         if smarts is None:
             continue
-        total = len(view.mol.GetSubstructMatches(Chem.MolFromSmarts(smarts)))
+        total = sum(1 for match in view.mol.GetSubstructMatches(Chem.MolFromSmarts(smarts)) if not mapped.issuperset(match))
         if total > len(classes.get(cls, [])):
             return True
     return False

@@ -165,3 +165,34 @@ PARENTS = {
     'χ,ψ-carotene': ('CC(C)=CCCC(C)=C/C=C/C(C)=C/C=C/C(C)=C/C=C/C=C(C)/C=C/C=C(C)/C=C/c1ccc(C)c(C)c1C', '16′ 1′ 17′ 2′ 3′ 4′ 5′ 18′ 6′ 7′ 8′ 9′ 19′ 10′ 11′ 12′ 13′ 20′ 14′ 15′ 15 14 13 20 12 11 10 9 19 8 7 6 5 4 3 18 2 17 1 16', ''),
     'ψ,ψ-carotene': ('CC(C)=CCCC(C)=C/C=C/C(C)=C/C=C/C(C)=C/C=C/C=C(C)/C=C/C=C(C)/C=C/C=C(C)CCC=C(C)C', '16 1 17 2 3 4 5 18 6 7 8 9 19 10 11 12 13 20 14 15 15′ 14′ 13′ 20′ 12′ 11′ 10′ 9′ 19′ 8′ 7′ 6′ 5′ 18′ 4′ 3′ 2′ 1′ 16′ 17′', ''),
 }
+
+
+def _neolignanes():
+    from rdkit import Chem
+
+    unit = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    parents = {}
+    positions = ("2", "3", "4", "7", "8", "9")
+    for i, x in enumerate(positions):
+        for y in positions[i:]:
+            if (x, y) == ("8", "8"):
+                continue
+            mol = Chem.RWMol()
+            index = {}
+            for prime in ("", "′"):
+                for label in unit:
+                    index[label + prime] = mol.AddAtom(Chem.Atom(6))
+                for k in range(6):
+                    mol.AddBond(index[unit[k] + prime], index[unit[(k + 1) % 6] + prime], Chem.BondType.AROMATIC)
+                    mol.GetAtomWithIdx(index[unit[k] + prime]).SetIsAromatic(True)
+                mol.AddBond(index["1" + prime], index["7" + prime], Chem.BondType.SINGLE)
+                mol.AddBond(index["7" + prime], index["8" + prime], Chem.BondType.SINGLE)
+                mol.AddBond(index["8" + prime], index["9" + prime], Chem.BondType.SINGLE)
+            mol.AddBond(index[x], index[y + "′"], Chem.BondType.SINGLE)
+            Chem.SanitizeMol(mol)
+            order = sorted(index, key=index.get)
+            parents[f"{x},{y}′-neolignane"] = (Chem.MolToSmiles(mol, canonical=False), " ".join(order), "")
+    return parents
+
+
+PARENTS.update(_neolignanes())

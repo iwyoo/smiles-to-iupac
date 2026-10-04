@@ -144,6 +144,8 @@ def op_prefixes(cand, final, cyclo=None, retro=None):
     apo = sorted((op[1] for op in ops if op[0] == "apo"), key=loc_key)
     if apo:
         parts.append(f"{','.join(apo)}-{_multiplied(apo, 'apo')}")
+    for op in sorted((op for op in ops if op[0] == "de"), key=lambda op: loc_key(final(op[1]))):
+        parts.append(f"{final(op[1])}-de{op[3]}")
     nor = sorted((final(op[1]) for op in ops if op[0] == "nor"), key=loc_key)
     if nor:
         parts.append(f"{','.join(nor)}-{_multiplied(nor, 'nor')}")

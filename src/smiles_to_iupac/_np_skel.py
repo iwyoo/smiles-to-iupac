@@ -2,7 +2,7 @@
 
 from itertools import combinations
 
-from ._np_core import loc_key
+from ._np_core import is_numbered, loc_key
 
 
 class Skel:
@@ -140,7 +140,7 @@ def nor_variants(parent):
     for chain in terminal:
         end = next(a for a in chain if len(parent.adj[a]) == 1)
         atoms.append(end)
-    return atoms
+    return [a for a in atoms if parent.elem[a] == "C"]
 
 
 def apply_nor(skel, atom):
@@ -232,10 +232,11 @@ def variants(parent, cost=1, terminal_only=False):
     nors, sites, secos = nor_variants(parent), homo_sites(parent), seco_bonds(parent)
     dess = des_ops(parent)
     apos = apo_ops(parent)
+    des_groups = de_ops(parent)
     if terminal_only:
         nors = [a for a in nors if len(parent.adj[a]) == 1]
         sites = [site for site in sites if site[0] == "terminal"]
-        secos, dess = [], []
+        secos, dess, des_groups = [], [], []
     for _ in range(max_cost):
         nxt = []
         for skel in layers[-1]:
@@ -254,6 +255,10 @@ def variants(parent, cost=1, terminal_only=False):
                 for locant, atoms in apos:
                     if locant in skel.adj and all(a in skel.adj for a in atoms):
                         nxt.append(apply_apo(skel, locant, atoms))
+            gone = {(op[1], op[3]) for op in skel.ops if op[0] == "de"}
+            for locant, atoms, word in des_groups:
+                if (locant, word) not in gone and all(a in skel.adj for a in atoms):
+                    nxt.append(apply_de(skel, locant, atoms, word))
             cut = {frozenset(op[1:]) for op in skel.ops if op[0] == "seco"}
             for a, b in secos:
                 if b in skel.adj.get(a, ()) and frozenset((a, b)) not in cut:
@@ -278,6 +283,8 @@ def _op_key(op):
         return ("homo", op[1], str(op[2]))
     if op[0] in ("des", "apo"):
         return (op[0], op[1])
+    if op[0] == "de":
+        return ("de", op[1], op[3], tuple(sorted(op[2])))
     return (op[0],) + tuple(sorted(str(x) for x in op[1:]))
 
 
@@ -357,6 +364,36 @@ def apply_apo(skel, locant, atoms):
     for atom in atoms:
         if atom not in new.adj:
             continue
+        for n in list(new.adj[atom]):
+            new.remove_bond(atom, n)
+        del new.adj[atom]
+        del new.elem[atom]
+    return new
+
+
+_DE_WORD = {"O": "oxy", "N": "amino", "S": "sulfanyl"}
+
+
+def de_ops(parent):
+    """[(attachment locant, atoms, group word)]: terminal heteroatom groups that are part of the parent (P-101.7.5)."""
+    found = []
+    for a in parent.order:
+        for x in sorted(parent.adj[a], key=loc_key):
+            if is_numbered(x) or parent.elem[x] not in _DE_WORD or parent.bond_order[frozenset((a, x))] != 1:
+                continue
+            others = parent.adj[x] - {a}
+            if not others:
+                found.append((a, (x,), _DE_WORD[parent.elem[x]]))
+            elif parent.elem[x] == "O" and len(others) == 1:
+                (c,) = others
+                if parent.elem[c] == "C" and len(parent.adj[c]) == 1:
+                    found.append((a, (x, c), "methoxy"))
+    return found
+
+
+def apply_de(skel, locant, atoms, word):
+    new = skel.copy(("de", locant, atoms, word))
+    for atom in atoms:
         for n in list(new.adj[atom]):
             new.remove_bond(atom, n)
         del new.adj[atom]
