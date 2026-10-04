@@ -27,6 +27,5 @@ def test_letter_a_is_picene():
     assert smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=C2C=CC4=C3C=CC5=CC=CC=C54") == "picene"
 
 
-def test_substituted_chrysene_fusion_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccc2cc3c(ccc4c5ccccc5ccc34)cc2c1")
+def test_substituted_chrysene_fusion_is_named():
+    assert smiles_to_iupac("Cc1ccc2cc3c(ccc4c5ccccc5ccc34)cc2c1") == '9-methylbenzo[b]chrysene'

@@ -156,6 +156,16 @@ def _group_of(mol, carbon):
             if len(carbon_neighbors) == 2:
                 return "ketone", {oxygens[0]}
             raise UnsupportedStructure("a formaldehyde-type carbonyl is not named by the chain engine")
+        ring_nitrogens = [h for h in hetero if h.IsInRing() and h.GetAtomicNum() == 7]
+        if len(hetero) == 2 and len(ring_nitrogens) == 1:
+            other = next(h for h in hetero if h.GetIdx() != ring_nitrogens[0].GetIdx())
+            if other.GetAtomicNum() == 8 and _terminal_heteroatom(mol, other.GetIdx(), 1):
+                return "acid", {oxygens[0], other.GetIdx()}
+            if other.GetAtomicNum() == 7 and (
+                _terminal_heteroatom(mol, other.GetIdx(), 2) or _plain_amide_nitrogen(mol, other, carbon)
+            ):
+                return "amide", {oxygens[0], other.GetIdx()}
+            return None
         if len(hetero) == 1:
             other = hetero[0]
             if other.GetAtomicNum() == 8 and _terminal_heteroatom(mol, other.GetIdx(), 1):
@@ -858,12 +868,14 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
 
 def _require_mancude_system(mol, atoms):
     """Only fully aromatic fused systems (arenes, mancude heterocycles): partly
-    hydrogenated, bridged and spiro systems need hydro/von Baeyer names."""
+    hydrogenated, bridged and spiro systems need hydro/von Baeyer names. Beyond three rings only
+    all-six-membered systems and peri-fused ones with a retained numbering are verified."""
     if not any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms) and not is_hydro_fusion_system(mol, atoms):
         raise UnsupportedStructure("a saturated, bridged or spiro ring system is not handled by the chain engine")
     member_rings = [r for r in mol.GetRingInfo().AtomRings() if set(r) <= set(atoms)]
-    if len(member_rings) > 3:
-        raise UnsupportedStructure("the numbering of this larger fused system is not verified here")
+    if len(member_rings) > 3 and any(len(r) != 6 for r in member_rings):
+        if not any(sum(a in r for r in member_rings) > 2 for a in atoms):
+            raise UnsupportedStructure("the numbering of this larger fused system is not verified here")
 
 
 _FUSED_SUFFIX = {

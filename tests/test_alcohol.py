@@ -215,7 +215,7 @@ def test_ring_branch_two_stereocenters():
 
 
 def test_polycyclic_ring_stereocenter_cites_the_specified_elements():
-    assert smiles_to_iupac("O[C@H]1CCCC2CCCC12") == "(1S)-octahydro-1H-inden-1-ol"
+    assert smiles_to_iupac("O[C@H]1CCCC2CCCC12") == "(4S)-octahydro-1H-inden-4-ol"
 
 
 def test_three_stereocenters_supported():

@@ -19,6 +19,5 @@ def test_letter_a_defers_to_chrysene_module():
     assert smiles_to_iupac("c1ccc2c(c1)c1ccc3ccccc3c1c1ccccc21") == "benzo[g]chrysene"
 
 
-def test_substituted_triphenylene_fusion_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccc2cc3c4ccccc4c4ccccc4c3cc2c1")
+def test_substituted_triphenylene_fusion_is_named():
+    assert smiles_to_iupac("Cc1ccc2cc3c4ccccc4c4ccccc4c3cc2c1") == '11-methylbenzo[b]triphenylene'

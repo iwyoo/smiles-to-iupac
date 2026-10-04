@@ -142,9 +142,7 @@ def general_peripheral_numberings(mol, ignore_indicated=False):
     candidates = []
     for ring_idx in start_rings:
         ring_fusion_atoms = atom_rings[ring_idx] & fusion_atoms
-        privileged = _privileged_fusion_atoms(ring_idx, atom_rings, fusion_atoms, cycle, idx_of)
-        start_atoms = privileged if len(privileged) == 1 else ring_fusion_atoms
-        for f_atom in start_atoms:
+        for f_atom in ring_fusion_atoms:
             i = idx_of[f_atom]
             for step in (1, -1):
                 neighbor = cycle[(i + step) % len(cycle)]
@@ -155,6 +153,11 @@ def general_peripheral_numberings(mol, ignore_indicated=False):
         return None
 
     indicated_h = [a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and a.GetTotalNumHs() == 2]
+    fusion_carbons = [a for a in fusion_atoms if mol.GetAtomWithIdx(a).GetAtomicNum() == 6]
+
+    def locant_order(text):
+        digits = text.rstrip("abcdefgh")
+        return int(digits), text[len(digits):]
 
     def sort_key(locants):
         hetero_key = sorted(int(locants[h].rstrip("abcdefgh")) for h in hetero)
@@ -162,11 +165,21 @@ def general_peripheral_numberings(mol, ignore_indicated=False):
             _HETERO_RANK.get(mol.GetAtomWithIdx(h).GetSymbol(), 99)
             for h in sorted(hetero, key=lambda h: int(locants[h].rstrip("abcdefgh")))
         ]
+        fusion_key = sorted(locant_order(locants[a]) for a in fusion_carbons)
         indicated_key = [] if ignore_indicated else sorted(int(locants[h].rstrip("abcdefgh")) for h in indicated_h)
-        return (hetero_key, rank_key, indicated_key)
+        return (hetero_key, rank_key, fusion_key, indicated_key)
 
     best = min(sort_key(c) for c in candidates)
-    return [c for c in candidates if sort_key(c) == best]
+    tied = [c for c in candidates if sort_key(c) == best]
+    seen, result = set(), []
+    for numbering in tied:
+        for permutation in mol.GetSubstructMatches(mol, uniquify=False, useChirality=False):
+            image = {permutation[a]: loc for a, loc in numbering.items()}
+            key = tuple(sorted(image.items()))
+            if key not in seen:
+                seen.add(key)
+                result.append(image)
+    return result
 
 
 def general_peripheral_numbering(mol):
