@@ -45,9 +45,6 @@ and PubChem entries are used only to *verify* a result, never to define it.
   expressed unambiguously in SMILES, the structure is reported as
   unsupported rather than guessed.
 
-Rule references appear as section numbers (e.g. `P-44.3`) in the source and
-map to the chapters listed in [REFERENCES.md](REFERENCES.md).
-
 ## What it covers
 
 Rule coverage is organized by Blue Book chapter:
