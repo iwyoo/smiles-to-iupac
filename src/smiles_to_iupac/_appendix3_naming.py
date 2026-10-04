@@ -43,7 +43,7 @@ SUFFIX = {
     ("amine", ""): "amine",
     ("imine", ""): "imine",
 }
-_N_CLASSES = ("amide", "sulfonamide", "amidine", "hydrazide", "amine", "imine")
+N_CLASSES = ("amide", "sulfonamide", "amidine", "hydrazide", "amine", "imine")
 _INDICATED = re.compile(r"(\d+[a-c]?[¹²³⁴⁵⁶⁷⁸⁹]?′*)H-(.+)")
 ENDINGS = {"anine": "enine", "ane": "ene", "an": "ene"}
 
@@ -53,7 +53,7 @@ class Choice:
     mapping: dict
     groups: list
     branches: list
-    attach: object
+    attach: tuple | None
     lost: list
     gained: list
     unsaturated_labels: frozenset
@@ -163,7 +163,7 @@ def _join(parts):
     return text
 
 
-def _n_roots(mol, group):
+def n_roots(mol, group):
     """[(locant letter, nitrogen, substituent roots)] for the nitrogen atoms of an amide-type or amine-type group."""
     if group.cls in ("amide", "sulfonamide"):
         nitrogen = group.extra["nitrogen"]
@@ -315,15 +315,16 @@ def _assemble(mol, skeleton, choice, stereo, sort_key, context):
             if principal == "halide":
                 words = sorted({g.extra["halide"] for g in order})
                 tail = " ".join(multiplied_word(sum(g.extra["halide"] == w for g in order), w) for w in words)
-            if principal in _N_CLASSES:
+            if principal in N_CLASSES:
                 for g in order:
-                    for letter, nitrogen, roots in _n_roots(mol, g):
+                    for letter, nitrogen, roots in n_roots(mol, g):
                         locant = letter if len(order) == 1 else f"{letter}{g.label}"
                         for root in roots:
                             name, compound = name_branch(graph, root, nitrogen, halogens, frozenset(), mol=mol, unsaturated=True)
                             add(name, compound, locant)
     if choice.attach is not None:
-        suffix_word, suffix_locants = "yl", [choice.attach]
+        suffix_word = multiplied_word(len(choice.attach), "yl")
+        suffix_locants = [_locant_text(label, faces, dummy) for label, dummy in choice.attach]
 
     name = skeleton.name
     ending = next((e for e in ENDINGS if name.endswith(e)), None)

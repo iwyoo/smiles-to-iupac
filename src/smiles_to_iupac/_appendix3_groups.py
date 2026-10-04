@@ -155,18 +155,21 @@ def _amine_nitrogen(mol, nitrogen, anchor, mapped):
     return [n.GetIdx() for n in others]
 
 
-def classify(mol, mapping, terminals, attach_label=None):
-    """(groups, branches, attach) for the atoms outside the skeleton `mapping` ({label: atom}).
+def classify(mol, mapping, terminals):
+    """(groups, branches, attach) for the atoms outside the skeleton `mapping` ({label: atom}); `attach` lists the
+    (label, dummy atom) of each free valence, or is None.
 
     `terminals`: labels of skeleton chain atoms that end a chain (a functional carbon there is part of the parent)."""
     mapped = set(mapping.values())
-    groups, branches, attach = [], [], None
+    groups, branches, attach = [], [], []
     for label, atom_idx in mapping.items():
         atom = mol.GetAtomWithIdx(atom_idx)
         outside = [n for n in atom.GetNeighbors() if n.GetIdx() not in mapped]
         dummy = [n.GetIdx() for n in outside if n.GetAtomicNum() == 0]
         if dummy:
-            attach = label
+            if any(mol.GetBondBetweenAtoms(atom_idx, d).GetBondTypeAsDouble() != 1.0 for d in dummy):
+                raise UnsupportedStructure("a multiple-bond free valence on an Appendix 3 parent is not supported")
+            attach.extend((label, d) for d in dummy)
             outside = [n for n in outside if n.GetAtomicNum() != 0]
         if label.startswith("_"):
             if outside:
@@ -204,7 +207,7 @@ def classify(mol, mapping, terminals, attach_label=None):
                 groups.append(Group("imine", label, "", (idx,), idx, {"substituents": substituents}))
             else:
                 branches.append((label, idx))
-    return groups, branches, attach
+    return groups, branches, tuple(attach) or None
 
 
 def _sulfonic(mol, sulfur, parent):
