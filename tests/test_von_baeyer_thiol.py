@@ -36,9 +36,8 @@ def test_multiple_ring_thiols_raises():
         smiles_to_iupac("SC1CC2CCC1C2S")
 
 
-def test_thiol_on_substituent_branch_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SCC1CC2CCC1C2")
+def test_thiol_on_substituent_branch_is_a_prefix():
+    assert smiles_to_iupac("SCC1CC2CCC1C2") == "(bicyclo[2.2.1]heptan-2-yl)methanethiol"
 
 
 def test_von_baeyer_thiol_ring_unsaturation():

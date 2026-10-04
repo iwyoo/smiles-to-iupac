@@ -178,7 +178,7 @@ def test_pyrrole_n_substituent_carboxylic_acid_no_indicated_hydrogen():
     # Attachment directly at the N-H position consumes that hydrogen
     # itself, so no indicated-hydrogen citation is needed -- PubChem
     # CID 242027 ("2-pyrrol-1-ylacetic acid").
-    assert smiles_to_iupac("OC(=O)Cn1cccc1") == "2-(pyrrol-1-yl)ethanoic acid"
+    assert smiles_to_iupac("OC(=O)Cn1cccc1") == "2-(1H-pyrrol-1-yl)ethanoic acid"
 
 
 def test_heteroaromatic_substituent_carboxylic_acid_directly_on_ring():

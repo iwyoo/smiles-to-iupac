@@ -48,11 +48,10 @@ def test_multiple_ring_hydroxyls_raises():
         smiles_to_iupac("OC1CC2CCC1C2O")
 
 
-def test_hydroxyl_on_substituent_branch_raises():
+def test_hydroxyl_on_substituent_branch_is_a_prefix():
     # The -OH sits on a chain hanging off the bicyclic ring, not on the
     # ring skeleton itself -- a different (still unimplemented) shape.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC1CC2CCC1C2")
+    assert smiles_to_iupac("OCC1CC2CCC1C2") == "(bicyclo[2.2.1]heptan-2-yl)methanol"
 
 
 def test_unsaturated_von_baeyer_ring_now_resolves():
@@ -82,18 +81,8 @@ def test_von_baeyer_alcohol_specified_stereocenter(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_myrtenol_exocyclic_hydroxyl_still_raises():
-    # Superficially similar to the ring-unsaturation shape this module
-    # handles, but the hydroxyl sits on an exocyclic CH2 off the ring, not
-    # on the ring itself -- ruled out during M6 step 2's own investigation
-    # (#1082) by running it through smiles_to_iupac() directly rather than
-    # trusting its PubChem name's "...enyl)methanol" phrasing. Now that
-    # ring unsaturation itself is composed with the hydroxyl suffix
-    # (#1082), this correctly falls through to the "not on the ring
-    # system itself" rejection instead of the old, coincidentally-correct
-    # blanket unsaturation rejection.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC1(C2CC=C(C1C2)CO)C")
+def test_myrtenol_is_a_ring_prefix_on_methanol():
+    assert smiles_to_iupac("CC1(C2CC=C(C1C2)CO)C") == "(6,6-dimethylbicyclo[3.1.1]hept-2-en-2-yl)methanol"
 
 
 @pytest.mark.parametrize(

@@ -443,12 +443,19 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
                 raise
         if hydro_fusion and re.search(r"cyclo\[", name):
             name = _hydro_fusion_name(parsed) or name
-        if parsed is not None and not _STEREO_TOKENS.search(name) and _has_specified_stereo(parsed):
-            cited = _engine_name(parsed)
-            if cited is not None and re.sub(r"^\([^()]*\)-", "", cited) == name:
-                name = cited
-            elif hydro_fusion and ("hydro" in name or "cyclo[" in name):
-                raise UnsupportedStructure("the stereochemistry of this ring system is not cited by any supported name")
+        if parsed is not None and _has_specified_stereo(parsed):
+            tokens = bool(_STEREO_TOKENS.search(name))
+            if not tokens or parsed.GetRingInfo().NumRings() == 0:
+                cited = _engine_name(parsed)
+                strip = lambda text: re.sub(r"^\([^()]*\)-", "", text)
+                if cited is not None and _STEREO_TOKENS.search(cited) and (
+                    strip(cited) == strip(name) or (not tokens and parsed.GetRingInfo().NumRings() == 0)
+                ):
+                    name = cited
+                elif not tokens and (
+                    (hydro_fusion and ("hydro" in name or "cyclo[" in name)) or parsed.GetRingInfo().NumRings() == 0
+                ):
+                    raise UnsupportedStructure("the stereochemistry of this structure is not cited by any supported name")
         return name
     finally:
         leave(name)

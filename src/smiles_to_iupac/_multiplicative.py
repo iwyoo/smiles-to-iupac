@@ -422,6 +422,10 @@ def name_if_multiplicative(mol, name_function=None):
         name = _attempt(mol, groups, selected, tree, core, name_function)
         if name is not None:
             if _is_linear_phane(core):
+                from ._linear_phane import has_linear_phane_shape, name_linear_phane
+
+                if has_linear_phane_shape(mol):
+                    return name_linear_phane(mol)
                 raise UnsupportedStructure("the PIN of a linear phane (P-52.2.5.1) is a phane name, not supported yet")
             return name
     return None

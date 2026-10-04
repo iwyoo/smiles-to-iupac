@@ -402,7 +402,8 @@ def _heteroaromatic_monocycle_locant(mol, ring_order, attachment_atom):
     backward = (start - target) % n
     locant = min(forward, backward) + 1
     indicated_hydrogen = ""
-    if attachment_atom != heteroatom and mol.GetAtomWithIdx(heteroatom).GetTotalNumHs() > 0:
+    hetero = mol.GetAtomWithIdx(heteroatom)
+    if hetero.GetAtomicNum() == 7 and (hetero.GetTotalNumHs() > 0 or hetero.GetDegree() == 3):
         indicated_hydrogen = "1H-"
     return locant, indicated_hydrogen
 

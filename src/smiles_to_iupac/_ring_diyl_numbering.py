@@ -61,6 +61,7 @@ _MANCUDE_RETAINED = {
     if name != "phosphinine"
 }
 _MANCUDE_RETAINED.update({(e, "C", "C", "C", "C", "C"): n for e, n in (("O", "pyran"), ("S", "thiopyran"), ("Se", "selenopyran"), ("Te", "telluropyran"))})
+_MANCUDE_RETAINED[("N", "N", "N", "N", "C")] = "tetrazole"
 _LACKS_REGULAR_NUMBERING = ("acridine", "carbazole", "xanthene", "purine", "anthracene", "phenanthrene")
 
 
@@ -93,6 +94,7 @@ class Numbering:
         self.pre_key = pre_key
         self.unsat_key = unsat_key
         self.ih = ih
+        self.ih_positions = ih
 
 
 def _walks(ring_order):
@@ -326,6 +328,7 @@ def _hetero_monocycle(mol, ring_order, attached):
     else:
         in_double = ring_double
     saturated_atoms = can_hold - in_double
+    oxo_suffix = oxo_suffix | {a for a in SUFFIX_ATOMS.get() & saturated_atoms if sym[a] != "C"}
     matching = _max_matching(can_hold, ring_order)
     mancude_sp3 = len(can_hold) - 2 * matching
     fully_saturated = not ring_double and not aromatic
@@ -366,7 +369,7 @@ def _hetero_monocycle(mol, ring_order, attached):
             if stem is None:
                 raise UnsupportedStructure("this heteromonocycle has no supported mancude parent name yet")
             stem = _with_hetero_locants(stem, elements, hetero)
-        if oxo_all:
+        if oxo_all or oxo_suffix:
             adj = {a: {n.GetIdx() for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in ring_set} for a in ring_order}
             split = _split_hydrogen(position_of, adj, can_hold, saturated_atoms, oxo_all, oxo_suffix, mancude_sp3)
             if split is None:
@@ -444,7 +447,7 @@ def monocycle_numberings(mol, ring_order, attached, valence, ene_bonds_getter=No
                 position_of,
                 _hetero_text(stem, ih, hydro, added),
                 pre_key=best_pre + (ih,),
-                unsat_key=hydro,
+                unsat_key=(added, hydro),
                 ih=ih,
             )
         )
@@ -474,8 +477,7 @@ def _carbocycle_text(stem, ene):
 
 def _hetero_text(stem, ih, hydro, added=()):
     def text(locants, valence, substituted=frozenset(), suffix="yl"):
-        shown_ih = [p for p in ih if hydro or not (p == 1 and p in substituted)]
-        ih_text = ",".join(f"{p}H" for p in shown_ih) + "-" if shown_ih else ""
+        ih_text = ",".join(f"{p}H" for p in ih) + "-" if ih else ""
         rest = ih_text + _tail_added(stem, locants, valence, suffix, added)
         hydro_text = f"{_locs(hydro)}-{multiplied_word(len(hydro), 'hydro')}" + ("-" if rest[0].isdigit() else "") if hydro else ""
         return hydro_text + rest
@@ -551,7 +553,7 @@ def _named_mancude(mol, skeleton_atoms, sp3):
             parent = smiles_to_iupac(Chem.MolToSmiles(bare))
         except UnsupportedStructure:
             continue
-        if not re.search(r"cyclo\[|spiro\[|\d-hydro|\d-\w*ene$", parent):
+        if not re.search(r"cyclo\[|spiro\[|\d-hydro|\d-(?:di|tri|tetra|penta|hexa)?ene$", parent):
             return bare, old_of, parent
     raise UnsupportedStructure("the mancude parent of this ring system has no fusion name")
 
@@ -700,7 +702,7 @@ def _arene_chain(mol, graph, rings, skeleton_atoms):
         def text(locants, valence, substituted=frozenset(), suffix="yl", hydro=hydro, added=added):
             return _hydro_text(hydro) + _tail_added(parent, locants, valence, suffix, added)
 
-        out.append(Numbering(position_of, text, unsat_key=hydro))
+        out.append(Numbering(position_of, text, unsat_key=(added, hydro)))
     if not out:
         raise UnsupportedStructure("no numbering of this partly hydrogenated arene fits its hydro/added hydrogen")
     return out
@@ -763,20 +765,21 @@ def _fused_mancude(mol, skeleton_atoms):
                 )
             )
         }
-        split = _split_hydrogen(position_of, adj, can_hold, saturated, oxo_all, oxo_suffix, ih_count)
+        accommodated = oxo_suffix | {a for a in suffix_atoms & saturated if mol.GetAtomWithIdx(a).GetAtomicNum() != 6}
+        split = _split_hydrogen(position_of, adj, can_hold, saturated, oxo_all, accommodated, ih_count)
         if split is None:
             continue
         ih, added, hydro = split
         ih_text = (",".join(f"{p}H" for p in ih) + "-") if ih else ""
 
-        fully_saturated = bool(hydro) and can_hold <= saturated | set(oxo_suffix)
+        fully_saturated = bool(hydro) and can_hold <= saturated | set(accommodated)
 
         def text(locants, valence, substituted=frozenset(), suffix="yl", hydro=hydro, ih_text=ih_text, added=added, full=fully_saturated):
             rest = ih_text + _tail_added(stem, locants, valence, suffix, added)
             hydro_text = multiplied_word(len(hydro), "hydro") if full else _hydro_text(hydro)
             return hydro_text + ("-" if hydro and rest[0].isdigit() else "") + rest
 
-        out.append(Numbering(position_of, text, pre_key=(ih,), unsat_key=hydro))
+        out.append(Numbering(position_of, text, pre_key=(ih,), unsat_key=(added, hydro), ih=ih))
     if not out:
         raise UnsupportedStructure("no numbering of this partly hydrogenated fused system fits its hydro/indicated hydrogen")
     return out

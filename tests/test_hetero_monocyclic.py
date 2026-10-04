@@ -99,13 +99,10 @@ def test_smiles_to_iupac_hetero_monocyclic(smiles, expected):
         ("Cc1ccon1", "3-methyl-1,2-oxazole"),  # CID 96098
         ("Cc1cscn1", "4-methyl-1,3-thiazole"),  # CID 12748
         ("Cc1ccsn1", "3-methyl-1,2-thiazole"),  # CID 12747
-        # Pyrrole/imidazole/pyrazole's own N-H position (locant 1) is a
-        # real, unambiguous substitutable position -- substituting it
-        # directly drops the parent's '1H-' indicated-hydrogen prefix
-        # entirely, since the locant '1-' alone already pins it.
-        ("Cn1cccc1", "1-methylpyrrole"),  # CID 7304
-        ("Cn1ccnc1", "1-methylimidazole"),  # CID 1390
-        ("Cn1cccn1", "1-methylpyrazole"),  # CID 70255
+        # Indicated hydrogen is always cited in a PIN (P-58.2.1.1), also with a substituent on N.
+        ("Cn1cccc1", "1-methyl-1H-pyrrole"),  # CID 7304
+        ("Cn1ccnc1", "1-methyl-1H-imidazole"),  # CID 1390
+        ("Cn1cccn1", "1-methyl-1H-pyrazole"),  # CID 70255
         # Two or more substituents, all confirmed as PubChem's IUPACName for the exact SMILES.
         # Symmetric parents pick the lowest locant *set* automatically;
         # mixed substituent kinds are cited alphabetically.
@@ -119,8 +116,8 @@ def test_smiles_to_iupac_hetero_monocyclic(smiles, expected):
         # the substituents sits at the tautomer-fixing N-H locant (1) --
         # see `test_imidazole_multi_substituent_without_n1_raises` below
         # for the case that's still rejected.
-        ("Cn1cc(Cl)nc1", "4-chloro-1-methylimidazole"),  # CID 12514200
-        ("Cn1cc(Cl)cn1", "4-chloro-1-methylpyrazole"),  # CID 13844024
+        ("Cn1cc(Cl)nc1", "4-chloro-1-methyl-1H-imidazole"),  # CID 12514200
+        ("Cn1cc(Cl)cn1", "4-chloro-1-methyl-1H-pyrazole"),  # CID 13844024
         # A pyrrole carbon substituent alongside the untouched N-H is
         # unambiguous (no tautomer axis involved, unlike imidazole/
         # pyrazole), so the '1H-' prefix is retained.

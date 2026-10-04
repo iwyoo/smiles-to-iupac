@@ -34,6 +34,5 @@ def test_cyclic_silane():
     assert smiles_to_iupac("[SiH2]1[SiH2][SiH2][SiH2][SiH2]1") == "pentasilolane"
 
 
-def test_carbon_silicon_mix_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[SiH2][SiH3]")
+def test_carbon_silicon_mix_is_a_disilane():
+    assert smiles_to_iupac("C[SiH2][SiH3]") == "methyldisilane"
