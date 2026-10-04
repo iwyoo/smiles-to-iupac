@@ -750,6 +750,46 @@ def _seniors_in(mol, atoms, root, came_from):
     return found
 
 
+_AMIDE_N = Chem.MolFromSmarts("[CX3;!R](=O)[NX3;H1;!R]([#6])")
+_AMIDE_ENDINGS = ("oic acid", "ylic acid", "ic acid")
+
+
+def _n_substituted_amide(out):
+    """'N-(group)acylamide' for the contracted molecule `out`, whose one
+    secondary amide nitrogen carries the base placeholder side."""
+    from .core import _name_mol
+
+    matches = out.GetSubstructMatches(_AMIDE_N)
+    if len(matches) != 1:
+        return None
+    carbon, _, nitrogen, substituent = matches[0]
+    graph = adjacency(out)
+    acyl = _branch_atoms(graph, carbon, nitrogen) | {nitrogen}
+    if substituent in acyl:
+        return None
+    rw = Chem.RWMol(out)
+    rw.GetAtomWithIdx(nitrogen).SetAtomicNum(8)
+    for idx in sorted(set(range(out.GetNumAtoms())) - acyl, reverse=True):
+        rw.RemoveAtom(idx)
+    acid = _sanitized(rw.GetMol())
+    if acid is None:
+        return None
+    acid_name = _name_mol(acid)
+    for ending in _AMIDE_ENDINGS:
+        if acid_name.endswith(ending):
+            stem = acid_name[: -len(ending)]
+            if ending == "ylic acid":
+                stem += "yl"
+            amide_name = {"ethanamide": "acetamide"}.get(stem + "amide", stem + "amide")
+            break
+    else:
+        return None
+    halogens = halogen_substituents(out)
+    aromatic = {a.GetIdx() for a in out.GetAtoms() if a.GetIsAromatic()}
+    name, compound = name_branch(graph, substituent, nitrogen, halogens, aromatic, out)
+    return f"N-{wrap_marks(name) if compound else name}{amide_name}"
+
+
 def _senior_name(mol, graph, halogens, aromatic, an):
     from .core import _name_mol
 
@@ -869,7 +909,13 @@ def _senior_name(mol, graph, halogens, aromatic, an):
         rw.RemoveAtom(idx)
     out = rw.GetMol()
     Chem.SanitizeMol(out)
-    return _name_mol(out)
+    try:
+        return _name_mol(out)
+    except UnsupportedStructure:
+        name = _n_substituted_amide(out)
+        if name is None:
+            raise
+        return name
 
 
 _CACHE = {}

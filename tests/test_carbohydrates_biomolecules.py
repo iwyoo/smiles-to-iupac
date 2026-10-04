@@ -172,6 +172,10 @@ def test_nucleotide_retained_names(smiles, expected):
             "3-[4-(methylamino)-2-oxo-1-β-D-ribofuranosyl-1,2-dihydropyrimidin-5-yl]propanoic acid",
         ),
         (
+            "CC(=O)NCc1cn([C@@H]2O[C@H](CO)[C@@H](O)[C@H]2O)c(=O)[nH]c1=O",
+            "N-[(2,4-dioxo-1-β-D-ribofuranosyl-1,2,3,4-tetrahydropyrimidin-5-yl)methyl]acetamide",
+        ),
+        (
             "NC1=NC(=O)N(C=C1C#N)[C@H]2C[C@@H]([C@H](O2)COC(C)=O)O",
             "4-amino-1-(5-O-acetyl-2-deoxy-β-D-erythro-pentofuranosyl)-2-oxo-1,2-dihydropyrimidine-5-carbonitrile",
         ),
