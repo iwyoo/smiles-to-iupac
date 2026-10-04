@@ -2,6 +2,7 @@
 rings becoming substituents (P-28.3, P-28.6): [11,21:24,31-terphenyl]-14-ol, 25-phenyl-11,21:23,31-terphenyl,
 [11,21:24,31-tercyclohexan]-14-yl."""
 
+import re
 from itertools import product
 
 from ._common import UnsupportedStructure, multiplied_word, ring_cycle
@@ -12,6 +13,7 @@ from ._substituents import format_substituent_prefixes, name_branch
 
 _LATIN = {3: "ter", 4: "quater", 5: "quinque", 6: "sexi"}
 _MAX_RINGS = 10
+_MAX_FUSED_UNITS = 4
 
 
 def _cite(locant):
@@ -55,40 +57,59 @@ def _longest_paths(mol, rings):
     return result
 
 
+def _unit_systems(mol, graph, frees, within):
+    from ._polyfunctional import _arm_atoms
+    from ._system_assembly import _systems
+
+    systems = _systems(mol)
+    if frees:
+        arm = within if within is not None else _arm_atoms(graph, frees[0][0], frees[0][1])
+        systems = [(rings, atoms) for rings, atoms in systems if set(atoms) <= arm]
+    return systems
+
+
 def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo, free=None, within=None):
     """(count, ((-count,), name, parts)) for the parent form, (name, True) for the substituent form `free`
     = (root, coming_from) or a list of such pairs (within the atom set `within`); None when `mol` is not such
     an assembly."""
-    ring_info = mol.GetRingInfo()
-    rings = [list(r) for r in ring_info.AtomRings()]
-    from ._polyfunctional import _stereo_rank
+    from ._polyfunctional import _require_mancude_system, _stereo_rank
+    from ._ring_diyl_numbering import SUFFIX_ATOMS, system_numberings
+    from ._system_assembly import _fully_hydro, _hydro, _lit_hydrogens, _stem
 
     frees = [] if free is None else [free] if isinstance(free[0], int) else list(free)
-    if frees:
-        from ._polyfunctional import _arm_atoms
-
-        arm = within if within is not None else _arm_atoms(graph, frees[0][0], frees[0][1])
-        rings = [r for r in rings if set(r) <= arm]
-    if not 3 <= len(rings) <= _MAX_RINGS or any(ring_info.NumAtomRings(a) != 1 for r in rings for a in r):
+    systems = _unit_systems(mol, graph, frees, within)
+    rings = [sorted(atoms) for _, atoms in systems]
+    if not 3 <= len(rings) <= _MAX_RINGS:
+        return None
+    fused = [len(r) > 1 for r, _ in systems]
+    if any(fused) and not all(fused):
         return None
     if not frees and principal is not None and not occurrences:
         return None
-    specs = [monocycle_spec(mol, r) for r in rings]
-    if any(s is None or s.kind == "pyrrole" for s in specs):
-        return None
-    if len({(s.kind, len(r)) for s, r in zip(specs, rings)}) != 1:
+    spec = None
+    if not any(fused):
+        specs = [monocycle_spec(mol, r) for r in rings]
+        if any(s is None or s.kind == "pyrrole" for s in specs):
+            return None
+        if len({(s.kind, len(r)) for s, r in zip(specs, rings)}) != 1:
+            return None
+        spec = specs[0]
+    elif len(rings) > _MAX_FUSED_UNITS:
         return None
     if len({_bare_key(mol, set(r)) for r in rings}) != 1:
         return None
     paths = _longest_paths(mol, rings)
     if not paths:
         return None
-    spec = specs[0]
+    if any(fused):
+        for _, atoms in systems:
+            _require_mancude_system(mol, atoms)
     owned = set().union(*(o[2] for o in occurrences)) if occurrences else set()
     marked = [o[1] for o in occurrences] if not frees else [f[0] for f in frees]
     best = None
     for order, junctions in paths:
         chain_rings = [rings[i] for i in order]
+        chain_systems = [systems[i] for i in order]
         atoms_all = {a for r in chain_rings for a in r}
         if any(a not in atoms_all for a in marked):
             continue
@@ -105,31 +126,53 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
             a: [n.GetIdx() for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in atoms_all] for a in atoms_all
         }
 
-        def orientations(ring_atoms, attach):
+        def orientations(unit, ring_atoms, attach):
+            if fused[0]:
+                token = SUFFIX_ATOMS.set(frozenset(attach) | (set(marked) & set(ring_atoms)))
+                try:
+                    return [(n.position_of, n) for n in system_numberings(mol, graph, unit[0], unit[1])]
+                finally:
+                    SUFFIX_ATOMS.reset(token)
             if spec.hetero is not None:
-                return numberings(monocycle_spec(mol, ring_atoms))
+                return [(n, None) for n in numberings(monocycle_spec(mol, ring_atoms))]
             cycle = ring_cycle(ring_graph, ring_atoms)
             found = []
             for start in attach:
                 rotated = cycle[cycle.index(start):] + cycle[: cycle.index(start)]
                 for sequence in (rotated, [rotated[0]] + rotated[:0:-1]):
-                    found.append({atom: i + 1 for i, atom in enumerate(sequence)})
+                    found.append(({atom: i + 1 for i, atom in enumerate(sequence)}, None))
             return found
 
         for direction in (0, 1):
             chain = chain_rings if direction == 0 else chain_rings[::-1]
+            units = chain_systems if direction == 0 else chain_systems[::-1]
             pairs = junctions if direction == 0 else [(b, a) for a, b in junctions[::-1]]
             attach = [set() for _ in chain]
             for i, (a, b) in enumerate(pairs):
                 attach[i].add(a)
                 attach[i + 1].add(b)
-            for combo in product(*(orientations(chain[i], attach[i]) for i in range(len(chain)))):
-                locants = {atom: (i + 1, pos) for i, numbering in enumerate(combo) for atom, pos in numbering.items()}
+            candidates = [orientations(units[i], chain[i], attach[i]) for i in range(len(chain))]
+            for combo in product(*candidates):
+                locants = {atom: (i + 1, pos) for i, (numbering, _) in enumerate(combo) for atom, pos in numbering.items()}
+                if any(a not in locants for a in marked) or any(a not in locants for pair in pairs for a in pair):
+                    continue
+                head = ((), (), ())
+                if fused[0]:
+                    infos = [info for _, info in combo]
+                    stems = {_stem(info) for info in infos}
+                    hydros = {_hydro(info) for info in infos}
+                    if len(stems) != 1 or None in stems or len(hydros) != 1:
+                        continue
+                    lit = sorted(
+                        (i + 1, p) for i, info in enumerate(infos) for p in _lit_hydrogens(mol, info)
+                    )
+                    head = (tuple(lit), (stems.pop(), hydros.pop(), _fully_hydro(infos[0])), ())
                 junction_text = [(locants[a], locants[b]) for a, b in pairs]
                 flat = [x for pair in junction_text for x in pair]
                 key = (
                     tuple(sorted(flat)),
                     tuple(flat),
+                    head[0],
                     tuple(sorted(locants[a] for a in marked)),
                     -len(entries),
                     tuple(sorted(locants[r] for r, _, _ in entries)),
@@ -137,26 +180,44 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
                     _stereo_rank(stereo, {a: CompositeLocant(*loc) for a, loc in locants.items()}, True),
                 )
                 if best is None or key < best[0]:
-                    best = (key, locants, junction_text, entries, len(chain))
+                    best = (key, locants, junction_text, entries, len(chain), head)
     if best is None:
         return None
-    _, locants, junction_text, entries, count = best
+    _, locants, junction_text, entries, count, head = best
     grouped = {}
     for r, name, compound in entries:
         grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(_cite(locants[r]))
     for info in grouped.values():
-        info["locants"].sort(key=lambda text: (int(text[0]), int(text[1:])))
+        info["locants"].sort(key=lambda text: (int(text[0]), float(text[1:].rstrip("abcdefghijklmnopqrstuvwxyz") or 0), text))
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     junction_str = ":".join(f"{_cite(a)},{_cite(b)}" for a, b in junction_text)
-    ring_word = "phenyl" if spec.kind == "benzene" else spec.parent
+    ih_text = ""
+    if fused[0]:
+        stem, hydro, full = head[1]
+        ring_word = stem
+        if hydro:
+            cited = [f"{ring}{p}" for ring in range(1, count + 1) for p in hydro]
+            word = multiplied_word(len(cited), "hydro")
+            ih_text = (word if full else f"{','.join(cited)}-{word}") + "-"
+        if head[0]:
+            ih_text += ",".join(f"{ring}{p}H" for ring, p in head[0]) + "-"
+    else:
+        ring_word = "phenyl" if spec.kind == "benzene" else spec.parent
+
+    def parent(elide):
+        word = ring_word[:-1] if elide and ring_word.endswith("e") else ring_word
+        word = f"({word})" if re.search(r"[\d\[-]", word) else word
+        return f"{junction_str}-{_LATIN[count]}{word}"
 
     def base(elide):
-        word = ring_word[:-1] if elide and ring_word.endswith("e") else ring_word
-        return f"{junction_str}-{_LATIN[count]}{word}"
+        return ih_text + parent(elide)
+
+    def bracketed(elide):
+        return f"{ih_text}[{parent(elide)}]"
 
     if frees:
         spots = ",".join(_cite(c) for c in sorted(locants[f[0]] for f in frees))
-        core = f"[{base(True)}]-{spots}-{multiplied_word(len(frees), 'yl')}"
+        core = f"{bracketed(True)}-{spots}-{multiplied_word(len(frees), 'yl')}"
         return (f"{prefix}-{core}" if prefix else core), True
     total = len(occurrences)
     if principal is None:
@@ -166,7 +227,7 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
 
         word = multiplied_word(total, _SUFFIX_WORDS[_RING_SUFFIX[principal]])
         spots = ",".join(_cite(locants[o[1]]) for o in sorted(occurrences, key=lambda o: locants[o[1]]))
-        core = f"[{base(word[0] in 'aeiouy')}]-{spots}-{word}"
+        core = f"{bracketed(word[0] in 'aeiouy')}-{spots}-{word}"
     name = f"{prefix}-{core}" if prefix else core
     return total, ((-total,), name, (None, None, None, 0, {a: CompositeLocant(*loc) for a, loc in locants.items()}, True))
 

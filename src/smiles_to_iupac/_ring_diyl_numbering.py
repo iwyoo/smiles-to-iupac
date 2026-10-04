@@ -95,6 +95,10 @@ class Numbering:
         self.unsat_key = unsat_key
         self.ih = ih
         self.ih_positions = ih
+        self.hydro = ()
+        self.added = ()
+        self.fully_hydro = False
+        self.stem = None
 
 
 def _walks(ring_order):
@@ -779,7 +783,9 @@ def _fused_mancude(mol, skeleton_atoms):
             hydro_text = multiplied_word(len(hydro), "hydro") if full else _hydro_text(hydro)
             return hydro_text + ("-" if hydro and rest[0].isdigit() else "") + rest
 
-        out.append(Numbering(position_of, text, pre_key=(ih,), unsat_key=(added, hydro), ih=ih))
+        numbering = Numbering(position_of, text, pre_key=(ih,), unsat_key=(added, hydro), ih=ih)
+        numbering.hydro, numbering.added, numbering.fully_hydro, numbering.stem = tuple(hydro), tuple(added), fully_saturated, stem
+        out.append(numbering)
     if not out:
         raise UnsupportedStructure("no numbering of this partly hydrogenated fused system fits its hydro/indicated hydrogen")
     return out
