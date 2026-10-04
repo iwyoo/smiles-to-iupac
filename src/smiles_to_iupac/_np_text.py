@@ -17,7 +17,7 @@ def stem_info(name):
     return name, None
 
 
-def unsaturation(cand, view):
+def unsaturation(cand, view, fusion=frozenset()):
     """([ene bonds (a, b, order)], [hydro locants], [dehydro locants]) relative to the (modified) parent (P-101.6)."""
     skel, mapping = cand.skel, cand.mapping
     parent = skel.parent
@@ -35,7 +35,7 @@ def unsaturation(cand, view):
     ene, hydro, dehydro = [], [], []
     covered = set()
     if kind:
-        ring = {loc for loc in aromatic if loc not in parent.aromatic_atoms and saturated[loc]}
+        ring = {loc for loc in aromatic if loc not in parent.aromatic_atoms and saturated[loc] and loc not in fusion}
         pairs = [
             tuple(bond) for bond in view_aromatic_pairs(cand, view)
             if all(x in ring for x in bond)
@@ -46,6 +46,8 @@ def unsaturation(cand, view):
             covered = set(ring)
     for bond, order in skel.order.items():
         a, b = tuple(bond)
+        if a in fusion and b in fusion:
+            continue
         if a in aromatic and b in aromatic:
             continue
         other = view.order.get(frozenset((mapping[a], mapping[b])))
@@ -58,14 +60,19 @@ def unsaturation(cand, view):
                 dehydro += [a, b] * (other - order)
         else:
             hydro += [a, b] * (order - other)
-    for loc in aromatic:
-        if loc in covered or (loc in parent.aromatic_atoms and mapping[loc] in aromatic_m):
+    donors = {loc for loc in cand.replaced if view.elem[mapping[loc]] in ("O", "S", "Se", "Te")}
+    mancude_added = {
+        loc for loc in mapping
+        if loc not in parent.idx_of and any(n in parent.aromatic_atoms for n in skel.adj[loc])
+    }
+    for loc in aromatic | mancude_added:
+        if loc in covered or loc in donors or (loc in parent.aromatic_atoms and mapping[loc] in aromatic_m):
             continue
-        d_p = 1 if loc in parent.aromatic_atoms else sum(skel.order.get(frozenset((loc, n)), 1) - 1 for n in skel.adj[loc])
+        d_p = 1 if loc in parent.aromatic_atoms or loc in mancude_added else sum(skel.order.get(frozenset((loc, n)), 1) - 1 for n in skel.adj[loc] if not (loc in fusion and n in fusion))
         d_m = sum(
             view.order[frozenset((mapping[loc], mapping[n]))] - 1
             for n in skel.adj[loc]
-            if frozenset((mapping[loc], mapping[n])) in view.order
+            if frozenset((mapping[loc], mapping[n])) in view.order and not (loc in fusion and n in fusion)
         )
         if d_m < d_p:
             hydro += [loc] * (d_p - d_m)

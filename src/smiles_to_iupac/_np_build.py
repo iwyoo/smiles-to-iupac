@@ -6,6 +6,7 @@ from rdkit import Chem
 from dataclasses import dataclass
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, multiplied_word
+from ._np_chain import chain_template
 from ._np_config import configuration
 from ._np_core import FACES, loc_key
 from ._np_name import (
@@ -21,7 +22,7 @@ from ._np_name import (
     final_labels,
 )
 from ._np_fusion import assign_primes, fusion_text, indicated_texts, name_fused
-from ._np_rings import bridge_prefixes, components, split_components
+from ._np_rings import bridge_prefixes, components, name_spiro, split_components
 from ._np_text import core_text, locant_pair, op_prefixes, unsaturation
 from ._numerals import multiplying_prefix
 from ._substituents import format_substituent_prefixes, name_branch
@@ -38,6 +39,9 @@ class Built:
     name: str
     cost: int
     key: tuple
+    implied_total: int = 0
+    implied_cited: int = 0
+    first_face: str = ""
 
 
 def _components(view, mapped):
@@ -75,8 +79,18 @@ def build(cand, view):
         raise UnsupportedStructure("a cleaved bond that is formed again")
     ring_comps = components(view, mapped)
     bridge_atoms = set().union(*(c.atoms for c in ring_comps)) if ring_comps else set()
-    bridge_comps, fused_comps = split_components(ring_comps, cand, view)
-    groups = classify(cand, view)
+    bridge_comps, fused_comps, spiro_comps = split_components(ring_comps, cand, view)
+    if len(spiro_comps) > 1 or (spiro_comps and (bridge_comps or fused_comps)):
+        raise UnsupportedStructure("a spiro ring together with other added rings is not supported")
+    spiro = name_spiro(spiro_comps[0], cand, view) if spiro_comps else None
+    parent_prime = ring_prime = ""
+    if spiro:
+        ring_key = spiro.ring_name.lstrip("0123456789,[]-")
+        if ring_key < parent.name:
+            parent_prime = "′"
+        else:
+            ring_prime = "′"
+    groups = classify(cand, view, bridge_atoms)
     groups.branches = [(loc, root) for loc, root in groups.branches if root not in bridge_atoms]
     alkyls = alkyl_count(cand, view, groups)
     if alkyls is None:
@@ -85,6 +99,13 @@ def build(cand, view):
 
     classes = groups.classes
     principal = next((c for c in _SENIORITY if c in classes), None)
+    chain = None
+    if principal is None:
+        chain = chain_template(cand, view, groups.branches)
+        if chain is not None:
+            groups.branches = [b for b in groups.branches if b[1] != chain[1]]
+            classes["yl"] = [(chain[0], {chain[1]}, {"anchor": chain[1], "root": chain[1]})]
+            principal = "yl"
     if "ester" in classes and "ester_o" in classes:
         raise UnsupportedStructure("esters of both an acid and an alcohol of the parent are not supported")
     branches = list(groups.branches)
@@ -95,7 +116,16 @@ def build(cand, view):
                     raise UnsupportedStructure("a terminal acyl group below the principal group is not supported")
                 branches.append((loc, extra["root"]))
 
-    enes_bonds, hydro, dehydro, retro = unsaturation(cand, view)
+    final = _primed(_final(skel), parent_prime)
+    fused = [name_fused(c, cand, view, final, parent.centers, {}) for c in fused_comps]
+    fusion_atoms = frozenset(loc for f in fused for loc in f.fusion_locs)
+    enes_bonds, hydro, dehydro, retro = unsaturation(cand, view, fusion_atoms)
+    cost += 1 if retro else 0
+    mancude_indicated = []
+    if len(hydro) % 2 and (cand.skel.ops or cand.replaced):
+        mancude_indicated = [min(hydro, key=loc_key)]
+        hydro = list(hydro)
+        hydro.remove(mancude_indicated[0])
     if len(hydro) % 2 or len(dehydro) % 2:
         raise UnsupportedStructure("indicated hydrogen would be needed")
     if len(enes_bonds) + len(hydro) // 2 + len(dehydro) // 2 > _MAX_UNSATURATION_CHANGES or (len(hydro) + len(dehydro)) // 2 > _MAX_HYDRO_PAIRS and not parent.name.endswith("carotene"):
@@ -103,7 +133,6 @@ def build(cand, view):
     if _pair_count(hydro, dehydro) + cost > _MAX_TOTAL_COST and not parent.name.endswith("carotene"):
         raise UnsupportedStructure("too many modifications for this parent")
     cost += _pair_count(hydro, dehydro)
-    final = _final(skel)
     hydro = sorted((final(x) for x in hydro), key=loc_key)
     dehydro = sorted((final(x) for x in dehydro), key=loc_key)
     enes = [locant_pair(skel, final, a, b) for a, b, o in enes_bonds if o == 2]
@@ -134,12 +163,21 @@ def build(cand, view):
         prefix_groups.setdefault(name, {"locants": [], "compound": compound})["locants"].append(Loc(final(loc), face))
     for entry in prefix_groups.values():
         entry["locants"].sort(key=lambda t: loc_key(t.base))
+    if spiro:
+        if enes or ynes or hydro or dehydro:
+            raise UnsupportedStructure("unsaturation of a spiro parent is not supported")
+        for locant, name, compound in spiro.substituents:
+            prefix_groups.setdefault(name, {"locants": [], "compound": compound})["locants"].append(Loc(f"{locant}{ring_prime}", ""))
+        for entry in prefix_groups.values():
+            entry["locants"].sort(key=lambda t: loc_key(t.base))
     prefix = format_substituent_prefixes(prefix_groups) if prefix_groups else ""
 
     suffix, locants, alkyl_word, anion = "", [], "", ""
     if principal is not None:
         members = sorted(classes[principal], key=lambda m: loc_key(m[0]))
-        if principal in ("acid", "ester", "amide"):
+        if principal == "yl":
+            word = "yl"
+        elif principal in ("acid", "ester", "amide"):
             if len({extra["kind"] for _, _, extra in members}) != 1:
                 raise UnsupportedStructure("a mix of ring and chain acyl groups is not supported")
             word = _ACYL_SUFFIX[(principal, members[0][2]["kind"])]
@@ -159,6 +197,14 @@ def build(cand, view):
             alkyl_word = name
             if len(members) > 1:
                 alkyl_word = multiplying_prefix(len(members), compound=compound) + (f"({name})" if compound else name)
+        if principal == "diyl":
+            if len(members) != 1:
+                raise UnsupportedStructure("several cyclic acetals on one parent are not supported")
+            loc, _, extra = members[0]
+            locants = sorted([str(Loc(final(loc), config.faces.get(extra["anchors"][0], ""))),
+                              str(Loc(final(extra["second"]), config.faces.get(extra["anchors"][1], "")))], key=lambda t: loc_key(t.rstrip("αβξ")))
+            suffix = "diyl"
+            anion, alkyl_word = _acetal_words(view, extra)
         if principal == "ester_o":
             anions = {_acid_anion(view, extra["anchor"], extra["acyl"], mapped) for _, _, extra in members}
             if len(anions) != 1:
@@ -170,6 +216,14 @@ def build(cand, view):
                 anion = multiplying_prefix(len(members), compound=False) + anion
 
     stem_core = core_text(_parent_text_name(parent.name, cand.skel.ops), enes, ynes, suffix, locants)
+    if spiro:
+        center = final(spiro_center(cand, spiro_comps[0]))
+        ring_loc = f"{spiro.spiro_locant}{ring_prime}"
+        if parent_prime:
+            joined = f"spiro[{spiro.ring_name}-{spiro.spiro_locant},{center}-{parent.name}]"
+        else:
+            joined = f"spiro[{parent.name}-{center},{ring_loc}-{spiro.ring_name}]"
+        stem_core = joined + (f"-{','.join(locants)}-{suffix}" if suffix else "")
     descriptor = ",".join(text for _, text in sorted(config.parent)) + "-" if config.parent else ""
     hydro_text = _hydro_text(dehydro, "dehydro") + _hydro_text(hydro, "hydro")
     cyclo_text = _cyclo_text(cand, final, config, view)
@@ -180,7 +234,6 @@ def build(cand, view):
     bridges = bridge_prefixes(bridge_comps, cand, view, config, final)
     if nondetachable_cost(cand) + len(ring_comps) > _MAX_SKELETAL_MODIFICATIONS:
         raise UnsupportedStructure("too many skeletal modifications")
-    fused = [name_fused(c, cand, view, final, parent.centers, config.hfaces) for c in fused_comps]
     groups = assign_primes(fused)
     fused_prefix = fusion_text(groups) if fused else ""
     indicated = indicated_texts(groups)
@@ -192,9 +245,18 @@ def build(cand, view):
                 front_stereo.append((loc_key(locant), f"{locant}{FACES[face]}H"))
             else:
                 front_plain.append((loc_key(locant), f"{locant}H"))
-    indicated = sorted(indicated + [t for _, t in sorted(front_plain)], key=lambda t: loc_key(t[:-1]))
+    for loc in cand.replaced:
+        atom = cand.mapping[loc]
+        if view.elem[atom] == "C" and view.mol.GetAtomWithIdx(atom).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED:
+            face = config.hfaces.get(atom, "")
+            if face:
+                front_stereo.append((loc_key(final(loc)), f"{final(loc)}{FACES[face]}H"))
+    indicated = indicated + [f"{final(loc)}H" for loc in mancude_indicated] + [t for _, t in sorted(front_plain)]
+    indicated = sorted(indicated, key=lambda t: loc_key(t[:-1]))
     ops = ([fused_prefix] if fused_prefix else []) + bridges + ops
     nondetachable = "-".join(p.rstrip("-") for p in ops) + ("-" if ops and (descriptor or ops[-1].endswith("-")) else "")
+    if ops and not nondetachable.endswith("-") and not descriptor and stem_core and not stem_core[0].isascii():
+        nondetachable += "-"
     side_items = sorted(config.side + front_stereo)
     side = f"({','.join(text for _, text in side_items)})-" if side_items else ""
     indicated_text = f"{','.join(indicated)}-" if indicated else ""
@@ -203,10 +265,16 @@ def build(cand, view):
         detachable = f"{prefix}-"
     body = f"{side}{detachable}{hydro_text}{indicated_text}{nondetachable}{descriptor}{stem_core}"
     name = " ".join(part for part in (alkyl_word, body, anion) if part)
+    if chain is not None:
+        name = chain[2].replace(chain[3], _enclose_group(body), 1)
     nondet = nondetachable_cost(cand)
     rearranged = any(op[0] == "seco" for op in cand.skel.ops) or bool(cand.cyclo)
     removed = sorted((loc_key(op[1])[1] for op in cand.skel.ops if op[0] == "nor"), reverse=True)
-    return Built(name, cost, (cost, nondet > 0, -len(mapping), rearranged, tuple(-n for n in removed)))
+    first = next((text for _, text in sorted(config.parent) if text[-1] in "αβ"), "")
+    return Built(
+        name, cost, (cost, nondet > 0 or bool(fused_comps), -len(mapping), rearranged, tuple(-n for n in removed)),
+        config.implied_total, config.implied_cited, first[-1] if first else "",
+    )
 
 
 def _final(skel):
@@ -265,3 +333,54 @@ def _parent_text_name(name, ops):
         ends = name[: -len("-carotene")].split(",")
         return f"{ends[0]}-carotene"
     return name
+
+
+def _acetal_words(view, extra):
+    """(functional class word, leading carbonyl-compound name) of a cyclic acetal on two skeleton oxygens."""
+    from .core import smiles_to_iupac
+
+    carbon, others = extra["carbon"], extra["others"]
+    oxo = [n for n in others if view.elem[n] == "O" and view.order[frozenset((carbon, n))] == 2]
+    if oxo and len(others) == 1:
+        return "carbonate", ""
+    editable = Chem.RWMol(view.mol)
+    keep = {carbon, *others}
+    stack = list(others)
+    while stack:
+        a = stack.pop()
+        for n in view.adj[a]:
+            if n != carbon and n not in keep and n not in extra["anchors"]:
+                keep.add(n)
+                stack.append(n)
+    for idx in sorted((i for i in view.adj if i not in keep), reverse=True):
+        editable.RemoveAtom(idx)
+    carbonyl = editable.GetMol()
+    for atom in carbonyl.GetAtoms():
+        atom.SetNoImplicit(False)
+        atom.SetNumExplicitHs(0)
+    rw = Chem.RWMol(carbonyl)
+    new_o = rw.AddAtom(Chem.Atom(8))
+    c_index = sorted(keep).index(carbon)
+    rw.AddBond(c_index, new_o, Chem.BondType.DOUBLE)
+    result = rw.GetMol()
+    Chem.SanitizeMol(result)
+    name = smiles_to_iupac(Chem.MolToSmiles(result))
+    has_h = view.mol.GetAtomWithIdx(carbon).GetTotalNumHs() > 0
+    return ("acetal" if has_h else "ketal"), name
+
+
+def _primed(final, prime):
+    if not prime:
+        return final
+    return lambda loc: f"{final(loc)}{prime}"
+
+
+def spiro_center(cand, comp):
+    image = {a: loc for loc, a in cand.mapping.items()}
+    return image[comp.links[0][0]]
+
+
+def _enclose_group(text):
+    from ._substituents import wrap_marks
+
+    return wrap_marks(text)

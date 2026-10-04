@@ -54,6 +54,7 @@ class Parent:
         self.aromatic_atoms = {loc for bond in self.aromatic_bonds for loc in bond}
         centers = {e.centeredOn: e.specified for e in Chem.FindPotentialStereo(mol) if e.type == Chem.StereoType.Atom_Tetrahedral}
         Chem.Kekulize(mol, clearAromaticFlags=True)
+        Chem.AssignStereochemistry(mol, cleanIt=True, force=True)
         self.mol = mol
         self.centers = {self.loc_of[i] for i in centers}
         self.implied = {self.loc_of[i] for i, state in centers.items() if state == Chem.StereoSpecified.Specified} - UNIMPLIED.get(name, set())
@@ -262,3 +263,22 @@ def _anchor_sign(parent):
     if not faces or len(exo) != 1 or exo[0] not in faces:
         return None
     return 1 if faces[exo[0]] == face else -1
+
+
+def ez_relation(mol, bond, near_a, near_b):
+    """'trans' or 'cis' between neighbour `near_a` of one bond atom and `near_b` of the other, None if unspecified."""
+    state = bond.GetStereo()
+    if state not in (Chem.BondStereo.STEREOE, Chem.BondStereo.STEREOZ, Chem.BondStereo.STEREOTRANS, Chem.BondStereo.STEREOCIS):
+        return None
+    ends = list(bond.GetStereoAtoms())
+    if len(ends) != 2:
+        return None
+    first, second = (ends[0], ends[1])
+    if mol.GetBondBetweenAtoms(bond.GetBeginAtomIdx(), first) is None:
+        first, second = second, first
+    trans = state in (Chem.BondStereo.STEREOE, Chem.BondStereo.STEREOTRANS)
+    if near_a != first:
+        trans = not trans
+    if near_b != second:
+        trans = not trans
+    return "trans" if trans else "cis"

@@ -32,6 +32,7 @@ class Fused:
     fusion_h: list = field(default_factory=list)
     cite_attached: bool = True
     prime: int = 0
+    fusion_locs: tuple = ()
 
     @property
     def alpha(self):
@@ -174,10 +175,13 @@ def name_fused(comp, cand, view, final, parent_centers, hfaces):
     def fusion_key(numbering):
         return tuple(sorted(int(str(numbering[a]).rstrip("ab")) + (0.5 if str(numbering[a]).endswith(("a", "b")) else 0) for a in path))
 
-    best = min(numberings, key=fusion_key)
-    ties = [n for n in numberings if fusion_key(n) == fusion_key(best)]
     ordered_path = sorted(path, key=lambda a: loc_key(final(image[a])))
-    chosen = ties[0]
+
+    def number_value(numbering, atom):
+        text = str(numbering[atom])
+        return int(text.rstrip("ab")) + (0.5 if text.endswith(("a", "b")) else 0)
+
+    chosen = min(numberings, key=lambda n: (fusion_key(n), tuple(number_value(n, a) for a in ordered_path)))
     hetero_locants = sorted(chosen[a] for a in comp.atoms if view.elem[a] != "C") if cite and rings == 1 else []
     sp3 = _indicated(comp, path, ring, view, chosen)
     return Fused(
@@ -188,6 +192,7 @@ def name_fused(comp, cand, view, final, parent_centers, hfaces):
         indicated=sp3[0],
         fusion_h=[(final(image[a]), a) for a in ordered_path if _fusion_h(a, view, ring, image, parent_centers)],
         cite_attached=name not in _CARBO.values() or rings == 2,
+        fusion_locs=tuple(image[a] for a in path),
     )
 
 

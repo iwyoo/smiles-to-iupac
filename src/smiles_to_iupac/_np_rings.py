@@ -42,9 +42,20 @@ def components(view, mapped):
                     comp.add(n)
                     stack.append(n)
         links = [(a, n) for n in comp for a in view.adj[n] if a in mapped]
-        if len(links) > 1:
+        if len(links) > 1 and not _closes_acetal(comp, links, view):
             found.append(Component(comp, links))
     return found
+
+
+def _closes_acetal(comp, links, view):
+    """Two oxygens on skeleton atoms bonded to one carbon: a cyclic acetal, ketal or carbonate (P-101.7.4)."""
+    if len(links) != 2 or len({a for a, _ in links}) != 2:
+        return False
+    oxygens = [n for _, n in links]
+    if len(set(oxygens)) != 2 or any(view.elem[o] != "O" or len(view.adj[o]) != 2 for o in oxygens):
+        return False
+    shared = [set(view.adj[o]) - {a for a, n in links if n == o} for o in oxygens]
+    return shared[0] == shared[1] and len(shared[0]) == 1 and view.elem[next(iter(shared[0]))] == "C"
 
 
 def _path(comp, view):
@@ -113,8 +124,12 @@ def split_components(comps, cand, view):
     """(bridges, fused rings): a short unbranched chain is a bridge unless it closes a ring on adjacent atoms."""
     image = {a: loc for loc, a in cand.mapping.items()}
     bridges, fused = [], []
+    spiro = []
     for comp in comps:
         skeleton = {a for a, _ in comp.links}
+        if len(skeleton) == 1 and len(comp.links) == 2:
+            spiro.append(comp)
+            continue
         if len(skeleton) != 2 or len(comp.links) != 2:
             raise UnsupportedStructure("an added ring attached at other than two skeleton atoms")
         sa, sb = sorted(skeleton)
@@ -128,4 +143,74 @@ def split_components(comps, cand, view):
             bridges.append(comp)
         else:
             fused.append(comp)
-    return bridges, fused
+    return bridges, fused, spiro
+
+
+@dataclass
+class Spiro:
+    ring_name: str
+    spiro_locant: str
+    substituents: list
+
+
+def name_spiro(comp, cand, view):
+    """The saturated ring spiro-joined to one skeleton atom (P-101.5.3, P-24.5)."""
+    from ._np_fusion import _mono_numberings, ring_cycle
+    from ._substituents import name_branch
+    from ._common import adjacency, halogen_substituents
+
+    spiro_atom = comp.links[0][0]
+    l1, l2 = comp.links[0][1], comp.links[1][1]
+    inside = comp.atoms
+    previous = {l1: None}
+    frontier = [l1]
+    while frontier and l2 not in previous:
+        nxt = []
+        for a in frontier:
+            for n in view.adj[a]:
+                if n in inside and n not in previous:
+                    previous[n] = a
+                    nxt.append(n)
+        frontier = nxt
+    path = [l2]
+    while previous[path[-1]] is not None:
+        path.append(previous[path[-1]])
+    ring = set(path) | {spiro_atom}
+    cycle = ring_cycle(ring, view.adj)
+    if cycle is None or len(ring) > 8:
+        raise UnsupportedStructure("a spiro component that is not a simple ring")
+    if any(view.order[frozenset((a, b))] != 1 for a in ring for b in view.adj[a] if b in ring):
+        raise UnsupportedStructure("an unsaturated spiro component is not supported")
+    elem = {a: view.elem[a] for a in ring}
+    subs = [(a, n) for a in path for n in view.adj[a] if n not in ring and n in inside]
+    if any(view.elem[a] == "C" for a in ()):
+        pass
+    graph = adjacency(view.mol)
+    halogens = halogen_substituents(view.mol)
+    best = None
+    for numbering in _mono_numberings(cycle, elem):
+        spiro_number = numbering[spiro_atom]
+        cites = sorted(numbering[a] for a, _ in subs)
+        key = (spiro_number, cites)
+        if best is None or key < best[0]:
+            best = (key, numbering)
+    numbering = best[1]
+    entries = []
+    for a, n in subs:
+        name, compound = name_branch(graph, n, a, halogens, frozenset(), mol=view.mol, unsaturated=True)
+        entries.append((str(numbering[a]), name, compound))
+    return Spiro(_ring_name(ring, view, elem), str(numbering[spiro_atom]), entries)
+
+
+def _ring_name(ring, view, elem):
+    from .core import smiles_to_iupac
+
+    editable = Chem.RWMol(view.mol)
+    for idx in sorted((i for i in view.adj if i not in ring), reverse=True):
+        editable.RemoveAtom(idx)
+    free = editable.GetMol()
+    for atom in free.GetAtoms():
+        atom.SetNoImplicit(False)
+        atom.SetNumExplicitHs(0)
+    Chem.SanitizeMol(free)
+    return smiles_to_iupac(Chem.MolToSmiles(free))
