@@ -74,9 +74,8 @@ def test_1_3_disubstituted_stereo():
     assert smiles_to_iupac("C[C@@H]1C[C@H](C)CCC1") == "(1R,3S)-1,3-dimethylcyclohexane"
 
 
-def test_single_ring_stereocenter_raises():
+def test_single_ring_stereocenter_cites_the_specified_elements():
     # a real stereocenter (four different groups) specified alone, with no
     # second one to compare against -- not the cis/trans shape this module
     # handles.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@H]1CCCCC1CC")
+    assert smiles_to_iupac("C[C@H]1CCCCC1CC") == '(2S)-1-ethyl-2-methylcyclohexane'

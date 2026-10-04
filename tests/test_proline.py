@@ -18,18 +18,14 @@ def test_proline_unspecified_stereocenter_no_ld_prefix():
     assert smiles_to_iupac("C1CC(NC1)C(=O)O") == "proline"
 
 
-def test_hydroxyproline_still_unsupported():
-    # A substituent on the ring beyond C-2's own carboxy group is out of
-    # scope for this step, deferred to a follow-up.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1C[C@H](NC1)C(=O)O")
+def test_hydroxyproline_cites_the_specified_center():
+    assert smiles_to_iupac("OC1C[C@H](NC1)C(=O)O") == "(2S)-4-hydroxypyrrolidine-2-carboxylic acid"
 
 
-def test_pipecolic_acid_still_unsupported():
+def test_pipecolic_acid_cites_the_specified_elements():
     # A 6-membered ring analogue (piperidine-2-carboxylic acid) is a
     # different ring size, out of scope here.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CC[C@H](NC1)C(=O)O")
+    assert smiles_to_iupac("C1CC[C@H](NC1)C(=O)O") == '(2S)-piperidine-2-carboxylic acid'
 
 
 def test_hetero_ring_ketone_still_resolves():

@@ -589,12 +589,16 @@ def test_ring_stereodescriptors_are_cited_once(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
-    ["C1CC[C@H]2CCCC[C@@H]2C1", "C[C@H]1CCC2CCCCC2C1"],
+    "smiles,expected",
+    [
+        ("C1CC[C@H]2CCCC[C@@H]2C1", "(4ar,8ar)-decahydronaphthalene"),
+        ("C1CC[C@H]2CCCC[C@H]2C1", "(4as,8as)-decahydronaphthalene"),
+        ("C[C@H]1CCC2CCCCC2C1", "(2S)-2-methyldecahydronaphthalene"),
+        ("O[C@H]1CCC[C@H]2CCCC[C@@H]12", "(1S,4aR,8aR)-decahydronaphthalen-1-ol"),
+    ],
 )
-def test_saturated_fused_stereo_is_never_dropped(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_saturated_fused_stereo_is_cited(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(

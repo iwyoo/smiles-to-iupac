@@ -34,9 +34,8 @@ def test_hetero_ring_ketone_still_resolves():
     assert smiles_to_iupac("O=C1CCCCO1") == "oxan-2-one"
 
 
-def test_ketofuranose_still_falls_through_unchanged():
+def test_ketofuranose_cites_the_specified_elements():
     # A 5-membered cyclic 2-ketose hemiketal (furanose) is a different
     # ring size, out of scope here (later M2 step) -- still collides with
     # `_ketone.py`'s hetero-ring-ketone path unchanged.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C([C@@H]1[C@H]([C@@H]([C@](O1)(CO)O)O)O)O")
+    assert smiles_to_iupac("C([C@@H]1[C@H]([C@@H]([C@](O1)(CO)O)O)O)O") == '(2R,3S,4S,5R)-2,5-bis(hydroxymethyl)oxolane-2,3,4-triol'

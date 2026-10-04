@@ -291,6 +291,5 @@ def test_nitrile_ring_stereocenter_unspecified_unaffected():
     assert smiles_to_iupac("N#CC1CCCCC1Cl") == "2-chlorocyclohexane-1-carbonitrile"
 
 
-def test_nitrile_ring_partially_specified_stereocenters_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N#C[C@H]1CCCCC1Cl")
+def test_nitrile_ring_partially_specified_stereocenters_cites_the_specified_elements():
+    assert smiles_to_iupac("N#C[C@H]1CCCCC1Cl") == '(1R)-2-chlorocyclohexane-1-carbonitrile'

@@ -71,9 +71,8 @@ def test_unspecified_stereocenter_ignored():
     assert smiles_to_iupac("CC(C)C(Cl)C(=O)Cl") == "2-chloro-3-methylbutanoyl chloride"
 
 
-def test_branch_stereocenter_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C[C@H](C)Cl)C(=O)Cl")
+def test_branch_stereocenter_cites_the_specified_elements():
+    assert smiles_to_iupac("CC(C[C@H](C)Cl)C(=O)Cl") == '(4S)-4-chloro-2-methylpentanoyl chloride'
 
 
 @pytest.mark.parametrize(

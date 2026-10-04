@@ -13,12 +13,8 @@ def test_two_off_spiro_stereocenters_different_rings():
     assert smiles_to_iupac("C[C@H]1CCC[C@]2(C1)C[C@H](C)CCC2") == "(2S,6R,8R)-2,8-dimethylspiro[5.5]undecane"
 
 
-def test_pseudoasymmetric_spiro_atom_raises():
-    import pytest
-    from smiles_to_iupac._common import UnsupportedStructure
-
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@H]1CC[C@]2(C1)CC[C@@H](C)CC2")
+def test_pseudoasymmetric_spiro_atom_is_cited_in_lower_case():
+    assert smiles_to_iupac("C[C@H]1CC[C@]2(C1)CC[C@@H](C)CC2") == "(2S,5s,8S)-2,8-dimethylspiro[4.5]decane"
 
 
 def test_plain_spiro_without_stereo_still_resolves():

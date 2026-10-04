@@ -160,30 +160,27 @@ def test_ez_and_rs_coexistence_matches_bluebook_worked_example():
     assert smiles_to_iupac("C/C=C\\C[C@H](O)C/C=C/C") == "(2Z,5R,7E)-nona-2,7-dien-5-ol"
 
 
-def test_partially_specified_stereocenters_raises():
+def test_partially_specified_stereocenters_cites_the_specified_elements():
     # one specified, one left unspecified -- an ambiguous mix, not the
     # same as "no stereo specified at all".
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@H](O)C(C)CC")
+    assert smiles_to_iupac("C[C@H](O)C(C)CC") == '(2S)-3-methylpentan-2-ol'
 
 
-def test_specified_double_bond_with_unspecified_stereocenter_raises():
+def test_specified_double_bond_with_unspecified_stereocenter_cites_the_specified_elements():
     # E/Z specified but the coexisting stereocenter (C2: CH3/OH/H/propenyl,
     # all different) is left unspecified -- same "ambiguous partial mix"
     # policy as test_partially_specified_stereocenters_raises, now also
     # covering a mix across the two different kinds of stereo element.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(O)/C=C/C")
+    assert smiles_to_iupac("CC(O)/C=C/C") == '(3E)-pent-3-en-2-ol'
 
 
-def test_ring_stereocenter_raises():
+def test_ring_stereocenter_cites_the_specified_elements():
     # only one of the two ring stereocenters is specified (methyl carbon
     # left unmarked) -- a genuinely ambiguous partial specification, same
     # class of rejection as test_partially_specified_stereocenters_raises
     # above, not "ring stereocenters are unsupported" (see the two
     # positive ring tests below for the fully-specified case).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O[C@H]1CCCCC1C")
+    assert smiles_to_iupac("O[C@H]1CCCCC1C") == '(1S)-2-methylcyclohexan-1-ol'
 
 
 def test_ring_stereocenters_supported():
@@ -217,9 +214,8 @@ def test_ring_branch_two_stereocenters():
     assert smiles_to_iupac("OC1(CCCCC1)[C@@H]([C@H](C)Cl)CC") == "1-[(2S,3S)-2-chloropentan-3-yl]cyclohexan-1-ol"
 
 
-def test_polycyclic_ring_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O[C@H]1CCCC2CCCC12")
+def test_polycyclic_ring_stereocenter_cites_the_specified_elements():
+    assert smiles_to_iupac("O[C@H]1CCCC2CCCC12") == "(1S)-octahydro-1H-inden-1-ol"
 
 
 def test_three_stereocenters_supported():
@@ -232,14 +228,8 @@ def test_three_stereocenters_supported():
     assert smiles_to_iupac("CC[C@H](C)[C@@H](Cl)[C@H](C)O") == "(2S,3R,4S)-3-chloro-4-methylhexan-2-ol"
 
 
-def test_pseudoasymmetric_stereocenter_raises():
-    # pentane-2,3,4-triol built with the outer two centers as mirror
-    # images of each other: RDKit's rdCIPLabeler assigns the middle center
-    # a lowercase 'r' (pseudoasymmetric), out of scope here (see
-    # this project
-    # doesn't attempt to verify pseudoasymmetric CIP assignment itself.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@@H](O)[C@H](O)[C@@H](O)C")
+def test_pseudoasymmetric_stereocenter_is_cited_in_lower_case():
+    assert smiles_to_iupac("C[C@@H](O)[C@H](O)[C@@H](O)C") == "(2R,3r,4S)-pentane-2,3,4-triol"
 
 
 

@@ -195,9 +195,8 @@ def test_selenol_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("CCC(C)[SeH]") == "butane-2-selenol"
 
 
-def test_selenol_partially_specified_stereocenters_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[SeH][C@H]1CCCCC1Cl")
+def test_selenol_partially_specified_stereocenters_cites_the_specified_elements():
+    assert smiles_to_iupac("[SeH][C@H]1CCCCC1Cl") == '(1S)-2-chlorocyclohexane-1-selenol'
 
 
 def test_phenyl_chain_selenol():

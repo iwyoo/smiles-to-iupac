@@ -71,3 +71,25 @@ class PrimedLocant:
 
     def __str__(self):
         return f"{self.number}{chr(39) * self.primes}"
+
+
+class CompositeLocant:
+    """A composite locant of an assembly of three or more rings: ring number and position, cited flat (14)."""
+
+    def __init__(self, ring, position):
+        self.ring, self.position = ring, position
+
+    def _key(self):
+        return self.ring, float(self.position)
+
+    def __eq__(self, other):
+        return isinstance(other, CompositeLocant) and self._key() == other._key()
+
+    def __lt__(self, other):
+        return self._key() < other._key()
+
+    def __hash__(self):
+        return hash(self._key())
+
+    def __str__(self):
+        return f"{self.ring}{self.position}"

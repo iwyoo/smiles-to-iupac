@@ -303,9 +303,8 @@ def test_carboxylic_acid_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("CC(Cl)C(=O)O") == "2-chloropropanoic acid"
 
 
-def test_carboxylic_acid_partially_specified_stereocenters_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@H](Cl)C(Cl)C(=O)O")
+def test_carboxylic_acid_partially_specified_stereocenters_cites_the_specified_elements():
+    assert smiles_to_iupac("C[C@H](Cl)C(Cl)C(=O)O") == '(3S)-2,3-dichlorobutanoic acid'
 
 
 def test_acyclic_carboxylic_acid_specified_ez_double_bond():
@@ -355,9 +354,8 @@ def test_carboxylic_acid_ring_stereocenter_unspecified_unaffected():
     assert smiles_to_iupac("OC(=O)C1CCCCC1Cl") == "2-chlorocyclohexane-1-carboxylic acid"
 
 
-def test_carboxylic_acid_ring_partially_specified_stereocenters_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C(O)[C@H]1CCCCC1Cl")
+def test_carboxylic_acid_ring_partially_specified_stereocenters_cites_the_specified_elements():
+    assert smiles_to_iupac("O=C(O)[C@H]1CCCCC1Cl") == '(1R)-2-chlorocyclohexane-1-carboxylic acid'
 
 
 def test_phenyl_substituent_carboxylic_acid_branch_tie_prefers_more_substituents():

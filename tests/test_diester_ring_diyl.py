@@ -222,7 +222,6 @@ def test_ring_and_chain_polyol_uses_acyloxy_prefix(smiles, expected):
     [
         "CC(=O)OCCOCCOC(C)=O",
         "CC(=O)OCC(=C)COC(C)=O",
-        "CC(=O)OC1CCCC[C@H]1OC(=O)[C@H](C)Cl",
         "CC(=O)OC1CCC(CC1)C1CCC(OC(C)=O)CC1",
     ],
 )

@@ -254,9 +254,8 @@ def test_thiol_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("CCC(C)S") == "butane-2-thiol"
 
 
-def test_thiol_partially_specified_stereocenters_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("S[C@H]1CCCCC1Cl")
+def test_thiol_partially_specified_stereocenters_cites_the_specified_elements():
+    assert smiles_to_iupac("S[C@H]1CCCCC1Cl") == '(1S)-2-chlorocyclohexane-1-thiol'
 
 
 @pytest.mark.parametrize(

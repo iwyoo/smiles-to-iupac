@@ -7,6 +7,7 @@ from itertools import product
 from ._common import UnsupportedStructure, multiplied_word, ring_cycle
 from ._multiplicative import _bare_key
 from ._multiplicative_ring import _SUFFIX_WORDS, _citation_key, monocycle_spec, numberings
+from ._multiplicative_text import CompositeLocant
 from ._substituents import format_substituent_prefixes, name_branch
 
 _LATIN = {3: "ter", 4: "quater", 5: "quinque", 6: "sexi"}
@@ -60,6 +61,8 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
     an assembly."""
     ring_info = mol.GetRingInfo()
     rings = [list(r) for r in ring_info.AtomRings()]
+    from ._polyfunctional import _stereo_rank
+
     frees = [] if free is None else [free] if isinstance(free[0], int) else list(free)
     if frees:
         from ._polyfunctional import _arm_atoms
@@ -80,8 +83,6 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
     paths = _longest_paths(mol, rings)
     if not paths:
         return None
-    if stereo:
-        raise UnsupportedStructure("stereodescriptors in a ring assembly are not supported yet")
     spec = specs[0]
     owned = set().union(*(o[2] for o in occurrences)) if occurrences else set()
     marked = [o[1] for o in occurrences] if not frees else [f[0] for f in frees]
@@ -133,6 +134,7 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
                     -len(entries),
                     tuple(sorted(locants[r] for r, _, _ in entries)),
                     _citation_key([(locants[r], name) for r, name, _ in entries]),
+                    _stereo_rank(stereo, {a: CompositeLocant(*loc) for a, loc in locants.items()}, True),
                 )
                 if best is None or key < best[0]:
                     best = (key, locants, junction_text, entries, len(chain))
@@ -166,7 +168,7 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
         spots = ",".join(_cite(locants[o[1]]) for o in sorted(occurrences, key=lambda o: locants[o[1]]))
         core = f"[{base(word[0] in 'aeiouy')}]-{spots}-{word}"
     name = f"{prefix}-{core}" if prefix else core
-    return total, ((-total,), name, (None, None, None, 0, locants, True))
+    return total, ((-total,), name, (None, None, None, 0, {a: CompositeLocant(*loc) for a, loc in locants.items()}, True))
 
 
 def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees):

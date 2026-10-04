@@ -248,9 +248,8 @@ def test_aldehyde_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("CC(Cl)C=O") == "2-chloropropanal"
 
 
-def test_aldehyde_partially_specified_stereocenters_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[C@H](Cl)C(Cl)C=O")
+def test_aldehyde_partially_specified_stereocenters_cites_the_specified_elements():
+    assert smiles_to_iupac("C[C@H](Cl)C(Cl)C=O") == '(3S)-2,3-dichlorobutanal'
 
 
 def test_acyclic_aldehyde_specified_ez_double_bond():
@@ -297,6 +296,5 @@ def test_aldehyde_ring_stereocenter_unspecified_unaffected():
     assert smiles_to_iupac("O=CC1CCCCC1Cl") == "2-chlorocyclohexane-1-carbaldehyde"
 
 
-def test_aldehyde_ring_partially_specified_stereocenters_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C[C@H]1CCCCC1Cl")
+def test_aldehyde_ring_partially_specified_stereocenters_cites_the_specified_elements():
+    assert smiles_to_iupac("O=C[C@H]1CCCCC1Cl") == '(1R)-2-chlorocyclohexane-1-carbaldehyde'

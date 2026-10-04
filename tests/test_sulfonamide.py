@@ -296,8 +296,7 @@ def test_sulfonamide_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("CCC(Cl)S(=O)(=O)N") == "1-chloropropane-1-sulfonamide"
 
 
-def test_sulfonamide_partially_specified_stereocenters_raises():
+def test_sulfonamide_partially_specified_stereocenters_cites_the_specified_elements():
     # Only one of the ring's two genuine stereocenters is marked -- must
     # raise rather than silently dropping the marker.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N[S](=O)(=O)[C@H]1CCCCC1Cl")
+    assert smiles_to_iupac("N[S](=O)(=O)[C@H]1CCCCC1Cl") == '(1S)-2-chlorocyclohexane-1-sulfonamide'

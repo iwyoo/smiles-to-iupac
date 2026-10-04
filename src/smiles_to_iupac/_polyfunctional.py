@@ -254,7 +254,7 @@ def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset()):
 
 def _stereo_rank(stereo, position_of, ring_parent=False):
     entries, _ = _stereo_entries(stereo, position_of, ring_parent)
-    return tuple(0 if code in "RZ" else 1 for _, code in entries)
+    return tuple(0 if code in "RZr" else 1 for _, code in entries)
 
 
 def _stereo_prefix(stereo, position_of, ring_parent=False, used=frozenset()):
@@ -885,7 +885,7 @@ def _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo):
     ring-system numbering and parent names used for diyl groups."""
     from ._diester_ring_diyl import _system_of, evaluate_skeleton
 
-    if n_names or stereo or principal not in _FUSED_SUFFIX:
+    if n_names or principal not in _FUSED_SUFFIX:
         raise UnsupportedStructure("this fused-ring parent is not supported by the chain engine yet")
     rings, atoms = _system_of(mol, here[0][1])
     if len(rings) > 1:
@@ -1371,7 +1371,7 @@ def _stereo_arms(mol, stereo, parts_atoms, units):
         raise UnsupportedStructure("the units name differently once their stereo is considered")
     if len(stereo) != sum(len(entries) for _, entries in per_arm):
         raise UnsupportedStructure("stereodescriptors outside the units are not supported by the chain engine yet")
-    ordered = sorted(per_arm, key=lambda arm: tuple(0 if code in "RZ" else 1 for _, code in arm[1]))
+    ordered = sorted(per_arm, key=lambda arm: tuple(0 if code in "RZr" else 1 for _, code in arm[1]))
     labels = [
         f"{locant}{chr(39) * i}{code}"
         for i, (_, entries) in enumerate(ordered)

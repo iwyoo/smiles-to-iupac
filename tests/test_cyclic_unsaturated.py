@@ -124,14 +124,13 @@ def test_small_ring_stereo_marker_has_no_effect(smiles):
     assert smiles_to_iupac(smiles) == smiles_to_iupac(unmarked)
 
 
-def test_ring_double_bond_stereo_with_unspecified_ring_stereocenter_raises():
+def test_ring_double_bond_stereo_with_unspecified_ring_stereocenter_cites_the_specified_elements():
     # The methyl-bearing ring carbon is a genuine (here left unspecified)
     # tetrahedral stereocenter of its own -- a specified double bond
     # alongside an unspecified stereocenter elsewhere is a partially
     # specified molecule, out of scope everywhere in this project (P-92/
     # P-93), not just here.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC1CCC/C=C\\CC1")
+    assert smiles_to_iupac("CC1CCC/C=C\\CC1") == '(Z)-5-methylcyclooctene'
 
 
 def test_ring_double_bond_stereo_multiple_bonds_raises():
