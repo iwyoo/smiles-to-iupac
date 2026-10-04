@@ -248,6 +248,20 @@ def test_linker_stereodescriptors(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("c1ccc(Cc2ccc(Cc3ccc(Cc4ccccc4)nc3)cc2)cc1", "3(2,5)-pyridina-1,7(1),5(1,4)-tribenzenaheptaphane"),
+        (
+            "c1ccc(C2CCC(C3CCC(c4ccc(C5CCC(C6CCC(C7CCCCC7)CC6)CC5)cc4)CC3)CC2)cc1",
+            "1(1),4(1,4)-dibenzena-2,3,5,6(1,4),7(1)-pentacyclohexanaheptaphane",
+        ),
+    ],
+)
+def test_linear_phane_with_any_ring_amplificants(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_linear_phane_is_named_as_a_phane():
     assert (
         smiles_to_iupac("c1ccccc1Oc1cccc(Oc2cccc(Oc3ccccc3)c2)c1")

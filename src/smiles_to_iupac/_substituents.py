@@ -341,6 +341,20 @@ def _candidate_key(grouped):
 
 
 def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mol=None, unsaturated=None):
+    try:
+        return _name_branch(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated)
+    except UnsupportedStructure:
+        if mol is not None and mol.GetRingInfo().NumRings() >= 3:
+            from ._phane_general import phane_substituent
+
+            order = mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble()
+            fused = phane_substituent(mol, graph, root, coming_from, preferred=False) if order in (1.0, 2.0) else None
+            if fused is not None:
+                return fused
+        raise
+
+
+def _name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mol=None, unsaturated=None):
     """Name the substituent group hanging off `root`, reached from
     `coming_from` (the parent chain/ring atom). Returns (name, is_compound);
     is_compound is True iff the name carries its own locants/nested prefixes
