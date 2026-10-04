@@ -6,7 +6,7 @@ from rdkit import Chem
 from rdkit.Chem import rdCIPLabeler
 
 from ._common import UnsupportedStructure
-from ._np_core import FACES, center_signature, exo_faces, loc_key, parent_h
+from ._np_core import FACES, center_signature, exo_faces, ez_relation, loc_key, parent_h
 
 
 @dataclass
@@ -16,6 +16,8 @@ class Config:
     faces: dict = field(default_factory=dict)
     exo: dict = field(default_factory=dict)
     hfaces: dict = field(default_factory=dict)
+    implied_total: int = 0
+    implied_cited: int = 0
 
 
 def _alias(skel, parent, loc, label):
@@ -84,6 +86,8 @@ def configuration(cand, view):
         return config
     rdCIPLabeler.AssignCIPLabels(mol)
     for bond in bond_stereo:
+        if _implied_bond(cand, view, bond, image):
+            continue
         if not bond.HasProp("_CIPCode"):
             raise UnsupportedStructure("a chain double bond has no E/Z label")
         low = min((image[bond.GetBeginAtomIdx()], image[bond.GetEndAtomIdx()]), key=loc_key)
@@ -116,8 +120,11 @@ def configuration(cand, view):
             if atom not in specified:
                 config.parent.append((loc_key(loc), f"{loc}ξ"))
                 continue
-            if loc in parent.implied and _natural(parent, loc, mol_h, atom, image, skel):
-                continue
+            if loc in parent.implied:
+                config.implied_total += 1
+                if _natural(parent, loc, mol_h, atom, image, skel):
+                    continue
+                config.implied_cited += 1
             chosen = _exo_choice(exo, mapped, ring, image, mol_h)
             if in_parent_ring and faces is not None and chosen in faces:
                 config.parent.append((loc_key(loc), f"{loc}{FACES[faces[chosen]]}"))
@@ -147,3 +154,28 @@ def _exo_choice(exo, mapped, ring, image, mol_h):
         return skeleton[0]
     heavy = [n for n in exo if mol_h.GetAtomWithIdx(n).GetAtomicNum() != 1]
     return heavy[0] if heavy else exo[0]
+
+
+def _implied_bond(cand, view, bond, image):
+    """True when the chain double bond has the geometry the parent implies."""
+    parent, mapping = cand.parent, cand.mapping
+    a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+    la, lb = image[a], image[b]
+    if la not in parent.idx_of or lb not in parent.idx_of:
+        return False
+    pb = parent.mol.GetBondBetweenAtoms(parent.idx_of[la], parent.idx_of[lb])
+    if pb is None or pb.GetBondTypeAsDouble() != 2.0 or pb.GetStereo() == Chem.BondStereo.STEREONONE:
+        return False
+    picks = {}
+    for end, other in ((la, lb), (lb, la)):
+        near = sorted((n for n in parent.adj[end] if n != other), key=loc_key)
+        if not near:
+            return False
+        picks[end] = near[-1]
+    if any(picks[end] not in mapping or picks[end] not in cand.skel.adj.get(end, ()) for end in picks):
+        return False
+    begin_first = parent.idx_of[la] == pb.GetBeginAtomIdx()
+    near_begin, near_end = (picks[la], picks[lb]) if begin_first else (picks[lb], picks[la])
+    parent_relation = ez_relation(parent.mol, pb, parent.idx_of[near_begin], parent.idx_of[near_end])
+    mol_relation = ez_relation(view.mol, bond, mapping[picks[la]], mapping[picks[lb]])
+    return parent_relation is not None and parent_relation == mol_relation

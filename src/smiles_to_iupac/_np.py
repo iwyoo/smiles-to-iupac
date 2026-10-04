@@ -11,6 +11,7 @@ from ._np_core import get_parent, loc_key
 from ._np_match import View, embeddings
 from ._np_name import _SENIORITY, classify
 from ._np_parents import PARENTS
+from ._np_rings import components
 from ._np_skel import Skel, variants
 from ._np_text import stem_info
 
@@ -18,7 +19,7 @@ SYSTEMATIC_PREFERRED = {"tropane", "bornane", "carane", "fenchane", "pinane", "t
 _MIN_HEAVY_ATOMS = 9
 _MAX_HEAVY_ATOMS = 90
 _MAX_RINGS = 12
-_EXTRA_AROMATIC_ATOMS = 6
+_EXTRA_AROMATIC_ATOMS = 12
 _MIN_RINGS_FOR_OPERATIONS = 3
 
 
@@ -82,7 +83,9 @@ def _plausible(name, view, cost):
 
 
 def _rank(cand, view):
-    groups = classify(cand, view)
+    comps = components(view, set(cand.mapping.values()))
+    ignored = set().union(*(c.atoms for c in comps)) if comps else set()
+    groups = classify(cand, view, ignored)
     principal = next((c for c in _SENIORITY if c in groups.classes), None)
     locs = tuple(sorted(loc_key(m[0]) for m in groups.classes.get(principal, []))) if principal else ()
     everything = tuple(sorted(loc_key(m[0]) for members in groups.classes.values() for m in members))
@@ -107,7 +110,9 @@ def _admissible(cand):
     if cand.replaced and not (fused >= 3 or (cyc >= 2 and stem_info(cand.parent.name)[1] == "ane")):
         return False
     carotene = cand.parent.name.endswith("carotene")
-    if not carotene and any(op[0] != "nor" and op[0] != "homo" or not _terminal_op(cand.parent, op) for op in cand.skel.ops) and fused < _MIN_RINGS_FOR_OPERATIONS:
+    if not carotene and cand.skel.ops and fused < _MIN_RINGS_FOR_OPERATIONS:
+        return False
+    if any(op[0] == "des" for op in cand.skel.ops) and (len(cand.skel.ops) > 1 or cand.cyclo or cand.replaced):
         return False
     return True
 
@@ -175,7 +180,7 @@ def _candidates(skel, view):
     return embeddings(skel, view, limit=3000)
 
 
-def name_natural_product(mol):
+def _name_once(mol):
     heavy = mol.GetNumAtoms()
     if heavy < _MIN_HEAVY_ATOMS or heavy > _MAX_HEAVY_ATOMS or len(Chem.GetMolFrags(mol)) != 1:
         return None
@@ -187,6 +192,9 @@ def name_natural_product(mol):
         return None
     view.rings_by_size = Counter(len(r) for r in mol.GetRingInfo().AtomRings())
     view.elements = Counter(view.elem.values())
+    view.has_stereo = any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()) or any(
+        b.GetStereo() != Chem.BondStereo.STEREONONE for b in mol.GetBonds()
+    )
     view.aromatic_atoms = len({i for bond in view.aromatic_bonds for i in bond})
     best = None
     for cost in (0, 1, 2):
@@ -202,10 +210,67 @@ def name_natural_product(mol):
             for skel in skels:
                 found += _candidates(skel, view)
         for cand in _best_per_skeleton(found, view):
+            if cand.replaced and set(view.elements) == {"C"}:
+                continue
+            if len(cand.skel.ops) + len(cand.cyclo) + len(cand.replaced) > 1 and not view.has_stereo:
+                continue
             try:
                 built = build(cand, view)
             except UnsupportedStructure:
                 continue
             if best is None or built.key < best.key or (built.key == best.key and built.name < best.name):
                 best = built
-    return best.name if best else None
+    return best
+
+
+def _mirror(mol):
+    mirror = Chem.RWMol(mol)
+    for atom in mirror.GetAtoms():
+        tag = atom.GetChiralTag()
+        if tag == Chem.ChiralType.CHI_TETRAHEDRAL_CW:
+            atom.SetChiralTag(Chem.ChiralType.CHI_TETRAHEDRAL_CCW)
+        elif tag == Chem.ChiralType.CHI_TETRAHEDRAL_CCW:
+            atom.SetChiralTag(Chem.ChiralType.CHI_TETRAHEDRAL_CW)
+    return Chem.MolFromSmiles(Chem.MolToSmiles(mirror))
+
+
+def _plain(mol):
+    return Chem.MolFromSmiles(Chem.MolToSmiles(mol))
+
+
+def name_natural_product(mol):
+    """Natural-product name, with 'ent' for a full inversion and 'rac'/'rel' for stereo groups (P-101.8)."""
+    groups = mol.GetStereoGroups()
+    if groups:
+        return _name_with_groups(mol, groups)
+    plain = _plain(mol)
+    built = _name_once(plain)
+    if built is None:
+        return None
+    if built.implied_total and built.implied_cited == built.implied_total:
+        other = _name_once(_mirror(plain))
+        if other is not None and other.implied_cited == 0 and other.implied_total == built.implied_total:
+            return f"ent-{other.name}"
+    return built.name
+
+
+def _name_with_groups(mol, groups):
+    kinds = {g.GetGroupType() for g in groups}
+    if len(groups) != 1 or len(kinds) != 1:
+        return None
+    kind = next(iter(kinds))
+    chiral = {a.GetIdx() for a in mol.GetAtoms() if a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED}
+    if {a.GetIdx() for a in groups[0].GetAtoms()} != chiral:
+        return None
+    word = {Chem.StereoGroupType.STEREO_AND: "rac", Chem.StereoGroupType.STEREO_OR: "rel"}.get(kind)
+    if word is None:
+        return None
+    plain = _plain(mol)
+    built = _name_once(plain)
+    if built is None:
+        return None
+    if built.first_face == "β":
+        other = _name_once(_mirror(plain))
+        if other is not None and other.first_face == "α":
+            built = other
+    return f"{word}-{built.name}"

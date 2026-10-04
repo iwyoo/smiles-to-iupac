@@ -10,7 +10,7 @@ from ._np_core import FACES, center_signature, exo_faces, is_numbered, loc_key, 
 from ._numerals import multiplying_prefix
 from ._substituents import format_substituent_prefixes, name_branch
 
-_SUFFIX = {"ketone": "one", "alcohol": "ol", "amine": "amine", "ester_o": "yl", "aldehyde": "al"}
+_SUFFIX = {"ketone": "one", "alcohol": "ol", "amine": "amine", "ester_o": "yl", "aldehyde": "al", "diyl": "diyl", "yl": "yl"}
 _ACYL_SUFFIX = {
     ("acid", "c"): "carboxylic acid",
     ("acid", "o"): "oic acid",
@@ -20,16 +20,19 @@ _ACYL_SUFFIX = {
     ("amide", "o"): "amide",
 }
 _PREFIX = {"alcohol": "hydroxy", "ketone": "oxo", "amine": "amino", "aldehyde": "oxo"}
-_SENIORITY = ["acid", "ester", "ester_o", "amide", "aldehyde", "ketone", "alcohol", "amine"]
-_ACYL_CLASSES = ("acid", "ester", "ester_o", "amide")
+_SENIORITY = ["acid", "ester", "ester_o", "diyl", "amide", "aldehyde", "ketone", "alcohol", "amine"]
+_ACYL_CLASSES = ("acid", "ester", "ester_o", "amide", "diyl")
 _LETTERS = "abcdefghij"
 
 
 class _IntLoc(int):
     def __new__(cls, locant, face=""):
-        obj = super().__new__(cls, int(locant))
-        obj.base = str(locant)
-        obj.text = f"{locant}{FACES.get(face, '')}"
+        text = str(locant)
+        digits = text.rstrip("′″‴")
+        primes = len(text) - len(digits)
+        obj = super().__new__(cls, int(digits) + 1000 * primes)
+        obj.base = text
+        obj.text = f"{text}{FACES.get(face, '')}"
         return obj
 
     def __str__(self):
@@ -48,7 +51,7 @@ class _StrLoc(str):
 
 def Loc(locant, face=""):
     """A locant carrying a configuration symbol (17β); numeric locants stay ordered as numbers."""
-    return _IntLoc(locant, face) if str(locant).isdigit() else _StrLoc(locant, face)
+    return _IntLoc(locant, face) if str(locant).rstrip("′″‴").isdigit() else _StrLoc(locant, face)
 
 
 def final_labels(skel):
@@ -86,8 +89,8 @@ def _final(skel):
     return lambda loc: labels.get(loc, loc)
 
 
-def _carboxyl(view, atom, parent, mapped):
-    others = [n for n in view.adj[atom] if n != parent]
+def _carboxyl(view, atom, parent, mapped, ignored=frozenset()):
+    others = [n for n in view.adj[atom] if n != parent and n not in ignored]
     oxo = [n for n in others if view.elem[n] == "O" and view.order[frozenset((atom, n))] == 2]
     rest = [n for n in others if n not in oxo]
     if len(oxo) != 1 or len(rest) != 1 or view.order[frozenset((atom, rest[0]))] != 1:
@@ -152,7 +155,7 @@ class Groups:
         self.classes.setdefault(cls, []).append((loc, atoms, extra or {}))
 
 
-def classify(cand, view):
+def classify(cand, view, ignored=frozenset()):
     """Groups on the skeleton atoms of a candidate; raises UnsupportedStructure for shapes not handled."""
     skel = cand.skel
     mapping = cand.mapping
@@ -162,11 +165,11 @@ def classify(cand, view):
     groups = Groups()
     mol = view.mol
     for loc, atom in mapping.items():
-        outside = [n for n in view.adj[atom] if n not in mapped]
+        outside = [n for n in view.adj[atom] if n not in mapped and n not in ignored]
         leaf = loc not in ring_atoms and len(skel.adj[loc]) == 1
         if leaf and view.elem[atom] == "C":
             parent_atom = mapping[next(iter(skel.adj[loc]))]
-            carboxyl = _carboxyl(view, atom, parent_atom, mapped)
+            carboxyl = _carboxyl(view, atom, parent_atom, mapped, ignored)
             if carboxyl:
                 kind, ester = carboxyl
                 groups.add(kind, loc, {atom}, {"kind": "o", "ester": ester})
@@ -190,7 +193,7 @@ def classify(cand, view):
             elif n in amino:
                 groups.add("amine", loc, {n})
             else:
-                carboxyl = _carboxyl(view, n, atom, mapped) if view.elem[n] == "C" else None
+                carboxyl = _carboxyl(view, n, atom, mapped, ignored) if view.elem[n] == "C" else None
                 if carboxyl and loc in ring_atoms or (carboxyl and loc not in ring_atoms):
                     kind, ester = carboxyl
                     groups.add(kind, loc, {n}, {"kind": "c", "ester": ester, "anchor": n, "root": n})
@@ -200,7 +203,23 @@ def classify(cand, view):
                     groups.add("ester_o", loc, {n}, {"anchor": n, "root": n, "acyl": acyl})
                     continue
                 groups.branches.append((loc, n))
+    _pair_acetals(view, mapping, groups)
     return groups
+
+
+def _pair_acetals(view, mapping, groups):
+    """A carbon bonded to two oxygens that both sit on skeleton atoms closes a cyclic acetal, ketal or carbonate."""
+    by_carbon = {}
+    for loc, root in groups.branches:
+        if view.elem[root] == "O" and len(view.adj[root]) == 2:
+            carbon = next(n for n in view.adj[root] if n != mapping[loc])
+            by_carbon.setdefault(carbon, []).append((loc, root))
+    for carbon, members in by_carbon.items():
+        if len(members) != 2 or view.elem[carbon] != "C":
+            continue
+        others = [n for n in view.adj[carbon] if n not in {r for _, r in members}]
+        groups.branches = [b for b in groups.branches if b not in members]
+        groups.add("diyl", members[0][0], {r for _, r in members}, {"carbon": carbon, "others": others, "second": members[1][0], "anchors": [r for _, r in members]})
 
 
 def alkyl_count(cand, view, groups):

@@ -44,6 +44,34 @@ class Skel:
         self.adj[b].add(a)
         self.order[frozenset((a, b))] = order
 
+    def cycle_atoms(self):
+        """Atoms that lie on a cycle (a bond not on any cycle is a bridge of the graph)."""
+        order = list(self.adj)
+        position = {a: i for i, a in enumerate(order)}
+        low, depth, found = {}, {}, set()
+
+        def visit(atom, parent):
+            depth[atom] = low[atom] = len(depth)
+            for n in self.adj[atom]:
+                if n == parent:
+                    continue
+                if n in depth:
+                    low[atom] = min(low[atom], depth[n])
+                else:
+                    visit(n, atom)
+                    low[atom] = min(low[atom], low[n])
+                    if low[n] <= depth[atom]:
+                        found.update((atom, n))
+            return None
+
+        import sys
+
+        sys.setrecursionlimit(max(sys.getrecursionlimit(), 5000))
+        for a in order:
+            if a not in depth:
+                visit(a, None)
+        return found
+
     def ring_atoms(self):
         """Atoms on cycles (iteratively strip degree-1 atoms, then keep paths between cycles)."""
         degree = {a: len(n) for a, n in self.adj.items()}

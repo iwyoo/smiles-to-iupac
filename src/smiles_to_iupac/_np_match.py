@@ -53,7 +53,7 @@ _REPLACEABLE = "#6,#7,#8,#16,#34,#52,#15,#14,#5"
 def _query(skel):
     labels = list(skel.adj)
     index = {label: i for i, label in enumerate(labels)}
-    ring = skel.ring_atoms()
+    ring = skel.cycle_atoms()
     query = Chem.RWMol()
     for label in labels:
         number = _ATOMIC_NUMBER.get(skel.elem[label], 6)
@@ -71,7 +71,7 @@ def embeddings(skel, view, limit=4000):
     if len(skel.adj) > len(view.adj):
         return []
     labels, query = _query(skel)
-    ring = skel.ring_atoms()
+    ring = skel.cycle_atoms()
     found = []
     for match in view.flat.GetSubstructMatches(query, uniquify=False, maxMatches=limit):
         mapping = {label: match[i] for i, label in enumerate(labels)}
