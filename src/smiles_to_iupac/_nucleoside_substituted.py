@@ -1,14 +1,8 @@
-"""Substituted nucleosides on the 7 retained names (P-105.2, Chapter P-10).
+"""Substituted nucleosides on the 7 retained names (P-105.2, P-102.5, P-106.3.1).
 
-P-105.2.1: ring substituents (unprimed locants; 'N2'/'O6' on exocyclic atoms),
-'thio'/'seleno'/'telluro' replacement, and ribofuranosyl modifications as in
-P-102.5 (primed locants): deoxy, deoxy-halo/amino, O-/S-substitution, C-substitution
-(P-102.5.6.3, CIP descriptors where required), ring-O thio, O-acyl esters as 'ate'
-words (P-102.5.6.1.1), cyclic carbonates (P-101.7.4, P-105.2.2).
-P-105.2.2: a principal group senior to the pseudoketone moves the base into a
-substituent group or parent ring named by `_ring_group_name`.
-Templates are locant-numbered and matched stereo-aware; each sugar X atom may be
-absent (deoxy), O/S/N/halogen, or carbon (single or ylidene bond).
+Base and sugar substitution, O-acyl/sulfate esters, O,O-bridging acetals and cyclic
+esters, cationic bases ('-ium'); a group senior to the pseudoketone turns the base
+into a substituent group or parent ring (P-105.2.2). Templates are stereo-aware.
 """
 
 import itertools
@@ -79,26 +73,47 @@ _EXOCYCLIC = {102: "2", 104: "4", 106: "6"}
 _BASE_RING = frozenset(range(1, 10))
 _CHALCOGEN = {16: "thio", 34: "seleno", 52: "telluro"}
 _OXO_PREFIX = {8: "oxo", 16: "sulfanylidene", 34: "selanylidene", 52: "tellanylidene"}
-_ANION_ALIASES = {"ethanoate": "acetate"}
+_ANION_ALIASES = {
+    "ethanoate": "acetate",
+    "methanoate": "formate",
+    "ethanedioate": "oxalate",
+}
+_ACID_ALIASES = {"ethanoic": "acetic", "methanoic": "formic"}
 _ALLOWED_Z = {6, 7, 8, 9, 16, 17, 34, 35, 52, 53}
 _SCAFFOLD = Chem.MolFromSmarts("[n]C1CCC[O,S,Se,Te]1")
 _BIS = {2: "bis", 3: "tris", 4: "tetrakis", 5: "pentakis", 6: "hexakis"}
 
 
 class _Entry:
-    __slots__ = ("compound", "hetero", "key", "locant", "name", "position", "prime")
+    __slots__ = (
+        "compound",
+        "hetero",
+        "key",
+        "locant",
+        "name",
+        "position",
+        "prime",
+        "span",
+    )
 
-    def __init__(self, locant, prime, name, compound=False, hetero="", key=None):
+    def __init__(
+        self, locant, prime, name, compound=False, hetero="", key=None, span=None
+    ):
         self.locant = locant
         self.prime = prime
         self.name = name
         self.compound = compound
         self.hetero = hetero
         self.key = key
-        self.position = int(re.search(r"\d+", locant).group())
+        self.span = span
+        digits = re.search(r"\d+", locant)
+        self.position = int(digits.group()) if digits else 0
 
     def text(self, primed=None):
-        return self.locant + ("′" if (self.prime if primed is None else primed) else "")
+        mark = "′" if (self.prime if primed is None else primed) else ""
+        if self.span:
+            return ",".join(f"{p}{mark}" for p in self.span)
+        return self.locant + mark
 
 
 def _strip_maps(mol):
@@ -160,12 +175,12 @@ def _build_queries():
 _QUERIES = _build_queries()
 
 
-def _branch_atoms(graph, root, came_from):
+def _branch_atoms(graph, root, came_from, blocked=frozenset()):
     seen = {root}
     stack = [root]
     while stack:
         for nb in graph[stack.pop()]:
-            if nb != came_from and nb not in seen:
+            if nb != came_from and nb not in seen and nb not in blocked:
                 seen.add(nb)
                 stack.append(nb)
     return seen
@@ -232,6 +247,110 @@ def _cip_data(mol):
     return ranks, atoms, bonds
 
 
+_CYCLIC_BRIDGE = {"carbonate": "carbonyl", "sulfate": "sulfonyl", "sulfite": "sulfinyl"}
+_ALKANE_STEM = re.compile(r"(?:eth|prop|but|pent|hex|hept|oct|non|dec|cos)$")
+
+
+def _ylidene_to_diyl(name):
+    if name == "benzylidene":
+        return "phenylmethylene"
+    if name.endswith("methylidene"):
+        return name[: -len("methylidene")] + "methylene"
+    hydro = re.fullmatch(r"(.+?)(an|en|yn)-(\d+)-ylidene", name)
+    if hydro:
+        stem, kind, locant = hydro.groups()
+        return f"{stem}{kind}e-{locant},{locant}-diyl"
+    stem = name[: -len("ylidene")] if name.endswith("ylidene") else None
+    if stem is not None and (
+        _ALKANE_STEM.search(stem) or re.search(r"cyclo[a-z]+$", stem)
+    ):
+        return f"{stem}ane-1,1-diyl"
+    raise UnsupportedStructure("unsupported acetal group on a nucleoside")
+
+
+def _bridge_diyl(mol, graph, root, oxygens, core, label, bond_cip):
+    """Name the divalent group of an acetal/ketal carbon that bridges two sugar
+    oxygens (P-106.3.1: '2′,3′-O-(propane-2,2-diyl)'); the group is named as the
+    ylidene of the same carbon and re-expressed as 'diyl' (P-29.2, P-29.4)."""
+    keep = {root}
+    for nb in graph[root]:
+        if nb in oxygens:
+            continue
+        branch = _branch_atoms(graph, nb, root)
+        if branch & core or branch & oxygens:
+            raise UnsupportedStructure("acetal group reconnects to the nucleoside")
+        keep |= branch
+    if any(
+        mol.GetAtomWithIdx(i).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED
+        for i in keep - {root}
+    ):
+        raise UnsupportedStructure("stereo substituent on a nucleoside")
+    bond_labels = [
+        bond_cip.get(frozenset((b.GetBeginAtomIdx(), b.GetEndAtomIdx())))
+        for b in mol.GetBonds()
+        if b.GetBeginAtomIdx() in keep
+        and b.GetEndAtomIdx() in keep
+        and b.GetStereo() != Chem.BondStereo.STEREONONE
+    ]
+    if len(bond_labels) > 1 or None in bond_labels:
+        raise UnsupportedStructure("stereo substituent on a nucleoside")
+    rw = Chem.RWMol(mol)
+    rw.GetAtomWithIdx(root).SetAtomMapNum(1)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - keep, reverse=True):
+        rw.RemoveAtom(idx)
+    new_root = next(a.GetIdx() for a in rw.GetAtoms() if a.GetAtomMapNum() == 1)
+    rw.GetAtomWithIdx(new_root).SetAtomMapNum(0)
+    rw.GetAtomWithIdx(new_root).SetNumExplicitHs(0)
+    rw.GetAtomWithIdx(new_root).SetNoImplicit(False)
+    rw.GetAtomWithIdx(new_root).SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
+    partner = rw.AddAtom(Chem.Atom(6))
+    rw.AddBond(new_root, partner, Chem.BondType.DOUBLE)
+    probe = _sanitized(rw.GetMol())
+    if probe is None:
+        raise UnsupportedStructure("unsupported acetal group on a nucleoside")
+    for bond in probe.GetBonds():
+        bond.SetStereo(Chem.BondStereo.STEREONONE)
+    name, _ = name_branch(
+        adjacency(probe),
+        new_root,
+        partner,
+        halogen_substituents(probe),
+        {a.GetIdx() for a in probe.GetAtoms() if a.GetIsAromatic()},
+        probe,
+    )
+    diyl = _ylidene_to_diyl(name)
+    cited = []
+    if label:
+        locant = re.search(r"(\d+),\d+-diyl$", diyl)
+        cited.append((int(locant.group(1)) if locant else 0, label))
+    if bond_labels:
+        locant = re.search(r"-(\d+)-ene-", diyl)
+        if locant is None:
+            raise UnsupportedStructure("stereo substituent on a nucleoside")
+        cited.append((int(locant.group(1)), bond_labels[0]))
+    if cited:
+        text = ",".join(f"{n or ''}{c}" for n, c in sorted(cited))
+        diyl = f"({text})-{diyl}"
+    return diyl, diyl != "methylene"
+
+
+_ACID_OH = Chem.MolFromSmarts("[OX2H1][$([CX3]=O),$([SX4](=O)=O),$([PX4]=O)]")
+_HYDROGEN = {1: "hydrogen ", 2: "dihydrogen ", 3: "trihydrogen "}
+
+
+def _is_sulfur_acyl(mol, root):
+    atom = mol.GetAtomWithIdx(root)
+    if atom.GetAtomicNum() != 16 or atom.GetDegree() != 4:
+        return False
+    oxo = [
+        n
+        for n in atom.GetNeighbors()
+        if n.GetAtomicNum() == 8
+        and mol.GetBondBetweenAtoms(root, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    ]
+    return len(oxo) == 2
+
+
 def _acid_anion(mol, graph, o_idx, acyl_root):
     from .core import _name_mol
 
@@ -241,17 +360,36 @@ def _acid_anion(mol, graph, o_idx, acyl_root):
         for i in atoms
     ):
         raise UnsupportedStructure("stereo acyl group on a nucleoside")
+    sulfur = mol.GetAtomWithIdx(acyl_root)
+    if sulfur.GetAtomicNum() == 16:
+        fourth = [
+            n
+            for n in sulfur.GetNeighbors()
+            if n.GetIdx() != o_idx
+            and mol.GetBondBetweenAtoms(acyl_root, n.GetIdx()).GetBondTypeAsDouble()
+            == 1.0
+        ]
+        if len(fourth) == 1 and fourth[0].GetAtomicNum() == 8:
+            if fourth[0].GetTotalNumHs() != 1:
+                raise UnsupportedStructure("mixed sulfate ester on a nucleoside")
+            return "hydrogen sulfate"
     acid = Chem.MolFromSmiles(Chem.MolFragmentToSmiles(mol, sorted(atoms)))
     name = _name_mol(acid) if acid is not None else ""
     if not name.endswith("ic acid"):
         raise UnsupportedStructure("acyl group is not a nameable carboxylic acid")
-    return _ANION_ALIASES.get(
-        name[: -len("ic acid")] + "ate", name[: -len("ic acid")] + "ate"
-    )
+    anion = name[: -len("ic acid")] + "ate"
+    anion = _ANION_ALIASES.get(anion, anion)
+    free = len(acid.GetSubstructMatches(_ACID_OH)) - 1
+    return f"{_HYDROGEN[free]}{anion}" if free else anion
 
 
 def _is_carboxylic_acyl(mol, root):
     atom = mol.GetAtomWithIdx(root)
+    if atom.GetAtomicNum() == 6 and atom.GetDegree() == 2 and atom.GetTotalNumHs() == 1:
+        return sorted(
+            mol.GetBondBetweenAtoms(root, n.GetIdx()).GetBondTypeAsDouble()
+            for n in atom.GetNeighbors()
+        ) == [1.0, 2.0]
     if atom.GetAtomicNum() != 6 or atom.GetDegree() != 3:
         return False
     bonds = [
@@ -283,7 +421,9 @@ class _Analysis:
         self.entries = []
         self.esters = []
         self.descriptors = []
-        self.carbonate = None
+        self.cyclic = None
+        self.bridges = 0
+        self.cation = None
 
     @property
     def cost(self):
@@ -396,7 +536,43 @@ def _imine_variants(mol):
             yield out, {n: r}
 
 
-def _evaluate(ctx, match, query, parent, order, fixed_absent, plan, ethers, ring_subs):
+def _cation_variants(mol):
+    """Yield (mol2, {ring N idx: R idx}, {ring N idx}) with a cationic ring
+    nitrogen rewritten as the neutral nucleoside nitrogen (P-73.1.1.2, P-73.1.2.1:
+    the cation keeps the neutral parent name plus 'ium')."""
+    centres = [
+        a
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() == 7
+        and a.GetFormalCharge() == 1
+        and a.IsInRing()
+        and a.GetIsAromatic()
+    ]
+    if len(centres) != 1 or sum(a.GetFormalCharge() for a in mol.GetAtoms()) != 1:
+        return
+    atom = centres[0]
+    subs = [
+        n.GetIdx()
+        for n in atom.GetNeighbors()
+        if not mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).IsInRing()
+    ]
+    if len(subs) + atom.GetTotalNumHs() != 1:
+        return
+    rw = Chem.RWMol(mol)
+    target = rw.GetAtomWithIdx(atom.GetIdx())
+    if subs:
+        rw.RemoveBond(atom.GetIdx(), subs[0])
+    target.SetFormalCharge(0)
+    target.SetNumExplicitHs(0)
+    target.SetNoImplicit(False)
+    out = _sanitized(rw.GetMol())
+    if out is not None:
+        yield out, ({atom.GetIdx(): subs[0]} if subs else {}), {atom.GetIdx()}
+
+
+def _evaluate(
+    ctx, match, query, parent, order, fixed_absent, plan, ethers, ring_subs, cations
+):
     mol, graph, graph2, halogens, aromatic, (ranks, atom_cip, bond_cip) = ctx
     by_map = {
         a.GetAtomMapNum(): match[a.GetIdx()]
@@ -410,13 +586,18 @@ def _evaluate(ctx, match, query, parent, order, fixed_absent, plan, ethers, ring
         atom = mol.GetAtomWithIdx(idx)
         if (
             atom.GetAtomicNum() not in _ALLOWED_Z
-            or atom.GetFormalCharge()
+            or (atom.GetFormalCharge() and idx not in cations)
             or atom.GetIsotope()
             or atom.GetNumRadicalElectrons()
         ):
             raise UnsupportedStructure(
                 "charged, isotopic or unsupported atom in a nucleoside"
             )
+    for idx in cations:
+        locant = [m for m, i in by_map.items() if i == idx and m in _BASE_RING]
+        if len(cations) != 1 or not locant:
+            raise UnsupportedStructure("cationic centre outside the nucleoside base")
+        an.cation = str(locant[0])
     extras = lambda idx: [n for n in graph2[idx] if n not in core]
     for query_atom in query.GetAtoms():
         if not query_atom.GetAtomMapNum() and extras(match[query_atom.GetIdx()]):
@@ -428,6 +609,11 @@ def _evaluate(ctx, match, query, parent, order, fixed_absent, plan, ethers, ring
         )
         an.entries.append(_Entry(locant, prime, name, compound, hetero))
 
+    def carries_senior(root, came_from):
+        return bool(
+            _seniors_in(mol, _branch_atoms(graph, root, came_from), root, came_from)
+        )
+
     def descriptor(carbon_idx, c_map):
         label = atom_cip.get(carbon_idx)
         if label:
@@ -438,14 +624,16 @@ def _evaluate(ctx, match, query, parent, order, fixed_absent, plan, ethers, ring
         z = mol.GetAtomWithIdx(idx).GetAtomicNum()
         if map_num in _BASE_RING:
             for nb in extras(idx):
-                add(nb, idx, str(map_num), False)
-            if idx in ring_subs:
+                if not carries_senior(nb, idx):
+                    add(nb, idx, str(map_num), False)
+            if idx in ring_subs and not carries_senior(ring_subs[idx], idx):
                 add(ring_subs[idx], idx, str(map_num), False)
         elif map_num in _EXOCYCLIC:
             position = _EXOCYCLIC[map_num]
             if z == 7:
                 for nb in extras(idx):
-                    add(nb, idx, f"N{position}", False)
+                    if not carries_senior(nb, idx):
+                        add(nb, idx, f"N{position}", False)
             elif extras(idx):
                 raise UnsupportedStructure("substituted oxo group on a nucleoside base")
             elif z in _CHALCOGEN:
@@ -460,6 +648,12 @@ def _evaluate(ctx, match, query, parent, order, fixed_absent, plan, ethers, ring
             descriptor(idx, map_num)
 
     carbonyls = {}
+    spanning = {}
+    sugar_o = {
+        by_map[m]
+        for m in _SUGAR_X
+        if m in by_map and mol.GetAtomWithIdx(by_map[m]).GetAtomicNum() == 8
+    }
     for x_map, (position, c_map) in _SUGAR_X.items():
         c, x, state = by_map[c_map], by_map.get(x_map), plan.get(x_map)
         sigma = extras(c)
@@ -491,9 +685,16 @@ def _evaluate(ctx, match, query, parent, order, fixed_absent, plan, ethers, ring
                 an.entries.append(_Entry(position, True, "thio"))
             for nb in extras(x):
                 if z == 8 and (
-                    _is_carboxylic_acyl(mol, nb) or _is_plain_carbonate_carbon(mol, nb)
+                    _is_carboxylic_acyl(mol, nb)
+                    or _is_plain_carbonate_carbon(mol, nb)
+                    or (
+                        _is_sulfur_acyl(mol, nb)
+                        and not any(n in sugar_o and n != x for n in graph[nb])
+                    )
                 ):
                     carbonyls.setdefault(nb, []).append((position, x))
+                elif z == 8 and any(n in sugar_o and n != x for n in graph[nb]):
+                    spanning.setdefault(nb, []).append((position, x))
                 else:
                     add(nb, x, position, True, "O" if z == 8 else "S", core | {x})
             for nb in sigma:
@@ -517,7 +718,7 @@ def _evaluate(ctx, match, query, parent, order, fixed_absent, plan, ethers, ring
                 raise UnsupportedStructure(
                     "unsupported carbonate ester on a nucleoside"
                 )
-            an.carbonate = sorted(int(p) for p, _ in users)
+            an.cyclic = ("carbonate", sorted(int(p) for p, _ in users))
             an.entries.extend(_Entry(p, True, "deoxy") for p, _ in users)
         elif len(users) == 1:
             position, x = users[0]
@@ -526,9 +727,55 @@ def _evaluate(ctx, match, query, parent, order, fixed_absent, plan, ethers, ring
             raise UnsupportedStructure(
                 "acyl bridge between two nucleoside hydroxy groups"
             )
-    if an.carbonate and an.esters:
-        raise UnsupportedStructure("carbonate together with esters on a nucleoside")
+    for root, users in spanning.items():
+        if len(users) != 2:
+            raise UnsupportedStructure("unsupported bridge between sugar oxygens")
+        positions = sorted(int(p) for p, _ in users)
+        oxygens = {x for _, x in users}
+        atom = mol.GetAtomWithIdx(root)
+        if atom.GetAtomicNum() == 16:
+            oxo = sum(
+                1
+                for n in atom.GetNeighbors()
+                if n.GetIdx() not in oxygens
+                and n.GetAtomicNum() == 8
+                and n.GetDegree() == 1
+            )
+            if atom.GetDegree() != 2 + oxo or oxo not in (1, 2):
+                raise UnsupportedStructure("unsupported bridge between sugar oxygens")
+            if an.cyclic:
+                raise UnsupportedStructure("more than one ring ester on a nucleoside")
+            an.cyclic = ("sulfate" if oxo == 2 else "sulfite", positions)
+            an.entries.extend(_Entry(str(p), True, "deoxy") for p in positions)
+        elif atom.GetAtomicNum() == 6 and atom.GetTotalDegree() == 4:
+            if an.bridges:
+                raise UnsupportedStructure(
+                    "more than one acetal bridge on a nucleoside"
+                )
+            an.bridges = 1
+            name, compound = _bridge_diyl(
+                mol, graph, root, oxygens, core, atom_cip.get(root), bond_cip
+            )
+            an.entries.append(
+                _Entry(
+                    str(positions[0]),
+                    True,
+                    name,
+                    compound,
+                    "O",
+                    span=tuple(str(p) for p in positions),
+                )
+            )
+        else:
+            raise UnsupportedStructure("unsupported bridge between sugar oxygens")
+    if an.cyclic and an.esters:
+        raise UnsupportedStructure("ring ester together with esters on a nucleoside")
     return an
+
+
+def _alpha_key_text(name):
+    plain = re.sub(r"[αβ]-d-", "", name.lower())
+    return re.sub(r"[^a-z]", "", re.sub(r"^[\d,′\-]+", "", plain))
 
 
 def _alpha_key(entry):
@@ -537,7 +784,7 @@ def _alpha_key(entry):
     return re.sub(r"[^a-z]", "", re.sub(r"^[\d,′\-]+", "", entry.name.lower()))
 
 
-def _group_text(entries, primed=None):
+def _group_parts(entries, primed=None):
     groups = {}
     for entry in entries:
         groups.setdefault(
@@ -559,7 +806,11 @@ def _group_text(entries, primed=None):
                 f"{locants}-{multiplier}{joiner}{label}{wrap_marks(name) if compound else name}",
             )
         )
-    return [text for _, text in sorted(parts)]
+    return sorted(parts)
+
+
+def _group_text(entries, primed=None):
+    return [text for _, text in _group_parts(entries, primed)]
 
 
 def _ester_words(esters):
@@ -573,7 +824,7 @@ def _ester_words(esters):
         multiplier = (
             (_BIS[count] if compound else numerical_term(count)) if count > 1 else ""
         )
-        shown = wrap_marks(anion) if compound and count > 1 else anion
+        shown = wrap_marks(anion) if compound else anion
         words.append(
             f"{','.join(f'{p}′' for p in sorted(by_anion[anion]))}-{multiplier}{shown}"
         )
@@ -585,10 +836,11 @@ def _plain_name(an):
     name = (
         (f"({labels})-" if labels else "")
         + "-".join(_group_text(an.entries))
-        + an.parent
+        + (f"{an.parent[:-1]}-{an.cation}-ium" if an.cation else an.parent)
     )
-    if an.carbonate:
-        name += f"-{an.carbonate[0]}′,{an.carbonate[1]}′-diyl carbonate"
+    if an.cyclic:
+        word, (first, second) = an.cyclic
+        name += f"-{first}′,{second}′-diyl {word}"
     if an.esters:
         name += " " + _ester_words(an.esters)
     return name
@@ -603,12 +855,16 @@ _RING_STEM = {
 _SWAP = {1: 3, 3: 1, 4: 6, 6: 4}
 _SUFFIXES = {
     "acid": "carboxylic acid",
+    "sulfonic acid": "sulfonic acid",
+    "anhydride": "carboxylic",
     "ester": "carboxylate",
+    "acyl halide": "carbonyl",
     "amide": "carboxamide",
     "nitrile": "carbonitrile",
     "aldehyde": "carbaldehyde",
 }
 _SENIORITY = tuple(_SUFFIXES)
+_HALIDE_WORDS = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 
 
 def _has_perfect_matching(nodes, bonds):
@@ -622,7 +878,15 @@ def _has_perfect_matching(nodes, bonds):
     )
 
 
-def _ring_group_name(kind, prefix_entries, saturated, free_valence=None, suffix=None):
+def _ring_group_name(
+    kind,
+    prefix_entries,
+    saturated,
+    free_valence=None,
+    suffix=None,
+    extra=(),
+    cation=None,
+):
     """Name the purine/pyrimidine base as a substituent group ('...-5-yl') or,
     with `suffix=(positions, class)`, as the parent ring of a senior group.
     Numbering follows P-31.1.4: indicated hydrogen, free valence/suffix, hydro,
@@ -647,21 +911,22 @@ def _ring_group_name(kind, prefix_entries, saturated, free_valence=None, suffix=
             continue
         entries = [(remap(p), e) for p, e in prefix_entries]
         marker = sorted(remap(p) for p in (suffix[0] if suffix else [free_valence]))
+        centre = remap(int(cation)) if cation else None
         first = min(entries, key=lambda pe: _alpha_key(pe[1]))[0] if entries else 0
         key = (
             indicated or 0,
-            tuple(marker),
+            tuple(sorted(marker + ([centre] if centre else []))),
             tuple(hydro),
             tuple(sorted(p for p, _ in entries)),
             first,
         )
         if best is None or key < best[0]:
-            best = (key, entries, indicated, hydro, marker)
+            best = (key, entries, indicated, hydro, marker, centre)
     if best is None:
         raise UnsupportedStructure(
             "no consistent hydro/indicated-hydrogen numbering for the base"
         )
-    _, entries, indicated, hydro, marker = best
+    _, entries, indicated, hydro, marker, centre = best
     grouped = {}
     for p, e in entries:
         grouped.setdefault((e.name, e.compound, _alpha_key(e)), []).append(p)
@@ -684,11 +949,21 @@ def _ring_group_name(kind, prefix_entries, saturated, free_valence=None, suffix=
     )
     if indicated:
         core += ("-" if hydro else "") + f"{indicated}H-"
+    parts.extend(extra)
     text = "".join(f"{t}-" for _, t in sorted(parts)) + core
     locants = ",".join(map(str, marker))
     if suffix:
         multiplier = numerical_term(len(marker)) if len(marker) > 1 else ""
-        return f"{text}{stem}e-{locants}-{multiplier}{_SUFFIXES[suffix[1]]}"
+        word = _SUFFIXES[suffix[1]]
+        if suffix[1] == "acyl halide":
+            if len(marker) > 1:
+                raise UnsupportedStructure("several acyl halide groups on a base")
+            word = f"carbonyl {suffix[2]}"
+        if centre:
+            return f"{text}{stem}-{centre}-ium-{locants}-{multiplier}{word}"
+        return f"{text}{stem}e-{locants}-{multiplier}{word}"
+    if centre:
+        return f"{text}{stem}-{centre}-ium-{locants}-yl"
     return f"{text}{stem}-{locants}-yl"
 
 
@@ -701,11 +976,28 @@ def _glycosyl_group(an, name_acyl):
         if deoxy_2 or deoxy_3
         else "β-D-ribofuranosyl"
     )
-    if an.carbonate or an.descriptors:
+    if an.descriptors:
         raise UnsupportedStructure(
             "unsupported sugar modification on a substituent nucleoside group"
         )
-    entries = [e for e in an.entries if e.prime]
+    bridged = set(an.cyclic[1]) if an.cyclic else set()
+    entries = [
+        e
+        for e in an.entries
+        if e.prime and not (e.name == "deoxy" and e.position in bridged)
+    ]
+    if an.cyclic:
+        first, second = an.cyclic[1]
+        entries.append(
+            _Entry(
+                str(first),
+                True,
+                _CYCLIC_BRIDGE[an.cyclic[0]],
+                False,
+                "O",
+                span=(str(first), str(second)),
+            )
+        )
     for position, _, root, x in an.esters:
         name, compound = name_acyl(root, x)
         entries.append(_Entry(str(position), True, name, compound, "O"))
@@ -719,6 +1011,7 @@ def _glycosyl_group(an, name_acyl):
 
 _SENIOR_SMARTS = (
     ("acid", Chem.MolFromSmarts("[CX3](=O)[OX2H1]")),
+    ("anhydride", Chem.MolFromSmarts("[CX3](=O)[OX2][CX3]=O")),
     ("ester", Chem.MolFromSmarts("[CX3](=O)[OX2][#6]")),
     ("amide", Chem.MolFromSmarts("[CX3](=O)[NX3]")),
     ("nitrile", Chem.MolFromSmarts("[CX2]#[NX1]")),
@@ -732,22 +1025,32 @@ def _seniors_in(mol, atoms, root, came_from):
     """Senior groups whose carbon lies in `atoms`; an acyl group directly on
     an exocyclic N/O (N-acyl) stays an N-/O-substituent."""
     found = []
+    anhydride_carbons = set()
+    root_atom = mol.GetAtomWithIdx(root)
     for kind, pattern in _SENIOR_SMARTS:
         for match in mol.GetSubstructMatches(pattern):
-            carbon = mol.GetAtomWithIdx(match[0])
-            if match[0] not in atoms or carbon.IsInRing():
-                continue
-            root_atom = mol.GetAtomWithIdx(root)
-            if (
-                match[0] == root
-                and mol.GetAtomWithIdx(came_from).GetAtomicNum() in (7, 8)
-            ) or (
-                root_atom.GetAtomicNum() in (7, 8)
-                and any(n.GetIdx() == match[0] for n in root_atom.GetNeighbors())
-            ):
-                continue
-            found.append((kind, match[0]))
-    return found
+            heads = (match[0], match[3]) if kind == "anhydride" else (match[0],)
+            for head in heads:
+                if head not in atoms or mol.GetAtomWithIdx(head).IsInRing():
+                    continue
+                if (
+                    head == root
+                    and mol.GetAtomWithIdx(came_from).GetAtomicNum() in (7, 8)
+                ) or (
+                    root_atom.GetAtomicNum() in (7, 8)
+                    and any(n.GetIdx() == head for n in root_atom.GetNeighbors())
+                ):
+                    continue
+                if kind == "anhydride":
+                    anhydride_carbons.add(head)
+                elif kind in ("acid", "ester") and head in anhydride_carbons:
+                    continue
+                found.append((kind, head))
+    return [
+        (k, c)
+        for k, c in found
+        if k not in ("acid", "ester") or c not in anhydride_carbons
+    ]
 
 
 _AMIDE_N = Chem.MolFromSmarts("[CX3;!R](=O)[NX3;H1;!R]([#6])")
@@ -807,9 +1110,12 @@ def _senior_name(mol, graph, halogens, aromatic, an):
     core = ring_atoms | sugar_atoms
     for idx in sugar_atoms:
         for nb in graph[idx]:
-            if nb not in core and _seniors_in(
-                mol, _branch_atoms(graph, nb, idx), nb, idx
+            if nb in core or (
+                mol.GetAtomWithIdx(idx).GetAtomicNum() == 8
+                and (_is_carboxylic_acyl(mol, nb) or _is_sulfur_acyl(mol, nb))
             ):
+                continue
+            if _seniors_in(mol, _branch_atoms(graph, nb, idx, core), nb, idx):
                 raise UnsupportedStructure("senior group on a sugar substituent")
     branches = []
     for pos, idx in ring.items():
@@ -829,7 +1135,8 @@ def _senior_name(mol, graph, halogens, aromatic, an):
     saturated = {
         p
         for p, idx in ring.items()
-        if (
+        if str(p) != an.cation
+        and (
             mol.GetAtomWithIdx(idx).GetAtomicNum() == 7
             and mol.GetAtomWithIdx(idx).GetDegree()
             + mol.GetAtomWithIdx(idx).GetTotalNumHs()
@@ -867,45 +1174,71 @@ def _senior_name(mol, graph, halogens, aromatic, an):
     )
     prefixes.append((sugar_n, _Entry(str(sugar_n), False, glycosyl, compound, key=key)))
     if all(any(k == top and c == nb for k, c in found) for _, nb, _, found in tops):
-        alcohol = None
-        for pos, nb, _, _ in tops:
-            if top == "ester":
-                o = next(
-                    n
-                    for n in graph[nb]
-                    if mol.GetAtomWithIdx(n).GetAtomicNum() == 8
-                    and mol.GetBondBetweenAtoms(nb, n).GetBondTypeAsDouble() == 1.0
-                )
-                r = next(n for n in graph[o] if n != nb)
-                found_alcohol, _ = _name_substituent(
-                    mol, graph, halogens, aromatic, core | {nb, o}, r, o
-                )
-                if alcohol not in (None, found_alcohol):
-                    raise UnsupportedStructure("different ester groups on one base")
-                alcohol = found_alcohol
-            if top == "amide" and any(
-                mol.GetAtomWithIdx(n).GetAtomicNum() == 7
-                and mol.GetAtomWithIdx(n).GetDegree() != 1
-                for n in graph[nb]
-            ):
-                raise UnsupportedStructure(
-                    "substituted carboxamide on a nucleoside base"
-                )
-        name = _ring_group_name(
-            kind, prefixes, saturated, suffix=([p for p, *_ in tops], top)
+        return _ring_senior_name(
+            mol,
+            graph,
+            halogens,
+            aromatic,
+            core,
+            kind,
+            prefixes,
+            saturated,
+            tops,
+            top,
+            an.cation,
         )
-        return f"{alcohol} {name}" if alcohol else name
     if len(tops) != 1:
         raise UnsupportedStructure(
             "senior groups in more than one place on a nucleoside base"
         )
     pos, nb, atoms, _ = tops[0]
-    group = _ring_group_name(kind, prefixes, saturated, free_valence=pos)
+    group = _ring_group_name(
+        kind, prefixes, saturated, free_valence=pos, cation=an.cation
+    )
+    hetero = mol.GetAtomWithIdx(nb)
+    prefix, attach, removed = wrap_marks(group), nb, set()
+    if hetero.GetAtomicNum() in (7, 8) and hetero.GetDegree() >= 2:
+        arms = [n for n in graph[nb] if n != ring[pos]]
+        chain = [
+            n
+            for n in arms
+            if n in atoms and _seniors_in(mol, _branch_atoms(graph, n, nb), n, nb)
+        ]
+        if len(chain) != 1 or len(arms) != hetero.GetDegree() - 1:
+            raise UnsupportedStructure("unsupported amine linking a base to a chain")
+        others = [n for n in arms if n != chain[0]]
+        if hetero.GetAtomicNum() == 8 and others:
+            raise UnsupportedStructure("unsupported link between a base and a chain")
+        if hetero.GetAtomicNum() == 7 and hetero.GetTotalNumHs() + len(others) != 1:
+            raise UnsupportedStructure("unsupported amine linking a base to a chain")
+        attach, removed = chain[0], {nb}
+        if others:
+            sub_name, sub_compound = _name_substituent(
+                mol, graph, halogens, aromatic, core | {nb}, others[0], nb
+            )
+            cited = sorted(
+                [
+                    (
+                        _alpha_key_text(sub_name),
+                        wrap_marks(sub_name) if sub_compound else sub_name,
+                    ),
+                    (_alpha_key_text(group), wrap_marks(group)),
+                ]
+            )
+            inner = "".join(text for _, text in cited) + "amino"
+        else:
+            inner = (
+                f"{wrap_marks(group)}{'amino' if hetero.GetAtomicNum() == 7 else 'oxy'}"
+            )
+        prefix = wrap_marks(inner)
+        removed |= set(others) | {
+            i for o in others for i in _branch_atoms(graph, o, nb)
+        }
     rw = Chem.RWMol(mol)
     placeholder = rw.AddAtom(Chem.Atom(53))
-    rw.AddBond(nb, placeholder, Chem.BondType.SINGLE)
-    rw.GetAtomWithIdx(placeholder).SetProp("_named_prefix", wrap_marks(group))
-    for idx in sorted(set(range(mol.GetNumAtoms())) - atoms, reverse=True):
+    rw.AddBond(attach, placeholder, Chem.BondType.SINGLE)
+    rw.GetAtomWithIdx(placeholder).SetProp("_named_prefix", prefix)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - (atoms - removed), reverse=True):
         rw.RemoveAtom(idx)
     out = rw.GetMol()
     Chem.SanitizeMol(out)
@@ -916,6 +1249,79 @@ def _senior_name(mol, graph, halogens, aromatic, an):
         if name is None:
             raise
         return name
+
+
+def _acyl_oxygen_partner(mol, graph, nb):
+    o = next(
+        n
+        for n in graph[nb]
+        if mol.GetAtomWithIdx(n).GetAtomicNum() == 8
+        and mol.GetBondBetweenAtoms(nb, n).GetBondTypeAsDouble() == 1.0
+    )
+    return o, next(n for n in graph[o] if n != nb)
+
+
+def _ring_senior_name(
+    mol, graph, halogens, aromatic, core, kind, prefixes, saturated, tops, top, cation
+):
+    from .core import _name_mol
+
+    alcohol, extra, suffix_extra = None, [], ()
+    for pos, nb, _, _ in tops:
+        if top == "ester":
+            o, r = _acyl_oxygen_partner(mol, graph, nb)
+            found_alcohol, _ = _name_substituent(
+                mol, graph, halogens, aromatic, core | {nb, o}, r, o
+            )
+            if alcohol not in (None, found_alcohol):
+                raise UnsupportedStructure("different ester groups on one base")
+            alcohol = found_alcohol
+        elif top == "amide":
+            n = next(i for i in graph[nb] if mol.GetAtomWithIdx(i).GetAtomicNum() == 7)
+            subs = [i for i in graph[n] if i != nb]
+            if subs and len(tops) > 1:
+                raise UnsupportedStructure("substituted carboxamides on a base")
+            entries = []
+            for r in subs:
+                name, compound = _name_substituent(
+                    mol, graph, halogens, aromatic, core | {nb, n}, r, n
+                )
+                entries.append(_Entry("N", False, name, compound))
+            extra.extend(_group_parts(entries, primed=False))
+        elif top == "acyl halide":
+            halide = next(
+                n
+                for n in graph[nb]
+                if mol.GetAtomWithIdx(n).GetAtomicNum() in _HALIDE_WORDS
+            )
+            suffix_extra = (_HALIDE_WORDS[mol.GetAtomWithIdx(halide).GetAtomicNum()],)
+    suffix = ([p for p, *_ in tops], top, *suffix_extra)
+    name = _ring_group_name(
+        kind, prefixes, saturated, suffix=suffix, extra=extra, cation=cation
+    )
+    if top == "anhydride":
+        if len(tops) != 1:
+            raise UnsupportedStructure("several anhydride groups on a base")
+        _, nb, _, _ = tops[0]
+        o, other = _acyl_oxygen_partner(mol, graph, nb)
+        branch = _branch_atoms(graph, other, o)
+        if branch & core or nb in branch:
+            raise UnsupportedStructure("anhydride reconnects to the nucleoside")
+        acid = Chem.MolFromSmiles(Chem.MolFragmentToSmiles(mol, sorted(branch | {o})))
+        other_name = _name_mol(acid) if acid is not None else ""
+        if not other_name.endswith("ic acid"):
+            raise UnsupportedStructure("anhydride partner is not a carboxylic acid")
+        words = sorted(
+            [
+                name,
+                _ACID_ALIASES.get(
+                    other_name[: -len(" acid")], other_name[: -len(" acid")]
+                ),
+            ],
+            key=lambda t: re.sub(r"[^a-z]", "", re.sub(r"^[\d,′\-]+", "", t.lower())),
+        )
+        return " ".join(words) + " anhydride"
+    return f"{alcohol} {name}" if alcohol else name
 
 
 _CACHE = {}
@@ -938,11 +1344,16 @@ def _compute(mol):
     aromatic = {a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic()}
     cip = _cip_data(mol)
     best = None
-    variants = [(mol, {}, {})]
-    variants += [(m2, e, {}) for m2, e in _lactim_ethers(mol)] + [
-        (m2, {}, r) for m2, r in _imine_variants(mol)
-    ]
-    for mol2, ethers, ring_subs in variants:
+    stages = [(mol, {}, frozenset())]
+    stages += [(m2, r, frozenset(c)) for m2, r, c in _cation_variants(mol)]
+    variants = []
+    for staged, subs, cations in stages:
+        variants.append((staged, {}, subs, cations))
+        variants += [(m2, e, subs, cations) for m2, e in _lactim_ethers(staged)]
+        variants += [
+            (m2, {}, {**subs, **r}, cations) for m2, r in _imine_variants(staged)
+        ]
+    for mol2, ethers, ring_subs, cations in variants:
         ctx = (mol, graph, adjacency(mol2), halogens, aromatic, cip)
         for order, parent, fixed_absent, plan, query in _QUERIES:
             for match in mol2.GetSubstructMatches(
@@ -959,6 +1370,7 @@ def _compute(mol):
                         plan,
                         ethers,
                         ring_subs,
+                        cations,
                     )
                     if best is not None and (an.cost, order) > best[0]:
                         continue
