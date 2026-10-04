@@ -131,9 +131,9 @@ def test_substituted_paracyclophane_bromo():
     assert smiles_to_iupac("Brc1cc2ccc1CCc1ccc(cc1)CC2") == "12-bromo-1,4(1,4)-dibenzenacyclohexaphane"
 
 
-def test_substituted_paracyclophane_hydroxy():
-    # 4-hydroxy[2.2]paracyclophane, PubChem CID 13842062-family.
-    assert smiles_to_iupac("Oc1cc2ccc1CCc1ccc(cc1)CC2") == "12-hydroxy-1,4(1,4)-dibenzenacyclohexaphane"
+def test_phane_with_principal_group_is_not_named_with_prefix():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Oc1cc2ccc1CCc1ccc(cc1)CC2")
 
 
 def test_two_substituents_on_one_ring_is_named():
