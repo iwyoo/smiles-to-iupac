@@ -198,6 +198,8 @@ def _hetero_ring_alignments(mol, graph, ring, parent_name):
     assembly's junction-locant rule, not a per-ring choice."""
     ring_order = ring_cycle(graph, list(ring))
     role_sequence = _ROLE_SEQUENCES[parent_name]
+    if len(role_sequence) != len(ring_order):
+        return
     elements = {atom: mol.GetAtomWithIdx(atom).GetSymbol() for atom in ring}
     for candidate in _ring_alignments(ring_order):
         position_of = {atom: position for position, atom in enumerate(candidate, start=1)}
