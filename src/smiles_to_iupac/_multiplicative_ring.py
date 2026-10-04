@@ -58,7 +58,7 @@ class RingSpec:
     def parent(self):
         if self.kind == "benzene":
             return "benzene"
-        if self.kind == "cycloalkane":
+        if self.kind in ("cycloalkane", "cycloalkene"):
             return "cyclo" + alkane_name(len(self.cycle))
         return _HETERO_PARENTS[self.kind]
 

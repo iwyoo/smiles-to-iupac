@@ -9,6 +9,7 @@ from ._common import UnsupportedStructure
 from ._multiplicative import _bare_key
 from ._multiplicative_ring import _SUFFIX_WORDS
 from ._common import multiplied_word
+from ._multiplicative_text import PrimedLocant
 from ._ring_diyl_numbering import system_numberings
 from ._substituents import format_substituent_prefixes, name_branch
 
@@ -59,8 +60,6 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
         return None
     if not all(any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms) for _, atoms in systems):
         return None
-    if stereo:
-        raise UnsupportedStructure("stereodescriptors in a ring assembly are not supported yet")
     from ._polyfunctional import _require_mancude_system
 
     for _, atoms in systems:
@@ -134,4 +133,4 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
         spots_text = ",".join(_cite(locants[o[1]]) for o in sorted(occurrences, key=lambda o: _order(locants[o[1]])))
         core = f"{ih_text}[{base(word[0] in 'aeiouy')}]-{spots_text}-{word}"
     name = f"{prefix}-{core}" if prefix else core
-    return count, ((-count,), name, (None, None, None, 0, locants, True))
+    return count, ((-count,), name, (None, None, None, 0, {a: PrimedLocant(*loc) for a, loc in locants.items()}, True))

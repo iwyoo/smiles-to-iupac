@@ -50,11 +50,9 @@ def test_two_rings_plus_extra_ring_still_out_of_scope():
     assert smiles_to_iupac("c1ccc2ccccc2c1") == "naphthalene"
 
 
-def test_branched_three_ring_assembly_raises():
-    # 1,3,5-triphenylbenzene -- three rings all attached to a central ring,
-    # not an unbranched chain (P-28.6, out of scope).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc(-c2cc(-c3ccccc3)cc(-c4ccccc4)c2)cc1")
+def test_branched_three_ring_assembly_is_named_on_its_longest_chain():
+    # P-28.6: 1,3,5-triphenylbenzene.
+    assert smiles_to_iupac("c1ccc(-c2cc(-c3ccccc3)cc(-c4ccccc4)c2)cc1") == "25-phenyl-11,21:23,31-terphenyl"
 
 
 def test_seven_ring_chain_raises():

@@ -12,6 +12,15 @@ from ._numerals import alkane_name
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes
 
 _SINGLE_ATOM_WORDS = {8: "oxy", 16: "sulfanediyl", 34: "selanediyl", 52: "tellanediyl", 7: "azanediyl"}
+_SUBSTITUTABLE_WORDS = {
+    7: ("azanediyl", "nitrilo"),
+    5: ("boranediyl", "boranetriyl"),
+    14: ("silanediyl", "silanetriyl"),
+    15: ("phosphanediyl", "phosphanetriyl"),
+    32: ("germanediyl", "germanetriyl"),
+    33: ("arsanediyl", "arsanetriyl"),
+}
+_CHAIN_STEMS = {14: "silane"}
 _HOMO_RUN_WORDS = {(8, 2): "peroxy", (16, 2): "disulfanediyl", (34, 2): "diselanediyl", (52, 2): "ditellanediyl"}
 
 
@@ -37,6 +46,12 @@ def _pendants(mol, atoms, attachment_pairs):
     return result
 
 
+def _entry(mol, owner, root, ctx):
+    if ctx.entry is not None:
+        return ctx.entry(mol, owner, root, ctx)
+    return _substituent_entry(mol, owner, root, ctx)
+
+
 def _substituent_entry(mol, owner, root, ctx):
     atom = mol.GetAtomWithIdx(root)
     bond = mol.GetBondBetweenAtoms(owner, root)
@@ -56,25 +71,52 @@ def _primary(mol, group):
     return len(hetero) == 1 and mol.GetAtomWithIdx(hetero[0]).GetTotalNumHs() == 2
 
 
+def _hydride_chain_part(mol, atoms, attachments, pend, ctx, stem):
+    ends = [a for a, _, _ in attachments]
+    walk, seen = [ends[0]], {ends[0]}
+    while len(walk) < len(atoms):
+        nxt = [n.GetIdx() for n in mol.GetAtomWithIdx(walk[-1]).GetNeighbors() if n.GetIdx() in atoms and n.GetIdx() not in seen]
+        if len(nxt) != 1:
+            raise UnsupportedStructure("a branched heteroatom chain is not supported as a multiplicative linker")
+        walk.append(nxt[0])
+        seen.add(nxt[0])
+    best = None
+    for order in (walk, walk[::-1]):
+        position = {a: i + 1 for i, a in enumerate(order)}
+        cited = sorted((position[a], *_entry(mol, a, root, ctx)) for a, root in pend)
+        key = (tuple(p for p, _, _ in cited), tuple(n for _, n, _ in cited))
+        if best is None or key < best[0]:
+            best = (key, cited)
+    grouped = {}
+    for p, name, compound in best[1]:
+        grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(p)
+    prefix = format_substituent_prefixes(grouped) if grouped else ""
+    n = len(atoms)
+    body = f"{multiplied_word(n, stem)}-1,{n}-diyl"
+    return Part(prefix + body, bool(prefix), True)
+
+
 def _hetero_part(mol, atoms, attachments, ctx):
     pairs = {(a, b) for a, b, _ in attachments}
     pend = _pendants(mol, atoms, pairs)
     z = mol.GetAtomWithIdx(atoms[0]).GetAtomicNum()
-    if len(atoms) == 2:
-        word = _HOMO_RUN_WORDS.get((z, 2))
-        if word is None or pend or len(attachments) != 2:
+    if len(atoms) >= 2:
+        if z in _CHAIN_STEMS and len(attachments) == 2 and all(mol.GetAtomWithIdx(a).GetAtomicNum() == z for a in atoms):
+            return _hydride_chain_part(mol, atoms, attachments, pend, ctx, _CHAIN_STEMS[z])
+        word = _HOMO_RUN_WORDS.get((z, len(atoms)))
+        if len(atoms) != 2 or word is None or pend or len(attachments) != 2:
             raise UnsupportedStructure("this heteroatom chain is not supported as a multiplicative linker")
         return Part(word, False, False)
     count = len(attachments)
-    if z == 7:
+    if z in _SUBSTITUTABLE_WORDS:
+        divalent, trivalent = _SUBSTITUTABLE_WORDS[z]
         if count == 3 and not pend:
-            return Part("nitrilo", False, False)
+            return Part(trivalent, False, False)
         if count != 2:
-            raise UnsupportedStructure("this nitrogen linker is not supported")
-        entries = [_substituent_entry(mol, atoms[0], root, ctx) for _, root in pend]
-        word = _SINGLE_ATOM_WORDS[7]
+            raise UnsupportedStructure("this heteroatom linker is not supported")
+        entries = [_entry(mol, atoms[0], root, ctx) for _, root in pend]
         prefix = format_mononuclear_prefixes(entries) if entries else ""
-        return Part(prefix + word, bool(entries), False)
+        return Part(prefix + divalent, bool(entries), False)
     if count != 2:
         raise UnsupportedStructure("this heteroatom linker is not supported")
     oxo = [r for _, r in pend if mol.GetAtomWithIdx(r).GetAtomicNum() == 8 and mol.GetAtomWithIdx(r).GetDegree() == 1]
@@ -177,7 +219,7 @@ def _carbon_part(mol, atoms, attachments, directed, ctx):
                     if idx in on_chain or (a, idx) in pairs:
                         continue
                     if (a, idx) not in ctx.entry_cache:
-                        ctx.entry_cache[(a, idx)] = _substituent_entry(mol, a, idx, ctx)
+                        ctx.entry_cache[(a, idx)] = _entry(mol, a, idx, ctx)
                     name, compound = ctx.entry_cache[(a, idx)]
                     entries.append((position[a], name, compound))
             key = (

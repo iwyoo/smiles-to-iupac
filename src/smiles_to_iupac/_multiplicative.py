@@ -18,6 +18,7 @@ from ._multiplicative_ring import bare_polycyclic_unit, name_monocyclic_unit, pr
 from ._multiplicative_text import enclose, multiplier_word, primed_locants
 
 _MAX_GROUP = 8
+_SENIOR_HYDRIDE_ATOMS = {5, 14, 15, 32, 33}
 
 
 @dataclass
@@ -28,6 +29,7 @@ class _Context:
     stereo: list
     used: set
     entry_cache: dict
+    entry: object = None
 
 
 @dataclass
@@ -318,6 +320,8 @@ def _attempt(mol, groups, selected, tree, core, name_function):
 
     unit_atoms = set().union(*(u.atoms for u in selected))
     principal = principal_rank_of(groups, unit_atoms)
+    if principal is None and any(a.GetAtomicNum() in _SENIOR_HYDRIDE_ATOMS for a in mol.GetAtoms()):
+        return None
     principal_group = None
     if principal is not None:
         principal_group = next(g.name for g in groups if g.anchor in unit_atoms and g.rank == principal)

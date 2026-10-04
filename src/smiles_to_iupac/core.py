@@ -135,6 +135,7 @@ from ._diester_acyloxy import has_diester_shape, has_polyester_of_one_polyol_sha
 from ._ester import has_ester_shape, name_ester
 from ._ester_by_parts import name_ester_by_parts
 from ._heteroacyclic import name_heteroacyclic
+from ._chain_multiplicative import has_chain_multiplicative_shape
 from ._polyfunctional import name_polyfunctional
 from ._cyanate import has_cyanate_shape, name_cyanate
 from ._ether import has_ether_shape, name_ether
@@ -427,6 +428,11 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
             name = name_heteroacyclic(parsed)
             if name is not None:
                 return name
+            if has_chain_multiplicative_shape(parsed):
+                try:
+                    return name_polyfunctional(parsed)
+                except UnsupportedStructure:
+                    pass
             if _has_aromatic_oxo(parsed):
                 try:
                     return name_polyfunctional(parsed)

@@ -625,7 +625,7 @@ def test_saturated_tricyclic_fused_systems(smiles, expected):
     "smiles,expected",
     [
         ("OCCSSCCO", "2,2'-disulfanediyldi(ethan-1-ol)"),
-        ("OCCOOCCO", "2,2'-dioxydi(ethan-1-ol)"),
+        ("OCCOOCCO", "2,2'-peroxydi(ethan-1-ol)"),
         ("OC(=O)C(N)CSSCC(N)C(=O)O", "3,3'-disulfanediylbis(2-aminopropanoic acid)"),
         ("OC(=O)[C@@H](N)CSSC[C@H](N)C(=O)O", "(2R,2'R)-3,3'-disulfanediylbis(2-aminopropanoic acid)"),
         ("C[C@H](O)COC[C@@H](C)O", "(2R,2'S)-1,1'-oxydi(propan-2-ol)"),
