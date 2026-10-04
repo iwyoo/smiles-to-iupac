@@ -2,6 +2,7 @@
 concatenated linker (P-15.3.1.2, P-15.3.2, P-29.4.2, P-29.5.2): 2,2'-[ethane-1,2-diylbis(oxy)]di(ethan-1-ol),
 2,2'-[oxybis(ethane-2,1-diyloxy)]diacetic acid, 3,3'-(methylazanediyl)dipropanoic acid."""
 
+import re
 from itertools import combinations
 
 from rdkit import Chem
@@ -16,6 +17,7 @@ from ._substituents import name_branch
 _LINKER_ELEMENTS = {5, 7, 8, 14, 15, 16, 32, 33, 34, 52}
 _RUN_ELEMENTS = {8, 16, 34, 52, 14}
 _MAX_UNITS = 6
+_SUBSTITUTED_PREFIX = re.compile(r"(?:carboxy|hydroxy|amino|chloro|bromo|fluoro|iodo|cyano|oxo|nitro|sulfanyl|methoxy|ethoxy)[a-z]+")
 _SKELETAL_UNITS = 4
 
 
@@ -64,12 +66,14 @@ def _principal_atoms(mol):
     if principal is None:
         return None
     atoms = set(groups.get(principal, {}))
+    heads = set(atoms)
     for owned in groups.get(principal, {}).values():
         atoms |= owned
     for cls, _, owned in ring_groups:
         if cls == principal:
             atoms |= set(owned)
-    return principal, atoms
+            heads.add(min(owned))
+    return principal, atoms, heads
 
 
 def _ring_system_of(mol, atom):
@@ -227,14 +231,17 @@ def _make_context(mol, graph):
     aromatic = frozenset()
 
     def entry(_mol, owner, root, _ctx):
-        return name_branch(graph, root, owner, halogens, aromatic, mol=mol, unsaturated=True)
+        name, compound = name_branch(graph, root, owner, halogens, aromatic, mol=mol, unsaturated=True)
+        if (compound or _SUBSTITUTED_PREFIX.search(name)) and not any(ch.isdigit() for ch in name):
+            return f"({name})", False
+        return name, compound
 
     return _Context([], None, None, [], set(), {}, entry)
 
 
-def _linker_text(count, central, arm_parts):
+def _linker_text(count, central, arm_parts, led=True):
     if not arm_parts:
-        return enclose(central.text) if (central.has_prefix or central.has_locants) else central.text
+        return enclose(central.text) if (central.has_prefix or central.has_locants) and led else central.text
     central_text = enclose(central.text) if central.has_prefix else central.text
     pieces = [enclose(p.text) if p.has_prefix and len(arm_parts) > 1 else p.text for p in arm_parts]
     arm_text = "".join(pieces)
@@ -244,7 +251,7 @@ def _linker_text(count, central, arm_parts):
     return enclose(central_text + multiplier_word(count, use_bis=not simple) + arm_enclosed)
 
 
-def _attempt(mol, graph, stereo, arms):
+def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
     from ._polyfunctional import _arm_atoms, _select, _stereo_arms, _unit_molecule
 
     count = len(arms)
@@ -324,6 +331,22 @@ def _attempt(mol, graph, stereo, arms):
         return None
     parts_atoms = [a for _, _, a in arms]
     units = [_unit_molecule(mol, atoms_, root) for atoms_, root in zip(parts_atoms, roots)]
+    if unit_kind != "chain":
+        if stereo:
+            return None
+        text = _unit_name_by_pipeline(units[0][0], unit_kind)
+        if text is None:
+            return None
+        lead = ""
+        if unit_kind == "amide":
+            lead = ",".join("N" + "'" * i for i in range(count)) + "-"
+        elif _MULTIPLIED_HYDRIDE.match(text):
+            lead = ",".join("1" + "'" * i for i in range(count)) + "-"
+        linker = _linker_text(branches, central, arm_parts, bool(lead) or unit_kind != "hydride")
+        if unit_kind == "hydride" or text.startswith(("N-", "di", "tri", "tetra")) or any(ch.isdigit() or ch == "-" for ch in text):
+            return f"{lead}{linker}{multiplier_word(count, True)}({text})"
+        return f"{lead}{linker}{multiplier_word(count, False)}{text}"
+    linker = _linker_text(branches, central, arm_parts)
     stereo_text = ""
     if stereo:
         parts, stereo_text = _stereo_arms(mol, stereo, parts_atoms, units)
@@ -335,7 +358,6 @@ def _attempt(mol, graph, stereo, arms):
             return None
     prefix, body, tail, locant = parts[:4]
     lead = ",".join(str(locant) + "'" * i for i in range(count)) + "-" if locant is not None else ""
-    linker = _linker_text(branches, central, arm_parts)
     text = prefix + body
     if prefix:
         if tail.startswith(" "):
@@ -344,28 +366,30 @@ def _attempt(mol, graph, stereo, arms):
     return f"{stereo_text}{lead}{linker}{multiplier_word(count, False)}{unit_phrase(text, tail)}"
 
 
-def chain_multiplicative_name(mol, stereo):
-    if len(Chem.GetMolFrags(mol)) != 1:
+_HYDRIDE_ENDINGS = ("phosphane", "arsane", "silane", "germane", "stannane", "plumbane")
+_HYDRIDE_ORDER = (15, 33, 14, 32, 50, 82)
+_MULTIPLIED_HYDRIDE = re.compile(r"^(?:di|tri|tetra|penta|hexa|hepta|octa)(?:phosphane|arsane|silane|germane|stannane|plumbane)$")
+
+
+def _unit_name_by_pipeline(unit, unit_kind):
+    from .core import smiles_to_iupac
+
+    editable = Chem.RWMol(unit)
+    for atom in editable.GetAtoms():
+        if atom.GetAtomMapNum() and atom.GetNoImplicit():
+            atom.SetNumExplicitHs(atom.GetNumExplicitHs() + 1)
+        atom.SetAtomMapNum(0)
+    Chem.SanitizeMol(editable)
+    try:
+        name = smiles_to_iupac(Chem.MolToSmiles(editable))
+    except UnsupportedStructure:
         return None
-    graph = adjacency(mol)
-    found = _principal_atoms(mol)
-    if found is None:
-        return None
-    principal, anchors = found
-    linkers = {
-        a.GetIdx()
-        for a in mol.GetAtoms()
-        if _is_linker_atom(mol, a) and not (principal == "amine" and a.GetAtomicNum() == 7)
-    }
-    candidates = {}
-    for r in range(mol.GetNumAtoms()):
-        if mol.GetAtomWithIdx(r).GetAtomicNum() != 6 or mol.GetAtomWithIdx(r).IsInRing():
-            continue
-        for h in graph[r]:
-            if h in linkers or (mol.GetAtomWithIdx(h).IsInRing() and mol.GetBondBetweenAtoms(r, h).GetBondTypeAsDouble() == 1.0):
-                atoms = _arm(graph, r, h)
-                if h not in atoms:
-                    candidates.setdefault(_key(mol, atoms, r), []).append((r, h, atoms))
+    if unit_kind == "amide":
+        return name if name.endswith("amide") else None
+    return name if name.endswith(_HYDRIDE_ENDINGS) else None
+
+
+def _rank_candidates(candidates, anchors, heads=None, mol=None):
     ranked = []
     for key, arms in candidates.items():
         if len(arms) < 2:
@@ -374,12 +398,107 @@ def chain_multiplicative_name(mol, stereo):
             for subset in combinations(arms, size):
                 if any(a[2] & b[2] for a, b in combinations(subset, 2)):
                     continue
-                if not anchors <= set().union(*(a[2] for a in subset)) or any(not anchors & a[2] for a in subset):
-                    continue
+                if anchors is not None:
+                    covered = set().union(*(a[2] for a in subset))
+                    if any(not anchors & a[2] for a in subset):
+                        continue
+                    if not anchors <= covered and not _beats_substitutive(mol, heads, covered):
+                        continue
                 ranked.append((-size, key, list(subset)))
     ranked.sort(key=lambda item: item[:2])
-    for _, _, arms in ranked:
+    return [arms for _, _, arms in ranked]
+
+
+def _beats_substitutive(mol, heads, covered):
+    from ._polyfunctional import _select
+
+    if mol is None or heads is None:
+        return False
+    try:
+        key, _, _ = _select(mol)
+    except UnsupportedStructure:
+        return True
+    return isinstance(key[0], int) and len(heads & covered) > -key[0]
+
+
+def _bare_chain(graph, root, senior_atoms, arm_atoms):
+    if arm_atoms != senior_atoms:
+        return False
+    end = [a for a in senior_atoms if sum(n in senior_atoms for n in graph[a]) <= 1]
+    return root in end and all(sum(n in senior_atoms for n in graph[a]) <= 2 for a in senior_atoms)
+
+
+def _hydride_candidates(mol, graph):
+    if any(a.GetAtomicNum() == 7 for a in mol.GetAtoms()):
+        return {}
+    present = {a.GetAtomicNum() for a in mol.GetAtoms() if a.GetAtomicNum() in _HYDRIDE_ORDER}
+    element = next((z for z in _HYDRIDE_ORDER if z in present), None)
+    if element is None:
+        return {}
+    senior = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == element}
+    candidates = {}
+    for r in senior:
+        atom = mol.GetAtomWithIdx(r)
+        if atom.IsInRing() or atom.GetFormalCharge():
+            continue
+        for h in graph[r]:
+            if h in senior or mol.GetAtomWithIdx(h).GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(r, h).GetBondTypeAsDouble() != 1.0:
+                continue
+            atoms = _arm(graph, r, h)
+            inside = senior & atoms
+            if h in atoms or (inside != {r} and not _bare_chain(graph, r, inside, atoms)):
+                continue
+            candidates.setdefault(_key(mol, atoms, r), []).append((r, h, atoms))
+    return candidates
+
+
+def chain_multiplicative_name(mol, stereo):
+    if len(Chem.GetMolFrags(mol)) != 1:
+        return None
+    graph = adjacency(mol)
+    found = _principal_atoms(mol)
+    if found is None:
+        hydrides = _hydride_candidates(mol, graph)
+        if not hydrides:
+            return None
+        candidates = hydrides
+        for arms in _rank_candidates(candidates, None):
+            name = _attempt(mol, graph, stereo, arms, "hydride")
+            if name is not None:
+                return name
+        return None
+    principal, anchors, heads = found
+    linkers = {
+        a.GetIdx()
+        for a in mol.GetAtoms()
+        if _is_linker_atom(mol, a) and not (principal == "amine" and a.GetAtomicNum() == 7)
+    }
+    candidates, nitrogen = {}, {}
+    for r in range(mol.GetNumAtoms()):
+        atom = mol.GetAtomWithIdx(r)
+        if atom.IsInRing():
+            continue
+        for h in graph[r]:
+            bond = mol.GetBondBetweenAtoms(r, h)
+            if atom.GetAtomicNum() == 6:
+                ok = h in linkers or (mol.GetAtomWithIdx(h).IsInRing() and bond.GetBondTypeAsDouble() == 1.0)
+                target = candidates
+            elif atom.GetAtomicNum() == 7 and principal in ("amide", "sulfonamide") and r in anchors:
+                other = mol.GetAtomWithIdx(h)
+                ok = bond.GetBondTypeAsDouble() == 1.0 and other.GetAtomicNum() == 6 and not is_functional_carbon(mol, h)
+                target = nitrogen
+            else:
+                continue
+            if ok:
+                atoms = _arm(graph, r, h)
+                if h not in atoms:
+                    target.setdefault(_key(mol, atoms, r), []).append((r, h, atoms))
+    for arms in _rank_candidates(candidates, anchors, heads, mol):
         name = _attempt(mol, graph, stereo, arms)
+        if name is not None:
+            return name
+    for arms in _rank_candidates(nitrogen, anchors, heads, mol):
+        name = _attempt(mol, graph, stereo, arms, "amide")
         if name is not None:
             return name
     return None

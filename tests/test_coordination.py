@@ -188,7 +188,7 @@ def test_naphthyl_ligands(smiles, expected):
         ("CP(C)CP(C)C", "methylenebis(dimethylphosphane)"),
         ("CP(C)CCP(C)C", "ethane-1,2-diylbis(dimethylphosphane)"),
         ("c1ccccc1P(c1ccccc1)CCP(c1ccccc1)c1ccccc1", "ethane-1,2-diylbis(diphenylphosphane)"),
-        ("CP(C)c1ccccc1P(C)C", "benzene-1,2-diylbis(dimethylphosphane)"),
+        ("CP(C)c1ccccc1P(C)C", "1,2-phenylenebis(dimethylphosphane)"),
         ("CP(C)CCP(CC)CC", "[2-(dimethylphosphanyl)ethyl]di(ethyl)phosphane"),
         ("Cl[Pd]1(Cl)P(C)(C)CCP1(C)C", "dichlorido[ethane-1,2-diylbis(dimethylphosphane)-κ2P,P']palladium"),
         (
