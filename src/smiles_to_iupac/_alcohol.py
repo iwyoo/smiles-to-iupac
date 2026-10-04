@@ -198,6 +198,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 from rdkit import Chem
 
 from ._common import (
+    stereo_locant_rank,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
@@ -533,6 +534,7 @@ def _best_acyclic_alcohol_candidate(
             ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, hydroxyls, mol=mol)
             key, name = _candidate_key(chain_length, oh_locants, ene_locants, yne_locants, substituents)
+            key = (key, stereo_locant_rank(mol, stereo, position_of))
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of
 

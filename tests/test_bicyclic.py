@@ -19,9 +19,8 @@ from smiles_to_iupac import smiles_to_iupac
         # (bridges 4, 4, 0) is decahydronaphthalene, not a von Baeyer
         # name at all -- see test_dihydro_aromatic.py's own coverage,
         # routed ahead of this module in core.py.
-        # bicyclo[3.3.0]octane: two fused five-membered rings sharing a bond
-        # -> bridges 3, 3, 0.
-        ("C12CCCC1CCC2", "bicyclo[3.3.0]octane"),
+        # two fused five-membered rings are named by fusion nomenclature (P-31.1.4.2.4).
+        ("C12CCCC1CCC2", "octahydropentalene"),
         # methyl on the ring atom next to a bridgehead, in one of the two
         # 2-atom bridges of norbornane (P-23.2.3: numbering starts at the
         # bridgehead adjacent to it and proceeds along that bridge) -> C2.

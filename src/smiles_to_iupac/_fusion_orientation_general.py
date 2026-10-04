@@ -72,9 +72,10 @@ def assign_bond_directions_general(adj, edge_index_of, ring_sizes, n):
                 )
             visited.add(neighbor)
             this_edge = edge_index_of[(current, neighbor)]
-            direction[frozenset((current, neighbor))] = (
-                direction[frozenset((current, parent))] + _relative_turn(ref_edge, this_edge, n_current)
-            ) % 1
+            toward_current = direction[frozenset((current, parent))]
+            if current == root:
+                toward_current += HALF_TURN
+            direction[frozenset((current, neighbor))] = (toward_current + _relative_turn(ref_edge, this_edge, n_current)) % 1
             processed_ref[neighbor] = current
             queue.append(neighbor)
 

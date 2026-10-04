@@ -98,6 +98,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 from rdkit import Chem
 
 from ._common import (
+    stereo_locant_rank,
     ENE_BOND_ORDER,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -393,8 +394,9 @@ def _best_acyclic_carboxylic_acid_candidate(
             ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, carboxyl_oxygens, mol=mol)
             key, name = _candidate_key(chain_length, acid_count, ene_locants, yne_locants, substituents)
+            position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
+            key = (key, stereo_locant_rank(mol, stereo, position_of))
             if best_key is None or key < best_key:
-                position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
                 best_key, best_name, best_position_of = key, name, position_of
 
     return best_name, best_position_of

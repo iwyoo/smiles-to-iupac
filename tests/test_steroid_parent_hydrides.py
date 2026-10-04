@@ -1,4 +1,7 @@
+import pytest
+
 from smiles_to_iupac import smiles_to_iupac
+from smiles_to_iupac._common import UnsupportedStructure
 
 
 def test_all_seven_parent_hydrides():
@@ -74,21 +77,11 @@ def test_c24_epimer_skeletons_resolve_to_retained_name_without_collision():
     )
 
 
-def test_non_natural_stereo_specified_parent_hydrides_still_fall_through_to_von_baeyer():
-    # A partially-specified stereo input that doesn't match either the
-    # stereo-free entries or any natural-configuration entry above still
-    # falls through to the general von Baeyer engine, since it produces a
-    # different canonical SMILES from every lookup entry. (This function
-    # used to also assert this for a second, differently-partially-
-    # specified androstane SMILES -- that one turned out to actually BE
-    # androstane's own fully-C5-specified natural form once fetched fresh
-    # from its dedicated "5alpha-androstane" CID, see
-    # test_fully_c5_specified_parent_hydrides_resolve_to_retained_name;
-    # the assertion was simply wrong, not a regression.)
-    assert (
+def test_non_natural_stereo_specified_parent_hydrides_are_not_named_without_their_stereo():
+    # A partially-specified stereo input matches no retained entry; a von Baeyer name would drop the
+    # specified center, so the structure is rejected instead.
+    with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C1CCC2[C@H](C1)CCC3C2CCC4C3CCC4")
-        == "tetracyclo[8.7.0.0^2,7.0^11,15]heptadecane"
-    )
 
 
 def test_extra_methyl_beyond_each_parent_hydride_falls_through_to_von_baeyer():

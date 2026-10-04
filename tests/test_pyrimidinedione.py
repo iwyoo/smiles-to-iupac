@@ -23,15 +23,11 @@ def test_6_methyl_regiochemistry_gets_locant_6_not_5():
 
 
 def test_pyrimidinone_single_oxo_unaffected():
-    assert smiles_to_iupac("O=c1nccc[nH]1") == "1H-pyrimidin-2-one"
+    assert smiles_to_iupac("O=c1nccc[nH]1") == "pyrimidin-2(1H)-one"
 
 
-def test_barbituric_acid_raises():
-    # The fully saturated triketo case (no remaining ring double bond)
-    # needs the '1,3-diazinane-2,4,6-trione' saturated-ring construction,
-    # out of scope here.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CC(=O)NC(=O)N1")
+def test_barbituric_acid_names_as_saturated_trione():
+    assert smiles_to_iupac("O=C1CC(=O)NC(=O)N1") == "1,3-diazinane-2,4,6-trione"
 
 
 def test_non_1_3_diazine_dione_not_matched():

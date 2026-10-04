@@ -1581,3 +1581,17 @@ def specified_stereo_elements(mol):
                 "P-92/P-93)"
             )
     return labels
+
+
+def stereo_locant_rank(mol, stereo, position_of):
+    if not stereo:
+        return ((), ())
+    labels = []
+    for item in stereo:
+        kind, idx, code = item if len(item) == 3 else ("atom", *item)
+        if kind == "atom":
+            labels.append((position_of.get(idx, 0), code))
+        else:
+            bond = mol.GetBondWithIdx(idx)
+            labels.append((min(position_of.get(bond.GetBeginAtomIdx(), 0), position_of.get(bond.GetEndAtomIdx(), 0)), code))
+    return tuple(tuple(sorted(loc for loc, code in labels if code == wanted)) for wanted in ("Z", "R"))
