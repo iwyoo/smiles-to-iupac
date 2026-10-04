@@ -31,6 +31,7 @@ class _Context:
     used: set
     entry_cache: dict
     entry: object = None
+    soft: bool = False
 
 
 @dataclass
@@ -65,7 +66,11 @@ def _ring_systems(mol):
 
 def _fragment_key(mol, atoms, marked):
     rw = Chem.RWMol(mol)
-    rw.GetAtomWithIdx(marked).SetAtomMapNum(1)
+    atom = rw.GetAtomWithIdx(marked)
+    atom.SetAtomMapNum(1)
+    atom.SetNoImplicit(True)
+    atom.SetNumExplicitHs(0)
+    rw.UpdatePropertyCache(strict=False)
     return Chem.MolFragmentToSmiles(rw, atomsToUse=sorted(atoms), canonical=True)
 
 
@@ -159,7 +164,10 @@ def _leaf_units(mol, systems, node_of, core):
         if junction is None:
             continue
         bond = mol.GetBondBetweenAtoms(junction, linker_atom)
-        if bond.GetBondTypeAsDouble() != 1:
+        order = bond.GetBondTypeAsDouble()
+        if order == 2 and mol.GetAtomWithIdx(junction).GetIsAromatic():
+            continue
+        if order not in (1, 2):
             continue
         atoms = set(ring_atoms)
         stack = list(ring_atoms)
@@ -269,7 +277,7 @@ def _find_center(mol, components, selected):
             if sum(1 for j in junctions if j in branch) != 1:
                 ok = False
                 break
-            keys.add((order, _fragment_key(mol, branch, y)))
+            keys.add((0 if y in junctions else order, _fragment_key(mol, branch, y)))
         if ok and len(keys) == 1 and len(cedges) >= 2:
             valid.append(cid)
     if not valid:
@@ -328,7 +336,8 @@ def _attempt(mol, groups, selected, tree, core, name_function):
         principal_group = next(g.name for g in groups if g.anchor in unit_atoms and g.rank == principal)
         if principal_group not in SUFFIX_CARRIERS and principal_group != "ketone":
             return None
-    ctx = _Context(groups, principal_group, name_function, specified_stereo_elements(mol) or [], set(), {})
+    soft = any(mol.GetBondBetweenAtoms(u.junction, u.linker_atom).GetBondTypeAsDouble() != 1 for u in selected)
+    ctx = _Context(groups, principal_group, name_function, specified_stereo_elements(mol) or [], set(), {}, soft=soft)
     stereo = ctx.stereo
 
     unit = _unit_text(mol, selected[0], groups, name_function)
@@ -353,6 +362,10 @@ def _attempt(mol, groups, selected, tree, core, name_function):
             )
     except DecompositionRejected:
         return None
+    except UnsupportedStructure:
+        if soft:
+            return None
+        raise
 
     represented = set(atoms)
     for cid, _, _ in arm_chain:

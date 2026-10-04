@@ -175,8 +175,14 @@ def _chain_descriptors(mol, ctx, position):
     return result
 
 
+_VALENCE_SUFFIXES = {1: "yl", 2: "ylidene", 3: "ylidyne"}
+
+
 def _carbon_part(mol, atoms, attachments, directed, ctx):
     pairs = {(a, b) for a, b, _ in attachments}
+    mixed = any(order != 1 for _, _, order in attachments)
+    if mixed and directed is not None:
+        raise DecompositionRejected("a multiple-bond attachment cannot be part of an arm")
     if len(atoms) == 1 and len(attachments) == 2:
         pend = _pendants(mol, atoms, pairs)
         if len(pend) == 1:
@@ -213,6 +219,11 @@ def _carbon_part(mol, atoms, attachments, directed, ctx):
                     ene.append(i + 1)
                 elif order == 3:
                     yne.append(i + 1)
+            if mixed:
+                free_key = tuple(sorted(position[a] for a in free_atoms))
+                cite_key = tuple(position[a] for a, _, o in sorted(attachments, key=lambda t: (t[2], position[t[0]])))
+            else:
+                cite_key = ()
             entries = []
             on_chain = set(direction)
             for a in direction:
@@ -228,6 +239,7 @@ def _carbon_part(mol, atoms, attachments, directed, ctx):
                 -len(direction),
                 -multiple,
                 free_key,
+                cite_key,
                 tuple(sorted(ene + yne)),
                 tuple(sorted(p for p, _, _ in entries)),
                 tuple(p for p, _ in sorted(((p, n) for p, n, _ in entries), key=lambda e: (alpha_sort_key(e[1]), e[0]))),
@@ -246,6 +258,28 @@ def _carbon_part(mol, atoms, attachments, directed, ctx):
     else:
         cited = sorted(position[a] for a in free_atoms)
     count = len(cited)
+    if mixed:
+        if ene or yne or length == 1:
+            raise DecompositionRejected("an unsaturated chain with mixed free valences is not supported")
+        by_order = {}
+        for a, _, order in attachments:
+            by_order.setdefault(order, []).append(position[a])
+        words = [
+            (",".join(str(x) for x in sorted(locs)), multiplied_word(len(locs), _VALENCE_SUFFIXES[order]))
+            for order, locs in sorted(by_order.items())
+            if order in _VALENCE_SUFFIXES
+        ]
+        if len(words) != len(by_order):
+            raise DecompositionRejected("unsupported free valence order")
+        stem = alkane_name(length)
+        if words[0][1][0] in "aeiouy":
+            stem = stem[:-1]
+        grouped = {}
+        for p, name, compound in entries:
+            grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(p)
+        prefix = format_substituent_prefixes(grouped) if grouped else ""
+        body = "-".join(f"{loc}-{word}" for loc, word in words)
+        return Part(prefix + f"{stem}-{body}", bool(prefix), True)
     grouped = {}
     for p, name, compound in entries:
         info = grouped.setdefault(name, {"locants": [], "compound": compound})
@@ -278,14 +312,16 @@ def name_component(mol, kind, atoms, attachments, ctx, directed=None):
     """`attachments`: [(atom_in_component, external_atom, bond_order)];
     `directed`: (unit_side_atom, center_side_atom) for an arm component."""
     if kind == "ring":
+        if any(order != 1 for _, _, order in attachments):
+            raise UnsupportedStructure("a multiple bond to the multiplied units is not supported yet")
         ring_attachments = [(a, b) for a, b, _ in attachments]
         result = name_ring_component(mol, atoms, ring_attachments, ctx.groups, ctx.suffix_group, ctx.name_function, directed)
         if result is None:
             raise UnsupportedStructure("this ring is not supported as a multiplicative linker component")
         text, has_prefix = result
         return Part(text, has_prefix, True)
-    if any(order != 1 for _, _, order in attachments):
-        raise UnsupportedStructure("a multiple bond to the multiplied units is not supported yet")
     if kind == "carbon":
         return _carbon_part(mol, list(atoms), attachments, directed, ctx)
+    if any(order != 1 for _, _, order in attachments):
+        raise UnsupportedStructure("a multiple bond to the multiplied units is not supported yet")
     return _hetero_part(mol, list(atoms), attachments, ctx, directed)
