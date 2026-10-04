@@ -68,6 +68,7 @@ from ._common import (
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
+from ._retained_acids import retained_chain_acid
 from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
 
 _ENE_ORDER = 2.0
@@ -171,6 +172,9 @@ def _validate_and_collect_acyl_halides(mol, aromatic_ring_atoms=frozenset()):
 
 
 def _name_from_substituents(chain_length, ene_locants, yne_locants, halide_word, grouped):
+    retained = retained_chain_acid(grouped, chain_length, ene_locants, yne_locants, 1, "acyl")
+    if retained is not None:
+        return retained + " " + halide_word
     prefix = format_substituent_prefixes(grouped)
     return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "oyl") + " " + halide_word
 

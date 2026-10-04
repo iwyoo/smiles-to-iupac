@@ -210,7 +210,7 @@ def test_non_halogen_heteroatom():
             "[SiH3][SiH]([SiH3])[SiH2][SiH2]c1ccc(C(=O)O)cc1",
             "4-(3-silyltetrasilan-1-yl)benzoic acid",
         ),
-        ("OC(=O)Cc1cccc([SiH2]O[SiH3])n1", "2-(6-disiloxanylpyridin-2-yl)ethanoic acid"),
+        ("OC(=O)Cc1cccc([SiH2]O[SiH3])n1", "(6-disiloxanylpyridin-2-yl)acetic acid"),
     ],
 )
 def test_heteroatom_hydride_groups(smiles, expected):
@@ -351,7 +351,7 @@ def test_selanyl_and_tellanyl_prefixes(smiles, expected):
     "smiles, expected",
     [
         ("COCCOCCOCCOCCCc1ccc(C(=O)O)cc1", "4-(2,5,8,11-tetraoxatetradecan-14-yl)benzoic acid"),
-        ("OC(=O)CC1CCCCCOCCCCC1C", "2-(6-methyl-1-oxacyclododecan-7-yl)ethanoic acid"),
+        ("OC(=O)CC1CCCCCOCCCCC1C", "(6-methyl-1-oxacyclododecan-7-yl)acetic acid"),
     ],
 )
 def test_skeletal_replacement_groups(smiles, expected):

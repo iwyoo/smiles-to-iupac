@@ -47,7 +47,12 @@ def swap_suffix(name):
         match = pattern.search(name)
         if match:
             return name[: match.start()] + replace(match)
-    raise UnsupportedStructure("this anionic group has no anion suffix form yet")
+    from ._acid_derivatives import anion_name
+
+    try:
+        return anion_name(name)
+    except UnsupportedStructure:
+        raise UnsupportedStructure("this anionic group has no anion suffix form yet") from None
 
 
 def _is_nitro_oxygen(atom):
@@ -208,7 +213,7 @@ def _name_anion_unchecked(mol):
         name = _name_substitutive(mol)
     except UnsupportedStructure as caught:
         name, error = None, caught
-    if name is None or "idyl" in name:
+    if name is None or "idyl" in name or not _ANION_TOKEN.search(name):
         multiplicative = _multiplicative_anion(mol)
         if multiplicative is not None:
             return multiplicative

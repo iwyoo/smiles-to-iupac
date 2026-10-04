@@ -206,11 +206,11 @@ def test_nucleoside_cyclic_ester(smiles, expected):
         ),
         (
             "O=C(O)CNc1ncnc2c1ncn2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O",
-            "2-[(9-β-D-ribofuranosyl-9H-purin-6-yl)amino]ethanoic acid",
+            "[(9-β-D-ribofuranosyl-9H-purin-6-yl)amino]acetic acid",
         ),
         (
             "COC(=O)CNc1ncnc2c1ncn2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O",
-            "methyl 2-[(9-β-D-ribofuranosyl-9H-purin-6-yl)amino]ethanoate",
+            "methyl [(9-β-D-ribofuranosyl-9H-purin-6-yl)amino]acetate",
         ),
         (
             "NC(=O)CNc1ncnc2c1ncn2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O",
@@ -230,11 +230,11 @@ def test_nucleoside_cyclic_ester(smiles, expected):
         ),
         (
             "O=C(Cl)CNc1ncnc2c1ncn2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O",
-            "2-[(9-β-D-ribofuranosyl-9H-purin-6-yl)amino]ethanoyl chloride",
+            "[(9-β-D-ribofuranosyl-9H-purin-6-yl)amino]acetyl chloride",
         ),
         (
             "O=C(O)CNc1ccn([C@@H]2O[C@H](CO)[C@@H](O)[C@H]2O)c(=O)n1",
-            "2-[(2-oxo-1-β-D-ribofuranosyl-1,2-dihydropyrimidin-4-yl)amino]ethanoic acid",
+            "[(2-oxo-1-β-D-ribofuranosyl-1,2-dihydropyrimidin-4-yl)amino]acetic acid",
         ),
         (
             "O=C(O)CCNc1ccn([C@@H]2O[C@H](CO)[C@@H](O)[C@H]2O)c(=O)n1",
@@ -242,19 +242,19 @@ def test_nucleoside_cyclic_ester(smiles, expected):
         ),
         (
             "O=C(O)CNc1nc(=O)c2ncn([C@@H]3O[C@H](CO)[C@@H](O)[C@H]3O)c2[nH]1",
-            "2-[(6-oxo-9-β-D-ribofuranosyl-6,9-dihydro-3H-purin-2-yl)amino]ethanoic acid",
+            "[(6-oxo-9-β-D-ribofuranosyl-6,9-dihydro-3H-purin-2-yl)amino]acetic acid",
         ),
         (
             "Nc1nc(OCC(=O)O)c2ncn([C@@H]3O[C@H](CO)[C@@H](O)[C@H]3O)c2n1",
-            "2-[(2-amino-9-β-D-ribofuranosyl-9H-purin-6-yl)oxy]ethanoic acid",
+            "[(2-amino-9-β-D-ribofuranosyl-9H-purin-6-yl)oxy]acetic acid",
         ),
         (
             "CN(CC(=O)O)c1ncnc2c1ncn2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O",
-            "2-[methyl(9-β-D-ribofuranosyl-9H-purin-6-yl)amino]ethanoic acid",
+            "[methyl(9-β-D-ribofuranosyl-9H-purin-6-yl)amino]acetic acid",
         ),
         (
             "OC(=O)CNc1ncnc2c1nc(Br)n2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O",
-            "2-[(8-bromo-9-β-D-ribofuranosyl-9H-purin-6-yl)amino]ethanoic acid",
+            "[(8-bromo-9-β-D-ribofuranosyl-9H-purin-6-yl)amino]acetic acid",
         ),
     ],
 )
@@ -279,7 +279,7 @@ def test_nucleoside_base_senior_group(smiles, expected):
         ),
         (
             "Cc1ccc(S(=O)(=O)OC[C@H]2O[C@@H](n3cnc4c(N)ncnc43)[C@H](O)[C@@H]2O)cc1",
-            "adenosine 5′-(4-methylbenzenesulfonate)",
+            "adenosine 5′-(4-methylbenzene-1-sulfonate)",
         ),
         (
             "CS(=O)(=O)OC[C@H]1O[C@@H](n2ccc(=O)[nH]c2=O)[C@H](O)[C@@H]1O",
@@ -338,7 +338,7 @@ def test_nucleoside_sugar_ester(smiles, expected):
         ),
         (
             "Nc1nc2c(c(=O)[nH]1)[n+](CC(=O)O)cn2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O",
-            "2-(2-amino-6-oxo-9-β-D-ribofuranosyl-6,9-dihydro-1H-purin-7-ium-7-yl)ethanoic acid",
+            "(2-amino-6-oxo-9-β-D-ribofuranosyl-6,9-dihydro-1H-purin-7-ium-7-yl)acetic acid",
         ),
         (
             "CC[n+]1cn([C@@H]2O[C@H](COC(C)=O)[C@@H](O)[C@H]2O)c2nc(N)[nH]c(=O)c21",

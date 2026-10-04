@@ -24,7 +24,8 @@ from ._common import (
     substituent_locant_set_and_citation,
 )
 from ._anion import ANION_PROP, anion_weight
-from ._hetero_prefixes import MONONUCLEAR_HYDRIDES, is_functional_carbon
+from ._functional_prefixes import is_nitro_nitrogen
+from ._hetero_prefixes import EXTENDED_PREFIXES, MONONUCLEAR_HYDRIDES, is_functional_carbon
 from ._multiplicative import _bare_key
 from ._multiplicative_text import PrimedLocant, enclose, unit_phrase
 from ._multiplicative_ring import (
@@ -43,6 +44,9 @@ from ._multiplicative_ring import (
 )
 from ._fusion_numbering_general import _HETERO_RANK
 from ._ring_diyl_numbering import _exocyclic_oxo, is_hydro_fusion_system
+from ._acid_groups import acid_group_at
+from ._acid_lexicon import carbo_suffix, chain_suffix, make_spec, rank_key, spec_from_key
+from ._retained_acids import retained_chain_acid
 from ._substituents import format_substituent_prefixes, name_branch
 
 _SENIORITY = [
@@ -50,6 +54,61 @@ _SENIORITY = [
     "thiol", "amine", "imine",
 ]
 _TERMINAL = {"acid", "thioic", "peroxoic", "imidic", "amide", "nitrile", "aldehyde"}
+_PLAIN_ACID = make_spec("C", ["O"], ["O"])
+_PLAIN_SULFONIC = make_spec("S", ["O", "O"], ["O"])
+
+
+def _is_variant(name):
+    return bool(name) and name.startswith("acid:")
+
+
+def _acid_rank(name):
+    spec = {"acid": _PLAIN_ACID, "sulfonic": _PLAIN_SULFONIC}.get(name) or spec_from_key(name)
+    return rank_key(spec)
+
+
+def _principal_class(classes):
+    if "ide" in classes:
+        return "ide"
+    acids = [c for c in classes if c in ("acid", "sulfonic") or _is_variant(c)]
+    if acids:
+        return min(acids, key=_acid_rank)
+    return next((name for name in _SENIORITY if name in classes), None)
+
+
+def _anionic_group_atom(mol, atom):
+    """An -O(-) or -S(-) atom that is the anionic end of an acid group (P-72.2.2.2.1)."""
+    if atom.GetFormalCharge() != -1 or atom.GetAtomicNum() not in (8, 16, 34, 52):
+        return False
+    for n in atom.GetNeighbors():
+        for start in (n, *n.GetNeighbors()):
+            group = acid_group_at(mol, start.GetIdx())
+            if group is not None and group.spec.anion and atom.GetIdx() in group.owned:
+                return True
+    return False
+
+
+def _is_acid_family(name):
+    return name in ("acid", "sulfonic") or _is_variant(name)
+
+
+def _junior_end_group(mol, idx):
+    """A carbon of an acid derivative (ester, amide, anhydride, thioester ...) at
+    the end of a chain: it joins the chain and is cited as 'oxo' with the
+    prefix of its other attachment (P-65.1.6.1, P-65.5.4, P-65.6.3.2.3)."""
+    atom = mol.GetAtomWithIdx(idx)
+    if atom.IsInRing() or not is_functional_carbon(mol, idx):
+        return False
+    group = acid_group_at(mol, idx)
+    if group is not None and group.spec.plain:
+        return False
+    if not any(b.GetBondTypeAsDouble() == 2.0 for b in atom.GetBonds()):
+        return False
+    return sum(1 for n in atom.GetNeighbors() if n.GetAtomicNum() == 6) == 1
+
+
+def _is_terminal(name):
+    return name in _TERMINAL or (_is_variant(name) and spec_from_key(name).center == "C")
 _MAX_ATOMS = 80
 IDE_EXTRA = contextvars.ContextVar("ide_extra", default={})
 
@@ -109,6 +168,10 @@ def _sulfonyl_group(mol, s_idx, attached):
     """("sulfonic" | "sulfonamide", owned atoms) for an S(=O)(=O)X group whose
     X is OH or an amine nitrogen and whose other neighbor is `attached`."""
     sulfur = mol.GetAtomWithIdx(s_idx)
+    group = acid_group_at(mol, s_idx)
+    if group is not None and any(n.GetIdx() == attached for n in sulfur.GetNeighbors()):
+        if group.spec.kind[0] in ("S", "Se", "Te") and not (group.spec.kind == ("S", 2) and group.spec.plain):
+            return group.spec.key, group.owned | {s_idx}
     if sulfur.GetAtomicNum() != 16 or sulfur.GetFormalCharge() or sulfur.GetDegree() != 4:
         return None
     oxygens = [
@@ -138,6 +201,9 @@ def _group_of(mol, carbon):
     atom = mol.GetAtomWithIdx(carbon)
     if atom.GetAtomicNum() != 6 or atom.IsInRing():
         return None
+    variant = acid_group_at(mol, carbon)
+    if variant is not None and not variant.spec.plain:
+        return variant.spec.key, variant.owned
     nitrogens = [
         n.GetIdx()
         for n in atom.GetNeighbors()
@@ -164,6 +230,11 @@ def _group_of(mol, carbon):
             if len(carbon_neighbors) == 2:
                 return "ketone", {oxygens[0]}
             raise UnsupportedStructure("a formaldehyde-type carbonyl is not named by the chain engine")
+        if len(hetero) == 2:
+            hydroxyl = [h for h in hetero if h.GetAtomicNum() == 8 and _terminal_heteroatom(mol, h.GetIdx(), 1)]
+            nitro = [h for h in hetero if h.GetAtomicNum() == 7 and is_nitro_nitrogen(mol, h.GetIdx())]
+            if hydroxyl and nitro and not carbon_neighbors:
+                return "acid", {oxygens[0], hydroxyl[0].GetIdx()}
         ring_nitrogens = [h for h in hetero if h.IsInRing() and h.GetAtomicNum() == 7]
         if len(hetero) == 2 and len(ring_nitrogens) == 1:
             other = next(h for h in hetero if h.GetIdx() != ring_nitrogens[0].GetIdx())
@@ -287,6 +358,18 @@ def _stereo_prefix(stereo, position_of, ring_parent=False, used=frozenset()):
 
 
 def _select(mol, attach=None, n_names=(), stereo=None):
+    classes = {_group_of(mol, a.GetIdx())[0] for a in mol.GetAtoms() if _group_of(mol, a.GetIdx())} | {
+        c for c, _, _ in _ring_occurrences(mol)
+    }
+    principal = _principal_class(classes)
+    token = EXTENDED_PREFIXES.set(_is_acid_family(principal) if principal else False)
+    try:
+        return _select_with_prefixes(mol, attach, n_names, stereo)
+    finally:
+        EXTENDED_PREFIXES.reset(token)
+
+
+def _select_with_prefixes(mol, attach=None, n_names=(), stereo=None):
     """(key, name, parts) of the best parent. `attach`: an atom that carries a
     free valence (a multiplicative unit); it takes the lowest locant after
     the principal groups and multiple bonds."""
@@ -336,7 +419,7 @@ def _select(mol, attach=None, n_names=(), stereo=None):
         if not groups and not ring_groups and not secondary:
             raise UnsupportedStructure("this anionic group is not a principal-capable characteristic group")
     classes = set(groups) | {c for c, _, _ in ring_groups}
-    principal = next((name for name in _SENIORITY if name in classes), None)
+    principal = _principal_class(classes)
     token = IDE_EXTRA.set(ide_extra)
     try:
         return _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal, attach, n_names, stereo)
@@ -345,17 +428,18 @@ def _select(mol, attach=None, n_names=(), stereo=None):
 
 
 def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal, attach, n_names, stereo):
-    if any(_chalcogen_ketone(mol, a) for a in mol.GetAtoms()) and principal not in _CHALCOGEN_KETONE_OK:
+    if any(_chalcogen_ketone(mol, a) for a in mol.GetAtoms()) and principal not in _CHALCOGEN_KETONE_OK and not (principal and _is_variant(principal)):
         raise UnsupportedStructure("a thioketone-type group outranks the parents this engine can build here")
     for atom in mol.GetAtoms():
         if atom.GetIsotope() or atom.GetNumRadicalElectrons():
             raise UnsupportedStructure("isotopes and radicals are not supported by the polyfunctional chain engine")
-        if atom.GetFormalCharge() and not _is_nitro_part(atom):
+        if atom.GetFormalCharge() and not _is_nitro_part(atom) and not _anionic_group_atom(mol, atom):
             raise UnsupportedStructure("charged atoms are not supported by the polyfunctional chain engine")
         if (
             atom.GetAtomicNum() == 6
             and not atom.IsInRing()
-            and principal not in ("acid", "peroxoic", "thioic", "imidic")
+            and not _is_acid_family(principal)
+            and principal not in ("peroxoic", "thioic", "imidic")
             and not (principal in ("amide", "sulfonamide") and atom.GetIdx() in groups.get(principal, {}))
             and _is_ester_like(mol, atom.GetIdx())
         ):
@@ -371,6 +455,13 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
         if attach is not None:
             raise UnsupportedStructure("a unit without a principal group is not supported")
         return _plain_parent(mol, graph, halogens, aromatic_atoms, stereo)
+
+    if _is_variant(principal):
+        imidic_ns = _imidic_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal)
+        if imidic_ns:
+            if attach is not None or n_names:
+                raise UnsupportedStructure("an N-substituted imidic acid inside a unit is not handled by the chain engine")
+            n_names = imidic_ns
 
     if principal in ("amide", "sulfonamide"):
         amide_ns = _amide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal)
@@ -410,7 +501,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             and (
                 a.GetIdx() in principal_atoms
                 or not is_functional_carbon(mol, a.GetIdx())
-                or (principal == "acid" and _is_carboxylic_ester_carbon(mol, a.GetIdx()))
+                or (_is_acid_family(principal) and _junior_end_group(mol, a.GetIdx()))
             )
         }
         try:
@@ -448,11 +539,16 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
         return _finish(ring_best[1])
     if chain_best is None:
         raise UnsupportedStructure("no parent carries the principal group")
-    if principal in _TERMINAL and chain_count < len(principal_atoms):
+    if _is_terminal(principal) and chain_count < len(principal_atoms):
         carbo = _carbo_best(mol, graph, halogens, aromatic_atoms, principal, principal_atoms, stereo)
         if carbo is not None and -carbo[0][0] > chain_count:
             return _finish(carbo)
-    if principal in _TERMINAL and len(chain_best[2][4]) == 1:
+    if (
+        _is_terminal(principal)
+        and len(chain_best[2][4]) == 1
+        and not (_is_variant(principal) and attach is None)
+        and not chain_best[1].endswith("formic acid")
+    ):
         raise UnsupportedStructure("one-carbon acid, amide, nitrile and aldehyde parents use retained names")
     return _finish(chain_best)
 
@@ -707,7 +803,7 @@ def _evaluate_carbo(mol, graph, halogens, aromatic_atoms, chain, principal, grou
     locant_set, total_count, citation = substituent_locant_set_and_citation(grouped)
     count = len(attached)
     length = len(chain)
-    word = _CARBO_WORDS[principal]
+    word = carbo_suffix(spec_from_key(principal), 1) if _is_variant(principal) else _CARBO_WORDS[principal]
     prefix = format_substituent_prefixes(grouped)
     body = name_from_substituents(length, ene, yne, multiplied_word(count, word), suffix_locants)
     name = prefix + body
@@ -947,7 +1043,17 @@ def _require_mancude_system(mol, atoms):
             raise UnsupportedStructure("the numbering of this larger fused system is not verified here")
 
 
-_FUSED_SUFFIX = {
+class _FusedSuffix(dict):
+    def __missing__(self, key):
+        if _is_variant(key):
+            return carbo_suffix(spec_from_key(key), 1)
+        raise KeyError(key)
+
+    def __contains__(self, key):
+        return dict.__contains__(self, key) or _is_variant(key)
+
+
+_FUSED_SUFFIX = _FusedSuffix({
     "ide": "ide",
     "acid": "carboxylic acid",
     "sulfonic": "sulfonic acid",
@@ -959,7 +1065,7 @@ _FUSED_SUFFIX = {
     "ketone": "one",
     "thiol": "thiol",
     "amine": "amine",
-}
+})
 
 
 def _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo):
@@ -984,7 +1090,14 @@ def _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo):
     return count, ((-count,), _without_stereo(found[1]), (None, None, None, 0, found[2], True))
 
 
-_RING_SUFFIX = {
+class _RingSuffix(dict):
+    def __missing__(self, key):
+        if _is_variant(key):
+            return key
+        raise KeyError(key)
+
+
+_RING_SUFFIX = _RingSuffix({
     "ide": "ide",
     "peroxoic": "peroxoic",
     "peroxol": "peroxol",
@@ -1000,7 +1113,7 @@ _RING_SUFFIX = {
     "alcohol": "alcohol",
     "thiol": "thiol",
     "amine": "amine",
-}
+})
 
 
 def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names=(), stereo=None):
@@ -1814,7 +1927,7 @@ def _ring_occurrences(mol):
                 found.append(("amine", r, {i}))
             elif z == 6:
                 group = _group_of(mol, i)
-                if group is not None and group[0] in _TERMINAL:
+                if group is not None and _is_terminal(group[0]):
                     found.append((group[0], r, {i} | group[1]))
     return found
 
@@ -1833,6 +1946,29 @@ def _ring_prefix_text(entries, locants, n_names):
     for r, name, compound in entries:
         grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locants[r])
     return format_substituent_prefixes(_with_n_names(grouped, n_names)) if (grouped or n_names) else ""
+
+
+def _imidic_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls):
+    """N-prefix names when the single imidic or hydrazonic acid group carries substituents on its =N atom."""
+    centers = [
+        next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52)), carbon)
+        for carbon, owned in groups.get(cls, {}).items()
+    ]
+    for group_cls, ring_atom, owned in ring_groups:
+        if group_cls == cls:
+            centers.append(next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (6, 16, 34, 52)))
+    found = [acid_group_at(mol, c) for c in dict.fromkeys(centers)]
+    centers = list(dict.fromkeys(centers))
+    substituted = [g for g in found if g is not None and g.n_substituents]
+    if not substituted:
+        return []
+    if len(centers) != 1:
+        raise UnsupportedStructure("several imidic acid groups with N-substitution are not handled by the chain engine")
+    group = substituted[0]
+    return [
+        name_branch(graph, n, group.n_atom, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+        for n in group.n_substituents
+    ]
 
 
 def _amide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls="amide"):
@@ -1867,7 +2003,7 @@ def _evaluate(
     on_chain = [a for a in principal_atoms if a in chain_set]
     if principal == "ide":
         on_chain = [a for a in on_chain for _ in range(anion_weight(mol.GetAtomWithIdx(a)))]
-    if not on_chain or (principal in _TERMINAL and any(position_of[a] not in (1, len(chain)) for a in on_chain)):
+    if not on_chain or (_is_terminal(principal) and any(position_of[a] not in (1, len(chain)) for a in on_chain)):
         return ((1,), "", None)
     ene, yne = [], []
     for a, b in zip(chain, chain[1:]):
@@ -1903,8 +2039,30 @@ def _evaluate(
         body = name_from_substituents(
             length, ene, yne, _compound_word(ide_locants, suffix_locants, word), ide_locants, force_own_locant=True
         )
+    elif _is_variant(principal):
+        spec = spec_from_key(principal)
+        retained = None
+        if attach is None and spec.anion and spec.oxo == ("O",) and spec.y == ("O",) and spec.center == "C":
+            retained = retained_chain_acid(grouped, length, ene, yne, count, "anion")
+        if retained is None and attach is None and spec.anion and spec.center == "C" and length == 1 and set(grouped) == {"carboxy"}:
+            retained = "hydrogen oxalate"
+        if retained is not None:
+            prefix, body, tail = "", retained, ""
+        elif spec.center == "C":
+            word, tail = chain_suffix(spec, count)
+            body = name_from_substituents(length, ene, yne, word)
+        else:
+            body = name_from_substituents(
+                length, ene, yne, carbo_suffix(spec, count), suffix_locants, force_own_locant=force
+            )
     elif principal == "acid":
-        body, tail = name_from_substituents(length, ene, yne, multiplied_word(count, "oic")), " acid"
+        retained = None if attach is not None else retained_chain_acid(grouped, length, ene, yne, count, "acid")
+        if retained is not None:
+            prefix, body, tail = "", retained, ""
+        else:
+            body, tail = name_from_substituents(length, ene, yne, multiplied_word(count, "oic")), " acid"
+            if attach is not None and length == 2 and count == 1 and not ene and not yne:
+                body = "acetic"
     elif principal in ("peroxoic", "thioic", "imidic"):
         body, tail = name_from_substituents(length, ene, yne, multiplied_word(count, principal)), " acid"
     elif principal == "peroxol":

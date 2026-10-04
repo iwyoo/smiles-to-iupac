@@ -32,6 +32,8 @@ mixing different carbon-isotope nuclides, and a carbon isotope on a
 branch off the principal chain.
 """
 
+import re
+
 from rdkit import Chem
 
 from ._carboxylic_acid import _best_acyclic_carboxylic_acid_candidate, _validate_and_collect_carboxyls
@@ -39,6 +41,7 @@ from ._common import UnsupportedStructure, non_single_bonds, specified_stereocen
 from ._isotope import _CARBON_ISOTOPES
 
 _OXYGEN_ISOTOPES = {17, 18}
+_RETAINED_STEM = re.compile(r"(?:formic|acetic) acid$")
 
 
 def has_isotope_carboxylic_acid_shape(mol) -> bool:
@@ -152,6 +155,7 @@ def name_isotope_carboxylic_acid(mol) -> str:
     )
 
     name = best_name
+    descriptors = []
     if has_carbon_isotope:
         if any(c not in best_position_of for c in carbon_isotope_positions):
             raise UnsupportedStructure(
@@ -162,7 +166,15 @@ def name_isotope_carboxylic_acid(mol) -> str:
         nuclide = next(iter(carbon_isotopes))
         symbol = f"{nuclide}C" + (str(len(carbon_isotope_positions)) if len(carbon_isotope_positions) > 1 else "")
         locants_str = ",".join(str(loc) for loc in carbon_isotope_locants)
-        name = f"({locants_str}-{symbol}){name}"
+        descriptors.append(f"{locants_str}-{symbol}")
+    retained = _RETAINED_STEM.search(name)
+    if retained:
+        if has_oxygen_isotope:
+            (oxygen_isotope,) = oxygen_isotopes
+            descriptors.append(f"{oxygen_isotope}O")
+        return name[: retained.start()] + f"({','.join(descriptors)})" + name[retained.start() :]
+    if descriptors:
+        name = f"({descriptors[0]}){name}"
     if has_oxygen_isotope:
         (oxygen_isotope,) = oxygen_isotopes
         name = name[:-8] + f"({oxygen_isotope}O)oic acid"

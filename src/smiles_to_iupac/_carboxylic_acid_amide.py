@@ -41,6 +41,7 @@ from ._common import (
     substituent_locant_set_and_citation,
     validate_allowed_atoms,
 )
+from ._retained_acids import retained_chain_acid
 from ._substituents import format_substituent_prefixes, substituents_for_chain
 
 
@@ -141,6 +142,9 @@ def _validate(mol, excluded_oxygens, amide_nitrogens):
 
 
 def _name_from_substituents(chain_length, grouped):
+    retained = retained_chain_acid(grouped, chain_length, [], [], 1, "acid")
+    if retained is not None:
+        return retained
     return format_substituent_prefixes(grouped) + name_from_substituents(chain_length, [], [], "oic acid")
 
 

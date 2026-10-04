@@ -22,13 +22,9 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   `tasks/aromatic-ring-substituent-parent-selection.md`'s largest single
   real-data coverage gap: a single, otherwise-unsubstituted benzene ring
   hanging off one end of an unbranched chain whose far end carries the
-  sole -COOH, e.g. 'c1ccccc1CC(=O)O' -> '2-phenylethanoic acid' -- the
-  systematic stem, not PubChem's retained 'phenylacetic acid' (PubChem CID
-  999 for the structure match only; this module's own already-established
-  convention already prefers the systematic stem once substituted, e.g.
-  'ClCC(=O)O' -> '2-chloroethanoic acid', not '2-chloroacetic acid' --
-  P-65.1.1 retains 'acetic acid' as PIN only for unsubstituted CH3COOH
-  itself). A -COOH directly on a saturated monocyclic all-carbon ring is
+  sole -COOH, e.g. 'c1ccccc1CC(=O)O' -> 'phenylacetic acid' (acetic acid
+  keeps its retained name under substitution, P-65.1.1.1, P-15.1.8.2.1;
+  see `_retained_acids.py`). A -COOH directly on a saturated monocyclic all-carbon ring is
   supported (see `_name_ring_carboxylic_acid`), including other ring
   substituents (alkyl/halogen), e.g. '4-methylcyclohexane-1-carboxylic
   acid' (PubChem CID 20330). A -COOH directly on a single benzene ring
@@ -128,6 +124,7 @@ from ._common import (
     stereo_element_atoms,
     substituent_locant_set_and_citation,
 )
+from ._retained_acids import retained_chain_acid
 from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
@@ -285,6 +282,9 @@ def _validate_and_collect_carboxyls(mol, aromatic_ring_atoms=frozenset(), extra_
 
 
 def _name_from_substituents(chain_length, acid_count, ene_locants, yne_locants, grouped):
+    retained = retained_chain_acid(grouped, chain_length, ene_locants, yne_locants, acid_count, "acid")
+    if retained is not None:
+        return retained
     # P-14.3.4.2(a): a mononuclear parent's substituent locant is always
     # '1' and never cited.
     prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
@@ -448,7 +448,7 @@ def _name_phenyl_chain_carboxylic_acid(
 ):
     """Name a carboxylic acid whose -COOH lies on a chain hanging off one
     atom of a benzene or plain heteroaromatic-monocycle ring (pyridine/
-    furan/thiophene/pyrrole, P-29.3.4.1) -- e.g. 2-phenylethanoic acid, or
+    furan/thiophene/pyrrole, P-29.3.4.1) -- e.g. phenylacetic acid, or
     2-(pyridin-3-yl)acetic acid (PubChem CID 108). The ring is cited as a
     'phenyl'/'pyridin-3-yl'/etc. (or, for a plain benzene ring whose other
     atoms each carry a single halogen/alkyl substituent, e.g.
@@ -459,7 +459,7 @@ def _name_phenyl_chain_carboxylic_acid(
     picks one of the longest chains containing the -COOH carbon, per
     P-44.3.2, absorbing a branch into the parent chain whenever that makes
     it longer) -- e.g. ibuprofen's alpha-methyl becomes part of 'propanoic
-    acid' rather than a substituent on a shorter 'ethanoic acid'
+    acid' rather than a substituent on a shorter 'acetic acid'
     (`CC(C)Cc1ccc(cc1)C(C)C(=O)O` -> '2-[4-(2-methylpropyl)phenyl]
     propanoic acid', PubChem CID 3672). Narrower than the acyclic path
     above: exactly one -COOH, no coexisting standalone hydroxyl, no
