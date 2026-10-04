@@ -1118,7 +1118,9 @@ def alpha_sort_key(name: str) -> str:
     while stripped != previous:
         previous = stripped
         stripped = _LEADING_STEREO_RE.sub("", stripped)
-        stripped = _LEADING_LOCANTS_RE.sub("", stripped).lstrip("([{")
+        stripped = _LEADING_LOCANTS_RE.sub("", stripped)
+        if stripped[:1] in ("(", "[", "{") and not _LEADING_STEREO_RE.match(stripped):
+            stripped = stripped[1:]
     stripped = _ITALIC_PREFIX_RE.sub("", stripped)
     return stripped.lower()
 

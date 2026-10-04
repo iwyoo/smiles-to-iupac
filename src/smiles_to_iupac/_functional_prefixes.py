@@ -67,6 +67,8 @@ def _acyl_prefix(mol, subtree, root, parent):
     acid = smiles_to_iupac(Chem.MolToSmiles(sub))
     if not acid.endswith("ic acid"):
         raise UnsupportedStructure("an acyl substituent whose parent acid has no 'ic acid' name is not supported yet")
+    if acid.endswith("carboxylic acid"):
+        return acid[: -len("carboxylic acid")] + "carbonyl"
     return acid[: -len("ic acid")] + "yl"
 
 

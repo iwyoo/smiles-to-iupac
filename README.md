@@ -60,7 +60,7 @@ Rule coverage is organized by Blue Book chapter:
 | P-7 | Radicals, ions and zwitterions, salts |
 | P-8 | Isotopically modified compounds |
 | P-9 | Stereodescriptors (`R`/`S`, `E`/`Z`, and related) and stereo-aware retained names |
-| P-10 | Natural products: carbohydrates, amino acids, nucleosides and nucleotides, steroids, alkaloids, lipids |
+| P-10 | Natural products: carbohydrates, amino acids, nucleosides and nucleotides, lipids, and the Appendix 3 parent structures (alkaloids, steroids, terpenoids, carotenoids, tetrapyrroles, flavans) with their substituents, unsaturation and configuration |
 
 Beyond organic skeletons it also handles coordination and organometallic
 compounds (with `NonPreferredNameWarning` where the Blue Book defines no

@@ -4,6 +4,7 @@ chain (longest, then most multiple bonds, then lowest locants); the free-valence
 (`_diester_ring_diyl.ring_substituent_name`, P-29.3.3, P-29.3.4)."""
 
 import contextvars
+import re
 
 from ._multiplicative_text import enclose
 from ._free_valence import SUFFIX_OF_ORDER
@@ -27,7 +28,12 @@ def _locant_sort_key(locant):
     '2,N-dimethylpropan-1-amine'; corrects a previously unverified
     assumption from `_amine.py`'s N-prefix/halogen interleaving, PR
     #443, which had no coinciding-name test case to catch this)."""
-    return (0, str(locant)) if isinstance(locant, str) else (1, locant)
+    if not isinstance(locant, str):
+        return (1, 0, locant, "")
+    digits = re.match(r"\d+", locant)
+    if digits is None:
+        return (0, 0, 0, locant)
+    return (1, locant.count("\u2032"), int(digits.group()), locant[digits.end():].replace("\u2032", ""))
 
 
 _PLAIN_STEM_PREFIX = None
@@ -387,6 +393,13 @@ def _name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, m
     if unsaturated:
         attach_order = _bond_order(mol, root, coming_from)
         aromatic_atoms = aromatic_atoms or frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+
+    if mol is not None and attach_order == 1.0 and mol.GetRingInfo().NumRings() >= 1:
+        from ._appendix3_skeletons import appendix3_group
+
+        natural_product = appendix3_group(mol, graph, root, coming_from)
+        if natural_product is not None:
+            return natural_product
 
     if mol is not None and mol.GetRingInfo().NumRings() >= 3 and attach_order in (1.0, 2.0):
         from ._phane_general import phane_substituent
