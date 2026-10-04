@@ -25,6 +25,7 @@ SUFFIX_RANKS = {
     "thiol": 28,
     "hydroperoxide": 29,
     "amine": 30,
+    "imine": 32,
 }
 
 JUNIOR_RANK = 80
@@ -51,6 +52,7 @@ _CLASS_PATTERNS = [
     ("thiol", f"[SX2H1;!R]{_NOT_CARBONYL}", 0),
     ("hydroperoxide", "[OX2H1][OX2;!R][#6]", 0),
     ("amine", f"[NX3;!R;!$(N~[!#6;!#1]);!$(N[CX3]=[O,S,N]);!$(N-[#6]#*)]{_NOT_CARBONYL}", 0),
+    ("imine", "[CX3;!R;!$(C-[O,N,S,Se,Te])]=[NX2;!R;!$(N-[!#6;!#8])]", 0),
 ]
 
 _JUNIOR_PATTERNS = [

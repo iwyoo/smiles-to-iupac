@@ -21,6 +21,8 @@ _SUBSTITUTABLE_WORDS = {
     33: ("arsanediyl", "arsanetriyl"),
 }
 _CHAIN_STEMS = {14: "silane", 15: "phosphane", 32: "germane", 33: "arsane", 50: "stannane", 82: "plumbane"}
+_SINGLE_CARBON_MULTIPLE_WORDS = {(1, 2): "methanylylidene", (2, 2): "methanediylidene", (1, 3): "methanylylidyne"}
+_YLYLIDENE_WORDS = {7: "azanylylidene", 15: "phosphanylylidene"}
 _HOMO_RUN_WORDS = {(8, 2): "peroxy", (16, 2): "disulfanediyl", (34, 2): "diselanediyl", (52, 2): "ditellanediyl"}
 
 
@@ -181,7 +183,7 @@ _VALENCE_SUFFIXES = {1: "yl", 2: "ylidene", 3: "ylidyne"}
 def _carbon_part(mol, atoms, attachments, directed, ctx):
     pairs = {(a, b) for a, b, _ in attachments}
     mixed = any(order != 1 for _, _, order in attachments)
-    if mixed and directed is not None:
+    if mixed and directed is not None and len(atoms) != 1:
         raise DecompositionRejected("a multiple-bond attachment cannot be part of an arm")
     if len(atoms) == 1 and len(attachments) == 2:
         pend = _pendants(mol, atoms, pairs)
@@ -258,8 +260,14 @@ def _carbon_part(mol, atoms, attachments, directed, ctx):
     else:
         cited = sorted(position[a] for a in free_atoms)
     count = len(cited)
+    if mixed and length == 1:
+        base = _SINGLE_CARBON_MULTIPLE_WORDS.get(tuple(sorted(order for _, _, order in attachments)))
+        if base is None:
+            raise DecompositionRejected("unsupported free valences of a single-carbon linker")
+        prefix = format_mononuclear_prefixes([(n, c) for _, n, c in entries]) if entries else ""
+        return Part(prefix + base, bool(entries), False)
     if mixed:
-        if ene or yne or length == 1:
+        if ene or yne:
             raise DecompositionRejected("an unsaturated chain with mixed free valences is not supported")
         by_order = {}
         for a, _, order in attachments:
@@ -323,5 +331,9 @@ def name_component(mol, kind, atoms, attachments, ctx, directed=None):
     if kind == "carbon":
         return _carbon_part(mol, list(atoms), attachments, directed, ctx)
     if any(order != 1 for _, _, order in attachments):
+        z = mol.GetAtomWithIdx(atoms[0]).GetAtomicNum()
+        orders = sorted(order for _, _, order in attachments)
+        if len(atoms) == 1 and z in _YLYLIDENE_WORDS and orders == [1, 2]:
+            return Part(_YLYLIDENE_WORDS[z], False, False)
         raise UnsupportedStructure("a multiple bond to the multiplied units is not supported yet")
     return _hetero_part(mol, list(atoms), attachments, ctx, directed)
