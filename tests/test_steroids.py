@@ -172,31 +172,16 @@ def test_non_natural_stereo_specified_parent_hydrides_are_not_named_without_thei
         smiles_to_iupac("C1CCC2[C@H](C1)CCC3C2CCC4C3CCC4")
 
 
-def test_extra_methyl_beyond_each_parent_hydride_falls_through_to_von_baeyer():
-    assert (
-        smiles_to_iupac("CC12CCCC1(C)CCC1C2CCC2C1CCCC2")
-        == "11,15-dimethyltetracyclo[8.7.0.0^2,7.0^11,15]heptadecane"
-    )
-    assert (
-        smiles_to_iupac("CC12CCCC1C3CC(C)C4CCCCC4(C3CC2)C")
-        == "2,8,15-trimethyltetracyclo[8.7.0.0^2,7.0^11,15]heptadecane"
-    )
-    assert (
-        smiles_to_iupac("CC12CCCC1C1CC(C)C3CCCCC3C1CC2")
-        == "8,15-dimethyltetracyclo[8.7.0.0^2,7.0^11,15]heptadecane"
-    )
-    assert (
-        smiles_to_iupac("CCC1CC(C)C2C1(CCC3C2CCC4C3(CCCC4)C)C")
-        == "14-ethyl-2,12,15-trimethyltetracyclo[8.7.0.0^2,7.0^11,15]heptadecane"
-    )
-    assert (
-        smiles_to_iupac("CCCC(C)C1CC(C)C2C1(CCC3C2CCC4C3(CCCC4)C)C")
-        == "2,12,15-trimethyl-14-(pentan-2-yl)tetracyclo[8.7.0.0^2,7.0^11,15]heptadecane"
-    )
-    assert (
-        smiles_to_iupac("CC(C)CCCC(C)C1CC(C)C2C1(CCC3C2CCC4C3(CCCC4)C)C")
-        == "2,12,15-trimethyl-14-(6-methylheptan-2-yl)tetracyclo[8.7.0.0^2,7.0^11,15]heptadecane"
-    )
+def test_extra_methyl_on_a_ring_is_a_substituent_of_the_retained_parent():
+    assert smiles_to_iupac("CC12CCCC1(C)CCC1C2CCC2C1CCCC2") == "14-methylestrane"
+    assert smiles_to_iupac("CC12CCCC1C3CC(C)C4CCCCC4(C3CC2)C") == "6-methylandrostane"
+    assert smiles_to_iupac("CC12CCCC1C1CC(C)C3CCCCC3C1CC2") == "6-methylestrane"
+    assert smiles_to_iupac("CCC1CC(C)C2C1(CCC3C2CCC4C3(CCCC4)C)C") == "15-methylpregnane"
+    assert smiles_to_iupac("CCCC(C)C1CC(C)C2C1(CCC3C2CCC4C3(CCCC4)C)C") == "15-methylcholane"
+    assert smiles_to_iupac("CC(C)CCCC(C)C1CC(C)C2C1(CCC3C2CCC4C3(CCCC4)C)C") == "15-methylcholestane"
+
+
+def test_side_chain_that_fits_no_retained_parent_falls_through_to_von_baeyer():
     assert (
         smiles_to_iupac("CC(C)C(C)CC(C)C1CCC2C1(CCC3C2CCC4C3(CCCC4)C)C")
         == "14-(4,5-dimethylhexan-2-yl)-2,15-dimethyltetracyclo[8.7.0.0^2,7.0^11,15]heptadecane"
