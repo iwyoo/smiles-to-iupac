@@ -69,7 +69,8 @@ from ._common import (
     non_single_bonds,
     plain_phenyl_substituent_atoms,
 )
-from ._substituents import format_mononuclear_prefixes, halogenated_phenyl_substituent, name_branch
+from ._hydride_ring_groups import hydride_ring_groups
+from ._substituents import format_mononuclear_prefixes, name_branch
 
 GROUP_13_STEMS = {
     13: "alumane",
@@ -135,26 +136,19 @@ def _validate_and_collect_substituents(mol, metal, stems, max_substituents):
     roots = set(graph[metal.GetIdx()])
     phenyl_atoms = plain_phenyl_substituent_atoms(mol, graph, roots)
 
-    halogens = halogen_substituents(mol)
-    aromatic_atoms = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic()}
-    halophenyl = {}
-    for root in roots - phenyl_atoms:
-        result = halogenated_phenyl_substituent(graph, aromatic_atoms, root, metal.GetIdx(), halogens)
-        if result is not None:
-            halophenyl[root] = result
-    halophenyl_ring_atoms = {a for _, ring_atoms, _ in halophenyl.values() for a in ring_atoms}
-    halophenyl_halogen_atoms = {a for _, _, halogen_atoms in halophenyl.values() for a in halogen_atoms}
+    ring_groups = hydride_ring_groups(mol, graph, roots - phenyl_atoms, metal.GetIdx())
+    group_atoms = {a for _, _, atoms in ring_groups.values() for a in atoms}
 
     for atom in mol.GetAtoms():
         idx = atom.GetIdx()
+        if idx in group_atoms:
+            continue
         is_halogen = atom.GetAtomicNum() in HALOGEN_PREFIXES
         if atom.GetAtomicNum() not in (metal_atomic_num, 6) and not is_halogen:
             raise UnsupportedStructure(
                 f"heteroatoms other than the {stems[metal_atomic_num]}'s "
                 "own metal atom are not supported yet (see P-69.1)"
             )
-        if is_halogen and idx in halophenyl_halogen_atoms:
-            continue
         if is_halogen and (atom.GetDegree() != 1 or atom.GetNeighbors()[0].GetIdx() != metal.GetIdx()):
             raise UnsupportedStructure(
                 "a halogen-substituted alkyl chain is out of scope for this "
@@ -167,14 +161,14 @@ def _validate_and_collect_substituents(mol, metal, stems, max_substituents):
             atom.GetAtomicNum() == 6
             and atom.GetIsAromatic()
             and idx not in phenyl_atoms
-            and idx not in halophenyl_ring_atoms
+            and idx not in group_atoms
         ):
             raise UnsupportedStructure(
                 "an aromatic substituent other than a plain or halogen-"
                 "substituted phenyl group is out of scope for this module"
             )
     all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
-    if all_ring_atoms - phenyl_atoms - halophenyl_ring_atoms:
+    if all_ring_atoms - phenyl_atoms - group_atoms:
         raise UnsupportedStructure(
             "a ring other than a plain or halogen-substituted phenyl "
             "substituent directly on the metal is out of scope for this "
@@ -194,9 +188,9 @@ def _validate_and_collect_substituents(mol, metal, stems, max_substituents):
         if root in phenyl_atoms:
             substituent_names.append(("phenyl", False))
             continue
-        if root in halophenyl:
-            name, _, _ = halophenyl[root]
-            substituent_names.append((name, True))
+        if root in ring_groups:
+            name, compound, _ = ring_groups[root]
+            substituent_names.append((name, compound))
             continue
         root_atomic_num = mol.GetAtomWithIdx(root).GetAtomicNum()
         if root_atomic_num in HALOGEN_PREFIXES:

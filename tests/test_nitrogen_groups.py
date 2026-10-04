@@ -1073,9 +1073,8 @@ def test_ring_amine_two_ring_carbon_substituents():
     assert smiles_to_iupac("CN1CC(C)C(C)C1") == "1,3,4-trimethylpyrrolidine"
 
 
-def test_ring_amine_sulfonyl_with_ring_carbon_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CS(=O)(=O)N1CCC(C)CC1")
+def test_ring_amine_sulfonyl_with_ring_carbon_substituent():
+    assert smiles_to_iupac("CS(=O)(=O)N1CCC(C)CC1") == "1-(methanesulfonyl)-4-methylpiperidine"
 
 
 def test_methylsulfonylmorpholine():

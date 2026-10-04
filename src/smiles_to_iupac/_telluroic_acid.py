@@ -51,13 +51,12 @@ from ._common import (
     is_plain_benzene_ring,
     longest_branched_chain,
     non_single_bonds,
-    ring_chain_attachment_with_halogens,
-    ring_chain_attachments_with_halogens,
+    ring_branch_attachments,
     separate_aromatic_monocycles,
     unbranched_chain_length,
 )
 from ._numerals import alkane_name
-from ._substituents import format_substituent_prefixes, name_branch, plain_alkyl_ring_substituents
+from ._substituents import format_substituent_prefixes, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, 52, *HALOGEN_PREFIXES}
 
@@ -162,9 +161,9 @@ def _name_phenyl_chain_telluroic_acid(mol, ring_atoms):
     directions is needed."""
     acid_carbon, label, acid_atom_idxs = _validate_and_collect_telluroic_acid(mol, aromatic_ring_atoms=ring_atoms)
     graph = adjacency(mol)
-    halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
+    halogens = halogen_substituents(mol)
     rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
-    attachment = ring_chain_attachments_with_halogens(graph, rings, set(), halogens)
+    attachment = ring_branch_attachments(mol, graph, rings)
     if not attachment:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "

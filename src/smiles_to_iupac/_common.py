@@ -227,31 +227,40 @@ def ring_chain_attachment(graph, ring_atoms, excluded):
     return ring_atom, branch_roots[0]
 
 
-def ring_chain_attachment_with_halogens(graph, ring_atoms, excluded, halogens):
-    """Like `ring_chain_attachment`, but tolerates the ring's other atoms
-    each carrying a single plain halogen substituent (an exocyclic
-    neighbor found in `halogens`) instead of requiring `ring_atoms` to be
-    completely unsubstituted apart from the one chain -- lets a "phenyl
-    chain" module recognize e.g. 4-chlorophenyl the same way it already
-    recognizes plain phenyl (`name_branch`'s own halogenated-phenyl path
-    then names the ring). Returns (ring_atom, chain_root) for the sole
-    non-halogen exocyclic branch; else None (no such branch, more than one
-    non-halogen branch, or any ring atom with more than one exocyclic
-    neighbor)."""
-    chain_attachment = None
+def _is_plain_alkyl_branch(mol, graph, root, ring_atom):
+    seen = {root}
+    stack = [(root, ring_atom)]
+    while stack:
+        node, previous = stack.pop()
+        atom = mol.GetAtomWithIdx(node)
+        if atom.GetAtomicNum() != 6 or atom.GetIsAromatic() or atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope():
+            return False
+        for neighbor in graph[node]:
+            if neighbor != previous and neighbor not in seen:
+                seen.add(neighbor)
+                stack.append((neighbor, node))
+    return True
+
+
+def ring_branch_attachment(mol, graph, ring_atoms, excluded=frozenset(), known=()):
+    """(ring_atom, chain_root) for the one branch of `ring_atoms` that is not a ring substituent (a halogen, an
+    atom in `known`, or a plain acyclic all-carbon group, named by the general ring-group namer); None when there
+    is no such branch or several."""
+    halogens = halogen_substituents(mol)
+    attachment = None
     for atom in ring_atoms:
-        branch_roots = [n for n in graph[atom] if n not in ring_atoms and n not in excluded]
-        if not branch_roots:
+        roots = [n for n in graph[atom] if n not in ring_atoms and n not in excluded]
+        if not roots:
             continue
-        if len(branch_roots) != 1:
+        if len(roots) != 1:
             return None
-        (branch_root,) = branch_roots
-        if branch_root in halogens:
+        (root,) = roots
+        if root in halogens or root in known or _is_plain_alkyl_branch(mol, graph, root, atom):
             continue
-        if chain_attachment is not None:
+        if attachment is not None:
             return None
-        chain_attachment = (atom, branch_root)
-    return chain_attachment
+        attachment = (atom, root)
+    return attachment
 
 
 def separate_aromatic_monocycles(mol, graph):
@@ -289,18 +298,22 @@ def ring_hosting_anchors(mol, graph, rings, anchors):
     return hosts[0]
 
 
-def ring_chain_attachments_with_halogens(graph, rings, excluded, halogens):
-    """`ring_chain_attachment_with_halogens` for several rings: one
-    (ring_atom, chain_root) per ring that carries a non-halogen branch, or
-    None if any ring has an atom with more than one exocyclic neighbor or
-    more than one non-halogen branch."""
+def ring_branch_attachments(mol, graph, rings, excluded=frozenset(), known=()):
+    """`ring_branch_attachment` for several rings: one (ring_atom, chain_root) per ring that carries a branch, or
+    None if a ring atom has several exocyclic neighbors or a ring has several branches."""
     attachments = []
     for ring in rings:
-        attachment = ring_chain_attachment_with_halogens(graph, ring, excluded, halogens)
+        attachment = ring_branch_attachment(mol, graph, ring, excluded, known)
         if attachment is None:
             if any(len([n for n in graph[a] if n not in ring and n not in excluded]) > 1 for a in ring):
                 return None
-            if any(n not in halogens for a in ring for n in graph[a] if n not in ring and n not in excluded):
+            halogens = halogen_substituents(mol)
+            if any(
+                n not in halogens and n not in known and not _is_plain_alkyl_branch(mol, graph, n, a)
+                for a in ring
+                for n in graph[a]
+                if n not in ring and n not in excluded
+            ):
                 return None
             continue
         attachments.append(attachment)

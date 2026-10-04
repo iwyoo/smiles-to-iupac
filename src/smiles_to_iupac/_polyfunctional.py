@@ -9,6 +9,7 @@ import contextvars
 import re
 
 from rdkit import Chem
+from rdkit.Chem import CanonicalRankAtoms
 
 from ._common import (
     UnsupportedStructure,
@@ -1033,11 +1034,30 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
         return None
     top = max(c[0] for c in candidates)
     leading = [c for c in candidates if c[0] == top]
-    if len(leading) > 1:
+    if len(leading) == 1:
+        return _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names, stereo, leading[0])[:2]
+    ranks = CanonicalRankAtoms(mol, breakTies=False)
+    if len({ranks[next(iter(c[3]))[1]] for c in leading}) == 1:
         raise UnsupportedStructure("several rings bear the principal group; a multiplicative name is needed")
-    count, ring, spec, here = leading[0]
+    ranked = []
+    for candidate in leading:
+        try:
+            ranked.append(
+                _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names, stereo, candidate)
+            )
+        except UnsupportedStructure:
+            continue
+    if not ranked:
+        raise UnsupportedStructure("several rings bear the principal group and none has a supported name")
+    count, found, _ = min(ranked, key=lambda r: r[2])
+    return count, found
+
+
+def _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names, stereo, candidate):
+    count, ring, spec, here = candidate
     if spec is None:
-        return _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo)
+        found = _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo)
+        return found[0], found[1], (0, (), (), found[1][1])
     owned = set().union(*(o[2] for o in here))
     ring_set = set(ring)
     roots = [
@@ -1088,7 +1108,9 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
         core, _ = _suffix_text(spec.parent, suffix_name, suffix_locants, spec)
     name = _join(prefix_text, core)
     count += len(ide_atoms)
-    return count, ((-count,), name, (None, None, None, 0, locants, True))
+    letters = re.sub(r"[^a-z]", "", name)
+    rank = (-len(entries), best[0][2], best[0][3], letters)
+    return count, ((-count,), name, (None, None, None, 0, locants, True)), rank
 
 
 def _ring_compound_core(spec, suffix_name, locants, ide_atoms, principal_atoms):

@@ -1248,3 +1248,23 @@ def test_heteroatom_connections_are_not_prefixes_without_a_senior_group(smiles):
 )
 def test_imino_prefixes_under_a_senior_acid(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OC(=O)c1ccc(cc1)[SiH2]Cc1ccc(C)cc1", "4-{[(4-methylphenyl)methyl]silyl}benzoic acid"),
+        ("OC(=O)c1ccc(cc1)C1CCC2(CC1)CCCP2", "4-(1-phosphaspiro[4.5]decan-8-yl)benzoic acid"),
+        ("OC(=O)c1ccc(cc1)N1CC=NC2=NC=CN12", "4-[imidazo[1,2-b][1,2,4]triazin-1(2H)-yl]benzoic acid"),
+        ("OC(=O)Cc1ccc(S(C)(=O)=O)cc1", "2-[4-(methanesulfonyl)phenyl]ethanoic acid"),
+        ("OC(=O)Cc1cccc([SiH2]O[SiH3])n1", "2-(6-disiloxanylpyridin-2-yl)ethanoic acid"),
+        (
+            "OC(=O)C1CCC(CC1)=C1c2cccc(n2)Cc2cccc(n2)Cc2cccc(n2)Cc2cccc(n2)1",
+            "4-[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-2-ylidene]cyclohexane-1-carboxylic acid",
+        ),
+        ("OC(=O)c1ccc(cc1)[PH2]", "4-phosphanylbenzoic acid"),
+        ("OC(=O)C1CCC(CC1)=[BH]", "4-boranylidenecyclohexane-1-carboxylic acid"),
+    ],
+)
+def test_ring_and_hetero_groups_as_prefixes_use_one_ring_group_namer(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

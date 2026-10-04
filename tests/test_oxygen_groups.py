@@ -372,7 +372,7 @@ def test_heteroaromatic_substituent_carboxylic_acid_directly_on_ring():
 
 
 def test_phenyl_substituent_carboxylic_acid_ring_branched_alkyl():
-    assert smiles_to_iupac("CC(C)c1ccc(cc1)CC(=O)O") == "2-(4-propan-2-ylphenyl)ethanoic acid"
+    assert smiles_to_iupac("CC(C)c1ccc(cc1)CC(=O)O") == "2-[4-(propan-2-yl)phenyl]ethanoic acid"
 
 
 def test_phenyl_substituent_carboxylic_acid_ring_tert_butyl():
