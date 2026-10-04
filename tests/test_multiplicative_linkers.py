@@ -368,3 +368,24 @@ def test_heavier_group_14_and_15_hydride_linkers(linker, expected):
 )
 def test_heteroatom_hydride_linkers_between_chain_units(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "OC(=O)c1ccc(cc1)C[SiH2]CC[SiH2]c1ccc(cc1)C(=O)O",
+            "4-[(2-{[(4-carboxyphenyl)methyl]silyl}ethyl)silyl]benzoic acid",
+        ),
+        (
+            "OC(=O)c1ccc(cc1)[SiH2]C(F)C[SiH2]C(F)Cc1ccc(cc1)C(=O)O",
+            "4-[(2-{[2-(4-carboxyphenyl)-1-fluoroethyl]silyl}-1-fluoroethyl)silyl]benzoic acid",
+        ),
+        (
+            "OC(=O)c1ccc(cc1)OCC(Cl)c1ccc(C)cc1C(=O)O",
+            "2-[2-(4-carboxyphenoxy)-1-chloroethyl]-5-methylbenzoic acid",
+        ),
+    ],
+)
+def test_unsymmetrical_linkers_and_units_are_named_substitutively(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

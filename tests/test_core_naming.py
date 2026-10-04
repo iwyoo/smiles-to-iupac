@@ -379,9 +379,11 @@ def test_stereodescriptors_in_an_assembly_of_three_rings(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_simple_ring_substituent():
-    graph = {0: [1], 1: [0, 2, 3], 2: [1, 3], 3: [1, 2]}
-    assert name_branch(graph, 1, 0) == ("cyclopropyl", False)
+def test_ring_substituent_is_named_by_the_general_ring_namer():
+    plain = Chem.MolFromSmiles("CC1CC1")
+    assert name_branch(adjacency(plain), 1, 0, {}, mol=plain) == ("cyclopropyl", False)
+    substituted = Chem.MolFromSmiles("CC1CC1C")
+    assert name_branch(adjacency(substituted), 1, 0, {}, mol=substituted) == ("2-methylcyclopropyl", True)
 
 
 def test_substituted_ring_substituent_raises():

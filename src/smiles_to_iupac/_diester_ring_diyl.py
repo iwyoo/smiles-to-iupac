@@ -380,6 +380,19 @@ def _with_anion_centers(parent, located):
 _COUNT_PREFIX = {1: "", 2: "di", 3: "tri"}
 
 
+def _assembly_group(mol, graph, root, parent, atoms):
+    from ._polyfunctional import _arm_atoms, assembly_substituent
+
+    arm = _arm_atoms(graph, root, parent)
+    joined = any(
+        a not in atoms and mol.GetAtomWithIdx(a).IsInRing() and any(n in atoms for n in graph[a]) for a in arm
+    )
+    if not joined:
+        return None
+    aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+    return assembly_substituent(mol, graph, root, parent, halogen_substituents(mol), aromatic)
+
+
 def ring_substituent_name(mol, graph, root, parent):
     """(name, is_compound) of the ring system entered at `root` from `parent`, as a substituent prefix."""
     from ._glycosyl import glycosyl_branch
@@ -389,6 +402,9 @@ def ring_substituent_name(mol, graph, root, parent):
         return glycosyl
     rings, atoms = _system_of(mol, root)
     order = mol.GetBondBetweenAtoms(parent, root).GetBondTypeAsDouble()
+    assembly = _assembly_group(mol, graph, root, parent, atoms)
+    if assembly is not None:
+        return assembly
     suffix = suffix_of(order)
     if suffix is None:
         raise UnsupportedStructure("this ring substituent bond is not supported yet")

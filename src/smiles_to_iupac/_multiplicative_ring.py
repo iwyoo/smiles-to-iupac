@@ -210,41 +210,6 @@ def _group_at(mol, groups, ring_atom, root):
     return None
 
 
-def ring_substituent_name(mol, ring_atoms, attach_atom, from_atom, groups, suffix_group, name_function=None):
-    """(name, is_compound) of a monocyclic substituent group ('phenyl',
-    '4-chlorophenyl', 'cyclohexyl', 'pyridin-2-yl') attached through
-    `attach_atom`, or None when the ring isn't a supported monocycle."""
-    if sum(1 for r in mol.GetRingInfo().AtomRings() if set(r) & set(ring_atoms)) != 1:
-        return None
-    spec = spec_of(mol, ring_atoms)
-    if spec is None:
-        return None
-    entries = _prefix_entries(mol, _ring_roots(mol, spec, {(attach_atom, from_atom)}), groups, suffix_group, name_function)
-    best = None
-    for locants in numberings(spec):
-        key = (
-            locants[attach_atom],
-            multiple_locants(spec, locants),
-            tuple(sorted(locants[r] for r, _, _ in entries)),
-            _citation_key([(locants[r], name) for r, name, _ in entries]),
-        )
-        if best is None or key < best[0]:
-            best = (key, locants)
-    locants = best[1]
-    if spec.kind == "benzene":
-        core = "phenyl"
-    elif spec.kind == "cycloalkane":
-        core = "cyclo" + alkyl_name(len(spec.cycle))
-    elif spec.kind == "cycloalkene":
-        ene, yne = multiple_locants(spec, locants)
-        core = _ring_base_name(len(spec.cycle), ene, yne, 1.0)
-    else:
-        parent = spec.parent
-        core = f"{parent[:-1] if parent.endswith('e') else parent}-{locants[attach_atom]}-yl"
-    prefix_text = _prefix_text(entries, locants)
-    return _join(prefix_text, core), bool(prefix_text) or spec.hetero is not None or spec.kind == "cycloalkene"
-
-
 def _prefix_entries(mol, roots, groups, suffix_group, name_function):
     entries = []
     for r, n in roots:
