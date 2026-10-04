@@ -24,7 +24,7 @@ from ._np_name import (
     final_labels,
     principal_groups_left_outside,
 )
-from ._np_fusion import assign_primes, fusion_text, indicated_texts, name_fused
+from ._np_fusion import assign_primes, fusion_text, hydro_texts, indicated_texts, name_fused
 from ._np_rings import bridge_prefixes, components, name_spiro, split_components
 from ._np_text import core_text, locant_pair, op_prefixes, unsaturation
 from ._numerals import multiplying_prefix
@@ -126,6 +126,10 @@ def build(cand, view):
     fusion_atoms = frozenset(loc for f in fused for loc in f.fusion_locs)
     enes_bonds, hydro, dehydro, retro = unsaturation(cand, view, fusion_atoms)
     cost += 1 if retro else 0
+    if parent.name.endswith("carotene"):
+        shared = set(hydro) & set(dehydro)
+        hydro = [x for x in hydro if x not in shared]
+        dehydro = [x for x in dehydro if x not in shared]
     mancude_indicated = []
     if len(hydro) % 2 and (cand.skel.ops or cand.replaced):
         mancude_indicated = [min(hydro, key=loc_key)]
@@ -237,6 +241,10 @@ def build(cand, view):
             joined = f"spiro[{parent.name}-{center},{ring_loc}-{spiro.ring_name}]"
         stem_core = joined + (f"-{','.join(locants)}-{suffix}" if suffix else "")
     descriptor = ",".join(text for _, text in sorted(config.parent)) + "-" if config.parent else ""
+    groups = assign_primes(fused)
+    fused_hydro = hydro_texts(groups)
+    if fused_hydro:
+        hydro = sorted(hydro + fused_hydro, key=lambda t: (int("".join(c for c in t if c.isdigit())), loc_key(t)))
     hydro_text = _hydro_text(dehydro, "dehydro") + _hydro_text(hydro, "hydro")
     cyclo_text = _cyclo_text(cand, final, config, view)
     ops = op_prefixes(cand, final, cyclo_text, retro)
@@ -246,16 +254,15 @@ def build(cand, view):
     bridges = bridge_prefixes(bridge_comps, cand, view, config, final)
     if nondetachable_cost(cand) + len(ring_comps) > _MAX_SKELETAL_MODIFICATIONS:
         raise UnsupportedStructure("too many skeletal modifications")
-    groups = assign_primes(fused)
     fused_prefix = fusion_text(groups) if fused else ""
     indicated = indicated_texts(groups)
     front_stereo, front_plain = [], []
     for f in fused:
-        for locant, atom in f.fusion_h:
+        for locant, atom, role in f.fusion_h:
             face = config.hfaces.get(atom, "")
             if face:
                 front_stereo.append((loc_key(locant), f"{locant}{FACES[face]}H"))
-            else:
+            elif role == "indicated":
                 front_plain.append((loc_key(locant), f"{locant}H"))
     for loc in cand.replaced:
         atom = cand.mapping[loc]
@@ -265,6 +272,10 @@ def build(cand, view):
                 front_stereo.append((loc_key(final(loc)), f"{final(loc)}{FACES[face]}H"))
     indicated = indicated + [f"{final(loc)}H" for loc in mancude_indicated] + [t for _, t in sorted(front_plain)]
     indicated = sorted(indicated, key=lambda t: loc_key(t[:-1]))
+    bridge_head = ""
+    if parent.name.endswith("carotene") and bridges:
+        bridge_head = "-".join(b.rstrip("-") for b in bridges) + "-"
+        bridges = []
     ops = ([fused_prefix] if fused_prefix else []) + bridges + ops
     nondetachable = "-".join(p.rstrip("-") for p in ops) + ("-" if ops and (descriptor or ops[-1].endswith("-")) else "")
     if ops and not nondetachable.endswith("-") and not descriptor and stem_core and not stem_core[0].isascii():
@@ -275,7 +286,9 @@ def build(cand, view):
     detachable = f"{prefix}-" if prefix and (hydro_text or indicated_text or nondetachable or descriptor) else prefix
     if hydro_text and prefix:
         detachable = f"{prefix}-"
-    body = f"{side}{detachable}{hydro_text}{indicated_text}{nondetachable}{descriptor}{stem_core}"
+    if hydro_text.endswith("-") and not indicated_text and nondetachable and not nondetachable[0].isdigit():
+        hydro_text = hydro_text[:-1]
+    body = f"{side}{detachable}{bridge_head}{hydro_text}{indicated_text}{nondetachable}{descriptor}{stem_core}"
     name = " ".join(part for part in (alkyl_word, body, anion) if part)
     if chain is not None:
         name = chain[2].replace(chain[3], _enclose_group(body), 1)

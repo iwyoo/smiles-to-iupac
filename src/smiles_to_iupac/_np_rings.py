@@ -139,7 +139,7 @@ def split_components(comps, cand, view):
             elements = tuple(view.elem[a] for a in order)
         except UnsupportedStructure:
             elements = None
-        if elements in _BRIDGES and (not adjacent or elements[0] != "C"):
+        if elements in _BRIDGES and (not adjacent or elements in (("O",), ("S",))):
             bridges.append(comp)
         else:
             fused.append(comp)

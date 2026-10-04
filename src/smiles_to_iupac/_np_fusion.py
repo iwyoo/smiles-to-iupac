@@ -30,6 +30,8 @@ class Fused:
     parent_locants: list
     indicated: list
     fusion_h: list = field(default_factory=list)
+    hydro: list = field(default_factory=list)
+    fusion_hydro: list = field(default_factory=list)
     cite_attached: bool = True
     prime: int = 0
     fusion_locs: tuple = ()
@@ -183,14 +185,20 @@ def name_fused(comp, cand, view, final, parent_centers, hfaces):
 
     chosen = min(numberings, key=lambda n: (fusion_key(n), tuple(number_value(n, a) for a in ordered_path)))
     hetero_locants = sorted(chosen[a] for a in comp.atoms if view.elem[a] != "C") if cite and rings == 1 else []
-    sp3 = _indicated(comp, path, ring, view, chosen)
+    indicated, hydro, fusion_roles = _saturated(comp, path, ring, view, chosen, image, final)
     return Fused(
         name=name,
         hetero_locants=hetero_locants,
         attached=[chosen[a] for a in ordered_path],
         parent_locants=[final(image[a]) for a in ordered_path],
-        indicated=sp3[0],
-        fusion_h=[(final(image[a]), a) for a in ordered_path if _fusion_h(a, view, ring, image, parent_centers)],
+        indicated=indicated,
+        hydro=hydro,
+        fusion_hydro=[final(image[a]) for a, role in fusion_roles.items() if role == "hydro"],
+        fusion_h=[
+            (final(image[a]), a, fusion_roles[a])
+            for a in ordered_path
+            if a in fusion_roles and image[a] not in parent_centers
+        ],
         cite_attached=name not in _CARBO.values() or rings == 2,
         fusion_locs=tuple(image[a] for a in path),
     )
@@ -218,16 +226,33 @@ def _double_in(atom, ring, view):
     return any(view.order.get(frozenset((atom, n)), 1) == 2 for n in view.adj[atom] if n in ring)
 
 
-def _indicated(comp, path, ring, view, numbering):
-    """Component locants carrying indicated hydrogen (P-101.5.1.2); raises when hydro prefixes would be needed."""
-    donors = {a for a in comp.atoms if view.elem[a] in _DONORS or (view.elem[a] == "N" and not _double_in(a, ring, view))}
-    nondonor = [a for a in comp.atoms if a not in donors]
-    sp2_fusion = sum(1 for a in path if _double_in(a, ring, view))
-    need = (len(nondonor) + sp2_fusion) % 2
-    saturated = [a for a in nondonor if not _double_in(a, ring, view)]
-    if len(saturated) != need:
-        raise UnsupportedStructure("a fused component needing hydro prefixes")
-    return [numbering[a] for a in saturated], donors
+def _saturated(comp, path, ring, view, numbering, image, final):
+    """(indicated locants of the component, hydro locants of the component, {fusion atom: role}) of a fused ring.
+
+    Saturated positions of the component, fusion atoms included, that keep a hydrogen atom are cited with indicated
+    hydrogen when odd in number and otherwise with 'hydro' prefixes; fusion atoms keep their parent locants
+    (P-101.5.1.2, P-101.6.5)."""
+    atoms = list(comp.atoms) + [a for a in path if a not in comp.atoms]
+    positions = [
+        a for a in atoms
+        if view.elem[a] not in _DONORS
+        and not _double_in(a, ring, view)
+        and view.mol.GetAtomWithIdx(a).GetTotalNumHs() > 0
+    ]
+
+    def value(atom):
+        text = str(numbering[atom]) if atom in comp.atoms else str(final(image[atom]))
+        digits = "".join(c for c in text if c.isdigit())
+        return (int(digits or 0), loc_key(text))
+
+    positions.sort(key=value)
+    indicated = []
+    if len(positions) % 2:
+        indicated = [positions.pop(0)]
+    roles = {a: "hydro" for a in positions if a in path and a not in comp.atoms}
+    roles.update({a: "indicated" for a in indicated if a in path and a not in comp.atoms})
+    hydro = [numbering[a] for a in positions if a in comp.atoms]
+    return [numbering[a] for a in indicated if a in comp.atoms], hydro, roles
 
 
 def _fusion_h(atom, view, ring, image, parent_centers):
@@ -272,3 +297,13 @@ def indicated_texts(groups):
         for f in items:
             found += [(f.prime, n) for n in f.indicated]
     return [f"{n}{_PRIMES[prime]}H" for prime, n in sorted(found)]
+
+
+def hydro_texts(groups):
+    """Hydro locants of the fused components as (sort value, text); component locants carry their prime."""
+    found = []
+    for items in groups:
+        for f in items:
+            found += [f"{n}{_PRIMES[f.prime]}" for n in f.hydro]
+            found += list(f.fusion_hydro)
+    return found
