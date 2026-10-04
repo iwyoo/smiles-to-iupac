@@ -16,12 +16,13 @@ from ._common import (
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
+    multiplied_word,
     ring_cycle,
     substituent_locant_set_and_citation,
 )
 from ._diester_anions import acid_anions, anion_locant_key, cip_labels, cite_anions
 from ._functional_prefixes import functional_names, nitro_atoms
-from ._ring_diyl_numbering import SUFFIX_ATOMS, chain_numberings, monocycle_numberings, system_numberings
+from ._ring_diyl_numbering import SUFFIX_ATOMS, _locs, _yl, chain_numberings, monocycle_numberings, system_numberings
 from ._substituents import format_substituent_prefixes, name_branch
 
 _DESCRIPTOR_ORDER = {"R": 0, "S": 1, "r": 2, "s": 3}
@@ -182,18 +183,38 @@ def _best_for_option(mol, graph, kind, body, pool, matches_on):
     return key, f"{group_name} {cite_anions(anions, locants, cite)}"
 
 
-def evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=()):
+def _mixed_valence_text(diyl, free, valence, position_of, orders):
+    """'cyclohexan-1-yl-2-ylidene' from the diyl text 'cyclohexane-1,2-diyl': valences cited by increasing bond
+    order (P-29.3.2.2)."""
+    tail = f"-{_locs(free)}-{_yl(valence)}"
+    if not diyl.endswith(tail):
+        return None
+    stem = diyl[: -len(tail)]
+    words = {1: "yl", 2: "ylidene", 3: "ylidyne"}
+    by_order = {}
+    for atom, order in orders.items():
+        by_order.setdefault(order, []).append(position_of[atom])
+    if any(order not in words for order in by_order):
+        return None
+    pieces = [f"{_locs(sorted(locs))}-{multiplied_word(len(locs), words[order])}" for order, locs in sorted(by_order.items())]
+    if stem.endswith("e") and pieces[0].split("-", 1)[1][0] in "aeiouy":
+        stem = stem[:-1]
+    return f"{stem}-" + "-".join(pieces)
+
+
+def evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=(), orders=None):
     token = SUFFIX_ATOMS.set(frozenset(attach))
     try:
-        return _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, anions, matches_on)
+        return _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, anions, matches_on, orders)
     finally:
         SUFFIX_ATOMS.reset(token)
 
 
-def _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=()):
+def _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=(), orders=None):
     """Best numbering of a ring system or chain with free valences/suffix at `attach`; returns
     (key, group_name, position_of, ring_stereo, side) or None."""
     valence = len(attach)
+    mixed = bool(orders) and len(set(orders.values())) > 1
     halogens = halogen_substituents(mol)
     carbon_graph = carbon_adjacency(mol)
 
@@ -264,6 +285,7 @@ def _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, an
         grouped = group_substituents(substituents)
         locant_set, _, citation = substituent_locant_set_and_citation(grouped)
         free = tuple(sorted(position_of[a] for a in attach))
+        cite = tuple(position_of[a] for a in sorted(attach, key=lambda a: (orders[a], position_of[a]))) if mixed else ()
         ring_stereo = [(a, c) for a, c in stereo_all if a in skeleton]
         if len(ring_stereo) != len(stereo_all):
             raise UnsupportedStructure("a stereocenter on a substituent is not supported yet")
@@ -271,7 +293,7 @@ def _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, an
         stereo_key = tuple(
             _DESCRIPTOR_ORDER.get(code, 9) for _, code in sorted((position_of[a], c) for a, c in ring_stereo)
         )
-        key = (numbering.pre_key, free, numbering.unsat_key, locant_set, citation, acid_key, stereo_key)
+        key = (numbering.pre_key, free, cite, numbering.unsat_key, locant_set, citation, acid_key, stereo_key)
         candidates.append((key, numbering, grouped, free, ring_stereo, side))
     if not candidates:
         return None
@@ -280,6 +302,10 @@ def _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, an
 
     substituted = frozenset(loc for info in grouped.values() for loc in info["locants"])
     parent = numbering.text(free, valence, substituted, suffix)
+    if mixed:
+        parent = _mixed_valence_text(parent, free, valence, position_of, orders)
+        if parent is None:
+            return None
     prefixes = format_substituent_prefixes(grouped)
     if prefixes and parent[0].isdigit():
         prefixes += "-"

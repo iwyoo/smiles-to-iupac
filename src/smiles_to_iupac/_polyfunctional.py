@@ -679,7 +679,7 @@ def _locant_order(locant):
     return locant[1], locant[0]
 
 
-def _assembly_numbering(graph, rings, join, marked, entries, specs=None):
+def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_marked=None):
     """Atom -> (prime count, locant) for the best numbering of two directly
     joined identical rings. Benzene and cycloalkane rings number from the
     junction (1 and 1'); heteroaromatic rings keep their fixed numbering and
@@ -711,6 +711,7 @@ def _assembly_numbering(graph, rings, join, marked, entries, specs=None):
                 key = (
                     (locants[join[unprimed]][1], locants[join[1 - unprimed]][1]),
                     tuple(sorted(_locant_order(locants[a]) for a in marked)),
+                    tuple(_locant_order(locants[a]) for a in cite_marked) if cite_marked else (),
                     ene,
                     tuple(sorted(_locant_order(locants[r]) for r, _, _ in entries)),
                     _citation_key([(_locant_order(locants[r]), name) for r, name, _ in entries]),

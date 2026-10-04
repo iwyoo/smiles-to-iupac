@@ -19,3 +19,18 @@ from smiles_to_iupac import smiles_to_iupac
 )
 def test_yl_ylidene_linker_multiplicative_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OC(=O)C=C2CCCCC2CC(=O)O", "2,2'-(cyclohexan-1-yl-2-ylidene)diethanoic acid"),
+        ("OC(=O)C=C2COCC2CC(=O)O", "2,2'-(oxolan-3-yl-4-ylidene)diethanoic acid"),
+        (
+            "OC(=O)CC1CCC(CC1)C1CCC(CC1)=CC(=O)O",
+            "2,2'-([1,1'-bi(cyclohexan)]-4-yl-4'-ylidene)diethanoic acid",
+        ),
+    ],
+)
+def test_ring_yl_ylidene_linker_multiplicative_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

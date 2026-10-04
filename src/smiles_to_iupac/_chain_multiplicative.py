@@ -263,14 +263,40 @@ def _ylidene_ring_part(mol, graph, atoms, attachments):
     return Part(f"{head}-{count}ylidene", head[0].isdigit() or head[0] in "([", True)
 
 
+def _mixed_ring_part(mol, graph, atoms, attachments):
+    from ._diester_ring_diyl import evaluate_skeleton
+    from ._multiplicative_linker import Part
+    from ._polyfunctional import _arm_atoms, _require_mancude_system
+
+    ring_set = set(atoms)
+    members = [list(r) for r in mol.GetRingInfo().AtomRings() if set(r) <= ring_set]
+    if len(members) > 1:
+        _require_mancude_system(mol, ring_set)
+    blocked = set().union(*(_arm_atoms(graph, y, x) for x, y, _ in attachments))
+    orders = {x: order for x, _, order in attachments}
+    try:
+        found = evaluate_skeleton(mol, graph, "ring", members, ring_set, list(orders), blocked, "yl", orders=orders)
+    except UnsupportedStructure:
+        return None
+    return Part(found[1], False, True) if found else None
+
+
 def _component_part(mol, graph, kind, atoms, attachments, ctx, directed):
+    mixed = len({order for _, _, order in attachments}) > 1
+    if kind == "ring" and mixed:
+        if directed is not None:
+            raise DecompositionRejected("a yl-ylidene ring inside a concatenated linker is not supported")
+        part = _mixed_ring_part(mol, graph, atoms, attachments)
+        if part is None:
+            raise DecompositionRejected("this yl-ylidene ring is not supported")
+        return part
     if kind == "ring" and attachments and all(order == 2 for _, _, order in attachments):
         if directed is not None:
             raise DecompositionRejected("a ylidene ring inside a concatenated linker is not supported")
         return _ylidene_ring_part(mol, graph, atoms, attachments)
     if kind != "assembly":
         return name_component(mol, kind, atoms, attachments, ctx, directed)
-    if directed is not None or any(order != 1 for _, _, order in attachments):
+    if directed is not None or any(order != 1 for _, _, order in attachments) and not mixed:
         raise DecompositionRejected("a ring assembly inside a concatenated linker is not supported")
     from ._chain_assembly import assembly_diyl
     from ._multiplicative_linker import Part
@@ -339,7 +365,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             if sum(1 for r in roots if r in branch) != per_branch:
                 keys = None
                 break
-            keys.add((order, _key(mol, branch, y)))
+            keys.add(_key(mol, branch, y))
         if keys is not None and len(keys) == 1:
             center = cid
             break
@@ -389,6 +415,10 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
                 )
     except DecompositionRejected:
         return None
+    except UnsupportedStructure:
+        if len({o for _, _, o in edges[center]}) > 1:
+            return None
+        raise
     parts_atoms = [a for _, _, a in arms]
     units = [_unit_molecule(mol, atoms_, root) for atoms_, root in zip(parts_atoms, roots)]
     if unit_kind != "chain":

@@ -239,6 +239,10 @@ def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees):
     rings = [list(r) for r in mol.GetRingInfo().AtomRings() if set(r) <= inside]
     from ._system_assembly import system_assembly
 
+    orders = {f[0]: int(mol.GetBondBetweenAtoms(*f).GetBondTypeAsDouble()) for f in frees}
+    mixed = len(set(orders.values())) > 1
+    if mixed and len(rings) != 2:
+        return None
     fused = system_assembly(mol, graph, halogens, aromatic_atoms, None, [], None, free=frees, within=inside)
     if fused is not None:
         return fused[0]
@@ -265,7 +269,8 @@ def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees):
     ]
     entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
     marked = [f[0] for f in frees]
-    locants = _assembly_numbering(graph, rings, joins[0], marked, entries, specs)
+    cite_marked = sorted(marked, key=lambda a: orders[a]) if mixed else None
+    locants = _assembly_numbering(graph, rings, joins[0], marked, entries, specs, cite_marked)
 
     def cite(locant):
         return f"{locant[1]}{chr(39) * locant[0]}"
@@ -277,6 +282,17 @@ def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees):
         info["locants"].sort(key=lambda text: (int(text.rstrip(chr(39))), text.count(chr(39))))
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     base = _assembly_base(specs, locants, joins[0], elide=True)
+    if mixed:
+        words = {1: "yl", 2: "ylidene", 3: "ylidyne"}
+        if any(order not in words for order in orders.values()):
+            return None
+        pieces = []
+        for order in sorted(set(orders.values())):
+            group = [a for a in marked if orders[a] == order]
+            spots = ",".join(cite(c) for c in sorted((locants[m] for m in group), key=_locant_order))
+            pieces.append(f"{spots}-{multiplied_word(len(group), words[order])}")
+        core = f"[{base}]-" + "-".join(pieces)
+        return f"{prefix}-{core}" if prefix else core
     spots = ",".join(cite(c) for c in sorted((locants[m] for m in marked), key=_locant_order))
     core = f"[{base}]-{spots}-{multiplied_word(len(frees), 'yl')}"
     return f"{prefix}-{core}" if prefix else core
