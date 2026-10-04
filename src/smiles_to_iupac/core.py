@@ -136,6 +136,7 @@ from ._ester import has_ester_shape, name_ester
 from ._ester_by_parts import name_ester_by_parts
 from ._heteroacyclic import name_heteroacyclic
 from ._chain_multiplicative import has_chain_multiplicative_shape
+from ._steroid_named import name_steroid
 from ._polyfunctional import name_polyfunctional
 from ._cyanate import has_cyanate_shape, name_cyanate
 from ._ether import has_ether_shape, name_ether
@@ -428,6 +429,9 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
             name = name_heteroacyclic(parsed)
             if name is not None:
                 return name
+            steroid = name_steroid(parsed) if parsed.GetRingInfo().NumRings() == 4 else None
+            if steroid is not None:
+                return steroid
             if has_chain_multiplicative_shape(parsed):
                 try:
                     return name_polyfunctional(parsed)
