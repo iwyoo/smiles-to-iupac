@@ -41,19 +41,16 @@ def test_phenoxide_non_alkyl_ring_substituent_raises():
         smiles_to_iupac("O=C(O)c1ccccc1[O-].[Cu+]")
 
 
-def test_phenoxide_unsaturated_ring_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[O-]c1ccc(CC=C)cc1")
+def test_phenoxide_unsaturated_ring_substituent_is_named():
+    assert smiles_to_iupac("[O-]c1ccc(CC=C)cc1") == "4-(prop-2-en-1-yl)phenoxide"
 
 
-def test_two_alkoxide_groups_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[O-]CC[O-]")
+def test_two_alkoxide_groups_is_named():
+    assert smiles_to_iupac("[O-]CC[O-]") == "ethane-1,2-bis(olate)"
 
 
-def test_ether_oxygen_alongside_alkoxide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[O-]CCOC")
+def test_ether_oxygen_alongside_alkoxide_is_named():
+    assert smiles_to_iupac("[O-]CCOC") == "2-methoxyethanolate"
 
 
 def test_alkoxide_stereocenter_with_coexisting_halogen():
@@ -65,14 +62,12 @@ def test_phenyl_chain_alkoxide():
     assert smiles_to_iupac("c1ccccc1CCC[O-]") == "3-phenylpropan-1-olate"
 
 
-def test_phenyl_substituted_benzene_ring_alkoxide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC[O-]")
+def test_phenyl_substituted_benzene_ring_alkoxide_is_named():
+    assert smiles_to_iupac("Cc1ccccc1CC[O-]") == "2-(2-methylphenyl)ethanolate"
 
 
-def test_phenyl_chain_alkoxide_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC[O-]")
+def test_phenyl_chain_alkoxide_unsaturation_is_named():
+    assert smiles_to_iupac("C=Cc1ccccc1CC[O-]") == "2-(2-ethenylphenyl)ethanolate"
 
 
 @pytest.mark.parametrize(
@@ -85,33 +80,28 @@ def test_aminide_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_aromatic_aminide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[NH-]c1ccccc1")
+def test_aromatic_aminide_is_named():
+    assert smiles_to_iupac("[NH-]c1ccccc1") == "benzenaminide"
 
 
-def test_two_aminide_groups_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[NH-]CC[NH-]")
+def test_two_aminide_groups_is_named():
+    assert smiles_to_iupac("[NH-]CC[NH-]") == "ethane-1,2-bis(aminide)"
 
 
-def test_enamine_aminide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=C[NH-]")
+def test_enamine_aminide_is_named():
+    assert smiles_to_iupac("C=C[NH-]") == "eth-1-en-1-aminide"
 
 
-def test_second_nitrogen_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC[NH-]")
+def test_second_nitrogen_is_named():
+    assert smiles_to_iupac("NCC[NH-]") == "2-aminoethanaminide"
 
 
 def test_phenyl_chain_aminide_ring_halogen():
     assert smiles_to_iupac("Clc1ccc(CCC[NH-])cc1") == "3-(4-chlorophenyl)propan-1-aminide"
 
 
-def test_phenyl_chain_aminide_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC[NH-]")
+def test_phenyl_chain_aminide_unsaturation_is_named():
+    assert smiles_to_iupac("C=Cc1ccccc1CC[NH-]") == "2-(2-ethenylphenyl)ethanaminide"
 
 
 def test_ring_ammonium_raises():
@@ -156,19 +146,16 @@ def test_benzenide_name():
     assert smiles_to_iupac("[c-]1ccccc1") == "benzenide"
 
 
-def test_carbanide_with_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[CH-]1CCCCC1")
+def test_carbanide_with_ring_is_named():
+    assert smiles_to_iupac("[CH-]1CCCCC1") == "cyclohexanide"
 
 
-def test_carbanide_with_halogen_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("ClC[CH2-]")
+def test_carbanide_with_halogen_is_named():
+    assert smiles_to_iupac("ClC[CH2-]") == "2-chloroethan-1-ide"
 
 
-def test_carbanide_with_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CC[CH2-]")
+def test_carbanide_with_unsaturation_is_named():
+    assert smiles_to_iupac("C=CC[CH2-]") == "but-3-en-1-ide"
 
 
 def test_acetyl_anion_with_oxo_on_anion_carbon():
@@ -179,14 +166,12 @@ def test_oxo_substituent_elsewhere_on_chain():
     assert smiles_to_iupac("CCC(=O)[CH-]C") == "3-oxopentan-2-ide"
 
 
-def test_carbanide_with_second_ketone_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=CC(=O)[CH-]C")
+def test_carbanide_with_second_ketone_is_named():
+    assert smiles_to_iupac("O=CC(=O)[CH-]C") == "3,4-dioxobutan-2-ide"
 
 
-def test_carbanide_with_aldehyde_shaped_carbonyl_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C[CH-]C")
+def test_carbanide_with_aldehyde_shaped_carbonyl_is_named():
+    assert smiles_to_iupac("O=C[CH-]C") == "1-oxopropan-2-ide"
 
 
 def test_methylium_name():
@@ -528,3 +513,178 @@ def test_zwitterion_ionic_center_in_ring_raises():
 def test_zwitterion_ammonium_bonded_directly_to_sulfonate_carbon_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[NH3+]C(S(=O)(=O)[O-])")
+
+
+_P72_ANIONS = [
+    ("[CH3-]", "methanide"),
+    ("N#C[C-](C#N)C#N", "tricyanomethanide"),
+    ("[C-2](c1ccccc1)c1ccccc1", "diphenylmethanediide"),
+    ("C[P-]C", "dimethylphosphanide"),
+    ("C#[Si-]", "methylidynesilanide"),
+    ("[c-]1ccccc1", "benzenide"),
+    ("[CH-]1C=CC=C1", "cyclopenta-2,4-dien-1-ide"),
+    ("[C-]#[C-]", "ethynediide"),
+    ("C[CH-]C", "propan-2-ide"),
+    ("[CH2-][CH2-]", "ethane-1,2-diide"),
+    ("[SiH3-]", "silanide"),
+    ("[NH2-]", "azanide"),
+    ("[SH-]", "sulfanide"),
+    ("[PH2-]", "phosphanide"),
+    ("[NH-2]", "azanediide"),
+    ("S[S-]", "disulfanide"),
+    ("OO[O-]", "trioxidanide"),
+    ("[N-]1C=CC=CC1", "pyridin-1(2H)-ide"),
+    ("[CH-]1C=C[CH-]c2ccccc12", "1,4-dihydronaphthalene-1,4-diide"),
+    ("CCC(=O)O[O-]", "propaneperoxoate"),
+    ("CCC(=O)[S-]", "propanethioate"),
+    ("[O-]S(=O)(=O)c1ccccc1", "benzenesulfonate"),
+    ("[O-]P(Cc1ccccc1)Cc1ccccc1", "dibenzylphosphinite"),
+    ("[O-]C(=O)c1cccc(n1)C(=O)[O-]", "pyridine-2,6-dicarboxylate"),
+    ("[O-]C(=N)c1ccc[nH]1", "1H-pyrrole-2-carboximidate"),
+    ("CC(=S)O[O-]", "ethaneperoxothioate"),
+    ("CC(=O)O[S-]", "ethane(OS-thioperoxoate)"),
+    ("OC(=O)CCCCC(=O)[O-]", "5-carboxypentanoate"),
+    ("OP(=O)([O-])c1ccccc1", "hydrogen phenylphosphonate"),
+    ("CCOC(=O)CCC(=O)[O-]", "4-ethoxy-4-oxobutanoate"),
+    ("OP(=O)([O-])Oc1ccccc1", "phenyl hydrogen phosphate"),
+    ("C[O-]", "methoxide"),
+    ("CC[O-]", "ethoxide"),
+    ("CC(C)(C)[O-]", "tert-butoxide"),
+    ("[O-]c1ccccc1", "phenoxide"),
+    ("CC(C)[O-]", "propan-2-olate"),
+    ("[O-]c1ccccc1[O-]", "benzene-1,2-bis(olate)"),
+    ("[S-]c1ccccc1[S-]", "benzene-1,2-bis(thiolate)"),
+    ("CN(C)[O-]", "dimethylaminoxide"),
+    ("CO[O-]", "methaneperoxolate"),
+    ("CCS[O-]", "ethane(SO-thioperoxolate)"),
+    ("[O-]OCCO[O-]", "ethane-1,2-bis(peroxolate)"),
+    ("[S-]Sc1ccc(S[S-])cc1", "benzene-1,4-bis(dithioperoxolate)"),
+    ("N[O-]", "aminoxide"),
+    ("[OH-]", "hydroxide"),
+    ("O[O-]", "hydroperoxide"),
+    ("C[NH-]", "methanaminide"),
+    ("[NH-]c1ccccc1", "benzenaminide"),
+    ("[NH-]CC[NH-]", "ethane-1,2-bis(aminide)"),
+    ("CP(C)(C)=[N-]", "trimethyl-λ5-phosphaniminide"),
+    ("CC[N-2]", "ethanaminediide"),
+    ("[N-2]c1ccccc1", "benzenaminediide"),
+    ("CC(C)(C)OO[O-]", "tert-butyltrioxidanide"),
+    ("C[C-]=O", "1-oxoethan-1-ide"),
+    ("O[NH-]", "hydroxyazanide"),
+    ("O[N-2]", "hydroxyazanediide"),
+    ("C[SiH4-]", "methylsilanuide"),
+    ("C[B-](C)(C)C", "tetramethylboranuide"),
+    ("C[P-](C)(C)C", "tetramethylphosphanuide"),
+    ("[S-](F)(F)c1ccccc1", "difluoro(phenyl)sulfanuide"),
+    ("c1ccccc1[I-]c1ccccc1", "diphenyliodanuide"),
+    ("C[B-]1(C)CCCCC1", "1,1-dimethylborinan-1-uide"),
+    ("C[B-]1(C)CCC2(C1)CCCCC2", "2,2-dimethyl-2-boraspiro[4.5]decan-2-uide"),
+    ("C1C[PH-]2CCC1CC2", "1-phosphabicyclo[2.2.2]octan-1-uide"),
+    ("[PH-]c1ccc([PH-])cc1", "(1,4-phenylene)bis(phosphanide)"),
+    ("O=C([NH-])CCC(=O)[NH-]", "butanedioylbis(azanide)"),
+    ("[CH-]1CCC(CC1)S(=O)(=O)[O-]", "cyclohexan-1-ide-4-sulfonate"),
+    ("[O-]C(=O)CCC#[C-]", "pent-1-yn-1-id-5-oate"),
+    ("[O-]C(=O)Cc1ccccc1C(=O)[O-]", "2-(carboxylatomethyl)benzoate"),
+    ("[O-]c1cc2ccccc2cc1C(=O)[O-]", "3-oxidonaphthalene-2-carboxylate"),
+    ("[O-]S(=O)(=O)c1ccc(cc1)C(=O)[O-]", "4-sulfonatobenzoate"),
+    ("OC(=O)c1ccc(cc1)C(=O)[O-]", "4-carboxybenzoate"),
+    ("[O-]c1ccc(cc1)C(=O)[O-]", "4-oxidobenzoate"),
+    ("C#[C-]", "ethynide"),
+    ("C=[CH-]", "ethenide"),
+    ("ClC[CH2-]", "2-chloroethan-1-ide"),
+    ("[c-]1ccc(cc1)C(=O)[O-]", "benzen-1-ide-4-carboxylate"),
+    ("[O-]C(=O)CC[CH2-]", "butan-1-id-4-oate"),
+    ("CCCC=[N-]", "butan-1-iminide"),
+    ("CCC(=[N-])C", "butan-2-iminide"),
+    ("[S-]Oc1ccc(O[S-])cc1", "benzene-1,4-bis(OS-thioperoxolate)"),
+    ("CCCC(=N)[O-]", "butanimidate"),
+    ("[S-]C(=O)c1ccccc1", "benzenecarbothioate"),
+    ("CCC(=S)[S-]", "propanedithioate"),
+    ("N[N-2]", "hydrazine-1,1-diide"),
+    ("N[NH-]", "hydrazin-1-ide"),
+    ("C[As](C)(C)=[N-]", "trimethyl-λ5-arsaniminide"),
+    ("[PH-]CC[AsH3-]", "(2-phosphanidylethyl)arsanuide"),
+    ("[SiH2-]CC[PH-]", "(2-silanidylethyl)phosphanide"),
+    ("[O-]CC([O-])C1CC[BH2-]CC1", "1-(borinan-1-uid-4-yl)ethane-1,2-bis(olate)"),
+    ("[O-]CC([O-])[NH-]", "1-azanidylethane-1,2-bis(olate)"),
+    ("[O-]CC([O-])[BH3-]", "1-boranuidylethane-1,2-bis(olate)"),
+    ("[O-]P(=O)([O-])c1ccccc1", "phenylphosphonate"),
+    ("[O-]P(=O)(O)O", "dihydrogen phosphate"),
+    ("COP(=O)(OC)[O-]", "dimethyl phosphate"),
+    ("COS(=O)(=O)[O-]", "methyl sulfate"),
+    ("N#C[C-](C#N)c1ccc(cc1)[C-](C#N)C#N", "(1,4-phenylene)bis(dicyanomethanide)"),
+    ("C[B-]1(C)CC[P-]CC1", "4,4-dimethyl-1,4-phosphaborinan-1-id-4-uide"),
+    ("[CH-]1C=CC=CN1", "pyridin-2(1H)-ide"),
+    ("CN1C=CC=C[C-]1C", "1,2-dimethylpyridin-2(1H)-ide"),
+    ("[Na+].C[BH-](C)C", "sodium trimethylboranuide"),
+    ("[Na+].[Na+].[O-]c1ccccc1[O-]", "disodium benzene-1,2-bis(olate)"),
+    ("[Li+].CC(C)(C)[AlH-](CC(C)C)CC(C)C", "lithium tert-butylbis(2-methylpropyl)alumanuide"),
+    ("[Na+].OP(=O)([O-])c1ccccc1", "sodium hydrogen phenylphosphonate"),
+    ("F[I-](F)(F)(F)(F)F", "hexafluoro-λ5-iodanuide"),
+]
+
+
+@pytest.mark.parametrize(("smiles", "expected"), _P72_ANIONS)
+def test_p72_anion_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("NC(=O)CC(=O)[O-]", "3-amino-3-oxopropanoate"),
+        ("CNC(=O)CCC(=O)[O-]", "4-(methylamino)-4-oxobutanoate"),
+        ("[O-]C(=O)c1ccc(cc1)[CH2-]", "4-methanidylbenzoate"),
+        ("[O-]C(=O)c1ccc(cc1)[C-](C#N)C#N", "4-(dicyanomethanidyl)benzoate"),
+        ("[O-]C(=O)C[C-]1C=CC=C1", "(cyclopenta-2,4-dien-1-id-1-yl)acetate"),
+        ("[O-]C(=O)c1ccc(cc1)[BH3-]", "4-boranuidylbenzoate"),
+        ("CC(=O)[Te-]", "ethanetelluroate"),
+        ("[S-]C(=S)c1ccccc1", "benzenecarbodithioate"),
+    ],
+)
+def test_p72_anion_prefixes_and_acid_variants(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+_P72_COVERAGE = [
+    ("F[Te-2](F)(F)(F)(F)(F)(F)F", "octafluoro-λ6-tellanediuide"),
+    ("C1CCCC[SH3-]C[SH3-]1", "1λ6,3λ6-dithiocane-1,3-diide"),
+    ("C1CC[SH3-]CC1", "1λ6-thian-1-ide"),
+    ("[O-]P(=O)([O-])c1ccc(cc1)C(=O)[O-]", "4-phosphonatobenzoate"),
+    ("[O-][As](=O)([O-])c1ccc(cc1)C(=O)[O-]", "4-arsonatobenzoate"),
+    ("[O-]C(=O)c1ccc(cc1)CC[CH2-]", "4-(propan-1-id-3-yl)benzoate"),
+    ("[O-]C(=O)c1ccc(cc1)C[CH-]C", "4-(propan-2-id-1-yl)benzoate"),
+    ("[O-]C(=O)c1ccc(cc1)C=[CH-]", "4-(eth-1-en-1-id-2-yl)benzoate"),
+    ("[O-]C(=O)c1ccc(cc1)S[S-]", "4-disulfanidylbenzoate"),
+    ("[O-]C(=O)c1ccc(cc1)SS[S-]", "4-trisulfanidylbenzoate"),
+    ("[S-]Sc1ccc(cc1)[S-]", "4-sulfidobenzene-1-dithioperoxolate"),
+    ("[O-]C(=O)c1ccc(cc1)C2=C(c3ccc(cc3)C(=O)[O-])[CH-]C=C2", "4,4'-(cyclopenta-2,4-dien-1-id-2,3-diyl)dibenzoate"),
+    ("[O-]C(=O)c1ccc(cc1)CCCc1ccc(cc1)C(=O)[O-]", "4,4'-(propane-1,3-diyl)dibenzoate"),
+    ("N#C[C-](C#N)C1=C(C(=C(C#N)C#N)1)[C-](C#N)C#N", "[3-(dicyanomethylidene)cycloprop-1-ene-1,2-diyl]bis(dicyanomethanide)"),
+    ("OC(=O)c1ccc(cc1)C1=C(c2ccc(cc2)C(=O)O)C1=C(C#N)C#N", "4,4'-[3-(dicyanomethylidene)cycloprop-1-ene-1,2-diyl]dibenzoic acid"),
+    ("B1C=Cc2ccccc12", "1H-1-benzoborole"),
+    ("C1=Cc2ccccc2[SiH2]1", "1H-1-benzosilole"),
+    ("C1=Cc2ccccc2[PH]1", "1H-phosphindole"),
+    ("C1C=C2C=CC=CC2=P1", "2H-phosphindole"),
+    ("CO[B-]1(C)C=C(C)c2ccccc12", "1-methoxy-1,3-dimethyl-1H-1-benzoborol-1-uide"),
+    ("C[B-]1(C)C=C2C=C[CH-]C2=C1", "2,2-dimethyl-2,4-dihydrocyclopenta[c]borol-4-id-2-uide"),
+    ("CN1[C-2]C=CC=Cc2ccccc12", "1-methyl-1-benzazocine-2,2(1H)-diide"),
+    ("C[N-]c1ccccc1", "N-methylbenzenaminide"),
+    ("C[N-]C", "N-methylmethanaminide"),
+    ("C[N-]CC[N-]C", "N1,N2-dimethylethane-1,2-bis(aminide)"),
+    ("C[N-]CC(=O)[O-]", "(methylazanidyl)acetate"),
+    ("CC(=O)[O-]", "acetate"),
+    ("ClCC(=O)[O-]", "chloroacetate"),
+    ("ClC(O)C(=O)[O-]", "chloro(hydroxy)acetate"),
+    ("[O-]C(=O)Cc1ccccc1", "phenylacetate"),
+    ("CC(=O)[NH-]", "acetylazanide"),
+    ("CC(=O)N[N-2]", "acetylhydrazine-1,1-diide"),
+    ("[Ca+2].CC(=O)[O-].CC(=O)[O-]", "calcium diacetate"),
+    ("NC(=O)CC(=O)[O-]", "3-amino-3-oxopropanoate"),
+]
+
+
+@pytest.mark.parametrize(("smiles", "expected"), _P72_COVERAGE)
+def test_p72_prefixes_chains_fusion_and_retained_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

@@ -24,6 +24,11 @@ from ._numerals import alkane_name, alkyl_name
 from ._substituents import _ring_base_name, format_substituent_prefixes
 
 _SUFFIX_WORDS = {
+    "ide": "ide",
+    "peroxoic": "carboperoxoic acid",
+    "thioic": "carbothioic acid",
+    "imidic": "carboximidic acid",
+    "peroxol": "peroxol",
     "carboxylic_acid": "carboxylic acid",
     "sulfonic_acid": "sulfonic acid",
     "amide": "carboxamide",
@@ -321,6 +326,9 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
     free_atoms = [a for a, _ in attachments]
     roots = _ring_roots(mol, spec, set(attachments))
     entries = _prefix_entries(mol, roots, groups, suffix_group, name_function)
+    from ._diester_ring_diyl import _marked_centers, _with_anion_centers
+
+    centers = _marked_centers(mol, spec.cycle)
     best = None
     for locants in numberings(spec):
         if directed is not None:
@@ -328,6 +336,7 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
         else:
             free_key = tuple(sorted(locants[a] for a in free_atoms))
         key = (
+            tuple(sorted(locants[a] for a, _ in centers)),
             free_key,
             multiple_locants(spec, locants),
             tuple(sorted(locants[r] for r, _, _ in entries)),
@@ -341,13 +350,15 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
     else:
         cited = sorted(locants[a] for a in free_atoms)
     loc = ",".join(str(x) for x in cited)
-    if spec.kind == "benzene" and len(cited) == 2:
+    if spec.kind == "benzene" and len(cited) == 2 and not centers:
         body = f"{loc}-phenylene"
     else:
         if len(cited) not in _VALENCE_COUNTS:
             return None
         word = valence_word(len(cited))
         body = f"{parent_text(spec, locants)}-{loc}-{word}"
+        if centers:
+            body = _with_anion_centers(body, [(locants[a], w) for a, w in centers])
     prefix_text = _prefix_text(entries, locants)
     return _join(prefix_text, body), bool(prefix_text)
 

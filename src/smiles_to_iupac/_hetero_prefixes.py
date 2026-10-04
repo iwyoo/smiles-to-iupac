@@ -279,10 +279,34 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
     substituent, or None when `root` is an ordinary carbon."""
     atom = mol.GetAtomWithIdx(root)
     z = atom.GetAtomicNum()
+    if z != 6 and _in_anionic_chain(mol, root, coming_from):
+        from ._anion_chain import chain_prefix
+
+        found = chain_prefix(mol, root, coming_from)
+        if found is not None:
+            return found
+    if atom.HasProp("_anion"):
+        if z == 6 and atom.IsInRing():
+            from ._diester_ring_diyl import ring_substituent_name
+
+            return ring_substituent_name(mol, graph, root, coming_from)
+        if z == 6:
+            return _carbon_anion_prefix(graph, root, coming_from, halogens, aromatic_atoms, mol)
+        return _anionic_group(mol, root, coming_from)
+    if atom.HasProp("_anion_word"):
+        from ._anion_center import center_prefix
+
+        return center_prefix(mol, root, coming_from)
+    if z == 6 and not atom.HasProp("_anion") and _branch_has_anionic_carbon(graph, root, coming_from, mol):
+        if atom.IsInRing():
+            raise UnsupportedStructure("an anionic carbon beyond a ring substituent is not supported yet")
+        return _anionic_chain_prefix(graph, root, coming_from, mol)
     if z == 6:
         if is_functional_carbon(mol, root) or _carbonyl_oxygen(mol, root) is not None:
             return _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol)
         return None
+    if z in (15, 33) and any(mol.GetAtomWithIdx(n).HasProp("_anion_word") for n in graph[root]):
+        return _oxoacid_anion_prefix(graph, root, coming_from, mol)
     if z in MONONUCLEAR_HYDRIDES:
         return _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if atom.GetFormalCharge() and z != 7:
@@ -432,10 +456,12 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
     if z == 8:
         tail = [n for n in graph[x] if n != root]
         if not tail:
-            return "carboxy", False
+            return ("carboxylato" if mol.GetAtomWithIdx(x).HasProp("_anion") else "carboxy"), False
         rname, _ = name_branch(graph, tail[0], x, halogens, aromatic_atoms, mol=mol)
         return _alkoxy(rname) + "carbonyl", True
     if z == 7:
+        if mol.GetAtomWithIdx(x).HasProp("_anion_word"):
+            raise UnsupportedStructure("an anionic amide nitrogen is not named as a carbamoyl prefix")
         subs = [n for n in graph[x] if n != root]
         if not subs:
             return "carbamoyl", False
@@ -448,6 +474,101 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
             name = _acyl_from_acid_name(mol, graph, root, coming_from)
         return name, any(ch.isdigit() for ch in name) or "(" in name or "[" in name
     raise UnsupportedStructure("this carbonyl-derived substituent is not supported yet")
+
+
+ANIONIC_PREFIXES = {7: "azanidyl", 8: "oxido", 16: "sulfido", 34: "selenido", 52: "tellurido"}
+
+
+def _in_anionic_chain(mol, root, coming_from):
+    z = mol.GetAtomWithIdx(root).GetAtomicNum()
+    seen, stack = {root}, [root]
+    while stack:
+        for n in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
+            i = n.GetIdx()
+            if i != coming_from and i not in seen and n.GetAtomicNum() == z:
+                seen.add(i)
+                stack.append(i)
+    return len(seen) > 1 and any(mol.GetAtomWithIdx(i).HasProp("_anion_word") for i in seen)
+
+
+def _branch_has_anionic_carbon(graph, root, coming_from, mol):
+    seen, stack = {root}, [root]
+    while stack:
+        for n in graph[stack.pop()]:
+            if n == coming_from or n in seen:
+                continue
+            seen.add(n)
+            stack.append(n)
+    return any(i != root and mol.GetAtomWithIdx(i).HasProp("_anion") and mol.GetAtomWithIdx(i).GetAtomicNum() == 6 for i in seen)
+
+
+def _anionic_chain_prefix(graph, root, coming_from, mol):
+    """'ethan-1-id-2-yl': the carbon chain's parent anion with the free valence cited after the ide center."""
+    from ._polyfunctional import _arm_atoms, _select, _unit_molecule
+
+    atoms = _arm_atoms(graph, root, coming_from)
+    unit, attach = _unit_molecule(mol, atoms, root)
+    _, _, parts = _select(unit, attach)
+    prefix, body, tail, locant = parts[:4]
+    if not body.endswith("ide"):
+        raise UnsupportedStructure("this anionic substituent chain is not named as a parent anion yet")
+    order = mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble()
+    ending = {1.0: "yl", 2.0: "ylidene", 3.0: "ylidyne"}[order]
+    cited = f"-{locant}-" if locant is not None else ""
+    return f"{prefix}{body[:-1]}{cited}{ending}", True
+
+
+def _carbon_anion_prefix(graph, root, coming_from, halogens, aromatic_atoms, mol):
+    """methanidyl / methanediidyl (and -ylidene/-ylidyne) with its own substituents (P-72.6.3)."""
+    from ._substituents import format_mononuclear_prefixes, name_branch
+
+    atom = mol.GetAtomWithIdx(root)
+    if any(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 and not is_functional_carbon(mol, n) for n in graph[root] if n != coming_from):
+        return _anionic_chain_prefix(graph, root, coming_from, mol)
+    charge = int(atom.GetProp("_anion"))
+    entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in graph[root] if n != coming_from]
+    order = mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble()
+    stem = "methane" if charge > 1 else "methan"
+    word = {1: "id", 2: "diid"}[charge]
+    ending = {1.0: "yl", 2.0: "ylidene", 3.0: "ylidyne"}[order]
+    prefixes = format_mononuclear_prefixes(entries) if entries else ""
+    return f"{prefixes}{stem}{word}{ending}", bool(entries)
+
+
+def _oxoacid_anion_prefix(graph, root, coming_from, mol):
+    """phosphonato / arsonato: every hydroxy of the -E(=O)(OH)2 group deprotonated (P-72.6.1)."""
+    kids = [n for n in graph[root] if n != coming_from]
+    marked = [n for n in kids if mol.GetAtomWithIdx(n).HasProp("_anion_word")]
+    oxo = [
+        n
+        for n in kids
+        if mol.GetAtomWithIdx(n).GetAtomicNum() == 8
+        and mol.GetAtomWithIdx(n).GetDegree() == 1
+        and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 2.0
+    ]
+    if len(kids) == 3 and len(marked) == 2 and len(oxo) == 1:
+        return {15: "phosphonato", 33: "arsonato"}[mol.GetAtomWithIdx(root).GetAtomicNum()], False
+    raise UnsupportedStructure("this partly deprotonated oxoacid substituent is not supported yet")
+
+
+def _anionic_group(mol, root, coming_from):
+    atom = mol.GetAtomWithIdx(root)
+    z = atom.GetAtomicNum()
+    if z == 7 and atom.GetDegree() == 2 and mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() == 1.0:
+        from ._common import adjacency
+        from ._substituents import format_mononuclear_prefixes, name_branch
+
+        graph = adjacency(mol)
+        entries = [
+            name_branch(graph, n, root, {}, frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic()), mol=mol, unsaturated=True)
+            for n in graph[root]
+            if n != coming_from
+        ]
+        return format_mononuclear_prefixes(entries) + "azanidyl", True
+    if mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() == 1.0 and atom.GetDegree() == 1:
+        if z in ANIONIC_PREFIXES:
+            return ANIONIC_PREFIXES[z], False
+    raise UnsupportedStructure("this anionic substituent group is not supported yet")
 
 
 def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
@@ -467,7 +588,7 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     x = rest[0]
     zx = mol.GetAtomWithIdx(x).GetAtomicNum()
     if len(oxygens) == 2 and zx == 8 and mol.GetAtomWithIdx(x).GetDegree() == 1:
-        return "sulfo", False
+        return ("sulfonato" if mol.GetAtomWithIdx(x).HasProp("_anion") else "sulfo"), False
     if len(oxygens) == 2 and zx == 7:
         subs = [n for n in graph[x] if n != root]
         if not subs:

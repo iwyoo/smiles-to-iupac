@@ -7,7 +7,9 @@ from rdkit import Chem
 from ._common import UnsupportedStructure
 from ._fusion_numbering_general import _HETERO_RANK, general_peripheral_numberings
 
-_HETEROATOMS = {"O", "S", "Se", "Te", "N"}
+_CHALCOGENS = {"O", "S", "Se", "Te"}
+_NITROGEN_LIKE = {"N", "B", "Al", "Ga", "In", "Tl", "Si", "Ge", "Sn", "Pb", "P", "As", "Sb", "Bi"}
+_HETEROATOMS = _CHALCOGENS | _NITROGEN_LIKE
 _RETAINED_COMPONENTS = {"pyridine", "pyridazine", "pyrimidine", "pyrazine"}
 _UNAMBIGUOUS_COMPONENTS = {"imidazole", "triazole"}
 
@@ -20,7 +22,7 @@ def _split_rings(mol):
     if len(benzene) != 1:
         return None
     other = rings[0] if rings[1] is benzene[0] else rings[1]
-    if len(other) not in (5, 6, 7):
+    if len(other) not in (5, 6, 7, 8):
         return None
     return benzene[0], other
 
@@ -33,7 +35,7 @@ def _saturated(mol, ring_atoms):
         if symbol in ("O", "S", "Se", "Te"):
             continue
         has_double = atom.GetIsAromatic() or any(b.GetBondTypeAsDouble() == 2.0 for b in atom.GetBonds())
-        if symbol == "N" and atom.GetTotalNumHs() > 0 and (atom.GetIsAromatic() or not has_double):
+        if symbol in _NITROGEN_LIKE and atom.GetTotalNumHs() > 0 and (atom.GetIsAromatic() or not has_double):
             sat.append(a)
         elif not has_double:
             sat.append(a)
@@ -106,7 +108,18 @@ def name_benzo_heterocycle(mol) -> str:
         return f"{ih_text}{'indole' if hetero_locants == [1] else 'isoindole'}"
     if component == "pyrazole":
         return f"{ih_text}indazole"
+    if component in ("phosphole", "arsole"):
+        retained = {"phosphole": "phosphindole", "arsole": "arsindole"}[component]
+        return f"{ih_text}{retained if hetero_locants == [1] else 'iso' + retained}"
     stem = ("benz" if component[0] in "aeiou" else "benzo") + component
     if component in _UNAMBIGUOUS_COMPONENTS:
         return f"{ih_text}{stem}"
     return f"{ih_text}{','.join(map(str, hetero_locants))}-{stem}"
+
+
+def has_group_benzo_heterocycle_name(mol) -> bool:
+    """Benzo-fused rings whose hetero atom is a group 13-15 element other than nitrogen (1H-1-benzoborole)."""
+    match = _match(mol)
+    return match is not None and any(
+        mol.GetAtomWithIdx(a).GetSymbol() in _NITROGEN_LIKE - {"N"} for a in match[2]
+    )

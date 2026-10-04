@@ -296,14 +296,12 @@ def test_selenoate_with_halogen_substituent():
     assert smiles_to_iupac("ClCC(=O)[Se-]") == "2-chloroethaneselenoate"
 
 
-def test_multiple_selenoate_groups_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[Se-]C(=O)CCC(=O)[Se-]")
+def test_multiple_selenoate_groups_is_named():
+    assert smiles_to_iupac("[Se-]C(=O)CCC(=O)[Se-]") == "butanediselenoate"
 
 
-def test_selenoate_on_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[Se-]C(=O)C1CCCCC1")
+def test_selenoate_on_ring_is_named():
+    assert smiles_to_iupac("[Se-]C(=O)C1CCCCC1") == "cyclohexanecarboselenoate"
 
 
 def test_selenoate_branched_r_group():
@@ -325,19 +323,16 @@ def test_phenyl_chain_selenoate():
     assert smiles_to_iupac("c1ccccc1CCC(=O)[Se-]") == "3-phenylpropaneselenoate"
 
 
-def test_phenyl_directly_attached_selenoate_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C(=O)[Se-]")
+def test_phenyl_directly_attached_selenoate_is_named():
+    assert smiles_to_iupac("c1ccccc1C(=O)[Se-]") == "benzenecarboselenoate"
 
 
-def test_phenyl_substituted_benzene_ring_selenoate_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC(=O)[Se-]")
+def test_phenyl_substituted_benzene_ring_selenoate_is_named():
+    assert smiles_to_iupac("Cc1ccccc1CC(=O)[Se-]") == "2-(2-methylphenyl)ethaneselenoate"
 
 
-def test_phenyl_chain_selenoate_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC(=O)[Se-]")
+def test_phenyl_chain_selenoate_unsaturation_is_named():
+    assert smiles_to_iupac("C=Cc1ccccc1CC(=O)[Se-]") == "2-(2-ethenylphenyl)ethaneselenoate"
 
 
 def test_unsaturated_r_not_supported():
