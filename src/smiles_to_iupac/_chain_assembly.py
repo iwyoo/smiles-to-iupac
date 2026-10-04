@@ -5,7 +5,7 @@ rings becoming substituents (P-28.3, P-28.6): [11,21:24,31-terphenyl]-14-ol, 25-
 import re
 from itertools import product
 
-from ._common import UnsupportedStructure, multiplied_word, ring_cycle
+from ._common import multiplied_word, ring_cycle
 from ._multiplicative import _bare_key
 from ._multiplicative_ring import _SUFFIX_WORDS, _citation_key, monocycle_spec, numberings
 from ._multiplicative_text import CompositeLocant

@@ -3,7 +3,6 @@
 
 import re
 
-from rdkit import Chem
 
 from ._common import UnsupportedStructure
 from ._multiplicative import _bare_key
