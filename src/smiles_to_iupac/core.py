@@ -436,6 +436,8 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
             return name_nucleoside(parsed)
         if parsed is not None and has_nucleotide_name(parsed):
             return name_nucleotide(parsed)
+        if parsed is not None and has_substituted_nucleoside_name(parsed):
+            return name_substituted_nucleoside(parsed)
         if parsed is not None:
             name = name_heteroacyclic(parsed)
             if name is not None:

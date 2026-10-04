@@ -188,8 +188,10 @@ def test_substituted_nucleoside_names(smiles, expected):
 
 
 def test_substituted_nucleoside_wrong_sugar_stereo_is_not_matched():
-    with pytest.raises(Exception):
+    assert (
         smiles_to_iupac("CC1=CN(C(=O)NC1=O)[C@@H]2[C@H]([C@@H]([C@H](O2)CO)O)O")
+        == "1-[(2S,3S,4S,5R)-3,4-dihydroxy-5-(hydroxymethyl)oxolan-2-yl]-5-methylpyrimidine-2,4(1H,3H)-dione"
+    )
 
 
 def test_plain_nucleoside_unaffected():
