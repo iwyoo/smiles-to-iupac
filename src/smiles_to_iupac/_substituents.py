@@ -807,6 +807,13 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
         attach_order = _bond_order(mol, root, coming_from)
         aromatic_atoms = aromatic_atoms or frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
 
+    if mol is not None and mol.GetRingInfo().NumRings() >= 3 and attach_order == 1.0:
+        from ._phane_general import phane_substituent
+
+        phane = phane_substituent(mol, graph, root, coming_from)
+        if phane is not None:
+            return phane
+
     if mol is not None and unsaturated:
         from ._hetero_prefixes import hetero_branch_name
 

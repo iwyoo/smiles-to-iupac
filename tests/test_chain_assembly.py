@@ -35,9 +35,8 @@ def test_branched_assemblies_use_the_longest_chain(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_seven_ring_chain_still_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc(cc1)-c1ccc(cc1)-c1ccc(cc1)-c1ccc(cc1)-c1ccc(cc1)-c1ccc(cc1)-c1ccccc1O")
+def test_seven_ring_chain_still_is_named():
+    assert smiles_to_iupac("c1ccc(cc1)-c1ccc(cc1)-c1ccc(cc1)-c1ccc(cc1)-c1ccc(cc1)-c1ccc(cc1)-c1ccccc1O") == '12-hydroxy-1,7(1),2,3,4,5,6(1,4)-heptabenzenaheptaphane'
 
 
 @pytest.mark.parametrize(

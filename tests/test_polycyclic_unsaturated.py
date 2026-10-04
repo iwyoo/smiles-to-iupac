@@ -47,13 +47,12 @@ def test_polycyclic_kekule_aromatic_ring(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_polycyclic_two_aromatic_rings_still_raises():
+def test_polycyclic_two_aromatic_rings_still_is_named():
     # Two independently-aromatic rings bridged by saturated chains (a
     # cyclophane) is a distinct shape this project's dedicated cyclophane
     # modules own -- not a candidate for this single-aromatic-ring
     # mechanism (`_cyclophane.py`'s own tests cover its actual scope).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1cc2cc(c1)CCc1ccc(cc1)CC2")
+    assert smiles_to_iupac("c1cc2cc(c1)CCc1ccc(cc1)CC2") == '1(1,3),4(1,4)-dibenzenacyclohexaphane'
 
 
 def test_polycyclic_extra_unsaturation_outside_aromatic_ring_still_raises():

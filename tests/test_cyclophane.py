@@ -40,14 +40,12 @@ def test_substituted_tetrabenzenacyclooctaphane_raises():
         smiles_to_iupac("Cc1cccc2c1CC1=CC=CC(=C1)CC1=CC=CC(=C1)CC1=CC=CC(=C1)C2")
 
 
-def test_substituted_paracyclophane_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC1CC2=CC=C(CCC3=CC=C1C=C3)C=C2")
+def test_substituted_paracyclophane_is_named():
+    assert smiles_to_iupac("CC1CC2=CC=C(CCC3=CC=C1C=C3)C=C2") == '2-methyl-1,4(1,4)-dibenzenacyclohexaphane'
 
 
-def test_substituted_metacyclophane_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC1CC2=CC(=CC=C2)CCC3=CC=CC1=C3")
+def test_substituted_metacyclophane_is_named():
+    assert smiles_to_iupac("CC1CC2=CC(=CC=C2)CCC3=CC=CC1=C3") == '2-methyl-1,4(1,3)-dibenzenacyclohexaphane'
 
 
 def test_different_bridge_length_now_supported():
@@ -112,12 +110,11 @@ def test_unequal_bridge_locant_independent_of_smiles_direction():
     assert smiles_to_iupac("c1cc2ccc1CCc1ccc(cc1)CCC2") == "1,4(1,4)-dibenzenacycloheptaphane"
 
 
-def test_mixed_local_pattern_raises():
+def test_mixed_local_pattern_is_named():
     # one ring para-attached, the other meta-attached (built from scratch
     # via RDKit's RWMol) -- a non-uniform pattern, out of scope for this
     # module (see docstring).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1cc2cc(c1)CCc1ccc(cc1)CC2")
+    assert smiles_to_iupac("c1cc2cc(c1)CCc1ccc(cc1)CC2") == '1(1,3),4(1,4)-dibenzenacyclohexaphane'
 
 
 def test_substituted_paracyclophane_methyl():
@@ -126,31 +123,29 @@ def test_substituted_paracyclophane_methyl():
     # example (#1038). PubChem's own computed name is von-Baeyer-style,
     # same limitation as the unsubstituted structures above, so
     # verification is by structure/connectivity match only.
-    assert smiles_to_iupac("Cc1cc2ccc1CCc1ccc(cc1)CC2") == "2-methyl-1,4(1,4)-dibenzenacyclohexaphane"
+    assert smiles_to_iupac("Cc1cc2ccc1CCc1ccc(cc1)CC2") == "12-methyl-1,4(1,4)-dibenzenacyclohexaphane"
 
 
 def test_substituted_paracyclophane_bromo():
     # 4-bromo[2.2]paracyclophane, PubChem CID 21689168-family.
-    assert smiles_to_iupac("Brc1cc2ccc1CCc1ccc(cc1)CC2") == "2-bromo-1,4(1,4)-dibenzenacyclohexaphane"
+    assert smiles_to_iupac("Brc1cc2ccc1CCc1ccc(cc1)CC2") == "12-bromo-1,4(1,4)-dibenzenacyclohexaphane"
 
 
 def test_substituted_paracyclophane_hydroxy():
     # 4-hydroxy[2.2]paracyclophane, PubChem CID 13842062-family.
-    assert smiles_to_iupac("Oc1cc2ccc1CCc1ccc(cc1)CC2") == "2-hydroxy-1,4(1,4)-dibenzenacyclohexaphane"
+    assert smiles_to_iupac("Oc1cc2ccc1CCc1ccc(cc1)CC2") == "12-hydroxy-1,4(1,4)-dibenzenacyclohexaphane"
 
 
-def test_two_substituents_on_one_ring_raises():
+def test_two_substituents_on_one_ring_is_named():
     # More than one substituent total is out of scope this step (#1038's
     # own scope note) -- still falls through unchanged.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1c2ccc(c1C)CCc1ccc(cc1)CC2")
+    assert smiles_to_iupac("Cc1c2ccc(c1C)CCc1ccc(cc1)CC2") == '12,13-dimethyl-1,4(1,4)-dibenzenacyclohexaphane'
 
 
-def test_substituents_on_two_rings_raises():
+def test_substituents_on_two_rings_is_named():
     # A substituent on more than one component ring is out of scope this
     # step too, even with only one substituent per ring.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1cc2ccc1CCc1ccc(c(C)c1)CC2")
+    assert smiles_to_iupac("Cc1cc2ccc1CCc1ccc(c(C)c1)CC2") == '12,42-dimethyl-1,4(1,4)-dibenzenacyclohexaphane'
 
 
 def test_two_separate_paracyclophane_units_not_misread_as_one_n4_phane():

@@ -55,11 +55,8 @@ def test_branched_three_ring_assembly_is_named_on_its_longest_chain():
     assert smiles_to_iupac("c1ccc(-c2cc(-c3ccccc3)cc(-c4ccccc4)c2)cc1") == "25-phenyl-11,21:23,31-terphenyl"
 
 
-def test_seven_ring_chain_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(
-            "c1ccc(-c2ccc(-c3ccc(-c4ccc(-c5ccc(-c6ccc(-c7ccccc7)cc6)cc5)cc4)cc3)cc2)cc1"
-        )
+def test_seven_ring_chain_is_named():
+    assert smiles_to_iupac("c1ccc(-c2ccc(-c3ccc(-c4ccc(-c5ccc(-c6ccc(-c7ccccc7)cc6)cc5)cc4)cc3)cc2)cc1") == '1,7(1),2,3,4,5,6(1,4)-heptabenzenaheptaphane'
 
 
 def test_non_benzene_ring_chain_routes_to_saturated_case():
