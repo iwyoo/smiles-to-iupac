@@ -20,7 +20,8 @@ from ._np_name import (
     classify,
     final_labels,
 )
-from ._np_rings import bridge_prefixes, components
+from ._np_fusion import assign_primes, fusion_text, indicated_texts, name_fused
+from ._np_rings import bridge_prefixes, components, split_components
 from ._np_text import core_text, locant_pair, op_prefixes, unsaturation
 from ._numerals import multiplying_prefix
 from ._substituents import format_substituent_prefixes, name_branch
@@ -74,6 +75,7 @@ def build(cand, view):
         raise UnsupportedStructure("a cleaved bond that is formed again")
     ring_comps = components(view, mapped)
     bridge_atoms = set().union(*(c.atoms for c in ring_comps)) if ring_comps else set()
+    bridge_comps, fused_comps = split_components(ring_comps, cand, view)
     groups = classify(cand, view)
     groups.branches = [(loc, root) for loc, root in groups.branches if root not in bridge_atoms]
     alkyls = alkyl_count(cand, view, groups)
@@ -93,7 +95,7 @@ def build(cand, view):
                     raise UnsupportedStructure("a terminal acyl group below the principal group is not supported")
                 branches.append((loc, extra["root"]))
 
-    enes_bonds, hydro, dehydro = unsaturation(cand, view)
+    enes_bonds, hydro, dehydro, retro = unsaturation(cand, view)
     if len(hydro) % 2 or len(dehydro) % 2:
         raise UnsupportedStructure("indicated hydrogen would be needed")
     if len(enes_bonds) + len(hydro) // 2 + len(dehydro) // 2 > _MAX_UNSATURATION_CHANGES or (len(hydro) + len(dehydro)) // 2 > _MAX_HYDRO_PAIRS and not parent.name.endswith("carotene"):
@@ -167,29 +169,44 @@ def build(cand, view):
                     raise UnsupportedStructure("a substituted acid part repeated on a natural product is not supported")
                 anion = multiplying_prefix(len(members), compound=False) + anion
 
-    stem_core = core_text(parent.name, enes, ynes, suffix, locants)
+    stem_core = core_text(_parent_text_name(parent.name, cand.skel.ops), enes, ynes, suffix, locants)
     descriptor = ",".join(text for _, text in sorted(config.parent)) + "-" if config.parent else ""
     hydro_text = _hydro_text(dehydro, "dehydro") + _hydro_text(hydro, "hydro")
     cyclo_text = _cyclo_text(cand, final, config, view)
-    ops = op_prefixes(cand, final, cyclo_text)
+    ops = op_prefixes(cand, final, cyclo_text, retro)
     replacement = _replacement_text(cand, final, view)
     if replacement:
         ops = [replacement] + ops
-    bridges = bridge_prefixes(ring_comps, cand, view, config, final)
+    bridges = bridge_prefixes(bridge_comps, cand, view, config, final)
     if nondetachable_cost(cand) + len(ring_comps) > _MAX_SKELETAL_MODIFICATIONS:
         raise UnsupportedStructure("too many skeletal modifications")
-    ops = bridges + ops
-    nondetachable = "-".join(ops) + ("-" if ops and descriptor else "")
-    side = f"({','.join(text for _, text in sorted(config.side))})-" if config.side else ""
-    detachable = f"{prefix}-" if prefix and (hydro_text or nondetachable or descriptor) else prefix
+    fused = [name_fused(c, cand, view, final, parent.centers, config.hfaces) for c in fused_comps]
+    groups = assign_primes(fused)
+    fused_prefix = fusion_text(groups) if fused else ""
+    indicated = indicated_texts(groups)
+    front_stereo, front_plain = [], []
+    for f in fused:
+        for locant, atom in f.fusion_h:
+            face = config.hfaces.get(atom, "")
+            if face:
+                front_stereo.append((loc_key(locant), f"{locant}{FACES[face]}H"))
+            else:
+                front_plain.append((loc_key(locant), f"{locant}H"))
+    indicated = sorted(indicated + [t for _, t in sorted(front_plain)], key=lambda t: loc_key(t[:-1]))
+    ops = ([fused_prefix] if fused_prefix else []) + bridges + ops
+    nondetachable = "-".join(p.rstrip("-") for p in ops) + ("-" if ops and (descriptor or ops[-1].endswith("-")) else "")
+    side_items = sorted(config.side + front_stereo)
+    side = f"({','.join(text for _, text in side_items)})-" if side_items else ""
+    indicated_text = f"{','.join(indicated)}-" if indicated else ""
+    detachable = f"{prefix}-" if prefix and (hydro_text or indicated_text or nondetachable or descriptor) else prefix
     if hydro_text and prefix:
         detachable = f"{prefix}-"
-    body = f"{side}{detachable}{hydro_text}{nondetachable}{descriptor}{stem_core}"
+    body = f"{side}{detachable}{hydro_text}{indicated_text}{nondetachable}{descriptor}{stem_core}"
     name = " ".join(part for part in (alkyl_word, body, anion) if part)
     nondet = nondetachable_cost(cand)
     rearranged = any(op[0] == "seco" for op in cand.skel.ops) or bool(cand.cyclo)
     removed = sorted((loc_key(op[1])[1] for op in cand.skel.ops if op[0] == "nor"), reverse=True)
-    return Built(name, cost, (cost, nondet > 0, rearranged, -len(mapping), tuple(-n for n in removed)))
+    return Built(name, cost, (cost, nondet > 0, -len(mapping), rearranged, tuple(-n for n in removed)))
 
 
 def _final(skel):
@@ -240,3 +257,11 @@ def _cyclo_text(cand, final, config, view):
 
 def _pair_count(hydro, dehydro):
     return (len(hydro) + len(dehydro)) // 2
+
+
+def _parent_text_name(name, ops):
+    """Carotene names drop the designation of an end group removed by 'apo' beyond its ring (P-101.3.4.2)."""
+    if name.endswith("-carotene") and any(op[0] == "apo" for op in ops):
+        ends = name[: -len("-carotene")].split(",")
+        return f"{ends[0]}-carotene"
+    return name

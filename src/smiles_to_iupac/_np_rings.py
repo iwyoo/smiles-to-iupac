@@ -107,3 +107,25 @@ def _fused_ok(parent):
     from ._np import _parent_facts
 
     return _parent_facts(parent.name)[4] >= 3
+
+
+def split_components(comps, cand, view):
+    """(bridges, fused rings): a short unbranched chain is a bridge unless it closes a ring on adjacent atoms."""
+    image = {a: loc for loc, a in cand.mapping.items()}
+    bridges, fused = [], []
+    for comp in comps:
+        skeleton = {a for a, _ in comp.links}
+        if len(skeleton) != 2 or len(comp.links) != 2:
+            raise UnsupportedStructure("an added ring attached at other than two skeleton atoms")
+        sa, sb = sorted(skeleton)
+        adjacent = image[sb] in cand.skel.adj[image[sa]]
+        try:
+            order = _path(comp, view)
+            elements = tuple(view.elem[a] for a in order)
+        except UnsupportedStructure:
+            elements = None
+        if elements in _BRIDGES and (not adjacent or elements[0] != "C"):
+            bridges.append(comp)
+        else:
+            fused.append(comp)
+    return bridges, fused

@@ -6,7 +6,7 @@ from rdkit import Chem
 from rdkit.Chem import rdCIPLabeler
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, multiplied_word
-from ._np_core import FACES, center_signature, exo_faces, loc_key, orientation_sign, parent_h
+from ._np_core import FACES, center_signature, exo_faces, is_numbered, loc_key, orientation_sign, parent_h
 from ._numerals import multiplying_prefix
 from ._substituents import format_substituent_prefixes, name_branch
 
@@ -52,7 +52,7 @@ def Loc(locant, face=""):
 
 
 def final_labels(skel):
-    """{provisional label: final locant} for the atoms added by 'homo' (P-101.3.2.2)."""
+    """{provisional label: final locant}: 'homo' atoms (P-101.3.2.2) and unnumbered heteroatoms (P-101.4.3)."""
     homo = [op for op in skel.ops if op[0] == "homo"]
     labels = {}
     letters = Counter()
@@ -69,6 +69,15 @@ def final_labels(skel):
         key = base if kind != "bond" else base.split("(")[0]
         labels[label] = f"{base}{_LETTERS[letters[key]]}"
         letters[key] += 1
+    unnumbered = [a for a in skel.adj if not a.startswith("h") and not is_numbered(a)]
+    taken = Counter()
+    for atom in sorted(unnumbered, key=loc_key):
+        neighbors = sorted((n for n in skel.adj[atom] if is_numbered(n)), key=loc_key)
+        if not neighbors:
+            continue
+        base = neighbors[0]
+        labels[atom] = f"{base}{_LETTERS[taken[base]]}"
+        taken[base] += 1
     return labels
 
 

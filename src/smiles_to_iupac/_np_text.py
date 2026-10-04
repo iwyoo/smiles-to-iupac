@@ -28,6 +28,10 @@ def unsaturation(cand, view):
         loc: all(skel.order.get(frozenset((loc, n)), 1) == 1 for n in skel.adj[loc]) and loc not in parent.aromatic_atoms
         for loc in mapping
     }
+    if parent.name.endswith("carotene"):
+        shift = _retro(skel, mapping, view)
+        if shift is not None:
+            return [], [], [], shift
     ene, hydro, dehydro = [], [], []
     covered = set()
     if kind:
@@ -67,7 +71,7 @@ def unsaturation(cand, view):
             hydro += [loc] * (d_p - d_m)
         elif d_m > d_p:
             dehydro += [loc] * (d_m - d_p)
-    return ene, sorted(hydro, key=loc_key), sorted(dehydro, key=loc_key)
+    return ene, sorted(hydro, key=loc_key), sorted(dehydro, key=loc_key), None
 
 
 def locant_pair(skel, final, a, b):
@@ -113,22 +117,30 @@ def _multiplied(items, word):
     return f"{mult}{word}"
 
 
-def op_prefixes(cand, final, cyclo=None):
+def op_prefixes(cand, final, cyclo=None, retro=None):
     """The nondetachable prefixes of the skeletal modifications in citation order (P-101.3.7.2)."""
     ops = cand.skel.ops
     parts = []
     cyclo = cyclo or []
     if cyclo:
         parts.append(f"{':'.join(cyclo)}-{_multiplied(cyclo, 'cyclo')}")
+    for op in ops:
+        if op[0] == "des":
+            parts.append(f"des-{op[1]}-")
     secos = [f"{final(op[1])},{final(op[2])}" for op in ops if op[0] == "seco"]
     if secos:
         parts.append(f"{':'.join(secos)}-{_multiplied(secos, 'seco')}")
     homo = sorted((final(op[3]) for op in ops if op[0] == "homo"), key=loc_key)
     if homo:
         parts.append(f"{','.join(homo)}-{_multiplied(homo, 'homo')}")
+    apo = sorted((op[1] for op in ops if op[0] == "apo"), key=loc_key)
+    if apo:
+        parts.append(f"{','.join(apo)}-{_multiplied(apo, 'apo')}")
     nor = sorted((final(op[1]) for op in ops if op[0] == "nor"), key=loc_key)
     if nor:
         parts.append(f"{','.join(nor)}-{_multiplied(nor, 'nor')}")
+    if retro:
+        parts.append(f"{retro[0]},{retro[1]}-retro")
     return parts
 
 
@@ -173,3 +185,34 @@ def _kekule(atoms, pairs, ordering):
         return (loc_key(low), loc_key(high))
 
     return min(best, key=lambda bonds: sorted(citation(b) for b in bonds))
+
+
+def _retro(skel, mapping, view):
+    """(first locant, second locant) when all bond changes form one shifted conjugated path (P-101.3.5.2)."""
+    removed, added = [], []
+    for bond, order in skel.order.items():
+        a, b = tuple(bond)
+        other = view.order.get(frozenset((mapping[a], mapping[b])))
+        if other is None or other == order:
+            continue
+        if other == 2 and order == 1:
+            added.append(bond)
+        elif other == 1 and order == 2:
+            removed.append(bond)
+        else:
+            return None
+    if not added or len(added) != len(removed):
+        return None
+    changed = removed + added
+    degree = {}
+    for bond in changed:
+        for x in bond:
+            degree[x] = degree.get(x, 0) + 1
+    ends = [x for x, d in degree.items() if d == 1]
+    if len(ends) != 2 or any(d > 2 for d in degree.values()):
+        return None
+    first = next(x for x in ends if any(x in bond for bond in added))
+    second = next(x for x in ends if x != first)
+    if not any(second in bond for bond in removed):
+        return None
+    return first, second
