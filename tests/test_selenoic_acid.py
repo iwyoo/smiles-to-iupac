@@ -37,9 +37,8 @@ def test_branched_substituent_not_supported():
         smiles_to_iupac("CC(C)C(=O)[SeH]")
 
 
-def test_ring_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CCCCC1[SeH]")
+def test_ring_named_with_prefix():
+    assert smiles_to_iupac("O=C1CCCCC1[SeH]") == "2-selanylcyclohexan-1-one"
 
 
 def test_unsaturated_chain_not_supported():

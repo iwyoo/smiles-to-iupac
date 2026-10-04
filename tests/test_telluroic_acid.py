@@ -32,9 +32,8 @@ def test_branched_substituent_not_supported():
         smiles_to_iupac("CC(C)C(=O)[TeH]")
 
 
-def test_ring_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CCCCC1[TeH]")
+def test_ring_named_with_prefix():
+    assert smiles_to_iupac("O=C1CCCCC1[TeH]") == "2-tellanylcyclohexan-1-one"
 
 
 def test_unsaturated_chain_not_supported():

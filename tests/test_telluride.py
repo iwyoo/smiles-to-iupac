@@ -78,11 +78,9 @@ def test_benzene_ring_parent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_benzene_ring_multiple_substituents_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[Te]c1ccccc1[Te]C")
+def test_benzene_ring_multiple_substituents_named_with_prefix():
+    assert smiles_to_iupac("C[Te]c1ccccc1[Te]C") == "1,2-bis(methyltellanyl)benzene"
 
 
-def test_benzene_ring_stereocenter_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1[Te][C@H](C)CC")
+def test_benzene_ring_stereocenter_named_with_prefix():
+    assert smiles_to_iupac("c1ccccc1[Te][C@H](C)CC") == "{[(2R)-butan-2-yl]tellanyl}benzene"

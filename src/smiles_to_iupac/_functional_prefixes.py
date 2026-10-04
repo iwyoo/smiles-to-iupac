@@ -8,6 +8,7 @@ import re
 from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, alpha_sort_key
+from ._hetero_prefixes import CHALCOGEN_PREFIXES, require_plain_chalcogen_kids, require_senior_group
 from ._numerals import multiplying_prefix
 from ._substituents import name_branch
 
@@ -166,17 +167,21 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 record(node, name, _is_compound(name) or name != "phenoxy" and not _RETAINED_ALKYL_END.search(rname))
             else:
                 raise UnsupportedStructure("this oxygen-bearing substituent is not supported yet")
-        elif z == 16:
+        elif z in CHALCOGEN_PREFIXES:
+            word = CHALCOGEN_PREFIXES[z]
+            if not kids:
+                require_senior_group(mol, z)
+            require_plain_chalcogen_kids(mol, z, kids)
             if not kids and _bond_order(mol, node, parent) == 2.0:
-                record(node, "sulfanylidene", False)
+                record(node, word[:-2] + "ylidene", False)
             elif not kids:
-                record(node, "sulfanyl", False)
+                record(node, word, False)
             elif len(kids) == 1 and atom.GetDegree() == 2 and mol.GetAtomWithIdx(kids[0]).GetAtomicNum() == 6:
                 rname, rcompound = child_name(kids[0], node)
-                name = (_enclose(rname) if rcompound else rname) + "sulfanyl"
+                name = (_enclose(rname) if rcompound else rname) + word
                 record(node, name, True)
             else:
-                raise UnsupportedStructure("this sulfur-bearing substituent is not supported yet")
+                raise UnsupportedStructure("this chalcogen-bearing substituent is not supported yet")
         elif z == 7:
             bond = _bond_order(mol, node, parent)
             if bond == 3.0 and not kids:

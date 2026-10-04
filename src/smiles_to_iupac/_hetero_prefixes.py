@@ -4,6 +4,8 @@ amino, nitro, cyano, formyl, carboxy, carbamoyl, alkoxycarbonyl and acyl.
 `name_branch` calls `hetero_branch_name` before it walks a carbon chain.
 """
 
+from rdkit import Chem
+
 from ._common import UnsupportedStructure, alpha_sort_key
 from ._multiplicative_text import enclose
 from ._numerals import alkane_name
@@ -14,6 +16,44 @@ _SIMPLE_NAMES = {
     "nitro", "nitroso", "cyano", "sulfanyl", "formyl", "carboxy", "carbamoyl",
 }
 _MULTIPLE_TARGETS = {7, 8, 16}
+CHALCOGEN_PREFIXES = {16: "sulfanyl", 34: "selanyl", 52: "tellanyl"}
+
+
+_SENIOR_TO_SELENOL = [
+    Chem.MolFromSmarts(smarts)
+    for smarts in (
+        "[CX3](=O)[OX2H1]",
+        "[CX3](=O)[OX2][#6]",
+        "[CX3](=O)[NX3]",
+        "[CX2]#[NX1]",
+        "[CX3H1](=O)[#6]",
+        "[#6][CX3](=O)[#6]",
+        "[OX2H1][#6;!$([#6]=O)]",
+        "[SX2H1][#6;!$([#6]=[O,S,Se,Te])]",
+    )
+]
+
+
+def require_plain_chalcogen_kids(mol, z, kids):
+    """Se/Te bonded to an acyl, carbamoyl, formyl or cyano carbon is a selenoate/selenocyanate-type group, not a
+    plain selanyl/tellanyl prefix."""
+    if z in (34, 52):
+        for kid in kids:
+            atom = mol.GetAtomWithIdx(kid)
+            if atom.GetAtomicNum() != 6 or any(
+                b.GetBondTypeAsDouble() >= 2.0 and b.GetOtherAtom(atom).GetAtomicNum() in (7, 8, 16, 34, 52)
+                for b in atom.GetBonds()
+            ):
+                raise UnsupportedStructure("an acyl, carbamoyl or cyano group on selenium/tellurium is not a selanyl prefix")
+
+
+def require_senior_group(mol, z):
+    """A free -SeH/-TeH/=Se/=Te is the principal group (selenol, tellurol, selone) unless a more senior class
+    (acid, ester, amide, nitrile, aldehyde, ketone, alcohol, thiol) is present (P-41, P-63.1)."""
+    if z in (34, 52) and not any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL):
+        raise UnsupportedStructure("a selenol, tellurol, selone or tellone is the principal group, not a prefix")
+
+
 MONONUCLEAR_HYDRIDES = {
     5: ("borane", "boranyl", 3),
     13: ("alumane", "alumanyl", 3),
@@ -200,20 +240,26 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return name, _compound(name)
     if z == 16 and atom.GetDegree() > 2:
         return _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
-    if z == 16:
-        if order != 1.0 or len(others) > 1 or atom.GetDegree() > 2:
-            raise UnsupportedStructure("this sulfur-linked group is not supported yet")
+    if z in CHALCOGEN_PREFIXES:
+        word = CHALCOGEN_PREFIXES[z]
         if not others:
-            return "sulfanyl", False
+            require_senior_group(mol, z)
+        require_plain_chalcogen_kids(mol, z, others)
+        if order == 2.0 and not others:
+            return word[:-2] + "ylidene", False
+        if order != 1.0 or len(others) > 1 or atom.GetDegree() > 2:
+            raise UnsupportedStructure("this chalcogen-linked group is not supported yet")
+        if not others:
+            return word, False
         if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in MONONUCLEAR_HYDRIDES:
             silyl, _ = _mononuclear_group(graph, others[0], root, halogens, aromatic_atoms, mol)
-            return _enclose(silyl, True) + "sulfanyl", True
+            return _enclose(silyl, True) + word, True
         if mol.GetAtomWithIdx(others[0]).GetAtomicNum() != 6:
             raise UnsupportedStructure("a chalcogen chain (disulfanyl, ...) is not supported yet")
         from ._substituents import name_branch
 
         rname, rcomp = name_branch(graph, others[0], root, halogens, aromatic_atoms, mol=mol)
-        return _enclose(rname, rcomp) + "sulfanyl", True
+        return _enclose(rname, rcomp) + word, True
     if z == 7:
         oxygens = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 8]
         if len(oxygens) == len(others) and others:

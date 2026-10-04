@@ -131,9 +131,8 @@ def test_ring_with_tellurol_chain_tellurol_ring_wins_outright():
     )
 
 
-def test_tellurol_with_alcohol_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC[TeH]")
+def test_tellurol_with_alcohol_named_with_prefix():
+    assert smiles_to_iupac("OCC[TeH]") == "2-tellanylethanol"
 
 
 def test_acyclic_tellurol_stereocenter():

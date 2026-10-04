@@ -5,6 +5,7 @@ through `name_branch` and every heteroatom inside a branch resolved first.
 """
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure
+from ._hetero_prefixes import CHALCOGEN_PREFIXES, require_plain_chalcogen_kids, require_senior_group
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
 _SIMPLE = {"amino", "hydroxy", "sulfanyl", "methoxy", "ethoxy", "propoxy", "butoxy", "phenoxy", "nitro", "cyano"}
@@ -124,7 +125,7 @@ class PrefixNamer:
             raise UnsupportedStructure("a charged substituent group is not supported here")
         if z == 6:
             return self._carbon(n, parent)
-        if z in (8, 16) and any(self._z(q) != 6 for q in self.graph[n] if q != parent):
+        if z in (8, 16, 34, 52) and any(self._z(q) != 6 for q in self.graph[n] if q != parent):
             raise UnsupportedStructure("adjacent heteroatoms are not supported here")
         entries = self._entries(n, parent)
         if z == 8:
@@ -133,10 +134,13 @@ class PrefixNamer:
                     return "oxo", False
                 return "hydroxy", False
             return _oxy(*entries[0])
-        if z == 16:
+        if z in CHALCOGEN_PREFIXES:
+            word = CHALCOGEN_PREFIXES[z]
+            require_plain_chalcogen_kids(mol, z, [q for q in self.graph[n] if q != parent])
             if not entries:
-                return "sulfanyl", False
-            return format_mononuclear_prefixes(entries) + "sulfanyl", True
+                require_senior_group(mol, z)
+                return word, False
+            return format_mononuclear_prefixes(entries) + word, True
         if z == 7:
             return self._nitrogen(n, parent, entries)
         if z == 15:
