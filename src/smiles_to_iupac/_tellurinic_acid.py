@@ -223,14 +223,10 @@ def _candidate_key(chain_length, teoh_locant, ene_locants, yne_locants, substitu
     )
 
 def _benzenetellurinic_acid_name_from_substituents(grouped):
-    # Mirrors `_selenonic_acid.py`'s
-    # `_benzeneselenonic_acid_name_from_substituents`: the mancude ring's
-    # own numbering is always free to start at the -Te(=O)OH carbon, so
-    # its locant is never cited even when other substituents need theirs,
-    # e.g. '4-methylbenzenetellurinic acid'.
+    # P-14.3.4.5, P-65.3.1: locant 1 is cited once other substituents are present, as in '4-aminobenzene-1-sulfonic acid'.
     if not grouped:
         return "benzenetellurinic acid"
-    return f"{format_substituent_prefixes(grouped)}benzenetellurinic acid"
+    return f"{format_substituent_prefixes(grouped)}benzene-1-tellurinic acid"
 
 
 def _benzenetellurinic_acid_candidate_key(teoh_locant, substituents):

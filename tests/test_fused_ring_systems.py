@@ -174,7 +174,7 @@ def test_bridged_anthracene_benzo(smiles):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OC(=O)CN1C=CN2C=CC=CC12", "2-[imidazo[1,2-a]pyridin-1(8aH)-yl]ethanoic acid"),
+        ("OC(=O)CN1C=CN2C=CC=CC12", "[imidazo[1,2-a]pyridin-1(8aH)-yl]acetic acid"),
     ],
 )
 def test_bridgehead_heteroatom_fused_yl(smiles, expected):

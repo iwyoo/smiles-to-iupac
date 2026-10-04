@@ -597,11 +597,11 @@ def test_stereocentre_on_a_metal_ligand_is_not_dropped():
     [
         (
             "OC(=O)CC1CC2CC[Pt](Cl)(Cl)C12",
-            "2-{2,2-dichloro-2-platinabicyclo[3.2.0]heptan-7-yl}ethanoic acid",
+            "{2,2-dichloro-2-platinabicyclo[3.2.0]heptan-7-yl}acetic acid",
         ),
         (
             "OC(=O)CC1C[Pt](Cl)(Cl)c2ccccc12",
-            "2-(1,1-dichloro-2,3-dihydro-1-platinainden-3-yl)ethanoic acid",
+            "(1,1-dichloro-2,3-dihydro-1-platinainden-3-yl)acetic acid",
         ),
     ],
 )
@@ -771,10 +771,10 @@ def test_yl_ylidene_linker_multiplicative_names(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OC(=O)C=C2CCCCC2CC(=O)O", "2,2'-(cyclohexan-1-yl-2-ylidene)diethanoic acid"),
+        ("OC(=O)C=C2CCCCC2CC(=O)O", "2,2'-(cyclohexan-1-yl-2-ylidene)diacetic acid"),
         (
             "OC(=O)CC1CCC(CC1)C1CCC(CC1)=CC(=O)O",
-            "2,2'-([1,1'-bi(cyclohexan)]-4-yl-4'-ylidene)diethanoic acid",
+            "2,2'-([1,1'-bi(cyclohexan)]-4-yl-4'-ylidene)diacetic acid",
         ),
     ],
 )

@@ -126,6 +126,7 @@ from ._common import (
     substituent_locant_set_and_citation,
 )
 from ._carboxylic_acid import _name_benzo_attached_carboxyl, _name_ring_attached_carboxyl
+from ._retained_acids import retained_chain_acid
 from ._substituents import (
     substituents_for_chain,
     format_substituent_prefixes,
@@ -250,6 +251,9 @@ def _name_alcohol_part(mol, alcohol_carbon, ester_oxygen_idx):
 
 
 def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped):
+    retained = retained_chain_acid(grouped, chain_length, ene_locants, yne_locants, 1, "anion")
+    if retained is not None:
+        return retained
     return format_substituent_prefixes(grouped) + name_from_substituents(chain_length, ene_locants, yne_locants, "oate")
 
 

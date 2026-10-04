@@ -295,15 +295,10 @@ def _name_cyclic_sulfinic_acid(mol, sulfur_idx, so2h_carbon, bonds=()):
 
 
 def _benzenesulfinic_acid_name_from_substituents(grouped):
-    # Unlike the cycloalkane case, the mancude ring's own numbering is
-    # always free to start at the -SO2H carbon (P-14.3.3-style), so its
-    # locant is never cited even when other substituents need theirs,
-    # e.g. '2-methylbenzenesulfinic acid' (PubChem CID 12661295), not
-    # '2-methylbenzene-1-sulfinic acid' -- mirrors `_sulfonic_acid.py`'s
-    # identical 'benzenesulfonic acid' treatment.
+    # P-14.3.4.5, P-65.3.1: locant 1 is cited once other substituents are present, as in '4-aminobenzene-1-sulfonic acid'.
     if not grouped:
         return "benzenesulfinic acid"
-    return f"{format_substituent_prefixes(grouped)}benzenesulfinic acid"
+    return f"{format_substituent_prefixes(grouped)}benzene-1-sulfinic acid"
 
 
 def _benzenesulfinic_acid_candidate_key(so2h_locant, substituents):

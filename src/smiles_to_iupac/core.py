@@ -9,6 +9,11 @@ from ._salt import has_salt_shape, name_salt
 from ._hydrohalide_salt import has_hydrohalide_salt_shape, name_hydrohalide_salt
 from ._hydrate_adduct import has_hydrate_adduct_shape, name_hydrate_adduct
 from ._acyclic import name_acyclic_alkane
+from ._acid_derivatives import name_acid_derivative
+from ._acid_salts import name_acid_salt
+from ._hetero_carboxylic import name_hetero_parent_acid
+from ._polycarbonic import name_polycarbonic
+from ._carbonic_family import name_carbonic_family
 from ._acyl_halide import has_acyl_halide_shape, name_acyl_halide
 from ._anhydride import has_anhydride_shape, name_anhydride
 from ._carbamate import has_carbamate_shape, name_carbamate
@@ -433,6 +438,12 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
             return name_nucleoside(parsed)
         if parsed is not None and has_nucleotide_name(parsed):
             return name_nucleotide(parsed)
+        if parsed is not None and not has_sphingoid_shape(parsed):
+            for namer in (name_acid_salt, name_polycarbonic, name_carbonic_family, name_acid_derivative, name_hetero_parent_acid):
+                try:
+                    return namer(parsed)
+                except UnsupportedStructure:
+                    pass
         if parsed is not None:
             name = name_heteroacyclic(parsed)
             if name is not None:

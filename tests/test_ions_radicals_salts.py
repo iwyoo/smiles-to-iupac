@@ -294,7 +294,7 @@ def test_plain_mixture_raises():
 def test_unsupported_base_fragment():
     assert (
         smiles_to_iupac("c1ccccc1CC(=O)Nc1ccccc1C(=O)OCCCC.Cl")
-        == "butyl 2-[(2-phenylethanoyl)amino]benzoate;hydrochloride"
+        == "butyl 2-[(phenylacetyl)amino]benzoate;hydrochloride"
     )
 
 
@@ -528,3 +528,18 @@ def test_zwitterion_ionic_center_in_ring_raises():
 def test_zwitterion_ammonium_bonded_directly_to_sulfonate_carbon_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[NH3+]C(S(=O)(=O)[O-])")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[O-]C(=O)CCC(=O)[O-]", "butanedioate"),
+        ("[O-]C(=O)CCCCCC(=O)O", "6-carboxyhexanoate"),
+        ("[O-]C(=O)C(=O)O", "hydrogen oxalate"),
+        ("[O-]S(=O)(=O)c1ccccc1", "benzenesulfonate"),
+        ("OC([O-])=O.[Na+]", "sodium hydrogen carbonate"),
+        ("CC(=O)[O-].CC(=O)[O-].[Ca+2]", "calcium diacetate"),
+    ],
+)
+def test_acid_anion_and_salt_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

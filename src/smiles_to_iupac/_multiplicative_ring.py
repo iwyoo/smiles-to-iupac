@@ -22,7 +22,19 @@ from ._multiplicative_prefix import SIMPLE_PREFIXES, prefix_name, probe_name, su
 from ._numerals import alkane_name, alkyl_name
 from ._substituents import _ring_base_name, format_substituent_prefixes
 
-_SUFFIX_WORDS = {
+class _SuffixWords(dict):
+    def __missing__(self, key):
+        if isinstance(key, str) and key.startswith("acid:"):
+            from ._acid_lexicon import carbo_suffix, spec_from_key
+
+            return carbo_suffix(spec_from_key(key), 1)
+        raise KeyError(key)
+
+    def __contains__(self, key):
+        return dict.__contains__(self, key) or (isinstance(key, str) and key.startswith("acid:"))
+
+
+_SUFFIX_WORDS = _SuffixWords({
     "carboxylic_acid": "carboxylic acid",
     "sulfonic_acid": "sulfonic acid",
     "amide": "carboxamide",
@@ -33,8 +45,9 @@ _SUFFIX_WORDS = {
     "alcohol": "ol",
     "thiol": "thiol",
     "amine": "amine",
-}
+})
 _RETAINED_BENZENE = {
+    "acid:C:O:O!": "benzoate",
     "carboxylic_acid": "benzoic acid",
     "amide": "benzamide",
     "nitrile": "benzonitrile",

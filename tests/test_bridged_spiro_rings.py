@@ -198,11 +198,11 @@ def test_biphenyl_assembly_stays_assembly():
     [
         (
             "OC(=O)C=C1c2cccc(n2)Cc2cccc(n2)Cc2cccc(n2)Cc2cccc1n2",
-            "2-[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-2-ylidene]ethanoic acid",
+            "[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-2-ylidene]acetic acid",
         ),
         (
             "OC(=O)C=C1C=C2Cc3cccc(n3)Cc3cccc(n3)Cc3cccc(n3)CC(=C1)N2",
-            "2-[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-14(11H)-ylidene]ethanoic acid",
+            "[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-14(11H)-ylidene]acetic acid",
         ),
     ],
 )

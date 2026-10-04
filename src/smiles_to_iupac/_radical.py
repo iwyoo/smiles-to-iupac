@@ -69,11 +69,10 @@
   the parent acid's '-oic acid'/'carboxylic acid' ending with '-oyl'/
   '-carbonyl' -- `has_radical_shape` (`core.py`) already sends any
   radical-bearing molecule here first, ahead of every other module.
-  Always the systematic stem (`methanoyl`, `ethanoyl`, ...), never a
-  retained name like 'formyl'/'acetyl', mirroring this project's existing
-  `_carboxylic_acid.py` policy of never special-casing 'formic'/'acetic
-  acid' either. Two shapes, both reusing `_carboxylic_acid.py`'s own
-  chain-/ring-numbering machinery directly rather than duplicating it
+  One- and two-carbon chains take the retained 'formyl'/'acetyl'
+  (`_retained_acids.py`, P-65.1.7.2.1). Two shapes, both reusing
+  `_carboxylic_acid.py`'s own chain-/ring-numbering machinery directly
+  rather than duplicating it
   (that module's ring-attached kernels are already suffix/word-
   parameterized and reused the same way by `_ester.py`):
   - An acyclic chain (unbranched or branched), radical carbon fixed at
@@ -187,6 +186,7 @@ from ._numerals import alkane_name, alkyl_name
 from ._polycyclic import find_polycyclic_core
 from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
 from ._spiro import find_monospiro_atom
+from ._retained_acids import retained_chain_acid
 from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
 
 
@@ -290,7 +290,9 @@ def _acyl_radical_acyclic_name(mol):
             substituents = substituents_for_chain(graph, candidate, {}, mol=mol)
             grouped = group_substituents(substituents)
             locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
-            name = format_substituent_prefixes(grouped) + name_from_substituents(chain_length, [], [], "oyl")
+            name = retained_chain_acid(grouped, chain_length, [], [], 1, "acyl")
+            if name is None:
+                name = format_substituent_prefixes(grouped) + name_from_substituents(chain_length, [], [], "oyl")
             key = (locant_set, citation_locants, name)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name

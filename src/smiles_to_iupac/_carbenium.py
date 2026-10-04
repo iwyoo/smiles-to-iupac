@@ -57,16 +57,10 @@ Book"):
   degree 2, not 3). Three shapes, mirroring `_radical.py`'s own acyl-
   radical mechanism exactly (a +1 charge instead of a radical electron):
   - An unbranched or branched acyclic chain, cation carbon fixed at C1:
-    the two P-65.1.7 retained short stems (`_ACYLIUM_RETAINED_STEMS`,
-    formyl/acetyl for n=1/2) apply only to the unsubstituted case; a
-    branched chain always uses the systematic '-oyl' stem
-    (`_common.py`'s `name_from_substituents`) plus 'ium'. Confirmed
-    worked example `acetylium (PIN)`, `tmp/bluebook/P7.txt` ~2071-2098 --
-    a *different* choice than `_carboxylic_acid.py`'s own policy of never
-    special-casing 'acetic acid' for the neutral acid, because here the
-    retained short stem is the Blue Book's own explicitly confirmed PIN,
-    not merely an alternative name for an otherwise-systematic
-    construction.
+    formyl/acetyl (`_retained_acids.py`, P-65.1.7.2.1) for one- and
+    two-carbon chains, else the systematic '-oyl' stem plus 'ium'.
+    Confirmed worked example `acetylium (PIN)`, `tmp/bluebook/P7.txt`
+    ~2071-2098.
   - A ring-attached acylium carbon: `_carboxylic_acid.py`'s
     `_name_ring_attached_carboxyl`/`_name_benzo_attached_carboxyl`
     reused with `suffix="carbonylium"`/`word="benzoylium"` (the same
@@ -112,6 +106,7 @@ from ._numerals import alkane_name, alkyl_name
 from ._polycyclic import find_polycyclic_core
 from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
 from ._spiro import find_monospiro_atom
+from ._retained_acids import retained_chain_acid
 from ._substituents import format_substituent_prefixes, substituents_for_chain
 
 
@@ -278,10 +273,6 @@ def _name_ring_carbenium(mol, ring_info) -> str:
     return "cyclo" + alkyl_name(len(ring_atoms)) + "ium"
 
 
-# P-65.1.7's own retained short acyl-group stems -- see module docstring.
-_ACYLIUM_RETAINED_STEMS = {1: "formyl", 2: "acetyl"}
-
-
 def _acylium_core(mol):
     """(cation_atom, oxygen_atom) if `mol` has P-73.2.3.1's basic acylium
     charge/bond pattern -- a single +1-charged carbon double-bonded to one
@@ -355,11 +346,9 @@ def _acylium_acyclic_name(mol):
             substituents = substituents_for_chain(graph, candidate, {}, mol=mol)
             grouped = group_substituents(substituents)
             locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
-            if grouped:
+            name = retained_chain_acid(grouped, chain_length, [], [], 1, "acylium")
+            if name is None:
                 name = format_substituent_prefixes(grouped) + name_from_substituents(chain_length, [], [], "oyl") + "ium"
-            else:
-                stem = _ACYLIUM_RETAINED_STEMS.get(chain_length) or (alkane_name(chain_length)[:-1] + "oyl")
-                name = stem + "ium"
             key = (locant_set, citation_locants, name)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name

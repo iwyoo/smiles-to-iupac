@@ -74,7 +74,7 @@ always the chain terminus, its own locant is never cited, e.g. `CCC=O` →
 `propanal`, `CC(C)C=O` → `2-methylpropanal`, `O=CCCCC=O` → `pentanedial`,
 and `C=CCCC=O` → `pent-4-enal`. Carboxylic acids (P-65.1.1, the '-oic
 acid' suffix) are supported on acyclic saturated or unsaturated carbon
-chains, e.g. `CC(=O)O` → `ethanoic acid`, `CC(C)CC(=O)O` →
+chains, e.g. `CC(=O)O` → `acetic acid`, `CC(C)CC(=O)O` →
 `3-methylbutanoic acid`, `OC(=O)CCCCC(=O)O` → `hexanedioic acid`, and
 `CC=CC(=O)O` → `but-2-enoic acid`. Ethers (P-63.2.1, the 'oxy' substituent
 prefix — ethers have no suffix) are supported between two acyclic saturated

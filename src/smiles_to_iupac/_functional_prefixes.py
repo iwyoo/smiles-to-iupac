@@ -11,6 +11,7 @@ from ._common import HALOGEN_PREFIXES, UnsupportedStructure, alpha_sort_key
 from ._hetero_prefixes import CHALCOGEN_PREFIXES, phosphoryl_name, require_plain_chalcogen_kids, require_senior_group
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
+from ._retained_acids import is_compound_acyl
 from ._substituents import name_branch
 
 _RETAINED_ALKYL_END = re.compile(r"(meth|eth|prop|but)yl$")
@@ -55,10 +56,11 @@ def _acyl_prefix(mol, subtree, root, parent):
         rw.RemoveAtom(idx)
     sub = rw.GetMol()
     Chem.SanitizeMol(sub)
-    acid = smiles_to_iupac(Chem.MolToSmiles(sub))
-    if not acid.endswith("ic acid"):
-        raise UnsupportedStructure("an acyl substituent whose parent acid has no 'ic acid' name is not supported yet")
-    return acid[: -len("ic acid")] + "yl"
+    from ._acid_derivatives import acyl_name
+
+    name = acyl_name(smiles_to_iupac(Chem.MolToSmiles(sub)))
+    # HOOC-CO- keeps one acid group, so the retained 'oxalyl' (-CO-CO-) becomes 'oxalo' (P-65.1.2.2.3)
+    return "oxalo" if name == "oxalyl" else name
 
 
 def _multiplied_amino(children, tail):
@@ -237,7 +239,7 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 if any(mol.GetAtomWithIdx(k).GetAtomicNum() != 6 for k in others):
                     raise UnsupportedStructure("an acid-derivative substituent is not supported yet")
                 name = "formyl" if not others else _acyl_prefix(mol, subtree(node), node, parent)
-                record(node, name, _is_compound(name))
+                record(node, name, is_compound_acyl(name))
             elif carbonyl:
                 others = [k for k in kids if k not in carbonyl]
                 if any(mol.GetAtomWithIdx(k).GetAtomicNum() != 6 for k in others):
