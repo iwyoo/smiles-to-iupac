@@ -85,6 +85,7 @@ from ._bridged_aromatic import (
     name_bridged_aromatic,
 )
 from ._alkaloid_parent_hydrides import has_alkaloid_morphinan_name, name_alkaloid_morphinan
+from ._appendix3_skeletons import name_appendix3_skeleton
 from ._bridged_alicyclic_parent import has_bridged_steroid_name, name_bridged_steroid_parent
 from ._borane import has_simple_borane_shape, name_simple_borane
 from ._boronic_acid import has_boronic_acid_shape, name_boronic_acid
@@ -483,6 +484,9 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
             return name_substituted_nucleoside(parsed)
         if parsed is not None:
             name = name_heteroacyclic(parsed)
+            if name is not None:
+                return name
+            name = name_appendix3_skeleton(parsed)
             if name is not None:
                 return name
             steroid = name_steroid(parsed) if parsed.GetRingInfo().NumRings() == 4 else None

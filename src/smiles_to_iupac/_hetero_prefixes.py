@@ -215,8 +215,11 @@ def _acyl_name(mol, graph, carbon, from_atom, halogens=None, aromatic_atoms=None
     from ._common import group_substituents
     from ._substituents import format_substituent_prefixes
 
+    from ._substituents import _branch_stereo_entries, _branch_stereo_prefix
+
+    stereo = _branch_stereo_prefix(_branch_stereo_entries({a: i for i, a in enumerate(chain, start=1)}, record=True))
     prefix = format_substituent_prefixes(group_substituents(entries), omit_locants=len(chain) == 1) if entries else ""
-    return prefix + alkane_name(len(chain))[:-1] + "oyl"
+    return stereo + prefix + alkane_name(len(chain))[:-1] + "oyl"
 
 
 def _acyl_from_acid_name(mol, graph, carbon, from_atom):
@@ -437,6 +440,34 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
     raise UnsupportedStructure("this heteroatom-linked substituent is not supported yet")
 
 
+_ACYL_HALIDE_PREFIXES = {9: "carbonofluoridoyl", 17: "carbonochloridoyl", 35: "carbonobromidoyl", 53: "carbonoiodidoyl"}
+
+
+def _is_amino_nitrogen(mol, atom_index, neighbor):
+    atom = mol.GetAtomWithIdx(atom_index)
+    return (
+        atom.GetAtomicNum() == 7
+        and atom.GetDegree() == 1
+        and atom.GetTotalNumHs() == 2
+        and not atom.GetFormalCharge()
+        and mol.GetBondBetweenAtoms(atom_index, neighbor).GetBondTypeAsDouble() == 1.0
+    )
+
+
+def _is_plain_amidine(mol, graph, root, coming_from):
+    """C(=NH)NH2 attached through `root` (P-66.4.1.3, carbamimidoyl)."""
+    others = [n for n in graph[root] if n != coming_from]
+    if len(others) != 2 or mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
+        return False
+    orders = sorted(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() for n in others)
+    atoms = [mol.GetAtomWithIdx(n) for n in others]
+    return (
+        orders == [1.0, 2.0]
+        and all(a.GetAtomicNum() == 7 and a.GetDegree() == 1 and not a.GetFormalCharge() for a in atoms)
+        and sum(a.GetTotalNumHs() for a in atoms) == 3
+    )
+
+
 def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
     from ._substituents import name_branch
 
@@ -446,6 +477,8 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
     if triple_n and len(others) == 1:
         return "cyano", False
     carbonyl = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 2.0]
+    if not carbonyl and _is_plain_amidine(mol, graph, root, coming_from):
+        return "carbamimidoyl", False
     if len(carbonyl) != 1 or mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
         raise UnsupportedStructure("this carbonyl-derived substituent is not supported yet")
     rest = [n for n in others if n != carbonyl[0]]
@@ -453,6 +486,8 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return "formyl", False
     (x,) = rest
     z = mol.GetAtomWithIdx(x).GetAtomicNum()
+    if z in _ACYL_HALIDE_PREFIXES and mol.GetAtomWithIdx(x).GetDegree() == 1:
+        return _ACYL_HALIDE_PREFIXES[z], False
     if z == 8:
         tail = [n for n in graph[x] if n != root]
         if not tail:
@@ -465,6 +500,8 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
         subs = [n for n in graph[x] if n != root]
         if not subs:
             return "carbamoyl", False
+        if len(subs) == 1 and _is_amino_nitrogen(mol, subs[0], x):
+            return "hydrazinecarbonyl", True
         name = _amino(_group_names(graph, mol, subs, x, halogens, aromatic_atoms))
         return name[: -len("amino")] + "carbamoyl", True
     if z == 6:

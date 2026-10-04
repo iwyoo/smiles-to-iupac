@@ -877,6 +877,10 @@ def test_acyl_prefixes_with_substituents_and_alkoxycarbonylamino(smiles, expecte
     [
         ("OC[C@H]1CCCC[C@@H]1C", "[(1S,2S)-2-methylcyclohexyl]methanol"),
         ("OC(=O)CC[C@H]1CCCC[C@@H]1C", "3-[(1R,2S)-2-methylcyclohexyl]propanoic acid"),
+        ("OC[C@H]1CCCC[C@@H]1Cl", "[(1R,2S)-2-chlorocyclohexyl]methanol"),
+        ("OC(=O)CNC(=O)[C@H](Cl)CC", "2-{[(2R)-2-chlorobutanoyl]amino}ethanoic acid"),
+        ("OC(=O)CNC(=O)[C@@H](N)c1ccccc1", "2-{[(2S)-2-amino-2-phenylethanoyl]amino}ethanoic acid"),
+        ("OC(=O)CCOC(=O)[C@@H]1CCC[C@H]1C", "3-{[(1R,2R)-2-methylcyclopentane-1-carbonyl]oxy}propanoic acid"),
     ],
 )
 def test_stereodescriptors_inside_substituent_prefixes(smiles, expected):
