@@ -4,8 +4,9 @@ substituents on the rings (composite locants 14, P-26.4.3) and on the bridge ato
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._common import UnsupportedStructure, adjacency, halogen_substituents, multiplied_word
 from ._fusion_numbering_general import _HETERO_RANK
+from ._multiplicative_groups import SUFFIX_RANKS
 from ._numerals import multiplying_prefix, numerical_term
 from ._substituents import format_substituent_prefixes, name_branch
 
@@ -116,6 +117,60 @@ def _prefix_only(mol, atoms):
     return True
 
 
+_SUFFIX_WORDS = {
+    "carboxylic_acid": "carboxylic acid",
+    "nitrile": "carbonitrile",
+    "aldehyde": "carbaldehyde",
+    "ketone": "one",
+    "alcohol": "ol",
+    "thiol": "thiol",
+    "amine": "amine",
+}
+
+
+def _suffix_class(mol, owner, root, atoms):
+    """Class of a branch that is exactly one principal characteristic group attached directly to the phane (P-41),
+    else None."""
+    atom = mol.GetAtomWithIdx(root)
+    bond_order = mol.GetBondBetweenAtoms(owner, root).GetBondTypeAsDouble()
+    z = atom.GetAtomicNum()
+    if len(atoms) == 1 and atom.GetDegree() == 1:
+        if bond_order == 2.0:
+            return "ketone" if z == 8 and not mol.GetAtomWithIdx(owner).GetIsAromatic() else None
+        if bond_order != 1.0:
+            return None
+        if z == 8 and atom.GetTotalNumHs() == 1:
+            return "alcohol"
+        if z == 16 and atom.GetTotalNumHs() == 1:
+            return "thiol"
+        if z == 7 and atom.GetTotalNumHs() == 2:
+            return "amine"
+        return None
+    if z != 6 or bond_order != 1.0:
+        return None
+    others = [(n.GetAtomicNum(), mol.GetBondBetweenAtoms(root, n.GetIdx()).GetBondTypeAsDouble(), n.GetTotalNumHs(), n.GetDegree()) for n in atom.GetNeighbors() if n.GetIdx() != owner]
+    if len(atoms) == 2 and others == [(7, 3.0, 0, 1)]:
+        return "nitrile"
+    if len(atoms) == 2 and others == [(8, 2.0, 0, 1)] and atom.GetTotalNumHs() == 1:
+        return "aldehyde"
+    if len(atoms) == 3 and sorted(others) == [(8, 1.0, 1, 1), (8, 2.0, 0, 1)]:
+        return "carboxylic_acid"
+    return None
+
+
+def _principal_suffix(mol, branches):
+    """(class, roots) of the senior suffix-capable class among the branches, or (None, frozenset())."""
+    classes = {}
+    for owner, root, atoms in branches:
+        cls = _suffix_class(mol, owner, root, atoms)
+        if cls is not None:
+            classes.setdefault(cls, set()).add(root)
+    if not classes:
+        return None, frozenset()
+    best = min(classes, key=lambda c: (SUFFIX_RANKS[c], c == "thiol"))
+    return best, frozenset(classes[best])
+
+
 def find_phane(mol, free_atom=None, free_order=1, ignore=frozenset()):
     """(rings, bridges, substituent roots, cyclic) of a supported phane, else None. A bridge is
     (ring_a, atom_a, [skeleton atoms], atom_b, ring_b)."""
@@ -164,7 +219,10 @@ def find_phane(mol, free_atom=None, free_order=1, ignore=frozenset()):
                     if any(x in sub for x in sum(([c for c in graph[s] if c in ring_atoms] for s in sub), [])):
                         return None
                     branches.append((atom, n, sub))
-    if any(not _prefix_only(mol, atoms) for _, _, atoms in branches):
+    if any(
+        not _prefix_only(mol, atoms) and (free_atom is not None or _suffix_class(mol, owner, root, atoms) is None)
+        for owner, root, atoms in branches
+    ):
         return None
     degree = {i: 0 for i in range(len(rings))}
     for ring_a, _, _, _, ring_b in bridges:
@@ -219,7 +277,9 @@ def _walks(rings, bridges, cyclic):
     return results
 
 
-def _ring_numbering(graph, ring, attachments, lower_attachment, substituent_atoms, free_atom=None, nitrogen=None, added=None):
+def _ring_numbering(
+    graph, ring, attachments, lower_attachment, substituent_atoms, free_atom=None, nitrogen=None, added=None, suffix_atoms=()
+):
     """Best local numbering of a benzene amplificant: {atom: local locant} and the attachment locants cited."""
     cycle = _ring_order(graph, ring)
     best = None
@@ -232,13 +292,15 @@ def _ring_numbering(graph, ring, attachments, lower_attachment, substituent_atom
             subs = sorted(local[a] for a in substituent_atoms)
             adjacency_rule = 0 if lower_attachment is None or len(attachments) < 2 or local[lower_attachment] < min(local[a] for a in attachments if a != lower_attachment) else 1
             free = [local[free_atom]] if free_atom in local else []
-            key = (att, free, [local[added]] if added is not None else [], subs, adjacency_rule)
+            key = (att, sorted(local[a] for a in suffix_atoms), free, [local[added]] if added is not None else [], subs, adjacency_rule)
             if best is None or key < best[0]:
                 best = (key, local)
     return best[1]
 
 
-def _evaluate(mol, graph, rings, bridges, branches, nodes, cyclic, halogens, free_atom=None, amplificants=None):
+def _evaluate(
+    mol, graph, rings, bridges, branches, nodes, cyclic, halogens, free_atom=None, amplificants=None, suffix_roots=frozenset()
+):
     nodes_flat = nodes
     size = len(nodes_flat)
     position = {}
@@ -275,7 +337,15 @@ def _evaluate(mol, graph, rings, bridges, branches, nodes, cyclic, halogens, fre
         _, kind, added = amplificants[ring_index]
         nitrogen = next((a for a in rings[ring_index] if mol.GetAtomWithIdx(a).GetAtomicNum() == 7), None)
         local = _ring_numbering(
-            graph, rings[ring_index], attachments, lower, [a for a, _ in ring_sub_atoms[ring_index]], free_atom, nitrogen, added
+            graph,
+            rings[ring_index],
+            attachments,
+            lower,
+            [a for a, _ in ring_sub_atoms[ring_index]],
+            free_atom,
+            nitrogen,
+            added,
+            [a for a, r in ring_sub_atoms[ring_index] if r in suffix_roots],
         )
         locals_by_ring[ring_index] = local
         if added is not None:
@@ -300,6 +370,7 @@ def _evaluate(mol, graph, rings, bridges, branches, nodes, cyclic, halogens, fre
         sorted(p for _, p in hetero),
         [p for _, p in sorted(hetero)],
         [attachment_text[p] for p in superatoms],
+        sorted(int(loc) for loc, _, root in all_subs if root in suffix_roots),
         [(free_loc.primary, int(free_loc))] if free_atom is not None else [],
         [int(added_loc)] if added_loc is not None else [],
         sorted(loc.primary for loc, _, _ in all_subs),
@@ -319,17 +390,21 @@ def name_phane_general(mol, free_atom=None, free_order=1, ignore=frozenset()):
     halogens = halogen_substituents(mol)
     best = None
     amplificants = _amplificants(mol, free_atom, free_order)
+    suffix_class, suffix_roots = _principal_suffix(mol, branches) if free_atom is None else (None, frozenset())
     for nodes in _walks(rings, bridges, cyclic):
         key, attachment_text, subs, free_loc, added_loc = _evaluate(
-            mol, graph, rings, bridges, branches, nodes, cyclic, halogens, free_atom, amplificants
+            mol, graph, rings, bridges, branches, nodes, cyclic, halogens, free_atom, amplificants, suffix_roots
         )
         if best is None or key < best[0]:
             best = (key, nodes, attachment_text, subs, free_loc, added_loc)
     _, nodes, attachment_text, subs, free_loc, added_loc = best
     size = len(nodes)
 
+    suffix_locs = sorted((loc for loc, _, root in subs if root in suffix_roots), key=int)
     grouped = {}
     for loc, owner, root in subs:
+        if root in suffix_roots:
+            continue
         name, compound = name_branch(graph, root, owner, halogens, frozenset(), mol=mol, unsaturated=True)
         grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(loc)
     prefix = format_substituent_prefixes(grouped) if grouped else ""
@@ -360,6 +435,10 @@ def name_phane_general(mol, free_atom=None, free_order=1, ignore=frozenset()):
     if free_loc is not None:
         added_text = f"({added_loc}H)" if added_loc is not None else ""
         core = f"{core[:-1]}-{free_loc}{added_text}-{'ylidene' if free_order == 2 else 'yl'}"
+    if suffix_locs:
+        word = multiplied_word(len(suffix_locs), _SUFFIX_WORDS[suffix_class])
+        stem = core[:-1] if word[0] in "aeiouy" else core
+        core = f"{stem}-{','.join(str(loc) for loc in suffix_locs)}-{word}"
     return f"{prefix}-{core}" if prefix else core
 
 

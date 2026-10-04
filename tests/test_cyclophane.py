@@ -131,9 +131,25 @@ def test_substituted_paracyclophane_bromo():
     assert smiles_to_iupac("Brc1cc2ccc1CCc1ccc(cc1)CC2") == "12-bromo-1,4(1,4)-dibenzenacyclohexaphane"
 
 
-def test_phane_with_principal_group_is_not_named_with_prefix():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Oc1cc2ccc1CCc1ccc(cc1)CC2")
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("Oc1cc2ccc1CCc1ccc(cc1)CC2", "1,4(1,4)-dibenzenacyclohexaphan-12-ol"),
+        ("Nc1cc2ccc1CCc1ccc(cc1)CC2", "1,4(1,4)-dibenzenacyclohexaphan-12-amine"),
+        ("OC(=O)c1cc2ccc1CCc1ccc(cc1)CC2", "1,4(1,4)-dibenzenacyclohexaphane-12-carboxylic acid"),
+        ("N#Cc1cc2ccc1CCc1ccc(cc1)CC2", "1,4(1,4)-dibenzenacyclohexaphane-12-carbonitrile"),
+        ("O=Cc1cc2ccc1CCc1ccc(cc1)CC2", "1,4(1,4)-dibenzenacyclohexaphane-12-carbaldehyde"),
+        ("O=C1Cc2ccc(cc2)CCc2ccc1cc2", "1,4(1,4)-dibenzenacyclohexaphan-2-one"),
+        ("Oc1cc2ccc1CCc1cc(O)c(cc1)CC2", "1,4(1,4)-dibenzenacyclohexaphane-12,42-diol"),
+        (
+            "Oc1cc2ccc1CCc1cc(C(=O)O)c(cc1)CC2",
+            "42-hydroxy-1,4(1,4)-dibenzenacyclohexaphane-12-carboxylic acid",
+        ),
+        ("OCC1=CC2=CC=C1CCC3=CC=C(CC2)C=C3", "[1,4(1,4)-dibenzenacyclohexaphan-12-yl]methanol"),
+    ],
+)
+def test_phane_with_principal_group_takes_suffix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_two_substituents_on_one_ring_is_named():
