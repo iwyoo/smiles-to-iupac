@@ -6,10 +6,11 @@ works as an ester acyl part.
 """
 
 from rdkit import Chem
+from rdkit.Chem import rdCIPLabeler
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._numerals import multiplying_prefix
-from ._substituents import name_branch
+from ._substituents import BRANCH_STEREO, name_branch
 
 _ESTER = Chem.MolFromSmarts("[CX3;!R](=O)[OX2;!R][#6]")
 _FREE_ACID = Chem.MolFromSmarts("[CX3](=O)[OX2H1]")
@@ -84,11 +85,30 @@ def name_ester_by_parts(mol) -> str:
     Chem.SanitizeMol(acid)
     anion = _anion_name(smiles_to_iupac(Chem.MolToSmiles(acid)))
 
+    probe = Chem.Mol(mol)
+    rdCIPLabeler.AssignCIPLabels(probe)
+    context = {
+        "atoms": {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.GetIdx() in removed and a.HasProp("_CIPCode")},
+        "bonds": {
+            (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode")
+            for b in probe.GetBonds()
+            if b.GetBeginAtomIdx() in removed and b.GetEndAtomIdx() in removed and b.HasProp("_CIPCode")
+        },
+        "used": set(),
+    }
     named = {}
-    for acyl_carbon, _, ester_oxygen, alkyl_carbon in matches:
-        name, compound = name_branch(graph, alkyl_carbon, ester_oxygen, halogens, mol=mol)
-        entry = named.setdefault(name, [0, compound])
-        entry[0] += 1
+    token = BRANCH_STEREO.set(context)
+    try:
+        for acyl_carbon, _, ester_oxygen, alkyl_carbon in matches:
+            name, compound = name_branch(graph, alkyl_carbon, ester_oxygen, halogens, mol=mol)
+            entry = named.setdefault(name, [0, compound])
+            entry[0] += 1
+    finally:
+        BRANCH_STEREO.reset(token)
+    if any(("atom", a) not in context["used"] for a in context["atoms"]) or any(
+        ("bond", b) not in context["used"] for b in context["bonds"]
+    ):
+        raise UnsupportedStructure("a stereo element of the alkyl part is not cited by any supported name")
     parts = []
     for name in sorted(named, key=alpha_sort_key):
         count, compound = named[name]

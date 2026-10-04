@@ -70,9 +70,8 @@ def test_two_stereocenters_on_one_substituent():
     assert smiles_to_iupac("c1ccccc1[C@@H](Cl)[C@@H](Cl)C") == "[(1R,2S)-1,2-dichloropropyl]benzene"
 
 
-def test_stereocenter_on_three_ring_fused_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccc2cc3ccccc3cc2c1[C@@H](Cl)CC")
+def test_stereocenter_on_three_ring_fused_substituent():
+    assert smiles_to_iupac("c1ccc2cc3ccccc3cc2c1[C@@H](Cl)CC") == "1-[(1S)-1-chloropropyl]anthracene"
 
 
 def test_version_flag(capsys):

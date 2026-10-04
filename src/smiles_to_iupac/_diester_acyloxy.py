@@ -9,6 +9,7 @@ from rdkit import Chem
 from ._common import UnsupportedStructure, adjacency
 from ._diester_anions import find_ester_carbons
 from ._diester_ring_diyl import name_diester_ring_diyl, select_skeleton
+from ._functional_prefixes import nitro_atoms
 
 _find_ester_carbons = find_ester_carbons
 
@@ -20,6 +21,9 @@ def has_diester_shape(mol) -> bool:
 def has_polyester_of_one_polyol_shape(mol) -> bool:
     """Two or more esters with acyclic acyl carbons whose polyol has one best ring system or chain -- claimed
     ahead of the shape checks that would misread the esters."""
+    nitro = nitro_atoms(mol)
+    if len(Chem.GetMolFrags(mol)) > 1 or any(a.GetFormalCharge() and a.GetIdx() not in nitro for a in mol.GetAtoms()):
+        return False
     matches = _find_ester_carbons(mol)
     if len(matches) < 2:
         return False

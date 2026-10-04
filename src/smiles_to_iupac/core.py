@@ -41,6 +41,7 @@ from ._carbohydrate import (
     name_open_chain_aldose,
 )
 from ._inositol import has_inositol_shape, name_inositol
+from ._sphingoid import has_sphingoid_shape, name_sphingoid
 from ._acetal import has_acetal_shape, name_acetal
 from ._amide import has_amide_shape, name_amide
 from ._amide_amine import has_amide_amine_shape, name_amide_amine
@@ -425,6 +426,12 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
     name = None
     try:
         parsed = Chem.MolFromSmiles(smiles)
+        if parsed is not None and has_sphingoid_shape(parsed):
+            return name_sphingoid(parsed)
+        if parsed is not None and has_nucleoside_name(parsed):
+            return name_nucleoside(parsed)
+        if parsed is not None and has_nucleotide_name(parsed):
+            return name_nucleotide(parsed)
         if parsed is not None:
             name = name_heteroacyclic(parsed)
             if name is not None:
@@ -432,7 +439,7 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
             steroid = name_steroid(parsed) if parsed.GetRingInfo().NumRings() == 4 else None
             if steroid is not None:
                 return steroid
-            if has_chain_multiplicative_shape(parsed):
+            if has_chain_multiplicative_shape(parsed) and not has_phosphate_shape(parsed):
                 try:
                     return name_polyfunctional(parsed)
                 except UnsupportedStructure:
@@ -638,6 +645,18 @@ def _name_mol(mol) -> str:
     if has_metal_pair_shape(mol):
         return name_metal_pair(mol)
 
+    # P-103.1.1.1: a common amino acid's retained name + L/D descriptor
+    # must be routed here, before every ring-count/functional-group
+    # dispatch branch below: a side chain recognized by `_amino_acid.py`'s
+    # table can carry its own extra nitrogen (lysine, arginine) or its
+    # own ring (phenylalanine, tyrosine, tryptophan), which would
+    # otherwise be misrouted first -- confirmed empirically: arginine's
+    # guanidino C=N was caught by `_imine.py`'s dispatch and tryptophan's
+    # indole ring by the bicyclic-heteroatom dispatch, both well before
+    # this check's original position further down ever ran.
+    if has_amino_acid_shape(mol):
+        return name_amino_acid(mol)
+
     # A ring-system diester of one polyol (P-65.6.3.3.3) is claimed before every
     # ring/functional-group shape check below, which would misread its esters.
     if has_polyester_of_one_polyol_shape(mol):
@@ -707,18 +726,6 @@ def _name_mol(mol) -> str:
     # every other branch below, for the same reason.
     if has_hydrate_adduct_shape(mol):
         return name_hydrate_adduct(mol, smiles_to_iupac)
-
-    # P-103.1.1.1: a common amino acid's retained name + L/D descriptor
-    # must be routed here, before every ring-count/functional-group
-    # dispatch branch below: a side chain recognized by `_amino_acid.py`'s
-    # table can carry its own extra nitrogen (lysine, arginine) or its
-    # own ring (phenylalanine, tyrosine, tryptophan), which would
-    # otherwise be misrouted first -- confirmed empirically: arginine's
-    # guanidino C=N was caught by `_imine.py`'s dispatch and tryptophan's
-    # indole ring by the bicyclic-heteroatom dispatch, both well before
-    # this check's original position further down ever ran.
-    if has_amino_acid_shape(mol):
-        return name_amino_acid(mol)
 
     multiplicative_name = name_if_multiplicative(mol)
     if multiplicative_name is not None:
@@ -825,6 +832,8 @@ def _name_mol(mol) -> str:
     # them recognize a charged atom at all -- `_amine.py` in particular
     # rejects any charged atom outright rather than attempting to name it.
     if has_ammonium_shape(mol):
+        if has_phosphate_shape(mol) and any(a.GetFormalCharge() < 0 for a in mol.GetAtoms()):
+            return name_phosphate(mol)
         return name_ammonium(mol)
 
     # A secondary/tertiary amine N-oxide (P-62.5's zwitterionic N+-O-) has a

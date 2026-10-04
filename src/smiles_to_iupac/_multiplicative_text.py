@@ -20,8 +20,14 @@ _ASSEMBLY_BRACKETS = re.compile(
 
 def enclose(text):
     # Descriptor brackets (ring assembly, von Baeyer, spiro, fusion) belong to the name, not to the nesting.
-    levels = [_OPENERS[ch] for ch in _ASSEMBLY_BRACKETS.sub("", text) if ch in _OPENERS]
-    level = (max(levels) + 1) % 3 if levels else 0
+    depth = deepest = 0
+    for ch in _ASSEMBLY_BRACKETS.sub("", text):
+        if ch in _OPENERS:
+            depth += 1
+            deepest = max(deepest, depth)
+        elif ch in ")]}":
+            depth -= 1
+    level = deepest % 3
     left, right = _MARKS[level]
     return f"{left}{text}{right}"
 
