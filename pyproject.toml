@@ -41,4 +41,5 @@ packages = ["src/smiles_to_iupac"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
 filterwarnings = ["ignore::smiles_to_iupac.NonPreferredNameWarning"]

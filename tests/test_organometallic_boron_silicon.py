@@ -1,0 +1,874 @@
+import pytest
+from smiles_to_iupac import smiles_to_iupac
+from smiles_to_iupac._common import UnsupportedStructure
+
+
+def test_morphine():
+    smiles = "CN1CC[C@]23[C@@H]4[C@H]1CC5=C2C(=C(C=C5)O)O[C@H]3[C@H](C=C4)O"
+    assert (
+        smiles_to_iupac(smiles)
+        == "17-methyl-7,8-didehydrofuro[2′,3′,4′,5′:4,12,13,5]morphinan-3,6-diol"
+    )
+
+
+def test_codeine():
+    smiles = "CN1CC[C@]23[C@@H]4[C@H]1CC5=C2C(=C(C=C5)OC)O[C@H]3[C@H](C=C4)O"
+    assert (
+        smiles_to_iupac(smiles)
+        == "3-methoxy-17-methyl-7,8-didehydrofuro[2′,3′,4′,5′:4,12,13,5]morphinan-6-ol"
+    )
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("B", "borane"),
+        ("ClB", "chloroborane"),
+    ],
+)
+def test_smiles_to_iupac_simple_borane(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_halogen_substituted_alkyl_chain():
+    assert smiles_to_iupac("ClCCB") == "(2-chloroethyl)borane"
+
+
+def test_borane_chain_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("BB")
+
+
+def test_unsaturated_substituent():
+    assert smiles_to_iupac("C=CB") == "ethenylborane"
+
+
+def test_mixed_alkyl_and_phenyl_substituents():
+    assert smiles_to_iupac("CB(c1ccccc1)C") == "dimethyl(phenyl)borane"
+
+
+def test_substituted_phenyl():
+    assert smiles_to_iupac("Cc1ccccc1B") == "(2-methylphenyl)borane"
+
+
+def test_non_aromatic_ring():
+    assert smiles_to_iupac("C1CCCCC1B") == "cyclohexylborane"
+
+
+def test_halogenated_phenyl_mixed_with_alkyl():
+    assert smiles_to_iupac("CB(c1ccc(Cl)cc1)") == "(4-chlorophenyl)(methyl)borane"
+
+
+def test_asymmetric_substituents():
+    assert smiles_to_iupac("CCB(C)O") == "ethyl(methyl)borinic acid"
+    assert smiles_to_iupac("CC(C)B(C)O") == "methyl(propan-2-yl)borinic acid"
+
+
+def test_rejects_second_borinic_acid_group():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OB(C)CCB(C)O")
+
+
+def test_rejects_unrecognized_heteroatom():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NCB(C)O")
+
+
+def test_benzene_ring():
+    assert smiles_to_iupac("c1ccccc1B(O)O") == "phenylboronic acid"
+
+
+def test_rejects_second_boronic_acid_group():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("OB(O)CCB(O)O")
+
+
+def test_rejects_unrecognized_heteroatom__boronic_acid():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("NCB(O)O")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[Re]([OH2])Cl", "aquachlorido(methyl)rhenium"),
+    ],
+)
+def test_coordination_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        "C[Ti](Cl)(Cl)Cl.[Na+]",
+        "C[Hg]c1ccc(S(=O)(=O)O)cc1",
+    ],
+)
+def test_coordination_out_of_scope_raises(smiles):
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[SbH2][SnH3]", "stannylstibane"),
+    ],
+)
+def test_metal_pair_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_metal_pair_linked_by_carbon_chain():
+    assert (
+        smiles_to_iupac("c1ccccc1[Bi](c1ccccc1)CCC[Pb](CC)(CC)CC")
+        == "diphenyl[3-(triethylplumbyl)propyl]bismuthane"
+    )
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("c1cc(C(=O)O)ccc1[Hg]C", "(4-carboxyphenyl)(methyl)mercury"),
+        ("CC[Sn](CC)(CC)c1ccc(cc1)[Ge](C)(C)C", "trimethyl[4-(triethylstannyl)phenyl]germane"),
+    ],
+)
+def test_substituted_aryl_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "[Mo+](C#[O+])(C#[O+])(C#[O+])C.C1=C[CH-]C=C1",
+            "tricarbonyl(η5-cyclopenta-2,4-dien-1-yl)(methyl)molybdenum",
+        ),
+    ],
+)
+def test_dinuclear_and_hapto_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("c1ccccc1[Hg][Sb](c1ccccc1)c1ccccc1", "diphenylstibanyl(phenyl)mercury"),
+    ],
+)
+def test_class1_metal_with_class2_metal_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[Ti](=O)(Cl)Cl", "dichlorido(methyl)oxidotitanium"),
+        ("[Ti](O)(O)(O)O", "tetrahydroxidotitanium"),
+        ("N#C[Au]C#N", "dicyanidogold"),
+        ("[Ti](OC)(OC)(OC)OC", "tetramethanolatotitanium"),
+        ("CC(=O)[Pt](C)(P(CC)(CC)CC)P(CC)(CC)CC", "acetyl(methyl)bis(triethylphosphane)platinum"),
+        ("[Fe](N=O)(C#[O+])C", "carbonyl(methyl)nitrosyliron"),
+    ],
+)
+def test_anionic_and_acyl_ligands(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "Cl[Pd-]1(Cl)Cl[Pd-](Cl)(Cl)Cl1.[Na+].[Na+]",
+            "disodium di-\u03bc-chlorido-tetrachlorido-1\u03ba2Cl,2\u03ba2Cl-dipalladate(2-)",
+        ),
+    ],
+)
+def test_mu_bridged_dinuclear(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[Pb]([SnH3])([SnH3])([SnH3])[SnH3]", "plumbanetetrayltetrakis(stannane)"),
+        ("[GeH3][GeH2][GeH2][GeH3]", "tetragermane"),
+        ("CC[Sn](Cl)(CC)[Sn](CC)(CC)Cl", "1,2-dichloro-1,1,2,2-tetraethyldistannane"),
+    ],
+)
+def test_metal_chain_and_multiplicative_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[ReH2]c1ccc2ccccc2c1", "dihydrido(naphthalen-2-yl)rhenium"),
+    ],
+)
+def test_naphthyl_ligands(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CP(C)CCP(CC)CC", "[2-(dimethylphosphanyl)ethyl]di(ethyl)phosphane"),
+    ],
+)
+def test_polyphosphane_and_chelates(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+K = "\u03ba"
+MU = "\u03bc"
+DASH = "\u2014"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "O=[C]1[Fe]23([C]#[O+])([C]#[O+])([C]#[O+])[C](=O)[Fe]12([C]#[O+])([C]#[O+])([C]#[O+])[Fe]3([C]#[O+])([C]#[O+])([C]#[O+])[C]#[O+]",
+            f"di-{MU}-carbonyl-decacarbonyl-1{K}3C,2{K}3C,3{K}4C-triangulo-triiron(3 Fe{DASH}Fe)",
+        ),
+        (
+            "[O+]#[C][Ru]1([C]#[O+])([C]#[O+])([C]#[O+])[Ru]([C]#[O+])([C]#[O+])([C]#[O+])([C]#[O+])[Ru]1([C]#[O+])([C]#[O+])([C]#[O+])[C]#[O+]",
+            f"dodecacarbonyl-1{K}4C,2{K}4C,3{K}4C-triangulo-triruthenium(3 Ru{DASH}Ru)",
+        ),
+        (
+            "[O+]#[C][Mn]([C]#[O+])([C]#[O+])([C]#[O+])([C]#[O+])[Re]([C]#[O+])([C]#[O+])([C]#[O+])([C]#[O+])[C]#[O+]",
+            f"decacarbonyl-1{K}5C,2{K}5C-rheniummanganese(Re{DASH}Mn)",
+        ),
+        (
+            "C[O]1->[Cu]([Cl])[O](C)->[Cu]1[Cl]",
+            f"dichlorido-1{K}Cl,2{K}Cl-di-{MU}-methanolato-dicopper",
+        ),
+        (
+            "C(#[O+])[Ru]1([H]->[Ru]1(C#[O+])(C#[O+]))(C#[O+])C#[O+]",
+            f"pentacarbonyl-1{K}3C,2{K}2C-{MU}-hydrido-diruthenium(Ru{DASH}Ru)",
+        ),
+    ],
+)
+def test_polynuclear_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1CCC(=C(C)C)CC1", "(propan-2-ylidene)cyclohexane"),
+    ],
+)
+def test_exocyclic_ylidene_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("Clc1ccc(cc1)[GaH2]", "(4-chlorophenyl)gallane"),
+    ],
+)
+def test_group13_hydride_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_bare_metal_hydride_name():
+    assert smiles_to_iupac("[AlH3]") == "alumane"
+
+
+def test_two_metal_atoms_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[Al](C)C.C[Ga](C)C")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("Cl[Sn](c1ccccc1)(c1ccccc1)c1ccccc1", "chlorotri(phenyl)stannane"),
+    ],
+)
+def test_group14_hydride_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_group13_hydride_unaffected():
+    assert smiles_to_iupac("CC[Al](CC)CC") == "triethylalumane"
+
+
+def test_unsaturated_substituent_across_groups():
+    assert smiles_to_iupac("C=C[As](C=C)C=C") == "tri(ethenyl)arsane"
+    assert smiles_to_iupac("CCCC[Sn](CCCC)(CCCC)C=C") == "tributyl(ethenyl)stannane"
+
+
+def test_multiple_bond_directly_to_metal_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C=[Sb]CC")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[Ca]C", "dimethylcalcium"),
+    ],
+)
+def test_group2_organometallic_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[Mg](Cl)c1ccccc1", "phenylmagnesium chloride"),
+    ],
+)
+def test_grignard_rmx_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_inorganic_dihalide_of_group2_metal_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("Cl[Mg]Cl")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[Mg]CC", "ethyl(methyl)magnesium"),
+    ],
+)
+def test_group2_additive_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_two_metal_atoms_raises__group1_2_organometallic():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[Li]C.[Na]CC")
+
+
+def test_group1_metal_with_substituted_alkyl():
+    assert smiles_to_iupac("[Li]CO") == "hydroxymethyllithium"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[Li][CH3][Li]", "μ-methyl-dilithium"),
+    ],
+)
+def test_carbon_bridged_dilithium(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+H = "\u03b7"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[cH]12->[Cr]3456<-[cH]1[cH]->3[cH]->4[cH]->5[cH]->62", f"({H}6-benzene)chromium"),
+        (
+            "[O+]#[C][Mn]1234([C]#[O+])([C]#[O+])[CH]5[CH]->1=[CH]->2[CH]->3=[CH]->45",
+            f"tricarbonyl({H}5-cyclopenta-2,4-dien-1-yl)manganese",
+        ),
+        ("[CH2]1[CH]2=[CH2]->[Cr]<-21", f"({H}3-allyl)chromium"),
+        (
+            "[CH2]1[CH]2=[CH2]->[Cr]<-213456([CH2][CH]->3=[CH2]->4)[CH2][CH]->5=[CH2]->6",
+            f"tris({H}3-allyl)chromium",
+        ),
+        (
+            "C1C[CH]2->[Rh]34<-[CH]1=[CH]->3CC[CH]->4=2",
+            f"[(1,2,5,6-{H})-cycloocta-1,5-diene]rhodium",
+        ),
+        (
+            "[O+]#[C][Fe]123([C]#[O+])([C]#[O+])<-[CH]4=[CH]->1C1CC4[CH]->2=[CH]->31",
+            f"[(2,3,5,6-{H})-bicyclo[2.2.1]hepta-2,5-diene]tricarbonyliron",
+        ),
+        (
+            "[O+]#[C][Mo+]123456([C]#[O+])([C]#[O+])[CH]7[CH]->1=[CH]->2[CH]->3=[CH]->4[CH]->5=[CH]->67",
+            f"tricarbonyl({H}7-cyclohepta-2,4,6-trien-1-yl)molybdenum(1+)",
+        ),
+        (
+            "[O+]#[C][Fe]123([C]#[O+])([C]#[O+])<-[CH2]=[CH]->1[CH]->2=[CH2]->3",
+            f"({H}4-buta-1,3-diene)tricarbonyliron",
+        ),
+    ],
+)
+def test_hapto_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "NCC[c]12->[Cr]3456([C]#[O+])([C]#[O+])([C]#[O+])<-[cH]([cH]->3[cH]->41)[cH]->5[cH]->62",
+            f"tricarbonyl[2-({H}6-phenyl)ethanamine]chromium",
+        ),
+        (
+            "C[c]12->[Cr]3456([C]#[O+])([C]#[O+])([C]#[O+])<-[cH]([cH]->3[cH]->4[c]->51CCN)[cH]->62",
+            f"tricarbonyl[2-(2-methyl-{H}6-phenyl)ethanamine]chromium",
+        ),
+        (
+            "CC(N(C)C)[c]12->[Cr]3456([C]#[O+])([C]#[O+])([C]#[O+])<-[cH]([cH]->3[cH]->4[c]->51P(c1ccccc1)c1ccccc1)[cH]->62",
+            f"tricarbonyl{{1-[2-(diphenylphosphanyl)-{H}6-phenyl]-N,N-dimethylethanamine}}chromium",
+        ),
+        (
+            "C[c]12->[Cr]3456([C]#[O+])([C]#[O+])([C]#[O+])<-[cH]([cH]->3[cH]->4[cH]->51)[cH]->62",
+            f"tricarbonyl({H}6-methylbenzene)chromium",
+        ),
+        (
+            "c1ccc([B-](c2ccccc2)(c2ccccc2)[c]23->[Rh+]456789%10(<-[CH]%11=[CH]->4CC[CH]->5=[CH]->6CC%11)"
+            "<-[cH]([cH]->7[cH]->82)[cH]->9[cH]->%103)cc1",
+            f"[(1,2,5,6-{H})-cycloocta-1,5-diene][triphenyl({H}6-phenyl)borato]rhodium",
+        ),
+    ],
+)
+def test_hapto_ring_inside_larger_ligand(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "[O+]#[C][Mo]123456([C]#[O+])([CH]7C=CC=C[CH]->1=[CH]->27)[CH]1[CH]->3=[CH]->4[CH]->5=[CH]->61",
+            "dicarbonyl[(1–3-η)-cyclohepta-2,4,6-trien-1-yl](η5-cyclopenta-2,4-dien-1-yl)molybdenum",
+        ),
+        (
+            "C[C]12->[Fe]345([C]#[O+])([C]#[O+])[CH]1[c]->31cccc[c]->41[CH]->5=2",
+            "dicarbonyl[2-methyl-(1–3,3a,7a-η)-1H-inden-1-yl]iron",
+        ),
+        (
+            "COC(=O)[C]12[Mn]345([C]#[O+])([C]#[O+])([C]#[O+])<-[CH](=[CH]->31)[CH]->4=[CH]->52",
+            "tricarbonyl[1-(methoxycarbonyl)-η5-cyclopenta-2,4-dien-1-yl]manganese",
+        ),
+        (
+            "C[Si](C)(C)[C]12[Mn]345([C]#[O+])([C]#[O+])([C]#[O+])<-[CH](=[CH]->31)[CH]->4=[CH]->52",
+            "tricarbonyl[1-(trimethylsilyl)-η5-cyclopenta-2,4-dien-1-yl]manganese",
+        ),
+        (
+            "C[C]12->[Fe]345([C]#[O+])([C]#[O+])<-[CH](=[CH]->3[N]->41)[CH]->5=2",
+            "dicarbonyl(2-methyl-η5-1H-pyrrol-1-yl)iron",
+        ),
+        (
+            "[O+]#[C][Fe]1234([C]#[O+])<-[CH]5=[CH]->1[N]->2[CH]->3=[CH]->45",
+            "dicarbonyl(η5-1H-pyrrol-1-yl)iron",
+        ),
+        (
+            "[O+]#[C][Fe]1234([C]#[O+])([C]#[O+])[CH2][CH]->1=[CH]->2[CH]->3=[CH2]->4",
+            "tricarbonyl(η5-penta-2,4-dien-1-yl)iron",
+        ),
+        ("[Cl][Pt]1([Cl])<-[CH]#[CH]->1", "(η2-acetylene)dichloridoplatinum"),
+        (
+            "[O+]#[C][Fe]123([C]#[O+])([C]#[O+])<-[cH]4cc[c]56->[Fe]1789([C]#[O+])([C]#[O+])<-[cH]([cH]->75)[cH]->8[c]->9-6[cH]->2[cH]->34",
+            "{μ-[2(1–3,3a,8a-η):1(4–6-η)]azulene}-(pentacarbonyl-1κ3C,2κ2C)diiron(Fe—Fe)",
+        ),
+        (
+            "[O+]#[C][Fe]12([C]#[O+])([C]#[O+])<-[CH2]=[CH]->1[CH]1=[CH2]->[Fe]<-12([C]#[O+])([C]#[O+])[C]#[O+]",
+            "{μ-[2(1,2-η):1(3,4-η)]buta-1,3-diene}-(hexacarbonyl-1κ3C,2κ3C)diiron(Fe—Fe)",
+        ),
+    ],
+)
+def test_extended_hapto_ligands(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_metallacycle_with_unsaturated_ligand():
+    assert smiles_to_iupac("[Ni]1(C=C)CCCC1") == "1-ethenyl-1-nickelacyclopentane"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1[Pt](Cl)(Cl)O[Pt]1(Cl)Cl", "1,1,3,3-tetrachloro-2-oxa-1,3-diplatinacyclobutane"),
+    ],
+)
+def test_metallacycle_with_several_metals(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "[Si]1(Cl)(Cl)[Fe](C#[O+])(C#[O+])(C#[O+])(C#[O+])CCC1",
+            "2,2,2,2-tetracarbonyl-1,1-dichloro-1-sila-2-ferracyclopentane",
+        ),
+        ("C[Ir]1(C#[O+])=CC(C)=CC(C)=C1", "1-carbonyl-1,3,5-trimethyl-1-iridabenzene"),
+    ],
+)
+def test_hetero_and_metallabenzene_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "C1CC2C(C1)C[Ti]2.C1=C[CH]C=C1.C1=C[CH]C=C1",
+            "6,6-di(η5-cyclopenta-2,4-dien-1-yl)-6-titanabicyclo[3.2.0]heptane",
+        ),
+    ],
+)
+def test_bicyclic_metallacycle_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1=CC2C=CC1[Pt]2", "7-platinabicyclo[2.2.1]hepta-2,5-diene"),
+    ],
+)
+def test_unsaturated_bicyclic_metallacycles(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "C1c2ccccc2[Pt]2(P(C)(C)CP2(C)C)c2ccccc12",
+            "9,9-[methylenebis(dimethylphosphane)]-10H-9-platinaanthracene",
+        ),
+        (
+            "[Pt]1(P(c2ccccc2)(c2ccccc2)c2ccccc2)(P(c2ccccc2)(c2ccccc2)c2ccccc2)C2CC1C(OC)CCC2OC",
+            "2,5-dimethoxy-7,7-bis(triphenylphosphane)-7-platinabicyclo[4.1.1]octane",
+        ),
+        (
+            "CC1=C(C)[Pt](P(c2ccccc2)(c2ccccc2)c2ccccc2)(P(c2ccccc2)(c2ccccc2)c2ccccc2)C(C)=C1C",
+            "2,3,4,5-tetramethyl-1,1-bis(triphenylphosphane)-1-platinacyclopenta-2,4-diene",
+        ),
+    ],
+)
+def test_metallacycles_with_ring_and_chelating_ligands(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1c2ccccc2[Pt](Cl)(Cl)C=C1", "1,1-dichloro-4H-1-platinanaphthalene"),
+        ("C1=Cc2ccccc2C[Pt]1(Cl)Cl", "2,2-dichloro-1H-2-platinanaphthalene"),
+        ("C1c2cccc(C)c2[Pt](Cl)(Cl)C=C1", "1,1-dichloro-8-methyl-4H-1-platinanaphthalene"),
+        ("C1c2ccccc2-c2ccccc2[Pt]1(Cl)Cl", "9,9-dichloro-10H-9-platinaphenanthrene"),
+        ("C1=Cc2ccccc2[Pt]1(Cl)Cl", "1,1-dichloro-1-platinaindene"),
+        (
+            "C1c2ccccc2-c2ccccc2[Pt]1(Cl)Cl".replace("C1c2ccccc2-c2ccccc2", "C1c2ccccc2-c2ccccc2"),
+            "9,9-dichloro-10H-9-platinaphenanthrene",
+        ),
+    ],
+)
+def test_fused_metallacycles(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1CC2(C1)C[Ti]C2", "2-titanaspiro[3.3]heptane"),
+        ("C1C2CC3C1C[Ti]3C2", "3-titanatricyclo[3.2.1.0^3,6]octane"),
+    ],
+)
+def test_spiro_and_polycyclic_metallacycles(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC[C@H](C)C1CC[Pt](Cl)(Cl)C1", "3-[(2S)-butan-2-yl]-1,1-dichloro-1-platinacyclopentane"),
+    ],
+)
+def test_metallacycle_substituent_stereocentre(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_stereocentre_on_a_metal_ligand_is_not_dropped():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[C@H](Cl)[Pt]1(Cl)CCCC1")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "OC(=O)CC1CC2CC[Pt](Cl)(Cl)C12",
+            "2-{2,2-dichloro-2-platinabicyclo[3.2.0]heptan-7-yl}ethanoic acid",
+        ),
+        (
+            "OC(=O)CC1C[Pt](Cl)(Cl)c2ccccc12",
+            "2-(1,1-dichloro-2,3-dihydro-1-platinainden-3-yl)ethanoic acid",
+        ),
+    ],
+)
+def test_polycyclic_metallacycle_cited_as_a_substituent_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1CC2CC[Pt]1(Cl)(Cl)C2c1ccccc1", "1,1-dichloro-7-phenyl-1-platinabicyclo[2.2.1]heptane"),
+        (
+            "C1CC2CC[Pt]1(Cl)(Cl)C2N(C)C",
+            "1,1-dichloro-N,N-dimethyl-1-platinabicyclo[2.2.1]heptan-7-amine",
+        ),
+        ("C1CC(O)C[Pt]1(Cl)Cl", "1,1-dichloro-1-platinacyclopentan-3-ol"),
+        ("C1CC(C(=O)O)C[Pt]1(Cl)Cl", "1,1-dichloro-1-platinacyclopentane-3-carboxylic acid"),
+        ("C1CC(=O)C[Pt]1(Cl)Cl", "1,1-dichloro-1-platinacyclopentan-3-one"),
+    ],
+)
+def test_metallacycle_ring_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1CC[Pt+]1(Cl)Cl", "1,1-dichloro-1-platinacyclobutan-1-ium"),
+    ],
+)
+def test_metallacycle_ylidene_hydrido_ionic_and_metals(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[C@H]1CC[Pt]1(Cl)Cl", "(2S)-1,1-dichloro-2-methyl-1-platinacyclobutane"),
+    ],
+)
+def test_metallacycle_ring_stereo(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1CC[Pt]1=C", "1-methylidene-1-platinacyclobutane"),
+    ],
+)
+def test_heteroatom_rings_and_ylidene_on_ring_metal(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1=C[CH]C=C1.C1=C[CH]C=C1.[Os]", "osmocene"),  # neutral biradical form, CID 102601604
+    ],
+)
+def test_metallocene_retained_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+PRIME = "′"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[Os+2].OCC[c-]1cccc1.[cH-]1cccc1", "2-(osmocen-1-yl)ethanol"),
+        (
+            "[Fe+2].CC(=O)[c-]1cccc1.CC(=O)[c-]1cccc1",
+            f"1,1{PRIME}-(ferrocene-1,1{PRIME}-diyl)di(ethanone)",
+        ),
+        ("[Fe+2].C[c-]1cccc1.[cH-]1cccc1", "1-methylferrocene"),
+        ("[Fe+2].OC(=O)[c-]1cccc1.[cH-]1cccc1", "ferrocene-1-carboxylic acid"),
+        ("[Fe+2].OC(=O)[c-]1cccc1.OC(=O)[c-]1cccc1", f"ferrocene-1,1{PRIME}-dicarboxylic acid"),
+        ("[Fe+2].N[c-]1cccc1.[cH-]1cccc1", "ferrocen-1-amine"),
+        ("[Fe+2].O[c-]1cccc1.[cH-]1cccc1", "ferrocen-1-ol"),
+        ("[Fe+2].N#C[c-]1cccc1.[cH-]1cccc1", "ferrocene-1-carbonitrile"),
+        ("[Fe+2].OC(=O)[c-]1cccc1.CC(=O)[c-]1cccc1", f"1{PRIME}-acetylferrocene-1-carboxylic acid"),
+        ("[Fe+2].OC(=O)CC[c-]1cccc1.[cH-]1cccc1", "3-(ferrocen-1-yl)propanoic acid"),
+        ("[V+2].CN(C)C(C)[c-]1cccc1.[cH-]1cccc1", "N,N-dimethyl-1-(vanadocen-1-yl)ethanamine"),
+    ],
+)
+def test_substituted_metallocenes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_ansa_metallocene_cited_as_divalent_group():
+    name = smiles_to_iupac("OC(=O)CC([c-]1cccc1)CC[c-]1cccc1.[Fe+2]")
+    assert name == f"3,5-(ferrocene-1,1{PRIME}-diyl)pentanoic acid"
+
+
+def test_two_ruthenocenes_joined_by_a_chain():
+    smiles = (
+        "C[C]12->[Ru]3456789(<-[CH](=[CH]->3[CH2]->41)[CH]->5=2)<-[CH]1=[CH]->6[CH2]->7[C]->8(CC[C]23->"
+        "[Ru]45678%10%11(<-[CH]%12=[CH]->4[CH2]->5[C]->6(C)=[CH]->7%12)<-[CH](=[CH]->8[CH2]->%102)[CH]->%11=3)=[CH]->91"
+    )
+    assert (
+        smiles_to_iupac(smiles)
+        == f"1,1{PRIME}{PRIME}-(ethane-1,2-diyl)bis(1{PRIME}-methylruthenocene)"
+    )
+
+
+def test_benzoferrocene():
+    smiles = "c1cc[c]23->[Fe]456789%10(<-[CH]%11=[CH]->4[CH2]->5[CH]->6=[CH]->7%11)<-[CH](=[CH]->8[c]->92c1)[CH2]->%103"
+    assert smiles_to_iupac(smiles) == "benzoferrocene"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "CC1[C]23->[Fe]456789%10(<-[CH]%11=[CH]->4[CH2]->5[C]->6(C[C]45->[Fe]6%12%13%14%15%16%17(<-[CH](=[CH]->6[CH2]->%124)[CH]->%13=5)<-[CH]4=[CH]->%14[CH]->%15(C)[C]->%161=[CH]->%174)=[CH]->7%11)<-[CH](=[CH]->8[C]->9=2C)[CH2]->%103",
+            "1^2,2,3^2-trimethyl-1,3(1,1′)-diferrocenacyclotetraphane",
+        ),
+    ],
+)
+def test_substituted_phanes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_single_bridged_ferrocene_warns_that_no_pin_is_defined():
+    from smiles_to_iupac import NonPreferredNameWarning
+
+    with pytest.warns(NonPreferredNameWarning, match="phane"):
+        name = smiles_to_iupac("C(CC[c-]1cccc1)[c-]1cccc1.[Fe+2]")
+    assert name == f"1,3-(ferrocene-1,1{PRIME}-diyl)propane"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[SiH4]", "silane"),
+    ],
+)
+def test_smiles_to_iupac_silane_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_branched_silane_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[SiH3][Si]([SiH3])([SiH3])[SiH3]")
+
+
+def test_cyclic_silane():
+    assert smiles_to_iupac("[SiH2]1[SiH2][SiH2][SiH2][SiH2]1") == "pentasilolane"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C1CCCCC1=C(CC)C2CCCCC2", "1,1'-(propan-1-yl-1-ylidene)dicyclohexane"),
+        ("C1CCCCC1=CC=C2CCCCC2", "1,1'-(ethane-1,2-diylidene)dicyclohexane"),
+        (
+            "OC(=O)C1CCC(CC1)=CCC2CCC(C(=O)O)CC2",
+            "4,4'-(ethan-1-yl-2-ylidene)di(cyclohexane-1-carboxylic acid)",
+        ),
+    ],
+)
+def test_yl_ylidene_linker_multiplicative_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OC(=O)C=C2CCCCC2CC(=O)O", "2,2'-(cyclohexan-1-yl-2-ylidene)diethanoic acid"),
+        (
+            "OC(=O)CC1CCC(CC1)C1CCC(CC1)=CC(=O)O",
+            "2,2'-([1,1'-bi(cyclohexan)]-4-yl-4'-ylidene)diethanoic acid",
+        ),
+    ],
+)
+def test_ring_yl_ylidene_linker_multiplicative_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_trimethylammonium_methylide():
+    assert smiles_to_iupac("[CH2-][N+](C)(C)C") == "(N,N-dimethylmethanaminiumyl)methanide"
+
+
+def test_branched_anion_carbon_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[CH-][N+](C)(C)C")
+
+
+def test_tertiary_ammonium_ylide_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("[CH2-][N+](C)C")
+
+
+def test_mixed_substituent_sulfonium_ylide():
+    assert smiles_to_iupac("[CH2-][S+](C)CC") == "(ethyl(methyl)sulfaniumyl)methanide"
+
+
+@pytest.mark.parametrize("smiles", ["C[CH-][P+](C)(C)C", "C[CH-][O+](C)C", "C[CH-][S+](C)C"])
+def test_pos_ylide_branched_anion_carbon_raises(smiles):
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C#CC(CC)C(=C)C", "3-ethyl-2-methylpent-1-en-4-yne"),
+    ],
+)
+def test_chain_parent_keeps_longest_chain_and_cites_the_rest_as_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1CCCCC1=C(C)c1ccccc1", "(1-cyclohexylideneethyl)benzene"),
+    ],
+)
+def test_aromatic_parent_and_ring_pairs_with_unsaturated_bridge(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("O=CC1CCCCC1=C", "2-methylidenecyclohexane-1-carbaldehyde"),
+        ("N#CC1CCCCC1=C", "2-methylidenecyclohexane-1-carbonitrile"),
+    ],
+)
+def test_ylidene_and_enyl_prefixes_alongside_principal_characteristic_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        "C/C=C1\\CCCCC1C",
+    ],
+)
+def test_specified_double_bond_geometry_on_a_prefix_is_not_silently_dropped(smiles):
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac(smiles)
+
+
+def test_double_bond_geometry_on_a_prefix_is_cited_inside_the_prefix():
+    assert smiles_to_iupac("C/C=C/C1CCCCC1") == "[(1E)-prop-1-en-1-yl]cyclohexane"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "OC(=O)c1ccc(cc1)C=NOCON=Cc1ccc(cc1)C(=O)O",
+            "4,4'-[methylenebis(oxyazanylylidenemethanylylidene)]dibenzoic acid",
+        ),
+        (
+            "OC(=O)c1ccc(cc1)C(Cl)=NCCN=C(Cl)c1ccc(cc1)C(=O)O",
+            "4,4'-{ethane-1,2-diylbis[azanylylidene(chloromethanylylidene)]}dibenzoic acid",
+        ),
+    ],
+)
+def test_ylylidene_linkers(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_imine_linker_without_senior_unit_group_is_not_multiplicative():
+    with pytest.raises(Exception):
+        smiles_to_iupac("c1ccccc1C=NCCN=Cc1ccccc1")
