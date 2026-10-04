@@ -149,6 +149,7 @@ from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
 from ._fullerene import has_fullerene_name, name_fullerene
 from ._multiplicative import name_if_multiplicative
 from ._nucleoside import has_nucleoside_name, name_nucleoside
+from ._nucleoside_substituted import has_substituted_nucleoside_name, name_substituted_nucleoside
 from ._nucleotide import has_nucleotide_name, name_nucleotide
 from ._metallacycle import has_metallacycle_shape, name_metallacycle
 from ._metallacycle_group import name_metallacycle_as_group
@@ -592,6 +593,12 @@ def _name_mol(mol) -> str:
     # generic dispatch, which has no path for a nucleoside-shaped R group.
     if has_nucleotide_name(mol):
         return name_nucleotide(mol)
+
+    # P-105.2 substituted nucleosides share the same dispatch-ordering
+    # reason: the base's fused-ring nitrogens and the sugar hydroxyls
+    # would otherwise be claimed by unrelated generic branches below.
+    if has_substituted_nucleoside_name(mol):
+        return name_substituted_nucleoside(mol)
 
     # The 7 retained metallocene names (P-69.2.7) are likewise recognized
     # by exact whole-molecule match and must be routed here for the same

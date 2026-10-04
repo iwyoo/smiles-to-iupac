@@ -115,6 +115,81 @@ def test_nucleotide_retained_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "C1=NC2=C(N1[C@H]3C[C@@H]([C@H](O3)CO)O)N=C(N)N(C)C2=O",
+            "2′-deoxy-1-methylguanosine",
+        ),
+        (
+            "CCC1=CN(C(=O)NC1=S)[C@H]2[C@@H]([C@@H]([C@H](O2)CO)O)O",
+            "5-ethyl-4-thiouridine",
+        ),
+        (
+            "CC(=O)OC[C@@H]1[C@H]([C@H]([C@@H](O1)N2C=NC3=C(N=CN=C32)N)OC(=O)C)OC(=O)C",
+            "adenosine 2′,3′,5′-triacetate",
+        ),
+        (
+            "CSC[C@@H]1[C@H]([C@H]([C@@H](O1)N2C=NC3=C2N=C(NC3=O)NCCO)O)O",
+            "N2-(2-hydroxyethyl)-5′-S-methyl-5′-thioguanosine",
+        ),
+        (
+            "COC[C@@H]1[C@H]([C@H]([C@@H](O1)N2C=C(C(=NC2=O)N)I)F)O",
+            "2′-deoxy-2′-fluoro-5-iodo-5′-O-methylcytidine",
+        ),
+        (
+            "CC1=CN(C(=O)NC1=O)[C@H]2C[C@@H]([C@H](O2)COC)O",
+            "5′-O-methylthymidine",
+        ),
+        (
+            "C1C[C@@H](O[C@@H]1CO)N2C=NC3=C2N=C(NC3=O)N",
+            "2′,3′-dideoxyguanosine",
+        ),
+        (
+            "C1=CN(C(=O)N=C1N)[C@H]2/C(=C/F)[C@@H]([C@H](O2)CO)O",
+            "(2′E)-2′-deoxy-2′-(fluoromethylidene)cytidine",
+        ),
+        (
+            "C1=NC(=C2C(=N1)N(C=N2)[C@H]3[C@H]4[C@@H]([C@H](O3)CO)OC(=O)O4)N",
+            "2′,3′-dideoxyadenosine-2′,3′-diyl carbonate",
+        ),
+        (
+            "C1=NC(=C2C(=N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)[C@@H](C)O)O)O)N",
+            "(5′R)-5′-C-methyladenosine",
+        ),
+        (
+            "C[C@@]1(O)[C@H](O)[C@@H](CO)O[C@H]1n1cnc2c(N)ncnc21",
+            "2′-C-methyladenosine",
+        ),
+        ("Nc1ccn([C@@H]2O[C@H](CO)[C@@H](O)C2(F)F)c(=O)n1", "2′-deoxy-2′,2′-difluorocytidine"),
+        ("Nc1ncnc2c1ncn2[C@@H]1S[C@H](CO)[C@@H](O)[C@H]1O", "4′-thioadenosine"),
+        ("COc1nc(N)nc2c1ncn2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O", "O6-methylguanosine"),
+        ("Cn1cnc2c(c1=N)ncn2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O", "1-methyladenosine"),
+        ("Cc1cn([C@H]2C[C@H](N=[N+]=[N-])[C@@H](CO)O2)c(=O)[nH]c1=O", "3′-azido-3′-deoxythymidine"),
+        (
+            "CNC1=NC(=O)N(C=C1CCC(=O)O)[C@H]2[C@@H]([C@@H]([C@H](O2)CO)O)O",
+            "3-[4-(methylamino)-2-oxo-1-β-D-ribofuranosyl-1,2-dihydropyrimidin-5-yl]propanoic acid",
+        ),
+        (
+            "CC(=O)NCc1cn([C@@H]2O[C@H](CO)[C@@H](O)[C@H]2O)c(=O)[nH]c1=O",
+            "N-[(2,4-dioxo-1-β-D-ribofuranosyl-1,2,3,4-tetrahydropyrimidin-5-yl)methyl]acetamide",
+        ),
+        (
+            "NC1=NC(=O)N(C=C1C#N)[C@H]2C[C@@H]([C@H](O2)COC(C)=O)O",
+            "4-amino-1-(5-O-acetyl-2-deoxy-β-D-erythro-pentofuranosyl)-2-oxo-1,2-dihydropyrimidine-5-carbonitrile",
+        ),
+    ],
+)
+def test_substituted_nucleoside_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_substituted_nucleoside_wrong_sugar_stereo_is_not_matched():
+    with pytest.raises(Exception):
+        smiles_to_iupac("CC1=CN(C(=O)NC1=O)[C@@H]2[C@H]([C@@H]([C@H](O2)CO)O)O")
+
+
 def test_plain_nucleoside_unaffected():
     assert (
         smiles_to_iupac("C1=NC(=C2C(=N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)CO)O)O)N")
