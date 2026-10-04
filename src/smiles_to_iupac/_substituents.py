@@ -419,11 +419,11 @@ def _is_ring_branch_root(graph, root, coming_from, aromatic_atoms, mol):
         return True
     ring_info = mol.GetRingInfo()
     ring = next((r for r in ring_info.AtomRings() if root in r), None)
-    if ring is None or any(ring_info.NumAtomRings(a) != 1 for a in ring):
+    if ring is None:
         return False
+    if any(ring_info.NumAtomRings(a) != 1 for a in ring) or any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in ring):
+        return True
     atoms = [mol.GetAtomWithIdx(a) for a in ring]
-    if any(a.GetAtomicNum() != 6 for a in atoms):
-        return False
     aromatic = all(a.GetIsAromatic() for a in atoms)
     return (aromatic and len(ring) == 6) or not any(a.GetIsAromatic() for a in atoms)
 
@@ -728,16 +728,6 @@ def _ring_system_branch(graph, mol, root, coming_from):
     aromatic = all(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring)
     if not (fused or (hetero and not aromatic)):
         return None
-    if (
-        fused
-        and not any(mol.GetAtomWithIdx(a).GetIsAromatic() for r in ring_info.AtomRings() for a in r if a in ring)
-        and not _is_adamantane(mol, root)
-    ):
-        from ._diester_ring_diyl import _system_of
-        from ._ring_diyl_numbering import is_hydro_fusion_system
-
-        if not is_hydro_fusion_system(mol, _system_of(mol, root)[1]):
-            raise UnsupportedStructure("a saturated bridged ring substituent needs von Baeyer naming here")
     from ._diester_ring_diyl import ring_substituent_name
 
     return ring_substituent_name(mol, graph, root, coming_from)
@@ -772,7 +762,10 @@ def _hetero_ring_branch(mol, root, coming_from):
             return assembly
     result = ring_substituent_name(mol, ring_atoms, root, coming_from, classify(mol) or [], None)
     if result is None:
-        raise UnsupportedStructure("this heterocyclic substituent group is not supported yet")
+        from ._common import adjacency
+        from ._diester_ring_diyl import ring_substituent_name as general_ring_substituent_name
+
+        return general_ring_substituent_name(mol, adjacency(mol), root, coming_from)
     return result
 
 
@@ -1237,7 +1230,11 @@ def _substituted_ring_branch(graph, root, coming_from, halogens, aromatic_atoms,
                 return assembly
     atoms = [mol.GetAtomWithIdx(a) for a in ring_atoms]
     aromatic = all(a.GetIsAromatic() for a in atoms)
-    if any(a.GetAtomicNum() != 6 for a in atoms) or (not aromatic and any(a.GetIsAromatic() for a in atoms)):
+    if any(a.GetAtomicNum() != 6 for a in atoms):
+        from ._diester_ring_diyl import ring_substituent_name
+
+        return ring_substituent_name(mol, graph, root, coming_from)
+    if not aromatic and any(a.GetIsAromatic() for a in atoms):
         raise cyclic_error
     if aromatic and len(ring_atoms) != 6:
         raise cyclic_error

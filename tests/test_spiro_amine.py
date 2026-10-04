@@ -32,9 +32,8 @@ def test_multiple_spiro_amines_raises():
         smiles_to_iupac("NC1CCCC2(C1)CCCCC2N")
 
 
-def test_spiro_amine_on_substituent_branch_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC1CCCC12CCCCC2")
+def test_spiro_amine_on_substituent_branch_is_a_prefix():
+    assert smiles_to_iupac("NCC1CCCC12CCCCC2") == "(spiro[4.5]decan-1-yl)methanamine"
 
 
 def test_unsaturated_spiro_amine_raises():

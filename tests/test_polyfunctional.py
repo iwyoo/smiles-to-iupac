@@ -46,7 +46,6 @@ def test_chain_parent_with_heteroatom_prefixes(smiles, expected):
         "CC#[N+][N-]C",
         "CC(N)N(C)C",
         "C=O",
-        "OCCSSCCO",
     ],
 )
 def test_shapes_the_chain_engine_cannot_name_are_rejected_not_misnamed(smiles):
@@ -619,4 +618,138 @@ def test_symmetric_ethers_and_sulfides_without_a_principal_group(smiles, expecte
     ],
 )
 def test_saturated_tricyclic_fused_systems(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OCCSSCCO", "2,2'-disulfanediyldi(ethan-1-ol)"),
+        ("OCCOOCCO", "2,2'-dioxydi(ethan-1-ol)"),
+        ("OC(=O)C(N)CSSCC(N)C(=O)O", "3,3'-disulfanediylbis(2-aminopropanoic acid)"),
+        ("OC(=O)[C@@H](N)CSSC[C@H](N)C(=O)O", "(2R,2'R)-3,3'-disulfanediylbis(2-aminopropanoic acid)"),
+        ("C[C@H](O)COC[C@@H](C)O", "(2R,2'S)-1,1'-oxydi(propan-2-ol)"),
+        ("C[C@@H](O)COC[C@@H](C)O", "(2R,2'R)-1,1'-oxydi(propan-2-ol)"),
+        ("C[C@H](O)COC[C@H](C)O", "(2S,2'S)-1,1'-oxydi(propan-2-ol)"),
+    ],
+)
+def test_multiplicative_names_with_dichalcogen_linkers_and_stereo(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("c1ccc(Oc2cccc(Oc3cccc(Oc4ccccc4)c3)c2)cc1", "2,4,6-trioxa-1,7(1),3,5(1,3)-tetrabenzenaheptaphane"),
+        ("c1ccccc1Cc1ccc(Cc2ccc(Cc3ccccc3)cc2)cc1", "1,7(1),3,5(1,4)-tetrabenzenaheptaphane"),
+        ("c1ccccc1Oc1ccc(Sc2ccc(Oc3ccccc3)cc2)cc1", "2,6-dioxa-4-thia-1,7(1),3,5(1,4)-tetrabenzenaheptaphane"),
+    ],
+)
+def test_linear_phane_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CN1CCC[C@H]1c1cccnc1", "3-[(2S)-1-methylpyrrolidin-2-yl]pyridine"),
+        ("COc1ccc2[nH]cc(CCNC(C)=O)c2c1", "N-[2-(5-methoxy-1H-indol-3-yl)ethyl]ethanamide"),
+        ("CC(=O)NCCC1CCC2CCCCC2C1", "N-[2-(decahydronaphthalen-2-yl)ethyl]ethanamide"),
+        ("CCOC(=O)CCc1ccc2ccccc2c1", "ethyl 3-(naphthalen-2-yl)propanoate"),
+        ("C[C@H](C(=O)O)[C@@H](C)C(N)=O", "(2S,3R)-3-carbamoyl-2-methylbutanoic acid"),
+        ("C[C@H](S)[C@@H](C)S", "(2R,3S)-butane-2,3-dithiol"),
+    ],
+)
+def test_ring_substituents_inside_chain_substituents_and_stereo_citation(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[SiH2][SiH2]C", "1,2-dimethyldisilane"),
+        ("C1CCCCC1[SiH2][SiH3]", "cyclohexyldisilane"),
+        ("CNNNC", "1,3-dimethyltriazane"),
+        ("C[Si](C)(C)[Si](C)(C)C", "1,1,1,2,2,2-hexamethyldisilane"),
+        ("C[Si](C)(C)O[Si](C)(C)C", "1,1,1,3,3,3-hexamethyldisiloxane"),
+        ("C[SiH2]O[SiH2]O[SiH2]C", "1,5-dimethyltrisiloxane"),
+    ],
+)
+def test_heteroatom_chain_parent_hydrides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OC(=O)Cn1cccc1", "2-(1H-pyrrol-1-yl)ethanoic acid"),
+        ("OC(=O)Cn1ccnc1", "2-(1H-imidazol-1-yl)ethanoic acid"),
+        ("OC(=O)Cn1cccn1", "2-(1H-pyrazol-1-yl)ethanoic acid"),
+        ("OC(=O)Cc1ncc[nH]1", "2-(1H-imidazol-2-yl)ethanoic acid"),
+        ("OC(=O)Cc1nccs1", "2-(1,3-thiazol-2-yl)ethanoic acid"),
+        ("OC(=O)Cc1nc(C)c(C)s1", "2-(4,5-dimethyl-1,3-thiazol-2-yl)ethanoic acid"),
+        ("OC(=O)Cc1nnn[nH]1", "2-(1H-tetrazol-5-yl)ethanoic acid"),
+        ("OC(=O)Cc1cnc(Cl)nc1", "2-(2-chloropyrimidin-5-yl)ethanoic acid"),
+        ("OC(=O)Cn1cnc2ccccc12", "2-(1H-benzimidazol-1-yl)ethanoic acid"),
+        ("OC(=O)Cn1c(C)cnc1C", "2-(2,5-dimethyl-1H-imidazol-1-yl)ethanoic acid"),
+    ],
+)
+def test_heteroaromatic_substituent_prefixes_cite_indicated_hydrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OC(=O)CN1C=CCC=C1", "2-[pyridin-1(4H)-yl]ethanoic acid"),
+        ("OC(=O)CN1C=CC=CC1", "2-[pyridin-1(2H)-yl]ethanoic acid"),
+        ("OC(=O)C=C1CC=Cc2ccccc12", "2-[naphthalen-1(2H)-ylidene]ethanoic acid"),
+        ("OC(=O)Cn1c2ccccc2c2ccccc21", "2-(9H-carbazol-9-yl)ethanoic acid"),
+    ],
+)
+def test_added_hydrogen_substituent_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OC(=O)C[SiH2][SiH3]", "2-disilanylethanoic acid"),
+        ("OC(=O)C[SiH2][SiH2][SiH3]", "2-(trisilan-1-yl)ethanoic acid"),
+        ("OC(=O)C[SiH]([SiH3])[SiH3]", "2-(trisilan-2-yl)ethanoic acid"),
+        ("OC(=O)C[Si](C)(C)[Si](C)(C)C", "2-(1,1,2,2,2-pentamethyldisilanyl)ethanoic acid"),
+        ("OC(=O)C[SiH2]O[SiH3]", "2-disiloxanylethanoic acid"),
+        ("OC(=O)C[SiH2]O[SiH2]O[SiH3]", "2-(trisiloxan-1-yl)ethanoic acid"),
+    ],
+)
+def test_heteroatom_chain_substituent_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OC(=O)CC1CCC2CC2C1", "2-(bicyclo[4.1.0]heptan-3-yl)ethanoic acid"),
+        ("OC(=O)CC1CCC2(CC1)CCCC2", "2-(spiro[4.5]decan-8-yl)ethanoic acid"),
+        ("OC(=O)CC1CCC2(CC1)OCCO2", "2-(1,4-dioxaspiro[4.5]decan-8-yl)ethanoic acid"),
+        ("OC(=O)Cc1cc2ccccc2s1", "2-(1-benzothiophen-2-yl)ethanoic acid"),
+        ("Cc1cc2ccccc2s1", "2-methyl-1-benzothiophene"),
+    ],
+)
+def test_bridged_and_spiro_ring_substituents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("c1ccc2ccccc2c1-c1ccc2ccccc2c1", "1,2'-binaphthalene"),
+        ("c1ccc2ccccc2c1-c1cccc2ccccc12", "1,1'-binaphthalene"),
+        ("Oc1ccc2ccccc2c1-c1c(O)ccc2ccccc12", "[1,1'-binaphthalene]-2,2'-diol"),
+        ("Cc1ccc2ccccc2c1-c1c(C)ccc2ccccc12", "2,2'-dimethyl-1,1'-binaphthalene"),
+        ("c1ccc2[nH]c(cc2c1)-c1cc2ccccc2[nH]1", "1H,1'H-2,2'-biindole"),
+        ("c1ccc2ncccc2c1-c1cccc2ncccc12", "5,5'-biquinoline"),
+    ],
+)
+def test_assemblies_of_two_identical_fused_systems(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

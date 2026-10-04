@@ -181,7 +181,11 @@ def _paths(adj, eligible):
 
 
 def name_polyfunctional(mol) -> str:
+    from ._linear_phane import has_linear_phane_shape, name_linear_phane
     from ._substituents import BRANCH_STEREO
+
+    if has_linear_phane_shape(mol):
+        return name_linear_phane(mol)
 
     stereo = _check_scope(mol)
     context = {
@@ -446,6 +450,11 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
 def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     """Parent without a principal group: the monocycle when there is one
     (P-44.1.2.2), else the longest chain, with every substituent a prefix."""
+    from ._hydride_chain import name_hydride_chain
+
+    chain_name = name_hydride_chain(mol, graph, halogens, aromatic_atoms)
+    if chain_name is not None:
+        return ((0,), chain_name, (None, None, None, 0, {}, False))
     centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() in MONONUCLEAR_HYDRIDES and not a.IsInRing()]
     if len(centers) == 1:
         named = _mononuclear_parent(mol, graph, halogens, aromatic_atoms, centers[0])
@@ -453,7 +462,7 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
             return ((0,), named, (None, None, None, 0, {}, False))
     ring_info = mol.GetRingInfo()
     rings = [r for r in ring_info.AtomRings()]
-    if len(rings) == 2:
+    if len(rings) >= 2:
         assembly = _assembly_parent(mol, graph, halogens, aromatic_atoms, None, [], stereo)
         if assembly is not None:
             return assembly[1]
@@ -694,6 +703,11 @@ def _assembly_base(specs, locants, join, elide):
 def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms):
     """(name, True) of a substituent group made of two identical directly
     joined rings ([1,1'-biphenyl]-4-yl), entered at `root`; None otherwise."""
+    from ._system_assembly import system_assembly
+
+    fused = system_assembly(mol, graph, halogens, aromatic_atoms, None, [], None, free=(root, coming_from))
+    if fused is not None:
+        return fused
     ring_info = mol.GetRingInfo()
     own = next((list(r) for r in ring_info.AtomRings() if root in r), None)
     if own is None:
@@ -738,6 +752,11 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
     (principal count, (key, name, parts)) or None when `mol` is not one."""
     if principal is not None and not occurrences:
         return None
+    from ._system_assembly import system_assembly
+
+    fused = system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo)
+    if fused is not None:
+        return fused
     ring_info = mol.GetRingInfo()
     rings = [list(r) for r in ring_info.AtomRings()]
     if len(rings) != 2 or set(rings[0]) & set(rings[1]):
@@ -1026,6 +1045,7 @@ def _identical_group_units(mol, graph, group_atoms):
 
 
 _LINKER_WORDS = {8: "oxy", 16: "sulfanediyl", 34: "selanediyl"}
+_DICHALCOGEN_WORDS = {8: "dioxy", 16: "disulfanediyl", 34: "diselanediyl"}
 
 
 def _arm_atoms(graph, start, blocked):
@@ -1048,7 +1068,26 @@ def _multiplicative_name(mol, stereo=None):
         neighbors = [n.GetIdx() for n in z.GetNeighbors()]
         hydrogens = z.GetTotalNumHs()
         number = z.GetAtomicNum()
-        if number in _LINKER_WORDS and len(neighbors) == 2 and hydrogens == 0:
+        blockers = [z.GetIdx()]
+        extra = 1
+        partner = next(
+            (
+                n
+                for n in z.GetNeighbors()
+                if n.GetAtomicNum() == number and number in _DICHALCOGEN_WORDS and n.GetDegree() == 2 and not n.GetTotalNumHs()
+            ),
+            None,
+        )
+        if partner is not None and len(neighbors) == 2 and hydrogens == 0:
+            if partner.GetIdx() < z.GetIdx() or partner.IsInRing():
+                continue
+            linker, arms = _DICHALCOGEN_WORDS[number], 2
+            neighbors = [n for n in neighbors if n != partner.GetIdx()] + [
+                n.GetIdx() for n in partner.GetNeighbors() if n.GetIdx() != z.GetIdx()
+            ]
+            blockers = [z.GetIdx(), partner.GetIdx()]
+            extra = 2
+        elif number in _LINKER_WORDS and len(neighbors) == 2 and hydrogens == 0:
             linker, arms = _LINKER_WORDS[number], 2
         elif number == 7 and len(neighbors) == 2 and hydrogens == 1:
             linker, arms = "azanediyl", 2
@@ -1056,7 +1095,7 @@ def _multiplicative_name(mol, stereo=None):
             linker, arms = "nitrilo", 3
         else:
             continue
-        if any(
+        if len(neighbors) != arms or any(
             mol.GetAtomWithIdx(n).GetAtomicNum() != 6
             or _double_oxygens(mol, n)
             or is_functional_carbon(mol, n)
@@ -1064,33 +1103,37 @@ def _multiplicative_name(mol, stereo=None):
             for n in neighbors
         ):
             continue
-        parts_atoms = [_arm_atoms(graph, n, z.GetIdx()) for n in neighbors]
-        if sum(len(p) for p in parts_atoms) != mol.GetNumAtoms() - 1 or any(
+        parts_atoms = [_arm_atoms(graph, n, blockers[0] if i == 0 or len(blockers) == 1 else blockers[1]) for i, n in enumerate(neighbors)]
+        if sum(len(p) for p in parts_atoms) != mol.GetNumAtoms() - extra or any(
             parts_atoms[i] & parts_atoms[j] for i in range(arms) for j in range(i)
         ):
             continue
         units = [_unit_molecule(mol, atoms, n) for atoms, n in zip(parts_atoms, neighbors)]
-        keys = {Chem.MolToSmiles(unit[0]) for unit in units}
+        keys = {Chem.MolToSmiles(unit[0], isomericSmiles=False) for unit in units}
         if len(keys) != 1:
             continue
+        stereo_text = ""
         if stereo:
-            raise UnsupportedStructure("stereodescriptors in a multiplicative name are not supported yet")
-        unit, attach = units[0]
-        try:
-            _, _, parts = _select(unit, attach)
-        except UnsupportedStructure as error:
-            if str(error).startswith("a unit without a principal group"):
-                continue
-            raise
+            parts, stereo_text = _stereo_arms(mol, stereo, parts_atoms, units)
+        else:
+            unit, attach = units[0]
+            try:
+                _, _, parts = _select(unit, attach)
+            except UnsupportedStructure as error:
+                if str(error).startswith("a unit without a principal group"):
+                    continue
+                raise
         prefix, body, tail, locant = parts[:4]
         lead = ",".join(str(locant) + "'" * i for i in range(arms)) + "-" if locant is not None else ""
         text = prefix + body
         if prefix:
             word = {2: "bis", 3: "tris"}[arms]
-            return f"{lead}{linker}{word}({text}){tail}"
+            if tail.startswith(" "):
+                return f"{stereo_text}{lead}{linker}{word}({text}{tail})"
+            return f"{stereo_text}{lead}{linker}{word}({text}){tail}"
         word = {2: "di", 3: "tri"}[arms]
         unit_text = f"({text})" if any(ch.isdigit() or ch == "-" for ch in text) else text
-        return f"{lead}{linker}{word}{unit_text}{tail}"
+        return f"{stereo_text}{lead}{linker}{word}{unit_text}{tail}"
     return _ring_linker_name(mol, graph, stereo) or _composite_linker_name(mol, graph, stereo)
 
 
@@ -1243,6 +1286,46 @@ def _ring_linker_name(mol, graph, stereo):
         unit_text = f"({text})" if any(ch.isdigit() or ch == "-" for ch in text) else text
         return f"{lead}{linker_text}di{unit_text}{tail}"
     return None
+
+
+def _stereo_arms(mol, stereo, parts_atoms, units):
+    """(parts of the first unit, '(2R,2'S)-' text) for identical units whose stereo differs."""
+    from ._substituents import BRANCH_STEREO
+
+    per_arm = []
+    token = BRANCH_STEREO.set(None)
+    try:
+        for atoms, (unit, attach) in zip(parts_atoms, units):
+            index = {orig: i for i, orig in enumerate(sorted(atoms))}
+            arm = []
+            for kind, where, code in stereo:
+                if kind == "atom" and where in index:
+                    arm.append((kind, index[where], code))
+                elif kind == "bond" and all(w in index for w in where):
+                    arm.append((kind, tuple(index[w] for w in where), code))
+            try:
+                _, _, parts = _select(unit, attach, stereo=arm)
+            except UnsupportedStructure as error:
+                if str(error).startswith("a unit without a principal group"):
+                    raise UnsupportedStructure("a unit without a principal group is not supported") from error
+                raise
+            entries, complete = _stereo_entries(arm, parts[4], ring_parent=parts[5])
+            if not complete:
+                raise UnsupportedStructure("stereodescriptors outside the unit parent are not supported by the chain engine yet")
+            per_arm.append((parts, entries))
+    finally:
+        BRANCH_STEREO.reset(token)
+    if len({tuple(parts[:4]) for parts, _ in per_arm}) != 1:
+        raise UnsupportedStructure("the units name differently once their stereo is considered")
+    if len(stereo) != sum(len(entries) for _, entries in per_arm):
+        raise UnsupportedStructure("stereodescriptors outside the units are not supported by the chain engine yet")
+    ordered = sorted(per_arm, key=lambda arm: tuple(0 if code in "RZ" else 1 for _, code in arm[1]))
+    labels = [
+        f"{locant}{chr(39) * i}{code}"
+        for i, (_, entries) in enumerate(ordered)
+        for locant, code in entries
+    ]
+    return per_arm[0][0], f"({','.join(labels)})-"
 
 
 def _unit_molecule(mol, atoms, attach):

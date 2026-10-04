@@ -18,12 +18,11 @@ def test_histidine_unspecified_stereocenter_no_ld_prefix():
     assert smiles_to_iupac("C1=C(NC=N1)CC(C(=O)O)N") == "histidine"
 
 
-def test_ring_substituted_histidine_still_unsupported():
-    # A substituent on the imidazole ring itself (would need the special
-    # pi/tau numbering) is out of scope for this step, deferred to a
-    # follow-up.
-    with pytest.raises(UnsupportedStructure):
+def test_ring_substituted_histidine_is_named_as_an_amino_acid_with_a_ring_prefix():
+    assert (
         smiles_to_iupac("Cn1cnc(CC(N)C(=O)O)c1")
+        == "2-amino-3-(1-methyl-1H-imidazol-4-yl)propanoic acid"
+    )
 
 
 def test_phenylalanine_still_resolves():

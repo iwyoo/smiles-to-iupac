@@ -724,15 +724,6 @@ def name_hetero_monocyclic_substituent(mol) -> str:
             "multi-fragment structures are not supported yet (see P-13.6, multiplicative nomenclature)"
         )
     parent_name, grouped, _graph = _match_hetero_monocyclic_substituents(mol)
-    all_locants = {loc for info in grouped.values() for loc in info["locants"]}
-    # The parent's own indicated-hydrogen prefix (pyrrole/imidazole/
-    # pyrazole's '1H-') marks position 1 as the ring's one substitutable
-    # N-H; once a substituent sits there instead, the locant '1-' alone
-    # already pins the position, so the '1H-' becomes redundant and is
-    # dropped (confirmed via PubChem: `Cn1cccc1` -> "1-methylpyrrole", not
-    # "1-methyl-1H-pyrrole").
-    if 1 in all_locants and parent_name.startswith("1H-"):
-        parent_name = parent_name[len("1H-") :]
     prefix = format_substituent_prefixes(grouped)
     separator = "-" if parent_name[0].isdigit() else ""
     return f"{prefix}{separator}{parent_name}"

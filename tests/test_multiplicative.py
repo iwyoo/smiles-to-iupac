@@ -137,9 +137,11 @@ def test_linker_stereodescriptors(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_linear_phane_is_not_named_multiplicatively():
-    with pytest.raises(UnsupportedStructure):
+def test_linear_phane_is_named_as_a_phane():
+    assert (
         smiles_to_iupac("c1ccccc1Oc1cccc(Oc2cccc(Oc3ccccc3)c2)c1")
+        == "2,4,6-trioxa-1,7(1),3,5(1,3)-tetrabenzenaheptaphane"
+    )
 
 
 def test_substituted_fused_unit_raises():
@@ -179,7 +181,7 @@ def test_unequal_rings_are_ranked_by_unsaturation_heteroatom_and_substituent_cou
 
 @pytest.mark.parametrize(
     "smiles",
-    ["c1c[nH]c(-c2[nH]ccn2)n1", "C1=CCCCC1C1=CCCCC1C1=CCCCC1", "c1ccc(cc1)Oc1cccc(Oc2cccc(Oc3ccccc3)c2)c1"],
+    ["c1c[nH]c(-c2[nH]ccn2)n1", "C1=CCCCC1C1=CCCCC1C1=CCCCC1"],
 )
 def test_identical_rings_joined_directly_and_long_ring_chains_are_not_named_substitutively(smiles):
     with pytest.raises(UnsupportedStructure):

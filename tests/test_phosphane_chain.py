@@ -36,6 +36,5 @@ def test_cyclic_phosphane_chain():
     assert smiles_to_iupac("P1PPPP1") == "2,3,4,5-tetrahydro-1H-pentaphosphole"
 
 
-def test_carbon_phosphorus_mix_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CPP")
+def test_carbon_phosphorus_mix_is_a_diphosphane():
+    assert smiles_to_iupac("CPP") == "methyldiphosphane"

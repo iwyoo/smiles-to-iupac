@@ -65,6 +65,5 @@ def test_unsaturated_chain_not_supported():
         smiles_to_iupac("C=CCN=[N+]=[N-]")
 
 
-def test_non_azide_triple_nitrogen_chain_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CNNN")
+def test_non_azide_triple_nitrogen_chain_is_a_triazane():
+    assert smiles_to_iupac("CNNN") == "1-methyltriazane"

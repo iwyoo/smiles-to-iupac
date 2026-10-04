@@ -33,9 +33,8 @@ def test_multiple_ring_amines_raises():
         smiles_to_iupac("NC1CC2CCC1C2N")
 
 
-def test_amine_on_substituent_branch_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCC1CC2CCC1C2")
+def test_amine_on_substituent_branch_is_a_prefix():
+    assert smiles_to_iupac("NCC1CC2CCC1C2") == "(bicyclo[2.2.1]heptan-2-yl)methanamine"
 
 
 def test_von_baeyer_amine_ring_unsaturation():

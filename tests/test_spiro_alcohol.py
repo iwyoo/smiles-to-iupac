@@ -48,9 +48,8 @@ def test_multiple_spiro_hydroxyls_raises():
         smiles_to_iupac("OC1CCCC12CCCCC2O")
 
 
-def test_spiro_hydroxyl_on_substituent_branch_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC1CCCC12CCCCC2")
+def test_spiro_hydroxyl_on_substituent_branch_is_a_prefix():
+    assert smiles_to_iupac("OCC1CCCC12CCCCC2") == "(spiro[4.5]decan-1-yl)methanol"
 
 
 def test_unsaturated_spiro_alcohol_raises():

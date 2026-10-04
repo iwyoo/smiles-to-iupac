@@ -328,6 +328,14 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     if mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
         raise UnsupportedStructure("a mononuclear ylidene group is not supported yet")
     others = [n for n in graph[root] if n != coming_from]
+    if any(mol.GetAtomWithIdx(n).GetAtomicNum() == atom.GetAtomicNum() for n in others):
+        return _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
+    if atom.GetAtomicNum() == 14 and any(
+        mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() == 2 and not mol.GetAtomWithIdx(n).GetFormalCharge()
+        and any(m != root and mol.GetAtomWithIdx(m).GetAtomicNum() == 14 for m in graph[n])
+        for n in others
+    ):
+        return _siloxanyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if len(others) > valence - 1 or any(
         mol.GetAtomWithIdx(n).GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0
         for n in others
@@ -336,3 +344,104 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in others]
     prefix = format_mononuclear_prefixes(entries) if entries else ""
     return prefix + base, bool(entries)
+
+
+def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
+    """disilanyl, trisilan-2-yl, 1-methyltetrasilan-1-yl: an unbranched chain of one element attached through
+    a chain atom (P-29.3.1, P-29.4.1)."""
+    from ._common import group_substituents, substituent_locant_set_and_citation
+    from ._numerals import multiplying_prefix
+    from ._substituents import format_substituent_prefixes, name_branch
+
+    z = mol.GetAtomWithIdx(root).GetAtomicNum()
+    stem = MONONUCLEAR_HYDRIDES[z][0]
+    chain_atoms = {root}
+    stack = [root]
+    while stack:
+        for n in graph[stack.pop()]:
+            if n != coming_from and n not in chain_atoms and mol.GetAtomWithIdx(n).GetAtomicNum() == z:
+                chain_atoms.add(n)
+                stack.append(n)
+    arms = [[n for n in graph[root] if n in chain_atoms]]
+    if any(sum(m in chain_atoms for m in graph[a]) > 2 for a in chain_atoms) or len(arms[0]) > 2:
+        raise UnsupportedStructure("a branched heteroatom chain substituent is not supported yet")
+    ends = [a for a in chain_atoms if sum(m in chain_atoms for m in graph[a]) <= 1]
+    if any(
+        mol.GetAtomWithIdx(a).IsInRing() or mol.GetAtomWithIdx(a).GetFormalCharge() or any(
+            mol.GetBondBetweenAtoms(a, m).GetBondTypeAsDouble() != 1.0 for m in graph[a] if m in chain_atoms or m == coming_from
+        )
+        for a in chain_atoms
+    ):
+        raise UnsupportedStructure("this heteroatom chain substituent is not supported yet")
+    walk, previous = [ends[0]], None
+    while True:
+        nxt = [n for n in graph[walk[-1]] if n in chain_atoms and n != previous]
+        if not nxt:
+            break
+        previous = walk[-1]
+        walk.append(nxt[0])
+    best = None
+    for candidate in (walk, walk[::-1]):
+        subs = {}
+        for i, atom in enumerate(candidate):
+            for n in graph[atom]:
+                if n in chain_atoms or n == coming_from:
+                    continue
+                if mol.GetBondBetweenAtoms(atom, n).GetBondTypeAsDouble() != 1.0:
+                    raise UnsupportedStructure("a multiple bond on a heteroatom chain substituent is not supported yet")
+                subs.setdefault(i + 1, []).append(name_branch(graph, n, atom, halogens, aromatic_atoms, mol=mol))
+        grouped = group_substituents(subs)
+        locant_set, _, citation = substituent_locant_set_and_citation(grouped)
+        attach = candidate.index(root) + 1
+        key = ((attach,), locant_set, citation)
+        if best is None or key < best[0]:
+            best = (key, grouped, attach)
+    _, grouped, attach = best
+    count = len(walk)
+    word = multiplying_prefix(count) + stem[:-1]
+    if count == 2 and attach == 1:
+        base = word + "yl"
+    else:
+        base = f"{word}-{attach}-yl"
+    prefix = format_substituent_prefixes(grouped) if grouped else ""
+    return prefix + base, bool(prefix) or "-" in base
+
+
+def _siloxanyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
+    """disiloxanyl, trisiloxan-1-yl: an unbranched Si-O-Si... chain attached through a terminal silicon."""
+    from ._common import group_substituents
+    from ._numerals import multiplying_prefix
+    from ._substituents import format_substituent_prefixes, name_branch
+
+    walk, previous = [root], coming_from
+    while True:
+        bridges = [
+            n
+            for n in graph[walk[-1]]
+            if n != previous
+            and mol.GetAtomWithIdx(n).GetAtomicNum() == 8
+            and any(m != walk[-1] and mol.GetAtomWithIdx(m).GetAtomicNum() == 14 for m in graph[n])
+        ]
+        if not bridges:
+            break
+        if len(bridges) > 1:
+            raise UnsupportedStructure("a branched siloxane substituent is not supported yet")
+        (silicon,) = [m for m in graph[bridges[0]] if m != walk[-1]]
+        if mol.GetAtomWithIdx(bridges[0]).GetDegree() != 2:
+            raise UnsupportedStructure("this siloxane substituent is not supported yet")
+        walk += [bridges[0], silicon]
+        previous = bridges[0]
+    chain = set(walk)
+    subs = {}
+    for i, atom in enumerate(walk):
+        for n in graph[atom]:
+            if n in chain or n == coming_from:
+                continue
+            if mol.GetAtomWithIdx(n).GetAtomicNum() not in (6,) and n not in halogens:
+                raise UnsupportedStructure("this siloxane substituent carries something other than organyl groups")
+            subs.setdefault(i + 1, []).append(name_branch(graph, n, atom, halogens, aromatic_atoms, mol=mol))
+    grouped = group_substituents(subs)
+    silicon = (len(walk) + 1) // 2
+    base = multiplying_prefix(silicon) + "siloxan" + ("yl" if silicon == 2 else "-1-yl")
+    prefix = format_substituent_prefixes(grouped) if grouped else ""
+    return prefix + base, bool(prefix) or "-" in base
