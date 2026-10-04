@@ -103,9 +103,8 @@ def test_thione_with_hydroxyl_not_supported():
         smiles_to_iupac("OCC(=S)C")
 
 
-def test_thione_with_ketone_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=CC(=S)C")
+def test_thione_with_ketone_named_with_prefix():
+    assert smiles_to_iupac("O=CC(=S)C") == "2-sulfanylidenepropanal"
 
 
 def test_thiol_not_confused_with_thione():

@@ -151,9 +151,8 @@ def test_ring_with_selenol_chain_selenol_ring_wins_outright():
     )
 
 
-def test_selenol_with_alcohol_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC[SeH]")
+def test_selenol_with_alcohol_named_with_prefix():
+    assert smiles_to_iupac("OCC[SeH]") == "2-selanylethanol"
 
 
 def test_acyclic_selenol_stereocenter():
