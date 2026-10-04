@@ -814,6 +814,13 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
         if phane is not None:
             return phane
 
+    if mol is not None and attach_order == 1.0:
+        from ._skeletal_group import skeletal_chain_group, skeletal_ring_group
+
+        skeletal = skeletal_chain_group(mol, graph, root, coming_from) or skeletal_ring_group(mol, graph, root, coming_from)
+        if skeletal is not None:
+            return skeletal
+
     if mol is not None and unsaturated:
         from ._hetero_prefixes import hetero_branch_name
 
