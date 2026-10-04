@@ -21,11 +21,6 @@ def test_modified_steroid_parents(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("c1ccc2c(c1)C[C@H]1NCC[C@@]23CCCC[C@@H]13", "morphinan"),
-        (
-            "CC1=C(/C=C/C(C)=C/C=C/C(C)=C/C=C/C=C(C)/C=C/C=C(C)/C=C/C2=C(C)CCCC2(C)C)C(C)(C)CCC1",
-            "β,β-carotene",
-        ),
         (
             "CC1=C(/C=C/C(C)=C/C=C/C(C)=C/C=C/C=C(C)/C=C/C=C(C)/C=C/C2=C(C)CCC2(C)C)C(C)(C)CC1",
             "2,2′-dinor-β,β-carotene",

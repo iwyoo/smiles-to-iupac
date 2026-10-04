@@ -147,7 +147,7 @@ def _best_per_skeleton(cands, view):
     for cand in cands:
         if not _admissible(cand):
             continue
-        if cand.skel.ops and not _rings_contained(cand, view):
+        if cand.skel.ops and not cand.cyclo and not _rings_contained(cand, view):
             continue
         key = (cand.parent.name, tuple(sorted(map(str, (op[:2] for op in cand.skel.ops)))), frozenset(cand.mapping.values()))
         try:
@@ -173,11 +173,27 @@ def _terminal_only(skel):
     return True
 
 
-def _candidates(skel, view):
-    if len(skel.adj) > len(view.adj) or _cyclomatic(skel.adj) > view.cyclomatic:
+def _skeleton_facts(skel):
+    if not hasattr(skel, "_facts"):
+        skel._facts = (len(skel.adj), _cyclomatic(skel.adj), _skeleton_rings(skel), Counter(skel.elem.values()))
+    return skel._facts
+
+
+_RING_SLACK = 3
+
+
+def _candidates(skel, view, cost):
+    size, cyclomatic, rings, elements = _skeleton_facts(skel)
+    if size > len(view.adj) or cyclomatic > view.cyclomatic:
         return []
     secos = sum(1 for op in skel.ops if op[0] == "seco")
-    if secos > 1 or (secos and _cyclomatic(skel.adj) < 2):
+    if secos > 1 or (secos and cyclomatic < 2):
+        return []
+    budget = cost - len(skel.ops)
+    missing = sum(max(0, n - view.rings_by_size.get(length, 0)) for length, n in rings.items())
+    if missing > 2 * budget + _RING_SLACK:
+        return []
+    if sum(max(0, n - view.elements.get(e, 0)) for e, n in elements.items() if e != "C") > budget:
         return []
     return embeddings(skel, view, limit=3000)
 
@@ -199,20 +215,23 @@ def _name_once(mol):
     )
     view.aromatic_atoms = len({i for bond in view.aromatic_bonds for i in bond})
     best = None
-    for cost in (0, 1, 2):
+    exact = set()
+    for cost in (0, 1, 2) if view.has_stereo else (0, 1):
         if best is not None and (best.cost < cost or (best.cost == cost and not best.key[1])):
             break
         found = []
         for name in PARENTS:
-            if name in SYSTEMATIC_PREFERRED or not _plausible(name, view, cost):
+            if name in SYSTEMATIC_PREFERRED or name in exact or not _plausible(name, view, cost):
                 continue
             parent = get_parent(name)
             terminal_only = view.cyclomatic < 2
             skels = [Skel.of(parent)] if cost == 0 else _variants(name, cost, terminal_only)
             for skel in skels:
-                found += _candidates(skel, view)
+                found += _candidates(skel, view, cost)
+        if cost == 0:
+            exact = {c.parent.name for c in found}
         for cand in _best_per_skeleton(found, view):
-            if cand.replaced and set(view.elements) == {"C"}:
+            if cand.replaced and set(view.elements) == {"C"} and not view.has_stereo:
                 continue
             if len(cand.skel.ops) + len(cand.cyclo) + len(cand.replaced) > 1 and not view.has_stereo:
                 continue

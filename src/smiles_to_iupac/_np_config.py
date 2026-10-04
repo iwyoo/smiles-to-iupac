@@ -50,7 +50,7 @@ def _natural(parent, loc, mol_h, atom, image, skel=None):
         mlabels[n.GetIdx()] = label
     missing = [l for l in plabels.values() if l not in mlabels.values()]
     extra = [l for l in mlabels.values() if l not in plabels.values()]
-    if len(missing) == 1 and extra == ["~H"] and skel is not None and missing[0] not in skel.adj:
+    if len(missing) == 1 and extra == ["~H"] and skel is not None and missing[0] not in skel.adj.get(loc, ()):
         mlabels = {n: (missing[0] if l == "~H" else l) for n, l in mlabels.items()}
         plabels = {n: (missing[0] if l == "~H" else l) for n, l in plabels.items()}
         if sorted(plabels.values()) != sorted(mlabels.values()):
@@ -63,7 +63,7 @@ def _natural(parent, loc, mol_h, atom, image, skel=None):
 
 def _cip(mol, atom):
     center = mol.GetAtomWithIdx(atom)
-    if not center.HasProp("_CIPCode") or center.GetProp("_CIPCode") not in ("R", "S"):
+    if not center.HasProp("_CIPCode") or center.GetProp("_CIPCode") not in ("R", "S", "r", "s"):
         raise UnsupportedStructure("a natural-product centre has no CIP R/S label")
     return center.GetProp("_CIPCode")
 
@@ -125,6 +125,9 @@ def configuration(cand, view):
                 if _natural(parent, loc, mol_h, atom, image, skel):
                     continue
                 config.implied_cited += 1
+            if not exo:
+                config.side.append((loc_key(loc), f"{loc}{_cip(mol, atom)}"))
+                continue
             chosen = _exo_choice(exo, mapped, ring, image, mol_h)
             if in_parent_ring and faces is not None and chosen in faces:
                 config.parent.append((loc_key(loc), f"{loc}{FACES[faces[chosen]]}"))

@@ -51,6 +51,12 @@ _REPLACEABLE = "#6,#7,#8,#16,#34,#52,#15,#14,#5"
 
 
 def _query(skel):
+    if not hasattr(skel, "_query_cache"):
+        skel._query_cache = _build_query(skel)
+    return skel._query_cache
+
+
+def _build_query(skel):
     labels = list(skel.adj)
     index = {label: i for i, label in enumerate(labels)}
     ring = skel.cycle_atoms()
@@ -71,7 +77,9 @@ def embeddings(skel, view, limit=4000):
     if len(skel.adj) > len(view.adj):
         return []
     labels, query = _query(skel)
-    ring = skel.cycle_atoms()
+    if not hasattr(skel, "_ring_cache"):
+        skel._ring_cache = skel.cycle_atoms()
+    ring = skel._ring_cache
     found = []
     for match in view.flat.GetSubstructMatches(query, uniquify=False, maxMatches=limit):
         mapping = {label: match[i] for i, label in enumerate(labels)}

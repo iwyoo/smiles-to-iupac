@@ -8,6 +8,7 @@ import numpy as np
 from rdkit import Chem
 from rdkit.Chem import rdDepictor
 
+from ._appendix3_stereo_data import STEREO
 from ._np_parents import PARENTS
 
 _PRIMES = {"′": 1, "″": 2}
@@ -76,16 +77,38 @@ class Parent:
             if b.IsInRing()
         }
         self.anchor = tuple(anchor.split(":")) if anchor else None
-        self.plane = self.ring_atoms - PLANE_EXCLUDED.get(name, set())
-        self.plane_bonds = {b for b in self.ring_bonds if b <= self.plane}
-        self._layout = None
+        self.rings = [frozenset(self.loc_of[i] for i in ring) for ring in ring_info.AtomRings()]
+        frame = STEREO.get(name)
+        self.ref = [loc for loc in frame[1].split(",") if loc] if frame else []
+        self.anticlockwise = frame[2] if frame else None
+        self._resolved = False
 
     def ending_kind(self):
         return "ane" if re.search(r"(ane|an|anine|stane|ostan)$", self.name) else "other"
 
+    def _resolve(self):
+        if self._resolved:
+            return
+        self._resolved = True
+        plane = self.ring_atoms - PLANE_EXCLUDED.get(self.name, set())
+        bonds = {b for b in self.ring_bonds if b <= plane}
+        layout = _compute_layout(self, plane)
+        if layout is None and (self.anchor is not None or self.ref):
+            plane, bonds, layout = _fused_plane(self)
+        self._plane, self._plane_bonds, self._layout = plane, bonds, layout
+
+    @property
+    def plane(self):
+        self._resolve()
+        return self._plane
+
+    @property
+    def plane_bonds(self):
+        self._resolve()
+        return self._plane_bonds
+
     def layout(self):
-        if self._layout is None:
-            self._layout = _compute_layout(self)
+        self._resolve()
         return self._layout
 
 
@@ -96,30 +119,80 @@ def _segments_cross(p1, p2, p3, p4):
     return orient(p1, p2, p3) * orient(p1, p2, p4) < -1e-9 and orient(p3, p4, p1) * orient(p3, p4, p2) < -1e-9
 
 
-def _compute_layout(parent):
-    """(coordinates of the ring atoms, orientation sign) or None when no faithful planar drawing exists."""
-    ring_atoms = parent.plane
-    if not ring_atoms or parent.anchor is None:
-        return None
+def _planar(xy, atoms, bonds):
+    atoms = sorted(atoms)
+    for a, b in ((a, b) for k, a in enumerate(atoms) for b in atoms[k + 1 :]):
+        if math.dist(xy[a], xy[b]) < 0.45:
+            return False
+    bonds = [tuple(sorted(bd)) for bd in bonds]
+    for k, (a, b) in enumerate(bonds):
+        for c, d in bonds[k + 1 :]:
+            if len({a, b, c, d}) == 4 and _segments_cross(xy[a], xy[b], xy[c], xy[d]):
+                return False
+    return True
+
+
+def _depict(parent, keep):
     mol = Chem.RWMol(parent.mol)
-    for loc in sorted((l for l in parent.idx_of if l in PLANE_EXCLUDED.get(parent.name, set())), key=lambda l: -parent.idx_of[l]):
+    for loc in sorted((l for l in parent.idx_of if l not in keep), key=lambda l: -parent.idx_of[l]):
         mol.RemoveAtom(parent.idx_of[loc])
-    kept = [l for l in sorted(parent.idx_of, key=lambda l: parent.idx_of[l]) if l not in PLANE_EXCLUDED.get(parent.name, set())]
+    kept = [l for l in sorted(parent.idx_of, key=lambda l: parent.idx_of[l]) if l in keep]
     mol = mol.GetMol()
     rdDepictor.SetPreferCoordGen(True)
     rdDepictor.Compute2DCoords(mol)
     conf = mol.GetConformer()
-    xy = {loc: (conf.GetAtomPosition(i).x, conf.GetAtomPosition(i).y) for i, loc in enumerate(kept)}
-    ring = sorted(ring_atoms)
-    for a, b in ((a, b) for k, a in enumerate(ring) for b in ring[k + 1 :]):
-        if math.dist(xy[a], xy[b]) < 0.45:
-            return None
-    bonds = [tuple(sorted(bd)) for bd in parent.plane_bonds]
-    for k, (a, b) in enumerate(bonds):
-        for c, d in bonds[k + 1 :]:
-            if len({a, b, c, d}) == 4 and _segments_cross(xy[a], xy[b], xy[c], xy[d]):
-                return None
-    return {loc: xy[loc] for loc in ring_atoms}
+    return {loc: (conf.GetAtomPosition(i).x, conf.GetAtomPosition(i).y) for i, loc in enumerate(kept)}
+
+
+def _compute_layout(parent, plane):
+    """Coordinates of the ring atoms of `plane`, or None when no faithful planar drawing exists."""
+    if not plane or (parent.anchor is None and not parent.ref):
+        return None
+    xy = _depict(parent, set(parent.idx_of) - PLANE_EXCLUDED.get(parent.name, set()))
+    bonds = [bd for bd in parent.ring_bonds if bd <= plane]
+    if not _planar(xy, plane, bonds):
+        return None
+    return {loc: xy[loc] for loc in plane}
+
+
+def _fused_plane(parent):
+    """The largest chain of rings ortho-fused to the anchor's rings that has a planar drawing (P-101.2.6: α/β only there)."""
+    rings = sorted(parent.rings, key=lambda r: sorted(map(loc_key, r)))
+    if parent.ref:
+        chosen = [r for r in rings if set(parent.ref) <= r]
+    else:
+        chosen = [r for r in rings if parent.anchor[0] in r]
+    if not chosen:
+        return set(), set(), None
+
+    def drawing(selection):
+        atoms = set().union(*selection)
+        bonds = {b for r in selection for b in _ring_bonds(parent, r)}
+        xy = _depict(parent, atoms)
+        return (atoms, bonds, {loc: xy[loc] for loc in atoms}) if _planar(xy, atoms, bonds) else None
+
+    current = drawing(chosen)
+    if current is None:
+        return set(), set(), None
+    grown = True
+    while grown:
+        grown = False
+        for ring in rings:
+            if ring in chosen or len(ring & current[0]) != 2:
+                continue
+            shared = list(ring & current[0])
+            if shared[1] not in parent.adj[shared[0]]:
+                continue
+            trial = drawing(chosen + [ring])
+            if trial is not None:
+                chosen.append(ring)
+                current = trial
+                grown = True
+    return current
+
+
+def _ring_bonds(parent, ring):
+    return {frozenset((a, b)) for a in ring for b in parent.adj[a] if b in ring and frozenset((a, b)) in parent.ring_bonds}
 
 
 _TAG_OF_VOLUME = {}
@@ -251,8 +324,25 @@ def orientation_sign(parent):
     return parent._sign
 
 
+def _reference_sign(parent, layout):
+    """+1 when β is the viewer side of the layout: the side from which the reference ring is numbered anticlockwise."""
+    if not all(loc in layout for loc in parent.ref):
+        return None
+    area = 0.0
+    for i, loc in enumerate(parent.ref):
+        x1, y1 = layout[loc]
+        x2, y2 = layout[parent.ref[(i + 1) % len(parent.ref)]]
+        area += x1 * y2 - x2 * y1
+    return 1 if (area > 0) == parent.anticlockwise else -1
+
+
 def _anchor_sign(parent):
-    if parent.layout() is None:
+    layout = parent.layout()
+    if layout is None:
+        return None
+    if parent.ref:
+        return _reference_sign(parent, layout)
+    if parent.anchor is None:
         return None
     locant, face = parent.anchor
     mol_h = parent_h(parent.name)

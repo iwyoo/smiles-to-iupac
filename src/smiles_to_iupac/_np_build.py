@@ -1,9 +1,11 @@
 """Assembly of a complete natural-product name from a stereoparent candidate (P-101.7)."""
 
+import re
 from collections import Counter
+from dataclasses import dataclass
 
 from rdkit import Chem
-from dataclasses import dataclass
+from rdkit.Chem import rdCIPLabeler
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, multiplied_word
 from ._np_chain import chain_template
@@ -20,6 +22,7 @@ from ._np_name import (
     alkyl_count,
     classify,
     final_labels,
+    principal_groups_left_outside,
 )
 from ._np_fusion import assign_primes, fusion_text, indicated_texts, name_fused
 from ._np_rings import bridge_prefixes, components, name_spiro, split_components
@@ -106,6 +109,8 @@ def build(cand, view):
             groups.branches = [b for b in groups.branches if b[1] != chain[1]]
             classes["yl"] = [(chain[0], {chain[1]}, {"anchor": chain[1], "root": chain[1]})]
             principal = "yl"
+    if principal not in ("yl", "diyl", "ester_o") and principal_groups_left_outside(view, classes, principal):
+        raise UnsupportedStructure("a principal characteristic group outside the parent needs a multiplicative or other parent")
     if "ester" in classes and "ester_o" in classes:
         raise UnsupportedStructure("esters of both an acid and an alcohol of the parent are not supported")
     branches = list(groups.branches)
@@ -144,6 +149,10 @@ def build(cand, view):
     ynes.sort(key=lambda t: loc_key(t.split("(")[0]))
 
     config = configuration(cand, view)
+    config.parent = [(key, _locant_through(text, final)) for key, text in config.parent]
+    config.side = [(key, _locant_through(text, final)) for key, text in config.side]
+    if spiro:
+        _add_spiro_center(config, cand, view, spiro, spiro_comps[0], final, parent_prime)
     graph = adjacency(view.mol)
     halogens = halogen_substituents(view.mol)
 
@@ -275,7 +284,7 @@ def build(cand, view):
     removed = sorted((loc_key(op[1])[1] for op in cand.skel.ops if op[0] == "nor"), reverse=True)
     first = next((text for _, text in sorted(config.parent) if text[-1] in "αβ"), "")
     return Built(
-        name, cost, (cost, nondet > 0 or bool(fused_comps), -len(mapping), rearranged, tuple(-n for n in removed)),
+        name, cost, (cost, nondet > 0 or bool(fused_comps) or bool(bridge_comps) or bool(spiro_comps), -len(mapping), rearranged, tuple(-n for n in removed)),
         config.implied_total, config.implied_cited, first[-1] if first else "",
     )
 
@@ -387,3 +396,25 @@ def _enclose_group(text):
     from ._substituents import wrap_marks
 
     return wrap_marks(text)
+
+
+_LOCANT_TEXT = re.compile(r"^(\d+[a-c]?[¹²³]*)(.*)$")
+
+
+def _locant_through(text, final):
+    match = _LOCANT_TEXT.match(text)
+    return f"{final(match.group(1))}{match.group(2)}" if match else text
+
+
+def _add_spiro_center(config, cand, view, spiro, comp, final, parent_prime):
+    center = spiro_center(cand, comp)
+    atom = cand.mapping[center]
+    if not any(e.centeredOn == atom and e.type == Chem.StereoType.Atom_Tetrahedral for e in Chem.FindPotentialStereo(view.mol)):
+        return
+    cited = spiro.spiro_locant if parent_prime else final(center)
+    if view.mol.GetAtomWithIdx(atom).GetChiralTag() == Chem.ChiralType.CHI_UNSPECIFIED:
+        label = "ξ"
+    else:
+        rdCIPLabeler.AssignCIPLabels(view.mol)
+        label = view.mol.GetAtomWithIdx(atom).GetProp("_CIPCode")
+    config.side.append((loc_key(cited), f"{cited}{label}"))

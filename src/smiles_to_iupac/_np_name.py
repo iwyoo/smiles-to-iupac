@@ -21,6 +21,13 @@ _ACYL_SUFFIX = {
 }
 _PREFIX = {"alcohol": "hydroxy", "ketone": "oxo", "amine": "amino", "aldehyde": "oxo"}
 _SENIORITY = ["acid", "ester", "ester_o", "diyl", "amide", "aldehyde", "ketone", "alcohol", "amine"]
+_COUNTED = {
+    "acid": "[CX3](=O)[OX2H1]",
+    "amide": "[CX3;!R](=O)[NX3;!R]",
+    "aldehyde": "[CX3H1](=O)[#6]",
+    "ketone": "[#6][CX3](=O)[#6]",
+    "alcohol": "[OX2H][#6]",
+}
 _ACYL_CLASSES = ("acid", "ester", "ester_o", "amide", "diyl")
 _LETTERS = "abcdefghij"
 
@@ -237,3 +244,16 @@ def alkyl_count(cand, view, groups):
             return None
         count += 1
     return count
+
+
+def principal_groups_left_outside(view, classes, principal):
+    """True when a group of the principal class or a senior one sits outside the parent (P-44.1.1.2, maximum number)."""
+    senior = _SENIORITY if principal is None else _SENIORITY[: _SENIORITY.index(principal) + 1]
+    for cls in senior:
+        smarts = _COUNTED.get(cls)
+        if smarts is None:
+            continue
+        total = len(view.mol.GetSubstructMatches(Chem.MolFromSmarts(smarts)))
+        if total > len(classes.get(cls, [])):
+            return True
+    return False
