@@ -730,7 +730,30 @@ def _ring_system_branch(graph, mol, root, coming_from):
         return None
     from ._diester_ring_diyl import ring_substituent_name
 
+    if fused:
+        assembly = _fused_assembly_branch(mol, graph, root, coming_from)
+        if assembly is not None:
+            return assembly
     return ring_substituent_name(mol, graph, root, coming_from)
+
+
+def _fused_assembly_branch(mol, graph, root, coming_from):
+    from ._common import halogen_substituents
+    from ._polyfunctional import _arm_atoms, assembly_substituent
+    from ._system_assembly import _skeleton_key, _systems
+
+    arm = _arm_atoms(graph, root, coming_from)
+    systems = [atoms for _, atoms in _systems(mol) if set(atoms) <= arm]
+    own = next((set(a) for a in systems if root in a), None)
+    if own is None or len(systems) != 2:
+        return None
+    other = next(set(a) for a in systems if root not in a)
+    if _skeleton_key(mol, own) != _skeleton_key(mol, other) or not any(
+        mol.GetBondBetweenAtoms(a, b) is not None for a in own for b in other
+    ):
+        return None
+    aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+    return assembly_substituent(mol, graph, root, coming_from, halogen_substituents(mol), aromatic)
 
 
 def _hetero_ring_branch(mol, root, coming_from):

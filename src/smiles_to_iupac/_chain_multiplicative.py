@@ -111,6 +111,28 @@ def _span(mol, graph, handles):
         system = _ring_system_of(mol, atom)
         if system:
             span |= system
+    return _grow_assembly(mol, graph, span)
+
+
+def _grow_assembly(mol, graph, span):
+    """Identical ring systems joined directly to the linker's rings belong to the same ring assembly (P-28.2)."""
+    from ._multiplicative import _bare_key
+
+    grown = True
+    while grown:
+        grown = False
+        for atom in sorted(span):
+            system = _ring_system_of(mol, atom)
+            if not system:
+                continue
+            for member in system:
+                for n in graph[member]:
+                    if n in span or not mol.GetAtomWithIdx(n).IsInRing() or mol.GetBondBetweenAtoms(member, n).GetBondTypeAsDouble() != 1.0:
+                        continue
+                    other = _ring_system_of(mol, n)
+                    if other and not other & span and _bare_key(mol, other) == _bare_key(mol, system):
+                        span |= other
+                        grown = True
     return span
 
 
