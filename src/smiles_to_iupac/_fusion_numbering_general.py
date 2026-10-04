@@ -87,7 +87,8 @@ def _periphery_cycle_and_fusion_atoms(mol):
     return cycle, fusion_atoms
 
 
-def _numbering_from(cycle, fusion_atoms, start_i, direction):
+def _numbering_from(cycle, fusion_atoms, start_i, direction, lettered=None):
+    lettered = fusion_atoms if lettered is None else lettered
     n = len(cycle)
     locants = {}
     counter = 0
@@ -95,7 +96,7 @@ def _numbering_from(cycle, fusion_atoms, start_i, direction):
     prev_was_fusion = False
     for step in range(n):
         atom = cycle[(start_i + direction * step) % n]
-        if atom in fusion_atoms:
+        if atom in lettered:
             letter_ord = letter_ord + 1 if prev_was_fusion else 1
             locants[atom] = f"{counter}{chr(ord('a') + letter_ord - 1)}"
             prev_was_fusion = True
@@ -139,6 +140,7 @@ def general_peripheral_numberings(mol, ignore_indicated=False):
     idx_of = {a: i for i, a in enumerate(cycle)}
     hetero = [a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() != 6]
 
+    lettered = {a for a in fusion_atoms if mol.GetAtomWithIdx(a).GetAtomicNum() == 6}
     candidates = []
     for ring_idx in start_rings:
         ring_fusion_atoms = atom_rings[ring_idx] & fusion_atoms
@@ -147,7 +149,7 @@ def general_peripheral_numberings(mol, ignore_indicated=False):
             for step in (1, -1):
                 neighbor = cycle[(i + step) % len(cycle)]
                 if neighbor in atom_rings[ring_idx] and neighbor not in fusion_atoms:
-                    candidates.append(_numbering_from(cycle, fusion_atoms, (i + step) % len(cycle), step))
+                    candidates.append(_numbering_from(cycle, fusion_atoms, (i + step) % len(cycle), step, lettered))
 
     if not candidates:
         return None
