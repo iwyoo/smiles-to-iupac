@@ -1,118 +1,89 @@
 # smiles-to-iupac
 
-A Python library that converts SMILES strings to IUPAC names using only the
-nomenclature rules from the *Nomenclature of Organic Chemistry: Recommendations
-and Preferred Names 2013* (the "Blue Book") — no machine learning, no lookup
-tables of known names.
+Rule-based conversion of SMILES strings to IUPAC names, implemented directly
+from the *Nomenclature of Organic Chemistry: Recommendations and Preferred
+Names 2013* (the "Blue Book"). No machine learning, no lookup table of known
+names: every name is constructed by applying the written rules.
 
-## Status
+```python
+>>> from smiles_to_iupac import smiles_to_iupac
+>>> smiles_to_iupac("CC(C)C(CC)CCC")
+'3-ethyl-2-methylhexane'
+>>> smiles_to_iupac("CC(C)Cc1ccc(cc1)C(C)C(=O)O")
+'2-[4-(2-methylpropyl)phenyl]propanoic acid'
+>>> smiles_to_iupac("CN1CCC[C@H]1c1cccnc1")
+'3-[(2S)-1-methylpyrrolidin-2-yl]pyridine'
+```
 
-Early-stage / pre-alpha. Currently supported: acyclic and simple monocyclic
-saturated hydrocarbons (alkanes and cycloalkanes), monospiro saturated
-hydrocarbons (two carbocyclic rings sharing exactly one atom), saturated
-bicyclic hydrocarbons — both fused and bridged (von Baeyer nomenclature,
-two carbocyclic rings sharing two or more atoms) — a subset of saturated
-tricyclic hydrocarbons (von Baeyer systems with exactly four skeletal atoms
-of degree 3, forming a main ring plus a main bridge plus one independent
-secondary bridge, P-23.2.5 — including both the "K4" case (adamantane,
-twistane) and the "doubled main bridgeheads/secondary bridgeheads" case
-(the Blue Book's own tricyclo[4.2.2.2²,⁵]dodecane worked example, and
-ortho-fused ring chains like perhydroanthracene)), a subset of saturated
-tetracyclic hydrocarbons (von Baeyer systems with exactly six skeletal
-atoms of degree 3, forming a main bicyclic system plus two independent
-secondary bridges, P-23.2.6, e.g. quadricyclane), plus acyclic hydrocarbons
-with one or more carbon-carbon double and/or triple bonds on the principal
-chain (alkenes, alkynes, dienes/trienes, diynes/triynes, and mixed enynes),
-including branched ("compound") substituent groups (P-29.4), e.g.
-`CC(C)C(CC)CCC` → `3-ethyl-2-methylhexane`, `CC1CCCCC1` →
-`methylcyclohexane`, `C1CCCC12CCCCC2` → `spiro[4.5]decane`,
-`C1CC2CCC1C2` → `bicyclo[2.2.1]heptane`, `C1CCC2CCCCC2C1` →
-`bicyclo[4.4.0]decane`, `C1C2CC3CC1CC(C2)C3` (adamantane) →
-`tricyclo[3.3.1.1^3,7]decane`, `CCCCC(C(C)CC)CCCCC` →
-`5-(1-methylpropyl)decane`, `CCCC(C(C)C)CC=C` →
-`4-(1-methylethyl)hept-1-ene`, `C=CC=C` → `buta-1,3-diene`, and `C=CC#C` →
-`but-1-en-3-yne`. Fluoro, chloro, bromo, and iodo substituents (P-35.2.1)
-are supported on any of the above parent hydrides, e.g. `CCCF` →
-`1-fluoropropane`, `C(Cl)(Cl)(Cl)Cl` → `tetrachloromethane`, `BrCC(Cl)C(F)CI`
-→ `1-bromo-2-chloro-3-fluoro-4-iodobutane`, `ClC1CCCCC1` →
-`chlorocyclohexane`, and `C=C(Cl)CC` → `2-chlorobut-1-ene`,
-`C1CC2CCC1C1CCC2CC1` → `tricyclo[4.2.2.2^2,5]dodecane`,
-`C1CCC2CC3CCCCC3CC2C1` (perhydroanthracene) → `tricyclo[8.4.0.0^3,8]tetradecane`,
-plus propellane-type tricyclics — two skeletal branch atoms of degree 4,
-directly bonded to each other, joined by three further bridges, with that
-direct bond treated as a zero-length independent secondary bridge — e.g.
-`C1C23CC12C3` ([1.1.1]propellane) → `tricyclo[1.1.1.0^1,3]pentane`, and
-`C1C2C3C2C4C1C34` (quadricyclane) → `tetracyclo[3.2.0.0^2,7.0^4,6]heptane`,
-and linear (unbranched) polyspiro saturated hydrocarbons — three or more
-carbocyclic rings connected in a chain by spiro atoms, each internal ring
-sharing exactly one spiro atom with each of its two neighbors (P-24.2.2) —
-e.g. `C1CCC12CCC3(CC2)CCC3` → `dispiro[3.2.3^7.2^4]dodecane`.
-Also supported: ortho-fused aromatic (mancude) six-membered all-carbon ring
-chains carrying one of six retained names — `benzene` (one ring),
-`naphthalene` (two rings), `anthracene`/`phenanthrene` (three rings,
-straight/angular, with their traditional fixed numbering per P-25.3.3), and
-`tetracene`/`pentacene` (four/five rings, straight) — with halogen and
-alkyl substituents, e.g. `c1ccccc1` → `benzene`,
-`c1ccc2ccccc2c1` → `naphthalene`, `C1=CC=C2C=C(C=CC2=C1)Cl` →
-`2-chloronaphthalene`.
+## Guiding principles
 
-Alcohols (P-33.2, the '-ol' suffix) are also supported on acyclic and
-simple monocyclic saturated skeletons, and on acyclic skeletons with
-existing double/triple-bond support, e.g. `CCO` → `ethanol`, `CC(O)C` →
-`propan-2-ol`, `OCCO` → `ethane-1,2-diol`, `OC1CCCCC1` → `cyclohexanol`,
-and `OCCCC=C` → `pent-4-en-1-ol`. Primary amines (P-33.1, the '-amine'
-suffix) are supported on the same scope of skeletons, e.g. `CCN` →
-`ethanamine`, `CC(N)C` → `propan-2-amine`, `NCCN` → `ethane-1,2-diamine`,
-`NC1CCCCC1` → `cyclohexanamine`, and `NCCCC=C` → `pent-4-en-1-amine`.
-Ketones (P-33.4, the '-one' suffix) are supported on the same scope of
-skeletons, e.g. `CC(=O)C` → `propan-2-one`, `CCCC(=O)CC` → `hexan-3-one`,
-`CC(=O)CC(=O)C` → `pentane-2,4-dione`, `O=C1CCCCC1` → `cyclohexanone`, and
-`CC(=O)C=CC` → `pent-3-en-2-one`. Aldehydes (P-33.3, the '-al' suffix) are
-supported on acyclic skeletons only (a ring-bound -CHO uses the different
-'carbaldehyde' suffix pattern, out of scope) — since the -CHO carbon is
-always the chain terminus, its own locant is never cited, e.g. `CCC=O` →
-`propanal`, `CC(C)C=O` → `2-methylpropanal`, `O=CCCCC=O` → `pentanedial`,
-and `C=CCCC=O` → `pent-4-enal`. Carboxylic acids (P-65.1.1, the '-oic
-acid' suffix) are supported on acyclic saturated or unsaturated carbon
-chains, e.g. `CC(=O)O` → `ethanoic acid`, `CC(C)CC(=O)O` →
-`3-methylbutanoic acid`, `OC(=O)CCCCC(=O)O` → `hexanedioic acid`, and
-`CC=CC(=O)O` → `but-2-enoic acid`. Ethers (P-63.2.1, the 'oxy' substituent
-prefix — ethers have no suffix) are supported between two acyclic saturated
-chains, with the longer chain as the parent and the shorter as an 'oxy'
-prefix, e.g. `COC` → `methoxymethane`, `CCOCC` → `ethoxyethane`, `COCCC` →
-`1-methoxypropane`, and `CC(C)OCC` → `2-ethoxypropane`; a branched shorter
-side (e.g. `CC(C)OC(C)C`) is out of scope. Nitriles (P-66.5, the '-nitrile'
-suffix) are supported on acyclic skeletons only (a ring-bound -C#N uses the
-different 'carbonitrile' suffix pattern, out of scope) — since the -C#N
-carbon is always the chain terminus, its own locant is never cited, e.g.
-`CCC#N` → `propanenitrile`, `CC(C)C#N` → `2-methylpropanenitrile`, and
-`C=CCC#N` → `but-3-enenitrile`; more than one nitrile group (a dinitrile) is
-out of scope.
+Two principles define the scope of this project and every change made to it.
 
-Other tricyclic topologies, other tetracyclic topologies (any branch atom
-of degree 4, or fewer/more than six skeletal atoms of degree 3),
-pentacyclic-and-higher ring systems, branched polyspiro ring systems
-(P-24.2.3, a spiro atom shared by three or more rings) and heterocyclic
-spiro ring systems (P-24.2.4), unsaturated non-aromatic rings, a multiple
-bond that isn't on any candidate principal chain, heteroatoms other than
-the four halogens, hydroxyl oxygen, primary amine nitrogen, ketone carbonyl
-oxygen, aldehyde carbonyl oxygen, carboxylic-acid oxygens, a single plain
-ether oxygen, and a single nitrile nitrogen above, secondary/tertiary
-amines, characteristic groups more senior than a plain
-alcohol/amine/ketone/aldehyde/carboxylic acid/nitrile (e.g. esters, amides),
-a dinitrile, an ether coexisting with any other characteristic group, a
-branched ether substituent side, a ring-bound aldehyde (the 'carbaldehyde'
-suffix) or nitrile (the 'carbonitrile' suffix), a carboxylic acid on/in a
-ring, aryl ketones/aldehydes/nitriles, cyclic substituent groups,
-peri-fused or branched aromatic ring systems
-(e.g. pyrene, triphenylene), heteroaromatic rings, and any other
-ortho-fused aromatic ring chain (angular chains of four or more rings,
-chains of six or more rings, or anything needing genuine
-`benzo[x,y-z]fusion[...]` name construction) raise `NotImplementedError`
-and are future work. See [REFERENCES.md](REFERENCES.md) for the source of
-the rules applied.
+### 1. Anything a SMILES string can express is in scope
+
+The input is a SMILES string, so the goal is to name every molecule that
+SMILES can represent: acyclic and cyclic skeletons, fused, bridged and spiro
+ring systems, heterocycles, all common characteristic groups, charged and
+radical species, isotopes, stereochemistry, and organometallic and
+coordination compounds. What SMILES cannot express (for example, a
+free-standing locant set, a mixture description, or a polymer repeat unit
+with no defined structure) is out of scope by definition.
+
+### 2. Names follow the rules written in the Blue Book
+
+Behavior is derived from the text of the Blue Book rules, not from example
+outputs, third-party name generators, or database lookups. Worked examples
+and PubChem entries are used only to *verify* a result, never to define it.
+
+- If the Blue Book defines a **preferred IUPAC name (PIN)** for the structure,
+  that PIN is returned.
+- If the Blue Book defines no PIN (for example, P-69.0 for most
+  organometallics), a single rule-valid name is returned and a
+  `NonPreferredNameWarning` is emitted, so the caller always knows when the
+  result is valid but not preferred.
+- Where the Blue Book is itself contradictory, or a structure cannot be
+  expressed unambiguously in SMILES, the structure is reported as
+  unsupported rather than guessed.
+
+Rule references appear as section numbers (e.g. `P-44.3`) in the source and
+map to the chapters listed in [REFERENCES.md](REFERENCES.md).
+
+## What it covers
+
+Rule coverage is organized by Blue Book chapter:
+
+| Blue Book chapter | Covered |
+|---|---|
+| P-1 | General principles: numerals, multiplying prefixes, locants, alphanumerical ordering, enclosing marks |
+| P-2 | Parent hydrides: acyclic and cyclic hydrocarbons, heteroatom skeletons (replacement "a" nomenclature), von Baeyer, spiro, fused (ortho-/peri-fused, heterocyclic), bridged, ring assemblies, phanes, fullerenes |
+| P-3 | Characteristic groups, substituent prefixes and suffixes, seniority of classes |
+| P-4 | Selection of the principal chain/ring, numbering and lowest locants, name assembly |
+| P-5 | Constructing names: functional replacement, added/indicated hydrogen, hydro/dehydro prefixes |
+| P-6 | Characteristic groups in names: alcohols, amines, carbonyls, acids and their derivatives (esters, amides, anhydrides, halides, nitriles), sulfur/selenium/tellurium and phosphorus acids, organometallic compounds |
+| P-7 | Radicals, ions and zwitterions, salts |
+| P-8 | Isotopically modified compounds |
+| P-9 | Stereodescriptors (`R`/`S`, `E`/`Z`, and related) and stereo-aware retained names |
+| P-10 | Natural products: carbohydrates, amino acids, nucleosides and nucleotides, steroids, alkaloids, lipids |
+
+Beyond organic skeletons it also handles coordination and organometallic
+compounds (with `NonPreferredNameWarning` where the Blue Book defines no
+PIN), organoelement hydrides (B, Si, P, ...) and onium, carbocation and
+carbanion species.
+
+Coverage grows rule by rule and is audited per rule. Structures that fall
+outside what is currently implemented raise `NotImplementedError` (see
+below); they are never silently mis-named.
 
 ## Installation
+
+Requires Python 3.9 or newer. Dependencies (RDKit and NetworkX) are installed
+automatically.
+
+```bash
+pip install smiles-to-iupac
+```
+
+From a clone of the repository:
 
 ```bash
 pip install -e ".[dev]"
@@ -120,27 +91,64 @@ pip install -e ".[dev]"
 
 ## Usage
 
-```python
-from smiles_to_iupac import smiles_to_iupac
+### Python
 
-name = smiles_to_iupac("CC(C)C(CC)CCC")  # "3-ethyl-2-methylhexane"
+```python
+import warnings
+from smiles_to_iupac import smiles_to_iupac, NonPreferredNameWarning
+
+smiles_to_iupac("c1ccc2[nH]ccc2c1")        # '1H-indole'
+smiles_to_iupac("C[C@H](N)C(=O)O")         # 'L-alanine'
+smiles_to_iupac("C1CC2CCC1C2")             # 'bicyclo[2.2.1]heptane'
+smiles_to_iupac("CS(=O)(=O)O")             # 'methanesulfonic acid'
 ```
 
-## CLI
+A name returned with `NonPreferredNameWarning` is valid under the Blue Book
+rules but is not a preferred IUPAC name:
+
+```python
+with warnings.catch_warnings(record=True) as caught:
+    warnings.simplefilter("always")
+    name = smiles_to_iupac("[Fe]")          # 'iron'
+    is_pin = not any(
+        issubclass(w.category, NonPreferredNameWarning) for w in caught
+    )
+```
+
+### Errors
+
+| Exception | Meaning |
+|---|---|
+| `ValueError` | The input is not a valid SMILES string. |
+| `NotImplementedError` | The SMILES is valid but uses a rule that is not implemented yet. |
+
+### Command line
 
 ```bash
-smiles-to-iupac CC(C)C(CC)CCC  # "3-ethyl-2-methylhexane"
+smiles-to-iupac "CC(C)C(CC)CCC"            # 3-ethyl-2-methylhexane
+smiles-to-iupac CCO c1ccncc1               # one "<smiles>\t<name>" line each
+python3 -m smiles_to_iupac CCO             # equivalent module form
 ```
 
-Multiple SMILES print one `<smiles>\t<name>` line each. Also runnable as
-`python3 -m smiles_to_iupac <smiles>`.
+With a single SMILES only the name is printed. With several, each line is
+`<smiles>\t<name>`. Errors are written to stderr and the exit status is 1 if
+any input failed.
 
 ## Development
 
 ```bash
 pip install -e ".[dev]"
 pytest
+ruff check .
 ```
+
+When adding or changing behavior, derive it from the Blue Book rule text and
+cite the section number; use worked examples and PubChem only to check the
+result.
+
+## References
+
+See [REFERENCES.md](REFERENCES.md) for the Blue Book source and chapter PDFs.
 
 ## License
 
