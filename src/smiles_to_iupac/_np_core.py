@@ -177,15 +177,16 @@ def _outward(origin, neighbor_xy):
     return vector / norm if norm > 1e-6 else np.array([1.0, 0.0])
 
 
-def exo_faces(parent, mol_h, mapping):
+def exo_faces(parent, mol_h, mapping, alias=None):
     """{M atom: 'a'|'b'} for the exocyclic neighbours of every specified stereocentre on a ring atom of `parent`.
 
-    `mapping` maps parent locants to atoms of `mol_h` (hydrogens explicit). The faces follow the parent's drawing."""
+    `mapping` maps parent locants to atoms of `mol_h` (hydrogens explicit). The faces follow the parent's drawing;
+    `alias(locant, atom)` names the parent atom that a modified neighbour stands for."""
     sign = orientation_sign(parent)
-    return None if sign is None else _faces(parent, mol_h, mapping, sign)
+    return None if sign is None else _faces(parent, mol_h, mapping, sign, alias)
 
 
-def _faces(parent, mol_h, mapping, sign):
+def _faces(parent, mol_h, mapping, sign, alias=None):
     layout = parent.layout()
     if layout is None:
         return None
@@ -198,12 +199,22 @@ def _faces(parent, mol_h, mapping, sign):
         if atom.GetChiralTag() not in (Chem.ChiralType.CHI_TETRAHEDRAL_CW, Chem.ChiralType.CHI_TETRAHEDRAL_CCW) or atom.GetDegree() != 4:
             continue
         neighbors = [n.GetIdx() for n in atom.GetNeighbors()]
-        in_plane = [n for n in neighbors if n in mapped and frozenset((loc, mapped[n])) in parent.plane_bonds]
+
+        def plane_loc(n):
+            other = mapped.get(n)
+            if other is not None and frozenset((loc, other)) in parent.plane_bonds:
+                return other
+            other = alias(loc, n) if alias else None
+            if other is not None and frozenset((loc, other)) in parent.plane_bonds:
+                return other
+            return None
+
+        in_plane = [n for n in neighbors if plane_loc(n) is not None]
         exo = [n for n in neighbors if n not in in_plane]
         if len(in_plane) not in (2, 3) or len(exo) != 4 - len(in_plane):
             continue
         origin = layout[loc]
-        plane_xy = {n: layout[mapped[n]] for n in in_plane}
+        plane_xy = {n: layout[plane_loc(n)] for n in in_plane}
         out = _outward(origin, plane_xy.values())
         coords = {}
         for n in in_plane:

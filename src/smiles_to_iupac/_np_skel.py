@@ -106,8 +106,9 @@ def nor_variants(parent):
     """[(op, atom)] removable atoms: the highest-locant atom of each connector, the free end of each terminal segment."""
     atomic, terminal, _ = connectors(parent)
     atoms = []
+    lowest = parent.name.endswith("carotene")
     for chain in atomic:
-        atoms.append(chain[-1])
+        atoms.append(chain[0] if lowest else chain[-1])
     for chain in terminal:
         end = next(a for a in chain if len(parent.adj[a]) == 1)
         atoms.append(end)
@@ -201,10 +202,12 @@ def variants(parent, cost=1, terminal_only=False):
     max_cost = cost
     layers = [[Skel.of(parent)]]
     nors, sites, secos = nor_variants(parent), homo_sites(parent), seco_bonds(parent)
+    dess = des_ops(parent)
+    apos = apo_ops(parent)
     if terminal_only:
         nors = [a for a in nors if len(parent.adj[a]) == 1]
         sites = [site for site in sites if site[0] == "terminal"]
-        secos = []
+        secos, dess, apos = [], [], []
     for _ in range(max_cost):
         nxt = []
         for skel in layers[-1]:
@@ -215,6 +218,14 @@ def variants(parent, cost=1, terminal_only=False):
             for site in sites:
                 if _site_alive(skel, site):
                     nxt.append(apply_homo(skel, site))
+            if not any(op[0] == "des" for op in skel.ops):
+                for letter, atoms in dess:
+                    if all(a in skel.adj for a in atoms):
+                        nxt.append(apply_des(skel, letter, atoms))
+            if not any(op[0] == "apo" for op in skel.ops):
+                for locant, atoms in apos:
+                    if locant in skel.adj and all(a in skel.adj for a in atoms):
+                        nxt.append(apply_apo(skel, locant, atoms))
             cut = {frozenset(op[1:]) for op in skel.ops if op[0] == "seco"}
             for a, b in secos:
                 if b in skel.adj.get(a, ()) and frozenset((a, b)) not in cut:
@@ -237,6 +248,8 @@ def _site_alive(skel, site):
 def _op_key(op):
     if op[0] == "homo":
         return ("homo", op[1], str(op[2]))
+    if op[0] in ("des", "apo"):
+        return (op[0], op[1])
     return (op[0],) + tuple(sorted(str(x) for x in op[1:]))
 
 
@@ -249,3 +262,75 @@ def _dedupe(skels):
         seen.add(key)
         out.append(skel)
     return out
+
+
+_STEROID_RINGS = {"A": ["1", "2", "3", "4"], "D": ["15", "16", "17"]}
+_STEROIDS_WITH_RINGS = (
+    "gonane estrane androstane pregnane cholane cholestane ergostane campestane stigmastane poriferastane gorgostane"
+).split()
+
+
+def des_ops(parent):
+    """[(ring letter, atoms)] terminal rings of a steroid that can be removed with their own atoms (P-101.3.6)."""
+    if parent.name not in _STEROIDS_WITH_RINGS:
+        return []
+    found = []
+    for letter, atoms in _STEROID_RINGS.items():
+        ring = set(atoms)
+        if letter == "D" and any(n not in ring | {"13", "14"} for a in atoms for n in parent.adj[a]):
+            continue
+        found.append((letter, tuple(atoms)))
+    return found
+
+
+def apply_des(skel, letter, atoms):
+    new = skel.copy(("des", letter, atoms))
+    for atom in atoms:
+        for n in list(new.adj[atom]):
+            new.remove_bond(atom, n)
+        del new.adj[atom]
+        del new.elem[atom]
+    return new
+
+
+def apo_ops(parent):
+    """[(locant, atoms)] chain truncations of a carotene: everything beyond a locant of the primed half (P-101.3.4.2)."""
+    if not parent.name.endswith("carotene"):
+        return []
+    depth = {"15": 0, "15′": 0}
+    frontier = ["15", "15′"]
+    while frontier:
+        nxt = []
+        for a in frontier:
+            for n in parent.adj[a]:
+                if n not in depth:
+                    depth[n] = depth[a] + 1
+                    nxt.append(n)
+        frontier = nxt
+    found = []
+    for locant in sorted((a for a in parent.adj if a.endswith("′") and a in depth), key=loc_key):
+        if int(locant.rstrip("′").rstrip("¹²") or 0) > 15 or len(parent.adj[locant]) < 2:
+            continue
+        start = [n for n in parent.adj[locant] if depth[n] > depth[locant] and len(parent.adj[n]) > 1]
+        beyond, stack = set(), list(start)
+        while stack:
+            a = stack.pop()
+            if a in beyond or a == locant:
+                continue
+            beyond.add(a)
+            stack.extend(n for n in parent.adj[a] if n != locant and depth[n] >= depth[a] - 0 and n not in beyond)
+        if len(beyond) > 0 and locant.rstrip("′").isdigit():
+            found.append((locant, tuple(sorted(beyond, key=loc_key))))
+    return found
+
+
+def apply_apo(skel, locant, atoms):
+    new = skel.copy(("apo", locant, atoms))
+    for atom in atoms:
+        if atom not in new.adj:
+            continue
+        for n in list(new.adj[atom]):
+            new.remove_bond(atom, n)
+        del new.adj[atom]
+        del new.elem[atom]
+    return new

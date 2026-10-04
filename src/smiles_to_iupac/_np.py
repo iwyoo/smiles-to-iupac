@@ -78,7 +78,7 @@ def _plausible(name, view, cost):
     if missing > 2 * cost + 2:
         return False
     hetero_missing = sum(max(0, n - view.elements.get(el, 0)) for el, n in elements.items())
-    return hetero_missing <= cost
+    return hetero_missing <= cost + _MAX_MODIFICATIONS
 
 
 def _rank(cand, view):
@@ -106,7 +106,8 @@ def _admissible(cand):
         return False
     if cand.replaced and not (fused >= 3 or (cyc >= 2 and stem_info(cand.parent.name)[1] == "ane")):
         return False
-    if any(op[0] != "nor" and op[0] != "homo" or not _terminal_op(cand.parent, op) for op in cand.skel.ops) and fused < _MIN_RINGS_FOR_OPERATIONS:
+    carotene = cand.parent.name.endswith("carotene")
+    if not carotene and any(op[0] != "nor" and op[0] != "homo" or not _terminal_op(cand.parent, op) for op in cand.skel.ops) and fused < _MIN_RINGS_FOR_OPERATIONS:
         return False
     return True
 

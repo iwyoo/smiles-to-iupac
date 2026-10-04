@@ -15,13 +15,45 @@ class Config:
     side: list = field(default_factory=list)
     faces: dict = field(default_factory=dict)
     exo: dict = field(default_factory=dict)
+    hfaces: dict = field(default_factory=dict)
 
 
-def _natural(parent, loc, mol_h, atom, image):
+def _alias(skel, parent, loc, label):
+    """The parent atom a neighbour of `loc` stands for after 'homo' insertions or a 'nor' removal."""
+    if label.startswith("h") and label in skel.adj:
+        previous, current = loc, label
+        while current.startswith("h"):
+            step = next((n for n in skel.adj[current] if n != previous), None)
+            if step is None:
+                return label
+            previous, current = current, step
+        return current
+    if label in parent.adj and label not in parent.adj.get(loc, ()):
+        bridge = parent.adj.get(loc, set()) & parent.adj[label]
+        removed = [x for x in bridge if x not in skel.adj]
+        if removed:
+            return removed[0]
+    return label
+
+
+def _natural(parent, loc, mol_h, atom, image, skel=None):
     ph = parent_h(parent.name)
     pidx = parent.idx_of[loc]
     plabels = {n.GetIdx(): parent.loc_of.get(n.GetIdx(), "~H") for n in ph.GetAtomWithIdx(pidx).GetNeighbors()}
-    mlabels = {n.GetIdx(): image.get(n.GetIdx(), "~H") for n in mol_h.GetAtomWithIdx(atom).GetNeighbors()}
+    mlabels = {}
+    for n in mol_h.GetAtomWithIdx(atom).GetNeighbors():
+        label = image.get(n.GetIdx(), "~H")
+        if skel is not None and label != "~H":
+            label = _alias(skel, parent, loc, label)
+        mlabels[n.GetIdx()] = label
+    missing = [l for l in plabels.values() if l not in mlabels.values()]
+    extra = [l for l in mlabels.values() if l not in plabels.values()]
+    if len(missing) == 1 and extra == ["~H"] and skel is not None and missing[0] not in skel.adj:
+        mlabels = {n: (missing[0] if l == "~H" else l) for n, l in mlabels.items()}
+        plabels = {n: (missing[0] if l == "~H" else l) for n, l in plabels.items()}
+        if sorted(plabels.values()) != sorted(mlabels.values()):
+            return False
+        return center_signature(ph, pidx, {k: v for k, v in plabels.items()}) == center_signature(mol_h, atom, mlabels)
     if sorted(plabels.values()) != sorted(mlabels.values()):
         return False
     return center_signature(ph, pidx, plabels) == center_signature(mol_h, atom, mlabels)
@@ -60,7 +92,14 @@ def configuration(cand, view):
         return config
     mol_h = Chem.AddHs(mol)
     parent_atoms = {loc: a for loc, a in mapping.items() if loc in parent.idx_of}
-    faces = exo_faces(parent, mol_h, parent_atoms)
+    def alias(loc, n):
+        label = image.get(n)
+        if label is None or label in parent.idx_of:
+            return None
+        other = _alias(skel, parent, loc, label)
+        return other if other in parent.idx_of else None
+
+    faces = exo_faces(parent, mol_h, parent_atoms, alias)
     ring = skel.ring_atoms()
     for loc, atom in mapping.items():
         if atom not in potential or loc not in parent.idx_of:
@@ -68,13 +107,16 @@ def configuration(cand, view):
         in_parent_ring = loc in parent.plane
         exo = [
             n.GetIdx() for n in mol_h.GetAtomWithIdx(atom).GetNeighbors()
-            if not (n.GetIdx() in mapped and frozenset((loc, image[n.GetIdx()])) in parent.plane_bonds)
+            if not (
+                (n.GetIdx() in mapped and frozenset((loc, image[n.GetIdx()])) in parent.plane_bonds)
+                or (alias(loc, n.GetIdx()) is not None and frozenset((loc, alias(loc, n.GetIdx()))) in parent.plane_bonds)
+            )
         ]
         if loc in parent.centers:
             if atom not in specified:
                 config.parent.append((loc_key(loc), f"{loc}ξ"))
                 continue
-            if loc in parent.implied and _natural(parent, loc, mol_h, atom, image):
+            if loc in parent.implied and _natural(parent, loc, mol_h, atom, image, skel):
                 continue
             chosen = _exo_choice(exo, mapped, ring, image, mol_h)
             if in_parent_ring and faces is not None and chosen in faces:
@@ -92,6 +134,8 @@ def configuration(cand, view):
             for n in exo:
                 if n in faces and mol_h.GetAtomWithIdx(n).GetAtomicNum() != 1:
                     config.faces[n] = faces[n]
+                elif n in faces:
+                    config.hfaces[atom] = faces[n]
         else:
             config.side.append((loc_key(loc), f"{loc}{_cip(mol, atom)}"))
     return config
