@@ -9,6 +9,7 @@ from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, alpha_sort_key
 from ._hetero_prefixes import (
+    ANIONIC_PREFIXES,
     CHALCOGEN_PREFIXES,
     _has_senior_principal_group,
     phosphoryl_name,
@@ -177,6 +178,9 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
         if node in nitro:
             if is_nitro_nitrogen(mol, node):
                 record(node, "nitro", False)
+            continue
+        if atom.HasProp("_anion") and not kids and _bond_order(mol, node, parent) == 1.0:
+            record(node, ANIONIC_PREFIXES[z], False)
             continue
         if z == 8 and node not in named:
             if _bond_order(mol, node, parent) == 2.0 and not kids:

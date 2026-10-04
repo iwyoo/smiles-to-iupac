@@ -557,10 +557,14 @@ def _bare_skeleton(mol, skeleton_atoms, mancude=False):
     return bare, new_of, {v: k for k, v in new_of.items()}
 
 
+ANION_SUFFIX = ContextVar("anion_suffix", default=frozenset())
+_TRIVALENT_RING_HETERO = {7, 5, 13, 15, 31, 33, 49, 51, 81, 83}
+
+
 def _mancude_candidates(mol, skeleton_atoms, sp3):
     """Skeleton-only mancude parents: every atom aromatic, with one explicit [nH] or one sp3 CH2 where needed."""
     bare, new_of, old_of = _bare_skeleton(mol, skeleton_atoms, mancude=True)
-    nitrogens = [a for a in sorted(skeleton_atoms) if mol.GetAtomWithIdx(a).GetAtomicNum() == 7]
+    nitrogens = [a for a in sorted(skeleton_atoms) if mol.GetAtomWithIdx(a).GetAtomicNum() in _TRIVALENT_RING_HETERO]
     attempts = [("none", None)] + [("nh", a) for a in nitrogens] + [
         ("ch2", a)
         for a in sorted(sp3, key=lambda a: (mol.GetRingInfo().NumAtomRings(a) > 1, a))
@@ -776,6 +780,7 @@ def _fused_mancude(mol, skeleton_atoms):
     sp3 = {
         a for a in _sp3_ring_atoms(mol, skeleton_atoms) | oxo_all if mol.GetAtomWithIdx(a).GetSymbol() not in _NO_DOUBLE_BOND
     }
+    sp3 |= {a for a in ANION_SUFFIX.get() if a in skeleton_atoms and mol.GetAtomWithIdx(a).GetAtomicNum() == 6}
     fusion_hetero = {a for a in skeleton_atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6 and ring_info.NumAtomRings(a) > 1}
     suffix_atoms = SUFFIX_ATOMS.get() & set(skeleton_atoms)
     oxo_suffix = (oxo_all & suffix_atoms) | {a for a in suffix_atoms & sp3 if ring_info.NumAtomRings(a) > 1}
@@ -826,6 +831,9 @@ def _fused_mancude(mol, skeleton_atoms):
             )
         }
         accommodated = oxo_suffix | {a for a in suffix_atoms & saturated if mol.GetAtomWithIdx(a).GetAtomicNum() != 6}
+        if ANION_SUFFIX.get():
+            centers = ANION_SUFFIX.get() & saturated
+            accommodated = set() if saturated <= ANION_SUFFIX.get() else set(accommodated) | centers
         split = _split_hydrogen(position_of, adj, can_hold, saturated, oxo_all, accommodated, ih_count)
         if split is None:
             continue

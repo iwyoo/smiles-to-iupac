@@ -119,6 +119,11 @@ def prefix_name(mol, root, from_atom, suffix_group=None, name_function=None, gro
     atom = mol.GetAtomWithIdx(root)
     if atom.GetAtomicNum() in HALOGEN_PREFIXES and atom.GetDegree() == 1:
         return HALOGEN_PREFIXES[atom.GetAtomicNum()], False
+    if not atom.IsInRing() and mol.GetBondBetweenAtoms(root, from_atom).GetBondTypeAsDouble() != 1.0:
+        from ._common import adjacency
+        from ._substituents import name_branch
+
+        return name_branch(adjacency(mol), root, from_atom, {}, frozenset(), mol=mol, unsaturated=True)
     if not atom.IsInRing():
         from ._common import adjacency
         from ._hetero_prefixes import MONONUCLEAR_HYDRIDES, hetero_branch_name

@@ -15,6 +15,8 @@ from ._carbamate import has_carbamate_shape, name_carbamate
 from ._alcohol import name_alcohol
 from ._alcohol_amine import has_alcohol_amine_shape, name_alcohol_amine
 from ._alkoxide import has_alkoxide_shape, name_alkoxide
+from ._acetyl_names import acetyl_names
+from ._anion import name_anion
 from ._aldehyde import name_aldehyde
 from ._aldehyde_amine import has_aldehyde_amine_shape, name_aldehyde_amine
 from ._ketone_amine import has_ketone_amine_shape, name_ketone_amine
@@ -317,7 +319,12 @@ from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
 from ._fluorene_parent import has_fluorene_parent_name, name_fluorene_parent
 from ._ring_diyl_numbering import is_hydro_fusion_system
-from ._benzo_heterocycle import has_benzo_heterocycle_name, name_benzo_heterocycle
+from ._cyclopenta_heterocycle import has_cyclopenta_heterocycle_name, name_cyclopenta_heterocycle
+from ._benzo_heterocycle import (
+    has_benzo_heterocycle_name,
+    has_group_benzo_heterocycle_name,
+    name_benzo_heterocycle,
+)
 from ._indene_parent import has_indene_parent_name, name_indene_parent
 from ._fluorene_fusion import has_fluorene_fusion_name, name_fluorene_fusion
 from ._azulene_fusion import has_azulene_fusion_name, name_azulene_fusion
@@ -421,15 +428,50 @@ def _retained_polycycle_names(name):
     return _ADAMANTANE.sub("adamantan", name)
 
 
+def _parse_smiles(smiles):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is not None:
+        return mol
+    # hypervalent anionic centers (lambda-convention parents) fail RDKit's valence check only
+    mol = Chem.MolFromSmiles(smiles, sanitize=False)
+    if mol is None or not any(a.GetFormalCharge() < 0 for a in mol.GetAtoms()):
+        return None
+    mol.UpdatePropertyCache(strict=False)
+    try:
+        Chem.SanitizeMol(mol, Chem.SANITIZE_ALL ^ Chem.SANITIZE_PROPERTIES)
+    except Exception:
+        return None
+    mol.SetProp("_hypervalent_anion", "1")
+    return mol
+
+
+def _has_free_anion(mol) -> bool:
+    if any(
+        a.GetFormalCharge() > 0 and a.GetDegree() and not any(n.GetFormalCharge() < 0 for n in a.GetNeighbors())
+        for a in mol.GetAtoms()
+    ):
+        return False
+    return any(
+        a.GetFormalCharge() < 0 and not any(n.GetFormalCharge() > 0 for n in a.GetNeighbors()) for a in mol.GetAtoms()
+    )
+
+
 def smiles_to_iupac(smiles: str) -> str:
-    return _retained_polycycle_names(_smiles_to_iupac_unabridged(smiles))
+    name = _retained_polycycle_names(_smiles_to_iupac_unabridged(smiles))
+    mol = _parse_smiles(smiles)
+    if mol is not None and _has_free_anion(mol):
+        name = acetyl_names(name)
+    return name
 
 
 def _smiles_to_iupac_unabridged(smiles: str) -> str:
     enter()
     name = None
     try:
-        parsed = Chem.MolFromSmiles(smiles)
+        parsed = _parse_smiles(smiles)
+        if parsed is not None and parsed.HasProp("_hypervalent_anion"):
+            name = name_anion(parsed)
+            return name
         if parsed is not None and has_sphingoid_shape(parsed):
             return name_sphingoid(parsed)
         if parsed is not None and has_nucleoside_name(parsed):
@@ -458,6 +500,8 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
         hydro_fusion = parsed is not None and _has_hydro_fusion_system(parsed)
         try:
             name = _smiles_to_iupac_dispatch(smiles)
+            if parsed is not None and _drops_anionic_charge(parsed, name):
+                raise UnsupportedStructure("the negative charge of this structure is not cited by any supported name")
         except UnsupportedStructure as original:
             name = _run_fallbacks(smiles, original)
         except Exception:
@@ -488,6 +532,15 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
         return name
     finally:
         leave(name)
+
+
+_ANION_NAME_ENDING = re.compile(r"(?:ide|uide|ate|ite|ato|ido|elide)\b|(?:ide|uide|ate|ite)-")
+
+
+def _drops_anionic_charge(mol, name) -> bool:
+    if len(Chem.GetMolFrags(mol)) != 1 or sum(a.GetFormalCharge() for a in mol.GetAtoms()) >= 0:
+        return False
+    return _ANION_NAME_ENDING.search(name) is None
 
 
 _HYDRO_FUSION_RUNNING = set()
@@ -539,7 +592,7 @@ def _has_aromatic_oxo(mol) -> bool:
 
 
 def _run_fallbacks(smiles, original):
-    mol = Chem.MolFromSmiles(smiles)
+    mol = _parse_smiles(smiles)
     key = Chem.MolToSmiles(mol)
     if key in _FALLBACKS_RUNNING:
         raise original
@@ -552,7 +605,7 @@ def _run_fallbacks(smiles, original):
                 continue
             if name is not None:
                 return name
-        for fallback in (name_polyfunctional, name_ester_by_parts):
+        for fallback in (name_anion, name_polyfunctional, name_ester_by_parts):
             try:
                 return fallback(mol)
             except UnsupportedStructure:
@@ -566,7 +619,7 @@ def _run_fallbacks(smiles, original):
 
 
 def _smiles_to_iupac_dispatch(smiles: str) -> str:
-    mol = Chem.MolFromSmiles(smiles)
+    mol = _parse_smiles(smiles)
     if mol is None:
         raise ValueError(f"invalid SMILES: {smiles!r}")
     return _name_mol(mol)
@@ -588,6 +641,10 @@ def _name_via_fallbacks(mol):
 
 
 def _name_mol(mol) -> str:
+    if has_group_benzo_heterocycle_name(mol):
+        return name_benzo_heterocycle(mol)
+    if has_cyclopenta_heterocycle_name(mol):
+        return name_cyclopenta_heterocycle(mol)
 
     # The 7 retained nucleoside names (P-105.1) are recognized by exact
     # whole-molecule match, so they must be routed before every other
