@@ -162,6 +162,8 @@ def find_ring_assembly_ylidene_core(mol):
     rings1 = [r for r in ring_info.AtomRings() if set(r) <= side1_atoms]
 
     if len(rings0) == 1 and len(rings1) == 1 and len(rings0[0]) == len(rings1[0]):
+        if junction0 not in rings0[0] or junction1 not in rings1[0]:
+            return None
         for ring in (rings0[0], rings1[0]):
             ring_set = set(ring)
             for idx in ring:
