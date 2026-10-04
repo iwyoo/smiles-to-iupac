@@ -74,6 +74,8 @@ def _alkoxy(rname):
     for stem, short in _ALKOXY_STEMS.items():
         if rname.endswith(stem) and not rname.endswith("cyclo" + stem):
             return rname[: -len(stem)] + short
+    if rname[0].isdigit():
+        return enclose(rname) + "oxy"
     return rname + "oxy"
 
 

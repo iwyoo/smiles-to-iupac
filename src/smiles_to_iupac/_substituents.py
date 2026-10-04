@@ -783,7 +783,10 @@ def _hetero_ring_branch(mol, root, coming_from):
             if assembly is None:
                 raise UnsupportedStructure("this heteroaromatic ring assembly as a substituent is not supported yet")
             return assembly
-    result = ring_substituent_name(mol, ring_atoms, root, coming_from, classify(mol) or [], None)
+    try:
+        result = ring_substituent_name(mol, ring_atoms, root, coming_from, classify(mol) or [], None)
+    except UnsupportedStructure:
+        result = None
     if result is None:
         from ._common import adjacency
         from ._diester_ring_diyl import ring_substituent_name as general_ring_substituent_name
@@ -1256,7 +1259,12 @@ def _substituted_ring_branch(graph, root, coming_from, halogens, aromatic_atoms,
     for atom in ring_atoms:
         for neighbor in graph[atom]:
             other = next((r for r in ring_info.AtomRings() if neighbor in r and atom not in r), None)
-            if other is not None and neighbor not in ring_atoms and _bare_key(mol, set(other)) == own_key:
+            if (
+                other is not None
+                and neighbor not in ring_atoms
+                and all(ring_info.NumAtomRings(a) == 1 for a in other)
+                and _bare_key(mol, set(other)) == own_key
+            ):
                 from ._polyfunctional import assembly_substituent
 
                 assembly = assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms)
