@@ -55,13 +55,13 @@ from smiles_to_iupac import smiles_to_iupac
         # von Baeyer name, so there was nothing to compare against); verified
         # instead by hand-deriving the branch-atom multigraph and by the
         # a+b+c+d+2 atom count matching the C14H24 formula.
-        ("C1CCC2CC3CCCCC3CC2C1", "tricyclo[8.4.0.0^3,8]tetradecane"),
+        ("C1CCC2CC3CCCCC3CC2C1", "tetradecahydroanthracene"),
         # perhydrophenanthrene: same three-fused-cyclohexane formula, angular
         # instead of linear fusion -- same abstract branch-atom multigraph
         # again, but the secondary bridgeheads land at different locants (2
         # and 7 instead of 3 and 8), confirming linear vs. angular fusion is
         # distinguished correctly.
-        ("C1CCC2C(C1)CCC1CCCCC21", "tricyclo[8.4.0.0^2,7]tetradecane"),
+        ("C1CCC2C(C1)CCC1CCCCC21", "tetradecahydrophenanthrene"),
     ],
 )
 def test_smiles_to_iupac_tricyclic(smiles, expected):

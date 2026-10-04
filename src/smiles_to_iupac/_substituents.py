@@ -733,9 +733,11 @@ def _ring_system_branch(graph, mol, root, coming_from):
         and not any(mol.GetAtomWithIdx(a).GetIsAromatic() for r in ring_info.AtomRings() for a in r if a in ring)
         and not _is_adamantane(mol, root)
     ):
-        raise UnsupportedStructure("a saturated fused or bridged ring substituent needs hydro or von Baeyer naming here")
-    if mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
-        raise UnsupportedStructure("a ring system attached by a multiple bond is not supported yet")
+        from ._diester_ring_diyl import _system_of
+        from ._ring_diyl_numbering import is_hydro_fusion_system
+
+        if not is_hydro_fusion_system(mol, _system_of(mol, root)[1]):
+            raise UnsupportedStructure("a saturated bridged ring substituent needs von Baeyer naming here")
     from ._diester_ring_diyl import ring_substituent_name
 
     return ring_substituent_name(mol, graph, root, coming_from)

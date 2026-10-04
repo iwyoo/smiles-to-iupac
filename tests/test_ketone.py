@@ -216,11 +216,10 @@ def test_hetero_ring_ketone_n_alkyl_substituent(smiles, expected):
 
 
 
-def test_hetero_ring_ketone_ring_substituent_raises():
+def test_hetero_ring_ketone_ring_substituent():
     # A plain alkyl substituent elsewhere on the ring is out of scope for
     # this module's narrow first pass.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CC(C)NCC1")
+    assert smiles_to_iupac("O=C1CC(C)NCC1") == "2-methylpiperidin-4-one"
 
 
 def test_hetero_ring_ketone_non_alkyl_n_substituent_raises():
@@ -271,20 +270,18 @@ def test_two_hetero_ring_ketone_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_two_hetero_ring_ketone_substituted_heteroatom_raises():
+def test_two_hetero_ring_ketone_substituted_heteroatom():
     # An N-methyl ring heteroatom is out of scope, same as the
     # single-heteroatom path.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1COCCN1C")
+    assert smiles_to_iupac("O=C1COCCN1C") == "4-methylmorpholin-3-one"
 
 
-def test_two_hetero_ring_ketone_wrong_element_pair_raises():
+def test_two_hetero_ring_ketone_wrong_element_pair():
     # An O+Se pair has no retained name in this module's scope (Se/Te
     # pairs are out of scope) --
     # falls through to the existing, unrelated rejection for whatever
     # other module (if any) matches this shape.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1COCC[Se]1")
+    assert smiles_to_iupac("O=C1COCC[Se]1") == "1,4-oxaselenan-3-one"
 
 
 @pytest.mark.parametrize(
@@ -309,9 +306,8 @@ def test_seven_membered_1_4_ring_ketone_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_seven_membered_1_4_ring_ketone_wrong_element_pair_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CNCC[Se]C1")
+def test_seven_membered_1_4_ring_ketone_wrong_element_pair():
+    assert smiles_to_iupac("O=C1CNCC[Se]C1") == "1,4-selenazepan-6-one"
 
 
 @pytest.mark.parametrize(
@@ -335,11 +331,10 @@ def test_seven_membered_1_3_ring_ketone_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_seven_membered_1_3_ring_ketone_second_ketone_on_far_arc_raises():
+def test_seven_membered_1_3_ring_ketone_second_ketone_on_far_arc():
     # A second ketone anywhere on the 4-carbon far arc is out of scope --
     # no PubChem-registered example was found to confirm its locant.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1NC(=O)CCCN1")
+    assert smiles_to_iupac("O=C1NC(=O)CCCN1") == "1,3-diazepane-2,4-dione"
 
 
 @pytest.mark.parametrize(
@@ -366,16 +361,14 @@ def test_seven_membered_1_2_ring_ketone_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_seven_membered_1_2_ring_ketone_second_ketone_on_far_arc_raises():
+def test_seven_membered_1_2_ring_ketone_second_ketone_on_far_arc():
     # A second ketone anywhere on the 4-carbon far arc is out of scope --
     # no PubChem-registered example was found to confirm its locant.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N1NC(=O)CCC(=O)C1")
+    assert smiles_to_iupac("N1NC(=O)CCC(=O)C1") == "1,2-diazepane-3,6-dione"
 
 
-def test_seven_membered_1_2_ring_ketone_wrong_element_pair_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CCCC[Se]N1")
+def test_seven_membered_1_2_ring_ketone_wrong_element_pair():
+    assert smiles_to_iupac("O=C1CCCC[Se]N1") == "1,2-selenazepan-3-one"
 
 
 @pytest.mark.parametrize(
@@ -457,17 +450,15 @@ def test_five_membered_1_3_ring_ketone_n_substituent_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_five_membered_1_3_ring_ketone_branched_n_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1N(C(C)C)C(=O)CN1")
+def test_five_membered_1_3_ring_ketone_branched_n_substituent():
+    assert smiles_to_iupac("O=C1N(C(C)C)C(=O)CN1") == "3-(propan-2-yl)imidazolidine-2,4-dione"
 
 
-def test_five_membered_1_3_ring_ketone_substituted_n_substituent_raises():
+def test_five_membered_1_3_ring_ketone_substituted_n_substituent():
     # A hydroxyl on the N-substituent itself -- only a plain, unbranched,
     # unsubstituted alkyl N-substituent is in scope (same restriction as
     # `_amide.py`/`_hydrazide.py`).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1N(CCO)C(=O)CN1")
+    assert smiles_to_iupac("O=C1N(CCO)C(=O)CN1") == "3-(2-hydroxyethyl)imidazolidine-2,4-dione"
 
 
 def test_five_membered_1_3_ring_ketone_single_ketone_ring_carbon_substituent():
@@ -508,12 +499,11 @@ def test_five_membered_1_3_ring_dione_carbon_substituent_names(smiles, expected)
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_five_membered_1_3_ring_ketone_wrong_element_pair_raises():
+def test_five_membered_1_3_ring_ketone_wrong_element_pair():
     # An O+Se pair has no retained name in this module's scope (Se/Te
     # pairs are out of scope) -- falls through to the existing, unrelated
     # rejection for whatever other module (if any) matches this shape.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1OCC[Se]1")
+    assert smiles_to_iupac("O=C1OCC[Se]1") == "1,3-oxaselenolan-2-one"
 
 
 @pytest.mark.parametrize(
@@ -542,9 +532,8 @@ def test_five_membered_1_2_ring_ketone_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_five_membered_1_2_ring_ketone_wrong_element_pair_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CC[Se]N1")
+def test_five_membered_1_2_ring_ketone_wrong_element_pair():
+    assert smiles_to_iupac("O=C1CC[Se]N1") == "1,2-selenazolidin-3-one"
 
 
 def test_five_membered_1_2_ring_ketone_single_ketone_ring_carbon_substituent():
@@ -593,12 +582,11 @@ def test_ketone_enol_mix():
     assert smiles_to_iupac("OC=CC(=O)C") == "4-hydroxybut-3-en-2-one"
 
 
-def test_unsaturated_ring_ketone_with_substituent_raises():
+def test_unsaturated_ring_ketone_with_substituent():
     # A substituent alongside both a ring double bond and a ketone needs
     # more careful numbering-priority verification than this first pass
     # covers.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CCCC=C1C")
+    assert smiles_to_iupac("O=C1CCCC=C1C") == "2-methylcyclohex-2-en-1-one"
 
 
 def test_unsaturated_ring_ketone_triple_bond_raises():
@@ -769,9 +757,8 @@ def test_two_ring_aromatic_substituent_ketone_three_rings():
     assert smiles_to_iupac("O=C1CCCC(c2ccccc2)C1c3ccccc3") == "2,3-diphenylcyclohexan-1-one"
 
 
-def test_two_ring_aromatic_substituent_ketone_ring_bond_raises():
+def test_two_ring_aromatic_substituent_ketone_ring_bond():
     # A ring double bond on the ketone-bearing ring alongside the
     # aromatic-ring substituent hits this module's existing "substituent
     # alongside a ring double bond" rejection unchanged.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1C=CCCC1c1ccccc1")
+    assert smiles_to_iupac("O=C1C=CCCC1c1ccccc1") == "6-phenylcyclohex-2-en-1-one"

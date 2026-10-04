@@ -97,6 +97,7 @@ pending further verification.
 from rdkit import Chem
 
 from ._common import (
+    stereo_locant_rank,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
@@ -407,6 +408,7 @@ def _best_chain_name(
             key, name = _candidate_key(
                 chain_length, amine_locants, ene_locants, yne_locants, substituents, candidate_n_names, candidate_n_locants
             )
+            key = (key, stereo_locant_rank(mol, stereo, position_of))
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of
     return best_name, best_position_of

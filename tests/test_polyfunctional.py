@@ -301,10 +301,9 @@ def test_heterocyclic_parents(smiles, expected):
     "smiles",
     [
         "S=C1CCCC=C1C",
-        "OCCC1CCC2CCCCC2C1",
     ],
 )
-def test_ring_assembly_substituents_thioketones_and_saturated_fused_rings_are_rejected(smiles):
+def test_thioketones_are_rejected(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
 
@@ -470,3 +469,154 @@ def test_nested_enclosing_marks_escalate_in_ring_parent_modules(smiles, expected
 )
 def test_partly_hydrogenated_fused_parents(smiles, name):
     assert smiles_to_iupac(smiles) == name
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("O=C1CCCc2ccccc12", "3,4-dihydronaphthalen-1(2H)-one"),
+        ("O=C1CCc2ccccc2C1", "3,4-dihydronaphthalen-2(1H)-one"),
+        ("O=C1CCc2ccccc12", "2,3-dihydro-1H-inden-1-one"),
+        ("O=C1Cc2ccccc2C1", "1,3-dihydro-2H-inden-2-one"),
+        ("O=C1C=Cc2ccccc12", "1H-inden-1-one"),
+        ("O=C1C=CC(=O)c2ccccc12", "naphthalene-1,4-dione"),
+        ("O=C1CC(=O)c2ccccc2C1", "naphthalene-1,3(2H,4H)-dione"),
+        ("O=C1c2ccccc2C(=O)c2ccccc12", "anthracene-9,10-dione"),
+        ("Cc1ccc2c(c1)CCCC2=O", "6-methyl-3,4-dihydronaphthalen-1(2H)-one"),
+        ("O=c1cccc[nH]1", "pyridin-2(1H)-one"),
+        ("O=c1ccccn1C", "1-methylpyridin-2(1H)-one"),
+        ("O=c1cc[nH]cc1", "pyridin-4(1H)-one"),
+        ("O=c1cc[nH]cn1", "pyrimidin-4(1H)-one"),
+        ("O=c1[nH]ccs1", "1,3-thiazol-2(3H)-one"),
+        ("O=c1ccc2ccccc2[nH]1", "quinolin-2(1H)-one"),
+        ("O=c1cc[nH]c2ccccc12", "quinolin-4(1H)-one"),
+        ("O=c1ccc2ccccc2o1", "2H-1-benzopyran-2-one"),
+        ("O=c1ccoc2ccccc12", "4H-1-benzopyran-4-one"),
+        ("O=C1CCOc2ccccc12", "2,3-dihydro-4H-1-benzopyran-4-one"),
+        ("O=C1OCc2ccccc12", "2-benzofuran-1(3H)-one"),
+        ("O=C(O)c1ccc(=O)[nH]c1", "6-oxo-1,6-dihydropyridine-3-carboxylic acid"),
+        ("OC(=O)c1c[nH]c2ccccc2c1=O", "4-oxo-1,4-dihydroquinoline-3-carboxylic acid"),
+    ],
+)
+def test_added_hydrogen_ring_ketones(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("O=C1NC(=O)c2ccccc12", "1H-isoindole-1,3(2H)-dione"),
+        ("O=C1C=CC(=O)N1", "1H-pyrrole-2,5-dione"),
+        ("O=C1Nc2ccccc2C1", "1,3-dihydro-2H-indol-2-one"),
+        ("O=c1[nH]c2ccccc2[nH]1", "1,3-dihydro-2H-benzimidazol-2-one"),
+        ("O=C1C(=O)Nc2ccccc12", "1H-indole-2,3-dione"),
+        ("O=c1[nH]cnc2[nH]cnc12", "1,9-dihydro-6H-purin-6-one"),
+        ("O=c1[nH]c(=O)c2[nH]cnc2[nH]1", "3,7-dihydro-1H-purine-2,6-dione"),
+        ("Cn1cnc2c1c(=O)n(C)c(=O)n2C", "1,3,7-trimethyl-3,7-dihydro-1H-purine-2,6-dione"),
+        ("Nc1ncnc2[nH]cnc12", "9H-purin-6-amine"),
+        ("Oc1ccc2[nH]c3ccccc3c2c1", "9H-carbazol-3-ol"),
+        ("Cn1c2ccccc2c2ccccc21", "9-methyl-9H-carbazole"),
+        ("Oc1ccc2c(c1)Cc1ccccc1O2", "9H-xanthen-2-ol"),
+        ("Nc1c2ccccc2nc2ccccc12", "acridin-9-amine"),
+        ("O=C1c2ccccc2Nc2ccccc12", "acridin-9(10H)-one"),
+        ("O=C1c2ccccc2Oc2ccccc12", "9H-xanthen-9-one"),
+        ("Oc1cccc2c1oc1ccccc12", "dibenzo[b,d]furan-4-ol"),
+        ("Cc1ccc2c(c1)Sc1ccccc1N2", "3-methyl-10H-phenothiazine"),
+        ("Clc1ccc2nc3ccccc3nc2c1", "2-chlorophenazine"),
+    ],
+)
+def test_fused_heterocycle_parents_with_added_hydrogen_and_retained_numbering(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("Oc1ccc2c(c1)Cc1ccccc1-2", "9H-fluoren-2-ol"),
+        ("O=C1c2ccccc2-c2ccccc21", "9H-fluoren-9-one"),
+        ("Cc1ccc2c(c1)-c1ccccc1C2", "3-methyl-9H-fluorene"),
+    ],
+)
+def test_fluorene_retained_numbering(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[C@H](O)[C@@H](C)O", "(2R,3S)-butane-2,3-diol"),
+        ("C[C@@H](O)[C@H](C)O", "(2R,3S)-butane-2,3-diol"),
+        ("C[C@H](Cl)[C@H](Cl)C", "(2R,3S)-2,3-dichlorobutane"),
+        ("C[C@H](N)[C@@H](C)N", "(2R,3S)-butane-2,3-diamine"),
+        ("C[C@H](C(=O)O)[C@@H](C)C(=O)O", "(2R,3S)-2,3-dimethylbutanedioic acid"),
+    ],
+)
+def test_meso_chain_cites_r_at_the_lower_locant(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1CCC2CCCCC2C1", "decahydronaphthalene"),
+        ("C12CCCC1CCC2", "octahydropentalene"),
+        ("C1CCC2CCCC2C1", "octahydro-1H-indene"),
+        ("CC1CCC2CCCC2C1", "5-methyloctahydro-1H-indene"),
+        ("OC1CCC2CCCCC2C1", "decahydronaphthalen-2-ol"),
+        ("O=C1CCC2CCCCC2C1", "octahydronaphthalen-2(1H)-one"),
+        ("OC12CCCCC1CCCC2", "octahydronaphthalen-4a(2H)-ol"),
+        ("CC12CCCCC1CCCC2", "4a-methyldecahydronaphthalene"),
+        ("C=C1CCC2CCCCC2C1", "2-methylidenedecahydronaphthalene"),
+        ("OC(=O)CC1CCC2CCCCC2C1", "2-(decahydronaphthalen-2-yl)ethanoic acid"),
+        ("CC(=O)OC1CCC2CCCCC2C1", "decahydronaphthalen-2-yl ethanoate"),
+        ("N#CC=C1CCC2CCCCC2C1", "2-[octahydronaphthalen-2(1H)-ylidene]ethanenitrile"),
+        ("Cc1ccc2ccccc2c1C=C1CCCCC1", "1-(cyclohexylidenemethyl)-2-methylnaphthalene"),
+    ],
+)
+def test_saturated_fused_systems_use_hydro_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[C@H]1CCCCO1", "(2S)-2-methyloxane"),
+        ("C[C@H]1CCCN(C)C1", "(3S)-1,3-dimethylpiperidine"),
+        ("C1CC[C@H]2CCC[C@@H]2C1", "(3aS,7aS)-octahydro-1H-indene"),
+    ],
+)
+def test_ring_stereodescriptors_are_cited_once(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    ["C1CC[C@H]2CCCC[C@@H]2C1", "C[C@H]1CCC2CCCCC2C1"],
+)
+def test_saturated_fused_stereo_is_never_dropped(smiles):
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("ClCCSCCCl", "1-chloro-2-[(2-chloroethyl)sulfanyl]ethane"),
+        ("ClCCOCCCl", "1-chloro-2-(2-chloroethoxy)ethane"),
+        ("CC(Cl)OC(C)Cl", "1-chloro-1-(1-chloroethoxy)ethane"),
+        ("FC(F)OC(F)F", "(difluoromethoxy)difluoromethane"),
+    ],
+)
+def test_symmetric_ethers_and_sulfides_without_a_principal_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC1CCC2CC3CCCCC3CC2C1", "2-methyltetradecahydroanthracene"),
+        ("OC1CCC2C(C1)CCC1CCCCC21", "tetradecahydrophenanthren-2-ol"),
+    ],
+)
+def test_saturated_tricyclic_fused_systems(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

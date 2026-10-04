@@ -75,6 +75,7 @@ via RDKit `FindPotentialStereo` on `CC[C@@H](C)C#N`.
 from rdkit import Chem
 
 from ._common import (
+    stereo_locant_rank,
     ENE_BOND_ORDER,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -309,6 +310,7 @@ def _name_acyclic_nitrile(mol, nitriles, bonds, stereo=None):
             ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, nitriles, mol=mol)
             key, name = _candidate_key(chain_length, nitrile_locants, ene_locants, yne_locants, substituents)
+            key = (key, stereo_locant_rank(mol, stereo, position_of))
             if best_key is None or key < best_key:
                 best_key, best_name, best_position_of = key, name, position_of
 

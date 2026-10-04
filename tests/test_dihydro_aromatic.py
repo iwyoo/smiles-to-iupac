@@ -104,7 +104,7 @@ def test_arbitrary_double_bond_placement_not_matched():
     # note) -- falls through to the pre-existing (unrelated to this
     # module) von Baeyer path rather than being misnamed as a hydro
     # derivative.
-    assert smiles_to_iupac("C1CC2CC=CCC2C=C1") == "bicyclo[4.4.0]deca-2,8-diene"
+    assert smiles_to_iupac("C1CC2CC=CCC2C=C1") == "1,2,4a,5,8,8a-hexahydronaphthalene"
 
 
 def test_partially_unsaturated_naphthalene_substituent_falls_through():
@@ -113,4 +113,4 @@ def test_partially_unsaturated_naphthalene_substituent_falls_through():
     # dihydro/decahydro detectors' identical restriction), so this still
     # falls through to the pre-existing (unrelated to this task) von
     # Baeyer path rather than raising.
-    assert smiles_to_iupac("CC1CC2CCCCC2C=C1") == "4-methylbicyclo[4.4.0]dec-2-ene"
+    assert smiles_to_iupac("CC1CC2CCCCC2C=C1") == "6-methyl-1,2,3,4,4a,5,6,8a-octahydronaphthalene"

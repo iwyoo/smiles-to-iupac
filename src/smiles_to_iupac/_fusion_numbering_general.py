@@ -122,6 +122,9 @@ def _privileged_fusion_atoms(ring_idx, atom_rings, fusion_atoms, cycle, idx_of):
     return privileged
 
 
+_HETERO_RANK = {e: i for i, e in enumerate(("O", "S", "Se", "Te", "N", "P", "As", "Sb", "Bi", "Si", "Ge", "Sn", "Pb", "B", "Hg"))}
+
+
 def general_peripheral_numberings(mol, ignore_indicated=False):
     """Every numbering tied for best by `general_peripheral_numbering`'s own ordering, as a list of
     {atom_idx: locant_str}; None if the fusion graph isn't a simple ortho-fused tree."""
@@ -155,8 +158,12 @@ def general_peripheral_numberings(mol, ignore_indicated=False):
 
     def sort_key(locants):
         hetero_key = sorted(int(locants[h].rstrip("abcdefgh")) for h in hetero)
+        rank_key = [
+            _HETERO_RANK.get(mol.GetAtomWithIdx(h).GetSymbol(), 99)
+            for h in sorted(hetero, key=lambda h: int(locants[h].rstrip("abcdefgh")))
+        ]
         indicated_key = [] if ignore_indicated else sorted(int(locants[h].rstrip("abcdefgh")) for h in indicated_h)
-        return (hetero_key, indicated_key)
+        return (hetero_key, rank_key, indicated_key)
 
     best = min(sort_key(c) for c in candidates)
     return [c for c in candidates if sort_key(c) == best]

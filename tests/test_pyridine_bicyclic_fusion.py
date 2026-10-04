@@ -40,6 +40,5 @@ def test_bare_quinoline_and_isoquinoline_still_work():
     assert smiles_to_iupac("c1ccc2cnccc2c1") == "isoquinoline"
 
 
-def test_substituted_variant_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=C2N=CC(C)=C3")
+def test_substituted_variant_names_with_locant():
+    assert smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=C2N=CC(C)=C3") == "3-methylbenzo[h]quinoline"

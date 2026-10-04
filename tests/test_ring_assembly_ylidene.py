@@ -55,11 +55,12 @@ def test_bicyclic_ring_assembly_ylidene_bridge_carbon_attachment():
     )
 
 
-def test_bicyclic_ring_assembly_ylidene_mismatched_bridge_lengths_raises():
-    # One side is bicyclo[2.2.1]heptane, the other a different bridge-length
-    # bicyclic skeleton -- not "identical cyclic systems" (P-28.1).
-    with pytest.raises(UnsupportedStructure):
+def test_bicyclic_ylidene_between_different_ring_systems_is_a_substituent():
+    # Different ring systems are not "identical cyclic systems" (P-28.1): one is the parent.
+    assert (
         smiles_to_iupac("C1CCC2C(=C3CC4CCC3C4)CCC2C1")
+        == "1-(bicyclo[2.2.1]heptan-2-ylidene)octahydro-1H-indene"
+    )
 
 
 def test_bicyclic_ring_assembly_ylidene_halogen_substituent_raises():

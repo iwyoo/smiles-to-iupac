@@ -5,6 +5,8 @@ P-31.1.4: heteroatoms, indicated hydrogen, free valences, hydro/ene, all prefixe
 CIP descriptors. Two esters on a symmetric group cite no acid locants (P-65.6.3.3.3.2).
 """
 
+import re
+
 from rdkit import Chem
 
 from . import _aromatic
@@ -19,7 +21,7 @@ from ._common import (
 )
 from ._diester_anions import acid_anions, anion_locant_key, cip_labels, cite_anions
 from ._functional_prefixes import functional_names, nitro_atoms
-from ._ring_diyl_numbering import chain_numberings, monocycle_numberings, system_numberings
+from ._ring_diyl_numbering import SUFFIX_ATOMS, chain_numberings, monocycle_numberings, system_numberings
 from ._substituents import format_substituent_prefixes, name_branch
 
 _DESCRIPTOR_ORDER = {"R": 0, "S": 1, "r": 2, "s": 3}
@@ -181,6 +183,14 @@ def _best_for_option(mol, graph, kind, body, pool, matches_on):
 
 
 def evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=()):
+    token = SUFFIX_ATOMS.set(frozenset(attach))
+    try:
+        return _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, anions, matches_on)
+    finally:
+        SUFFIX_ATOMS.reset(token)
+
+
+def _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=()):
     """Best numbering of a ring system or chain with free valences/suffix at `attach`; returns
     (key, group_name, position_of, ring_stereo, side) or None."""
     valence = len(attach)
@@ -283,10 +293,14 @@ def evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, ani
 def ring_substituent_name(mol, graph, root, parent):
     """(name, is_compound) of the ring system entered at `root` from `parent`, as a substituent prefix."""
     rings, atoms = _system_of(mol, root)
-    found = evaluate_skeleton(mol, graph, "ring", rings, atoms, [root], {parent}, "yl")
+    order = mol.GetBondBetweenAtoms(parent, root).GetBondTypeAsDouble()
+    suffix = {1.0: "yl", 2.0: "ylidene", 3.0: "ylidyne"}.get(order)
+    if suffix is None:
+        raise UnsupportedStructure("this ring substituent bond is not supported yet")
+    found = evaluate_skeleton(mol, graph, "ring", rings, atoms, [root], {parent}, suffix)
     if found is None:
         raise UnsupportedStructure("this ring substituent has no supported name yet")
-    name = found[1]
+    name = re.sub(r"(cyclo[a-z]+?)an-1-(yl|ylidene|ylidyne)$", r"\1\2", found[1])
     return name, any(ch.isdigit() or ch in "(-" for ch in name)
 
 

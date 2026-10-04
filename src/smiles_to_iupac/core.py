@@ -1,5 +1,7 @@
 import re
 
+import re
+
 from rdkit import Chem
 
 from ._zwitterion import has_zwitterion_shape, name_zwitterion
@@ -307,6 +309,8 @@ from ._phosphinic_acid import has_phosphinic_acid_shape, name_phosphinic_acid
 from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
 from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
 from ._fluorene_parent import has_fluorene_parent_name, name_fluorene_parent
+from ._ring_diyl_numbering import is_hydro_fusion_system
+from ._benzo_heterocycle import has_benzo_heterocycle_name, name_benzo_heterocycle
 from ._indene_parent import has_indene_parent_name, name_indene_parent
 from ._fluorene_fusion import has_fluorene_fusion_name, name_fluorene_fusion
 from ._azulene_fusion import has_azulene_fusion_name, name_azulene_fusion
@@ -423,13 +427,79 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
             name = name_heteroacyclic(parsed)
             if name is not None:
                 return name
+            if _has_aromatic_oxo(parsed):
+                try:
+                    return name_polyfunctional(parsed)
+                except UnsupportedStructure:
+                    pass
+        hydro_fusion = parsed is not None and _has_hydro_fusion_system(parsed)
         try:
             name = _smiles_to_iupac_dispatch(smiles)
         except UnsupportedStructure as original:
             name = _run_fallbacks(smiles, original)
+        except Exception:
+            name = _hydro_fusion_name(parsed) if hydro_fusion else None
+            if name is None:
+                raise
+        if hydro_fusion and re.search(r"cyclo\[", name):
+            name = _hydro_fusion_name(parsed) or name
+        if parsed is not None and not _STEREO_TOKENS.search(name) and _has_specified_stereo(parsed):
+            cited = _engine_name(parsed)
+            if cited is not None and re.sub(r"^\([^()]*\)-", "", cited) == name:
+                name = cited
+            elif hydro_fusion and ("hydro" in name or "cyclo[" in name):
+                raise UnsupportedStructure("the stereochemistry of this ring system is not cited by any supported name")
         return name
     finally:
         leave(name)
+
+
+_HYDRO_FUSION_RUNNING = set()
+_STEREO_TOKENS = re.compile(
+    r"(?<=[\d'a-z])[RSEZ](?=[,)])|(?<=\d)[rs](?=[,)])|\((?:R|S|E|Z)\)|\b(?:[DL]|alpha|beta)-|\((?:T|SP|SS|TBPY|OC|SPY|TPR|PBPY|CU|SAPR|TPRS)-|cis-|trans-|rel-|rac-"
+)
+
+
+def _has_specified_stereo(mol) -> bool:
+    return any(s.specified == Chem.StereoSpecified.Specified for s in Chem.FindPotentialStereo(mol))
+
+
+def _engine_name(mol):
+    return _hydro_fusion_name(mol)
+
+
+def _hydro_fusion_name(mol):
+    key = Chem.MolToSmiles(mol)
+    if key in _HYDRO_FUSION_RUNNING:
+        return None
+    _HYDRO_FUSION_RUNNING.add(key)
+    try:
+        return name_polyfunctional(mol)
+    except UnsupportedStructure:
+        return None
+    finally:
+        _HYDRO_FUSION_RUNNING.discard(key)
+
+
+def _has_hydro_fusion_system(mol) -> bool:
+    from ._diester_ring_diyl import _system_of
+
+    ring_info = mol.GetRingInfo()
+    for ring in ring_info.AtomRings():
+        if any(ring_info.NumAtomRings(a) > 1 for a in ring):
+            _, atoms = _system_of(mol, ring[0])
+            if is_hydro_fusion_system(mol, atoms):
+                return True
+    return False
+
+
+def _has_aromatic_oxo(mol) -> bool:
+    return any(
+        b.GetBondTypeAsDouble() == 2.0
+        and not b.GetIsAromatic()
+        and ((b.GetBeginAtom().GetIsAromatic() and b.GetEndAtom().GetAtomicNum() == 8) or (b.GetEndAtom().GetIsAromatic() and b.GetBeginAtom().GetAtomicNum() == 8))
+        for b in mol.GetBonds()
+    )
 
 
 def _run_fallbacks(smiles, original):
@@ -987,6 +1057,8 @@ def _name_mol(mol) -> str:
         return name_fluorene_parent(mol)
     if has_indene_parent_name(mol):
         return name_indene_parent(mol)
+    if has_benzo_heterocycle_name(mol):
+        return name_benzo_heterocycle(mol)
 
     # cyclopenta[a/b]naphthalene (P-25.3.1.3) needs the same early dispatch
     # for the same reason -- its 5-ring is never fully aromatic either.

@@ -133,7 +133,7 @@ def test_ring_diyl_stereo(smiles, expected):
         ("CC(=O)OC1CNc2ccccc2C1OC(C)=O", "1,2,3,4-tetrahydroquinoline-3,4-diyl diethanoate"),
         ("CC(=O)OC1C=CC2=CC=CC=C2C1OC(C)=O", "1,2-dihydronaphthalene-1,2-diyl diethanoate"),
         ("CC(=O)OC1CC2CCC1C2OC(C)=O", "bicyclo[2.2.1]heptane-2,7-diyl diethanoate"),
-        ("CC(=O)OC1CCC2CCCCC2C1OC(C)=O", "bicyclo[4.4.0]decane-2,3-diyl diethanoate"),
+        ("CC(=O)OC1CCC2CCCCC2C1OC(C)=O", "decahydronaphthalene-1,2-diyl diethanoate"),
         ("CC(=O)OC1CCC2(CC1)CCC(OC(C)=O)CC2", "spiro[5.5]undecane-3,9-diyl diethanoate"),
         ("CC(=O)OC1CC2CC1C(OC(C)=O)O2", "2-oxabicyclo[2.2.1]heptane-3,5-diyl diethanoate"),
         ("CC(=O)OC1COC2(C1)CC(OC(C)=O)C2", "5-oxaspiro[3.4]octane-2,7-diyl diethanoate"),

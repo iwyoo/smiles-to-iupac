@@ -6,8 +6,8 @@ from smiles_to_iupac import smiles_to_iupac
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("O=c1cccc[nH]1", "1H-pyridin-2-one"),  # PubChem CID 8871
-        ("O=c1cc[nH]cc1", "1H-pyridin-4-one"),  # PubChem CID 12290
+        ("O=c1cccc[nH]1", "pyridin-2(1H)-one"),  # PubChem CID 8871
+        ("O=c1cc[nH]cc1", "pyridin-4(1H)-one"),  # PubChem CID 12290
     ],
 )
 def test_pyridinone_resolves(smiles, expected):

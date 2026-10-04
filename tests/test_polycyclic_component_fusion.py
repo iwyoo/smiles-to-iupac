@@ -58,8 +58,5 @@ def test_bare_indole_and_benzofuran_still_work():
     assert smiles_to_iupac("c1ccc2occc2c1") == "1-benzofuran"
 
 
-def test_substituted_variant_raises():
-    # A methyl substituent on the new ring is out of scope for this
-    # module (any substituent at all is rejected).
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=C2NC(C)=C3")
+def test_substituted_variant_names_with_locant():
+    assert smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=C2NC(C)=C3") == "2-methyl-1H-benzo[g]indole"

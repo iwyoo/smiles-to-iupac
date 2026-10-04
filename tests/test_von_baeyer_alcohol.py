@@ -16,9 +16,9 @@ from smiles_to_iupac._common import UnsupportedStructure
         ("OC1CC2CCC1CC2", "bicyclo[2.2.2]octan-2-ol"),
         # A fused (all-bridge-lengths-nonzero-except-one) bicyclic
         # decalinol.
-        ("OC1CCC2CCCCC2C1", "bicyclo[4.4.0]decan-3-ol"),
+        ("OC1CCC2CCCCC2C1", "decahydronaphthalen-2-ol"),
         # A bridgehead hydroxyl on a fused bicyclooctane.
-        ("OC12CCCC1CCC2", "bicyclo[3.3.0]octan-1-ol"),
+        ("OC12CCCC1CCC2", "hexahydropentalen-3a(1H)-ol"),
         # A hydroxyl coexisting with a plain alkyl substituent, both on
         # the ring.
         ("OC1(C)CC2CCC1C2", "2-methylbicyclo[2.2.1]heptan-2-ol"),

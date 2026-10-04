@@ -34,8 +34,8 @@ def test_smiles_to_iupac(smiles, expected):
         # test_alcohol.py: "CCO" -> "ethanol", test_amine.py: "CCN" ->
         # "ethanamine"), and a secondary/tertiary amine is supported too
         # (see test_amine.py: "CCNCC" -> "N-ethylethanamine"); a ring-fused
-        # urea such as a hydantoin is still out of scope.
-        "O=C1NC(=O)C(N1)(c1ccccc1)c1ccccc1",
+        # urea such as a hydantoin is now named (see test_polyfunctional.py).
+        "C[Og]",
     ],
 )
 def test_out_of_scope_structures_raise(smiles):

@@ -10,6 +10,7 @@ _NAMES = {
     Chem.CanonSmiles("C1=Cc2ccccc2C1"): "1H-indene",
     Chem.CanonSmiles("C1Cc2ccccc2C1"): "2,3-dihydro-1H-indene",
     Chem.CanonSmiles("C1=c2ccccc2=CC1"): "2H-indene",
+    Chem.CanonSmiles("c1cc2cccc2c1"): "pentalene",
 }
 
 

@@ -42,9 +42,8 @@ def test_unsaturated_anhydride_not_supported():
         smiles_to_iupac("C=CC(=O)OC(=O)C=C")
 
 
-def test_cyclic_anhydride_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CCC(=O)O1")
+def test_cyclic_anhydride_names_as_ring_dione():
+    assert smiles_to_iupac("O=C1CCC(=O)O1") == "oxolane-2,5-dione"
 
 
 def test_two_anhydride_groups_not_supported():

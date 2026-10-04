@@ -34,6 +34,7 @@ from ._common import (
     longest_chains,
     non_single_bonds,
     specified_stereocenters,
+    stereo_locant_rank,
     stereo_locants_prefix,
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
@@ -89,7 +90,7 @@ def longest_chain_length(carbon_graph) -> int:
     return len(longest_chains(carbon_graph)[0])
 
 
-def _best_candidate(full_graph, carbon_graph, terminals, mol=None):
+def _best_candidate(full_graph, carbon_graph, terminals, mol=None, stereo=None):
     """Shared search behind `winning_chain_from_carbon_graph` and
     `winning_chain_with_key`: every candidate chain/direction's P-45.2 sort
     key, alongside the winning chain and name."""
@@ -97,19 +98,21 @@ def _best_candidate(full_graph, carbon_graph, terminals, mol=None):
     chain_length = len(chains[0])
 
     best_key = None
+    best_ranked = None
     best_chain = None
     best_name = None
     for chain in chains:
         for candidate in (chain, list(reversed(chain))):
             substituents = substituents_for_chain(full_graph, candidate, terminals, mol=mol)
             key, name = _candidate_key(chain_length, substituents)
-            if best_key is None or key < best_key:
-                best_key, best_chain, best_name = key, candidate, name
+            ranked = (key, stereo_locant_rank(mol, stereo, {atom: i + 1 for i, atom in enumerate(candidate)}))
+            if best_key is None or ranked < best_ranked:
+                best_key, best_ranked, best_chain, best_name = key, ranked, candidate, name
 
     return best_key, best_chain, best_name
 
 
-def winning_chain_from_carbon_graph(full_graph, carbon_graph, terminals, mol=None):
+def winning_chain_from_carbon_graph(full_graph, carbon_graph, terminals, mol=None, stereo=None):
     """Same P-44.3/P-45.2 tie-break as `name_from_carbon_graph` below, but
     also returns the winning candidate chain itself (root-to-tip, in the
     direction that won), not just its name -- used by a caller (e.g.
@@ -117,7 +120,7 @@ def winning_chain_from_carbon_graph(full_graph, carbon_graph, terminals, mol=Non
     position on that chain, such as for a stereodescriptor's locant
     (P-91.3). Kept as the single source of truth so `name_from_carbon_graph`
     and any such caller can never disagree about which chain was chosen."""
-    _, chain, name = _best_candidate(full_graph, carbon_graph, terminals, mol=mol)
+    _, chain, name = _best_candidate(full_graph, carbon_graph, terminals, mol=mol, stereo=stereo)
     return chain, name
 
 
@@ -156,9 +159,10 @@ def name_acyclic_alkane(mol) -> str:
         )
 
     full_graph = adjacency(mol)
-    chain, name = winning_chain_from_carbon_graph(full_graph, carbon_adjacency(mol), halogen_substituents(mol), mol=mol)
-
     stereo = specified_stereocenters(mol)
+    chain, name = winning_chain_from_carbon_graph(
+        full_graph, carbon_adjacency(mol), halogen_substituents(mol), mol=mol, stereo=stereo
+    )
     if stereo is None:
         return name
 

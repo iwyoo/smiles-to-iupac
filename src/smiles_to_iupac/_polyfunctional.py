@@ -5,6 +5,8 @@ other group, ring or branch is cited as a substituent prefix through
 group on a ring is not handled here.
 """
 
+import re
+
 from rdkit import Chem
 
 from ._common import (
@@ -23,6 +25,8 @@ from ._hetero_prefixes import MONONUCLEAR_HYDRIDES, is_functional_carbon
 from ._multiplicative import _bare_key
 from ._multiplicative_text import enclose
 from ._multiplicative_ring import _SUFFIX_WORDS, _citation_key, _join, _prefix_text, _suffix_text, monocycle_spec, name_ring_component, numberings
+from ._fusion_numbering_general import _HETERO_RANK
+from ._ring_diyl_numbering import _exocyclic_oxo, is_hydro_fusion_system
 from ._substituents import format_substituent_prefixes, name_branch
 
 _SENIORITY = ["acid", "sulfonic", "amide", "sulfonamide", "nitrile", "aldehyde", "ketone", "alcohol", "thiol", "amine"]
@@ -391,7 +395,8 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
         if found is None:
             raise UnsupportedStructure("this ring has no supported name")
         placed = found[2]
-        return (-len(roots), tuple(sorted(placed[r] for r, _ in roots)), found[1]), ((0,), found[1], (None, None, None, 0, placed, True))
+        name = _without_stereo(found[1])
+        return (-len(roots), tuple(sorted(placed[r] for r, _ in roots)), name), ((0,), name, (None, None, None, 0, placed, True))
     if not roots:
         raise UnsupportedStructure("an unsubstituted ring is not a polyfunctional case")
     entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
@@ -453,18 +458,7 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
         if assembly is not None:
             return assembly[1]
     if rings and any(ring_info.NumAtomRings(a) != 1 for r in rings for a in r):
-        from ._diester_ring_diyl import _system_of
-
-        system_rings, system_atoms = _system_of(mol, rings[0][0])
-        _require_mancude_system(mol, system_atoms)
-        if len(system_rings) != len(rings):
-            raise UnsupportedStructure("a fused system beside other rings is not named by the chain engine")
-        from ._diester_ring_diyl import evaluate_skeleton
-
-        found = evaluate_skeleton(mol, graph, "ring", system_rings, system_atoms, [], set(), "")
-        if found is None:
-            raise UnsupportedStructure("this fused ring system has no supported numbering")
-        return ((0,), found[1], (None, None, None, 0, found[2], True))
+        return _fused_plain_parent(mol, graph, rings)
     if rings:
         if any(ring_info.NumAtomRings(a) != 1 for r in rings for a in r):
             raise UnsupportedStructure("several rings without a principal group are not named by the chain engine")
@@ -493,6 +487,36 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     if best is None:
         raise UnsupportedStructure("no chain carbons")
     return best
+
+
+def _without_stereo(name):
+    return re.sub(r"^\(\d+[a-z]*[RSEZrs](?:,\d+[a-z]*[RSEZrs])*\)-", "", name)
+
+
+def _system_rank(mol, system_rings, system_atoms):
+    hetero = [mol.GetAtomWithIdx(a).GetSymbol() for a in system_atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
+    ranks = [_HETERO_RANK.get(h, 99) for h in hetero]
+    return (bool(hetero), "N" in hetero, -min(ranks, default=0), len(system_rings), len(system_atoms), len(hetero))
+
+
+def _fused_plain_parent(mol, graph, rings):
+    from ._diester_ring_diyl import _system_of, evaluate_skeleton
+
+    systems = []
+    for ring in rings:
+        system_rings, system_atoms = _system_of(mol, ring[0])
+        if not any(set(system_atoms) == set(seen[1]) for seen in systems):
+            systems.append((system_rings, system_atoms))
+    ranked = sorted(systems, key=lambda s: _system_rank(mol, *s), reverse=True)
+    if len(ranked) > 1 and _system_rank(mol, *ranked[0]) == _system_rank(mol, *ranked[1]):
+        raise UnsupportedStructure("several equally senior ring systems need a multiplicative or assembly name")
+    system_rings, system_atoms = ranked[0]
+    if len(system_rings) > 1:
+        _require_mancude_system(mol, system_atoms)
+    found = evaluate_skeleton(mol, graph, "ring", system_rings, system_atoms, [], set(), "")
+    if found is None:
+        raise UnsupportedStructure("this fused ring system has no supported numbering")
+    return ((0,), _without_stereo(found[1]), (None, None, None, 0, found[2], True))
 
 
 def _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo=None):
@@ -765,13 +789,10 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
 def _require_mancude_system(mol, atoms):
     """Only fully aromatic fused systems (arenes, mancude heterocycles): partly
     hydrogenated, bridged and spiro systems need hydro/von Baeyer names."""
-    if not any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms):
+    if not any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms) and not is_hydro_fusion_system(mol, atoms):
         raise UnsupportedStructure("a saturated, bridged or spiro ring system is not handled by the chain engine")
     member_rings = [r for r in mol.GetRingInfo().AtomRings() if set(r) <= set(atoms)]
-    carbon_hexagons = all(
-        len(r) == 6 and all(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in r) for r in member_rings
-    )
-    if len(member_rings) > 3 or (len(member_rings) == 3 and not carbon_hexagons):
+    if len(member_rings) > 3:
         raise UnsupportedStructure("the numbering of this larger fused system is not verified here")
 
 
@@ -783,6 +804,7 @@ _FUSED_SUFFIX = {
     "nitrile": "carbonitrile",
     "aldehyde": "carbaldehyde",
     "alcohol": "ol",
+    "ketone": "one",
     "thiol": "thiol",
     "amine": "amine",
 }
@@ -795,19 +817,19 @@ def _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo):
 
     if n_names or stereo or principal not in _FUSED_SUFFIX:
         raise UnsupportedStructure("this fused-ring parent is not supported by the chain engine yet")
-    if principal == "ketone":
-        raise UnsupportedStructure("a ketone on a fused ring needs added hydrogen, not supported yet")
     rings, atoms = _system_of(mol, here[0][1])
     if len(rings) > 1:
         _require_mancude_system(mol, atoms)
     on_system = [o for o in occurrences if o[1] in atoms]
     attach = [o[1] for o in on_system]
     blocked = set().union(*(o[2] for o in on_system))
+    if principal == "ketone" and any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in attach):
+        raise UnsupportedStructure("a ring-heteroatom oxide is not a ring ketone")
     found = evaluate_skeleton(mol, graph, "ring", rings, atoms, attach, blocked, _FUSED_SUFFIX[principal])
     if found is None:
         raise UnsupportedStructure("this fused ring system has no supported numbering")
     count = len(on_system)
-    return count, ((-count,), found[1], (None, None, None, 0, found[2], True))
+    return count, ((-count,), _without_stereo(found[1]), (None, None, None, 0, found[2], True))
 
 
 _RING_SUFFIX = {
@@ -848,6 +870,8 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
             candidates.append((len(here), ring, None, here))
             continue
         spec = monocycle_spec(mol, ring)
+        if spec is not None and _exocyclic_oxo(mol, set(ring)):
+            spec = None
         candidates.append((len(here), ring, spec, here))
     if not candidates:
         return None
@@ -1052,7 +1076,12 @@ def _multiplicative_name(mol, stereo=None):
         if stereo:
             raise UnsupportedStructure("stereodescriptors in a multiplicative name are not supported yet")
         unit, attach = units[0]
-        _, _, parts = _select(unit, attach)
+        try:
+            _, _, parts = _select(unit, attach)
+        except UnsupportedStructure as error:
+            if str(error).startswith("a unit without a principal group"):
+                continue
+            raise
         prefix, body, tail, locant = parts[:4]
         lead = ",".join(str(locant) + "'" * i for i in range(arms)) + "-" if locant is not None else ""
         text = prefix + body

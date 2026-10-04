@@ -2,7 +2,7 @@ from smiles_to_iupac import smiles_to_iupac
 
 
 def test_pyrimidinone_resolves():
-    assert smiles_to_iupac("O=c1nccc[nH]1") == "1H-pyrimidin-2-one"  # PubChem CID 68401
+    assert smiles_to_iupac("O=c1nccc[nH]1") == "pyrimidin-2(1H)-one"  # PubChem CID 68401
 
 
 def test_plain_pyrimidine_unaffected():
@@ -10,4 +10,4 @@ def test_plain_pyrimidine_unaffected():
 
 
 def test_pyridinone_still_resolves():
-    assert smiles_to_iupac("O=c1cccc[nH]1") == "1H-pyridin-2-one"
+    assert smiles_to_iupac("O=c1cccc[nH]1") == "pyridin-2(1H)-one"
