@@ -337,7 +337,6 @@ def _configuration(mol, stem, mapping, classes, branches):
     specified = {a for a, e in potential.items() if e.specified == Chem.StereoSpecified.Specified}
     if not specified & set(mapping.values()):
         return {}, []
-    position_of = {atom: p for p, atom in mapping.items()}
     embedded = _plane_faces(mol, mapping)
     if embedded is None:
         raise UnsupportedStructure("the steroid could not be embedded in three dimensions")
