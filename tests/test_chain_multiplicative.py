@@ -82,3 +82,44 @@ def test_substitutive_or_skeletal_replacement_names_stay_when_multiplicative_doe
             smiles_to_iupac(smiles)
     else:
         assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CC(=O)NCCNC(C)=O", "N,N'-(ethane-1,2-diyl)diethanamide"),
+        ("O=C(NCCNC(=O)c1ccccc1)c1ccccc1", "N,N'-(ethane-1,2-diyl)dibenzamide"),
+        ("CC(=O)N(C)CCN(C)C(C)=O", "N,N'-(ethane-1,2-diyl)bis(N-methylethanamide)"),
+        ("C=CC(=O)NCNC(=O)C=C", "N,N'-methylenebis(prop-2-enamide)"),
+        ("CC(=O)Nc1ccc(NC(C)=O)cc1", "N,N'-(1,4-phenylene)diethanamide"),
+        ("CC(=O)NCCOCCNC(C)=O", "N,N'-[oxydi(ethane-2,1-diyl)]diethanamide"),
+    ],
+)
+def test_amide_units_joined_through_nitrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("[SiH3][SiH2]C[SiH2][SiH3]", "1,1'-methylenebis(disilane)"),
+        ("[SiH3]CC[SiH2]CC[SiH3]", "[silanediyldi(ethane-2,1-diyl)]bis(silane)"),
+        ("C[Si](C)(C)C[Si](C)(C)C", "methylenebis(trimethylsilane)"),
+        ("c1ccccc1P(c1ccccc1)CCP(c1ccccc1)c1ccccc1", "ethane-1,2-diylbis(diphenylphosphane)"),
+        ("c1ccccc1P(c1ccccc1)CP(c1ccccc1)CP(c1ccccc1)c1ccccc1", "[(phenylphosphanediyl)bis(methylene)]bis(diphenylphosphane)"),
+        ("C[Si](C)(C)C[Si](C)(C)C", "methylenebis(trimethylsilane)"),
+    ],
+)
+def test_heteroatom_hydride_units_are_multiplied(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_a_siloxane_chain_stays_a_parent_hydride():
+    assert smiles_to_iupac("C[Si](C)(C)O[Si](C)(C)C") == "1,1,1,3,3,3-hexamethyldisiloxane"
+
+
+def test_linker_with_a_substituent_that_carries_the_principal_group():
+    assert (
+        smiles_to_iupac("OC(=O)CN(CC(O)=O)CCN(CC(=O)O)CCN(CC(O)=O)CC(O)=O")
+        == "2,2',2'',2'''-{[(carboxymethyl)azanediyl]bis(ethane-2,1-diylnitrilo)}tetraethanoic acid"
+    )
