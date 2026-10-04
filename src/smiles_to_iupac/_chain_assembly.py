@@ -237,6 +237,11 @@ def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees):
     `frees` = [(attached ring atom, outside neighbour)]; None when the atoms are not such an assembly."""
     inside = set(atoms)
     rings = [list(r) for r in mol.GetRingInfo().AtomRings() if set(r) <= inside]
+    from ._system_assembly import system_assembly
+
+    fused = system_assembly(mol, graph, halogens, aromatic_atoms, None, [], None, free=frees, within=inside)
+    if fused is not None:
+        return fused[0]
     if len(rings) >= 3:
         found = chain_assembly(mol, graph, halogens, aromatic_atoms, None, [], None, free=frees, within=inside)
         return found[0] if found else None

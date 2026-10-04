@@ -757,7 +757,9 @@ def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms
     joined rings ([1,1'-biphenyl]-4-yl), entered at `root`; None otherwise."""
     from ._system_assembly import system_assembly
 
-    fused = system_assembly(mol, graph, halogens, aromatic_atoms, None, [], None, free=(root, coming_from))
+    fused = system_assembly(
+        mol, graph, halogens, aromatic_atoms, None, [], None, free=(root, coming_from), within=_arm_atoms(graph, root, coming_from)
+    )
     if fused is not None:
         return fused
     from ._chain_assembly import chain_assembly
