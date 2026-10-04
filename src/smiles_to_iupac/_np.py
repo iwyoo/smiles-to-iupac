@@ -7,7 +7,7 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure
 from ._pin import mark
-from ._np_build import build
+from ._np_build import _homo_position, build
 from ._np_core import get_parent, loc_key
 from ._np_match import View, embeddings
 from ._np_name import _SENIORITY, classify
@@ -156,7 +156,8 @@ def _best_per_skeleton(cands, view):
         except UnsupportedStructure:
             continue
         order = sorted(cand.mapping, key=loc_key)
-        entry = (rank, tuple(cand.mapping[l] for l in order))
+        inserted = tuple(sorted((-_homo_position(op) for op in cand.skel.ops if op[0] == "homo")))
+        entry = (rank, inserted, tuple(cand.mapping[l] for l in order))
         if key not in best or entry < best[key][0]:
             best[key] = (entry, cand)
     return [c for _, c in best.values()]

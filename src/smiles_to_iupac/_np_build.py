@@ -126,10 +126,12 @@ def build(cand, view):
     fusion_atoms = frozenset(loc for f in fused for loc in f.fusion_locs)
     enes_bonds, hydro, dehydro, retro = unsaturation(cand, view, fusion_atoms)
     cost += 1 if retro else 0
-    if parent.name.endswith("carotene"):
-        shared = set(hydro) & set(dehydro)
-        hydro = [x for x in hydro if x not in shared]
-        dehydro = [x for x in dehydro if x not in shared]
+    shared = set(hydro) & set(dehydro)
+    if shared:
+        left_hydro = [x for x in hydro if x not in shared]
+        left_dehydro = [x for x in dehydro if x not in shared]
+        if not len(left_hydro) % 2 and not len(left_dehydro) % 2:
+            hydro, dehydro = left_hydro, left_dehydro
     mancude_indicated = []
     if len(hydro) % 2 and (cand.skel.ops or cand.replaced):
         mancude_indicated = [min(hydro, key=loc_key)]
@@ -295,9 +297,10 @@ def build(cand, view):
     nondet = nondetachable_cost(cand)
     rearranged = any(op[0] == "seco" for op in cand.skel.ops) or bool(cand.cyclo)
     removed = sorted((loc_key(op[1])[1] for op in cand.skel.ops if op[0] == "nor"), reverse=True)
+    inserted = sorted((_homo_position(op) for op in cand.skel.ops if op[0] == "homo"), reverse=True)
     first = next((text for _, text in sorted(config.parent) if text[-1] in "αβ"), "")
     return Built(
-        name, cost, (cost, nondet > 0 or bool(fused_comps) or bool(bridge_comps) or bool(spiro_comps), -len(mapping), rearranged, tuple(-n for n in removed), len(config.parent) + len(config.side)),
+        name, cost, (cost, nondet > 0 or bool(fused_comps) or bool(bridge_comps) or bool(spiro_comps), -len(mapping), rearranged, tuple(-n for n in removed), tuple(-n for n in inserted), len(config.parent) + len(config.side)),
         config.implied_total, config.implied_cited, first[-1] if first else "",
     )
 
@@ -431,3 +434,13 @@ def _add_spiro_center(config, cand, view, spiro, comp, final, parent_prime):
         rdCIPLabeler.AssignCIPLabels(view.mol)
         label = view.mol.GetAtomWithIdx(atom).GetProp("_CIPCode")
     config.side.append((loc_key(cited), f"{cited}{label}"))
+
+
+def _homo_position(op):
+    """Locant number of the atom after which a methylene is inserted: equivalent connectors take the highest."""
+    kind, data = op[1], op[2]
+    if kind == "terminal":
+        return loc_key(data)[1]
+    if kind == "atomic":
+        return loc_key(data[0])[1]
+    return max(loc_key(data[0])[1], loc_key(data[1])[1])
