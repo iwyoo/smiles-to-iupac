@@ -5,6 +5,7 @@ group, give '3,6,9,12-tetraoxatetradecanedioic acid'.
 """
 
 from rdkit import Chem
+from rdkit.Chem import rdCIPLabeler
 
 from ._common import (
     UnsupportedStructure,
@@ -24,13 +25,12 @@ from ._polyfunctional import (
     _is_ester_like,
     _paths,
     _ring_occurrences,
-    _stereo_free,
 )
 from ._numerals import multiplying_prefix
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import BRANCH_STEREO, format_substituent_prefixes, name_branch
 
-_A_WORD = {8: "oxa", 16: "thia", 34: "selena", 52: "tellura", 7: "aza"}
-_A_ORDER = [8, 16, 34, 52, 7]
+_A_WORD = {8: "oxa", 16: "thia", 34: "selena", 52: "tellura", 7: "aza", 15: "phospha"}
+_A_ORDER = [8, 16, 34, 52, 7, 15]
 _MINIMUM_UNITS = 4
 _SUFFIX_WORD = {
     "acid": "oic acid",
@@ -41,11 +41,46 @@ _SUFFIX_WORD = {
     "alcohol": "ol",
     "thiol": "thiol",
     "amine": "amine",
+    "aminium": "aminium",
 }
 
 
-def _chain_heteroatom(atom):
+def _phosphorus_unit(mol, atom):
+    """A neutral P(=O) with four neighbours: a chain unit 'λ5-phospha' whose other two bonds are substituents."""
+    return (
+        atom.GetAtomicNum() == 15
+        and not atom.IsInRing()
+        and not atom.GetFormalCharge()
+        and not atom.GetIsotope()
+        and atom.GetDegree() == 4
+        and any(
+            n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            for n in atom.GetNeighbors()
+        )
+    )
+
+
+def _aminium_groups(mol):
+    """{carbon: {nitrogen}} for an acyclic quaternary N+ bonded to four carbons, any one of which may be the chain."""
+    found = {}
+    for atom in mol.GetAtoms():
+        if (
+            atom.GetAtomicNum() == 7
+            and atom.GetFormalCharge() == 1
+            and not atom.IsInRing()
+            and atom.GetDegree() == 4
+            and atom.GetTotalNumHs() == 0
+            and all(n.GetAtomicNum() == 6 and not n.IsInRing() for n in atom.GetNeighbors())
+        ):
+            for n in atom.GetNeighbors():
+                found.setdefault(n.GetIdx(), set()).add(atom.GetIdx())
+    return found
+
+
+def _chain_heteroatom(atom, phosphorus=False):
     z = atom.GetAtomicNum()
+    if phosphorus and _phosphorus_unit(atom.GetOwningMol(), atom):
+        return True
     if atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope() or atom.GetDegree() != 2:
         return False
     if z in (8, 16, 34, 52):
@@ -57,7 +92,8 @@ def name_heteroacyclic(mol):
     """The skeletal-replacement name, or None when `mol` does not qualify."""
     if len(Chem.GetMolFrags(mol)) != 1:
         return None
-    hetero_atoms = [a for a in mol.GetAtoms() if _chain_heteroatom(a)]
+    aminium = {} if any(a.GetFormalCharge() < 0 for a in mol.GetAtoms()) else _aminium_groups(mol)
+    hetero_atoms = [a for a in mol.GetAtoms() if _chain_heteroatom(a, bool(aminium))]
     if len(hetero_atoms) < _MINIMUM_UNITS:
         return None
     graph = adjacency(mol)
@@ -68,12 +104,14 @@ def name_heteroacyclic(mol):
         found = _group_of(mol, atom.GetIdx())
         if found is not None:
             groups.setdefault(found[0], {})[atom.GetIdx()] = found[1]
+    if aminium:
+        groups["aminium"] = aminium
     ring_groups = _ring_occurrences(mol)
     classes = set(groups) | {c for c, _, _ in ring_groups}
-    principal = next((c for c in _SENIORITY if c in classes), None)
+    principal = "aminium" if aminium else next((c for c in _SENIORITY if c in classes), None)
     if principal is not None and any(c == principal for c, _, _ in ring_groups):
         return None
-    if any(_is_ester_like(mol, a.GetIdx()) for a in mol.GetAtoms() if a.GetAtomicNum() == 6):
+    if not aminium and any(_is_ester_like(mol, a.GetIdx()) for a in mol.GetAtoms() if a.GetAtomicNum() == 6):
         return None
 
     principal_atoms = groups.get(principal, {}) if principal else {}
@@ -84,9 +122,19 @@ def name_heteroacyclic(mol):
         if (
             a.GetAtomicNum() == 6
             and not a.IsInRing()
-            and (a.GetIdx() in principal_atoms or not is_functional_carbon(mol, a.GetIdx()))
+            and (
+                a.GetIdx() in principal_atoms
+                or not is_functional_carbon(mol, a.GetIdx())
+                or (aminium and _is_ester_like(mol, a.GetIdx()))
+            )
         )
-        or (_chain_heteroatom(a) and a.GetIdx() not in owned)
+        or (_chain_heteroatom(a, bool(aminium)) and a.GetIdx() not in owned)
+    }
+    probe = Chem.Mol(mol)
+    rdCIPLabeler.AssignCIPLabels(probe)
+    atom_codes = {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.HasProp("_CIPCode")}
+    bond_codes = {
+        (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode") for b in probe.GetBonds() if b.HasProp("_CIPCode")
     }
     best = None
     for path in _paths(graph, eligible):
@@ -95,20 +143,30 @@ def name_heteroacyclic(mol):
         hetero_positions = [i for i, a in enumerate(path) if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
         if len(hetero_positions) < _MINIMUM_UNITS:
             continue
-        if any(b - a == 1 for a, b in zip(hetero_positions, hetero_positions[1:])):
+        if any(
+            b - a == 1 and 15 not in (mol.GetAtomWithIdx(path[a]).GetAtomicNum(), mol.GetAtomWithIdx(path[b]).GetAtomicNum())
+            for a, b in zip(hetero_positions, hetero_positions[1:])
+        ):
             continue
         for chain in (path, path[::-1]):
-            candidate = _evaluate(mol, graph, chain, principal, principal_atoms, owned)
+            candidate = _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes)
             if candidate is not None and (best is None or candidate[0] < best[0]):
                 best = candidate
     if best is None:
         return None
-    if not _stereo_free(mol):
-        raise UnsupportedStructure("stereodescriptors with a skeletal-replacement parent are not supported yet")
     return best[1]
 
 
-def _evaluate(mol, graph, chain, principal, principal_atoms, owned):
+def _chain_stereo(chain, position_of, atom_codes, bond_codes):
+    entries = [(position_of[a], atom_codes[a]) for a in chain if a in atom_codes]
+    for (a, b), code in bond_codes.items():
+        if a in position_of and b in position_of and abs(position_of[a] - position_of[b]) == 1:
+            entries.append((min(position_of[a], position_of[b]), code))
+    entries.sort()
+    return f"({','.join(f'{p}{c}' for p, c in entries)})-" if entries else ""
+
+
+def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes):
     position_of = {atom: i + 1 for i, atom in enumerate(chain)}
     chain_set = set(chain)
     on_chain = [a for a in principal_atoms if a in chain_set]
@@ -125,17 +183,35 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned):
             ene.append(position_of[a])
         elif order == 3.0:
             yne.append(position_of[a])
+    context = {"atoms": atom_codes, "bonds": bond_codes, "used": set()}
+    token = BRANCH_STEREO.set(context)
     entries = {}
-    for atom in chain:
-        if mol.GetAtomWithIdx(atom).GetAtomicNum() != 6:
-            continue
-        for neighbor in graph[atom]:
-            if neighbor in chain_set or neighbor in owned:
+    nitrogen_entries = {}
+    try:
+        for atom in chain:
+            if mol.GetAtomWithIdx(atom).GetAtomicNum() not in (6, 15):
                 continue
-            name, compound = name_branch(graph, neighbor, atom, halogens, aromatic_atoms, mol=mol, unsaturated=True)
-            entries.setdefault(position_of[atom], []).append((name, compound))
+            for neighbor in graph[atom]:
+                if neighbor in chain_set or neighbor in owned:
+                    continue
+                name, compound = name_branch(graph, neighbor, atom, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+                entries.setdefault(position_of[atom], []).append((name, compound))
+        if principal == "aminium":
+            for carbon in on_chain:
+                for nitrogen in principal_atoms[carbon]:
+                    for neighbor in graph[nitrogen]:
+                        if neighbor != carbon:
+                            name, compound = name_branch(graph, neighbor, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+                            nitrogen_entries.setdefault("N", []).append((name, compound))
+    finally:
+        BRANCH_STEREO.reset(token)
+    if any(("atom", a) not in context["used"] for a in atom_codes if a not in chain_set) or any(
+        ("bond", b) not in context["used"] for b in bond_codes if not (b[0] in chain_set and b[1] in chain_set)
+    ):
+        return None
     grouped = group_substituents(entries)
     locant_set, total_count, citation = substituent_locant_set_and_citation(grouped)
+    grouped_all = group_substituents({**entries, **nitrogen_entries})
 
     by_element = {}
     for atom in chain:
@@ -148,12 +224,14 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned):
     count = len(on_chain)
     length = len(chain)
 
-    a_text = "-".join(
-        f"{','.join(str(p) for p in sorted(by_element[z]))}-{(multiplying_prefix(len(by_element[z])) if len(by_element[z]) > 1 else '')}{_A_WORD[z]}"
-        for z in _A_ORDER
-        if z in by_element
-    )
-    prefix = format_substituent_prefixes(grouped)
+    def a_unit(z):
+        locants = sorted(by_element[z])
+        multiplier = multiplying_prefix(len(locants)) if len(locants) > 1 else ""
+        cited = ",".join(f"{p}λ5" if z == 15 else str(p) for p in locants)
+        return f"{cited}-{multiplier}{_A_WORD[z]}"
+
+    a_text = "-".join(a_unit(z) for z in _A_ORDER if z in by_element)
+    prefix = format_substituent_prefixes(grouped_all)
     if principal is None:
         body = name_from_substituents(length, ene, yne, "e")
     elif principal in _TERMINAL:
@@ -161,8 +239,11 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned):
     else:
         body = name_from_substituents(length, ene, yne, multiplied_word(count, _SUFFIX_WORD[principal]), suffix_locants)
     name = prefix + ("-" if prefix and a_text and not prefix.endswith("-") else "") + a_text + body
+    stereo = _chain_stereo(chain, position_of, atom_codes, bond_codes)
     key = (
         -count,
+        -sum(len(ps) for ps in by_element.values()),
+        -length,
         hetero_set,
         hetero_order,
         tuple(suffix_locants),
@@ -172,4 +253,4 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned):
         citation,
         name,
     )
-    return key, name
+    return key, stereo + name

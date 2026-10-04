@@ -840,6 +840,13 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
         if phane is not None:
             return phane
 
+    if mol is not None and attach_order == 1.0 and mol.GetAtomWithIdx(root).IsInRing():
+        from ._glycosyl import glycosyl_branch
+
+        glycosyl = glycosyl_branch(mol, graph, root, coming_from)
+        if glycosyl is not None:
+            return glycosyl
+
     if mol is not None and attach_order == 1.0:
         from ._skeletal_group import skeletal_chain_group, skeletal_ring_group
 

@@ -136,6 +136,14 @@ def _name_halide_anion(frag) -> str:
     return prefix[:-1] + "ide"
 
 
+def _has_hydroxide_anion_shape(frag):
+    return frag.GetNumAtoms() == 1 and frag.GetAtomWithIdx(0).GetAtomicNum() == 8 and frag.GetAtomWithIdx(0).GetFormalCharge() == -1
+
+
+def _name_hydroxide_anion(frag) -> str:
+    return "hydroxide"
+
+
 def _has_carbanide_anion_shape(frag):
     if sum(a.GetFormalCharge() for a in frag.GetAtoms()) != -1:
         return False
@@ -152,6 +160,7 @@ _ANION_KINDS = [
     (has_thioate_shape, name_thioate),
     (has_selenoate_shape, name_selenoate),
     (_has_halide_anion_shape, _name_halide_anion),
+    (_has_hydroxide_anion_shape, _name_hydroxide_anion),
     (_has_carbanide_anion_shape, name_carbanide),
 ]
 
@@ -280,8 +289,23 @@ def _cation(frag):
         try:
             return name_ammonium(frag), 1
         except UnsupportedStructure:
-            return None
-    return None
+            pass
+    return _organic_cation(frag)
+
+
+def _organic_cation(frag):
+    """Name and charge of a singly charged organic cation with one positive centre, named as a whole by the
+    substitutive engine (an '-ium' name, P-73.1)."""
+    from .core import smiles_to_iupac
+
+    charges = [a.GetFormalCharge() for a in frag.GetAtoms() if a.GetFormalCharge()]
+    if frag.GetNumAtoms() < 2 or charges != [1]:
+        return None
+    try:
+        name = smiles_to_iupac(Chem.MolToSmiles(frag))
+    except UnsupportedStructure:
+        return None
+    return (name, 1) if name.endswith("ium") else None
 
 
 def _split_cation_anions(mol):
@@ -310,6 +334,8 @@ def _split_cation_anions(mol):
       several copies of the *same* cation type still prefers the
       multiplying-prefix form."""
     frags = Chem.GetMolFrags(mol, asMols=True)
+    if len(frags) < 2:
+        return None
 
     for i, cation_frag in enumerate(frags):
         cation = _cation(cation_frag)

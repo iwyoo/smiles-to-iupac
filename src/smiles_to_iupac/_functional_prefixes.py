@@ -8,19 +8,15 @@ import re
 from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, alpha_sort_key
-from ._hetero_prefixes import CHALCOGEN_PREFIXES, require_plain_chalcogen_kids, require_senior_group
+from ._hetero_prefixes import CHALCOGEN_PREFIXES, phosphoryl_name, require_plain_chalcogen_kids, require_senior_group
+from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 from ._substituents import name_branch
 
 _RETAINED_ALKYL_END = re.compile(r"(meth|eth|prop|but)yl$")
 
 
-def _enclose(name):
-    if "[" in name:
-        return f"{{{name}}}"
-    if "(" in name:
-        return f"[{name}]"
-    return f"({name})"
+_enclose = enclose
 
 
 def _is_compound(name):
@@ -73,6 +69,25 @@ def _multiplied_amino(children, tail):
         return multiplying_prefix(len(parts), compound=c) + (_enclose(n) if c else n) + tail
     first, rest = names[0], names[1:]
     return first + "".join(_enclose(r) if not r.startswith(("(", "[")) else r for r in rest) + tail
+
+
+def _phosphoryl_parts(mol, node, parent, kids, named, bond_order):
+    """Substituent names of a P(=O)(X)(Y) group bonded through oxygen, from the already-named oxygen children."""
+    atom = mol.GetAtomWithIdx(node)
+    if atom.GetFormalCharge() != 0 or atom.GetDegree() != 4:
+        raise UnsupportedStructure("a charged or non-tetracoordinate phosphorus substituent is not supported yet")
+    oxo = [k for k in kids if bond_order(mol, node, k) == 2.0 and mol.GetAtomWithIdx(k).GetDegree() == 1]
+    rest = [k for k in kids if k not in oxo]
+    if len(oxo) != 1 or len(rest) != 2 or any(bond_order(mol, node, k) != 1.0 for k in rest):
+        raise UnsupportedStructure("this phosphorus-bearing substituent is not supported yet")
+    parts = []
+    for k in rest:
+        if k not in named or mol.GetAtomWithIdx(k).GetAtomicNum() != 8:
+            raise UnsupportedStructure("this phosphorus-bearing substituent is not supported yet")
+        if "phospho" in named[k][0]:
+            raise UnsupportedStructure("a polyphosphate chain substituent is not supported yet")
+        parts.append(named[k])
+    return parts
 
 
 def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozenset(), chain_seeds=False):
@@ -134,6 +149,7 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
         named[node] = (name, compound)
         shown[node] = _enclose(name) if compound else name
 
+    phosphoryl_nodes = set()
     for node in reversed(order):
         if node in skip:
             continue
@@ -147,6 +163,11 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
         kids = [n for n in graph[node] if n != parent]
         if z in HALOGEN_PREFIXES:
             continue
+        if z == 15 and mol.GetAtomWithIdx(parent).GetAtomicNum() == 8:
+            group = phosphoryl_name(_phosphoryl_parts(mol, node, parent, kids, named, _bond_order))
+            phosphoryl_nodes.add(node)
+            record(node, group, group != "phosphono")
+            continue
         if node in nitro:
             if is_nitro_nitrogen(mol, node):
                 record(node, "nitro", False)
@@ -156,12 +177,17 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 record(node, "oxo", False)
             elif not kids:
                 record(node, "hydroxy", False)
+            elif len(kids) == 1 and kids[0] in phosphoryl_nodes:
+                rname, rcompound = named[kids[0]]
+                record(node, "phosphonooxy" if rname == "phosphono" else _enclose(rname) + "oxy", True)
             elif len(kids) == 1 and mol.GetAtomWithIdx(kids[0]).GetAtomicNum() in (6, 9, 17, 35, 53):
                 rname, rcompound = child_name(kids[0], node)
                 if rname == "phenyl":
                     name = "phenoxy"
                 elif _RETAINED_ALKYL_END.search(rname):
                     name = rname[:-2] + "oxy"
+                elif rname[0].isdigit() or rname[0] == "(":
+                    name = _enclose(rname) + "oxy"
                 else:
                     name = rname + "oxy"
                 record(node, name, _is_compound(name) or name != "phenoxy" and not _RETAINED_ALKYL_END.search(rname))

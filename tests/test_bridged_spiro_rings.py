@@ -101,9 +101,8 @@ def test_ring_tetrahedral_stereocenter(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_ring_stereocenter_with_two_substituents_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC[C@H](C)[C@H]1CC(C)C=CC1")
+def test_ring_stereocenter_with_two_substituents():
+    assert smiles_to_iupac("CC[C@H](C)[C@H]1CC(C)C=CC1") == "(5R)-5-[(2S)-butan-2-yl]-3-methylcyclohex-1-ene"
 
 
 def test_substituted_tetrabenzenacyclooctaphane_raises():

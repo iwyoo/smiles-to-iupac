@@ -203,11 +203,16 @@ def _mixed_valence_text(diyl, free, valence, position_of, orders):
 
 
 def evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=(), orders=None):
+    from ._substituents import BRANCH_STEREO
+
     token = SUFFIX_ATOMS.set(frozenset(attach))
+    stereo_token = BRANCH_STEREO.set({"atoms": {}, "bonds": {}, "used": set()}) if BRANCH_STEREO.get() is None else None
     try:
         return _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, anions, matches_on, orders)
     finally:
         SUFFIX_ATOMS.reset(token)
+        if stereo_token is not None:
+            BRANCH_STEREO.reset(stereo_token)
 
 
 def _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=(), orders=None):
@@ -225,6 +230,9 @@ def _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, an
     else:
         numberings = system_numberings(mol, graph, body, pool)
 
+    from ._substituents import BRANCH_STEREO
+
+    stereo_context = BRANCH_STEREO.get()
     cache = {}
 
     def analyze(skeleton):
@@ -232,6 +240,9 @@ def _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, an
         if key in cache:
             return cache[key]
         side = _component(graph, next(iter(skeleton)), blocked)
+        for atom, code in cip_labels(mol, side):
+            if atom not in skeleton:
+                stereo_context["atoms"][atom] = code
         if any(a in side for m in matches_on for a in (m[0].GetIdx(), m[1].GetIdx())):
             raise UnsupportedStructure(
                 "a lactone or macrocyclic diester is a heterocyclic pseudoketone (P-65.6.3.5), not an ester of a "
@@ -287,7 +298,7 @@ def _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, an
         free = tuple(sorted(position_of[a] for a in attach))
         cite = tuple(position_of[a] for a in sorted(attach, key=lambda a: (orders[a], position_of[a]))) if mixed else ()
         ring_stereo = [(a, c) for a, c in stereo_all if a in skeleton]
-        if len(ring_stereo) != len(stereo_all):
+        if any(("atom", a) not in stereo_context["used"] for a, _ in stereo_all if a not in skeleton):
             raise UnsupportedStructure("a stereocenter on a substituent is not supported yet")
         acid_key = anion_locant_key(anions, [position_of[a] for a in attach]) if anions else ()
         stereo_key = tuple(
@@ -318,6 +329,11 @@ def _evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, an
 
 def ring_substituent_name(mol, graph, root, parent):
     """(name, is_compound) of the ring system entered at `root` from `parent`, as a substituent prefix."""
+    from ._glycosyl import glycosyl_branch
+
+    glycosyl = glycosyl_branch(mol, graph, root, parent)
+    if glycosyl is not None:
+        return glycosyl
     rings, atoms = _system_of(mol, root)
     order = mol.GetBondBetweenAtoms(parent, root).GetBondTypeAsDouble()
     suffix = {1.0: "yl", 2.0: "ylidene", 3.0: "ylidyne"}.get(order)

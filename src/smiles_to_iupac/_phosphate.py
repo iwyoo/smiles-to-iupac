@@ -49,6 +49,7 @@ phosphite ester case (no P=O, P(III) instead of P(V)) via
 """
 
 from rdkit import Chem
+from rdkit.Chem import rdCIPLabeler
 
 from collections import Counter
 
@@ -56,7 +57,7 @@ from ._multiplicative_text import enclose
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._numerals import multiplying_prefix
 from ._salt import _MONOATOMIC_CATION_NAMES
-from ._substituents import name_branch
+from ._substituents import BRANCH_STEREO, name_branch
 
 _PHOSPHORUS = 15
 
@@ -106,6 +107,31 @@ def _phosphate_phosphorus_atoms(mol):
     return matches
 
 
+def _is_hydroxy_on_carbon(oxygen) -> bool:
+    return oxygen.GetDegree() == 1 and oxygen.GetNeighbors()[0].GetAtomicNum() == 6 and oxygen.GetTotalNumHs() == 1
+
+
+def _allowed_outside_oxygen(oxygen, anionic) -> bool:
+    """An oxygen of an R group that stays a prefix: hydroxy, ether, oxo of a ketone or amide. The oxygens of a
+    carboxylic ester or acid outrank a neutral phosphate ester and are allowed only beside an anionic phosphate."""
+    if _is_hydroxy_on_carbon(oxygen):
+        return True
+    if oxygen.GetDegree() == 1:
+        (carbon,) = oxygen.GetNeighbors()
+        if carbon.GetAtomicNum() != 6:
+            return False
+        acid_or_ester = any(n.GetAtomicNum() == 8 and n.GetIdx() != oxygen.GetIdx() for n in carbon.GetNeighbors())
+        return anionic or not acid_or_ester
+    if oxygen.GetDegree() == 2 and all(n.GetAtomicNum() == 6 for n in oxygen.GetNeighbors()):
+        acyl = any(
+            b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(c).GetAtomicNum() == 8
+            for c in oxygen.GetNeighbors()
+            for b in c.GetBonds()
+        )
+        return anionic or not acyl
+    return False
+
+
 def has_phosphate_shape(mol) -> bool:
     return bool(_phosphate_phosphorus_atoms(mol))
 
@@ -124,7 +150,12 @@ def name_phosphate(mol) -> str:
     other_frags = [frag for frag in frags if frag is not anion_frag]
 
     cation_name = None
-    if charged_oxygens:
+    positive = [a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge() > 0]
+    zwitterion = bool(charged_oxygens) and not other_frags and sum(a.GetFormalCharge() for a in mol.GetAtoms()) == 0
+    if zwitterion and not all(mol.GetAtomWithIdx(i).GetAtomicNum() == 7 for i in positive):
+        raise UnsupportedStructure("a zwitterion with other than ammonium centres is not supported yet")
+    anion_only = bool(charged_oxygens) and not other_frags and not positive
+    if charged_oxygens and not zwitterion and not anion_only:
         # P-67.1.3.2: a salt of a partial ester cites the cation's name
         # before the R-group word(s) -- scope limited to a single +1
         # monoatomic cation balancing the one deprotonated position above.
@@ -140,17 +171,19 @@ def name_phosphate(mol) -> str:
 
     for idx in anion_frag:
         atom = mol.GetAtomWithIdx(idx)
-        if atom.GetIsotope() != 0 or (atom.GetFormalCharge() != 0 and idx not in charged_oxygens):
+        if atom.GetIsotope() != 0 or (
+            atom.GetFormalCharge() != 0 and idx not in charged_oxygens and not (zwitterion and idx in positive)
+        ):
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         atomic_num = atom.GetAtomicNum()
         if atomic_num == _PHOSPHORUS and idx != phosphorus.GetIdx():
             raise UnsupportedStructure("more than one phosphorus atom is not supported yet")
-        if atomic_num not in (1, 6, 8, _PHOSPHORUS, *HALOGEN_PREFIXES):
+        if atomic_num not in (1, 6, 7, 8, _PHOSPHORUS, *HALOGEN_PREFIXES):
             raise UnsupportedStructure(
                 "heteroatoms other than the phosphate's own phosphorus/"
                 "oxygens and a halogen substituent are not supported yet"
             )
-        if atomic_num == 8 and idx not in group_oxygens:
+        if atomic_num == 8 and idx not in group_oxygens and not _allowed_outside_oxygen(atom, bool(charged_oxygens)):
             raise UnsupportedStructure(
                 "an oxygen atom not part of the phosphate's own "
                 "P(=O)(OR)3 group is out of scope for this module"
@@ -175,7 +208,22 @@ def name_phosphate(mol) -> str:
         (root,) = [n for n in graph[oxygen_idx] if n != phosphorus.GetIdx()]
         roots.append((root, oxygen_idx))
 
-    names = [name_branch(graph, root, coming_from, halogens, aromatic_atoms, mol=mol)[0] for root, coming_from in roots]
+    probe = Chem.Mol(mol)
+    rdCIPLabeler.AssignCIPLabels(probe)
+    context = {
+        "atoms": {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.HasProp("_CIPCode")},
+        "bonds": {(b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode") for b in probe.GetBonds() if b.HasProp("_CIPCode")},
+        "used": set(),
+    }
+    token = BRANCH_STEREO.set(context)
+    try:
+        names = [name_branch(graph, root, via, halogens, aromatic_atoms, mol=mol)[0] for root, via in roots]
+    finally:
+        BRANCH_STEREO.reset(token)
+    if any(("atom", a) not in context["used"] for a in context["atoms"]) or any(
+        ("bond", b) not in context["used"] for b in context["bonds"]
+    ):
+        raise UnsupportedStructure("a stereo element of the ester groups is not cited by any supported name")
     ester_words = format_ester_words(names)
     # P-67.1.3.2: a partial ester of a polybasic acid inserts the word
     # "hydrogen" (with a multiplying prefix if more than one remaining
@@ -211,7 +259,7 @@ def format_ester_words(names) -> str:
     words = []
     for name in sorted(counts, key=alpha_sort_key):
         count = counts[name]
-        needs_enclosure = name[0].isdigit()
+        needs_enclosure = (name[0].isdigit() or name[0] == "(") and count > 1
         group = enclose(name) if needs_enclosure else name
         prefix = multiplying_prefix(count, compound=needs_enclosure) if count > 1 else ""
         words.append(f"{prefix}{group}")

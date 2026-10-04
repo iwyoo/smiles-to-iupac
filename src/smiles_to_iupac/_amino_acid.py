@@ -253,7 +253,7 @@ def _match(mol):
         # in the molecule (rejects e.g. a disconnected salt fragment).
         if mol.GetNumAtoms() != 5:
             return None
-        return "glycine", None, frozenset()
+        return "glycine", None, frozenset(), None
 
     if len(side_neighbors) != 1 or alpha_atom.GetTotalNumHs() != 1:
         return None
@@ -264,7 +264,10 @@ def _match(mol):
         return None
     name = _SIDE_CHAIN_TABLE.get(frag_smiles)
     if name is None:
-        return None
+        phosphoryl = _serine_phosphoryl(mol, graph, alpha_carbon, side_root)
+        if phosphoryl is None or mol.GetNumAtoms() != 5 + len(_side_chain_atom_indices(graph, alpha_carbon, side_root)):
+            return None
+        return "serine", alpha_carbon, _side_chain_atom_indices(graph, alpha_carbon, side_root), phosphoryl
     # amine N + acid C + its 2 oxygens + alpha C + the side chain's own
     # atoms (frag includes a dummy atom standing in for alpha_carbon, so
     # its real atom count is frag.GetNumAtoms() - 1) - same disconnected-
@@ -272,7 +275,52 @@ def _match(mol):
     # fragment's own atom count instead of a per-name lookup table.
     if mol.GetNumAtoms() != 4 + frag.GetNumAtoms():
         return None
-    return name, alpha_carbon, _side_chain_atom_indices(graph, alpha_carbon, side_root)
+    return name, alpha_carbon, _side_chain_atom_indices(graph, alpha_carbon, side_root), None
+
+
+def _serine_phosphoryl(mol, graph, alpha_carbon, side_root):
+    """(oxygen, phosphorus) of a serine side chain CH2-O-P(=O)(O..)(O..), else None."""
+    side = mol.GetAtomWithIdx(side_root)
+    if not _is_plain_carbon(side) or side.GetTotalNumHs() != 2:
+        return None
+    oxygens = [n for n in graph[side_root] if n != alpha_carbon]
+    if len(oxygens) != 1 or mol.GetAtomWithIdx(oxygens[0]).GetAtomicNum() != 8:
+        return None
+    phosphorus = [n for n in graph[oxygens[0]] if n != side_root]
+    if len(phosphorus) != 1 or mol.GetAtomWithIdx(phosphorus[0]).GetAtomicNum() != 15:
+        return None
+    return oxygens[0], phosphorus[0]
+
+
+def _phosphoryl_group_name(mol, graph, oxygen, phosphorus, side_chain_atoms):
+    from ._common import halogen_substituents
+    from ._functional_prefixes import _enclose, functional_names
+    from ._substituents import BRANCH_STEREO
+
+    probe = Chem.Mol(mol)
+    rdCIPLabeler.AssignCIPLabels(probe)
+    atoms = {
+        a.GetIdx(): a.GetProp("_CIPCode")
+        for a in probe.GetAtoms()
+        if a.GetIdx() in side_chain_atoms and a.HasProp("_CIPCode")
+    }
+    bonds = {
+        (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode")
+        for b in probe.GetBonds()
+        if b.HasProp("_CIPCode") and b.GetBeginAtomIdx() in side_chain_atoms
+    }
+    context = {"atoms": atoms, "bonds": bonds, "used": set()}
+    token = BRANCH_STEREO.set(context)
+    try:
+        named, _, _ = functional_names(mol, graph, [(oxygen, phosphorus)], {oxygen}, halogen_substituents(mol))
+    finally:
+        BRANCH_STEREO.reset(token)
+    if phosphorus not in named or any(("atom", a) not in context["used"] for a in atoms):
+        raise UnsupportedStructure("a stereocentre of the phosphoryl substituent is not cited by any supported name")
+    name = named[phosphorus][0]
+    if name == "phosphono":
+        return name
+    return _enclose(name)
 
 
 def has_amino_acid_shape(mol) -> bool:
@@ -280,11 +328,14 @@ def has_amino_acid_shape(mol) -> bool:
 
 
 def name_amino_acid(mol) -> str:
-    name, alpha_carbon, side_chain_atoms = _match(mol)
+    name, alpha_carbon, side_chain_atoms, phosphoryl = _match(mol)
     if alpha_carbon is None:
         return name
     label = _alpha_stereo_label(mol, alpha_carbon, side_chain_atoms)
+    mapping = _ALPHA_TO_LD_CYSTEINE if name == "cysteine" else _ALPHA_TO_LD
+    if phosphoryl is not None:
+        group = _phosphoryl_group_name(mol, adjacency(mol), *phosphoryl, side_chain_atoms)
+        return f"O-{group}-{mapping[label]}-{name}" if label else f"O-{group}-{name}"
     if label is None:
         return name
-    mapping = _ALPHA_TO_LD_CYSTEINE if name == "cysteine" else _ALPHA_TO_LD
     return f"{mapping[label]}-{name}"
