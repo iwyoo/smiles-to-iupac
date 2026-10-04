@@ -331,6 +331,8 @@ def _attempt(mol, groups, selected, tree, core, name_function):
     principal = principal_rank_of(groups, unit_atoms)
     if principal is None and any(a.GetAtomicNum() in _SENIOR_HYDRIDE_ATOMS for a in mol.GetAtoms()):
         return None
+    if principal is None and any(g.name == "imine" for g in groups):
+        return None
     principal_group = None
     if principal is not None:
         principal_group = next(g.name for g in groups if g.anchor in unit_atoms and g.rank == principal)
