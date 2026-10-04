@@ -230,8 +230,8 @@ def _name_once(mol):
             skels = [Skel.of(parent)] if cost == 0 else _variants(name, cost, terminal_only)
             for skel in skels:
                 found += _candidates(skel, view)
-        if cost == 0:
-            exact = {c.parent.name for c in found}
+        embedded = {c.parent.name for c in found} if cost == 0 else set()
+        blocked, built_names = set(), set()
         for cand in _best_per_skeleton(found, view):
             if cand.replaced and set(view.elements) == {"C"} and not view.has_stereo:
                 continue
@@ -241,10 +241,15 @@ def _name_once(mol):
                 continue
             try:
                 built = build(cand, view)
-            except UnsupportedStructure:
+            except UnsupportedStructure as error:
+                if "acyclic part" in str(error):
+                    blocked.add(cand.parent.name)
                 continue
+            built_names.add(cand.parent.name)
             if best is None or built.key < best.key or (built.key == best.key and built.name < best.name):
                 best = built
+        if cost == 0:
+            exact = embedded - (blocked - built_names)
     return best
 
 

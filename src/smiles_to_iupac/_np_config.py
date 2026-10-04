@@ -141,7 +141,8 @@ def configuration(cand, view):
                     if mol_h.GetAtomWithIdx(n).GetAtomicNum() != 1 and n not in mapped:
                         config.faces[n] = "x"
             continue
-        if in_parent_ring and faces is not None and not ring_opened and any(n in faces for n in exo):
+        substituent_exo = ring_opened and any(n not in mapped and mol_h.GetAtomWithIdx(n).GetAtomicNum() > 1 for n in exo)
+        if in_parent_ring and faces is not None and not substituent_exo and any(n in faces for n in exo):
             for n in exo:
                 if n in faces and mol_h.GetAtomWithIdx(n).GetAtomicNum() != 1:
                     config.faces[n] = faces[n]
