@@ -23,8 +23,20 @@ from ._common import (
 )
 from ._hetero_prefixes import MONONUCLEAR_HYDRIDES, is_functional_carbon
 from ._multiplicative import _bare_key
-from ._multiplicative_text import enclose
-from ._multiplicative_ring import _SUFFIX_WORDS, _citation_key, _join, _prefix_text, _suffix_text, monocycle_spec, name_ring_component, numberings
+from ._multiplicative_text import PrimedLocant, enclose, unit_phrase
+from ._multiplicative_ring import (
+    _SUFFIX_WORDS,
+    _citation_key,
+    _join,
+    _prefix_text,
+    _suffix_text,
+    monocycle_spec,
+    multiple_locants,
+    name_ring_component,
+    numberings,
+    parent_text,
+    spec_of,
+)
 from ._fusion_numbering_general import _HETERO_RANK
 from ._ring_diyl_numbering import _exocyclic_oxo, is_hydro_fusion_system
 from ._substituents import format_substituent_prefixes, name_branch
@@ -672,31 +684,56 @@ def _assembly_numbering(graph, rings, join, marked, entries, specs=None):
         ]
 
     best = None
+    unsaturated = bool(specs) and specs[0].kind == "cycloalkene"
     for unprimed in (0, 1):
         for first in orientations(unprimed):
             for second in orientations(1 - unprimed):
                 locants = {atom: (0, number) for atom, number in first.items()}
                 locants.update({atom: (1, number) for atom, number in second.items()})
+                ene = ()
+                if unsaturated:
+                    ene = (tuple(multiple_locants(specs[unprimed], first)[0]), tuple(multiple_locants(specs[1 - unprimed], second)[0]))
                 key = (
                     (locants[join[unprimed]][1], locants[join[1 - unprimed]][1]),
                     tuple(sorted(_locant_order(locants[a]) for a in marked)),
+                    ene,
                     tuple(sorted(_locant_order(locants[r]) for r, _, _ in entries)),
                     _citation_key([(_locant_order(locants[r]), name) for r, name, _ in entries]),
                 )
                 if best is None or key < best[0]:
-                    best = (key, locants)
+                    best = (key, locants, ene)
+    if unsaturated and any(loc == len(rings[0]) for loc in best[2][0] + best[2][1]):
+        raise UnsupportedStructure("a ring double bond closing the numbering (1(n) locant) is not supported in an assembly")
+    if unsaturated and best[2][0] != best[2][1]:
+        raise UnsupportedStructure("the rings of this assembly are not identical once numbered (P-28.7)")
     return best[1]
 
 
-def _assembly_base(specs, locants, join, elide):
-    """'1,1'-biphenyl', '1,1'-bi(cyclohexane)', '2,2'-bipyridine'; the final
+def _junction_is_ylidene(mol, join, specs):
+    """False for a single-bond junction, True for a double bond between two saturated rings, else None."""
+    order = mol.GetBondBetweenAtoms(*join).GetBondTypeAsDouble()
+    if order == 1.0:
+        return False
+    if order == 2.0 and all(sp.kind == "cycloalkane" for sp in specs):
+        return True
+    return None
+
+
+def _assembly_base(specs, locants, join, elide, ylidene=False):
+    """'1,1'-biphenyl', '1,1'-bi(cyclohexane)', '2,2'-bipyridine', '1,1'-bi(cyclohexylidene)'; the final
     'e' goes before a vowel-initial suffix."""
     spec = specs[0]
     if spec.kind == "benzene":
         return "1,1'-biphenyl"
     unprimed, primed = sorted(join, key=lambda atom: locants[atom][0])
-    stem = spec.parent[:-1] if elide and spec.parent.endswith("e") else spec.parent
     spots = f"{locants[unprimed][1]},{locants[primed][1]}'"
+    if ylidene:
+        return f"{spots}-bi({spec.parent[:-3]}ylidene)"
+    parent = spec.parent
+    if spec.kind == "cycloalkene":
+        inside = {a: locants[a][1] for a in spec.cycle}
+        parent = parent_text(spec, inside)
+    stem = parent[:-1] if elide and parent.endswith("e") else parent
     return f"{spots}-bi({stem})" if spec.hetero is None else f"{spots}-bi{stem}"
 
 
@@ -708,6 +745,11 @@ def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms
     fused = system_assembly(mol, graph, halogens, aromatic_atoms, None, [], None, free=(root, coming_from))
     if fused is not None:
         return fused
+    from ._chain_assembly import chain_assembly
+
+    chained = chain_assembly(mol, graph, halogens, aromatic_atoms, None, [], None, free=(root, coming_from))
+    if chained is not None:
+        return chained
     ring_info = mol.GetRingInfo()
     own = next((list(r) for r in ring_info.AtomRings() if root in r), None)
     if own is None:
@@ -720,8 +762,11 @@ def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms
     joins = [(a, b) for a in own for b in other if mol.GetBondBetweenAtoms(a, b) is not None]
     if len(joins) != 1 or _bare_key(mol, set(own)) != _bare_key(mol, set(other)):
         return None
-    specs = [monocycle_spec(mol, r) for r in (own, other)]
+    specs = [spec_of(mol, r) for r in (own, other)]
     if any(sp is None or sp.kind == "pyrrole" for sp in specs) or specs[0].kind != specs[1].kind:
+        return None
+    ylidene = _junction_is_ylidene(mol, joins[0], specs)
+    if ylidene is None:
         return None
     ring_atoms = set(own) | set(other)
     roots = [
@@ -740,7 +785,7 @@ def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms
     for info in grouped.values():
         info["locants"].sort(key=lambda text: (int(text.rstrip(chr(39))), text.count(chr(39))))
     prefix = format_substituent_prefixes(grouped) if grouped else ""
-    base = _assembly_base(specs, locants, joins[0], elide=True)
+    base = _assembly_base(specs, locants, joins[0], elide=True, ylidene=ylidene)
     spot = locants[root]
     core = f"[{base}]-{spot[1]}{chr(39) * spot[0]}-yl"
     return (f"{prefix}-{core}" if prefix else core), True
@@ -757,11 +802,16 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
     fused = system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo)
     if fused is not None:
         return fused
+    from ._chain_assembly import chain_assembly
+
+    chained = chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo)
+    if chained is not None:
+        return chained
     ring_info = mol.GetRingInfo()
     rings = [list(r) for r in ring_info.AtomRings()]
     if len(rings) != 2 or set(rings[0]) & set(rings[1]):
         return None
-    specs = [monocycle_spec(mol, r) for r in rings]
+    specs = [spec_of(mol, r) for r in rings]
     if any(sp is None or sp.kind == "pyrrole" for sp in specs):
         return None
     if specs[0].kind != specs[1].kind or len(rings[0]) != len(rings[1]):
@@ -771,8 +821,9 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
     joins = [(a, b) for a in rings[0] for b in rings[1] if mol.GetBondBetweenAtoms(a, b) is not None]
     if len(joins) != 1:
         return None
-    if stereo:
-        raise UnsupportedStructure("stereodescriptors in a ring assembly are not supported yet")
+    ylidene = _junction_is_ylidene(mol, joins[0], specs)
+    if ylidene is None:
+        return None
     owned = set().union(*(o[2] for o in occurrences)) if occurrences else set()
     ring_atoms = set(rings[0]) | set(rings[1])
     roots = [
@@ -795,14 +846,14 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     count = len(occurrences)
     if principal is None:
-        core = _assembly_base(specs, locants, joins[0], elide=False)
+        core = _assembly_base(specs, locants, joins[0], elide=False, ylidene=ylidene)
     else:
         word = multiplied_word(count, _SUFFIX_WORDS[_RING_SUFFIX[principal]])
-        base = _assembly_base(specs, locants, joins[0], elide=word[0] in "aeiouy")
+        base = _assembly_base(specs, locants, joins[0], elide=word[0] in "aeiouy", ylidene=ylidene)
         spots = ",".join(cite(locants[o[1]]) for o in sorted(occurrences, key=lambda o: _locant_order(locants[o[1]])))
         core = f"[{base}]-{spots}-{word}"
     name = f"{prefix}-{core}" if prefix else core
-    return count, ((-count,), name, (None, None, None, 0, locants, True))
+    return count, ((-count,), name, (None, None, None, 0, {a: PrimedLocant(*loc) for a, loc in locants.items()}, True))
 
 
 def _require_mancude_system(mol, atoms):
@@ -1045,7 +1096,7 @@ def _identical_group_units(mol, graph, group_atoms):
 
 
 _LINKER_WORDS = {8: "oxy", 16: "sulfanediyl", 34: "selanediyl"}
-_DICHALCOGEN_WORDS = {8: "dioxy", 16: "disulfanediyl", 34: "diselanediyl"}
+_DICHALCOGEN_WORDS = {8: "peroxy", 16: "disulfanediyl", 34: "diselanediyl"}
 
 
 def _arm_atoms(graph, start, blocked):
@@ -1119,10 +1170,8 @@ def _multiplicative_name(mol, stereo=None):
             unit, attach = units[0]
             try:
                 _, _, parts = _select(unit, attach)
-            except UnsupportedStructure as error:
-                if str(error).startswith("a unit without a principal group"):
-                    continue
-                raise
+            except UnsupportedStructure:
+                continue
         prefix, body, tail, locant = parts[:4]
         lead = ",".join(str(locant) + "'" * i for i in range(arms)) + "-" if locant is not None else ""
         text = prefix + body
@@ -1132,9 +1181,14 @@ def _multiplicative_name(mol, stereo=None):
                 return f"{stereo_text}{lead}{linker}{word}({text}{tail})"
             return f"{stereo_text}{lead}{linker}{word}({text}){tail}"
         word = {2: "di", 3: "tri"}[arms]
-        unit_text = f"({text})" if any(ch.isdigit() or ch == "-" for ch in text) else text
-        return f"{stereo_text}{lead}{linker}{word}{unit_text}{tail}"
-    return _ring_linker_name(mol, graph, stereo) or _composite_linker_name(mol, graph, stereo)
+        return f"{stereo_text}{lead}{linker}{word}{unit_phrase(text, tail)}"
+    from ._chain_multiplicative import chain_multiplicative_name
+
+    return (
+        _ring_linker_name(mol, graph, stereo)
+        or _composite_linker_name(mol, graph, stereo)
+        or chain_multiplicative_name(mol, stereo)
+    )
 
 
 _CENTER_WORDS = {8: "oxy", 16: "sulfanediyl", 34: "selanediyl"}
@@ -1214,8 +1268,7 @@ def _composite_linker_name(mol, graph, stereo):
         text = prefix + body
         if prefix:
             return f"{lead}{linker}bis({text}){tail}"
-        unit_text = f"({text})" if any(ch.isdigit() or ch == "-" for ch in text) else text
-        return f"{lead}{linker}di{unit_text}{tail}"
+        return f"{lead}{linker}di{unit_phrase(text, tail)}"
     return None
 
 
@@ -1283,8 +1336,7 @@ def _ring_linker_name(mol, graph, stereo):
         linker_text = f"({linker[0]})"
         if prefix:
             return f"{lead}{linker_text}bis({text}){tail}"
-        unit_text = f"({text})" if any(ch.isdigit() or ch == "-" for ch in text) else text
-        return f"{lead}{linker_text}di{unit_text}{tail}"
+        return f"{lead}{linker_text}di{unit_phrase(text, tail)}"
     return None
 
 
