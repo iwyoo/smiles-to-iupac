@@ -71,6 +71,7 @@ _RING_TYPES = (
     ((7, 6, 7, 6, 6, 6), "pyrimidine", "pyrimido"),
     ((7, 7, 6, 6, 6, 6), "pyridazine", "pyridazino"),
     ((7, 6, 6, 7, 6, 6), "pyrazine", "pyrazino"),
+    ((7, 7, 6, 7, 6, 6), "[1,2,4]triazine", "[1,2,4]triazino"),
 )
 
 # P-25.3.2.4(a): heteroatom seniority order (abbreviated to the elements

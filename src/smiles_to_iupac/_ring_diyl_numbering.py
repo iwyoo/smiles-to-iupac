@@ -747,11 +747,12 @@ def _ring_graph(mol, skeleton_atoms):
 
 def _fused_mancude(mol, skeleton_atoms):
     oxo_all = _exocyclic_oxo(mol, skeleton_atoms)
+    ring_info = mol.GetRingInfo()
     sp3 = {
         a for a in _sp3_ring_atoms(mol, skeleton_atoms) | oxo_all if mol.GetAtomWithIdx(a).GetSymbol() not in _NO_DOUBLE_BOND
     }
+    fusion_hetero = {a for a in skeleton_atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6 and ring_info.NumAtomRings(a) > 1}
     suffix_atoms = SUFFIX_ATOMS.get() & set(skeleton_atoms)
-    ring_info = mol.GetRingInfo()
     oxo_suffix = (oxo_all & suffix_atoms) | {a for a in suffix_atoms & sp3 if ring_info.NumAtomRings(a) > 1}
     bare, old_of, parent = _named_mancude(mol, skeleton_atoms, sp3)
     match = re.match(r"^(\d+H(?:,\d+H)*)-(.*)$", parent)
@@ -769,6 +770,7 @@ def _fused_mancude(mol, skeleton_atoms):
     if not numberings:
         raise UnsupportedStructure("this fused skeleton has no supported peripheral numbering as a diyl yet")
     adj, can_hold = _ring_graph(mol, skeleton_atoms)
+    can_hold -= fusion_hetero
     out = []
     for numbering in numberings:
         position_of = {old_of[new]: _locant(loc) for new, loc in numbering.items() if _locant(loc) is not None}
@@ -779,11 +781,14 @@ def _fused_mancude(mol, skeleton_atoms):
             for a in skeleton_atoms
             if a in position_of
             and (
-                a in sp3
+                (a in sp3 and a not in fusion_hetero)
                 or (
                     mol.GetAtomWithIdx(a).GetIsAromatic()
                     and mol.GetAtomWithIdx(a).GetAtomicNum() != 6
-                    and (mol.GetAtomWithIdx(a).GetTotalNumHs() > 0 or mol.GetAtomWithIdx(a).GetDegree() == 3)
+                    and (
+                        mol.GetAtomWithIdx(a).GetTotalNumHs() > 0
+                        or (mol.GetAtomWithIdx(a).GetDegree() == 3 and ring_info.NumAtomRings(a) < 2)
+                    )
                 )
             )
         }
