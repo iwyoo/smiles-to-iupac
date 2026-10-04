@@ -212,7 +212,40 @@ def _fused_central(mol, graph, atoms, cedges, arm_atoms):
     return Part(found[1], False, True) if found else None
 
 
+def _ylidene_ring_part(mol, graph, atoms, attachments):
+    """naphthalene-2,3-diylidene: the ketone name of the ring with each ylidene bond replaced by C=O (P-29.3.4.2)."""
+    from ._multiplicative_linker import Part
+    from ._multiplicative_prefix import probe_name
+
+    external = {y for _, y, _ in attachments}
+    keep, stack = set(atoms), list(atoms)
+    while stack:
+        for n in graph[stack.pop()]:
+            if n not in keep and n not in external:
+                keep.add(n)
+                stack.append(n)
+    editable = Chem.RWMol(mol)
+    for x, y, _ in attachments:
+        oxygen = editable.AddAtom(Chem.Atom(8))
+        editable.AddBond(x, oxygen, Chem.BondType.DOUBLE)
+        keep.add(oxygen)
+    for idx in sorted(set(range(editable.GetNumAtoms())) - keep, reverse=True):
+        editable.RemoveAtom(idx)
+    probe = editable.GetMol()
+    Chem.SanitizeMol(probe)
+    name = probe_name(Chem.MolToSmiles(probe))
+    match = re.fullmatch(r"(.+)-(di|tri|tetra)one", name)
+    if match is None:
+        raise DecompositionRejected(f"the ylidene ring {name!r} is not a ketone name")
+    head, count = match.groups()
+    return Part(f"{head}-{count}ylidene", head[0].isdigit() or head[0] in "([", True)
+
+
 def _component_part(mol, graph, kind, atoms, attachments, ctx, directed):
+    if kind == "ring" and attachments and all(order == 2 for _, _, order in attachments):
+        if directed is not None:
+            raise DecompositionRejected("a ylidene ring inside a concatenated linker is not supported")
+        return _ylidene_ring_part(mol, graph, atoms, attachments)
     if kind != "assembly":
         return name_component(mol, kind, atoms, attachments, ctx, directed)
     if directed is not None or any(order != 1 for _, _, order in attachments):
@@ -313,7 +346,12 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             break
         previous, current, order = onward[0][0], onward[0][1], onward[0][2]
     try:
-        central = _fused_central(mol, graph, atoms, edges[center], _arm_atoms) if _is_fused(mol, kind, atoms) else None
+        ylidene = all(order == 2 for _, _, order in edges[center])
+        central = (
+            _fused_central(mol, graph, atoms, edges[center], _arm_atoms)
+            if _is_fused(mol, kind, atoms) and not ylidene
+            else None
+        )
         if central is None:
             central = _component_part(mol, graph, kind, atoms, edges[center], ctx, None)
         arm_parts = []
@@ -481,7 +519,7 @@ def chain_multiplicative_name(mol, stereo):
         for h in graph[r]:
             bond = mol.GetBondBetweenAtoms(r, h)
             if atom.GetAtomicNum() == 6:
-                ok = h in linkers or (mol.GetAtomWithIdx(h).IsInRing() and bond.GetBondTypeAsDouble() == 1.0)
+                ok = h in linkers or (mol.GetAtomWithIdx(h).IsInRing() and bond.GetBondTypeAsDouble() in (1.0, 2.0))
                 target = candidates
             elif atom.GetAtomicNum() == 7 and principal in ("amide", "sulfonamide") and r in anchors:
                 other = mol.GetAtomWithIdx(h)

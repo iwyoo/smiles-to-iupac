@@ -20,7 +20,7 @@ _SUBSTITUTABLE_WORDS = {
     32: ("germanediyl", "germanetriyl"),
     33: ("arsanediyl", "arsanetriyl"),
 }
-_CHAIN_STEMS = {14: "silane"}
+_CHAIN_STEMS = {14: "silane", 15: "phosphane", 32: "germane", 33: "arsane", 50: "stannane", 82: "plumbane"}
 _HOMO_RUN_WORDS = {(8, 2): "peroxy", (16, 2): "disulfanediyl", (34, 2): "diselanediyl", (52, 2): "ditellanediyl"}
 
 
@@ -71,7 +71,7 @@ def _primary(mol, group):
     return len(hetero) == 1 and mol.GetAtomWithIdx(hetero[0]).GetTotalNumHs() == 2
 
 
-def _hydride_chain_part(mol, atoms, attachments, pend, ctx, stem):
+def _hydride_chain_part(mol, atoms, attachments, pend, ctx, stem, directed=None):
     ends = [a for a, _, _ in attachments]
     walk, seen = [ends[0]], {ends[0]}
     while len(walk) < len(atoms):
@@ -84,25 +84,27 @@ def _hydride_chain_part(mol, atoms, attachments, pend, ctx, stem):
     for order in (walk, walk[::-1]):
         position = {a: i + 1 for i, a in enumerate(order)}
         cited = sorted((position[a], *_entry(mol, a, root, ctx)) for a, root in pend)
-        key = (tuple(p for p, _, _ in cited), tuple(n for _, n, _ in cited))
+        free = (position[directed[0]], position[directed[1]]) if directed else (1, len(atoms))
+        key = (free, tuple(p for p, _, _ in cited), tuple(n for _, n, _ in cited))
         if best is None or key < best[0]:
-            best = (key, cited)
+            best = (key, cited, free)
     grouped = {}
     for p, name, compound in best[1]:
         grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(p)
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     n = len(atoms)
-    body = f"{multiplied_word(n, stem)}-1,{n}-diyl"
+    free = best[2]
+    body = f"{multiplied_word(n, stem)}-{free[1]},{free[0]}-diyl" if directed else f"{multiplied_word(n, stem)}-1,{n}-diyl"
     return Part(prefix + body, bool(prefix), True)
 
 
-def _hetero_part(mol, atoms, attachments, ctx):
+def _hetero_part(mol, atoms, attachments, ctx, directed=None):
     pairs = {(a, b) for a, b, _ in attachments}
     pend = _pendants(mol, atoms, pairs)
     z = mol.GetAtomWithIdx(atoms[0]).GetAtomicNum()
     if len(atoms) >= 2:
         if z in _CHAIN_STEMS and len(attachments) == 2 and all(mol.GetAtomWithIdx(a).GetAtomicNum() == z for a in atoms):
-            return _hydride_chain_part(mol, atoms, attachments, pend, ctx, _CHAIN_STEMS[z])
+            return _hydride_chain_part(mol, atoms, attachments, pend, ctx, _CHAIN_STEMS[z], directed)
         word = _HOMO_RUN_WORDS.get((z, len(atoms)))
         if len(atoms) != 2 or word is None or pend or len(attachments) != 2:
             raise UnsupportedStructure("this heteroatom chain is not supported as a multiplicative linker")
@@ -286,4 +288,4 @@ def name_component(mol, kind, atoms, attachments, ctx, directed=None):
         raise UnsupportedStructure("a multiple bond to the multiplied units is not supported yet")
     if kind == "carbon":
         return _carbon_part(mol, list(atoms), attachments, directed, ctx)
-    return _hetero_part(mol, list(atoms), attachments, ctx)
+    return _hetero_part(mol, list(atoms), attachments, ctx, directed)
