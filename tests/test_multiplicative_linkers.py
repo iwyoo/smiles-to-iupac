@@ -281,3 +281,90 @@ def test_unequal_rings_are_ranked_by_unsaturation_heteroatom_and_substituent_cou
 )
 def test_chain_units_on_fused_and_composite_linkers(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+_ARYL_ACID = "OC(=O)c1ccc(cc1)"
+_ACID_ARYL = "c1ccc(cc1)C(=O)O"
+
+
+@pytest.mark.parametrize(
+    "linker, expected",
+    [
+        ("C1CCNCC1", "piperidine-3,4-diyl"),
+        ("C1CC(NCC1)", "piperidine-2,4-diyl"),
+        ("C1CCOC1", "oxolane-2,3-diyl"),
+        ("C1COCC1", "oxolane-3,4-diyl"),
+        ("c1ccc2cc(ccc2c1)", "naphthalene-2,6-diyl"),
+        ("c1cc2cc(ccc2[nH]1)", "1H-indole-2,5-diyl"),
+        ("c1ccc2nc(ccc2c1)", "quinoline-2,6-diyl"),
+        ("C1CC2CCC1CC2", "bicyclo[2.2.2]octane-2,5-diyl"),
+        ("C1CC2CCC1C2", "bicyclo[2.2.1]heptane-2,7-diyl"),
+        ("C1CCC2(CC1)CCCC2", "spiro[4.5]decane-1,8-diyl"),
+        ("C1CC(C)CCC1", "4-methylcyclohexane-1,2-diyl"),
+    ],
+)
+def test_ring_system_diyl_components_of_multiplicative_names(linker, expected):
+    assert smiles_to_iupac(_ARYL_ACID + linker + _ACID_ARYL) == f"4,4'-({expected})dibenzoic acid"
+
+
+@pytest.mark.parametrize(
+    "linker, expected",
+    [
+        ("NN", "hydrazine-1,2-diyl"),
+        ("N(C)N", "1-methylhydrazine-1,2-diyl"),
+        ("N(C)N(C)", "1,2-dimethylhydrazine-1,2-diyl"),
+        ("NNN", "triazane-1,3-diyl"),
+        ("N=N", "diazene-1,2-diyl"),
+        ("[PH][PH]", "diphosphane-1,2-diyl"),
+        ("[PH][PH][PH]", "triphosphane-1,3-diyl"),
+    ],
+)
+def test_homonuclear_heteroatom_hydride_linkers(linker, expected):
+    assert smiles_to_iupac(_ARYL_ACID + linker + _ACID_ARYL) == f"4,4'-({expected})dibenzoic acid"
+
+
+def test_hydrazine_and_diazene_without_a_principal_group_are_the_parent():
+    assert smiles_to_iupac("c1ccccc1NNc1ccccc1") == "1,2-diphenylhydrazine"
+    assert smiles_to_iupac("c1ccccc1N=Nc1ccccc1") == "diphenyldiazene"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "OC(=O)CC1Cc2ccc(cc2)C(CC(=O)O)c2ccc1cc2",
+            "2,2'-(1,3(1,4)-dibenzenacyclopentaphane-2,4-diyl)diethanoic acid",
+        ),
+        (
+            "OC(=O)CC1Cc2ccc(cc2)CC(CC(=O)O)c2ccc1cc2",
+            "2,2'-(1,4(1,4)-dibenzenacyclohexaphane-2,6-diyl)diethanoic acid",
+        ),
+    ],
+)
+def test_phane_diyl_between_chain_units(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "linker, expected",
+    [
+        ("[AsH][AsH]", "diarsane-1,2-diyl"),
+        ("[SbH][SbH]", "distibane-1,2-diyl"),
+        ("[SnH2][SnH2]", "distannane-1,2-diyl"),
+    ],
+)
+def test_heavier_group_14_and_15_hydride_linkers(linker, expected):
+    assert smiles_to_iupac(_ARYL_ACID + linker + _ACID_ARYL) == f"4,4'-({expected})dibenzoic acid"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OC(=O)CC[AsH][AsH]CCC(=O)O", "3,3'-(diarsane-1,2-diyl)dipropanoic acid"),
+        ("OC(=O)CC[PH][PH]CCC(=O)O", "3,3'-(diphosphane-1,2-diyl)dipropanoic acid"),
+        ("OC(=O)CCNNCCC(=O)O", "3,3'-(hydrazine-1,2-diyl)dipropanoic acid"),
+        ("OC(=O)CCN=NCCC(=O)O", "3,3'-(diazene-1,2-diyl)dipropanoic acid"),
+    ],
+)
+def test_heteroatom_hydride_linkers_between_chain_units(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

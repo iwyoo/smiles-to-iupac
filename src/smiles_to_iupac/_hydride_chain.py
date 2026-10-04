@@ -7,7 +7,7 @@ from ._common import (
     substituent_locant_set_and_citation,
 )
 from ._numerals import multiplying_prefix
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
 _STEMS = {7: "azane", 14: "silane", 15: "phosphane", 32: "germane", 33: "arsane", 50: "stannane", 51: "stibane", 82: "plumbane", 83: "bismuthane"}
 
@@ -82,19 +82,27 @@ def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
             for n in graph[atom]:
                 if n in chain_set:
                     continue
-                if mol.GetBondBetweenAtoms(atom, n).GetBondTypeAsDouble() != 1.0:
-                    raise UnsupportedStructure("a multiple bond on a heteroatom chain is not supported yet")
+                if mol.GetBondBetweenAtoms(atom, n).GetBondTypeAsDouble() not in (1.0, 2.0, 3.0) or (
+                    mol.GetBondBetweenAtoms(atom, n).GetBondTypeAsDouble() != 1.0 and mol.GetAtomWithIdx(n).GetAtomicNum() != 6
+                ):
+                    raise UnsupportedStructure("a multiple bond to a non-carbon group on a heteroatom chain is not supported yet")
                 name, compound = name_branch(graph, n, atom, halogens, aromatic_atoms, mol=mol, unsaturated=True)
                 substituents.setdefault(i + 1, []).append((name, compound))
         grouped = group_substituents(substituents)
         locant_set, _, citation = substituent_locant_set_and_citation(grouped)
-        omit = len(chain) == 2 and sum(len(info["locants"]) for info in grouped.values()) == 1
+        omit = (len(chain) == 2 and sum(len(info["locants"]) for info in grouped.values()) == 1) or all(
+            mol.GetAtomWithIdx(a).GetTotalNumHs() == 0 for a in chain
+        )
         if siloxane is not None:
             parent = f"{multiplying_prefix((len(chain) + 1) // 2)}siloxane"
             omit = False
         else:
             parent = f"{multiplying_prefix(len(chain))}{_STEMS[z]}"
-        name = format_substituent_prefixes(grouped, omit_locants=omit) + parent
+        if omit and len(grouped) > 1:
+            entries = [(n, info["compound"]) for n, info in grouped.items() for _ in info["locants"]]
+            name = format_mononuclear_prefixes(entries) + parent
+        else:
+            name = format_substituent_prefixes(grouped, omit_locants=omit) + parent
         key = (locant_set, citation, name)
         if best is None or key < best[0]:
             best = (key, name)

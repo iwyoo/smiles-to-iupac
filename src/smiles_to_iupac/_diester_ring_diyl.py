@@ -10,16 +10,17 @@ import re
 from rdkit import Chem
 
 from . import _aromatic
+from ._free_valence import SUFFIX_OF_ORDER, attach, suffix_of
 from ._common import (
     UnsupportedStructure,
     adjacency,
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
-    multiplied_word,
     ring_cycle,
     substituent_locant_set_and_citation,
 )
+from ._fullerene import require_defined_fullerene_numbering
 from ._diester_anions import acid_anions, anion_locant_key, cip_labels, cite_anions
 from ._functional_prefixes import functional_names, nitro_atoms
 from ._ring_diyl_numbering import SUFFIX_ATOMS, _locs, _yl, chain_numberings, monocycle_numberings, system_numberings
@@ -189,22 +190,19 @@ def _mixed_valence_text(diyl, free, valence, position_of, orders):
     tail = f"-{_locs(free)}-{_yl(valence)}"
     if not diyl.endswith(tail):
         return None
-    stem = diyl[: -len(tail)]
-    words = {1: "yl", 2: "ylidene", 3: "ylidyne"}
     by_order = {}
     for atom, order in orders.items():
-        by_order.setdefault(order, []).append(position_of[atom])
-    if any(order not in words for order in by_order):
+        by_order.setdefault(int(order), []).append(position_of[atom])
+    if any(order not in SUFFIX_OF_ORDER for order in by_order):
         return None
-    pieces = [f"{_locs(sorted(locs))}-{multiplied_word(len(locs), words[order])}" for order, locs in sorted(by_order.items())]
-    if stem.endswith("e") and pieces[0].split("-", 1)[1][0] in "aeiouy":
-        stem = stem[:-1]
-    return f"{stem}-" + "-".join(pieces)
+    return attach(diyl[: -len(tail)], {order: sorted(locs) for order, locs in by_order.items()})
 
 
 def evaluate_skeleton(mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=(), orders=None):
     from ._substituents import BRANCH_STEREO
 
+    if kind == "ring":
+        require_defined_fullerene_numbering(mol, pool)
     token = SUFFIX_ATOMS.set(frozenset(attach))
     stereo_token = BRANCH_STEREO.set({"atoms": {}, "bonds": {}, "used": set()}) if BRANCH_STEREO.get() is None else None
     try:
@@ -336,7 +334,7 @@ def ring_substituent_name(mol, graph, root, parent):
         return glycosyl
     rings, atoms = _system_of(mol, root)
     order = mol.GetBondBetweenAtoms(parent, root).GetBondTypeAsDouble()
-    suffix = {1.0: "yl", 2.0: "ylidene", 3.0: "ylidyne"}.get(order)
+    suffix = suffix_of(order)
     if suffix is None:
         raise UnsupportedStructure("this ring substituent bond is not supported yet")
     found = evaluate_skeleton(mol, graph, "ring", rings, atoms, [root], {parent}, suffix)

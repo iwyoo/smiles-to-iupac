@@ -8,6 +8,7 @@ import re
 
 from rdkit import Chem
 
+from ._free_valence import SUFFIX_OF_ORDER
 from ._common import UnsupportedStructure
 from ._metallacycle import _ring_stem
 from ._metallafused import _TEMPLATES, _mappings, _template
@@ -289,9 +290,8 @@ def chain_label(mol, graph, donor_idx, atoms, sigma=frozenset(), sigma_orders=No
     extends = dpos[0] != 1 or dpos[-1] != len(order)
     kappa = ""
     if sigma_carbons:
-        words = {1: "yl", 2: "ylidene", 3: "ylidyne"}
         for atom in sorted(sigma_carbons, key=lambda a: pos[a]):
-            stem += f"-{pos[atom]}-{words[int(sigma_orders[atom])]}"
+            stem += f"-{pos[atom]}-{SUFFIX_OF_ORDER[int(sigma_orders[atom])]}"
         kappa = "-\u03ba" + ("%d" % len(sigma_carbons) if len(sigma_carbons) > 1 else "") + ",".join(
             f"C{pos[a]}" for a in sorted(sigma_carbons, key=lambda a: pos[a])
         )

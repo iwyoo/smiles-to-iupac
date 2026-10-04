@@ -144,6 +144,7 @@ unchanged.
 
 from rdkit import Chem
 
+from ._common import UnsupportedStructure
 from ._fullerene_spiral import match_c84_isomer
 
 _FULLERENE_C60_SMILES = (
@@ -206,3 +207,28 @@ def name_fullerene(mol) -> str:
     if smi in _FULLERENE_NAMES:
         return _FULLERENE_NAMES[smi]
     return match_c84_isomer(mol)
+
+
+def is_fullerene_cage(mol, atoms) -> bool:
+    """`atoms` form a closed carbon cage of twelve five-membered rings and only five- or six-membered rings."""
+    atoms = set(atoms)
+    if len(atoms) < 20 or any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in atoms):
+        return False
+    rings = [r for r in mol.GetRingInfo().AtomRings() if set(r) <= atoms]
+    return sum(len(r) == 5 for r in rings) == 12 and all(len(r) in (5, 6) for r in rings)
+
+
+def has_substituted_fullerene_cage(mol) -> bool:
+    ring_info = mol.GetRingInfo()
+    if sum(len(r) == 5 for r in ring_info.AtomRings()) < 12:
+        return False
+    cage = {a for r in ring_info.AtomRings() for a in r}
+    return mol.GetNumAtoms() > len(cage) and is_fullerene_cage(mol, cage)
+
+
+def require_defined_fullerene_numbering(mol, atoms):
+    if is_fullerene_cage(mol, atoms):
+        raise UnsupportedStructure(
+            "fullerene locants cannot be derived: P-27.3 states that systematic numbering 'is not yet a fully "
+            "solved issue' and gives it only as figures for the C60-Ih and C70-D5h(6) cages"
+        )

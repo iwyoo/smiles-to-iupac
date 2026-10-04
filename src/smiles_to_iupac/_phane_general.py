@@ -2,6 +2,8 @@
 substituents on the rings (composite locants 14, P-26.4.3) and on the bridge atoms: 1,4(1,4)-dibenzenacyclohexaphane,
 12-bromo-1,4(1,4)-dibenzenacyclohexaphane, 2,4,6-trioxa-1,7(1),3,5(1,4)-tetrabenzenaheptaphane (P-26, P-52.2.5.1)."""
 
+from itertools import combinations
+
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, multiplied_word
@@ -10,14 +12,33 @@ from ._multiplicative_groups import SUFFIX_RANKS
 from ._numerals import multiplying_prefix, numerical_term
 from ._substituents import format_substituent_prefixes, name_branch
 
+_KIND_RANK = {"pyridine": 0, "naphthalene": 1, "benzene": 2}
+_AMPLIFICATION = {"pyridine": "pyridina", "naphthalene": "naphthalena", "benzene": "benzena"}
 _PREFIX = {8: "oxa", 16: "thia", 34: "selena", 52: "tellura", 7: "aza", 14: "sila", 15: "phospha", 33: "arsa", 32: "germa", 5: "bora"}
+
+
+class AmpLoc(int):
+    """Locant of an amplificant atom in its own numbering: 1..8 or, for a fusion atom, '4a'."""
+
+    def __new__(cls, text):
+        digits = str(text).rstrip("abcdefgh")
+        letter = str(text)[len(digits):]
+        obj = super().__new__(cls, int(digits) * 10 + (ord(letter) - 96 if letter else 0))
+        obj.text = str(text)
+        return obj
+
+    def __str__(self):
+        return self.text
+
+    __repr__ = __str__
+    __format__ = lambda self, spec: self.text
 
 
 class PhaneLoc(int):
     """Locant of a phane skeleton atom or, with `local`, of an amplificant atom (primary 1, local 4 -> '14')."""
 
     def __new__(cls, primary, local=0):
-        obj = super().__new__(cls, primary * 1000 + local)
+        obj = super().__new__(cls, primary * 1000 + int(local))
         obj.primary, obj.local = primary, local
         return obj
 
@@ -28,12 +49,30 @@ class PhaneLoc(int):
     __format__ = lambda self, spec: str(self)
 
 
+def _free_atoms(free_atom):
+    if free_atom is None:
+        return ()
+    return tuple(free_atom) if isinstance(free_atom, (tuple, list)) else (free_atom,)
+
+
 def _amplificants(mol, free_atom=None, free_order=1):
     """[(ring, kind, added atom)] for the isolated six-membered benzene or pyridine rings; a ring entered by an
     ylidene bond is a ring with one sp3 'added hydrogen' atom (P-29.3.4.1)."""
     info = mol.GetRingInfo()
     found = []
+    rings_of_mol = [set(r) for r in info.AtomRings()]
+    for first, second in combinations(range(len(rings_of_mol)), 2):
+        a, b = rings_of_mol[first], rings_of_mol[second]
+        if len(a) == 6 and len(b) == 6 and len(a & b) == 2 and not any(
+            other & (a | b) for k, other in enumerate(rings_of_mol) if k not in (first, second) and len(other) <= 7
+        ):
+            atoms = sorted(a | b)
+            if all(mol.GetAtomWithIdx(i).GetAtomicNum() == 6 and mol.GetAtomWithIdx(i).GetIsAromatic() for i in atoms):
+                found.append((atoms, "naphthalene", None))
+    in_naphthalene = {i for atoms, _, _ in found for i in atoms}
     for ring in info.AtomRings():
+        if set(ring) & in_naphthalene:
+            continue
         if len(ring) != 6 or any(set(ring) & set(other) for other in info.AtomRings() if other != ring and len(other) <= 7):
             continue
         atoms = [mol.GetAtomWithIdx(a) for a in ring]
@@ -45,7 +84,7 @@ def _amplificants(mol, free_atom=None, free_order=1):
             found.append((list(ring), kind, None))
             continue
         if free_order != 2 or free_atom not in ring:
-            continue
+            continue  # an added-hydrogen amplificant exists only for a single ylidene group
         ring_set = set(ring)
         doubles = sum(
             1 for b in mol.GetBonds() if b.GetBeginAtomIdx() in ring_set and b.GetEndAtomIdx() in ring_set and b.GetBondTypeAsDouble() == 2.0
@@ -180,10 +219,10 @@ def find_phane(mol, free_atom=None, free_order=1, ignore=frozenset()):
         return None
     amplificants = _amplificants(mol, free_atom, free_order)
     rings = [r for r, _, _ in amplificants]
-    if len(rings) < 2 or len({k for _, k, _ in amplificants}) != 1:
+    if len(rings) < 2:
         return None
     ring_atoms = {a for ring in rings for a in ring}
-    if len(ring_atoms) != 6 * len(rings):
+    if len(ring_atoms) != sum(len(ring) for ring in rings):
         return None
     ring_of = {a: i for i, ring in enumerate(rings) for a in ring}
     graph = adjacency(mol)
@@ -237,6 +276,8 @@ def find_phane(mol, free_atom=None, free_order=1, ignore=frozenset()):
     if cyclic:
         for index, ring in enumerate(rings):
             attached = [a for ra, a, _, _, rb in bridges if ra == index] + [b for ra, _, _, b, rb in bridges if rb == index]
+            if len(ring) != 6:
+                continue
             cycle = _ring_order(graph, ring)
             gap = abs(cycle.index(attached[0]) - cycle.index(attached[1]))
             if min(gap, 6 - gap) < 2:
@@ -277,24 +318,51 @@ def _walks(rings, bridges, cyclic):
     return results
 
 
-def _ring_numbering(
-    graph, ring, attachments, lower_attachment, substituent_atoms, free_atom=None, nitrogen=None, added=None, suffix_atoms=()
-):
-    """Best local numbering of a benzene amplificant: {atom: local locant} and the attachment locants cited."""
+def _local_numberings(mol, graph, ring, nitrogen, kind):
+    """Every numbering of an amplificant by the rules of its own parent hydride: {atom: AmpLoc}."""
+    if kind == "naphthalene":
+        from ._fusion_numbering_hex import hex_numberings
+
+        atoms = sorted(ring)
+        editable = Chem.RWMol(mol)
+        for index in sorted(set(range(mol.GetNumAtoms())) - set(atoms), reverse=True):
+            editable.RemoveAtom(index)
+        fragment = editable.GetMol()
+        Chem.SanitizeMol(fragment)
+        return [{atoms[i]: AmpLoc(text) for i, text in numbering.items()} for numbering in hex_numberings(fragment)]
     cycle = _ring_order(graph, ring)
-    best = None
     starts = [cycle.index(nitrogen)] if nitrogen is not None else range(6)
-    for start in starts:
-        for step in (1, -1):
-            order = [cycle[(start + step * k) % 6] for k in range(6)]
-            local = {a: i + 1 for i, a in enumerate(order)}
-            att = sorted(local[a] for a in attachments)
-            subs = sorted(local[a] for a in substituent_atoms)
-            adjacency_rule = 0 if lower_attachment is None or len(attachments) < 2 or local[lower_attachment] < min(local[a] for a in attachments if a != lower_attachment) else 1
-            free = [local[free_atom]] if free_atom in local else []
-            key = (att, sorted(local[a] for a in suffix_atoms), free, [local[added]] if added is not None else [], subs, adjacency_rule)
-            if best is None or key < best[0]:
-                best = (key, local)
+    return [
+        {a: AmpLoc(i + 1) for i, a in enumerate([cycle[(start + step * k) % 6] for k in range(6)])}
+        for start in starts
+        for step in (1, -1)
+    ]
+
+
+def _ring_numbering(
+    graph,
+    ring,
+    attachments,
+    lower_attachment,
+    substituent_atoms,
+    free_atom=None,
+    nitrogen=None,
+    added=None,
+    suffix_atoms=(),
+    kind="benzene",
+    mol=None,
+):
+    """Best local numbering of an amplificant: {atom: local locant}, lowest attachment locants first, the lower one
+    adjacent to the lower locant of the phane skeleton (P-26.4.1.2, P-26.4.1.4, P-26.4.2.1)."""
+    best = None
+    for local in _local_numberings(mol, graph, ring, nitrogen, kind):
+        att = sorted(local[a] for a in attachments)
+        subs = sorted(local[a] for a in substituent_atoms)
+        adjacency_rule = 0 if lower_attachment is None or len(attachments) < 2 or local[lower_attachment] < min(local[a] for a in attachments if a != lower_attachment) else 1
+        free = sorted(local[a] for a in _free_atoms(free_atom) if a in local)
+        key = (att, sorted(local[a] for a in suffix_atoms), free, [local[added]] if added is not None else [], subs, adjacency_rule)
+        if best is None or key < best[0]:
+            best = (key, local)
     return best[1]
 
 
@@ -312,7 +380,7 @@ def _evaluate(
             ring_position[node[1]] = index + 1
     ring_sub_atoms = {i: [] for i in range(len(rings))}
     chain_subs = []
-    free_loc = None
+    free_locs = []
     added_loc = None
     ring_of = {a: i for i, ring in enumerate(rings) for a in ring}
     for owner, root, _ in branches:
@@ -346,17 +414,17 @@ def _evaluate(
             nitrogen,
             added,
             [a for a, r in ring_sub_atoms[ring_index] if r in suffix_roots],
+            kind,
+            mol,
         )
         locals_by_ring[ring_index] = local
         if added is not None:
             added_loc = PhaneLoc(index + 1, local[added])
         attachment_text[index + 1] = tuple(sorted(local[a] for a in attachments))
-        if free_atom in local:
-            free_loc = PhaneLoc(index + 1, local[free_atom])
+        free_locs.extend(PhaneLoc(index + 1, local[a]) for a in _free_atoms(free_atom) if a in local)
         for owner, root in ring_sub_atoms[ring_index]:
             composite.append((PhaneLoc(index + 1, local[owner]), owner, root))
-    if free_atom in position:
-        free_loc = PhaneLoc(position[free_atom])
+    free_locs.extend(PhaneLoc(position[a]) for a in _free_atoms(free_atom) if a in position)
     chain_locs = [(PhaneLoc(p), owner, root) for p, owner, root in chain_subs]
     all_subs = composite + chain_locs
     hetero = sorted(
@@ -365,18 +433,20 @@ def _evaluate(
         if node[0] == "atom" and mol.GetAtomWithIdx(node[1]).GetAtomicNum() != 6
     )
     superatoms = sorted(ring_position.values())
+    ring_at = {position: ring for ring, position in ring_position.items()}
     key = (
         superatoms,
+        [_KIND_RANK[amplificants[ring_at[p]][1]] for p in superatoms],
         sorted(p for _, p in hetero),
         [p for _, p in sorted(hetero)],
         [attachment_text[p] for p in superatoms],
         sorted(int(loc) for loc, _, root in all_subs if root in suffix_roots),
-        [(free_loc.primary, int(free_loc))] if free_atom is not None else [],
+        sorted((loc.primary, int(loc)) for loc in free_locs),
         [int(added_loc)] if added_loc is not None else [],
         sorted(loc.primary for loc, _, _ in all_subs),
         sorted(int(loc) for loc, _, _ in all_subs),
     )
-    return key, attachment_text, all_subs, (free_loc if free_atom is not None else None), added_loc
+    return key, attachment_text, all_subs, (sorted(free_locs, key=int) if free_atom is not None else None), added_loc
 
 
 def name_phane_general(mol, free_atom=None, free_order=1, ignore=frozenset()):
@@ -391,6 +461,7 @@ def name_phane_general(mol, free_atom=None, free_order=1, ignore=frozenset()):
     best = None
     amplificants = _amplificants(mol, free_atom, free_order)
     suffix_class, suffix_roots = _principal_suffix(mol, branches) if free_atom is None else (None, frozenset())
+    valence = len(_free_atoms(free_atom))
     for nodes in _walks(rings, bridges, cyclic):
         key, attachment_text, subs, free_loc, added_loc = _evaluate(
             mol, graph, rings, bridges, branches, nodes, cyclic, halogens, free_atom, amplificants, suffix_roots
@@ -409,13 +480,22 @@ def name_phane_general(mol, free_atom=None, free_order=1, ignore=frozenset()):
         grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(loc)
     prefix = format_substituent_prefixes(grouped) if grouped else ""
 
-    patterns = {}
-    for position, att in attachment_text.items():
-        patterns.setdefault(att, []).append(position)
-    groups = ",".join(
-        f"{','.join(map(str, sorted(locs)))}({','.join(map(str, att))})"
-        for att, locs in sorted(patterns.items(), key=lambda kv: kv[0])
-    )
+    kind_at = {}
+    for index, node in enumerate(nodes):
+        if node[0] == "ring":
+            kind_at[index + 1] = amplificants[node[1]][1]
+    amplification = []
+    for kind in sorted(set(kind_at.values()), key=_KIND_RANK.get):
+        patterns = {}
+        for position, att in attachment_text.items():
+            if kind_at[position] == kind:
+                patterns.setdefault(att, []).append(position)
+        groups = ",".join(
+            f"{','.join(map(str, sorted(locs)))}({','.join(map(str, att))})"
+            for att, locs in sorted(patterns.items(), key=lambda kv: min(kv[1]))
+        )
+        amount = sum(len(v) for v in patterns.values())
+        amplification.append(f"{groups}-{multiplying_prefix(amount) if amount > 1 else ''}{_AMPLIFICATION[kind]}")
     hetero_text = {}
     for index, node in enumerate(nodes):
         if node[0] == "atom":
@@ -428,13 +508,13 @@ def name_phane_general(mol, free_atom=None, free_order=1, ignore=frozenset()):
         f"{','.join(map(str, locs))}-{multiplying_prefix(len(locs)) if len(locs) > 1 else ''}{_PREFIX[z]}"
         for z, locs in sorted(hetero_text.items(), key=lambda kv: _HETERO_RANK[Chem.GetPeriodicTable().GetElementSymbol(kv[0])])
     )
-    count = sum(len(v) for v in patterns.values())
-    amplificant = f"{multiplying_prefix(count)}{'pyridina' if amplificants[0][1] == 'pyridine' else 'benzena'}"
     parent = (f"cyclo{numerical_term(size)}" if cyclic else numerical_term(size)) + "phane"
-    core = (replacement + "-" if replacement else "") + f"{groups}-{amplificant}{parent}"
+    core = (replacement + "-" if replacement else "") + "-".join(amplification) + parent
     if free_loc is not None:
         added_text = f"({added_loc}H)" if added_loc is not None else ""
-        core = f"{core[:-1]}-{free_loc}{added_text}-{'ylidene' if free_order == 2 else 'yl'}"
+        word = "ylidene" if free_order == 2 else multiplied_word(valence, "yl")
+        stem = core[:-1] if word[0] in "aeiouy" else core
+        core = f"{stem}-{','.join(str(loc) for loc in free_loc)}{added_text}-{word}"
     if suffix_locs:
         word = multiplied_word(len(suffix_locs), _SUFFIX_WORDS[suffix_class])
         stem = core[:-1] if word[0] in "aeiouy" else core
@@ -470,3 +550,30 @@ def phane_substituent(mol, graph, root, coming_from):
     if not cyclic and (len(rings) < 4 or len(_walks(rings, bridges, cyclic)[0]) < 7):
         return None
     return name_phane_general(fragment, free_atom, int(order), ignore), True
+
+
+def phane_diyl_name(mol, skeleton_atoms, free_atoms, blocked):
+    """Name of the phane made of `skeleton_atoms` (plus the substituents hanging on it) with a free valence at each of
+    `free_atoms` (P-29.3.6, P-29.2); `blocked` are the atoms of the units joined through those valences. None when
+    the skeleton is not a supported phane."""
+    keep = set(skeleton_atoms)
+    graph = adjacency(mol)
+    stack = list(keep)
+    while stack:
+        for n in graph[stack.pop()]:
+            if n not in keep and n not in blocked:
+                keep.add(n)
+                stack.append(n)
+    editable = Chem.RWMol(mol)
+    for index in sorted(set(range(mol.GetNumAtoms())) - keep, reverse=True):
+        editable.RemoveAtom(index)
+    kept = sorted(keep)
+    fragment = editable.GetMol()
+    try:
+        Chem.SanitizeMol(fragment)
+    except Exception:
+        return None
+    free = tuple(kept.index(a) for a in free_atoms)
+    if find_phane(fragment, free, 1) is None:
+        return None
+    return name_phane_general(fragment, free, 1)

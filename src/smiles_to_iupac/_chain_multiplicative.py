@@ -14,8 +14,8 @@ from ._multiplicative_linker import DecompositionRejected, name_component
 from ._multiplicative_text import enclose, multiplier_word, unit_phrase
 from ._substituents import name_branch
 
-_LINKER_ELEMENTS = {5, 7, 8, 14, 15, 16, 32, 33, 34, 52}
-_RUN_ELEMENTS = {8, 16, 34, 52, 14}
+_LINKER_ELEMENTS = {5, 7, 8, 14, 15, 16, 32, 33, 34, 50, 51, 52, 82, 83}
+_RUN_ELEMENTS = {7, 8, 14, 15, 16, 32, 33, 34, 50, 51, 52, 82, 83}
 _MAX_UNITS = 6
 _SUBSTITUTED_PREFIX = re.compile(r"(?:carboxy|hydroxy|amino|chloro|bromo|fluoro|iodo|cyano|oxo|nitro|sulfanyl|methoxy|ethoxy)[a-z]+")
 _SKELETAL_UNITS = 4
@@ -45,7 +45,8 @@ def _is_linker_atom(mol, atom):
         return False
     for bond in atom.GetBonds():
         other = bond.GetOtherAtom(atom)
-        if bond.GetBondTypeAsDouble() != 1.0:
+        azo = atom.GetAtomicNum() == 7 and other.GetAtomicNum() == 7 and bond.GetBondTypeAsDouble() == 2.0
+        if bond.GetBondTypeAsDouble() != 1.0 and not azo:
             return False
         if other.GetAtomicNum() == 6 and is_functional_carbon(mol, other.GetIdx()):
             return False

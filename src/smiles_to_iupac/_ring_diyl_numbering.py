@@ -10,6 +10,7 @@ from itertools import combinations
 from rdkit import Chem
 
 from . import _aromatic
+from ._free_valence import valence_word
 from ._bicyclic import bicyclic_parent_name, find_bicyclic_core, iter_bicyclic_numberings
 from ._common import (
     UnsupportedStructure,
@@ -18,6 +19,7 @@ from ._common import (
 )
 from ._fusion_numbering_hex import hex_numberings
 from ._fusion_numbering_general import general_peripheral_numberings
+from ._fusion_numbering_oriented import oriented_peripheral_numberings
 from ._hetero_monocyclic import (
     _ROLE_SEQUENCES,
     saturated_five_membered_1_2_two_heteroatom_ring_name,
@@ -110,7 +112,7 @@ def _walks(ring_order):
 
 
 def _yl(valence):
-    return f"{multiplying_prefix(valence) if valence > 1 else ''}yl"
+    return valence_word(valence)
 
 
 def _tail(stem, locants, valence, suffix="yl"):
@@ -146,6 +148,11 @@ _RETAINED_NUMBERINGS = {
     "acridine": (("1", "2", "3", "4", "4a", "10", "10a", "5", "6", "7", "8", "8a", "9", "9a"), {"10": "N"}, (("4a", "9a"), ("10a", "8a"))),
     "xanthene": (("1", "2", "3", "4", "4a", "10", "10a", "5", "6", "7", "8", "8a", "9", "9a"), {"10": "O"}, (("4a", "9a"), ("10a", "8a"))),
     "thioxanthene": (("1", "2", "3", "4", "4a", "10", "10a", "5", "6", "7", "8", "8a", "9", "9a"), {"10": "S"}, (("4a", "9a"), ("10a", "8a"))),
+    "cyclopenta[a]phenanthrene": (
+        ("1", "2", "3", "4", "5", "6", "7", "8", "14", "15", "16", "17", "13", "12", "11", "9", "10"),
+        {},
+        (("5", "10"), ("8", "9"), ("13", "14")),
+    ),
     "purine": (("1", "2", "3", "4", "5", "6", "7", "8", "9"), {"1": "N", "3": "N", "7": "N", "9": "N"}, (("4", "5"),)),
     "fluoranthene": (
         ("1", "2", "3", "3a", "4", "5", "6", "6a", "6b", "7", "8", "9", "10", "10a", "10b", "3a1"),
@@ -416,8 +423,26 @@ def _saturated_name(elements, hetero):
     if stem is None:
         stem = _hantzsch_widman(elements, saturated=True)
     if stem is None:
+        stem = _replacement_cycloalkane_name(elements)
+    if stem is None:
         raise UnsupportedStructure("this saturated heteromonocycle has no supported name as a diyl yet")
     return _with_hetero_locants(stem, elements, hetero) if stem[0].isalpha() else stem
+
+
+def _replacement_cycloalkane_name(elements):
+    """Skeletal replacement name of a saturated ring with no Hantzsch-Widman name (P-22.2.3)."""
+    by_element = {}
+    for position, element in enumerate(elements, start=1):
+        if element != "C":
+            by_element.setdefault(element, []).append(position)
+    if not by_element or any(e not in _PREFIX for e in by_element):
+        return None
+    pieces = []
+    for element in sorted(by_element, key=lambda e: _RANK[e]):
+        locants = by_element[element]
+        mult = "" if len(locants) == 1 else multiplying_prefix(len(locants))
+        pieces.append(f"{','.join(map(str, locants))}-{mult}{_PREFIX[element]}")
+    return "-".join(pieces) + "cyclo" + alkane_name(len(elements))
 
 
 _RETAINED_WITHOUT_LOCANTS = {"piperazine", "morpholine", "thiomorpholine", "imidazolidine", "pyrazolidine"}
@@ -572,7 +597,7 @@ def _named_mancude(mol, skeleton_atoms, sp3):
             parent = smiles_to_iupac(Chem.MolToSmiles(bare))
         except UnsupportedStructure:
             continue
-        if not re.search(r"cyclo\[|spiro\[|\d-hydro|\d-(?:di|tri|tetra|penta|hexa)?ene$", parent):
+        if not re.search(r"cyclo\[|spiro\[|\d-hydro|\d-(?:di|tri|tetra|penta|hexa|hepta|octa|nona|deca)?ene$", parent):
             return bare, old_of, parent
     raise UnsupportedStructure("the mancude parent of this ring system has no fusion name")
 
@@ -760,13 +785,21 @@ def _fused_mancude(mol, skeleton_atoms):
     stem = match.group(2) if match else parent
     if stem in _RETAINED_NUMBERINGS:
         numberings = _retained_numberings(bare, stem)
+    elif stem == "cyclopenta[a]phenanthrene" and not any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in skeleton_atoms):
+        raise UnsupportedStructure("a saturated cyclopenta[a]phenanthrene skeleton is a steroid parent hydride (P-101), not a hydro fusion name")
     elif parent in _LACKS_REGULAR_NUMBERING:
         raise UnsupportedStructure("this fused parent has a retained non-peripheral numbering not supported yet")
     else:
         all_six = all(len(r) == 6 for r in bare.GetRingInfo().AtomRings())
-        if not all_six and bare.GetRingInfo().NumRings() > 3:
-            raise UnsupportedStructure("the numbering of this larger fused system with a five- or seven-membered ring is not verified")
-        numberings = hex_numberings(bare) if all_six else general_peripheral_numberings(bare, ignore_indicated=True)
+        if all_six:
+            numberings = hex_numberings(bare)
+        else:
+            try:
+                numberings = oriented_peripheral_numberings(bare, ignore_indicated=True)
+            except UnsupportedStructure:
+                if bare.GetRingInfo().NumRings() > 3:
+                    raise UnsupportedStructure("the numbering of this larger fused system with a peri-fused or other-sized ring is not verified")
+                numberings = general_peripheral_numberings(bare, ignore_indicated=True)
     if not numberings:
         raise UnsupportedStructure("this fused skeleton has no supported peripheral numbering as a diyl yet")
     adj, can_hold = _ring_graph(mol, skeleton_atoms)

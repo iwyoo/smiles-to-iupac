@@ -796,9 +796,8 @@ def test_unsaturated_chain_raises():
         smiles_to_iupac("C=CC=N")
 
 
-def test_amine_hetero_mix_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC=N")
+def test_imine_with_a_senior_alcohol_is_an_imino_prefix():
+    assert smiles_to_iupac("OCC=N") == "2-iminoethanol"
 
 
 def test_branched_oxime_o_substituent_raises():

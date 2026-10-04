@@ -458,11 +458,8 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
     if (
         center.GetFormalCharge()
         or center.GetIsotope()
-        or len(neighbors) > valence
-        or any(
-            mol.GetAtomWithIdx(n).GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(index, n).GetBondTypeAsDouble() != 1.0
-            for n in neighbors
-        )
+        or sum(mol.GetBondBetweenAtoms(index, n).GetBondTypeAsDouble() for n in neighbors) > valence
+        or any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in neighbors)
     ):
         return None
     entries = [name_branch(graph, n, index, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in neighbors]
@@ -874,14 +871,23 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
     return count, ((-count,), name, (None, None, None, 0, {a: PrimedLocant(*loc) for a, loc in locants.items()}, True))
 
 
+_CYCLOPENTA_A_PHENANTHRENE = Chem.MolFromSmarts(
+    "[#6]1~[#6]~[#6]~[#6]2~[#6](~[#6]~1)~[#6]~[#6]~[#6]1~[#6]~2~[#6]~[#6]~[#6]2~[#6]~[#6]~[#6]~[#6]~1~2"
+)
+
+
 def _require_mancude_system(mol, atoms):
     """Only fully aromatic fused systems (arenes, mancude heterocycles): partly
     hydrogenated, bridged and spiro systems need hydro/von Baeyer names. Beyond three rings only
     all-six-membered systems and peri-fused ones with a retained numbering are verified."""
     if not any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms) and not is_hydro_fusion_system(mol, atoms):
         raise UnsupportedStructure("a saturated, bridged or spiro ring system is not handled by the chain engine")
+    if not any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms) and any(
+        set(match) == set(atoms) for match in mol.GetSubstructMatches(_CYCLOPENTA_A_PHENANTHRENE)
+    ):
+        raise UnsupportedStructure("a saturated cyclopenta[a]phenanthrene skeleton is a steroid parent hydride (P-101), not a hydro fusion name")
     member_rings = [r for r in mol.GetRingInfo().AtomRings() if set(r) <= set(atoms)]
-    if len(member_rings) > 3 and any(len(r) != 6 for r in member_rings):
+    if len(member_rings) > 3 and any(len(r) not in (5, 6, 7) for r in member_rings):
         if not any(sum(a in r for r in member_rings) > 2 for a in atoms):
             raise UnsupportedStructure("the numbering of this larger fused system is not verified here")
 
@@ -980,9 +986,13 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
         for n in mol.GetAtomWithIdx(r).GetNeighbors()
         if n.GetIdx() not in ring_set and n.GetIdx() not in owned
     ]
+    from ._diester_ring_diyl import _system_of
+
     for _, n in roots:
-        neighbor_ring = next((set(r) for r in ring_info.AtomRings() if n in r and not set(r) & ring_set), None)
-        if neighbor_ring is not None and _bare_key(mol, neighbor_ring) == _bare_key(mol, ring_set):
+        neighbor_system = _system_of(mol, n)
+        if neighbor_system is None or neighbor_system[1] & ring_set:
+            continue
+        if _bare_key(mol, neighbor_system[1]) == _bare_key(mol, ring_set):
             raise UnsupportedStructure("identical rings joined directly form a ring assembly (P-28)")
     entries = [
         (r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots
@@ -1292,6 +1302,10 @@ def _composite_linker_name(mol, graph, stereo):
     return None
 
 
+def _is_phane_candidate(mol, ring_set):
+    return len(ring_set) > 12 and any(len(r) == 6 and set(r) <= ring_set for r in mol.GetRingInfo().AtomRings())
+
+
 def _ring_linker_name(mol, graph, stereo):
     """Two identical chain parents on one monocycle: 2,2'-(1,4-phenylene)di(ethan-1-ol)."""
     from ._multiplicative import _ring_systems
@@ -1305,7 +1319,8 @@ def _ring_linker_name(mol, graph, stereo):
             try:
                 _require_mancude_system(mol, ring_set)
             except UnsupportedStructure:
-                continue
+                if not _is_phane_candidate(mol, ring_set):
+                    continue
         ring = member_rings[0]
         attachments = [
             (r, n.GetIdx())
@@ -1346,6 +1361,11 @@ def _ring_linker_name(mol, graph, stereo):
             except UnsupportedStructure:
                 found = None
             linker = (found[1], False) if found else None
+            if linker is None:
+                from ._phane_general import phane_diyl_name
+
+                phane = phane_diyl_name(mol, ring_set, [r for r, _ in attachments], arms[0] | arms[1])
+                linker = (phane, True) if phane else None
         if linker is None:
             continue
         if stereo:
