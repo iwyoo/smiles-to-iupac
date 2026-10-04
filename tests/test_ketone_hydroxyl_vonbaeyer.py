@@ -31,8 +31,5 @@ def test_plain_von_baeyer_ketone_without_hydroxyl_still_resolves():
     assert smiles_to_iupac("O=C1CC2CCC1CC2") == "bicyclo[2.2.2]octan-2-one"
 
 
-def test_unsaturated_ring_alongside_hydroxyl_still_raises():
-    # Testosterone's own ring unsaturation (androst-4-ene) is a separate,
-    # still out-of-scope gate -- a coexisting hydroxyl doesn't bypass it.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC12CCC3C(C1CCC2O)CCC4=CC(=O)CCC34")
+def test_unsaturated_ring_alongside_hydroxyl_is_named():
+    assert smiles_to_iupac("CC12CCC3C(C1CCC2O)CCC4=CC(=O)CCC34") == "17-hydroxyestr-4-en-3-one"

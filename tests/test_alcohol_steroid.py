@@ -13,7 +13,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         # the hydroxyl at C3.
         (
             "C[C@@]12CCC[C@H]1[C@@H]3CC[C@H]4C[C@H](CC[C@@]4([C@H]3CC2)C)O",
-            "androstan-3-ol",
+            "5α-androstan-3β-ol",
         ),
         # PubChem CID 449196, 5alpha-androstan-3alpha-ol -- same skeleton
         # and locant, opposite configuration at the hydroxyl carbon itself
@@ -22,19 +22,19 @@ from smiles_to_iupac._common import UnsupportedStructure
         # stereodescriptors yet).
         (
             "C[C@@]12CCC[C@H]1[C@@H]3CC[C@H]4C[C@@H](CC[C@@]4([C@H]3CC2)C)O",
-            "androstan-3-ol",
+            "5α-androstan-3α-ol",
         ),
         # PubChem CID 235071, 5alpha-androstan-17beta-ol -- hydroxyl at
         # the non-fusion D-ring position instead.
         (
             "C[C@]12CCCC[C@@H]1CC[C@@H]3[C@@H]2CC[C@]4([C@H]3CC[C@@H]4O)C",
-            "androstan-17-ol",
+            "5α-androstan-17β-ol",
         ),
         # PubChem CID 6665, 5alpha-cholestan-3beta-ol -- cholestane
         # skeleton (longest recognized side chain).
         (
             "C[C@H](CCCC(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@@H]4[C@@]3(CC[C@@H](C4)O)C)C",
-            "cholestan-3-ol",
+            "5α-cholestan-3β-ol",
         ),
         # Unspecified stereochemistry is also accepted -- the steroid check
         # runs before the specified-stereocenter gate, but doesn't require
