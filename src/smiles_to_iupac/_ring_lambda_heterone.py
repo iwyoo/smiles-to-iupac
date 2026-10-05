@@ -1,4 +1,4 @@
-"""Naming of saturated monocycles whose ring chalcogen atoms (S/Se/Te) carry
+"""Naming of saturated or mancude monocycles whose ring chalcogen atoms (S/Se/Te) carry
 doubly bonded chalcogen atoms (ring sulfoxides, sulfones, sultines, sultones),
 per the IUPAC 2013 Recommendations ("the Blue Book"):
 
@@ -7,10 +7,15 @@ per the IUPAC 2013 Recommendations ("the Blue Book"):
   λ4/λ6 (P-14.1.3), e.g. 'thiolane 1,1-dioxide' -> '1λ6-thiolane-1,1-dione'.
   P-65.6.3.5.2 gives the same construction for sultones and sultines
   ('1,2λ6-oxathiolane-2,2-dione', '1,2λ4-oxathiolane-2-thione').
-- P-22.2.2.1: the saturated ring is a Hantzsch-Widman name built from the
-  prefixes 'oxa'/'thia'/'selena'/'tellura' (decreasing seniority, multiplied,
-  final 'a' elided before a vowel) and the 6A ring-size endings; the λ
-  number is written directly after the locant of its atom.
+- P-22.2.2.1: the ring is a Hantzsch-Widman name built from the prefixes
+  'oxa'/'thia'/'selena'/'tellura'/'aza' (decreasing seniority, multiplied,
+  final 'a' elided before a vowel) and the ring-size endings; the λ number is
+  written directly after the locant of its atom.
+- P-22.2.7.1, P-74.2.2.1.8: in a mancude ring the λ atom is a saturated atom,
+  so its locant is also the indicated hydrogen ('1H-1λ4-thiophen-1-one',
+  '1H-1λ6-thiophene-1,1-dione'). Only rings whose every other carbon/nitrogen
+  atom takes part in a ring double bond are handled; thiophene, selenophene
+  and tellurophene are the retained names (P-22.2.1).
 - Numbering: lowest locants to all heteroatoms, then to O before S before
   Se before Te (P-31.1.4.2.4), then to the atoms with nonstandard bonding
   numbers, the higher number first on a tie (P-44.4.1.3.2), then to the
@@ -36,9 +41,12 @@ from ._substituents import format_substituent_prefixes, name_branch
 
 _RING_HETERO = {8: "O", 16: "S", 34: "Se", 52: "Te"}
 _LAMBDA_HETERO = {16, 34, 52}
-_SENIORITY = ("O", "S", "Se", "Te")
-_RING_PREFIX = {"O": "oxa", "S": "thia", "Se": "selena", "Te": "tellura"}
+_CHALCOGENS = {8, 16, 34, 52}
+_SENIORITY = ("O", "S", "Se", "Te", "N")
+_RING_PREFIX = {"O": "oxa", "S": "thia", "Se": "selena", "Te": "tellura", "N": "aza"}
 _STEM_ENDING = {3: "irane", 4: "etane", 5: "olane", 6: "ane", 7: "epane", 8: "ocane", 9: "onane", 10: "ecane"}
+_MANCUDE_ENDING = {3: "irene", 4: "ete", 5: "ole", 6: "ine", 7: "epine", 8: "ocine", 9: "onine", 10: "ecine"}
+_RETAINED = {"S": "thiophene", "Se": "selenophene", "Te": "tellurophene"}
 _SUFFIX = {"O": "one", "S": "thione", "Se": "selone", "Te": "tellone"}
 _PREFIX = {"O": "oxo", "S": "sulfanylidene", "Se": "selanylidene", "Te": "tellanylidene"}
 
@@ -50,7 +58,7 @@ def _exocyclic_chalcogens(mol, atom_idx, ring_set):
         other = bond.GetOtherAtom(mol.GetAtomWithIdx(atom_idx))
         if other.GetIdx() in ring_set or bond.GetBondTypeAsDouble() != 2.0:
             continue
-        if other.GetAtomicNum() in _RING_HETERO and other.GetDegree() == 1 and other.GetFormalCharge() == 0:
+        if other.GetAtomicNum() in _CHALCOGENS and other.GetDegree() == 1 and other.GetFormalCharge() == 0:
             found.append(other.GetIdx())
     return found
 
@@ -66,6 +74,15 @@ def _match(mol):
         return None
     ring_atoms = list(ring_info.AtomRings()[0])
     ring_set = set(ring_atoms)
+    ring_double = {
+        i: sum(
+            1
+            for b in mol.GetAtomWithIdx(i).GetBonds()
+            if b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtomIdx(i) in ring_set
+        )
+        for i in ring_atoms
+    }
+    mancude = any(ring_double.values())
     ring_hetero = {}
     exo_chalcogens = {}
     roots = {}
@@ -77,13 +94,21 @@ def _match(mol):
         exo = [n for n in graph[idx] if n not in ring_set]
         if atom.GetAtomicNum() == 6:
             terminal = _exocyclic_chalcogens(mol, idx, ring_set)
+            if mancude and (terminal or ring_double[idx] != 1):
+                return None
             if terminal and len(exo) != 1:
                 return None
             if terminal:
                 exo_chalcogens[idx] = terminal
             else:
                 roots[idx] = exo
+        elif atom.GetAtomicNum() == 7 and mancude:
+            if ring_double[idx] != 1 or exo or atom.GetTotalNumHs() != 0:
+                return None
+            ring_hetero[idx] = "N"
         elif atom.GetAtomicNum() in _RING_HETERO:
+            if ring_double[idx]:
+                return None
             ring_hetero[idx] = _RING_HETERO[atom.GetAtomicNum()]
             terminal = _exocyclic_chalcogens(mol, idx, ring_set)
             if len(terminal) != len(exo) or (terminal and atom.GetAtomicNum() not in _LAMBDA_HETERO):
@@ -97,7 +122,7 @@ def _match(mol):
     for i in range(len(ring_atoms)):
         a, b = ring_atoms[i], ring_atoms[(i + 1) % len(ring_atoms)]
         bond = mol.GetBondBetweenAtoms(a, b)
-        if bond is not None and bond.GetBondTypeAsDouble() != 1.0:
+        if bond is not None and not mancude and bond.GetBondTypeAsDouble() != 1.0:
             return None
     exo_atoms = {x for xs in exo_chalcogens.values() for x in xs}
     for atom in mol.GetAtoms():
@@ -108,7 +133,9 @@ def _match(mol):
     if any(
         b.GetBondTypeAsDouble() != 1.0
         for b in mol.GetBonds()
-        if b.GetBeginAtomIdx() not in exo_atoms and b.GetEndAtomIdx() not in exo_atoms
+        if b.GetBeginAtomIdx() not in exo_atoms
+        and b.GetEndAtomIdx() not in exo_atoms
+        and not (mancude and b.IsInRing())
     ):
         return None
     return ring_cycle(graph, ring_atoms), ring_hetero, exo_chalcogens, roots
@@ -118,12 +145,17 @@ def has_ring_lambda_heterone_shape(mol) -> bool:
     return _match(mol) is not None
 
 
-def _stem(elements, size):
-    """Saturated Hantzsch-Widman stem (no locants) for the ring heteroatom
-    `elements` on a ring of `size` atoms."""
+def _stem(elements, size, mancude):
+    """Hantzsch-Widman stem (no locants) for the ring heteroatom `elements` on
+    a ring of `size` atoms."""
+    if mancude and len(elements) == 1 and size == 5 and elements[0] in _RETAINED:
+        return _RETAINED[elements[0]]
     counts = {e: elements.count(e) for e in _SENIORITY if e in elements}
-    prefix = "".join((numerical_term(n) if n > 1 else "") + _RING_PREFIX[e] for e, n in counts.items())
-    ending = _STEM_ENDING[size]
+    prefix = ""
+    for e, n in counts.items():
+        term = (numerical_term(n) if n > 1 else "") + _RING_PREFIX[e]
+        prefix = (prefix[:-1] if prefix and term[0] in "aeiou" else prefix) + term
+    ending = (_MANCUDE_ENDING if mancude else _STEM_ENDING)[size]
     return (prefix[:-1] if ending[0] in "aeiou" else prefix) + ending
 
 
@@ -165,7 +197,8 @@ def name_ring_lambda_heterone(mol) -> str:
 
     size = len(ring_order)
     elements_in_order = [ring_hetero[a] for a in ring_order if a in ring_hetero]
-    stem = _stem(elements_in_order, size)
+    mancude = any(b.GetBondTypeAsDouble() == 2.0 and b.IsInRing() for b in mol.GetBonds())
+    stem = _stem(elements_in_order, size, mancude)
 
     best = None
     for base in (ring_order, list(reversed(ring_order))):
@@ -202,6 +235,7 @@ def name_ring_lambda_heterone(mol) -> str:
 
     word = multiplied_word(len(suffix_locants), _SUFFIX[suffix_kind])
     base = stem[:-1] if word[0] in "aeiouy" else stem
-    name = f"{','.join(cited)}-{base}-{','.join(map(str, sorted(suffix_locants)))}-{word}"
+    indicated = f"{','.join(f'{loc}H' for loc in sorted(lam_by_position))}-" if mancude else ""
+    name = f"{indicated}{','.join(cited)}-{base}-{','.join(map(str, sorted(suffix_locants)))}-{word}"
     prefix = format_substituent_prefixes(prefixes)
     return f"{prefix}-{name}" if prefix else name

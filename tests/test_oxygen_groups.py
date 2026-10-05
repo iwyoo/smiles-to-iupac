@@ -522,7 +522,7 @@ def test_thiophosphoric_acid():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("C1=CS(=O)C=C1", "thiophene 1-oxide"),  # PubChem CID 9548690
+        ("C1=CS(=O)C=C1", "1H-1λ4-thiophen-1-one"),  # PubChem CID 9548690 (thiophene 1-oxide)
     ],
 )
 def test_hetero_ring_oxide_resolves(smiles, expected):
