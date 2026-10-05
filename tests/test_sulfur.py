@@ -573,6 +573,10 @@ def test_sulfoxide(smiles, expected):
         ("S=S1OCCC1", "1,2λ4-oxathiolane-2-thione"),
         ("O=S1CCOC1", "1,3λ4-oxathiolan-3-one"),
         ("O=C1CCS(=O)(=O)C1", "1λ6-thiolane-1,1,3-trione"),
+        ("O=S1C=CC=C1", "1H-1λ4-thiophen-1-one"),
+        ("O=S1(=O)C=CC=C1C", "2-methyl-1H-1λ6-thiophene-1,1-dione"),
+        ("O=S1N=CC=C1", "1H-1λ4,2-thiazol-1-one"),
+        ("O=[Se]1C=CC=CC=C1", "1H-1λ4-selenepin-1-one"),
     ],
 )
 def test_ring_chalcogen_with_doubly_bonded_chalcogens_is_a_lambda_heterone(smiles, expected):
@@ -581,7 +585,7 @@ def test_ring_chalcogen_with_doubly_bonded_chalcogens_is_a_lambda_heterone(smile
 
 @pytest.mark.parametrize(
     "smiles,warns",
-    [("O=S1C=CC=C1", True), ("O=S1CCCC1", False)],
+    [("O=S1C=CC=C1", False), ("O=S1CCCC1", False)],
 )
 def test_non_pin_retained_name_cases_warn(smiles, warns):
     import warnings
