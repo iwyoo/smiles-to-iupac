@@ -132,7 +132,10 @@ docstring for the full algorithm and its sourcing/validation.
 84-carbon cage that isn't one of this module's own five hardcoded
 entries.
 
-Explicitly out of scope: any substituent, any heteroatom replacement or
+A substituted C60/C70 cage (as parent with hydro prefixes, or as a group with free valences and added hydrogen,
+P-29.3.4.1, P-6) is named through `_fullerene_numbering.py`; no other substituted cage is.
+
+Explicitly out of scope: any other substituent, any heteroatom replacement or
 cyclopropane fusion other than the two single-site C60 cases above, any
 cage size other than 60/70/76/84, and (even at size 84) any non-IPR
 isomer or isomer not among the 24 in `_fullerene_spiral.py`'s table.
@@ -141,6 +144,9 @@ existing dispatch continues to raise `UnsupportedStructure` for them,
 unchanged.
 """
 
+from functools import lru_cache
+
+import networkx as nx
 from rdkit import Chem
 
 from ._common import UnsupportedStructure
@@ -225,9 +231,39 @@ def has_substituted_fullerene_cage(mol) -> bool:
     return mol.GetNumAtoms() > len(cage) and is_fullerene_cage(mol, cage)
 
 
+def _cage_graph(mol, atoms):
+    atoms = set(atoms)
+    return nx.Graph(
+        (b.GetBeginAtomIdx(), b.GetEndAtomIdx())
+        for b in mol.GetBonds()
+        if b.GetBeginAtomIdx() in atoms and b.GetEndAtomIdx() in atoms
+    )
+
+
+@lru_cache(maxsize=None)
+def _reference_graph(smiles):
+    return _cage_graph(Chem.MolFromSmiles(smiles), range(Chem.MolFromSmiles(smiles).GetNumAtoms()))
+
+
+_NUMBERED_CAGE_STEMS = (
+    (_FULLERENE_C60_SMILES, "(C60-Ih)[5,6]fullerene"),
+    (_FULLERENE_C70_SMILES, "(C70-D5h(6))[5,6]fullerene"),
+)
+
+
+def numbered_cage_stem(mol, atoms):
+    """The substitutive stem of the C60-Ih or C70-D5h(6) cage formed by `atoms`, or None for any other cage."""
+    graph = _cage_graph(mol, atoms)
+    for smiles, stem in _NUMBERED_CAGE_STEMS:
+        reference = _reference_graph(smiles)
+        if graph.number_of_nodes() == reference.number_of_nodes() and nx.is_isomorphic(graph, reference):
+            return stem
+    return None
+
+
 def require_defined_fullerene_numbering(mol, atoms):
-    if is_fullerene_cage(mol, atoms):
+    if is_fullerene_cage(mol, atoms) and numbered_cage_stem(mol, atoms) is None:
         raise UnsupportedStructure(
-            "fullerene locants cannot be derived: P-27.3 states that systematic numbering 'is not yet a fully "
-            "solved issue' and gives it only as figures for the C60-Ih and C70-D5h(6) cages"
+            "fullerene locants cannot be derived: Fu-3.1 states its rules suffice only for the C60-Ih and "
+            "C70-D5h(6) cages and that more rules are needed for other fullerenes"
         )

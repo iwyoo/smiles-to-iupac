@@ -774,18 +774,101 @@ def test_thiol_on_substituent_branch_is_a_prefix():
     assert smiles_to_iupac("SCC1CC2CCC1C2") == "(bicyclo[2.2.1]heptan-2-yl)methanethiol"
 
 
-def test_substituted_fullerene_stops_at_the_numbering_the_blue_book_leaves_open():
-    from rdkit import Chem
-    from smiles_to_iupac._common import UnsupportedStructure
-    from smiles_to_iupac._fullerene import _FULLERENE_C60_SMILES
+def _fullerene_derivative(cage_smiles, sites, numbered=True):
+    """The cage with the atoms at systematic locants `sites` (atom index + 1 when not `numbered`) saturated: a
+    substituent SMILES, None for H, or a charge."""
+    import networkx as nx
+    from smiles_to_iupac._fullerene_numbering import fullerene_numberings
 
-    cage = Chem.MolFromSmiles(_FULLERENE_C60_SMILES)
-    Chem.Kekulize(cage, clearAromaticFlags=True)
-    editable = Chem.RWMol(cage)
-    next(b for b in editable.GetAtomWithIdx(0).GetBonds() if b.GetBondTypeAsDouble() == 2.0).SetBondType(Chem.BondType.SINGLE)
-    carbon = editable.AddAtom(Chem.Atom(6))
-    editable.AddBond(0, carbon, Chem.BondType.SINGLE)
-    derivative = editable.GetMol()
+    cage = Chem.MolFromSmiles(cage_smiles)
+    graph = nx.Graph((b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in cage.GetBonds())
+    atom_of = (
+        {locant: atom for atom, locant in fullerene_numberings(graph)[0].items()}
+        if numbered
+        else {atom + 1: atom for atom in graph}
+    )
+    rest = graph.subgraph(set(graph) - {atom_of[locant] for locant in sites})
+    double = {frozenset(pair) for pair in nx.max_weight_matching(rest, maxcardinality=True)}
+    mol = Chem.RWMol()
+    for _ in range(cage.GetNumAtoms()):
+        mol.AddAtom(Chem.Atom(6))
+    for u, v in graph.edges:
+        mol.AddBond(u, v, Chem.BondType.DOUBLE if frozenset((u, v)) in double else Chem.BondType.SINGLE)
+    for locant, tail in sites.items():
+        if tail == "-":
+            mol.GetAtomWithIdx(atom_of[locant]).SetFormalCharge(-1)
+        elif tail:
+            offset = mol.GetNumAtoms()
+            mol = Chem.RWMol(Chem.CombineMols(mol, Chem.MolFromSmiles(tail)))
+            mol.AddBond(atom_of[locant], offset, Chem.BondType.SINGLE)
+    derivative = mol.GetMol()
     Chem.SanitizeMol(derivative)
-    with pytest.raises(UnsupportedStructure, match="P-27.3"):
-        smiles_to_iupac(Chem.MolToSmiles(derivative))
+    return Chem.MolToSmiles(derivative)
+
+
+_ACETIC = "CC(=O)O"
+
+
+@pytest.mark.parametrize(
+    "cage,sites,expected",
+    [
+        # P-29.3.4.1 / P-71.2: a fullerene yl group takes the added hydrogen (1(9H)), further pairs take hydro prefixes
+        (_FULLERENE_C60_SMILES, {1: _ACETIC, 9: None}, "[(C60-Ih)[5,6]fulleren-1(9H)-yl]acetic acid"),
+        (_FULLERENE_C60_SMILES, {1: _ACETIC, 2: None}, "[(C60-Ih)[5,6]fulleren-1(2H)-yl]acetic acid"),
+        (_FULLERENE_C60_SMILES, {1: _ACETIC, 9: "C"}, "[9-methyl(C60-Ih)[5,6]fulleren-1(9H)-yl]acetic acid"),
+        (_FULLERENE_C60_SMILES, {1: _ACETIC, 9: None, 52: None, 60: None}, "[52,60-dihydro(C60-Ih)[5,6]fulleren-1(9H)-yl]acetic acid"),
+        (_FULLERENE_C70_SMILES, {7: _ACETIC, 22: None}, "{(C70-D5h(6))[5,6]fulleren-7(22H)-yl}acetic acid"),
+        (_FULLERENE_C60_SMILES, {1: _ACETIC, 9: _ACETIC}, "2,2'-[(C60-Ih)[5,6]fullerene-1,9-diyl]diacetic acid"),
+        # P-31.1.4 / P-6: the cage as parent, substituent prefixes before the hydro prefixes (the Blue Book examples)
+        (_FULLERENE_C60_SMILES, {1: "C(F)(F)F", 9: None}, "1-(trifluoromethyl)-1,9-dihydro(C60-Ih)[5,6]fullerene"),
+        (
+            _FULLERENE_C60_SMILES,
+            {1: "F", 9: "F", 52: "F", 60: "F"},
+            "1,9,52,60-tetrafluoro-1,9,52,60-tetrahydro(C60-Ih)[5,6]fullerene",
+        ),
+        (_FULLERENE_C60_SMILES, {1: "C(C)(C)C", 7: "c1ccccc1"}, "1-tert-butyl-7-phenyl-1,7-dihydro(C60-Ih)[5,6]fullerene"),
+        (_FULLERENE_C60_SMILES, {1: "C", 23: "C"}, "1,23-dimethyl-1,23-dihydro(C60-Ih)[5,6]fullerene"),
+        # P-72: the carbanion with its added hydrogen
+        (_FULLERENE_C60_SMILES, {1: "-", 9: None}, "(C60-Ih)[5,6]fulleren-1(9H)-ide"),
+    ],
+)
+def test_fullerene_derivative_names(cage, sites, expected):
+    assert smiles_to_iupac(_fullerene_derivative(cage, sites)) == expected
+
+
+@pytest.mark.parametrize(
+    "cage,pairs",
+    [
+        # 1-9 in C60 and 8-25 in C70 (the C70 PCBM fusion locants) are [6,6] bonds; the C70 pathway ends on the
+        # [6,6] bond bisected by its C2 axis (Fu-3.3)
+        (_FULLERENE_C60_SMILES, {(1, 9): (6, 6), (1, 2): (5, 6)}),
+        (_FULLERENE_C70_SMILES, {(8, 25): (6, 6), (7, 8): (5, 6), (69, 70): (6, 6)}),
+    ],
+)
+def test_fullerene_numbering_follows_the_spiral_pathway(cage, pairs):
+    import networkx as nx
+    from smiles_to_iupac._fullerene_numbering import fullerene_numberings
+
+    mol = Chem.MolFromSmiles(cage)
+    graph = nx.Graph((b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in mol.GetBonds())
+    rings = mol.GetRingInfo().AtomRings()
+    for numbering in fullerene_numberings(graph):
+        atom = {locant: idx for idx, locant in numbering.items()}
+        for (first, second), fusion in pairs.items():
+            assert graph.has_edge(atom[first], atom[second])
+            assert tuple(sorted(len(r) for r in rings if atom[first] in r and atom[second] in r)) == fusion
+
+
+def test_fullerene_derivative_outside_the_numbered_cages_stops():
+    from smiles_to_iupac._fullerene import _FULLERENE_C76_SMILES
+
+    # atoms 0 and 1 of the C76 reference SMILES are bonded
+    with pytest.raises(UnsupportedStructure, match="Fu-3.1"):
+        smiles_to_iupac(_fullerene_derivative(_FULLERENE_C76_SMILES, {1: _ACETIC, 2: None}, numbered=False))
+
+
+def test_fullerene_with_characteristic_group_is_named_as_the_parent_with_added_hydrogen():
+    # P-6 (P-58.2): the principal characteristic group takes the added hydrogen, not hydro prefixes
+    assert smiles_to_iupac(_fullerene_derivative(_FULLERENE_C60_SMILES, {1: "O", 9: None})) == (
+        "(C60-Ih)[5,6]fulleren-1(9H)-ol"
+    )

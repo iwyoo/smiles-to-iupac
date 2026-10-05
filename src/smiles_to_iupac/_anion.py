@@ -191,7 +191,6 @@ _MULTIPLE_ANION = re.compile(r"(?:di|tri|tetra|bis|tris|tetrakis)\(?[A-Za-z-]*(?
 
 
 def name_anion(mol):
-    # fullerene anions (P-72.2.2.1.1) need the spiral numbering the Blue Book leaves undefined (#1254)
     name = _name_anion_unchecked(mol)
     centers = len(anion_atoms(mol))
     tokens = len(_ANION_TOKEN.findall(name))
