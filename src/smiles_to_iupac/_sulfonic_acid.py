@@ -234,7 +234,7 @@ def _name_from_substituents(chain_length, so3h_locant, ene_locants, yne_locants,
     # Only chain_length == 1 omits a substituent prefix's own locant too
     # (see `_alcohol.py`'s equivalent comment).
     prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
-    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "sulfonic acid", [so3h_locant])
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "sulfonic acid", [so3h_locant], substituted=bool(grouped))
 
 
 def _candidate_key(chain_length, so3h_locant, ene_locants, yne_locants, substituents):

@@ -50,7 +50,7 @@ def test_two_alkoxide_groups_is_named():
 
 
 def test_ether_oxygen_alongside_alkoxide_is_named():
-    assert smiles_to_iupac("[O-]CCOC") == "2-methoxyethanolate"
+    assert smiles_to_iupac("[O-]CCOC") == "2-methoxyethan-1-olate"
 
 
 def test_alkoxide_stereocenter_with_coexisting_halogen():
@@ -58,16 +58,16 @@ def test_alkoxide_stereocenter_with_coexisting_halogen():
 
 
 def test_phenyl_chain_alkoxide():
-    assert smiles_to_iupac("c1ccccc1CC[O-]") == "2-phenylethanolate"
+    assert smiles_to_iupac("c1ccccc1CC[O-]") == "2-phenylethan-1-olate"
     assert smiles_to_iupac("c1ccccc1CCC[O-]") == "3-phenylpropan-1-olate"
 
 
 def test_phenyl_substituted_benzene_ring_alkoxide_is_named():
-    assert smiles_to_iupac("Cc1ccccc1CC[O-]") == "2-(2-methylphenyl)ethanolate"
+    assert smiles_to_iupac("Cc1ccccc1CC[O-]") == "2-(2-methylphenyl)ethan-1-olate"
 
 
 def test_phenyl_chain_alkoxide_unsaturation_is_named():
-    assert smiles_to_iupac("C=Cc1ccccc1CC[O-]") == "2-(2-ethenylphenyl)ethanolate"
+    assert smiles_to_iupac("C=Cc1ccccc1CC[O-]") == "2-(2-ethenylphenyl)ethan-1-olate"
 
 
 @pytest.mark.parametrize(
@@ -93,7 +93,7 @@ def test_enamine_aminide_is_named():
 
 
 def test_second_nitrogen_is_named():
-    assert smiles_to_iupac("NCC[NH-]") == "2-aminoethanaminide"
+    assert smiles_to_iupac("NCC[NH-]") == "2-aminoethan-1-aminide"
 
 
 def test_phenyl_chain_aminide_ring_halogen():
@@ -101,7 +101,7 @@ def test_phenyl_chain_aminide_ring_halogen():
 
 
 def test_phenyl_chain_aminide_unsaturation_is_named():
-    assert smiles_to_iupac("C=Cc1ccccc1CC[NH-]") == "2-(2-ethenylphenyl)ethanaminide"
+    assert smiles_to_iupac("C=Cc1ccccc1CC[NH-]") == "2-(2-ethenylphenyl)ethan-1-aminide"
 
 
 def test_ring_ammonium_raises():
@@ -418,7 +418,7 @@ def test_iminyl_radical_name():
 
 
 def test_amidyl_radical_name():
-    assert smiles_to_iupac("CC(=O)[NH]") == "ethanamidyl"
+    assert smiles_to_iupac("CC(=O)[NH]") == "acetamidyl"
 
 
 def test_vinyl_carbyne_name():
@@ -461,7 +461,7 @@ def test_ethaniminyliumyl():
 
 
 def test_ethanamidyliumyl():
-    assert smiles_to_iupac("CC(=O)[N+]") == "ethanamidyliumyl"
+    assert smiles_to_iupac("CC(=O)[N+]") == "acetamidyliumyl"
 
 
 def test_calcium_bis_compound_carboxylate():
@@ -498,7 +498,7 @@ def test_carbanide_salt_names():
     [
         # Valine zwitterion (branched chain).
         ("CC(C)C(C(=O)[O-])[NH3+]", "2-azaniumyl-3-methylbutanoate"),
-        ("C[N+](C)(C)CCS(=O)(=O)[O-]", "2-(N,N-dimethylmethanaminiumyl)ethanesulfonate"),
+        ("C[N+](C)(C)CCS(=O)(=O)[O-]", "2-(N,N-dimethylmethanaminiumyl)ethane-1-sulfonate"),
     ],
 )
 def test_zwitterion_name(smiles, expected):

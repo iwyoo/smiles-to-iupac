@@ -191,7 +191,7 @@ def _reject_enesulfonate_carbon(so3_carbon, bonds):
 
 def _name_from_substituents(chain_length, so3_locant, ene_locants, yne_locants, grouped):
     prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
-    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "sulfonate", [so3_locant])
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "sulfonate", [so3_locant], substituted=bool(grouped))
 
 
 def _candidate_key(chain_length, so3_locant, ene_locants, yne_locants, substituents):

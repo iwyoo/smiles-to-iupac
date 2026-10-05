@@ -43,7 +43,7 @@ def test_stereodescriptors_of_multiplied_units(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("CC(=O)NCCOCCNC(C)=O", "N,N'-[oxydi(ethane-2,1-diyl)]diethanamide"),
+        ("CC(=O)NCCOCCNC(C)=O", "N,N'-[oxydi(ethane-2,1-diyl)]diacetamide"),
     ],
 )
 def test_amide_units_joined_through_nitrogen(smiles, expected):
@@ -118,10 +118,10 @@ def test_linker_prefixes(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("O=CC(c1ccccc1)c1ccccc1", "2,2-diphenylethanal"),
-        ("N#CC(c1ccccc1)c1ccccc1", "2,2-diphenylethanenitrile"),
+        ("O=CC(c1ccccc1)c1ccccc1", "2,2-diphenylacetaldehyde"),
+        ("N#CC(c1ccccc1)c1ccccc1", "2,2-diphenylacetonitrile"),
         ("SC(c1ccccc1)c1ccccc1", "diphenylmethanethiol"),
-        ("NC(=O)C(c1ccccc1)c1ccccc1", "2,2-diphenylethanamide"),
+        ("NC(=O)C(c1ccccc1)c1ccccc1", "2,2-diphenylacetamide"),
         ("OS(=O)(=O)C(c1ccccc1)c1ccccc1", "diphenylmethanesulfonic acid"),
     ],
 )

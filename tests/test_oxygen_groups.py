@@ -166,7 +166,7 @@ def test_unsaturated_ring_alcohol_triple_bond_raises():
 
 
 def test_amine_hetero_mix_dispatches_to_alcohol_amine():
-    assert smiles_to_iupac("OCCN") == "2-aminoethanol"
+    assert smiles_to_iupac("OCCN") == "2-aminoethan-1-ol"
 
 
 @pytest.mark.parametrize(
@@ -198,11 +198,11 @@ def test_benzaldehyde():
 
 
 def test_phenyl_chain_aldehyde_with_hydroxyl():
-    assert smiles_to_iupac("OCc1ccccc1CC=O") == "2-[2-(hydroxymethyl)phenyl]ethanal"
+    assert smiles_to_iupac("OCc1ccccc1CC=O") == "2-[2-(hydroxymethyl)phenyl]acetaldehyde"
 
 
 def test_phenyl_chain_aldehyde_unsaturation():
-    assert smiles_to_iupac("C=Cc1ccccc1CC=O") == "2-(2-ethenylphenyl)ethanal"
+    assert smiles_to_iupac("C=Cc1ccccc1CC=O") == "2-(2-ethenylphenyl)acetaldehyde"
 
 
 @pytest.mark.parametrize(
@@ -223,7 +223,7 @@ def test_two_ring_aromatic_substituent_aldehyde_substituted_ring():
 
 
 def test_two_ring_aromatic_substituent_aldehyde_chain_aldehyde():
-    assert smiles_to_iupac("O=CCC1CCCCC1c1ccccc1") == "2-(2-phenylcyclohexyl)ethanal"
+    assert smiles_to_iupac("O=CCC1CCCCC1c1ccccc1") == "2-(2-phenylcyclohexyl)acetaldehyde"
 
 
 def test_heteroaromatic_ring_directly_attached_aldehyde():
@@ -588,7 +588,7 @@ def test_dihydrate_adduct():
     "smiles,expected",
     [
         ("COO", "methaneperoxol"),
-        ("ClCCOO", "2-chloroethaneperoxol"),
+        ("ClCCOO", "2-chloroethane-1-peroxol"),
     ],
 )
 def test_hydroperoxide(smiles, expected):
@@ -638,14 +638,26 @@ def test_heteroaromatic_ring_chain_hydroperoxide_raises():
         smiles_to_iupac("OOCCc1cccnc1")
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CCO", "ethanol"),
+        ("OCCCl", "2-chloroethan-1-ol"),
+        ("NCCS", "2-aminoethane-1-thiol"),
+    ],
+)
+def test_two_carbon_suffix_locant_is_cited_once_a_prefix_is_present(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_aryl_ketone_cites_the_ring_as_a_substituent():
-    assert smiles_to_iupac("CC(=O)c1ccccc1") == "1-phenylethanone"
+    assert smiles_to_iupac("CC(=O)c1ccccc1") == "1-phenylethan-1-one"
     assert smiles_to_iupac("O=C(c1ccccc1)c1ccccc1") == "diphenylmethanone"
     assert smiles_to_iupac("O=C(c1ccc(Cl)cc1)c1ccccc1") == "(4-chlorophenyl)phenylmethanone"
 
 
 def test_heteroaromatic_substituent_ketone_directly_on_ring():
-    assert smiles_to_iupac("CC(=O)c1cccnc1") == "1-(pyridin-3-yl)ethanone"
+    assert smiles_to_iupac("CC(=O)c1cccnc1") == "1-(pyridin-3-yl)ethan-1-one"
 
 
 def test_ether_now_supported_via_ether_ketone():
@@ -788,7 +800,7 @@ def test_unsaturated_ring_ketone_triple_bond_raises():
 
 
 def test_ring_substituent_chain_ketone_unsaturated_ring():
-    assert smiles_to_iupac("CC(=O)C1CCCC=C1") == "1-(cyclohex-2-en-1-yl)ethanone"
+    assert smiles_to_iupac("CC(=O)C1CCCC=C1") == "1-(cyclohex-2-en-1-yl)ethan-1-one"
 
 
 def test_ring_with_ketone_chain_ketone_tie():

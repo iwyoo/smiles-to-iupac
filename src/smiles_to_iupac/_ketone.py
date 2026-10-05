@@ -482,7 +482,7 @@ def _validate_and_collect_ketones(mol, aromatic_ring_atoms=frozenset()):
 
 def _name_from_substituents(chain_length, one_locants, ene_locants, yne_locants, grouped):
     return format_substituent_prefixes(grouped, omit_locants=chain_length == 1) + name_from_substituents(
-        chain_length, ene_locants, yne_locants, multiplied_word(len(one_locants), "one"), one_locants
+        chain_length, ene_locants, yne_locants, multiplied_word(len(one_locants), "one"), one_locants, substituted=bool(grouped)
     )
 
 

@@ -283,7 +283,7 @@ def _name_from_substituents(chain_length, so_nh2_locant, ene_locants, yne_locant
     # omitted either way (see `_add_n_names`/`format_substituent_prefixes`:
     # it marks a different atom than the chain itself).
     prefix = format_substituent_prefixes(_add_n_names(grouped, n_names), omit_locants=chain_length == 1)
-    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "sulfinamide", [so_nh2_locant])
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "sulfinamide", [so_nh2_locant], substituted=bool(grouped))
 
 
 def _candidate_key(chain_length, so_nh2_locant, ene_locants, yne_locants, substituents, n_names=()):

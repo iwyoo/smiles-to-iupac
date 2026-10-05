@@ -33,7 +33,7 @@ def test_steroid_alcohol_naming(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("NCC=O", "2-aminoethanal"),
+        ("NCC=O", "2-aminoacetaldehyde"),
     ],
 )
 def test_smiles_to_iupac_aldehyde_amine(smiles, expected):
@@ -433,7 +433,7 @@ def test_hydroxyl_coexisting__ester_amine():
 
 
 def test_branched_alkoxy_r_prime():
-    assert smiles_to_iupac("CC(C)OCC=O") == "2-(propan-2-yloxy)ethanal"
+    assert smiles_to_iupac("CC(C)OCC=O") == "2-(propan-2-yloxy)acetaldehyde"
 
 
 def test_halogen_on_main_chain_still_works():
@@ -445,7 +445,7 @@ def test_specified_stereocenter__ether_aldehyde():
 
 
 def test_branched_alkoxy_r_prime__ether_amide():
-    assert smiles_to_iupac("CC(C)OCC(N)=O") == "2-(propan-2-yloxy)ethanamide"
+    assert smiles_to_iupac("CC(C)OCC(N)=O") == "2-(propan-2-yloxy)acetamide"
 
 
 def test_halogen_on_main_chain_still_works__ether_amide():
@@ -469,7 +469,7 @@ def test_specified_stereocenter__ether_amide():
 
 
 def test_branched_alkoxy_r_prime__ether_amine():
-    assert smiles_to_iupac("CC(C)OCCN") == "2-(propan-2-yloxy)ethanamine"
+    assert smiles_to_iupac("CC(C)OCCN") == "2-(propan-2-yloxy)ethan-1-amine"
 
 
 def test_halogen_on_main_chain_still_works__ether_amine():
@@ -511,7 +511,7 @@ def test_specified_stereocenter__ether_ester():
 
 
 def test_branched_alkoxy_r_prime__ether_hydroperoxide():
-    assert smiles_to_iupac("CC(C)OCCOO") == "2-(propan-2-yloxy)ethaneperoxol"
+    assert smiles_to_iupac("CC(C)OCCOO") == "2-(propan-2-yloxy)ethane-1-peroxol"
 
 
 def test_halogen_on_main_chain_still_works__ether_hydroperoxide():
@@ -550,7 +550,7 @@ def test_specified_stereocenter__ether_ketone():
 
 
 def test_branched_alkoxy_r_prime__ether_thiol():
-    assert smiles_to_iupac("CC(C)OCCS") == "2-(propan-2-yloxy)ethanethiol"
+    assert smiles_to_iupac("CC(C)OCCS") == "2-(propan-2-yloxy)ethane-1-thiol"
 
 
 def test_halogen_on_main_chain_still_works__ether_thiol():
@@ -582,7 +582,7 @@ def test_substituted_ring_raises():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("NCCOO", "2-aminoethaneperoxol"),
+        ("NCCOO", "2-aminoethane-1-peroxol"),
     ],
 )
 def test_smiles_to_iupac_hydroperoxide_amine(smiles, expected):
@@ -713,8 +713,8 @@ def test_multi_fragment_rejected_instead_of_silently_dropped(smiles):
     "smiles,expected",
     [
         ("OCC(Cl)COCC(Cl)CO", "3,3'-oxybis(2-chloropropan-1-ol)"),
-        ("OCCNc1ccccc1", "2-anilinoethanol"),
-        ("OCC[N+](=O)[O-]", "2-nitroethanol"),
+        ("OCCNc1ccccc1", "2-anilinoethan-1-ol"),
+        ("OCC[N+](=O)[O-]", "2-nitroethan-1-ol"),
         ("OCCC#N", "3-hydroxypropanenitrile"),
     ],
 )
@@ -772,7 +772,7 @@ def test_known_compounds_through_the_fallback_engines(smiles, expected):
     "smiles,expected",
     [
         ("O=C(Nc1ccccc1)c1ccccc1", "N-phenylbenzamide"),
-        ("CC(=O)N(C)CCO", "N-(2-hydroxyethyl)-N-methylethanamide"),
+        ("CC(=O)N(C)CCO", "N-(2-hydroxyethyl)-N-methylacetamide"),
     ],
 )
 def test_n_substituted_amide_parents(smiles, expected):
@@ -830,7 +830,7 @@ def test_fused_aromatic_parents_with_functional_groups(smiles, expected):
         ("Nc1ccc(cc1)S(N)(=O)=O", "4-aminobenzene-1-sulfonamide"),
         ("OS(=O)(=O)c1ccc2ccccc2c1", "naphthalene-2-sulfonic acid"),
         ("NS(=O)(=O)c1ccc(Cl)cc1C(O)=O", "5-chloro-2-sulfamoylbenzoic acid"),
-        ("CS(=O)(=O)CCO", "2-(methanesulfonyl)ethanol"),
+        ("CS(=O)(=O)CCO", "2-(methanesulfonyl)ethan-1-ol"),
         ("OC(=O)CS(O)(=O)=O", "2-sulfoethanoic acid"),
         ("O=S(=O)(O)c1ccc(cc1)S(O)(=O)=O", "benzene-1,4-disulfonic acid"),
     ],
@@ -911,9 +911,9 @@ def test_heteroaromatic_assemblies_and_primed_locant_order(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("OCCB(C)C", "2-(dimethylboranyl)ethanol"),
-        ("C[Si](C)(C)OCCO", "2-[(trimethylsilyl)oxy]ethanol"),
-        ("OCCNN", "2-hydrazinylethanol"),
+        ("OCCB(C)C", "2-(dimethylboranyl)ethan-1-ol"),
+        ("C[Si](C)(C)OCCO", "2-[(trimethylsilyl)oxy]ethan-1-ol"),
+        ("OCCNN", "2-hydrazinylethan-1-ol"),
     ],
 )
 def test_mononuclear_hydride_prefixes_and_parents(smiles, expected):
@@ -1026,9 +1026,27 @@ def test_ring_substituents_inside_chain_substituents_and_stereo_citation(smiles,
         ("C1CCCCC1[SiH2][SiH3]", "cyclohexyldisilane"),
         ("CNNNC", "1,3-dimethyltriazane"),
         ("C[SiH2]O[SiH2]O[SiH2]C", "1,5-dimethyltrisiloxane"),
+        ("Cl[SiH2]O[SiH3]", "chlorodisiloxane"),
     ],
 )
 def test_heteroatom_chain_parent_hydrides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OC(=O)[SiH3]", "silanecarboxylic acid"),
+        ("OC(=O)[SiH2]O[SiH3]", "disiloxanecarboxylic acid"),
+        ("OC(=O)[SiH2]O[SiH2]O[SiH3]", "trisiloxane-1-carboxylic acid"),
+        ("C[SiH2]O[SiH2]C(=O)O", "3-methyldisiloxane-1-carboxylic acid"),
+        ("OC(=O)[SiH2][SiH2]C(=O)O", "disilane-1,2-dicarboxylic acid"),
+        ("NC(=O)[PH2]", "phosphanecarboxamide"),
+        ("N#C[SiH3]", "silanecarbonitrile"),
+        ("O=C[SiH3]", "silanecarbaldehyde"),
+    ],
+)
+def test_carbo_suffix_on_heteroacyclic_parent_hydride(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
@@ -1076,7 +1094,7 @@ def test_assemblies_of_two_identical_fused_systems(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("OS(=O)CCS(=O)(=O)O", "2-sulfinoethanesulfonic acid"),
+        ("OS(=O)CCS(=O)(=O)O", "2-sulfinoethane-1-sulfonic acid"),
     ],
 )
 def test_sulfonic_acid_sulfinic_acid(smiles, expected):
@@ -1109,11 +1127,11 @@ def test_sulfonic_acid_sulfonamide(smiles, expected):
 
 
 def test_n_substituted_sulfonamide():
-    assert smiles_to_iupac("CNS(=O)(=O)CCS(=O)(=O)O") == "2-(methylsulfamoyl)ethanesulfonic acid"
+    assert smiles_to_iupac("CNS(=O)(=O)CCS(=O)(=O)O") == "2-(methylsulfamoyl)ethane-1-sulfonic acid"
 
 
 def test_other_heteroatom__sulfonic_acid_sulfonamide():
-    assert smiles_to_iupac("OCC(S(=O)(=O)N)S(=O)(=O)O") == "2-hydroxy-1-sulfoethanesulfonamide"
+    assert smiles_to_iupac("OCC(S(=O)(=O)N)S(=O)(=O)O") == "2-hydroxy-1-sulfoethane-1-sulfonamide"
 
 
 def test_unsaturated_chain__sulfonic_acid_sulfonamide():
@@ -1163,7 +1181,7 @@ def test_phenyl_ring_with_second_substituent():
 def test_phenyl_chain_sulfonic_acid_thiol_unsaturation():
     assert (
         smiles_to_iupac("C=Cc1ccccc1CC(S)S(=O)(=O)O")
-        == "2-(2-ethenylphenyl)-1-sulfanylethanesulfonic acid"
+        == "2-(2-ethenylphenyl)-1-sulfanylethane-1-sulfonic acid"
     )
 
 
@@ -1174,7 +1192,7 @@ def test_suffix_class_rank_has_no_duplicate_ranks_within_distinct_classes():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("NCCS", "2-aminoethanethiol"),
+        ("NCCS", "2-aminoethane-1-thiol"),
     ],
 )
 def test_smiles_to_iupac_thiol_amine(smiles, expected):

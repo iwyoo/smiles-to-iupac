@@ -13,10 +13,7 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   pairwise modules. This module mirrors `_ether_ketone.py`'s structure,
   swapping in `_aldehyde.py`'s own chain-naming machinery.
 - `COCC=O` -> PubChem's own '2-methoxyacetaldehyde' confirms the aldehyde
-  is always the suffix parent, the ether always the 'alkoxy' prefix (this
-  project keeps its existing 'ethanal' stem convention, matching
-  `_aldehyde.py`'s own plain-case naming, rather than PubChem's retained
-  '-acetaldehyde').
+  is always the suffix parent, the ether always the 'alkoxy' prefix.
 - `_aldehyde.py` gained the identical `carbon_graph` parameter
   `_thiol.py`/`_ketone.py` gained (PR #428/#429), for the identical
   reason: an ether oxygen isn't itself a carbon, so its alkoxy branch

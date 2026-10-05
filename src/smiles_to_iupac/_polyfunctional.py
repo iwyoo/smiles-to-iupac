@@ -91,16 +91,21 @@ def _chalcogen_ketone(mol, atom):
 
 
 def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
-    """An amide nitrogen carrying only carbon substituents (no acyl group, so
-    not an imide) -- named with 'N-' prefixes on the amide parent."""
+    """An amide nitrogen carrying only carbon substituents or one hydroxy (a
+    hydroxamic acid, P-65.1.3.4; no acyl group, so not an imide) -- named with
+    'N-' prefixes on the amide parent."""
     if nitrogen.GetFormalCharge() or nitrogen.IsInRing() or nitrogen.GetIsAromatic():
         return False
     others = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != carbonyl]
-    return bool(others) and all(
-        n.GetAtomicNum() == 6
-        and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
-        and not _double_oxygens(mol, n.GetIdx())
-        and not is_functional_carbon(mol, n.GetIdx())
+    hydroxy = [n for n in others if _terminal_heteroatom(mol, n.GetIdx(), 1) and n.GetAtomicNum() == 8]
+    return bool(others) and len(hydroxy) <= 1 and all(
+        n in hydroxy
+        or (
+            n.GetAtomicNum() == 6
+            and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+            and not _double_oxygens(mol, n.GetIdx())
+            and not is_functional_carbon(mol, n.GetIdx())
+        )
         for n in others
     )
 
@@ -1908,7 +1913,9 @@ def _evaluate(
     elif principal in ("peroxoic", "thioic", "imidic"):
         body, tail = name_from_substituents(length, ene, yne, multiplied_word(count, principal)), " acid"
     elif principal == "peroxol":
-        body = name_from_substituents(length, ene, yne, multiplied_word(count, "peroxol"), suffix_locants)
+        body = name_from_substituents(
+            length, ene, yne, multiplied_word(count, "peroxol"), suffix_locants, substituted=bool(grouped)
+        )
     elif principal == "amide":
         body = name_from_substituents(length, ene, yne, multiplied_word(count, "amide"))
     elif principal == "nitrile":
@@ -1927,7 +1934,8 @@ def _evaluate(
             "sulfonamide": "sulfonamide",
         }[principal]
         body = name_from_substituents(
-            length, ene, yne, multiplied_word(count, word), suffix_locants, force_own_locant=force
+            length, ene, yne, multiplied_word(count, word), suffix_locants, force_own_locant=force,
+            substituted=bool(grouped),
         )
     name = prefix + body + tail
     attach_locant = position_of[attach] if attach is not None else 0

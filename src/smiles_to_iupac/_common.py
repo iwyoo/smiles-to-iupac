@@ -28,6 +28,7 @@ from rdkit import Chem
 from rdkit.Chem import rdCIPLabeler
 
 from ._numerals import alkane_name, numerical_term
+from ._pin import mark
 
 _LEADING_LOCANTS_RE = re.compile(r"^\x01?(?:[\d,\-]+\(?)?")
 _ITALIC_PREFIX_RE = re.compile(r"^(tert|sec|iso)-")
@@ -992,7 +993,7 @@ def suffix_body(ene_locants, yne_locants, own_word, own_locants=None):
     return body, elide_stem
 
 
-def should_omit_mononuclear_locants(chain_length, own_locants, has_unsaturation):
+def should_omit_mononuclear_locants(chain_length, own_locants, has_unsaturation, substituted=False):
     """True when P-14.3.4.2(a) (`chain_length == 1`) or P-14.3.4.2(b) (a
     saturated two-carbon chain whose suffix has exactly one own locant)
     applies, so the caller's own `format_substituent_prefixes` call should
@@ -1017,11 +1018,25 @@ def should_omit_mononuclear_locants(chain_length, own_locants, has_unsaturation)
     own_locants = own_locants or ()
     if chain_length == 1:
         return True
-    return chain_length == 2 and not has_unsaturation and len(own_locants) == 1
+    return chain_length == 2 and not has_unsaturation and not substituted and len(own_locants) == 1
+
+
+RETAINED_ACYL_STEMS = {
+    (1, "amide"): "formamide",
+    (2, "amide"): "acetamide",
+    (2, "diamide"): "oxamide",
+    (2, "nitrile"): "acetonitrile",
+    (2, "dinitrile"): "oxalonitrile",
+    (1, "al"): "formaldehyde",
+    (2, "al"): "acetaldehyde",
+}
+
+
+_RETAINED_ACID_WORDS = {"oic", "dioic", "oic acid", "oyl", "oate", "thioate", "selenoate"}
 
 
 def name_from_substituents(
-    chain_length, ene_locants, yne_locants, own_word, own_locants=None, force_own_locant=False
+    chain_length, ene_locants, yne_locants, own_word, own_locants=None, force_own_locant=False, substituted=False
 ):
     """Assemble `<stem>[a]<separator><suffix body>` for an acyclic
     chain-parent suffix module (the caller still prepends its own
@@ -1044,7 +1059,15 @@ def name_from_substituents(
     is the only caller that passes this)."""
     has_unsaturation = bool(ene_locants or yne_locants)
 
-    if not force_own_locant and should_omit_mononuclear_locants(chain_length, own_locants, has_unsaturation):
+    retained = None if has_unsaturation or force_own_locant else RETAINED_ACYL_STEMS.get((chain_length, own_word))
+    if retained:
+        return retained
+    if chain_length <= 2 and not has_unsaturation and own_word in _RETAINED_ACID_WORDS:
+        mark(None, "P-65.1.1.1 retains formic, acetic and oxalic acid (with their acyl groups and esters) as PINs")
+
+    if not force_own_locant and should_omit_mononuclear_locants(
+        chain_length, own_locants, has_unsaturation, substituted
+    ):
         stem = alkane_name(chain_length)
         if own_word[0] in "aeiouy":
             stem = stem[:-1]

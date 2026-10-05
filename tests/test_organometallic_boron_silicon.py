@@ -404,15 +404,15 @@ def test_hapto_names(smiles, expected):
     [
         (
             "NCC[c]12->[Cr]3456([C]#[O+])([C]#[O+])([C]#[O+])<-[cH]([cH]->3[cH]->41)[cH]->5[cH]->62",
-            f"tricarbonyl[2-({H}6-phenyl)ethanamine]chromium",
+            f"tricarbonyl[2-({H}6-phenyl)ethan-1-amine]chromium",
         ),
         (
             "C[c]12->[Cr]3456([C]#[O+])([C]#[O+])([C]#[O+])<-[cH]([cH]->3[cH]->4[c]->51CCN)[cH]->62",
-            f"tricarbonyl[2-(2-methyl-{H}6-phenyl)ethanamine]chromium",
+            f"tricarbonyl[2-(2-methyl-{H}6-phenyl)ethan-1-amine]chromium",
         ),
         (
             "CC(N(C)C)[c]12->[Cr]3456([C]#[O+])([C]#[O+])([C]#[O+])<-[cH]([cH]->3[cH]->4[c]->51P(c1ccccc1)c1ccccc1)[cH]->62",
-            f"tricarbonyl{{1-[2-(diphenylphosphanyl)-{H}6-phenyl]-N,N-dimethylethanamine}}chromium",
+            f"tricarbonyl{{1-[2-(diphenylphosphanyl)-{H}6-phenyl]-N,N-dimethylethan-1-amine}}chromium",
         ),
         (
             "C[c]12->[Cr]3456([C]#[O+])([C]#[O+])([C]#[O+])<-[cH]([cH]->3[cH]->4[cH]->51)[cH]->62",
@@ -671,10 +671,10 @@ PRIME = "′"
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("[Os+2].OCC[c-]1cccc1.[cH-]1cccc1", "2-(osmocen-1-yl)ethanol"),
+        ("[Os+2].OCC[c-]1cccc1.[cH-]1cccc1", "2-(osmocen-1-yl)ethan-1-ol"),
         (
             "[Fe+2].CC(=O)[c-]1cccc1.CC(=O)[c-]1cccc1",
-            f"1,1{PRIME}-(ferrocene-1,1{PRIME}-diyl)di(ethanone)",
+            f"1,1{PRIME}-(ferrocene-1,1{PRIME}-diyl)di(ethan-1-one)",
         ),
         ("[Fe+2].C[c-]1cccc1.[cH-]1cccc1", "1-methylferrocene"),
         ("[Fe+2].OC(=O)[c-]1cccc1.[cH-]1cccc1", "ferrocene-1-carboxylic acid"),
@@ -684,7 +684,7 @@ PRIME = "′"
         ("[Fe+2].N#C[c-]1cccc1.[cH-]1cccc1", "ferrocene-1-carbonitrile"),
         ("[Fe+2].OC(=O)[c-]1cccc1.CC(=O)[c-]1cccc1", f"1{PRIME}-acetylferrocene-1-carboxylic acid"),
         ("[Fe+2].OC(=O)CC[c-]1cccc1.[cH-]1cccc1", "3-(ferrocen-1-yl)propanoic acid"),
-        ("[V+2].CN(C)C(C)[c-]1cccc1.[cH-]1cccc1", "N,N-dimethyl-1-(vanadocen-1-yl)ethanamine"),
+        ("[V+2].CN(C)C(C)[c-]1cccc1.[cH-]1cccc1", "N,N-dimethyl-1-(vanadocen-1-yl)ethan-1-amine"),
     ],
 )
 def test_substituted_metallocenes(smiles, expected):

@@ -14,7 +14,7 @@ Book"):
   acid/ester/amide/nitrile) since only C, halogen, and aldehyde/hydroxyl
   oxygen atoms are accepted at all. A coexisting hydroxyl (-OH), being junior
   to 'al', is *not* rejected: it is cited as the 'hydroxy' substituent prefix
-  instead (P-41), e.g. 'OCC=O' -> '2-hydroxyethanal'.
+  instead (P-41), e.g. 'OCC=O' -> '2-hydroxyacetaldehyde'.
 - Unlike -OH/=O, a -CHO carbon is always a chain terminus (it has exactly one
   carbon neighbor, being otherwise saturated by =O and one H), so it is
   never a genuine locant choice: whichever end of the principal chain bears
