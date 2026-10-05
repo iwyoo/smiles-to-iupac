@@ -228,9 +228,8 @@ def test_pyridine_amplificants_and_ylidene_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_polycyclic_extra_unsaturation_outside_aromatic_ring_still_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1=CC2C(C)C1c1ccccc12")
+def test_methyl_on_the_bridge_atom_of_a_bridged_fused_system():
+    assert smiles_to_iupac("C1=CC2C(C)C1c1ccccc12") == "9-methyl-1,4-dihydro-1,4-methanonaphthalene"
 
 
 @pytest.mark.parametrize(

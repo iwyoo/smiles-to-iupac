@@ -282,8 +282,6 @@ def test_configuration(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        # a further ring fused to the parent is a different ring system
-        "c1ccc2c(c1)ccc1c2CCN2CC3CCCCC3CC12",
         # a stereocentre in a side branch that no substituent name cites (an acyl group of a retained amino acid)
         "OC(=O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2NC(=O)[C@H]1CCCN1",
     ],

@@ -153,8 +153,7 @@ def kekulized_copy(mol):
     molecule. Two (or more) independently-aromatic rings (e.g. a
     cyclophane), or genuine unsaturation coexisting outside the aromatic
     ring (e.g. a dihydronaphthalene's own ring double bond, or a
-    substituent on the bridged-aromatic shape `_bridged_aromatic.py`
-    doesn't cover yet), are deliberately left alone -- returns `mol`
+    substituent on a bridged-aromatic shape that is not covered), are deliberately left alone -- returns `mol`
     unchanged for those (and for the ordinary all-saturated case), so
     every other caller's existing "not supported yet" behavior stays
     intact. Atom indices are preserved when a copy is made: `Chem.Kekulize`
@@ -400,8 +399,7 @@ def _heteroaromatic_monocycle_locant(mol, ring_order, attachment_atom):
     own indicated hydrogen (P-25.7.1.3) still needs citing -- i.e.
     `attachment_atom` isn't the heteroatom itself, which would otherwise
     consume it (plain "pyrrol-1-yl"/"1-hydroperoxypyrrole", no citation
-    needed, mirroring `_pyridine_heterocycle_fusion.py`'s identical
-    `GetTotalNumHs() > 0` heuristic for the same tautomer distinction);
+    needed);
     pyridine/furan/thiophene never need this, since their heteroatom
     carries no H to begin with. Used by `heteroaromatic_monocycle_prefix_name`
     (ring cited as the parent) -- the locant math is identical either way,

@@ -823,6 +823,10 @@ def name_acid_derivative(mol):
     links, acid = find_links(mol)
     if not links:
         raise UnsupportedStructure("no acid derivative group")
+    from ._appendix3_skeletons import name_appendix3_skeleton
+
+    if name_appendix3_skeleton(mol) is not None:
+        raise UnsupportedStructure("an acid derivative on an Appendix 3 retained parent is named on that parent")
     if acid:
         if all(_center(mol, c)[0] in ("carbonic", "inorganic") for c in acid) and all(l.kind == "ester" for l in links):
             return name_ester(mol, links)

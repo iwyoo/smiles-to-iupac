@@ -338,7 +338,7 @@ def _evaluate_skeleton(
     if centers:
         parent = _with_anion_centers(parent, [(position_of[a], word) for a, word in centers])
     prefixes = format_substituent_prefixes(grouped)
-    if prefixes and parent[0].isdigit():
+    if prefixes and (parent[0].isdigit() or parent[0] == "Δ"):
         prefixes += "-"
     group_name = prefixes + parent
     if ring_stereo:

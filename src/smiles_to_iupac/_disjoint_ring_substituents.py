@@ -106,6 +106,6 @@ def name_disjoint_ring_pair(mol, core) -> str:
             names.append((0, f"{display_name}{spec.parent}"))
             continue
         locant = min(numberings(spec), key=lambda loc: loc[attach])[attach]
-        joiner = "-" if spec.parent[0].isdigit() else ""
+        joiner = "-" if spec.parent[0].isdigit() or spec.parent[0] == "Δ" else ""
         names.append((locant, f"{locant}-{display_name}{joiner}{spec.parent}"))
     return min(names, key=lambda item: (item[0], alpha_sort_key(item[1])))[1]
