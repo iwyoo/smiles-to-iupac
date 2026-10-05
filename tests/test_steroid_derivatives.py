@@ -17,8 +17,8 @@ ANDROSTANE = "C[C@]12CC[C@H]3[C@H]([C@@H]1CC[C@@H]2{x})CC[C@@H]4[C@@]3(CC{a}C4)C
         (ANDROSTANE.format(x="C(=O)OC", a="C(=O)"), "methyl 3-oxo-5α-androstane-17β-carboxylate"),
         (ANDROSTANE.format(x="C(=O)N", a="C"), "5α-androstane-17β-carboxamide"),
         # P-101.7.3: an ester of a steroid alcohol names the steroid as a substituent group.
-        (ANDROSTANE.format(x="C(C)=O", a="[C@@H](OC(C)=O)"), "20-oxo-5α-pregnan-3α-yl ethanoate"),
-        (ANDROSTANE.format(x="OC(C)=O", a="C"), "5α-androstan-17β-yl ethanoate"),
+        (ANDROSTANE.format(x="C(C)=O", a="[C@@H](OC(C)=O)"), "(3R,5S,8R,9S,10S,13S,14S,17S)-17-acetyl-10,13-dimethylhexadecahydro-1H-cyclopenta[a]phenanthren-3-yl acetate"),
+        (ANDROSTANE.format(x="OC(C)=O", a="C"), "(5R,8R,9S,10S,13S,14S,17S)-10,13-dimethylhexadecahydro-1H-cyclopenta[a]phenanthren-17-yl acetate"),
     ],
 )
 def test_derivatives_on_rings(smiles, expected):

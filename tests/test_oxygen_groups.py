@@ -47,21 +47,6 @@ def test_branched_substituent():
     assert smiles_to_iupac("CC(C)CC(=O)Cl") == "3-methylbutanoyl chloride"
 
 
-def test_two_acyl_halides_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("ClC(=O)CC(=O)Cl")
-
-
-def test_cyclic_acyl_halide_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("ClC(=O)C1CCCCC1")
-
-
-def test_coexisting_ketone_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)CC(=O)Cl")
-
-
 def test_branch_stereocenter_cites_the_specified_elements():
     assert smiles_to_iupac("CC(C[C@H](C)Cl)C(=O)Cl") == "(4S)-4-chloro-2-methylpentanoyl chloride"
 
@@ -69,26 +54,11 @@ def test_branch_stereocenter_cites_the_specified_elements():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("c1ccccc1CC(=O)Cl", "2-phenylethanoyl chloride"),
+        ("c1ccccc1CC(=O)Cl", "phenylacetyl chloride"),
     ],
 )
 def test_phenyl_chain_acyl_halide_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_phenyl_directly_attached_acyl_halide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C(=O)Cl")
-
-
-def test_phenyl_substituted_benzene_ring_acyl_halide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC(=O)Cl")
-
-
-def test_phenyl_chain_acyl_halide_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC(=O)Cl")
 
 
 def test_stereocenter_with_ez_double_bond_coexistence():
@@ -257,7 +227,7 @@ def test_aldehyde_ring_branch_stereocenter():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("O=COC=O", "methanoic anhydride"),
+        ("O=COC=O", "formic anhydride"),
     ],
 )
 def test_symmetric_anhydride(smiles, expected):
@@ -269,31 +239,11 @@ def test_branched_symmetric_anhydride():
 
 
 def test_halogen_substituent():
-    assert smiles_to_iupac("ClCC(=O)OC(=O)CCl") == "2-chloroethanoic anhydride"
-
-
-def test_unsymmetric_anhydride_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)OC(=O)CC")
-
-
-def test_unsaturated_anhydride_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CC(=O)OC(=O)C=C")
+    assert smiles_to_iupac("ClCC(=O)OC(=O)CCl") == "chloroacetic anhydride"
 
 
 def test_cyclic_anhydride_names_as_ring_dione():
     assert smiles_to_iupac("O=C1CCC(=O)O1") == "oxolane-2,5-dione"
-
-
-def test_two_anhydride_groups_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C(OC=O)CC(=O)OC=O")
-
-
-def test_specified_stereocenter_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC[C@@H](C)C(=O)OC(=O)[C@H](C)CC")
 
 
 def test_carbonic_acid():
@@ -372,11 +322,11 @@ def test_heteroaromatic_substituent_carboxylic_acid_directly_on_ring():
 
 
 def test_phenyl_substituent_carboxylic_acid_ring_branched_alkyl():
-    assert smiles_to_iupac("CC(C)c1ccc(cc1)CC(=O)O") == "2-[4-(propan-2-yl)phenyl]ethanoic acid"
+    assert smiles_to_iupac("CC(C)c1ccc(cc1)CC(=O)O") == "[4-(propan-2-yl)phenyl]acetic acid"
 
 
 def test_phenyl_substituent_carboxylic_acid_ring_tert_butyl():
-    assert smiles_to_iupac("CC(C)(C)c1ccc(cc1)CC(=O)O") == "2-(4-tert-butylphenyl)ethanoic acid"
+    assert smiles_to_iupac("CC(C)(C)c1ccc(cc1)CC(=O)O") == "(4-tert-butylphenyl)acetic acid"
 
 
 def test_carboxylic_acid_enol_mix():
@@ -404,7 +354,7 @@ def test_phenyl_substituent_carboxylic_acid_branch_tie_prefers_more_substituents
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("c1ccccc1CC(=O)OCC", "ethyl 2-phenylethanoate"),
+        ("c1ccccc1CC(=O)OCC", "ethyl phenylacetate"),
         ("BrC=CCCCCCCC=CCC#CC#CCCC(=O)OC", "methyl 18-bromooctadeca-9,17-dien-4,6-diynoate"),
     ],
 )
@@ -413,17 +363,17 @@ def test_ester_names(smiles, expected):
 
 
 def test_plain_cyclyl_alcohol_ester():
-    assert smiles_to_iupac("CC(=O)OC1CCCCC1") == "cyclohexyl ethanoate"
-    assert smiles_to_iupac("CC(=O)OC1CCCC1") == "cyclopentyl ethanoate"
+    assert smiles_to_iupac("CC(=O)OC1CCCCC1") == "cyclohexyl acetate"
+    assert smiles_to_iupac("CC(=O)OC1CCCC1") == "cyclopentyl acetate"
     assert smiles_to_iupac("CCC(=O)OC1CCCCC1") == "cyclohexyl propanoate"
 
 
 def test_substituted_cyclyl_alcohol_ester():
-    assert smiles_to_iupac("CC(=O)OC1CCC(C)CC1") == "4-methylcyclohexyl ethanoate"
+    assert smiles_to_iupac("CC(=O)OC1CCC(C)CC1") == "4-methylcyclohexyl acetate"
 
 
 def test_amine_coexisting_now_supported_via_ester_amine():
-    assert smiles_to_iupac("NCC(=O)OC") == "methyl 2-aminoethanoate"
+    assert smiles_to_iupac("NCC(=O)OC") == "methyl aminoacetate"
 
 
 def test_benzoate_ester_substituted():
@@ -443,29 +393,29 @@ def test_ring_acyl_ester_substituent_on_acyl_ring_atom():
 
 
 def test_ring_acyl_chain_ester():
-    assert smiles_to_iupac("O=C(OC)CC1CCCCC1") == "methyl 2-cyclohexylethanoate"
+    assert smiles_to_iupac("O=C(OC)CC1CCCCC1") == "methyl cyclohexylacetate"
 
 
 def test_ring_acyl_chain_ester_ring_with_substituent():
-    assert smiles_to_iupac("O=C(OC)CC1CCC(C)CC1") == "methyl 2-(4-methylcyclohexyl)ethanoate"
+    assert smiles_to_iupac("O=C(OC)CC1CCC(C)CC1") == "methyl (4-methylcyclohexyl)acetate"
 
 
 def test_ring_acyl_chain_ester_unsaturated_ring():
-    assert smiles_to_iupac("O=C(OC)CC1CCCC=C1") == "methyl 2-(cyclohex-2-en-1-yl)ethanoate"
+    assert smiles_to_iupac("O=C(OC)CC1CCCC=C1") == "methyl (cyclohex-2-en-1-yl)acetate"
 
 
 def test_phenyl_ester_oxygen_side():
-    assert smiles_to_iupac("CC(=O)Oc1ccccc1") == "phenyl ethanoate"
-    assert smiles_to_iupac("O=COc1ccccc1") == "phenyl methanoate"
+    assert smiles_to_iupac("CC(=O)Oc1ccccc1") == "phenyl acetate"
+    assert smiles_to_iupac("O=COc1ccccc1") == "phenyl formate"
     assert smiles_to_iupac("CCC(=O)Oc1ccccc1") == "phenyl propanoate"
 
 
 def test_phenyl_ester_oxygen_side_substituted_ring():
-    assert smiles_to_iupac("CC(=O)Oc1ccccc1C") == "2-methylphenyl ethanoate"
+    assert smiles_to_iupac("CC(=O)Oc1ccccc1C") == "2-methylphenyl acetate"
 
 
 def test_phenyl_acyl_chain_unsaturation():
-    assert smiles_to_iupac("C=Cc1ccccc1CC(=O)OC") == "methyl 2-(2-ethenylphenyl)ethanoate"
+    assert smiles_to_iupac("C=Cc1ccccc1CC(=O)OC") == "methyl (2-ethenylphenyl)acetate"
 
 
 @pytest.mark.parametrize(
@@ -481,9 +431,9 @@ def test_ester_acyl_stereocenter(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("COC(=O)C(c1ccccc1)c1ccccc1", "methyl 2,2-diphenylethanoate"),
+        ("COC(=O)C(c1ccccc1)c1ccccc1", "methyl diphenylacetate"),
         ("O=C(OC)c1ccc(Cc2ccccc2)cc1", "methyl 4-benzylbenzoate"),
-        ("CC(=O)OCc1ccc(Cl)cc1", "(4-chlorophenyl)methyl ethanoate"),
+        ("CC(=O)OCc1ccc(Cl)cc1", "(4-chlorophenyl)methyl acetate"),
     ],
 )
 def test_ester_named_from_its_alkyl_and_acid_parts(smiles, expected):
@@ -493,9 +443,9 @@ def test_ester_named_from_its_alkyl_and_acid_parts(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("CC(=O)OCC(=O)C", "2-oxopropyl ethanoate"),
+        ("CC(=O)OCC(=O)C", "2-oxopropyl acetate"),
         ("O=C(OCCN(C)C)c1ccccc1", "2-(dimethylamino)ethyl benzoate"),
-        ("CC(=O)OCC(=O)O", "2-(ethanoyloxy)ethanoic acid"),
+        ("CC(=O)OCC(=O)O", "(acetyloxy)acetic acid"),
     ],
 )
 def test_ester_alkyl_part_with_heteroatom_groups(smiles, expected):
@@ -581,7 +531,7 @@ def test_hetero_ring_oxide_resolves(smiles, expected):
 
 def test_dihydrate_adduct():
     # Blue Book P-14.8: the proportion (1/n) is always cited.
-    assert smiles_to_iupac("OC(=O)C(=O)O.O.O") == "ethanedioic acid—water (1/2)"
+    assert smiles_to_iupac("OC(=O)C(=O)O.O.O") == "oxalic acid—water (1/2)"
 
 
 @pytest.mark.parametrize(
@@ -895,3 +845,128 @@ def test_benzene_ring_parent__peroxide(smiles, expected):
 def test_benzene_ring_stereocenter_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("c1ccccc1OO[C@H](C)CC")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("NC(=O)C(=O)O", "oxamic acid"),
+        ("OC(=O)C(O)(c1ccccc1)c1ccccc1", "hydroxydi(phenyl)acetic acid"),
+        ("O=C(O)[N+](=O)[O-]", "nitroformic acid"),
+        ("OC(=O)N1CCCC1", "pyrrolidine-1-carboxylic acid"),
+        ("NNC(=O)O", "hydrazinecarboxylic acid"),
+        ("CNNC(=O)O", "2-methylhydrazine-1-carboxylic acid"),
+        ("OC(=O)[SiH2]O[SiH2]C(=O)O", "disiloxane-1,3-dicarboxylic acid"),
+        ("OC(=O)[SiH2][SiH2][SiH3]", "trisilane-1-carboxylic acid"),
+        ("OC(=O)[SiH2]C(=O)O", "silanedicarboxylic acid"),
+        ("OC(=O)N(C)NC", "1,2-dimethylhydrazine-1-carboxylic acid"),
+        ("OC(=O)N(C(=O)O)N(C)C(=O)O", "2-methylhydrazine-1,1,2-tricarboxylic acid"),
+        ("OC(=O)C(=O)C1CCCCC1C(=O)O", "2-oxalocyclohexane-1-carboxylic acid"),
+    ],
+)
+def test_acid_retained_names_and_parents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CCCCCC(=O)SCC", "S-ethyl hexanethioate"),
+        ("CC(=N)OC", "methyl ethanimidate"),
+        ("CC(=Nc1ccccc1)OC", "methyl N-phenylethanimidate"),
+        ("N=C(SC)c1ccccc1", "methyl benzenecarboximidothioate"),
+        ("CC(=O)O[Si](C)(C)C", "trimethylsilyl acetate"),
+        ("CCOP(C)(=O)C", "ethyl dimethylphosphinate"),
+        ("CCOP(=O)(C)O", "ethyl hydrogen methylphosphonate"),
+        ("CCOB(OCC)OCC", "triethyl borate"),
+        ("CCOP(c1ccccc1)OCC", "diethyl phenylphosphonite"),
+        ("CCOP(C)C", "ethyl dimethylphosphinite"),
+        ("CC(=O)OP(C)(C)=O", "acetic dimethylphosphinic anhydride"),
+        ("CC(=O)OOC(C)(C)C", "tert-butyl ethaneperoxoate"),
+        ("COC(=S)OC", "O,O-dimethyl carbonothioate"),
+        ("CSC(=S)OC", "O,S-dimethyl carbonodithioate"),
+        ("CN=C(O)OC", "methyl hydrogen N-methylcarbonimidate"),
+        ("CCOC(=O)NCC", "ethyl ethylcarbamate"),
+        ("COC(=O)OC(=O)OC", "dimethyl dicarbonate"),
+        ("CS(=O)(=O)SCC", "S-ethyl methanesulfonothioate"),
+    ],
+)
+def test_ester_class_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC(=S)OC(=S)C", "ethanethioic anhydride"),
+        ("CS(=O)(=O)OS(=O)(=O)C", "methanesulfonic anhydride"),
+        ("CC(=O)OC(=O)CCC(=O)OC(C)=O", "diacetic butanedioic dianhydride"),
+        ("CC(=O)OC(=O)CCC(=O)OC(=O)CCC(=O)OC(=O)CC", "acetic butanedioic 4-oxo-4-(propanoyloxy)butanoic dianhydride"),
+        ("CC(=O)OC(=O)c1cc(C(=O)OC(C)=O)c(C(=O)OC(=O)CC)cc1", "2,4-diacetic 1-propanoic benzene-1,2,4-tricarboxylic trianhydride"),
+        ("O=C(Cl)c1ccc(C(=O)Cl)cc1", "benzene-1,4-dicarbonyl dichloride"),
+        ("NC(=O)C(=O)Br", "oxamoyl bromide"),
+        ("ClC(=S)C1CCCCC1", "cyclohexanecarbothioyl chloride"),
+        ("CCCC(=O)C#N", "butanoyl cyanide"),
+        ("O=C(N=C=S)C(=O)N=C=S", "oxalyl diisothiocyanate"),
+        ("CC(=O)OP(=O)(O)O", "(acetyloxy)phosphonic acid"),
+        ("CCC(=O)OB(O)O", "(propanoyloxy)boronic acid"),
+        ("CC(=O)OP(=O)(OC)OC", "acetic (dimethyl hydrogen phosphate) anhydride"),
+        ("CC(=O)O[As](C)(C)=O", "acetic dimethylarsinic anhydride"),
+        ("CO[Sb](OC)OC", "trimethyl stiborite"),
+        ("ClC(=O)Cl", "carbonyl dichloride"),
+        ("N#CC(=O)Cl", "carbonocyanidoyl chloride"),
+        ("N#CCl", "carbononitridic chloride"),
+        ("ClC(=O)OC(=O)Cl", "dicarbonic dichloride"),
+    ],
+)
+def test_anhydride_and_acyl_halide_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OC(=O)c1ccccc1C(=O)Cl", "2-carbonochloridoylbenzoic acid"),
+        ("OC(=O)c1ccccc1C(=O)OO", "2-carbonoperoxoylbenzoic acid"),
+        ("OC(=O)c1ccccc1C(=O)S", "2-(sulfanylcarbonyl)benzoic acid"),
+        ("OC(=O)c1ccccc1C(O)=S", "2-(hydroxycarbonothioyl)benzoic acid"),
+        ("OC(=O)c1ccccc1C(=N)O", "2-(C-hydroxycarbonimidoyl)benzoic acid"),
+        ("OC(=O)c1ccccc1C(=NO)O", "2-(C,N-dihydroxycarbonimidoyl)benzoic acid"),
+        ("OC(=O)c1ccccc1C(=O)OS", "2-[(sulfanyloxy)carbonyl]benzoic acid"),
+        ("OC(=O)c1ccccc1C(=O)SO", "2-[(hydroxysulfanyl)carbonyl]benzoic acid"),
+        ("OC(=O)c1ccccc1C(C)=S", "2-(ethanethioyl)benzoic acid"),
+        ("OC(=O)CCC(=N)O", "4-hydroxy-4-iminobutanoic acid"),
+        ("OC(=O)CCCC(=NO)O", "5-hydroxy-5-(hydroxyimino)pentanoic acid"),
+    ],
+)
+def test_acid_derivative_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OC(=O)OO", "carbonoperoxoic acid"),
+        ("NC(=N)S", "carbamimidothioic acid"),
+        ("[N-]=[N+]=NC(=O)O", "carbonazidic acid"),
+        ("OC(=O)OC(=O)OC(=O)OC(=O)OC(=O)O", "3,5,7-trioxo-2,4,6,8-tetraoxanonanedioic acid"),
+        ("OC(=S)OC(=S)O", "1,3-dithiodicarbonic O1,O3-acid"),
+        ("OC(=O)SC(=O)O", "2-thiodicarbonic acid"),
+        ("OC(=N)OC(=O)O", "1-imidodicarbonic acid"),
+        ("ClC(=O)OC(=O)O", "chlorodicarbonic acid"),
+    ],
+)
+def test_carbonic_family_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("COC(=O)CCC(=O)OCCOC(=O)CCC(=O)OC", "dimethyl ethane-1,2-diyl dibutanedioate"),
+        ("CC(=O)Oc1ccc(cc1)C(=O)OC", "methyl 4-(acetyloxy)benzoate"),
+        ("O=C(OCCOC(C)=O)CC(=O)OCCOC(C)=O", "bis[2-(acetyloxy)ethyl] propanedioate"),
+    ],
+)
+def test_polyester_principal_acid_and_multiplicative_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

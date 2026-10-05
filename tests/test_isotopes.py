@@ -101,7 +101,7 @@ def test_isotope_alcohol_unsupported_oxygen_isotope_raises():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("CC(=[18O])O", "ethan(18O)oic acid"),
+        ("CC(=[18O])O", "(18O)acetic acid"),
     ],
 )
 def test_isotope_carboxylic_acid_name(smiles, expected):
@@ -109,7 +109,7 @@ def test_isotope_carboxylic_acid_name(smiles, expected):
 
 
 def test_chain_unsaturation_alongside_isotope_carboxylic_acid():
-    assert smiles_to_iupac("[13CH3]C(=O)OC=C") == "ethenyl (2-13C)ethanoate"
+    assert smiles_to_iupac("[13CH3]C(=O)OC=C") == "ethenyl (2-13C)acetate"
 
 
 def test_specified_stereocenter_alongside_isotope_carboxylic_acid_raises():
@@ -178,3 +178,13 @@ def test_isotope_ring_tritium_raises():
 def test_isotope_ring_substituent_branch_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[2H]C1CCCCC1C")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OC=[18O]", "(18O)formic acid"),
+    ],
+)
+def test_isotope_descriptor_before_retained_acid_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

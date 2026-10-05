@@ -1,7 +1,7 @@
 """Entry points for polyesters of one polyol (P-65.6.3.3.3): the polyol skeleton (ring system or chain) is cited as
 a multivalent group before the multiplied or alphanumerically listed anions. The construction itself lives in
-`_diester_ring_diyl.py` (skeleton selection, numbering) and `_diester_anions.py` (anion names). Systematic anion
-names ('ethanoate', not 'acetate') follow `_ester.py`.
+`_diester_ring_diyl.py` (skeleton selection, numbering) and `_diester_anions.py` (anion names). Anion names
+('acetate' and the like) follow `_ester.py`.
 """
 
 from rdkit import Chem

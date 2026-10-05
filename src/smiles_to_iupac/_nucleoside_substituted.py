@@ -1131,6 +1131,8 @@ def _senior_name(mol, graph, halogens, aromatic, an):
         raise UnsupportedStructure(
             "senior group class not supported on a nucleoside base"
         )
+    if an.esters and top not in ("acid", "anhydride", "ester"):
+        raise UnsupportedStructure("an ester on the sugar outranks the senior group of the base")
     sugar_n = next(p for p, idx in ring.items() if by_map[11] in graph[idx])
     saturated = {
         p

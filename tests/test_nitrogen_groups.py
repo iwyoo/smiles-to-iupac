@@ -318,7 +318,7 @@ def test_azine_specified_chain_stereocenter_raises():
 
 
 def test_methyl_n_n_dimethylcarbamate():
-    assert smiles_to_iupac("COC(=O)N(C)C") == "methyl N,N-dimethylcarbamate"
+    assert smiles_to_iupac("COC(=O)N(C)C") == "methyl dimethylcarbamate"
 
 
 def test_plain_cyclic_r_group():
@@ -327,33 +327,7 @@ def test_plain_cyclic_r_group():
 
 
 def test_n_methyl_cyclic_r_group():
-    assert smiles_to_iupac("CNC(=O)OC1CCCCC1") == "cyclohexyl N-methylcarbamate"
-
-
-def test_unsaturated_r_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CCOC(N)=O")
-
-
-def test_phenyl_r_group_still_not_supported():
-    # The phenyl exception only applies to the amide nitrogen, not R.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC(=O)Oc1ccccc1")
-
-
-def test_phenyl_alongside_another_substituent_on_same_nitrogen_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COC(=O)N(C)c1ccccc1")
-
-
-def test_unsaturated_r_not_supported__cyanate():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=COC#N")
-
-
-def test_cyclic_r_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCC1OC#N")
+    assert smiles_to_iupac("CNC(=O)OC1CCCCC1") == "cyclohexyl methylcarbamate"
 
 
 def test_two_cyanate_groups_not_supported():
@@ -363,11 +337,6 @@ def test_two_cyanate_groups_not_supported():
 
 def test_phenyl_cyanate():
     assert smiles_to_iupac("c1ccccc1OC#N") == "phenyl cyanate"  # CID 70740
-
-
-def test_phenyl_cyanate_chain_spacer_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1COC#N")
 
 
 @pytest.mark.parametrize(
@@ -750,7 +719,7 @@ def test_branched_symmetric_imide():
 
 
 def test_halogen_substituent():
-    assert smiles_to_iupac("ClCC(=O)NC(=O)CCl") == "N-(2-chloroethanoyl)-2-chloroethanamide"
+    assert smiles_to_iupac("ClCC(=O)NC(=O)CCl") == "N-(chloroacetyl)-2-chloroethanamide"
 
 
 def test_unsymmetric_imide_not_supported():

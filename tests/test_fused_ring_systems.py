@@ -174,7 +174,7 @@ def test_bridged_anthracene_benzo(smiles):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OC(=O)CN1C=CN2C=CC=CC12", "2-[imidazo[1,2-a]pyridin-1(8aH)-yl]ethanoic acid"),
+        ("OC(=O)CN1C=CN2C=CC=CC12", "[imidazo[1,2-a]pyridin-1(8aH)-yl]acetic acid"),
     ],
 )
 def test_bridgehead_heteroatom_fused_yl(smiles, expected):
@@ -808,9 +808,9 @@ def test_oriented_numbering_of_five_six_and_seven_membered_fused_systems(smiles,
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OC(=O)Cc1ccc2c(c1)Cc1cc3ccccc3cc12", "2-(11H-benzo[b]fluoren-2-yl)ethanoic acid"),
-        ("OC(=O)Cc1ccc2c(c1)Cc1ccc3ccccc3c12", "2-(7H-benzo[c]fluoren-9-yl)ethanoic acid"),
-        ("OC(=O)Cc1ccc2c(c1)Cc1c2ccc2ccccc12", "2-(11H-benzo[a]fluoren-9-yl)ethanoic acid"),
+        ("OC(=O)Cc1ccc2c(c1)Cc1cc3ccccc3cc12", "(11H-benzo[b]fluoren-2-yl)acetic acid"),
+        ("OC(=O)Cc1ccc2c(c1)Cc1ccc3ccccc3c12", "(7H-benzo[c]fluoren-9-yl)acetic acid"),
+        ("OC(=O)Cc1ccc2c(c1)Cc1c2ccc2ccccc12", "(11H-benzo[a]fluoren-9-yl)acetic acid"),
     ],
 )
 def test_yl_groups_of_fused_systems_with_a_five_membered_ring(smiles, expected):
@@ -820,8 +820,8 @@ def test_yl_groups_of_fused_systems_with_a_five_membered_ring(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OC(=O)Cc1cn2ccccc2n1", "2-(imidazo[1,2-a]pyridin-2-yl)ethanoic acid"),
-        ("OC(=O)CN1CC=NC2=NC=CN12", "2-[imidazo[1,2-b][1,2,4]triazin-1(2H)-yl]ethanoic acid"),
+        ("OC(=O)Cc1cn2ccccc2n1", "(imidazo[1,2-a]pyridin-2-yl)acetic acid"),
+        ("OC(=O)CN1CC=NC2=NC=CN12", "[imidazo[1,2-b][1,2,4]triazin-1(2H)-yl]acetic acid"),
     ],
 )
 def test_bridgehead_heteroatom_fused_yl_groups(smiles, expected):
@@ -843,9 +843,9 @@ def test_fusion_names_of_a_parent_component_with_attached_rings(smiles, expected
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OC(=O)CC1C=CC=Cc2ccccc12", "2-(5H-benzo[7]annulen-5-yl)ethanoic acid"),
-        ("OC(=O)CC1C=Cc2ccccc2-c2ccccc12", "2-(5H-dibenzo[a,c][7]annulen-5-yl)ethanoic acid"),
-        ("OC(=O)CC1C=CC2=C1C=CC1=C2C=Cc2ccccc21", "2-(17H-cyclopenta[a]phenanthren-17-yl)ethanoic acid"),
+        ("OC(=O)CC1C=CC=Cc2ccccc12", "(5H-benzo[7]annulen-5-yl)acetic acid"),
+        ("OC(=O)CC1C=Cc2ccccc2-c2ccccc12", "(5H-dibenzo[a,c][7]annulen-5-yl)acetic acid"),
+        ("OC(=O)CC1C=CC2=C1C=CC1=C2C=Cc2ccccc21", "(17H-cyclopenta[a]phenanthren-17-yl)acetic acid"),
     ],
 )
 def test_yl_groups_of_parent_component_fusion_systems(smiles, expected):
@@ -859,11 +859,11 @@ def test_yl_groups_of_parent_component_fusion_systems(smiles, expected):
         ("C1CCc2ccc3cc(ccc3c2)CCc2ccc(cc2)C1", "1(2,6)-naphthalena-4(1,4)-benzenacyclooctaphane"),
         (
             "OC(=O)Cc1cc2ccc1CCc1ccc3ccccc3c1CC2",
-            "2-[1(1,2)-naphthalena-4(1,4)-benzenacyclohexaphan-43-yl]ethanoic acid",
+            "[1(1,2)-naphthalena-4(1,4)-benzenacyclohexaphan-43-yl]acetic acid",
         ),
         (
             "OC(=O)CC1Cc2ccc(cc2)CCc2ccc3ccccc3c2C1",
-            "2-[1(2,1)-naphthalena-4(1,4)-benzenacycloheptaphan-6-yl]ethanoic acid",
+            "[1(2,1)-naphthalena-4(1,4)-benzenacycloheptaphan-6-yl]acetic acid",
         ),
     ],
 )

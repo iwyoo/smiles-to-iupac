@@ -106,7 +106,7 @@ def test_degree_of_hydrogenation(smiles, expected):
         ("Cn1c2ccccc2c2CCN3CC4CCCCC4CC3c12", "1-methylyohimban"),
         ("Oc1ccc2c(c1)[nH]c1c2CCN2CC3CCCCC3CC12", "yohimban-11-ol"),
         # P-65.5.1, P-66.1, P-66.3, P-66.4, P-62.3.1, P-68.3.1.1.2: the other suffix classes of P-41 and their N locants
-        ("CC(=O)OC(=O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "ethanoic yohimban-18-carboxylic anhydride"),
+        ("CC(=O)OC(=O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "acetic yohimban-18-carboxylic anhydride"),
         ("ClC(=O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "yohimban-18-carbonyl chloride"),
         ("NNC(=O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "yohimban-18-carbohydrazide"),
         ("CCNNC(=O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "N′-ethylyohimban-18-carbohydrazide"),
@@ -129,9 +129,9 @@ def test_degree_of_hydrogenation(smiles, expected):
             "16,18-diethyl 14-methyl yohimban-14,16,18-tricarboxylate",
         ),
         # P-65.6.3: an O-acyl group makes the parent the alcohol part of an ester
-        ("CC(=O)OC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "yohimban-18-yl ethanoate"),
-        ("CC(=O)OC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2OC(=O)CC", "yohimban-14,18-diyl 18-ethanoate 14-propanoate"),
-        ("COC(=O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2OC(C)=O", "methyl 14-(ethanoyloxy)yohimban-18-carboxylate"),
+        ("CC(=O)OC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "yohimban-18-yl acetate"),
+        ("CC(=O)OC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2OC(=O)CC", "yohimban-14,18-diyl 18-acetate 14-propanoate"),
+        ("COC(=O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2OC(C)=O", "methyl 14-(acetyloxy)yohimban-18-carboxylate"),
     ],
 )
 def test_characteristic_groups_on_the_parent(smiles, expected):
@@ -144,7 +144,7 @@ def test_characteristic_groups_on_the_parent(smiles, expected):
         # P-44.1.1: a chain that carries more of the senior class than the parent becomes the parent, and the
         # Appendix 3 structure a substituent group (P-101.7.3)
         ("OCC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "(yohimban-18-yl)methanol"),
-        ("OC(=O)CC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "2-(yohimban-18-yl)ethanoic acid"),
+        ("OC(=O)CC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "(yohimban-18-yl)acetic acid"),
         ("CC(O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "1-(yohimban-18-yl)ethan-1-ol"),
         ("CC(C)Oc1ccc2c(c1)[nH]c1c2CCN2CC3CCCCC3CC12", "11-(propan-2-yloxy)yohimban"),
         # the parent carries as many acids as the chain does, so it stays the parent
@@ -254,7 +254,7 @@ def test_arms_with_stereo_outside_the_group_are_not_multiplied():
         # P-91.2: centres of a side branch are cited inside the substituent prefix, cepham numbering as in P-101
         (
             "CC1=C(N2[C@@H]([C@@H](C2=O)NC(=O)[C@@H](C3=CC=CC=C3)N)SC1)C(=O)O",
-            "7β-{[(2R)-2-amino-2-phenylethanoyl]amino}-3-methyl-3,4-didehydrocepham-4-carboxylic acid",
+            "7β-{[(2R)-amino(phenyl)acetyl]amino}-3-methyl-3,4-didehydrocepham-4-carboxylic acid",
         ),
         # P-101.2.6: α and β only for rings fused to the drawn plane; a centre the drawing leaves open (C-22 of
         # spirostan) or one beyond a spiro atom is cited with R and S

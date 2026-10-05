@@ -11,9 +11,7 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   competition to resolve.
 - `COCC(=O)OC` -> PubChem's own 'methyl 2-methoxyacetate' confirms the
   ester is always the suffix parent, the ether always the 'alkoxy'
-  prefix on the acyl chain (this project keeps its existing 'ethanoate'
-  stem convention rather than PubChem's retained '-acetate', matching
-  `_aldehyde.py`/`_amide.py`'s analogous stem choices).
+  prefix on the acyl chain.
 - Wired through `_coexisting_groups.name_via_senior_acyclic` like every
   other module in this milestone, via `_ester.py`'s own
   `_name_acyclic_ester` entry point (a thin join of its existing

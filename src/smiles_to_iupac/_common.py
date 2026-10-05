@@ -28,7 +28,6 @@ from rdkit import Chem
 from rdkit.Chem import rdCIPLabeler
 
 from ._numerals import alkane_name, numerical_term
-from ._pin import mark
 
 _LEADING_LOCANTS_RE = re.compile(r"^\x01?(?:[\d,\-]+\(?)?")
 _ITALIC_PREFIX_RE = re.compile(r"^(tert|sec|iso)-")
@@ -1032,9 +1031,6 @@ RETAINED_ACYL_STEMS = {
 }
 
 
-_RETAINED_ACID_WORDS = {"oic", "dioic", "oic acid", "oyl", "oate", "thioate", "selenoate"}
-
-
 def name_from_substituents(
     chain_length, ene_locants, yne_locants, own_word, own_locants=None, force_own_locant=False, substituted=False
 ):
@@ -1062,8 +1058,6 @@ def name_from_substituents(
     retained = None if has_unsaturation or force_own_locant else RETAINED_ACYL_STEMS.get((chain_length, own_word))
     if retained:
         return retained
-    if chain_length <= 2 and not has_unsaturation and own_word in _RETAINED_ACID_WORDS:
-        mark(None, "P-65.1.1.1 retains formic, acetic and oxalic acid (with their acyl groups and esters) as PINs")
 
     if not force_own_locant and should_omit_mononuclear_locants(
         chain_length, own_locants, has_unsaturation, substituted

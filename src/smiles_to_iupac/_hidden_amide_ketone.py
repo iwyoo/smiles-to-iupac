@@ -145,7 +145,10 @@ def name_hidden_amide_ketone(mol) -> str:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
     acyl_atom = mol.GetAtomWithIdx(acyl_atom_idx)
-    (carbonyl_oxygen,) = [n.GetIdx() for n in acyl_atom.GetNeighbors() if n.GetAtomicNum() == 8]
+    oxygens = [n.GetIdx() for n in acyl_atom.GetNeighbors() if n.GetAtomicNum() == 8]
+    if len(oxygens) != 1:
+        raise UnsupportedStructure("an acyl carbon with several oxygens is a carbamic acid derivative, not a hidden amide")
+    (carbonyl_oxygen,) = oxygens
 
     graph = adjacency(mol)
     carbon_graph = carbon_adjacency(mol)

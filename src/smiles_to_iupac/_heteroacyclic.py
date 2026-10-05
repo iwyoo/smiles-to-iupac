@@ -234,8 +234,6 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, 
     prefix = format_substituent_prefixes(grouped_all)
     if principal is None:
         body = name_from_substituents(length, ene, yne, "e")
-    elif principal in _TERMINAL:
-        body = name_from_substituents(length, ene, yne, multiplied_word(count, _SUFFIX_WORD[principal]))
     else:
         body = name_from_substituents(length, ene, yne, multiplied_word(count, _SUFFIX_WORD[principal]), suffix_locants)
     name = prefix + ("-" if prefix and a_text and not prefix.endswith("-") else "") + a_text + body
