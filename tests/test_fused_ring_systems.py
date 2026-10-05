@@ -748,3 +748,25 @@ def test_phane_stereodescriptors_on_the_phane_and_in_its_substituents(smiles, ex
 def test_cyclophane_fused_to_its_ring_is_named_by_fusion():
     # P-52.2.5.2: only one ring system is not fused to the macrocycle, so a fusion name is preferred to the phane name
     assert smiles_to_iupac("C1COc2ccccc2OCCOCCOc2ccccc2OCCO1") == "6,7,9,10,17,18,20,21-octahydrodibenzo[b,k][1,4,7,10,13,16]hexaoxacyclooctadecine"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        # P-25.3.5: a benzoheterocycle stays one component beside a retained polycycle, and is senior as the base component
+        ("N1=CC2=CC3=CC=CC=C3C=C2C=CC2=CC=CC=C12", "naphtho[2,3-c][1]benzazocine"),
+        # P-25.3.7.3 (a): second-order interparent components, round-tripped from the name
+        (
+            "C1=c2occc2=c2c1c1cc3c4c(c3cc21)C=c1occc1=4",
+            "benzo[1''',2''':3'',4'';4''',5''':3'',4'']dicyclobuta[1'',2'':3,4;1'',2'':3',4']dicyclopenta[1,2-b:1',2'-b']difuran",
+        ),
+    ],
+)
+def test_benzoheterocycle_beside_retained_polycycle_and_second_order_interparent_chains(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_bridge_selection_minimises_atoms_in_dependent_bridges():
+    # P-25.4.3.4.2 (g): a one-atom dependent bridge (methano) beats ethano plus butano
+    name = smiles_to_iupac("C1=CC2C=C3C=C4C5C=c6ccccc6=NC(CC(CC2)CC5)C4C=C13")
+    assert name.endswith("6,17-methano-10,13-pentanonaphtho[2,3-c][1]benzazocine")
