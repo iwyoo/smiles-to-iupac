@@ -254,7 +254,7 @@ def _connected_subsets(sub):
     return found
 
 
-def _decompositions(mol, graph, fused, cluster, cache):
+def _decompositions(mol, graph, fused, cluster, cache, fused_rings):
     """Ways to read a connected group of non-fused atoms as independent and dependent bridges (P-25.4.1.8-9)."""
     if len(cluster) > _MAX_CLUSTER:
         raise UnsupportedStructure("a bridge system with too many atoms")
@@ -284,6 +284,8 @@ def _decompositions(mol, graph, fused, cluster, cache):
                     cover(left - subset, chosen + [subset])
 
         cover(frozenset(cluster), [])
+        whole_rings = [set(r) for r in cache["aromatic_rings"] if set(r) <= cluster]
+        partitions = [p for p in partitions if all(any(r <= part for part in p) for r in whole_rings)]
         cache[key] = partitions
     partitions = cache[key]
     found = []
@@ -298,6 +300,8 @@ def _decompositions(mol, graph, fused, cluster, cache):
         for roles in product((True, False), repeat=len(comps)):
             if not _roles_valid(roles, fused_bonds, links):
                 continue
+            if any(r and _forms_fused_ring(graph, fused, fb, fused_rings) for r, fb in zip(roles, fused_bonds)):
+                continue
             parts = []
             for i, c in enumerate(comps):
                 valence = sum(o for _, _, o in fused_bonds[i]) + (0 if roles[i] else sum(o for _, o in links[i]))
@@ -306,6 +310,22 @@ def _decompositions(mol, graph, fused, cluster, cache):
     if not found:
         raise UnsupportedStructure("this bridge system has no bridge reading")
     return found
+
+
+def _forms_fused_ring(graph, fused, fused_bonds, fused_rings):
+    """P-25.4.1.2 (b): a divalent bridge that closes a new ortho- or peri-fused ring is a fusion component, not a bridge;
+    only the bond common to two rings (d) may be bridged."""
+    ends = [f for _, f, _ in fused_bonds]
+    if len(ends) != 2 or ends[0] == ends[1]:
+        return False
+    a, b = ends
+    both = sum(1 for r in fused_rings if a in r and b in r)
+    if graph.has_edge(a, b):
+        return both < 2
+    return any(
+        sum(c in r for r in fused_rings) >= 2 and not both
+        for c in (set(graph[a]) & set(graph[b]) & fused)
+    )
 
 
 def _roles_valid(roles, fused_bonds, links):
@@ -612,7 +632,8 @@ def bridged_parents(mol, atoms):
     aromatic = Chem.Mol(mol)
     mol = _kekule(aromatic)
     graph, valid = _candidates(mol, atoms)
-    ranked, cache = [], {}
+    ranked = []
+    cache = {"aromatic_rings": [r for r in aromatic.GetRingInfo().AtomRings() if all(aromatic.GetAtomWithIdx(a).GetIsAromatic() for a in r)]}
 
     def hetero_count(order):
         return sum(1 for a in order if mol.GetAtomWithIdx(a).GetSymbol() != "C")
@@ -624,10 +645,11 @@ def bridged_parents(mol, atoms):
     for _, group in groupby(states, key=lambda item: (-len(item[0]), -len(item[1][0]), hetero_count(item[1][0]))):
         for state, (order, sk) in group:
             fused = set(order)
+            fused_rings = [{order[i] for i in ring} for ring in sk.GetRingInfo().AtomRings()]
             clusters = list(nx.connected_components(graph.subgraph(set(graph.nodes) - fused)))
             kekule = _kekule(aromatic, [(b, f) for c in clusters for b in c for f in graph[b] if f in fused]) or mol
             try:
-                readings = [_decompositions(kekule, graph, fused, c, cache) for c in clusters]
+                readings = [_decompositions(kekule, graph, fused, c, cache, fused_rings) for c in clusters]
                 name, numberings, root = _fused_parent(order, sk)
             except UnsupportedStructure:
                 continue

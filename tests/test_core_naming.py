@@ -147,9 +147,9 @@ def test_bis_tridentate_uses_the_priming_convention(cls, prefix):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OCCc4ccc(c7ccc8ccccc8c7)cc4", "2-[4-(naphthalen-2-yl)phenyl]ethanol"),
-        ("OCCc4ccc(c7ccc8ccccc8c7)nc4", "2-[6-(naphthalen-2-yl)pyridin-3-yl]ethanol"),
-        ("OCCc4ccc(C7CCCCO7)nc4", "2-[6-(oxan-2-yl)pyridin-3-yl]ethanol"),
+        ("OCCc4ccc(c7ccc8ccccc8c7)cc4", "2-[4-(naphthalen-2-yl)phenyl]ethan-1-ol"),
+        ("OCCc4ccc(c7ccc8ccccc8c7)nc4", "2-[6-(naphthalen-2-yl)pyridin-3-yl]ethan-1-ol"),
+        ("OCCc4ccc(C7CCCCO7)nc4", "2-[6-(oxan-2-yl)pyridin-3-yl]ethan-1-ol"),
     ],
 )
 def test_complex_substituted_substituent_groups(smiles, expected):
@@ -210,7 +210,7 @@ def test_non_halogen_heteroatom():
             "[SiH3][SiH]([SiH3])[SiH2][SiH2]c1ccc(C(=O)O)cc1",
             "4-(3-silyltetrasilan-1-yl)benzoic acid",
         ),
-        ("OC(=O)Cc1cccc([SiH2]O[SiH3])n1", "2-(6-disiloxanylpyridin-2-yl)ethanoic acid"),
+        ("OC(=O)Cc1cccc([SiH2]O[SiH3])n1", "(6-disiloxanylpyridin-2-yl)acetic acid"),
     ],
 )
 def test_heteroatom_hydride_groups(smiles, expected):
@@ -351,7 +351,7 @@ def test_selanyl_and_tellanyl_prefixes(smiles, expected):
     "smiles, expected",
     [
         ("COCCOCCOCCOCCCc1ccc(C(=O)O)cc1", "4-(2,5,8,11-tetraoxatetradecan-14-yl)benzoic acid"),
-        ("OC(=O)CC1CCCCCOCCCCC1C", "2-(6-methyl-1-oxacyclododecan-7-yl)ethanoic acid"),
+        ("OC(=O)CC1CCCCCOCCCCC1C", "(6-methyl-1-oxacyclododecan-7-yl)acetic acid"),
     ],
 )
 def test_skeletal_replacement_groups(smiles, expected):
@@ -379,9 +379,11 @@ def test_stereodescriptors_in_an_assembly_of_three_rings(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_simple_ring_substituent():
-    graph = {0: [1], 1: [0, 2, 3], 2: [1, 3], 3: [1, 2]}
-    assert name_branch(graph, 1, 0) == ("cyclopropyl", False)
+def test_ring_substituent_is_named_by_the_general_ring_namer():
+    plain = Chem.MolFromSmiles("CC1CC1")
+    assert name_branch(adjacency(plain), 1, 0, {}, mol=plain) == ("cyclopropyl", False)
+    substituted = Chem.MolFromSmiles("CC1CC1C")
+    assert name_branch(adjacency(substituted), 1, 0, {}, mol=substituted) == ("2-methylcyclopropyl", True)
 
 
 def test_substituted_ring_substituent_raises():

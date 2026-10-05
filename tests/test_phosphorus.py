@@ -133,15 +133,11 @@ def test_methylphosphinine():
     "smiles,expected",
     [
         ("COP(OC)OC", "trimethyl phosphite"),
+        ("COP(OC)O", "dimethyl hydrogen phosphite"),
     ],
 )
 def test_phosphite_ester_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_partial_hydrogen_phosphite_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COP(OC)O")
 
 
 def test_phosphate_ester_unaffected():

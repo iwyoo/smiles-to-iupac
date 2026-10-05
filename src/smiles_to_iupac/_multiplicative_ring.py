@@ -23,7 +23,19 @@ from ._multiplicative_prefix import SIMPLE_PREFIXES, prefix_name, probe_name, su
 from ._numerals import alkane_name, alkyl_name
 from ._substituents import _ring_base_name, format_substituent_prefixes
 
-_SUFFIX_WORDS = {
+class _SuffixWords(dict):
+    def __missing__(self, key):
+        if isinstance(key, str) and key.startswith("acid:"):
+            from ._acid_lexicon import carbo_suffix, spec_from_key
+
+            return carbo_suffix(spec_from_key(key), 1)
+        raise KeyError(key)
+
+    def __contains__(self, key):
+        return dict.__contains__(self, key) or (isinstance(key, str) and key.startswith("acid:"))
+
+
+_SUFFIX_WORDS = _SuffixWords({
     "ide": "ide",
     "peroxoic": "carboperoxoic acid",
     "thioic": "carbothioic acid",
@@ -39,8 +51,9 @@ _SUFFIX_WORDS = {
     "alcohol": "ol",
     "thiol": "thiol",
     "amine": "amine",
-}
+})
 _RETAINED_BENZENE = {
+    "acid:C:O:O!": "benzoate",
     "carboxylic_acid": "benzoic acid",
     "amide": "benzamide",
     "nitrile": "benzonitrile",
@@ -208,41 +221,6 @@ def _group_at(mol, groups, ring_atom, root):
         if (attached, anchor_root) == (ring_atom, root) and g.atoms - {ring_atom} == atoms and _is_primary(mol, g):
             return g
     return None
-
-
-def ring_substituent_name(mol, ring_atoms, attach_atom, from_atom, groups, suffix_group, name_function=None):
-    """(name, is_compound) of a monocyclic substituent group ('phenyl',
-    '4-chlorophenyl', 'cyclohexyl', 'pyridin-2-yl') attached through
-    `attach_atom`, or None when the ring isn't a supported monocycle."""
-    if sum(1 for r in mol.GetRingInfo().AtomRings() if set(r) & set(ring_atoms)) != 1:
-        return None
-    spec = spec_of(mol, ring_atoms)
-    if spec is None:
-        return None
-    entries = _prefix_entries(mol, _ring_roots(mol, spec, {(attach_atom, from_atom)}), groups, suffix_group, name_function)
-    best = None
-    for locants in numberings(spec):
-        key = (
-            locants[attach_atom],
-            multiple_locants(spec, locants),
-            tuple(sorted(locants[r] for r, _, _ in entries)),
-            _citation_key([(locants[r], name) for r, name, _ in entries]),
-        )
-        if best is None or key < best[0]:
-            best = (key, locants)
-    locants = best[1]
-    if spec.kind == "benzene":
-        core = "phenyl"
-    elif spec.kind == "cycloalkane":
-        core = "cyclo" + alkyl_name(len(spec.cycle))
-    elif spec.kind == "cycloalkene":
-        ene, yne = multiple_locants(spec, locants)
-        core = _ring_base_name(len(spec.cycle), ene, yne, 1.0)
-    else:
-        parent = spec.parent
-        core = f"{parent[:-1] if parent.endswith('e') else parent}-{locants[attach_atom]}-yl"
-    prefix_text = _prefix_text(entries, locants)
-    return _join(prefix_text, core), bool(prefix_text) or spec.hetero is not None or spec.kind == "cycloalkene"
 
 
 def _prefix_entries(mol, roots, groups, suffix_group, name_function):

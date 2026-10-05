@@ -50,8 +50,7 @@ from ._common import (
     name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
-    ring_chain_attachment_with_halogens,
-    ring_chain_attachments_with_halogens,
+    ring_branch_attachments,
     separate_aromatic_monocycles,
     substituent_locant_set_and_citation,
     ENE_BOND_ORDER,
@@ -60,7 +59,6 @@ from ._common import (
 from ._substituents import (
     format_substituent_prefixes,
     name_branch,
-    plain_alkyl_ring_substituents,
     substituents_for_chain,
 )
 
@@ -104,7 +102,7 @@ def _name_from_substituents(chain_length, n_locant, ene_locants, yne_locants, gr
     # Only chain_length == 1 omits a substituent prefix's own locant too
     # (see `_alcohol.py`'s equivalent comment).
     prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
-    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "aminide", [n_locant])
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "aminide", [n_locant], substituted=bool(grouped))
 
 
 def _candidate_key(chain_length, n_locant, ene_locants, yne_locants, substituents):
@@ -259,9 +257,9 @@ def _name_phenyl_chain_aminide(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
+    halogens = halogen_substituents(mol)
     rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
-    attachment = ring_chain_attachments_with_halogens(graph, rings, set(), halogens)
+    attachment = ring_branch_attachments(mol, graph, rings)
     if not attachment:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "

@@ -34,7 +34,7 @@ only through an acyclic bridge -- e.g. dicyclohexylmethane, 1-cyclohexyl-
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key
 from ._multiplicative_ring import monocycle_spec, numberings
 from ._multiplicative_text import enclose
-from ._substituents import _simple_ring_substituent, name_branch
+from ._substituents import name_branch
 
 
 def find_disjoint_ring_pair_core(mol):
@@ -60,6 +60,13 @@ def _ring_attachment(mol, graph, ring):
     return attach_atom, bridge_atom
 
 
+def _is_plain_monocycle(graph, ring, attach, bridge):
+    members = set(ring)
+    return all(
+        {n for n in graph[a] if n not in members} == ({bridge} if a == attach else set()) for a in ring
+    ) and all(sum(1 for n in graph[a] if n in members) == 2 for a in ring)
+
+
 def name_disjoint_ring_pair(mol, core) -> str:
     ring_a, ring_b = core
     graph = adjacency(mol)
@@ -68,8 +75,7 @@ def name_disjoint_ring_pair(mol, core) -> str:
     rings = []
     for ring in (ring_a, ring_b):
         attach, bridge = _ring_attachment(mol, graph, ring)
-        shape = _simple_ring_substituent(graph, attach, bridge, aromatic_atoms, mol=mol)
-        if shape is None:
+        if not _is_plain_monocycle(graph, ring, attach, bridge):
             raise UnsupportedStructure(
                 "a fused, spiro, or otherwise non-simple ring, alongside a "
                 "second disjoint ring elsewhere in the molecule, is not "

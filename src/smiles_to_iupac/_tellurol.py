@@ -250,7 +250,7 @@ def _name_from_substituents(chain_length, te_locants, ene_locants, yne_locants, 
     # (see `_alcohol.py`'s equivalent comment).
     prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
     return prefix + name_from_substituents(
-        chain_length, ene_locants, yne_locants, multiplied_word(len(te_locants), "tellurol"), te_locants
+        chain_length, ene_locants, yne_locants, multiplied_word(len(te_locants), "tellurol"), te_locants, substituted=bool(grouped)
     )
 
 

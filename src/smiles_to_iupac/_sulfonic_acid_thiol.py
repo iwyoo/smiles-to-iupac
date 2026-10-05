@@ -137,7 +137,7 @@ def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
 
 def _name_from_substituents(chain_length, so3h_locant, grouped):
     prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
-    return prefix + name_from_substituents(chain_length, [], [], "sulfonic acid", [so3h_locant])
+    return prefix + name_from_substituents(chain_length, [], [], "sulfonic acid", [so3h_locant], substituted=bool(grouped))
 
 
 def _candidate_key(chain_length, so3h_locant, substituents):

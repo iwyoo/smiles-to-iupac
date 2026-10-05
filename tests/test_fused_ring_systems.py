@@ -2,7 +2,7 @@ import pytest
 from fractions import Fraction
 from rdkit import Chem
 from rdkit.Chem import Atom, BondType, RWMol
-from smiles_to_iupac import smiles_to_iupac
+from smiles_to_iupac import NonPreferredNameWarning, smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure, adjacency, ring_cycle
 from smiles_to_iupac._pyrimidinedione import has_pyrimidinedione_shape
 
@@ -117,7 +117,7 @@ def test_bridged_anthracene_benzo(smiles):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OC(=O)CN1C=CN2C=CC=CC12", "2-[imidazo[1,2-a]pyridin-1(8aH)-yl]ethanoic acid"),
+        ("OC(=O)CN1C=CN2C=CC=CC12", "[imidazo[1,2-a]pyridin-1(8aH)-yl]acetic acid"),
     ],
 )
 def test_bridgehead_heteroatom_fused_yl(smiles, expected):
@@ -557,9 +557,9 @@ def test_numbering_of_five_six_and_seven_membered_fused_systems(smiles, indicate
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OC(=O)Cc1ccc2c(c1)Cc1cc3ccccc3cc12", "2-(11H-benzo[b]fluoren-2-yl)ethanoic acid"),
-        ("OC(=O)Cc1ccc2c(c1)Cc1ccc3ccccc3c12", "2-(7H-benzo[c]fluoren-9-yl)ethanoic acid"),
-        ("OC(=O)Cc1ccc2c(c1)Cc1c2ccc2ccccc12", "2-(11H-benzo[a]fluoren-9-yl)ethanoic acid"),
+        ("OC(=O)Cc1ccc2c(c1)Cc1cc3ccccc3cc12", "(11H-benzo[b]fluoren-2-yl)acetic acid"),
+        ("OC(=O)Cc1ccc2c(c1)Cc1ccc3ccccc3c12", "(7H-benzo[c]fluoren-9-yl)acetic acid"),
+        ("OC(=O)Cc1ccc2c(c1)Cc1c2ccc2ccccc12", "(11H-benzo[a]fluoren-9-yl)acetic acid"),
     ],
 )
 def test_yl_groups_of_fused_systems_with_a_five_membered_ring(smiles, expected):
@@ -569,8 +569,8 @@ def test_yl_groups_of_fused_systems_with_a_five_membered_ring(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OC(=O)Cc1cn2ccccc2n1", "2-(imidazo[1,2-a]pyridin-2-yl)ethanoic acid"),
-        ("OC(=O)CN1CC=NC2=NC=CN12", "2-[imidazo[1,2-b][1,2,4]triazin-1(2H)-yl]ethanoic acid"),
+        ("OC(=O)Cc1cn2ccccc2n1", "(imidazo[1,2-a]pyridin-2-yl)acetic acid"),
+        ("OC(=O)CN1CC=NC2=NC=CN12", "[imidazo[1,2-b][1,2,4]triazin-1(2H)-yl]acetic acid"),
     ],
 )
 def test_bridgehead_heteroatom_fused_yl_groups(smiles, expected):
@@ -592,9 +592,9 @@ def test_fusion_names_of_a_parent_component_with_attached_rings(smiles, expected
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OC(=O)CC1C=CC=Cc2ccccc12", "2-(5H-benzo[7]annulen-5-yl)ethanoic acid"),
-        ("OC(=O)CC1C=Cc2ccccc2-c2ccccc12", "2-(5H-dibenzo[a,c][7]annulen-5-yl)ethanoic acid"),
-        ("OC(=O)CC1C=CC2=C1C=CC1=C2C=Cc2ccccc21", "2-(17H-cyclopenta[a]phenanthren-17-yl)ethanoic acid"),
+        ("OC(=O)CC1C=CC=Cc2ccccc12", "(5H-benzo[7]annulen-5-yl)acetic acid"),
+        ("OC(=O)CC1C=Cc2ccccc2-c2ccccc12", "(5H-dibenzo[a,c][7]annulen-5-yl)acetic acid"),
+        ("OC(=O)CC1C=CC2=C1C=CC1=C2C=Cc2ccccc21", "(17H-cyclopenta[a]phenanthren-17-yl)acetic acid"),
     ],
 )
 def test_yl_groups_of_parent_component_fusion_systems(smiles, expected):
@@ -604,15 +604,15 @@ def test_yl_groups_of_parent_component_fusion_systems(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("c1cc2ccc1CCc1ccc3ccccc3c1CC2", "1(1,2)-naphthalena-4(1,4)-benzenacyclohexaphane"),
+        ("c1cc2ccc1CCc1ccc3ccccc3c1CC2", "7,8,13,14-tetrahydro-9,12-ethenocyclodeca[a]naphthalene"),
         ("C1CCc2ccc3cc(ccc3c2)CCc2ccc(cc2)C1", "1(2,6)-naphthalena-4(1,4)-benzenacyclooctaphane"),
         (
             "OC(=O)Cc1cc2ccc1CCc1ccc3ccccc3c1CC2",
-            "2-[1(1,2)-naphthalena-4(1,4)-benzenacyclohexaphan-42-yl]ethanoic acid",
+            "(7,8,13,14-tetrahydro-9,12-ethenocyclodeca[a]naphthalen-10-yl)acetic acid",
         ),
         (
             "OC(=O)CC1Cc2ccc(cc2)CCc2ccc3ccccc3c2C1",
-            "2-[1(1,2)-naphthalena-4(1,4)-benzenacycloheptaphan-6-yl]ethanoic acid",
+            "(8,13,14,15-tetrahydro-7H-9,12-ethenocycloundeca[a]naphthalen-14-yl)acetic acid",
         ),
     ],
 )
@@ -644,3 +644,107 @@ def test_phane_with_a_naphthalene_amplificant(smiles, expected):
 )
 def test_fusion_engine_decompositions_and_bridges(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        # P-26.4.1.2, P-26.4.1.3: skeleton and amplificant numbering, senior amplificant lowest
+        ("c1cncc(CCc2ccc(CCc3ccc(Cc4ccncn4)cn3)cn2)c1", "1(4)-pyrimidina-3,6(5,2),9(3)-tripyridinanonaphane"),
+        (
+            "c1ccc2c3cc(cc2c1)CCc1ccc(cn1)CC1CCCN(CCC3)C1",
+            "3(5,2)-pyridina-1(3,1)-piperidina-6(3,1)-naphthalenacyclononaphane",
+        ),
+        (
+            "c1ccc2c(c1)ccc1c3ccc(c12)CCc1ccc(c2ccccc12)CCc1ccc(c2ncccc12)CC3",
+            "1(8,5)-quinolina-4(1,4)-phenanthrena-7(1,4)-naphthalenacyclononaphane",
+        ),
+        # P-26.4.2.2-.4: attachment locant sets and their citation order (P-26.3.2.2)
+        ("c1cc2ncc1CCc1ccc(cn1)CCc1ccc(cn1)CC2", "1(2,5),4,7(5,2)-tripyridinacyclononaphane"),
+        (
+            "c1ccc2c3cc(nc2c1)Cc1cncc(c1)Cc1cc(no1)Cc1cc(ccn1)Cc1cc(nc2ccccc12)CCCCC3",
+            "1(4,2),9(2,4)-diquinolina-3(4,2),7(3,5)-dipyridina-5(3,5)-[1,2]oxazolacyclotetradecaphane",
+        ),
+        (
+            "c1ccc2c3cc(nc2c1)Cc1cc(ccn1)Cc1cc(no1)Cc1cc(ccn1)Cc1cc(nc2ccccc12)CCCCC3",
+            "1(4,2),9(2,4)-diquinolina-3,7(4,2)-dipyridina-5(3,5)-[1,2]oxazolacyclotetradecaphane",
+        ),
+        # P-26.4.3: composite locants, indicated hydrogen in an amplificant
+        (
+            "Clc1c2ccc(c1Cl)C(Cl)(Cl)Cc1cc(c(Cl)c(Cl)c1Cl)CCC2",
+            "14,15,16,3,3,42,43-heptachloro-1(1,3),4(1,4)-dibenzenacycloheptaphane",
+        ),
+        ("C1=C2CCc3cccc(c3)CCC(=CO1)C2", "14H-1(3,5)-pyrana-4(1,3)-benzenacyclohexaphane"),
+        # P-26.5: skeletal replacement in the skeleton and in amplificants
+        ("c1c2noc1CSCC1CCC(CC1)CSC2", "3,7-dithia-1(3,5)-[1,2]oxazola-5(1,4)-cyclohexanacyclooctaphane"),
+        (
+            "c1ccc(Oc2ccc([Se]c3ccc(Sc4ccncc4)cc3)cc2)cc1",
+            "6-oxa-2-thia-4-selena-1(4)-pyridina-3,5(1,4),7(1)-tribenzenaheptaphane",
+        ),
+        (
+            "c1cc2cc(c1)CN1CCOCCOCCN(CCOCCOCC1)Cc1cccc(c1)CCC2",
+            "34,37,313,316-tetraoxa-31,310-diaza-3(1,10)-cyclooctadecana-1,5(1,3)-dibenzenacyclooctaphane",
+        ),
+        (
+            "c1cc2ccc1COCCOCCOCC13CCC(CC1)(COCCOCCOC2)O3",
+            "17,3,6,9,13,16,19-heptaoxa-1(1,4)-bicyclo[2.2.1]heptana-11(1,4)-benzenacycloicosaphane",
+        ),
+        (
+            "c1cc2oc1OC1CCSC(CCCCCCCCO1)OCCCCCOC1CCCCCCCCSC(CCO1)O2",
+            "14,2,4,514,6,12-hexaoxa-114,54-dithia-3(2,5)-furana-1,5(1,5)-dicyclotetradecanacyclododecaphane",
+        ),
+        # P-26.2.2.2.1 stereoparent amplificant, P-26.2.3.2 bis before a prefix that starts with a multiplying prefix
+        ("c1cc2ccc1CCC1CCC3C(CCC4C5CCC(CC2)C5CCC34)C1", "1(3,17)-gonana-4(1,4)-benzenacyclohexaphane"),
+        ("c1cc2ccc1CCc1ccc3c(c1)C14CCCCC1C(C3)N(CC2)CC4", "1(3,17)-morphinana-4(1,4)-benzenacyclohexaphane"),
+        (
+            "c1cc2ccc1CCC13CCC(CC1)(CCC14CCC(CC2)(CC1)C4)C3",
+            "1,4(1,4)-bis(bicyclo[2.2.1]heptana)-7(1,4)-benzenacyclononaphane",
+        ),
+    ],
+)
+def test_phane_parent_hydrides_of_p26(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C1=Cc2cccc(c2)CCCCCCCc2cccc(c2)CCCCC1", "1,9(1,3)-dibenzenacyclohexadecaphan-2-ene"),
+        (
+            "C1=CC2CCCCCCCc3cccc(c3)CCCCCCCC(=C1)C2",
+            "1(1,3)-benzena-9(1,3)-cyclohexanacyclohexadecaphane-93,95-diene",
+        ),
+        ("C1#Cc2cccc(c2)CCCCCCc2cccc(c2)CC=C1", "1,7(1,3)-dibenzenacyclotridecaphan-4-en-2-yne"),
+        ("C1=C/c2cccc(c2)CCCCCCCc2cccc(c2)CCCCC/1", "(2E)-1,9(1,3)-dibenzenacyclohexadecaphan-2-ene"),
+        ("C1=C\\c2cccc(c2)CCCCCCCc2cccc(c2)CCCCC/1", "(2Z)-1,9(1,3)-dibenzenacyclohexadecaphan-2-ene"),
+        ("C1=C2CCCCCc3cccc(n3)CCCCCC(=CC1)N2", "11,14-dihydro-1,7(2,6)-dipyridinacyclododecaphane"),
+        (
+            "c1cc2ccc1CCCC1CCC3CCC(CCC2)CC3C1",
+            "11,12,13,14,14a,15,16,17,18,18a-decahydro-1(2,7)-naphthalena-5(1,4)-benzenacyclooctaphane",
+        ),
+    ],
+)
+def test_phane_unsaturation_and_hydrogenation(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("O[C@@H]1Cc2ccc(cc2)CCc2ccc1cc2", "(2R)-1,4(1,4)-dibenzenacyclohexaphan-2-ol"),
+        ("O[C@H]1Cc2ccc(cc2)CCc2ccc1cc2", "(2S)-1,4(1,4)-dibenzenacyclohexaphan-2-ol"),
+        ("O[C@H]1c2ccc(cc2)CCc2ccc(cc2)[C@@H]1O", "(2S,3S)-1,4(1,4)-dibenzenacyclohexaphane-2,3-diol"),
+        ("O[C@@H]1c2ccc(cc2)CCc2ccc(cc2)[C@@H]1O", "(2R,3S)-1,4(1,4)-dibenzenacyclohexaphane-2,3-diol"),
+        ("O[C@@H]1CC2CCc3ccc(cc3)CCC1CC2", "(42R)-1(1,4)-benzena-4(1,4)-cyclohexanacyclohexaphan-42-ol"),
+        ("C[C@@H](Cl)c1cc2ccc1CCc1ccc(CC2)cc1", "12-[(1R)-1-chloroethyl]-1,4(1,4)-dibenzenacyclohexaphane"),
+        ("C[C@@H](Cl)C1Cc2ccc(cc2)CCc2ccc1cc2", "2-[(1R)-1-chloroethyl]-1,4(1,4)-dibenzenacyclohexaphane"),
+        ("C[C@H](Cl)[C@@H](Cl)c1cc2ccc1CCc1ccc(CC2)cc1", "12-[(1S,2S)-1,2-dichloropropyl]-1,4(1,4)-dibenzenacyclohexaphane"),
+    ],
+)
+def test_phane_stereodescriptors_on_the_phane_and_in_its_substituents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_cyclophane_fused_to_its_ring_is_named_by_fusion():
+    # P-52.2.5.2: only one ring system is not fused to the macrocycle, so a fusion name is preferred to the phane name
+    assert smiles_to_iupac("C1COc2ccccc2OCCOCCOc2ccccc2OCCO1") == "6,7,9,10,17,18,20,21-octahydrodibenzo[b,k][1,4,7,10,13,16]hexaoxacyclooctadecine"

@@ -1,6 +1,6 @@
 import pytest
 from rdkit import Chem
-from smiles_to_iupac import smiles_to_iupac
+from smiles_to_iupac import NonPreferredNameWarning, smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure
 from smiles_to_iupac._fullerene import (
     _C84_D6H_ISOMER_24_SMILES,
@@ -105,9 +105,27 @@ def test_ring_stereocenter_with_two_substituents():
     assert smiles_to_iupac("CC[C@H](C)[C@H]1CC(C)C=CC1") == "(5R)-5-[(2S)-butan-2-yl]-3-methylcyclohex-1-ene"
 
 
-def test_substituted_tetrabenzenacyclooctaphane_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1cccc2c1CC1=CC=CC(=C1)CC1=CC=CC(=C1)CC1=CC=CC(=C1)C2")
+def test_ortho_fused_tetrabenzenacyclooctaphane_is_named_with_a_warning():
+    with pytest.warns(NonPreferredNameWarning, match="phane"):
+        name = smiles_to_iupac("Cc1cccc2c1CC1=CC=CC(=C1)CC1=CC=CC(=C1)CC1=CC=CC(=C1)C2")
+    assert name == "13-methyl-1(1,2),3,5,7(1,3)-tetrabenzenacyclooctaphane"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "c1ncc2cc1CCCc1cc3cc(c1)-c1cc(cc(c1)CC2)CCc1ccc(nc1)CCC3",
+            "4(5,2),12(3,5)-dipyridina-1,8(1,3,5)-dibenzenabicyclo[6.6.0]tetradecaphane",
+        ),
+        (
+            "c1cc2cc(c1)Cc1cc(c3c4ccc(c3c1)CCc1cc3ccccc3c3cc(ccc13)CC4)CCCCC2",
+            "3(3,10)-phenanthrena-6(8,5,3,1)-naphthalena-8(1,3)-benzenaspiro[5.7]tridecaphane",
+        ),
+    ],
+)
+def test_phane_von_baeyer_and_spiro_skeletons(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_substituted_metacyclophane_is_named():
@@ -198,11 +216,11 @@ def test_biphenyl_assembly_stays_assembly():
     [
         (
             "OC(=O)C=C1c2cccc(n2)Cc2cccc(n2)Cc2cccc(n2)Cc2cccc1n2",
-            "2-[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-2-ylidene]ethanoic acid",
+            "[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-2-ylidene]acetic acid",
         ),
         (
             "OC(=O)C=C1C=C2Cc3cccc(n3)Cc3cccc(n3)Cc3cccc(n3)CC(=C1)N2",
-            "2-[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-14(11H)-ylidene]ethanoic acid",
+            "[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-14(11H)-ylidene]acetic acid",
         ),
     ],
 )

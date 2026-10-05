@@ -5,12 +5,7 @@ IUPAC 2013 Recommendations ("the Blue Book"):
 - P-41 (`_seniority.py`): 'al' (`_aldehyde.py`, Table 4.4 class 47) far
   outranks 'amine' (class 51), so a coexisting primary amine is demoted to
   the 'amino' substituent prefix instead of its own '-amine' suffix, e.g.
-  'NCC=O' -> '2-aminoethanal' (PubChem CID 4-aminobutanal-style compounds
-  give a retained-acetaldehyde-stem IUPACName -- '2-aminoacetaldehyde' for
-  this exact structure -- but this project's own `_aldehyde.py` always
-  uses the systematic 'ethanal' stem instead, see that module's own tests,
-  so this module follows that same pre-existing convention rather than
-  introduce a new divergence).
+  'NCC=O' -> '2-aminoacetaldehyde' (P-66.6.1.2.1's retained stem).
   Reuses `_aldehyde.py`'s own `_name_acyclic_aldehyde` chain-search/
   numbering function directly (via `_coexisting_groups.py`), the same
   pattern `_alcohol_amine.py`/`_thiol_amine.py`/`_ketone_amine.py` used

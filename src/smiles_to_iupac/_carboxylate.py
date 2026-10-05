@@ -5,10 +5,8 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
 - P-72.2.2.2.1.1 (Chapter P-7, https://iupac.qmul.ac.uk/BlueBook/P7.html): the
   preferred IUPAC name of an anion formed by removing a hydron from the
   chalcogen atom of an acid is formed by replacing the acid name's 'ic acid'
-  ending with 'ate' -- e.g. CH3-CO-O(-) -> 'acetate' (PIN). This project's
-  `_carboxylic_acid.py` always uses the systematic 'ethanoic acid' stem
-  rather than the retained 'acetic acid' one (see that module's docstring),
-  so this module follows the same 'ethanoate' convention for consistency.
+  ending with 'ate' -- e.g. CH3-CO-O(-) -> 'acetate' (PIN); the retained
+  stems come from `_retained_acids.py`.
 - The carboxylate carbon's shape mirrors `_carboxylic_acid.py`'s -COOH
   carbon exactly, except the hydroxyl oxygen (-OH, one H, neutral) is
   replaced by an anionic oxygen (no H, formal charge -1): a doubly-bonded,
@@ -70,16 +68,15 @@ from ._common import (
     name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
-    ring_chain_attachment_with_halogens,
-    ring_chain_attachments_with_halogens,
+    ring_branch_attachments,
     separate_aromatic_monocycles,
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
+from ._retained_acids import retained_chain_acid
 from ._substituents import (
     format_substituent_prefixes,
     name_branch,
-    plain_alkyl_ring_substituents,
     substituents_for_chain,
 )
 
@@ -176,6 +173,9 @@ def _find_carboxylate_group(mol):
 
 
 def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped):
+    retained = retained_chain_acid(grouped, chain_length, ene_locants, yne_locants, 1, "anion")
+    if retained is not None:
+        return retained
     return format_substituent_prefixes(grouped) + name_from_substituents(chain_length, ene_locants, yne_locants, "oate")
 
 
@@ -366,9 +366,9 @@ def _name_phenyl_chain_carboxylate(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
+    halogens = halogen_substituents(mol)
     rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
-    attachment = ring_chain_attachments_with_halogens(graph, rings, set(), halogens)
+    attachment = ring_branch_attachments(mol, graph, rings)
     if not attachment:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "

@@ -98,8 +98,7 @@ from ._common import (
     ring_bond_locant,
     ring_bond_locants,
     ring_chain_attachment,
-    ring_chain_attachment_with_halogens,
-    ring_chain_attachments_with_halogens,
+    ring_branch_attachments,
     separate_aromatic_monocycles,
     ring_cycle,
     ring_name_from_substituents,
@@ -114,7 +113,6 @@ from ._substituents import (
     substituents_for_ring,
     format_substituent_prefixes,
     name_branch,
-    plain_alkyl_ring_substituents,
     substituents_for_chain,
 )
 
@@ -226,7 +224,7 @@ def _name_from_substituents(chain_length, so2h_locant, ene_locants, yne_locants,
     # Only chain_length == 1 omits a substituent prefix's own locant too
     # (see `_alcohol.py`'s equivalent comment).
     prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
-    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "sulfinic acid", [so2h_locant])
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "sulfinic acid", [so2h_locant], substituted=bool(grouped))
 
 
 def _candidate_key(chain_length, so2h_locant, ene_locants, yne_locants, substituents):
@@ -295,15 +293,10 @@ def _name_cyclic_sulfinic_acid(mol, sulfur_idx, so2h_carbon, bonds=()):
 
 
 def _benzenesulfinic_acid_name_from_substituents(grouped):
-    # Unlike the cycloalkane case, the mancude ring's own numbering is
-    # always free to start at the -SO2H carbon (P-14.3.3-style), so its
-    # locant is never cited even when other substituents need theirs,
-    # e.g. '2-methylbenzenesulfinic acid' (PubChem CID 12661295), not
-    # '2-methylbenzene-1-sulfinic acid' -- mirrors `_sulfonic_acid.py`'s
-    # identical 'benzenesulfonic acid' treatment.
+    # P-14.3.4.5, P-65.3.1: locant 1 is cited once other substituents are present, as in '4-aminobenzene-1-sulfonic acid'.
     if not grouped:
         return "benzenesulfinic acid"
-    return f"{format_substituent_prefixes(grouped)}benzenesulfinic acid"
+    return f"{format_substituent_prefixes(grouped)}benzene-1-sulfinic acid"
 
 
 def _benzenesulfinic_acid_candidate_key(so2h_locant, substituents):
@@ -368,9 +361,9 @@ def _name_phenyl_chain_sulfinic_acid(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
+    halogens = halogen_substituents(mol)
     rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
-    attachment = ring_chain_attachments_with_halogens(graph, rings, set(), halogens)
+    attachment = ring_branch_attachments(mol, graph, rings)
     if not attachment:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "

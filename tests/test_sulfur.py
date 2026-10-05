@@ -279,16 +279,6 @@ def test_saturated_sulfinic_acid(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_ene_carbon_not_supported__sulfinic_acid():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=C(S(=O)O)C")
-
-
-def test_two_sulfinic_acids_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)CS(=O)O")
-
-
 def test_2_chlorocyclohexane_1_sulfinic_acid():
     assert smiles_to_iupac("OS(=O)C1CCCCC1Cl") == "2-chlorocyclohexane-1-sulfinic acid"
 
@@ -296,11 +286,6 @@ def test_2_chlorocyclohexane_1_sulfinic_acid():
 def test_unsaturated_ring_sulfinic_acid():
     assert smiles_to_iupac("OS(=O)C1CCCC=C1") == "cyclohex-2-ene-1-sulfinic acid"
     assert smiles_to_iupac("OS(=O)C1CC=CCC1") == "cyclohex-3-ene-1-sulfinic acid"
-
-
-def test_unsaturated_ring_sulfinic_acid_with_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)C1CCCC=C1C")
 
 
 def test_unsaturated_ring_sulfinic_acid_triple_bond_raises():
@@ -312,22 +297,12 @@ def test_ring_substituent_chain_sulfinic_acid():
     assert smiles_to_iupac("OS(=O)CC1CCCCC1") == "cyclohexylmethanesulfinic acid"
 
 
-def test_ring_substituent_chain_sulfinic_acid_ring_with_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)CC1CCC(C)CC1")
-
-
-def test_sulfinic_acid_specified_chain_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC[C@@H](C)S(=O)O")
-
-
 def test_benzenesulfinic_acid():
     assert smiles_to_iupac("c1ccccc1S(=O)O") == "benzenesulfinic acid"  # CID 12057
 
 
 def test_substituted_benzenesulfinic_acid():
-    assert smiles_to_iupac("Cc1ccccc1S(=O)O") == "2-methylbenzenesulfinic acid"  # CID 12661295
+    assert smiles_to_iupac("Cc1ccccc1S(=O)O") == "2-methylbenzene-1-sulfinic acid"  # CID 12661295
 
 
 def test_phenyl_chain_sulfinic_acid_ring_halogen():
@@ -336,11 +311,6 @@ def test_phenyl_chain_sulfinic_acid_ring_halogen():
 
 def test_phenyl_chain_sulfinic_acid_ring_ethyl():
     assert smiles_to_iupac("CCc1ccc(cc1)CS(=O)O") == "(4-ethylphenyl)methanesulfinic acid"
-
-
-def test_phenyl_chain_sulfinic_acid_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CCS(=O)O")
 
 
 def test_sulfurous_acid_itself_raises():
@@ -418,7 +388,7 @@ def test_phenyl_chain_sulfonamide_ring_ethyl():
 
 
 def test_phenyl_chain_sulfonamide_unsaturation():
-    assert smiles_to_iupac("C=Cc1ccccc1CCS(=O)(=O)N") == "2-(2-ethenylphenyl)ethanesulfonamide"
+    assert smiles_to_iupac("C=Cc1ccccc1CCS(=O)(=O)N") == "2-(2-ethenylphenyl)ethane-1-sulfonamide"
 
 
 def test_two_different_n_substituents_alphabetized_ignoring_italic_prefix():
@@ -434,7 +404,7 @@ def test_unsaturated_n_substituted_sulfonamide():
 
 
 def test_acyclic_sulfonamide_stereocenter_with_coexisting_substituent():
-    assert smiles_to_iupac("C[C@@H](Cl)S(=O)(=O)N") == "(1R)-1-chloroethanesulfonamide"
+    assert smiles_to_iupac("C[C@@H](Cl)S(=O)(=O)N") == "(1R)-1-chloroethane-1-sulfonamide"
 
 
 def test_cyclic_sulfonamide_stereocenter():
@@ -484,7 +454,7 @@ def test_sulfonate_carbon_in_double_bond_is_named():
 
 
 def test_sulfonate_other_heteroatom_is_named():
-    assert smiles_to_iupac("NCCS(=O)(=O)[O-]") == "2-aminoethanesulfonate"
+    assert smiles_to_iupac("NCCS(=O)(=O)[O-]") == "2-aminoethane-1-sulfonate"
 
 
 @pytest.mark.parametrize(
@@ -498,24 +468,8 @@ def test_sulfone(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_branched_substituent_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)S(=O)(=O)C")
-
-
-def test_ring_not_supported__sulfone():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=S1(=O)CCCCC1")
-
-
-def test_unsaturated_chain_not_supported__sulfone():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CS(=O)(=O)C")
-
-
-def test_two_sulfone_groups_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CS(=O)(=O)CS(=O)(=O)C")
+def test_ring_sulfone_is_a_lambda6_heterone():
+    assert smiles_to_iupac("O=S1(=O)CCCCC1") == "1λ6-thiane-1,1-dione"
 
 
 def test_unsaturated_ring_sulfonic_acid_with_substituent():
@@ -544,7 +498,7 @@ def test_benzenesulfonic_acid():
 
 
 def test_phenyl_chain_sulfonic_acid_unsaturation():
-    assert smiles_to_iupac("C=Cc1ccccc1CCS(=O)(=O)O") == "2-(2-ethenylphenyl)ethanesulfonic acid"
+    assert smiles_to_iupac("C=Cc1ccccc1CCS(=O)(=O)O") == "2-(2-ethenylphenyl)ethane-1-sulfonic acid"
 
 
 def test_heteroaromatic_direct_attachment_sulfonic_acid():
@@ -552,7 +506,7 @@ def test_heteroaromatic_direct_attachment_sulfonic_acid():
 
 
 def test_acyclic_sulfonic_acid_stereocenter_with_coexisting_substituent():
-    assert smiles_to_iupac("C[C@@H](Cl)S(=O)(=O)O") == "(1R)-1-chloroethanesulfonic acid"
+    assert smiles_to_iupac("C[C@@H](Cl)S(=O)(=O)O") == "(1R)-1-chloroethane-1-sulfonic acid"
 
 
 def test_cyclic_sulfonic_acid_stereocenter():
@@ -610,27 +564,42 @@ def test_sulfoxide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_branched_substituent_not_supported__sulfoxide():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)S(=O)C")
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("O=S1(=O)CCCC1", "1λ6-thiolane-1,1-dione"),
+        ("O=S1(=O)OCCC1", "1,2λ6-oxathiolane-2,2-dione"),
+        ("CC1CCCOS1(=O)=O", "3-methyl-1,2λ6-oxathiane-2,2-dione"),
+        ("S=S1OCCC1", "1,2λ4-oxathiolane-2-thione"),
+        ("O=S1CCOC1", "1,3λ4-oxathiolan-3-one"),
+        ("O=C1CCS(=O)(=O)C1", "1λ6-thiolane-1,1,3-trione"),
+    ],
+)
+def test_ring_chalcogen_with_doubly_bonded_chalcogens_is_a_lambda_heterone(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,warns",
+    [("O=S1C=CC=C1", True), ("O=S1CCCC1", False)],
+)
+def test_non_pin_retained_name_cases_warn(smiles, warns):
+    import warnings
+
+    from smiles_to_iupac import NonPreferredNameWarning
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        smiles_to_iupac(smiles)
+    assert any(issubclass(w.category, NonPreferredNameWarning) for w in caught) == warns
 
 
 def test_ring_resolves_via_hetero_ring_oxide():
-    assert smiles_to_iupac("O=S1CCCCC1") == "thiane 1-oxide"
-
-
-def test_unsaturated_chain_not_supported__sulfoxide():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CS(=O)C")
-
-
-def test_two_sulfoxide_groups_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CS(=O)CS(=O)C")
+    assert smiles_to_iupac("O=S1CCCCC1") == "1λ4-thian-1-one"
 
 
 def test_multiple_thioate_groups_is_named():
-    assert smiles_to_iupac("[S-]C(=O)CCC(=O)[S-]") == "butanedithioate"
+    assert smiles_to_iupac("[S-]C(=O)CCC(=O)[S-]") == "butanebis(thioate)"
 
 
 def test_thioate_on_ring_is_named():
@@ -663,16 +632,6 @@ def test_phenyl_chain_thioate_unsaturation_is_named():
     assert smiles_to_iupac("C=Cc1ccccc1CC(=O)[S-]") == "2-(2-ethenylphenyl)ethanethioate"
 
 
-def test_unsaturated_r_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CSC#N")
-
-
-def test_cyclic_r_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCC1SC#N")
-
-
 def test_two_thiocyanate_groups_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("N#CSCCSC#N")
@@ -680,11 +639,6 @@ def test_two_thiocyanate_groups_not_supported():
 
 def test_phenyl_thiocyanate():
     assert smiles_to_iupac("c1ccccc1SC#N") == "phenyl thiocyanate"  # CID 21357
-
-
-def test_phenyl_thiocyanate_chain_spacer_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1CSC#N")
 
 
 @pytest.mark.parametrize(
@@ -698,33 +652,8 @@ def test_thioic_acid(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_branched_substituent_not_supported__thioic_acid():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)C(=O)S")
-
-
 def test_ring():
     assert smiles_to_iupac("O=C1CCCCC1S") == "2-sulfanylcyclohexan-1-one"
-
-
-def test_unsaturated_chain_not_supported__thioic_acid():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CC(=O)S")
-
-
-def test_two_thioic_acid_groups_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SC(=O)CC(=O)S")
-
-
-def test_phenyl_directly_attached_thioic_acid_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C(=O)S")
-
-
-def test_phenyl_substituent_thioic_acid_non_halogen_non_alkyl_ring_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N#Cc1ccccc1CC(=O)S")
 
 
 def test_phenyl_substituent_thioic_acid_branched_chain():
@@ -752,7 +681,7 @@ def test_ring_with_thiol_chain_thiol_tie():
 
 
 def test_thiol_with_alcohol():
-    assert smiles_to_iupac("SCCO") == "2-sulfanylethanol"
+    assert smiles_to_iupac("SCCO") == "2-sulfanylethan-1-ol"
 
 
 def test_benzenethiol():
@@ -764,7 +693,7 @@ def test_two_direct_ring_thiols():
 
 
 def test_phenyl_chain_thiol_unsaturation():
-    assert smiles_to_iupac("C=Cc1ccccc1CCS") == "2-(2-ethenylphenyl)ethanethiol"
+    assert smiles_to_iupac("C=Cc1ccccc1CCS") == "2-(2-ethenylphenyl)ethane-1-thiol"
 
 
 @pytest.mark.parametrize(
@@ -788,7 +717,7 @@ def test_thiol_partially_specified_stereocenters_cites_the_specified_elements():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("SCCc1cccnc1", "2-(pyridin-3-yl)ethanethiol"),
+        ("SCCc1cccnc1", "2-(pyridin-3-yl)ethane-1-thiol"),
         ("SC1CCCCC1c1ccc[nH]1", "2-(1H-pyrrol-2-yl)cyclohexane-1-thiol"),
     ],
 )
@@ -820,7 +749,7 @@ def test_unsaturated_ring_thione_triple_bond_raises():
 
 
 def test_ring_substituent_chain_thione():
-    assert smiles_to_iupac("CC(=S)C1CCCCC1") == "1-cyclohexylethanethione"
+    assert smiles_to_iupac("CC(=S)C1CCCCC1") == "1-cyclohexylethane-1-thione"
 
 
 def test_ring_with_thione_chain_thione_tie():

@@ -16,15 +16,8 @@ per the IUPAC 2013 Recommendations ("the Blue Book"):
   always a chain terminus and always becomes C1 with its own locant never
   cited (P-14.3.3); the amine nitrogen's locant, by contrast, is always
   cited via the 'amino' prefix.
-- Glycine (H2N-CH2-COOH) is a real-world worked example, but its actual PIN
-  ('2-aminoacetic acid', PubChem CID 750) uses the retained acid name
-  'acetic acid' rather than the systematic 'ethanoic acid' this project's
-  own `_carboxylic_acid.py` always produces (see that module's own tests,
-  e.g. 'CC(=O)O' -> 'ethanoic acid', not 'acetic acid') -- this module
-  follows that same already-established project convention, so it produces
-  '2-aminoethanoic acid' for glycine's structure instead, a pre-existing
-  divergence from PubChem inherited from `_carboxylic_acid.py`, not a new
-  one introduced here.
+- Glycine (H2N-CH2-COOH) is named 'aminoacetic acid' here; its PIN 'glycine'
+  belongs to P-103.
 
 Scope, deliberately narrow: a single carboxylic acid plus a single primary
 amine, both on one acyclic *saturated* chain, with halogen substituents
@@ -61,6 +54,7 @@ from ._common import (
     validate_allowed_atoms,
 )
 from ._carboxylic_acid import _name_acyclic_carboxylic_acid
+from ._retained_acids import retained_chain_acid
 from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
 
 
@@ -132,6 +126,9 @@ def _validate(mol, excluded_oxygens, amines, aromatic_ring_atoms=frozenset()):
 
 
 def _name_from_substituents(chain_length, grouped):
+    retained = retained_chain_acid(grouped, chain_length, [], [], 1, "acid")
+    if retained is not None:
+        return retained
     return format_substituent_prefixes(grouped) + name_from_substituents(chain_length, [], [], "oic acid")
 
 

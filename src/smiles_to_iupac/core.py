@@ -7,6 +7,11 @@ from ._salt import has_salt_shape, name_salt
 from ._hydrohalide_salt import has_hydrohalide_salt_shape, name_hydrohalide_salt
 from ._hydrate_adduct import has_hydrate_adduct_shape, name_hydrate_adduct
 from ._acyclic import name_acyclic_alkane
+from ._acid_derivatives import name_acid_derivative
+from ._acid_salts import name_acid_salt
+from ._hetero_carboxylic import name_hetero_parent_acid
+from ._polycarbonic import name_polycarbonic
+from ._carbonic_family import name_carbonic_family
 from ._acyl_halide import has_acyl_halide_shape, name_acyl_halide
 from ._anhydride import has_anhydride_shape, name_anhydride
 from ._carbamate import has_carbamate_shape, name_carbamate
@@ -77,6 +82,7 @@ from ._radical_ion import has_radical_ion_shape, name_radical_ion
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
 from ._alkaloid_parent_hydrides import has_alkaloid_morphinan_name, name_alkaloid_morphinan
+from ._appendix3_skeletons import name_appendix3_skeleton
 from ._bridged_alicyclic_parent import has_bridged_steroid_name, name_bridged_steroid_parent
 from ._borane import has_simple_borane_shape, name_simple_borane
 from ._boronic_acid import has_boronic_acid_shape, name_boronic_acid
@@ -151,6 +157,8 @@ from ._metallapolycycle import has_metallapolycycle_shape, name_metallapolycycle
 from ._ocene import has_ocene_shape, name_ocene
 from ._pin import enter, leave, mark
 from ._fused_hetero_ring_oxide import has_fused_hetero_ring_oxide_shape, name_fused_hetero_ring_oxide
+from ._hydride_carbo_suffix import has_hydride_carbo_suffix_shape, name_hydride_carbo_suffix
+from ._ring_lambda_heterone import has_ring_lambda_heterone_shape, name_ring_lambda_heterone
 from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
 from ._pyridinone import has_pyridinone_shape, name_pyridinone
 from ._pyrimidinedione import has_pyrimidinedione_shape, name_pyrimidinedione
@@ -223,7 +231,8 @@ from ._nitrite_ester import has_nitrite_ester_shape, name_nitrite_ester
 from ._nitro import has_nitro_shape, name_nitro
 from ._nitroso import has_nitroso_shape, name_nitroso
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
-from ._cyclophane import has_cyclophane_name, name_cyclophane
+from ._cyclophane import has_cyclophane_name, name_cyclophane, name_nonpreferred_cyclophane
+from ._linear_phane import has_linear_phane_shape, name_linear_phane
 from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
 from ._polyphosphane import has_polyphosphane_shape, name_polyphosphane
 from ._functional_replacement_oxoacid import (
@@ -391,8 +400,17 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
             return name_nucleotide(parsed)
         if parsed is not None and has_substituted_nucleoside_name(parsed):
             return name_substituted_nucleoside(parsed)
+        if parsed is not None and not has_sphingoid_shape(parsed):
+            for namer in (name_acid_salt, name_polycarbonic, name_carbonic_family, name_acid_derivative, name_hetero_parent_acid):
+                try:
+                    return namer(parsed)
+                except UnsupportedStructure:
+                    pass
         if parsed is not None:
             name = name_heteroacyclic(parsed)
+            if name is not None:
+                return name
+            name = name_appendix3_skeleton(parsed)
             if name is not None:
                 return name
             steroid = name_steroid(parsed) if parsed.GetRingInfo().NumRings() == 4 else None
@@ -516,7 +534,7 @@ def _run_fallbacks(smiles, original):
                 continue
             if name is not None:
                 return name
-        for fallback in (name_anion, name_polyfunctional, name_ester_by_parts):
+        for fallback in (name_polyfunctional, name_anion, name_ester_by_parts):
             try:
                 return fallback(mol)
             except UnsupportedStructure:
@@ -524,6 +542,10 @@ def _run_fallbacks(smiles, original):
         name = _name_via_fallbacks(mol)
         if name is not None:
             return name
+        try:
+            return name_nonpreferred_cyclophane(mol)
+        except UnsupportedStructure:
+            pass
     finally:
         _FALLBACKS_RUNNING.discard(key)
     raise original
@@ -640,6 +662,12 @@ def _name_mol(mol) -> str:
     # ring/functional-group shape check below, which would misread its esters.
     if has_polyester_of_one_polyol_shape(mol):
         return name_diester_acyloxy(mol)
+
+    if has_hydride_carbo_suffix_shape(mol):
+        return name_hydride_carbo_suffix(mol)
+
+    if has_ring_lambda_heterone_shape(mol):
+        return name_ring_lambda_heterone(mol)
 
     # A chalcogen ring-oxide (P-62.5's functional-class "oxide" pattern,
     # not limited to acyclic amines) breaks the ring's own aromaticity as
@@ -1061,6 +1089,8 @@ def _name_mol(mol) -> str:
     # understand phane nomenclature at all.
     if has_cyclophane_name(mol):
         return name_cyclophane(mol)
+    if has_linear_phane_shape(mol):
+        return name_linear_phane(mol)
 
     # The seven 1989 IUPAC steroid parent ring hydrides (gonane through
     # ergostane, Rule 2.1/3S-2.2/2.3/2.4 -- see module docstring) are

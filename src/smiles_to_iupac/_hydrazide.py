@@ -18,9 +18,8 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   "but-2-enehydrazide", CID 269313 (`OCCC(=O)NN`) ->
   "3-hydroxypropanehydrazide" (a coexisting standalone hydroxyl is cited
   as the 'hydroxy' prefix, same as `_amide.py`).
-- P-66.3.1.2.1: **unlike amide** (where the systematic name, e.g.
-  'ethanamide', is the actual PIN and the common name 'acetamide' is not),
-  the Blue Book explicitly carves out five retained names as the
+- P-66.3.1.2.1: as for amide ('acetamide', P-66.1.1.1.2.1), the Blue Book
+  carves out five retained names as the
   preferred IUPAC names for hydrazide: 'cyanohydrazide', 'formohydrazide',
   'acetohydrazide', 'benzohydrazide', 'oxalohydrazide' -- of these, the
   two that would otherwise be plain acyclic chain cases are the
@@ -130,8 +129,7 @@ from ._common import (
     name_from_substituents,
     non_single_bonds,
     ring_chain_attachment,
-    ring_chain_attachment_with_halogens,
-    ring_chain_attachments_with_halogens,
+    ring_branch_attachments,
     separate_aromatic_monocycles,
     specified_stereocenters,
     substituent_locant_set_and_citation,
@@ -142,7 +140,6 @@ from ._substituents import (
     alpha_sort_key,
     format_substituent_prefixes,
     name_branch,
-    plain_alkyl_ring_substituents,
 )
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, 8, *HALOGEN_PREFIXES}
@@ -791,9 +788,9 @@ def _name_phenyl_chain_hydrazide(mol, ring_atoms):
         )
 
     graph = adjacency(mol)
-    halogens = {**halogen_substituents(mol), **plain_alkyl_ring_substituents(mol, graph, ring_atoms)}
+    halogens = halogen_substituents(mol)
     rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
-    attachment = ring_chain_attachments_with_halogens(graph, rings, set(), halogens)
+    attachment = ring_branch_attachments(mol, graph, rings)
     if not attachment:
         raise UnsupportedStructure(
             "a benzene ring with more than one non-halogen, non-alkyl "

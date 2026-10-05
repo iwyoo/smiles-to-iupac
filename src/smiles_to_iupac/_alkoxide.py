@@ -155,7 +155,7 @@ def _find_alkoxide_group(mol):
 
 def _name_from_substituents(chain_length, o_locant, ene_locants, yne_locants, grouped):
     prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
-    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "olate", [o_locant])
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "olate", [o_locant], substituted=bool(grouped))
 
 
 def _candidate_key(chain_length, o_locant, ene_locants, yne_locants, substituents):

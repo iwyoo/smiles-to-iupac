@@ -223,9 +223,13 @@ def _is_fused(mol, kind, atoms):
 def _fused_central(mol, graph, atoms, cedges, arm_atoms):
     from ._diester_ring_diyl import evaluate_skeleton
     from ._multiplicative_linker import Part
+    from ._appendix3_skeletons import appendix3_multivalent_group
     from ._polyfunctional import _require_mancude_system
 
     ring_set = set(atoms)
+    natural_product = appendix3_multivalent_group(mol, graph, ring_set, [(x, y) for x, y, _ in cedges])
+    if natural_product is not None:
+        return Part(natural_product[0], natural_product[1], True)
     _require_mancude_system(mol, ring_set)
     members = [list(r) for r in mol.GetRingInfo().AtomRings() if set(r) <= ring_set]
     blocked = set().union(*(arm_atoms(graph, y, x) for x, y, _ in cedges))

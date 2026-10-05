@@ -13,10 +13,7 @@ carbon skeleton, per the IUPAC 2013 Recommendations ("the Blue Book"):
   pairwise modules. This module mirrors `_ether_aldehyde.py`'s structure,
   swapping in `_amide.py`'s own chain-naming machinery.
 - `COCC(N)=O` -> PubChem's own '2-methoxyacetamide' confirms the amide is
-  always the suffix parent, the ether always the 'alkoxy' prefix (this
-  project keeps its existing 'ethanamide' stem convention rather than
-  PubChem's retained '-acetamide', matching `_aldehyde.py`'s analogous
-  'ethanal' vs. 'acetaldehyde' choice).
+  always the suffix parent, the ether always the 'alkoxy' prefix.
 - `_amide.py`'s `_name_acyclic_amide` already had a mechanism to remove a
   substituent's own carbon component before the principal-chain search
   (its N-alkyl substituents' `n_substituent_atoms`); it gained one new

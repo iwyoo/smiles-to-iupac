@@ -100,6 +100,9 @@ class Numbering:
         self.added = ()
         self.fully_hydro = False
         self.stem = None
+        self.parent_stem = None
+        self.hydro_positions = ()
+        self.added_positions = ()
 
 
 def _walks(ring_order):
@@ -480,15 +483,15 @@ def monocycle_numberings(mol, ring_order, attached, valence, ene_bonds_getter=No
     best_pre, results = _hetero_monocycle(mol, ring_order, attached)
     out = []
     for position_of, stem, ih, hydro, added in results:
-        out.append(
-            Numbering(
-                position_of,
-                _hetero_text(stem, ih, hydro, added),
-                pre_key=best_pre + (ih,),
-                unsat_key=(added, hydro),
-                ih=ih,
-            )
+        numbering = Numbering(
+            position_of,
+            _hetero_text(stem, ih, hydro, added),
+            pre_key=best_pre + (ih,),
+            unsat_key=(added, hydro),
+            ih=ih,
         )
+        numbering.parent_stem, numbering.hydro_positions, numbering.added_positions = stem, tuple(hydro), tuple(added)
+        out.append(numbering)
     return out
 
 
@@ -730,8 +733,6 @@ def _fused_mancude(mol, skeleton_atoms):
     match = re.match(r"^(\d+H(?:,\d+H)*)-(.*)$", parent)
     ih_count = len(match.group(1).split(",")) if match else 0
     stem = match.group(2) if match else parent
-    if stem == "cyclopenta[a]phenanthrene" and not any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in skeleton_atoms):
-        raise UnsupportedStructure("a saturated cyclopenta[a]phenanthrene skeleton is a steroid parent hydride (P-101), not a hydro fusion name")
     numberings = fusion_system_numberings(bare, stem if stem in EXCEPTIONS else None)
     if not numberings:
         raise UnsupportedStructure("this fused skeleton has no supported peripheral numbering as a diyl yet")
@@ -779,6 +780,7 @@ def _fused_mancude(mol, skeleton_atoms):
 
         numbering = Numbering(position_of, text, pre_key=(ih,), unsat_key=(tuple(p for p, _ in delta), added, hydro), ih=ih)
         numbering.hydro, numbering.added, numbering.fully_hydro, numbering.stem = tuple(hydro), tuple(added), fully_saturated, stem
+        numbering.parent_stem, numbering.hydro_positions, numbering.added_positions = stem, tuple(hydro), tuple(added)
         out.append(numbering)
     if not out:
         raise UnsupportedStructure("no numbering of this partly hydrogenated fused system fits its hydro/indicated hydrogen")

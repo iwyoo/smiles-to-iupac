@@ -8,7 +8,7 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   branch supplies the '-amide' parent (`_amide.py`'s own suffix
   construction) and the other supplies an 'N-...oyl' acyl substituent
   prefix (the same '-oyl' stem `_acyl_halide.py` builds), e.g.
-  'N-ethanoylethanamide' for (CH3CO)2NH (a cyclic imide such as
+  'N-acetylethanamide' for (CH3CO)2NH (a cyclic imide such as
   succinimide instead uses a completely different heterocyclic-dione axis,
   out of scope here, see the module the roadmap tracks it under). Since
   this module only ever handles a *symmetric* imide, which acyl branch
@@ -24,7 +24,7 @@ IUPAC 2013 Recommendations ("the Blue Book"):
 - An enclosing mark (parentheses) is needed around the N-acyl substituent
   only when its own name carries an internal locant/substituent (e.g.
   'N-(2-methylpropanoyl)-2-methylpropanamide'); a bare, unsubstituted acyl
-  group needs none (e.g. 'N-ethanoylethanamide'). A hyphen separates the
+  group needs none (e.g. 'N-acetylethanamide'). A hyphen separates the
   N-acyl prefix from the amide parent only when the amide name itself
   starts with a locant digit (the same case that needs the acyl
   substituent's own parentheses, by symmetry) -- otherwise the two words
@@ -59,7 +59,7 @@ imide nitrogen, and two branches that name differently (unsymmetric).
   follows its own already-established systematic-naming/N-acyl-first
   convention rather than PubChem's raw string (retained names like
   'acetamide', and a different prefix order), so it actually returns
-  'N-(2-phenylethanoyl)-2-phenylethanamide' and
+  'N-(phenylacetyl)-2-phenylethanamide' and
   'N-(3-phenylpropanoyl)-3-phenylpropanamide' respectively. A ring
   directly on an acyl carbon (benzoyl-style) or any other
   ring/substituted-ring shape stays out of scope for this narrow
@@ -84,6 +84,7 @@ from ._common import (
     substituent_locant_set_and_citation,
 )
 from ._numerals import alkane_name
+from ._retained_acids import retained_chain_acid
 from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, 8, *HALOGEN_PREFIXES}
@@ -255,6 +256,9 @@ def _amide_name(chain_length, grouped):
 
 
 def _acyl_prefix_name(chain_length, grouped):
+    retained = retained_chain_acid(grouped, chain_length, [], [], 1, "acyl")
+    if retained is not None:
+        return retained, bool(grouped)
     prefix = format_substituent_prefixes(grouped)
     stem = alkane_name(chain_length)[:-1]
     is_compound = bool(prefix)
