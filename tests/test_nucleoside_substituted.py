@@ -214,15 +214,15 @@ def test_nucleoside_cyclic_ester(smiles, expected):
         ),
         (
             "NC(=O)CNc1ncnc2c1ncn2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O",
-            "2-[(9-β-D-ribofuranosyl-9H-purin-6-yl)amino]ethanamide",
+            "2-[(9-β-D-ribofuranosyl-9H-purin-6-yl)amino]acetamide",
         ),
         (
             "N#CCNc1ncnc2c1ncn2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O",
-            "2-[(9-β-D-ribofuranosyl-9H-purin-6-yl)amino]ethanenitrile",
+            "2-[(9-β-D-ribofuranosyl-9H-purin-6-yl)amino]acetonitrile",
         ),
         (
             "O=CCNc1ncnc2c1ncn2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O",
-            "2-[(9-β-D-ribofuranosyl-9H-purin-6-yl)amino]ethanal",
+            "2-[(9-β-D-ribofuranosyl-9H-purin-6-yl)amino]acetaldehyde",
         ),
         (
             "O=S(=O)(O)CNc1ncnc2c1ncn2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O",

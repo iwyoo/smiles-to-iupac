@@ -18,9 +18,8 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   "but-2-enehydrazide", CID 269313 (`OCCC(=O)NN`) ->
   "3-hydroxypropanehydrazide" (a coexisting standalone hydroxyl is cited
   as the 'hydroxy' prefix, same as `_amide.py`).
-- P-66.3.1.2.1: **unlike amide** (where the systematic name, e.g.
-  'ethanamide', is the actual PIN and the common name 'acetamide' is not),
-  the Blue Book explicitly carves out five retained names as the
+- P-66.3.1.2.1: as for amide ('acetamide', P-66.1.1.1.2.1), the Blue Book
+  carves out five retained names as the
   preferred IUPAC names for hydrazide: 'cyanohydrazide', 'formohydrazide',
   'acetohydrazide', 'benzohydrazide', 'oxalohydrazide' -- of these, the
   two that would otherwise be plain acyclic chain cases are the

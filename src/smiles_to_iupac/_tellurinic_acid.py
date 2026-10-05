@@ -200,7 +200,7 @@ def _reject_enetellurinic_carbon(graph, teoh_carbon, bonds):
 
 def _name_from_substituents(chain_length, teoh_locant, ene_locants, yne_locants, grouped):
     prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
-    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "tellurinic acid", [teoh_locant])
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "tellurinic acid", [teoh_locant], substituted=bool(grouped))
 
 
 def _candidate_key(chain_length, teoh_locant, ene_locants, yne_locants, substituents):

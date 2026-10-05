@@ -20,12 +20,8 @@ Blue Book"):
   PIN worked example `acetonitrile oxide (PIN)`, `tmp/bluebook/P6a.txt`
   ~2848-2861 and `tmp/bluebook/P7.txt` ~3183-3192 -- per P-66.5.1.2.1,
   'acetonitrile'/'formonitrile' are themselves the retained PINs for the
-  n=2/n=1 parent nitrile (not `_nitrile.py`'s own systematic
-  'ethanenitrile', which this project's existing module uses
-  unconditionally instead -- a separate, pre-existing discrepancy this
-  step doesn't attempt to fix in `_nitrile.py` itself, only overridden
-  locally here for the exact retained-name case this milestone step's
-  own worked example needs).
+  n=2/n=1 parent nitrile ('acetonitrile' comes from the retained-stem table
+  in `_common.py`, 'formonitrile' is overridden locally).
 
 Both dipole subtypes share one mechanism: strip the dipole's own oxygen
 atom from the molecule, reset the nitrogen's formal charge to neutral (so
@@ -51,9 +47,8 @@ from rdkit import Chem
 from ._imine import name_imine
 from ._nitrile import name_nitrile
 
-# P-66.5.1.2.1's own retained PINs for the parent nitrile -- see module
-# docstring's note on `_nitrile.py`'s own systematic-only naming.
-_NITRILE_OXIDE_RETAINED_OVERRIDES = {"methanenitrile": "formonitrile", "ethanenitrile": "acetonitrile"}
+# P-66.5.1.2.1: HCN keeps its retained PIN 'formonitrile' (no carbon chain to name).
+_NITRILE_OXIDE_RETAINED_OVERRIDES = {"methanenitrile": "formonitrile"}
 
 
 def _dipole_nitrogen_oxygen(mol):

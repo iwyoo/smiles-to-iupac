@@ -326,7 +326,7 @@ def test_phosphoglycerides(smiles, expected):
         ('C[N+](C)(C)CCOP([O-])(=O)OC[C@@H](O)COC(=O)CCCCCCCCCCCCCCC', '(2S)-3-(hexadecanoyloxy)-2-hydroxypropyl 2-(trimethylazaniumyl)ethyl phosphate'),
         ('CCCCCCCCCCCCCCCCOC[C@H](OC(C)=O)COP([O-])(=O)OCC[N+](C)(C)C', '(2S)-2-(acetyloxy)-3-(hexadecyloxy)propyl 2-(trimethylazaniumyl)ethyl phosphate'),
         ('C[N+](C)(C)CC.[OH-]', 'N,N,N-trimethylethanaminium hydroxide'),
-        ('C[N+](C)(C)CCOP(O)(O)=O', 'N,N,N-trimethyl-2-(phosphonooxy)ethanaminium'),
+        ('C[N+](C)(C)CCOP(O)(O)=O', 'N,N,N-trimethyl-2-(phosphonooxy)ethan-1-aminium'),
     ],
 )
 def test_phosphatidylcholines(smiles, expected):

@@ -147,9 +147,9 @@ def test_bis_tridentate_uses_the_priming_convention(cls, prefix):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OCCc4ccc(c7ccc8ccccc8c7)cc4", "2-[4-(naphthalen-2-yl)phenyl]ethanol"),
-        ("OCCc4ccc(c7ccc8ccccc8c7)nc4", "2-[6-(naphthalen-2-yl)pyridin-3-yl]ethanol"),
-        ("OCCc4ccc(C7CCCCO7)nc4", "2-[6-(oxan-2-yl)pyridin-3-yl]ethanol"),
+        ("OCCc4ccc(c7ccc8ccccc8c7)cc4", "2-[4-(naphthalen-2-yl)phenyl]ethan-1-ol"),
+        ("OCCc4ccc(c7ccc8ccccc8c7)nc4", "2-[6-(naphthalen-2-yl)pyridin-3-yl]ethan-1-ol"),
+        ("OCCc4ccc(C7CCCCO7)nc4", "2-[6-(oxan-2-yl)pyridin-3-yl]ethan-1-ol"),
     ],
 )
 def test_complex_substituted_substituent_groups(smiles, expected):
