@@ -340,8 +340,7 @@ def _roles_valid(roles, fused_bonds, links):
 
 def _metrics(parts):
     """P-25.4.3.4.2 (e)-(h): fewer polyvalent bridges, fewer dependent bridges, fewer atoms in dependent bridges, more divalent bridges.
-    The P-25.4.1.9 example (epimethanetriyl + epipropane[1,2,3]triyl) contradicts (e) and P-25.4.3.3 (a); the criteria win.
-    Not reproduced: P-25.4.3.4.2 (f)/(g) examples (phosphano/diazocino, pentano/benzazocine), no structure was built for them."""
+    The P-25.4.1.9 example (epimethanetriyl + epipropane[1,2,3]triyl) contradicts (e) and P-25.4.3.3 (a); the criteria win."""
     dependent = [p for p in parts if not p.independent]
     return (
         sum(1 for p in parts if p.valence >= 3),

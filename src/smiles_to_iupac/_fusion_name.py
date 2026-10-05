@@ -148,9 +148,7 @@ def _valid_decomposition(ctx, parts, retained_sets):
         if len(owners) > 1 and all(weak(p) or p.rings <= ring_set for p in owners.values()):
             return False
     elements = lambda r: {sk.GetAtomWithIdx(a).GetSymbol() for a in fs.rings[r]}
-    isolated = lambda r: len(fs.rings[r]) == 6 and elements(r) == {"C"} and not any(
-        r in ring_set and all(weak(part_of[q]) for q in ring_set) for ring_set in retained_sets
-    )
+    isolated = lambda r: len(fs.rings[r]) == 6 and elements(r) == {"C"} and weak(part_of[r])
     benzene = {r for r in range(ctx.n) if isolated(r)}
     hosts = {r: {b for b in ctx.adj[r] if b in benzene} for r in range(ctx.n) if len(fs.rings[r]) >= 5 and elements(r) != {"C"}}
     kind_of = lambda h: tuple(sorted(sk.GetAtomWithIdx(a).GetSymbol() for a in fs.rings[h]))
@@ -570,8 +568,7 @@ def _chain_of(parent):
     return chain, part
 
 
-# P-25.3.7.3 (a) gives primes by order only; chains with k >= 2 (second-order and higher interparent components
-# per branch) have no Blue Book example, so their descriptors are unverified.
+# P-25.3.7.3 (a) gives primes by order only; chains with k >= 2 have no Blue Book example.
 def _prime_level(level, branch):
     return branch if level == 1 else level
 
