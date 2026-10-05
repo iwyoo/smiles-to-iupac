@@ -14,7 +14,7 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
 - Unlike 'al'/'one'/'amine', 'nitrile' begins with a consonant, so the
   euphonic elision `_aldehyde.py` applies before a vowel-initial suffix
   never triggers here: the stem's final 'e' (from the parent alkane/alkene/
-  alkyne name) is always kept, e.g. 'ethanenitrile', not 'ethannitrile';
+  alkyne name) is always kept, e.g. 'propanenitrile', not 'propannitrile';
   'pent-4-enenitrile', not 'pent-4-ennitrile'.
 - Like -CHO (`_aldehyde.py`), a -C#N carbon is always a chain terminus (it
   has exactly one carbon neighbor, being otherwise saturated by the triple

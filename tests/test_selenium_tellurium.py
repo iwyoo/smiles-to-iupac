@@ -238,7 +238,7 @@ def test_benzene_ring_stereocenter_named_with_prefix():
 
 
 def test_halogen_substituent():
-    assert smiles_to_iupac("CC(Cl)[Se](=O)O") == "1-chloroethaneseleninic acid"
+    assert smiles_to_iupac("CC(Cl)[Se](=O)O") == "1-chloroethane-1-seleninic acid"
 
 
 def test_ene_carbon_not_supported():
@@ -276,9 +276,9 @@ def test_benzeneseleninic_acid():
 
 
 def test_substituted_benzeneseleninic_acid():
-    assert smiles_to_iupac("Cc1ccccc1[Se](=O)O") == "2-methylbenzeneseleninic acid"
+    assert smiles_to_iupac("Cc1ccccc1[Se](=O)O") == "2-methylbenzene-1-seleninic acid"
     assert (
-        smiles_to_iupac("Cc1ccc(cc1)[Se](=O)O") == "4-methylbenzeneseleninic acid"
+        smiles_to_iupac("Cc1ccc(cc1)[Se](=O)O") == "4-methylbenzene-1-seleninic acid"
     )  # PubChem PUG REST
 
 
@@ -297,7 +297,7 @@ def test_selenoate_with_halogen_substituent():
 
 
 def test_multiple_selenoate_groups_is_named():
-    assert smiles_to_iupac("[Se-]C(=O)CCC(=O)[Se-]") == "butanediselenoate"
+    assert smiles_to_iupac("[Se-]C(=O)CCC(=O)[Se-]") == "butanebis(selenoate)"
 
 
 def test_selenoate_on_ring_is_named():
@@ -335,16 +335,6 @@ def test_phenyl_chain_selenoate_unsaturation_is_named():
     assert smiles_to_iupac("C=Cc1ccccc1CC(=O)[Se-]") == "2-(2-ethenylphenyl)ethaneselenoate"
 
 
-def test_unsaturated_r_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=C[Se]C#N")
-
-
-def test_cyclic_r_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCC1[Se]C#N")
-
-
 def test_two_selenocyanate_groups_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("N#C[Se]CC[Se]C#N")
@@ -352,11 +342,6 @@ def test_two_selenocyanate_groups_not_supported():
 
 def test_phenyl_selenocyanate():
     assert smiles_to_iupac("c1ccccc1[Se]C#N") == "phenyl selenocyanate"  # CID 555340
-
-
-def test_phenyl_selenocyanate_chain_spacer_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C[Se]C#N")
 
 
 @pytest.mark.parametrize(
@@ -368,26 +353,6 @@ def test_phenyl_selenocyanate_chain_spacer_not_supported():
 )
 def test_selenoic_acid(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_branched_substituent_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)C(=O)[SeH]")
-
-
-def test_unsaturated_chain_not_supported__selenoic_acid():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CC(=O)[SeH]")
-
-
-def test_two_selenoic_acid_groups_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[SeH]C(=O)CC(=O)[SeH]")
-
-
-def test_phenyl_directly_attached_selenoic_acid_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C(=O)[SeH]")
 
 
 def test_phenyl_substituent_selenoic_acid_ring_halogen():
@@ -479,9 +444,8 @@ def test_branched_substituent_not_supported__selenone():
         smiles_to_iupac("CC(C)[Se](=O)(=O)C")
 
 
-def test_ring_not_supported__selenone():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=[Se]1(=O)CCCCC1")
+def test_ring_selenone_is_a_lambda6_heterone():
+    assert smiles_to_iupac("O=[Se]1(=O)CCCCC1") == "1λ6-selenane-1,1-dione"
 
 
 def test_unsaturated_chain_not_supported__selenone():
@@ -522,14 +486,14 @@ def test_benzeneselenonic_acid():
 
 
 def test_substituted_benzeneselenonic_acid():
-    assert smiles_to_iupac("Cc1ccccc1[Se](=O)(=O)O") == "2-methylbenzeneselenonic acid"
+    assert smiles_to_iupac("Cc1ccccc1[Se](=O)(=O)O") == "2-methylbenzene-1-selenonic acid"
     assert (
-        smiles_to_iupac("Cc1ccc(cc1)[Se](=O)(=O)O") == "4-methylbenzeneselenonic acid"
+        smiles_to_iupac("Cc1ccc(cc1)[Se](=O)(=O)O") == "4-methylbenzene-1-selenonic acid"
     )  # PubChem PUG REST
 
 
 def test_acyclic_selenonic_acid_stereocenter_with_coexisting_substituent():
-    assert smiles_to_iupac("C[C@@H](Cl)[Se](=O)(=O)O") == "(1S)-1-chloroethaneselenonic acid"
+    assert smiles_to_iupac("C[C@@H](Cl)[Se](=O)(=O)O") == "(1S)-1-chloroethane-1-selenonic acid"
 
 
 def test_selenourea():
@@ -588,9 +552,8 @@ def test_branched_substituent_not_supported__selenoxide():
         smiles_to_iupac("CC(C)[Se](=O)C")
 
 
-def test_ring_not_supported__selenoxide():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=[Se]1CCCCC1")
+def test_ring_selenoxide_is_a_lambda4_heterone():
+    assert smiles_to_iupac("O=[Se]1CCCCC1") == "1λ4-selenan-1-one"
 
 
 def test_unsaturated_chain_not_supported__selenoxide():
@@ -625,7 +588,7 @@ def test_unsaturated_ring_selone_triple_bond_raises():
 
 
 def test_ring_substituent_chain_selone_ring_with_substituent():
-    assert smiles_to_iupac("CC(=[Se])C1CCC(C)CC1") == "1-(4-methylcyclohexyl)ethaneselone"
+    assert smiles_to_iupac("CC(=[Se])C1CCC(C)CC1") == "1-(4-methylcyclohexyl)ethane-1-selone"
 
 
 def test_ring_with_selone_chain_selone_tie():
@@ -688,7 +651,7 @@ def test_unsaturated_ring_tellone_triple_bond_raises():
 
 
 def test_ring_substituent_chain_tellone():
-    assert smiles_to_iupac("CC(=[Te])C1CCCCC1") == "1-cyclohexylethanetellone"
+    assert smiles_to_iupac("CC(=[Te])C1CCCCC1") == "1-cyclohexylethane-1-tellone"
 
 
 def test_ring_with_tellone_chain_tellone_tie():
@@ -780,7 +743,7 @@ def test_saturated_tellurinic_acid(smiles, expected):
 
 
 def test_halogen_substituent__tellurinic_acid():
-    assert smiles_to_iupac("CC(Cl)[Te](=O)O") == "1-chloroethanetellurinic acid"
+    assert smiles_to_iupac("CC(Cl)[Te](=O)O") == "1-chloroethane-1-tellurinic acid"
 
 
 def test_ene_carbon_not_supported__tellurinic_acid():
@@ -808,9 +771,9 @@ def test_benzenetellurinic_acid():
 
 
 def test_substituted_benzenetellurinic_acid():
-    assert smiles_to_iupac("Cc1ccccc1[Te](=O)O") == "2-methylbenzenetellurinic acid"
+    assert smiles_to_iupac("Cc1ccccc1[Te](=O)O") == "2-methylbenzene-1-tellurinic acid"
     assert (
-        smiles_to_iupac("Cc1ccc(cc1)[Te](=O)O") == "4-methylbenzenetellurinic acid"
+        smiles_to_iupac("Cc1ccc(cc1)[Te](=O)O") == "4-methylbenzene-1-tellurinic acid"
     )  # PubChem PUG REST
 
 
@@ -824,16 +787,6 @@ def test_tellurinic_acid_stereocenter(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_unsaturated_r_not_supported__tellurocyanate():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=C[Te]C#N")
-
-
-def test_cyclic_r_not_supported__tellurocyanate():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCC1[Te]C#N")
-
-
 def test_two_tellurocyanate_groups_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("N#C[Te]CC[Te]C#N")
@@ -841,11 +794,6 @@ def test_two_tellurocyanate_groups_not_supported():
 
 def test_phenyl_tellurocyanate():
     assert smiles_to_iupac("c1ccccc1[Te]C#N") == "phenyl tellurocyanate"  # CID 12553982
-
-
-def test_phenyl_tellurocyanate_chain_spacer_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C[Te]C#N")
 
 
 @pytest.mark.parametrize(
@@ -857,26 +805,6 @@ def test_phenyl_tellurocyanate_chain_spacer_not_supported():
 )
 def test_telluroic_acid(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_branched_substituent_not_supported__telluroic_acid():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)C(=O)[TeH]")
-
-
-def test_unsaturated_chain_not_supported__telluroic_acid():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CC(=O)[TeH]")
-
-
-def test_two_telluroic_acid_groups_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[TeH]C(=O)CC(=O)[TeH]")
-
-
-def test_phenyl_directly_attached_telluroic_acid_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C(=O)[TeH]")
 
 
 def test_phenyl_substituent_telluroic_acid_ring_halogen():
@@ -902,7 +830,7 @@ def test_ring_with_tellurol_chain_tellurol_tie():
 
 
 def test_tellurol_with_alcohol_named_with_prefix():
-    assert smiles_to_iupac("OCC[TeH]") == "2-tellanylethanol"
+    assert smiles_to_iupac("OCC[TeH]") == "2-tellanylethan-1-ol"
 
 
 def test_acyclic_tellurol_stereocenter():
@@ -973,9 +901,8 @@ def test_branched_substituent_not_supported__tellurone():
         smiles_to_iupac("CC(C)[Te](=O)(=O)C")
 
 
-def test_ring_not_supported__tellurone():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=[Te]1(=O)CCCCC1")
+def test_ring_tellurone_is_a_lambda6_heterone():
+    assert smiles_to_iupac("O=[Te]1(=O)CCCCC1") == "1λ6-tellurane-1,1-dione"
 
 
 def test_unsaturated_chain_not_supported__tellurone():
@@ -1016,14 +943,14 @@ def test_benzenetelluronic_acid():
 
 
 def test_substituted_benzenetelluronic_acid():
-    assert smiles_to_iupac("Cc1ccccc1[Te](=O)(=O)O") == "2-methylbenzenetelluronic acid"
+    assert smiles_to_iupac("Cc1ccccc1[Te](=O)(=O)O") == "2-methylbenzene-1-telluronic acid"
     assert (
-        smiles_to_iupac("Cc1ccc(cc1)[Te](=O)(=O)O") == "4-methylbenzenetelluronic acid"
+        smiles_to_iupac("Cc1ccc(cc1)[Te](=O)(=O)O") == "4-methylbenzene-1-telluronic acid"
     )  # PubChem PUG REST
 
 
 def test_acyclic_telluronic_acid_stereocenter_with_coexisting_substituent():
-    assert smiles_to_iupac("C[C@@H](Cl)[Te](=O)(=O)O") == "(1S)-1-chloroethanetelluronic acid"
+    assert smiles_to_iupac("C[C@@H](Cl)[Te](=O)(=O)O") == "(1S)-1-chloroethane-1-telluronic acid"
 
 
 def test_tellurourea():
@@ -1082,9 +1009,8 @@ def test_branched_substituent_not_supported__telluroxide():
         smiles_to_iupac("CC(C)[Te](=O)C")
 
 
-def test_ring_not_supported__telluroxide():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=[Te]1CCCCC1")
+def test_ring_telluroxide_is_a_lambda4_heterone():
+    assert smiles_to_iupac("O=[Te]1CCCCC1") == "1λ4-telluran-1-one"
 
 
 def test_unsaturated_chain_not_supported__telluroxide():

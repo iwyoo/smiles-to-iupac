@@ -194,7 +194,7 @@ def _name_from_substituents(chain_length, seoh_locant, ene_locants, yne_locants,
     # Only chain_length == 1 omits a substituent prefix's own locant too
     # (see `_alcohol.py`'s equivalent comment).
     prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
-    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "seleninic acid", [seoh_locant])
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "seleninic acid", [seoh_locant], substituted=bool(grouped))
 
 
 def _candidate_key(chain_length, seoh_locant, ene_locants, yne_locants, substituents):
@@ -218,13 +218,10 @@ def _candidate_key(chain_length, seoh_locant, ene_locants, yne_locants, substitu
 
 
 def _benzeneseleninic_acid_name_from_substituents(grouped):
-    # Mirrors `_sulfonic_acid.py`'s `_benzenesulfonic_acid_name_from_substituents`:
-    # the mancude ring's own numbering is always free to start at the
-    # -Se(=O)OH carbon, so its locant is never cited even when other
-    # substituents need theirs, e.g. '4-methylbenzeneseleninic acid'.
+    # P-14.3.4.5, P-65.3.1: locant 1 is cited once other substituents are present, as in '4-aminobenzene-1-sulfonic acid'.
     if not grouped:
         return "benzeneseleninic acid"
-    return f"{format_substituent_prefixes(grouped)}benzeneseleninic acid"
+    return f"{format_substituent_prefixes(grouped)}benzene-1-seleninic acid"
 
 
 def _benzeneseleninic_acid_candidate_key(seoh_locant, substituents):

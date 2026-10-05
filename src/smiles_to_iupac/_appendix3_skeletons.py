@@ -417,10 +417,13 @@ def _best_skeleton(mol, attach_allowed):
         return None
     systems = _systems(mol.GetRingInfo().AtomRings())
     counts = Counter(atom.GetAtomicNum() for atom in mol.GetAtoms())
+    chain_atoms = sum(1 for atom in mol.GetAtoms() if not atom.IsInRing())
     flat = None
     best = None
     for skeleton in _SKELETONS.values():
         if mol.GetNumAtoms() < skeleton.size or not _contains(systems, skeleton.systems):
+            continue
+        if chain_atoms < skeleton.size - len(skeleton.ring_atoms):
             continue
         if any(counts[z] < n for z, n in skeleton.elements.items()):
             continue

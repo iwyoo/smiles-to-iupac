@@ -124,7 +124,7 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
     for _, atoms in systems:
         _require_mancude_system(mol, atoms)
     join = joins[0]
-    token = SUFFIX_ATOMS.set(frozenset(join))
+    token = SUFFIX_ATOMS.set(frozenset(join) | frozenset(o[1] for o in occurrences))
     try:
         numbered = [system_numberings(mol, graph, rings, atoms) for rings, atoms in systems]
     finally:

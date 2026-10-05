@@ -4,12 +4,12 @@ P-22.2.2), ortho-fused arene chains, ortho-fused mancude heterocycles, von Baeye
 """
 
 import re
+import networkx as nx
 from contextvars import ContextVar
 from itertools import combinations
 
 from rdkit import Chem
 
-from . import _aromatic
 from ._free_valence import valence_word
 from ._bicyclic import bicyclic_parent_name, find_bicyclic_core, iter_bicyclic_numberings
 from ._common import (
@@ -17,9 +17,7 @@ from ._common import (
     ring_bond_locants,
     von_baeyer_unsaturation_citations,
 )
-from ._fusion_numbering_hex import hex_numberings
-from ._fusion_numbering_general import general_peripheral_numberings
-from ._fusion_numbering_oriented import oriented_peripheral_numberings
+from ._fusion_components import EXCEPTIONS, system_numberings as fusion_system_numberings
 from ._hetero_monocyclic import (
     _ROLE_SEQUENCES,
     saturated_five_membered_1_2_two_heteroatom_ring_name,
@@ -65,15 +63,15 @@ _MANCUDE_RETAINED = {
 }
 _MANCUDE_RETAINED.update({(e, "C", "C", "C", "C", "C"): n for e, n in (("O", "pyran"), ("S", "thiopyran"), ("Se", "selenopyran"), ("Te", "telluropyran"))})
 _MANCUDE_RETAINED[("N", "N", "N", "N", "C")] = "tetrazole"
-_LACKS_REGULAR_NUMBERING = ("acridine", "carbazole", "xanthene", "purine", "anthracene", "phenanthrene")
 
 
 class FusionLocant(float):
     """A lettered fusion-atom locant such as 4a: orders between 4 and 5, prints as written."""
 
-    def __new__(cls, number, letters):
-        obj = super().__new__(cls, number + sum((ord(c) - 96) / 100 ** (i + 1) for i, c in enumerate(letters)))
-        obj.text = f"{number}{letters}"
+    def __new__(cls, number, letters, interior=""):
+        value = number + sum((ord(c) - 96) / 100 ** (i + 1) for i, c in enumerate(letters))
+        obj = super().__new__(cls, value + (int(interior) / 100 ** (len(letters) + 1) if interior else 0))
+        obj.text = f"{number}{letters}{interior}"
         return obj
 
     __str__ = __repr__ = lambda self: self.text
@@ -81,10 +79,10 @@ class FusionLocant(float):
 
 
 def _locant(text):
-    match = re.fullmatch(r"(\d+)([a-z]*)", text)
+    match = re.fullmatch(r"(\d+)([a-z]*)(\d*)", text)
     if match is None:
         return None
-    return FusionLocant(int(match.group(1)), match.group(2)) if match.group(2) else int(match.group(1))
+    return FusionLocant(int(match.group(1)), match.group(2), match.group(3)) if match.group(2) else int(match.group(1))
 
 
 SUFFIX_ATOMS = ContextVar("SUFFIX_ATOMS", default=frozenset())
@@ -143,75 +141,6 @@ def _perfect_matching(atoms, adj):
     )
 
 
-_RETAINED_NUMBERINGS = {
-    "carbazole": (("1", "2", "3", "4", "4a", "4b", "5", "6", "7", "8", "8a", "9", "9a"), {"9": "N"}, (("4a", "9a"), ("4b", "8a"))),
-    "fluorene": (("1", "2", "3", "4", "4a", "4b", "5", "6", "7", "8", "8a", "9", "9a"), {}, (("4a", "9a"), ("4b", "8a"))),
-    "anthracene": (("1", "2", "3", "4", "4a", "10", "10a", "5", "6", "7", "8", "8a", "9", "9a"), {}, (("4a", "9a"), ("10a", "8a"))),
-    "phenanthrene": (("1", "2", "3", "4", "4a", "4b", "5", "6", "7", "8", "8a", "9", "10", "10a"), {}, (("4a", "10a"), ("4b", "8a"))),
-    "acridine": (("1", "2", "3", "4", "4a", "10", "10a", "5", "6", "7", "8", "8a", "9", "9a"), {"10": "N"}, (("4a", "9a"), ("10a", "8a"))),
-    "xanthene": (("1", "2", "3", "4", "4a", "10", "10a", "5", "6", "7", "8", "8a", "9", "9a"), {"10": "O"}, (("4a", "9a"), ("10a", "8a"))),
-    "thioxanthene": (("1", "2", "3", "4", "4a", "10", "10a", "5", "6", "7", "8", "8a", "9", "9a"), {"10": "S"}, (("4a", "9a"), ("10a", "8a"))),
-    "cyclopenta[a]phenanthrene": (
-        ("1", "2", "3", "4", "5", "6", "7", "8", "14", "15", "16", "17", "13", "12", "11", "9", "10"),
-        {},
-        (("5", "10"), ("8", "9"), ("13", "14")),
-    ),
-    "purine": (("1", "2", "3", "4", "5", "6", "7", "8", "9"), {"1": "N", "3": "N", "7": "N", "9": "N"}, (("4", "5"),)),
-    "fluoranthene": (
-        ("1", "2", "3", "3a", "4", "5", "6", "6a", "6b", "7", "8", "9", "10", "10a", "10b", "3a1"),
-        {},
-        (("3a1", "3a"), ("3a1", "6a"), ("3a1", "10b"), ("6b", "10a")),
-        15,
-    ),
-    "acenaphthylene": (
-        ("1", "2", "2a", "3", "4", "5", "5a", "6", "7", "8", "8a", "2a1"),
-        {},
-        (("2a1", "2a"), ("2a1", "5a"), ("2a1", "8a")),
-        11,
-    ),
-}
-
-
-def _retained_numberings(bare, stem):
-    entry = _RETAINED_NUMBERINGS[stem]
-    locants, hetero, interior = entry[:3]
-    index = {loc: i for i, loc in enumerate(locants)}
-    ring_length = entry[3] if len(entry) == 4 else len(locants)
-    edges = [(i, (i + 1) % ring_length) for i in range(ring_length)] + [(index[a], index[b]) for a, b in interior]
-    if stem == "purine":
-        edges = [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 0), (3, 8), (8, 7), (7, 6), (6, 4)]
-    if bare.GetNumBonds() != len(edges):
-        return []
-    return [{atom: locants[i] for i, atom in enumerate(match)} for match in _template_matches(bare, locants, hetero, edges)]
-
-
-def _template_matches(bare, locants, hetero, edges):
-    symbol = {"N": 7, "O": 8, "S": 16}
-    adjacency = {a.GetIdx(): {n.GetIdx() for n in a.GetNeighbors()} for a in bare.GetAtoms()}
-    wanted = [symbol.get(hetero.get(loc), 6) for loc in locants]
-    neighbors = {i: set() for i in range(len(locants))}
-    for a, b in edges:
-        neighbors[a].add(b)
-        neighbors[b].add(a)
-    if bare.GetNumAtoms() != len(locants):
-        return []
-    results = []
-
-    def extend(assigned):
-        i = len(assigned)
-        if i == len(locants):
-            results.append(tuple(assigned))
-            return
-        for atom in range(bare.GetNumAtoms()):
-            if atom in assigned or bare.GetAtomWithIdx(atom).GetAtomicNum() != wanted[i]:
-                continue
-            if all((assigned[j] in adjacency[atom]) for j in neighbors[i] if j < i):
-                extend(assigned + [atom])
-
-    extend([])
-    return results
-
-
 def _split_hydrogen(position_of, adj, can_hold, saturated, oxo_all, oxo_suffix, ih_count):
     """(indicated, added, hydro) locant tuples for a ring whose `saturated` atoms include the ring atoms
     bearing oxo groups, following P-58.2.3: indicated hydrogen goes to the suffix atoms when it can
@@ -251,6 +180,72 @@ def _split_hydrogen(position_of, adj, can_hold, saturated, oxo_all, oxo_suffix, 
             if not oxo_suffix:
                 break
     return None
+
+
+def _perfect_matchings(vertices, adj, limit=2000):
+    found = []
+
+    def extend(left, chosen):
+        if len(found) > limit:
+            return
+        if not left:
+            found.append(frozenset(chosen))
+            return
+        first = min(left)
+        for other in sorted(adj[first] & left):
+            extend(left - {first, other}, chosen + [frozenset((first, other))])
+
+    extend(frozenset(vertices), [])
+    return found
+
+
+def _delta_citation(mol, skeleton_atoms, position_of):
+    """P-25.7.1.2: the localized double bonds (as the Greek capital delta locants) that tell this isomer from the other
+    arrangements of the same ring atoms and substituents; () when the structure is the only one or delocalized."""
+    ring = set(skeleton_atoms)
+    if any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring):
+        return ()
+    double = {
+        frozenset((b.GetBeginAtomIdx(), b.GetEndAtomIdx()))
+        for b in mol.GetBonds()
+        if b.GetBondTypeAsDouble() == 2.0 and b.GetBeginAtomIdx() in ring and b.GetEndAtomIdx() in ring
+    }
+    live = set().union(*double) if double else set()
+    if len(live) < 4 or len(live) > 24:
+        return ()
+    adj = {a: {n.GetIdx() for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in live} for a in live}
+    matchings = _perfect_matchings(live, adj)
+    if len(matchings) < 2 or len(matchings) > 2000:
+        return ()
+    ring_bonds = {frozenset((b.GetBeginAtomIdx(), b.GetEndAtomIdx())) for b in mol.GetBonds() if b.GetBeginAtomIdx() in live and b.GetEndAtomIdx() in live}
+
+    def identity(matching):
+        trial = Chem.RWMol(mol)
+        for bond in ring_bonds:
+            a, b = tuple(bond)
+            trial.GetBondBetweenAtoms(a, b).SetBondType(Chem.BondType.DOUBLE if bond in matching else Chem.BondType.SINGLE)
+        out = trial.GetMol()
+        Chem.SanitizeMol(out, Chem.SANITIZE_ALL ^ Chem.SANITIZE_SETAROMATICITY)
+        return Chem.MolToSmiles(out)
+
+    actual = frozenset(double & ring_bonds)
+    own = identity(actual)
+    others = [m for m in matchings if identity(m) != own]
+    if not others:
+        return ()
+    order = sorted(live, key=lambda a: position_of[a])
+    following = {a: order[i + 1] for i, a in enumerate(order[:-1])}
+
+    def token(bond):
+        a, b = sorted(bond, key=lambda x: position_of[x])
+        return (position_of[a], str(position_of[a]) if following.get(a) == b else f"{position_of[a]}({position_of[b]})")
+
+    bonds = sorted(actual, key=lambda bond: sorted(position_of[x] for x in bond))
+    for size in range(1, len(bonds) + 1):
+        for subset in combinations(bonds, size):
+            if not any(set(subset) <= m for m in others):
+                return tuple(sorted(token(bond) for bond in subset))
+    return ()
 
 
 def _tail_added(stem, locants, valence, suffix, added):
@@ -319,7 +314,6 @@ def _max_matching(atoms_can_hold, ring_order):
 
 def _hetero_monocycle(mol, ring_order, attached):
     atoms = [mol.GetAtomWithIdx(i) for i in ring_order]
-    size = len(atoms)
     ring_set = set(ring_order)
     sym = {a.GetIdx(): a.GetSymbol() for a in atoms}
     if any(a.GetFormalCharge() != 0 for a in atoms):
@@ -590,12 +584,6 @@ def _mancude_candidates(mol, skeleton_atoms, sp3):
         yield trial.GetMol(), new_of, old_of
 
 
-def _sanitized_mancude(mol, skeleton_atoms, sp3):
-    for candidate in _mancude_candidates(mol, skeleton_atoms, sp3):
-        return candidate
-    raise UnsupportedStructure("the mancude parent of this ring system could not be built")
-
-
 def _named_mancude(mol, skeleton_atoms, sp3):
     from .core import smiles_to_iupac
 
@@ -713,54 +701,6 @@ def _sp3_ring_atoms(mol, skeleton_atoms):
     return sp3
 
 
-def _arene_chain(mol, graph, rings, skeleton_atoms):
-    atom_rings = [tuple(r) for r in rings]
-    ring_atom_sets = [set(r) for r in atom_rings]
-    fusion_bond_idxs = set()
-    for bond in mol.GetBonds():
-        a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
-        if sum(1 for s in ring_atom_sets if a in s and b in s) >= 2:
-            fusion_bond_idxs.add(bond.GetIdx())
-    membership = _aromatic._atom_ring_membership(atom_rings)
-    if any(len(r) >= 3 for r in membership.values()):
-        raise UnsupportedStructure("a peri-fused arene is not supported as a diyl yet")
-    adj, pairs = _aromatic._ring_adjacency(atom_rings, ring_atom_sets, fusion_bond_idxs, mol)
-    ring_order = _aromatic._ring_path_order(adj, len(atom_rings))
-    shape = _aromatic._classify_shape(graph, atom_rings, ring_order, pairs)
-    parent = _aromatic._retained_chain_name(len(atom_rings), shape)
-    if parent is None:
-        return None
-    if parent == "anthracene":
-        candidates = _aromatic._anthracene_candidates(graph, ring_atom_sets, pairs, ring_order)
-    elif parent == "phenanthrene":
-        candidates = _aromatic._phenanthrene_candidates(graph, ring_atom_sets, pairs, ring_order)
-    else:
-        candidates = _aromatic._straight_chain_candidates(mol, atom_rings, ring_atom_sets, fusion_bond_idxs, ring_order)
-    oxo_all = _exocyclic_oxo(mol, skeleton_atoms)
-    oxo_suffix = oxo_all & SUFFIX_ATOMS.get()
-    sp3 = _sp3_ring_atoms(mol, skeleton_atoms) | oxo_all
-    adj, can_hold = _ring_graph(mol, skeleton_atoms)
-    out = []
-    for c in candidates:
-        position_of = dict(c)
-        if any(a not in position_of for a in sp3):
-            raise UnsupportedStructure("a saturated ring-fusion atom needs lettered hydro locants, not supported yet")
-        split = _split_hydrogen(position_of, adj, can_hold, sp3, oxo_all, oxo_suffix, 0)
-        if split is None:
-            continue
-        _, added, hydro = split
-
-        def text(locants, valence, substituted=frozenset(), suffix="yl", hydro=hydro, added=added):
-            return _hydro_text(hydro) + _tail_added(parent, locants, valence, suffix, added)
-
-        numbering = Numbering(position_of, text, unsat_key=(added, hydro))
-        numbering.parent_stem, numbering.hydro_positions, numbering.added_positions = parent, tuple(hydro), tuple(added)
-        out.append(numbering)
-    if not out:
-        raise UnsupportedStructure("no numbering of this partly hydrogenated arene fits its hydro/added hydrogen")
-    return out
-
-
 def _exocyclic_oxo(mol, skeleton_atoms):
     return {
         a
@@ -793,23 +733,7 @@ def _fused_mancude(mol, skeleton_atoms):
     match = re.match(r"^(\d+H(?:,\d+H)*)-(.*)$", parent)
     ih_count = len(match.group(1).split(",")) if match else 0
     stem = match.group(2) if match else parent
-    if stem in _RETAINED_NUMBERINGS:
-        numberings = _retained_numberings(bare, stem)
-    elif stem == "cyclopenta[a]phenanthrene" and not any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in skeleton_atoms):
-        raise UnsupportedStructure("a saturated cyclopenta[a]phenanthrene skeleton is a steroid parent hydride (P-101), not a hydro fusion name")
-    elif parent in _LACKS_REGULAR_NUMBERING:
-        raise UnsupportedStructure("this fused parent has a retained non-peripheral numbering not supported yet")
-    else:
-        all_six = all(len(r) == 6 for r in bare.GetRingInfo().AtomRings())
-        if all_six:
-            numberings = hex_numberings(bare)
-        else:
-            try:
-                numberings = oriented_peripheral_numberings(bare, ignore_indicated=True)
-            except UnsupportedStructure:
-                if bare.GetRingInfo().NumRings() > 3:
-                    raise UnsupportedStructure("the numbering of this larger fused system with a peri-fused or other-sized ring is not verified")
-                numberings = general_peripheral_numberings(bare, ignore_indicated=True)
+    numberings = fusion_system_numberings(bare, stem if stem in EXCEPTIONS else None)
     if not numberings:
         raise UnsupportedStructure("this fused skeleton has no supported peripheral numbering as a diyl yet")
     adj, can_hold = _ring_graph(mol, skeleton_atoms)
@@ -844,21 +768,96 @@ def _fused_mancude(mol, skeleton_atoms):
             continue
         ih, added, hydro = split
         ih_text = (",".join(f"{p}H" for p in ih) + "-") if ih else ""
+        delta = _delta_citation(mol, skeleton_atoms, position_of)
+        delta_stem = ("Δ" + ",".join(t for _, t in delta) + "-" + stem) if delta else stem
 
         fully_saturated = bool(hydro) and can_hold <= saturated | set(accommodated)
 
-        def text(locants, valence, substituted=frozenset(), suffix="yl", hydro=hydro, ih_text=ih_text, added=added, full=fully_saturated):
+        def text(locants, valence, substituted=frozenset(), suffix="yl", hydro=hydro, ih_text=ih_text, added=added, full=fully_saturated, stem=delta_stem):
             rest = ih_text + _tail_added(stem, locants, valence, suffix, added)
             hydro_text = multiplied_word(len(hydro), "hydro") if full else _hydro_text(hydro)
             return hydro_text + ("-" if hydro and rest[0].isdigit() else "") + rest
 
-        numbering = Numbering(position_of, text, pre_key=(ih,), unsat_key=(added, hydro), ih=ih)
+        numbering = Numbering(position_of, text, pre_key=(ih,), unsat_key=(tuple(p for p, _ in delta), added, hydro), ih=ih)
         numbering.hydro, numbering.added, numbering.fully_hydro, numbering.stem = tuple(hydro), tuple(added), fully_saturated, stem
         numbering.parent_stem, numbering.hydro_positions, numbering.added_positions = stem, tuple(hydro), tuple(added)
         out.append(numbering)
     if not out:
         raise UnsupportedStructure("no numbering of this partly hydrogenated fused system fits its hydro/indicated hydrogen")
     return out
+
+
+def _bridged_numberings(mol, skeleton_atoms):
+    """Numberings of a fused ring system with bridges (P-25.4): hydro prefixes and indicated hydrogen follow the
+    maximum number of noncumulative double bonds left after the bridge bonds are allowed for (P-25.7.1.1)."""
+    from ._fusion_bridged import bridged_parents
+
+    parents = bridged_parents(mol, set(skeleton_atoms))
+    oxo_all = _exocyclic_oxo(mol, skeleton_atoms)
+    suffix_atoms = SUFFIX_ATOMS.get() & set(skeleton_atoms)
+    out = []
+    for parent in parents:
+        capable = {a for a in parent.capable if mol.GetAtomWithIdx(a).GetSymbol() not in _NO_DOUBLE_BOND} - set(parent.consumed)
+        capable = {a for a in capable if mol.GetAtomWithIdx(a).GetDegree() <= 3 or mol.GetAtomWithIdx(a).GetSymbol() == "C"}
+        capable = {a for a in capable if not (mol.GetAtomWithIdx(a).GetAtomicNum() in _TRIVALENT_RING_HETERO and mol.GetAtomWithIdx(a).GetDegree() == 3)}
+        adj = {a: {n.GetIdx() for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in capable} for a in capable}
+        sp3 = {
+            a
+            for a in capable
+            if not any(
+                mol.GetBondBetweenAtoms(a, n).GetBondTypeAsDouble() != 1.0 and n in capable for n in adj[a]
+            )
+        }
+        position_of = {a: _locant(str(p)) if not isinstance(p, int) else p for a, p in parent.position_of.items()}
+        if any(position_of.get(a) is None for a in capable):
+            continue
+        graph_nx = nx.Graph()
+        graph_nx.add_nodes_from(capable)
+        graph_nx.add_edges_from((a, b) for a in adj for b in adj[a])
+        ih_count = len(capable) - 2 * len(nx.max_weight_matching(graph_nx, maxcardinality=True)) - len(oxo_all & capable & suffix_atoms) * 0
+        accommodated = oxo_all & suffix_atoms
+        split = _split_hydrogen(position_of, adj, capable, sp3 | (oxo_all & capable), oxo_all & capable, accommodated & capable, ih_count)
+        if split is None:
+            continue
+        ih, added, hydro = split
+        ih_text = (",".join(f"{p}H" for p in ih) + "-") if ih else ""
+        stem = parent.stem
+
+        def text(locants, valence, substituted=frozenset(), suffix="yl", hydro=hydro, ih_text=ih_text, added=added, stem=stem):
+            rest = ih_text + _tail_added(stem, locants, valence, suffix, added)
+            hydro_text = _hydro_text(hydro)
+            return hydro_text + ("-" if hydro and rest[0].isdigit() else "") + rest
+
+        numbering = Numbering(position_of, text, pre_key=(ih,), unsat_key=(added, hydro), ih=ih)
+        numbering.hydro, numbering.added, numbering.stem = tuple(hydro), tuple(added), stem
+        out.append(numbering)
+    if not out:
+        raise UnsupportedStructure("no numbering of this bridged fused system fits its hydro and indicated hydrogen")
+    return out
+
+
+def bridged_ring_system_name(mol):
+    """Name of a bare ring system made of a fused ring system and bridges (P-25.4), or None."""
+    if len(Chem.GetMolFrags(mol)) != 1 or mol.GetRingInfo().NumRings() < 3:
+        return None
+    info = mol.GetRingInfo()
+    if any(info.NumAtomRings(i) == 0 for i in range(mol.GetNumAtoms())):
+        return None
+    atoms = list(range(mol.GetNumAtoms()))
+    if not is_bridged_fusion_system(mol, atoms):
+        return None
+    try:
+        numberings = _bridged_numberings(mol, atoms)
+        best = min(numberings, key=lambda n: (n.pre_key, n.unsat_key))
+        return best.text((), 0, frozenset(), "")
+    except UnsupportedStructure:
+        return None
+
+
+def is_bridged_fusion_system(mol, skeleton_atoms):
+    """P-52.2.4.4, P-52.2.5.2.1: a ring system of at least three rings is named as a bridged fused system when a fused ring
+    system with two rings of five or more members remains after removing the bridges; `_fusion_bridged` finds it."""
+    return mol.GetRingInfo().NumRings() >= 3
 
 
 def is_hydro_fusion_system(mol, skeleton_atoms):
@@ -875,21 +874,73 @@ def is_hydro_fusion_system(mol, skeleton_atoms):
     return not any(sum(a in r for r in rings) > 2 for a in skeleton_atoms)
 
 
-def system_numberings(mol, graph, rings, skeleton_atoms):
-    if all(
-        len(r) == 6 and all(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in r) for r in rings
-    ) and len(rings) <= 3 and any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in skeleton_atoms):
+def _plain_fused(mol, skeleton_atoms):
+    from ._fused_numbering import FusedSystem
+    from ._fusion_components import skeleton
+
+    order = sorted(skeleton_atoms)
+    index = {a: i for i, a in enumerate(order)}
+    sk = skeleton(
+        [mol.GetAtomWithIdx(a).GetSymbol() for a in order],
+        [(index[b.GetBeginAtomIdx()], index[b.GetEndAtomIdx()]) for b in mol.GetBonds() if b.GetBeginAtomIdx() in index and b.GetEndAtomIdx() in index],
+    )
+    try:
+        FusedSystem(sk)
+    except UnsupportedStructure:
+        return False
+    return True
+
+
+_APPENDIX3_MAPPED = {}
+
+
+def _is_appendix3_system(mol, atoms):
+    """A ring system that is, or lies in, an Appendix 3 retained parent (P-101): the parent is numbered as a whole, so
+    the ring system gets no fusion numbering of its own."""
+    from ._appendix3_skeletons import _MIN_SIZE, _best_skeleton
+
+    if len(atoms) < _MIN_SIZE and mol.GetNumAtoms() < _MIN_SIZE:
+        return False
+    rings = sum(1 for r in mol.GetRingInfo().AtomRings() if set(r) <= set(atoms))
+    key = Chem.MolToSmiles(mol)
+    if key not in _APPENDIX3_MAPPED:
         try:
-            arene = _arene_chain(mol, graph, rings, skeleton_atoms)
+            best = _best_skeleton(mol, False)
+        except Exception:
+            best = None
+        _APPENDIX3_MAPPED[key] = set(best[1].mapping.values()) if best else set()
+    mapped = _APPENDIX3_MAPPED[key]
+    if mapped and set(atoms) <= mapped and (mapped - set(atoms)) and rings >= 2:
+        return True
+    if len(atoms) < _MIN_SIZE or rings < 3:
+        return False
+    editable = Chem.RWMol(mol)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - set(atoms), reverse=True):
+        editable.RemoveAtom(idx)
+    fragment = editable.GetMol()
+    try:
+        Chem.SanitizeMol(fragment)
+        return _best_skeleton(fragment, False) is not None
+    except Exception:
+        return False
+def system_numberings(mol, graph, rings, skeleton_atoms):
+    if _is_appendix3_system(mol, skeleton_atoms):
+        raise UnsupportedStructure("an Appendix 3 retained parent has its own numbering, not a fusion numbering (P-101)")
+    if is_bridged_fusion_system(mol, skeleton_atoms) and not _plain_fused(mol, skeleton_atoms):
+        try:
+            return _bridged_numberings(mol, skeleton_atoms)
         except UnsupportedStructure:
-            arene = None
-        if arene is not None:
-            return arene
+            pass
     if any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in skeleton_atoms):
         return _fused_mancude(mol, skeleton_atoms)
     if is_hydro_fusion_system(mol, skeleton_atoms):
         try:
             return _fused_mancude(mol, skeleton_atoms)
+        except UnsupportedStructure:
+            pass
+    if is_bridged_fusion_system(mol, skeleton_atoms):
+        try:
+            return _bridged_numberings(mol, skeleton_atoms)
         except UnsupportedStructure:
             pass
     return _von_baeyer(mol, skeleton_atoms)

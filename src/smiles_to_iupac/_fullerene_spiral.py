@@ -64,8 +64,7 @@ isomers (chemically unstable, essentially never the structure a real input
 SMILES encodes), any cage size other than 60/70/76/84 (no reference atlas
 data embedded here for them -- see this module's docstring in the project's
 Issue tracker for how to extend it), and any substituted/modified fullerene
-at any size (P-27.3's full atom-by-atom numbering system, needed only for
-locants on substituents or modifications, is separate unimplemented work).
+at any size (locants for the C60 and C70 cages are in `_fullerene_numbering.py`).
 """
 
 from collections import deque

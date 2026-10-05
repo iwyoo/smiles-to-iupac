@@ -223,7 +223,7 @@ def _name_from_substituents(chain_length, sh_locants, ene_locants, yne_locants, 
     # (PubChem-verified) keeps its '2-' even though the thiol locant drops.
     prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
     return prefix + name_from_substituents(
-        chain_length, ene_locants, yne_locants, multiplied_word(len(sh_locants), "thiol"), sh_locants
+        chain_length, ene_locants, yne_locants, multiplied_word(len(sh_locants), "thiol"), sh_locants, substituted=bool(grouped)
     )
 
 

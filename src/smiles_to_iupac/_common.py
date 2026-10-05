@@ -32,6 +32,7 @@ from ._numerals import alkane_name, numerical_term
 _LEADING_LOCANTS_RE = re.compile(r"^\x01?(?:[\d,\-]+\(?)?")
 _ITALIC_PREFIX_RE = re.compile(r"^(tert|sec|iso)-")
 _LEADING_STEREO_RE = re.compile(r"^\([\dRSEZrsez,' ]+\)-")
+_LEADING_ANOMER_RE = re.compile(r"^[αβ]-[DL]-")
 
 
 class UnsupportedStructure(NotImplementedError):
@@ -153,8 +154,7 @@ def kekulized_copy(mol):
     molecule. Two (or more) independently-aromatic rings (e.g. a
     cyclophane), or genuine unsaturation coexisting outside the aromatic
     ring (e.g. a dihydronaphthalene's own ring double bond, or a
-    substituent on the bridged-aromatic shape `_bridged_aromatic.py`
-    doesn't cover yet), are deliberately left alone -- returns `mol`
+    substituent on a bridged-aromatic shape that is not covered), are deliberately left alone -- returns `mol`
     unchanged for those (and for the ordinary all-saturated case), so
     every other caller's existing "not supported yet" behavior stays
     intact. Atom indices are preserved when a copy is made: `Chem.Kekulize`
@@ -400,8 +400,7 @@ def _heteroaromatic_monocycle_locant(mol, ring_order, attachment_atom):
     own indicated hydrogen (P-25.7.1.3) still needs citing -- i.e.
     `attachment_atom` isn't the heteroatom itself, which would otherwise
     consume it (plain "pyrrol-1-yl"/"1-hydroperoxypyrrole", no citation
-    needed, mirroring `_pyridine_heterocycle_fusion.py`'s identical
-    `GetTotalNumHs() > 0` heuristic for the same tautomer distinction);
+    needed);
     pyridine/furan/thiophene never need this, since their heteroatom
     carries no H to begin with. Used by `heteroaromatic_monocycle_prefix_name`
     (ring cited as the parent) -- the locant math is identical either way,
@@ -992,7 +991,7 @@ def suffix_body(ene_locants, yne_locants, own_word, own_locants=None):
     return body, elide_stem
 
 
-def should_omit_mononuclear_locants(chain_length, own_locants, has_unsaturation):
+def should_omit_mononuclear_locants(chain_length, own_locants, has_unsaturation, substituted=False):
     """True when P-14.3.4.2(a) (`chain_length == 1`) or P-14.3.4.2(b) (a
     saturated two-carbon chain whose suffix has exactly one own locant)
     applies, so the caller's own `format_substituent_prefixes` call should
@@ -1017,11 +1016,22 @@ def should_omit_mononuclear_locants(chain_length, own_locants, has_unsaturation)
     own_locants = own_locants or ()
     if chain_length == 1:
         return True
-    return chain_length == 2 and not has_unsaturation and len(own_locants) == 1
+    return chain_length == 2 and not has_unsaturation and not substituted and len(own_locants) == 1
+
+
+RETAINED_ACYL_STEMS = {
+    (1, "amide"): "formamide",
+    (2, "amide"): "acetamide",
+    (2, "diamide"): "oxamide",
+    (2, "nitrile"): "acetonitrile",
+    (2, "dinitrile"): "oxalonitrile",
+    (1, "al"): "formaldehyde",
+    (2, "al"): "acetaldehyde",
+}
 
 
 def name_from_substituents(
-    chain_length, ene_locants, yne_locants, own_word, own_locants=None, force_own_locant=False
+    chain_length, ene_locants, yne_locants, own_word, own_locants=None, force_own_locant=False, substituted=False
 ):
     """Assemble `<stem>[a]<separator><suffix body>` for an acyclic
     chain-parent suffix module (the caller still prepends its own
@@ -1044,7 +1054,13 @@ def name_from_substituents(
     is the only caller that passes this)."""
     has_unsaturation = bool(ene_locants or yne_locants)
 
-    if not force_own_locant and should_omit_mononuclear_locants(chain_length, own_locants, has_unsaturation):
+    retained = None if has_unsaturation or force_own_locant else RETAINED_ACYL_STEMS.get((chain_length, own_word))
+    if retained:
+        return retained
+
+    if not force_own_locant and should_omit_mononuclear_locants(
+        chain_length, own_locants, has_unsaturation, substituted
+    ):
         stem = alkane_name(chain_length)
         if own_word[0] in "aeiouy":
             stem = stem[:-1]
@@ -1118,6 +1134,7 @@ def alpha_sort_key(name: str) -> str:
     while stripped != previous:
         previous = stripped
         stripped = _LEADING_STEREO_RE.sub("", stripped)
+        stripped = _LEADING_ANOMER_RE.sub("", stripped)
         stripped = _LEADING_LOCANTS_RE.sub("", stripped)
         if stripped[:1] in ("(", "[", "{") and not _LEADING_STEREO_RE.match(stripped):
             stripped = stripped[1:]

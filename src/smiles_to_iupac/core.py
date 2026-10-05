@@ -1,7 +1,5 @@
 import re
 
-import re
-
 from rdkit import Chem
 
 from ._zwitterion import has_zwitterion_shape, name_zwitterion
@@ -9,6 +7,11 @@ from ._salt import has_salt_shape, name_salt
 from ._hydrohalide_salt import has_hydrohalide_salt_shape, name_hydrohalide_salt
 from ._hydrate_adduct import has_hydrate_adduct_shape, name_hydrate_adduct
 from ._acyclic import name_acyclic_alkane
+from ._acid_derivatives import name_acid_derivative
+from ._acid_salts import name_acid_salt
+from ._hetero_carboxylic import name_hetero_parent_acid
+from ._polycarbonic import name_polycarbonic
+from ._carbonic_family import name_carbonic_family
 from ._acyl_halide import has_acyl_halide_shape, name_acyl_halide
 from ._anhydride import has_anhydride_shape, name_anhydride
 from ._carbamate import has_carbamate_shape, name_carbamate
@@ -78,12 +81,6 @@ from ._radical import has_radical_shape, name_radical
 from ._radical_ion import has_radical_ion_shape, name_radical_ion
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
-from ._bridged_aromatic import (
-    find_bridged_anthracene_core,
-    find_bridged_aromatic_core,
-    name_bridged_anthracene,
-    name_bridged_aromatic,
-)
 from ._appendix3_skeletons import name_appendix3_skeleton
 from ._borane import has_simple_borane_shape, name_simple_borane
 from ._boronic_acid import has_boronic_acid_shape, name_boronic_acid
@@ -99,7 +96,6 @@ from ._group13_hydride import (
     name_group14_hydride,
     name_group15_hydride,
 )
-from ._branched_fused_aromatic import has_retained_branched_fused_name, name_retained_branched_fused
 from ._carboxylate import has_carboxylate_shape, name_carboxylate
 from ._selenoate import has_selenoate_shape, name_selenoate
 from ._sulfonate import has_sulfonate_shape, name_sulfonate
@@ -125,14 +121,6 @@ from ._common import UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
-from ._dihydro_aromatic import (
-    find_decahydronaphthalene_core,
-    find_dihydronaphthalene_core,
-    find_partially_unsaturated_naphthalene_core,
-    name_decahydronaphthalene,
-    name_dihydronaphthalene,
-    name_partially_unsaturated_naphthalene,
-)
 from ._diester_acyloxy import has_diester_shape, has_polyester_of_one_polyol_shape, name_diester_acyloxy
 from ._ester import has_ester_shape, name_ester
 from ._ester_by_parts import name_ester_by_parts
@@ -149,7 +137,7 @@ from ._ether_amide import has_ether_amide_shape, name_ether_amide
 from ._ether_hydroperoxide import has_ether_hydroperoxide_shape, name_ether_hydroperoxide
 from ._ether_ketone import has_ether_ketone_shape, name_ether_ketone
 from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
-from ._fusion_prefix_namer import name_fusion_prefix_system
+from ._fusion_name import fused_ring_system_name
 from ._hetero_prefixes import _has_senior_principal_group
 from ._fullerene import (
     has_fullerene_name,
@@ -157,10 +145,11 @@ from ._fullerene import (
     name_fullerene,
     require_defined_fullerene_numbering,
 )
+from ._fullerene_numbering import name_cage_parent
 from ._multiplicative import name_if_multiplicative
 from ._nucleoside import has_nucleoside_name, name_nucleoside
 from ._nucleoside_substituted import has_substituted_nucleoside_name, name_substituted_nucleoside
-from ._nucleotide import has_nucleotide_name, name_nucleotide
+from ._oligonucleotide import oligonucleotide_name
 from ._metallacycle import has_metallacycle_shape, name_metallacycle
 from ._metallacycle_group import name_metallacycle_as_group
 from ._metallafused import has_metallafused_shape, name_metallafused
@@ -168,6 +157,8 @@ from ._metallapolycycle import has_metallapolycycle_shape, name_metallapolycycle
 from ._ocene import has_ocene_shape, name_ocene
 from ._pin import enter, leave, mark
 from ._fused_hetero_ring_oxide import has_fused_hetero_ring_oxide_shape, name_fused_hetero_ring_oxide
+from ._hydride_carbo_suffix import has_hydride_carbo_suffix_shape, name_hydride_carbo_suffix
+from ._ring_lambda_heterone import has_ring_lambda_heterone_shape, name_ring_lambda_heterone
 from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
 from ._pyridinone import has_pyridinone_shape, name_pyridinone
 from ._pyrimidinedione import has_pyrimidinedione_shape, name_pyrimidinedione
@@ -180,42 +171,6 @@ from ._steroid_parent_hydrides import (
     name_steroid_parent_hydride,
     name_steroid_unsaturated,
 )
-from ._heteroaromatic_fused import has_retained_heteroaromatic_fused_name, name_retained_heteroaromatic_fused
-from ._phenanthroline_naphthyridine import (
-    find_phenanthroline_naphthyridine_core,
-    name_phenanthroline_naphthyridine,
-)
-from ._polycyclic_component_fusion import (
-    has_polycyclic_component_fusion_name,
-    name_polycyclic_component_fusion,
-)
-from ._pyridine_bicyclic_fusion import has_pyridine_bicyclic_fusion_name, name_pyridine_bicyclic_fusion
-from ._furano_bridge_quinoline import has_furano_bridge_quinoline_name, name_furano_bridge_quinoline
-from ._pyrano_bridge_quinoline import has_pyrano_bridge_quinoline_name, name_pyrano_bridge_quinoline
-from ._anthracene_fusion import has_anthracene_fusion_name, name_anthracene_fusion
-from ._anthracene_cyclopenta_fusion import (
-    has_anthracene_cyclopenta_fusion_name,
-    name_anthracene_cyclopenta_fusion,
-)
-from ._tetracene_fusion import has_tetracene_fusion_name, name_tetracene_fusion
-from ._pentacene_fusion import has_pentacene_fusion_name, name_pentacene_fusion
-from ._hexacene_fusion import has_hexacene_fusion_name, name_hexacene_fusion
-from ._heptacene_fusion import has_heptacene_fusion_name, name_heptacene_fusion
-from ._phenanthrene_fusion import has_phenanthrene_fusion_name, name_phenanthrene_fusion
-from ._pyrene_fusion import has_pyrene_fusion_name, name_pyrene_fusion
-from ._perylene_fusion import has_perylene_fusion_name, name_perylene_fusion
-from ._perylene_peri_fusion import has_perylene_peri_fusion_name, name_perylene_peri_fusion
-from ._anthanthrene_fusion import has_anthanthrene_fusion_name, name_anthanthrene_fusion
-from ._chrysene_fusion import has_chrysene_fusion_name, name_chrysene_fusion
-from ._picene_fusion import has_picene_fusion_name, name_picene_fusion
-from ._pentaphene_fusion import has_pentaphene_fusion_name, name_pentaphene_fusion
-from ._triphenylene_fusion import has_triphenylene_fusion_name, name_triphenylene_fusion
-from ._fluoranthene_fusion import has_fluoranthene_fusion_name, name_fluoranthene_fusion
-from ._aceanthrylene_fusion import has_aceanthrylene_fusion_name, name_aceanthrylene_fusion
-from ._acephenanthrylene_fusion import (
-    has_acephenanthrylene_fusion_name,
-    name_acephenanthrylene_fusion,
-)
 from ._hetero_monocyclic import (
     has_hetero_monocyclic_name,
     has_hetero_monocyclic_substituent_name,
@@ -225,14 +180,6 @@ from ._hetero_monocyclic import (
     name_pyran_indicated_hydrogen,
 )
 from ._didehydro_ring import has_didehydro_ring_name, name_didehydro_ring
-from ._benzo_bis_heterocycle_fusion import (
-    has_benzo_bis_heterocycle_fusion_name,
-    name_benzo_bis_heterocycle_fusion,
-)
-from ._bridgehead_heteroatom_fusion import (
-    has_bridgehead_heteroatom_fusion_name,
-    name_bridgehead_heteroatom_fusion,
-)
 from ._hydroxylamine import has_hydroxylamine_shape, name_hydroxylamine
 from ._imine import has_simple_imine_shape, name_imine
 from ._dipole_oxide import (
@@ -245,22 +192,6 @@ from ._isotope import has_isotope_shape, name_isotope
 from ._isotope_alcohol import has_isotope_alcohol_shape, name_isotope_alcohol
 from ._isotope_carboxylic_acid import has_isotope_carboxylic_acid_shape, name_isotope_carboxylic_acid
 from ._isotope_ketone import has_isotope_ketone_shape, name_isotope_ketone
-from ._pyridine_bis_heterocycle_fusion import (
-    has_pyridine_bis_heterocycle_fusion_name,
-    name_pyridine_bis_heterocycle_fusion,
-)
-from ._pyridine_heterocycle_fusion import (
-    has_pyridine_heterocycle_fusion_name,
-    name_pyridine_heterocycle_fusion,
-)
-from ._two_component_heterocycle_fusion import (
-    has_two_component_heterocycle_fusion_name,
-    name_two_component_heterocycle_fusion,
-)
-from ._furan_pyran_fusion import (
-    has_furan_pyran_fusion_name,
-    name_furan_pyran_fusion,
-)
 from ._ketone import (
     has_five_membered_1_2_ring_ketone_shape,
     has_five_membered_1_3_ring_ketone_shape,
@@ -312,22 +243,7 @@ from ._sulfite import has_sulfite_shape, name_sulfite
 from ._phosphonic_acid import has_phosphonic_acid_shape, name_phosphonic_acid
 from ._phosphinic_acid import has_phosphinic_acid_shape, name_phosphinic_acid
 from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
-from ._peri_fused_aromatic import has_retained_peri_fused_name, name_retained_peri_fused
-from ._fluorene_parent import has_fluorene_parent_name, name_fluorene_parent
-from ._ring_diyl_numbering import is_hydro_fusion_system
-from ._cyclopenta_heterocycle import has_cyclopenta_heterocycle_name, name_cyclopenta_heterocycle
-from ._benzo_heterocycle import (
-    has_benzo_heterocycle_name,
-    has_group_benzo_heterocycle_name,
-    name_benzo_heterocycle,
-)
-from ._indene_parent import has_indene_parent_name, name_indene_parent
-from ._fluorene_fusion import has_fluorene_fusion_name, name_fluorene_fusion
-from ._azulene_fusion import has_azulene_fusion_name, name_azulene_fusion
-from ._cyclopenta_naphthalene import has_cyclopenta_naphthalene_name, name_cyclopenta_naphthalene
-from ._azulene_parent import has_azulene_parent_name, name_azulene_parent
-from ._benzo_cd_indole import has_benzo_cd_indole_name, name_benzo_cd_indole
-from ._pyrrolo_ij_quinoline import has_pyrrolo_ij_quinoline_name, name_pyrrolo_ij_quinoline
+from ._ring_diyl_numbering import bridged_ring_system_name, is_hydro_fusion_system
 from ._hydroperoxide import has_hydroperoxide_shape, name_hydroperoxide
 from ._hydroperoxide_amine import has_hydroperoxide_amine_shape, name_hydroperoxide_amine
 from ._peroxide import has_peroxide_shape, name_peroxide
@@ -419,9 +335,12 @@ _FALLBACKS_RUNNING = set()
 _ADAMANTANE = re.compile(r"(?<![a-z])tricyclo\[3\.3\.1\.1\^3,7\]decan(?=e|-)")
 
 
+_INDACENE_PREFIX = re.compile(r"([a-z\]\)])(as-indacen|(?<!a)s-indacen)")
+
+
 def _retained_polycycle_names(name):
     """P-23.7: 'adamantane' replaces tricyclo[3.3.1.1^3,7]decane; the numbering is the same."""
-    return _ADAMANTANE.sub("adamantan", name)
+    return _INDACENE_PREFIX.sub(r"\1-\2", _ADAMANTANE.sub("adamantan", name))
 
 
 def _parse_smiles(smiles):
@@ -472,10 +391,19 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
             return name_sphingoid(parsed)
         if parsed is not None and has_nucleoside_name(parsed):
             return name_nucleoside(parsed)
-        if parsed is not None and has_nucleotide_name(parsed):
-            return name_nucleotide(parsed)
+        if parsed is not None and oligonucleotide_name(parsed) is not None:
+            return oligonucleotide_name(parsed)
         if parsed is not None and has_substituted_nucleoside_name(parsed):
-            return name_substituted_nucleoside(parsed)
+            name = name_substituted_nucleoside(parsed)
+            return name
+        if parsed is not None and has_amino_acid_shape(parsed):
+            return name_amino_acid(parsed)
+        if parsed is not None and not has_sphingoid_shape(parsed):
+            for namer in (name_acid_salt, name_polycarbonic, name_carbonic_family, name_acid_derivative, name_hetero_parent_acid):
+                try:
+                    return namer(parsed)
+                except UnsupportedStructure:
+                    pass
         beyond_preferred = None
         if parsed is not None:
             name = name_heteroacyclic(parsed)
@@ -607,14 +535,14 @@ def _run_fallbacks(smiles, original):
         raise original
     _FALLBACKS_RUNNING.add(key)
     try:
-        for skeletal in (name_skeletal_chain, name_hetero_macrocycle, name_fusion_prefix_system):
+        for skeletal in (name_skeletal_chain, name_hetero_macrocycle):
             try:
                 name = skeletal(mol)
             except UnsupportedStructure:
                 continue
             if name is not None:
                 return name
-        for fallback in (name_anion, name_polyfunctional, name_ester_by_parts):
+        for fallback in (name_polyfunctional, name_anion, name_ester_by_parts):
             try:
                 return fallback(mol)
             except UnsupportedStructure:
@@ -654,10 +582,9 @@ def _name_via_fallbacks(mol):
 
 
 def _name_mol(mol) -> str:
-    if has_group_benzo_heterocycle_name(mol):
-        return name_benzo_heterocycle(mol)
-    if has_cyclopenta_heterocycle_name(mol):
-        return name_cyclopenta_heterocycle(mol)
+    fused = fused_ring_system_name(mol)
+    if fused is not None:
+        return fused
 
     # The 7 retained nucleoside names (P-105.1) are recognized by exact
     # whole-molecule match, so they must be routed before every other
@@ -668,17 +595,13 @@ def _name_mol(mol) -> str:
     if has_nucleoside_name(mol):
         return name_nucleoside(mol)
 
-    # The 7 retained nucleotide names (P-106.1) are likewise recognized by
-    # exact whole-molecule match and must be routed right after the
-    # nucleoside case above, for the same dispatch-ordering reason: the
-    # phosphate ester's own oxygens would otherwise reach `_phosphate.py`'s
-    # generic dispatch, which has no path for a nucleoside-shaped R group.
-    if has_nucleotide_name(mol):
-        return name_nucleotide(mol)
-
-    # P-105.2 substituted nucleosides share the same dispatch-ordering
-    # reason: the base's fused-ring nitrogens and the sugar hydroxyls
-    # would otherwise be claimed by unrelated generic branches below.
+    # P-105.2 substituted nucleosides and P-106 nucleotides are recognized
+    # here for dispatch-ordering reasons: the base's fused-ring nitrogens,
+    # the sugar hydroxyls and the phosphate esters would otherwise be
+    # claimed by unrelated generic branches below.
+    oligonucleotide = oligonucleotide_name(mol)
+    if oligonucleotide is not None:
+        return oligonucleotide
     if has_substituted_nucleoside_name(mol):
         return name_substituted_nucleoside(mol)
 
@@ -743,6 +666,12 @@ def _name_mol(mol) -> str:
     # ring/functional-group shape check below, which would misread its esters.
     if has_polyester_of_one_polyol_shape(mol):
         return name_diester_acyloxy(mol)
+
+    if has_hydride_carbo_suffix_shape(mol):
+        return name_hydride_carbo_suffix(mol)
+
+    if has_ring_lambda_heterone_shape(mol):
+        return name_ring_lambda_heterone(mol)
 
     # A chalcogen ring-oxide (P-62.5's functional-class "oxide" pattern,
     # not limited to acyclic amines) breaks the ring's own aromaticity as
@@ -1097,8 +1026,6 @@ def _name_mol(mol) -> str:
             return name_hetero_monocyclic(mol)
         if has_hetero_monocyclic_substituent_name(mol):
             return name_hetero_monocyclic_substituent(mol)
-        if has_retained_heteroaromatic_fused_name(mol):
-            return name_retained_heteroaromatic_fused(mol)
 
     # A phosphorus atom (P-68's phosphane substitutive nomenclature) must
     # be routed here before every other branch below: none of them
@@ -1158,44 +1085,6 @@ def _name_mol(mol) -> str:
     if has_substituted_fullerene_cage(mol):
         require_defined_fullerene_numbering(mol, {a for r in mol.GetRingInfo().AtomRings() for a in r})
 
-    # pyrene/acenaphthylene/fluoranthene/aceanthrylene/acephenanthrylene
-    # (P-25.1.2's peri-fused retained names) are recognized by exact
-    # whole-molecule match, independent of every other branch below -- see
-    # _peri_fused_aromatic.py's module docstring for why (each has a
-    # non-6-membered, non-aromatic ring that none of the other dispatch
-    # branches expect).
-    if has_retained_peri_fused_name(mol):
-        return name_retained_peri_fused(mol)
-
-    # 9H-fluorene (P-25.1.2) is recognized the same way -- its central
-    # ring's sp3 CH2 fails the aromatic-fused dispatch's precondition too.
-    if has_fluorene_parent_name(mol):
-        return name_fluorene_parent(mol)
-    if has_indene_parent_name(mol):
-        return name_indene_parent(mol)
-    if has_benzo_heterocycle_name(mol):
-        return name_benzo_heterocycle(mol)
-
-    # cyclopenta[a/b]naphthalene (P-25.3.1.3) needs the same early dispatch
-    # for the same reason -- its 5-ring is never fully aromatic either.
-    if has_cyclopenta_naphthalene_name(mol):
-        return name_cyclopenta_naphthalene(mol)
-
-    # azulene (P-25.1.1 item 17) needs the same early dispatch -- its 5-
-    # and 7-membered rings both fail the all-6-membered-ring precondition.
-    if has_azulene_parent_name(mol):
-        return name_azulene_parent(mol)
-
-    # benzo[cd]indole (P-25.3.1.3) needs the same early dispatch -- its
-    # central pyrrole-derived ring isn't fully aromatic in this tautomer.
-    if has_benzo_cd_indole_name(mol):
-        return name_benzo_cd_indole(mol)
-
-    # 4H-pyrrolo[3,2,1-ij]quinoline (P-25.3.1.3) is the same peri-fused
-    # shape, a different base/attached-component pair.
-    if has_pyrrolo_ij_quinoline_name(mol):
-        return name_pyrrolo_ij_quinoline(mol)
-
     # [2.2]paracyclophane/[2.2]metacyclophane (P-26's phane nomenclature
     # retained-name-style recognition, see module docstring) are recognized
     # the same way, independent of every other branch below -- their two
@@ -1229,252 +1118,6 @@ def _name_mol(mol) -> str:
     if has_steroid_aromatic_a_ring_name(mol):
         return name_steroid_aromatic_a_ring(mol)
 
-    # triphenylene (P-25.1.2's branched-fusion retained name) is recognized
-    # the same way -- see _branched_fused_aromatic.py's module docstring;
-    # _aromatic.py's chain-only algorithm explicitly rejects this shape.
-    if has_retained_branched_fused_name(mol):
-        return name_retained_branched_fused(mol)
-
-    # quinoline/1H-indole (P-25.2.1's heteroaromatic retained names) are
-    # recognized the same way -- see _heteroaromatic_fused.py's module
-    # docstring; neither has an all-carbon skeleton, so _aromatic.py's
-    # dispatch would never even consider them.
-    if has_retained_heteroaromatic_fused_name(mol):
-        return name_retained_heteroaromatic_fused(mol)
-
-    # phenanthroline/naphthyridine (P-2 Table 2.8's locanted diaza retained
-    # names) must be routed here too, before the fusion-letter dispatches
-    # below and _aromatic.py's own all-carbon dispatch, which would reject
-    # the nitrogen atoms outright.
-    phenanthroline_naphthyridine_core = find_phenanthroline_naphthyridine_core(mol)
-    if phenanthroline_naphthyridine_core is not None:
-        return name_phenanthroline_naphthyridine(mol, phenanthroline_naphthyridine_core)
-
-    # benzo[g]indole/benzo[e][1]benzofuran/benzo[g][1]benzofuran (P-25.3.1.3's
-    # computed fusion-locant-letter mechanism, this time for a plain benzo
-    # ring fused onto an already-bicyclic retained-name base component)
-    # must be routed here before `_aromatic.py`'s own tricyclic dispatch
-    # further below, which doesn't recognize a heteroatom at all.
-    if has_polycyclic_component_fusion_name(mol):
-        return name_polycyclic_component_fusion(mol)
-
-    # benzo[g]quinoline/benzo[h]isoquinoline (P-25.3.1.3's same computed
-    # fusion-locant-letter mechanism, this time for quinoline/isoquinoline
-    # as the base) must be routed here for the same reason as the check
-    # just above.
-    if has_pyridine_bicyclic_fusion_name(mol):
-        return name_pyridine_bicyclic_fusion(mol)
-
-    # P-25.4.2.1.5 heterocyclic-bridge citation: an intact furan ring
-    # bonded via two new bonds to a benzo[g]quinoline base's meso locants.
-    if has_furano_bridge_quinoline_name(mol):
-        return name_furano_bridge_quinoline(mol)
-
-    # Same P-25.4.2.1.5 citation, for an intact pyran ring instead.
-    if has_pyrano_bridge_quinoline_name(mol):
-        return name_pyrano_bridge_quinoline(mol)
-
-    # benzo[a]anthracene (P-25.3.1.3's computed fusion-locant-letter
-    # mechanism again, this time for a plain benzo ring fused onto
-    # anthracene itself -- the Blue Book's own worked example for this
-    # section) must be routed here for the same reason as the check just
-    # above: before `_aromatic.py`'s own tetracyclic dispatch further
-    # below, which only recognizes the *linear* fusion (tetracene) and
-    # would otherwise reject the angular one outright. The linear shape
-    # is deliberately excluded from `has_anthracene_fusion_name` itself
-    # so it still falls through to that tetracene recognition unchanged.
-    if has_anthracene_fusion_name(mol):
-        return name_anthracene_fusion(mol)
-
-    # benzo[a]tetracene (same mechanism again, for tetracene as the base
-    # component -- the second plain catacondensed-chain base, after
-    # anthracene) must be routed here for the same reason as the check
-    # just above: before `_aromatic.py`'s own pentacyclic dispatch, which
-    # only recognizes the *linear* fusion (pentacene) and would otherwise
-    # reject the angular one outright. The linear shape is deliberately
-    # excluded from `has_tetracene_fusion_name` itself so it still falls
-    # through to that pentacene recognition unchanged.
-    if has_tetracene_fusion_name(mol):
-        return name_tetracene_fusion(mol)
-
-    # benzo[a]pentacene (same mechanism again, for pentacene as the base
-    # component -- the third plain catacondensed-chain base, after
-    # anthracene/tetracene) must be routed here for the same reason as
-    # the checks just above. The linear ('hexacene') shape is deliberately
-    # excluded from `has_pentacene_fusion_name` itself so it still falls
-    # through to `_aromatic.py`'s own hexacene recognition unchanged.
-    if has_pentacene_fusion_name(mol):
-        return name_pentacene_fusion(mol)
-
-    # benzo[a]hexacene (same mechanism again, for hexacene as the base
-    # component -- the fourth plain catacondensed-chain base, after
-    # anthracene/tetracene/pentacene) must be routed here for the same
-    # reason as the checks just above. The linear ('heptacene') shape is
-    # deliberately excluded from `has_hexacene_fusion_name` itself so it
-    # still falls through to `_aromatic.py`'s own heptacene recognition
-    # unchanged.
-    if has_hexacene_fusion_name(mol):
-        return name_hexacene_fusion(mol)
-
-    # benzo[a]heptacene (same mechanism again, for heptacene as the base
-    # component -- the fifth plain catacondensed-chain base, after
-    # anthracene/tetracene/pentacene/hexacene) must be routed here for
-    # the same reason as the checks just above. The linear ('octacene')
-    # shape is deliberately excluded from `has_heptacene_fusion_name`
-    # itself so it still falls through to `_aromatic.py`'s own octacene
-    # recognition unchanged.
-    if has_heptacene_fusion_name(mol):
-        return name_heptacene_fusion(mol)
-
-    # chrysene/benzo[c]phenanthrene (same mechanism once more, for
-    # phenanthrene as the base component) -- routed here for the same
-    # reason as the two checks just above. The third structurally
-    # possible letter on phenanthrene is deliberately excluded from
-    # `has_phenanthrene_fusion_name` itself: 'b' is benzo[a]anthracene,
-    # the exact same compound the anthracene check just above already
-    # names via a different (senior) base component.
-    if has_phenanthrene_fusion_name(mol):
-        return name_phenanthrene_fusion(mol)
-
-    # benzo[a]pyrene/benzo[e]pyrene (same mechanism again, for pyrene as
-    # the base component -- the first *peri*-fused, not simply
-    # catacondensed, base for this algorithm) -- routed here for the same
-    # reason as the checks above.
-    if has_pyrene_fusion_name(mol):
-        return name_pyrene_fusion(mol)
-
-    # benzo[a]perylene/benzo[b]perylene (same mechanism, perylene as the
-    # base -- a second peri-fused base, same reason as the check above).
-    if has_perylene_fusion_name(mol):
-        return name_perylene_fusion(mol)
-
-    # benzo[ghi]perylene (same base, but the third ring spans three
-    # consecutive periphery bonds -- a peri, not ortho, fusion shape).
-    if has_perylene_peri_fusion_name(mol):
-        return name_perylene_peri_fusion(mol)
-
-    # benzo[b]chrysene/benzo[c]chrysene/benzo[g]chrysene/picene (same
-    # mechanism again, for chrysene as the base component -- chrysene
-    # itself is `_phenanthrene_fusion.py`'s letter 'a'; picene is this
-    # module's own letter 'a') -- routed here for the same reason as the
-    # checks above.
-    if has_chrysene_fusion_name(mol):
-        return name_chrysene_fusion(mol)
-
-    # dibenzo[def,mno]chrysene (anthanthrene) -- two peri-fused benzo
-    # rings on chrysene at once, each spanning three consecutive
-    # periphery bonds (chrysene's own C2 symmetry maps one span onto
-    # the other) -- routed here for the same reason as the checks above.
-    if has_anthanthrene_fusion_name(mol):
-        return name_anthanthrene_fusion(mol)
-
-    # benzo[b]picene/benzo[c]picene (same mechanism again, for picene as
-    # the base component -- picene itself is `_chrysene_fusion.py`'s
-    # letter 'a') -- routed here for the same reason as the checks above.
-    if has_picene_fusion_name(mol):
-        return name_picene_fusion(mol)
-
-    # benzo[a]pentaphene/hexaphene/benzo[c]pentaphene (same mechanism
-    # again, for pentaphene as the base component) -- routed here for the
-    # same reason as the checks above.
-    if has_pentaphene_fusion_name(mol):
-        return name_pentaphene_fusion(mol)
-
-    # benzo[b]triphenylene (same mechanism again, for triphenylene as the
-    # base component) -- routed here for the same reason as the checks
-    # above. The other structurally possible letter is the exact same
-    # compound as `_chrysene_fusion.py`'s letter 'g' and is excluded from
-    # `has_triphenylene_fusion_name` itself to avoid a second route to it.
-    if has_triphenylene_fusion_name(mol):
-        return name_triphenylene_fusion(mol)
-
-    # benzo[a]fluoranthene/benzo[b]fluoranthene/benzo[j]fluoranthene/
-    # benzo[k]fluoranthene (same mechanism again, for fluoranthene as the
-    # base component -- the second *peri*-fused base, after pyrene)
-    # -- routed here for the same reason as the checks above.
-    if has_fluoranthene_fusion_name(mol):
-        return name_fluoranthene_fusion(mol)
-
-    # benzo[d]aceanthrylene/benzo[e]aceanthrylene/benzo[j]aceanthrylene/
-    # benzo[k]aceanthrylene/benzo[l]aceanthrylene (same mechanism again,
-    # for aceanthrylene as the base component -- the third peri-fused
-    # base) -- routed here for the same reason as the checks above. The
-    # sixth structurally possible letter is the exact same compound as
-    # `_fluoranthene_fusion.py`'s own letter 'a'/'f' and is excluded from
-    # `has_aceanthrylene_fusion_name` itself to avoid a second route to
-    # it.
-    if has_aceanthrylene_fusion_name(mol):
-        return name_aceanthrylene_fusion(mol)
-
-    # benzo[a]acephenanthrylene/benzo[j]acephenanthrylene/
-    # benzo[k]acephenanthrylene/benzo[l]acephenanthrylene (same mechanism
-    # again, for acephenanthrylene as the base component -- the fourth
-    # peri-fused base) -- routed here for the same reason as the checks
-    # above. The other two structurally possible letters are the exact
-    # same compounds as `_aceanthrylene_fusion.py`'s own letter 'e' and
-    # `_fluoranthene_fusion.py`'s own letter 'b'/'e' respectively, and are
-    # excluded from `has_acephenanthrylene_fusion_name` itself to avoid a
-    # second route to them.
-    if has_acephenanthrylene_fusion_name(mol):
-        return name_acephenanthrylene_fusion(mol)
-
-    # benzo[a]/[b]/[c]fluorene (same mechanism, fluorene as the base --
-    # its sp3 CH2 gets a fresh indicated-H locant on the bigger system).
-    if has_fluorene_fusion_name(mol):
-        return name_fluorene_fusion(mol)
-
-    # benzo[a]/[e]/[f]azulene (same mechanism, azulene as the base).
-    if has_azulene_fusion_name(mol):
-        return name_azulene_fusion(mol)
-
-    # cyclopenta[a]/[b]anthracene (a non-aromatic attachment this time,
-    # so the fusion letter alone isn't enough -- the indicated-H locant
-    # needs a fresh whole-system numbering, see the module docstring).
-    if has_anthracene_cyclopenta_fusion_name(mol):
-        return name_anthracene_cyclopenta_fusion(mol)
-
-    # thieno[2,3-b]thiophene/furo[2,3-b]furan/thieno[2,3-b]furan etc.
-    # (P-25.3.1.3's computed fusion-locant-letter mechanism, for two
-    # five-membered heteromonocycles -- identical or a mixed O/S pair --
-    # self-fused) must be routed here before `_hetero_monocyclic.py` below,
-    # which only understands a single ring.
-    if has_two_component_heterocycle_fusion_name(mol):
-        return name_two_component_heterocycle_fusion(mol)
-
-    # furo[3,2-b]pyridine/thieno[2,3-b]pyridine etc. (P-25.3.1.3's computed
-    # fusion-locant-letter mechanism, pyridine as the base component with
-    # a named five-membered O/S heteromonocycle attached) -- also routed
-    # here before `_hetero_monocyclic.py` below, same reason as above.
-    if has_pyridine_heterocycle_fusion_name(mol):
-        return name_pyridine_heterocycle_fusion(mol)
-
-    # furo[x,y-z]pyran (P-25.3.2.4(c)'s own worked example, pyran as
-    # base) -- routed here before `_hetero_monocyclic.py` below, same
-    # reason as above.
-    if has_furan_pyran_fusion_name(mol):
-        return name_furan_pyran_fusion(mol)
-
-    # imidazo[1,2-a]pyridine/imidazo[2,1-b]thiazole etc. (P-25.3.2.5.1's
-    # bridgehead-heteroatom fusion -- the shared fusion atom is itself a
-    # nitrogen common to both components) -- also routed here before
-    # `_hetero_monocyclic.py` below, same reason as above.
-    if has_bridgehead_heteroatom_fusion_name(mol):
-        return name_bridgehead_heteroatom_fusion(mol)
-
-    # benzo[1,2-b:4,5-b']dithiophene etc. (P-25.3.4.1.3's multiparent
-    # fusion -- one benzo ring bridging two identical five-membered
-    # heteromonocycles) -- also routed here before `_hetero_monocyclic.py`
-    # below, same reason as above.
-    if has_benzo_bis_heterocycle_fusion_name(mol):
-        return name_benzo_bis_heterocycle_fusion(mol)
-
-    # dithieno[2,3-b:3',2'-e]pyridine etc. (P-25.3.6.1's "identical
-    # attached components" -- pyridine as the sole senior parent, with
-    # two identical five-membered heteromonocycles as first-order
-    # attached components) -- also routed here before
-    # `_hetero_monocyclic.py` below, same reason as above.
-    if has_pyridine_bis_heterocycle_fusion_name(mol):
-        return name_pyridine_bis_heterocycle_fusion(mol)
 
     # 2,3-didehydrooxepane etc. (P-31.2.2/P-31.2.4.1's 'didehydro' prefix,
     # adding one ring double bond to a saturated Hantzsch-Widman/retained
@@ -1507,6 +1150,12 @@ def _name_mol(mol) -> str:
     if has_pyran_indicated_hydrogen_name(mol):
         return name_pyran_indicated_hydrogen(mol)
 
+    # A fused ring system with bridges (P-25.4) is preferred to a von Baeyer name (P-52.2.5.2.1); it is checked here, after
+    # the retained steroid parents and their cyclo/seco/nor modifications, which keep their own names.
+    bridged = bridged_ring_system_name(mol)
+    if bridged is not None:
+        return bridged
+
     # A single O/N/S skeletal atom in an otherwise-carbon von Baeyer
     # bicyclic ring (P-23.2.1's 'a'-prefix skeletal replacement) or
     # monospiro ring system (P-24.2.1's) must be routed here before any of
@@ -1532,24 +1181,6 @@ def _name_mol(mol) -> str:
     polyspiro_chain = find_linear_polyspiro_chain(mol)
     if polyspiro_chain is not None and has_single_polyspiro_heteroatom_shape(mol, polyspiro_chain):
         return name_linear_polyspiro_heteroatom(mol, polyspiro_chain)
-
-    # A fused aromatic parent (naphthalene, phenanthrene, tetracene, ...)
-    # with a single -CH2- or -O- bridge across one ring's 1,4-positions
-    # (1,4-dihydro-1,4-methano-/epoxy-<parent>) must be routed here before
-    # the plain "any O atom" branch below (the -O- bridge variant would
-    # otherwise be misdetected as a plain ether) -- see
-    # _bridged_aromatic.py's module docstring for why RDKit's own ring
-    # perception can't be trusted for this shape either.
-    bridged_core = find_bridged_aromatic_core(mol)
-    if bridged_core is not None:
-        return name_bridged_aromatic(mol, bridged_core)
-
-    # Same shape, one ring larger: an anthracene skeleton bridged across
-    # its own 9,10 meso positions (see _bridged_aromatic.py's module
-    # docstring) must be routed here for the same reason.
-    bridged_anthracene_core = find_bridged_anthracene_core(mol)
-    if bridged_anthracene_core is not None:
-        return name_bridged_anthracene(mol, bridged_anthracene_core)
 
     # A single O/N/S skeletal atom in an otherwise-carbon von Baeyer
     # polycyclic (ring_count>=3) ring (P-23.2.1's 'a'-prefix skeletal
@@ -2441,39 +2072,10 @@ def _name_mol(mol) -> str:
     # in-scope aromatic shape, before num_rings==1 or any saturated
     # find_*_core below gets a chance to misdetect it and raise the wrong
     # ("unsaturated ... not supported yet") error (see _aromatic.py).
-    if num_rings >= 1:
+    if num_rings == 1:
         aromatic_core = find_aromatic_fused_core(mol)
         if aromatic_core is not None:
             return name_aromatic_fused(mol, aromatic_core)
-    # A naphthalene skeleton with one adjacent ring-atom pair saturated
-    # (1,2- or 1,4-dihydronaphthalene) has one fully aromatic ring and one
-    # partially reduced ring, so find_aromatic_fused_core above correctly
-    # rejects it (not every ring atom is aromatic); it must be routed here
-    # before find_bicyclic_core below, which would otherwise misdetect its
-    # carbon skeleton (graph-isomorphic to a saturated bicyclic) and reject
-    # it with a confusing "unsaturated bicyclics ... not supported" error
-    # instead of this module's own name.
-    if num_rings == 2:
-        dihydro_core = find_dihydronaphthalene_core(mol)
-        if dihydro_core is not None:
-            return name_dihydronaphthalene(mol, dihydro_core)
-        # A fully-saturated naphthalene skeleton (decalin) is a mancude
-        # ring system's hydro derivative (P-31.2.3.3.2), not a von Baeyer
-        # system, even though its carbon skeleton is graph-isomorphic to
-        # one -- must be routed here before find_bicyclic_core below for
-        # the same reason the partial-hydro case above already is.
-        decahydro_core = find_decahydronaphthalene_core(mol)
-        if decahydro_core is not None:
-            return name_decahydronaphthalene(mol, decahydro_core)
-        # A naphthalene skeleton with 1-4 plain (non-aromatic) Kekule ring
-        # double bonds -- anywhere between the dihydro case above and full
-        # saturation -- is likewise a mancude ring system's hydro
-        # derivative (P-31.2.3.3.2), not a von Baeyer system (#828, M2
-        # step 1); must be routed here for the same reason as the two
-        # cases above.
-        partial_core = find_partially_unsaturated_naphthalene_core(mol)
-        if partial_core is not None:
-            return name_partially_unsaturated_naphthalene(mol, partial_core)
     if num_rings == 0:
         bonds = non_single_bonds(mol)
         if not bonds:
@@ -2540,6 +2142,8 @@ def _name_mol(mol) -> str:
     disjoint_ring_pair_core = find_disjoint_ring_pair_core(mol)
     if disjoint_ring_pair_core is not None:
         return name_disjoint_ring_pair(mol, disjoint_ring_pair_core)
+    if has_substituted_fullerene_cage(mol):
+        return name_cage_parent(mol)
     raise UnsupportedStructure(
         "polycyclic ring systems are not supported yet (see P-23/P-24/P-25)"
     )

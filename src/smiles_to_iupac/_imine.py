@@ -272,7 +272,7 @@ def _name_from_substituents(chain_length, imine_locant, grouped):
     # methanimine carbon has no room for any other substituent), so this
     # branch was never previously exercised.
     prefix = format_substituent_prefixes(grouped, omit_locants=(chain_length == 1))
-    return prefix + name_from_substituents(chain_length, [], [], "imine", [imine_locant])
+    return prefix + name_from_substituents(chain_length, [], [], "imine", [imine_locant], substituted=bool(grouped))
 
 
 def _candidate_key(chain_length, imine_locant, substituents):

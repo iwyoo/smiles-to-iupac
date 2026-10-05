@@ -20,7 +20,8 @@ from ._common import (
     ring_cycle,
     substituent_locant_set_and_citation,
 )
-from ._fullerene import require_defined_fullerene_numbering
+from ._fullerene import is_fullerene_cage
+from ._fullerene_numbering import cage_numberings
 from ._diester_anions import acid_anions, anion_locant_key, cip_labels, cite_anions
 from ._functional_prefixes import functional_names, nitro_atoms
 from ._ring_diyl_numbering import ANION_SUFFIX, SUFFIX_ATOMS, _locs, _yl, chain_numberings, monocycle_numberings, system_numberings
@@ -204,8 +205,6 @@ def evaluate_skeleton(
 ):
     from ._substituents import BRANCH_STEREO
 
-    if kind == "ring":
-        require_defined_fullerene_numbering(mol, pool)
     token = SUFFIX_ATOMS.set(frozenset(attach))
     stereo_token = BRANCH_STEREO.set({"atoms": {}, "bonds": {}, "used": set()}) if BRANCH_STEREO.get() is None else None
     anion_token = ANION_SUFFIX.set(
@@ -237,6 +236,8 @@ def _evaluate_skeleton(
 
     if kind == "chain":
         numberings = chain_numberings(mol, body, valence)
+    elif is_fullerene_cage(mol, pool):
+        numberings = cage_numberings(mol, pool, attach)
     elif len(body) == 1:
         numberings = monocycle_numberings(mol, ring_cycle(graph, list(body[0])), set(), valence)
     else:
@@ -338,7 +339,7 @@ def _evaluate_skeleton(
     if centers:
         parent = _with_anion_centers(parent, [(position_of[a], word) for a, word in centers])
     prefixes = format_substituent_prefixes(grouped)
-    if prefixes and parent[0].isdigit():
+    if prefixes and (parent[0].isdigit() or parent[0] == "Δ"):
         prefixes += "-"
     group_name = prefixes + parent
     if ring_stereo:

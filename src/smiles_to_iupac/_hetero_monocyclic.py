@@ -86,7 +86,7 @@ Since this module's core job (`has_hetero_monocyclic_name`/
 for a fixed, small (element(s), ring size, saturation) table -- no
 locants to assign, no substituent numbering -- an exact whole-molecule
 canonical-SMILES match against each name's structure is both sufficient
-and simplest, mirroring `_peri_fused_aromatic.py`'s approach.
+and simplest.
 
 Formulas cross-checked (all well-known compounds): oxirane C2H4O,
 piperidine C5H11N, thiane C5H10S, furan C4H4O, pyridine C5H5N, imidazole

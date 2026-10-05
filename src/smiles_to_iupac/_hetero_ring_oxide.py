@@ -19,8 +19,8 @@ Recommendations:
   1-oxide" exactly. Removing the oxide oxygen from that structure and
   re-sanitizing reproduces plain thiophene's own canonical SMILES,
   verifying the reduction is chemically sound (the ring re-aromatizes).
-  The same reduction naturally extends to a saturated ring, confirmed
-  against PubChem CID 534965: `O=S1CCCCC1` -> "thiane 1-oxide".
+  A saturated ring never reaches this module: P-64.4.2's λ-heterone name
+  ('1λ4-thian-1-one') is the PIN and is built by `_ring_lambda_heterone.py`.
 
 Out of scope: a ring with more than one heteroatom (needs the parent's
 own real numbering to place a locant other than 1), a charge-separated
@@ -31,6 +31,7 @@ elsewhere on the ring, and any fused/bridged ring system.
 
 from rdkit import Chem
 
+from ._pin import mark
 from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
 
 _CHALCOGENS = {16, 34, 52}
@@ -87,4 +88,4 @@ def has_hetero_ring_oxide_shape(mol) -> bool:
 def name_hetero_ring_oxide(mol) -> str:
     oxide_oxygen_idx = _find_ring_oxide(mol)
     base_name = name_hetero_monocyclic(_reduced_ring(mol, oxide_oxygen_idx))
-    return f"{base_name} 1-oxide"
+    return mark(f"{base_name} 1-oxide", "P-64.4.2 names a ring -SO- group as a λ4-heterone")

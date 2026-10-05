@@ -95,7 +95,7 @@ def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
         )
         if siloxane is not None:
             parent = f"{multiplying_prefix((len(chain) + 1) // 2)}siloxane"
-            omit = False
+            omit = len(chain) == 3 and sum(len(info["locants"]) for info in grouped.values()) == 1
         else:
             parent = f"{multiplying_prefix(len(chain))}{_STEMS[z]}"
         if omit and len(grouped) > 1:

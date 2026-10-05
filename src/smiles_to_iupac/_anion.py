@@ -47,7 +47,12 @@ def swap_suffix(name):
         match = pattern.search(name)
         if match:
             return name[: match.start()] + replace(match)
-    raise UnsupportedStructure("this anionic group has no anion suffix form yet")
+    from ._acid_derivatives import anion_name
+
+    try:
+        return anion_name(name)
+    except UnsupportedStructure:
+        raise UnsupportedStructure("this anionic group has no anion suffix form yet") from None
 
 
 def _is_nitro_oxygen(atom):
@@ -186,7 +191,6 @@ _MULTIPLE_ANION = re.compile(r"(?:di|tri|tetra|bis|tris|tetrakis)\(?[A-Za-z-]*(?
 
 
 def name_anion(mol):
-    # fullerene anions (P-72.2.2.1.1) need the spiral numbering the Blue Book leaves undefined (#1254)
     name = _name_anion_unchecked(mol)
     centers = len(anion_atoms(mol))
     tokens = len(_ANION_TOKEN.findall(name))
@@ -208,7 +212,7 @@ def _name_anion_unchecked(mol):
         name = _name_substitutive(mol)
     except UnsupportedStructure as caught:
         name, error = None, caught
-    if name is None or "idyl" in name:
+    if name is None or "idyl" in name or not _ANION_TOKEN.search(name):
         multiplicative = _multiplicative_anion(mol)
         if multiplicative is not None:
             return multiplicative

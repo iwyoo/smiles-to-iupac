@@ -234,7 +234,7 @@ def _name_from_substituents(chain_length, so3h_locant, ene_locants, yne_locants,
     # Only chain_length == 1 omits a substituent prefix's own locant too
     # (see `_alcohol.py`'s equivalent comment).
     prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
-    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "sulfonic acid", [so3h_locant])
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "sulfonic acid", [so3h_locant], substituted=bool(grouped))
 
 
 def _candidate_key(chain_length, so3h_locant, ene_locants, yne_locants, substituents):
@@ -335,15 +335,10 @@ def _name_cyclic_sulfonic_acid(mol, sulfur_idx, so3h_carbon, stereo=None, bonds=
 
 
 def _benzenesulfonic_acid_name_from_substituents(grouped):
-    # Unlike the cycloalkane case, the mancude ring's own numbering is
-    # always free to start at the -SO3H carbon (P-14.3.3-style), so its
-    # locant is never cited even when other substituents need theirs,
-    # e.g. '2-methylbenzenesulfonic acid' (PubChem CID 6925), not
-    # '2-methylbenzene-1-sulfonic acid' -- mirrors `_carboxylic_acid.py`'s
-    # identical 'benzoic acid' treatment.
+    # P-14.3.4.5, P-65.3.1: locant 1 is cited once other substituents are present, as in '4-aminobenzene-1-sulfonic acid'.
     if not grouped:
         return "benzenesulfonic acid"
-    return f"{format_substituent_prefixes(grouped)}benzenesulfonic acid"
+    return f"{format_substituent_prefixes(grouped)}benzene-1-sulfonic acid"
 
 
 def _benzenesulfonic_acid_candidate_key(so3h_locant, substituents):

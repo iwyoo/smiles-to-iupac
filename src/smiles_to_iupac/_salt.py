@@ -1,11 +1,6 @@
 """Naming of the simplest salts (P-77, Blue Book P-7,
 https://iupac.qmul.ac.uk/BlueBook/P7.html): a name formed by citing the
-cation's name followed by the anion's name, e.g. 'sodium ethanoate'
-(PubChem's own computed name for the same structure is 'sodium acetate';
-this project's `_carboxylate.py` already deliberately uses the systematic
-'-oate' stem over the retained one for consistency with
-`_carboxylic_acid.py`, so this module inherits that same divergence -- see
-`_carboxylate.py`'s own docstring).
+cation's name followed by the anion's name, e.g. 'sodium acetate'.
 
 This first pass is deliberately the narrowest possible slice, chosen
 because the general case needs infrastructure this project doesn't have at
@@ -22,7 +17,7 @@ molecule and would reject a foreign atom like sodium outright):
   unchanged. Exactly as many anion fragments as the cation's charge are
   required (one cation, charge-balanced), each cited once with a
   multiplying prefix (P-16.3.3) when there is more than one, e.g.
-  'calcium diethanoate' (P-65.6.2.1's own worked example, 'calcium
+  'calcium diacetate' (P-65.6.2.1's own worked example, 'calcium
   diacetate' PIN, confirms this multiplier-on-the-anion pattern).
 
 The cation may also be a single ammonium-shaped fragment recognized by
@@ -321,7 +316,7 @@ def _split_cation_anions(mol):
     Three distinct charge-balancing shapes are tried:
     - One cation fragment (charge `c`) balanced by `c` singly-charged (-1)
       anion fragments of the same organic-anion kind (the original shape
-      this module supported, e.g. 'calcium diethanoate').
+      this module supported, e.g. 'calcium diacetate').
     - One polyatomic-inorganic anion fragment (charge magnitude `k`,
       P-65.6.2's sulfate/carbonate/nitrate/phosphate) balanced by `k / c`
       copies of one cation type of charge `c`, when that division is exact
@@ -434,7 +429,7 @@ def name_salt(mol) -> str:
     # the anion's own suffix carbon is always C1 and never cited) is a
     # compound prefix and multiplies with 'bis'/'tris'/... in parentheses,
     # not the plain 'di'/'tri' used for an unsubstituted anion name (e.g.
-    # 'calcium diethanoate', P-65.6.2.1's own worked example) -- confirmed
+    # 'calcium diacetate', P-65.6.2.1's own worked example) -- confirmed
     # against PubChem's 'calcium bis(2-methyl-2-phenylhexanoate)'.
     is_compound = anion_name[0].isdigit()
     prefix = multiplying_prefix(anion_count, compound=is_compound)

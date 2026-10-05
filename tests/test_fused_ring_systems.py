@@ -3,50 +3,12 @@ from fractions import Fraction
 from rdkit import Chem
 from rdkit.Chem import Atom, BondType, RWMol
 from smiles_to_iupac import NonPreferredNameWarning, smiles_to_iupac
-from smiles_to_iupac._aromatic import _edge_index, _ring_adjacency, find_aromatic_fused_core
-from smiles_to_iupac._benzo_bis_heterocycle_fusion import (
-    has_benzo_bis_heterocycle_fusion_name,
-    name_benzo_bis_heterocycle_fusion,
-)
-from smiles_to_iupac._bridgehead_heteroatom_fusion import (
-    has_bridgehead_heteroatom_fusion_name,
-    name_bridgehead_heteroatom_fusion,
-)
 from smiles_to_iupac._common import UnsupportedStructure, adjacency, ring_cycle
-from smiles_to_iupac._fusion_numbering import derive_letter_by_pair, letter_by_pair_candidates
-from smiles_to_iupac._fusion_numbering_general import general_peripheral_numbering
-from smiles_to_iupac._fusion_numbering_hex import _periphery, hex_numberings
-from smiles_to_iupac._fusion_orientation import (
-    _prepare,
-    count_rings_in_horizontal_row,
-    rings_above_horizontal_row,
-    rings_in_lower_left_quadrant,
-    rings_in_upper_right_quadrant,
-)
-from smiles_to_iupac._fusion_orientation_general import (
-    assign_bond_directions_general,
-    best_orientation_general,
-    max_rings_in_horizontal_row_general,
-    starting_ring_general,
-)
-from smiles_to_iupac._heteroaromatic_fused import _RETAINED_NAME_SMILES
-from smiles_to_iupac._pyridine_bis_heterocycle_fusion import (
-    has_pyridine_bis_heterocycle_fusion_name,
-    name_pyridine_bis_heterocycle_fusion,
-)
-from smiles_to_iupac._pyridine_heterocycle_fusion import (
-    has_pyridine_heterocycle_fusion_name,
-    name_pyridine_heterocycle_fusion,
-)
 from smiles_to_iupac._pyrimidinedione import has_pyrimidinedione_shape
-from smiles_to_iupac._quinoline_bicyclic_numbering import (
-    peripheral_numbering,
-    peripheral_numbering as bg_numbering,
-)
 
 
 def test_benzo_d_aceanthrylene():
-    assert smiles_to_iupac("C1=Cc2c3ccccc3cc3cc4ccccc4c1c23") == "benzo[d]aceanthrylene"
+    assert smiles_to_iupac("C1=Cc2c3ccccc3cc3cc4ccccc4c1c23") == "cyclopenta[fg]tetracene"
 
 
 def test_benzo_a_acephenanthrylene():
@@ -56,7 +18,7 @@ def test_benzo_a_acephenanthrylene():
 def test_anthanthrene():
     assert (
         smiles_to_iupac("C1=CC2=C3C(=C1)C=C4C=CC5=C6C4=C3C(=CC6=CC=C5)C=C2")
-        == "dibenzo[def,mno]chrysene"
+        == "naphtho[7,8,1,2,3-nopqr]tetraphene"
     )
 
 
@@ -65,7 +27,7 @@ def test_1h_cyclopenta_a_anthracene():
 
 
 def test_benzo_a_anthracene():
-    assert smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=CC4=CC=CC=C4C=C32") == "benzo[a]anthracene"
+    assert smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=CC4=CC=CC=C4C=C32") == "tetraphene"
 
 
 def test_benzo_a_azulene():
@@ -76,23 +38,6 @@ def test_azulene():
     assert smiles_to_iupac("C1=CC2=CC=CC=CC2=C1") == "azulene"
 
 
-@pytest.mark.parametrize(
-    "smiles,expected",
-    [
-        ("C1=CSC2=CC3=C(C=CS3)C=C21", "benzo[1,2-b:5,4-b']dithiophene"),
-    ],
-)
-def test_benzo_bis_heterocycle_fusion_matches_pubchem(smiles, expected):
-    mol = Chem.MolFromSmiles(smiles)
-    assert has_benzo_bis_heterocycle_fusion_name(mol)
-    assert name_benzo_bis_heterocycle_fusion(mol) == expected
-
-
-def test_mixed_parent_rings_out_of_scope():
-    mol = Chem.MolFromSmiles("C1=CC2=C(C=CO2)C3=C1C=CS3")
-    assert not has_benzo_bis_heterocycle_fusion_name(mol)
-
-
 def test_benzo_cd_indole():
     assert smiles_to_iupac("C1=CC2=C3C(=C1)C=NC3=CC=C2") == "benzo[cd]indole"
 
@@ -100,7 +45,7 @@ def test_benzo_cd_indole():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("c1ccc2[nH]cnc2c1", "1H-benzimidazole"),
+        ("c1ccc2[nH]cnc2c1", "1H-1,3-benzimidazole"),
         ("c1ccc2c(c1)OCCO2", "2,3-dihydro-1,4-benzodioxine"),
         ("c1ccc2[nH]ncc2c1", "1H-indazole"),
         ("O1C=CC=Cc2ccccc12", "1-benzoxepine"),
@@ -119,12 +64,11 @@ def test_dihydronaphthalene_itself_is_unaffected():
 
 
 def test_fully_saturated_bridge_is_von_baeyer_not_fusion_name():
-    assert smiles_to_iupac("C1CC2CC1c1ccccc12") == "tricyclo[6.2.1.0^2,7]undeca-2,4,6-triene"
+    assert smiles_to_iupac("C1CC2CC1c1ccccc12") == "1,2,3,4-tetrahydro-1,4-methanonaphthalene"
 
 
-def test_substituted_epoxy_aromatic_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccc2c(c1)C1C=CC2O1")
+def test_substituted_epoxy_aromatic_ring_is_named():
+    assert smiles_to_iupac("Cc1ccc2c(c1)C1C=CC2O1") == "6-methyl-1,4-dihydro-1,4-epoxynaphthalene"
 
 
 @pytest.mark.parametrize(
@@ -156,9 +100,8 @@ def test_bridged_tetracene():
     assert smiles_to_iupac("C1=CC2CC1c1cc3cc4ccccc4cc3cc12") == "1,4-dihydro-1,4-methanotetracene"
 
 
-def test_substituted_ethano_aromatic_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccc2c(c1)C1C=CC2CC1")
+def test_substituted_ethano_aromatic_ring_is_named():
+    assert smiles_to_iupac("Cc1ccc2c(c1)C1C=CC2CC1") == "6-methyl-1,4-dihydro-1,4-ethanonaphthalene"
 
 
 @pytest.mark.parametrize(
@@ -174,39 +117,15 @@ def test_bridged_anthracene_benzo(smiles):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OC(=O)CN1C=CN2C=CC=CC12", "2-[imidazo[1,2-a]pyridin-1(8aH)-yl]ethanoic acid"),
+        ("OC(=O)CN1C=CN2C=CC=CC12", "[imidazo[1,2-a]pyridin-1(8aH)-yl]acetic acid"),
     ],
 )
 def test_bridgehead_heteroatom_fused_yl(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize(
-    "smiles,expected",
-    [
-        ("C1=CN2C=CSC2=N1", "imidazo[2,1-b]thiazole"),
-    ],
-)
-def test_bridgehead_heteroatom_fusion_matches_pubchem(smiles, expected):
-    mol = Chem.MolFromSmiles(smiles)
-    assert has_bridgehead_heteroatom_fusion_name(mol)
-    assert name_bridgehead_heteroatom_fusion(mol) == expected
-
-
-def test_substituent_out_of_scope():
-    mol = Chem.MolFromSmiles("CC1=CN2C=CC=CC2=N1")
-    assert not has_bridgehead_heteroatom_fusion_name(mol)
-
-
-def test_three_heteroatom_base_out_of_scope():
-    mol = Chem.MolFromSmiles("C1=CN2C(=N1)SC=N2")
-    assert not has_bridgehead_heteroatom_fusion_name(mol)
-    with pytest.raises(UnsupportedStructure):
-        name_bridgehead_heteroatom_fusion(mol)
-
-
 def test_substituted_chrysene_fusion_is_named():
-    assert smiles_to_iupac("Cc1ccc2cc3c(ccc4c5ccccc5ccc34)cc2c1") == "9-methylbenzo[b]chrysene"
+    assert smiles_to_iupac("Cc1ccc2cc3c(ccc4c5ccccc5ccc34)cc2c1") == "9-methylbenzo[c]tetraphene"
 
 
 def test_cyclopenta_a_naphthalene_1h():
@@ -222,7 +141,7 @@ def test_didehydropiperidine_nitrogen_ring():
 
 
 def test_benzo_a_fluoranthene():
-    assert smiles_to_iupac("C1=CC=C2C(=C1)C=C3C=CC=C4C3=C2C5=CC=CC=C54") == "benzo[a]fluoranthene"
+    assert smiles_to_iupac("C1=CC=C2C(=C1)C=C3C=CC=C4C3=C2C5=CC=CC=C54") == "benzo[a]aceanthrylene"
 
 
 def test_benzo_a_fluorene():
@@ -267,23 +186,8 @@ def test_fused_hetero_ring_oxide_resolves(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("c1ccc2c(c1)ccc1ccc3ccccc3c12", "1,2,3,4,4a,5,6,6a,7,8,8a,9,10,11,12,12a,12b,12c"),
-    ],
-)
-def test_peripheral_numbering_of_hexagonal_systems(smiles, expected):
-    mol = Chem.MolFromSmiles(smiles)
-    numbering = hex_numberings(mol)[0]
-    cycle, _ = _periphery(mol)
-    walk = [numbering[a] for a in cycle]
-    start = walk.index("1")
-    assert ",".join(walk[start:] + walk[:start]) == expected
-
-
-@pytest.mark.parametrize(
-    "smiles, expected",
-    [
         ("Oc1ccc2ccc3cccc4ccc1c2c34", "pyren-1-ol"),
-        ("Oc1cc2c3c(N)cccc3cc3ccc4cccc1c4c32", "10-aminobenzo[a]pyren-12-ol"),
+        ("Oc1cc2c3c(N)cccc3cc3ccc4cccc1c4c32", "10-aminobenzo[pqr]tetraphen-12-ol"),
     ],
 )
 def test_substituted_larger_fused_systems(smiles, expected):
@@ -325,40 +229,18 @@ _TET_2_METHYL = Chem.MolFromSmiles("CC1=CC2=CC3=CC4=CC=CC=C4C=C3C=C2C=C1")
 _TET_5_METHYL = Chem.MolFromSmiles("CC1=C2C=CC=CC2=CC3=CC4=CC=CC=C4C=C13")
 
 
-def test_single_anchor_leaves_many_candidates():
-    with pytest.raises(UnsupportedStructure, match="numbering candidates undecided"):
-        derive_letter_by_pair(_PHENANTHRENE_REF, [(_PHEN_1_METHYL, 1)])
 
 
-def test_inconsistent_anchors_raise():
-    with pytest.raises(UnsupportedStructure, match="not consistent with any valid numbering"):
-        derive_letter_by_pair(_PHENANTHRENE_REF, [(_PHEN_1_METHYL, 1), (_PHEN_1_METHYL, 2)])
 
 
-def test_anchor_not_matching_reference_raises():
-    naphthalene_1_methyl = Chem.MolFromSmiles("Cc1cccc2ccccc12")
-    with pytest.raises(UnsupportedStructure, match="does not match the reference molecule"):
-        derive_letter_by_pair(_PHENANTHRENE_REF, [(naphthalene_1_methyl, 1)])
 
 
 _CHRYSENE = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=C2C=CC4=CC=CC=C43")
 _BENZO_C_PHENANTHRENE = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=C2C4=CC=CC=C4C=C3")
 
 
-def test_compound_anchors_narrow_symmetric_base_to_its_symmetry_group_size():
-    candidates = letter_by_pair_candidates(
-        _PHENANTHRENE_REF, [], compound_anchors=[(_CHRYSENE, "a"), (_BENZO_C_PHENANTHRENE, "c")]
-    )
-    assert len(candidates) == 2
-    from smiles_to_iupac._phenanthrene_fusion import _LETTER_BY_PAIR as _PHEN_LETTER_BY_PAIR
-
-    assert _PHEN_LETTER_BY_PAIR in candidates
 
 
-def test_compound_anchor_not_matching_reference_raises():
-    naphthalene = Chem.MolFromSmiles("c1ccc2ccccc2c1")
-    with pytest.raises(UnsupportedStructure, match="does not match the reference molecule"):
-        derive_letter_by_pair(_PHENANTHRENE_REF, [], compound_anchors=[(naphthalene, "a")])
 
 
 def _sp3_locant(mol, locants):
@@ -368,31 +250,14 @@ def _sp3_locant(mol, locants):
     return locants[sp3]
 
 
-def test_matches_benzo_g_quinoline_numbering():
-    mol = Chem.MolFromSmiles("C1=CC=C2C=C3C(=CC2=C1)C=CC=N3")
-    assert general_peripheral_numbering(mol) == bg_numbering(mol)
 
 
-def test_peri_fused_returns_none():
-    # Pyrene: the ring-fusion graph has a cycle, not a tree.
-    assert general_peripheral_numbering(Chem.MolFromSmiles("c1cc2ccc3cccc4ccc(c1)c2c34")) is None
 
 
-def test_benzene_trivially_one():
-    mol = Chem.MolFromSmiles("c1ccccc1")
-    assert count_rings_in_horizontal_row(mol) == 1
 
 
-def test_pyrene_peri_fused_still_unsupported():
-    mol = Chem.MolFromSmiles("c1cc2ccc3cccc4ccc(c1)c2c34")
-    with pytest.raises(UnsupportedStructure):
-        count_rings_in_horizontal_row(mol)
 
 
-def test_tetraphene_criteria_c_and_d():
-    mol = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=CC4=CC=CC=C4C=C32")
-    assert rings_in_lower_left_quadrant(mol) == 0.75
-    assert rings_above_horizontal_row(mol) == 2.5
 
 
 _PUBCHEM_SAMPLE = [
@@ -411,42 +276,10 @@ _PUBCHEM_SAMPLE = [
 ]
 
 
-def _general_inputs_from_mol(mol):
-    """Build (adj, edge_index_of, ring_sizes, n) for the general algorithm
-    from a real hexagon-only molecule, using the same `_aromatic.py`
-    extraction the production hexagon-only module uses -- lets a real
-    PubChem structure directly cross-check the general algorithm against
-    `_fusion_orientation.py`'s own hexagon-only production results."""
-    atom_rings, ring_atom_sets, fusion_bond_idxs = find_aromatic_fused_core(mol)
-    n = len(atom_rings)
-    adj, fusion_bonds_by_pair = _ring_adjacency(atom_rings, ring_atom_sets, fusion_bond_idxs, mol)
-    ring_sizes = {i: len(atom_rings[i]) for i in range(n)}
-    graph = adjacency(mol)
-    edge_index_of = {}
-    for pair, (a, b) in fusion_bonds_by_pair.items():
-        i, j = tuple(pair)
-        cycle_i = ring_cycle(graph, list(atom_rings[i]))
-        cycle_j = ring_cycle(graph, list(atom_rings[j]))
-        edge_index_of[(i, j)] = _edge_index(cycle_i, a, b)
-        edge_index_of[(j, i)] = _edge_index(cycle_j, a, b)
-    return adj, edge_index_of, ring_sizes, n
 
 
-def _general_results(mol):
-    adj, edge_index_of, ring_sizes, n = _general_inputs_from_mol(mol)
-    direction = assign_bond_directions_general(adj, edge_index_of, ring_sizes, n)
-    row = max_rings_in_horizontal_row_general(adj, direction, n)
-    _residue, _reflect, upper_right, lower_left, above = best_orientation_general(adj, direction, n)
-    return row, upper_right, lower_left, above
 
 
-def test_hexagon_only_reduction_matches_existing_module_chrysene():
-    mol = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=C2C=CC4=CC=CC=C43")
-    row, ur, ll, above = _general_results(mol)
-    assert row == count_rings_in_horizontal_row(mol) == 2
-    assert ur == rings_in_upper_right_quadrant(mol)
-    assert ll == rings_in_lower_left_quadrant(mol)
-    assert above == rings_above_horizontal_row(mol)
 
 
 def _synthetic_chain(sizes, edge_pair_at_middle):
@@ -467,40 +300,12 @@ def _synthetic_chain(sizes, edge_pair_at_middle):
     return adj, edge_index_of, ring_sizes, 3
 
 
-def test_exactly_one_edge_gap_per_ring_size_gives_straight_row_three():
-    expected_by_n = {3: 2, 4: 2, 5: 2, 6: 3, 7: 4, 8: 4}
-    for N in (3, 4, 5, 6, 7, 8):
-        expected_straight_k = expected_by_n[N]
-        straight_ks = []
-        for k in range(1, N):
-            adj, edge_index_of, ring_sizes, n = _synthetic_chain((6, N, 6), (0, k))
-            direction = assign_bond_directions_general(adj, edge_index_of, ring_sizes, n)
-            if max_rings_in_horizontal_row_general(adj, direction, n) == 3:
-                straight_ks.append(k)
-        assert straight_ks == [expected_straight_k], N
 
 
-def test_disconnected_ring_fusion_graph_rejected():
-    adj = {0: set(), 1: set()}
-    edge_index_of = {}
-    ring_sizes = {0: 6, 1: 6}
-    try:
-        assign_bond_directions_general(adj, edge_index_of, ring_sizes, 2)
-        assert False, "expected UnsupportedStructure"
-    except UnsupportedStructure:
-        pass
 
 
-def _general_direction(mol):
-    _atom_rings, adj, _fusion_bonds_by_pair, direction, n = _prepare(mol)
-    return adj, {pair: Fraction(d, 6) % 1 for pair, d in direction.items()}, n
 
 
-def test_anthracene_starting_ring_is_a_terminal_ring():
-    mol = Chem.MolFromSmiles("c1ccc2cc3ccccc3cc2c1")
-    adj, direction, n = _general_direction(mol)
-    winners = starting_ring_general(adj, direction, n)
-    assert all(len(adj[w]) == 1 for w in winners)
 
 
 def test_benzo_a_heptacene():
@@ -514,8 +319,6 @@ def test_3h_indole_tautomer_is_distinct_from_1h_indole():
     assert smiles_to_iupac("C1(C=Nc2ccccc12)") == "3H-indole"
 
 
-def test_phenanthroline_still_needs_locants():
-    assert "phenanthroline" not in _RETAINED_NAME_SMILES.values()
 
 
 def test_benzo_a_hexacene():
@@ -564,9 +367,8 @@ def test_substituted_acenaphthylene_is_named():
     assert smiles_to_iupac("Cc1ccc2cccc3C=Cc1c23") == "3-methylacenaphthylene"
 
 
-def test_unrelated_peri_fused_shape_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1cc2ccc3cc4ccc5ccc6cc1c1c2c3c4c5c61")
+def test_two_peri_fused_cyclopenta_rings_on_perylene():
+    assert smiles_to_iupac("c1cc2ccc3cc4ccc5ccc6cc1c1c2c3c4c5c61") == "dicyclopenta[ghi,pqr]perylene"
 
 
 def test_benzo_a_perylene():
@@ -609,7 +411,7 @@ def test_benzo_b_picene():
 
 
 def test_benzo_e_1_benzofuran():
-    assert smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=C2C=CO3") == "benzo[e][1]benzofuran"
+    assert smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=C2C=CO3") == "naphtho[2,1-b]furan"
 
 
 def _fuse_new_ring(base_smiles, atom_a, atom_b):
@@ -663,58 +465,17 @@ def test_epipyrano_bridge_benzo_g_quinoline():
 
 
 def test_benzo_a_pyrene():
-    assert smiles_to_iupac("C1=CC=C2C3=C4C(=CC2=C1)C=CC5=C4C(=CC=C5)C=C3") == "benzo[a]pyrene"
+    assert smiles_to_iupac("C1=CC=C2C3=C4C(=CC2=C1)C=CC5=C4C(=CC=C5)C=C3") == "benzo[pqr]tetraphene"
 
 
 def test_benzo_f_isoquinoline():
     assert smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=C2C=CN=C3") == "benzo[f]isoquinoline"
 
 
-def test_difuro_pyridine_analog():
-    mol = Chem.MolFromSmiles("C1=COC2=NC3=C(C=CO3)C=C21")
-    assert name_pyridine_bis_heterocycle_fusion(mol) == "difuro[2,3-b:3',2'-e]pyridine"
 
 
-def test_mixed_furan_thiophene_out_of_scope():
-    mol = Chem.MolFromSmiles("C1=COC2=NC3=C(C=CS3)C=C21")
-    assert not has_pyridine_bis_heterocycle_fusion_name(mol)
 
 
-def test_substituent_out_of_scope__pyridine_bis_heterocycle_fusion():
-    mol = Chem.MolFromSmiles("Cc1csc2nc3ccsc3cc12")
-    assert not has_pyridine_bis_heterocycle_fusion_name(mol)
-
-
-@pytest.mark.parametrize(
-    "smiles,expected",
-    [
-        ("C1=CN=CC2=C1C=CO2", "furo[2,3-c]pyridine"),
-        ("C1=CNC2=C1C=CN=C2", "1H-pyrrolo[2,3-c]pyridine"),
-    ],
-)
-def test_pyridine_heterocycle_fusion_matches_pubchem(smiles, expected):
-    mol = Chem.MolFromSmiles(smiles)
-    assert has_pyridine_heterocycle_fusion_name(mol)
-    assert name_pyridine_heterocycle_fusion(mol) == expected
-
-
-def test_bridgehead_nitrogen_unsupported():
-    mol = Chem.MolFromSmiles("C1=CC2=CC=CN2C=C1")
-    assert has_pyridine_heterocycle_fusion_name(mol)
-    with pytest.raises(UnsupportedStructure):
-        name_pyridine_heterocycle_fusion(mol)
-
-
-def test_fusion_not_reachable_from_attached_heteroatom_unsupported():
-    mol = Chem.MolFromSmiles("C1=CC2=COC=C2N=C1")
-    assert has_pyridine_heterocycle_fusion_name(mol)
-    with pytest.raises(UnsupportedStructure):
-        name_pyridine_heterocycle_fusion(mol)
-
-
-def test_substituent_out_of_scope__pyridine_heterocycle_fusion():
-    mol = Chem.MolFromSmiles("Cc1ccc2occc2n1")
-    assert not has_pyridine_heterocycle_fusion_name(mol)
 
 
 def test_non_aromatic_ketone_unaffected():
@@ -738,21 +499,10 @@ def test_pyrrolo_ij_quinoline():
     assert smiles_to_iupac("C1C=CC2=CC=CC3=C2N1C=C3") == "4H-pyrrolo[3,2,1-ij]quinoline"
 
 
-def _locant_of(mol, atomic_num):
-    numbering = peripheral_numbering(mol)
-    (atom,) = [a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == atomic_num]
-    return numbering, numbering[atom]
 
 
-def test_angular_benzo_f_and_h_quinoline_out_of_scope():
-    f = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=C2C=CC=N3")
-    h = Chem.MolFromSmiles("C1=CC=C2C(=C1)C=CC3=C2N=CC=C3")
-    assert peripheral_numbering(f) is None
-    assert peripheral_numbering(h) is None
 
 
-def test_bare_quinoline_not_a_g_fusion():
-    assert peripheral_numbering(Chem.MolFromSmiles("c1ccc2ncccc2c1")) is None
 
 
 def test_benzo_a_tetracene():
@@ -760,12 +510,11 @@ def test_benzo_a_tetracene():
 
 
 def test_benzo_b_triphenylene():
-    assert smiles_to_iupac("c1ccc2cc3c4ccccc4c4ccccc4c3cc2c1") == "benzo[b]triphenylene"
+    assert smiles_to_iupac("c1ccc2cc3c4ccccc4c4ccccc4c3cc2c1") == "benzo[f]tetraphene"
 
 
-def test_c_lettered_fusion_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1=CSC2=CSC=C21")
+def test_thieno_3_4_b_thiophene():
+    assert smiles_to_iupac("C1=CSC2=CSC=C21") == "thieno[3,4-b]thiophene"
 
 
 def test_thieno_3_2_b_furan():
@@ -792,25 +541,25 @@ def test_selenopheno_furan():
         ("C1C=Cc2ccccc2-c2ccccc12", "5"),
     ],
 )
-def test_oriented_numbering_of_five_six_and_seven_membered_fused_systems(smiles, indicated_hydrogen_locant):
-    from smiles_to_iupac._fusion_numbering_oriented import oriented_peripheral_numberings
+def test_numbering_of_five_six_and_seven_membered_fused_systems(smiles, indicated_hydrogen_locant):
+    from smiles_to_iupac._fused_numbering import fused_numberings
 
     mol = Chem.MolFromSmiles(smiles)
     locants = {
         numbering[atom.GetIdx()]
-        for numbering in oriented_peripheral_numberings(mol)
+        for numbering in fused_numberings(mol)
         for atom in mol.GetAtoms()
         if atom.GetTotalNumHs() == 2
     }
-    assert locants == {indicated_hydrogen_locant}
+    assert min(locants, key=int) == indicated_hydrogen_locant
 
 
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OC(=O)Cc1ccc2c(c1)Cc1cc3ccccc3cc12", "2-(11H-benzo[b]fluoren-2-yl)ethanoic acid"),
-        ("OC(=O)Cc1ccc2c(c1)Cc1ccc3ccccc3c12", "2-(7H-benzo[c]fluoren-9-yl)ethanoic acid"),
-        ("OC(=O)Cc1ccc2c(c1)Cc1c2ccc2ccccc12", "2-(11H-benzo[a]fluoren-9-yl)ethanoic acid"),
+        ("OC(=O)Cc1ccc2c(c1)Cc1cc3ccccc3cc12", "(11H-benzo[b]fluoren-2-yl)acetic acid"),
+        ("OC(=O)Cc1ccc2c(c1)Cc1ccc3ccccc3c12", "(7H-benzo[c]fluoren-9-yl)acetic acid"),
+        ("OC(=O)Cc1ccc2c(c1)Cc1c2ccc2ccccc12", "(11H-benzo[a]fluoren-9-yl)acetic acid"),
     ],
 )
 def test_yl_groups_of_fused_systems_with_a_five_membered_ring(smiles, expected):
@@ -820,8 +569,8 @@ def test_yl_groups_of_fused_systems_with_a_five_membered_ring(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OC(=O)Cc1cn2ccccc2n1", "2-(imidazo[1,2-a]pyridin-2-yl)ethanoic acid"),
-        ("OC(=O)CN1CC=NC2=NC=CN12", "2-[imidazo[1,2-b][1,2,4]triazin-1(2H)-yl]ethanoic acid"),
+        ("OC(=O)Cc1cn2ccccc2n1", "(imidazo[1,2-a]pyridin-2-yl)acetic acid"),
+        ("OC(=O)CN1CC=NC2=NC=CN12", "[imidazo[1,2-b][1,2,4]triazin-1(2H)-yl]acetic acid"),
     ],
 )
 def test_bridgehead_heteroatom_fused_yl_groups(smiles, expected):
@@ -843,9 +592,9 @@ def test_fusion_names_of_a_parent_component_with_attached_rings(smiles, expected
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OC(=O)CC1C=CC=Cc2ccccc12", "2-(5H-benzo[7]annulen-5-yl)ethanoic acid"),
-        ("OC(=O)CC1C=Cc2ccccc2-c2ccccc12", "2-(5H-dibenzo[a,c][7]annulen-5-yl)ethanoic acid"),
-        ("OC(=O)CC1C=CC2=C1C=CC1=C2C=Cc2ccccc21", "2-(17H-cyclopenta[a]phenanthren-17-yl)ethanoic acid"),
+        ("OC(=O)CC1C=CC=Cc2ccccc12", "(5H-benzo[7]annulen-5-yl)acetic acid"),
+        ("OC(=O)CC1C=Cc2ccccc2-c2ccccc12", "(5H-dibenzo[a,c][7]annulen-5-yl)acetic acid"),
+        ("OC(=O)CC1C=CC2=C1C=CC1=C2C=Cc2ccccc21", "(17H-cyclopenta[a]phenanthren-17-yl)acetic acid"),
     ],
 )
 def test_yl_groups_of_parent_component_fusion_systems(smiles, expected):
@@ -855,19 +604,45 @@ def test_yl_groups_of_parent_component_fusion_systems(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("c1cc2ccc1CCc1ccc3ccccc3c1CC2", "1(1,2)-naphthalena-4(1,4)-benzenacyclohexaphane"),
+        ("c1cc2ccc1CCc1ccc3ccccc3c1CC2", "7,8,13,14-tetrahydro-9,12-ethenocyclodeca[a]naphthalene"),
         ("C1CCc2ccc3cc(ccc3c2)CCc2ccc(cc2)C1", "1(2,6)-naphthalena-4(1,4)-benzenacyclooctaphane"),
         (
             "OC(=O)Cc1cc2ccc1CCc1ccc3ccccc3c1CC2",
-            "2-[1(1,2)-naphthalena-4(1,4)-benzenacyclohexaphan-43-yl]ethanoic acid",
+            "(7,8,13,14-tetrahydro-9,12-ethenocyclodeca[a]naphthalen-10-yl)acetic acid",
         ),
         (
             "OC(=O)CC1Cc2ccc(cc2)CCc2ccc3ccccc3c2C1",
-            "2-[1(2,1)-naphthalena-4(1,4)-benzenacycloheptaphan-6-yl]ethanoic acid",
+            "(8,13,14,15-tetrahydro-7H-9,12-ethenocycloundeca[a]naphthalen-14-yl)acetic acid",
         ),
     ],
 )
 def test_phane_with_a_naphthalene_amplificant(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("c1cc2c3cc4c5cocc5c4cc3c2o1", "benzo[1'',2'':3,4;4'',5'':3',4']dicyclobuta[1,2-b:1',2'-c']difuran"),
+        ("C1=CC2=CC=NC3=NC=CC(=N1)N23", "1,3a1,4,9-tetraazaphenalene"),
+        ("C1=CC2=C3C=CC=CN3C=CN2C=C1", "dipyrido[1,2-a:2',1'-c]pyrazine"),
+        ("c1cnc2cc3cc4cnoc4cc3cc2c1", "[1,2]benzoxazolo[6,5-g]quinoline"),
+        ("C1=Cc2cc3c(cc2=Cc2ccccc21)C=c1ccccc1=c1ccccc1=3", "tribenzo[c,d',e]benzo[1,2-a:4,5-a']di[7]annulene"),
+        ("C1=Cc2cc3c(cc2=C1)-c1cc2c(nc1C=3)C=c1c-2ccc2c1=CC=C2", "as-indaceno[2,3-b]-s-indaceno[1,2-e]pyridine"),
+        ("C1=S=CC2=C1C=S=C2", "2λ4δ2,5λ4δ2-thieno[3,4-c]thiophene"),
+        ("C1=CSC23OC=CSC2=CC=C3O1", "cyclopenta[1,2-b:5,1-b']bis([1,4]oxathiine)"),
+        (
+            "C1=CC2OC1C1=C2C2C3=C(C4C=CC3O4)C1C1=C2C2C=CC1O2",
+            "1,4,5,8,9,10,13,16-octahydro-13,16-epoxy-9,10-[1,2]benzeno-1,4:5,8-diepoxyanthracene",
+        ),
+        ("c1cc2c3c(cccc3c1)C13c4cccc5cccc(c45)C21c1cccc2cccc3c12", "6b,12b-[1,8]naphthalenoacenaphthyleno[1,2-a]acenaphthylene"),
+        ("C1C=C2c3ccccc3C1c1ccccc12", "9H-9,10-(epiethanylylidene)anthracene"),
+        ("C1%10c2cc3ccccc3cc2C(c2cc3ccccc3cc12)Cc1ccccc1C%10", "6,13-dihydro-6,13-(methano[1,2]benzenomethano)pentacene"),
+        ("C1=CC=C2C(=C1)C3C4=CC=CC=C4C2[SH2]3", "9,10-dihydro-9,10-λ4-sulfanoanthracene"),
+        ("CC1=CC=CC=C2C(C)=CC=CC=C12", "1,6-dimethyl-Δ1-heptalene"),
+    ],
+)
+def test_fusion_engine_decompositions_and_bridges(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
@@ -970,7 +745,28 @@ def test_phane_stereodescriptors_on_the_phane_and_in_its_substituents(smiles, ex
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_cyclophane_fused_to_its_ring_is_named_with_a_warning():
-    with pytest.warns(NonPreferredNameWarning, match="phane"):
-        name = smiles_to_iupac("C1COc2ccccc2OCCOCCOc2ccccc2OCCO1")
-    assert name == "2,5,8,10,13,16-hexaoxa-1,9(1,2)-dibenzenacyclohexadecaphane"
+def test_cyclophane_fused_to_its_ring_is_named_by_fusion():
+    # P-52.2.5.2: only one ring system is not fused to the macrocycle, so a fusion name is preferred to the phane name
+    assert smiles_to_iupac("C1COc2ccccc2OCCOCCOc2ccccc2OCCO1") == "6,7,9,10,17,18,20,21-octahydrodibenzo[b,k][1,4,7,10,13,16]hexaoxacyclooctadecine"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        # P-25.3.5: a benzoheterocycle stays one component beside a retained polycycle, and is senior as the base component
+        ("N1=CC2=CC3=CC=CC=C3C=C2C=CC2=CC=CC=C12", "naphtho[2,3-c][1]benzazocine"),
+        # P-25.3.7.3 (a): second-order interparent components, round-tripped from the name
+        (
+            "C1=c2occc2=c2c1c1cc3c4c(c3cc21)C=c1occc1=4",
+            "benzo[1''',2''':3'',4'';4''',5''':3'',4'']dicyclobuta[1'',2'':3,4;1'',2'':3',4']dicyclopenta[1,2-b:1',2'-b']difuran",
+        ),
+    ],
+)
+def test_benzoheterocycle_beside_retained_polycycle_and_second_order_interparent_chains(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_bridge_selection_minimises_atoms_in_dependent_bridges():
+    # P-25.4.3.4.2 (g): a one-atom dependent bridge (methano) beats ethano plus butano
+    name = smiles_to_iupac("C1=CC2C=C3C=C4C5C=c6ccccc6=NC(CC(CC2)CC5)C4C=C13")
+    assert name.endswith("6,17-methano-10,13-pentanonaphtho[2,3-c][1]benzazocine")

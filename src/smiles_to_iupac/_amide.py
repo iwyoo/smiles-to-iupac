@@ -14,12 +14,12 @@ Recommendations ("the Blue Book"):
 - Like a -COOH carbon (`_carboxylic_acid.py`), an amide carbon is always a
   chain terminus: after its carbonyl (=O) and amide nitrogen, it has room
   for at most one more substituent, which must be another chain carbon (or
-  nothing, for methanamide/formamide, HCONH2). So the parent chain's
+  nothing, for formamide, HCONH2). So the parent chain's
   numbering is never a locant-minimization choice for the amide group
   itself: whichever chain end carries the amide carbon simply becomes C1.
 - P-14.3.3: the suffix locant for -CONH2 is never cited, since it is always
   fully determined by the amide carbon being a chain terminus with no other
-  possible position, e.g. 'ethanamide' (not 'ethan-1-amide').
+  possible position, e.g. 'propanamide' (not 'propan-1-amide').
 - P-31.0/P-31.1.1.1-.2: construction of the 'ene'/'yne' portion of a combined
   unsaturated-amide name reuses the same mechanics as `_aldehyde.py`/
   `_carboxylic_acid.py` (ending replaces 'ane' entirely, multiplying
@@ -903,12 +903,6 @@ def name_amide(mol) -> str:
             "monocyclic/benzene one) is out of scope for this module's "
             "'carboxamide' suffix path (P-66.1.1.1.1.3)"
         )
-    if n_alkyl_carbons and n_hydroxy_oxygen is not None:
-        raise UnsupportedStructure(
-            "an N-alkyl substituent alongside a hydroxamic acid's own "
-            "N-hydroxy substituent is not supported yet (P-66.1.1.3.2)"
-        )
-
     excluded = {amide_oxygen, amide_nitrogen}
     all_non_single = [b for b in non_single_bonds(mol) if b[0] not in excluded and b[1] not in excluded]
     bonds = [b for b in all_non_single if b[2] in (ENE_BOND_ORDER, YNE_BOND_ORDER)]

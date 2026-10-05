@@ -281,7 +281,7 @@ def _name_from_substituents(chain_length, amine_locants, ene_locants, yne_locant
         ene_locants,
         yne_locants,
         multiplied_word(len(amine_locants), "amine"),
-        amine_locants,
+        amine_locants, substituted=bool(grouped),
     )
 
 

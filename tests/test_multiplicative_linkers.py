@@ -43,7 +43,7 @@ def test_stereodescriptors_of_multiplied_units(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("CC(=O)NCCOCCNC(C)=O", "N,N'-[oxydi(ethane-2,1-diyl)]diethanamide"),
+        ("CC(=O)NCCOCCNC(C)=O", "N,N'-[oxydi(ethane-2,1-diyl)]diacetamide"),
     ],
 )
 def test_amide_units_joined_through_nitrogen(smiles, expected):
@@ -71,7 +71,7 @@ def test_heteroatom_hydride_units_are_multiplied(smiles, expected):
 def test_linker_with_a_substituent_that_carries_the_principal_group():
     assert (
         smiles_to_iupac("OC(=O)CN(CC(O)=O)CCN(CC(=O)O)CCN(CC(O)=O)CC(O)=O")
-        == "2,2',2'',2'''-{[(carboxymethyl)azanediyl]bis(ethane-2,1-diylnitrilo)}tetraethanoic acid"
+        == "2,2',2'',2'''-{[(carboxymethyl)azanediyl]bis(ethane-2,1-diylnitrilo)}tetraacetic acid"
     )
 
 
@@ -104,10 +104,10 @@ def test_polydentate_ligand_complexes(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OC(=O)C=C1CCC(=CC(=O)O)CC1", "2,2'-(cyclohexane-1,4-diylidene)diethanoic acid"),
+        ("OC(=O)C=C1CCC(=CC(=O)O)CC1", "2,2'-(cyclohexane-1,4-diylidene)diacetic acid"),
         (
             "OC(=O)C=C1C(Cl)=C2C=CC=CC2=CC1=CC(=O)O",
-            "2,2'-(1-chloronaphthalene-2,3-diylidene)diethanoic acid",
+            "2,2'-(1-chloronaphthalene-2,3-diylidene)diacetic acid",
         ),
     ],
 )
@@ -118,10 +118,10 @@ def test_linker_prefixes(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("O=CC(c1ccccc1)c1ccccc1", "2,2-diphenylethanal"),
-        ("N#CC(c1ccccc1)c1ccccc1", "2,2-diphenylethanenitrile"),
+        ("O=CC(c1ccccc1)c1ccccc1", "2,2-diphenylacetaldehyde"),
+        ("N#CC(c1ccccc1)c1ccccc1", "2,2-diphenylacetonitrile"),
         ("SC(c1ccccc1)c1ccccc1", "diphenylmethanethiol"),
-        ("NC(=O)C(c1ccccc1)c1ccccc1", "2,2-diphenylethanamide"),
+        ("NC(=O)C(c1ccccc1)c1ccccc1", "2,2-diphenylacetamide"),
         ("OS(=O)(=O)C(c1ccccc1)c1ccccc1", "diphenylmethanesulfonic acid"),
     ],
 )
@@ -136,7 +136,7 @@ def test_chain_parent_cites_each_aromatic_ring_as_a_substituent(smiles, expected
         ("N#Cc1ccc(Cc2ccccc2)cc1", "4-benzylbenzonitrile"),
         ("Sc1ccc(Cc2ccccc2)cc1", "4-benzylbenzenethiol"),
         ("NC(=O)c1ccc(Cc2ccccc2)cc1", "4-benzylbenzamide"),
-        ("OS(=O)(=O)c1ccc(Cc2ccccc2)cc1", "4-benzylbenzenesulfonic acid"),
+        ("OS(=O)(=O)c1ccc(Cc2ccccc2)cc1", "4-benzylbenzene-1-sulfonic acid"),
         ("NS(=O)(=O)c1ccc(Cc2ccccc2)cc1", "4-benzylbenzenesulfonamide"),
         ("Nc1ccc(Cc2ccccc2)cc1", "4-benzylaniline"),
         ("Oc1ccc(Cc2ccccc2)cc1", "4-benzylphenol"),
@@ -347,11 +347,11 @@ def test_hydrazine_and_diazene_without_a_principal_group_are_the_parent():
     [
         (
             "OC(=O)CC1Cc2ccc(cc2)C(CC(=O)O)c2ccc1cc2",
-            "2,2'-(1,3(1,4)-dibenzenacyclopentaphane-2,4-diyl)diethanoic acid",
+            "2,2'-(1,3(1,4)-dibenzenacyclopentaphane-2,4-diyl)diacetic acid",
         ),
         (
             "OC(=O)CC1Cc2ccc(cc2)CC(CC(=O)O)c2ccc1cc2",
-            "2,2'-(1,4(1,4)-dibenzenacyclohexaphane-2,6-diyl)diethanoic acid",
+            "2,2'-(1,4(1,4)-dibenzenacyclohexaphane-2,6-diyl)diacetic acid",
         ),
     ],
 )
