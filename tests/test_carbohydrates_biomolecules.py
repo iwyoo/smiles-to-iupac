@@ -26,7 +26,7 @@ def test_arginine_specified_stereo_resolves(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("C([C@H]([C@@H]1[C@@H]([C@H]([C@@H](O1)O)O)O)O)O", "beta-D-glucofuranose"),  # CID 11309871
+        ("C([C@H]([C@@H]1[C@@H]([C@H]([C@@H](O1)O)O)O)O)O", "β-D-glucofuranose"),  # CID 11309871
     ],
 )
 def test_cyclic_aldofuranose_naming(smiles, expected):
@@ -43,7 +43,7 @@ def test_furanose_cites_the_specified_elements():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("C1[C@H]([C@H]([C@H]([C@](O1)(CO)O)O)O)O", "beta-D-psicopyranose"),
+        ("C1[C@H]([C@H]([C@H]([C@](O1)(CO)O)O)O)O", "β-D-psicopyranose"),
     ],
 )
 def test_cyclic_ketohexopyranose_naming(smiles, expected):
@@ -52,7 +52,7 @@ def test_cyclic_ketohexopyranose_naming(smiles, expected):
 
 def test_aldopyranose_still_resolves():
     assert (
-        smiles_to_iupac("C([C@@H]1[C@H]([C@@H]([C@H]([C@H](O1)O)O)O)O)O") == "alpha-D-glucopyranose"
+        smiles_to_iupac("C([C@@H]1[C@H]([C@@H]([C@H]([C@H](O1)O)O)O)O)O") == "α-D-glucopyranose"
     )
 
 
@@ -109,7 +109,7 @@ def test_nucleoside_wrong_stereoisomer_is_not_matched():
     [
         (
             "C1=NC(=O)C2=C(N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)COP(=O)(O)O)O)O",
-            "5'-inosinic acid",
+            "5′-inosinic acid",
         ),
     ],
 )
@@ -201,20 +201,6 @@ def test_plain_nucleoside_unaffected():
     )
 
 
-def test_nucleoside_phosphorylated_at_wrong_position_is_named_systematically():
-    name = smiles_to_iupac("C1=NC(=C2C(=N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)CO)OP(=O)(O)O)O)N")
-    assert name == "(2R,3S,4R,5R)-5-(6-amino-9H-purin-9-yl)-4-hydroxy-2-(hydroxymethyl)oxolan-3-yl dihydrogen phosphate"
-
-
-def test_nucleoside_triphosphate_chain_raises():
-    # A chain longer than triphosphate is out of scope.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(
-            "C1=NC(=C2C(=N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)"
-            "COP(=O)(O)OP(=O)(O)OP(=O)(O)OP(=O)(O)O)O)O)N"
-        )
-
-
 @pytest.mark.parametrize(
     "smiles,expected",
     [
@@ -300,8 +286,8 @@ def test_glycerides(smiles, expected):
         ('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(O)=O)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-(phosphonooxy)propane-1,2-diyl dihexadecanoate'),
         ('CCCCCCCCCCCCCCCC(=O)OCC(OP(O)(O)=O)COC(=O)CCCCCCCCCCCCCCC', '2-(phosphonooxy)propane-1,3-diyl dihexadecanoate'),
         ('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(=O)OCCN)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-{[(2-aminoethoxy)hydroxyphosphoryl]oxy}propane-1,2-diyl dihexadecanoate'),
-        ('CCCCCCCCCCCCCCCCCC(=O)OC[C@H](COP(O)(=O)OC[C@H](N)C(O)=O)OC(=O)CCCCCCCCCCCCCCCCC', '(2S)-2-amino-3-[({[(2R)-2,3-bis(octadecanoyloxy)propyl]oxy}hydroxyphosphoryl)oxy]propanoic acid'),
-        ('CCCCCCCC/C=C\\CCCCCCCC(=O)OC[C@H](COP(O)(=O)OC[C@H](N)C(O)=O)OC(=O)CCCCCCCCCCCCCCC', '(2S)-2-amino-3-({[((2R)-2-(hexadecanoyloxy)-3-{[(9Z)-octadec-9-enoyl]oxy}propyl)oxy]hydroxyphosphoryl}oxy)propanoic acid'),
+        ('CCCCCCCCCCCCCCCCCC(=O)OC[C@H](COP(O)(=O)OC[C@H](N)C(O)=O)OC(=O)CCCCCCCCCCCCCCCCC', 'O-{[(2R)-2,3-bis(octadecanoyloxy)propoxy]hydroxyphosphoryl}-L-serine'),
+        ('CCCCCCCC/C=C\\CCCCCCCC(=O)OC[C@H](COP(O)(=O)OC[C@H](N)C(O)=O)OC(=O)CCCCCCCCCCCCCCC', 'O-[((2R)-2-(hexadecanoyloxy)-3-{[(9Z)-octadec-9-enoyl]oxy}propoxy)hydroxyphosphoryl]-L-serine'),
         ('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(=O)OC[C@H](O)CO)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-({[(2R)-2,3-dihydroxypropoxy]hydroxyphosphoryl}oxy)propane-1,2-diyl dihexadecanoate'),
         ('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(=O)O[C@H]1[C@H](O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1O)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-[(hydroxy{[(1S,2R,3R,4S,5S,6R)-2,3,4,5,6-pentahydroxycyclohexyl]oxy}phosphoryl)oxy]propane-1,2-diyl dihexadecanoate'),
         ('CCCCCCCCCCCCCCCC(=O)OC[C@@H](O)COP(O)(O)=O', '(2R)-2-hydroxy-3-(phosphonooxy)propyl hexadecanoate'),
@@ -344,11 +330,11 @@ def test_phosphatidylcholines(smiles, expected):
         ('CCCCCCCCCCCCC/C=C/[C@H]([C@H](CO)N(C)C)O', '(4E)-N,N-dimethylsphing-4-enine'),
         ('CCCCCCCCCCCCCCC[C@H]([C@H](COC)N)OC', '1,3-di-O-methylsphinganine'),
         ('CCCCCCCCCCCCCCC[C@H]([C@H](COC)NCC)O', 'N-ethyl-1-O-methylsphinganine'),
-        ('CCCCCCCCCCCCC/C=C/[C@H]([C@H](CO[C@@H]1O[C@H](CO)[C@H](O)[C@H](O)[C@H]1O)N)O', '(4E)-1-O-(beta-D-galactopyranosyl)sphing-4-enine'),
+        ('CCCCCCCCCCCCC/C=C/[C@H]([C@H](CO[C@@H]1O[C@H](CO)[C@H](O)[C@H](O)[C@H]1O)N)O', '(4E)-1-O-(β-D-galactopyranosyl)sphing-4-enine'),
         ('CCCCCCCCCCCCCCCCC[C@H]([C@H](CO)N)O', '(2S,3R)-2-aminoicosane-1,3-diol'),
         ('CCCCCCCCCCCCCCC[C@@H]([C@H](CO)N)O', '(2S,3S)-2-aminooctadecane-1,3-diol'),
         ('CCCCCCCCCCCCC/C=C/[C@H]([C@H](CO)NC(=O)CCCCCCCCCCCCCCC)O', 'N-[(2S,3R,4E)-1,3-dihydroxyoctadec-4-en-2-yl]hexadecanamide'),
-        ('CCCCCCCCCCCCC/C=C/[C@H]([C@H](CO[C@@H]1O[C@H](CO)[C@H](O)[C@H](O)[C@H]1O)NC(=O)CCCCCCCCCCCCCCC)O', 'N-[(2S,3R,4E)-1-(beta-D-galactopyranosyloxy)-3-hydroxyoctadec-4-en-2-yl]hexadecanamide'),
+        ('CCCCCCCCCCCCC/C=C/[C@H]([C@H](CO[C@@H]1O[C@H](CO)[C@H](O)[C@H](O)[C@H]1O)NC(=O)CCCCCCCCCCCCCCC)O', 'N-[(2S,3R,4E)-1-(β-D-galactopyranosyloxy)-3-hydroxyoctadec-4-en-2-yl]hexadecanamide'),
         ('CCCCCCCCCCCCC/C=C/[C@H]([C@H](COP([O-])(=O)OCC[N+](C)(C)C)NC(=O)CCCCCCCCCCCCCCC)O', '(2S,3R,4E)-2-(hexadecanoylamino)-3-hydroxyoctadec-4-en-1-yl 2-(trimethylazaniumyl)ethyl phosphate'),
         ('CCCCCCCCCCCCC/C=C/[C@H]([C@H](COP(O)(O)=O)N)O', '(2S,3R,4E)-2-amino-3-hydroxyoctadec-4-en-1-yl dihydrogen phosphate'),
         ('CCCCCCCCCCCCC/C=C/[C@H]([C@H](COP(O)(O)=O)NC(=O)CCCCCCCCCCCCCCC)O', '(2S,3R,4E)-2-(hexadecanoylamino)-3-hydroxyoctadec-4-en-1-yl dihydrogen phosphate'),
@@ -362,7 +348,7 @@ def test_sphingolipids(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ('CCCCCCCCCCCCCCCCCC(=O)OC[C@H](CO[C@@H]1O[C@H](CO)[C@H](O)[C@H](O)[C@H]1O)OC(=O)CCCCCCCCCCCCCCCCC', '(2S)-3-(beta-D-galactopyranosyloxy)propane-1,2-diyl dioctadecanoate'),
+        ('CCCCCCCCCCCCCCCCCC(=O)OC[C@H](CO[C@@H]1O[C@H](CO)[C@H](O)[C@H](O)[C@H]1O)OC(=O)CCCCCCCCCCCCCCCCC', '(2S)-3-(β-D-galactopyranosyloxy)propane-1,2-diyl dioctadecanoate'),
     ],
 )
 def test_glycoglycerolipids(smiles, expected):

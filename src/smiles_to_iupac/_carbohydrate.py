@@ -344,7 +344,7 @@ def name_open_chain_2_ketose(mol) -> str:
 
 # C-1's own CIP label (no D/L-series or stem-name dependence -- see module
 # docstring) -> anomeric descriptor.
-_ANOMERIC_DESCRIPTORS = {"S": "alpha", "R": "beta"}
+_ANOMERIC_DESCRIPTORS = {"S": "α", "R": "β"}
 
 
 def _exocyclic_oxygen(graph, oxygens, ring_set, atom_idx):

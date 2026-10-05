@@ -150,7 +150,7 @@ from ._fullerene_numbering import name_cage_parent
 from ._multiplicative import name_if_multiplicative
 from ._nucleoside import has_nucleoside_name, name_nucleoside
 from ._nucleoside_substituted import has_substituted_nucleoside_name, name_substituted_nucleoside
-from ._nucleotide import has_nucleotide_name, name_nucleotide
+from ._oligonucleotide import oligonucleotide_name
 from ._metallacycle import has_metallacycle_shape, name_metallacycle
 from ._metallacycle_group import name_metallacycle_as_group
 from ._metallafused import has_metallafused_shape, name_metallafused
@@ -397,10 +397,13 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
             return name_sphingoid(parsed)
         if parsed is not None and has_nucleoside_name(parsed):
             return name_nucleoside(parsed)
-        if parsed is not None and has_nucleotide_name(parsed):
-            return name_nucleotide(parsed)
+        if parsed is not None and oligonucleotide_name(parsed) is not None:
+            return oligonucleotide_name(parsed)
         if parsed is not None and has_substituted_nucleoside_name(parsed):
-            return name_substituted_nucleoside(parsed)
+            name = name_substituted_nucleoside(parsed)
+            return name
+        if parsed is not None and has_amino_acid_shape(parsed):
+            return name_amino_acid(parsed)
         if parsed is not None and not has_sphingoid_shape(parsed):
             for namer in (name_acid_salt, name_polycarbonic, name_carbonic_family, name_acid_derivative, name_hetero_parent_acid):
                 try:
@@ -588,17 +591,13 @@ def _name_mol(mol) -> str:
     if has_nucleoside_name(mol):
         return name_nucleoside(mol)
 
-    # The 7 retained nucleotide names (P-106.1) are likewise recognized by
-    # exact whole-molecule match and must be routed right after the
-    # nucleoside case above, for the same dispatch-ordering reason: the
-    # phosphate ester's own oxygens would otherwise reach `_phosphate.py`'s
-    # generic dispatch, which has no path for a nucleoside-shaped R group.
-    if has_nucleotide_name(mol):
-        return name_nucleotide(mol)
-
-    # P-105.2 substituted nucleosides share the same dispatch-ordering
-    # reason: the base's fused-ring nitrogens and the sugar hydroxyls
-    # would otherwise be claimed by unrelated generic branches below.
+    # P-105.2 substituted nucleosides and P-106 nucleotides are recognized
+    # here for dispatch-ordering reasons: the base's fused-ring nitrogens,
+    # the sugar hydroxyls and the phosphate esters would otherwise be
+    # claimed by unrelated generic branches below.
+    oligonucleotide = oligonucleotide_name(mol)
+    if oligonucleotide is not None:
+        return oligonucleotide
     if has_substituted_nucleoside_name(mol):
         return name_substituted_nucleoside(mol)
 
