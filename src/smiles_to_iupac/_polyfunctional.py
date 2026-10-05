@@ -1639,7 +1639,7 @@ def _ring_linker_name(mol, graph, stereo):
         prefix, body, tail, locant = parts[:4]
         lead = f"{locant},{locant}'-" if locant is not None else ""
         text = prefix + body
-        linker_text = f"({linker[0]})"
+        linker_text = f"({linker[0]})" if linker[1] else enclose(linker[0])
         if prefix:
             return f"{lead}{linker_text}bis({text}){tail}"
         return f"{lead}{linker_text}di{unit_phrase(text, tail)}"

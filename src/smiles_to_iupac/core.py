@@ -163,6 +163,7 @@ from ._fullerene import (
     name_fullerene,
     require_defined_fullerene_numbering,
 )
+from ._fullerene_numbering import name_cage_parent
 from ._multiplicative import name_if_multiplicative
 from ._nucleoside import has_nucleoside_name, name_nucleoside
 from ._nucleoside_substituted import has_substituted_nucleoside_name, name_substituted_nucleoside
@@ -2608,6 +2609,8 @@ def _name_mol(mol) -> str:
     disjoint_ring_pair_core = find_disjoint_ring_pair_core(mol)
     if disjoint_ring_pair_core is not None:
         return name_disjoint_ring_pair(mol, disjoint_ring_pair_core)
+    if has_substituted_fullerene_cage(mol):
+        return name_cage_parent(mol)
     raise UnsupportedStructure(
         "polycyclic ring systems are not supported yet (see P-23/P-24/P-25)"
     )
