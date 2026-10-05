@@ -6,7 +6,7 @@ from rdkit import Chem
 from rdkit.Chem import rdCIPLabeler
 
 from ._common import UnsupportedStructure
-from ._np_core import FACES, center_signature, exo_faces, ez_relation, loc_key, parent_h
+from ._np_core import FACES, center_signature, exo_faces, ez_relation, loc_key, parent_h, with_bonds
 
 
 @dataclass
@@ -104,6 +104,19 @@ def configuration(cand, view):
         return other if other in parent.idx_of else None
 
     faces = exo_faces(parent, mol_h, parent_atoms, alias)
+    cyclo_ends = {x for pair in cand.cyclo for x in pair}
+    new_bonds = [pair for pair in cand.cyclo if all(x in parent.idx_of for x in pair)]
+    closed = {}
+
+    def hydrogen_face(loc, atom):
+        if len(cand.cyclo) != 1 or not new_bonds or loc not in cyclo_ends or not (parent.ref or parent.anchor):
+            return None
+        if "faces" not in closed:
+            closed["faces"] = exo_faces(with_bonds(parent, new_bonds), mol_h, parent_atoms, alias)
+        found = closed["faces"] or {}
+        hydrogens = [n.GetIdx() for n in mol_h.GetAtomWithIdx(atom).GetNeighbors() if n.GetAtomicNum() == 1]
+        return found.get(hydrogens[0]) if len(hydrogens) == 1 else None
+
     ring_opened = any(op[0] == "seco" for op in skel.ops)
     ring = skel.ring_atoms()
     for loc, atom in mapping.items():
@@ -148,6 +161,8 @@ def configuration(cand, view):
                     config.faces[n] = faces[n]
                 elif n in faces:
                     config.hfaces[atom] = faces[n]
+        elif (face := hydrogen_face(loc, atom)) is not None:
+            config.side.append((loc_key(loc), f"{loc}{FACES[face]}H"))
         else:
             config.side.append((loc_key(loc), f"{loc}{_cip(mol, atom)}"))
     return config

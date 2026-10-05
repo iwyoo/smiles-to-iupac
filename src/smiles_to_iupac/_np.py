@@ -9,13 +9,15 @@ from ._common import UnsupportedStructure
 from ._pin import mark
 from ._np_build import _homo_position, build
 from ._np_core import get_parent, loc_key
-from ._np_match import View, embeddings
+from ._np_diff import WORK_LIMIT, lower_bound, read_operations
+from ._np_match import View, embeddings, skeleton_has_stereo
 from ._np_name import _SENIORITY, classify
 from ._np_parents import PARENTS
 from ._np_rings import components
 from ._np_skel import Skel, variants
 from ._np_text import stem_info
 
+PREFERRED_OPERATIONS = 2
 _NO_PIN = "P-101 identifies no preferred IUPAC names for natural-product parent structures"
 SYSTEMATIC_PREFERRED = {"tropane", "bornane", "carane", "fenchane", "pinane", "thujane", "p-menthane", "bisabolane"}
 _MIN_HEAVY_ATOMS = 9
@@ -67,13 +69,37 @@ def _parent_facts(name):
 
 
 @lru_cache(maxsize=None)
-def _variants(name, cost, terminal_only=False):
-    return tuple(variants(get_parent(name), cost, terminal_only))
+def _variants(name, cost, terminal_only=False, special_only=False):
+    return tuple(variants(get_parent(name), cost, terminal_only, special_only))
+
+
+_MAX_SPECIAL_COST = 2
+
+
+def _may_modify(name):
+    parent = get_parent(name)
+    if name.endswith(("carotene", "neolignane")):
+        return True
+    return len(parent.adj) >= _MIN_PARENT_ATOMS_FOR_MODIFICATION and _parent_facts(name)[4] >= _MIN_RINGS_FOR_OPERATIONS
+
+
+def _skeletons(name, view, cost, terminal_only):
+    parent = get_parent(name)
+    if cost == 0:
+        return [Skel.of(parent)]
+    if not _may_modify(name):
+        return []
+    found = read_operations(parent, view, cost, terminal_only)
+    plain = list(_variants(name, cost, terminal_only)) if found is None and cost <= _MAX_SPECIAL_COST else list(found or [])
+    special = _variants(name, cost, terminal_only, True) if cost <= _MAX_SPECIAL_COST else ()
+    return plain + list(special)
 
 
 def _plausible(name, view, cost):
     """Cheap necessary conditions for a parent (modified by at most `cost` operations) to occur in the molecule."""
-    cyc, rings, elements, aromatic, _ = _parent_facts(name)
+    cyc, rings, elements, aromatic, fused = _parent_facts(name)
+    if cost and -(-(fused - 1) // 2) > view.fused:
+        return False
     if cyc - cost > view.cyclomatic or len(get_parent(name).adj) - cost * _MAX_ATOMS_REMOVED_PER_OPERATION > len(view.adj):
         return False
     if view.aromatic_atoms > aromatic + _EXTRA_AROMATIC_ATOMS:
@@ -81,8 +107,13 @@ def _plausible(name, view, cost):
     missing = sum(max(0, n - view.rings_by_size.get(size, 0)) for size, n in rings.items())
     if missing > 2 * cost + 2:
         return False
-    hetero_missing = sum(max(0, n - view.elements.get(el, 0)) for el, n in elements.items() if el != "C")
-    return hetero_missing <= cost + _MAX_MODIFICATIONS
+    return _replacements_needed(name, view) + cost <= _MAX_MODIFICATIONS
+
+
+def _replacements_needed(name, view):
+    """Heteroatoms of the parent that the molecule lacks: each needs a skeletal replacement, which counts as a modification."""
+    elements = _parent_facts(name)[2]
+    return sum(max(0, n - view.elements.get(el, 0)) for el, n in elements.items() if el != "C")
 
 
 def _rank(cand, view):
@@ -96,11 +127,11 @@ def _rank(cand, view):
     return locs, everything, branches
 
 
-_MAX_MODIFICATIONS = 2
+_MAX_MODIFICATIONS = 4
 _MIN_PARENT_ATOMS_FOR_MODIFICATION = 14
 
 
-def _admissible(cand):
+def _admissible(cand, view):
     modifications = len(cand.skel.ops) + len(cand.cyclo) + len(cand.replaced)
     if modifications > _MAX_MODIFICATIONS:
         return False
@@ -112,12 +143,21 @@ def _admissible(cand):
         return False
     if cand.replaced and not (fused >= 3 or (cyc >= 2 and stem_info(cand.parent.name)[1] == "ane")):
         return False
-    carotene = cand.parent.name.endswith("carotene")
-    if not carotene and cand.skel.ops and fused < _MIN_RINGS_FOR_OPERATIONS:
+    open_chain = cand.parent.name.endswith(("carotene", "neolignane"))
+    if cand.parent.name.endswith("neolignane") and (cand.skel.ops or cand.replaced) and view.cyclomatic <= cyc:
+        return False
+    if not open_chain and cand.skel.ops and fused < _MIN_RINGS_FOR_OPERATIONS:
         return False
     if any(op[0] == "des" for op in cand.skel.ops) and (len(cand.skel.ops) > 1 or cand.cyclo or cand.replaced):
         return False
     return True
+
+
+def _branch_homo_outside_ring(cand, view):
+    return any(
+        op[0] == "homo" and op[1] == "terminal" and len(cand.parent.adj[op[2]]) > 1 and cand.mapping[op[3]] not in view.rings
+        for op in cand.skel.ops
+    )
 
 
 def _terminal_op(parent, op):
@@ -146,7 +186,7 @@ def _best_per_skeleton(cands, view):
     """One candidate per distinct set of mapped atoms: the numbering with the lowest locants for the groups."""
     best = {}
     for cand in cands:
-        if not _admissible(cand):
+        if not _admissible(cand, view):
             continue
         if cand.skel.ops and not cand.cyclo and not _rings_contained(cand, view):
             continue
@@ -200,6 +240,21 @@ def _candidates(skel, view):
     return embeddings(skel, view, limit=3000)
 
 
+def _expected_cost(name, view):
+    """Operations the parent needs at least: intact-group bound, replacements, and rings the molecule has beyond the parent."""
+    extra_rings = max(0, view.cyclomatic - _parent_facts(name)[0])
+    return lower_bound(get_parent(name), view, _MAX_MODIFICATIONS) + _replacements_needed(name, view) + extra_rings
+
+
+def _promising(view, cost, exact):
+    """Plausible parents, most promising first: fewest operations to leave a group intact, then closest in size."""
+    names = [n for n in PARENTS if n not in SYSTEMATIC_PREFERRED and n not in exact and _plausible(n, view, cost)]
+    if cost:
+        names = [n for n in names if _may_modify(n)]
+        names.sort(key=lambda n: (_expected_cost(n, view), abs(len(get_parent(n).adj) - len(view.adj)), n))
+    return names
+
+
 def _name_once(mol):
     heavy = mol.GetNumAtoms()
     if heavy < _MIN_HEAVY_ATOMS or heavy > _MAX_HEAVY_ATOMS or len(Chem.GetMolFrags(mol)) != 1:
@@ -208,6 +263,7 @@ def _name_once(mol):
         return None
     view = View(mol)
     view.cyclomatic = _cyclomatic(view.adj)
+    view.fused = _fused_rings(mol)
     if view.cyclomatic > _MAX_RINGS:
         return None
     view.rings_by_size = Counter(len(r) for r in mol.GetRingInfo().AtomRings())
@@ -216,28 +272,30 @@ def _name_once(mol):
         b.GetStereo() != Chem.BondStereo.STEREONONE for b in mol.GetBonds()
     )
     view.aromatic_atoms = len({i for bond in view.aromatic_bonds for i in bond})
+    view.work = WORK_LIMIT
     best = None
     exact = set()
-    for cost in (0, 1, 2) if view.has_stereo else (0, 1):
+    for cost in range(_MAX_MODIFICATIONS + 1) if view.has_stereo else (0, 1):
         if best is not None and (best.cost < cost or (best.cost == cost and not best.key[1])):
             break
         found = []
-        for name in PARENTS:
-            if name in SYSTEMATIC_PREFERRED or name in exact or not _plausible(name, view, cost):
-                continue
+        for name in _promising(view, cost, exact):
             parent = get_parent(name)
             terminal_only = view.cyclomatic < 2
-            skels = [Skel.of(parent)] if cost == 0 else _variants(name, cost, terminal_only)
+            skels = _skeletons(name, view, cost, terminal_only)
             for skel in skels:
                 found += _candidates(skel, view)
         embedded = {c.parent.name for c in found} if cost == 0 else set()
         blocked, built_names = set(), set()
         for cand in _best_per_skeleton(found, view):
-            if cand.replaced and set(view.elements) == {"C"} and not view.has_stereo:
+            configured = skeleton_has_stereo(cand, view)
+            if cand.replaced and set(view.elements) == {"C"} and not configured:
                 continue
-            if len(cand.skel.ops) + len(cand.cyclo) + len(cand.replaced) > 1 and not view.has_stereo:
+            if len(cand.skel.ops) + len(cand.cyclo) + len(cand.replaced) > 1 and not configured:
                 continue
-            if not view.has_stereo and any(op[0] == "des" for op in cand.skel.ops):
+            if not configured and any(op[0] == "des" for op in cand.skel.ops):
+                continue
+            if _branch_homo_outside_ring(cand, view):
                 continue
             try:
                 built = build(cand, view)
@@ -269,43 +327,48 @@ def _plain(mol):
 
 
 def name_natural_product(mol):
-    name = _natural_product_name(mol)
-    return mark(name, _NO_PIN) if name else None
+    return name_natural_product_ranked(mol)[0]
+
+
+def name_natural_product_ranked(mol):
+    """(name, number of modifying operations incl. replacement): more than two have no preferred semisystematic name (P-101.3.7.2)."""
+    name, skeletal = _natural_product_name(mol)
+    return (mark(name, _NO_PIN), skeletal) if name else (None, 0)
 
 
 def _natural_product_name(mol):
-    """Natural-product name, with 'ent' for a full inversion and 'rac'/'rel' for stereo groups (P-101.8)."""
+    """(name, operations): natural-product name, with 'ent' for a full inversion and 'rac'/'rel' for stereo groups (P-101.8)."""
     groups = mol.GetStereoGroups()
     if groups:
         return _name_with_groups(mol, groups)
     plain = _plain(mol)
     built = _name_once(plain)
     if built is None:
-        return None
+        return None, 0
     if built.implied_total and built.implied_cited == built.implied_total:
         other = _name_once(_mirror(plain))
         if other is not None and other.implied_cited == 0 and other.implied_total == built.implied_total:
-            return f"ent-{other.name}"
-    return built.name
+            return f"ent-{other.name}", other.skeletal
+    return built.name, built.skeletal
 
 
 def _name_with_groups(mol, groups):
     kinds = {g.GetGroupType() for g in groups}
     if len(groups) != 1 or len(kinds) != 1:
-        return None
+        return None, 0
     kind = next(iter(kinds))
     chiral = {a.GetIdx() for a in mol.GetAtoms() if a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED}
     if {a.GetIdx() for a in groups[0].GetAtoms()} != chiral:
-        return None
+        return None, 0
     word = {Chem.StereoGroupType.STEREO_AND: "rac", Chem.StereoGroupType.STEREO_OR: "rel"}.get(kind)
     if word is None:
-        return None
+        return None, 0
     plain = _plain(mol)
     built = _name_once(plain)
     if built is None:
-        return None
+        return None, 0
     if built.first_face == "β":
         other = _name_once(_mirror(plain))
         if other is not None and other.first_face == "α":
             built = other
-    return f"{word}-{built.name}"
+    return f"{word}-{built.name}", built.skeletal

@@ -190,8 +190,10 @@ def _neolignanes():
                 mol.AddBond(index["8" + prime], index["9" + prime], Chem.BondType.SINGLE)
             mol.AddBond(index[x], index[y + "′"], Chem.BondType.SINGLE)
             Chem.SanitizeMol(mol)
-            order = sorted(index, key=index.get)
-            parents[f"{x},{y}′-neolignane"] = (Chem.MolToSmiles(mol, canonical=False), " ".join(order), "")
+            smiles = Chem.MolToSmiles(mol, canonical=False)
+            output = list(mol.GetPropsAsDict(True, True)["_smilesAtomOutputOrder"])
+            label = {i: name for name, i in index.items()}
+            parents[f"{x},{y}′-neolignane"] = (smiles, " ".join(label[i] for i in output), "")
     return parents
 
 

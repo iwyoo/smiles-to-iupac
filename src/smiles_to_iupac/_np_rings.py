@@ -27,6 +27,11 @@ class Component:
     links: list
 
 
+def _numeric_key(locant):
+    primes, base, sup, letters = loc_key(locant)
+    return (base, sup, letters, primes)
+
+
 def components(view, mapped):
     """Connected groups of non-skeleton atoms attached to the skeleton at two or more bonds."""
     seen, found = set(mapped), []
@@ -100,7 +105,7 @@ def bridge_prefixes(comps, cand, view, config, final):
             if extra or (view.elem[a] == "N" and view.mol.GetAtomWithIdx(a).GetTotalNumHs() != 1):
                 raise UnsupportedStructure("a substituted bridge is not named")
         texts = []
-        for end_atom, skeleton_atom in sorted(((n, a) for a, n in comp.links), key=lambda t: loc_key(final(image[t[1]]))):
+        for end_atom, skeleton_atom in sorted(((n, a) for a, n in comp.links), key=lambda t: _numeric_key(final(image[t[1]]))):
             loc = image[skeleton_atom]
             stereo = view.mol.GetAtomWithIdx(skeleton_atom).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED
             face = config.faces.get(end_atom, "") if loc not in parent.centers and stereo else ""
@@ -108,7 +113,7 @@ def bridge_prefixes(comps, cand, view, config, final):
         grouped.setdefault(word, []).append(",".join(texts))
     result = []
     for word in sorted(grouped):
-        pairs = sorted(grouped[word], key=lambda t: loc_key(t.split(",")[0].rstrip("αβξ")))
+        pairs = sorted(grouped[word], key=lambda t: _numeric_key(t.split(",")[0].rstrip("αβξ")))
         mult = "" if len(pairs) == 1 else multiplying_prefix(len(pairs), compound=False)
         result.append(f"{':'.join(pairs)}-{mult}{word}")
     return result
@@ -142,6 +147,9 @@ def split_components(comps, cand, view):
         if elements in _BRIDGES and (not adjacent or elements in (("O",), ("S",))):
             bridges.append(comp)
         else:
+            ring_atoms = cand.skel.cycle_atoms()
+            if not (image[sa] in ring_atoms and image[sb] in ring_atoms):
+                raise UnsupportedStructure("a ring cannot be fused across an acyclic part of the parent")
             fused.append(comp)
     return bridges, fused, spiro
 

@@ -63,7 +63,12 @@ def _build_query(skel):
     query = Chem.RWMol()
     for label in labels:
         number = _ATOMIC_NUMBER.get(skel.elem[label], 6)
-        smarts = f"[{_REPLACEABLE};R]" if label in ring else f"[#{number}]"
+        if label in ring:
+            smarts = f"[{_REPLACEABLE};R]"
+        elif len(skel.adj[label]) >= 2:
+            smarts = f"[{_REPLACEABLE}]"
+        else:
+            smarts = f"[#{number}]"
         query.AddAtom(Chem.AtomFromSmarts(smarts))
     for a in labels:
         for b in skel.adj[a]:
@@ -86,7 +91,7 @@ def embeddings(skel, view, limit=4000):
         replaced = []
         for label, atom in mapping.items():
             if skel.elem[label] != view.elem[atom]:
-                if label in ring and atom in view.rings:
+                if (label in ring and atom in view.rings) or (label not in ring and len(skel.adj[label]) >= 2):
                     replaced.append(label)
                 else:
                     break
@@ -100,3 +105,15 @@ def embeddings(skel, view, limit=4000):
                         cyclo.append((label, other))
             found.append(Candidate(skel.parent, skel, mapping, replaced, cyclo))
     return found
+
+
+def skeleton_has_stereo(cand, view):
+    """A specified stereocentre or double bond lies within the atoms matched to the parent."""
+    mapped = set(cand.mapping.values())
+    mol = view.mol
+    if any(mol.GetAtomWithIdx(i).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for i in mapped):
+        return True
+    return any(
+        b.GetStereo() != Chem.BondStereo.STEREONONE and b.GetBeginAtomIdx() in mapped and b.GetEndAtomIdx() in mapped
+        for b in mol.GetBonds()
+    )

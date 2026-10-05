@@ -61,6 +61,11 @@ def Loc(locant, face=""):
     return _IntLoc(locant, face) if str(locant).rstrip("′″‴").isdigit() else _StrLoc(locant, face)
 
 
+def _lettered(locant, letter):
+    stem = locant.rstrip("′″‴")
+    return f"{stem}{letter}{locant[len(stem):]}"
+
+
 def final_labels(skel):
     """{provisional label: final locant}: 'homo' atoms (P-101.3.2.2) and unnumbered heteroatoms (P-101.4.3)."""
     homo = [op for op in skel.ops if op[0] == "homo"]
@@ -77,7 +82,7 @@ def final_labels(skel):
         keyed.append((loc_key(data if kind == "terminal" else data[0]), base, kind, label))
     for _, base, kind, label in sorted(keyed, key=lambda t: t[:2]):
         key = base if kind != "bond" else base.split("(")[0]
-        labels[label] = f"{base}{_LETTERS[letters[key]]}"
+        labels[label] = _lettered(base, _LETTERS[letters[key]]) if kind != "bond" else f"{base}{_LETTERS[letters[key]]}"
         letters[key] += 1
     unnumbered = [a for a in skel.adj if not a.startswith("h") and not is_numbered(a)]
     taken = Counter()

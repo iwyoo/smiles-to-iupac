@@ -22,6 +22,7 @@ def test_nor(smiles, expected):
     ('CC[C@H]1CC[C@@H]2C[C@](C)(CC[C@H]3[C@H]2CC[C@H]2CCCC[C@@]23C)C1', '13(14)a,13(17)b-dihomo-5α-pregnane'),
     ('C1=CCC2=C(C=C1)C13CCCCC1C(C2)NCC3', '1H-4a-homomorphinan'),
     ('C1=CC2=NC1=CCc1ccc([nH]1)C=C1C=CC(=N1)C=c1ccc([nH]1)=C2', '20aH-20a-homoporphyrin'),
+    ('C1=CC2=NC1=Cc1ccc([nH]1)C=C1C=CC(=N1)CC=c1ccc([nH]1)=C2', '20H-20a-homoporphyrin'),
 ])
 def test_homo(smiles, expected):
     # P-101.3.2 homo
@@ -31,6 +32,7 @@ def test_homo(smiles, expected):
 @pytest.mark.parametrize("smiles, expected", [
     ('CC[C@H]1CC[C@H]2[C@@H]3CC[C@]45C[C@H]4CC[C@]5(C)[C@H]3CC[C@]12C', '3α,5-cyclo-5α-pregnane'),
     ('C[C@]12CCCC[C@@H]1CC[C@@H]1[C@@H]2CC[C@]2(C)[C@@H]3[C@@H]4C[C@]12C[C@@H]43', '(20S)-14,21:16β,20-dicyclo-5α,14β-pregnane'),
+    ('CC[C@H]1CN2CCc3c4n(c5ccccc35)[C@@H](C)[C@H]1C[C@@H]42', '(16βH)-1,16-cyclocorynan'),
 ])
 def test_cyclo(smiles, expected):
     # P-101.3.3 cyclo
@@ -116,6 +118,7 @@ def test_fusion(smiles, expected):
     ('CC[C@@]12S[C@@H]1C[C@H]1[C@@H]3CC[C@H]4CCCC[C@]4(C)[C@H]3CC[C@@]12C', '16α,17-epithio-5α-pregnane'),
     ('CC[C@H]1CC[C@H]2[C@@H]3CC[C@H]4CCCC[C@]4(C)[C@H]3[C@@H]3CCC[C@]12C3', '11α,18-ethano-5α,13α-pregnane'),
     ('CC(/C=C/C=C(\\C)C1C=C2C(C)(C)CCCC2(C)O1)=C\\C=C\\C=C(C)\\C=C\\C=C(/C)C1C=C2C(C)(C)CCCC2(C)O1', '5,8:5′,8′-diepoxy-5,8,5′,8′-tetrahydro-β,β-carotene'),
+    ('C1(Oc2ccccc2)OC[C@@H]3[C@H]1CO[C@H]3c4ccccc4', '(7R,8S,9′S)-7,9a′:8′,9-diepoxy-7′-oxa-9a′-homo-8,9′-neolignane'),
 ])
 def test_bridge(smiles, expected):
     # P-101.5.2 bridges
@@ -216,3 +219,20 @@ def test_racemates_and_relative_configuration(smiles, expected):
 def test_inversion_of_all_chirality_centres(smiles, expected):
     # P-101.8.1
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, operations",
+    [
+        ("CC[C@H]1CC[C@H]2[C@@H]3CC[C@H]4CCCC[C@]4(C)[C@H]3CC[C@]2(C)CC1", 2),
+        ("C1(Oc2ccccc2)OC[C@@H]3[C@H]1CO[C@H]3c4ccccc4", 2),
+        ("C[C@@]12CCC[C@H]1[C@@H]1CC[C@H]3CC[Te]CC[C@]3(C)[C@H]1CC2", 2),
+    ],
+)
+def test_operations_counted_for_preferred_semisystematic_names(smiles, operations):
+    # P-101.3.7.2: modification prefixes and replacements are counted; two is the most for a preferred name
+    from rdkit import Chem
+
+    from smiles_to_iupac._np import name_natural_product_ranked
+
+    assert name_natural_product_ranked(Chem.MolFromSmiles(smiles))[1] == operations

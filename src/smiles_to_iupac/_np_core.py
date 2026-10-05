@@ -1,5 +1,6 @@
 """Stereoparent structures of Table 10.1 (P-101.2.7): numbered graphs, layouts and α/β faces (P-101.2.6)."""
 
+import copy
 import math
 import re
 from functools import lru_cache
@@ -305,6 +306,27 @@ def _faces(parent, mol_h, mapping, sign, alias=None):
                     faces[n] = "b" if z * sign > 0 else "a"
                 break
     return faces
+
+
+def with_bonds(parent, bonds):
+    """A copy of `parent` whose graph also holds the new bonds (pairs of locants) formed by 'cyclo' (P-101.3.3)."""
+    ext = copy.copy(parent)
+    mol = Chem.RWMol(parent.mol)
+    ext.adj = {loc: set(n) for loc, n in parent.adj.items()}
+    for a, b in bonds:
+        mol.AddBond(parent.idx_of[a], parent.idx_of[b], Chem.BondType.SINGLE)
+        ext.adj[a].add(b)
+        ext.adj[b].add(a)
+    ext.mol = mol.GetMol()
+    ext.mol.UpdatePropertyCache(strict=False)
+    Chem.FastFindRings(ext.mol)
+    ring_info = ext.mol.GetRingInfo()
+    ext.rings = [frozenset(parent.loc_of[i] for i in ring) for ring in Chem.GetSymmSSSR(ext.mol)]
+    ext.ring_atoms = set().union(*ext.rings) if ext.rings else set()
+    ext.ring_bonds = {frozenset((a, b)) for a in ext.adj for b in ext.adj[a] if any({a, b} <= r for r in ext.rings)}
+    ext._resolved = False
+    ext.__dict__.pop("_sign", None)
+    return ext
 
 
 @lru_cache(maxsize=None)

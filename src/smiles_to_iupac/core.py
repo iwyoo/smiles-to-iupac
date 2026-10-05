@@ -138,7 +138,7 @@ from ._ester import has_ester_shape, name_ester
 from ._ester_by_parts import name_ester_by_parts
 from ._heteroacyclic import name_heteroacyclic
 from ._chain_multiplicative import has_chain_multiplicative_shape
-from ._np import name_natural_product
+from ._np import PREFERRED_OPERATIONS, name_natural_product_ranked
 from ._steroid_named import name_steroid
 from ._polyfunctional import name_polyfunctional
 from ._cyanate import has_cyanate_shape, name_cyanate
@@ -476,6 +476,7 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
             return name_nucleotide(parsed)
         if parsed is not None and has_substituted_nucleoside_name(parsed):
             return name_substituted_nucleoside(parsed)
+        beyond_preferred = None
         if parsed is not None:
             name = name_heteroacyclic(parsed)
             if name is not None:
@@ -483,9 +484,10 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
             name = name_appendix3_skeleton(parsed)
             if name is not None:
                 return name
-            natural = name_natural_product(parsed)
-            if natural is not None:
+            natural, operations = name_natural_product_ranked(parsed)
+            if natural is not None and operations <= PREFERRED_OPERATIONS:
                 return natural
+            beyond_preferred = natural
             steroid = name_steroid(parsed) if parsed.GetRingInfo().NumRings() == 4 else None
             if steroid is not None:
                 return steroid
@@ -505,7 +507,12 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
             if parsed is not None and _drops_anionic_charge(parsed, name):
                 raise UnsupportedStructure("the negative charge of this structure is not cited by any supported name")
         except UnsupportedStructure as original:
-            name = _run_fallbacks(smiles, original)
+            try:
+                name = _run_fallbacks(smiles, original)
+            except UnsupportedStructure:
+                if beyond_preferred is None:
+                    raise
+                name = beyond_preferred
         except Exception:
             name = _hydro_fusion_name(parsed) if hydro_fusion else None
             if name is None:

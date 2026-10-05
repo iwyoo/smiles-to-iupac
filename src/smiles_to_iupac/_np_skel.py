@@ -169,6 +169,9 @@ def homo_sites(parent):
         sites.append(("terminal", end))
     for bond in bond_connectors:
         sites.append(("bond", bond))
+    if parent.name.endswith("neolignane"):
+        ends = {site[1] for site in sites if site[0] == "terminal"}
+        sites += [("terminal", a) for a in sorted(parent.adj, key=loc_key) if a not in ends and a not in parent.ring_atoms and len(parent.adj[a]) <= 3]
     return sites
 
 
@@ -177,14 +180,16 @@ _COUNTER = [0]
 
 def _far_end(skel, start, target):
     """The atom next to `target` on the (homo-lengthened) path from `start`."""
-    current, seen = start, {start}
-    while target not in skel.adj[current]:
-        step = next((n for n in skel.adj[current] if n.startswith("h") and n not in seen), None)
-        if step is None:
-            return None
-        seen.add(step)
-        current = step
-    return current
+    seen, frontier = {start}, [start]
+    while frontier:
+        current = frontier.pop()
+        if target in skel.adj[current]:
+            return current
+        for n in sorted(skel.adj[current]):
+            if n.startswith("h") and n not in seen:
+                seen.add(n)
+                frontier.append(n)
+    return None
 
 
 def apply_homo(skel, site):
@@ -196,11 +201,9 @@ def apply_homo(skel, site):
     new.adj[label] = set()
     if kind == "terminal":
         end = data
-        while True:
-            step = next((n for n in new.adj[end] if n.startswith("h") and n != label), None)
-            if step is None:
-                break
-            end = step
+        for earlier in skel.ops:
+            if earlier[0] == "homo" and earlier[1] == "terminal" and earlier[2] == data:
+                end = earlier[3]
         new.add_bond(end, label, 1)
         return new
     a, b = data
@@ -225,26 +228,34 @@ def seco_bonds(parent):
     )
 
 
-def variants(parent, cost=1, terminal_only=False):
-    """Skel graphs reachable by exactly `cost` nor/homo/seco operations."""
+def is_branch_site(parent, site):
+    """A methylene added to an interior chain atom rather than to a chain end (side branch, P-101.3.2.2.1)."""
+    return site[0] == "terminal" and len(parent.adj[site[1]]) > 1
+
+
+def variants(parent, cost=1, terminal_only=False, special_only=False):
+    """Skel graphs reachable by exactly `cost` operations; `special_only` keeps those holding a des/apo/de operation."""
     max_cost = cost
     layers = [[Skel.of(parent)]]
     nors, sites, secos = nor_variants(parent), homo_sites(parent), seco_bonds(parent)
     dess = des_ops(parent)
     apos = apo_ops(parent)
     des_groups = de_ops(parent)
+    branches = [site for site in sites if is_branch_site(parent, site)]
     if terminal_only:
         nors = [a for a in nors if len(parent.adj[a]) == 1]
         sites = [site for site in sites if site[0] == "terminal"]
+        branches = []
         secos, dess, des_groups = [], [], []
     for _ in range(max_cost):
         nxt = []
+        seeds = special_only and len(layers) == 1
         for skel in layers[-1]:
             removed = {op[1] for op in skel.ops if op[0] == "nor"}
-            for atom in nors:
+            for atom in () if seeds else nors:
                 if atom in skel.adj and atom not in removed and len(skel.adj[atom]) <= 2:
                     nxt.append(apply_nor(skel, atom))
-            for site in sites:
+            for site in branches if seeds else sites:
                 if _site_alive(skel, site):
                     nxt.append(apply_homo(skel, site))
             if not any(op[0] == "des" for op in skel.ops):
@@ -260,7 +271,7 @@ def variants(parent, cost=1, terminal_only=False):
                 if (locant, word) not in gone and all(a in skel.adj for a in atoms):
                     nxt.append(apply_de(skel, locant, atoms, word))
             cut = {frozenset(op[1:]) for op in skel.ops if op[0] == "seco"}
-            for a, b in secos:
+            for a, b in () if seeds else secos:
                 if b in skel.adj.get(a, ()) and frozenset((a, b)) not in cut:
                     nxt.append(apply_seco(skel, a, b))
         layers.append(_dedupe(nxt))

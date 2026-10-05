@@ -11,6 +11,7 @@ from ._common import UnsupportedStructure, adjacency, halogen_substituents, mult
 from ._np_chain import chain_template
 from ._np_config import configuration
 from ._np_core import FACES, loc_key
+from ._np_match import skeleton_has_stereo
 from ._np_name import (
     _ACYL_CLASSES,
     _ACYL_SUFFIX,
@@ -33,8 +34,8 @@ from ._substituents import format_substituent_prefixes, name_branch
 
 _MAX_UNSATURATION_CHANGES = 6
 _MAX_HYDRO_PAIRS = 3
-_MAX_TOTAL_COST = 3
-_MAX_SKELETAL_MODIFICATIONS = 2
+_MAX_TOTAL_COST = 5
+_MAX_SKELETAL_MODIFICATIONS = 5
 
 
 @dataclass
@@ -45,6 +46,7 @@ class Built:
     implied_total: int = 0
     implied_cited: int = 0
     first_face: str = ""
+    skeletal: int = 0
 
 
 def _components(view, mapped):
@@ -145,7 +147,7 @@ def build(cand, view):
         raise UnsupportedStructure("too many modifications for this parent")
     cost += _pair_count(hydro, dehydro)
     modifications = len(skel.ops) + len(cand.cyclo) + len(cand.replaced) + len(bridge_comps) + len(fused_comps) + len(spiro_comps)
-    if not view.has_stereo and (modifications > 1 or cost > 2):
+    if not skeleton_has_stereo(cand, view) and (modifications > 1 or cost > 2):
         raise UnsupportedStructure("a heavily modified parent needs the configuration to be a natural product")
     hydro = sorted((final(x) for x in hydro), key=loc_key)
     dehydro = sorted((final(x) for x in dehydro), key=loc_key)
@@ -280,7 +282,7 @@ def build(cand, view):
         bridges = []
     ops = ([fused_prefix] if fused_prefix else []) + bridges + ops
     nondetachable = "-".join(p.rstrip("-") for p in ops) + ("-" if ops and (descriptor or ops[-1].endswith("-")) else "")
-    if ops and not nondetachable.endswith("-") and not descriptor and stem_core and not stem_core[0].isascii():
+    if ops and not nondetachable.endswith("-") and not descriptor and stem_core and (not stem_core[0].isascii() or stem_core[0].isdigit()):
         nondetachable += "-"
     side_items = sorted(config.side + front_stereo)
     side = f"({','.join(text for _, text in side_items)})-" if side_items else ""
@@ -301,7 +303,7 @@ def build(cand, view):
     first = next((text for _, text in sorted(config.parent) if text[-1] in "αβ"), "")
     return Built(
         name, cost, (cost, nondet > 0 or bool(fused_comps) or bool(bridge_comps) or bool(spiro_comps), -len(mapping), rearranged, tuple(-n for n in removed), tuple(-n for n in inserted), len(config.parent) + len(config.side)),
-        config.implied_total, config.implied_cited, first[-1] if first else "",
+        config.implied_total, config.implied_cited, first[-1] if first else "", len(cand.skel.ops) + len(cand.cyclo) + len(cand.replaced),
     )
 
 
