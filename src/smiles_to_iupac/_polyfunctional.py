@@ -40,7 +40,7 @@ from ._multiplicative_ring import (
     parent_text,
     spec_of,
 )
-from ._fusion_numbering_general import _HETERO_RANK
+from ._fused_numbering import HETERO_RANK as _HETERO_RANK
 from ._ring_diyl_numbering import _exocyclic_oxo, is_hydro_fusion_system
 from ._substituents import format_substituent_prefixes, name_branch
 

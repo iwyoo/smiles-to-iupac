@@ -10,9 +10,8 @@ Recommendations ("the Blue Book"):
   named, placed immediately before the parent name. Verified against the
   primary source's own worked example (`tmp/bluebook/P1.txt` line 422):
   'oxepane' (PIN) -> '2,3-didehydrooxepane'. This is the mirror-image
-  mechanism of `_dihydro_aromatic.py`'s 'hydro' prefix (which *removes* a
-  double bond from a mancude parent); here a double bond is *added* to a
-  saturated parent instead.
+  mechanism of the 'hydro' prefix (which *removes* a double bond from a
+  mancude parent); here a double bond is *added* to a saturated parent.
 - Numbering: the heteroatom keeps its already-fixed locant 1 (same
   convention as every saturated monocyclic ring in `_hetero_monocyclic.py`
   -- there being only one heteroatom, no alternative numbering start

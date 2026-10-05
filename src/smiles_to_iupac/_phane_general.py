@@ -7,7 +7,7 @@ from itertools import combinations
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, multiplied_word
-from ._fusion_numbering_general import _HETERO_RANK
+from ._fused_numbering import HETERO_RANK as _HETERO_RANK
 from ._multiplicative_groups import SUFFIX_RANKS
 from ._numerals import multiplying_prefix, numerical_term
 from ._substituents import format_substituent_prefixes, name_branch
@@ -321,7 +321,7 @@ def _walks(rings, bridges, cyclic):
 def _local_numberings(mol, graph, ring, nitrogen, kind):
     """Every numbering of an amplificant by the rules of its own parent hydride: {atom: AmpLoc}."""
     if kind == "naphthalene":
-        from ._fusion_numbering_hex import hex_numberings
+        from ._fused_numbering import fused_numberings
 
         atoms = sorted(ring)
         editable = Chem.RWMol(mol)
@@ -329,7 +329,7 @@ def _local_numberings(mol, graph, ring, nitrogen, kind):
             editable.RemoveAtom(index)
         fragment = editable.GetMol()
         Chem.SanitizeMol(fragment)
-        return [{atoms[i]: AmpLoc(text) for i, text in numbering.items()} for numbering in hex_numberings(fragment)]
+        return [{atoms[i]: AmpLoc(text) for i, text in numbering.items()} for numbering in fused_numberings(fragment)]
     cycle = _ring_order(graph, ring)
     starts = [cycle.index(nitrogen)] if nitrogen is not None else range(6)
     return [

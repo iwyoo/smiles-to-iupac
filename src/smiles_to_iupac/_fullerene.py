@@ -11,8 +11,7 @@ Book"):
   (buckminsterfullerene)'s own connectivity SMILES, cross-checked here
   via RDKit: 60 all-carbon atoms, every atom degree 3, ring perception of
   exactly 12 five-membered and 20 six-membered rings.
-- An exact whole-molecule canonical-SMILES match (mirrors
-  `_peri_fused_aromatic.py`'s approach) is used rather than a looser
+- An exact whole-molecule canonical-SMILES match is used rather than a looser
   shape check (e.g. just the ring-size counts): Euler's formula forces
   *every* fullerene to have exactly 12 pentagons, and specifically 20
   hexagons at n=60, regardless of how those faces are arranged, so a

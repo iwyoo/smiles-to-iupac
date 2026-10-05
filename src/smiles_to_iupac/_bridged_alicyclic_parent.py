@@ -1,7 +1,7 @@
 """One-atom bridge citation (P-25.4.2.1.4) generalized to any
 skeleton-dict-matched alicyclic parent hydride (currently the seven
 1989 IUPAC steroid parents in `_steroid_parent_hydrides.py`), not just
-`_bridged_aromatic.py`'s all-carbon mancude hex-lattice bases.
+the mancude fused systems of `_fusion_bridged.py`.
 
 Covers both bridge shapes: the bridge atom's two neighbors already
 directly bonded to each other in the bare parent skeleton (e.g. steroid
@@ -9,9 +9,8 @@ ring-A locants 5 and 6 -- adds a fused three-membered ring, an oxirane
 for the O case, across an existing ring bond), and the transannular case
 where the two neighbors are connected only via a longer existing path
 through the skeleton (e.g. morphinan's locants 4 and 5, three bonds apart
--- this is the same P-25.4 shape `_bridged_aromatic.py` already names for
-its all-carbon mancude bases, generalized here to a skeleton-dict match
-instead of the hex-lattice one). `strip_substituents`/canonical-match
+-- the same P-25.4 shape `_fusion_bridged.py` names for mancude bases,
+generalized here to a skeleton-dict match). `strip_substituents`/canonical-match
 doesn't care about the graph distance between the bridge atom's two
 neighbors, only that removing the bridge atom leaves a molecule matching
 a known bare skeleton -- so one code path handles both shapes; no
@@ -37,9 +36,7 @@ recognized here yet, since no morphinan skeleton dict exists.
 - P-25.4.2.1.4 (Chapter P-2, https://iupac.qmul.ac.uk/BlueBook/PDF/P2.pdf):
   the preselected bridge prefix for a divalent -O- bridge is 'epoxy' (not
   'epoxidano'); the vocabulary and locant-citation convention are shared
-  verbatim with `_bridged_aromatic.py` (see its own docstring for the
-  primary-source citations of 'sulfano'/-S- and 'azano'/-NH-, structurally
-  identical in shape to 'epoxy' here, degree-2, no further substitution).
+  verbatim with `_fusion_bridged.py`.
 - Verified against a real registered structure: PubChem CID 281912, whose
   synonym list includes the plain (non-stereo) CAS-style name
   '5,6-epoxycholestane' alongside the fully stereo-specified
@@ -60,7 +57,7 @@ raising `UnsupportedStructure` if nothing else claims it):
   (see that module's docstring). A real input's stereochemistry, if any,
   is simply not reflected in the bridge locants' citation.
 - A bridge atom of any other identity than O/S/N (the vocabulary
-  `_bridged_aromatic._BRIDGE_PREFIXES` already covers) or with any
+  `_BRIDGE_PREFIXES` already covers) or with any
   substituent of its own.
 - More than one bridge.
 - Any skeleton other than the seven bare steroid parent hydrides (no
@@ -70,7 +67,7 @@ raising `UnsupportedStructure` if nothing else claims it):
 
 from rdkit import Chem
 
-from ._bridged_aromatic import _BRIDGE_PREFIXES
+_BRIDGE_PREFIXES = {7: "azano", 8: "epoxy", 16: "sulfano"}
 from ._parent_hydride_stripping import strip_substituents
 from ._steroid_parent_hydrides import _PLAIN_CANONICAL_TO_NAME, _locant_map
 
