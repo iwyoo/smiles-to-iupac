@@ -1032,22 +1032,6 @@ _CYCLOPENTA_A_PHENANTHRENE = Chem.MolFromSmarts(
 )
 
 
-def _is_appendix3_system(mol, atoms):
-    from ._appendix3_skeletons import _MIN_SIZE, _best_skeleton
-
-    if len(atoms) < _MIN_SIZE or sum(1 for r in mol.GetRingInfo().AtomRings() if set(r) <= set(atoms)) < 3:
-        return False
-    editable = Chem.RWMol(mol)
-    for idx in sorted(set(range(mol.GetNumAtoms())) - set(atoms), reverse=True):
-        editable.RemoveAtom(idx)
-    fragment = editable.GetMol()
-    try:
-        Chem.SanitizeMol(fragment)
-        return _best_skeleton(fragment, False) is not None
-    except Exception:
-        return False
-
-
 def _require_mancude_system(mol, atoms):
     """Only fully aromatic fused systems (arenes, mancude heterocycles): partly
     hydrogenated, bridged and spiro systems need hydro/von Baeyer names. Beyond three rings only
@@ -1058,8 +1042,6 @@ def _require_mancude_system(mol, atoms):
         set(match) == set(atoms) for match in mol.GetSubstructMatches(_CYCLOPENTA_A_PHENANTHRENE)
     ):
         raise UnsupportedStructure("a saturated cyclopenta[a]phenanthrene skeleton is a steroid parent hydride (P-101), not a hydro fusion name")
-    if _is_appendix3_system(mol, atoms):
-        raise UnsupportedStructure("an Appendix 3 retained parent has its own numbering, not a fusion numbering (P-101)")
     member_rings = [r for r in mol.GetRingInfo().AtomRings() if set(r) <= set(atoms)]
     if len(member_rings) > 3 and any(len(r) not in (5, 6, 7) for r in member_rings):
         if not any(sum(a in r for r in member_rings) > 2 for a in atoms):

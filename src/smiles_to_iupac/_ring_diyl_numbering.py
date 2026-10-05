@@ -891,7 +891,41 @@ def _plain_fused(mol, skeleton_atoms):
     return True
 
 
+_APPENDIX3_MAPPED = {}
+
+
+def _is_appendix3_system(mol, atoms):
+    """A ring system that is, or lies in, an Appendix 3 retained parent (P-101): the parent is numbered as a whole, so
+    the ring system gets no fusion numbering of its own."""
+    from ._appendix3_skeletons import _MIN_SIZE, _best_skeleton
+
+    if len(atoms) < _MIN_SIZE and mol.GetNumAtoms() < _MIN_SIZE:
+        return False
+    rings = sum(1 for r in mol.GetRingInfo().AtomRings() if set(r) <= set(atoms))
+    key = Chem.MolToSmiles(mol)
+    if key not in _APPENDIX3_MAPPED:
+        try:
+            best = _best_skeleton(mol, False)
+        except Exception:
+            best = None
+        _APPENDIX3_MAPPED[key] = set(best[1].mapping.values()) if best else set()
+    mapped = _APPENDIX3_MAPPED[key]
+    if mapped and set(atoms) <= mapped and (mapped - set(atoms)) and rings >= 2:
+        return True
+    if len(atoms) < _MIN_SIZE or rings < 3:
+        return False
+    editable = Chem.RWMol(mol)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - set(atoms), reverse=True):
+        editable.RemoveAtom(idx)
+    fragment = editable.GetMol()
+    try:
+        Chem.SanitizeMol(fragment)
+        return _best_skeleton(fragment, False) is not None
+    except Exception:
+        return False
 def system_numberings(mol, graph, rings, skeleton_atoms):
+    if _is_appendix3_system(mol, skeleton_atoms):
+        raise UnsupportedStructure("an Appendix 3 retained parent has its own numbering, not a fusion numbering (P-101)")
     if is_bridged_fusion_system(mol, skeleton_atoms) and not _plain_fused(mol, skeleton_atoms):
         try:
             return _bridged_numberings(mol, skeleton_atoms)
