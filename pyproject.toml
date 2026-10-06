@@ -36,6 +36,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
+    "pytest-xdist>=3.0",
     "ruff>=0.4",
 ]
 
@@ -67,4 +68,5 @@ include = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+addopts = "-n auto"
 filterwarnings = ["ignore::smiles_to_iupac.NonPreferredNameWarning"]
