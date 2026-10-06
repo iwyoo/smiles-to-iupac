@@ -979,8 +979,32 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
     if chained is not None:
         return chained
     ring_info = mol.GetRingInfo()
-    rings = [list(r) for r in ring_info.AtomRings()]
-    if len(rings) != 2 or set(rings[0]) & set(rings[1]):
+    all_rings = [list(r) for r in ring_info.AtomRings()]
+    if len(all_rings) < 2 or any(ring_info.NumAtomRings(a) != 1 for r in all_rings for a in r):
+        return None
+    if len({_bare_key(mol, set(r)) for r in all_rings}) != 1:
+        return None
+    best = None
+    for i, first in enumerate(all_rings):
+        for second in all_rings[i + 1 :]:
+            found = _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, [first, second])
+            if found is None:
+                continue
+            ylidene = _junction_is_ylidene(mol, found[2], [spec_of(mol, first), spec_of(mol, second)])
+            # P-28.2.2: a double-bond junction is a two-ring assembly only; the pair holding the double bond has the
+            # parent's multiple bond, so it ranks first
+            key = (-found[0], not ylidene, found[1][1])
+            if best is None or key < best[0]:
+                best = (key, (found[0], found[1]))
+    return best[1] if best else None
+
+
+def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, rings):
+    """The assembly name of two directly joined identical rings with every other part of `mol` cited as a
+    substituent; None when the pair is not such an assembly or leaves a principal group outside it."""
+    if set(rings[0]) & set(rings[1]):
+        return None
+    if occurrences and any(o[1] not in set(rings[0]) | set(rings[1]) for o in occurrences):
         return None
     specs = [spec_of(mol, r) for r in rings]
     if any(sp is None or sp.kind == "pyrrole" for sp in specs):
@@ -1024,7 +1048,7 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
         spots = ",".join(cite(locants[o[1]]) for o in sorted(occurrences, key=lambda o: _locant_order(locants[o[1]])))
         core = f"[{base}]-{spots}-{word}"
     name = f"{prefix}-{core}" if prefix else core
-    return count, ((-count,), name, (None, None, None, 0, {a: PrimedLocant(*loc) for a, loc in locants.items()}, True))
+    return count, ((-count,), name, (None, None, None, 0, {a: PrimedLocant(*loc) for a, loc in locants.items()}, True)), joins[0]
 
 
 _CYCLOPENTA_A_PHENANTHRENE = Chem.MolFromSmarts(
