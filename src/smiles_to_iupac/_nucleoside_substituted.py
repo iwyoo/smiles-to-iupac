@@ -922,7 +922,11 @@ _NUCLEOTIDYL_STEM = {
     "thymidine": "thymidylyl",
     "uridine": "uridylyl",
 }
-_SENIOR_ACID = Chem.MolFromSmarts("[OX2H1][$([CX3]=O),$([SX4](=O)=O)]")
+# classes 7a-7c of P-41.1 that outrank the phosphoric acid residue (7d), with their chalcogen, peroxy and imidic variants
+_SENIOR_ACID = Chem.MolFromSmarts(
+    "[$([OX2H1,SX2H1,SeX2H1,TeX2H1][CX3]=[O,S,Se,Te,NX2]),$([OX2H1][OX2][CX3]=O),"
+    "$([OX2H1][SX4,SeX4,TeX4](=O)=O),$([OX2H1][SX3,SeX3,TeX3]=O),$([OX2H1][PX4]([#6])=O)]"
+)
 
 
 def _acyl_nucleotide_name(mol, graph, an):
@@ -949,7 +953,12 @@ def _acyl_nucleotide_name(mol, graph, an):
     for atom in out.GetAtoms():
         if atom.GetAtomicNum() == 53:
             atom.SetProp("_named_prefix", wrap_marks(prefix + "oxy") if on_carbon else prefix)
-    return _name_mol(out)
+    try:
+        return _name_mol(out)
+    except UnsupportedStructure:
+        from ._polyfunctional import name_polyfunctional
+
+        return name_polyfunctional(out)
 
 
 def _retained_nucleotide(an):
