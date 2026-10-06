@@ -19,3 +19,14 @@ def name_linear_phane(mol) -> str:
     if not has_linear_phane_shape(mol):
         raise UnsupportedStructure("this structure is not a supported linear phane")
     return name_phane_general(mol)
+
+
+def linear_phane_pin(mol):
+    """The linear phane name of `mol`, which no semisystematic parent hydride outranks (P-52.2.5.1, P-101.1); None when
+    the structure is not a supported linear phane."""
+    if not has_linear_phane_shape(mol):
+        return None
+    try:
+        return name_phane_general(mol)
+    except UnsupportedStructure:
+        return None

@@ -227,7 +227,7 @@ from ._nitro import has_nitro_shape, name_nitro
 from ._nitroso import has_nitroso_shape, name_nitroso
 from ._polycyclic import find_polycyclic_core, name_polycycloalkane
 from ._cyclophane import has_cyclophane_name, name_cyclophane, name_nonpreferred_cyclophane
-from ._linear_phane import has_linear_phane_shape, name_linear_phane
+from ._linear_phane import has_linear_phane_shape, linear_phane_pin, name_linear_phane
 from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
 from ._polyphosphane import has_polyphosphane_shape, name_polyphosphane
 from ._functional_replacement_oxoacid import (
@@ -448,6 +448,10 @@ def _name_unabridged(smiles: str) -> str:
             if name is not None:
                 return name
             natural, operations = name_natural_product_ranked(parsed)
+            if natural is not None:
+                phane_name = linear_phane_pin(parsed)
+                if phane_name is not None:
+                    return phane_name
             if natural is not None and operations <= PREFERRED_OPERATIONS:
                 return natural
             beyond_preferred = natural
