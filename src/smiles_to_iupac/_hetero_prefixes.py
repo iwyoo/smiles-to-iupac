@@ -482,6 +482,11 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             far = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 7]
             if not (len(others) == 1 and mol.GetAtomWithIdx(far[0]).GetDegree() == 1):
                 return _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
+        if order == 1.0 and not atom.GetFormalCharge() and len(others) == 1 and mol.GetBondBetweenAtoms(root, others[0]).GetBondTypeAsDouble() == 2.0:
+            from ._substituents import name_branch
+
+            rname, rcomp = name_branch(graph, others[0], root, halogens, aromatic_atoms, mol=mol)
+            return _enclose(rname, rcomp) + "amino", True
         if order != 1.0 or atom.GetFormalCharge() or any(
             mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0 for n in others
         ):
@@ -782,7 +787,10 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in others]
         prefix = format_mononuclear_prefixes(entries) if entries else ""
         return prefix + base[:-2] + SUFFIX_OF_ORDER[order], bool(entries)
-    if any(mol.GetAtomWithIdx(n).GetAtomicNum() == atom.GetAtomicNum() for n in others):
+    if any(
+        mol.GetAtomWithIdx(n).GetAtomicNum() == atom.GetAtomicNum() and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 1.0
+        for n in others
+    ):
         return _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if atom.GetAtomicNum() == 14 and any(
         mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() == 2 and not mol.GetAtomWithIdx(n).GetFormalCharge()
@@ -790,7 +798,7 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         for n in others
     ):
         return _siloxanyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
-    if len(others) > valence - 1 or any(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0 for n in others):
+    if sum(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() for n in others) > valence - 1:
         raise UnsupportedStructure("this mononuclear group carries a multiple bond")
     if atom.GetAtomicNum() == 5 and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 8 for n in others):
         raise UnsupportedStructure("a boron group with a hydroxy or alkoxy substituent is a boronic or borinic acid (P-67.1.1)")
@@ -853,16 +861,17 @@ def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     chain_atoms = {root}
     stack = [root]
     while stack:
-        for n in graph[stack.pop()]:
-            if n != coming_from and n not in chain_atoms and mol.GetAtomWithIdx(n).GetAtomicNum() == z:
+        current = stack.pop()
+        for n in graph[current]:
+            if (
+                n != coming_from
+                and n not in chain_atoms
+                and mol.GetAtomWithIdx(n).GetAtomicNum() == z
+                and mol.GetBondBetweenAtoms(current, n).GetBondTypeAsDouble() == 1.0
+            ):
                 chain_atoms.add(n)
                 stack.append(n)
-    if any(
-        mol.GetAtomWithIdx(a).IsInRing() or mol.GetAtomWithIdx(a).GetFormalCharge() or any(
-            mol.GetBondBetweenAtoms(a, m).GetBondTypeAsDouble() != 1.0 for m in graph[a] if m in chain_atoms or m == coming_from
-        )
-        for a in chain_atoms
-    ):
+    if any(mol.GetAtomWithIdx(a).IsInRing() or mol.GetAtomWithIdx(a).GetFormalCharge() for a in chain_atoms):
         raise UnsupportedStructure("this heteroatom chain substituent is not supported yet")
     paths = _chain_paths(graph, chain_atoms, root)
     longest = max(len(p) for p in paths)
@@ -873,8 +882,6 @@ def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
             for n in graph[atom]:
                 if n in walk or n == coming_from:
                     continue
-                if mol.GetBondBetweenAtoms(atom, n).GetBondTypeAsDouble() != 1.0:
-                    raise UnsupportedStructure("a multiple bond on a heteroatom chain substituent is not supported yet")
                 subs.setdefault(i + 1, []).append(name_branch(graph, n, atom, halogens, aromatic_atoms, mol=mol))
         grouped = group_substituents(subs)
         locant_set, _, citation = substituent_locant_set_and_citation(grouped)

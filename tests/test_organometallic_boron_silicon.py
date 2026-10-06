@@ -898,3 +898,17 @@ def test_ylidene_and_ylidyne_prefixes_on_group_14_hydrides(smiles, expected):
 )
 def test_group_14_hydride_outranks_two_rings_and_branched_silicon_chain_is_parent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OC1CCCCC1[SiH]=C", "2-(methylidenesilyl)cyclohexan-1-ol"),
+        ("OC1CCCCC1P=C", "2-(methylidenephosphanyl)cyclohexan-1-ol"),
+        ("OC1CCCCC1[SiH]=[SiH2]", "2-(silylidenesilyl)cyclohexan-1-ol"),
+        ("OC1CCCCC1[SiH2][SiH]=C", "2-(2-methylidenedisilanyl)cyclohexan-1-ol"),
+        ("OC1CCCCC1N=C", "2-(methylideneamino)cyclohexan-1-ol"),
+    ],
+)
+def test_ylidene_substituent_on_heteroatom_attaching_a_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
