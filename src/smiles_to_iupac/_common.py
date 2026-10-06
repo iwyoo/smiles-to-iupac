@@ -609,7 +609,7 @@ def longest_branched_chain(graph, source, ring_boundary, excluded=frozenset(), h
     return best_chain, best_branches
 
 
-def longest_branched_chain_through(graph, required, ring_boundary, excluded=frozenset(), halogens=frozenset()):
+def longest_branched_chain_through(graph, required, ring_boundary, excluded=frozenset(), halogens=frozenset(), principal=frozenset()):
     """Like `longest_branched_chain`, but `required` need not be a chain
     terminus (e.g. a ketone's own carbonyl carbon, always internal once
     its aryl-ketone case is separately rejected) -- finds one of the
@@ -638,7 +638,9 @@ def longest_branched_chain_through(graph, required, ring_boundary, excluded=froz
     three non-excluded neighbors -- this stays cheap.
 
     `ring_boundary`/`excluded`/`halogens`: same meaning as
-    `longest_branched_chain`.
+    `longest_branched_chain`. `principal`: carbons bearing a principal
+    characteristic group -- a chain holding more of them wins before length
+    does (P-44.1.1).
 
     Returns (chain, branches): `chain` is the winning path as an
     atom-index list, in an arbitrary direction -- the caller tries both
@@ -672,7 +674,7 @@ def longest_branched_chain_through(graph, required, ring_boundary, excluded=froz
         groups.append([
             [required] + path_between(parent, start, node)
             for node, d in dist.items()
-            if d == far
+            if d == far or (principal and node in principal)
         ])
 
     def candidate_chains():
@@ -710,7 +712,7 @@ def longest_branched_chain_through(graph, required, ring_boundary, excluded=froz
         branches = branches_for(chain)
         substituent_count = sum(len(roots) for roots in branches.values())
         locants = lowest_locant_set(pos for pos, roots in branches.items() for _ in roots)
-        key = (-len(chain), -substituent_count, locants)
+        key = (-sum(1 for atom in chain if atom in principal), -len(chain), -substituent_count, locants)
         if best_key is None or key < best_key:
             best_key, best_chain, best_branches = key, chain, branches
     return best_chain, best_branches

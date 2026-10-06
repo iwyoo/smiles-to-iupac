@@ -403,3 +403,14 @@ def test_heteroatom_hydride_linkers_between_chain_units(smiles, expected):
 )
 def test_unsymmetrical_linkers_and_units_are_named_substitutively(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("c1ccccc1C1CPCC(C1)c1ccccc1", "3,5-diphenylphosphinane"),
+        ("c1ccccc1C1CC[BH]C1c1ccccc1", "2,3-diphenylborolane"),
+    ],
+)
+def test_ring_seniority_ranks_every_heteroatom_of_the_element_order(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
