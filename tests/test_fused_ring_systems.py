@@ -7,39 +7,21 @@ from smiles_to_iupac._common import UnsupportedStructure, adjacency, ring_cycle
 from smiles_to_iupac._pyrimidinedione import has_pyrimidinedione_shape
 
 
-def test_benzo_d_aceanthrylene():
-    assert smiles_to_iupac("C1=Cc2c3ccccc3cc3cc4ccccc4c1c23") == "cyclopenta[fg]tetracene"
-
-
-def test_benzo_a_acephenanthrylene():
-    assert smiles_to_iupac("C1=Cc2cc3ccccc3c3c2c1cc1ccccc13") == "benzo[a]acephenanthrylene"
-
-
-def test_anthanthrene():
-    assert (
-        smiles_to_iupac("C1=CC2=C3C(=C1)C=C4C=CC5=C6C4=C3C(=CC6=CC=C5)C=C2")
-        == "naphtho[7,8,1,2,3-nopqr]tetraphene"
-    )
-
-
-def test_1h_cyclopenta_a_anthracene():
-    assert smiles_to_iupac("C1C=CC2=C1C3=CC4=CC=CC=C4C=C3C=C2") == "1H-cyclopenta[a]anthracene"
-
-
-def test_benzo_a_anthracene():
-    assert smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=CC4=CC=CC=C4C=C32") == "tetraphene"
-
-
-def test_benzo_a_azulene():
-    assert smiles_to_iupac("C1=CC=C2C=C3C=CC=CC3=C2C=C1") == "benzo[a]azulene"
-
-
-def test_azulene():
-    assert smiles_to_iupac("C1=CC2=CC=CC=CC2=C1") == "azulene"
-
-
-def test_benzo_cd_indole():
-    assert smiles_to_iupac("C1=CC2=C3C(=C1)C=NC3=CC=C2") == "benzo[cd]indole"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C1=Cc2c3ccccc3cc3cc4ccccc4c1c23", "cyclopenta[fg]tetracene", id="benzo_d_aceanthrylene"),
+        pytest.param("C1=Cc2cc3ccccc3c3c2c1cc1ccccc13", "benzo[a]acephenanthrylene", id="benzo_a_acephenanthrylene"),
+        pytest.param("C1=CC2=C3C(=C1)C=C4C=CC5=C6C4=C3C(=CC6=CC=C5)C=C2", "naphtho[7,8,1,2,3-nopqr]tetraphene", id="anthanthrene"),
+        pytest.param("C1C=CC2=C1C3=CC4=CC=CC=C4C=C3C=C2", "1H-cyclopenta[a]anthracene", id="1h_cyclopenta_a_anthracene"),
+        pytest.param("C1=CC=C2C(=C1)C=CC3=CC4=CC=CC=C4C=C32", "tetraphene", id="benzo_a_anthracene"),
+        pytest.param("C1=CC=C2C=C3C=CC=CC3=C2C=C1", "benzo[a]azulene", id="benzo_a_azulene"),
+        pytest.param("C1=CC2=CC=CC=CC2=C1", "azulene", id="azulene"),
+        pytest.param("C1=CC2=C3C(=C1)C=NC3=CC=C2", "benzo[cd]indole", id="benzo_cd_indole"),
+    ],
+)
+def test_benzo_d_aceanthrylene_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -55,20 +37,17 @@ def test_benzo_heterocycle_parents(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_substituted_triphenylene_is_named():
-    assert smiles_to_iupac("Cc1ccc2c(c1)c1ccccc1c1ccccc21") == "2-methyltriphenylene"
-
-
-def test_dihydronaphthalene_itself_is_unaffected():
-    assert smiles_to_iupac("C1CC=Cc2ccccc12") == "1,2-dihydronaphthalene"
-
-
-def test_fully_saturated_bridge_is_von_baeyer_not_fusion_name():
-    assert smiles_to_iupac("C1CC2CC1c1ccccc12") == "1,2,3,4-tetrahydro-1,4-methanonaphthalene"
-
-
-def test_substituted_epoxy_aromatic_ring_is_named():
-    assert smiles_to_iupac("Cc1ccc2c(c1)C1C=CC2O1") == "6-methyl-1,4-dihydro-1,4-epoxynaphthalene"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("Cc1ccc2c(c1)c1ccccc1c1ccccc21", "2-methyltriphenylene", id="substituted_triphenylene_is_named"),
+        pytest.param("C1CC=Cc2ccccc12", "1,2-dihydronaphthalene", id="dihydronaphthalene_itself_is_unaffected"),
+        pytest.param("C1CC2CC1c1ccccc12", "1,2,3,4-tetrahydro-1,4-methanonaphthalene", id="fully_saturated_bridge_is_von_baeyer_not_fusion_name"),
+        pytest.param("Cc1ccc2c(c1)C1C=CC2O1", "6-methyl-1,4-dihydro-1,4-epoxynaphthalene", id="substituted_epoxy_aromatic_ring_is_named"),
+    ],
+)
+def test_substituted_triphenylene_is_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -81,27 +60,18 @@ def test_bridged_anthracene(smiles):
     assert smiles_to_iupac(smiles) == "9,10-dihydro-9,10-methanoanthracene"
 
 
-def test_anthracene_itself_is_unaffected():
-    assert smiles_to_iupac("c1ccc2cc3ccccc3cc2c1") == "anthracene"
-
-
-def test_halogen_on_bridged_anthracene_terminal_ring():
-    assert (
-        smiles_to_iupac("Clc1ccc2cc3c(cc2c1)C1C=CC3C1")
-        == "6-chloro-1,4-dihydro-1,4-methanoanthracene"
-    )
-
-
-def test_bridged_phenanthrene():
-    assert smiles_to_iupac("C1=CC2CC1c1ccc3ccccc3c12") == "1,4-dihydro-1,4-methanophenanthrene"
-
-
-def test_bridged_tetracene():
-    assert smiles_to_iupac("C1=CC2CC1c1cc3cc4ccccc4cc3cc12") == "1,4-dihydro-1,4-methanotetracene"
-
-
-def test_substituted_ethano_aromatic_ring_is_named():
-    assert smiles_to_iupac("Cc1ccc2c(c1)C1C=CC2CC1") == "6-methyl-1,4-dihydro-1,4-ethanonaphthalene"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("c1ccc2cc3ccccc3cc2c1", "anthracene", id="anthracene_itself_is_unaffected"),
+        pytest.param("Clc1ccc2cc3c(cc2c1)C1C=CC3C1", "6-chloro-1,4-dihydro-1,4-methanoanthracene", id="halogen_on_bridged_anthracene_terminal_ring"),
+        pytest.param("C1=CC2CC1c1ccc3ccccc3c12", "1,4-dihydro-1,4-methanophenanthrene", id="bridged_phenanthrene"),
+        pytest.param("C1=CC2CC1c1cc3cc4ccccc4cc3cc12", "1,4-dihydro-1,4-methanotetracene", id="bridged_tetracene"),
+        pytest.param("Cc1ccc2c(c1)C1C=CC2CC1", "6-methyl-1,4-dihydro-1,4-ethanonaphthalene", id="substituted_ethano_aromatic_ring_is_named"),
+    ],
+)
+def test_anthracene_itself_is_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -124,36 +94,21 @@ def test_bridgehead_heteroatom_fused_yl(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_substituted_chrysene_fusion_is_named():
-    assert smiles_to_iupac("Cc1ccc2cc3c(ccc4c5ccccc5ccc34)cc2c1") == "9-methylbenzo[c]tetraphene"
-
-
-def test_cyclopenta_a_naphthalene_1h():
-    assert smiles_to_iupac("C1C=CC2=C1C3=CC=CC=C3C=C2") == "1H-cyclopenta[a]naphthalene"
-
-
-def test_cyclopenta_b_naphthalene_1h():
-    assert smiles_to_iupac("C1C=CC2=CC3=CC=CC=C3C=C21") == "1H-cyclopenta[b]naphthalene"
-
-
-def test_didehydropiperidine_nitrogen_ring():
-    assert smiles_to_iupac("C1CC=CCN1") == "3,4-didehydropiperidine"
-
-
-def test_benzo_a_fluoranthene():
-    assert smiles_to_iupac("C1=CC=C2C(=C1)C=C3C=CC=C4C3=C2C5=CC=CC=C54") == "benzo[a]aceanthrylene"
-
-
-def test_benzo_a_fluorene():
-    assert smiles_to_iupac("C1C2=CC=CC=C2C3=C1C4=CC=CC=C4C=C3") == "11H-benzo[a]fluorene"
-
-
-def test_fluorene():
-    assert smiles_to_iupac("C1C2=CC=CC=C2C3=CC=CC=C31") == "9H-fluorene"
-
-
-def test_furo_3_2_b_pyran():
-    assert smiles_to_iupac("C1=COC2=CCOC2=C1") == "2H-furo[3,2-b]pyran"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("Cc1ccc2cc3c(ccc4c5ccccc5ccc34)cc2c1", "9-methylbenzo[c]tetraphene", id="substituted_chrysene_fusion_is_named"),
+        pytest.param("C1C=CC2=C1C3=CC=CC=C3C=C2", "1H-cyclopenta[a]naphthalene", id="cyclopenta_a_naphthalene_1h"),
+        pytest.param("C1C=CC2=CC3=CC=CC=C3C=C21", "1H-cyclopenta[b]naphthalene", id="cyclopenta_b_naphthalene_1h"),
+        pytest.param("C1CC=CCN1", "3,4-didehydropiperidine", id="didehydropiperidine_nitrogen_ring"),
+        pytest.param("C1=CC=C2C(=C1)C=C3C=CC=C4C3=C2C5=CC=CC=C54", "benzo[a]aceanthrylene", id="benzo_a_fluoranthene"),
+        pytest.param("C1C2=CC=CC=C2C3=C1C4=CC=CC=C4C=C3", "11H-benzo[a]fluorene", id="benzo_a_fluorene"),
+        pytest.param("C1C2=CC=CC=C2C3=CC=CC=C31", "9H-fluorene", id="fluorene"),
+        pytest.param("C1=COC2=CCOC2=C1", "2H-furo[3,2-b]pyran", id="furo_3_2_b_pyran"),
+    ],
+)
+def test_substituted_chrysene_fusion_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def _furanobenzoquinoline_smiles():
@@ -309,46 +264,20 @@ def _synthetic_chain(sizes, edge_pair_at_middle):
 
 
 
-def test_benzo_a_heptacene():
-    assert (
-        smiles_to_iupac("c1ccc2cc3cc4cc5cc6cc7c(ccc8ccccc87)cc6cc5cc4cc3cc2c1")
-        == "benzo[a]heptacene"
-    )
-
-
-def test_3h_indole_tautomer_is_distinct_from_1h_indole():
-    assert smiles_to_iupac("C1(C=Nc2ccccc12)") == "3H-indole"
-
-
-
-
-def test_benzo_a_hexacene():
-    assert smiles_to_iupac("c1ccc2cc3cc4cc5cc6c(ccc7ccccc76)cc5cc4cc3cc2c1") == "benzo[a]hexacene"
-
-
-def test_plain_hexacene_still_resolves():
-    assert smiles_to_iupac("c1ccc2cc3cc4cc5cc6ccccc6cc5cc4cc3cc2c1") == "hexacene"
-
-
-def test_substituent_on_a_naphthalene_amplificant_gets_a_composite_locant():
-    assert (
-        smiles_to_iupac("Cc1cc2ccc3cc2cc1CCc1ccc(cc1)CCC3")
-        == "13-methyl-1(2,7)-naphthalena-4(1,4)-benzenacycloheptaphane"
-    )
-
-
-def test_pyridine_benzene_equal_bridge_phane():
-    assert (
-        smiles_to_iupac("c1cc2ccc1CCc1ccc(nc1)CC2")
-        == "1(2,5)-pyridina-4(1,4)-benzenacyclohexaphane"
-    )
-
-
-def test_pyridine_benzene_unequal_bridge_phane():
-    assert (
-        smiles_to_iupac("c1cc2ccc1CCCc1ccc(nc1)CC2")
-        == "1(2,5)-pyridina-4(1,4)-benzenacycloheptaphane"
-    )
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("c1ccc2cc3cc4cc5cc6cc7c(ccc8ccccc87)cc6cc5cc4cc3cc2c1", "benzo[a]heptacene", id="benzo_a_heptacene"),
+        pytest.param("C1(C=Nc2ccccc12)", "3H-indole", id="3h_indole_tautomer_is_distinct_from_1h_indole"),
+        pytest.param("c1ccc2cc3cc4cc5cc6c(ccc7ccccc76)cc5cc4cc3cc2c1", "benzo[a]hexacene", id="benzo_a_hexacene"),
+        pytest.param("c1ccc2cc3cc4cc5cc6ccccc6cc5cc4cc3cc2c1", "hexacene", id="plain_hexacene_still_resolves"),
+        pytest.param("Cc1cc2ccc3cc2cc1CCc1ccc(cc1)CCC3", "13-methyl-1(2,7)-naphthalena-4(1,4)-benzenacycloheptaphane", id="substituent_on_a_naphthalene_amplificant_gets_a_composite_locant"),
+        pytest.param("c1cc2ccc1CCc1ccc(nc1)CC2", "1(2,5)-pyridina-4(1,4)-benzenacyclohexaphane", id="pyridine_benzene_equal_bridge_phane"),
+        pytest.param("c1cc2ccc1CCCc1ccc(nc1)CC2", "1(2,5)-pyridina-4(1,4)-benzenacycloheptaphane", id="pyridine_benzene_unequal_bridge_phane"),
+    ],
+)
+def test_benzo_a_heptacene_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_pyridinium_nitrogen_attachment_raises():
@@ -356,16 +285,16 @@ def test_pyridinium_nitrogen_attachment_raises():
         smiles_to_iupac("C1Cc2ccc(cc2)CC[n+]2ccccc21")
 
 
-def test_benzo_a_pentacene():
-    assert smiles_to_iupac("c1ccc2cc3cc4cc5c(ccc6ccccc65)cc4cc3cc2c1") == "benzo[a]pentacene"
-
-
-def test_hexaphene():
-    assert smiles_to_iupac("C1=CC=C2C=C3C(=CC2=C1)C=CC4=CC5=CC6=CC=CC=C6C=C5C=C43") == "hexaphene"
-
-
-def test_substituted_acenaphthylene_is_named():
-    assert smiles_to_iupac("Cc1ccc2cccc3C=Cc1c23") == "3-methylacenaphthylene"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("c1ccc2cc3cc4cc5c(ccc6ccccc65)cc4cc3cc2c1", "benzo[a]pentacene", id="benzo_a_pentacene"),
+        pytest.param("C1=CC=C2C=C3C(=CC2=C1)C=CC4=CC5=CC6=CC=CC=C6C=C5C=C43", "hexaphene", id="hexaphene"),
+        pytest.param("Cc1ccc2cccc3C=Cc1c23", "3-methylacenaphthylene", id="substituted_acenaphthylene_is_named"),
+    ],
+)
+def test_benzo_a_pentacene_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.slow
@@ -373,17 +302,15 @@ def test_two_peri_fused_cyclopenta_rings_on_perylene():
     assert smiles_to_iupac("c1cc2ccc3cc4ccc5ccc6cc1c1c2c3c4c5c61") == "dicyclopenta[ghi,pqr]perylene"
 
 
-def test_benzo_a_perylene():
-    assert (
-        smiles_to_iupac("C1=CC=C2C(=C1)C=C3C=CC=C4C3=C2C5=CC=CC6=C5C4=CC=C6") == "benzo[a]perylene"
-    )
-
-
-def test_benzo_ghi_perylene():
-    assert (
-        smiles_to_iupac("C1=CC2=C3C(=C1)C4=CC=CC5=C4C6=C(C=C5)C=CC(=C36)C=C2")
-        == "benzo[ghi]perylene"
-    )
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C1=CC=C2C(=C1)C=C3C=CC=C4C3=C2C5=CC=CC6=C5C4=CC=C6", "benzo[a]perylene", id="a_perylene"),
+        pytest.param("C1=CC2=C3C(=C1)C4=CC=CC5=C4C6=C(C=C5)C=CC(=C36)C=C2", "benzo[ghi]perylene", id="ghi_perylene"),
+    ],
+)
+def test_benzo_a_perylene_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.slow
@@ -407,14 +334,15 @@ def test_diazanaphthalenes_with_both_nitrogens_in_one_ring_keep_their_retained_n
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_benzo_b_picene():
-    assert (
-        smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=C2C=CC4=C3C=CC5=CC6=CC=CC=C6C=C54") == "benzo[b]picene"
-    )
-
-
-def test_benzo_e_1_benzofuran():
-    assert smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=C2C=CO3") == "naphtho[2,1-b]furan"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C1=CC=C2C(=C1)C=CC3=C2C=CC4=C3C=CC5=CC6=CC=CC=C6C=C54", "benzo[b]picene", id="b_picene"),
+        pytest.param("C1=CC=C2C(=C1)C=CC3=C2C=CO3", "naphtho[2,1-b]furan", id="e_1_benzofuran"),
+    ],
+)
+def test_benzo_b_picene_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def _fuse_new_ring(base_smiles, atom_a, atom_b):
@@ -467,26 +395,17 @@ def test_epipyrano_bridge_benzo_g_quinoline():
     )
 
 
-def test_benzo_a_pyrene():
-    assert smiles_to_iupac("C1=CC=C2C3=C4C(=CC2=C1)C=CC5=C4C(=CC=C5)C=C3") == "benzo[pqr]tetraphene"
-
-
-def test_benzo_f_isoquinoline():
-    assert smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=C2C=CN=C3") == "benzo[f]isoquinoline"
-
-
-
-
-
-
-
-
-def test_non_aromatic_ketone_unaffected():
-    assert smiles_to_iupac("O=C1C=CC=CC1") == "cyclohexa-2,4-dien-1-one"
-
-
-def test_barbituric_acid_names_as_saturated_trione():
-    assert smiles_to_iupac("O=C1CC(=O)NC(=O)N1") == "1,3-diazinane-2,4,6-trione"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C1=CC=C2C3=C4C(=CC2=C1)C=CC5=C4C(=CC=C5)C=C3", "benzo[pqr]tetraphene", id="benzo_a_pyrene"),
+        pytest.param("C1=CC=C2C(=C1)C=CC3=C2C=CN=C3", "benzo[f]isoquinoline", id="benzo_f_isoquinoline"),
+        pytest.param("O=C1C=CC=CC1", "cyclohexa-2,4-dien-1-one", id="non_aromatic_ketone_unaffected"),
+        pytest.param("O=C1CC(=O)NC(=O)N1", "1,3-diazinane-2,4,6-trione", id="barbituric_acid_names_as_saturated_trione"),
+    ],
+)
+def test_benzo_a_pyrene_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_non_1_3_diazine_dione_not_matched():
@@ -494,12 +413,15 @@ def test_non_1_3_diazine_dione_not_matched():
     assert not has_pyrimidinedione_shape(mol)
 
 
-def test_plain_pyrimidine_unaffected():
-    assert smiles_to_iupac("c1ccncn1") == "pyrimidine"
-
-
-def test_pyrrolo_ij_quinoline():
-    assert smiles_to_iupac("C1C=CC2=CC=CC3=C2N1C=C3") == "4H-pyrrolo[3,2,1-ij]quinoline"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("c1ccncn1", "pyrimidine", id="plain_pyrimidine_unaffected"),
+        pytest.param("C1C=CC2=CC=CC3=C2N1C=C3", "4H-pyrrolo[3,2,1-ij]quinoline", id="pyrrolo_ij_quinoline"),
+    ],
+)
+def test_plain_pyrimidine_unaffected_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 
@@ -513,24 +435,18 @@ def test_benzo_a_tetracene():
     assert smiles_to_iupac("c1ccc2cc3cc4c(ccc5ccccc54)cc3cc2c1") == "benzo[a]tetracene"
 
 
-def test_benzo_b_triphenylene():
-    assert smiles_to_iupac("c1ccc2cc3c4ccccc4c4ccccc4c3cc2c1") == "benzo[f]tetraphene"
-
-
-def test_thieno_3_4_b_thiophene():
-    assert smiles_to_iupac("C1=CSC2=CSC=C21") == "thieno[3,4-b]thiophene"
-
-
-def test_thieno_3_2_b_furan():
-    assert smiles_to_iupac("C1=COC2=C1SC=C2") == "thieno[3,2-b]furan"
-
-
-def test_furo_2_3_b_pyrrole():
-    assert smiles_to_iupac("C1=CNC2=C1C=CO2") == "6H-furo[2,3-b]pyrrole"
-
-
-def test_selenopheno_furan():
-    assert smiles_to_iupac("C1=C[Se]C2=C1C=CO2") == "selenopheno[2,3-b]furan"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("c1ccc2cc3c4ccccc4c4ccccc4c3cc2c1", "benzo[f]tetraphene", id="benzo_b_triphenylene"),
+        pytest.param("C1=CSC2=CSC=C21", "thieno[3,4-b]thiophene", id="thieno_3_4_b_thiophene"),
+        pytest.param("C1=COC2=C1SC=C2", "thieno[3,2-b]furan", id="thieno_3_2_b_furan"),
+        pytest.param("C1=CNC2=C1C=CO2", "6H-furo[2,3-b]pyrrole", id="furo_2_3_b_pyrrole"),
+        pytest.param("C1=C[Se]C2=C1C=CO2", "selenopheno[2,3-b]furan", id="selenopheno_furan"),
+    ],
+)
+def test_benzo_b_triphenylene_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(

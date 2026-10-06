@@ -50,36 +50,19 @@ def test_cyclic_ketohexopyranose_naming(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_aldopyranose_still_resolves():
-    assert (
-        smiles_to_iupac("C([C@@H]1[C@H]([C@@H]([C@H]([C@H](O1)O)O)O)O)O") == "α-D-glucopyranose"
-    )
-
-
-def test_ketofuranose_cites_the_specified_elements():
-    assert (
-        smiles_to_iupac("C([C@@H]1[C@H]([C@@H]([C@](O1)(CO)O)O)O)O")
-        == "(2R,3S,4S,5R)-2,5-bis(hydroxymethyl)oxolane-2,3,4-triol"
-    )
-
-
-def test_d_histidine():
-    assert smiles_to_iupac("C1=C(NC=N1)C[C@H](C(=O)O)N") == "D-histidine"
-
-
-def test_histidine_unspecified_stereocenter_no_ld_prefix():
-    assert smiles_to_iupac("C1=C(NC=N1)CC(C(=O)O)N") == "histidine"
-
-
-def test_ring_substituted_histidine_is_named_as_an_amino_acid_with_a_ring_prefix():
-    assert (
-        smiles_to_iupac("Cn1cnc(CC(N)C(=O)O)c1")
-        == "2-amino-3-(1-methyl-1H-imidazol-4-yl)propanoic acid"
-    )
-
-
-def test_tryptophan_still_resolves():
-    assert smiles_to_iupac("N[C@@H](Cc1c[nH]c2ccccc12)C(=O)O") == "L-tryptophan"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C([C@@H]1[C@H]([C@@H]([C@H]([C@H](O1)O)O)O)O)O", "α-D-glucopyranose", id="aldopyranose_still_resolves"),
+        pytest.param("C([C@@H]1[C@H]([C@@H]([C@](O1)(CO)O)O)O)O", "(2R,3S,4S,5R)-2,5-bis(hydroxymethyl)oxolane-2,3,4-triol", id="ketofuranose_cites_the_specified_elements"),
+        pytest.param("C1=C(NC=N1)C[C@H](C(=O)O)N", "D-histidine", id="d_histidine"),
+        pytest.param("C1=C(NC=N1)CC(C(=O)O)N", "histidine", id="histidine_unspecified_stereocenter_no_ld_prefix"),
+        pytest.param("Cn1cnc(CC(N)C(=O)O)c1", "2-amino-3-(1-methyl-1H-imidazol-4-yl)propanoic acid", id="ring_substituted_histidine_is_named_as_an_amino_acid_with_a_ring_prefix"),
+        pytest.param("N[C@@H](Cc1c[nH]c2ccccc12)C(=O)O", "L-tryptophan", id="tryptophan_still_resolves"),
+    ],
+)
+def test_aldopyranose_still_resolves_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -243,24 +226,18 @@ def test_open_chain_heptose_naming(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_unspecified_stereo_aldose_still_falls_through_unchanged():
-    assert smiles_to_iupac("C(C(C(C(C(C=O)O)O)O)O)O") == "2,3,4,5,6-pentahydroxyhexanal"
-
-
-def test_d_proline():
-    assert smiles_to_iupac("C1C[C@@H](NC1)C(=O)O") == "D-proline"
-
-
-def test_proline_unspecified_stereocenter_no_ld_prefix():
-    assert smiles_to_iupac("C1CC(NC1)C(=O)O") == "proline"
-
-
-def test_hydroxyproline_cites_the_specified_center():
-    assert smiles_to_iupac("OC1C[C@H](NC1)C(=O)O") == "(2S)-4-hydroxypyrrolidine-2-carboxylic acid"
-
-
-def test_hetero_ring_ketone_still_resolves():
-    assert smiles_to_iupac("O=C1CCCCO1") == "oxan-2-one"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C(C(C(C(C(C=O)O)O)O)O)O", "2,3,4,5,6-pentahydroxyhexanal", id="unspecified_stereo_aldose_still_falls_through_unchanged"),
+        pytest.param("C1C[C@@H](NC1)C(=O)O", "D-proline", id="d_proline"),
+        pytest.param("C1CC(NC1)C(=O)O", "proline", id="proline_unspecified_stereocenter_no_ld_prefix"),
+        pytest.param("OC1C[C@H](NC1)C(=O)O", "(2S)-4-hydroxypyrrolidine-2-carboxylic acid", id="hydroxyproline_cites_the_specified_center"),
+        pytest.param("O=C1CCCCO1", "oxan-2-one", id="hetero_ring_ketone_still_resolves"),
+    ],
+)
+def test_unspecified_stereo_aldose_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 # P-107.2 glycerides and glycerol phosphates

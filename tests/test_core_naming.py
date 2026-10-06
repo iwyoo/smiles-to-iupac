@@ -22,16 +22,16 @@ def test_acyclic_alkane_stereocenter(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_tert_butyl_cited_before_methyl_on_ring():
-    assert smiles_to_iupac("CC(C)(C)C1(C)CCCC(=O)C1") == "3-tert-butyl-3-methylcyclohexan-1-one"
-
-
-def test_substituted_branched_fusion_is_named():
-    assert smiles_to_iupac("Cc1ccc2c(c1)c1ccccc1c1ccccc21") == "2-methyltriphenylene"
-
-
-def test_heteroaromatic():
-    assert smiles_to_iupac("c1nc[nH]n1") == "1H-1,2,4-triazole"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC(C)(C)C1(C)CCCC(=O)C1", "3-tert-butyl-3-methylcyclohexan-1-one", id="tert_butyl_cited_before_methyl_on_ring"),
+        pytest.param("Cc1ccc2c(c1)c1ccccc1c1ccccc21", "2-methyltriphenylene", id="substituted_branched_fusion_is_named"),
+        pytest.param("c1nc[nH]n1", "1H-1,2,4-triazole", id="heteroaromatic"),
+    ],
+)
+def test_tert_butyl_cited_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_saturated_rings_still_resolve_unaffected():
@@ -62,12 +62,15 @@ def test_substituent_branch_stereocenter(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_stereo_marker_no_longer_silently_dropped_without_scope_is_named():
-    assert smiles_to_iupac("Clc1ccccc1[C@@H](Cl)CC") == "1-chloro-2-[(1S)-1-chloropropyl]benzene"
-
-
-def test_two_stereocenters_on_one_substituent():
-    assert smiles_to_iupac("c1ccccc1[C@@H](Cl)[C@@H](Cl)C") == "[(1R,2S)-1,2-dichloropropyl]benzene"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("Clc1ccccc1[C@@H](Cl)CC", "1-chloro-2-[(1S)-1-chloropropyl]benzene", id="stereo_marker_no_longer_silently_dropped_without_scope_is_named"),
+        pytest.param("c1ccccc1[C@@H](Cl)[C@@H](Cl)C", "[(1R,2S)-1,2-dichloropropyl]benzene", id="two_stereocenters_on_one_substituent"),
+    ],
+)
+def test_stereo_marker_no_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.slow
@@ -239,12 +242,15 @@ def test_smiles_to_iupac_hetero_monocyclic_substituent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_two_heteroatoms():
-    assert smiles_to_iupac("[Te]1CC[Se]CC1") == "1,4-selenatellurane"
-
-
-def test_pyrazole_ring_carbon_substituent():
-    assert smiles_to_iupac("Cc1cc[nH]n1") == "3-methyl-1H-pyrazole"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[Te]1CC[Se]CC1", "1,4-selenatellurane", id="two_heteroatoms"),
+        pytest.param("Cc1cc[nH]n1", "3-methyl-1H-pyrazole", id="pyrazole_ring_carbon_substituent"),
+    ],
+)
+def test_two_heteroatoms_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -425,14 +431,16 @@ def test_smiles_to_iupac_ez_double_bond(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_specified_double_bond_with_triple_bond_raises():
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("C/C=C/CC#C", id="specified_double_bond_with_triple_bond_raises"),
+        pytest.param("C/C=C/C=CC", id="partially_specified_diene_raises"),
+    ],
+)
+def test_specified_double_bond_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C/C=C/CC#C")
-
-
-def test_partially_specified_diene_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C/C=C/C=CC")
+        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize("smiles", ["", "   ", "xyz", "C("])

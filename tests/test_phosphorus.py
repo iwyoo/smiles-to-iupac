@@ -22,16 +22,16 @@ def test_multiplied_compound_substituent_with_different_substituent_raises():
         smiles_to_iupac("CCCP(C(C)C)C(C)C")
 
 
-def test_unsaturated_substituent():
-    assert smiles_to_iupac("C=CP") == "ethenylphosphane"
-
-
-def test_non_aromatic_ring():
-    assert smiles_to_iupac("C1CCCCC1P") == "cyclohexylphosphane"
-
-
-def test_halogenated_phenyl_mixed_with_alkyl():
-    assert smiles_to_iupac("CP(c1ccc(Cl)cc1)") == "(4-chlorophenyl)(methyl)phosphane"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C=CP", "ethenylphosphane", id="unsaturated_substituent"),
+        pytest.param("C1CCCCC1P", "cyclohexylphosphane", id="non_aromatic_ring"),
+        pytest.param("CP(c1ccc(Cl)cc1)", "(4-chlorophenyl)(methyl)phosphane", id="halogenated_phenyl_mixed_with_alkyl"),
+    ],
+)
+def test_unsaturated_substituent_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -49,12 +49,15 @@ def test_branched_phosphane_chain_raises():
         smiles_to_iupac("P(P)(P)P")
 
 
-def test_cyclic_phosphane_chain():
-    assert smiles_to_iupac("P1PPPP1") == "2,3,4,5-tetrahydro-1H-pentaphosphole"
-
-
-def test_carbon_phosphorus_mix_is_a_diphosphane():
-    assert smiles_to_iupac("CPP") == "methyldiphosphane"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("P1PPPP1", "2,3,4,5-tetrahydro-1H-pentaphosphole", id="cyclic_phosphane_chain"),
+        pytest.param("CPP", "methyldiphosphane", id="carbon_phosphorus_mix_is_a_diphosphane"),
+    ],
+)
+def test_cyclic_phosphane_chain_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_zero_substituents_raises():
@@ -62,23 +65,27 @@ def test_zero_substituents_raises():
         smiles_to_iupac("O=P")
 
 
-def test_single_phenyl_substituent():
-    assert smiles_to_iupac("O=Pc1ccccc1") == "phenylphosphanone"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("O=Pc1ccccc1", "phenylphosphanone", id="single_phenyl_substituent"),
+        pytest.param("CP(=O)c1ccccc1", "methyl(phenyl)-λ5-phosphanone", id="mixed_alkyl_and_phenyl_substituents"),
+    ],
+)
+def test_single_phenyl_substituent_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
-def test_mixed_alkyl_and_phenyl_substituents():
-    assert smiles_to_iupac("CP(=O)c1ccccc1") == "methyl(phenyl)-λ5-phosphanone"
-
-
-def test_substituted_phenyl_raises():
-    # A substituted ring is not the Blue Book's plain 'phenyl' shape.
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("O=Pc1ccccc1C", id="substituted_phenyl_raises"),
+        pytest.param("CC(C)P=O", id="branched_substituent_raises"),
+    ],
+)
+def test_substituted_phenyl_raises_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=Pc1ccccc1C")
-
-
-def test_branched_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)P=O")
+        smiles_to_iupac(smiles)
 
 
 def test_ring_phosphorus_oxide_is_a_lambda5_heterone():
@@ -104,14 +111,16 @@ def test_salt_of_partial_ester():
     assert smiles_to_iupac("COP(=O)(O)[O-].[K+]") == "potassium methyl hydrogen phosphate"
 
 
-def test_salt_of_partial_ester_multivalent_cation_raises():
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("COP(=O)(O)[O-].[Ca+2]", id="salt_of_partial_ester_multivalent_cation_raises"),
+        pytest.param("OP(=O)(O)O", id="phosphoric_acid_itself_unaffected"),
+    ],
+)
+def test_salt_of_partial_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("COP(=O)(O)[O-].[Ca+2]")
-
-
-def test_phosphoric_acid_itself_unaffected():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OP(=O)(O)O")
+        smiles_to_iupac(smiles)
 
 
 def test_phosphindole():
@@ -123,22 +132,27 @@ def test_asymmetric_substituents():
     assert smiles_to_iupac("CC(C)P(C)(=O)O") == "methyl(propan-2-yl)phosphinic acid"
 
 
-def test_rejects_second_phosphinic_acid_group():
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("OP(C)(=O)CCP(C)(=O)O", id="second_phosphinic_acid_group"),
+        pytest.param("NCP(C)(=O)O", id="unrecognized_heteroatom"),
+    ],
+)
+def test_rejects_second_phosphinic_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OP(C)(=O)CCP(C)(=O)O")
+        smiles_to_iupac(smiles)
 
 
-def test_rejects_unrecognized_heteroatom():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCP(C)(=O)O")
-
-
-def test_phosphinine():
-    assert smiles_to_iupac("C1=CC=PC=C1") == "phosphinine"
-
-
-def test_methylphosphinine():
-    assert smiles_to_iupac("CC1=CC=CC=P1") == "2-methylphosphinine"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C1=CC=PC=C1", "phosphinine", id="phosphinine"),
+        pytest.param("CC1=CC=CC=P1", "2-methylphosphinine", id="methylphosphinine"),
+    ],
+)
+def test_phosphinine_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -152,46 +166,51 @@ def test_phosphite_ester_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_phosphate_ester_unaffected():
-    # A P=O bond routes to `_phosphate.py` instead, unchanged.
-    assert smiles_to_iupac("COP(=O)(OC)OC") == "trimethyl phosphate"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("COP(=O)(OC)OC", "trimethyl phosphate", id="phosphate_ester_unaffected"),
+        pytest.param("c1ccccc1P(=O)(O)O", "phenylphosphonic acid", id="benzene_ring"),
+    ],
+)
+def test_phosphate_ester_unaffected_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
-def test_benzene_ring():
-    assert smiles_to_iupac("c1ccccc1P(=O)(O)O") == "phenylphosphonic acid"
-
-
-def test_rejects_second_phosphonic_acid_group():
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("OP(=O)(O)CCP(=O)(O)O", id="second_phosphonic_acid_group"),
+        pytest.param("NCP(=O)(O)O", id="unrecognized_heteroatom__phosphonic_acid"),
+    ],
+)
+def test_rejects_second_phosphonic_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OP(=O)(O)CCP(=O)(O)O")
+        smiles_to_iupac(smiles)
 
 
-def test_rejects_unrecognized_heteroatom__phosphonic_acid():
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[PH4+]", "phosphanium", id="phosphanium"),
+        pytest.param("C[P+](C)(C)C", "tetramethylphosphanium", id="tetramethylphosphanium"),
+    ],
+)
+def test_phosphanium_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("C[P+](C)(C)C(C)C", id="branched_quaternary_phosphonium_raises"),
+        pytest.param("C[P+]1(C)CCCC1", id="ring_quaternary_phosphonium_raises"),
+        pytest.param("C[P+](C)(C)Cl", id="halogen_substituted_quaternary_phosphonium_raises"),
+    ],
+)
+def test_branched_quaternary_phosphonium_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCP(=O)(O)O")
-
-
-def test_phosphanium():
-    assert smiles_to_iupac("[PH4+]") == "phosphanium"
-
-
-def test_tetramethylphosphanium():
-    assert smiles_to_iupac("C[P+](C)(C)C") == "tetramethylphosphanium"
-
-
-def test_branched_quaternary_phosphonium_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[P+](C)(C)C(C)C")
-
-
-def test_ring_quaternary_phosphonium_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[P+]1(C)CCCC1")
-
-
-def test_halogen_substituted_quaternary_phosphonium_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[P+](C)(C)Cl")
+        smiles_to_iupac(smiles)
 
 
 def test_phosphonium_specified_stereocenter_raises():

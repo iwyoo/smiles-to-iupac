@@ -84,16 +84,13 @@ def test_extra_methyl_on_a_ring_is_a_substituent_of_the_retained_parent():
     assert smiles_to_iupac("CC(C)CCCC(C)C1CC(C)C2C1(CCC3C2CCC4C3(CCCC4)C)C") == "15-methylcholestane"
 
 
-def test_side_chain_that_fits_no_retained_parent_is_a_substituent_of_the_ring_parent():
-    assert smiles_to_iupac("CC(C)C(C)CC(C)C1CCC2C1(CCC3C2CCC4C3(CCCC4)C)C") == "17-(4,5-dimethylhexan-2-yl)androstane"
-
-
-def test_androstane_other_diastereomer_gets_its_own_alpha_beta_citation():
-    assert (
-        smiles_to_iupac("C[C@@]12CCC[C@H]1[C@H]3CC[C@H]4CCCC[C@@]4([C@H]3CC2)C")
-        == "5α,8α-androstane"
-    )
-
-
-def test_androst_4_ene():
-    assert smiles_to_iupac("CC12CCCC1C1CCC3=CCCCC3(C)C1CC2") == "androst-4-ene"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC(C)C(C)CC(C)C1CCC2C1(CCC3C2CCC4C3(CCCC4)C)C", "17-(4,5-dimethylhexan-2-yl)androstane", id="side_chain_that_fits_no_retained_parent_is_a_substituent_of_the_ring_parent"),
+        pytest.param("C[C@@]12CCC[C@H]1[C@H]3CC[C@H]4CCCC[C@@]4([C@H]3CC2)C", "5α,8α-androstane", id="androstane_other_diastereomer_gets_its_own_alpha_beta_citation"),
+        pytest.param("CC12CCCC1C1CCC3=CCCCC3(C)C1CC2", "androst-4-ene", id="androst_4_ene"),
+    ],
+)
+def test_side_chain_that_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
