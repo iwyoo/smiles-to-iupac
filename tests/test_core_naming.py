@@ -380,7 +380,7 @@ def test_r_is_cited_at_the_lower_locant_of_a_ring(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("C[C@H]1CCCC[C@@H]1C1CCCCC1C1CCCCC1", "(11S,12S)-12-methyl-11,21:22,31-tercyclohexane"),
+        ("C[C@H]1CCCC[C@@H]1C1CCCCC1C1CCCCC1", "(1¹S,1²S)-1²-methyl-1¹,2¹:2²,3¹-tercyclohexane"),
     ],
 )
 def test_stereodescriptors_in_an_assembly_of_three_rings(smiles, expected):

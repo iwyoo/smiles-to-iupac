@@ -515,7 +515,7 @@ def _drops_anionic_charge(mol, name) -> bool:
 
 _HYDRO_FUSION_RUNNING = set()
 _STEREO_TOKENS = re.compile(
-    r"(?<=[\d'a-z])[RSEZ](?=[,)])|(?<=[\d'a])[rs](?=[,)])|\((?:R|S|E|Z)\)|\b(?:[DL]|alpha|beta)-|\((?:T|SP|SS|TBPY|OC|SPY|TPR|PBPY|CU|SAPR|TPRS)-|cis-|trans-|rel-|rac-"
+    r"(?<=[\d'a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])[RSEZ](?=[,)])|(?<=[\d'a⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])[rs](?=[,)])|\((?:R|S|E|Z)\)|\b(?:[DL]|alpha|beta)-|\((?:T|SP|SS|TBPY|OC|SPY|TPR|PBPY|CU|SAPR|TPRS)-|cis-|trans-|rel-|rac-"
 )
 
 

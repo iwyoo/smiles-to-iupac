@@ -1608,3 +1608,11 @@ def stereo_locant_rank(mol, stereo, position_of):
             bond = mol.GetBondWithIdx(idx)
             labels.append((min(position_of.get(bond.GetBeginAtomIdx(), 0), position_of.get(bond.GetEndAtomIdx(), 0)), code))
     return tuple(tuple(sorted(loc for loc, code in labels if code in wanted)) for wanted in (("Z",), ("R", "r")))
+
+
+_SUPERSCRIPT_CHARS = str.maketrans("0123456789abcdefgh", "⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ")
+
+
+def superscript_locant(primary, local):
+    """Locant of atom `local` of the ring or amplificant numbered `primary`, the atom locant raised (P-26.4, P-28.3.1)."""
+    return f"{primary}{str(local).translate(_SUPERSCRIPT_CHARS)}"

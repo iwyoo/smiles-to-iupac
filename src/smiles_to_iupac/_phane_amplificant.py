@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from rdkit import Chem
 from rdkit.Chem import BondType, RWMol
 
-from ._common import UnsupportedStructure, adjacency
+from ._common import UnsupportedStructure, adjacency, superscript_locant
 from ._multiplicative_groups import ring_seniority_key
 from ._ring_diyl_numbering import _PREFIX, _bare_skeleton, is_hydro_fusion_system, monocycle_numberings, system_numberings
 from ._steroid_named import _embeddings as _steroid_embeddings
@@ -56,7 +56,7 @@ class AmpLoc(int):
 
 
 class PhaneLoc(int):
-    """Locant of a phane skeleton atom or, with `local`, of an amplificant atom (primary 1, local 4 -> '14')."""
+    """Locant of a phane skeleton atom or, with `local`, of an amplificant atom (primary 1, local 4 -> '1⁴')."""
 
     def __new__(cls, primary, local=None):
         obj = super().__new__(cls, primary * 1000000 + (int(local) if local is not None else 0))
@@ -64,7 +64,7 @@ class PhaneLoc(int):
         return obj
 
     def __str__(self):
-        return f"{self.primary}{self.local}" if self.local is not None else str(self.primary)
+        return superscript_locant(self.primary, self.local) if self.local is not None else str(self.primary)
 
     __repr__ = __str__
     __format__ = lambda self, spec: str(self)
