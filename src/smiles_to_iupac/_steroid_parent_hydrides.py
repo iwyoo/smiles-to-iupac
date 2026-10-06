@@ -115,7 +115,7 @@ assert len(_CANONICAL_TO_NAME) == len(_PARENT_HYDRIDES), (
 )
 
 # The plain (no-stereo) entries above, keyed by name instead of SMILES --
-# used by both `_nor_steroid.py`'s skeletal-modification prefixes and
+# used by the skeletal-modification prefixes and
 # `_ketone.py`'s steroid-suffix integration (#1027) to recognize a
 # constitution match irrespective of stereochemistry: a suffix-bearing
 # steroid's own stereo, if any, is already rejected upstream (P-92

@@ -322,11 +322,37 @@ def _candidates(skeleton, mol, flat):
     return found
 
 
+def _short_alkyl_on_terminal_segment(skeleton, mol, mapping, branches):
+    """P-101.3.2.2.1 and P-101.7.1.3: a terminal segment lengthened by one or two carbons is named with 'homo', not
+    with an alkyl group."""
+    ring = {skeleton.labels[i] for i in skeleton.ring_atoms}
+    mapped = set(mapping.values())
+    for label, root in branches:
+        if label in ring:
+            continue
+        seen, stack = {mapping[label]}, [root]
+        while stack:
+            idx = stack.pop()
+            if idx in seen:
+                continue
+            seen.add(idx)
+            atom = mol.GetAtomWithIdx(idx)
+            if atom.GetAtomicNum() != 6 or idx in mapped or atom.IsInRing():
+                break
+            stack.extend(n.GetIdx() for n in atom.GetNeighbors() if n.GetIdx() not in seen)
+        else:
+            if len(seen) - 1 <= 2:
+                return True
+    return False
+
+
 def _skeleton_choices(skeleton, mol, flat):
     choices = []
     for mapping in _candidates(skeleton, mol, flat):
         try:
             groups, branches, attach = classify(mol, mapping, skeleton.terminals)
+            if _short_alkyl_on_terminal_segment(skeleton, mol, mapping, branches):
+                continue
             attach = tuple(sorted(attach, key=lambda item: sort_key(item[0]))) if attach else None
             lost, gained, unsaturated, hydro = _unsaturation(skeleton, mol, mapping)
         except UnsupportedStructure:
@@ -415,12 +441,24 @@ def _best_skeleton(mol, attach_allowed):
     return best and best[1:]
 
 
-def name_on_skeleton(mol, attach_allowed=False):
+def _left_to_the_stereoparent_engine(mol, skeleton, choice):
+    """A parent with no drawing frame here but one in `_np_parents`: its implied configuration is cited by α/β there."""
+    from ._np_parents import PARENTS
+
+    entry = PARENTS.get(skeleton.name)
+    if skeleton.stereo is not None or entry is None or not entry[2]:
+        return False
+    return any(mol.GetAtomWithIdx(a).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in choice.mapping.values())
+
+
+def name_on_skeleton(mol, attach_allowed=False, defer_unframed=False):
     """(name, valence, substituted) of `mol` on an Appendix 3 parent, or None."""
     best = _best_skeleton(mol, attach_allowed)
     if best is None:
         return None
     skeleton, choice = best
+    if defer_unframed and _left_to_the_stereoparent_engine(mol, skeleton, choice):
+        return None
     reject_exotic(mol, set(choice.mapping.values()))
     if not _parent_adequate(mol, choice):
         return None
@@ -432,7 +470,7 @@ def name_on_skeleton(mol, attach_allowed=False):
 def name_appendix3_skeleton(mol):
     """Name of `mol` on an Appendix 3 retained parent, or None."""
     try:
-        result = name_on_skeleton(mol)
+        result = name_on_skeleton(mol, defer_unframed=True)
     except Exception:
         return None
     return mark(result[0], _NO_PIN) if result else None

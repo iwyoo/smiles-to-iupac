@@ -7,7 +7,7 @@ def test_morphine():
     smiles = "CN1CC[C@]23[C@@H]4[C@H]1CC5=C2C(=C(C=C5)O)O[C@H]3[C@H](C=C4)O"
     assert (
         smiles_to_iupac(smiles)
-        == "17-methyl-7,8-didehydrofuro[2′,3′,4′,5′:4,12,13,5]morphinan-3,6-diol"
+        == "17-methyl-7,8-didehydro-4,5α-epoxymorphinan-3,6α-diol"
     )
 
 
@@ -15,7 +15,7 @@ def test_codeine():
     smiles = "CN1CC[C@]23[C@@H]4[C@H]1CC5=C2C(=C(C=C5)OC)O[C@H]3[C@H](C=C4)O"
     assert (
         smiles_to_iupac(smiles)
-        == "3-methoxy-17-methyl-7,8-didehydrofuro[2′,3′,4′,5′:4,12,13,5]morphinan-6-ol"
+        == "3-methoxy-17-methyl-7,8-didehydro-4,5α-epoxymorphinan-6α-ol"
     )
 
 

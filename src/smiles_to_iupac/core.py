@@ -81,9 +81,7 @@ from ._radical import has_radical_shape, name_radical
 from ._radical_ion import has_radical_ion_shape, name_radical_ion
 from ._aromatic import find_aromatic_fused_core, name_aromatic_fused
 from ._bicyclic import find_bicyclic_core, name_bicycloalkane
-from ._alkaloid_parent_hydrides import has_alkaloid_morphinan_name, name_alkaloid_morphinan
 from ._appendix3_skeletons import name_appendix3_skeleton
-from ._bridged_alicyclic_parent import has_bridged_steroid_name, name_bridged_steroid_parent
 from ._borane import has_simple_borane_shape, name_simple_borane
 from ._boronic_acid import has_boronic_acid_shape, name_boronic_acid
 from ._borinic_acid import has_borinic_acid_shape, name_borinic_acid
@@ -128,6 +126,7 @@ from ._ester import has_ester_shape, name_ester
 from ._ester_by_parts import name_ester_by_parts
 from ._heteroacyclic import name_heteroacyclic
 from ._chain_multiplicative import has_chain_multiplicative_shape
+from ._np import PREFERRED_OPERATIONS, name_natural_product_ranked
 from ._steroid_named import name_steroid
 from ._polyfunctional import name_polyfunctional
 from ._cyanate import has_cyanate_shape, name_cyanate
@@ -164,11 +163,6 @@ from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_ox
 from ._pyridinone import has_pyridinone_shape, name_pyridinone
 from ._pyrimidinedione import has_pyrimidinedione_shape, name_pyrimidinedione
 from ._pyrimidinone import has_pyrimidinone_shape, name_pyrimidinone
-from ._homo_steroid import has_homo_steroid_shape, name_homo_steroid
-from ._cyclo_steroid import has_cyclo_steroid_shape, name_cyclo_steroid
-from ._dinor_steroid import has_dinor_steroid_shape, name_dinor_steroid
-from ._nor_steroid import has_nor_steroid_shape, name_nor_steroid
-from ._seco_steroid import has_seco_steroid_shape, name_seco_steroid
 from ._steroid_parent_hydrides import (
     has_steroid_aromatic_a_ring_name,
     has_steroid_parent_hydride_name,
@@ -410,6 +404,7 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
                     return namer(parsed)
                 except UnsupportedStructure:
                     pass
+        beyond_preferred = None
         if parsed is not None:
             name = name_heteroacyclic(parsed)
             if name is not None:
@@ -417,6 +412,10 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
             name = name_appendix3_skeleton(parsed)
             if name is not None:
                 return name
+            natural, operations = name_natural_product_ranked(parsed)
+            if natural is not None and operations <= PREFERRED_OPERATIONS:
+                return natural
+            beyond_preferred = natural
             steroid = name_steroid(parsed) if parsed.GetRingInfo().NumRings() == 4 else None
             if steroid is not None:
                 return steroid
@@ -436,7 +435,12 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
             if parsed is not None and _drops_anionic_charge(parsed, name):
                 raise UnsupportedStructure("the negative charge of this structure is not cited by any supported name")
         except UnsupportedStructure as original:
-            name = _run_fallbacks(smiles, original)
+            try:
+                name = _run_fallbacks(smiles, original)
+            except UnsupportedStructure:
+                if beyond_preferred is None:
+                    raise
+                name = beyond_preferred
         except Exception:
             name = _hydro_fusion_name(parsed) if hydro_fusion else None
             if name is None:
@@ -1113,59 +1117,6 @@ def _name_mol(mol) -> str:
     # alongside the single-double-bond case above, for the same reason.
     if has_steroid_aromatic_a_ring_name(mol):
         return name_steroid_aromatic_a_ring(mol)
-
-    # A steroid parent hydride plus one O/S/N one-atom bridge across an
-    # already-adjacent ring bond (e.g. '5,6-epoxycholestane') is checked
-    # right alongside the other steroid-skeleton-plus-one-modification
-    # cases above, for the same reason.
-    if has_bridged_steroid_name(mol):
-        return name_bridged_steroid_parent(mol)
-
-    # The morphinan retained parent hydride (Appendix 3 / P-101), with
-    # morphine/codeine's exact substituent shape (N-methyl, one or two
-    # O-substituents, a transannular epoxy bridge, one extra ring
-    # double bond) is checked right alongside the other skeleton-dict
-    # cases above, for the same reason.
-    if has_alkaloid_morphinan_name(mol):
-        return name_alkaloid_morphinan(mol)
-
-    # A steroid parent hydride missing one non-fusion ring atom or angular
-    # methyl (P-101.3.1's 'nor' prefix) is checked right after the exact
-    # parent match above, so a structure that happens to reproduce a
-    # different retained-name parent (e.g. androstane minus its C19 methyl
-    # is exactly estrane) is already claimed by that check first.
-    if has_nor_steroid_shape(mol):
-        return name_nor_steroid(mol)
-
-    # A steroid parent hydride missing two non-fusion ring atoms/angular
-    # methyls together (P-101.3.1.1's 'dinor' prefix) is checked right
-    # after the single-atom 'nor' check above, for the same dispatch-
-    # ordering reason.
-    if has_dinor_steroid_shape(mol):
-        return name_dinor_steroid(mol)
-
-    # A steroid parent hydride with one extra methylene inserted into a
-    # ring bond or angular methyl (P-101.3.2's 'homo' prefix) is checked
-    # right after 'nor' for the same reason -- an insertion happening to
-    # reproduce a different retained-name parent would already be claimed
-    # above (none found empirically, but the ordering stays defensive).
-    if has_homo_steroid_shape(mol):
-        return name_homo_steroid(mol)
-
-    # A steroid parent hydride missing one ring bond (P-101.3.4.1's
-    # 'seco' prefix) is checked right after 'homo' for the same
-    # dispatch-ordering reason -- checked before the general von Baeyer
-    # engine below, which either misnames a plain-ring-bond cleavage as
-    # an unrelated tricyclic system or outright rejects a ring-fusion
-    # cleavage as an unsupported polycyclic shape.
-    if has_seco_steroid_shape(mol):
-        return name_seco_steroid(mol)
-
-    # A steroid parent hydride with one extra ring bond formed between
-    # two non-adjacent ring atoms (P-101.3.3's 'cyclo' prefix) is checked
-    # right after 'seco' for the same dispatch-ordering reason.
-    if has_cyclo_steroid_shape(mol):
-        return name_cyclo_steroid(mol)
 
 
     # 2,3-didehydrooxepane etc. (P-31.2.2/P-31.2.4.1's 'didehydro' prefix,

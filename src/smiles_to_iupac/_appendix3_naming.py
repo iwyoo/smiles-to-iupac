@@ -341,6 +341,12 @@ def _assemble(mol, skeleton, choice, stereo, sort_key, context):
         dehydro = sorted((l for pair, q, p in choice.gained for _ in range(p - q) for l in pair), key=sort_key)
         hydro = sorted([l for pair in choice.lost for l in pair] + list(choice.hydro), key=sort_key)
         hydro, name = _without_added_hydrogen(hydro, skeleton, choice, members, principal, suffix_locants, sort_key)
+        shared = set(hydro) & set(dehydro)
+        if shared:
+            left_hydro = [l for l in hydro if l not in shared]
+            left_dehydro = [l for l in dehydro if l not in shared]
+            if not len(left_hydro) % 2 and not len(left_dehydro) % 2:
+                hydro, dehydro = left_hydro, left_dehydro
         if dehydro:
             adds.append(f"{','.join(dehydro)}-{multiplied_word(len(dehydro), 'dehydro')}")
         if hydro:

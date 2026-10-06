@@ -176,7 +176,8 @@ def classify(mol, mapping, terminals):
                 raise UnsupportedStructure("a substituent on an unnumbered skeleton atom is not supported")
             continue
         if label in terminals and not atom.IsInRing():
-            found = acyl_class(mol, atom_idx, -1, mapped) if outside else None
+            inside = [n.GetIdx() for n in atom.GetNeighbors() if n.GetIdx() in mapped]
+            found = acyl_class(mol, atom_idx, inside[0], mapped) if outside and len(inside) == 1 else None
             if found is not None:
                 cls, detail = found
                 groups.append(Group(cls, label, "o", detail["atoms"], -1, detail))

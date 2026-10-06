@@ -250,7 +250,7 @@ def test_arms_with_stereo_outside_the_group_are_not_multiplied():
             "C1CN2CC3=CCO[C@H]4CC(=O)N5[C@H]6[C@H]4[C@H]3C[C@H]2[C@@]61C7=CC=CC=C75",
             "(7R,8S,12S,13R,14R,16S)-strychnidin-10-one",
         ),
-        ("CN1CC[C@]23CCCC[C@H]2[C@H]1Cc1ccc(OC)cc13", "(9R,13R,14R)-3-methoxy-17-methylmorphinan"),
+        ("CN1CC[C@]23CCCC[C@H]2[C@H]1Cc1ccc(OC)cc13", "3-methoxy-17-methylmorphinan"),
         # P-91.2: centres of a side branch are cited inside the substituent prefix, cepham numbering as in P-101
         (
             "CC1=C(N2[C@@H]([C@@H](C2=O)NC(=O)[C@@H](C3=CC=CC=C3)N)SC1)C(=O)O",
