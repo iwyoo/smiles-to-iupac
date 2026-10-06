@@ -365,6 +365,10 @@ def test_glycoglycerolipids(smiles, expected):
         ('N[C@@H](Cc1ccc(OC)cc1)C(=O)O', 'O-methyl-L-tyrosine'),
         ('CC(=O)NCCCC[C@H](NC)C(=O)O', 'N6-acetyl-N2-methyl-L-lysine'),
         ('CN(C)[C@@H](C)C(=O)O', 'N,N-dimethyl-L-alanine'),
+        ('CC(=O)NC(=O)CC[C@H](NC(=O)OCc1ccccc1)C(=O)O', 'N5-acetyl-N2-[(benzyloxy)carbonyl]-L-glutamine'),
+        ('CNC(=O)C[C@H](N)C(=O)O', 'N4-methyl-L-asparagine'),
+        ('CN=C(NC)NCCC[C@H](NC(C)=O)C(=O)O', 'Nα-acetyl-Nω,Nω′-dimethyl-L-arginine'),
+        ('NC(=N)N(C)CCC[C@H](N)C(=O)O', 'Nδ-methyl-L-arginine'),
     ],
 )
 def test_substituted_amino_acids(smiles, expected):
