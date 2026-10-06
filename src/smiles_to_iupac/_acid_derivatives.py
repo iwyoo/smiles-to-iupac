@@ -3,6 +3,7 @@ the junction bonds, each acid piece is named as the free acid by the substitutiv
 acid-word or acyl name, and organyl pieces are cited as substituent groups (which also expresses polyester prefixes).
 """
 
+import itertools
 import re
 from dataclasses import dataclass
 
@@ -353,7 +354,7 @@ def _multiplied(entries):
             multiplier = multiplying_prefix(count, compound=compound and not _plain(name))
             text = f"{multiplier}{enclose(name)}" if compound else f"{multiplier}{name}"
         else:
-            text = name
+            text = enclose(name) if compound and any(letters) else name
         parts.append((f"{','.join(sorted(letters, key=lambda t: (len(t), t)))}-" if any(letters) else "") + text)
     return " ".join(parts)
 
@@ -531,10 +532,12 @@ def name_ester(mol, links):
     ]
     free = len(free_centers)
     cited = _ester_locants(mol, acid_atoms, per_link, free_centers) if (len(named) > 1 or free) and len(chosen) + free > 1 else None
+    if cited is None:
+        cited = _diphosphate_locants(mol, acid_atoms, per_link, free_centers)
     entries = [
         (name, compound, count, cited[name] if cited else letters) for name, (count, compound, letters) in named.items()
     ]
-    hydrogen = {0: "", 1: "hydrogen ", 2: "dihydrogen "}[free]
+    hydrogen = "" if free == 0 else multiplying_prefix(free) + "hydrogen " if free > 1 else "hydrogen "
     return _multiplied(entries) + " " + hydrogen + anion
 
 
@@ -560,6 +563,45 @@ def _ester_locants(mol, acid_atoms, per_link, free_centers):
     for l, name in per_link:
         cited.setdefault(name, []).append(str(locants[l.center]))
     return {name: sorted(locs, key=lambda t: (len(t), t)) for name, locs in cited.items()}
+
+
+def _diphosphate_locants(mol, acid_atoms, per_link, free_centers):
+    """{organyl name: locants} for the esters of a diphosphate P1-O2-P3 when its organyl groups and hydrogen atoms can sit
+    on the two phosphorus atoms in more than one way, which the bare name cannot tell apart (P-65.6.3.3.2.1: '1,1-diethyl
+    3-methyl butane-1,1,3-tricarboxylate'); None when the arrangement is determined."""
+    phosphorus = [a for a in acid_atoms if mol.GetAtomWithIdx(a).GetAtomicNum() == 15]
+    if len(phosphorus) != 2:
+        return None
+    around = [{n.GetIdx() for n in mol.GetAtomWithIdx(p).GetNeighbors()} for p in phosphorus]
+    if len(around[0] & around[1]) != 1:
+        return None
+    slots = {p: [] for p in phosphorus}
+    for link, name in per_link:
+        slots[link.center].append(name)
+    for center in free_centers:
+        slots[center].append("")
+    if any(len(entries) != 2 for entries in slots.values()):
+        return None
+    items = [name for entries in slots.values() for name in entries]
+    arrangements = {
+        tuple(sorted([tuple(sorted(order[:2])), tuple(sorted(order[2:]))])) for order in itertools.permutations(items)
+    }
+    if len(arrangements) == 1:
+        return None
+    best = None
+    for first, second in (phosphorus, phosphorus[::-1]):
+        locant = {first: "1", second: "3"}
+        cited = {}
+        for link, name in per_link:
+            cited.setdefault(name, []).append(locant[link.center])
+        cited = {name: sorted(found) for name, found in cited.items()}
+        key = (
+            sorted(x for found in cited.values() for x in found),
+            [x for name in sorted(cited, key=alpha_sort_key) for x in cited[name]],
+        )
+        if best is None or key < best[0]:
+            best = (key, cited)
+    return best[1]
 
 
 def _far_side(graph, root, blocked):
