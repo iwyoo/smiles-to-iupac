@@ -50,7 +50,7 @@ from ._retained_acids import retained_chain_acid
 from ._substituents import format_substituent_prefixes, name_branch
 
 _SENIORITY = [
-    "ide", "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", "sulfonamide", "nitrile", "aldehyde", "ketone", "alcohol", "peroxol",
+    "ide", "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", "sulfonamide", "nitrile", "aldehyde", "ketone", "thione", "selone", "tellone", "alcohol", "peroxol",
     "thiol", "amine", "imine",
 ]
 _TERMINAL = {"acid", "thioic", "peroxoic", "imidic", "amide", "nitrile", "aldehyde"}
@@ -134,7 +134,11 @@ def _terminal_heteroatom(mol, idx, hydrogens):
     return atom.GetDegree() == 1 and atom.GetTotalNumHs() == hydrogens and not atom.GetFormalCharge()
 
 
-_CHALCOGEN_KETONE_OK = {"acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", "sulfonamide", "nitrile", "aldehyde"}
+_CHALCOGEN_KETONE_CLASS = {16: "thione", 34: "selone", 52: "tellone"}
+_CHALCOGEN_KETONE_OK = {
+    "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", "sulfonamide", "nitrile", "aldehyde", "ketone",
+    *_CHALCOGEN_KETONE_CLASS.values(),
+}
 
 
 def _chalcogen_ketone(mol, atom):
@@ -219,6 +223,14 @@ def _group_of(mol, carbon):
         if len(others) != 1 or others[0].GetAtomicNum() != 6:
             raise UnsupportedStructure("a cyanide not bonded to carbon is not a nitrile")
         return "nitrile", {nitrogens[0]}
+    for z, thione in _CHALCOGEN_KETONE_CLASS.items():
+        found = [
+            n.GetIdx()
+            for n in atom.GetNeighbors()
+            if n.GetAtomicNum() == z and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        ]
+        if found and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors() if n.GetIdx() != found[0]) and atom.GetDegree() == 3:
+            return thione, {found[0]}
     oxygens = _double_oxygens(mol, carbon)
     if oxygens:
         carbon_neighbors = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
@@ -474,6 +486,13 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             if attach is not None or n_names:
                 raise UnsupportedStructure("an N-substituted amide inside a unit is not handled by the chain engine")
             n_names = amide_ns
+
+    if principal == "imine":
+        imine_ns = _imine_n_names(mol, graph, halogens, aromatic_atoms, ring_groups)
+        if imine_ns:
+            if attach is not None or n_names:
+                raise UnsupportedStructure("an N-substituted imine inside a unit is not handled by the chain engine")
+            n_names = imine_ns
 
     anchors = set(groups.get(principal, {}))
     for cls, _, owned in ring_groups:
@@ -1092,6 +1111,9 @@ _FUSED_SUFFIX = _FusedSuffix({
     "aldehyde": "carbaldehyde",
     "alcohol": "ol",
     "ketone": "one",
+    "thione": "thione",
+    "selone": "selone",
+    "tellone": "tellone",
     "thiol": "thiol",
     "amine": "amine",
 })
@@ -1110,7 +1132,7 @@ def _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo):
     on_system = [o for o in occurrences if o[1] in atoms]
     attach = [o[1] for o in on_system]
     blocked = set().union(*(o[2] for o in on_system))
-    if principal == "ketone" and any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in attach):
+    if principal in ("ketone", *_CHALCOGEN_KETONE_CLASS.values()) and any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in attach):
         raise UnsupportedStructure("a ring-heteroatom oxide is not a ring ketone")
     found = evaluate_skeleton(mol, graph, "ring", rings, atoms, attach, blocked, _FUSED_SUFFIX[principal])
     if found is None:
@@ -1139,6 +1161,10 @@ _RING_SUFFIX = _RingSuffix({
     "nitrile": "nitrile",
     "aldehyde": "aldehyde",
     "ketone": "ketone",
+    "thione": "thione",
+    "selone": "selone",
+    "tellone": "tellone",
+    "imine": "imine",
     "alcohol": "alcohol",
     "thiol": "thiol",
     "amine": "amine",
@@ -1169,7 +1195,7 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
             candidates.append((len(here), ring, None, here))
             continue
         spec = monocycle_spec(mol, ring)
-        if spec is not None and _exocyclic_oxo(mol, set(ring)):
+        if spec is not None and _exocyclic_oxo(mol, set(ring)) and not (principal == "imine" and spec.kind == "cycloalkane"):
             spec = None
         candidates.append((len(here), ring, spec, here))
     if not candidates:
@@ -1929,6 +1955,21 @@ def _substituted_amine_nitrogen(mol, atom):
     return len(carbons) >= 2
 
 
+def _ring_imine_nitrogen(mol, nitrogen, ring_atom):
+    """A neutral =N-H, =N-R, =N-OH or =N-OR on a saturated ring carbon (P-62.3, P-68.3.1.1)."""
+    if nitrogen.GetFormalCharge() or nitrogen.GetDegree() > 2:
+        return False
+    for n in nitrogen.GetNeighbors():
+        if n.GetIdx() == ring_atom:
+            continue
+        if n.GetAtomicNum() == 8:
+            if n.GetFormalCharge() or n.GetDegree() > 2:
+                return False
+        elif n.GetAtomicNum() != 6:
+            return False
+    return True
+
+
 def _ring_occurrences(mol):
     """[(class, ring_atom, owned atoms)] for every principal-capable group
     sitting directly on a ring atom (or, for a ketone, the ring carbonyl)."""
@@ -1944,6 +1985,8 @@ def _ring_occurrences(mol):
             order = mol.GetBondBetweenAtoms(r, i).GetBondTypeAsDouble()
             if z == 8 and order == 2.0 and n.GetDegree() == 1:
                 found.append(("ketone", r, {i}))
+            elif z in _CHALCOGEN_KETONE_CLASS and order == 2.0 and n.GetDegree() == 1 and not n.GetFormalCharge():
+                found.append((_CHALCOGEN_KETONE_CLASS[z], r, {i}))
             elif z == 8 and _terminal_heteroatom(mol, i, 1):
                 found.append(("alcohol", r, {i}))
             elif z == 16 and _terminal_heteroatom(mol, i, 1):
@@ -1954,6 +1997,8 @@ def _ring_occurrences(mol):
                     found.append((sulfonyl[0], r, sulfonyl[1]))
             elif z == 7 and _terminal_heteroatom(mol, i, 2):
                 found.append(("amine", r, {i}))
+            elif z == 7 and order == 2.0 and _ring_imine_nitrogen(mol, n, r):
+                found.append(("imine", r, {i}))
             elif z == 6:
                 group = _group_of(mol, i)
                 if group is not None and _is_terminal(group[0]):
@@ -1998,6 +2043,23 @@ def _imidic_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, c
         name_branch(graph, n, group.n_atom, halogens, aromatic_atoms, mol=mol, unsaturated=True)
         for n in group.n_substituents
     ]
+
+
+def _imine_n_names(mol, graph, halogens, aromatic_atoms, ring_groups):
+    """N-prefix names when the single ring imine group is substituted on its =N atom, else []."""
+    members = [owned for cls, _, owned in ring_groups if cls == "imine"]
+    substituted = []
+    for owned in members:
+        nitrogen = next(iter(owned))
+        subs = [n for n in graph[nitrogen] if mol.GetBondBetweenAtoms(nitrogen, n).GetBondTypeAsDouble() == 1.0]
+        if subs:
+            substituted.append((nitrogen, subs))
+    if not substituted:
+        return []
+    if len(members) != 1:
+        raise UnsupportedStructure("several imine groups with N-substitution are not handled by the chain engine")
+    nitrogen, subs = substituted[0]
+    return [name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in subs]
 
 
 def _amide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls="amide"):
@@ -2109,6 +2171,9 @@ def _evaluate(
         word = {
             "ide": "ide",
             "ketone": "one",
+            "thione": "thione",
+            "selone": "selone",
+            "tellone": "tellone",
             "alcohol": "ol",
             "thiol": "thiol",
             "amine": "amine",

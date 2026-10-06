@@ -765,9 +765,8 @@ def test_thial_not_supported():
         smiles_to_iupac("CCC=S")
 
 
-def test_aromatic_thione_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccc(cc1)C(=S)C")
+def test_aromatic_thione_is_named():
+    assert smiles_to_iupac("Cc1ccc(cc1)C(=S)C") == "1-(4-methylphenyl)ethane-1-thione"
 
 
 def test_acyclic_thione_stereocenter():
@@ -786,14 +785,12 @@ def test_phenyl_chain_thione():
     assert smiles_to_iupac("c1ccccc1CC(=S)C") == "1-phenylpropane-2-thione"
 
 
-def test_phenyl_directly_attached_thione_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C(=S)C")
+def test_phenyl_directly_attached_thione_is_named():
+    assert smiles_to_iupac("c1ccccc1C(=S)C") == "1-phenylethane-1-thione"
 
 
-def test_phenyl_chain_thione_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC(=S)C")
+def test_phenyl_chain_thione_unsaturation_is_named():
+    assert smiles_to_iupac("C=Cc1ccccc1CC(=S)C") == "1-(2-ethenylphenyl)propane-2-thione"
 
 
 def test_thiourea():
@@ -838,3 +835,15 @@ def test_substituted_phenyl_n_substituent_not_supported():
 def test_phenyl_alongside_another_substituent_on_same_nitrogen_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CN(c1ccccc1)C(=S)N")
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OC1CCCCC1=S", "2-hydroxycyclohexane-1-thione"),
+        ("OC1CCCCC1C(=S)C1CCCCC1O", "bis(2-hydroxycyclohexyl)methanethione"),
+        ("CC(=S)CC(C)=O", "4-sulfanylidenepentan-2-one"),
+    ],
+)
+def test_thione_outranks_hydroxy_and_yields_to_ketone(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
