@@ -653,81 +653,63 @@ def _name_mol(mol) -> str:
     # single-metal hydride dispatches below, which reject a second metal.
     if has_metal_pair_shape(mol) and not _has_senior_principal_group(mol):
         return name_metal_pair(mol)
-
-    # P-103.1.1.1: a common amino acid's retained name + L/D descriptor
-    # must be routed here, before every ring-count/functional-group
-    # dispatch branch below: a side chain recognized by `_amino_acid.py`'s
-    # table can carry its own extra nitrogen (lysine, arginine) or its
-    # own ring (phenylalanine, tyrosine, tryptophan), which would
-    # otherwise be misrouted first -- confirmed empirically: arginine's
-    # guanidino C=N was caught by `_imine.py`'s dispatch and tryptophan's
-    # indole ring by the bicyclic-heteroatom dispatch, both well before
-    # this check's original position further down ever ran.
-    if has_amino_acid_shape(mol):
-        return name_amino_acid(mol)
-
-    # A ring-system diester of one polyol (P-65.6.3.3.3) is claimed before every
-    # ring/functional-group shape check below, which would misread its esters.
-    if has_polyester_of_one_polyol_shape(mol):
-        return name_diester_acyloxy(mol)
-
-    if has_hydride_carbo_suffix_shape(mol):
-        return name_hydride_carbo_suffix(mol)
-
-    if has_ring_lambda_heterone_shape(mol):
-        return name_ring_lambda_heterone(mol)
-
-    # A chalcogen ring-oxide (P-62.5's functional-class "oxide" pattern,
-    # not limited to acyclic amines) breaks the ring's own aromaticity as
-    # RDKit perceives it, so it must be routed here before any ring-shape
-    # or aromatic dispatch below ever gets a chance to reject it outright.
-    if has_hetero_ring_oxide_shape(mol):
-        return name_hetero_ring_oxide(mol)
-
-    # The fused-bicyclic analogue of the chalcogen ring-oxide above (e.g.
-    # benzothiophene 1-oxide) has the same aromaticity-breaking shape, and
-    # would otherwise be misrouted into the von Baeyer bicyclic-heteroatom
-    # dispatch further below -- routed here, right alongside its
-    # single-ring sibling.
-    if has_fused_hetero_ring_oxide_shape(mol):
-        return name_fused_hetero_ring_oxide(mol)
-
-    # The pyridinone tautomer (P-31.1.4.3.4's indicated-hydrogen oxo form)
-    # keeps its ring-carbon aromatic despite the exocyclic oxo, so it must
-    # be routed here before `_ketone.py`'s own generic aryl-ketone
-    # rejection below ever gets a chance to claim it.
-    if has_pyridinone_shape(mol):
-        return name_pyridinone(mol)
-
-    # The pyrimidinone tautomer (a second ring nitrogen alongside the
-    # pyridinone shape above) is checked right after it, for the same
-    # aromatic-aryl-ketone dispatch-ordering reason.
-    if has_pyrimidinone_shape(mol):
-        return name_pyrimidinone(mol)
-
-    # The uracil/thymine diketo tautomer (both ring nitrogens carrying
-    # their own indicated hydrogen, P-58.2.2's parenthesized multi-locant
-    # convention) is checked right after the single-oxo pyrimidinone case
-    # above, for the same aromatic-aryl-ketone dispatch-ordering reason.
-    if has_pyrimidinedione_shape(mol):
-        return name_pyrimidinedione(mol)
-
-    # An amino-acid/betaine-type zwitterion (P-74.1.3's ammonium-nitrogen-
-    # prefix-on-a-carboxylate-parent citation order) must be routed here
-    # before `has_salt_shape` below: it's a single connected fragment that
-    # nonetheless has an ammonium-shaped nitrogen, which `_salt.py`'s own
-    # cation loop would otherwise try (and fail) to name as if the entire
-    # molecule were a bare ammonium cation, crashing rather than falling
-    # through.
-    if has_zwitterion_shape(mol):
-        return name_zwitterion(mol)
-
-    # A multi-fragment SMILES (P-77 salts) must be routed here before every
-    # other branch below: those all assume one connected molecule and would
-    # reject a foreign atom like sodium outright, never getting a chance to
-    # recognize the two fragments as a cation/anion pair.
-    if has_salt_shape(mol):
-        return name_salt(mol)
+    for has_shape, namer in (
+        # P-103.1.1.1: a common amino acid's retained name + L/D descriptor
+        # must be routed here, before every ring-count/functional-group
+        # dispatch branch below: a side chain recognized by `_amino_acid.py`'s
+        # table can carry its own extra nitrogen (lysine, arginine) or its
+        # own ring (phenylalanine, tyrosine, tryptophan), which would
+        # otherwise be misrouted first -- confirmed empirically: arginine's
+        # guanidino C=N was caught by `_imine.py`'s dispatch and tryptophan's
+        # indole ring by the bicyclic-heteroatom dispatch, both well before
+        # this check's original position further down ever ran.
+        (has_amino_acid_shape, name_amino_acid),
+        # A ring-system diester of one polyol (P-65.6.3.3.3) is claimed before every
+        # ring/functional-group shape check below, which would misread its esters.
+        (has_polyester_of_one_polyol_shape, name_diester_acyloxy),
+        (has_hydride_carbo_suffix_shape, name_hydride_carbo_suffix),
+        (has_ring_lambda_heterone_shape, name_ring_lambda_heterone),
+        # A chalcogen ring-oxide (P-62.5's functional-class "oxide" pattern,
+        # not limited to acyclic amines) breaks the ring's own aromaticity as
+        # RDKit perceives it, so it must be routed here before any ring-shape
+        # or aromatic dispatch below ever gets a chance to reject it outright.
+        (has_hetero_ring_oxide_shape, name_hetero_ring_oxide),
+        # The fused-bicyclic analogue of the chalcogen ring-oxide above (e.g.
+        # benzothiophene 1-oxide) has the same aromaticity-breaking shape, and
+        # would otherwise be misrouted into the von Baeyer bicyclic-heteroatom
+        # dispatch further below -- routed here, right alongside its
+        # single-ring sibling.
+        (has_fused_hetero_ring_oxide_shape, name_fused_hetero_ring_oxide),
+        # The pyridinone tautomer (P-31.1.4.3.4's indicated-hydrogen oxo form)
+        # keeps its ring-carbon aromatic despite the exocyclic oxo, so it must
+        # be routed here before `_ketone.py`'s own generic aryl-ketone
+        # rejection below ever gets a chance to claim it.
+        (has_pyridinone_shape, name_pyridinone),
+        # The pyrimidinone tautomer (a second ring nitrogen alongside the
+        # pyridinone shape above) is checked right after it, for the same
+        # aromatic-aryl-ketone dispatch-ordering reason.
+        (has_pyrimidinone_shape, name_pyrimidinone),
+        # The uracil/thymine diketo tautomer (both ring nitrogens carrying
+        # their own indicated hydrogen, P-58.2.2's parenthesized multi-locant
+        # convention) is checked right after the single-oxo pyrimidinone case
+        # above, for the same aromatic-aryl-ketone dispatch-ordering reason.
+        (has_pyrimidinedione_shape, name_pyrimidinedione),
+        # An amino-acid/betaine-type zwitterion (P-74.1.3's ammonium-nitrogen-
+        # prefix-on-a-carboxylate-parent citation order) must be routed here
+        # before `has_salt_shape` below: it's a single connected fragment that
+        # nonetheless has an ammonium-shaped nitrogen, which `_salt.py`'s own
+        # cation loop would otherwise try (and fail) to name as if the entire
+        # molecule were a bare ammonium cation, crashing rather than falling
+        # through.
+        (has_zwitterion_shape, name_zwitterion),
+        # A multi-fragment SMILES (P-77 salts) must be routed here before every
+        # other branch below: those all assume one connected molecule and would
+        # reject a foreign atom like sodium outright, never getting a chance to
+        # recognize the two fragments as a cation/anion pair.
+        (has_salt_shape, name_salt),
+    ):
+        if has_shape(mol):
+            return namer(mol)
 
     # A bare hydrogen halide fragment (P-77.1.3(3)'s 'hydrochloride'-style
     # general nomenclature, see _hydrohalide_salt.py) must likewise be
@@ -771,76 +753,62 @@ def _name_mol(mol) -> str:
         ring_assembly_core = find_ring_assembly_core(mol)
         if ring_assembly_core is not None:
             return name_ring_assembly(mol, ring_assembly_core)
-
-    # An isotopically labeled hydroxyl oxygen and/or skeletal carbon
-    # combined with the '-ol' suffix (P-82.5.1/P-82.5.2) must be routed
-    # here before `_isotope.py`'s own plain chain/methane path just below,
-    # which rejects any oxygen outright.
-    if has_isotope_alcohol_shape(mol):
-        return name_isotope_alcohol(mol)
-
-    # An isotopically labeled carbonyl oxygen and/or skeletal carbon
-    # combined with the '-one' suffix (P-82.5.1/P-82.5.2) must likewise be
-    # routed here before `_isotope.py`'s own plain path.
-    if has_isotope_ketone_shape(mol):
-        return name_isotope_ketone(mol)
-
-    # An isotopically labeled carboxyl oxygen and/or skeletal carbon
-    # combined with the '-oic acid' suffix (P-82.5.1/P-82.5.2) must
-    # likewise be routed here before `_isotope.py`'s own plain path.
-    if has_isotope_carboxylic_acid_shape(mol):
-        return name_isotope_carboxylic_acid(mol)
-
-    # An isotopically labeled atom (P-82's isotope descriptor nomenclature)
-    # must be routed here before every other branch below: RDKit represents
-    # an isotopically substituted hydrogen (e.g. 2H) as its own explicit
-    # atom (atomic number 1), which none of the other branches recognize at
-    # all -- every one of them would reject it outright as an unsupported
-    # heteroatom.
-    if has_isotope_shape(mol):
-        return name_isotope(mol)
-
-    # A radical ion on an ionic suffix group (P-75.3.1's 'aminiumyl'
-    # radical cation) has both a charge and a radical electron on the
-    # same nitrogen -- checked ahead of `has_radical_shape` below, whose
-    # own broader "any nonzero radical electron count" check would
-    # otherwise claim it first and misroute it into the plain-radical
-    # dispatch, which rejects any charged atom outright.
-    if has_radical_ion_shape(mol):
-        return name_radical_ion(mol)
-
-    # A radical center (P-71.2.1.1's 'yl' radical naming) must be routed
-    # here before every other branch below: none of them recognize a
-    # nonzero radical electron count at all -- an unbranched-chain or
-    # monocyclic-ring radical would otherwise fall straight through to the
-    # plain alkane/cycloalkane dispatch further down, which doesn't know a
-    # hydrogen is missing.
-    if has_radical_shape(mol):
-        return name_radical(mol)
-
-    # A nitrogen ylide (P-74.2.1.1.1's zwitterionic anion-carbon-parent
-    # naming) has its own charged nitrogen too -- checked before
-    # `has_ammonium_shape` below, whose own check already explicitly
-    # excludes this shape (a second charged atom elsewhere) rather than
-    # naming it, per that module's own docstring.
-    if has_nitrogen_ylide_shape(mol):
-        return name_nitrogen_ylide(mol)
-
-    # A phosphorus/oxygen/sulfur ylide (P-74.2.1.1.2/.3/.4) has its own
-    # charged cation atom too -- checked before `has_phosphonium_shape`/
-    # `has_oxonium_shape`/`has_sulfonium_shape` below for the same reason
-    # as the nitrogen ylide above.
-    if has_pos_ylide_shape(mol):
-        return name_pos_ylide(mol)
-
-    # An amine imide (P-74.2.1.3's zwitterionic hydrazinium-ide naming)
-    # has two charged nitrogens (one +1, one -1) -- checked before
-    # `has_ammonium_shape` below for the same reason as the nitrogen
-    # ylide above: its own +1 nitrogen would otherwise match ammonium's
-    # shape check and get misnamed as a plain quaternary ammonium,
-    # silently dropping the -1 nitrogen fragment.
-    if has_amine_imide_shape(mol):
-        return name_amine_imide(mol)
+    for has_shape, namer in (
+        # An isotopically labeled hydroxyl oxygen and/or skeletal carbon
+        # combined with the '-ol' suffix (P-82.5.1/P-82.5.2) must be routed
+        # here before `_isotope.py`'s own plain chain/methane path just below,
+        # which rejects any oxygen outright.
+        (has_isotope_alcohol_shape, name_isotope_alcohol),
+        # An isotopically labeled carbonyl oxygen and/or skeletal carbon
+        # combined with the '-one' suffix (P-82.5.1/P-82.5.2) must likewise be
+        # routed here before `_isotope.py`'s own plain path.
+        (has_isotope_ketone_shape, name_isotope_ketone),
+        # An isotopically labeled carboxyl oxygen and/or skeletal carbon
+        # combined with the '-oic acid' suffix (P-82.5.1/P-82.5.2) must
+        # likewise be routed here before `_isotope.py`'s own plain path.
+        (has_isotope_carboxylic_acid_shape, name_isotope_carboxylic_acid),
+        # An isotopically labeled atom (P-82's isotope descriptor nomenclature)
+        # must be routed here before every other branch below: RDKit represents
+        # an isotopically substituted hydrogen (e.g. 2H) as its own explicit
+        # atom (atomic number 1), which none of the other branches recognize at
+        # all -- every one of them would reject it outright as an unsupported
+        # heteroatom.
+        (has_isotope_shape, name_isotope),
+        # A radical ion on an ionic suffix group (P-75.3.1's 'aminiumyl'
+        # radical cation) has both a charge and a radical electron on the
+        # same nitrogen -- checked ahead of `has_radical_shape` below, whose
+        # own broader "any nonzero radical electron count" check would
+        # otherwise claim it first and misroute it into the plain-radical
+        # dispatch, which rejects any charged atom outright.
+        (has_radical_ion_shape, name_radical_ion),
+        # A radical center (P-71.2.1.1's 'yl' radical naming) must be routed
+        # here before every other branch below: none of them recognize a
+        # nonzero radical electron count at all -- an unbranched-chain or
+        # monocyclic-ring radical would otherwise fall straight through to the
+        # plain alkane/cycloalkane dispatch further down, which doesn't know a
+        # hydrogen is missing.
+        (has_radical_shape, name_radical),
+        # A nitrogen ylide (P-74.2.1.1.1's zwitterionic anion-carbon-parent
+        # naming) has its own charged nitrogen too -- checked before
+        # `has_ammonium_shape` below, whose own check already explicitly
+        # excludes this shape (a second charged atom elsewhere) rather than
+        # naming it, per that module's own docstring.
+        (has_nitrogen_ylide_shape, name_nitrogen_ylide),
+        # A phosphorus/oxygen/sulfur ylide (P-74.2.1.1.2/.3/.4) has its own
+        # charged cation atom too -- checked before `has_phosphonium_shape`/
+        # `has_oxonium_shape`/`has_sulfonium_shape` below for the same reason
+        # as the nitrogen ylide above.
+        (has_pos_ylide_shape, name_pos_ylide),
+        # An amine imide (P-74.2.1.3's zwitterionic hydrazinium-ide naming)
+        # has two charged nitrogens (one +1, one -1) -- checked before
+        # `has_ammonium_shape` below for the same reason as the nitrogen
+        # ylide above: its own +1 nitrogen would otherwise match ammonium's
+        # shape check and get misnamed as a plain quaternary ammonium,
+        # silently dropping the -1 nitrogen fragment.
+        (has_amine_imide_shape, name_amine_imide),
+    ):
+        if has_shape(mol):
+            return namer(mol)
 
     # A charged ammonium nitrogen (P-73.1.1.2's hydron-addition cation
     # naming) must be routed here before every other branch below: none of
@@ -850,78 +818,60 @@ def _name_mol(mol) -> str:
         if has_phosphate_shape(mol) and any(a.GetFormalCharge() < 0 for a in mol.GetAtoms()):
             return name_phosphate(mol)
         return name_ammonium(mol)
-
-    # A secondary/tertiary amine N-oxide (P-62.5's zwitterionic N+-O-) has a
-    # charged nitrogen too, for the same reason as ammonium above -- and
-    # `has_ammonium_shape` itself doesn't match it (an oxide-bearing
-    # nitrogen has 2-3 carbon neighbors plus the oxide oxygen, never the
-    # single-carbon/three-H shape ammonium requires), so it needs its own
-    # explicit routing here.
-    if has_amine_oxide_shape(mol):
-        return name_amine_oxide(mol)
-
-    # A diazonium cation (R-N#N+, P-73) has a charged nitrogen too, for the
-    # same reason as ammonium above -- routed here, unconditionally,
-    # before every other branch.
-    if has_diazonium_shape(mol):
-        return name_diazonium(mol)
-
-    # A phosphonium cation (P-73.1.1.2) has a charged phosphorus too, for
-    # the same reason as ammonium above -- routed here, unconditionally,
-    # before every other branch.
-    if has_phosphonium_shape(mol):
-        return name_phosphonium(mol)
-
-    # A sulfonium cation (P-73.1.1.2) has a charged sulfur too, for the
-    # same reason as ammonium above -- routed here, unconditionally,
-    # before every other branch.
-    if has_sulfonium_shape(mol):
-        return name_sulfonium(mol)
-
-    # An oxonium cation (P-73.1.1.2) has a charged oxygen too, for the
-    # same reason as ammonium above -- routed here, unconditionally,
-    # before every other branch.
-    if has_oxonium_shape(mol):
-        return name_oxonium(mol)
-
-    # An acylium cation (P-73.2.3.1's 'oylium'/'ylium' suffix naming) has
-    # a charged carbon too, checked ahead of the plain carbenium case
-    # below since a C=O double bond gives the cation carbon degree 2, not
-    # `has_carbenium_shape`'s own required degree 3 -- the two shapes
-    # never overlap, so order between them doesn't otherwise matter.
-    if has_acylium_shape(mol):
-        return name_acylium(mol)
-
-    # A carbenium cation (P-73.2.2.1.1's 'ylium' suffix naming) has a
-    # charged carbon too, for the same reason as ammonium above -- routed
-    # here, unconditionally, before every other branch.
-    if has_carbenium_shape(mol):
-        return name_carbenium(mol)
-
-    # The cyclopentadienide anion (P-72.2.2.1's ring worked example) has a
-    # charged ring carbon too, but `_carbanide.py` below is explicitly
-    # acyclic-only and would reject any ring outright -- so this shape must
-    # be routed here first.
-    if has_cyclopentadienide_shape(mol):
-        return name_cyclopentadienide(mol)
-
-    # The benzenide anion (phenyl anion, P-72.2.2.1's other ring worked
-    # example) has a charged ring carbon too, for the same reason as the
-    # cyclopentadienide case above -- routed here, right alongside it.
-    if has_benzenide_shape(mol):
-        return name_benzenide(mol)
-
-    # A carbanion center (P-72.2.2.1's '-ide' suffix naming) has a charged
-    # carbon too, the anionic mirror of carbenium above -- routed here,
-    # unconditionally, before every other branch.
-    if has_carbanide_shape(mol):
-        return name_carbanide(mol)
-
-    # An all-silicon skeleton (P-21.2.1's silane chain naming) has no
-    # carbon at all, so it must be routed here before every other branch
-    # below, all of which assume at least one carbon atom.
-    if has_silane_chain_shape(mol):
-        return name_silane_chain(mol)
+    for has_shape, namer in (
+        # A secondary/tertiary amine N-oxide (P-62.5's zwitterionic N+-O-) has a
+        # charged nitrogen too, for the same reason as ammonium above -- and
+        # `has_ammonium_shape` itself doesn't match it (an oxide-bearing
+        # nitrogen has 2-3 carbon neighbors plus the oxide oxygen, never the
+        # single-carbon/three-H shape ammonium requires), so it needs its own
+        # explicit routing here.
+        (has_amine_oxide_shape, name_amine_oxide),
+        # A diazonium cation (R-N#N+, P-73) has a charged nitrogen too, for the
+        # same reason as ammonium above -- routed here, unconditionally,
+        # before every other branch.
+        (has_diazonium_shape, name_diazonium),
+        # A phosphonium cation (P-73.1.1.2) has a charged phosphorus too, for
+        # the same reason as ammonium above -- routed here, unconditionally,
+        # before every other branch.
+        (has_phosphonium_shape, name_phosphonium),
+        # A sulfonium cation (P-73.1.1.2) has a charged sulfur too, for the
+        # same reason as ammonium above -- routed here, unconditionally,
+        # before every other branch.
+        (has_sulfonium_shape, name_sulfonium),
+        # An oxonium cation (P-73.1.1.2) has a charged oxygen too, for the
+        # same reason as ammonium above -- routed here, unconditionally,
+        # before every other branch.
+        (has_oxonium_shape, name_oxonium),
+        # An acylium cation (P-73.2.3.1's 'oylium'/'ylium' suffix naming) has
+        # a charged carbon too, checked ahead of the plain carbenium case
+        # below since a C=O double bond gives the cation carbon degree 2, not
+        # `has_carbenium_shape`'s own required degree 3 -- the two shapes
+        # never overlap, so order between them doesn't otherwise matter.
+        (has_acylium_shape, name_acylium),
+        # A carbenium cation (P-73.2.2.1.1's 'ylium' suffix naming) has a
+        # charged carbon too, for the same reason as ammonium above -- routed
+        # here, unconditionally, before every other branch.
+        (has_carbenium_shape, name_carbenium),
+        # The cyclopentadienide anion (P-72.2.2.1's ring worked example) has a
+        # charged ring carbon too, but `_carbanide.py` below is explicitly
+        # acyclic-only and would reject any ring outright -- so this shape must
+        # be routed here first.
+        (has_cyclopentadienide_shape, name_cyclopentadienide),
+        # The benzenide anion (phenyl anion, P-72.2.2.1's other ring worked
+        # example) has a charged ring carbon too, for the same reason as the
+        # cyclopentadienide case above -- routed here, right alongside it.
+        (has_benzenide_shape, name_benzenide),
+        # A carbanion center (P-72.2.2.1's '-ide' suffix naming) has a charged
+        # carbon too, the anionic mirror of carbenium above -- routed here,
+        # unconditionally, before every other branch.
+        (has_carbanide_shape, name_carbanide),
+        # An all-silicon skeleton (P-21.2.1's silane chain naming) has no
+        # carbon at all, so it must be routed here before every other branch
+        # below, all of which assume at least one carbon atom.
+        (has_silane_chain_shape, name_silane_chain),
+    ):
+        if has_shape(mol):
+            return namer(mol)
 
     # An all-phosphorus, multi-atom skeleton (diphosphane, triphosphane,
     # ...) has no carbon at all and must be routed before
@@ -930,97 +880,77 @@ def _name_mol(mol) -> str:
     # rejection.
     if has_phosphane_chain_shape(mol) and mol.GetNumAtoms() > 1:
         return name_phosphane_chain(mol)
-
-    # A phosphonic acid (P-67.1.1's R-P(=O)(OH)2) has two hydroxyl oxygens
-    # on phosphorus that `_phosphanone.py`'s own phosphine-oxide shape
-    # doesn't expect -- `has_phosphanone_shape` would otherwise still
-    # match (it only checks for a single P=O) and then fail inside
-    # `name_phosphanone`'s validation, so this must be routed first.
-    if has_phosphonic_acid_shape(mol):
-        return name_phosphonic_acid(mol)
-
-    # A phosphinic acid (P-67.1.1's R2-P(=O)-OH) has the same
-    # phosphanone-shape collision as phosphonic acid above (its own
-    # hydroxyl oxygen isn't expected by `_phosphanone.py`), so it must be
-    # routed here for the same reason.
-    if has_phosphinic_acid_shape(mol):
-        return name_phosphinic_acid(mol)
-
-    # Diphosphoric acid (P-67.2.1's own preselected dinuclear-acid name)
-    # has each phosphorus individually shaped like a phosphate ester (the
-    # other phosphorus group standing in as the "R" of a P-O-R ester
-    # oxygen), so `has_phosphate_shape` would otherwise also match it and
-    # then fail inside `name_phosphate`'s own single-phosphorus-only
-    # validation -- must be routed here first.
-    if has_dinuclear_oxoacid_shape(mol):
-        return name_dinuclear_oxoacid(mol)
-
-    # A phosphate ester (P-67.1.3.2's P(=O)(OR)3) has three P-O-R ester
-    # oxygens that `_phosphanone.py`'s own phosphine-oxide shape doesn't
-    # expect -- `has_phosphanone_shape` would otherwise still match (it
-    # only checks for a single P=O) and then fail inside
-    # `name_phosphanone`'s validation, so this must be routed first, same
-    # reason as phosphonic/phosphinic acid above.
-    if has_phosphate_shape(mol):
-        return name_phosphate(mol)
-
-    # A phosphite ester (P-67.1.3.2's P(OR)3, no P=O) has three P-O-R
-    # ester oxygens that `_phosphane.py`'s own plain-phosphane shape
-    # doesn't expect (it rejects any heteroatom besides its own
-    # phosphorus outright) -- must be routed here first, same reason as
-    # phosphate above.
-    if has_phosphite_shape(mol):
-        return name_phosphite(mol)
-
-    # A sulfate ester (P-67.1.3.2's S(=O)(=O)(OR)2) has two S-O-R ester
-    # oxygens no other sulfur module expects (they all assume a direct
-    # S-C bond) -- must be routed before any of them for the same
-    # ether-oxygen-rejection reason phosphate/phosphite are routed early.
-    if has_sulfate_shape(mol):
-        return name_sulfate(mol)
-
-    # A sulfite ester (P-67.1.3.2's S(=O)(OR)2, one fewer double-bonded
-    # oxygen than sulfate) needs the same early routing, for the same
-    # ether-oxygen-rejection reason as sulfate above.
-    if has_sulfite_shape(mol):
-        return name_sulfite(mol)
-
-    # A nitrate ester (P-67.1.3.2's O-NO2) has an N-O-R ester oxygen
-    # `_nitro.py`'s own nitrogen shape doesn't expect (that module
-    # requires a direct N-C bond) -- routed here for the same early-ester
-    # reasoning as sulfate/sulfite above.
-    if has_nitrate_ester_shape(mol):
-        return name_nitrate_ester(mol)
-
-    # A nitrite ester (P-67.1.3.2's O-N=O) needs the same early routing
-    # as nitrate above, for the same N-O-R ester-oxygen reason.
-    if has_nitrite_ester_shape(mol):
-        return name_nitrite_ester(mol)
-
-    # Carbonic acid or one of its esters (P-65.2.1's O=C(OR)(OR')) has a
-    # central carbon with two -O-R/-OH oxygens neither `_ether.py` (which
-    # rejects an oxygen bonded to more than one heavy atom outright) nor
-    # `_carboxylic_acid.py` (which expects exactly one -OH, not two)
-    # expects -- routed here for the same early-ester reasoning as
-    # sulfate/nitrate above.
-    if has_carbonic_acid_shape(mol):
-        return name_carbonic_acid(mol)
-
-    # A phosphine oxide (P-68.3.2.3.1's '-phosphanone' suffix, R-P(=O)<)
-    # has its own phosphorus-bonded oxygen that `_phosphane.py` doesn't
-    # expect at all (that module rejects any heteroatom besides its own
-    # phosphorus outright) -- must be routed here first, before
-    # has_simple_phosphane_shape below, for the same reason as
-    # has_phosphane_chain_shape above.
-    if has_phosphanone_shape(mol):
-        return name_phosphanone(mol)
-
-    # Thiophosphoric acid (P-67.1.2's own preselected infix-modified
-    # oxoacid name) has a phosphorus with 4 substituents (=S plus three
-    # -OH), which `_phosphane.py` rejects outright (more than three
-    # substituents) -- must be routed here first.
-    if has_functional_replacement_oxoacid_shape(mol):
-        return name_functional_replacement_oxoacid(mol)
+    for has_shape, namer in (
+        # A phosphonic acid (P-67.1.1's R-P(=O)(OH)2) has two hydroxyl oxygens
+        # on phosphorus that `_phosphanone.py`'s own phosphine-oxide shape
+        # doesn't expect -- `has_phosphanone_shape` would otherwise still
+        # match (it only checks for a single P=O) and then fail inside
+        # `name_phosphanone`'s validation, so this must be routed first.
+        (has_phosphonic_acid_shape, name_phosphonic_acid),
+        # A phosphinic acid (P-67.1.1's R2-P(=O)-OH) has the same
+        # phosphanone-shape collision as phosphonic acid above (its own
+        # hydroxyl oxygen isn't expected by `_phosphanone.py`), so it must be
+        # routed here for the same reason.
+        (has_phosphinic_acid_shape, name_phosphinic_acid),
+        # Diphosphoric acid (P-67.2.1's own preselected dinuclear-acid name)
+        # has each phosphorus individually shaped like a phosphate ester (the
+        # other phosphorus group standing in as the "R" of a P-O-R ester
+        # oxygen), so `has_phosphate_shape` would otherwise also match it and
+        # then fail inside `name_phosphate`'s own single-phosphorus-only
+        # validation -- must be routed here first.
+        (has_dinuclear_oxoacid_shape, name_dinuclear_oxoacid),
+        # A phosphate ester (P-67.1.3.2's P(=O)(OR)3) has three P-O-R ester
+        # oxygens that `_phosphanone.py`'s own phosphine-oxide shape doesn't
+        # expect -- `has_phosphanone_shape` would otherwise still match (it
+        # only checks for a single P=O) and then fail inside
+        # `name_phosphanone`'s validation, so this must be routed first, same
+        # reason as phosphonic/phosphinic acid above.
+        (has_phosphate_shape, name_phosphate),
+        # A phosphite ester (P-67.1.3.2's P(OR)3, no P=O) has three P-O-R
+        # ester oxygens that `_phosphane.py`'s own plain-phosphane shape
+        # doesn't expect (it rejects any heteroatom besides its own
+        # phosphorus outright) -- must be routed here first, same reason as
+        # phosphate above.
+        (has_phosphite_shape, name_phosphite),
+        # A sulfate ester (P-67.1.3.2's S(=O)(=O)(OR)2) has two S-O-R ester
+        # oxygens no other sulfur module expects (they all assume a direct
+        # S-C bond) -- must be routed before any of them for the same
+        # ether-oxygen-rejection reason phosphate/phosphite are routed early.
+        (has_sulfate_shape, name_sulfate),
+        # A sulfite ester (P-67.1.3.2's S(=O)(OR)2, one fewer double-bonded
+        # oxygen than sulfate) needs the same early routing, for the same
+        # ether-oxygen-rejection reason as sulfate above.
+        (has_sulfite_shape, name_sulfite),
+        # A nitrate ester (P-67.1.3.2's O-NO2) has an N-O-R ester oxygen
+        # `_nitro.py`'s own nitrogen shape doesn't expect (that module
+        # requires a direct N-C bond) -- routed here for the same early-ester
+        # reasoning as sulfate/sulfite above.
+        (has_nitrate_ester_shape, name_nitrate_ester),
+        # A nitrite ester (P-67.1.3.2's O-N=O) needs the same early routing
+        # as nitrate above, for the same N-O-R ester-oxygen reason.
+        (has_nitrite_ester_shape, name_nitrite_ester),
+        # Carbonic acid or one of its esters (P-65.2.1's O=C(OR)(OR')) has a
+        # central carbon with two -O-R/-OH oxygens neither `_ether.py` (which
+        # rejects an oxygen bonded to more than one heavy atom outright) nor
+        # `_carboxylic_acid.py` (which expects exactly one -OH, not two)
+        # expects -- routed here for the same early-ester reasoning as
+        # sulfate/nitrate above.
+        (has_carbonic_acid_shape, name_carbonic_acid),
+        # A phosphine oxide (P-68.3.2.3.1's '-phosphanone' suffix, R-P(=O)<)
+        # has its own phosphorus-bonded oxygen that `_phosphane.py` doesn't
+        # expect at all (that module rejects any heteroatom besides its own
+        # phosphorus outright) -- must be routed here first, before
+        # has_simple_phosphane_shape below, for the same reason as
+        # has_phosphane_chain_shape above.
+        (has_phosphanone_shape, name_phosphanone),
+        # Thiophosphoric acid (P-67.1.2's own preselected infix-modified
+        # oxoacid name) has a phosphorus with 4 substituents (=S plus three
+        # -OH), which `_phosphane.py` rejects outright (more than three
+        # substituents) -- must be routed here first.
+        (has_functional_replacement_oxoacid_shape, name_functional_replacement_oxoacid),
+    ):
+        if has_shape(mol):
+            return namer(mol)
 
     # Phosphinine/phosphinoline/isophosphinoline (P-25's own P-ring
     # counterparts to pyridine/quinoline/isoquinoline) have P in a ring,
@@ -1030,48 +960,39 @@ def _name_mol(mol) -> str:
             return name_hetero_monocyclic(mol)
         if has_hetero_monocyclic_substituent_name(mol):
             return name_hetero_monocyclic_substituent(mol)
-
-    # A phosphorus atom (P-68's phosphane substitutive nomenclature) must
-    # be routed here before every other branch below: none of them
-    # recognize phosphorus at all, and a phosphane carbon substituent would
-    # otherwise reach the plain acyclic-alkane/amine dispatch further down
-    # with no phosphorus handling.
-    if has_polyphosphane_shape(mol):
-        return name_polyphosphane(mol)
-    if has_simple_phosphane_shape(mol):
-        return name_simple_phosphane(mol)
-
-    # A boronic acid (P-68.1.4.1's R-B(OH)2) has two hydroxyl oxygens on
-    # boron that `_borane.py`'s own plain-borane shape doesn't expect --
-    # `has_simple_borane_shape` matches any molecule with a boron atom at
-    # all, so this must be routed first, before it misfires on the two
-    # -OH oxygens as unsupported heteroatoms.
-    if has_boronic_acid_shape(mol):
-        return name_boronic_acid(mol)
-
-    # A borinic acid (P-68.1.4.1's R2-B-OH) has the same borane-shape
-    # collision as boronic acid above, so it must be routed here for the
-    # same reason.
-    if has_borinic_acid_shape(mol):
-        return name_borinic_acid(mol)
-
-    # A boron atom (P-68's borane substitutive nomenclature, the same shape
-    # as phosphane above with boron in place of phosphorus) must be routed
-    # here for the same reason -- none of the branches below recognize
-    # boron at all.
-    if has_simple_borane_shape(mol):
-        return name_simple_borane(mol)
-
-    # A Group 13 metal (Al/Ga/In/Tl, P-69.1) is the same substitutive-
-    # naming shape as boron/phosphorus above, generalized as one shared
-    # mechanism -- must be routed here for the same reason: none of the
-    # branches below recognize any of these elements at all.
-    if has_group13_hydride_shape(mol):
-        return name_group13_hydride(mol)
-    if has_group14_hydride_shape(mol):
-        return name_group14_hydride(mol)
-    if has_group15_hydride_shape(mol):
-        return name_group15_hydride(mol)
+    for has_shape, namer in (
+        # A phosphorus atom (P-68's phosphane substitutive nomenclature) must
+        # be routed here before every other branch below: none of them
+        # recognize phosphorus at all, and a phosphane carbon substituent would
+        # otherwise reach the plain acyclic-alkane/amine dispatch further down
+        # with no phosphorus handling.
+        (has_polyphosphane_shape, name_polyphosphane),
+        (has_simple_phosphane_shape, name_simple_phosphane),
+        # A boronic acid (P-68.1.4.1's R-B(OH)2) has two hydroxyl oxygens on
+        # boron that `_borane.py`'s own plain-borane shape doesn't expect --
+        # `has_simple_borane_shape` matches any molecule with a boron atom at
+        # all, so this must be routed first, before it misfires on the two
+        # -OH oxygens as unsupported heteroatoms.
+        (has_boronic_acid_shape, name_boronic_acid),
+        # A borinic acid (P-68.1.4.1's R2-B-OH) has the same borane-shape
+        # collision as boronic acid above, so it must be routed here for the
+        # same reason.
+        (has_borinic_acid_shape, name_borinic_acid),
+        # A boron atom (P-68's borane substitutive nomenclature, the same shape
+        # as phosphane above with boron in place of phosphorus) must be routed
+        # here for the same reason -- none of the branches below recognize
+        # boron at all.
+        (has_simple_borane_shape, name_simple_borane),
+        # A Group 13 metal (Al/Ga/In/Tl, P-69.1) is the same substitutive-
+        # naming shape as boron/phosphorus above, generalized as one shared
+        # mechanism -- must be routed here for the same reason: none of the
+        # branches below recognize any of these elements at all.
+        (has_group13_hydride_shape, name_group13_hydride),
+        (has_group14_hydride_shape, name_group14_hydride),
+        (has_group15_hydride_shape, name_group15_hydride),
+    ):
+        if has_shape(mol):
+            return namer(mol)
 
     # A Group 1/2 metal (Li/Na/K/Mg/Ca, P-69.3) is a different additive
     # naming mechanism from Group 13 above, but the same reasoning for
@@ -1088,71 +1009,57 @@ def _name_mol(mol) -> str:
         return name_fullerene(mol)
     if has_substituted_fullerene_cage(mol):
         require_defined_fullerene_numbering(mol, {a for r in mol.GetRingInfo().AtomRings() for a in r})
-
-    # [2.2]paracyclophane/[2.2]metacyclophane (P-26's phane nomenclature
-    # retained-name-style recognition, see module docstring) are recognized
-    # the same way, independent of every other branch below -- their two
-    # -CH2CH2- bridges make their carbon skeletons look like bridged
-    # aromatic ring systems to every other dispatch branch, none of which
-    # understand phane nomenclature at all.
-    if has_cyclophane_name(mol):
-        return name_cyclophane(mol)
-    if has_linear_phane_shape(mol):
-        return name_linear_phane(mol)
-
-    # The seven 1989 IUPAC steroid parent ring hydrides (gonane through
-    # ergostane, Rule 2.1/3S-2.2/2.3/2.4 -- see module docstring) are
-    # recognized the same way, independent of every other branch below:
-    # `_polycyclic.py`'s general von Baeyer engine already names the bare
-    # gonane skeleton (confirmed by direct testing), so this check must
-    # come first or gonane would never be reached.
-    if has_steroid_parent_hydride_name(mol):
-        return name_steroid_parent_hydride(mol)
-
-    # A steroid parent hydride with exactly one ring C=C double bond at a
-    # standard, non-ring-fusion locant (e.g. 'androst-5-ene') must be
-    # checked right alongside the bare-skeleton case above, for the same
-    # von-Baeyer-engine-would-otherwise-claim-it reason.
-    if has_steroid_unsaturated_name(mol):
-        return name_steroid_unsaturated(mol)
-
-    # A steroid parent hydride whose A-ring is aromatic (the mancude
-    # 1,3,5(10)-triene, e.g. 'estra-1,3,5(10)-triene') is checked right
-    # alongside the single-double-bond case above, for the same reason.
-    if has_steroid_aromatic_a_ring_name(mol):
-        return name_steroid_aromatic_a_ring(mol)
-
-
-    # 2,3-didehydrooxepane etc. (P-31.2.2/P-31.2.4.1's 'didehydro' prefix,
-    # adding one ring double bond to a saturated Hantzsch-Widman/retained
-    # parent) -- routed here before the exact-match check below, since a
-    # didehydro ring's extra double bond means it never matches that
-    # check's fully-saturated canonical SMILES anyway, but grouped here
-    # for the shared `saturated_ring_name` dependency.
-    if has_didehydro_ring_name(mol):
-        return name_didehydro_ring(mol)
-
-    # oxirane/thiane/piperidine etc. (P-22.2.1's Hantzsch-Widman
-    # saturated-monocyclic retained names) are recognized the same way --
-    # see _hetero_monocyclic.py's module docstring; none of the O/N
-    # branches below understand a plain heteroatom ring at all.
-    if has_hetero_monocyclic_name(mol):
-        return name_hetero_monocyclic(mol)
-
-    # A single substituent on one of the same mancude parents above (P-22.2.1
-    # heteroatom locants stay fixed; only one ring atom's H is replaced) --
-    # see _hetero_monocyclic.py's module docstring for the role-sequence
-    # matching this uses instead of the exact-match table above.
-    if has_hetero_monocyclic_substituent_name(mol):
-        return name_hetero_monocyclic_substituent(mol)
-
-    # 2H-pyran/4H-pyran (P-25.7.1.3.1's indicated-hydrogen case) -- unlike
-    # furan/thiophene above, RDKit doesn't treat this ring as aromatic at
-    # all, so it needs its own recognition shape rather than an extension
-    # of `_ROLE_SEQUENCES`; must be routed here before `_ether.py` below,
-    # which otherwise rejects any ring outright.
-    if has_pyran_indicated_hydrogen_name(mol):
-        return name_pyran_indicated_hydrogen(mol)
+    for has_shape, namer in (
+        # [2.2]paracyclophane/[2.2]metacyclophane (P-26's phane nomenclature
+        # retained-name-style recognition, see module docstring) are recognized
+        # the same way, independent of every other branch below -- their two
+        # -CH2CH2- bridges make their carbon skeletons look like bridged
+        # aromatic ring systems to every other dispatch branch, none of which
+        # understand phane nomenclature at all.
+        (has_cyclophane_name, name_cyclophane),
+        (has_linear_phane_shape, name_linear_phane),
+        # The seven 1989 IUPAC steroid parent ring hydrides (gonane through
+        # ergostane, Rule 2.1/3S-2.2/2.3/2.4 -- see module docstring) are
+        # recognized the same way, independent of every other branch below:
+        # `_polycyclic.py`'s general von Baeyer engine already names the bare
+        # gonane skeleton (confirmed by direct testing), so this check must
+        # come first or gonane would never be reached.
+        (has_steroid_parent_hydride_name, name_steroid_parent_hydride),
+        # A steroid parent hydride with exactly one ring C=C double bond at a
+        # standard, non-ring-fusion locant (e.g. 'androst-5-ene') must be
+        # checked right alongside the bare-skeleton case above, for the same
+        # von-Baeyer-engine-would-otherwise-claim-it reason.
+        (has_steroid_unsaturated_name, name_steroid_unsaturated),
+        # A steroid parent hydride whose A-ring is aromatic (the mancude
+        # 1,3,5(10)-triene, e.g. 'estra-1,3,5(10)-triene') is checked right
+        # alongside the single-double-bond case above, for the same reason.
+        (has_steroid_aromatic_a_ring_name, name_steroid_aromatic_a_ring),
+        # 2,3-didehydrooxepane etc. (P-31.2.2/P-31.2.4.1's 'didehydro' prefix,
+        # adding one ring double bond to a saturated Hantzsch-Widman/retained
+        # parent) -- routed here before the exact-match check below, since a
+        # didehydro ring's extra double bond means it never matches that
+        # check's fully-saturated canonical SMILES anyway, but grouped here
+        # for the shared `saturated_ring_name` dependency.
+        (has_didehydro_ring_name, name_didehydro_ring),
+        # oxirane/thiane/piperidine etc. (P-22.2.1's Hantzsch-Widman
+        # saturated-monocyclic retained names) are recognized the same way --
+        # see _hetero_monocyclic.py's module docstring; none of the O/N
+        # branches below understand a plain heteroatom ring at all.
+        (has_hetero_monocyclic_name, name_hetero_monocyclic),
+        # A single substituent on one of the same mancude parents above (P-22.2.1
+        # heteroatom locants stay fixed; only one ring atom's H is replaced) --
+        # see _hetero_monocyclic.py's module docstring for the role-sequence
+        # matching this uses instead of the exact-match table above.
+        (has_hetero_monocyclic_substituent_name, name_hetero_monocyclic_substituent),
+        # 2H-pyran/4H-pyran (P-25.7.1.3.1's indicated-hydrogen case) -- unlike
+        # furan/thiophene above, RDKit doesn't treat this ring as aromatic at
+        # all, so it needs its own recognition shape rather than an extension
+        # of `_ROLE_SEQUENCES`; must be routed here before `_ether.py` below,
+        # which otherwise rejects any ring outright.
+        (has_pyran_indicated_hydrogen_name, name_pyran_indicated_hydrogen),
+    ):
+        if has_shape(mol):
+            return namer(mol)
 
     # A fused ring system with bridges (P-25.4) is preferred to a von Baeyer name (P-52.2.5.2.1); it is checked here, after
     # the retained steroid parents and their cyclo/seco/nor modifications, which keep their own names.
@@ -1205,174 +1112,150 @@ def _name_mol(mol) -> str:
             return name_von_baeyer_heteroatom_multi_polycyclic(mol, polycyclic_hetero_core, ring_count)
         if has_mixed_element_heteroatom_shape_polycyclic(mol, polycyclic_hetero_core):
             return name_von_baeyer_heteroatom_mixed_polycyclic(mol, polycyclic_hetero_core, ring_count)
-
-    # A sulfonic acid coexisting with a thiol (P-41/P-43, see
-    # `_seniority.py`) has the same three-oxygen sulfonic sulfur as plain
-    # sulfonic acid below, plus an extra thiol sulfur that `_sulfonic_
-    # acid.py`'s own validation would otherwise reject outright -- must be
-    # routed here first.
-    if has_sulfonic_acid_thiol_shape(mol):
-        return name_sulfonic_acid_thiol(mol)
-    # A sulfonic acid coexisting with a sulfinic acid (P-41/P-43, see
-    # `_seniority.py`) has the same four-oxygen sulfonic sulfur as plain
-    # sulfonic acid below, plus an extra sulfinic sulfur that neither
-    # `_sulfonic_acid.py` nor `_sulfinic_acid.py`'s own validation would
-    # accept -- must be routed here first.
-    if has_sulfonic_acid_sulfinic_acid_shape(mol):
-        return name_sulfonic_acid_sulfinic_acid(mol)
-    # A sulfonic acid coexisting with an unsubstituted sulfonamide
-    # (P-41/P-43, see `_seniority.py`) has the same four-oxygen sulfonic
-    # sulfur as plain sulfonic acid below, plus an extra sulfonamide
-    # sulfur that neither `_sulfonic_acid.py` nor `_sulfonamide.py`'s own
-    # validation would accept -- must be routed here first.
-    if has_sulfonic_acid_sulfonamide_shape(mol):
-        return name_sulfonic_acid_sulfonamide(mol)
-    # A carboxylic acid coexisting with a sulfonic acid (P-41/P-43, see
-    # `_seniority.py`) has the same -COOH carbon shape `_carboxylic_acid.py`
-    # would otherwise reject on sight of the extra sulfonic sulfur, and the
-    # same four-oxygen sulfonic sulfur `_sulfonic_acid.py` would otherwise
-    # reject on sight of the extra -COOH oxygens -- must be routed here
-    # first, before either single-group module.
-    if has_carboxylic_acid_sulfonic_acid_shape(mol):
-        return name_carboxylic_acid_sulfonic_acid(mol)
-    # A carboxylic acid coexisting with a sulfinic acid (P-41/P-43, see
-    # `_seniority.py`) has the same -COOH carbon shape `_carboxylic_acid.py`
-    # would otherwise reject on sight of the extra sulfinic sulfur, and the
-    # same three-oxygen sulfinic sulfur `_sulfinic_acid.py` would otherwise
-    # reject on sight of the extra -COOH oxygens -- must be routed here
-    # first, before either single-group module.
-    if has_carboxylic_acid_sulfinic_acid_shape(mol):
-        return name_carboxylic_acid_sulfinic_acid(mol)
-    # A carboxylic acid coexisting with a seleninic acid (P-41/P-43, see
-    # `_seniority.py`) has the same -COOH carbon shape `_carboxylic_acid.py`
-    # would otherwise reject on sight of the extra seleninic selenium, and
-    # the same three-oxygen-cluster seleninic selenium
-    # `_seleninic_acid.py` would otherwise reject on sight of the extra
-    # -COOH oxygens -- must be routed here first, before either
-    # single-group module.
-    if has_carboxylic_acid_seleninic_acid_shape(mol):
-        return name_carboxylic_acid_seleninic_acid(mol)
-    # A carboxylic acid coexisting with an unsubstituted sulfonamide
-    # (P-41/P-43, see `_seniority.py`) has the same -COOH carbon shape
-    # `_carboxylic_acid.py` would otherwise reject on sight of the extra
-    # sulfonamide sulfur, and the same four-oxygen-cluster sulfonamide
-    # sulfur `_sulfonamide.py` would otherwise reject on sight of the
-    # extra -COOH oxygens -- must be routed here first, before either
-    # single-group module.
-    if has_carboxylic_acid_sulfonamide_shape(mol):
-        return name_carboxylic_acid_sulfonamide(mol)
-    # A sulfonic acid (-SO3H, P-65.3.1) has three oxygens on its own sulfur,
-    # so it must be routed here before the plain "any O atom" branch below --
-    # none of the ether/ester/carboxylic-acid/aldehyde/ketone/alcohol checks
-    # in that branch understand a sulfur-centered oxygen cluster at all.
-    if has_sulfonic_acid_shape(mol):
-        return name_sulfonic_acid(mol)
-    # A selenonic acid (-Se(=O)(=O)OH, P-65.3.1) has the same oxygen-cluster
-    # shape as sulfonic acid above, just on selenium instead of sulfur, so
-    # it too must be routed before the plain "any O atom" branch.
-    if has_selenonic_acid_shape(mol):
-        return name_selenonic_acid(mol)
-    # A telluronic acid (-Te(=O)(=O)OH, P-65.3.1) has the same oxygen-
-    # cluster shape as sulfonic/selenonic acid above, just on tellurium, so
-    # it too must be routed before the plain "any O atom" branch.
-    if has_telluronic_acid_shape(mol):
-        return name_telluronic_acid(mol)
-    # A tellurinic acid (-Te(=O)OH, P-65.3.1) has the same oxygen-cluster
-    # shape as sulfinic/seleninic acid, just on tellurium, so it too must
-    # be routed before the plain "any O atom" branch.
-    if has_tellurinic_acid_shape(mol):
-        return name_tellurinic_acid(mol)
-    # A seleninic acid (-Se(=O)OH, P-65.3.1) has the same oxygen-cluster
-    # shape as sulfinic acid, just on selenium instead of sulfur, so it too
-    # must be routed before the plain "any O atom" branch.
-    if has_seleninic_acid_shape(mol):
-        return name_seleninic_acid(mol)
-    # A sulfonyl group on a plain saturated ring nitrogen (e.g.
-    # 1-methylsulfonylpiperidine) looks sulfonamide-shaped to
-    # `has_sulfonamide_shape` below, which doesn't know about this
-    # ring-as-parent construction and would misclaim/reject it -- must be
-    # routed here first (narrower than `has_ring_amine_shape` alone, so it
-    # doesn't also preempt `_hidden_amide_ketone.py`'s unrelated
-    # acyl-on-ring-nitrogen shape further down).
-    if has_ring_amine_sulfonyl_shape(mol):
-        return name_ring_amine(mol)
-    # A sulfonamide (-SO2NH2, P-65.3.1) has two oxygens on its own sulfur,
-    # the same reasoning as sulfonic acid above, plus a nitrogen that would
-    # otherwise be mistaken for a plain amine -- so it too must be routed
-    # before both the "any O atom" and "any N atom" branches below.
-    if has_sulfonamide_shape(mol):
-        return name_sulfonamide(mol)
-    # A sulfinic acid (-SO2H, P-65.3.1) has two oxygens on its own sulfur --
-    # the same reasoning as sulfonic acid above -- so it too must be routed
-    # before the plain "any O atom" branch.
-    if has_sulfinic_acid_shape(mol):
-        return name_sulfinic_acid(mol)
-    # A sulfinamide (-S(=O)NH2, P-65.3.1) has one oxygen and one nitrogen on
-    # its own sulfur -- the same reasoning as sulfonamide above -- so it too
-    # must be routed before both the "any O atom" and "any N atom" branches.
-    if has_sulfinamide_shape(mol):
-        return name_sulfinamide(mol)
-    # A sulfone (-SO2-, P-63.6) has two oxygens on its own sulfur, just like
-    # a sulfinic/sulfonic acid's cluster above, so it must be routed here for
-    # the same reason -- before it, since a sulfone's sulfur has two carbon
-    # neighbors instead of the acid's hydroxyl, which would otherwise never
-    # match `_sulfonic_acid.py`'s own shape check anyway, but routing it
-    # alongside its acid relatives keeps this family together.
-    if has_sulfone_shape(mol):
-        return name_sulfone(mol)
-    # A sulfoxide (-S(=O)-, P-63.6) has one oxygen on its own sulfur, same
-    # reasoning as the sulfinic acid check above.
-    if has_sulfoxide_shape(mol):
-        return name_sulfoxide(mol)
-    # A selenone (-Se(=O)(=O)-, P-63.6) is the selenium analogue of a
-    # sulfone -- same reasoning, checked before the selenoxide below since
-    # its selenium has two oxygens instead of one.
-    if has_selenone_shape(mol):
-        return name_selenone(mol)
-    # A selenoxide (-Se(=O)-, P-63.6) is the selenium analogue of a
-    # sulfoxide.
-    if has_selenoxide_shape(mol):
-        return name_selenoxide(mol)
-    # A tellurone (-Te(=O)(=O)-, P-63.6) is the tellurium analogue of a
-    # sulfone/selenone -- same reasoning, checked before the telluroxide
-    # below since its tellurium has two oxygens instead of one.
-    if has_tellurone_shape(mol):
-        return name_tellurone(mol)
-    # A telluroxide (-Te(=O)-, P-63.6) is the tellurium analogue of a
-    # sulfoxide/selenoxide.
-    if has_telluroxide_shape(mol):
-        return name_telluroxide(mol)
-    # A nitrone (imine N-oxide, P-74.2.1.2) has its own N+/O- dipole
-    # pair the plain imine/oxime checks below don't expect, and it's
-    # C=N-bonded (like an ordinary imine) so it would otherwise be
-    # swallowed by the oxime-gated `has_simple_imine_shape` branch further
-    # down and misrouted into `_imine.py`'s own rejection there -- must be
-    # routed before it.
-    if has_nitrone_shape(mol):
-        return name_nitrone(mol)
-    # A nitrile oxide (P-74.2.2.2.1.2) has the same dipole-pair issue as
-    # nitrone above, checked here for the same reason (before it would
-    # otherwise fall through to a general heteroatom-allowlist rejection
-    # further down, none of which know about this shape).
-    if has_nitrile_oxide_shape(mol):
-        return name_nitrile_oxide(mol)
-    # A nitro group (-NO2, P-61.5.1) has its own nitrogen and two oxygens
-    # neither the ether/carbonyl/alcohol checks below nor the plain-amine
-    # branch further down expect, so it must be routed before both -- a
-    # nitro-bearing molecule always has an oxygen atom, so it would
-    # otherwise be swallowed by the "any O atom" branch's unconditional
-    # `name_alcohol` fallback and never even reach the nitrogen branch.
-    if has_nitro_shape(mol):
-        return name_nitro(mol)
-    # A nitroso group (-N=O, P-61.5.1's sibling prefix) has the same "own
-    # oxygen" issue as nitro above, so it must be routed here for the same
-    # reason.
-    if has_nitroso_shape(mol):
-        return name_nitroso(mol)
-    # An isocyanate group (-N=C=O, P-61.8) has the same "own oxygen" issue
-    # as nitro above, so it must be routed here for the same reason.
-    if has_isocyanate_shape(mol):
-        return name_isocyanate(mol)
+    for has_shape, namer in (
+        # A sulfonic acid coexisting with a thiol (P-41/P-43, see
+        # `_seniority.py`) has the same three-oxygen sulfonic sulfur as plain
+        # sulfonic acid below, plus an extra thiol sulfur that `_sulfonic_
+        # acid.py`'s own validation would otherwise reject outright -- must be
+        # routed here first.
+        (has_sulfonic_acid_thiol_shape, name_sulfonic_acid_thiol),
+        # A sulfonic acid coexisting with a sulfinic acid (P-41/P-43, see
+        # `_seniority.py`) has the same four-oxygen sulfonic sulfur as plain
+        # sulfonic acid below, plus an extra sulfinic sulfur that neither
+        # `_sulfonic_acid.py` nor `_sulfinic_acid.py`'s own validation would
+        # accept -- must be routed here first.
+        (has_sulfonic_acid_sulfinic_acid_shape, name_sulfonic_acid_sulfinic_acid),
+        # A sulfonic acid coexisting with an unsubstituted sulfonamide
+        # (P-41/P-43, see `_seniority.py`) has the same four-oxygen sulfonic
+        # sulfur as plain sulfonic acid below, plus an extra sulfonamide
+        # sulfur that neither `_sulfonic_acid.py` nor `_sulfonamide.py`'s own
+        # validation would accept -- must be routed here first.
+        (has_sulfonic_acid_sulfonamide_shape, name_sulfonic_acid_sulfonamide),
+        # A carboxylic acid coexisting with a sulfonic acid (P-41/P-43, see
+        # `_seniority.py`) has the same -COOH carbon shape `_carboxylic_acid.py`
+        # would otherwise reject on sight of the extra sulfonic sulfur, and the
+        # same four-oxygen sulfonic sulfur `_sulfonic_acid.py` would otherwise
+        # reject on sight of the extra -COOH oxygens -- must be routed here
+        # first, before either single-group module.
+        (has_carboxylic_acid_sulfonic_acid_shape, name_carboxylic_acid_sulfonic_acid),
+        # A carboxylic acid coexisting with a sulfinic acid (P-41/P-43, see
+        # `_seniority.py`) has the same -COOH carbon shape `_carboxylic_acid.py`
+        # would otherwise reject on sight of the extra sulfinic sulfur, and the
+        # same three-oxygen sulfinic sulfur `_sulfinic_acid.py` would otherwise
+        # reject on sight of the extra -COOH oxygens -- must be routed here
+        # first, before either single-group module.
+        (has_carboxylic_acid_sulfinic_acid_shape, name_carboxylic_acid_sulfinic_acid),
+        # A carboxylic acid coexisting with a seleninic acid (P-41/P-43, see
+        # `_seniority.py`) has the same -COOH carbon shape `_carboxylic_acid.py`
+        # would otherwise reject on sight of the extra seleninic selenium, and
+        # the same three-oxygen-cluster seleninic selenium
+        # `_seleninic_acid.py` would otherwise reject on sight of the extra
+        # -COOH oxygens -- must be routed here first, before either
+        # single-group module.
+        (has_carboxylic_acid_seleninic_acid_shape, name_carboxylic_acid_seleninic_acid),
+        # A carboxylic acid coexisting with an unsubstituted sulfonamide
+        # (P-41/P-43, see `_seniority.py`) has the same -COOH carbon shape
+        # `_carboxylic_acid.py` would otherwise reject on sight of the extra
+        # sulfonamide sulfur, and the same four-oxygen-cluster sulfonamide
+        # sulfur `_sulfonamide.py` would otherwise reject on sight of the
+        # extra -COOH oxygens -- must be routed here first, before either
+        # single-group module.
+        (has_carboxylic_acid_sulfonamide_shape, name_carboxylic_acid_sulfonamide),
+        # A sulfonic acid (-SO3H, P-65.3.1) has three oxygens on its own sulfur,
+        # so it must be routed here before the plain "any O atom" branch below --
+        # none of the ether/ester/carboxylic-acid/aldehyde/ketone/alcohol checks
+        # in that branch understand a sulfur-centered oxygen cluster at all.
+        (has_sulfonic_acid_shape, name_sulfonic_acid),
+        # A selenonic acid (-Se(=O)(=O)OH, P-65.3.1) has the same oxygen-cluster
+        # shape as sulfonic acid above, just on selenium instead of sulfur, so
+        # it too must be routed before the plain "any O atom" branch.
+        (has_selenonic_acid_shape, name_selenonic_acid),
+        # A telluronic acid (-Te(=O)(=O)OH, P-65.3.1) has the same oxygen-
+        # cluster shape as sulfonic/selenonic acid above, just on tellurium, so
+        # it too must be routed before the plain "any O atom" branch.
+        (has_telluronic_acid_shape, name_telluronic_acid),
+        # A tellurinic acid (-Te(=O)OH, P-65.3.1) has the same oxygen-cluster
+        # shape as sulfinic/seleninic acid, just on tellurium, so it too must
+        # be routed before the plain "any O atom" branch.
+        (has_tellurinic_acid_shape, name_tellurinic_acid),
+        # A seleninic acid (-Se(=O)OH, P-65.3.1) has the same oxygen-cluster
+        # shape as sulfinic acid, just on selenium instead of sulfur, so it too
+        # must be routed before the plain "any O atom" branch.
+        (has_seleninic_acid_shape, name_seleninic_acid),
+        # A sulfonyl group on a plain saturated ring nitrogen (e.g.
+        # 1-methylsulfonylpiperidine) looks sulfonamide-shaped to
+        # `has_sulfonamide_shape` below, which doesn't know about this
+        # ring-as-parent construction and would misclaim/reject it -- must be
+        # routed here first (narrower than `has_ring_amine_shape` alone, so it
+        # doesn't also preempt `_hidden_amide_ketone.py`'s unrelated
+        # acyl-on-ring-nitrogen shape further down).
+        (has_ring_amine_sulfonyl_shape, name_ring_amine),
+        # A sulfonamide (-SO2NH2, P-65.3.1) has two oxygens on its own sulfur,
+        # the same reasoning as sulfonic acid above, plus a nitrogen that would
+        # otherwise be mistaken for a plain amine -- so it too must be routed
+        # before both the "any O atom" and "any N atom" branches below.
+        (has_sulfonamide_shape, name_sulfonamide),
+        # A sulfinic acid (-SO2H, P-65.3.1) has two oxygens on its own sulfur --
+        # the same reasoning as sulfonic acid above -- so it too must be routed
+        # before the plain "any O atom" branch.
+        (has_sulfinic_acid_shape, name_sulfinic_acid),
+        # A sulfinamide (-S(=O)NH2, P-65.3.1) has one oxygen and one nitrogen on
+        # its own sulfur -- the same reasoning as sulfonamide above -- so it too
+        # must be routed before both the "any O atom" and "any N atom" branches.
+        (has_sulfinamide_shape, name_sulfinamide),
+        # A sulfone (-SO2-, P-63.6) has two oxygens on its own sulfur, just like
+        # a sulfinic/sulfonic acid's cluster above, so it must be routed here for
+        # the same reason -- before it, since a sulfone's sulfur has two carbon
+        # neighbors instead of the acid's hydroxyl, which would otherwise never
+        # match `_sulfonic_acid.py`'s own shape check anyway, but routing it
+        # alongside its acid relatives keeps this family together.
+        (has_sulfone_shape, name_sulfone),
+        # A sulfoxide (-S(=O)-, P-63.6) has one oxygen on its own sulfur, same
+        # reasoning as the sulfinic acid check above.
+        (has_sulfoxide_shape, name_sulfoxide),
+        # A selenone (-Se(=O)(=O)-, P-63.6) is the selenium analogue of a
+        # sulfone -- same reasoning, checked before the selenoxide below since
+        # its selenium has two oxygens instead of one.
+        (has_selenone_shape, name_selenone),
+        # A selenoxide (-Se(=O)-, P-63.6) is the selenium analogue of a
+        # sulfoxide.
+        (has_selenoxide_shape, name_selenoxide),
+        # A tellurone (-Te(=O)(=O)-, P-63.6) is the tellurium analogue of a
+        # sulfone/selenone -- same reasoning, checked before the telluroxide
+        # below since its tellurium has two oxygens instead of one.
+        (has_tellurone_shape, name_tellurone),
+        # A telluroxide (-Te(=O)-, P-63.6) is the tellurium analogue of a
+        # sulfoxide/selenoxide.
+        (has_telluroxide_shape, name_telluroxide),
+        # A nitrone (imine N-oxide, P-74.2.1.2) has its own N+/O- dipole
+        # pair the plain imine/oxime checks below don't expect, and it's
+        # C=N-bonded (like an ordinary imine) so it would otherwise be
+        # swallowed by the oxime-gated `has_simple_imine_shape` branch further
+        # down and misrouted into `_imine.py`'s own rejection there -- must be
+        # routed before it.
+        (has_nitrone_shape, name_nitrone),
+        # A nitrile oxide (P-74.2.2.2.1.2) has the same dipole-pair issue as
+        # nitrone above, checked here for the same reason (before it would
+        # otherwise fall through to a general heteroatom-allowlist rejection
+        # further down, none of which know about this shape).
+        (has_nitrile_oxide_shape, name_nitrile_oxide),
+        # A nitro group (-NO2, P-61.5.1) has its own nitrogen and two oxygens
+        # neither the ether/carbonyl/alcohol checks below nor the plain-amine
+        # branch further down expect, so it must be routed before both -- a
+        # nitro-bearing molecule always has an oxygen atom, so it would
+        # otherwise be swallowed by the "any O atom" branch's unconditional
+        # `name_alcohol` fallback and never even reach the nitrogen branch.
+        (has_nitro_shape, name_nitro),
+        # A nitroso group (-N=O, P-61.5.1's sibling prefix) has the same "own
+        # oxygen" issue as nitro above, so it must be routed here for the same
+        # reason.
+        (has_nitroso_shape, name_nitroso),
+        # An isocyanate group (-N=C=O, P-61.8) has the same "own oxygen" issue
+        # as nitro above, so it must be routed here for the same reason.
+        (has_isocyanate_shape, name_isocyanate),
+    ):
+        if has_shape(mol):
+            return namer(mol)
     # An oxime (=N-OH/=N-O-R, P-68.3.1.1.2) is imine-shaped (C=N) but has
     # its own oxygen the ether/carbonyl/alcohol checks below don't expect
     # at all, so it must be routed before the "any O atom" branch for the
@@ -1387,22 +1270,20 @@ def _name_mol(mol) -> str:
     # down.
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()) and has_simple_imine_shape(mol):
         return name_imine(mol)
-
-    # Thiourea (H2N-C(=S)-NH2) has no oxygen at all, so it would otherwise
-    # fall straight through the oxygen-gated block below (and every other
-    # check in it) to the plain-amine fallback at the very end of this
-    # function -- it must be checked here, unconditionally, before that
-    # gate.
-    if has_thiourea_shape(mol):
-        return name_thiourea(mol)
-
-    # Selenourea/tellurourea (H2N-C(=Se/Te)-NH2) have no oxygen either, for
-    # the same reason as thiourea above.
-    if has_selenourea_shape(mol):
-        return name_selenourea(mol)
-
-    if has_tellurourea_shape(mol):
-        return name_tellurourea(mol)
+    for has_shape, namer in (
+        # Thiourea (H2N-C(=S)-NH2) has no oxygen at all, so it would otherwise
+        # fall straight through the oxygen-gated block below (and every other
+        # check in it) to the plain-amine fallback at the very end of this
+        # function -- it must be checked here, unconditionally, before that
+        # gate.
+        (has_thiourea_shape, name_thiourea),
+        # Selenourea/tellurourea (H2N-C(=Se/Te)-NH2) have no oxygen either, for
+        # the same reason as thiourea above.
+        (has_selenourea_shape, name_selenourea),
+        (has_tellurourea_shape, name_tellurourea),
+    ):
+        if has_shape(mol):
+            return namer(mol)
 
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
         # An acyl group bonded directly to the nitrogen of an otherwise-
@@ -1999,76 +1880,22 @@ def _name_mol(mol) -> str:
         if has_tellurol_shape(mol):
             return name_tellurol(mol)
         return name_amine(mol)
-    if has_thione_shape(mol):
-        # A thione (C=S, P-64.6.1) has no oxygen or nitrogen, so it only
-        # reaches this branch once both are ruled out above. Its own shape
-        # check is precise (a real C=S double bond), unlike thiol's/
-        # sulfide's own loose "any sulfur atom" checks, so it's safe to
-        # check here regardless of order relative to them.
-        return name_thione(mol)
-    if has_disulfide_shape(mol):
-        # A disulfide (R-S-S-R') has two sulfurs -- it would otherwise
-        # look thiol-shaped to the check below (that check just looks for
-        # the presence of any sulfur atom) -- must be routed here first.
-        return name_disulfide(mol)
-    if has_sulfide_shape(mol):
-        # A plain -S- sulfide (P-63.2.1) has no suffix, so it must be routed
-        # here before has_thiol_shape below: _thiol.py's validation rejects
-        # a degree-2 sulfur outright (not a monovalent -SH), so a sulfide
-        # would otherwise raise the wrong error there instead of being named.
-        return name_sulfide(mol)
-    if has_thiol_shape(mol):
-        # A thiol (-SH, P-63.1.1) has neither O nor N, so it only reaches
-        # this branch once both are ruled out above (a thiol coexisting
-        # with an amine is instead routed inside the nitrogen-gated branch
-        # above, before its own `name_amine` fallback).
-        return name_thiol(mol)
-    if has_selone_shape(mol):
-        # A selone (C=Se, P-64.6.1) has the same precise-shape reasoning
-        # as thione above (a real C=Se double bond), so it's safe to check
-        # here regardless of order relative to the selenide/selenol chain.
-        return name_selone(mol)
-    if has_diselenide_shape(mol):
-        # A diselenide (R-Se-Se-R') has two seleniums -- it would
-        # otherwise look selenol-shaped to the check below (that check
-        # just looks for the presence of any selenium atom) -- must be
-        # routed here first.
-        return name_diselenide(mol)
-    if has_selenide_shape(mol):
-        # A plain -Se- selenide (P-63.2.1) has no suffix, so it must be
-        # routed here before has_selenol_shape below for the same reason
-        # as has_sulfide_shape above (that check doesn't look at degree
-        # at all, so a degree-2 selenide would otherwise raise the wrong
-        # error inside `name_selenol`'s degree-1 validation).
-        return name_selenide(mol)
-    if has_selenol_shape(mol):
-        # A selenol (-SeH, P-63.1.1) is the next chalcogen analogue after
-        # a thiol -- has neither O, N, nor S, so it only reaches this
-        # branch once all three are ruled out above.
-        return name_selenol(mol)
-    if has_tellone_shape(mol):
-        # A tellone (C=Te, P-64.6.1) has the same precise-shape reasoning
-        # as thione/selone above, so it's safe to check here regardless of
-        # order relative to the telluride/tellurol chain.
-        return name_tellone(mol)
-    if has_ditelluride_shape(mol):
-        # A ditelluride (R-Te-Te-R') has two telluriums -- it would
-        # otherwise look tellurol-shaped to the check below (that check
-        # just looks for the presence of any tellurium atom) -- must be
-        # routed here first.
-        return name_ditelluride(mol)
-    if has_telluride_shape(mol):
-        # A plain -Te- telluride (P-63.2.1) has no suffix, so it must be
-        # routed here before has_tellurol_shape below for the same reason
-        # as has_selenide_shape above (that check doesn't look at degree
-        # at all, so a degree-2 telluride would otherwise raise the wrong
-        # error inside `name_tellurol`'s degree-1 validation).
-        return name_telluride(mol)
-    if has_tellurol_shape(mol):
-        # A tellurol (-TeH, P-63.1.1) is the next chalcogen analogue after
-        # a selenol -- has neither O, N, S, nor Se, so it only reaches
-        # this branch once all four are ruled out above.
-        return name_tellurol(mol)
+    for has_shape, namer in (
+        (has_thione_shape, name_thione),  # A thione (C=S, P-64.6.1) has no oxygen or nitrogen, so it only # reaches this branch once both are ruled out above. Its own shape # check is precise (a real C=S double bond), unlike thiol's/ # sulfide's own loose "any sulfur atom" checks, so it's safe to # check here regardless of order relative to them.
+        (has_disulfide_shape, name_disulfide),  # A disulfide (R-S-S-R') has two sulfurs -- it would otherwise # look thiol-shaped to the check below (that check just looks for # the presence of any sulfur atom) -- must be routed here first.
+        (has_sulfide_shape, name_sulfide),  # A plain -S- sulfide (P-63.2.1) has no suffix, so it must be routed # here before has_thiol_shape below: _thiol.py's validation rejects # a degree-2 sulfur outright (not a monovalent -SH), so a sulfide # would otherwise raise the wrong error there instead of being named.
+        (has_thiol_shape, name_thiol),  # A thiol (-SH, P-63.1.1) has neither O nor N, so it only reaches # this branch once both are ruled out above (a thiol coexisting # with an amine is instead routed inside the nitrogen-gated branch # above, before its own `name_amine` fallback).
+        (has_selone_shape, name_selone),  # A selone (C=Se, P-64.6.1) has the same precise-shape reasoning # as thione above (a real C=Se double bond), so it's safe to check # here regardless of order relative to the selenide/selenol chain.
+        (has_diselenide_shape, name_diselenide),  # A diselenide (R-Se-Se-R') has two seleniums -- it would # otherwise look selenol-shaped to the check below (that check # just looks for the presence of any selenium atom) -- must be # routed here first.
+        (has_selenide_shape, name_selenide),  # A plain -Se- selenide (P-63.2.1) has no suffix, so it must be # routed here before has_selenol_shape below for the same reason # as has_sulfide_shape above (that check doesn't look at degree # at all, so a degree-2 selenide would otherwise raise the wrong # error inside `name_selenol`'s degree-1 validation).
+        (has_selenol_shape, name_selenol),  # A selenol (-SeH, P-63.1.1) is the next chalcogen analogue after # a thiol -- has neither O, N, nor S, so it only reaches this # branch once all three are ruled out above.
+        (has_tellone_shape, name_tellone),  # A tellone (C=Te, P-64.6.1) has the same precise-shape reasoning # as thione/selone above, so it's safe to check here regardless of # order relative to the telluride/tellurol chain.
+        (has_ditelluride_shape, name_ditelluride),  # A ditelluride (R-Te-Te-R') has two telluriums -- it would # otherwise look tellurol-shaped to the check below (that check # just looks for the presence of any tellurium atom) -- must be # routed here first.
+        (has_telluride_shape, name_telluride),  # A plain -Te- telluride (P-63.2.1) has no suffix, so it must be # routed here before has_tellurol_shape below for the same reason # as has_selenide_shape above (that check doesn't look at degree # at all, so a degree-2 telluride would otherwise raise the wrong # error inside `name_tellurol`'s degree-1 validation).
+        (has_tellurol_shape, name_tellurol),  # A tellurol (-TeH, P-63.1.1) is the next chalcogen analogue after # a selenol -- has neither O, N, S, nor Se, so it only reaches # this branch once all four are ruled out above.
+    ):
+        if has_shape(mol):
+            return namer(mol)
 
     num_rings = mol.GetRingInfo().NumRings()
     # Aromatic rings carry non-single (order 1.5) bonds, which every other
