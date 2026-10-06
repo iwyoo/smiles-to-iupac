@@ -98,6 +98,8 @@ def test_nucleotidyl_groups(smiles, expected):
         ('Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)(O)O[C@@H]2[C@H](O)[C@@H](CO)O[C@H]2n2cnc3c(N)ncnc32)[C@@H](O)[C@H]1O', 'adenylyl-(2′→5′)-adenosine'),
         ('Nc1nc2c(ncn2[C@H]2C[C@H](O)[C@@H](COP(=O)(O)O[C@H]3C[C@H](n4ccc(=O)[nH]c4=O)O[C@@H]3CO)O2)c(=O)[nH]1', '2′-deoxyuridylyl-(3′→5′)-2′-deoxyguanosine'),
         ('Cc1cn([C@H]2C[C@H](OP(=O)(O)O[C@H]3C[C@H](n4cnc5c(N)ncnc54)O[C@@H]3CO)[C@@H](CO)O2)c(=O)[nH]c1=O', '2′-deoxyadenylyl-(3′→3′)-thymidine'),
+        ('Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)(O)O[C@H]2[C@@H](O)[C@H](n3cnc4c(N)ncnc43)O[C@@H]2COP(=O)(O)O)[C@@H](O)[C@H]1O', 'adenylyl-(5′→3′)-5′-adenylic acid'),
+        ('Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)(O)O[C@H]2[C@@H](OC)[C@H](n3cnc4c(N)ncnc43)O[C@@H]2COP(=O)(O)O[C@H]2[C@@H](O)[C@H](n3cnc4c(N)ncnc43)O[C@@H]2CO)[C@@H](O)[C@H]1O', 'adenylyl-(3′→5′)-2′-O-methyladenylyl-(3′→5′)-adenosine'),
     ],
 )
 def test_oligonucleotides(smiles, expected):

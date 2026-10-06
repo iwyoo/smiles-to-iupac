@@ -10,7 +10,9 @@ import re
 from rdkit import Chem
 
 from ._common import UnsupportedStructure
-from ._nucleoside_substituted import _NUCLEOTIDYL_STEM, _best_name
+from ._nucleoside_substituted import _NUCLEOTIDE_STEM, _NUCLEOTIDYL_STEM, _best_name
+
+_STEM_OF_ACID = {_NUCLEOTIDE_STEM[nucleoside]: stem for nucleoside, stem in _NUCLEOTIDYL_STEM.items()}
 
 _LINK = Chem.MolFromSmarts("[PX4](=[O,S])([OX2H1,SX2H1])([OX2][#6])[OX2][#6]")
 _SUGAR = Chem.MolFromSmarts("[#7]-[CH1]1[CH2,CH1][CH2,CH1][CH1]([CH2,CH3,CH1])O1")
@@ -45,6 +47,28 @@ def _unit_position(fragment, oxygen_orig):
     raise UnsupportedStructure("a link not on a sugar carbon of a nucleoside")
 
 
+_NUCLEOTIDE_ACID = re.compile(r"(?P<head>.*?)-?\d+′-(?P<stem>[a-z]+ic) acid")
+
+
+def _nucleotidyl_prefix(fragment, oxygen_orig, terminals):
+    """P-106.3.3: the unit as a nucleotide whose phosphate sits on the link oxygen, its '-ic acid' ending turned into
+    '-yl' and the phosphate locant left to the (x′→y′) bracket; None when the unit is not named as one nucleotide."""
+    editable = Chem.RWMol(fragment)
+    (oxygen,) = [a.GetIdx() for a in editable.GetAtoms() if a.GetIntProp("orig") == oxygen_orig]
+    phosphorus = editable.AddAtom(Chem.Atom(15))
+    editable.AddBond(oxygen, phosphorus, Chem.BondType.SINGLE)
+    oxo, acid = terminals
+    editable.AddBond(phosphorus, editable.AddAtom(Chem.Atom(oxo)), Chem.BondType.DOUBLE)
+    editable.AddBond(phosphorus, editable.AddAtom(Chem.Atom(acid)), Chem.BondType.SINGLE)
+    editable.AddBond(phosphorus, editable.AddAtom(Chem.Atom(8)), Chem.BondType.SINGLE)
+    nucleotide = editable.GetMol()
+    Chem.SanitizeMol(nucleotide)
+    match = _NUCLEOTIDE_ACID.fullmatch(_best_name(nucleotide) or "")
+    if match is None or match["stem"] not in _STEM_OF_ACID:
+        return None
+    return match["head"] + _STEM_OF_ACID[match["stem"]]
+
+
 def _compute(mol):
     links = _link_atoms(mol)
     if not links:
@@ -70,22 +94,19 @@ def _compute(mol):
     for f_idx, fragment in enumerate(fragments):
         for atom in fragment.GetAtoms():
             owner[atom.GetIntProp("orig")] = f_idx
-    names = []
-    for fragment in fragments:
-        name = _best_name(fragment)
-        if name is None or not _UNIT.fullmatch(name):
-            return None
-        names.append(name)
+    names = [_best_name(fragment) for fragment in fragments]
+    if any(name is None for name in names):
+        return None
     edges = []
-    for _, _, o1, o2, sulfur in links:
+    for (_, (oxo, acid), o1, o2, sulfur) in links:
         a, b = owner[o1], owner[o2]
         if a == b:
             return None
         edges.append(
-            (a, _unit_position(fragments[a], o1), b, _unit_position(fragments[b], o2), sulfur)
+            (a, _unit_position(fragments[a], o1), b, _unit_position(fragments[b], o2), sulfur, (o1, o2, mol.GetAtomWithIdx(oxo).GetAtomicNum(), mol.GetAtomWithIdx(acid).GetAtomicNum()))
         )
     degree = {}
-    for a, _, b, _, _ in edges:
+    for a, _, b, _, _, _ in edges:
         degree[a] = degree.get(a, 0) + 1
         degree[b] = degree.get(b, 0) + 1
     ends = [u for u, d in degree.items() if d == 1]
@@ -99,7 +120,7 @@ def _compute(mol):
             step = next(
                 (
                     i
-                    for i, (a, _, b, _, _) in enumerate(edges)
+                    for i, (a, _, b, _, _, _) in enumerate(edges)
                     if i not in used and here in (a, b)
                 ),
                 None,
@@ -107,29 +128,42 @@ def _compute(mol):
             if step is None:
                 return None
             used.add(step)
-            a, pa, b, pb, sulfur = edges[step]
+            a, pa, b, pb, sulfur, atoms = edges[step]
             if here == a:
-                steps.append((pa, pb, sulfur))
+                steps.append((pa, pb, sulfur, atoms[0], atoms[2:]))
                 here = b
             else:
-                steps.append((pb, pa, sulfur))
+                steps.append((pb, pa, sulfur, atoms[1], atoms[2:]))
                 here = a
             sequence.append(here)
         candidates.append((steps, sequence))
-    steps, sequence = min(
-        candidates, key=lambda c: ([(int(x), int(y)) for x, y, _ in c[0]], [names[i] for i in c[1]])
-    )
+    valid = []
+    for steps, sequence in candidates:
+        text = _chain_text(fragments, names, steps, sequence)
+        if text is not None:
+            key = ([(int(x), int(y)) for x, y, *_ in steps], [names[i] for i in sequence])
+            valid.append((key, text + names[sequence[-1]]))
+    return min(valid)[1] if valid else None
+
+
+def _chain_text(fragments, names, steps, sequence):
     text = []
-    for (first, second, sulfur), unit in zip(steps, sequence):
-        deoxy, base = _UNIT.fullmatch(names[unit]).groups()
-        acyl = (
-            (deoxy or "")
-            + ("-" if deoxy and sulfur else "")
-            + ("P-thio" if sulfur else "")
-            + _NUCLEOTIDYL_STEM[base]
-        )
+    for (first, second, sulfur, oxygen, terminals), unit in zip(steps, sequence):
+        plain = _UNIT.fullmatch(names[unit])
+        if plain:
+            deoxy, base = plain.groups()
+            acyl = (
+                (deoxy or "")
+                + ("-" if deoxy and sulfur else "")
+                + ("P-thio" if sulfur else "")
+                + _NUCLEOTIDYL_STEM[base]
+            )
+        else:
+            acyl = _nucleotidyl_prefix(fragments[unit], oxygen, terminals)
+            if acyl is None:
+                return None
         text.append(f"{acyl}-({first}′→{second}′)-")
-    return "".join(text) + names[sequence[-1]]
+    return "".join(text)
 
 
 def oligonucleotide_name(mol):
