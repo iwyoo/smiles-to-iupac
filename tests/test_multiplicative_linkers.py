@@ -414,3 +414,15 @@ def test_unsymmetrical_linkers_and_units_are_named_substitutively(smiles, expect
 )
 def test_ring_seniority_ranks_every_heteroatom_of_the_element_order(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OC1CCCCC1[Sn](C)(C)C1CCCCC1O", "2,2'-(dimethylstannanediyl)di(cyclohexan-1-ol)"),
+        ("OC1CCCCC1C(O)C1CCCCC1O", "2,2'-(hydroxymethylene)di(cyclohexan-1-ol)"),
+        ("OC1CCCCC1C(O)C1CCCCC1", "2-[cyclohexyl(hydroxy)methyl]cyclohexan-1-ol"),
+    ],
+)
+def test_substituted_metal_linker_and_principal_group_count_between_parents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

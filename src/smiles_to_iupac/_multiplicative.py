@@ -188,7 +188,12 @@ def _class_gate(mol, groups, selected, systems, node_of):
     best_in = min((g.rank for g in groups if g.anchor in unit_atoms and g.rank <= SUFFIX_RANKS["amine"]), default=None)
     best_out = min((g.rank for g in groups if g.anchor not in unit_atoms and g.rank <= SUFFIX_RANKS["amine"]), default=None)
     if best_in is not None:
-        return best_out is None or best_out > best_in
+        if best_out is None or best_out > best_in:
+            return True
+        # P-44.1.1: at equal class the parent holding more principal groups wins; a tie goes to the rings (P-44.1.2.2)
+        inside = sum(1 for g in groups if g.anchor in unit_atoms and g.rank == best_in)
+        outside = sum(1 for g in groups if g.anchor not in unit_atoms and g.rank == best_in)
+        return best_out == best_in and inside >= outside
     if best_out is not None:
         return False
     selected_nodes = {u.node for u in selected}
