@@ -4,9 +4,10 @@ import pytest
 from rdkit import Chem
 
 from smiles_to_iupac import NonPreferredNameWarning, smiles_to_iupac
-from smiles_to_iupac._appendix3_stereo_data import STEREO
-from smiles_to_iupac._appendix3_table import SKELETONS
 from smiles_to_iupac._common import UnsupportedStructure
+from smiles_to_iupac._stereoparents import STEREOPARENTS
+
+SKELETONS = {name: p.smiles for name, p in STEREOPARENTS.items() if p.scope != "table10.1"}
 
 YOHIMBAN = "C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2"
 
@@ -15,6 +16,14 @@ def _bare(smiles):
     mol = Chem.MolFromSmiles(smiles)
     for atom in mol.GetAtoms():
         atom.SetAtomMapNum(0)
+    return Chem.MolToSmiles(mol)
+
+
+def _unconfigured(name, smiles):
+    if STEREOPARENTS[name].ref:
+        return smiles
+    mol = Chem.MolFromSmiles(smiles)
+    Chem.RemoveStereochemistry(mol)
     return Chem.MolToSmiles(mol)
 
 
@@ -31,17 +40,11 @@ def test_every_atom_of_a_skeleton_has_its_own_locant():
         assert all(maps) and len(set(maps)) == len(maps), name
 
 
-def test_stereo_parents_are_drawn_on_the_same_graph_as_their_skeleton():
-    for name, (smiles, ref, _) in STEREO.items():
-        assert _graph(smiles) == _graph(SKELETONS[name]), name
-        assert ref, name
-
-
 def test_every_bare_skeleton_is_named_by_its_retained_name():
     # a parent that has an implied configuration is given in it, which also tells dammarane from protostane
     wrong = {}
     for name, smiles in SKELETONS.items():
-        got = smiles_to_iupac(_bare(STEREO[name][0] if name in STEREO else smiles))
+        got = smiles_to_iupac(_bare(_unconfigured(name, smiles)))
         if got != name:
             wrong[name] = got
     assert wrong == {}

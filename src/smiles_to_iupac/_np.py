@@ -8,11 +8,10 @@ from rdkit import Chem
 from ._common import UnsupportedStructure
 from ._pin import mark
 from ._np_build import _homo_position, build
-from ._np_core import get_parent, loc_key
+from ._np_core import PARENTS, get_parent, loc_key
 from ._np_diff import WORK_LIMIT, lower_bound, read_operations
 from ._np_match import View, embeddings, skeleton_has_stereo
 from ._np_name import _SENIORITY, classify
-from ._np_parents import PARENTS
 from ._np_rings import components
 from ._np_skel import Skel, variants
 from ._np_text import stem_info
