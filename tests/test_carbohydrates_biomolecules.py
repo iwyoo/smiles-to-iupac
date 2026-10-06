@@ -354,3 +354,21 @@ def test_glycoglycerolipids(smiles, expected):
 )
 def test_substituted_amino_acids(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OC(=O)c1ccc(O[C@@H]2O[C@H](CO)[C@@H](O)[C@H](O)[C@H]2O)cc1", "4-(β-D-glucopyranosyloxy)benzoic acid"),
+        (
+            "OC(=O)c1ccc(O[C@H]2[C@H](O)[C@@H](O)C(O)O[C@@H]2CO)cc1",
+            "4-{[(2R,3S,4R,5R)-4,5,6-trihydroxy-2-(hydroxymethyl)oxan-3-yl]oxy}benzoic acid",
+        ),
+        (
+            "OC(=O)c1ccc(O[C@H]2[C@H](O)C(O)O[C@@H](CO)[C@@H]2O)cc1",
+            "4-{[(3S,4R,5S,6S)-2,3,5-trihydroxy-6-(hydroxymethyl)oxan-4-yl]oxy}benzoic acid",
+        ),
+    ],
+)
+def test_sugar_substituent_is_glycosyl_only_when_linked_at_the_anomeric_carbon(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
