@@ -235,6 +235,7 @@ from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
 from ._spiro import find_monospiro_atom
 from ._steroid_parent_hydrides import steroid_suffix_name
 from ._substituents import (
+    CompoundPrefix,
     format_substituent_prefixes,
     name_branch,
     ring_branch_stereo_display,
@@ -307,7 +308,7 @@ def _alkoxy_name(length):
     'oxy' ('pentyloxy')."""
     if length in _CONTRACTED_ALKOXY_NAMES:
         return _CONTRACTED_ALKOXY_NAMES[length]
-    return alkyl_name(length) + "oxy"
+    return CompoundPrefix(alkyl_name(length) + "oxy")
 
 
 def _validate_and_collect_hydroxyls(mol, aromatic_ring_atoms=frozenset()):

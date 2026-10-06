@@ -19,7 +19,7 @@ from ._common import (
 )
 from ._numerals import multiplying_prefix
 from ._terminal_chain import best_terminal_chain
-from ._substituents import name_branch
+from ._substituents import CompoundPrefix, name_branch
 
 
 @dataclass(frozen=True)
@@ -206,10 +206,10 @@ class Dichalcogenide:
             sub_name, sub_compound = name_branch(full_graph, sub_root, sub_e, {}, mol=mol)
             if sub_compound:
                 raise UnsupportedStructure(f"a branched alkylpoly{self.stem} substituent is not supported yet")
-            terminals = {parent_e: sub_name + bare_name}
+            terminals = {parent_e: CompoundPrefix(sub_name + bare_name)}
 
         parent_carbon_graph = component_subgraph(carbon_graph, parent_root)
-        _, chain, name = best_terminal_chain(full_graph, parent_carbon_graph, terminals, bare_name, mol=mol)
+        _, chain, name = best_terminal_chain(full_graph, parent_carbon_graph, terminals, mol=mol)
 
         stereo = specified_stereocenters(mol)
         if stereo is None:

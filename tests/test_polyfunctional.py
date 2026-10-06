@@ -388,7 +388,7 @@ def test_hydroxyl_coexisting__ester_amine():
 
 
 def test_branched_alkoxy_r_prime():
-    assert smiles_to_iupac("CC(C)OCC=O") == "2-(propan-2-yloxy)acetaldehyde"
+    assert smiles_to_iupac("CC(C)OCC=O") == "2-[(propan-2-yl)oxy]acetaldehyde"
 
 
 def test_halogen_on_main_chain_still_works():
@@ -400,7 +400,7 @@ def test_specified_stereocenter__ether_aldehyde():
 
 
 def test_branched_alkoxy_r_prime__ether_amide():
-    assert smiles_to_iupac("CC(C)OCC(N)=O") == "2-(propan-2-yloxy)acetamide"
+    assert smiles_to_iupac("CC(C)OCC(N)=O") == "2-[(propan-2-yl)oxy]acetamide"
 
 
 def test_halogen_on_main_chain_still_works__ether_amide():
@@ -424,7 +424,7 @@ def test_specified_stereocenter__ether_amide():
 
 
 def test_branched_alkoxy_r_prime__ether_amine():
-    assert smiles_to_iupac("CC(C)OCCN") == "2-(propan-2-yloxy)ethan-1-amine"
+    assert smiles_to_iupac("CC(C)OCCN") == "2-[(propan-2-yl)oxy]ethan-1-amine"
 
 
 def test_halogen_on_main_chain_still_works__ether_amine():
@@ -444,7 +444,7 @@ def test_specified_stereocenter__ether_amine():
 
 
 def test_branched_alkoxy_r_prime__ether_ester():
-    assert smiles_to_iupac("CC(C)OCC(=O)OC") == "methyl (propan-2-yloxy)acetate"
+    assert smiles_to_iupac("CC(C)OCC(=O)OC") == "methyl [(propan-2-yl)oxy]acetate"
 
 
 def test_halogen_on_acyl_chain_still_works():
@@ -466,7 +466,7 @@ def test_specified_stereocenter__ether_ester():
 
 
 def test_branched_alkoxy_r_prime__ether_hydroperoxide():
-    assert smiles_to_iupac("CC(C)OCCOO") == "2-(propan-2-yloxy)ethane-1-peroxol"
+    assert smiles_to_iupac("CC(C)OCCOO") == "2-[(propan-2-yl)oxy]ethane-1-peroxol"
 
 
 def test_halogen_on_main_chain_still_works__ether_hydroperoxide():
@@ -489,7 +489,7 @@ def test_specified_stereocenter_raises__ether_hydroperoxide():
 
 
 def test_branched_alkoxy_r_prime__ether_ketone():
-    assert smiles_to_iupac("CC(C)OCC(C)=O") == "1-(propan-2-yloxy)propan-2-one"
+    assert smiles_to_iupac("CC(C)OCC(C)=O") == "1-[(propan-2-yl)oxy]propan-2-one"
 
 
 def test_two_ketones():
@@ -505,7 +505,7 @@ def test_specified_stereocenter__ether_ketone():
 
 
 def test_branched_alkoxy_r_prime__ether_thiol():
-    assert smiles_to_iupac("CC(C)OCCS") == "2-(propan-2-yloxy)ethane-1-thiol"
+    assert smiles_to_iupac("CC(C)OCCS") == "2-[(propan-2-yl)oxy]ethane-1-thiol"
 
 
 def test_halogen_on_main_chain_still_works__ether_thiol():

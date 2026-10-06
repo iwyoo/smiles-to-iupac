@@ -70,7 +70,7 @@ round ones when a '(...)oxy' term already sits inside the branch.
 from rdkit import Chem
 
 from ._multiplicative_text import enclose
-from ._acyclic import longest_chain_length, winning_chain_from_carbon_graph, winning_chain_with_key
+from ._acyclic import longest_chain_length
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -82,13 +82,17 @@ from ._common import (
     ring_chain_attachment,
     specified_stereocenters,
 )
-from ._substituents import name_branch
+from ._alkoxy import alkoxy_prefix
+from ._substituents import CompoundPrefix, name_branch
+from ._terminal_chain import best_terminal_chain
 
-_CONTRACTED_OXY = {"methyl": "methoxy", "ethyl": "ethoxy", "propyl": "propoxy", "butyl": "butoxy"}
+def _oxy_prefix(name: str, compound: bool = False):
+    text, is_compound = alkoxy_prefix(name, compound)
+    return CompoundPrefix(text) if is_compound else text
 
 
-def _oxy_prefix(name: str) -> str:
-    return _CONTRACTED_OXY.get(name, name + "oxy")
+def _cite(prefix):
+    return enclose(prefix) if isinstance(prefix, CompoundPrefix) else prefix
 
 
 def has_ether_shape(mol) -> bool:
@@ -170,10 +174,7 @@ def _name_benzene_ring_ether_chain(mol, ring_atoms) -> str:
     if chain_root == oxygen_idx:
         (r_prime,) = [n for n in graph[oxygen_idx] if n != ring_atom]
         sub_name, sub_compound = name_branch(graph, r_prime, oxygen_idx, {}, mol=mol)
-        oxy_term = _oxy_prefix(sub_name)
-        if sub_compound:
-            oxy_term = enclose(oxy_term)
-        return f"{oxy_term}benzene"
+        return f"{_cite(_oxy_prefix(sub_name, sub_compound))}benzene"
 
     blocked_graph = {node: [n for n in neighbors if n != oxygen_idx] for node, neighbors in graph.items()}
     del blocked_graph[oxygen_idx]
@@ -181,15 +182,11 @@ def _name_benzene_ring_ether_chain(mol, ring_atoms) -> str:
     (r_prime,) = [n for n in graph[oxygen_idx] if n not in reached]
 
     sub_name, sub_compound = name_branch(graph, r_prime, oxygen_idx, {}, mol=mol)
-    oxy_term = _oxy_prefix(sub_name)
-    if sub_compound:
-        oxy_term = enclose(oxy_term)
+    oxy_term = _oxy_prefix(sub_name, sub_compound)
     branch_name, is_compound = name_branch(graph, chain_root, ring_atom, {oxygen_idx: oxy_term}, mol=mol)
     if not is_compound:
         return f"{branch_name}benzene"
-    if "(" in branch_name:
-        return f"[{branch_name}]benzene"
-    return f"({branch_name})benzene"
+    return f"{enclose(branch_name)}benzene"
 
 
 def name_ether(mol) -> str:
@@ -228,14 +225,10 @@ def name_ether(mol) -> str:
         else:
             name_a, compound_a = name_branch(full_graph, n1, oxygen_idx, {}, mol=mol)
             name_b, compound_b = name_branch(full_graph, n2, oxygen_idx, {}, mol=mol)
-            oxy_from_a = _oxy_prefix(name_a)
-            oxy_from_b = _oxy_prefix(name_b)
-            if compound_a:
-                oxy_from_a = enclose(oxy_from_a)
-            if compound_b:
-                oxy_from_b = enclose(oxy_from_b)
-            key_a, _, _ = winning_chain_with_key(full_graph, graph_a, {oxygen_idx: oxy_from_b}, mol=mol)
-            key_b, _, _ = winning_chain_with_key(full_graph, graph_b, {oxygen_idx: oxy_from_a}, mol=mol)
+            oxy_from_a = _oxy_prefix(name_a, compound_a)
+            oxy_from_b = _oxy_prefix(name_b, compound_b)
+            key_a = best_terminal_chain(full_graph, graph_a, {oxygen_idx: oxy_from_b}, mol=mol)[0]
+            key_b = best_terminal_chain(full_graph, graph_b, {oxygen_idx: oxy_from_a}, mol=mol)[0]
             parent_root, sub_root = (n1, n2) if key_a <= key_b else (n2, n1)
     elif size1 > size2:
         parent_root, sub_root = n1, n2
@@ -243,13 +236,11 @@ def name_ether(mol) -> str:
         parent_root, sub_root = n2, n1
 
     sub_name, sub_compound = name_branch(full_graph, sub_root, oxygen_idx, {}, mol=mol)
-    oxy_term = _oxy_prefix(sub_name)
-    if sub_compound:
-        oxy_term = enclose(oxy_term)
+    oxy_term = _oxy_prefix(sub_name, sub_compound)
 
     parent_carbon_graph = component_subgraph(carbon_graph, parent_root)
     terminals = {oxygen_idx: oxy_term}
-    chain, name = winning_chain_from_carbon_graph(full_graph, parent_carbon_graph, terminals, mol=mol)
+    _, chain, name = best_terminal_chain(full_graph, parent_carbon_graph, terminals, mol=mol)
 
     stereo = specified_stereocenters(mol)
     if stereo is None:

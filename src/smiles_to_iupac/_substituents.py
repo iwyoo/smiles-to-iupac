@@ -467,13 +467,8 @@ def substituents_for_chain(
 
 
 def substituents_for_chain_forced_compound_terminals(graph, chain, terminals, mol=None):
-    """Like `substituents_for_chain`, but a `terminals` leaf is always cited
-    as a compound (parenthesized) substituent instead of leaving that
-    judgment to `name_branch` -- shared by the dichalcogenide modules
-    (`_disulfide.py`/`_diselenide.py`/`_ditelluride.py`) whose
-    disulfanyl/diselanyl/ditellanyl prefix needs this, unlike the plain
-    `terminals` shortcut `_sulfide.py`/`_selenide.py`/`_peroxide.py` share
-    via `_acyclic.name_from_carbon_graph`."""
+    """Like `substituents_for_chain`, but a `terminals` leaf is cited as a compound (enclosed) substituent exactly
+    when its name is a `CompoundPrefix`; every other branch is named by `name_branch`."""
     chain_set = set(chain)
     substituents = {}
     for position, atom in enumerate(chain, start=1):
@@ -483,9 +478,9 @@ def substituents_for_chain_forced_compound_terminals(graph, chain, terminals, mo
         entries = []
         for root in branch_roots:
             if root in terminals:
-                entries.append((terminals[root], True))
+                entries.append((terminals[root], isinstance(terminals[root], CompoundPrefix)))
             else:
-                entries.append(name_branch(graph, root, atom, {}, mol=mol))
+                entries.append(name_branch(graph, root, atom, terminals, mol=mol))
         substituents[position] = entries
     return substituents
 

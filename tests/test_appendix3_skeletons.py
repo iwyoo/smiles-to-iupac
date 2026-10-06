@@ -149,7 +149,7 @@ def test_characteristic_groups_on_the_parent(smiles, expected):
         ("OCC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "(yohimban-18-yl)methanol"),
         ("OC(=O)CC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "(yohimban-18-yl)acetic acid"),
         ("CC(O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "1-(yohimban-18-yl)ethan-1-ol"),
-        ("CC(C)Oc1ccc2c(c1)[nH]c1c2CCN2CC3CCCCC3CC12", "11-(propan-2-yloxy)yohimban"),
+        ("CC(C)Oc1ccc2c(c1)[nH]c1c2CCN2CC3CCCCC3CC12", "11-[(propan-2-yl)oxy]yohimban"),
         # the parent carries as many acids as the chain does, so it stays the parent
         ("OC(=O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2CCC(=O)O", "14-(2-carboxyethyl)yohimban-18-carboxylic acid"),
         # an acid in the substituent of an amine group of the parent makes the chain the parent

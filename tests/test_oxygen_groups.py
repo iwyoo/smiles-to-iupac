@@ -18,7 +18,7 @@ def test_cyclic_acetal():
 
 
 def test_branched_alkoxy():
-    assert smiles_to_iupac("CCC(OC(C)C)OCC") == "1-ethoxy-1-(propan-2-yloxy)propane"
+    assert smiles_to_iupac("CCC(OC(C)C)OCC") == "1-ethoxy-1-[(propan-2-yl)oxy]propane"
 
 
 def test_unsaturated_acetal():
@@ -488,8 +488,8 @@ def test_ether(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("CC(C)OC(C)C", "2-(propan-2-yloxy)propane"),
-        ("CC(C)COC(C)CC", "2-(2-methylpropyloxy)butane"),
+        ("CC(C)OC(C)C", "2-[(propan-2-yl)oxy]propane"),
+        ("CC(C)COC(C)CC", "2-(2-methylpropoxy)butane"),
     ],
 )
 def test_ether_both_sides_branched_and_tied(smiles, expected):
@@ -514,9 +514,9 @@ def test_stereocenter_on_substituent_branch():
     "smiles,expected",
     [
         ("c1ccccc1OC", "methoxybenzene"),
-        ("c1ccccc1OC(C)C", "(propan-2-yloxy)benzene"),
+        ("c1ccccc1OC(C)C", "[(propan-2-yl)oxy]benzene"),
         ("c1ccccc1COCC", "(ethoxymethyl)benzene"),
-        ("c1ccccc1COC(C)C", "[(propan-2-yloxy)methyl]benzene"),
+        ("c1ccccc1COC(C)C", "{[(propan-2-yl)oxy]methyl}benzene"),
     ],
 )
 def test_benzene_ring_parent(smiles, expected):
@@ -793,7 +793,7 @@ def test_two_ring_aromatic_substituent_ketone_ring_bond():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("COOCC", "methylperoxyethane"),
+        ("COOCC", "(methylperoxy)ethane"),
     ],
 )
 def test_peroxide(smiles, expected):
@@ -818,8 +818,8 @@ def test_three_oxygens_not_supported():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("CC(C)COOC(C)(C)C", "1-tert-butylperoxy-2-methylpropane"),
-        ("CC(C)COOC(C)CC", "2-(2-methylpropyl)peroxybutane"),
+        ("CC(C)COOC(C)(C)C", "1-(tert-butylperoxy)-2-methylpropane"),
+        ("CC(C)COOC(C)CC", "2-[(2-methylpropyl)peroxy]butane"),
     ],
 )
 def test_both_sides_branched_and_tied(smiles, expected):
@@ -829,7 +829,7 @@ def test_both_sides_branched_and_tied(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("CC[C@H](C)OOCC", "(2S)-2-ethylperoxybutane"),
+        ("CC[C@H](C)OOCC", "(2S)-2-(ethylperoxy)butane"),
     ],
 )
 def test_stereocenter_on_parent_chain__peroxide(smiles, expected):
@@ -844,10 +844,10 @@ def test_stereocenter_on_substituent_branch_not_supported():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("c1ccccc1OOC", "methylperoxybenzene"),
-        ("c1ccccc1OOC(C)C", "(propan-2-yl)peroxybenzene"),
-        ("c1ccccc1COOCC", "(ethylperoxymethyl)benzene"),
-        ("c1ccccc1COOC(C)C", "[(propan-2-yl)peroxymethyl]benzene"),
+        ("c1ccccc1OOC", "(methylperoxy)benzene"),
+        ("c1ccccc1OOC(C)C", "[(propan-2-yl)peroxy]benzene"),
+        ("c1ccccc1COOCC", "[(ethylperoxy)methyl]benzene"),
+        ("c1ccccc1COOC(C)C", "{[(propan-2-yl)peroxy]methyl}benzene"),
     ],
 )
 def test_benzene_ring_parent__peroxide(smiles, expected):
@@ -981,4 +981,34 @@ def test_carbonic_family_names(smiles, expected):
     ],
 )
 def test_polyester_principal_acid_and_multiplicative_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("CCCCCOCCCCCCC", "1-(pentyloxy)heptane"),
+        ("CC(C)(C)COCCCCC", "1-(2,2-dimethylpropoxy)pentane"),
+        ("CCCCCOCCO", "2-(pentyloxy)ethan-1-ol"),
+        ("OCCOCC1CCCCC1", "2-(cyclohexylmethoxy)ethan-1-ol"),
+        ("CC(C)OCC=O", "2-[(propan-2-yl)oxy]acetaldehyde"),
+        ("c1ccccc1OCCCCC", "(pentyloxy)benzene"),
+        ("CC(C)(C)OCCCCC", "1-tert-butoxypentane"),
+        ("CCOCCCCCCC", "1-ethoxyheptane"),
+    ],
+)
+def test_alkoxy_prefix_enclosing_marks(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("COOC", "(methylperoxy)methane"),
+        ("CCOOCC", "(ethylperoxy)ethane"),
+        ("CC(C)OOC", "2-(methylperoxy)propane"),
+        ("c1ccccc1OOCC", "(ethylperoxy)benzene"),
+    ],
+)
+def test_peroxy_prefix_enclosing_marks(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

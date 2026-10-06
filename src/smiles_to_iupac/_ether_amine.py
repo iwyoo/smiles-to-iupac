@@ -40,7 +40,6 @@ defensive only).
 """
 
 
-from ._multiplicative_text import enclose
 from ._amine import _best_chain_name
 from ._common import (
     UnsupportedStructure,
@@ -150,9 +149,7 @@ def name_ether_amine(mol) -> str:
     }
 
     sub_name, sub_compound = name_branch(full_graph, r_prime_carbon, ether_oxygen_idx, {}, mol=mol)
-    oxy_term = _oxy_prefix(sub_name)
-    if sub_compound:
-        oxy_term = enclose(oxy_term)
+    oxy_term = _oxy_prefix(sub_name, sub_compound)
     halogens = {**halogen_substituents(mol), ether_oxygen_idx: oxy_term}
 
     best_name, _ = _best_chain_name(main_carbon_graph, full_graph, halogens, {amine_nitrogen}, ())

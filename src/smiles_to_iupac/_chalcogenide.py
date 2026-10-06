@@ -31,8 +31,8 @@ class Chalcogenide:
     word: str
     prefix: str
 
-    def _prefix(self, name: str) -> str:
-        return name + self.prefix
+    def _prefix(self, name: str) -> CompoundPrefix:
+        return CompoundPrefix(name + self.prefix)
 
     def has_shape(self, mol) -> bool:
         atoms = [
@@ -97,7 +97,7 @@ class Chalcogenide:
         sub_name, sub_compound = name_branch(graph, r_prime, hetero_idx, {}, mol=mol)
         if sub_compound:
             sub_name = enclose(sub_name)
-        prefix_term = CompoundPrefix(self._prefix(sub_name))
+        prefix_term = self._prefix(sub_name)
         branch_name, is_compound = name_branch(graph, chain_root, ring_atom, {hetero_idx: prefix_term}, mol=mol)
         if not is_compound:
             return f"{branch_name}benzene"

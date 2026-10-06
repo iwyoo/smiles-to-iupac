@@ -8,6 +8,7 @@ import contextvars
 
 from rdkit import Chem
 
+from ._alkoxy import alkoxy_prefix
 from ._common import UnsupportedStructure, alpha_sort_key
 from ._free_valence import SUFFIX_OF_ORDER
 from ._multiplicative_text import enclose
@@ -157,17 +158,8 @@ def _phosphoryloxy(graph, phosphorus, oxygen, halogens, aromatic_atoms, mol):
     return ("phosphonooxy" if group == "phosphono" else enclose(group) + "oxy"), True
 
 
-def _alkoxy(rname):
-    if rname.startswith("("):
-        return enclose(rname) + "oxy"
-    if rname == "tert-butyl":
-        return "tert-butoxy"
-    for stem, short in _ALKOXY_STEMS.items():
-        if rname.endswith(stem) and not rname.endswith("cyclo" + stem):
-            return rname[: -len(stem)] + short
-    if rname[0].isdigit():
-        return enclose(rname) + "oxy"
-    return rname + "oxy"
+def _alkoxy(rname, compound=False):
+    return alkoxy_prefix(rname, compound)
 
 
 def _compound(name):
@@ -321,8 +313,7 @@ def _chalcogen_chain_group(graph, first, second, halogens, aromatic_atoms, mol):
     if organyl is None:
         inner, inner_compound = _CHAIN_HYDRO[b], False
     elif b == 8:
-        inner = _alkoxy(organyl[0])
-        inner_compound = _compound(inner)
+        inner, inner_compound = _alkoxy(*organyl)
     else:
         inner, inner_compound = _enclose(*organyl) + _CHAIN_WORDS[b], True
     return _enclose(inner, inner_compound) + _CHAIN_WORDS[a], True
@@ -409,9 +400,8 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return _enclose(acyl[0], acyl[1]) + "oxy", True
         from ._substituents import name_branch
 
-        rname, _ = name_branch(graph, other, root, halogens, aromatic_atoms, mol=mol)
-        name = _alkoxy(rname)
-        return name, _compound(name)
+        rname, rcomp = name_branch(graph, other, root, halogens, aromatic_atoms, mol=mol)
+        return _alkoxy(rname, rcomp)
     if z in (16, 34, 52) and atom.GetDegree() > 2:
         return _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if z in CHALCOGEN_PREFIXES:
@@ -579,8 +569,8 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
         tail = [n for n in graph[x] if n != root]
         if not tail:
             return ("carboxylato" if _is_anionic_oxygen(mol.GetAtomWithIdx(x)) else "carboxy"), False
-        rname, _ = name_branch(graph, tail[0], x, halogens, aromatic_atoms, mol=mol)
-        return _alkoxy(rname) + "carbonyl", True
+        rname, rcomp = name_branch(graph, tail[0], x, halogens, aromatic_atoms, mol=mol)
+        return _enclose(*_alkoxy(rname, rcomp)) + "carbonyl", True
     if z == 7:
         if mol.GetAtomWithIdx(x).HasProp("_anion_word"):
             raise UnsupportedStructure("an anionic amide nitrogen is not named as a carbamoyl prefix")
