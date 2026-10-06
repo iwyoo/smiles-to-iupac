@@ -42,9 +42,9 @@ class AmpLoc(int):
     """Locant of an amplificant atom in its own numbering: 1..8 or, for a fusion atom, '4a'."""
 
     def __new__(cls, text):
-        digits = str(text).rstrip("abcdefgh")
-        letter = str(text)[len(digits):]
-        obj = super().__new__(cls, int(digits) * 10 + (ord(letter) - 96 if letter else 0))
+        digits, letter, interior = re.fullmatch(r"(\d+)([a-h]?)(\d*)", str(text)).groups()
+        order = int(digits) * 1000 + (ord(letter) - 96 if letter else 0) * 100 + (int(interior) if interior else 0)
+        obj = super().__new__(cls, order)
         obj.text = str(text)
         return obj
 
@@ -59,7 +59,7 @@ class PhaneLoc(int):
     """Locant of a phane skeleton atom or, with `local`, of an amplificant atom (primary 1, local 4 -> '14')."""
 
     def __new__(cls, primary, local=None):
-        obj = super().__new__(cls, primary * 10000 + (int(local) if local is not None else 0))
+        obj = super().__new__(cls, primary * 1000000 + (int(local) if local is not None else 0))
         obj.primary, obj.local = primary, local
         return obj
 

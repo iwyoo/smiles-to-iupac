@@ -396,7 +396,7 @@ def _multiple_bonds(mol, phane, position, picks):
 def _is_simple(low, high):
     if low.local is None and high.local is None:
         return high.primary - low.primary == 1
-    return low.local is not None and high.local is not None and low.primary == high.primary and int(high.local) - int(low.local) == 10
+    return low.local is not None and high.local is not None and low.primary == high.primary and int(high.local) - int(low.local) == 1000
 
 
 def _evaluate(mol, phane, skeleton, free_atom, suffix_roots, stereo):
