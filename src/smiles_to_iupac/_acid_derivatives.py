@@ -434,6 +434,38 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
     return " ".join(part for part in (pendant_text, diyl, anion_text) if part)
 
 
+def _suffix_links(mol, links, keep, cap_of):
+    """The `links` whose acid centre the polyfunctional engine cites as a suffix group when every link of `links`
+    is turned into a free acid (P-44.1.1): when one parent cannot carry them all, the other links stay as ester or
+    halide groups and are cited as prefixes of that acid. All of `links` when the parent cannot be determined."""
+    from ._polyfunctional import _select
+
+    editable = Chem.RWMol(mol)
+    for atom in editable.GetAtoms():
+        atom.SetIntProp("_origin", atom.GetIdx())
+    for l in links:
+        atom = editable.GetAtomWithIdx(cap_of(l))
+        atom.SetAtomicNum(8)
+        atom.SetNumExplicitHs(1)
+        atom.SetNoImplicit(True)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - set(keep), reverse=True):
+        editable.RemoveAtom(idx)
+    acid = editable.GetMol()
+    try:
+        Chem.SanitizeMol(acid)
+        position_of = _select(acid)[2][4]
+    except Exception:
+        return list(links)
+    origin = {a.GetIdx(): a.GetIntProp("_origin") for a in acid.GetAtoms()}
+    parent = {origin[i] for i in position_of if i in origin}
+    kept = []
+    for l in links:
+        neighbours = {n.GetIdx() for n in mol.GetAtomWithIdx(l.center).GetNeighbors() if n.GetIdx() in keep}
+        if l.center in parent or neighbours & parent:
+            kept.append(l)
+    return kept or list(links)
+
+
 def name_ester(mol, links):
     _reject_unsupported(mol)
     kinds = {_center(mol, l.center)[0] == "inorganic" for l in links}
@@ -459,6 +491,12 @@ def name_ester(mol, links):
     chosen = acid_pieces[principal]
     component = _fragments(mol, [(l.chain[-1], l.far) for l in chosen])
     acid_atoms = component[0][component[1][chosen[0].center]]
+    if len(chosen) > 1:
+        suffixed = _suffix_links(mol, chosen, acid_atoms, lambda l: l.chain[-1])
+        if len(suffixed) < len(chosen):
+            chosen = suffixed
+            component = _fragments(mol, [(l.chain[-1], l.far) for l in chosen])
+            acid_atoms = component[0][component[1][chosen[0].center]]
     removed = set()
     for l in chosen:
         far_side = _far_side(graph, l.far, l.chain[-1])
@@ -756,6 +794,10 @@ def name_acyl_halide(mol, links):
     centers = {l.center for l in halides}
     if len(centers) == 1 and _center(mol, next(iter(centers)))[0] == "cyanic":
         return "carbononitridic " + _class_words(mol, halides)
+    if len(halides) > 1 and all(l.kind == "halide" for l in halides):
+        suffixed = _suffix_links(mol, halides, range(mol.GetNumAtoms()), lambda l: l.far)
+        if len(suffixed) < len(halides):
+            halides = suffixed
     editable = Chem.RWMol(mol)
     drop = set()
     for l in halides:
@@ -827,7 +869,9 @@ def name_acid_derivative(mol):
     if name_appendix3_skeleton(mol) is not None:
         raise UnsupportedStructure("an acid derivative on an Appendix 3 retained parent is named on that parent")
     if acid:
-        if all(_center(mol, c)[0] in ("carbonic", "inorganic") for c in acid) and all(l.kind == "ester" for l in links):
+        if all(_center(mol, c)[0] in ("carbonic", "inorganic") for c in acid) and all(
+            l.kind == "ester" and _center(mol, l.center)[0] in ("carbonic", "inorganic") for l in links
+        ):
             return name_ester(mol, links)
         if all(_center(mol, c)[0] == "inorganic" for c in acid) and any(l.kind == "anhydride" for l in links):
             return _acyloxy_oxoacid(mol, acid)

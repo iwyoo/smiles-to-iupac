@@ -560,3 +560,23 @@ def test_interior_fusion_locants_order_between_their_peripheral_neighbours():
     from smiles_to_iupac._phane_amplificant import AmpLoc
 
     assert [str(x) for x in sorted(map(AmpLoc, ["4b", "5", "4a1", "4a", "4"]))] == ["4", "4a", "4a1", "4b", "5"]
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("O=C(Cl)CCC(=O)c1ccc(S(=O)(=O)Cl)cc1", "4-[4-(chlorosulfonyl)phenyl]-4-oxobutanoyl chloride"),
+        (
+            "CCCCOC(=O)N1CCC(NC(=O)c2ccc(C(=O)OC)cc2)CC1",
+            "methyl 4-{[1-(butoxycarbonyl)piperidin-4-yl]carbamoyl}benzoate",
+        ),
+        (
+            "CC(C)(C)OC(=O)CC(N)C1COCC(c2ccc(Br)cc2)N1C(=O)OC(C)(C)C",
+            "tert-butyl 3-[1-amino-2-(tert-butoxycarbonyl)ethyl]-5-(4-bromophenyl)morpholine-4-carboxylate",
+        ),
+        ("CCOC(=O)c1ccc(C(=O)OC)cc1", "ethyl methyl benzene-1,4-dicarboxylate"),
+        ("ClC(=O)CCCC(Cl)=O", "pentanedioyl dichloride"),
+    ],
+)
+def test_ester_and_halide_groups_the_parent_cannot_carry_are_cited_as_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
