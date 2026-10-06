@@ -106,8 +106,6 @@ from ._common import (
     YNE_BOND_ORDER,
     adjacency,
     all_chains,
-    bond_locant,
-    bond_locants,
     carbon_adjacency,
     chain_bond_locants,
     component_subgraph,

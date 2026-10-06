@@ -30,7 +30,6 @@ one hydroperoxide or amine, a secondary/tertiary amine, and a coexisting
 standalone hydroxyl/ether/other heteroatom.
 """
 
-from rdkit import Chem
 
 from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (

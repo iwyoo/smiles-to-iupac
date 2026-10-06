@@ -26,7 +26,6 @@ ketone-shaped) extra carbonyl, and any ketone not captured by the acyl
 chain's single longest path.
 """
 
-from rdkit import Chem
 
 from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
@@ -44,7 +43,7 @@ from ._common import (
 )
 from ._ester import _name_acyl_part
 from ._numerals import alkane_name, alkyl_name
-from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
+from ._substituents import format_substituent_prefixes, substituents_for_chain
 
 
 def _find_ester_group(mol):

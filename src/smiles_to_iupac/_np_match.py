@@ -3,7 +3,6 @@
 from dataclasses import dataclass, field
 
 from rdkit import Chem
-from rdkit.Chem import rdqueries
 
 
 class View:

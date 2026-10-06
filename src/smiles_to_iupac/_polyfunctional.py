@@ -6,6 +6,7 @@ group on a ring is not handled here.
 """
 
 import contextvars
+from types import MappingProxyType
 import re
 
 from rdkit import Chem
@@ -110,7 +111,7 @@ def _junior_end_group(mol, idx):
 def _is_terminal(name):
     return name in _TERMINAL or (_is_variant(name) and spec_from_key(name).center == "C")
 _MAX_ATOMS = 80
-IDE_EXTRA = contextvars.ContextVar("ide_extra", default={})
+IDE_EXTRA = contextvars.ContextVar("ide_extra", default=MappingProxyType({}))
 
 
 def _double_oxygens(mol, carbon):

@@ -96,7 +96,6 @@ from ._common import (
     name_from_substituents,
     non_single_bonds,
     ordered_chain,
-    ring_bond_locant,
     ring_bond_locants,
     ring_chain_attachment,
     ring_cycle,
@@ -109,7 +108,7 @@ from ._numerals import alkyl_name
 from ._polycyclic import find_polycyclic_core
 from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
 from ._spiro import find_monospiro_atom
-from ._substituents import branch_atom_locant, format_substituent_prefixes, name_branch, ring_branch_stereo_display, substituents_for_ring, substituents_for_chain
+from ._substituents import format_substituent_prefixes, name_branch, ring_branch_stereo_display, substituents_for_ring, substituents_for_chain
 
 _SULFUR = 16
 _ALLOWED_ATOMIC_NUMS = {6, _SULFUR, *HALOGEN_PREFIXES}

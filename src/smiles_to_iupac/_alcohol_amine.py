@@ -30,7 +30,6 @@ A benzene-ring-substituent chain variant (mirroring `_alcohol.py`'s
 `_name_phenyl_chain_alcohol`) is a separate follow-up.
 """
 
-from rdkit import Chem
 
 from ._alcohol import _name_acyclic_alcohol
 from ._coexisting_groups import name_via_senior_acyclic

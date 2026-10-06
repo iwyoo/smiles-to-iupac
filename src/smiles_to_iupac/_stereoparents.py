@@ -3,6 +3,8 @@ locants (n, +100 per prime, +1000 for a letter a-c, +10000 per superscript digit
 sense of its α/β frame, and the steroid anchor. Atoms the drawing numbers only by element letter map to 90001 + the
 position of their locant in UNNUMBERED. `scope` is "both", or the one engine that names the parent."""
 
+from __future__ import annotations
+
 from typing import NamedTuple
 
 UNNUMBERED = (

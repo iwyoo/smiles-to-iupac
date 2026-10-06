@@ -86,7 +86,6 @@ from ._common import (
     UnsupportedStructure,
     adjacency,
     all_chains,
-    bond_locant,
     carbon_adjacency,
     chain_bond_locants,
     group_substituents,
@@ -100,7 +99,6 @@ from ._common import (
     name_from_substituents,
     non_single_bonds,
     ordered_chain,
-    ring_bond_locant,
     ring_bond_locants,
     ring_chain_attachment,
     ring_branch_attachments,
@@ -118,7 +116,6 @@ from ._polycyclic import find_polycyclic_core
 from ._polycyclic_suffix import name_monospiro_suffix, name_von_baeyer_suffix
 from ._spiro import find_monospiro_atom
 from ._substituents import (
-    branch_atom_locant,
     format_substituent_prefixes,
     name_branch,
     ring_branch_stereo_display,

@@ -141,7 +141,6 @@ from ._common import (
     adjacency,
     carbon_adjacency,
     group_substituents,
-    halogen_substituents,
     longest_chains,
     lowest_locant_set,
     ring_cycle,

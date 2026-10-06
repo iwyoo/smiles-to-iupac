@@ -33,7 +33,6 @@ combination is deferred), any ring, any chain unsaturation (ene/yne), and
 any specified stereocenter.
 """
 
-from rdkit import Chem
 
 from ._multiplicative_text import enclose
 from ._coexisting_groups import name_via_senior_acyclic
