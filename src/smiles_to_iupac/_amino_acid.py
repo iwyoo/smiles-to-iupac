@@ -280,7 +280,18 @@ def _match_skeleton(mol):
     return name, alpha_carbon, _side_chain_atom_indices(graph, alpha_carbon, side_root), None
 
 
-_SIDE_CHAIN_SUBSTITUTION_SITE = {"serine": "O", "cysteine": "S", "tyrosine": "O", "lysine": "N"}
+# P-103.2.1: N, O, S locants, with the numbering of the alpha-amino acid where several nitrogens exist
+_SIDE_CHAIN_SUBSTITUTION_SITE = {
+    "serine": "O",
+    "cysteine": "S",
+    "tyrosine": "O",
+    "lysine": "N",
+    "asparagine": "N",
+    "glutamine": "N",
+    "arginine": "N",
+}
+_ALPHA_NITROGEN_LOCANT = {"lysine": "N2", "asparagine": "N2", "glutamine": "N2", "arginine": "Nα"}
+_SIDE_NITROGEN_LOCANT = {"lysine": "N6", "asparagine": "N4", "glutamine": "N5"}
 _MAX_CUT_CANDIDATES = 8
 _ALPHA_AMINO_ACID = Chem.MolFromSmarts("[NX3;+0][CX4][CX3](=O)[OX2H1]")
 
@@ -343,17 +354,33 @@ def _match(mol):
             alpha = to_orig[alpha]
             side_chain = frozenset(to_orig[i] for i in side_chain)
             amine = next(n.GetIdx() for n in mol.GetAtomWithIdx(alpha).GetNeighbors() if n.GetAtomicNum() == 7)
-            allowed = {amine: "N2" if name == "lysine" else "N"}
+            allowed = {amine: _ALPHA_NITROGEN_LOCANT.get(name, "N")}
             for site in side_chain:
                 element = mol.GetAtomWithIdx(site).GetSymbol()
                 if element == _SIDE_CHAIN_SUBSTITUTION_SITE.get(name):
-                    allowed[site] = "N6" if name == "lysine" else element
+                    allowed[site] = _SIDE_NITROGEN_LOCANT.get(name, element)
+            if name == "arginine":
+                allowed.update(_arginine_locants(mol, alpha, side_chain, {site for site, _ in cuts}))
             if any(site not in allowed for site, _ in cuts):
                 continue
             if len(frag.GetSubstructMatches(_ALPHA_AMINO_ACID)) != len(mol.GetSubstructMatches(_ALPHA_AMINO_ACID)):
                 continue
             return name, alpha, side_chain, None, tuple((allowed[site], site, root) for site, root in cuts)
     return None
+
+
+def _arginine_locants(mol, alpha, side_chain, substituted):
+    """Nδ for the nitrogen on the chain, Nω (then Nω′ for a second substituted one) for the terminal guanidine
+    nitrogens (P-103.2.1), told apart by their distance from the alpha carbon (4 and 6 bonds)."""
+    distance = Chem.GetDistanceMatrix(mol)
+    locants = {}
+    marks = iter(("Nω", "Nω′"))
+    for a in sorted(a for a in side_chain if mol.GetAtomWithIdx(a).GetAtomicNum() == 7):
+        if distance[alpha][a] == 4:
+            locants[a] = "Nδ"
+        elif distance[alpha][a] == 6:
+            locants[a] = next(marks) if a in substituted else "Nω"
+    return locants
 
 
 def _serine_phosphoryl(mol, graph, alpha_carbon, side_root):
