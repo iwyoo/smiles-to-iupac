@@ -185,3 +185,15 @@ def test_bicyclic_ylidene_between_different_ring_systems_is_a_substituent():
 def test_bicyclic_ring_assembly_ylidene_halogen_substituent_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("ClC1CC2CCC1C2=C1CC2CCC1C2")
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OC1CCCCC1C1CCC(CC1)=C1CCCCC1", "4'-cyclohexylidene-[1,1'-bi(cyclohexan)]-2-ol"),
+        ("C1CCCCC1C1CCC(CC1)=C1CCCCC1", "4-cyclohexyl-1,1'-bi(cyclohexylidene)"),
+        ("OC1CCCCC1=C1CCCCC1C1CCCCC1", "2'-cyclohexyl-[1,1'-bi(cyclohexylidene)]-2-ol"),
+    ],
+)
+def test_three_rings_with_a_double_bond_junction_name_a_two_ring_assembly_with_ring_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
