@@ -103,7 +103,6 @@ from ._common import (
     longest_chains,
     name_from_substituents,
     non_single_bonds,
-    ring_chain_attachment,
     ring_branch_attachments,
     separate_aromatic_monocycles,
     specified_double_bond_stereo,

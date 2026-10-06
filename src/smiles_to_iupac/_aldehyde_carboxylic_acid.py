@@ -26,7 +26,6 @@ coexisting hydroxyl/ether/other heteroatom, and any aldehyde not captured by
 a single longest chain.
 """
 
-from rdkit import Chem
 
 from ._common import (
     UnsupportedStructure,

@@ -712,7 +712,7 @@ def _anionic_group(mol, root, coming_from):
 def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     """Prefixes of the acyl groups of sulfonic, sulfinic, selenonic ... acids (P-65.3.2): 'sulfo', 'sulfamoyl',
     'benzenesulfonyl', 'methoxysulfonyl', 'chlorosulfinyl', 'trithiosulfo'."""
-    from ._acid_lexicon import AcidSpec, acyl_suffix, make_spec
+    from ._acid_lexicon import acyl_suffix, make_spec
     from ._substituents import name_branch
 
     atom = mol.GetAtomWithIdx(root)

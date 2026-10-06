@@ -49,7 +49,7 @@ from ._common import (
     non_single_bonds,
     ring_chain_attachment,
 )
-from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
+from ._substituents import format_substituent_prefixes, substituents_for_chain
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
 

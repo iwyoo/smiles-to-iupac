@@ -3,12 +3,9 @@
 from collections import Counter
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
-from ._common import UnsupportedStructure, adjacency, halogen_substituents, multiplied_word
-from ._np_core import FACES, center_signature, exo_faces, is_numbered, loc_key, orientation_sign, parent_h
-from ._numerals import multiplying_prefix
-from ._substituents import format_substituent_prefixes, name_branch
+from ._common import UnsupportedStructure
+from ._np_core import FACES, is_numbered, loc_key
 
 _SUFFIX = {"ketone": "one", "alcohol": "ol", "amine": "amine", "ester_o": "yl", "aldehyde": "al", "diyl": "diyl", "yl": "yl"}
 _ACYL_SUFFIX = {

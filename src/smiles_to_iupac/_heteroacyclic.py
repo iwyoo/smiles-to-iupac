@@ -8,7 +8,6 @@ from rdkit import Chem
 from rdkit.Chem import rdCIPLabeler
 
 from ._common import (
-    UnsupportedStructure,
     adjacency,
     group_substituents,
     halogen_substituents,

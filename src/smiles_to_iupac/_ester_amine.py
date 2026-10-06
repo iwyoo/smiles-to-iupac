@@ -29,7 +29,6 @@ coexisting standalone hydroxyl/other heteroatom, and an amine bonded
 directly to the acyl carbon itself (a different topology, out of scope).
 """
 
-from rdkit import Chem
 
 from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (

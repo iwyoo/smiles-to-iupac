@@ -159,11 +159,8 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
-    halogen_substituents,
-    is_plain_benzene_ring,
     non_single_bonds,
     plain_phenyl_substituent_atoms,
-    ring_chain_attachment,
 )
 from ._hydride_ring_groups import hydride_ring_groups
 from ._substituents import format_mononuclear_prefixes, name_branch

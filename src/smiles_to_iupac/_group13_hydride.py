@@ -65,7 +65,6 @@ from ._common import (
     UnsupportedStructure,
     adjacency,
     carbon_adjacency,
-    halogen_substituents,
     non_single_bonds,
     plain_phenyl_substituent_atoms,
 )

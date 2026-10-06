@@ -49,7 +49,6 @@ from ._common import (
     most_multiple_bonds,
     name_from_substituents,
     non_single_bonds,
-    ring_chain_attachment,
     ring_branch_attachments,
     separate_aromatic_monocycles,
     substituent_locant_set_and_citation,

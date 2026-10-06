@@ -34,7 +34,6 @@ hydroxyl), any ring, any chain unsaturation (ene/yne) besides the amide's
 own C=O, and any specified stereocenter.
 """
 
-from rdkit import Chem
 
 from ._multiplicative_text import enclose
 from ._amide import _is_carbonyl_carbon, _name_acyclic_amide

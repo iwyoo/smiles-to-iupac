@@ -120,7 +120,6 @@ from ._common import (
     adjacency,
     all_chains,
     bfs,
-    bond_locant,
     carbon_adjacency,
     carbon_on_ring,
     chain_bond_locants,
@@ -142,7 +141,6 @@ from ._common import (
     substituent_locant_set_and_citation,
 )
 from ._substituents import (
-    alpha_sort_key,
     format_substituent_prefixes,
     name_branch,
     substituents_for_chain,

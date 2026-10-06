@@ -39,7 +39,6 @@ that leaves it off the main chain entirely (not expected for this shape,
 defensive only).
 """
 
-from rdkit import Chem
 
 from ._multiplicative_text import enclose
 from ._amine import _best_chain_name

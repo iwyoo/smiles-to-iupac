@@ -372,6 +372,10 @@ def _has_free_anion(mol) -> bool:
 
 
 def smiles_to_iupac(smiles: str) -> str:
+    if not isinstance(smiles, str):
+        raise TypeError(f"smiles must be a str, not {type(smiles).__name__}")
+    if not smiles.strip():
+        raise ValueError(f"invalid SMILES: {smiles!r}")
     name = _retained_polycycle_names(_smiles_to_iupac_unabridged(smiles))
     mol = _parse_smiles(smiles)
     if mol is not None and _has_free_anion(mol):

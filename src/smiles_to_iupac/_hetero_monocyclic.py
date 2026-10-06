@@ -260,7 +260,6 @@ from ._common import (
     UnsupportedStructure,
     adjacency,
     halogen_substituents,
-    non_single_bonds,
     ring_cycle,
     substituent_locant_set_and_citation,
 )

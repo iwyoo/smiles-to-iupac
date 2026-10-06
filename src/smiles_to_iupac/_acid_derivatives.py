@@ -397,7 +397,6 @@ def _diyl_name(mol, atoms, attachments):
 def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_pieces):
     """'dimethyl ethane-1,2-diyl dibutanedioate' (P-65.6.3.3.4.1): one organyl piece joining identical acid pieces
     that carry identical pendant organyl groups; None when the molecule is not of that shape."""
-    from .core import smiles_to_iupac
 
     hubs = [i for i, ls in r_pieces.items() if len(ls) >= 2 and i not in acid_pieces]
     if len(hubs) != 1:

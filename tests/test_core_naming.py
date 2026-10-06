@@ -431,3 +431,15 @@ def test_specified_double_bond_with_triple_bond_raises():
 def test_partially_specified_diene_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C/C=C/C=CC")
+
+
+@pytest.mark.parametrize("smiles", ["", "   ", "xyz", "C("])
+def test_invalid_smiles_raises_value_error(smiles):
+    with pytest.raises(ValueError):
+        smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize("value", [None, 5, ["CCO"]])
+def test_non_string_input_raises_type_error(value):
+    with pytest.raises(TypeError):
+        smiles_to_iupac(value)
