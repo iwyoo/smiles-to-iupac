@@ -118,14 +118,14 @@ def test_salt_of_partial_ester_multivalent_cation_raises():
 
 
 def test_methylsulfanylpropane():
-    assert smiles_to_iupac("CSCCC") == "1-methylsulfanylpropane"
+    assert smiles_to_iupac("CSCCC") == "1-(methylsulfanyl)propane"
 
 
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("CC(C)SC(C)C", "2-(propan-2-yl)sulfanylpropane"),
-        ("CC(C)CSC(C)CC", "2-(2-methylpropyl)sulfanylbutane"),
+        ("CC(C)SC(C)C", "2-[(propan-2-yl)sulfanyl]propane"),
+        ("CC(C)CSC(C)CC", "2-[(2-methylpropyl)sulfanyl]butane"),
     ],
 )
 def test_both_sides_branched_and_tied(smiles, expected):
@@ -135,7 +135,7 @@ def test_both_sides_branched_and_tied(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("CC[C@H](C)SCC", "(2S)-2-ethylsulfanylbutane"),
+        ("CC[C@H](C)SCC", "(2S)-2-(ethylsulfanyl)butane"),
     ],
 )
 def test_stereocenter_on_parent_chain__sulfide(smiles, expected):
@@ -149,10 +149,10 @@ def test_stereocenter_on_substituent_branch():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("c1ccccc1SC", "methylsulfanylbenzene"),
-        ("c1ccccc1SC(C)C", "(propan-2-yl)sulfanylbenzene"),
-        ("c1ccccc1CSCC", "(ethylsulfanylmethyl)benzene"),
-        ("c1ccccc1CSC(C)C", "[(propan-2-yl)sulfanylmethyl]benzene"),
+        ("c1ccccc1SC", "(methylsulfanyl)benzene"),
+        ("c1ccccc1SC(C)C", "[(propan-2-yl)sulfanyl]benzene"),
+        ("c1ccccc1CSCC", "[(ethylsulfanyl)methyl]benzene"),
+        ("c1ccccc1CSC(C)C", "{[(propan-2-yl)sulfanyl]methyl}benzene"),
     ],
 )
 def test_benzene_ring_parent(smiles, expected):

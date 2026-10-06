@@ -199,18 +199,18 @@ def test_isoselenocyanate_still_works():
 
 
 def test_ethyl_methyl_selenide():
-    assert smiles_to_iupac("C[Se]CC") == "methylselanylethane"
+    assert smiles_to_iupac("C[Se]CC") == "(methylselanyl)ethane"
 
 
 def test_methyl_propyl_selenide():
-    assert smiles_to_iupac("CCC[Se]C") == "1-methylselanylpropane"
+    assert smiles_to_iupac("CCC[Se]C") == "1-(methylselanyl)propane"
 
 
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("CC(C)[Se]C(C)C", "2-(propan-2-yl)selanylpropane"),
-        ("CC(C)C[Se]C(C)CC", "2-(2-methylpropyl)selanylbutane"),
+        ("CC(C)[Se]C(C)C", "2-[(propan-2-yl)selanyl]propane"),
+        ("CC(C)C[Se]C(C)CC", "2-[(2-methylpropyl)selanyl]butane"),
     ],
 )
 def test_both_sides_branched_and_tied(smiles, expected):
@@ -220,9 +220,9 @@ def test_both_sides_branched_and_tied(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("c1ccccc1[Se]CC", "ethylselanylbenzene"),  # PubChem CID 140285
-        ("c1ccccc1[Se]C(C)C", "(propan-2-yl)selanylbenzene"),
-        ("c1ccccc1C[Se]CC", "(ethylselanylmethyl)benzene"),
+        ("c1ccccc1[Se]CC", "(ethylselanyl)benzene"),  # PubChem CID 140285
+        ("c1ccccc1[Se]C(C)C", "[(propan-2-yl)selanyl]benzene"),
+        ("c1ccccc1C[Se]CC", "[(ethylselanyl)methyl]benzene"),
     ],
 )
 def test_benzene_ring_parent(smiles, expected):
@@ -652,18 +652,18 @@ def test_phenyl_substituted_benzene_ring_tellone_is_named():
 
 
 def test_methyl_ethyl_telluride():
-    assert smiles_to_iupac("C[Te]CC") == "methyltellanylethane"
+    assert smiles_to_iupac("C[Te]CC") == "(methyltellanyl)ethane"
 
 
 def test_methyl_propyl_telluride():
-    assert smiles_to_iupac("CCC[Te]C") == "1-methyltellanylpropane"
+    assert smiles_to_iupac("CCC[Te]C") == "1-(methyltellanyl)propane"
 
 
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("CC(C)[Te]C(C)C", "2-(propan-2-yl)tellanylpropane"),
-        ("CC(C)C[Te]C(C)CC", "2-(2-methylpropyl)tellanylbutane"),
+        ("CC(C)[Te]C(C)C", "2-[(propan-2-yl)tellanyl]propane"),
+        ("CC(C)C[Te]C(C)CC", "2-[(2-methylpropyl)tellanyl]butane"),
     ],
 )
 def test_both_sides_branched_and_tied__telluride(smiles, expected):
@@ -673,9 +673,9 @@ def test_both_sides_branched_and_tied__telluride(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("c1ccccc1[Te]CC", "ethyltellanylbenzene"),  # PubChem CID 5325650
-        ("c1ccccc1[Te]C(C)C", "(propan-2-yl)tellanylbenzene"),
-        ("c1ccccc1C[Te]CC", "(ethyltellanylmethyl)benzene"),
+        ("c1ccccc1[Te]CC", "(ethyltellanyl)benzene"),  # PubChem CID 5325650
+        ("c1ccccc1[Te]C(C)C", "[(propan-2-yl)tellanyl]benzene"),
+        ("c1ccccc1C[Te]CC", "[(ethyltellanyl)methyl]benzene"),
     ],
 )
 def test_benzene_ring_parent__telluride(smiles, expected):
@@ -959,11 +959,11 @@ def test_two_telluroxide_groups_not_supported():
 @pytest.mark.parametrize(
     ("smiles", "expected"),
     [
-        ("CC[C@H](C)[Se]C", "(2S)-2-methylselanylbutane"),
-        ("CC[C@@H](C)[Se]C", "(2R)-2-methylselanylbutane"),
-        ("CC[C@H](C)[Te]C", "(2S)-2-methyltellanylbutane"),
-        ("C[C@H]([Se]C)[C@H](C)CC", "(2S,3R)-3-methyl-2-methylselanylpentane"),
-        ("C[C@H]([Te]C)C(C)(C)C", "(3S)-2,2-dimethyl-3-methyltellanylbutane"),
+        ("CC[C@H](C)[Se]C", "(2S)-2-(methylselanyl)butane"),
+        ("CC[C@@H](C)[Se]C", "(2R)-2-(methylselanyl)butane"),
+        ("CC[C@H](C)[Te]C", "(2S)-2-(methyltellanyl)butane"),
+        ("C[C@H]([Se]C)[C@H](C)CC", "(2S,3R)-3-methyl-2-(methylselanyl)pentane"),
+        ("C[C@H]([Te]C)C(C)(C)C", "(3S)-2,2-dimethyl-3-(methyltellanyl)butane"),
     ],
 )
 def test_selenide_telluride_stereodescriptors_like_sulfide(smiles, expected):
