@@ -64,6 +64,7 @@ _JUNIOR_PATTERNS = [
     "[#6][N+](=O)[O-]",
     "[#6][NX2]=O",
     "[#6][NX2;!R]=[NX2;!R][#6]",
+    "[#6;!R]=[NX2;!R][NX3H2;!R]",
 ]
 
 _CLASS_QUERIES = [(name, Chem.MolFromSmarts(smarts), anchor) for name, smarts, anchor in _CLASS_PATTERNS]
