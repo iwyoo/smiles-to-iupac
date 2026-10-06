@@ -805,15 +805,8 @@ def test_heterocyclic_parents(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        "S=C1CCCC=C1C",
-    ],
-)
-def test_thioketones_are_rejected(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_unsaturated_ring_thioketone_is_named():
+    assert smiles_to_iupac("S=C1CCCC=C1C") == "2-methylcyclohex-2-ene-1-thione"
 
 
 @pytest.mark.parametrize(

@@ -751,10 +751,8 @@ def test_smiles_to_iupac_simple_imine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_ring_raises__imine():
-    # A cyclic/aromatic imine (e.g. 'thiolan-2-imine') is out of scope.
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N=C1CCCC1")
+def test_ring_raises_imine_is_named():
+    assert smiles_to_iupac("N=C1CCCC1") == "cyclopentanimine"
 
 
 def test_unsaturated_chain_raises():
@@ -1111,4 +1109,16 @@ def test_double_amino_substituted_urea_not_supported():
     ],
 )
 def test_hydrazone_with_ring_or_substituted_nitrogen_is_ylidene_hydrazine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C1CCCCC1=NO", "N-hydroxycyclohexanimine"),
+        ("ClC1CCCCC1=NC", "2-chloro-N-methylcyclohexan-1-imine"),
+        ("OC1CCCCC1=N", "2-iminocyclohexan-1-ol"),
+    ],
+)
+def test_ring_imine_and_oxime(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

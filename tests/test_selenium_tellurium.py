@@ -577,9 +577,8 @@ def test_selone_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_unsaturated_ring_selone_with_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[Se]=C1CCCC=C1C")
+def test_unsaturated_ring_selone_with_substituent_is_named():
+    assert smiles_to_iupac("[Se]=C1CCCC=C1C") == "2-methylcyclohex-2-ene-1-selone"
 
 
 def test_unsaturated_ring_selone_triple_bond_raises():
@@ -602,9 +601,8 @@ def test_selenoaldehyde_not_supported():
         smiles_to_iupac("CCC=[Se]")
 
 
-def test_selone_with_hydroxyl_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC(=[Se])C")
+def test_selone_with_hydroxyl_is_named():
+    assert smiles_to_iupac("OCC(=[Se])C") == "1-hydroxypropane-2-selone"
 
 
 def test_acyclic_selone_stereocenter():
@@ -621,14 +619,12 @@ def test_phenyl_chain_selone():
     assert smiles_to_iupac("c1ccccc1CC(=[Se])C") == "1-phenylpropane-2-selone"
 
 
-def test_phenyl_directly_attached_selone_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C(=[Se])C")
+def test_phenyl_directly_attached_selone_is_named():
+    assert smiles_to_iupac("c1ccccc1C(=[Se])C") == "1-phenylethane-1-selone"
 
 
-def test_phenyl_substituted_benzene_ring_selone_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC(=[Se])C")
+def test_phenyl_substituted_benzene_ring_selone_is_named():
+    assert smiles_to_iupac("Cc1ccccc1CC(=[Se])C") == "1-(2-methylphenyl)propane-2-selone"
 
 
 def test_propane_2_tellone():
@@ -640,9 +636,8 @@ def test_unsaturated_ring_tellone():
     assert smiles_to_iupac("[Te]=C1CC=CCC1") == "cyclohex-3-ene-1-tellone"
 
 
-def test_unsaturated_ring_tellone_with_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[Te]=C1CCCC=C1C")
+def test_unsaturated_ring_tellone_with_substituent_is_named():
+    assert smiles_to_iupac("[Te]=C1CCCC=C1C") == "2-methylcyclohex-2-ene-1-tellone"
 
 
 def test_unsaturated_ring_tellone_triple_bond_raises():
@@ -683,14 +678,12 @@ def test_phenyl_chain_tellone():
     assert smiles_to_iupac("c1ccccc1CC(=[Te])C") == "1-phenylpropane-2-tellone"
 
 
-def test_phenyl_directly_attached_tellone_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C(=[Te])C")
+def test_phenyl_directly_attached_tellone_is_named():
+    assert smiles_to_iupac("c1ccccc1C(=[Te])C") == "1-phenylethane-1-tellone"
 
 
-def test_phenyl_substituted_benzene_ring_tellone_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC(=[Te])C")
+def test_phenyl_substituted_benzene_ring_tellone_is_named():
+    assert smiles_to_iupac("Cc1ccccc1CC(=[Te])C") == "1-(2-methylphenyl)propane-2-tellone"
 
 
 def test_methyl_ethyl_telluride():
