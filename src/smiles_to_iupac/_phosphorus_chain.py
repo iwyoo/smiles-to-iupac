@@ -18,6 +18,7 @@ class PhosphorusChain:
     bridges: list = field(default_factory=list)
     sulfur_per_phosphorus: list = field(default_factory=list)
     hydrogens: int = 0
+    anionic: int = 0
     atoms: set = field(default_factory=set)
     extra: tuple = None
 
@@ -36,7 +37,7 @@ def _bond_order(mol, a, b):
 
 def _terminal_chalcogen(mol, idx):
     atom = mol.GetAtomWithIdx(idx)
-    return atom.GetAtomicNum() in (8, 16) and atom.GetDegree() == 1 and not atom.GetFormalCharge()
+    return atom.GetAtomicNum() in (8, 16) and atom.GetDegree() == 1 and atom.GetFormalCharge() in (0, -1)
 
 
 def _bridge_kind(mol, graph, idx, came_from):
@@ -80,8 +81,11 @@ def parse_chain(mol, graph, root, parent, allow_extra=False):
             if _terminal_chalcogen(mol, n):
                 if order == 2.0:
                     oxo.append(n)
-                elif na.GetTotalNumHs() == 1:
+                elif na.GetTotalNumHs() == 1 and not na.GetFormalCharge():
                     terminals.append(n)
+                elif na.GetFormalCharge() == -1 and not na.GetTotalNumHs():
+                    terminals.append(n)
+                    chain.anionic += 1
                 else:
                     raise UnsupportedStructure("charged or substituted terminal group on a phosphate chain")
             elif order == 1.0 and _bridge_kind(mol, graph, n, p) is not None:
@@ -98,7 +102,7 @@ def parse_chain(mol, graph, root, parent, allow_extra=False):
         chain.sulfur_per_phosphorus.append(
             sum(1 for n in oxo + terminals if mol.GetAtomWithIdx(n).GetAtomicNum() == 16)
         )
-        chain.hydrogens += len(terminals)
+        chain.hydrogens += sum(1 for n in terminals if mol.GetAtomWithIdx(n).GetTotalNumHs())
         if extra:
             oxygen = extra[0]
             (r_atom,) = [n for n in graph[oxygen] if n != p]
@@ -146,7 +150,8 @@ def _replacement_text(found):
 
 
 def chain_anion_name(chain):
-    """'trihydrogen 2-thiodiphosphate' for the ester-anion word of the chain (P-106.2, P-106.3.2)."""
+    """'trihydrogen 2-thiodiphosphate' for the ester-anion word of the chain (P-106.2, P-106.3.2); an anionic
+    terminal oxygen carries no hydrogen (P-72.2)."""
     hydrogen = ""
     if chain.hydrogens:
         hydrogen = (numerical_term(chain.hydrogens) if chain.hydrogens > 1 else "") + "hydrogen "

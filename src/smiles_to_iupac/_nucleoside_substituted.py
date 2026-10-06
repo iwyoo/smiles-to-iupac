@@ -986,6 +986,10 @@ def _plain_name(an):
     retained = _retained_nucleotide(an)
     if retained:
         position, thio = retained
+        chain = an.phosphorus[0][1]
+        if chain.anionic:
+            hydrogen = _HYDROGEN.get(chain.hydrogens, "")
+            return hydrogen + _nucleotide_text(an, position, thio, _NUCLEOTIDE_STEM[an.parent][:-2] + "ate")
         return _nucleotide_text(an, position, thio, f"{_NUCLEOTIDE_STEM[an.parent]} acid")
     name = (
         (f"({labels})-" if labels else "")

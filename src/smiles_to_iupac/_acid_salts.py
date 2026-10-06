@@ -22,7 +22,17 @@ _EXTRA_CATIONS = {
 }
 
 
+def _is_nucleotide_anion(frag):
+    from ._nucleoside_substituted import has_substituted_nucleoside_name
+
+    return any(
+        a.GetFormalCharge() == -1 and any(n.GetAtomicNum() == 15 for n in a.GetNeighbors()) for a in frag.GetAtoms()
+    ) and has_substituted_nucleoside_name(frag)
+
+
 def _has_acid_anion(frag):
+    if _is_nucleotide_anion(frag):
+        return True
     for atom in frag.GetAtoms():
         if atom.GetFormalCharge() == -1 and atom.GetAtomicNum() in (8, 16, 34, 52):
             for n in atom.GetNeighbors():
@@ -51,7 +61,7 @@ def _anion_name(frag):
     from ._salt import _polyatomic_anion
     from .core import smiles_to_iupac
 
-    polyatomic = _polyatomic_anion(frag)
+    polyatomic = None if _is_nucleotide_anion(frag) else _polyatomic_anion(frag)
     if polyatomic is not None:
         namer, magnitude = polyatomic
         return namer(frag), magnitude

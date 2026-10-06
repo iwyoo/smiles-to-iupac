@@ -120,3 +120,16 @@ def test_oligonucleotides(smiles, expected):
 def test_nucleotide_names_without_a_preferred_form_warn(smiles, expected):
     with pytest.warns(NonPreferredNameWarning):
         assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ('Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)([O-])[O-])[C@@H](O)[C@H]1O', '5′-adenylate'),
+        ('Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)(O)[O-])[C@@H](O)[C@H]1O', 'hydrogen 5′-adenylate'),
+        ('Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)([O-])[O-])[C@@H](O)[C@H]1O.[Na+].[K+]', 'potassium sodium 5′-adenylate'),
+        ('Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)(O)OP(=O)([O-])[O-])[C@@H](O)[C@H]1O.[Na+].[Na+]', 'disodium adenosine 5′-(hydrogen diphosphate)'),
+    ],
+)
+def test_nucleotide_anions_and_salts(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
