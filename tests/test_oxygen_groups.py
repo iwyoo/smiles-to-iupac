@@ -92,6 +92,18 @@ def test_ring_with_hydroxyl_and_branched_diol_chain():
     assert smiles_to_iupac("OC1CCCCC1C(CO)CO") == "2-(2-hydroxycyclohexyl)propane-1,3-diol"
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OC1CCCCC1C(C)(CO)CO", "2-(2-hydroxycyclohexyl)-2-methylpropane-1,3-diol"),
+        ("OC1CCCCC1CC(CO)CO", "2-[(2-hydroxycyclohexyl)methyl]propane-1,3-diol"),
+        ("OC1CCCCC1C(CO)(CO)CO", "2-(2-hydroxycyclohexyl)-2-(hydroxymethyl)propane-1,3-diol"),
+    ],
+)
+def test_chain_with_most_hydroxyls_is_parent_over_longer_chain_and_ring_hydroxyl(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_phenyl_chain_unsaturation():
     assert smiles_to_iupac("C=Cc1ccccc1CO") == "(2-ethenylphenyl)methanol"
 

@@ -828,6 +828,18 @@ def _name_monospiro_alcohol(mol, hydroxyls, stereo, spiro_atom):
     return name_monospiro_suffix(mol, oh_carbon, hydroxyls, "ol", "hydroxyl", spiro_atom)
 
 
+def _hydroxy_chain(graph, chain_hydroxyls, ring_atoms, excluded, halogens):
+    """P-44.1.1/P-44.3.2: the chain off the ring carrying the most -OH carbons, then the longest."""
+    principal = {next(iter(graph[o])) for o in chain_hydroxyls}
+    best = None
+    for anchor in sorted(principal):
+        chain, branches = longest_branched_chain_through(graph, anchor, ring_atoms, excluded, halogens=halogens, principal=principal)
+        key = (-len(principal & set(chain)), -len(chain))
+        if best is None or key < best[0]:
+            best = (key, chain, branches)
+    return best[1], best[2]
+
+
 def _name_ring_substituent_chain_alcohol(mol, hydroxyls):
     """Name an alcohol whose -OH lies entirely on a single unbranched chain
     hanging off one atom of an otherwise-plain monocyclic ring (the ring
@@ -848,9 +860,7 @@ def _name_ring_substituent_chain_alcohol(mol, hydroxyls):
             "yet"
         )
     ring_atom, chain_root = attachment
-    anchor_oxygen = next(iter(hydroxyls))
-    (anchor_carbon,) = graph[anchor_oxygen]
-    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, hydroxyls, halogens=halogen_substituents(mol))
+    chain, branches = _hydroxy_chain(graph, hydroxyls, ring_atoms, hydroxyls, halogens)
     chain_set = set(chain)
     for o in hydroxyls:
         (carbon,) = graph[o]
@@ -936,32 +946,21 @@ def _name_ring_with_hydroxy_chain_alcohol(mol, hydroxyls):
     chain_hydroxyls = hydroxyls - ring_hydroxyls
 
     if len(ring_hydroxyls) < len(chain_hydroxyls):
-        # P-44.1.1: the chain captures strictly more -OH's, so it's the
-        # senior parent and the ring (with its own one or more -OH's) is
-        # cited as a substituent instead -- mirrors
-        # `_name_ring_substituent_chain_alcohol` exactly, substituting
-        # the ring's own name_branch-computed name for the plain
-        # "cyclo..." one that function uses.
-        ring_name, ring_is_compound = name_branch(
-            graph, ring_atom, chain_root, {**halogens, **{o: "hydroxy" for o in ring_hydroxyls}}, mol=mol
-        )
-        chain, branches = longest_branched_chain_through(graph, chain_root, ring_atoms, hydroxyls, halogens=halogen_substituents(mol))
-        branches_by_atom = {
-            chain[position - 1]: [r for r in roots if r != ring_atom]
-            for position, roots in branches.items()
-        }
-        branches_by_atom = {atom: roots for atom, roots in branches_by_atom.items() if roots}
+        # P-44.1.1: the chain captures strictly more -OH's, so it is the parent and the ring a substituent.
+        chain, branches = _hydroxy_chain(graph, chain_hydroxyls, ring_atoms, hydroxyls, halogens)
+        branches_by_atom = {chain[position - 1]: roots for position, roots in branches.items()}
+        suffix_hydroxyls = {o for o in chain_hydroxyls if next(iter(graph[o])) in chain}
+        ring_halogens = {**halogens, **{o: "hydroxy" for o in hydroxyls - suffix_hydroxyls}}
         chain_length = len(chain)
         best_key = None
         best_name = None
         for candidate in (chain, list(reversed(chain))):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
-            oh_locants = _oh_locants(position_of, chain_hydroxyls, graph)
+            oh_locants = _oh_locants(position_of, suffix_hydroxyls, graph)
             substituents = {
-                position_of[atom]: [name_branch(graph, root, atom, halogens, mol=mol) for root in roots]
+                position_of[atom]: [name_branch(graph, root, atom, ring_halogens, mol=mol) for root in roots]
                 for atom, roots in branches_by_atom.items()
             }
-            substituents.setdefault(position_of[chain_root], []).append((ring_name, ring_is_compound))
             key, name = _candidate_key(chain_length, oh_locants, [], [], substituents)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
@@ -1043,9 +1042,7 @@ def _name_phenyl_chain_alcohol(mol, ring_atoms):
             "yet -- a single ring hydroxyl alone is handled by "
             "`_name_phenol`, out of scope for this chain-parent module"
         )
-    anchor_oxygen = next(iter(hydroxyls))
-    (anchor_carbon,) = graph[anchor_oxygen]
-    chain, branches = longest_branched_chain_through(graph, anchor_carbon, ring_atoms, hydroxyls, halogens=halogen_substituents(mol))
+    chain, branches = _hydroxy_chain(graph, hydroxyls, ring_atoms, hydroxyls, halogens)
     chain_set = set(chain)
     for o in hydroxyls:
         (carbon,) = graph[o]
