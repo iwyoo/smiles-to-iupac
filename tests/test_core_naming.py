@@ -595,3 +595,22 @@ def test_ester_and_halide_groups_the_parent_cannot_carry_are_cited_as_prefixes(s
 )
 def test_peptide_acyl_residues_cite_their_own_stereodescriptors(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CCOP(=O)(O)OP(=O)(O)OC", "1-ethyl 3-methyl dihydrogen diphosphate"),
+        ("CCOP(=O)(OC)OP(=O)(O)O", "1-ethyl 1-methyl dihydrogen diphosphate"),
+        ("CCOP(=O)(O)OP(=O)(O)OCC", "1,3-diethyl dihydrogen diphosphate"),
+        ("CCOP(=O)(OCC)OP(=O)(O)O", "1,1-diethyl dihydrogen diphosphate"),
+        ("CCOP(=O)(OCC)OP(=O)(O)OC", "1,1-diethyl 3-methyl hydrogen diphosphate"),
+        ("COP(=O)(OC)OP(=O)(O)OCC", "3-ethyl 1,1-dimethyl hydrogen diphosphate"),
+        ("ClCCOP(=O)(O)OP(=O)(O)OC", "1-(2-chloroethyl) 3-methyl dihydrogen diphosphate"),
+        ("CCCCOP(=O)(O)OP(=O)(O)O", "butyl trihydrogen diphosphate"),
+        ("CCOP(=O)(OC)OP(=O)(OC)OC", "ethyl trimethyl diphosphate"),
+        ("CCOP(=O)(OCC)OP(=O)(OCC)OCC", "tetraethyl diphosphate"),
+    ],
+)
+def test_diphosphate_esters_cite_locants_when_the_arrangement_is_otherwise_ambiguous(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
