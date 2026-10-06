@@ -39,11 +39,11 @@ from ._common import (
 from ._numerals import numerical_term
 from ._substituents import format_substituent_prefixes, name_branch
 
-_RING_HETERO = {8: "O", 16: "S", 34: "Se", 52: "Te"}
-_LAMBDA_HETERO = {16, 34, 52}
+_RING_HETERO = {8: "O", 16: "S", 34: "Se", 52: "Te", 15: "P"}
+_LAMBDA_HETERO = {16, 34, 52, 15}
 _CHALCOGENS = {8, 16, 34, 52}
-_SENIORITY = ("O", "S", "Se", "Te", "N")
-_RING_PREFIX = {"O": "oxa", "S": "thia", "Se": "selena", "Te": "tellura", "N": "aza"}
+_SENIORITY = ("O", "S", "Se", "Te", "N", "P")
+_RING_PREFIX = {"O": "oxa", "S": "thia", "Se": "selena", "Te": "tellura", "N": "aza", "P": "phospha"}
 _STEM_ENDING = {3: "irane", 4: "etane", 5: "olane", 6: "ane", 7: "epane", 8: "ocane", 9: "onane", 10: "ecane"}
 _MANCUDE_ENDING = {3: "irene", 4: "ete", 5: "ole", 6: "ine", 7: "epine", 8: "ocine", 9: "onine", 10: "ecine"}
 _RETAINED = {"S": "thiophene", "Se": "selenophene", "Te": "tellurophene"}
@@ -111,6 +111,12 @@ def _match(mol):
                 return None
             ring_hetero[idx] = _RING_HETERO[atom.GetAtomicNum()]
             terminal = _exocyclic_chalcogens(mol, idx, ring_set)
+            if atom.GetAtomicNum() == 15:
+                if mancude or len(terminal) != 1:
+                    return None
+                exo_chalcogens[idx] = terminal
+                roots[idx] = [n for n in exo if n != terminal[0]]
+                continue
             if len(terminal) != len(exo) or (terminal and atom.GetAtomicNum() not in _LAMBDA_HETERO):
                 return None
             if terminal:
@@ -125,8 +131,17 @@ def _match(mol):
         if bond is not None and not mancude and bond.GetBondTypeAsDouble() != 1.0:
             return None
     exo_atoms = {x for xs in exo_chalcogens.values() for x in xs}
+    phosphorus_branch = set()
+    stack = [r for i in ring_hetero if ring_hetero[i] == "P" for r in roots[i]]
+    while stack:
+        i = stack.pop()
+        if i not in phosphorus_branch:
+            phosphorus_branch.add(i)
+            stack.extend(n for n in graph[i] if n not in ring_set)
     for atom in mol.GetAtoms():
         if atom.GetIdx() in ring_set or atom.GetIdx() in exo_atoms:
+            continue
+        if atom.GetAtomicNum() == 8 and atom.GetIdx() in phosphorus_branch:
             continue
         if atom.GetAtomicNum() not in (6, 9, 17, 35, 53):
             return None
@@ -156,7 +171,13 @@ def _stem(elements, size, mancude):
         term = (numerical_term(n) if n > 1 else "") + _RING_PREFIX[e]
         prefix = (prefix[:-1] if prefix and term[0] in "aeiou" else prefix) + term
     ending = (_MANCUDE_ENDING if mancude else _STEM_ENDING)[size]
+    if not mancude and size == 6 and "P" in elements:
+        ending = "inane"
     return (prefix[:-1] if ending[0] in "aeiou" else prefix) + ending
+
+
+def _lambda(element, exo):
+    return (3 if element == "P" else 2) + 2 * len(exo)
 
 
 def _numbering_key(position_of, ring_hetero, exo_chalcogens, suffix_kind):
@@ -166,7 +187,7 @@ def _numbering_key(position_of, ring_hetero, exo_chalcogens, suffix_kind):
         for element in _SENIORITY
         for a in sorted((x for x, e in ring_hetero.items() if e == element), key=position_of.get)
     )
-    lam = {position_of[a]: 2 + 2 * len(exo_chalcogens[a]) for a in ring_hetero if a in exo_chalcogens}
+    lam = {position_of[a]: _lambda(ring_hetero[a], exo_chalcogens[a]) for a in ring_hetero if a in exo_chalcogens}
     lam_locants = sorted(lam)
     lam_numbers = tuple(-lam[loc] for loc in lam_locants)
     suffix_locants = sorted(position_of[a] for a, xs in exo_chalcogens.items() for x in xs if x[1] == suffix_kind)
@@ -222,7 +243,7 @@ def name_ring_lambda_heterone(mol) -> str:
 
     _, position_of, prefixes = best
     lam_by_position = {
-        position_of[a]: 2 + 2 * len(exo_chalcogens[a]) for a in ring_hetero if a in exo_chalcogens
+        position_of[a]: _lambda(ring_hetero[a], exo_chalcogens[a]) for a in ring_hetero if a in exo_chalcogens
     }
     cited = []
     for element in _SENIORITY:

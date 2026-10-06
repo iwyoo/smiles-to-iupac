@@ -82,6 +82,8 @@ def _find_phosphanone_phosphorus(mol):
     if len(phosphorus_atoms) != 1:
         return None
     (phosphorus,) = phosphorus_atoms
+    if phosphorus.IsInRing():
+        return None
     oxo_bonds = [
         bond
         for bond in mol.GetBonds()
