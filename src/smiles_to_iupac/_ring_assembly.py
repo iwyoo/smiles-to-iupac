@@ -9,8 +9,7 @@ Book"):
   name -- confirmed PIN worked examples `1,1'-bi(cyclopropane)` (parens
   needed: 'bicyclopropane' would misread as a von Baeyer bicyclic name),
   `2,2'-bipyridine`, `1,2'-binaphthalene`, `2,3'-bifuran` (no parens needed
-  for any of these -- none start with 'cyclo'), `tmp/bluebook/P2.txt`
-  ~7770-7808. Two benzene rings joined this way instead use the retained
+  for any of these -- none start with 'cyclo'), the Blue Book. Two benzene rings joined this way instead use the retained
   substituent-group name 'biphenyl' (method (2) of the same rule), giving the
   PIN '1,1'-biphenyl' -- the sole named exception to the plain parent-hydride
   construction. The locants of the two ring-joining atoms are compulsorily
@@ -49,7 +48,7 @@ separate composite-locant numbering scheme (P-28.3), not a generalization of
 this module's own primed-locant one.
 
 - P-28.2.3 (indicated hydrogen of a two-component ring assembly, same
-  `tmp/bluebook/P2.txt` ~7831): 1H-pyrrole is the one N-H tautomer-
+  the Blue Book): 1H-pyrrole is the one N-H tautomer-
   unambiguous `_ROLE_SEQUENCES` parent (a single ring nitrogen, no
   prototropic choice about which atom is "N1" the way imidazole/pyrazole
   have -- those stay deferred, see #936's own investigation) whose own

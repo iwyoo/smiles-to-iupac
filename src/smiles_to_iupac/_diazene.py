@@ -42,7 +42,7 @@ Recommendations ("the Blue Book"):
   confirmed via PubChem for the case where the compound name isn't first:
   CID 300540 (`CC(C)N=NC`) -> "methyl(propan-2-yl)diazene". When the
   compound name *is* alphabetically first, it still needs its own
-  parentheses too (P-16.5.1.3.1's literal text, `tmp/bluebook/P1.html`)
+  parentheses too (P-16.5.1.3.1's literal text, the Blue Book)
   -- e.g. '(2-chloroethyl)(methyl)diazene', not a bare
   '2-chloroethyl(methyl)diazene' (not independently PubChem-registered
   for that exact structure, but the same correction already applied to

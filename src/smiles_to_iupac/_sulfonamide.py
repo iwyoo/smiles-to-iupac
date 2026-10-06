@@ -507,8 +507,7 @@ def _name_phenyl_chain_sulfonamide(mol, ring_atoms):
     `_sulfonic_acid.py`'s `_name_phenyl_chain_sulfonic_acid`. Narrower
     than the acyclic path above: no N-alkyl substitution, no chain
     unsaturation, and no specified stereocenter -- each is a separate
-    follow-up (see
-    tasks/phenyl-substituent-on-sulfonamide-chain.md's scope note)."""
+    follow-up."""
     sulfur_idx, so2nh2_carbon, _, n_alkyl_carbons = _validate_and_collect_sulfonamides(
         mol, aromatic_ring_atoms=ring_atoms
     )

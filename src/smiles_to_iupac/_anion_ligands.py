@@ -1,5 +1,4 @@
-"""Anionic heteroatom-donor ligands (P-69.2.2, `tmp/bluebook/P6a.txt` lines
-8619-8680): the '-ide/-ate/-ite -> -ido/-ato/-ito' rule applied to the
+"""Anionic heteroatom-donor ligands (P-69.2.2, the Blue Book): the '-ide/-ate/-ite -> -ido/-ato/-ito' rule applied to the
 ligand's parent acid or hydride, e.g. 'acetato', 'benzenethiolato',
 'dimethylazanido', 'nitrato', 'azido', 'thiocyanato-kappaS', and the chelates
 'pentane-2,4-dionato-kappa2O,O\'', 'oxalato-kappa2O,O\'', 'carbonato-kappa2O,O\''.

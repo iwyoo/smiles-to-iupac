@@ -33,7 +33,7 @@ Recommendations ("the Blue Book"):
   N-substituent (has its own locant, e.g. 'propan-2-yl') is always
   parenthesized -- P-16.5.1.5's own worked example 'N-(2-chloroethyl)
   propan-1-amine (PIN)' and P-66.1.6.1.3.1's 'N-(butan-2-yl)selenourea
-  (PIN)' (`tmp/bluebook/P1.html`/`P6a.txt`) both confirm this for a
+  (PIN)' (the Blue Book) both confirm this for a
   *single*, non-multiplied compound N-substituent, contradicting
   PubChem's own raw (unparenthesized) auto-generated name for the
   equivalent carbamate structure ('methyl N-propan-2-ylcarbamate', CID
@@ -69,7 +69,7 @@ Recommendations ("the Blue Book"):
   regardless of `name_branch`'s `is_compound` flag -- the 'R carbamate'
   two-word pattern (mirroring `_ester.py`'s alcohol part, confirmed via
   the Blue Book's own 'propan-2-yl thiocyanate (PIN)' worked example,
-  `tmp/bluebook/P6.txt`) has no nested-prefix ambiguity to guard
+  the Blue Book) has no nested-prefix ambiguity to guard
   against -- unlike the 'N-' prefix pattern on the amide side, which
   always needs enclosing marks for a compound name (see above).
 

@@ -1,5 +1,14 @@
 # smiles-to-iupac
 
+[![PyPI](https://img.shields.io/pypi/v/smiles-to-iupac)](https://pypi.org/project/smiles-to-iupac/)
+[![Python](https://img.shields.io/pypi/pyversions/smiles-to-iupac)](https://pypi.org/project/smiles-to-iupac/)
+[![Tests](https://github.com/iwyoo/smiles-to-iupac/actions/workflows/test.yml/badge.svg)](https://github.com/iwyoo/smiles-to-iupac/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+> **Alpha release.** Coverage of the Blue Book is incomplete and growing.
+> Unsupported structures raise `NotImplementedError`; names should still be
+> checked before use in anything that matters.
+
 Rule-based conversion of SMILES strings to IUPAC names, implemented directly
 from the *Nomenclature of Organic Chemistry: Recommendations and Preferred
 Names 2013* (the "Blue Book"). No machine learning, no lookup table of known
@@ -73,7 +82,7 @@ below); they are never silently mis-named.
 
 ## Installation
 
-Requires Python 3.9 or newer. Dependencies (RDKit and NetworkX) are installed
+Requires Python 3.10 or newer. Dependencies (RDKit and NetworkX) are installed
 automatically.
 
 ```bash
@@ -146,6 +155,18 @@ result.
 ## References
 
 See [REFERENCES.md](REFERENCES.md) for the Blue Book source and chapter PDFs.
+
+## Disclaimer
+
+This is an independent, unofficial implementation. It is not affiliated with,
+endorsed by, or certified by IUPAC or the Royal Society of Chemistry. The
+software is provided "as is", without warranty of any kind; generated names
+are not guaranteed to be correct or to be preferred IUPAC names.
+
+Worked examples from the Blue Book are cited, in short form only, to verify
+behavior. Structures from [PubChem](https://pubchem.ncbi.nlm.nih.gov/)
+(U.S. National Library of Medicine) are used only as a cross-check and never
+to produce names.
 
 ## License
 

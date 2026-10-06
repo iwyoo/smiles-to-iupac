@@ -3,8 +3,8 @@ unsubstituted monocyclic ring (mancude or saturated), per the IUPAC 2013
 Recommendations:
 
 - P-62.5's functional-class "oxide" nomenclature isn't limited to acyclic
-  amines (`_amine_oxide.py`) -- confirmed via `tmp/bluebook/P7.txt:3135`
-  ("1,2-thiazole 1-oxide") and `tmp/bluebook/P6a.txt:944` ("1,2-thiazinane
+  amines (`_amine_oxide.py`) -- confirmed via the Blue Book
+  ("1,2-thiazole 1-oxide") and the Blue Book ("1,2-thiazinane
   1-oxide"): a single chalcogen oxide on an otherwise standard-valence
   ring is named by appending "<locant>-oxide" to the ring's own plain
   name, no lambda-convention involved (contrast P-22.2.7, whose own

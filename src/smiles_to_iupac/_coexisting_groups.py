@@ -18,8 +18,7 @@ classes where one is demoted to a substituent prefix per P-41/P-43
   `_carboxylic_acid_amine.py` is rebuilt on top of this module, to prove
   the pattern without touching the six other existing pairwise modules or
   either pilot's separate benzene-ring-substituent function (regression
-  risk -- see `tasks/coexisting-groups-generic-dispatcher.md`, since
-  deleted). All six pairwise modules' acyclic branches were later migrated
+  risk). All six pairwise modules' acyclic branches were later migrated
   the same way (PR #507/#508/#509/#510/#511/#512).
 - The three pairwise modules that also have a benzene-ring-substituent
   ("phenyl-chain") path (`_carboxylic_acid_sulfinic_acid.py`/

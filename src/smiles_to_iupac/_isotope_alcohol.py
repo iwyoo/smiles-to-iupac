@@ -3,7 +3,7 @@ hydroxyl oxygen (17O/18O) and/or a skeletal-carbon isotope (12C/13C/14C),
 combined with the existing '-ol' suffix, per the IUPAC 2013
 Recommendations ("the Blue Book"):
 
-- P-82.5.1 (`tmp/bluebook/P8.txt` ~449-453): "Numbering of an
+- P-82.5.1 (the Blue Book): "Numbering of an
   isotopically substituted compound is not changed from that of an
   isotopically unmodified compound ... the presence of nuclides is
   considered last" among P-14.4's numbering-priority criteria -- so the
@@ -12,7 +12,7 @@ Recommendations ("the Blue Book"):
   reused directly via `_best_acyclic_alcohol_candidate` on a neutralized
   (isotope-stripped) copy of the molecule rather than re-derived here.
 - Placement depends on which atom carries the isotope, corrected
-  2026-09-21 (#804) after cross-checking more of `tmp/bluebook/P8.txt`'s
+  2026-09-21 (#804) after cross-checking more of the Blue Book's
   own worked examples than the original pass did:
   - An isotope on the hydroxyl oxygen itself (the suffix-defining atom)
     is inserted directly before the '-ol' suffix: 'methan(18O)ol'-style,

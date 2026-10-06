@@ -205,8 +205,7 @@ def _name_phenyl_chain_acyl_halide(mol, ring_atoms):
     aromatic-ring recognition) on the chain, which is the parent hydride,
     mirroring `_aldehyde.py`'s `_name_phenyl_chain_aldehyde`. Narrower than
     the acyclic path above: no chain unsaturation and no specified
-    stereocenter -- each is a separate follow-up (see
-    tasks/phenyl-substituent-on-acyl-halide-chain.md's scope note)."""
+    stereocenter -- each is a separate follow-up."""
     acyl_carbon, carbonyl_oxygen, acyl_halogen = _validate_and_collect_acyl_halides(
         mol, aromatic_ring_atoms=ring_atoms
     )

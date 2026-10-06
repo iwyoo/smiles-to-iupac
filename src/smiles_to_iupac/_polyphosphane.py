@@ -1,6 +1,5 @@
 """Two phosphane groups joined by a carbon linker (P-15.3 multiplicative
-nomenclature on the P-68 phosphane parent, `tmp/bluebook/P6a.txt` line
-~8920): identical halves give 'methylenebis(dimethylphosphane)' and
+nomenclature on the P-68 phosphane parent, the Blue Book): identical halves give 'methylenebis(dimethylphosphane)' and
 'ethane-1,2-diylbis(diphenylphosphane)'; different halves are named
 substitutively on the better-substituted phosphorus. Only alkyl/phenyl P
 substituents and an unbranched alkane or benzene linker are supported.

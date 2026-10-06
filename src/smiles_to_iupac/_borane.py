@@ -21,7 +21,7 @@ and/or plain phenyl substituents), per the IUPAC 2013 Recommendations
   and "diethyl(methyl)borane" (CID 543198's structure, ethyl x2 + methyl
   x1) -- the multiplying prefix always sits *outside* the parentheses,
   confirmed via the Blue Book's own "chlorodi(methyl)borane (PIN)"
-  worked example (`tmp/bluebook/P6.txt`), not PubChem's own raw
+  worked example (the Blue Book), not PubChem's own raw
   "ethyl(dimethyl)borane" for the first case (see `_phosphane.py`'s
   docstring for the full derivation of this correction).
 - P-14.3.4.2(a): boron is the sole skeletal atom of the parent hydride, so

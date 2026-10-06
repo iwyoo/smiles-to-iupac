@@ -10,7 +10,7 @@ hydrocarbon chains hung off a single tellurinyl tellurium, per the IUPAC
   (prefixing the acyl group R'-Te(=O)- to the parent hydride name for R),
   with 'tellurinyl' (from 'tellurinic acid') standing in for 'seleninyl'.
 - 'tellurinyl' is confirmed as a preselected prefix directly in the Blue
-  Book text (P6a.txt).
+  Book text.
 - No worked example exists for this exact R-Te(=O)-R' shape in the source,
   and the asymmetric-chain case has no PubChem-registered structure either
   (CID 0) -- this is a reviewed, not directly verified, mechanical

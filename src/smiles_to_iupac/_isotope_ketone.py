@@ -12,7 +12,7 @@ Recommendations ("the Blue Book"):
   copy of the molecule rather than re-derived here (mirrors
   `_isotope_alcohol.py`'s identical approach).
 - Placement depends on which atom carries the isotope, confirmed by
-  `tmp/bluebook/P8.txt`'s own worked examples:
+  the Blue Book's own worked examples:
   - A skeletal-carbon isotope (not the suffix-defining atom) goes at the
     *front of the whole name*, per P-82.2.5's own general rule ("In a
     name consisting of one word, the isotopic descriptor is placed

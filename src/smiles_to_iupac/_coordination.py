@@ -1,5 +1,4 @@
-"""Group 3-12 organometallic naming (P-69.2.1-P-69.2.3, `tmp/bluebook/P6a.txt`
-lines 8614-8710): ligands in alphanumerical order, then the metal
+"""Group 3-12 organometallic naming (P-69.2.1-P-69.2.3, the Blue Book): ligands in alphanumerical order, then the metal
 ('trichlorido(methyl)titanium'); charged complexes, M-M bonds and
 mu-bridging atoms included. Not SMILES-expressible, hence out of this
 repo's scope: eta-n hapto ligands (other than the separate [CH-] Cp fragment).

@@ -514,8 +514,7 @@ def _name_phenyl_chain_nitrile(mol, ring_atoms):
     the chain, which is the parent hydride, mirroring
     `_aldehyde.py`'s `_name_phenyl_chain_aldehyde`. Narrower than the
     acyclic path above: no chain unsaturation and no specified stereocenter
-    -- each is a separate follow-up (see
-    tasks/phenyl-substituent-on-nitrile-chain.md's scope note)."""
+    -- each is a separate follow-up."""
     nitriles = _validate_and_collect_nitriles(mol, aromatic_ring_atoms=ring_atoms)
     if specified_stereocenters(mol):
         raise UnsupportedStructure(

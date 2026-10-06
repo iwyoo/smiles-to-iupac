@@ -10,7 +10,7 @@ hydrocarbon chains hung off a single telluronyl tellurium, per the IUPAC
   R'-Te(=O)(=O)- (built from the corresponding telluronic acid name, e.g.
   R'=ethyl -> 'ethanetelluronyl') to the parent hydride name for R.
 - 'telluronyl' is confirmed as a preselected prefix directly in the Blue
-  Book text (P6a.txt). No worked example exists for this exact
+  Book text. No worked example exists for this exact
   R-Te(=O)(=O)-R' shape, and the asymmetric-chain case has no
   PubChem-registered structure (CID 0) -- see `_telluroxide.py`'s docstring
   for why this is a reviewed, not directly verified, mechanical extension.

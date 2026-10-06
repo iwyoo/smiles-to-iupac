@@ -342,8 +342,7 @@ def _name_phenyl_chain_sulfinic_acid(mol, ring_atoms):
     `name_branch`'s aromatic-ring recognition) on the chain, which is the
     parent hydride, mirroring `_sulfonic_acid.py`'s
     `_name_phenyl_chain_sulfonic_acid`. Narrower than the acyclic path
-    above: no chain unsaturation -- a separate follow-up (see
-    tasks/phenyl-substituent-on-sulfinic-acid-chain.md's scope note)."""
+    above: no chain unsaturation -- a separate follow-up."""
     sulfur_idx, so2h_carbon = _validate_and_collect_sulfinic_acids(mol, aromatic_ring_atoms=ring_atoms)
     stereo_prefix = heteroatom_stereo_prefix(mol, sulfur_idx) or ""
     excluded = {sulfur_idx}

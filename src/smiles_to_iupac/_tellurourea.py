@@ -24,7 +24,7 @@ and its N-substituted derivatives, per the IUPAC 2013 Recommendations
   #237) -- a branched N-substituent is supported, mirroring
   `_selenourea.py`'s identical extension (that module has a directly
   confirmed Blue Book worked example, 'N-(butan-2-yl)selenourea (PIN)',
-  `tmp/bluebook/P6a.txt` line 1143; tellurourea inherits the same
+  the Blue Book; tellurourea inherits the same
   mechanism by the shared P-66.1.6.1.3.1 rule text, no tellurium-specific
   worked example exists). A compound (has its own locant) N-substituent
   is always parenthesized, even alone, matching `_urea.py`'s identical

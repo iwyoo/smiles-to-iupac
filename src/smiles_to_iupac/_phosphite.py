@@ -7,7 +7,7 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   substituent (alkyl/aryl) group(s) as separate word(s), in alphanumeric
   order if more than one, followed by the acid's anion name. Confirmed
   worked example: `P(O-CH3)3` -> `trimethyl phosphite (PIN)`
-  (`tmp/bluebook/P6a.txt` line ~4048-4049) -- the exact same rule and
+  (the Blue Book) -- the exact same rule and
   citation style as the phosphate case, differing only in the anion word
   and the absence of a P=O bond.
 - Word-assembly logic (grouping identical R names, multiplying-prefix +

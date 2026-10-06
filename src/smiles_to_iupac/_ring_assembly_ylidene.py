@@ -9,7 +9,7 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   name of the corresponding substituent group, enclosed in parentheses]
   is the only recommended method." Confirmed PIN worked examples
   `1,1'-bi(cyclopentylidene)` and `2,2'-bi(bicyclo[2.2.1]heptanylidene)`
-  (`tmp/bluebook/P2.txt` ~7826) -- not the older CAS-style Δ-locant form.
+  (the Blue Book) -- not the older CAS-style Δ-locant form.
 - The substituent-group name for a monocyclic ring with a single divalent
   radical center ("-ylidene") is P-71.2.1.1/P-71.2.2.1's own rule, already
   proven by `_radical.py`'s `_name_ring_radical`: for an unsubstituted

@@ -17,7 +17,7 @@ IUPAC 2013 Recommendations ("the Blue Book"):
 - Methane (a mononuclear parent) never needs a locant, the same way
   `_acyclic.py`'s P-14.3.4.2(a) never cites a locant on a single-carbon
   parent (e.g. 'chloromethane').
-- Multi-carbon chains (P-82.6 Locants, `tmp/bluebook/P8.txt` lines 510-579,
+- Multi-carbon chains (P-82.6 Locants, the Blue Book,
   and P-82.5.2's numbering-priority rule, same file lines ~465-490):
   locants ARE cited whenever needed to specify the modified position.
   Confirmed worked examples: '(2-14C)butane (PIN)' [not '(3-14C)butane' --
@@ -69,7 +69,7 @@ IUPAC 2013 Recommendations ("the Blue Book"):
   confirms the combined structure is valid and distinct from either
   isotope alone).
 - The same carbon-isotope + deuterium combination is now also supported on
-  a multi-carbon chain (P-82.5.2, `tmp/bluebook/P8.txt` lines 466-490),
+  a multi-carbon chain (P-82.5.2, the Blue Book),
   confirmed by two worked examples: `(3-14C,2,2-2H2)butane (PIN)` [not
   `(2-14C,3,3-2H2)butane`] and `(2-14C,3-2H1)butane (PIN)` [not
   `(3-14C,2-2H1)butane`]. P-82.5.2 numbers the chain to give lowest

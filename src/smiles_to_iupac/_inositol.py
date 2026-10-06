@@ -3,7 +3,7 @@ hexols with one of the Blue Book's 9 fixed retained diastereomer names), per
 the IUPAC 2013 Recommendations ("the Blue Book"):
 
 - P-104.1/P-104.2.1 (Chapter P-10, https://iupac.qmul.ac.uk/BlueBook/P10.html,
-  `tmp/bluebook/P10.txt` lines 4207-4278): "Inositols have retained names ...
+  the Blue Book): "Inositols have retained names ...
   Other names of cyclitols are systematic substitutive names" -- only these 9
   fixed diastereomers get a retained-name PIN; every other stereo pattern (or
   no stereo at all) correctly falls through to the existing systematic

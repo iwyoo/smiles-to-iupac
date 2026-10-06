@@ -6,8 +6,7 @@ mixed), per the IUPAC 2013 Recommendations ("the Blue Book"):
   substituent (alkyl/aryl) group(s) as separate word(s), in alphanumeric
   order if more than one, followed by the acid's anion name. Confirmed
   worked example: `P(O-CH3)3` -> phosphite... no wait, the P=O analogue
-  `P(O)(O-CH3)3` -> 'trimethyl phosphate (PIN)' (`tmp/bluebook/P6a.txt`
-  line ~4053-4054). For three identical R groups this is a single
+  `P(O)(O-CH3)3` -> 'trimethyl phosphate (PIN)' (the Blue Book). For three identical R groups this is a single
   multiplying-prefixed word ('trimethyl'), not three repeated words -- the
   ordinary P-14.2.1/P-14.2.2 multiplying-prefix convention already used
   throughout this project (`_numerals.multiplying_prefix`), not a
@@ -19,7 +18,7 @@ mixed), per the IUPAC 2013 Recommendations ("the Blue Book"):
   `diethyl methyl phosphate` (PubChem CID 120420, two identical + one
   distinct). Both PubChem-computed names are directly usable here (no
   von-Baeyer ambiguity, unlike a ring parent).
-- Partial esters (P-67.1.3.2, `tmp/bluebook/P6a.txt` ~4022-4102): 1 or 2
+- Partial esters (P-67.1.3.2, the Blue Book): 1 or 2
   of the three acidic P-OH positions may be left unesterified, cited by
   inserting the word "hydrogen" (2 R groups, 1 remaining OH) or
   "dihydrogen" (1 R group, 2 remaining OH) between the R-group word(s)
@@ -232,7 +231,7 @@ def name_phosphate(mol) -> str:
     # "hydrogen" (with a multiplying prefix if more than one remaining
     # acidic P-OH) between the R-group word(s) and the anion name --
     # confirmed worked examples "methyl dihydrogen phosphate (PIN)" and
-    # "dimethyl hydrogen phosphate (PIN)" (`tmp/bluebook/P6a.txt` ~4060).
+    # "dimethyl hydrogen phosphate (PIN)" (the Blue Book).
     if hydroxyl_count:
         hydrogen_word = multiplying_prefix(hydroxyl_count) + "hydrogen" if hydroxyl_count > 1 else "hydrogen"
         anion_name = f"{ester_words} {hydrogen_word} phosphate"

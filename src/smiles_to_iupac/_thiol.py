@@ -423,8 +423,7 @@ def _name_phenyl_chain_thiol(mol, ring_atoms):
     locants are handled by the same `_sh_locants`/`_candidate_key`
     machinery already used by the acyclic-chain path above. Narrower
     than the acyclic path above: no chain unsaturation and no specified
-    stereocenter -- each is a separate follow-up (see
-    tasks/phenyl-substituent-on-thiol-chain.md's scope note)."""
+    stereocenter -- each is a separate follow-up."""
     thiols = _validate_and_collect_thiols(mol, aromatic_ring_atoms=ring_atoms)
     if specified_stereocenters(mol):
         raise UnsupportedStructure(

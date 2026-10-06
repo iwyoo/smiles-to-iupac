@@ -17,8 +17,7 @@ Blue Book"):
   named the same way -- the parent nitrile's name (with the dipole's O-
   removed and the nitrogen's charge neutralized) plus ' oxide', no
   N-locant needed since a nitrile has only one nitrogen at all. Confirmed
-  PIN worked example `acetonitrile oxide (PIN)`, `tmp/bluebook/P6a.txt`
-  ~2848-2861 and `tmp/bluebook/P7.txt` ~3183-3192 -- per P-66.5.1.2.1,
+  PIN worked example `acetonitrile oxide (PIN)`, the Blue Book and the Blue Book -- per P-66.5.1.2.1,
   'acetonitrile'/'formonitrile' are themselves the retained PINs for the
   n=2/n=1 parent nitrile ('acetonitrile' comes from the retained-stem table
   in `_common.py`, 'formonitrile' is overridden locally).

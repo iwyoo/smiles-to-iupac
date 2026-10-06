@@ -8,7 +8,7 @@ Recommendations ("the Blue Book"):
   count, since each extra double bond removes 2 H) cite the creation of a
   double or triple bond relative to the fully-saturated parent hydride
   named, placed immediately before the parent name. Verified against the
-  primary source's own worked example (`tmp/bluebook/P1.txt` line 422):
+  primary source's own worked example (the Blue Book):
   'oxepane' (PIN) -> '2,3-didehydrooxepane'. This is the mirror-image
   mechanism of the 'hydro' prefix (which *removes* a double bond from a
   mancude parent); here a double bond is *added* to a saturated parent.

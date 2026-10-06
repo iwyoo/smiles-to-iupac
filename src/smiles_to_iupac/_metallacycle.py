@@ -1,4 +1,4 @@
-"""Metallacycles (P-69.4, `tmp/bluebook/P6a.txt` lines 8873-8940): a
+"""Metallacycles (P-69.4, the Blue Book): a
 monocyclic ring with one Group 3-12 or f-block metal (and optional hetero
 atoms) replacing ring carbons, named by skeletal replacement
 ('1-sila-2-ferracyclopentane', '1-iridabenzene'); hydrido, ylidene, ionic

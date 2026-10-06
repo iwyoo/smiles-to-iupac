@@ -8,7 +8,7 @@ and its N-substituted derivatives, per the IUPAC 2013 Recommendations
   'selenourea' is a retained name that is itself the preferred IUPAC name,
   mirroring `_thiourea.py`'s own 'thiourea' exactly, just with selenium
   instead of sulfur. Confirmed via the Blue Book's own worked example
-  (`tmp/bluebook/P6a.txt` line 1143): "N-(butan-2-yl)selenourea (PIN)".
+  (the Blue Book): "N-(butan-2-yl)selenourea (PIN)".
   Confirmed via PubChem structure match: `NC(=[Se])N` is CID 6327594,
   whose synonym list includes "Selenourea" (PubChem's own computed
   IUPACName property is unavailable for this structure, the same PubChem
@@ -22,7 +22,7 @@ and its N-substituted derivatives, per the IUPAC 2013 Recommendations
   is built with `name_branch` (P-29 PIN style, fixed project-wide by PR
   #237) -- a branched N-substituent is directly confirmed by this
   chapter's own worked example: 'N-(butan-2-yl)selenourea (PIN)'
-  (`tmp/bluebook/P6a.txt` line 1143) -- a compound (has its own locant)
+  (the Blue Book) -- a compound (has its own locant)
   N-substituent is always parenthesized, even alone, matching
   `_urea.py`'s identical correction (PR #341).
 

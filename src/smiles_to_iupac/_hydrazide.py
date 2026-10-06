@@ -755,8 +755,7 @@ def _name_phenyl_chain_hydrazide(mol, ring_atoms):
     `_name_phenyl_chain_amide`. Narrower than the acyclic path above: no
     N-/N'-alkyl substitution, no coexisting standalone hydroxyl, no chain
     unsaturation, and no specified stereocenter -- each is a separate
-    follow-up (see
-    tasks/phenyl-substituent-on-hydrazide-chain.md's scope note)."""
+    follow-up."""
     hydrazide_carbon, hydrazide_oxygen, n1, n2, n1_alkyl, n2_alkyl, hydroxyls = _validate_and_collect_hydrazide(
         mol, aromatic_ring_atoms=ring_atoms
     )
