@@ -516,3 +516,18 @@ def test_ring_nitrogen_acyl_prefix_keeps_the_ring_intact(smiles, expected):
 )
 def test_guanidine_prefix_cites_the_substituents_of_every_nitrogen(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        "CCOC(=O)N[C@@H](C)CC",
+        "C/C=C/c1ccc(C(=O)OC)cc1",
+    ],
+)
+def test_stereo_is_never_silently_dropped_from_a_name(smiles):
+    try:
+        name = smiles_to_iupac(smiles)
+    except UnsupportedStructure:
+        return
+    assert re.search(r"\((?:\d+[A-Za-z]?,?)*[RSEZ]\)|[RSEZ]\)", name)
