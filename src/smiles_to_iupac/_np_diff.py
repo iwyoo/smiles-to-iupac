@@ -1,11 +1,9 @@
 """nor/homo/seco operations read from the difference between a parent and a molecule (P-101.3.7).
 
-The parent is cut into junction atoms (degree >= 3) and connectors (chains between junctions, or ending freely).
-Finding the fewest operations is a subgraph edit distance restricted to connector-length changes. It is solved by
-state-space search in the manner of VF2: junctions are placed on molecule atoms and connectors are routed through
-unused atoms alternately, always extending the choice with the fewest options, with arc-consistent domains and a
-simple-path length lower bound for pruning. The cost limit is deepened by the caller until a solution exists
-(iterative deepening, P-101.3.7.1 'fewest number of operations'); the embedding that follows verifies each proposal.
+The parent is cut into junctions (degree >= 3) and connectors (chains between junctions, or ending freely). The fewest
+operations is a subgraph edit distance on connector lengths, searched VF2-style with arc-consistent domains. The search
+starts from connected pieces that no operation can have changed, chosen through obstructions the molecule cannot contain.
+The caller deepens the cost (P-101.3.7.1); the embedding that follows verifies each proposal.
 """
 
 from rdkit import Chem
@@ -85,21 +83,34 @@ def _reach(view, bonds):
     return table
 
 
-def _least_change(table, a, b, length, limit, floor=0):
-    """Smallest |change| of a connector of `length` atoms that a simple path from a to b can realise, None if none."""
+def _least_change(table, adj, a, b, length, limit, floor=0):
+    """Smallest |change| of a connector of `length` atoms that a simple path from a to b can realise, None if none.
+
+    A connector that leaves a junction and returns to it (a == b) is a cycle through a of at least three atoms."""
     best = None
     for change in range(-_MAX_REMOVED_PER_CONNECTOR, limit + 1):
         atoms = length + change
         if atoms < floor or (best is not None and abs(change) >= best):
             continue
-        if b in table[a].get(atoms + 1, ()):
+        if a == b:
+            reachable = atoms >= 2 and any(end in adj[a] for end in table[a].get(atoms, ()))
+        else:
+            reachable = b in table[a].get(atoms + 1, ())
+        if reachable:
             best = abs(change)
     return best
 
 
 def _domains(junction, around, adj, view, table, budget, cuttable):
     """Arc-consistent candidate molecule atoms of every junction; None when one is empty."""
-    needed = {a: max(2, len(adj[a]) - (1 if budget else 0)) for a in junction}
+    lost = {
+        a: max(
+            1 if budget else 0,
+            min(budget, sum(1 for n in adj[a] if len(adj[n]) == 1)) + (1 if any(i in cuttable for i, _, _, _ in around[a]) else 0),
+        )
+        for a in junction
+    }
+    needed = {a: max(1, len(adj[a]) - lost[a]) for a in junction}
     spans = {}
 
     def span(atom, length):
@@ -163,10 +174,8 @@ def _on_cycle(adj, edge):
     return False
 
 
-def _partition(edges, count):
-    """`count` runs of connectors taken in breadth-first order, so each run is one connected piece of the parent.
-
-    Pigeonhole: k operations each damage one connector, so at least one of k + 1 groups stays intact."""
+def _order(edges):
+    """Connector indices in breadth-first order over the junctions, so every prefix is a connected piece of the parent."""
     start = edges[0][1] if edges else None
     order, reached, queue = [], {start}, [start]
     remaining = list(range(len(edges)))
@@ -184,14 +193,25 @@ def _partition(edges, count):
                 if other is not None and other not in reached:
                     reached.add(other)
                     queue.append(other)
+    return order
+
+
+def _runs(edges, order, count):
+    """`count` consecutive runs of `order` that hold about the same number of atoms (some may be empty).
+
+    Pigeonhole: k operations each damage one connector, so at least one of k + 1 runs stays intact."""
     total = sum(len(edges[i][3]) + 1 for i in order)
-    groups, current, size = [[]], 0, 0
+    groups, size = [[]], 0
     for i in order:
         if len(groups) < count and size >= total * len(groups) / count:
             groups.append([])
         groups[-1].append(i)
         size += len(edges[i][3]) + 1
     return groups + [[] for _ in range(count - len(groups))]
+
+
+def _partition(edges, count):
+    return _runs(edges, _order(edges), count)
 
 
 def _group_query(edges, group):
@@ -207,6 +227,22 @@ def _group_query(edges, group):
     return atoms, index, query.GetMol()
 
 
+_IMPOSSIBLE = 99
+
+
+def _shape_bound(adj, view):
+    """Operations the skeleton shape forces: none adds a bond, a nor removes one, the single seco removes two and a ring."""
+    molecule = view.__dict__.get("degrees")
+    if molecule is None:
+        molecule = view.degrees = sorted((len(n) for n in view.adj.values()), reverse=True)
+    parent = sorted((len(n) for n in adj.values() if len(n) >= 3), reverse=True)
+    short = sum(max(0, d - (molecule[i] if i < len(molecule) else 0)) for i, d in enumerate(parent))
+    rings = sum(len(n) for n in adj.values()) // 2 - len(adj) + 1
+    if rings - 1 > view.cyclomatic:
+        return _IMPOSSIBLE
+    return max(0, short - (rings > 0))
+
+
 def lower_bound(parent, view, limit):
     """Fewest operations that can still leave one of the pigeonhole groups intact (limit + 1 when none can)."""
     cache = view.__dict__.setdefault("lower", {})
@@ -215,7 +251,7 @@ def lower_bound(parent, view, limit):
         cache[parent.name] = 0 if plan is None else limit + 1
         if plan is not None:
             edges = plan[1]
-            for k in range(1, limit + 1):
+            for k in range(max(1, _shape_bound(parent.adj, view)), limit + 1):
                 if len(parent.adj) < _MIN_ATOMS_PER_OPERATION * (k + 1):
                     break
                 groups = _partition(edges, k + 1)
@@ -225,9 +261,167 @@ def lower_bound(parent, view, limit):
     return cache[parent.name]
 
 
-def _seeds(edges, junction, view, budget):
-    """Starting states of the search: placements of one intact group of connectors, found by exact matching."""
-    everything = ({}, frozenset(), {}, list(range(len(edges))))
+_MAX_CANDIDATE_TESTS = 400
+_SEEDS_BEFORE_NARROWING = 2000
+
+
+def _unmatched(edges, view, group, memo):
+    key = frozenset(group)
+    if key not in memo:
+        memo[key] = not view.flat.HasSubstructMatch(_group_query(edges, sorted(key))[2])
+    return memo[key]
+
+
+def _components(edges, connectors):
+    """Connected pieces of a set of connectors: two connectors are joined by a junction they share.
+
+    The matcher is only given connected pieces; an unconnected query makes it try every combination of placements."""
+    pieces, remaining = [], list(connectors)
+    while remaining:
+        piece = [remaining.pop(0)]
+        junctions = {j for j in edges[piece[0]][1:3] if j is not None}
+        grew = True
+        while grew:
+            grew = False
+            for i in list(remaining):
+                ends = {j for j in edges[i][1:3] if j is not None}
+                if ends & junctions:
+                    piece.append(i)
+                    remaining.remove(i)
+                    junctions |= ends
+                    grew = True
+        pieces.append(piece)
+    return pieces
+
+
+def _shrink(edges, view, group, memo):
+    """An irreducible connected part of the connected `group` that the molecule still cannot contain unchanged."""
+    group = list(group)
+    shrunk = True
+    while shrunk:
+        shrunk = False
+        for i in list(group):
+            rest = [j for j in group if j != i]
+            if rest and len(_components(edges, rest)) == 1 and _unmatched(edges, view, rest, memo):
+                group, shrunk = rest, True
+                break
+    return frozenset(group)
+
+
+def _obstructions(edges, view, memo):
+    """Irreducible sets of connectors that the molecule cannot contain unchanged: an operation must change one of each."""
+    touching, found = {}, set()
+    for i, (_, u, v, _) in enumerate(edges):
+        for junction in (u, v):
+            if junction is not None:
+                touching.setdefault(junction, []).append(i)
+    for start in range(len(edges)):
+        order, seen = [start], {start}
+        for i in order:
+            for junction in (edges[i][1], edges[i][2]):
+                for nxt in touching.get(junction, ()):
+                    if nxt not in seen:
+                        seen.add(nxt)
+                        order.append(nxt)
+        if not _unmatched(edges, view, order, memo):
+            continue
+        low, high = 1, len(order)
+        while low < high:
+            middle = (low + high) // 2
+            if _unmatched(edges, view, order[:middle], memo):
+                high = middle
+            else:
+                low = middle + 1
+        found.add(_shrink(edges, view, order[:low], memo))
+    return found
+
+
+def _hitting_sets(obstructions, limit):
+    """Every set of at most `limit` connectors that meets all obstructions and is built from them, smallest first."""
+    ordered = sorted(obstructions, key=lambda o: (len(o), sorted(o)))
+    found = set()
+
+    def grow(chosen):
+        unhit = next((o for o in ordered if not o & chosen), None)
+        if unhit is None:
+            found.add(chosen)
+        elif len(chosen) < limit:
+            for i in sorted(unhit):
+                grow(chosen | {i})
+
+    grow(frozenset())
+    return sorted(found, key=lambda s: (len(s), sorted(s)))
+
+
+def _minimal_changes(edges, view, limit, key):
+    """The smallest sets of connectors an operation may change so that the rest of the parent still fits unchanged, or None.
+
+    A set is valid when every connected piece of the remainder fits, and every superset of a valid set is valid, so the
+    minimal valid sets are the minimal hitting sets of all obstructions. Obstructions are learned lazily: a candidate
+    with a piece that does not fit yields a new obstruction that rules out every candidate sharing that piece. Pieces
+    are tested one by one, so the test is necessary but does not require them to avoid each other."""
+    store = view.__dict__.setdefault("obstruction_store", {})
+    if key is None or key not in store:
+        memo = {}
+        record = (memo, _obstructions(edges, view, memo))
+        if key is not None:
+            store[key] = record
+    else:
+        record = store[key]
+    memo, family = record
+    everything, tests = set(range(len(edges))), 0
+    while True:
+        valid = []
+        for chosen in _hitting_sets(family, limit):
+            if any(known <= chosen for known in valid):
+                continue
+            tests += 1
+            if tests > _MAX_CANDIDATE_TESTS:
+                return None
+            failed = next((p for p in _components(edges, sorted(everything - chosen)) if _unmatched(edges, view, p, memo)), None)
+            if failed is None:
+                valid.append(chosen)
+            else:
+                family.add(_shrink(edges, view, failed, memo))
+                break
+        else:
+            return valid
+
+
+
+
+def _placements(edges, view, piece, cache):
+    """(index, matches, query) of one connected piece; the matches are capped, which is enough to compare pieces."""
+    key = tuple(sorted(piece))
+    if key not in cache:
+        _, index, query = _group_query(edges, key)
+        cache[key] = (index, view.flat.GetSubstructMatches(query, uniquify=False, maxMatches=_SEEDS_BEFORE_NARROWING), query)
+    return cache[key]
+
+
+def _piece_seeds(edges, junction, view, piece, domains, cache, frozen):
+    """Placements of the connectors of one connected piece left unchanged; the others stay open unless `frozen`."""
+    index, matches, query = _placements(edges, view, piece, cache)
+    if len(matches) >= _SEEDS_BEFORE_NARROWING:
+        matches = view.flat.GetSubstructMatches(query, uniquify=False, maxMatches=_MAX_SEED_MATCHES)
+    placed_at = [(u, index[u]) for u in junction if u in index]
+    limits = [(position, domains[u]) for u, position in placed_at] if domains else []
+    unchanged = {i: 0 for i in piece}
+    opened = [i for i in range(len(edges)) if i not in unchanged]
+    seeds, seen = [], set()
+    for match in matches:
+        if any(match[position] not in allowed for position, allowed in limits):
+            continue
+        mark = (tuple(match[position] for _, position in placed_at), frozenset(match))
+        if mark not in seen:
+            seen.add(mark)
+            seeds.append(({u: match[position] for u, position in placed_at}, mark[1], unchanged, opened, frozen))
+    return seeds
+
+
+def _pigeonhole_seeds(edges, junction, view, budget):
+    """Placements of one intact group out of budget + 1 equal slices of the parent, for when no obstruction guides the search."""
+    everything = ({}, frozenset(), {}, list(range(len(edges))), None)
     groups = _partition(edges, budget + 1)
     if any(not group for group in groups):
         return [everything]
@@ -242,12 +436,44 @@ def _seeds(edges, junction, view, budget):
                     frozenset(image.values()),
                     {i: 0 for i in group},
                     [i for i in range(len(edges)) if i not in group],
+                    None,
                 )
             )
     return seeds
 
 
-def _search(adj, view, budget, cuts=True):
+def _seeds(edges, junction, view, budget, key=None, domains=None):
+    """Starting states of the search, from connected pieces of the parent that cannot have changed.
+
+    A solution changes a set of connectors that holds a minimal one M, and at most r = budget - |M| more. Pieces of the
+    rest are chosen, fewest placements first, until no r connectors can touch all of them: one piece is then intact,
+    and it is matched exactly. With r = 0 the solution changes exactly M, so every other connector is frozen."""
+    minimal = _minimal_changes(edges, view, budget, key)
+    if minimal is None:
+        return _pigeonhole_seeds(edges, junction, view, budget)
+    everything = frozenset(range(len(edges)))
+    seeds, chosen, cache = [], set(), {}
+    for changed in minimal:
+        remainder = everything - changed
+        frozen = remainder if len(changed) == budget else None
+        pieces = []
+        while True:
+            touching = next(iter(_hitting_sets(pieces, budget - len(changed))), None)
+            if touching is None:
+                break
+            candidates = _components(edges, sorted(remainder - touching))
+            if not candidates:
+                return [({}, frozenset(), {}, sorted(everything), None)]
+            pieces.append(frozenset(min(candidates, key=lambda piece: len(_placements(edges, view, piece, cache)[1]))))
+        for piece in pieces:
+            if (piece, frozen) not in chosen:
+                chosen.add((piece, frozen))
+                seeds.extend(_piece_seeds(edges, junction, view, piece, domains, cache, frozen))
+    return seeds
+
+
+
+def _search(adj, view, budget, cuts=True, key=None):
     """(edges, deltas): the atom-count change of every connector, for each way of costing exactly `budget`."""
     plan = _decompose(adj)
     if plan is None:
@@ -265,10 +491,13 @@ def _search(adj, view, budget, cuts=True):
     low = {i: 2 if edges[i][1] == edges[i][2] else 0 for i in range(len(edges))}
     visited = set()
 
+    fixed = [None]
+
     def edge_options(i, phi, taken, room, cut_done):
         kind, u, v, atoms = edges[i]
         options = []
-        for change in range(-_MAX_REMOVED_PER_CONNECTOR, room + 1):
+        frozen = fixed[0] is not None and i in fixed[0]
+        for change in range(0 if frozen else -_MAX_REMOVED_PER_CONNECTOR, 1 if frozen else room + 1):
             new = len(atoms) + change
             if new < low[i]:
                 continue
@@ -277,7 +506,7 @@ def _search(adj, view, budget, cuts=True):
                     options.append((change, abs(change), ()))
             else:
                 options.extend((change, abs(change), path) for path in _chains(view, phi[u], new, taken, phi[v]))
-        if cuts and kind == "link" and ring_edge[i] and room >= 1 and not cut_done:
+        if cuts and kind == "link" and ring_edge[i] and room >= 1 and not cut_done and not frozen:
             for j in range(len(atoms) + 1):
                 if _reaches(view, phi[u], j, taken) and _reaches(view, phi[v], len(atoms) - j, taken):
                     options.append((("cut", j), 1, ()))
@@ -290,8 +519,8 @@ def _search(adj, view, budget, cuts=True):
             for i, a, b, n in around[u]:
                 w = b if a == u else a
                 if w != u and w in phi:
-                    least = _least_change(table, m, phi[w], n, room - extra)
-                    if least is None and i in cuttable:
+                    least = _least_change(table, view.adj, m, phi[w], n, room - extra)
+                    if i in cuttable and (least is None or least > 1):
                         least = 1
                     if least is None:
                         extra = room + 1
@@ -308,22 +537,26 @@ def _search(adj, view, budget, cuts=True):
         spent[0] += 1
         if view.work < 0 or spent[0] > WORK_PER_PARENT:
             raise Exhausted()
-        key = (tuple(sorted(deltas.items())), taken, frozenset(phi.items()))
+        key = (tuple(sorted(deltas.items())), taken, frozenset(phi.items()), id(fixed[0]))
         if key in visited:
             return
         visited.add(key)
         room = budget - cost
         ready = [i for i in open_edges if edges[i][1] in phi and (edges[i][2] is None or edges[i][2] in phi)]
         if ready:
+            cut_done = any(isinstance(d, tuple) for d in deltas.values())
             lower = {}
             for i in ready:
                 if edges[i][0] != "link":
                     continue
-                least = _least_change(table, phi[edges[i][1]], phi[edges[i][2]], len(edges[i][3]), room, low[i])
-                lower[i] = least if least is not None else (1 if cuts and ring_edge[i] else None)
+                least = _least_change(table, view.adj, phi[edges[i][1]], phi[edges[i][2]], len(edges[i][3]), room, low[i])
+                if fixed[0] is not None and i in fixed[0]:
+                    least = 0 if least == 0 else None
+                elif cuts and ring_edge[i] and not cut_done and (least is None or least > 1):
+                    least = 1
+                lower[i] = least
             if any(least is None for least in lower.values()) or sum(lower.values()) > room:
                 return
-            cut_done = any(isinstance(d, tuple) for d in deltas.values())
             chosen = None
             for i in ready:
                 options = edge_options(i, phi, taken, room - sum(lower.values()) + (lower.get(i) or 0), cut_done)
@@ -352,8 +585,9 @@ def _search(adj, view, budget, cuts=True):
         for m in options:
             solve({**phi, u: m}, taken | {m}, cost, deltas, open_edges)
 
-    for phi, taken, deltas, rest in _seeds(edges, junction, view, budget):
+    for phi, taken, deltas, rest, frozen in _seeds(edges, junction, view, budget, key, domains):
         if all(m in domains[u] for u, m in phi.items()):
+            fixed[0] = frozen
             solve(phi, taken, 0, deltas, rest)
     return edges, found
 
@@ -415,7 +649,7 @@ def read_operations(parent, view, cost, terminal_only=False):
         nors = [a for a in nors if len(parent.adj[a]) == 1]
     skel = Skel.of(parent)
     try:
-        outcome = _search(skel.adj, view, cost, not terminal_only)
+        outcome = _search(skel.adj, view, cost, not terminal_only, parent.name)
     except Exhausted:
         return []
     if outcome is None:
