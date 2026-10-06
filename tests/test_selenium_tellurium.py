@@ -251,19 +251,9 @@ def test_two_seleninic_acids_not_supported():
         smiles_to_iupac("O[Se](=O)C[Se](=O)O")
 
 
-def test_ring_seleninic_acid_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O[Se](=O)C1CCCCC1")
-
-
 def test_seleninic_acid_with_alcohol_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O[Se](=O)CCO")
-
-
-def test_seleninic_acid_specified_chain_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC[C@@H](C)[Se](=O)O")
 
 
 def test_phenyl_chain_seleninic_acid():
@@ -280,11 +270,6 @@ def test_substituted_benzeneseleninic_acid():
     assert (
         smiles_to_iupac("Cc1ccc(cc1)[Se](=O)O") == "4-methylbenzene-1-seleninic acid"
     )  # PubChem PUG REST
-
-
-def test_phenyl_substituted_benzene_ring_seleninic_acid_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC[Se](=O)O")
 
 
 def test_phenyl_chain_seleninic_acid_unsaturation_raises():
@@ -403,19 +388,9 @@ def test_substituted_benzeneselenol():
     assert smiles_to_iupac("Cc1ccccc1[SeH]") == "2-methylbenzeneselenol"
 
 
-def test_phenyl_substituted_benzene_ring_selenol_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC[SeH]")
-
-
 def test_phenyl_chain_selenol_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CC[SeH]")
-
-
-def test_phenyl_chain_diselenol_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C([SeH])CC[SeH]")
 
 
 def test_heteroaromatic_direct_attachment_selenol_raises():
@@ -469,11 +444,6 @@ def test_pent_4_ene_1_selenonic_acid():
 def test_diselenonic_acid_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O[Se](=O)(=O)C[Se](=O)(=O)O")
-
-
-def test_ring_selenonic_acid_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O[Se](=O)(=O)C1CCCCC1")
 
 
 def test_selenonic_acid_with_alcohol_not_supported():
@@ -744,11 +714,6 @@ def test_two_tellurinic_acids_not_supported():
         smiles_to_iupac("O[Te](=O)C[Te](=O)O")
 
 
-def test_ring_tellurinic_acid_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O[Te](=O)C1CCCCC1")
-
-
 def test_tellurinic_acid_with_alcohol_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O[Te](=O)CCO")
@@ -843,19 +808,9 @@ def test_substituted_benzenetellurol():
     assert smiles_to_iupac("Cc1ccccc1[TeH]") == "2-methylbenzenetellurol"
 
 
-def test_phenyl_substituted_benzene_ring_tellurol_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1CC[TeH]")
-
-
 def test_phenyl_chain_tellurol_unsaturation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=Cc1ccccc1CC[TeH]")
-
-
-def test_phenyl_chain_ditellurol_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C([TeH])CC[TeH]")
 
 
 @pytest.mark.parametrize(
@@ -914,11 +869,6 @@ def test_pent_4_ene_1_telluronic_acid():
 def test_ditelluronic_acid_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("O[Te](=O)(=O)C[Te](=O)(=O)O")
-
-
-def test_ring_telluronic_acid_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O[Te](=O)(=O)C1CCCCC1")
 
 
 def test_telluronic_acid_with_alcohol_not_supported():
@@ -1062,3 +1012,38 @@ def test_aromatic_selenium_ring_is_not_a_selenide(smiles, expected):
 def test_selenourea_tellurourea_unequal_substituent_count_not_supported(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("O[Se](=O)(=O)C1CCCCC1", "cyclohexaneselenonic acid"),
+        ("O[Te](=O)(=O)C1CCCCC1", "cyclohexanetelluronic acid"),
+        ("C1CC2CC1CC2[Se](=O)(=O)O", "bicyclo[2.2.1]heptane-2-selenonic acid"),
+        ("C[C@H]1CCCC[C@@H]1[Se](=O)(=O)O", "(1S,2S)-2-methylcyclohexane-1-selenonic acid"),
+        ("O[Se](=O)C1CCCCC1", "cyclohexaneseleninic acid"),
+        ("O[Te](=O)C1CCCCC1", "cyclohexanetellurinic acid"),
+        ("C1CCCCC1[Se@](=O)O", "(R)-cyclohexaneseleninic acid"),
+        ("CC[C@@H](C)[Se](=O)O", "(2R)-butane-2-seleninic acid"),
+        ("Clc1ccccc1C[Se](=O)(=O)O", "(2-chlorophenyl)methaneselenonic acid"),
+    ],
+)
+def test_selenium_tellurium_oxo_acids_like_sulfur_analogues(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("Cc1ccccc1CC[SeH]", "2-(2-methylphenyl)ethane-1-selenol"),
+        ("Cc1ccccc1CC[TeH]", "2-(2-methylphenyl)ethane-1-tellurol"),
+        ("Clc1ccc(cc1)CC[SeH]", "2-(4-chlorophenyl)ethane-1-selenol"),
+        ("c1ccccc1C([SeH])CC[SeH]", "1-phenylpropane-1,3-diselenol"),
+        ("c1ccccc1C([TeH])CC[TeH]", "1-phenylpropane-1,3-ditellurol"),
+        ("c1ccccc1CC([SeH])Cc1ccccc1", "1,3-diphenylpropane-2-selenol"),
+        ("Cc1ccccc1CC[Se](=O)O", "2-(2-methylphenyl)ethane-1-seleninic acid"),
+        ("Cc1ccccc1CC(=O)[Se-]", "2-(2-methylphenyl)ethaneselenoate"),
+    ],
+)
+def test_selenium_tellurium_substituted_benzene_chains_like_sulfur_analogues(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
