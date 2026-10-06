@@ -1,5 +1,5 @@
-"""Selenourea and tellurourea (H2N-C(=E)-NH2, E = Se/Te) with plain N-alkyl or N-phenyl substituents (P-66.1.4.1).
-Unlike `_urea.py`/`_thiourea.py` it names only identical substituents split across both nitrogens."""
+"""Thiourea, selenourea and tellurourea (H2N-C(=E)-NH2, E = S/Se/Te) with plain N-alkyl or N-phenyl substituents
+(P-66.1.4.1); unlike `_urea.py` no semicarbazide (amino-substituted nitrogen) handling."""
 
 from dataclasses import dataclass
 
@@ -126,9 +126,9 @@ class Chalcogenourea:
             all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
             if all_ring_atoms - phenyl_atoms:
                 raise UnsupportedStructure(
-                    f"a ring-fused {word} or a ring N-substituent other "
-                    "than a plain, unsubstituted benzene ring is out of scope "
-                    "for this module"
+                    f"a ring-fused {word} (e.g. hydantoin) or a ring "
+                    "N-substituent other than a plain, unsubstituted benzene "
+                    "ring is out of scope for this module"
                 )
 
         carbon_graph = carbon_adjacency(mol)
@@ -154,15 +154,21 @@ class Chalcogenourea:
             return word
 
         if n1_names and n2_names:
-            if len(n1_names) != 1 or len(n2_names) != 1 or n1_names[0][0] != n2_names[0][0]:
+            if len(n1_names) != 1 or len(n2_names) != 1:
                 raise UnsupportedStructure(
-                    f"different substituents split across {word}'s two "
+                    f"a different substituent count on each of {word}'s two "
                     "nitrogens is not supported yet (no confirmed worked "
-                    "example settles which nitrogen becomes N vs N' in that "
-                    "case)"
+                    "example settles the locant tie-break for that case)"
                 )
-            name, is_compound = n1_names[0]
-            return f"N,N'-di{_di_name(name, is_compound)}{word}"
+            (name_a, compound_a), (name_b, _) = n1_names[0], n2_names[0]
+            if name_a == name_b:
+                return f"N,N'-di{_di_name(name_a, compound_a)}{word}"
+            (first, first_compound), (second, second_compound) = sorted(
+                (n1_names[0], n2_names[0]), key=lambda e: alpha_sort_key(e[0])
+            )
+            first_entry = _n_letter_entry("N", first, first_compound)
+            second_entry = _n_letter_entry("N'", second, second_compound)
+            return f"{first_entry}-{second_entry}{word}"
 
         names = n1_names or n2_names
         return f"{_n_prefix('N', names)}{word}"
