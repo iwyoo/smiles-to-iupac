@@ -20,8 +20,8 @@ from ._common import (
 )
 from ._multiplicative_groups import SUFFIX_RANKS
 from ._multiplicative_prefix import SIMPLE_PREFIXES, prefix_name, probe_name, subtree
-from ._numerals import alkane_name, alkyl_name
-from ._substituents import _ring_base_name, format_substituent_prefixes
+from ._numerals import alkane_name
+from ._substituents import format_substituent_prefixes
 
 class _SuffixWords(dict):
     def __missing__(self, key):

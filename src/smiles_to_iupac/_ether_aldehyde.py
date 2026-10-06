@@ -33,7 +33,6 @@ unsaturation (ene/yne) besides the aldehyde's own C=O, and any specified
 stereocenter.
 """
 
-from rdkit import Chem
 
 from ._multiplicative_text import enclose
 from ._aldehyde import _name_acyclic_aldehyde

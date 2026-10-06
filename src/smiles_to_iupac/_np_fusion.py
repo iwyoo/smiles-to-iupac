@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 
 from ._common import UnsupportedStructure
-from ._np_core import FACES, loc_key
+from ._np_core import loc_key
 from ._numerals import multiplying_prefix
 
 _PRIORITY = ["O", "S", "Se", "Te", "N", "P", "As", "Sb", "Bi", "Si", "Ge", "Sn", "Pb", "B"]

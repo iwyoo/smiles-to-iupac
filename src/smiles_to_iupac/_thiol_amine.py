@@ -30,7 +30,6 @@ longest chain. A benzene-ring-substituent chain variant (mirroring
 `_thiol.py`'s `_name_phenyl_chain_thiol`) is a separate follow-up.
 """
 
-from rdkit import Chem
 
 from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (

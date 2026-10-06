@@ -67,7 +67,6 @@ from ._common import (
     UnsupportedStructure,
     adjacency,
     all_chains,
-    bond_locant,
     carbon_adjacency,
     chain_bond_locants,
     group_substituents,
@@ -81,7 +80,7 @@ from ._common import (
     specified_stereocenters,
     substituent_locant_set_and_citation,
 )
-from ._substituents import format_substituent_prefixes, name_branch, ring_branch_stereo_display, substituents_for_ring, substituents_for_chain
+from ._substituents import format_substituent_prefixes, ring_branch_stereo_display, substituents_for_ring, substituents_for_chain
 
 _ENE_ORDER = 2.0
 _YNE_ORDER = 3.0

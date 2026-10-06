@@ -53,7 +53,6 @@ from ._common import (
     UnsupportedStructure,
     adjacency,
     all_chains,
-    bond_locant,
     carbon_adjacency,
     chain_bond_locants,
     group_substituents,

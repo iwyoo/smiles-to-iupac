@@ -44,7 +44,6 @@ from ._coexisting_groups import name_via_senior_acyclic, name_via_senior_phenyl_
 from ._sulfinic_acid import _sulfinic_sulfur_atoms
 from ._common import (
     UnsupportedStructure,
-    halogen_substituents,
     is_plain_benzene_ring,
     non_single_bonds,
     validate_allowed_atoms,

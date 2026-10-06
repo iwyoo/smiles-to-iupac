@@ -1,6 +1,5 @@
 """Skeletal modifications of stereoparents (P-101.3): 'nor', 'homo' and 'seco' applied to a numbered graph."""
 
-from itertools import combinations
 
 from ._np_core import is_numbered, loc_key
 

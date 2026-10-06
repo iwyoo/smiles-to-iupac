@@ -1,6 +1,8 @@
 """Name assembly for a molecule matched on an Appendix 3 parent: unsaturation (P-101.6), principal group and prefixes
 (P-101.7.1), esters and N-substituted amides/amines (P-65, P-66) and substituent groups (P-101.7.3)."""
 
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass
 

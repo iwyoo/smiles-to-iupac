@@ -34,7 +34,6 @@ stereocenter on a substituent branch rather than the principal chain is out
 of scope).
 """
 
-from rdkit import Chem
 
 from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
@@ -55,7 +54,7 @@ from ._common import (
 )
 from ._carboxylic_acid import _name_acyclic_carboxylic_acid
 from ._retained_acids import retained_chain_acid
-from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
+from ._substituents import format_substituent_prefixes, substituents_for_chain
 
 
 

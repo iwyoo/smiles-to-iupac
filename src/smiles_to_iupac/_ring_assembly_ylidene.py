@@ -84,7 +84,6 @@ from ._common import (
     adjacency,
     group_substituents,
     halogen_substituents,
-    ring_cycle,
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )

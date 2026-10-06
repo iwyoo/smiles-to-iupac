@@ -53,11 +53,9 @@ from rdkit import Chem
 from ._common import (
     UnsupportedStructure,
     adjacency,
-    is_plain_benzene_ring,
     linear_branch,
     non_single_bonds,
     plain_phenyl_substituent_atoms,
-    ring_chain_attachment,
 )
 from ._numerals import alkyl_name
 from ._substituents import format_mononuclear_prefixes

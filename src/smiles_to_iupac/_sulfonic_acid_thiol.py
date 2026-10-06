@@ -35,7 +35,6 @@ directly on the benzene ring (thiophenol-type), and any sulfonic
 acid/thiol not captured by a single longest chain.
 """
 
-from rdkit import Chem
 
 from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (

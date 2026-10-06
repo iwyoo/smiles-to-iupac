@@ -8,7 +8,7 @@ works as an ester acyl part.
 from rdkit import Chem
 from rdkit.Chem import rdCIPLabeler
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._numerals import multiplying_prefix
 from ._substituents import BRANCH_STEREO, name_branch
 

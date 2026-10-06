@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from ._hetero_prefixes import MONONUCLEAR_HYDRIDES
 from ._free_valence import SUFFIX_OF_ORDER, citation
-from ._common import ENE_BOND_ORDER, UnsupportedStructure, alpha_sort_key, multiplied_word, suffix_body
+from ._common import UnsupportedStructure, alpha_sort_key, multiplied_word, suffix_body
 from ._multiplicative_prefix import SIMPLE_PREFIXES, prefix_name, subtree
 from ._multiplicative_ring import name_ring_component
 from ._numerals import alkane_name

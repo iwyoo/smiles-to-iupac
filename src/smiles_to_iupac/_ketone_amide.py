@@ -36,7 +36,7 @@ from ._common import (
     ring_chain_attachment,
     validate_allowed_atoms,
 )
-from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
+from ._substituents import format_substituent_prefixes, substituents_for_chain
 
 
 def _find_amide_carbon(mol):

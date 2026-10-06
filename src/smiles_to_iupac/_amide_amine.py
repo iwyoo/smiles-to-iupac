@@ -29,7 +29,6 @@ substituent chain variant (mirroring `_amide.py`'s
 `_name_phenyl_chain_amide`) is a separate follow-up.
 """
 
-from rdkit import Chem
 
 from ._amide import _is_carbonyl_carbon, _name_acyclic_amide
 from ._coexisting_groups import name_via_senior_acyclic
