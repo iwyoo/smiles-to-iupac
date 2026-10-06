@@ -39,6 +39,8 @@ stereocenter and 'allo' complexity) remain out of scope regardless, since
 this whole mechanism only ever looks up *one* alpha-stereocenter.
 """
 
+import itertools
+
 from rdkit import Chem
 from rdkit.Chem import rdCIPLabeler
 
@@ -216,7 +218,7 @@ def _backbone_candidate(mol, graph, amine_n):
     return alpha_carbon, acid_candidates[0]
 
 
-def _match(mol):
+def _match_skeleton(mol):
     """(retained_name, alpha_carbon_idx_or_None, side_chain_atoms) if
     `mol` is a plain alpha-amino acid whose side chain matches a
     `_SIDE_CHAIN_TABLE` entry, else None. `alpha_carbon_idx` is None only
@@ -278,6 +280,82 @@ def _match(mol):
     return name, alpha_carbon, _side_chain_atom_indices(graph, alpha_carbon, side_root), None
 
 
+_SIDE_CHAIN_SUBSTITUTION_SITE = {"serine": "O", "cysteine": "S", "tyrosine": "O", "lysine": "N"}
+_MAX_CUT_CANDIDATES = 8
+_ALPHA_AMINO_ACID = Chem.MolFromSmarts("[NX3;+0][CX4][CX3](=O)[OX2H1]")
+
+
+def _cut_candidates(mol):
+    bonds = []
+    for bond in mol.GetBonds():
+        if bond.GetBondType() != Chem.BondType.SINGLE or bond.IsInRing():
+            continue
+        for hetero, other in (
+            (bond.GetBeginAtom(), bond.GetEndAtom()),
+            (bond.GetEndAtom(), bond.GetBeginAtom()),
+        ):
+            if hetero.GetAtomicNum() in (7, 8, 16) and hetero.GetFormalCharge() == 0 and not hetero.IsInRing():
+                bonds.append((hetero.GetIdx(), other.GetIdx()))
+    return bonds
+
+
+def _skeleton_after_cuts(mol, cuts):
+    """The fragment left by cutting each (site, root) bond that is a table amino acid, with each atom's
+    original index in `_orig`; else None."""
+    rw = Chem.RWMol(mol)
+    for atom in rw.GetAtoms():
+        atom.SetIntProp("_orig", atom.GetIdx())
+    for site, root in cuts:
+        rw.RemoveBond(site, root)
+        atom = rw.GetAtomWithIdx(site)
+        atom.SetNoImplicit(False)
+        atom.SetNumExplicitHs(0)
+    cut_mol = rw.GetMol()
+    Chem.SanitizeMol(cut_mol)
+    for frag in Chem.GetMolFrags(cut_mol, asMols=True, sanitizeFrags=False):
+        if _match_skeleton(frag) is not None:
+            return frag
+    return None
+
+
+def _match(mol):
+    """`_match_skeleton`'s tuple plus ((locant, site, root), ...) for the substituents on the amino, thiol or
+    hydroxy group that must be cut to reach a table amino acid (P-103.2.3)."""
+    found = _match_skeleton(mol)
+    if found is not None:
+        return (*found, ())
+    if not mol.HasSubstructMatch(_ALPHA_AMINO_ACID):
+        return None
+    candidates = _cut_candidates(mol)
+    if not candidates or len(candidates) > _MAX_CUT_CANDIDATES:
+        return None
+    for size in range(1, len(candidates) + 1):
+        for cuts in itertools.combinations(candidates, size):
+            if len({root for _, root in cuts}) != size:
+                continue
+            frag = _skeleton_after_cuts(mol, cuts)
+            if frag is None:
+                continue
+            name, alpha, side_chain, _ = _match_skeleton(frag)
+            if alpha is None:
+                continue
+            to_orig = {a.GetIdx(): a.GetIntProp("_orig") for a in frag.GetAtoms()}
+            alpha = to_orig[alpha]
+            side_chain = frozenset(to_orig[i] for i in side_chain)
+            amine = next(n.GetIdx() for n in mol.GetAtomWithIdx(alpha).GetNeighbors() if n.GetAtomicNum() == 7)
+            allowed = {amine: "N2" if name == "lysine" else "N"}
+            for site in side_chain:
+                element = mol.GetAtomWithIdx(site).GetSymbol()
+                if element == _SIDE_CHAIN_SUBSTITUTION_SITE.get(name):
+                    allowed[site] = "N6" if name == "lysine" else element
+            if any(site not in allowed for site, _ in cuts):
+                continue
+            if len(frag.GetSubstructMatches(_ALPHA_AMINO_ACID)) != len(mol.GetSubstructMatches(_ALPHA_AMINO_ACID)):
+                continue
+            return name, alpha, side_chain, None, tuple((allowed[site], site, root) for site, root in cuts)
+    return None
+
+
 def _serine_phosphoryl(mol, graph, alpha_carbon, side_root):
     """(oxygen, phosphorus) of a serine side chain CH2-O-P(=O)(O..)(O..), else None."""
     side = mol.GetAtomWithIdx(side_root)
@@ -327,15 +405,28 @@ def has_amino_acid_shape(mol) -> bool:
     return _match(mol) is not None
 
 
+def _substituent_prefixes(mol, graph, substituents):
+    from ._common import halogen_substituents
+    from ._substituents import format_substituent_prefixes, name_branch
+
+    halogens = halogen_substituents(mol)
+    aromatic = {a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic()}
+    grouped = {}
+    for locant, site, root in substituents:
+        name, compound = name_branch(graph, root, site, halogens, aromatic, mol)
+        grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
+    return format_substituent_prefixes(grouped)
+
+
 def name_amino_acid(mol) -> str:
-    name, alpha_carbon, side_chain_atoms, phosphoryl = _match(mol)
+    name, alpha_carbon, side_chain_atoms, phosphoryl, substituents = _match(mol)
     if alpha_carbon is None:
         return name
     label = _alpha_stereo_label(mol, alpha_carbon, side_chain_atoms)
     mapping = _ALPHA_TO_LD_CYSTEINE if name == "cysteine" else _ALPHA_TO_LD
+    prefix = ""
     if phosphoryl is not None:
-        group = _phosphoryl_group_name(mol, adjacency(mol), *phosphoryl, side_chain_atoms)
-        return f"O-{group}-{mapping[label]}-{name}" if label else f"O-{group}-{name}"
-    if label is None:
-        return name
-    return f"{mapping[label]}-{name}"
+        prefix = f"O-{_phosphoryl_group_name(mol, adjacency(mol), *phosphoryl, side_chain_atoms)}-"
+    elif substituents:
+        prefix = _substituent_prefixes(mol, adjacency(mol), substituents) + "-"
+    return f"{prefix}{mapping[label]}-{name}" if label else f"{prefix}{name}"

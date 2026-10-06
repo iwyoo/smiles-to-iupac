@@ -353,3 +353,18 @@ def test_sphingolipids(smiles, expected):
 )
 def test_glycoglycerolipids(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+# P-103.2.3 N-, S- and O-substitution of retained amino acid names
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ('C[C@H](NC(C)=O)C(=O)O', 'N-acetyl-L-alanine'),
+        ('N[C@@H](CSCc1ccccc1)C(=O)O', 'S-benzyl-L-cysteine'),
+        ('N[C@@H](Cc1ccc(OC)cc1)C(=O)O', 'O-methyl-L-tyrosine'),
+        ('CC(=O)NCCCC[C@H](NC)C(=O)O', 'N6-acetyl-N2-methyl-L-lysine'),
+        ('CN(C)[C@@H](C)C(=O)O', 'N,N-dimethyl-L-alanine'),
+    ],
+)
+def test_substituted_amino_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
