@@ -15,7 +15,7 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   (PIN)"), `CC(=[Te])C`'s own sibling case in `_tellone.py` confirms the
   pattern generalizes across chalcogens. The Blue Book's own worked
   example for this exact suffix is "hexane-3-selone (PIN)"
-  (`tmp/bluebook/P6.txt`), matching the structure of `CCC(=[Se])CC`.
+  (the Blue Book), matching the structure of `CCC(=[Se])CC`.
 - Two or more C=Se groups (a diselone) mirrors `_thione.py`'s own
   dithione generalization -- the locant/suffix machinery (ported
   unchanged from `_thione.py`) already generalizes over a list of selone

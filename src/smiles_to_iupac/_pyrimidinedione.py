@@ -6,10 +6,10 @@ parenthesized multi-locant "added indicated hydrogen" convention
 (P-14.7.2/P-58.2.2), per the IUPAC 2013 Recommendations:
 
 - Confirmed directly against two independent primary-source passages (not
-  extrapolated from a single example): `tmp/bluebook/P5.txt` line 1385
+  extrapolated from a single example): the Blue Book
   ('pyrimidine-4,6(1H,5H)-dione (PIN)', an explicitly PIN-marked dione on
   this exact ring skeleton needing two parenthesized added-hydrogen
-  locants) and `tmp/bluebook/P6.txt` line 3723 (barbituric acid's
+  locants) and the Blue Book (barbituric acid's
   mancude-based alternative name 'pyrimidine-2,4,6(1H,3H,5H)-trione',
   confirming the same bracket convention scales to a third oxo/added-H
   pair -- though the PIN there, line 3722, switches to the fully

@@ -14,8 +14,7 @@ Book"):
 - Each nitrogen may carry 0, 1, or 2 plain, unbranched, saturated alkyl
   substituents, cited exactly the way `_urea.py` already established for
   its own N-/N,N-/N,N'- letter-locant convention (confirmed from the Blue
-  Book's own text for urea itself, `tmp/bluebook/P6.txt` lines 630,
-  1373-1378) -- thiourea and urea are named by the same P-6 retained-name
+  Book's own text for urea itself, the Blue Book) -- thiourea and urea are named by the same P-6 retained-name
   mechanism (differing only in the chalcogen), so the identical
   N-substitution citation logic is reused unchanged rather than
   re-verified from a thiourea-specific worked example.

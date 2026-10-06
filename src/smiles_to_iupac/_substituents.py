@@ -146,8 +146,7 @@ def format_mononuclear_prefixes(entries) -> str:
     multiplying prefix itself always sits *outside* those parentheses
     ('ethyldi(methyl)phosphane', not 'ethyl(dimethyl)phosphane'), per
     that same rule's own text and confirmed directly by the Blue Book's
-    'ethyldi(methyl)phosphane (PIN)' worked example (`tmp/bluebook/
-    P1.html`).
+    'ethyldi(methyl)phosphane (PIN)' worked example (the Blue Book).
 
     `entries`: a flat list of `(name, is_compound)` tuples (as returned by
     `name_branch`, not a `grouped` dict like `format_substituent_prefixes`
@@ -169,8 +168,7 @@ def format_mononuclear_prefixes(entries) -> str:
     *multiplied* compound name needs its own inner parentheses regardless
     of position to avoid ambiguity ('tri(propan-2-yl)phosphane', PubChem
     CID 80969; confirmed independently via the Blue Book's own
-    'ethyldi(propan-2-yl)silane (PIN)' worked example, `tmp/bluebook/
-    P1.html` P-16.5.1.3.1), mirroring the 'di(...)' rule already
+    'ethyldi(propan-2-yl)silane (PIN)' worked example, the Blue Book P-16.5.1.3.1), mirroring the 'di(...)' rule already
     established for `_carbamate.py`/`_urea.py`. A multiplied compound
     name mixed with a *different* substituent is out of scope
     (`UnsupportedStructure`) -- PubChem's own naming engine is already
@@ -209,7 +207,7 @@ def format_mononuclear_prefixes(entries) -> str:
     ordered = sorted(counts, key=alpha_sort_key)
     if counts[ordered[0]] > 1 and compound_of[ordered[0]]:
         # Unlike a non-first multiplied compound name (confirmed below via
-        # 'bromodi(ethenyl)stibane (PIN)', `tmp/bluebook/P6a.txt`
+        # 'bromodi(ethenyl)stibane (PIN)', the Blue Book
         # ~8608-8609 -- the multiplying prefix and enclosing marks both
         # land correctly on a non-first name in the loop below), no
         # worked example confirms whether a multiplied compound name
@@ -231,7 +229,7 @@ def format_mononuclear_prefixes(entries) -> str:
             # P-16.5.1.3.1's own text: "the multiplicative prefixes are
             # not included in the parentheses" -- confirmed via the Blue
             # Book's own 'ethyldi(methyl)phosphane (PIN)' worked example
-            # (`tmp/bluebook/P1.html`), so the prefix sits outside the
+            # (the Blue Book), so the prefix sits outside the
             # parens at any position, not just the first.
             needs_kis = compound_of[name] and not is_plain_stem_prefix(name)
             parts.append(multiplying_prefix(count, compound=needs_kis) + (name if i == 0 else wrap_marks(name)))

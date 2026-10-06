@@ -11,7 +11,7 @@ isotope (12C/13C/14C) and/or an isotopically labeled carboxyl oxygen
   stripped) copy of the molecule (mirrors `_isotope_alcohol.py`/
   `_isotope_ketone.py`'s identical approach).
 - This case has a direct, exact-match confirmed worked example (not
-  analogy from a different suffix): `tmp/bluebook/P8.txt` line 327,
+  analogy from a different suffix): the Blue Book,
   '(1-14C)pentan(3H)oic acid (PIN)' -- a carbon isotope on the carboxyl
   carbon itself (C1) placed at the front of the whole name, combined with
   a non-carbon isotope (tritium, on the acid's own exchangeable proton)

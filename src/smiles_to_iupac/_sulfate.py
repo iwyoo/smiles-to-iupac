@@ -16,7 +16,7 @@ mixed), per the IUPAC 2013 Recommendations ("the Blue Book"):
   inserting the word "hydrogen" (never "dihydrogen") between the
   R-group word and "sulfate" -- mirrors `_phosphate.py`'s own
   partial-ester citation, confirmed worked example "CH3-O-SO2-OH ->
-  methyl hydrogen sulfate (PIN)" (`tmp/bluebook/P6a.txt` ~4102).
+  methyl hydrogen sulfate (PIN)" (the Blue Book).
 - Salts of partial esters (P-67.1.3.2): a single deprotonated S-O^-
   balanced by one +1 monoatomic cation (`_salt.py`'s
   `_MONOATOMIC_CATION_NAMES`) cites the cation's name before the R-group
@@ -165,6 +165,6 @@ def name_sulfate(mol) -> str:
     # and one remaining hydroxyl) between the R-group word and "sulfate"
     # -- mirrors `_phosphate.py`'s own partial-ester citation, confirmed
     # worked example "CH3-O-SO2-OH -> methyl hydrogen sulfate (PIN)"
-    # (`tmp/bluebook/P6a.txt` ~4102).
+    # (the Blue Book).
     anion_name = f"{ester_words} hydrogen sulfate" if has_hydroxyl else ester_words + " sulfate"
     return f"{cation_name} {anion_name}" if cation_name else anion_name

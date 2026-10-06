@@ -1,5 +1,4 @@
-"""Directly bonded Group 13-15 metal pairs (P-69.5.3, `tmp/bluebook/P6a.txt`
-lines 8971-8985): the senior metal (As > Sb > Bi > Ge > Sn > Pb > Al > Ga >
+"""Directly bonded Group 13-15 metal pairs (P-69.5.3, the Blue Book): the senior metal (As > Sb > Bi > Ge > Sn > Pb > Al > Ga >
 In > Tl) is the parent hydride, other metals are '-yl' groups
 ('germylbismuthane'), also through alkyl chains and para-substituted aryls.
 The multiplicative 'plumbanetetrayl' form is out of scope.

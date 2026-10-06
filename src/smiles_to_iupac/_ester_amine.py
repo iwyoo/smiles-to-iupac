@@ -2,7 +2,7 @@
 separate primary amine (-NH2) on the acyl chain, per the IUPAC 2013
 Recommendations ("the Blue Book"):
 
-- P-41 Table 4.1 (`_seniority.py`, `tmp/bluebook/P41.txt`): esters (class
+- P-41 Table 4.1 (`_seniority.py`, the Blue Book): esters (class
   9) far outrank amines (class 19), so a coexisting primary amine is
   demoted to the 'amino' substituent prefix instead of its own '-amine'
   suffix, e.g. 'NCCC(=O)OC' -> 'methyl 3-aminopropanoate' (PubChem's own

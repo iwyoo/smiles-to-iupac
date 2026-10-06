@@ -13,7 +13,7 @@ module in this codebase.
   rest are cited as substituent prefixes instead (P-41.1).
 - This module is a single, reusable rank table for that suffix-vs-suffix
   comparison, extracted from the numbered Table 4.4 list (see
-  `tmp/bluebook/P41.txt` for the cached excerpt this was built from).
+  the Blue Book for the cached excerpt this was built from).
   Lower rank number = more senior. Only classes this codebase already has
   a dedicated suffix module for are listed -- a class with no module here
   yet has no suffix to demote *to* a prefix in the first place, so it

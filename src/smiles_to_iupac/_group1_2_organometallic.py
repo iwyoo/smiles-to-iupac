@@ -8,7 +8,7 @@ Book"):
   ligand name(s) are cited directly before the bare metal element name,
   with no parent-hydride ('-ane') construction at all (unlike P-69.1's
   Group 13-16 mechanism, `_group13_hydride.py`). Confirmed worked example
-  (`tmp/bluebook/P6a.txt` line 8843-8845): `[LiMe]` -> 'methyllithium'.
+  (the Blue Book): `[LiMe]` -> 'methyllithium'.
   Doubly-substituted Group 2 case (unconfirmed by a worked example in the
   cached excerpt) follows the same ordinary P-14.2.1 multiplying-prefix
   convention already used throughout this project for an otherwise
@@ -38,7 +38,7 @@ Scope: a plain/branched alkyl substituent or a plain phenyl substituent,
 1 substituent for Group 1 (Li/Na/K), 1-2 identical substituents for
 Group 2 (Mg/Ca). Also: a Group 2 metal bearing exactly one organic
 substituent and one halogen (the Grignard-reagent-shaped R-M-X case) --
-P-69.3's own worked example (`tmp/bluebook/P6a.txt` lines 8859-8863):
+P-69.3's own worked example (the Blue Book):
 `[MgMe]I` -> 'methylmagnesium iodide (compositional name; the formally
 electropositive component named by additive nomenclature)'. This is a
 *different* citation style from the plain R-M/R2-M case above: the

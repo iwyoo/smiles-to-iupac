@@ -29,7 +29,7 @@ P-73.1.1.2), per the IUPAC 2013 Recommendations ("the Blue Book"):
   is named "ethyltri(methyl)phosphanium" here (the multiplying prefix
   sits outside the parentheses, per P-16.5.1.3.1's own text and the Blue
   Book's "chlorodi(methyl)borane (PIN)"/"ethyldi(methyl)phosphane (PIN)"
-  worked examples, `tmp/bluebook/P6.txt`/`P1.html` -- see
+  worked examples, the Blue Book -- see
   `_phosphane.py`'s docstring for the full derivation), not PubChem's own
   raw "ethyl(trimethyl)phosphanium".
 - A plain, unsubstituted benzene ring bonded directly to phosphorus is

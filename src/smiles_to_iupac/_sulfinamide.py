@@ -457,8 +457,7 @@ def _name_phenyl_chain_sulfinamide(mol, ring_atoms):
     which is the parent hydride, mirroring `_sulfonamide.py`'s
     `_name_phenyl_chain_sulfonamide`. Narrower than the acyclic path
     above: no N-alkyl substitution and no chain unsaturation -- each is
-    a separate follow-up (see
-    tasks/phenyl-substituent-on-sulfinamide-chain.md's scope note)."""
+    a separate follow-up."""
     sulfur_idx, so_nh2_carbon, _, n_alkyl_carbons = _validate_and_collect_sulfinamides(
         mol, aromatic_ring_atoms=ring_atoms
     )

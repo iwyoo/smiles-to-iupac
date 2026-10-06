@@ -19,8 +19,7 @@ saturated or unsaturated carbon chains, per the IUPAC 2013 Recommendations
   builds -- out of scope here (acyclic-chain-parent only). A ring may
   still appear as a plain 'phenyl' substituent on the chain instead (see
   `_name_phenyl_chain_carboxylic_acid` below) -- the narrowest slice of
-  `tasks/aromatic-ring-substituent-parent-selection.md`'s largest single
-  real-data coverage gap: a single, otherwise-unsubstituted benzene ring
+  aromatic-ring-substituent parent selection: a single, otherwise-unsubstituted benzene ring
   hanging off one end of an unbranched chain whose far end carries the
   sole -COOH, e.g. 'c1ccccc1CC(=O)O' -> 'phenylacetic acid' (acetic acid
   keeps its retained name under substitution, P-65.1.1.1, P-15.1.8.2.1;

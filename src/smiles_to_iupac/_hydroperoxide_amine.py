@@ -2,7 +2,7 @@
 separate primary amine (-NH2) on the same acyclic saturated carbon chain,
 per the IUPAC 2013 Recommendations ("the Blue Book"):
 
-- P-41 Table 4.1 (`_seniority.py`, `tmp/bluebook/P41.txt`): hydroperoxides
+- P-41 Table 4.1 (`_seniority.py`, the Blue Book): hydroperoxides
   (class 18) outrank amines (class 19), so a coexisting primary amine is
   demoted to the 'amino' substituent prefix instead of its own '-amine'
   suffix, e.g. 'NCCOO' -> '2-aminoethane-1-peroxol'.
@@ -13,8 +13,7 @@ per the IUPAC 2013 Recommendations ("the Blue Book"):
   elsewhere in this project to deviate from strict IUPAC rules (see the
   natural-products scoping notes); this module follows the Blue Book
   primary source directly rather than PubChem's tool output for this one
-  pair, per the 2026-09-05 re-investigation recorded in
-  `tasks/blue-book-roadmap.md`.
+  pair, per a re-investigation of the primary text.
 - Otherwise mirrors `_hydroperoxide.py`'s acyclic path exactly: the
   -OOH-bearing carbon gets the lowest available locant ahead of the
   amine's own 'amino' prefix locant (P-44.1.1), and 'peroxol' never elides

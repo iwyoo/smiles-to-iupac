@@ -10,11 +10,11 @@ mononuclear organometallics (a single metal atom bearing 1-3 Group 13/15 /
   the metal atom itself is the mononuclear parent hydride (P-68's own
   element table), with substituents cited as prefixes via
   `format_mononuclear_prefixes`. Confirmed worked examples
-  (`tmp/bluebook/P6a.txt` lines 8602-8613): `Al(CH2-CH3)3` ->
+  (the Blue Book): `Al(CH2-CH3)3` ->
   'triethylalumane', `Pb(CH2-CH3)4` -> 'tetraethylplumbane',
   `BrSb(CH=CH2)2` -> 'bromodi(ethenyl)stibane', `HIn(CH3)2` ->
   'dimethylindigane'. Thallium's own stem name, 'thallane', is confirmed
-  at `tmp/bluebook/P6a.txt` line 5459 (preselected name). The Group 15
+  at the Blue Book (preselected name). The Group 15
   stems themselves are confirmed separately: `ethylarsane (PIN)` (line
   7810), `trimethylbismuthane (PIN)` (line 8010); `stibane` is confirmed
   by the `bromodi(ethenyl)stibane` example above.

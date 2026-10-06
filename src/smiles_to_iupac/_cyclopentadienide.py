@@ -2,8 +2,7 @@
 https://iupac.qmul.ac.uk/BlueBook/P7.html): a 5-membered all-carbon ring
 with one formal-charge -1 ring carbon and two ring C=C double bonds (the
 neutral-parent-equivalent "cyclopenta-1,3-diene" shape) names as
-'cyclopenta-2,4-dien-1-ide (PIN)' -- `tmp/bluebook/P7.txt` lines 916-919
-and 946-949 give this exact worked example directly ('cyclopentadienide',
+'cyclopenta-2,4-dien-1-ide (PIN)' -- the Blue Book give this exact worked example directly ('cyclopentadienide',
 the P-76 delocalized-anion alternative name, is noted alongside but is
 not the PIN). `_carbanide.py` is explicitly acyclic-only, so this
 ring+diene shape needs its own module rather than a tweak to that one's

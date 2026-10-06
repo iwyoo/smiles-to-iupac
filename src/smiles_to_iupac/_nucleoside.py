@@ -1,7 +1,6 @@
 """Naming of the 7 retained nucleoside names (P-105.1, Chapter P-10,
-https://iupac.qmul.ac.uk/BlueBook/P10.html, `tmp/bluebook/P10.txt` lines
-4406-4436): "The following names are retained: adenosine, guanosine,
-inosine, xanthosine, cytidine, thymidine, uridine."
+https://iupac.qmul.ac.uk/BlueBook/P10.html): the retained names are
+adenosine, guanosine, inosine, xanthosine, cytidine, thymidine, uridine.
 
 Matched by a whole-molecule canonical-SMILES lookup, mirroring
 `_steroid_parent_hydrides.py`'s/`_fullerene.py`'s/`_inositol.py`'s

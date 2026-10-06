@@ -1,5 +1,5 @@
 """Naming of the 7 retained metallocene ("-ocene") names (P-69.2.7, Chapter
-P-6a, `tmp/bluebook/P6a.txt` lines 8775-8873): "bis(eta5-cyclopenta-2,4-
+P-6a, the Blue Book): "bis(eta5-cyclopenta-2,4-
 dien-1-yl)metal" sandwiches of Fe/Ru/Os/Ni/Cr/Co/V are retained PINs
 (ferrocene/ruthenocene/osmocene/nickelocene/chromocene/cobaltocene/
 vanadocene), exempted from the general P-69.2 coordination-nomenclature

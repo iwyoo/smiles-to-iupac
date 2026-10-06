@@ -459,8 +459,7 @@ def _name_phenyl_acyl_ester(mol, ring_atoms):
     ring sits on the acyl side (see `_name_phenol_ester` for the alcohol
     side instead) -- `_name_alcohol_part` is reused unchanged for the
     plain acyclic alcohol part here. Narrower than the general acyl path: no chain unsaturation and
-    no specified stereocenter -- each a separate follow-up (see
-    tasks/phenyl-substituent-on-ester-chain.md's scope note)."""
+    no specified stereocenter -- each a separate follow-up."""
     _validate_ester_atoms(mol, aromatic_ring_atoms=ring_atoms)
     acyl_carbon, carbonyl_oxygen, ester_oxygen, alcohol_carbon = _find_ester_group(mol)
     if specified_stereocenters(mol):

@@ -206,7 +206,7 @@ def steroid_suffix_name(mol, suffix_atom, attachment_carbon, suffix_word, elide_
     return _suffixed_parent(name, locant, suffix_word, elide_e=elide_e)
 
 
-# P-101.2.6.1.1's alpha/beta symbolism (`tmp/bluebook/P10.txt` lines
+# P-101.2.6.1.1's alpha/beta symbolism (the Blue Book lines
 # 222-246): "an atom or group attached to the ring is called 'alpha' if it
 # lies below or 'beta' if it lies above the plane of the paper" in the
 # standard steroid projection. The same primary text's own worked example

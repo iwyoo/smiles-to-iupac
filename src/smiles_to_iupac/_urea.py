@@ -11,7 +11,7 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   substituents, cited as 'N-'-prefixed substituents directly ahead of
   'urea', mirroring `_amide.py`'s/`_carbamate.py`'s own N-substitution
   citation -- confirmed directly from the Blue Book's own text
-  (`tmp/bluebook/P6.txt` lines 630, 1373-1378): 'N-methyl-N-nitrosourea
+  (the Blue Book): 'N-methyl-N-nitrosourea
   (PIN)' cites two different substituents on the SAME nitrogen both as
   'N-' (no prime needed -- there's only one substituted nitrogen to name),
   and '(i) The symbols N,N' are used for the 'unprimed' parent
@@ -42,7 +42,7 @@ fix, PR #328/#331) -- a branched N-substituent is supported (e.g.
 parenthesized -- 'N-(propan-2-yl)urea', not PubChem's own raw
 'N-propan-2-ylurea' (CID 12725), per P-16.5.1.5's/P-66.1.6.1.3.1's own
 worked examples ('N-(2-chloroethyl)propan-1-amine (PIN)',
-'N-(butan-2-yl)selenourea (PIN)', `tmp/bluebook/P1.html`/`P6a.txt`) --
+'N-(butan-2-yl)selenourea (PIN)', the Blue Book) --
 mirrors `_carbamate.py`'s identical correction. An identical-pair
 'N,N-di'/'N,N'-di' name is parenthesized only when the substituent name
 is compound (e.g. 'N,N'-di(propan-2-yl)urea', CID 20084) and not when

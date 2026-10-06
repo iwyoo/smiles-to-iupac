@@ -14,7 +14,7 @@ Recommendations ("the Blue Book"):
   phenoxide (but not isopropoxide), and aminoxide" are preferred IUPAC
   names for CH3-O(-), C2H5-O(-), (n-)C3H7-O(-), (n-)C4H9-O(-),
   (CH3)3C-O(-), C6H5-O(-), and H2N-O(-) respectively (P-72.2.2.2.2's own
-  text, `tmp/bluebook/P7.txt` lines 1108-1111). This module implements the
+  text, the Blue Book). This module implements the
   first five (methoxide/ethoxide/propoxide/butoxide/tert-butoxide) for
   their exact plain, unhalogenated, unsaturated, terminal-oxygen shape
   only -- isopropoxide is explicitly NOT the PIN for propan-2-ol's anion
@@ -23,7 +23,7 @@ Recommendations ("the Blue Book"):
   path. Phenoxide (-O(-) directly on a benzene ring, `_name_phenoxide`)
   is implemented as a separate aromatic-ring path -- P-63.8.1 confirms it
   "may be substituted in the same way as the corresponding alcohols"
-  (`tmp/bluebook/P6.txt` lines 3091-3111, worked example "lithium
+  (the Blue Book, worked example "lithium
   phenoxide (PIN)"), mirroring `_alcohol.py`'s `_name_phenol` exactly.
   Aminoxide (a carbon-free H2N-O(-) shape) is not implemented.
 - Structure-verified via PubChem: `CC[O-]` (CID 119440), `CCC[O-]` (CID
@@ -340,7 +340,7 @@ def _validate_and_prepare_alkoxide(mol, aromatic_ring_atoms=frozenset()):
 def _phenoxide_name_from_substituents(grouped):
     # P-63.8.1/P-72.2.2.2.2: the retained name 'phenoxide' stands for the
     # whole ring+O(-) system and "may be substituted in the same way as
-    # the corresponding alcohols" (`tmp/bluebook/P6.txt` lines 3091-3111)
+    # the corresponding alcohols" (the Blue Book)
     # -- mirrors `_alcohol.py`'s `_name_phenol`'s identical treatment of
     # 'phenol', so the O(-)'s own ring locant is never cited, only other
     # substituents'.

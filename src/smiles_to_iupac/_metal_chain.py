@@ -1,5 +1,5 @@
 """Group 13-15 metal chains and multiplicative metal hydrides (P-69.5.3,
-`tmp/bluebook/P6a.txt` lines 8971-8985, P-68.2): an unbranched chain of one
+the Blue Book, P-68.2): an unbranched chain of one
 metal element is 'hexaethyldistannane'; one junior metal joining k senior
 unsubstituted metal hydrides is 'plumbanetetrayltetrakis(stannane)'.
 Branched or mixed-element chains are out of scope.

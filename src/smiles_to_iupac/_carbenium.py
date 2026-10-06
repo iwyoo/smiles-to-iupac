@@ -7,7 +7,7 @@ Book"):
   hydride ion, H-, ... from a terminal atom of a saturated unbranched
   acyclic hydrocarbon [or] a saturated monocyclic hydrocarbon ... is named
   by replacing the 'ane' ending in the name of the parent hydride by the
-  suffix 'ylium'." Confirmed worked examples (`tmp/bluebook/P7.txt`):
+  suffix 'ylium'." Confirmed worked examples (the Blue Book):
   `[CH3+]` -> 'methylium (PIN)'; a terminal cation on propane ->
   'propylium (PIN)'; a cyclobutane ring cation -> 'cyclobutylium (PIN)'.
   This is structurally identical to `_radical.py`'s own "ane"->"yl"
@@ -19,7 +19,7 @@ Book"):
   branch point (not a chain terminus) is named by adding '-ylium' to the
   PIN of the parent hydride (P-2/P-5 parent-hydride selection), with
   elision of the final 'e' -- confirmed worked examples in
-  `tmp/bluebook/P7.txt` (1948-1995) are silane/furan/spiro-based (e.g.
+  the Blue Book (1948-1995) are silane/furan/spiro-based (e.g.
   'heptamethyltrisilan-2-ylium (PIN)'), with no plain-carbon-chain
   worked example, but the mechanism ("parent hydride PIN + '-ylium'")
   parallels `_radical.py`'s own P-29.3.2.2 branch-point mechanism
@@ -59,15 +59,14 @@ Book"):
   - An unbranched or branched acyclic chain, cation carbon fixed at C1:
     formyl/acetyl (`_retained_acids.py`, P-65.1.7.2.1) for one- and
     two-carbon chains, else the systematic '-oyl' stem plus 'ium'.
-    Confirmed worked example `acetylium (PIN)`, `tmp/bluebook/P7.txt`
-    ~2071-2098.
+    Confirmed worked example `acetylium (PIN)`, the Blue Book.
   - A ring-attached acylium carbon: `_carboxylic_acid.py`'s
     `_name_ring_attached_carboxyl`/`_name_benzo_attached_carboxyl`
     reused with `suffix="carbonylium"`/`word="benzoylium"` (the same
     kernels `_ester.py` reuses with `suffix="carboxylate"`/
     `word="benzoate"`, and `_radical.py` with `suffix="carbonyl"`/
     `word="benzoyl"`). Confirmed worked example `cyclohexanecarbonylium
-    (PIN)`, `tmp/bluebook/P7.txt` ~2071-2098; `benzoylium` has no
+    (PIN)`, the Blue Book; `benzoylium` has no
     explicit Blue Book worked example but follows the identical
     systematic pattern the rule's own text describes.
 

@@ -9,7 +9,7 @@ replacement (infix) nomenclature, per the IUPAC 2013 Recommendations
   the acid stem, plus an italic tautomer-locant prefix ('O,O,O-') citing
   that all three non-substituted positions are the ordinary -OH tautomer
   -- confirmed directly, `phosphorothioic O,O,O-acid (preselected name)`,
-  `tmp/bluebook/P6a.txt` ~4255 (not just by analogy to arsenic's own
+  the Blue Book (not just by analogy to arsenic's own
   `arsorothioic O,O,O-acid`, ~3681, which uses the identical suffix
   pattern too). Like the mononuclear noncarbon oxoacids `_phosphate.py`/
   etc. and the dinuclear ones in `_dinuclear_oxoacid.py` already cover,

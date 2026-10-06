@@ -564,8 +564,7 @@ def _name_phenyl_chain_aldehyde(mol, ring_atoms):
     `_carboxylic_acid.py`'s `_name_phenyl_chain_carboxylic_acid`. Narrower
     than the acyclic path above: exactly one -CHO, no coexisting standalone
     hydroxyl, no chain unsaturation, and no specified stereocenter -- each
-    is a separate follow-up (see
-    tasks/phenyl-substituent-on-aldehyde-chain.md's scope note)."""
+    is a separate follow-up."""
     aldehydes, hydroxyls = _validate_and_collect_aldehydes(mol, aromatic_ring_atoms=ring_atoms)
     if hydroxyls:
         raise UnsupportedStructure(

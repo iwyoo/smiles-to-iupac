@@ -1,7 +1,7 @@
 """Naming of the benzenide anion (phenyl anion, P-72.2.2.1, Chapter P-7,
 https://iupac.qmul.ac.uk/BlueBook/P7.html): a benzene ring with one ring
 carbon carrying the sole formal charge -1 names as 'benzenide (PIN)' --
-`tmp/bluebook/P7.txt` lines 908-911 and 946-947 give this exact worked
+the Blue Book give this exact worked
 example directly. Unlike the cyclopentadienide anion (`_cyclopentadienide.py`),
 this needs no locant citation at all: every ring position is equivalent by
 symmetry, so the anion center's own numbering is never essential

@@ -28,7 +28,7 @@ the IUPAC 2013 Recommendations ("the Blue Book"):
   for its N-alkyl substituents.
 
 Scope, deliberately narrow (first pilot of the general "ether coexists
-with any suffix module" fix -- see `tasks/ether-amine-coexisting.md`):
+with any suffix module" fix):
 exactly one plain ether oxygen (both sides acyclic saturated carbon) plus
 exactly one primary amine, on one acyclic *saturated* skeleton, halogens
 allowed. Explicitly out of scope (raise `UnsupportedStructure`): more than

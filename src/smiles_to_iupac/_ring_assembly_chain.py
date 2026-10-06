@@ -29,7 +29,7 @@ excluded for now), per the IUPAC 2013 Recommendations ("the Blue Book"):
   taken together, then lowest order of citation if a tie remains --
   confirmed PIN worked examples `11,21:24,31-terphenyl` (p-terphenyl) and
   the tie-break pair `11,21:22,31:33,41-quatercyclobutane` (not
-  `11,21:23,31:32,41-...`; `tmp/bluebook/P2.txt` ~7904-7915).
+  `11,21:23,31:32,41-...`; the Blue Book).
 - P-28.3.2: for benzene rings specifically (not any other ring), the
   retained substituent name 'phenyl' is used with the Latin multiplying
   prefix (ter/quater/quinque/sexi, P-14.2.3 -- this project's existing
@@ -38,13 +38,12 @@ excluded for now), per the IUPAC 2013 Recommendations ("the Blue Book"):
   small local table is used here instead of extending that shared one)
   instead of the general 'ter'+parent-hydride-name construction --
   confirmed PIN worked examples `11,21:24,31-terphenyl` and
-  `11,21:23,31:33,41-quaterphenyl` (`tmp/bluebook/P2.txt` ~7970-7978).
+  `11,21:23,31:33,41-quaterphenyl` (the Blue Book).
 - P-28.3.1's *general* rule applies as-is to any other identical cyclic
   parent hydride: the Latin multiplying prefix directly in front of the
   plain parent-hydride name (not a substituent-group name) -- confirmed
   PIN worked examples `11,21:22,31-tercyclopropane` (not
-  "tercyclopropyl") and `12,25:22,34-terpyridine`, `tmp/bluebook/P2.txt`
-  ~7904, ~7933-7938.
+  "tercyclopropyl") and `12,25:22,34-terpyridine`, the Blue Book.
 - **Numbering for a ring whose own numbering isn't free** (any
   `_ROLE_SEQUENCES` parent other than the 3 N-H tautomer-ambiguous ones):
   P-28.2.1's text, shared by P-28.2.1/P-28.2.2/P-28.3 alike, states "Each
@@ -55,7 +54,7 @@ excluded for now), per the IUPAC 2013 Recommendations ("the Blue Book"):
   already searches over. A heteroaromatic parent's own numbering isn't
   free: its heteroatom(s) sit at fixed role-sequence positions (confirmed
   for pyridine by the worked example `2,2'-bipyridine`,
-  `tmp/bluebook/P2.txt` ~7799, and the same "traditional way" text
+  the Blue Book, and the same "traditional way" text
   applies identically to every other role-sequence parent), so only the
   alignments (rotation + direction) whose element pattern actually
   matches that parent's role sequence are considered --
@@ -73,8 +72,7 @@ excluded for now), per the IUPAC 2013 Recommendations ("the Blue Book"):
   stay excluded -- a second "pyridine-type" nitrogen with no spare
   valence of its own, unlike every one of pyrrole's five positions).
   Confirmed PIN worked examples `11H,33H-13,23:23,33-terindole` and
-  `12H,22H,24H,32H-11,21:23,31-terpyrimidine` (`tmp/bluebook/P2.txt`
-  ~7920-7927) establish the composite-locant indicated-hydrogen citation
+  `12H,22H,24H,32H-11,21:23,31-terpyrimidine` (the Blue Book) establish the composite-locant indicated-hydrogen citation
   format for N>=3 chains: front-of-name, comma-separated per occupied
   ring, each using that ring's own composite locant. For pyrrole
   specifically this reduces to the same per-ring check #949 already
@@ -145,7 +143,7 @@ _NON_NH_ROLE_SEQUENCES = {
     # with a locant (bare 'ter1,3-thiazole' is ambiguous; general IUPAC
     # practice elsewhere in this same chapter encloses such a name in
     # square brackets when composing it into a larger name, e.g.
-    # 'spiroter[[1,3,2]benzodioxathiole]', `tmp/bluebook/P2.txt` ~2744 --
+    # 'spiroter[[1,3,2]benzodioxathiole]', the Blue Book --
     # but that is P-24's dispiro/spiro construction, not P-28.3's, so it
     # is not assumed to carry over here without its own worked example).
     if name not in _TAUTOMER_AMBIGUOUS_UNLESS_N1 and not name[0].isdigit()

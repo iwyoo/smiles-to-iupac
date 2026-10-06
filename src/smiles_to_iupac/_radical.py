@@ -43,8 +43,7 @@
   monocyclic-ring shape is named the identical way, just appending
   'idene'/'idyne' after the '-yl' name instead of using it bare -- e.g.
   'methyl' + 'idene' -> 'methylidene', 'cyclohexyl' + 'idene' ->
-  'cyclohexylidene' (worked examples confirmed against `tmp/bluebook/
-  P7.txt` lines ~284-315). RDKit's `GetNumRadicalElectrons()` reports this
+  'cyclohexylidene' (worked examples confirmed against the Blue Book). RDKit's `GetNumRadicalElectrons()` reports this
   free valence directly (2 or 3), with no bond-order difference from the
   monovalent case -- `[CH]C` (ethylidene) and `[C]C` (ethylidyne) both
   have a degree-1 radical carbon, same as a monovalent chain terminus.
@@ -79,12 +78,12 @@
     C1 like `-COOH`'s own carbon: `_common.py`'s generic
     `name_from_substituents`/`longest_chains`/`substituents_for_chain`
     assemble the name, own_word `"oyl"`. Confirmed worked example
-    `hexanoyl (PIN)`, `tmp/bluebook/P7.txt` ~477-490.
+    `hexanoyl (PIN)`, the Blue Book.
   - A ring-attached acyl carbon (P-65.1.7's '-carbonyl'/'benzoyl'
     construction): `_carboxylic_acid.py`'s `_name_ring_attached_carboxyl`/
     `_name_benzo_attached_carboxyl` reused with `suffix="carbonyl"`/
     `word="benzoyl"`. Confirmed worked examples `benzoyl (PIN)`,
-    `cyclohexanecarbonyl (PIN)`, `tmp/bluebook/P7.txt` ~504-521.
+    `cyclohexanecarbonyl (PIN)`, the Blue Book.
   The hydroxy-derived radical family (P-71.3.4) is a separate follow-up
   step, not this one.
 
@@ -100,7 +99,7 @@
   the reconstructed shape. The same string-transformation mechanism
   `_ylide.py`'s own `amine_name[:-1] + "ium"` already proves works for an
   arbitrary substituted amine name (confirmed worked example
-  `methanaminyl (PIN)`, `tmp/bluebook/P7.txt` ~529-590). P-71.3.3's own
+  `methanaminyl (PIN)`, the Blue Book). P-71.3.3's own
   polyamine/polyimine/polyamide multiplicative radicals (two or more
   radical centers on separate characteristic groups) and a divalent
   '-ylidene' version of this same suffix family are each a separate
@@ -117,7 +116,7 @@
   rule), the same shared ene/yne-vs-suffix priority logic every other
   suffix module in this project already uses -- no new locant research
   needed. Confirmed worked example `prop-2-en-1-ylidene (PIN)`,
-  `tmp/bluebook/P7.txt` ~3288-3291. The other three "carbene type"
+  the Blue Book. The other three "carbene type"
   subtypes in this same Blue Book section (acyl carbenes, imidoyl
   carbenes, imidoyl nitrenes, P-74.2.2.3.1-.3) each need a coexisting
   characteristic-group substituent this project's general "coexisting

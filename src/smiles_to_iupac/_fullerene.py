@@ -94,7 +94,7 @@ exact-match entry:
   new cyclopropane ring), confirming the fusion sits on a 6,6-bond
   (between two hexagons), not a 5,6-bond.
 - Named `3'H-cyclopropa[1,9](C60-Ih)[5,6]fullerene` -- P-27.6.1's own
-  literal worked example (`tmp/bluebook/P2.txt` ~7617, diagram on PDF
+  literal worked example (the Blue Book, diagram on PDF
   p.147: atoms 1 and 9 are drawn directly bonded to each other, both
   also bonded to the new ring carbon 3'). This is a genuinely different
   molecule from P-27.4.1's homofullerene

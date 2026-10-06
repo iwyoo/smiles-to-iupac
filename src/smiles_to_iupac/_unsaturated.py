@@ -58,7 +58,7 @@ Unsaturation in a ring is out of scope and raises `UnsupportedStructure`.
 
 - P-91.3 / P-93 (Chapter P-9, https://iupac.qmul.ac.uk/BlueBook/P9.html):
   when a C=C double bond's
-  geometry is specified in the input (`/`/`\`), a locanted "(nE)-"/"(nZ)-"
+  geometry is specified in the input (the '/' and '\\' bond marks), a locanted "(nE)-"/"(nZ)-"
   prefix is added to the whole name, e.g. "(2E)-but-2-ene",
   "(2Z)-2-chlorobut-2-ene" -- the primary source's own worked example is
   "(2Z)-but-2-ene (PIN)" (P-91.3), and P-91.3 states plainly that "in

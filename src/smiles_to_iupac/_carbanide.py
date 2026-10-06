@@ -21,7 +21,7 @@ per the IUPAC 2013 Recommendations ("the Blue Book"):
 - A single ketone (`C=O`) elsewhere on the chain -- or on the anion carbon
   itself, e.g. the acetyl anion `CH3-C(=O)-` -- is cited as the 'oxo'
   substituent prefix rather than rejected outright (P-72.2.2.1's own
-  worked example, `tmp/bluebook/P7.txt` lines 887-891/1218: 'acetyl anion
+  worked example, the Blue Book/1218: 'acetyl anion
   / 1-oxoethan-1-ide (PIN)'). At a two-carbon parent this also forces the
   '-ide' suffix's own locant to be cited (`name_from_substituents`'s
   `force_own_locant`), unlike the plain unfunctionalized case below, since

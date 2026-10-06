@@ -47,7 +47,7 @@ Book"):
   always sits *outside* the parentheses (P-16.5.1.3.1's own text, "the
   multiplicative prefixes are not included in the parentheses"),
   confirmed directly via the Blue Book's own "ethyldi(methyl)phosphane
-  (PIN)" worked example (`tmp/bluebook/P1.html`) -- a correction from
+  (PIN)" worked example (the Blue Book) -- a correction from
   this module's own earlier (PubChem-trusted) assumption
   ("ethyl(dimethyl)phosphane" for CID 535207's structure, another
   instance of PubChem's own parenthesization unreliability, same as the
@@ -64,7 +64,7 @@ Book"):
   (`ClP(C)C`) is named "chlorodi(methyl)phosphane" here (not PubChem's
   own raw "chloro(dimethyl)phosphane"), matching the Blue Book's own
   "chlorodi(methyl)borane (PIN)" worked example for the analogous
-  borane case (`tmp/bluebook/P6.txt`).
+  borane case (the Blue Book).
 
 - A branched substituent is supported (e.g. 'propan-2-ylphosphane',
   PubChem CID 537979; 'tert-butylphosphane', CID 123165), built with
@@ -76,7 +76,7 @@ Book"):
   'propan-2-yl(propyl)phosphane' (CID 85572629) -- per P-16.5.1.3.1's
   literal text ("the first cited substituent never has enclosing marks
   unless it is a compound substituent group or includes a locant," see
-  `tmp/bluebook/P1.html`); see `format_mononuclear_prefixes`'s own
+  the Blue Book); see `format_mononuclear_prefixes`'s own
   docstring for the full derivation, including the multiplied case (e.g.
   'tri(propan-2-yl)phosphane', CID 80969, independently confirmed via the
   Blue Book's own 'ethyldi(propan-2-yl)silane (PIN)' worked example). A

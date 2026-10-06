@@ -505,8 +505,7 @@ def _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=No
     instead of this function gluing on a fixed prefix like the
     single-amine case does.
 
-    Scope, deliberately narrow (see `tasks/amine-cross-cutting-
-    generalization.md`): every amine nitrogen must contribute to one
+    Scope, deliberately narrow: every amine nitrogen must contribute to one
     shared chain (geminal -- two nitrogens on the same carbon -- is
     explicitly excluded by P-16.9.2 itself and raises here, as does a
     nitrogen not reachable from every other one via a single carbon

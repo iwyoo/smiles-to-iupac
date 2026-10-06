@@ -12,7 +12,7 @@
 - The `aminiumyl` family: an ordinary ammonium cation (`_ammonium.py`'s
   own shape, P-73.1.1.2 -- a nitrogen formed by adding a hydron to a
   neutral amine) with one hydrogen further removed as a radical. Confirmed
-  worked example `benzenaminiumyl (PIN)`, `tmp/bluebook/P7.txt` ~3478-3496
+  worked example `benzenaminiumyl (PIN)`, the Blue Book
   -- built from `benzenaminium` (the ordinary anilinium/ammonium cation)
   plus the radical `-yl` suffix; no elision, since `_ammonium.py`'s own
   names never end in 'e'.
@@ -47,7 +47,7 @@
   extended to oxygen/sulfur -- an ordinary oxonium/sulfonium cation
   (`_oxonium.py`/`_sulfonium.py`'s own shape, P-73.1.1.2) with one
   hydrogen further removed as a radical. Confirmed worked example
-  `propyloxidaniumyl (PIN)`, `tmp/bluebook/P7.txt` ~3496-3512 -- the exact
+  `propyloxidaniumyl (PIN)`, the Blue Book -- the exact
   same "protonate to the full-valence cation, then remove one radical H"
   pattern as `aminiumyl` above, just for O/S instead of N. Confirmed this
   session:
@@ -71,7 +71,7 @@
   `_imine.py`/`_amide.py`/`_amine.py`), then applies the combined string
   transform directly on that neutral name: strip the trailing `e`,
   append `"ylium"`, then append `"yl"`. Confirmed worked example
-  `acetamidyliumyl (PIN)`, `tmp/bluebook/P7.txt` ~3478-3496. Confirmed
+  `acetamidyliumyl (PIN)`, the Blue Book. Confirmed
   this session:
 
   - `C[N+]`        (radical=3) -> reconstructs to `CN`       -> "methanamine" -> "methanaminyliumyl".
