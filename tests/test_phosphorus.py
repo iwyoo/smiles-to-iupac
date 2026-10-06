@@ -81,9 +81,21 @@ def test_branched_substituent_raises():
         smiles_to_iupac("CC(C)P=O")
 
 
-def test_ring_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=P1CCCCC1")
+def test_ring_phosphorus_oxide_is_a_lambda5_heterone():
+    assert smiles_to_iupac("O=P1CCCCC1") == "1λ5-phosphinan-1-one"
+
+
+@pytest.mark.parametrize(
+    "smiles, name",
+    [
+        ("O=P1(O)OCCO1", "2-hydroxy-1,3,2λ5-dioxaphospholan-2-one"),
+        ("O=P1(OC)OC(C)CO1", "2-methoxy-4-methyl-1,3,2λ5-dioxaphospholan-2-one"),
+        ("OP1(=O)OCCCO1", "2-hydroxy-1,3,2λ5-dioxaphosphinan-2-one"),
+        ("S=P1(O)OCCO1", "2-hydroxy-1,3,2λ5-dioxaphospholane-2-thione"),
+    ],
+)
+def test_cyclic_phosphate_diester_is_a_heterocycle(smiles, name):
+    assert smiles_to_iupac(smiles) == name
 
 
 def test_salt_of_partial_ester():

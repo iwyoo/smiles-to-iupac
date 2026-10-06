@@ -73,10 +73,13 @@ def _phosphate_phosphorus_atoms(mol):
     since that needs the whole multi-fragment molecule, not just this
     P-shaped group) -- at least one of the three must be an ester oxygen
     (all three being hydroxyl/charged would be phosphoric acid itself or
-    its bare anion, not an ester, out of scope here)."""
+    its bare anion, not an ester, out of scope here). A phosphorus in a ring is a ring heteroatom of a heterocycle
+    (P-65.6.3.5 pseudoketone, P-22.2), not the centre of an acyclic phosphate ester."""
     matches = []
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() != _PHOSPHORUS or atom.GetDegree() != 4 or atom.GetFormalCharge() != 0:
+            continue
+        if atom.IsInRing():
             continue
         neighbors = atom.GetNeighbors()
         oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
