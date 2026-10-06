@@ -1,12 +1,12 @@
-"""Selenides and tellurides R-E-R' (E = Se/Te, P-63.2.1) named as 'R-selanyl'/'R-tellanyl' substituted parents: the
+"""Sulfides, selenides and tellurides R-E-R' (E = S/Se/Te, P-63.2.1) named as 'R-sulfanyl'/'-selanyl'/'-tellanyl' parents: the
 larger carbon component (or a lone benzene ring) is the parent, the other side the chalcogenyl prefix. Saturated
-acyclic chains and one plain benzene ring only; no stereocenters on the ring path."""
+acyclic chains and one plain benzene ring only; stereocenters must lie on the parent chain (P-92)."""
 
 from dataclasses import dataclass
 
 from rdkit import Chem
 
-from ._acyclic import longest_chain_length, name_from_carbon_graph, winning_chain_with_key
+from ._acyclic import longest_chain_length, winning_chain_from_carbon_graph, winning_chain_with_key
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -34,7 +34,9 @@ class Chalcogenide:
         return name + self.prefix
 
     def has_shape(self, mol) -> bool:
-        atoms = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == self.atomic_num]
+        atoms = [
+            atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == self.atomic_num and not atom.GetIsAromatic()
+        ]
         if len(atoms) != 1:
             return False
         (atom,) = atoms
@@ -158,4 +160,17 @@ class Chalcogenide:
 
         parent_carbon_graph = component_subgraph(carbon_graph, parent_root)
         terminals = {hetero_idx: self._prefix(sub_name)}
-        return name_from_carbon_graph(full_graph, parent_carbon_graph, terminals, mol=mol)
+        chain, name = winning_chain_from_carbon_graph(full_graph, parent_carbon_graph, terminals, mol=mol)
+
+        stereo = specified_stereocenters(mol)
+        if stereo is None:
+            return name
+        position_of = {atom: i + 1 for i, atom in enumerate(chain)}
+        if any(atom not in position_of for atom, _ in stereo):
+            raise UnsupportedStructure(
+                "a stereocenter on a substituent branch rather than the "
+                "principal chain is not supported yet (see P-92)"
+            )
+        labels = sorted((position_of[atom], code) for atom, code in stereo)
+        prefix = ",".join(f"{locant}{code}" for locant, code in labels)
+        return f"({prefix})-{name}"

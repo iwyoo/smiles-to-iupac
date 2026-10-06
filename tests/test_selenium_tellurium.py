@@ -508,11 +508,6 @@ def test_n_ethyl_n_methylselenourea_same_nitrogen():
     assert smiles_to_iupac("CCN(C)C(=[Se])N") == "N-ethyl-N-methylselenourea"
 
 
-def test_different_substituents_on_different_nitrogens_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCNC(=[Se])NC")
-
-
 def test_unsaturated_n_substituent_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=CNC(=[Se])N")
@@ -958,11 +953,6 @@ def test_n_ethyl_n_methyltellurourea_same_nitrogen():
     assert smiles_to_iupac("CCN(C)C(=[Te])N") == "N-ethyl-N-methyltellurourea"
 
 
-def test_different_substituents_on_different_nitrogens_not_supported__tellurourea():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCNC(=[Te])NC")
-
-
 def test_unsaturated_n_substituent_not_supported__tellurourea():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C=CNC(=[Te])N")
@@ -1014,3 +1004,61 @@ def test_unsaturated_chain_not_supported__telluroxide():
 def test_two_telluroxide_groups_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("C[Te](=O)C[Te](=O)C")
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("CC[C@H](C)[Se]C", "(2S)-2-methylselanylbutane"),
+        ("CC[C@@H](C)[Se]C", "(2R)-2-methylselanylbutane"),
+        ("CC[C@H](C)[Te]C", "(2S)-2-methyltellanylbutane"),
+        ("C[C@H]([Se]C)[C@H](C)CC", "(2S,3R)-3-methyl-2-methylselanylpentane"),
+        ("C[C@H]([Te]C)C(C)(C)C", "(3S)-2,2-dimethyl-3-methyltellanylbutane"),
+    ],
+)
+def test_selenide_telluride_stereodescriptors_like_sulfide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("CCNC(=[Se])NC", "N-ethyl-N'-methylselenourea"),
+        ("c1ccccc1NC(=[Se])NC", "N-methyl-N'-phenylselenourea"),
+        ("CCNC(=[Te])NC", "N-ethyl-N'-methyltellurourea"),
+        ("CCNC(=[Te])NCCC", "N-ethyl-N'-propyltellurourea"),
+    ],
+)
+def test_selenourea_tellurourea_different_n_substituents_like_thiourea(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("C[Se][Se][Se]C", "(methyltriselanyl)methane"),
+        ("CC[Se][Se][Se]CC", "(ethyltriselanyl)ethane"),
+        ("C[Se][Se][Se][Se]C", "(methyltetraselanyl)methane"),
+        ("CC[Se][Se][Se][SeH]", "tetraselanylethane"),
+        ("c1ccccc1[Se][Se][Se]C", "(methyltriselanyl)benzene"),
+        ("CC[C@H](C)[Se][Se][Se]C", "(2S)-2-(methyltriselanyl)butane"),
+        ("CC[Te][Te][Te]CC", "(ethyltritellanyl)ethane"),
+        ("C[Te][Te][Te][Te]C", "(methyltetratellanyl)methane"),
+    ],
+)
+def test_polyselenides_and_polytellurides_like_polysulfides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [("c1ccc[se]1", "selenophene"), ("Cc1ccc(C)[se]1", "2,5-dimethylselenophene")],
+)
+def test_aromatic_selenium_ring_is_not_a_selenide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize("smiles", ["CN(C)C(=[Se])NC", "CN(C)C(=[Te])NC"])
+def test_selenourea_tellurourea_unequal_substituent_count_not_supported(smiles):
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac(smiles)

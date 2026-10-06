@@ -1,4 +1,4 @@
-"""'ditelluride' (R-Te-Te-R'), implemented in `_dichalcogenide.py`."""
+"""'ditelluride' and longer chalcogen chains R-Te(n)-R', implemented in `_dichalcogenide.py`."""
 
 from ._dichalcogenide import Dichalcogenide
 
@@ -7,7 +7,9 @@ _DITELLURIDE = Dichalcogenide(
     symbol="Te",
     element="tellurium",
     word="ditelluride",
-    prefix="ditellanyl",
+    base="telluride",
+    stem="tellanyl",
+    perol="pertellurol",
 )
 
 has_ditelluride_shape = _DITELLURIDE.has_shape

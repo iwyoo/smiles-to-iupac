@@ -1,4 +1,4 @@
-"""'diselenide' (R-Se-Se-R'), implemented in `_dichalcogenide.py`."""
+"""'diselenide' and longer chalcogen chains R-Se(n)-R', implemented in `_dichalcogenide.py`."""
 
 from ._dichalcogenide import Dichalcogenide
 
@@ -7,7 +7,9 @@ _DISELENIDE = Dichalcogenide(
     symbol="Se",
     element="selenium",
     word="diselenide",
-    prefix="diselanyl",
+    base="selenide",
+    stem="selanyl",
+    perol="perselenol",
 )
 
 has_diselenide_shape = _DISELENIDE.has_shape
