@@ -56,7 +56,14 @@ Explicitly out of scope (raise `UnsupportedStructure`), mirroring
 from rdkit import Chem
 
 from ._acyclic import winning_chain_from_carbon_graph
-from ._common import UnsupportedStructure, adjacency, carbon_adjacency, non_single_bonds, specified_stereocenters
+from ._common import (
+    UnsupportedStructure,
+    adjacency,
+    carbon_adjacency,
+    component_subgraph,
+    non_single_bonds,
+    specified_stereocenters,
+)
 from ._ether import _oxy_prefix
 from ._substituents import name_branch
 
@@ -158,7 +165,7 @@ def name_acetal(mol) -> str:
     acetal_carbon, oxygen_1, oxygen_2 = _validate_and_collect_acetal(mol)
     stereo = specified_stereocenters(mol)
     full_graph = adjacency(mol)
-    carbon_graph = carbon_adjacency(mol)
+    carbon_graph = component_subgraph(carbon_adjacency(mol), acetal_carbon)
 
     terminals = {}
     for oxygen_idx in (oxygen_1, oxygen_2):
