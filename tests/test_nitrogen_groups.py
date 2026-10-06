@@ -636,21 +636,6 @@ def test_halogen_on_nitrogen_raises__hydrazine():
         smiles_to_iupac("ClNN")
 
 
-def test_n_substituted_hydrazone_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC=NNC")
-
-
-def test_ring_raises__hydrazone():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCCCC1=NN")
-
-
-def test_aromatic_carbon_raises__hydrazone():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C=NN")
-
-
 def test_hydrazone_unspecified_stereocenter_unaffected():
     assert smiles_to_iupac("CCC(C)C(C)=NN") == "3-methylpentan-2-ylidenehydrazine"
 
@@ -1113,3 +1098,17 @@ def test_semicarbazide_with_n_alkyl_substituent_not_supported():
 def test_double_amino_substituted_urea_not_supported():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("NNC(=O)NN")
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C1CCCCC1=NN", "cyclohexylidenehydrazine"),
+        ("C1CCCCC1=NNC", "1-cyclohexylidene-2-methylhydrazine"),
+        ("CC(C)=NN(C)C", "1,1-dimethyl-2-(propan-2-ylidene)hydrazine"),
+        ("c1ccccc1C=NN", "benzylidenehydrazine"),
+        ("OC1CCCCC1C(=NN)C1CCCCC1O", "2,2'-(hydrazinylidenemethylene)di(cyclohexan-1-ol)"),
+    ],
+)
+def test_hydrazone_with_ring_or_substituted_nitrogen_is_ylidene_hydrazine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

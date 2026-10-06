@@ -1886,7 +1886,10 @@ def _name_mol(mol) -> str:
         # check doesn't look for a C=N bond on the other nitrogen) -- must
         # be routed here first.
         if has_hydrazone_shape(mol):
-            return name_hydrazone(mol)
+            try:
+                return name_hydrazone(mol)
+            except UnsupportedStructure:
+                pass
         # A hydrazine skeleton (H2N-NH2, P-68.3.1.2.1) has its own two
         # skeletal nitrogens (single-bonded, not double-bonded like
         # diazene above) with no carbon parent chain at all -- must be

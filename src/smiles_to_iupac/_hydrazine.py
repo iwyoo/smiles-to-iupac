@@ -121,6 +121,10 @@ def _hydrazine_nitrogens(mol):
     return n1, n2
 
 
+def _atomic_nums(mol, *indices):
+    return {mol.GetAtomWithIdx(i).GetAtomicNum() for i in indices}
+
+
 def has_hydrazine_shape(mol) -> bool:
     return _hydrazine_nitrogens(mol) is not None
 
@@ -174,7 +178,8 @@ def name_hydrazine(mol) -> str:
     n1_idx, n2_idx = n1.GetIdx(), n2.GetIdx()
     if any(
         not (a in aromatic_atoms and b in aromatic_atoms)
-        for a, b, _ in non_single_bonds(mol)
+        and not (order == 2.0 and (a in (n1_idx, n2_idx)) != (b in (n1_idx, n2_idx)) and 6 in _atomic_nums(mol, a, b))
+        for a, b, order in non_single_bonds(mol)
     ):
         raise UnsupportedStructure("an unsaturated substituent is out of scope for this module")
     if len(Chem.GetMolFrags(mol)) > 1:
