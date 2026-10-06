@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from smiles_to_iupac import smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure
@@ -1012,3 +1014,41 @@ def test_alkoxy_prefix_enclosing_marks(smiles, expected):
 )
 def test_peroxy_prefix_enclosing_marks(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("smiles", "expected"),
+    [
+        ("CCCCOC(OCCCC)CC", "1,1-dibutoxypropane"),
+        ("CCCCCOC(OCCCCC)CC", "1,1-bis(pentyloxy)propane"),
+        ("CCCCOC(OCC)CC", "1-butoxy-1-ethoxypropane"),
+        ("CCCCCOC(OC)CCCCC", "1-methoxy-1-(pentyloxy)hexane"),
+        ("CC(C)(C)OC(C)OC", "1-tert-butoxy-1-methoxyethane"),
+        ("CO[C@H](OCC)CC", "(1R)-1-ethoxy-1-methoxypropane"),
+    ],
+)
+def test_acetal_parent_chain_is_the_acetal_carbons_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+_ACETAL_STEMS = {"tert-but": 4, "meth": 1, "eth": 2, "prop": 3, "but": 4, "pent": 5, "hex": 6, "hept": 7}
+_ACETAL_STEM_RE = re.compile(r"(bis\(|di|tri)?(tert-but|meth|eth|prop|but|pent|hex|hept)(?=an|yl|oxy|ane|-)")
+
+
+def _carbons_in_acyclic_name(name):
+    total = 0
+    for m in _ACETAL_STEM_RE.finditer(name):
+        times = {None: 1, "bis(": 2, "di": 2, "tri": 3}[m.group(1)]
+        total += times * _ACETAL_STEMS[m.group(2)]
+    return total
+
+
+@pytest.mark.parametrize("alkoxy_a", ["C", "CC", "CCCC", "CCCCC", "CC(C)(C)"])
+@pytest.mark.parametrize("alkoxy_b", ["C", "CC", "CCCC", "CCCCC"])
+@pytest.mark.parametrize("acyl", ["C", "CC", "CCC", "CCCC", "CCCCC", "CCCCCC"])
+def test_acetal_name_accounts_for_every_carbon(alkoxy_a, alkoxy_b, acyl):
+    from rdkit import Chem
+
+    smiles = f"{alkoxy_a}OC({acyl})O{alkoxy_b}"
+    carbons = sum(1 for atom in Chem.MolFromSmiles(smiles).GetAtoms() if atom.GetAtomicNum() == 6)
+    assert _carbons_in_acyclic_name(smiles_to_iupac(smiles)) == carbons
