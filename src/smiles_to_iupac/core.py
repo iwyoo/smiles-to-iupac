@@ -155,7 +155,7 @@ from ._metallacycle_group import name_metallacycle_as_group
 from ._metallafused import has_metallafused_shape, name_metallafused
 from ._metallapolycycle import has_metallapolycycle_shape, name_metallapolycycle
 from ._ocene import has_ocene_shape, name_ocene
-from ._pin import enter, leave, mark
+from ._pin import enter, leave, mark, nested, reason_count, reasons_since, replay
 from ._fused_hetero_ring_oxide import has_fused_hetero_ring_oxide_shape, name_fused_hetero_ring_oxide
 from ._hydride_carbo_suffix import has_hydride_carbo_suffix_shape, name_hydride_carbo_suffix
 from ._ring_lambda_heterone import has_ring_lambda_heterone_shape, name_ring_lambda_heterone
@@ -383,7 +383,33 @@ def smiles_to_iupac(smiles: str) -> str:
     return name
 
 
+_NESTED_NAMES: dict = {}
+_NESTED_NAMES_MAX = 4096
+
+
 def _smiles_to_iupac_unabridged(smiles: str) -> str:
+    # Acyl/substituent namers re-name the same fragment hundreds of times while ranking candidates.
+    if not nested():
+        return _name_unabridged(smiles)
+    entry = _NESTED_NAMES.get(smiles)
+    if entry is None:
+        start = reason_count()
+        try:
+            outcome = (_name_unabridged(smiles), None)
+        except Exception as error:
+            outcome = (None, error)
+        if len(_NESTED_NAMES) >= _NESTED_NAMES_MAX:
+            _NESTED_NAMES.clear()
+        entry = _NESTED_NAMES[smiles] = (outcome, tuple(reasons_since(start)))
+    else:
+        replay(entry[1])
+    name, error = entry[0]
+    if error is not None:
+        raise error
+    return name
+
+
+def _name_unabridged(smiles: str) -> str:
     enter()
     name = None
     try:

@@ -24,6 +24,22 @@ def mark(name, reason):
     return name
 
 
+def nested():
+    return getattr(_state, "depth", 0) > 0
+
+
+def reason_count():
+    return len(_state.reasons)
+
+
+def reasons_since(start):
+    return _state.reasons[start:]
+
+
+def replay(reasons):
+    _state.reasons.extend(reasons)
+
+
 def leave(name):
     _state.depth -= 1
     if _state.depth:
