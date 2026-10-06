@@ -429,11 +429,16 @@ def _name_unabridged(smiles: str) -> str:
         if parsed is not None and has_amino_acid_shape(parsed):
             return name_amino_acid(parsed)
         if parsed is not None and not has_sphingoid_shape(parsed):
+            stereo_specified = _has_specified_stereo(parsed)
             for namer in (name_acid_salt, name_polycarbonic, name_carbonic_family, name_acid_derivative, name_hetero_parent_acid):
                 try:
-                    return namer(parsed)
+                    candidate = namer(parsed)
                 except UnsupportedStructure:
-                    pass
+                    continue
+                # these namers do not cite stereodescriptors, so a flat name would silently drop the stereo
+                if stereo_specified and namer is not name_acid_salt and not _STEREO_TOKENS.search(candidate):
+                    continue
+                return candidate
         beyond_preferred = None
         if parsed is not None:
             name = name_heteroacyclic(parsed)
@@ -478,7 +483,7 @@ def _name_unabridged(smiles: str) -> str:
         if hydro_fusion and re.search(r"cyclo\[", name):
             name = _hydro_fusion_name(parsed) or name
         if parsed is not None and _has_specified_stereo(parsed):
-            tokens = bool(_STEREO_TOKENS.search(name))
+            tokens = bool(_STEREO_TOKENS.search(name) or _STEREO_IN_RETAINED_NAME.search(name))
             if tokens and name.startswith("("):
                 cited = _engine_name(parsed)
                 if cited is not None and cited.startswith("(") and cited != name:
@@ -492,9 +497,7 @@ def _name_unabridged(smiles: str) -> str:
                     strip(cited) == strip(name) or (not tokens and parsed.GetRingInfo().NumRings() == 0)
                 ):
                     name = cited
-                elif not tokens and (
-                    (hydro_fusion and ("hydro" in name or "cyclo[" in name)) or parsed.GetRingInfo().NumRings() == 0
-                ):
+                elif not tokens:
                     raise UnsupportedStructure("the stereochemistry of this structure is not cited by any supported name")
         return name
     finally:
@@ -514,6 +517,9 @@ _HYDRO_FUSION_RUNNING = set()
 _STEREO_TOKENS = re.compile(
     r"(?<=[\d'a-z])[RSEZ](?=[,)])|(?<=[\d'a])[rs](?=[,)])|\((?:R|S|E|Z)\)|\b(?:[DL]|alpha|beta)-|\((?:T|SP|SS|TBPY|OC|SPY|TPR|PBPY|CU|SAPR|TPRS)-|cis-|trans-|rel-|rac-"
 )
+
+
+_STEREO_IN_RETAINED_NAME = re.compile(r"inositol|(?:adenos|guanos|inos|xanthos|cytid|urid|thymid)in")
 
 
 def _has_specified_stereo(mol) -> bool:
