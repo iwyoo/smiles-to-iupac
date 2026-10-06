@@ -29,6 +29,7 @@ def test_bicyclic_unsaturated_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 def test_epoxycholestane():
     assert (
         smiles_to_iupac("CC(C)CCCC(C)C1CCC2C1(CCC3C2CC4C5(C3(CCCC5)C)O4)C") == "5,6-epoxycholestane"
@@ -49,16 +50,16 @@ def test_smiles_to_iupac_ring_cis_trans(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_asymmetric_1_2_disubstituted_stereo():
-    assert smiles_to_iupac("C[C@@H]1CCCC[C@H]1CC") == "(1R,2R)-1-ethyl-2-methylcyclohexane"
-
-
-def test_1_3_disubstituted_stereo():
-    assert smiles_to_iupac("C[C@@H]1C[C@H](C)CCC1") == "(1R,3S)-1,3-dimethylcyclohexane"
-
-
-def test_single_ring_stereocenter_cites_the_specified_elements():
-    assert smiles_to_iupac("C[C@H]1CCCCC1CC") == "(2S)-1-ethyl-2-methylcyclohexane"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C[C@@H]1CCCC[C@H]1CC", "(1R,2R)-1-ethyl-2-methylcyclohexane", id="asymmetric_1_2_disubstituted_stereo"),
+        pytest.param("C[C@@H]1C[C@H](C)CCC1", "(1R,3S)-1,3-dimethylcyclohexane", id="1_3_disubstituted_stereo"),
+        pytest.param("C[C@H]1CCCCC1CC", "(2S)-1-ethyl-2-methylcyclohexane", id="single_ring_stereocenter_cites_the_specified_elements"),
+    ],
+)
+def test_asymmetric_1_2_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -111,6 +112,7 @@ def test_ortho_fused_tetrabenzenacyclooctaphane_is_named_with_a_warning():
     assert name == "13-methyl-1(1,2),3,5,7(1,3)-tetrabenzenacyclooctaphane"
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles, expected",
     [
@@ -218,10 +220,8 @@ def test_biphenyl_assembly_stays_assembly():
             "OC(=O)C=C1c2cccc(n2)Cc2cccc(n2)Cc2cccc(n2)Cc2cccc1n2",
             "[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-2-ylidene]acetic acid",
         ),
-        (
-            "OC(=O)C=C1C=C2Cc3cccc(n3)Cc3cccc(n3)Cc3cccc(n3)CC(=C1)N2",
-            "[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-14(11H)-ylidene]acetic acid",
-        ),
+        pytest.param("OC(=O)C=C1C=C2Cc3cccc(n3)Cc3cccc(n3)Cc3cccc(n3)CC(=C1)N2",
+            "[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-14(11H)-ylidene]acetic acid", marks=pytest.mark.slow),
     ],
 )
 def test_pyridine_amplificants_and_ylidene_groups(smiles, expected):
@@ -284,6 +284,7 @@ def test_oxadispiro_off_spiro_stereocenter():
     )
 
 
+@pytest.mark.slow
 def test_branched_polyspiro_off_spiro_stereocenter():
     assert (
         smiles_to_iupac("Cl[C@H]1CCC12CCC1(CC1)CCC1(CC1)CC2")
@@ -300,98 +301,88 @@ def test_fused_bicyclic_is_not_spiro():
     assert smiles_to_iupac("C1CCC2CCCCC2C1") == "decahydronaphthalene"
 
 
-def test_unsaturated_spiro_raises():
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("C1CC12CCCC=C2", id="unsaturated_spiro_raises"),
+        pytest.param("OC1CCCC12CCCCC2O", id="multiple_spiro_hydroxyls_raises"),
+    ],
+)
+def test_unsaturated_spiro_raises_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CC12CCCC=C2")
-
-
-def test_multiple_spiro_hydroxyls_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1CCCC12CCCCC2O")
+        smiles_to_iupac(smiles)
 
 
 def test_spiro_hydroxyl_on_substituent_branch_is_a_prefix():
     assert smiles_to_iupac("OCC1CCCC12CCCCC2") == "(spiro[4.5]decan-1-yl)methanol"
 
 
-def test_unsaturated_spiro_alcohol_raises():
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("OC1CCCC12C=CCCC2", id="unsaturated_spiro_alcohol_raises"),
+        pytest.param("O[C@H]1CCCC12CCCCC2", id="stereocenter_alongside_spiro_alcohol_raises"),
+        pytest.param("NC1CCCC2(C1)CCCCC2N", id="multiple_spiro_amines_raises"),
+    ],
+)
+def test_unsaturated_spiro_alcohol_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1CCCC12C=CCCC2")
-
-
-def test_stereocenter_alongside_spiro_alcohol_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O[C@H]1CCCC12CCCCC2")
-
-
-def test_multiple_spiro_amines_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC1CCCC2(C1)CCCCC2N")
+        smiles_to_iupac(smiles)
 
 
 def test_spiro_amine_on_substituent_branch_is_a_prefix():
     assert smiles_to_iupac("NCC1CCCC12CCCCC2") == "(spiro[4.5]decan-1-yl)methanamine"
 
 
-def test_unsaturated_spiro_amine_raises():
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("NC1CCCC12C=CCCC2", id="unsaturated_spiro_amine_raises"),
+        pytest.param("[CH2+]C1CCC2(CC1)CCCC2[CH2+]", id="multiple_spiro_carbenium_centers_raises"),
+        pytest.param("[CH2+]C1CCC2(CC1)CCCC2", id="spiro_carbenium_on_substituent_branch_raises"),
+        pytest.param("C1CCC2(OC=CCC2)C1", id="unsaturated_heteroatom_spiro_raises"),
+    ],
+)
+def test_unsaturated_spiro_amine_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NC1CCCC12C=CCCC2")
+        smiles_to_iupac(smiles)
 
 
-def test_multiple_spiro_carbenium_centers_raises():
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C[C@@H]1CCCC12CCOCC2", "(1R)-1-methyl-8-oxaspiro[4.5]decane", id="oxaspiro_other_configuration"),
+        pytest.param("C1CCCC12CCOCC2", "8-oxaspiro[4.5]decane", id="plain_oxaspiro_without_stereo_still_resolves"),
+    ],
+)
+def test_oxaspiro_other_configuration_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("O=C1CCCC2(C1)CCCC(=O)C2", id="multiple_spiro_ketones_raises"),
+        pytest.param("O=C1CCCC12C=CCCC2", id="unsaturated_spiro_ketone_raises"),
+        pytest.param("[CH2]C1CCC2(CC1)CCCC2[CH2]", id="multiple_spiro_radical_centers_raises"),
+        pytest.param("[CH2]C1CCC2(CC1)CCCC2", id="spiro_radical_on_substituent_branch_raises"),
+        pytest.param("[CH]1CCC2(C=CC2)CC1", id="unsaturated_spiro_radical_raises"),
+    ],
+)
+def test_multiple_spiro_ketones_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[CH2+]C1CCC2(CC1)CCCC2[CH2+]")
+        smiles_to_iupac(smiles)
 
 
-def test_spiro_carbenium_on_substituent_branch_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[CH2+]C1CCC2(CC1)CCCC2")
-
-
-def test_unsaturated_heteroatom_spiro_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCC2(OC=CCC2)C1")
-
-
-def test_oxaspiro_other_configuration():
-    assert smiles_to_iupac("C[C@@H]1CCCC12CCOCC2") == "(1R)-1-methyl-8-oxaspiro[4.5]decane"
-
-
-def test_plain_oxaspiro_without_stereo_still_resolves():
-    assert smiles_to_iupac("C1CCCC12CCOCC2") == "8-oxaspiro[4.5]decane"
-
-
-def test_multiple_spiro_ketones_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CCCC2(C1)CCCC(=O)C2")
-
-
-def test_unsaturated_spiro_ketone_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CCCC12C=CCCC2")
-
-
-def test_multiple_spiro_radical_centers_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[CH2]C1CCC2(CC1)CCCC2[CH2]")
-
-
-def test_spiro_radical_on_substituent_branch_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[CH2]C1CCC2(CC1)CCCC2")
-
-
-def test_unsaturated_spiro_radical_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[CH]1CCC2(C=CC2)CC1")
-
-
-def test_stereo_spiro_radical_resolves():
-    assert smiles_to_iupac("[CH]1CCC2(CC1)CCC[C@@H](C)C2") == "(8R)-8-methylspiro[5.5]undecan-3-yl"
-
-
-def test_single_off_spiro_stereocenter():
-    assert smiles_to_iupac("C[C@H]1CCC[C@]2(C1)CCCC2") == "(7S)-7-methylspiro[4.5]decane"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[CH]1CCC2(CC1)CCC[C@@H](C)C2", "(8R)-8-methylspiro[5.5]undecan-3-yl", id="stereo_spiro_radical_resolves"),
+        pytest.param("C[C@H]1CCC[C@]2(C1)CCCC2", "(7S)-7-methylspiro[4.5]decane", id="single_off_spiro_stereocenter"),
+    ],
+)
+def test_stereo_spiro_radical_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_multiple_spiro_thiols_raises():
@@ -458,14 +449,16 @@ def test_von_baeyer_carbenium_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_multiple_ring_carbenium_centers_raises():
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("[CH2+]C1CC2CCC1C2[CH2+]", id="multiple_ring_carbenium_centers_raises"),
+        pytest.param("[CH2+]C1CC2CCC1C2", id="carbenium_on_substituent_branch_raises"),
+    ],
+)
+def test_multiple_ring_carbenium_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[CH2+]C1CC2CCC1C2[CH2+]")
-
-
-def test_carbenium_on_substituent_branch_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[CH2+]C1CC2CCC1C2")
+        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
@@ -511,14 +504,18 @@ def test_smiles_to_iupac_von_baeyer_heteroatom_tricyclic(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_two_different_ring_heteroatoms_tricyclic():
-    assert smiles_to_iupac("O1C2CC3CC1CC(C2)N3") == "2-oxa-6-azatricyclo[3.3.1.1^3,7]decane"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("O1C2CC3CC1CC(C2)N3", "2-oxa-6-azatricyclo[3.3.1.1^3,7]decane", id="different_ring_heteroatoms_tricyclic"),
+        pytest.param("O1C2CC3OC1CC(C2)C3", "2,4-dioxatricyclo[3.3.1.1^3,7]decane", id="same_element_ring_heteroatoms_tricyclic"),
+    ],
+)
+def test_two_different_ring_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
-def test_two_same_element_ring_heteroatoms_tricyclic():
-    assert smiles_to_iupac("O1C2CC3OC1CC(C2)C3") == "2,4-dioxatricyclo[3.3.1.1^3,7]decane"
-
-
+@pytest.mark.slow
 def test_disjoint_ring_systems_joined_by_chain_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC1(C)C2CC[C@@]1(C)CN(CCC1C3CC4CC(C3)CC1C4)C2")
@@ -528,14 +525,16 @@ def test_unsaturated_von_baeyer_ketone_now_resolves():
     assert smiles_to_iupac("O=C1CC2C=CC1C2") == "bicyclo[2.2.1]hept-5-en-2-one"
 
 
-def test_von_baeyer_ketone_stereocenter_with_coexisting_hydroxyl_still_raises():
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("O=C1C[C@H]2CC[C@H]1[C@@H]2O", id="stereocenter_with_coexisting_hydroxyl_still_raises"),
+        pytest.param("O=C1CC2C=CC1C2O", id="unsaturation_with_coexisting_hydroxyl_still_raises"),
+    ],
+)
+def test_von_baeyer_ketone_cases_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1C[C@H]2CC[C@H]1[C@@H]2O")
-
-
-def test_von_baeyer_ketone_unsaturation_with_coexisting_hydroxyl_still_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=C1CC2C=CC1C2O")
+        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
@@ -573,14 +572,16 @@ def test_von_baeyer_spiro_selenol_reviewed(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_multiple_ring_selenols_raises():
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("[SeH]C1CC2CCC1C([SeH])C2", id="multiple_ring_selenols_raises"),
+        pytest.param("[SeH]C1CCCC2(C1)C=CCCC2", id="unsaturated_monospiro_selenol_still_raises"),
+    ],
+)
+def test_multiple_ring_selenols_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[SeH]C1CC2CCC1C([SeH])C2")
-
-
-def test_unsaturated_monospiro_selenol_still_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[SeH]C1CCCC2(C1)C=CCCC2")
+        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
@@ -621,14 +622,16 @@ def test_von_baeyer_spiro_sulfinamide_reviewed(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_n_substituted_sulfinamide_on_polycyclic_ring_raises():
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("CNS(=O)C1CC2CCC1C2", id="n_substituted_sulfinamide_on_polycyclic_ring_raises"),
+        pytest.param("NS(=O)C1CCCC2(C1)C=CCCC2", id="unsaturated_monospiro_sulfinamide_still_raises"),
+    ],
+)
+def test_n_substituted_sulfinamide_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CNS(=O)C1CC2CCC1C2")
-
-
-def test_unsaturated_monospiro_sulfinamide_still_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NS(=O)C1CCCC2(C1)C=CCCC2")
+        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
@@ -660,14 +663,16 @@ def test_von_baeyer_spiro_sulfonamide_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_n_substituted_sulfonamide_on_polycyclic_ring_raises():
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("CNS(=O)(=O)C1CC2CCC1C2", id="n_substituted_sulfonamide_on_polycyclic_ring_raises"),
+        pytest.param("NS(=O)(=O)C1CC2CCC1C2S(N)(=O)=O", id="multiple_ring_sulfonamides_raises"),
+    ],
+)
+def test_n_substituted_sulfonamide_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CNS(=O)(=O)C1CC2CCC1C2")
-
-
-def test_multiple_ring_sulfonamides_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NS(=O)(=O)C1CC2CCC1C2S(N)(=O)=O")
+        smiles_to_iupac(smiles)
 
 
 def test_von_baeyer_sulfonamide_ring_unsaturation():
@@ -693,14 +698,16 @@ def test_von_baeyer_sulfonic_acid_ring_unsaturation():
     assert smiles_to_iupac("OS(=O)(=O)C1CC2C=CC1C2") == "bicyclo[2.2.1]hept-5-ene-2-sulfonic acid"
 
 
-def test_unsaturated_monospiro_sulfonic_acid_still_raises():
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("OS(=O)(=O)C1CCCC2(C1)C=CCCC2", id="unsaturated_monospiro_sulfonic_acid_still_raises"),
+        pytest.param("[Te]=C1CC2CCC1C(=[Te])C2", id="multiple_ring_tellones_raises"),
+    ],
+)
+def test_unsaturated_monospiro_sulfonic_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)(=O)C1CCCC2(C1)C=CCCC2")
-
-
-def test_multiple_ring_tellones_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[Te]=C1CC2CCC1C(=[Te])C2")
+        smiles_to_iupac(smiles)
 
 
 def test_von_baeyer_tellone_ring_unsaturation():
@@ -826,7 +833,7 @@ _ACETIC = "CC(=O)O"
             {1: "F", 9: "F", 52: "F", 60: "F"},
             "1,9,52,60-tetrafluoro-1,9,52,60-tetrahydro(C60-Ih)[5,6]fullerene",
         ),
-        (_FULLERENE_C60_SMILES, {1: "C(C)(C)C", 7: "c1ccccc1"}, "1-tert-butyl-7-phenyl-1,7-dihydro(C60-Ih)[5,6]fullerene"),
+        pytest.param(_FULLERENE_C60_SMILES, {1: "C(C)(C)C", 7: "c1ccccc1"}, "1-tert-butyl-7-phenyl-1,7-dihydro(C60-Ih)[5,6]fullerene", marks=pytest.mark.slow),
         (_FULLERENE_C60_SMILES, {1: "C", 23: "C"}, "1,23-dimethyl-1,23-dihydro(C60-Ih)[5,6]fullerene"),
         # P-72: the carbanion with its added hydrogen
         (_FULLERENE_C60_SMILES, {1: "-", 9: None}, "(C60-Ih)[5,6]fulleren-1(9H)-ide"),

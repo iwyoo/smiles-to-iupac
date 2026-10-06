@@ -68,6 +68,7 @@ def test_heteroatom_hydride_units_are_multiplied(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 def test_linker_with_a_substituent_that_carries_the_principal_group():
     assert (
         smiles_to_iupac("OC(=O)CN(CC(O)=O)CCN(CC(=O)O)CCN(CC(O)=O)CC(O)=O")
@@ -252,10 +253,8 @@ def test_linker_stereodescriptors(smiles, expected):
     "smiles, expected",
     [
         ("c1ccc(Cc2ccc(Cc3ccc(Cc4ccccc4)nc3)cc2)cc1", "3(2,5)-pyridina-1,7(1),5(1,4)-tribenzenaheptaphane"),
-        (
-            "c1ccc(C2CCC(C3CCC(c4ccc(C5CCC(C6CCC(C7CCCCC7)CC6)CC5)cc4)CC3)CC2)cc1",
-            "1(1),4(1,4)-dibenzena-2,3,5,6(1,4),7(1)-pentacyclohexanaheptaphane",
-        ),
+        pytest.param("c1ccc(C2CCC(C3CCC(c4ccc(C5CCC(C6CCC(C7CCCCC7)CC6)CC5)cc4)CC3)CC2)cc1",
+            "1(1),4(1,4)-dibenzena-2,3,5,6(1,4),7(1)-pentacyclohexanaheptaphane", marks=pytest.mark.slow),
     ],
 )
 def test_linear_phane_with_any_ring_amplificants(smiles, expected):

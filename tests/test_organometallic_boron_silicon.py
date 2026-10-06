@@ -3,6 +3,7 @@ from smiles_to_iupac import smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure
 
 
+@pytest.mark.slow
 def test_morphine():
     smiles = "CN1CC[C@]23[C@@H]4[C@H]1CC5=C2C(=C(C=C5)O)O[C@H]3[C@H](C=C4)O"
     assert (
@@ -11,6 +12,7 @@ def test_morphine():
     )
 
 
+@pytest.mark.slow
 def test_codeine():
     smiles = "CN1CC[C@]23[C@@H]4[C@H]1CC5=C2C(=C(C=C5)OC)O[C@H]3[C@H](C=C4)O"
     assert (
@@ -39,24 +41,18 @@ def test_borane_chain_raises():
         smiles_to_iupac("BB")
 
 
-def test_unsaturated_substituent():
-    assert smiles_to_iupac("C=CB") == "ethenylborane"
-
-
-def test_mixed_alkyl_and_phenyl_substituents():
-    assert smiles_to_iupac("CB(c1ccccc1)C") == "dimethyl(phenyl)borane"
-
-
-def test_substituted_phenyl():
-    assert smiles_to_iupac("Cc1ccccc1B") == "(2-methylphenyl)borane"
-
-
-def test_non_aromatic_ring():
-    assert smiles_to_iupac("C1CCCCC1B") == "cyclohexylborane"
-
-
-def test_halogenated_phenyl_mixed_with_alkyl():
-    assert smiles_to_iupac("CB(c1ccc(Cl)cc1)") == "(4-chlorophenyl)(methyl)borane"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C=CB", "ethenylborane", id="unsaturated_substituent"),
+        pytest.param("CB(c1ccccc1)C", "dimethyl(phenyl)borane", id="mixed_alkyl_and_phenyl_substituents"),
+        pytest.param("Cc1ccccc1B", "(2-methylphenyl)borane", id="substituted_phenyl"),
+        pytest.param("C1CCCCC1B", "cyclohexylborane", id="non_aromatic_ring"),
+        pytest.param("CB(c1ccc(Cl)cc1)", "(4-chlorophenyl)(methyl)borane", id="halogenated_phenyl_mixed_with_alkyl"),
+    ],
+)
+def test_unsaturated_substituent_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_asymmetric_substituents():
@@ -64,28 +60,32 @@ def test_asymmetric_substituents():
     assert smiles_to_iupac("CC(C)B(C)O") == "methyl(propan-2-yl)borinic acid"
 
 
-def test_rejects_second_borinic_acid_group():
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("OB(C)CCB(C)O", id="second_borinic_acid_group"),
+        pytest.param("NCB(C)O", id="unrecognized_heteroatom"),
+    ],
+)
+def test_rejects_second_borinic_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OB(C)CCB(C)O")
-
-
-def test_rejects_unrecognized_heteroatom():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCB(C)O")
+        smiles_to_iupac(smiles)
 
 
 def test_benzene_ring():
     assert smiles_to_iupac("c1ccccc1B(O)O") == "phenylboronic acid"
 
 
-def test_rejects_second_boronic_acid_group():
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("OB(O)CCB(O)O", id="second_boronic_acid_group"),
+        pytest.param("NCB(O)O", id="unrecognized_heteroatom__boronic_acid"),
+    ],
+)
+def test_rejects_second_boronic_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OB(O)CCB(O)O")
-
-
-def test_rejects_unrecognized_heteroatom__boronic_acid():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("NCB(O)O")
+        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
@@ -529,10 +529,8 @@ def test_unsaturated_bicyclic_metallacycles(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        (
-            "C1c2ccccc2[Pt]2(P(C)(C)CP2(C)C)c2ccccc12",
-            "9,9-[methylenebis(dimethylphosphane)]-10H-9-platinaanthracene",
-        ),
+        pytest.param("C1c2ccccc2[Pt]2(P(C)(C)CP2(C)C)c2ccccc12",
+            "9,9-[methylenebis(dimethylphosphane)]-10H-9-platinaanthracene", marks=pytest.mark.slow),
         (
             "[Pt]1(P(c2ccccc2)(c2ccccc2)c2ccccc2)(P(c2ccccc2)(c2ccccc2)c2ccccc2)C2CC1C(OC)CCC2OC",
             "2,5-dimethoxy-7,7-bis(triphenylphosphane)-7-platinabicyclo[4.1.1]octane",
@@ -780,14 +778,16 @@ def test_trimethylammonium_methylide():
     assert smiles_to_iupac("[CH2-][N+](C)(C)C") == "(N,N-dimethylmethanaminiumyl)methanide"
 
 
-def test_branched_anion_carbon_raises():
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("C[CH-][N+](C)(C)C", id="branched_anion_carbon_raises"),
+        pytest.param("[CH2-][N+](C)C", id="tertiary_ammonium_ylide_raises"),
+    ],
+)
+def test_branched_anion_carbon_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[CH-][N+](C)(C)C")
-
-
-def test_tertiary_ammonium_ylide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[CH2-][N+](C)C")
+        smiles_to_iupac(smiles)
 
 
 def test_mixed_substituent_sulfonium_ylide():

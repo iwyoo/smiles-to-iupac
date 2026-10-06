@@ -110,32 +110,19 @@ def test_double_bond_junction_between_fused_systems(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_4_chlorobiphenyl():
-    assert smiles_to_iupac("Clc1ccc(cc1)-c1ccccc1") == "4-chloro-1,1'-biphenyl"
-
-
-def test_bicyclopropane():
-    assert smiles_to_iupac("C1CC1C1CC1") == "1,1'-bi(cyclopropane)"
-
-
-def test_bipyrrole_carbon_attached_indicated_hydrogen():
-    assert smiles_to_iupac("C1=CNC(=C1)C2=CC=CN2") == "1H,1'H-2,2'-bipyrrole"
-
-
-def test_bipyrazole_nitrogen_attached():
-    assert smiles_to_iupac("c1cnn(-n2cccn2)c1") == "1,1'-bipyrazole"
-
-
-def test_branched_three_ring_assembly_is_named_on_its_longest_chain():
-    # P-28.6: 1,3,5-triphenylbenzene.
-    assert (
-        smiles_to_iupac("c1ccc(-c2cc(-c3ccccc3)cc(-c4ccccc4)c2)cc1")
-        == "25-phenyl-11,21:23,31-terphenyl"
-    )
-
-
-def test_halogen_substituent():
-    assert smiles_to_iupac("C1C(Cl)C1C1CC1C1CC1") == "12-chloro-11,21:22,31-tercyclopropane"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("Clc1ccc(cc1)-c1ccccc1", "4-chloro-1,1'-biphenyl", id="4_chlorobiphenyl"),
+        pytest.param("C1CC1C1CC1", "1,1'-bi(cyclopropane)", id="bicyclopropane"),
+        pytest.param("C1=CNC(=C1)C2=CC=CN2", "1H,1'H-2,2'-bipyrrole", id="bipyrrole_carbon_attached_indicated_hydrogen"),
+        pytest.param("c1cnn(-n2cccn2)c1", "1,1'-bipyrazole", id="bipyrazole_nitrogen_attached"),
+        pytest.param("c1ccc(-c2cc(-c3ccccc3)cc(-c4ccccc4)c2)cc1", "25-phenyl-11,21:23,31-terphenyl", id="branched_three_ring_assembly_is_named_on_its_longest_chain"),
+        pytest.param("C1C(Cl)C1C1CC1C1CC1", "12-chloro-11,21:22,31-tercyclopropane", id="halogen_substituent"),
+    ],
+)
+def test_4_chlorobiphenyl_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_unsaturated_ring_chain_raises():
@@ -143,16 +130,16 @@ def test_unsaturated_ring_chain_raises():
         smiles_to_iupac("C1=CCCCC1C1=CCCCC1C1=CCCCC1")
 
 
-def test_mixed_thiophene_and_furan():
-    assert smiles_to_iupac("c1ccc(-c2ccc(-c3ccco3)s2)s1") == "2-([2,2'-bithiophen]-5-yl)furan"
-
-
-def test_terpyridine():
-    assert smiles_to_iupac("C1=CC=NC(=C1)C2=NC(=CC=C2)C3=CC=CC=N3") == "12,22:26,32-terpyridine"
-
-
-def test_terpyrrole_middle_ring_indicated_hydrogen():
-    assert smiles_to_iupac("c1ccn(-c2cc(-n3cccc3)c[nH]2)c1") == "21H-11,22:24,31-terpyrrole"
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("c1ccc(-c2ccc(-c3ccco3)s2)s1", "2-([2,2'-bithiophen]-5-yl)furan", id="mixed_thiophene_and_furan"),
+        pytest.param("C1=CC=NC(=C1)C2=NC(=CC=C2)C3=CC=CC=N3", "12,22:26,32-terpyridine", id="terpyridine"),
+        pytest.param("c1ccn(-c2cc(-n3cccc3)c[nH]2)c1", "21H-11,22:24,31-terpyrrole", id="terpyrrole_middle_ring_indicated_hydrogen"),
+    ],
+)
+def test_mixed_thiophene_and_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -165,21 +152,16 @@ def test_ring_assembly_ylidene_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_halogen_substituent__ring_assembly_ylidene():
-    assert smiles_to_iupac("C1CCC(Cl)C1=C1CCCC1") == "2-chloro-1,1'-bi(cyclopentylidene)"
-
-
-def test_bicyclic_ring_assembly_ylidene_bridge_carbon_attachment():
-    # Attached at the one-carbon bridge (locant 7) instead of locant 2.
-    assert smiles_to_iupac("C1CC2CCC1C2=C1C2CCC1CC2") == "7,7'-bi(bicyclo[2.2.1]heptanylidene)"
-
-
-def test_bicyclic_ylidene_between_different_ring_systems_is_a_substituent():
-    # Different ring systems are not "identical cyclic systems" (P-28.1): one is the parent.
-    assert (
-        smiles_to_iupac("C1CCC2C(=C3CC4CCC3C4)CCC2C1")
-        == "1-(bicyclo[2.2.1]heptan-2-ylidene)octahydro-1H-indene"
-    )
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C1CCC(Cl)C1=C1CCCC1", "2-chloro-1,1'-bi(cyclopentylidene)", id="halogen_substituent__ring_assembly_ylidene"),
+        pytest.param("C1CC2CCC1C2=C1C2CCC1CC2", "7,7'-bi(bicyclo[2.2.1]heptanylidene)", id="bicyclic_ring_assembly_ylidene_bridge_carbon_attachment"),
+        pytest.param("C1CCC2C(=C3CC4CCC3C4)CCC2C1", "1-(bicyclo[2.2.1]heptan-2-ylidene)octahydro-1H-indene", id="bicyclic_ylidene_between_different_ring_systems_is_a_substituent"),
+    ],
+)
+def test_halogen_substituent__and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_bicyclic_ring_assembly_ylidene_halogen_substituent_raises():

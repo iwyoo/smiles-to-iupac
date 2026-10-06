@@ -144,7 +144,8 @@ any input failed.
 
 ```bash
 pip install -e ".[dev]"
-pytest
+pytest                 # everything
+pytest -m "not slow"   # what pull requests run: skips the few names that take over a second
 ruff check .
 ```
 

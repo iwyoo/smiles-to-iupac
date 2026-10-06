@@ -153,7 +153,7 @@ def test_characteristic_groups_on_the_parent(smiles, expected):
         # the parent carries as many acids as the chain does, so it stays the parent
         ("OC(=O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2CCC(=O)O", "14-(2-carboxyethyl)yohimban-18-carboxylic acid"),
         # an acid in the substituent of an amine group of the parent makes the chain the parent
-        ("OC(=O)CCNC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "3-[(yohimban-18-yl)amino]propanoic acid"),
+        pytest.param("OC(=O)CCNC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "3-[(yohimban-18-yl)amino]propanoic acid", marks=pytest.mark.slow),
         # an oxime hydroxy group is no alcohol group, so the amine and oxime classes decide as before
         ("ON=C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "N-hydroxyyohimban-18-imine"),
     ],
@@ -169,41 +169,31 @@ BILIRUBIN = "CC1=C(C(=O)N/C1=C\\C2=C(C(=C(N2)CC3=C(C(=C(N3)/C=C\\4/C(=C(C(=O)N4)
     "smiles, expected",
     [
         # P-15.3.2: identical chain parents on the multivalent group of the parent (P-101.7.3), numbered as the parent
-        ("OC(=O)CCC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2CCC(=O)O", "3,3'-(yohimban-14,18-diyl)dipropanoic acid"),
-        ("OCCC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2CCO", "2,2'-(yohimban-14,18-diyl)di(ethan-1-ol)"),
-        ("NC(=O)CCC1CC2=CCC3C(C)(C)C(CCC(N)=O)CCC3(C)C2CC1", "3,3'-(podocarp-7-ene-3,13-diyl)dipropanamide"),
+        pytest.param("OC(=O)CCC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2CCC(=O)O", "3,3'-(yohimban-14,18-diyl)dipropanoic acid", marks=pytest.mark.slow),
+        pytest.param("OCCC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2CCO", "2,2'-(yohimban-14,18-diyl)di(ethan-1-ol)", marks=pytest.mark.slow),
+        pytest.param("NC(=O)CCC1CC2=CCC3C(C)(C)C(CCC(N)=O)CCC3(C)C2CC1", "3,3'-(podocarp-7-ene-3,13-diyl)dipropanamide", marks=pytest.mark.slow),
         # the other substituents of the parent stay in the group
-        ("OC(=O)CCC1CCC2C(C1)CN1CCc3c([nH]c4ccc(C)cc34)C1C2CCC(=O)O", "3,3'-(10-methylyohimban-14,18-diyl)dipropanoic acid"),
+        pytest.param("OC(=O)CCC1CCC2C(C1)CN1CCc3c([nH]c4ccc(C)cc34)C1C2CCC(=O)O", "3,3'-(10-methylyohimban-14,18-diyl)dipropanoic acid", marks=pytest.mark.slow),
         # P-101.6.1: ene ending of the group; P-101.6.4: hydro prefixes of the group (bilirubin); P-16.5.1: nesting
         ("OC(=O)CCC1CC2=CCC3C(C)(C)CCCC3(C)C2CC1CCC(=O)O", "3,3'-(podocarp-7-ene-12,13-diyl)dipropanoic acid"),
-        (
-            "C=CC1=C(C)C(=O)NC1=Cc1[nH]c(Cc2[nH]c(C=C3NC(=O)C(C=C)=C3C)c(C)c2CCC(=O)O)c(CCC(=O)O)c1C",
-            "3,3'-(3,18-diethenyl-2,7,13,17-tetramethyl-1,19-dioxo-1,10,19,22,23,24-hexahydro-21H-biline-8,12-diyl)dipropanoic acid",
-        ),
+        pytest.param("C=CC1=C(C)C(=O)NC1=Cc1[nH]c(Cc2[nH]c(C=C3NC(=O)C(C=C)=C3C)c(C)c2CCC(=O)O)c(CCC(=O)O)c1C",
+            "3,3'-(3,18-diethenyl-2,7,13,17-tetramethyl-1,19-dioxo-1,10,19,22,23,24-hexahydro-21H-biline-8,12-diyl)dipropanoic acid", marks=pytest.mark.slow),
         # P-101.8.2: double bond configuration of the group; the descriptors make the enclosing marks square
-        (
-            BILIRUBIN,
+        pytest.param(BILIRUBIN,
             "3,3'-[(4Z,15Z)-2,18-diethenyl-3,7,13,17-tetramethyl-1,19-dioxo-1,10,19,22,23,24-hexahydro-21H-biline-8,12-diyl]"
-            "dipropanoic acid",
-        ),
+            "dipropanoic acid", marks=pytest.mark.slow),
         # P-101.2.6, P-101.7.1: the face of a free valence on a ring atom of the parent precedes its locant
-        (
-            "O=C(O)CCC1C[C@H](CCC(=O)O)[C@H]2C[C@H]3c4[nH]c5ccccc5c4CCN3C[C@@H]2C1",
-            "3,3'-(yohimban-16α,18-diyl)dipropanoic acid",
-        ),
-        (
-            "O=C(O)CCC1C[C@@H](CCC(=O)O)[C@H]2C[C@H]3c4[nH]c5ccccc5c4CCN3C[C@@H]2C1",
-            "3,3'-(yohimban-16β,18-diyl)dipropanoic acid",
-        ),
-        ("O=C(O)CCC1CC(CCC(=O)O)[C@H]2C[C@H]3c4[nH]c5ccccc5c4CCN3C[C@@H]2C1", "3,3'-(yohimban-16,18-diyl)dipropanoic acid"),
+        pytest.param("O=C(O)CCC1C[C@H](CCC(=O)O)[C@H]2C[C@H]3c4[nH]c5ccccc5c4CCN3C[C@@H]2C1",
+            "3,3'-(yohimban-16α,18-diyl)dipropanoic acid", marks=pytest.mark.slow),
+        pytest.param("O=C(O)CCC1C[C@@H](CCC(=O)O)[C@H]2C[C@H]3c4[nH]c5ccccc5c4CCN3C[C@@H]2C1",
+            "3,3'-(yohimban-16β,18-diyl)dipropanoic acid", marks=pytest.mark.slow),
+        pytest.param("O=C(O)CCC1CC(CCC(=O)O)[C@H]2C[C@H]3c4[nH]c5ccccc5c4CCN3C[C@@H]2C1", "3,3'-(yohimban-16,18-diyl)dipropanoic acid", marks=pytest.mark.slow),
         # P-44.1.1: the acids of the chains outrank the amine, ether and ester groups that join them to the parent
-        ("OC(=O)CCNC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2NCCC(=O)O", "3,3'-[yohimban-14,18-diylbis(azanediyl)]dipropanoic acid"),
-        ("OC(=O)CCOC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2OCCC(=O)O", "3,3'-[yohimban-14,18-diylbis(oxy)]dipropanoic acid"),
+        pytest.param("OC(=O)CCNC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2NCCC(=O)O", "3,3'-[yohimban-14,18-diylbis(azanediyl)]dipropanoic acid", marks=pytest.mark.slow),
+        pytest.param("OC(=O)CCOC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2OCCC(=O)O", "3,3'-[yohimban-14,18-diylbis(oxy)]dipropanoic acid", marks=pytest.mark.slow),
         # three identical chains
-        (
-            "OC(=O)CCC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2(CCC(O)=O)CCC(O)=O",
-            "3,3',3''-(yohimban-14,14,18-triyl)tripropanoic acid",
-        ),
+        pytest.param("OC(=O)CCC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2(CCC(O)=O)CCC(O)=O",
+            "3,3',3''-(yohimban-14,14,18-triyl)tripropanoic acid", marks=pytest.mark.slow),
     ],
 )
 def test_multiplicative_names_with_a_parent_as_the_central_group(smiles, expected):
@@ -221,6 +211,7 @@ def test_face_of_the_free_valence_of_a_substituent_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 def test_arms_with_stereo_outside_the_group_are_not_multiplied():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("OC(=O)[C@@H](C)CC1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2C[C@H](C)C(O)=O")
@@ -282,6 +273,7 @@ def test_configuration(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles",
     [
