@@ -30,8 +30,15 @@ order other than single, and any ring.
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency
+from ._common import (
+    UnsupportedStructure,
+    adjacency,
+    group_substituents,
+    longest_branched_chain,
+    substituent_locant_set_and_citation,
+)
 from ._numerals import numerical_term
+from ._substituents import format_substituent_prefixes, name_branch
 
 _SILICON = 14
 
@@ -65,14 +72,29 @@ def name_silane_chain(mol) -> str:
         return "silane"
     degrees = sorted(len(neighbors) for neighbors in graph.values())
     if degrees != [1, 1] + [2] * (n - 2):
-        raise UnsupportedStructure(
-            "a branched silicon chain is not supported yet (see P-21.2.1's "
-            "general branched-chain substitutive naming, not yet implemented "
-            "for silanes)"
-        )
+        return _name_branched_silane(mol, graph)
     # Unlike '-ane' (P-21.2.1's alkane suffix, which starts with a vowel
     # and so triggers elision, e.g. 'hexa' + 'ane' -> 'hexane'), 'silane'
     # starts with a consonant, so the numerical term's terminal 'a' is
     # kept unchanged: 'tetra' + 'silane' -> 'tetrasilane', not
     # 'tetrsilane'.
     return numerical_term(n) + "silane"
+
+
+def _name_branched_silane(mol, graph) -> str:
+    """P-44.3 chain selection (longest, then most prefixes, then lowest locants) on the Si skeleton;
+    every branch is a silyl-type substituent (P-29.4.1)."""
+    best = None
+    for leaf in (a for a, neighbors in graph.items() if len(neighbors) == 1):
+        chain, branches = longest_branched_chain(graph, leaf, frozenset())
+        substituents = {
+            position: [name_branch(graph, root, chain[position - 1], {}, frozenset(), mol=mol) for root in roots]
+            for position, roots in branches.items()
+        }
+        grouped = group_substituents(substituents)
+        locant_set, total, citation = substituent_locant_set_and_citation(grouped)
+        name = format_substituent_prefixes(grouped) + numerical_term(len(chain)) + "silane"
+        key = (-len(chain), -total, locant_set, citation, name)
+        if best is None or key < best:
+            best = key
+    return best[-1]

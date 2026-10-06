@@ -32,6 +32,7 @@ only through an acyclic bridge -- e.g. dicyclohexylmethane, 1-cyclohexyl-
 """
 
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key
+from ._hetero_prefixes import MONONUCLEAR_HYDRIDES
 from ._multiplicative_ring import monocycle_spec, numberings
 from ._multiplicative_text import enclose
 from ._substituents import name_branch
@@ -44,6 +45,9 @@ def find_disjoint_ring_pair_core(mol):
         return None
     ring_a, ring_b = (set(r) for r in atom_rings)
     if ring_a & ring_b:
+        return None
+    # P-44.1.2.1: a bridge atom of Si, P, B, ... outranks carbon, so a ring is not the parent
+    if any(a.GetAtomicNum() in MONONUCLEAR_HYDRIDES and not a.IsInRing() for a in mol.GetAtoms()):
         return None
     return ring_a, ring_b
 
