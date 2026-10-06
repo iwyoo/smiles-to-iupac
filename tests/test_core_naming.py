@@ -70,6 +70,7 @@ def test_two_stereocenters_on_one_substituent():
     assert smiles_to_iupac("c1ccccc1[C@@H](Cl)[C@@H](Cl)C") == "[(1R,2S)-1,2-dichloropropyl]benzene"
 
 
+@pytest.mark.slow
 def test_stereocenter_on_three_ring_fused_substituent():
     assert smiles_to_iupac("c1ccc2cc3ccccc3cc2c1[C@@H](Cl)CC") == "1-[(1S)-1-chloropropyl]anthracene"
 
@@ -369,6 +370,7 @@ def test_r_is_cited_at_the_lower_locant_of_a_ring(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles, expected",
     [
@@ -452,7 +454,7 @@ def test_non_string_input_raises_type_error(value):
         "CC(C)Cc1ccc(cc1)C(C)C(=O)O",
         "c1ccc2[nH]ccc2c1",
         "OC(=O)Cn1c2ccccc2c2ccccc21",
-        "C1=C/c2cccc(c2)CCCCCCCc2cccc(c2)CCCCC/1",
+        pytest.param("C1=C/c2cccc(c2)CCCCCCCc2cccc(c2)CCCCC/1", marks=pytest.mark.slow),
     ],
 )
 def test_valid_smiles_do_not_write_rdkit_logs_to_stderr(smiles, capfd):
@@ -481,6 +483,7 @@ def test_pseudoasymmetric_centre_in_a_group_on_an_aromatic_atom(smiles, expected
     assert _pseudoasymmetric_in_group(mol, side) == expected
 
 
+@pytest.mark.slow
 def test_nested_fragment_is_named_once_per_top_level_call(monkeypatch):
     from smiles_to_iupac import core
 

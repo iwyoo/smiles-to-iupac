@@ -3,6 +3,7 @@ from smiles_to_iupac import smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure
 
 
+@pytest.mark.slow
 def test_morphine():
     smiles = "CN1CC[C@]23[C@@H]4[C@H]1CC5=C2C(=C(C=C5)O)O[C@H]3[C@H](C=C4)O"
     assert (
@@ -11,6 +12,7 @@ def test_morphine():
     )
 
 
+@pytest.mark.slow
 def test_codeine():
     smiles = "CN1CC[C@]23[C@@H]4[C@H]1CC5=C2C(=C(C=C5)OC)O[C@H]3[C@H](C=C4)O"
     assert (
@@ -529,10 +531,8 @@ def test_unsaturated_bicyclic_metallacycles(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        (
-            "C1c2ccccc2[Pt]2(P(C)(C)CP2(C)C)c2ccccc12",
-            "9,9-[methylenebis(dimethylphosphane)]-10H-9-platinaanthracene",
-        ),
+        pytest.param("C1c2ccccc2[Pt]2(P(C)(C)CP2(C)C)c2ccccc12",
+            "9,9-[methylenebis(dimethylphosphane)]-10H-9-platinaanthracene", marks=pytest.mark.slow),
         (
             "[Pt]1(P(c2ccccc2)(c2ccccc2)c2ccccc2)(P(c2ccccc2)(c2ccccc2)c2ccccc2)C2CC1C(OC)CCC2OC",
             "2,5-dimethoxy-7,7-bis(triphenylphosphane)-7-platinabicyclo[4.1.1]octane",

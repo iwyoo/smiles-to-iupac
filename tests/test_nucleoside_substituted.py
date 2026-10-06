@@ -372,6 +372,7 @@ def test_nucleoside_cation_pyrimidine_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles",
     [

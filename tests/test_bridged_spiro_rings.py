@@ -29,6 +29,7 @@ def test_bicyclic_unsaturated_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 def test_epoxycholestane():
     assert (
         smiles_to_iupac("CC(C)CCCC(C)C1CCC2C1(CCC3C2CC4C5(C3(CCCC5)C)O4)C") == "5,6-epoxycholestane"
@@ -111,6 +112,7 @@ def test_ortho_fused_tetrabenzenacyclooctaphane_is_named_with_a_warning():
     assert name == "13-methyl-1(1,2),3,5,7(1,3)-tetrabenzenacyclooctaphane"
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles, expected",
     [
@@ -218,10 +220,8 @@ def test_biphenyl_assembly_stays_assembly():
             "OC(=O)C=C1c2cccc(n2)Cc2cccc(n2)Cc2cccc(n2)Cc2cccc1n2",
             "[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-2-ylidene]acetic acid",
         ),
-        (
-            "OC(=O)C=C1C=C2Cc3cccc(n3)Cc3cccc(n3)Cc3cccc(n3)CC(=C1)N2",
-            "[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-14(11H)-ylidene]acetic acid",
-        ),
+        pytest.param("OC(=O)C=C1C=C2Cc3cccc(n3)Cc3cccc(n3)Cc3cccc(n3)CC(=C1)N2",
+            "[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-14(11H)-ylidene]acetic acid", marks=pytest.mark.slow),
     ],
 )
 def test_pyridine_amplificants_and_ylidene_groups(smiles, expected):
@@ -284,6 +284,7 @@ def test_oxadispiro_off_spiro_stereocenter():
     )
 
 
+@pytest.mark.slow
 def test_branched_polyspiro_off_spiro_stereocenter():
     assert (
         smiles_to_iupac("Cl[C@H]1CCC12CCC1(CC1)CCC1(CC1)CC2")
@@ -519,6 +520,7 @@ def test_two_same_element_ring_heteroatoms_tricyclic():
     assert smiles_to_iupac("O1C2CC3OC1CC(C2)C3") == "2,4-dioxatricyclo[3.3.1.1^3,7]decane"
 
 
+@pytest.mark.slow
 def test_disjoint_ring_systems_joined_by_chain_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("CC1(C)C2CC[C@@]1(C)CN(CCC1C3CC4CC(C3)CC1C4)C2")
@@ -826,7 +828,7 @@ _ACETIC = "CC(=O)O"
             {1: "F", 9: "F", 52: "F", 60: "F"},
             "1,9,52,60-tetrafluoro-1,9,52,60-tetrahydro(C60-Ih)[5,6]fullerene",
         ),
-        (_FULLERENE_C60_SMILES, {1: "C(C)(C)C", 7: "c1ccccc1"}, "1-tert-butyl-7-phenyl-1,7-dihydro(C60-Ih)[5,6]fullerene"),
+        pytest.param(_FULLERENE_C60_SMILES, {1: "C(C)(C)C", 7: "c1ccccc1"}, "1-tert-butyl-7-phenyl-1,7-dihydro(C60-Ih)[5,6]fullerene", marks=pytest.mark.slow),
         (_FULLERENE_C60_SMILES, {1: "C", 23: "C"}, "1,23-dimethyl-1,23-dihydro(C60-Ih)[5,6]fullerene"),
         # P-72: the carbanion with its added hydrogen
         (_FULLERENE_C60_SMILES, {1: "-", 9: None}, "(C60-Ih)[5,6]fulleren-1(9H)-ide"),

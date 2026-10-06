@@ -169,6 +169,7 @@ def _furanobenzoquinoline_smiles():
     return Chem.MolToSmiles(mol)
 
 
+@pytest.mark.slow
 def test_furano_bridge_benzo_g_quinoline():
     assert smiles_to_iupac(_furanobenzoquinoline_smiles()) == "10,5-[2,3]furanobenzo[g]quinoline"
 
@@ -187,7 +188,7 @@ def test_fused_hetero_ring_oxide_resolves(smiles, expected):
     "smiles, expected",
     [
         ("Oc1ccc2ccc3cccc4ccc1c2c34", "pyren-1-ol"),
-        ("Oc1cc2c3c(N)cccc3cc3ccc4cccc1c4c32", "10-aminobenzo[pqr]tetraphen-12-ol"),
+        pytest.param("Oc1cc2c3c(N)cccc3cc3ccc4cccc1c4c32", "10-aminobenzo[pqr]tetraphen-12-ol", marks=pytest.mark.slow),
     ],
 )
 def test_substituted_larger_fused_systems(smiles, expected):
@@ -367,6 +368,7 @@ def test_substituted_acenaphthylene_is_named():
     assert smiles_to_iupac("Cc1ccc2cccc3C=Cc1c23") == "3-methylacenaphthylene"
 
 
+@pytest.mark.slow
 def test_two_peri_fused_cyclopenta_rings_on_perylene():
     assert smiles_to_iupac("c1cc2ccc3cc4ccc5ccc6cc1c1c2c3c4c5c61") == "dicyclopenta[ghi,pqr]perylene"
 
@@ -384,6 +386,7 @@ def test_benzo_ghi_perylene():
     )
 
 
+@pytest.mark.slow
 def test_chrysene():
     assert smiles_to_iupac("C1=CC=C2C(=C1)C=CC3=C2C=CC4=CC=CC=C43") == "chrysene"
 
@@ -505,6 +508,7 @@ def test_pyrrolo_ij_quinoline():
 
 
 
+@pytest.mark.slow
 def test_benzo_a_tetracene():
     assert smiles_to_iupac("c1ccc2cc3cc4c(ccc5ccccc54)cc3cc2c1") == "benzo[a]tetracene"
 
@@ -627,14 +631,12 @@ def test_phane_with_a_naphthalene_amplificant(smiles, expected):
         ("C1=CC2=CC=NC3=NC=CC(=N1)N23", "1,3a1,4,9-tetraazaphenalene"),
         ("C1=CC2=C3C=CC=CN3C=CN2C=C1", "dipyrido[1,2-a:2',1'-c]pyrazine"),
         ("c1cnc2cc3cc4cnoc4cc3cc2c1", "[1,2]benzoxazolo[6,5-g]quinoline"),
-        ("C1=Cc2cc3c(cc2=Cc2ccccc21)C=c1ccccc1=c1ccccc1=3", "tribenzo[c,d',e]benzo[1,2-a:4,5-a']di[7]annulene"),
+        pytest.param("C1=Cc2cc3c(cc2=Cc2ccccc21)C=c1ccccc1=c1ccccc1=3", "tribenzo[c,d',e]benzo[1,2-a:4,5-a']di[7]annulene", marks=pytest.mark.slow),
         ("C1=Cc2cc3c(cc2=C1)-c1cc2c(nc1C=3)C=c1c-2ccc2c1=CC=C2", "as-indaceno[2,3-b]-s-indaceno[1,2-e]pyridine"),
         ("C1=S=CC2=C1C=S=C2", "2λ4δ2,5λ4δ2-thieno[3,4-c]thiophene"),
         ("C1=CSC23OC=CSC2=CC=C3O1", "cyclopenta[1,2-b:5,1-b']bis([1,4]oxathiine)"),
-        (
-            "C1=CC2OC1C1=C2C2C3=C(C4C=CC3O4)C1C1=C2C2C=CC1O2",
-            "1,4,5,8,9,10,13,16-octahydro-13,16-epoxy-9,10-[1,2]benzeno-1,4:5,8-diepoxyanthracene",
-        ),
+        pytest.param("C1=CC2OC1C1=C2C2C3=C(C4C=CC3O4)C1C1=C2C2C=CC1O2",
+            "1,4,5,8,9,10,13,16-octahydro-13,16-epoxy-9,10-[1,2]benzeno-1,4:5,8-diepoxyanthracene", marks=pytest.mark.slow),
         ("c1cc2c3c(cccc3c1)C13c4cccc5cccc(c45)C21c1cccc2cccc3c12", "6b,12b-[1,8]naphthalenoacenaphthyleno[1,2-a]acenaphthylene"),
         ("C1C=C2c3ccccc3C1c1ccccc12", "9H-9,10-(epiethanylylidene)anthracene"),
         ("C1%10c2cc3ccccc3cc2C(c2cc3ccccc3cc12)Cc1ccccc1C%10", "6,13-dihydro-6,13-(methano[1,2]benzenomethano)pentacene"),
@@ -651,10 +653,8 @@ def test_fusion_engine_decompositions_and_bridges(smiles, expected):
     [
         # P-26.4.1.2, P-26.4.1.3: skeleton and amplificant numbering, senior amplificant lowest
         ("c1cncc(CCc2ccc(CCc3ccc(Cc4ccncn4)cn3)cn2)c1", "1(4)-pyrimidina-3,6(5,2),9(3)-tripyridinanonaphane"),
-        (
-            "c1ccc2c3cc(cc2c1)CCc1ccc(cn1)CC1CCCN(CCC3)C1",
-            "3(5,2)-pyridina-1(3,1)-piperidina-6(3,1)-naphthalenacyclononaphane",
-        ),
+        pytest.param("c1ccc2c3cc(cc2c1)CCc1ccc(cn1)CC1CCCN(CCC3)C1",
+            "3(5,2)-pyridina-1(3,1)-piperidina-6(3,1)-naphthalenacyclononaphane", marks=pytest.mark.slow),
         (
             "c1ccc2c(c1)ccc1c3ccc(c12)CCc1ccc(c2ccccc12)CCc1ccc(c2ncccc12)CC3",
             "1(8,5)-quinolina-4(1,4)-phenanthrena-7(1,4)-naphthalenacyclononaphane",
@@ -689,13 +689,11 @@ def test_fusion_engine_decompositions_and_bridges(smiles, expected):
             "c1cc2ccc1COCCOCCOCC13CCC(CC1)(COCCOCCOC2)O3",
             "17,3,6,9,13,16,19-heptaoxa-1(1,4)-bicyclo[2.2.1]heptana-11(1,4)-benzenacycloicosaphane",
         ),
-        (
-            "c1cc2oc1OC1CCSC(CCCCCCCCO1)OCCCCCOC1CCCCCCCCSC(CCO1)O2",
-            "14,2,4,514,6,12-hexaoxa-114,54-dithia-3(2,5)-furana-1,5(1,5)-dicyclotetradecanacyclododecaphane",
-        ),
+        pytest.param("c1cc2oc1OC1CCSC(CCCCCCCCO1)OCCCCCOC1CCCCCCCCSC(CCO1)O2",
+            "14,2,4,514,6,12-hexaoxa-114,54-dithia-3(2,5)-furana-1,5(1,5)-dicyclotetradecanacyclododecaphane", marks=pytest.mark.slow),
         # P-26.2.2.2.1 stereoparent amplificant, P-26.2.3.2 bis before a prefix that starts with a multiplying prefix
-        ("c1cc2ccc1CCC1CCC3C(CCC4C5CCC(CC2)C5CCC34)C1", "1(3,17)-gonana-4(1,4)-benzenacyclohexaphane"),
-        ("c1cc2ccc1CCc1ccc3c(c1)C14CCCCC1C(C3)N(CC2)CC4", "1(3,17)-morphinana-4(1,4)-benzenacyclohexaphane"),
+        pytest.param("c1cc2ccc1CCC1CCC3C(CCC4C5CCC(CC2)C5CCC34)C1", "1(3,17)-gonana-4(1,4)-benzenacyclohexaphane", marks=pytest.mark.slow),
+        pytest.param("c1cc2ccc1CCc1ccc3c(c1)C14CCCCC1C(C3)N(CC2)CC4", "1(3,17)-morphinana-4(1,4)-benzenacyclohexaphane", marks=pytest.mark.slow),
         (
             "c1cc2ccc1CCC13CCC(CC1)(CCC14CCC(CC2)(CC1)C4)C3",
             "1,4(1,4)-bis(bicyclo[2.2.1]heptana)-7(1,4)-benzenacyclononaphane",
@@ -715,8 +713,8 @@ def test_phane_parent_hydrides_of_p26(smiles, expected):
             "1(1,3)-benzena-9(1,3)-cyclohexanacyclohexadecaphane-93,95-diene",
         ),
         ("C1#Cc2cccc(c2)CCCCCCc2cccc(c2)CC=C1", "1,7(1,3)-dibenzenacyclotridecaphan-4-en-2-yne"),
-        ("C1=C/c2cccc(c2)CCCCCCCc2cccc(c2)CCCCC/1", "(2E)-1,9(1,3)-dibenzenacyclohexadecaphan-2-ene"),
-        ("C1=C\\c2cccc(c2)CCCCCCCc2cccc(c2)CCCCC/1", "(2Z)-1,9(1,3)-dibenzenacyclohexadecaphan-2-ene"),
+        pytest.param("C1=C/c2cccc(c2)CCCCCCCc2cccc(c2)CCCCC/1", "(2E)-1,9(1,3)-dibenzenacyclohexadecaphan-2-ene", marks=pytest.mark.slow),
+        pytest.param("C1=C\\c2cccc(c2)CCCCCCCc2cccc(c2)CCCCC/1", "(2Z)-1,9(1,3)-dibenzenacyclohexadecaphan-2-ene", marks=pytest.mark.slow),
         ("C1=C2CCCCCc3cccc(n3)CCCCCC(=CC1)N2", "11,14-dihydro-1,7(2,6)-dipyridinacyclododecaphane"),
         (
             "c1cc2ccc1CCCC1CCC3CCC(CCC2)CC3C1",
@@ -728,6 +726,7 @@ def test_phane_unsaturation_and_hydrogenation(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles, expected",
     [
