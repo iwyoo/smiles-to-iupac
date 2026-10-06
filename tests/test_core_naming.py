@@ -531,3 +531,21 @@ def test_stereo_is_never_silently_dropped_from_a_name(smiles):
     except UnsupportedStructure:
         return
     assert re.search(r"\((?:\d+[A-Za-z]?,?)*[RSEZ]\)|[RSEZ]\)", name)
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("O=[N+]([O-])c1ccc(NC)cc1", "N-methyl-4-nitroaniline"),
+        ("N#Cc1ccc(NC)cc1", "4-(methylamino)benzonitrile"),
+        ("CCN1CCC(CNc2ccc([N+](=O)[O-])cc2I)CC1", "N-[(1-ethylpiperidin-4-yl)methyl]-2-iodo-4-nitroaniline"),
+    ],
+)
+def test_amine_parent_leaves_other_nitrogens_of_the_arm_untouched(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_interior_fusion_locants_order_between_their_peripheral_neighbours():
+    from smiles_to_iupac._phane_amplificant import AmpLoc
+
+    assert [str(x) for x in sorted(map(AmpLoc, ["4b", "5", "4a1", "4a", "4"]))] == ["4", "4a", "4a1", "4b", "5"]

@@ -1337,12 +1337,13 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
 def _amine_parent_molecule(mol, atoms, carbon, n_idx):
     editable = Chem.RWMol(mol)
     editable.GetAtomWithIdx(carbon).SetAtomMapNum(1)
+    editable.GetAtomWithIdx(n_idx).SetBoolProp("_cut_amine_n", True)
     keep = set(atoms) | {n_idx}
     for idx in sorted(set(range(mol.GetNumAtoms())) - keep, reverse=True):
         editable.RemoveAtom(idx)
     parent = editable.GetMol()
     for a in parent.GetAtoms():
-        if a.GetAtomicNum() == 7 and not a.IsInRing():
+        if a.HasProp("_cut_amine_n") and not a.IsInRing():
             a.SetNumExplicitHs(2)
             a.SetNoImplicit(True)
     Chem.SanitizeMol(parent)
