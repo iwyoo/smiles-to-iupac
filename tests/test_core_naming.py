@@ -580,3 +580,18 @@ def test_interior_fusion_locants_order_between_their_peripheral_neighbours():
 )
 def test_ester_and_halide_groups_the_parent_cannot_carry_are_cited_as_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("N[C@@H](C)C(=O)N[C@@H](C)C(=O)O", "N-[(2S)-2-aminopropanoyl]-L-alanine"),
+        ("N[C@@H](CS)C(=O)N[C@@H](C)C(=O)O", "N-[(2R)-2-amino-3-sulfanylpropanoyl]-L-alanine"),
+        (
+            "CC[C@H](C)[C@H](N)C(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)O",
+            "N-((2S)-2-{[(2S,3S)-2-amino-3-methylpentanoyl]amino}propanoyl)-L-alanine",
+        ),
+    ],
+)
+def test_peptide_acyl_residues_cite_their_own_stereodescriptors(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
