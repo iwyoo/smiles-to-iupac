@@ -1,6 +1,6 @@
 """Configuration on an Appendix 3 parent (P-101.2.6, P-101.6.2, P-101.8).
 
-The parent name implies the configuration drawn in Appendix 3, stored as the stereo SMILES of `_appendix3_table.STEREO`.
+The parent name implies the configuration drawn in Appendix 3, stored as the stereo SMILES of `_stereoparents.STEREOPARENTS`.
 A molecule is compared with it centre by centre and only what differs is cited:
 
 - on a planar ring system a ring centre that differs from the parent, or has none in the parent, is cited as α/β

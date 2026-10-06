@@ -1,5 +1,5 @@
 """Compounds and substituent groups named on the retained parent structures of Appendix 3 / P-101.2.7
-(`_appendix3_table.py`).
+(`_stereoparents.py`).
 
 A molecule is named on a parent when it contains one skeleton whole, matched on connectivity alone: the rings of the
 skeleton are rings of the molecule and no other ring touches them. The difference in multiple bonds between skeleton and molecule becomes 'ene'/'yne' endings in a saturated portion
@@ -17,8 +17,7 @@ from rdkit.Chem import rdCIPLabeler
 from ._appendix3_groups import SENIORITY, branch_counts, classify, reject_exotic
 from ._appendix3_naming import N_CLASSES, Choice, assemble, n_roots
 from ._appendix3_stereo import ParentStereo, describe, deviations
-from ._appendix3_stereo_data import STEREO
-from ._appendix3_table import SKELETONS
+from ._stereoparents import STEREOPARENTS
 from ._common import UnsupportedStructure
 from ._pin import mark
 from ._substituents import BRANCH_STEREO
@@ -194,6 +193,7 @@ class Skeleton:
     def __init__(self, name, smiles):
         self.name = name
         query = Chem.MolFromSmiles(smiles)
+        Chem.RemoveStereochemistry(query)
         self.labels = {a.GetIdx(): _label(a.GetAtomMapNum()) for a in query.GetAtoms()}
         for atom in query.GetAtoms():
             atom.SetAtomMapNum(0)
@@ -244,9 +244,10 @@ class Skeleton:
         return count
 
 
-_SKELETONS = {name: Skeleton(name, smiles) for name, smiles in SKELETONS.items()}
-for _name, (_smiles, _ref, _anticlockwise) in STEREO.items():
-    _SKELETONS[_name].stereo = ParentStereo(_SKELETONS[_name], _smiles, _ref, _anticlockwise, _label, sort_key)
+_SKELETONS = {name: Skeleton(name, p.smiles) for name, p in STEREOPARENTS.items() if p.scope != "table10.1"}
+for _name, _p in STEREOPARENTS.items():
+    if _p.ref and _name in _SKELETONS:
+        _SKELETONS[_name].stereo = ParentStereo(_SKELETONS[_name], _p.smiles, _p.ref, _p.anticlockwise, _label, sort_key)
 
 
 def _adjacent(pair):
@@ -442,11 +443,9 @@ def _best_skeleton(mol, attach_allowed):
 
 
 def _left_to_the_stereoparent_engine(mol, skeleton, choice):
-    """A parent with no drawing frame here but one in `_np_parents`: its implied configuration is cited by α/β there."""
-    from ._np_parents import PARENTS
-
-    entry = PARENTS.get(skeleton.name)
-    if skeleton.stereo is not None or entry is None or not entry[2]:
+    """A parent with no drawing frame here but one in the natural-product engine: its implied configuration is cited by α/β there."""
+    entry = STEREOPARENTS.get(skeleton.name)
+    if skeleton.stereo is not None or entry is None or not entry.anchor:
         return False
     return any(mol.GetAtomWithIdx(a).GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in choice.mapping.values())
 

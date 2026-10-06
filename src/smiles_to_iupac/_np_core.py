@@ -9,8 +9,9 @@ import numpy as np
 from rdkit import Chem
 from rdkit.Chem import rdDepictor
 
-from ._appendix3_stereo_data import STEREO
-from ._np_parents import PARENTS
+from ._stereoparents import STEREOPARENTS, locant
+
+PARENTS = {name: parent for name, parent in STEREOPARENTS.items() if parent.scope != "appendix3"}
 
 _PRIMES = {"′": 1, "″": 2}
 _SUPERSCRIPTS = {"¹": 1, "²": 2, "³": 3}
@@ -42,11 +43,13 @@ def is_numbered(loc):
 
 class Parent:
     def __init__(self, name):
-        smiles, locants, anchor = PARENTS[name]
+        entry = PARENTS[name]
+        anchor = entry.anchor
         self.name = name
-        mol = Chem.MolFromSmiles(smiles)
-        for atom, loc in zip(mol.GetAtoms(), locants.split()):
-            atom.SetProp("loc", loc)
+        mol = Chem.MolFromSmiles(entry.smiles)
+        for atom in mol.GetAtoms():
+            atom.SetProp("loc", locant(atom.GetAtomMapNum()))
+            atom.SetAtomMapNum(0)
         self.loc_of = {a.GetIdx(): a.GetProp("loc") for a in mol.GetAtoms()}
         self.aromatic_bonds = {
             frozenset((self.loc_of[b.GetBeginAtomIdx()], self.loc_of[b.GetEndAtomIdx()]))
@@ -79,9 +82,8 @@ class Parent:
         }
         self.anchor = tuple(anchor.split(":")) if anchor else None
         self.rings = [frozenset(self.loc_of[i] for i in ring) for ring in ring_info.AtomRings()]
-        frame = STEREO.get(name)
-        self.ref = [loc for loc in frame[1].split(",") if loc] if frame else []
-        self.anticlockwise = frame[2] if frame else None
+        self.ref = [loc for loc in entry.ref.split(",") if loc]
+        self.anticlockwise = entry.anticlockwise if self.ref else None
         self._resolved = False
 
     def ending_kind(self):
