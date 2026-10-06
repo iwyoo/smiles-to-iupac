@@ -74,13 +74,49 @@ def cip_labels(mol, side):
             "stereochemistry beyond fully specified tetrahedral stereocenters is not supported on the polyol side"
         )
     rdCIPLabeler.AssignCIPLabels(mol)
+    pseudo = _pseudoasymmetric_in_group(mol, side)
     labels = []
     for element in specified:
         atom = mol.GetAtomWithIdx(element.centeredOn)
         if not atom.HasProp("_CIPCode"):
             raise UnsupportedStructure("could not determine a CIP label for a stereocenter")
-        labels.append((element.centeredOn, atom.GetProp("_CIPCode")))
+        labels.append((element.centeredOn, pseudo.get(element.centeredOn, atom.GetProp("_CIPCode"))))
     return labels
+
+
+def _pseudoasymmetric_in_group(mol, side):
+    """{atom: 'r'|'s'} for the centres of the substituent group `side` that are pseudoasymmetric in the group on its
+    own (free valences as phantom atoms), where the rest of the molecule would otherwise break the symmetry (P-93.5.1)."""
+    outside = {n.GetIdx() for a in side for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() not in side}
+    if not outside or len(side) == mol.GetNumAtoms():
+        return {}
+    keep = sorted(set(side) | outside)
+    new_of = {old: new for new, old in enumerate(keep)}
+    editable = Chem.RWMol(mol)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - set(keep), reverse=True):
+        editable.RemoveAtom(idx)
+    for a in outside:
+        for b in outside:
+            if a < b and editable.GetBondBetweenAtoms(new_of[a], new_of[b]) is not None:
+                editable.RemoveBond(new_of[a], new_of[b])
+    for a in outside:
+        phantom = editable.GetAtomWithIdx(new_of[a])
+        phantom.SetAtomicNum(0)
+        phantom.SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
+        phantom.SetFormalCharge(0)
+        phantom.SetNoImplicit(True)
+        phantom.SetNumExplicitHs(0)
+    group = editable.GetMol()
+    try:
+        Chem.SanitizeMol(group)
+    except Chem.rdchem.MolSanitizeException:
+        return {}
+    rdCIPLabeler.AssignCIPLabels(group)
+    return {
+        old: group.GetAtomWithIdx(new_of[old]).GetProp("_CIPCode")
+        for old in side
+        if group.GetAtomWithIdx(new_of[old]).HasProp("_CIPCode") and group.GetAtomWithIdx(new_of[old]).GetProp("_CIPCode") in "rs"
+    }
 
 
 def _acyl_component(graph, acyl_idx, ester_oxygen_idx):
