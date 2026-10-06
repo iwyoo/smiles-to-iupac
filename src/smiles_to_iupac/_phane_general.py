@@ -7,7 +7,7 @@ from itertools import combinations
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, elides_before, halogen_substituents, multiplied_word, specified_stereo_elements
+from ._common import UnsupportedStructure, adjacency, elides_before, halogen_substituents, multiplied_word, sanitize_probe, specified_stereo_elements
 from ._multiplicative_groups import SUFFIX_RANKS
 from ._numerals import multiplying_prefix
 from ._phane_amplificant import PhaneLoc, build_amplificant, needs_bis
@@ -644,7 +644,7 @@ def phane_substituent(mol, graph, root, coming_from, preferred=True):
         ignore = frozenset({dummy})
     fragment = editable.GetMol()
     try:
-        Chem.SanitizeMol(fragment)
+        sanitize_probe(fragment)
     except Exception:
         return None
     found = find_phane(fragment, free_atom, int(order), ignore)

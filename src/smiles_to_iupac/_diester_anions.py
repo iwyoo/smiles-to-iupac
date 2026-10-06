@@ -106,6 +106,9 @@ def _pseudoasymmetric_in_group(mol, side):
         phantom.SetFormalCharge(0)
         phantom.SetNoImplicit(True)
         phantom.SetNumExplicitHs(0)
+        phantom.SetIsAromatic(False)
+        for bond in phantom.GetBonds():
+            bond.SetIsAromatic(False)
     group = editable.GetMol()
     try:
         Chem.SanitizeMol(group)

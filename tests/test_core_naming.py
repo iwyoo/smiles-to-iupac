@@ -443,3 +443,39 @@ def test_invalid_smiles_raises_value_error(smiles):
 def test_non_string_input_raises_type_error(value):
     with pytest.raises(TypeError):
         smiles_to_iupac(value)
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        "CN1CCC[C@H]1c1cccnc1",
+        "CC(C)Cc1ccc(cc1)C(C)C(=O)O",
+        "c1ccc2[nH]ccc2c1",
+        "OC(=O)Cn1c2ccccc2c2ccccc21",
+        "C1=C/c2cccc(c2)CCCCCCCc2cccc(c2)CCCCC/1",
+    ],
+)
+def test_valid_smiles_do_not_write_rdkit_logs_to_stderr(smiles, capfd):
+    smiles_to_iupac(smiles)
+    assert capfd.readouterr().err == ""
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        # P-93.5.1: a centre bearing one R and one S ligand is pseudoasymmetric (lowercase s) in the group alone
+        ("c1ccccc1[C@@H]([C@H](C)O)[C@@H](C)O", {6: "s"}),
+        ("c1ccncc1[C@@H]([C@H](C)O)[C@@H](C)O", {6: "s"}),
+        # two like ligands leave the centre achiral, so the group has no pseudoasymmetric centre
+        ("c1ccccc1[C@@H]([C@H](C)O)[C@H](C)O", {}),
+    ],
+)
+def test_pseudoasymmetric_centre_in_a_group_on_an_aromatic_atom(smiles, expected):
+    from rdkit.Chem import rdCIPLabeler
+
+    from smiles_to_iupac._diester_anions import _pseudoasymmetric_in_group
+
+    mol = Chem.MolFromSmiles(smiles)
+    side = {a.GetIdx() for a in mol.GetAtoms() if not a.GetIsAromatic()}
+    rdCIPLabeler.AssignCIPLabels(mol)
+    assert _pseudoasymmetric_in_group(mol, side) == expected

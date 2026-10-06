@@ -32,7 +32,7 @@ from ._numerals import alkane_name, alkyl_name, multiplying_prefix
 from ._polycyclic import find_polycyclic_core, iter_polycyclic_candidates
 from ._spiro import find_monospiro_atom, iter_monospiro_numberings
 from ._unsaturated import _unsaturation_suffix_from_citations
-from ._common import multiplied_word
+from ._common import multiplied_word, sanitize_probe
 
 _SENIORITY = ["F", "Cl", "Br", "I", "O", "S", "Se", "Te", "N", "P", "As", "Sb", "Bi", "Si", "Ge", "Sn", "Pb", "B", "Al", "Ga", "In", "Tl"]
 _RANK = {e: i for i, e in enumerate(_SENIORITY)}
@@ -578,7 +578,7 @@ def _mancude_candidates(mol, skeleton_atoms, sp3):
                 bond.SetBondType(Chem.BondType.SINGLE)
                 bond.SetIsAromatic(False)
         try:
-            Chem.SanitizeMol(trial)
+            sanitize_probe(trial)
         except Exception:
             continue
         yield trial.GetMol(), new_of, old_of
@@ -919,7 +919,7 @@ def _is_appendix3_system(mol, atoms):
         editable.RemoveAtom(idx)
     fragment = editable.GetMol()
     try:
-        Chem.SanitizeMol(fragment)
+        sanitize_probe(fragment)
         return _best_skeleton(fragment, False) is not None
     except Exception:
         return False

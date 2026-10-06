@@ -872,3 +872,8 @@ def test_fullerene_with_characteristic_group_is_named_as_the_parent_with_added_h
     assert smiles_to_iupac(_fullerene_derivative(_FULLERENE_C60_SMILES, {1: "O", 9: None})) == (
         "(C60-Ih)[5,6]fulleren-1(9H)-ol"
     )
+
+
+def test_bridged_fused_naming_does_not_write_rdkit_logs_to_stderr(capfd):
+    smiles_to_iupac(_fullerene_derivative(_FULLERENE_C60_SMILES, {1: _ACETIC, 9: None}))
+    assert capfd.readouterr().err == ""

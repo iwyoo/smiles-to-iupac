@@ -24,7 +24,7 @@ naming modules.
 
 import re
 
-from rdkit import Chem
+from rdkit import Chem, rdBase
 from rdkit.Chem import rdCIPLabeler
 
 from ._numerals import alkane_name, numerical_term
@@ -182,6 +182,12 @@ def reject_unsaturated_substituents(mol, atoms):
     unsaturated N-substituent yet."""
     if any(b[0] in atoms or b[1] in atoms for b in non_single_bonds(mol)):
         raise UnsupportedStructure("an unsaturated N-substituent is not supported yet")
+
+
+def sanitize_probe(mol):
+    # a failed trial sanitize is an expected "no", so keep RDKit's own log line off the caller's stderr
+    with rdBase.BlockLogs():
+        Chem.SanitizeMol(mol)
 
 
 def adjacency(mol):
