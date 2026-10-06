@@ -35,7 +35,6 @@ own C=O, and any specified stereocenter.
 """
 
 
-from ._multiplicative_text import enclose
 from ._amide import _is_carbonyl_carbon, _name_acyclic_amide
 from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
@@ -184,9 +183,7 @@ def name_ether_amide(mol) -> str:
     r_prime_component, _ = bfs(full_carbon_graph, r_prime_carbon)
 
     sub_name, sub_compound = name_branch(full_graph, r_prime_carbon, ether_oxygen_idx, {}, mol=mol)
-    oxy_term = _oxy_prefix(sub_name)
-    if sub_compound:
-        oxy_term = enclose(oxy_term)
+    oxy_term = _oxy_prefix(sub_name, sub_compound)
     extra_names = {ether_oxygen_idx: oxy_term}
 
     return name_via_senior_acyclic(

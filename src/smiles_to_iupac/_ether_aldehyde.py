@@ -34,7 +34,6 @@ stereocenter.
 """
 
 
-from ._multiplicative_text import enclose
 from ._aldehyde import _name_acyclic_aldehyde
 from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
@@ -167,9 +166,7 @@ def name_ether_aldehyde(mol) -> str:
     }
 
     sub_name, sub_compound = name_branch(full_graph, r_prime_carbon, ether_oxygen_idx, {}, mol=mol)
-    oxy_term = _oxy_prefix(sub_name)
-    if sub_compound:
-        oxy_term = enclose(oxy_term)
+    oxy_term = _oxy_prefix(sub_name, sub_compound)
     extra_names = {ether_oxygen_idx: oxy_term}
 
     return name_via_senior_acyclic(

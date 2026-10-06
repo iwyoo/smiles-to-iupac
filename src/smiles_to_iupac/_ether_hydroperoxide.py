@@ -36,7 +36,6 @@ than one ether oxygen or hydroperoxide, any other heteroatom, any ring,
 any chain unsaturation (ene/yne), and any specified stereocenter.
 """
 
-from ._multiplicative_text import enclose
 from ._coexisting_groups import name_via_senior_acyclic
 from ._common import (
     UnsupportedStructure,
@@ -176,9 +175,7 @@ def name_ether_hydroperoxide(mol) -> str:
     }
 
     sub_name, sub_compound = name_branch(full_graph, r_prime_carbon, ether_oxygen_idx, {}, mol=mol)
-    oxy_term = _oxy_prefix(sub_name)
-    if sub_compound:
-        oxy_term = enclose(oxy_term)
+    oxy_term = _oxy_prefix(sub_name, sub_compound)
     extra_names = {ether_oxygen_idx: oxy_term}
 
     return name_via_senior_acyclic(

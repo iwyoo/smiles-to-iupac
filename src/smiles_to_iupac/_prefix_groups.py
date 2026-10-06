@@ -4,6 +4,7 @@ groups, nitro, cyano and carbonyl-derived groups, with alkyl/aryl parts named
 through `name_branch` and every heteroatom inside a branch resolved first.
 """
 
+from ._alkoxy import alkoxy_prefix
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure
 from ._hetero_prefixes import CHALCOGEN_PREFIXES, require_plain_chalcogen_kids, require_senior_group
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
@@ -15,13 +16,7 @@ _ACYL = {"methyl": "acetyl", "phenyl": "benzoyl", "ethyl": "propanoyl", "propyl"
 
 
 def _oxy(name, compound):
-    if name in _CONTRACTED:
-        return _CONTRACTED[name], False
-    if name.endswith("phenyl") and not compound:
-        return name[: -len("phenyl")] + "phenoxy", True
-    if name.endswith(("methyl", "ethyl", "propyl", "butyl")) and "cyclo" not in name:
-        return name[:-2] + "oxy", compound or any(ch.isdigit() for ch in name)
-    return name + "oxy", compound or any(ch.isdigit() for ch in name)
+    return alkoxy_prefix(name, compound)
 
 
 def enclose(name: str) -> str:
@@ -180,7 +175,8 @@ class PrefixNamer:
                     inner = [x for x in graph[q] if x != n]
                     if not inner:
                         return "carboxy", False
-                    return _oxy(*self.name(inner[0], q))[0] + "carbonyl", True
+                    oxy_text, oxy_compound = _oxy(*self.name(inner[0], q))
+                    return (enclose(oxy_text) if oxy_compound else oxy_text) + "carbonyl", True
                 if z == 7 and mol.GetAtomWithIdx(q).GetDegree() == 1:
                     return "carbamoyl", False
                 if z == 6:

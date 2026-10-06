@@ -3,10 +3,9 @@ bottom-up so `name_branch`/`_name_acyl_part` can cite them as plain leaves: hydr
 (alkyl)amino, nitro, cyano, sulfanyl, alkoxy, alkylsulfanyl and acyl/acyloxy (acid name '-ic acid' to '-yl').
 """
 
-import re
-
 from rdkit import Chem
 
+from ._alkoxy import alkoxy_prefix
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, alpha_sort_key
 from ._hetero_prefixes import (
     ANIONIC_PREFIXES,
@@ -23,7 +22,6 @@ from ._retained_acids import is_compound_acyl
 from ._substituents import name_branch
 
 _NATIVE_ROOTS = frozenset({6, 7, 8, 9, 16, 17, 34, 35, 52, 53})
-_RETAINED_ALKYL_END = re.compile(r"(meth|eth|prop|but)yl$")
 
 
 _enclose = enclose
@@ -207,15 +205,7 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 record(node, "phosphonooxy" if rname == "phosphono" else _enclose(rname) + "oxy", True)
             elif len(kids) == 1 and mol.GetAtomWithIdx(kids[0]).GetAtomicNum() in (6, 9, 17, 35, 53):
                 rname, rcompound = child_name(kids[0], node)
-                if rname == "phenyl":
-                    name = "phenoxy"
-                elif _RETAINED_ALKYL_END.search(rname):
-                    name = rname[:-2] + "oxy"
-                elif rname[0].isdigit() or rname[0] == "(":
-                    name = _enclose(rname) + "oxy"
-                else:
-                    name = rname + "oxy"
-                record(node, name, _is_compound(name) or name != "phenoxy" and not _RETAINED_ALKYL_END.search(rname))
+                record(node, *alkoxy_prefix(rname, rcompound))
             else:
                 raise UnsupportedStructure("this oxygen-bearing substituent is not supported yet")
         elif z in CHALCOGEN_PREFIXES:
