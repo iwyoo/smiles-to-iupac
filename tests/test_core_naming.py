@@ -479,3 +479,16 @@ def test_pseudoasymmetric_centre_in_a_group_on_an_aromatic_atom(smiles, expected
     side = {a.GetIdx() for a in mol.GetAtoms() if not a.GetIsAromatic()}
     rdCIPLabeler.AssignCIPLabels(mol)
     assert _pseudoasymmetric_in_group(mol, side) == expected
+
+
+def test_nested_fragment_is_named_once_per_top_level_call(monkeypatch):
+    from smiles_to_iupac import core
+
+    seen = []
+    original = core._name_unabridged
+    monkeypatch.setattr(core, "_name_unabridged", lambda smiles: seen.append(smiles) or original(smiles))
+    core._NESTED_NAMES.clear()
+    smiles = "CS[C@H](C(=O)N[C@H](C(=O)O)C(C)(C)C)C(C)(C)c1ccccc1"
+    name = smiles_to_iupac(smiles)
+    assert len(seen) == len(set(seen))
+    assert smiles_to_iupac(smiles) == name
