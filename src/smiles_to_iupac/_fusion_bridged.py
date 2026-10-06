@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from itertools import groupby, product
 
 import networkx as nx
-from rdkit import Chem
+from rdkit import Chem, rdBase
 
 from ._common import UnsupportedStructure
 from ._fused_numbering import HETERO_RANK, FusedSystem, _locant_key
@@ -603,10 +603,12 @@ def _fused_parent(order, sk):
 
 
 def _kekule(mol, single_bonds=()):
-    """A Kekule form in which the aromatic bonds (begin, end) of `single_bonds` are single, if there is one."""
+    """A Kekule form in which the aromatic bonds (begin, end) of `single_bonds` are single, if there is one.
+    A failed Kekulize is an expected "no", so RDKit's log line is blocked."""
     kekule = Chem.Mol(mol)
     try:
-        Chem.Kekulize(kekule, clearAromaticFlags=True)
+        with rdBase.BlockLogs():
+            Chem.Kekulize(kekule, clearAromaticFlags=True)
     except Exception:
         return kekule
     single_bonds = [(a, b) for a, b in single_bonds if mol.GetBondBetweenAtoms(a, b).GetIsAromatic()]
@@ -618,7 +620,8 @@ def _kekule(mol, single_bonds=()):
         bond.SetBondType(Chem.BondType.SINGLE)
         bond.SetIsAromatic(False)
     try:
-        Chem.Kekulize(forced, clearAromaticFlags=True)
+        with rdBase.BlockLogs():
+            Chem.Kekulize(forced, clearAromaticFlags=True)
     except Exception:
         return None
     return forced.GetMol()
