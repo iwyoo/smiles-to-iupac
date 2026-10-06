@@ -119,9 +119,15 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
         if x == "O" and len(subs) == 1 and _is_amino_nitrogen(mol, subs[0], z_idx):
             return "hydrazinecarbonyl", True
         stem = _CARBAM[x]
+        if subs and mol.GetAtomWithIdx(z_idx).IsInRing() and x in ("O", "S"):
+            from ._hetero_prefixes import _ring_nitrogen_acyl
+
+            return _ring_nitrogen_acyl(graph, z_idx, root, halogens, aromatic_atoms, mol, {"O": "carbonyl", "S": "carbothioyl"}[x])
         amino = _amino(_group_names(graph, mol, subs, z_idx, halogens, aromatic_atoms)) if subs else "amino"
         if n_entries:
-            return _cited([("N", n, c) for _, n, c in n_entries]) + stem, True
+            entries = [("N", n, c) for _, n, c in n_entries]
+            entries += [("N'", *name_branch(graph, m, z_idx, halogens, aromatic_atoms, mol=mol)) for m in subs]
+            return _cited(entries) + stem, True
         return amino[: -len("amino")] + stem, True
     if zn not in _SYMBOL:
         return None
