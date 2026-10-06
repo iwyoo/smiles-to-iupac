@@ -79,6 +79,8 @@ def test_nucleoside_polyphosphate_analogues(smiles, expected):
         ('C1=NC(=C2C(=N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)COP(=O)(O)OS(=O)(=O)O)OP(=O)(O)O)O)N', '3′-O-phosphono-5′-adenylyl hydrogen sulfate'),
         ('C1=NC(=O)C2=C(N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)COP(=O)(O)OCC(=O)O)O)O', '(5′-inosinylyloxy)acetic acid'),
         ('C1=NC2=C(N1[C@H]3C[C@@H]([C@H](O3)COP(=S)(O)Oc4cccc(C(=O)O)c4)O)NC(=NC2=O)N', '3-(2′-deoxy-P-thio-5′-guanylyloxy)benzoic acid'),
+        ('Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)(O)OCP(=O)(O)O)[C@@H](O)[C@H]1O', '[(5′-adenylyloxy)methyl]phosphonic acid'),
+        ('Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)(O)OCC(=S)O)[C@@H](O)[C@H]1O', '2-(5′-adenylyloxy)ethanethioic O-acid'),
     ],
 )
 def test_nucleotidyl_groups(smiles, expected):
