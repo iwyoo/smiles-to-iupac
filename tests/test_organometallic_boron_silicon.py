@@ -743,11 +743,6 @@ def test_smiles_to_iupac_silane_chain(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_branched_silane_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[SiH3][Si]([SiH3])([SiH3])[SiH3]")
-
-
 def test_cyclic_silane():
     assert smiles_to_iupac("[SiH2]1[SiH2][SiH2][SiH2][SiH2]1") == "pentasilolane"
 
@@ -888,4 +883,18 @@ def test_imine_linker_without_senior_unit_group_is_not_multiplicative():
     ],
 )
 def test_ylidene_and_ylidyne_prefixes_on_group_14_hydrides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("c1ccccc1[SiH2][SiH2]c1ccccc1", "1,2-diphenyldisilane"),
+        ("C1CCCCC1[SiH2]C1CCCCC1", "dicyclohexylsilane"),
+        ("[SiH3][Si]([SiH3])([SiH3])[SiH3]", "2,2-disilyltrisilane"),
+        ("[SiH3][SiH]([SiH3])[SiH2][SiH3]", "2-silyltetrasilane"),
+        ("[SiH3][SiH2][SiH]([SiH3])[SiH2][SiH]([SiH3])[SiH2][SiH3]", "3,5-disilylheptasilane"),
+    ],
+)
+def test_group_14_hydride_outranks_two_rings_and_branched_silicon_chain_is_parent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
