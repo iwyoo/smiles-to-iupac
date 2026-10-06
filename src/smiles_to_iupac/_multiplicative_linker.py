@@ -5,6 +5,7 @@ first), single and homonuclear heteroatom groups, and ring components.
 
 from dataclasses import dataclass
 
+from ._hetero_prefixes import MONONUCLEAR_HYDRIDES
 from ._free_valence import SUFFIX_OF_ORDER, citation
 from ._common import ENE_BOND_ORDER, UnsupportedStructure, alpha_sort_key, multiplied_word, suffix_body
 from ._multiplicative_prefix import SIMPLE_PREFIXES, prefix_name, subtree
@@ -15,11 +16,7 @@ from ._substituents import format_mononuclear_prefixes, format_substituent_prefi
 _SINGLE_ATOM_WORDS = {8: "oxy", 16: "sulfanediyl", 34: "selanediyl", 52: "tellanediyl", 7: "azanediyl"}
 _SUBSTITUTABLE_WORDS = {
     7: ("azanediyl", "nitrilo"),
-    5: ("boranediyl", "boranetriyl"),
-    14: ("silanediyl", "silanetriyl"),
-    15: ("phosphanediyl", "phosphanetriyl"),
-    32: ("germanediyl", "germanetriyl"),
-    33: ("arsanediyl", "arsanetriyl"),
+    **{z: (f"{stem}diyl", f"{stem}triyl") for z, (stem, _, _) in MONONUCLEAR_HYDRIDES.items()},
 }
 _CHAIN_STEMS = {7: "azane", 14: "silane", 15: "phosphane", 32: "germane", 33: "arsane", 50: "stannane", 51: "stibane", 82: "plumbane", 83: "bismuthane"}
 _SINGLE_CARBON_MULTIPLE_WORDS = {(1, 2): "methanylylidene", (2, 2): "methanediylidene", (1, 3): "methanylylidyne"}

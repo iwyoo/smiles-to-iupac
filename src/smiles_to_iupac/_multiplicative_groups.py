@@ -30,7 +30,7 @@ SUFFIX_RANKS = {
 
 JUNIOR_RANK = 80
 
-_ALLOWED_ELEMENTS = {1, 5, 6, 7, 8, 9, 14, 15, 16, 17, 32, 33, 34, 35, 50, 51, 52, 53, 82, 83}
+_ALLOWED_ELEMENTS = {1, 5, 6, 7, 8, 9, 13, 14, 15, 16, 17, 31, 32, 33, 34, 35, 49, 50, 51, 52, 53, 81, 82, 83}
 
 _NOT_CARBONYL = "[#6;!$([#6]=[O,S,N])]"
 _CHALCOGEN2 = "[OX2,SX2,SeX2,TeX2;!R]"
