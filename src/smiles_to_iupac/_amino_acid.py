@@ -434,14 +434,37 @@ def has_amino_acid_shape(mol) -> bool:
 
 def _substituent_prefixes(mol, graph, substituents):
     from ._common import halogen_substituents
-    from ._substituents import format_substituent_prefixes, name_branch
+    from ._substituents import BRANCH_STEREO, format_substituent_prefixes, name_branch
 
     halogens = halogen_substituents(mol)
     aromatic = {a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic()}
+    inside = set()
+    for _, site, root in substituents:
+        stack = [root]
+        while stack:
+            node = stack.pop()
+            if node not in inside:
+                inside.add(node)
+                stack.extend(n for n in graph[node] if n != site and n not in inside)
+    probe = Chem.Mol(mol)
+    rdCIPLabeler.AssignCIPLabels(probe)
+    atoms = {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.GetIdx() in inside and a.HasProp("_CIPCode")}
+    bonds = {
+        (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode")
+        for b in probe.GetBonds()
+        if b.HasProp("_CIPCode") and b.GetBeginAtomIdx() in inside and b.GetEndAtomIdx() in inside
+    }
+    context = {"atoms": atoms, "bonds": bonds, "used": set()}
     grouped = {}
-    for locant, site, root in substituents:
-        name, compound = name_branch(graph, root, site, halogens, aromatic, mol)
-        grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
+    token = BRANCH_STEREO.set(context)
+    try:
+        for locant, site, root in substituents:
+            name, compound = name_branch(graph, root, site, halogens, aromatic, mol)
+            grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
+    finally:
+        BRANCH_STEREO.reset(token)
+    if any(("atom", a) not in context["used"] for a in atoms) or any(("bond", b) not in context["used"] for b in bonds):
+        raise UnsupportedStructure("a stereo element of an N-substituent is not cited by any supported name")
     return format_substituent_prefixes(grouped)
 
 
