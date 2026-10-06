@@ -8,7 +8,7 @@ from smiles_to_iupac._common import UnsupportedStructure
     [
         (
             "OC(=O)Cc1ccc(cc1)-c1cc(-c3ccccc3)c(CC(=O)O)cc1",
-            "2,2'-([11,21:23,31-terphenyl]-14,24-diyl)diacetic acid",
+            "2,2'-([1¹,2¹:2³,3¹-terphenyl]-1⁴,2⁴-diyl)diacetic acid",
         ),
         (
             "c1(-c3ccc4ccccc4c3CC(=O)O)cccc2c(CC(=O)O)cccc12",
@@ -27,8 +27,8 @@ def test_assembly_groups(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("OC(=O)c1ccc(-c2ccc(-c3ccccc3)cc2)cc1", "[11,21:24,31-terphenyl]-14-carboxylic acid"),
-        ("Oc1ccc(nc1)-c1ccc(nc1)-c1ccccn1", "[12,22:25,32-terpyridin]-35-ol"),
+        ("OC(=O)c1ccc(-c2ccc(-c3ccccc3)cc2)cc1", "[1¹,2¹:2⁴,3¹-terphenyl]-1⁴-carboxylic acid"),
+        ("Oc1ccc(nc1)-c1ccc(nc1)-c1ccccn1", "[1²,2²:2⁵,3²-terpyridin]-3⁵-ol"),
     ],
 )
 def test_unbranched_assemblies_with_groups(smiles, expected):
@@ -40,7 +40,7 @@ def test_seven_ring_chain_still_is_named():
         smiles_to_iupac(
             "c1ccc(cc1)-c1ccc(cc1)-c1ccc(cc1)-c1ccc(cc1)-c1ccc(cc1)-c1ccc(cc1)-c1ccccc1C"
         )
-        == "12-methyl-1,7(1),2,3,4,5,6(1,4)-heptabenzenaheptaphane"
+        == "1²-methyl-1,7(1),2,3,4,5,6(1,4)-heptabenzenaheptaphane"
     )
 
 
@@ -73,8 +73,8 @@ def test_stereodescriptors_in_a_ring_assembly(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("c1cc2ccccc2cc1-c1ccc2ccccc2c1-c1ccc2ccccc2c1", "12,21:22,32-ternaphthalene"),
-        ("c1ccc2[nH]c(cc2c1)-c1cc2ccccc2n1-c1cc2ccccc2[nH]1", "11H,31H-12,21:22,32-terindole"),
+        ("c1cc2ccccc2cc1-c1ccc2ccccc2c1-c1ccc2ccccc2c1", "1²,2¹:2²,3²-ternaphthalene"),
+        ("c1ccc2[nH]c(cc2c1)-c1cc2ccccc2n1-c1cc2ccccc2[nH]1", "1¹H,3¹H-1²,2¹:2²,3²-terindole"),
     ],
 )
 def test_assemblies_of_three_fused_systems(smiles, expected):
@@ -88,7 +88,7 @@ def test_assemblies_of_three_fused_systems(smiles, expected):
         ("C1CCC2CCCCC2C1-C1CCC2CCCCC2C1", "icosahydro-1,2'-binaphthalene"),
         (
             "C1Cc2ccccc2C1C1Cc2ccccc2C1C1Cc2ccccc2C1",
-            "12,13,22,23,32,33-hexahydro-11H,21H,31H-11,22:21,32-terindene",
+            "1²,1³,2²,2³,3²,3³-hexahydro-1¹H,2¹H,3¹H-1¹,2²:2¹,3²-terindene",
         ),
     ],
 )
@@ -117,8 +117,8 @@ def test_double_bond_junction_between_fused_systems(smiles, expected):
         pytest.param("C1CC1C1CC1", "1,1'-bi(cyclopropane)", id="bicyclopropane"),
         pytest.param("C1=CNC(=C1)C2=CC=CN2", "1H,1'H-2,2'-bipyrrole", id="bipyrrole_carbon_attached_indicated_hydrogen"),
         pytest.param("c1cnn(-n2cccn2)c1", "1,1'-bipyrazole", id="bipyrazole_nitrogen_attached"),
-        pytest.param("c1ccc(-c2cc(-c3ccccc3)cc(-c4ccccc4)c2)cc1", "25-phenyl-11,21:23,31-terphenyl", id="branched_three_ring_assembly_is_named_on_its_longest_chain"),
-        pytest.param("C1C(Cl)C1C1CC1C1CC1", "12-chloro-11,21:22,31-tercyclopropane", id="halogen_substituent"),
+        pytest.param("c1ccc(-c2cc(-c3ccccc3)cc(-c4ccccc4)c2)cc1", "2⁵-phenyl-1¹,2¹:2³,3¹-terphenyl", id="branched_three_ring_assembly_is_named_on_its_longest_chain"),
+        pytest.param("C1C(Cl)C1C1CC1C1CC1", "1²-chloro-1¹,2¹:2²,3¹-tercyclopropane", id="halogen_substituent"),
     ],
 )
 def test_4_chlorobiphenyl_and_related(smiles, expected):
@@ -134,8 +134,8 @@ def test_unsaturated_ring_chain_raises():
     "smiles, expected",
     [
         pytest.param("c1ccc(-c2ccc(-c3ccco3)s2)s1", "2-([2,2'-bithiophen]-5-yl)furan", id="mixed_thiophene_and_furan"),
-        pytest.param("C1=CC=NC(=C1)C2=NC(=CC=C2)C3=CC=CC=N3", "12,22:26,32-terpyridine", id="terpyridine"),
-        pytest.param("c1ccn(-c2cc(-n3cccc3)c[nH]2)c1", "21H-11,22:24,31-terpyrrole", id="terpyrrole_middle_ring_indicated_hydrogen"),
+        pytest.param("C1=CC=NC(=C1)C2=NC(=CC=C2)C3=CC=CC=N3", "1²,2²:2⁶,3²-terpyridine", id="terpyridine"),
+        pytest.param("c1ccn(-c2cc(-n3cccc3)c[nH]2)c1", "21H-1¹,2²:2⁴,3¹-terpyrrole", id="terpyrrole_middle_ring_indicated_hydrogen"),
     ],
 )
 def test_mixed_thiophene_and_and_related(smiles, expected):

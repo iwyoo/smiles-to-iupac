@@ -109,7 +109,7 @@ def test_ring_stereocenter_with_two_substituents():
 def test_ortho_fused_tetrabenzenacyclooctaphane_is_named_with_a_warning():
     with pytest.warns(NonPreferredNameWarning, match="phane"):
         name = smiles_to_iupac("Cc1cccc2c1CC1=CC=CC(=C1)CC1=CC=CC(=C1)CC1=CC=CC(=C1)C2")
-    assert name == "13-methyl-1(1,2),3,5,7(1,3)-tetrabenzenacyclooctaphane"
+    assert name == "1³-methyl-1(1,2),3,5,7(1,3)-tetrabenzenacyclooctaphane"
 
 
 @pytest.mark.slow
@@ -140,7 +140,7 @@ def test_substituted_metacyclophane_is_named():
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("Oc1cc2ccc1CCc1ccc(cc1)CC2", "1,4(1,4)-dibenzenacyclohexaphan-12-ol"),
+        ("Oc1cc2ccc1CCc1ccc(cc1)CC2", "1,4(1,4)-dibenzenacyclohexaphan-1²-ol"),
     ],
 )
 def test_phane_with_principal_group_takes_suffix(smiles, expected):
@@ -221,7 +221,7 @@ def test_biphenyl_assembly_stays_assembly():
             "[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-2-ylidene]acetic acid",
         ),
         pytest.param("OC(=O)C=C1C=C2Cc3cccc(n3)Cc3cccc(n3)Cc3cccc(n3)CC(=C1)N2",
-            "[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-14(11H)-ylidene]acetic acid", marks=pytest.mark.slow),
+            "[1,3,5,7(2,6)-tetrapyridinacyclooctaphan-1⁴(1¹H)-ylidene]acetic acid", marks=pytest.mark.slow),
     ],
 )
 def test_pyridine_amplificants_and_ylidene_groups(smiles, expected):

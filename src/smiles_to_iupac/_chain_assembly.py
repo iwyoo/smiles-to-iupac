@@ -6,7 +6,7 @@ import re
 from itertools import product
 
 from ._free_valence import SUFFIX_OF_ORDER, valence_word
-from ._common import multiplied_word, ring_cycle
+from ._common import multiplied_word, ring_cycle, superscript_locant
 from ._multiplicative import _bare_key
 from ._multiplicative_ring import _SUFFIX_WORDS, _citation_key, monocycle_spec, numberings
 from ._multiplicative_text import CompositeLocant
@@ -18,7 +18,7 @@ _MAX_FUSED_UNITS = 4
 
 
 def _cite(locant):
-    return f"{locant[0]}{locant[1]}"
+    return superscript_locant(*locant)
 
 
 def _longest_paths(mol, rings):
@@ -187,9 +187,10 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
     _, locants, junction_text, entries, count, head = best
     grouped = {}
     for r, name, compound in entries:
-        grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(_cite(locants[r]))
+        grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locants[r])
     for info in grouped.values():
-        info["locants"].sort(key=lambda text: (int(text[0]), float(text[1:].rstrip("abcdefghijklmnopqrstuvwxyz") or 0), text))
+        info["locants"].sort(key=lambda loc: (loc[0], float(str(loc[1]).rstrip("abcdefghijklmnopqrstuvwxyz") or 0), str(loc[1])))
+        info["locants"] = [_cite(loc) for loc in info["locants"]]
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     junction_str = ":".join(f"{_cite(a)},{_cite(b)}" for a, b in junction_text)
     ih_text = ""
@@ -197,11 +198,11 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
         stem, hydro, full = head[1]
         ring_word = stem
         if hydro:
-            cited = [f"{ring}{p}" for ring in range(1, count + 1) for p in hydro]
+            cited = [superscript_locant(ring, p) for ring in range(1, count + 1) for p in hydro]
             word = multiplied_word(len(cited), "hydro")
             ih_text = (word if full else f"{','.join(cited)}-{word}") + "-"
         if head[0]:
-            ih_text += ",".join(f"{ring}{p}H" for ring, p in head[0]) + "-"
+            ih_text += ",".join(f"{superscript_locant(ring, p)}H" for ring, p in head[0]) + "-"
     else:
         ring_word = "phenyl" if spec.kind == "benzene" else spec.parent
 

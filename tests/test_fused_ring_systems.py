@@ -271,7 +271,7 @@ def _synthetic_chain(sizes, edge_pair_at_middle):
         pytest.param("C1(C=Nc2ccccc12)", "3H-indole", id="3h_indole_tautomer_is_distinct_from_1h_indole"),
         pytest.param("c1ccc2cc3cc4cc5cc6c(ccc7ccccc76)cc5cc4cc3cc2c1", "benzo[a]hexacene", id="benzo_a_hexacene"),
         pytest.param("c1ccc2cc3cc4cc5cc6ccccc6cc5cc4cc3cc2c1", "hexacene", id="plain_hexacene_still_resolves"),
-        pytest.param("Cc1cc2ccc3cc2cc1CCc1ccc(cc1)CCC3", "13-methyl-1(2,7)-naphthalena-4(1,4)-benzenacycloheptaphane", id="substituent_on_a_naphthalene_amplificant_gets_a_composite_locant"),
+        pytest.param("Cc1cc2ccc3cc2cc1CCc1ccc(cc1)CCC3", "1³-methyl-1(2,7)-naphthalena-4(1,4)-benzenacycloheptaphane", id="substituent_on_a_naphthalene_amplificant_gets_a_composite_locant"),
         pytest.param("c1cc2ccc1CCc1ccc(nc1)CC2", "1(2,5)-pyridina-4(1,4)-benzenacyclohexaphane", id="pyridine_benzene_equal_bridge_phane"),
         pytest.param("c1cc2ccc1CCCc1ccc(nc1)CC2", "1(2,5)-pyridina-4(1,4)-benzenacycloheptaphane", id="pyridine_benzene_unequal_bridge_phane"),
     ],
@@ -588,9 +588,9 @@ def test_fusion_engine_decompositions_and_bridges(smiles, expected):
         # P-26.4.3: composite locants, indicated hydrogen in an amplificant
         (
             "Clc1c2ccc(c1Cl)C(Cl)(Cl)Cc1cc(c(Cl)c(Cl)c1Cl)CCC2",
-            "14,15,16,3,3,42,43-heptachloro-1(1,3),4(1,4)-dibenzenacycloheptaphane",
+            "1⁴,1⁵,1⁶,3,3,4²,4³-heptachloro-1(1,3),4(1,4)-dibenzenacycloheptaphane",
         ),
-        ("C1=C2CCc3cccc(c3)CCC(=CO1)C2", "14H-1(3,5)-pyrana-4(1,3)-benzenacyclohexaphane"),
+        ("C1=C2CCc3cccc(c3)CCC(=CO1)C2", "1⁴H-1(3,5)-pyrana-4(1,3)-benzenacyclohexaphane"),
         # P-26.5: skeletal replacement in the skeleton and in amplificants
         ("c1c2noc1CSCC1CCC(CC1)CSC2", "3,7-dithia-1(3,5)-[1,2]oxazola-5(1,4)-cyclohexanacyclooctaphane"),
         (
@@ -599,14 +599,14 @@ def test_fusion_engine_decompositions_and_bridges(smiles, expected):
         ),
         (
             "c1cc2cc(c1)CN1CCOCCOCCN(CCOCCOCC1)Cc1cccc(c1)CCC2",
-            "34,37,313,316-tetraoxa-31,310-diaza-3(1,10)-cyclooctadecana-1,5(1,3)-dibenzenacyclooctaphane",
+            "3⁴,3⁷,3¹³,3¹⁶-tetraoxa-3¹,3¹⁰-diaza-3(1,10)-cyclooctadecana-1,5(1,3)-dibenzenacyclooctaphane",
         ),
         (
             "c1cc2ccc1COCCOCCOCC13CCC(CC1)(COCCOCCOC2)O3",
-            "17,3,6,9,13,16,19-heptaoxa-1(1,4)-bicyclo[2.2.1]heptana-11(1,4)-benzenacycloicosaphane",
+            "1⁷,3,6,9,13,16,19-heptaoxa-1(1,4)-bicyclo[2.2.1]heptana-11(1,4)-benzenacycloicosaphane",
         ),
         pytest.param("c1cc2oc1OC1CCSC(CCCCCCCCO1)OCCCCCOC1CCCCCCCCSC(CCO1)O2",
-            "14,2,4,514,6,12-hexaoxa-114,54-dithia-3(2,5)-furana-1,5(1,5)-dicyclotetradecanacyclododecaphane", marks=pytest.mark.slow),
+            "1⁴,2,4,5¹⁴,6,12-hexaoxa-1¹⁴,5⁴-dithia-3(2,5)-furana-1,5(1,5)-dicyclotetradecanacyclododecaphane", marks=pytest.mark.slow),
         # P-26.2.2.2.1 stereoparent amplificant, P-26.2.3.2 bis before a prefix that starts with a multiplying prefix
         pytest.param("c1cc2ccc1CCC1CCC3C(CCC4C5CCC(CC2)C5CCC34)C1", "1(3,17)-gonana-4(1,4)-benzenacyclohexaphane", marks=pytest.mark.slow),
         pytest.param("c1cc2ccc1CCc1ccc3c(c1)C14CCCCC1C(C3)N(CC2)CC4", "1(3,17)-morphinana-4(1,4)-benzenacyclohexaphane", marks=pytest.mark.slow),
@@ -626,15 +626,15 @@ def test_phane_parent_hydrides_of_p26(smiles, expected):
         ("C1=Cc2cccc(c2)CCCCCCCc2cccc(c2)CCCCC1", "1,9(1,3)-dibenzenacyclohexadecaphan-2-ene"),
         (
             "C1=CC2CCCCCCCc3cccc(c3)CCCCCCCC(=C1)C2",
-            "1(1,3)-benzena-9(1,3)-cyclohexanacyclohexadecaphane-93,95-diene",
+            "1(1,3)-benzena-9(1,3)-cyclohexanacyclohexadecaphane-9³,9⁵-diene",
         ),
         ("C1#Cc2cccc(c2)CCCCCCc2cccc(c2)CC=C1", "1,7(1,3)-dibenzenacyclotridecaphan-4-en-2-yne"),
         pytest.param("C1=C/c2cccc(c2)CCCCCCCc2cccc(c2)CCCCC/1", "(2E)-1,9(1,3)-dibenzenacyclohexadecaphan-2-ene", marks=pytest.mark.slow),
         pytest.param("C1=C\\c2cccc(c2)CCCCCCCc2cccc(c2)CCCCC/1", "(2Z)-1,9(1,3)-dibenzenacyclohexadecaphan-2-ene", marks=pytest.mark.slow),
-        ("C1=C2CCCCCc3cccc(n3)CCCCCC(=CC1)N2", "11,14-dihydro-1,7(2,6)-dipyridinacyclododecaphane"),
+        ("C1=C2CCCCCc3cccc(n3)CCCCCC(=CC1)N2", "1¹,1⁴-dihydro-1,7(2,6)-dipyridinacyclododecaphane"),
         (
             "c1cc2ccc1CCCC1CCC3CCC(CCC2)CC3C1",
-            "11,12,13,14,14a,15,16,17,18,18a-decahydro-1(2,7)-naphthalena-5(1,4)-benzenacyclooctaphane",
+            "1¹,1²,1³,1⁴,1⁴ᵃ,1⁵,1⁶,1⁷,1⁸,1⁸ᵃ-decahydro-1(2,7)-naphthalena-5(1,4)-benzenacyclooctaphane",
         ),
     ],
 )
@@ -650,10 +650,10 @@ def test_phane_unsaturation_and_hydrogenation(smiles, expected):
         ("O[C@H]1Cc2ccc(cc2)CCc2ccc1cc2", "(2S)-1,4(1,4)-dibenzenacyclohexaphan-2-ol"),
         ("O[C@H]1c2ccc(cc2)CCc2ccc(cc2)[C@@H]1O", "(2S,3S)-1,4(1,4)-dibenzenacyclohexaphane-2,3-diol"),
         ("O[C@@H]1c2ccc(cc2)CCc2ccc(cc2)[C@@H]1O", "(2R,3S)-1,4(1,4)-dibenzenacyclohexaphane-2,3-diol"),
-        ("O[C@@H]1CC2CCc3ccc(cc3)CCC1CC2", "(42R)-1(1,4)-benzena-4(1,4)-cyclohexanacyclohexaphan-42-ol"),
-        ("C[C@@H](Cl)c1cc2ccc1CCc1ccc(CC2)cc1", "12-[(1R)-1-chloroethyl]-1,4(1,4)-dibenzenacyclohexaphane"),
+        ("O[C@@H]1CC2CCc3ccc(cc3)CCC1CC2", "(4²R)-1(1,4)-benzena-4(1,4)-cyclohexanacyclohexaphan-4²-ol"),
+        ("C[C@@H](Cl)c1cc2ccc1CCc1ccc(CC2)cc1", "1²-[(1R)-1-chloroethyl]-1,4(1,4)-dibenzenacyclohexaphane"),
         ("C[C@@H](Cl)C1Cc2ccc(cc2)CCc2ccc1cc2", "2-[(1R)-1-chloroethyl]-1,4(1,4)-dibenzenacyclohexaphane"),
-        ("C[C@H](Cl)[C@@H](Cl)c1cc2ccc1CCc1ccc(CC2)cc1", "12-[(1S,2S)-1,2-dichloropropyl]-1,4(1,4)-dibenzenacyclohexaphane"),
+        ("C[C@H](Cl)[C@@H](Cl)c1cc2ccc1CCc1ccc(CC2)cc1", "1²-[(1S,2S)-1,2-dichloropropyl]-1,4(1,4)-dibenzenacyclohexaphane"),
     ],
 )
 def test_phane_stereodescriptors_on_the_phane_and_in_its_substituents(smiles, expected):

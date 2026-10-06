@@ -19,8 +19,7 @@ excluded for now), per the IUPAC 2013 Recommendations ("the Blue Book"):
   primed-locant numbering for the N=2 case: each ring gets a **primary
   locant** (1, 2, 3, ... for its position along the chain) and its own
   internal ring-atom locants are cited as **superscripts** on that primary
-  locant (rendered here, matching the primary source's own plain-text
-  fallback, as the two digits concatenated -- ring 2's atom 4 is "24").
+  locant (ring 2's atom 4 is "2⁴").
   Locants indicating the junction (attachment) points are cited at the
   front of the name, each junction's pair of locants comma-separated, and
   junctions colon-separated in path order; the choice of which physical
@@ -118,6 +117,7 @@ from ._common import (
     group_substituents,
     halogen_substituents,
     ring_cycle,
+    superscript_locant,
     substituent_locant_set_and_citation,
     validate_allowed_atoms,
     validate_atoms_and_bonds,
@@ -460,7 +460,7 @@ def name_ring_assembly_chain(mol, core) -> str:
             for atom, composite in locants.items():
                 branch_roots = [nb for nb in graph[atom] if nb not in ring_atoms_all]
                 if branch_roots:
-                    position = f"{composite[0]}{composite[1]}"
+                    position = superscript_locant(*composite)
                     substituents[position] = [
                         name_branch(graph, root, atom, halogens, mol=mol) for root in branch_roots
                     ]
@@ -469,7 +469,7 @@ def name_ring_assembly_chain(mol, core) -> str:
             prefix = format_substituent_prefixes(grouped) if grouped else ""
 
             junction_str = ":".join(
-                f"{a[0]}{a[1]},{b[0]}{b[1]}" for a, b in junction_pairs
+                f"{superscript_locant(*a)},{superscript_locant(*b)}" for a, b in junction_pairs
             )
             base = f"{junction_str}-{_MULTIPLIER[n]}{ring_word}"
             # P-28.2.3: indicated hydrogen, if any, is cited at the very
