@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from rdkit import Chem
 
-from ._acyclic import longest_chain_length, winning_chain_from_carbon_graph, winning_chain_with_key
+from ._acyclic import longest_chain_length
 from ._common import (
     UnsupportedStructure,
     adjacency,
@@ -19,7 +19,8 @@ from ._common import (
     specified_stereocenters,
 )
 from ._multiplicative_text import enclose
-from ._substituents import name_branch
+from ._substituents import CompoundPrefix, name_branch
+from ._terminal_chain import best_terminal_chain
 
 
 @dataclass(frozen=True)
@@ -86,7 +87,7 @@ class Chalcogenide:
             sub_name, sub_compound = name_branch(graph, r_prime, hetero_idx, {}, mol=mol)
             if sub_compound:
                 sub_name = enclose(sub_name)
-            return f"{self._prefix(sub_name)}benzene"
+            return f"{enclose(self._prefix(sub_name))}benzene"
 
         blocked_graph = {node: [n for n in neighbors if n != hetero_idx] for node, neighbors in graph.items()}
         del blocked_graph[hetero_idx]
@@ -96,13 +97,11 @@ class Chalcogenide:
         sub_name, sub_compound = name_branch(graph, r_prime, hetero_idx, {}, mol=mol)
         if sub_compound:
             sub_name = enclose(sub_name)
-        prefix_term = self._prefix(sub_name)
+        prefix_term = CompoundPrefix(self._prefix(sub_name))
         branch_name, is_compound = name_branch(graph, chain_root, ring_atom, {hetero_idx: prefix_term}, mol=mol)
         if not is_compound:
             return f"{branch_name}benzene"
-        if "(" in branch_name:
-            return f"[{branch_name}]benzene"
-        return f"({branch_name})benzene"
+        return f"{enclose(branch_name)}benzene"
 
     def name(self, mol) -> str:
         if len(Chem.GetMolFrags(mol)) > 1:
@@ -142,12 +141,8 @@ class Chalcogenide:
                 name_b, compound_b = name_branch(full_graph, n2, hetero_idx, {}, mol=mol)
                 sub_from_a = enclose(name_a) if compound_a else name_a
                 sub_from_b = enclose(name_b) if compound_b else name_b
-                key_a, _, _ = winning_chain_with_key(
-                    full_graph, graph_a, {hetero_idx: self._prefix(sub_from_b)}, mol=mol
-                )
-                key_b, _, _ = winning_chain_with_key(
-                    full_graph, graph_b, {hetero_idx: self._prefix(sub_from_a)}, mol=mol
-                )
+                key_a = best_terminal_chain(full_graph, graph_a, {hetero_idx: self._prefix(sub_from_b)}, mol=mol)[0]
+                key_b = best_terminal_chain(full_graph, graph_b, {hetero_idx: self._prefix(sub_from_a)}, mol=mol)[0]
                 parent_root, sub_root = (n1, n2) if key_a <= key_b else (n2, n1)
         elif size1 > size2:
             parent_root, sub_root = n1, n2
@@ -160,7 +155,7 @@ class Chalcogenide:
 
         parent_carbon_graph = component_subgraph(carbon_graph, parent_root)
         terminals = {hetero_idx: self._prefix(sub_name)}
-        chain, name = winning_chain_from_carbon_graph(full_graph, parent_carbon_graph, terminals, mol=mol)
+        _, chain, name = best_terminal_chain(full_graph, parent_carbon_graph, terminals, mol=mol)
 
         stereo = specified_stereocenters(mol)
         if stereo is None:

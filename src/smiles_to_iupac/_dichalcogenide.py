@@ -12,17 +12,14 @@ from ._common import (
     adjacency,
     carbon_adjacency,
     component_subgraph,
-    group_substituents,
     is_plain_benzene_ring,
-    longest_chains,
     non_single_bonds,
     ring_chain_attachment,
     specified_stereocenters,
-    substituent_locant_set_and_citation,
 )
-from ._multiplicative_text import enclose
-from ._numerals import alkane_name, multiplying_prefix
-from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain_forced_compound_terminals
+from ._numerals import multiplying_prefix
+from ._terminal_chain import best_terminal_chain
+from ._substituents import name_branch
 
 
 @dataclass(frozen=True)
@@ -134,47 +131,6 @@ class Dichalcogenide:
             (c2,) = [n.GetIdx() for n in e2.GetNeighbors() if n.GetIdx() != inner_neighbor_2]
         return e1_idx, e2_idx, c1, c2, len(order)
 
-    @staticmethod
-    def _name_from_substituents(chain_length, grouped, bare_name):
-        if chain_length == 1 and grouped:
-            (name,) = grouped
-            if name == bare_name:
-                return name + alkane_name(chain_length)
-            return format_substituent_prefixes(grouped, omit_locants=True) + alkane_name(chain_length)
-        total_subs = sum(len(info["locants"]) for info in grouped.values())
-        if chain_length == 2 and total_subs == 1:
-            (name,) = grouped
-            if name == bare_name:
-                display_name = name
-            else:
-                display_name = enclose(name) if grouped[name]["compound"] else name
-            return display_name + alkane_name(chain_length)
-        prefix = format_substituent_prefixes(grouped)
-        return prefix + alkane_name(chain_length)
-
-    def _candidate_key(self, chain_length, substituents, bare_name):
-        grouped = group_substituents(substituents)
-        locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
-        name = self._name_from_substituents(chain_length, grouped, bare_name)
-        return (-total_count, locant_set, citation_locants, name), name
-
-    def _name_parent_chain(self, full_graph, carbon_graph, terminals, bare_name, mol=None):
-        chains = longest_chains(carbon_graph)
-        chain_length = len(chains[0])
-
-        best_key = None
-        best_name = None
-        best_chain = None
-        for chain in chains:
-            for candidate in (chain, list(reversed(chain))):
-                substituents = substituents_for_chain_forced_compound_terminals(
-                    full_graph, candidate, terminals, mol=mol
-                )
-                key, name = self._candidate_key(chain_length, substituents, bare_name)
-                if best_key is None or key < best_key:
-                    best_key, best_name, best_chain = key, name, candidate
-        return best_chain, best_name
-
     def _name_benzene_ring_chain(self, mol, ring_atoms) -> str:
         e1_idx, e2_idx, c1, c2, n = self._validate_and_find(mol, aromatic_ring_atoms=ring_atoms)
         if c1 is None or c2 is None:
@@ -253,7 +209,7 @@ class Dichalcogenide:
             terminals = {parent_e: sub_name + bare_name}
 
         parent_carbon_graph = component_subgraph(carbon_graph, parent_root)
-        chain, name = self._name_parent_chain(full_graph, parent_carbon_graph, terminals, bare_name, mol=mol)
+        _, chain, name = best_terminal_chain(full_graph, parent_carbon_graph, terminals, bare_name, mol=mol)
 
         stereo = specified_stereocenters(mol)
         if stereo is None:

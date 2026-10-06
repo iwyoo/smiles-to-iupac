@@ -344,6 +344,11 @@ def _candidate_key(grouped):
     return -total_count, locant_set, citation_locants
 
 
+class CompoundPrefix(str):
+    """A terminal prefix name (e.g. 'methylsulfanyl') that is itself a compound prefix (P-16.5.1.1), so it is
+    cited in enclosing marks when passed through `halogens`."""
+
+
 def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mol=None, unsaturated=None):
     try:
         return _name_branch(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated)
@@ -384,7 +389,7 @@ def _name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, m
     halogens = halogens or {}
     aromatic_atoms = aromatic_atoms or frozenset()
     if root in halogens:
-        return halogens[root], False
+        return halogens[root], isinstance(halogens[root], CompoundPrefix)
     if unsaturated is None:
         unsaturated = mol is not None
     attach_order = 1.0
