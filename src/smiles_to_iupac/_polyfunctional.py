@@ -670,26 +670,27 @@ def _aminium_base(mol):
     """The mol with its ammonium nitrogen neutralised when the only charge is one N+ bonded to carbon and hydrogen
     (a cation outranks every acid, P-41), else None."""
     charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
-    if len(charged) != 1 or charged[0].GetFormalCharge() != 1 or charged[0].GetAtomicNum() != 7:
+    if not charged or any(a.GetFormalCharge() != 1 or a.GetAtomicNum() != 7 for a in charged):
         return None
-    nitrogen = charged[0]
-    if (
-        nitrogen.GetIsAromatic()
-        or nitrogen.IsInRing()
-        or nitrogen.GetDegree() + nitrogen.GetTotalNumHs() != 4
-        or any(
-            n.GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
-            for n in nitrogen.GetNeighbors()
-        )
-    ):
-        return None
-    if nitrogen.GetTotalNumHs() == 0:
+    for nitrogen in charged:
+        if (
+            nitrogen.GetIsAromatic()
+            or nitrogen.IsInRing()
+            or nitrogen.GetDegree() + nitrogen.GetTotalNumHs() != 4
+            or any(
+                n.GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
+                for n in nitrogen.GetNeighbors()
+            )
+        ):
+            return None
+    if all(n.GetTotalNumHs() == 0 for n in charged):
         return mol
     neutral = Chem.RWMol(mol)
-    atom = neutral.GetAtomWithIdx(nitrogen.GetIdx())
-    atom.SetFormalCharge(0)
-    atom.SetNumExplicitHs(nitrogen.GetTotalNumHs() - 1)
-    atom.SetNoImplicit(True)
+    for nitrogen in charged:
+        atom = neutral.GetAtomWithIdx(nitrogen.GetIdx())
+        atom.SetFormalCharge(0)
+        atom.SetNumExplicitHs(nitrogen.GetTotalNumHs() - 1 if nitrogen.GetTotalNumHs() else 0)
+        atom.SetNoImplicit(True)
     Chem.SanitizeMol(neutral)
     return neutral.GetMol()
 
@@ -738,6 +739,10 @@ def _name_aminium(base, labels=None, parent="amine"):
         AMINIUM.reset(token)
     if not name.endswith(("amine", "aniline", "imine") if parent == "imine" else ("amine", "aniline")):
         raise UnsupportedStructure("the cation is not named as an amine or imine parent")
+    multiple = re.search(r"(di|tri|tetra|penta|hexa)(amine|aniline)$", name)
+    if multiple is not None:
+        word = {"di": "bis", "tri": "tris", "tetra": "tetrakis", "penta": "pentakis", "hexa": "hexakis"}[multiple.group(1)]
+        return f"{name[:multiple.start()]}{word}(aminium)"
     return name[:-1] + "ium"
 
 

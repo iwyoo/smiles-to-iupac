@@ -857,6 +857,25 @@ def test_iminium_and_mixed_ionic_centres(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("C1C[OH+]CC[OH+]1", "1,4-dioxane-1,4-diium", id="ring_heteroatoms_keep_the_e_before_diium"),
+        pytest.param("C[N+]1(C)CC[N+](C)(C)CC1", "1,1,4,4-tetramethylpiperazine-1,4-diium", id="substituents_on_the_cationic_ring_nitrogens"),
+        pytest.param("C[n+]1cc[n+](C)cc1", "1,4-dimethylpyrazine-1,4-diium", id="aromatic_ring_with_two_cationic_nitrogens"),
+        pytest.param("C1C[NH+]2CC[NH+]1CC2", "1,4-diazabicyclo[2.2.2]octane-1,4-diium", id="bicyclic_skeleton_centres"),
+        pytest.param("C[N+](C)=[N+](C)C", "tetramethyldiazene-1,2-diium", id="fully_substituted_pair_omits_locants"),
+        pytest.param("C[NH2+][NH2+]C", "1,2-dimethylhydrazine-1,2-diium", id="partly_substituted_pair_cites_locants"),
+        pytest.param("C[N+](C)(C)CC[N+](C)(C)C", "N1,N1,N1,N2,N2,N2-hexamethylethane-1,2-bis(aminium)", id="quaternary_bis_aminium"),
+        pytest.param("C[NH2+]CC[NH2+]C", "N1,N2-dimethylethane-1,2-bis(aminium)", id="secondary_bis_aminium"),
+        pytest.param("[NH3+]CC(C(=O)O)C[NH3+]", "2-carboxypropane-1,3-bis(aminium)", id="bis_aminium_with_a_prefix_group"),
+        pytest.param("C1C[NH2+]CC[NH2+]1.[Cl-].[Cl-]", "piperazine-1,4-diium dichloride", id="dication_salt"),
+    ],
+)
+def test_several_identical_cationic_centres(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param(
             "C[n+]1c(-c2ccccc2)cc(-c2ccccc2)cc1C(=O)[O-]",
             "1-methyl-4,6-diphenylpyridin-1-ium-2-carboxylate",
