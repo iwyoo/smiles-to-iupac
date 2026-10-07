@@ -452,7 +452,10 @@ def _validate_and_collect_ketones(mol, aromatic_ring_atoms=frozenset()):
                     "of scope for this module"
                 )
             carbon_neighbors = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6]
-            if len(carbon_neighbors) != 2:
+            is_ketene = len(carbon_neighbors) == 1 and (
+                mol.GetBondBetweenAtoms(carbon.GetIdx(), carbon_neighbors[0].GetIdx()).GetBondTypeAsDouble() == 2.0
+            )
+            if len(carbon_neighbors) != 2 and not is_ketene:
                 raise UnsupportedStructure(
                     "a carbonyl carbon with fewer than two carbon neighbors "
                     "(an aldehyde or terminal carbonyl) is a more senior "
@@ -478,6 +481,9 @@ def _validate_and_collect_ketones(mol, aromatic_ring_atoms=frozenset()):
 
 
 def _name_from_substituents(chain_length, one_locants, ene_locants, yne_locants, grouped):
+    if chain_length == 2 and list(one_locants) == [1] and list(ene_locants) == [1] and not yne_locants:
+        # P-14.3.4.4: no isomer of a substituted ethenone (ketene) exists, so every locant is omitted
+        return format_substituent_prefixes(grouped, omit_locants=True) + "ethenone"
     return format_substituent_prefixes(grouped, omit_locants=chain_length == 1) + name_from_substituents(
         chain_length, ene_locants, yne_locants, multiplied_word(len(one_locants), "one"), one_locants, substituted=bool(grouped)
     )

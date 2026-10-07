@@ -24,11 +24,6 @@ def test_tetrasulfide_chain_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_both_terminal_disulfane_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("SS")
-
-
 @pytest.mark.parametrize(
     "smiles,expected",
     [
@@ -768,6 +763,22 @@ def test_sulfonimidamides_and_sulfinimidamides(smiles, expected):
     ],
 )
 def test_sulfamic_acid_and_the_amides_of_sulfuric_and_sulfurous_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[AsH5]", "λ5-arsane", id="pnictogen_hypervalent"),
+        pytest.param("[IH3]", "λ3-iodane", id="halogen_hypervalent"),
+        pytest.param("[SnH2]", "λ2-stannane", id="below_standard_bare_atom"),
+        pytest.param("C[SH3]", "methyl-λ4-sulfane", id="substituted_hypervalent"),
+        pytest.param("SSS", "trisulfane", id="homogeneous_chalcogen_chain"),
+        pytest.param("S[SH2]S", "2λ4-trisulfane", id="chain_lambda_locant"),
+        pytest.param("OO", "dioxidane", id="dioxidane"),
+    ],
+)
+def test_nonstandard_bonding_number_hydrides_and_chalcogen_chains(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

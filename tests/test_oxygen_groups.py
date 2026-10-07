@@ -147,11 +147,6 @@ def test_formaldehyde_raises():
         smiles_to_iupac("C=O")
 
 
-def test_ketene_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCCCCCCCCCCCCCC=C=O")
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC=C=O")
 
 
 def test_benzaldehyde():
@@ -1025,3 +1020,25 @@ def test_acetal_name_accounts_for_every_carbon(alkoxy_a, alkoxy_b, acyl):
     smiles = f"{alkoxy_a}OC({acyl})O{alkoxy_b}"
     carbons = sum(1 for atom in Chem.MolFromSmiles(smiles).GetAtoms() if atom.GetAtomicNum() == 6)
     assert _carbons_in_acyclic_name(smiles_to_iupac(smiles)) == carbons
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C=C=O", "ethenone", id="ketene_P-64.2.1.2"),
+        pytest.param("BrC(Br)=C=O", "dibromoethenone", id="locants_omitted_P-14.3.4.5"),
+        pytest.param("ClC=C=O", "chloroethenone", id="locants_omitted_P-14.3.4.4"),
+        pytest.param("CCCCC(=C=O)CCCC", "2-butylhex-1-en-1-one", id="chain_through_ketene_carbon"),
+        pytest.param("O=C=C1CCCCC1", "cyclohexylidenemethanone", id="ring_ylidene_methanone"),
+        pytest.param("CC=C=O", "prop-1-en-1-one", id="longer_ketene"),
+        pytest.param("O=C=C=C", "propa-1,2-dien-1-one", id="cumulated_diene"),
+    ],
+)
+def test_ketenes_are_named_as_ene_ones(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize("smiles", ["O=C=CC(=O)O", "O=C=CC(N)C", "O=C=CCC(C)=O"])
+def test_ketene_with_other_groups_is_rejected_not_misnamed(smiles):
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac(smiles)
