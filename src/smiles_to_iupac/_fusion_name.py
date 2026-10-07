@@ -796,6 +796,7 @@ def _fusion_name_core(mol):
 _STANDARD_BONDING = {
     "N": 3, "P": 3, "As": 3, "Sb": 3, "Bi": 3, "B": 3, "Al": 3, "Ga": 3, "In": 3, "Tl": 3,
     "O": 2, "S": 2, "Se": 2, "Te": 2, "Si": 4, "Ge": 4, "Sn": 4, "Pb": 4,
+    "F": 1, "Cl": 1, "Br": 1, "I": 1,
 }
 
 
@@ -828,6 +829,15 @@ def _capacity(atom):
     return 1 if standard - degree - atom.GetTotalNumHs() == 1 and degree <= 2 else 0
 
 
+def _valence(atom):
+    return int(round(sum(b.GetBondTypeAsDouble() for b in atom.GetBonds()) + atom.GetTotalNumHs()))
+
+
+def _above_standard(atom):
+    standard = _STANDARD_BONDING.get(atom.GetSymbol())
+    return standard is not None and _valence(atom) > standard
+
+
 def _bonding_numbers(mol):
     """{atom: n} of ring heteroatoms with a bonding number above the standard one (P-25.6) and {atom: c} of atoms with c
     double bonds in the ring, c >= 2 (the delta convention, P-25.7.2)."""
@@ -851,7 +861,7 @@ def _indicated_hydrogen_atoms(mol):
         if capacity and _double_bonds(atom) < capacity and (atom.GetTotalNumHs() > 0 or capacity > 1):
             atoms.append(atom.GetIdx())
     for atom in kekule.GetAtoms():
-        if not _capacity(atom) and atom.GetTotalNumHs() > 0 and atom.IsInRing():
+        if not _capacity(atom) and atom.GetTotalNumHs() > 0 and atom.IsInRing() and not _above_standard(atom):
             atoms.append(atom.GetIdx())
     return atoms
 
@@ -868,19 +878,41 @@ def system_numbering_options(ctx, name, root):
     return fused_numberings(ctx.sk)
 
 
-def name_fused_ring_system(mol):
-    """Name with indicated hydrogen, lambda and delta locants of the fused ring system `mol` (one connected ortho- and
-    peri-fused system)."""
+def fused_parent_data(mol):
+    """(name, numbering options, indicated-hydrogen atoms, lambda map, delta map) of the fused ring system `mol`."""
     ctx = Context(mol)
     if ctx.n < 2:
         raise UnsupportedStructure("a single ring is not a fused ring system")
     name, root = fusion_name(mol)
     kekule = _kekule(mol)
-    indicated = _indicated_hydrogen_atoms(kekule)
     lam, delta = _bonding_numbers(kekule)
+    return name, system_numbering_options(ctx, name, root), _indicated_hydrogen_atoms(kekule), lam, delta
+
+
+def marked_name(name, numbering, indicated, lam, delta, stem=None):
+    """Parent name with its indicated-hydrogen, lambda and delta locants; a lambda or delta mark joins the leading
+    heteroatom locant of the fusion name when that locant is cited there (P-25.6)."""
+    ih_text = ",".join(f"{t}H" for t in sorted((numbering[a] for a in indicated), key=_locant_key))
+    leading = re.match(r"(\d+[a-z]?(?:,\d+[a-z]?)*)-(.+)", name)
+    cited = leading.group(1).split(",") if leading else []
+    rest = leading.group(2) if leading else name
+    loose = []
+    for a in sorted(set(lam) | set(delta), key=lambda a: _locant_key(numbering[a])):
+        mark = (f"\u03bb{lam[a]}" if a in lam else "") + (f"\u03b4{delta[a]}" if a in delta else "")
+        if numbering[a] in cited:
+            cited[cited.index(numbering[a])] += mark
+        else:
+            loose.append(f"{numbering[a]}{mark}")
+    body = (",".join(cited) + "-" + rest) if cited else rest
+    return "-".join(part for part in (ih_text, ",".join(loose), body) if part)
+
+
+def name_fused_ring_system(mol):
+    """Name with indicated hydrogen, lambda and delta locants of the fused ring system `mol` (one connected ortho- and
+    peri-fused system)."""
+    name, options, indicated, lam, delta = fused_parent_data(mol)
     if not indicated and not lam and not delta:
         return name
-    options = system_numbering_options(ctx, name, root)
 
     def key(numbering):
         return (
@@ -890,12 +922,7 @@ def name_fused_ring_system(mol):
 
     best = min(key(n) for n in options)
     chosen = [n for n in options if key(n) == best][0]
-    ih_text = ",".join(f"{t}H" for t in sorted((chosen[a] for a in indicated), key=_locant_key))
-    marked = sorted(set(lam) | set(delta), key=lambda a: _locant_key(chosen[a]))
-    marker_text = ",".join(
-        f"{chosen[a]}" + (f"\u03bb{lam[a]}" if a in lam else "") + (f"\u03b4{delta[a]}" if a in delta else "") for a in marked
-    )
-    return "-".join(part for part in (ih_text, marker_text) if part) + "-" + name
+    return marked_name(name, chosen, indicated, lam, delta)
 
 
 def _is_mancude(mol):

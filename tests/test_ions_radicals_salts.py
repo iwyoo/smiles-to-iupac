@@ -982,6 +982,10 @@ def test_ring_cations_on_heteroatoms_other_than_nitrogen(smiles, expected):
         pytest.param("[S+]1=CCC=C1", "3H-1λ4-thiophen-1-ylium", id="indicated_hydrogen_on_the_third_atom"),
         pytest.param("c1cc[n+]2ccccc2c1", "5λ5-quinolizin-5-ylium", id="bridgehead_nitrogen_cation"),
         pytest.param("c1cc[s+]cc1.[Cl-]", "thiopyrylium chloride", id="ylium_ring_in_a_salt"),
+        pytest.param("C1C=C[N+]2=CC=CC=C12", "1H-4λ5-indolizin-4-ylium", id="general_fused_parent_with_indicated_hydrogen"),
+        pytest.param("C1=CC2=CC=CC=C2[I+]1", "1λ3-benziodol-1-ylium", id="halogen_ring_centre"),
+        pytest.param("c1ccc2c(c1)[S+]=CCSC=C2", "3H-1λ4,4-benzodithiocin-1-ylium", id="lambda_joins_the_cited_heteroatom_locant"),
+        pytest.param("c1cc[n+]2cc[n+]3ccccc3c2c1", "5λ5,8λ5-dipyrido[1,2-a:2',1'-c]pyrazine-5,8-diylium", id="two_cationic_centres"),
     ],
 )
 def test_ring_heteroatom_ylium_cations(smiles, expected):
