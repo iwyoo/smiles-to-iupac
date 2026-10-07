@@ -1046,3 +1046,21 @@ def test_n_locants_of_polyamides(smiles, expected):
 )
 def test_nitrogen_prefix_keeps_every_substituent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC(=NN)N", "ethanehydrazonamide", id="hydrazonamide"),
+        pytest.param("NC(=NN)c1ccccc1", "benzenecarbohydrazonamide", id="carbohydrazonamide_on_a_ring"),
+        pytest.param("C(=N)NN", "methanimidohydrazide", id="imidohydrazide_of_a_one_carbon_parent"),
+        pytest.param("N=C(NN)C1CCCCC1", "cyclohexanecarboximidohydrazide", id="carboximidohydrazide_on_a_ring"),
+        pytest.param("CN(C)C=NN=C(C)C", "N,N-dimethyl-N'-(propan-2-ylidene)methanehydrazonamide", id="ylidene_on_the_terminal_nitrogen"),
+        pytest.param("CCN=C(c1ccccc1)N(C)Nc1ccccc1", "N''-ethyl-N-methyl-N'-phenylbenzenecarboximidohydrazide", id="three_nitrogen_locants"),
+        pytest.param("NC(=NN)C(N)=NN", "ethanedihydrazonamide", id="two_hydrazonamide_groups"),
+        pytest.param("NNC(=N)C(=N)NN", "ethanediimidohydrazide", id="two_imidohydrazide_groups"),
+        pytest.param("NC=N", "methanimidamide", id="amidine_of_a_one_carbon_parent"),
+    ],
+)
+def test_amidrazones(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
