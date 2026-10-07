@@ -536,6 +536,20 @@ def test_substituted_phenyl__hydrazine():
     assert smiles_to_iupac("Cc1ccccc1NN") == "(2-methylphenyl)hydrazine"
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("NN1CCCCC1", "piperidin-1-amine"),
+        ("NN1CCCC1", "pyrrolidin-1-amine"),
+        ("NN1CCCCC1C", "2-methylpiperidin-1-amine"),
+        ("NN1CCOCC1", "morpholin-4-amine"),
+        ("NN1C=CC=C1", "1H-pyrrol-1-amine"),
+    ],
+)
+def test_ring_nitrogen_amino_is_amine_not_hydrazine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_halogen_on_nitrogen_raises__hydrazine():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("ClNN")
