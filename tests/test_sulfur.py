@@ -769,3 +769,16 @@ def test_sulfonimidamides_and_sulfinimidamides(smiles, expected):
 )
 def test_sulfamic_acid_and_the_amides_of_sulfuric_and_sulfurous_acid(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("OS(=O)(=O)OCCC(O)=O", "3-(sulfooxy)propanoic acid", id="sulfo"),
+        pytest.param("COS(=O)OCCC(O)=O", "3-[(methoxysulfinyl)oxy]propanoic acid", id="alkoxysulfinyl"),
+        pytest.param("ClS(=O)(=O)OCCC(O)=O", "3-[(chlorosulfonyl)oxy]propanoic acid", id="halosulfonyl"),
+        pytest.param("NS(=O)(=O)OCCC(O)=O", "3-(sulfamoyloxy)propanoic acid", id="sulfamoyl"),
+    ],
+)
+def test_sulfur_acid_groups_attached_through_oxygen_under_a_carboxylic_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

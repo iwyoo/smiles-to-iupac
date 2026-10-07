@@ -14,6 +14,7 @@ from ._numerals import alkane_name, multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes
 
 _SINGLE_ATOM_WORDS = {8: "oxy", 16: "sulfanediyl", 34: "selanediyl", 52: "tellanediyl", 7: "azanediyl"}
+_OXOACID_LINKER = {15: ("phosphoryl", "phosphonoyl"), 33: ("arsoryl", "arsonoyl"), 51: ("stiboryl", "stibonoyl")}
 _SUBSTITUTABLE_WORDS = {
     7: ("azanediyl", "nitrilo"),
     **{z: (f"{stem}diyl", f"{stem}triyl") for z, (stem, _, _) in MONONUCLEAR_HYDRIDES.items()},
@@ -128,6 +129,20 @@ def _hetero_part(mol, atoms, attachments, ctx, directed=None):
             raise UnsupportedStructure("this heteroatom chain is not supported as a multiplicative linker")
         return Part(word, False, False)
     count = len(attachments)
+    if z in _OXOACID_LINKER and count == 2:
+        oxo = [
+            r
+            for a, r in pend
+            if mol.GetAtomWithIdx(r).GetAtomicNum() == 8
+            and mol.GetAtomWithIdx(r).GetDegree() == 1
+            and mol.GetBondBetweenAtoms(a, r).GetBondTypeAsDouble() == 2.0
+        ]
+        rest = [r for _, r in pend if r not in oxo]
+        if len(oxo) == 1 and len(rest) == 1:
+            entries = [_entry(mol, atoms[0], rest[0], ctx)]
+            if mol.GetAtomWithIdx(rest[0]).GetAtomicNum() == 6:
+                return Part(format_mononuclear_prefixes(entries) + _OXOACID_LINKER[z][1], True, False)
+            return Part(format_mononuclear_prefixes(entries) + _OXOACID_LINKER[z][0], True, False)
     if z in _SUBSTITUTABLE_WORDS:
         divalent, trivalent = _SUBSTITUTABLE_WORDS[z]
         if count == 3 and not pend:
