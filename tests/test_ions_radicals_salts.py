@@ -998,6 +998,7 @@ def test_ring_heteroatom_ylium_cations(smiles, expected):
         pytest.param("CC[S+](C)CCOCCOCC[S+](C)CC", "3,12-dimethyl-6,9-dioxa-3,12-dithiatetradecane-3,12-diium", id="two_cationic_centres_in_a_replacement_chain"),
         pytest.param("CC[S+](C)CCOCCOCCOCC", "12-methyl-3,6,9-trioxa-12-thiatetradecan-12-ium", id="one_cationic_centre_in_a_replacement_chain"),
         pytest.param("CC[SH+]CCOCCOCCOCC", "3,6,9-trioxa-12-thiatetradecan-12-ium", id="cationic_centre_without_substituent"),
+        pytest.param("CCOP(=O)(C1CCCCC1)OCC[S+](C)CCCCCC", "4-cyclohexyl-8-methyl-4-oxo-3,5-dioxa-8-thia-4λ5-phosphatetradecan-8-ium", id="lambda_heterounit_with_oxo_and_ring_substituent"),
         pytest.param("C1CC[As+]2(C1)CCCC2", "5λ5-arsaspiro[4.4]nonan-5-ylium", id="spiro_atom_cation_by_the_lambda_convention"),
         pytest.param("C1CC[N+]2(C1)CCCC2", "5λ5-azaspiro[4.4]nonan-5-ylium", id="spiro_ammonium_by_the_lambda_convention"),
         pytest.param("C1CC2CC[S+]1CC2", "1λ4-thiabicyclo[2.2.2]octan-1-ylium", id="bridgehead_cation_by_the_lambda_convention"),
