@@ -91,6 +91,7 @@ from ._borinic_acid import has_borinic_acid_shape, name_borinic_acid
 from ._metal_pair import has_metal_pair_shape, name_metal_pair
 from ._coordination import has_coordination_shape, name_coordination
 from ._group1_2_organometallic import has_group1_2_organometallic_shape, name_group1_2_organometallic
+from ._nonstandard_hydride import has_nonstandard_hydride_shape, name_nonstandard_hydride
 from ._group13_hydride import (
     has_group13_hydride_shape,
     has_group14_hydride_shape,
@@ -404,6 +405,7 @@ def _require_radicals_cited(mol, name):
         or any(a.GetFormalCharge() for a in mol.GetAtoms())
         or len(Chem.GetMolFrags(mol)) > 1
         or any(b.GetBondType() == Chem.BondType.DATIVE for b in mol.GetBonds())
+        or has_nonstandard_hydride_shape(mol)
     ):
         return
     if not name.rstrip(")]} ").endswith(_RADICAL_ENDINGS):
@@ -524,6 +526,8 @@ def _name_unabridged(smiles: str) -> str:
         if parsed is not None and parsed.HasProp("_hypervalent_anion"):
             name = name_anion(parsed)
             return name
+        if parsed is not None and has_nonstandard_hydride_shape(parsed):
+            return name_nonstandard_hydride(parsed)
         if parsed is not None and has_sphingoid_shape(parsed):
             return name_sphingoid(parsed)
         if parsed is not None and has_nucleoside_name(parsed):
