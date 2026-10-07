@@ -1656,6 +1656,7 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
 
 
 _GROUP_14 = (14, 32, 50, 82)
+_CHALCOGENOL_WORDS = {8: "ol", 16: "thiol", 34: "selenol", 52: "tellurol"}
 
 
 def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
@@ -1679,7 +1680,13 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
         )
     ):
         return None
-    hydroxyls = [n for n in neighbors if _terminal_heteroatom(mol, n, 1) and mol.GetAtomWithIdx(n).GetAtomicNum() == 8]
+    chalcogenols = {
+        word: [n for n in neighbors if _terminal_heteroatom(mol, n, 1) and mol.GetAtomWithIdx(n).GetAtomicNum() == z]
+        for z, word in _CHALCOGENOL_WORDS.items()
+    }
+    principal_word = next((w for w, atoms in chalcogenols.items() if atoms), None)
+    hydroxyls = chalcogenols["ol"] if principal_word == "ol" else []
+    junior_chalcogenols = {n for w, atoms in chalcogenols.items() if w != principal_word for n in atoms}
     amines = [
         n
         for n in neighbors
@@ -1688,16 +1695,20 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
         and not mol.GetAtomWithIdx(n).IsInRing()
         and all(mol.GetAtomWithIdx(m).GetAtomicNum() in (6, *MONONUCLEAR_HYDRIDES) for m in graph[n] if m != index)
     ]
-    others = [n for n in neighbors if n not in hydroxyls and n not in amines]
-    if any(mol.GetAtomWithIdx(n).GetAtomicNum() not in (6, 8, *HALOGEN_PREFIXES) for n in others):
+    suffix_atoms = chalcogenols[principal_word] if principal_word else []
+    others = [n for n in neighbors if n not in suffix_atoms and n not in amines]
+    if any(
+        mol.GetAtomWithIdx(n).GetAtomicNum() not in (6, 8, *HALOGEN_PREFIXES) and n not in junior_chalcogenols for n in others
+    ):
         return None
-    if (hydroxyls or amines) and (z not in _GROUP_14 or (hydroxyls and amines) or len(amines) > 1):
+    if (suffix_atoms or amines) and (z not in _GROUP_14 or (suffix_atoms and amines) or len(amines) > 1):
         return None
     entries = [name_branch(graph, n, index, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in others]
-    if hydroxyls:
-        return format_mononuclear_prefixes(entries) + (
-            stem[:-1] + "ol" if len(hydroxyls) == 1 else stem + multiplied_word(len(hydroxyls), "ol")
+    if suffix_atoms:
+        suffix = (
+            stem[:-1] + "ol" if principal_word == "ol" and len(suffix_atoms) == 1 else stem + multiplied_word(len(suffix_atoms), principal_word)
         )
+        return format_mononuclear_prefixes(entries) + suffix
     if amines:
         (nitrogen,) = amines
         grouped = group_substituents({1: entries} if entries else {})
