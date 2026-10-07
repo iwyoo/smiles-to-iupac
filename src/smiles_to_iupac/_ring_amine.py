@@ -116,6 +116,7 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 from rdkit import Chem
 
 from ._multiplicative_text import enclose
+from ._chalcogenourea import is_oxo_nitrogen
 from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -341,6 +342,8 @@ def _validate_and_name_substituent(mol, ring_atoms, n_idx, root):
 
     sulfonyl = _sulfonyl_root_shape(mol, root, n_idx)
     extra_allowed = {root, *sulfonyl[1]} if sulfonyl is not None else set()
+    if is_oxo_nitrogen(mol, mol.GetAtomWithIdx(root)):
+        extra_allowed = {root, *(n.GetIdx() for n in mol.GetAtomWithIdx(root).GetNeighbors() if n.GetAtomicNum() == 8)}
 
     for atom in mol.GetAtoms():
         idx = atom.GetIdx()

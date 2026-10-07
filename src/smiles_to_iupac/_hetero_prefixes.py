@@ -556,7 +556,11 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
 
                 rname, rcomp = name_branch(graph, others[0], root, halogens, aromatic_atoms, mol=mol)
                 return _enclose(rname, rcomp) + "imino", True
-        if order == 1.0 and not atom.GetFormalCharge() and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 7 for n in others):
+        from ._chalcogenourea import is_oxo_nitrogen
+
+        if order == 1.0 and not atom.GetFormalCharge() and any(
+            mol.GetAtomWithIdx(n).GetAtomicNum() == 7 and not is_oxo_nitrogen(mol, mol.GetAtomWithIdx(n)) for n in others
+        ):
             far = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 7]
             if not (len(others) == 1 and mol.GetAtomWithIdx(far[0]).GetDegree() == 1):
                 return _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol)

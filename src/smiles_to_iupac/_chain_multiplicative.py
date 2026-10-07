@@ -17,7 +17,7 @@ from ._substituents import name_branch
 _LINKER_ELEMENTS = {5, 7, 8, 14, 15, 16, 32, 33, 34, 50, 51, 52, 82, 83}
 _RUN_ELEMENTS = {7, 8, 14, 15, 16, 32, 33, 34, 50, 51, 52, 82, 83}
 _MAX_UNITS = 6
-_SUBSTITUTED_PREFIX = re.compile(r"(?:carboxy|hydroxy|amino|chloro|bromo|fluoro|iodo|cyano|oxo|nitro|sulfanyl|methoxy|ethoxy)[a-z]+")
+_SUBSTITUTED_PREFIX = re.compile(r"(?:carboxy|hydroxy|amino|chloro|bromo|fluoro|iodo|cyano|oxo|nitro(?!so\b)|sulfanyl|methoxy|ethoxy)[a-z]+")
 _SKELETAL_UNITS = 4
 _DIACYL_LINKER = re.compile(r"\(1,\d+-dioxo([a-z]+?)ane-1,\d+-diyl\)")
 

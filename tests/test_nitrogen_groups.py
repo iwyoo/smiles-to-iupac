@@ -1194,3 +1194,18 @@ def test_chalcogen_analogues_of_sulfonamides(smiles, expected):
 )
 def test_ureas_with_further_substituents_and_ureas_beneath_senior_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CN(C)N=O", "N-methyl-N-nitrosomethanamine", id="nitroso_on_amine_nitrogen"),
+        pytest.param("CN(C)[N+](=O)[O-]", "N-methyl-N-nitromethanamine", id="nitro_on_amine_nitrogen"),
+        pytest.param("O=C1CCCCC1N=O", "2-nitrosocyclohexan-1-one", id="nitroso_on_a_ring_that_carries_a_ketone"),
+        pytest.param("CN(N=O)c1ccc(cc1)C(=O)O", "4-[methyl(nitroso)amino]benzoic acid", id="nitrosoamino_prefix_under_an_acid"),
+        pytest.param("O=NN1CCCC1", "1-nitrosopyrrolidine", id="nitroso_on_a_ring_nitrogen"),
+        pytest.param("OC(=O)CN(N=O)CC(=O)O", "2,2'-(nitrosoazanediyl)diacetic acid", id="nitroso_on_a_linking_nitrogen"),
+    ],
+)
+def test_nitroso_and_nitro_groups_on_nitrogen_and_on_rings_with_other_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

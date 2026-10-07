@@ -28,6 +28,7 @@ from ._common import (
     substituent_locant_set_and_citation,
 )
 from ._anion import ANION_PROP, anion_weight
+from ._chalcogenourea import is_oxo_nitrogen
 from ._functional_prefixes import is_nitro_nitrogen
 from ._hetero_prefixes import (
     CATION_PARENT,
@@ -3112,7 +3113,7 @@ def _substituted_amine_nitrogen(mol, atom):
         return False
     if atom.GetAtomicNum() != 7 or (atom.GetFormalCharge() and not (AMINIUM.get() and atom.GetFormalCharge() == 1)) or atom.GetIsAromatic() or atom.IsInRing():
         return False
-    if any(n.GetAtomicNum() not in (6, 8) for n in atom.GetNeighbors()):
+    if any(n.GetAtomicNum() not in (6, 8) and not is_oxo_nitrogen(mol, n) for n in atom.GetNeighbors()):
         return False
     if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
         return False
