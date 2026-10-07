@@ -60,10 +60,12 @@ def _find_amide(mol):
                 and n.GetTotalNumHs() == 2
                 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
             ):
+                oxygens = [o for o in atom.GetNeighbors() if o.GetAtomicNum() == 8]
+                if len(oxygens) != 1:
+                    continue
                 if found is not None:
                     return None
-                (oxygen,) = [o for o in atom.GetNeighbors() if o.GetAtomicNum() == 8]
-                found = (atom.GetIdx(), oxygen.GetIdx(), n.GetIdx())
+                found = (atom.GetIdx(), oxygens[0].GetIdx(), n.GetIdx())
     return found
 
 

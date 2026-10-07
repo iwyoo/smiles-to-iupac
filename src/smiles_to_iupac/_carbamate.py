@@ -131,7 +131,7 @@ def _carbamate_cores(mol):
             for o in oxygens
             if o.GetDegree() == 2
             and mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 1.0
-            and any(n.GetAtomicNum() == 6 for n in o.GetNeighbors() if n.GetIdx() != atom.GetIdx())
+            and any(n.GetAtomicNum() in (6, 7) for n in o.GetNeighbors() if n.GetIdx() != atom.GetIdx())
         ]
         if len(carbonyls) != 1 or len(ester_oxygens) != 1:
             continue
@@ -186,6 +186,21 @@ def _acyl_region(mol, graph, n_alkyl_cs, amide_n):
     return region
 
 
+def _amino_region(mol, graph, alkyl_c, ester_o):
+    """The atoms of an ester group bonded through nitrogen (an O-amino carbamate), acyclic carbon and nitrogen only; empty
+    when the ester group is bonded through carbon."""
+    if mol.GetAtomWithIdx(alkyl_c).GetAtomicNum() != 7:
+        return set()
+    region, stack = set(), [alkyl_c]
+    while stack:
+        idx = stack.pop()
+        if idx in region:
+            continue
+        region.add(idx)
+        stack.extend(n for n in graph[idx] if n != ester_o)
+    return region
+
+
 def has_carbamate_shape(mol) -> bool:
     return bool(_carbamate_cores(mol))
 
@@ -220,6 +235,7 @@ def name_carbamate(mol) -> str:
             )
 
     acyl_oxygens = {o for c in n_alkyl_cs for o in _acyl_oxygen(mol, c, amide_n)}
+    amino_region = _amino_region(mol, full_graph, alkyl_c, ester_o)
     has_carbon = False
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
@@ -237,7 +253,7 @@ def name_carbamate(mol) -> str:
                     "aromatic rings are out of scope for this module"
                 )
         elif atomic_num == 7:
-            if atom.GetIdx() != amide_n:
+            if atom.GetIdx() != amide_n and atom.GetIdx() not in amino_region:
                 raise UnsupportedStructure(
                     "a nitrogen other than the carbamate's own -NH2 needs "
                     "Table 3.3 seniority handling not yet implemented here"
@@ -268,7 +284,9 @@ def name_carbamate(mol) -> str:
             "unsaturation in the R group is not supported yet"
         )
 
-    r_name, _ = name_branch(full_graph, alkyl_c, ester_o, {}, mol=mol)
+    r_name, r_compound = name_branch(full_graph, alkyl_c, ester_o, {}, mol=mol)
+    if amino_region and r_compound:
+        r_name = enclose(r_name)
     if not n_alkyl_cs:
         return f"{r_name} carbamate"
 
