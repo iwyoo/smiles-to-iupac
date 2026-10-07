@@ -12,6 +12,7 @@ from ._hetero_prefixes import (
     CHALCOGEN_PREFIXES,
     _functional_carbon,
     _has_senior_principal_group,
+    nitrogen_pseudohalide_prefix,
     phosphoryl_name,
     require_plain_chalcogen_kids,
     require_senior_group,
@@ -158,9 +159,22 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
         named[node] = (name, compound)
         shown[node] = _enclose(name) if compound else name
 
+    pseudohalides = {}
+    for node in order:
+        if node in skip or node not in parent_of or mol.GetAtomWithIdx(node).GetAtomicNum() != 7:
+            continue
+        kids = [n for n in graph[node] if n != parent_of[node]]
+        prefix = nitrogen_pseudohalide_prefix(mol, node, kids, _bond_order(mol, node, parent_of[node]))
+        if prefix is not None:
+            pseudohalides[node] = prefix
+            skip |= subtree(node) - {node}
+
     phosphoryl_nodes = set()
     for node in reversed(order):
         if node in skip:
+            continue
+        if node in pseudohalides:
+            record(node, pseudohalides[node], False)
             continue
         if node in ring_entries:
             name, compound = name_branch(graph, node, parent_of[node], shown, aromatic_atoms, mol=mol)

@@ -20,7 +20,7 @@ _SIMPLE_NAMES = {
     "methoxy", "ethoxy", "propoxy", "butoxy", "tert-butoxy", "phenoxy", "amino", "anilino", "hydroxy", "oxo",
     "nitro", "nitroso", "cyano", "sulfanyl", "formyl", "carboxy", "carbamoyl",
 }
-_MULTIPLE_TARGETS = {7, 8, 16}
+_MULTIPLE_TARGETS = {7, 8, 16, 34, 52}
 # Acid-derived and chalcogen-chain prefixes are only valid under a principal acid group; elsewhere the
 # groups they describe outrank the parent and the engine must decline rather than cite them as prefixes.
 EXTENDED_PREFIXES = contextvars.ContextVar("extended_prefixes", default=False)
@@ -406,6 +406,10 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return _oxoacid_anion_prefix(graph, root, coming_from, mol)
     if z in MONONUCLEAR_HYDRIDES:
         return _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
+    if z in _HALOGEN_STEMS:
+        named = halogen_oxo_prefix(mol, root, coming_from)
+        if named is not None:
+            return named, False
     if atom.GetFormalCharge() == -1 and atom.GetDegree() == 1 and z in (8, 16):
         return {8: "oxido", 16: "sulfido"}[z], False
     if atom.GetFormalCharge() and z != 7:
@@ -524,6 +528,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
                 return "nitro", False
             if len(oxygens) == 1 and mol.GetBondBetweenAtoms(root, oxygens[0]).GetBondTypeAsDouble() == 2.0:
                 return "nitroso", False
+        pseudohalide = nitrogen_pseudohalide_prefix(mol, root, others, order)
+        if pseudohalide is not None:
+            return pseudohalide, False
         if EXTENDED_PREFIXES.get() and order == 2.0 and not atom.GetFormalCharge() and len(others) <= 1:
             if not others and atom.GetTotalNumHs() == 1:
                 return "imino", False
@@ -583,6 +590,72 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         name = _amino(_group_names(graph, mol, others, root, halogens, aromatic_atoms))
         return name, _compound(name)
     raise UnsupportedStructure("this heteroatom-linked substituent is not supported yet")
+
+
+_ISOCYANATE_PREFIXES = {8: "isocyanato", 16: "isothiocyanato", 34: "isoselenocyanato", 52: "isotellurocyanato"}
+
+
+def nitrogen_pseudohalide_prefix(mol, root, others, order):
+    """'azido' for -N=N(+)=N(-) and 'isocyanato' (-N=C=O, also S/Se/Te) for a neutral nitrogen singly bonded to its
+    parent (P-61.7, P-61.11); None for any other nitrogen."""
+    atom = mol.GetAtomWithIdx(root)
+    if order != 1.0 or atom.GetFormalCharge() or len(others) != 1:
+        return None
+    middle = mol.GetAtomWithIdx(others[0])
+    if mol.GetBondBetweenAtoms(root, others[0]).GetBondTypeAsDouble() != 2.0 or middle.GetDegree() != 2:
+        return None
+    ends = [n for n in middle.GetNeighbors() if n.GetIdx() != root]
+    end = ends[0]
+    if mol.GetBondBetweenAtoms(middle.GetIdx(), end.GetIdx()).GetBondTypeAsDouble() != 2.0 or end.GetDegree() != 1:
+        return None
+    if middle.GetAtomicNum() == 7 and middle.GetFormalCharge() == 1:
+        return "azido" if end.GetAtomicNum() == 7 and end.GetFormalCharge() == -1 else None
+    if middle.GetAtomicNum() == 6 and not middle.GetFormalCharge() and not end.GetFormalCharge():
+        return _ISOCYANATE_PREFIXES.get(end.GetAtomicNum())
+    return None
+
+
+_HALOGEN_STEMS = {9: "fluor", 17: "chlor", 35: "brom", 53: "iod"}
+
+
+def _terminal_oxo_oxygens(atom, exclude):
+    """The oxygens of `atom` that are only a =O or a -O(-): None when it also carries another kind of substituent."""
+    oxygens = []
+    for bond in atom.GetBonds():
+        other = bond.GetOtherAtom(atom)
+        if other.GetIdx() == exclude:
+            continue
+        double = bond.GetBondTypeAsDouble() == 2.0 and not other.GetFormalCharge()
+        anionic = bond.GetBondTypeAsDouble() == 1.0 and other.GetFormalCharge() == -1
+        if other.GetAtomicNum() != 8 or other.GetDegree() != 1 or not (double or anionic):
+            return None
+        oxygens.append(other)
+    return oxygens
+
+
+def halogen_oxo_prefix(mol, root, coming_from):
+    """'chlorosyl', 'chloryl' or 'perchloryl' (-XO, -XO2, -XO3; P-61.3.2.3, P-67.1.4.5) for a halogen bearing one to
+    three terminal oxygens, else None."""
+    atom = mol.GetAtomWithIdx(root)
+    stem = _HALOGEN_STEMS.get(atom.GetAtomicNum())
+    oxygens = _terminal_oxo_oxygens(atom, coming_from) if stem else None
+    if not oxygens or len(oxygens) > 3:
+        return None
+    anions = sum(o.GetFormalCharge() for o in oxygens)
+    if atom.GetFormalCharge() + anions != 0 or mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
+        return None
+    return {1: f"{stem}osyl", 2: f"{stem}yl", 3: f"per{stem}yl"}[len(oxygens)]
+
+
+def is_halogen_oxo_part(mol, atom):
+    """A charged atom of a halogen oxo group: the halogen cation or one of its oxide anions."""
+    if atom.GetAtomicNum() == 8 and atom.GetFormalCharge() == -1 and atom.GetDegree() == 1:
+        (halogen,) = atom.GetNeighbors()
+        return halogen.GetAtomicNum() in _HALOGEN_STEMS and is_halogen_oxo_part(mol, halogen)
+    if atom.GetAtomicNum() not in _HALOGEN_STEMS or atom.GetDegree() < 2:
+        return False
+    parents = [n for n in atom.GetNeighbors() if n.GetAtomicNum() != 8 or n.GetDegree() != 1]
+    return len(parents) == 1 and halogen_oxo_prefix(mol, atom.GetIdx(), parents[0].GetIdx()) is not None
 
 
 def _is_anionic_oxygen(atom):

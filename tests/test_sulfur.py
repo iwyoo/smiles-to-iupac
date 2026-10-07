@@ -57,7 +57,6 @@ def test_phenyl_disulfide_direct_bond():
         pytest.param("c1ccccc1SSC(C)C", id="phenyl_disulfide_branched_other_side_not_supported"),
         pytest.param("Cc1ccccc1SSC", id="phenyl_disulfide_substituted_ring_not_supported"),
         pytest.param("C=Cc1ccccc1CSSC", id="phenyl_disulfide_unsaturation_not_supported"),
-        pytest.param("C1CCC(N=C=S)CC1", id="ring_not_supported"),
     ],
 )
 def test_phenyl_disulfide_chain_and_related_raise(smiles):
@@ -67,19 +66,6 @@ def test_phenyl_disulfide_chain_and_related_raise(smiles):
 
 def test_phenyl_isothiocyanate_chain():
     assert smiles_to_iupac("c1ccccc1CN=C=S") == "(isothiocyanatomethyl)benzene"
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("Cc1ccccc1N=C=S", id="phenyl_isothiocyanate_substituted_ring_not_supported"),
-        pytest.param("C=CCN=C=S", id="unsaturated_chain_not_supported"),
-        pytest.param("S=C=NCN=C=S", id="two_isothiocyanate_groups_not_supported"),
-    ],
-)
-def test_phenyl_isothiocyanate_substituted_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
@@ -768,4 +754,17 @@ def test_sulfonimidamides_and_sulfinimidamides(smiles, expected):
     ],
 )
 def test_sulfamic_acid_and_the_amides_of_sulfuric_and_sulfurous_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(
+            "CS(=O)(=O)S(=O)(=O)c1ccccc1", "1-methyl-2-phenyl-1λ6,2λ6-disulfane-1,1,2,2-tetrone", id="disulfane_tetrone"
+        ),
+        pytest.param("CSCl", "methyl thiohypochlorite", id="thiohypochlorite_ester"),
+    ],
+)
+def test_chalcogen_chain_heterones_and_halogen_acid_esters(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

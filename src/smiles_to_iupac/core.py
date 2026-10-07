@@ -183,6 +183,10 @@ from ._hetero_monocyclic import (
     name_pyran_indicated_hydrogen,
 )
 from ._didehydro_ring import has_didehydro_ring_name, name_didehydro_ring
+from ._chalcogen_chain_heterone import name_chalcogen_chain_heterone
+from ._halogen_acid_ester import name_halogen_acid_ester
+from ._halogen_amide import name_halogen_amide
+from ._halogen_oxo import name_halogen_oxo
 from ._hydroxylamine import has_hydroxylamine_shape, name_hydroxylamine
 from ._imine import has_simple_imine_shape, name_imine
 from ._dipole_oxide import (
@@ -714,7 +718,15 @@ def _run_fallbacks(smiles, original):
                 continue
             if name is not None:
                 return name
-        for fallback in (name_polyfunctional, name_anion, name_ester_by_parts):
+        for fallback in (
+            name_halogen_amide,
+            name_halogen_acid_ester,
+            name_halogen_oxo,
+            name_polyfunctional,
+            name_anion,
+            name_ester_by_parts,
+            name_chalcogen_chain_heterone,
+        ):
             try:
                 return fallback(mol)
             except UnsupportedStructure:
@@ -1784,6 +1796,8 @@ def _name_mol(mol) -> str:
         # carbon's other substituents), so urea must claim it first.
         if has_urea_shape(mol):
             return name_urea(mol)
+        if has_guanidine_shape(mol):
+            return name_guanidine(mol)
         # A hydrazide carbon (-CO-NH-NH2, P-66.3.1.1) has a carbonyl plus
         # a two-nitrogen chain that has_amide_shape's own single-nitrogen
         # check doesn't match (its first nitrogen has degree 2, not 1), so

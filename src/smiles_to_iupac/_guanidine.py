@@ -43,7 +43,7 @@ substituent, and the imino nitrogen takes N''. A ring fused to the guanidine cor
 
 from rdkit import Chem
 
-from ._chalcogenourea import n_substituent_names
+from ._chalcogenourea import is_core_substituent_root, n_substituent_names
 from ._common import UnsupportedStructure, adjacency, group_substituents
 from ._substituents import alpha_sort_key, format_substituent_prefixes
 
@@ -82,13 +82,15 @@ def _guanidine_core(mol):
                 continue
         elif imino_n.GetDegree() == 2:
             other = [n for n in imino_n.GetNeighbors() if n.GetIdx() != atom.GetIdx()]
-            if imino_n.GetTotalNumHs() != 0 or other[0].GetAtomicNum() != 6:
+            if imino_n.GetTotalNumHs() != 0 or not is_core_substituent_root(mol, other[0]):
                 continue
         else:
             continue
         if any(n.GetFormalCharge() != 0 or n.GetIsotope() != 0 for n in amino):
             continue
-        if any(nn.GetAtomicNum() != 6 for n in amino for nn in n.GetNeighbors() if nn.GetIdx() != atom.GetIdx()):
+        if any(
+            not is_core_substituent_root(mol, nn) for n in amino for nn in n.GetNeighbors() if nn.GetIdx() != atom.GetIdx()
+        ):
             continue
         return atom.GetIdx(), imino_n.GetIdx(), (amino[0].GetIdx(), amino[1].GetIdx())
     return None
