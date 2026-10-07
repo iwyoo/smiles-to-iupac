@@ -333,7 +333,9 @@ from ._von_baeyer_heteroatom import (
 
 def _is_aldehyde_shaped(carbonyl_oxygen):
     (carbon,) = carbonyl_oxygen.GetNeighbors()
-    return carbon.GetAtomicNum() == 6 and sum(1 for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6) == 1
+    if carbon.GetAtomicNum() != 6 or sum(1 for n in carbon.GetNeighbors() if n.GetAtomicNum() == 6) != 1:
+        return False
+    return not any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(carbon).GetAtomicNum() == 6 for b in carbon.GetBonds())
 
 
 _NO_PIN_ORGANOMETALLIC = "the Blue Book defines no PIN for this class of organometallic compound (P-69.0)"
