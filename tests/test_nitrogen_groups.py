@@ -189,12 +189,15 @@ def test_ring_substituent_chain_and_related(smiles, expected):
     "smiles",
     [
         pytest.param("C[NH2+][O-]", id="primary_amine_oxide_not_matched"),
-        pytest.param("C[N+]1([O-])CCCCC1", id="amine_oxide_ring_nitrogen_raises"),
     ],
 )
 def test_primary_amine_oxide_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
+
+
+def test_amine_oxide_ring_nitrogen():
+    assert smiles_to_iupac("C[N+]1([O-])CCCCC1") == "1-methylpiperidine 1-oxide"
 
 
 def test_amine_oxide_stereocenter():

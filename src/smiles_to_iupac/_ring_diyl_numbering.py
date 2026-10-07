@@ -346,7 +346,11 @@ def _hetero_monocycle(mol, ring_order, attached):
             i
             for i in can_hold
             if i not in oxo_all
-            and not (sym[i] != "C" and (mol.GetAtomWithIdx(i).GetTotalNumHs() > 0 or mol.GetAtomWithIdx(i).GetDegree() == 3))
+            and not (
+                sym[i] != "C"
+                and (mol.GetAtomWithIdx(i).GetTotalNumHs() > 0 or mol.GetAtomWithIdx(i).GetDegree() == 3)
+                and not mol.GetAtomWithIdx(i).HasProp("_ring_cation_centre")
+            )
         }
     else:
         in_double = ring_double

@@ -31,6 +31,13 @@ def _carbonyl_with_heteroatom(mol, idx):
     )
 
 
+def _insert_before_ending(anion, text):
+    for ending in ("oate", "ate"):
+        if anion.endswith(ending):
+            return anion[: -len(ending)] + text + ending
+    raise UnsupportedStructure("the ester ending is not delimited")
+
+
 def _anion_name(acid_name):
     if not acid_name.endswith(" acid") or " " in acid_name[: -len(" acid")].strip():
         raise UnsupportedStructure("the acid part of this ester is not named as a plain acid")
@@ -56,7 +63,7 @@ def name_ester_by_parts(mol) -> str:
     split = split_isotopes(mol)
     if split is None:
         return _name_ester_parts(mol, {})
-    clean, labels = split
+    clean, labels, _ = split
     if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()):
         raise UnsupportedStructure("stereodescriptors of an isotopically modified ester are not supported yet (P-82.4)")
     return _name_ester_parts(clean, labels)
@@ -106,6 +113,29 @@ def _name_ester_parts(mol, labels) -> str:
     if sum(len(a) for a in arms) != len(removed):
         raise UnsupportedStructure("the alkyl parts share atoms, so these esters are of a polyol, not a polyacid")
 
+    ester_label = None
+    labels = dict(labels)
+    if labels:
+        oxygens = {
+            n.GetIdx(): bridging
+            for acyl_carbon, _, ester_oxygen, _ in matches
+            for n, bridging in (
+                [(mol.GetAtomWithIdx(ester_oxygen), True)]
+                + [
+                    (m, False)
+                    for m in mol.GetAtomWithIdx(acyl_carbon).GetNeighbors()
+                    if m.GetAtomicNum() == 8 and m.GetIdx() != ester_oxygen
+                ]
+            )
+        }
+        hit = [i for i in labels if i in oxygens]
+        if hit:
+            entry = labels[hit[0]]
+            if len(matches) != 1 or len(hit) != 1 or entry["H"] or not entry["skeleton"]:
+                raise UnsupportedStructure("this isotopic modification of an ester oxygen is not supported yet (P-82.6.4)")
+            ester_label = (entry["skeleton"], oxygens[hit[0]])
+            del labels[hit[0]]
+
     editable = Chem.RWMol(mol)
     for _, _, ester_oxygen, _ in matches:
         oxygen = editable.GetAtomWithIdx(ester_oxygen)
@@ -149,6 +179,11 @@ def _name_ester_parts(mol, labels) -> str:
         ("bond", b) not in context["used"] for b in context["bonds"]
     ):
         raise UnsupportedStructure("a stereo element of the alkyl part is not cited by any supported name")
+    if ester_label is not None:
+        nuclide, bridging = ester_label
+        locant = f"{nuclide[:-1]}O" if bridging else "O"
+        anion = _insert_before_ending(anion, f"({nuclide}1)")
+        named = {f"{locant}-{name}": value for name, value in named.items()}
     parts = []
     for name in sorted(named, key=alpha_sort_key):
         count, compound = named[name]

@@ -1,0 +1,222 @@
+"""A single radical centre on a skeleton that carries other groups (P-71.2.1.2, P-71.3.4, P-71.7): a radical
+outranks every characteristic group (P-41), so the structure is the parent radical -- the substituent group
+obtained by removing one hydrogen atom from the parent hydride -- with every other group cited as a prefix."""
+
+import re
+
+from rdkit import Chem
+
+from ._common import UnsupportedStructure, adjacency, halogen_substituents, specified_stereo_elements
+from ._substituents import name_branch
+
+_MAX_ATOMS = 80
+_CHALCOGENS = {8, 16, 34, 52}
+
+
+def _polyradical_centres(mol):
+    radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons()]
+    if (
+        len(radicals) > 1
+        and all(a.GetNumRadicalElectrons() == 1 and a.GetAtomicNum() == 6 and not a.GetIsotope() for a in radicals)
+        and not any(a.GetFormalCharge() for a in mol.GetAtoms())
+    ):
+        return radicals
+    return None
+
+
+def _centre(mol):
+    radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons()]
+    if len(radicals) > 1 and _polyradical_centres(mol):
+        return radicals[0]
+    if len(radicals) != 1 or radicals[0].GetNumRadicalElectrons() not in (1, 2, 3):
+        return None
+    centre = radicals[0]
+    if (centre.GetIsotope() and centre.GetAtomicNum() != 6) or centre.GetFormalCharge():
+        return None
+    if centre.GetNumRadicalElectrons() > 1 and centre.GetAtomicNum() != 6:
+        return None
+    if centre.GetAtomicNum() == 6:
+        return centre
+    if centre.GetAtomicNum() == 7 and centre.GetDegree() <= 2 and not centre.GetIsAromatic() and centre.GetNumRadicalElectrons() == 1:
+        return centre
+    if (
+        centre.GetAtomicNum() in _CHALCOGENS
+        and centre.GetDegree() == 1
+        and centre.GetTotalNumHs() == 0
+        and centre.GetNumRadicalElectrons() == 1
+        and centre.GetNeighbors()[0].GetAtomicNum() in (6, 8)
+    ):
+        return centre
+    return None
+
+
+def _hydride(mol, centre):
+    """`mol` with the radical electrons of `centre` capped: one hydrogen for a 'yl' centre, a doubly or triply bonded
+    methylene or methine for 'ylidene' and 'ylidyne'; (capped mol, capping atom index)."""
+    order = centre.GetNumRadicalElectrons()
+    capped = Chem.RWMol(mol)
+    atom = capped.GetAtomWithIdx(centre.GetIdx())
+    atom.SetNumRadicalElectrons(0)
+    atom.SetNoImplicit(False)
+    atom.SetNumExplicitHs(0)
+    cap = capped.AddAtom(Chem.Atom(1 if order == 1 else 6))
+    capped.AddBond(centre.GetIdx(), cap, {1: Chem.BondType.SINGLE, 2: Chem.BondType.DOUBLE, 3: Chem.BondType.TRIPLE}[order])
+    hydride = capped.GetMol()
+    Chem.SanitizeMol(hydride)
+    return hydride, cap
+
+
+def has_radical_group_shape(mol) -> bool:
+    return _centre(mol) is not None and mol.GetNumAtoms() > 1
+
+
+def name_radical_group(mol) -> str:
+    from ._isotope_labels import split_isotopes
+    from ._polyfunctional import _is_nitro_part
+    from ._substituents import ISOTOPE_LABELS
+
+    labels = {}
+    split = split_isotopes(mol)
+    if split is not None:
+        mol, labels, _ = split
+    centre = _centre(mol)
+    if centre is not None and _polyradical_centres(mol):
+        return _name_polyradical(mol)
+    if (
+        centre is None
+        or mol.GetNumAtoms() > _MAX_ATOMS
+        or len(Chem.GetMolFrags(mol)) != 1
+        or any(a.GetFormalCharge() and not _is_nitro_part(a) for a in mol.GetAtoms())
+        or specified_stereo_elements(mol)
+    ):
+        raise UnsupportedStructure("this radical is not a single radical centre on a plain skeleton")
+    if labels and centre.GetAtomicNum() != 6:
+        raise UnsupportedStructure("isotopic modification of this radical is not supported yet")
+    if centre.GetAtomicNum() == 7 and not centre.IsInRing():
+        return _name_aminyl(mol, centre)
+    if centre.GetAtomicNum() == 8 and centre.GetNeighbors()[0].GetAtomicNum() == 8:
+        return _name_peroxyl(mol, centre)
+    hydride, hydrogen = _hydride(mol, centre)
+    graph = adjacency(hydride)
+    aromatic = frozenset(a.GetIdx() for a in hydride.GetAtoms() if a.GetIsAromatic())
+    context = {"labels": labels, "consumed": set(), "mol": hydride}
+    token = ISOTOPE_LABELS.set(context if labels else None)
+    try:
+        name, _ = name_branch(
+            graph, centre.GetIdx(), hydrogen, halogen_substituents(hydride), aromatic, mol=hydride, unsaturated=True
+        )
+    finally:
+        ISOTOPE_LABELS.reset(token)
+    if set(labels) - context["consumed"]:
+        raise UnsupportedStructure("an isotopically modified atom of the radical is not cited by any supported name")
+    if centre.GetAtomicNum() == 8:
+        if not name.endswith("oxy"):
+            raise UnsupportedStructure("the oxygen radical has no 'oxy' prefix to turn into 'oxyl' (P-71.3.4)")
+        return name + "l"
+    return name
+
+
+def _name_aminyl(mol, centre):
+    """Aminyl and amidyl radicals: the amine or amide suffix with '-yl' added, every other group a prefix (P-71.3.2)."""
+    from ._polyfunctional import FORCED_PRINCIPAL, _name_labelled
+
+    hydride, _ = _hydride(mol, centre)
+    carbon = next((n for n in centre.GetNeighbors() if n.GetAtomicNum() != 1), None)
+    if carbon is None or carbon.GetAtomicNum() != 6:
+        raise UnsupportedStructure("this nitrogen radical is not an aminyl or amidyl radical")
+    amide = any(
+        n.GetAtomicNum() == 8 and hydride.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for n in carbon.GetNeighbors()
+    )
+    hydride = Chem.RemoveHs(hydride)
+    token = FORCED_PRINCIPAL.set("amide" if amide else "amine")
+    try:
+        name = _name_labelled(hydride, {})
+    finally:
+        FORCED_PRINCIPAL.reset(token)
+    if amide and name.endswith("amide"):
+        return name[:-1] + "yl"
+    if not amide and name.endswith("amine"):
+        return name[:-1] + "yl"
+    if not amide and name.endswith("aniline"):
+        return name[: -len("aniline")] + "benzenaminyl"
+    raise UnsupportedStructure("the nitrogen radical is not named as an amine or amide parent")
+
+
+def _name_peroxyl(mol, centre):
+    hydride, hydrogen = _hydride(mol, centre)
+    peroxide = centre.GetNeighbors()[0]
+    carbons = [n for n in peroxide.GetNeighbors() if n.GetIdx() != centre.GetIdx()]
+    if len(carbons) != 1 or carbons[0].GetAtomicNum() != 6:
+        raise UnsupportedStructure("this oxygen radical is not a peroxyl radical")
+    graph = adjacency(hydride)
+    aromatic = frozenset(a.GetIdx() for a in hydride.GetAtoms() if a.GetIsAromatic())
+    name, compound = name_branch(
+        graph, carbons[0].GetIdx(), peroxide.GetIdx(), halogen_substituents(hydride), aromatic, mol=hydride, unsaturated=True
+    )
+    return (f"({name})" if compound else name) + "peroxyl"
+
+
+def _name_polyradical(mol):
+    """Several radical carbons (P-71.2.2.2, P-71.2.3): named as the polyanion of the same skeleton with 'ide' read as
+    'yl', every other group a prefix."""
+    from ._anion import name_anion
+
+    if len(Chem.GetMolFrags(mol)) != 1 or any(a.GetIsotope() for a in mol.GetAtoms()) or specified_stereo_elements(mol):
+        raise UnsupportedStructure("this polyradical is not a single plain skeleton")
+    anionic = Chem.RWMol(mol)
+    for atom in _polyradical_centres(mol):
+        target = anionic.GetAtomWithIdx(atom.GetIdx())
+        target.SetNumRadicalElectrons(0)
+        target.SetFormalCharge(-1)
+    anionic = anionic.GetMol()
+    Chem.SanitizeMol(anionic)
+    name = name_anion(anionic)
+    for ending in ("diide", "triide", "tetraide"):
+        if name.endswith(ending) and "-" in name[: -len(ending)]:
+            return name[: -len("ide")] + "yl"
+    raise UnsupportedStructure("the polyradical is not named as a polyanion parent")
+
+
+def _group_cation_centre(mol):
+    cations = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    if (
+        len(cations) != 1
+        or cations[0].GetFormalCharge() != 1
+        or cations[0].GetAtomicNum() != 6
+        or cations[0].GetIsAromatic()
+        or cations[0].GetIsotope()
+        or cations[0].GetTotalNumHs() + cations[0].GetDegree() != 3
+        or any(b.GetBondTypeAsDouble() != 1.0 for b in cations[0].GetBonds())
+        or any(a.GetNumRadicalElectrons() or a.GetIsotope() for a in mol.GetAtoms())
+        or len(Chem.GetMolFrags(mol)) != 1
+        or mol.GetNumAtoms() < 2
+    ):
+        return None
+    return cations[0]
+
+
+def has_group_cation_shape(mol) -> bool:
+    return _group_cation_centre(mol) is not None
+
+
+def name_group_cation(mol) -> str:
+    """A carbenium centre on a skeleton with other groups (P-73.2.2.1): the carbanion name of the same skeleton
+    with 'ide' read as 'ylium', every other group a prefix."""
+    from ._anion import name_anion
+
+    centre = _group_cation_centre(mol)
+    if centre is None or specified_stereo_elements(mol):
+        raise UnsupportedStructure("this cation is not a single carbenium centre on a plain skeleton")
+    anionic = Chem.RWMol(mol)
+    anionic.GetAtomWithIdx(centre.GetIdx()).SetFormalCharge(-1)
+    anionic = anionic.GetMol()
+    Chem.SanitizeMol(anionic)
+    name = name_anion(anionic)
+    if re.search(r"\d+H\)-ide$", name):
+        raise UnsupportedStructure("an added-hydrogen anion name does not carry over to the cation")
+    if name.endswith("anide"):
+        return name[: -len("anide")] + "ylium"
+    if name.endswith("ide") and name[:-3].endswith("-"):
+        return name[:-3] + "ylium"
+    raise UnsupportedStructure("the cation is not named as a carbanion-like parent")
