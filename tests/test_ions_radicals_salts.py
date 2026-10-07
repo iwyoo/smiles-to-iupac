@@ -775,3 +775,17 @@ def test_carbenium_centre_beside_groups(smiles, expected):
 )
 def test_radical_ions_on_a_hydrocarbon_skeleton(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CCO[C]([O-])c1ccccc1", "ethoxy(oxido)(phenyl)methyl", id="oxido_prefix_on_the_radical_parent"),
+        pytest.param("C[CH][N+](C)(C)C", "1-(trimethylazaniumyl)ethyl", id="cationic_prefix"),
+        pytest.param("[CH2]C(=O)[O-]", "carboxylatomethyl", id="carboxylate_prefix"),
+        pytest.param("[CH2]C[NH3+]", "2-azaniumylethyl", id="ammonium_prefix"),
+        pytest.param("C[CH]C[S-]", "1-sulfidopropan-2-yl", id="sulfido_prefix"),
+    ],
+)
+def test_ionic_groups_as_prefixes_of_a_radical_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

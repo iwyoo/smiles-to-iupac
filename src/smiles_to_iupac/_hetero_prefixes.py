@@ -380,6 +380,8 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return _oxoacid_anion_prefix(graph, root, coming_from, mol)
     if z in MONONUCLEAR_HYDRIDES:
         return _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
+    if atom.GetFormalCharge() == -1 and atom.GetDegree() == 1 and z in (8, 16):
+        return {8: "oxido", 16: "sulfido"}[z], False
     if atom.GetFormalCharge() and z != 7:
         raise UnsupportedStructure("a charged atom in a substituent group is not supported yet")
     if atom.IsInRing():

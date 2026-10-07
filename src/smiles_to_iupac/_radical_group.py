@@ -72,7 +72,6 @@ def has_radical_group_shape(mol) -> bool:
 
 def name_radical_group(mol) -> str:
     from ._isotope_labels import split_isotopes
-    from ._polyfunctional import _is_nitro_part
     from ._substituents import ISOTOPE_LABELS
 
     labels = {}
@@ -86,7 +85,6 @@ def name_radical_group(mol) -> str:
         centre is None
         or mol.GetNumAtoms() > _MAX_ATOMS
         or len(Chem.GetMolFrags(mol)) != 1
-        or any(a.GetFormalCharge() and not _is_nitro_part(a) for a in mol.GetAtoms())
         or specified_stereo_elements(mol)
     ):
         raise UnsupportedStructure("this radical is not a single radical centre on a plain skeleton")
