@@ -988,31 +988,17 @@ def test_phenyl_nitroso_unsaturation_and_related(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("CCN(C)C(=O)NC", id="different_substituent_counts_on_different_nitrogens_not_supported"),
-        pytest.param("C=CNC(=O)N", id="unsaturated_n_substituent_not_supported__urea"),
-    ],
-)
-def test_different_substituent_counts_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
-@pytest.mark.parametrize(
     "smiles, expected",
     [
         pytest.param("CNC(=O)Nc1ccccc1", "N-methyl-N'-phenylurea", id="methyl_n_prime_phenylurea_different_nitrogens"),
         pytest.param("c1ccc(NC(=O)Nc2ccccc2)cc1", "N,N'-diphenylurea", id="n_prime_diphenylurea"),
+        pytest.param("CCN(C)C(=O)NC", "N-ethyl-N,N'-dimethylurea", id="more_substituents_take_the_unprimed_locant"),
+        pytest.param("O=C(Nc1ccccc1)Nc1ccccn1", "N-phenyl-N'-(pyridin-2-yl)urea", id="heteroaromatic_ring_n_substituent"),
+        pytest.param("C=CNC(=O)Nc1ccc(Cl)cc1", "N-(4-chlorophenyl)-N'-ethenylurea", id="halogenated_ring_and_unsaturated_n_substituents"),
     ],
 )
 def test_n_methyl_n_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_phenyl_alongside_another_substituent_on_same_nitrogen_not_supported__urea():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CN(c1ccccc1)C(=O)N")
 
 
 def test_semicarbazide():

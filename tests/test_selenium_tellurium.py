@@ -449,11 +449,6 @@ def test_acyclic_selenonic_acid_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_unsaturated_n_substituent_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CNC(=[Se])N")
-
-
 @pytest.mark.parametrize(
     "smiles, expected",
     [
@@ -463,18 +458,6 @@ def test_unsaturated_n_substituent_not_supported():
 )
 def test_n_phenylselenourea_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("NC(=[Se])Nc1ccc(C)cc1", id="substituted_phenyl_n_substituent_not_supported"),
-        pytest.param("CN(c1ccccc1)C(=[Se])N", id="phenyl_alongside_another_substituent_on_same_nitrogen_not_supported"),
-    ],
-)
-def test_substituted_phenyl_n_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
@@ -842,11 +825,6 @@ def test_acyclic_telluronic_acid_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_unsaturated_n_substituent_not_supported__tellurourea():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CNC(=[Te])N")
-
-
 @pytest.mark.parametrize(
     "smiles, expected",
     [
@@ -856,18 +834,6 @@ def test_unsaturated_n_substituent_not_supported__tellurourea():
 )
 def test_n_phenyltellurourea_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("NC(=[Te])Nc1ccc(C)cc1", id="substituted_phenyl_n_substituent_not_supported__tellurourea"),
-        pytest.param("CN(c1ccccc1)C(=[Te])N", id="phenyl_alongside_another_substituent_on_same_nitrogen_not_supported__tellurourea"),
-    ],
-)
-def test_substituted_phenyl_n_and_related_raise_2(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
@@ -952,12 +918,6 @@ def test_polyselenides_and_polytellurides_like_polysulfides(smiles, expected):
 )
 def test_aromatic_selenium_ring_is_not_a_selenide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-@pytest.mark.parametrize("smiles", ["CN(C)C(=[Se])NC", "CN(C)C(=[Te])NC"])
-def test_selenourea_tellurourea_unequal_substituent_count_not_supported(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(

@@ -174,6 +174,18 @@ def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
     )
 
 
+def _ring_nitrogen_acyl(mol, nitrogen, carbonyl):
+    """A neutral saturated ring nitrogen whose only acyl group is `carbonyl`:
+    the carbonyl is a pseudoketone ('hidden amide', P-64.1.2.1(b), P-64.3.2)."""
+    if nitrogen.GetFormalCharge() or nitrogen.GetIsAromatic() or not nitrogen.IsInRing() or nitrogen.GetDegree() != 3:
+        return False
+    return all(
+        mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        and (n.GetIdx() == carbonyl or (n.GetAtomicNum() == 6 and not is_functional_carbon(mol, n.GetIdx())))
+        for n in nitrogen.GetNeighbors()
+    )
+
+
 def _sulfonyl_group(mol, s_idx, attached):
     """("sulfonic" | "sulfonamide", owned atoms) for an S(=O)(=O)X group whose
     X is OH or an amine nitrogen and whose other neighbor is `attached`."""
@@ -271,6 +283,8 @@ def _group_of(mol, carbon):
                 return "amide", {oxygens[0], other.GetIdx()}
             if other.GetAtomicNum() == 7 and _plain_amide_nitrogen(mol, other, carbon):
                 return "amide", {oxygens[0], other.GetIdx()}
+            if carbon_neighbors and other.GetAtomicNum() == 7 and _ring_nitrogen_acyl(mol, other, carbon):
+                return "ketone", {oxygens[0]}
         return None
     for n in atom.GetNeighbors():
         if n.GetAtomicNum() == 16 and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0:
@@ -1944,6 +1958,7 @@ def _is_ester_like(mol, carbon):
         return False
     return any(
         n.GetAtomicNum() in (8, 7, 16, 9, 17, 35, 53) and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        and not (n.GetAtomicNum() == 7 and any(c.GetAtomicNum() == 6 for c in atom.GetNeighbors()) and _ring_nitrogen_acyl(mol, n, carbon))
         and not (n.GetAtomicNum() == 8 and _terminal_heteroatom(mol, n.GetIdx(), 1))
         and not (n.GetAtomicNum() == 7 and _terminal_heteroatom(mol, n.GetIdx(), 2))
         for n in atom.GetNeighbors()

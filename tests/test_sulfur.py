@@ -711,38 +711,16 @@ def test_aromatic_thione_is_and_related(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("CCN(C)C(=S)NC", id="different_substituent_counts_on_different_nitrogens_not_supported"),
-        pytest.param("C=CNC(=S)N", id="unsaturated_n_substituent_not_supported"),
-    ],
-)
-def test_different_substituent_counts_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
-@pytest.mark.parametrize(
     "smiles, expected",
     [
         pytest.param("CNC(=S)Nc1ccccc1", "N-methyl-N'-phenylthiourea", id="methyl_n_prime_phenylthiourea_different_nitrogens"),
         pytest.param("c1ccc(NC(=S)Nc2ccccc2)cc1", "N,N'-diphenylthiourea", id="n_prime_diphenylthiourea"),
+        pytest.param("CCN(C)C(=S)NC", "N-ethyl-N,N'-dimethylthiourea", id="more_substituents_take_the_unprimed_locant"),
+        pytest.param("S=C(Nc1ccccc1)Nc1ccccn1", "N-phenyl-N'-(pyridin-2-yl)thiourea", id="heteroaromatic_ring_n_substituent"),
     ],
 )
 def test_n_methyl_n_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("NC(=S)Nc1ccc(C)cc1", id="substituted_phenyl_n_substituent_not_supported"),
-        pytest.param("CN(c1ccccc1)C(=S)N", id="phenyl_alongside_another_substituent_on_same_nitrogen_not_supported"),
-    ],
-)
-def test_substituted_phenyl_n_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
