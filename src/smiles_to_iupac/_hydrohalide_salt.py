@@ -29,6 +29,7 @@ other than a hydrohalic one (sulfates etc. -- a separate, larger axis)."""
 from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES
+from ._common_hydride import has_common_hydride_shape
 
 
 def _halide_word(atomic_num):
@@ -55,7 +56,7 @@ def _split_base_and_halide(mol):
         if not _is_bare_hydrogen_halide(halide_frag):
             continue
         (base_frag,) = frags[:i] + frags[i + 1 :]
-        if any(atom.GetFormalCharge() != 0 for atom in base_frag.GetAtoms()):
+        if any(atom.GetFormalCharge() != 0 for atom in base_frag.GetAtoms()) or has_common_hydride_shape(base_frag):
             return None
         return base_frag, halide_frag.GetAtomWithIdx(0).GetAtomicNum()
     return None

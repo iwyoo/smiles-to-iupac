@@ -1,5 +1,5 @@
 import pytest
-from smiles_to_iupac import smiles_to_iupac
+from smiles_to_iupac import NonPreferredNameWarning, smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure
 
 
@@ -947,3 +947,17 @@ def test_non_single_bond_in_a_metal_chain_raises(smiles):
 )
 def test_alternating_heteroatom_ring_cites_every_heteroatom_locant(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("O", "water"),
+        ("N", "ammonia"),
+        ("Cl", "hydrogen chloride"),
+        ("[SeH2]", "hydrogen selenide"),
+    ],
+)
+def test_common_hydride_names_carry_no_pin(smiles, expected):
+    with pytest.warns(NonPreferredNameWarning, match="P-21.1.1.2"):
+        assert smiles_to_iupac(smiles) == expected
