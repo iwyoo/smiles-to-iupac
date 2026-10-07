@@ -428,6 +428,23 @@ def _chalcogen_amide_group(mol, atom, chalcogen, z):
     return None
 
 
+_GROUP_14_ATOMS = {14, 32, 50, 82}
+_GROUP_15_ATOMS = {15, 33, 51, 83}
+
+
+def _is_pseudoketone_heteroatom(mol, atom, carbon):
+    """A neutral Group 14 or 15 atom (P-64.1.2.1) that makes its acyl carbon a pseudoketone rather than a member of
+    a senior class: no multiple bonds on it, and for Group 15 no oxygen, nitrogen or halogen (phosphinous-type acids)."""
+    z = atom.GetAtomicNum()
+    if atom.GetFormalCharge() or z not in _GROUP_14_ATOMS | _GROUP_15_ATOMS:
+        return False
+    if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
+        return False
+    if any(_double_oxygens(mol, n.GetIdx()) for n in atom.GetNeighbors() if n.GetIdx() != carbon):
+        return False
+    return z in _GROUP_14_ATOMS or all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors() if n.GetIdx() != carbon)
+
+
 def _group_of(mol, carbon):
     """(class, atoms owned by the group) for a principal-capable group on
     `carbon`, else None. Raises on carbon-bound groups this engine cannot
@@ -514,6 +531,8 @@ def _group_of(mol, carbon):
                 if beta is not None:
                     return "hydrazide", {oxygens[0], other.GetIdx(), beta}
             if carbon_neighbors and other.GetAtomicNum() == 7 and _ring_nitrogen_acyl(mol, other, carbon):
+                return "ketone", {oxygens[0]}
+            if carbon_neighbors and _is_pseudoketone_heteroatom(mol, other, carbon):
                 return "ketone", {oxygens[0]}
             if not carbon_neighbors and atom.GetTotalNumHs() == 1 and other.GetAtomicNum() == 7 and _ring_nitrogen_acyl(mol, other, carbon):
                 return "aldehyde", {oxygens[0]}
