@@ -158,6 +158,34 @@ def _carbamate_cores(mol):
     return cores
 
 
+def _acyl_oxygen(mol, carbon, amide_n):
+    """The carbonyl oxygen when `carbon` is an acyl group R-C(=O)- (R carbon) on the amide nitrogen."""
+    atom = mol.GetAtomWithIdx(carbon)
+    return [
+        o.GetIdx()
+        for o in atom.GetNeighbors()
+        if o.GetAtomicNum() == 8
+        and o.GetDegree() == 1
+        and mol.GetBondBetweenAtoms(carbon, o.GetIdx()).GetBondTypeAsDouble() == 2.0
+        and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors() if n.GetIdx() not in (o.GetIdx(), amide_n))
+    ]
+
+
+def _acyl_region(mol, graph, n_alkyl_cs, amide_n):
+    region = set()
+    for carbon in n_alkyl_cs:
+        if not _acyl_oxygen(mol, carbon, amide_n):
+            continue
+        stack = [carbon]
+        while stack:
+            idx = stack.pop()
+            if idx in region:
+                continue
+            region.add(idx)
+            stack.extend(n for n in graph[idx] if n != amide_n)
+    return region
+
+
 def has_carbamate_shape(mol) -> bool:
     return bool(_carbamate_cores(mol))
 
@@ -179,10 +207,11 @@ def name_carbamate(mol) -> str:
             "same nitrogen is not supported yet"
         )
     ring_r_atoms = plain_saturated_ring_substituent_atoms(mol, full_graph, ester_o, alkyl_c)
+    acyl_region = _acyl_region(mol, full_graph, n_alkyl_cs, amide_n)
 
     if mol.GetRingInfo().NumRings() > 0:
         all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
-        if all_ring_atoms - phenyl_atoms - ring_r_atoms:
+        if all_ring_atoms - phenyl_atoms - ring_r_atoms - acyl_region:
             raise UnsupportedStructure(
                 "a ring-attached carbamate other than a plain, "
                 "unsubstituted benzene ring on the amide nitrogen, or a "
@@ -190,6 +219,7 @@ def name_carbamate(mol) -> str:
                 "this module"
             )
 
+    acyl_oxygens = {o for c in n_alkyl_cs for o in _acyl_oxygen(mol, c, amide_n)}
     has_carbon = False
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
@@ -202,7 +232,7 @@ def name_carbamate(mol) -> str:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
-            if atom.GetIsAromatic() and atom.GetIdx() not in phenyl_atoms:
+            if atom.GetIsAromatic() and atom.GetIdx() not in phenyl_atoms and atom.GetIdx() not in acyl_region:
                 raise UnsupportedStructure(
                     "aromatic rings are out of scope for this module"
                 )
@@ -212,7 +242,7 @@ def name_carbamate(mol) -> str:
                     "a nitrogen other than the carbamate's own -NH2 needs "
                     "Table 3.3 seniority handling not yet implemented here"
                 )
-        elif atom.GetIdx() not in (carbonyl_o, ester_o):
+        elif atom.GetIdx() not in (carbonyl_o, ester_o) and atom.GetIdx() not in acyl_oxygens:
             raise UnsupportedStructure(
                 "an oxygen other than the carbamate's own two oxygens (a "
                 "coexisting ether/alcohol/second carbonyl) is out of scope "
@@ -229,7 +259,9 @@ def name_carbamate(mol) -> str:
     other_non_single = [
         b
         for b in non_single_bonds(mol)
-        if carbamate_c not in (b[0], b[1]) and not (b[0] in phenyl_atoms and b[1] in phenyl_atoms)
+        if carbamate_c not in (b[0], b[1])
+        and not (b[0] in phenyl_atoms and b[1] in phenyl_atoms)
+        and not (b[0] in acyl_region and b[1] in acyl_region)
     ]
     if other_non_single:
         raise UnsupportedStructure(

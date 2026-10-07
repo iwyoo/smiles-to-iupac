@@ -68,7 +68,12 @@ def name_hetero_parent_acid(mol):
         if group is None or group.spec.anion:
             continue
         attach = [n for n in atom.GetNeighbors() if n.GetIdx() not in group.owned and n.GetAtomicNum() != 1]
-        if len(attach) == 1 and attach[0].GetAtomicNum() in _PARENT_ELEMENTS and not attach[0].IsInRing():
+        if (
+            len(attach) == 1
+            and attach[0].GetAtomicNum() in _PARENT_ELEMENTS
+            and not attach[0].IsInRing()
+            and not _is_acylated(mol, attach[0], atom.GetIdx())
+        ):
             found.append((atom.GetIdx(), group, attach[0].GetIdx()))
     if found and all(mol.GetAtomWithIdx(h).GetAtomicNum() == 7 for _, _, h in found):
         hydrazine = _hydrazine_acid(mol, found)
@@ -97,6 +102,18 @@ def name_hetero_parent_acid(mol):
     elif len(hosts) == 1 and _mononuclear(hydride):
         raise UnsupportedStructure("the heteroatom parent has several possible attachment positions")
     return _located_parent_acid(mol, found, spec)
+
+
+def _is_acylated(mol, host, acid_carbon):
+    """A host carrying a carbon acyl group (an amide, R-CO-N) makes the group a carbamic or carbonic acid derivative
+    (P-65.2), not a carboxylic acid on a hetero parent hydride."""
+    return any(
+        n.GetIdx() != acid_carbon
+        and n.GetAtomicNum() == 6
+        and any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(n).GetAtomicNum() != 6 for b in n.GetBonds())
+        and any(m.GetAtomicNum() == 6 for m in n.GetNeighbors())
+        for n in host.GetNeighbors()
+    )
 
 
 def _mononuclear(hydride):
