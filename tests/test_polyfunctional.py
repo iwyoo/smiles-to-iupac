@@ -1112,7 +1112,6 @@ def test_polyfunctional_never_misattributes_a_group(smiles, expected):
     "smiles",
     [
         "Cc1cc(S(=O)(=O)N=[N+]=[N-])ccc1Oc1ccc(S(=O)(=O)N=[N+]=[N-])cc1",
-        "CCC[C@H](C[C@@H]1CCCO1)NC(=O)OC",
         "C=CCC(CN)CC(C)/C(=C\\C)CC/C=C\\C",
     ],
 )

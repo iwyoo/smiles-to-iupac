@@ -10,7 +10,7 @@ from rdkit import Chem
 from ._acid_lexicon import _INFIX, _MULTIPLIER, _peroxo_word
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._retained_acids import single_site_prefixes
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import cited_branch_stereo, format_substituent_prefixes, name_branch
 
 _SYMBOL = {8: "O", 16: "S", 34: "Se", 52: "Te"}
 _HALIDE_INFIX = {9: "fluorid", 17: "chlorid", 35: "bromid", 53: "iodid"}
@@ -176,7 +176,7 @@ def _find(mol):
         doubles = [n for n in neighbors if _bond(mol, atom.GetIdx(), n.GetIdx()) == 2.0]
         if triples and len(neighbors) == 2:
             cyano.append(atom.GetIdx())
-        elif len(neighbors) == 3 and len(doubles) == 1:
+        elif len(neighbors) == 3 and len(doubles) == 1 and sum(n.GetAtomicNum() == 6 for n in neighbors) < 2:
             centers.append(atom.GetIdx())
     lone = [
         c
@@ -298,13 +298,15 @@ def name_carbonic_family(mol):
 def _nitrogen_prefixes(mol, graph, center, amino, imine_n, x):
     halogens = halogen_substituents(mol)
     entries = {}
-    for root, locant in ((amino, "N"), (imine_n, "N'" if amino is not None else "N")):
-        if root is None:
-            continue
-        for m in graph[root]:
-            if m != center:
-                name, compound = name_branch(graph, m, root, halogens, mol=mol)
-                entries.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
+    roots = [m for root in (amino, imine_n) if root is not None for m in graph[root] if m != center]
+    with cited_branch_stereo(mol, graph, {center, amino, imine_n}, roots):
+        for root, locant in ((amino, "N"), (imine_n, "N'" if amino is not None else "N")):
+            if root is None:
+                continue
+            for m in graph[root]:
+                if m != center:
+                    name, compound = name_branch(graph, m, root, halogens, mol=mol)
+                    entries.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
     if not entries:
         return ""
     if amino is not None and imine_n is None and x == "O":
