@@ -44,6 +44,8 @@ def _locant_sort_key(locant):
 
 
 _PLAIN_STEM_PREFIX = None
+# an unsubstituted ring group carries no prefix before its stem, only its own attachment locant (P-16.3.4(a))
+_RING_GROUP_PREFIX = re.compile(r"^(?:\d+H-)?[a-z]+-\d+[a-z]?-(?:yl|ylidene|ylidyne)$")
 
 
 def is_plain_stem_prefix(name: str) -> bool:
@@ -55,13 +57,14 @@ def is_plain_stem_prefix(name: str) -> bool:
     if _PLAIN_STEM_PREFIX is None:
         import re
 
+
         stems = {alkane_name(n)[:-3] for n in range(1, 41) if alkane_name(n).endswith("ane")}
         stems |= {"meth", "eth", "prop", "but", "naphthalen", "anthracen", "phenanthren"}
         escaped = "|".join(sorted(map(re.escape, stems), key=len, reverse=True))
         _PLAIN_STEM_PREFIX = re.compile(
             rf"^(?:\d+H-)?(?:cyclo)?(?:{escaped})(?:a|an)?(?:-[\d,]+-(?:di|tri|tetra)?(?:en|yn))*-?[\d,]*-?(?:(?:di|tri|tetra)?(?:en|yn))?(?:yl|ylidene|ylidyne|diyl)$"
         )
-    return bool(_PLAIN_STEM_PREFIX.match(name))
+    return bool(_PLAIN_STEM_PREFIX.match(name) or _RING_GROUP_PREFIX.match(name))
 
 
 def format_substituent_prefixes(grouped, omit_locants: bool = False) -> str:

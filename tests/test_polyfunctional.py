@@ -1150,3 +1150,15 @@ def test_chain_unit_bearing_a_group_outside_the_chain_is_not_named_by_skeletal_r
 )
 def test_senior_ring_is_the_parent_and_a_multiplicative_centre_keeps_all_principal_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("O=C(c1ccco1)C(O)c1ccco1", "1,2-di(furan-2-yl)-2-hydroxyethan-1-one"),
+        ("n1c(-c2cccs2)cccc1-c1cccs1", "2,6-di(thiophen-2-yl)pyridine"),
+        ("OC(c1ccc(C)cc1)c1ccc(C)cc1", "bis(4-methylphenyl)methanol"),
+    ],
+)
+def test_simple_ring_groups_take_di_and_substituted_ones_take_bis(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
