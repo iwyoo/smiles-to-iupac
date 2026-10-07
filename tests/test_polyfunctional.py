@@ -483,11 +483,7 @@ def test_phenyl_chain_ketone_and_related(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        "CC.CC1CCC12CNC2",  # _spiro_heteroatom.py
-        "CC.CCOCC",  # _ether.py
         "CC.CCC[N+](=O)[O-]",  # _nitro.py
-        "CC.CCS(C)(=O)=O",  # _sulfone.py
-        "CC.Cc1ccncc1",  # _hetero_monocyclic.py substituent path
     ],
 )
 def test_multi_fragment_rejected_instead_of_silently_dropped(smiles):

@@ -480,6 +480,18 @@ def test_dihydrate_adduct():
 
 
 @pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CCO.c1ccncc1", "ethanol—pyridine (1/1)"),
+        ("CC(=O)O.CCN", "acetic acid—ethanamine (1/1)"),
+        ("CC.CCOCC", "ethoxyethane—ethane (1/1)"),
+    ],
+)
+def test_adduct_components_ordered_by_class_seniority(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles,expected",
     [
         ("COO", "methaneperoxol"),

@@ -910,7 +910,6 @@ def test_nitrite_ester_name(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("CON=O.C", id="multiple_fragments_raises__nitrite_ester"),
         pytest.param("O=NOCCCON=O", id="two_nitrite_groups_raises"),
     ],
 )
