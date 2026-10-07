@@ -88,18 +88,6 @@ def test_amidine_names(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("NC(=N)CC(=N)N", id="diamidine_raises"),
-        pytest.param("CC[C@@H](C)C(=N)N", id="amidine_specified_chain_stereocenter_raises"),
-    ],
-)
-def test_diamidine_raises_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
-@pytest.mark.parametrize(
     "smiles, expected",
     [
         pytest.param("CC(=Nc1ccccc1)N", "N'-phenylethanimidamide", id="phenylamidine"),
@@ -110,18 +98,6 @@ def test_n_prime_cases(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("CC(=Nc1ccccc1)Nc1ccccc1", id="n_phenylamidine_with_second_imino_substituent_raises"),
-        pytest.param("c1ccccc1C(=N)N", id="phenyl_directly_attached_amidine_raises"),
-    ],
-)
-def test_n_phenylamidine_with_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
 def test_phenyl_chain_amidine_ring_halogen():
     assert smiles_to_iupac("Clc1ccc(CCC(=N)N)cc1") == "3-(4-chlorophenyl)propanimidamide"
 
@@ -129,8 +105,6 @@ def test_phenyl_chain_amidine_ring_halogen():
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("C=Cc1ccccc1CC(=N)N", id="phenyl_chain_amidine_unsaturation_raises"),
-        pytest.param("CCC(=N)N(CC)CC(F)(F)F", id="halogen_substituted_n_alkyl_raises"),
         pytest.param("CC(N)N(C)C", id="geminal_diamine_with_substituent_raises"),
         pytest.param("NCCN(C)CC=C", id="two_amines_with_unsaturated_n_substituent_raises"),
     ],
@@ -422,25 +396,8 @@ def test_guanidine():
     assert smiles_to_iupac("NC(=N)N") == "guanidine"
 
 
-def test_different_substituent_counts_on_amino_nitrogens_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CN(C)C(=N)NC")
-
-
 def test_imino_plus_amino_different_names_alphabetized():
     assert smiles_to_iupac("CNC(=NCC)N") == "N''-ethyl-N-methylguanidine"
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("NC(=NC=C)N", id="imino_n_substituent_not_supported"),
-        pytest.param("C=CNC(=N)N", id="n_substituent_not_supported"),
-    ],
-)
-def test_unsaturated_imino_n_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
@@ -457,8 +414,6 @@ def test_n_n_prime_and_related(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("Cc1ccc(NC(=N)N)cc1", id="substituted_phenyl_n_substituent_not_supported"),
-        pytest.param("CN(c1ccccc1)C(=N)N", id="phenyl_alongside_another_substituent_on_same_nitrogen_not_supported__guanidine"),
         pytest.param("N1CCCCC1=N", id="ring_fused_guanidine_still_not_supported"),
     ],
 )
@@ -507,7 +462,6 @@ def test_formohydrazide_and_related(smiles, expected):
     "smiles",
     [
         pytest.param("O=CN(C)N", id="n_substituted_formohydrazide_raises"),
-        pytest.param("CC(=O)N(N)C(C)C", id="branched_n_substituent_raises"),
         pytest.param("CCCC(=O)NNC(=O)C", id="diacylhydrazide_raises"),
     ],
 )
@@ -520,11 +474,6 @@ def test_phenyl_chain_hydrazide_retained_name():
     assert smiles_to_iupac("c1ccccc1CC(=O)NN") == "2-phenylacetohydrazide"
 
 
-def test_phenyl_directly_attached_hydrazide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1C(=O)NN")
-
-
 def test_n_prime_phenylhydrazide():
     assert smiles_to_iupac("CC(=O)NNc1ccccc1") == "N'-phenylacetohydrazide"
     assert smiles_to_iupac("CCC(=O)NNc1ccccc1") == "N'-phenylpropanehydrazide"
@@ -534,18 +483,8 @@ def test_n_phenylhydrazide():
     assert smiles_to_iupac("CC(=O)N(c1ccccc1)N") == "N-phenylacetohydrazide"
 
 
-def test_n_phenylhydrazide_with_second_n_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(=O)N(c1ccccc1)Nc1ccccc1")
-
-
 def test_phenyl_chain_hydrazide_ring_halogen():
     assert smiles_to_iupac("Clc1ccc(CCC(=O)NN)cc1") == "3-(4-chlorophenyl)propanehydrazide"
-
-
-def test_phenyl_chain_hydrazide_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC(=O)NN")
 
 
 @pytest.mark.parametrize(
@@ -569,7 +508,6 @@ def test_diacyl_hydrazide_formyl():
     [
         pytest.param("CC(=O)NNC(=O)c1ccccc1", id="diacyl_hydrazide_aromatic_acyl_raises"),
         pytest.param("CC(C)C(=O)NNC(=O)C(C)C", id="diacyl_hydrazide_branched_acyl_raises"),
-        pytest.param("CCC(=O)NNCC(F)(F)F", id="halogen_substituted_n_alkyl_raises__hydrazide"),
     ],
 )
 def test_diacyl_hydrazide_aromatic_and_related_raise(smiles):
@@ -714,11 +652,6 @@ def test_ring_raises_imine_is_named():
     assert smiles_to_iupac("N=C1CCCC1") == "cyclopentanimine"
 
 
-def test_unsaturated_chain_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=CC=N")
-
-
 def test_imine_with_a_senior_alcohol_is_an_imino_prefix():
     assert smiles_to_iupac("OCC=N") == "2-iminoethan-1-ol"
 
@@ -726,9 +659,7 @@ def test_imine_with_a_senior_alcohol_is_an_imino_prefix():
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("CC=NOC(C)C", id="branched_oxime_o_substituent_raises"),
         pytest.param("CC=NOO", id="two_oxygens_on_oxime_nitrogen_raises"),
-        pytest.param("CC[C@@H](C)C(C)=N", id="imine_specified_chain_stereocenter_raises"),
     ],
 )
 def test_branched_oxime_o_and_related_raise(smiles):
@@ -760,11 +691,6 @@ def test_phenyl_chain_imine():
     assert smiles_to_iupac("c1ccccc1CC=N") == "2-phenylethan-1-imine"
     assert smiles_to_iupac("c1ccccc1CCC=N") == "3-phenylpropan-1-imine"
     assert smiles_to_iupac("c1ccccc1CC(C)=N") == "1-phenylpropan-2-imine"
-
-
-def test_phenyl_chain_oxime_ether_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1CCC=NOCC")
 
 
 @pytest.mark.parametrize(
@@ -1000,13 +926,12 @@ def test_n_methyl_n_and_related(smiles, expected):
 
 
 def test_semicarbazide():
-    assert smiles_to_iupac("NC(=O)NN") == "aminourea"
+    assert smiles_to_iupac("NC(=O)NN") == "hydrazinecarboxamide"
 
 
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("CNC(=O)NN", id="semicarbazide_with_n_alkyl_substituent_not_supported"),
         pytest.param("NNC(=O)NN", id="double_amino_substituted_urea_not_supported"),
     ],
 )
@@ -1038,4 +963,39 @@ def test_hydrazone_with_ring_or_substituted_nitrogen_is_ylidene_hydrazine(smiles
     ],
 )
 def test_ring_imine_and_oxime(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC(C)=Nc1ccccc1", "N-phenylpropan-2-imine", id="n_aryl_imine"),
+        pytest.param("c1ccccc1C=Nc1ccccc1", "N,1-diphenylmethanimine", id="n_aryl_aldimine_of_an_aryl_aldehyde"),
+        pytest.param("CC=NOCc1ccccc1", "N-(benzyloxy)ethanimine", id="oxime_ether_with_an_aromatic_chain"),
+        pytest.param("CC=NOC(C)C", "N-[(propan-2-yl)oxy]ethanimine", id="branched_oxime_o_substituent"),
+        pytest.param("N=CC=N", "ethane-1,2-diimine", id="polyimine"),
+        pytest.param("CC(=NO)N", "N'-hydroxyethanimidamide", id="amidoxime"),
+        pytest.param("NC(=NO)c1ccccc1", "N'-hydroxybenzenecarboximidamide", id="aryl_amidoxime"),
+        pytest.param("N=C(N)c1ccccc1C(=N)N", "benzene-1,2-dicarboximidamide", id="ring_diamidine"),
+        pytest.param("CC(=NC)N(C)C", "N,N,N'-trimethylethanimidamide", id="n_and_n_prime_substituents"),
+        pytest.param("NC(=N)CC(=N)N", "propanediimidamide", id="chain_diamidine"),
+    ],
+)
+def test_imine_and_amidine_n_substituents_and_polyfunctional_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC=NNC(N)=O", "2-ethylidenehydrazine-1-carboxamide", id="semicarbazone"),
+        pytest.param("CNC(=O)NNC", "N,2-dimethylhydrazine-1-carboxamide", id="substituted_semicarbazide"),
+        pytest.param("CC=NNC(=O)c1ccccc1", "N'-ethylidenebenzohydrazide", id="acylhydrazone"),
+        pytest.param("O=C(NN=Cc1ccccc1)c1ccncc1", "N'-benzylidenepyridine-4-carbohydrazide", id="ring_carbohydrazide_hydrazone"),
+        pytest.param("CC(=O)N(c1ccccc1)Nc1ccccc1", "N,N'-diphenylacetohydrazide", id="n_and_n_prime_substituents"),
+        pytest.param("NC(=Nc1ccccn1)N", "N''-(pyridin-2-yl)guanidine", id="guanidine_with_heteroaromatic_ring"),
+        pytest.param("CN(C)C(=NC)N(C)C", "N,N,N',N',N''-pentamethylguanidine", id="guanidine_with_substituents_on_every_nitrogen"),
+    ],
+)
+def test_hydrazide_semicarbazone_and_guanidine_n_substituents(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

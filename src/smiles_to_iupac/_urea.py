@@ -45,7 +45,8 @@ urea core (hydantoin) and characteristic groups outside it are out of scope.
 from rdkit import Chem
 
 from ._chalcogenourea import n_prefix, n_substituent_names
-from ._common import UnsupportedStructure, adjacency
+from ._common import UnsupportedStructure, adjacency, group_substituents
+from ._substituents import format_substituent_prefixes
 
 
 def _urea_core(mol):
@@ -72,7 +73,7 @@ def _urea_core(mol):
         if any(n.GetFormalCharge() != 0 or n.GetIsotope() != 0 for n in nitrogens):
             continue
         if any(
-            nn.GetAtomicNum() != 6 and not _is_terminal_amino_nitrogen(nn, n.GetIdx())
+            nn.GetAtomicNum() != 6 and not _is_hydrazine_tail(mol, nn, n.GetIdx())
             for n in nitrogens
             for nn in n.GetNeighbors()
             if nn.GetIdx() != atom.GetIdx()
@@ -82,7 +83,7 @@ def _urea_core(mol):
             nn
             for n in nitrogens
             for nn in n.GetNeighbors()
-            if nn.GetIdx() != atom.GetIdx() and _is_terminal_amino_nitrogen(nn, n.GetIdx())
+            if nn.GetIdx() != atom.GetIdx() and _is_hydrazine_tail(mol, nn, n.GetIdx())
         ]
         if len(amino_neighbors) > 1:
             continue
@@ -90,15 +91,16 @@ def _urea_core(mol):
     return None
 
 
-def _is_terminal_amino_nitrogen(atom, exclude_idx):
-    """True if `atom` is a plain terminal -NH2 nitrogen (semicarbazide's
-    extra nitrogen) bonded only to the nitrogen at `exclude_idx`."""
-    if atom.GetAtomicNum() != 7 or atom.GetIsAromatic():
+def _is_hydrazine_tail(mol, atom, exclude_idx):
+    """True if `atom` is the second nitrogen of a semicarbazide: bonded to the nitrogen at `exclude_idx` and to
+    carbon groups only, or to one ylidene carbon (a semicarbazone)."""
+    if atom.GetAtomicNum() != 7 or atom.GetIsAromatic() or atom.IsInRing():
         return False
     if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
         return False
-    neighbors = [n.GetIdx() for n in atom.GetNeighbors()]
-    return neighbors == [exclude_idx]
+    others = [n for n in atom.GetNeighbors() if n.GetIdx() != exclude_idx]
+    orders = [mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() for n in others]
+    return all(n.GetAtomicNum() == 6 for n in others) and (orders == [2.0] or 2.0 not in orders and 3.0 not in orders)
 
 
 def has_urea_shape(mol) -> bool:
@@ -114,7 +116,7 @@ def _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx):
         for neighbor in nitrogen.GetNeighbors():
             if neighbor.GetIdx() in (carbon_idx,):
                 continue
-            if _is_terminal_amino_nitrogen(neighbor, n_idx):
+            if _is_hydrazine_tail(mol, neighbor, n_idx):
                 return neighbor.GetIdx()
     return None
 
@@ -136,19 +138,25 @@ def name_urea(mol) -> str:
     amino_nitrogen_idx = _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx)
 
     core_atoms = {carbon_idx, oxygen_idx, n1_idx, n2_idx}
+    graph = adjacency(mol)
     if amino_nitrogen_idx is not None:
         core_atoms.add(amino_nitrogen_idx)
-    n1_names, n2_names = n_substituent_names(mol, adjacency(mol), core_atoms, n1_idx, n2_idx, carbon_idx)
-
-    if amino_nitrogen_idx is not None:
-        if n1_names or n2_names:
-            raise UnsupportedStructure(
-                "a semicarbazide (amino-substituted urea nitrogen) "
-                "combined with a plain N-alkyl substituent is not "
-                "supported yet -- PubChem's own examples for that "
-                "combination use a numeric-locant style this module "
-                "doesn't otherwise follow for urea"
-            )
-        return "aminourea"
-
+        alpha, amide = (
+            (n1_idx, n2_idx) if amino_nitrogen_idx in graph[n1_idx] else (n2_idx, n1_idx)
+        )
+        amide_names, alpha_names, beta_names = n_substituent_names(
+            mol, graph, core_atoms, (amide, alpha, amino_nitrogen_idx), carbon_idx
+        )
+        return _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names)
+    n1_names, n2_names = n_substituent_names(mol, graph, core_atoms, (n1_idx, n2_idx), carbon_idx)
     return f"{n_prefix(n1_names, n2_names)}urea"
+
+
+def _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names):
+    """Substituted hydrazinecarboxamide (P-66.1.1.1.1.3, P-66.3.5): N on the amide nitrogen, 1 and 2 on the
+    hydrazine nitrogens."""
+    positions = {"N": amide_names, 1: alpha_names, 2: beta_names}
+    grouped = group_substituents({k: v for k, v in positions.items() if v})
+    if not grouped:
+        return "hydrazinecarboxamide"
+    return f"{format_substituent_prefixes(grouped)}hydrazine-1-carboxamide"

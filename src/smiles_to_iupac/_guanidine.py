@@ -36,58 +36,16 @@ Book"):
   "2-ethylguanidine", `CN=C(NC)N` -> "1,2-dimethylguanidine" (imino +
   one amino nitrogen substituted).
 
-Scope, deliberately narrow, mirroring `_urea.py`'s/`_thiourea.py`'s own:
-substituents landing on the two amino nitrogens (one nitrogen with one or
-two, using the same 'N-'/'N,N-di' citation established there; an identical
-single substituent on each of the two different amino nitrogens using
-'N,N'-di...'; or one DIFFERENT substituent on each, the alphanumerical
-order (P-14.5.2, ignoring italicized prefixes like 'tert-') deciding
-which becomes 'N-' and which 'N''-', same rule as `_urea.py`/
-`_thiourea.py` -- PubChem structure match: `CCNC(=N)NC` ->
-'1-ethyl-2-methylguanidine', CID 17814701), the imino nitrogen (at most
-one substituent -- it only has one open valence beyond its C=N double
-bond), or both at once, combined and alphabetized per the
-tetramethyl-phenyl worked example above. Each N-substituent's own name is
-built with `name_branch` (P-29 PIN style, fixed project-wide by PR #237;
-mirrors `_urea.py`'s/`_thiourea.py`'s identical fix, PR #332/#333) -- a
-branched N-substituent is supported (e.g. 'N-tert-butylguanidine', CID
-12830400, a retained non-compound name), and a *compound* one is always
-parenthesized -- 'N-(propan-2-yl)guanidine', not PubChem's own raw
-'N-propan-2-ylguanidine' (CID 11491919), same correction as `_urea.py`
-(see that module's docstring for the Blue Book citations), applied per
-substituent (single or grouped) in `_combine_prefixes` (e.g.
-'N,N'-di(propan-2-yl)guanidine', CID 198192; 'N,N'-ditert-butylguanidine',
-CID 23103888). Explicitly out of scope (raise
-`UnsupportedStructure`): a different substituent *count* on each amino
-nitrogen (no confirmed worked example settles that locant tie-break), an
-unsaturated N-substituent, a ring-bearing N-substituent other than a
-single plain (unsubstituted) benzene ring, and a ring-fused guanidine.
-
-- A plain benzene ring bonded directly to a nitrogen is cited as
-  'phenyl', mirroring `_urea.py`'s/`_thiourea.py`'s identical fix
-  (PR #382/#383) and the tetramethyl-phenyl worked example already cited
-  above -- PubChem structure match: `c1ccccc1NC(=N)N` -> "2-phenylguanidine"
-  (N-phenylguanidine), `c1ccccc1NC(=N)Nc1ccccc1` -> "1,2-diphenylguanidine"
-  (N,N'-diphenylguanidine), `CNC(=N)Nc1ccccc1` -> "2-methyl-1-phenylguanidine"
-  (N-methyl-N'-phenylguanidine). A *substituted* phenyl ring or a second
-  substituent sharing that same nitrogen is out of scope.
+Every nitrogen carries any substituent `name_branch` can name (acyclic, ring, halogenated, unsaturated): the amino
+nitrogen with more substituents takes the unprimed locant, then the one holding the alphanumerically first
+substituent, and the imino nitrogen takes N''. A ring fused to the guanidine core is out of scope.
 """
-
-from collections import defaultdict
 
 from rdkit import Chem
 
-from ._multiplicative_text import enclose
-from ._common import (
-    UnsupportedStructure,
-    adjacency,
-    bfs,
-    carbon_adjacency,
-    plain_phenyl_substituent_atoms,
-    reject_unsaturated_substituents,
-)
-from ._numerals import multiplying_prefix
-from ._substituents import alpha_sort_key, name_branch
+from ._chalcogenourea import n_substituent_names
+from ._common import UnsupportedStructure, adjacency, group_substituents
+from ._substituents import alpha_sort_key, format_substituent_prefixes
 
 
 def _guanidine_core(mol):
@@ -140,65 +98,6 @@ def has_guanidine_shape(mol) -> bool:
     return _guanidine_core(mol) is not None
 
 
-def _n_substituent_carbons(mol, nitrogen_idx, carbon_idx):
-    nitrogen = mol.GetAtomWithIdx(nitrogen_idx)
-    return tuple(
-        n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetIdx() != carbon_idx
-    )
-
-
-def _substituent_names(full_graph, nitrogen_idx, substituent_carbons, aromatic_atoms=frozenset(), mol=None):
-    return [
-        name_branch(full_graph, c, nitrogen_idx, {}, aromatic_atoms, mol=mol)
-        for c in substituent_carbons
-    ]
-
-
-def _substituent_chain_atoms(carbon_graph, substituent_carbons):
-    atoms = set()
-    for root in substituent_carbons:
-        reached, _ = bfs(carbon_graph, root)
-        atoms.update(reached)
-    return atoms
-
-
-def _reject_unsaturated_substituents(mol, atoms):
-    reject_unsaturated_substituents(mol, atoms)
-
-
-def _prime_rank(letter):
-    return letter.count("'")
-
-
-def _di_name(name, is_compound):
-    return enclose(name) if is_compound else name
-
-
-def _combine_prefixes(letters_and_entries):
-    """Combine (letter, substituent name, is_compound) triples into a
-    single citation, grouping identical substituent names under a shared
-    multiplying prefix and alphanumerically ordering groups by name
-    (P-14.5.2, via `alpha_sort_key`), per the Blue Book's own
-    "N,N,N′,N′-tetramethyl-N′′-phenylguanidine" worked example. A
-    multiplied compound name (has its own locant) is parenthesized to
-    avoid ambiguity (e.g. 'N,N'-di(propan-2-yl)'); a single occurrence or
-    a retained (non-compound) name is not."""
-    groups = defaultdict(list)
-    compound_of = {}
-    for letter, name, is_compound in letters_and_entries:
-        groups[name].append(letter)
-        compound_of[name] = is_compound
-    parts = []
-    for name in sorted(groups, key=alpha_sort_key):
-        letters = sorted(groups[name], key=lambda l: (_prime_rank(l), l))
-        if len(letters) == 1:
-            prefix_name = _di_name(name, compound_of[name])
-        else:
-            prefix_name = multiplying_prefix(len(letters)) + _di_name(name, compound_of[name])
-        parts.append(f"{','.join(letters)}-{prefix_name}")
-    return "-".join(parts)
-
-
 def name_guanidine(mol) -> str:
     core = _guanidine_core(mol)
     if core is None:
@@ -212,77 +111,20 @@ def name_guanidine(mol) -> str:
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
-    n1_carbons = _n_substituent_carbons(mol, n1_idx, carbon_idx)
-    n2_carbons = _n_substituent_carbons(mol, n2_idx, carbon_idx)
-    imino_carbons = _n_substituent_carbons(mol, imino_idx, carbon_idx)
-
-    full_graph = adjacency(mol)
-    phenyl_atoms = plain_phenyl_substituent_atoms(
-        mol, full_graph, n1_carbons + n2_carbons + imino_carbons
+    n1_names, n2_names, imino_names = n_substituent_names(
+        mol, adjacency(mol), {carbon_idx, imino_idx, n1_idx, n2_idx}, (n1_idx, n2_idx, imino_idx), carbon_idx
     )
-    if phenyl_atoms and (
-        (any(c in phenyl_atoms for c in n1_carbons) and len(n1_carbons) > 1)
-        or (any(c in phenyl_atoms for c in n2_carbons) and len(n2_carbons) > 1)
-    ):
-        raise UnsupportedStructure(
-            "a phenyl N-substituent alongside another substituent on the "
-            "same nitrogen is not supported yet"
-        )
+    unprimed, primed = _amino_assignment(n1_names, n2_names)
+    positions = {"N": unprimed, "N'": primed, "N''": imino_names}
+    grouped = group_substituents({k: v for k, v in positions.items() if v})
+    return f"{format_substituent_prefixes(grouped)}guanidine"
 
-    if mol.GetRingInfo().NumRings() > 0:
-        all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
-        if all_ring_atoms - phenyl_atoms:
-            raise UnsupportedStructure(
-                "a ring-fused guanidine or a ring N-substituent other than "
-                "a plain, unsubstituted benzene ring is out of scope for "
-                "this module"
-            )
 
-    carbon_graph = carbon_adjacency(mol)
-    n1_chain_atoms = _substituent_chain_atoms(carbon_graph, n1_carbons)
-    n2_chain_atoms = _substituent_chain_atoms(carbon_graph, n2_carbons)
-    imino_chain_atoms = _substituent_chain_atoms(carbon_graph, imino_carbons)
-    known_atoms = (
-        {carbon_idx, imino_idx, n1_idx, n2_idx}
-        | n1_chain_atoms
-        | n2_chain_atoms
-        | imino_chain_atoms
-    )
-    for atom in mol.GetAtoms():
-        if atom.GetIdx() not in known_atoms:
-            raise UnsupportedStructure(
-                "a heteroatom or other characteristic group outside the "
-                "guanidine core and its plain N-alkyl substituents is not "
-                "supported yet"
-            )
-
-    _reject_unsaturated_substituents(mol, n1_chain_atoms - phenyl_atoms)
-    _reject_unsaturated_substituents(mol, n2_chain_atoms - phenyl_atoms)
-    _reject_unsaturated_substituents(mol, imino_chain_atoms - phenyl_atoms)
-
-    aromatic_atoms = frozenset(phenyl_atoms)
-    n1_names = _substituent_names(full_graph, n1_idx, n1_carbons, aromatic_atoms, mol=mol)
-    n2_names = _substituent_names(full_graph, n2_idx, n2_carbons, aromatic_atoms, mol=mol)
-    imino_names = _substituent_names(full_graph, imino_idx, imino_carbons, aromatic_atoms, mol=mol)
-
-    if n1_names and n2_names:
-        if len(n1_names) != 1 or len(n2_names) != 1:
-            raise UnsupportedStructure(
-                "a different substituent count on each of guanidine's two "
-                "amino nitrogens is not supported yet (no confirmed "
-                "worked example settles the locant tie-break for that "
-                "case)"
-            )
-        first, second = sorted((n1_names[0], n2_names[0]), key=lambda e: alpha_sort_key(e[0]))
-        amino_entries = [("N", *first), ("N'", *second)]
-    else:
-        letter = "N" if n1_names else "N'"
-        names = n1_names or n2_names
-        amino_entries = [(letter, name, is_compound) for name, is_compound in names]
-
-    imino_entries = [("N''", name, is_compound) for name, is_compound in imino_names]
-
-    entries = amino_entries + imino_entries
-    if not entries:
-        return "guanidine"
-    return f"{_combine_prefixes(entries)}guanidine"
+def _amino_assignment(n1_names, n2_names):
+    """The amino nitrogen with more substituents takes the unprimed locant, then the one whose substituent comes
+    first alphanumerically (P-66.4.1.2.1.2: the minimum number of primes)."""
+    if len(n1_names) != len(n2_names):
+        return (n1_names, n2_names) if len(n1_names) > len(n2_names) else (n2_names, n1_names)
+    key = lambda names: min((alpha_sort_key(name) for name, _ in names), default="")
+    first, second = sorted((n1_names, n2_names), key=key)
+    return first, second

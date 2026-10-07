@@ -37,13 +37,20 @@ def _substituent_atoms(graph, roots, core_atoms):
     return reached
 
 
-def n_substituent_names(mol, graph, core_atoms, n1_idx, n2_idx, carbon_idx):
-    """([names of n1's substituents], [names of n2's]) for every atom outside `core_atoms`
+def n_substituent_names(mol, graph, core_atoms, nitrogens, carbon_idx):
+    """One list of substituent names per nitrogen of `nitrogens`, for every atom outside `core_atoms`
     (P-66.1.4.1); raises when a ring fuses into the core or a non-halogen
     acyclic heteroatom is present."""
-    n1_roots = tuple(r for r in _n_substituent_roots(mol, n1_idx, carbon_idx) if r not in core_atoms)
-    n2_roots = tuple(r for r in _n_substituent_roots(mol, n2_idx, carbon_idx) if r not in core_atoms)
-    outside = _substituent_atoms(graph, n1_roots + n2_roots, core_atoms)
+    roots = [
+        tuple(r for r in _n_substituent_roots(mol, n, carbon_idx) if r not in core_atoms) for n in nitrogens
+    ]
+    for group in roots:
+        arms = [_substituent_atoms(graph, (r,), core_atoms) for r in group]
+        if any(arm is None for arm in arms) or sum(len(arm) for arm in arms) != len(set().union(*arms)):
+            raise UnsupportedStructure(
+                "a ring through a nitrogen of the group is named as a ring parent, not as N-substituents"
+            )
+    outside = _substituent_atoms(graph, tuple(r for group in roots for r in group), core_atoms)
     if outside is None or len(outside) + len(core_atoms) != mol.GetNumAtoms():
         raise UnsupportedStructure(
             "a ring-fused urea (e.g. hydantoin) or a characteristic group outside the urea core "
@@ -57,10 +64,7 @@ def n_substituent_names(mol, graph, core_atoms, n1_idx, n2_idx, carbon_idx):
                 "a heteroatom or other characteristic group outside the urea core and its N-substituents "
                 "is not supported yet"
             )
-    return (
-        [name_branch(graph, c, n1_idx, halogens, mol=mol) for c in n1_roots],
-        [name_branch(graph, c, n2_idx, halogens, mol=mol) for c in n2_roots],
-    )
+    return [[name_branch(graph, c, n, halogens, mol=mol) for c in group] for n, group in zip(nitrogens, roots)]
 
 
 def n_prefix(n1_names, n2_names):
@@ -132,6 +136,6 @@ class Chalcogenourea:
         )
         graph = adjacency(mol)
         n1_names, n2_names = n_substituent_names(
-            mol, graph, {carbon_idx, chalcogen_idx, n1_idx, n2_idx}, n1_idx, n2_idx, carbon_idx
+            mol, graph, {carbon_idx, chalcogen_idx, n1_idx, n2_idx}, (n1_idx, n2_idx), carbon_idx
         )
         return f"{n_prefix(n1_names, n2_names)}{word}"

@@ -1030,6 +1030,8 @@ def should_omit_mononuclear_locants(chain_length, own_locants, has_unsaturation,
 RETAINED_ACYL_STEMS = {
     (1, "amide"): "formamide",
     (2, "amide"): "acetamide",
+    (1, "hydrazide"): "formohydrazide",
+    (2, "hydrazide"): "acetohydrazide",
     (2, "diamide"): "oxamide",
     (2, "nitrile"): "acetonitrile",
     (2, "dinitrile"): "oxalonitrile",
