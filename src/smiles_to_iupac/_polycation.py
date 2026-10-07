@@ -2,6 +2,8 @@
 before 'di', 'tri' (an 'e' is lost only before a vowel) and the locants are lowest for the cationic centres, ahead of
 the prefixes (P-31.1.4.2.4): 1,4-dioxane-1,4-diium, tetramethyldiazene-1,2-diium."""
 
+import re
+
 from rdkit import Chem
 
 from ._common import (
@@ -31,10 +33,12 @@ def _centres(mol):
 def has_polycation_shape(mol) -> bool:
     centres = _centres(mol)
     return (
-        len(centres) >= 2
+        bool(centres)
+        and sum(a.GetFormalCharge() for a in centres) >= 2
         and len(Chem.GetMolFrags(mol)) == 1
-        and all(a.GetFormalCharge() == 1 and not a.GetIsotope() for a in centres)
+        and all(a.GetFormalCharge() > 0 and not a.GetIsotope() for a in centres)
         and not any(a.GetNumRadicalElectrons() for a in mol.GetAtoms())
+        and (len(centres) > 1 or centres[0].GetAtomicNum() == 6)
     )
 
 
@@ -42,6 +46,15 @@ def name_polycation(mol) -> str:
     from ._multiplicative_cation import name_cation_assembly
 
     centres = _centres(mol)
+    if all(a.GetAtomicNum() == 6 for a in centres):
+        try:
+            return _name_polycarbenium(mol, centres)
+        except _NoSkeletonName:
+            if len(centres) > 1:
+                return name_cation_assembly(mol)
+            raise
+    if any(a.GetFormalCharge() != 1 for a in centres):
+        raise UnsupportedStructure("a multiply charged heteroatom centre is not supported yet")
     if all(a.IsInRing() for a in centres) and not any(a.GetAtomicNum() == 6 for a in centres):
         try:
             return _name_ring_polycation(mol, centres)
@@ -53,6 +66,34 @@ def name_polycation(mol) -> str:
         except _NotAPair:
             pass
     return name_cation_assembly(mol)
+
+
+class _NoSkeletonName(UnsupportedStructure):
+    pass
+
+
+_DIIDE = re.compile(r"(?P<head>.+?)-(?P<locants>\d+(?:,\d+)*)-(?P<multiplier>di|tri|tetra)ide$")
+_BIS = {"di": "bis", "tri": "tris", "tetra": "tetrakis"}
+
+
+def _name_polycarbenium(mol, centres):
+    """Several carbon centres that lost hydride ions on one parent hydride are cited as 'bis(ylium)' (P-73.2.2.1.2): the
+    carbanion analogue (same bonds, the charge reversed) is named by the anion namer and its 'ide' ending is swapped."""
+    from ._anion import name_anion
+
+    analogue = Chem.RWMol(mol)
+    for atom in centres:
+        analogue.GetAtomWithIdx(atom.GetIdx()).SetFormalCharge(-atom.GetFormalCharge())
+    analogue = analogue.GetMol()
+    try:
+        Chem.SanitizeMol(analogue)
+        name = name_anion(analogue)
+    except UnsupportedStructure as error:
+        raise _NoSkeletonName(str(error)) from error
+    match = _DIIDE.match(name)
+    if match is None:
+        raise _NoSkeletonName("the carbanion analogue has no multiplied 'ide' name")
+    return f"{match.group('head')}-{match.group('locants')}-{_BIS[match.group('multiplier')]}(ylium)"
 
 
 def _name_ring_polycation(mol, centres):
