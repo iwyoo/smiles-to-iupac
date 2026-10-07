@@ -379,6 +379,8 @@ def test_two_ethers_raises_and_related_raise(smiles):
         pytest.param("SCC=CCOC", "4-methoxybut-2-ene-1-thiol", id="unsaturated_chain__ether_thiol"),
         pytest.param("S[C@@H](C)COC", "(2S)-1-methoxypropane-2-thiol", id="specified_stereocenter__ether_thiol"),
         pytest.param("ClCC(=O)N1CCCCC1", "2-chloro-1-(piperidin-1-yl)ethan-1-one", id="chloroacetylpiperidine"),
+        pytest.param("CNC(=O)c1cc(C)on1", "N,5-dimethyl-1,2-oxazole-3-carboxamide", id="n_substituted_amide_on_heteroaromatic_monocycle"),
+        pytest.param("O=C(NC1CCCCC1)c1ccc2ncccc2c1", "N-cyclohexylquinoline-6-carboxamide", id="n_substituted_amide_on_fused_heteroaromatic"),
         pytest.param("COc1ccc(C(=O)N2CCCCC2)cc1", "(4-methoxyphenyl)(piperidin-1-yl)methanone", id="aroyl_ring_nitrogen_pseudoketone"),
         pytest.param("CC(=O)N1CCN(c2ccccc2)CC1", "1-(4-phenylpiperazin-1-yl)ethan-1-one", id="acyl_ring_nitrogen_with_aryl_on_other_nitrogen"),
         pytest.param("CC(C)C(=O)N1CCCC1C", "2-methyl-1-(2-methylpyrrolidin-1-yl)propan-1-one", id="branched_acyl_substituted_ring"),

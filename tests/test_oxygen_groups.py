@@ -569,9 +569,11 @@ def test_heteroaromatic_substituent_ketone_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_hetero_ring_ketone_non_alkyl_n_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
+def test_ring_sulfonamide_with_two_n_substituents():
+    assert (
         smiles_to_iupac("CCNCCCN(C)S(=O)(=O)N1CCC(OC)C1")
+        == "N-[3-(ethylamino)propyl]-3-methoxy-N-methylpyrrolidine-1-sulfonamide"
+    )
 
 
 @pytest.mark.parametrize(

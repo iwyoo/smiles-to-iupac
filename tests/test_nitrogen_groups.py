@@ -471,9 +471,8 @@ def test_pyrrolidine_amine_2():
     assert smiles_to_iupac("NC1CCCN1") == "pyrrolidin-2-amine"
 
 
-def test_secondary_exocyclic_amine_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CNC1CCNCC1")
+def test_secondary_exocyclic_amine():
+    assert smiles_to_iupac("CNC1CCNCC1") == "N-methylpiperidin-4-amine"
 
 
 def test_two_exocyclic_amines():

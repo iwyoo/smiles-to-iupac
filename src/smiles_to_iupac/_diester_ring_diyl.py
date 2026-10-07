@@ -201,7 +201,7 @@ def _mixed_valence_text(diyl, free, valence, position_of, orders):
 
 def evaluate_skeleton(
     mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=(), orders=None, centers=(),
-    key_centers=(),
+    key_centers=(), n_names=(),
 ):
     from ._substituents import BRANCH_STEREO
 
@@ -214,7 +214,8 @@ def evaluate_skeleton(
         centers = [c for c in _marked_centers(mol, pool) if c[0] not in attach or suffix in ("yl", "ylidene", "ylidyne")]
     try:
         return _evaluate_skeleton(
-            mol, graph, kind, body, pool, attach, blocked, suffix, anions, matches_on, orders, centers, key_centers
+            mol, graph, kind, body, pool, attach, blocked, suffix, anions, matches_on, orders, centers, key_centers,
+            n_names,
         )
     finally:
         SUFFIX_ATOMS.reset(token)
@@ -225,7 +226,7 @@ def evaluate_skeleton(
 
 def _evaluate_skeleton(
     mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=(), orders=None, centers=(),
-    key_centers=(),
+    key_centers=(), n_names=(),
 ):
     """Best numbering of a ring system or chain with free valences/suffix at `attach`; returns
     (key, group_name, position_of, ring_stereo, side) or None."""
@@ -338,6 +339,10 @@ def _evaluate_skeleton(
             return None
     if centers:
         parent = _with_anion_centers(parent, [(position_of[a], word) for a, word in centers])
+    if n_names:
+        from ._polyfunctional import _with_n_names
+
+        grouped = _with_n_names(grouped, n_names)
     prefixes = format_substituent_prefixes(grouped)
     if prefixes and (parent[0].isdigit() or parent[0] == "Δ"):
         prefixes += "-"
