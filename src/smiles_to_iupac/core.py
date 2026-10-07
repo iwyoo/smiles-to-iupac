@@ -360,8 +360,25 @@ def _retained_polycycle_names(name):
     return _INDACENE_PREFIX.sub(r"\1-\2", _ADAMANTANE.sub("adamantan", name))
 
 
+def _is_nonbenzene_monocyclic_annulene(mol):
+    rings = mol.GetRingInfo().AtomRings()
+    if len(rings) != 1 or len(rings[0]) == 6:
+        return False
+    return all(
+        (a := mol.GetAtomWithIdx(i)).GetIsAromatic() and a.GetAtomicNum() == 6 and not a.GetFormalCharge()
+        for i in rings[0]
+    )
+
+
 def _parse_smiles(smiles):
     mol = Chem.MolFromSmiles(smiles)
+    if mol is not None and _is_nonbenzene_monocyclic_annulene(mol):
+        # P-54.2: only benzene is named as an aromatic ring; larger annulenes take ene/yne endings, and
+        # RDKit's aromatic perception would drop their E/Z bond stereo.
+        kekule = Chem.MolFromSmiles(smiles, sanitize=False)
+        Chem.SanitizeMol(kekule, Chem.SANITIZE_ALL ^ Chem.SANITIZE_SETAROMATICITY)
+        Chem.AssignStereochemistry(kekule, cleanIt=True, force=True)
+        return kekule
     if mol is not None:
         return mol
     # hypervalent anionic centers (lambda-convention parents) fail RDKit's valence check only
