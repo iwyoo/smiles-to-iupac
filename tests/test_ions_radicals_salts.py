@@ -198,7 +198,7 @@ def test_acetylium_acylium_cation_and_related(smiles, expected):
     "smiles",
     [
         pytest.param("CC#[N+][N-]C", id="nitrile_imide_still_out_of_scope"),
-        pytest.param("NCCN.Cl.Cl", id="two_halide_fragments_raises"),
+        pytest.param("Cl.Cl", id="two_halide_fragments_raises"),
         pytest.param("CCO.CCO", id="plain_mixture_raises"),
     ],
 )

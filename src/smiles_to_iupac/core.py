@@ -69,6 +69,7 @@ from ._ammonium import has_ammonium_shape, has_polyammonium_shape, name_ammonium
 from ._polycation import has_polycation_shape, name_polycation
 from ._polyspiro_union import has_spiro_union_shape, name_spiro_union
 from ._ylium_ring import has_ylium_ring_shape, name_ylium_ring
+from ._common_hydride import has_common_hydride_shape, name_common_hydride
 from ._chain_cation import has_chain_cation_shape, name_chain_cation
 from ._ylide import has_nitrogen_ylide_shape, has_pos_ylide_shape, name_nitrogen_ylide, name_pos_ylide
 from ._amine_imide import has_amine_imide_shape, name_amine_imide
@@ -549,6 +550,9 @@ def _name_unabridged(smiles: str) -> str:
             return name_skeleton_radical_ion(parsed)
         if parsed is not None and parsed.HasProp("_hypervalent_anion"):
             name = name_anion(parsed)
+            return name
+        if parsed is not None and has_common_hydride_shape(parsed):
+            name = name_common_hydride(parsed)
             return name
         if parsed is not None and has_nonstandard_hydride_shape(parsed):
             return name_nonstandard_hydride(parsed)
