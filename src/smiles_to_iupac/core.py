@@ -377,9 +377,17 @@ def smiles_to_iupac(smiles: str) -> str:
         raise ValueError(f"invalid SMILES: {smiles!r}")
     name = _retained_polycycle_names(_smiles_to_iupac_unabridged(smiles))
     mol = _parse_smiles(smiles)
+    if mol is not None:
+        _require_isotopes_cited(mol, name)
     if mol is not None and _has_free_anion(mol):
         name = acetyl_names(name)
     return name
+
+
+def _require_isotopes_cited(mol, name):
+    for atom in mol.GetAtoms():
+        if atom.GetIsotope() and f"{atom.GetIsotope()}{atom.GetSymbol()}" not in name:
+            raise UnsupportedStructure(f"the name does not cite the {atom.GetIsotope()}{atom.GetSymbol()} nuclide label")
 
 
 _NESTED_NAMES: dict = {}

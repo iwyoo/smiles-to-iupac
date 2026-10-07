@@ -51,6 +51,40 @@ def _branch_atoms(graph, root, blocked):
 
 
 def name_ester_by_parts(mol) -> str:
+    from ._isotope_labels import split_isotopes
+
+    split = split_isotopes(mol)
+    if split is None:
+        return _name_ester_parts(mol, {})
+    clean, labels = split
+    if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()):
+        raise UnsupportedStructure("stereodescriptors of an isotopically modified ester are not supported yet (P-82.4)")
+    return _name_ester_parts(clean, labels)
+
+
+def _restore_labels(editable, clean, labels, removed):
+    """Put the nuclide labels of the atoms kept in the acid part back on `editable`."""
+    from ._isotope_labels import HYDROGEN_ISOTOPES
+
+    for idx, entry in labels.items():
+        if idx in removed:
+            continue
+        atom = editable.GetAtomWithIdx(idx)
+        if entry["skeleton"]:
+            atom.SetIsotope(int("".join(ch for ch in entry["skeleton"] if ch.isdigit())))
+        total = sum(entry["H"].values())
+        if total:
+            atom.SetNumExplicitHs(clean.GetAtomWithIdx(idx).GetTotalNumHs() - total)
+            atom.SetNoImplicit(True)
+        for nuclide, count in entry["H"].items():
+            for _ in range(count):
+                hydrogen = Chem.Atom(1)
+                hydrogen.SetIsotope(HYDROGEN_ISOTOPES[nuclide])
+                editable.AddBond(idx, editable.AddAtom(hydrogen), Chem.BondType.SINGLE)
+
+
+def _name_ester_parts(mol, labels) -> str:
+    from ._substituents import ISOTOPE_LABELS
     from .core import smiles_to_iupac
 
     matches = mol.GetSubstructMatches(_ESTER)
@@ -77,6 +111,7 @@ def name_ester_by_parts(mol) -> str:
         oxygen = editable.GetAtomWithIdx(ester_oxygen)
         oxygen.SetNumExplicitHs(1)
         oxygen.SetNoImplicit(True)
+    _restore_labels(editable, mol, labels, removed)
     for idx in sorted(removed, reverse=True):
         editable.RemoveAtom(idx)
     acid = editable.GetMol()
@@ -98,6 +133,8 @@ def name_ester_by_parts(mol) -> str:
     }
     named = {}
     token = BRANCH_STEREO.set(context)
+    isotope_context = {"labels": {a: e for a, e in labels.items() if a in removed}, "consumed": set()}
+    isotope_token = ISOTOPE_LABELS.set(isotope_context if isotope_context["labels"] else None)
     try:
         for acyl_carbon, _, ester_oxygen, alkyl_carbon in matches:
             name, compound = name_branch(graph, alkyl_carbon, ester_oxygen, halogens, mol=mol)
@@ -105,6 +142,9 @@ def name_ester_by_parts(mol) -> str:
             entry[0] += 1
     finally:
         BRANCH_STEREO.reset(token)
+        ISOTOPE_LABELS.reset(isotope_token)
+    if set(isotope_context["labels"]) - isotope_context["consumed"]:
+        raise UnsupportedStructure("an isotopically modified atom of the alkyl part is not cited by any supported name")
     if any(("atom", a) not in context["used"] for a in context["atoms"]) or any(
         ("bond", b) not in context["used"] for b in context["bonds"]
     ):

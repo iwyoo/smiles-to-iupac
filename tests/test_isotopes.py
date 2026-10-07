@@ -74,7 +74,6 @@ def test_isotope_alcohol_name(smiles, expected):
         pytest.param("OCCC[18OH]", id="multiple_hydroxyls_raises"),
         pytest.param("[18OH]CCC", id="longer_chain_raises"),
         pytest.param("[18OH]C=C", id="unsaturation_raises"),
-        pytest.param("[13CH3][14CH2]O", id="mixed_carbon_isotope_nuclides_raises"),
     ],
 )
 def test_isotope_alcohol_cases_raise(smiles):
@@ -109,7 +108,6 @@ def test_chain_unsaturation_alongside_isotope_carboxylic_acid():
     "smiles",
     [
         pytest.param("[13CH3][C@H](Cl)C(=O)O", id="specified_stereocenter_alongside_isotope_carboxylic_acid_raises"),
-        pytest.param("[13CH3][14CH2]C(=O)O", id="mixed_carbon_isotope_nuclides_raises__isotope_carboxylic_acid"),
     ],
 )
 def test_specified_stereocenter_alongside_and_related_raise(smiles):
@@ -134,7 +132,6 @@ def test_isotope_ketone_name(smiles, expected):
         pytest.param("CC(=[18O])[13CH3]", id="both_isotope_kinds_together_raises"),
         pytest.param("O=[13C]1CCCCC1", id="ring_alongside_isotope_ketone_raises"),
         pytest.param("[13CH3]C(=O)[C@H](Cl)C", id="specified_stereocenter_alongside_isotope_ketone_raises"),
-        pytest.param("[13CH3]C(=O)[14CH3]", id="mixed_carbon_isotope_nuclides_raises__isotope_ketone"),
     ],
 )
 def test_both_isotope_kinds_and_related_raise(smiles):
@@ -175,3 +172,24 @@ def test_isotope_ring_cases_raise(smiles):
 )
 def test_isotope_descriptor_before_retained_acid_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[13CH3][14CH2]O", "(2-13C,1-14C)ethanol", id="two_carbon_nuclides_in_one_series"),
+        pytest.param("CC(=O)O[13CH3]", "(13C)methyl acetate", id="isotopic_methyl_group_of_an_ester"),
+        pytest.param("O=C(O[13CH2]C)c1ccccc1", "(1-13C)ethyl benzoate", id="isotopic_alkyl_chain_of_an_ester"),
+        pytest.param("O=C(c1ccccc1)[13CH3]", "1-phenyl(2-13C)ethan-1-one", id="isotope_in_parent_after_substituent_prefix"),
+        pytest.param("Cc1cccnc1[13CH3]", "2-(13C)methyl-3-methylpyridine", id="isotopic_substituent_cited_before_unmodified_one"),
+        pytest.param("CC(=O)Nc1ccc([131I])cc1", "N-[4-(131I)iodophenyl]acetamide", id="isotopic_halogen_inside_a_ring_substituent"),
+    ],
+)
+def test_isotopic_descriptor_follows_the_unmodified_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize("smiles", ["CC(=O)Nc1ccccc1C[13CH3]", "CC(=O)c1ccc([18F])cc1"])
+def test_unplaceable_isotope_label_is_never_dropped(smiles):
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac(smiles)
