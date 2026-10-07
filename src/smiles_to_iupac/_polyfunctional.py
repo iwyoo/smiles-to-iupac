@@ -280,16 +280,29 @@ def _imide_parent(mol, carbon, partner):
     return mine > theirs or (mine == theirs and carbon < partner)
 
 
+def _organyloxy(mol, oxygen, nitrogen):
+    """An -O-R group on nitrogen whose R is a plain carbon group, cited as an alkoxy or aryloxy prefix (P-63.2.2.1.1)."""
+    if oxygen.GetAtomicNum() != 8 or oxygen.GetDegree() != 2 or oxygen.GetFormalCharge():
+        return False
+    (carbon,) = [n for n in oxygen.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx()]
+    return (
+        carbon.GetAtomicNum() == 6
+        and mol.GetBondBetweenAtoms(oxygen.GetIdx(), carbon.GetIdx()).GetBondTypeAsDouble() == 1.0
+        and not _double_oxygens(mol, carbon.GetIdx())
+        and not is_functional_carbon(mol, carbon.GetIdx())
+    )
+
+
 def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
-    """An amide nitrogen carrying only carbon substituents or one hydroxy (a
-    hydroxamic acid, P-65.1.3.4; no acyl group, so not an imide) -- named with
-    'N-' prefixes on the amide parent."""
+    """An amide nitrogen carrying carbon, hydroxy or organyloxy substituents (a hydroxamic acid, P-65.1.3.4, or its
+    O-organyl ether) and at most one acyl group -- named with 'N-' prefixes on the amide parent."""
     if (nitrogen.GetFormalCharge() and not (AMINIUM.get() == "amide" and nitrogen.GetFormalCharge() == 1)) or (
         nitrogen.IsInRing() or nitrogen.GetIsAromatic()
     ):
         return False
     others = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != carbonyl]
     hydroxy = [n for n in others if _terminal_heteroatom(mol, n.GetIdx(), 1) and n.GetAtomicNum() == 8]
+    oxy = [n for n in others if _organyloxy(mol, n, nitrogen)]
     acyl = [n for n in others if mol.GetAtomWithIdx(carbonyl).GetAtomicNum() != 6 and _urea_carbon(mol, n.GetIdx())]
     if mol.GetAtomWithIdx(carbonyl).GetAtomicNum() == 6 and _acyl_chalcogen(mol, carbonyl) is not None:
         acyl = [n for n in others if _acyl_chalcogen(mol, n.GetIdx()) is not None]
@@ -297,6 +310,7 @@ def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
             return False
     return bool(others) and len(hydroxy) <= 1 and all(
         n in hydroxy
+        or n in oxy
         or n in acyl
         or n.GetAtomicNum() in HALOGEN_PREFIXES
         or (
