@@ -875,3 +875,19 @@ def test_nested_spiro_systems_of_equal_size_have_no_preferred_name():
 )
 def test_spiro_union_with_suffix_groups_and_double_bonds(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C1CCCC12[PH3]CCCC2", "6λ5-phosphaspiro[4.5]decane"),
+        ("C1CC2CC[PH3]C(C1)C2", "2λ5-phosphabicyclo[3.3.1]nonane"),
+        ("C1CC2CCC1[SH2]2", "7λ4-thiabicyclo[2.2.1]heptane"),
+        ("C1CCC[PH3]1", "1λ5-phospholane"),
+        ("C1CCCCCCCCCCC[SH2]1", "1λ4-thiacyclotridecane"),
+        ("C1CC2CC[SH2]C2C1", "hexahydro-2H-1λ4-cyclopenta[b]thiophene"),
+        ("C1CC2(C1)CCSCC2", "7-thiaspiro[3.5]nonane"),
+    ],
+)
+def test_skeletal_heteroatom_with_a_nonstandard_bonding_number_cites_lambda(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

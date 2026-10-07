@@ -82,6 +82,7 @@ from ._common import (
     UnsupportedStructure,
     adjacency,
     halogen_substituents,
+    lambda_cited,
     non_single_bonds,
 )
 from ._substituents import substituents_for_ring
@@ -180,7 +181,7 @@ def name_von_baeyer_heteroatom(mol, core) -> str:
             parent,
             substituents,
             heteroatom_locant=heteroatom_locant,
-            nondetachable_prefix=f"{heteroatom_locant}-{a_prefix}",
+            nondetachable_prefix=f"{lambda_cited(mol, heteroatom_idx, heteroatom_locant)}-{a_prefix}",
         )
         if best_key is None or key < best_key:
             best_key = key
@@ -236,7 +237,9 @@ def name_von_baeyer_heteroatom_multi(mol, core) -> str:
     for full_order in iter_bicyclic_numberings(core):
         heteroatom_locants = tuple(sorted(full_order.index(h) + 1 for h in ring_heteroatoms))
         substituents = substituents_for_ring(graph, full_order, halogens)
-        locant_citation = ",".join(str(loc) for loc in heteroatom_locants)
+        locant_citation = ",".join(
+            lambda_cited(mol, h, loc) for loc, h in sorted((full_order.index(h) + 1, h) for h in ring_heteroatoms)
+        )
         key = _candidate_key(
             parent,
             substituents,
@@ -299,7 +302,10 @@ def name_von_baeyer_heteroatom_mixed(mol, core) -> str:
         )
         locant_set = tuple(sorted(loc for _, loc in by_seniority))
         heteroatom_key = (locant_set, tuple(loc for _, loc in by_seniority))
-        nondetachable_prefix = "-".join(f"{loc}-{_HETEROATOM_PREFIXES[elem]}" for elem, loc in by_seniority)
+        atom_at = {full_order.index(a) + 1: a for a in ring_heteroatoms}
+        nondetachable_prefix = "-".join(
+            f"{lambda_cited(mol, atom_at[loc], loc)}-{_HETEROATOM_PREFIXES[elem]}" for elem, loc in by_seniority
+        )
         substituents = substituents_for_ring(graph, full_order, halogens)
         key = _candidate_key(
             parent,
@@ -359,7 +365,7 @@ def name_von_baeyer_heteroatom_polycyclic(mol, core, ring_count) -> str:
             parent,
             substituents,
             heteroatom_locant=heteroatom_locant,
-            nondetachable_prefix=f"{heteroatom_locant}-{a_prefix}",
+            nondetachable_prefix=f"{lambda_cited(mol, heteroatom_idx, heteroatom_locant)}-{a_prefix}",
         )
         if best_key is None or key < best_key:
             best_key = key
@@ -419,7 +425,9 @@ def name_von_baeyer_heteroatom_multi_polycyclic(mol, core, ring_count) -> str:
     for full_order, parent, outer_key in iter_polycyclic_candidates(core, ring_count):
         heteroatom_locants = tuple(sorted(full_order.index(h) + 1 for h in ring_heteroatoms))
         substituents = substituents_for_ring(graph, full_order, halogens)
-        locant_citation = ",".join(str(loc) for loc in heteroatom_locants)
+        locant_citation = ",".join(
+            lambda_cited(mol, h, loc) for loc, h in sorted((full_order.index(h) + 1, h) for h in ring_heteroatoms)
+        )
         key = outer_key + _polycyclic_candidate_key(
             parent,
             substituents,
@@ -486,7 +494,10 @@ def name_von_baeyer_heteroatom_mixed_polycyclic(mol, core, ring_count) -> str:
         )
         locant_set = tuple(sorted(loc for _, loc in by_seniority))
         heteroatom_key = (locant_set, tuple(loc for _, loc in by_seniority))
-        nondetachable_prefix = "-".join(f"{loc}-{_HETEROATOM_PREFIXES[elem]}" for elem, loc in by_seniority)
+        atom_at = {full_order.index(a) + 1: a for a in ring_heteroatoms}
+        nondetachable_prefix = "-".join(
+            f"{lambda_cited(mol, atom_at[loc], loc)}-{_HETEROATOM_PREFIXES[elem]}" for elem, loc in by_seniority
+        )
         substituents = substituents_for_ring(graph, full_order, halogens)
         key = outer_key + _polycyclic_candidate_key(
             parent,

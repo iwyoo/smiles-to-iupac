@@ -23,6 +23,7 @@ naming modules.
 """
 
 import re
+from contextvars import ContextVar
 
 from rdkit import Chem, rdBase
 from rdkit.Chem import rdCIPLabeler
@@ -1647,3 +1648,33 @@ _SUPERSCRIPT_CHARS = str.maketrans("0123456789abcdefgh", "⁰¹²³⁴⁵⁶⁷�
 def superscript_locant(primary, local):
     """Locant of atom `local` of the ring or amplificant numbered `primary`, the atom locant raised (P-26.4, P-28.3.1)."""
     return f"{primary}{str(local).translate(_SUPERSCRIPT_CHARS)}"
+
+
+_STANDARD_BONDING = {
+    "N": 3, "P": 3, "As": 3, "Sb": 3, "Bi": 3, "B": 3, "Al": 3, "Ga": 3, "In": 3, "Tl": 3,
+    "O": 2, "S": 2, "Se": 2, "Te": 2, "Si": 4, "Ge": 4, "Sn": 4, "Pb": 4,
+}
+
+
+# Ion names cite the bonding numbers of their centres themselves, on a neutral parent named by a nested call.
+CITE_SKELETAL_LAMBDA = ContextVar("cite_skeletal_lambda", default=True)
+
+
+def nonstandard_bonding(atom):
+    """The bonding number n of a neutral, non-aromatic skeletal heteroatom above its standard one (P-14.1), for the λn
+    convention (P-15.4.1.3, P-22.2.7); charged atoms and oxo-bearing ones are named by the ion and heterone rules."""
+    standard = _STANDARD_BONDING.get(atom.GetSymbol())
+    if standard is None or atom.GetFormalCharge() or atom.GetIsAromatic() or not CITE_SKELETAL_LAMBDA.get():
+        return None
+    if any(atom.HasProp(prop) for prop in ("_anion", "_anion_word", "_anion_lambda", "_ring_cation_centre")):
+        return None
+    if any(b.GetBondTypeAsDouble() > 1.0 and b.GetOtherAtom(atom).GetDegree() == 1 for b in atom.GetBonds()):
+        return None
+    valence = int(atom.GetTotalValence())
+    return valence if valence > standard else None
+
+
+def lambda_cited(mol, atom_idx, locant):
+    """`locant` with the λn mark of a nonstandard bonding number on skeletal atom `atom_idx` (P-14.1, P-15.4.1.3)."""
+    bonding = nonstandard_bonding(mol.GetAtomWithIdx(atom_idx))
+    return f"{locant}\u03bb{bonding}" if bonding else str(locant)

@@ -40,6 +40,7 @@ from ._common import (
     adjacency,
     halogen_substituents,
     non_single_bonds,
+    nonstandard_bonding,
     specified_stereocenters,
     stereo_locants_prefix,
 )
@@ -110,6 +111,8 @@ def name_spiro_heteroatom(mol, spiro_atom) -> str:
             "atom needs; see module docstring)"
         )
     a_prefix = _HETEROATOM_PREFIXES[mol.GetAtomWithIdx(heteroatom_idx).GetAtomicNum()]
+    bonding = nonstandard_bonding(mol.GetAtomWithIdx(heteroatom_idx))
+    lambda_mark = f"\u03bb{bonding}" if bonding else ""
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -123,7 +126,7 @@ def name_spiro_heteroatom(mol, spiro_atom) -> str:
             parent,
             substituents,
             heteroatom_locant=heteroatom_locant,
-            nondetachable_prefix=f"{heteroatom_locant}-{a_prefix}",
+            nondetachable_prefix=f"{heteroatom_locant}{lambda_mark}-{a_prefix}",
         )
         if best_key is None or key < best_key:
             best_key, best_order = key, full_order
