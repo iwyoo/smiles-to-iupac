@@ -33,6 +33,7 @@ _SENIOR_TO_SELENOL = [
         "[CX3](=O)[OX2H1]",
         "[CX3](=O)[OX2][#6]",
         "[CX3](=O)[NX3]",
+        "[CX3](=[S,Se])[NX3]",
         "[CX2]#[NX1]",
         "[CX3H1](=O)[#6]",
         "[#6][CX3](=O)[#6]",
@@ -572,6 +573,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             far = mol.GetAtomWithIdx(others[0])
             if far.GetDegree() == 1 and far.GetTotalNumHs() == 2 and not far.GetFormalCharge():
                 return "hydrazinyl", False
+        amido = _chalcogen_amido(graph, root, others, mol)
+        if amido is not None:
+            return amido
         if any(mol.GetAtomWithIdx(n).GetAtomicNum() not in (6,) + tuple(MONONUCLEAR_HYDRIDES) for n in others) and not (
             _has_senior_principal_group(mol)
         ):
@@ -593,6 +597,46 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         name = _amino(_group_names(graph, mol, others, root, halogens, aromatic_atoms))
         return name, _compound(name)
     raise UnsupportedStructure("this heteroatom-linked substituent is not supported yet")
+
+
+def _side(graph, start, blocked):
+    seen, stack = {start}, [start]
+    while stack:
+        for n in graph[stack.pop()]:
+            if n != blocked and n not in seen:
+                seen.add(n)
+                stack.append(n)
+    return seen
+
+
+def _chalcogen_amido(graph, root, others, mol):
+    """'ethanethioamido' for R-C(=S)-NH- (also Se, Te) and N-substituted forms: the final 'e' in the complete name of the
+    amide becomes 'o' (P-66.1.4.4); None for any other nitrogen."""
+    from ._polyfunctional import name_polyfunctional
+
+    acyl = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 6 and _thioacyl(mol, n)]
+    rest = [n for n in others if n not in acyl]
+    if len(acyl) != 1 or len(rest) > 1 or any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in rest):
+        return None
+    if any(a.GetIsotope() or a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()) or any(
+        b.GetStereo() != Chem.BondStereo.STEREONONE for b in mol.GetBonds()
+    ):
+        return None
+    keep = {root} | _side(graph, acyl[0], root)
+    if rest:
+        keep |= _side(graph, rest[0], root)
+    fragment = Chem.RWMol(mol)
+    for index in sorted(set(range(mol.GetNumAtoms())) - keep, reverse=True):
+        fragment.RemoveAtom(index)
+    fragment = fragment.GetMol()
+    try:
+        Chem.SanitizeMol(fragment)
+        name = contextvars.Context().run(name_polyfunctional, fragment)
+    except (UnsupportedStructure, ValueError):
+        return None
+    if not name.endswith(("thioamide", "selenoamide", "telluroamide")):
+        return None
+    return name[:-1] + "o", True
 
 
 _ISOCYANATE_PREFIXES = {8: "isocyanato", 16: "isothiocyanato", 34: "isoselenocyanato", 52: "isotellurocyanato"}
