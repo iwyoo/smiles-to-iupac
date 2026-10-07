@@ -974,12 +974,15 @@ def _name_mol(mol) -> str:
     # rejects any charged atom outright rather than attempting to name it.
     if has_chain_cation_shape(mol):
         return name_chain_cation(mol)
+    if has_ylium_ring_shape(mol):
+        try:
+            return name_ylium_ring(mol)
+        except UnsupportedStructure:
+            pass
     if has_polyammonium_shape(mol):
         return name_polyammonium(mol)
     if has_polycation_shape(mol):
         return name_polycation(mol)
-    if has_ylium_ring_shape(mol):
-        return name_ylium_ring(mol)
     if has_ammonium_shape(mol):
         if has_phosphate_shape(mol) and any(a.GetFormalCharge() < 0 for a in mol.GetAtoms()):
             return name_phosphate(mol)
