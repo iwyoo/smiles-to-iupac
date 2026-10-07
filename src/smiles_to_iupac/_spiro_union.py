@@ -207,6 +207,8 @@ def _component(mol, comp, force_replacement):
     replacement = mancude = False
     if comp["rings"] == 1:
         name, numberings, replacement, mancude = _monocycle(sub, atoms, mol, force_replacement)
+        if not replacement:
+            name = _bracket_locants(name)
     elif comp["bridged"]:
         replacement = True
         name, orders = _von_baeyer(sub)
@@ -248,10 +250,10 @@ def _replacement_prefixes(mol, atoms, locant_of):
     return "-".join(groups)
 
 
-def _capable(mol, comp, spiro):
+def _capable(mol, comp, spiro_atoms):
     result = set()
     for a in comp["atoms"]:
-        if a == spiro:
+        if a in spiro_atoms:
             continue
         atom = mol.GetAtomWithIdx(a)
         ring_degree = sum(1 for n in atom.GetNeighbors() if mol.GetBondBetweenAtoms(a, n.GetIdx()).IsInRing())
@@ -367,7 +369,7 @@ def name_spiro_union(mol) -> str:
     replacement_atoms = set()
     for comp, n in zip(comps, named):
         if n["fused"]:
-            capable |= _capable(mol, comp, spiro)
+            capable |= _capable(mol, comp, {spiro})
             polycyclic_bonds |= comp["bonds"]
         elif n["replacement"]:
             replacement_atoms |= {
@@ -433,11 +435,12 @@ def name_spiro_union(mol) -> str:
     hydro = f"{','.join(locant_of[a] for a in hydro_atoms)}-{multiplied_word(len(hydro_atoms), 'hydro')}" if hydro_atoms else ""
     prefixes = format_substituent_prefixes(grouped) if grouped else ""
 
+    lowest = min(spiro_locants, key=_lk)
     lam_mark = f"λ{lam}" if lam else ""
     if identical:
         front = f"{spiro_locants[0]}{lam_mark},{spiro_locants[1]}-spirobi[{first_name}]"
     else:
-        front = f"{spiro_locants[0]}{lam_mark}-" if lam else ""
+        front = f"{lowest}{lam_mark}-" if lam else ""
         front += f"spiro[{first_name}-{spiro_locants[0]},{spiro_locants[1]}-{second_name}]"
     if replacement_prefix:
         front = replacement_prefix + ("-" if identical or lam else "") + front
@@ -445,7 +448,7 @@ def name_spiro_union(mol) -> str:
         last = second_name
         if last.endswith("e"):
             front = front[: -len(last) - 1] + last[:-1] + "]"
-        front += f"-{spiro_locants[0]}-ylium"
+        front += f"-{lowest}-ylium"
     core = front
 
     out = prefixes

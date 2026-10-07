@@ -799,7 +799,7 @@ def test_monospiro_union_with_a_polycyclic_component(smiles, expected):
         pytest.param("C1OCC2CC1CC21OC2CCC1CC2", "3,3′-dioxaspiro[bicyclo[2.2.2]octane-2,6′-bicyclo[3.2.1]octane]", id="spiro_locants_before_heteroatom_locants"),
         pytest.param("C1CC2SCC1CC21CC2CCC1CS2", "5,6′-dithia-2,2′-spirobi[bicyclo[2.2.2]octane]", id="identical_von_baeyer_components_with_heteroatoms"),
         pytest.param("C1CC2CC1CC[Si]21CC2CCC(C2)C1", "2-sila-2,3′-spirobi[bicyclo[3.2.1]octane]", id="standard_valence_heteroatom_at_the_spiro_atom"),
-        pytest.param("C1CC[N+]2(C1)CCC1CCC(C1)C2", "3λ5-spiro[3-azabicyclo[4.2.1]nonane-3,1′-pyrrolidin]-3-ylium", id="cationic_spiro_heteroatom_inside_the_von_baeyer_name"),
+        pytest.param("C1CC[N+]2(C1)CCC1CCC(C1)C2", "1′λ5-spiro[3-azabicyclo[4.2.1]nonane-3,1′-pyrrolidin]-1′-ylium", id="lowest_spiro_locant_cited_with_lambda_and_ylium"),
         pytest.param("C1CCC2(C1)SC1CC2C2CC12", "7′-thiaspiro[cyclopentane-1,6′-tricyclo[3.2.1.0^2,4]octane]", id="polycyclic_von_baeyer_component"),
     ],
 )
