@@ -999,3 +999,20 @@ def test_imine_and_amidine_n_substituents_and_polyfunctional_groups(smiles, expe
 )
 def test_hydrazide_semicarbazone_and_guanidine_n_substituents(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC(=O)NC(=O)OC", "methyl N-acetylcarbamate", id="n_acyl_carbamate"),
+        pytest.param("O=C(NC(=O)c1ccccc1)OC", "methyl N-benzoylcarbamate", id="n_aroyl_carbamate"),
+        pytest.param("CC(=O)N(C)C(=O)OC", "methyl N-acetyl-N-methylcarbamate", id="n_acyl_n_alkyl_carbamate"),
+    ],
+)
+def test_n_acyl_carbamates(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_acylated_nitrogen_is_not_a_hetero_parent_for_a_carboxylic_acid():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("CC(=O)NC(=O)O")

@@ -239,6 +239,8 @@ def build(cand, view):
     if spiro:
         center = final(spiro_center(cand, spiro_comps[0]))
         ring_loc = f"{spiro.spiro_locant}{ring_prime}"
+        if "," in str(center) or "," in ring_loc:
+            raise UnsupportedStructure("a spiro atom must carry exactly one locant on each component (P-24.2)")
         if parent_prime:
             joined = f"spiro[{spiro.ring_name}-{spiro.spiro_locant},{center}-{parent.name}]"
         else:
