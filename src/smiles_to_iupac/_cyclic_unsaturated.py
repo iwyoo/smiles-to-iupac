@@ -132,6 +132,11 @@ def _bond_locant(ring_order, bond_atoms):
     return n if {pa, pb} == {1, n} else min(pa, pb)
 
 
+def _stereo_bond_locant(mol, ring_order, bond_idx):
+    bond = mol.GetBondWithIdx(bond_idx)
+    return _bond_locant(ring_order, (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()))
+
+
 def _ring_bond_locants(ring_order, double_bonds):
     return sorted(_bond_locant(ring_order, bond) for bond in double_bonds)
 
@@ -183,13 +188,13 @@ def _name_from_substituents(ring_size, ene_locants, yne_locants, grouped):
     return prefix + parent_stem + ("a" if needs_stem_a else "") + "-" + body
 
 
-def _candidate_key(ring_size, ene_locants, yne_locants, substituents):
+def _candidate_key(ring_size, ene_locants, yne_locants, substituents, z_locants=()):
     grouped = group_substituents(substituents)
     locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
     name = _name_from_substituents(ring_size, ene_locants, yne_locants, grouped)
-    return combined_locant_set, ene_locant_set, locant_set, citation_locants, name
+    return combined_locant_set, ene_locant_set, locant_set, citation_locants, tuple(sorted(z_locants)), name
 
 
 def name_cyclic_unsaturated_yl(mol, ring_atoms, root) -> str:
@@ -269,17 +274,12 @@ def name_cyclic_unsaturated(mol, ring_atoms) -> str:
                 raise UnsupportedStructure(
                     "a specified E/Z double bond alongside an exocyclic multiple bond is not supported yet (see P-93)"
                 )
-            if any(order == _YNE_ORDER for _, _, order in bonds):
+            ring_bond_indices = {mol.GetBondBetweenAtoms(a, b).GetIdx() for a, b, _ in bonds}
+            if any(idx not in ring_bond_indices for idx, _ in bond_stereo) or len(bond_stereo) != sum(
+                1 for e in stereo_elements if e.type == Chem.StereoType.Bond_Double
+            ):
                 raise UnsupportedStructure(
-                    "a specified double-bond E/Z stereo element combined with "
-                    "a triple bond is not supported yet (see P-93)"
-                )
-            if len(bond_stereo) != 1 or len(bonds) != 1:
-                raise UnsupportedStructure(
-                    "a ring with more than one double bond, or one where not "
-                    "every double bond is specified, is not supported yet -- "
-                    "P-91.2.2's multi-bond citation rule needs separate "
-                    "verification"
+                    "a ring where not every stereogenic double bond is specified is not supported yet (see P-93.5.1.4.1)"
                 )
 
     graph = adjacency(mol)
@@ -309,9 +309,10 @@ def name_cyclic_unsaturated(mol, ring_atoms) -> str:
             if branch_stereo is not None:
                 branch_ring_atom, display, _ring_r_or_s = branch_stereo
                 substituents[position_of[branch_ring_atom]] = [(display, False)]
-            key = _candidate_key(ring_size, ene_locants, yne_locants, substituents)
+            z_locants = [_stereo_bond_locant(mol, candidate, idx) for idx, code in (bond_stereo or ()) if code == "Z"]
+            key = _candidate_key(ring_size, ene_locants, yne_locants, substituents, z_locants)
             if best_key is None or key < best_key:
-                best_key, best_name, best_position_of = key, key[-1], position_of
+                best_key, best_name, best_position_of, best_candidate = key, key[-1], position_of, candidate
 
     if branch_stereo is not None:
         branch_ring_atom, _display, ring_r_or_s = branch_stereo
@@ -324,10 +325,10 @@ def name_cyclic_unsaturated(mol, ring_atoms) -> str:
         prefix = ",".join(f"{locant}{r_or_s}" for locant, r_or_s in labels)
         return f"({prefix})-{best_name}"
     if bond_stereo is not None:
-        # P-91.2.2's own worked example ('(Z)-cyclooctene', '(E)-cyclooctene')
-        # cites no locant -- redundant for the same reason the ring's own
-        # double-bond locant is already omitted in the parent name
-        # (P-14.3.3).
-        ((_, code),) = bond_stereo
-        return f"({code})-{best_name}"
+        # P-93.5.1.4.1: a lone multiple bond's descriptor is cited bare, as its locant is not cited either.
+        if len(_multi_bonds(mol)) == 1:
+            ((_, code),) = bond_stereo
+            return f"({code})-{best_name}"
+        labels = sorted((_stereo_bond_locant(mol, best_candidate, idx), code) for idx, code in bond_stereo)
+        return f"({','.join(f'{locant}{code}' for locant, code in labels)})-{best_name}"
     return best_name

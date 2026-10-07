@@ -86,9 +86,22 @@ def test_ring_double_bond_stereo(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_ring_double_bond_stereo_multiple_bonds_raises():
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1CC/C=C/C=C\\CCCC1", "(1Z,3E)-cycloundeca-1,3-diene"),
+        ("C1CC/C=C/CCC#CCCCC1", "(1E)-cyclotridec-1-en-5-yne"),
+        ("C1=CC=CC=CC=CC=CC=CC=C1", "cyclotetradeca-1,3,5,7,9,11,13-heptaene"),
+        ("C1=C\\C=C/C=C\\C=C/C=C\\1", "(1Z,3Z,5Z,7Z,9E)-cyclodeca-1,3,5,7,9-pentaene"),
+    ],
+)
+def test_large_unsaturated_carbocycles(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_ring_double_bond_stereo_partly_unspecified_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CC/C=C\\C/C=C\\C1")
+        smiles_to_iupac("C1CC/C=C\\CC=CCCCC1")
 
 
 @pytest.mark.parametrize(
