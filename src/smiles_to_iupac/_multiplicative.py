@@ -437,7 +437,7 @@ def name_if_multiplicative(mol, name_function=None):
     component of the name can't be built yet."""
     if hook_suspended() or len(Chem.GetMolFrags(mol)) != 1:
         return None
-    if mol.GetRingInfo().NumRings() < 2:
+    if mol.GetRingInfo().NumRings() < 2 or any(a.GetFormalCharge() and a.IsInRing() for a in mol.GetAtoms()):
         return None
     tree = _build_tree(mol)
     if tree is None:
