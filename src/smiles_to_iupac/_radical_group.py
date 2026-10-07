@@ -7,6 +7,7 @@ import re
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, specified_stereo_elements
+from ._hetero_prefixes import PEROXY_PREFIXES
 from ._substituents import name_branch
 
 _MAX_ATOMS = 80
@@ -120,11 +121,13 @@ def name_radical_group(mol) -> str:
     aromatic = frozenset(a.GetIdx() for a in hydride.GetAtoms() if a.GetIsAromatic())
     context = {"labels": labels, "consumed": set(), "mol": hydride}
     token = ISOTOPE_LABELS.set(context if labels else None)
+    peroxy = PEROXY_PREFIXES.set(True)
     try:
         name, _ = name_branch(
             graph, centre.GetIdx(), hydrogen, halogen_substituents(hydride), aromatic, mol=hydride, unsaturated=True
         )
     finally:
+        PEROXY_PREFIXES.reset(peroxy)
         ISOTOPE_LABELS.reset(token)
     if set(labels) - context["consumed"]:
         raise UnsupportedStructure("an isotopically modified atom of the radical is not cited by any supported name")

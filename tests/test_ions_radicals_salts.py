@@ -785,6 +785,8 @@ def test_radical_ions_on_a_hydrocarbon_skeleton(smiles, expected):
         pytest.param("[CH2]C(=O)[O-]", "carboxylatomethyl", id="carboxylate_prefix"),
         pytest.param("[CH2]C[NH3+]", "2-azaniumylethyl", id="ammonium_prefix"),
         pytest.param("C[CH]C[S-]", "1-sulfidopropan-2-yl", id="sulfido_prefix"),
+        pytest.param("OO[CH2]", "hydroperoxymethyl", id="hydroperoxy_prefix"),
+        pytest.param("CCOO[CH2]", "(ethylperoxy)methyl", id="alkylperoxy_prefix"),
     ],
 )
 def test_ionic_groups_as_prefixes_of_a_radical_parent(smiles, expected):
