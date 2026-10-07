@@ -809,6 +809,14 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if len(set(replaced)) == 1 and len(replaced) == len(oxo):
             return {1: "", 2: "di", 3: "tri"}[len(replaced)] + _REPLACEMENT_PREFIX[replaced[0]] + base, False
         raise UnsupportedStructure("a mixed chalcogen acid group on a substituent is not supported yet")
+    if zx == 7 and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 7 for n in graph[x] if n != root):
+        from ._hetero_carboxylic import hydrazine_acyl_prefix
+
+        hydrazine = hydrazine_acyl_prefix(
+            mol, graph, x, root, halogens, acyl_suffix(make_spec(center, symbols, ("O",)), chain=False, count=1)
+        )
+        if hydrazine is not None:
+            return hydrazine, True
     if all(e == "O" for e in symbols) and len(oxo) == 2 and zx == 7:
         subs = [n for n in graph[x] if n != root]
         if not subs:
