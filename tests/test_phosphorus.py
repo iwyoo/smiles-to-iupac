@@ -197,16 +197,21 @@ def test_phosphanium_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_halogen_on_a_quaternary_phosphonium_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[P+](C)(C)Cl")
+
+
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("C[P+](C)(C)C(C)C", id="branched_quaternary_phosphonium_raises"),
-        pytest.param("C[P+](C)(C)Cl", id="halogen_substituted_quaternary_phosphonium_raises"),
+        pytest.param("C[P+](C)(C)C(C)C", "trimethyl(propan-2-yl)phosphanium", id="branched_substituent"),
+        pytest.param("Cc1ccccc1[P+](C)(C)C", "trimethyl(2-methylphenyl)phosphanium", id="substituted_phenyl"),
+        pytest.param("OC(=O)C[PH3+]", "(carboxymethyl)phosphanium", id="acid_group_in_a_substituent"),
     ],
 )
-def test_branched_quaternary_phosphonium_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_phosphonium_substituent_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_phosphonium_specified_stereocenter_raises():
@@ -218,11 +223,6 @@ def test_phosphonium_specified_stereocenter_raises():
 
 def test_tetraphenylphosphanium():
     assert smiles_to_iupac("c1ccccc1[P+](c1ccccc1)(c1ccccc1)c1ccccc1") == "tetraphenylphosphanium"
-
-
-def test_substituted_phenyl_quaternary_phosphonium_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1[P+](C)(C)C")
 
 
 @pytest.mark.parametrize(

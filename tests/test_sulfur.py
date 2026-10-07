@@ -438,10 +438,15 @@ def test_sulfonium_substituent_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize("smiles", ["CC(=O)C[S+](C)C", "OCC[S+](C)C"])
-def test_sulfonium_substituent_with_characteristic_group_raises(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC(=O)C[S+](C)C", "dimethyl(2-oxopropyl)sulfanium", id="ketone_group_in_a_substituent"),
+        pytest.param("OCC[S+](C)C", "(2-hydroxyethyl)di(methyl)sulfanium", id="hydroxy_group_in_a_substituent"),
+    ],
+)
+def test_sulfonium_substituent_with_characteristic_group_is_a_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_sulfonium_specified_stereocenter_raises():
