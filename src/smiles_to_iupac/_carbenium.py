@@ -272,37 +272,32 @@ def _name_ring_carbenium(mol, ring_info) -> str:
     return "cyclo" + alkyl_name(len(ring_atoms)) + "ium"
 
 
-def _acylium_core(mol):
-    """(cation_atom, oxygen_atom) if `mol` has P-73.2.3.1's basic acylium
-    charge/bond pattern -- a single +1-charged carbon double-bonded to one
-    terminal oxygen -- else None. Mirrors `_radical.py`'s own
-    `_acyl_radical_core` (a +1 charge instead of a radical electron);
-    doesn't itself constrain the rest of the skeleton (chain branching,
-    ring membership) -- `_acylium_acyclic_name`/`_acylium_ring_name` do
-    that."""
-    charged_carbons = [
-        atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 6 and atom.GetFormalCharge() == 1
-    ]
-    if len(charged_carbons) != 1:
-        return None
-    (cation,) = charged_carbons
-    if cation.GetIsotope() != 0 or cation.GetIsAromatic():
-        return None
+_CHALCOGEN_INFIX = {8: "", 16: "thio", 34: "seleno", 52: "telluro"}
 
-    oxygens = [a for a in mol.GetAtoms() if a.GetAtomicNum() == 8]
-    if len(oxygens) != 1:
+
+def _acylium_core(mol):
+    """(cation_atom, chalcogen_atom) if `mol` has P-73.2.3.1's acylium
+    charge/bond pattern in either resonance form -- R-[C+]=X or R-C#[X+],
+    with X a single terminal chalcogen -- else None. The rest of the
+    skeleton is constrained by `_acylium_acyclic_name`/
+    `_acylium_ring_name`."""
+    chalcogens = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _CHALCOGEN_INFIX and a.GetDegree() == 1]
+    if len(chalcogens) != 1 or mol.GetNumAtoms() < 2:
         return None
-    (oxygen,) = oxygens
-    carbonyl_bond = mol.GetBondBetweenAtoms(cation.GetIdx(), oxygen.GetIdx())
-    if (
-        carbonyl_bond is None
-        or carbonyl_bond.GetBondTypeAsDouble() != 2.0
-        or oxygen.GetDegree() != 1
-        or oxygen.GetFormalCharge() != 0
-        or oxygen.GetIsotope() != 0
-    ):
+    (chalcogen,) = chalcogens
+    (cation,) = chalcogen.GetNeighbors()
+    bond = mol.GetBondBetweenAtoms(cation.GetIdx(), chalcogen.GetIdx())
+    if cation.GetAtomicNum() != 6 or cation.GetIsotope() or cation.GetIsAromatic() or chalcogen.GetIsotope():
         return None
-    return cation, oxygen
+    if bond.GetBondTypeAsDouble() == 2.0 and cation.GetFormalCharge() == 1 and chalcogen.GetFormalCharge() == 0:
+        pass
+    elif bond.GetBondTypeAsDouble() == 3.0 and cation.GetFormalCharge() == 0 and chalcogen.GetFormalCharge() == 1:
+        pass
+    else:
+        return None
+    if sum(a.GetFormalCharge() for a in mol.GetAtoms()) != 1:
+        return None
+    return cation, chalcogen
 
 
 def _acylium_acyclic_name(mol):
@@ -316,6 +311,7 @@ def _acylium_acyclic_name(mol):
     if core is None:
         return None
     cation, oxygen = core
+    infix = _CHALCOGEN_INFIX[oxygen.GetAtomicNum()]
     if mol.GetRingInfo().NumRings() != 0:
         return None
 
@@ -323,7 +319,7 @@ def _acylium_acyclic_name(mol):
     for atom in chain_atoms:
         if atom.GetAtomicNum() != 6 or atom.GetIsotope() != 0 or atom.GetIsAromatic():
             return None
-        if atom.GetIdx() != cation.GetIdx() and atom.GetFormalCharge() != 0:
+        if atom.GetFormalCharge() != 0 and atom.GetIdx() != cation.GetIdx():
             return None
     carbonyl_bond_idx = mol.GetBondBetweenAtoms(cation.GetIdx(), oxygen.GetIdx()).GetIdx()
     for bond in mol.GetBonds():
@@ -345,9 +341,9 @@ def _acylium_acyclic_name(mol):
             substituents = substituents_for_chain(graph, candidate, {}, mol=mol)
             grouped = group_substituents(substituents)
             locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
-            name = retained_chain_acid(grouped, chain_length, [], [], 1, "acylium")
+            name = retained_chain_acid(grouped, chain_length, [], [], 1, "acylium") if not infix else None
             if name is None:
-                name = format_substituent_prefixes(grouped) + name_from_substituents(chain_length, [], [], "oyl") + "ium"
+                name = format_substituent_prefixes(grouped) + name_from_substituents(chain_length, [], [], (infix + "yl" if infix else "oyl")) + "ium"
             key = (locant_set, citation_locants, name)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
@@ -364,6 +360,7 @@ def _acylium_ring_name(mol):
     if core is None:
         return None
     cation, oxygen = core
+    infix = _CHALCOGEN_INFIX[oxygen.GetAtomicNum()]
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() != 1:
         return None
@@ -398,8 +395,8 @@ def _acylium_ring_name(mol):
 
     halogens = halogen_substituents(mol)
     if ring_is_aromatic:
-        return _name_benzo_attached_carboxyl(graph, ring_atoms, cation.GetIdx(), halogens, word="benzoylium", mol=mol)
-    return _name_ring_attached_carboxyl(graph, ring_atoms, cation.GetIdx(), halogens, suffix="carbonylium", mol=mol)
+        return _name_benzo_attached_carboxyl(graph, ring_atoms, cation.GetIdx(), halogens, word="benzoylium" if not infix else f"benzenecarbo{infix}ylium", mol=mol)
+    return _name_ring_attached_carboxyl(graph, ring_atoms, cation.GetIdx(), halogens, suffix=f"carbo{infix}ylium" if infix else "carbonylium", mol=mol)
 
 
 def has_acylium_shape(mol) -> bool:
