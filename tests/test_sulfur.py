@@ -720,3 +720,19 @@ def test_n_methyl_n_and_related(smiles, expected):
 )
 def test_thione_outranks_hydroxy_and_yields_to_ketone(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CS(=O)(=O)NN", "methanesulfonohydrazide", id="sulfonohydrazide"),
+        pytest.param("CS(=O)NN", "methanesulfinohydrazide", id="sulfinohydrazide"),
+        pytest.param("CS(=O)(=O)NNC", "N'-methylmethanesulfonohydrazide", id="terminal_nitrogen_substituent"),
+        pytest.param("CS(=O)(=O)N(C)NC", "N,N'-dimethylmethanesulfonohydrazide", id="both_nitrogens_substituted"),
+        pytest.param("NNS(=O)(=O)CCS(=O)(=O)NN", "ethane-1,2-disulfonohydrazide", id="two_sulfonohydrazide_groups"),
+        pytest.param("c1ccccc1S(=O)(=O)NN", "benzenesulfonohydrazide", id="sulfonohydrazide_on_a_ring"),
+        pytest.param("NNS(=O)(=O)c1ccccc1C(=O)O", "2-(hydrazinesulfonyl)benzoic acid", id="senior_acid_cites_the_prefix"),
+    ],
+)
+def test_sulfonohydrazides_and_sulfinohydrazides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
