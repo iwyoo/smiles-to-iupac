@@ -68,17 +68,9 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._common import (
-    UnsupportedStructure,
-    adjacency,
-    linear_branch,
-    non_single_bonds,
-    plain_phenyl_substituent_atoms,
-    specified_stereocenters,
-)
-from ._numerals import alkyl_name
+from ._common import UnsupportedStructure, specified_stereocenters
+from ._onium_prefixes import onium_name
 from ._phosphane import name_simple_phosphane
-from ._substituents import format_mononuclear_prefixes
 
 
 def has_phosphonium_shape(mol) -> bool:
@@ -140,7 +132,7 @@ def name_phosphonium(mol) -> str:
         raise UnsupportedStructure("the phosphonium phosphorus must be singly bonded to each substituent")
 
     if degree == 4:
-        return _name_quaternary_phosphonium(mol, phosphorus)
+        return onium_name(mol, phosphorus, "phosphanium")
 
     neutral_rw = Chem.RWMol(mol)
     neutral_phosphorus = neutral_rw.GetAtomWithIdx(phosphorus.GetIdx())
@@ -150,49 +142,8 @@ def name_phosphonium(mol) -> str:
     neutral_mol = neutral_rw.GetMol()
     Chem.SanitizeMol(neutral_mol)
 
-    phosphane_name = name_simple_phosphane(neutral_mol)
+    try:
+        phosphane_name = name_simple_phosphane(neutral_mol)
+    except UnsupportedStructure:
+        return onium_name(mol, phosphorus, "phosphanium")
     return phosphane_name[:-1] + "ium"
-
-
-def _name_quaternary_phosphonium(mol, phosphorus) -> str:
-    graph = adjacency(mol)
-    roots = set(graph[phosphorus.GetIdx()])
-    phenyl_atoms = plain_phenyl_substituent_atoms(mol, graph, roots)
-
-    other_atoms = [atom for atom in mol.GetAtoms() if atom.GetIdx() != phosphorus.GetIdx()]
-    for atom in other_atoms:
-        if atom.GetAtomicNum() != 6:
-            raise UnsupportedStructure(
-                "heteroatoms other than the phosphonium phosphorus itself "
-                "are not supported yet"
-            )
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
-            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetIsAromatic() and atom.GetIdx() not in phenyl_atoms:
-            raise UnsupportedStructure(
-                "an aromatic substituent other than a plain, unsubstituted "
-                "phenyl group is out of scope for this module"
-            )
-    all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
-    if all_ring_atoms - phenyl_atoms:
-        raise UnsupportedStructure(
-            "a ring other than a plain phenyl substituent directly on "
-            "phosphorus is out of scope for this module"
-        )
-    non_ring_unsaturation = [
-        b for b in non_single_bonds(mol) if b[0] not in phenyl_atoms and b[1] not in phenyl_atoms
-    ]
-    if non_ring_unsaturation:
-        raise UnsupportedStructure("an unsaturated substituent is out of scope for this module")
-
-    substituent_names = []
-    for root in roots:
-        if root in phenyl_atoms:
-            substituent_names.append(("phenyl", False))
-            continue
-        length = linear_branch(graph, root, phosphorus.GetIdx())
-        if length is None:
-            raise UnsupportedStructure("a branched substituent is out of scope for this module")
-        substituent_names.append((alkyl_name(length), False))
-
-    return format_mononuclear_prefixes(substituent_names) + "phosphanium"

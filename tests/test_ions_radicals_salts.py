@@ -240,24 +240,20 @@ def test_oxidanium():
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("CC(C)[OH2+]", id="branched_substituent_not_supported"),
-        pytest.param("[OH2+]C1CCCCC1", id="ring_substituent_not_supported"),
+        pytest.param("CC(C)[OH2+]", "propan-2-yloxidanium", id="branched_substituent"),
+        pytest.param("[OH2+]C1CCCCC1", "cyclohexyloxidanium", id="ring_substituent"),
+        pytest.param("Cc1ccccc1[OH2+]", "(2-methylphenyl)oxidanium", id="substituted_phenyl"),
+        pytest.param("CC(=O)C[O+](C)C", "dimethyl(2-oxopropyl)oxidanium", id="ketone_group_in_a_substituent"),
     ],
 )
-def test_branched_substituent_not_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_oxonium_substituent_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_mixed_alkyl_and_phenyl_substituents():
     assert smiles_to_iupac("C[O+](C)c1ccccc1") == "dimethyl(phenyl)oxidanium"
-
-
-def test_substituted_phenyl_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1[OH2+]")
 
 
 @pytest.mark.parametrize(
@@ -1131,4 +1127,16 @@ def test_valence_deficient_heteroatom_is_not_named_as_its_hydride(smiles):
     ],
 )
 def test_ammonium_on_a_heterocyclic_anionic_parent_stays_an_azaniumyl_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[N+]1(CC(=O)c2ccccc2)CCCCC1", "1-methyl-1-(2-oxo-2-phenylethyl)piperidin-1-ium", id="ketone_side_chain_on_a_quaternary_ring_nitrogen"),
+        pytest.param("C[N+](C)(C)C(=O)O", "carboxytri(methyl)azanium", id="acid_group_on_the_cationic_nitrogen"),
+        pytest.param("C[N+](C)(C)C(=O)Cl", "carbonochloridoyltri(methyl)azanium", id="acid_halide_on_the_cationic_nitrogen"),
+    ],
+)
+def test_onium_centres_that_carry_characteristic_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

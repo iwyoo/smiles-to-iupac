@@ -10,7 +10,7 @@ import itertools
 from types import MappingProxyType
 import re
 
-from rdkit import Chem
+from rdkit import Chem, rdBase
 from rdkit.Chem import CanonicalRankAtoms
 
 from ._common import (
@@ -2956,7 +2956,12 @@ def _unit_molecule(mol, atoms, attach):
     for idx in sorted(set(range(mol.GetNumAtoms())) - atoms, reverse=True):
         editable.RemoveAtom(idx)
     unit = editable.GetMol()
-    Chem.SanitizeMol(unit)
+    try:
+        with rdBase.BlockLogs():
+            Chem.SanitizeMol(unit)
+    except Chem.rdchem.AtomValenceException:
+        unit.UpdatePropertyCache(strict=False)
+        Chem.FastFindRings(unit)
     attach_idx = next(a.GetIdx() for a in unit.GetAtoms() if a.GetAtomMapNum() == 1)
     canonical = Chem.Mol(unit)
     for a in canonical.GetAtoms():

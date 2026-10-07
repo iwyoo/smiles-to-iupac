@@ -65,6 +65,7 @@ from rdkit import Chem
 from ._amine import CATIONIC_AMINES, _name_acyclic_secondary_tertiary_amine, name_amine
 from ._common import UnsupportedStructure, non_single_bonds, specified_stereo_elements
 from ._hetero_prefixes import is_functional_carbon
+from ._onium_prefixes import onium_name
 
 
 def has_ammonium_shape(mol) -> bool:
@@ -148,6 +149,21 @@ def name_polyammonium(mol) -> str:
     return f"{name[:match.start()]}{_MULTIPLIED_AMINIUM[match.group(1)]}(aminium)"
 
 
+def _heteroatom_acyl(mol, carbon) -> bool:
+    """A carbonyl carbon whose other neighbour is a heteroatom (carboxy, alkoxycarbonyl, carbamoyl, halocarbonyl): an acid
+    derivative on the cationic nitrogen, cited as a prefix of 'azanium' because no amidium suffix exists for it."""
+    if carbon.GetAtomicNum() != 6 or carbon.IsInRing():
+        return False
+    bonds = {n.GetIdx(): mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() for n in carbon.GetNeighbors()}
+    oxo = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 8 and bonds[n.GetIdx()] == 2.0 and n.GetDegree() == 1]
+    hetero = [
+        n
+        for n in carbon.GetNeighbors()
+        if n.GetAtomicNum() in (7, 8, 9, 16, 17, 35, 53) and bonds[n.GetIdx()] == 1.0 and not n.GetFormalCharge()
+    ]
+    return len(oxo) == 1 and carbon.GetDegree() == 3 and len(hetero) == 1
+
+
 def name_ammonium(mol) -> str:
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
@@ -171,6 +187,9 @@ def name_ammonium(mol) -> str:
         # bonding, so it matches both shapes identically; without this
         # check the ylide's second charge center was silently dropped.
         raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+
+    if any(_heteroatom_acyl(mol, n) for n in nitrogen.GetNeighbors()) and not nitrogen.IsInRing():
+        return onium_name(mol, nitrogen, "azanium")
 
     if any(atom.GetAtomicNum() == 6 and is_functional_carbon(mol, atom.GetIdx()) for atom in mol.GetAtoms()):
         raise UnsupportedStructure("a carbonyl-type group beside the cation is cited as a prefix by the chain engine")

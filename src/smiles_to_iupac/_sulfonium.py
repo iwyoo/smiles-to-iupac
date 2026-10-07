@@ -56,13 +56,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
-from ._common import (
-    UnsupportedStructure,
-    adjacency,
-    plain_phenyl_substituent_atoms,
-    specified_stereocenters,
-)
-from ._substituents import format_mononuclear_prefixes, name_branch
+from ._common import UnsupportedStructure, specified_stereocenters
+from ._onium_prefixes import onium_name
 
 
 def has_sulfonium_shape(mol) -> bool:
@@ -84,15 +79,6 @@ def has_sulfonium_shape(mol) -> bool:
     return all(
         n.GetAtomicNum() == 6 and mol.GetBondBetweenAtoms(sulfur.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
         for n in sulfur.GetNeighbors()
-    )
-
-
-def _is_ether_link(atom) -> bool:
-    return (
-        atom.GetAtomicNum() in (8, 16, 34, 52)
-        and atom.GetDegree() == 2
-        and atom.GetTotalNumHs() == 0
-        and all(b.GetBondTypeAsDouble() == 1.0 and b.GetOtherAtom(atom).GetAtomicNum() == 6 for b in atom.GetBonds())
     )
 
 
@@ -135,28 +121,4 @@ def name_sulfonium(mol) -> str:
     ):
         raise UnsupportedStructure("the sulfonium sulfur must be singly bonded to each substituent")
 
-    for atom in mol.GetAtoms():
-        if atom.GetIdx() == sulfur.GetIdx():
-            continue
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
-            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() != 6 and not _is_ether_link(atom):
-            raise UnsupportedStructure(
-                "a substituent carrying a characteristic group or a heteroatom other "
-                "than a chalcogen link is not supported yet"
-            )
-
-    graph = adjacency(mol)
-    roots = sorted(graph[sulfur.GetIdx()])
-    phenyl_atoms = plain_phenyl_substituent_atoms(mol, graph, set(roots))
-
-    substituent_names = []
-    for root in roots:
-        if root in phenyl_atoms:
-            substituent_names.append(("phenyl", False))
-        else:
-            substituent_names.append(name_branch(graph, root, sulfur.GetIdx(), {}, mol=mol))
-
-    if not substituent_names:
-        return "sulfanium"
-    return format_mononuclear_prefixes(substituent_names) + "sulfanium"
+    return onium_name(mol, sulfur, "sulfanium")
