@@ -290,6 +290,8 @@ def _hantzsch_widman(elements, saturated):
     pieces = []
     for e in ordered:
         mult = "" if counts[e] == 1 else multiplying_prefix(counts[e])
+        if mult.endswith("a") and _PREFIX[e][0] in "aeiou":
+            mult = mult[:-1]
         pieces.append(mult + _PREFIX[e])
     text = ""
     for piece in pieces + [stem]:
@@ -438,6 +440,9 @@ def _replacement_cycloalkane_name(elements):
             by_element.setdefault(element, []).append(position)
     if not by_element or any(e not in _PREFIX for e in by_element):
         return None
+    if len(by_element) == 1 and len(next(iter(by_element.values()))) == len(elements):
+        (element,) = by_element
+        return multiplying_prefix(len(elements)) + _PREFIX[element] + "cyclo" + alkane_name(len(elements))
     pieces = []
     for element in sorted(by_element, key=lambda e: _RANK[e]):
         locants = by_element[element]
