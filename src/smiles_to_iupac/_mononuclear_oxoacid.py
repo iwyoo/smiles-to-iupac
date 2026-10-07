@@ -43,14 +43,15 @@ for _z, _stem in ((9, "fluor"), (17, "chlor"), (35, "brom"), (53, "iod")):
 
 
 def _counts(mol):
-    """(central atomic number, oxo, hydroxy, hydrogen) or None when the molecule is not a free mononuclear acid."""
+    """(central atomic number, oxo, hydroxy, hydrogen, anionic oxygens) or None when the molecule is not a free
+    mononuclear acid or one of its oxoanions."""
     if len(Chem.GetMolFrags(mol)) != 1:
         return None
     centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() != 8]
     if len(centers) != 1 or centers[0].GetIsotope():
         return None
     center = centers[0]
-    oxo = hydroxy = 0
+    oxo = hydroxy = ionic = 0
     for oxygen in center.GetNeighbors():
         bond = mol.GetBondBetweenAtoms(center.GetIdx(), oxygen.GetIdx())
         if oxygen.GetDegree() != 1 or oxygen.GetIsotope():
@@ -59,23 +60,52 @@ def _counts(mol):
             oxo += 1
         elif bond.GetBondTypeAsDouble() == 1.0 and oxygen.GetFormalCharge() == -1 and center.GetFormalCharge() > 0:
             oxo += 1
+        elif bond.GetBondTypeAsDouble() == 1.0 and oxygen.GetFormalCharge() == -1 and not oxygen.GetTotalNumHs():
+            ionic += 1
         elif bond.GetBondTypeAsDouble() == 1.0 and not oxygen.GetFormalCharge() and oxygen.GetTotalNumHs() == 1:
             hydroxy += 1
         else:
             return None
-    if sum(a.GetFormalCharge() for a in mol.GetAtoms()):
+    if mol.GetNumAtoms() != 1 + oxo + hydroxy + ionic:
         return None
-    if mol.GetNumAtoms() != 1 + oxo + hydroxy:
-        return None
-    return center.GetAtomicNum(), oxo, hydroxy, center.GetTotalNumHs()
+    return center.GetAtomicNum(), oxo, hydroxy + ionic, center.GetTotalNumHs(), ionic
+
+
+_IRREGULAR = {
+    "sulfuric": "sulfate",
+    "sulfurous": "sulfite",
+    "phosphoric": "phosphate",
+    "phosphorous": "phosphite",
+}
+
+
+def _anion_name(acid, hydrogens):
+    stem = acid[: -len(" acid")]
+    if stem in _IRREGULAR:
+        stem = _IRREGULAR[stem]
+    elif stem.endswith("ic"):
+        stem = stem[:-2] + "ate"
+    else:
+        stem = stem[:-3] + "ite"
+    words = {0: "", 1: "hydrogen ", 2: "dihydrogen "}[hydrogens]
+    return words + stem
 
 
 def has_mononuclear_oxoacid_shape(mol) -> bool:
-    return _counts(mol) in _ACIDS
+    key = _counts(mol)
+    return key is not None and key[:4] in _ACIDS and _balanced(mol, key)
+
+
+def _balanced(mol, key):
+    charge = sum(a.GetFormalCharge() for a in mol.GetAtoms())
+    return charge == -key[4]
 
 
 def name_mononuclear_oxoacid(mol) -> str:
     key = _counts(mol)
-    if key not in _ACIDS:
+    if key is None or key[:4] not in _ACIDS or not _balanced(mol, key):
         raise UnsupportedStructure("this is not a free mononuclear noncarbon oxoacid")
-    return _ACIDS[key]
+    acid = _ACIDS[key[:4]]
+    if not key[4]:
+        return acid
+    return _anion_name(acid, key[2] - key[4])

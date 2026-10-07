@@ -296,3 +296,17 @@ def test_group_15_acids_halides_and_amides(smiles, expected):
 )
 def test_amidic_halides_of_group_15_acids(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CCOP(=O)(OCC)S", "O,O-diethyl hydrogen phosphorothioate"),
+        ("[Na+].[O-]P(=O)(O)O", "sodium dihydrogen phosphate"),
+        ("[Ca+2].[O-]P(=O)(O)O.[O-]P(=O)(O)O", "calcium bis(dihydrogen phosphate)"),
+        ("O=P(N=C=O)(N=C=O)N=C=O", "phosphoryl triisocyanate"),
+        ("N[Pt](N)(Cl)Cl", "bis(azanido)dichloridoplatinum"),
+    ],
+)
+def test_partial_thioesters_oxoanion_salts_pseudohalides_and_amido_ligands(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

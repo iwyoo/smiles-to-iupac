@@ -16,6 +16,7 @@ from ._substituents import format_mononuclear_prefixes, name_branch
 
 _PHOSPHORUS = 15
 _ACID = {0: "phosphor", 1: "phosphon", 2: "phosphin"}
+_MULTIPLIER = {1: "", 2: "di"}
 _INFIX = {1: "thio", 2: "dithio", 3: "trithio", 4: "tetrathio"}
 
 
@@ -35,9 +36,16 @@ def _group(mol, atom):
     esters = []
     for chalcogen in single:
         rest = [n for n in chalcogen.GetNeighbors() if n.GetIdx() != atom.GetIdx()]
-        if chalcogen.GetFormalCharge() or len(rest) != 1 or rest[0].GetAtomicNum() != 6:
+        if chalcogen.GetFormalCharge():
             return None
-        esters.append((chalcogen, rest[0]))
+        if not rest and chalcogen.GetTotalNumHs() == 1:
+            esters.append((chalcogen, None))
+        elif len(rest) == 1 and rest[0].GetAtomicNum() == 6:
+            esters.append((chalcogen, rest[0]))
+        else:
+            return None
+    if all(carbon is None for _, carbon in esters):
+        return None
     if not any(c.GetAtomicNum() == 16 for c in (double[0], *single)):
         return None
     return carbons, double[0], esters
@@ -69,6 +77,8 @@ def name_phosphorus_thioester(mol) -> str:
 
     words = Counter()
     compound = {}
+    hydrogens = sum(1 for _, carbon in esters if carbon is None)
+    esters = [(c, r) for c, r in esters if r is not None]
     for chalcogen, carbon in esters:
         name, is_compound = name_branch(graph, carbon.GetIdx(), chalcogen.GetIdx(), halogens, aromatic, mol=mol)
         key = (chalcogen.GetSymbol(), name)
@@ -84,4 +94,6 @@ def name_phosphorus_thioester(mol) -> str:
     entries = [name_branch(graph, c.GetIdx(), phosphorus.GetIdx(), halogens, aromatic, mol=mol) for c in carbons]
     prefix = format_mononuclear_prefixes(entries) if entries else ""
     anion = f"{prefix}{_ACID[len(carbons)]}o{_INFIX[sulfurs]}ate"
+    if hydrogens:
+        cited.append(f"{_MULTIPLIER[hydrogens]}hydrogen")
     return " ".join([*cited, anion])

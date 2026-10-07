@@ -53,7 +53,7 @@ from ._substituents import format_substituent_prefixes, name_branch
 
 _SENIORITY = [
     "ide", "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", "amidine", "sulfonamide", "hydrazide", "nitrile", "aldehyde", "ketone", "thione", "selone", "tellone", "alcohol", "peroxol",
-    "thiol", "amine", "imine",
+    "thiol", "selenol", "tellurol", "amine", "imine",
 ]
 _TERMINAL = {"acid", "thioic", "peroxoic", "imidic", "amide", "amidine", "hydrazide", "nitrile", "aldehyde"}
 _PLAIN_ACID = make_spec("C", ["O"], ["O"])
@@ -307,7 +307,7 @@ def _group_of(mol, carbon):
             sulfonyl = _sulfonyl_group(mol, n.GetIdx(), carbon)
             if sulfonyl is not None:
                 return sulfonyl
-    for z, hydrogens, name in ((8, 1, "alcohol"), (16, 1, "thiol"), (7, 2, "amine")):
+    for z, hydrogens, name in ((8, 1, "alcohol"), (16, 1, "thiol"), (34, 1, "selenol"), (52, 1, "tellurol"), (7, 2, "amine")):
         for n in _single_neighbors(mol, carbon, z):
             if _terminal_heteroatom(mol, n, hydrogens):
                 return name, {n}
@@ -1287,6 +1287,8 @@ _FUSED_SUFFIX = _FusedSuffix({
     "selone": "selone",
     "tellone": "tellone",
     "thiol": "thiol",
+    "selenol": "selenol",
+    "tellurol": "tellurol",
     "amine": "amine",
 })
 
@@ -1341,6 +1343,8 @@ _RING_SUFFIX = _RingSuffix({
     "imine": "imine",
     "alcohol": "alcohol",
     "thiol": "thiol",
+    "selenol": "selenol",
+    "tellurol": "tellurol",
     "amine": "amine",
 })
 
@@ -2074,6 +2078,8 @@ _CHAIN_GROUP_WORDS = {
     "sulfonic": ("sulfonic acid", ""),
     "alcohol": ("ol", ""),
     "thiol": ("thiol", ""),
+    "selenol": ("selenol", ""),
+    "tellurol": ("tellurol", ""),
     "amine": ("amine", ""),
     "peroxoic": ("peroxoic", " acid"),
     "peroxol": ("peroxol", ""),
@@ -2247,8 +2253,8 @@ def _ring_occurrences(mol):
                 found.append((_CHALCOGEN_KETONE_CLASS[z], r, {i}))
             elif z == 8 and _terminal_heteroatom(mol, i, 1):
                 found.append(("alcohol", r, {i}))
-            elif z == 16 and _terminal_heteroatom(mol, i, 1):
-                found.append(("thiol", r, {i}))
+            elif z in (16, 34, 52) and _terminal_heteroatom(mol, i, 1):
+                found.append(({16: "thiol", 34: "selenol", 52: "tellurol"}[z], r, {i}))
             elif z == 16 and order == 1.0:
                 sulfonyl = _sulfonyl_group(mol, i, r)
                 if sulfonyl is not None:
@@ -2498,6 +2504,8 @@ def _evaluate(
             "tellone": "tellone",
             "alcohol": "ol",
             "thiol": "thiol",
+            "selenol": "selenol",
+            "tellurol": "tellurol",
             "amine": "amine",
             "imine": "imine",
             "sulfonic": "sulfonic acid",
