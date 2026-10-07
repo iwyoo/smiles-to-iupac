@@ -34,11 +34,21 @@ def has_polycation_shape(mol) -> bool:
     centres = _centres(mol)
     return (
         bool(centres)
-        and sum(a.GetFormalCharge() for a in centres) >= 2
         and len(Chem.GetMolFrags(mol)) == 1
         and all(a.GetFormalCharge() > 0 and not a.GetIsotope() for a in centres)
         and not any(a.GetNumRadicalElectrons() for a in mol.GetAtoms())
-        and (len(centres) > 1 or centres[0].GetAtomicNum() == 6)
+        and (
+            (sum(a.GetFormalCharge() for a in centres) >= 2 and (len(centres) > 1 or centres[0].GetAtomicNum() == 6))
+            or (len(centres) == 1 and _single_ring_heteroatom_cation(centres[0]))
+        )
+    )
+
+
+def _single_ring_heteroatom_cation(atom) -> bool:
+    return (
+        atom.IsInRing()
+        and atom.GetAtomicNum() in _RING_CENTRE_ELEMENTS - {7}
+        and atom.GetDegree() + atom.GetTotalNumHs() == _CATION_VALENCE[atom.GetAtomicNum()]
     )
 
 
@@ -153,6 +163,10 @@ def _name_ring_polycation(mol, centres):
 
     if any(a.GetIsotope() or a.GetAtomicNum() not in _RING_CENTRE_ELEMENTS for a in centres):
         raise UnsupportedStructure("this ring heteroatom is not supported as a cationic centre yet")
+    if any(
+        a.GetAtomicNum() != 7 and a.GetDegree() + a.GetTotalNumHs() != _CATION_VALENCE[a.GetAtomicNum()] for a in centres
+    ):
+        raise UnsupportedStructure("a ring centre that is not a hydron-added heteroatom is a 'ylium' centre")
     editable = Chem.RWMol(mol)
     indices = [a.GetIdx() for a in centres]
     for index in indices:
@@ -176,6 +190,7 @@ def _name_ring_polycation(mol, centres):
 
 
 _RING_CENTRE_ELEMENTS = {7, 8, 15, 16, 33, 34, 52}
+_CATION_VALENCE = {7: 4, 8: 3, 15: 4, 16: 3, 33: 4, 34: 3, 52: 3}  # sigma bonds of the hydron-added atom (N: with pi)
 
 
 def _name_pair_polycation(mol, centres):

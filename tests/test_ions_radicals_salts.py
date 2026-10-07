@@ -956,6 +956,21 @@ def test_adjacent_anionic_oxygens_are_not_a_nitro_group(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("C1CC[S+](C)C1", "1-methylthiolan-1-ium", id="ring_sulfonium"),
+        pytest.param("C1CC[OH+]CC1", "oxan-1-ium", id="ring_oxonium"),
+        pytest.param("C1CC[P+](C)(C)C1", "1,1-dimethylphospholan-1-ium", id="ring_phosphonium"),
+        pytest.param("C[S+]1CCOCC1", "4-methyl-1,4-oxathian-4-ium", id="cationic_atom_numbered_among_two_ring_heteroatoms"),
+        pytest.param("c1ccc2c(c1)C=C[S+]2C", "1-methyl-1-benzothiophen-1-ium", id="fused_ring_sulfonium"),
+        pytest.param("C1CC[S+](C)C1.[I-]", "1-methylthiolan-1-ium iodide", id="ring_sulfonium_salt"),
+    ],
+)
+def test_ring_cations_on_heteroatoms_other_than_nitrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param("[CH2+]C[CH2+]", "propane-1,3-bis(ylium)", id="two_hydride_losses_on_a_chain"),
         pytest.param("C[C+2]C", "propane-2,2-bis(ylium)", id="two_hydride_losses_on_one_carbon"),
         pytest.param("C1=C[CH+][CH+]1", "cyclobut-3-ene-1,2-bis(ylium)", id="two_hydride_losses_on_a_ring"),
