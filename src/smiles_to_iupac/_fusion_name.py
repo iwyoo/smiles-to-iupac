@@ -4,6 +4,7 @@ built from the peripheral lettering of the parent and the locants of the attache
 P-25.3.6, P-25.3.8) and the whole system is numbered by P-25.3.3."""
 
 import re
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from itertools import combinations, permutations, product
 
@@ -14,6 +15,10 @@ from ._common import UnsupportedStructure
 from ._fused_numbering import FusedSystem, _locant_key, fused_numberings
 from ._fusion_components import Component, exception_numbering, identify, skeleton
 from ._numerals import numerical_term
+from ._pin import mark
+
+FUSION_NAME_REQUIRED = ContextVar("fusion_name_required", default=False)
+PREFER_VON_BAEYER = ContextVar("prefer_von_baeyer", default=False)
 
 _MAX_RINGS_IN_COMPONENT = 10
 _MAX_RINGS_IN_SYSTEM = 14
@@ -683,11 +688,14 @@ def fusion_name(mol):
     """Fusion name (without indicated hydrogen) of the ortho- and peri-fused ring system `mol`, or UnsupportedStructure.
     A system with a third component ortho- and peri-fused to two others takes the skeletal replacement name of P-25.5.1."""
     try:
-        return _fusion_name_core(mol)
+        name, root = _fusion_name_core(mol)
     except UnsupportedStructure:
         if all(a.GetSymbol() == "C" for a in mol.GetAtoms()):
             raise
-        return _replacement_name(mol)
+        name, root = _replacement_name(mol)
+    if sum(len(ring) >= 5 for ring in Chem.GetSymmSSSR(mol)) < 2:
+        mark(name, "fusion nomenclature gives preferred names only to systems with two rings of five or more members (P-52.2.4.1)")
+    return name, root
 
 
 def _replacement_name(mol):
@@ -949,6 +957,8 @@ def fused_ring_system_name(mol):
     if mol.GetNumAtoms() < 5 or len(Chem.GetMolFrags(mol)) != 1:
         return None
     info = mol.GetRingInfo()
+    if PREFER_VON_BAEYER.get() and sum(len(ring) >= 5 for ring in info.AtomRings()) < 2:
+        return None
     if not 2 <= info.NumRings() <= _MAX_RINGS_IN_SYSTEM or any(info.NumAtomRings(i) == 0 for i in range(mol.GetNumAtoms())):
         return None
     if any(a.GetFormalCharge() or a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):

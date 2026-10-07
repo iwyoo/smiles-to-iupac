@@ -144,7 +144,7 @@ from ._ether_amide import has_ether_amide_shape, name_ether_amide
 from ._ether_hydroperoxide import has_ether_hydroperoxide_shape, name_ether_hydroperoxide
 from ._ether_ketone import has_ether_ketone_shape, name_ether_ketone
 from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
-from ._fusion_name import fused_ring_system_name
+from ._fusion_name import FUSION_NAME_REQUIRED, PREFER_VON_BAEYER, fused_ring_system_name
 from ._hetero_prefixes import _has_senior_principal_group
 from ._fullerene import (
     has_fullerene_name,
@@ -816,7 +816,53 @@ def _name_via_fallbacks(mol):
     return None
 
 
+def _kekule_forms_without_fusion_name(mol):
+    """P-52.2.4.1: a bicyclic system with an aromatic ring but without two rings of five or more members has no
+    preferred fusion name, so it is named as an unsaturated von Baeyer system from its Kekule structures."""
+    if FUSION_NAME_REQUIRED.get():
+        return []
+    info = mol.GetRingInfo()
+    if info.NumRings() != 2 or sum(len(ring) >= 5 for ring in info.AtomRings()) >= 2:
+        return []
+    if not any(a.GetIsAromatic() for a in mol.GetAtoms()) or find_bicyclic_core(mol) is None:
+        return []
+    base = Chem.Mol(mol)
+    try:
+        Chem.Kekulize(base, clearAromaticFlags=True)
+    except Chem.KekulizeException:
+        return []
+    forms = [base]
+    (benzene,) = [ring for ring in info.AtomRings() if all(mol.GetAtomWithIdx(i).GetIsAromatic() for i in ring)] or [None]
+    if benzene is not None and len(benzene) == 6:
+        ring = set(benzene)
+        ring_bonds = [b.GetIdx() for b in base.GetBonds() if b.GetBeginAtomIdx() in ring and b.GetEndAtomIdx() in ring]
+        if sum(base.GetBondWithIdx(i).GetBondType() == Chem.BondType.DOUBLE for i in ring_bonds) == 3:
+            flipped = Chem.RWMol(base)
+            for i in ring_bonds:
+                bond = flipped.GetBondWithIdx(i)
+                bond.SetBondType(
+                    Chem.BondType.SINGLE if bond.GetBondType() == Chem.BondType.DOUBLE else Chem.BondType.DOUBLE
+                )
+            other = flipped.GetMol()
+            Chem.SanitizeMol(other, Chem.SANITIZE_ALL ^ Chem.SANITIZE_SETAROMATICITY)
+            forms.append(other)
+    return forms
+
+
 def _name_mol(mol) -> str:
+    candidates = []
+    token = PREFER_VON_BAEYER.set(True)
+    try:
+        for form in _kekule_forms_without_fusion_name(mol):
+            try:
+                candidates.append(_name_mol(form))
+            except UnsupportedStructure:
+                continue
+    finally:
+        PREFER_VON_BAEYER.reset(token)
+    if candidates:
+        # a double bond between non-consecutive atoms is cited as 1(6); the unparenthesised locants are cited first
+        return min(candidates, key=lambda name: (len(re.findall(r"\d\(\d+\)", name)), name))
     fused = fused_ring_system_name(mol)
     if fused is not None:
         return fused
