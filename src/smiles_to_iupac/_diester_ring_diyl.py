@@ -433,6 +433,8 @@ def ring_substituent_name(mol, graph, root, parent):
         return glycosyl
     rings, atoms = _system_of(mol, root)
     order = mol.GetBondBetweenAtoms(parent, root).GetBondTypeAsDouble()
+    if any(mol.GetAtomWithIdx(a).GetFormalCharge() for a in atoms):
+        return _cationic_ring_substituent(mol, graph, root, parent, rings, atoms, order)
     assembly = _assembly_group(mol, graph, root, parent, atoms)
     if assembly is not None:
         return assembly
@@ -450,6 +452,26 @@ def ring_substituent_name(mol, graph, root, parent):
             context["used"].add(("atom", atom))
     name = re.sub(r"(cyclo[a-z]+?)an-1-(yl|ylidene|ylidyne)$", r"\1\2", found[1])
     return name, any(ch.isdigit() or ch in "(-" for ch in name)
+
+
+def _cationic_ring_substituent(mol, graph, root, parent, rings, atoms, order):
+    """A ring-nitrogen cation as a substituent group (P-75.4, P-73.1.1.2): the neutral analogue's group name with the
+    'ium' suffix cited before the free-valence suffix, as in 'pyridin-1-ium-4-yl'."""
+    from ._polyfunctional import _ring_center_base
+
+    found = _ring_center_base(mol)
+    suffix = suffix_of(order)
+    if found is None or found[2] != "ium" or suffix is None or found[1] not in atoms or len(Chem.GetMolFrags(mol)) != 1:
+        raise UnsupportedStructure("a charged ring atom is not supported in this substituent group yet")
+    base, center = found[0], found[1]
+    named = evaluate_skeleton(base, graph, "ring", rings, atoms, [root], {parent}, suffix)
+    if named is None:
+        raise UnsupportedStructure("this ring cation has no supported substituent name yet")
+    tail = re.search(r"-\d+(?:,\d+)*-(?:di|tri)?yl(?:idene|idyne)?$", named[1])
+    if tail is None or center not in named[2]:
+        raise UnsupportedStructure("the cationic ring substituent name is not delimited")
+    name = f"{named[1][:tail.start()]}-{named[2][center]}-ium{tail.group(0)}"
+    return name, True
 
 
 def ring_carboxylate_name(mol, graph, acyl_idx, ring_atom):
