@@ -46,6 +46,8 @@ _SUFFIX_WORDS = _SuffixWords({
     "amide": "carboxamide",
     "amidine": "carboximidamide",
     "sulfonamide": "sulfonamide",
+    "hydrazonamide": "carbohydrazonamide",
+    "imidohydrazide": "carboximidohydrazide",
     "sulfonohydrazide": "sulfonohydrazide",
     "sulfonimidamide": "sulfonimidamide",
     "sulfonodiimidamide": "sulfonodiimidamide",
