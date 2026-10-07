@@ -128,6 +128,7 @@ from ._diester_acyloxy import has_diester_shape, has_polyester_of_one_polyol_sha
 from ._ester import has_ester_shape, name_ester
 from ._ester_by_parts import name_ester_by_parts
 from ._heteroacyclic import name_heteroacyclic
+from ._nitrogen_methylene_multiplicative import name_nitrogen_methylene_multiplicative
 from ._chain_multiplicative import has_chain_multiplicative_shape
 from ._np import PREFERRED_OPERATIONS, name_natural_product_ranked
 from ._steroid_named import name_steroid
@@ -553,6 +554,9 @@ def _name_unabridged(smiles: str) -> str:
                 pass
         beyond_preferred = None
         if parsed is not None:
+            name = name_nitrogen_methylene_multiplicative(parsed)
+            if name is not None:
+                return name
             name = name_heteroacyclic(parsed)
             if name is not None:
                 return name
