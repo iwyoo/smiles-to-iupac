@@ -35,7 +35,8 @@ functional-replacement/infix variant.
 
 from rdkit import Chem
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
+from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._phosphonic_acid import require_phosphorus_acid_scope
 from ._substituents import format_mononuclear_prefixes, name_branch
 
 _PHOSPHORUS = 15
@@ -84,25 +85,8 @@ def name_phosphinic_acid(mol) -> str:
         )
     (phosphorus,) = phosphorus_atoms
 
-    for atom in mol.GetAtoms():
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
-            raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        atomic_num = atom.GetAtomicNum()
-        if atomic_num == _PHOSPHORUS and atom.GetIdx() != phosphorus.GetIdx():
-            raise UnsupportedStructure("more than one phosphorus atom is not supported yet")
-        if atomic_num not in (1, 6, 8, _PHOSPHORUS, *HALOGEN_PREFIXES):
-            raise UnsupportedStructure(
-                "heteroatoms other than the phosphinic acid's own phosphorus/"
-                "oxygens and a halogen substituent are not supported yet"
-            )
-
+    require_phosphorus_acid_scope(mol, phosphorus)
     group_oxygens = {n.GetIdx() for n in phosphorus.GetNeighbors() if n.GetAtomicNum() == 8}
-    for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() == 8 and atom.GetIdx() not in group_oxygens:
-            raise UnsupportedStructure(
-                "an oxygen atom not part of the phosphinic acid's own "
-                "P(=O)(OH) group is out of scope for this module"
-            )
 
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")

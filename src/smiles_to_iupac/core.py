@@ -234,7 +234,9 @@ from ._functional_replacement_oxoacid import (
     name_functional_replacement_oxoacid,
 )
 from ._phosphanone import has_phosphanone_shape, name_phosphanone
+from ._mononuclear_oxoacid import has_mononuclear_oxoacid_shape, name_mononuclear_oxoacid
 from ._phosphate import has_phosphate_shape, name_phosphate
+from ._phosphorus_thioester import has_phosphorus_thioester_shape, name_phosphorus_thioester
 from ._dinuclear_oxoacid import has_dinuclear_oxoacid_shape, name_dinuclear_oxoacid
 from ._phosphite import has_phosphite_shape, name_phosphite
 from ._sulfate import has_sulfate_shape, name_sulfate
@@ -941,7 +943,10 @@ def _name_mol(mol) -> str:
         # only checks for a single P=O) and then fail inside
         # `name_phosphanone`'s validation, so this must be routed first, same
         # reason as phosphonic/phosphinic acid above.
+        (has_mononuclear_oxoacid_shape, name_mononuclear_oxoacid),
         (has_phosphate_shape, name_phosphate),
+        # Thio analogues of the phosphate, phosphonate and phosphinate esters carry sulfur on the phosphorus.
+        (has_phosphorus_thioester_shape, name_phosphorus_thioester),
         # A phosphite ester (P-67.1.3.2's P(OR)3, no P=O) has three P-O-R
         # ester oxygens that `_phosphane.py`'s own plain-phosphane shape
         # doesn't expect (it rejects any heteroatom besides its own

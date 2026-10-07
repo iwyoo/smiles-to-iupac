@@ -77,15 +77,16 @@ def test_single_phenyl_substituent_and_related(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("O=Pc1ccccc1C", id="substituted_phenyl_raises"),
-        pytest.param("CC(C)P=O", id="branched_substituent_raises"),
+        pytest.param("O=Pc1ccccc1C", "(2-methylphenyl)phosphanone", id="substituted_ring_substituent"),
+        pytest.param("S=P(c1ccccc1)(c1ccccc1)c1ccccc1", "triphenyl-λ5-phosphanethione", id="thione"),
+        pytest.param("C[As](C)(C)=O", "trimethyl-λ5-arsanone", id="arsane_oxide"),
+        pytest.param("O=P(CCO)(CCO)CCO", "tris(2-hydroxyethyl)-λ5-phosphanone", id="substituted_alkyl_groups"),
     ],
 )
-def test_substituted_phenyl_raises_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_group_15_chalcogenide_with_any_organyl_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_ring_phosphorus_oxide_is_a_lambda5_heterone():
@@ -115,7 +116,6 @@ def test_salt_of_partial_ester():
     "smiles",
     [
         pytest.param("COP(=O)(O)[O-].[Ca+2]", id="salt_of_partial_ester_multivalent_cation_raises"),
-        pytest.param("OP(=O)(O)O", id="phosphoric_acid_itself_unaffected"),
     ],
 )
 def test_salt_of_partial_and_related_raise(smiles):
@@ -136,7 +136,6 @@ def test_asymmetric_substituents():
     "smiles",
     [
         pytest.param("OP(C)(=O)CCP(C)(=O)O", id="second_phosphinic_acid_group"),
-        pytest.param("NCP(C)(=O)O", id="unrecognized_heteroatom"),
     ],
 )
 def test_rejects_second_phosphinic_and_related_raise(smiles):
@@ -181,7 +180,6 @@ def test_phosphate_ester_unaffected_and_related(smiles, expected):
     "smiles",
     [
         pytest.param("OP(=O)(O)CCP(=O)(O)O", id="second_phosphonic_acid_group"),
-        pytest.param("NCP(=O)(O)O", id="unrecognized_heteroatom__phosphonic_acid"),
     ],
 )
 def test_rejects_second_phosphonic_and_related_raise(smiles):
@@ -227,3 +225,45 @@ def test_tetraphenylphosphanium():
 def test_substituted_phenyl_quaternary_phosphonium_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("Cc1ccccc1[P+](C)(C)C")
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("O=P(O)(O)CCN", "(2-aminoethyl)phosphonic acid", id="phosphonic_acid_with_an_amino_substituent"),
+        pytest.param("O=P(O)(CCN)CCN", "bis(2-aminoethyl)phosphinic acid", id="phosphinic_acid_with_amino_substituents"),
+        pytest.param("O=P(O)(O)c1ccc(O)cc1", "(4-hydroxyphenyl)phosphonic acid", id="phosphonic_acid_on_a_substituted_ring"),
+    ],
+)
+def test_phosphorus_acids_with_other_substituent_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CCOP(=S)(OCC)Oc1ccc([N+](=O)[O-])cc1", "O,O-diethyl O-(4-nitrophenyl) phosphorothioate", id="thiono_ester"),
+        pytest.param("CCOP(=O)(OCC)SCCN", "S-(2-aminoethyl) O,O-diethyl phosphorothioate", id="thiolo_ester"),
+        pytest.param("CCOP(=S)(OCC)SCSCC", "O,O-diethyl S-[(ethylsulfanyl)methyl] phosphorodithioate", id="dithioate"),
+        pytest.param("COP(C)(=S)OC", "O,O-dimethyl methylphosphonothioate", id="phosphonothioate"),
+    ],
+)
+def test_phosphorus_thio_oxoacid_esters(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OS(O)(=O)=O", "sulfuric acid"),
+        ("OS(O)=O", "sulfurous acid"),
+        ("O[N+]([O-])=O", "nitric acid"),
+        ("OP(O)(O)=O", "phosphoric acid"),
+        ("OP(O)O", "phosphorous acid"),
+        ("OB(O)O", "boric acid"),
+        ("OCl(=O)(=O)=O", "perchloric acid"),
+        ("O[As](O)(O)=O", "arsoric acid"),
+    ],
+)
+def test_free_mononuclear_oxoacids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
