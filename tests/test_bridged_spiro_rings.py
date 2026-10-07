@@ -762,7 +762,29 @@ def test_von_baeyer_exocyclic_double_bond_is_an_ylidene_prefix(smiles, expected)
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize("smiles", ["C1CC2(CCNCC2)c2ccccc12", "O=C1OC2(CCCCC2)c2ccccc12"])
-def test_ring_spiro_joined_to_a_fused_system_is_not_a_bridge(smiles):
+def test_spiro_lactone_of_a_fused_system_is_not_a_bridge():
     with pytest.raises(NotImplementedError):
-        smiles_to_iupac(smiles)
+        smiles_to_iupac("O=C1OC2(CCCCC2)c2ccccc12")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C1CCC2(CC1)C=Cc1ccccc12", "spiro[cyclohexane-1,1′-indene]", id="carbocycle_and_fused_component_without_indicated_hydrogen"),
+        pytest.param("C1CNCCC12c3ccccc3Oc4ccccc24", "spiro[piperidine-4,9′-xanthene]", id="heteromonocycle_component"),
+        pytest.param("C1CC2(CCNCC2)c2ccccc12", "2,3-dihydrospiro[indene-1,4′-piperidine]", id="hydro_prefixes_of_the_union"),
+        pytest.param("Cc1ccc2c(c1)C=CC21CCCCC1", "5′-methylspiro[cyclohexane-1,1′-indene]", id="primed_substituent_locant"),
+        pytest.param("C1CC=CC2(C1)Cc1ccccc1C2", "1′,3′-dihydrospiro[cyclohex-2-ene-1,2′-indene]", id="unsaturated_carbocyclic_component"),
+        pytest.param("C1NCC2(N1)C=Nc1ccccc1N2", "1′H-spiro[imidazolidine-4,2′-quinoxaline]", id="indicated_hydrogen_of_the_second_component"),
+        pytest.param("C12(CC3=CC=CC=C3C=C1)CC4=CC=CC=C4C=C2", "1H,1′H-2,2′-spirobi[naphthalene]", id="identical_components_with_indicated_hydrogen"),
+        pytest.param("C12(Oc3ccccc3C=C1)C=COc4ccccc42", "2,4′-spirobi[[1]benzopyran]", id="locants_of_a_benzo_component_in_brackets"),
+        pytest.param("C12(CC=C3C=CC=CC=C13)CC4=CC=CC=CC4=C2", "1′H,2H-1,2′-spirobi[azulene]", id="lower_spiro_locant_is_unprimed"),
+        pytest.param("C12(SSc3ccccc31)Sc4ccccc4S2", "spiro[[1,2]benzodithiole-3,2′-[1,3]benzodithiole]", id="components_ordered_by_heteroatom_locants"),
+        pytest.param("[S]12(Oc3ccccc3O1)Oc3ccccc3O2", "2λ4,2′-spirobi[[1,3,2]benzodioxathiole]", id="lambda_spiro_atom_without_double_bond"),
+        pytest.param("P12(=Nc3ccccc3C=N1)NC4=CC=CC=C4C=N2", "1H-2λ5,2′-spirobi[[1,3,2]benzodiazaphosphinine]", id="lambda_spiro_atom_taking_part_in_the_mancude_system"),
+        pytest.param("C1[N+]2(C=CC3=CC=CC=C13)C=CN4C=CC=CC4=C2", "1H-2λ5-spiro[isoquinoline-2,2′-pyrido[1,2-a]pyrazin]-2-ylium", id="cationic_spiro_atom_of_different_components"),
+        pytest.param("C1=CC=C2C(=C1)C[N+]3(C2)CC4=CC=CC=C4C3", "1,1′,3,3′-tetrahydro-2λ5,2′-spirobi[isoindol]-2-ylium", id="cationic_spiro_atom_of_identical_components"),
+    ],
+)
+def test_monospiro_union_with_a_polycyclic_component(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
