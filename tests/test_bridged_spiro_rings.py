@@ -331,15 +331,8 @@ def test_oxaspiro_other_configuration_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("[CH2]C1CCC2(CC1)CCCC2[CH2]", id="multiple_spiro_radical_centers_raises"),
-    ],
-)
-def test_multiple_spiro_ketones_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_radical_centres_on_substituents_of_a_spiro_ring():
+    assert smiles_to_iupac("[CH2]C1CCC2(CC1)CCCC2[CH2]") == "[1-(ylomethyl)spiro[4.5]decan-8-yl]methyl"
 
 
 @pytest.mark.parametrize(

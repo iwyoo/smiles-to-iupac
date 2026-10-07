@@ -24,9 +24,24 @@ def _polyradical_centres(mol):
     return None
 
 
+def _multi_centres(mol):
+    radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons()]
+    if (
+        len(radicals) > 1
+        and not any(a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms())
+        and all(
+            (a.GetAtomicNum() == 6 and a.GetNumRadicalElectrons() <= 3)
+            or (a.GetAtomicNum() in (8, 16) and a.GetNumRadicalElectrons() == 1 and a.GetDegree() == 1 and a.GetTotalNumHs() == 0)
+            for a in radicals
+        )
+    ):
+        return radicals
+    return None
+
+
 def _centre(mol):
     radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons()]
-    if len(radicals) > 1 and _polyradical_centres(mol):
+    if len(radicals) > 1 and (_polyradical_centres(mol) or _multi_centres(mol)):
         return radicals[0]
     if len(radicals) != 1 or radicals[0].GetNumRadicalElectrons() not in (1, 2, 3):
         return None
@@ -80,7 +95,12 @@ def name_radical_group(mol) -> str:
         mol, labels, _ = split
     centre = _centre(mol)
     if centre is not None and _polyradical_centres(mol):
-        return _name_polyradical(mol)
+        try:
+            return _name_polyradical(mol)
+        except UnsupportedStructure:
+            return _name_parent_radical(mol)
+    if centre is not None and _multi_centres(mol):
+        return _name_parent_radical(mol)
     if (
         centre is None
         or mol.GetNumAtoms() > _MAX_ATOMS
@@ -218,3 +238,56 @@ def name_group_cation(mol) -> str:
     if name.endswith("ide") and name[:-3].endswith("-"):
         return name[:-3] + "ylium"
     raise UnsupportedStructure("the cation is not named as a carbanion-like parent")
+
+
+def _with_ylo(mol, kept):
+    """`mol` with every radical centre outside `kept` replaced by dummy halogens named 'ylo' (P-71.5)."""
+    rw = Chem.RWMol(mol)
+    for atom in mol.GetAtoms():
+        electrons = atom.GetNumRadicalElectrons()
+        if not electrons or atom.GetIdx() in kept:
+            continue
+        target = rw.GetAtomWithIdx(atom.GetIdx())
+        target.SetNumRadicalElectrons(0)
+        target.SetNoImplicit(True)
+        target.SetNumExplicitHs(atom.GetTotalNumHs())
+        for _ in range(electrons):
+            dummy = Chem.Atom(53)
+            dummy.SetProp("_named_prefix", "ylo")
+            rw.AddBond(atom.GetIdx(), rw.AddAtom(dummy), Chem.BondType.SINGLE)
+    out = rw.GetMol()
+    Chem.SanitizeMol(out)
+    return out
+
+
+def _name_parent_radical(mol):
+    """Several radical centres that do not fit one parent (P-71.7): the parent holds the most centres, then rings
+    outrank chains; the other centres are cited with the nondetachable prefix 'ylo' (P-71.5)."""
+    from itertools import combinations
+
+    if (
+        len(Chem.GetMolFrags(mol)) != 1
+        or mol.GetNumAtoms() > _MAX_ATOMS
+        or any(a.GetAtomicNum() == 53 for a in mol.GetAtoms())
+        or specified_stereo_elements(mol)
+    ):
+        raise UnsupportedStructure("these radical centres are not on one plain skeleton")
+    radicals = [a.GetIdx() for a in mol.GetAtoms() if a.GetNumRadicalElectrons()]
+    for size in range(len(radicals), 0, -1):
+        found = []
+        for kept in combinations(radicals, size):
+            if any(mol.GetAtomWithIdx(i).GetNumRadicalElectrons() != 1 for i in kept):
+                continue
+            try:
+                marked = _with_ylo(mol, set(kept))
+                if size > 1 and not _polyradical_centres(marked):
+                    continue
+                name = name_radical_group(marked) if size == 1 else _name_polyradical(marked)
+            except (UnsupportedStructure, Chem.rdchem.MolSanitizeException):
+                continue
+            if size == 1 and "ylo" not in name and len(radicals) > 1:
+                continue
+            found.append((not all(mol.GetAtomWithIdx(i).IsInRing() for i in kept), name))
+        if found:
+            return min(found)[1]
+    raise UnsupportedStructure("no parent radical holds the radical centres")

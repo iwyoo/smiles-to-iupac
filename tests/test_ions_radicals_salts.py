@@ -789,3 +789,16 @@ def test_radical_ions_on_a_hydrocarbon_skeleton(smiles, expected):
 )
 def test_ionic_groups_as_prefixes_of_a_radical_parent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[CH2][CH]C1CC[CH]CC1", "1-(4-ylocyclohexyl)ethane-1,2-diyl", id="most_centres_in_one_parent"),
+        pytest.param("C[C]c1cccc(c1)C[CH2]", "2-[3-(1,1-diyloethyl)phenyl]ethyl", id="yl_outranks_ylidene_parent"),
+        pytest.param("[CH2]C(C)(C)[O]", "(2-methyl-1-ylopropan-2-yl)oxyl", id="oxyl_parent_outranks_carbon"),
+        pytest.param("[CH2]C1CC[CH]CC1", "4-(ylomethyl)cyclohexyl", id="ring_parent_outranks_chain"),
+    ],
+)
+def test_choice_of_parent_radical_with_ylo_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
