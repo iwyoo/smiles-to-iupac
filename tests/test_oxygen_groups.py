@@ -438,7 +438,8 @@ def test_stereocenter_on_substituent_branch():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("c1ccccc1OC", "methoxybenzene"),
+        ("c1ccccc1OC", "anisole"),
+        ("c1ccc(Cl)cc1OC", "1-chloro-3-methoxybenzene"),
         ("c1ccccc1OC(C)C", "[(propan-2-yl)oxy]benzene"),
         ("c1ccccc1COCC", "(ethoxymethyl)benzene"),
         ("c1ccccc1COC(C)C", "{[(propan-2-yl)oxy]methyl}benzene"),
