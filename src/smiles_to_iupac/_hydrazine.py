@@ -99,7 +99,7 @@ from ._common import (
     non_single_bonds,
     substituent_locant_set_and_citation,
 )
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
 
@@ -123,6 +123,17 @@ def _hydrazine_nitrogens(mol):
     if n1.IsInRing() or n2.IsInRing():
         return None
     return n1, n2
+
+
+def _is_azine(mol, n1, n2):
+    return all(
+        mol.GetAtomWithIdx(n).GetDegree() == 2
+        and any(
+            bond.GetBondTypeAsDouble() == 2.0 and bond.GetOtherAtom(mol.GetAtomWithIdx(n)).GetAtomicNum() == 6
+            for bond in mol.GetAtomWithIdx(n).GetBonds()
+        )
+        for n in (n1, n2)
+    )
 
 
 def _atomic_nums(mol, *indices):
@@ -197,6 +208,9 @@ def name_hydrazine(mol) -> str:
     total = len(names_n1) + len(names_n2)
     if total == 0:
         return "hydrazine"
+    if _is_azine(mol, n1_idx, n2_idx):
+        # P-14.3.4.5: every hydrogen is replaced by an ylidene, so no locant is cited
+        return format_mononuclear_prefixes(names_n1 + names_n2) + "hydrazine"
     if total == 1:
         ((name, compound),) = names_n1 + names_n2
         return (enclose(name) if compound and name[0].isdigit() else name) + "hydrazine"

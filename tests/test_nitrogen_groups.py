@@ -281,22 +281,23 @@ def test_azide_prefix_on_substituted_ring_and_unsaturated_parent(smiles, expecte
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_acetone_azine_name():
-    assert smiles_to_iupac("CC(C)=NN=C(C)C") == "N-(propan-2-ylideneamino)propan-2-imine"
-
-
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("CC=NN=C(C)C", id="asymmetric_azine_raises"),
-        pytest.param("C1CCCCC1=NN=C1CCCCC1", id="ring_raises"),
-        pytest.param("c1ccccc1C=NN=Cc1ccccc1", id="aromatic_carbon_raises"),
-        pytest.param("CC[C@@H](C)C(C)=NN=C(C)[C@H](C)CC", id="azine_specified_chain_stereocenter_raises"),
+        pytest.param("CC(C)=NN=C(C)C", "di(propan-2-ylidene)hydrazine", id="symmetric_azine"),
+        pytest.param("CCC(C)=NN=C1CCCCC1", "(butan-2-ylidene)(cyclohexylidene)hydrazine", id="unsymmetrical_azine_with_a_ring"),
+        pytest.param("OC(=O)C1CCC(CC1)=NN=C(C)C", "4-[(propan-2-ylidene)hydrazinylidene]cyclohexane-1-carboxylic acid", id="azine_as_a_prefix_on_an_acid"),
+        pytest.param("NC(=S)NN=C(C)C", "2-(propan-2-ylidene)hydrazine-1-carbothioamide", id="thiosemicarbazone"),
+        pytest.param("NNC(N)=[Se]", "hydrazinecarboselenoamide", id="selenosemicarbazide"),
     ],
 )
-def test_asymmetric_azine_raises_and_related_raise(smiles):
+def test_azines_and_chalcogen_semicarbazones_are_hydrazine_derivatives(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_azine_with_a_specified_chain_stereocenter_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+        smiles_to_iupac("CC[C@@H](C)C(C)=NN=C(C)[C@H](C)CC")
 
 
 def test_methyl_n_n_dimethylcarbamate():

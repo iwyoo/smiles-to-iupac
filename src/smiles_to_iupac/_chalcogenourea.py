@@ -213,6 +213,11 @@ class Chalcogenourea:
         if len(Chem.GetMolFrags(mol)) > 1:
             raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
+        from ._urea import _semicarbazide_amino_nitrogen, name_urea
+
+        if _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx) is not None:
+            return name_urea(mol, self.atomic_num)
+
         (chalcogen_idx,) = (
             n.GetIdx() for n in mol.GetAtomWithIdx(carbon_idx).GetNeighbors() if n.GetAtomicNum() == self.atomic_num
         )
