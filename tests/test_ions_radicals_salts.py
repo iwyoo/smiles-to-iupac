@@ -904,6 +904,19 @@ def test_ring_assemblies_of_cations(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("C[n+]1cccc2[CH+]C=CC=Cc12", "1-methyl-5H-cyclohepta[b]pyridin-1-ium-5-ylium", id="fused_ring_with_ium_and_ylium"),
+        pytest.param("C1C[CH+]CC[NH2+]1", "piperidin-1-ium-4-ylium", id="saturated_ring_ium_then_ylium"),
+        pytest.param("C1CC[NH2+]C[CH+]1", "piperidin-1-ium-3-ylium", id="all_centres_lowest_then_ylium"),
+        pytest.param("C[N+]1(C)CC[CH+]C[CH+]C1", "1,1-dimethylazepan-1-ium-3,5-bis(ylium)", id="several_ylium_centres"),
+    ],
+)
+def test_ium_and_ylium_centres_in_one_ring_system(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param("[CH2+]C[CH2+]", "propane-1,3-bis(ylium)", id="two_hydride_losses_on_a_chain"),
         pytest.param("C[C+2]C", "propane-2,2-bis(ylium)", id="two_hydride_losses_on_one_carbon"),
         pytest.param("C1=C[CH+][CH+]1", "cyclobut-3-ene-1,2-bis(ylium)", id="two_hydride_losses_on_a_ring"),

@@ -55,6 +55,10 @@ def name_polycation(mol) -> str:
             raise
     if any(a.GetFormalCharge() != 1 for a in centres):
         raise UnsupportedStructure("a multiply charged heteroatom centre is not supported yet")
+    if all(a.IsInRing() for a in centres) and any(a.GetAtomicNum() == 6 for a in centres) and any(
+        a.GetAtomicNum() != 6 for a in centres
+    ):
+        return _name_ring_ium_ylium(mol, centres)
     if all(a.IsInRing() for a in centres) and not any(a.GetAtomicNum() == 6 for a in centres):
         try:
             return _name_ring_polycation(mol, centres)
@@ -99,6 +103,49 @@ def _name_polycarbenium(mol, centres):
     if match is None:
         raise _NoSkeletonName("the carbanion analogue has no multiplied 'ide' name")
     return f"{match.group('head')}-{match.group('locants')}-{_BIS[match.group('multiplier')]}(ylium)"
+
+
+def _name_ring_ium_ylium(mol, centres):
+    """'ium' centres on ring heteroatoms and 'ylium' centres on ring carbons of one parent hydride (P-73.5.2): the
+    suffixes follow the name in that order, the lowest locants go to all the cationic centres whatever their type and
+    then to the 'ylium' centres."""
+    from ._diester_ring_diyl import _system_of, evaluate_skeleton
+
+    ium = [a.GetIdx() for a in centres if a.GetAtomicNum() != 6]
+    ylium = [a.GetIdx() for a in centres if a.GetAtomicNum() == 6]
+    if any(a.GetFormalCharge() != 1 or a.GetAtomicNum() not in _RING_CENTRE_ELEMENTS | {6} for a in centres):
+        raise UnsupportedStructure("this combination of ring centres is not supported yet")
+    stage = Chem.RWMol(mol)
+    Chem.Kekulize(stage, clearAromaticFlags=True)
+    for index in ylium:
+        atom = stage.GetAtomWithIdx(index)
+        atom.SetFormalCharge(0)
+        atom.SetNoImplicit(True)
+        atom.SetNumExplicitHs(atom.GetTotalNumHs() + 1)
+    stage = stage.GetMol()
+    Chem.SanitizeMol(stage)
+    editable = Chem.RWMol(stage)
+    for index in ium:
+        atom = editable.GetAtomWithIdx(index)
+        hydrogens = atom.GetTotalNumHs()
+        atom.SetFormalCharge(0)
+        atom.SetNoImplicit(True)
+        atom.SetNumExplicitHs(max(hydrogens - 1, 0))
+        if atom.GetIsAromatic():
+            atom.SetBoolProp("_ring_cation_centre", True)
+    base = editable.GetMol()
+    base.UpdatePropertyCache(strict=False)
+    Chem.FastFindRings(base)
+    rings, atoms = _system_of(base, ium[0])
+    if any(i not in atoms for i in ium + ylium):
+        raise UnsupportedStructure("cationic centres in different ring systems are named multiplicatively")
+    key_centers = [(i, "ium") for i in ium] + [(i, "uide") for i in ylium]
+    found = evaluate_skeleton(base, adjacency(base), "ring", rings, atoms, ium, set(), "ium", key_centers=key_centers)
+    if found is None:
+        raise UnsupportedStructure("this cationic ring system has no supported name yet")
+    locants = ",".join(str(x) for x in sorted(found[2][i] for i in ylium))
+    word = "ylium" if len(ylium) == 1 else f"{'bis' if len(ylium) == 2 else 'tris'}(ylium)"
+    return f"{found[1]}-{locants}-{word}"
 
 
 def _name_ring_polycation(mol, centres):
