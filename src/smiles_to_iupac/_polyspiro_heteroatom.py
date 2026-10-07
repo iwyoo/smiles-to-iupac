@@ -56,6 +56,7 @@ from ._common import (
     adjacency,
     group_substituents,
     halogen_substituents,
+    lambda_cited,
     non_single_bonds,
     specified_stereocenters,
     stereo_locants_prefix,
@@ -161,7 +162,7 @@ def name_linear_polyspiro_heteroatom(mol, chain) -> str:
                         for num, sup in zip(descriptor, superscripts)
                     )
                     heteroatom_locant = locants[heteroatom_idx]
-                    parent = f"{heteroatom_locant}-{a_prefix}{spiro_prefix}[{descriptor_str}]{alkane_name(len(seq))}"
+                    parent = f"{lambda_cited(mol, heteroatom_idx, heteroatom_locant)}-{a_prefix}{spiro_prefix}[{descriptor_str}]{alkane_name(len(seq))}"
                     spiro_locants = tuple(sorted(locants[s] for s in spiros))
                     substituents = substituents_for_ring(graph, seq, halogens)
                     key = _candidate_key(parent, spiro_locants, tuple(descriptor), heteroatom_locant, substituents)

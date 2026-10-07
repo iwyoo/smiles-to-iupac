@@ -14,6 +14,7 @@ from ._free_valence import valence_word
 from ._bicyclic import bicyclic_parent_name, find_bicyclic_core, iter_bicyclic_numberings
 from ._common import (
     UnsupportedStructure,
+    nonstandard_bonding,
     ring_bond_locants,
     von_baeyer_unsaturation_citations,
 )
@@ -42,6 +43,17 @@ _PREFIX = {
     "Bi": "bisma", "Si": "sila", "Ge": "germa", "Sn": "stanna", "Pb": "plumba", "B": "bora", "Al": "aluma",
     "Ga": "galla", "In": "indiga", "Tl": "thalla",
 }
+def _lambda_by_position(mol, position_of):
+    return {p: n for a, p in position_of.items() if (n := nonstandard_bonding(mol.GetAtomWithIdx(a)))}
+
+
+def _lambda_key(lam):
+    """P-22.2.7.2, P-23.6.2: low locants to the nonstandard bonding numbers in order of decreasing value."""
+    return tuple(sorted((-n, p) for p, n in lam.items()))
+
+
+def _cite(locant, lam):
+    return f"{locant}\u03bb{lam[locant]}" if locant in lam else str(locant)
 _CHALCOGENS = {"O", "S", "Se", "Te"}
 _NO_DOUBLE_BOND = _CHALCOGENS | {"F", "Cl", "Br", "I"}
 _SIX_A = {"O", "S", "Se", "Te", "Bi"}
@@ -377,20 +389,22 @@ def _hetero_monocycle(mol, ring_order, attached):
         if not starts_at_senior(walk):
             continue
         hetero = [(i + 1, _RANK.get(sym[a], 99)) for i, a in enumerate(walk) if sym[a] != "C"]
-        pre = (tuple(p for p, _ in hetero), tuple(r for _, r in hetero))
+        lam = _lambda_by_position(mol, {a: i + 1 for i, a in enumerate(walk)})
+        pre = (tuple(p for p, _ in hetero), tuple(r for _, r in hetero), _lambda_key(lam))
         if best_pre is None or pre < best_pre:
             best_pre = pre
     for walk in _walks(ring_order):
         if not starts_at_senior(walk):
             continue
         hetero = [(i + 1, _RANK.get(sym[a], 99)) for i, a in enumerate(walk) if sym[a] != "C"]
-        pre = (tuple(p for p, _ in hetero), tuple(r for _, r in hetero))
+        position_of = {a: i + 1 for i, a in enumerate(walk)}
+        lam = _lambda_by_position(mol, position_of)
+        pre = (tuple(p for p, _ in hetero), tuple(r for _, r in hetero), _lambda_key(lam))
         if pre != best_pre:
             continue
-        position_of = {a: i + 1 for i, a in enumerate(walk)}
         elements = tuple(sym[a] for a in walk)
         if fully_saturated:
-            stem = _saturated_name(elements, hetero)
+            stem = _saturated_name(elements, hetero, lam)
             results.append((position_of, stem, (), (), ()))
             continue
         stem = _MANCUDE_RETAINED.get(elements)
@@ -398,7 +412,9 @@ def _hetero_monocycle(mol, ring_order, attached):
             stem = _hantzsch_widman(elements, saturated=False)
             if stem is None:
                 raise UnsupportedStructure("this heteromonocycle has no supported mancude parent name yet")
-            stem = _with_hetero_locants(stem, elements, hetero)
+            stem = _with_hetero_locants(stem, elements, hetero, lam)
+        elif lam:
+            stem = _with_hetero_locants(stem, elements, hetero, lam)
         if oxo_all or oxo_suffix:
             adj = {a: {n.GetIdx() for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in ring_set} for a in ring_order}
             split = _split_hydrogen(position_of, adj, can_hold, saturated_atoms, oxo_all, oxo_suffix, mancude_sp3)
@@ -414,7 +430,7 @@ def _hetero_monocycle(mol, ring_order, attached):
     return best_pre, results
 
 
-def _saturated_name(elements, hetero):
+def _saturated_name(elements, hetero, lam=None):
     positions = [p for p, _ in hetero]
     size = len(elements)
     names = [e for e in elements if e != "C"]
@@ -427,13 +443,13 @@ def _saturated_name(elements, hetero):
     if stem is None:
         stem = _hantzsch_widman(elements, saturated=True)
     if stem is None:
-        stem = _replacement_cycloalkane_name(elements)
+        stem = _replacement_cycloalkane_name(elements, lam)
     if stem is None:
         raise UnsupportedStructure("this saturated heteromonocycle has no supported name as a diyl yet")
-    return _with_hetero_locants(stem, elements, hetero) if stem[0].isalpha() else stem
+    return _with_hetero_locants(stem, elements, hetero, lam) if stem[0].isalpha() else stem
 
 
-def _replacement_cycloalkane_name(elements):
+def _replacement_cycloalkane_name(elements, lam=None):
     """Skeletal replacement name of a saturated ring with no Hantzsch-Widman name (P-22.2.3)."""
     by_element = {}
     for position, element in enumerate(elements, start=1):
@@ -441,26 +457,30 @@ def _replacement_cycloalkane_name(elements):
             by_element.setdefault(element, []).append(position)
     if not by_element or any(e not in _PREFIX for e in by_element):
         return None
-    if len(by_element) == 1 and len(next(iter(by_element.values()))) == len(elements):
+    lam = lam or {}
+    if not lam and len(by_element) == 1 and len(next(iter(by_element.values()))) == len(elements):
         (element,) = by_element
         return multiplying_prefix(len(elements)) + _PREFIX[element] + "cyclo" + alkane_name(len(elements))
     pieces = []
     for element in sorted(by_element, key=lambda e: _RANK[e]):
         locants = by_element[element]
         mult = "" if len(locants) == 1 else multiplying_prefix(len(locants))
-        pieces.append(f"{','.join(map(str, locants))}-{mult}{_PREFIX[element]}")
+        pieces.append(f"{','.join(_cite(p, lam) for p in locants)}-{mult}{_PREFIX[element]}")
     return "-".join(pieces) + "cyclo" + alkane_name(len(elements))
 
 
 _RETAINED_WITHOUT_LOCANTS = {"piperazine", "morpholine", "thiomorpholine", "imidazolidine", "pyrazolidine"}
 
 
-def _with_hetero_locants(stem, elements, hetero):
+def _with_hetero_locants(stem, elements, hetero, lam=None):
+    lam = lam or {}
     names = [e for e in elements if e != "C"]
-    if stem in _RETAINED_WITHOUT_LOCANTS or len(names) < 2 or (elements.count("C") <= 1 and len(set(names)) < 2):
+    if not lam and (
+        stem in _RETAINED_WITHOUT_LOCANTS or len(names) < 2 or (elements.count("C") <= 1 and len(set(names)) < 2)
+    ):
         return stem
     pairs = sorted(zip(names, [p for p, _ in hetero]), key=lambda ep: (_RANK[ep[0]], ep[1]))
-    return ",".join(str(p) for _, p in pairs) + "-" + stem
+    return ",".join(_cite(p, lam) for _, p in pairs) + "-" + stem
 
 
 def monocycle_numberings(mol, ring_order, attached, valence, ene_bonds_getter=None):
@@ -633,15 +653,17 @@ def _vb_text(parent, ene_citations, hetero_prefix=""):
     return text
 
 
-def _replacement_prefix(bare, order_new):
-    """('2-oxa-5-aza' style text, hetero locants, element ranks) for a von Baeyer numbering."""
+def _replacement_prefix(bare, order_new, lam_new=None):
+    """('2-oxa-5-aza' style text, hetero locants, element ranks, lambda key) for a von Baeyer numbering; `lam_new` maps
+    skeleton atoms to a nonstandard bonding number (P-15.4.1.3)."""
+    lam = {i + 1: lam_new[atom_idx] for i, atom_idx in enumerate(order_new) if atom_idx in (lam_new or {})}
     by_element = {}
     for i, atom_idx in enumerate(order_new):
         symbol = bare.GetAtomWithIdx(atom_idx).GetSymbol()
         if symbol != "C":
             by_element.setdefault(symbol, []).append(i + 1)
     if not by_element:
-        return "", (), ()
+        return "", (), (), ()
     if any(e not in _PREFIX for e in by_element):
         raise UnsupportedStructure("an unsupported skeletal heteroatom in a von Baeyer/spiro skeleton")
     pieces = []
@@ -650,11 +672,11 @@ def _replacement_prefix(bare, order_new):
     for element in sorted(by_element, key=lambda e: _RANK[e]):
         locs = sorted(by_element[element])
         mult = "" if len(locs) == 1 else multiplying_prefix(len(locs))
-        pieces.append(f"{','.join(map(str, locs))}-{mult}{_PREFIX[element]}")
+        pieces.append(f"{','.join(_cite(p, lam) for p in locs)}-{mult}{_PREFIX[element]}")
         locants.extend(locs)
         ranks.extend([_RANK[element]] * len(locs))
     pairs = sorted(zip(locants, ranks))
-    return "-".join(pieces), tuple(p for p, _ in pairs), tuple(r for _, r in pairs)
+    return "-".join(pieces), tuple(p for p, _ in pairs), tuple(r for _, r in pairs), _lambda_key(lam)
 
 
 def _von_baeyer(mol, skeleton_atoms):
@@ -693,8 +715,9 @@ def _von_baeyer(mol, skeleton_atoms):
     for parent, order, outer in candidates:
         position_new = {a: i + 1 for i, a in enumerate(order)}
         position_of = {old_of[a]: p for a, p in position_new.items()}
-        prefix, hetero_locs, hetero_ranks = _replacement_prefix(bare, order)
-        pre = tuple(outer) + (hetero_locs, hetero_ranks)
+        lam_new = {a: n for a, old_idx in old_of.items() if (n := nonstandard_bonding(mol.GetAtomWithIdx(old_idx)))}
+        prefix, hetero_locs, hetero_ranks, lam_key = _replacement_prefix(bare, order, lam_new)
+        pre = tuple(outer) + (hetero_locs, hetero_ranks, lam_key)
         if bonds_new:
             ene, yne, compound_count, primary, full = von_baeyer_unsaturation_citations(position_new, bonds_new)
             if yne:
@@ -790,6 +813,9 @@ def _fused_mancude(mol, skeleton_atoms):
             continue
         ih, added, hydro = split
         ih_text = (",".join(f"{p}H" for p in ih) + "-") if ih else ""
+        lam = {a: n for a in position_of if (n := nonstandard_bonding(mol.GetAtomWithIdx(a)))}
+        if lam:
+            ih_text += ",".join(f"{position_of[a]}\u03bb{n}" for a, n in sorted(lam.items(), key=lambda it: position_of[it[0]])) + "-"
         delta = _delta_citation(mol, skeleton_atoms, position_of)
         delta_stem = ("Δ" + ",".join(t for _, t in delta) + "-" + stem) if delta else stem
 
@@ -800,7 +826,8 @@ def _fused_mancude(mol, skeleton_atoms):
             hydro_text = multiplied_word(len(hydro), "hydro") if full else _hydro_text(hydro)
             return hydro_text + ("-" if hydro and rest[0].isdigit() else "") + rest
 
-        numbering = Numbering(position_of, text, pre_key=(ih,), unsat_key=(tuple(p for p, _ in delta), added, hydro), ih=ih)
+        lam_key = tuple(sorted((-n, position_of[a]) for a, n in lam.items()))
+        numbering = Numbering(position_of, text, pre_key=(ih, lam_key), unsat_key=(tuple(p for p, _ in delta), added, hydro), ih=ih)
         numbering.hydro, numbering.added, numbering.fully_hydro, numbering.stem = tuple(hydro), tuple(added), fully_saturated, stem
         numbering.parent_stem, numbering.hydro_positions, numbering.added_positions = stem, tuple(hydro), tuple(added)
         out.append(numbering)

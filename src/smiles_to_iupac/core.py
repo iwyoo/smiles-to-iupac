@@ -123,7 +123,7 @@ from ._carboxylic_acid_sulfonic_acid import (
     has_carboxylic_acid_sulfonic_acid_shape,
     name_carboxylic_acid_sulfonic_acid,
 )
-from ._common import UnsupportedStructure, non_single_bonds
+from ._common import CITE_SKELETAL_LAMBDA, UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -561,8 +561,11 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
 def _name_unabridged(smiles: str) -> str:
     enter()
     name = None
+    lambda_token = None
     try:
         parsed = _parse_smiles(smiles)
+        if parsed is not None and any(a.GetFormalCharge() for a in parsed.GetAtoms()):
+            lambda_token = CITE_SKELETAL_LAMBDA.set(False)
         if parsed is not None and has_skeleton_radical_ion_shape(parsed):
             return name_skeleton_radical_ion(parsed)
         if parsed is not None and parsed.HasProp("_hypervalent_anion"):
@@ -674,6 +677,8 @@ def _name_unabridged(smiles: str) -> str:
                     raise UnsupportedStructure("the stereochemistry of this structure is not cited by any supported name")
         return name
     finally:
+        if lambda_token is not None:
+            CITE_SKELETAL_LAMBDA.reset(lambda_token)
         leave(name)
 
 
