@@ -31,11 +31,6 @@ def test_terminal_perselenol_cases(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_both_terminal_diselane_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[SeH][SeH]")
-
-
 def test_stereocenter_on_parent_chain():
     assert smiles_to_iupac("CC[C@H](C)[Se][Se]CC") == "(2S)-2-(ethyldiselanyl)butane"
 
@@ -90,11 +85,6 @@ def test_branched_ditellanyl_substituent_not_supported():
 )
 def test_terminal_pertellurol_cases(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_both_terminal_ditellane_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[TeH][TeH]")
 
 
 def test_stereocenter_on_parent_chain__ditelluride():

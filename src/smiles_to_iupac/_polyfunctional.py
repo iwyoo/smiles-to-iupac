@@ -2389,6 +2389,8 @@ def _arm_atoms(graph, start, blocked):
 def _multiplicative_name(mol, stereo=None):
     """P-15.3: identical chain parents joined through one oxygen, chalcogen,
     NH or N atom are named multiplicatively (2,2'-oxydi(ethan-1-ol))."""
+    from ._chain_multiplicative import _principal_atoms
+
     graph = adjacency(mol)
     for z in mol.GetAtoms():
         if z.IsInRing() or z.GetFormalCharge() or z.GetIsotope():
@@ -2439,6 +2441,8 @@ def _multiplicative_name(mol, stereo=None):
         units = [_unit_molecule(mol, atoms, n) for atoms, n in zip(parts_atoms, neighbors)]
         keys = {Chem.MolToSmiles(unit[0], isomericSmiles=False) for unit in units}
         if len(keys) != 1:
+            continue
+        if number == 7 and (_principal_atoms(units[0][0]) or (None,))[0] == "amine":
             continue
         stereo_text = ""
         if stereo:

@@ -799,7 +799,7 @@ def test_monospiro_union_with_a_polycyclic_component(smiles, expected):
         pytest.param("C1OCC2CC1CC21OC2CCC1CC2", "3,3′-dioxaspiro[bicyclo[2.2.2]octane-2,6′-bicyclo[3.2.1]octane]", id="spiro_locants_before_heteroatom_locants"),
         pytest.param("C1CC2SCC1CC21CC2CCC1CS2", "5,6′-dithia-2,2′-spirobi[bicyclo[2.2.2]octane]", id="identical_von_baeyer_components_with_heteroatoms"),
         pytest.param("C1CC2CC1CC[Si]21CC2CCC(C2)C1", "2-sila-2,3′-spirobi[bicyclo[3.2.1]octane]", id="standard_valence_heteroatom_at_the_spiro_atom"),
-        pytest.param("C1CC[N+]2(C1)CCC1CCC(C1)C2", "3λ5-spiro[3-azabicyclo[4.2.1]nonane-3,1′-pyrrolidin]-3-ylium", id="cationic_spiro_heteroatom_inside_the_von_baeyer_name"),
+        pytest.param("C1CC[N+]2(C1)CCC1CCC(C1)C2", "1′λ5-spiro[3-azabicyclo[4.2.1]nonane-3,1′-pyrrolidin]-1′-ylium", id="lowest_spiro_locant_cited_with_lambda_and_ylium"),
         pytest.param("C1CCC2(C1)SC1CC2C2CC12", "7′-thiaspiro[cyclopentane-1,6′-tricyclo[3.2.1.0^2,4]octane]", id="polycyclic_von_baeyer_component"),
     ],
 )
@@ -810,3 +810,32 @@ def test_monospiro_union_with_a_von_baeyer_component(smiles, expected):
 def test_adamantane_component_of_a_spiro_union_is_not_given_a_von_baeyer_name():
     with pytest.raises(NotImplementedError):
         smiles_to_iupac("C1CCC2(C1)C1CC3CC(C1)CC2C3")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C1CC2(C=CNC=C2)C2=CC=CC=C12", "2,3-dihydro-1′H-spiro[indene-1,4′-pyridine]", id="mancude_retained_monocycle_with_indicated_hydrogen"),
+        pytest.param("C1CC2(CCN(C=C2)C)c2ccccc12", "1′-methyl-2,2′,3,3′-tetrahydro-1′H-spiro[indene-1,4′-pyridine]", id="hydro_prefixes_of_a_partly_saturated_monocycle"),
+        pytest.param("C12C[N+]3(CC(CC1)CC2)COC=C3", "2′H-3λ5-spiro[3-azabicyclo[3.2.2]nonane-3,3′-[1,3]oxazol]-3-ylium", id="hantzsch_widman_mancude_monocycle_with_cationic_spiro_atom"),
+    ],
+)
+def test_monospiro_union_with_an_unsaturated_hetero_monocycle(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C1=CC2(C=Cc3ccccc3C2)C=C2CC3(C=Cc4ccccc4C3)CC=C12", "1H,1′H,1′′H,3′H-2,2′:7′,2′′-dispiroter[naphthalene]", id="three_identical_fused_components_with_indicated_hydrogen"),
+        pytest.param("C1CCC2C(C1)C21C2CCC3(CCCC4OC43)CC21", "7-oxa-2,3′:7′,7′′-dispiroter[bicyclo[4.1.0]heptane]", id="three_identical_von_baeyer_components_with_replacement_prefix"),
+        pytest.param("c1ccc2c(c1)OS13(O2)(Oc2ccccc2O1)Oc1ccccc1O3", "2λ6,2′,2′′-spiroter[[1,3,2]benzodioxathiole]", id="three_identical_components_on_one_nonstandard_atom"),
+        pytest.param("c1ccc2c(c1)OS13(O2)(Oc2ccccc2O1)Oc1ccccc1S3", "2λ6-spiro[bis([1,3,2]benzodioxathiole)-2,2′′:2′,2′′-[1,2,3]benzoxadithiole]", id="two_identical_components_and_a_third_on_one_atom"),
+        pytest.param("c1ccc2c(c1)OS13(O2)(Oc2ccccc2S1)c1ccccc1-c1ccccc13", "2λ6-spiro[[1,3,2]benzodioxathiole-2,2′-([1,2,3]benzoxadithiole)-2,5′′-dibenzo[b,d]thiophene]", id="three_different_components_on_one_atom"),
+        pytest.param("C1=CS23(C=CC14CCCC4)(Oc1ccccc1O2)Oc1ccccc1O3", "1′′λ6-dispiro[bis([1,3,2]benzodioxathiole)-2,1′′:2′,1′′-thiopyran-4′′,1′′′-cyclopentane]", id="central_component_with_terminals_sharing_a_nonstandard_atom"),
+        pytest.param("C1C2(C3C4C3C3C4C32)C2(C3C4C3C3C4C32)C12OC21C2C3C2C2C3C21", "trispiro{1-oxaspiro[2.3]hexane-2,3′:4,3′′:5,3′′′-tris(tetracyclo[3.2.0.0^2,7.0^4,6]heptane)}", id="monocyclic_unit_as_central_component_of_identical_terminals"),
+        pytest.param("C1CCC2(CC1)CC1(OC3=C(S1)C1(CCCCC1)OC31CCCCC1)C1(CCCCC1)O2", "trispiro{bis(cyclohexane)-1,4′:1′′,6′-furo[3,4-d][1,3]oxathiole-2′,14′′′-[7]oxadispiro[5.1.5^8.2^6]pentadecane}", id="monocyclic_unit_as_terminal_component_beside_repeated_terminals"),
+    ],
+)
+def test_polyspiro_union_with_polycyclic_components(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

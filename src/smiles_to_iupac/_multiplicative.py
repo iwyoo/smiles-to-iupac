@@ -353,6 +353,8 @@ def _attempt(mol, groups, selected, tree, core, name_function):
         principal_group = next(g.name for g in groups if g.anchor in unit_atoms and g.rank == principal)
         if principal_group not in SUFFIX_CARRIERS and principal_group != "ketone":
             return None
+    if principal_group == "amine" and any(mol.GetAtomWithIdx(u.linker_atom).GetAtomicNum() == 7 for u in selected):
+        return None
     soft = any(mol.GetBondBetweenAtoms(u.junction, u.linker_atom).GetBondTypeAsDouble() != 1 for u in selected)
     ctx = _Context(groups, principal_group, name_function, specified_stereo_elements(mol) or [], set(), {}, soft=soft)
     stereo = ctx.stereo

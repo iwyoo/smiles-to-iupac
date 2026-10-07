@@ -128,19 +128,19 @@ def _enclose(name, compound):
     return enclose(name) if compound else name
 
 
-def phosphoryl_name(parts):
+def phosphoryl_name(parts, group=("phosphono", "phosphoryl")):
     """'phosphono' for P(O)(OH)2, otherwise '(X)(Y)phosphoryl' with X, Y cited alphabetically (P-65.1.3.1)."""
     from ._numerals import multiplying_prefix
 
     if all(name == "hydroxy" for name, _ in parts):
-        return "phosphono"
+        return group[0]
     if len(set(parts)) == 1:
         name, compound = parts[0]
         body = multiplying_prefix(2, compound=compound) + (enclose(name) if compound else name)
     else:
         ordered = sorted(parts, key=lambda p: alpha_sort_key(p[0]))
-        body = "".join(enclose(n) if c else n for n, c in ordered)
-    return body + "phosphoryl"
+        body = "".join(enclose(n) if c or (i and not ordered[i - 1][1]) else n for i, (n, c) in enumerate(ordered))
+    return body + group[1]
 
 
 def _phosphoryloxy(graph, phosphorus, oxygen, halogens, aromatic_atoms, mol):
@@ -435,6 +435,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if mol.GetAtomWithIdx(other).GetAtomicNum() in MONONUCLEAR_HYDRIDES:
             silyl, _ = _mononuclear_group(graph, other, root, halogens, aromatic_atoms, mol)
             return _enclose(silyl, True) + "oxy", True
+        if mol.GetAtomWithIdx(other).GetAtomicNum() in _E_SYMBOL and _chalcogen_acyl_oxo(mol, other, root):
+            acyl, acyl_compound = _sulfur_oxo_group(graph, other, root, halogens, aromatic_atoms, mol)
+            return _enclose(acyl, acyl_compound) + "oxy", True
         if mol.GetAtomWithIdx(other).GetAtomicNum() in _CHAIN_ELEMENTS and _chain_prefix_allowed(mol):
             return _chalcogen_chain_group(graph, root, other, halogens, aromatic_atoms, mol)
         if (
@@ -924,6 +927,46 @@ def _subtree(graph, root, blocked):
     return seen
 
 
+_OXOACID_GROUP = {
+    15: ("phosphono", "phosphoryl", "phosphinoyl"),
+    33: ("arsono", "arsoryl", "arsinoyl"),
+    51: ("stibono", "stiboryl", "stibinoyl"),
+}
+
+
+def _chalcogen_acyl_oxo(mol, center, attached):
+    """Whether the S/Se/Te `center` bonded to `attached` carries a terminal =O/=S/=Se/=Te (a sulfonyl-type acyl group)."""
+    return any(
+        n.GetIdx() != attached
+        and n.GetAtomicNum() in (8, 16, 34, 52)
+        and n.GetDegree() == 1
+        and mol.GetBondBetweenAtoms(center, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for n in mol.GetAtomWithIdx(center).GetNeighbors()
+    )
+
+
+def _pnictogen_oxo_group(graph, root, halogens, aromatic_atoms, mol, others):
+    """P(=O)(X)(Y)- as 'phosphono' (X = Y = hydroxy), '(X)(Y)phosphoryl', or '(R)(R')phosphinoyl' when both are carbon
+    groups (P-67.1.4.1.1.3, P-67.1.4.1.3)."""
+    from ._substituents import name_branch
+
+    oxo = [
+        n
+        for n in others
+        if mol.GetAtomWithIdx(n).GetAtomicNum() == 8
+        and mol.GetAtomWithIdx(n).GetDegree() == 1
+        and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 2.0
+    ]
+    rest = [n for n in others if n not in oxo]
+    if len(oxo) != 1 or len(rest) != 2 or any(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0 for n in rest):
+        return None
+    mono, acyl, carbon_acyl = _OXOACID_GROUP[mol.GetAtomWithIdx(root).GetAtomicNum()]
+    parts = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in rest]
+    both_carbon = all(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 for n in rest)
+    name = phosphoryl_name(parts, (mono, carbon_acyl if both_carbon else acyl))
+    return name, name != mono
+
+
 def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     """silyl, germyl, phosphanyl, boranyl, ... with organyl substituents:
     '(trimethylsilyl)', '[dimethyl(phenyl)silyl]' (P-29.3.1)."""
@@ -952,6 +995,10 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         for n in others
     ):
         return _siloxanyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
+    if atom.GetAtomicNum() in _OXOACID_GROUP:
+        found = _pnictogen_oxo_group(graph, root, halogens, aromatic_atoms, mol, others)
+        if found is not None:
+            return found
     if sum(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() for n in others) > valence - 1:
         raise UnsupportedStructure("this mononuclear group carries a multiple bond")
     if atom.GetAtomicNum() == 5 and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 8 for n in others):

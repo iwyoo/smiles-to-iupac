@@ -322,3 +322,17 @@ def test_partial_thioesters_oxoanion_salts_pseudohalides_and_amido_ligands(smile
 )
 def test_heterones_of_group_14_15_16_atoms(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("OP(=O)(O)CC(O)=O", "phosphonoacetic acid"),
+        ("COP(=O)(OC)SCCC(O)=O", "3-[(dimethoxyphosphoryl)sulfanyl]propanoic acid"),
+        ("CP(=O)(C)CC(O)=O", "(dimethylphosphinoyl)acetic acid"),
+        ("OC(=O)c1ccc(cc1)P(=O)(O)c1ccc(cc1)C(O)=O", "4,4'-(hydroxyphosphoryl)dibenzoic acid"),
+        ("OC(=O)c1ccc(cc1)P(=O)(C)c1ccc(cc1)C(O)=O", "4,4'-(methylphosphonoyl)dibenzoic acid"),
+    ],
+)
+def test_phosphorus_acid_groups_cited_as_prefixes_under_a_carboxylic_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
