@@ -51,10 +51,10 @@ from ._retained_acids import retained_chain_acid
 from ._substituents import format_substituent_prefixes, name_branch
 
 _SENIORITY = [
-    "ide", "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", "sulfonamide", "nitrile", "aldehyde", "ketone", "thione", "selone", "tellone", "alcohol", "peroxol",
+    "ide", "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", "amidine", "sulfonamide", "hydrazide", "nitrile", "aldehyde", "ketone", "thione", "selone", "tellone", "alcohol", "peroxol",
     "thiol", "amine", "imine",
 ]
-_TERMINAL = {"acid", "thioic", "peroxoic", "imidic", "amide", "nitrile", "aldehyde"}
+_TERMINAL = {"acid", "thioic", "peroxoic", "imidic", "amide", "amidine", "hydrazide", "nitrile", "aldehyde"}
 _PLAIN_ACID = make_spec("C", ["O"], ["O"])
 _PLAIN_SULFONIC = make_spec("S", ["O", "O"], ["O"])
 
@@ -142,7 +142,7 @@ def _terminal_heteroatom(mol, idx, hydrogens):
 
 _CHALCOGEN_KETONE_CLASS = {16: "thione", 34: "selone", 52: "tellone"}
 _CHALCOGEN_KETONE_OK = {
-    "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", "sulfonamide", "nitrile", "aldehyde", "ketone",
+    "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", "amidine", "sulfonamide", "hydrazide", "nitrile", "aldehyde", "ketone",
     *_CHALCOGEN_KETONE_CLASS.values(),
 }
 
@@ -288,9 +288,19 @@ def _group_of(mol, carbon):
                 return "amide", {oxygens[0], other.GetIdx()}
             if other.GetAtomicNum() == 7 and _plain_amide_nitrogen(mol, other, carbon):
                 return "amide", {oxygens[0], other.GetIdx()}
+            if other.GetAtomicNum() == 7 and len(carbon_neighbors) <= 1:
+                beta = _hydrazide_beta_nitrogen(mol, other, carbon)
+                if beta is not None:
+                    return "hydrazide", {oxygens[0], other.GetIdx(), beta}
             if carbon_neighbors and other.GetAtomicNum() == 7 and _ring_nitrogen_acyl(mol, other, carbon):
                 return "ketone", {oxygens[0]}
         return None
+    amidine = _amidine_nitrogens(mol, atom)
+    if amidine is not None:
+        return "amidine", set(amidine)
+    imine = _acyclic_imine_nitrogen(mol, atom)
+    if imine is not None:
+        return "imine", {imine}
     for n in atom.GetNeighbors():
         if n.GetAtomicNum() == 16 and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0:
             sulfonyl = _sulfonyl_group(mol, n.GetIdx(), carbon)
@@ -561,7 +571,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             and not _is_acid_family(principal)
             and not (AMINIUM.get() and principal in (None, "amine"))
             and principal not in ("peroxoic", "thioic", "imidic")
-            and not (principal in ("amide", "sulfonamide") and atom.GetIdx() in groups.get(principal, {}))
+            and not (principal in ("amide", "sulfonamide", "hydrazide") and atom.GetIdx() in groups.get(principal, {}))
             and _is_ester_like(mol, atom.GetIdx())
         ):
             raise UnsupportedStructure("an ester outranks every parent this engine can build except an acid")
@@ -591,8 +601,22 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
                 raise UnsupportedStructure("an N-substituted amide inside a unit is not handled by the chain engine")
             n_names = amide_ns
 
+    if principal == "hydrazide":
+        hydrazide_ns = _hydrazide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups)
+        if hydrazide_ns:
+            if attach is not None or n_names:
+                raise UnsupportedStructure("an N-substituted hydrazide inside a unit is not handled by the chain engine")
+            n_names = hydrazide_ns
+
+    if principal == "amidine":
+        amidine_ns = _amidine_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups)
+        if amidine_ns:
+            if attach is not None or n_names:
+                raise UnsupportedStructure("an N-substituted amidine inside a unit is not handled by the chain engine")
+            n_names = amidine_ns
+
     if principal == "imine":
-        imine_ns = _imine_n_names(mol, graph, halogens, aromatic_atoms, ring_groups)
+        imine_ns = _imine_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups)
         if imine_ns:
             if attach is not None or n_names:
                 raise UnsupportedStructure("an N-substituted imine inside a unit is not handled by the chain engine")
@@ -875,7 +899,14 @@ def _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo=None):
     return key, name, (None, None, None, 0, position_of, False)
 
 
-_CARBO_WORDS = {"acid": "carboxylic acid", "amide": "carboxamide", "nitrile": "carbonitrile", "aldehyde": "carbaldehyde"}
+_CARBO_WORDS = {
+    "acid": "carboxylic acid",
+    "amide": "carboxamide",
+    "amidine": "carboximidamide",
+    "hydrazide": "carbohydrazide",
+    "nitrile": "carbonitrile",
+    "aldehyde": "carbaldehyde",
+}
 
 
 def _carbo_best(mol, graph, halogens, aromatic_atoms, principal, principal_atoms, stereo):
@@ -1208,7 +1239,9 @@ _FUSED_SUFFIX = _FusedSuffix({
     "acid": "carboxylic acid",
     "sulfonic": "sulfonic acid",
     "amide": "carboxamide",
+    "amidine": "carboximidamide",
     "sulfonamide": "sulfonamide",
+    "hydrazide": "carbohydrazide",
     "nitrile": "carbonitrile",
     "aldehyde": "carbaldehyde",
     "alcohol": "ol",
@@ -1259,7 +1292,9 @@ _RING_SUFFIX = _RingSuffix({
     "acid": "carboxylic_acid",
     "sulfonic": "sulfonic_acid",
     "amide": "amide",
+    "amidine": "amidine",
     "sulfonamide": "sulfonamide",
+    "hydrazide": "hydrazide",
     "nitrile": "nitrile",
     "aldehyde": "aldehyde",
     "ketone": "ketone",
@@ -2060,6 +2095,84 @@ def _substituted_amine_nitrogen(mol, atom):
     return len(carbons) >= 2
 
 
+def _hydrazide_beta_nitrogen(mol, alpha, carbonyl):
+    """The terminal nitrogen N' of an acyl-NR-NR'R'' group (P-66.3), whose substituents are carbon groups or a
+    ylidene (a hydrazone), else None."""
+    if alpha.GetFormalCharge() or alpha.IsInRing() or alpha.GetIsAromatic():
+        return None
+    betas = [n for n in alpha.GetNeighbors() if n.GetAtomicNum() == 7]
+    if len(betas) != 1 or mol.GetBondBetweenAtoms(alpha.GetIdx(), betas[0].GetIdx()).GetBondTypeAsDouble() != 1.0:
+        return None
+    beta = betas[0]
+    if beta.GetFormalCharge() or beta.IsInRing() or beta.GetIsAromatic():
+        return None
+    for nitrogen, partner in ((alpha, beta), (beta, alpha)):
+        orders = []
+        for n in nitrogen.GetNeighbors():
+            if n.GetIdx() in (partner.GetIdx(), carbonyl):
+                continue
+            if n.GetAtomicNum() != 6 or n.GetFormalCharge() or is_functional_carbon(mol, n.GetIdx()):
+                return None
+            orders.append(mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble())
+        if (orders and 2.0 in orders and (nitrogen is alpha or len(orders) > 1)) or 3.0 in orders:
+            return None
+    return beta.GetIdx()
+
+
+def _amidine_nitrogens(mol, atom):
+    """(imino N, amino N) of a -C(=NR)-NR2 group (P-66.4.1.1) whose carbon has at most one carbon neighbour; the
+    imino nitrogen carries hydrogen, a carbon group or an oxygen (an amidoxime, P-66.4.4)."""
+    carbon = atom.GetIdx()
+    nitrogens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 7]
+    others = [n for n in atom.GetNeighbors() if n.GetAtomicNum() != 7]
+    if len(nitrogens) != 2 or len(others) > 1 or any(n.GetAtomicNum() != 6 for n in others):
+        return None
+    imino = [n for n in nitrogens if mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 2.0]
+    amino = [n for n in nitrogens if mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0]
+    if len(imino) != 1 or len(amino) != 1:
+        return None
+    imino, amino = imino[0], amino[0]
+    if any(n.GetFormalCharge() or n.IsInRing() or n.GetIsAromatic() for n in (imino, amino)):
+        return None
+    for nitrogen, allowed in ((imino, (6, 8)), (amino, (6,))):
+        for n in nitrogen.GetNeighbors():
+            if n.GetIdx() == carbon:
+                continue
+            if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0:
+                return None
+            if n.GetAtomicNum() not in allowed or n.GetFormalCharge() or is_functional_carbon(mol, n.GetIdx()):
+                return None
+    if imino.GetDegree() > 2 or amino.GetDegree() > 3:
+        return None
+    return imino.GetIdx(), amino.GetIdx()
+
+
+def _acyclic_imine_nitrogen(mol, atom):
+    """The =N- atom of a C=N group (P-62.3) whose carbon has only carbon neighbours and whose nitrogen carries
+    hydrogen, a carbon group or an oxygen (an oxime or its ether, P-68.3.1.1.2); None otherwise."""
+    carbon = atom.GetIdx()
+    imines = [
+        n
+        for n in atom.GetNeighbors()
+        if n.GetAtomicNum() == 7 and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    ]
+    if len(imines) != 1:
+        return None
+    nitrogen = imines[0]
+    if nitrogen.GetFormalCharge() or nitrogen.IsInRing() or nitrogen.GetIsAromatic() or nitrogen.GetDegree() > 2:
+        return None
+    if any(n.GetAtomicNum() != 6 for n in atom.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx()):
+        return None
+    for n in nitrogen.GetNeighbors():
+        if n.GetIdx() == carbon:
+            continue
+        if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0:
+            return None
+        if n.GetAtomicNum() not in (6, 8) or n.GetFormalCharge():
+            return None
+    return nitrogen.GetIdx()
+
+
 def _ring_imine_nitrogen(mol, nitrogen, ring_atom):
     """A neutral =N-H, =N-R, =N-OH or =N-OR on a saturated ring carbon (P-62.3, P-68.3.1.1)."""
     if nitrogen.GetFormalCharge() or nitrogen.GetDegree() > 2:
@@ -2115,8 +2228,8 @@ def _with_n_names(grouped, n_names):
     if not n_names:
         return grouped
     merged = {name: {"locants": list(info["locants"]), "compound": info["compound"]} for name, info in grouped.items()}
-    for name, compound in n_names:
-        merged.setdefault(name, {"locants": [], "compound": compound})["locants"].append("N")
+    for name, compound, *locant in n_names:
+        merged.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant[0] if locant else "N")
     return merged
 
 
@@ -2150,9 +2263,55 @@ def _imidic_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, c
     ]
 
 
-def _imine_n_names(mol, graph, halogens, aromatic_atoms, ring_groups):
+def _hydrazide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups):
+    """N and N' prefix entries (name, compound, locant) of the hydrazide group: N on the acylated nitrogen, N' on
+    the terminal nitrogen (P-66.3.3); several groups cannot be told apart by these locants."""
+    members = dict(groups.get("hydrazide", {}))
+    for cls, ring_atom, owned in ring_groups:
+        if cls == "hydrazide":
+            members[next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 6), ring_atom)] = owned
+    entries = []
+    for carbon, owned in members.items():
+        alpha = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7 and carbon in graph[a])
+        beta = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7 and a != alpha)
+        for nitrogen, partner, locant in ((alpha, beta, "N"), (beta, alpha, "N'")):
+            for n in graph[nitrogen]:
+                if n in (partner, carbon):
+                    continue
+                name, compound = name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+                entries.append((name, compound, locant))
+    if entries and len(members) != 1:
+        raise UnsupportedStructure("several hydrazide groups with N-substitution are not handled by the chain engine")
+    return entries
+
+
+def _amidine_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups):
+    """N and N' prefix entries (name, compound, locant) of the amidine group: N on the amino nitrogen, N' on the
+    imino nitrogen (P-66.4.1.1); several groups cannot be told apart by these locants."""
+    members = dict(groups.get("amidine", {}))
+    for cls, ring_atom, owned in ring_groups:
+        if cls == "amidine":
+            members[next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 6), ring_atom)] = owned
+    entries = []
+    for owned in members.values():
+        for nitrogen in (a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7):
+            atom = mol.GetAtomWithIdx(nitrogen)
+            imino = any(
+                b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 6 for b in atom.GetBonds()
+            )
+            for n in graph[nitrogen]:
+                if mol.GetAtomWithIdx(n).GetAtomicNum() == 6 and _amidine_nitrogens(mol, mol.GetAtomWithIdx(n)) is not None:
+                    continue
+                name, compound = name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+                entries.append((name, compound, "N'" if imino else "N"))
+    if entries and len(members) != 1:
+        raise UnsupportedStructure("several amidine groups with N-substitution are not handled by the chain engine")
+    return entries
+
+
+def _imine_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups):
     """N-prefix names when the single ring imine group is substituted on its =N atom, else []."""
-    members = [owned for cls, _, owned in ring_groups if cls == "imine"]
+    members = [owned for cls, _, owned in ring_groups if cls == "imine"] + list(groups.get("imine", {}).values())
     substituted = []
     for owned in members:
         nitrogen = next(iter(owned))
@@ -2268,6 +2427,10 @@ def _evaluate(
         )
     elif principal == "amide":
         body = name_from_substituents(length, ene, yne, multiplied_word(count, "amide"))
+    elif principal == "amidine":
+        body = name_from_substituents(length, ene, yne, multiplied_word(count, "imidamide"))
+    elif principal == "hydrazide":
+        body = name_from_substituents(length, ene, yne, multiplied_word(count, "hydrazide"))
     elif principal == "nitrile":
         body = name_from_substituents(length, ene, yne, multiplied_word(count, "nitrile"))
     elif principal == "aldehyde":
