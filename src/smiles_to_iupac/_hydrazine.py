@@ -84,6 +84,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   (P-68.3.1.2.2), azine (P-68.3.1.2.3), semicarbazide (P-68.3.1.2.4),
   hydrazide (R-CO-NH-NH2, P-66.3).
 - Charged or isotopically modified atoms.
+- A hydrazine nitrogen that is a ring member (an N-amino heterocycle is a
+  ring amine, P-62.2.1.3, e.g. 'piperidin-1-amine').
 """
 
 from rdkit import Chem
@@ -117,6 +119,8 @@ def _hydrazine_nitrogens(mol):
     if n1.GetDegree() > 3 or n2.GetDegree() > 3:
         return None
     if n1.GetFormalCharge() != 0 or n2.GetFormalCharge() != 0:
+        return None
+    if n1.IsInRing() or n2.IsInRing():
         return None
     return n1, n2
 
