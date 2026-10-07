@@ -738,13 +738,28 @@ def is_nitro_nitrogen(mol, idx):
     return orders == [2.0, 2.0] and charges == [0, 0]
 
 
+YLO_MAP_NUMBER = 9001
+
+
+def named_prefix(atom):
+    """The prefix a placeholder atom stands for ('ylo' marks a radical centre cited as a prefix, P-71.5); the map
+    number carries it through a SMILES round trip."""
+    if atom.HasProp("_named_prefix"):
+        return atom.GetProp("_named_prefix")
+    return "ylo" if atom.GetAtomMapNum() == YLO_MAP_NUMBER else None
+
+
+def halogen_prefix(atom):
+    return named_prefix(atom) or HALOGEN_PREFIXES[atom.GetAtomicNum()]
+
+
 def halogen_substituents(mol):
     """{atom_idx -> substituent prefix name} for every halogen atom in `mol`
     (P-35.2.1). Passed down into `name_branch` so it can name a halogen leaf
     and exclude halogens from a compound substituent's own internal chain
     search, the same way `carbon_adjacency` does for a parent hydride."""
     return {
-        atom.GetIdx(): atom.GetProp("_named_prefix") if atom.HasProp("_named_prefix") else HALOGEN_PREFIXES[atom.GetAtomicNum()]
+        atom.GetIdx(): halogen_prefix(atom)
         for atom in mol.GetAtoms()
         if atom.GetAtomicNum() in HALOGEN_PREFIXES and atom.GetDegree() == 1
     }

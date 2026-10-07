@@ -819,7 +819,10 @@ def test_ionic_groups_as_prefixes_of_a_radical_parent(smiles, expected):
         pytest.param("C[C]c1cccc(c1)C[CH2]", "2-[3-(1,1-diyloethyl)phenyl]ethyl", id="yl_outranks_ylidene_parent"),
         pytest.param("[CH2]C(C)(C)[O]", "(2-methyl-1-ylopropan-2-yl)oxyl", id="oxyl_parent_outranks_carbon"),
         pytest.param("[CH2]C1CC[CH]CC1", "4-(ylomethyl)cyclohexyl", id="ring_parent_outranks_chain"),
-        pytest.param("[O]CC[N]C", "N-methyl-2-(ylooxy)ethan-1-aminyl", id="nitrogen_outranks_oxygen"),
+        pytest.param("[O]CC[N]C", "N-methyl-2-(ylooxidanyl)ethan-1-aminyl", id="nitrogen_outranks_oxygen"),
+        pytest.param("[O]c1cccc(c1)C(=O)[O]", "[3-(ylooxidanyl)benzoyl]oxyl", id="acyl_oxyl_outranks_aryl_oxyl"),
+        pytest.param("[O]CCC(=O)[O]", "[3-(ylooxidanyl)propanoyl]oxyl", id="acyl_oxyl_outranks_alkoxyl"),
+        pytest.param("[O]C(=O)CC(=O)[O]", "[(oxylcarbonyl)acetyl]oxyl", id="radical_acyl_oxygen_prefix"),
         pytest.param("[CH2]CC[N]C(=O)C", "N-(3-ylopropyl)acetamidyl", id="amidyl_parent_outranks_carbon"),
         pytest.param("[O]CC[CH2]", "3-ylopropoxyl", id="oxygen_outranks_carbon"),
     ],
@@ -844,4 +847,23 @@ def test_choice_of_parent_radical_with_ylo_prefixes(smiles, expected):
     ],
 )
 def test_iminium_and_mixed_ionic_centres(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(
+            "C[n+]1c(-c2ccccc2)cc(-c2ccccc2)cc1C(=O)[O-]",
+            "1-methyl-4,6-diphenylpyridin-1-ium-2-carboxylate",
+            id="ring_cation_with_anionic_suffix",
+        ),
+        pytest.param("C[n+]1ccn(C)c1C(=O)[O-]", "1,3-dimethyl-1H-imidazol-3-ium-2-carboxylate", id="indicated_hydrogen"),
+        pytest.param("C[n+]1ccccc1CC(=O)[O-]", "(1-methylpyridin-1-ium-2-yl)acetate", id="ring_cation_as_prefix"),
+        pytest.param("[CH2+]CC(=O)[O-]", "propan-3-ylium-1-oate", id="carbocation_with_chain_anion"),
+        pytest.param("[O-]C(=O)CC[CH+]CC(=O)[O-]", "hexan-4-ylium-1,6-dioate", id="carbocation_with_two_anion_groups"),
+        pytest.param("[CH2+]CS(=O)(=O)[O-]", "ethan-2-ylium-1-sulfonate", id="carbocation_with_sulfonate"),
+    ],
+)
+def test_cation_on_the_parent_hydride_of_an_anionic_suffix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

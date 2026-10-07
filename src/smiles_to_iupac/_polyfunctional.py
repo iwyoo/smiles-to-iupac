@@ -365,6 +365,10 @@ def name_polyfunctional(mol) -> str:
     center = _ring_center_base(mol)
     if center is not None:
         return _name_ring_center(*center)
+    carbocation = _carbocation_base(mol)
+    if carbocation is not None:
+        base, atom = carbocation
+        return _name_labelled(base, {}, lambda name, placed: _ylium_inserted(name, base, atom, placed))
     return _name_labelled(mol, {})
 
 
@@ -374,7 +378,9 @@ def _ring_center_base(mol):
     them as prefixes. `probe` checks the centre's locant when the ring has another nitrogen."""
     from ._diester_ring_diyl import _system_of
 
-    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge() and not _is_nitro_part(a)]
+    charged = [
+        a for a in mol.GetAtoms() if a.GetFormalCharge() and not _is_nitro_part(a) and not _anionic_group_atom(mol, a)
+    ]
     centers = [a for a in charged if a.GetAtomicNum() == 7 and a.IsInRing() and a.GetFormalCharge() == 1]
     if len(centers) != 1 or len(charged) - len(centers) > 1:
         return None
@@ -484,9 +490,98 @@ def _name_labelled_ring_center(clean, labels, found):
     return _name_ring_center(base, center, kind, probe, moved)
 
 
+def _cation_inserted(name, base, center, placed_in_parent):
+    """Cite the ring cation as 'ium' on its ring parent hydride, ahead of any suffix or free valence (P-74.1.2)."""
+    from ._diester_ring_diyl import _system_of
+
+    system = _system_of(base, center)[1]
+    locant = placed_in_parent.get(center)
+    if locant is None and any(base.GetAtomWithIdx(i).GetAtomicNum() == 7 and i != center for i in system):
+        raise UnsupportedStructure("a second ring nitrogen leaves the locant of the cationic centre open")
+    ring = Chem.RWMol(base)
+    for index in system:
+        lost = sum(
+            int(b.GetBondTypeAsDouble()) for b in base.GetAtomWithIdx(index).GetBonds() if b.GetOtherAtomIdx(index) not in system
+        )
+        if lost and index != center:
+            ring.GetAtomWithIdx(index).SetNumExplicitHs(base.GetAtomWithIdx(index).GetTotalNumHs() + lost)
+            ring.GetAtomWithIdx(index).SetNoImplicit(True)
+    for index in sorted((a.GetIdx() for a in base.GetAtoms() if a.GetIdx() not in system), reverse=True):
+        ring.RemoveAtom(index)
+    new_center = sorted(system).index(center)
+    ring_mol = ring.GetMol()
+    ring_mol.UpdatePropertyCache(strict=False)
+    Chem.FastFindRings(ring_mol)
+    bare, placed = _bare_ring_name(ring_mol, new_center)
+    if not bare.endswith("e"):
+        raise UnsupportedStructure("the cationic ring parent has no terminal 'e' to elide (P-73.1.1.2)")
+    stem = bare[:-1]
+    pattern = re.compile(re.escape(stem) + r"(?:e(?![a-z])|(?=-?\d*,?\d*-?yl))")
+    found = list(pattern.finditer(name))
+    if len(found) != 1:
+        raise UnsupportedStructure("the ring parent of the cation is not delimited in the anionic name")
+    match = found[0]
+    return f"{name[:match.start()]}{stem}-{locant or placed[new_center]}-ium{name[match.end():]}"
+
+
+def _carbocation_base(mol):
+    """(mol with its one carbocation made neutral, that atom) when an acid anion is the only other charge: the anion
+    outranks the cation, which stays on the parent hydride as 'ylium' (P-74.1.2)."""
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge() and not _anionic_group_atom(mol, a)]
+    if len(charged) != 1 or len(Chem.GetMolFrags(mol)) != 1 or any(a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
+        return None
+    cation = charged[0]
+    if cation.GetAtomicNum() != 6 or cation.GetFormalCharge() != 1 or cation.GetIsAromatic():
+        return None
+    if not any(_anionic_group_atom(mol, a) for a in mol.GetAtoms()):
+        return None
+    neutral = Chem.RWMol(mol)
+    atom = neutral.GetAtomWithIdx(cation.GetIdx())
+    atom.SetFormalCharge(0)
+    atom.SetNumExplicitHs(cation.GetTotalNumHs() + 1)
+    atom.SetNoImplicit(True)
+    base = neutral.GetMol()
+    Chem.SanitizeMol(base)
+    return base, cation.GetIdx()
+
+
+def _ylium_inserted(name, base, center, placed):
+    from ._numerals import alkane_name
+    from ._radical_ion_skeleton import _parent_base, _unsaturation_locants
+
+    locant = placed.get(center)
+    if locant is None:
+        raise UnsupportedStructure("the carbocation is not on the parent hydride of the anionic name (P-74.1.3)")
+    parent = set(placed)
+    ring = any(base.GetAtomWithIdx(a).IsInRing() for a in parent)
+    size = len(parent)
+    stem = ("cyclo" if ring else "") + alkane_name(size)[:-3]
+    enes, ynes = _unsaturation_locants(base, parent, placed, size, not ring)
+    root = _parent_base(stem, enes, ynes)[:-1]
+    if name.count(root) != 1:
+        raise UnsupportedStructure("the parent hydride of the anionic name is not delimited")
+    start = name.index(root) + len(root)
+    tail = name[start + 1 :] if name[start : start + 1] == "e" else name[start:]
+    if tail and tail[0] != "-":
+        anion_carbons = []
+        for a in base.GetAtoms():
+            if not _anionic_group_atom(base, a):
+                continue
+            near = [n for n in a.GetNeighbors() if n.GetAtomicNum() == 6]
+            near = near or [m for x in a.GetNeighbors() for m in x.GetNeighbors() if m.GetAtomicNum() == 6]
+            anion_carbons += sorted({placed[m.GetIdx()] for m in near if m.GetIdx() in placed})
+        anion_carbons.sort()
+        if not anion_carbons:
+            raise UnsupportedStructure("the anionic suffix locants are not found on the parent hydride")
+        tail = "-" + ",".join(map(str, dict.fromkeys(anion_carbons))) + "-" + tail
+    return f"{name[:start]}-{locant}-ylium{tail}"
+
+
 def _name_ring_center(base, center, kind, probe=None, labels=None):
     from ._diester_ring_diyl import _system_of
 
+    if kind == "ium" and any(_anionic_group_atom(base, a) for a in base.GetAtoms()):
+        return _name_labelled(base, labels or {}, lambda name, placed: _cation_inserted(name, base, center, placed))
     if not labels and len(_system_of(base, center)[1]) == base.GetNumAtoms():
         name, placed = _bare_ring_name(base, center)
         return _attach(name, placed, center, kind)

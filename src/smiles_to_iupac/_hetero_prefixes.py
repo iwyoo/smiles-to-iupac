@@ -10,7 +10,7 @@ import re
 from rdkit import Chem
 
 from ._alkoxy import alkoxy_prefix
-from ._common import UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen
+from ._common import UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen, named_prefix
 from ._free_valence import SUFFIX_OF_ORDER
 from ._multiplicative_text import enclose
 from ._numerals import alkane_name, multiplying_prefix
@@ -417,6 +417,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if not others:
             return "hydroxy", False
         (other,) = others
+        named = named_prefix(mol.GetAtomWithIdx(other))
+        if named is not None:
+            return ("ylooxidanyl" if named == "ylo" else named + "oxy"), True
         if mol.GetAtomWithIdx(other).GetAtomicNum() == 15 and any(
             mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(other, n).GetBondTypeAsDouble() == 2.0
             for n in graph[other]
@@ -427,8 +430,6 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return _enclose(silyl, True) + "oxy", True
         if mol.GetAtomWithIdx(other).GetAtomicNum() in _CHAIN_ELEMENTS and _chain_prefix_allowed(mol):
             return _chalcogen_chain_group(graph, root, other, halogens, aromatic_atoms, mol)
-        if mol.GetAtomWithIdx(other).HasProp("_named_prefix"):
-            return mol.GetAtomWithIdx(other).GetProp("_named_prefix") + "oxy", True
         if (
             mol.GetAtomWithIdx(other).GetAtomicNum() == 8
             and order == 1.0
@@ -642,6 +643,8 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
         tail = [n for n in graph[x] if n != root]
         if not tail:
             return ("carboxylato" if _is_anionic_oxygen(mol.GetAtomWithIdx(x)) else "carboxy"), False
+        if named_prefix(mol.GetAtomWithIdx(tail[0])) == "ylo":
+            return "oxylcarbonyl", True
         rname, rcomp = name_branch(graph, tail[0], x, halogens, aromatic_atoms, mol=mol)
         return _enclose(*_alkoxy(rname, rcomp)) + "carbonyl", True
     if z == 7:

@@ -5,7 +5,7 @@ through `name_branch` and every heteroatom inside a branch resolved first.
 """
 
 from ._alkoxy import alkoxy_prefix
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, is_nitro_nitrogen
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, halogen_prefix, is_nitro_nitrogen, named_prefix
 from ._hetero_prefixes import CHALCOGEN_PREFIXES, require_plain_chalcogen_kids, require_senior_group
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
@@ -115,7 +115,7 @@ class PrefixNamer:
         atom = mol.GetAtomWithIdx(n)
         z = atom.GetAtomicNum()
         if z in HALOGEN_PREFIXES:
-            return HALOGEN_PREFIXES[z], False
+            return halogen_prefix(atom), False
         if atom.GetFormalCharge() and z != 7:
             raise UnsupportedStructure("a charged substituent group is not supported here")
         if z == 6:
@@ -175,6 +175,8 @@ class PrefixNamer:
                     inner = [x for x in graph[q] if x != n]
                     if not inner:
                         return "carboxy", False
+                    if named_prefix(mol.GetAtomWithIdx(inner[0])) == "ylo":
+                        return "oxylcarbonyl", True
                     oxy_text, oxy_compound = _oxy(*self.name(inner[0], q))
                     return (enclose(oxy_text) if oxy_compound else oxy_text) + "carbonyl", True
                 if z == 7 and mol.GetAtomWithIdx(q).GetDegree() == 1:

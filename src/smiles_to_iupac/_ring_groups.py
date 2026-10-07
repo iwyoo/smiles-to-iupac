@@ -6,7 +6,13 @@ cited as suffixes in that seniority order and the rest as prefixes).
 from rdkit import Chem
 from rdkit.Chem import rdCIPLabeler
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, halogen_substituents, plain_phenyl_substituent_atoms
+from ._common import (
+    HALOGEN_PREFIXES,
+    UnsupportedStructure,
+    halogen_prefix,
+    halogen_substituents,
+    plain_phenyl_substituent_atoms,
+)
 from ._numerals import multiplying_prefix
 from ._prefix_groups import PrefixNamer, _oxy
 from ._substituents import branch_atom_locant, format_mononuclear_prefixes, name_branch
@@ -90,7 +96,7 @@ def ring_substituents(mol, graph, ring_atom, ring_set, principal):
         elif kind is not None:
             entries.append((_PREFIX_FORM[kind], False))
         elif z in HALOGEN_PREFIXES:
-            entries.append((HALOGEN_PREFIXES[z], False))
+            entries.append((halogen_prefix(mol.GetAtomWithIdx(n)), False))
         elif z == 6:
             if plain_phenyl_substituent_atoms(mol, graph, {n}):
                 entries.append(("phenyl", False))
