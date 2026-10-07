@@ -1428,6 +1428,7 @@ def _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n
             tuple(sorted(locants[a] for a in principal_atoms)),
             tuple(sorted(locants[r] for r, _, _ in entries)),
             _citation_key([(locants[r], name) for r, name, _ in entries]),
+            _n_group_positions(n_names, locants),
             _stereo_rank(stereo, locants, True),
         )
         if best is None or key < best[0]:
@@ -1435,7 +1436,7 @@ def _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n
     locants = best[1]
     suffix_name = _RING_SUFFIX[principal]
     suffix_locants = [locants[a] for a in principal_atoms]
-    prefix_text = _ring_prefix_text(entries, locants, n_names)
+    prefix_text = _ring_prefix_text(entries, locants, n_names, len(here))
     if ide_atoms:
         core = _ring_compound_core(spec, suffix_name, locants, ide_atoms, principal_atoms)
     elif (
@@ -2263,20 +2264,33 @@ def _ring_occurrences(mol):
     return found
 
 
-def _with_n_names(grouped, n_names):
+def _with_n_names(grouped, n_names, position_of=None, group_count=2):
+    """`grouped` plus the N-prefixes; a locant ("N", atom) of one of several groups reads N<position of atom>
+    (P-66.1.1.4.2: 'N1,N5-dimethylpentanediamide')."""
     if not n_names:
         return grouped
     merged = {name: {"locants": list(info["locants"]), "compound": info["compound"]} for name, info in grouped.items()}
     for name, compound, *locant in n_names:
-        merged.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant[0] if locant else "N")
+        located = locant[0] if locant else "N"
+        if isinstance(located, tuple):
+            if located[1] not in position_of:
+                continue
+            located = "N" if group_count == 1 else f"{located[0]}{position_of[located[1]]}"
+        merged.setdefault(name, {"locants": [], "compound": compound})["locants"].append(located)
     return merged
 
 
-def _ring_prefix_text(entries, locants, n_names):
+def _n_group_positions(n_names, position_of):
+    """Sorted numbers of the groups that carry N-prefixes, for choosing the numbering."""
+    anchors = [entry[2][1] for entry in n_names if len(entry) > 2 and isinstance(entry[2], tuple)]
+    return tuple(sorted(position_of[a] for a in anchors if a in position_of))
+
+
+def _ring_prefix_text(entries, locants, n_names, group_count=2):
     grouped = {}
     for r, name, compound in entries:
         grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locants[r])
-    return format_substituent_prefixes(_with_n_names(grouped, n_names)) if (grouped or n_names) else ""
+    return format_substituent_prefixes(_with_n_names(grouped, n_names, locants, group_count)) if (grouped or n_names) else ""
 
 
 def _imidic_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls):
@@ -2367,24 +2381,24 @@ def _imine_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups):
 
 def _amide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls="amide"):
     """N-prefix names when the single amide group is N-substituted, else []."""
-    members = {c: owned for c, owned in groups.get(cls, {}).items()}
+    members = {c: (owned, c) for c, owned in groups.get(cls, {}).items()}
     for group_cls, ring_atom, owned in ring_groups:
         if group_cls == cls:
             key = next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 6), ring_atom)
-            members[key] = owned
-    substituted = []
-    for carbon, owned in members.items():
+            members[key] = (owned, ring_atom)
+    entries = []
+    for carbon, (owned, anchor) in members.items():
         nitrogen = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7)
         center = next((a for a in graph[nitrogen] if a in owned), carbon)
-        subs = [n for n in graph[nitrogen] if n != center]
-        if subs:
-            substituted.append((nitrogen, subs))
-    if not substituted:
-        return []
-    if len(members) != 1:
-        raise UnsupportedStructure("several amide groups with N-substitution are not handled by the chain engine")
-    nitrogen, subs = substituted[0]
-    return [name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in subs]
+        located = ("N", anchor) if len(members) > 1 else "N"
+        for n in graph[nitrogen]:
+            if n != center:
+                name, compound = name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+                entries.append((name, compound, located))
+    anchors = [anchor for _, anchor in members.values()]
+    if entries and len(set(anchors)) != len(anchors):
+        raise UnsupportedStructure("amide groups on one atom need primed N locants, which are not supported yet")
+    return entries
 
 
 def _evaluate(
@@ -2395,6 +2409,7 @@ def _evaluate(
     if attach is not None and attach not in chain_set:
         return ((1,), "", None)
     on_chain = [a for a in principal_atoms if a in chain_set]
+    owned = set().union(*(principal_atoms[a] for a in on_chain)) if on_chain else owned
     if principal == "ide":
         on_chain = [a for a in on_chain for _ in range(anion_weight(mol.GetAtomWithIdx(a)))]
     if not on_chain or (_is_terminal(principal) and any(position_of[a] not in (1, len(chain)) for a in on_chain)):
@@ -2421,7 +2436,7 @@ def _evaluate(
     length = len(chain)
     force = (attach is not None and length != 1) or (principal == "ide" and bool(grouped) and length > 1)
     prefix = format_substituent_prefixes(
-        _with_n_names(grouped, n_names), omit_locants=length == 1 and not force and not n_names
+        _with_n_names(grouped, n_names, position_of, len(on_chain)), omit_locants=length == 1 and not force and not n_names
     )
     tail = ""
     if principal == "ide" and attach is None and length == 2 and not grouped and (ene or yne) and (count == 1 or yne):
@@ -2510,6 +2525,7 @@ def _evaluate(
         -total_count,
         locant_set,
         citation,
+        _n_group_positions(n_names, position_of),
         _stereo_rank(stereo, position_of),
         name,
     )
