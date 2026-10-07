@@ -1250,3 +1250,17 @@ def test_n_alkoxy_and_n_aryloxy_amides(smiles, expected):
 )
 def test_carbamate_esters_with_groups_in_the_n_substituent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)n1cccc1", "1-(1H-pyrrol-1-yl)ethan-1-one", id="acyl_on_the_nitrogen_of_a_mancude_monocycle"),
+        pytest.param("CC(=O)n1ccc2ccccc21", "1-(1H-indol-1-yl)ethan-1-one", id="acyl_on_the_nitrogen_of_a_fused_mancude_system"),
+        pytest.param("CC(=O)n1nnc2ccccc21", "1-(1H-1,2,3-benzotriazol-1-yl)ethan-1-one", id="acyl_on_a_nitrogen_beside_another_ring_nitrogen"),
+        pytest.param("CC(=O)n1nnc2ncccc21", "1-(1H-[1,2,3]triazolo[4,5-b]pyridin-1-yl)ethan-1-one", id="acyl_on_a_fused_heterocycle_with_bracketed_locants"),
+        pytest.param("O=CN1CCc2ccccc2C1", "3,4-dihydroisoquinoline-2(1H)-carbaldehyde", id="formyl_on_a_ring_nitrogen_is_a_carbaldehyde"),
+    ],
+)
+def test_n_acyl_groups_on_mancude_and_fused_ring_nitrogens_are_pseudoketones(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
