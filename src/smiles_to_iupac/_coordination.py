@@ -448,7 +448,7 @@ def collect_ligands(mol, metal, graph, skip=frozenset()):
             if any(mol.GetAtomWithIdx(i).GetFormalCharge() != 0 for i in atoms):
                 raise UnsupportedStructure("charged ligands are not supported yet")
             label = _neutral_ligand_name(mol, metal, donor, atoms)
-            if label in ("aqua", "ammine"):
+            if label in ("aqua", "ammine", "azanido", "hydroxido"):
                 simple_labels.add(label)
             else:
                 organic.add(label)
