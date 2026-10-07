@@ -811,6 +811,9 @@ def test_ionic_groups_as_prefixes_of_a_radical_parent(smiles, expected):
         pytest.param("C[C]c1cccc(c1)C[CH2]", "2-[3-(1,1-diyloethyl)phenyl]ethyl", id="yl_outranks_ylidene_parent"),
         pytest.param("[CH2]C(C)(C)[O]", "(2-methyl-1-ylopropan-2-yl)oxyl", id="oxyl_parent_outranks_carbon"),
         pytest.param("[CH2]C1CC[CH]CC1", "4-(ylomethyl)cyclohexyl", id="ring_parent_outranks_chain"),
+        pytest.param("[O]CC[N]C", "N-methyl-2-(ylooxy)ethan-1-aminyl", id="nitrogen_outranks_oxygen"),
+        pytest.param("[CH2]CC[N]C(=O)C", "N-(3-ylopropyl)acetamidyl", id="amidyl_parent_outranks_carbon"),
+        pytest.param("[O]CC[CH2]", "3-ylopropoxyl", id="oxygen_outranks_carbon"),
     ],
 )
 def test_choice_of_parent_radical_with_ylo_prefixes(smiles, expected):

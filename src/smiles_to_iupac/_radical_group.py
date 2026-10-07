@@ -12,6 +12,7 @@ from ._substituents import name_branch
 
 _MAX_ATOMS = 80
 _CHALCOGENS = {8, 16, 34, 52}
+_SENIORITY = (7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81, 8, 16, 34, 52, 6)
 
 
 def _polyradical_centres(mol):
@@ -33,6 +34,7 @@ def _multi_centres(mol):
         and all(
             (a.GetAtomicNum() == 6 and a.GetNumRadicalElectrons() <= 3)
             or (a.GetAtomicNum() in (8, 16) and a.GetNumRadicalElectrons() == 1 and a.GetDegree() == 1 and a.GetTotalNumHs() == 0)
+            or (a.GetAtomicNum() == 7 and a.GetNumRadicalElectrons() == 1 and a.GetDegree() <= 2 and not a.GetIsAromatic())
             for a in radicals
         )
     ):
@@ -143,13 +145,17 @@ def _name_aminyl(mol, centre):
     from ._polyfunctional import FORCED_PRINCIPAL, _name_labelled
 
     hydride, _ = _hydride(mol, centre)
-    carbon = next((n for n in centre.GetNeighbors() if n.GetAtomicNum() != 1), None)
-    if carbon is None or carbon.GetAtomicNum() != 6:
+    carbons = [n for n in centre.GetNeighbors() if n.GetAtomicNum() == 6]
+    if not carbons or any(n.GetAtomicNum() not in (1, 6) for n in centre.GetNeighbors()):
         raise UnsupportedStructure("this nitrogen radical is not an aminyl or amidyl radical")
-    amide = any(
-        n.GetAtomicNum() == 8 and hydride.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
-        for n in carbon.GetNeighbors()
-    )
+
+    def acyl(carbon):
+        return any(
+            n.GetAtomicNum() == 8 and hydride.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            for n in carbon.GetNeighbors()
+        )
+
+    amide = any(acyl(c) for c in carbons)
     hydride = Chem.RemoveHs(hydride)
     token = FORCED_PRINCIPAL.set("amide" if amide else "amine")
     try:
@@ -291,7 +297,10 @@ def _name_parent_radical(mol):
                 continue
             if size == 1 and "ylo" not in name and len(radicals) > 1:
                 continue
-            found.append((not all(mol.GetAtomWithIdx(i).IsInRing() for i in kept), name))
+            seniority = tuple(
+                -sum(1 for i in kept if mol.GetAtomWithIdx(i).GetAtomicNum() == z) for z in _SENIORITY
+            )
+            found.append((seniority, not all(mol.GetAtomWithIdx(i).IsInRing() for i in kept), name))
         if found:
-            return min(found)[1]
+            return min(found)[2]
     raise UnsupportedStructure("no parent radical holds the radical centres")

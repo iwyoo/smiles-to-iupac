@@ -407,6 +407,8 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return _enclose(silyl, True) + "oxy", True
         if EXTENDED_PREFIXES.get() and mol.GetAtomWithIdx(other).GetAtomicNum() in _CHAIN_ELEMENTS:
             return _chalcogen_chain_group(graph, root, other, halogens, aromatic_atoms, mol)
+        if mol.GetAtomWithIdx(other).HasProp("_named_prefix"):
+            return mol.GetAtomWithIdx(other).GetProp("_named_prefix") + "oxy", True
         if (
             mol.GetAtomWithIdx(other).GetAtomicNum() == 8
             and order == 1.0
