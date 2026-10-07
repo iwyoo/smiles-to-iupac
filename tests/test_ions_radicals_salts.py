@@ -889,11 +889,29 @@ def test_assemblies_of_parent_cations(smiles, expected):
 
 
 @pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[CH2+]C[CH2+]", "propane-1,3-bis(ylium)", id="two_hydride_losses_on_a_chain"),
+        pytest.param("C[C+2]C", "propane-2,2-bis(ylium)", id="two_hydride_losses_on_one_carbon"),
+        pytest.param("C1=C[CH+][CH+]1", "cyclobut-3-ene-1,2-bis(ylium)", id="two_hydride_losses_on_a_ring"),
+        pytest.param("O=[C+]CC[C+]=O", "1,4-dioxobutane-1,4-bis(ylium)", id="diacylium_cations_as_oxo_substituted_ylium_centres"),
+        pytest.param("CC(=[OH+])CC(C)=[OH+]", "(pentane-2,4-diylidene)bis(oxidanium)", id="two_protonated_carbonyl_groups"),
+        pytest.param("C[N+](C)(C)C(=O)c1ccccc1", "N,N,N-trimethylbenzamidium", id="quaternary_acylammonium"),
+        pytest.param("CC(=O)[NH2+]C", "N-methylacetamidium", id="protonated_secondary_acylammonium"),
+        pytest.param("C[N+](C)(C)C(=O)CC(=O)[N+](C)(C)C", "N1,N1,N1,N3,N3,N3-hexamethylpropanebis(amidium)", id="two_acylammonium_groups"),
+        pytest.param("c1ccccc1C#[NH+]", "benzonitrilium", id="nitrilium"),
+        pytest.param("C(CC#[NH+])C#[NH+]", "butanebis(nitrilium)", id="two_nitrilium_groups"),
+    ],
+)
+def test_cationic_centres_on_characteristic_groups_and_hydride_losses(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles",
     [
         pytest.param("C[n+]1ccccc1CC[n+]1ccccc1", id="units_differ"),
         pytest.param("C[n+]1ccc(OCc2cc[n+](C)cc2)cc1", id="unsymmetrical_linking_group"),
-        pytest.param("[CH2+]CC[CH2+]", id="carbon_cations_on_a_chain_are_one_parent_hydride"),
     ],
 )
 def test_cations_that_are_not_a_multiplicative_assembly(smiles):

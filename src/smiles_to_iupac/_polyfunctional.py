@@ -82,7 +82,7 @@ def _principal_class(classes):
     if RING_CENTER.get():
         return None
     if AMINIUM.get():
-        parent = "imine" if AMINIUM.get() == "imine" else "amine"
+        parent = AMINIUM.get() if AMINIUM.get() in ("imine", "amide", "nitrile") else "amine"
         return parent if parent in classes else None
     if "ide" in classes:
         return "ide"
@@ -173,7 +173,9 @@ def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
     """An amide nitrogen carrying only carbon substituents or one hydroxy (a
     hydroxamic acid, P-65.1.3.4; no acyl group, so not an imide) -- named with
     'N-' prefixes on the amide parent."""
-    if nitrogen.GetFormalCharge() or nitrogen.IsInRing() or nitrogen.GetIsAromatic():
+    if (nitrogen.GetFormalCharge() and not (AMINIUM.get() == "amide" and nitrogen.GetFormalCharge() == 1)) or (
+        nitrogen.IsInRing() or nitrogen.GetIsAromatic()
+    ):
         return False
     others = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != carbonyl]
     hydroxy = [n for n in others if _terminal_heteroatom(mol, n.GetIdx(), 1) and n.GetAtomicNum() == 8]
@@ -298,6 +300,14 @@ def _group_of(mol, carbon):
                 return "amide", {oxygens[0], other.GetIdx()}
             if other.GetAtomicNum() == 7 and _plain_amide_nitrogen(mol, other, carbon):
                 return "amide", {oxygens[0], other.GetIdx()}
+            if (
+                other.GetAtomicNum() == 7
+                and AMINIUM.get() == "amide"
+                and other.GetDegree() == 1
+                and other.GetTotalNumHs() == 3
+                and other.GetFormalCharge() == 1
+            ):
+                return "amide", {oxygens[0], other.GetIdx()}
             if other.GetAtomicNum() == 7 and len(carbon_neighbors) <= 1:
                 beta = _hydrazide_beta_nitrogen(mol, other, carbon)
                 if beta is not None:
@@ -362,6 +372,10 @@ def name_polyfunctional(mol) -> str:
     iminium = _iminium_base(mol)
     if iminium is not None:
         return _name_aminium(iminium, parent="imine")
+    for kind in ("amide", "nitrile"):
+        acylated = _group_cation_base(mol, kind)
+        if acylated is not None:
+            return _name_aminium(acylated, parent=kind)
     center = _ring_center_base(mol)
     if center is not None:
         return _name_ring_center(*center)
@@ -678,7 +692,9 @@ def _aminium_base(mol):
             or nitrogen.IsInRing()
             or nitrogen.GetDegree() + nitrogen.GetTotalNumHs() != 4
             or any(
-                n.GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
+                n.GetAtomicNum() != 6
+                or mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
+                or _double_oxygens(mol, n.GetIdx())
                 for n in nitrogen.GetNeighbors()
             )
         ):
@@ -731,12 +747,65 @@ def _iminium_base(mol):
     return neutral.GetMol()
 
 
+def _group_cation_base(mol, kind):
+    """The mol with its hydrogen-bearing cationic nitrogens neutralised, for the acylammonium (amidium, a nitrogen with
+    four bonds on an amide carbonyl) or nitrilium (C#N-H) centres of a polycation of one kind (Table 7.4); else None."""
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    if not charged or any(a.GetFormalCharge() != 1 or a.GetAtomicNum() != 7 or a.GetIsAromatic() or a.IsInRing() for a in charged):
+        return None
+    for nitrogen in charged:
+        triple = [b for b in nitrogen.GetBonds() if b.GetBondTypeAsDouble() == 3.0]
+        if kind == "nitrile":
+            if len(triple) != 1 or nitrogen.GetDegree() != 1 or nitrogen.GetTotalNumHs() != 1:
+                return None
+        else:
+            acyl = [
+                n
+                for n in nitrogen.GetNeighbors()
+                if n.GetAtomicNum() == 6 and any(
+                    b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(n).GetAtomicNum() == 8 for b in n.GetBonds()
+                )
+            ]
+            if (
+                triple
+                or len(acyl) != 1
+                or nitrogen.GetDegree() + nitrogen.GetTotalNumHs() != 4
+                or any(
+                    n.GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
+                    for n in nitrogen.GetNeighbors()
+                )
+            ):
+                return None
+    neutral = Chem.RWMol(mol)
+    for nitrogen in charged:
+        atom = neutral.GetAtomWithIdx(nitrogen.GetIdx())
+        if nitrogen.GetTotalNumHs():
+            atom.SetFormalCharge(0)
+            atom.SetNoImplicit(True)
+            atom.SetNumExplicitHs(nitrogen.GetTotalNumHs() - 1)
+    base = neutral.GetMol()
+    Chem.SanitizeMol(base)
+    return base
+
+
+_GROUP_SUFFIX = re.compile(r"(?P<mult>di|tri|tetra)?(?P<carbo>carbox|carbo)?(?P<kind>amide|nitrile)$")
+
+
 def _name_aminium(base, labels=None, parent="amine"):
     token = AMINIUM.set(True if parent == "amine" else parent)
     try:
         name = _name_labelled(base, labels or {})
     finally:
         AMINIUM.reset(token)
+    if parent in ("amide", "nitrile"):
+        match = _GROUP_SUFFIX.search(name)
+        if match is None or match.group("kind") != parent:
+            raise UnsupportedStructure("the cation is not named as an amide or nitrile parent")
+        word = (match.group("carbo") or "") + parent[:-1] + "ium"
+        if match.group("mult"):
+            multiplier = {"di": "bis", "tri": "tris", "tetra": "tetrakis"}[match.group("mult")]
+            return f"{name[:match.start()]}{multiplier}({word})"
+        return name[:match.start()] + word
     if not name.endswith(("amine", "aniline", "imine") if parent == "imine" else ("amine", "aniline")):
         raise UnsupportedStructure("the cation is not named as an amine or imine parent")
     multiple = re.search(r"(di|tri|tetra|penta|hexa)(amine|aniline)$", name)

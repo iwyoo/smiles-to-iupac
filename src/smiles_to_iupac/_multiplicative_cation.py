@@ -15,6 +15,7 @@ from ._multiplicative_linker import DecompositionRejected, name_component
 from ._multiplicative_ring import UnitText
 
 _ACYCLIC_CENTRES = {6, 8, 15, 16, 33, 34, 52}
+_CHALCOGENS = {8, 16, 34, 52}
 _JUNCTION_IODO = re.compile(r"(?:^|(?<=[-(\[{]))(\d+[a-z]?)-iodo")
 
 
@@ -92,7 +93,9 @@ def _decompose(mol, centres):
             for n in mol.GetAtomWithIdx(a).GetNeighbors()
             if n.GetIdx() in linker
         ]
-        if len(bridges) != 1 or mol.GetBondBetweenAtoms(*bridges[0]).GetBondTypeAsDouble() != 1.0:
+        order = mol.GetBondBetweenAtoms(*bridges[0]).GetBondTypeAsDouble() if len(bridges) == 1 else 0.0
+        ylidene = order == 2.0 and len(core) == 1 and mol.GetAtomWithIdx(next(iter(core))).GetAtomicNum() in _CHALCOGENS
+        if order != 1.0 and not ylidene:
             raise UnsupportedStructure("a parent cation must join the linking group by one single bond")
         junction, linker_atom = bridges[0]
         if len(core) == 1 and junction not in {c.GetIdx() for c in centres}:
@@ -125,9 +128,12 @@ def _backbone(mol, linker, anchors):
 def _unit_molecule(mol, unit, replacement):
     editable = Chem.RWMol(mol)
     marker = None
+    order = int(mol.GetBondBetweenAtoms(unit.junction, unit.linker_atom).GetBondTypeAsDouble())
     if replacement is None:
         editable.GetAtomWithIdx(unit.junction).SetNoImplicit(True)
-        editable.GetAtomWithIdx(unit.junction).SetNumExplicitHs(editable.GetAtomWithIdx(unit.junction).GetTotalNumHs() + 1)
+        editable.GetAtomWithIdx(unit.junction).SetNumExplicitHs(editable.GetAtomWithIdx(unit.junction).GetTotalNumHs() + order)
+    elif order != 1:
+        raise UnsupportedStructure("the junction locant of a ylidene-bonded parent cation cannot be read")
     else:
         marker = editable.AddAtom(Chem.Atom(replacement))
         editable.AddBond(unit.junction, marker, Chem.BondType.SINGLE)
