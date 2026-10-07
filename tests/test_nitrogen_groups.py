@@ -1151,6 +1151,7 @@ def test_heteroatom_substituents_on_nitrogen_and_pseudohalide_prefixes(smiles, e
         pytest.param("CC(=S)NC(C)=S", "N-(ethanethioyl)ethanethioamide", id="identical_thioacyl_groups_on_nitrogen"),
         pytest.param("CC(=S)N(C1CCCCC1)C(C)=S", "N-cyclohexyl-N-(ethanethioyl)ethanethioamide", id="tertiary_thioamide_with_a_third_substituent"),
         pytest.param("CC(=S)NC(=S)c1ccccc1", "N-(ethanethioyl)benzenecarbothioamide", id="imide_parent_is_the_ring_acyl_group"),
+        pytest.param("O=C(O)c1ccc(C=[Se])cc1", "4-(methaneselenoyl)benzoic acid", id="methane_chalcogenoyl_prefix_is_compound"),
         pytest.param("NC(=O)CC(N)=S", "3-amino-3-sulfanylidenepropanamide", id="thioamide_under_an_amide_joins_the_chain"),
         pytest.param("NC(=[Se])CC(N)=S", "3-amino-3-selanylidenepropanethioamide", id="selenoamide_under_a_thioamide"),
         pytest.param("OC(=O)c1ccc(cc1)C(N)=S", "4-carbamothioylbenzoic acid", id="thioamide_prefix_under_an_acid"),
