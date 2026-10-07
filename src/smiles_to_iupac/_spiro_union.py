@@ -235,7 +235,7 @@ def _component(mol, comp, force_replacement):
     else:
         name, root = fusion_name(sub)
         numberings = [(n, ()) for n in system_numbering_options(Context(sub), name, root)]
-        name = _bracket_locants(name)
+        name = _bracket_locants(name).replace("'", _PRIME)
     return {
         "name": name,
         "numberings": [({atoms[i]: loc for i, loc in n.items()}, ene) for n, ene in numberings],
@@ -328,6 +328,11 @@ def _name_key(name):
     locants = tuple(sorted(int(x) for x in lead.group(1).split(","))) if lead and re.match(r"\[?\d", name) else ()
     descriptor = re.search(r"cyclo\[([\d.^,]+)\]", name)
     numbers = tuple(int(x) for x in re.findall(r"\d+", descriptor.group(1))) if descriptor else ()
+    while True:
+        reduced = re.sub(r"\[[^\[\]]*\]", "", stripped)
+        if reduced == stripped:
+            break
+        stripped = reduced
     return alpha_sort_key(stripped), numbers, locants, name
 
 

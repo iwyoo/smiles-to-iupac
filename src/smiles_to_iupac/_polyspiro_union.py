@@ -44,12 +44,12 @@ def _structure(mol):
         for a in comp["atoms"]:
             membership[a].append(i)
     spiro = {a: members for a, members in membership.items() if len(members) > 1}
-    if any(len(members) != 2 for members in spiro.values()) or len(spiro) != len(comps) - 1:
+    if any(len(members) > 3 for members in spiro.values()) or sum(len(m) - 1 for m in spiro.values()) != len(comps) - 1:
         return None
     neighbours = defaultdict(set)
-    for i, j in spiro.values():
-        neighbours[i].add(j)
-        neighbours[j].add(i)
+    for members in spiro.values():
+        for i in members:
+            neighbours[i].update(m for m in members if m != i)
     seen, queue = {0}, [0]
     while queue:
         for n in neighbours[queue.pop()]:
@@ -61,31 +61,46 @@ def _structure(mol):
     return comps, spiro, neighbours
 
 
+def _shape(spiro, count):
+    atoms_of = {i: [s for s, members in spiro.items() if i in members] for i in range(count)}
+    if all(len(m) == 2 for m in spiro.values()) and max(len(a) for a in atoms_of.values()) <= 2:
+        return "chain", None
+    centres = [i for i in range(count) if all(i in m for m in spiro.values())]
+    others_terminal = lambda c: all(len(atoms_of[i]) == 1 for i in range(count) if i != c)
+    if len(spiro) == 1:
+        return "hub", None
+    if len(centres) == 1 and others_terminal(centres[0]):
+        return "star", centres[0]
+    return None, None
+
+
 def has_polyspiro_union_shape(mol) -> bool:
     structure = _structure(mol)
-    if structure is None:
-        return False
-    _, _, neighbours = structure
-    degrees = sorted(len(n) for n in neighbours.values())
-    return degrees[-1] <= 2 or (degrees[-2] == 1 and degrees[-1] >= 3)
+    return structure is not None and _shape(structure[1], len(structure[0]))[0] is not None
 
 
-def _chain_layouts(neighbours, names):
-    start = next(c for c in neighbours if len(neighbours[c]) == 1)
-    path, previous = [start], None
-    while len(path) < len(neighbours):
-        following = next(n for n in neighbours[path[-1]] if n != previous)
-        previous = path[-1]
-        path.append(following)
-    orientations = [path, path[::-1]]
-    keyed = [([_name_key(names[c]) for c in o], o) for o in orientations]
+def _unique(orders):
+    result = []
+    for order in orders:
+        if order not in result:
+            result.append(order)
+    return result
+
+
+def _chain_layouts(spiro, names, count):
+    atoms_of = {i: [s for s, members in spiro.items() if i in members] for i in range(count)}
+    start = next(c for c in range(count) if len(atoms_of[c]) == 1)
+    path = [start]
+    while len(path) < count:
+        atom = next(s for s in atoms_of[path[-1]] if all(m not in path[:-1] for m in spiro[s]) and any(m not in path for m in spiro[s]))
+        path.append(next(m for m in spiro[atom] if m not in path))
+    keyed = [([_name_key(names[c]) for c in o], o) for o in (path, path[::-1])]
     best = min(k for k, _ in keyed)
-    chosen = [o for k, o in keyed if k == best]
-    unique = []
-    for o in chosen:
-        if o not in unique:
-            unique.append(o)
-    return [{"kind": "chain", "flat": o, "groups": [[c] for c in o]} for o in unique]
+    layouts = []
+    for order in _unique([o for k, o in keyed if k == best]):
+        links = [(next(s for s, m in spiro.items() if {x, y} == set(m)), x, y) for x, y in zip(order, order[1:])]
+        layouts.append({"kind": "chain", "flat": order, "groups": [[c] for c in order], "links": links})
+    return layouts
 
 
 def _classes(members, names):
@@ -95,38 +110,71 @@ def _classes(members, names):
     return sorted(classes.values(), key=lambda cls: _name_key(names[cls[0]]))
 
 
-def _star_layouts(neighbours, names):
-    centre = next(c for c in neighbours if len(neighbours[c]) >= 3)
-    terminals = sorted(neighbours[centre])
+def _star_layouts(spiro, names, centre, count):
+    terminals = [c for c in range(count) if c != centre]
+    atom_of = {t: next(s for s, m in spiro.items() if t in m) for t in terminals}
     classes = _classes(terminals, names)
+
+    def links_for(flat):
+        return [(atom_of[t], centre, t) for t in flat if t != centre]
+
     layouts = []
     if len(classes) == 1:
         for order in permutations(terminals):
-            layouts.append({"kind": "star", "flat": [centre, *order], "groups": [[centre], list(order)], "centre": centre})
+            flat = [centre, *order]
+            layouts.append({"kind": "star", "flat": flat, "groups": [[centre], list(order)], "links": links_for(flat), "centre": centre})
         return layouts
     first, rest = classes[0], classes[1:]
-    for first_order in permutations(first):
-        for rest_orders in product(*(permutations(cls) for cls in rest)):
-            flat = [first_order[0], centre, *first_order[1:], *(c for order in rest_orders for c in order)]
-            groups = [list(first_order), [centre], *(list(order) for order in rest_orders)]
-            layouts.append({"kind": "star", "flat": flat, "groups": groups, "centre": centre})
+    for lead in first:
+        mates = [t for t in terminals if t != lead and atom_of[t] == atom_of[lead]]
+        if any(t not in first for t in mates):
+            raise UnsupportedStructure("different terminal components on one spiro atom are not supported yet")
+        remaining_first = [t for t in first if t != lead and t not in mates]
+        for mate_order in permutations(mates):
+            for first_order in permutations(remaining_first):
+                for rest_orders in product(*(permutations(cls) for cls in rest)):
+                    flat = [lead, *mate_order, centre, *first_order, *(c for order in rest_orders for c in order)]
+                    group_one = [lead, *mate_order, *first_order]
+                    groups = [group_one, [centre], *(list(order) for order in rest_orders)]
+                    layouts.append({"kind": "star", "flat": flat, "groups": groups, "links": links_for(flat), "centre": centre})
     return layouts
 
 
-def _blocks(layout, spiro):
+def _hub_layouts(spiro, names, count):
+    (atom,) = spiro
+    comps = sorted(range(count), key=lambda c: _name_key(names[c]))
+    classes = _classes(comps, names)
+    if len(classes) == 1:
+        return [{"kind": "hub_ter", "flat": comps, "groups": [comps], "links": [], "hub": atom}]
+    if len(classes) == 3:
+        a, b, c = (cls[0] for cls in classes)
+        return [{"kind": "hub_different", "flat": [a, b, c], "groups": [[a], [b], [c]], "links": [(atom, a, b), (atom, a, c)]}]
+    pair = next(cls for cls in classes if len(cls) == 2)
+    single = next(cls for cls in classes if len(cls) == 1)[0]
+    ordered = [pair, [single]] if classes[0] is pair else None
+    if ordered is None:
+        raise UnsupportedStructure("this arrangement of components on one spiro atom is not supported yet")
+    layouts = []
+    for order in permutations(pair):
+        flat = [*order, single]
+        layouts.append({"kind": "hub_pair", "flat": flat, "groups": [list(order), [single]], "links": [(atom, x, single) for x in order]})
+    return layouts
+
+
+def _blocks(layout):
     group_of = {c: gi for gi, group in enumerate(layout["groups"]) for c in group}
     flat_index = {c: i for i, c in enumerate(layout["flat"])}
     blocks = defaultdict(list)
-    for s, members in spiro.items():
-        early, late = sorted(members, key=flat_index.get)
-        blocks[max(group_of[early], group_of[late])].append((flat_index[late], s, early, late))
-    return {gi: sorted(entries) for gi, entries in blocks.items()}
+    for s, x, y in layout["links"]:
+        early, late = sorted((x, y), key=flat_index.get)
+        blocks[max(group_of[early], group_of[late])].append((flat_index[late], flat_index[early], s, early, late))
+    return {gi: [entry[2:] for entry in sorted(entries)] for gi, entries in blocks.items()}
 
 
 def name_polyspiro_union(mol) -> str:
     from ._ylium_ring import _prefixes
 
-    comps, spiro, neighbours = _structure(mol)
+    comps, spiro, _ = _structure(mol)
     if any(a.GetIsotope() or a.GetNumRadicalElectrons() or a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()):
         raise UnsupportedStructure("isotopes, radicals and stereodescriptors of a spiro union are not supported yet")
     if any(b.GetStereo() != Chem.BondStereo.STEREONONE for b in mol.GetBonds()):
@@ -181,14 +229,20 @@ def name_polyspiro_union(mol) -> str:
             monocyclic_bonds |= comp["bonds"]
     for s, (lam, charged) in info.items():
         if lam and not charged:
-            if lam - 4 > 1:
+            pi_bonds = lam - mol.GetAtomWithIdx(s).GetDegree()
+            if pi_bonds > 1:
                 raise UnsupportedStructure("a spiro atom with several multiple bonds is not supported yet")
-            if lam - 4 == 1 and any(named[m]["fused"] for m in spiro[s]):
+            if pi_bonds == 1 and any(named[m]["fused"] for m in spiro[s]):
                 capable.add(s)
     saturated, choices = _hydrogen_choices(mol, capable, polycyclic_bonds, monocyclic_bonds)
 
-    degrees = {c: len(neighbours[c]) for c in neighbours}
-    layouts = _chain_layouts(neighbours, names) if max(degrees.values()) <= 2 else _star_layouts(neighbours, names)
+    shape, centre_comp = _shape(spiro, len(comps))
+    if shape == "chain":
+        layouts = _chain_layouts(spiro, names, len(comps))
+    elif shape == "star":
+        layouts = _star_layouts(spiro, names, centre_comp, len(comps))
+    else:
+        layouts = _hub_layouts(spiro, names, len(comps))
 
     projections = {}
     for i, n in enumerate(named):
@@ -204,13 +258,9 @@ def name_polyspiro_union(mol) -> str:
         if any(i != flat[0] for i in ene_comps):
             continue
         prime_of = {c: k for k, c in enumerate(flat)}
-        blocks = _blocks(layout, spiro)
+        blocks = _blocks(layout)
         centre = layout.get("centre")
-        terminal_atoms = []
-        if centre is not None:
-            terminal_atoms = [
-                s for c in flat if c != centre for s, members in spiro.items() if c in members
-            ]
+        terminal_atoms = [s for s, _, _ in layout["links"]] if centre is not None else []
         indices = list(range(len(comps)))
         shortlist, shortlist_key = [], None
         for combo in product(*(list(projections[i]) for i in indices)):
@@ -219,9 +269,9 @@ def name_polyspiro_union(mol) -> str:
                 for s, loc in zip(spiro_in[i], proj):
                     base[(s, i)] = loc
             locant = {k: _primed(loc, prime_of[k[1]]) for k, loc in base.items()}
-            central = tuple(_lk(base[(s, centre)]) for s in terminal_atoms) if centre is not None else ()
+            central = tuple(_lk(base[(s, centre)]) for s in terminal_atoms) if centre is not None and not any(l for l, _ in info.values()) else ()
             citation = tuple(
-                _lk(locant[(s, c)]) for gi in sorted(blocks) for _, s, early, late in blocks[gi] for c in (early, late)
+                _lk(locant[(s, c)]) for gi in sorted(blocks) for s, early, late in blocks[gi] for c in (early, late)
             )
             key = (central, sorted(_lk(l) for l in locant.values()), citation)
             if shortlist_key is None or key < shortlist_key:
@@ -291,7 +341,7 @@ def name_polyspiro_union(mol) -> str:
         return text if len(group) == 1 else f"{multiplying_prefix(len(group), compound=True)}({text})"
 
     def pair_text(gi):
-        return ":".join(f"{locant_in(s, early)},{locant_in(s, late)}" for _, s, early, late in blocks[gi])
+        return ":".join(f"{locant_in(s, early)},{locant_in(s, late)}" for s, early, late in blocks[gi])
 
     indicated = ",".join(f"{locant_of[a]}H" for a in sorted(picked, key=lambda a: _lk(locant_of[a])))
     hydro_atoms = sorted(saturated - picked, key=lambda a: _lk(locant_of[a]))
@@ -301,12 +351,20 @@ def name_polyspiro_union(mol) -> str:
     lam_front = ",".join(
         f"{lowest}λ{info[s][0]}"
         for lowest, s in sorted(
-            (min((locant_in(s, m) for m in spiro[s]), key=_lk), s) for s in spiro if info[s][0]
+            ((min((locant_in(s, m) for m in spiro[s]), key=_lk), s) for s in spiro if info[s][0]),
+            key=lambda pair: _lk(pair[0]),
         )
     )
-    count = multiplying_prefix(len(spiro))
-    identical_chain = layout["kind"] == "chain" and len(comps) == 3 and len({names[c] for c in range(3)}) == 1
-    if identical_chain:
+    count = multiplying_prefix(len(spiro)) if len(spiro) > 1 else ""
+    kind = layout["kind"]
+    identical_chain = kind == "chain" and len(comps) == 3 and len({names[c] for c in range(3)}) == 1
+    if kind == "hub_ter":
+        hub = layout["hub"]
+        locants = sorted((locant_in(hub, c) for c in flat), key=_lk)
+        lam = info[hub][0]
+        last = shown(flat[0])
+        body = f"{','.join([f'{locants[0]}λ{lam}' if lam else locants[0], *locants[1:]])}-spiroter[{last}]"
+    elif identical_chain:
         if lam_front:
             raise UnsupportedStructure("a nonstandard spiro atom in three identical components is not supported yet")
         pairs = ":".join(pair_text(gi) for gi in sorted(blocks))
@@ -319,8 +377,10 @@ def name_polyspiro_union(mol) -> str:
                 parts.append(pair_text(gi))
             parts.append(group_text(group))
         last = parts[-1]
+        if kind == "hub_different":
+            parts[2] = f"({parts[2]})"
         body = f"{count}spiro[{'-'.join(parts)}]"
-        if lam_front:
+        if lam_front and kind != "hub_ter":
             body = f"{lam_front}-{body}"
     replacement_prefix = _replacement_prefixes(mol, replacement_atoms, locant_of) if replacement_atoms else ""
     if replacement_prefix:
