@@ -752,3 +752,20 @@ def test_sulfonohydrazides_and_sulfinohydrazides(smiles, expected):
 )
 def test_sulfonimidamides_and_sulfinimidamides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("NS(=O)(=O)O", "sulfamic acid", id="sulfamic_acid"),
+        pytest.param("CCNS(=O)(=O)O", "N-ethylsulfamic acid", id="substituted_sulfamic_acid"),
+        pytest.param("NS(=O)(=O)[O-]", "sulfamate", id="sulfamate"),
+        pytest.param("[Na+].NS(=O)(=O)[O-]", "sodium sulfamate", id="sulfamate_in_a_salt"),
+        pytest.param("NS(N)(=O)=O", "sulfuric diamide", id="sulfuric_diamide"),
+        pytest.param("CN(C)S(=O)(=O)N", "N,N-dimethylsulfuric diamide", id="substituents_on_one_nitrogen"),
+        pytest.param("CNS(=O)(=O)N(C)C", "N,N,N'-trimethylsulfuric diamide", id="substituents_on_both_nitrogens"),
+        pytest.param("CNS(N)=O", "N-methylsulfurous diamide", id="sulfurous_diamide"),
+    ],
+)
+def test_sulfamic_acid_and_the_amides_of_sulfuric_and_sulfurous_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
