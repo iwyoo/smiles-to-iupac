@@ -7,7 +7,7 @@ the carrier from the resulting name.
 
 from rdkit import Chem
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, halogen_prefix
 
 SUFFIX_CARRIERS = {
     "carboxylic_acid": ("C(=O)O", "benzoic acid"),
@@ -118,7 +118,7 @@ def prefix_name(mol, root, from_atom, suffix_group=None, name_function=None, gro
     principal group class is `suffix_group` (None: plain ring parent)."""
     atom = mol.GetAtomWithIdx(root)
     if atom.GetAtomicNum() in HALOGEN_PREFIXES and atom.GetDegree() == 1:
-        return HALOGEN_PREFIXES[atom.GetAtomicNum()], False
+        return halogen_prefix(atom), False
     if not atom.IsInRing() and mol.GetBondBetweenAtoms(root, from_atom).GetBondTypeAsDouble() != 1.0:
         from ._common import adjacency
         from ._substituents import name_branch

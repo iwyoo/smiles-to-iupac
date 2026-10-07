@@ -141,4 +141,6 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
         return "hydroxy" + acyl_stem(x), True
     if z_name == "hydroperoxy" and x == "O":
         return "carbonoperoxoyl", False
+    if z_name == "ylooxidanyl" and x == "O":
+        return "oxylcarbonyl", True
     return (enclose_mark(z_name) if z_compound else z_name) + acyl_stem(x), True

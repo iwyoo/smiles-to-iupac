@@ -6,8 +6,8 @@ import re
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, halogen_substituents, specified_stereo_elements
-from ._hetero_prefixes import PEROXY_PREFIXES
+from ._common import YLO_MAP_NUMBER, UnsupportedStructure, adjacency, halogen_substituents, specified_stereo_elements
+from ._hetero_prefixes import PEROXY_PREFIXES, is_functional_carbon
 from ._substituents import name_branch
 
 _MAX_ATOMS = 80
@@ -264,6 +264,7 @@ def _with_ylo(mol, kept):
         for _ in range(electrons):
             dummy = Chem.Atom(53)
             dummy.SetProp("_named_prefix", "ylo")
+            dummy.SetAtomMapNum(YLO_MAP_NUMBER)
             rw.AddBond(atom.GetIdx(), rw.AddAtom(dummy), Chem.BondType.SINGLE)
     out = rw.GetMol()
     Chem.SanitizeMol(out)
@@ -295,12 +296,18 @@ def _name_parent_radical(mol):
                 name = name_radical_group(marked) if size == 1 else _name_polyradical(marked)
             except (UnsupportedStructure, Chem.rdchem.MolSanitizeException):
                 continue
-            if size == 1 and "ylo" not in name and len(radicals) > 1:
+            if size == 1 and "ylo" not in name and "oxylcarbonyl" not in name and len(radicals) > 1:
                 continue
             seniority = tuple(
                 -sum(1 for i in kept if mol.GetAtomWithIdx(i).GetAtomicNum() == z) for z in _SENIORITY
             )
-            found.append((seniority, not all(mol.GetAtomWithIdx(i).IsInRing() for i in kept), name))
+            acyl_centres = sum(
+                1
+                for i in kept
+                for n in mol.GetAtomWithIdx(i).GetNeighbors()
+                if n.GetAtomicNum() == 6 and is_functional_carbon(mol, n.GetIdx())
+            )
+            found.append((seniority, -acyl_centres, not all(mol.GetAtomWithIdx(i).IsInRing() for i in kept), name))
         if found:
-            return min(found)[2]
+            return min(found)[-1]
     raise UnsupportedStructure("no parent radical holds the radical centres")
