@@ -1139,7 +1139,7 @@ def _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo):
     ring-system numbering and parent names used for diyl groups."""
     from ._diester_ring_diyl import _system_of, evaluate_skeleton
 
-    if n_names or principal not in _FUSED_SUFFIX:
+    if principal not in _FUSED_SUFFIX:
         raise UnsupportedStructure("this fused-ring parent is not supported by the chain engine yet")
     rings, atoms = _system_of(mol, here[0][1])
     if len(rings) > 1:
@@ -1149,7 +1149,7 @@ def _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo):
     blocked = set().union(*(o[2] for o in on_system))
     if principal in ("ketone", *_CHALCOGEN_KETONE_CLASS.values()) and any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in attach):
         raise UnsupportedStructure("a ring-heteroatom oxide is not a ring ketone")
-    found = evaluate_skeleton(mol, graph, "ring", rings, atoms, attach, blocked, _FUSED_SUFFIX[principal])
+    found = evaluate_skeleton(mol, graph, "ring", rings, atoms, attach, blocked, _FUSED_SUFFIX[principal], n_names=n_names)
     if found is None:
         raise UnsupportedStructure("this fused ring system has no supported numbering")
     count = len(on_system)

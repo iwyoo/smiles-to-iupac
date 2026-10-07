@@ -342,16 +342,9 @@ def test_unsaturated_ring_sulfonamide_with_substituent():
     assert smiles_to_iupac("O=S(=O)(N)C1CCCC=C1C") == "2-methylcyclohex-2-ene-1-sulfonamide"
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("O=S(=O)(N)C1CCCC#C1", id="triple_bond_raises"),
-        pytest.param("O=S(=O)(NC)C1CCCC=C1", id="with_n_substituent_raises"),
-    ],
-)
-def test_unsaturated_ring_sulfonamide_cases_raise(smiles):
+def test_unsaturated_ring_sulfonamide_triple_bond_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+        smiles_to_iupac("O=S(=O)(N)C1CCCC#C1")
 
 
 @pytest.mark.parametrize(
