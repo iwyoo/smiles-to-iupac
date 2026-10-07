@@ -945,6 +945,17 @@ def test_quaternary_ammonium_on_or_in_a_heterocycle(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("[O-][O-]", "dioxidanediide", id="peroxide_dianion"),
+        pytest.param("[Na+].[O-][O-].[Na+]", "disodium dioxidanediide", id="peroxide_dianion_in_a_salt"),
+    ],
+)
+def test_adjacent_anionic_oxygens_are_not_a_nitro_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param("[CH2+]C[CH2+]", "propane-1,3-bis(ylium)", id="two_hydride_losses_on_a_chain"),
         pytest.param("C[C+2]C", "propane-2,2-bis(ylium)", id="two_hydride_losses_on_one_carbon"),
         pytest.param("C1=C[CH+][CH+]1", "cyclobut-3-ene-1,2-bis(ylium)", id="two_hydride_losses_on_a_ring"),
