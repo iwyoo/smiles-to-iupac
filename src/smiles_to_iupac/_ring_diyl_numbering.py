@@ -17,6 +17,7 @@ from ._common import (
     ring_bond_locants,
     von_baeyer_unsaturation_citations,
 )
+from ._fusion_name import FUSION_NAME_REQUIRED
 from ._fusion_components import EXCEPTIONS, system_numberings as fusion_system_numberings
 from ._hetero_monocyclic import (
     _ROLE_SEQUENCES,
@@ -604,11 +605,13 @@ def _named_mancude(mol, skeleton_atoms, sp3):
         if smiles in _MANCUDE_IN_PROGRESS.get():
             continue
         token = _MANCUDE_IN_PROGRESS.set(_MANCUDE_IN_PROGRESS.get() | {smiles})
+        fusion_token = FUSION_NAME_REQUIRED.set(True)
         try:
             parent = smiles_to_iupac(smiles)
         except UnsupportedStructure:
             continue
         finally:
+            FUSION_NAME_REQUIRED.reset(fusion_token)
             _MANCUDE_IN_PROGRESS.reset(token)
         if not re.search(r"cyclo\[|spiro\[|\d-hydro|\d-(?:di|tri|tetra|penta|hexa|hepta|octa|nona|deca)?ene$", parent):
             return bare, old_of, parent

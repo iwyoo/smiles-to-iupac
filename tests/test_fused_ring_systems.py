@@ -685,3 +685,22 @@ def test_bridge_selection_minimises_atoms_in_dependent_bridges():
     # P-25.4.3.4.2 (g): a one-atom dependent bridge (methano) beats ethano plus butano
     name = smiles_to_iupac("C1=CC2C=C3C=C4C5C=c6ccccc6=NC(CC(CC2)CC5)C4C=C13")
     assert name.endswith("6,17-methano-10,13-pentanonaphtho[2,3-c][1]benzazocine")
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C1=CC=C2CC2=C1", "bicyclo[4.1.0]hepta-1,3,5-triene"),
+        ("C1=CC=C2C=CC2=C1", "bicyclo[4.2.0]octa-1,3,5,7-tetraene"),
+        ("Clc1ccc2CCc2c1", "3-chlorobicyclo[4.2.0]octa-1,3,5-triene"),
+        ("OC1Cc2ccccc12", "bicyclo[4.2.0]octa-1,3,5-trien-7-ol"),
+        ("c1ccc2cc3CCc3cc2c1", "1,2-dihydrocyclobuta[b]naphthalene"),
+    ],
+)
+def test_fusion_needs_two_rings_of_five_or_more_members(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_fusion_name_without_two_large_rings_is_kept_with_a_warning_when_von_baeyer_cannot_carry_the_group():
+    with pytest.warns(NonPreferredNameWarning, match="P-52.2.4.1"):
+        assert smiles_to_iupac("OC(=O)C1Cc2ccccc12") == "1,2-dihydrocyclobutabenzene-1-carboxylic acid"
