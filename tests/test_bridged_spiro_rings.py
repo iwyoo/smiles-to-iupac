@@ -788,3 +788,25 @@ def test_spiro_lactone_of_a_fused_system_is_not_a_bridge():
 )
 def test_monospiro_union_with_a_polycyclic_component(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C12CCC(CC1)SC23c1ccccc1-c1ccccc13", "3-thiaspiro[bicyclo[2.2.2]octane-2,9′-fluorene]", id="replacement_prefix_before_spiro_with_low_spiro_locant_first"),
+        pytest.param("C1CC2CC1CC23OCCCCCCCCCO3", "2′,12′-dioxaspiro[bicyclo[2.2.1]heptane-2,1′-cyclododecane]", id="monocycle_beyond_hantzsch_widman_named_by_replacement"),
+        pytest.param("C1CC2CCC1CC21CC2CCC(C2)C1", "spiro[bicyclo[2.2.2]octane-2,3′-bicyclo[3.2.1]octane]", id="descriptor_numbers_order_components"),
+        pytest.param("C1OCC2CC1CC21OC2CCC1CC2", "3,3′-dioxaspiro[bicyclo[2.2.2]octane-2,6′-bicyclo[3.2.1]octane]", id="spiro_locants_before_heteroatom_locants"),
+        pytest.param("C1CC2SCC1CC21CC2CCC1CS2", "5,6′-dithia-2,2′-spirobi[bicyclo[2.2.2]octane]", id="identical_von_baeyer_components_with_heteroatoms"),
+        pytest.param("C1CC2CC1CC[Si]21CC2CCC(C2)C1", "2-sila-2,3′-spirobi[bicyclo[3.2.1]octane]", id="standard_valence_heteroatom_at_the_spiro_atom"),
+        pytest.param("C1CC[N+]2(C1)CCC1CCC(C1)C2", "3λ5-spiro[3-azabicyclo[4.2.1]nonane-3,1′-pyrrolidin]-3-ylium", id="cationic_spiro_heteroatom_inside_the_von_baeyer_name"),
+        pytest.param("C1CCC2(C1)SC1CC2C2CC12", "7′-thiaspiro[cyclopentane-1,6′-tricyclo[3.2.1.0^2,4]octane]", id="polycyclic_von_baeyer_component"),
+    ],
+)
+def test_monospiro_union_with_a_von_baeyer_component(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_adamantane_component_of_a_spiro_union_is_not_given_a_von_baeyer_name():
+    with pytest.raises(NotImplementedError):
+        smiles_to_iupac("C1CCC2(C1)C1CC3CC(C1)CC2C3")
