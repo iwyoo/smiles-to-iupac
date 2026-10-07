@@ -1094,8 +1094,6 @@ def _require_mancude_system(mol, atoms):
     """Only fully aromatic fused systems (arenes, mancude heterocycles): partly
     hydrogenated, bridged and spiro systems need hydro/von Baeyer names. Beyond three rings only
     all-six-membered systems and peri-fused ones with a retained numbering are verified."""
-    if not any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms) and not is_hydro_fusion_system(mol, atoms):
-        raise UnsupportedStructure("a saturated, bridged or spiro ring system is not handled by the chain engine")
     if not any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms) and any(
         set(match) == set(atoms) for match in mol.GetSubstructMatches(_CYCLOPENTA_A_PHENANTHRENE)
     ):
