@@ -1137,3 +1137,16 @@ def test_group_or_stereo_element_without_a_supported_citation_raises(smiles):
 
 def test_chain_unit_bearing_a_group_outside_the_chain_is_not_named_by_skeletal_replacement():
     assert "carboxy" in smiles_to_iupac("OC(=O)[SiH2]C[SiH2]C[SiH2]C[SiH2]C")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OC(=O)c1ccc2c(c1)Cc1ccc(cc12)-c1ccc(cc1)C(=O)O", "6-(4-carboxyphenyl)-9H-fluorene-2-carboxylic acid"),
+        ("OC(=O)c1ccc(cc1)-c1ccncc1C(=O)O", "4-(4-carboxyphenyl)pyridine-3-carboxylic acid"),
+        ("OC(=O)c1ccc(cc1)C1CCC(CC1)C(=O)O", "4-(4-carboxycyclohexyl)benzoic acid"),
+        ("OC(=O)CCc1c(CC(=O)O)c(CC(=O)O)cc2ccccc12", "3-[2,3-bis(carboxymethyl)naphthalen-1-yl]propanoic acid"),
+    ],
+)
+def test_senior_ring_is_the_parent_and_a_multiplicative_centre_keeps_all_principal_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
