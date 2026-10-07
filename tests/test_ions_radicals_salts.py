@@ -917,6 +917,21 @@ def test_ium_and_ylium_centres_in_one_ring_system(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("C[n+]1cc([N+](C)(C)C)cc2ccccc12", "N,N,N,1-tetramethylquinolin-1-ium-3-aminium", id="ring_ium_then_aminium"),
+        pytest.param("C[n+]1cc2ccnc([N+](C)(C)C)c2cc1", "N,N,N,2-tetramethyl-2,6-naphthyridin-2-ium-5-aminium", id="skeletal_centre_takes_the_lowest_locant_before_the_suffix"),
+        pytest.param("C[n+]1ccc([NH3+])cc1", "1-methylpyridin-1-ium-4-aminium", id="primary_aminium_on_the_ring"),
+        pytest.param("C[n+]1ccc(cc1)C(=O)[NH3+]", "1-methylpyridin-1-ium-4-carboxamidium", id="ring_ium_then_carboxamidium"),
+        pytest.param("C[n+]1ccc(cc1)C#[NH+]", "1-methylpyridin-1-ium-4-carbonitrilium", id="ring_ium_then_carbonitrilium"),
+        pytest.param("C[n+]1ccc(N(C)C)cc1", "4-(dimethylamino)-1-methylpyridin-1-ium", id="neutral_substituted_amine_is_a_prefix_of_the_ring_cation"),
+    ],
+)
+def test_skeletal_cationic_centre_with_a_cationic_suffix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param("[CH2+]C[CH2+]", "propane-1,3-bis(ylium)", id="two_hydride_losses_on_a_chain"),
         pytest.param("C[C+2]C", "propane-2,2-bis(ylium)", id="two_hydride_losses_on_one_carbon"),
         pytest.param("C1=C[CH+][CH+]1", "cyclobut-3-ene-1,2-bis(ylium)", id="two_hydride_losses_on_a_ring"),
