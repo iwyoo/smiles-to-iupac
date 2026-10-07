@@ -1209,3 +1209,19 @@ def test_ureas_with_further_substituents_and_ureas_beneath_senior_groups(smiles,
 )
 def test_nitroso_and_nitro_groups_on_nitrogen_and_on_rings_with_other_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)NOC", "N-methoxyacetamide", id="n_alkoxy_amide"),
+        pytest.param("CC(=O)NOCC(C)C", "N-(2-methylpropoxy)acetamide", id="branched_alkoxy_on_amide_nitrogen"),
+        pytest.param("CC(=O)NOc1ccccc1", "N-phenoxyacetamide", id="n_aryloxy_amide"),
+        pytest.param("CC(=O)N(C)OC", "N-methoxy-N-methylacetamide", id="alkoxy_and_alkyl_on_one_amide_nitrogen"),
+        pytest.param("O=C(NOC)CCC(=O)NOC", "N1,N4-dimethoxybutanediamide", id="n_alkoxy_groups_of_a_diamide"),
+        pytest.param("CC(=O)NOC(C)C", "N-[(propan-2-yl)oxy]acetamide", id="compound_organyloxy_prefix_is_enclosed"),
+        pytest.param("CS(=O)(=O)NOC", "N-methoxymethanesulfonamide", id="n_alkoxy_sulfonamide"),
+    ],
+)
+def test_n_alkoxy_and_n_aryloxy_amides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
