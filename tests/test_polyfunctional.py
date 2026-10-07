@@ -33,7 +33,7 @@ def test_steroid_alcohol_naming(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("NCC=O", "2-aminoacetaldehyde"),
+        ("NCC=O", "aminoacetaldehyde"),
     ],
 )
 def test_smiles_to_iupac_aldehyde_amine(smiles, expected):
@@ -327,7 +327,7 @@ def test_specified_stereocenter_raises():
     "smiles, expected",
     [
         pytest.param("NCC(O)C(=O)OC", "methyl 3-amino-2-hydroxypropanoate", id="hydroxyl_coexisting__ester_amine"),
-        pytest.param("CC(C)OCC=O", "2-[(propan-2-yl)oxy]acetaldehyde", id="branched_alkoxy_r_prime"),
+        pytest.param("CC(C)OCC=O", "[(propan-2-yl)oxy]acetaldehyde", id="branched_alkoxy_r_prime"),
         pytest.param("COCC(Cl)C=O", "2-chloro-3-methoxypropanal", id="halogen_on_main_chain_still_works"),
         pytest.param("COC[C@@H](C)C=O", "(2R)-3-methoxy-2-methylpropanal", id="specified_stereocenter__ether_aldehyde"),
         pytest.param("CC(C)OCC(N)=O", "2-[(propan-2-yl)oxy]acetamide", id="branched_alkoxy_r_prime__ether_amide"),

@@ -158,8 +158,8 @@ def test_benzaldehyde():
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("OCc1ccccc1CC=O", "2-[2-(hydroxymethyl)phenyl]acetaldehyde", id="with_hydroxyl"),
-        pytest.param("C=Cc1ccccc1CC=O", "2-(2-ethenylphenyl)acetaldehyde", id="unsaturation"),
+        pytest.param("OCc1ccccc1CC=O", "[2-(hydroxymethyl)phenyl]acetaldehyde", id="with_hydroxyl"),
+        pytest.param("C=Cc1ccccc1CC=O", "(2-ethenylphenyl)acetaldehyde", id="unsaturation"),
     ],
 )
 def test_phenyl_chain_aldehyde_cases(smiles, expected):
@@ -180,7 +180,7 @@ def test_two_ring_and_heteroaromatic_chain_aldehyde(smiles, expected):
     "smiles, expected",
     [
         pytest.param("O=CC1CCCC(c2ccc(C)cc2)C1", "3-(4-methylphenyl)cyclohexane-1-carbaldehyde", id="two_ring_aromatic_substituent_aldehyde_substituted_ring"),
-        pytest.param("O=CCC1CCCCC1c1ccccc1", "2-(2-phenylcyclohexyl)acetaldehyde", id="two_ring_aromatic_substituent_aldehyde_chain_aldehyde"),
+        pytest.param("O=CCC1CCCCC1c1ccccc1", "(2-phenylcyclohexyl)acetaldehyde", id="two_ring_aromatic_substituent_aldehyde_chain_aldehyde"),
         pytest.param("O=Cc1cccnc1", "pyridine-3-carbaldehyde", id="heteroaromatic_ring_directly_attached_aldehyde"),
         pytest.param("OC=CC=O", "3-hydroxyprop-2-enal", id="aldehyde_enol_mix"),
         pytest.param("O=CC1CCC(C=O)CC1", "cyclohexane-1,4-dicarbaldehyde", id="ring_aldehyde_multiple_groups"),
@@ -962,7 +962,7 @@ def test_polyester_principal_acid_and_multiplicative_names(smiles, expected):
         ("CC(C)(C)COCCCCC", "1-(2,2-dimethylpropoxy)pentane"),
         ("CCCCCOCCO", "2-(pentyloxy)ethan-1-ol"),
         ("OCCOCC1CCCCC1", "2-(cyclohexylmethoxy)ethan-1-ol"),
-        ("CC(C)OCC=O", "2-[(propan-2-yl)oxy]acetaldehyde"),
+        ("CC(C)OCC=O", "[(propan-2-yl)oxy]acetaldehyde"),
         ("c1ccccc1OCCCCC", "(pentyloxy)benzene"),
         ("CC(C)(C)OCCCCC", "1-tert-butoxypentane"),
         ("CCOCCCCCCC", "1-ethoxyheptane"),

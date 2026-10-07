@@ -838,7 +838,7 @@ def test_benzonitrile():
 
 
 def test_phenyl_chain_nitrile_unsaturation():
-    assert smiles_to_iupac("C=Cc1ccccc1CC#N") == "2-(2-ethenylphenyl)acetonitrile"
+    assert smiles_to_iupac("C=Cc1ccccc1CC#N") == "(2-ethenylphenyl)acetonitrile"
 
 
 @pytest.mark.parametrize(
@@ -855,7 +855,7 @@ def test_two_ring_and_heteroaromatic_chain_nitrile(smiles, expected):
     "smiles, expected",
     [
         pytest.param("N#CC1CCCC(c2ccc(C)cc2)C1", "3-(4-methylphenyl)cyclohexane-1-carbonitrile", id="two_ring_aromatic_substituent_nitrile_substituted_ring"),
-        pytest.param("N#CCC1CCCCC1c1ccccc1", "2-(2-phenylcyclohexyl)acetonitrile", id="two_ring_aromatic_substituent_nitrile_chain_nitrile"),
+        pytest.param("N#CCC1CCCCC1c1ccccc1", "(2-phenylcyclohexyl)acetonitrile", id="two_ring_aromatic_substituent_nitrile_chain_nitrile"),
         pytest.param("N#Cc1cccnc1", "pyridine-3-carbonitrile", id="heteroaromatic_ring_directly_attached_nitrile"),
     ],
 )
@@ -1265,4 +1265,18 @@ def test_carbamate_esters_with_groups_in_the_n_substituent(smiles, expected):
     ],
 )
 def test_n_acyl_groups_on_mancude_and_fused_ring_nitrogens_are_pseudoketones(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("N#CCc1ccccc1", "phenylacetonitrile"),
+        ("OCC=O", "hydroxyacetaldehyde"),
+        ("C1OC1c1ccccc1", "phenyloxirane"),
+        ("CC1CN1", "2-methylaziridine"),
+        ("ClCC(N)=O", "2-chloroacetamide"),
+    ],
+)
+def test_locant_is_omitted_only_when_the_parent_has_one_kind_of_substitutable_hydrogen(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
