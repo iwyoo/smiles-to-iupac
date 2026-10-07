@@ -1,26 +1,23 @@
-"""Monospiro ring systems of two ring components, at least one of them polycyclic (P-24.3, P-24.5, P-24.8): the
-component names are cited in alphanumerical order inside 'spiro[...]' (or once inside 'spirobi[...]'), the second
-component takes primed locants, the spiro atom gets the lowest locants, and indicated hydrogen and 'hydro' prefixes are
-those of the complete skeleton made mancude after the union. A spiro atom with a nonstandard bonding number carries its
-lambda number, and a cationic one ends in 'ylium'. Bridged components take von Baeyer names; their heteroatoms, and
-those of monocycles without a Hantzsch-Widman name, are cited as 'a' prefixes before 'spiro' (P-24.5.2, P-24.3.4).
+"""Components of spiro unions of rings (P-24.3, P-24.5, P-24.8): monocycles, fused systems named by fusion nomenclature,
+and polycyclic von Baeyer systems, each with the numberings its own name allows. Heteroatoms of von Baeyer components, and
+of monocycles without a Hantzsch-Widman name, are cited as 'a' prefixes (P-24.5.2, P-24.3.4); the spiro atoms, hydrogen
+and locant citation are decided in `_polyspiro_union.py`.
 """
 
 import re
-from itertools import combinations, product
+from itertools import combinations
 
 import networkx as nx
 from rdkit import Chem
 
 from ._bicyclic import bicyclic_parent_name, find_bicyclic_core, iter_bicyclic_numberings
-from ._common import UnsupportedStructure, adjacency, alpha_sort_key, multiplied_word, ring_cycle
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key, ring_cycle
 from ._fused_numbering import HETERO_RANK
 from ._fusion_name import Context, fusion_name, system_numbering_options
 from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
 from ._numerals import alkane_name
 from ._ring_diyl_numbering import _MANCUDE_RETAINED, _RANK, _hantzsch_widman, _saturated_name, _with_hetero_locants
 from ._polycyclic import find_polycyclic_core, iter_polycyclic_candidates
-from ._substituents import format_substituent_prefixes
 from ._von_baeyer_heteroatom import _replacement_multiplied_word
 
 _PRIME = "′"
@@ -33,6 +30,41 @@ _A_PREFIX = {
 }
 _MAX_HANTZSCH_WIDMAN_SIZE = 10
 _MIN_FUSION_RING = 5
+
+
+class SpiroLocant:
+    """A locant of a spiro system, ordered by number, then primes, then fusion letters: 4 < 4a < 4′ < 4′a < 5."""
+
+    def __init__(self, text):
+        match = re.fullmatch(r"(\d+)(′*)([a-z]*)", text)
+        self.text = text
+        self.key = (int(match.group(1)), len(match.group(2)), match.group(3))
+
+    def __eq__(self, other):
+        return isinstance(other, SpiroLocant) and self.key == other.key
+
+    def __lt__(self, other):
+        return self.key < other.key
+
+    def __le__(self, other):
+        return self.key <= other.key
+
+    def __gt__(self, other):
+        return self.key > other.key
+
+    def __ge__(self, other):
+        return self.key >= other.key
+
+    def __hash__(self):
+        return hash(self.key)
+
+    def __str__(self):
+        return self.text
+
+    __repr__ = __str__
+
+    def __format__(self, spec):
+        return self.text
 
 
 def _lk(text):
@@ -80,22 +112,6 @@ def _components(mol):
             }
         )
     return result
-
-
-def _spiro_split(mol):
-    if len(Chem.GetMolFrags(mol)) != 1:
-        return None
-    comps = _components(mol)
-    if len(comps) != 2 or max(c["rings"] for c in comps) < 2:
-        return None
-    shared = comps[0]["atoms"] & comps[1]["atoms"]
-    if len(shared) != 1 or any(a.IsInRing() and a.GetIdx() not in comps[0]["atoms"] | comps[1]["atoms"] for a in mol.GetAtoms()):
-        return None
-    return comps, next(iter(shared))
-
-
-def has_spiro_union_shape(mol) -> bool:
-    return _spiro_split(mol) is not None
 
 
 def _skeleton(mol, comp):
@@ -208,15 +224,6 @@ def _von_baeyer(sub):
     if name == "tricyclo[3.3.1.1^3,7]decane":
         raise UnsupportedStructure("adamantane is a retained name and is not supported in a spiro union yet")
     return name, [{a: str(i + 1) for i, a in enumerate(order)} for order, _, outer in candidates if outer == best]
-
-
-def _ene_name(name, ene):
-    if not ene:
-        return name
-    stem = name[:-3]
-    if len(ene) == 1:
-        return f"{stem}-{ene[0]}-ene"
-    return f"{stem}a-{','.join(map(str, ene))}-{multiplied_word(len(ene), 'ene')}"
 
 
 def _component(mol, comp, force_replacement):
@@ -352,131 +359,3 @@ def _spiro_atom(mol, spiro):
     if bonding <= _STANDARD[z] or (bonding - _STANDARD[z]) % 2:
         raise UnsupportedStructure("this spiro heteroatom has no lambda bonding number")
     return bonding, bool(charge)
-
-
-def name_spiro_union(mol) -> str:
-    from ._ylium_ring import _prefixes
-
-    split = _spiro_split(mol)
-    comps, spiro = split
-    if any(a.GetIsotope() or a.GetNumRadicalElectrons() or a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()):
-        raise UnsupportedStructure("isotopes, radicals and stereodescriptors of a spiro union are not supported yet")
-    if any(b.GetStereo() != Chem.BondStereo.STEREONONE for b in mol.GetBonds()):
-        raise UnsupportedStructure("double-bond stereo of a spiro union is not supported yet")
-    lam, cationic = _spiro_atom(mol, spiro)
-    if any(a.GetFormalCharge() and a.GetIdx() != spiro for a in mol.GetAtoms()):
-        raise UnsupportedStructure("a charge away from the spiro atom is not supported yet")
-    ring_atoms = comps[0]["atoms"] | comps[1]["atoms"]
-    graph = adjacency(mol)
-    if not cationic:
-        for a in mol.GetAtoms():
-            if a.GetIdx() not in ring_atoms and a.GetAtomicNum() != 6 and a.GetAtomicNum() not in _HALOGENS:
-                raise UnsupportedStructure("a spiro union with a principal characteristic group is not supported yet")
-
-    spiro_hetero = mol.GetAtomWithIdx(spiro).GetAtomicNum() != 6
-    if spiro_hetero and not lam and not any(c["von_baeyer"] for c in comps):
-        raise UnsupportedStructure("a standard-valence heteroatom at the spiro atom is not supported without a bridged component")
-    named = [_component(mol, c, spiro_hetero and not lam and any(c2["von_baeyer"] for c2 in comps)) for c in comps]
-    inner = spiro_hetero and bool(lam) and any(n["replacement"] for n in named)
-    if inner and all(n["replacement"] for n in named):
-        raise UnsupportedStructure("a nonstandard spiro heteroatom between two skeletal replacement components is not supported yet")
-    for n in named:
-        if inner and n["replacement"]:
-            n["display"] = f"1-{_A_PREFIX[mol.GetAtomWithIdx(spiro).GetAtomicNum()]}{n['name']}"
-        else:
-            n["display"] = n["name"]
-    capable = set()
-    polycyclic_bonds = set()
-    monocyclic_bonds = set()
-    replacement_atoms = set()
-    for comp, n in zip(comps, named):
-        if n["fused"]:
-            capable |= _capable(mol, comp, {spiro})
-            polycyclic_bonds |= comp["bonds"]
-        elif n["replacement"]:
-            replacement_atoms |= {
-                a for a in comp["atoms"] if mol.GetAtomWithIdx(a).GetAtomicNum() != 6 and not (inner and a == spiro)
-            }
-        else:
-            monocyclic_bonds |= comp["bonds"]
-    if lam and not cationic:
-        if lam - 4 > 1:
-            raise UnsupportedStructure("a spiro atom with several multiple bonds is not supported yet")
-        if lam - 4 == 1 and any(n["fused"] for n in named):
-            capable.add(spiro)
-    saturated, choices = _hydrogen_choices(mol, capable, polycyclic_bonds, monocyclic_bonds)
-
-    order = sorted(range(2), key=lambda i: _name_key(named[i]["display"]))
-    identical = named[0]["display"] == named[1]["display"]
-    orientations = [order] if not identical else [[0, 1], [1, 0]]
-    best = None
-    for first, second in orientations:
-        if named[second]["numberings"][0][1]:
-            raise UnsupportedStructure("the locants of an unsaturated second component are not supported yet")
-        for (n1, ene1), (n2, _) in product(named[first]["numberings"], named[second]["numberings"]):
-            locant_of = {a: l for a, l in n1.items()}
-            for a, l in n2.items():
-                if a != spiro:
-                    locant_of[a] = _primed(l, 1)
-            spiro_locants = (n1[spiro], _primed(n2[spiro], 1))
-            hetero = sorted(replacement_atoms, key=lambda a: (HETERO_RANK[mol.GetAtomWithIdx(a).GetSymbol()], _lk(locant_of[a])))
-            heteroatoms = (
-                sorted(_lk(locant_of[a]) for a in hetero),
-                [_lk(locant_of[a]) for a in hetero],
-                [-(_bonding_number(mol.GetAtomWithIdx(a)) or 0) for a in sorted(hetero, key=lambda a: _lk(locant_of[a]))],
-            )
-            grouped = _prefixes(mol, graph, ring_atoms, locant_of)
-            locant_set = sorted((_lk(l) for info in grouped.values() for l in info["locants"]))
-            citation = tuple(
-                _lk(l) for name in sorted(grouped, key=alpha_sort_key) for l in sorted(grouped[name]["locants"], key=_lk)
-            )
-            choice = min(
-                (
-                    (sorted(_lk(locant_of[a]) for a in picked), sorted(_lk(locant_of[a]) for a in saturated - picked), picked)
-                    for picked in choices
-                ),
-                key=lambda c: (c[0], c[1]),
-            )
-            unsaturation = sorted(choice[1] + [_lk(str(x)) for x in ene1])
-            key = (sorted(_lk(l) for l in spiro_locants), heteroatoms, choice[0], unsaturation, locant_set, citation)
-            if best is None or key < best[0]:
-                best = (key, (first, second), spiro_locants, locant_of, choice[2], grouped, ene1)
-    _, (first, second), spiro_locants, locant_of, picked, grouped, ene = best
-    shown = []
-    for i in (first, second):
-        text = named[i]["name"]
-        if inner and named[i]["replacement"]:
-            text = f"{spiro_locants[0 if i == first else 1]}-{_A_PREFIX[mol.GetAtomWithIdx(spiro).GetAtomicNum()]}{text}"
-        shown.append(text)
-    first_name = _ene_name(shown[0], ene)
-    second_name = shown[1]
-    replacement_prefix = _replacement_prefixes(mol, replacement_atoms, locant_of) if replacement_atoms else ""
-
-    indicated = ",".join(f"{locant_of[a]}H" for a in sorted(picked, key=lambda a: _lk(locant_of[a])))
-    hydro_atoms = sorted(saturated - picked, key=lambda a: _lk(locant_of[a]))
-    hydro = f"{','.join(locant_of[a] for a in hydro_atoms)}-{multiplied_word(len(hydro_atoms), 'hydro')}" if hydro_atoms else ""
-    prefixes = format_substituent_prefixes(grouped) if grouped else ""
-
-    lowest = min(spiro_locants, key=_lk)
-    lam_mark = f"λ{lam}" if lam else ""
-    if identical:
-        front = f"{spiro_locants[0]}{lam_mark},{spiro_locants[1]}-spirobi[{first_name}]"
-    else:
-        front = f"{lowest}{lam_mark}-" if lam else ""
-        front += f"spiro[{first_name}-{spiro_locants[0]},{spiro_locants[1]}-{second_name}]"
-    if replacement_prefix:
-        front = replacement_prefix + ("-" if identical or lam else "") + front
-    if cationic:
-        last = second_name
-        if last.endswith("e"):
-            front = front[: -len(last) - 1] + last[:-1] + "]"
-        front += f"-{lowest}-ylium"
-    core = front
-
-    out = prefixes
-    for token in (hydro, indicated, core):
-        if not token:
-            continue
-        joined = out and (token[0].isdigit() or token[0] in "[(" or out.endswith("H"))
-        out += ("-" if joined else "") + token
-    return out

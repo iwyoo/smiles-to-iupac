@@ -938,8 +938,12 @@ def _is_appendix3_system(mol, atoms):
     except Exception:
         return False
 def system_numberings(mol, graph, rings, skeleton_atoms):
+    from ._polyspiro_union import has_spiro_union_shape, spiro_union_numberings
+
     if _is_appendix3_system(mol, skeleton_atoms):
         raise UnsupportedStructure("an Appendix 3 retained parent has its own numbering, not a fusion numbering (P-101)")
+    if has_spiro_union_shape(mol, set(skeleton_atoms)):
+        return spiro_union_numberings(mol, graph, skeleton_atoms)
     if is_bridged_fusion_system(mol, skeleton_atoms) and not _plain_fused(mol, skeleton_atoms):
         try:
             return _bridged_numberings(mol, skeleton_atoms)
