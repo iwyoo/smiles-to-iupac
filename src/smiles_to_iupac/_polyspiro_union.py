@@ -5,6 +5,7 @@ components in order of occurrence from the alphabetically lower terminal; three 
 central component with terminal ones is cited by P-24.7.1 and P-24.7.2.
 """
 
+import re
 from collections import defaultdict
 from itertools import permutations, product
 
@@ -12,7 +13,8 @@ from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, multiplied_word
 from ._fused_numbering import HETERO_RANK
-from ._numerals import multiplying_prefix
+from ._numerals import alkane_name, multiplying_prefix, numerical_term
+from ._polyspiro import _arc_choice_options, _build_sequence, _chain_direction_candidates
 from ._spiro_union import (
     _A_PREFIX,
     _HALOGENS,
@@ -33,7 +35,7 @@ from ._substituents import format_substituent_prefixes
 _MAX_ASSIGNMENTS = 200000
 
 
-def _structure(mol):
+def _raw_structure(mol):
     if len(Chem.GetMolFrags(mol)) != 1:
         return None
     comps = _components(mol)
@@ -46,6 +48,10 @@ def _structure(mol):
     spiro = {a: members for a, members in membership.items() if len(members) > 1}
     if any(len(members) > 3 for members in spiro.values()) or sum(len(m) - 1 for m in spiro.values()) != len(comps) - 1:
         return None
+    return comps, spiro
+
+
+def _connected(spiro, count):
     neighbours = defaultdict(set)
     for members in spiro.values():
         for i in members:
@@ -56,8 +62,73 @@ def _structure(mol):
             if n not in seen:
                 seen.add(n)
                 queue.append(n)
-    if len(seen) != len(comps):
+    return len(seen) == count
+
+
+def _merge_units(comps, spiro):
+    parent = list(range(len(comps)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    internal = {
+        s for s, members in spiro.items() if len(members) == 2 and all(comps[m]["rings"] == 1 for m in members)
+    }
+    for s in internal:
+        i, j = spiro[s]
+        parent[find(i)] = find(j)
+    groups = defaultdict(list)
+    for i in range(len(comps)):
+        groups[find(i)].append(i)
+    if all(len(g) == 1 for g in groups.values()):
         return None
+    merged, index_of = [], {}
+    for g in groups.values():
+        if len(g) == 1:
+            merged.append(comps[g[0]])
+        else:
+            merged.append(
+                {
+                    "atoms": set().union(*(comps[i]["atoms"] for i in g)),
+                    "bonds": set().union(*(comps[i]["bonds"] for i in g)),
+                    "rings": len(g),
+                    "von_baeyer": False,
+                    "unit": [comps[i] for i in g],
+                    "internal": sorted(s for s in internal if spiro[s][0] in g),
+                }
+            )
+        for i in g:
+            index_of[i] = len(merged) - 1
+    outer = {}
+    for s, members in spiro.items():
+        if s in internal:
+            continue
+        mapped = sorted({index_of[m] for m in members})
+        if len(mapped) != len(members):
+            return None
+        outer[s] = mapped
+    return merged, outer
+
+
+def _structure(mol):
+    raw = _raw_structure(mol)
+    if raw is None or not _connected(raw[1], len(raw[0])):
+        return None
+    comps, spiro = raw
+    if _shape(spiro, len(comps))[0] is None:
+        merged = _merge_units(comps, spiro)
+        if merged is None:
+            return None
+        comps, spiro = merged
+        if not _connected(spiro, len(comps)):
+            return None
+    neighbours = defaultdict(set)
+    for members in spiro.values():
+        for i in members:
+            neighbours[i].update(m for m in members if m != i)
     return comps, spiro, neighbours
 
 
@@ -161,12 +232,80 @@ def _hub_layouts(spiro, names, count):
     return layouts
 
 
+def _unit_component(mol, comp):
+    members = comp["unit"]
+    if any(m["rings"] != 1 for m in members):
+        raise UnsupportedStructure("a spiro unit of rings with several ring systems is not supported yet")
+    for bond_idx in comp["bonds"]:
+        if mol.GetBondWithIdx(bond_idx).GetBondTypeAsDouble() != 1.0:
+            raise UnsupportedStructure("unsaturated monocyclic spiro units are not supported yet")
+    internal = comp["internal"]
+    atom_rings = [m["atoms"] for m in members]
+    if len(internal) != len(members) - 1:
+        raise UnsupportedStructure("this spiro unit is not an unbranched chain of rings")
+    count = len(members)
+    holders = {s: [i for i, r in enumerate(atom_rings) if s in r] for s in internal}
+    if any(len(h) != 2 for h in holders.values()):
+        raise UnsupportedStructure("this spiro unit is not an unbranched chain of rings")
+    degree = defaultdict(list)
+    for s, (i, j) in holders.items():
+        degree[i].append(j)
+        degree[j].append(i)
+    ends = [i for i in range(count) if len(degree[i]) == 1]
+    if len(ends) != 2 or any(len(degree[i]) > 2 for i in range(count)):
+        raise UnsupportedStructure("this spiro unit is not an unbranched chain of rings")
+    order = [ends[0]]
+    while len(order) < count:
+        order.append(next(n for n in degree[order[-1]] if n not in order))
+    chain_atoms = tuple(next(s for s, h in holders.items() if set(h) == {x, y}) for x, y in zip(order, order[1:]))
+    graph = adjacency(mol)
+    hetero = [a for a in comp["atoms"] if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
+    prefix = numerical_term(len(chain_atoms)) + "spiro" if len(chain_atoms) > 1 else "spiro"
+    best, candidates = None, []
+    for ring_order, spiros in _chain_direction_candidates(tuple(order), chain_atoms, atom_rings):
+        options = _arc_choice_options(graph, atom_rings, ring_order, spiros)
+        first_rest = atom_rings[ring_order[0]] - {spiros[0]}
+        last_rest = atom_rings[ring_order[-1]] - {spiros[-1]}
+        for start in (a for a in graph[spiros[0]] if a in first_rest):
+            for end in (a for a in graph[spiros[-1]] if a in last_rest):
+                for choices in product(*options):
+                    seq, descriptor, superscripts = _build_sequence(graph, atom_rings, ring_order, spiros, start, end, choices)
+                    if count == 2:
+                        superscripts[-1] = None
+                    locants = {a: str(i + 1) for i, a in enumerate(seq)}
+                    descriptor_text = ".".join(
+                        str(n) if sup is None else f"{n}^{locants[sup]}" for n, sup in zip(descriptor, superscripts)
+                    )
+                    parent = f"{prefix}[{descriptor_text}]{alkane_name(len(seq))}"
+                    hetero_locants = sorted(int(locants[a]) for a in hetero)
+                    key = (sorted(int(locants[x]) for x in spiros), tuple(descriptor), hetero_locants)
+                    candidates.append((key, locants, parent))
+    best = min(k for k, _, _ in candidates)
+    kept = [(loc, parent) for k, loc, parent in candidates if k == best]
+    parents = {parent for _, parent in kept}
+    if len(parents) != 1:
+        raise UnsupportedStructure("this spiro unit has no unique descriptor")
+    (parent,) = parents
+
+    def text(numbering):
+        return (_replacement_prefixes(mol, hetero, numbering) if hetero else "") + parent
+
+    return {
+        "name": parent,
+        "numberings": [(loc, ()) for loc, _ in kept],
+        "replacement": False,
+        "fused": False,
+        "unit": True,
+        "text": text,
+    }
+
+
 def _blocks(layout):
     group_of = {c: gi for gi, group in enumerate(layout["groups"]) for c in group}
     flat_index = {c: i for i, c in enumerate(layout["flat"])}
     blocks = defaultdict(list)
     for s, x, y in layout["links"]:
-        early, late = sorted((x, y), key=flat_index.get)
+        early, late = sorted((x, y), key=lambda c: (group_of[c], flat_index[c]))
         blocks[max(group_of[early], group_of[late])].append((flat_index[late], flat_index[early], s, early, late))
     return {gi: [entry[2:] for entry in sorted(entries)] for gi, entries in blocks.items()}
 
@@ -198,7 +337,12 @@ def name_polyspiro_union(mol) -> str:
             if not any(comps[m]["von_baeyer"] for m in members):
                 raise UnsupportedStructure("a standard-valence heteroatom at the spiro atom is not supported without a bridged component")
             forced.update(members)
-    named = [_component(mol, c, i in forced) for i, c in enumerate(comps)]
+    named = [_unit_component(mol, c) if "unit" in c else _component(mol, c, i in forced) for i, c in enumerate(comps)]
+    if any("unit" in c for c in comps) and any(
+        mol.GetAtomWithIdx(s).GetAtomicNum() != 6 and info[s][0] and any("unit" in comps[m] for m in members)
+        for s, members in spiro.items()
+    ):
+        raise UnsupportedStructure("a nonstandard spiro heteroatom of a spiro unit is not supported yet")
 
     inner = defaultdict(list)
     for s, members in spiro.items():
@@ -211,6 +355,8 @@ def name_polyspiro_union(mol) -> str:
     names = {}
     for i, n in enumerate(named):
         n["display"] = n["name"]
+        if "text" in n:
+            n["display"] = n["text"](n["numberings"][0][0])
         if i in inner:
             n["display"] = _replacement_prefixes(mol, inner[i], {a: "1" for a in inner[i]}, with_lambda=False) + n["name"]
         names[i] = n["display"]
@@ -325,7 +471,7 @@ def name_polyspiro_union(mol) -> str:
         return _primed(assignment[c][0][s], prime_of[c])
 
     def shown(c):
-        text = named[c]["name"]
+        text = named[c]["text"](assignment[c][0]) if "text" in named[c] else named[c]["name"]
         if c == flat[0] and ene:
             text = _ene_name(text, ene)
         if c in inner:
@@ -356,6 +502,7 @@ def name_polyspiro_union(mol) -> str:
         )
     )
     count = multiplying_prefix(len(spiro)) if len(spiro) > 1 else ""
+    opening, closing = ("{", "}") if any("unit" in c for c in comps) else ("[", "]")
     kind = layout["kind"]
     identical_chain = kind == "chain" and len(comps) == 3 and len({names[c] for c in range(3)}) == 1
     if kind == "hub_ter":
@@ -363,23 +510,26 @@ def name_polyspiro_union(mol) -> str:
         locants = sorted((locant_in(hub, c) for c in flat), key=_lk)
         lam = info[hub][0]
         last = shown(flat[0])
-        body = f"{','.join([f'{locants[0]}λ{lam}' if lam else locants[0], *locants[1:]])}-spiroter[{last}]"
+        body = f"{','.join([f'{locants[0]}λ{lam}' if lam else locants[0], *locants[1:]])}-spiroter{opening}{last}{closing}"
     elif identical_chain:
         if lam_front:
             raise UnsupportedStructure("a nonstandard spiro atom in three identical components is not supported yet")
         pairs = ":".join(pair_text(gi) for gi in sorted(blocks))
         last = shown(flat[0])
-        body = f"{pairs}-{count}spiroter[{last}]"
+        body = f"{pairs}-{count}spiroter{opening}{last}{closing}"
     else:
         parts = []
         for gi, group in enumerate(groups):
             if gi:
                 parts.append(pair_text(gi))
-            parts.append(group_text(group))
+            text = group_text(group)
+            if gi and "unit" in comps[group[0]] and text[0].isdigit():
+                text = re.sub(r"^([^-]+)-", r"[\1]", text)
+            parts.append(text)
         last = parts[-1]
         if kind == "hub_different":
             parts[2] = f"({parts[2]})"
-        body = f"{count}spiro[{'-'.join(parts)}]"
+        body = f"{count}spiro{opening}{'-'.join(parts)}{closing}"
         if lam_front and kind != "hub_ter":
             body = f"{lam_front}-{body}"
     replacement_prefix = _replacement_prefixes(mol, replacement_atoms, locant_of) if replacement_atoms else ""
@@ -387,7 +537,7 @@ def name_polyspiro_union(mol) -> str:
         body = replacement_prefix + ("-" if body[0].isdigit() else "") + body
     if cationic:
         if last.endswith("e") and not last.endswith(")"):
-            body = body[: -len(last) - 1] + last[:-1] + "]"
+            body = body[: -len(last) - 1] + last[:-1] + closing
         lowest = min((locant_in(cationic[0], m) for m in spiro[cationic[0]]), key=_lk)
         body += f"-{lowest}-ylium"
 

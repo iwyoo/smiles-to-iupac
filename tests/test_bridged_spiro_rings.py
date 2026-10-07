@@ -822,3 +822,20 @@ def test_adamantane_component_of_a_spiro_union_is_not_given_a_von_baeyer_name():
 )
 def test_monospiro_union_with_an_unsaturated_hetero_monocycle(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C1=CC2(C=Cc3ccccc3C2)C=C2CC3(C=Cc4ccccc4C3)CC=C12", "1H,1′H,1′′H,3′H-2,2′:7′,2′′-dispiroter[naphthalene]", id="three_identical_fused_components_with_indicated_hydrogen"),
+        pytest.param("C1CCC2C(C1)C21C2CCC3(CCCC4OC43)CC21", "7-oxa-2,3′:7′,7′′-dispiroter[bicyclo[4.1.0]heptane]", id="three_identical_von_baeyer_components_with_replacement_prefix"),
+        pytest.param("c1ccc2c(c1)OS13(O2)(Oc2ccccc2O1)Oc1ccccc1O3", "2λ6,2′,2′′-spiroter[[1,3,2]benzodioxathiole]", id="three_identical_components_on_one_nonstandard_atom"),
+        pytest.param("c1ccc2c(c1)OS13(O2)(Oc2ccccc2O1)Oc1ccccc1S3", "2λ6-spiro[bis([1,3,2]benzodioxathiole)-2,2′′:2′,2′′-[1,2,3]benzoxadithiole]", id="two_identical_components_and_a_third_on_one_atom"),
+        pytest.param("c1ccc2c(c1)OS13(O2)(Oc2ccccc2S1)c1ccccc1-c1ccccc13", "2λ6-spiro[[1,3,2]benzodioxathiole-2,2′-([1,2,3]benzoxadithiole)-2,5′′-dibenzo[b,d]thiophene]", id="three_different_components_on_one_atom"),
+        pytest.param("C1=CS23(C=CC14CCCC4)(Oc1ccccc1O2)Oc1ccccc1O3", "1′′λ6-dispiro[bis([1,3,2]benzodioxathiole)-2,1′′:2′,1′′-thiopyran-4′′,1′′′-cyclopentane]", id="central_component_with_terminals_sharing_a_nonstandard_atom"),
+        pytest.param("C1C2(C3C4C3C3C4C32)C2(C3C4C3C3C4C32)C12OC21C2C3C2C2C3C21", "trispiro{1-oxaspiro[2.3]hexane-2,3′:4,3′′:5,3′′′-tris(tetracyclo[3.2.0.0^2,7.0^4,6]heptane)}", id="monocyclic_unit_as_central_component_of_identical_terminals"),
+        pytest.param("C1CCC2(CC1)CC1(OC3=C(S1)C1(CCCCC1)OC31CCCCC1)C1(CCCCC1)O2", "trispiro{bis(cyclohexane)-1,4′:1′′,6′-furo[3,4-d][1,3]oxathiole-2′,14′′′-[7]oxadispiro[5.1.5^8.2^6]pentadecane}", id="monocyclic_unit_as_terminal_component_beside_repeated_terminals"),
+    ],
+)
+def test_polyspiro_union_with_polycyclic_components(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
