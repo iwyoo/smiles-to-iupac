@@ -63,3 +63,10 @@ def test_side_chain_double_bond_geometry(geometry, expected):
     # P-101.6.2
     smiles = f"C[C@H](C{geometry}C(C)C)[C@H]1CC[C@@H]2[C@@]1(CC[C@H]3[C@H]2CC[C@@H]4[C@@]3(CCCC4)C)C"
     assert smiles_to_iupac(smiles) == expected
+
+
+
+
+def test_stereo_centre_inside_a_steroid_ester_alkyl_is_cited():
+    smiles = "C[C@H](CC)OC(=O)[C@H]1CC[C@H]2[C@@H]3CC=C4C[C@@H](O)CC[C@]4(C)[C@H]3CC[C@]12C"
+    assert smiles_to_iupac(smiles) == "(2R)-butan-2-yl 3β-hydroxyandrost-5-ene-17β-carboxylate"

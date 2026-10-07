@@ -57,13 +57,19 @@ def _anion_name(frag):
     return smiles_to_iupac(Chem.MolToSmiles(frag)), charge
 
 
+# 'di' + a mononuclear onium would read as the dinuclear parent (diazanium = N2H5+)
+_MONONUCLEAR_ONIUM = frozenset(
+    {"azanium", "phosphanium", "arsanium", "stibanium", "bismuthanium", "oxidanium", "sulfanium", "selanium", "telluranium"}
+)
+
+
 def _counted(entries):
     """Cited text for (name, count, simple) entries in alphabetical order with multiplying prefixes."""
     parts = []
     for name, count, simple in sorted(entries, key=lambda e: alpha_sort_key(e[0])):
         if count == 1:
             parts.append(name)
-        elif simple and name.isalpha():
+        elif simple and name.isalpha() and name not in _MONONUCLEAR_ONIUM:
             parts.append(multiplying_prefix(count) + name)
         else:
             parts.append(multiplying_prefix(count, compound=True) + f"({name})")

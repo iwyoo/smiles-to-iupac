@@ -10,7 +10,7 @@ import re
 from rdkit import Chem
 
 from ._alkoxy import alkoxy_prefix
-from ._common import UnsupportedStructure, alpha_sort_key
+from ._common import UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen
 from ._free_valence import SUFFIX_OF_ORDER
 from ._multiplicative_text import enclose
 from ._numerals import alkane_name
@@ -279,6 +279,10 @@ def _ring_nitrogen_acyl(graph, x, root, halogens, aromatic_atoms, mol, infix):
     return name[: ending.start()] + "e-" + ending.group(1) + "-" + infix, True
 
 
+def _amino_stem(amino):
+    return "phenyl" if amino == "anilino" else amino[: -len("amino")]
+
+
 def _amino(names):
     if not names:
         return "amino"
@@ -457,7 +461,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
     if z == 7:
         oxygens = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 8]
         if len(oxygens) == len(others) and others:
-            if len(oxygens) == 2 and atom.GetTotalDegree() == 3:
+            if len(oxygens) == 2 and is_nitro_nitrogen(mol, root):
                 return "nitro", False
             if len(oxygens) == 1 and mol.GetBondBetweenAtoms(root, oxygens[0]).GetBondTypeAsDouble() == 2.0:
                 return "nitroso", False
@@ -596,7 +600,7 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if len(subs) == 1 and _is_amino_nitrogen(mol, subs[0], x):
             return "hydrazinecarbonyl", True
         name = _amino(_group_names(graph, mol, subs, x, halogens, aromatic_atoms))
-        return name[: -len("amino")] + "carbamoyl", True
+        return _amino_stem(name) + "carbamoyl", True
     if z == 6:
         try:
             name = _acyl_name(mol, graph, root, coming_from, halogens, aromatic_atoms)
@@ -754,7 +758,7 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if mol.GetAtomWithIdx(x).IsInRing():
             return _ring_nitrogen_acyl(graph, x, root, halogens, aromatic_atoms, mol, "sulfonyl")
         name = _amino(_group_names(graph, mol, subs, x, halogens, aromatic_atoms))
-        return name[: -len("amino")] + "sulfamoyl", True
+        return _amino_stem(name) + "sulfamoyl", True
     if zx != 6 and not EXTENDED_PREFIXES.get():
         raise UnsupportedStructure("this sulfur-linked group is not supported yet")
     spec = make_spec(center, symbols, ("O",))

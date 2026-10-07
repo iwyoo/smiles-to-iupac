@@ -606,3 +606,13 @@ _P72_COVERAGE = [
 @pytest.mark.parametrize(("smiles", "expected"), _P72_COVERAGE)
 def test_p72_prefixes_chains_fusion_and_retained_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_ammonium_counter_ion_multiplied_with_bis_to_avoid_diazane_reading():
+    assert smiles_to_iupac("[NH4+].[NH4+].[O-]S(=O)(=O)[O-]") == "bis(azanium) sulfate"
+
+
+@pytest.mark.parametrize("smiles", ["CN.[O-]S(=O)(=O)O", "CI(C)C", "c1ccc(I(c2ccccc2)OS(=O)(=O)C)cc1"])
+def test_unaccounted_fragment_or_polyvalent_halogen_is_never_dropped(smiles):
+    with pytest.raises(NotImplementedError):
+        smiles_to_iupac(smiles)

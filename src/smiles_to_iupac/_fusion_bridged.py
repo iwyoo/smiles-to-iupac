@@ -292,6 +292,8 @@ def _decompositions(mol, graph, fused, cluster, cache, fused_rings):
     for comps in partitions:
         owner = {a: i for i, c in enumerate(comps) for a in c}
         fused_bonds = [[(b, n, _order(mol, b, n)) for b in c for n in graph[b] if n in fused] for c in comps]
+        if len({f for fb in fused_bonds for _, f, _ in fb}) < 2:
+            continue
         links = [[] for _ in comps]
         for a, b in sub.edges():
             if owner[a] != owner[b]:

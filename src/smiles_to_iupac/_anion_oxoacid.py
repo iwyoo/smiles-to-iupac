@@ -37,6 +37,8 @@ def oxoacid_center(mol):
 
 
 def name_oxoacid_anion(mol, center):
+    if len(Chem.GetMolFrags(mol)) != 1:
+        raise UnsupportedStructure("a multi-fragment structure is not named by one oxoacid anion")
     if any(s.specified == Chem.StereoSpecified.Specified for s in Chem.FindPotentialStereo(mol)):
         raise UnsupportedStructure("the stereochemistry of an oxoacid ester anion is not cited yet")
     if len(set(a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge() > 0)) or len(mol.GetAtoms()) < 2:

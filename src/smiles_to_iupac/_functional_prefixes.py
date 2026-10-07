@@ -6,7 +6,7 @@ bottom-up so `name_branch`/`_name_acyl_part` can cite them as plain leaves: hydr
 from rdkit import Chem
 
 from ._alkoxy import alkoxy_prefix
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, alpha_sort_key
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen
 from ._hetero_prefixes import (
     ANIONIC_PREFIXES,
     CHALCOGEN_PREFIXES,
@@ -33,14 +33,6 @@ def _is_compound(name):
 
 def _bond_order(mol, a, b):
     return mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble()
-
-
-def is_nitro_nitrogen(mol, idx):
-    atom = mol.GetAtomWithIdx(idx)
-    if atom.GetAtomicNum() != 7 or atom.GetDegree() != 3:
-        return False
-    oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1]
-    return len(oxygens) == 2 and atom.GetFormalCharge() in (0, 1)
 
 
 def nitro_atoms(mol):

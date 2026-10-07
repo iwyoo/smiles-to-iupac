@@ -425,3 +425,8 @@ def test_ring_seniority_ranks_every_heteroatom_of_the_element_order(smiles, expe
 )
 def test_substituted_metal_linker_and_principal_group_count_between_parents(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_ring_unit_with_three_different_attachments_is_not_cited_as_a_triyl():
+    with pytest.raises(NotImplementedError):
+        smiles_to_iupac("CC(c1cc(CCCCS)c(CCCCS)cc1)C(C)c1cc(CCCCS)c(CCCCS)cc1")

@@ -11,7 +11,7 @@ from rdkit.Chem import AllChem, rdCIPLabeler
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents, multiplied_word
 from ._numerals import multiplying_prefix
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import cited_branch_stereo, format_substituent_prefixes, name_branch
 
 _RING_BONDS = [
     (1, 2), (2, 3), (3, 4), (4, 5), (5, 10), (10, 1), (5, 6), (6, 7), (7, 8), (8, 9), (9, 10),
@@ -394,10 +394,17 @@ def _assemble(mol, stem, mappings, ring_atoms):
             prefix_groups.setdefault(_PREFIX[cls], {"locants": [], "compound": False})["locants"].append(
                 Loc(position, _anchor_face(faces, atoms, extra))
             )
-    named = [
-        (position, root, *name_branch(graph, root, mapping[position], halogens, frozenset(), mol=mol, unsaturated=True))
-        for position, root in branches
-    ]
+    ester_roots = [extra["ester"][1] for _, _, extra in classes.get("ester", []) if principal == "ester"]
+    with cited_branch_stereo(mol, graph, set(mapping.values()), [root for _, root in branches] + ester_roots):
+        named = [
+            (position, root, *name_branch(graph, root, mapping[position], halogens, frozenset(), mol=mol, unsaturated=True))
+            for position, root in branches
+        ]
+        ester_alkyls = [
+            name_branch(graph, extra["ester"][1], extra["ester"][0], halogens, frozenset(), mol=mol, unsaturated=True)
+            for _, _, extra in classes.get("ester", [])
+            if principal == "ester"
+        ]
     repeats = Counter((position, name) for position, _, name, _ in named)
     for position, root, name, compound in named:
         face = "" if repeats[(position, name)] > 1 else faces.get(root, "")
@@ -417,9 +424,7 @@ def _assemble(mol, stem, mappings, ring_atoms):
         locants = [str(Loc(p, _anchor_face(faces, atoms, extra))) for p, atoms, extra in members]
         if principal == "ester":
             alkyls = {}
-            for _, _, extra in members:
-                oxygen, alkyl = extra["ester"]
-                name, compound = name_branch(graph, alkyl, oxygen, halogens, frozenset(), mol=mol, unsaturated=True)
+            for name, compound in ester_alkyls:
                 alkyls[name] = compound
             if len(alkyls) != 1:
                 raise UnsupportedStructure("esters with different alkyl groups on a steroid are not supported")

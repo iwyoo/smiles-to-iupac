@@ -302,6 +302,16 @@ def name_monocyclic_unit(mol, ring_atoms, junction, linker_atom, groups, unit_at
     )
 
 
+def _branch_key(mol, ring_atoms, root):
+    seen, stack = {root}, [root]
+    while stack:
+        for n in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
+            if n.GetIdx() not in seen and n.GetIdx() not in ring_atoms:
+                seen.add(n.GetIdx())
+                stack.append(n.GetIdx())
+    return Chem.MolFragmentToSmiles(mol, atomsToUse=sorted(seen), rootedAtAtom=root)
+
+
 def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name_function=None, directed=None):
     """(name, has_prefix) of a monocyclic ring used as a linker component, or
     None. `attachments`: [(ring_atom, external_atom)] for each free valence;
@@ -311,6 +321,8 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
     if spec is None:
         return _ring_system_component(mol, ring_atoms, attachments, directed)
     free_atoms = [a for a, _ in attachments]
+    if len(free_atoms) > 2 and len({_branch_key(mol, ring_atoms, b) for _, b in attachments}) > 1:
+        return None
     roots = _ring_roots(mol, spec, set(attachments))
     entries = _prefix_entries(mol, roots, groups, suffix_group, name_function)
     from ._diester_ring_diyl import _marked_centers, _with_anion_centers

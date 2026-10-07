@@ -439,7 +439,7 @@ def _suffix_links(mol, links, keep, cap_of):
     """The `links` whose acid centre the polyfunctional engine cites as a suffix group when every link of `links`
     is turned into a free acid (P-44.1.1): when one parent cannot carry them all, the other links stay as ester or
     halide groups and are cited as prefixes of that acid. All of `links` when the parent cannot be determined."""
-    from ._polyfunctional import _select
+    from ._polyfunctional import _group_of, _principal_class, _ring_occurrences, _select
 
     editable = Chem.RWMol(mol)
     for atom in editable.GetAtoms():
@@ -459,10 +459,22 @@ def _suffix_links(mol, links, keep, cap_of):
         return list(links)
     origin = {a.GetIdx(): a.GetIntProp("_origin") for a in acid.GetAtoms()}
     parent = {origin[i] for i in position_of if i in origin}
+    occurrences = _ring_occurrences(acid)
+    class_at = {}
+    for a in acid.GetAtoms():
+        found = _group_of(acid, a.GetIdx())
+        if found is not None:
+            class_at[origin[a.GetIdx()]] = found[0]
+    for cls, _, owned in occurrences:
+        for i in owned:
+            class_at.setdefault(origin[i], cls)
+    principal = _principal_class(set(class_at.values()))
     kept = []
     for l in links:
         neighbours = {n.GetIdx() for n in mol.GetAtomWithIdx(l.center).GetNeighbors() if n.GetIdx() in keep}
-        if l.center in parent or neighbours & parent:
+        in_parent = l.center in parent or neighbours & parent
+        cls = class_at.get(l.center) or next((class_at[n] for n in neighbours if n in class_at), None)
+        if in_parent and (cls is None or principal is None or cls == principal):
             kept.append(l)
     return kept or list(links)
 
@@ -646,7 +658,7 @@ def _bridged_components(mol, links):
 def _locants_of(mol, atoms, centers, with_symmetry=False):
     """{centre: locant} of the acid groups `centers` in the substitutive name of the acid made of `atoms`;
     with `with_symmetry` also whether all the centres are equivalent in that acid (then no locants are needed)."""
-    from ._polyfunctional import _select
+    from ._polyfunctional import _group_of, _principal_class, _ring_occurrences, _select
 
     editable = Chem.RWMol(mol)
     for center in centers:
@@ -836,8 +848,9 @@ def name_acyl_halide(mol, links):
     centers = {l.center for l in halides}
     if len(centers) == 1 and _center(mol, next(iter(centers)))[0] == "cyanic":
         return "carbononitridic " + _class_words(mol, halides)
-    if len(halides) > 1 and all(l.kind == "halide" for l in halides):
-        suffixed = _suffix_links(mol, halides, range(mol.GetNumAtoms()), lambda l: l.far)
+    if len(halides) > 1:
+        beyond = set().union(*(_far_side(graph, l.far, l.center) - {l.far} for l in halides if l.kind == "pseudohalide"))
+        suffixed = _suffix_links(mol, halides, set(range(mol.GetNumAtoms())) - beyond, lambda l: l.far)
         if len(suffixed) < len(halides):
             halides = suffixed
     editable = Chem.RWMol(mol)

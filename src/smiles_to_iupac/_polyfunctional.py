@@ -1919,7 +1919,11 @@ def _stereo_arms(mol, stereo, parts_atoms, units):
 
 def _unit_molecule(mol, atoms, attach):
     editable = Chem.RWMol(mol)
-    editable.GetAtomWithIdx(attach).SetAtomMapNum(1)
+    root = editable.GetAtomWithIdx(attach)
+    root.SetAtomMapNum(1)
+    cut = sum(1 for n in root.GetNeighbors() if n.GetIdx() not in atoms)
+    if root.GetIsAromatic() and cut:
+        root.SetNumExplicitHs(root.GetNumExplicitHs() + cut)
     for idx in sorted(set(range(mol.GetNumAtoms())) - atoms, reverse=True):
         editable.RemoveAtom(idx)
     unit = editable.GetMol()

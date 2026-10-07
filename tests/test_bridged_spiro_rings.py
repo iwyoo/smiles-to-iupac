@@ -750,3 +750,22 @@ def test_bridged_fused_naming_does_not_write_rdkit_logs_to_stderr(capfd):
 )
 def test_principal_groups_on_hetero_bridged_and_spiro_systems(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C=C1CC2CCC1C2", "2-methylidenebicyclo[2.2.1]heptane"),
+        ("CC=C1CC2CC1C=C2", "5-ethylidenebicyclo[2.2.1]hept-2-ene"),
+        ("C=C1CC2CC3CC1CC2C3", "5-methylidenetricyclo[4.3.1.0^3,8]decane"),
+        ("CC=C1CC2CC1C1=C2C(C)C1", "7-ethylidene-3-methyltricyclo[4.2.1.0^2,5]non-2(5)-ene"),
+    ],
+)
+def test_von_baeyer_exocyclic_double_bond_is_an_ylidene_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize("smiles", ["C1CC2(CCNCC2)c2ccccc12", "O=C1OC2(CCCCC2)c2ccccc12"])
+def test_ring_spiro_joined_to_a_fused_system_is_not_a_bridge(smiles):
+    with pytest.raises(NotImplementedError):
+        smiles_to_iupac(smiles)

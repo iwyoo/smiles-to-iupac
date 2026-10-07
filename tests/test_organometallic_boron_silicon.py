@@ -929,3 +929,21 @@ def test_ylidene_substituent_on_heteroatom_attaching_a_prefix(smiles, expected):
 )
 def test_group_14_hydride_with_hydroxy_amino_alkoxy_and_halogen_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize("smiles", ["[Pb]=[Pb]", "[Sn]=[Sn]"])
+def test_non_single_bond_in_a_metal_chain_raises(smiles):
+    with pytest.raises(NotImplementedError):
+        smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("O1[SiH2]O[SiH2]O[SiH2]1", "1,3,5,2,4,6-trioxatrisilinane"),
+        ("C1N=PN=PN1", "1,6-dihydro-1,3,5,2,4-triazadiphosphinine"),
+        ("[CH3][Bi]1[O][Bi]([CH3])[O]1", "2,4-dimethyl-1,3,2,4-dioxadibismetane"),
+    ],
+)
+def test_alternating_heteroatom_ring_cites_every_heteroatom_locant(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

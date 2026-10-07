@@ -447,7 +447,7 @@ _RETAINED_WITHOUT_LOCANTS = {"piperazine", "morpholine", "thiomorpholine", "imid
 
 def _with_hetero_locants(stem, elements, hetero):
     names = [e for e in elements if e != "C"]
-    if stem in _RETAINED_WITHOUT_LOCANTS or len(names) < 2 or elements.count("C") <= 1:
+    if stem in _RETAINED_WITHOUT_LOCANTS or len(names) < 2 or (elements.count("C") <= 1 and len(set(names)) < 2):
         return stem
     pairs = sorted(zip(names, [p for p, _ in hetero]), key=lambda ep: (_RANK[ep[0]], ep[1]))
     return ",".join(str(p) for _, p in pairs) + "-" + stem
