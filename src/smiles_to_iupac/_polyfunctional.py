@@ -816,7 +816,7 @@ def _name_labelled(mol, labels, finish=None):
         if multiplicative is not None:
             if labels:
                 raise UnsupportedStructure("isotopic modification of a multiplicative name is not supported yet")
-            return multiplicative
+            return multiplicative if finish is None else finish(multiplicative, {})
         _, name, parts = _select(mol, stereo=stereo)
         LAST_POSITIONS.set((mol, dict(parts[4])))
         if labels:

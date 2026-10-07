@@ -191,7 +191,7 @@ def _organic_cation(frag):
     from .core import smiles_to_iupac
 
     charges = [a.GetFormalCharge() for a in frag.GetAtoms() if a.GetFormalCharge()]
-    if frag.GetNumAtoms() < 2 or charges != [1]:
+    if charges != [1]:
         return None
     try:
         name = smiles_to_iupac(Chem.MolToSmiles(frag))
