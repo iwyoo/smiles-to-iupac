@@ -13,7 +13,7 @@ from ._alkoxy import alkoxy_prefix
 from ._common import UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen
 from ._free_valence import SUFFIX_OF_ORDER
 from ._multiplicative_text import enclose
-from ._numerals import alkane_name
+from ._numerals import alkane_name, multiplying_prefix
 
 _ALKOXY_STEMS = {"methyl": "methoxy", "ethyl": "ethoxy", "propyl": "propoxy", "butyl": "butoxy", "phenyl": "phenoxy"}
 _SIMPLE_NAMES = {
@@ -40,6 +40,7 @@ _SENIOR_TO_SELENOL = [
         "[SX2H1][#6;!$([#6]=[O,S,Se,Te])]",
     )
 ]
+_AMINE = Chem.MolFromSmarts("[NX3;!$(N~[!#6;!#1]);!$(N-[#6]=[O,S,N])]-[CX4]")
 
 
 def require_plain_chalcogen_kids(mol, z, kids):
@@ -58,7 +59,11 @@ def require_plain_chalcogen_kids(mol, z, kids):
 def _has_senior_principal_group(mol):
     """A principal group senior to the hetero-hetero connection (hydroxylamine, hydrazine, peroxide classes) is
     present, so that connection is expressed as a prefix (P-41, P-29.4.1)."""
-    return any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL)
+    return any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL) or mol.HasSubstructMatch(_AMINE)
+
+
+def _chain_prefix_allowed(mol):
+    return EXTENDED_PREFIXES.get() or _has_senior_principal_group(mol)
 
 
 def require_senior_group(mol, z):
@@ -303,38 +308,49 @@ _CHAIN_HYDRO = {8: "hydroxy", 16: "sulfanyl", 34: "selanyl", 52: "tellanyl"}
 
 
 def _chalcogen_chain_group(graph, first, second, halogens, aromatic_atoms, mol):
-    """-Z1-Z2-H or -Z1-Z2-R substituent groups of two chalcogen atoms (P-63.4.2): 'hydroperoxy',
-    '(methylperoxy)', 'disulfanyl', '(sulfanyloxy)', '(hydroxysulfanyl)'."""
+    """-Z1-Z2...-H or -Z1-Z2...-R substituent groups of a run of chalcogen atoms (P-63.4.2): 'hydroperoxy',
+    '(methylperoxy)', 'disulfanyl', '(methyltrisulfanyl)', '(sulfanyloxy)', '(hydroxysulfanyl)'."""
     from ._substituents import name_branch
 
-    z1, z2 = mol.GetAtomWithIdx(first), mol.GetAtomWithIdx(second)
-    tail = [n for n in graph[second] if n != first]
+    run = [first, second]
+    while True:
+        onward = [n for n in graph[run[-1]] if n != run[-2]]
+        if len(onward) != 1 or mol.GetAtomWithIdx(onward[0]).GetAtomicNum() not in _CHAIN_ELEMENTS:
+            break
+        run.append(onward[0])
+    tail = onward
+    atoms = [mol.GetAtomWithIdx(i) for i in run]
     if (
-        z1.GetFormalCharge()
-        or z2.GetFormalCharge()
+        any(atom.GetFormalCharge() for atom in atoms)
         or len(tail) > 1
-        or mol.GetBondBetweenAtoms(first, second).GetBondTypeAsDouble() != 1.0
-        or any(mol.GetBondBetweenAtoms(second, n).GetBondTypeAsDouble() != 1.0 for n in tail)
+        or any(mol.GetBondBetweenAtoms(i, j).GetBondTypeAsDouble() != 1.0 for i, j in zip(run, run[1:]))
+        or any(mol.GetBondBetweenAtoms(run[-1], n).GetBondTypeAsDouble() != 1.0 for n in tail)
     ):
         raise UnsupportedStructure("this chalcogen chain is not supported yet")
-    a, b = z1.GetAtomicNum(), z2.GetAtomicNum()
     organyl = None
     if tail:
         if mol.GetAtomWithIdx(tail[0]).GetAtomicNum() != 6 or is_functional_carbon(mol, tail[0]):
             raise UnsupportedStructure("a functional group on a chalcogen chain is not supported yet")
-        organyl = name_branch(graph, tail[0], second, halogens, aromatic_atoms, mol=mol)
-    if a == b:
-        word = "peroxy" if a == 8 else "di" + _CHAIN_WORDS[a]
+        organyl = name_branch(graph, tail[0], run[-1], halogens, aromatic_atoms, mol=mol)
+    elif not any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL):
+        raise UnsupportedStructure("a peroxol or its chalcogen analogue outranks an amine as the principal group")
+    elements = [atom.GetAtomicNum() for atom in atoms]
+    if len(set(elements)) == 1:
+        if elements[0] == 8 and len(run) > 2:
+            raise UnsupportedStructure("an oxygen chain longer than a peroxy group is not supported yet")
+        word = "peroxy" if elements[0] == 8 else multiplying_prefix(len(run)) + _CHAIN_WORDS[elements[0]]
         if organyl is None:
-            return ("hydroperoxy" if a == 8 else word), False
+            return ("hydroperoxy" if elements[0] == 8 else word), False
         return _enclose(*organyl) + word, True
-    if organyl is None:
-        inner, inner_compound = _CHAIN_HYDRO[b], False
-    elif b == 8:
-        inner, inner_compound = _alkoxy(*organyl)
-    else:
-        inner, inner_compound = _enclose(*organyl) + _CHAIN_WORDS[b], True
-    return _enclose(inner, inner_compound) + _CHAIN_WORDS[a], True
+    inner = organyl
+    for z in reversed(elements[1:]):
+        if inner is None:
+            inner = _CHAIN_HYDRO[z], False
+        elif z == 8:
+            inner = _alkoxy(*inner)
+        else:
+            inner = _enclose(*inner) + _CHAIN_WORDS[z], True
+    return _enclose(*inner) + _CHAIN_WORDS[elements[0]], True
 
 
 def _thioacyl(mol, idx):
@@ -409,7 +425,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if mol.GetAtomWithIdx(other).GetAtomicNum() in MONONUCLEAR_HYDRIDES:
             silyl, _ = _mononuclear_group(graph, other, root, halogens, aromatic_atoms, mol)
             return _enclose(silyl, True) + "oxy", True
-        if EXTENDED_PREFIXES.get() and mol.GetAtomWithIdx(other).GetAtomicNum() in _CHAIN_ELEMENTS:
+        if mol.GetAtomWithIdx(other).GetAtomicNum() in _CHAIN_ELEMENTS and _chain_prefix_allowed(mol):
             return _chalcogen_chain_group(graph, root, other, halogens, aromatic_atoms, mol)
         if mol.GetAtomWithIdx(other).HasProp("_named_prefix"):
             return mol.GetAtomWithIdx(other).GetProp("_named_prefix") + "oxy", True
@@ -459,7 +475,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in MONONUCLEAR_HYDRIDES:
             silyl, _ = _mononuclear_group(graph, others[0], root, halogens, aromatic_atoms, mol)
             return _enclose(silyl, True) + word, True
-        if EXTENDED_PREFIXES.get() and mol.GetAtomWithIdx(others[0]).GetAtomicNum() in _CHAIN_ELEMENTS:
+        if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in _CHAIN_ELEMENTS and _chain_prefix_allowed(mol):
             return _chalcogen_chain_group(graph, root, others[0], halogens, aromatic_atoms, mol)
         from ._substituents import name_branch
 
