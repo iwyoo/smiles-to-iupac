@@ -442,7 +442,14 @@ def smiles_to_iupac(smiles: str) -> str:
 _RADICAL_ENDINGS = ("yl", "ylidene", "ylidyne", "yne", "ylium", "yloxy", "yliumyl")
 
 
+_HYDRIDE_RADICAL_ELEMENTS = {5, 13, 14, 15, 31, 32, 33, 49, 50, 51, 81, 82, 83}
+
+
 def _require_radicals_cited(mol, name):
+    if any(
+        a.GetNumRadicalElectrons() and a.GetAtomicNum() in _HYDRIDE_RADICAL_ELEMENTS for a in mol.GetAtoms()
+    ) and "λ" not in name and not name.rstrip(")]} ").endswith(_RADICAL_ENDINGS):
+        raise UnsupportedStructure("the name does not cite the radical centre of a skeletal heteroatom")
     if (
         not any(a.GetNumRadicalElectrons() for a in mol.GetAtoms())
         or any(a.GetFormalCharge() for a in mol.GetAtoms())
