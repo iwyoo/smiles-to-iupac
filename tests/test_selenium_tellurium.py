@@ -107,7 +107,6 @@ def test_phenyl_ditelluride_direct_bond():
         pytest.param("c1ccccc1[Te][TeH]", id="phenyl_ditelluride_teh_terminal_not_supported"),
         pytest.param("c1ccccc1[Te][Te]C(C)C", id="phenyl_ditelluride_branched_other_side_not_supported"),
         pytest.param("Cc1ccccc1[Te][Te]C", id="phenyl_ditelluride_substituted_ring_not_supported"),
-        pytest.param("C1CCC([N]=C=[Se])CC1", id="ring_not_supported"),
     ],
 )
 def test_phenyl_ditelluride_chain_and_related_raise(smiles):
@@ -117,19 +116,6 @@ def test_phenyl_ditelluride_chain_and_related_raise(smiles):
 
 def test_phenyl_isoselenocyanate_chain():
     assert smiles_to_iupac("c1ccccc1C[N]=C=[Se]") == "(isoselenocyanatomethyl)benzene"
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("Cc1ccccc1[N]=C=[Se]", id="phenyl_isoselenocyanate_substituted_ring_not_supported"),
-        pytest.param("C=CC[N]=C=[Se]", id="unsaturated_chain_not_supported"),
-        pytest.param("[Se]=C=NCN=C=[Se]", id="two_isoselenocyanate_groups_not_supported"),
-    ],
-)
-def test_phenyl_isoselenocyanate_substituted_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 def test_isothiocyanate_still_works():
@@ -147,26 +133,8 @@ def test_isotellurocyanate(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_ring_not_supported__isotellurocyanate():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCC([N]=C=[Te])CC1")
-
-
 def test_phenyl_isotellurocyanate_chain():
     assert smiles_to_iupac("c1ccccc1C[N]=C=[Te]") == "(isotellurocyanatomethyl)benzene"
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("Cc1ccccc1[N]=C=[Te]", id="phenyl_isotellurocyanate_substituted_ring_not_supported"),
-        pytest.param("C=CC[N]=C=[Te]", id="unsaturated_chain_not_supported__isotellurocyanate"),
-        pytest.param("[Te]=C=NCN=C=[Te]", id="two_isotellurocyanate_groups_not_supported"),
-    ],
-)
-def test_phenyl_isotellurocyanate_substituted_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(

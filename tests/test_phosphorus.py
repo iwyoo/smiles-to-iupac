@@ -313,6 +313,18 @@ def test_partial_thioesters_oxoanion_salts_pseudohalides_and_amido_ligands(smile
 
 
 @pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CP(=O)=O", "methyl-λ5-phosphanedione", id="phosphanedione"),
+        pytest.param("CC(C)CN[As]=O", "[(2-methylpropyl)amino]arsanone", id="amino_substituted_arsanone"),
+        pytest.param("CCC=S=O", "propylidene-λ4-sulfanone", id="thioketone_oxide"),
+    ],
+)
+def test_heterones_of_group_14_15_16_atoms(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles, expected",
     [
         ("OP(=O)(O)CC(O)=O", "phosphonoacetic acid"),

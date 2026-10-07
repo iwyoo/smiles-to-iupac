@@ -1050,7 +1050,7 @@ def test_heteroatom_to_heteroatom_substituent_groups_on_a_carboxylic_acid_ring(s
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize("smiles", ["CNO", "OOC1CCCCC1", "COOCOC"])
+@pytest.mark.parametrize("smiles", ["OOC1CCCCC1", "COOCOC"])
 def test_heteroatom_connections_are_not_prefixes_without_a_senior_group(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)

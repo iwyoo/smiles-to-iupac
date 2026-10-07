@@ -44,7 +44,7 @@ urea core (hydantoin) and characteristic groups outside it are out of scope.
 
 from rdkit import Chem
 
-from ._chalcogenourea import n_prefix, n_substituent_names
+from ._chalcogenourea import is_core_substituent_root, n_prefix, n_substituent_names
 from ._common import UnsupportedStructure, adjacency, group_substituents
 from ._substituents import format_substituent_prefixes
 
@@ -73,7 +73,7 @@ def _urea_core(mol):
         if any(n.GetFormalCharge() != 0 or n.GetIsotope() != 0 for n in nitrogens):
             continue
         if any(
-            nn.GetAtomicNum() != 6 and not _is_hydrazine_tail(mol, nn, n.GetIdx())
+            not is_core_substituent_root(mol, nn) and not _is_hydrazine_tail(mol, nn, n.GetIdx())
             for n in nitrogens
             for nn in n.GetNeighbors()
             if nn.GetIdx() != atom.GetIdx()

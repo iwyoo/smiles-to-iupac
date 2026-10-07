@@ -614,3 +614,14 @@ def test_peptide_acyl_residues_cite_their_own_stereodescriptors(smiles, expected
 )
 def test_diphosphate_esters_cite_locants_when_the_arrangement_is_otherwise_ambiguous(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[O-][Br+]c1ccccc1", "bromosylbenzene", id="bromosyl_charge_separated"),
+        pytest.param("OCC[Cl+3]([O-])([O-])[O-]", "2-perchlorylethan-1-ol", id="perhalyl_on_chain_with_alcohol"),
+    ],
+)
+def test_halogen_oxo_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

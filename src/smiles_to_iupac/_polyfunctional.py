@@ -28,7 +28,13 @@ from ._common import (
 )
 from ._anion import ANION_PROP, anion_weight
 from ._functional_prefixes import is_nitro_nitrogen
-from ._hetero_prefixes import CATION_PARENT, EXTENDED_PREFIXES, MONONUCLEAR_HYDRIDES, is_functional_carbon
+from ._hetero_prefixes import (
+    CATION_PARENT,
+    EXTENDED_PREFIXES,
+    MONONUCLEAR_HYDRIDES,
+    is_functional_carbon,
+    is_halogen_oxo_part,
+)
 from ._multiplicative import _bare_key
 from ._multiplicative_text import PrimedLocant, enclose, unit_phrase
 from ._multiplicative_ring import (
@@ -176,7 +182,7 @@ def _chalcogen_ketone(mol, atom):
     """A carbon double-bonded to S, Se or Te (thione, selone, tellone)."""
     if atom.GetAtomicNum() != 6:
         return False
-    return any(
+    return not _is_isocyanate_carbon(atom) and any(
         n.GetAtomicNum() in (16, 34, 52)
         and n.GetDegree() == 1
         and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
@@ -196,6 +202,7 @@ def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
     hydroxy = [n for n in others if _terminal_heteroatom(mol, n.GetIdx(), 1) and n.GetAtomicNum() == 8]
     return bool(others) and len(hydroxy) <= 1 and all(
         n in hydroxy
+        or n.GetAtomicNum() in HALOGEN_PREFIXES
         or (
             n.GetAtomicNum() == 6
             and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
@@ -295,6 +302,8 @@ def _group_of(mol, carbon):
         ]
         if found and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors() if n.GetIdx() != found[0]) and atom.GetDegree() == 3:
             return thione, {found[0]}
+    if _is_isocyanate_carbon(atom):
+        return None
     oxygens = _double_oxygens(mol, carbon)
     if oxygens:
         carbon_neighbors = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
@@ -1537,7 +1546,11 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     if centers or (
         not ring_cation
         and any(
-            b.GetBeginAtom().GetAtomicNum() == 7 and b.GetEndAtom().GetAtomicNum() == 7 and not b.IsInRing()
+            b.GetBeginAtom().GetAtomicNum() == 7
+            and b.GetEndAtom().GetAtomicNum() == 7
+            and not b.IsInRing()
+            and not _is_azide_part(b.GetBeginAtom())
+            and not _is_azide_bond_end(b.GetBeginAtom(), b.GetEndAtom())
             for b in mol.GetBonds()
         )
     ):
@@ -2227,14 +2240,16 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         raise UnsupportedStructure("a ring nitrogen is not an acyclic amine parent")
     neighbors = [n.GetIdx() for n in nitrogen.GetNeighbors()]
     if any(
-        mol.GetAtomWithIdx(c).GetAtomicNum() != 6
-        or _double_oxygens(mol, c)
-        or is_functional_carbon(mol, c)
-        or mol.GetBondBetweenAtoms(n_idx, c).GetBondTypeAsDouble() != 1.0
+        mol.GetBondBetweenAtoms(n_idx, c).GetBondTypeAsDouble() != 1.0
+        or (
+            mol.GetAtomWithIdx(c).GetAtomicNum() == 6
+            and (_double_oxygens(mol, c) or is_functional_carbon(mol, c))
+        )
         for c in neighbors
     ):
         raise UnsupportedStructure("this nitrogen is not a plain amine nitrogen")
-    arms = {c: _arm_atoms(graph, c, n_idx) for c in neighbors}
+    carbon_neighbors = [c for c in neighbors if mol.GetAtomWithIdx(c).GetAtomicNum() == 6]
+    arms = {c: _arm_atoms(graph, c, n_idx) for c in carbon_neighbors}
     if sum(len(a) for a in arms.values()) != len(set().union(*arms.values())) or n_idx in set().union(*arms.values()):
         raise UnsupportedStructure("a nitrogen closing a ring is not an acyclic amine parent")
     from ._substituents import ISOTOPE_LABELS
@@ -2242,7 +2257,7 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
     context = ISOTOPE_LABELS.get()
     settled = set(context["consumed"]) if context else set()
     results = []
-    for c in neighbors:
+    for c in carbon_neighbors:
         others = [o for o in neighbors if o != c]
         if context:
             context["consumed"] = set(settled)
@@ -2715,8 +2730,43 @@ def _unit_molecule(mol, atoms, attach):
     return canonical, attach_idx
 
 
+def _is_azide_part(atom):
+    """The charged atoms of an azido group -N=N(+)=N(-)."""
+    if atom.GetAtomicNum() != 7 or atom.GetDegree() > 2:
+        return False
+    if atom.GetFormalCharge() == 1:
+        ends = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 7 and n.GetFormalCharge() == -1 and n.GetDegree() == 1]
+        return atom.GetDegree() == 2 and len(ends) == 1
+    if atom.GetFormalCharge() == -1 and atom.GetDegree() == 1:
+        (middle,) = atom.GetNeighbors()
+        return middle.GetAtomicNum() == 7 and middle.GetFormalCharge() == 1 and _is_azide_part(middle)
+    return False
+
+
+def _is_azide_bond_end(first, second):
+    """The bond joining a nitrogen to the charged middle nitrogen of an azido group."""
+    return any(_is_azide_part(a) and a.GetFormalCharge() == 1 for a in (first, second))
+
+
+def _is_isocyanate_carbon(atom):
+    """The central carbon of -N=C=X (X = O, S, Se, Te), a prefix of its own rather than a carbonyl."""
+    if atom.GetAtomicNum() != 6 or atom.GetDegree() != 2 or atom.GetFormalCharge():
+        return False
+    neighbors = sorted(atom.GetNeighbors(), key=lambda n: n.GetAtomicNum())
+    nitrogen = neighbors[0]
+    return (
+        nitrogen.GetAtomicNum() == 7
+        and not nitrogen.GetFormalCharge()
+        and neighbors[1].GetAtomicNum() in (8, 16, 34, 52)
+        and neighbors[1].GetDegree() == 1
+        and all(b.GetBondTypeAsDouble() == 2.0 for b in atom.GetBonds())
+    )
+
+
 def _is_nitro_part(atom):
-    """The charged atoms of a nitro group: N+ bonded to two oxygens (one O-)."""
+    """The charged atoms of a nitro or azido group: N+ bonded to two oxygens (one O-)."""
+    if _is_azide_part(atom) or is_halogen_oxo_part(atom.GetOwningMol(), atom):
+        return True
     if atom.GetAtomicNum() == 7 and atom.GetFormalCharge() == 1:
         oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8]
         return len(oxygens) == 2 and sum(o.GetFormalCharge() for o in oxygens) == -1 and atom.GetDegree() == 3
@@ -2921,8 +2971,12 @@ def _substituted_amine_nitrogen(mol, atom):
         return False
     if atom.GetAtomicNum() != 7 or (atom.GetFormalCharge() and not (AMINIUM.get() and atom.GetFormalCharge() == 1)) or atom.GetIsAromatic() or atom.IsInRing():
         return False
+    if any(n.GetAtomicNum() not in (6, 8) for n in atom.GetNeighbors()):
+        return False
+    if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
+        return False
     carbons = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
-    return len(carbons) >= 2
+    return len(carbons) >= 2 or (len(carbons) == 1 and atom.GetDegree() >= 2)
 
 
 def _hydrazide_beta_nitrogen(mol, alpha, carbonyl):

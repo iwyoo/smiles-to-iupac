@@ -7,12 +7,34 @@ from dataclasses import dataclass
 from rdkit import Chem
 
 from ._common import (
+    HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
     group_substituents,
     halogen_substituents,
+    is_nitro_nitrogen,
 )
-from ._substituents import alpha_sort_key, format_substituent_prefixes, name_branch
+from ._substituents import alpha_sort_key, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
+
+
+def is_oxo_nitrogen(mol, atom):
+    """A nitro or nitroso nitrogen, which is cited as a prefix on the nitrogen it is bonded to (P-61.5, P-61.11)."""
+    if atom.GetAtomicNum() != 7:
+        return False
+    if is_nitro_nitrogen(mol, atom.GetIdx()):
+        return True
+    oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8]
+    return (
+        atom.GetDegree() == 2
+        and len(oxygens) == 1
+        and not atom.GetFormalCharge()
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), oxygens[0].GetIdx()).GetBondTypeAsDouble() == 2.0
+    )
+
+
+def is_core_substituent_root(mol, atom):
+    """A carbon, a halogen or a nitro/nitroso nitrogen: the atoms a urea or guanidine nitrogen may carry."""
+    return atom.GetAtomicNum() in (6, *HALOGEN_PREFIXES) or is_oxo_nitrogen(mol, atom)
 
 
 def _n_substituent_roots(mol, nitrogen_idx, carbon_idx):
@@ -57,9 +79,16 @@ def n_substituent_names(mol, graph, core_atoms, nitrogens, carbon_idx):
             "and its N-substituents is not supported yet"
         )
     halogens = halogen_substituents(mol)
+    oxo_atoms = {
+        n.GetIdx()
+        for idx in outside
+        if is_oxo_nitrogen(mol, mol.GetAtomWithIdx(idx))
+        for n in [mol.GetAtomWithIdx(idx), *mol.GetAtomWithIdx(idx).GetNeighbors()]
+        if n.GetAtomicNum() in (7, 8)
+    }
     for idx in outside:
         atom = mol.GetAtomWithIdx(idx)
-        if atom.GetAtomicNum() != 6 and idx not in halogens and not atom.IsInRing():
+        if atom.GetAtomicNum() != 6 and idx not in halogens and idx not in oxo_atoms and not atom.IsInRing():
             raise UnsupportedStructure(
                 "a heteroatom or other characteristic group outside the urea core and its N-substituents "
                 "is not supported yet"
@@ -70,7 +99,11 @@ def n_substituent_names(mol, graph, core_atoms, nitrogens, carbon_idx):
 def n_prefix(n1_names, n2_names):
     """The 'N'/'N'' substituent prefix block: the nitrogen with more
     substituents takes the unprimed locant, then the one whose substituent
-    comes first alphanumerically (P-14.3.5, P-14.5.2)."""
+    comes first alphanumerically (P-14.3.5, P-14.5.2). Four identical substituents leave no substitutable hydrogen,
+    so the locants are omitted (P-14.3.4.5)."""
+    names = n1_names + n2_names
+    if len(names) == 4 and len(set(names)) == 1:
+        return format_mononuclear_prefixes(names)
     if len(n1_names) != len(n2_names):
         unprimed, primed = (n1_names, n2_names) if len(n1_names) > len(n2_names) else (n2_names, n1_names)
     else:
