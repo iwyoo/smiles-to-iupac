@@ -1117,3 +1117,18 @@ def test_cation_on_the_parent_hydride_of_an_anionic_suffix(smiles, expected):
 def test_valence_deficient_heteroatom_is_not_named_as_its_hydride(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "CC[NH+](CC)Cc1ccc(-c2nc(C(=O)[O-])cs2)cc1",
+            "2-{4-[(diethylazaniumyl)methyl]phenyl}-1,3-thiazole-4-carboxylate",
+        ),
+        ("C[NH+](C)Cc1nc(C(=O)[O-])cs1", "2-[(dimethylazaniumyl)methyl]-1,3-thiazole-4-carboxylate"),
+        ("C[NH+](C)Cc1ccc(-c2ccc(C(=O)[O-])o2)cc1", "5-{4-[(dimethylazaniumyl)methyl]phenyl}furan-2-carboxylate"),
+    ],
+)
+def test_ammonium_on_a_heterocyclic_anionic_parent_stays_an_azaniumyl_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
