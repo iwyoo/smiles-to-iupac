@@ -67,6 +67,7 @@ from ._amine_oxide import has_amine_oxide_shape, name_amine_oxide
 from ._aminide import has_aminide_shape, name_aminide
 from ._ammonium import has_ammonium_shape, has_polyammonium_shape, name_ammonium, name_polyammonium
 from ._polycation import has_polycation_shape, name_polycation
+from ._ylium_ring import has_ylium_ring_shape, name_ylium_ring
 from ._ylide import has_nitrogen_ylide_shape, has_pos_ylide_shape, name_nitrogen_ylide, name_pos_ylide
 from ._amine_imide import has_amine_imide_shape, name_amine_imide
 from ._phosphonium import has_phosphonium_shape, name_phosphonium
@@ -973,6 +974,8 @@ def _name_mol(mol) -> str:
         return name_polyammonium(mol)
     if has_polycation_shape(mol):
         return name_polycation(mol)
+    if has_ylium_ring_shape(mol):
+        return name_ylium_ring(mol)
     if has_ammonium_shape(mol):
         if has_phosphate_shape(mol) and any(a.GetFormalCharge() < 0 for a in mol.GetAtoms()):
             return name_phosphate(mol)
