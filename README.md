@@ -153,6 +153,23 @@ When adding or changing behavior, derive it from the Blue Book rule text and
 cite the section number; use worked examples and PubChem only to check the
 result.
 
+## Citation
+
+If you use this software in your work, please cite it:
+
+```bibtex
+@software{yoo_smiles_to_iupac,
+  author = {Yoo, Inwan},
+  title  = {smiles-to-iupac: Rule-based conversion of SMILES to IUPAC names},
+  year   = {2026},
+  url    = {https://github.com/iwyoo/smiles-to-iupac},
+}
+```
+
+Please also cite the IUPAC recommendations the names are derived from:
+Favre, H. A.; Powell, W. H. *Nomenclature of Organic Chemistry: IUPAC
+Recommendations and Preferred Names 2013*; Royal Society of Chemistry, 2014.
+
 ## References
 
 See [REFERENCES.md](REFERENCES.md) for the Blue Book source and chapter PDFs.
