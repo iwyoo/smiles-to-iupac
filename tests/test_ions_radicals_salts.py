@@ -636,6 +636,10 @@ def test_radical_beside_characteristic_groups(smiles, expected):
         pytest.param("CC[n+]1ccc2ccccc2c1", "2-ethylisoquinolin-2-ium", id="isoquinolinium"),
         pytest.param("c1ccc2[nH+]cccc2c1", "quinolin-1-ium", id="protonated_quinoline"),
         pytest.param("C[n+]1ccccc1.[Cl-]", "1-methylpyridin-1-ium chloride", id="pyridinium_salt"),
+        pytest.param("[CH3+].[Cl-]", "methylium chloride", id="one_atom_cation_salt"),
+        pytest.param(
+            "O=C([O-])C[n+]1ccccc1CC(=O)[O-]", "2,2'-(pyridin-1-ium-1,2-diyl)diethanoate", id="ring_cation_linking_two_anions"
+        ),
     ],
 )
 def test_heteroaromatic_ring_cation(smiles, expected):
