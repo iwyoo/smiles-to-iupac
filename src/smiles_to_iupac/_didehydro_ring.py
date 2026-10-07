@@ -32,7 +32,8 @@ and no real worked example checked here). Anything else returns None, so
 
 from rdkit import Chem
 
-from ._common import adjacency, ring_cycle
+from ._common import UnsupportedStructure, adjacency, ring_cycle
+from ._pin import mark
 from ._hetero_monocyclic import saturated_ring_name
 
 _HETEROATOM_ELEMENTS = {"O", "S", "N"}
@@ -125,5 +126,13 @@ def has_didehydro_ring_name(mol) -> bool:
 
 
 def name_didehydro_ring(mol) -> str:
+    from ._polyfunctional import name_polyfunctional
+
     name, locants = find_didehydro_ring_core(mol)
-    return f"{locants[0]},{locants[1]}-didehydro{name}"
+    try:
+        return name_polyfunctional(mol)
+    except UnsupportedStructure:
+        return mark(
+            f"{locants[0]},{locants[1]}-didehydro{name}",
+            "hydro prefixes on the mancude ring give the preferred name; dehydro prefixes belong to general nomenclature (P-54.4.1)",
+        )
