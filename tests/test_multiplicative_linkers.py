@@ -119,8 +119,8 @@ def test_linker_prefixes(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("O=CC(c1ccccc1)c1ccccc1", "2,2-diphenylacetaldehyde"),
-        ("N#CC(c1ccccc1)c1ccccc1", "2,2-diphenylacetonitrile"),
+        ("O=CC(c1ccccc1)c1ccccc1", "diphenylacetaldehyde"),
+        ("N#CC(c1ccccc1)c1ccccc1", "diphenylacetonitrile"),
         ("SC(c1ccccc1)c1ccccc1", "diphenylmethanethiol"),
         ("NC(=O)C(c1ccccc1)c1ccccc1", "2,2-diphenylacetamide"),
         ("OS(=O)(=O)C(c1ccccc1)c1ccccc1", "diphenylmethanesulfonic acid"),

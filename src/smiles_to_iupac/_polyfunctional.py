@@ -3629,7 +3629,11 @@ def _evaluate(
         and len(on_chain) == 1
         and not ene
         and not yne
-        and mol.GetAtomWithIdx(next(a for a in chain if a != on_chain[0])).GetTotalNumHs() == 0
+        and (
+            mol.GetAtomWithIdx(next(a for a in chain if a != on_chain[0])).GetTotalNumHs() == 0
+            # P-14.3.4.3: the hydrogen of a formyl group and the carbon of a cyano group are not substitutable
+            or principal in ("nitrile", "aldehyde")
+        )
     )
     if completely_substituted and not force and not n_names:
         prefix = single_site_prefixes(grouped)
