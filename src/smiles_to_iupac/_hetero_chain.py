@@ -226,12 +226,19 @@ def name_hetero_macrocycle(mol):
     _, hetero, substituents = best
     prefixes = format_substituent_prefixes(substituents)
     ordered = [z for z in _SENIORITY if hetero[z]]
+    all_replaced = len(ordered) == 1 and len(hetero[ordered[0]]) == size
     if size in _HW_STEM:
-        a_text = "".join(
-            (multiplying_prefix(len(hetero[z])) if len(hetero[z]) > 1 else "") + _A_PREFIX[z] for z in ordered
-        )
-        all_locs = ",".join(str(l) for l in sorted(sum(hetero.values(), [])))
-        name = f"{all_locs}-{a_text[:-1]}{_HW_STEM[size]}"
+        a_text = ""
+        for z in ordered:
+            mult = multiplying_prefix(len(hetero[z])) if len(hetero[z]) > 1 else ""
+            if mult.endswith("a") and _A_PREFIX[z][0] in "aeiou":
+                mult = mult[:-1]
+            a_text += mult + _A_PREFIX[z]
+        all_locs = "" if all_replaced else ",".join(str(l) for l in sorted(sum(hetero.values(), []))) + "-"
+        name = f"{all_locs}{a_text[:-1]}{_HW_STEM[size]}"
+    elif all_replaced:
+        z = ordered[0]
+        name = multiplying_prefix(size) + _A_PREFIX[z] + "cyclo" + alkane_name(size)[:-3] + "ane"
     else:
         parts = [
             f"{','.join(map(str, sorted(hetero[z])))}-{multiplying_prefix(len(hetero[z])) if len(hetero[z]) > 1 else ''}{_A_PREFIX[z]}"

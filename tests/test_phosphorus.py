@@ -51,7 +51,7 @@ def test_branched_phosphane_chain_raises():
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("P1PPPP1", "2,3,4,5-tetrahydro-1H-pentaphosphole", id="cyclic_phosphane_chain"),
+        pytest.param("P1PPPP1", "pentaphospholane", id="cyclic_phosphane_chain"),
         pytest.param("CPP", "methyldiphosphane", id="carbon_phosphorus_mix_is_a_diphosphane"),
     ],
 )

@@ -961,3 +961,20 @@ def test_alternating_heteroatom_ring_cites_every_heteroatom_locant(smiles, expec
 def test_common_hydride_names_carry_no_pin(smiles, expected):
     with pytest.warns(NonPreferredNameWarning, match="P-21.1.1.2"):
         assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("N1NNNN1", "pentazolidine"),
+        ("N1NNNNN1", "hexazinane"),
+        ("N1N=NN=N1", "1H-pentazole"),
+        ("O1OCOCO1", "1,2,3,5-tetroxane"),
+        ("[SiH2]1[SiH2][SiH2][SiH2][SiH2][SiH2][SiH2][SiH2][SiH2][SiH2][SiH2][SiH2]1", "dodecasilacyclododecane"),
+        ("S1SSSSSSSS1", "nonathionane"),
+        ("O1OOOOOOOO1", "nonoxonane"),
+        ("S1SSSSSSSSSSSS1", "tridecathiacyclotridecane"),
+    ],
+)
+def test_homogeneous_heteromonocycle_elides_multiplier_vowel_and_omits_locants(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

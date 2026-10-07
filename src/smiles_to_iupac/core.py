@@ -371,11 +371,27 @@ def _is_nonbenzene_monocyclic_annulene(mol):
     )
 
 
+def _is_aromatic_ring_without_double_bonds(mol):
+    rings = mol.GetRingInfo().AtomRings()
+    if len(rings) != 1 or not all(mol.GetAtomWithIdx(i).GetIsAromatic() for i in rings[0]):
+        return False
+    kekule = Chem.Mol(mol)
+    try:
+        Chem.Kekulize(kekule, clearAromaticFlags=True)
+    except Chem.KekulizeException:
+        return False
+    ring = set(rings[0])
+    return not any(
+        b.GetBondTypeAsDouble() == 2.0 for b in kekule.GetBonds() if b.GetBeginAtomIdx() in ring and b.GetEndAtomIdx() in ring
+    )
+
+
 def _parse_smiles(smiles):
     mol = Chem.MolFromSmiles(smiles)
-    if mol is not None and _is_nonbenzene_monocyclic_annulene(mol):
+    if mol is not None and (_is_nonbenzene_monocyclic_annulene(mol) or _is_aromatic_ring_without_double_bonds(mol)):
         # P-54.2: only benzene is named as an aromatic ring; larger annulenes take ene/yne endings, and
-        # RDKit's aromatic perception would drop their E/Z bond stereo.
+        # RDKit's aromatic perception would drop their E/Z bond stereo. A ring of NH-type atoms with no double
+        # bond is saturated although RDKit counts its lone pairs as an aromatic sextet.
         kekule = Chem.MolFromSmiles(smiles, sanitize=False)
         Chem.SanitizeMol(kekule, Chem.SANITIZE_ALL ^ Chem.SANITIZE_SETAROMATICITY)
         Chem.AssignStereochemistry(kekule, cleanIt=True, force=True)
