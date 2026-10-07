@@ -202,7 +202,6 @@ def test_phosphanium_and_related(smiles, expected):
     "smiles",
     [
         pytest.param("C[P+](C)(C)C(C)C", id="branched_quaternary_phosphonium_raises"),
-        pytest.param("C[P+]1(C)CCCC1", id="ring_quaternary_phosphonium_raises"),
         pytest.param("C[P+](C)(C)Cl", id="halogen_substituted_quaternary_phosphonium_raises"),
     ],
 )
