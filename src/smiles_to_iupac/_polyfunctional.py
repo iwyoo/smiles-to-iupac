@@ -1440,6 +1440,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             and not atom.IsInRing()
             and not _is_acid_family(principal)
             and not (AMINIUM.get() and principal in (None, "amine", "imine"))
+            and not RING_CENTER.get()
             and principal not in ("peroxoic", "thioic", "imidic")
             and not (
                 principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, "hydrazide", *_CHALCOGEN_HYDRAZIDE.values())
@@ -2962,6 +2963,8 @@ def _unit_molecule(mol, atoms, attach):
     except Chem.rdchem.AtomValenceException:
         unit.UpdatePropertyCache(strict=False)
         Chem.FastFindRings(unit)
+    except Chem.rdchem.KekulizeException as error:
+        raise UnsupportedStructure("the fragment cut from an aromatic ring cannot be kekulized") from error
     attach_idx = next(a.GetIdx() for a in unit.GetAtoms() if a.GetAtomMapNum() == 1)
     canonical = Chem.Mol(unit)
     for a in canonical.GetAtoms():

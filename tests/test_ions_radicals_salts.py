@@ -1140,3 +1140,14 @@ def test_ammonium_on_a_heterocyclic_anionic_parent_stays_an_azaniumyl_prefix(smi
 )
 def test_onium_centres_that_carry_characteristic_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("COC(=O)c1cc[n+](Cc2ccccc2)cc1.[Br-]", "1-benzyl-4-(methoxycarbonyl)pyridin-1-ium bromide", id="ester_is_a_prefix_of_the_ring_cation"),
+        pytest.param("COC(=O)c1cc[n+](Cc2ccccc2)cc1F.[Br-]", "1-benzyl-3-fluoro-4-(methoxycarbonyl)pyridin-1-ium bromide", id="halogen_beside_the_ester_prefix"),
+    ],
+)
+def test_ring_cation_with_an_ester_group_names_the_cation_as_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
