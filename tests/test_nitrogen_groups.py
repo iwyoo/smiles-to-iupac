@@ -1032,3 +1032,17 @@ def test_acylated_nitrogen_is_not_a_hetero_parent_for_a_carboxylic_acid():
 )
 def test_n_locants_of_polyamides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CC(OC(=O)c1ccccc1)C(=O)Nc1ccccc1", "1-(phenylcarbamoyl)ethyl benzoate", id="n_phenyl_carbamoyl_prefix"),
+        pytest.param("COC(=O)NNC(=S)Nc1ccccc1", "methyl 2-(phenylcarbamothioyl)hydrazine-1-carboxylate", id="n_phenyl_thiocarbamoyl_prefix"),
+        pytest.param("O=C(CS(=O)(=O)Nc1ccccc1)C(=O)OC", "methyl 2-oxo-3-(phenylsulfamoyl)propanoate", id="n_phenyl_sulfamoyl_prefix"),
+        pytest.param("CC(=O)OCON(O)O", "[(dihydroxyamino)oxy]methyl acetate", id="n_dihydroxy_is_not_nitro"),
+        pytest.param("CC(=O)OCO[N+](=O)[O-]", "(nitrooxy)methyl acetate", id="nitrate_ester_prefix"),
+    ],
+)
+def test_nitrogen_prefix_keeps_every_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

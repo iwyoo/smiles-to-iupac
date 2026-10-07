@@ -5,7 +5,7 @@ through `name_branch` and every heteroatom inside a branch resolved first.
 """
 
 from ._alkoxy import alkoxy_prefix
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, is_nitro_nitrogen
 from ._hetero_prefixes import CHALCOGEN_PREFIXES, require_plain_chalcogen_kids, require_senior_group
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
@@ -147,7 +147,7 @@ class PrefixNamer:
     def _nitrogen(self, n, parent, entries):
         atom = self.mol.GetAtomWithIdx(n)
         oxygens = [q for q in self.graph[n] if q != parent and self._z(q) == 8 and self.mol.GetAtomWithIdx(q).GetDegree() == 1]
-        if len(oxygens) == 2 and atom.GetDegree() == 3:
+        if len(oxygens) == 2 and is_nitro_nitrogen(self.mol, n):
             return "nitro", False
         if atom.GetFormalCharge() or any(self._z(q) not in (6,) for q in self.graph[n] if q != parent):
             raise UnsupportedStructure("this nitrogen substituent is not supported here")

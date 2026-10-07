@@ -227,7 +227,7 @@ def _name_bicyclic_unsaturated(mol, core, bonds) -> str:
         ene_locant_set = lowest_locant_set([locant for locant, _ in ene_citations])
         body, needs_stem_a = _unsaturation_suffix_from_citations(ene_citations, yne_citations)
         parent = stem + ("a" if needs_stem_a else "") + "-" + body
-        substituents = substituents_for_ring(graph, full_order, halogens)
+        substituents = substituents_for_ring(graph, full_order, halogens, mol=mol, unsaturated=True)
         key = _candidate_key(
             parent,
             substituents,
@@ -241,7 +241,8 @@ def _name_bicyclic_unsaturated(mol, core, bonds) -> str:
 
 def name_bicycloalkane(mol, core) -> str:
     validate_atoms_and_bonds(mol)
-    bonds = non_single_bonds(mol)
+    ring_atoms = {a.GetIdx() for a in mol.GetAtoms() if a.IsInRing()}
+    bonds = [b for b in non_single_bonds(mol) if b[0] in ring_atoms and b[1] in ring_atoms]
     if bonds:
         return _name_bicyclic_unsaturated(mol, core, bonds)
 
@@ -252,7 +253,7 @@ def name_bicycloalkane(mol, core) -> str:
     best_key = None
     best_name = None
     for full_order in iter_bicyclic_numberings(core):
-        substituents = substituents_for_ring(graph, full_order, halogens)
+        substituents = substituents_for_ring(graph, full_order, halogens, mol=mol, unsaturated=True)
         key = _candidate_key(parent, substituents)
         if best_key is None or key < best_key:
             best_key, best_name = key, key[-1]

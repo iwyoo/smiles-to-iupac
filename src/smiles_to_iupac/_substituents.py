@@ -3,8 +3,12 @@ chain (longest, then most multiple bonds, then lowest locants); the free-valence
 (P-29.2). Ring and ring-system roots are named by the one general ring-group namer
 (`_diester_ring_diyl.ring_substituent_name`, P-29.3.3, P-29.3.4)."""
 
+import contextlib
 import contextvars
 import re
+
+from rdkit import Chem
+from rdkit.Chem import rdCIPLabeler
 
 from ._multiplicative_text import enclose
 from ._free_valence import SUFFIX_OF_ORDER
@@ -863,6 +867,37 @@ def _ring_multiple_bond_locants(mol, direction):
 
 
 BRANCH_STEREO = contextvars.ContextVar("branch_stereo", default=None)
+
+
+@contextlib.contextmanager
+def cited_branch_stereo(mol, graph, blocked, roots):
+    """Substituents named inside cite the CIP descriptors of their own stereo elements; raises when one is left uncited."""
+    inside, stack = set(), [r for r in roots if r not in blocked]
+    while stack:
+        a = stack.pop()
+        if a not in inside:
+            inside.add(a)
+            stack.extend(n for n in graph[a] if n not in blocked and n not in inside)
+    probe = Chem.Mol(mol)
+    rdCIPLabeler.AssignCIPLabels(probe)
+    context = {
+        "atoms": {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.GetIdx() in inside and a.HasProp("_CIPCode")},
+        "bonds": {
+            (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode")
+            for b in probe.GetBonds()
+            if b.GetBeginAtomIdx() in inside and b.GetEndAtomIdx() in inside and b.HasProp("_CIPCode")
+        },
+        "used": set(),
+    }
+    token = BRANCH_STEREO.set(context)
+    try:
+        yield
+    finally:
+        BRANCH_STEREO.reset(token)
+    if any(("atom", a) not in context["used"] for a in context["atoms"]) or any(
+        ("bond", b) not in context["used"] for b in context["bonds"]
+    ):
+        raise UnsupportedStructure("a stereo element inside a substituent is not cited by any supported name")
 
 
 def _branch_stereo_entries(positions, ring=False, record=False):

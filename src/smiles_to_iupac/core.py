@@ -538,7 +538,7 @@ def _name_unabridged(smiles: str) -> str:
                 except UnsupportedStructure:
                     continue
                 # these namers do not cite stereodescriptors, so a flat name would silently drop the stereo
-                if stereo_specified and namer is not name_acid_salt and not _STEREO_TOKENS.search(candidate):
+                if stereo_specified and namer is not name_acid_salt and not _cites_every_stereo_element(parsed, candidate):
                     continue
                 return candidate
         beyond_preferred = None
@@ -590,6 +590,8 @@ def _name_unabridged(smiles: str) -> str:
             name = _hydro_fusion_name(parsed) or name
         if parsed is not None and _has_specified_stereo(parsed):
             tokens = bool(_STEREO_TOKENS.search(name) or _STEREO_IN_RETAINED_NAME.search(name))
+            if tokens and not _cites_every_double_bond(parsed, name):
+                raise UnsupportedStructure("a stereodefined double bond of this structure is not cited by any supported name")
             if tokens and name.startswith("("):
                 cited = _engine_name(parsed)
                 if cited is not None and cited.startswith("(") and cited != name:
@@ -626,6 +628,24 @@ _STEREO_TOKENS = re.compile(
 
 
 _STEREO_IN_RETAINED_NAME = re.compile(r"inositol|(?:adenos|guanos|inos|xanthos|cytid|urid|thymid)in")
+
+
+def _cites_every_stereo_element(mol, name) -> bool:
+    cited = len(_STEREO_TOKENS.findall(name))
+    if re.search(r"\b(?:bis|tris|tetrakis)\b|\b(?:di|tri|tetra)\(", name):
+        return cited > 0
+    return cited >= sum(1 for s in Chem.FindPotentialStereo(mol) if s.specified == Chem.StereoSpecified.Specified)
+
+
+def _cites_every_double_bond(mol, name) -> bool:
+    if re.search(r"\b(?:bis|tris|tetrakis)\b|\b(?:di|tri|tetra)\(", name):
+        return True
+    bonds = sum(
+        1
+        for s in Chem.FindPotentialStereo(mol)
+        if s.type == Chem.StereoType.Bond_Double and s.specified == Chem.StereoSpecified.Specified
+    )
+    return len(re.findall(r"(?<=[\d'a-z⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ])[EZ](?=[,)])|\([EZ]\)", name)) >= bonds
 
 
 def _has_specified_stereo(mol) -> bool:

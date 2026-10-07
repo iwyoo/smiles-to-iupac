@@ -1063,3 +1063,33 @@ def test_imino_prefixes_under_a_senior_acid(smiles, expected):
 )
 def test_ring_and_hetero_groups_as_prefixes_use_one_ring_group_namer(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("O=C(Cl)c1ccc(S(=O)(=O)Cl)cc1", "4-(chlorosulfonyl)benzoyl chloride", id="acyl_halide_below_the_principal_acid_class_is_a_prefix"),
+        pytest.param("CC(C)c1c(CO)nnn1-c1ccc(O)cc1", "4-[4-(hydroxymethyl)-5-(propan-2-yl)-1H-1,2,3-triazol-1-yl]phenol", id="aromatic_ring_nitrogen_cut_from_a_unit"),
+        pytest.param(
+            "CCNC(=O)c1cc(C(=O)NC)c2c(c1)[C@](CO)(c1ccccc1)CO2",
+            "(3S)-N5-ethyl-3-(hydroxymethyl)-N7-methyl-3-phenyl-2,3-dihydro-1-benzofuran-5,7-dicarboxamide",
+            id="n_locants_of_amides_on_a_fused_ring",
+        ),
+        pytest.param("CC(=O)OCOC(N)=O", "methylene acetate carbamate", id="carbamate_is_not_a_carboxylic_acyl_chain"),
+    ],
+)
+def test_polyfunctional_never_misattributes_a_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        "Cc1cc(S(=O)(=O)N=[N+]=[N-])ccc1Oc1ccc(S(=O)(=O)N=[N+]=[N-])cc1",
+        "CCC[C@H](C[C@@H]1CCCO1)NC(=O)OC",
+        "C=CCC(CN)CC(C)/C(=C\\C)CC/C=C\\C",
+    ],
+)
+def test_group_or_stereo_element_without_a_supported_citation_raises(smiles):
+    with pytest.raises(NotImplementedError):
+        smiles_to_iupac(smiles)

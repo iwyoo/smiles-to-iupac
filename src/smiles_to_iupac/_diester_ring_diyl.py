@@ -366,7 +366,7 @@ def _evaluate_skeleton(
     if n_names:
         from ._polyfunctional import _with_n_names
 
-        grouped = _with_n_names(grouped, n_names)
+        grouped = _with_n_names(grouped, n_names, position_of, len(attach))
     prefixes = format_substituent_prefixes(grouped)
     if prefixes and (parent[0].isdigit() or parent[0] == "Δ"):
         prefixes += "-"

@@ -724,6 +724,20 @@ def longest_branched_chain_through(graph, required, ring_boundary, excluded=froz
     return best_chain, best_branches
 
 
+def is_nitro_nitrogen(mol, idx):
+    atom = mol.GetAtomWithIdx(idx)
+    if atom.GetAtomicNum() != 7 or atom.GetDegree() != 3:
+        return False
+    oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1]
+    if len(oxygens) != 2 or atom.GetFormalCharge() not in (0, 1):
+        return False
+    orders = sorted(mol.GetBondBetweenAtoms(idx, o.GetIdx()).GetBondTypeAsDouble() for o in oxygens)
+    charges = sorted(o.GetFormalCharge() for o in oxygens)
+    if atom.GetFormalCharge():
+        return orders == [1.0, 2.0] and charges == [-1, 0]
+    return orders == [2.0, 2.0] and charges == [0, 0]
+
+
 def halogen_substituents(mol):
     """{atom_idx -> substituent prefix name} for every halogen atom in `mol`
     (P-35.2.1). Passed down into `name_branch` so it can name a halogen leaf
@@ -732,7 +746,7 @@ def halogen_substituents(mol):
     return {
         atom.GetIdx(): atom.GetProp("_named_prefix") if atom.HasProp("_named_prefix") else HALOGEN_PREFIXES[atom.GetAtomicNum()]
         for atom in mol.GetAtoms()
-        if atom.GetAtomicNum() in HALOGEN_PREFIXES
+        if atom.GetAtomicNum() in HALOGEN_PREFIXES and atom.GetDegree() == 1
     }
 
 

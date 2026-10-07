@@ -112,7 +112,7 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
         subs = [n for n in graph[z_idx] if n != root]
         if mol.GetAtomWithIdx(z_idx).GetFormalCharge() or any(_bond(mol, z_idx, n) != 1.0 for n in subs):
             return None
-        from ._hetero_prefixes import _amino, _group_names, _is_amino_nitrogen
+        from ._hetero_prefixes import _amino, _amino_stem, _group_names, _is_amino_nitrogen
 
         if not subs and not n_entries:
             return _CARBAM[x], False
@@ -128,7 +128,7 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
             entries = [("N", n, c) for _, n, c in n_entries]
             entries += [("N'", *name_branch(graph, m, z_idx, halogens, aromatic_atoms, mol=mol)) for m in subs]
             return _cited(entries) + stem, True
-        return amino[: -len("amino")] + stem, True
+        return _amino_stem(amino) + stem, True
     if zn not in _SYMBOL:
         return None
     z_name, z_compound = name_branch(graph, z_idx, root, halogens, aromatic_atoms, mol=mol)

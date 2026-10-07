@@ -412,7 +412,7 @@ def _name_polycyclic_unsaturated(mol, core, ring_count, bonds) -> str:
         ene_locant_set = lowest_locant_set([locant for locant, _ in ene_citations])
         body, needs_stem_a = _unsaturation_suffix_from_citations(ene_citations, yne_citations)
         suffixed_parent = parent[:-3] + ("a" if needs_stem_a else "") + "-" + body
-        substituents = substituents_for_ring(graph, full_order, halogens)
+        substituents = substituents_for_ring(graph, full_order, halogens, mol=mol, unsaturated=True)
         key = outer_key + _candidate_key(
             suffixed_parent,
             substituents,
@@ -433,7 +433,8 @@ def _name_polycyclic_unsaturated(mol, core, ring_count, bonds) -> str:
 def name_polycycloalkane(mol, core, ring_count) -> str:
     validate_atoms_and_bonds(mol)
     mol = kekulized_copy(mol)
-    bonds = non_single_bonds(mol)
+    ring_atoms = {a.GetIdx() for a in mol.GetAtoms() if a.IsInRing()}
+    bonds = [b for b in non_single_bonds(mol) if b[0] in ring_atoms and b[1] in ring_atoms]
     if bonds:
         return _name_polycyclic_unsaturated(mol, core, ring_count, bonds)
 
@@ -443,7 +444,7 @@ def name_polycycloalkane(mol, core, ring_count) -> str:
     best_key = None
     best_name = None
     for full_order, parent, outer_key in iter_polycyclic_candidates(core, ring_count):
-        substituents = substituents_for_ring(graph, full_order, halogens)
+        substituents = substituents_for_ring(graph, full_order, halogens, mol=mol, unsaturated=True)
         key = outer_key + _candidate_key(parent, substituents)
         if best_key is None or key < best_key:
             best_key, best_name = key, key[-1]

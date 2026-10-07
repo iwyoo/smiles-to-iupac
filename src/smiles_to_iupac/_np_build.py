@@ -29,7 +29,7 @@ from ._np_fusion import assign_primes, fusion_text, hydro_texts, indicated_texts
 from ._np_rings import bridge_prefixes, components, name_spiro, split_components
 from ._np_text import core_text, locant_pair, op_prefixes, unsaturation
 from ._numerals import multiplying_prefix
-from ._substituents import format_substituent_prefixes, name_branch
+from ._substituents import cited_branch_stereo, format_substituent_prefixes, name_branch
 
 
 _MAX_UNSATURATION_CHANGES = 6
@@ -87,6 +87,8 @@ def build(cand, view):
     bridge_comps, fused_comps, spiro_comps = split_components(ring_comps, cand, view)
     if len(spiro_comps) > 1 or (spiro_comps and (bridge_comps or fused_comps)):
         raise UnsupportedStructure("a spiro ring together with other added rings is not supported")
+    if spiro_comps and not all(view.mol.GetAtomWithIdx(a).IsInRing() for a in mapped):
+        raise UnsupportedStructure("a parent skeleton that is not a ring system is not a spiro component (P-24.5, P-101.5.3)")
     spiro = name_spiro(spiro_comps[0], cand, view) if spiro_comps else None
     parent_prime = ring_prime = ""
     if spiro:
@@ -173,10 +175,11 @@ def build(cand, view):
             prefix_groups.setdefault(_PREFIX[cls], {"locants": [], "compound": False})["locants"].append(
                 Loc(final(loc), config.faces.get(atom, ""))
             )
-    named = [
-        (loc, root, *name_branch(graph, root, mapping[loc], halogens, frozenset(), mol=view.mol, unsaturated=True))
-        for loc, root in branches
-    ]
+    with cited_branch_stereo(view.mol, graph, set(mapping.values()), [root for _, root in branches]):
+        named = [
+            (loc, root, *name_branch(graph, root, mapping[loc], halogens, frozenset(), mol=view.mol, unsaturated=True))
+            for loc, root in branches
+        ]
     repeats = Counter((loc, name) for loc, _, name, _ in named)
     for loc, root, name, compound in named:
         face = "" if repeats[(loc, name)] > 1 else config.faces.get(root, "")
@@ -207,10 +210,11 @@ def build(cand, view):
         locants = [str(Loc(final(loc), "" if extra.get("kind") == "o" else config.faces.get(extra.get("anchor", next(iter(sorted(atoms)))), ""))) for loc, atoms, extra in members]
         if principal == "ester":
             alkyls_named = {}
-            for _, _, extra in members:
-                oxygen, alkyl = extra["ester"]
-                name, compound = name_branch(graph, alkyl, oxygen, halogens, frozenset(), mol=view.mol, unsaturated=True)
-                alkyls_named[name] = compound
+            with cited_branch_stereo(view.mol, graph, mapped, [extra["ester"][1] for _, _, extra in members]):
+                for _, _, extra in members:
+                    oxygen, alkyl = extra["ester"]
+                    name, compound = name_branch(graph, alkyl, oxygen, halogens, frozenset(), mol=view.mol, unsaturated=True)
+                    alkyls_named[name] = compound
             if len(alkyls_named) != 1:
                 raise UnsupportedStructure("esters with different alkyl groups are not supported")
             ((name, compound),) = alkyls_named.items()

@@ -323,6 +323,10 @@ def _name_acyl_part(
     halogens = {**halogen_substituents(mol), **(extra_names or {})}
     acyl_carbon_idx = acyl_carbon.GetIdx()
     excluded_oxygens = {carbonyl_oxygen_idx, ester_oxygen_idx}
+    if any(
+        n.GetAtomicNum() != 6 and n.GetIdx() not in excluded_oxygens for n in acyl_carbon.GetNeighbors()
+    ):
+        raise UnsupportedStructure("a heteroatom on the acyl carbon makes a carbonic acid derivative, not a carboxylic acyl chain")
     bond_scan_excluded = excluded_oxygens | extra_excluded_atoms
 
     acyl_graph = component_subgraph(carbon_graph, acyl_carbon_idx)

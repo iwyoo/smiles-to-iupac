@@ -38,8 +38,10 @@ def name_metal_chain(mol, graph, stems, metals, parent_num, max_valence):
         return _name_multiplicative(mol, graph, stems, metals, parent_num, max_valence)
     adjacent = {i: [n for n in graph[i] if n in ids] for i in ids}
     ends = [i for i in ids if len(adjacent[i]) <= 1]
-    if len(ends) != 2 or any(len(v) > 2 for v in adjacent.values()):
+    if len(ends) != 2 or any(len(v) > 2 for v in adjacent.values()) or (len(ids) > 1 and not all(adjacent.values())):
         raise UnsupportedStructure("only an unbranched acyclic metal chain is supported here")
+    if any(mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1.0 for a in ids for b in adjacent[a]):
+        raise UnsupportedStructure("a non-single bond within a metal chain is not supported yet (P-68.2)")
     order = [ends[0]]
     while len(order) < len(ids):
         order.append(next(n for n in adjacent[order[-1]] if n not in order))
