@@ -1280,3 +1280,19 @@ def test_n_acyl_groups_on_mancude_and_fused_ring_nitrogens_are_pseudoketones(smi
 )
 def test_locant_is_omitted_only_when_the_parent_has_one_kind_of_substitutable_hydrogen(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C[C@H](CCc1ccccc1)NC(=S)NC1CC1", "N-cyclopropyl-N'-[(2R)-4-phenylbutan-2-yl]thiourea"),
+        ("C[C@H](CCc1ccccc1)NC(=O)NC", "N-methyl-N'-[(2R)-4-phenylbutan-2-yl]urea"),
+        ("C[C@@H](CCc1ccccc1)NC(=S)NC", "N-methyl-N'-[(2S)-4-phenylbutan-2-yl]thiourea"),
+        (
+            "C[C@H](CCc1ccccc1)NC(=S)N[C@@H]1C[C@H]2CC[C@H]1C2",
+            "N-[(1S,2R,4S)-bicyclo[2.2.1]heptan-2-yl]-N'-[(2R)-4-phenylbutan-2-yl]thiourea",
+        ),
+    ],
+)
+def test_chiral_substituent_groups_of_ureas_and_thioureas_cite_their_descriptors(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

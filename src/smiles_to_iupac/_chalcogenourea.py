@@ -14,7 +14,13 @@ from ._common import (
     halogen_substituents,
     is_nitro_nitrogen,
 )
-from ._substituents import alpha_sort_key, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
+from ._substituents import (
+    alpha_sort_key,
+    cited_branch_stereo,
+    format_mononuclear_prefixes,
+    format_substituent_prefixes,
+    name_branch,
+)
 
 
 def is_oxo_nitrogen(mol, atom):
@@ -96,6 +102,11 @@ def _substituent_atoms(graph, roots, core_atoms):
     return reached
 
 
+def _named_groups(mol, graph, halogens, nitrogens, roots, core_atoms):
+    with cited_branch_stereo(mol, graph, core_atoms, [r for group in roots for r in group]):
+        return [[name_branch(graph, c, n, halogens, mol=mol) for c in group] for n, group in zip(nitrogens, roots)]
+
+
 def n_substituent_names(mol, graph, core_atoms, nitrogens, carbon_idx, junior_groups=False):
     """One list of substituent names per nitrogen of `nitrogens`, for every atom outside `core_atoms`
     (P-66.1.4.1); raises when a ring fuses into the core or a non-halogen
@@ -124,7 +135,7 @@ def n_substituent_names(mol, graph, core_atoms, nitrogens, carbon_idx, junior_gr
             for idx in outside
         ):
             raise UnsupportedStructure("this element in an N-substituent of a urea is not supported yet")
-        return [[name_branch(graph, c, n, halogens, mol=mol) for c in group] for n, group in zip(nitrogens, roots)]
+        return _named_groups(mol, graph, halogens, nitrogens, roots, core_atoms)
     oxo_atoms = {
         n.GetIdx()
         for idx in outside
@@ -139,7 +150,7 @@ def n_substituent_names(mol, graph, core_atoms, nitrogens, carbon_idx, junior_gr
                 "a heteroatom or other characteristic group outside the urea core and its N-substituents "
                 "is not supported yet"
             )
-    return [[name_branch(graph, c, n, halogens, mol=mol) for c in group] for n, group in zip(nitrogens, roots)]
+    return _named_groups(mol, graph, halogens, nitrogens, roots, core_atoms)
 
 
 def n_prefix(n1_names, n2_names):
