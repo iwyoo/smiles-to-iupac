@@ -68,6 +68,7 @@ from ._aminide import has_aminide_shape, name_aminide
 from ._ammonium import has_ammonium_shape, has_polyammonium_shape, name_ammonium, name_polyammonium
 from ._polycation import has_polycation_shape, name_polycation
 from ._ylium_ring import has_ylium_ring_shape, name_ylium_ring
+from ._chain_cation import has_chain_cation_shape, name_chain_cation
 from ._ylide import has_nitrogen_ylide_shape, has_pos_ylide_shape, name_nitrogen_ylide, name_pos_ylide
 from ._amine_imide import has_amine_imide_shape, name_amine_imide
 from ._phosphonium import has_phosphonium_shape, name_phosphonium
@@ -970,6 +971,8 @@ def _name_mol(mol) -> str:
     # naming) must be routed here before every other branch below: none of
     # them recognize a charged atom at all -- `_amine.py` in particular
     # rejects any charged atom outright rather than attempting to name it.
+    if has_chain_cation_shape(mol):
+        return name_chain_cation(mol)
     if has_polyammonium_shape(mol):
         return name_polyammonium(mol)
     if has_polycation_shape(mol):

@@ -991,6 +991,21 @@ def test_ring_heteroatom_ylium_cations(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("CC[S+](C)CCOCCOCC[S+](C)CC", "3,12-dimethyl-6,9-dioxa-3,12-dithiatetradecane-3,12-diium", id="two_cationic_centres_in_a_replacement_chain"),
+        pytest.param("CC[S+](C)CCOCCOCCOCC", "12-methyl-3,6,9-trioxa-12-thiatetradecan-12-ium", id="one_cationic_centre_in_a_replacement_chain"),
+        pytest.param("CC[SH+]CCOCCOCCOCC", "3,6,9-trioxa-12-thiatetradecan-12-ium", id="cationic_centre_without_substituent"),
+        pytest.param("C1CC[As+]2(C1)CCCC2", "5λ5-arsaspiro[4.4]nonan-5-ylium", id="spiro_atom_cation_by_the_lambda_convention"),
+        pytest.param("C1CC[N+]2(C1)CCCC2", "5λ5-azaspiro[4.4]nonan-5-ylium", id="spiro_ammonium_by_the_lambda_convention"),
+        pytest.param("C1CC2CC[S+]1CC2", "1λ4-thiabicyclo[2.2.2]octan-1-ylium", id="bridgehead_cation_by_the_lambda_convention"),
+    ],
+)
+def test_cationic_centres_named_by_skeletal_replacement_and_lambda_parents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param("[CH2+]C[CH2+]", "propane-1,3-bis(ylium)", id="two_hydride_losses_on_a_chain"),
         pytest.param("C[C+2]C", "propane-2,2-bis(ylium)", id="two_hydride_losses_on_one_carbon"),
         pytest.param("C1=C[CH+][CH+]1", "cyclobut-3-ene-1,2-bis(ylium)", id="two_hydride_losses_on_a_ring"),
