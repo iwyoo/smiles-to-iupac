@@ -506,18 +506,6 @@ def test_von_baeyer_spiro_selenol_reviewed(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("[SeH]C1CC2CCC1C([SeH])C2", id="multiple_ring_selenols_raises"),
-        pytest.param("[SeH]C1CCCC2(C1)C=CCCC2", id="unsaturated_monospiro_selenol_still_raises"),
-    ],
-)
-def test_multiple_ring_selenols_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
-@pytest.mark.parametrize(
     "smiles,expected",
     [
         ("[Se]=C1CCCC2(C1)CCCCC2", "spiro[5.5]undecane-2-selone"),
@@ -613,18 +601,8 @@ def test_von_baeyer_spiro_tellurol_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_multiple_ring_tellurols_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[TeH]C1CC2CCC1C2[TeH]")
-
-
 def test_von_baeyer_tellurol_ring_unsaturation():
     assert smiles_to_iupac("[TeH]C1CC2C=CC1C2") == "bicyclo[2.2.1]hept-5-ene-2-tellurol"
-
-
-def test_unsaturated_monospiro_tellurol_still_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[TeH]C1CCCC2(C1)C=CCCC2")
 
 
 @pytest.mark.parametrize(

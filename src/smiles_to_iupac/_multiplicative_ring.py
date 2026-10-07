@@ -56,6 +56,8 @@ _SUFFIX_WORDS = _SuffixWords({
     "imine": "imine",
     "alcohol": "ol",
     "thiol": "thiol",
+    "selenol": "selenol",
+    "tellurol": "tellurol",
     "amine": "amine",
 })
 _RETAINED_BENZENE = {

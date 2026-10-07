@@ -327,7 +327,6 @@ def test_phenyl_substituent_selenoic_acid_ring_halogen():
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("[SeH]C1CCCC=C1C", id="with_substituent_raises"),
         pytest.param("[SeH]C1CCCC#C1", id="triple_bond_raises"),
     ],
 )
@@ -351,18 +350,6 @@ def test_unsaturated_ring_selenol_cases_raise(smiles):
 )
 def test_polycyclic_selenol_on_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("C=Cc1ccccc1CC[SeH]", id="phenyl_chain_selenol_unsaturation_raises"),
-        pytest.param("[SeH]c1cccnc1", id="heteroaromatic_direct_attachment_selenol_raises"),
-    ],
-)
-def test_phenyl_chain_selenol_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 def test_oxygen_or_sulfur_heteroaromatic_chain_selenol():
@@ -700,7 +687,6 @@ def test_phenyl_substituent_telluroic_acid_ring_halogen():
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("[TeH]C1CCCC=C1C", id="with_substituent_raises"),
         pytest.param("[TeH]C1CCCC#C1", id="triple_bond_raises"),
     ],
 )
@@ -726,11 +712,6 @@ def test_ring_substituent_chain_and_related_3(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_phenyl_chain_tellurol_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC[TeH]")
-
-
 @pytest.mark.parametrize(
     "smiles,expected",
     [
@@ -739,11 +720,6 @@ def test_phenyl_chain_tellurol_unsaturation_raises():
 )
 def test_heteroaromatic_chain_tellurol(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_heteroaromatic_direct_attachment_tellurol_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[TeH]c1cccnc1")
 
 
 @pytest.mark.parametrize(
@@ -952,4 +928,18 @@ def test_selenium_tellurium_oxo_acids_like_sulfur_analogues(smiles, expected):
     ],
 )
 def test_selenium_tellurium_substituted_benzene_chains_like_sulfur_analogues(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("[SeH]CCN", "2-aminoethane-1-selenol"),
+        ("[TeH]CCN", "2-aminoethane-1-tellurol"),
+        ("[SeH]c1cccnc1", "pyridine-3-selenol"),
+        ("[SeH]C1CC2CCC1C([SeH])C2", "bicyclo[2.2.2]octane-2,6-diselenol"),
+        ("[SeH]C1CCCC=C1C", "2-methylcyclohex-2-ene-1-selenol"),
+    ],
+)
+def test_selenols_and_tellurols_beside_other_groups_and_on_any_parent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

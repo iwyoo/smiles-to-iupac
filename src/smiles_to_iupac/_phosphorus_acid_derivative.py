@@ -7,11 +7,21 @@ element symbol as locant of the organyl groups ('N,N'-dimethyl-P-phenylphosphoni
 from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_substituents, halogen_substituents
+from ._carbonic_family import pseudohalide_at
 from ._phosphonic_acid import _SENIOR_ACIDS, CENTER_STEMS
 from ._substituents import alpha_sort_key, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
 _HALIDE = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 _MULTIPLIER = {1: "", 2: "di", 3: "tri"}
+_PSEUDO = {
+    "N3": "azide",
+    "CN": "cyanide",
+    "NC": "isocyanide",
+    "NCO": "isocyanate",
+    "NCS": "isothiocyanate",
+    "NCSe": "isoselenocyanate",
+    "NCTe": "isotellurocyanate",
+}
 _PRIMES = ["N", "N'", "N''"]
 _SYMBOL = {15: "P", 33: "As", 51: "Sb"}
 
@@ -33,13 +43,15 @@ def _find(mol):
     if len(double) != 1:
         return None
     others = [n for n in center.GetNeighbors() if n.GetIdx() != double[0].GetIdx()]
-    carbons = [n for n in others if n.GetAtomicNum() == 6]
-    rest = [n for n in others if n.GetAtomicNum() != 6]
+    pseudo = {n.GetIdx(): pseudohalide_at(mol, n.GetIdx(), center.GetIdx()) for n in others}
+    carbons = [n for n in others if n.GetAtomicNum() == 6 and not pseudo[n.GetIdx()]]
+    rest = [n for n in others if n not in carbons]
     if not rest or len(carbons) > 2:
         return None
     if any(mol.GetBondBetweenAtoms(center.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0 for n in others):
         return None
-    if all(n.GetAtomicNum() in HALOGEN_PREFIXES for n in rest) and len({n.GetAtomicNum() for n in rest}) == 1:
+    words = {_halide_word(mol, n, center) for n in rest}
+    if None not in words and len(words) == 1:
         return center, double[0], carbons, rest, "halide"
     if all(_is_amino(n, center) for n in rest):
         return center, double[0], carbons, rest, "amide"
@@ -48,6 +60,13 @@ def _find(mol):
     if len(amino) == 1 and len(halides) == len(rest) - 1 and len({n.GetAtomicNum() for n in halides}) == 1:
         return center, double[0], carbons, rest, "amidic halide"
     return None
+
+
+def _halide_word(mol, atom, center):
+    if atom.GetAtomicNum() in HALOGEN_PREFIXES:
+        return _HALIDE[atom.GetAtomicNum()]
+    pseudo = pseudohalide_at(mol, atom.GetIdx(), center.GetIdx())
+    return _PSEUDO.get(pseudo) if pseudo else None
 
 
 def _is_amino(nitrogen, center):
@@ -86,7 +105,7 @@ def name_phosphorus_acid_derivative(mol) -> str:
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     count = len(rest)
     if kind == "halide":
-        word = _HALIDE[rest[0].GetAtomicNum()]
+        word = _halide_word(mol, rest[0], center)
         head = "" if carbons else f"{stem}oryl"
         prefixes = [name_branch(graph, c.GetIdx(), center.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True) for c in carbons]
         organyl = format_mononuclear_prefixes(prefixes) if prefixes else ""
