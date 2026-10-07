@@ -978,3 +978,16 @@ def test_common_hydride_names_carry_no_pin(smiles, expected):
 )
 def test_homogeneous_heteromonocycle_elides_multiplier_vowel_and_omits_locants(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C[GeH2]S", "methylgermanethiol"),
+        ("[SiH3][SeH]", "silaneselenol"),
+        ("[SiH2](S)S", "silanedithiol"),
+        ("[SiH2](O)S", "sulfanylsilanol"),
+    ],
+)
+def test_group_14_hydrides_take_chalcogenol_suffixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

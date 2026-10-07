@@ -576,6 +576,8 @@ def _name_unabridged(smiles: str) -> str:
             return name
         if parsed is not None and has_anisole_shape(parsed):
             return name_anisole(parsed)
+        if parsed is not None and has_functional_replacement_oxoacid_shape(parsed):
+            return name_functional_replacement_oxoacid(parsed)
         if parsed is not None and has_nonstandard_hydride_shape(parsed):
             return name_nonstandard_hydride(parsed)
         if parsed is not None and has_sphingoid_shape(parsed):
