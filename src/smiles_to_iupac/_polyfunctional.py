@@ -70,9 +70,17 @@ def _acid_rank(name):
 
 
 AMINIUM = contextvars.ContextVar("aminium", default=False)
+RING_CENTER = contextvars.ContextVar("ring_center", default=False)
+FORCE_LOCANTS = contextvars.ContextVar("force_locants", default=False)
+LAST_POSITIONS = contextvars.ContextVar("last_positions", default=None)
+FORCED_PRINCIPAL = contextvars.ContextVar("forced_principal", default=None)
 
 
 def _principal_class(classes):
+    if FORCED_PRINCIPAL.get():
+        return FORCED_PRINCIPAL.get() if FORCED_PRINCIPAL.get() in classes else None
+    if RING_CENTER.get():
+        return None
     if AMINIUM.get():
         return "amine" if "amine" in classes else None
     if "ide" in classes:
@@ -332,16 +340,208 @@ def _paths(adj, eligible):
 def name_polyfunctional(mol) -> str:
     from ._isotope_labels import split_isotopes
     from ._linear_phane import has_linear_phane_shape, name_linear_phane
+    from ._radical_group import has_radical_group_shape, name_radical_group
 
     if has_linear_phane_shape(mol):
         return name_linear_phane(mol)
+    if has_radical_group_shape(mol):
+        return name_radical_group(mol)
     split = split_isotopes(mol)
     if split is not None:
-        return _name_isotopic(*split)
+        ammonium = _aminium_base(split[0])
+        if ammonium is not None:
+            return _name_isotopic(mol, *split, build=lambda clean, labels: _name_aminium(ammonium, labels))
+        center = _ring_center_base(split[0])
+        if center is not None:
+            return _name_isotopic(mol, *split, build=lambda clean, labels: _name_labelled_ring_center(clean, labels, center))
+        return _name_isotopic(mol, *split)
     cation = _aminium_base(mol)
     if cation is not None:
         return _name_aminium(cation)
+    center = _ring_center_base(mol)
+    if center is not None:
+        return _name_ring_center(*center)
     return _name_labelled(mol, {})
+
+
+def _ring_center_base(mol):
+    """(neutral analogue, center atom in it, kind, probe) for a single ring-nitrogen cation or N-oxide; the cation
+    (P-73.1.1.2) or the N-oxide (P-62.5, P-74.2.1.2) outranks every other group, so the analogue is named with all of
+    them as prefixes. `probe` checks the centre's locant when the ring has another nitrogen."""
+    from ._diester_ring_diyl import _system_of
+
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge() and not _is_nitro_part(a)]
+    centers = [a for a in charged if a.GetAtomicNum() == 7 and a.IsInRing() and a.GetFormalCharge() == 1]
+    if len(centers) != 1 or len(charged) - len(centers) > 1:
+        return None
+    center = centers[0]
+    oxides = [a for a in charged if a is not center]
+    if oxides and not (
+        oxides[0].GetAtomicNum() == 8
+        and oxides[0].GetFormalCharge() == -1
+        and oxides[0].GetDegree() == 1
+        and mol.GetBondBetweenAtoms(oxides[0].GetIdx(), center.GetIdx()) is not None
+    ):
+        return None
+    if mol.GetNumAtoms() > _MAX_ATOMS or len(Chem.GetMolFrags(mol)) != 1:
+        return None
+    system = _system_of(mol, center.GetIdx())
+    if system is None:
+        return None
+    other_nitrogens = [i for i in system[1] if i != center.GetIdx() and mol.GetAtomWithIdx(i).GetAtomicNum() == 7]
+    substituted = center.GetDegree() - sum(1 for n in center.GetNeighbors() if n.GetIdx() in system[1]) - len(oxides) > 0
+    probe = None
+    if other_nitrogens and not substituted:
+        probe = _probe_with_iodine(mol, center, oxides)
+        if probe is None:
+            return None
+    neutral = Chem.RWMol(mol)
+    index = center.GetIdx()
+    atom = neutral.GetAtomWithIdx(index)
+    atom.SetFormalCharge(0)
+    atom.SetNoImplicit(True)
+    hydrogens = 0 if oxides else max(center.GetTotalNumHs() - 1, 0)
+    atom.SetNumExplicitHs(hydrogens)
+    if oxides:
+        oxide = oxides[0].GetIdx()
+        neutral.RemoveAtom(oxide)
+        index -= index > oxide
+    base = neutral.GetMol()
+    if oxides or center.GetTotalNumHs():
+        Chem.SanitizeMol(base)
+    else:
+        base.UpdatePropertyCache(strict=False)
+        Chem.FastFindRings(base)
+        if center.GetIsAromatic():
+            base.GetAtomWithIdx(index).SetBoolProp("_ring_cation_centre", True)
+    return base, index, "oxide" if oxides else "ium", probe
+
+
+def _probe_with_iodine(mol, center, oxides):
+    """The same ring cation with an iodine on the centre: its name numbers the centre lowest, as the name of an
+    N-oxide or protonated ring (no substituent on the centre) must; the iodo prefix is cut out afterwards."""
+    if any(a.GetAtomicNum() == 53 for a in mol.GetAtoms()):
+        return None
+    probe = Chem.RWMol(mol)
+    if oxides:
+        iodine = probe.GetAtomWithIdx(oxides[0].GetIdx())
+        iodine.SetAtomicNum(53)
+        iodine.SetFormalCharge(0)
+    else:
+        added = probe.AddAtom(Chem.Atom(53))
+        probe.AddBond(center.GetIdx(), added, Chem.BondType.SINGLE)
+        probe.GetAtomWithIdx(center.GetIdx()).SetNumExplicitHs(0)
+        probe.GetAtomWithIdx(center.GetIdx()).SetNoImplicit(True)
+    try:
+        probe = probe.GetMol()
+        Chem.SanitizeMol(probe)
+    except Exception:
+        return None
+    found = _ring_center_base(probe)
+    return None if found is None else found[:2]
+
+
+def _without_iodo(name, locant):
+    token = f"{locant}-iodo"
+    at = name.find(token)
+    if at < 0:
+        raise UnsupportedStructure("the centre marker is not cited in the name")
+    text = name[:at] + name[at + len(token):]
+    if at == 0:
+        return text.lstrip("-")
+    if text[at - 1:at] == "-" and text[at:at + 1] == "-":
+        return text[:at] + text[at + 1:]
+    if text[at - 1:at] == "-" and text[at:at + 1].isalpha() and text[at - 2:at - 1].isalpha():
+        return text[:at - 1] + text[at:]
+    return text
+
+
+def _attach(name, placed, center, kind):
+    locant = placed.get(center)
+    if locant is None or " " in name:
+        raise UnsupportedStructure("the ring nitrogen is not numbered in the parent hydride")
+    if kind == "oxide":
+        return f"{name} {locant}-oxide"
+    if not name.endswith("e"):
+        raise UnsupportedStructure("the cationic ring parent has no terminal 'e' to elide (P-73.1.1.2)")
+    return f"{name[:-1]}-{locant}-ium"
+
+
+def _name_labelled_ring_center(clean, labels, found):
+    base, center, kind, probe = found
+    shift = clean.GetNumAtoms() - base.GetNumAtoms()
+    removed = next((a.GetIdx() for a in clean.GetAtoms() if a.GetFormalCharge() == -1 and a.GetAtomicNum() == 8), None)
+    if shift and removed is None:
+        raise UnsupportedStructure("the isotopic modification of this ring cation is not supported")
+    centre_in_clean = center + (1 if shift and center >= removed else 0)
+    if STEREO_OF_ISOTOPOLOGUE.get() or any(i in (removed, centre_in_clean) for i in labels):
+        raise UnsupportedStructure("an isotopic modification of the cationic centre or its stereo is not supported yet")
+    moved = {i - (1 if shift and i > removed else 0): e for i, e in labels.items()}
+    return _name_ring_center(base, center, kind, probe, moved)
+
+
+def _name_ring_center(base, center, kind, probe=None, labels=None):
+    from ._diester_ring_diyl import _system_of
+
+    if not labels and len(_system_of(base, center)[1]) == base.GetNumAtoms():
+        name, placed = _bare_ring_name(base, center)
+        return _attach(name, placed, center, kind)
+    token = RING_CENTER.set(True)
+    try:
+        if probe is None:
+            return _name_labelled(base, labels or {}, lambda name, placed: _attach(name, placed, center, kind))
+        marked, marked_center = probe
+
+        def attach_marked(name, placed):
+            locant = placed.get(marked_center)
+            if locant is None:
+                raise UnsupportedStructure("the ring nitrogen is not numbered in the parent hydride")
+            return _attach(_without_iodo(name, locant), {marked_center: locant}, marked_center, kind)
+
+        return _name_labelled(marked, labels or {}, attach_marked)
+    finally:
+        RING_CENTER.reset(token)
+
+
+def _monocycle_locant(base, center):
+    """The locant of `center` in a bare heteromonocycle: heteroatoms take the lowest locants, then the senior
+    element the lowest of those (P-22.2.2.1.2)."""
+    cycle = ring_cycle(
+        {a.GetIdx(): [n.GetIdx() for n in a.GetNeighbors()] for a in base.GetAtoms()}, [a.GetIdx() for a in base.GetAtoms()]
+    )
+    hetero = [a for a in cycle if base.GetAtomWithIdx(a).GetAtomicNum() != 6]
+    size = len(cycle)
+    best = None
+    for start in range(size):
+        for step in (1, -1):
+            locants = {cycle[(start + step * k) % size]: k + 1 for k in range(size)}
+            key = (
+                sorted(locants[h] for h in hetero),
+                [locants[h] for h in sorted(hetero, key=lambda h: (_HETERO_RANK.get(base.GetAtomWithIdx(h).GetSymbol(), 99), h))],
+                locants[center],
+            )
+            if best is None or key < best[0]:
+                best = (key, locants)
+    return best[1][center]
+
+
+def _bare_ring_name(base, center):
+    """(name, {center: locant}) of an unsubstituted single-heteroatom ring system."""
+    from ._fusion_name import Context, fused_ring_system_name, fusion_name, system_numbering_options
+    from ._fused_numbering import _locant_key
+    from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
+
+    if base.GetRingInfo().NumRings() == 1:
+        if not has_hetero_monocyclic_name(base):
+            raise UnsupportedStructure("this ring has no supported parent name")
+        return name_hetero_monocyclic(base), {center: _monocycle_locant(base, center)}
+    name = fused_ring_system_name(base)
+    if name is None:
+        raise UnsupportedStructure("this ring system has no supported parent name")
+    ctx = Context(base)
+    fused, root = fusion_name(base)
+    options = system_numbering_options(ctx, fused, root)
+    return name, {center: min((n[center] for n in options), key=_locant_key)}
 
 
 def _aminium_base(mol):
@@ -372,10 +572,10 @@ def _aminium_base(mol):
     return neutral.GetMol()
 
 
-def _name_aminium(base):
+def _name_aminium(base, labels=None):
     token = AMINIUM.set(True)
     try:
-        name = _name_labelled(base, {})
+        name = _name_labelled(base, labels or {})
     finally:
         AMINIUM.reset(token)
     if not name.endswith(("amine", "aniline")):
@@ -383,26 +583,75 @@ def _name_aminium(base):
     return name[:-1] + "ium"
 
 
-def _name_isotopic(clean, labels):
-    if specified_stereo_elements(clean) is not None or any(
-        a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()
+STEREO_OF_ISOTOPOLOGUE = contextvars.ContextVar("stereo_of_isotopologue", default=None)
+
+
+def _name_isotopic(original, clean, labels, index_map, build=None):
+    """Stereodescriptors come from the molecule with its nuclides (a CHD centre is a stereocentre, P-82.4) and are
+    carried over to the atoms of the unlabelled molecule."""
+    located = []
+    for kind, idx, code in specified_stereo_elements(original) or []:
+        if kind == "bond":
+            bond = original.GetBondWithIdx(idx)
+            ends = (index_map.get(bond.GetBeginAtomIdx()), index_map.get(bond.GetEndAtomIdx()))
+            if None in ends:
+                raise UnsupportedStructure("a double bond to an isotopically labelled hydrogen is not supported")
+            located.append(("bond", ends, code))
+        elif idx in index_map:
+            located.append(("atom", index_map[idx], code))
+    specified_bonds = [
+        b for b in original.GetBonds()
+        if b.GetStereo() not in (Chem.BondStereo.STEREONONE, Chem.BondStereo.STEREOANY)
+    ]
+    if len(specified_bonds) != sum(1 for k, _, _ in located if k == "bond") or any(
+        a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED and a.GetAtomicNum() != 1 and a.GetIdx() not in {i for k, i, _ in located if k == "atom"} and False
+        for a in original.GetAtoms()
     ):
-        raise UnsupportedStructure("stereodescriptors of an isotopically modified compound are not supported yet (P-82.4)")
-    return _name_labelled(clean, labels)
+        raise UnsupportedStructure("a stereo element of this isotopically modified structure is not cited by a supported name")
+    token = STEREO_OF_ISOTOPOLOGUE.set(located)
+    try:
+        return (build or _name_labelled)(clean, labels)
+    finally:
+        STEREO_OF_ISOTOPOLOGUE.reset(token)
 
 
-def _name_labelled(mol, labels):
+def _with_labels(mol, labels, consumed, name, parts, reselect):
+    """`name` with the isotopic descriptor of the labelled atoms of `mol`: parent atoms cite their locants, atoms of
+    the principal group take letter locants or go before the suffix (P-82.2, P-82.6)."""
+    from ._isotope_labels import descriptor
+
+    in_parent = {a: e for a, e in labels.items() if a in parts[4]}
+    if in_parent and len(parts[4]) > 1 and not _locants_omitted(mol, in_parent, parts):
+        force_token = FORCE_LOCANTS.set(True)
+        try:
+            name, parts = reselect()
+        finally:
+            FORCE_LOCANTS.reset(force_token)
+    rest = {a: e for a, e in labels.items() if a not in in_parent and a not in consumed}
+    front, suffix_text = _group_atom_labels(mol, rest) if rest else ([], None)
+    if suffix_text:
+        name = _before_suffix(name, *suffix_text)
+    if in_parent or front:
+        bare = len(parts[4]) == 1 or _locants_omitted(mol, in_parent, parts)
+        capacity = {a: mol.GetAtomWithIdx(a).GetTotalNumHs() for a in in_parent}
+        name = _with_descriptor(name, parts, descriptor(in_parent, parts[4], bare, front, capacity))
+    return name
+
+
+def _name_labelled(mol, labels, finish=None):
     from ._isotope_labels import descriptor
     from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS
 
-    stereo = _check_scope(mol) + [("isotope", atom, "") for atom in labels]
+    stereo = _check_scope(mol) + [
+        ("isotope", atom, "|".join(filter(None, [entry["skeleton"], *entry["H"]]))) for atom, entry in labels.items()
+    ]
     context = {
         "atoms": {where: code for kind, where, code in stereo if kind == "atom"},
         "bonds": {where: code for kind, where, code in stereo if kind == "bond"},
         "used": set(),
     }
     token = BRANCH_STEREO.set(context if stereo else None)
-    isotope_context = {"labels": labels, "consumed": set()}
+    isotope_context = {"labels": labels, "consumed": set(), "mol": mol}
     isotope_token = ISOTOPE_LABELS.set(isotope_context if labels else None)
     try:
         multiplicative = _multiplicative_name(mol, stereo)
@@ -411,16 +660,112 @@ def _name_labelled(mol, labels):
                 raise UnsupportedStructure("isotopic modification of a multiplicative name is not supported yet")
             return multiplicative
         _, name, parts = _select(mol, stereo=stereo)
+        LAST_POSITIONS.set((mol, dict(parts[4])))
         if labels:
-            in_parent = {a: e for a, e in labels.items() if a in parts[4]}
-            if set(labels) - set(in_parent) - isotope_context["consumed"]:
-                raise UnsupportedStructure("an isotopically modified atom outside the parent hydride is not supported yet")
-            if in_parent:
-                name = _with_descriptor(name, parts, descriptor(in_parent, parts[4], len(parts[4]) == 1))
+            name = _with_labels(
+                mol, labels, isotope_context["consumed"], name, parts, lambda: _select(mol, stereo=stereo)[1:]
+            )
+        if finish is not None:
+            name = finish(name, parts[4])
         return _stereo_prefix(stereo, parts[4], ring_parent=parts[5], used=context["used"]) + name
     finally:
         BRANCH_STEREO.reset(token)
         ISOTOPE_LABELS.reset(isotope_token)
+
+
+_SUFFIX_WORD = {"alcohol": "ol", "ketone": "one", "aldehyde": "al"}
+
+
+def _principal_owned(mol):
+    """(principal class, [atoms owned by each principal group])."""
+    groups = {}
+    for atom in mol.GetAtoms():
+        found = _group_of(mol, atom.GetIdx())
+        if found is not None:
+            groups.setdefault(found[0], []).append(found[1])
+    for cls, _, owned in _ring_occurrences(mol):
+        groups.setdefault(cls, []).append(owned)
+    principal = _principal_class(set(groups))
+    return principal, groups.get(principal, [])
+
+
+def _group_atom_labels(mol, rest):
+    """([(nuclide, locant, count, repeatable)], suffix descriptor text) for nuclides on atoms of the principal
+    characteristic group: an amide or amine nitrogen and the oxygens of an acid are cited in front of the parent
+    with a letter locant (P-82.2.4, P-82.2.5, P-82.6.2); a hydroxy, oxo or aldehyde oxygen is inserted before the
+    suffix (P-82.2.1, P-82.6.1.1)."""
+    from ._isotope_labels import _nuclide_sort_key
+
+    principal, owned_groups = _principal_owned(mol)
+    owned = set().union(*owned_groups) if owned_groups else set()
+    if principal is None or any(a not in owned for a in rest):
+        raise UnsupportedStructure("an isotopically modified atom outside the parent and the principal group is not supported yet")
+    elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in rest}
+    if len(elements) != 1:
+        raise UnsupportedStructure("isotopic modification of several elements of a characteristic group is not supported yet")
+    (element,) = elements
+    if any(
+        a.GetAtomicNum() == element and a.GetIdx() not in owned and a.GetIdx() not in rest for a in mol.GetAtoms()
+    ):
+        raise UnsupportedStructure("the modified atom of the characteristic group needs a locant that is not defined yet")
+    symbol = mol.GetAtomWithIdx(next(iter(rest))).GetSymbol()
+    heavy = [a for a, e in rest.items() if e["skeleton"]]
+    if len(heavy) > 1:
+        raise UnsupportedStructure("several isotopically modified atoms in one characteristic group are not supported yet")
+    if principal in _SUFFIX_WORD and element == 8:
+        if len(owned_groups) != 1:
+            raise UnsupportedStructure("this isotopically modified oxygen has no defined suffix descriptor")
+        nuclides = []
+        for entry in rest.values():
+            if entry["skeleton"]:
+                nuclides.append(entry["skeleton"])
+            nuclides.extend(n for n, c in entry["H"].items() for _ in range(c))
+        if len(nuclides) != len(set(nuclides)) or len(rest) != 1:
+            raise UnsupportedStructure("several isotopically modified atoms at the suffix are not supported yet")
+        return [], ("(" + ",".join(sorted(nuclides, key=_nuclide_sort_key)) + ")", _SUFFIX_WORD[principal])
+    nitrogen = principal in ("amide", "amine", "nitrile") and element == 7
+    if principal == "nitrile" and any(e["H"] for e in rest.values()):
+        raise UnsupportedStructure("a nitrile nitrogen carries no hydrogen")
+    acid = _is_acid_family(principal) and element == 8
+    if not (nitrogen or acid):
+        raise UnsupportedStructure("an isotopically modified atom of this characteristic group is not supported yet")
+    items = []
+    for atom, entry in rest.items():
+        heavy_label = entry["skeleton"]
+        locant = f"{heavy_label[:-len(symbol)]}{symbol}" if heavy_label else symbol
+        if heavy_label:
+            items.append((heavy_label, None, 1, False))
+        for nuclide, count in entry["H"].items():
+            items.append((nuclide, locant, count, nitrogen and _capacity(mol, atom) > 1))
+    return items, None
+
+
+def _capacity(mol, atom):
+    target = mol.GetAtomWithIdx(atom)
+    return target.GetIntProp("_capacity") if target.HasProp("_capacity") else target.GetTotalNumHs()
+
+
+def _locants_omitted(mol, in_parent, parts):
+    """P-82.6.1.3 (every parent position modified in the same way, none keeping a hydrogen) and the one modified atom
+    of a bare hydrocarbon whose positions are all equivalent (benzene, ethane; P-82.6.1.1)."""
+    positions = set(parts[4])
+    if set(in_parent) == positions and len({repr(sorted(e["H"])) + str(e["skeleton"]) for e in in_parent.values()}) == 1:
+        if all(sum(in_parent[a]["H"].values()) == mol.GetAtomWithIdx(a).GetTotalNumHs() for a in positions):
+            return True
+    ranks = Chem.CanonicalRankAtoms(mol, breakTies=False)
+    return (
+        len(in_parent) == 1
+        and sum(bool(e["skeleton"]) + sum(e["H"].values()) for e in in_parent.values()) == 1
+        and len(positions) == mol.GetNumAtoms()
+        and all(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in positions)
+        and len({ranks[a] for a in positions}) == 1
+    )
+
+
+def _before_suffix(name, text, word):
+    if not name.endswith(word):
+        raise UnsupportedStructure("the suffix of this name is not delimited")
+    return name[: -len(word)] + text + word
 
 
 def _check_scope(mol):
@@ -428,6 +773,8 @@ def _check_scope(mol):
     ("bond", (a, b), code); [] when the molecule has none."""
     if mol.GetNumAtoms() > _MAX_ATOMS or len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("this molecule is out of scope for the polyfunctional chain engine")
+    if STEREO_OF_ISOTOPOLOGUE.get() is not None:
+        return list(STEREO_OF_ISOTOPOLOGUE.get())
     elements = specified_stereo_elements(mol) or []
     located = []
     for kind, idx, code in elements:
@@ -471,8 +818,20 @@ def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset()):
 
 def _stereo_rank(stereo, position_of, ring_parent=False):
     entries, _ = _stereo_entries(stereo, position_of, ring_parent)
-    isotopic = tuple(sorted(position_of[w] for k, w, _ in stereo or [] if k == "isotope" and w in position_of))
-    return isotopic, tuple(0 if code in "RZr" else 1 for _, code in entries)
+    marked = [(w, code) for k, w, code in stereo or [] if k == "isotope" and w in position_of]
+    isotopic = tuple(sorted(position_of[w] for w, _ in marked))
+    return isotopic, _nuclide_precedence(marked, position_of), tuple(0 if code in "RZr" else 1 for _, code in entries)
+
+
+def _nuclide_precedence(marked, position_of):
+    """Lowest locants to the nuclide of higher atomic number, then of higher mass number (P-82.5.2)."""
+    table = Chem.GetPeriodicTable()
+    located = {}
+    for atom, code in marked:
+        for nuclide in filter(None, code.split("|")):
+            symbol = "".join(ch for ch in nuclide if ch.isalpha())
+            located.setdefault((-table.GetAtomicNumber(symbol), -int("".join(ch for ch in nuclide if ch.isdigit()))), []).append(position_of[atom])
+    return tuple(tuple(sorted(located[key])) for key in sorted(located))
 
 
 def _stereo_prefix(stereo, position_of, ring_parent=False, used=frozenset()):
@@ -579,7 +938,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
     if principal in (None, "amine") and any(_substituted_amine_nitrogen(mol, a) for a in mol.GetAtoms()):
         if attach is not None or n_names:
             raise UnsupportedStructure("N-substituted amines inside a unit are not handled by the chain engine")
-        if stereo:
+        if any(kind != "isotope" for kind, _, _ in stereo or ()):
             raise UnsupportedStructure("stereodescriptors with an N-substituted amine parent are not supported yet")
         return _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups)
 
@@ -724,11 +1083,22 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
         found = evaluate_skeleton(mol, graph, "ring", [ring], ring_set, [], set(), "")
         if found is None:
             raise UnsupportedStructure("this ring has no supported name")
+        from ._diester_ring_diyl import PARENT_START
+
         placed = found[2]
         name = _without_stereo(found[1])
-        return (-len(roots), tuple(sorted(placed[r] for r, _ in roots)), name), ((0,), name, (None, None, None, 0, placed, True))
+        return (-len(roots), tuple(sorted(placed[r] for r, _ in roots)), name), (
+            (0,), name, (None, None, None, 0, placed, True, PARENT_START.get())
+        )
+    from ._substituents import ISOTOPE_LABELS
+
+    isotope_context = ISOTOPE_LABELS.get()
+    ring_labelled = isotope_context is not None and any(a in ring_set for a in isotope_context["labels"])
     if not roots:
-        raise UnsupportedStructure("an unsubstituted ring is not a polyfunctional case")
+        if not ring_labelled:
+            raise UnsupportedStructure("an unsubstituted ring is not a polyfunctional case")
+        locants = min(numberings(spec), key=lambda option: _stereo_rank(stereo, option))
+        return (0, (), spec.parent), ((0,), spec.parent, (None, None, None, 0, locants, True, 0))
     entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
     best = None
     for locants in numberings(spec):
@@ -739,7 +1109,7 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
         )
         if best is None or key < best[0]:
             best = (key, locants)
-    if len(entries) == 1 and spec.hetero is None:
+    if len(entries) == 1 and spec.hetero is None and not ring_labelled:
         _, only_name, only_compound = entries[0]
         prefix_text = format_substituent_prefixes(
             {only_name: {"locants": [1], "compound": only_compound}}, omit_locants=True
@@ -747,7 +1117,7 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
     else:
         prefix_text = _prefix_text(entries, best[1])
     name = _join(prefix_text, spec.parent)
-    return (-len(roots), best[0][0], name), ((0,), name, (None, None, None, 0, best[1], True))
+    return (-len(roots), best[0][0], name), ((0,), name, (None, None, None, 0, best[1], True, len(name) - len(spec.parent)))
 
 
 _GROUP_14 = (14, 32, 50, 82)
@@ -889,7 +1259,9 @@ def _fused_plain_parent(mol, graph, rings):
     found = evaluate_skeleton(mol, graph, "ring", system_rings, system_atoms, [], set(), "")
     if found is None:
         raise UnsupportedStructure("this fused ring system has no supported numbering")
-    return ((0,), _without_stereo(found[1]), (None, None, None, 0, found[2], True))
+    from ._diester_ring_diyl import PARENT_START
+
+    return ((0,), _without_stereo(found[1]), (None, None, None, 0, found[2], True, PARENT_START.get()))
 
 
 def _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo=None):
@@ -909,13 +1281,17 @@ def _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo=None):
                 continue
             name, compound = name_branch(graph, neighbor, atom, halogens, aromatic_atoms, mol=mol, unsaturated=True)
             entries.setdefault(position_of[atom], []).append((name, compound))
-    if not entries:
+    from ._substituents import ISOTOPE_LABELS
+
+    if not entries and not ISOTOPE_LABELS.get():
         raise UnsupportedStructure("an unsubstituted chain is not a polyfunctional case")
     grouped = group_substituents(entries)
     locant_set, total_count, citation = substituent_locant_set_and_citation(grouped)
     length = len(chain)
     single = total_count == 1
-    prefix = format_substituent_prefixes(grouped, omit_locants=length == 1 or (length == 2 and (ene or yne) and single))
+    prefix = format_substituent_prefixes(
+        grouped, omit_locants=(length == 1 or (length == 2 and (ene or yne) and single)) and not FORCE_LOCANTS.get()
+    )
     if length == 2 and (ene or yne):
         body = "ethene" if ene else "ethyne"
     else:
@@ -933,7 +1309,7 @@ def _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo=None):
         _stereo_rank(stereo, position_of),
         name,
     )
-    return key, name, (None, None, None, 0, position_of, False)
+    return key, name, (None, None, None, 0, position_of, False, len(prefix))
 
 
 _CARBO_WORDS = {
@@ -1311,8 +1687,10 @@ def _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo):
     found = evaluate_skeleton(mol, graph, "ring", rings, atoms, attach, blocked, _FUSED_SUFFIX[principal], n_names=n_names)
     if found is None:
         raise UnsupportedStructure("this fused ring system has no supported numbering")
+    from ._diester_ring_diyl import PARENT_START
+
     count = len(on_system)
-    return count, ((-count,), _without_stereo(found[1]), (None, None, None, 0, found[2], True))
+    return count, ((-count,), _without_stereo(found[1]), (None, None, None, 0, found[2], True, PARENT_START.get()))
 
 
 class _RingSuffix(dict):
@@ -1446,6 +1824,7 @@ def _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n
     elif (
         count == 1
         and not entries
+        and not FORCE_LOCANTS.get()
         and (spec.kind == "cycloalkane" or (spec.kind == "benzene" and suffix_name not in _RETAINED_BENZENE))
     ):
         word = _SUFFIX_WORDS[suffix_name]
@@ -1500,16 +1879,45 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
     arms = {c: _arm_atoms(graph, c, n_idx) for c in neighbors}
     if sum(len(a) for a in arms.values()) != len(set().union(*arms.values())) or n_idx in set().union(*arms.values()):
         raise UnsupportedStructure("a nitrogen closing a ring is not an acyclic amine parent")
+    from ._substituents import ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    settled = set(context["consumed"]) if context else set()
     results = []
     for c in neighbors:
         others = [o for o in neighbors if o != c]
+        if context:
+            context["consumed"] = set(settled)
         n_names = [name_branch(graph, o, n_idx, halogens, aromatic_atoms, mol=mol, unsaturated=True) for o in others]
         parent, mapped = _amine_parent_molecule(mol, arms[c], c, n_idx)
-        result = _select(parent, None, n_names)
+        unlabelled = ISOTOPE_LABELS.set(None)
+        try:
+            result = _select(parent, None, n_names)
+        finally:
+            ISOTOPE_LABELS.reset(unlabelled)
         ring = parent.GetAtomWithIdx(mapped).IsInRing()
-        results.append((ring, _ring_rank(parent, mapped), _chain_size(parent, mapped), result))
+        results.append((ring, _ring_rank(parent, mapped), _chain_size(parent, mapped), result, c))
     results.sort(key=lambda r: (not r[0], tuple(-x for x in r[1]), -r[2], r[3][1]))
-    return results[0][3]
+    best = results[0]
+    if context:
+        context["consumed"] = set(settled)
+        others = [o for o in neighbors if o != best[4]]
+        n_names = [name_branch(graph, o, n_idx, halogens, aromatic_atoms, mol=mol, unsaturated=True) for o in others]
+        keep = sorted(set(arms[best[4]]) | {n_idx})
+        new_index = {old: new for new, old in enumerate(keep)}
+        parent_labels = {new_index[a]: e for a, e in context["labels"].items() if a in new_index}
+        if parent_labels:
+            parent, _ = _amine_parent_molecule(mol, arms[best[4]], best[4], n_idx)
+            unlabelled = ISOTOPE_LABELS.set(None)
+            try:
+                name = _with_labels(
+                    parent, parent_labels, set(), best[3][1], best[3][2], lambda: _select(parent, None, n_names)[1:]
+                )
+            finally:
+                ISOTOPE_LABELS.reset(unlabelled)
+            context["consumed"].update(a for a in context["labels"] if a in new_index)
+            return best[3][0], name, (*best[3][2][:4], {}, *best[3][2][5:])
+    return best[3]
 
 
 def _amine_parent_molecule(mol, atoms, carbon, n_idx):
@@ -1522,6 +1930,7 @@ def _amine_parent_molecule(mol, atoms, carbon, n_idx):
     parent = editable.GetMol()
     for a in parent.GetAtoms():
         if a.HasProp("_cut_amine_n") and not a.IsInRing():
+            a.SetIntProp("_capacity", mol.GetAtomWithIdx(n_idx).GetTotalNumHs())
             a.SetFormalCharge(0)
             a.SetNumExplicitHs(2)
             a.SetNoImplicit(True)
@@ -2444,7 +2853,7 @@ def _evaluate(
     count = len(on_chain)
     ide_locants = sorted(position_of[a] for a, w in IDE_EXTRA.get().items() if a in chain_set for _ in range(w))
     length = len(chain)
-    force = (attach is not None and length != 1) or (principal == "ide" and bool(grouped) and length > 1)
+    force = (attach is not None and length != 1) or (principal == "ide" and bool(grouped) and length > 1) or FORCE_LOCANTS.get()
     prefix = format_substituent_prefixes(
         _with_n_names(grouped, n_names, position_of, len(on_chain)), omit_locants=length == 1 and not force and not n_names
     )

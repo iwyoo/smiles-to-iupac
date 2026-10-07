@@ -4,15 +4,14 @@ from smiles_to_iupac._common import UnsupportedStructure
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("[2H]CC", id="ethane_deuterium_raises"),
-        pytest.param("[3H]C", id="tritium_raises"),
+        pytest.param("[2H]CC", "(2H1)ethane", id="one_deuterium_on_ethane"),
+        pytest.param("[3H]C", "(3H1)methane", id="tritiated_methane"),
     ],
 )
-def test_ethane_deuterium_raises_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_ethane_deuterium_and_tritium(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -28,9 +27,8 @@ def test_dichlorodideuteromethane_name_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_isotopically_labeled_halogen_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[2H]C([37Cl])")
+def test_isotopically_labeled_halogen_name():
+    assert smiles_to_iupac("[2H]C([37Cl])") == "(37Cl)chloro(2H1)methane"
 
 
 @pytest.mark.parametrize(
@@ -44,16 +42,8 @@ def test_carbon_14_butane_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("FCC[2H]", id="single_halogen_ethane_deuterium_raises"),
-        pytest.param("[13CH3]C[14CH2]C", id="mixed_carbon_isotope_nuclides_raises"),
-    ],
-)
-def test_single_halogen_ethane_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_single_halogen_ethane_cites_every_locant():
+    assert smiles_to_iupac("FCC[2H]") == "1-fluoro(2-2H1)ethane"
 
 
 @pytest.mark.parametrize(
@@ -70,10 +60,7 @@ def test_isotope_alcohol_name(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("C[13CH2][18OH]", id="combined_carbon_and_oxygen_isotope_raises"),
         pytest.param("OCCC[18OH]", id="multiple_hydroxyls_raises"),
-        pytest.param("[18OH]CCC", id="longer_chain_raises"),
-        pytest.param("[18OH]C=C", id="unsaturation_raises"),
     ],
 )
 def test_isotope_alcohol_cases_raise(smiles):
@@ -81,13 +68,21 @@ def test_isotope_alcohol_cases_raise(smiles):
         smiles_to_iupac(smiles)
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[13CH2][18OH]", "(1-13C)ethan-1-(18O)ol", id="combined_carbon_and_oxygen_isotope"),
+        pytest.param("[18OH]CCC", "propan-1-(18O)ol", id="longer_chain"),
+        pytest.param("[15OH]C", "methan(15O)ol", id="short_lived_oxygen_nuclide"),
+        pytest.param("CC(O[2H])CC", "butan-2-(2H)ol", id="deuterated_hydroxyl_on_a_chain"),
+    ],
+)
+def test_isotope_alcohol_oxygen_inserted_before_suffix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_isotope_alcohol_17o_name():
     assert smiles_to_iupac("[17OH]C") == "methan(17O)ol"
-
-
-def test_isotope_alcohol_unsupported_oxygen_isotope_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[15OH]C")
 
 
 @pytest.mark.parametrize(
@@ -105,21 +100,10 @@ def test_chain_unsaturation_alongside_isotope_carboxylic_acid():
 
 
 @pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("[13CH3][C@H](Cl)C(=O)O", id="specified_stereocenter_alongside_isotope_carboxylic_acid_raises"),
-    ],
-)
-def test_specified_stereocenter_alongside_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
-@pytest.mark.parametrize(
     "smiles,expected",
     [
         ("CC(=[18O])C", "propan-2-(18O)one"),
-        ("CC(=O)[14CH3]", "(3-14C)propan-2-one"),
+        ("CC(=O)[14CH3]", "(1-14C)propan-2-one"),
     ],
 )
 def test_isotope_ketone_name(smiles, expected):
@@ -127,24 +111,48 @@ def test_isotope_ketone_name(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles,expected",
     [
-        pytest.param("CC(=[18O])[13CH3]", id="both_isotope_kinds_together_raises"),
-        pytest.param("O=[13C]1CCCCC1", id="ring_alongside_isotope_ketone_raises"),
-        pytest.param("[13CH3]C(=O)[C@H](Cl)C", id="specified_stereocenter_alongside_isotope_ketone_raises"),
+        ("O=[13C]1CCCCC1", "(1-13C)cyclohexan-1-one"),
+        ("OC1CCCC[13CH2]1", "(2-13C)cyclohexan-1-ol"),
+        ("O=C(O)C1CCC[13CH2]C1", "(3-13C)cyclohexane-1-carboxylic acid"),
     ],
 )
-def test_both_isotope_kinds_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_locants_are_all_cited_once_a_nuclide_needs_one(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
     "smiles,expected",
     [
         ("[2H]C1CC1", "(2H1)cyclopropane"),
-        ("[13CH]1CCCCC1", "(13C)cyclohexane"),
-        ("[13CH]1CC([2H])CCC1", "(1-13C,3-2H1)cyclohexane"),
+        ("[13CH2]1CCCCC1", "(13C)cyclohexane"),
+        ("[13CH2]1CC([2H])CCC1", "(1-13C,3-2H1)cyclohexane"),
+        ("CCN(C)C[13CH3]", "N-(2-13C)ethyl-N-methylethanamine"),
+        ("CCN(CC)CC[13CH3]", "N,N-diethyl(3-13C)propan-1-amine"),
+        ("[2H]N(C)CC", "N-methyl(N-2H)ethanamine"),
+        ("CC[NH+](C)[2H]", "N-methyl(N-2H)ethanaminium"),
+        ("C[NH2+][2H]", "(N-2H1)methanaminium"),
+        ("C[15NH3+]", "(15N)methanaminium"),
+        ("OCc1ccc([2H])c(Cl)c1", "[3-chloro(4-2H)phenyl]methanol"),
+        ("O=C(C)c1cc([2H])c(C)cc1", "1-[4-methyl(3-2H)phenyl]ethan-1-one"),
+        ("CC(=O)Oc1ccc(C)cc1[2H]", "4-methyl(2-2H)phenyl acetate"),
+        ("CC(=O)Oc1ccc([2H])cc1", "(4-2H)phenyl acetate"),
+        ("[2H]c1ccc2ccccc2c1", "(2-2H)naphthalene"),
+        ("[2H]c1cccc2ccccc12", "(1-2H)naphthalene"),
+        ("[2H]c1c([2H])cc2ccccc2c1", "(2,3-2H2)naphthalene"),
+        ("[2H]c1ccc2ccccc2n1", "(2-2H)quinoline"),
+        ("Cc1ccc2ccccc2c1[2H]", "2-methyl(1-2H)naphthalene"),
+        ("Clc1ccc2cc([2H])ccc2c1", "2-chloro(6-2H)naphthalene"),
+        ("[2H]c1ccc2ccccc2[n+]1C", "1-methyl(2-2H)quinolin-1-ium"),
+        ("[2H]c1cc[n+](C)cc1", "1-methyl(4-2H)pyridin-1-ium"),
+        ("C[n+]1ccccc1[2H]", "1-methyl(2-2H)pyridin-1-ium"),
+        ("[2H]c1cccc[n+]1[O-]", "(2-2H)pyridine 1-oxide"),
+        ("[2H]c1ccc[nH+]c1", "(3-2H)pyridin-1-ium"),
+        ("[13CH2]CCO", "3-hydroxy(1-13C)propyl"),
+        ("C[13CH2][CH2]", "(2-13C)propyl"),
+        ("[CH2]C(=O)C[13CH3]", "2-oxo(4-13C)butyl"),
+        ("[2H]C([2H])([2H])[CH2]", "(2,2,2-2H3)ethyl"),
     ],
 )
 def test_isotope_ring_name(smiles, expected):
@@ -152,16 +160,19 @@ def test_isotope_ring_name(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles,expected",
     [
-        pytest.param("[13CH]([2H])1CCCCC1", id="same_position_carbon_and_deuterium_raises"),
-        pytest.param("[3H]C1CCCCC1", id="tritium_raises"),
-        pytest.param("[2H]C1CCCCC1C", id="substituent_branch_raises"),
+        pytest.param("[3H]C1CCCCC1", "(3H1)cyclohexane", id="tritium_on_a_ring"),
+        pytest.param("[2H]C1CCCCC1C", "1-methyl(2-2H1)cyclohexane", id="ring_label_beside_a_substituent"),
+        pytest.param("[2H]c1ccccc1", "(2H)benzene", id="one_deuterium_on_benzene"),
+        pytest.param("[2H]c1ccccc1[2H]", "(1,2-2H2)benzene", id="two_deuteriums_need_locants"),
+        pytest.param("[2H]c1c([2H])c([2H])c([2H])c([2H])c1[2H]", "(2H6)benzene", id="every_position_modified"),
+        pytest.param("Cc1ccccc1[2H]", "1-methyl(2-2H)benzene", id="benzene_locants_cited_for_a_ring_label"),
+        pytest.param("[2H]c1ccc(cc1)C(=O)O", "(4-2H)benzoic acid", id="ring_label_with_a_principal_group"),
     ],
 )
-def test_isotope_ring_cases_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_isotope_on_ring_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -177,7 +188,7 @@ def test_isotope_descriptor_before_retained_acid_name(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("[13CH3][14CH2]O", "(2-13C,1-14C)ethanol", id="two_carbon_nuclides_in_one_series"),
+        pytest.param("[13CH3][14CH2]O", "(2-13C,1-14C)ethan-1-ol", id="two_carbon_nuclides_in_one_series"),
         pytest.param("CC(=O)O[13CH3]", "(13C)methyl acetate", id="isotopic_methyl_group_of_an_ester"),
         pytest.param("O=C(O[13CH2]C)c1ccccc1", "(1-13C)ethyl benzoate", id="isotopic_alkyl_chain_of_an_ester"),
         pytest.param("O=C(c1ccccc1)[13CH3]", "1-phenyl(2-13C)ethan-1-one", id="isotope_in_parent_after_substituent_prefix"),
@@ -189,7 +200,92 @@ def test_isotopic_descriptor_follows_the_unmodified_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize("smiles", ["CC(=O)Nc1ccccc1C[13CH3]", "CC(=O)c1ccc([18F])cc1"])
+@pytest.mark.parametrize("smiles", ["OC(=O)c1ccc(cc1)C([13CH3])([13CH3])C", "CC(=O)Nc1ccccc1C(=O)[13CH3]"])
 def test_unplaceable_isotope_label_is_never_dropped(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)N[2H]", "(N-2H1)acetamide", id="amide_nitrogen_deuterium"),
+        pytest.param("CC(=O)[15NH2]", "(15N)acetamide", id="amide_nitrogen_nuclide"),
+        pytest.param("[2H]N([2H])c1ccccc1", "(N-2H2)aniline", id="amine_nitrogen_two_deuteriums"),
+        pytest.param("CCN([2H])[2H]", "(N-2H2)ethanamine", id="amine_on_a_chain"),
+        pytest.param("CC(=O)O[2H]", "(O-2H)acetic acid", id="acid_hydroxyl_deuterium"),
+        pytest.param("CCC(=O)O[2H]", "(O-2H)propanoic acid", id="acid_hydroxyl_deuterium_on_a_chain"),
+        pytest.param("Clc1ccc(N([2H])[2H])cc1", "4-chloro(N-2H2)aniline", id="group_label_after_prefixes"),
+        pytest.param("CC(=[18O])C(C)C", "3-methylbutan-2-(18O)one", id="ketone_oxygen_nuclide"),
+        pytest.param("CCC#[15N]", "(15N)propanenitrile", id="nitrile_nitrogen_nuclide"),
+        pytest.param("ClCC#[15N]", "2-chloro(15N)acetonitrile", id="nitrile_nitrogen_after_prefixes"),
+        pytest.param("CC(=[18O])[13CH3]", "(1-13C)propan-2-(18O)one", id="skeleton_and_group_nuclides"),
+    ],
+)
+def test_isotope_on_characteristic_group_atom(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)Nc1ccccc1C[13CH3]", "N-[2-(2-13C)ethylphenyl]acetamide", id="labelled_alkyl_on_a_ring_substituent"),
+        pytest.param("CC(=O)c1ccc([18F])cc1", "1-[4-(18F)fluorophenyl]ethan-1-one", id="labelled_halogen_on_a_ring_substituent"),
+        pytest.param("O=C(O)c1ccc(cc1)C([2H])([2H])[2H]", "4-(2H3)methylbenzoic acid", id="labelled_methyl_beside_a_ring_principal_group"),
+        pytest.param("C([2H])([2H])([2H])Oc1ccc(cc1)C(=O)O", "4-[(2H3)methoxy]benzoic acid", id="labelled_methoxy_beside_a_ring_principal_group"),
+        pytest.param("CC(=O)Nc1ccccc1OC[13CH3]", "N-{2-[(2-13C)ethoxy]phenyl}acetamide", id="labelled_ethoxy_on_a_ring_substituent"),
+        pytest.param("OC(=O)CC[13CH2]Cl", "4-chloro(4-13C)butanoic acid", id="descriptor_after_prefixes_of_an_acid"),
+        pytest.param("OC(=O)C[13CH](C)C", "3-methyl(3-13C)butanoic acid", id="labelled_branch_point_of_an_acid"),
+        pytest.param("CC(=O)[14CH3]", "(1-14C)propan-2-one", id="lowest_locant_to_the_modified_atom"),
+        pytest.param("FCC[2H]", "1-fluoro(2-2H1)ethane", id="every_locant_cited_for_a_modified_chain"),
+        pytest.param("OC(=O)c1ccc(cc1)C([2H])([2H])CCl", "4-[2-chloro(1,1-2H2)ethyl]benzoic acid", id="labelled_chain_beside_a_prefix"),
+        pytest.param("OC(=O)c1ccc(cc1)C(C)[13CH3]", "4-[(1-13C)propan-2-yl]benzoic acid", id="lowest_locant_on_a_branch_point_group"),
+        pytest.param("OC(=O)c1ccc(cc1)C([2H])([2H])C([2H])([2H])[2H]", "4-(2H5)ethylbenzoic acid", id="every_position_of_a_substituent_modified"),
+        pytest.param("OC(=O)CCc1c([2H])cccc1", "3-(2-2H)phenylpropanoic acid", id="labelled_phenyl_group"),
+        pytest.param("OC(=O)CCc1c([2H])c([2H])c([2H])c([2H])c1[2H]", "3-(2H5)phenylpropanoic acid", id="fully_labelled_phenyl_group"),
+        pytest.param("OC(=O)c1ccc(cc1)O[2H]", "4-(2H)hydroxybenzoic acid", id="deuterated_hydroxy_takes_no_subscript"),
+        pytest.param("OC(=O)c1ccc(cc1)N([2H])[2H]", "4-(2H2)aminobenzoic acid", id="deuterated_amino_counts_its_atoms"),
+    ],
+)
+def test_isotope_on_substituents_and_prefixed_parents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[13CH3]C[14CH2]C", "(1-13C,3-14C)butane", id="two_carbon_nuclides_in_one_series"),
+        pytest.param("[13CH]([2H])1CCCCC1", "(1-13C,1-2H1)cyclohexane", id="carbon_and_deuterium_on_one_ring_atom"),
+        pytest.param("CC=C[2H]", "(1-2H1)prop-1-ene", id="deuterated_alkene"),
+        pytest.param("C=C([2H])C", "(2-2H)prop-1-ene", id="deuterium_on_an_alkene_carbon"),
+        pytest.param("[2H]C#CC", "(1-2H)prop-1-yne", id="deuterated_alkyne"),
+        pytest.param("C/C=C/C[2H]", "(2E)-(1-2H1)but-2-ene", id="alkene_configuration_with_a_label"),
+        pytest.param("C[C@H]([2H])O", "(1S)-(1-2H1)ethan-1-ol", id="stereocentre_created_by_deuterium"),
+        pytest.param("C[C@@H]([2H])O", "(1R)-(1-2H1)ethan-1-ol", id="opposite_isotopic_stereocentre"),
+        pytest.param("[13CH3][C@H](Cl)C(=O)O", "(2S)-2-chloro(3-13C)propanoic acid", id="stereocentre_beside_a_labelled_acid"),
+        pytest.param("[13CH3]C(=O)[C@H](Cl)C", "(3R)-3-chloro(1-13C)butan-2-one", id="stereocentre_beside_a_labelled_ketone"),
+    ],
+)
+def test_isotopes_with_unsaturation_and_stereo(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CCC(=O)[18O]CC", "18O-ethyl propan(18O1)oate", id="labelled_ester_oxygen"),
+        pytest.param("CCC(=[18O])OCC", "O-ethyl propan(18O1)oate", id="labelled_carbonyl_oxygen_of_an_ester"),
+        pytest.param("COC(=O)O[2H]", "methyl (2H)hydrogen carbonate", id="labelled_hydrogen_of_a_carbonate_half_ester"),
+        pytest.param("COC(=O)[18OH]", "O-methyl hydrogen (18O1)carbonate", id="labelled_hydroxy_oxygen_of_a_carbonate_half_ester"),
+        pytest.param("CC[18O]C(=O)OC", "18O-ethyl O-methyl (18O1)carbonate", id="labelled_bridging_oxygen_of_a_carbonate"),
+        pytest.param("CCOC(=[18O])[18O]C", "O-ethyl 18O-methyl (18O2)carbonate", id="two_labelled_oxygens_of_a_carbonate"),
+        pytest.param("CCOC(=[18O])OCC", "O,O-diethyl (18O1)carbonate", id="labelled_carbonyl_oxygen_of_a_symmetric_carbonate"),
+        pytest.param("CC(=[18O])OC", "O-methyl acet(18O1)ate", id="labelled_acetate_carbonyl"),
+        pytest.param("O=C([18O]C)c1ccccc1", "18O-methyl benz(18O1)oate", id="labelled_benzoate_ester_oxygen"),
+        pytest.param("OC(=O)c1ccc(cc1)C(C)(C)[13CH3]", "4-[2-(13C)methylpropan-2-yl]benzoic acid", id="modified_tert_butyl_loses_its_retained_name"),
+        pytest.param("OC(=O)c1ccc(cc1)[13C](C)(C)C", "4-[2-methyl(2-13C)propan-2-yl]benzoic acid", id="modified_quaternary_carbon_of_tert_butyl"),
+        pytest.param("[2H]C([2H])([2H])C", "(1,1,1-2H3)ethane", id="locants_kept_when_isomers_exist"),
+    ],
+)
+def test_isotope_on_ester_oxygens_and_tert_butyl(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

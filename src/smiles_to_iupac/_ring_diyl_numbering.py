@@ -346,7 +346,11 @@ def _hetero_monocycle(mol, ring_order, attached):
             i
             for i in can_hold
             if i not in oxo_all
-            and not (sym[i] != "C" and (mol.GetAtomWithIdx(i).GetTotalNumHs() > 0 or mol.GetAtomWithIdx(i).GetDegree() == 3))
+            and not (
+                sym[i] != "C"
+                and (mol.GetAtomWithIdx(i).GetTotalNumHs() > 0 or mol.GetAtomWithIdx(i).GetDegree() == 3)
+                and not mol.GetAtomWithIdx(i).HasProp("_ring_cation_centre")
+            )
         }
     else:
         in_double = ring_double
@@ -752,6 +756,7 @@ def _fused_mancude(mol, skeleton_atoms):
                 or (
                     mol.GetAtomWithIdx(a).GetIsAromatic()
                     and mol.GetAtomWithIdx(a).GetAtomicNum() != 6
+                    and not mol.GetAtomWithIdx(a).HasProp("_ring_cation_centre")
                     and (
                         mol.GetAtomWithIdx(a).GetTotalNumHs() > 0
                         or (mol.GetAtomWithIdx(a).GetDegree() == 3 and ring_info.NumAtomRings(a) < 2)
