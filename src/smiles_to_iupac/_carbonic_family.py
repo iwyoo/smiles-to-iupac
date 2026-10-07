@@ -184,7 +184,29 @@ def _find(mol):
         if not any(n.GetIdx() in centers for n in mol.GetAtomWithIdx(c).GetNeighbors() if n.GetAtomicNum() == 6)
     ]
     found = centers + lone
+    if len(found) > 1:
+        rest = [c for c in found if not _is_urea_core(mol, c)]
+        if len(rest) == 1 and _has_acid_ligand(mol, rest[0]):
+            found = rest
     return found[0] if len(found) == 1 else None
+
+
+def _is_urea_core(mol, idx):
+    """A carbonyl carbon with two nitrogens, the carbamoyl group of an N-carbamoyl acid (P-66.1.6.1.1.4)."""
+    atom = mol.GetAtomWithIdx(idx)
+    return (
+        atom.GetDegree() == 3
+        and sum(1 for n in atom.GetNeighbors() if n.GetAtomicNum() == 7 and _bond(mol, idx, n.GetIdx()) == 1.0) == 2
+        and sum(1 for n in atom.GetNeighbors() if n.GetAtomicNum() == 8 and _bond(mol, idx, n.GetIdx()) == 2.0) == 1
+    )
+
+
+def _has_acid_ligand(mol, idx):
+    """A -OH-type (or anionic) group on the carbonic centre."""
+    return any(
+        _bond(mol, idx, n.GetIdx()) == 1.0 and (_chain(mol, idx, n) is not None or _chain(mol, idx, n, ion=True) is not None)
+        for n in mol.GetAtomWithIdx(idx).GetNeighbors()
+    )
 
 
 def _imine_slot(mol, center, n):
