@@ -113,28 +113,26 @@ def _name_ester_parts(mol, labels) -> str:
     if sum(len(a) for a in arms) != len(removed):
         raise UnsupportedStructure("the alkyl parts share atoms, so these esters are of a polyol, not a polyacid")
 
-    ester_label = None
+    ester_labels = {}
     labels = dict(labels)
     if labels:
-        oxygens = {
-            n.GetIdx(): bridging
-            for acyl_carbon, _, ester_oxygen, _ in matches
-            for n, bridging in (
-                [(mol.GetAtomWithIdx(ester_oxygen), True)]
-                + [
-                    (m, False)
-                    for m in mol.GetAtomWithIdx(acyl_carbon).GetNeighbors()
-                    if m.GetAtomicNum() == 8 and m.GetIdx() != ester_oxygen
-                ]
-            )
+        bridging = {ester_oxygen: i for i, (_, _, ester_oxygen, _) in enumerate(matches)}
+        carbonyl = {
+            m.GetIdx()
+            for acyl_carbon, _, _, _ in matches
+            for m in mol.GetAtomWithIdx(acyl_carbon).GetNeighbors()
+            if m.GetAtomicNum() == 8 and m.GetIdx() not in bridging
         }
-        hit = [i for i in labels if i in oxygens]
-        if hit:
-            entry = labels[hit[0]]
-            if len(matches) != 1 or len(hit) != 1 or entry["H"] or not entry["skeleton"]:
+        for idx in [i for i in labels if i in bridging or i in carbonyl]:
+            entry = labels[idx]
+            if entry["H"] or not entry["skeleton"]:
                 raise UnsupportedStructure("this isotopic modification of an ester oxygen is not supported yet (P-82.6.4)")
-            ester_label = (entry["skeleton"], oxygens[hit[0]])
-            del labels[hit[0]]
+            ester_labels[idx] = (entry["skeleton"], bridging.get(idx))
+            del labels[idx]
+        if len({a for _, _, _, a in matches}) != len(matches) or (ester_labels and len(carbonyl) != len(
+            {a for a, _, _, _ in matches}
+        )):
+            raise UnsupportedStructure("this isotopic modification of an ester oxygen is not supported yet (P-82.6.4)")
 
     editable = Chem.RWMol(mol)
     for _, _, ester_oxygen, _ in matches:
@@ -162,13 +160,15 @@ def _name_ester_parts(mol, labels) -> str:
         "used": set(),
     }
     named = {}
+    arm_label = {i: nuclide for nuclide, i in ester_labels.values() if i is not None}
     token = BRANCH_STEREO.set(context)
     isotope_context = {"labels": {a: e for a, e in labels.items() if a in removed}, "consumed": set()}
     isotope_token = ISOTOPE_LABELS.set(isotope_context if isotope_context["labels"] else None)
     try:
-        for acyl_carbon, _, ester_oxygen, alkyl_carbon in matches:
+        for arm, (acyl_carbon, _, ester_oxygen, alkyl_carbon) in enumerate(matches):
             name, compound = name_branch(graph, alkyl_carbon, ester_oxygen, halogens, mol=mol)
-            entry = named.setdefault(name, [0, compound])
+            locant = (f"{arm_label[arm][:-1]}O" if arm in arm_label else "O") if ester_labels else ""
+            entry = named.setdefault((name, locant), [0, compound, []])
             entry[0] += 1
     finally:
         BRANCH_STEREO.reset(token)
@@ -179,19 +179,24 @@ def _name_ester_parts(mol, labels) -> str:
         ("bond", b) not in context["used"] for b in context["bonds"]
     ):
         raise UnsupportedStructure("a stereo element of the alkyl part is not cited by any supported name")
-    if ester_label is not None:
-        nuclide, bridging = ester_label
-        locant = f"{nuclide[:-1]}O" if bridging else "O"
-        anion = _insert_before_ending(anion, f"({nuclide}1)")
-        named = {f"{locant}-{name}": value for name, value in named.items()}
+    if ester_labels:
+        counts = {}
+        for nuclide, _ in ester_labels.values():
+            counts[nuclide] = counts.get(nuclide, 0) + 1
+        text = "(" + ",".join(f"{n}{c}" for n, c in sorted(counts.items())) + ")"
+        anion = text + anion if anion == "carbonate" else _insert_before_ending(anion, text)
+    grouped = {}
+    for (name, locant), (count, compound, _) in named.items():
+        grouped.setdefault(name, []).append((locant, count, compound))
     parts = []
-    for name in sorted(named, key=alpha_sort_key):
-        count, compound = named[name]
-        if count == 1:
-            parts.append(name)
-        else:
-            multiplier = multiplying_prefix(count, compound=compound)
-            parts.append(f"{multiplier}({name})" if compound else f"{multiplier}{name}")
+    for name in sorted(grouped, key=alpha_sort_key):
+        for locant, count, compound in sorted(grouped[name]):
+            text = name if count == 1 else (
+                f"{multiplying_prefix(count, compound=compound)}({name})" if compound else f"{multiplying_prefix(count, compound=compound)}{name}"
+            )
+            if locant:
+                text = f"{','.join([locant] * count)}-{text}"
+            parts.append(text)
     free = len(acid.GetSubstructMatches(_FREE_ACID)) - len(matches)
     if free > 0:
         if free not in _HYDROGEN_WORDS:

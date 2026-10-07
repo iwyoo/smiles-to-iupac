@@ -82,7 +82,8 @@ def _hydride(mol, centre):
 
 
 def has_radical_group_shape(mol) -> bool:
-    return _centre(mol) is not None and mol.GetNumAtoms() > 1
+    centre = _centre(mol)
+    return centre is not None and (mol.GetNumAtoms() > 1 or bool(centre.GetIsotope()))
 
 
 def name_radical_group(mol) -> str:

@@ -257,6 +257,9 @@ def test_isotopes_with_unsaturation_and_stereo(smiles, expected):
     [
         pytest.param("CCC(=O)[18O]CC", "18O-ethyl propan(18O1)oate", id="labelled_ester_oxygen"),
         pytest.param("CCC(=[18O])OCC", "O-ethyl propan(18O1)oate", id="labelled_carbonyl_oxygen_of_an_ester"),
+        pytest.param("CC[18O]C(=O)OC", "18O-ethyl O-methyl (18O1)carbonate", id="labelled_bridging_oxygen_of_a_carbonate"),
+        pytest.param("CCOC(=[18O])[18O]C", "O-ethyl 18O-methyl (18O2)carbonate", id="two_labelled_oxygens_of_a_carbonate"),
+        pytest.param("CCOC(=[18O])OCC", "O,O-diethyl (18O1)carbonate", id="labelled_carbonyl_oxygen_of_a_symmetric_carbonate"),
         pytest.param("CC(=[18O])OC", "O-methyl acet(18O1)ate", id="labelled_acetate_carbonyl"),
         pytest.param("O=C([18O]C)c1ccccc1", "18O-methyl benz(18O1)oate", id="labelled_benzoate_ester_oxygen"),
         pytest.param("OC(=O)c1ccc(cc1)C(C)(C)[13CH3]", "4-[2-(13C)methylpropan-2-yl]benzoic acid", id="modified_tert_butyl_loses_its_retained_name"),
