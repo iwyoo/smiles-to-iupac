@@ -383,10 +383,10 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     if mol is None:
         raise UnsupportedStructure("an isotopically modified substituent other than a plain alkyl group is not supported yet")
     if mol.GetAtomWithIdx(root).IsInRing():
-        positions = _phenyl_label_positions(mol, root, labelled) if name == "phenyl" else None
+        positions = _phenyl_label_positions(mol, root, labelled, name) if name.endswith("phenyl") else None
         if positions is None:
             raise UnsupportedStructure("an isotopically modified ring substituent other than phenyl is not supported yet")
-        stem_index = 0
+        stem_index = name.rfind("phenyl")
         omit = _fully_modified(labelled, positions, capacity, {a for a in positions if a != root})
     else:
         chain, _, _, _ = _select_winning_structure(graph, root, coming_from, halogens or {}, mol, aromatic_atoms, unsaturated)
@@ -425,14 +425,37 @@ def _fully_modified(labelled, positions, capacity, expected):
     return len(entries) == 1 and all(sum(e["H"].values()) == capacity[a] for a, e in labelled.items())
 
 
-def _phenyl_label_positions(mol, root, labelled):
+def _top_level_locants(name):
+    depth, flat = 0, []
+    for ch in name:
+        if ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            depth -= 1
+        flat.append(ch if depth == 0 and ch not in "([{" else " ")
+    return sorted(int(x) for group in re.findall(r"(\d+(?:,\d+)*)-", "".join(flat)) for x in group.split(","))
+
+
+def _phenyl_label_positions(mol, root, labelled, name="phenyl"):
     """{ring atom: locant} of a phenyl group, numbered from the attachment atom in the direction that gives the
-    modified atoms the lower locants (P-82.5.2); None unless the ring is a benzene ring."""
+    ring substituents of the name, then the modified atoms, the lower locants (P-82.5.2); None unless the ring is a
+    benzene ring."""
     ring = next((r for r in mol.GetRingInfo().AtomRings() if root in r), None)
     if ring is None or len(ring) != 6 or not all(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring):
         return None
+    if any(a not in ring for a in labelled):
+        return None
     start = ring.index(root)
     options = [{ring[(start + step * k) % 6]: k + 1 for k in range(6)} for step in (1, -1)]
+    if name != "phenyl":
+        cited = _top_level_locants(name)
+        substituted = [
+            a for a in ring
+            if a != root and any(n.GetIdx() not in ring and n.GetIdx() != root and n.GetIdx() not in labelled and n.GetAtomicNum() != 1 for n in mol.GetAtomWithIdx(a).GetNeighbors())
+        ]
+        options = [o for o in options if sorted(o[a] for a in substituted) == cited]
+        if not options:
+            return None
     return min(options, key=lambda option: sorted(option[a] for a in labelled))
 
 

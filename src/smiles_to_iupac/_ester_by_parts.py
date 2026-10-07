@@ -162,7 +162,7 @@ def _name_ester_parts(mol, labels) -> str:
     named = {}
     arm_label = {i: nuclide for nuclide, i in ester_labels.values() if i is not None}
     token = BRANCH_STEREO.set(context)
-    isotope_context = {"labels": {a: e for a, e in labels.items() if a in removed}, "consumed": set()}
+    isotope_context = {"labels": {a: e for a, e in labels.items() if a in removed}, "consumed": set(), "mol": mol}
     isotope_token = ISOTOPE_LABELS.set(isotope_context if isotope_context["labels"] else None)
     try:
         for arm, (acyl_carbon, _, ester_oxygen, alkyl_carbon) in enumerate(matches):
