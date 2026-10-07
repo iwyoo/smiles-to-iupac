@@ -285,3 +285,14 @@ def test_free_mononuclear_oxoacids(smiles, expected):
 )
 def test_group_15_acids_halides_and_amides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CN(C)P(=O)(Cl)Cl", "N,N-dimethylphosphoramidic dichloride"),
+        ("CCP(=O)(N(C)C)Cl", "P-ethyl-N,N-dimethylphosphonamidic chloride"),
+    ],
+)
+def test_amidic_halides_of_group_15_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
