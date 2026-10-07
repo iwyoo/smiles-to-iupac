@@ -835,6 +835,29 @@ def test_acid_retained_names_and_parents(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("NNS(=O)(=O)O", "hydrazinesulfonic acid", id="bare_sulfonic_acid"),
+        pytest.param("CNNS(=O)(=O)O", "2-methylhydrazine-1-sulfonic acid", id="substituted_sulfonic_acid"),
+        pytest.param("NNS(=O)(=S)O", "hydrazinesulfonothioic O-acid", id="functional_replacement"),
+        pytest.param("NNC(=O)[O-]", "hydrazinecarboxylate", id="anion"),
+        pytest.param(
+            "C[N+](C)(C)NS(=O)(=O)[O-]", "1,1,1-trimethylhydrazin-1-ium-2-sulfonate", id="zwitterion_ionic_centre_first"
+        ),
+        pytest.param("NNS(=O)(=O)CC(=O)O", "(hydrazinesulfonyl)acetic acid", id="prefix_sulfonyl"),
+        pytest.param("CNNS(=O)CC(=O)O", "(2-methylhydrazine-1-sulfinyl)acetic acid", id="prefix_substituted_sulfinyl"),
+    ],
+)
+def test_hydrazine_parent_with_acid_group_suffix_or_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_cationic_hydrazine_with_neutral_acid_raises():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C[N+](C)(C)NC(=O)O")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("CCCCCC(=O)SCC", "S-ethyl hexanethioate"),
         ("CC(=N)OC", "methyl ethanimidate"),
         ("CC(=Nc1ccccc1)OC", "methyl N-phenylethanimidate"),

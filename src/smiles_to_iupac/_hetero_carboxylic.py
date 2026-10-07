@@ -13,6 +13,7 @@ from ._acid_lexicon import carbo_suffix
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 
 _PARENT_ELEMENTS = {5, 7, 13, 14, 15, 32, 33, 50, 51, 82, 83}
+_ACID_CENTERS = {6, 16, 34, 52}
 
 
 def _hydrazine_acid(mol, found):
@@ -34,6 +35,12 @@ def _hydrazine_acid(mol, found):
         raise UnsupportedStructure("this hydrazine acid is not supported yet")
     centers = {c for c, _, _ in found}
     owned = {a for _, g, _ in found for a in g.owned}
+    cations = [i for i in pair if mol.GetAtomWithIdx(i).GetFormalCharge() == 1 and mol.GetAtomWithIdx(i).GetTotalDegree() == 4]
+    anions = {a for a in owned if mol.GetAtomWithIdx(a).GetFormalCharge()}
+    if {a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge()} - anions - set(cations) or (
+        cations and (len(cations) > 1 or not found[0][1].spec.anion)
+    ):
+        raise UnsupportedStructure("this charged hydrazine acid is not supported yet")
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     options = []
@@ -46,13 +53,38 @@ def _hydrazine_acid(mol, found):
                 entries.setdefault(position, []).append(name_branch(graph, n, nitrogen, halogens, mol=mol))
         suffix_locants = sorted(numbering.index(h) + 1 for _, _, h in found)
         prefix_locants = sorted(p for p, names in entries.items() for _ in names)
-        options.append((suffix_locants, prefix_locants, format_substituent_prefixes(group_substituents(entries))))
-    suffix_locants, _, prefix = min(options)
+        ium_locants = [numbering.index(c) + 1 for c in cations]
+        options.append((ium_locants, suffix_locants, prefix_locants, format_substituent_prefixes(group_substituents(entries))))
+    ium_locants, suffix_locants, _, prefix = min(options)
     spec = found[0][1].spec
     suffix = carbo_suffix(spec, len(found))
+    suffix_text = "-" + ",".join(map(str, suffix_locants)) + "-"
+    if ium_locants:
+        return f"{prefix}hydrazin-{ium_locants[0]}-ium{suffix_text}{suffix}"
     bare = len(found) == 1 and not prefix
-    locant_text = "" if bare else "-" + ",".join(map(str, suffix_locants)) + "-"
-    return f"{prefix}hydrazine{locant_text}{suffix}"
+    return f"{prefix}hydrazine{'' if bare else suffix_text}{suffix}"
+
+
+def hydrazine_acyl_prefix(mol, graph, nitrogen, acyl_atom, halogens, ending):
+    """'hydrazinesulfonyl', '2-methylhydrazine-1-sulfonyl' (P-66.3.2.1): the acylated nitrogen of a hydrazine takes
+    locant 1 as the free valence; None unless it sits in an acyclic N-N pair."""
+    from ._common import group_substituents
+    from ._substituents import format_substituent_prefixes, name_branch
+
+    first = mol.GetAtomWithIdx(nitrogen)
+    partners = [n for n in graph[nitrogen] if n != acyl_atom and mol.GetAtomWithIdx(n).GetAtomicNum() == 7]
+    if first.IsInRing() or first.GetFormalCharge() or len(partners) != 1:
+        return None
+    partner = mol.GetAtomWithIdx(partners[0])
+    if partner.IsInRing() or partner.GetFormalCharge() or mol.GetBondBetweenAtoms(nitrogen, partners[0]).GetBondTypeAsDouble() != 1.0:
+        return None
+    entries = {}
+    for position, atom in enumerate((nitrogen, partners[0]), start=1):
+        for n in graph[atom]:
+            if n not in (acyl_atom, nitrogen, partners[0]):
+                entries.setdefault(position, []).append(name_branch(graph, n, atom, halogens, mol=mol))
+    prefix = format_substituent_prefixes(group_substituents(entries))
+    return f"{prefix}hydrazine{'-1-' if prefix else ''}{ending}"
 
 
 def name_hetero_parent_acid(mol):
@@ -62,10 +94,10 @@ def name_hetero_parent_acid(mol):
         raise UnsupportedStructure("several fragments")
     found = []
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != 6 or atom.IsInRing():
+        if atom.GetAtomicNum() not in _ACID_CENTERS or atom.IsInRing():
             continue
         group = acid_group_at(mol, atom.GetIdx(), hetero_attach=True)
-        if group is None or group.spec.anion:
+        if group is None:
             continue
         attach = [n for n in atom.GetNeighbors() if n.GetIdx() not in group.owned and n.GetAtomicNum() != 1]
         if (
@@ -81,6 +113,10 @@ def name_hetero_parent_acid(mol):
             return hydrazine
     if not found or len({g.spec for _, g, _ in found}) != 1:
         raise UnsupportedStructure("acid groups of one kind on a heteroatom parent are required")
+    if found[0][1].spec.anion or any(mol.GetAtomWithIdx(c).GetAtomicNum() != 6 for c, _, _ in found):
+        raise UnsupportedStructure("only a hydrazine parent takes anionic or chalcogen acid groups here")
+    if any(a.GetFormalCharge() for a in mol.GetAtoms()):
+        raise UnsupportedStructure("a charged atom on a heteroatom parent is not supported here")
     spec = found[0][1].spec
     hosts = {h for _, _, h in found}
     editable = Chem.RWMol(mol)
