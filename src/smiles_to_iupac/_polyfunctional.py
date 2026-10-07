@@ -428,6 +428,23 @@ def _chalcogen_amide_group(mol, atom, chalcogen, z):
     return None
 
 
+_GROUP_14_ATOMS = {14, 32, 50, 82}
+_GROUP_15_ATOMS = {15, 33, 51, 83}
+
+
+def _is_pseudoketone_heteroatom(mol, atom, carbon):
+    """A neutral Group 14 or 15 atom (P-64.1.2.1) that makes its acyl carbon a pseudoketone rather than a member of
+    a senior class: no multiple bonds on it, and for Group 15 no oxygen, nitrogen or halogen (phosphinous-type acids)."""
+    z = atom.GetAtomicNum()
+    if atom.GetFormalCharge() or z not in _GROUP_14_ATOMS | _GROUP_15_ATOMS:
+        return False
+    if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
+        return False
+    if any(_double_oxygens(mol, n.GetIdx()) for n in atom.GetNeighbors() if n.GetIdx() != carbon):
+        return False
+    return z in _GROUP_14_ATOMS or all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors() if n.GetIdx() != carbon)
+
+
 def _group_of(mol, carbon):
     """(class, atoms owned by the group) for a principal-capable group on
     `carbon`, else None. Raises on carbon-bound groups this engine cannot
@@ -514,6 +531,8 @@ def _group_of(mol, carbon):
                 if beta is not None:
                     return "hydrazide", {oxygens[0], other.GetIdx(), beta}
             if carbon_neighbors and other.GetAtomicNum() == 7 and _ring_nitrogen_acyl(mol, other, carbon):
+                return "ketone", {oxygens[0]}
+            if carbon_neighbors and _is_pseudoketone_heteroatom(mol, other, carbon):
                 return "ketone", {oxygens[0]}
             if not carbon_neighbors and atom.GetTotalNumHs() == 1 and other.GetAtomicNum() == 7 and _ring_nitrogen_acyl(mol, other, carbon):
                 return "aldehyde", {oxygens[0]}
@@ -1637,6 +1656,7 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
 
 
 _GROUP_14 = (14, 32, 50, 82)
+_CHALCOGENOL_WORDS = {8: "ol", 16: "thiol", 34: "selenol", 52: "tellurol"}
 
 
 def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
@@ -1660,7 +1680,13 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
         )
     ):
         return None
-    hydroxyls = [n for n in neighbors if _terminal_heteroatom(mol, n, 1) and mol.GetAtomWithIdx(n).GetAtomicNum() == 8]
+    chalcogenols = {
+        word: [n for n in neighbors if _terminal_heteroatom(mol, n, 1) and mol.GetAtomWithIdx(n).GetAtomicNum() == z]
+        for z, word in _CHALCOGENOL_WORDS.items()
+    }
+    principal_word = next((w for w, atoms in chalcogenols.items() if atoms), None)
+    hydroxyls = chalcogenols["ol"] if principal_word == "ol" else []
+    junior_chalcogenols = {n for w, atoms in chalcogenols.items() if w != principal_word for n in atoms}
     amines = [
         n
         for n in neighbors
@@ -1669,16 +1695,20 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
         and not mol.GetAtomWithIdx(n).IsInRing()
         and all(mol.GetAtomWithIdx(m).GetAtomicNum() in (6, *MONONUCLEAR_HYDRIDES) for m in graph[n] if m != index)
     ]
-    others = [n for n in neighbors if n not in hydroxyls and n not in amines]
-    if any(mol.GetAtomWithIdx(n).GetAtomicNum() not in (6, 8, *HALOGEN_PREFIXES) for n in others):
+    suffix_atoms = chalcogenols[principal_word] if principal_word else []
+    others = [n for n in neighbors if n not in suffix_atoms and n not in amines]
+    if any(
+        mol.GetAtomWithIdx(n).GetAtomicNum() not in (6, 8, *HALOGEN_PREFIXES) and n not in junior_chalcogenols for n in others
+    ):
         return None
-    if (hydroxyls or amines) and (z not in _GROUP_14 or (hydroxyls and amines) or len(amines) > 1):
+    if (suffix_atoms or amines) and (z not in _GROUP_14 or (suffix_atoms and amines) or len(amines) > 1):
         return None
     entries = [name_branch(graph, n, index, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in others]
-    if hydroxyls:
-        return format_mononuclear_prefixes(entries) + (
-            stem[:-1] + "ol" if len(hydroxyls) == 1 else stem + multiplied_word(len(hydroxyls), "ol")
+    if suffix_atoms:
+        suffix = (
+            stem[:-1] + "ol" if principal_word == "ol" and len(suffix_atoms) == 1 else stem + multiplied_word(len(suffix_atoms), principal_word)
         )
+        return format_mononuclear_prefixes(entries) + suffix
     if amines:
         (nitrogen,) = amines
         grouped = group_substituents({1: entries} if entries else {})
@@ -2297,6 +2327,15 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
         return None
     top = max(c[0] for c in candidates)
     leading = [c for c in candidates if c[0] == top]
+    if len(leading) > 1:
+        # P-44.1.2.2, P-59.2.1.5: equal numbers of principal groups leave the senior ring system as the parent
+        from ._diester_ring_diyl import _system_of
+
+        def system_rank(candidate):
+            return _system_rank(mol, *_system_of(mol, candidate[1][0]))
+
+        senior = max(system_rank(c) for c in leading)
+        leading = [c for c in leading if system_rank(c) == senior]
     if len(leading) == 1:
         return _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names, stereo, leading[0])[:2]
     ranks = CanonicalRankAtoms(mol, breakTies=False)
@@ -2560,7 +2599,10 @@ def _identical_group_units(mol, graph, group_atoms):
     for i, (bi, ai, si) in enumerate(sides):
         for bj, aj, sj in sides[:i]:
             if bi != bj and si == sj and not ai & aj:
-                return True
+                # a multiplied parent must express every principal group (P-15.6.1.5)
+                units = ai | aj | set().union(*(ak for bk, ak, sk in sides if sk == si and not ak & (ai | aj)))
+                if group_atoms <= units:
+                    return True
     return False
 
 
@@ -3603,7 +3645,11 @@ def _evaluate(
         and len(on_chain) == 1
         and not ene
         and not yne
-        and mol.GetAtomWithIdx(next(a for a in chain if a != on_chain[0])).GetTotalNumHs() == 0
+        and (
+            mol.GetAtomWithIdx(next(a for a in chain if a != on_chain[0])).GetTotalNumHs() == 0
+            # P-14.3.4.3: the hydrogen of a formyl group and the carbon of a cyano group are not substitutable
+            or principal in ("nitrile", "aldehyde")
+        )
     )
     if completely_substituted and not force and not n_names:
         prefix = single_site_prefixes(grouped)

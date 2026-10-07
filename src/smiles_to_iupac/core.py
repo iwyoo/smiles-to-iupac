@@ -69,6 +69,8 @@ from ._ammonium import has_ammonium_shape, has_polyammonium_shape, name_ammonium
 from ._polycation import has_polycation_shape, name_polycation
 from ._polyspiro_union import has_spiro_union_shape, name_spiro_union
 from ._ylium_ring import has_ylium_ring_shape, name_ylium_ring
+from ._anisole import has_anisole_shape, name_anisole
+from ._polynuclear_oxoacid import name_polynuclear_oxoacid
 from ._common_hydride import has_common_hydride_shape, name_common_hydride
 from ._chain_cation import has_chain_cation_shape, name_chain_cation
 from ._ylide import has_nitrogen_ylide_shape, has_pos_ylide_shape, name_nitrogen_ylide, name_pos_ylide
@@ -122,7 +124,7 @@ from ._carboxylic_acid_sulfonic_acid import (
     has_carboxylic_acid_sulfonic_acid_shape,
     name_carboxylic_acid_sulfonic_acid,
 )
-from ._common import UnsupportedStructure, non_single_bonds
+from ._common import CITE_SKELETAL_LAMBDA, UnsupportedStructure, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -143,7 +145,7 @@ from ._ether_amide import has_ether_amide_shape, name_ether_amide
 from ._ether_hydroperoxide import has_ether_hydroperoxide_shape, name_ether_hydroperoxide
 from ._ether_ketone import has_ether_ketone_shape, name_ether_ketone
 from ._ether_thiol import has_ether_thiol_shape, name_ether_thiol
-from ._fusion_name import fused_ring_system_name
+from ._fusion_name import FUSION_NAME_REQUIRED, PREFER_VON_BAEYER, fused_ring_system_name
 from ._hetero_prefixes import _has_senior_principal_group
 from ._fullerene import (
     has_fullerene_name,
@@ -371,11 +373,27 @@ def _is_nonbenzene_monocyclic_annulene(mol):
     )
 
 
+def _is_aromatic_ring_without_double_bonds(mol):
+    rings = mol.GetRingInfo().AtomRings()
+    if len(rings) != 1 or not all(mol.GetAtomWithIdx(i).GetIsAromatic() for i in rings[0]):
+        return False
+    kekule = Chem.Mol(mol)
+    try:
+        Chem.Kekulize(kekule, clearAromaticFlags=True)
+    except Chem.KekulizeException:
+        return False
+    ring = set(rings[0])
+    return not any(
+        b.GetBondTypeAsDouble() == 2.0 for b in kekule.GetBonds() if b.GetBeginAtomIdx() in ring and b.GetEndAtomIdx() in ring
+    )
+
+
 def _parse_smiles(smiles):
     mol = Chem.MolFromSmiles(smiles)
-    if mol is not None and _is_nonbenzene_monocyclic_annulene(mol):
+    if mol is not None and (_is_nonbenzene_monocyclic_annulene(mol) or _is_aromatic_ring_without_double_bonds(mol)):
         # P-54.2: only benzene is named as an aromatic ring; larger annulenes take ene/yne endings, and
-        # RDKit's aromatic perception would drop their E/Z bond stereo.
+        # RDKit's aromatic perception would drop their E/Z bond stereo. A ring of NH-type atoms with no double
+        # bond is saturated although RDKit counts its lone pairs as an aromatic sextet.
         kekule = Chem.MolFromSmiles(smiles, sanitize=False)
         Chem.SanitizeMol(kekule, Chem.SANITIZE_ALL ^ Chem.SANITIZE_SETAROMATICITY)
         Chem.AssignStereochemistry(kekule, cleanIt=True, force=True)
@@ -424,7 +442,14 @@ def smiles_to_iupac(smiles: str) -> str:
 _RADICAL_ENDINGS = ("yl", "ylidene", "ylidyne", "yne", "ylium", "yloxy", "yliumyl")
 
 
+_HYDRIDE_RADICAL_ELEMENTS = {5, 13, 14, 15, 31, 32, 33, 49, 50, 51, 81, 82, 83}
+
+
 def _require_radicals_cited(mol, name):
+    if any(
+        a.GetNumRadicalElectrons() and a.GetAtomicNum() in _HYDRIDE_RADICAL_ELEMENTS for a in mol.GetAtoms()
+    ) and "λ" not in name and not name.rstrip(")]} ").endswith(_RADICAL_ENDINGS):
+        raise UnsupportedStructure("the name does not cite the radical centre of a skeletal heteroatom")
     if (
         not any(a.GetNumRadicalElectrons() for a in mol.GetAtoms())
         or any(a.GetFormalCharge() for a in mol.GetAtoms())
@@ -544,8 +569,11 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
 def _name_unabridged(smiles: str) -> str:
     enter()
     name = None
+    lambda_token = None
     try:
         parsed = _parse_smiles(smiles)
+        if parsed is not None and any(a.GetFormalCharge() for a in parsed.GetAtoms()):
+            lambda_token = CITE_SKELETAL_LAMBDA.set(False)
         if parsed is not None and has_skeleton_radical_ion_shape(parsed):
             return name_skeleton_radical_ion(parsed)
         if parsed is not None and parsed.HasProp("_hypervalent_anion"):
@@ -554,6 +582,15 @@ def _name_unabridged(smiles: str) -> str:
         if parsed is not None and has_common_hydride_shape(parsed):
             name = name_common_hydride(parsed)
             return name
+        if parsed is not None and has_anisole_shape(parsed):
+            return name_anisole(parsed)
+        if parsed is not None and has_functional_replacement_oxoacid_shape(parsed):
+            return name_functional_replacement_oxoacid(parsed)
+        if parsed is not None and parsed.GetNumAtoms() > 4:
+            try:
+                return name_polynuclear_oxoacid(parsed, priority=True)
+            except UnsupportedStructure:
+                pass
         if parsed is not None and has_nonstandard_hydride_shape(parsed):
             return name_nonstandard_hydride(parsed)
         if parsed is not None and has_sphingoid_shape(parsed):
@@ -655,6 +692,8 @@ def _name_unabridged(smiles: str) -> str:
                     raise UnsupportedStructure("the stereochemistry of this structure is not cited by any supported name")
         return name
     finally:
+        if lambda_token is not None:
+            CITE_SKELETAL_LAMBDA.reset(lambda_token)
         leave(name)
 
 
@@ -751,6 +790,7 @@ def _run_fallbacks(smiles, original):
             if name is not None:
                 return name
         for fallback in (
+            name_polynuclear_oxoacid,
             name_halogen_amide,
             name_halogen_acid_ester,
             name_halogen_oxo,
@@ -797,7 +837,53 @@ def _name_via_fallbacks(mol):
     return None
 
 
+def _kekule_forms_without_fusion_name(mol):
+    """P-52.2.4.1: a bicyclic system with an aromatic ring but without two rings of five or more members has no
+    preferred fusion name, so it is named as an unsaturated von Baeyer system from its Kekule structures."""
+    if FUSION_NAME_REQUIRED.get():
+        return []
+    info = mol.GetRingInfo()
+    if info.NumRings() != 2 or sum(len(ring) >= 5 for ring in info.AtomRings()) >= 2:
+        return []
+    if not any(a.GetIsAromatic() for a in mol.GetAtoms()) or find_bicyclic_core(mol) is None:
+        return []
+    base = Chem.Mol(mol)
+    try:
+        Chem.Kekulize(base, clearAromaticFlags=True)
+    except Chem.KekulizeException:
+        return []
+    forms = [base]
+    (benzene,) = [ring for ring in info.AtomRings() if all(mol.GetAtomWithIdx(i).GetIsAromatic() for i in ring)] or [None]
+    if benzene is not None and len(benzene) == 6:
+        ring = set(benzene)
+        ring_bonds = [b.GetIdx() for b in base.GetBonds() if b.GetBeginAtomIdx() in ring and b.GetEndAtomIdx() in ring]
+        if sum(base.GetBondWithIdx(i).GetBondType() == Chem.BondType.DOUBLE for i in ring_bonds) == 3:
+            flipped = Chem.RWMol(base)
+            for i in ring_bonds:
+                bond = flipped.GetBondWithIdx(i)
+                bond.SetBondType(
+                    Chem.BondType.SINGLE if bond.GetBondType() == Chem.BondType.DOUBLE else Chem.BondType.DOUBLE
+                )
+            other = flipped.GetMol()
+            Chem.SanitizeMol(other, Chem.SANITIZE_ALL ^ Chem.SANITIZE_SETAROMATICITY)
+            forms.append(other)
+    return forms
+
+
 def _name_mol(mol) -> str:
+    candidates = []
+    token = PREFER_VON_BAEYER.set(True)
+    try:
+        for form in _kekule_forms_without_fusion_name(mol):
+            try:
+                candidates.append(_name_mol(form))
+            except UnsupportedStructure:
+                continue
+    finally:
+        PREFER_VON_BAEYER.reset(token)
+    if candidates:
+        # a double bond between non-consecutive atoms is cited as 1(6); the unparenthesised locants are cited first
+        return min(candidates, key=lambda name: (len(re.findall(r"\d\(\d+\)", name)), name))
     fused = fused_ring_system_name(mol)
     if fused is not None:
         return fused
@@ -928,6 +1014,16 @@ def _name_mol(mol) -> str:
     # routed here before every other branch below, for the same reason.
     if has_adduct_shape(mol):
         return name_adduct(mol, smiles_to_iupac)
+
+    # P-54.3: an assembly of three or more otherwise identical rings that mixes mancude and saturated rings takes
+    # hydro prefixes, ahead of any substitutive or multiplicative name built on the saturated ring.
+    if 3 <= mol.GetRingInfo().NumRings() <= 6:
+        hydro_chain_core = find_ring_assembly_chain_core(mol)
+        if hydro_chain_core is not None and hydro_chain_core[3]:
+            try:
+                return name_ring_assembly_chain(mol, hydro_chain_core)
+            except UnsupportedStructure:
+                pass
 
     multiplicative_name = name_if_multiplicative(mol)
     if multiplicative_name is not None:

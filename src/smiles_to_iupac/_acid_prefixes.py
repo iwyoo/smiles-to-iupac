@@ -88,7 +88,7 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
     if not rest:
         if n_entries:
             return None
-        return _FORM[x], False
+        return _FORM[x], x != "O"
     if len(rest) != 1 or _bond(mol, root, rest[0]) != 1.0:
         return None
     z_idx = rest[0]

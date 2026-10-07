@@ -158,8 +158,8 @@ def test_benzaldehyde():
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("OCc1ccccc1CC=O", "2-[2-(hydroxymethyl)phenyl]acetaldehyde", id="with_hydroxyl"),
-        pytest.param("C=Cc1ccccc1CC=O", "2-(2-ethenylphenyl)acetaldehyde", id="unsaturation"),
+        pytest.param("OCc1ccccc1CC=O", "[2-(hydroxymethyl)phenyl]acetaldehyde", id="with_hydroxyl"),
+        pytest.param("C=Cc1ccccc1CC=O", "(2-ethenylphenyl)acetaldehyde", id="unsaturation"),
     ],
 )
 def test_phenyl_chain_aldehyde_cases(smiles, expected):
@@ -180,7 +180,7 @@ def test_two_ring_and_heteroaromatic_chain_aldehyde(smiles, expected):
     "smiles, expected",
     [
         pytest.param("O=CC1CCCC(c2ccc(C)cc2)C1", "3-(4-methylphenyl)cyclohexane-1-carbaldehyde", id="two_ring_aromatic_substituent_aldehyde_substituted_ring"),
-        pytest.param("O=CCC1CCCCC1c1ccccc1", "2-(2-phenylcyclohexyl)acetaldehyde", id="two_ring_aromatic_substituent_aldehyde_chain_aldehyde"),
+        pytest.param("O=CCC1CCCCC1c1ccccc1", "(2-phenylcyclohexyl)acetaldehyde", id="two_ring_aromatic_substituent_aldehyde_chain_aldehyde"),
         pytest.param("O=Cc1cccnc1", "pyridine-3-carbaldehyde", id="heteroaromatic_ring_directly_attached_aldehyde"),
         pytest.param("OC=CC=O", "3-hydroxyprop-2-enal", id="aldehyde_enol_mix"),
         pytest.param("O=CC1CCC(C=O)CC1", "cyclohexane-1,4-dicarbaldehyde", id="ring_aldehyde_multiple_groups"),
@@ -438,7 +438,8 @@ def test_stereocenter_on_substituent_branch():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("c1ccccc1OC", "methoxybenzene"),
+        ("c1ccccc1OC", "anisole"),
+        ("c1ccc(Cl)cc1OC", "1-chloro-3-methoxybenzene"),
         ("c1ccccc1OC(C)C", "[(propan-2-yl)oxy]benzene"),
         ("c1ccccc1COCC", "(ethoxymethyl)benzene"),
         ("c1ccccc1COC(C)C", "{[(propan-2-yl)oxy]methyl}benzene"),
@@ -961,7 +962,7 @@ def test_polyester_principal_acid_and_multiplicative_names(smiles, expected):
         ("CC(C)(C)COCCCCC", "1-(2,2-dimethylpropoxy)pentane"),
         ("CCCCCOCCO", "2-(pentyloxy)ethan-1-ol"),
         ("OCCOCC1CCCCC1", "2-(cyclohexylmethoxy)ethan-1-ol"),
-        ("CC(C)OCC=O", "2-[(propan-2-yl)oxy]acetaldehyde"),
+        ("CC(C)OCC=O", "[(propan-2-yl)oxy]acetaldehyde"),
         ("c1ccccc1OCCCCC", "(pentyloxy)benzene"),
         ("CC(C)(C)OCCCCC", "1-tert-butoxypentane"),
         ("CCOCCCCCCC", "1-ethoxyheptane"),
@@ -1042,3 +1043,15 @@ def test_ketenes_are_named_as_ene_ones(smiles, expected):
 def test_ketene_with_other_groups_is_rejected_not_misnamed(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("O=C(O)c1ccccc1S(=O)(=O)c1ccccc1C(=O)O", "2,2'-sulfonyldibenzoic acid"),
+        ("O=C([O-])c1ccccc1S(=O)(=O)c1ccccc1C(=O)O.[Na+]", "sodium 2-[(2-carboxyphenyl)sulfonyl]benzoate"),
+        ("O=C(O)c1ccccc1S(=O)(=O)c1ccccc1C(N)=O", "2-[(2-carbamoylphenyl)sulfonyl]benzoic acid"),
+    ],
+)
+def test_diaryl_sulfone_with_carboxylic_groups_keeps_the_sulfonyl_bridge(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

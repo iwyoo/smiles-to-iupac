@@ -281,22 +281,23 @@ def test_azide_prefix_on_substituted_ring_and_unsaturated_parent(smiles, expecte
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_acetone_azine_name():
-    assert smiles_to_iupac("CC(C)=NN=C(C)C") == "N-(propan-2-ylideneamino)propan-2-imine"
-
-
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("CC=NN=C(C)C", id="asymmetric_azine_raises"),
-        pytest.param("C1CCCCC1=NN=C1CCCCC1", id="ring_raises"),
-        pytest.param("c1ccccc1C=NN=Cc1ccccc1", id="aromatic_carbon_raises"),
-        pytest.param("CC[C@@H](C)C(C)=NN=C(C)[C@H](C)CC", id="azine_specified_chain_stereocenter_raises"),
+        pytest.param("CC(C)=NN=C(C)C", "di(propan-2-ylidene)hydrazine", id="symmetric_azine"),
+        pytest.param("CCC(C)=NN=C1CCCCC1", "(butan-2-ylidene)(cyclohexylidene)hydrazine", id="unsymmetrical_azine_with_a_ring"),
+        pytest.param("OC(=O)C1CCC(CC1)=NN=C(C)C", "4-[(propan-2-ylidene)hydrazinylidene]cyclohexane-1-carboxylic acid", id="azine_as_a_prefix_on_an_acid"),
+        pytest.param("NC(=S)NN=C(C)C", "2-(propan-2-ylidene)hydrazine-1-carbothioamide", id="thiosemicarbazone"),
+        pytest.param("NNC(N)=[Se]", "hydrazinecarboselenoamide", id="selenosemicarbazide"),
     ],
 )
-def test_asymmetric_azine_raises_and_related_raise(smiles):
+def test_azines_and_chalcogen_semicarbazones_are_hydrazine_derivatives(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_azine_with_a_specified_chain_stereocenter_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+        smiles_to_iupac("CC[C@@H](C)C(C)=NN=C(C)[C@H](C)CC")
 
 
 def test_methyl_n_n_dimethylcarbamate():
@@ -837,7 +838,7 @@ def test_benzonitrile():
 
 
 def test_phenyl_chain_nitrile_unsaturation():
-    assert smiles_to_iupac("C=Cc1ccccc1CC#N") == "2-(2-ethenylphenyl)acetonitrile"
+    assert smiles_to_iupac("C=Cc1ccccc1CC#N") == "(2-ethenylphenyl)acetonitrile"
 
 
 @pytest.mark.parametrize(
@@ -854,7 +855,7 @@ def test_two_ring_and_heteroaromatic_chain_nitrile(smiles, expected):
     "smiles, expected",
     [
         pytest.param("N#CC1CCCC(c2ccc(C)cc2)C1", "3-(4-methylphenyl)cyclohexane-1-carbonitrile", id="two_ring_aromatic_substituent_nitrile_substituted_ring"),
-        pytest.param("N#CCC1CCCCC1c1ccccc1", "2-(2-phenylcyclohexyl)acetonitrile", id="two_ring_aromatic_substituent_nitrile_chain_nitrile"),
+        pytest.param("N#CCC1CCCCC1c1ccccc1", "(2-phenylcyclohexyl)acetonitrile", id="two_ring_aromatic_substituent_nitrile_chain_nitrile"),
         pytest.param("N#Cc1cccnc1", "pyridine-3-carbonitrile", id="heteroaromatic_ring_directly_attached_nitrile"),
     ],
 )
@@ -1151,6 +1152,7 @@ def test_heteroatom_substituents_on_nitrogen_and_pseudohalide_prefixes(smiles, e
         pytest.param("CC(=S)NC(C)=S", "N-(ethanethioyl)ethanethioamide", id="identical_thioacyl_groups_on_nitrogen"),
         pytest.param("CC(=S)N(C1CCCCC1)C(C)=S", "N-cyclohexyl-N-(ethanethioyl)ethanethioamide", id="tertiary_thioamide_with_a_third_substituent"),
         pytest.param("CC(=S)NC(=S)c1ccccc1", "N-(ethanethioyl)benzenecarbothioamide", id="imide_parent_is_the_ring_acyl_group"),
+        pytest.param("O=C(O)c1ccc(C=[Se])cc1", "4-(methaneselenoyl)benzoic acid", id="methane_chalcogenoyl_prefix_is_compound"),
         pytest.param("NC(=O)CC(N)=S", "3-amino-3-sulfanylidenepropanamide", id="thioamide_under_an_amide_joins_the_chain"),
         pytest.param("NC(=[Se])CC(N)=S", "3-amino-3-selanylidenepropanethioamide", id="selenoamide_under_a_thioamide"),
         pytest.param("OC(=O)c1ccc(cc1)C(N)=S", "4-carbamothioylbenzoic acid", id="thioamide_prefix_under_an_acid"),
@@ -1263,4 +1265,34 @@ def test_carbamate_esters_with_groups_in_the_n_substituent(smiles, expected):
     ],
 )
 def test_n_acyl_groups_on_mancude_and_fused_ring_nitrogens_are_pseudoketones(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("N#CCc1ccccc1", "phenylacetonitrile"),
+        ("OCC=O", "hydroxyacetaldehyde"),
+        ("C1OC1c1ccccc1", "phenyloxirane"),
+        ("CC1CN1", "2-methylaziridine"),
+        ("ClCC(N)=O", "2-chloroacetamide"),
+    ],
+)
+def test_locant_is_omitted_only_when_the_parent_has_one_kind_of_substitutable_hydrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C[C@H](CCc1ccccc1)NC(=S)NC1CC1", "N-cyclopropyl-N'-[(2R)-4-phenylbutan-2-yl]thiourea"),
+        ("C[C@H](CCc1ccccc1)NC(=O)NC", "N-methyl-N'-[(2R)-4-phenylbutan-2-yl]urea"),
+        ("C[C@@H](CCc1ccccc1)NC(=S)NC", "N-methyl-N'-[(2S)-4-phenylbutan-2-yl]thiourea"),
+        (
+            "C[C@H](CCc1ccccc1)NC(=S)N[C@@H]1C[C@H]2CC[C@H]1C2",
+            "N-[(1S,2R,4S)-bicyclo[2.2.1]heptan-2-yl]-N'-[(2R)-4-phenylbutan-2-yl]thiourea",
+        ),
+    ],
+)
+def test_chiral_substituent_groups_of_ureas_and_thioureas_cite_their_descriptors(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

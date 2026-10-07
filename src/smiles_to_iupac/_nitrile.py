@@ -106,6 +106,7 @@ from ._common import (
     substituent_locant_set_and_citation,
     two_separate_rings_with_plain_aromatic_substituent,
 )
+from ._retained_acids import single_site_prefixes
 from ._substituents import (
     substituents_for_chain,
     format_substituent_prefixes,
@@ -222,9 +223,10 @@ def _validate_and_collect_nitriles(mol, aromatic_ring_atoms=frozenset()):
 
 
 def _name_from_substituents(chain_length, nitrile_count, ene_locants, yne_locants, grouped):
-    return format_substituent_prefixes(grouped) + name_from_substituents(
-        chain_length, ene_locants, yne_locants, multiplied_word(nitrile_count, "nitrile")
-    )
+    parent = name_from_substituents(chain_length, ene_locants, yne_locants, multiplied_word(nitrile_count, "nitrile"))
+    # P-14.3.4.3: acetonitrile has one kind of substitutable hydrogen, so its prefixes need no locant
+    prefixes = single_site_prefixes(grouped) if parent == "acetonitrile" else format_substituent_prefixes(grouped)
+    return prefixes + parent
 
 
 def _candidate_key(chain_length, nitrile_locants, ene_locants, yne_locants, substituents):

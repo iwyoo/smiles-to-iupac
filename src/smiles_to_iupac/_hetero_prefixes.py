@@ -546,8 +546,22 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return diazenyl
         if order == 2.0 and len(others) == 1 and mol.GetAtomWithIdx(others[0]).GetAtomicNum() == 7:
             far = mol.GetAtomWithIdx(others[0])
-            if far.GetDegree() == 1 and far.GetTotalNumHs() == 2 and not far.GetFormalCharge() and not atom.GetFormalCharge():
-                return "hydrazinylidene", False
+            if (
+                not far.GetFormalCharge()
+                and not atom.GetFormalCharge()
+                and mol.GetBondBetweenAtoms(root, far.GetIdx()).GetBondTypeAsDouble() == 1.0
+                and far.GetTotalNumHs()
+                + sum(mol.GetBondBetweenAtoms(far.GetIdx(), n).GetBondTypeAsDouble() for n in graph[far.GetIdx()] if n != root)
+                == 2
+            ):
+                tail = [n for n in graph[far.GetIdx()] if n != root]
+                if not tail:
+                    return "hydrazinylidene", False
+                from ._substituents import format_mononuclear_prefixes
+
+                entries = _group_names(graph, mol, tail, far.GetIdx(), halogens, aromatic_atoms)
+                prefix = f"({entries[0][0]})" if len(entries) == 1 and entries[0][1] else format_mononuclear_prefixes(entries)
+                return prefix + "hydrazinylidene", True
         if order == 2.0 and not atom.GetFormalCharge() and len(others) <= 1 and _has_senior_principal_group(mol):
             if not others:
                 return "imino", False
@@ -598,6 +612,11 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
                     names.append(name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol))
             name = _amino(names)
             return name, _compound(name)
+        from ._anilino import anilino_prefix
+
+        anilino = anilino_prefix(graph, mol, root, others, halogens, aromatic_atoms)
+        if anilino is not None:
+            return anilino[0], anilino[0] != "anilino"
         name = _amino(_group_names(graph, mol, others, root, halogens, aromatic_atoms))
         return name, _compound(name)
     raise UnsupportedStructure("this heteroatom-linked substituent is not supported yet")
@@ -957,10 +976,13 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     spec = make_spec(center, symbols, ("O",))
     acyl = acyl_suffix(spec, chain=False, count=1)
     if zx == 6:
-        from ._functional_prefixes import _acyl_prefix
+        from ._functional_prefixes import _CARBOXYLIC_CLASS, _acyl_prefix
 
-        name = _acyl_prefix(mol, _subtree(graph, root, coming_from), root, coming_from)
-        return name, True
+        try:
+            return _acyl_prefix(mol, _subtree(graph, root, coming_from), root, coming_from), True
+        except UnsupportedStructure:
+            if not mol.HasSubstructMatch(_CARBOXYLIC_CLASS):
+                raise
     z_name, z_compound = name_branch(graph, x, root, halogens, aromatic_atoms, mol=mol)
     return (_enclose(z_name, z_compound) if z_compound else z_name) + acyl, True
 

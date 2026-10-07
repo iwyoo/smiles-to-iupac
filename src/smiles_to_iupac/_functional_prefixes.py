@@ -63,6 +63,9 @@ def nitroso_atoms(mol):
     return found
 
 
+_CARBOXYLIC_CLASS = Chem.MolFromSmarts("[$([CX3](=[O,S,N])[N,O,F,Cl,Br,I]),$([CX2]#N)]")
+
+
 def _acyl_prefix(mol, subtree, root, parent):
     """'-yl' name of the acyl group rooted at `root`, from its parent acid's name."""
     from .core import smiles_to_iupac
@@ -74,6 +77,9 @@ def _acyl_prefix(mol, subtree, root, parent):
         rw.RemoveAtom(idx)
     sub = rw.GetMol()
     Chem.SanitizeMol(sub)
+    root_atom = mol.GetAtomWithIdx(root)
+    if root_atom.GetAtomicNum() != 6 and sub.HasSubstructMatch(_CARBOXYLIC_CLASS):
+        raise UnsupportedStructure("a carboxylic acid outranks the sulfur or phosphorus acid, which is then a prefix, not an acyl group")
     from ._acid_derivatives import acyl_name
 
     name = acyl_name(smiles_to_iupac(Chem.MolToSmiles(sub)))
@@ -254,10 +260,22 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 record(node, *name_branch(graph, node, parent, shown, aromatic_atoms, mol=mol))
         elif z == 7:
             bond = _bond_order(mol, node, parent)
+            if atom.GetFormalCharge() == 1 and atom.GetTotalValence() == 4 and not atom.IsInRing():
+                record(node, *name_branch(graph, node, parent, shown, aromatic_atoms, mol=mol))
+                continue
             if bond == 3.0 and not kids:
                 continue
             if bond == 2.0 and len(kids) == 1 and named.get(kids[0]) == ("amino", False) and _bond_order(mol, node, kids[0]) == 1.0:
                 record(node, "hydrazinylidene", False)
+                continue
+            if (
+                bond == 2.0
+                and len(kids) == 1
+                and mol.GetAtomWithIdx(kids[0]).GetAtomicNum() == 7
+                and _bond_order(mol, node, kids[0]) == 1.0
+                and not mol.GetAtomWithIdx(kids[0]).IsInRing()
+            ):
+                record(node, *name_branch(graph, node, parent, shown, aromatic_atoms, mol=mol))
                 continue
             if (
                 bond == 2.0
@@ -271,6 +289,14 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 else:
                     rname, rcompound = child_name(kids[0], node)
                     record(node, (_enclose(rname) if rcompound else rname) + "imino", True)
+                continue
+            if (
+                bond == 1.0
+                and mol.GetAtomWithIdx(parent).GetAtomicNum() == 7
+                and len(kids) == 1
+                and mol.GetAtomWithIdx(kids[0]).GetAtomicNum() == 6
+                and _bond_order(mol, node, kids[0]) == 2.0
+            ):
                 continue
             if bond != 1.0 or any(_bond_order(mol, node, k) != 1.0 for k in kids):
                 raise UnsupportedStructure("an imine/azo/nitroso-type substituent is not supported yet")

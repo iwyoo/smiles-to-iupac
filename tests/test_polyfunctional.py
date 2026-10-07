@@ -33,7 +33,7 @@ def test_steroid_alcohol_naming(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("NCC=O", "2-aminoacetaldehyde"),
+        ("NCC=O", "aminoacetaldehyde"),
     ],
 )
 def test_smiles_to_iupac_aldehyde_amine(smiles, expected):
@@ -327,7 +327,7 @@ def test_specified_stereocenter_raises():
     "smiles, expected",
     [
         pytest.param("NCC(O)C(=O)OC", "methyl 3-amino-2-hydroxypropanoate", id="hydroxyl_coexisting__ester_amine"),
-        pytest.param("CC(C)OCC=O", "2-[(propan-2-yl)oxy]acetaldehyde", id="branched_alkoxy_r_prime"),
+        pytest.param("CC(C)OCC=O", "[(propan-2-yl)oxy]acetaldehyde", id="branched_alkoxy_r_prime"),
         pytest.param("COCC(Cl)C=O", "2-chloro-3-methoxypropanal", id="halogen_on_main_chain_still_works"),
         pytest.param("COC[C@@H](C)C=O", "(2R)-3-methoxy-2-methylpropanal", id="specified_stereocenter__ether_aldehyde"),
         pytest.param("CC(C)OCC(N)=O", "2-[(propan-2-yl)oxy]acetamide", id="branched_alkoxy_r_prime__ether_amide"),
@@ -379,6 +379,11 @@ def test_two_ethers_raises_and_related_raise(smiles):
         pytest.param("SCC=CCOC", "4-methoxybut-2-ene-1-thiol", id="unsaturated_chain__ether_thiol"),
         pytest.param("S[C@@H](C)COC", "(2S)-1-methoxypropane-2-thiol", id="specified_stereocenter__ether_thiol"),
         pytest.param("ClCC(=O)N1CCCCC1", "2-chloro-1-(piperidin-1-yl)ethan-1-one", id="chloroacetylpiperidine"),
+        pytest.param("PC(=O)CCC", "1-phosphanylbutan-1-one", id="acyl_on_group_15_hydride_is_a_pseudoketone"),
+        pytest.param("CC(=O)[Si](C)(C)C", "1-(trimethylsilyl)ethan-1-one", id="acyl_on_group_14_atom_is_a_pseudoketone"),
+        pytest.param("[SiH3]C(=O)CC(=O)O", "3-oxo-3-silylpropanoic acid", id="senior_acid_keeps_the_pseudoketone_as_a_prefix"),
+        pytest.param("O=C(CC)[SiH2]C(=O)CC", "dipropanoylsilane", id="two_acyl_groups_on_one_heteroatom_keep_the_acyl_name"),
+        pytest.param("CC(=O)P(=O)(C)C", "acetyldi(methyl)-λ5-phosphanone", id="phosphoryl_acyl_is_not_a_pseudoketone"),
         pytest.param("CNC(=O)c1cc(C)on1", "N,5-dimethyl-1,2-oxazole-3-carboxamide", id="n_substituted_amide_on_heteroaromatic_monocycle"),
         pytest.param("O=C(NC1CCCCC1)c1ccc2ncccc2c1", "N-cyclohexylquinoline-6-carboxamide", id="n_substituted_amide_on_fused_heteroaromatic"),
         pytest.param("COc1ccc(C(=O)N2CCCCC2)cc1", "(4-methoxyphenyl)(piperidin-1-yl)methanone", id="aroyl_ring_nitrogen_pseudoketone"),
@@ -522,6 +527,11 @@ def test_multi_fragment_rejected_instead_of_silently_dropped(smiles):
     [
         ("OCC(Cl)COCC(Cl)CO", "3,3'-oxybis(2-chloropropan-1-ol)"),
         ("OCCNc1ccccc1", "2-anilinoethan-1-ol"),
+        ("CN(c1ccccc1)c1cccc(O)c1", "3-(N-methylanilino)phenol"),
+        ("Oc1cccc(Nc2ccc(Cl)cc2)c1", "3-(4-chloroanilino)phenol"),
+        ("Oc1cccc(N(CC)c2ccc(Cl)cc2)c1", "3-(4-chloro-N-ethylanilino)phenol"),
+        ("Oc1cccc(N(c2ccc(Cl)cc2)c2ccccc2)c1", "3-(4-chloro-N-phenylanilino)phenol"),
+        ("Oc1cccc(Nc2ccc3ccccc3c2)c1", "3-[(naphthalen-2-yl)amino]phenol"),
         ("OCC[N+](=O)[O-]", "2-nitroethan-1-ol"),
         ("OCCC#N", "3-hydroxypropanenitrile"),
     ],
@@ -693,6 +703,11 @@ def test_stereodescriptors_inside_substituent_prefixes(smiles, expected):
     [
         ("OC(=O)COCCOCCOCCOCC(O)=O", "3,6,9,12-tetraoxatetradecane-1,14-dioic acid"),
         ("NCCNCCNCCNCCOCCCC(O)CCCC", "1-amino-12-oxa-3,6,9-triazaicosan-16-ol"),
+        ("C[SiH2]C[SiH2]C[SiH2]C[SiH2]CCCl", "10-chloro-2,4,6,8-tetrasiladecane"),
+        ("CSC[SiH2]CSC[SiH2]CCN", "2,6-dithia-4,8-disiladecan-10-amine"),
+        ("C[SiH2]C[SiH2]C[SiH2]C[SiH2]CC(=O)C", "2,4,6,8-tetrasilaundecan-10-one"),
+        ("[SiH3]C[SiH2]C[SiH2]C[SiH2]CC", "1,3,5,7-tetrasilanonane"),
+        ("C[SiH2][PH]C[SiH2]C[SiH2]C", "3-phospha-2,5,7-trisilaoctane"),
     ],
 )
 def test_skeletal_replacement_parents_with_four_or_more_heterounits(smiles, expected):
@@ -1118,3 +1133,32 @@ def test_polyfunctional_never_misattributes_a_group(smiles, expected):
 def test_group_or_stereo_element_without_a_supported_citation_raises(smiles):
     with pytest.raises(NotImplementedError):
         smiles_to_iupac(smiles)
+
+
+def test_chain_unit_bearing_a_group_outside_the_chain_is_not_named_by_skeletal_replacement():
+    assert "carboxy" in smiles_to_iupac("OC(=O)[SiH2]C[SiH2]C[SiH2]C[SiH2]C")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OC(=O)c1ccc2c(c1)Cc1ccc(cc12)-c1ccc(cc1)C(=O)O", "6-(4-carboxyphenyl)-9H-fluorene-2-carboxylic acid"),
+        ("OC(=O)c1ccc(cc1)-c1ccncc1C(=O)O", "4-(4-carboxyphenyl)pyridine-3-carboxylic acid"),
+        ("OC(=O)c1ccc(cc1)C1CCC(CC1)C(=O)O", "4-(4-carboxycyclohexyl)benzoic acid"),
+        ("OC(=O)CCc1c(CC(=O)O)c(CC(=O)O)cc2ccccc12", "3-[2,3-bis(carboxymethyl)naphthalen-1-yl]propanoic acid"),
+    ],
+)
+def test_senior_ring_is_the_parent_and_a_multiplicative_centre_keeps_all_principal_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("O=C(c1ccco1)C(O)c1ccco1", "1,2-di(furan-2-yl)-2-hydroxyethan-1-one"),
+        ("n1c(-c2cccs2)cccc1-c1cccs1", "2,6-di(thiophen-2-yl)pyridine"),
+        ("OC(c1ccc(C)cc1)c1ccc(C)cc1", "bis(4-methylphenyl)methanol"),
+    ],
+)
+def test_simple_ring_groups_take_di_and_substituted_ones_take_bis(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

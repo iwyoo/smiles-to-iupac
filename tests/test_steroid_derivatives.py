@@ -70,3 +70,14 @@ def test_side_chain_double_bond_geometry(geometry, expected):
 def test_stereo_centre_inside_a_steroid_ester_alkyl_is_cited():
     smiles = "C[C@H](CC)OC(=O)[C@H]1CC[C@H]2[C@@H]3CC=C4C[C@@H](O)CC[C@]4(C)[C@H]3CC[C@]12C"
     assert smiles_to_iupac(smiles) == "(2R)-butan-2-yl 3β-hydroxyandrost-5-ene-17β-carboxylate"
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        "NC(=O)c1ccc([C@@H]2O[C@@H]3C[C@H]4[C@@H]5CCC6=CC(=O)C=C[C@]6(C)[C@H]5[C@@H](O)C[C@]4(C)[C@]3(C(=O)CO)O2)cc1",
+        "OC(=O)c1ccc([C@@H]2O[C@@H]3C[C@H]4[C@@H]5CCC6=CC(=O)C=C[C@]6(C)[C@H]5[C@@H](O)C[C@]4(C)[C@]3(C(=O)CO)O2)cc1",
+    ],
+)
+def test_cyclic_acetal_is_not_named_with_class_word_after_a_senior_carbonyl_component(smiles):
+    assert "acetal" not in smiles_to_iupac(smiles)

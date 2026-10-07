@@ -100,7 +100,8 @@ def test_bridgehead_heteroatom_fused_yl(smiles, expected):
         pytest.param("Cc1ccc2cc3c(ccc4c5ccccc5ccc34)cc2c1", "9-methylbenzo[c]tetraphene", id="substituted_chrysene_fusion_is_named"),
         pytest.param("C1C=CC2=C1C3=CC=CC=C3C=C2", "1H-cyclopenta[a]naphthalene", id="cyclopenta_a_naphthalene_1h"),
         pytest.param("C1C=CC2=CC3=CC=CC=C3C=C21", "1H-cyclopenta[b]naphthalene", id="cyclopenta_b_naphthalene_1h"),
-        pytest.param("C1CC=CCN1", "3,4-didehydropiperidine", id="didehydropiperidine_nitrogen_ring"),
+        pytest.param("C1CC=CCN1", "1,2,3,6-tetrahydropyridine", id="partly_saturated_nitrogen_ring_takes_hydro_prefixes"),
+        pytest.param("O1CCCCC=C1", "2,3,4,5-tetrahydrooxepine", id="partly_saturated_seven_membered_oxygen_ring"),
         pytest.param("C1=CC=C2C(=C1)C=C3C=CC=C4C3=C2C5=CC=CC=C54", "benzo[a]aceanthrylene", id="benzo_a_fluoranthene"),
         pytest.param("C1C2=CC=CC=C2C3=C1C4=CC=CC=C4C=C3", "11H-benzo[a]fluorene", id="benzo_a_fluorene"),
         pytest.param("C1C2=CC=CC=C2C3=CC=CC=C31", "9H-fluorene", id="fluorene"),
@@ -685,3 +686,39 @@ def test_bridge_selection_minimises_atoms_in_dependent_bridges():
     # P-25.4.3.4.2 (g): a one-atom dependent bridge (methano) beats ethano plus butano
     name = smiles_to_iupac("C1=CC2C=C3C=C4C5C=c6ccccc6=NC(CC(CC2)CC5)C4C=C13")
     assert name.endswith("6,17-methano-10,13-pentanonaphtho[2,3-c][1]benzazocine")
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C1=CC=C2CC2=C1", "bicyclo[4.1.0]hepta-1,3,5-triene"),
+        ("C1=CC=C2C=CC2=C1", "bicyclo[4.2.0]octa-1,3,5,7-tetraene"),
+        ("Clc1ccc2CCc2c1", "3-chlorobicyclo[4.2.0]octa-1,3,5-triene"),
+        ("OC1Cc2ccccc12", "bicyclo[4.2.0]octa-1,3,5-trien-7-ol"),
+        ("c1ccc2cc3CCc3cc2c1", "1,2-dihydrocyclobuta[b]naphthalene"),
+    ],
+)
+def test_fusion_needs_two_rings_of_five_or_more_members(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_fusion_name_without_two_large_rings_is_kept_with_a_warning_when_von_baeyer_cannot_carry_the_group():
+    with pytest.warns(NonPreferredNameWarning, match="P-52.2.4.1"):
+        assert smiles_to_iupac("OC(=O)C1Cc2ccccc12") == "1,2-dihydrocyclobutabenzene-1-carboxylic acid"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "O=C1Nc2c(C(N)=O)sc3nccc(N1)c23",
+            "4-oxo-4,5-dihydro-3H-1-thia-3,5,8-triazaacenaphthylene-2-carboxamide",
+        ),
+        (
+            "O=C1Nc2c(C(N)=O)sc3nccc(N1C)c23",
+            "5-methyl-4-oxo-4,5-dihydro-3H-1-thia-3,5,8-triazaacenaphthylene-2-carboxamide",
+        ),
+    ],
+)
+def test_replacement_named_peri_fused_system_keeps_hydrocarbon_numbering_for_substituents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

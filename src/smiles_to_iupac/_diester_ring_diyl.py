@@ -251,6 +251,20 @@ def evaluate_skeleton(
         ANION_SUFFIX.reset(anion_token)
 
 
+def _one_kind_of_ring_hydrogen(mol, ring):
+    """P-14.3.4.3: every atom of the bare ring that carries a substitutable hydrogen is equivalent (oxirane, thiirane)."""
+    bare = Chem.RWMol(mol)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - set(ring), reverse=True):
+        bare.RemoveAtom(idx)
+    bare = bare.GetMol()
+    try:
+        Chem.SanitizeMol(bare)
+    except Exception:
+        return False
+    ranks = Chem.CanonicalRankAtoms(bare, breakTies=False)
+    return len({ranks[a.GetIdx()] for a in bare.GetAtoms() if a.GetTotalNumHs()}) == 1
+
+
 def _evaluate_skeleton(
     mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=(), orders=None, centers=(),
     key_centers=(), n_names=(),
@@ -373,7 +387,17 @@ def _evaluate_skeleton(
         from ._polyfunctional import _with_n_names
 
         grouped = _with_n_names(grouped, n_names, position_of, len(attach))
-    prefixes = format_substituent_prefixes(grouped)
+    single_kind = (
+        kind == "ring"
+        and len(body) == 1
+        and not valence
+        and not suffix
+        and not n_names
+        and sum(len(info["locants"]) for info in grouped.values()) == 1
+        and not any(ch.isdigit() for ch in parent)
+        and _one_kind_of_ring_hydrogen(mol, body[0])
+    )
+    prefixes = format_substituent_prefixes(grouped, omit_locants=single_kind)
     if prefixes and (parent[0].isdigit() or parent[0] == "Δ"):
         prefixes += "-"
     group_name = prefixes + parent

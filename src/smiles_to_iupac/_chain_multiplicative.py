@@ -384,6 +384,11 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
                 return None
     ctx = _make_context(mol, graph)
     kind, atoms = components[center]
+    # P-15.6.1.5, P-51.5: a ring bearing a side chain with a further principal group is a substituent of the chain
+    # parent that carries them, not a multiplicative centre
+    found = _principal_atoms(mol) if unit_kind == "chain" else None
+    if found is not None and not found[2] <= arm_atoms and any(mol.GetAtomWithIdx(a).IsInRing() for a in atoms):
+        return None
     branches = len(edges[center])
     per_branch = count // branches
     chain = []
@@ -607,7 +612,9 @@ def chain_multiplicative_name(mol, stereo):
         for h in graph[r]:
             bond = mol.GetBondBetweenAtoms(r, h)
             if atom.GetAtomicNum() == 6:
-                ok = h in linkers or (mol.GetAtomWithIdx(h).IsInRing() and bond.GetBondTypeAsDouble() in (1.0, 2.0))
+                ok = (h in linkers and not (principal == "ketone" and r in anchors)) or (
+                    mol.GetAtomWithIdx(h).IsInRing() and bond.GetBondTypeAsDouble() in (1.0, 2.0)
+                )
                 target = candidates
             elif atom.GetAtomicNum() == 7 and principal in ("amide", "sulfonamide") and r in anchors:
                 other = mol.GetAtomWithIdx(h)

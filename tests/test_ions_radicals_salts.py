@@ -765,6 +765,7 @@ def test_ylidene_ylidyne_and_ring_nitrogen_radicals_beside_groups(smiles, expect
         pytest.param("[CH+]1CCCC1O", "2-hydroxycyclopentan-1-ylium", id="ring_cation_with_hydroxy"),
         pytest.param("OCC[CH+]CCN", "1-amino-5-hydroxypentan-3-ylium", id="two_groups"),
         pytest.param("C[C+](C)C", "2-methylpropan-2-ylium", id="three_branches"),
+        pytest.param("[CH2+]CCC", "butylium", id="terminal_cation_of_unbranched_alkane_takes_the_alkyl_stem"),
         pytest.param("[CH2+]C(C)C", "2-methylpropan-1-ylium", id="branched_chain"),
         pytest.param("CC1CC[CH+]C1", "3-methylcyclopentan-1-ylium", id="substituted_ring"),
         pytest.param("[CH2+]C(Cl)", "2-chloroethan-1-ylium", id="halogen"),
@@ -1097,6 +1098,35 @@ def test_cations_that_are_not_a_multiplicative_assembly(smiles):
     ],
 )
 def test_cation_on_the_parent_hydride_of_an_anionic_suffix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        "CC[Si]C[N+](C)(C)C.[I-]",
+        "CC[Ge]C[N+](C)(C)C.[I-]",
+        "C[Sn]C",
+        "CC[Si]CC",
+    ],
+)
+def test_valence_deficient_heteroatom_is_not_named_as_its_hydride(smiles):
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "CC[NH+](CC)Cc1ccc(-c2nc(C(=O)[O-])cs2)cc1",
+            "2-{4-[(diethylazaniumyl)methyl]phenyl}-1,3-thiazole-4-carboxylate",
+        ),
+        ("C[NH+](C)Cc1nc(C(=O)[O-])cs1", "2-[(dimethylazaniumyl)methyl]-1,3-thiazole-4-carboxylate"),
+        ("C[NH+](C)Cc1ccc(-c2ccc(C(=O)[O-])o2)cc1", "5-{4-[(dimethylazaniumyl)methyl]phenyl}furan-2-carboxylate"),
+    ],
+)
+def test_ammonium_on_a_heterocyclic_anionic_parent_stays_an_azaniumyl_prefix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

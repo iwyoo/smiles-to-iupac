@@ -49,7 +49,10 @@ from ._common import UnsupportedStructure, adjacency, group_substituents
 from ._substituents import format_substituent_prefixes
 
 
-def _urea_core(mol):
+_AMIDE_ENDING = {8: "carboxamide", 16: "carbothioamide", 34: "carboselenoamide", 52: "carbotelluroamide"}
+
+
+def _urea_core(mol, atomic_num=8):
     """(carbon_idx, (nitrogen1_idx, nitrogen2_idx)) for the urea carbonyl
     carbon and its two nitrogens, or None if the molecule isn't shaped like
     a urea core at all (a carbon with exactly one double-bonded, terminal
@@ -61,7 +64,7 @@ def _urea_core(mol):
         if atom.GetFormalCharge() != 0 or atom.GetIsAromatic():
             continue
         neighbors = atom.GetNeighbors()
-        oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
+        oxygens = [n for n in neighbors if n.GetAtomicNum() == atomic_num]
         nitrogens = [n for n in neighbors if n.GetAtomicNum() == 7]
         if len(oxygens) != 1 or len(nitrogens) != 2:
             continue
@@ -121,8 +124,8 @@ def _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx):
     return None
 
 
-def name_urea(mol) -> str:
-    core = _urea_core(mol)
+def name_urea(mol, atomic_num=8) -> str:
+    core = _urea_core(mol, atomic_num)
     if core is None:
         raise UnsupportedStructure(
             "no urea (H2N-C(=O)-NH2 or an N-substituted derivative) shape "
@@ -134,7 +137,7 @@ def name_urea(mol) -> str:
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
-    (oxygen_idx,) = (n.GetIdx() for n in mol.GetAtomWithIdx(carbon_idx).GetNeighbors() if n.GetAtomicNum() == 8)
+    (oxygen_idx,) = (n.GetIdx() for n in mol.GetAtomWithIdx(carbon_idx).GetNeighbors() if n.GetAtomicNum() == atomic_num)
     amino_nitrogen_idx = _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx)
 
     core_atoms = {carbon_idx, oxygen_idx, n1_idx, n2_idx}
@@ -147,16 +150,16 @@ def name_urea(mol) -> str:
         amide_names, alpha_names, beta_names = n_substituent_names(
             mol, graph, core_atoms, (amide, alpha, amino_nitrogen_idx), carbon_idx, junior_groups=True
         )
-        return _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names)
+        return _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names, _AMIDE_ENDING[atomic_num])
     n1_names, n2_names = n_substituent_names(mol, graph, core_atoms, (n1_idx, n2_idx), carbon_idx, junior_groups=True)
     return f"{n_prefix(n1_names, n2_names)}urea"
 
 
-def _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names):
+def _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names, ending="carboxamide"):
     """Substituted hydrazinecarboxamide (P-66.1.1.1.1.3, P-66.3.5): N on the amide nitrogen, 1 and 2 on the
     hydrazine nitrogens."""
     positions = {"N": amide_names, 1: alpha_names, 2: beta_names}
     grouped = group_substituents({k: v for k, v in positions.items() if v})
     if not grouped:
-        return "hydrazinecarboxamide"
-    return f"{format_substituent_prefixes(grouped)}hydrazine-1-carboxamide"
+        return f"hydrazine{ending}"
+    return f"{format_substituent_prefixes(grouped)}hydrazine-1-{ending}"

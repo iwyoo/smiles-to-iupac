@@ -218,7 +218,7 @@ def test_unplaceable_isotope_label_is_never_dropped(smiles):
         pytest.param("Clc1ccc(N([2H])[2H])cc1", "4-chloro(N-2H2)aniline", id="group_label_after_prefixes"),
         pytest.param("CC(=[18O])C(C)C", "3-methylbutan-2-(18O)one", id="ketone_oxygen_nuclide"),
         pytest.param("CCC#[15N]", "(15N)propanenitrile", id="nitrile_nitrogen_nuclide"),
-        pytest.param("ClCC#[15N]", "2-chloro(15N)acetonitrile", id="nitrile_nitrogen_after_prefixes"),
+        pytest.param("ClCC#[15N]", "chloro(15N)acetonitrile", id="nitrile_nitrogen_after_prefixes"),
         pytest.param("CC(=[18O])[13CH3]", "(1-13C)propan-2-(18O)one", id="skeleton_and_group_nuclides"),
     ],
 )

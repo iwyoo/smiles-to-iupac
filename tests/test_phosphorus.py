@@ -51,7 +51,7 @@ def test_branched_phosphane_chain_raises():
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("P1PPPP1", "2,3,4,5-tetrahydro-1H-pentaphosphole", id="cyclic_phosphane_chain"),
+        pytest.param("P1PPPP1", "pentaphospholane", id="cyclic_phosphane_chain"),
         pytest.param("CPP", "methyldiphosphane", id="carbon_phosphorus_mix_is_a_diphosphane"),
     ],
 )
@@ -334,4 +334,24 @@ def test_heterones_of_group_14_15_16_atoms(smiles, expected):
     ],
 )
 def test_phosphorus_acid_groups_cited_as_prefixes_under_a_carboxylic_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CP(C)O", "dimethylphosphinous acid"),
+        ("c1ccccc1P(c1ccccc1)S", "diphenylphosphinothious acid"),
+        ("OP(=S)(O)O", "phosphorothioic O,O,O-acid"),
+        ("OP(=O)(S)O", "phosphorothioic S-acid"),
+        ("SP(=O)(S)O", "phosphorodithioic S,S-acid"),
+        ("CP(=[Se])(O)O", "methylphosphonoselenoic O,O-acid"),
+        ("CP(=[Se])(C)O", "dimethylphosphinoselenoic acid"),
+        ("CP(=S)(C)S", "dimethylphosphinodithioic acid"),
+        ("c1ccccc1[As](c1ccccc1)S", "diphenylarsinothious acid"),
+        ("CB(C)S", "dimethylborinothioic acid"),
+        ("CB(O)S", "methylboronothioic acid"),
+    ],
+)
+def test_mononuclear_oxoacids_modified_by_functional_replacement(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

@@ -8,6 +8,7 @@ from rdkit import Chem
 
 from ._common import YLO_MAP_NUMBER, UnsupportedStructure, adjacency, halogen_substituents, specified_stereo_elements
 from ._hetero_prefixes import PEROXY_PREFIXES, is_functional_carbon
+from ._numerals import alkyl_name
 from ._substituents import name_branch
 
 _MAX_ATOMS = 80
@@ -224,6 +225,14 @@ def _group_cation_centre(mol):
     return cations[0]
 
 
+def _is_unbranched_alkane_with_terminal_cation(mol, centre) -> bool:
+    return (
+        centre.GetDegree() == 1
+        and all(a.GetAtomicNum() == 6 and not a.IsInRing() and a.GetDegree() <= 2 for a in mol.GetAtoms())
+        and all(b.GetBondTypeAsDouble() == 1.0 for b in mol.GetBonds())
+    )
+
+
 def has_group_cation_shape(mol) -> bool:
     return _group_cation_centre(mol) is not None
 
@@ -236,6 +245,9 @@ def name_group_cation(mol) -> str:
     centre = _group_cation_centre(mol)
     if centre is None or specified_stereo_elements(mol):
         raise UnsupportedStructure("this cation is not a single carbenium centre on a plain skeleton")
+    if _is_unbranched_alkane_with_terminal_cation(mol, centre):
+        # P-73.2.2.1.1: the specific method turns the 'ane' of the parent hydride into 'ylium'
+        return alkyl_name(mol.GetNumAtoms()) + "ium"
     anionic = Chem.RWMol(mol)
     anionic.GetAtomWithIdx(centre.GetIdx()).SetFormalCharge(-1)
     anionic = anionic.GetMol()
