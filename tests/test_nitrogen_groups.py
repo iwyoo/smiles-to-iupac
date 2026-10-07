@@ -105,13 +105,53 @@ def test_phenyl_chain_amidine_ring_halogen():
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("CC(N)N(C)C", id="geminal_diamine_with_substituent_raises"),
         pytest.param("NCCN(C)CC=C", id="two_amines_with_unsaturated_n_substituent_raises"),
     ],
 )
 def test_phenyl_chain_amidine_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CCCC(CC)(NCC)NC", "N3-ethyl-N'3-methylhexane-3,3-diamine", id="geminal_primed_nitrogen_locants"),
+        pytest.param("CNCCC(NCC)(NC)CCCN", "N3-ethyl-N1,N'3-dimethylhexane-1,3,3,6-tetramine", id="geminal_among_other_amines"),
+        pytest.param("CCNC(C)NCC", "N1,N'1-diethylethane-1,1-diamine", id="geminal_same_substituents"),
+        pytest.param("NCCNc1ccccc1", "N1-phenylethane-1,2-diamine", id="chain_parent_with_aryl_on_nitrogen"),
+        pytest.param("CNc1ccc(N)cc1", "N1-methylbenzene-1,4-diamine", id="ring_parent_n_substituted"),
+        pytest.param(
+            "Nc1ccc(Nc2ccc(Nc3ccccc3)cc2)cc1",
+            "N1-(4-aminophenyl)-N4-phenylbenzene-1,4-diamine",
+            id="ring_parent_aminophenyl_branch",
+        ),
+        pytest.param("NCc1ccc(NC)cc1", "4-(aminomethyl)-N-methylaniline", id="ring_with_one_amine_beats_chain"),
+    ],
+)
+def test_polyamine_n_locants_and_ring_parents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CCNCNCC", "N,N'-methylenediethanamine", id="methylene_joins_monoamine_nitrogens"),
+        pytest.param("NCCNCNCCN", "N1,N1'-methylenedi(ethane-1,2-diamine)", id="methylene_joins_diamine_nitrogens"),
+        pytest.param(
+            "Nc1ccc(NCNc2ccc(N)cc2)cc1", "N1,N1'-methylenedi(benzene-1,4-diamine)", id="methylene_joins_aryl_diamine"
+        ),
+        pytest.param("CC(=O)NNCNNC(C)=O", "N',N'''-methylenediacetohydrazide", id="methylene_joins_hydrazide_nitrogens"),
+        pytest.param(
+            "CC(=O)NNCCNNC(C)=O", "N',N'''-(ethane-1,2-diyl)diacetohydrazide", id="longer_chain_joins_hydrazide_nitrogens"
+        ),
+        pytest.param("CNCCNC", "N1,N2-dimethylethane-1,2-diamine", id="longer_chain_between_amines_is_a_diamine"),
+        pytest.param("NCCNCCN", "N1-(2-aminoethyl)ethane-1,2-diamine", id="azanediyl_between_amine_units_is_substitutive"),
+        pytest.param("Nc1ccc(Nc2ccc(N)cc2)cc1", "N1-(4-aminophenyl)benzene-1,4-diamine", id="azanediyl_between_aniline_units"),
+    ],
+)
+def test_nitrogen_multiplicative_amines(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(

@@ -337,6 +337,22 @@ def _amine_locants(position_of, amines, graph):
 
 
 
+def _n_locant_labels(amines, amine_locants, n_names_by_nitrogen, chain_length):
+    """P-62.2.4.1.2: nitrogens on the same parent carbon share its locant and
+    are told apart by priming (N3, N'3, ...); the first-cited substituent
+    takes the unprimed one (P-14.4)."""
+    by_locant = {}
+    for n_idx, locant in zip(amines, amine_locants):
+        by_locant.setdefault(locant, []).append(n_idx)
+    labels = []
+    for locant, group in by_locant.items():
+        group.sort(key=lambda n: sorted(name for name, _ in n_names_by_nitrogen.get(n, [])) or ["\uffff"])
+        for rank, n_idx in enumerate(group):
+            shown = "" if chain_length == 1 else str(locant)
+            labels.append((n_idx, shown if rank == 0 else "'" * rank + shown))
+    return labels
+
+
 def _best_chain_name(
     carbon_graph, graph, halogens, amines, bonds, stereo=None, n_names=(), mol=None, n_names_by_nitrogen=None
 ):
@@ -398,7 +414,7 @@ def _best_chain_name(
             if n_names_by_nitrogen is not None:
                 candidate_n_names = []
                 candidate_n_locants = []
-                for n_idx, locant in zip(amines, amine_locants):
+                for n_idx, locant in _n_locant_labels(amines, amine_locants, n_names_by_nitrogen, chain_length):
                     for sub_name, is_compound in n_names_by_nitrogen.get(n_idx, []):
                         candidate_n_names.append((sub_name, is_compound))
                         candidate_n_locants.append(locant)
@@ -517,9 +533,10 @@ def _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=No
     locant plumbing there too -- future work)."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    full_carbon_graph = carbon_adjacency(mol)
+    ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
+    full_carbon_graph = {k: [v for v in vs if v not in ring_atoms] for k, vs in carbon_adjacency(mol).items() if k not in ring_atoms}
 
-    all_n_carbons = [c for n in amines for c in n_carbons_by_nitrogen[n]]
+    all_n_carbons = [c for n in amines for c in n_carbons_by_nitrogen[n] if c not in ring_atoms]
     components = {c: component_subgraph(full_carbon_graph, c) for c in all_n_carbons}
     # The shared parent chain is whichever connected carbon component has a
     # neighbor from *every* nitrogen -- not simply the largest component,
@@ -540,20 +557,17 @@ def _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=No
 
     n_names_by_nitrogen = {}
     excluded_atoms = set()
-    chain_anchors = set()
     for n in amines:
         on_chain = [c for c in n_carbons_by_nitrogen[n] if c in chain_component]
         if len(on_chain) != 1:
             raise UnsupportedStructure(
-                "two or more amine nitrogens sharing the same carbon (geminal) is "
-                "excluded from P-16.9.2's superscript-locant convention "
-                "and is not supported yet"
+                "an amine nitrogen bonded to the shared carbon backbone more than "
+                "once is not supported yet"
             )
-        chain_anchors.add(on_chain[0])
         extra_roots = [c for c in n_carbons_by_nitrogen[n] if c not in chain_component]
         names = []
         for root in extra_roots:
-            root_component = set(components[root])
+            root_component = set(components.get(root, ()))
             if any(a in root_component and b in root_component for a, b, _ in bonds):
                 raise UnsupportedStructure(
                     "an unsaturated N-substituent alongside another coexisting amine "
@@ -562,12 +576,6 @@ def _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, bonds, stereo=No
             names.append(name_branch(graph, root, n, halogens, mol=mol))
             excluded_atoms |= root_component
         n_names_by_nitrogen[n] = names
-    if len(chain_anchors) != len(amines):
-        raise UnsupportedStructure(
-            "two or more amine nitrogens sharing the same carbon (geminal) is "
-            "excluded from P-16.9.2's superscript-locant convention "
-            "and is not supported yet"
-        )
 
     parent_carbon_graph = {k: v for k, v in full_carbon_graph.items() if k not in excluded_atoms}
     parent_bonds = [b for b in bonds if b[0] in parent_carbon_graph and b[1] in parent_carbon_graph]
@@ -1030,6 +1038,17 @@ def name_amine(mol) -> str:
         only_ring = set(ring_info.AtomRings()[0])
         aromatic_rings = [only_ring] if is_plain_benzene_ring(mol, only_ring) else None
     if aromatic_rings is not None:
+        nitrogens = [a for a in mol.GetAtoms() if a.GetAtomicNum() == 7]
+        if len(nitrogens) > 1:
+            from ._amine_ring_parent import name_ring_parent_polyamine
+
+            ring_parent_name = name_ring_parent_polyamine(mol)
+            if ring_parent_name is not None:
+                return ring_parent_name
+            amines, n_carbons_by_nitrogen = _validate_and_collect_amines(
+                mol, aromatic_ring_atoms=set().union(*aromatic_rings)
+            )
+            return _name_multi_amine_chain(mol, amines, n_carbons_by_nitrogen, [], None)
         benzene_rings = [r for r in aromatic_rings if is_plain_benzene_ring(mol, r)]
         union = set().union(*aromatic_rings)
         amines, n_carbons_by_nitrogen = _validate_and_collect_amines(mol, aromatic_ring_atoms=union)
