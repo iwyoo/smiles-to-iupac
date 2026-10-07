@@ -2647,7 +2647,7 @@ def _is_nitro_part(atom):
         return len(oxygens) == 2 and sum(o.GetFormalCharge() for o in oxygens) == -1 and atom.GetDegree() == 3
     if atom.GetAtomicNum() == 8 and atom.GetFormalCharge() == -1 and atom.GetDegree() == 1:
         (n,) = atom.GetNeighbors()
-        return _is_nitro_part(n)
+        return n.GetAtomicNum() == 7 and _is_nitro_part(n)
     return False
 
 
