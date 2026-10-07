@@ -67,6 +67,7 @@ from ._amine_oxide import has_amine_oxide_shape, name_amine_oxide
 from ._aminide import has_aminide_shape, name_aminide
 from ._ammonium import has_ammonium_shape, has_polyammonium_shape, name_ammonium, name_polyammonium
 from ._polycation import has_polycation_shape, name_polycation
+from ._polyspiro_union import has_polyspiro_union_shape, name_polyspiro_union
 from ._spiro_union import has_spiro_union_shape, name_spiro_union
 from ._ylium_ring import has_ylium_ring_shape, name_ylium_ring
 from ._chain_cation import has_chain_cation_shape, name_chain_cation
@@ -555,6 +556,11 @@ def _name_unabridged(smiles: str) -> str:
         if parsed is not None and has_spiro_union_shape(parsed):
             try:
                 return name_spiro_union(parsed)
+            except UnsupportedStructure:
+                pass
+        if parsed is not None and has_polyspiro_union_shape(parsed):
+            try:
+                return name_polyspiro_union(parsed)
             except UnsupportedStructure:
                 pass
         beyond_preferred = None
