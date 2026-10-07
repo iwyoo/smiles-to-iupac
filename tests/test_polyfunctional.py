@@ -693,6 +693,11 @@ def test_stereodescriptors_inside_substituent_prefixes(smiles, expected):
     [
         ("OC(=O)COCCOCCOCCOCC(O)=O", "3,6,9,12-tetraoxatetradecane-1,14-dioic acid"),
         ("NCCNCCNCCNCCOCCCC(O)CCCC", "1-amino-12-oxa-3,6,9-triazaicosan-16-ol"),
+        ("C[SiH2]C[SiH2]C[SiH2]C[SiH2]CCCl", "10-chloro-2,4,6,8-tetrasiladecane"),
+        ("CSC[SiH2]CSC[SiH2]CCN", "2,6-dithia-4,8-disiladecan-10-amine"),
+        ("C[SiH2]C[SiH2]C[SiH2]C[SiH2]CC(=O)C", "2,4,6,8-tetrasilaundecan-10-one"),
+        ("[SiH3]C[SiH2]C[SiH2]C[SiH2]CC", "1,3,5,7-tetrasilanonane"),
+        ("C[SiH2][PH]C[SiH2]C[SiH2]C", "3-phospha-2,5,7-trisilaoctane"),
     ],
 )
 def test_skeletal_replacement_parents_with_four_or_more_heterounits(smiles, expected):
@@ -1118,3 +1123,7 @@ def test_polyfunctional_never_misattributes_a_group(smiles, expected):
 def test_group_or_stereo_element_without_a_supported_citation_raises(smiles):
     with pytest.raises(NotImplementedError):
         smiles_to_iupac(smiles)
+
+
+def test_chain_unit_bearing_a_group_outside_the_chain_is_not_named_by_skeletal_replacement():
+    assert "carboxy" in smiles_to_iupac("OC(=O)[SiH2]C[SiH2]C[SiH2]C[SiH2]C")
