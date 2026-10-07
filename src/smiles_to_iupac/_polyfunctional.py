@@ -2316,6 +2316,15 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
         return None
     top = max(c[0] for c in candidates)
     leading = [c for c in candidates if c[0] == top]
+    if len(leading) > 1:
+        # P-44.1.2.2, P-59.2.1.5: equal numbers of principal groups leave the senior ring system as the parent
+        from ._diester_ring_diyl import _system_of
+
+        def system_rank(candidate):
+            return _system_rank(mol, *_system_of(mol, candidate[1][0]))
+
+        senior = max(system_rank(c) for c in leading)
+        leading = [c for c in leading if system_rank(c) == senior]
     if len(leading) == 1:
         return _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names, stereo, leading[0])[:2]
     ranks = CanonicalRankAtoms(mol, breakTies=False)
@@ -2579,7 +2588,10 @@ def _identical_group_units(mol, graph, group_atoms):
     for i, (bi, ai, si) in enumerate(sides):
         for bj, aj, sj in sides[:i]:
             if bi != bj and si == sj and not ai & aj:
-                return True
+                # a multiplied parent must express every principal group (P-15.6.1.5)
+                units = ai | aj | set().union(*(ak for bk, ak, sk in sides if sk == si and not ak & (ai | aj)))
+                if group_atoms <= units:
+                    return True
     return False
 
 

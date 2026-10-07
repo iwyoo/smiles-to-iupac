@@ -569,7 +569,7 @@ def test_interior_fusion_locants_order_between_their_peripheral_neighbours():
         ("O=C(Cl)CCC(=O)c1ccc(S(=O)(=O)Cl)cc1", "4-[4-(chlorosulfonyl)phenyl]-4-oxobutanoyl chloride"),
         (
             "CCCCOC(=O)N1CCC(NC(=O)c2ccc(C(=O)OC)cc2)CC1",
-            "methyl 4-{[1-(butoxycarbonyl)piperidin-4-yl]carbamoyl}benzoate",
+            "butyl 4-{[4-(methoxycarbonyl)benzoyl]amino}piperidine-1-carboxylate",
         ),
         (
             "CC(C)(C)OC(=O)CC(N)C1COCC(c2ccc(Br)cc2)N1C(=O)OC(C)(C)C",
