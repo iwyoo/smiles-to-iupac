@@ -379,22 +379,13 @@ def test_two_ethers_raises_and_related_raise(smiles):
         pytest.param("SCC=CCOC", "4-methoxybut-2-ene-1-thiol", id="unsaturated_chain__ether_thiol"),
         pytest.param("S[C@@H](C)COC", "(2S)-1-methoxypropane-2-thiol", id="specified_stereocenter__ether_thiol"),
         pytest.param("ClCC(=O)N1CCCCC1", "2-chloro-1-(piperidin-1-yl)ethan-1-one", id="chloroacetylpiperidine"),
+        pytest.param("COc1ccc(C(=O)N2CCCCC2)cc1", "(4-methoxyphenyl)(piperidin-1-yl)methanone", id="aroyl_ring_nitrogen_pseudoketone"),
+        pytest.param("CC(=O)N1CCN(c2ccccc2)CC1", "1-(4-phenylpiperazin-1-yl)ethan-1-one", id="acyl_ring_nitrogen_with_aryl_on_other_nitrogen"),
+        pytest.param("CC(C)C(=O)N1CCCC1C", "2-methyl-1-(2-methylpyrrolidin-1-yl)propan-1-one", id="branched_acyl_substituted_ring"),
     ],
 )
 def test_branched_alkoxy_r_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("CC(C)C(=O)N1CCCCC1", id="branched_acyl_chain_raises"),
-        pytest.param("CC(=O)N1CCC(C)CC1", id="substituted_ring_raises"),
-    ],
-)
-def test_branched_acyl_chain_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
