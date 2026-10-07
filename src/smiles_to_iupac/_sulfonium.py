@@ -1,6 +1,6 @@
 """Naming of simple sulfonium cations (the '-sulfanium' suffix,
-P-73.1.1.2, bearing 0-3 unbranched, saturated alkyl and/or plain phenyl
-substituents), per the IUPAC 2013 Recommendations ("the Blue Book"):
+P-73.1.1.2, bearing 0-3 substituent groups named by `name_branch`),
+per the IUPAC 2013 Recommendations ("the Blue Book"):
 
 - P-73.1.1.2 (Chapter P-7, https://iupac.qmul.ac.uk/BlueBook/PDF/P7.pdf):
   a cation formed by adding a hydron to a parent hydride is named by
@@ -37,15 +37,10 @@ substituents), per the IUPAC 2013 Recommendations ("the Blue Book"):
   (`is_plain_benzene_ring` + `ring_chain_attachment`).
 
 Explicitly out of scope (raise `UnsupportedStructure`):
-- A branched or unsaturated substituent, or an aromatic substituent other
-  than a plain, unsubstituted phenyl (a substituted or heteroaromatic
-  ring, e.g.), or a ring other than a plain phenyl substituent directly
-  on sulfur.
-- A halogen substituent directly on sulfur (unverified for this cation,
-  unlike `_phosphane.py`'s own confirmed halophosphane case).
-- Any sulfonium sulfur not shaped like SH3+ or a sulfur bonded to 1-3
-  carbons (with the remaining valence as hydrogens) -- e.g. formal charge
-  other than +1, more than one charged atom, isotopic modification.
+- A substituent that carries a principal characteristic group (oxo,
+  hydroxy, carboxy, amino, cyano, ...), a halogen, or a heteroatom other
+  than an ether-type chalcogen link; substituents are named by
+  `name_branch`.
 - P-92 stereocenters:
   unlike `_oxonium.py`'s/`_ammonium.py`'s nitrogen/oxygen (which invert too
   fast to be a real stereocenter), a sulfonium sulfur with three distinct
@@ -64,13 +59,10 @@ from rdkit import Chem
 from ._common import (
     UnsupportedStructure,
     adjacency,
-    linear_branch,
-    non_single_bonds,
     plain_phenyl_substituent_atoms,
     specified_stereocenters,
 )
-from ._numerals import alkyl_name
-from ._substituents import format_mononuclear_prefixes
+from ._substituents import format_mononuclear_prefixes, name_branch
 
 
 def has_sulfonium_shape(mol) -> bool:
@@ -92,6 +84,15 @@ def has_sulfonium_shape(mol) -> bool:
     return all(
         n.GetAtomicNum() == 6 and mol.GetBondBetweenAtoms(sulfur.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
         for n in sulfur.GetNeighbors()
+    )
+
+
+def _is_ether_link(atom) -> bool:
+    return (
+        atom.GetAtomicNum() in (8, 16, 34, 52)
+        and atom.GetDegree() == 2
+        and atom.GetTotalNumHs() == 0
+        and all(b.GetBondTypeAsDouble() == 1.0 and b.GetOtherAtom(atom).GetAtomicNum() == 6 for b in atom.GetBonds())
     )
 
 
@@ -134,45 +135,27 @@ def name_sulfonium(mol) -> str:
     ):
         raise UnsupportedStructure("the sulfonium sulfur must be singly bonded to each substituent")
 
-    graph = adjacency(mol)
-    roots = set(graph[sulfur.GetIdx()])
-    phenyl_atoms = plain_phenyl_substituent_atoms(mol, graph, roots)
-
-    other_atoms = [atom for atom in mol.GetAtoms() if atom.GetIdx() != sulfur.GetIdx()]
-    for atom in other_atoms:
-        if atom.GetAtomicNum() != 6:
-            raise UnsupportedStructure(
-                "heteroatoms other than the sulfonium sulfur itself are "
-                "not supported yet"
-            )
+    for atom in mol.GetAtoms():
+        if atom.GetIdx() == sulfur.GetIdx():
+            continue
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetIsAromatic() and atom.GetIdx() not in phenyl_atoms:
+        if atom.GetAtomicNum() != 6 and not _is_ether_link(atom):
             raise UnsupportedStructure(
-                "an aromatic substituent other than a plain, unsubstituted "
-                "phenyl group is out of scope for this module"
+                "a substituent carrying a characteristic group or a heteroatom other "
+                "than a chalcogen link is not supported yet"
             )
-    all_ring_atoms = {a for ring in mol.GetRingInfo().AtomRings() for a in ring}
-    if all_ring_atoms - phenyl_atoms:
-        raise UnsupportedStructure(
-            "a ring other than a plain phenyl substituent directly on "
-            "sulfur is out of scope for this module"
-        )
-    non_ring_unsaturation = [
-        b for b in non_single_bonds(mol) if b[0] not in phenyl_atoms and b[1] not in phenyl_atoms
-    ]
-    if non_ring_unsaturation:
-        raise UnsupportedStructure("an unsaturated substituent is out of scope for this module")
+
+    graph = adjacency(mol)
+    roots = sorted(graph[sulfur.GetIdx()])
+    phenyl_atoms = plain_phenyl_substituent_atoms(mol, graph, set(roots))
 
     substituent_names = []
     for root in roots:
         if root in phenyl_atoms:
             substituent_names.append(("phenyl", False))
-            continue
-        length = linear_branch(graph, root, sulfur.GetIdx())
-        if length is None:
-            raise UnsupportedStructure("a branched substituent is out of scope for this module")
-        substituent_names.append((alkyl_name(length), False))
+        else:
+            substituent_names.append(name_branch(graph, root, sulfur.GetIdx(), {}, mol=mol))
 
     if not substituent_names:
         return "sulfanium"

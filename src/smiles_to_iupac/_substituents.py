@@ -177,12 +177,8 @@ def format_mononuclear_prefixes(entries) -> str:
     CID 80969; confirmed independently via the Blue Book's own
     'ethyldi(propan-2-yl)silane (PIN)' worked example, the Blue Book P-16.5.1.3.1), mirroring the 'di(...)' rule already
     established for `_carbamate.py`/`_urea.py`. A multiplied compound
-    name mixed with a *different* substituent is out of scope
-    (`UnsupportedStructure`) -- PubChem's own naming engine is already
-    documented elsewhere as unreliable for phosphane/borane cases with
-    3+ distinct substituents, and there's no confirmed Blue Book worked
-    example settling the resulting punctuation (a hyphen appears to be
-    involved, but not reliably enough to encode blind)."""
+    name mixed with a different substituent keeps its multiplying prefix
+    ('bis') outside its own enclosing marks, first position included."""
     counts = {}
     compound_of = {}
     for name, is_compound in entries:
@@ -212,23 +208,6 @@ def format_mononuclear_prefixes(entries) -> str:
         return multiplying_prefix(count, compound=needs_kis) + wrapped
 
     ordered = sorted(counts, key=alpha_sort_key)
-    if counts[ordered[0]] > 1 and compound_of[ordered[0]]:
-        # Unlike a non-first multiplied compound name (confirmed below via
-        # 'bromodi(ethenyl)stibane (PIN)', the Blue Book
-        # ~8608-8609 -- the multiplying prefix and enclosing marks both
-        # land correctly on a non-first name in the loop below), no
-        # worked example confirms whether a multiplied compound name
-        # that sorts *first* still needs its own enclosing marks (the
-        # loop below's `name if i == 0 else f"({name})"` bare-first
-        # shortcut, written for a plain first name, would silently drop
-        # them) -- left unsupported rather than guessed.
-        raise UnsupportedStructure(
-            "a multiplied compound substituent sorting alphabetically "
-            "first, alongside a different substituent, is not supported "
-            "yet (P-16.5.1.3.1 parenthesization for this combination is "
-            "unconfirmed)"
-        )
-
     parts = []
     for i, name in enumerate(ordered):
         count = counts[name]
@@ -239,7 +218,7 @@ def format_mononuclear_prefixes(entries) -> str:
             # (the Blue Book), so the prefix sits outside the
             # parens at any position, not just the first.
             needs_kis = compound_of[name] and not is_plain_stem_prefix(name)
-            parts.append(multiplying_prefix(count, compound=needs_kis) + (name if i == 0 else wrap_marks(name)))
+            parts.append(multiplying_prefix(count, compound=needs_kis) + (name if i == 0 and not compound_of[name] else wrap_marks(name)))
         elif compound_of[name]:
             parts.append(wrap_marks(name))
         else:
