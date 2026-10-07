@@ -27,7 +27,7 @@ from ._common import (
 )
 from ._anion import ANION_PROP, anion_weight
 from ._functional_prefixes import is_nitro_nitrogen
-from ._hetero_prefixes import EXTENDED_PREFIXES, MONONUCLEAR_HYDRIDES, is_functional_carbon
+from ._hetero_prefixes import CATION_PARENT, EXTENDED_PREFIXES, MONONUCLEAR_HYDRIDES, is_functional_carbon
 from ._multiplicative import _bare_key
 from ._multiplicative_text import PrimedLocant, enclose, unit_phrase
 from ._multiplicative_ring import (
@@ -626,6 +626,7 @@ def _name_ring_center(base, center, kind, probe=None, labels=None):
         name, placed = _bare_ring_name(base, center)
         return _attach(name, placed, center, kind)
     token = RING_CENTER.set(True)
+    cation_token = CATION_PARENT.set(True)
     try:
         if probe is None:
             return _name_labelled(base, labels or {}, lambda name, placed: _attach(name, placed, center, kind))
@@ -639,6 +640,7 @@ def _name_ring_center(base, center, kind, probe=None, labels=None):
 
         return _name_labelled(marked, labels or {}, attach_marked)
     finally:
+        CATION_PARENT.reset(cation_token)
         RING_CENTER.reset(token)
 
 
@@ -1471,14 +1473,18 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     chain_name = name_hydride_chain(mol, graph, halogens, aromatic_atoms)
     if chain_name is not None:
         return ((0,), chain_name, (None, None, None, 0, {}, False))
-    centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() in MONONUCLEAR_HYDRIDES and not a.IsInRing()]
+    ring_cation = RING_CENTER.get()
+    centers = [] if ring_cation else [a for a in mol.GetAtoms() if a.GetAtomicNum() in MONONUCLEAR_HYDRIDES and not a.IsInRing()]
     if centers:
         named = [n for n in (_mononuclear_parent(mol, graph, halogens, aromatic_atoms, c) for c in centers) if n]
         if named:
             return ((0,), min(named), (None, None, None, 0, {}, False))
-    if centers or any(
-        b.GetBeginAtom().GetAtomicNum() == 7 and b.GetEndAtom().GetAtomicNum() == 7 and not b.IsInRing()
-        for b in mol.GetBonds()
+    if centers or (
+        not ring_cation
+        and any(
+            b.GetBeginAtom().GetAtomicNum() == 7 and b.GetEndAtom().GetAtomicNum() == 7 and not b.IsInRing()
+            for b in mol.GetBonds()
+        )
     ):
         raise UnsupportedStructure("a heteroatom hydride is the senior parent when there is no principal group (P-44.1.2.2)")
     ring_info = mol.GetRingInfo()

@@ -56,10 +56,13 @@ def require_plain_chalcogen_kids(mol, z, kids):
                 raise UnsupportedStructure("an acyl, carbamoyl or cyano group on selenium/tellurium is not a selanyl prefix")
 
 
+CATION_PARENT = contextvars.ContextVar("cation_parent", default=False)
+
+
 def _has_senior_principal_group(mol):
     """A principal group senior to the hetero-hetero connection (hydroxylamine, hydrazine, peroxide classes) is
-    present, so that connection is expressed as a prefix (P-41, P-29.4.1)."""
-    return any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL) or mol.HasSubstructMatch(_AMINE)
+    present, so that connection is expressed as a prefix (P-41, P-29.4.1); a cationic parent outranks every group."""
+    return CATION_PARENT.get() or any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL) or mol.HasSubstructMatch(_AMINE)
 
 
 def _chain_prefix_allowed(mol):

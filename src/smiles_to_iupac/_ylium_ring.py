@@ -55,7 +55,7 @@ def has_ylium_ring_shape(mol) -> bool:
         and atom.IsInRing()
         and not atom.GetIsotope()
         and not any(a.GetNumRadicalElectrons() for a in mol.GetAtoms())
-        and ((atom.GetAtomicNum() in _INFIX and _sigma(atom) == 2) or (atom.GetAtomicNum() == 7 and atom.GetIsAromatic() and _sigma(atom) == 3 and atom.GetDegree() == 3))
+        and ((atom.GetAtomicNum() in _INFIX and _sigma(atom) == 2) or (atom.GetAtomicNum() == 7 and atom.GetIsAromatic() and _sigma(atom) == 3 and all(n.IsInRing() for n in atom.GetNeighbors())))
     )
 
 
