@@ -214,9 +214,12 @@ def name_carbonic_family(mol):
     if any(_bond(mol, center, n.GetIdx()) == 3.0 for n in atom.GetNeighbors()):
         (y,) = [n for n in atom.GetNeighbors() if _bond(mol, center, n.GetIdx()) == 1.0]
         chain = _chain(mol, center, y)
-        if chain is None or len(chain[1]) + 2 != mol.GetNumAtoms():
+        ionic = _chain(mol, center, y, ion=True) if chain is None else None
+        found = chain or ionic
+        if found is None or len(found[1]) + 2 != mol.GetNumAtoms():
             raise UnsupportedStructure("this cyanic acid derivative is not an acid")
-        return cyanic_acid_name(chain[0])
+        name = cyanic_acid_name(found[0])
+        return _anionic(name) if ionic is not None else name
     x, ligands, amino, imine_n = None, [], None, None
     owned = {center}
     anions = hydrogens = 0

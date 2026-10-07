@@ -58,14 +58,14 @@ def _counts(mol):
             return None
         if bond.GetBondTypeAsDouble() == 2.0 and not oxygen.GetFormalCharge():
             oxo += 1
-        elif bond.GetBondTypeAsDouble() == 1.0 and oxygen.GetFormalCharge() == -1 and center.GetFormalCharge() > 0:
-            oxo += 1
         elif bond.GetBondTypeAsDouble() == 1.0 and oxygen.GetFormalCharge() == -1 and not oxygen.GetTotalNumHs():
             ionic += 1
         elif bond.GetBondTypeAsDouble() == 1.0 and not oxygen.GetFormalCharge() and oxygen.GetTotalNumHs() == 1:
             hydroxy += 1
         else:
             return None
+    paired = min(max(center.GetFormalCharge(), 0), ionic)
+    oxo, ionic = oxo + paired, ionic - paired
     if mol.GetNumAtoms() != 1 + oxo + hydroxy + ionic:
         return None
     return center.GetAtomicNum(), oxo, hydroxy + ionic, center.GetTotalNumHs(), ionic
