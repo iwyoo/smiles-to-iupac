@@ -103,14 +103,18 @@ def test_phenyl_chain_amidine_ring_halogen():
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("NCCN(C)CC=C", id="two_amines_with_unsaturated_n_substituent_raises"),
+        pytest.param("NCCN(C)CC=C", "N1-methyl-N1-(prop-2-en-1-yl)ethane-1,2-diamine", id="chain_diamine_with_an_unsaturated_n_substituent"),
+        pytest.param("CNCc1ncccc1N", "2-[(methylamino)methyl]pyridin-3-amine", id="secondary_amine_prefix_on_a_pyridine_amine"),
+        pytest.param("CNCc1nc(Br)ccc1N", "6-bromo-2-[(methylamino)methyl]pyridin-3-amine", id="halogenated_pyridine_amine_with_a_secondary_amine_prefix"),
+        pytest.param("CNc1cccnc1N", "N3-methylpyridine-2,3-diamine", id="secondary_amine_nitrogen_on_the_ring_is_a_principal_group"),
+        pytest.param("NCCNCc1ccccn1", "N1-[(pyridin-2-yl)methyl]ethane-1,2-diamine", id="chain_diamine_beats_a_ring_with_one_amine"),
+        pytest.param("Nc1ccc2ccccc2c1CNC", "1-[(methylamino)methyl]naphthalen-2-amine", id="fused_ring_amine_with_a_secondary_amine_prefix"),
     ],
 )
-def test_phenyl_chain_amidine_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_polyamines_of_a_ring_and_acyclic_amine_nitrogens(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
