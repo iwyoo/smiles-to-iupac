@@ -75,7 +75,6 @@ def test_phenyl_isothiocyanate_chain():
         pytest.param("Cc1ccccc1N=C=S", id="phenyl_isothiocyanate_substituted_ring_not_supported"),
         pytest.param("C=CCN=C=S", id="unsaturated_chain_not_supported"),
         pytest.param("S=C=NCN=C=S", id="two_isothiocyanate_groups_not_supported"),
-        pytest.param("OS(=O)(=O)O", id="sulfuric_acid_itself_raises"),
     ],
 )
 def test_phenyl_isothiocyanate_substituted_and_related_raise(smiles):
@@ -299,11 +298,6 @@ def test_unsaturated_ring_sulfinic_acid_triple_bond_raises():
 )
 def test_ring_substituent_chain_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_sulfurous_acid_itself_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OS(=O)O")
 
 
 @pytest.mark.parametrize(

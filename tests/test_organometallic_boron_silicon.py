@@ -912,3 +912,20 @@ def test_group_14_hydride_outranks_two_rings_and_branched_silicon_chain_is_paren
 )
 def test_ylidene_substituent_on_heteroatom_attaching_a_prefix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C[Si](C)(C)O", "trimethylsilanol"),
+        ("C[Si](C)(O)O", "dimethylsilanediol"),
+        ("C[Si](C)(C)OC", "methoxytri(methyl)silane"),
+        ("Cl[Si](Cl)(Cl)C", "trichloro(methyl)silane"),
+        ("C[Si](C)(C)N", "1,1,1-trimethylsilanamine"),
+        ("C[Si](C)(C)N(C)C", "N,N,1,1,1-pentamethylsilanamine"),
+        ("C[Si](C)(C)N[Si](C)(C)C", "1,1,1-trimethyl-N-(trimethylsilyl)silanamine"),
+        ("C[Sn](C)(C)O", "trimethylstannanol"),
+    ],
+)
+def test_group_14_hydride_with_hydroxy_amino_alkoxy_and_halogen_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

@@ -13,6 +13,7 @@ from rdkit import Chem
 from rdkit.Chem import CanonicalRankAtoms
 
 from ._common import (
+    HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
     group_substituents,
@@ -749,23 +750,59 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
     return (-len(roots), best[0][0], name), ((0,), name, (None, None, None, 0, best[1], True))
 
 
+_GROUP_14 = (14, 32, 50, 82)
+
+
 def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
-    """A single Si, Ge, P, B, ... atom with only organyl substituents is the
-    senior parent hydride when there is no principal group (P-44.1.2):
-    'trimethyl(phenyl)silane'."""
+    """A single Si, Ge, P, B, ... atom is the senior parent hydride when there is no principal group (P-44.1.2):
+    'trimethyl(phenyl)silane', 'methoxy(trimethyl)silane'. On a Group 14 atom a hydroxy or amino group is the
+    suffix (P-68.2): 'trimethylsilanol', '1,1,1-trimethylsilanamine'."""
     from ._substituents import format_mononuclear_prefixes
 
-    stem, _, valence = MONONUCLEAR_HYDRIDES[center.GetAtomicNum()]
+    z = center.GetAtomicNum()
+    stem, _, valence = MONONUCLEAR_HYDRIDES[z]
     index = center.GetIdx()
     neighbors = [n for n in graph[index]]
     if (
         center.GetFormalCharge()
         or center.GetIsotope()
         or sum(mol.GetBondBetweenAtoms(index, n).GetBondTypeAsDouble() for n in neighbors) > valence
-        or any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in neighbors)
+        or any(
+            mol.GetBondBetweenAtoms(index, n).GetBondTypeAsDouble() != 1.0
+            for n in neighbors
+            if mol.GetAtomWithIdx(n).GetAtomicNum() != 6
+        )
     ):
         return None
-    entries = [name_branch(graph, n, index, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in neighbors]
+    hydroxyls = [n for n in neighbors if _terminal_heteroatom(mol, n, 1) and mol.GetAtomWithIdx(n).GetAtomicNum() == 8]
+    amines = [
+        n
+        for n in neighbors
+        if mol.GetAtomWithIdx(n).GetAtomicNum() == 7
+        and not mol.GetAtomWithIdx(n).GetFormalCharge()
+        and not mol.GetAtomWithIdx(n).IsInRing()
+        and all(mol.GetAtomWithIdx(m).GetAtomicNum() in (6, *MONONUCLEAR_HYDRIDES) for m in graph[n] if m != index)
+    ]
+    others = [n for n in neighbors if n not in hydroxyls and n not in amines]
+    if any(mol.GetAtomWithIdx(n).GetAtomicNum() not in (6, 8, *HALOGEN_PREFIXES) for n in others):
+        return None
+    if (hydroxyls or amines) and (z not in _GROUP_14 or (hydroxyls and amines) or len(amines) > 1):
+        return None
+    entries = [name_branch(graph, n, index, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in others]
+    if hydroxyls:
+        return format_mononuclear_prefixes(entries) + (
+            stem[:-1] + "ol" if len(hydroxyls) == 1 else stem + multiplied_word(len(hydroxyls), "ol")
+        )
+    if amines:
+        (nitrogen,) = amines
+        grouped = group_substituents({1: entries} if entries else {})
+        n_entries = [
+            name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+            for n in graph[nitrogen]
+            if n != index
+        ]
+        merged = _with_n_names(grouped, n_entries)
+        return format_substituent_prefixes(merged) + stem[:-1] + "amine"
     return format_mononuclear_prefixes(entries) + stem
 
 
@@ -778,10 +815,10 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     if chain_name is not None:
         return ((0,), chain_name, (None, None, None, 0, {}, False))
     centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() in MONONUCLEAR_HYDRIDES and not a.IsInRing()]
-    if len(centers) == 1:
-        named = _mononuclear_parent(mol, graph, halogens, aromatic_atoms, centers[0])
-        if named is not None:
-            return ((0,), named, (None, None, None, 0, {}, False))
+    if centers:
+        named = [n for n in (_mononuclear_parent(mol, graph, halogens, aromatic_atoms, c) for c in centers) if n]
+        if named:
+            return ((0,), min(named), (None, None, None, 0, {}, False))
     if centers or any(
         b.GetBeginAtom().GetAtomicNum() == 7 and b.GetEndAtom().GetAtomicNum() == 7 and not b.IsInRing()
         for b in mol.GetBonds()
@@ -2089,6 +2126,8 @@ def _is_ester_like(mol, carbon):
 
 
 def _substituted_amine_nitrogen(mol, atom):
+    if any(n.GetAtomicNum() in MONONUCLEAR_HYDRIDES for n in atom.GetNeighbors()):
+        return False
     if atom.GetAtomicNum() != 7 or (atom.GetFormalCharge() and not (AMINIUM.get() and atom.GetFormalCharge() == 1)) or atom.GetIsAromatic() or atom.IsInRing():
         return False
     carbons = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
