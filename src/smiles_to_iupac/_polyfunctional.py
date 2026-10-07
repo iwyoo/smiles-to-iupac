@@ -117,6 +117,7 @@ RING_CENTER = contextvars.ContextVar("ring_center", default=False)
 FORCE_LOCANTS = contextvars.ContextVar("force_locants", default=False)
 LAST_POSITIONS = contextvars.ContextVar("last_positions", default=None)
 FORCED_PRINCIPAL = contextvars.ContextVar("forced_principal", default=None)
+SUBSTITUTED_AMINE_PREFIX = contextvars.ContextVar("substituted_amine_prefix", default=False)
 
 
 def _principal_class(classes):
@@ -1421,6 +1422,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             raise UnsupportedStructure("an ester outranks every parent this engine can build except an acid")
     if (
         principal in (None, "amine")
+        and not SUBSTITUTED_AMINE_PREFIX.get()
         and not (RING_CENTER.get() and not AMINIUM.get())
         and any(_substituted_amine_nitrogen(mol, a) for a in mol.GetAtoms())
     ):
@@ -2388,7 +2390,9 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
     nitrogen is cited as an 'N-' prefix (P-62.2.2)."""
     amine_nitrogens = [a for a in mol.GetAtoms() if _substituted_amine_nitrogen(mol, a)]
     primaries = [a for a in groups.get("amine", {})] + [r for c, r, _ in ring_groups if c == "amine"]
-    if len(amine_nitrogens) != 1 or primaries:
+    from ._substituents import ISOTOPE_LABELS
+
+    if len(amine_nitrogens) != 1 or (primaries and ISOTOPE_LABELS.get()):
         raise UnsupportedStructure("several amine groups with N-substitution are not handled by the chain engine")
     nitrogen = amine_nitrogens[0]
     n_idx = nitrogen.GetIdx()
@@ -2408,8 +2412,6 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
     arms = {c: _arm_atoms(graph, c, n_idx) for c in carbon_neighbors}
     if sum(len(a) for a in arms.values()) != len(set().union(*arms.values())) or n_idx in set().union(*arms.values()):
         raise UnsupportedStructure("a nitrogen closing a ring is not an acyclic amine parent")
-    from ._substituents import ISOTOPE_LABELS
-
     context = ISOTOPE_LABELS.get()
     settled = set(context["consumed"]) if context else set()
     results = []
@@ -2419,15 +2421,39 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             context["consumed"] = set(settled)
         n_names = [name_branch(graph, o, n_idx, halogens, aromatic_atoms, mol=mol, unsaturated=True) for o in others]
         parent, mapped = _amine_parent_molecule(mol, arms[c], c, n_idx)
+        if primaries:
+            n_names = [(name, compound, ("N", mapped)) for name, compound in n_names]
         unlabelled = ISOTOPE_LABELS.set(None)
         try:
             result = _select(parent, None, n_names)
         finally:
             ISOTOPE_LABELS.reset(unlabelled)
+        if primaries and (mapped not in result[2][4] or any(name not in result[1] for name, *_ in n_names)):
+            continue
         ring = parent.GetAtomWithIdx(mapped).IsInRing()
-        results.append((ring, _ring_rank(parent, mapped), _chain_size(parent, mapped), result, c))
-    results.sort(key=lambda r: (not r[0], tuple(-x for x in r[1]), -r[2], r[3][1]))
+        count = -result[0][0] if primaries else 0
+        results.append((-count, ring, _ring_rank(parent, mapped), _chain_size(parent, mapped), result, c))
+    if primaries:
+        token = SUBSTITUTED_AMINE_PREFIX.set(True)
+        try:
+            as_prefix = _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_groups, "amine", None, (), None)
+        except UnsupportedStructure:
+            as_prefix = None
+        finally:
+            SUBSTITUTED_AMINE_PREFIX.reset(token)
+        if as_prefix is not None:
+            ring = as_prefix[2][5]
+            anchor = next(iter(as_prefix[2][4]))
+            results.append(
+                (as_prefix[0][0], ring, _ring_rank(mol, anchor), len(as_prefix[2][4]) if not ring else 0, as_prefix, None)
+            )
+        if not results:
+            raise UnsupportedStructure("no parent carries the amine groups of this substituted amine")
+    results.sort(key=lambda r: (r[0], not r[1], tuple(-x for x in r[2]), -r[3], r[4][1]))
     best = results[0]
+    if best[5] is None:
+        return best[4]
+    best = (best[1], best[2], best[3], best[4], best[5])
     if context:
         context["consumed"] = set(settled)
         others = [o for o in neighbors if o != best[4]]
