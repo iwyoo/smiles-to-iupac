@@ -59,7 +59,12 @@ def name_polycation(mol) -> str:
         try:
             return _name_ring_polycation(mol, centres)
         except _DifferentSystems:
-            pass
+            from ._cation_assembly import NotAnAssembly, name_cation_ring_assembly
+
+            try:
+                return name_cation_ring_assembly(mol)
+            except NotAnAssembly:
+                pass
     elif len(centres) == 2 and not any(a.IsInRing() or a.GetAtomicNum() == 6 for a in centres):
         try:
             return _name_pair_polycation(mol, centres)
