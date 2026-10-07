@@ -796,15 +796,11 @@ def test_monospiro_union_with_a_polycyclic_component(smiles, expected):
         pytest.param("C1CC2CC1CC[Si]21CC2CCC(C2)C1", "2-sila-2,3′-spirobi[bicyclo[3.2.1]octane]", id="standard_valence_heteroatom_at_the_spiro_atom"),
         pytest.param("C1CC[N+]2(C1)CCC1CCC(C1)C2", "1′λ5-spiro[3-azabicyclo[4.2.1]nonane-3,1′-pyrrolidin]-1′-ylium", id="lowest_spiro_locant_cited_with_lambda_and_ylium"),
         pytest.param("C1CCC2(C1)SC1CC2C2CC12", "7′-thiaspiro[cyclopentane-1,6′-tricyclo[3.2.1.0^2,4]octane]", id="polycyclic_von_baeyer_component"),
+        pytest.param("C1CCC2(C1)C1CC3CC(C1)CC2C3", "spiro[adamantane-2,1′-cyclopentane]", id="adamantane_retained_component"),
     ],
 )
 def test_monospiro_union_with_a_von_baeyer_component(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_adamantane_component_of_a_spiro_union_is_not_given_a_von_baeyer_name():
-    with pytest.raises(NotImplementedError):
-        smiles_to_iupac("C1CCC2(C1)C1CC3CC(C1)CC2C3")
 
 
 @pytest.mark.parametrize(
@@ -834,6 +830,24 @@ def test_monospiro_union_with_an_unsaturated_hetero_monocycle(smiles, expected):
 )
 def test_polyspiro_union_with_polycyclic_components(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C1C2(Cc3ccccc3C24CCCC4)CC3(Cc4ccccc4C3)CC15Cc6ccccc6C5", "1′′′,1′′′′,3′′′,3′′′′-tetrahydro-3′′H-spiro{cyclopentane-1,1′′-trispiro[cyclohexane-1,2′:3,2′′:5,2′′′-tris(indene)]}", id="largest_branched_system_named_first_and_used_as_a_unit"),
+        pytest.param("c1ccc2c(c1)CC1(C2)OP23(S1)SP14(OC5(Cc6ccccc6C5)S1)SP1(OC5(Cc6ccccc6C5)S1)(S2)SP1(OC2(Cc5ccccc5C2)S1)(S3)S4", "1′′′′′,1′′′′′′,1′′′′′′′,1′′′′′′′′,3′′′′′,3′′′′′′,3′′′′′′′,3′′′′′′′′-octahydro-1λ5,2′′λ5,2′′′λ5,2′′′′λ5-tetraspiro{tetraspiro[2,4,6,8,9,10-hexathia-1,3,5,7-tetraphosphaadamantane-1,2′:3,2′′:5,2′′′:7,2′′′′-tetrakis([1,3,2]oxathiaphosphetane)]-4′,2′′′′′:4′′,2′′′′′′:4′′′,2′′′′′′′:4′′′′,2′′′′′′′′-tetrakis(indene)}", id="heteroadamantane_unit_with_nonstandard_spiro_atoms"),
+        pytest.param("C1C2(Cc3ccccc3C24CCCC4)CC3(Cc4ccccc4C3)CC15Cc6ccccc6C5=O", "1′′′′,3′′′′-dihydro-3′′H-spiro{cyclopentane-1,1′′-trispiro[cyclohexane-1,2′:3,2′′:5,2′′′-tris(indene)]}-1′′′(3′′′H)-one", id="suffix_group_on_a_nested_system"),
+    ],
+)
+def test_polyspiro_union_with_a_nested_spiro_system(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_nested_spiro_systems_of_equal_size_have_no_preferred_name():
+    with pytest.warns(NonPreferredNameWarning, match="P-24.7.4"):
+        name = smiles_to_iupac("C%10%11(C2(CCCC2)c3ccccc3C4(CCC4)%10)C5(CCCCC5)c6ccccc6C7(CCCC7)%11")
+    assert name.startswith("dispiro{cyclohexane-1,")
 
 
 @pytest.mark.parametrize(

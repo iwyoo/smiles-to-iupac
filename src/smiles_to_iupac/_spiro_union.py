@@ -222,11 +222,28 @@ def _von_baeyer(sub):
         raise UnsupportedStructure("this bridged spiro component has no von Baeyer name here")
     (name,) = names
     if name == "tricyclo[3.3.1.1^3,7]decane":
-        raise UnsupportedStructure("adamantane is a retained name and is not supported in a spiro union yet")
+        name = "adamantane"
     return name, [{a: str(i + 1) for i, a in enumerate(order)} for order, _, outer in candidates if outer == best]
 
 
-def _component(mol, comp, force_replacement):
+def _adamantane_component(mol, comp, atoms, orders, spiro_atoms):
+    hetero = sorted(a for a in comp["atoms"] if mol.GetAtomWithIdx(a).GetAtomicNum() != 6)
+
+    def text(numbering):
+        prefix = _replacement_prefixes(mol, hetero, numbering, hidden=spiro_atoms) if hetero else ""
+        return prefix + "adamantane"
+
+    return {
+        "name": "adamantane",
+        "numberings": [({atoms[i]: loc for i, loc in n.items()}, ()) for n in orders],
+        "replacement": False,
+        "fused": False,
+        "text": text,
+        "own_hetero": set(hetero),
+    }
+
+
+def _component(mol, comp, force_replacement, spiro_atoms=frozenset()):
     sub, atoms = _skeleton(mol, comp)
     replacement = mancude = False
     if comp["rings"] == 1:
@@ -234,8 +251,10 @@ def _component(mol, comp, force_replacement):
         if not replacement:
             name = _bracket_locants(name)
     elif comp["von_baeyer"]:
-        replacement = True
         name, orders = _von_baeyer(sub)
+        if name == "adamantane":
+            return _adamantane_component(mol, comp, atoms, orders, spiro_atoms)
+        replacement = True
         numberings = [(n, ()) for n in orders]
     elif force_replacement:
         raise UnsupportedStructure("a fused component beside a skeletal replacement spiro heteroatom is not supported yet")
@@ -260,7 +279,7 @@ def _bonding_number(atom):
     return valence if valence > standard else None
 
 
-def _replacement_prefixes(mol, atoms, locant_of, with_lambda=True):
+def _replacement_prefixes(mol, atoms, locant_of, with_lambda=True, hidden=frozenset()):
     by_element = {}
     for a in atoms:
         by_element.setdefault(mol.GetAtomWithIdx(a).GetAtomicNum(), []).append(a)
@@ -268,7 +287,7 @@ def _replacement_prefixes(mol, atoms, locant_of, with_lambda=True):
     for z in sorted(by_element, key=lambda z: HETERO_RANK[Chem.GetPeriodicTable().GetElementSymbol(z)]):
         cited = []
         for a in sorted(by_element[z], key=lambda a: _lk(locant_of[a])):
-            lam = _bonding_number(mol.GetAtomWithIdx(a)) if with_lambda else None
+            lam = _bonding_number(mol.GetAtomWithIdx(a)) if with_lambda and a not in hidden else None
             cited.append(f"{locant_of[a]}λ{lam}" if lam else locant_of[a])
         groups.append(f"{','.join(cited)}-{_replacement_multiplied_word(len(cited), _A_PREFIX[z])}")
     return "-".join(groups)
