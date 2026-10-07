@@ -1447,6 +1447,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             )
             and _is_ester_like(mol, atom.GetIdx())
             and not (_urea_carbon(mol, atom.GetIdx()) and _outranks_urea(principal))
+            and not (RING_CENTER.get() and principal is None)
         ):
             raise UnsupportedStructure("an ester outranks every parent this engine can build except an acid")
     if (
@@ -2962,6 +2963,8 @@ def _unit_molecule(mol, atoms, attach):
     except Chem.rdchem.AtomValenceException:
         unit.UpdatePropertyCache(strict=False)
         Chem.FastFindRings(unit)
+    except Chem.rdchem.KekulizeException as error:
+        raise UnsupportedStructure("a unit cut from an aromatic ring system cannot be kekulized") from error
     attach_idx = next(a.GetIdx() for a in unit.GetAtoms() if a.GetAtomMapNum() == 1)
     canonical = Chem.Mol(unit)
     for a in canonical.GetAtoms():
