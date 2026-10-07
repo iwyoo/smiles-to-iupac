@@ -767,10 +767,17 @@ def test_carbenium_centre_beside_groups(smiles, expected):
     "smiles, expected",
     [
         pytest.param("[CH2-][CH2]", "ethan-2-id-1-yl", id="radical_takes_the_lowest_locant"),
-        pytest.param("[CH2+]C[CH2]", "propan-3-ium-1-yl", id="radical_cation"),
+        pytest.param("[CH2+]C[CH2]", "propan-3-ylium-1-yl", id="radical_cation"),
         pytest.param("[CH2-][CH][CH2-]", "propane-1,3-diid-2-yl", id="dianion_radical"),
         pytest.param("[CH-]1CCCC[CH]1", "cyclohexan-2-id-1-yl", id="ring_radical_anion"),
-        pytest.param("[CH2+]CC[CH][CH2+]", "pentane-1,5-diium-2-yl", id="dication_radical"),
+        pytest.param("[CH2+]CC[CH][CH2+]", "pentane-1,5-diylium-2-yl", id="dication_radical"),
+        pytest.param("[CH2-]C(C)C[CH2]", "3-methylbutan-4-id-1-yl", id="branched_skeleton_radical_first"),
+        pytest.param("ClC[CH-]C[CH2]", "4-chlorobutan-3-id-1-yl", id="substituted_skeleton"),
+        pytest.param("[CH2-]CCC(C)(C)C[CH]CC", "4,4-dimethyloctan-1-id-6-yl", id="centre_set_before_radical_locant"),
+        pytest.param("[CH2-]", "methanidyl", id="one_atom_radical_anion"),
+        pytest.param("[CH2+]", "methyliumyl", id="one_atom_radical_cation"),
+        pytest.param("C[CH+]", "ethan-1-ylium-1-yl", id="both_centres_on_one_atom"),
+        pytest.param("[CH2-]C[CH-]", "propane-1,3-diid-1-yl", id="dianion_with_radical_on_an_ionic_atom"),
     ],
 )
 def test_radical_ions_on_a_hydrocarbon_skeleton(smiles, expected):

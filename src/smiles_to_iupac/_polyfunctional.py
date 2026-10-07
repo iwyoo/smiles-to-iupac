@@ -71,6 +71,7 @@ def _acid_rank(name):
 AMINIUM = contextvars.ContextVar("aminium", default=False)
 RING_CENTER = contextvars.ContextVar("ring_center", default=False)
 FORCE_LOCANTS = contextvars.ContextVar("force_locants", default=False)
+LAST_POSITIONS = contextvars.ContextVar("last_positions", default=None)
 FORCED_PRINCIPAL = contextvars.ContextVar("forced_principal", default=None)
 
 
@@ -632,6 +633,7 @@ def _name_labelled(mol, labels, finish=None):
                 raise UnsupportedStructure("isotopic modification of a multiplicative name is not supported yet")
             return multiplicative
         _, name, parts = _select(mol, stereo=stereo)
+        LAST_POSITIONS.set((mol, dict(parts[4])))
         if labels:
             in_parent = {a: e for a, e in labels.items() if a in parts[4]}
             if in_parent and len(parts[4]) > 1 and not _locants_omitted(mol, in_parent, parts):
