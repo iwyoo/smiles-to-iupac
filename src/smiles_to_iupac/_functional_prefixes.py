@@ -45,6 +45,24 @@ def nitro_atoms(mol):
     return found
 
 
+def nitroso_atoms(mol):
+    """The nitrogen and oxygen of every -N=O group bonded through the nitrogen to one other atom."""
+    found = set()
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 7 or atom.GetDegree() != 2 or atom.GetFormalCharge():
+            continue
+        oxygens = [
+            n
+            for n in atom.GetNeighbors()
+            if n.GetAtomicNum() == 8
+            and n.GetDegree() == 1
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        ]
+        if len(oxygens) == 1:
+            found.update((atom.GetIdx(), oxygens[0].GetIdx()))
+    return found
+
+
 def _acyl_prefix(mol, subtree, root, parent):
     """'-yl' name of the acyl group rooted at `root`, from its parent acid's name."""
     from .core import smiles_to_iupac
@@ -126,6 +144,7 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
         return found
 
     nitro = nitro_atoms(mol)
+    nitroso = nitroso_atoms(mol)
     root_set = set() if chain_seeds else {root for _, root in seeds}
 
     from ._diester_ring_diyl import _system_of
@@ -197,6 +216,10 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
         if node in nitro:
             if is_nitro_nitrogen(mol, node):
                 record(node, "nitro", False)
+            continue
+        if node in nitroso:
+            if z == 7:
+                record(node, "nitroso", False)
             continue
         if atom.HasProp("_anion") and not kids and _bond_order(mol, node, parent) == 1.0:
             record(node, ANIONIC_PREFIXES[z], False)
