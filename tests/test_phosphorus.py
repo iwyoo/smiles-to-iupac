@@ -17,9 +17,8 @@ def test_halogen_substituted_alkyl_chain():
     assert smiles_to_iupac("ClCCP") == "(2-chloroethyl)phosphane"
 
 
-def test_multiplied_compound_substituent_with_different_substituent_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCCP(C(C)C)C(C)C")
+def test_multiplied_compound_substituent_sorting_first():
+    assert smiles_to_iupac("CCCP(C(C)C)C(C)C") == "di(propan-2-yl)(propyl)phosphane"
 
 
 @pytest.mark.parametrize(

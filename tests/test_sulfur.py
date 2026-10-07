@@ -425,13 +425,21 @@ def test_ring_substituent_chain_and_related_3(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("CC(C)[SH2+]", id="branched_substituent_not_supported__sulfonium"),
-        pytest.param("[SH2+]C1CCCCC1", id="ring_substituent_not_supported"),
+        pytest.param("CC(C)[SH2+]", "propan-2-ylsulfanium", id="branched_substituent"),
+        pytest.param("[SH2+]C1CCCCC1", "cyclohexylsulfanium", id="ring_substituent"),
+        pytest.param("Cc1ccccc1[SH2+]", "(2-methylphenyl)sulfanium", id="substituted_phenyl"),
+        pytest.param("C[S+](C)CC=C", "dimethyl(prop-2-en-1-yl)sulfanium", id="unsaturated_substituent"),
+        pytest.param("CCOCC[S+](C)CCOCC", "bis(2-ethoxyethyl)(methyl)sulfanium", id="multiplied_compound_first"),
     ],
 )
-def test_branched_substituent_not_and_related_raise(smiles):
+def test_sulfonium_substituent_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize("smiles", ["CC(=O)C[S+](C)C", "OCC[S+](C)C"])
+def test_sulfonium_substituent_with_characteristic_group_raises(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
 
@@ -445,11 +453,6 @@ def test_sulfonium_specified_stereocenter_raises():
 
 def test_mixed_alkyl_and_phenyl_substituents():
     assert smiles_to_iupac("C[S+](C)c1ccccc1") == "dimethyl(phenyl)sulfanium"
-
-
-def test_substituted_phenyl_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Cc1ccccc1[SH2+]")
 
 
 @pytest.mark.parametrize(
