@@ -527,6 +527,11 @@ def test_multi_fragment_rejected_instead_of_silently_dropped(smiles):
     [
         ("OCC(Cl)COCC(Cl)CO", "3,3'-oxybis(2-chloropropan-1-ol)"),
         ("OCCNc1ccccc1", "2-anilinoethan-1-ol"),
+        ("CN(c1ccccc1)c1cccc(O)c1", "3-(N-methylanilino)phenol"),
+        ("Oc1cccc(Nc2ccc(Cl)cc2)c1", "3-(4-chloroanilino)phenol"),
+        ("Oc1cccc(N(CC)c2ccc(Cl)cc2)c1", "3-(4-chloro-N-ethylanilino)phenol"),
+        ("Oc1cccc(N(c2ccc(Cl)cc2)c2ccccc2)c1", "3-(4-chloro-N-phenylanilino)phenol"),
+        ("Oc1cccc(Nc2ccc3ccccc3c2)c1", "3-[(naphthalen-2-yl)amino]phenol"),
         ("OCC[N+](=O)[O-]", "2-nitroethan-1-ol"),
         ("OCCC#N", "3-hydroxypropanenitrile"),
     ],

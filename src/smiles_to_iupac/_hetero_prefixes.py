@@ -610,6 +610,11 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
                     names.append(name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol))
             name = _amino(names)
             return name, _compound(name)
+        from ._anilino import anilino_prefix
+
+        anilino = anilino_prefix(graph, mol, root, others, halogens, aromatic_atoms)
+        if anilino is not None:
+            return anilino[0], anilino[0] != "anilino"
         name = _amino(_group_names(graph, mol, others, root, halogens, aromatic_atoms))
         return name, _compound(name)
     raise UnsupportedStructure("this heteroatom-linked substituent is not supported yet")
