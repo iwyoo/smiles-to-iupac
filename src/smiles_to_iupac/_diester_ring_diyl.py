@@ -220,11 +220,17 @@ def _mixed_valence_text(diyl, free, valence, position_of, orders):
     return attach(diyl[: -len(tail)], {order: sorted(locs) for order, locs in by_order.items()})
 
 
+CATION_CENTRES = contextvars.ContextVar("cation_centres", default=())
+
+
 def evaluate_skeleton(
     mol, graph, kind, body, pool, attach, blocked, suffix, anions=None, matches_on=(), orders=None, centers=(),
     key_centers=(), n_names=(),
 ):
     from ._substituents import BRANCH_STEREO
+
+    if not key_centers and suffix not in ("ide", "uide"):
+        key_centers = tuple(c for c in CATION_CENTRES.get() if c[0] in pool)
 
     token = SUFFIX_ATOMS.set(frozenset(attach))
     stereo_token = BRANCH_STEREO.set({"atoms": {}, "bonds": {}, "used": set()}) if BRANCH_STEREO.get() is None else None
@@ -342,8 +348,8 @@ def _evaluate_skeleton(
         center_key = tuple(sorted(position_of[a] for a, _ in centers))
         if key_centers:
             center_key = (
-                tuple(sorted(position_of[a] for a, _ in key_centers)),
-                tuple(sorted(position_of[a] for a, word in key_centers if word == "uide")),
+                tuple(sorted(position_of[a] for a, _ in key_centers if a in position_of)),
+                tuple(sorted(position_of[a] for a, word in key_centers if word == "uide" and a in position_of)),
             )
         key = (
             numbering.pre_key, center_key, free, cite, numbering.unsat_key, locant_set, citation, acid_key, stereo_key,

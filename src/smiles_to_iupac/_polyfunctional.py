@@ -376,6 +376,9 @@ def name_polyfunctional(mol) -> str:
         acylated = _group_cation_base(mol, kind)
         if acylated is not None:
             return _name_aminium(acylated, parent=kind)
+    grouped = _ring_cation_with_group(mol)
+    if grouped is not None:
+        return _name_ring_group_cation(*grouped)
     center = _ring_center_base(mol)
     if center is not None:
         return _name_ring_center(*center)
@@ -530,7 +533,7 @@ def _cation_inserted(name, base, center, placed_in_parent):
     if not bare.endswith("e"):
         raise UnsupportedStructure("the cationic ring parent has no terminal 'e' to elide (P-73.1.1.2)")
     stem = bare[:-1]
-    pattern = re.compile(re.escape(stem) + r"(?:e(?![a-z])|(?=-?\d*,?\d*-?yl))")
+    pattern = re.compile(re.escape(stem) + r"(?:e(?![a-z])|(?=-?\d*,?\d*-?yl)|(?=-\d+(?:,\d+)*-[a-z]))")
     found = list(pattern.finditer(name))
     if len(found) != 1:
         raise UnsupportedStructure("the ring parent of the cation is not delimited in the anionic name")
@@ -680,10 +683,10 @@ def _bare_ring_name(base, center):
     return name, {center: min((n[center] for n in options), key=_locant_key)}
 
 
-def _aminium_base(mol):
+def _aminium_base(mol, ignore=frozenset()):
     """The mol with its ammonium nitrogen neutralised when the only charge is one N+ bonded to carbon and hydrogen
     (a cation outranks every acid, P-41), else None."""
-    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge() and a.GetIdx() not in ignore]
     if not charged or any(a.GetFormalCharge() != 1 or a.GetAtomicNum() != 7 for a in charged):
         return None
     for nitrogen in charged:
@@ -747,10 +750,10 @@ def _iminium_base(mol):
     return neutral.GetMol()
 
 
-def _group_cation_base(mol, kind):
+def _group_cation_base(mol, kind, ignore=frozenset()):
     """The mol with its hydrogen-bearing cationic nitrogens neutralised, for the acylammonium (amidium, a nitrogen with
     four bonds on an amide carbonyl) or nitrilium (C#N-H) centres of a polycation of one kind (Table 7.4); else None."""
-    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge() and a.GetIdx() not in ignore]
     if not charged or any(a.GetFormalCharge() != 1 or a.GetAtomicNum() != 7 or a.GetIsAromatic() or a.IsInRing() for a in charged):
         return None
     for nitrogen in charged:
@@ -791,12 +794,60 @@ def _group_cation_base(mol, kind):
 _GROUP_SUFFIX = re.compile(r"(?P<mult>di|tri|tetra)?(?P<carbo>carbox|carbo)?(?P<kind>amide|nitrile)$")
 
 
+def _ring_cation_with_group(mol):
+    """(base, ring centre, kind) when one ring nitrogen cation sits beside cationic groups of one kind (aminium,
+    amidium, nitrilium) on the same parent: the groups are neutralised in `base`, the ring centre is returned."""
+    centres = [a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge() == 1 and a.GetAtomicNum() == 7 and a.IsInRing()]
+    others = [a for a in mol.GetAtoms() if a.GetFormalCharge() and a.GetIdx() not in centres]
+    if len(centres) != 1 or not others or len(Chem.GetMolFrags(mol)) != 1:
+        return None
+    for kind, function in (
+        ("amine", lambda m: _aminium_base(m, ignore=frozenset(centres))),
+        ("amide", lambda m: _group_cation_base(m, "amide", ignore=frozenset(centres))),
+        ("nitrile", lambda m: _group_cation_base(m, "nitrile", ignore=frozenset(centres))),
+    ):
+        base = function(mol)
+        if base is not None:
+            return base, centres[0], kind
+    return None
+
+
+def _name_ring_group_cation(base, centre, kind):
+    """A ring cation together with a cationic suffix: the skeletal centre is cited as 'ium' after the parent hydride and
+    takes the lowest locant before the suffix (P-73.5.3.1, P-73.5.3.2); the suffix names the group."""
+    from ._diester_ring_diyl import CATION_CENTRES
+
+    editable = Chem.RWMol(base)
+    atom = editable.GetAtomWithIdx(centre)
+    hydrogens = atom.GetTotalNumHs()
+    atom.SetFormalCharge(0)
+    atom.SetNoImplicit(True)
+    atom.SetNumExplicitHs(max(hydrogens - 1, 0))
+    if atom.GetIsAromatic():
+        atom.SetBoolProp("_ring_cation_centre", True)
+    ring_base = editable.GetMol()
+    ring_base.UpdatePropertyCache(strict=False)
+    Chem.FastFindRings(ring_base)
+    token = AMINIUM.set(True if kind == "amine" else kind)
+    centres_token = CATION_CENTRES.set(((centre, "ium"),))
+    try:
+        name = _name_labelled(ring_base, {}, lambda text, placed: _cation_inserted(text, ring_base, centre, placed))
+    finally:
+        CATION_CENTRES.reset(centres_token)
+        AMINIUM.reset(token)
+    return _cationic_group_suffix(name, kind)
+
+
 def _name_aminium(base, labels=None, parent="amine"):
     token = AMINIUM.set(True if parent == "amine" else parent)
     try:
         name = _name_labelled(base, labels or {})
     finally:
         AMINIUM.reset(token)
+    return _cationic_group_suffix(name, parent)
+
+
+def _cationic_group_suffix(name, parent):
     if parent in ("amide", "nitrile"):
         match = _GROUP_SUFFIX.search(name)
         if match is None or match.group("kind") != parent:
@@ -1167,7 +1218,11 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             and _is_ester_like(mol, atom.GetIdx())
         ):
             raise UnsupportedStructure("an ester outranks every parent this engine can build except an acid")
-    if principal in (None, "amine") and any(_substituted_amine_nitrogen(mol, a) for a in mol.GetAtoms()):
+    if (
+        principal in (None, "amine")
+        and not (RING_CENTER.get() and not AMINIUM.get())
+        and any(_substituted_amine_nitrogen(mol, a) for a in mol.GetAtoms())
+    ):
         if attach is not None or n_names:
             raise UnsupportedStructure("N-substituted amines inside a unit are not handled by the chain engine")
         if any(kind != "isotope" for kind, _, _ in stereo or ()):
@@ -2149,6 +2204,11 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
                 ISOTOPE_LABELS.reset(unlabelled)
             context["consumed"].update(a for a in context["labels"] if a in new_index)
             return best[3][0], name, (*best[3][2][:4], {}, *best[3][2][5:])
+    kept = sorted(set(arms[best[4]]) | {n_idx})
+    positions = best[3][2][4]
+    if isinstance(positions, dict) and positions:
+        remapped = {kept[new]: locant for new, locant in positions.items() if new < len(kept)}
+        return best[3][0], best[3][1], (*best[3][2][:4], remapped, *best[3][2][5:])
     return best[3]
 
 
@@ -2166,7 +2226,11 @@ def _amine_parent_molecule(mol, atoms, carbon, n_idx):
             a.SetFormalCharge(0)
             a.SetNumExplicitHs(2)
             a.SetNoImplicit(True)
-    Chem.SanitizeMol(parent)
+    if any(a.HasProp("_ring_cation_centre") for a in parent.GetAtoms()):
+        parent.UpdatePropertyCache(strict=False)
+        Chem.FastFindRings(parent)
+    else:
+        Chem.SanitizeMol(parent)
     mapped = next(a.GetIdx() for a in parent.GetAtoms() if a.GetAtomMapNum() == 1)
     for a in parent.GetAtoms():
         a.SetAtomMapNum(0)
