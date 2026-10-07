@@ -305,7 +305,8 @@ def test_amidic_halides_of_group_15_acids(smiles, expected):
         ("[Na+].[O-]P(=O)(O)O", "sodium dihydrogen phosphate"),
         ("[Ca+2].[O-]P(=O)(O)O.[O-]P(=O)(O)O", "calcium bis(dihydrogen phosphate)"),
         ("O=P(N=C=O)(N=C=O)N=C=O", "phosphoryl triisocyanate"),
-        ("N[Pt](N)(Cl)Cl", "bis(azanido)dichloridoplatinum"),
+        ("CP(=O)(C#N)C#N", "methylphosphonic dicyanide"),
+        ("N[Pt](N)(Cl)Cl", "diazanidodichloridoplatinum"),
     ],
 )
 def test_partial_thioesters_oxoanion_salts_pseudohalides_and_amido_ligands(smiles, expected):

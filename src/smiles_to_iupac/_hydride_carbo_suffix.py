@@ -138,8 +138,19 @@ def _match(mol):
     return parent, {c: host for c, (host, cls) in attached.items() if cls == principal}, principal
 
 
+def _is_oxoacid_derivative(mol) -> bool:
+    """A Group 15 atom with a double-bonded chalcogen is an oxoacid centre: its cyanides are named as acid derivatives."""
+    return any(
+        a.GetAtomicNum() in (15, 33, 51)
+        and any(
+            b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(a).GetAtomicNum() in (8, 16) for b in a.GetBonds()
+        )
+        for a in mol.GetAtoms()
+    )
+
+
 def has_hydride_carbo_suffix_shape(mol) -> bool:
-    return _match(mol) is not None
+    return _match(mol) is not None and not _is_oxoacid_derivative(mol)
 
 
 def name_hydride_carbo_suffix(mol) -> str:
