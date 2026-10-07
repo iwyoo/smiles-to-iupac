@@ -42,7 +42,7 @@ from ._multiplicative_text import enclose
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
 from ._substituents import name_branch
 
-_PHOSPHORUS = 15
+CENTER_STEMS = {15: "phosph", 33: "ars", 51: "stib"}
 
 
 _SENIOR_ACIDS = [
@@ -57,7 +57,7 @@ def require_phosphorus_acid_scope(mol, phosphorus):
     for atom in mol.GetAtoms():
         if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
-        if atom.GetAtomicNum() == _PHOSPHORUS and atom.GetIdx() != phosphorus.GetIdx():
+        if atom.GetAtomicNum() in CENTER_STEMS and atom.GetIdx() != phosphorus.GetIdx():
             raise UnsupportedStructure("more than one phosphorus atom is not supported yet")
     if any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
         raise UnsupportedStructure("a carboxylic or sulfur-group acid outranks the phosphorus acid")
@@ -70,7 +70,7 @@ def _phosphonic_acid_phosphorus_atoms(mol):
     H)."""
     matches = []
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != _PHOSPHORUS or atom.GetDegree() != 4 or atom.GetFormalCharge() != 0:
+        if atom.GetAtomicNum() not in CENTER_STEMS or atom.GetDegree() != 4 or atom.GetFormalCharge() != 0:
             continue
         neighbors = atom.GetNeighbors()
         oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
@@ -119,4 +119,4 @@ def name_phosphonic_acid(mol) -> str:
 
     name, is_compound = name_branch(graph, root, phosphorus.GetIdx(), halogens, aromatic_atoms, mol=mol)
     prefix = enclose(name) if is_compound else name
-    return f"{prefix}phosphonic acid"
+    return f"{prefix}{CENTER_STEMS[phosphorus.GetAtomicNum()]}onic acid"

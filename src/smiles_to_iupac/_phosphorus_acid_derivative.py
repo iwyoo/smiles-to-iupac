@@ -1,0 +1,123 @@
+"""Acid halides and amides of the mononuclear Group 15 oxoacids (P-67.1.2.5.1, P-67.1.2.6.1): the centre (P, As, Sb)
+bears k = 0, 1 or 2 organyl groups, one double-bonded oxygen or sulfur, and 3 - k identical halogens or amino groups.
+Halides take the class name added to the acid name, 'phenylphosphonic dichloride', with 'phosphoryl trichloride' for
+the halides of phosphoric acid itself; amides replace 'acid' by 'amide', with N locants for the amino groups and the
+element symbol as locant of the organyl groups ('N,N'-dimethyl-P-phenylphosphonic diamide')."""
+
+from rdkit import Chem
+
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_substituents, halogen_substituents
+from ._phosphonic_acid import _SENIOR_ACIDS, CENTER_STEMS
+from ._substituents import alpha_sort_key, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
+
+_HALIDE = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
+_MULTIPLIER = {1: "", 2: "di", 3: "tri"}
+_PRIMES = ["N", "N'", "N''"]
+_SYMBOL = {15: "P", 33: "As", 51: "Sb"}
+
+
+def _find(mol):
+    centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() in CENTER_STEMS]
+    if len(centers) != 1:
+        return None
+    center = centers[0]
+    if center.GetDegree() != 4 or center.GetFormalCharge() or center.IsInRing():
+        return None
+    double = [
+        n
+        for n in center.GetNeighbors()
+        if n.GetAtomicNum() in (8, 16)
+        and n.GetDegree() == 1
+        and mol.GetBondBetweenAtoms(center.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    ]
+    if len(double) != 1:
+        return None
+    others = [n for n in center.GetNeighbors() if n.GetIdx() != double[0].GetIdx()]
+    carbons = [n for n in others if n.GetAtomicNum() == 6]
+    rest = [n for n in others if n.GetAtomicNum() != 6]
+    if not rest or len(carbons) > 2:
+        return None
+    if any(mol.GetBondBetweenAtoms(center.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0 for n in others):
+        return None
+    if all(n.GetAtomicNum() in HALOGEN_PREFIXES for n in rest) and len({n.GetAtomicNum() for n in rest}) == 1:
+        return center, double[0], carbons, rest, "halide"
+    if all(_is_amino(n, center) for n in rest):
+        return center, double[0], carbons, rest, "amide"
+    return None
+
+
+def _is_amino(nitrogen, center):
+    if nitrogen.GetAtomicNum() != 7 or nitrogen.GetFormalCharge() or nitrogen.IsInRing() or nitrogen.GetIsAromatic():
+        return False
+    return all(n.GetAtomicNum() == 6 for n in nitrogen.GetNeighbors() if n.GetIdx() != center.GetIdx())
+
+
+def has_phosphorus_acid_derivative_shape(mol) -> bool:
+    return _find(mol) is not None
+
+
+def _acid_word(stem, carbons, sulfur):
+    thio = "thio" if sulfur else ""
+    if carbons == 0:
+        return f"{stem}or{thio}ic" if sulfur else f"{stem}oric"
+    return f"{stem}{'on' if carbons == 1 else 'in'}o{thio}ic" if sulfur else f"{stem}{'on' if carbons == 1 else 'in'}ic"
+
+
+def name_phosphorus_acid_derivative(mol) -> str:
+    found = _find(mol)
+    if found is None:
+        raise UnsupportedStructure("no Group 15 acid halide or amide shape")
+    center, chalcogen, carbons, rest, kind = found
+    if len(Chem.GetMolFrags(mol)) > 1 or any(a.GetIsotope() for a in mol.GetAtoms()):
+        raise UnsupportedStructure("multi-fragment or isotopically modified structures are not supported yet")
+    if any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
+        raise UnsupportedStructure("a carboxylic or sulfur-group acid outranks the phosphorus derivative")
+    sulfur = chalcogen.GetAtomicNum() == 16
+    if sulfur and not carbons:
+        raise UnsupportedStructure("thio acid derivatives of the acid with no organyl group are not supported yet")
+    stem = CENTER_STEMS[center.GetAtomicNum()]
+    acid = _acid_word(stem, len(carbons), sulfur)
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+    count = len(rest)
+    if kind == "halide":
+        word = _HALIDE[rest[0].GetAtomicNum()]
+        head = "" if carbons else f"{stem}oryl"
+        prefixes = [name_branch(graph, c.GetIdx(), center.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True) for c in carbons]
+        organyl = format_mononuclear_prefixes(prefixes) if prefixes else ""
+        if not carbons:
+            if sulfur:
+                raise UnsupportedStructure("thio acid halides of the acid with no organyl group are not supported yet")
+            return f"{head} {_MULTIPLIER[count]}{word}"
+        return f"{organyl}{acid} {_MULTIPLIER[count]}{word}"
+    amino = []
+    for nitrogen in rest:
+        subs = [
+            name_branch(graph, n.GetIdx(), nitrogen.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True)
+            for n in nitrogen.GetNeighbors()
+            if n.GetIdx() != center.GetIdx()
+        ]
+        amino.append(subs)
+    amino.sort(key=lambda subs: (-len(subs), [alpha_sort_key(name) for name, _ in subs]))
+    positions = {}
+    for locant, subs in zip(_PRIMES, amino):
+        if subs:
+            positions[locant] = subs
+    organyl = [
+        name_branch(graph, c.GetIdx(), center.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True) for c in carbons
+    ]
+    if organyl:
+        positions[_SYMBOL[center.GetAtomicNum()]] = organyl
+    complete = not carbons and all(len(s) == 2 for s in amino) and len({tuple(s) for s in amino}) == 1
+    grouped = group_substituents(positions)
+    prefix = format_substituent_prefixes(grouped, omit_locants=False)
+    if complete:
+        prefix = _strip_locants(prefix)
+    return f"{prefix}{acid} {_MULTIPLIER[count]}amide"
+
+
+def _strip_locants(prefix):
+    import re
+
+    return re.sub(r"^(?:N'*,)*N'*-", "", prefix)

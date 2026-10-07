@@ -36,10 +36,9 @@ functional-replacement/infix variant.
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
-from ._phosphonic_acid import require_phosphorus_acid_scope
+from ._phosphonic_acid import CENTER_STEMS, require_phosphorus_acid_scope
 from ._substituents import format_mononuclear_prefixes, name_branch
 
-_PHOSPHORUS = 15
 
 
 def _phosphinic_acid_phosphorus_atoms(mol):
@@ -48,7 +47,7 @@ def _phosphinic_acid_phosphorus_atoms(mol):
     oxygen, and one single-bonded hydroxyl oxygen (terminal, one H)."""
     matches = []
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() != _PHOSPHORUS or atom.GetDegree() != 4 or atom.GetFormalCharge() != 0:
+        if atom.GetAtomicNum() not in CENTER_STEMS or atom.GetDegree() != 4 or atom.GetFormalCharge() != 0:
             continue
         neighbors = atom.GetNeighbors()
         oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
@@ -98,4 +97,4 @@ def name_phosphinic_acid(mol) -> str:
 
     entries = [name_branch(graph, root, phosphorus.GetIdx(), halogens, aromatic_atoms, mol=mol) for root in roots]
     prefix = format_mononuclear_prefixes(entries)
-    return f"{prefix}phosphinic acid"
+    return f"{prefix}{CENTER_STEMS[phosphorus.GetAtomicNum()]}inic acid"
