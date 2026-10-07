@@ -550,8 +550,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
                 not far.GetFormalCharge()
                 and not atom.GetFormalCharge()
                 and mol.GetBondBetweenAtoms(root, far.GetIdx()).GetBondTypeAsDouble() == 1.0
-                and all(mol.GetBondBetweenAtoms(far.GetIdx(), n).GetBondTypeAsDouble() == 1.0 for n in graph[far.GetIdx()])
-                and far.GetDegree() - 1 + far.GetTotalNumHs() == 2
+                and far.GetTotalNumHs()
+                + sum(mol.GetBondBetweenAtoms(far.GetIdx(), n).GetBondTypeAsDouble() for n in graph[far.GetIdx()] if n != root)
+                == 2
             ):
                 tail = [n for n in graph[far.GetIdx()] if n != root]
                 if not tail:
@@ -559,7 +560,8 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
                 from ._substituents import format_mononuclear_prefixes
 
                 entries = _group_names(graph, mol, tail, far.GetIdx(), halogens, aromatic_atoms)
-                return format_mononuclear_prefixes(entries) + "hydrazinylidene", True
+                prefix = f"({entries[0][0]})" if len(entries) == 1 and entries[0][1] else format_mononuclear_prefixes(entries)
+                return prefix + "hydrazinylidene", True
         if order == 2.0 and not atom.GetFormalCharge() and len(others) <= 1 and _has_senior_principal_group(mol):
             if not others:
                 return "imino", False
