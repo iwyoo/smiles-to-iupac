@@ -6,8 +6,6 @@ anionic group is the suffix and the free acid groups are 'carboxy' prefixes."""
 
 from rdkit import Chem
 
-from ._acid_groups import acid_group_at
-from ._carbonic_family import carbonic_anion_center
 from ._common import UnsupportedStructure, alpha_sort_key
 from ._numerals import multiplying_prefix
 
@@ -30,19 +28,6 @@ def _is_nucleotide_anion(frag):
     ) and has_substituted_nucleoside_name(frag)
 
 
-def _has_acid_anion(frag):
-    if _is_nucleotide_anion(frag):
-        return True
-    for atom in frag.GetAtoms():
-        if atom.GetFormalCharge() == -1 and atom.GetAtomicNum() in (8, 16, 34, 52):
-            for n in atom.GetNeighbors():
-                if n.GetAtomicNum() in (6, 16, 34, 52) and not n.GetFormalCharge():
-                    group = acid_group_at(frag, n.GetIdx())
-                    if group is not None and group.spec.anion or carbonic_anion_center(frag, n.GetIdx()):
-                        return True
-    return False
-
-
 def _cation(frag):
     from ._salt import _cation as legacy_cation
 
@@ -58,28 +43,27 @@ def _cation(frag):
 
 
 def _anion_name(frag):
-    from ._salt import _polyatomic_anion
+    from ._salt import _ANION_KINDS, _POLYATOMIC_ANION_KINDS
     from .core import smiles_to_iupac
 
-    polyatomic = None if _is_nucleotide_anion(frag) else _polyatomic_anion(frag)
-    if polyatomic is not None:
-        namer, magnitude = polyatomic
-        return namer(frag), magnitude
     charge = -sum(a.GetFormalCharge() for a in frag.GetAtoms())
+    if not _is_nucleotide_anion(frag):
+        for has_shape, namer in (*_POLYATOMIC_ANION_KINDS[:-1], *_ANION_KINDS[:-1]):
+            if has_shape(frag):
+                try:
+                    return namer(frag), charge
+                except UnsupportedStructure:
+                    break
     return smiles_to_iupac(Chem.MolToSmiles(frag)), charge
 
 
-def _simple(name):
-    return name.isalpha()
-
-
 def _counted(entries):
-    """Cited text for (name, count) entries in alphabetical order with multiplying prefixes."""
+    """Cited text for (name, count, simple) entries in alphabetical order with multiplying prefixes."""
     parts = []
-    for name, count in sorted(entries, key=lambda e: alpha_sort_key(e[0])):
+    for name, count, simple in sorted(entries, key=lambda e: alpha_sort_key(e[0])):
         if count == 1:
             parts.append(name)
-        elif _simple(name):
+        elif simple and name.isalpha():
             parts.append(multiplying_prefix(count) + name)
         else:
             parts.append(multiplying_prefix(count, compound=True) + f"({name})")
@@ -98,27 +82,21 @@ def name_acid_salt(mol):
             found = _cation(frag)
             if found is None or found[1] != net:
                 raise UnsupportedStructure("this cation is not named by the salt engine")
-            entry = cations.setdefault(key, [found[0], found[1], 0])
+            entry = cations.setdefault(key, [found[0], found[1], 0, frag.GetNumAtoms() == 1])
         elif net < 0:
-            if not _has_acid_anion(frag) and _anion_name_is_unsafe(frag):
-                raise UnsupportedStructure("this anion is not an acid anion")
             name, charge = _anion_name(frag)
             if charge != -net:
                 raise UnsupportedStructure("charge of the anion is not -net")
-            entry = anions.setdefault(key, [name, charge, 0])
+            entry = anions.setdefault(key, [name, charge, 0, True])
         else:
             raise UnsupportedStructure("a neutral fragment is not part of a simple salt")
         entry[2] += 1
     if not cations or not anions:
         raise UnsupportedStructure("a salt needs cations and anions")
-    if not any(_has_acid_anion(Chem.MolFromSmiles(k)) for k in anions):
-        raise UnsupportedStructure("no acid anion in this salt")
-    if sum(c * n for _, c, n in cations.values()) != sum(c * n for _, c, n in anions.values()):
+    if sum(c * n for _, c, n, _ in cations.values()) != sum(c * n for _, c, n, _ in anions.values()):
         raise UnsupportedStructure("the charges of the ions do not balance")
-    return _counted([(n, k) for n, _, k in cations.values()]) + " " + _counted([(n, k) for n, _, k in anions.values()])
-
-
-def _anion_name_is_unsafe(frag):
-    from ._salt import _polyatomic_anion
-
-    return _polyatomic_anion(frag) is None
+    return (
+        _counted([(n, k, simple) for n, _, k, simple in cations.values()])
+        + " "
+        + _counted([(n, k, simple) for n, _, k, simple in anions.values()])
+    )

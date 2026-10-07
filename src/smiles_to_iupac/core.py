@@ -3,9 +3,8 @@ import re
 from rdkit import Chem
 
 from ._zwitterion import has_zwitterion_shape, name_zwitterion
-from ._salt import has_salt_shape, name_salt
 from ._hydrohalide_salt import has_hydrohalide_salt_shape, name_hydrohalide_salt
-from ._hydrate_adduct import has_hydrate_adduct_shape, name_hydrate_adduct
+from ._adduct import has_adduct_shape, name_adduct
 from ._acyclic import name_acyclic_alkane
 from ._acid_derivatives import name_acid_derivative
 from ._acid_salts import name_acid_salt
@@ -738,11 +737,6 @@ def _name_mol(mol) -> str:
         # molecule were a bare ammonium cation, crashing rather than falling
         # through.
         (has_zwitterion_shape, name_zwitterion),
-        # A multi-fragment SMILES (P-77 salts) must be routed here before every
-        # other branch below: those all assume one connected molecule and would
-        # reject a foreign atom like sodium outright, never getting a chance to
-        # recognize the two fragments as a cation/anion pair.
-        (has_salt_shape, name_salt),
     ):
         if has_shape(mol):
             return namer(mol)
@@ -753,12 +747,10 @@ def _name_mol(mol) -> str:
     if has_hydrohalide_salt_shape(mol):
         return name_hydrohalide_salt(mol, smiles_to_iupac)
 
-    # A hydrate adduct (P-14.8's em-dash notation, see
-    # _hydrate_adduct.py) -- one organic fragment plus one or more
-    # separate water molecules -- must likewise be routed here before
-    # every other branch below, for the same reason.
-    if has_hydrate_adduct_shape(mol):
-        return name_hydrate_adduct(mol, smiles_to_iupac)
+    # Neutral adducts and solvates (P-14.8, see _adduct.py) must likewise be
+    # routed here before every other branch below, for the same reason.
+    if has_adduct_shape(mol):
+        return name_adduct(mol, smiles_to_iupac)
 
     multiplicative_name = name_if_multiplicative(mol)
     if multiplicative_name is not None:

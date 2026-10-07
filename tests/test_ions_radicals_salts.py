@@ -377,9 +377,8 @@ def test_ethyloxidaniumyl_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_mixed_halide_anions_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[Ca+2].[Cl-].[Br-]")
+def test_mixed_anions_cited_alphanumerically():
+    assert smiles_to_iupac("[Ca+2].[Cl-].[Br-]") == "calcium bromide chloride"
 
 
 def test_carbanide_salt_names():
