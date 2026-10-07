@@ -392,8 +392,7 @@ def test_zwitterion_name(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("C1CC([NH3+])C1C(=O)[O-]", id="ionic_center_in_ring_raises"),
-        pytest.param("[NH3+]C(S(=O)(=O)[O-])", id="ammonium_bonded_directly_to_sulfonate_carbon_raises"),
+        pytest.param("[NH3+]C(=O)[O-]", id="ammonium_bonded_directly_to_carboxylate_carbon_raises"),
     ],
 )
 def test_zwitterion_ionic_center_and_related_raise(smiles):
@@ -826,4 +825,23 @@ def test_ionic_groups_as_prefixes_of_a_radical_parent(smiles, expected):
     ],
 )
 def test_choice_of_parent_radical_with_ylo_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[N+](C)=CC", "N,N-dimethylethaniminium", id="iminium_parent"),
+        pytest.param("C[NH+]=C(C)CCl", "1-chloro-N-methylpropan-2-iminium", id="n_prefix_alphanumerical_order"),
+        pytest.param("CC=[N+](C)C(C)C", "N-methyl-N-(propan-2-yl)ethaniminium", id="n_substituent_longer_than_chain"),
+        pytest.param("C[N+](C)=CC(=O)OC", "1-(methoxycarbonyl)-N,N-dimethylmethaniminium", id="cation_outranks_ester"),
+        pytest.param("C[N+](C)=CC(=O)[O-]", "(N-methylmethanaminiumylidene)acetate", id="iminium_ylidene_prefix"),
+        pytest.param("C=[N+](C)CC(=O)[O-]", "(N-methylmethaniminiumyl)acetate", id="iminium_yl_prefix"),
+        pytest.param("C1CC([NH3+])C1C(=O)[O-]", "2-azaniumylcyclobutane-1-carboxylate", id="ring_ammonium_prefix"),
+        pytest.param("[CH2-]CC[CH2+]", "butan-4-ylium-1-ide", id="zwitterionic_skeleton"),
+        pytest.param("[CH2]C=C[CH2+]", "but-2-en-4-ylium-1-yl", id="unsaturated_radical_cation"),
+        pytest.param("[CH2-][CH+]C[CH2]", "butan-2-ylium-1-id-4-yl", id="three_kinds_of_centre"),
+    ],
+)
+def test_iminium_and_mixed_ionic_centres(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

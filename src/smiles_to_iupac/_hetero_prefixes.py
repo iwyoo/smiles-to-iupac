@@ -471,16 +471,32 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
 
         rname, rcomp = name_branch(graph, others[0], root, halogens, aromatic_atoms, mol=mol)
         return _enclose(rname, rcomp) + word, True
-    if z == 7 and atom.GetFormalCharge() == 1 and order == 1.0 and atom.GetDegree() + atom.GetTotalNumHs() == 4:
-        if any(
-            mol.GetAtomWithIdx(n).GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0
-            for n in others
-        ):
+    if (
+        z == 7
+        and atom.GetFormalCharge() == 1
+        and order == 1.0
+        and atom.GetTotalValence() == 4
+        and all(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 for n in others)
+    ):
+        if any(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() > 2.0 for n in others):
             raise UnsupportedStructure("this azaniumyl group is not supported yet")
         from ._substituents import format_mononuclear_prefixes
 
         entries = _group_names(graph, mol, others, root, halogens, aromatic_atoms)
         return (format_mononuclear_prefixes(entries) if entries else "") + "azaniumyl", bool(entries)
+    if (
+        z == 7
+        and atom.GetFormalCharge() == 1
+        and order == 2.0
+        and atom.GetDegree() + atom.GetTotalNumHs() == 3
+        and all(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 for n in others)
+    ):
+        if any(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0 for n in others):
+            raise UnsupportedStructure("this azaniumylidene group is not supported yet")
+        from ._substituents import format_mononuclear_prefixes
+
+        entries = _group_names(graph, mol, others, root, halogens, aromatic_atoms)
+        return (format_mononuclear_prefixes(entries) if entries else "") + "azaniumylidene", bool(entries)
     if z == 7:
         oxygens = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 8]
         if len(oxygens) == len(others) and others:

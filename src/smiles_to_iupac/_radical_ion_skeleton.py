@@ -13,19 +13,18 @@ _MAX_ATOMS = 60
 
 def _centres(mol):
     radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons()]
-    ions = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    anions = [a for a in mol.GetAtoms() if a.GetFormalCharge() < 0]
+    cations = [a for a in mol.GetAtoms() if a.GetFormalCharge() > 0]
     if (
-        not radicals
-        or not ions
+        sum(map(bool, (radicals, anions, cations))) < 2
         or any(a.GetNumRadicalElectrons() != 1 or a.GetAtomicNum() != 6 for a in radicals)
-        or any(a.GetAtomicNum() != 6 or abs(a.GetFormalCharge()) != 1 for a in ions)
-        or len({a.GetFormalCharge() for a in ions}) != 1
+        or any(a.GetAtomicNum() != 6 or abs(a.GetFormalCharge()) != 1 for a in anions + cations)
         or any(a.GetIsotope() for a in mol.GetAtoms())
         or len(Chem.GetMolFrags(mol)) != 1
         or mol.GetNumAtoms() > _MAX_ATOMS
     ):
         return None
-    return radicals, ions
+    return radicals, anions, cations
 
 
 def has_skeleton_radical_ion_shape(mol) -> bool:
@@ -35,9 +34,6 @@ def has_skeleton_radical_ion_shape(mol) -> bool:
 def _suffix(count, singular):
     return singular if count == 1 else multiplying_prefix(count) + singular
 
-
-def _ending(charge):
-    return "id" if charge < 0 else "ylium"
 
 
 def _chain_or_ring(mol):
@@ -65,27 +61,36 @@ def _orders(mol, ring):
     return [[walk[(s + step * k) % size] for k in range(size)] for s in range(size) for step in (1, -1)]
 
 
-def _simple_name(mol, ring, radicals, ions):
+def _numbering_key(numbers, radicals, anions, cations):
+    return tuple(sorted(numbers[a.GetIdx()] for a in group) for group in (radicals, anions, cations))
+
+
+def _centre_order_key(key):
+    radical, anion, cation = key
+    return (sorted(set(radical + anion + cation)), radical, anion, cation)
+
+
+def _simple_name(mol, ring, radicals, anions, cations):
     """Unbranched chain or monocycle; a radical and an ionic centre may share an atom."""
     best = None
     for order in _orders(mol, bool(ring)):
-        locant = {atom: i + 1 for i, atom in enumerate(order)}
-        key = (sorted(locant[a.GetIdx()] for a in radicals), sorted(locant[a.GetIdx()] for a in ions))
-        if best is None or key < best:
+        key = _numbering_key({atom: i + 1 for i, atom in enumerate(order)}, radicals, anions, cations)
+        if best is None or _centre_order_key(key) < _centre_order_key(best):
             best = key
-    return _assemble(("cyclo" if ring else "") + alkane_name(mol.GetNumAtoms()), best[0], best[1], ions[0].GetFormalCharge())
+    return _assemble(("cyclo" if ring else "") + alkane_name(mol.GetNumAtoms()), *best)
 
 
-def _assemble(base, radical_locants, ion_locants, charge, prefixes=""):
-    ion_text = _suffix(len(ion_locants), _ending(charge))
-    radical_text = _suffix(len(radical_locants), "yl")
-    if base.endswith("ane") and ion_text[0] in "aeiouy":
+def _assemble(base, radical_locants, anion_locants, cation_locants, prefixes=""):
+    """Cationic suffixes precede anionic ones, radical suffixes come last (P-70.3, P-74.1.1)."""
+    endings = [
+        (locants, _suffix(len(locants), ending))
+        for locants, ending in ((cation_locants, "ylium"), (anion_locants, "ide"), (radical_locants, "yl"))
+        if locants
+    ]
+    if base.endswith(("ane", "ene", "yne")) and endings[0][1][0] in "aeiouy":
         base = base[:-1]
-    elif base.endswith("an") and ion_text[0] not in "aeiouy":
-        base += "e"
-    return (
-        f"{prefixes}{base}-{','.join(map(str, ion_locants))}-{ion_text}-{','.join(map(str, radical_locants))}-{radical_text}"
-    )
+    endings = [(loc, text[:-1] if text.endswith("ide") and i + 1 < len(endings) else text) for i, (loc, text) in enumerate(endings)]
+    return prefixes + base + "".join(f"-{','.join(map(str, locants))}-{text}" for locants, text in endings)
 
 
 def _automorphisms(mol, centres):
@@ -94,11 +99,11 @@ def _automorphisms(mol, centres):
     return [m for m in maps if {m[i] for i in centre_set} == centre_set]
 
 
-def _general_name(mol, radicals, ions):
+def _general_name(mol, radicals, anions, cations):
     from ._anion import name_anion
     from ._polyfunctional import LAST_POSITIONS
 
-    charge = ions[0].GetFormalCharge()
+    ions = anions + cations
     analogue = Chem.RWMol(mol)
     for atom in radicals:
         target = analogue.GetAtomWithIdx(atom.GetIdx())
@@ -128,21 +133,50 @@ def _general_name(mol, radicals, ions):
             continue
         numbering = {i: positions[image[i]] for i in positions}
         for numbers in ([numbering, {i: size + 1 - n for i, n in numbering.items()}] if flip else [numbering]):
-            rad = sorted(numbers[a.GetIdx()] for a in radicals)
-            ion = sorted(numbers[a.GetIdx()] for a in ions)
+            centre_key = _numbering_key(numbers, radicals, anions, cations)
             substituted = sorted(
                 numbers[n.GetIdx()] for a in attachments for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in parent
             )
-            key = (sorted(set(rad + ion)), rad, ion, substituted)
+            enes, ynes = _unsaturation_locants(mol, parent, numbers, size, flip)
+            key = (*_centre_order_key(centre_key), sorted(enes + ynes), enes, substituted)
             if best is None or key < best[0]:
-                best = (key, numbers)
+                best = (key, numbers, centre_key, enes, ynes)
     if best is None:
         raise UnsupportedStructure("no numbering of this radical ion is available")
     numbers = best[1]
     head = name[: tail.start()]
-    prefixes, base = _split_parent(head)
+    stem = ("cyclo" if mol.GetRingInfo().NumRings() else "") + alkane_name(size)[:-3]
+    start = head.rfind(stem)
+    if start < 0:
+        raise UnsupportedStructure("the parent hydride of this radical ion is not delimited")
     remap = {positions[i]: numbers[i] for i in positions}
-    return _assemble(base, best[0][1], best[0][2], charge, _renumber(prefixes, remap))
+    base = _parent_base(stem, best[3], best[4])
+    return _assemble(base, *best[2], _renumber(head[:start], remap))
+
+
+def _unsaturation_locants(mol, parent, numbers, size, ring_free):
+    enes, ynes = [], []
+    for bond in mol.GetBonds():
+        a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+        order = bond.GetBondTypeAsDouble()
+        if order == 1.0 or a not in parent or b not in parent:
+            continue
+        low, high = sorted((numbers[a], numbers[b]))
+        if not ring_free and (low, high) == (1, size):
+            raise UnsupportedStructure("a ring closure bond locant needs the compound-locant form")
+        (enes if order == 2.0 else ynes).append(low)
+    return sorted(enes), sorted(ynes)
+
+
+def _parent_base(stem, enes, ynes):
+    if not enes and not ynes:
+        return stem + "ane"
+    if enes and ynes:
+        return f"{stem}-{','.join(map(str, enes))}-{_suffix(len(enes), 'en')}-{','.join(map(str, ynes))}-{_suffix(len(ynes), 'yne')}"
+    locants, word = (enes, "ene") if enes else (ynes, "yne")
+    if len(locants) == 1:
+        return f"{stem}-{locants[0]}-{word}"
+    return f"{stem}a-{','.join(map(str, locants))}-{_suffix(len(locants), word)}"
 
 
 def _renumber(prefixes, remap):
@@ -177,10 +211,10 @@ def name_skeleton_radical_ion(mol) -> str:
     centres = _centres(mol)
     if centres is None:
         raise UnsupportedStructure("this radical ion is not a set of carbon centres on one skeleton")
-    radicals, ions = centres
+    radicals, anions, cations = centres
     ring = _chain_or_ring(mol)
     if ring is not None and mol.GetNumAtoms() > 1:
-        return _simple_name(mol, ring, radicals, ions)
+        return _simple_name(mol, ring, radicals, anions, cations)
     if mol.GetNumAtoms() == 1:
-        return "methanidyl" if ions[0].GetFormalCharge() < 0 else "methyliumyl"
-    return _general_name(mol, radicals, ions)
+        return "methanidyl" if anions else "methyliumyl"
+    return _general_name(mol, radicals, anions, cations)

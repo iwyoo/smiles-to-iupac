@@ -82,7 +82,8 @@ def _principal_class(classes):
     if RING_CENTER.get():
         return None
     if AMINIUM.get():
-        return "amine" if "amine" in classes else None
+        parent = "imine" if AMINIUM.get() == "imine" else "amine"
+        return parent if parent in classes else None
     if "ide" in classes:
         return "ide"
     acids = [c for c in classes if c in ("acid", "sulfonic") or _is_variant(c)]
@@ -358,6 +359,9 @@ def name_polyfunctional(mol) -> str:
     cation = _aminium_base(mol)
     if cation is not None:
         return _name_aminium(cation)
+    iminium = _iminium_base(mol)
+    if iminium is not None:
+        return _name_aminium(iminium, parent="imine")
     center = _ring_center_base(mol)
     if center is not None:
         return _name_ring_center(*center)
@@ -572,14 +576,50 @@ def _aminium_base(mol):
     return neutral.GetMol()
 
 
-def _name_aminium(base, labels=None):
-    token = AMINIUM.set(True)
+def _cationic_prefix_nitrogen(atom):
+    """An acyclic N+ that an anionic parent cites as an 'azaniumyl' or 'azaniumylidene' prefix (P-74.1.3)."""
+    return (
+        atom.GetAtomicNum() == 7
+        and atom.GetFormalCharge() == 1
+        and not atom.IsInRing()
+        and not atom.GetIsAromatic()
+        and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors())
+    )
+
+
+def _iminium_base(mol):
+    """The mol with its iminium nitrogen neutralised when it still carries a hydrogen, else the cation itself, for the
+    single =N(+)< centre of an acyclic C=N group whose other substituents are carbon (P-73.1.2.1); else None."""
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    if len(charged) != 1 or charged[0].GetFormalCharge() != 1 or charged[0].GetAtomicNum() != 7:
+        return None
+    nitrogen = charged[0]
+    if nitrogen.GetIsAromatic() or nitrogen.IsInRing() or nitrogen.GetDegree() + nitrogen.GetTotalNumHs() != 3:
+        return None
+    doubles = [b for b in nitrogen.GetBonds() if b.GetBondTypeAsDouble() == 2.0]
+    if len(doubles) != 1 or doubles[0].GetOtherAtom(nitrogen).GetAtomicNum() != 6:
+        return None
+    if any(n.GetAtomicNum() != 6 for n in nitrogen.GetNeighbors()):
+        return None
+    if nitrogen.GetTotalNumHs() == 0:
+        return mol
+    neutral = Chem.RWMol(mol)
+    atom = neutral.GetAtomWithIdx(nitrogen.GetIdx())
+    atom.SetFormalCharge(0)
+    atom.SetNumExplicitHs(nitrogen.GetTotalNumHs() - 1)
+    atom.SetNoImplicit(True)
+    Chem.SanitizeMol(neutral)
+    return neutral.GetMol()
+
+
+def _name_aminium(base, labels=None, parent="amine"):
+    token = AMINIUM.set(True if parent == "amine" else parent)
     try:
         name = _name_labelled(base, labels or {})
     finally:
         AMINIUM.reset(token)
-    if not name.endswith(("amine", "aniline")):
-        raise UnsupportedStructure("the ammonium cation is not named as an amine parent")
+    if not name.endswith(("amine", "aniline", "imine") if parent == "imine" else ("amine", "aniline")):
+        raise UnsupportedStructure("the cation is not named as an amine or imine parent")
     return name[:-1] + "ium"
 
 
@@ -923,13 +963,13 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             raise UnsupportedStructure("isotopes and radicals are not supported by the polyfunctional chain engine")
         if atom.GetFormalCharge() and not _is_nitro_part(atom) and not _anionic_group_atom(mol, atom) and not (
             AMINIUM.get() and atom.GetAtomicNum() == 7
-        ):
+        ) and not (_cationic_prefix_nitrogen(atom) and any(_anionic_group_atom(mol, a) for a in mol.GetAtoms())):
             raise UnsupportedStructure("charged atoms are not supported by the polyfunctional chain engine")
         if (
             atom.GetAtomicNum() == 6
             and not atom.IsInRing()
             and not _is_acid_family(principal)
-            and not (AMINIUM.get() and principal in (None, "amine"))
+            and not (AMINIUM.get() and principal in (None, "amine", "imine"))
             and principal not in ("peroxoic", "thioic", "imidic")
             and not (principal in ("amide", "sulfonamide", "hydrazide") and atom.GetIdx() in groups.get(principal, {}))
             and _is_ester_like(mol, atom.GetIdx())
@@ -2618,7 +2658,10 @@ def _acyclic_imine_nitrogen(mol, atom):
     if len(imines) != 1:
         return None
     nitrogen = imines[0]
-    if nitrogen.GetFormalCharge() or nitrogen.IsInRing() or nitrogen.GetIsAromatic() or nitrogen.GetDegree() > 2:
+    cationic = AMINIUM.get() == "imine" and nitrogen.GetFormalCharge() == 1
+    if (nitrogen.GetFormalCharge() and not cationic) or nitrogen.IsInRing() or nitrogen.GetIsAromatic():
+        return None
+    if nitrogen.GetDegree() > (3 if cationic else 2):
         return None
     if any(n.GetAtomicNum() != 6 for n in atom.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx()):
         return None
@@ -2627,7 +2670,7 @@ def _acyclic_imine_nitrogen(mol, atom):
             continue
         if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0:
             return None
-        if n.GetAtomicNum() not in (6, 8) or n.GetFormalCharge():
+        if n.GetAtomicNum() not in ((6,) if cationic else (6, 8)) or n.GetFormalCharge():
             return None
     return nitrogen.GetIdx()
 
