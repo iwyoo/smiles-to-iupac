@@ -12,6 +12,14 @@ from ._common import (
     substituent_locant_set_and_citation,
 )
 
+class _DifferentSystems(UnsupportedStructure):
+    pass
+
+
+class _NotAPair(UnsupportedStructure):
+    pass
+
+
 _PAIR_PARENTS = {7: ("hydrazine", "diazene"), 15: ("diphosphane", None), 16: ("disulfane", None), 8: ("dioxidane", None)}
 _MULTIPLIED = {2: "di", 3: "tri", 4: "tetra"}
 
@@ -25,18 +33,26 @@ def has_polycation_shape(mol) -> bool:
     return (
         len(centres) >= 2
         and len(Chem.GetMolFrags(mol)) == 1
-        and all(a.GetFormalCharge() == 1 and a.GetAtomicNum() != 6 and not a.GetIsotope() for a in centres)
+        and all(a.GetFormalCharge() == 1 and not a.GetIsotope() for a in centres)
         and not any(a.GetNumRadicalElectrons() for a in mol.GetAtoms())
     )
 
 
 def name_polycation(mol) -> str:
+    from ._multiplicative_cation import name_cation_assembly
+
     centres = _centres(mol)
-    if all(a.IsInRing() for a in centres):
-        return _name_ring_polycation(mol, centres)
-    if len(centres) == 2 and not any(a.IsInRing() for a in centres):
-        return _name_pair_polycation(mol, centres)
-    raise UnsupportedStructure("these cationic centres do not belong to one ring system or one heteroatom pair")
+    if all(a.IsInRing() for a in centres) and not any(a.GetAtomicNum() == 6 for a in centres):
+        try:
+            return _name_ring_polycation(mol, centres)
+        except _DifferentSystems:
+            pass
+    elif len(centres) == 2 and not any(a.IsInRing() or a.GetAtomicNum() == 6 for a in centres):
+        try:
+            return _name_pair_polycation(mol, centres)
+        except _NotAPair:
+            pass
+    return name_cation_assembly(mol)
 
 
 def _name_ring_polycation(mol, centres):
@@ -59,7 +75,7 @@ def _name_ring_polycation(mol, centres):
     Chem.FastFindRings(base)
     rings, atoms = _system_of(base, indices[0])
     if any(i not in atoms for i in indices):
-        raise UnsupportedStructure("cationic centres in different ring systems are named multiplicatively")
+        raise _DifferentSystems("cationic centres in different ring systems are named multiplicatively")
     found = evaluate_skeleton(base, adjacency(base), "ring", rings, atoms, indices, set(), "ium")
     if found is None:
         raise UnsupportedStructure("this cationic ring system has no supported name yet")
@@ -78,7 +94,7 @@ def _name_pair_polycation(mol, centres):
     element = first.GetAtomicNum()
     bond = mol.GetBondBetweenAtoms(first.GetIdx(), second.GetIdx())
     if element not in _PAIR_PARENTS or second.GetAtomicNum() != element or bond is None:
-        raise UnsupportedStructure("the cationic centres are not an identical adjacent heteroatom pair")
+        raise _NotAPair("the cationic centres are not an identical adjacent heteroatom pair")
     single, double = _PAIR_PARENTS[element]
     parent = {1.0: single, 2.0: double}.get(bond.GetBondTypeAsDouble())
     if parent is None:

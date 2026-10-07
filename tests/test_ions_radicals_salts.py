@@ -876,6 +876,34 @@ def test_several_identical_cationic_centres(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("C[n+]1ccc(CCc2cc[n+](C)cc2)cc1", "4,4'-(ethane-1,2-diyl)bis(1-methylpyridin-1-ium)", id="ring_cations_joined_through_a_carbon"),
+        pytest.param("c1cc[n+](cc1)CCCC[n+]1ccccc1", "1,1'-(butane-1,4-diyl)di(pyridin-1-ium)", id="ring_cations_joined_through_the_cationic_nitrogen"),
+        pytest.param("C[n+]1ccc(CC(O)Cc2cc[n+](C)cc2)cc1", "4,4'-(2-hydroxypropane-1,3-diyl)bis(1-methylpyridin-1-ium)", id="substituted_linking_group"),
+        pytest.param("[PH3+]c1ccc([PH3+])cc1", "(1,4-phenylene)bis(phosphanium)", id="mononuclear_cations_on_a_ring_linker"),
+        pytest.param("C[C+](C)c1cccc(c1)[C+](C)C", "2,2'-(1,3-phenylene)di(propan-2-ylium)", id="carbenium_units_on_a_ring_linker"),
+        pytest.param("C[n+]1ccc(CCc2cc[n+](C)cc2)cc1.[Br-].[Br-]", "4,4'-(ethane-1,2-diyl)bis(1-methylpyridin-1-ium) dibromide", id="assembly_as_the_cation_of_a_salt"),
+    ],
+)
+def test_assemblies_of_parent_cations(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("C[n+]1ccccc1CC[n+]1ccccc1", id="units_differ"),
+        pytest.param("C[n+]1ccc(OCc2cc[n+](C)cc2)cc1", id="unsymmetrical_linking_group"),
+        pytest.param("[CH2+]CC[CH2+]", id="carbon_cations_on_a_chain_are_one_parent_hydride"),
+    ],
+)
+def test_cations_that_are_not_a_multiplicative_assembly(smiles):
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param(
             "C[n+]1c(-c2ccccc2)cc(-c2ccccc2)cc1C(=O)[O-]",
             "1-methyl-4,6-diphenylpyridin-1-ium-2-carboxylate",

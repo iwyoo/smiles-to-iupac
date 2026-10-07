@@ -310,14 +310,13 @@ def test_spiro_amine_on_substituent_branch_is_a_prefix():
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles,expected",
     [
-        pytest.param("[CH2+]C1CCC2(CC1)CCCC2[CH2+]", id="multiple_spiro_carbenium_centers_raises"),
+        pytest.param("[CH2+]C1CCC2(CC1)CCCC2[CH2+]", "(spiro[4.5]decane-1,8-diyl)bis(methylium)", id="spiro_linker_between_two_carbenium_units"),
     ],
 )
-def test_unsaturated_spiro_amine_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_spiro_linker_between_cationic_units(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -407,14 +406,13 @@ def test_von_baeyer_carbenium_name(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles,expected",
     [
-        pytest.param("[CH2+]C1CC2CCC1C2[CH2+]", id="multiple_ring_carbenium_centers_raises"),
+        pytest.param("[CH2+]C1CC2CCC1C2[CH2+]", "(bicyclo[2.2.1]heptane-2,7-diyl)bis(methylium)", id="bridged_linker_between_two_carbenium_units"),
     ],
 )
-def test_multiple_ring_carbenium_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_bridged_linker_between_cationic_units(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
