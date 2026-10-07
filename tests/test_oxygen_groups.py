@@ -1043,3 +1043,15 @@ def test_ketenes_are_named_as_ene_ones(smiles, expected):
 def test_ketene_with_other_groups_is_rejected_not_misnamed(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("O=C(O)c1ccccc1S(=O)(=O)c1ccccc1C(=O)O", "2,2'-sulfonyldibenzoic acid"),
+        ("O=C([O-])c1ccccc1S(=O)(=O)c1ccccc1C(=O)O.[Na+]", "sodium 2-[(2-carboxyphenyl)sulfonyl]benzoate"),
+        ("O=C(O)c1ccccc1S(=O)(=O)c1ccccc1C(N)=O", "2-[(2-carbamoylphenyl)sulfonyl]benzoic acid"),
+    ],
+)
+def test_diaryl_sulfone_with_carboxylic_groups_keeps_the_sulfonyl_bridge(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

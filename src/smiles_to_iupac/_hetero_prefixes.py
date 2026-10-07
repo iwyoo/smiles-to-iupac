@@ -976,10 +976,13 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     spec = make_spec(center, symbols, ("O",))
     acyl = acyl_suffix(spec, chain=False, count=1)
     if zx == 6:
-        from ._functional_prefixes import _acyl_prefix
+        from ._functional_prefixes import _CARBOXYLIC_CLASS, _acyl_prefix
 
-        name = _acyl_prefix(mol, _subtree(graph, root, coming_from), root, coming_from)
-        return name, True
+        try:
+            return _acyl_prefix(mol, _subtree(graph, root, coming_from), root, coming_from), True
+        except UnsupportedStructure:
+            if not mol.HasSubstructMatch(_CARBOXYLIC_CLASS):
+                raise
     z_name, z_compound = name_branch(graph, x, root, halogens, aromatic_atoms, mol=mol)
     return (_enclose(z_name, z_compound) if z_compound else z_name) + acyl, True
 

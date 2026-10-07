@@ -63,6 +63,9 @@ def nitroso_atoms(mol):
     return found
 
 
+_CARBOXYLIC_CLASS = Chem.MolFromSmarts("[$([CX3](=[O,S,N])[N,O,F,Cl,Br,I]),$([CX2]#N)]")
+
+
 def _acyl_prefix(mol, subtree, root, parent):
     """'-yl' name of the acyl group rooted at `root`, from its parent acid's name."""
     from .core import smiles_to_iupac
@@ -74,6 +77,9 @@ def _acyl_prefix(mol, subtree, root, parent):
         rw.RemoveAtom(idx)
     sub = rw.GetMol()
     Chem.SanitizeMol(sub)
+    root_atom = mol.GetAtomWithIdx(root)
+    if root_atom.GetAtomicNum() != 6 and sub.HasSubstructMatch(_CARBOXYLIC_CLASS):
+        raise UnsupportedStructure("a carboxylic acid outranks the sulfur or phosphorus acid, which is then a prefix, not an acyl group")
     from ._acid_derivatives import acyl_name
 
     name = acyl_name(smiles_to_iupac(Chem.MolToSmiles(sub)))
