@@ -705,3 +705,20 @@ def test_fusion_needs_two_rings_of_five_or_more_members(smiles, expected):
 def test_fusion_name_without_two_large_rings_is_kept_with_a_warning_when_von_baeyer_cannot_carry_the_group():
     with pytest.warns(NonPreferredNameWarning, match="P-52.2.4.1"):
         assert smiles_to_iupac("OC(=O)C1Cc2ccccc12") == "1,2-dihydrocyclobutabenzene-1-carboxylic acid"
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "O=C1Nc2c(C(N)=O)sc3nccc(N1)c23",
+            "4-oxo-4,5-dihydro-3H-1-thia-3,5,8-triazaacenaphthylene-2-carboxamide",
+        ),
+        (
+            "O=C1Nc2c(C(N)=O)sc3nccc(N1C)c23",
+            "5-methyl-4-oxo-4,5-dihydro-3H-1-thia-3,5,8-triazaacenaphthylene-2-carboxamide",
+        ),
+    ],
+)
+def test_replacement_named_peri_fused_system_keeps_hydrocarbon_numbering_for_substituents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

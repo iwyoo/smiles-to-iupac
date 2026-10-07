@@ -763,6 +763,18 @@ def _ring_graph(mol, skeleton_atoms):
     return adj, can_hold
 
 
+def _replacement_numberings(bare):
+    """Numberings of a system named by skeletal replacement on a hydrocarbon fusion name (P-25.5.1): the hydrocarbon's
+    numbering is kept and the heteroatoms take the lowest locants it permits."""
+    from ._fusion_name import _ReplacementRoot, fusion_name
+
+    try:
+        _, root = fusion_name(bare)
+    except UnsupportedStructure:
+        return None
+    return list(root.numberings) if isinstance(root, _ReplacementRoot) else None
+
+
 def _fused_mancude(mol, skeleton_atoms):
     oxo_all = _exocyclic_oxo(mol, skeleton_atoms)
     ring_info = mol.GetRingInfo()
@@ -778,6 +790,9 @@ def _fused_mancude(mol, skeleton_atoms):
     ih_count = len(match.group(1).split(",")) if match else 0
     stem = match.group(2) if match else parent
     numberings = fusion_system_numberings(bare, stem if stem in EXCEPTIONS else None)
+    replacement = _replacement_numberings(bare)
+    if replacement:
+        numberings = replacement
     if not numberings:
         raise UnsupportedStructure("this fused skeleton has no supported peripheral numbering as a diyl yet")
     adj, can_hold = _ring_graph(mol, skeleton_atoms)
