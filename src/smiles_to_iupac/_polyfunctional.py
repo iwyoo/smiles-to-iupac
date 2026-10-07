@@ -497,7 +497,7 @@ def _cation_inserted(name, base, center, placed_in_parent):
     system = _system_of(base, center)[1]
     locant = placed_in_parent.get(center)
     if locant is None and any(base.GetAtomWithIdx(i).GetAtomicNum() == 7 and i != center for i in system):
-        raise UnsupportedStructure("a second ring nitrogen leaves the locant of the cationic centre open")
+        locant = _prefix_center_locant(base, center, placed_in_parent)
     ring = Chem.RWMol(base)
     for index in system:
         lost = sum(
@@ -522,6 +522,29 @@ def _cation_inserted(name, base, center, placed_in_parent):
         raise UnsupportedStructure("the ring parent of the cation is not delimited in the anionic name")
     match = found[0]
     return f"{name[:match.start()]}{stem}-{locant or placed[new_center]}-ium{name[match.end():]}"
+
+
+def _prefix_center_locant(base, center, placed_in_parent):
+    """The locant of the cationic centre in the ring group cited as a prefix: the group's own numbering gives the free
+    valence and the heteroatoms their lowest locants, so a second ring nitrogen fixes it (P-31.1.4, P-73.1.1.2)."""
+    from ._diester_ring_diyl import _system_of, evaluate_skeleton
+    from ._free_valence import suffix_of
+
+    rings, atoms = _system_of(base, center)
+    joins = [
+        (a, n.GetIdx())
+        for a in atoms
+        for n in base.GetAtomWithIdx(a).GetNeighbors()
+        if n.GetIdx() in placed_in_parent
+    ]
+    if len(joins) != 1:
+        raise UnsupportedStructure("the ring cation is not joined to the parent hydride by a single bond")
+    root, parent = joins[0]
+    suffix = suffix_of(base.GetBondBetweenAtoms(root, parent).GetBondTypeAsDouble())
+    named = None if suffix is None else evaluate_skeleton(base, adjacency(base), "ring", rings, atoms, [root], {parent}, suffix)
+    if named is None or center not in named[2]:
+        raise UnsupportedStructure("the cationic centre is not numbered in the ring group")
+    return named[2][center]
 
 
 def _carbocation_base(mol):

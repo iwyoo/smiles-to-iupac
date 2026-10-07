@@ -860,6 +860,11 @@ def test_iminium_and_mixed_ionic_centres(smiles, expected):
         ),
         pytest.param("C[n+]1ccn(C)c1C(=O)[O-]", "1,3-dimethyl-1H-imidazol-3-ium-2-carboxylate", id="indicated_hydrogen"),
         pytest.param("C[n+]1ccccc1CC(=O)[O-]", "(1-methylpyridin-1-ium-2-yl)acetate", id="ring_cation_as_prefix"),
+        pytest.param(
+            "O=C([O-])CCn1cc[n+](C)c1",
+            "3-(3-methyl-1H-imidazol-3-ium-1-yl)propanoate",
+            id="ring_cation_as_prefix_with_second_nitrogen",
+        ),
         pytest.param("[CH2+]CC(=O)[O-]", "propan-3-ylium-1-oate", id="carbocation_with_chain_anion"),
         pytest.param("[O-]C(=O)CC[CH+]CC(=O)[O-]", "hexan-4-ylium-1,6-dioate", id="carbocation_with_two_anion_groups"),
         pytest.param("[CH2+]CS(=O)(=O)[O-]", "ethan-2-ylium-1-sulfonate", id="carbocation_with_sulfonate"),
