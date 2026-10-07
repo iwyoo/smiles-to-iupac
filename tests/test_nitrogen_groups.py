@@ -1296,3 +1296,16 @@ def test_locant_is_omitted_only_when_the_parent_has_one_kind_of_substitutable_hy
 )
 def test_chiral_substituent_groups_of_ureas_and_thioureas_cite_their_descriptors(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("NC(=O)ONC", "(methylamino) carbamate"),
+        ("NC(=O)ON", "amino carbamate"),
+        ("NC(=O)ON(C)C", "(dimethylamino) carbamate"),
+        ("CNC(=O)ONC", "(methylamino) N-methylcarbamate"),
+    ],
+)
+def test_carbamic_acid_esters_of_amino_groups_cite_the_amino_group_as_the_ester_word(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
