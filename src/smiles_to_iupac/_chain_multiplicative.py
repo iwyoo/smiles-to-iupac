@@ -35,7 +35,10 @@ def _arm(graph, start, blocked):
 def _key(mol, atoms, attach):
     from ._polyfunctional import _unit_molecule
 
-    unit, _ = _unit_molecule(mol, atoms, attach)
+    try:
+        unit, _ = _unit_molecule(mol, atoms, attach)
+    except UnsupportedStructure:
+        return ("arm", tuple(sorted(atoms)), attach)
     return Chem.MolToSmiles(unit, isomericSmiles=False)
 
 
