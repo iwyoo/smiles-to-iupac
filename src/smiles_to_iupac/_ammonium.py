@@ -175,6 +175,9 @@ def name_ammonium(mol) -> str:
     if any(atom.GetAtomicNum() == 6 and is_functional_carbon(mol, atom.GetIdx()) for atom in mol.GetAtoms()):
         raise UnsupportedStructure("a carbonyl-type group beside the cation is cited as a prefix by the chain engine")
 
+    if nitrogen.IsInRing():
+        raise UnsupportedStructure("a ring nitrogen cation is named on its ring parent hydride, not as an acyclic ammonium")
+
     degree = nitrogen.GetDegree()
     if degree == 0:
         if nitrogen.GetTotalNumHs() != 4:
@@ -195,6 +198,8 @@ def name_ammonium(mol) -> str:
     ):
         raise UnsupportedStructure("the ammonium nitrogen must be singly bonded to carbon")
 
+    if degree == 4 and mol.GetRingInfo().NumRings():
+        raise UnsupportedStructure("a quaternary ammonium on or beside a ring is named by the ring-aware amine engine")
     if degree == 4:
         # No neutral nitrogen can carry 4 substituents, so there's no
         # '-amine' name to derive 'ium' from by neutralizing -- instead

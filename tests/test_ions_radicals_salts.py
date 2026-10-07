@@ -932,6 +932,19 @@ def test_skeletal_cationic_centre_with_a_cationic_suffix(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("C[N+]1(C)CCOCC1", "4,4-dimethylmorpholin-4-ium", id="quaternary_ring_nitrogen_beside_a_ring_oxygen"),
+        pytest.param("C[N+]1(C)CCN(C)CC1", "1,1,4-trimethylpiperazin-1-ium", id="quaternary_ring_nitrogen_beside_a_neutral_ring_nitrogen"),
+        pytest.param("C[N+]1(C)CCCOCC1.[Cl-]", "4,4-dimethyl-1,4-oxazepan-4-ium chloride", id="quaternary_ring_nitrogen_in_a_salt"),
+        pytest.param("C[N+](C)(C)C1CCOCC1", "N,N,N-trimethyloxan-4-aminium", id="quaternary_ammonium_on_a_heterocycle"),
+    ],
+)
+def test_quaternary_ammonium_on_or_in_a_heterocycle(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param("[CH2+]C[CH2+]", "propane-1,3-bis(ylium)", id="two_hydride_losses_on_a_chain"),
         pytest.param("C[C+2]C", "propane-2,2-bis(ylium)", id="two_hydride_losses_on_one_carbon"),
         pytest.param("C1=C[CH+][CH+]1", "cyclobut-3-ene-1,2-bis(ylium)", id="two_hydride_losses_on_a_ring"),
