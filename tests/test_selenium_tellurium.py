@@ -227,16 +227,15 @@ def test_benzene_ring_multiple_and_related(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("C=C([Se](=O)O)C", id="ene_carbon_not_supported"),
-        pytest.param("O[Se](=O)C[Se](=O)O", id="two_seleninic_acids_not_supported"),
-        pytest.param("O[Se](=O)CCO", id="seleninic_acid_with_alcohol_not_supported"),
+        pytest.param("C=C([Se](=O)O)C", "prop-1-ene-2-seleninic acid", id="ene_carbon"),
+        pytest.param("O[Se](=O)C[Se](=O)O", "seleninomethaneseleninic acid", id="two_seleninic_acids"),
+        pytest.param("O[Se](=O)CCO", "2-hydroxyethane-1-seleninic acid", id="seleninic_acid_with_alcohol"),
     ],
 )
-def test_ene_carbon_not_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_seleninic_acid_with_unsaturation_other_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_phenyl_chain_seleninic_acid():
@@ -255,9 +254,8 @@ def test_substituted_benzeneseleninic_acid():
     )  # PubChem PUG REST
 
 
-def test_phenyl_chain_seleninic_acid_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CC[Se](=O)O")
+def test_phenyl_chain_seleninic_acid_with_an_unsaturated_ring_substituent():
+    assert smiles_to_iupac("C=Cc1ccccc1CC[Se](=O)O") == "2-(2-ethenylphenyl)ethane-1-seleninic acid"
 
 
 @pytest.mark.parametrize(
@@ -401,15 +399,14 @@ def test_methaneselenonic_acid_and_related(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("O[Se](=O)(=O)C[Se](=O)(=O)O", id="diselenonic_acid_not_supported"),
-        pytest.param("O[Se](=O)(=O)CCO", id="selenonic_acid_with_alcohol_not_supported"),
+        pytest.param("O[Se](=O)(=O)C[Se](=O)(=O)O", "selenonomethaneselenonic acid", id="two_selenonic_acids"),
+        pytest.param("O[Se](=O)(=O)CCO", "2-hydroxyethane-1-selenonic acid", id="selenonic_acid_with_alcohol"),
     ],
 )
-def test_diselenonic_acid_not_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_selenonic_acid_with_other_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_benzeneselenonic_acid():
@@ -627,16 +624,15 @@ def test_halogen_substituent__tellurinic_acid():
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("C=C([Te](=O)O)C", id="ene_carbon_not_supported__tellurinic_acid"),
-        pytest.param("O[Te](=O)C[Te](=O)O", id="two_tellurinic_acids_not_supported"),
-        pytest.param("O[Te](=O)CCO", id="tellurinic_acid_with_alcohol_not_supported"),
+        pytest.param("C=C([Te](=O)O)C", "prop-1-ene-2-tellurinic acid", id="ene_carbon"),
+        pytest.param("O[Te](=O)C[Te](=O)O", "tellurinomethanetellurinic acid", id="two_tellurinic_acids"),
+        pytest.param("O[Te](=O)CCO", "2-hydroxyethane-1-tellurinic acid", id="tellurinic_acid_with_alcohol"),
     ],
 )
-def test_ene_carbon_not_and_related_raise_2(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_tellurinic_acid_with_unsaturation_other_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_benzenetellurinic_acid():
@@ -766,15 +762,14 @@ def test_methanetelluronic_acid_and_related(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("O[Te](=O)(=O)C[Te](=O)(=O)O", id="ditelluronic_acid_not_supported"),
-        pytest.param("O[Te](=O)(=O)CCO", id="telluronic_acid_with_alcohol_not_supported"),
+        pytest.param("O[Te](=O)(=O)C[Te](=O)(=O)O", "telluronomethanetelluronic acid", id="two_telluronic_acids"),
+        pytest.param("O[Te](=O)(=O)CCO", "2-hydroxyethane-1-telluronic acid", id="telluronic_acid_with_alcohol"),
     ],
 )
-def test_ditelluronic_acid_not_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_telluronic_acid_with_other_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_benzenetelluronic_acid():
@@ -942,4 +937,17 @@ def test_selenium_tellurium_substituted_benzene_chains_like_sulfur_analogues(smi
     ],
 )
 def test_selenols_and_tellurols_beside_other_groups_and_on_any_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C[Se](=O)(=O)NN", "methaneselenonohydrazide", id="selenonohydrazide"),
+        pytest.param("C[Se](=O)NN", "methaneseleninohydrazide", id="seleninohydrazide"),
+        pytest.param("C[Te](=O)(=O)NN", "methanetelluronohydrazide", id="telluronohydrazide"),
+        pytest.param("c1ccccc1[Te](=O)NN", "benzenetellurinohydrazide", id="tellurinohydrazide_on_a_ring"),
+    ],
+)
+def test_selenium_and_tellurium_hydrazides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
