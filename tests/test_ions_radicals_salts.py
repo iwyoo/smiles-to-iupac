@@ -761,3 +761,17 @@ def test_ylidene_ylidyne_and_ring_nitrogen_radicals_beside_groups(smiles, expect
 )
 def test_carbenium_centre_beside_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[CH2-][CH2]", "ethan-2-id-1-yl", id="radical_takes_the_lowest_locant"),
+        pytest.param("[CH2+]C[CH2]", "propan-3-ium-1-yl", id="radical_cation"),
+        pytest.param("[CH2-][CH][CH2-]", "propane-1,3-diid-2-yl", id="dianion_radical"),
+        pytest.param("[CH-]1CCCC[CH]1", "cyclohexan-2-id-1-yl", id="ring_radical_anion"),
+        pytest.param("[CH2+]CC[CH][CH2+]", "pentane-1,5-diium-2-yl", id="dication_radical"),
+    ],
+)
+def test_radical_ions_on_a_hydrocarbon_skeleton(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

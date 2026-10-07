@@ -188,6 +188,7 @@ from ._dipole_oxide import (
     name_nitrone,
 )
 from ._isotope import has_isotope_shape, name_isotope
+from ._radical_ion_skeleton import has_skeleton_radical_ion_shape, name_skeleton_radical_ion
 from ._radical_group import has_group_cation_shape, has_radical_group_shape, name_group_cation, name_radical_group
 from ._isotope_alcohol import has_isotope_alcohol_shape, name_isotope_alcohol
 from ._isotope_carboxylic_acid import has_isotope_carboxylic_acid_shape, name_isotope_carboxylic_acid
@@ -510,6 +511,8 @@ def _name_unabridged(smiles: str) -> str:
     name = None
     try:
         parsed = _parse_smiles(smiles)
+        if parsed is not None and has_skeleton_radical_ion_shape(parsed):
+            return name_skeleton_radical_ion(parsed)
         if parsed is not None and parsed.HasProp("_hypervalent_anion"):
             name = name_anion(parsed)
             return name
@@ -906,6 +909,7 @@ def _name_mol(mol) -> str:
         # own broader "any nonzero radical electron count" check would
         # otherwise claim it first and misroute it into the plain-radical
         # dispatch, which rejects any charged atom outright.
+        (has_skeleton_radical_ion_shape, name_skeleton_radical_ion),
         (has_radical_ion_shape, name_radical_ion),
         # A radical center (P-71.2.1.1's 'yl' radical naming) must be routed
         # here before every other branch below: none of them recognize a
