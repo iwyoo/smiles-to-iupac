@@ -18,7 +18,7 @@ from ._fused_numbering import HETERO_RANK
 from ._fusion_name import Context, fusion_name, system_numbering_options
 from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
 from ._numerals import alkane_name
-from ._ring_diyl_numbering import _MANCUDE_RETAINED, _RANK, _hantzsch_widman, _with_hetero_locants
+from ._ring_diyl_numbering import _MANCUDE_RETAINED, _RANK, _hantzsch_widman, _saturated_name, _with_hetero_locants
 from ._polycyclic import find_polycyclic_core, iter_polycyclic_candidates
 from ._substituents import format_substituent_prefixes
 from ._von_baeyer_heteroatom import _replacement_multiplied_word
@@ -32,11 +32,17 @@ _A_PREFIX = {
     14: "sila", 32: "germa", 50: "stanna", 82: "plumba", 5: "bora",
 }
 _MAX_HANTZSCH_WIDMAN_SIZE = 10
+_MIN_FUSION_RING = 5
 
 
 def _lk(text):
-    match = re.match(r"(\d+)([a-z]*)(′*)", text)
-    return int(match.group(1)), len(match.group(3)), match.group(2)
+    match = re.match(r"(\d+)(′*)([a-z]*)", text)
+    return int(match.group(1)), len(match.group(2)), match.group(3)
+
+
+def _primed(locant, count):
+    match = re.match(r"(\d+)(.*)", locant)
+    return match.group(1) + _PRIME * count + match.group(2)
 
 
 def _components(mol):
@@ -66,7 +72,11 @@ def _components(mol):
                 "atoms": atoms,
                 "bonds": bonds,
                 "rings": len(bonds) - len(atoms) + 1,
-                "bridged": any(len(bond_rings[i] & bond_rings[j]) > 1 for i, j in combinations(g, 2)),
+                "von_baeyer": len(g) > 1
+                and (
+                    any(len(bond_rings[i] & bond_rings[j]) > 1 for i, j in combinations(g, 2))
+                    or sum(len(rings[i]) >= _MIN_FUSION_RING for i in g) < 2
+                ),
             }
         )
     return result
@@ -126,9 +136,7 @@ def _monocycle(sub, atoms, mol, force_replacement):
     if mancude:
         name = None
     elif hetero and not replacement:
-        if not has_hetero_monocyclic_name(sub):
-            raise UnsupportedStructure("this monocyclic spiro component has no supported name")
-        name = name_hetero_monocyclic(sub)
+        name = name_hetero_monocyclic(sub) if has_hetero_monocyclic_name(sub) else None
     else:
         name = "cyclo" + alkane_name(sub.GetNumAtoms())
     cycle = ring_cycle(adjacency(sub), list(range(sub.GetNumAtoms())))
@@ -150,7 +158,16 @@ def _monocycle(sub, atoms, mol, force_replacement):
     kept = [(n, e) for k, n, e in options if k == best]
     if mancude:
         name = _mancude_name(sub, kept[0][0])
+    elif name is None:
+        name = _saturated_hetero_name(sub, kept[0][0])
     return name, kept, replacement, mancude
+
+
+def _saturated_hetero_name(sub, numbering):
+    by_locant = sorted(numbering, key=lambda a: int(numbering[a]))
+    elements = tuple(sub.GetAtomWithIdx(a).GetSymbol() for a in by_locant)
+    hetero = [(i + 1, _RANK.get(e, 99)) for i, e in enumerate(elements) if e != "C"]
+    return _saturated_name(elements, hetero)
 
 
 def _mancude_name(sub, numbering):
@@ -209,7 +226,7 @@ def _component(mol, comp, force_replacement):
         name, numberings, replacement, mancude = _monocycle(sub, atoms, mol, force_replacement)
         if not replacement:
             name = _bracket_locants(name)
-    elif comp["bridged"]:
+    elif comp["von_baeyer"]:
         replacement = True
         name, orders = _von_baeyer(sub)
         numberings = [(n, ()) for n in orders]
@@ -236,7 +253,7 @@ def _bonding_number(atom):
     return valence if valence > standard else None
 
 
-def _replacement_prefixes(mol, atoms, locant_of):
+def _replacement_prefixes(mol, atoms, locant_of, with_lambda=True):
     by_element = {}
     for a in atoms:
         by_element.setdefault(mol.GetAtomWithIdx(a).GetAtomicNum(), []).append(a)
@@ -244,7 +261,7 @@ def _replacement_prefixes(mol, atoms, locant_of):
     for z in sorted(by_element, key=lambda z: HETERO_RANK[Chem.GetPeriodicTable().GetElementSymbol(z)]):
         cited = []
         for a in sorted(by_element[z], key=lambda a: _lk(locant_of[a])):
-            lam = _bonding_number(mol.GetAtomWithIdx(a))
+            lam = _bonding_number(mol.GetAtomWithIdx(a)) if with_lambda else None
             cited.append(f"{locant_of[a]}λ{lam}" if lam else locant_of[a])
         groups.append(f"{','.join(cited)}-{_replacement_multiplied_word(len(cited), _A_PREFIX[z])}")
     return "-".join(groups)
@@ -352,9 +369,9 @@ def name_spiro_union(mol) -> str:
                 raise UnsupportedStructure("a spiro union with a principal characteristic group is not supported yet")
 
     spiro_hetero = mol.GetAtomWithIdx(spiro).GetAtomicNum() != 6
-    if spiro_hetero and not lam and not any(c["bridged"] for c in comps):
+    if spiro_hetero and not lam and not any(c["von_baeyer"] for c in comps):
         raise UnsupportedStructure("a standard-valence heteroatom at the spiro atom is not supported without a bridged component")
-    named = [_component(mol, c, spiro_hetero and not lam and any(c2["bridged"] for c2 in comps)) for c in comps]
+    named = [_component(mol, c, spiro_hetero and not lam and any(c2["von_baeyer"] for c2 in comps)) for c in comps]
     inner = spiro_hetero and bool(lam) and any(n["replacement"] for n in named)
     if inner and all(n["replacement"] for n in named):
         raise UnsupportedStructure("a nonstandard spiro heteroatom between two skeletal replacement components is not supported yet")
@@ -395,8 +412,8 @@ def name_spiro_union(mol) -> str:
             locant_of = {a: l for a, l in n1.items()}
             for a, l in n2.items():
                 if a != spiro:
-                    locant_of[a] = l + _PRIME
-            spiro_locants = (n1[spiro], n2[spiro] + _PRIME)
+                    locant_of[a] = _primed(l, 1)
+            spiro_locants = (n1[spiro], _primed(n2[spiro], 1))
             hetero = sorted(replacement_atoms, key=lambda a: (HETERO_RANK[mol.GetAtomWithIdx(a).GetSymbol()], _lk(locant_of[a])))
             heteroatoms = (
                 sorted(_lk(locant_of[a]) for a in hetero),
