@@ -971,6 +971,26 @@ def test_ring_cations_on_heteroatoms_other_than_nitrogen(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("c1cc[o+]cc1", "pyrylium", id="pyrylium"),
+        pytest.param("Cc1cc(C)[o+]c(C)c1", "2,4,6-trimethylpyrylium", id="substituted_pyrylium"),
+        pytest.param("c1cc[te+]cc1", "telluropyrylium", id="chalcogen_analogue_of_pyrylium"),
+        pytest.param("c1ccc2[s+]c3ccccc3cc2c1", "thioxanthylium", id="xanthylium_family"),
+        pytest.param("c1ccc2[o+]cccc2c1", "1λ4-benzopyran-1-ylium", id="lambda_name_of_a_benzopyrylium"),
+        pytest.param("c1ccc2c[o+]ccc2c1", "2λ4-benzopyran-2-ylium", id="isobenzopyrylium"),
+        pytest.param("c1ccc(cc1)-c1cc2ccccc2[o+]c1-c1ccccc1", "2,3-diphenyl-1λ4-benzopyran-1-ylium", id="substituted_lambda_name"),
+        pytest.param("C1C=CC=[O+]1", "2H-1λ4-furan-1-ylium", id="five_membered_ring_with_indicated_hydrogen"),
+        pytest.param("[S+]1=CCC=C1", "3H-1λ4-thiophen-1-ylium", id="indicated_hydrogen_on_the_third_atom"),
+        pytest.param("c1cc[n+]2ccccc2c1", "5λ5-quinolizin-5-ylium", id="bridgehead_nitrogen_cation"),
+        pytest.param("c1cc[s+]cc1.[Cl-]", "thiopyrylium chloride", id="ylium_ring_in_a_salt"),
+    ],
+)
+def test_ring_heteroatom_ylium_cations(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param("[CH2+]C[CH2+]", "propane-1,3-bis(ylium)", id="two_hydride_losses_on_a_chain"),
         pytest.param("C[C+2]C", "propane-2,2-bis(ylium)", id="two_hydride_losses_on_one_carbon"),
         pytest.param("C1=C[CH+][CH+]1", "cyclobut-3-ene-1,2-bis(ylium)", id="two_hydride_losses_on_a_ring"),
