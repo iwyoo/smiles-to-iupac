@@ -94,6 +94,8 @@ alongside the ring double bond, are both still explicitly rejected
 pending further verification.
 """
 
+from contextvars import ContextVar
+
 from rdkit import Chem
 
 from ._common import (
@@ -143,6 +145,7 @@ from ._substituents import (
 _ENE_ORDER = 2.0
 _YNE_ORDER = 3.0
 _ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
+CATIONIC_AMINES = ContextVar("cationic_amines", default=False)
 
 
 def _validate_and_collect_amines(mol, aromatic_ring_atoms=frozenset()):
@@ -170,7 +173,8 @@ def _validate_and_collect_amines(mol, aromatic_ring_atoms=frozenset()):
                 "heteroatoms other than an amine nitrogen (P-33.1) and "
                 "halogen substituents (P-35.2.1) are not supported yet"
             )
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+        ammonium = CATIONIC_AMINES.get() and atomic_num == 7 and atom.GetFormalCharge() == 1
+        if (atom.GetFormalCharge() != 0 and not ammonium) or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6:
             has_carbon = True
@@ -181,7 +185,7 @@ def _validate_and_collect_amines(mol, aromatic_ring_atoms=frozenset()):
                 )
         elif atomic_num == 7:
             neighbors = list(atom.GetNeighbors())
-            if not neighbors or len(neighbors) > 3:
+            if not neighbors or len(neighbors) > (4 if ammonium else 3):
                 raise UnsupportedStructure(
                     "a nitrogen with zero or more than three substituents "
                     "is not a valid amine nitrogen"

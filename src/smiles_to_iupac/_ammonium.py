@@ -58,9 +58,11 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   each is a separate P-73 subsection with its own derivation rule.
 """
 
+import re
+
 from rdkit import Chem
 
-from ._amine import _name_acyclic_secondary_tertiary_amine, name_amine
+from ._amine import CATIONIC_AMINES, _name_acyclic_secondary_tertiary_amine, name_amine
 from ._common import UnsupportedStructure, non_single_bonds, specified_stereo_elements
 from ._hetero_prefixes import is_functional_carbon
 
@@ -96,6 +98,54 @@ def has_ammonium_shape(mol) -> bool:
         and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), neighbor.GetIdx()).GetBondTypeAsDouble() == 1.0
         for neighbor in nitrogen.GetNeighbors()
     )
+
+
+def has_polyammonium_shape(mol) -> bool:
+    """Two or more +1 ammonium nitrogens (each bonded to carbon only, singly, with hydrogens making up four bonds) and
+    no other charged atom."""
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    if len(charged) < 2 or any(a.GetAtomicNum() != 7 or a.GetFormalCharge() != 1 or a.GetIsotope() for a in charged):
+        return False
+    return all(
+        a.GetDegree() + a.GetTotalNumHs() == 4
+        and not a.IsInRing()
+        and not a.GetIsAromatic()
+        and all(
+            n.GetAtomicNum() == 6 and mol.GetBondBetweenAtoms(a.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+            for n in a.GetNeighbors()
+        )
+        for a in charged
+    )
+
+
+_MULTIPLIED_AMINIUM = {"di": "bis", "tri": "tris", "tetra": "tetrakis", "penta": "pentakis", "hexa": "hexakis"}
+
+
+def name_polyammonium(mol) -> str:
+    """Several ammonium nitrogens on one parent are named as a multiplied 'aminium' suffix, 'bis(aminium)', 'tris(...)'
+    (P-73.1.2.1): each hydrogen-bearing cation is neutralised for the amine namer, which numbers the N-substituents."""
+    if len(Chem.GetMolFrags(mol)) > 1:
+        raise UnsupportedStructure("multi-fragment structures are not supported yet")
+    if any(a.GetAtomicNum() == 6 and is_functional_carbon(mol, a.GetIdx()) for a in mol.GetAtoms()):
+        raise UnsupportedStructure("a carbonyl-type group beside the cations is cited as a prefix by the chain engine")
+    neutral = Chem.RWMol(mol)
+    for atom in mol.GetAtoms():
+        if atom.GetFormalCharge() and atom.GetTotalNumHs():
+            copy = neutral.GetAtomWithIdx(atom.GetIdx())
+            copy.SetFormalCharge(0)
+            copy.SetNoImplicit(True)
+            copy.SetNumExplicitHs(atom.GetTotalNumHs() - 1)
+    base = neutral.GetMol()
+    Chem.SanitizeMol(base)
+    token = CATIONIC_AMINES.set(True)
+    try:
+        name = name_amine(base)
+    finally:
+        CATIONIC_AMINES.reset(token)
+    match = re.search(r"(di|tri|tetra|penta|hexa)(amine|aniline)$", name)
+    if match is None:
+        raise UnsupportedStructure("the polycation is not named as a multiple amine parent")
+    return f"{name[:match.start()]}{_MULTIPLIED_AMINIUM[match.group(1)]}(aminium)"
 
 
 def name_ammonium(mol) -> str:

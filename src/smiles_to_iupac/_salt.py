@@ -186,15 +186,15 @@ def _cation(frag):
 
 
 def _organic_cation(frag):
-    """Name and charge of a singly charged organic cation with one positive centre, named as a whole by the
-    substitutive engine (an '-ium' name, P-73.1)."""
+    """Name and charge of an organic cation whose positive centres all carry one charge, named as a whole by the
+    substitutive engine (an '-ium' name, P-73.1, P-73.5)."""
     from .core import smiles_to_iupac
 
     charges = [a.GetFormalCharge() for a in frag.GetAtoms() if a.GetFormalCharge()]
-    if charges != [1]:
+    if not charges or set(charges) != {1}:
         return None
     try:
         name = smiles_to_iupac(Chem.MolToSmiles(frag))
     except UnsupportedStructure:
         return None
-    return (name, 1) if name.endswith("ium") else None
+    return (name, len(charges)) if name.endswith(("ium", "ium)")) else None
