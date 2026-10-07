@@ -929,6 +929,16 @@ def _name_mol(mol) -> str:
     if has_adduct_shape(mol):
         return name_adduct(mol, smiles_to_iupac)
 
+    # P-54.3: an assembly of three or more otherwise identical rings that mixes mancude and saturated rings takes
+    # hydro prefixes, ahead of any substitutive or multiplicative name built on the saturated ring.
+    if 3 <= mol.GetRingInfo().NumRings() <= 6:
+        hydro_chain_core = find_ring_assembly_chain_core(mol)
+        if hydro_chain_core is not None and hydro_chain_core[3]:
+            try:
+                return name_ring_assembly_chain(mol, hydro_chain_core)
+            except UnsupportedStructure:
+                pass
+
     multiplicative_name = name_if_multiplicative(mol)
     if multiplicative_name is not None:
         return multiplicative_name

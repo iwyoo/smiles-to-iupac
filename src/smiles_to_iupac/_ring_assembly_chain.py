@@ -123,7 +123,7 @@ from ._common import (
     validate_atoms_and_bonds,
 )
 from ._hetero_monocyclic import _ROLE_SEQUENCES, _TAUTOMER_AMBIGUOUS_UNLESS_N1, _ring_alignments
-from ._numerals import alkane_name
+from ._numerals import alkane_name, numerical_term
 from ._substituents import format_substituent_prefixes, name_branch
 
 _MIN_RINGS, _MAX_RINGS = 3, 6
@@ -205,6 +205,46 @@ def _hetero_ring_alignments(mol, graph, ring, parent_name):
             yield position_of
 
 
+def saturated_counterpart_kind(mol, graph, ring):
+    """(parent_name, size) of the mancude parent whose fully saturated form `ring` is (piperidine -> pyridine,
+    oxolane -> furan), for the 5- and 6-membered `_NON_NH_ROLE_SEQUENCES` parents, else None."""
+    if len(ring) not in (5, 6):
+        return None
+    ring_set = set(ring)
+    if any(mol.GetAtomWithIdx(i).GetIsAromatic() for i in ring):
+        return None
+    if any(
+        b.GetBondTypeAsDouble() != 1.0
+        for b in mol.GetBonds()
+        if b.GetBeginAtomIdx() in ring_set and b.GetEndAtomIdx() in ring_set
+    ):
+        return None
+    if all(mol.GetAtomWithIdx(i).GetAtomicNum() == 6 for i in ring):
+        return None
+    for parent_name, sequence in _NON_NH_ROLE_SEQUENCES.items():
+        if len(sequence) == len(ring) and any(True for _ in _hetero_ring_alignments(mol, graph, ring, parent_name)):
+            return parent_name, len(ring)
+    return None
+
+
+def hydro_sort_key(locant):
+    """Order of a (possibly primed) locant: 1, 1', 2, 2' ..."""
+    return (int(locant.rstrip("'")), locant.endswith("'"))
+
+
+def hydro_locants(positions):
+    """Sorted hydro locants for a saturated ring of a mancude assembly: every position of a six-membered ring,
+    every one but the chalcogen (position 1) of a five-membered ring (P-54.3, P-31.1.4.2.4)."""
+    positions = list(positions)
+    if len(positions) == 5:
+        positions = [p for p in positions if p.rstrip("'") != "1"]
+    return sorted(positions, key=hydro_sort_key)
+
+
+def hydro_prefix(locants):
+    return f"{','.join(locants)}-{numerical_term(len(locants))}hydro-" if locants else ""
+
+
 def _ring_kind(mol, ring):
     """("aromatic", 6) for an all-carbon benzo ring, (parent_name, size)
     for a mancude 5- or 6-ring matching one of `_ROLE_SEQUENCES`'s non-NH
@@ -263,10 +303,23 @@ def find_ring_assembly_chain_core(mol):
     n = len(atom_rings)
     if not (_MIN_RINGS <= n <= _MAX_RINGS):
         return None
-    kinds = {_ring_kind(mol, ring) or _pyrrole_ring_kind(mol, ring) for ring in atom_rings}
-    if len(kinds) != 1 or None in kinds:
+    graph = adjacency(mol)
+    kinds, hydro_rings = [], []
+    for ring in atom_rings:
+        kind = _ring_kind(mol, ring) or _pyrrole_ring_kind(mol, ring)
+        if kind is None:
+            kind = saturated_counterpart_kind(mol, graph, ring)
+            if kind is not None:
+                hydro_rings.append(frozenset(ring))
+        kinds.append(kind)
+    if ("aromatic", 6) in kinds:
+        for i, kind in enumerate(kinds):
+            if kind == ("saturated", 6):
+                kinds[i] = ("aromatic", 6)
+                hydro_rings.append(frozenset(atom_rings[i]))
+    if len(set(kinds)) != 1 or None in kinds or len(hydro_rings) == n:
         return None
-    (ring_kind,) = kinds
+    (ring_kind,) = set(kinds)
 
     ring_sets = [set(r) for r in atom_rings]
     for i in range(n):
@@ -320,7 +373,7 @@ def find_ring_assembly_chain_core(mol):
         connections.append((entry[1], entry[2]))
 
     path = [atom_rings[idx] for idx in order]
-    return path, connections, ring_kind
+    return path, connections, ring_kind, hydro_rings
 
 
 def _ring_numberings(graph, ring_atoms, attach_atoms):
@@ -360,7 +413,7 @@ def validate_hetero_ring_assembly_atoms(mol, ring_atoms_all, kind):
 
 
 def name_ring_assembly_chain(mol, core) -> str:
-    path, connections, ring_kind = core
+    path, connections, ring_kind, hydro_rings = core
     n = len(path)
     kind, ring_size = ring_kind
 
@@ -452,6 +505,13 @@ def name_ring_assembly_chain(mol, core) -> str:
             junction_pairs = []
             for i, (a, b) in enumerate(conns):
                 junction_pairs.append((locants[a], locants[b]))
+            hydro = sorted(
+                (i + 1, pos)
+                for i in range(n)
+                if frozenset(order[i]) in hydro_rings
+                for pos in combo[i].values()
+                if not (ring_size == 5 and pos == 1)
+            )
             all_junction_locants = [loc for pair in junction_pairs for loc in pair]
             junction_locant_set = tuple(sorted(all_junction_locants))
             junction_citation = tuple(all_junction_locants)
@@ -471,13 +531,14 @@ def name_ring_assembly_chain(mol, core) -> str:
             junction_str = ":".join(
                 f"{superscript_locant(*a)},{superscript_locant(*b)}" for a, b in junction_pairs
             )
-            base = f"{junction_str}-{_MULTIPLIER[n]}{ring_word}"
+            hydro_str = hydro_prefix([superscript_locant(*loc) for loc in hydro])
+            base = f"{hydro_str}{junction_str}-{_MULTIPLIER[n]}{ring_word}"
             # P-28.2.3: indicated hydrogen, if any, is cited at the very
             # front of the name -- ahead of the substituent prefix too
             # (same placement `_ring_assembly.py`'s own N=2 case uses).
             name = indicated_hydrogen_prefix + (base if not prefix else f"{prefix}-{base}")
 
-            key = (junction_locant_set, junction_citation, sub_locant_set, sub_citation, name)
+            key = (junction_locant_set, junction_citation, tuple(hydro), sub_locant_set, sub_citation, name)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
 

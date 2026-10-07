@@ -119,6 +119,11 @@ def test_double_bond_junction_between_fused_systems(smiles, expected):
         pytest.param("c1cnn(-n2cccn2)c1", "1,1'-bipyrazole", id="bipyrazole_nitrogen_attached"),
         pytest.param("c1ccc(-c2cc(-c3ccccc3)cc(-c4ccccc4)c2)cc1", "2⁵-phenyl-1¹,2¹:2³,3¹-terphenyl", id="branched_three_ring_assembly_is_named_on_its_longest_chain"),
         pytest.param("C1C(Cl)C1C1CC1C1CC1", "1²-chloro-1¹,2¹:2²,3¹-tercyclopropane", id="halogen_substituent"),
+        pytest.param("C1CCNC(C1)c1ccccn1", "1,2,3,4,5,6-hexahydro-2,2'-bipyridine", id="two_rings_mancude_and_saturated_take_hydro_prefixes"),
+        pytest.param("C1CCOC1c1ccco1", "2,3,4,5-tetrahydro-2,2'-bifuran", id="five_membered_saturated_ring_leaves_the_chalcogen_unhydrogenated"),
+        pytest.param("C1CCC(CC1)c1ccccc1", "cyclohexylbenzene", id="benzene_and_cyclohexane_pair_is_the_stated_exception"),
+        pytest.param("C1CCC(CC1)c1ccc(cc1)c1ccccc1", "1¹,1²,1³,1⁴,1⁵,1⁶-hexahydro-1¹,2¹:2⁴,3¹-terphenyl", id="three_rings_mixing_benzene_and_cyclohexane_take_hydro_prefixes"),
+        pytest.param("C1CCSC1c1ccc(s1)c1cccs1", "1²,1³,1⁴,1⁵-tetrahydro-1²,2²:2⁵,3²-terthiophene", id="three_rings_five_membered_saturated_ring"),
     ],
 )
 def test_4_chlorobiphenyl_and_related(smiles, expected):

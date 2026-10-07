@@ -105,6 +105,10 @@ from ._ring_assembly_chain import (
     _hetero_ring_alignments,
     _pyrrole_ring_kind,
     _ring_kind,
+    hydro_locants,
+    hydro_prefix,
+    hydro_sort_key,
+    saturated_counterpart_kind,
     validate_hetero_ring_assembly_atoms,
 )
 from ._substituents import format_substituent_prefixes, name_branch
@@ -193,10 +197,15 @@ def find_ring_assembly_core(mol):
         or _pyrrole_ring_kind(mol, atom_rings[1])
         or _tautomer_fixed_ring_kind(mol, graph, atom_rings[1], attach1)
     )
+    hydro_ring = None
+    if kind0 is None and kind1 is not None and kind1[0] in _NON_NH_ROLE_SEQUENCES:
+        kind0, hydro_ring = saturated_counterpart_kind(mol, graph, atom_rings[0]), 0
+    elif kind1 is None and kind0 is not None and kind0[0] in _NON_NH_ROLE_SEQUENCES:
+        kind1, hydro_ring = saturated_counterpart_kind(mol, graph, atom_rings[1]), 1
     if kind0 is None or kind0 != kind1:
         return None
 
-    return atom_rings[0], atom_rings[1], attach0, attach1, kind0
+    return atom_rings[0], atom_rings[1], attach0, attach1, kind0, hydro_ring
 
 
 def _numberings_from_attachment(graph, ring_atoms, attach, prime):
@@ -215,7 +224,16 @@ def _hetero_numberings_from_attachment(mol, graph, ring_atoms, parent_name, prim
 
 
 def _candidate_key(
-    locants, ring_atoms, graph, halogens, attach_a, attach_b, ring_word, mol=None, indicated_hydrogen_prefix=""
+    locants,
+    ring_atoms,
+    graph,
+    halogens,
+    attach_a,
+    attach_b,
+    ring_word,
+    mol=None,
+    indicated_hydrogen_prefix="",
+    hydro=(),
 ):
     substituents = {}
     for atom, position in locants.items():
@@ -241,12 +259,12 @@ def _candidate_key(
     # the name of the assembly" -- ahead of the substituent prefix too,
     # not folded next to the ring word the way a single ring's own "nH-"
     # sits (see module docstring).
-    name = f"{indicated_hydrogen_prefix}{prefix}{attach_pair[0]},{attach_pair[1]}-{ring_word}"
-    return attach_pair, locant_set, citation_locants, name
+    name = f"{indicated_hydrogen_prefix}{prefix}{hydro_prefix(hydro)}{attach_pair[0]},{attach_pair[1]}-{ring_word}"
+    return attach_pair, tuple(hydro_sort_key(p) for p in hydro), locant_set, citation_locants, name
 
 
 def name_ring_assembly(mol, core) -> str:
-    ring0_atoms, ring1_atoms, attach0, attach1, ring_kind = core
+    ring0_atoms, ring1_atoms, attach0, attach1, ring_kind, hydro_ring = core
     parent_name, ring_size = ring_kind
 
     ring_atoms = set(ring0_atoms) | set(ring1_atoms)
@@ -290,6 +308,10 @@ def name_ring_assembly(mol, core) -> str:
         for locants_a in numberings(graph, ring_a, attach_a, False):
             for locants_b in numberings(graph, ring_b, attach_b, True):
                 locants = {**locants_a, **locants_b}
+                hydro = ()
+                if hydro_ring is not None:
+                    saturated = (ring0_atoms, ring1_atoms)[hydro_ring]
+                    hydro = hydro_locants(locants[atom] for atom in saturated)
                 key = _candidate_key(
                     locants,
                     ring_atoms,
@@ -300,6 +322,7 @@ def name_ring_assembly(mol, core) -> str:
                     ring_word,
                     mol=mol,
                     indicated_hydrogen_prefix=indicated_hydrogen_prefix,
+                    hydro=hydro,
                 )
                 if best_key is None or key < best_key:
                     best_key, best_name = key, key[-1]
