@@ -736,3 +736,19 @@ def test_thione_outranks_hydroxy_and_yields_to_ketone(smiles, expected):
 )
 def test_sulfonohydrazides_and_sulfinohydrazides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CS(=N)(=O)N", "methanesulfonimidamide", id="sulfonimidamide"),
+        pytest.param("CS(=N)(=N)N", "methanesulfonodiimidamide", id="sulfonodiimidamide"),
+        pytest.param("CS(=N)N", "methanesulfinimidamide", id="sulfinimidamide"),
+        pytest.param("CS(=O)(=NC)NC", "N,N'-dimethylmethanesulfonimidamide", id="amino_and_imido_substituents"),
+        pytest.param("CS(=N)(=NC)N(C)C", "N,N,N'-trimethylmethanesulfonodiimidamide", id="substituted_nitrogens_take_the_lower_locants"),
+        pytest.param("c1ccccc1S(=N)(=O)N", "benzenesulfonimidamide", id="sulfonimidamide_on_a_ring"),
+        pytest.param("NS(=O)(=N)CCS(=O)(=N)N", "ethane-1,2-disulfonimidamide", id="two_sulfonimidamide_groups"),
+    ],
+)
+def test_sulfonimidamides_and_sulfinimidamides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

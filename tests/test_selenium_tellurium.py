@@ -951,3 +951,15 @@ def test_selenols_and_tellurols_beside_other_groups_and_on_any_parent(smiles, ex
 )
 def test_selenium_and_tellurium_hydrazides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C[Se](=N)(=O)N", "methaneselenonimidamide", id="selenonimidamide"),
+        pytest.param("C[Se](=N)N", "methaneseleninimidamide", id="seleninimidamide"),
+        pytest.param("C[Te](=N)(=N)N", "methanetelluronodiimidamide", id="telluronodiimidamide"),
+    ],
+)
+def test_selenium_and_tellurium_imidamides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
