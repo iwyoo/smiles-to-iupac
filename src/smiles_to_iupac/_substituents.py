@@ -484,11 +484,15 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
     cache = context.setdefault("cache", {})
     key = (root, coming_from)
     if key not in cache:
+        before = set(context["consumed"])
         result = _name_branch_with_phane(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated)
-        cache[key] = _label_branch(
+        labelled = _label_branch(
             result, graph, root, coming_from, halogens, mol, aromatic_atoms or frozenset(), unsaturated
         )
-    return cache[key]
+        cache[key] = (labelled, frozenset(context["consumed"] - before))
+    result, used = cache[key]
+    context["consumed"].update(used)
+    return result
 
 
 def _name_branch_with_phane(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated):

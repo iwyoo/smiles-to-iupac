@@ -347,6 +347,9 @@ def name_polyfunctional(mol) -> str:
         return name_radical_group(mol)
     split = split_isotopes(mol)
     if split is not None:
+        ammonium = _aminium_base(split[0])
+        if ammonium is not None:
+            return _name_isotopic(mol, *split, build=lambda clean, labels: _name_aminium(ammonium, labels))
         center = _ring_center_base(split[0])
         if center is not None:
             return _name_isotopic(mol, *split, build=lambda clean, labels: _name_labelled_ring_center(clean, labels, center))
@@ -568,10 +571,10 @@ def _aminium_base(mol):
     return neutral.GetMol()
 
 
-def _name_aminium(base):
+def _name_aminium(base, labels=None):
     token = AMINIUM.set(True)
     try:
-        name = _name_labelled(base, {})
+        name = _name_labelled(base, labels or {})
     finally:
         AMINIUM.reset(token)
     if not name.endswith(("amine", "aniline")):
@@ -611,6 +614,29 @@ def _name_isotopic(original, clean, labels, index_map, build=None):
         STEREO_OF_ISOTOPOLOGUE.reset(token)
 
 
+def _with_labels(mol, labels, consumed, name, parts, reselect):
+    """`name` with the isotopic descriptor of the labelled atoms of `mol`: parent atoms cite their locants, atoms of
+    the principal group take letter locants or go before the suffix (P-82.2, P-82.6)."""
+    from ._isotope_labels import descriptor
+
+    in_parent = {a: e for a, e in labels.items() if a in parts[4]}
+    if in_parent and len(parts[4]) > 1 and not _locants_omitted(mol, in_parent, parts):
+        force_token = FORCE_LOCANTS.set(True)
+        try:
+            name, parts = reselect()
+        finally:
+            FORCE_LOCANTS.reset(force_token)
+    rest = {a: e for a, e in labels.items() if a not in in_parent and a not in consumed}
+    front, suffix_text = _group_atom_labels(mol, rest) if rest else ([], None)
+    if suffix_text:
+        name = _before_suffix(name, *suffix_text)
+    if in_parent or front:
+        bare = len(parts[4]) == 1 or _locants_omitted(mol, in_parent, parts)
+        capacity = {a: mol.GetAtomWithIdx(a).GetTotalNumHs() for a in in_parent}
+        name = _with_descriptor(name, parts, descriptor(in_parent, parts[4], bare, front, capacity))
+    return name
+
+
 def _name_labelled(mol, labels, finish=None):
     from ._isotope_labels import descriptor
     from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS
@@ -635,21 +661,9 @@ def _name_labelled(mol, labels, finish=None):
         _, name, parts = _select(mol, stereo=stereo)
         LAST_POSITIONS.set((mol, dict(parts[4])))
         if labels:
-            in_parent = {a: e for a, e in labels.items() if a in parts[4]}
-            if in_parent and len(parts[4]) > 1 and not _locants_omitted(mol, in_parent, parts):
-                force_token = FORCE_LOCANTS.set(True)
-                try:
-                    _, name, parts = _select(mol, stereo=stereo)
-                finally:
-                    FORCE_LOCANTS.reset(force_token)
-            rest = {a: e for a, e in labels.items() if a not in in_parent and a not in isotope_context["consumed"]}
-            front, suffix_text = _group_atom_labels(mol, rest) if rest else ([], None)
-            if suffix_text:
-                name = _before_suffix(name, *suffix_text)
-            if in_parent or front:
-                bare = len(parts[4]) == 1 or _locants_omitted(mol, in_parent, parts)
-                capacity = {a: mol.GetAtomWithIdx(a).GetTotalNumHs() for a in in_parent}
-                name = _with_descriptor(name, parts, descriptor(in_parent, parts[4], bare, front, capacity))
+            name = _with_labels(
+                mol, labels, isotope_context["consumed"], name, parts, lambda: _select(mol, stereo=stereo)[1:]
+            )
         if finish is not None:
             name = finish(name, parts[4])
         return _stereo_prefix(stereo, parts[4], ring_parent=parts[5], used=context["used"]) + name
@@ -721,8 +735,13 @@ def _group_atom_labels(mol, rest):
         if heavy_label:
             items.append((heavy_label, None, 1, False))
         for nuclide, count in entry["H"].items():
-            items.append((nuclide, locant, count, nitrogen))
+            items.append((nuclide, locant, count, nitrogen and _capacity(mol, atom) > 1))
     return items, None
+
+
+def _capacity(mol, atom):
+    target = mol.GetAtomWithIdx(atom)
+    return target.GetIntProp("_capacity") if target.HasProp("_capacity") else target.GetTotalNumHs()
 
 
 def _locants_omitted(mol, in_parent, parts):
@@ -918,7 +937,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
     if principal in (None, "amine") and any(_substituted_amine_nitrogen(mol, a) for a in mol.GetAtoms()):
         if attach is not None or n_names:
             raise UnsupportedStructure("N-substituted amines inside a unit are not handled by the chain engine")
-        if stereo:
+        if any(kind != "isotope" for kind, _, _ in stereo or ()):
             raise UnsupportedStructure("stereodescriptors with an N-substituted amine parent are not supported yet")
         return _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups)
 
@@ -1818,16 +1837,45 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
     arms = {c: _arm_atoms(graph, c, n_idx) for c in neighbors}
     if sum(len(a) for a in arms.values()) != len(set().union(*arms.values())) or n_idx in set().union(*arms.values()):
         raise UnsupportedStructure("a nitrogen closing a ring is not an acyclic amine parent")
+    from ._substituents import ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    settled = set(context["consumed"]) if context else set()
     results = []
     for c in neighbors:
         others = [o for o in neighbors if o != c]
+        if context:
+            context["consumed"] = set(settled)
         n_names = [name_branch(graph, o, n_idx, halogens, aromatic_atoms, mol=mol, unsaturated=True) for o in others]
         parent, mapped = _amine_parent_molecule(mol, arms[c], c, n_idx)
-        result = _select(parent, None, n_names)
+        unlabelled = ISOTOPE_LABELS.set(None)
+        try:
+            result = _select(parent, None, n_names)
+        finally:
+            ISOTOPE_LABELS.reset(unlabelled)
         ring = parent.GetAtomWithIdx(mapped).IsInRing()
-        results.append((ring, _ring_rank(parent, mapped), _chain_size(parent, mapped), result))
+        results.append((ring, _ring_rank(parent, mapped), _chain_size(parent, mapped), result, c))
     results.sort(key=lambda r: (not r[0], tuple(-x for x in r[1]), -r[2], r[3][1]))
-    return results[0][3]
+    best = results[0]
+    if context:
+        context["consumed"] = set(settled)
+        others = [o for o in neighbors if o != best[4]]
+        n_names = [name_branch(graph, o, n_idx, halogens, aromatic_atoms, mol=mol, unsaturated=True) for o in others]
+        keep = sorted(set(arms[best[4]]) | {n_idx})
+        new_index = {old: new for new, old in enumerate(keep)}
+        parent_labels = {new_index[a]: e for a, e in context["labels"].items() if a in new_index}
+        if parent_labels:
+            parent, _ = _amine_parent_molecule(mol, arms[best[4]], best[4], n_idx)
+            unlabelled = ISOTOPE_LABELS.set(None)
+            try:
+                name = _with_labels(
+                    parent, parent_labels, set(), best[3][1], best[3][2], lambda: _select(parent, None, n_names)[1:]
+                )
+            finally:
+                ISOTOPE_LABELS.reset(unlabelled)
+            context["consumed"].update(a for a in context["labels"] if a in new_index)
+            return best[3][0], name, (*best[3][2][:4], {}, *best[3][2][5:])
+    return best[3]
 
 
 def _amine_parent_molecule(mol, atoms, carbon, n_idx):
@@ -1840,6 +1888,7 @@ def _amine_parent_molecule(mol, atoms, carbon, n_idx):
     parent = editable.GetMol()
     for a in parent.GetAtoms():
         if a.HasProp("_cut_amine_n") and not a.IsInRing():
+            a.SetIntProp("_capacity", mol.GetAtomWithIdx(n_idx).GetTotalNumHs())
             a.SetFormalCharge(0)
             a.SetNumExplicitHs(2)
             a.SetNoImplicit(True)
