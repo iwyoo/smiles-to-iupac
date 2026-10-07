@@ -1174,3 +1174,23 @@ def test_chalcogen_analogues_of_amides(smiles, expected):
 )
 def test_chalcogen_analogues_of_sulfonamides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("NC(=O)NCCO", "N-(2-hydroxyethyl)urea", id="hydroxy_group_in_an_n_substituent"),
+        pytest.param("COCCNC(=O)Nc1cccs1", "N-(2-methoxyethyl)-N'-(thiophen-2-yl)urea", id="ether_and_heteroaryl_on_the_two_nitrogens"),
+        pytest.param("NC(=O)N(O)C", "N-hydroxy-N-methylurea", id="hydroxy_on_the_nitrogen_itself"),
+        pytest.param("N#CC(CCSC)NC(=O)NC", "N-[1-cyano-3-(methylsulfanyl)propyl]-N'-methylurea", id="nitrile_and_sulfanyl_in_a_substituent"),
+        pytest.param("NC(=S)NCCO", "N-(2-hydroxyethyl)thiourea", id="thiourea_with_a_hydroxy_substituent"),
+        pytest.param("NC(=O)NC(=O)c1ccccc1", "N-carbamoylbenzamide", id="urea_beneath_a_carboxamide"),
+        pytest.param("NC(=O)NS(=O)(=O)c1ccccc1", "N-carbamoylbenzenesulfonamide", id="urea_beneath_a_sulfonamide"),
+        pytest.param("CC(=O)NCCNC(N)=O", "N-[2-(carbamoylamino)ethyl]acetamide", id="carbamoylamino_prefix_beneath_an_amide"),
+        pytest.param("O=CNCCCNC(N)=O", "N-[3-(carbamoylamino)propyl]formamide", id="formamide_outranks_urea"),
+        pytest.param("NC(=O)NC(=O)O", "carbamoylcarbamic acid", id="carbamoyl_on_the_nitrogen_of_carbamic_acid"),
+        pytest.param("CNC(=O)NC(=O)O", "(methylcarbamoyl)carbamic acid", id="substituted_carbamoyl_on_carbamic_acid"),
+    ],
+)
+def test_ureas_with_further_substituents_and_ureas_beneath_senior_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

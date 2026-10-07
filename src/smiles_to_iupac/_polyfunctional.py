@@ -214,6 +214,22 @@ def _chalcogen_ketone(mol, atom):
 _CHALCOGEN_RANK = {8: 0, 16: 1, 34: 2, 52: 3}
 
 
+def _urea_carbon(mol, idx):
+    """The carbonyl carbon of a urea core C(=O)(N)N, the amide of carbonic acid: it ranks below every amide of a
+    carboxylic or sulfonic acid (P-66.1.6.1.1.5) and is cited as 'carbamoyl' beneath one."""
+    atom = mol.GetAtomWithIdx(idx)
+    if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetDegree() != 3 or not _double_oxygens(mol, idx):
+        return False
+    return len(_single_neighbors(mol, idx, 7)) == 2
+
+
+def _outranks_urea(principal):
+    return (
+        _is_acid_family(principal)
+        or principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES)
+    )
+
+
 def _acyl_chalcogen(mol, idx):
     """Atomic number of the terminal =O/=S/=Se/=Te of an acyl carbon R-C(=X)- (R carbon or H), else None."""
     atom = mol.GetAtomWithIdx(idx)
@@ -255,6 +271,8 @@ def _imide_parent(mol, carbon, partner):
     """Whether acyl `carbon` rather than `partner` is the parent amide of an imide nitrogen: the more senior chalcogen
     analogue (O, S, Se, Te), then a ring over a chain and the longer chain (P-66.1.2, P-44.1)."""
     z, other = _acyl_chalcogen(mol, carbon), _acyl_chalcogen(mol, partner)
+    if _urea_carbon(mol, carbon) != _urea_carbon(mol, partner):
+        return _urea_carbon(mol, partner)
     if z != other:
         return _CHALCOGEN_RANK[z] < _CHALCOGEN_RANK[other]
     mine, theirs = _acyl_branch_size(mol, carbon), _acyl_branch_size(mol, partner)
@@ -271,7 +289,7 @@ def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
         return False
     others = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != carbonyl]
     hydroxy = [n for n in others if _terminal_heteroatom(mol, n.GetIdx(), 1) and n.GetAtomicNum() == 8]
-    acyl = []
+    acyl = [n for n in others if mol.GetAtomWithIdx(carbonyl).GetAtomicNum() != 6 and _urea_carbon(mol, n.GetIdx())]
     if mol.GetAtomWithIdx(carbonyl).GetAtomicNum() == 6 and _acyl_chalcogen(mol, carbonyl) is not None:
         acyl = [n for n in others if _acyl_chalcogen(mol, n.GetIdx()) is not None]
         if len(acyl) > 1 or (acyl and not _imide_parent(mol, carbonyl, acyl[0].GetIdx())):
@@ -1383,6 +1401,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
                 and atom.GetIdx() in groups.get(principal, {})
             )
             and _is_ester_like(mol, atom.GetIdx())
+            and not (_urea_carbon(mol, atom.GetIdx()) and _outranks_urea(principal))
         ):
             raise UnsupportedStructure("an ester outranks every parent this engine can build except an acid")
     if (
@@ -1529,7 +1548,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
         and len(chain_best[2][4]) == 1
         and not (_is_variant(principal) and attach is None)
         and not chain_best[1].endswith("formic acid")
-        and not (principal in _CHALCOGEN_AMIDE_CLASSES and attach is None)
+        and not (principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES) and attach is None)
     ):
         raise UnsupportedStructure("one-carbon acid, amide, nitrile and aldehyde parents use retained names")
     return _finish(chain_best)

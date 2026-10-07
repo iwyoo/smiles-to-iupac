@@ -28,7 +28,7 @@ Each nitrogen carries any number of substituents named through `name_branch` (ac
 unsaturated); the nitrogen with more substituents takes the unprimed locant, otherwise the one holding the
 alphanumerically first substituent (P-14.3.5, P-14.5.2), so 'N,N'-dimethyl-N-phenylurea' and
 'N-phenyl-N'-(pyridin-2-yl)urea' come from one citation rule shared with `_chalcogenourea.py`. A ring fused to the
-urea core (hydantoin) and characteristic groups outside it are out of scope.
+urea core (hydantoin) and groups senior to urea (acids, esters, amides) are out of scope; hydroxy, alkoxy, amino, nitrile and similar groups are prefixes.
 
 - Semicarbazide (H2N-NH-C(=O)-NH2, P-68.3.1.4): PubChem structure match
   confirms `NC(=O)NN` -> "aminourea" -- the unsubstituted parent is named
@@ -44,7 +44,7 @@ urea core (hydantoin) and characteristic groups outside it are out of scope.
 
 from rdkit import Chem
 
-from ._chalcogenourea import is_core_substituent_root, n_prefix, n_substituent_names
+from ._chalcogenourea import is_urea_substituent_root, n_prefix, n_substituent_names
 from ._common import UnsupportedStructure, adjacency, group_substituents
 from ._substituents import format_substituent_prefixes
 
@@ -73,7 +73,7 @@ def _urea_core(mol):
         if any(n.GetFormalCharge() != 0 or n.GetIsotope() != 0 for n in nitrogens):
             continue
         if any(
-            not is_core_substituent_root(mol, nn) and not _is_hydrazine_tail(mol, nn, n.GetIdx())
+            not is_urea_substituent_root(mol, nn) and not _is_hydrazine_tail(mol, nn, n.GetIdx())
             for n in nitrogens
             for nn in n.GetNeighbors()
             if nn.GetIdx() != atom.GetIdx()
@@ -145,10 +145,10 @@ def name_urea(mol) -> str:
             (n1_idx, n2_idx) if amino_nitrogen_idx in graph[n1_idx] else (n2_idx, n1_idx)
         )
         amide_names, alpha_names, beta_names = n_substituent_names(
-            mol, graph, core_atoms, (amide, alpha, amino_nitrogen_idx), carbon_idx
+            mol, graph, core_atoms, (amide, alpha, amino_nitrogen_idx), carbon_idx, junior_groups=True
         )
         return _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names)
-    n1_names, n2_names = n_substituent_names(mol, graph, core_atoms, (n1_idx, n2_idx), carbon_idx)
+    n1_names, n2_names = n_substituent_names(mol, graph, core_atoms, (n1_idx, n2_idx), carbon_idx, junior_groups=True)
     return f"{n_prefix(n1_names, n2_names)}urea"
 
 

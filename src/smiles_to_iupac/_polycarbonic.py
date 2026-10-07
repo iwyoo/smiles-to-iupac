@@ -126,13 +126,10 @@ def _terminal(mol, graph, center, atom_idx, position, replaced, letters):
     if pseudo is not None and pseudo != "CN":
         replaced.append((position, _PREFIX_WORDS[PSEUDO_INFIX[pseudo]]))
         return
-    if atom.GetAtomicNum() == 7 and atom.GetDegree() == 1 and atom.GetTotalNumHs() == 2:
-        replaced.append((position, "amido"))
-        return
     raise UnsupportedStructure("this terminal group of a polycarbonic acid is not supported")
 
 
-_TERMINAL_ONLY = {"fluoro", "chloro", "bromo", "iodo", "azido", "isocyano", "isocyanato", "isothiocyanato", "isoselenocyanato", "isotellurocyanato", "amido"}
+_TERMINAL_ONLY = {"fluoro", "chloro", "bromo", "iodo", "azido", "isocyano", "isocyanato", "isothiocyanato", "isoselenocyanato", "isotellurocyanato"}
 
 
 def _letters(mol, graph, order, bridges):

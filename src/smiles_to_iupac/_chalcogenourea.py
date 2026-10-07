@@ -37,6 +37,43 @@ def is_core_substituent_root(mol, atom):
     return atom.GetAtomicNum() in (6, *HALOGEN_PREFIXES) or is_oxo_nitrogen(mol, atom)
 
 
+_UREA_SUBSTITUENT_ELEMENTS = {6, 7, 8, 16, 34, 52, *HALOGEN_PREFIXES}
+
+
+def is_urea_substituent_root(mol, atom):
+    """An atom a urea nitrogen may carry: any element whose group is cited as a prefix, so that hydroxy, alkoxy,
+    amino and sulfanyl groups on the nitrogen are ordinary substituents (P-66.1.6.1.1.2)."""
+    return atom.GetAtomicNum() in _UREA_SUBSTITUENT_ELEMENTS
+
+
+_SENIOR_TO_UREA = [
+    Chem.MolFromSmarts(smarts)
+    for smarts in (
+        "[CX3](=[O,S,Se,Te])[OX2H1,OX1-]",
+        "[CX3](=[O,S,Se,Te])[OX2][#6]",
+        "[CX3](=[O,S,Se,Te])[SX2,SeX2,TeX2]",
+        "[CX3](=[O,S,Se,Te])[F,Cl,Br,I]",
+        "[CX3](=[O,S,Se,Te])[NX3]",
+        "[CX3](=[NX2])[NX3]",
+        "[SX4,SX3,SeX4,TeX4](=O)[OX2H1,OX1-,OX2,NX3]",
+    )
+]
+
+
+def has_group_senior_to_urea(mol, core_atoms):
+    """A carboxylic or sulfonic acid, ester, acid halide, amide or amidine outside the urea core, or a charge other
+    than a nitro group's: the class that outranks urea as the parent (P-41, P-66.1.6.1.1.5)."""
+    for query in _SENIOR_TO_UREA:
+        if any(match[0] not in core_atoms for match in mol.GetSubstructMatches(query)):
+            return True
+    return any(
+        a.GetFormalCharge() and a.GetIdx() not in core_atoms and not is_nitro_nitrogen(mol, a.GetIdx()) and not any(
+            is_nitro_nitrogen(mol, n.GetIdx()) for n in a.GetNeighbors()
+        )
+        for a in mol.GetAtoms()
+    )
+
+
 def _n_substituent_roots(mol, nitrogen_idx, carbon_idx):
     nitrogen = mol.GetAtomWithIdx(nitrogen_idx)
     return tuple(n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetIdx() != carbon_idx)
@@ -59,10 +96,10 @@ def _substituent_atoms(graph, roots, core_atoms):
     return reached
 
 
-def n_substituent_names(mol, graph, core_atoms, nitrogens, carbon_idx):
+def n_substituent_names(mol, graph, core_atoms, nitrogens, carbon_idx, junior_groups=False):
     """One list of substituent names per nitrogen of `nitrogens`, for every atom outside `core_atoms`
     (P-66.1.4.1); raises when a ring fuses into the core or a non-halogen
-    acyclic heteroatom is present."""
+    acyclic heteroatom is present, unless `junior_groups` lets groups junior to the amide be prefixes."""
     roots = [
         tuple(r for r in _n_substituent_roots(mol, n, carbon_idx) if r not in core_atoms) for n in nitrogens
     ]
@@ -79,6 +116,15 @@ def n_substituent_names(mol, graph, core_atoms, nitrogens, carbon_idx):
             "and its N-substituents is not supported yet"
         )
     halogens = halogen_substituents(mol)
+    if junior_groups:
+        if has_group_senior_to_urea(mol, core_atoms):
+            raise UnsupportedStructure("a group senior to the urea is the parent, not an N-substituent")
+        if any(
+            mol.GetAtomWithIdx(idx).GetAtomicNum() not in _UREA_SUBSTITUENT_ELEMENTS and not mol.GetAtomWithIdx(idx).IsInRing()
+            for idx in outside
+        ):
+            raise UnsupportedStructure("this element in an N-substituent of a urea is not supported yet")
+        return [[name_branch(graph, c, n, halogens, mol=mol) for c in group] for n, group in zip(nitrogens, roots)]
     oxo_atoms = {
         n.GetIdx()
         for idx in outside
@@ -141,7 +187,10 @@ class Chalcogenourea:
             if any(n.GetFormalCharge() != 0 or n.GetIsotope() != 0 for n in nitrogens):
                 continue
             if any(
-                nn.GetAtomicNum() != 6 for n in nitrogens for nn in n.GetNeighbors() if nn.GetIdx() != atom.GetIdx()
+                not is_urea_substituent_root(mol, nn)
+                for n in nitrogens
+                for nn in n.GetNeighbors()
+                if nn.GetIdx() != atom.GetIdx()
             ):
                 continue
             return atom.GetIdx(), (nitrogens[0].GetIdx(), nitrogens[1].GetIdx())
@@ -169,6 +218,6 @@ class Chalcogenourea:
         )
         graph = adjacency(mol)
         n1_names, n2_names = n_substituent_names(
-            mol, graph, {carbon_idx, chalcogen_idx, n1_idx, n2_idx}, (n1_idx, n2_idx), carbon_idx
+            mol, graph, {carbon_idx, chalcogen_idx, n1_idx, n2_idx}, (n1_idx, n2_idx), carbon_idx, junior_groups=True
         )
         return f"{n_prefix(n1_names, n2_names)}{word}"
