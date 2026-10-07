@@ -269,6 +269,8 @@ def test_isotopes_with_unsaturation_and_stereo(smiles, expected):
     [
         pytest.param("CCC(=O)[18O]CC", "18O-ethyl propan(18O1)oate", id="labelled_ester_oxygen"),
         pytest.param("CCC(=[18O])OCC", "O-ethyl propan(18O1)oate", id="labelled_carbonyl_oxygen_of_an_ester"),
+        pytest.param("COC(=O)O[2H]", "methyl (2H)hydrogen carbonate", id="labelled_hydrogen_of_a_carbonate_half_ester"),
+        pytest.param("COC(=O)[18OH]", "O-methyl hydrogen (18O1)carbonate", id="labelled_hydroxy_oxygen_of_a_carbonate_half_ester"),
         pytest.param("CC[18O]C(=O)OC", "18O-ethyl O-methyl (18O1)carbonate", id="labelled_bridging_oxygen_of_a_carbonate"),
         pytest.param("CCOC(=[18O])[18O]C", "O-ethyl 18O-methyl (18O2)carbonate", id="two_labelled_oxygens_of_a_carbonate"),
         pytest.param("CCOC(=[18O])OCC", "O,O-diethyl (18O1)carbonate", id="labelled_carbonyl_oxygen_of_a_symmetric_carbonate"),

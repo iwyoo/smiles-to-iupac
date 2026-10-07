@@ -114,6 +114,7 @@ def _name_ester_parts(mol, labels) -> str:
         raise UnsupportedStructure("the alkyl parts share atoms, so these esters are of a polyol, not a polyacid")
 
     ester_labels = {}
+    free_hydrogens = []
     labels = dict(labels)
     if labels:
         bridging = {ester_oxygen: i for i, (_, _, ester_oxygen, _) in enumerate(matches)}
@@ -125,13 +126,15 @@ def _name_ester_parts(mol, labels) -> str:
         }
         for idx in [i for i in labels if i in bridging or i in carbonyl]:
             entry = labels[idx]
+            if idx in carbonyl and not entry["skeleton"] and sum(entry["H"].values()) == 1 and mol.GetAtomWithIdx(idx).GetTotalNumHs() == 1:
+                free_hydrogens.extend(entry["H"])
+                del labels[idx]
+                continue
             if entry["H"] or not entry["skeleton"]:
                 raise UnsupportedStructure("this isotopic modification of an ester oxygen is not supported yet (P-82.6.4)")
             ester_labels[idx] = (entry["skeleton"], bridging.get(idx))
             del labels[idx]
-        if len({a for _, _, _, a in matches}) != len(matches) or (ester_labels and len(carbonyl) != len(
-            {a for a, _, _, _ in matches}
-        )):
+        if len({a for _, _, _, a in matches}) != len(matches):
             raise UnsupportedStructure("this isotopic modification of an ester oxygen is not supported yet (P-82.6.4)")
 
     editable = Chem.RWMol(mol)
@@ -201,5 +204,12 @@ def _name_ester_parts(mol, labels) -> str:
     if free > 0:
         if free not in _HYDROGEN_WORDS:
             raise UnsupportedStructure("too many free acid groups beside the esters")
-        parts.append(_HYDROGEN_WORDS[free])
+        word = _HYDROGEN_WORDS[free]
+        if free_hydrogens:
+            if free != 1 or len(free_hydrogens) != 1:
+                raise UnsupportedStructure("isotopic modification of several acid hydrogens is not supported yet")
+            word = f"({free_hydrogens[0]})hydrogen"
+        parts.append(word)
+    elif free_hydrogens:
+        raise UnsupportedStructure("an isotopically modified hydroxy hydrogen of this ester is not supported yet")
     return " ".join(parts + [anion])

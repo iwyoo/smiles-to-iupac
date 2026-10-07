@@ -756,6 +756,7 @@ def _fused_mancude(mol, skeleton_atoms):
                 or (
                     mol.GetAtomWithIdx(a).GetIsAromatic()
                     and mol.GetAtomWithIdx(a).GetAtomicNum() != 6
+                    and not mol.GetAtomWithIdx(a).HasProp("_ring_cation_centre")
                     and (
                         mol.GetAtomWithIdx(a).GetTotalNumHs() > 0
                         or (mol.GetAtomWithIdx(a).GetDegree() == 3 and ring_info.NumAtomRings(a) < 2)

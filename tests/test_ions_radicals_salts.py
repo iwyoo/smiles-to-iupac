@@ -795,6 +795,7 @@ def test_radical_ions_on_a_hydrocarbon_skeleton(smiles, expected):
         pytest.param("[CH2]c1cc[n+](C)cc1", "(1-methylpyridin-1-ium-4-yl)methyl", id="cationic_ring_prefix"),
         pytest.param("[CH2]c1ccc[nH+]c1", "(pyridin-1-ium-3-yl)methyl", id="protonated_ring_prefix"),
         pytest.param("[CH2]C[n+]1ccccc1", "2-(pyridin-1-ium-1-yl)ethyl", id="cationic_ring_attached_through_nitrogen"),
+        pytest.param("c1ccc2c(c1)ccc[n+]2C[CH2]", "2-(quinolin-1-ium-1-yl)ethyl", id="fused_cationic_ring_through_nitrogen"),
         pytest.param("OO[CH2]", "hydroperoxymethyl", id="hydroperoxy_prefix"),
         pytest.param("CCOO[CH2]", "(ethylperoxy)methyl", id="alkylperoxy_prefix"),
     ],
