@@ -114,6 +114,11 @@ def test_doubly_charged_nitrogen_raises():
         smiles_to_iupac("[NH3++]")
 
 
+def test_spiro_cation_of_fused_components_raises_instead_of_recursing():
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac("C1=CC=C2C=C[N+]3(CC2=C1)CCCC3")
+
+
 K = "κ"
 
 

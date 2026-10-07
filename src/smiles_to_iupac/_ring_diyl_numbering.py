@@ -588,14 +588,23 @@ def _mancude_candidates(mol, skeleton_atoms, sp3):
         yield trial.GetMol(), new_of, old_of
 
 
+_MANCUDE_IN_PROGRESS = ContextVar("mancude_in_progress", default=frozenset())
+
+
 def _named_mancude(mol, skeleton_atoms, sp3):
     from .core import smiles_to_iupac
 
     for bare, new_of, old_of in _mancude_candidates(mol, skeleton_atoms, sp3):
+        smiles = Chem.MolToSmiles(bare)
+        if smiles in _MANCUDE_IN_PROGRESS.get():
+            continue
+        token = _MANCUDE_IN_PROGRESS.set(_MANCUDE_IN_PROGRESS.get() | {smiles})
         try:
-            parent = smiles_to_iupac(Chem.MolToSmiles(bare))
+            parent = smiles_to_iupac(smiles)
         except UnsupportedStructure:
             continue
+        finally:
+            _MANCUDE_IN_PROGRESS.reset(token)
         if not re.search(r"cyclo\[|spiro\[|\d-hydro|\d-(?:di|tri|tetra|penta|hexa|hepta|octa|nona|deca)?ene$", parent):
             return bare, old_of, parent
     raise UnsupportedStructure("the mancude parent of this ring system has no fusion name")
