@@ -28,8 +28,13 @@ from ._polyfunctional import (
 from ._numerals import multiplying_prefix
 from ._substituents import BRANCH_STEREO, format_substituent_prefixes, name_branch
 
-_A_WORD = {8: "oxa", 16: "thia", 34: "selena", 52: "tellura", 7: "aza", 15: "phospha"}
-_A_ORDER = [8, 16, 34, 52, 7, 15]
+_A_WORD = {
+    8: "oxa", 16: "thia", 34: "selena", 52: "tellura", 7: "aza", 15: "phospha", 33: "arsa", 51: "stiba", 83: "bisma",
+    14: "sila", 32: "germa", 50: "stanna", 82: "plumba", 5: "bora", 13: "aluma", 31: "galla", 49: "indiga", 81: "thalla",
+}
+_A_ORDER = [8, 16, 34, 52, 7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81]
+_STANDARD_VALENCE = {15: 3, 33: 3, 51: 3, 83: 3, 14: 4, 32: 4, 50: 4, 82: 4, 5: 3, 13: 3, 31: 3, 49: 3, 81: 3}
+_CHAIN_ENDS = {6, *_STANDARD_VALENCE}
 _MINIMUM_UNITS = 4
 _SUFFIX_WORD = {
     "acid": "oic acid",
@@ -80,6 +85,15 @@ def _chain_heteroatom(atom, phosphorus=False):
     z = atom.GetAtomicNum()
     if phosphorus and _phosphorus_unit(atom.GetOwningMol(), atom):
         return True
+    if z in _STANDARD_VALENCE:
+        return (
+            not atom.IsInRing()
+            and not atom.GetFormalCharge()
+            and not atom.GetIsotope()
+            and not atom.GetIsAromatic()
+            and atom.GetDegree() in (1, 2)
+            and atom.GetTotalNumHs() == _STANDARD_VALENCE[z] - atom.GetDegree()
+        )
     if atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope() or atom.GetDegree() != 2:
         return False
     if z in (8, 16, 34, 52):
@@ -137,7 +151,7 @@ def name_heteroacyclic(mol):
     }
     best = None
     for path in _paths(graph, eligible):
-        if mol.GetAtomWithIdx(path[0]).GetAtomicNum() != 6 or mol.GetAtomWithIdx(path[-1]).GetAtomicNum() != 6:
+        if mol.GetAtomWithIdx(path[0]).GetAtomicNum() not in _CHAIN_ENDS or mol.GetAtomWithIdx(path[-1]).GetAtomicNum() not in _CHAIN_ENDS:
             continue
         hetero_positions = [i for i, a in enumerate(path) if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
         if len(hetero_positions) < _MINIMUM_UNITS:
@@ -168,6 +182,13 @@ def _chain_stereo(chain, position_of, atom_codes, bond_codes):
 def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes):
     position_of = {atom: i + 1 for i, atom in enumerate(chain)}
     chain_set = set(chain)
+    if any(
+        n not in chain_set
+        for a in chain
+        if mol.GetAtomWithIdx(a).GetAtomicNum() in _STANDARD_VALENCE and not _phosphorus_unit(mol, mol.GetAtomWithIdx(a))
+        for n in graph[a]
+    ):
+        return None
     on_chain = [a for a in principal_atoms if a in chain_set]
     if principal is not None and not on_chain:
         return None
@@ -223,10 +244,12 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, 
     count = len(on_chain)
     length = len(chain)
 
+    lambda5_positions = {position_of[a] for a in chain if _phosphorus_unit(mol, mol.GetAtomWithIdx(a))}
+
     def a_unit(z):
         locants = sorted(by_element[z])
         multiplier = multiplying_prefix(len(locants)) if len(locants) > 1 else ""
-        cited = ",".join(f"{p}λ5" if z == 15 else str(p) for p in locants)
+        cited = ",".join(f"{p}λ5" if p in lambda5_positions else str(p) for p in locants)
         return f"{cited}-{multiplier}{_A_WORD[z]}"
 
     a_text = "-".join(a_unit(z) for z in _A_ORDER if z in by_element)
