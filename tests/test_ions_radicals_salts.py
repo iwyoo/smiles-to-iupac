@@ -891,6 +891,19 @@ def test_assemblies_of_parent_cations(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("O=C1CC(C(=O)[NH2+]1)C1CC(=O)[NH2+]C1=O", "2,2',5,5'-tetraoxo[3,3'-bipyrrolidine]-1,1'-diium", id="imide_rings_joined_directly"),
+        pytest.param("C[n+]1ccc(cc1)-c1cc[n+](C)cc1", "1,1'-dimethyl[4,4'-bipyridine]-1,1'-diium", id="substituted_aromatic_rings_joined_directly"),
+        pytest.param("C1C[NH2+]CC1C1CC[NH2+]C1", "[3,3'-bipyrrolidine]-1,1'-diium", id="saturated_rings_joined_directly"),
+        pytest.param("C[n+]1ccc(cc1)-c1cc[n+](C)cc1.[Cl-].[Cl-]", "1,1'-dimethyl[4,4'-bipyridine]-1,1'-diium dichloride", id="ring_assembly_as_the_cation_of_a_salt"),
+    ],
+)
+def test_ring_assemblies_of_cations(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param("[CH2+]C[CH2+]", "propane-1,3-bis(ylium)", id="two_hydride_losses_on_a_chain"),
         pytest.param("C[C+2]C", "propane-2,2-bis(ylium)", id="two_hydride_losses_on_one_carbon"),
         pytest.param("C1=C[CH+][CH+]1", "cyclobut-3-ene-1,2-bis(ylium)", id="two_hydride_losses_on_a_ring"),
