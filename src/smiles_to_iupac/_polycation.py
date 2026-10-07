@@ -45,11 +45,11 @@ def has_polycation_shape(mol) -> bool:
 
 
 def _single_ring_heteroatom_cation(atom) -> bool:
-    return (
-        atom.IsInRing()
-        and atom.GetAtomicNum() in _RING_CENTRE_ELEMENTS - {7}
-        and atom.GetDegree() + atom.GetTotalNumHs() == _CATION_VALENCE[atom.GetAtomicNum()]
-    )
+    if not atom.IsInRing() or atom.GetAtomicNum() not in _RING_CENTRE_ELEMENTS:
+        return False
+    if atom.GetAtomicNum() == 7:
+        return atom.GetDegree() == 4 and all(n.IsInRing() for n in atom.GetNeighbors()) and atom.GetIsAromatic() is False
+    return atom.GetDegree() + atom.GetTotalNumHs() == _CATION_VALENCE[atom.GetAtomicNum()]
 
 
 def name_polycation(mol) -> str:
@@ -167,9 +167,18 @@ def _name_ring_polycation(mol, centres):
         a.GetAtomicNum() != 7 and a.GetDegree() + a.GetTotalNumHs() != _CATION_VALENCE[a.GetAtomicNum()] for a in centres
     ):
         raise UnsupportedStructure("a ring centre that is not a hydron-added heteroatom is a 'ylium' centre")
-    editable = Chem.RWMol(mol)
     indices = [a.GetIdx() for a in centres]
+    rings, atoms = _system_of(mol, indices[0])
+    if any(i not in atoms for i in indices):
+        raise _DifferentSystems("cationic centres in different ring systems are named multiplicatively")
+    ring_sigma = {i: sum(1 for n in mol.GetAtomWithIdx(i).GetNeighbors() if n.GetIdx() in atoms) for i in indices}
+    lambda_centres = [i for i in indices if ring_sigma[i] > _STANDARD_VALENCE[mol.GetAtomWithIdx(i).GetAtomicNum()]]
+    if lambda_centres and (len(lambda_centres) != len(indices) or len(indices) != 1):
+        raise UnsupportedStructure("lambda ylium centres beside other cationic centres are not supported yet")
+    editable = Chem.RWMol(mol)
     for index in indices:
+        if index in lambda_centres and mol.GetAtomWithIdx(index).GetAtomicNum() == 7:
+            continue
         atom = editable.GetAtomWithIdx(index)
         hydrogens = atom.GetTotalNumHs()
         atom.SetFormalCharge(0)
@@ -180,16 +189,20 @@ def _name_ring_polycation(mol, centres):
     base = editable.GetMol()
     base.UpdatePropertyCache(strict=False)
     Chem.FastFindRings(base)
-    rings, atoms = _system_of(base, indices[0])
-    if any(i not in atoms for i in indices):
-        raise _DifferentSystems("cationic centres in different ring systems are named multiplicatively")
-    found = evaluate_skeleton(base, adjacency(base), "ring", rings, atoms, indices, set(), "ium")
+    found = evaluate_skeleton(base, adjacency(base), "ring", rings, atoms, indices, set(), "ylium" if lambda_centres else "ium")
     if found is None:
         raise UnsupportedStructure("this cationic ring system has no supported name yet")
+    if lambda_centres and "λ" not in found[1]:
+        from ._anion_center import _insert_lambda
+
+        centre = lambda_centres[0]
+        bonding = ring_sigma[centre] + base.GetAtomWithIdx(centre).GetTotalNumHs() + 1
+        return _insert_lambda(found[1], {found[2][centre]: bonding})
     return found[1]
 
 
 _RING_CENTRE_ELEMENTS = {7, 8, 15, 16, 33, 34, 52}
+_STANDARD_VALENCE = {7: 3, 8: 2, 15: 3, 16: 2, 33: 3, 34: 2, 52: 2}
 _CATION_VALENCE = {7: 4, 8: 3, 15: 4, 16: 3, 33: 4, 34: 3, 52: 3}  # sigma bonds of the hydron-added atom (N: with pi)
 
 
