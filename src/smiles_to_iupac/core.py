@@ -559,7 +559,8 @@ def _name_unabridged(smiles: str) -> str:
                 return candidate
         if parsed is not None and has_spiro_union_shape(parsed):
             try:
-                return name_spiro_union(parsed)
+                name = name_spiro_union(parsed)
+                return name
             except UnsupportedStructure:
                 pass
         beyond_preferred = None
