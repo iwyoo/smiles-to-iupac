@@ -56,6 +56,7 @@ from ._multiplicative_text import enclose
 from ._ammonium import has_ammonium_shape, name_ammonium
 from ._carboxylate import _find_carboxylate_group, _name_acyclic_carboxylate
 from ._common import UnsupportedStructure, adjacency, bfs, specified_stereocenters
+from ._imine import has_simple_imine_shape, name_imine
 from ._sulfonate import _find_sulfonate_group, _name_acyclic_sulfonate
 
 
@@ -89,9 +90,25 @@ def has_zwitterion_shape(mol) -> bool:
     molecule as a bare ammonium cation."""
     if len(Chem.GetMolFrags(mol)) > 1:
         return False
-    if not has_ammonium_shape(mol):
+    if not (has_ammonium_shape(mol) or _has_iminium_nitrogen(mol)):
         return False
     return _find_anion(mol) is not None
+
+
+def _has_iminium_nitrogen(mol) -> bool:
+    cations = [a for a in mol.GetAtoms() if a.GetFormalCharge() > 0]
+    if len(cations) != 1:
+        return False
+    (nitrogen,) = cations
+    return (
+        nitrogen.GetAtomicNum() == 7
+        and nitrogen.GetFormalCharge() == 1
+        and nitrogen.GetTotalValence() == 4
+        and any(
+            b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(nitrogen).GetAtomicNum() == 6 for b in nitrogen.GetBonds()
+        )
+        and all(n.GetAtomicNum() == 6 for n in nitrogen.GetNeighbors())
+    )
 
 
 def _chain_neighbor(mol, nitrogen_idx, anion_carbon_idx):
@@ -121,9 +138,10 @@ def _ammonium_prefix(mol, nitrogen_idx, chain_neighbor_idx):
     rw = Chem.RWMol(mol)
     nitrogen = rw.GetAtomWithIdx(nitrogen_idx)
     total_hs = nitrogen.GetTotalNumHs()
+    cut_order = int(mol.GetBondBetweenAtoms(nitrogen_idx, chain_neighbor_idx).GetBondTypeAsDouble())
     rw.RemoveBond(nitrogen_idx, chain_neighbor_idx)
     nitrogen.SetNoImplicit(True)
-    nitrogen.SetNumExplicitHs(total_hs + 1)
+    nitrogen.SetNumExplicitHs(total_hs + cut_order)
     isolated_mol = rw.GetMol()
     Chem.SanitizeMol(isolated_mol)
 
@@ -132,14 +150,19 @@ def _ammonium_prefix(mol, nitrogen_idx, chain_neighbor_idx):
     (nitrogen_fragment,) = (
         fragment for fragment, atom_indices in zip(fragments, mapping) if nitrogen_idx in atom_indices
     )
-    prefix = name_ammonium(nitrogen_fragment) + "yl"
+    Chem.SanitizeMol(nitrogen_fragment)
+    if has_simple_imine_shape(nitrogen_fragment):
+        cation_name = name_imine(nitrogen_fragment)
+    else:
+        cation_name = name_ammonium(nitrogen_fragment)
+    prefix = cation_name + ("ylidene" if cut_order == 2 else "yl")
     # A substituted nitrogen's own name carries its own locants (e.g.
     # 'N,N-dimethylmethanaminiumyl') -- `_substituents.name_branch` always
     # reports an injected `extra_names` entry as non-compound (it has no
     # way to know otherwise), so this module wraps it in parentheses
     # itself before injection, the same way `_ether.py`'s callers wrap a
     # compound alkoxy substituent (P-29.4).
-    if "-" in prefix:
+    if prefix != "azaniumyl":
         prefix = enclose(prefix)
     return prefix
 
@@ -180,6 +203,7 @@ def name_zwitterion(mol) -> str:
         for bond in mol.GetBonds()
         if bond.GetBondTypeAsDouble() == 2.0
         and not {bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()} <= (anion_heteroatoms | {anion_carbon_idx})
+        and nitrogen_idx not in (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
     ]
     if non_anion_unsaturation:
         raise UnsupportedStructure(

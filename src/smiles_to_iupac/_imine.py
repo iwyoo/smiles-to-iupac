@@ -86,7 +86,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   with imine is unverified in this first pass).
 - Nitrolic/nitrosolic acids (P-68.3.1.1.3, an oxime combined with an
   adjacent nitro/nitroso group) -- a separate, unverified follow-up.
-- Charged or isotopically modified atoms.
+- Isotopically modified atoms, and charged atoms other than the nitrogen of an
+  iminium cation (P-73.1.2.1: suffix 'iminium', up to two N-substituents).
 """
 
 from rdkit import Chem
@@ -95,6 +96,7 @@ from ._common import (
     HALOGEN_PREFIXES,
     UnsupportedStructure,
     adjacency,
+    bfs,
     carbon_adjacency,
     group_substituents,
     halogen_substituents,
@@ -108,6 +110,7 @@ from ._common import (
     specified_double_bond_stereo,
     substituent_locant_set_and_citation,
 )
+from ._amine import _add_n_names
 from ._substituents import (
     substituents_for_chain,
     format_substituent_prefixes,
@@ -157,21 +160,29 @@ def _validate_and_find_imine(mol, aromatic_ring_atoms=frozenset()):
     carbon = imine_bond.GetBeginAtom() if imine_bond.GetBeginAtom().GetAtomicNum() == 6 else imine_bond.GetEndAtom()
     nitrogen = imine_bond.GetBeginAtom() if imine_bond.GetBeginAtom().GetAtomicNum() == 7 else imine_bond.GetEndAtom()
 
-    n_substituent_root = None
+    n_substituent_roots = ()
     oxime_oxygen_idx = None
-    if nitrogen.GetDegree() == 2:
-        (other,) = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != carbon.GetIdx()]
+    cationic_nitrogen = nitrogen.GetFormalCharge() == 1
+    others = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != carbon.GetIdx()]
+    if cationic_nitrogen:
+        if len(others) > 2 or any(n.GetAtomicNum() != 6 or n.GetIsAromatic() for n in others):
+            raise UnsupportedStructure(
+                "an iminium nitrogen substituent other than a plain carbon group (P-73.1.2) is not supported yet"
+            )
+        n_substituent_roots = tuple(n.GetIdx() for n in others)
+    elif len(others) == 1:
+        (other,) = others
         if other.GetAtomicNum() == 8:
             oxime_oxygen_idx = other.GetIdx()
         elif other.GetAtomicNum() == 6 and not other.GetIsAromatic():
-            n_substituent_root = other.GetIdx()
+            n_substituent_roots = (other.GetIdx(),)
         else:
             raise UnsupportedStructure(
                 "an imine nitrogen substituent other than a plain carbon "
                 "group or an oxime oxygen (P-68.3.1.1.2) is not supported "
                 "yet"
             )
-    elif nitrogen.GetDegree() != 1:
+    elif others:
         raise UnsupportedStructure(
             "an imine nitrogen must have exactly one substituent (or none, "
             "i.e. =N-H)"
@@ -193,7 +204,8 @@ def _validate_and_find_imine(mol, aromatic_ring_atoms=frozenset()):
                 "an oxygen atom not shaped like a plain oxime N-OH/N-O-R "
                 "is out of scope for this module"
             )
-        if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+        charge_allowed = cationic_nitrogen and atom.GetIdx() == nitrogen.GetIdx()
+        if (atom.GetFormalCharge() != 0 and not charge_allowed) or atom.GetIsotope() != 0:
             raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
         if atomic_num == 6 and atom.GetIsAromatic() and atom.GetIdx() not in aromatic_ring_atoms:
             raise UnsupportedStructure("aromatic rings are out of scope for this module")
@@ -241,54 +253,59 @@ def _validate_and_find_imine(mol, aromatic_ring_atoms=frozenset()):
         elif oxygen.GetDegree() != 1:
             raise UnsupportedStructure("an oxime oxygen must be -OH or -O-R (degree 1 or 2)")
 
-    return carbon.GetIdx(), nitrogen.GetIdx(), n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root
+    return carbon.GetIdx(), nitrogen.GetIdx(), n_substituent_roots, oxime_oxygen_idx, oxime_alkyl_root
+
+
+def _imine_word(mol, nitrogen_idx):
+    return "iminium" if mol.GetAtomWithIdx(nitrogen_idx).GetFormalCharge() == 1 else "imine"
 
 
 def _imine_locant(position_of, imine_carbon):
     return position_of.get(imine_carbon)
 
 
-def _n_substituent_prefix(graph, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root, mol=None):
-    """Build the 'N-...' prefix (without the leading 'N-' itself, e.g.
-    'methyl'/'hydroxy'/'ethoxy') for an N-substituted imine or an oxime,
-    or None for a plain =N-H imine. Shared by the acyclic and
+def _n_substituent_names(graph, imine_nitrogen, n_substituent_roots, oxime_oxygen_idx, oxime_alkyl_root, mol=None):
+    """(name, is_compound) pairs for the nitrogen's substituents: the N-alkyl
+    groups of an N-substituted imine or iminium, or the hydroxy/alkoxy of an
+    oxime; empty for a plain =N-H imine. Shared by the acyclic and
     benzene-ring-substituent-chain naming paths so the two stay in sync."""
-    if n_substituent_root is not None:
-        name, _ = name_branch(graph, n_substituent_root, imine_nitrogen, mol=mol)
-        return name
+    if n_substituent_roots:
+        return [name_branch(graph, root, imine_nitrogen, mol=mol) for root in n_substituent_roots]
     if oxime_oxygen_idx is not None:
         if oxime_alkyl_root is None:
-            return "hydroxy"
+            return [("hydroxy", False)]
         alkyl_name_, is_compound = name_branch(graph, oxime_alkyl_root, oxime_oxygen_idx, mol=mol)
         if is_compound:
             raise UnsupportedStructure("a branched oxime O-substituent is not supported yet")
-        return _OXY_PREFIX.get(alkyl_name_, alkyl_name_ + "oxy")
-    return None
+        return [(_OXY_PREFIX.get(alkyl_name_, alkyl_name_ + "oxy"), False)]
+    return []
 
 
-def _name_from_substituents(chain_length, imine_locant, grouped):
+def _name_from_substituents(chain_length, imine_locant, grouped, n_names=(), word="imine"):
     # P-14.3.4.2(a): a mononuclear parent's substituent locants (not just
-    # the imine's own) are always '1' and never cited either -- unreachable
-    # before the benzene-ring-substituent chain-length-1 case (a bare
-    # methanimine carbon has no room for any other substituent), so this
-    # branch was never previously exercised.
-    prefix = format_substituent_prefixes(grouped, omit_locants=(chain_length == 1))
-    return prefix + name_from_substituents(chain_length, [], [], "imine", [imine_locant], substituted=bool(grouped))
+    # the imine's own) are always '1' and never cited either; an N-locant
+    # is never omitted (P-62.3.1.1, P-14.5.2 alphanumerical order).
+    prefix = format_substituent_prefixes(
+        _add_n_names(grouped, n_names), omit_locants=(chain_length == 1 and not n_names)
+    )
+    return prefix + name_from_substituents(chain_length, [], [], word, [imine_locant], substituted=bool(grouped))
 
 
-def _candidate_key(chain_length, imine_locant, substituents):
+def _candidate_key(chain_length, imine_locant, substituents, n_names=(), word="imine"):
     grouped = group_substituents(substituents)
     locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
-    name = _name_from_substituents(chain_length, imine_locant, grouped)
+    name = _name_from_substituents(chain_length, imine_locant, grouped, n_names, word)
     return (imine_locant, locant_set, citation_locants, name), name
 
 
-def _name_acyclic_imine_with_locant(mol, imine_carbon, exclude):
+def _name_acyclic_imine_with_locant(mol, imine_carbon, exclude, n_names=(), word="imine"):
     """Like `_name_acyclic_imine`, but also returns the winning candidate's
     imine locant (needed to place a `(nE)-`/`(nZ)-` stereodescriptor)."""
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    chains = longest_chains(carbon_adjacency(mol))
+    carbon_graph = carbon_adjacency(mol)
+    component = set(bfs(carbon_graph, imine_carbon)[0])
+    chains = longest_chains({atom: nbrs for atom, nbrs in carbon_graph.items() if atom in component})
     chain_length = len(chains[0])
 
     eligible = [chain for chain in chains if imine_carbon in chain]
@@ -305,7 +322,7 @@ def _name_acyclic_imine_with_locant(mol, imine_carbon, exclude):
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             imine_locant = _imine_locant(position_of, imine_carbon)
             substituents = substituents_for_chain(graph, candidate, halogens, exclude, mol=mol)
-            key, name = _candidate_key(chain_length, imine_locant, substituents)
+            key, name = _candidate_key(chain_length, imine_locant, substituents, n_names, word)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
     return best_name, best_key[0]
@@ -332,9 +349,12 @@ def _name_phenyl_chain_imine(mol, ring_atoms):
     section notes this project already diverges from PubChem's own
     auto-generated oxime name in the non-benzene case, so an unverifiable
     third variant isn't a safe mechanical extension)."""
-    imine_carbon, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root = (
+    imine_carbon, imine_nitrogen, n_substituent_roots, oxime_oxygen_idx, oxime_alkyl_root = (
         _validate_and_find_imine(mol, aromatic_ring_atoms=ring_atoms)
     )
+    graph = adjacency(mol)
+    n_names = _n_substituent_names(graph, imine_nitrogen, n_substituent_roots, oxime_oxygen_idx, oxime_alkyl_root, mol=mol)
+    word = _imine_word(mol, imine_nitrogen)
     if oxime_alkyl_root is not None:
         raise UnsupportedStructure(
             "an oxime O-alkyl ether alongside a benzene-ring substituent "
@@ -354,7 +374,6 @@ def _name_phenyl_chain_imine(mol, ring_atoms):
             "imine chain is not supported yet"
         )
 
-    graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     rings = separate_aromatic_monocycles(mol, graph) or [set(ring_atoms)]
     attachment = ring_branch_attachments(mol, graph, rings)
@@ -377,14 +396,10 @@ def _name_phenyl_chain_imine(mol, ring_atoms):
             position_of[atom]: [name_branch(graph, root, atom, halogens, ring_atoms, mol=mol) for root in roots]
             for atom, roots in branches_by_atom.items()
         }
-        key, name = _candidate_key(chain_length, imine_locant, substituents)
+        key, name = _candidate_key(chain_length, imine_locant, substituents, n_names, word)
         if best_key is None or key < best_key:
             best_key, best_name = key, name
 
-    n_name = _n_substituent_prefix(graph, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root, mol=mol)
-    if n_name is not None:
-        separator = "-" if best_name[0].isdigit() else ""
-        best_name = f"N-{n_name}{separator}{best_name}"
     if stereo is not None:
         ((_, code),) = stereo
         best_name = f"({best_key[0]}{code})-{best_name}"
@@ -401,19 +416,16 @@ def name_imine(mol) -> str:
         if is_plain_benzene_ring(mol, ring_atoms):
             return _name_phenyl_chain_imine(mol, ring_atoms)
 
-    imine_carbon, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root = _validate_and_find_imine(
+    imine_carbon, imine_nitrogen, n_substituent_roots, oxime_oxygen_idx, oxime_alkyl_root = _validate_and_find_imine(
         mol
     )
     stereo = specified_double_bond_stereo(mol)
     graph = adjacency(mol)
     exclude = {imine_nitrogen}
-    name, imine_locant = _name_acyclic_imine_with_locant(mol, imine_carbon, exclude)
-
-    n_name = _n_substituent_prefix(graph, imine_nitrogen, n_substituent_root, oxime_oxygen_idx, oxime_alkyl_root, mol=mol)
-
-    if n_name is not None:
-        separator = "-" if name[0].isdigit() else ""
-        name = f"N-{n_name}{separator}{name}"
+    n_names = _n_substituent_names(graph, imine_nitrogen, n_substituent_roots, oxime_oxygen_idx, oxime_alkyl_root, mol=mol)
+    name, imine_locant = _name_acyclic_imine_with_locant(
+        mol, imine_carbon, exclude, n_names, _imine_word(mol, imine_nitrogen)
+    )
     if stereo is not None:
         # `_validate_and_find_imine` already rejects a second C=N/other
         # non-single bond anywhere else in the molecule, so this module's
