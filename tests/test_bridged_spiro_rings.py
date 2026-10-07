@@ -762,11 +762,6 @@ def test_von_baeyer_exocyclic_double_bond_is_an_ylidene_prefix(smiles, expected)
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_spiro_lactone_of_a_fused_system_is_not_a_bridge():
-    with pytest.raises(NotImplementedError):
-        smiles_to_iupac("O=C1OC2(CCCCC2)c2ccccc12")
-
-
 @pytest.mark.parametrize(
     "smiles,expected",
     [
@@ -774,7 +769,7 @@ def test_spiro_lactone_of_a_fused_system_is_not_a_bridge():
         pytest.param("C1CNCCC12c3ccccc3Oc4ccccc24", "spiro[piperidine-4,9′-xanthene]", id="heteromonocycle_component"),
         pytest.param("C1CC2(CCNCC2)c2ccccc12", "2,3-dihydrospiro[indene-1,4′-piperidine]", id="hydro_prefixes_of_the_union"),
         pytest.param("Cc1ccc2c(c1)C=CC21CCCCC1", "5′-methylspiro[cyclohexane-1,1′-indene]", id="primed_substituent_locant"),
-        pytest.param("C1CC=CC2(C1)Cc1ccccc1C2", "1′,3′-dihydrospiro[cyclohex-2-ene-1,2′-indene]", id="unsaturated_carbocyclic_component"),
+        pytest.param("C1CC=CC2(C1)Cc1ccccc1C2", "1′,3′-dihydrospiro[cyclohexane-1,2′-inden]-2-ene", id="double_bond_cited_as_an_ending_of_the_union"),
         pytest.param("C1NCC2(N1)C=Nc1ccccc1N2", "1′H-spiro[imidazolidine-4,2′-quinoxaline]", id="indicated_hydrogen_of_the_second_component"),
         pytest.param("C12(CC3=CC=CC=C3C=C1)CC4=CC=CC=C4C=C2", "1H,1′H-2,2′-spirobi[naphthalene]", id="identical_components_with_indicated_hydrogen"),
         pytest.param("C12(Oc3ccccc3C=C1)C=COc4ccccc42", "2,4′-spirobi[[1]benzopyran]", id="locants_of_a_benzo_component_in_brackets"),
@@ -838,4 +833,18 @@ def test_monospiro_union_with_an_unsaturated_hetero_monocycle(smiles, expected):
     ],
 )
 def test_polyspiro_union_with_polycyclic_components(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=C1CC2(CC3CCC2C3)c2ccccc12", "spiro[bicyclo[2.2.1]heptane-2,1′-inden]-3′(2′H)-one", id="ketone_with_added_hydrogen_on_a_union_with_a_von_baeyer_component"),
+        pytest.param("C1=CC2(CCC1)CC1=C(C=CCC1)O2", "4,5-dihydro-3H-spiro[[1]benzofuran-2,1′-cyclohexan]-2′-ene", id="double_bond_of_the_second_component_cited_as_an_ending"),
+        pytest.param("O=C1C=CC2(CC1)CC=Cc1ccccc12", "2′H-spiro[cyclohexane-1,1′-naphthalen]-2-en-4-one", id="double_bond_ending_before_a_suffix"),
+        pytest.param("O=C(O)C1CC2(CCCCC2)c2ccccc12", "2′,3′-dihydrospiro[cyclohexane-1,1′-indene]-3′-carboxylic acid", id="suffix_without_elision_after_hydro_prefixes"),
+        pytest.param("CC1CC2(CCCCC2)c2ccccc12", "3′-methyl-2′,3′-dihydrospiro[cyclohexane-1,1′-indene]", id="primed_substituent_locant_with_hydro_prefixes"),
+    ],
+)
+def test_spiro_union_with_suffix_groups_and_double_bonds(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
