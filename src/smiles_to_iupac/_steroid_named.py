@@ -3,6 +3,7 @@ fixes every locant, unsaturation is cited as 'ene' endings (estra-1,3,5(10)-trie
 configuration with α/β/ξ locants (cholest-5-en-3β-ol, 17β-hydroxy-5α-androstan-3-one). Configuration is read from a 3D
 embedding: β is the face from which the numbering of ring A runs anticlockwise."""
 
+import itertools
 from collections import Counter
 
 import numpy as np
@@ -139,6 +140,31 @@ def _plane_faces(mol, mapping):
     if np.dot(turn, normal) < 0:
         normal = -normal
     return hydrogens, coordinates, normal
+
+
+def _with_natural_ring_centres(mol, mapping, open_positions):
+    """The mol with its unspecified ring-fusion centres given the natural configuration, so that the 3D embedding used to
+    read faces has the shape of the parent instead of a random diastereomer."""
+    if not open_positions:
+        return mol
+    atoms = {p: mapping[p] for p in open_positions}
+    tags = (Chem.ChiralType.CHI_TETRAHEDRAL_CW, Chem.ChiralType.CHI_TETRAHEDRAL_CCW)
+    for choice in itertools.product(tags, repeat=len(atoms)):
+        trial = Chem.Mol(mol)
+        for atom, tag in zip(atoms.values(), choice):
+            trial.GetAtomWithIdx(atom).SetChiralTag(tag)
+        embedded = _plane_faces(trial, mapping)
+        if embedded is None:
+            continue
+        hydrogens, coordinates, normal = embedded
+        ring_atoms = {mapping[p] for p in _RING_POSITIONS}
+        if all(
+            len(exo := _exocyclic_neighbors(hydrogens, atom, ring_atoms)) == 1
+            and _face_of(coordinates, normal, atom, [], exo[0]) == _NATURAL_FACE[p]
+            for p, atom in atoms.items()
+        ):
+            return trial
+    return mol
 
 
 def _exocyclic_neighbors(hydrogens, atom, ring_atoms):
@@ -482,7 +508,8 @@ def _configuration(mol, stem, mapping):
     specified = {a for a, e in potential.items() if e.specified == Chem.StereoSpecified.Specified}
     if not specified & set(mapping.values()):
         return {}, [], []
-    embedded = _plane_faces(mol, mapping)
+    open_positions = [p for p in _NATURAL_FACE if p in mapping and mapping[p] in potential and mapping[p] not in specified]
+    embedded = _plane_faces(_with_natural_ring_centres(mol, mapping, open_positions), mapping)
     if embedded is None:
         raise UnsupportedStructure("the steroid could not be embedded in three dimensions")
     hydrogens, coordinates, normal = embedded

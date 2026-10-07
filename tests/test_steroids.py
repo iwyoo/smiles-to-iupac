@@ -94,3 +94,24 @@ def test_extra_methyl_on_a_ring_is_a_substituent_of_the_retained_parent():
 )
 def test_side_chain_that_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "CC(C)CCC[C@@H](C)[C@H]1CCC2C3CC[C@H]4C[C@@H](OCC(=O)O)CC[C@]4(C)C3CC[C@@]21C",
+            "3β-(carboxymethoxy)-5α,8ξ,9ξ,14ξ-cholestane",
+        ),
+        (
+            "CC(C)CCC[C@@H](C)[C@@H]1CCC2C3CC[C@H]4C[C@@H](OCC(=O)O)CC[C@]4(C)C3CC[C@@]21C",
+            "3β-(carboxymethoxy)-5α,8ξ,9ξ,14ξ,17α-cholestane",
+        ),
+        (
+            "CC(C)CCC[C@@H](C)[C@H]1CCC2C3CC[C@H]4C[C@@H](OC)CC[C@]4(C)C3CC[C@@]21C",
+            "3β-methoxy-5α,8ξ,9ξ,14ξ-cholestane",
+        ),
+    ],
+)
+def test_side_chain_face_at_c17_is_read_from_a_natural_shaped_parent_when_ring_centres_are_open(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
