@@ -1229,3 +1229,24 @@ def test_nitroso_and_nitro_groups_on_nitrogen_and_on_rings_with_other_groups(smi
 )
 def test_n_alkoxy_and_n_aryloxy_amides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("COC(=O)NC(C)C(=O)C", "methyl (3-oxobutan-2-yl)carbamate", id="ketone_in_the_n_substituent_is_a_prefix"),
+        pytest.param("COC(=O)NC(C)(C(=O)CCl)c1ccccc1", "methyl (4-chloro-3-oxo-2-phenylbutan-2-yl)carbamate", id="ketone_halogen_and_phenyl_in_the_n_substituent"),
+        pytest.param(
+            "CC(C)(C)OC(=O)N[C@@H](CO)C1(O)CC1",
+            "tert-butyl [(1S)-2-hydroxy-1-(1-hydroxycyclopropyl)ethyl]carbamate",
+            id="stereocentre_of_the_n_substituent_is_cited_inside_it",
+        ),
+        pytest.param(
+            "CCC[C@H](C[C@@H]1CCCO1)NC(=O)OC",
+            "methyl {(2R)-1-[(2S)-oxolan-2-yl]pentan-2-yl}carbamate",
+            id="stereodescriptors_in_a_substituent_with_a_ring_prefix",
+        ),
+    ],
+)
+def test_carbamate_esters_with_groups_in_the_n_substituent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
