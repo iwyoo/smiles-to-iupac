@@ -23,6 +23,16 @@ from ._multiplicative_prefix import SIMPLE_PREFIXES, prefix_name, probe_name, su
 from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes
 
+_SULFONAMIDE_THIO = [
+    f"{stem}o{infix}amide"
+    for stem, infixes in (
+        ("sulfon", ("thio", "seleno", "telluro", "dithio", "diseleno", "ditelluro", "selenothio", "tellurothio", "selenotelluro")),
+        ("sulfin", ("thio", "seleno", "telluro")),
+    )
+    for infix in infixes
+]
+
+
 class _SuffixWords(dict):
     def __missing__(self, key):
         if isinstance(key, str) and key.startswith("acid:"):
@@ -44,8 +54,12 @@ _SUFFIX_WORDS = _SuffixWords({
     "carboxylic_acid": "carboxylic acid",
     "sulfonic_acid": "sulfonic acid",
     "amide": "carboxamide",
+    "thioamide": "carbothioamide",
+    "selenoamide": "carboselenoamide",
+    "telluroamide": "carbotelluroamide",
     "amidine": "carboximidamide",
     "sulfonamide": "sulfonamide",
+    **{name: name for name in _SULFONAMIDE_THIO},
     "hydrazonamide": "carbohydrazonamide",
     "imidohydrazide": "carboximidohydrazide",
     "sulfonohydrazide": "sulfonohydrazide",
@@ -87,7 +101,7 @@ _RETAINED_BENZENE = {
     "alcohol": "phenol",
     "amine": "aniline",
 }
-_PRIMARY_NITROGEN = {"amide", "sulfonamide", "amine"}
+_PRIMARY_NITROGEN = {"amide", "thioamide", "selenoamide", "telluroamide", "sulfonamide", *_SULFONAMIDE_THIO, "amine"}
 _HETERO_PARENTS = {"pyridine": "pyridine", "furan": "furan", "thiophene": "thiophene", "pyrrole": "1H-pyrrole"}
 _VALENCE_COUNTS = (2, 3, 4)
 

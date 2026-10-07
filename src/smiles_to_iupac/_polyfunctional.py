@@ -6,6 +6,7 @@ group on a ring is not handled here.
 """
 
 import contextvars
+import itertools
 from types import MappingProxyType
 import re
 
@@ -55,7 +56,7 @@ from ._fused_numbering import HETERO_RANK as _HETERO_RANK
 from ._ring_diyl_numbering import _exocyclic_oxo, is_hydro_fusion_system
 from ._acid_groups import acid_group_at
 from ._acid_lexicon import carbo_suffix, chain_suffix, make_spec, rank_key, spec_from_key
-from ._retained_acids import retained_chain_acid
+from ._retained_acids import retained_chain_acid, single_site_prefixes
 from ._substituents import format_substituent_prefixes, name_branch
 
 _CHALCOGEN_HYDRAZIDE = {
@@ -72,11 +73,31 @@ for _z, (_on, _in) in ((16, ("sulfon", "sulfin")), (34, ("selenon", "selenin")),
     _CHALCOGEN_IMIDAMIDE[(_z, 1, 1)] = f"{_on}imidamide"
     _CHALCOGEN_IMIDAMIDE[(_z, 0, 2)] = f"{_on}odiimidamide"
     _CHALCOGEN_IMIDAMIDE[(_z, 0, 1)] = f"{_in}imidamide"
+_CHALCOGEN_AMIDE = {16: "thioamide", 34: "selenoamide", 52: "telluroamide"}
+_CHALCOGEN_AMIDE_CLASSES = tuple(_CHALCOGEN_AMIDE.values())
+_REPLACED_INFIX = {16: "thio", 34: "seleno", 52: "telluro"}
+
+
+def _chalcogen_sulfonamide_name(slots, replaced):
+    """'sulfonothioamide', 'sulfonodithioamide', 'sulfinothioamide', ...: the amide of a sulfonic (two =X) or sulfinic
+    (one =X) acid whose =O are replaced by S, Se or Te, infixes in alphanumerical order (P-66.1.4.1.1, Table 4.4)."""
+    counts = {}
+    for z in replaced:
+        counts[_REPLACED_INFIX[z]] = counts.get(_REPLACED_INFIX[z], 0) + 1
+    infix = "".join(multiplied_word(counts[word], word) for word in sorted(counts))
+    return ("sulfon" if slots == 2 else "sulfin") + "o" + infix + "amide"
+
+
+_CHALCOGEN_SULFONAMIDE = {}
+for _slots, _size in ((2, 1), (2, 2), (1, 1)):
+    for _combo in itertools.combinations_with_replacement((16, 34, 52), _size):
+        _CHALCOGEN_SULFONAMIDE[(_slots, _combo)] = _chalcogen_sulfonamide_name(_slots, _combo)
+_CHALCOGEN_SULFONAMIDE_CLASSES = tuple(_CHALCOGEN_SULFONAMIDE.values())
 _SENIORITY = [
-    "ide", "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", "amidine", *_AMIDRAZONE, "sulfonamide", *_CHALCOGEN_IMIDAMIDE.values(), "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), "nitrile", "aldehyde", "ketone", "thione", "selone", "tellone", "alcohol", "peroxol",
+    "ide", "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, *_CHALCOGEN_IMIDAMIDE.values(), "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), "nitrile", "aldehyde", "ketone", "thione", "selone", "tellone", "alcohol", "peroxol",
     "thiol", "selenol", "tellurol", "amine", "imine",
 ]
-_TERMINAL = {"acid", "thioic", "peroxoic", "imidic", "amide", "amidine", *_AMIDRAZONE, "hydrazide", "nitrile", "aldehyde"}
+_TERMINAL = {"acid", "thioic", "peroxoic", "imidic", "amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE, "hydrazide", "nitrile", "aldehyde"}
 _PLAIN_ACID = make_spec("C", ["O"], ["O"])
 _PLAIN_SULFONIC = make_spec("S", ["O", "O"], ["O"])
 
@@ -173,7 +194,7 @@ def _terminal_heteroatom(mol, idx, hydrogens):
 
 _CHALCOGEN_KETONE_CLASS = {16: "thione", 34: "selone", 52: "tellone"}
 _CHALCOGEN_KETONE_OK = {
-    "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", "amidine", *_AMIDRAZONE, "sulfonamide", *_CHALCOGEN_IMIDAMIDE.values(), "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), "nitrile", "aldehyde", "ketone",
+    "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, *_CHALCOGEN_IMIDAMIDE.values(), "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), "nitrile", "aldehyde", "ketone",
     *_CHALCOGEN_KETONE_CLASS.values(),
 }
 
@@ -190,6 +211,56 @@ def _chalcogen_ketone(mol, atom):
     )
 
 
+_CHALCOGEN_RANK = {8: 0, 16: 1, 34: 2, 52: 3}
+
+
+def _acyl_chalcogen(mol, idx):
+    """Atomic number of the terminal =O/=S/=Se/=Te of an acyl carbon R-C(=X)- (R carbon or H), else None."""
+    atom = mol.GetAtomWithIdx(idx)
+    if atom.GetAtomicNum() != 6 or atom.IsInRing():
+        return None
+    chalcogens = [
+        n
+        for n in atom.GetNeighbors()
+        if n.GetAtomicNum() in _CHALCOGEN_RANK
+        and n.GetDegree() == 1
+        and mol.GetBondBetweenAtoms(idx, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    ]
+    taken = {n.GetIdx() for n in chalcogens}
+    rest = [n for n in atom.GetNeighbors() if n.GetIdx() not in taken]
+    if len(chalcogens) != 1 or len(rest) != 2 - (atom.GetTotalNumHs() == 1):
+        return None
+    if any(n.GetAtomicNum() not in (6, 7) for n in rest):
+        return None
+    return chalcogens[0].GetAtomicNum()
+
+
+def _acyl_branch_size(mol, carbon):
+    """(ring attached, longest carbon path) of the part of an acyl group beyond its carbon."""
+    start = [n.GetIdx() for n in mol.GetAtomWithIdx(carbon).GetNeighbors() if n.GetAtomicNum() == 6]
+    if not start:
+        return (0, 0)
+    ring = int(mol.GetAtomWithIdx(start[0]).IsInRing())
+    best, stack = 0, [(start[0], {carbon, start[0]})]
+    while stack:
+        node, seen = stack.pop()
+        best = max(best, len(seen) - 1)
+        for n in mol.GetAtomWithIdx(node).GetNeighbors():
+            if n.GetAtomicNum() == 6 and n.GetIdx() not in seen:
+                stack.append((n.GetIdx(), seen | {n.GetIdx()}))
+    return (ring, best)
+
+
+def _imide_parent(mol, carbon, partner):
+    """Whether acyl `carbon` rather than `partner` is the parent amide of an imide nitrogen: the more senior chalcogen
+    analogue (O, S, Se, Te), then a ring over a chain and the longer chain (P-66.1.2, P-44.1)."""
+    z, other = _acyl_chalcogen(mol, carbon), _acyl_chalcogen(mol, partner)
+    if z != other:
+        return _CHALCOGEN_RANK[z] < _CHALCOGEN_RANK[other]
+    mine, theirs = _acyl_branch_size(mol, carbon), _acyl_branch_size(mol, partner)
+    return mine > theirs or (mine == theirs and carbon < partner)
+
+
 def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
     """An amide nitrogen carrying only carbon substituents or one hydroxy (a
     hydroxamic acid, P-65.1.3.4; no acyl group, so not an imide) -- named with
@@ -200,8 +271,14 @@ def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
         return False
     others = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != carbonyl]
     hydroxy = [n for n in others if _terminal_heteroatom(mol, n.GetIdx(), 1) and n.GetAtomicNum() == 8]
+    acyl = []
+    if mol.GetAtomWithIdx(carbonyl).GetAtomicNum() == 6 and _acyl_chalcogen(mol, carbonyl) is not None:
+        acyl = [n for n in others if _acyl_chalcogen(mol, n.GetIdx()) is not None]
+        if len(acyl) > 1 or (acyl and not _imide_parent(mol, carbonyl, acyl[0].GetIdx())):
+            return False
     return bool(others) and len(hydroxy) <= 1 and all(
         n in hydroxy
+        or n in acyl
         or n.GetAtomicNum() in HALOGEN_PREFIXES
         or (
             n.GetAtomicNum() == 6
@@ -250,10 +327,26 @@ def _sulfonyl_group(mol, s_idx, attached):
         and mol.GetBondBetweenAtoms(s_idx, n.GetIdx()).GetBondTypeAsDouble() == 2.0
         and all(m.GetIdx() == s_idx or (m.GetAtomicNum() == 6 and not is_functional_carbon(mol, m.GetIdx())) for m in n.GetNeighbors())
     ]
-    rest = [n for n in sulfur.GetNeighbors() if n.GetIdx() not in oxygens + imides and n.GetIdx() != attached]
-    if len(rest) != 1 or sulfur.GetDegree() != len(oxygens) + len(imides) + 2:
+    replaced = [
+        n.GetIdx()
+        for n in sulfur.GetNeighbors()
+        if n.GetAtomicNum() in _REPLACED_INFIX
+        and n.GetDegree() == 1
+        and not n.GetFormalCharge()
+        and mol.GetBondBetweenAtoms(s_idx, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    ]
+    rest = [n for n in sulfur.GetNeighbors() if n.GetIdx() not in oxygens + imides + replaced and n.GetIdx() != attached]
+    if len(rest) != 1 or sulfur.GetDegree() != len(oxygens) + len(imides) + len(replaced) + 2:
         return None
     other = rest[0]
+    if sulfur.GetAtomicNum() == 16 and replaced and not imides and len(oxygens) + len(replaced) in (1, 2):
+        if other.GetAtomicNum() == 7 and (
+            _terminal_heteroatom(mol, other.GetIdx(), 2) or _plain_amide_nitrogen(mol, other, s_idx)
+        ):
+            zs = tuple(sorted(mol.GetAtomWithIdx(i).GetAtomicNum() for i in replaced))
+            name = _CHALCOGEN_SULFONAMIDE[(len(oxygens) + len(replaced), zs)]
+            return name, {s_idx, *oxygens, *replaced, other.GetIdx()}
+        return None
     if sulfur.GetAtomicNum() == 16 and len(oxygens) == 2 and not imides:
         if other.GetAtomicNum() == 8 and _terminal_heteroatom(mol, other.GetIdx(), 1):
             return "sulfonic", {s_idx, *oxygens, other.GetIdx()}
@@ -271,6 +364,25 @@ def _sulfonyl_group(mol, s_idx, attached):
         beta = _hydrazide_beta_nitrogen(mol, other, s_idx)
         if beta is not None:
             return hydrazide, {s_idx, *oxygens, other.GetIdx(), beta}
+    return None
+
+
+def _chalcogen_amide_group(mol, atom, chalcogen, z):
+    """(class, owned atoms) of a C(=X)-N carbon, X = S, Se or Te: a thio-, seleno- or telluroamide (P-66.1.4.1), or the
+    thione of a 'hidden' amide whose nitrogen is a ring member (P-66.1.4.3)."""
+    carbon = atom.GetIdx()
+    others = [n for n in atom.GetNeighbors() if n.GetIdx() != chalcogen]
+    nitrogens = [n for n in others if n.GetAtomicNum() == 7]
+    rest = [n for n in others if n.GetAtomicNum() != 7]
+    if len(nitrogens) != 1 or any(mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() != 1.0 for n in others):
+        return None
+    if len(rest) > 1 or (rest and rest[0].GetAtomicNum() != 6) or (not rest and atom.GetTotalNumHs() != 1):
+        return None
+    (nitrogen,) = nitrogens
+    if rest and _ring_nitrogen_acyl(mol, nitrogen, carbon):
+        return _CHALCOGEN_KETONE_CLASS[z], {chalcogen}
+    if _terminal_heteroatom(mol, nitrogen.GetIdx(), 2) or _plain_amide_nitrogen(mol, nitrogen, carbon):
+        return _CHALCOGEN_AMIDE[z], {chalcogen, nitrogen.GetIdx()}
     return None
 
 
@@ -302,6 +414,10 @@ def _group_of(mol, carbon):
         ]
         if found and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors() if n.GetIdx() != found[0]) and atom.GetDegree() == 3:
             return thione, {found[0]}
+        if found:
+            amide = _chalcogen_amide_group(mol, atom, found[0], z)
+            if amide is not None:
+                return amide
     if _is_isocyanate_carbon(atom):
         return None
     oxygens = _double_oxygens(mol, carbon)
@@ -1263,7 +1379,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             and not (AMINIUM.get() and principal in (None, "amine", "imine"))
             and principal not in ("peroxoic", "thioic", "imidic")
             and not (
-                principal in ("amide", "sulfonamide", "hydrazide", *_CHALCOGEN_HYDRAZIDE.values())
+                principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, "hydrazide", *_CHALCOGEN_HYDRAZIDE.values())
                 and atom.GetIdx() in groups.get(principal, {})
             )
             and _is_ester_like(mol, atom.GetIdx())
@@ -1292,7 +1408,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
                 raise UnsupportedStructure("an N-substituted imidic acid inside a unit is not handled by the chain engine")
             n_names = imidic_ns
 
-    if principal in ("amide", "sulfonamide"):
+    if principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES):
         amide_ns = _amide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal)
         if amide_ns:
             if attach is not None or n_names:
@@ -1365,7 +1481,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             and (
                 a.GetIdx() in principal_atoms
                 or not is_functional_carbon(mol, a.GetIdx())
-                or (_is_acid_family(principal) and _junior_end_group(mol, a.GetIdx()))
+                or ((_is_acid_family(principal) or principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES)) and _junior_end_group(mol, a.GetIdx()))
             )
         }
         try:
@@ -1413,6 +1529,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
         and len(chain_best[2][4]) == 1
         and not (_is_variant(principal) and attach is None)
         and not chain_best[1].endswith("formic acid")
+        and not (principal in _CHALCOGEN_AMIDE_CLASSES and attach is None)
     ):
         raise UnsupportedStructure("one-carbon acid, amide, nitrile and aldehyde parents use retained names")
     return _finish(chain_best)
@@ -1676,6 +1793,7 @@ def _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo=None):
 _CARBO_WORDS = {
     "acid": "carboxylic acid",
     "amide": "carboxamide",
+    **{name: f"carbo{name}" for name in _CHALCOGEN_AMIDE_CLASSES},
     "amidine": "carboximidamide",
     "hydrazonamide": "carbohydrazonamide",
     "imidohydrazide": "carboximidohydrazide",
@@ -2015,10 +2133,12 @@ _FUSED_SUFFIX = _FusedSuffix({
     "acid": "carboxylic acid",
     "sulfonic": "sulfonic acid",
     "amide": "carboxamide",
+    **{name: f"carbo{name}" for name in _CHALCOGEN_AMIDE_CLASSES},
     "amidine": "carboximidamide",
     "hydrazonamide": "carbohydrazonamide",
     "imidohydrazide": "carboximidohydrazide",
     "sulfonamide": "sulfonamide",
+    **{name: name for name in _CHALCOGEN_SULFONAMIDE_CLASSES},
     **{name: name for name in _CHALCOGEN_HYDRAZIDE.values()},
     **{name: name for name in _CHALCOGEN_IMIDAMIDE.values()},
     "hydrazide": "carbohydrazide",
@@ -2076,10 +2196,12 @@ _RING_SUFFIX = _RingSuffix({
     "acid": "carboxylic_acid",
     "sulfonic": "sulfonic_acid",
     "amide": "amide",
+    **{name: name for name in _CHALCOGEN_AMIDE_CLASSES},
     "amidine": "amidine",
     "hydrazonamide": "hydrazonamide",
     "imidohydrazide": "imidohydrazide",
     "sulfonamide": "sulfonamide",
+    **{name: name for name in _CHALCOGEN_SULFONAMIDE_CLASSES},
     **{name: name for name in _CHALCOGEN_HYDRAZIDE.values()},
     **{name: name for name in _CHALCOGEN_IMIDAMIDE.values()},
     "hydrazide": "hydrazide",
@@ -3400,9 +3522,20 @@ def _evaluate(
     ide_locants = sorted(position_of[a] for a, w in IDE_EXTRA.get().items() if a in chain_set for _ in range(w))
     length = len(chain)
     force = (attach is not None and length != 1) or (principal == "ide" and bool(grouped) and length > 1) or FORCE_LOCANTS.get()
-    prefix = format_substituent_prefixes(
-        _with_n_names(grouped, n_names, position_of, len(on_chain)), omit_locants=length == 1 and not force and not n_names
+    completely_substituted = (
+        length == 2
+        and _is_terminal(principal)
+        and len(on_chain) == 1
+        and not ene
+        and not yne
+        and mol.GetAtomWithIdx(next(a for a in chain if a != on_chain[0])).GetTotalNumHs() == 0
     )
+    if completely_substituted and not force and not n_names:
+        prefix = single_site_prefixes(grouped)
+    else:
+        prefix = format_substituent_prefixes(
+            _with_n_names(grouped, n_names, position_of, len(on_chain)), omit_locants=length == 1 and not force and not n_names
+        )
     tail = ""
     if principal == "ide" and attach is None and length == 2 and not grouped and (ene or yne) and (count == 1 or yne):
         word = multiplied_word(count, "ide")
@@ -3444,8 +3577,8 @@ def _evaluate(
         body = name_from_substituents(
             length, ene, yne, multiplied_word(count, "peroxol"), suffix_locants, substituted=bool(grouped)
         )
-    elif principal == "amide":
-        body = name_from_substituents(length, ene, yne, multiplied_word(count, "amide"))
+    elif principal == "amide" or principal in _CHALCOGEN_AMIDE_CLASSES:
+        body = name_from_substituents(length, ene, yne, multiplied_word(count, principal))
     elif principal == "amidine":
         body = name_from_substituents(length, ene, yne, multiplied_word(count, "imidamide"))
     elif principal in _AMIDRAZONE:
@@ -3471,6 +3604,7 @@ def _evaluate(
             "imine": "imine",
             "sulfonic": "sulfonic acid",
             "sulfonamide": "sulfonamide",
+            **{name: name for name in _CHALCOGEN_SULFONAMIDE_CLASSES},
             **{name: name for name in _CHALCOGEN_HYDRAZIDE.values()},
             **{name: name for name in _CHALCOGEN_IMIDAMIDE.values()},
         }[principal]

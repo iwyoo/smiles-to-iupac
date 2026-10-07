@@ -1126,3 +1126,51 @@ def test_amidrazones(smiles, expected):
 )
 def test_heteroatom_substituents_on_nitrogen_and_pseudohalide_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(N)=S", "ethanethioamide", id="chain_thioamide"),
+        pytest.param("NC=S", "methanethioamide", id="one_carbon_thioamide_has_no_retained_name"),
+        pytest.param("NC(=S)CC(N)=S", "propanedithioamide", id="dithioamide_on_a_chain"),
+        pytest.param("NC(=S)c1ccccn1", "pyridine-2-carbothioamide", id="carbothioamide_on_a_heteroarene"),
+        pytest.param("NC(=S)c1ccc(Cl)cc1", "4-chlorobenzene-1-carbothioamide", id="carbothioamide_with_substituent_locants"),
+        pytest.param("NC(=S)c1ccc(cc1)C(N)=S", "benzene-1,4-dicarbothioamide", id="carbothioamides_on_one_ring_are_not_multiplicative"),
+        pytest.param("NC(=S)CC(CC(N)=S)C(N)=S", "propane-1,2,3-tricarbothioamide", id="carbothioamides_on_a_chain"),
+        pytest.param("CCC(=S)N(C)C", "N,N-dimethylpropanethioamide", id="n_substituted_thioamide"),
+        pytest.param("ON(C)C(C)=S", "N-hydroxy-N-methylethanethioamide", id="n_hydroxy_thioamide"),
+        pytest.param("CC(N)=[Se]", "ethaneselenoamide", id="selenoamide"),
+        pytest.param("CC(N)=[Te]", "ethanetelluroamide", id="telluroamide"),
+        pytest.param("CC(=S)N1CCCC1", "1-(pyrrolidin-1-yl)ethane-1-thione", id="hidden_amide_is_a_thione"),
+        pytest.param("CCC(=S)NC(C)=O", "N-(propanethioyl)acetamide", id="n_acyl_amide_keeps_the_oxygen_amide_as_parent"),
+        pytest.param("CC(=S)NC(C)=S", "N-(ethanethioyl)ethanethioamide", id="identical_thioacyl_groups_on_nitrogen"),
+        pytest.param("CC(=S)N(C1CCCCC1)C(C)=S", "N-cyclohexyl-N-(ethanethioyl)ethanethioamide", id="tertiary_thioamide_with_a_third_substituent"),
+        pytest.param("CC(=S)NC(=S)c1ccccc1", "N-(ethanethioyl)benzenecarbothioamide", id="imide_parent_is_the_ring_acyl_group"),
+        pytest.param("NC(=O)CC(N)=S", "3-amino-3-sulfanylidenepropanamide", id="thioamide_under_an_amide_joins_the_chain"),
+        pytest.param("NC(=[Se])CC(N)=S", "3-amino-3-selanylidenepropanethioamide", id="selenoamide_under_a_thioamide"),
+        pytest.param("OC(=O)c1ccc(cc1)C(N)=S", "4-carbamothioylbenzoic acid", id="thioamide_prefix_under_an_acid"),
+        pytest.param("NC(=[Se])c1ccc(cc1)C(=O)O", "4-carbamoselenoylbenzoic acid", id="selenoamide_prefix_under_an_acid"),
+        pytest.param("NC(=O)c1ccc(NC(C)=S)cc1", "4-(ethanethioamido)benzamide", id="thioacylamino_prefix_is_an_amido_prefix"),
+        pytest.param("OC(=O)CN(C)C(=S)C(Cl)C", "(2-chloro-N-methylpropanethioamido)acetic acid", id="n_substituted_amido_prefix_merges_with_the_acyl_prefixes"),
+        pytest.param("NC(=S)NCC(=O)O", "(carbamothioylamino)acetic acid", id="thiourea_group_stays_an_acylamino_prefix"),
+        pytest.param("OC(=O)c1ccccc1C(=S)C(N)=S", "2-[amino(sulfanylidene)ethanethioyl]benzoic acid", id="completely_substituted_acyl_group_omits_locants"),
+    ],
+)
+def test_chalcogen_analogues_of_amides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CS(=S)(=O)N", "methanesulfonothioamide", id="sulfonothioamide"),
+        pytest.param("NS(=S)(=S)c1ccc2ccccc2c1", "naphthalene-2-sulfonodithioamide", id="sulfonodithioamide_on_a_ring"),
+        pytest.param("CS(=S)N", "methanesulfinothioamide", id="sulfinothioamide"),
+        pytest.param("CS(=S)(=[Se])N", "methanesulfonoselenothioamide", id="infixes_in_alphanumerical_order"),
+        pytest.param("CS(=S)(=O)NC", "N-methylmethanesulfonothioamide", id="n_substituted_sulfonothioamide"),
+        pytest.param("OC(=O)CNS(C)=S", "[(methanesulfinothioyl)amino]acetic acid", id="sulfinothioyl_amino_prefix"),
+    ],
+)
+def test_chalcogen_analogues_of_sulfonamides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
