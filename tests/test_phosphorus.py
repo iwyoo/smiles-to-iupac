@@ -267,3 +267,21 @@ def test_phosphorus_thio_oxoacid_esters(smiles, expected):
 )
 def test_free_mononuclear_oxoacids(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("O=[As](O)(O)c1ccccc1", "phenylarsonic acid"),
+        ("CC[Sb](=O)(O)CC", "diethylstibinic acid"),
+        ("O=P(Cl)(Cl)Cl", "phosphoryl trichloride"),
+        ("O=P(c1ccccc1)(Cl)Cl", "phenylphosphonic dichloride"),
+        ("CCP(=S)(CC)Cl", "diethylphosphinothioic chloride"),
+        ("CN(C)P(=O)(N(C)C)N(C)C", "hexamethylphosphoric triamide"),
+        ("CN(C)P(=O)(C)C", "N,N,P,P-tetramethylphosphinic amide"),
+        ("CNP(=O)(NC)c1ccccc1", "N,N'-dimethyl-P-phenylphosphonic diamide"),
+        ("CN(C)P(=S)(N(C)C)c1ccccc1", "N,N,N',N'-tetramethyl-P-phenylphosphonothioic diamide"),
+    ],
+)
+def test_group_15_acids_halides_and_amides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
