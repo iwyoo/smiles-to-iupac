@@ -810,3 +810,15 @@ def test_monospiro_union_with_a_von_baeyer_component(smiles, expected):
 def test_adamantane_component_of_a_spiro_union_is_not_given_a_von_baeyer_name():
     with pytest.raises(NotImplementedError):
         smiles_to_iupac("C1CCC2(C1)C1CC3CC(C1)CC2C3")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C1CC2(C=CNC=C2)C2=CC=CC=C12", "2,3-dihydro-1′H-spiro[indene-1,4′-pyridine]", id="mancude_retained_monocycle_with_indicated_hydrogen"),
+        pytest.param("C1CC2(CCN(C=C2)C)c2ccccc12", "1′-methyl-2,2′,3,3′-tetrahydro-1′H-spiro[indene-1,4′-pyridine]", id="hydro_prefixes_of_a_partly_saturated_monocycle"),
+        pytest.param("C12C[N+]3(CC(CC1)CC2)COC=C3", "2′H-3λ5-spiro[3-azabicyclo[3.2.2]nonane-3,3′-[1,3]oxazol]-3-ylium", id="hantzsch_widman_mancude_monocycle_with_cationic_spiro_atom"),
+    ],
+)
+def test_monospiro_union_with_an_unsaturated_hetero_monocycle(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

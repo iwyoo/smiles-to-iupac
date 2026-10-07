@@ -18,6 +18,7 @@ from ._fused_numbering import HETERO_RANK
 from ._fusion_name import Context, fusion_name, system_numbering_options
 from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
 from ._numerals import alkane_name
+from ._ring_diyl_numbering import _MANCUDE_RETAINED, _RANK, _hantzsch_widman, _with_hetero_locants
 from ._polycyclic import find_polycyclic_core, iter_polycyclic_candidates
 from ._substituents import format_substituent_prefixes
 from ._von_baeyer_heteroatom import _replacement_multiplied_word
@@ -121,8 +122,11 @@ def _monocycle(sub, atoms, mol, force_replacement):
     )
     if replacement and double:
         raise UnsupportedStructure("an unsaturated monocyclic spiro component named by replacement is not supported yet")
-    if hetero and not replacement:
-        if double or not has_hetero_monocyclic_name(sub):
+    mancude = hetero and not replacement and bool(double)
+    if mancude:
+        name = None
+    elif hetero and not replacement:
+        if not has_hetero_monocyclic_name(sub):
             raise UnsupportedStructure("this monocyclic spiro component has no supported name")
         name = name_hetero_monocyclic(sub)
     else:
@@ -139,11 +143,27 @@ def _monocycle(sub, atoms, mol, force_replacement):
                 for a in order
                 if sub.GetAtomWithIdx(a).GetAtomicNum() != 6 and not replacement
             ]
-            ene = tuple(sorted(min(locants[a] for a in pair) for pair in double))
+            ene = () if mancude else tuple(sorted(min(locants[a] for a in pair) for pair in double))
             key = (sorted(l for _, l in symbols), [l for _, l in sorted(symbols)])
             options.append((key, {a: str(l) for a, l in locants.items()}, ene))
     best = min(k for k, _, _ in options)
-    return name, [(n, e) for k, n, e in options if k == best], replacement
+    kept = [(n, e) for k, n, e in options if k == best]
+    if mancude:
+        name = _mancude_name(sub, kept[0][0])
+    return name, kept, replacement, mancude
+
+
+def _mancude_name(sub, numbering):
+    by_locant = sorted(numbering, key=lambda a: int(numbering[a]))
+    elements = tuple(sub.GetAtomWithIdx(a).GetSymbol() for a in by_locant)
+    hetero = [(i + 1, _RANK.get(e, 99)) for i, e in enumerate(elements) if e != "C"]
+    stem = _MANCUDE_RETAINED.get(elements)
+    if stem is None:
+        stem = _hantzsch_widman(elements, saturated=False)
+        if stem is None:
+            raise UnsupportedStructure("this unsaturated heteromonocycle has no supported mancude name")
+        stem = _with_hetero_locants(stem, elements, hetero)
+    return _bracket_locants(stem)
 
 
 def _von_baeyer(sub):
@@ -184,9 +204,9 @@ def _ene_name(name, ene):
 
 def _component(mol, comp, force_replacement):
     sub, atoms = _skeleton(mol, comp)
-    replacement = False
+    replacement = mancude = False
     if comp["rings"] == 1:
-        name, numberings, replacement = _monocycle(sub, atoms, mol, force_replacement)
+        name, numberings, replacement, mancude = _monocycle(sub, atoms, mol, force_replacement)
     elif comp["bridged"]:
         replacement = True
         name, orders = _von_baeyer(sub)
@@ -201,7 +221,7 @@ def _component(mol, comp, force_replacement):
         "name": name,
         "numberings": [({atoms[i]: loc for i, loc in n.items()}, ene) for n, ene in numberings],
         "replacement": replacement,
-        "fused": comp["rings"] > 1 and not replacement,
+        "fused": mancude or (comp["rings"] > 1 and not replacement),
     }
 
 
