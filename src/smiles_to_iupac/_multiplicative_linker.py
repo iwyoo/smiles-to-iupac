@@ -10,7 +10,7 @@ from ._free_valence import SUFFIX_OF_ORDER, citation
 from ._common import UnsupportedStructure, alpha_sort_key, multiplied_word, suffix_body
 from ._multiplicative_prefix import SIMPLE_PREFIXES, prefix_name, subtree
 from ._multiplicative_ring import name_ring_component
-from ._numerals import alkane_name
+from ._numerals import alkane_name, multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes
 
 _SINGLE_ATOM_WORDS = {8: "oxy", 16: "sulfanediyl", 34: "selanediyl", 52: "tellanediyl", 7: "azanediyl"}
@@ -21,7 +21,14 @@ _SUBSTITUTABLE_WORDS = {
 _CHAIN_STEMS = {7: "azane", 14: "silane", 15: "phosphane", 32: "germane", 33: "arsane", 50: "stannane", 51: "stibane", 82: "plumbane", 83: "bismuthane"}
 _SINGLE_CARBON_MULTIPLE_WORDS = {(1, 2): "methanylylidene", (2, 2): "methanediylidene", (1, 3): "methanylylidyne"}
 _YLYLIDENE_WORDS = {7: "azanylylidene", 15: "phosphanylylidene"}
-_HOMO_RUN_WORDS = {(8, 2): "peroxy", (16, 2): "disulfanediyl", (34, 2): "diselanediyl", (52, 2): "ditellanediyl"}
+
+
+def _homo_run_word(z, n):
+    if z == 8 and n == 2:
+        return "peroxy"
+    if z in (16, 34, 52):
+        return multiplying_prefix(n) + _SINGLE_ATOM_WORDS[z]
+    return None
 
 
 class DecompositionRejected(Exception):
@@ -116,8 +123,8 @@ def _hetero_part(mol, atoms, attachments, ctx, directed=None):
             ):
                 raise UnsupportedStructure("an unsaturated nitrogen chain longer than two atoms is not supported as a linker")
             return _hydride_chain_part(mol, atoms, attachments, pend, ctx, _CHAIN_STEMS[z], directed, whole)
-        word = _HOMO_RUN_WORDS.get((z, len(atoms)))
-        if len(atoms) != 2 or word is None or pend or len(attachments) != 2:
+        word = _homo_run_word(z, len(atoms))
+        if word is None or pend or len(attachments) != 2 or any(mol.GetAtomWithIdx(a).GetAtomicNum() != z for a in atoms):
             raise UnsupportedStructure("this heteroatom chain is not supported as a multiplicative linker")
         return Part(word, False, False)
     count = len(attachments)
