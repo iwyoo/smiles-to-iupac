@@ -92,9 +92,17 @@ def test_aromatic_aminide_is_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_ring_ammonium_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[NH2+]C1CCCCC1")
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C[NH2+]C1CCCCC1", "N-methylcyclohexanaminium", id="ring_ammonium"),
+        pytest.param("C[N+](C)(C)CC(O)CC(=O)O", "3-carboxy-2-hydroxy-N,N,N-trimethylpropan-1-aminium", id="cation_outranks_acid"),
+        pytest.param("C[N+](C)(C)CCC(=O)OC", "2-(methoxycarbonyl)-N,N,N-trimethylethan-1-aminium", id="cation_outranks_ester"),
+        pytest.param("C[N+](C)(C)c1ccc(C(=O)O)cc1", "4-carboxy-N,N,N-trimethylanilinium", id="aryl_ammonium_with_acid"),
+    ],
+)
+def test_ammonium_parent_with_other_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_aromatic_ammonium():

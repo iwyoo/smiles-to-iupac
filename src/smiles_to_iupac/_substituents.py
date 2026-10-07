@@ -349,7 +349,55 @@ class CompoundPrefix(str):
     cited in enclosing marks when passed through `halogens`."""
 
 
+ISOTOPE_LABELS = contextvars.ContextVar("isotope_labels", default=None)
+
+
+def _label_branch(result, graph, root, coming_from):
+    """`result` with the isotopic descriptor of a one-atom substituent (methyl, a halogen) or of the carbon of a
+    methoxy group (P-82.2.1); any larger labelled branch is not supported."""
+    from ._isotope_labels import descriptor
+
+    context = ISOTOPE_LABELS.get()
+    atoms = {root}
+    stack = [root]
+    while stack:
+        for n in graph[stack.pop()]:
+            if n != coming_from and n not in atoms:
+                atoms.add(n)
+                stack.append(n)
+    labelled = {a: context["labels"][a] for a in atoms if a in context["labels"] and a not in context["consumed"]}
+    if not labelled:
+        return result
+    name, _ = result
+    if name == "methoxy" and set(labelled) == atoms - {root}:
+        positions = {a: 1 for a in labelled}
+    else:
+        positions = _plain_chain_positions(graph, root, coming_from, atoms)
+        if positions is None or not name.isalpha():
+            raise UnsupportedStructure("an isotopically modified substituent other than a plain alkyl group is not supported yet")
+    context["consumed"].update(labelled)
+    return descriptor(labelled, positions, len(atoms) == 1) + name, False
+
+
+def _plain_chain_positions(graph, root, coming_from, atoms):
+    """{atom: locant} when the branch is an unbranched chain of carbon atoms read from its attachment atom."""
+    positions = {}
+    previous, current = coming_from, root
+    while current is not None:
+        if len([n for n in graph[current] if n != previous]) > 1:
+            return None
+        positions[current] = len(positions) + 1
+        onward = [n for n in graph[current] if n != previous]
+        previous, current = current, (onward[0] if onward else None)
+    return positions if set(positions) == atoms else None
+
+
 def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mol=None, unsaturated=None):
+    result = _name_branch_with_phane(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated)
+    return _label_branch(result, graph, root, coming_from) if ISOTOPE_LABELS.get() else result
+
+
+def _name_branch_with_phane(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated):
     try:
         return _name_branch(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated)
     except UnsupportedStructure:

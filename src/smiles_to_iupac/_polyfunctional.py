@@ -68,7 +68,12 @@ def _acid_rank(name):
     return rank_key(spec)
 
 
+AMINIUM = contextvars.ContextVar("aminium", default=False)
+
+
 def _principal_class(classes):
+    if AMINIUM.get():
+        return "amine" if "amine" in classes else None
     if "ide" in classes:
         return "ide"
     acids = [c for c in classes if c in ("acid", "sulfonic") or _is_variant(c)]
@@ -314,27 +319,97 @@ def _paths(adj, eligible):
 
 
 def name_polyfunctional(mol) -> str:
+    from ._isotope_labels import split_isotopes
     from ._linear_phane import has_linear_phane_shape, name_linear_phane
-    from ._substituents import BRANCH_STEREO
 
     if has_linear_phane_shape(mol):
         return name_linear_phane(mol)
+    split = split_isotopes(mol)
+    if split is not None:
+        return _name_isotopic(*split)
+    cation = _aminium_base(mol)
+    if cation is not None:
+        return _name_aminium(cation)
+    return _name_labelled(mol, {})
 
-    stereo = _check_scope(mol)
+
+def _aminium_base(mol):
+    """The mol with its ammonium nitrogen neutralised when the only charge is one N+ bonded to carbon and hydrogen
+    (a cation outranks every acid, P-41), else None."""
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    if len(charged) != 1 or charged[0].GetFormalCharge() != 1 or charged[0].GetAtomicNum() != 7:
+        return None
+    nitrogen = charged[0]
+    if (
+        nitrogen.GetIsAromatic()
+        or nitrogen.IsInRing()
+        or nitrogen.GetDegree() + nitrogen.GetTotalNumHs() != 4
+        or any(
+            n.GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
+            for n in nitrogen.GetNeighbors()
+        )
+    ):
+        return None
+    if nitrogen.GetTotalNumHs() == 0:
+        return mol
+    neutral = Chem.RWMol(mol)
+    atom = neutral.GetAtomWithIdx(nitrogen.GetIdx())
+    atom.SetFormalCharge(0)
+    atom.SetNumExplicitHs(nitrogen.GetTotalNumHs() - 1)
+    atom.SetNoImplicit(True)
+    Chem.SanitizeMol(neutral)
+    return neutral.GetMol()
+
+
+def _name_aminium(base):
+    token = AMINIUM.set(True)
+    try:
+        name = _name_labelled(base, {})
+    finally:
+        AMINIUM.reset(token)
+    if not name.endswith(("amine", "aniline")):
+        raise UnsupportedStructure("the ammonium cation is not named as an amine parent")
+    return name[:-1] + "ium"
+
+
+def _name_isotopic(clean, labels):
+    if specified_stereo_elements(clean) is not None or any(
+        a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in clean.GetAtoms()
+    ):
+        raise UnsupportedStructure("stereodescriptors of an isotopically modified compound are not supported yet (P-82.4)")
+    return _name_labelled(clean, labels)
+
+
+def _name_labelled(mol, labels):
+    from ._isotope_labels import descriptor
+    from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS
+
+    stereo = _check_scope(mol) + [("isotope", atom, "") for atom in labels]
     context = {
         "atoms": {where: code for kind, where, code in stereo if kind == "atom"},
         "bonds": {where: code for kind, where, code in stereo if kind == "bond"},
         "used": set(),
     }
     token = BRANCH_STEREO.set(context if stereo else None)
+    isotope_context = {"labels": labels, "consumed": set()}
+    isotope_token = ISOTOPE_LABELS.set(isotope_context if labels else None)
     try:
         multiplicative = _multiplicative_name(mol, stereo)
         if multiplicative is not None:
+            if labels:
+                raise UnsupportedStructure("isotopic modification of a multiplicative name is not supported yet")
             return multiplicative
         _, name, parts = _select(mol, stereo=stereo)
+        if labels:
+            in_parent = {a: e for a, e in labels.items() if a in parts[4]}
+            if set(labels) - set(in_parent) - isotope_context["consumed"]:
+                raise UnsupportedStructure("an isotopically modified atom outside the parent hydride is not supported yet")
+            if in_parent:
+                name = _with_descriptor(name, parts, descriptor(in_parent, parts[4], len(parts[4]) == 1))
         return _stereo_prefix(stereo, parts[4], ring_parent=parts[5], used=context["used"]) + name
     finally:
         BRANCH_STEREO.reset(token)
+        ISOTOPE_LABELS.reset(isotope_token)
 
 
 def _check_scope(mol):
@@ -353,11 +428,21 @@ def _check_scope(mol):
     return located
 
 
+def _with_descriptor(name, parts, text):
+    """`text` inserted before the parent hydride part of `name`, with a hyphen before a leading locant (P-82.2.1)."""
+    split = len(parts[0]) if parts[0] is not None else (parts[6] if len(parts) > 6 else None)
+    if split is None:
+        raise UnsupportedStructure("the parent hydride part of this name is not delimited")
+    return name[:split] + text + ("-" if name[split:split + 1].isdigit() else "") + name[split:]
+
+
 def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset()):
     """[(locant, code)] for the stereo elements found on the parent, plus
     whether every element was placed (on the parent or inside a substituent)."""
     entries, complete = [], True
     for kind, where, code in stereo or []:
+        if kind == "isotope":
+            continue
         if kind == "atom":
             if where in position_of:
                 entries.append((position_of[where], code))
@@ -375,7 +460,8 @@ def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset()):
 
 def _stereo_rank(stereo, position_of, ring_parent=False):
     entries, _ = _stereo_entries(stereo, position_of, ring_parent)
-    return tuple(0 if code in "RZr" else 1 for _, code in entries)
+    isotopic = tuple(sorted(position_of[w] for k, w, _ in stereo or [] if k == "isotope" and w in position_of))
+    return isotopic, tuple(0 if code in "RZr" else 1 for _, code in entries)
 
 
 def _stereo_prefix(stereo, position_of, ring_parent=False, used=frozenset()):
@@ -465,12 +551,15 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
     for atom in mol.GetAtoms():
         if atom.GetIsotope() or atom.GetNumRadicalElectrons():
             raise UnsupportedStructure("isotopes and radicals are not supported by the polyfunctional chain engine")
-        if atom.GetFormalCharge() and not _is_nitro_part(atom) and not _anionic_group_atom(mol, atom):
+        if atom.GetFormalCharge() and not _is_nitro_part(atom) and not _anionic_group_atom(mol, atom) and not (
+            AMINIUM.get() and atom.GetAtomicNum() == 7
+        ):
             raise UnsupportedStructure("charged atoms are not supported by the polyfunctional chain engine")
         if (
             atom.GetAtomicNum() == 6
             and not atom.IsInRing()
             and not _is_acid_family(principal)
+            and not (AMINIUM.get() and principal in (None, "amine"))
             and principal not in ("peroxoic", "thioic", "imidic")
             and not (principal in ("amide", "sulfonamide") and atom.GetIdx() in groups.get(principal, {}))
             and _is_ester_like(mol, atom.GetIdx())
@@ -1291,7 +1380,7 @@ def _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n
     count += len(ide_atoms)
     letters = re.sub(r"[^a-z]", "", name)
     rank = (-len(entries), best[0][2], best[0][3], letters)
-    return count, ((-count,), name, (None, None, None, 0, locants, True)), rank
+    return count, ((-count,), name, (None, None, None, 0, locants, True, len(name) - len(core))), rank
 
 
 def _ring_compound_core(spec, suffix_name, locants, ide_atoms, principal_atoms):
@@ -1356,6 +1445,7 @@ def _amine_parent_molecule(mol, atoms, carbon, n_idx):
     parent = editable.GetMol()
     for a in parent.GetAtoms():
         if a.HasProp("_cut_amine_n") and not a.IsInRing():
+            a.SetFormalCharge(0)
             a.SetNumExplicitHs(2)
             a.SetNoImplicit(True)
     Chem.SanitizeMol(parent)
@@ -1964,7 +2054,7 @@ def _is_ester_like(mol, carbon):
 
 
 def _substituted_amine_nitrogen(mol, atom):
-    if atom.GetAtomicNum() != 7 or atom.GetFormalCharge() or atom.GetIsAromatic() or atom.IsInRing():
+    if atom.GetAtomicNum() != 7 or (atom.GetFormalCharge() and not (AMINIUM.get() and atom.GetFormalCharge() == 1)) or atom.GetIsAromatic() or atom.IsInRing():
         return False
     carbons = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
     return len(carbons) >= 2

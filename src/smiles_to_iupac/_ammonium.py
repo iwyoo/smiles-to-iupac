@@ -62,6 +62,7 @@ from rdkit import Chem
 
 from ._amine import _name_acyclic_secondary_tertiary_amine, name_amine
 from ._common import UnsupportedStructure, non_single_bonds, specified_stereo_elements
+from ._hetero_prefixes import is_functional_carbon
 
 
 def has_ammonium_shape(mol) -> bool:
@@ -120,6 +121,9 @@ def name_ammonium(mol) -> str:
         # bonding, so it matches both shapes identically; without this
         # check the ylide's second charge center was silently dropped.
         raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
+
+    if any(atom.GetAtomicNum() == 6 and is_functional_carbon(mol, atom.GetIdx()) for atom in mol.GetAtoms()):
+        raise UnsupportedStructure("a carbonyl-type group beside the cation is cited as a prefix by the chain engine")
 
     degree = nitrogen.GetDegree()
     if degree == 0:
