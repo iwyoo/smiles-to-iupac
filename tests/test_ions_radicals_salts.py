@@ -162,12 +162,7 @@ def test_benzenide_name_and_related(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("C[C+](C)C", id="branch_point_carbenium_three_branches_raises"),
-        pytest.param("CC[CH+]C(C)C", id="branch_point_carbenium_with_further_branching_raises"),
-        pytest.param("[CH2+]C(C)C", id="branched_chain_carbenium_raises"),
-        pytest.param("CC1CC[CH+]C1", id="substituted_ring_carbenium_raises"),
-        pytest.param("[CH2+]C(Cl)", id="halogen_substituted_carbenium_raises"),
-        pytest.param("[CH2+]C=C", id="unsaturated_carbenium_raises"),
+        pytest.param("C1CCC2CC[CH+]CC2C1", id="fused_ring_carbenium_raises"),
     ],
 )
 def test_branch_point_carbenium_and_related_raise(smiles):
@@ -274,9 +269,8 @@ def test_methyl_radical_name():
     assert smiles_to_iupac("[CH3]") == "methyl"
 
 
-def test_branched_chain_radical_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[CH2]C(C)C")
+def test_branched_chain_radical():
+    assert smiles_to_iupac("[CH2]C(C)C") == "2-methylpropyl"
 
 
 @pytest.mark.parametrize(
@@ -292,31 +286,22 @@ def test_branch_point_radical_cases(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("[CH](C(C)C)C", id="branch_point_radical_with_further_branching_raises"),
-        pytest.param("CC1CC[CH]C1", id="substituted_ring_radical_raises"),
+        pytest.param("[CH](C(C)C)C", "3-methylbutan-2-yl", id="branch_point_radical_with_further_branching"),
+        pytest.param("CC1CC[CH]C1", "3-methylcyclopentyl", id="substituted_ring_radical"),
     ],
 )
-def test_branch_point_radical_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_branch_point_radical_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_two_radical_centers_diyl_name():
     assert smiles_to_iupac("[CH2][CH2]") == "ethane-1,2-diyl"
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("[CH2][CH][CH2]", id="three_radical_centers_raises"),
-        pytest.param("[CH2]C(Cl)", id="halogen_substituted_radical_raises"),
-    ],
-)
-def test_three_radical_centers_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_three_radical_centers_name():
+    assert smiles_to_iupac("[CH2][CH][CH2]") == "propane-1,2,3-triyl"
 
 
 @pytest.mark.parametrize(
@@ -330,9 +315,8 @@ def test_ethylidene_radical_name_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_branch_point_divalent_radical_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[C](C)C")
+def test_branch_point_divalent_radical_name():
+    assert smiles_to_iupac("[C](C)C") == "propan-2-ylidene"
 
 
 @pytest.mark.parametrize(
@@ -363,9 +347,8 @@ def test_ring_diradical_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_diradical_branch_point_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[CH2]C([CH2])C")
+def test_diradical_branch_point_name():
+    assert smiles_to_iupac("[CH2]C([CH2])C") == "2-methylpropane-1,3-diyl"
 
 
 @pytest.mark.parametrize(
@@ -605,4 +588,233 @@ _P72_COVERAGE = [
 
 @pytest.mark.parametrize(("smiles", "expected"), _P72_COVERAGE)
 def test_p72_prefixes_chains_fusion_and_retained_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[CH2]CCl", "2-chloroethyl", id="halogen_on_the_radical_chain"),
+        pytest.param("[CH2]CC(=O)O", "2-carboxyethyl", id="acid_cited_as_prefix_of_a_radical"),
+        pytest.param("C[CH]C(=O)O", "1-carboxyethyl", id="radical_at_the_alpha_carbon"),
+        pytest.param("[CH2]CO", "2-hydroxyethyl", id="hydroxy_beside_radical"),
+        pytest.param("[CH2]CN", "2-aminoethyl", id="amino_beside_radical"),
+        pytest.param("CC(=O)[CH2]", "2-oxopropyl", id="ketone_beside_radical"),
+        pytest.param("[CH2]C#N", "cyanomethyl", id="nitrile_beside_radical"),
+        pytest.param("N[CH]C(=O)O", "amino(carboxy)methyl", id="two_groups_on_a_one_carbon_radical"),
+        pytest.param("C[C](C)C(=O)O", "2-carboxypropan-2-yl", id="tertiary_radical_with_acid"),
+        pytest.param("OC1CC[CH]CC1", "4-hydroxycyclohexyl", id="ring_radical_with_hydroxy"),
+        pytest.param("[CH2]C(=O)OC", "(methoxycarbonyl)methyl", id="ester_beside_radical"),
+        pytest.param("[CH2]c1ccc(cc1)[N+](=O)[O-]", "(4-nitrophenyl)methyl", id="nitro_on_an_aryl_methyl_radical"),
+        pytest.param("[O]CC(=O)O", "carboxymethoxyl", id="oxygen_radical_with_acid"),
+        pytest.param("[O]CCCl", "2-chloroethoxyl", id="oxygen_radical_with_halogen"),
+        pytest.param("CC(C)[O]", "(propan-2-yl)oxyl", id="branched_oxygen_radical"),
+    ],
+)
+def test_radical_beside_characteristic_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C[n+]1ccccc1", "1-methylpyridin-1-ium", id="n_alkylpyridinium"),
+        pytest.param("c1cc[nH+]cc1", "pyridin-1-ium", id="protonated_pyridine"),
+        pytest.param("c1cc[n+](cc1)c1ccccc1", "1-phenylpyridin-1-ium", id="n_arylpyridinium"),
+        pytest.param("Cc1cc[n+](C)c(C)c1", "1,2,4-trimethylpyridin-1-ium", id="substituents_numbered_from_the_cationic_nitrogen"),
+        pytest.param("C[n+]1ccccc1C(=O)O", "2-carboxy-1-methylpyridin-1-ium", id="cation_outranks_acid"),
+        pytest.param("C[n+]1ccccc1[N+](=O)[O-]", "1-methyl-2-nitropyridin-1-ium", id="nitro_beside_the_cation"),
+        pytest.param("C[n+]1cccc2ccccc12", "1-methylquinolin-1-ium", id="quinolinium"),
+        pytest.param("CC[n+]1ccc2ccccc2c1", "2-ethylisoquinolin-2-ium", id="isoquinolinium"),
+        pytest.param("c1ccc2[nH+]cccc2c1", "quinolin-1-ium", id="protonated_quinoline"),
+        pytest.param("C[n+]1ccccc1.[Cl-]", "1-methylpyridin-1-ium chloride", id="pyridinium_salt"),
+    ],
+)
+def test_heteroaromatic_ring_cation(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[O-][n+]1ccccc1", "pyridine 1-oxide", id="pyridine_n_oxide"),
+        pytest.param("Cc1cc[n+]([O-])cc1", "4-methylpyridine 1-oxide", id="substituted_pyridine_n_oxide"),
+        pytest.param("OC(=O)c1cccc[n+]1[O-]", "2-carboxypyridine 1-oxide", id="n_oxide_outranks_acid"),
+        pytest.param("[O-][n+]1cccc2ccccc12", "quinoline 1-oxide", id="quinoline_n_oxide"),
+        pytest.param("[O-][n+]1ccc2ccccc2c1", "isoquinoline 2-oxide", id="isoquinoline_n_oxide_locant"),
+    ],
+)
+def test_heteroaromatic_n_oxide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C1CC[NH2+]CC1", "piperidin-1-ium", id="protonated_piperidine"),
+        pytest.param("C[NH+]1CCCCC1", "1-methylpiperidin-1-ium", id="n_alkylpiperidinium"),
+        pytest.param("C[N+]1(C)CCCCC1", "1,1-dimethylpiperidin-1-ium", id="quaternary_ring_nitrogen"),
+        pytest.param("C1COCC[NH2+]1", "morpholin-4-ium", id="cation_locant_from_the_ring_heteroatom_order"),
+        pytest.param("C[NH+]1CCOCC1", "4-methylmorpholin-4-ium", id="n_alkylmorpholinium"),
+        pytest.param("OC1CC[NH2+]CC1", "4-hydroxypiperidin-1-ium", id="hydroxy_on_a_cationic_ring"),
+        pytest.param("C[N+]1(C)CCCC1C(=O)O", "2-carboxy-1,1-dimethylpyrrolidin-1-ium", id="cation_outranks_acid_on_a_saturated_ring"),
+        pytest.param("c1ccc2oc[nH+]c2c1", "1,3-benzoxazol-3-ium", id="protonated_fused_azole"),
+        pytest.param("[O-][N+]1(C)CCCCC1", "1-methylpiperidine 1-oxide", id="saturated_ring_n_oxide"),
+        pytest.param("[O-][n+]1ccoc1", "1,3-oxazole 3-oxide", id="azole_n_oxide_locant"),
+    ],
+)
+def test_ring_cation_and_n_oxide_beyond_pyridine(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CCn1cc[n+](C)c1", "1-ethyl-3-methyl-1H-imidazol-3-ium", id="dialkylimidazolium"),
+        pytest.param("C[n+]1ccn(C)c1", "1,3-dimethyl-1H-imidazol-3-ium", id="symmetric_imidazolium"),
+        pytest.param("C[n+]1ccsc1", "3-methyl-1,3-thiazol-3-ium", id="n_alkylthiazolium"),
+        pytest.param("C[n+]1cccnc1C", "1,2-dimethylpyrimidin-1-ium", id="pyrimidinium_substituents"),
+        pytest.param("C[n+]1ccnc2ccccc12", "1-methylquinoxalin-1-ium", id="fused_diazinium"),
+    ],
+)
+def test_heteroaromatic_ring_cation_with_several_nitrogens(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("OCC[NH]", "2-hydroxyethan-1-aminyl", id="aminyl_with_hydroxy"),
+        pytest.param("Clc1ccc([NH])cc1", "4-chlorobenzenaminyl", id="arylaminyl"),
+        pytest.param("OCC(=O)[NH]", "2-hydroxyacetamidyl", id="amidyl_with_hydroxy"),
+        pytest.param("OC(=O)CC(=O)[NH]", "2-carboxyacetamidyl", id="amidyl_outranks_acid"),
+        pytest.param("CCCO[O]", "propylperoxyl", id="alkylperoxyl"),
+        pytest.param("CC(=O)O[O]", "acetylperoxyl", id="acylperoxyl"),
+    ],
+)
+def test_nitrogen_and_peroxyl_radicals_beside_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[O-][n+]1cccnc1", "pyrimidine 1-oxide", id="diazine_n_oxide"),
+        pytest.param("Cc1cc[n+]([O-])cn1", "4-methylpyrimidine 1-oxide", id="n_oxide_locant_before_substituents"),
+        pytest.param("Cc1ccnc[n+]1[O-]", "6-methylpyrimidine 1-oxide", id="oxide_nitrogen_numbered_lowest"),
+        pytest.param("[O-][n+]1ccnc2ccccc12", "quinoxaline 1-oxide", id="fused_diazine_n_oxide"),
+        pytest.param("Cc1cnc[nH+]c1", "5-methylpyrimidin-1-ium", id="protonated_diazine"),
+        pytest.param("Cc1cnc[nH+]c1Cl", "6-chloro-5-methylpyrimidin-1-ium", id="protonated_diazine_numbered_from_the_cation"),
+        pytest.param("c1ccc2nc[nH+]cc2c1", "quinazolin-3-ium", id="protonated_fused_diazine"),
+    ],
+)
+def test_ring_cation_and_n_oxide_with_several_nitrogens(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[CH2]CC[CH2]", "butane-1,4-diyl", id="chain_diyl"),
+        pytest.param("Cl[CH]C[CH2]", "1-chloropropane-1,3-diyl", id="diyl_with_halogen"),
+        pytest.param("[CH2]C(Cl)C[CH2]", "2-chlorobutane-1,4-diyl", id="diyl_with_a_substituent_between"),
+        pytest.param("OC(=O)C[CH][CH2]", "3-carboxypropane-1,2-diyl", id="adjacent_centres_with_acid"),
+        pytest.param("[CH2]C(C(=O)O)C[CH2]", "2-carboxybutane-1,4-diyl", id="diyl_outranks_acid"),
+        pytest.param("C1CC[CH][CH]C1", "cyclohexane-1,2-diyl", id="ring_diyl"),
+    ],
+)
+def test_two_radical_centres_beside_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("OCC[CH]", "3-hydroxypropylidene", id="ylidene_with_hydroxy"),
+        pytest.param("OC(=O)C[CH]", "2-carboxyethylidene", id="ylidene_outranks_acid"),
+        pytest.param("OC1CC[C]CC1", "4-hydroxycyclohexylidene", id="ring_ylidene_with_hydroxy"),
+        pytest.param("O=C(O)C[C]", "2-carboxyethylidyne", id="ylidyne_with_acid"),
+        pytest.param("C1CC[N]C1", "pyrrolidin-1-yl", id="ring_nitrogen_radical"),
+        pytest.param("C1COCC[N]1", "morpholin-4-yl", id="ring_nitrogen_radical_locant_from_the_heteroatom_order"),
+    ],
+)
+def test_ylidene_ylidyne_and_ring_nitrogen_radicals_beside_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[CH2+]CCO", "3-hydroxypropan-1-ylium", id="primary_with_hydroxy"),
+        pytest.param("C[CH+]C(=O)C", "3-oxobutan-2-ylium", id="secondary_with_oxo"),
+        pytest.param("C[C+](C)CO", "1-hydroxy-2-methylpropan-2-ylium", id="tertiary_with_hydroxy"),
+        pytest.param("[CH2+]C=C", "prop-2-en-1-ylium", id="allyl_cation"),
+        pytest.param("[CH+]1CCCC1O", "2-hydroxycyclopentan-1-ylium", id="ring_cation_with_hydroxy"),
+        pytest.param("OCC[CH+]CCN", "1-amino-5-hydroxypentan-3-ylium", id="two_groups"),
+        pytest.param("C[C+](C)C", "2-methylpropan-2-ylium", id="three_branches"),
+        pytest.param("[CH2+]C(C)C", "2-methylpropan-1-ylium", id="branched_chain"),
+        pytest.param("CC1CC[CH+]C1", "3-methylcyclopentan-1-ylium", id="substituted_ring"),
+        pytest.param("[CH2+]C(Cl)", "2-chloroethan-1-ylium", id="halogen"),
+        pytest.param("[CH2+]C1CCC2(CC1)CCCC2", "(spiro[4.5]decan-8-yl)methylium", id="spiro_substituent"),
+        pytest.param("[CH2+]C1CC2CCC1C2", "(bicyclo[2.2.1]heptan-2-yl)methylium", id="bridged_substituent"),
+    ],
+)
+def test_carbenium_centre_beside_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[CH2-][CH2]", "ethan-2-id-1-yl", id="radical_takes_the_lowest_locant"),
+        pytest.param("[CH2+]C[CH2]", "propan-3-ylium-1-yl", id="radical_cation"),
+        pytest.param("[CH2-][CH][CH2-]", "propane-1,3-diid-2-yl", id="dianion_radical"),
+        pytest.param("[CH-]1CCCC[CH]1", "cyclohexan-2-id-1-yl", id="ring_radical_anion"),
+        pytest.param("[CH2+]CC[CH][CH2+]", "pentane-1,5-diylium-2-yl", id="dication_radical"),
+        pytest.param("[CH2-]C(C)C[CH2]", "3-methylbutan-4-id-1-yl", id="branched_skeleton_radical_first"),
+        pytest.param("ClC[CH-]C[CH2]", "4-chlorobutan-3-id-1-yl", id="substituted_skeleton"),
+        pytest.param("[CH2-]CCC(C)(C)C[CH]CC", "4,4-dimethyloctan-1-id-6-yl", id="centre_set_before_radical_locant"),
+        pytest.param("[CH2-]", "methanidyl", id="one_atom_radical_anion"),
+        pytest.param("[CH2+]", "methyliumyl", id="one_atom_radical_cation"),
+        pytest.param("C[CH+]", "ethan-1-ylium-1-yl", id="both_centres_on_one_atom"),
+        pytest.param("[CH2-]C[CH-]", "propane-1,3-diid-1-yl", id="dianion_with_radical_on_an_ionic_atom"),
+    ],
+)
+def test_radical_ions_on_a_hydrocarbon_skeleton(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CCO[C]([O-])c1ccccc1", "ethoxy(oxido)(phenyl)methyl", id="oxido_prefix_on_the_radical_parent"),
+        pytest.param("C[CH][N+](C)(C)C", "1-(trimethylazaniumyl)ethyl", id="cationic_prefix"),
+        pytest.param("[CH2]C(=O)[O-]", "carboxylatomethyl", id="carboxylate_prefix"),
+        pytest.param("[CH2]C[NH3+]", "2-azaniumylethyl", id="ammonium_prefix"),
+        pytest.param("C[CH]C[S-]", "1-sulfidopropan-2-yl", id="sulfido_prefix"),
+        pytest.param("[CH2]c1cc[n+](C)cc1", "(1-methylpyridin-1-ium-4-yl)methyl", id="cationic_ring_prefix"),
+        pytest.param("[CH2]c1ccc[nH+]c1", "(pyridin-1-ium-3-yl)methyl", id="protonated_ring_prefix"),
+        pytest.param("[CH2]C[n+]1ccccc1", "2-(pyridin-1-ium-1-yl)ethyl", id="cationic_ring_attached_through_nitrogen"),
+        pytest.param("c1ccc2c(c1)ccc[n+]2C[CH2]", "2-(quinolin-1-ium-1-yl)ethyl", id="fused_cationic_ring_through_nitrogen"),
+        pytest.param("OO[CH2]", "hydroperoxymethyl", id="hydroperoxy_prefix"),
+        pytest.param("CCOO[CH2]", "(ethylperoxy)methyl", id="alkylperoxy_prefix"),
+    ],
+)
+def test_ionic_groups_as_prefixes_of_a_radical_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[CH2][CH]C1CC[CH]CC1", "1-(4-ylocyclohexyl)ethane-1,2-diyl", id="most_centres_in_one_parent"),
+        pytest.param("C[C]c1cccc(c1)C[CH2]", "2-[3-(1,1-diyloethyl)phenyl]ethyl", id="yl_outranks_ylidene_parent"),
+        pytest.param("[CH2]C(C)(C)[O]", "(2-methyl-1-ylopropan-2-yl)oxyl", id="oxyl_parent_outranks_carbon"),
+        pytest.param("[CH2]C1CC[CH]CC1", "4-(ylomethyl)cyclohexyl", id="ring_parent_outranks_chain"),
+        pytest.param("[O]CC[N]C", "N-methyl-2-(ylooxy)ethan-1-aminyl", id="nitrogen_outranks_oxygen"),
+        pytest.param("[CH2]CC[N]C(=O)C", "N-(3-ylopropyl)acetamidyl", id="amidyl_parent_outranks_carbon"),
+        pytest.param("[O]CC[CH2]", "3-ylopropoxyl", id="oxygen_outranks_carbon"),
+    ],
+)
+def test_choice_of_parent_radical_with_ylo_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

@@ -352,9 +352,10 @@ class CompoundPrefix(str):
 ISOTOPE_LABELS = contextvars.ContextVar("isotope_labels", default=None)
 
 
-def _label_branch(result, graph, root, coming_from):
-    """`result` with the isotopic descriptor of a one-atom substituent (methyl, a halogen) or of the carbon of a
-    methoxy group (P-82.2.1); any larger labelled branch is not supported."""
+def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aromatic_atoms=frozenset(), unsaturated=None):
+    """`result` with the isotopic descriptor of the labelled atoms of the substituent: inserted before the stem of its
+    principal chain with that chain's locants (P-82.2.1, P-82.6.1), before 'phenyl' for a phenyl group, or before
+    the 'oxy' of a methoxy group."""
     from ._isotope_labels import descriptor
 
     context = ISOTOPE_LABELS.get()
@@ -368,15 +369,99 @@ def _label_branch(result, graph, root, coming_from):
     labelled = {a: context["labels"][a] for a in atoms if a in context["labels"] and a not in context["consumed"]}
     if not labelled:
         return result
-    name, _ = result
+    name, compound = result
+    capacity = _hydrogen_capacity(context, labelled)
     if name == "methoxy" and set(labelled) == atoms - {root}:
-        positions = {a: 1 for a in labelled}
+        text = descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity)
+        context["consumed"].update(labelled)
+        return text + name, False
+    positions = _plain_chain_positions(graph, root, coming_from, atoms)
+    if positions is not None and name.isalpha():
+        context["consumed"].update(labelled)
+        omit = len(atoms) == 1 or _fully_modified(labelled, positions, capacity, atoms)
+        return descriptor(labelled, positions, omit, capacity=capacity) + name, False
+    if mol is None:
+        raise UnsupportedStructure("an isotopically modified substituent other than a plain alkyl group is not supported yet")
+    if mol.GetAtomWithIdx(root).IsInRing():
+        positions = _phenyl_label_positions(mol, root, labelled, name) if name.endswith("phenyl") else None
+        if positions is None:
+            raise UnsupportedStructure("an isotopically modified ring substituent other than phenyl is not supported yet")
+        stem_index = name.rfind("phenyl")
+        omit = _fully_modified(labelled, positions, capacity, {a for a in positions if a != root})
     else:
-        positions = _plain_chain_positions(graph, root, coming_from, atoms)
-        if positions is None or not name.isalpha():
-            raise UnsupportedStructure("an isotopically modified substituent other than a plain alkyl group is not supported yet")
+        chain, _, _, _ = _select_winning_structure(graph, root, coming_from, halogens or {}, mol, aromatic_atoms, unsaturated)
+        if any(a not in chain for a in labelled):
+            raise UnsupportedStructure("an isotopically modified atom off the principal chain of a substituent is not supported yet")
+        positions = _lowest_chain_positions(mol, chain, root, labelled)
+        stem = alkyl_name(len(chain))[:-2]
+        stem_index = name.rfind(stem)
+        if stem_index < 0:
+            raise UnsupportedStructure("the principal chain of this substituent name is not delimited")
+        omit = len(chain) == 1 or _fully_modified(labelled, positions, capacity, set(chain))
     context["consumed"].update(labelled)
-    return descriptor(labelled, positions, len(atoms) == 1) + name, False
+    text = descriptor(labelled, positions, omit, capacity=capacity)
+    return name[:stem_index] + text + name[stem_index:], compound
+
+
+def _lowest_chain_positions(mol, chain, root, labelled):
+    """{chain atom: locant}; a chain that reads equally from either end (isopropyl) is numbered to give the modified
+    atoms the lower locants (P-82.5.2)."""
+    forward = {a: i + 1 for i, a in enumerate(chain)}
+    from rdkit import Chem
+
+    ranks = list(Chem.CanonicalRankAtoms(mol, breakTies=False))
+    mirrored = all(ranks[a] == ranks[b] for a, b in zip(chain, chain[::-1])) and chain.index(root) == len(chain) - 1 - chain.index(root)
+    if not mirrored:
+        return forward
+    backward = {a: len(chain) - i for i, a in enumerate(chain)}
+    return min((forward, backward), key=lambda option: sorted(option[a] for a in labelled))
+
+
+def _fully_modified(labelled, positions, capacity, expected):
+    """P-82.6.1.3: every position of the group modified in the same way, none keeping a hydrogen."""
+    if set(labelled) != expected or capacity is None:
+        return False
+    entries = {repr(sorted(e["H"])) + str(e["skeleton"]) for e in labelled.values()}
+    return len(entries) == 1 and all(sum(e["H"].values()) == capacity[a] for a, e in labelled.items())
+
+
+def _top_level_locants(name):
+    depth, flat = 0, []
+    for ch in name:
+        if ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            depth -= 1
+        flat.append(ch if depth == 0 and ch not in "([{" else " ")
+    return sorted(int(x) for group in re.findall(r"(\d+(?:,\d+)*)-", "".join(flat)) for x in group.split(","))
+
+
+def _phenyl_label_positions(mol, root, labelled, name="phenyl"):
+    """{ring atom: locant} of a phenyl group, numbered from the attachment atom in the direction that gives the
+    ring substituents of the name, then the modified atoms, the lower locants (P-82.5.2); None unless the ring is a
+    benzene ring."""
+    ring = next((r for r in mol.GetRingInfo().AtomRings() if root in r), None)
+    if ring is None or len(ring) != 6 or not all(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring):
+        return None
+    if any(a not in ring for a in labelled):
+        return None
+    start = ring.index(root)
+    options = [{ring[(start + step * k) % 6]: k + 1 for k in range(6)} for step in (1, -1)]
+    if name != "phenyl":
+        cited = _top_level_locants(name)
+        substituted = [
+            a for a in ring
+            if a != root and any(n.GetIdx() not in ring and n.GetIdx() != root and n.GetIdx() not in labelled and n.GetAtomicNum() != 1 for n in mol.GetAtomWithIdx(a).GetNeighbors())
+        ]
+        options = [o for o in options if sorted(o[a] for a in substituted) == cited]
+        if not options:
+            return None
+    return min(options, key=lambda option: sorted(option[a] for a in labelled))
+
+
+def _hydrogen_capacity(context, atoms):
+    mol = context.get("mol")
+    return {a: mol.GetAtomWithIdx(a).GetTotalNumHs() for a in atoms} if mol is not None else None
 
 
 def _plain_chain_positions(graph, root, coming_from, atoms):
@@ -393,8 +478,21 @@ def _plain_chain_positions(graph, root, coming_from, atoms):
 
 
 def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mol=None, unsaturated=None):
-    result = _name_branch_with_phane(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated)
-    return _label_branch(result, graph, root, coming_from) if ISOTOPE_LABELS.get() else result
+    context = ISOTOPE_LABELS.get()
+    if not context:
+        return _name_branch_with_phane(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated)
+    cache = context.setdefault("cache", {})
+    key = (root, coming_from)
+    if key not in cache:
+        before = set(context["consumed"])
+        result = _name_branch_with_phane(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated)
+        labelled = _label_branch(
+            result, graph, root, coming_from, halogens, mol, aromatic_atoms or frozenset(), unsaturated
+        )
+        cache[key] = (labelled, frozenset(context["consumed"] - before))
+    result, used = cache[key]
+    context["consumed"].update(used)
+    return result
 
 
 def _name_branch_with_phane(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated):
@@ -652,6 +750,7 @@ def _branch_point_candidate_chains(graph, root, coming_from, halogens, mol=None,
         len(branch_roots) == 3
         and all(length == 1 for length in lengths.values())
         and all(len(graph[b]) == 1 for b in branch_roots)
+        and not _carries_label(root, branch_roots)
     ):
         # P-29.6.1: the retained name 'tert-butyl' is the PIN for the
         # unsubstituted (CH3)3C- group, never the general rule's own
@@ -916,7 +1015,17 @@ def _select_unsaturated_structure(graph, root, coming_from, halogens, mol, aroma
 def _is_tert_butyl(graph, root, coming_from, halogens):
     # P-29.6.1: the unsubstituted (CH3)3C- group keeps its retained name.
     others = [n for n in graph[root] if n != coming_from]
-    return len(others) == 3 and all(len(graph[n]) == 1 and n not in halogens for n in others)
+    return (
+        len(others) == 3
+        and all(len(graph[n]) == 1 and n not in halogens for n in others)
+        and not _carries_label(root, others)
+    )
+
+
+def _carries_label(root, atoms):
+    """A modified group cannot keep a retained name (P-82.2)."""
+    context = ISOTOPE_LABELS.get()
+    return bool(context) and any(a in context["labels"] for a in [root, *atoms])
 
 
 def _unsaturated_chain_name(length, root_position, suffix, ene, yne, grouped, tert_butyl):

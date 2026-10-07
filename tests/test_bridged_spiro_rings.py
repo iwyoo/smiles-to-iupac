@@ -313,7 +313,6 @@ def test_spiro_amine_on_substituent_branch_is_a_prefix():
     "smiles",
     [
         pytest.param("[CH2+]C1CCC2(CC1)CCCC2[CH2+]", id="multiple_spiro_carbenium_centers_raises"),
-        pytest.param("[CH2+]C1CCC2(CC1)CCCC2", id="spiro_carbenium_on_substituent_branch_raises"),
     ],
 )
 def test_unsaturated_spiro_amine_and_related_raise(smiles):
@@ -332,17 +331,19 @@ def test_oxaspiro_other_configuration_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+def test_radical_centres_on_substituents_of_a_spiro_ring():
+    assert smiles_to_iupac("[CH2]C1CCC2(CC1)CCCC2[CH2]") == "[1-(ylomethyl)spiro[4.5]decan-8-yl]methyl"
+
+
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("[CH2]C1CCC2(CC1)CCCC2[CH2]", id="multiple_spiro_radical_centers_raises"),
-        pytest.param("[CH2]C1CCC2(CC1)CCCC2", id="spiro_radical_on_substituent_branch_raises"),
-        pytest.param("[CH]1CCC2(C=CC2)CC1", id="unsaturated_spiro_radical_raises"),
+        pytest.param("[CH2]C1CCC2(CC1)CCCC2", "(spiro[4.5]decan-8-yl)methyl", id="spiro_radical_on_substituent_branch"),
+        pytest.param("[CH]1CCC2(C=CC2)CC1", "spiro[3.5]non-1-en-7-yl", id="unsaturated_spiro_radical"),
     ],
 )
-def test_multiple_spiro_ketones_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_spiro_radical_as_substituent_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -409,7 +410,6 @@ def test_von_baeyer_carbenium_name(smiles, expected):
     "smiles",
     [
         pytest.param("[CH2+]C1CC2CCC1C2[CH2+]", id="multiple_ring_carbenium_centers_raises"),
-        pytest.param("[CH2+]C1CC2CCC1C2", id="carbenium_on_substituent_branch_raises"),
     ],
 )
 def test_multiple_ring_carbenium_and_related_raise(smiles):
@@ -480,9 +480,8 @@ def test_von_baeyer_radical_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_radical_on_substituent_branch_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("[CH2]C1CC2CCC1C2")
+def test_radical_on_substituent_branch():
+    assert smiles_to_iupac("[CH2]C1CC2CCC1C2") == "(bicyclo[2.2.1]heptan-2-yl)methyl"
 
 
 @pytest.mark.parametrize(

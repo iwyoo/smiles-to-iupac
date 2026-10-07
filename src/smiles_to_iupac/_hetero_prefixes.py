@@ -343,6 +343,9 @@ def _thioacyl(mol, idx):
     )
 
 
+PEROXY_PREFIXES = contextvars.ContextVar("peroxy_prefixes", default=False)
+
+
 def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
     """(name, is_compound) of a heteroatom- or functional-carbon-rooted
     substituent, or None when `root` is an ordinary carbon."""
@@ -380,6 +383,8 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return _oxoacid_anion_prefix(graph, root, coming_from, mol)
     if z in MONONUCLEAR_HYDRIDES:
         return _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
+    if atom.GetFormalCharge() == -1 and atom.GetDegree() == 1 and z in (8, 16):
+        return {8: "oxido", 16: "sulfido"}[z], False
     if atom.GetFormalCharge() and z != 7:
         raise UnsupportedStructure("a charged atom in a substituent group is not supported yet")
     if atom.IsInRing():
@@ -402,6 +407,24 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return _enclose(silyl, True) + "oxy", True
         if EXTENDED_PREFIXES.get() and mol.GetAtomWithIdx(other).GetAtomicNum() in _CHAIN_ELEMENTS:
             return _chalcogen_chain_group(graph, root, other, halogens, aromatic_atoms, mol)
+        if mol.GetAtomWithIdx(other).HasProp("_named_prefix"):
+            return mol.GetAtomWithIdx(other).GetProp("_named_prefix") + "oxy", True
+        if (
+            mol.GetAtomWithIdx(other).GetAtomicNum() == 8
+            and order == 1.0
+            and not mol.GetAtomWithIdx(other).GetFormalCharge()
+            and mol.GetBondBetweenAtoms(root, other).GetBondTypeAsDouble() == 1.0
+            and mol.GetAtomWithIdx(other).GetDegree() <= 2
+            and PEROXY_PREFIXES.get()
+        ):
+            onward = [n for n in graph[other] if n != root]
+            if not onward:
+                return "hydroperoxy", False
+            if mol.GetAtomWithIdx(onward[0]).GetAtomicNum() == 6:
+                from ._substituents import name_branch
+
+                rname, rcomp = name_branch(graph, onward[0], other, halogens, aromatic_atoms, mol=mol)
+                return _enclose(rname, rcomp) + "peroxy", True
         if mol.GetAtomWithIdx(other).GetAtomicNum() != 6:
             if mol.GetAtomWithIdx(other).GetAtomicNum() == 8 or not _has_senior_principal_group(mol):
                 raise UnsupportedStructure("this oxygen-linked group is not supported yet")

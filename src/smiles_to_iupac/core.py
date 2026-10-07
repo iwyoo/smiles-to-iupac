@@ -188,6 +188,8 @@ from ._dipole_oxide import (
     name_nitrone,
 )
 from ._isotope import has_isotope_shape, name_isotope
+from ._radical_ion_skeleton import has_skeleton_radical_ion_shape, name_skeleton_radical_ion
+from ._radical_group import has_group_cation_shape, has_radical_group_shape, name_group_cation, name_radical_group
 from ._isotope_alcohol import has_isotope_alcohol_shape, name_isotope_alcohol
 from ._isotope_carboxylic_acid import has_isotope_carboxylic_acid_shape, name_isotope_carboxylic_acid
 from ._isotope_ketone import has_isotope_ketone_shape, name_isotope_ketone
@@ -382,15 +384,103 @@ def smiles_to_iupac(smiles: str) -> str:
     mol = _parse_smiles(smiles)
     if mol is not None:
         _require_isotopes_cited(mol, name)
+        _require_radicals_cited(mol, name)
     if mol is not None and _has_free_anion(mol):
         name = acetyl_names(name)
     return name
 
 
+_RADICAL_ENDINGS = ("yl", "ylidene", "ylidyne", "yne", "ylium", "yloxy", "yliumyl")
+
+
+def _require_radicals_cited(mol, name):
+    if (
+        not any(a.GetNumRadicalElectrons() for a in mol.GetAtoms())
+        or any(a.GetFormalCharge() for a in mol.GetAtoms())
+        or len(Chem.GetMolFrags(mol)) > 1
+        or any(b.GetBondType() == Chem.BondType.DATIVE for b in mol.GetBonds())
+    ):
+        return
+    if not name.rstrip(")]} ").endswith(_RADICAL_ENDINGS):
+        raise UnsupportedStructure("the name does not cite the radical centre")
+
+
+def _has_nameable_radical_group(mol) -> bool:
+    if not has_radical_group_shape(mol):
+        return False
+    try:
+        name_radical_group(mol)
+    except UnsupportedStructure:
+        return False
+    return True
+
+
+def _has_isotope_label(mol) -> bool:
+    return any(a.GetIsotope() for a in mol.GetAtoms())
+
+
+def _name_isotope_label(mol) -> str:
+    try:
+        return name_polyfunctional(mol)
+    except UnsupportedStructure:
+        pass
+    for has_shape, namer in (
+        (has_isotope_alcohol_shape, name_isotope_alcohol),
+        (has_isotope_ketone_shape, name_isotope_ketone),
+        (has_isotope_carboxylic_acid_shape, name_isotope_carboxylic_acid),
+        (has_isotope_shape, name_isotope),
+    ):
+        if has_shape(mol):
+            return namer(mol)
+    raise UnsupportedStructure("this isotopically modified structure is not supported yet")
+
+
+_NUCLIDE_ITEM = re.compile(r"^(\d+)([A-Z][a-z]?)(\d*)$")
+
+
+def _cited_nuclides(name):
+    table = Chem.GetPeriodicTable()
+    cited = {}
+    for group in re.findall(r"\(([^()]*)\)", name):
+        items = group.split(",")
+        located, pending = [], []
+        for item in items:
+            locant, _, tail = item.rpartition("-")
+            token = _NUCLIDE_ITEM.match(tail or locant)
+            if token is None:
+                pending.append(item)
+                continue
+            mass, symbol, count = int(token.group(1)), token.group(2), token.group(3)
+            try:
+                number = table.GetAtomicNumber(symbol)
+            except Exception:
+                pending.append(item)
+                continue
+            if mass < number:
+                pending.append(item)
+                continue
+            locants = pending + ([locant] if tail else [])
+            pending = []
+            amount = int(count) if count else max(len(locants), 1)
+            key = f"{mass}{symbol}"
+            cited[key] = cited.get(key, 0) + amount
+    return cited
+
+
 def _require_isotopes_cited(mol, name):
+    expected = {}
     for atom in mol.GetAtoms():
-        if atom.GetIsotope() and f"{atom.GetIsotope()}{atom.GetSymbol()}" not in name:
-            raise UnsupportedStructure(f"the name does not cite the {atom.GetIsotope()}{atom.GetSymbol()} nuclide label")
+        if atom.GetIsotope():
+            key = f"{atom.GetIsotope()}{atom.GetSymbol()}"
+            expected[key] = expected.get(key, 0) + 1
+    if not expected:
+        return
+    cited = _cited_nuclides(name)
+    for key, count in expected.items():
+        if key not in name:
+            raise UnsupportedStructure(f"the name does not cite the {key} nuclide label")
+        if cited.get(key, 0) != count:
+            raise UnsupportedStructure(f"the name does not cite every {key} nuclide label")
 
 
 _NESTED_NAMES: dict = {}
@@ -424,6 +514,8 @@ def _name_unabridged(smiles: str) -> str:
     name = None
     try:
         parsed = _parse_smiles(smiles)
+        if parsed is not None and has_skeleton_radical_ion_shape(parsed):
+            return name_skeleton_radical_ion(parsed)
         if parsed is not None and parsed.HasProp("_hypervalent_anion"):
             name = name_anion(parsed)
             return name
@@ -793,6 +885,7 @@ def _name_mol(mol) -> str:
         if ring_assembly_core is not None:
             return name_ring_assembly(mol, ring_assembly_core)
     for has_shape, namer in (
+        (_has_isotope_label, _name_isotope_label),
         # An isotopically labeled hydroxyl oxygen and/or skeletal carbon
         # combined with the '-ol' suffix (P-82.5.1/P-82.5.2) must be routed
         # here before `_isotope.py`'s own plain chain/methane path just below,
@@ -819,6 +912,7 @@ def _name_mol(mol) -> str:
         # own broader "any nonzero radical electron count" check would
         # otherwise claim it first and misroute it into the plain-radical
         # dispatch, which rejects any charged atom outright.
+        (has_skeleton_radical_ion_shape, name_skeleton_radical_ion),
         (has_radical_ion_shape, name_radical_ion),
         # A radical center (P-71.2.1.1's 'yl' radical naming) must be routed
         # here before every other branch below: none of them recognize a
@@ -826,6 +920,7 @@ def _name_mol(mol) -> str:
         # monocyclic-ring radical would otherwise fall straight through to the
         # plain alkane/cycloalkane dispatch further down, which doesn't know a
         # hydrogen is missing.
+        (_has_nameable_radical_group, name_radical_group),
         (has_radical_shape, name_radical),
         # A nitrogen ylide (P-74.2.1.1.1's zwitterionic anion-carbon-parent
         # naming) has its own charged nitrogen too -- checked before
@@ -890,6 +985,7 @@ def _name_mol(mol) -> str:
         # A carbenium cation (P-73.2.2.1.1's 'ylium' suffix naming) has a
         # charged carbon too, for the same reason as ammonium above -- routed
         # here, unconditionally, before every other branch.
+        (has_group_cation_shape, name_group_cation),
         (has_carbenium_shape, name_carbenium),
         # The cyclopentadienide anion (P-72.2.2.1's ring worked example) has a
         # charged ring carbon too, but `_carbanide.py` below is explicitly
