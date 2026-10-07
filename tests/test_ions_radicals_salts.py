@@ -1022,6 +1022,26 @@ def test_ring_cations_with_nitrogen_bearing_substituents(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        pytest.param("[O-]Cl=O", "chlorite", id="chlorite"),
+        pytest.param("[O-]Cl(=O)=O", "chlorate", id="chlorate"),
+        pytest.param("[O-]Cl(=O)(=O)=O", "perchlorate", id="perchlorate"),
+        pytest.param("[O-]Br(=O)=O", "bromate", id="bromate"),
+        pytest.param("[O-]I(=O)(=O)=O", "periodate", id="periodate"),
+        pytest.param("[Na+].[O-]Cl(=O)(=O)=O", "sodium perchlorate", id="halogen_oxoanion_in_a_metal_salt"),
+        pytest.param("C[n+]1ccccc1.[O-]Cl(=O)(=O)=O", "1-methylpyridin-1-ium perchlorate", id="halogen_oxoanion_in_an_organic_salt"),
+        pytest.param("[O-]C#N", "cyanate", id="cyanate"),
+        pytest.param("[S-]C#N", "thiocyanate", id="thiocyanate"),
+        pytest.param("[Se-]C#N", "selenocyanate", id="selenocyanate"),
+        pytest.param("[K+].[S-]C#N", "potassium thiocyanate", id="cyanate_family_in_a_salt"),
+    ],
+)
+def test_anions_of_halogen_oxoacids_and_cyanic_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         pytest.param("[CH2+]C[CH2+]", "propane-1,3-bis(ylium)", id="two_hydride_losses_on_a_chain"),
         pytest.param("C[C+2]C", "propane-2,2-bis(ylium)", id="two_hydride_losses_on_one_carbon"),
         pytest.param("C1=C[CH+][CH+]1", "cyclobut-3-ene-1,2-bis(ylium)", id="two_hydride_losses_on_a_ring"),
