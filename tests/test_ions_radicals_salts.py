@@ -1103,3 +1103,17 @@ def test_cations_that_are_not_a_multiplicative_assembly(smiles):
 )
 def test_cation_on_the_parent_hydride_of_an_anionic_suffix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        "CC[Si]C[N+](C)(C)C.[I-]",
+        "CC[Ge]C[N+](C)(C)C.[I-]",
+        "C[Sn]C",
+        "CC[Si]CC",
+    ],
+)
+def test_valence_deficient_heteroatom_is_not_named_as_its_hydride(smiles):
+    with pytest.raises(UnsupportedStructure):
+        smiles_to_iupac(smiles)
