@@ -43,6 +43,10 @@ def _find(mol):
         return center, double[0], carbons, rest, "halide"
     if all(_is_amino(n, center) for n in rest):
         return center, double[0], carbons, rest, "amide"
+    amino = [n for n in rest if _is_amino(n, center)]
+    halides = [n for n in rest if n.GetAtomicNum() in HALOGEN_PREFIXES]
+    if len(amino) == 1 and len(halides) == len(rest) - 1 and len({n.GetAtomicNum() for n in halides}) == 1:
+        return center, double[0], carbons, rest, "amidic halide"
     return None
 
 
@@ -91,6 +95,8 @@ def name_phosphorus_acid_derivative(mol) -> str:
                 raise UnsupportedStructure("thio acid halides of the acid with no organyl group are not supported yet")
             return f"{head} {_MULTIPLIER[count]}{word}"
         return f"{organyl}{acid} {_MULTIPLIER[count]}{word}"
+    if kind == "amidic halide":
+        return _amidic_halide(mol, graph, halogens, aromatic, center, carbons, rest, stem, sulfur)
     amino = []
     for nitrogen in rest:
         subs = [
@@ -121,3 +127,27 @@ def _strip_locants(prefix):
     import re
 
     return re.sub(r"^(?:N'*,)*N'*-", "", prefix)
+
+
+def _amidic_halide(mol, graph, halogens, aromatic, center, carbons, rest, stem, sulfur):
+    """One amino group beside identical halogens: 'N,N-dimethylphosphoramidic dichloride' (P-67.1.2.5.1)."""
+    if sulfur:
+        raise UnsupportedStructure("thio amidic halides are not supported yet")
+    nitrogen = next(n for n in rest if n.GetAtomicNum() == 7)
+    halides = [n for n in rest if n is not nitrogen]
+    positions = {}
+    subs = [
+        name_branch(graph, n.GetIdx(), nitrogen.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True)
+        for n in nitrogen.GetNeighbors()
+        if n.GetIdx() != center.GetIdx()
+    ]
+    if subs:
+        positions["N"] = subs
+    organyl = [
+        name_branch(graph, c.GetIdx(), center.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True) for c in carbons
+    ]
+    if organyl:
+        positions[_SYMBOL[center.GetAtomicNum()]] = organyl
+    prefix = format_substituent_prefixes(group_substituents(positions)) if positions else ""
+    acid = f"{stem}{'or' if not carbons else 'on' if len(carbons) == 1 else 'in'}amidic"
+    return f"{prefix}{acid} {_MULTIPLIER[len(halides)]}{_HALIDE[halides[0].GetAtomicNum()]}"
