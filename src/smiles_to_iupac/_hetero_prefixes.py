@@ -546,8 +546,20 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return diazenyl
         if order == 2.0 and len(others) == 1 and mol.GetAtomWithIdx(others[0]).GetAtomicNum() == 7:
             far = mol.GetAtomWithIdx(others[0])
-            if far.GetDegree() == 1 and far.GetTotalNumHs() == 2 and not far.GetFormalCharge() and not atom.GetFormalCharge():
-                return "hydrazinylidene", False
+            if (
+                not far.GetFormalCharge()
+                and not atom.GetFormalCharge()
+                and mol.GetBondBetweenAtoms(root, far.GetIdx()).GetBondTypeAsDouble() == 1.0
+                and all(mol.GetBondBetweenAtoms(far.GetIdx(), n).GetBondTypeAsDouble() == 1.0 for n in graph[far.GetIdx()])
+                and far.GetDegree() - 1 + far.GetTotalNumHs() == 2
+            ):
+                tail = [n for n in graph[far.GetIdx()] if n != root]
+                if not tail:
+                    return "hydrazinylidene", False
+                from ._substituents import format_mononuclear_prefixes
+
+                entries = _group_names(graph, mol, tail, far.GetIdx(), halogens, aromatic_atoms)
+                return format_mononuclear_prefixes(entries) + "hydrazinylidene", True
         if order == 2.0 and not atom.GetFormalCharge() and len(others) <= 1 and _has_senior_principal_group(mol):
             if not others:
                 return "imino", False
