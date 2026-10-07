@@ -371,6 +371,9 @@ def _parent_text_name(name, ops):
     return name
 
 
+_SENIOR_TO_CARBONYL = Chem.MolFromSmarts("[$([CX3](=[O,S,N])[N,O,F,Cl,Br,I]),$([CX2]#N),$([S,P,Se,Te](=O)[OX2H1,OX1-])]")
+
+
 def _acetal_words(view, extra):
     """(functional class word, leading carbonyl-compound name) of a cyclic acetal on two skeleton oxygens."""
     from .core import smiles_to_iupac
@@ -400,6 +403,10 @@ def _acetal_words(view, extra):
     rw.AddBond(c_index, new_o, Chem.BondType.DOUBLE)
     result = rw.GetMol()
     Chem.SanitizeMol(result)
+    if result.HasSubstructMatch(_SENIOR_TO_CARBONYL):
+        raise UnsupportedStructure(
+            "the carbonyl component of the acetal is not the parent of its own name, so 'acetal' cannot follow it (P-66.6.5.1.2)"
+        )
     name = smiles_to_iupac(Chem.MolToSmiles(result))
     has_h = view.mol.GetAtomWithIdx(carbon).GetTotalNumHs() > 0
     return ("acetal" if has_h else "ketal"), name
