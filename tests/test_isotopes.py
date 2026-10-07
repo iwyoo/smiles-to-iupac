@@ -111,14 +111,15 @@ def test_isotope_ketone_name(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles,expected",
     [
-        pytest.param("O=[13C]1CCCCC1", id="ring_alongside_isotope_ketone_raises"),
+        ("O=[13C]1CCCCC1", "(1-13C)cyclohexan-1-one"),
+        ("OC1CCCC[13CH2]1", "(2-13C)cyclohexan-1-ol"),
+        ("O=C(O)C1CCC[13CH2]C1", "(3-13C)cyclohexane-1-carboxylic acid"),
     ],
 )
-def test_both_isotope_kinds_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_locants_are_all_cited_once_a_nuclide_needs_one(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -127,6 +128,13 @@ def test_both_isotope_kinds_and_related_raise(smiles):
         ("[2H]C1CC1", "(2H1)cyclopropane"),
         ("[13CH2]1CCCCC1", "(13C)cyclohexane"),
         ("[13CH2]1CC([2H])CCC1", "(1-13C,3-2H1)cyclohexane"),
+        ("[2H]c1ccc2ccccc2c1", "(2-2H)naphthalene"),
+        ("[2H]c1cccc2ccccc12", "(1-2H)naphthalene"),
+        ("[2H]c1c([2H])cc2ccccc2c1", "(2,3-2H2)naphthalene"),
+        ("[2H]c1ccc2ccccc2n1", "(2-2H)quinoline"),
+        ("Cc1ccc2ccccc2c1[2H]", "2-methyl(1-2H)naphthalene"),
+        ("Clc1ccc2cc([2H])ccc2c1", "2-chloro(6-2H)naphthalene"),
+        ("[2H]c1ccc2ccccc2[n+]1C", "1-methyl(2-2H)quinolin-1-ium"),
         ("[2H]c1cc[n+](C)cc1", "1-methyl(4-2H)pyridin-1-ium"),
         ("C[n+]1ccccc1[2H]", "1-methyl(2-2H)pyridin-1-ium"),
         ("[2H]c1cccc[n+]1[O-]", "(2-2H)pyridine 1-oxide"),

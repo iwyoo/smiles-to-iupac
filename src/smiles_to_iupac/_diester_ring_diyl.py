@@ -5,6 +5,7 @@ P-31.1.4: heteroatoms, indicated hydrogen, free valences, hydro/ene, all prefixe
 CIP descriptors. Two esters on a symmetric group cite no acid locants (P-65.6.3.3.3.2).
 """
 
+import contextvars
 import re
 
 from rdkit import Chem
@@ -28,6 +29,26 @@ from ._ring_diyl_numbering import ANION_SUFFIX, SUFFIX_ATOMS, _locs, _yl, chain_
 from ._substituents import format_substituent_prefixes, name_branch
 
 _DESCRIPTOR_ORDER = {"R": 0, "S": 1, "r": 2, "s": 3}
+PARENT_START = contextvars.ContextVar("parent_start", default=0)
+
+
+def _isotope_key(position_of, skeleton):
+    """Locants of the modified atoms in increasing order, then the higher nuclide first (P-82.5.2)."""
+    from ._substituents import ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    if not context:
+        return ()
+    table = Chem.GetPeriodicTable()
+    found = []
+    for atom, entry in context["labels"].items():
+        if atom not in skeleton or atom not in position_of:
+            continue
+        nuclides = [(-table.GetAtomicNumber("".join(c for c in entry["skeleton"] if c.isalpha())), -int("".join(c for c in entry["skeleton"] if c.isdigit())))] if entry["skeleton"] else []
+        nuclides += [(-1, -{"1H": 1, "2H": 2, "3H": 3}[n]) for n in entry["H"]]
+        found.append((position_of[atom], tuple(sorted(nuclides))))
+    found.sort()
+    return (tuple(loc for loc, _ in found), tuple(n for _, n in found))
 
 
 def _component(graph, start, blocked):
@@ -324,7 +345,10 @@ def _evaluate_skeleton(
                 tuple(sorted(position_of[a] for a, _ in key_centers)),
                 tuple(sorted(position_of[a] for a, word in key_centers if word == "uide")),
             )
-        key = (numbering.pre_key, center_key, free, cite, numbering.unsat_key, locant_set, citation, acid_key, stereo_key)
+        key = (
+            numbering.pre_key, center_key, free, cite, numbering.unsat_key, locant_set, citation, acid_key, stereo_key,
+            _isotope_key(position_of, skeleton),
+        )
         candidates.append((key, numbering, grouped, free, ring_stereo, side))
     if not candidates:
         return None
@@ -347,6 +371,7 @@ def _evaluate_skeleton(
     if prefixes and (parent[0].isdigit() or parent[0] == "Δ"):
         prefixes += "-"
     group_name = prefixes + parent
+    PARENT_START.set(len(prefixes) - (1 if prefixes.endswith("-") else 0))
     if ring_stereo:
         labels = ",".join(f"{loc}{code}" for loc, code in sorted((position_of[a], c) for a, c in ring_stereo))
         group_name = f"({labels})-{group_name}"

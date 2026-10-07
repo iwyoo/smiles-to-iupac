@@ -1061,9 +1061,13 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
         found = evaluate_skeleton(mol, graph, "ring", [ring], ring_set, [], set(), "")
         if found is None:
             raise UnsupportedStructure("this ring has no supported name")
+        from ._diester_ring_diyl import PARENT_START
+
         placed = found[2]
         name = _without_stereo(found[1])
-        return (-len(roots), tuple(sorted(placed[r] for r, _ in roots)), name), ((0,), name, (None, None, None, 0, placed, True))
+        return (-len(roots), tuple(sorted(placed[r] for r, _ in roots)), name), (
+            (0,), name, (None, None, None, 0, placed, True, PARENT_START.get())
+        )
     from ._substituents import ISOTOPE_LABELS
 
     isotope_context = ISOTOPE_LABELS.get()
@@ -1197,7 +1201,9 @@ def _fused_plain_parent(mol, graph, rings):
     found = evaluate_skeleton(mol, graph, "ring", system_rings, system_atoms, [], set(), "")
     if found is None:
         raise UnsupportedStructure("this fused ring system has no supported numbering")
-    return ((0,), _without_stereo(found[1]), (None, None, None, 0, found[2], True))
+    from ._diester_ring_diyl import PARENT_START
+
+    return ((0,), _without_stereo(found[1]), (None, None, None, 0, found[2], True, PARENT_START.get()))
 
 
 def _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo=None):
@@ -1621,8 +1627,10 @@ def _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo):
     found = evaluate_skeleton(mol, graph, "ring", rings, atoms, attach, blocked, _FUSED_SUFFIX[principal], n_names=n_names)
     if found is None:
         raise UnsupportedStructure("this fused ring system has no supported numbering")
+    from ._diester_ring_diyl import PARENT_START
+
     count = len(on_system)
-    return count, ((-count,), _without_stereo(found[1]), (None, None, None, 0, found[2], True))
+    return count, ((-count,), _without_stereo(found[1]), (None, None, None, 0, found[2], True, PARENT_START.get()))
 
 
 class _RingSuffix(dict):
@@ -1753,6 +1761,7 @@ def _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n
     elif (
         count == 1
         and not entries
+        and not FORCE_LOCANTS.get()
         and (spec.kind == "cycloalkane" or (spec.kind == "benzene" and suffix_name not in _RETAINED_BENZENE))
     ):
         word = _SUFFIX_WORDS[suffix_name]
