@@ -656,11 +656,6 @@ def test_ring_substituent_chain_and_related_5(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_thial_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCC=S")
-
-
 @pytest.mark.parametrize(
     "smiles, expected",
     [

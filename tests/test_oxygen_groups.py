@@ -142,11 +142,6 @@ def test_chain_alcohol_with_several_aromatic_ring_substituents(smiles, expected)
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_formaldehyde_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=O")
-
-
 
 
 def test_benzaldehyde():
@@ -1096,4 +1091,31 @@ def test_diaryl_sulfone_with_carboxylic_groups_keeps_the_sulfonyl_bridge(smiles,
     ],
 )
 def test_peroxy_prefixes_without_a_principal_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C=O", "formaldehyde"),
+        ("C#N", "formonitrile"),
+        ("C(C)=S", "ethanethial"),
+        ("CCC=S", "propanethial"),
+        ("CCC=[Se]", "propaneselenal"),
+        ("CCC=[Te]", "propanetellanal"),
+        ("C1(=CC=CC=C1)C=S", "benzenecarbothialdehyde"),
+        ("C(CCCCC)=[Se]", "hexaneselenal"),
+        ("CC=[Te]", "ethanetellanal"),
+        ("C(CCCC=S)=S", "pentanedithial"),
+        ("C=CC=S", "prop-2-enethial"),
+        ("S=C1CCC(CC1)C=[Se]", "4-sulfanylidenecyclohexane-1-carboselenaldehyde"),
+        ("OC(=O)c1ccc(C=S)cc1", "4-(methanethioyl)benzoic acid"),
+        ("OC(=O)C1CCC(CC1)C=[Se]", "4-(methaneselenoyl)cyclohexane-1-carboxylic acid"),
+        ("N#CN1CCCCC1", "piperidine-1-carbonitrile"),
+        ("N#CN1CCOCC1", "morpholine-4-carbonitrile"),
+        ("N#Cn1cccc1", "1H-pyrrole-1-carbonitrile"),
+        ("N#CN1CCCCC1C", "2-methylpiperidine-1-carbonitrile"),
+    ],
+)
+def test_chalcogen_aldehydes_and_ring_nitrogen_nitriles(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

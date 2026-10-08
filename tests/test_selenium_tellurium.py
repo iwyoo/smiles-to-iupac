@@ -442,11 +442,6 @@ def test_ring_substituent_chain_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_selenoaldehyde_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCC=[Se]")
-
-
 @pytest.mark.parametrize(
     "smiles, expected",
     [
@@ -486,11 +481,6 @@ def test_unsaturated_ring_tellone_triple_bond_raises():
 )
 def test_ring_substituent_chain_and_related_2(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_telluroaldehyde_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCC=[Te]")
 
 
 @pytest.mark.parametrize(

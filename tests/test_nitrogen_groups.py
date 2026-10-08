@@ -803,11 +803,6 @@ def test_nitro_unaffected():
     assert smiles_to_iupac("C[N+](=O)[O-]") == "nitromethane"
 
 
-def test_formonitrile_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C#N")
-
-
 @pytest.mark.parametrize(
     "smiles, expected",
     [
