@@ -66,6 +66,8 @@ def test_aldopyranose_still_resolves_and_related(smiles, expected):
     "smiles,expected",
     [
         ("O[C@H]1[C@H](O)[C@H](O)[C@H](O)[C@@H](O)[C@H]1O", "neo-inositol"),  # (1,2,3/4,5,6-)
+        ("O[C@H]1[C@H](O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1O", "myo-inositol"),  # (1,2,3,5/4,6-)
+        ("O[C@H]1[C@H](O)[C@@H](O)[C@H](O)[C@@H](O)[C@@H]1O", "scyllo-inositol"),  # (1,3,5/2,4,6-)
     ],
 )
 def test_inositol_retained_names(smiles, expected):
