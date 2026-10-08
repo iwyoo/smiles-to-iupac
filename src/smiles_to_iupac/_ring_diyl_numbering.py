@@ -820,13 +820,52 @@ def _replacement_numberings(bare):
     return list(root.numberings) if isinstance(root, _ReplacementRoot) else None
 
 
+def _cite_lambda(stem, bonding):
+    """(stem, text) with the λ marks joined to the heteroatom locants a fusion name cites in front ('1λ6,2-benzothiazole') and
+    the others cited loose before the name (P-25.6)."""
+    from ._fused_numbering import _locant_key
+
+    leading = re.match(r"(\d+[a-z]?(?:,\d+[a-z]?)*)-(.+)", stem)
+    cited = leading.group(1).split(",") if leading else []
+    loose = []
+    for locant, n in sorted(bonding.items(), key=lambda it: _locant_key(it[0])):
+        if locant in cited:
+            cited[cited.index(locant)] += f"\u03bb{n}"
+        else:
+            loose.append(f"{locant}\u03bb{n}")
+    body = (",".join(cited) + "-" + leading.group(2)) if cited else stem
+    return body, (",".join(loose) + "-") if loose else ""
+
+
+def _chalcogen_heterones(mol, skeleton_atoms):
+    """Ring sulfur, selenium or tellurium atoms bearing doubly bonded oxygen: the λ4/λ6 atoms of heterone names (P-64.4.2)."""
+    ring_info = mol.GetRingInfo()
+    return {
+        a
+        for a in skeleton_atoms
+        if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52)
+        and ring_info.NumAtomRings(a) == 1
+        and not mol.GetAtomWithIdx(a).GetFormalCharge()
+        and any(
+            n.GetIdx() not in skeleton_atoms
+            and n.GetAtomicNum() == 8
+            and n.GetDegree() == 1
+            and mol.GetBondBetweenAtoms(a, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            for n in mol.GetAtomWithIdx(a).GetNeighbors()
+        )
+    }
+
+
 def _fused_mancude(mol, skeleton_atoms):
     oxo_all = _exocyclic_oxo(mol, skeleton_atoms)
+    heterones = _chalcogen_heterones(mol, skeleton_atoms) & SUFFIX_ATOMS.get()
+    oxo_all = oxo_all | heterones
     ring_info = mol.GetRingInfo()
     sp3 = {
         a for a in _sp3_ring_atoms(mol, skeleton_atoms) | oxo_all if mol.GetAtomWithIdx(a).GetSymbol() not in _NO_DOUBLE_BOND
     }
     sp3 |= {a for a in ANION_SUFFIX.get() if a in skeleton_atoms and mol.GetAtomWithIdx(a).GetAtomicNum() == 6}
+    sp3 |= heterones
     fusion_hetero = {a for a in skeleton_atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6 and ring_info.NumAtomRings(a) > 1}
     suffix_atoms = SUFFIX_ATOMS.get() & set(skeleton_atoms)
     oxo_suffix = (oxo_all & suffix_atoms) | {a for a in suffix_atoms & sp3 if ring_info.NumAtomRings(a) > 1}
@@ -842,6 +881,12 @@ def _fused_mancude(mol, skeleton_atoms):
         raise UnsupportedStructure("this fused skeleton has no supported peripheral numbering as a diyl yet")
     adj, can_hold = _ring_graph(mol, skeleton_atoms)
     can_hold -= fusion_hetero
+    if heterones:
+        can_hold |= heterones
+        lambda_parent = nx.Graph()
+        lambda_parent.add_nodes_from(can_hold)
+        lambda_parent.add_edges_from((a, b) for a in can_hold for b in adj[a] if b in can_hold)
+        ih_count = len(can_hold) - 2 * len(nx.max_weight_matching(lambda_parent, maxcardinality=True))
     out = []
     for numbering in numberings:
         position_of = {old_of[new]: _locant(loc) for new, loc in numbering.items() if _locant(loc) is not None}
@@ -874,10 +919,13 @@ def _fused_mancude(mol, skeleton_atoms):
         ih, added, hydro = split
         ih_text = (",".join(f"{p}H" for p in ih) + "-") if ih else ""
         lam = {a: n for a in position_of if (n := nonstandard_bonding(mol.GetAtomWithIdx(a)))}
+        lam.update({a: int(mol.GetAtomWithIdx(a).GetTotalValence()) for a in heterones if a in position_of})
+        marked_stem = stem
         if lam:
-            ih_text += ",".join(f"{position_of[a]}\u03bb{n}" for a, n in sorted(lam.items(), key=lambda it: position_of[it[0]])) + "-"
+            marked_stem, loose = _cite_lambda(stem, {str(position_of[a]): n for a, n in lam.items()})
+            ih_text += loose
         delta = _delta_citation(mol, skeleton_atoms, position_of)
-        delta_stem = ("Δ" + ",".join(t for _, t in delta) + "-" + stem) if delta else stem
+        delta_stem = ("Δ" + ",".join(t for _, t in delta) + "-" + marked_stem) if delta else marked_stem
 
         fully_saturated = bool(hydro) and can_hold <= saturated | set(accommodated)
 
