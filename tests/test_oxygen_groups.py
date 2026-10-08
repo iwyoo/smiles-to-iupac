@@ -861,6 +861,15 @@ def test_cationic_hydrazine_with_neutral_acid_raises():
         ("CCOC(=O)NCC", "ethyl ethylcarbamate"),
         ("COC(=O)OC(=O)OC", "dimethyl dicarbonate"),
         ("CS(=O)(=O)SCC", "S-ethyl methanesulfonothioate"),
+        ("CC(=O)OB1CCCCC1", "borinan-1-yl acetate"),
+        ("O=C(c1ccccc1)OP1CCCCC1", "phosphinan-1-yl benzoate"),
+        ("CC(=O)ON1CCCC1", "pyrrolidin-1-yl acetate"),
+        ("CC(=O)ON(C)C", "1-[(dimethylamino)oxy]ethan-1-one"),
+        ("CCCC(=O)ONC", "1-[(methylamino)oxy]butan-1-one"),
+        ("S(C#N)CCC(=O)O", "3-thiocyanatopropanoic acid"),
+        ("S(C#N)CCC(SCC)=O", "S-ethyl 3-thiocyanatopropanethioate"),
+        ("OC(=O)CCOC#N", "3-cyanatopropanoic acid"),
+        ("OC(=O)CCC[Se]C#N", "4-selenocyanatobutanoic acid"),
     ],
 )
 def test_ester_class_names(smiles, expected):
