@@ -177,6 +177,7 @@ from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
 from ._diester_acyloxy import has_diester_shape, has_polyester_of_one_polyol_shape, name_diester_acyloxy
+from ._inorganic_polyester import has_inorganic_polyester_shape, name_inorganic_polyester
 from ._hydride_polyester import has_hydride_polyester_shape, name_hydride_polyester
 from ._ester import has_ester_shape, name_ester
 from ._ester_by_parts import name_ester_by_parts
@@ -902,6 +903,8 @@ def _name_unabridged_body(smiles: str) -> str:
                 return name
             except UnsupportedStructure:
                 pass
+        if parsed is not None and has_inorganic_polyester_shape(parsed):
+            return name_inorganic_polyester(parsed)
         beyond_preferred = None
         if parsed is not None:
             name = name_heteroacyclic(parsed)
