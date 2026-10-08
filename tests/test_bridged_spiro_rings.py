@@ -928,3 +928,24 @@ def test_largest_main_bridge_with_dependent_secondary_bridges(smiles, expected):
 )
 def test_branched_spiro_union_pair_order(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C1CC2(C1)CC[PH3]CC2", "7λ5-phosphaspiro[3.5]nonane", id="lambda5_phosphorus"),
+        pytest.param("C1[SiH2]CC12CC[PH3]CC2", "7λ5-phospha-2-silaspiro[3.5]nonane", id="lambda5_phosphorus_with_silicon"),
+        pytest.param("C1CCS12CCCCC2", "4λ4-thiaspiro[3.5]nonane", id="lambda4_spiro_sulfur"),
+        pytest.param("C1[SH4]C[SH2]CC12CCCCC2", "2λ6,4λ4-dithiaspiro[5.5]undecane", id="higher_bonding_number_gets_the_lower_locant"),
+        pytest.param(
+            "S%11%12%13(OCCO%11)(OCCO%12)OCCO%13",
+            "1,4,6,9,10,13-hexaoxa-5λ6-thiaspiro[4.4^5.4^5]tridecane",
+            id="three_rings_on_a_lambda6_spiro_atom",
+        ),
+        pytest.param(
+            "S%11%12%13(CC%11)(CCCC%12)CCCCC%13", "3λ6-thiaspiro[2.4^3.5^3]dodecane", id="smaller_ring_numbered_first"
+        ),
+    ],
+)
+def test_spiro_systems_with_atoms_of_nonstandard_bonding_number(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
