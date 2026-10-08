@@ -358,14 +358,14 @@ def _branch_key(mol, ring_atoms, root):
     return Chem.MolFragmentToSmiles(mol, atomsToUse=sorted(seen), rootedAtAtom=root)
 
 
-def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name_function=None, directed=None):
+def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name_function=None, directed=None, first=None):
     """(name, has_prefix) of a monocyclic ring used as a linker component, or
     None. `attachments`: [(ring_atom, external_atom)] for each free valence;
     `directed`: (unit_side_atom, center_side_atom) for a concatenated arm,
     where the unit-side atom takes the lowest locant (P-15.3.1.2.2.4)."""
     spec = spec_of(mol, ring_atoms)
     if spec is None:
-        return _ring_system_component(mol, ring_atoms, attachments, directed)
+        return _ring_system_component(mol, ring_atoms, attachments, directed, first)
     free_atoms = [a for a, _ in attachments]
     if len(free_atoms) > 2 and len({_branch_key(mol, ring_atoms, b) for _, b in attachments}) > 1:
         return None
@@ -378,6 +378,8 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
     for locants in numberings(spec):
         if directed is not None:
             free_key = (locants[directed[0]], locants[directed[1]])
+        elif first is not None:
+            free_key = (tuple(sorted(locants[a] for a in free_atoms)), tuple(sorted(locants[a] for a in free_atoms if a != first)))
         else:
             free_key = tuple(sorted(locants[a] for a in free_atoms))
         key = (
@@ -392,6 +394,8 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
     locants = best[1]
     if directed is not None:
         cited = [locants[directed[1]], locants[directed[0]]]
+    elif first is not None:
+        cited = [locants[first], *sorted(locants[a] for a in free_atoms if a != first)]
     else:
         cited = sorted(locants[a] for a in free_atoms)
     loc = ",".join(str(x) for x in cited)
@@ -408,7 +412,7 @@ def name_ring_component(mol, ring_atoms, attachments, groups, suffix_group, name
     return _join(prefix_text, body), bool(prefix_text)
 
 
-def _ring_system_component(mol, ring_atoms, attachments, directed):
+def _ring_system_component(mol, ring_atoms, attachments, directed, first=None):
     """Diyl group of any ring system (P-29.3.3, P-29.3.4) with its substituents, numbered by the general ring
     namer; an arm needs the unit-side valence at the lowest locant, which that namer does not rank."""
     if directed is not None:
@@ -429,7 +433,15 @@ def _ring_system_component(mol, ring_atoms, attachments, directed):
         for a in atoms
         for n in mol.GetAtomWithIdx(a).GetNeighbors()
     )
-    return found[1], substituted
+    name = found[1]
+    if first is not None and first in found[2]:
+        tail = re.search(r"-(\d+[a-z]?(?:,\d+[a-z]?)+)-(?:di|tri|tetra)yl$", name)
+        locants = tail.group(1).split(",") if tail else []
+        lead = str(found[2][first])
+        if tail and lead in locants:
+            locants.remove(lead)
+            name = name[: tail.start(1)] + ",".join([lead, *locants]) + name[tail.end(1) :]
+    return name, substituted
 
 
 def substituted_polycyclic_unit(mol, ring_atoms, atoms, junction, name_function=None):

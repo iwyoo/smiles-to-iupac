@@ -928,7 +928,7 @@ def test_double_bond_geometry_on_a_prefix_is_cited_inside_the_prefix():
     [
         (
             "OC(=O)c1ccc(cc1)C=NOCON=Cc1ccc(cc1)C(=O)O",
-            "4,4'-[methylenebis(oxyazanylylidenemethanylylidene)]dibenzoic acid",
+            "4,4'-(3,5-dioxa-2,6-diazahepta-1,6-diene-1,7-diyl)dibenzoic acid",
         ),
         (
             "OC(=O)c1ccc(cc1)C(Cl)=NCCN=C(Cl)c1ccc(cc1)C(=O)O",

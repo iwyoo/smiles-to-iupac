@@ -330,7 +330,7 @@ def _mixed_ring_part(mol, graph, atoms, attachments):
     return Part(found[1], False, True) if found else None
 
 
-def _component_part(mol, graph, kind, atoms, attachments, ctx, directed):
+def _component_part(mol, graph, kind, atoms, attachments, ctx, directed, first=None):
     mixed = len({order for _, _, order in attachments}) > 1
     if kind == "ring" and mixed:
         if directed is not None:
@@ -344,7 +344,7 @@ def _component_part(mol, graph, kind, atoms, attachments, ctx, directed):
             raise DecompositionRejected("a ylidene ring inside a concatenated linker is not supported")
         return _ylidene_ring_part(mol, graph, atoms, attachments)
     if kind != "assembly":
-        return name_component(mol, kind, atoms, attachments, ctx, directed)
+        return name_component(mol, kind, atoms, attachments, ctx, directed, first)
     if directed is not None or any(order != 1 for _, _, order in attachments) and not mixed:
         raise DecompositionRejected("a ring assembly inside a concatenated linker is not supported")
     from ._chain_assembly import assembly_diyl
@@ -369,6 +369,11 @@ def _make_context(mol, graph):
     return _Context([], None, None, [], set(), {}, entry)
 
 
+_MULTIPLIED_HETERO_HYDRIDE = re.compile(
+    r"(?:di|tri|tetra|penta|hexa|hepta|octa|nona|deca)(?:silane|germane|stannane|plumbane|phosphane|arsane|stibane|bismuthane|azane|sulfane|selane|tellane|borane|alumane)"
+)
+
+
 def _linker_text(count, central, arm_parts, led=True):
     if not arm_parts:
         return enclose(central.text) if (central.has_prefix or central.has_locants) and led else central.text
@@ -376,9 +381,34 @@ def _linker_text(count, central, arm_parts, led=True):
     pieces = [enclose(p.text) if p.has_prefix and len(arm_parts) > 1 else p.text for p in arm_parts]
     arm_text = "".join(pieces)
     plain = len(arm_parts) == 1 and arm_parts[0].has_locants and not arm_parts[0].has_prefix
-    simple = (plain and not arm_text.startswith(("di", "tri", "tetra"))) or arm_text == "nitrilo"
+    simple = (plain and not _MULTIPLIED_HETERO_HYDRIDE.match(arm_text)) or arm_text == "nitrilo"
     arm_enclosed = arm_text if arm_text == "nitrilo" else enclose(arm_text)
     return enclose(central_text + multiplier_word(count, use_bis=not simple) + arm_enclosed)
+
+
+def _skeletal_linker_name(mol, graph, arms, span):
+    """Two units joined by a chain that is itself a skeletal replacement parent: the linker is cited by its 'a' name
+    (P-51.3.1)."""
+    from ._heteroacyclic import skeletal_linker
+    from ._polyfunctional import _select, _unit_molecule
+
+    roots = [r for r, _, _ in arms]
+    handles = [h for _, h, _ in arms]
+    linker = skeletal_linker(mol, graph, span, handles, frozenset(roots))
+    if linker is None:
+        return None
+    unit, attach = _unit_molecule(mol, arms[0][2], roots[0])
+    try:
+        _, _, parts = _select(unit, attach)
+    except UnsupportedStructure:
+        return None
+    prefix, body, tail, locant = parts[:4]
+    lead = ",".join(str(locant) + "'" * i for i in range(2)) + "-" if locant is not None else ""
+    text = prefix + body
+    linker = enclose(linker)
+    if prefix:
+        return f"{lead}{linker}{multiplier_word(2, True)}({text}){tail}"
+    return f"{lead}{linker}{multiplier_word(2, False)}{unit_phrase(text, tail)}"
 
 
 def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
@@ -394,7 +424,9 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
     comp_of, components = _components(mol, graph, span)
     # P-21.2.3.1: where nitrogen is present the amine name outranks skeletal replacement
     if unit_kind != "amine" and _longest_hetero_run(graph, comp_of, components) >= _SKELETAL_UNITS:
-        return None
+        if unit_kind != "chain" or count != 2 or stereo:
+            return None
+        return _skeletal_linker_name(mol, graph, arms, span)
     edges = {cid: [] for cid in components}
     for a in span:
         for n in graph[a]:
@@ -461,7 +493,9 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
         for cid, toward_center, onward, fan in chain:
             akind, aatoms = components[cid]
             if fan and per_branch > 1:
-                arm_parts.append(_component_part(mol, graph, akind, aatoms, [toward_center, *onward], ctx, None))
+                arm_parts.append(
+                    _component_part(mol, graph, akind, aatoms, [toward_center, *onward], ctx, None, toward_center[0])
+                )
             else:
                 arm_parts.append(
                     _component_part(
@@ -492,7 +526,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
             lead = ",".join("N" + "'" * i for i in range(count)) + "-"
         elif _MULTIPLIED_HYDRIDE.match(text):
             lead = ",".join("1" + "'" * i for i in range(count)) + "-"
-        linker = _linker_text(branches, central, arm_parts, bool(lead) or unit_kind != "hydride")
+        linker = _linker_text(branches, central, arm_parts)
         if (
             unit_kind == "hydride"
             or text.startswith(("N-", "di", "tri", "tetra"))
@@ -729,7 +763,10 @@ def _chain_multiplicative_name(mol, stereo):
                 target = candidates
             elif atom.GetAtomicNum() == 7 and principal in ("amide", "sulfonamide") and r in anchors:
                 other = mol.GetAtomWithIdx(h)
-                ok = bond.GetBondTypeAsDouble() == 1.0 and other.GetAtomicNum() == 6 and not is_functional_carbon(mol, h)
+                ok = bond.GetBondTypeAsDouble() == 1.0 and (
+                    (other.GetAtomicNum() == 6 and not is_functional_carbon(mol, h))
+                    or (other.GetAtomicNum() not in (6, 7) and h in linkers)
+                )
                 target = nitrogen
             else:
                 continue

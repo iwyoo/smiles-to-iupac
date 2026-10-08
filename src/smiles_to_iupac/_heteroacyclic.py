@@ -248,19 +248,34 @@ def _chain_heteroatom(atom, phosphorus=False):
 
 
 def _heterounit_count(mol, path, hetero_positions):
-    """The heteroatom units of a chain: adjacent atoms of one sulfur, selenium or tellurium kind (a disulfide) count
-    once, so that 1-(methyldiselanyl)-2-(methyldisulfanyl)ethane keeps its substitutive name (P-63.3.1)."""
-    units = len(hetero_positions)
-    for a, b in zip(hetero_positions, hetero_positions[1:]):
-        z = mol.GetAtomWithIdx(path[a]).GetAtomicNum()
+    """The heterounits of a chain (P-51.4.1.1): two identical adjacent heteroatoms (disulfanediyl, disilane-1,2-diyl) or
+    two atoms of a senior element around one of a junior element (disiloxane-1,3-diyl, but not oxysilanediyloxy) are one
+    unit; every other heteroatom is a unit of its own."""
+    elements = {i: mol.GetAtomWithIdx(path[i]).GetAtomicNum() for i in hetero_positions}
+    taken = set()
+    units = 0
+    for i in hetero_positions:
+        if i in taken:
+            continue
+        taken.add(i)
+        units += 1
         if (
-            b - a == 1
-            and z == mol.GetAtomWithIdx(path[b]).GetAtomicNum()
-            and z in (16, 34, 52)
-            and mol.GetAtomWithIdx(path[a]).GetDegree() == 2
-            and mol.GetAtomWithIdx(path[b]).GetDegree() == 2
+            elements.get(i + 1) == elements[i]
+            and i + 1 not in taken
+            and not _chalcogen_unit_valence(mol, mol.GetAtomWithIdx(path[i]))
+            and not _chalcogen_unit_valence(mol, mol.GetAtomWithIdx(path[i + 1]))
         ):
-            units -= 1
+            taken.add(i + 1)
+        elif (
+            i + 2 in elements
+            and elements[i + 2] == elements[i]
+            and i + 1 in elements
+            and elements[i + 1] != elements[i]
+            and _A_ORDER.index(elements[i]) > _A_ORDER.index(elements[i + 1])
+            and i + 1 not in taken
+            and i + 2 not in taken
+        ):
+            taken.update((i + 1, i + 2))
     return units
 
 
@@ -287,13 +302,17 @@ def _acceptable_path(mol, path):
         and not any(_chalcogen_unit_valence(mol, mol.GetAtomWithIdx(path[i])) for i in hetero_positions)
     ):
         return False
-    return not any(
+    return not _long_identical_run(mol, path, hetero_positions)
+
+
+def _long_identical_run(mol, path, hetero_positions):
+    """Three or more identical adjacent heteroatoms form a parent hydride of their own (trisilane, trisulfane)."""
+    return any(
         b - a == 1
-        and (
-            mol.GetAtomWithIdx(path[a]).GetAtomicNum() == mol.GetAtomWithIdx(path[b]).GetAtomicNum()
-            and mol.GetAtomWithIdx(path[a]).GetAtomicNum() not in (15, 16, 34, 52)
-        )
-        for a, b in zip(hetero_positions, hetero_positions[1:])
+        and c - b == 1
+        and mol.GetAtomWithIdx(path[a]).GetAtomicNum() == mol.GetAtomWithIdx(path[b]).GetAtomicNum() == mol.GetAtomWithIdx(path[c]).GetAtomicNum()
+        and mol.GetAtomWithIdx(path[a]).GetAtomicNum() not in (15, 16, 34, 52)
+        for a, b, c in zip(hetero_positions, hetero_positions[1:], hetero_positions[2:])
     )
 
 
@@ -402,12 +421,17 @@ def _chain_stereo(chain, position_of, atom_codes, bond_codes):
 
 
 def _evaluate(
-    mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes, carbamoyl=None, attach=None, blocked=frozenset()
+    mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes, carbamoyl=None, attach=None, blocked=frozenset(),
+    attaches=(),
 ):
     position_of = {atom: i + 1 for i, atom in enumerate(chain)}
     chain_set = set(chain)
     if attach is not None and attach not in chain_set:
         return None
+    if attaches and (len(attaches) != 2 or any(a not in chain_set for a in attaches)):
+        return None
+    if attaches:
+        attach = attaches[0]
     if principal == "amide" and carbamoyl:
         principal_atoms = dict(principal_atoms)
         for end, neighbor in ((chain[0], chain[1]), (chain[-1], chain[-2])):
@@ -511,7 +535,11 @@ def _evaluate(
     a_text = "-".join(a_unit(z) for z in _A_ORDER if z in by_element)
     prefix = format_substituent_prefixes(grouped_all)
     halide_word = ""
-    if attach is not None:
+    if attaches:
+        body = name_from_substituents(
+            length, ene, yne, "diyl", sorted(position_of[a] for a in attaches), force_own_locant=True
+        )
+    elif attach is not None:
         body = name_from_substituents(length, ene, yne, "yl", [position_of[attach]], force_own_locant=True)
     elif principal is None:
         body = name_from_substituents(length, ene, yne, "e")
@@ -565,6 +593,36 @@ def _evaluate(
         name,
     )
     return key, stereo + name
+
+
+def skeletal_linker(mol, graph, span, attaches, blocked):
+    """The 'a' name of the divalent chain `span` joining two multiplied units ('3,6,9,12-tetraoxatetradecane-1,14-diyl',
+    P-51.3.1), or None when no chain with four heterounits runs between the two attachment atoms."""
+    atoms = [mol.GetAtomWithIdx(a) for a in span]
+    if len(attaches) != 2 or any(a.IsInRing() or a.GetFormalCharge() or a.GetIsotope() for a in atoms):
+        return None
+    if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in atoms):
+        return None
+    if any(
+        mol.GetBondBetweenAtoms(a, n).GetBondTypeAsDouble() != 1.0 for a in attaches for n in graph[a] if n in blocked
+    ):
+        return None
+    eligible = {
+        a.GetIdx()
+        for a in atoms
+        if (a.GetAtomicNum() == 6 and (not is_functional_carbon(mol, a.GetIdx()) or _chain_acyl_carbon(mol, a)))
+        or _chain_heteroatom(a)
+    }
+    adj = {a: [n for n in graph[a] if n in span] for a in span}
+    best = None
+    for path in _paths(adj, eligible):
+        if set(path) != set(span) or {path[0], path[-1]} != set(attaches) or not _acceptable_path(mol, path):
+            continue
+        for chain in (path, path[::-1]):
+            candidate = _evaluate(mol, graph, chain, None, {}, set(), {}, {}, attaches=tuple(attaches), blocked=blocked)
+            if candidate is not None and (best is None or candidate[0] < best[0]):
+                best = candidate
+    return best[1] if best else None
 
 
 def skeletal_substituent(mol, graph, root, coming_from):

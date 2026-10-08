@@ -376,6 +376,17 @@ def _attempt(mol, groups, selected, tree, core, name_function):
     arm_chain = _arm_chain(mol, center, edges, comp_of, center_edges[0], junction_atoms)
     if arm_chain is None:
         return None
+    if len(selected) == 2:
+        from ._common import adjacency
+        from ._heteroacyclic import skeletal_linker
+        from ._multiplicative_linker import Part
+
+        linker_atoms = set(range(mol.GetNumAtoms())) - unit_atoms
+        skeletal = skeletal_linker(
+            mol, adjacency(mol), linker_atoms, [u.linker_atom for u in selected], frozenset(junction_atoms)
+        )
+        if skeletal is not None:
+            return _assemble(2, unit, Part(skeletal, False, True), [])
     try:
         central = name_component(mol, kind, atoms, center_edges, ctx)
         arm_parts = []

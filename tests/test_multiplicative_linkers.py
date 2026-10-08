@@ -79,7 +79,7 @@ def test_diacyl_linking_groups_and_oxamoylamino(smiles, expected):
         ("[SiH3][SiH2]C[SiH2][SiH3]", "1,1'-methylenebis(disilane)"),
         ("[SiH3]CC[SiH2]CC[SiH3]", "[silanediyldi(ethane-2,1-diyl)]bis(silane)"),
         ("C[Si](C)(C)C[Si](C)(C)C", "methylenebis(trimethylsilane)"),
-        ("c1ccccc1P(c1ccccc1)CCP(c1ccccc1)c1ccccc1", "ethane-1,2-diylbis(diphenylphosphane)"),
+        ("c1ccccc1P(c1ccccc1)CCP(c1ccccc1)c1ccccc1", "(ethane-1,2-diyl)bis(diphenylphosphane)"),
         (
             "c1ccccc1P(c1ccccc1)CP(c1ccccc1)CP(c1ccccc1)c1ccccc1",
             "[(phenylphosphanediyl)bis(methylene)]bis(diphenylphosphane)",
@@ -516,4 +516,40 @@ def test_sulfinyl_linkers_of_multiplicative_names(smiles, expected):
     ],
 )
 def test_identical_configuration_units_are_multiplied_and_r_is_cited_before_s(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("n1nc(CO)c(Oc2c(CO)nncc2CO)c(CO)c1", "[oxydi(pyridazine-4,3,5-triyl)]tetramethanol"),
+        ("n1nc(CO)c(CO)c(Oc2cnnc(CO)c2CO)c1", "[oxydi(pyridazine-5,3,4-triyl)]tetramethanol"),
+        ("[SiH3]CCCCCCCCCCCCCCOCCCCCCCCCCCCCC[SiH3]", "[oxydi(tetradecane-14,1-diyl)]bis(silane)"),
+        ("[SiH3]c1cc([SiH3])cc([SiH3])c1", "(benzene-1,3,5-triyl)tris(silane)"),
+        ("CC(=O)N(C)[Si](C)(C=C)N(C)C(C)=O", "N,N'-[ethenyl(methyl)silanediyl]bis(N-methylacetamide)"),
+    ],
+)
+def test_multiplicative_linker_locants_enclosure_and_multiplying_prefix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("Cl[SiH2]CC[SiH3]", "chloro(2-silylethyl)silane"),
+        ("O=C(N=Nc1ccccc1)N=Nc1ccccc1", "bis(phenyldiazenyl)methanone"),
+        ("S=C(N=N)N=N", "bis(diazenyl)methanethione"),
+        ("[SiH3][SiH2]OCCS[SiH2][SiH3]", "3-oxa-6-thia-1,2,7,8-tetrasilaoctane"),
+        ("[SiH3][SiH2]COO[SiH2][SiH3]", "[(disilanylmethyl)peroxy]disilane"),
+        (
+            "OC1CCC(CC1)=CCN=CCC1CCC(O)CC1",
+            "4-(2-{[2-(4-hydroxycyclohexyl)ethylidene]amino}ethylidene)cyclohexan-1-ol",
+        ),
+        (
+            "OC(=O)c1ccccc1CCOCCOCCOCCOCCc1ccccc1C(O)=O",
+            "2,2'-(3,6,9,12-tetraoxatetradecane-1,14-diyl)dibenzoic acid",
+        ),
+    ],
+)
+def test_parent_choice_beside_identical_hydrides_acyl_diazenes_and_heterounits(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
