@@ -545,6 +545,13 @@ def test_intramolecular_anhydro_sugars(smiles, expected):
         pytest.param("NCC(=O)NCC(=O)O", "glycylglycine", id="glycine_residues_have_no_descriptor"),
         pytest.param("CC(N)C(=O)N[C@@H](C)C(=O)O", "ξ-alanyl-L-alanine", id="unspecified_residue_xi"),
         pytest.param("N[C@@H](CS)C(=O)N[C@@H](CC(=O)O)C(=O)N1CCC[C@H]1C(=O)O", "L-cysteinyl-L-aspartyl-L-proline", id="irregular_acyl_endings"),
+        pytest.param("N[C@@H](CCC(=O)N[C@@H](CS)C(=O)NCC(=O)O)C(O)=O", "L-γ-glutamyl-L-cysteinylglycine", id="isopeptide_bond_to_the_glutamic_side_chain"),
+        pytest.param("N[C@@H](CC(=O)N[C@@H](C)C(=O)O)C(=O)O", "L-β-aspartyl-L-alanine", id="isopeptide_bond_to_the_aspartic_side_chain"),
+        pytest.param("CC(=O)N[C@@H](C)C(=O)N[C@@H](C)C(=O)O", "N-acetyl-L-alanyl-L-alanine", id="acylated_n_terminus"),
+        pytest.param("CN[C@@H](C)C(=O)N[C@@H](C)C(=O)O", "N-methyl-L-alanyl-L-alanine", id="n_methyl_n_terminal_residue"),
+        pytest.param("N[C@@H](C)C(=O)N(C)[C@@H](C)C(=O)O", "L-alanyl-N-methyl-L-alanine", id="n_methyl_amide_nitrogen"),
+        pytest.param("N[C@@H](CC(O)=O)C(=O)N[C@@H](Cc1ccccc1)C(=O)OC", "methyl L-aspartyl-L-phenylalaninate", id="ester_of_the_c_terminal_residue"),
+        pytest.param("NCC(=O)NCC(=O)OC", "methyl glycylglycinate", id="glycine_ester_peptide"),
     ],
 )
 def test_peptide_acyl_names(smiles, expected):
