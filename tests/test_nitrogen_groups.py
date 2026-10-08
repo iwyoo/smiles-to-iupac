@@ -1353,3 +1353,15 @@ def test_amidine_locants_prefixes_and_condensed_guanidines(smiles, expected):
 )
 def test_hydrazide_variants(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("NC1=CC=C(C=C1)S(=O)(=O)NC=1SC(=CN1)C(=O)O", "2-(4-aminobenzene-1-sulfonamido)-1,3-thiazole-5-carboxylic acid"),
+        ("OC(=O)c1cnc(NS(=O)(=O)C)s1", "2-(methanesulfonamido)-1,3-thiazole-5-carboxylic acid"),
+        ("OC(=O)c1cnc(NC(C)=O)s1", "2-acetamido-1,3-thiazole-5-carboxylic acid"),
+    ],
+)
+def test_acylamino_prefix_on_heteroaromatic_ring(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
