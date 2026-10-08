@@ -420,6 +420,11 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             raise UnsupportedStructure("an anionic carbon beyond a ring substituent is not supported yet")
         return _anionic_chain_prefix(graph, root, coming_from, mol)
     if z == 6:
+        from ._imidoyl_prefix import imidoyl_prefix, ketene_prefix
+
+        named = ketene_prefix(mol, graph, root, coming_from) or imidoyl_prefix(mol, graph, root, coming_from)
+        if named is not None:
+            return named
         if is_functional_carbon(mol, root) or _carbonyl_oxygen(mol, root) is not None or (
             EXTENDED_PREFIXES.get() and _thioacyl(mol, root)
         ):
@@ -970,6 +975,14 @@ def _anionic_group(mol, root, coming_from):
     raise UnsupportedStructure("this anionic substituent group is not supported yet")
 
 
+def _terminal_double_atom(mol, center, idx):
+    """A terminal =O, =S, =Se, =Te or =NH on `center` (an oxo, thioxo or imido position of a sulfonic-type acyl group)."""
+    atom = mol.GetAtomWithIdx(idx)
+    if atom.GetDegree() != 1 or atom.GetFormalCharge() or mol.GetBondBetweenAtoms(center, idx).GetBondTypeAsDouble() != 2.0:
+        return False
+    return atom.GetAtomicNum() in (8, 16, 34, 52) or (atom.GetAtomicNum() == 7 and atom.GetTotalNumHs() == 1)
+
+
 def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     """Prefixes of the acyl groups of sulfonic, sulfinic, selenonic ... acids (P-65.3.2): 'sulfo', 'sulfamoyl',
     'benzenesulfonyl', 'methoxysulfonyl', 'chlorosulfinyl', 'trithiosulfo'."""
@@ -982,11 +995,9 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     center = _E_SYMBOL[atom.GetAtomicNum()]
     others = [n for n in graph[root] if n != coming_from]
     oxo = [
-        (n, mol.GetAtomWithIdx(n).GetSymbol())
+        (n, "NH" if mol.GetAtomWithIdx(n).GetAtomicNum() == 7 else mol.GetAtomWithIdx(n).GetSymbol())
         for n in others
-        if mol.GetAtomWithIdx(n).GetAtomicNum() in (8, 16, 34, 52)
-        and mol.GetAtomWithIdx(n).GetDegree() == 1
-        and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 2.0
+        if _terminal_double_atom(mol, root, n)
     ]
     rest = [n for n in others if n not in {n for n, _ in oxo}]
     if len(rest) != 1 or len(oxo) not in (1, 2) or (not EXTENDED_PREFIXES.get() and (center != "S" or any(e != "O" for _, e in oxo))):
@@ -1054,10 +1065,7 @@ _OXOACID_GROUP = {
 def _chalcogen_acyl_oxo(mol, center, attached):
     """Whether the S/Se/Te `center` bonded to `attached` carries a terminal =O/=S/=Se/=Te (a sulfonyl-type acyl group)."""
     return any(
-        n.GetIdx() != attached
-        and n.GetAtomicNum() in (8, 16, 34, 52)
-        and n.GetDegree() == 1
-        and mol.GetBondBetweenAtoms(center, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        n.GetIdx() != attached and _terminal_double_atom(mol, center, n.GetIdx())
         for n in mol.GetAtomWithIdx(center).GetNeighbors()
     )
 

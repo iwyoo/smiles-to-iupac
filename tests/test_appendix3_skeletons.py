@@ -124,7 +124,7 @@ def test_degree_of_hydrogenation(smiles, expected):
         ("OC(=O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2C(=O)NN", "14-(hydrazinecarbonyl)yohimban-18-carboxylic acid"),
         ("OC(=O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2C(N)=N", "14-carbamimidoylyohimban-18-carboxylic acid"),
         ("OC(=O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2S(N)(=O)=O", "14-sulfamoylyohimban-18-carboxylic acid"),
-        ("OC(=O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2C=NO", "14-[(hydroxyimino)methyl]yohimban-18-carboxylic acid"),
+        ("OC(=O)C1CCC2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2C=NO", "14-(N-hydroxymethanimidoyl)yohimban-18-carboxylic acid"),
         # P-65.6.3.3.2.1: unlike alkyl groups in alphanumerical order, identical ones grouped under their locants
         ("COC(=O)C1CC(C(=O)OCC)C2C(C1)CN1CCc3c([nH]c4ccccc34)C1C2", "16-ethyl 18-methyl yohimban-16,18-dicarboxylate"),
         (

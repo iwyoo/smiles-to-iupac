@@ -3,6 +3,9 @@ the group C(=X)Z is the divalent acyl group of =X ('carbonyl', 'carbonothioyl', 
 front, except the retained 'carboxy', 'carbamoyl' ... and the halide and pseudohalide infix names ('carbonochloridoyl').
 """
 
+from rdkit import Chem
+
+from ._common import UnsupportedStructure
 from ._multiplicative_text import enclose
 
 _X_INFIX = {"O": "", "S": "thio", "Se": "seleno", "Te": "telluro", "NH": "imido", "NNH2": "hydrazono"}
@@ -75,6 +78,49 @@ def _cited(entries):
     return format_substituent_prefixes(grouped)
 
 
+_DI_CARBOXY = {"S": "dithiocarboxy", "Se": "diselenocarboxy", "Te": "ditellurocarboxy"}
+_CHALCOGEN_PREFIX = {"S": "sulfanyl", "Se": "selanyl", "Te": "tellanyl"}
+_ETHANOYL = {"S": "ethanethioyl", "Se": "ethaneselenoyl", "Te": "ethanetelluroyl"}
+
+
+def _oxalic_type_prefix(mol, graph, root, coming_from, x_idx, second, x, halogens, aromatic_atoms, name_branch):
+    """P-65.1.7.2.4: -CS-COOH is 'carboxymethanethioyl'; the other oxalic acid groups with a chalcogen analogue at the
+    free valence are the 'ethanethioyl' analogues of the 'acetyl' groups (hydroxy(sulfanylidene)ethanethioyl)."""
+    from ._common import adjacency
+
+    carbon = mol.GetAtomWithIdx(second)
+    if carbon.IsInRing() or carbon.GetTotalNumHs() or carbon.GetFormalCharge() or x not in _ETHANOYL:
+        return None
+    onward = [n for n in graph[second] if n != root]
+    if len(onward) != 2 or any(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 for n in onward):
+        return None
+    if _is_carboxy(mol, second, onward):
+        return "carboxy" + _FORM[x], True
+    healed = Chem.RWMol(mol)
+    healed.GetAtomWithIdx(x_idx).SetAtomicNum(8)
+    healed = healed.GetMol()
+    try:
+        name, _ = name_branch(adjacency(healed), root, coming_from, halogens, aromatic_atoms, mol=healed)
+    except UnsupportedStructure:
+        return None
+    if not name.endswith("acetyl"):
+        return None
+    return name[: -len("acetyl")] + _ETHANOYL[x], True
+
+
+def _is_carboxy(mol, carbon, onward):
+    oxo = [n for n in onward if mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and _bond(mol, carbon, n) == 2.0]
+    hydroxy = [
+        n
+        for n in onward
+        if mol.GetAtomWithIdx(n).GetAtomicNum() == 8
+        and _bond(mol, carbon, n) == 1.0
+        and mol.GetAtomWithIdx(n).GetDegree() == 1
+        and mol.GetAtomWithIdx(n).GetTotalNumHs() == 1
+    ]
+    return len(oxo) == 1 and len(hydroxy) == 1
+
+
 def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, name_branch, enclose_mark=enclose):
     """(name, is_compound) of the acid-derived group on carbon `root`, or None."""
     atom = mol.GetAtomWithIdx(root)
@@ -101,6 +147,10 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
             return None
         return halide_acyl_name(_HALIDE_INFIX[zn], x), False
     if zn == 6:
+        if x != "O" and not n_entries:
+            named = _oxalic_type_prefix(mol, graph, root, coming_from, slot[0], z_idx, x, halogens, aromatic_atoms, name_branch)
+            if named is not None:
+                return named
         if x == "O" or n_entries:
             return None
         from ._hetero_prefixes import _acyl_from_acid_name
@@ -132,6 +182,8 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
     if zn not in _SYMBOL:
         return None
     z_name, z_compound = name_branch(graph, z_idx, root, halogens, aromatic_atoms, mol=mol)
+    if x in _DI_CARBOXY and z_name == _CHALCOGEN_PREFIX[x]:
+        return _DI_CARBOXY[x], False
     if x in ("NH", "NNH2"):
         entries = [("C", z_name, z_compound), *n_entries]
         return _cited(entries) + acyl_stem(x), True
