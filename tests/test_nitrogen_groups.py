@@ -1179,6 +1179,10 @@ def test_ureas_with_further_substituents_and_ureas_beneath_senior_groups(smiles,
         pytest.param("CN(N=O)c1ccc(cc1)C(=O)O", "4-[methyl(nitroso)amino]benzoic acid", id="nitrosoamino_prefix_under_an_acid"),
         pytest.param("O=NN1CCCC1", "1-nitrosopyrrolidine", id="nitroso_on_a_ring_nitrogen"),
         pytest.param("OC(=O)CN(N=O)CC(=O)O", "2,2'-(nitrosoazanediyl)diacetic acid", id="nitroso_on_a_linking_nitrogen"),
+        pytest.param("OC(=O)CCNN[N+](=O)[O-]", "3-(2-nitrohydrazin-1-yl)propanoic acid", id="nitrohydrazinyl_prefix"),
+        pytest.param("OC(=O)CCN(N)N(=O)=O", "3-(1-nitrohydrazin-1-yl)propanoic acid", id="nitro_on_the_attached_hydrazine_nitrogen"),
+        pytest.param("OC(=O)CCNNN=O", "3-(2-nitrosohydrazin-1-yl)propanoic acid", id="nitrosohydrazinyl_prefix"),
+        pytest.param("OC(=O)CCNNN", "3-(triazan-1-yl)propanoic acid", id="triazanyl_prefix_unchanged"),
     ],
 )
 def test_nitroso_and_nitro_groups_on_nitrogen_and_on_rings_with_other_groups(smiles, expected):
