@@ -451,3 +451,34 @@ def test_stereogenic_phosphorus_oxide_and_phosphinate(smiles, expected):
 )
 def test_noncarbon_oxoacids_with_infixes_and_their_halides_amides_and_esters(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[O-]P(=O)([O-])OP(=O)([O-])[O-].[Na+].[Na+].[Na+].[Na+]", "tetrasodium diphosphate"),
+        ("[O-]S(=O)(=O)OS(=O)(=O)O.[Na+]", "sodium hydrogen disulfate"),
+        ("NNP(=O)OP(=O)N", "3-hydrazidodiphosphonic 1-amide"),
+        ("N#CP(I)P(I)I", "cyanohypodiphosphorous triiodide"),
+        ("NP(O)OP(N)(=O)O", "{[amino(hydroxy)phosphanyl]oxy}phosphonamidic acid"),
+        ("OP(=O)(O)NP(=O)O", "N-(hydroxyphosphonoyl)phosphoramidic acid"),
+        ("NP(N)OP(N)(=O)N", "phosphorodiamidic phosphorodiamidous anhydride"),
+        ("OS(=O)(=O)O[Se](=O)(=O)O", "selenic sulfuric monoanhydride"),
+        ("CC(=O)OP(=O)(O)OP(=O)(O)OP(=O)(O)O", "[({[(acetyloxy)(hydroxy)phosphoryl]oxy}(hydroxy)phosphoryl)oxy]phosphonic acid"),
+        ("O[As](O)(=O)CCCCP(O)(O)=O", "(4-arsonobutyl)phosphonic acid"),
+        ("O=P(O)(O)CCCP(=O)(O)CC", "{3-[ethyl(hydroxy)phosphoryl]propyl}phosphonic acid"),
+        ("COS(=O)(=O)c1ccccc1P(=O)(O)O", "[2-(methoxysulfonyl)phenyl]phosphonic acid"),
+        ("CP(C)P(O)P(C)C", "bis(dimethylphosphanyl)phosphinous acid"),
+        ("CC(=O)OC(=O)OC(=O)O", "{[(acetyloxy)carbonyl]oxy}formic acid"),
+    ],
+)
+def test_polynuclear_oxoacid_salts_derivatives_and_senior_acid_parents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_polyacid_substituent_is_flagged_as_not_preferred():
+    from smiles_to_iupac import NonPreferredNameWarning
+
+    with pytest.warns(NonPreferredNameWarning, match="P-67.2.6"):
+        name = smiles_to_iupac("OC(=O)CCOP(=O)(O)OP(=O)(O)O")
+    assert name == "3-{[hydroxy(phosphonooxy)phosphoryl]oxy}propanoic acid"

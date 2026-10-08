@@ -6,7 +6,7 @@ from ._zwitterion import has_zwitterion_shape, name_zwitterion
 from ._hydrohalide_salt import has_hydrohalide_salt_shape, name_hydrohalide_salt
 from ._adduct import has_adduct_shape, name_adduct
 from ._acyclic import name_acyclic_alkane
-from ._acid_derivatives import name_acid_derivative
+from ._acid_derivatives import name_acid_derivative, name_phosphorous_acid
 from ._acid_salts import name_acid_salt
 from ._hetero_carboxylic import name_hetero_parent_acid
 from ._polycarbonic import name_polycarbonic
@@ -690,6 +690,15 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
 
 def _name_unabridged(smiles: str) -> str:
     enter()
+    result = None
+    try:
+        result = _name_unabridged_body(smiles)
+        return result
+    finally:
+        leave(result)
+
+
+def _name_unabridged_body(smiles: str) -> str:
     name = None
     lambda_token = None
     try:
@@ -787,7 +796,7 @@ def _name_unabridged(smiles: str) -> str:
             return name_amino_acid(parsed)
         if parsed is not None and not has_sphingoid_shape(parsed):
             stereo_specified = _has_specified_stereo(parsed)
-            for namer in (name_acid_salt, name_polycarbonic, name_carbonic_family, name_acid_derivative, name_hetero_parent_acid):
+            for namer in (name_acid_salt, name_polycarbonic, name_carbonic_family, name_acid_derivative, name_hetero_parent_acid, name_phosphorous_acid):
                 try:
                     candidate = namer(parsed)
                 except UnsupportedStructure:
@@ -879,7 +888,6 @@ def _name_unabridged(smiles: str) -> str:
     finally:
         if lambda_token is not None:
             CITE_SKELETAL_LAMBDA.reset(lambda_token)
-        leave(name)
 
 
 _SULFINYL_DESCRIPTOR = re.compile(r"\[\(([RS])\)-([a-z]+(?:sulfinyl|seleninyl|tellurinyl))\]([a-z]+)")

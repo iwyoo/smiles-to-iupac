@@ -9,6 +9,7 @@ from ._alkoxy import alkoxy_prefix
 from ._amino_acid import SYSTEMATIC_ACID_PROBE
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen
 from ._hetero_prefixes import (
+    POLYACID_SUBSTITUENT_REASON,
     ANIONIC_PREFIXES,
     CHALCOGEN_PREFIXES,
     _functional_carbon,
@@ -23,6 +24,7 @@ from ._hetero_prefixes import (
 from ._imidoyl_prefix import ketene_prefix
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
+from ._pin import mark
 from ._retained_acids import is_compound_acyl
 from ._substituents import name_branch
 
@@ -148,7 +150,7 @@ def _phosphoryl_parts(mol, node, parent, kids, named, bond_order):
         if k not in named or mol.GetAtomWithIdx(k).GetAtomicNum() != 8:
             raise UnsupportedStructure("this phosphorus-bearing substituent is not supported yet")
         if "phospho" in named[k][0]:
-            raise UnsupportedStructure("a polyphosphate chain substituent is not supported yet")
+            mark(None, POLYACID_SUBSTITUENT_REASON)
         parts.append(named[k])
     return parts
 

@@ -36,7 +36,7 @@ functional-replacement/infix variant.
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
-from ._phosphonic_acid import CENTER_STEMS, require_phosphorus_acid_scope
+from ._phosphonic_acid import CENTER_STEMS, acid_prefixes, require_phosphorus_acid_scope, senior_acid_centre
 from ._substituents import format_mononuclear_prefixes, name_branch
 
 
@@ -77,12 +77,12 @@ def has_phosphinic_acid_shape(mol) -> bool:
 
 
 def name_phosphinic_acid(mol) -> str:
-    phosphorus_atoms = _phosphinic_acid_phosphorus_atoms(mol)
-    if len(phosphorus_atoms) != 1:
-        raise UnsupportedStructure(
-            "more than one phosphinic acid group is not supported yet"
-        )
-    (phosphorus,) = phosphorus_atoms
+    phosphorus = senior_acid_centre(mol, _phosphinic_acid_phosphorus_atoms(mol))
+    if phosphorus is None:
+        phosphorus_atoms = _phosphinic_acid_phosphorus_atoms(mol)
+        if len(phosphorus_atoms) != 1:
+            raise UnsupportedStructure("more than one phosphinic acid group is not supported yet")
+        (phosphorus,) = phosphorus_atoms
 
     require_phosphorus_acid_scope(mol, phosphorus)
     group_oxygens = {n.GetIdx() for n in phosphorus.GetNeighbors() if n.GetAtomicNum() == 8}
@@ -95,6 +95,7 @@ def name_phosphinic_acid(mol) -> str:
     halogens = halogen_substituents(mol)
     aromatic_atoms = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic()}
 
-    entries = [name_branch(graph, root, phosphorus.GetIdx(), halogens, aromatic_atoms, mol=mol) for root in roots]
+    with acid_prefixes():
+        entries = [name_branch(graph, root, phosphorus.GetIdx(), halogens, aromatic_atoms, mol=mol) for root in roots]
     prefix = format_mononuclear_prefixes(entries)
     return f"{prefix}{CENTER_STEMS[phosphorus.GetAtomicNum()]}inic acid"
