@@ -1268,7 +1268,6 @@ def test_chiral_substituent_groups_of_ureas_and_thioureas_cite_their_descriptors
     "smiles, expected",
     [
         ("NC(=O)ONC", "(methylamino) carbamate"),
-        ("NC(=O)ON", "amino carbamate"),
         ("NC(=O)ON(C)C", "(dimethylamino) carbamate"),
         ("CNC(=O)ONC", "(methylamino) N-methylcarbamate"),
     ],
@@ -1436,4 +1435,16 @@ def test_diamidides_formamidine_disulfides_and_amidines_on_hydrides(smiles, expe
     ],
 )
 def test_carbaldehyde_on_a_polyaza_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("NOC(N)=O", "hydroxylamine-O-carboxamide"),
+        ("NS", "thiohydroxylamine"),
+        ("CSN", "S-methyl(thiohydroxylamine)"),
+    ],
+)
+def test_hydroxylamine_acid_forms_and_chalcogen_analogues(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

@@ -1224,6 +1224,7 @@ def _name_mol(mol) -> str:
             return name_ring_assembly(mol, ring_assembly_core)
     for has_shape, namer in (
         (_has_isotope_label, _name_isotope_label),
+        (has_o_substituted_hydroxylamine_shape, name_o_substituted_hydroxylamine),
         (has_uronium_shape, name_uronium),
         # An isotopically labeled hydroxyl oxygen and/or skeletal carbon
         # combined with the '-ol' suffix (P-82.5.1/P-82.5.2) must be routed
