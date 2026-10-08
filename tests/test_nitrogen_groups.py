@@ -1487,3 +1487,16 @@ def test_hydroxylamine_acid_forms_and_chalcogen_analogues(smiles, expected):
 
 def test_stereogenic_nitrogen_of_an_amine_oxide():
     assert smiles_to_iupac("C(C)[N@+](C1=CC=CC=C1)(C)[O-]") == "(S)-N-ethyl-N-methylaniline N-oxide"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("N=NC=NN", "formazan"),
+        ("c1ccccc1N=NC(c1ccccc1)=NNc1ccccc1", "1,3,5-triphenylformazan"),
+        ("N=NC(c1ccccc1)=NNc1ccccc1", "3,5-diphenylformazan"),
+        ("OC(=O)C(N=Nc1ccccc1)=NNc1ccccc1", "1,5-diphenylformazan-3-carboxylic acid"),
+    ],
+)
+def test_formazan_and_its_hydrocarbyl_derivatives(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
