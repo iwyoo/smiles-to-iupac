@@ -4,7 +4,9 @@ from rdkit import Chem
 from rdkit.Chem import Atom, BondType, RWMol
 from smiles_to_iupac import NonPreferredNameWarning, smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure, adjacency, ring_cycle
+from smiles_to_iupac._phane_general import phane_seniority_key
 from smiles_to_iupac._pyrimidinedione import has_pyrimidinedione_shape
+from smiles_to_iupac._ring_system_seniority import ring_seniority_key
 
 
 @pytest.mark.parametrize(
@@ -770,3 +772,145 @@ def test_large_ring_distorted_to_fit_peri_fusion_orientation():
 def test_substituted_fused_system_with_two_indicated_hydrogens():
     # P-31.1.4.2.4: the substituted 2H,4H parent keeps both indicated hydrogens
     assert smiles_to_iupac("CC1OC2=C(O1)NC=N2") == "2-methyl-2H,4H-[1,3]dioxolo[4,5-d]imidazole"
+
+
+def _senior_to(senior, junior, assembly=False):
+    a, b = Chem.MolFromSmiles(senior), Chem.MolFromSmiles(junior)
+    return ring_seniority_key(a, range(a.GetNumAtoms()), assembly) < ring_seniority_key(b, range(b.GetNumAtoms()), assembly)
+
+
+@pytest.mark.parametrize(
+    "senior,junior",
+    [
+        pytest.param("c1ccncc1", "c1ccoc1", id="nitrogen_before_other_heteroatoms"),
+        pytest.param("c1ccoc1", "c1ccsc1", id="earlier_heteroatom"),
+        pytest.param("c1ccc2cnccc2c1", "c1cc[nH]c1", id="more_rings"),
+        pytest.param("c1ccc2ncccc2c1", "c1ccc2[nH]ccc2c1", id="more_skeletal_atoms"),
+        pytest.param("c1ccc2nnccc2c1", "c1ccc2cnccc2c1", id="more_heteroatoms"),
+        pytest.param("C1COCCO1", "C1COCCS1", id="more_earlier_heteroatoms"),
+        pytest.param("C1=CC=C2C=CC=C2C=C1", "c1ccc2ccccc2c1", id="fused_larger_ring_components"),
+        pytest.param("c1ccc2cc3ccccc3cc2c1", "c1ccc2c(c1)ccc1ccccc12", id="fused_rings_in_a_horizontal_row"),
+        pytest.param("c1ccc2c(c1)ccc1ncccc12", "c1ccc2c(c1)ccc1cccnc12", id="fused_lower_letters"),
+        pytest.param("O1PC2OCOC2C1", "O1PCC2OCOC12", id="fused_lower_letters_omitted_from_the_name"),
+        pytest.param(
+            "C1=CC=C2C(=C1)C=CC3=C2C4=C(C=C3)N=CC=C4",
+            "C1=CC=C2C(=C1)C=CC3=C2C=CC4=C3C=CC=N4",
+            id="fused_lower_numbers",
+        ),
+        pytest.param(
+            "C1=CC=C2C=C3C(=CC2=C1)C=CC4=C3C=CC=N4",
+            "C1=CC=C2C=C3C(=CC2=C1)C=CC4=C3C=CN=C4",
+            id="fused_senior_components",
+        ),
+    ],
+)
+def test_senior_ring_by_the_general_and_fused_criteria(senior, junior):
+    assert _senior_to(senior, junior)
+
+
+@pytest.mark.parametrize(
+    "senior,junior",
+    [
+        pytest.param("C1=CC2=CC3=C(C2=C1)C1C=CC3C1", "C1=CC2CC1CC1=C2C2C=CC1C2", id="rings_before_bridging"),
+        pytest.param("C1=CC2=CC=C3CC4CC=C3C2(C=C1)C4", "C1=CC2CCC3(C1)C2=Cc1ccccc13", id="ring_atoms_before_bridging"),
+        pytest.param(
+            "C1=CC2CC3=C1C(O2)C1=C(C3)C2C=CC1O2",
+            "C1=CC2CC1C1=C2OC2=C(O1)C1C=CC2C1",
+            id="fewer_heteroatoms_before_bridging",
+        ),
+        pytest.param("C1=CC2=CC3C=CC(C3)C2=C1", "C1=CC2CC1c1ccccc12", id="senior_fused_system_before_bridging"),
+        pytest.param("C1=CC2=CC3CC(C3)C2C=C1", "C1=CC2CC1c1ccccc12", id="lower_bridge_attachment_locants"),
+        pytest.param(
+            "C1=CC=CC2C(=CC3CC=CC2CCO3)C=C1",
+            "C1=CC=CC2C(=CC3CC=CC2COC3)C=C1",
+            id="lower_locants_for_bridge_heteroatoms",
+        ),
+        pytest.param(
+            "C1=CC=CC2C(=CC3CC=CC2SCO3)C=C1", "C1=CC=CC2C(=CC3CC=CC2OCS3)C=C1", id="bridge_heteroatoms_by_kind"
+        ),
+        pytest.param("C1=CC2CCC1C1=C2C2C=CC1O2", "C1=CC2OCC1C1=C2C2C=CC1C2", id="fewer_composite_bridges"),
+        pytest.param(
+            "C1=CC2C=c3cc4c(cc31)=CNC1=C(CC4CCCCC2)C2C=CC1C2",
+            "C1=CC2C=C3C=C4C5Cc6ccccc6NC(CCCC(C2)C5)C4C=C13",
+            id="fewer_dependent_bridges",
+        ),
+        pytest.param(
+            "C1=CC2C=C3C=C4C5Cc6ccccc6NC(CCCCCC(C2)C5)C4C=C13",
+            "C1=CC2C=C3C=C4C5CCC(CCCCC(Nc6ccccc6C5)C4C=C13)C2",
+            id="fewer_atoms_in_dependent_bridges",
+        ),
+        pytest.param(
+            "C1=CC2C=C3CC4=C(C=C13)C1Cc3ccccc3NC4CCCC(C2)C1",
+            "C1=CC2C=C3C=C4C5Cc6ccccc6NC(CCCC(C2)C5)C4C=C13",
+            id="lower_locants_of_independent_bridges",
+        ),
+        pytest.param(
+            "C1=CC2C=C3C=C4C5Cc6ccccc6NC(CCCCC2C5)C4C=C13",
+            "C1=CC2C=C3C=C4C5Cc6ccccc6NC(CCCC(C2)C5)C4C=C13",
+            id="lower_locants_of_dependent_bridges",
+        ),
+        pytest.param(
+            "C1CCC2C(C1)C3CCC2c4ccccc34",
+            "C1CCC2C(C1)C3C=CC2C4C=CC=CC34",
+            id="more_noncumulative_double_bonds_before_bridging",
+        ),
+    ],
+)
+def test_senior_bridged_fused_system(senior, junior):
+    assert _senior_to(senior, junior)
+
+
+@pytest.mark.parametrize(
+    "senior,junior",
+    [
+        pytest.param(
+            "c1cc2cc(c1)CCCCc1cncc(n1)CCCC2", "c1cc2cc(n1)CCCCc1ccnc(c1)CCCC2", id="senior_amplificant"
+        ),
+        pytest.param("c1cc2cc(c1)CCc1cccc(c1)CCCCC2", "c1cc2cc(c1)CCCc1cccc(c1)CCCC2", id="lower_superatom_locants"),
+        pytest.param(
+            "c1cc2cc(c1)CCCCc1cccc(c1)CCCC2", "c1cc2cc(c1)CCCCc1ccc(cc1)CCCC2", id="lower_attachment_locants"
+        ),
+        pytest.param(
+            "c1cc2cc(c1)CCSOCc1cccc(c1)CCCCC2",
+            "c1cc2cc(c1)COCSCc1cccc(c1)CCCCC2",
+            id="lower_replacement_heteroatom_locants",
+        ),
+        pytest.param(
+            "c1cc2cc(c1)CCCSOc1cccc(c1)CCCCC2",
+            "c1cc2cc(c1)CCCOSc1cccc(c1)CCCCC2",
+            id="replacement_heteroatoms_by_kind",
+        ),
+        pytest.param(
+            "c1cc2cc(c1)CCCC1(CCC2)CCCc2cccc(c2)CCC1",
+            "c1cc2cc(c1)CCCC1CCc3cccc(c3)CCC(CCC2)C1",
+            id="spiro_skeleton_before_von_baeyer",
+        ),
+        pytest.param(
+            "c1cc2cc(c1)CCCC1CCc3cccc(c3)CCC(CCC2)C1",
+            "c1cc2cc(c1)CCCc1cccc(c1)CCCCCC2",
+            id="von_baeyer_skeleton_before_monocyclic",
+        ),
+        pytest.param(
+            "c1ccc(Cc2ccc(Cc3ccc(Cc4ccncc4)cc3)cc2)cc1",
+            "c1ccc(Cc2ccc(Cc3ccc(Cc4cc[siH]cc4)cc3)cc2)cc1",
+            id="linear_senior_amplificant",
+        ),
+        pytest.param(
+            "c1ccc(Cc2ccc(Cc3ccc(Cc4cccnc4)cc3)cc2)nc1",
+            "c1ccc(Cc2ccc(Cc3ccc(Cc4cccnc4)cc3)cc2)[siH]c1",
+            id="linear_most_amplificants_in_order_of_seniority",
+        ),
+        pytest.param(
+            "c1ccc(Cc2ccc(Cc3ccc(-c4ccc(Cc5ccc(-c6ccccc6)cc5)cc4)cc3)cc2)cc1",
+            "c1ccc(-c2ccc(Cc3ccc(-c4ccc(-c5ccc(-c6ccccc6)cc5)cc4)cc3)cc2)cc1",
+            id="linear_most_nodes",
+        ),
+        pytest.param(
+            "c1ccc(Oc2ccc(Cc3ccc(Sc4cccnc4)cc3)cc2)cc1",
+            "c1ccc(Cc2ccc(Cc3ccc(Sc4cccnc4)cc3)cc2)cc1",
+            id="linear_more_replacement_heteroatoms",
+        ),
+    ],
+)
+def test_senior_phane_system(senior, junior):
+    assert phane_seniority_key(Chem.MolFromSmiles(senior)) < phane_seniority_key(Chem.MolFromSmiles(junior))

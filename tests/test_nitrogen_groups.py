@@ -648,6 +648,16 @@ def test_phenyl_o_substituent():
         pytest.param("CC(=O)N(c1ccc2ccccc2c1)C(=O)c1ccccc1", "N-acetyl-N-(naphthalen-2-yl)benzamide", id="acylamine_with_aryl"),
         pytest.param("CS(=O)(=O)NS(C)(=O)=O", "N-(methanesulfonyl)methanesulfonamide", id="disulfonylamine"),
         pytest.param("CS(=O)(=O)NC(C)=O", "N-(methanesulfonyl)acetamide", id="carboxamide_senior_to_sulfonamide"),
+        pytest.param(
+            "O=C(c1ccc2ccccc2c1)N(C(=O)c1ccc2ncccc2c1)C",
+            "N-methyl-N-(naphthalene-2-carbonyl)quinoline-6-carboxamide",
+            id="heterocyclic_ring_system_before_carbocyclic",
+        ),
+        pytest.param(
+            "O=C(c1ccsc1)N(C(=O)c1ccoc1)C",
+            "N-methyl-N-(thiophene-3-carbonyl)furan-3-carboxamide",
+            id="oxygen_ring_before_sulfur_ring",
+        ),
     ],
 )
 def test_branched_symmetric_imide_and_related(smiles, expected):

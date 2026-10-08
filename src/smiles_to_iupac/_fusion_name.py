@@ -687,15 +687,21 @@ def _parent_name(root, attached):
 def fusion_name(mol):
     """Fusion name (without indicated hydrogen) of the ortho- and peri-fused ring system `mol`, or UnsupportedStructure.
     A system with a third component ortho- and peri-fused to two others takes the skeletal replacement name of P-25.5.1."""
+    name, root, _ = fusion_name_keyed(mol)
+    return name, root
+
+
+def fusion_name_keyed(mol):
+    """`fusion_name` with the descriptor key of `_fusion_name_keyed` as a third value."""
     try:
-        name, root = _fusion_name_core(mol)
+        name, root, key = _fusion_name_keyed(mol)
     except UnsupportedStructure:
         if all(a.GetSymbol() == "C" for a in mol.GetAtoms()):
             raise
-        name, root = _replacement_name(mol)
+        name, root, key = _replacement_name(mol)
     if sum(len(ring) >= 5 for ring in Chem.GetSymmSSSR(mol)) < 2:
         mark(name, "fusion nomenclature gives preferred names only to systems with two rings of five or more members (P-52.2.4.1)")
-    return name, root
+    return name, root, key
 
 
 def _replacement_name(mol):
@@ -704,7 +710,7 @@ def _replacement_name(mol):
     from ._fused_numbering import HETERO_RANK
 
     skeleton_c = skeleton(["C"] * mol.GetNumAtoms(), [(b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in mol.GetBonds()])
-    name, root = _fusion_name_core(skeleton_c)
+    name, root, descriptor = _fusion_name_keyed(skeleton_c)
     options = system_numbering_options(Context(skeleton_c), name, root)
     hetero = [a.GetIdx() for a in mol.GetAtoms() if a.GetSymbol() != "C"]
 
@@ -726,7 +732,7 @@ def _replacement_name(mol):
         locants = sorted(groups[element], key=_locant_key)
         multiplier = "" if len(locants) == 1 else numerical_term(len(locants))
         pieces.append(",".join(locants) + "-" + multiplier + A_PREFIX[element])
-    return "-".join(pieces) + name, _ReplacementRoot(root, tied)
+    return "-".join(pieces) + name, _ReplacementRoot(root, tied), descriptor
 
 
 class _ReplacementRoot:
@@ -737,12 +743,19 @@ class _ReplacementRoot:
 
 
 def _fusion_name_core(mol):
+    name, root, _ = _fusion_name_keyed(mol)
+    return name, root
+
+
+def _fusion_name_keyed(mol):
+    """(name, root, descriptor key): the key holds the fusion descriptor letters and then the locants in order of
+    appearance, `()` for a retained or multiparent name (P-44.2.2.2.3 (c)-(d))."""
     Chem.GetSymmSSSR(mol)
     ctx = Context(mol)
     whole = frozenset(range(ctx.n))
     for part in ctx.parts_for(whole):
         if part.comp.kind in ("hydro", "hetero"):
-            return _parent_name(part, False), part
+            return _parent_name(part, False), part, ()
     retained_sets = [
         subset
         for subset in ctx.subsets
@@ -767,7 +780,7 @@ def _fusion_name_core(mol):
         if scored_ext:
             scored_ext.sort(key=lambda r: (r[0], r[1]))
             _, text, parts, parent0, count = scored_ext[0]
-            return text + _multiparent_name(parent0, count), parts[0]
+            return text + _multiparent_name(parent0, count), parts[0], ()
         multi = [d for d in _multiparent_decompositions(ctx, group) if _valid_decomposition(ctx, d, retained_sets)]
         if multi:
             scored = []
@@ -779,7 +792,7 @@ def _fusion_name_core(mol):
                 scored.sort(key=lambda r: (r[0], r[1]))
                 _, text, parts = scored[0]
                 parents = [p for p in parts if p.role == "parent"]
-                return text + _multiparent_name(parents[0], len(parents)), parts[0]
+                return text + _multiparent_name(parents[0], len(parents)), parts[0], ()
         decomps = []
         for root in group:
             decomps.extend(_tree_decompositions(ctx, root))
@@ -795,9 +808,9 @@ def _fusion_name_core(mol):
         if not scored:
             continue
         scored.sort(key=lambda s: (s[0], s[1]))
-        _, text, parts, choice = scored[0]
+        key, text, parts, choice = scored[0]
         root = parts[0]
-        return text + _parent_name(root, True), root
+        return text + _parent_name(root, True), root, key
     raise UnsupportedStructure("this ring system cannot be named by fusion nomenclature (P-25.5)")
 
 

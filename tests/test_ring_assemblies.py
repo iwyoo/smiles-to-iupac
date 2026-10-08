@@ -1,6 +1,8 @@
 import pytest
+from rdkit import Chem
 from smiles_to_iupac import smiles_to_iupac
 from smiles_to_iupac._common import UnsupportedStructure
+from smiles_to_iupac._ring_system_seniority import ring_seniority_key
 
 
 @pytest.mark.parametrize(
@@ -227,4 +229,49 @@ def test_assembly_indicated_hydrogen_primes_after_the_number_and_replacement_pre
     ],
 )
 def test_assembly_of_von_baeyer_components(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def _senior_assembly(senior, junior):
+    a, b = Chem.MolFromSmiles(senior), Chem.MolFromSmiles(junior)
+    return ring_seniority_key(a, range(a.GetNumAtoms()), True) < ring_seniority_key(b, range(b.GetNumAtoms()), True)
+
+
+@pytest.mark.parametrize(
+    "senior,junior",
+    [
+        pytest.param("C1=CC=PC(=C1)C2=CC=CC=P2", "c1ccc(cc1)-c1ccccc1-c1ccccc1", id="heterocycle_before_carbocycle"),
+        pytest.param("c1ccnc(c1)-c1ccccn1", "C1(C=CC=CO1)C1C=CC=CO1", id="nitrogen_before_oxygen"),
+        pytest.param("C1(C=CC=CO1)C1C=CC=CO1", "C1(C=CC=CS1)C1C=CC=CS1", id="earlier_heteroatom"),
+        pytest.param(
+            "C1=CC=C2C(=C1)C=CC(=N2)C3=NC4=CC=CC=C4C=C3", "c1ccnc(c1)-c1cccc(n1)-c1ccccn1", id="more_rings"
+        ),
+        pytest.param("C1=CC=C(NC=C1)C1=CC=CC=CN1", "c1ccnc(c1)-c1ccccn1", id="more_atoms"),
+        pytest.param("C1=CC(=NN=C1)C2=NN=CC=C2", "C1=CC=NC(=C1)C2=CN=CC=C2", id="more_heteroatoms"),
+        pytest.param("O1C=COC(=C1)C1=COC=CO1", "O1C(=CSC=C1)C1=CSC=CO1", id="more_earlier_heteroatoms"),
+    ],
+)
+def test_senior_ring_assembly(senior, junior):
+    assert _senior_assembly(senior, junior)
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(
+            "c1ccc(cc1)-c1ccccc1Cc1cccc2ccccc12",
+            "2-[(naphthalen-1-yl)methyl]-1,1'-biphenyl",
+            id="assembly_with_more_atoms_than_the_fused_system",
+        ),
+        pytest.param(
+            "c1ccc(cc1)-c1ccccc1CC1CCCCC1", "2-(cyclohexylmethyl)-1,1'-biphenyl", id="assembly_beside_a_monocycle"
+        ),
+        pytest.param(
+            "C1=CC=C(Cc2ccccc2-c2ccccc2)c2ccccc2C=C1",
+            "5-[([1,1'-biphenyl]-2-yl)methyl]benzo[8]annulene",
+            id="fused_system_before_an_assembly_of_equal_size",
+        ),
+    ],
+)
+def test_ring_assembly_beside_other_ring_systems(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

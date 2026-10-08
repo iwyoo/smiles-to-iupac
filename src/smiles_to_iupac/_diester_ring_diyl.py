@@ -125,7 +125,7 @@ def _chain_paths(graph, component, alcohol_atoms):
 def _senior_units(mol, units):
     """The units of equally many ester oxygens that rank highest by P-44: rings and ring systems by P-44.2.1, chains
     by length (P-65.6.3.3.4.2: the nitrogenous ring is senior to the carbocyclic ring, the ethyl chain to the methyl)."""
-    from ._multiplicative_groups import ring_seniority_key
+    from ._ring_system_seniority import ring_seniority_key
 
     def key(unit):
         kind, _, body, atoms = unit

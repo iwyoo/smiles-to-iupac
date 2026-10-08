@@ -59,6 +59,7 @@ from ._multiplicative_ring import (
 )
 from ._fused_numbering import HETERO_RANK as _HETERO_RANK
 from ._ring_diyl_numbering import _exocyclic_oxo, is_hydro_fusion_system
+from ._ring_system_seniority import ring_seniority_key
 from ._acid_groups import acid_group_at
 from ._acid_lexicon import carbo_suffix, chain_suffix, make_spec, rank_key, spec_from_key
 from ._retained_acids import retained_chain_acid, single_site_prefixes
@@ -2163,7 +2164,9 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     ring_info = mol.GetRingInfo()
     rings = [r for r in ring_info.AtomRings()]
     if len(rings) >= 2:
-        assembly = _assembly_parent(mol, graph, halogens, aromatic_atoms, None, [], stereo)
+        assembly = _assembly_parent(mol, graph, halogens, aromatic_atoms, None, [], stereo) or _assembly_beside_systems(
+            mol, graph, halogens, aromatic_atoms, stereo
+        )
         if assembly is not None:
             return assembly[1]
     if rings and any(ring_info.NumAtomRings(a) != 1 for r in rings for a in r):
@@ -2173,7 +2176,7 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
             raise UnsupportedStructure("several rings without a principal group are not named by the chain engine")
         if len(rings) >= 4:
             raise UnsupportedStructure("four or more rings need a phane or ring-assembly name")
-        ranked = sorted(rings, key=lambda r: tuple(-x for x in _ring_rank(mol, r[0])))
+        ranked = sorted(rings, key=lambda r: _ring_rank(mol, r[0]))
         top = _ring_rank(mol, ranked[0][0])
         tied = [r for r in ranked if _ring_rank(mol, r[0]) == top]
         for i, first in enumerate(tied):
@@ -2202,12 +2205,6 @@ def _without_stereo(name):
     return re.sub(r"^\(\d+[a-z]*[RSEZrs](?:,\d+[a-z]*[RSEZrs])*\)-", "", name)
 
 
-def _system_rank(mol, system_rings, system_atoms):
-    hetero = [mol.GetAtomWithIdx(a).GetSymbol() for a in system_atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
-    ranks = [_HETERO_RANK.get(h, 99) for h in hetero]
-    return (bool(hetero), "N" in hetero, -min(ranks, default=0), len(system_rings), len(system_atoms), len(hetero))
-
-
 def _fused_plain_parent(mol, graph, rings):
     from ._diester_ring_diyl import _system_of, evaluate_skeleton
 
@@ -2222,9 +2219,9 @@ def _fused_plain_parent(mol, graph, rings):
 
     def rank(system):
         count, nuclides = _isotope_counts(None, [(a, None) for a in system[1] if a in labels])
-        return _system_rank(mol, *system), -count, tuple(-n for n in nuclides)
+        return ring_seniority_key(mol, system[1]), count, nuclides
 
-    ranked = sorted(systems, key=rank, reverse=True)
+    ranked = sorted(systems, key=rank)
     if len(ranked) > 1 and rank(ranked[0]) == rank(ranked[1]):
         raise UnsupportedStructure("several equally senior ring systems need a multiplicative or assembly name")
     system_rings, system_atoms = ranked[0]
@@ -2578,10 +2575,35 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
             ylidene = _junction_is_ylidene(mol, found[2], [spec_of(mol, first), spec_of(mol, second)])
             # P-28.2.2: a double-bond junction is a two-ring assembly only; the pair holding the double bond has the
             # parent's multiple bond, so it ranks first
-            key = (-found[0], not ylidene, found[1][1])
+            key = (-found[0], not ylidene, ring_seniority_key(mol, set(first) | set(second), assembly=True), found[1][1])
             if best is None or key < best[0]:
                 best = (key, (found[0], found[1]))
     return best[1] if best else None
+
+
+def _assembly_beside_systems(mol, graph, halogens, aromatic_atoms, stereo):
+    """The ring assembly of two identical rings as the parent of a molecule that also holds other ring systems, when
+    no other ring system outranks it (P-44.2.2.2.7); None otherwise."""
+    from ._multiplicative import _ring_systems
+
+    ring_info = mol.GetRingInfo()
+    monocycles = [list(r) for r in ring_info.AtomRings() if all(ring_info.NumAtomRings(a) == 1 for a in r)]
+    best = None
+    for i, first in enumerate(monocycles):
+        for second in monocycles[i + 1 :]:
+            found = _pair_assembly(mol, graph, halogens, aromatic_atoms, None, [], [first, second])
+            if found is None:
+                continue
+            ylidene = _junction_is_ylidene(mol, found[2], [spec_of(mol, first), spec_of(mol, second)])
+            atoms = set(first) | set(second)
+            key = (not ylidene, ring_seniority_key(mol, atoms, assembly=True), found[1][1])
+            if best is None or key < best[0]:
+                best = (key, atoms, (found[0], found[1]))
+    if best is None:
+        return None
+    if any(ring_seniority_key(mol, system) < best[0][1] for system in _ring_systems(mol) if not system <= best[1]):
+        return None
+    return best[2]
 
 
 def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences, rings):
@@ -2796,9 +2818,9 @@ def _best_ring(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_n
         from ._diester_ring_diyl import _system_of
 
         def system_rank(candidate):
-            return _system_rank(mol, *_system_of(mol, candidate[1][0]))
+            return ring_seniority_key(mol, _system_of(mol, candidate[1][0])[1])
 
-        senior = max(system_rank(c) for c in leading)
+        senior = min(system_rank(c) for c in leading)
         leading = [c for c in leading if system_rank(c) == senior]
     if len(leading) == 1:
         return _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n_names, stereo, leading[0])[:2]
@@ -2965,7 +2987,7 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             )
         if not results:
             raise UnsupportedStructure("no parent carries the amine groups of this substituted amine")
-    results.sort(key=lambda r: (r[0], not r[1], tuple(-x for x in r[2]), -r[3], r[4][1]))
+    results.sort(key=lambda r: (r[0], not r[1], r[2], -r[3], r[4][1]))
     best = results[0]
     if best[5] is None:
         return best[4]
@@ -3086,19 +3108,12 @@ def _amine_parent_molecule(mol, atoms, carbon, n_idx):
 
 
 def _ring_rank(mol, idx):
-    ring = next((set(r) for r in mol.GetRingInfo().AtomRings() if idx in r), None)
-    if ring is None:
-        return (0, 0, 0)
-    numbers = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in ring}
-    hetero_rank = 3 if 7 in numbers else 2 if 8 in numbers else 1 if numbers - {6} else 0
-    ordered = [a for a in ring]
-    unsaturation = sum(
-        mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble()
-        for i, a in enumerate(ordered)
-        for b in ordered[i + 1 :]
-        if mol.GetBondBetweenAtoms(a, b) is not None
-    )
-    return (hetero_rank, len(ring), unsaturation)
+    """P-44.2 key of the ring system holding atom `idx` (smaller is senior); `()` for an acyclic atom."""
+    if not mol.GetAtomWithIdx(idx).IsInRing():
+        return ()
+    from ._diester_ring_diyl import _system_of
+
+    return ring_seniority_key(mol, _system_of(mol, idx)[1])
 
 
 def _chain_size(mol, idx):

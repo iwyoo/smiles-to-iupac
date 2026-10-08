@@ -5,7 +5,9 @@ for by methyl groups whose names are replaced by the acyl prefixes, so the amide
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._diester_ring_diyl import _system_of
 from ._dipolar import _smiles_with_order
+from ._ring_system_seniority import ring_seniority_key
 from ._substituents import FORCED_BRANCH_NAMES, name_branch
 
 
@@ -43,16 +45,13 @@ def _rank(mol, graph, root, nitrogen):
     sulfur = atom.GetAtomicNum() == 16
     carbons = [n.GetIdx() for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
     if not carbons:
-        return (int(sulfur), 2, 0, 0)
+        return (int(sulfur), 2, (), 0)
     start = carbons[0]
     side = _side(graph, start, root)
-    ring_info = mol.GetRingInfo()
     if mol.GetAtomWithIdx(start).IsInRing():
-        ring = min((r for r in ring_info.AtomRings() if start in r), key=len)
-        hetero = any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in ring)
-        return (int(sulfur), 0, 0 if hetero else 1, -len(ring))
+        return (int(sulfur), 0, ring_seniority_key(mol, _system_of(mol, start)[1]), 0)
     length = len([a for a in side if mol.GetAtomWithIdx(a).GetAtomicNum() == 6 and not mol.GetAtomWithIdx(a).IsInRing()])
-    return (int(sulfur), 1, 0, -length)
+    return (int(sulfur), 1, (), -length)
 
 
 def diacylamine_name(mol):

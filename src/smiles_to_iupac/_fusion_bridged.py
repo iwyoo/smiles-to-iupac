@@ -40,6 +40,7 @@ class BridgedParent:
     consumed: frozenset
     bridge_atoms: frozenset
     key: tuple
+    parts: tuple = ()
 
 
 @dataclass
@@ -801,6 +802,7 @@ def _assemble(mol, atoms, fused, order, fused_name, numbering, parts, hetero=Non
                         consumed,
                         frozenset(a for p in parts for a in p.atoms),
                         key + replacement_key + (_unsaturation_key(mol, capable, consumed),),
+                        tuple(parts),
                     )
                 )
     return results
