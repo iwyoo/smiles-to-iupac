@@ -871,6 +871,7 @@ def spiro_union_numberings(mol, graph, skeleton_atoms):
             ih=ih,
         )
         numbering.hydro, numbering.added = tuple(hydro), tuple(added)
+        numbering.spiro_key = sol.key
         numbering.hydro_positions, numbering.added_positions = tuple(hydro), tuple(added)
         out.append(numbering)
     if not out:

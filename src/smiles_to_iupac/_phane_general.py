@@ -340,11 +340,16 @@ def _search(mol, free_atom, free_order, ignore):
     token = _BUILDING.set(True)
     try:
         for size in range(len(large), -1, -1):
+            parents = []
             for chosen in combinations(large, size):
                 found = _try_subset(mol, graph, small + chosen, ring_atoms, ring_bonds, ignore, free_atom, free_order, known)
                 if found is not None and not found.fused:
-                    return found
+                    parents.append(found)
                 fused = fused or found
+            if len(parents) > 1:
+                return min(parents, key=lambda p: phane_seniority_key(mol, p) or ())
+            if parents:
+                return parents[0]
     finally:
         _BUILDING.reset(token)
     return fused
@@ -477,16 +482,19 @@ def _evaluate(mol, phane, skeleton, free_atom, suffix_roots, stereo):
         sorted(int(low) for low, _, order, _ in bonds if order == 2),
     )
     descriptors = _descriptors(phane, position, picks, bonds, stereo)
+    tiers = [[p for p in superatoms if ranks[p] == t] for t in sorted(set(ranks.values()))]
+    citation = [p for s in by_seniority for p in superatoms if prefix_of[p] == s]
+    # P-44.2.2.2.2 (c)-(h), P-44.2.2.2.6 (d)-(h): a linear phane compares the senior amplificants before all of them
+    amplificant_key = (superatoms, tiers, citation) if phane.cyclic else (tiers, superatoms, citation)
     key = (
         outer,
-        superatoms,
-        [ranks[p] for p in superatoms],
-        hetero_primary,
-        hetero_complete,
-        hetero_elements,
+        *amplificant_key,
         [[chosen[at[p]][0] for p in superatoms if prefix_of[p] == s] for s in by_seniority],
         [chosen[at[p]][1] for p in sorted(singles, key=lambda p: ranks[p])],
         [chosen[at[p]][1] for p in superatoms],
+        hetero_primary,
+        hetero_complete,
+        hetero_elements,
         sorted(int(h) for h in ih_locs),
         [int(loc) for loc in suffix_locs],
         sorted((loc.primary, int(loc)) for loc in free_locs),
@@ -556,6 +564,25 @@ def _replacement_text(hetero):
             raise UnsupportedStructure("an unsupported replacement atom in a phane skeleton")
         pieces.append(f"{','.join(map(str, locs))}-{multiplying_prefix(len(locs)) if len(locs) > 1 else ''}{word}")
     return "-".join(pieces)
+
+
+def phane_seniority_key(mol, phane=None):
+    """P-44.2.2.2.2 (cyclic) or P-44.2.2.2.6 (linear) key of the phane `mol` (a smaller key is senior), or None when
+    `mol` is not a parent phane of P-52.2.5.1."""
+    phane = phane or find_phane(mol)
+    if phane is None or not is_pin_phane(phane):
+        return None
+    ranked = [(skeleton[0], _evaluate(mol, phane, skeleton, None, frozenset(), [])[0]) for skeleton in phane.skeleton]
+    name, best = min(ranked, key=lambda k: k[1])
+    amplificants = tuple(sorted(a.rank for a in phane.amplificants))
+    if phane.cyclic:
+        skeleton_type = 0 if name.startswith(("spiro", "dispiro", "trispiro")) else 1 if "cyclo[" in name else 2
+        return (skeleton_type, amplificants, best)
+    hetero = [mol.GetAtomWithIdx(a).GetSymbol() for kind, a in phane.nodes if kind == "atom"]
+    hetero = [symbol for symbol in hetero if symbol != "C"] + [s for a in phane.amplificants for s in a.replaced.values()]
+    counts = tuple(-sum(1 for symbol in hetero if _RANK.get(symbol, 99) == r) for r in sorted(set(_RANK.values())))
+    # (a) the senior amplificant, (b) most amplificants in order of seniority, (c) most nodes, (d)-(h) locants, (i)-(j)
+    return (amplificants[:1], (*amplificants, ()), -phane.size, *best[:7], -len(hetero), counts, best[7:])
 
 
 def name_phane_general(mol, free_atom=None, free_order=1, ignore=frozenset()):

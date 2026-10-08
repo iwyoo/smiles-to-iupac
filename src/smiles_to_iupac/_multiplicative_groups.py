@@ -82,39 +82,6 @@ class Group:
     ring_atom: object
 
 
-# P-44.1.2.2 / P-41 class order of ring heteroatoms other than N: O S Se Te P As Sb Bi Si Ge Sn Pb B Al Ga In Tl
-_NON_NITROGEN_RANK = {z: i for i, z in enumerate((8, 16, 34, 52, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81))}
-
-
-def ring_seniority_key(mol, ring_atoms):
-    """P-44.2.1 (a)-(g) then P-44.4.1.1 sort key of a ring system: a smaller
-    key is the senior parent structure."""
-    atoms = set(ring_atoms)
-    heteroatoms = [mol.GetAtomWithIdx(a).GetAtomicNum() for a in atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
-    has_nitrogen = 7 in heteroatoms
-    order = _NON_NITROGEN_RANK
-    best_non_nitrogen = min((order.get(z, len(order)) for z in heteroatoms if z != 7), default=len(order)) if heteroatoms and not has_nitrogen else 0
-    rings = sum(1 for ring in mol.GetRingInfo().AtomRings() if set(ring) <= atoms)
-    kekulized = Chem.Mol(mol)
-    Chem.Kekulize(kekulized, clearAromaticFlags=True)
-    multiple = sum(
-        1
-        for b in kekulized.GetBonds()
-        if b.GetBeginAtomIdx() in atoms and b.GetEndAtomIdx() in atoms and b.GetBondTypeAsDouble() > 1
-    )
-    earlier = tuple(-sum(1 for z in heteroatoms if z == e) for e in (*_NON_NITROGEN_RANK, 7))
-    return (
-        0 if heteroatoms else 1,
-        0 if has_nitrogen else 1,
-        best_non_nitrogen,
-        -rings,
-        -len(atoms),
-        -len(heteroatoms),
-        earlier,
-        -multiple,
-    )
-
-
 def _single_bonded_linker(atom):
     if atom.GetAtomicNum() == 16 and atom.GetFormalCharge() == 0:
         # sulfinyl and sulfonyl linkers: two single bonds to the units and terminal =O atoms (P-63.6)

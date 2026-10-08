@@ -12,7 +12,8 @@ from dataclasses import dataclass
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, specified_stereo_elements
-from ._multiplicative_groups import SUFFIX_RANKS, classify, ring_seniority_key
+from ._multiplicative_groups import SUFFIX_RANKS, classify
+from ._ring_system_seniority import ring_seniority_key
 from ._multiplicative_linker import DecompositionRejected, name_component
 from ._multiplicative_prefix import SUFFIX_CARRIERS, hook_suspended
 from ._multiplicative_ring import (

@@ -9,8 +9,8 @@ only through an acyclic bridge -- e.g. dicyclohexylmethane, 1-cyclohexyl-
   general P-46 chain-selection mechanism, extended (see
   `_substituents.py`'s `_longest_chains_from_root` docstring) to let a
   chain walk terminate at a separate plain ring instead of raising.
-- The parent ring is the one with more skeletal atoms, then the aromatic
-  one (P-44.2.1(e), P-44.4.1.1); for two otherwise equal rings the lower
+- The parent ring is the senior one by P-44.2.1 (heteroatoms, then more skeletal
+  atoms), then the aromatic one (P-44.4.1.1); for two otherwise equal rings the lower
   parent attachment locant wins, then the alphanumerically earlier name --
   the Blue Book gives no further criterion for that tie. A bridge may
   carry multiple bonds and may join the parent ring through a double
@@ -35,6 +35,7 @@ from ._common import UnsupportedStructure, adjacency, alpha_sort_key
 from ._hetero_prefixes import MONONUCLEAR_HYDRIDES
 from ._multiplicative_ring import monocycle_spec, numberings
 from ._multiplicative_text import enclose
+from ._ring_system_seniority import ring_seniority_key
 from ._substituents import name_branch
 
 
@@ -95,11 +96,9 @@ def name_disjoint_ring_pair(mol, core) -> str:
         rings.append((attach, bridge, spec))
 
     def rank(spec):
-        nitrogen = any(mol.GetAtomWithIdx(a).GetAtomicNum() == 7 for a in spec.cycle)
-        hetero = 2 if nitrogen else 1 if spec.hetero is not None else 0
-        return hetero, len(spec.cycle), spec.kind != "cycloalkane"
+        return ring_seniority_key(mol, set(spec.cycle))
 
-    best = max(rank(spec) for _, _, spec in rings)
+    best = min(rank(spec) for _, _, spec in rings)
     names = []
     for attach, bridge, spec in rings:
         if rank(spec) != best:

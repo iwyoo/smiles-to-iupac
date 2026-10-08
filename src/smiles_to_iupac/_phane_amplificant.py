@@ -10,7 +10,7 @@ from rdkit import Chem
 from rdkit.Chem import BondType, RWMol
 
 from ._common import UnsupportedStructure, adjacency, superscript_locant
-from ._multiplicative_groups import ring_seniority_key
+from ._ring_system_seniority import ring_seniority_key
 from ._ring_diyl_numbering import _PREFIX, _bare_skeleton, is_hydro_fusion_system, monocycle_numberings, system_numberings
 from ._steroid_named import _embeddings as _steroid_embeddings
 

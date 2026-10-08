@@ -13,6 +13,7 @@ from smiles_to_iupac._fullerene_spiral import (
     _pentagon_positions,
     _planar_faces,
 )
+from smiles_to_iupac._ring_system_seniority import ring_seniority_key
 
 
 @pytest.mark.parametrize(
@@ -1014,3 +1015,58 @@ def test_heteroatom_polyspiro_systems_and_stereogenic_spiro_atoms(smiles, expect
 )
 def test_general_von_baeyer_and_branched_polyspiro(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def _senior_to(senior, junior, assembly=False):
+    a, b = Chem.MolFromSmiles(senior), Chem.MolFromSmiles(junior)
+    return ring_seniority_key(a, range(a.GetNumAtoms()), assembly) < ring_seniority_key(b, range(b.GetNumAtoms()), assembly)
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C1CCC2(C1)CCN(CC2)Cc1ccc2ccccc2n1", "8-[(quinolin-2-yl)methyl]-8-azaspiro[4.5]decane", id="spiro_before_fused"),
+        pytest.param(
+            "c1ccc2ccccc2c1CC1CCC2CCC1CC2",
+            "1-[(bicyclo[3.2.2]nonan-2-yl)methyl]naphthalene",
+            id="fused_before_bridged_nonfused_with_rings_counted_by_cyclomatic_number",
+        ),
+        pytest.param(
+            "C1CC2CCC1CC2CC1CC2CCC(C1)C2",
+            "2-[(bicyclo[3.2.1]octan-3-yl)methyl]bicyclo[2.2.2]octane",
+            id="lower_ring_size_descriptor",
+        ),
+    ],
+)
+def test_parent_of_two_polycyclic_systems_follows_the_order_of_p44_2_2_2(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "senior,junior",
+    [
+        pytest.param("C1CCC2(C1)NCC3(CCCC3)CC2", "C1CCC2(C1)NCCc1ccccc12", id="more_spiro_fusions"),
+        pytest.param(
+            "C1CCC2(C1)CCCC3(C2)CCCC3", "C1CCC2(C1)CCC3(CC2)CCCC3", id="lower_spiro_locants_of_saturated_monocycles"
+        ),
+        pytest.param(
+            "C1CCC2(C1)CCCC3(C2)CCCC3", "C1=CCC2(C1)CCCC3(C2)CCCC3", id="saturated_monocycles_before_unsaturated"
+        ),
+        pytest.param("C1CCC2(C1)NCCc1ccccc12", "C1CCC2(C1)CCNCC2", id="senior_component"),
+        pytest.param(
+            "C1COC2(C1)CN1CCC2CC12OCCO2",
+            "C1COC2(CCOC23CN2CCC3CC2)O1",
+            id="senior_component_cited_first_with_replacement_heteroatoms_as_carbon",
+        ),
+        pytest.param("C1CCC2(C1)NCCc1ccccc12", "C1CCC2(C1)CNCc1ccccc12", id="lower_spiro_locants_of_a_component"),
+        pytest.param("C1CC2CCC1CC2", "C1CC2CCC(C1)C2", id="von_baeyer_lower_ring_size_descriptor"),
+        pytest.param("C1CC2CCC3(CCC1C3)C2", "C1CC2CC1CC1CCC2C1", id="von_baeyer_lower_superscripts_as_a_set"),
+        pytest.param(
+            "C1CC2CC(C1)C1CCC2CC2CCC1CC2",
+            "C1CC2CCC(C1)C1CCC2C2CCCC1C2",
+            id="von_baeyer_lower_superscripts_in_order_of_citation",
+        ),
+    ],
+)
+def test_senior_spiro_and_von_baeyer_system(senior, junior):
+    assert _senior_to(senior, junior)
