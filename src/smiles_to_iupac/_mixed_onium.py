@@ -43,6 +43,10 @@ def _centres(mol):
     if len(Chem.GetMolFrags(mol)) > 1 or any(a.GetFormalCharge() < 0 for a in mol.GetAtoms()):
         return None
     cations = [a for a in mol.GetAtoms() if a.GetFormalCharge() > 0]
+    carbenium = [a for a in cations if a.GetAtomicNum() == 6]
+    if len(carbenium) == 1 and len(cations) >= 2 and all(_is_onium(mol, a) for a in cations if a is not carbenium[0]):
+        # ylium outranks ium (P-73.7b): the carbocation is the parent and the onium centres are prefixes
+        return carbenium[0], [a for a in cations if a is not carbenium[0]]
     if len(cations) < 2 or not all(_is_onium(mol, a) for a in cations):
         return None
     rank = {z: i for i, z in enumerate(_SENIORITY)}
@@ -100,7 +104,15 @@ def name_mixed_onium(mol) -> str:
         if _ylidene(mol, senior):
             from ._hydride_ylium import name_hydride_onium
 
-            return name_hydride_onium(reduced)
-        return _PARENT_NAMERS[senior.GetAtomicNum()](reduced)
+            name = name_hydride_onium(reduced)
+        elif senior.GetAtomicNum() == 6:
+            from ._radical_group import name_group_cation
+
+            name = name_group_cation(reduced)
+        else:
+            name = _PARENT_NAMERS[senior.GetAtomicNum()](reduced)
     finally:
         FORCED_BRANCH_NAMES.reset(token)
+    if not all(text in name for text, _ in forced.values()):
+        raise UnsupportedStructure("the parent namer did not cite the onium group as a prefix")
+    return name

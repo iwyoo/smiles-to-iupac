@@ -897,6 +897,42 @@ def test_radical_ions_named_through_the_filled_ion(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-72.6, P-72.7, P-73.6, P-73.7: anionic and cationic centres in parents and in prefixes
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param(
+            "N#C[C-](C#N)C(CCC(=O)[O-])CC[C-](C#N)C#N",
+            "2-(2-carboxylatoethyl)-1,1,5,5-tetracyanopentane-1,5-diide",
+            id="more_ide_centres_outrank_an_idoate_parent",
+        ),
+        pytest.param("[O-]C(C1CC[BH2-]CC1)C[O-]", "1-(borinan-1-uid-4-yl)ethane-1,2-bis(olate)", id="more_anionic_centres_in_the_parent"),
+        pytest.param("[PH-]CC[AsH3-]", "(2-phosphanidylethyl)arsanuide", id="uide_outranks_ide"),
+        pytest.param("[NH3+]C(=O)CCC1CCC([NH3+])C1", "3-(3-azaniumylcyclopentyl)propanamidium", id="amidium_outranks_aminium"),
+        pytest.param("C[S+](C)CCCCCC[NH3+]", "6-(dimethylsulfaniumyl)hexan-1-aminium", id="sulfaniumyl_prefix_on_a_primary_aminium"),
+        pytest.param("C[S+](C)CC[NH2+]C", "2-(dimethylsulfaniumyl)-N-methylethan-1-aminium", id="sulfaniumyl_prefix_on_a_secondary_aminium"),
+        pytest.param("C[S+](C)CCCCCC[N+](C)(C)C", "6-(dimethylsulfaniumyl)-N,N,N-trimethylhexan-1-aminium", id="sulfaniumyl_prefix_on_a_quaternary_aminium"),
+        pytest.param("C[S+](C)CCCCCC[P+](C)(C)C", "[6-(dimethylsulfaniumyl)hexyl]tri(methyl)phosphanium", id="phosphorus_outranks_sulfur"),
+        pytest.param(
+            "C[C+]1CC(C)=CC(=[O+]C)C1",
+            "1,3-dimethyl-5-(methyloxidaniumylidene)cyclohex-3-en-1-ylium",
+            id="ylium_outranks_ium",
+        ),
+        pytest.param("[N-2]", "azanediidyl", id="dianionic_radical_centre"),
+        pytest.param("[O-][O]", "dioxidanidyl", id="radical_and_anion_on_a_peroxide"),
+        pytest.param("[S-][S]", "disulfanidyl", id="radical_and_anion_on_a_disulfide"),
+        pytest.param("[B-]1C=C2C=CC=CC2=C1", "2H-2-benzoborol-2-uid-2-ylidene", id="uide_and_ylidene_on_one_ring_atom"),
+        pytest.param("[O-]C(=O)Cc1ccccc1C(=O)[O-]", "2-(carboxylatomethyl)benzoate", id="carboxylato_prefix"),
+        pytest.param("[O-]S(=O)(=O)Cc1ccccc1C(=O)[O-]", "2-(sulfonatomethyl)benzoate", id="sulfonato_prefix"),
+        pytest.param("[O-]c1cc2ccccc2cc1C(=O)[O-]", "3-oxidonaphthalene-2-carboxylate", id="oxido_prefix"),
+        pytest.param("[O-]CC[NH3+]", "2-azaniumylethan-1-olate", id="ammonium_prefix_on_an_olate"),
+        pytest.param("[S-]CC[N+](C)(C)C", "2-(trimethylazaniumyl)ethane-1-thiolate", id="ammonium_prefix_on_a_thiolate"),
+    ],
+)
+def test_ionic_centres_in_parents_and_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles, expected",
     [

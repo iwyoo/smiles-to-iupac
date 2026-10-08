@@ -144,6 +144,16 @@ def _is_group_anion(atom):
     return False
 
 
+def _is_ammonium_prefix(atom):
+    """An acyclic ammonium nitrogen that an alcoholate or thiolate parent cites as an 'azaniumyl' prefix (P-74.1.3)."""
+    return (
+        atom.GetAtomicNum() == 7
+        and atom.GetFormalCharge() == 1
+        and not atom.IsInRing()
+        and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors())
+    )
+
+
 def marked_neutral(mol):
     from ._anion_center import center_kind, is_center_atom
 
@@ -151,6 +161,8 @@ def marked_neutral(mol):
         raise UnsupportedStructure("a multi-fragment anionic structure is not supported here")
     centers = anion_atoms(mol)
     cations = [a for a in mol.GetAtoms() if a.GetFormalCharge() > 0 and not _is_nitro_nitrogen(a)]
+    prefix_cations = [a for a in cations if _is_ammonium_prefix(a)] if centers and all(_is_group_anion(a) for a in centers) else []
+    cations = [a for a in cations if a not in prefix_cations]
     if any(not (a.IsInRing() and a.GetFormalCharge() == 1) for a in cations) or len(cations) > 1:
         raise UnsupportedStructure("cationic centers beside an anionic group are not supported here")
     others = [a for a in centers if not (_is_group_anion(a) or _is_carbanion(a)) or _demoted_peroxy(a, centers)]
@@ -187,6 +199,7 @@ def _is_nitro_nitrogen(atom):
     return atom.GetAtomicNum() == 7 and any(n.GetFormalCharge() < 0 for n in atom.GetNeighbors())
 
 
+_CARBANIDE_PARENT = re.compile(r"-\d+(?:,\d+)*-(?:di|tri|tetra)?ide$")
 _THIOIC_TAIL = re.compile(r"((?:di|tri|tetra)?(?:carbo)?)thioic acid$")
 _ANION_TOKEN = re.compile(r"(?:ide|ate|ite)(?![a-z])|ato|ido|idyl|uid-|id-|ide-")
 _MULTIPLE_ANION = re.compile(r"(?:di|tri|tetra|bis|tris|tetrakis)\(?[A-Za-z-]*(?:ide|uide|ate|ite)")
@@ -286,6 +299,8 @@ def _name_substitutive(mol):
         return _added_hydrogen(name)
     if any(a.HasProp(ANION_PROP) and anion_weight(a) == 2 for a in neutral.GetAtoms()):
         return _swap_aminediide(name)
+    if _CARBANIDE_PARENT.search(name) and any(a.HasProp(ANION_PROP) and a.GetAtomicNum() == 6 for a in neutral.GetAtoms()):
+        return name
     return swap_suffix(name)
 
 

@@ -141,7 +141,10 @@ def _general_name(mol, radicals, anions, cations):
             substituted = sorted(
                 numbers[n.GetIdx()] for a in attachments for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in parent
             )
-            enes, ynes = _unsaturation_locants(mol, parent, numbers, size, flip)
+            try:
+                enes, ynes = _unsaturation_locants(mol, parent, numbers, size, flip)
+            except UnsupportedStructure:
+                continue
             key = (*_centre_order_key(centre_key), sorted(enes + ynes), enes, substituted)
             if best is None or key < best[0]:
                 best = (key, numbers, centre_key, enes, ynes)
