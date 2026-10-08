@@ -1087,3 +1087,14 @@ def test_boron_acid_esters_anions_boranediamines_and_fused_indicated_hydrogen(sm
 )
 def test_silicic_boric_acids_and_group_14_fused_heterocycles(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1(=CC=CC=C1)B(NCCNB(C1=CC=CC=C1)C1=CC=CC=C1)C1=CC=CC=C1", "N1,N2-bis(diphenylboranyl)ethane-1,2-diamine"),
+        ("NCCNB(C)C", "N1-(dimethylboranyl)ethane-1,2-diamine"),
+    ],
+)
+def test_diamines_whose_nitrogens_carry_boranyl_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
