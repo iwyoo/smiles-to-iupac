@@ -828,6 +828,8 @@ def _senior_to(senior, junior, assembly=False):
             "C1=CC=C2C=C3C(=CC2=C1)C=CC4=C3C=CN=C4",
             id="fused_senior_components",
         ),
+        pytest.param("c1cc2cc3occc3cc2o1", "c1cc2cc3cocc3cc2o1", id="multiparent_fused_lower_letters"),
+        pytest.param("c1cc2cc3occc3cc2o1", "c1cc2cc3ccoc3cc2o1", id="multiparent_fused_lower_numbers"),
     ],
 )
 def test_senior_ring_by_the_general_and_fused_criteria(senior, junior):

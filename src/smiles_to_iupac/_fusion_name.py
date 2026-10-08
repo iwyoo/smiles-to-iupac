@@ -751,9 +751,17 @@ def _fusion_name_core(mol):
     return name, root
 
 
+def _descriptor(letters, numbers, flat_letters=None):
+    """The fusion descriptor key of every kind of name: the letters of the bonds fused, as a set, and the locants cited
+    with them in order of appearance."""
+    if flat_letters is None:
+        flat_letters = tuple(sorted(i for group in letters for i in group))
+    return flat_letters, tuple(x for group in numbers for x in group)
+
+
 def _fusion_name_keyed(mol):
-    """(name, root, descriptor key): the key holds the fusion descriptor letters and then the locants in order of
-    appearance, `()` for a retained or multiparent name (P-44.2.2.2.3 (c)-(d))."""
+    """(name, root, descriptor key): the key holds the fusion descriptor letters as a set and then the locants in order of
+    appearance, empty for a retained name (P-44.2.2.2.3 (c)-(d))."""
     Chem.GetSymmSSSR(mol)
     ctx = Context(mol)
     whole = frozenset(range(ctx.n))
@@ -783,8 +791,8 @@ def _fusion_name_keyed(mol):
                 scored_ext.append((result[0], result[1], parts, result[2], result[3]))
         if scored_ext:
             scored_ext.sort(key=lambda r: (r[0], r[1]))
-            _, text, parts, parent0, count = scored_ext[0]
-            return text + _multiparent_name(parent0, count), parts[0], ()
+            key, text, parts, parent0, count = scored_ext[0]
+            return text + _multiparent_name(parent0, count), parts[0], _descriptor(key[0][1], key[1][1])
         multi_sets = [
             subset
             for subset in retained_sets
@@ -804,9 +812,9 @@ def _fusion_name_keyed(mol):
                     scored.append((result[0], result[1], parts))
             if scored:
                 scored.sort(key=lambda r: (r[0], r[1]))
-                _, text, parts = scored[0]
+                key, text, parts = scored[0]
                 parents = [p for p in parts if p.role == "parent"]
-                return text + _multiparent_name(parents[0], len(parents)), parts[0], ()
+                return text + _multiparent_name(parents[0], len(parents)), parts[0], _descriptor(key[0][1], key[1][1])
         decomps = []
         for root in group:
             decomps.extend(_tree_decompositions(ctx, root))
@@ -824,7 +832,7 @@ def _fusion_name_keyed(mol):
         scored.sort(key=lambda s: (s[0], s[1]))
         key, text, parts, choice = scored[0]
         root = parts[0]
-        return text + _parent_name(root, True), root, key
+        return text + _parent_name(root, True), root, _descriptor((), [entry[1] for g in key[1:] for entry in g[2]], key[0])
     raise UnsupportedStructure("this ring system cannot be named by fusion nomenclature (P-25.5)")
 
 
