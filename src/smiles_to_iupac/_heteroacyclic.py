@@ -119,6 +119,17 @@ def _chain_heteroatom(atom, phosphorus=False):
     return z == 7 and atom.GetTotalNumHs() == 1 and not atom.GetIsAromatic()
 
 
+def _heterounit_count(mol, path, hetero_positions):
+    """The heteroatom units of a chain: adjacent atoms of one sulfur, selenium or tellurium kind (a disulfide) count
+    once, so that 1-(methyldiselanyl)-2-(methyldisulfanyl)ethane keeps its substitutive name (P-63.3.1)."""
+    units = len(hetero_positions)
+    for a, b in zip(hetero_positions, hetero_positions[1:]):
+        z = mol.GetAtomWithIdx(path[a]).GetAtomicNum()
+        if b - a == 1 and z == mol.GetAtomWithIdx(path[b]).GetAtomicNum() and z in (16, 34, 52):
+            units -= 1
+    return units
+
+
 def _is_parent_hydride_run(elements):
     """A run of heteroatoms that is a parent hydride by itself: one element (trisulfane) or two alternating (P-21.2.2,
     P-21.2.3.1); any other run needs skeletal replacement in a carbon chain."""
@@ -183,7 +194,7 @@ def name_heteroacyclic(mol):
         if mol.GetAtomWithIdx(path[0]).GetAtomicNum() not in _CHAIN_ENDS or mol.GetAtomWithIdx(path[-1]).GetAtomicNum() not in _CHAIN_ENDS:
             continue
         hetero_positions = [i for i, a in enumerate(path) if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
-        if len(hetero_positions) < _MINIMUM_UNITS:
+        if _heterounit_count(mol, path, hetero_positions) < _MINIMUM_UNITS:
             continue
         if len(hetero_positions) == len(path) or (
             hetero_positions == list(range(hetero_positions[0], hetero_positions[-1] + 1))

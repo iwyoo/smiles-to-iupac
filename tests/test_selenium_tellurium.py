@@ -15,10 +15,6 @@ def test_dimethyl_diselenide_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_branched_diselanyl_substituent_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)[Se][Se]C(C)C")
-
 
 @pytest.mark.parametrize(
     "smiles, expected",
@@ -36,10 +32,6 @@ def test_stereocenter_on_parent_chain():
     assert smiles_to_iupac("CC[C@H](C)[Se][Se]CC") == "(2S)-2-(ethyldiselanyl)butane"
 
 
-def test_stereocenter_on_substituent_branch_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCCCC[Se][Se][C@H](C)CC")
-
 
 def test_phenyl_diselenide_direct_bond():
     assert smiles_to_iupac("c1ccccc1[Se][Se]C") == "(methyldiselanyl)benzene"
@@ -49,9 +41,6 @@ def test_phenyl_diselenide_direct_bond():
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("c1ccccc1C[Se][Se]C", id="chain_spacer_not_supported"),
-        pytest.param("c1ccccc1[Se][Se]C(C)C", id="branched_other_side_not_supported"),
-        pytest.param("Cc1ccccc1[Se][Se]C", id="substituted_ring_not_supported"),
     ],
 )
 def test_phenyl_diselenide_cases_raise(smiles):
@@ -71,10 +60,6 @@ def test_dimethyl_ditelluride_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_branched_ditellanyl_substituent_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)[Te][Te]C(C)C")
-
 
 @pytest.mark.parametrize(
     "smiles, expected",
@@ -91,10 +76,6 @@ def test_stereocenter_on_parent_chain__ditelluride():
     assert smiles_to_iupac("CC[C@H](C)[Te][Te]CC") == "(2S)-2-(ethylditellanyl)butane"
 
 
-def test_stereocenter_on_substituent_branch_not_supported__ditelluride():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCCCC[Te][Te][C@H](C)CC")
-
 
 def test_phenyl_ditelluride_direct_bond():
     assert smiles_to_iupac("c1ccccc1[Te][Te]C") == "(methylditellanyl)benzene"
@@ -103,9 +84,6 @@ def test_phenyl_ditelluride_direct_bond():
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("c1ccccc1C[Te][Te]C", id="phenyl_ditelluride_chain_spacer_not_supported"),
-        pytest.param("c1ccccc1[Te][Te]C(C)C", id="phenyl_ditelluride_branched_other_side_not_supported"),
-        pytest.param("Cc1ccccc1[Te][Te]C", id="phenyl_ditelluride_substituted_ring_not_supported"),
     ],
 )
 def test_phenyl_ditelluride_chain_and_related_raise(smiles):

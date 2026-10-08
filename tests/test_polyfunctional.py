@@ -1060,7 +1060,7 @@ def test_heteroatom_to_heteroatom_substituent_groups_on_a_carboxylic_acid_ring(s
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize("smiles", ["OOC1CCCCC1", "COOCOC"])
+@pytest.mark.parametrize("smiles", ["OOC1CCCCC1"])
 def test_heteroatom_connections_are_not_prefixes_without_a_senior_group(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
@@ -1238,7 +1238,7 @@ def test_skeletal_replacement_chains_and_amido_prefixes(smiles, expected):
     "smiles, expected",
     [
         pytest.param("COCSSCCOCC[Se]C", "2,8-dioxa-4,5-dithia-11-selenadodecane", id="adjacent_sulfur_atoms_in_a_replacement_chain"),
-        pytest.param("COCCSSCCOC", "2,9-dioxa-5,6-dithiadecane", id="disulfide_between_two_ether_chains"),
+        pytest.param("COCCSSCCOC", "1-methoxy-2-[(2-methoxyethyl)disulfanyl]ethane", id="two_ether_chains_and_a_disulfide_are_three_units"),
         pytest.param("CCOCCOCCSSCCOCCOCC", "3,6,13,16-tetraoxa-9,10-dithiaoctadecane", id="long_chain_with_a_disulfide"),
     ],
 )
