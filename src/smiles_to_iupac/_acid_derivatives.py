@@ -833,13 +833,17 @@ def name_anhydride(mol, links):
                 mol, [l for l in links if l.kind != "anhydride" or frozenset(l.chain) in hub_keys]
             )
         hub_keep = [a for a in frags[hub] if a not in bridge_atoms]
-        carbon_hub = any(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in hub_keep)
+        carbon_hub = any(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in hub_keep) and all(
+            mol.GetAtomWithIdx(c).GetAtomicNum() == 6 for c in centers[hub]
+        )
         locants = _locants_of(mol, hub_keep, centers[hub]) if carbon_hub else {}
         groups = {}
         for chain, first, second in bridges.values():
             leaf_center, hub_center = (first, second) if owner[first] != hub else (second, first)
             leaf = owner[leaf_center]
             groups.setdefault(word_of[leaf], []).append(str(locants.get(hub_center, "")))
+        if not carbon_hub and len(groups) > 1 and len(set(centers[hub])) > 1:
+            raise UnsupportedStructure("different acyl groups on the acid centres of a hub need centre locants")
         cited = []
         for leaf_word in sorted(groups, key=alpha_sort_key):
             group = sorted(groups[leaf_word], key=lambda t: (len(t), t))
