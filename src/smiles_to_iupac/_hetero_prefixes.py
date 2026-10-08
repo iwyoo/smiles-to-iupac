@@ -44,7 +44,7 @@ _SENIOR_TO_SELENOL = [
         "[SX2H1][#6;!$([#6]=[O,S,Se,Te])]",
     )
 ]
-_AMINE = Chem.MolFromSmarts("[NX3;!$(N~[!#6;!#1;!#8;!#16]);!$(N-[#6]=[O,S,N])]-[CX4]")
+AMINE_PATTERN = Chem.MolFromSmarts("[NX3;!$(N~[!#6;!#1;!#8;!#16]);!$(N-[#6]=[O,S,N])]-[CX4]")
 _HYDRAZINE = Chem.MolFromSmarts("[NX3;!R]-[NX3;!R]")
 
 
@@ -72,7 +72,7 @@ def _has_senior_principal_group(mol):
     return (
         CATION_PARENT.get()
         or any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL)
-        or mol.HasSubstructMatch(_AMINE)
+        or mol.HasSubstructMatch(AMINE_PATTERN)
         or mol.HasSubstructMatch(_HYDRAZINE)
     )
 
@@ -547,6 +547,10 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return "borono", False
     if z in MONONUCLEAR_HYDRIDES and not atom.IsInRing():
         return _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
+    if z in LAMBDA_CENTRE_STEMS and not atom.IsInRing():
+        lambda_group = _lambda_centre_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
+        if lambda_group is not None:
+            return lambda_group
     if z in _HALOGEN_STEMS:
         named = halogen_oxo_prefix(mol, root, coming_from)
         if named is not None:
@@ -1409,6 +1413,36 @@ def _pnictogen_oxo_group(graph, root, halogens, aromatic_atoms, mol, others):
     return name, name != mono
 
 
+LAMBDA_CENTRE_STEMS = {
+    16: ("sulfanyl", 2), 34: ("selanyl", 2), 52: ("tellanyl", 2), 17: ("chloranyl", 1), 35: ("bromanyl", 1), 53: ("iodanyl", 1),
+}
+
+
+def _lambda_centre_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
+    """λ4-sulfanyl, λ3-iodanyl, ... a chalcogen or halogen with only single bonds whose bonding number exceeds the
+    standard one: '(dihydroxy-λ3-iodanyl)', '[bis(acetyloxy)-λ3-iodanyl]' (P-68.4.3, P-68.5.1)."""
+    from ._substituents import format_mononuclear_prefixes, name_branch
+
+    atom = mol.GetAtomWithIdx(root)
+    stem, standard = LAMBDA_CENTRE_STEMS[atom.GetAtomicNum()]
+    bonding = atom.GetTotalValence()
+    others = [n for n in graph[root] if n != coming_from]
+    if (
+        bonding <= standard
+        or (bonding - standard) % 2
+        or atom.GetFormalCharge()
+        or atom.GetIsotope()
+        or atom.GetNumRadicalElectrons()
+        or any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds())
+    ):
+        return None
+    if bonding > standard and not _has_senior_principal_group(mol):
+        raise UnsupportedStructure("a λ-bonded centre outranks the carbon parent unless a senior group is present")
+    entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in others]
+    prefix = format_mononuclear_prefixes(entries) if entries else ""
+    return (prefix + "-" if prefix else "") + f"λ{bonding}-{stem}", True
+
+
 def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     """silyl, germyl, phosphanyl, boranyl, ... with organyl substituents:
     '(trimethylsilyl)', '[dimethyl(phenyl)silyl]' (P-29.3.1)."""
@@ -1423,7 +1457,7 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     if order > 1:
         if any(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0 and not _oxo_atom(mol, root, n) for n in others):
             raise UnsupportedStructure("this mononuclear ylidene group is not supported yet")
-        bonding = order + sum(int(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble()) for n in others)
+        bonding = atom.GetTotalValence()
         if bonding > valence and (bonding - valence) % 2 or bonding > valence + 4:
             raise UnsupportedStructure("this mononuclear ylidene group is not supported yet")
         entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in others]
@@ -1446,7 +1480,7 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         found = _pnictogen_oxo_group(graph, root, halogens, aromatic_atoms, mol, others)
         if found is not None:
             return found
-    bonding = 1 + sum(int(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble()) for n in others)
+    bonding = atom.GetTotalValence()
     if bonding > valence and ((bonding - valence) % 2 or bonding > valence + 4):
         raise UnsupportedStructure("this mononuclear group carries a multiple bond")
     hydroxyls = [n for n in others if _hydroxy_oxygen(mol, n)]

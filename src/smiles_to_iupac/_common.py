@@ -764,7 +764,7 @@ def halogen_substituents(mol):
     return {
         atom.GetIdx(): halogen_prefix(atom)
         for atom in mol.GetAtoms()
-        if atom.GetAtomicNum() in HALOGEN_PREFIXES and atom.GetDegree() == 1
+        if atom.GetAtomicNum() in HALOGEN_PREFIXES and atom.GetDegree() == 1 and atom.GetTotalValence() == 1
     }
 
 

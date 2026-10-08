@@ -25,6 +25,20 @@ _SINGLE_CARBON_MULTIPLE_WORDS = {(1, 2): "methanylylidene", (2, 2): "methanediyl
 _YLYLIDENE_WORDS = {7: "azanylylidene", 15: "phosphanylylidene"}
 
 
+_STANDARD_BONDING = {7: 3, 8: 2, 16: 2, 34: 2, 52: 2, **{z: v for z, (_, _, v) in MONONUCLEAR_HYDRIDES.items()}}
+
+
+def _lambda_bonding(mol, idx):
+    atom = mol.GetAtomWithIdx(idx)
+    bonding = atom.GetTotalValence()
+    return bonding if bonding > _STANDARD_BONDING.get(atom.GetAtomicNum(), bonding) else 0
+
+
+def _lambda_citation(mol, idx, prefix):
+    bonding = _lambda_bonding(mol, idx)
+    return f"{'-' if prefix else ''}λ{bonding}-" if bonding else ""
+
+
 def _homo_run_word(z, n):
     if z == 8 and n == 2:
         return "peroxy"
@@ -154,9 +168,16 @@ def _hetero_part(mol, atoms, attachments, ctx, directed=None):
             raise UnsupportedStructure("this heteroatom linker is not supported")
         entries = [_entry(mol, atoms[0], root, ctx) for _, root in pend]
         prefix = format_mononuclear_prefixes(entries) if entries else ""
-        return Part(prefix + divalent, bool(entries), False)
+        cited = _lambda_citation(mol, atoms[0], prefix)
+        return Part(prefix + cited + divalent, bool(entries or cited), False)
     if count != 2:
         raise UnsupportedStructure("this heteroatom linker is not supported")
+    if z in (16, 34, 52) and _lambda_bonding(mol, atoms[0]) and not any(
+        mol.GetBondBetweenAtoms(a, r).GetBondTypeAsDouble() != 1.0 for a, r in pend
+    ):
+        entries = [_entry(mol, atoms[0], root, ctx) for _, root in pend]
+        prefix = format_mononuclear_prefixes(entries) if entries else ""
+        return Part(prefix + _lambda_citation(mol, atoms[0], prefix) + _SINGLE_ATOM_WORDS[z], True, False)
     oxo = [r for _, r in pend if mol.GetAtomWithIdx(r).GetAtomicNum() == 8 and mol.GetAtomWithIdx(r).GetDegree() == 1]
     if len(oxo) != len(pend):
         raise UnsupportedStructure("a substituted chalcogen linker is not supported")
