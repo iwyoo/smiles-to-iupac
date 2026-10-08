@@ -363,6 +363,21 @@ def test_oxaspiro_other_configuration_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("O1CCC[C@]12OCCC2", "(5R)-1,6-dioxaspiro[4.4]nonane", id="dioxa_one_enantiomer"),
+        pytest.param("O1CCC[C@@]12OCCC2", "(5S)-1,6-dioxaspiro[4.4]nonane", id="dioxa_other_enantiomer"),
+        pytest.param("O=C1CCN[C@@]12NCCC2=O", "(5R)-1,6-diazaspiro[4.4]nonane-4,9-dione", id="diaza_dione"),
+        pytest.param("O=C1CCC[C@]12CCCC2=O", "(5S)-spiro[4.4]nonane-1,6-dione", id="carbocyclic_dione"),
+        pytest.param("O=C1CCC[C@@]12CCCC2=O", "(5R)-spiro[4.4]nonane-1,6-dione", id="carbocyclic_dione_other_enantiomer"),
+        pytest.param("C1CC[C@]2(C1)CCCC2", "spiro[4.4]nonane", id="no_descriptor_without_stereogenicity"),
+    ],
+)
+def test_spiro_atoms_of_the_type_xabab_take_a_descriptor_from_the_ring_pairing(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_radical_centres_on_substituents_of_a_spiro_ring():
     assert smiles_to_iupac("[CH2]C1CCC2(CC1)CCCC2[CH2]") == "(spiro[4.5]decane-1,8-diyl)dimethyl"
 
