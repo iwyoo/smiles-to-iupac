@@ -98,6 +98,8 @@ from ._common import (
     non_single_bonds,
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
+    specified_double_bond_stereo,
+    von_baeyer_bond_stereo,
     von_baeyer_unsaturation_citations,
 )
 from ._numerals import alkane_name, numerical_term
@@ -144,6 +146,22 @@ def _walk_to_branch(core, branch_atoms, start, first):
     return None
 
 
+def _has_cut_atom(core):
+    """Whether removing one atom disconnects the ring-system core: a spiro atom or an acyclic link, which a von Baeyer
+    system (P-23.2) does not have."""
+    for removed in core:
+        rest = [a for a in core if a != removed]
+        seen, stack = {rest[0]}, [rest[0]]
+        while stack:
+            for n in core[stack.pop()]:
+                if n != removed and n not in seen:
+                    seen.add(n)
+                    stack.append(n)
+        if len(seen) != len(rest):
+            return True
+    return False
+
+
 def find_polycyclic_core(mol, ring_count):
     """Return (branch_atoms, bridges) if `mol`'s carbon skeleton, after
     stripping acyclic branches, reduces to exactly `2*(ring_count-1)` branch
@@ -168,10 +186,8 @@ def find_polycyclic_core(mol, ring_count):
     edge_count = sum(len(neighbors) for neighbors in core.values()) // 2
     if edge_count - vertices + 1 != ring_count:
         return None
-    if any(len(neighbors) not in (2, 3) for neighbors in core.values()):
-        return None
-    branch_atoms = {atom for atom, neighbors in core.items() if len(neighbors) == 3}
-    if len(branch_atoms) != 2 * (ring_count - 1):
+    branch_atoms = {atom for atom, neighbors in core.items() if len(neighbors) >= 3}
+    if not branch_atoms or _has_cut_atom(core):
         return None
 
     half_walks = []
@@ -182,7 +198,7 @@ def find_polycyclic_core(mol, ring_count):
                 return None
             v, path = result
             half_walks.append((u, v, path))
-    if len(half_walks) != 6 * (ring_count - 1):
+    if len(half_walks) != sum(len(core[a]) for a in branch_atoms):
         return None
 
     bridges = []
@@ -203,7 +219,7 @@ def find_polycyclic_core(mol, ring_count):
             return None
         used[i] = used[match] = True
         bridges.append((u, v, path))
-    if len(bridges) != 3 * (ring_count - 1):
+    if len(bridges) * 2 != len(half_walks):
         return None
 
     return branch_atoms, bridges
@@ -247,40 +263,45 @@ def _composite_bridges(adj, start, end, others):
 def _secondary_paths(bridges, remaining, main_atoms, free_atoms):
     """Yield every way to cover the `remaining` simple bridges with secondary bridges (P-23.1.7, P-23.1.8): each one is a
     path whose ends lie in the main system or in another secondary bridge and whose inner atoms may include
-    branch atoms outside the main system (`free_atoms`). A free branch atom lies inside exactly one path and is an end of
-    the path that uses its third bridge. A path is (end, end, inner atoms from the first end to the second)."""
+    branch atoms outside the main system (`free_atoms`). A free branch atom lies inside exactly one path, which passes
+    through it by two of its bridges; every other bridge at the atom ends there. A path is (end, end, inner atoms from
+    the first end to the second)."""
     free_atoms = sorted(free_atoms)
     incident = {f: [i for i in remaining if f in (bridges[i][0], bridges[i][1])] for f in free_atoms}
-    if any(len(edges) != 3 for edges in incident.values()):
+    if any(len(edges) < 3 for edges in incident.values()):
         return
-    for choice in product(range(3), repeat=len(free_atoms)):
-        terminal = {f: incident[f][c] for f, c in zip(free_atoms, choice)}
+    for choice in product(*(list(combinations(incident[f], 2)) for f in free_atoms)):
+        through = dict(zip(free_atoms, choice))
         unused = set(remaining)
         paths = []
         valid = True
+
+        def ends_at(atom, edge):
+            return atom in through and edge not in through[atom]
+
         while unused and valid:
             start_edge = None
             for e in sorted(unused):
                 u, v, _ = bridges[e]
-                if u in main_atoms or v in main_atoms or terminal.get(u) == e or terminal.get(v) == e:
+                if u in main_atoms or v in main_atoms or ends_at(u, e) or ends_at(v, e):
                     start_edge = e
                     break
             if start_edge is None:
                 valid = False
                 break
             u, v, seg = bridges[start_edge]
-            if u in main_atoms or terminal.get(u) == start_edge:
+            if u in main_atoms or ends_at(u, start_edge):
                 begin, end, inner = u, v, list(seg)
             else:
                 begin, end, inner = v, u, list(reversed(seg))
             unused.discard(start_edge)
             edge = start_edge
-            while end in terminal and terminal[end] != edge:
-                through = [i for i in incident[end] if i != terminal[end] and i != edge]
-                if len(through) != 1 or through[0] not in unused:
+            while end in through and edge in through[end]:
+                (onward,) = [i for i in through[end] if i != edge]
+                if onward not in unused:
                     valid = False
                     break
-                edge = through[0]
+                edge = onward
                 unused.discard(edge)
                 x, y, seg2 = bridges[edge]
                 inner = inner + [end] + (list(seg2) if x == end else list(reversed(seg2)))
@@ -451,10 +472,12 @@ def _name_polycyclic_unsaturated(mol, core, ring_count, bonds) -> str:
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
+    bond_stereo = specified_double_bond_stereo(mol)
 
     best_key = None
     for full_order, parent, outer_key in iter_polycyclic_candidates(core, ring_count):
         position = {atom: i + 1 for i, atom in enumerate(full_order)}
+        z_locants, stereo_prefix = von_baeyer_bond_stereo(mol, position, bond_stereo)
         ene_citations, yne_citations, compound_count, primary_locants, full_locants = (
             von_baeyer_unsaturation_citations(position, bonds)
         )
@@ -467,8 +490,9 @@ def _name_polycyclic_unsaturated(mol, core, ring_count, bonds) -> str:
         key = outer_key + _candidate_key(
             suffixed_parent,
             substituents,
-            suffix_locant=(compound_count, primary_locant_set, full_locant_set, ene_locant_set),
+            suffix_locant=(compound_count, primary_locant_set, full_locant_set, ene_locant_set, z_locants),
         )
+        key = key[:-1] + (stereo_prefix + key[-1],)
         if best_key is None or key < best_key:
             best_key = key
 

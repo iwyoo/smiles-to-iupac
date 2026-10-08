@@ -62,10 +62,13 @@ from ._common import (
     adjacency,
     group_substituents,
     halogen_substituents,
+    kekulized_copy,
     lowest_locant_set,
     non_single_bonds,
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
+    specified_double_bond_stereo,
+    von_baeyer_bond_stereo,
     von_baeyer_unsaturation_citations,
 )
 from ._numerals import alkane_name
@@ -215,10 +218,12 @@ def _name_bicyclic_unsaturated(mol, core, bonds) -> str:
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     stem = bicyclic_parent_name(core)[:-3]
+    bond_stereo = specified_double_bond_stereo(mol)
 
     best_key = None
     for full_order in iter_bicyclic_numberings(core):
         position = {atom: i + 1 for i, atom in enumerate(full_order)}
+        z_locants, stereo_prefix = von_baeyer_bond_stereo(mol, position, bond_stereo)
         ene_citations, yne_citations, compound_count, primary_locants, full_locants = (
             von_baeyer_unsaturation_citations(position, bonds)
         )
@@ -231,8 +236,9 @@ def _name_bicyclic_unsaturated(mol, core, bonds) -> str:
         key = _candidate_key(
             parent,
             substituents,
-            suffix_locant=(compound_count, primary_locant_set, full_locant_set, ene_locant_set),
+            suffix_locant=(compound_count, primary_locant_set, full_locant_set, ene_locant_set, z_locants),
         )
+        key = key[:-1] + (stereo_prefix + key[-1],)
         if best_key is None or key < best_key:
             best_key = key
 
@@ -241,6 +247,7 @@ def _name_bicyclic_unsaturated(mol, core, bonds) -> str:
 
 def name_bicycloalkane(mol, core) -> str:
     validate_atoms_and_bonds(mol)
+    mol = kekulized_copy(mol)
     ring_atoms = {a.GetIdx() for a in mol.GetAtoms() if a.IsInRing()}
     bonds = [b for b in non_single_bonds(mol) if b[0] in ring_atoms and b[1] in ring_atoms]
     if bonds:

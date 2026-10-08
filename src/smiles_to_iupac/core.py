@@ -319,6 +319,7 @@ from ._vb_ring_assembly import find_vb_ring_assembly_core, name_vb_ring_assembly
 from ._ring_assembly_chain import find_ring_assembly_chain_core, name_ring_assembly_chain
 from ._ring_assembly_ylidene import find_ring_assembly_ylidene_core, name_ring_assembly_ylidene
 from ._silane_chain import has_silane_chain_shape, name_silane_chain
+from ._spiro_tree import has_spiro_tree_shape, name_spiro_tree
 from ._spiro import find_monospiro_atom, name_monospiro
 from ._spiro_heteroatom import (
     has_single_ring_heteroatom_shape as has_single_spiro_heteroatom_shape,
@@ -1137,6 +1138,15 @@ def _name_mol(mol) -> str:
                     return mark(name_metallacycle_as_group(mol), _NO_PIN_ORGANOMETALLIC)
                 except UnsupportedStructure:
                     raise first
+
+    # A polyspiro tree of monocycles that the linear and hub namers do not take (P-24.2.3) precedes every
+    # heteroatom-parent dispatch below.
+    if (
+        has_spiro_tree_shape(mol)
+        and find_linear_polyspiro_chain(mol) is None
+        and find_branched_polyspiro_hub(mol) is None
+    ):
+        return name_spiro_tree(mol)
 
     # Group 3-12 metal complexes (P-69.2 coordination naming) must precede
     # every heteroatom-parent dispatch below, which would otherwise claim

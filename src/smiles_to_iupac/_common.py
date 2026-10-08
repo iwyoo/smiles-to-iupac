@@ -1391,6 +1391,20 @@ def von_baeyer_bond_citation(position, a, b):
     return lo, f"{lo}({hi})", True
 
 
+def von_baeyer_bond_stereo(mol, position, bond_stereo):
+    """(sorted primary locants of the Z bonds, '(4Z,6E)-' prefix or '') of the specified double-bond stereo elements
+    `bond_stereo` (from `specified_double_bond_stereo`) under a fixed von Baeyer `position` numbering (P-93.5.1.4)."""
+    if not bond_stereo:
+        return (), ""
+    cited = []
+    for bond_idx, code in bond_stereo:
+        bond = mol.GetBondWithIdx(bond_idx)
+        primary, display, _ = von_baeyer_bond_citation(position, bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
+        cited.append((primary, f"{display}{code}", code))
+    cited.sort()
+    return tuple(p for p, _, c in cited if c == "Z"), "(" + ",".join(d for _, d, _ in cited) + ")-"
+
+
 def von_baeyer_unsaturation_citations(position, bonds):
     """(ene_citations, yne_citations, compound_count, primary_locants,
     full_locants) for every (a, b, order) von Baeyer bond under a fixed
