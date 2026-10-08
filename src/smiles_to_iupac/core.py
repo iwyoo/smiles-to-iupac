@@ -1,6 +1,6 @@
 import re
 
-from rdkit import Chem
+from rdkit import Chem, rdBase
 
 from ._zwitterion import has_zwitterion_shape, name_zwitterion
 from ._adduct import has_adduct_shape, name_adduct
@@ -668,7 +668,8 @@ def _cited_nuclides(name):
                 continue
             mass, symbol, count = int(token.group(1)), token.group(2), token.group(3)
             try:
-                number = table.GetAtomicNumber(symbol)
+                with rdBase.BlockLogs():
+                    number = table.GetAtomicNumber(symbol)
             except Exception:
                 pending.append(item)
                 continue
