@@ -551,8 +551,15 @@ def _collect_n_alkyl(full_carbon_graph, mol, hydroxyls, graph, n1_alkyl, n2_alky
     N-substituent, to exclude from the principal-chain search below."""
     entries = []
     n_alkyl_atoms = set()
+    from ._substituents import FORCED_BRANCH_NAMES
+
+    forced = FORCED_BRANCH_NAMES.get()
     for locant_label, alkyl_roots in (("N", n1_alkyl), ("N'", n2_alkyl)):
         for root in alkyl_roots:
+            if forced and mol.GetNumAtoms() == forced[0] and root in forced[1]:
+                entries.append((locant_label, forced[1][root][0]))
+                n_alkyl_atoms.add(root)
+                continue
             length = linear_branch(full_carbon_graph, root, None)
             if length is None:
                 raise UnsupportedStructure("a branched N-substituent is not supported yet")

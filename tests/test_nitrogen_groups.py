@@ -527,7 +527,6 @@ def test_formohydrazide_and_related(smiles, expected):
     "smiles",
     [
         pytest.param("O=CN(C)N", id="n_substituted_formohydrazide_raises"),
-        pytest.param("CCCC(=O)NNC(=O)C", id="diacylhydrazide_raises"),
     ],
 )
 def test_n_substituted_formohydrazide_and_related_raise(smiles):
@@ -566,18 +565,6 @@ def test_symmetric_diacyl_hydrazide(smiles, expected):
 def test_diacyl_hydrazide_formyl():
     # Mononuclear retained name on both sides.
     assert smiles_to_iupac("O=CNNC=O") == "N'-formylformohydrazide"
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("CC(=O)NNC(=O)c1ccccc1", id="diacyl_hydrazide_aromatic_acyl_raises"),
-        pytest.param("CC(C)C(=O)NNC(=O)C(C)C", id="diacyl_hydrazide_branched_acyl_raises"),
-    ],
-)
-def test_diacyl_hydrazide_aromatic_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 def test_plain_hydrazine_name():
@@ -969,17 +956,6 @@ def test_semicarbazide():
 
 
 @pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("NNC(=O)NN", id="double_amino_substituted_urea_not_supported"),
-    ],
-)
-def test_semicarbazide_with_n_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
-@pytest.mark.parametrize(
     "smiles, expected",
     [
         ("C1CCCCC1=NN", "cyclohexylidenehydrazine"),
@@ -1348,4 +1324,32 @@ def test_hydroxylamines_with_a_hydride_or_ring_substituent(smiles, expected):
     ],
 )
 def test_amidine_locants_prefixes_and_condensed_guanidines(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("N1(CCCCC1)C(=O)NN", "piperidine-1-carbohydrazide"),
+        ("C1COCCN1C(=O)NN", "morpholine-4-carbohydrazide"),
+        ("CN(N)C(=O)C1=CC=C(C2=CC=CC=C12)C(=O)NNC", "N1,N'4-dimethylnaphthalene-1,4-dicarbohydrazide"),
+        ("CN(N)C(=O)C1=CC=C(C2=CC(=CC=C12)C)C(=O)NNC", "N1,N'4,6-trimethylnaphthalene-1,4-dicarbohydrazide"),
+        ("C(C1=CC=CC=C1)(=O)NNC(C1=CC=CC=C1)=O", "N'-benzoylbenzohydrazide"),
+        ("C(C)(=O)N(N(C(CC)=O)C)CC", "N'-acetyl-N'-ethyl-N-methylpropanehydrazide"),
+        ("CCCC(=O)NNC(=O)C", "N'-acetylbutanehydrazide"),
+        ("CC(=O)NNC(=O)c1ccccc1", "N'-acetylbenzohydrazide"),
+        ("CC(C)C(=O)NNC(=O)C(C)C", "2-methyl-N'-(2-methylpropanoyl)propanehydrazide"),
+        ("C(CC)(NN)=S", "propanethiohydrazide"),
+        ("C1(=CC=CC=C1)C(NN)=S", "benzenecarbothiohydrazide"),
+        ("CC(=[Se])NN", "ethaneselenohydrazide"),
+        ("NNC(=O)NN", "hydrazinecarbohydrazide"),
+        ("C(=O)(OC(=O)NN)NN", "dicarbonic dihydrazide"),
+        ("C(=O)(NN)NC(=O)NN", "2-imidodicarbonic dihydrazide"),
+        ("NNC(=O)NNCC(=O)O", "(hydrazinecarbohydrazido)acetic acid"),
+        ("O=CNNCCC(=O)O", "3-formohydrazidopropanoic acid"),
+        ("N(N)S(=O)C=1C(=CC2=CC=CC=C2C1)C(=O)O", "3-(hydrazinesulfinyl)naphthalene-2-carboxylic acid"),
+        ("C(C1=CC=CC=C1)=NNC(C(=O)N)=O", "2-(benzylidenehydrazinyl)-2-oxoacetamide"),
+    ],
+)
+def test_hydrazide_variants(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

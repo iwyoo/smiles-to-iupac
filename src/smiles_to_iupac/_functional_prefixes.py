@@ -27,6 +27,21 @@ from ._substituents import name_branch
 _NATIVE_ROOTS = frozenset({6, 7, 8, 9, 16, 17, 34, 35, 52, 53})
 
 
+def _acyl_hydrazine_sulfur(mol, root):
+    """A sulfonyl-type S, Se or Te group whose singly bonded nitrogen carries a second nitrogen (hydrazinesulfinyl)."""
+    atom = mol.GetAtomWithIdx(root)
+    if atom.GetAtomicNum() not in (16, 34, 52):
+        return False
+    has_oxo = any(
+        n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(root, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for n in atom.GetNeighbors()
+    )
+    return has_oxo and any(
+        n.GetAtomicNum() == 7 and any(m.GetAtomicNum() == 7 for m in n.GetNeighbors() if m.GetIdx() != root)
+        for n in atom.GetNeighbors()
+    )
+
+
 _enclose = enclose
 
 
@@ -173,7 +188,11 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
         skip |= subtree(node) - {node}
     delegated = {}
     for _, root in seeds:
-        if root in parent_of and root not in skip and mol.GetAtomWithIdx(root).GetAtomicNum() not in _NATIVE_ROOTS:
+        if (
+            root in parent_of
+            and root not in skip
+            and (mol.GetAtomWithIdx(root).GetAtomicNum() not in _NATIVE_ROOTS or _acyl_hydrazine_sulfur(mol, root))
+        ):
             try:
                 delegated[root] = name_branch(graph, root, parent_of[root], shown, aromatic_atoms, mol=mol)
             except UnsupportedStructure:
