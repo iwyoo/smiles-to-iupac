@@ -622,6 +622,13 @@ def test_sugar_substituent_is_glycosyl_only_when_linked_at_the_anomeric_carbon(s
         pytest.param("CO[C@H]1[C@@H]([C@H](C=O)OC)OC[C@H]1OC", "3,6-anhydro-2,4,5-tri-O-methyl-D-glucose", id="anhydro_sorts_before_the_O_substituents"),
         pytest.param("CO[C@H]1[C@@H]([C@@H](C=O)OC)OC[C@H]1OC", "3,6-anhydro-2,4,5-tri-O-methyl-D-mannose", id="anhydro_mannose_ether"),
         pytest.param("O=C[C@H](O)[C@H]1OC[C@@H](O)[C@@H]1O", "3,6-anhydro-D-galactose", id="anhydro_galactose"),
+        pytest.param("OC[C@H]1OC[C@H](O)[C@@H](O)[C@H]1O", "1,5-anhydro-D-galactitol", id="anhydroalditol"),
+        pytest.param("OC[C@H]1OC[C@@H](O)[C@@H](O)[C@@H]1O", "1,5-anhydro-D-mannitol", id="anhydro_mannitol"),
+        pytest.param(
+            "O[C@@H]1[C@H](O)CO[C@]2(CO[C@@]3(CO2)OC[C@@H](O)[C@@H](O)[C@@H]3O)[C@H]1O",
+            "α-D-fructopyranose β-D-fructopyranose 1,2\u2032:1\u2032,2-dianhydride",
+            id="intermolecular_dianhydride",
+        ),
     ],
 )
 def test_intramolecular_anhydro_sugars(smiles, expected):

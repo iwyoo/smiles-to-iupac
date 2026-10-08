@@ -505,6 +505,10 @@ def _anhydro_name(mol):
             try:
                 opened = _opened_ether(mol, oxygen.GetIdx(), opened_end)
                 found = _substituted_sugar_name(opened, bridges=[(kept, opened_end)])
+                if found is None:
+                    from ._sugar_acid import substituted_chain_name
+
+                    found = substituted_chain_name(opened, bridges=[(kept, opened_end)])
             except (UnsupportedStructure, ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
                 continue
             if found is not None:
@@ -597,3 +601,97 @@ def sugar_substituent_group(mol, graph, root, coming_from):
     if context:
         context["used"].update(("atom", a) for a in atoms)
     return f"{name[:-1]}{marker}", True
+
+
+def _unit_position(unit, atom):
+    graph = adjacency(unit)
+    skeleton = _ring_skeleton(unit, graph) or _chain_skeleton(unit, graph)
+    return None if skeleton is None or atom not in skeleton.carbons else skeleton.position(atom)
+
+
+def _parent_rank(name):
+    """Order of two monosaccharide parents (P-102.4 c): the stem, D before L, then alpha before beta."""
+    import re
+
+    found = re.match(r"^(?P<anomer>[\u03b1\u03b2]-)?(?P<series>[DL])-(?P<rest>.+)$", name)
+    if found is None:
+        return (name, "", "")
+    return (found.group("rest"), found.group("series") != "D", found.group("anomer") or "")
+
+
+def sugar_dianhydride_name(mol):
+    """P-102.5.6.7.2: two monosaccharides joined by two ether links (a dianhydride): both ethers are opened, the two
+    sugars named, the senior parent first, and each link cited by the pair of its positions, those of the second
+    sugar primed."""
+    from itertools import combinations
+
+    from .core import smiles_to_iupac
+
+    ethers = [
+        a.GetIdx()
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() == 8 and a.GetDegree() == 2 and a.IsInRing() and all(n.GetAtomicNum() == 6 for n in a.GetNeighbors())
+    ]
+    if len(ethers) < 2 or mol.GetNumAtoms() > 40:
+        return None
+    results = set()
+    for first, second in combinations(ethers, 2):
+        links = []
+        opened = mol
+        try:
+            for oxygen in (first, second):
+                ends = [n.GetIdx() for n in opened.GetAtomWithIdx(oxygen).GetNeighbors()]
+                links.append(tuple(ends))
+                opened = _opened_ether(opened, oxygen, ends[1])
+        except (UnsupportedStructure, ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
+            continue
+        frags = Chem.GetMolFrags(opened)
+        if len(frags) != 2:
+            continue
+        units = Chem.GetMolFrags(opened, asMols=True)
+        try:
+            names = [smiles_to_iupac(Chem.MolToSmiles(u)) for u in units]
+        except (UnsupportedStructure, ValueError, RuntimeError):
+            continue
+        order = sorted(range(2), key=lambda i: _parent_rank(names[i]))
+        local = []
+        for i, atoms in enumerate(frags):
+            local.append({a: k for k, a in enumerate(atoms)})
+        pairs, valid = [], True
+        for ends in links:
+            holders = {}
+            for atom in ends:
+                holders[next(i for i, atoms in enumerate(frags) if atom in atoms)] = atom
+            if len(holders) != 2:
+                valid = False
+                break
+            located = {}
+            for i in range(2):
+                position = _unit_position(units[i], local[i][holders[i]])
+                if position is None:
+                    valid = False
+                    break
+                located[i] = position
+            if not valid:
+                break
+            senior, junior = order
+            parts = [(located[senior], 0), (located[junior], 1)]
+            parts.sort(key=lambda item: item[0])
+            pairs.append(parts)
+        if not valid:
+            continue
+        pairs.sort(key=lambda parts: (parts[0][0], parts[0][1]))
+        text = ":".join(",".join(f"{n}{chr(0x2032) * mark}" for n, mark in parts) for parts in pairs)
+        results.add(f"{names[order[0]]} {names[order[1]]} {text}-dianhydride")
+    return next(iter(results)) if len(results) == 1 else None
+
+
+def has_sugar_dianhydride_shape(mol) -> bool:
+    try:
+        return sugar_dianhydride_name(mol) is not None
+    except (UnsupportedStructure, ValueError, RuntimeError):
+        return False
+
+
+def name_sugar_dianhydride(mol) -> str:
+    return sugar_dianhydride_name(mol)
