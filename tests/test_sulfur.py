@@ -881,3 +881,14 @@ def test_lambda_and_silicon_mancude_monocycles(smiles, expected):
 )
 def test_sulfur_oxoacids_modified_by_infixes_and_their_halides_and_amides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OC(=O)C[Cl+][S-]", "(thiochlorosyl)acetic acid"),
+        ("[S-][Cl+]c1ccccc1", "(thiochlorosyl)benzene"),
+    ],
+)
+def test_thiohalogen_oxo_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

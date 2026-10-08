@@ -59,9 +59,8 @@ def test_cyclic_phosphane_chain_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_zero_substituents_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("O=P")
+def test_unsubstituted_phosphanone_is_a_preselected_name():
+    assert smiles_to_iupac("O=P") == "phosphanone"
 
 
 @pytest.mark.parametrize(
@@ -537,4 +536,19 @@ def test_amides_carrying_phosphanylidene_phosphanyl_and_alkylidene_groups_on_nit
     ],
 )
 def test_chains_of_acid_centres_as_skeletal_prefixes_and_replacement_parents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[PH](=O)O", "methylphosphinic acid"),
+        ("C[PH](=O)OC#N", "cyanic methylphosphinic anhydride"),
+        ("C[P+](C)(C)[O-]", "trimethyl-λ5-phosphanone"),
+        ("OC(=O)C=P(=O)O", "[hydroxy(oxo)-λ5-phosphanylidene]acetic acid"),
+        ("OC(=O)CP(=O)=O", "(dioxo-λ5-phosphanyl)acetic acid"),
+        ("OC(=O)C[BH]OC", "(methoxyboranyl)acetic acid"),
+    ],
+)
+def test_phosphorus_hydrogen_acids_oxide_zwitterions_and_lambda_prefix_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

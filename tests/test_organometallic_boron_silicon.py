@@ -1098,3 +1098,15 @@ def test_silicic_boric_acids_and_group_14_fused_heterocycles(smiles, expected):
 )
 def test_diamines_whose_nitrogens_carry_boranyl_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CCC(CO)B(C(CC)CO)OC", "methyl bis(1-hydroxybutan-2-yl)borinate"),
+        ("OCCB(CCO)O", "bis(2-hydroxyethyl)borinic acid"),
+        ("OCCB(O)O", "(2-hydroxyethyl)boronic acid"),
+    ],
+)
+def test_boron_acids_outrank_hydroxy_groups_of_their_organyl_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

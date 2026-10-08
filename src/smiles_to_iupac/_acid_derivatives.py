@@ -97,9 +97,9 @@ def _inorganic_center(mol, idx):
     rest = [n for n in atom.GetNeighbors() if _bond(mol, idx, n.GetIdx()) == 1.0]
     direct = [n for n in rest if n.GetAtomicNum() == atom.GetAtomicNum()]
     rest = [n for n in rest if n not in direct]
-    if len(oxo) + len(rest) + len(direct) != atom.GetDegree() or any(n.GetAtomicNum() not in (6, 8) for n in rest):
+    if len(oxo) + len(rest) + len(direct) != atom.GetDegree() or any(n.GetAtomicNum() not in (6, 8, 16, 34, 52) for n in rest):
         return None
-    positions = [(n.GetIdx(), "Y") for n in rest if n.GetAtomicNum() == 8]
+    positions = [(n.GetIdx(), "Y") for n in rest if n.GetAtomicNum() in (8, 16, 34, 52)]
     if not positions or atom.GetAtomicNum() == 5 and oxo:
         return None
     return "inorganic", ["O"] * len(oxo), positions
@@ -119,10 +119,35 @@ def _acylated_oxoacid_center(mol, atom):
     )
 
 
+def _halogen_oxoacid_center(mol, idx):
+    """'inorganic' kind for the halogen of a hypohalous, halous, halic or perhalic acid joined through one oxygen
+    (P-67.1.3.3): X-O-R with up to three terminal oxygens on X."""
+    atom = mol.GetAtomWithIdx(idx)
+    if atom.GetAtomicNum() not in _HALIDES or atom.GetIsotope() or atom.IsInRing():
+        return None
+    bridges, oxo = [], []
+    for n in atom.GetNeighbors():
+        if n.GetAtomicNum() != 8:
+            return None
+        double = _bond(mol, idx, n.GetIdx()) == 2.0 and not n.GetFormalCharge()
+        anionic = _bond(mol, idx, n.GetIdx()) == 1.0 and n.GetFormalCharge() == -1 and n.GetDegree() == 1
+        if n.GetDegree() == 1 and (double or anionic):
+            oxo.append(n)
+        elif n.GetDegree() == 2 and _bond(mol, idx, n.GetIdx()) == 1.0 and not n.GetFormalCharge():
+            bridges.append(n)
+        else:
+            return None
+    if len(bridges) != 1 or len(oxo) > 3 or atom.GetFormalCharge() != sum(-o.GetFormalCharge() for o in oxo):
+        return None
+    return "inorganic", ["O"] * len(oxo), [(bridges[0].GetIdx(), "Y")]
+
+
 def _center(mol, idx):
     """(kind, oxo slots, [(neighbor, role)] of the Y positions) for an acyl-type ('acyl'), carbonic
     ('carbonic') or cyanic ('cyanic') centre, else None."""
     atom = mol.GetAtomWithIdx(idx)
+    if atom.GetAtomicNum() in _HALIDES:
+        return _halogen_oxoacid_center(mol, idx)
     if atom.GetAtomicNum() in _INORGANIC_CENTERS and not (atom.GetFormalCharge() or atom.GetIsotope() or atom.IsInRing()):
         return _inorganic_center(mol, idx)
     if atom.GetAtomicNum() in _CHALCOGEN_CENTERS and _acylated_oxoacid_center(mol, atom):
@@ -203,7 +228,7 @@ def find_links(mol):
             if _center(mol, far.GetIdx()) is not None:
                 if found[0] == "carbonic" and _center(mol, far.GetIdx())[0] == "carbonic" and len(chain) == 1:
                     continue
-                if found[0] == "inorganic" and _center(mol, far.GetIdx())[0] == "inorganic":
+                if found[0] == "inorganic" and _center(mol, far.GetIdx())[0] == "inorganic" and len(chain) == 1:
                     continue
                 links.append(Link("anhydride", idx, tuple(chain), far.GetIdx()))
             elif far.GetAtomicNum() == 6 or (

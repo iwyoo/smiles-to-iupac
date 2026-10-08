@@ -21,13 +21,15 @@
   SMILES writers use) -- not directly reusable, though the same
   dual-representation check applies.
 
+A chalcogen analogue with S, Se or Te in the ester position is 'S-methyl thionitrate' (P-67.1.3.2).
+
 Scope: a single nitrogen atom shaped like a nitrate ester -- one N-O-R
 single bond, two terminal oxygens (either the charged or neutral
 representation), R named via `name_branch` (a plain alkyl chain, a
 branched chain, or a plain benzene ring, and their halogenated
 variants, exactly like `_sulfate.py`'s R). Explicitly out of scope
-(raise `UnsupportedStructure`): any chalcogen-replacement analogue, any
-other heteroatom, more than one nitrate group.
+(raise `UnsupportedStructure`): any other heteroatom, more than one nitrate
+group.
 """
 
 from rdkit import Chem
@@ -38,6 +40,7 @@ from ._substituents import name_branch
 
 _NITROGEN = 7
 _OXYGEN = 8
+_ESTER_ATOMS = {8: ("", "O"), 16: ("thio", "S"), 34: ("seleno", "Se"), 52: ("telluro", "Te")}
 
 
 def _nitrate_ester_nitrogen_atoms(mol):
@@ -53,7 +56,7 @@ def _nitrate_ester_nitrogen_atoms(mol):
         neighbors = atom.GetNeighbors()
         if any(n.GetAtomicNum() == 6 for n in neighbors):
             continue
-        oxygens = [n for n in neighbors if n.GetAtomicNum() == _OXYGEN]
+        oxygens = [n for n in neighbors if n.GetAtomicNum() in _ESTER_ATOMS]
         if len(oxygens) != 3:
             continue
         ester_os = [
@@ -64,7 +67,7 @@ def _nitrate_ester_nitrogen_atoms(mol):
         if len(ester_os) != 1:
             continue
         terminal_os = [o for o in oxygens if o.GetIdx() != ester_os[0].GetIdx()]
-        if any(o.GetDegree() != 1 for o in terminal_os):
+        if any(o.GetDegree() != 1 or o.GetAtomicNum() != _OXYGEN for o in terminal_os):
             continue
         bond_orders = sorted(
             mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() for o in terminal_os
@@ -96,7 +99,7 @@ def name_nitrate_ester(mol) -> str:
         raise UnsupportedStructure("more than one nitrate group is not supported yet")
     (nitrogen,) = nitrogen_atoms
 
-    group_atom_idxs = {nitrogen.GetIdx()} | {n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetAtomicNum() == _OXYGEN}
+    group_atom_idxs = {nitrogen.GetIdx()} | {n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetAtomicNum() in _ESTER_ATOMS}
     for atom in mol.GetAtoms():
         if atom.GetIsotope() != 0:
             raise UnsupportedStructure("isotopically modified atoms are not supported yet")
@@ -107,15 +110,15 @@ def name_nitrate_ester(mol) -> str:
         atomic_num = atom.GetAtomicNum()
         if atomic_num == _NITROGEN:
             raise UnsupportedStructure("more than one nitrogen atom is not supported yet")
-        if atomic_num not in (1, 6, _OXYGEN, *HALOGEN_PREFIXES):
+        if atomic_num not in (1, 6, _OXYGEN, *HALOGEN_PREFIXES) and atom.GetIdx() not in group_atom_idxs:
             raise UnsupportedStructure(
                 "heteroatoms other than the nitrate's own nitrogen/"
                 "oxygens and a halogen substituent are not supported yet"
             )
 
-    group_oxygens = {n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetAtomicNum() == _OXYGEN}
+    group_oxygens = {n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetAtomicNum() in _ESTER_ATOMS}
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() == _OXYGEN and atom.GetIdx() not in group_oxygens:
+        if atom.GetAtomicNum() in _ESTER_ATOMS and atom.GetIdx() not in group_oxygens:
             raise UnsupportedStructure(
                 "an oxygen atom not part of the nitrate's own "
                 "N(=O)(=O)OR group is out of scope for this module"
@@ -137,4 +140,7 @@ def name_nitrate_ester(mol) -> str:
 
     (root,) = [n for n in graph[ester_oxygen_idx] if n != nitrogen.GetIdx()]
     name, _ = name_branch(graph, root, ester_oxygen_idx, halogens, aromatic_atoms, mol=mol)
+    word, symbol = _ESTER_ATOMS[mol.GetAtomWithIdx(ester_oxygen_idx).GetAtomicNum()]
+    if word:
+        return f"{symbol}-{format_ester_words([name])} {word}nitrate"
     return format_ester_words([name]) + " nitrate"

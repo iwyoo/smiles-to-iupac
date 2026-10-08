@@ -550,7 +550,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
     if z in _HALOGEN_STEMS:
         named = halogen_oxo_prefix(mol, root, coming_from)
         if named is not None:
-            return named, False
+            return named, not named.startswith((_HALOGEN_STEMS[z], "per"))
     if atom.GetFormalCharge() == -1 and atom.GetDegree() == 1 and z in (8, 16):
         return {8: "oxido", 16: "sulfido"}[z], False
     if atom.GetFormalCharge() and z != 7:
@@ -757,6 +757,12 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
 
             rname, rcomp = name_branch(graph, others[0], root, halogens, aromatic_atoms, mol=mol)
             return _enclose(rname, rcomp) + "amino", True
+        aci = _aci_nitro_ligands(mol, root, others, order)
+        if aci is not None:
+            from ._substituents import format_mononuclear_prefixes, name_branch
+
+            entries = [("oxo", False)] + [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in aci]
+            return format_mononuclear_prefixes(entries) + "-λ5-azanylidene", True
         if order != 1.0 or atom.GetFormalCharge() or any(
             mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0 for n in others
         ):
@@ -941,6 +947,7 @@ def nitrogen_pseudohalide_prefix(mol, root, others, order):
 
 
 _HALOGEN_STEMS = {9: "fluor", 17: "chlor", 35: "brom", 53: "iod"}
+_HALOGEN_CHALCOGENS = {8: "", 16: "thio", 34: "seleno", 52: "telluro"}
 
 
 def _terminal_oxo_oxygens(atom, exclude):
@@ -952,7 +959,7 @@ def _terminal_oxo_oxygens(atom, exclude):
             continue
         double = bond.GetBondTypeAsDouble() == 2.0 and not other.GetFormalCharge()
         anionic = bond.GetBondTypeAsDouble() == 1.0 and other.GetFormalCharge() == -1
-        if other.GetAtomicNum() != 8 or other.GetDegree() != 1 or not (double or anionic):
+        if other.GetAtomicNum() not in _HALOGEN_CHALCOGENS or other.GetDegree() != 1 or not (double or anionic):
             return None
         oxygens.append(other)
     return oxygens
@@ -969,17 +976,27 @@ def halogen_oxo_prefix(mol, root, coming_from):
     anions = sum(o.GetFormalCharge() for o in oxygens)
     if atom.GetFormalCharge() + anions != 0 or mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
         return None
-    return {1: f"{stem}osyl", 2: f"{stem}yl", 3: f"per{stem}yl"}[len(oxygens)]
+    base = {1: f"{stem}osyl", 2: f"{stem}yl", 3: f"per{stem}yl"}[len(oxygens)]
+    replaced = {}
+    for o in oxygens:
+        word = _HALOGEN_CHALCOGENS[o.GetAtomicNum()]
+        if word:
+            replaced[word] = replaced.get(word, 0) + 1
+    from ._numerals import multiplying_prefix
+
+    return "".join(
+        (multiplying_prefix(count) if count > 1 else "") + word for word, count in sorted(replaced.items())
+    ) + base
 
 
 def is_halogen_oxo_part(mol, atom):
     """A charged atom of a halogen oxo group: the halogen cation or one of its oxide anions."""
-    if atom.GetAtomicNum() == 8 and atom.GetFormalCharge() == -1 and atom.GetDegree() == 1:
+    if atom.GetAtomicNum() in _HALOGEN_CHALCOGENS and atom.GetFormalCharge() == -1 and atom.GetDegree() == 1:
         (halogen,) = atom.GetNeighbors()
         return halogen.GetAtomicNum() in _HALOGEN_STEMS and is_halogen_oxo_part(mol, halogen)
     if atom.GetAtomicNum() not in _HALOGEN_STEMS or atom.GetDegree() < 2:
         return False
-    parents = [n for n in atom.GetNeighbors() if n.GetAtomicNum() != 8 or n.GetDegree() != 1]
+    parents = [n for n in atom.GetNeighbors() if n.GetAtomicNum() not in _HALOGEN_CHALCOGENS or n.GetDegree() != 1]
     return len(parents) == 1 and halogen_oxo_prefix(mol, atom.GetIdx(), parents[0].GetIdx()) is not None
 
 
@@ -1404,9 +1421,9 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     order = int(mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble())
     others = [n for n in graph[root] if n != coming_from]
     if order > 1:
-        if any(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0 for n in others):
+        if any(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0 and not _oxo_atom(mol, root, n) for n in others):
             raise UnsupportedStructure("this mononuclear ylidene group is not supported yet")
-        bonding = order + len(others)
+        bonding = order + sum(int(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble()) for n in others)
         if bonding > valence and (bonding - valence) % 2 or bonding > valence + 4:
             raise UnsupportedStructure("this mononuclear ylidene group is not supported yet")
         entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in others]
@@ -1429,13 +1446,62 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         found = _pnictogen_oxo_group(graph, root, halogens, aromatic_atoms, mol, others)
         if found is not None:
             return found
-    if sum(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() for n in others) > valence - 1:
+    bonding = 1 + sum(int(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble()) for n in others)
+    if bonding > valence and ((bonding - valence) % 2 or bonding > valence + 4):
         raise UnsupportedStructure("this mononuclear group carries a multiple bond")
-    if atom.GetAtomicNum() == 5 and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 8 for n in others):
+    hydroxyls = [n for n in others if _hydroxy_oxygen(mol, n)]
+    if atom.GetAtomicNum() == 5 and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 8 for n in others) and not any(
+        mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON
+    ):
         raise UnsupportedStructure("a boron group with a hydroxy or alkoxy substituent is a boronic or borinic acid (P-67.1.1)")
+    if atom.GetAtomicNum() == 5 and len(hydroxyls) == 2 and len(others) == 2:
+        return "borono", False
     entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in others]
     prefix = format_mononuclear_prefixes(entries) if entries else ""
+    if bonding > valence:
+        return (prefix + "-" if prefix else "") + f"λ{bonding}-" + base, True
     return prefix + base, bool(entries)
+
+
+ACIDS_SENIOR_TO_BORON = [
+    Chem.MolFromSmarts(smarts) for smarts in ("[CX3](=O)[OX2H1]", "[#16,#34,#52;X3,X4](=O)[OX2H1]")
+]
+
+
+def _aci_nitro_ligands(mol, nitrogen, others, order):
+    """The hydroxy or alkoxy oxygen of an aci-nitro group =N(O)OR (neutral or as the zwitterion C=N+(O-)OR), else None."""
+    atom = mol.GetAtomWithIdx(nitrogen)
+    if order != 2 or len(others) != 2 or atom.GetFormalCharge() not in (0, 1):
+        return None
+    neutral = atom.GetFormalCharge() == 0
+    oxo = [n for n in others if (_oxo_atom(mol, nitrogen, n) if neutral else _oxide_atom(mol, n))]
+    rest = [n for n in others if n not in oxo]
+    if len(oxo) != 1 or len(rest) != 1:
+        return None
+    ether = mol.GetAtomWithIdx(rest[0])
+    if ether.GetAtomicNum() != 8 or ether.GetFormalCharge() or mol.GetBondBetweenAtoms(nitrogen, rest[0]).GetBondTypeAsDouble() != 1.0:
+        return None
+    return rest
+
+
+def _oxide_atom(mol, n):
+    atom = mol.GetAtomWithIdx(n)
+    return atom.GetAtomicNum() == 8 and atom.GetDegree() == 1 and atom.GetFormalCharge() == -1
+
+
+def _oxo_atom(mol, centre, n):
+    atom = mol.GetAtomWithIdx(n)
+    return (
+        atom.GetAtomicNum() == 8
+        and atom.GetDegree() == 1
+        and not atom.GetFormalCharge()
+        and mol.GetBondBetweenAtoms(centre, n).GetBondTypeAsDouble() == 2.0
+    )
+
+
+def _hydroxy_oxygen(mol, n):
+    atom = mol.GetAtomWithIdx(n)
+    return atom.GetAtomicNum() == 8 and atom.GetDegree() == 1 and atom.GetTotalNumHs() == 1 and not atom.GetFormalCharge()
 
 
 def _chain_stem(z):

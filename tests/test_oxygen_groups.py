@@ -1176,3 +1176,15 @@ def test_ester_end_carbon_joins_the_substituent_chain(smiles, expected):
 )
 def test_diesters_of_a_ring_joined_to_identical_chains(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CCN(CC)C(=S)S[Sb](C(C)C)C(C)C", "diethylcarbamothioic di(propan-2-yl)stibinous thioanhydride"),
+        ("O=C(c1ccccc1)OI", "benzoic hypoiodous anhydride"),
+        ("CB(C)OOB(C)C", "dimethylborinic peroxyanhydride"),
+    ],
+)
+def test_anhydrides_of_stibinous_halogen_and_boron_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

@@ -31,7 +31,7 @@ def _oxo_halogens(mol):
             continue
         prefix = halogen_oxo_prefix(mol, atom.GetIdx(), carbons[0].GetIdx())
         if prefix is not None:
-            found[atom.GetIdx()] = prefix
+            found[atom.GetIdx()] = prefix if prefix.startswith(("chlor", "brom", "iod", "fluor", "per")) else enclose(prefix)
     return found
 
 
@@ -47,7 +47,7 @@ def name_halogen_oxo(mol) -> str:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
     owned = set(groups)
     for idx in groups:
-        owned.update(n.GetIdx() for n in mol.GetAtomWithIdx(idx).GetNeighbors() if n.GetAtomicNum() == 8)
+        owned.update(n.GetIdx() for n in mol.GetAtomWithIdx(idx).GetNeighbors() if n.GetAtomicNum() in (8, 16, 34, 52))
     ring_atoms = frozenset()
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1 and is_plain_benzene_ring(mol, set(ring_info.AtomRings()[0])):

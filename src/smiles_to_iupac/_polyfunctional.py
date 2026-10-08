@@ -2048,7 +2048,9 @@ def _junior_hydride_atom(mol, atom, center_z):
     )
 
 
-_NITROGEN_GROUP_PREFIXES = {"nitro", "nitroso", "azido", "isocyano", "isocyanato", "isothiocyanato"}
+_NITROGEN_GROUP_PREFIXES = {
+    "nitro", "nitroso", "azido", "isocyano", "isocyanato", "isothiocyanato", "isoselenocyanato", "isotellurocyanato",
+}
 
 
 def _nitrogen_group_prefix(mol, graph, atom, parent, halogens, aromatic_atoms):
@@ -2101,6 +2103,7 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
             for m in graph[n]
             if m != index
         )
+        and not _nitrogen_group_prefix(mol, graph, n, index, halogens, aromatic_atoms)
     ]
     suffix_atoms = chalcogenols[principal_word] if principal_word else []
     others = [n for n in neighbors if n not in suffix_atoms and n not in amines]

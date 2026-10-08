@@ -44,6 +44,7 @@ _PSEUDOHALIDES = (
     ("[N;D2]=[N+]=[N-]", "azid", "azide"),
 )
 _PSEUDOHALIDE_PATTERNS = [(Chem.MolFromSmarts(s), infix, term) for s, infix, term in _PSEUDOHALIDES]
+_ANHYDRIDE_PSEUDOHALIDES = frozenset({"cyanate", "thiocyanate", "selenocyanate", "tellurocyanate"})
 _CLASS_ORDER = ["bromide", "chloride", "fluoride", "iodide", "azide", "cyanide", "isocyanide", "isocyanate", "cyanate",
                 "thiocyanate", "isothiocyanate", "selenocyanate", "isoselenocyanate", "tellurocyanate"]
 _PARENTHESIZED = ("thiocyanatid", "selenocyanatid", "tellurocyanatid", "peroxo")
@@ -292,9 +293,19 @@ def _acid_parts(mol):
 
 def has_noncarbon_oxoacid_shape(mol) -> bool:
     try:
-        return _acid_parts(mol) is not None
+        parts = _acid_parts(mol)
     except UnsupportedStructure:
         return False
+    if parts is None:
+        return False
+    singles = parts["singles"]
+    anhydride_only = (
+        not any(x["H"] for x in singles)
+        and not any(x["kind"] == "ester" for x in singles)
+        and any(x.get("term") in _ANHYDRIDE_PSEUDOHALIDES for x in singles)
+        and not any(x.get("term") not in _ANHYDRIDE_PSEUDOHALIDES for x in singles if x["kind"] == "pseudohalide")
+    )
+    return not anhydride_only
 
 
 def _assign_letters(groups):
@@ -446,6 +457,8 @@ def name_noncarbon_oxoacid(mol) -> str:
                 break
         if not class_members:
             raise UnsupportedStructure("an acid centre with no replaceable class is not named here")
+        if any(s["term"] in _ANHYDRIDE_PSEUDOHALIDES for s in class_members):
+            raise UnsupportedStructure("cyanates and thiocyanates are anhydrides of cyanic acids, not acid pseudohalides")
         class_terms = sorted((s["term"] for s in class_members), key=lambda t: (_CLASS_ORDER.index(t) if t in _CLASS_ORDER else 99, t))
 
     groups = [p for p in (*ylidenes, *singles) if p["kind"] in ("amide", "imide", "hydrazide", "hydrazone")]

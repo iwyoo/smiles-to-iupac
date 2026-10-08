@@ -316,6 +316,6 @@ def _nitrogen_prefixes(mol, graph, center, amino, imine_n, x):
                     entries.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
     if not entries:
         return ""
-    if amino is not None and imine_n is None and x == "O":
+    if amino is not None and imine_n is None and x in ("O", "S", "Se", "Te"):
         return single_site_prefixes(entries)
     return format_substituent_prefixes(entries)
