@@ -287,6 +287,9 @@ def _mixed_valence_text(diyl, free, valence, position_of, orders):
     """'cyclohexan-1-yl-2-ylidene' from the diyl text 'cyclohexane-1,2-diyl': valences cited by increasing bond
     order (P-29.3.2.2)."""
     tail = f"-{_locs(free)}-{_yl(valence)}"
+    added = re.search(r"\((\d+H(?:,\d+H)*)\)(?=-[a-z]+$)", diyl)
+    if added:
+        diyl = diyl[: added.start()] + diyl[added.end():]
     if not diyl.endswith(tail):
         return None
     by_order = {}
@@ -294,7 +297,12 @@ def _mixed_valence_text(diyl, free, valence, position_of, orders):
         by_order.setdefault(int(order), []).append(position_of[atom])
     if any(order not in SUFFIX_OF_ORDER for order in by_order):
         return None
-    return attach(diyl[: -len(tail)], {order: sorted(locs) for order, locs in by_order.items()})
+    text = attach(diyl[: -len(tail)], {order: sorted(locs) for order, locs in by_order.items()})
+    if not added:
+        return text
+    if len(by_order[max(by_order)]) != 1:
+        return None
+    return re.sub(r"-(\d+)-(ylidene|ylidyne)$", lambda m: f"-{m.group(1)}({added.group(1)})-{m.group(2)}", text)
 
 
 CATION_CENTRES = contextvars.ContextVar("cation_centres", default=())

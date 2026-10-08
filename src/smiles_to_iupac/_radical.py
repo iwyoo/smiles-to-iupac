@@ -446,6 +446,7 @@ _OXYL_RETAINED = {
     "butyl": "butoxyl",
     "tert-butyl": "tert-butoxyl",
     "phenyl": "phenoxyl",
+    "amino": "aminoxyl",
 }
 _CHALCOGEN_RADICAL_SUFFIXES = {8: "oxyl", 16: "sulfanyl", 34: "selanyl"}
 

@@ -147,6 +147,11 @@ def prefix_name(mol, root, from_atom, suffix_group=None, name_function=None, gro
         tail = SUFFIX_CARRIERS[suffix_group][1]
         head = "4-"
     if not name.startswith(head) or not name.endswith(tail) or len(name) <= len(head) + len(tail):
+        if suffix_group is None:
+            from ._common import adjacency
+            from ._substituents import name_branch
+
+            return name_branch(adjacency(mol), root, from_atom, {}, frozenset(), mol=mol, unsaturated=True)
         raise UnsupportedStructure(f"substituent prefix could not be extracted from {name!r}")
     raw = name[len(head) : len(name) - len(tail)]
     inner, enclosed = _split_enclosed(raw)
