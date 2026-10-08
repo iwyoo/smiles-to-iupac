@@ -182,6 +182,8 @@ def _classify(mol, graph, atom, skeleton_atoms, skeleton):
             return ("ester", x, other)
         if b.GetAtomicNum() == 6 and any(bd.GetBondTypeAsDouble() == 2.0 and bd.GetOtherAtom(b).GetAtomicNum() == 8 for bd in b.GetBonds()):
             return ("ester", x, other)
+        if b.GetAtomicNum() == 6 and other in skeleton_atoms:
+            raise UnsupportedStructure("an ether between two skeleton carbons is an anhydro bridge")
         if b.GetAtomicNum() == 6:
             return ("ether", x, other)
         raise UnsupportedStructure("unsupported oxygen substituent")
@@ -315,7 +317,7 @@ def _segment(locants, name, kind, compound):
     return f"{joined}-{multiplier}{group}"
 
 
-def _substituted_sugar_name(mol):
+def _substituted_sugar_name(mol, bridges=()):
     if any(a.GetAtomicNum() not in _ELEMENTS or a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms()):
         return None
     graph = adjacency(mol)
@@ -346,7 +348,7 @@ def _substituted_sugar_name(mol):
     hetero_sulfur = skeleton.ring and mol.GetAtomWithIdx(skeleton.hetero).GetAtomicNum() == 16
     if sum(kind in ("OH", "ether", "ester") for kind, _, _ in decorations.values()) < 2:
         return None
-    if all(kind == "OH" for kind, _, _ in decorations.values()) and not hetero_sulfur and not skeleton.ring:
+    if all(kind == "OH" for kind, _, _ in decorations.values()) and not hetero_sulfur and not skeleton.ring and not bridges:
         return None
     try:
         restored, atom_of = _restore(mol, graph, skeleton, decorations)
@@ -391,19 +393,73 @@ def _substituted_sugar_name(mol):
             entries.setdefault(("thio", "thio", "", False), []).append(skeleton.closing)
     except UnsupportedStructure:
         return None
-    segments = [
-        _segment(sorted(locants), key[0], key[2], key[3])
-        for key, locants in sorted(entries.items(), key=lambda item: alpha_sort_key(item[0][0]))
-    ]
+    cited = [(key[0], _segment(sorted(locants), key[0], key[2], key[3])) for key, locants in entries.items()]
+    for first, second in bridges:
+        if first not in skeleton.carbons or second not in skeleton.carbons:
+            return None
+        cited.append(("anhydro", "{},{}-anhydro".format(*sorted((skeleton.position(first), skeleton.position(second))))))
+    segments = [text for _, text in sorted(cited, key=lambda item: (alpha_sort_key(item[0]), item[1]))]
     name = ("-".join(segments) + "-" if segments else "") + core
     return f"{name} {ester_words([(a, sorted(l)) for a, l in esters.items()])}" if esters else name
 
 
 
+def _opened_ether(mol, oxygen, carbon):
+    """`mol` with the bond between the ether `oxygen` and `carbon` replaced by a hydroxy group on `carbon`, the
+    configuration of `carbon` kept."""
+    editable = Chem.RWMol(mol)
+    atom = editable.GetAtomWithIdx(carbon)
+    before = [n.GetIdx() for n in atom.GetNeighbors()]
+    tag = atom.GetChiralTag()
+    editable.RemoveBond(oxygen, carbon)
+    hydroxy = editable.AddAtom(Chem.Atom(8))
+    editable.AddBond(carbon, hydroxy, Chem.BondType.SINGLE)
+    after = [n.GetIdx() for n in editable.GetAtomWithIdx(carbon).GetNeighbors()]
+    order = [hydroxy if n == oxygen else n for n in before]
+    swaps = sum(1 for i in range(len(order)) for j in range(i + 1, len(order)) if after.index(order[i]) > after.index(order[j]))
+    if tag in (Chem.ChiralType.CHI_TETRAHEDRAL_CW, Chem.ChiralType.CHI_TETRAHEDRAL_CCW) and swaps % 2:
+        editable.GetAtomWithIdx(carbon).SetChiralTag(
+            Chem.ChiralType.CHI_TETRAHEDRAL_CCW if tag == Chem.ChiralType.CHI_TETRAHEDRAL_CW else Chem.ChiralType.CHI_TETRAHEDRAL_CW
+        )
+    opened = editable.GetMol()
+    for a in opened.GetAtoms():
+        a.SetNoImplicit(False)
+    Chem.SanitizeMol(opened)
+    return opened
+
+
+def _anhydro_name(mol):
+    """P-102.5.6.7.1: an ether between two skeleton carbons of a monosaccharide (1,6-anhydro-β-D-glucopyranose): the
+    ether is opened into two hydroxy groups, the sugar named, and 'anhydro' cited with the two locants."""
+    names = set()
+    for oxygen in mol.GetAtoms():
+        if oxygen.GetAtomicNum() != 8 or oxygen.GetDegree() != 2 or not oxygen.IsInRing():
+            continue
+        ends = [n.GetIdx() for n in oxygen.GetNeighbors()]
+        if any(mol.GetAtomWithIdx(e).GetAtomicNum() != 6 for e in ends):
+            continue
+        for kept, opened_end in (ends, ends[::-1]):
+            try:
+                opened = _opened_ether(mol, oxygen.GetIdx(), opened_end)
+                found = _substituted_sugar_name(opened, bridges=[(kept, opened_end)])
+            except (UnsupportedStructure, ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
+                continue
+            if found is not None:
+                names.add(found)
+    return next(iter(names)) if len(names) == 1 else None
+
+
 def substituted_sugar_name(mol):
+    errors = (UnsupportedStructure, ValueError, RuntimeError, Chem.rdchem.MolSanitizeException)
     try:
-        return _substituted_sugar_name(mol)
-    except (UnsupportedStructure, ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
+        found = _substituted_sugar_name(mol)
+    except errors:
+        found = None
+    if found is not None:
+        return found
+    try:
+        return _anhydro_name(mol)
+    except errors:
         return None
 
 

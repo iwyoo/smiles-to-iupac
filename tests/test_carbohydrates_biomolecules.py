@@ -495,3 +495,17 @@ def test_amino_acid_esters_ions_and_allo(smiles, expected):
 )
 def test_sugar_substituent_is_glycosyl_only_when_linked_at_the_anomeric_carbon(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C1[C@@H]2[C@H]([C@@H]([C@H]([C@H](O1)O2)O)O)O", "1,6-anhydro-β-D-glucopyranose", id="levoglucosan"),
+        pytest.param("C([C@@H]1[C@H]([C@@H]([C@H](O1)C=O)O)O)O", "2,5-anhydro-D-mannose", id="aldose_with_a_furan_bridge"),
+        pytest.param("CO[C@H]1[C@@H]([C@H](C=O)OC)OC[C@H]1OC", "3,6-anhydro-2,4,5-tri-O-methyl-D-glucose", id="anhydro_sorts_before_the_O_substituents"),
+        pytest.param("CO[C@H]1[C@@H]([C@@H](C=O)OC)OC[C@H]1OC", "3,6-anhydro-2,4,5-tri-O-methyl-D-mannose", id="anhydro_mannose_ether"),
+        pytest.param("O=C[C@H](O)[C@H]1OC[C@@H](O)[C@@H]1O", "3,6-anhydro-D-galactose", id="anhydro_galactose"),
+    ],
+)
+def test_intramolecular_anhydro_sugars(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
