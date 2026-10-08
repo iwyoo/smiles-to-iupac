@@ -25,6 +25,24 @@ def test_acyclic_alkane_stereocenter(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("ClC=[C@AL1]=CCl", "(1M)-1,3-dichloropropa-1,2-diene", id="allene_anticlockwise"),
+        pytest.param("ClC=[C@AL2]=CCl", "(1P)-1,3-dichloropropa-1,2-diene", id="allene_clockwise_is_the_enantiomer"),
+        pytest.param("NC(Br)=[C@AL1]=C(F)Cl", "(1P)-1-bromo-3-chloro-3-fluoropropa-1,2-dien-1-amine", id="priority_order_swaps_the_sense"),
+        pytest.param("OC(=O)C=[C@AL2]=C=C=CCl", "(2P)-6-chlorohexa-2,3,4,5-tetraenoic acid", id="even_cumulene_with_four_double_bonds"),
+        pytest.param("O[C@H](C)C=[C@AL1]=CCl", "(2R,3M)-5-chloropenta-3,4-dien-2-ol", id="axis_merged_into_the_stereo_set"),
+        pytest.param("C/C=C=C=C/C", "(2E)-hexa-2,3,4-triene", id="odd_cumulene_trans"),
+        pytest.param("C/C=C=C=C\\C", "(2Z)-hexa-2,3,4-triene", id="odd_cumulene_cis"),
+        pytest.param("CC=C=CC", "penta-2,3-diene", id="unspecified_allene_stays_bare"),
+        pytest.param("Cl[C@H]1C[C@]2(C1)C[C@@H](Cl)C2", "(2R,4S,6R)-2,6-dichlorospiro[3.3]heptane", id="spiro_atom_descriptor"),
+    ],
+)
+def test_axial_and_spiro_stereodescriptors(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("CC(C)(C)C1(C)CCCC(=O)C1", "3-tert-butyl-3-methylcyclohexan-1-one", id="tert_butyl_cited_before_methyl_on_ring"),
         pytest.param("Cc1ccc2c(c1)c1ccccc1c1ccccc21", "2-methyltriphenylene", id="substituted_branched_fusion_is_named"),
         pytest.param("c1nc[nH]n1", "1H-1,2,4-triazole", id="heteroaromatic"),

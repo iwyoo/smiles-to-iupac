@@ -229,7 +229,12 @@ def _is_azide(mol, atoms, root):
 
 def _cip_data(mol):
     ranked = Chem.Mol(mol)
-    Chem.AssignStereochemistry(ranked, cleanIt=True, force=True)
+    new_perception = not Chem.GetUseLegacyStereoPerception()
+    Chem.SetUseLegacyStereoPerception(True)
+    try:
+        Chem.AssignStereochemistry(ranked, cleanIt=True, force=True)
+    finally:
+        Chem.SetUseLegacyStereoPerception(not new_perception)
     ranks = {
         a.GetIdx(): a.GetIntProp("_CIPRank") if a.HasProp("_CIPRank") else 0
         for a in ranked.GetAtoms()
