@@ -356,6 +356,7 @@ def test_glycoglycerolipids(smiles, expected):
 
 
 # P-102.5.6.2, P-102.6.1, P-102.7 glycosides, glycosyl compounds and oligosaccharides
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles,expected",
     [
@@ -479,6 +480,7 @@ def test_amino_acid_esters_ions_and_allo(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles, expected",
     [

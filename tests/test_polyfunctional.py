@@ -1144,6 +1144,7 @@ def test_ring_and_hetero_groups_as_prefixes_use_one_ring_group_namer(smiles, exp
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles, expected",
     [

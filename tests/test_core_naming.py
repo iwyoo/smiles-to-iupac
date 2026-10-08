@@ -22,6 +22,7 @@ def test_acyclic_alkane_stereocenter(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles, expected",
     [
@@ -662,6 +663,7 @@ def test_halogen_oxo_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles,expected",
     [

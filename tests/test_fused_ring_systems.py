@@ -545,6 +545,7 @@ def test_phane_with_a_naphthalene_amplificant(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles,expected",
     [
@@ -670,6 +671,7 @@ def test_cyclophane_fused_to_its_ring_is_named_by_fusion():
     assert smiles_to_iupac("C1COc2ccccc2OCCOCCOc2ccccc2OCCO1") == "6,7,9,10,17,18,20,21-octahydrodibenzo[b,k][1,4,7,10,13,16]hexaoxacyclooctadecine"
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles, expected",
     [
@@ -686,6 +688,7 @@ def test_benzoheterocycle_beside_retained_polycycle_and_second_order_interparent
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 def test_bridge_selection_minimises_atoms_in_dependent_bridges():
     # P-25.4.3.4.2 (g): a one-atom dependent bridge (methano) beats ethano plus butano
     name = smiles_to_iupac("C1=CC2C=C3C=C4C5C=c6ccccc6=NC(CC(CC2)CC5)C4C=C13")

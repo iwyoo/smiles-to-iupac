@@ -258,6 +258,7 @@ def test_concatenated_linkers(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles,expected",
     [
@@ -450,6 +451,7 @@ def test_substituted_metal_linker_and_principal_group_count_between_parents(smil
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 def test_ring_unit_with_three_different_attachments_is_not_cited_as_a_triyl():
     with pytest.raises(NotImplementedError):
         smiles_to_iupac("CC(c1cc(CCCCS)c(CCCCS)cc1)C(C)c1cc(CCCCS)c(CCCCS)cc1")
