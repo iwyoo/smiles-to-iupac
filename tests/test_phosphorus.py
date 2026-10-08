@@ -482,3 +482,18 @@ def test_polyacid_substituent_is_flagged_as_not_preferred():
     with pytest.warns(NonPreferredNameWarning, match="P-67.2.6"):
         name = smiles_to_iupac("OC(=O)CCOP(=O)(O)OP(=O)(O)O")
     assert name == "3-{[hydroxy(phosphonooxy)phosphoryl]oxy}propanoic acid"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("BrP(=O)(Br)CCP(=O)(Cl)Cl", "(2-phosphorodibromidoylethyl)phosphonic dichloride"),
+        ("BrP(Br)(=O)CCP(=S)(Cl)Cl", "(2-phosphorodichloridothioylethyl)phosphonic dibromide"),
+        ("ClP(Cl)(=O)OCCOP(=O)(Cl)N", "2-(phosphoramidochloridoyloxy)ethyl phosphorodichloridate"),
+        ("OC(=O)CCP(=O)(N(C)C)N(C)C", "3-(tetramethylphosphorodiamidoyl)propanoic acid"),
+        ("OC(=O)CCP(=S)(OC)OC", "3-(dimethoxyphosphorothioyl)propanoic acid"),
+        ("OC(=O)CCP(=S)(S)S", "3-trithiophosphonopropanoic acid"),
+    ],
+)
+def test_infix_acyl_prefixes_and_senior_acid_derivative_among_centres(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
