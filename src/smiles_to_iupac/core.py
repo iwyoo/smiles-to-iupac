@@ -26,6 +26,7 @@ from ._amino_acid_derivative import has_amino_acid_shape, name_amino_acid
 from ._mixed_onium import has_mixed_onium_shape, name_mixed_onium
 from ._axial_stereo import cite_axial_stereo
 from ._chalcone import has_chalcone_shape, name_chalcone
+from ._hydrogen_cation import hydrogen_salt_name
 from ._silicic_cyanate import silicic_cyanate_name
 from ._borane_silane_amide import borane_silane_amide_name
 from ._polyborane import lewis_adduct_mol, polyborane_name
@@ -456,6 +457,10 @@ def smiles_to_iupac(smiles: str) -> str:
     legacy = Chem.GetUseLegacyStereoPerception()
     Chem.SetUseLegacyStereoPerception(False)
     try:
+        if "[H+]" in smiles:
+            hydrogen_salt = hydrogen_salt_name(smiles, smiles_to_iupac)
+            if hydrogen_salt is not None:
+                return hydrogen_salt
         name = cite_axial_stereo(smiles, _retained_polycycle_names(_smiles_to_iupac_unabridged(smiles)))
         mol = _parse_smiles(smiles)
         if mol is not None:
