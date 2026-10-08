@@ -1070,7 +1070,7 @@ def test_cationic_centres_named_by_skeletal_replacement_and_lambda_parents(smile
         pytest.param("NN[n+]1ccccc1", "1-hydrazinylpyridin-1-ium", id="hydrazinyl_on_the_cationic_nitrogen"),
         pytest.param("N[n+]1ccn(C)c1", "3-amino-1-methyl-1H-imidazol-3-ium", id="amino_beside_a_second_ring_nitrogen"),
         pytest.param("C[n+]1ccccc1NN", "2-hydrazinyl-1-methylpyridin-1-ium", id="hydrazinyl_on_a_ring_carbon"),
-        pytest.param("C[n+]1ccc(NNC)cc1", "1-methyl-4-(2-methylhydrazinyl)pyridin-1-ium", id="substituted_hydrazinyl_on_a_ring_carbon"),
+        pytest.param("C[n+]1ccc(NNC)cc1", "1-methyl-4-(2-methylhydrazin-1-yl)pyridin-1-ium", id="substituted_hydrazinyl_on_a_ring_carbon"),
         pytest.param("C[n+]1ccc(N=Nc2ccccc2)cc1", "1-methyl-4-(phenyldiazenyl)pyridin-1-ium", id="diazenyl_on_a_ring_carbon"),
     ],
 )

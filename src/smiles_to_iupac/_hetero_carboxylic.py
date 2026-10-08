@@ -30,6 +30,8 @@ def _hydrazine_acid(mol, found):
     ]
     if len(partners) != 1:
         return None
+    if mol.GetBondBetweenAtoms(first, partners[0]).GetBondTypeAsDouble() != 1.0:
+        raise UnsupportedStructure("a diazene is not a hydrazine parent")
     pair = (first, partners[0])
     if any(h not in pair for _, _, h in found) or len({g.spec for _, g, _ in found}) != 1:
         raise UnsupportedStructure("this hydrazine acid is not supported yet")

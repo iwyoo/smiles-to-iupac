@@ -1,71 +1,100 @@
-"""Hydroxylamine and its chalcogen analogues H2N-E-R (E = O, S, Se, Te): O-substituted hydroxylamines with any carbon group
-on the oxygen (P-68.3.1.1.1.2), 'O-(chloromethyl)hydroxylamine'; the O-carboxylic, O-carboxamide and O-sulfonic forms
-(P-68.3.1.1.1.4), 'hydroxylamine-O-carboxylic acid'; and the thio, seleno and telluro analogues (P-68.3.1.1.1.6),
-'S-methyl(thiohydroxylamine)'. The group R is named by the substituent machinery."""
+"""O-substituted hydroxylamines and their chalcogen analogues, single or multiplied (P-68.3.1.1.1.2, P-68.3.1.1.1.6):
+H2N-O-R is 'O-(chloromethyl)hydroxylamine', H2N-S-R is 'S-methyl(thiohydroxylamine)', and two or more such groups on one
+carbon skeleton are 'O,O'-(ethane-1,2-diyl)bis(hydroxylamine)'. The group R is named by the substituent machinery."""
 
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._numerals import multiplying_prefix
 from ._substituents import format_substituent_prefixes, name_branch
 
-_CHALCOGEN = {8: ("O", ""), 16: ("S", "thio"), 34: ("Se", "seleno"), 52: ("Te", "telluro")}
-_ACID_FORMS = {
-    "NOC(=O)O": "carboxylic acid",
-    "NOC(N)=O": "carboxamide",
-    "NOS(=O)(=O)O": "sulfonic acid",
-}
+_PARENT = {8: ("O", "hydroxylamine"), 16: ("S", "thiohydroxylamine"), 34: ("Se", "selenohydroxylamine"), 52: ("Te", "tellurohydroxylamine")}
 
 
-def _acid_form(mol):
-    return _ACID_FORMS.get(Chem.MolToSmiles(mol)) or _ACID_FORMS.get(Chem.MolToSmiles(Chem.MolFromSmiles(Chem.MolToSmiles(mol))))
+def _groups(mol):
+    """[(nitrogen, chalcogen, carbon)] of every H2N-X-C group, or None when the molecule is anything else."""
+    if len(Chem.GetMolFrags(mol)) != 1:
+        return None
+    found = []
+    for nitrogen in (a for a in mol.GetAtoms() if a.GetAtomicNum() == 7):
+        if nitrogen.GetDegree() != 1 or nitrogen.GetTotalNumHs() != 2 or nitrogen.GetFormalCharge():
+            return None
+        (chalcogen,) = nitrogen.GetNeighbors()
+        if chalcogen.GetAtomicNum() not in _PARENT or chalcogen.GetDegree() != 2 or chalcogen.GetFormalCharge() or chalcogen.IsInRing():
+            return None
+        root = next(n for n in chalcogen.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx())
+        if root.GetAtomicNum() not in (6, 16) or (
+            root.GetAtomicNum() == 16
+            and (chalcogen.GetAtomicNum() != 8 or not any(n.GetAtomicNum() == 6 for n in root.GetNeighbors()))
+        ):
+            return None
+        found.append((nitrogen, chalcogen, root))
+    if not found or len({c.GetAtomicNum() for _, c, _ in found}) != 1:
+        return None
+    members = {a.GetIdx() for n, c, _ in found for a in (n, c)}
+    for _, _, root in found:
+        if root.GetAtomicNum() == 16:
+            oxo = [n for n in root.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1]
+            members.update([root.GetIdx(), *(n.GetIdx() for n in oxo)])
+    if any(
+        a.GetIdx() not in members and (a.GetAtomicNum() not in (6, 9, 17, 35, 53) or a.GetFormalCharge() or a.GetIsotope())
+        for a in mol.GetAtoms()
+    ):
+        return None
+    return found
 
 
-def _atoms(mol):
-    nitrogens = [a for a in mol.GetAtoms() if a.GetAtomicNum() == 7]
-    if len(nitrogens) != 1 or len(Chem.GetMolFrags(mol)) != 1:
+def _bare_chalcogen_analogue(mol):
+    """'thiohydroxylamine' for H2N-SH and its selenium and tellurium analogues (the oxygen parent is hydroxylamine)."""
+    if mol.GetNumAtoms() != 2 or Chem.GetMolFrags(mol).__len__() != 1:
         return None
-    nitrogen = nitrogens[0]
-    if nitrogen.GetDegree() != 1 or nitrogen.GetTotalNumHs() != 2 or nitrogen.GetFormalCharge():
-        return None
-    (chalcogen,) = nitrogen.GetNeighbors()
-    if chalcogen.GetAtomicNum() not in _CHALCOGEN or chalcogen.GetFormalCharge() or chalcogen.IsInRing() or chalcogen.GetIsotope():
-        return None
-    if any(a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms()):
-        return None
-    if chalcogen.GetDegree() == 1:
-        return (nitrogen, chalcogen, None) if chalcogen.GetAtomicNum() != 8 else None
-    if chalcogen.GetDegree() != 2:
-        return None
-    root = next(n for n in chalcogen.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx())
-    if root.GetAtomicNum() != 6:
-        return None
-    allowed = (6, 7, 9, 17, 35, 53, chalcogen.GetAtomicNum())
-    if any(a.GetAtomicNum() not in allowed for a in mol.GetAtoms()):
-        return None
-    if sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() in _CHALCOGEN) != 1:
-        return None
-    return nitrogen, chalcogen, root
+    nitrogen = [a for a in mol.GetAtoms() if a.GetAtomicNum() == 7]
+    chalcogen = [a for a in mol.GetAtoms() if a.GetAtomicNum() in (16, 34, 52)]
+    if len(nitrogen) == 1 and len(chalcogen) == 1 and not any(a.GetFormalCharge() for a in mol.GetAtoms()):
+        return _PARENT[chalcogen[0].GetAtomicNum()][1]
+    return None
 
 
 def has_o_substituted_hydroxylamine_shape(mol) -> bool:
-    return _atoms(mol) is not None or _acid_form(mol) is not None
+    return _groups(mol) is not None or _bare_chalcogen_analogue(mol) is not None
 
 
 def name_o_substituted_hydroxylamine(mol) -> str:
-    acid = _acid_form(mol)
-    if acid is not None:
-        return f"hydroxylamine-O-{acid}"
-    found = _atoms(mol)
+    found = _groups(mol)
     if found is None:
-        raise UnsupportedStructure("not an O-substituted hydroxylamine or an analogue")
-    nitrogen, chalcogen, root = found
-    symbol, word = _CHALCOGEN[chalcogen.GetAtomicNum()]
-    parent = f"{word}hydroxylamine"
-    if root is None:
-        return parent
+        bare = _bare_chalcogen_analogue(mol)
+        if bare is None:
+            raise UnsupportedStructure("not an O-substituted hydroxylamine")
+        return bare
+    symbol, parent = _PARENT[found[0][1].GetAtomicNum()]
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
-    name, compound = name_branch(graph, root.GetIdx(), chalcogen.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True)
-    prefixes = format_substituent_prefixes({name: {"locants": [symbol], "compound": compound}})
-    return f"{prefixes}({parent})" if word else f"{prefixes}{parent}"
+    if len(found) == 1:
+        nitrogen, chalcogen, root = found[0]
+        name, compound = name_branch(graph, root.GetIdx(), chalcogen.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True)
+        prefix = format_substituent_prefixes({name: {"locants": [symbol], "compound": compound}})
+        return prefix + (parent if symbol == "O" else f"({parent})")
+    return _multiplied_name(mol, graph, found, symbol, parent)
+
+
+def _multiplied_name(mol, graph, found, symbol, parent):
+    from ._diester_ring_diyl import evaluate_skeleton, select_skeleton
+
+    matches = [(None, None, chalcogen, root) for _, chalcogen, root in found]
+    selection = select_skeleton(mol, graph, matches)
+    if selection is None:
+        raise UnsupportedStructure("no skeleton carries the hydroxylamine groups")
+    kind, body, pool = selection
+    options = [(kind, [path], set(path)) for path in body] if kind == "chain" else [(kind, body, pool)]
+    attach = [root.GetIdx() for _, _, root in found]
+    blocked = {chalcogen.GetIdx() for _, chalcogen, _ in found}
+    best = None
+    for option_kind, option_body, option_pool in options:
+        result = evaluate_skeleton(mol, graph, option_kind, option_body, option_pool, attach, blocked, "yl")
+        if result is not None and (best is None or result[0] < best[0]):
+            best = result
+    if best is None:
+        raise UnsupportedStructure("no admissible numbering places every hydroxylamine group on this skeleton")
+    locants = ",".join(symbol + "'" * k for k in range(len(found)))
+    return f"{locants}-({best[1]}){multiplying_prefix(len(found), compound=True)}({parent})"
