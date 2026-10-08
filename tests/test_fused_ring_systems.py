@@ -761,3 +761,8 @@ def test_large_ring_distorted_to_fit_peri_fusion_orientation():
         smiles_to_iupac("C1C=2C3=C(COC=COC=COC=COC=COC=CO1)C=CC=C3C=CC2")
         == "1H,18H-naphtho[1,8-rs][1,4,7,10,13,16]hexaoxacyclohenicosine"
     )
+
+
+def test_substituted_fused_system_with_two_indicated_hydrogens():
+    # P-31.1.4.2.4: the substituted 2H,4H parent keeps both indicated hydrogens
+    assert smiles_to_iupac("CC1OC2=C(O1)NC=N2") == "2-methyl-2H,4H-[1,3]dioxolo[4,5-d]imidazole"

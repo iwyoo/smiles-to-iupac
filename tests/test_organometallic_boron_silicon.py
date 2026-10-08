@@ -1057,3 +1057,19 @@ def test_stereodescriptor_of_a_mononuclear_hydride_parent(smiles, expected):
 )
 def test_noncarbon_hydride_parents_and_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("B(SC)(SC)SC", "trimethyl borotrithioate"),
+        ("B(OC)(O)SCC", "S-ethyl O-methyl hydrogen borothioate"),
+        ("CB(O)[O-]", "hydrogen methylboronate"),
+        ("CB([O-])[O-].[Na+].[Na+]", "disodium methylboronate"),
+        ("CB(C)[O-].[Na+]", "sodium dimethylborinate"),
+        ("C(CCC)BNBNBCCCC", "N,N'-bis(butylboranyl)boranediamine"),
+        ("C1(=CC=CC=C1)B1OC2=C(N=CN2)O1", "2-phenyl-2H,4H-[1,3,2]dioxaborolo[4,5-d]imidazole"),
+    ],
+)
+def test_boron_acid_esters_anions_boranediamines_and_fused_indicated_hydrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

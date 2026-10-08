@@ -2077,7 +2077,7 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
     ):
         return None
     if (suffix_atoms or amines) and (
-        z not in _GROUP_14 and not (amines and not suffix_atoms and z == 5) or (suffix_atoms and amines) or len(amines) > 1
+        z not in _GROUP_14 and not (amines and not suffix_atoms and z == 5) or (suffix_atoms and amines)
     ):
         return None
     entries = [name_branch(graph, n, index, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in others]
@@ -2087,16 +2087,23 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
         )
         return format_mononuclear_prefixes(entries) + suffix
     if amines:
-        (nitrogen,) = amines
         grouped = group_substituents({1: entries} if entries else {})
         n_entries = [
-            name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+            (*name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True), "N" + "'" * k)
+            for k, nitrogen in enumerate(amines)
             for n in graph[nitrogen]
             if n != index
         ]
         merged = _with_n_names(grouped, n_entries)
-        return format_substituent_prefixes(merged) + stem[:-1] + "amine"
+        suffix = stem[:-1] + "amine" if len(amines) == 1 else stem + multiplied_word(len(amines), "amine")
+        return format_substituent_prefixes(merged) + suffix
     return format_mononuclear_prefixes(entries) + stem
+
+
+def _amine_count(name):
+    """The number of amine suffixes of a hydride name: boranamine 1, boranediamine 2 (P-44.1.1)."""
+    match = re.search(r"(di|tri|tetra)amine$", name)
+    return {"di": 2, "tri": 3, "tetra": 4}[match.group(1)] if match else int(name.endswith("amine"))
 
 
 def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
@@ -2111,12 +2118,17 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     centers = [] if ring_cation else [a for a in mol.GetAtoms() if a.GetAtomicNum() in MONONUCLEAR_HYDRIDES and not a.IsInRing()]
     if centers:
         named = [
-            (_PARENT_HYDRIDE_ORDER.index(c.GetAtomicNum()) if c.GetAtomicNum() in _PARENT_HYDRIDE_ORDER else 99, n, c.GetIdx())
+            (
+                -_amine_count(n),
+                _PARENT_HYDRIDE_ORDER.index(c.GetAtomicNum()) if c.GetAtomicNum() in _PARENT_HYDRIDE_ORDER else 99,
+                n,
+                c.GetIdx(),
+            )
             for c in centers
             if (n := _mononuclear_parent(mol, graph, halogens, aromatic_atoms, c))
         ]
         if named:
-            _, name, center = min(named)
+            _, _, name, center = min(named)
             return ((0,), name, (None, None, None, 0, {center: 1}, False))
     if centers or (
         not ring_cation
