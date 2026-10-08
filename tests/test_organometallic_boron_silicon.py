@@ -60,6 +60,10 @@ def test_amides_and_cyanates_of_boron_and_silicon_acids(smiles, expected):
         pytest.param("CBB", "1-methyldiborane(4)", id="substituted_diborane"),
         pytest.param("CB(C)B(C)B(C)C", "1,1,2,3,3-pentamethyltriborane(5)", id="triborane_chain"),
         pytest.param("ClBB(Cl)Cl", "1,1,2-trichlorodiborane(4)", id="lowest_locants_for_prefixes"),
+        pytest.param("B=BB", "triborene(5)", id="double_bond_keeps_the_saturated_hydrogen_count"),
+        pytest.param("BB(B)B", "2-boranyltriborane(5)", id="branched_skeleton_cites_the_boron_branch"),
+        pytest.param("OC(=O)CBBB", "[triboran(5)-1-yl]acetic acid", id="senior_group_makes_the_chain_a_prefix"),
+        pytest.param("CB(C)OB(C)C", "tetramethyldiboroxane", id="full_substitution_omits_locants"),
     ],
 )
 def test_borane_chains(smiles, expected):
@@ -72,6 +76,7 @@ def test_borane_chains(smiles, expected):
         pytest.param("C[N+](C)(C)[B-](Cl)(Cl)Cl", "N,N-dimethylmethanamine—trichloroborane (1/1)", id="charge_separated_adduct"),
         pytest.param("N->B", "ammonia—borane (1/1)", id="dative_bond_adduct"),
         pytest.param("CC[S+](CC)[BH2-]C", "(ethylsulfanyl)ethane—methylborane (1/1)", id="sulfur_donor"),
+        pytest.param("CO[NH2+][BH3-]", "O-methylhydroxylamine(N—B)borane (1/1)", id="attachment_cited_for_several_donors"),
     ],
 )
 def test_lewis_adducts_of_boranes(smiles, expected):
@@ -309,6 +314,40 @@ def test_exocyclic_ylidene_name(smiles, expected):
     ],
 )
 def test_group13_hydride_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[Tl](C)O", "dimethylthallanol", id="group13_hydroxy_suffix"),
+        pytest.param("C[Al](C)[O-].[Na+]", "sodium dimethylalumanolate", id="group13_olate"),
+        pytest.param("[Ga](SSCC)(SSCC)SSCC", "tris(ethyldisulfanyl)gallane", id="disulfanyl_on_group13"),
+        pytest.param("C[Sn](C)(C)SC", "trimethyl(methylsulfanyl)stannane", id="sulfanyl_on_group14"),
+        pytest.param(
+            "CCCCCCCCCCCCCCCCCC(=O)O[Al](OC(=O)CCCCCCCCCCCCCCCCC)OC(=O)CCCCCCCCCCCCCCCCC",
+            "alumanetriyl tri(octadecanoate)",
+            id="pseudoester_of_one_hydride_atom",
+        ),
+        pytest.param(
+            "CCCC[Sn](CCCC)(OC(=O)CCC(=O)OC)OC(=O)CCC(=O)OC",
+            "dimethyl dibutylstannanediyl dibutanedioate",
+            id="pseudoester_beside_alkyl_esters",
+        ),
+        pytest.param("OC(=O)c1ccc(B(S)O)cc1", "4-(thioborono)benzoic acid", id="chalcogen_analogue_of_borono"),
+        pytest.param("Oc1ccc(BOB)cc1", "4-diboroxanylphenol", id="diboroxanyl_prefix"),
+        pytest.param(
+            "OC1CCCCC1C[BH]C[SiH2]C[SiH2]C[SiH2]C",
+            "2-(2,4,6-trisila-8-boranonan-9-yl)cyclohexan-1-ol",
+            id="skeletal_replacement_prefix_with_boron",
+        ),
+        pytest.param("C[Al]1CCCC2CCCCC12", "1-methyldecahydro-1-benzaluminine", id="hydro_prefixes_on_an_aluminium_ring"),
+        pytest.param(
+            "CCOB(c1ccccc1)OSC", "O-ethyl OS-methyl phenylborono(thioperoxoate)", id="boron_acid_ester_with_a_peroxy_group"
+        ),
+    ],
+)
+def test_group13_and_boron_acid_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

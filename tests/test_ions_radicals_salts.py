@@ -254,7 +254,7 @@ def test_dipolar_compounds(smiles, expected):
 def test_unsupported_base_fragment():
     assert (
         smiles_to_iupac("c1ccccc1CC(=O)Nc1ccccc1C(=O)OCCCC.Cl")
-        == "butyl 2-(2-phenylacetamido)benzoate;hydrochloride"
+        == "butyl 2-(2-phenylacetamido)benzoate—hydrogen chloride (1/1)"
     )
 
 

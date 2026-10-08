@@ -40,7 +40,7 @@ from ._polyspiro import (
 )
 from ._spiro import find_monospiro_atom, iter_monospiro_numberings
 from ._unsaturated import _unsaturation_suffix_from_citations
-from ._common import multiplied_word, sanitize_probe
+from ._common import multiplied_word, reparsable_smiles, sanitize_probe
 
 _SENIORITY = ["F", "Cl", "Br", "I", "O", "S", "Se", "Te", "N", "P", "As", "Sb", "Bi", "Si", "Ge", "Sn", "Pb", "B", "Al", "Ga", "In", "Tl"]
 _RANK = {e: i for i, e in enumerate(_SENIORITY)}
@@ -701,7 +701,7 @@ def _named_mancude(mol, skeleton_atoms, sp3):
     from .core import smiles_to_iupac
 
     for bare, new_of, old_of in _mancude_candidates(mol, skeleton_atoms, sp3):
-        smiles = Chem.MolToSmiles(bare)
+        smiles = reparsable_smiles(bare)
         if smiles in _MANCUDE_IN_PROGRESS.get():
             continue
         token = _MANCUDE_IN_PROGRESS.set(_MANCUDE_IN_PROGRESS.get() | {smiles})

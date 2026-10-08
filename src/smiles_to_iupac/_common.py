@@ -193,6 +193,18 @@ def sanitize_probe(mol):
         Chem.SanitizeMol(mol)
 
 
+def reparsable_smiles(mol):
+    """Canonical SMILES, or its Kekule form when the canonical one does not parse back, as for a ring whose aluminium,
+    gallium, indium or thallium atom is written without an aromatic symbol beside aromatic carbons."""
+    smiles = Chem.MolToSmiles(mol)
+    with rdBase.BlockLogs():
+        if Chem.MolFromSmiles(smiles) is not None:
+            return smiles
+    kekule = Chem.Mol(mol)
+    Chem.Kekulize(kekule, clearAromaticFlags=True)
+    return Chem.MolToSmiles(kekule, kekuleSmiles=True)
+
+
 def adjacency(mol):
     graph = {atom.GetIdx(): [] for atom in mol.GetAtoms()}
     for bond in mol.GetBonds():

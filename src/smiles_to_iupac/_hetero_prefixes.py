@@ -81,7 +81,7 @@ def _dichalcogenide_only(mol):
     """Every contiguous run of chalcogen atoms is a pair joining two carbon groups (a disulfide, diselenide, ditelluride or a
     mixed S-O, Se-S pair): two contiguous chalcogens are a prefix on a carbon parent, only three or more form a parent
     hydride of their own (P-68.4.1.1, P-63.3.2)."""
-    hosts = (6, 14, 32, 50, 82)
+    hosts = (6, 5, 13, 14, 31, 32, 49, 50, 81, 82)
     if any(a.GetAtomicNum() not in (1, 8, 9, 17, 35, 53, 16, 34, 52, *hosts) for a in mol.GetAtoms()):
         return False
     pairs = 0
@@ -543,8 +543,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return _oxoacid_anion_prefix(graph, root, coming_from, mol)
     if z == 5 and EXTENDED_PREFIXES.get() and not atom.GetFormalCharge():
         others = [n for n in graph[root] if n != coming_from]
-        if len(others) == 2 and all(_terminal_hydroxy(mol, n, root) for n in others):
-            return "borono", False
+        borono = _borono_prefix(mol, root, others)
+        if borono is not None:
+            return borono, borono != "borono"
     if z in MONONUCLEAR_HYDRIDES and not atom.IsInRing():
         return _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if z in _HALOGEN_STEMS:
@@ -1237,6 +1238,33 @@ def _anionic_group(mol, root, coming_from):
     raise UnsupportedStructure("this anionic substituent group is not supported yet")
 
 
+_CHALCOGEN_REPLACEMENT = {16: "thio", 34: "seleno", 52: "telluro"}
+
+
+def _terminal_chalcogenol(mol, idx, center):
+    atom = mol.GetAtomWithIdx(idx)
+    return (
+        atom.GetAtomicNum() in (8, 16, 34, 52)
+        and atom.GetDegree() == 1
+        and atom.GetTotalNumHs() == 1
+        and not atom.GetFormalCharge()
+        and mol.GetBondBetweenAtoms(center, idx).GetBondTypeAsDouble() == 1.0
+    )
+
+
+def _borono_prefix(mol, root, others):
+    """'borono' for (HO)2B-; its chalcogen analogues use replacement prefixes: 'thioborono', 'diselenoborono' (P-68.1.4.2)."""
+    if len(others) != 2 or not all(_terminal_chalcogenol(mol, n, root) for n in others):
+        return None
+    counts = {}
+    for n in others:
+        z = mol.GetAtomWithIdx(n).GetAtomicNum()
+        if z != 8:
+            counts[_CHALCOGEN_REPLACEMENT[z]] = counts.get(_CHALCOGEN_REPLACEMENT[z], 0) + 1
+    words = "".join((multiplying_prefix(count) if count > 1 else "") + word for word, count in sorted(counts.items()))
+    return words + "borono"
+
+
 def _terminal_hydroxy(mol, idx, center):
     atom = mol.GetAtomWithIdx(idx)
     return (
@@ -1436,12 +1464,12 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         for n in others
     ):
         return _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
-    if atom.GetAtomicNum() == 14 and any(
+    if atom.GetAtomicNum() in _OXANE_ELEMENTS and any(
         mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() == 2 and not mol.GetAtomWithIdx(n).GetFormalCharge()
-        and any(m != root and mol.GetAtomWithIdx(m).GetAtomicNum() == 14 for m in graph[n])
+        and any(m != root and mol.GetAtomWithIdx(m).GetAtomicNum() == atom.GetAtomicNum() for m in graph[n])
         for n in others
     ):
-        return _siloxanyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
+        return _oxanyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if atom.GetAtomicNum() in _OXOACID_GROUP:
         found = _pnictogen_oxo_group(graph, root, halogens, aromatic_atoms, mol, others)
         if found is not None:
@@ -1454,8 +1482,10 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         mol.HasSubstructMatch(query) for query in ACIDS_SENIOR_TO_BORON
     ):
         raise UnsupportedStructure("a boron group with a hydroxy or alkoxy substituent is a boronic or borinic acid (P-67.1.1)")
-    if atom.GetAtomicNum() == 5 and len(hydroxyls) == 2 and len(others) == 2:
-        return "borono", False
+    if atom.GetAtomicNum() == 5:
+        borono = _borono_prefix(mol, root, others)
+        if borono is not None:
+            return borono, borono != "borono"
     entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in others]
     prefix = format_mononuclear_prefixes(entries) if entries else ""
     if bonding > valence:
@@ -1596,6 +1626,8 @@ def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return prefix + base, True
     word = multiplying_prefix(longest) + stem[:-1]
     base = word + "yl" if longest == 2 and attach == 1 else f"{word}-{attach}-yl"
+    if z in _GROUP_13_CHAIN and not ene:
+        base = f"{word}({longest + 2})-{attach}-yl"
     ylidene_only = bool(grouped) and all(name.endswith("ylidene") for name in grouped)
     if z == 7 and longest == 2 and attach == 1:
         # P-29.3.1: a substituted hydrazinyl cites its free valence ('2-phenylhydrazin-1-yl'); an ylidene group can only
@@ -1607,12 +1639,17 @@ def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     return prefix + base, bool(prefix) or "-" in base
 
 
-def _siloxanyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
-    """disiloxanyl, trisiloxan-1-yl: an unbranched Si-O-Si... chain attached through a terminal silicon."""
+_OXANE_ELEMENTS = {5, 13, 14, 31, 32, 49, 50, 81, 82}
+_GROUP_13_CHAIN = {5, 13, 31, 49, 81}
+
+
+def _oxanyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
+    """disiloxanyl, diboroxanyl, trisiloxan-1-yl: an unbranched E-O-E... chain attached through a terminal atom E (P-68.1.2)."""
     from ._common import group_substituents
-    from ._numerals import multiplying_prefix
+    from ._hydride_chain import _alternating_parent
     from ._substituents import format_substituent_prefixes, name_branch
 
+    element = mol.GetAtomWithIdx(root).GetAtomicNum()
     walk, previous = [root], coming_from
     while True:
         bridges = [
@@ -1620,16 +1657,16 @@ def _siloxanyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
             for n in graph[walk[-1]]
             if n != previous
             and mol.GetAtomWithIdx(n).GetAtomicNum() == 8
-            and any(m != walk[-1] and mol.GetAtomWithIdx(m).GetAtomicNum() == 14 for m in graph[n])
+            and any(m != walk[-1] and mol.GetAtomWithIdx(m).GetAtomicNum() == element for m in graph[n])
         ]
         if not bridges:
             break
         if len(bridges) > 1:
-            raise UnsupportedStructure("a branched siloxane substituent is not supported yet")
-        (silicon,) = [m for m in graph[bridges[0]] if m != walk[-1]]
+            raise UnsupportedStructure("a branched oxane substituent is not supported yet")
+        (centre,) = [m for m in graph[bridges[0]] if m != walk[-1]]
         if mol.GetAtomWithIdx(bridges[0]).GetDegree() != 2:
-            raise UnsupportedStructure("this siloxane substituent is not supported yet")
-        walk += [bridges[0], silicon]
+            raise UnsupportedStructure("this oxane substituent is not supported yet")
+        walk += [bridges[0], centre]
         previous = bridges[0]
     chain = set(walk)
     subs = {}
@@ -1638,10 +1675,11 @@ def _siloxanyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
             if n in chain or n == coming_from:
                 continue
             if mol.GetAtomWithIdx(n).GetAtomicNum() not in (6,) and n not in halogens:
-                raise UnsupportedStructure("this siloxane substituent carries something other than organyl groups")
+                raise UnsupportedStructure("this oxane substituent carries something other than organyl groups")
             subs.setdefault(i + 1, []).append(name_branch(graph, n, atom, halogens, aromatic_atoms, mol=mol))
     grouped = group_substituents(subs)
-    silicon = (len(walk) + 1) // 2
-    base = multiplying_prefix(silicon) + "siloxan" + ("yl" if silicon == 2 else "-1-yl")
+    count = (len(walk) + 1) // 2
+    parent = _alternating_parent(element, 8, count)
+    base = parent[:-1] + "yl" if count == 2 else parent[:-1] + "-1-yl"
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     return prefix + base, bool(prefix) or "-" in base

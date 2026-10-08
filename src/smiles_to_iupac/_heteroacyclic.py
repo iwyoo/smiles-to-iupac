@@ -30,7 +30,7 @@ from ._substituents import BRANCH_STEREO, format_substituent_prefixes, name_bran
 
 _A_WORD = {
     8: "oxa", 16: "thia", 34: "selena", 52: "tellura", 7: "aza", 15: "phospha", 33: "arsa", 51: "stiba", 83: "bisma",
-    14: "sila", 32: "germa", 50: "stanna", 82: "plumba", 5: "bora", 13: "aluma", 31: "galla", 49: "indiga", 81: "thalla",
+    14: "sila", 32: "germa", 50: "stanna", 82: "plumba", 5: "bora", 13: "alumina", 31: "galla", 49: "inda", 81: "thalla",
 }
 _A_ORDER = [8, 16, 34, 52, 7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81]
 _STANDARD_VALENCE = {15: 3, 33: 3, 51: 3, 83: 3, 14: 4, 32: 4, 50: 4, 82: 4, 5: 3, 13: 3, 31: 3, 49: 3, 81: 3}

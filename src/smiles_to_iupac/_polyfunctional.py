@@ -2086,6 +2086,7 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
 
 
 _GROUP_14 = (14, 32, 50, 82)
+_GROUP_13_METALS = (13, 31, 49, 81)
 _CHALCOGENOL_WORDS = {8: "ol", 16: "thiol", 34: "selenol", 52: "tellurol"}
 
 
@@ -2163,7 +2164,7 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
     suffix_atoms = chalcogenols[principal_word] if principal_word else []
     others = [n for n in neighbors if n not in suffix_atoms and n not in amines]
     if any(
-        mol.GetAtomWithIdx(n).GetAtomicNum() not in (6, 8, *HALOGEN_PREFIXES)
+        mol.GetAtomWithIdx(n).GetAtomicNum() not in (6, 8, 16, 34, 52, *HALOGEN_PREFIXES)
         and n not in junior_chalcogenols
         and not _nitrogen_group_prefix(mol, graph, n, index, halogens, aromatic_atoms)
         and not _junior_hydride_atom(mol, n, z)
@@ -2171,7 +2172,7 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
     ):
         return None
     if (suffix_atoms or amines) and (
-        z not in _GROUP_14 and not (amines and not suffix_atoms and z == 5) or (suffix_atoms and amines)
+        z not in (*_GROUP_14, *_GROUP_13_METALS) and not (amines and not suffix_atoms and z == 5) or (suffix_atoms and amines)
     ):
         return None
     entries = [name_branch(graph, n, index, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in others]

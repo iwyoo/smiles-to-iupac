@@ -1,14 +1,18 @@
-"""Skeletal-replacement ('a') substituent groups (P-29.3.2.2, P-29.3.3, P-15.4.3): an unbranched C/N/O/S chain
-with four or more heteroatoms, or a saturated heteromonocycle of eleven or more members, entered at a carbon."""
+"""Skeletal-replacement ('a') substituent groups (P-29.3.2.2, P-29.3.3, P-15.4.3): an unbranched chain of carbon and
+heteroatoms (O, S, N, Si, B, ...) with four or more heteroatoms, or a saturated heteromonocycle of eleven or more
+members, entered at a carbon."""
 
 from rdkit import Chem
 
 from ._numerals import alkane_name, multiplying_prefix
 from ._common import UnsupportedStructure
 
-_ALLOWED = {6, 7, 8, 16}
-_A_PREFIX = {8: "oxa", 16: "thia", 7: "aza"}
-_SENIORITY = [8, 16, 7]
+_A_PREFIX = {
+    8: "oxa", 16: "thia", 34: "selena", 52: "tellura", 7: "aza", 15: "phospha", 33: "arsa", 51: "stiba", 83: "bisma",
+    14: "sila", 32: "germa", 50: "stanna", 82: "plumba", 5: "bora", 13: "alumina", 31: "galla", 49: "inda", 81: "thalla",
+}
+_ALLOWED = {6, *_A_PREFIX}
+_SENIORITY = [8, 16, 34, 52, 7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81]
 
 
 def _arm(graph, root, coming_from):
@@ -32,7 +36,10 @@ def _locant_text(hetero):
 
 def _plain(mol, atoms, coming_from, root):
     if any(
-        mol.GetAtomWithIdx(a).GetAtomicNum() not in _ALLOWED or mol.GetAtomWithIdx(a).GetFormalCharge() or mol.GetAtomWithIdx(a).GetIsotope()
+        mol.GetAtomWithIdx(a).GetAtomicNum() not in _ALLOWED
+        or mol.GetAtomWithIdx(a).GetFormalCharge()
+        or mol.GetAtomWithIdx(a).GetIsotope()
+        or mol.GetAtomWithIdx(a).GetNumRadicalElectrons()
         for a in atoms
     ):
         return False

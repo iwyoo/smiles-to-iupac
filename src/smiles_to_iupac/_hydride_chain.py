@@ -82,7 +82,7 @@ def _chain_atoms(mol, graph, skip_nitrogen=False, allow_double=False, allow_trip
 _ALTERNATING_ORDER = (8, 16, 34, 52, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81)
 _A_TERMS = {
     8: "oxa", 16: "thia", 34: "selena", 52: "tellura", 15: "phospha", 33: "arsa", 51: "stiba", 83: "bisma", 14: "sila",
-    32: "germa", 50: "stanna", 82: "plumba", 5: "bora", 13: "alumina", 31: "gallia", 49: "india", 81: "thallia",
+    32: "germa", 50: "stanna", 82: "plumba", 5: "bora", 13: "alumina", 31: "galla", 49: "inda", 81: "thalla",
 }
 _DIVALENT = {8, 16, 34, 52}
 
@@ -256,7 +256,9 @@ def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
         )
         if alternating is not None:
             parent = _alternating_parent(alternating[0], alternating[1], (len(chain) + 1) // 2, ene, yne)
-            omit = not lam and len(chain) == 3 and sum(len(info["locants"]) for info in grouped.values()) == 1
+            cited = sum(len(info["locants"]) for info in grouped.values())
+            fully_substituted = len(grouped) == 1 and all(mol.GetAtomWithIdx(a).GetTotalNumHs() == 0 for a in chain)
+            omit = not lam and ((len(chain) == 3 and cited == 1) or fully_substituted)
         elif unsaturated:
             parent, omit = _unsaturated_parent(z, len(chain), ene, yne, grouped)
         else:
