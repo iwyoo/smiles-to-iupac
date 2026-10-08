@@ -213,7 +213,7 @@ def test_hydroxy_monospiro_ketone(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("C1C2CC3CC(C2)(CC1C3=O)O", "5-hydroxytricyclo[3.3.1.1^3,7]decan-2-one"),
+        ("C1C2CC3CC(C2)(CC1C3=O)O", "5-hydroxyadamantan-2-one"),
     ],
 )
 def test_hydroxy_von_baeyer_ketone(smiles, expected):
