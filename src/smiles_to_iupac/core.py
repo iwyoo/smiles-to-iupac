@@ -214,6 +214,9 @@ from ._hetero_monocyclic import (
     name_hetero_monocyclic_substituent,
     name_pyran_indicated_hydrogen,
 )
+from ._carbene_amine import has_carbene_amine_shape, name_carbene_amine
+from ._carbon_monoxide import has_carbon_monoxide_shape, name_carbon_monoxide
+from ._hetaryne import has_hetaryne_shape, name_hetaryne
 from ._didehydro_ring import has_didehydro_ring_name, name_didehydro_ring
 from ._chalcogen_chain_heterone import name_chalcogen_chain_heterone
 from ._halogen_acid_ester import name_halogen_acid_ester
@@ -281,6 +284,9 @@ from ._functional_replacement_oxoacid import (
     has_functional_replacement_oxoacid_shape,
     name_functional_replacement_oxoacid,
 )
+from ._unsaturated_hydride_chain import has_unsaturated_hydride_chain_shape, name_unsaturated_hydride_chain
+from ._ring_imine import has_ring_imine_shape, name_ring_imine
+from ._methanediimine import has_methanediimine_shape, name_methanediimine
 from ._phosphanone import has_phosphanimine_shape, has_phosphanone_shape, name_phosphanimine, name_phosphanone
 from ._mononuclear_oxoacid import has_mononuclear_oxoacid_shape, name_mononuclear_oxoacid
 from ._sulfuric_amide import has_sulfuric_amide_shape, name_sulfuric_amide
@@ -513,6 +519,8 @@ _HYDRIDE_RADICAL_ELEMENTS = {5, 13, 14, 15, 31, 32, 33, 49, 50, 51, 81, 82, 83}
 
 
 def _require_radicals_cited(mol, name):
+    if has_carbon_monoxide_shape(mol) or has_carbene_amine_shape(mol):
+        return
     if any(
         a.GetNumRadicalElectrons() and a.GetAtomicNum() in _HYDRIDE_RADICAL_ELEMENTS and (a.GetDegree() or not a.GetFormalCharge())
         for a in mol.GetAtoms()
@@ -676,6 +684,10 @@ def _name_unabridged(smiles: str) -> str:
             return _METHYLBENZENES[Chem.MolToSmiles(parsed)]
         if parsed is not None and any(a.GetFormalCharge() for a in parsed.GetAtoms()):
             lambda_token = CITE_SKELETAL_LAMBDA.set(False)
+        if parsed is not None and has_carbon_monoxide_shape(parsed):
+            return name_carbon_monoxide(parsed)
+        if parsed is not None and has_carbene_amine_shape(parsed):
+            return name_carbene_amine(parsed)
         if parsed is not None and has_hydride_ylium_shape(parsed):
             return name_hydride_ylium(parsed)
         if parsed is not None and has_skeleton_radical_ion_shape(parsed):
@@ -1137,6 +1149,11 @@ def _name_mol(mol) -> str:
                 pass
         return mark(name_coordination(mol), _NO_PIN_ORGANOMETALLIC)
 
+    # An unsaturated Group 14/15 chain (P-31.1.2.2) must precede the metal-pair and silane/phosphane chain branches,
+    # which accept single bonds only.
+    if has_unsaturated_hydride_chain_shape(mol):
+        return name_unsaturated_hydride_chain(mol)
+
     # Two or more Group 13-15 metals (P-69.5.3) must precede the
     # single-metal hydride dispatches below, which reject a second metal.
     if has_metal_pair_shape(mol) and not _has_senior_principal_group(mol):
@@ -1382,6 +1399,9 @@ def _name_mol(mol) -> str:
         # carbon at all, so it must be routed here before every other branch
         # below, all of which assume at least one carbon atom.
         (has_silane_chain_shape, name_silane_chain),
+        (has_carbon_monoxide_shape, name_carbon_monoxide),
+        (has_methanediimine_shape, name_methanediimine),
+        (has_ring_imine_shape, name_ring_imine),
     ):
         if has_shape(mol):
             return namer(mol)
@@ -1561,6 +1581,7 @@ def _name_mol(mol) -> str:
         # didehydro ring's extra double bond means it never matches that
         # check's fully-saturated canonical SMILES anyway, but grouped here
         # for the shared `saturated_ring_name` dependency.
+        (has_hetaryne_shape, name_hetaryne),
         (has_didehydro_ring_name, name_didehydro_ring),
         # oxirane/thiane/piperidine etc. (P-22.2.1's Hantzsch-Widman
         # saturated-monocyclic retained names) are recognized the same way --

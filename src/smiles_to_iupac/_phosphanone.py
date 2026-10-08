@@ -84,7 +84,10 @@ def name_phosphanone(mol) -> str:
     return f"{stereo}{format_mononuclear_prefixes(entries)}{lambda_label}{stem}{suffix}"
 
 
-_IMINE_CENTERS = {15: "phosphanimine", 33: "arsanimine", 51: "stibanimine", 83: "bismuthanimine"}
+_IMINE_CENTERS = {
+    14: "silanimine", 32: "germanimine", 50: "stannanimine", 82: "plumbanimine",
+    15: "phosphanimine", 33: "arsanimine", 51: "stibanimine", 83: "bismuthanimine",
+}
 
 
 def _find_imine_center(mol):
@@ -118,7 +121,8 @@ def has_phosphanimine_shape(mol) -> bool:
 
 
 def name_phosphanimine(mol) -> str:
-    """P-74.2.1.5: R3P=NR' is a N,P-substituted lambda5-phosphanimine (N-ethyl-P,P,P-triphenyl-λ5-phosphanimine)."""
+    """P-62.3.1.3: =NH or =NR on a hydride atom of standard bonding number is the imine suffix (1-methylphosphanimine);
+    P-74.2.1.5: R3P=NR' is a N,P-substituted lambda5-phosphanimine (N-ethyl-P,P,P-triphenyl-λ5-phosphanimine)."""
     from ._substituents import format_substituent_prefixes
 
     found = _find_imine_center(mol)
@@ -137,6 +141,10 @@ def name_phosphanimine(mol) -> str:
         grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
     valence = center.GetTotalValence()
     parent = _IMINE_CENTERS[center.GetAtomicNum()]
+    if valence == _STANDARD_VALENCE[center.GetAtomicNum()]:
+        for info in grouped.values():
+            info["locants"] = ["1" if locant == "P" else locant for locant in info["locants"]]
+        return f"{format_substituent_prefixes(grouped)}{parent}"
     if not any("N" in info["locants"] for info in grouped.values()):
         entries = [(name, info["compound"]) for name, info in grouped.items() for _ in info["locants"]]
         return f"{format_mononuclear_prefixes(entries)}-λ{valence}-{parent}"

@@ -22,11 +22,25 @@ def _is_nitrile_nitrogen(atom):
     )
 
 
+def _is_nitro_or_nitroso(atom):
+    """A nitro or nitroso nitrogen: bonded to one non-oxygen atom and otherwise only oxygen (a substituent, not a chain atom)."""
+    if atom.GetAtomicNum() != 7:
+        return False
+    others = [n for n in atom.GetNeighbors() if n.GetAtomicNum() != 8]
+    mol = atom.GetOwningMol()
+    return len(others) == 1 and any(
+        n.GetAtomicNum() == 8
+        and (mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0 or n.GetFormalCharge() == -1)
+        for n in atom.GetNeighbors()
+    )
+
+
 def _chain_atoms(mol, graph, skip_nitrogen=False, allow_double=False):
     elements = {
         a.GetAtomicNum()
         for a in mol.GetAtoms()
         if a.GetAtomicNum() in _STEMS
+        and not _is_nitro_or_nitroso(a)
         and not a.IsInRing()
         and not (skip_nitrogen and a.GetAtomicNum() == 7)
         and not (allow_double and _is_nitrile_nitrogen(a))
@@ -34,7 +48,11 @@ def _chain_atoms(mol, graph, skip_nitrogen=False, allow_double=False):
     if len(elements) != 1:
         return None
     (z,) = elements
-    atoms = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == z and not (allow_double and _is_nitrile_nitrogen(a))}
+    atoms = {
+        a.GetIdx()
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() == z and not (allow_double and _is_nitrile_nitrogen(a)) and not _is_nitro_or_nitroso(a)
+    }
     if any(mol.GetAtomWithIdx(a).IsInRing() or mol.GetAtomWithIdx(a).GetFormalCharge() for a in atoms):
         return None
     ends = [a for a in atoms if sum(n in atoms for n in graph[a]) <= 1]
@@ -107,14 +125,83 @@ def _alternating_parent(terminal_z, inner_z, terminal_count):
     return multiplying_prefix(terminal_count) + terminal + inner[:-1] + "ane"
 
 
+def _split_chain(mol, graph):
+    """(element, chain) of the senior unbranched run of one Group 14/15 element when other atoms (a disulfanyl link)
+    join several such runs: the longest run, then the one carrying more substituents (P-44.1.2.2, P-44.3)."""
+    elements = {
+        a.GetAtomicNum() for a in mol.GetAtoms() if a.GetAtomicNum() in _STEMS and not a.IsInRing() and not _is_nitro_or_nitroso(a)
+    }
+    if len(elements) != 1 or any(a.GetFormalCharge() for a in mol.GetAtoms()):
+        return None
+    (z,) = elements
+    atoms = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == z and not _is_nitro_or_nitroso(a)}
+    runs, seen = [], set()
+    for start in sorted(atoms):
+        if start in seen:
+            continue
+        component, stack = set(), [start]
+        while stack:
+            a = stack.pop()
+            if a in component:
+                continue
+            component.add(a)
+            stack.extend(n for n in graph[a] if n in atoms)
+        seen |= component
+        ends = [a for a in component if sum(n in component for n in graph[a]) <= 1]
+        if len(component) > 1 and (len(ends) != 2 or any(sum(n in component for n in graph[a]) > 2 for a in component)):
+            return None
+        run, previous = [ends[0]], None
+        while True:
+            following = [n for n in graph[run[-1]] if n in component and n != previous]
+            if not following:
+                break
+            previous = run[-1]
+            run.append(following[0])
+        if any(mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1.0 for a, b in zip(run, run[1:])):
+            return None
+        runs.append(run)
+    if len(runs) < 2:
+        return None
+    best = max(runs, key=lambda run: (len(run), sum(len(graph[a]) - sum(n in run for n in graph[a]) for a in run)))
+    if not _joined_by_chalcogens(mol, graph, best, runs):
+        return None
+    return z, best
+
+
+def _joined_by_chalcogens(mol, graph, best, runs):
+    """Whether every other run is reached from `best` only through O, S, Se or Te atoms (which rank below the runs)."""
+    others = {a for run in runs if run is not best for a in run}
+    parent = {a: None for a in best}
+    queue = list(best)
+    while queue:
+        a = queue.pop(0)
+        for n in graph[a]:
+            if n not in parent:
+                parent[n] = a
+                queue.append(n)
+    for run in runs:
+        if run is best:
+            continue
+        a = parent.get(run[0])
+        while a is not None and a not in best:
+            if a not in others and mol.GetAtomWithIdx(a).GetAtomicNum() not in (8, 16, 34, 52):
+                return False
+            a = parent[a]
+    return True
+
+
 def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
     found = _chain_atoms(mol, graph)
     alternating = None
     if found is None:
         alternating = _alternating_chain(mol, graph)
         if alternating is None:
-            return None
-        chain = alternating[2]
+            found = _split_chain(mol, graph)
+            if found is None:
+                return None
+            z, chain = found
+        else:
+            chain = alternating[2]
     else:
         z, chain = found
     chain_set = set(chain)
@@ -135,14 +222,15 @@ def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
         locant_set, _, citation = substituent_locant_set_and_citation(grouped)
         lam = {i + 1: n for i, atom in enumerate(candidate) if (n := nonstandard_bonding(mol.GetAtomWithIdx(atom)))}
         omit = not lam and (
-            (len(chain) == 2 and sum(len(info["locants"]) for info in grouped.values()) == 1)
+            len(chain) == 1
+            or (len(chain) == 2 and sum(len(info["locants"]) for info in grouped.values()) == 1)
             or all(mol.GetAtomWithIdx(a).GetTotalNumHs() == 0 for a in chain)
         )
         if alternating is not None:
             parent = _alternating_parent(alternating[0], alternating[1], (len(chain) + 1) // 2)
             omit = not lam and len(chain) == 3 and sum(len(info["locants"]) for info in grouped.values()) == 1
         else:
-            parent = f"{multiplying_prefix(len(chain))}{_STEMS[z]}"
+            parent = _STEMS[z] if len(chain) == 1 else f"{multiplying_prefix(len(chain))}{_STEMS[z]}"
         lam_text = ",".join(f"{p}\u03bb{lam[p]}" for p in sorted(lam))
         if lam_text:
             parent = f"{lam_text}-{parent}"

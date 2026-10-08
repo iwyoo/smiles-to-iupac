@@ -361,7 +361,10 @@ def _chalcogen_chain_group(graph, first, second, halogens, aromatic_atoms, mol):
     organyl = None
     if tail:
         end = mol.GetAtomWithIdx(tail[0])
-        if end.GetAtomicNum() != 6 or (is_functional_carbon(mol, tail[0]) and not _thioacyl(mol, tail[0])):
+        hydride_end = end.GetAtomicNum() in MONONUCLEAR_HYDRIDES and not end.IsInRing()
+        if (end.GetAtomicNum() != 6 and not hydride_end) or (
+            end.GetAtomicNum() == 6 and is_functional_carbon(mol, tail[0]) and not _thioacyl(mol, tail[0])
+        ):
             raise UnsupportedStructure("a functional group on a chalcogen chain is not supported yet")
         organyl = name_branch(graph, tail[0], run[-1], halogens, aromatic_atoms, mol=mol)
     elif not any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL):
@@ -582,7 +585,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return word, False
         if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in MONONUCLEAR_HYDRIDES:
             silyl, _ = _mononuclear_group(graph, others[0], root, halogens, aromatic_atoms, mol)
-            return _enclose(silyl, True) + word, True
+            return _enclose(silyl, silyl not in {entry[1] for entry in MONONUCLEAR_HYDRIDES.values()}) + word, True
         if mol.GetAtomWithIdx(others[0]).GetAtomicNum() in _CHAIN_ELEMENTS and _chain_prefix_allowed(mol):
             return _chalcogen_chain_group(graph, root, others[0], halogens, aromatic_atoms, mol)
         from ._substituents import name_branch
@@ -597,6 +600,8 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if re.fullmatch(r"[a-z]+animidoyl", rname):
             rcomp = False
         return _enclose(rname, rcomp) + word, True
+    if z == 7 and atom.GetFormalCharge() == 1 and nitrogen_pseudohalide_prefix(mol, root, others, order) == "isocyano":
+        return "isocyano", False
     if (
         z == 7
         and (
@@ -860,9 +865,19 @@ def nitrogen_pseudohalide_prefix(mol, root, others, order):
     """'azido' for -N=N(+)=N(-) and 'isocyanato' (-N=C=O, also S/Se/Te) for a neutral nitrogen singly bonded to its
     parent (P-61.7, P-61.11); None for any other nitrogen."""
     atom = mol.GetAtomWithIdx(root)
-    if order != 1.0 or atom.GetFormalCharge() or len(others) != 1:
+    if order != 1.0 or len(others) != 1:
         return None
     middle = mol.GetAtomWithIdx(others[0])
+    if atom.GetFormalCharge() == 1:
+        isocyanide = (
+            mol.GetBondBetweenAtoms(root, others[0]).GetBondTypeAsDouble() == 3.0
+            and middle.GetAtomicNum() == 6
+            and middle.GetDegree() == 1
+            and middle.GetFormalCharge() == -1
+        )
+        return "isocyano" if isocyanide else None
+    if atom.GetFormalCharge():
+        return None
     if mol.GetBondBetweenAtoms(root, others[0]).GetBondTypeAsDouble() != 2.0 or middle.GetDegree() != 2:
         return None
     ends = [n for n in middle.GetNeighbors() if n.GetIdx() != root]
