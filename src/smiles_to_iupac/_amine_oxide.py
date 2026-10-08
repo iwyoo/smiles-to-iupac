@@ -85,5 +85,26 @@ def name_amine_oxide(mol) -> str:
     reduced_mol = reduced.GetMol()
     Chem.SanitizeMol(reduced_mol)
 
+    if sum(a.GetAtomicNum() == 7 for a in reduced_mol.GetAtoms()) > 1:
+        return f"{_name_with_oxidized_parent(reduced_mol, nitrogen.GetIdx(), oxide_oxygen.GetIdx())} N-oxide"
     base_name = name_amine(reduced_mol)
     return f"{base_name} N-oxide"
+
+
+def _name_with_oxidized_parent(reduced_mol, nitrogen_idx, oxide_idx):
+    """P-62.5: the oxidized nitrogen is the amine suffix nitrogen of the parent, so every other amino group is cited
+    as a prefix ('5-(dimethylamino)-N,N-dimethylpentan-1-amine N-oxide')."""
+    from .core import _name_mol
+    from ._common import UnsupportedStructure
+    from ._hetero_chain import contract_hetero_groups_candidates
+
+    position = nitrogen_idx - (1 if oxide_idx < nitrogen_idx else 0)
+    names = []
+    for contracted in contract_hetero_groups_candidates(reduced_mol, {position}):
+        try:
+            names.append(_name_mol(contracted))
+        except UnsupportedStructure:
+            continue
+    if not names:
+        raise UnsupportedStructure("no amine parent carries the oxidized nitrogen of this polyamine N-oxide")
+    return min(names)

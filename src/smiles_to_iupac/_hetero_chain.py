@@ -127,7 +127,7 @@ def contract_hetero_groups(mol):
     return candidates[0] if candidates else None
 
 
-def contract_hetero_groups_candidates(mol):
+def contract_hetero_groups_candidates(mol, principal_atoms=None):
     """Every contraction over the equally senior backbones: most principal groups attached, then the longest
     carbon backbone, then the most substituents (P-44.1.1, P-44.3, P-45.2.1)."""
     if not _acyclic_single(mol):
@@ -138,7 +138,7 @@ def contract_hetero_groups_candidates(mol):
     ]
     if any(a.GetAtomicNum() == 16 and a.GetTotalNumHs() for a in mol.GetAtoms()):
         raise UnsupportedStructure("a thiol among other heteroatom groups is not supported here")
-    principal = set(hydroxyls) or {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 7}
+    principal = set(principal_atoms) if principal_atoms else set(hydroxyls) or {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 7}
     comps = _components(mol, graph)
     if not comps:
         return []
