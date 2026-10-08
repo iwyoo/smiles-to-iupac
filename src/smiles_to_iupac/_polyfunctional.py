@@ -1938,6 +1938,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             and _is_ester_like(mol, atom.GetIdx())
             and not (_urea_carbon(mol, atom.GetIdx()) and _outranks_urea(principal))
             and not (FORCED_PRINCIPAL.get() == principal and principal == "nitrile")
+            and principal != "ide"
         ):
             raise UnsupportedStructure("an ester outranks every parent this engine can build except an acid")
     if principal in (None, "amine") and attach is None and not n_names and not RING_CENTER.get():

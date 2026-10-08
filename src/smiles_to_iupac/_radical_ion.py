@@ -147,7 +147,13 @@ def _ionic_suffix_radical(mol):
     healed = _healed(mol, radical)
     if healed is None or not has_shape(healed):
         return None
-    return name_fn(healed) + "yl"
+    try:
+        name = name_fn(healed)
+    except UnsupportedStructure:
+        return None
+    if name.endswith("anilinium"):
+        name = name[: -len("anilinium")] + "benzenaminium"
+    return name + "yl"
 
 
 def _neutral_healed(mol, radical):
@@ -250,14 +256,114 @@ def _healed_ion_radical(mol):
     except (Chem.rdchem.AtomValenceException, Chem.rdchem.KekulizeException, UnsupportedStructure):
         return None
     ending = "ide" if charge < 0 else "ium"
+    if charge > 0 and name.endswith("ide"):
+        cation = re.search(r"-(\d+)-ium-\d+(?:,\d+)*-ide$", name)
+        return f"{name[:-1]}-{cation.group(1)}-{_RADICAL_SUFFIX[count]}" if cation else None
     if not name.endswith(ending):
         return None
     suffix = _RADICAL_SUFFIX[count]
+    lambda_form = _lambda_ide_radical(radical, name, charge, count)
+    if lambda_form is not None:
+        return lambda_form
     located = re.search(r"-(\d+)-" + ending + "$", name)
     stem = name[:-1] if charge < 0 else name
     if located:
-        return f"{stem}-{located.group(1)}-{suffix}"
+        return f"{stem}-{located.group(1)}{_added_hydrogen(mol, radical, name)}-{suffix}"
     return stem + suffix
+
+
+def _lambda_ide_radical(radical, name, charge, count):
+    """P-75.2.1: a ring chalcogen carrying both the anionic and the radical centre is cited as a lambda-4 parent with
+    the 'ide' and 'yl' suffixes: '1λ4-thiiran-1-id-1-yl'."""
+    if radical.GetAtomicNum() not in (16, 34, 52) or charge != -1 or count != 1 or not radical.IsInRing():
+        return None
+    match = re.fullmatch(r"([a-z]+)-(\d+)-uide", name)
+    if match is None:
+        return None
+    return f"{match.group(2)}\u03bb4-{match.group(1)}-{match.group(2)}-id-{match.group(2)}-yl"
+
+
+def _added_hydrogen(mol, radical, name):
+    """P-75.2.4: a ring nitrogen centre beside a ring carbonyl carbon cites the added hydrogen of that oxo group:
+    '1-ethyl-2-oxopyridin-1-ium-1(2H)-yl'."""
+    oxo = re.findall(r"(?<![\d,])(\d+)-oxo", name)
+    if radical.GetAtomicNum() != 7 or not radical.IsInRing() or len(oxo) != 1:
+        return ""
+    beside = [
+        n
+        for n in radical.GetNeighbors()
+        if n.IsInRing()
+        and any(
+            m.GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(n.GetIdx(), m.GetIdx()).GetBondTypeAsDouble() == 2.0
+            for m in n.GetNeighbors()
+        )
+    ]
+    return f"({oxo[0]}H)" if len(beside) == 1 else ""
+
+
+_GROUP_13 = {5, 13, 31, 49, 81}
+
+
+def _ammonium_group(mol, nitrogen, centre):
+    """'N,N-diethylethanaminiumyl': the substituent group of a quaternary nitrogen, named as the ammonium cation that
+    has a hydrogen in place of the bond to `centre`, with the radical suffix."""
+    keep, stack = {nitrogen}, [nitrogen]
+    while stack:
+        for n in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
+            if n.GetIdx() != centre and n.GetIdx() not in keep:
+                keep.add(n.GetIdx())
+                stack.append(n.GetIdx())
+    editable = Chem.RWMol(mol)
+    for index in sorted(set(range(mol.GetNumAtoms())) - keep, reverse=True):
+        editable.RemoveAtom(index)
+    new_index = sorted(keep).index(nitrogen)
+    target = editable.GetAtomWithIdx(new_index)
+    target.SetNoImplicit(True)
+    target.SetNumExplicitHs(1)
+    cation = editable.GetMol()
+    Chem.SanitizeMol(cation)
+    if not has_ammonium_shape(cation):
+        return None
+    name = name_ammonium(cation)
+    if name.endswith("anilinium"):
+        name = name[: -len("anilinium")] + "benzenaminium"
+    return name + "yl"
+
+
+def _group13_zwitterion(mol):
+    """A group 13 centre carrying the radical and the negative charge, with ammonium groups beside organyl groups
+    (P-75.2.3, P-75.4): '(N,N-diethylethanaminiumyl)boranuidyl'."""
+    from ._common import adjacency, halogen_substituents
+    from ._hetero_prefixes import MONONUCLEAR_HYDRIDES
+    from ._substituents import format_mononuclear_prefixes, name_branch
+
+    radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons()]
+    if len(radicals) != 1 or len(Chem.GetMolFrags(mol)) != 1 or any(a.GetIsotope() for a in mol.GetAtoms()):
+        return None
+    (centre,) = radicals
+    if centre.GetAtomicNum() not in _GROUP_13 or centre.GetFormalCharge() != -1 or centre.GetNumRadicalElectrons() != 1 or centre.IsInRing():
+        return None
+    cations = [a for a in mol.GetAtoms() if a.GetFormalCharge() > 0]
+    if not cations or any(a.GetAtomicNum() != 7 or a.GetFormalCharge() != 1 or a.GetIdx() not in {n.GetIdx() for n in centre.GetNeighbors()} for a in cations):
+        return None
+    if len(cations) + sum(1 for a in mol.GetAtoms() if a.GetFormalCharge() < 0) != 2 * len(cations):
+        return None
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+    entries = []
+    for neighbour in centre.GetNeighbors():
+        if neighbour.GetFormalCharge() > 0:
+            group = _ammonium_group(mol, neighbour.GetIdx(), centre.GetIdx())
+            if group is None:
+                return None
+            entries.append((f"({group})", False))
+        elif neighbour.GetAtomicNum() == 6:
+            entries.append(name_branch(graph, neighbour.GetIdx(), centre.GetIdx(), halogens, aromatic, mol=mol))
+        else:
+            return None
+    stem = MONONUCLEAR_HYDRIDES[centre.GetAtomicNum()][0][:-1] + "uidyl"
+    return format_mononuclear_prefixes(entries) + stem
 
 
 def has_radical_ion_shape(mol) -> bool:
@@ -267,7 +373,12 @@ def has_radical_ion_shape(mol) -> bool:
     nonzero radical electron count" check would otherwise claim this
     charge+radical combination first and misroute it into the
     plain-radical dispatch."""
-    return _ionic_suffix_radical(mol) is not None or _ylium_yl_radical(mol) is not None or _healed_ion_radical(mol) is not None
+    return (
+        _ionic_suffix_radical(mol) is not None
+        or _ylium_yl_radical(mol) is not None
+        or _group13_zwitterion(mol) is not None
+        or _healed_ion_radical(mol) is not None
+    )
 
 
 def name_radical_ion(mol) -> str:
@@ -276,7 +387,7 @@ def name_radical_ion(mol) -> str:
     name = _ionic_suffix_radical(mol)
     if name is not None:
         return name
-    name = _ylium_yl_radical(mol) or _healed_ion_radical(mol)
+    name = _ylium_yl_radical(mol) or _group13_zwitterion(mol) or _healed_ion_radical(mol)
     if name is None:
         raise UnsupportedStructure(
             "only the aminiumyl/oxidaniumyl/sulfaniumyl/aminyliumyl/"
