@@ -68,7 +68,15 @@ def _single_ring_heteroatom_cation(atom) -> bool:
         return False
     if atom.GetAtomicNum() == 7:
         return atom.GetDegree() == 4 and all(n.IsInRing() for n in atom.GetNeighbors()) and atom.GetIsAromatic() is False
-    return atom.GetDegree() + atom.GetTotalNumHs() == _CATION_VALENCE[atom.GetAtomicNum()]
+    return _hydron_added(atom)
+
+
+def _hydron_added(atom) -> bool:
+    """A ring chalcogen or pnictogen that gained a hydron: three sigma bonds for sulfur, selenium and tellurium, or five
+    when the parent hydride is the lambda4 one (P-73.8.2)."""
+    sigma = atom.GetDegree() + atom.GetTotalNumHs()
+    z = atom.GetAtomicNum()
+    return sigma == _CATION_VALENCE[z] or (z in (16, 34, 52) and sigma == _CATION_VALENCE[z] + 2)
 
 
 def name_polycation(mol) -> str:
@@ -182,9 +190,7 @@ def _name_ring_polycation(mol, centres):
 
     if any(a.GetIsotope() or a.GetAtomicNum() not in _RING_CENTRE_ELEMENTS for a in centres):
         raise UnsupportedStructure("this ring heteroatom is not supported as a cationic centre yet")
-    if any(
-        a.GetAtomicNum() != 7 and a.GetDegree() + a.GetTotalNumHs() != _CATION_VALENCE[a.GetAtomicNum()] for a in centres
-    ):
+    if any(a.GetAtomicNum() != 7 and not _hydron_added(a) for a in centres):
         raise UnsupportedStructure("a ring centre that is not a hydron-added heteroatom is a 'ylium' centre")
     indices = [a.GetIdx() for a in centres]
     rings, atoms = _system_of(mol, indices[0])
@@ -203,7 +209,8 @@ def _name_ring_polycation(mol, centres):
         atom.SetFormalCharge(0)
         atom.SetNoImplicit(True)
         atom.SetNumExplicitHs(max(hydrogens - 1, 0))
-        atom.SetBoolProp("_ring_cation_centre", True)
+        if mol.GetAtomWithIdx(index).GetDegree() + hydrogens == _CATION_VALENCE[mol.GetAtomWithIdx(index).GetAtomicNum()]:
+            atom.SetBoolProp("_ring_cation_centre", True)
     base = editable.GetMol()
     base.UpdatePropertyCache(strict=False)
     Chem.FastFindRings(base)
