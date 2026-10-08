@@ -124,7 +124,7 @@ from ._carboxylic_acid_sulfonic_acid import (
     has_carboxylic_acid_sulfonic_acid_shape,
     name_carboxylic_acid_sulfonic_acid,
 )
-from ._common import CITE_SKELETAL_LAMBDA, UnsupportedStructure, non_single_bonds
+from ._common import CITE_SKELETAL_LAMBDA, UnsupportedStructure, alphanumerical_name_key, non_single_bonds
 from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
@@ -849,13 +849,8 @@ def _name_via_fallbacks(mol):
             continue
         names = [n for n in names if not ("iodo" in n and not any(a.GetAtomicNum() == 53 for a in mol.GetAtoms()))]
         if names:
-            return min(names, key=_alphanumerical_letters)
+            return min(names, key=alphanumerical_name_key)
     return None
-
-
-def _alphanumerical_letters(name):
-    """P-14.5: a tie between whole names goes to the one first in alphanumerical order, locants and marks ignored."""
-    return re.sub(r"[^a-z]", "", name.lower())
 
 
 def _kekule_forms_without_fusion_name(mol):

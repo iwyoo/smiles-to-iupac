@@ -1685,3 +1685,8 @@ def assembly_join(prefix, core):
     if not prefix:
         return core
     return prefix + core if core[0] == "[" else f"{prefix}-{core}"
+
+
+def alphanumerical_name_key(name):
+    """P-14.5: whole names compare by their letters alone, locants and enclosing marks ignored."""
+    return re.sub(r"[^a-z]", "", name.lower())

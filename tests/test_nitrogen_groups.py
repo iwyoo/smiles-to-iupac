@@ -497,7 +497,8 @@ def test_hydrazide_names(smiles, expected):
     [
         pytest.param("C(=O)NN", "formohydrazide", id="formohydrazide"),
         pytest.param("CC(=O)NN", "acetohydrazide", id="acetohydrazide"),
-        pytest.param("CC[C@@H](C)C(=O)N(C)N", "(2R)-N-methyl-2-methylbutanehydrazide", id="n_substituted_stereocenter_hydrazide"),
+        pytest.param("ClC(C(=O)N(N(C)C)C)C", "2-chloro-N,N',N'-trimethylpropanehydrazide", id="n_locants_ordered_with_other_prefixes"),
+        pytest.param("CC[C@@H](C)C(=O)N(C)N", "(2R)-N,2-dimethylbutanehydrazide", id="n_substituted_stereocenter_hydrazide"),
     ],
 )
 def test_formohydrazide_and_related(smiles, expected):
