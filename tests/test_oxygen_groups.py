@@ -830,9 +830,9 @@ def test_hydrazine_parent_with_acid_group_suffix_or_prefix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_cationic_hydrazine_with_neutral_acid_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C[N+](C)(C)NC(=O)O")
+def test_cationic_hydrazine_outranks_a_neutral_acid():
+    # P-41: a cation is senior to an acid, so the carboxy group is a prefix
+    assert smiles_to_iupac("C[N+](C)(C)NC(=O)O") == "2-carboxy-1,1,1-trimethylhydrazin-1-ium"
 
 
 @pytest.mark.parametrize(

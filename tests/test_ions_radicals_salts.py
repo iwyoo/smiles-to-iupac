@@ -1290,3 +1290,19 @@ def test_nitrile_oxides_and_their_prefix_beside_an_anion(smiles, expected):
 )
 def test_guanidinium_and_uronium_cations(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[c+]1ccccc1", "benzenylium"),
+        ("Cc1cc[c+]cc1", "4-methylbenzen-1-ylium"),
+        ("c1ccccc1C(=O)O[OH2+]", "2-benzoyldioxidan-1-ium"),
+        ("[NH3+]N", "hydrazin-1-ium"),
+        ("C[NH2+]NC", "1,2-dimethylhydrazin-1-ium"),
+        ("[NH3+][NH3+]", "hydrazine-1,2-diium"),
+        ("[OH2+]C(C)=[OH+]", "(1-oxidaniumylethylidene)oxidanium"),
+    ],
+)
+def test_aryl_cations_chain_onium_cations_and_two_centre_oxonium(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

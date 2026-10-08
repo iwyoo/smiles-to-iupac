@@ -23,14 +23,19 @@ def _is_onium(mol, atom):
     if atom.GetFormalCharge() != 1 or atom.IsInRing() or atom.GetIsotope():
         return False
     valence = 4 if atom.GetAtomicNum() == 7 else _ONIUM_STEMS.get(atom.GetAtomicNum(), (None, None))[1]
+    orders = [mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() for n in atom.GetNeighbors()]
     return (
         valence is not None
-        and atom.GetDegree() + atom.GetTotalNumHs() == valence
-        and all(
-            n.GetAtomicNum() == 6 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
-            for n in atom.GetNeighbors()
-        )
+        and sum(orders) + atom.GetTotalNumHs() == valence
+        and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors())
+        and sorted(orders)[:-1] == [1.0] * (len(orders) - 1)
+        and orders
+        and max(orders) <= (2.0 if atom.GetAtomicNum() in (8, 16) else 1.0)
     )
+
+
+def _ylidene(mol, atom):
+    return any(mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0 for n in atom.GetNeighbors())
 
 
 def _centres(mol):
@@ -43,6 +48,8 @@ def _centres(mol):
     rank = {z: i for i, z in enumerate(_SENIORITY)}
     best = min(rank[a.GetAtomicNum()] for a in cations)
     seniors = [a for a in cations if rank[a.GetAtomicNum()] == best]
+    if len(seniors) > 1 and len([a for a in seniors if _ylidene(mol, a)]) == 1:
+        seniors = [a for a in seniors if _ylidene(mol, a)]
     if len(seniors) != 1 or seniors[0].GetAtomicNum() not in _PARENT_NAMERS:
         return None
     return seniors[0], [a for a in cations if a is not seniors[0]]
@@ -90,6 +97,10 @@ def name_mixed_onium(mol) -> str:
     forced = {a.GetIdx(): prefixes[placeholders[a.GetIntProp("_orig")]] for a in reduced.GetAtoms() if a.GetIntProp("_orig") in placeholders}
     token = FORCED_BRANCH_NAMES.set((reduced.GetNumAtoms(), forced))
     try:
+        if _ylidene(mol, senior):
+            from ._hydride_ylium import name_hydride_onium
+
+            return name_hydride_onium(reduced)
         return _PARENT_NAMERS[senior.GetAtomicNum()](reduced)
     finally:
         FORCED_BRANCH_NAMES.reset(token)

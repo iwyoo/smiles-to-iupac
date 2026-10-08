@@ -40,6 +40,7 @@ from ._dipolar import has_dipolar_shape, name_dipolar
 from ._chalcogen_aldehyde import name_chalcogen_aldehyde
 from ._condensed_guanidine import name_condensed_guanidine
 from ._ring_heteroatom_nitrile import name_ring_heteroatom_nitrile
+from ._chain_onium import has_chain_onium_shape, name_chain_onium
 from ._hydride_ylium import has_hydride_onium_shape, has_hydride_ylium_shape, name_hydride_onium, name_hydride_ylium
 from ._spiro_hub_atom import has_spiro_hub_atom_shape, name_spiro_hub_atom
 from ._substituents import FORCED_BRANCH_NAMES
@@ -923,6 +924,12 @@ def _name_o_substituted_hydroxylamine(mol):
     return name_o_substituted_hydroxylamine(mol)
 
 
+def _name_chain_onium(mol):
+    if not has_chain_onium_shape(mol):
+        raise UnsupportedStructure("not an onium cation of a heteroatom chain")
+    return name_chain_onium(mol)
+
+
 def _name_hydride_onium(mol):
     if not has_hydride_onium_shape(mol):
         raise UnsupportedStructure("not an onium cation of a mononuclear hydride")
@@ -957,6 +964,7 @@ def _run_fallbacks(smiles, original):
             name_polyfunctional,
             _name_o_substituted_hydroxylamine,
             _name_hydride_onium,
+            _name_chain_onium,
             name_anion,
             name_ester_by_parts,
             name_chalcogen_chain_heterone,
