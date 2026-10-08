@@ -454,6 +454,10 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return None
     if z in (15, 33) and any(mol.GetAtomWithIdx(n).HasProp("_anion_word") for n in graph[root]):
         return _oxoacid_anion_prefix(graph, root, coming_from, mol)
+    if z == 5 and EXTENDED_PREFIXES.get() and not atom.GetFormalCharge():
+        others = [n for n in graph[root] if n != coming_from]
+        if len(others) == 2 and all(_terminal_hydroxy(mol, n, root) for n in others):
+            return "borono", False
     if z in MONONUCLEAR_HYDRIDES:
         return _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if z in _HALOGEN_STEMS:
@@ -1010,6 +1014,17 @@ def _anionic_group(mol, root, coming_from):
         if z in ANIONIC_PREFIXES:
             return ANIONIC_PREFIXES[z], False
     raise UnsupportedStructure("this anionic substituent group is not supported yet")
+
+
+def _terminal_hydroxy(mol, idx, center):
+    atom = mol.GetAtomWithIdx(idx)
+    return (
+        atom.GetAtomicNum() == 8
+        and atom.GetDegree() == 1
+        and atom.GetTotalNumHs() == 1
+        and not atom.GetFormalCharge()
+        and mol.GetBondBetweenAtoms(center, idx).GetBondTypeAsDouble() == 1.0
+    )
 
 
 def _terminal_double_atom(mol, center, idx):

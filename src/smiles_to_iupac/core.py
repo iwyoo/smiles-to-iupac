@@ -440,6 +440,10 @@ def _parse_smiles(smiles):
         Chem.AssignStereochemistry(kekule, cleanIt=True, force=True)
         return kekule
     if mol is not None:
+        for atom in mol.GetAtoms():
+            # RDKit knows only the thallium(I) valence, so the standard TlH3 of P-68.1.1.1 looks like a radical
+            if atom.GetAtomicNum() == 81 and atom.GetNumRadicalElectrons() and atom.GetTotalValence() == 3:
+                atom.SetNumRadicalElectrons(0)
         return mol
     # hypervalent anionic centers (lambda-convention parents) fail RDKit's valence check only
     mol = Chem.MolFromSmiles(smiles, sanitize=False)

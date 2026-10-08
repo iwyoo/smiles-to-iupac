@@ -43,6 +43,11 @@ def _mononuclear(mol, radical):
     others = [a for a in mol.GetAtoms() if a.GetIdx() != radical.GetIdx()]
     if any(a.GetAtomicNum() != 6 or a.GetFormalCharge() or a.GetNumRadicalElectrons() for a in others):
         return None
+    from ._hetero_prefixes import MONONUCLEAR_HYDRIDES
+
+    standard = MONONUCLEAR_HYDRIDES.get(radical.GetAtomicNum(), (None, None, None))[2]
+    if standard is not None and radical.GetTotalDegree() + count > standard:
+        return None
     if any(mol.GetBondBetweenAtoms(radical.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0 for n in radical.GetNeighbors()):
         return None
     try:

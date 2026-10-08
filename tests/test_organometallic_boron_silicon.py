@@ -1041,3 +1041,18 @@ def test_group_14_hydrides_take_chalcogenol_suffixes(smiles, expected):
 )
 def test_stereodescriptor_of_a_mononuclear_hydride_parent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[TlH3]", "thallane", id="thallane"),
+        pytest.param("FB(F)[Si](C)(C)C", "(difluoroboranyl)tri(methyl)silane", id="boranyl_on_the_senior_silane"),
+        pytest.param("B(O)(O)C1=CC(=C(C(=O)O)C=C1)[N+](=O)[O-]", "4-borono-2-nitrobenzoic acid", id="borono_prefix_beside_a_carboxylic_acid"),
+        pytest.param("B(O)(O)C1=CC=C(C(=O)O)C=C1", "4-boronobenzoic acid", id="borono_on_benzoic_acid"),
+        pytest.param("CBNBC", "1-methyl-N-(methylboranyl)boranamine", id="boranamine_with_a_boranyl_group"),
+        pytest.param("[GeH3][Se][GeH2][Se][GeH3]", "trigermaselenane", id="alternating_germanium_selenium_chain"),
+    ],
+)
+def test_noncarbon_hydride_parents_and_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
