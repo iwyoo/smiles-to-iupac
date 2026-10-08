@@ -429,6 +429,15 @@ def _best_chain_name(
     return best_name, best_position_of
 
 
+def _parent_rank(component, root, bonds):
+    """(longest chain through `root`, multiple bonds on it): the principal chain criteria of P-44.3 that decide
+    which N-substituent chain becomes the parent amine."""
+    chains = [chain for chain in all_chains(component) if root in chain]
+    longest = max(len(chain) for chain in chains)
+    best = most_multiple_bonds([chain for chain in chains if len(chain) == longest], bonds)[0]
+    return longest, sum(1 for a, b, _ in bonds if a in best and b in best)
+
+
 def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=None):
     """Name a secondary/tertiary amine: the N-linked carbon starting the
     largest carbon skeleton becomes the parent chain (suffixed '-amine' via
@@ -458,7 +467,7 @@ def _name_acyclic_secondary_tertiary_amine(mol, n_idx, n_carbons, bonds, stereo=
     # component, letting the largest one be isolated as the parent chain's
     # own graph before any chain search runs.
     components = {c: component_subgraph(full_carbon_graph, c) for c in n_carbons}
-    parent_root = max(n_carbons, key=lambda c: len(components[c]))
+    parent_root = max(n_carbons, key=lambda c: (*_parent_rank(components[c], c, bonds), len(components[c])))
     other_roots = [c for c in n_carbons if c != parent_root]
 
     n_names = []

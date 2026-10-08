@@ -320,7 +320,7 @@ from ._telluroic_acid import has_telluroic_acid_shape, name_telluroic_acid
 from ._thioic_acid import has_thioic_acid_shape, name_thioic_acid
 from ._thiol import has_thiol_shape, name_thiol
 from ._thiol_amine import has_thiol_amine_shape, name_thiol_amine
-from ._hetero_chain import contract_hetero_groups, name_hetero_macrocycle, name_skeletal_chain
+from ._hetero_chain import contract_hetero_groups_candidates, name_hetero_macrocycle, name_skeletal_chain
 from ._phosphanyl_group import contract_phosphanyl_groups
 from ._tricyclic import find_propellane_core, name_propellane
 from ._unsaturated import name_acyclic_unsaturated
@@ -831,18 +831,31 @@ def _smiles_to_iupac_dispatch(smiles: str) -> str:
 
 
 def _name_via_fallbacks(mol):
-    for contract in (contract_phosphanyl_groups, contract_hetero_groups):
+    for contract in (contract_phosphanyl_groups, contract_hetero_groups_candidates):
         try:
             contracted = contract(mol)
-            if contracted is None:
+            candidates = contracted if isinstance(contracted, list) else [contracted]
+            names = []
+            for candidate in candidates:
+                if candidate is None:
+                    continue
+                try:
+                    names.append(_name_mol(candidate))
+                except UnsupportedStructure:
+                    continue
+            if not names:
                 continue
-            name = _name_mol(contracted)
         except UnsupportedStructure:
             continue
-        if "iodo" in name and not any(a.GetAtomicNum() == 53 for a in mol.GetAtoms()):
-            continue
-        return name
+        names = [n for n in names if not ("iodo" in n and not any(a.GetAtomicNum() == 53 for a in mol.GetAtoms()))]
+        if names:
+            return min(names, key=_alphanumerical_letters)
     return None
+
+
+def _alphanumerical_letters(name):
+    """P-14.5: a tie between whole names goes to the one first in alphanumerical order, locants and marks ignored."""
+    return re.sub(r"[^a-z]", "", name.lower())
 
 
 def _kekule_forms_without_fusion_name(mol):
