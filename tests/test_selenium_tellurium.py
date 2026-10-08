@@ -9,6 +9,7 @@ from smiles_to_iupac._common import UnsupportedStructure
         pytest.param("C[Se][Se]C", "(methyldiselanyl)methane", id="dimethyl_diselenide"),
         pytest.param("CC[Se][Se]CC", "(ethyldiselanyl)ethane", id="diethyl_diselenide"),
         pytest.param("C[Se][Se]CC", "(methyldiselanyl)ethane", id="methyl_ethyl_diselenide"),
+        pytest.param("C[SiH2][Se][SiH2]OC", "methoxy[(methylsilyl)selanyl]silane", id="silyl_selanyl_prefix_on_silane"),
     ],
 )
 def test_dimethyl_diselenide_and_related(smiles, expected):
