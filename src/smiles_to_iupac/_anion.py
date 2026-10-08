@@ -57,7 +57,7 @@ def swap_suffix(name):
 
 
 def _is_nitro_oxygen(atom):
-    return any(n.GetFormalCharge() > 0 for n in atom.GetNeighbors())
+    return atom.GetAtomicNum() != 6 and any(n.GetFormalCharge() > 0 for n in atom.GetNeighbors())
 
 
 def anion_atoms(mol):
@@ -150,7 +150,8 @@ def marked_neutral(mol):
     if len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("a multi-fragment anionic structure is not supported here")
     centers = anion_atoms(mol)
-    if any(a.GetFormalCharge() > 0 and not _is_nitro_nitrogen(a) for a in mol.GetAtoms()):
+    cations = [a for a in mol.GetAtoms() if a.GetFormalCharge() > 0 and not _is_nitro_nitrogen(a)]
+    if any(not (a.IsInRing() and a.GetFormalCharge() == 1) for a in cations) or len(cations) > 1:
         raise UnsupportedStructure("cationic centers beside an anionic group are not supported here")
     others = [a for a in centers if not (_is_group_anion(a) or _is_carbanion(a)) or _demoted_peroxy(a, centers)]
     if not centers or not all(is_center_atom(a) for a in others):
@@ -262,6 +263,11 @@ def _name_substitutive(mol):
     if has_center_anion_shape(mol) and (not _has_group_or_carbon(mol) or _ring_mixed_centers(mol)):
         return name_center_anion(mol)
     neutral = marked_neutral(mol)
+    ring_cations = [a for a in neutral.GetAtoms() if a.GetFormalCharge() > 0 and a.GetAtomicNum() != 7 and not _is_nitro_nitrogen(a)]
+    if ring_cations:
+        from ._polycation import _name_ring_polycation
+
+        return _name_ring_polycation(neutral, ring_cations)
     with _anion_stereo(mol, neutral):
         try:
             name = name_polyfunctional(neutral)

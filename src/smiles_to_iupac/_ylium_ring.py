@@ -59,12 +59,28 @@ def _is_ylium_centre(atom) -> bool:
     return hydride > 0 and hydride % 2 == 0 and not quaternary
 
 
+def _ring_anion_word(atom):
+    """'ide' or 'uide' for a singly charged anionic ring atom of the standard bonding number, else None (P-72.2.2.1)."""
+    from ._anion_center import _PARENTS, center_kind
+
+    if atom.GetFormalCharge() != -1 or not atom.IsInRing() or atom.GetNumRadicalElectrons() or atom.GetIsotope():
+        return None
+    if atom.GetAtomicNum() not in _PARENTS and atom.GetAtomicNum() != 6:
+        return None
+    try:
+        word, lam = center_kind(atom, preferred="ide")
+    except UnsupportedStructure:
+        return None
+    return None if lam else word
+
+
 def has_ylium_ring_shape(mol) -> bool:
     charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
     return (
         bool(charged)
         and len(Chem.GetMolFrags(mol)) == 1
-        and all(_is_ylium_centre(a) for a in charged)
+        and all(_is_ylium_centre(a) or _ring_anion_word(a) for a in charged)
+        and any(_is_ylium_centre(a) for a in charged)
         and not any(a.GetNumRadicalElectrons() for a in mol.GetAtoms())
     )
 
@@ -82,9 +98,12 @@ def _prefixes(mol, graph, ring_atoms, locant_of):
     return group_substituents(entries)
 
 
-def _hydride_parent(mol, system, centres):
-    """The ring system alone as the neutral lambda hydride: each cationic centre regains its hydride and every
-    substituent position is shown as hydrogen (P-73.3.1)."""
+def _hydride_parent(mol, system, centres, anions=None):
+    """The ring system alone as the neutral lambda hydride: each cationic centre regains its hydride, each 'ide' centre
+    its hydron, each 'uide' centre loses its hydride, and every substituent position is shown as hydrogen (P-73.3.1)."""
+    from ._anion_center import _PARENTS
+
+    anions = anions or {}
     kekule = Chem.Mol(mol)
     Chem.Kekulize(kekule, clearAromaticFlags=True)
     order = sorted(system)
@@ -94,7 +113,11 @@ def _hydride_parent(mol, system, centres):
         source = kekule.GetAtomWithIdx(a)
         atom = Chem.Atom(source.GetAtomicNum())
         outside = sum(1 for n in source.GetNeighbors() if n.GetIdx() not in system)
-        atom.SetNumExplicitHs(source.GetTotalNumHs() + outside + (a in centres))
+        if anions.get(a) == "uide":
+            ring_valence = sum(int(b.GetBondTypeAsDouble()) for b in source.GetBonds() if b.GetOtherAtomIdx(a) in system)
+            atom.SetNumExplicitHs(_PARENTS[source.GetAtomicNum()][1] - ring_valence)
+        else:
+            atom.SetNumExplicitHs(source.GetTotalNumHs() + outside + (a in centres) + (anions.get(a) == "ide"))
         atom.SetNoImplicit(True)
         parent.AddAtom(atom)
     for bond in kekule.GetBonds():
@@ -107,9 +130,13 @@ def _hydride_parent(mol, system, centres):
     return result, order
 
 
-def _name_fused_ylium(mol, graph, system, centres):
-    parent, order = _hydride_parent(mol, system, centres)
+def _name_fused_ylium(mol, graph, system, centres, anions=None):
+    anions = anions or {}
+    parent, order = _hydride_parent(mol, system, centres, anions)
     name, options, indicated, lam, delta = fused_parent_data(parent)
+    indicated = [i for i in indicated if anions.get(order[i]) != "uide"]
+    if "uide" in anions.values() and indicated:
+        raise UnsupportedStructure("indicated hydrogen beside a uide centre of a fused ring system is not supported yet")
     index = {a: i for i, a in enumerate(order)}
     best = None
     for numbering in options:
@@ -119,6 +146,7 @@ def _name_fused_ylium(mol, graph, system, centres):
         key = (
             sorted(_locant_key(numbering[i]) for i in indicated),
             sorted((-lam[i], _locant_key(numbering[i])) for i in lam),
+            sorted(_locant_key(numbering[index[a]]) for a in (*centres, *anions)),
             locant_set,
             citation,
         )
@@ -129,18 +157,26 @@ def _name_fused_ylium(mol, graph, system, centres):
     locants = sorted((numbering[index[a]] for a in centres), key=_locant_key)
     multiplier = _MULTIPLIER[len(locants)]
     stem = base[:-1] if base.endswith("e") and not multiplier else base
-    return grouped, f"{stem}-{','.join(locants)}-{multiplier}ylium"
+    name = f"{stem}-{','.join(locants)}-{multiplier}ylium"
+    if anions:
+        words = set(anions.values())
+        if len(words) != 1:
+            raise UnsupportedStructure("ide and uide centres together on a cationic ring are not supported yet")
+        anion_locants = sorted((numbering[index[a]] for a in anions), key=_locant_key)
+        name += f"-{','.join(anion_locants)}-{_MULTIPLIER[len(anion_locants)]}{words.pop()}"
+    return grouped, name
 
 
 def name_ylium_ring(mol) -> str:
     from ._multiplicative import _ring_systems
 
-    centres = [a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge()]
+    centres = [a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge() > 0]
+    anions = {a.GetIdx(): _ring_anion_word(a) for a in mol.GetAtoms() if a.GetFormalCharge() < 0}
     graph = adjacency(mol)
     system = next(s for s in _ring_systems(mol) if centres[0] in s)
-    if not all(c in system for c in centres):
-        raise UnsupportedStructure("the cationic centres lie in different ring systems")
-    skeletons = _skeletons(mol.GetAtomWithIdx(centres[0]).GetAtomicNum()) if len(centres) == 1 else []
+    if not all(c in system for c in (*centres, *anions)):
+        raise UnsupportedStructure("the ionic centres lie in different ring systems")
+    skeletons = _skeletons(mol.GetAtomWithIdx(centres[0]).GetAtomicNum()) if len(centres) == 1 and not anions else []
     best = None
     for smarts, locants, centre_index, core in skeletons:
         query = Chem.MolFromSmarts(smarts)
@@ -159,7 +195,7 @@ def name_ylium_ring(mol) -> str:
         _, grouped, core = best
     else:
         try:
-            grouped, core = _name_fused_ylium(mol, graph, system, set(centres))
+            grouped, core = _name_fused_ylium(mol, graph, system, set(centres), anions)
         except UnsupportedStructure as error:
             raise UnsupportedStructure("this cationic ring is not one of the ylium rings with a retained or lambda name") from error
     prefix = format_substituent_prefixes(grouped) if grouped else ""
