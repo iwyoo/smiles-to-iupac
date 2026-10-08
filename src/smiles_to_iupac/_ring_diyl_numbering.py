@@ -361,6 +361,13 @@ def _hetero_monocycle(mol, ring_order, attached):
         if b.GetBondTypeAsDouble() == 2.0 and b.GetBeginAtomIdx() in ring_set and b.GetEndAtomIdx() in ring_set
         for i in (b.GetBeginAtomIdx(), b.GetEndAtomIdx())
     }
+    triple_atoms = {
+        i
+        for b in mol.GetBonds()
+        if b.GetBondTypeAsDouble() == 3.0 and b.GetBeginAtomIdx() in ring_set and b.GetEndAtomIdx() in ring_set
+        for i in (b.GetBeginAtomIdx(), b.GetEndAtomIdx())
+    }
+    ring_double |= triple_atoms
     heterones = _chalcogen_heterones(mol, ring_set) & SUFFIX_ATOMS.get() if not aromatic else set()
     for a in atoms:
         for n in a.GetNeighbors():
@@ -370,11 +377,11 @@ def _hetero_monocycle(mol, ring_order, attached):
             if exocyclic_double and (aromatic or ring_double) and a.GetAtomicNum() != 6 and a.GetIdx() not in heterones:
                 raise UnsupportedStructure("a ring atom with an exocyclic double bond is not supported as a diyl yet")
     if not aromatic and any(
-        b.GetBondTypeAsDouble() not in (1.0, 2.0)
+        b.GetBondTypeAsDouble() not in (1.0, 2.0, 3.0)
         for b in mol.GetBonds()
         if b.GetBeginAtomIdx() in ring_set and b.GetEndAtomIdx() in ring_set
     ):
-        raise UnsupportedStructure("a ring triple bond is not supported as a diyl yet")
+        raise UnsupportedStructure("this ring bond is not supported as a diyl yet")
     can_hold = {i for i in ring_order if sym[i] not in _NO_DOUBLE_BOND or (sym[i] in ("S", "Se", "Te") and i in ring_double)} | heterones
     oxo_all = _exocyclic_oxo(mol, ring_set) | (heterones - ring_double)
     oxo_suffix = oxo_all & SUFFIX_ATOMS.get()
@@ -427,7 +434,7 @@ def _hetero_monocycle(mol, ring_order, attached):
         elements = tuple(sym[a] for a in walk)
         if fully_saturated:
             stem = _saturated_name(elements, hetero, lam)
-            results.append((position_of, stem, (), (), ()))
+            results.append((position_of, stem, (), (), (), ()))
             continue
         stem = _MANCUDE_RETAINED.get(elements)
         if stem is None:
@@ -436,7 +443,7 @@ def _hetero_monocycle(mol, ring_order, attached):
                 stem = _replacement_ene_name(mol, elements, walk, hetero, lam)
                 if stem is None:
                     raise UnsupportedStructure("this heteromonocycle has no supported mancude parent name yet")
-                results.append((position_of, stem, (), (), ()))
+                results.append((position_of, stem, (), (), (), tuple(sorted(position_of[a] for a in triple_atoms))))
                 continue
             stem = _with_hetero_locants(stem, elements, hetero, lam)
         elif lam:
@@ -459,7 +466,7 @@ def _hetero_monocycle(mol, ring_order, attached):
             ih = tuple(sorted(sat_pos[:mancude_sp3] + lambda_h))
             hydro = tuple(sat_pos[mancude_sp3:])
             added = ()
-        results.append((position_of, stem, ih, hydro, added))
+        results.append((position_of, stem, ih, hydro, added, tuple(sorted(position_of[a] for a in triple_atoms))))
     return best_pre, results
 
 
@@ -566,12 +573,12 @@ def monocycle_numberings(mol, ring_order, attached, valence, ene_bonds_getter=No
         return out
     best_pre, results = _hetero_monocycle(mol, ring_order, attached)
     out = []
-    for position_of, stem, ih, hydro, added in results:
+    for position_of, stem, ih, hydro, added, dehydro in results:
         numbering = Numbering(
             position_of,
-            _hetero_text(stem, ih, hydro, added),
+            _hetero_text(stem, ih, hydro, added, dehydro),
             pre_key=best_pre + (ih,),
-            unsat_key=(added, hydro),
+            unsat_key=(added, tuple(sorted(hydro + dehydro))),
             ih=ih,
         )
         numbering.parent_stem, numbering.hydro_positions, numbering.added_positions = stem, tuple(hydro), tuple(added)
@@ -601,7 +608,7 @@ def _carbocycle_text(stem, ene):
     return text
 
 
-def _hetero_text(stem, ih, hydro, added=()):
+def _hetero_text(stem, ih, hydro, added=(), dehydro=()):
     def text(locants, valence, substituted=frozenset(), suffix="yl"):
         # P-14.3.4.2(c): the position of the one heteroatom of an unsubstituted ring is not cited (thiacyclododecane)
         bare = stem
@@ -610,6 +617,10 @@ def _hetero_text(stem, ih, hydro, added=()):
         ih_text = ",".join(f"{p}H" for p in ih) + "-" if ih else ""
         rest = ih_text + _tail_added(bare, locants, valence, suffix, added)
         hydro_text = f"{_locs(hydro)}-{multiplied_word(len(hydro), 'hydro')}" + ("-" if rest[0].isdigit() else "") if hydro else ""
+        if dehydro:
+            hydro_text = f"{_locs(dehydro)}-{multiplied_word(len(dehydro), 'dehydro')}" + (
+                "-" if hydro_text or rest[0].isdigit() else ""
+            ) + hydro_text
         return hydro_text + rest
 
     return text
