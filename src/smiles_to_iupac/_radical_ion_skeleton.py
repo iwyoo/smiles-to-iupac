@@ -122,8 +122,12 @@ def _general_name(mol, radicals, anions, cations):
         raise UnsupportedStructure("the skeleton of this radical ion is not named as a polyanion parent")
     positions = found[1]
     parent = set(positions)
-    flip = mol.GetRingInfo().NumRings() == 0
+    parent_ring = any(set(r) <= parent for r in mol.GetRingInfo().AtomRings())
+    flip = not parent_ring
     size = len(parent)
+    stem = ("cyclo" if parent_ring else "") + alkane_name(size)[:-3]
+    if name[: tail.start()].rfind(stem) < 0:
+        return _named_parent_name(analogue, name[: tail.start()], positions, radicals, anions, cations)
     attachments = {
         a for atom in parent for a in (n.GetIdx() for n in mol.GetAtomWithIdx(atom).GetNeighbors()) if a not in parent
     }
@@ -145,13 +149,31 @@ def _general_name(mol, radicals, anions, cations):
         raise UnsupportedStructure("no numbering of this radical ion is available")
     numbers = best[1]
     head = name[: tail.start()]
-    stem = ("cyclo" if mol.GetRingInfo().NumRings() else "") + alkane_name(size)[:-3]
+    stem = ("cyclo" if parent_ring else "") + alkane_name(size)[:-3]
     start = head.rfind(stem)
     if start < 0:
         raise UnsupportedStructure("the parent hydride of this radical ion is not delimited")
     remap = {positions[i]: numbers[i] for i in positions}
     base = _parent_base(stem, best[3], best[4])
     return _assemble(base, *best[2], _renumber(head[:start], remap))
+
+
+def _named_parent_name(analogue, head, positions, radicals, anions, cations):
+    """A parent hydride with its own name (a fused ring system, with hydro prefixes): the centre locants are chosen over
+    the symmetry of the skeleton and the radical suffix follows the ionic ones."""
+    images = analogue.GetSubstructMatches(Chem.Mol(analogue), uniquify=False, useChirality=False, maxMatches=5000)
+    best = None
+    for image in images:
+        if any(image[i] not in positions for i in positions):
+            continue
+        numbers = {i: positions[image[i]] for i in positions}
+        key = _numbering_key(numbers, radicals, anions, cations)
+        if best is None or _centre_order_key(key) < _centre_order_key(best[0]):
+            best = (key, numbers)
+    if best is None:
+        raise UnsupportedStructure("no numbering of this radical ion is available")
+    remap = {positions[i]: n for i, n in best[1].items()}
+    return _assemble(_renumber(head, remap), *best[0])
 
 
 def _unsaturation_locants(mol, parent, numbers, size, ring_free):

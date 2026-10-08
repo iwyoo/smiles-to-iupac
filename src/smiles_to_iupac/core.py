@@ -726,7 +726,7 @@ def _name_unabridged(smiles: str) -> str:
         leave(name)
 
 
-_ANION_NAME_ENDING = re.compile(r"(?:ide|uide|ate|ite|ato|ido|elide)\b|(?:ide|uide|ate|ite)-")
+_ANION_NAME_ENDING = re.compile(r"(?:ide|uide|ate|ite|ato|ido|elide)\b|(?:ide|uide|ate|ite)-|id(?:yl|ylidene|ylidyne)\b|-id-\d")
 
 
 def _drops_anionic_charge(mol, name) -> bool:

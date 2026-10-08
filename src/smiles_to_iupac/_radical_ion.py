@@ -93,6 +93,8 @@ Explicitly out of scope (raise `UnsupportedStructure`):
   -- mirrors `_radical.py`'s own P-71.3.3 exclusions.
 """
 
+import re
+
 from rdkit import Chem
 
 from ._amide import has_amide_shape, name_amide
@@ -210,6 +212,44 @@ def _ylium_yl_radical(mol):
     return neutral_name[:-1] + "ylium" + "yl"
 
 
+_RADICAL_SUFFIX = {1: "yl", 2: "ylidene", 3: "ylidyne"}
+
+
+def _healed_ion_radical(mol):
+    """The ion with the radical electrons of its single charged radical atom filled by hydrogens is named, and the
+    ionic ending takes the radical suffix: azanide -> azanidyl, hydrazin-1-ide -> hydrazin-1-id-1-yl, aminium -> aminiumyl."""
+    radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons()]
+    if len(radicals) != 1:
+        return None
+    (radical,) = radicals
+    count = radical.GetNumRadicalElectrons()
+    charge = radical.GetFormalCharge()
+    if abs(charge) != 1 or radical.GetIsotope() or count not in _RADICAL_SUFFIX:
+        return None
+    editable = Chem.RWMol(mol)
+    atom = editable.GetAtomWithIdx(radical.GetIdx())
+    atom.SetNoImplicit(True)
+    atom.SetNumExplicitHs(radical.GetTotalNumHs() + count)
+    atom.SetNumRadicalElectrons(0)
+    healed = editable.GetMol()
+    try:
+        Chem.SanitizeMol(healed)
+        from .core import smiles_to_iupac
+
+        name = smiles_to_iupac(Chem.MolToSmiles(healed))
+    except (Chem.rdchem.AtomValenceException, Chem.rdchem.KekulizeException, UnsupportedStructure):
+        return None
+    ending = "ide" if charge < 0 else "ium"
+    if not name.endswith(ending):
+        return None
+    suffix = _RADICAL_SUFFIX[count]
+    located = re.search(r"-(\d+)-" + ending + "$", name)
+    stem = name[:-1] if charge < 0 else name
+    if located:
+        return f"{stem}-{located.group(1)}-{suffix}"
+    return stem + suffix
+
+
 def has_radical_ion_shape(mol) -> bool:
     """True if `mol` matches `_ionic_suffix_radical`'s or
     `_ylium_yl_radical`'s own P-75.3.1/.2 shape. Used by `core.py` to
@@ -217,7 +257,7 @@ def has_radical_ion_shape(mol) -> bool:
     nonzero radical electron count" check would otherwise claim this
     charge+radical combination first and misroute it into the
     plain-radical dispatch."""
-    return _ionic_suffix_radical(mol) is not None or _ylium_yl_radical(mol) is not None
+    return _ionic_suffix_radical(mol) is not None or _ylium_yl_radical(mol) is not None or _healed_ion_radical(mol) is not None
 
 
 def name_radical_ion(mol) -> str:
@@ -226,7 +266,7 @@ def name_radical_ion(mol) -> str:
     name = _ionic_suffix_radical(mol)
     if name is not None:
         return name
-    name = _ylium_yl_radical(mol)
+    name = _ylium_yl_radical(mol) or _healed_ion_radical(mol)
     if name is None:
         raise UnsupportedStructure(
             "only the aminiumyl/oxidaniumyl/sulfaniumyl/aminyliumyl/"
