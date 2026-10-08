@@ -301,25 +301,8 @@ def test_selenone(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_branched_substituent_not_supported__selenone():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)[Se](=O)(=O)C")
-
-
 def test_ring_selenone_is_a_lambda6_heterone():
     assert smiles_to_iupac("O=[Se]1(=O)CCCCC1") == "1λ6-selenane-1,1-dione"
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("C=C[Se](=O)(=O)C", id="unsaturated_chain_not_supported__selenone"),
-        pytest.param("C[Se](=O)(=O)C[Se](=O)(=O)C", id="two_selenone_groups_not_supported"),
-    ],
-)
-def test_unsaturated_chain_not_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
@@ -390,25 +373,8 @@ def test_selenoxide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_branched_substituent_not_supported__selenoxide():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)[Se](=O)C")
-
-
 def test_ring_selenoxide_is_a_lambda4_heterone():
     assert smiles_to_iupac("O=[Se]1CCCCC1") == "1λ4-selenan-1-one"
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("C=C[Se](=O)C", id="unsaturated_chain_not_supported__selenoxide"),
-        pytest.param("C[Se](=O)C[Se](=O)C", id="two_selenoxide_groups_not_supported"),
-    ],
-)
-def test_unsaturated_chain_not_and_related_raise_2(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
@@ -654,25 +620,8 @@ def test_tellurone(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_branched_substituent_not_supported__tellurone():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)[Te](=O)(=O)C")
-
-
 def test_ring_tellurone_is_a_lambda6_heterone():
     assert smiles_to_iupac("O=[Te]1(=O)CCCCC1") == "1λ6-tellurane-1,1-dione"
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("C=C[Te](=O)(=O)C", id="unsaturated_chain_not_supported__tellurone"),
-        pytest.param("C[Te](=O)(=O)C[Te](=O)(=O)C", id="two_tellurone_groups_not_supported"),
-    ],
-)
-def test_unsaturated_chain_not_and_related_raise_3(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
@@ -743,25 +692,8 @@ def test_telluroxide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_branched_substituent_not_supported__telluroxide():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)[Te](=O)C")
-
-
 def test_ring_telluroxide_is_a_lambda4_heterone():
     assert smiles_to_iupac("O=[Te]1CCCCC1") == "1λ4-telluran-1-one"
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("C=C[Te](=O)C", id="unsaturated_chain_not_supported__telluroxide"),
-        pytest.param("C[Te](=O)C[Te](=O)C", id="two_telluroxide_groups_not_supported"),
-    ],
-)
-def test_unsaturated_chain_not_and_related_raise_4(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
@@ -900,4 +832,18 @@ def test_selenium_and_tellurium_imidamides(smiles, expected):
     ],
 )
 def test_amides_of_sulfinic_selenium_and_tellurium_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC(C)[Se](=O)(=O)C", "2-(methaneselenonyl)propane"),
+        ("C=C[Se](=O)C", "(methaneseleninyl)ethene"),
+        ("C[Te](=O)C[Te](=O)C", "bis(methanetellurinyl)methane"),
+        ("CC[Se](=O)c1ccccc1", "(ethaneseleninyl)benzene"),
+        ("C[Se][Se][SiH2][SiH2][Te][Te]C", "1-(methyldiselanyl)-2-(methylditellanyl)disilane"),
+    ],
+)
+def test_selenium_and_tellurium_oxides_on_branched_unsaturated_and_aromatic_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

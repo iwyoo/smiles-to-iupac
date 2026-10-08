@@ -56,7 +56,13 @@ def _is_linker_atom(mol, atom):
     for bond in atom.GetBonds():
         other = bond.GetOtherAtom(atom)
         azo = atom.GetAtomicNum() == 7 and other.GetAtomicNum() == 7 and bond.GetBondTypeAsDouble() == 2.0
-        if bond.GetBondTypeAsDouble() != 1.0 and not azo and not imine_nitrogen:
+        sulfonyl_oxygen = (
+            atom.GetAtomicNum() == 16
+            and bond.GetBondTypeAsDouble() == 2.0
+            and other.GetAtomicNum() == 8
+            and other.GetDegree() == 1
+        )
+        if bond.GetBondTypeAsDouble() != 1.0 and not azo and not imine_nitrogen and not sulfonyl_oxygen:
             return False
         if other.GetAtomicNum() == 6 and is_functional_carbon(mol, other.GetIdx()) and not imine_nitrogen:
             if not _diacyl_carbon(mol, other, atom):

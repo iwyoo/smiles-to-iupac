@@ -74,7 +74,8 @@ def _dichalcogenide_only(mol):
     """Every contiguous run of chalcogen atoms is a pair joining two carbon groups (a disulfide, diselenide, ditelluride or a
     mixed S-O, Se-S pair): two contiguous chalcogens are a prefix on a carbon parent, only three or more form a parent
     hydride of their own (P-68.4.1.1, P-63.3.2)."""
-    if any(a.GetAtomicNum() not in (1, 6, 8, 9, 17, 35, 53, 16, 34, 52) for a in mol.GetAtoms()):
+    hosts = (6, 14, 32, 50, 82)
+    if any(a.GetAtomicNum() not in (1, 8, 9, 17, 35, 53, 16, 34, 52, *hosts) for a in mol.GetAtoms()):
         return False
     pairs = 0
     for atom in mol.GetAtoms():
@@ -83,7 +84,7 @@ def _dichalcogenide_only(mol):
         partners = [n for n in atom.GetNeighbors() if n.GetAtomicNum() in (8, 16, 34, 52)]
         if not partners:
             continue
-        carbons = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
+        carbons = [n for n in atom.GetNeighbors() if n.GetAtomicNum() in hosts]
         if atom.GetDegree() != 2 or len(partners) != 1 or len(carbons) != 1 or partners[0].GetDegree() != 2:
             return False
         pairs += 1
@@ -1208,7 +1209,7 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     x = rest[0]
     zx = mol.GetAtomWithIdx(x).GetAtomicNum()
     acid_amide = zx == 7 and all(e == "O" for _, e in oxo)
-    if not EXTENDED_PREFIXES.get() and not acid_amide and (center != "S" or any(e != "O" for _, e in oxo)):
+    if not EXTENDED_PREFIXES.get() and not acid_amide and ((center != "S" and zx != 6) or any(e != "O" for _, e in oxo)):
         raise UnsupportedStructure("this sulfur-linked group is not supported yet")
     symbols = [e for _, e in oxo]
     if zx == 8 and mol.GetAtomWithIdx(x).GetDegree() == 1 and mol.GetBondBetweenAtoms(root, x).GetBondTypeAsDouble() == 1.0:
