@@ -1019,6 +1019,8 @@ def test_nonstandard_bonding_in_substituents_and_substituent_chains(smiles, expe
         ("C1=CC=C[I]=C1", "1λ3-iodinine"),
         ("COI1OC(=O)c2ccccc12", "1-methoxy-1λ3,2-benziodoxol-3(1H)-one"),
         ("O1C[SH4]CC1C1C[SH2]CO1", "5-(1,3λ4-oxathiolan-5-yl)-1,3λ6-oxathiolane"),
+        ("O1CC=CC2=[PH2]C=CC=C12", "2H-5λ5-phosphinino[3,2-b]pyran"),
+        ("O1C=CC2=[PH2]C=CC=C12", "4λ5-phosphinino[3,2-b]furan"),
     ],
 )
 def test_indicated_hydrogen_and_halogen_atoms_of_nonstandard_bonding_in_rings(smiles, expected):
