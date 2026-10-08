@@ -569,3 +569,16 @@ def test_substituted_proline(smiles, expected):
 def test_ionized_amino_acids(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)OC[C@H]1O[C@H](Br)[C@H](OC(C)=O)[C@@H](OC(C)=O)[C@@H]1OC(C)=O", "2,3,4,6-tetra-O-acetyl-α-D-glucopyranosyl bromide", id="glycosyl_halide_esters_as_acyl_prefixes"),
+        pytest.param("OC[C@H]1O[C@@H](OC)[C@H](OC)[C@@H](O)[C@@H]1O", "methyl 2-O-methyl-β-D-glucopyranoside", id="substituted_glycoside"),
+        pytest.param("CC(=O)OC[C@H]1O[C@@H](OC(C)=O)[C@H](OC(C)=O)[C@@H](OC(C)=O)[C@@H]1OC(C)=O", "β-D-glucopyranose 1,2,3,4,6-pentaacetate", id="anomeric_ester_like_other_esters"),
+        pytest.param("OC[C@H]1O[C@@H](N)[C@H](OC(C)=O)[C@@H](O)[C@@H]1O", "2-O-acetyl-β-D-glucopyranosylamine", id="substituted_glycosylamine"),
+    ],
+)
+def test_substituted_glycosides_and_glycosyl_derivatives(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
