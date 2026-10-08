@@ -134,10 +134,17 @@ def _name_fused_ylium(mol, graph, system, centres, anions=None):
     anions = anions or {}
     parent, order = _hydride_parent(mol, system, centres, anions)
     name, options, indicated, lam, delta = fused_parent_data(parent)
-    indicated = [i for i in indicated if anions.get(order[i]) != "uide"]
-    if "uide" in anions.values() and indicated:
-        raise UnsupportedStructure("indicated hydrogen beside a uide centre of a fused ring system is not supported yet")
     index = {a: i for i, a in enumerate(order)}
+    uide_positions = [index[a] for a, word in anions.items() if word == "uide"]
+    hydro = []
+    if uide_positions:
+        remaining = [i for i in indicated if i not in uide_positions]
+        if len(remaining) == 1 and len(indicated) - len(remaining) == len(uide_positions) == 1:
+            hydro = [uide_positions[0], remaining[0]]
+            remaining = []
+        elif remaining:
+            raise UnsupportedStructure("indicated hydrogen beside a uide centre of a fused ring system is not supported yet")
+        indicated = remaining
     best = None
     for numbering in options:
         locant_of = {a: numbering[index[a]] for a in order}
@@ -147,6 +154,7 @@ def _name_fused_ylium(mol, graph, system, centres, anions=None):
             sorted(_locant_key(numbering[i]) for i in indicated),
             sorted((-lam[i], _locant_key(numbering[i])) for i in lam),
             sorted(_locant_key(numbering[index[a]]) for a in (*centres, *anions)),
+            sorted(_locant_key(numbering[i]) for i in hydro),
             locant_set,
             citation,
         )
@@ -154,6 +162,8 @@ def _name_fused_ylium(mol, graph, system, centres, anions=None):
             best = (key, numbering, grouped)
     _, numbering, grouped = best
     base = marked_name(name, numbering, indicated, lam, delta)
+    if hydro:
+        base = f"{','.join(sorted((numbering[i] for i in hydro), key=_locant_key))}-dihydro-{base}"
     locants = sorted((numbering[index[a]] for a in centres), key=_locant_key)
     multiplier = _MULTIPLIER[len(locants)]
     stem = base[:-1] if base.endswith("e") and not multiplier else base

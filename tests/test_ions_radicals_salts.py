@@ -1069,6 +1069,11 @@ def test_ring_cations_on_heteroatoms_other_than_nitrogen(smiles, expected):
             "2,2-diphenyl-4λ5-[1,3,4,2]dioxazaborolo[4,5-a]pyridin-4-ylium-2-uide",
             id="ylium_with_uide_centre_drops_its_indicated_hydrogen",
         ),
+        pytest.param(
+            "O[B-]1([N+]2=C(C3=C1C=CC=C3)NC3=C2C=CC=C3)O",
+            "6,6-dihydroxy-6,11-dihydro-5λ5-[1,3]benzimidazolo[1,2-b][2,1]benzazaborol-5-ylium-6-uide",
+            id="uide_centre_pairs_with_the_remaining_indicated_hydrogen_as_dihydro",
+        ),
     ],
 )
 def test_ring_heteroatom_ylium_cations(smiles, expected):
