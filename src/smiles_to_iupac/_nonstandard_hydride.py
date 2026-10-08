@@ -35,7 +35,11 @@ def _plain(atom):
 def _center(mol):
     if len(Chem.GetMolFrags(mol)) != 1:
         return None
-    centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _HYDRIDES and not _terminal_standard(a)]
+    bridges = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 8 and a.GetDegree() == 2 and _substituent_atom(a)}
+    centers = [
+        a for a in mol.GetAtoms()
+        if a.GetAtomicNum() in _HYDRIDES and not _terminal_standard(a) and a.GetIdx() not in bridges and not _oxo_acyl(a, bridges)
+    ]
     if len(centers) != 1 or not _plain(centers[0]) or centers[0].IsInRing() or centers[0].GetIsAromatic():
         return None
     center = centers[0]
@@ -47,6 +51,13 @@ def _center(mol):
     if _outranked(mol, center):
         return None
     return center
+
+
+def _oxo_acyl(atom, bridges):
+    """The sulfur of a sulfonyl-type acyl group joined to a centre through an oxygen of `bridges`."""
+    return any(n.GetIdx() in bridges for n in atom.GetNeighbors()) and any(
+        b.GetBondTypeAsDouble() == 2.0 for b in atom.GetBonds()
+    )
 
 
 def _terminal_standard(atom):
@@ -72,11 +83,16 @@ def _outranked(mol, center):
 
 
 def _substituent_atom(atom):
-    """A carbon, halogen or hydroxy oxygen bonded to a hydride centre of nonstandard bonding number."""
+    """A carbon, halogen, hydroxy oxygen or alkoxy/acyloxy oxygen bonded to a hydride centre of nonstandard bonding
+    number: iodine is not a pseudoester element, so an acyl-O-iodane is no ester (P-65.6.3.1.2)."""
     z = atom.GetAtomicNum()
     if z == 6:
         return True
-    return atom.GetFormalCharge() == 0 and atom.GetDegree() == 1 and (z in (9, 17, 35, 53) or (z == 8 and atom.GetTotalNumHs() == 1))
+    if atom.GetFormalCharge():
+        return False
+    if z == 8 and atom.GetDegree() == 2 and not atom.GetTotalNumHs() and not atom.IsInRing():
+        return any(n.GetAtomicNum() in (6, 16) for n in atom.GetNeighbors())
+    return atom.GetDegree() == 1 and (z in (9, 17, 35, 53) or (z == 8 and atom.GetTotalNumHs() == 1))
 
 
 def _chalcogen_chain(mol):
@@ -127,7 +143,7 @@ def name_nonstandard_hydride(mol) -> str:
         raise UnsupportedStructure("isotopically modified structures are not supported yet")
     graph = adjacency(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
-    hydroxyls = [n for n in graph[center.GetIdx()] if mol.GetAtomWithIdx(n).GetAtomicNum() == 8]
+    hydroxyls = [n for n in graph[center.GetIdx()] if mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() == 1]
     halogens = {a.GetIdx(): HALOGEN_PREFIXES[a.GetAtomicNum()] for a in mol.GetAtoms() if a.GetAtomicNum() in HALOGEN_PREFIXES}
     entries = [
         name_branch(graph, n, center.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True)

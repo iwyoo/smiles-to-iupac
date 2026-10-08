@@ -139,6 +139,8 @@ def _halogen_oxoacid_center(mol, idx):
             return None
     if len(bridges) != 1 or len(oxo) > 3 or atom.GetFormalCharge() != sum(-o.GetFormalCharge() for o in oxo):
         return None
+    if atom.GetTotalValence() != 1 + 2 * len(oxo) + atom.GetFormalCharge():
+        return None
     return "inorganic", ["O"] * len(oxo), [(bridges[0].GetIdx(), "Y")]
 
 

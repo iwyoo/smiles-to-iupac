@@ -809,6 +809,15 @@ def test_chalcogen_chain_heterones_and_halogen_acid_esters(smiles, expected):
         pytest.param("SSS", "trisulfane", id="homogeneous_chalcogen_chain"),
         pytest.param("S[SH2]S", "2λ4-trisulfane", id="chain_lambda_locant"),
         pytest.param("OO", "dioxidane", id="dioxidane"),
+        pytest.param("CC(=O)OI(OC(C)=O)c1ccccc1", "bis(acetyloxy)(phenyl)-λ3-iodane", id="acyloxy_groups_on_centre"),
+        pytest.param(
+            "OI(OS(=O)(=O)c1ccc(C)cc1)c1ccccc1",
+            "[(4-methylbenzene-1-sulfonyl)oxy](phenyl)-λ3-iodanol",
+            id="sulfonyloxy_beside_centre_hydroxy",
+        ),
+        pytest.param("c1ccc(I(c2ccccc2)OS(=O)(=O)C)cc1", "[(methanesulfonyl)oxy]di(phenyl)-λ3-iodane", id="sulfonyloxy_on_centre"),
+        pytest.param("CC(=O)O[IH2]", "(acetyloxy)-λ3-iodane", id="acyloxy_on_halogen_with_added_hydrogens"),
+        pytest.param("COI(C)C", "methoxydi(methyl)-λ3-iodane", id="alkoxy_on_centre"),
     ],
 )
 def test_nonstandard_bonding_number_hydrides_and_chalcogen_chains(smiles, expected):
