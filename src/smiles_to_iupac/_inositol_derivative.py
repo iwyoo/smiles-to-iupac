@@ -4,6 +4,8 @@ Numbering keeps the parent's face pattern (P-104.2.1) and is chosen by P-104.2.3
 numbering with hydroxy 1 above the ring, and is omitted for achiral derivatives.
 """
 
+import re
+
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, multiplied_word, numerical_term
@@ -97,15 +99,15 @@ def ester_anion(mol, oxygen, acyl):
     from .core import smiles_to_iupac
 
     atom = mol.GetAtomWithIdx(acyl)
-    if atom.GetAtomicNum() == 15:
+    if atom.GetAtomicNum() in (15, 16):
         neighbors = [n for n in atom.GetNeighbors() if n.GetIdx() != oxygen]
-        if atom.GetDegree() == 4 and all(n.GetAtomicNum() == 8 and n.GetDegree() == 1 and not n.GetFormalCharge() for n in neighbors):
-            return "dihydrogen phosphate"
-        return None
-    if atom.GetAtomicNum() == 16:
-        neighbors = [n for n in atom.GetNeighbors() if n.GetIdx() != oxygen]
-        if atom.GetDegree() == 4 and all(n.GetAtomicNum() == 8 and n.GetDegree() == 1 and not n.GetFormalCharge() for n in neighbors):
-            return "hydrogen sulfate"
+        if atom.GetDegree() == 4 and all(n.GetAtomicNum() == 8 and n.GetDegree() == 1 for n in neighbors):
+            anionic = sum(n.GetFormalCharge() == -1 for n in neighbors)
+            if anionic == 0:
+                return "dihydrogen phosphate" if atom.GetAtomicNum() == 15 else "hydrogen sulfate"
+            if atom.GetAtomicNum() == 15:
+                return {1: "hydrogen phosphate", 2: "phosphate"}.get(anionic)
+            return "sulfate" if anionic == 1 else None
         return None
     graph = adjacency(mol)
     branch, stack = {oxygen}, [acyl]
@@ -126,7 +128,9 @@ def ester_anion(mol, oxygen, acyl):
     acid = editable.GetMol()
     Chem.SanitizeMol(acid)
     try:
-        return anion_name(smiles_to_iupac(Chem.MolToSmiles(acid)))
+        name = smiles_to_iupac(Chem.MolToSmiles(acid))
+        carbonate = re.fullmatch(r"(.+) hydrogen carbonate", name)
+        return f"{carbonate.group(1)} carbonate" if carbonate else anion_name(name)
     except (UnsupportedStructure, ValueError):
         return None
 
@@ -292,7 +296,7 @@ def ester_words(esters):
         compound = " " in anion
         if count == 1:
             words.append(f"{joined}-({anion})" if compound else f"{joined}-{anion}")
-        elif compound:
+        elif compound or anion == "phosphate":
             words.append(f"{joined}-{_COMPLEX[count]}({anion})")
         else:
             words.append(f"{joined}-{numerical_term(count)}{anion}")
