@@ -169,8 +169,10 @@ def name_ammonium(mol) -> str:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
     charged_nitrogens = [
-        atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 7 and atom.GetFormalCharge() != 0
+        atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 7 and atom.GetFormalCharge() > 0
     ]
+    if len(charged_nitrogens) != 1:
+        raise UnsupportedStructure("several cationic nitrogens are named as a polyammonium, not here")
     (nitrogen,) = charged_nitrogens
     if nitrogen.GetFormalCharge() != 1 or nitrogen.GetIsotope() != 0:
         raise UnsupportedStructure(

@@ -1356,3 +1356,14 @@ def test_aryl_cations_chain_onium_cations_and_two_centre_oxonium(smiles, expecte
 
 def test_added_hydrogen_of_a_mancude_ring_cation():
     assert smiles_to_iupac("C=1CC=C[C+]2C=C3C=CC=CC3=CC12") == "anthracen-4a(2H)-ylium"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[N+]1(C)CC[N-]CC1", "1,1-dimethylpiperazin-1-ium-4-ide"),
+        ("C[Se+]1CC[N-]CC1", "1-methyl-1,4-selenomorpholin-1-ium-4-ide"),
+    ],
+)
+def test_zwitterionic_ring_with_a_ring_cation_and_a_ring_anion(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
