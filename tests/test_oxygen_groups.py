@@ -861,10 +861,10 @@ def test_cationic_hydrazine_with_neutral_acid_raises():
         ("CC(=O)ON1CCCC1", "pyrrolidin-1-yl acetate"),
         ("CC(=O)ON(C)C", "1-[(dimethylamino)oxy]ethan-1-one"),
         ("CCCC(=O)ONC", "1-[(methylamino)oxy]butan-1-one"),
-        ("S(C#N)CCC(=O)O", "3-thiocyanatopropanoic acid"),
-        ("S(C#N)CCC(SCC)=O", "S-ethyl 3-thiocyanatopropanethioate"),
+        ("S(C#N)CCC(=O)O", "3-(thiocyanato)propanoic acid"),
+        ("S(C#N)CCC(SCC)=O", "S-ethyl 3-(thiocyanato)propanethioate"),
         ("OC(=O)CCOC#N", "3-cyanatopropanoic acid"),
-        ("OC(=O)CCC[Se]C#N", "4-selenocyanatobutanoic acid"),
+        ("OC(=O)CCC[Se]C#N", "4-(selenocyanato)butanoic acid"),
     ],
 )
 def test_ester_class_names(smiles, expected):
@@ -1133,4 +1133,19 @@ def test_chalcogen_aldehydes_and_ring_nitrogen_nitriles(smiles, expected):
     ],
 )
 def test_mixed_chalcogen_aldehydes_and_methanethioyl_beside_an_amide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C(C)(=O)OC=1C=NC(=CC1)C1=CC=C(C=C1)OC(C)=O", "6-[4-(acetyloxy)phenyl]pyridin-3-yl acetate"),
+        ("C(C)(=O)OCCC1=C(C=CC=C1)COC(C)=O", "2-{2-[(acetyloxy)methyl]phenyl}ethyl acetate"),
+        ("OC(=O)OOC(=O)O", "2-peroxydicarbonic acid"),
+        ("[O-]C(=S)OC(=O)[O-]", "1-thiodicarbonate"),
+        ("O=C(CCC(=O)N=C=S)[N+]#[C-]", "butanedioyl isocyanide isothiocyanate"),
+        ("CCC(=N)[Se]c1ccccc1C(O)=N", "2-(propanimidoylselanyl)benzene-1-carboximidic acid"),
+    ],
+)
+def test_polyester_seniority_peroxydicarbonic_and_acyl_pseudohalide_gaps(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
