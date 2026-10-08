@@ -226,6 +226,20 @@ def _von_baeyer(sub):
     return name, [{a: str(i + 1) for i, a in enumerate(order)} for order, _, outer in candidates if outer == best]
 
 
+def _von_baeyer_ene(mol, sub, atoms, locants):
+    """Locants of the double bonds of a von Baeyer spiro component under one numbering (P-31.1.5.2.1)."""
+    found = []
+    for bond in sub.GetBonds():
+        order = mol.GetBondBetweenAtoms(atoms[bond.GetBeginAtomIdx()], atoms[bond.GetEndAtomIdx()]).GetBondTypeAsDouble()
+        if order == 1.0:
+            continue
+        low, high = sorted(int(locants[i]) for i in (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()))
+        if order != 2.0 or high != low + 1:
+            raise UnsupportedStructure("this multiple bond of a von Baeyer spiro component is not supported yet")
+        found.append(low)
+    return tuple(sorted(found))
+
+
 def _adamantane_component(mol, comp, atoms, orders, spiro_atoms):
     hetero = sorted(a for a in comp["atoms"] if mol.GetAtomWithIdx(a).GetAtomicNum() != 6)
 
@@ -255,7 +269,7 @@ def _component(mol, comp, force_replacement, spiro_atoms=frozenset()):
         if name == "adamantane":
             return _adamantane_component(mol, comp, atoms, orders, spiro_atoms)
         replacement = True
-        numberings = [(n, ()) for n in orders]
+        numberings = [(n, _von_baeyer_ene(mol, sub, atoms, n)) for n in orders]
     elif force_replacement:
         raise UnsupportedStructure("a fused component beside a skeletal replacement spiro heteroatom is not supported yet")
     else:

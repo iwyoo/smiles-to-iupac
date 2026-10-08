@@ -15,6 +15,17 @@ from smiles_to_iupac._fullerene_spiral import (
 )
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1CC12CCC#CCC2", "spiro[2.6]non-6-yne"),
+        ("C1CCC2(CC1)CC#CC=C2", "spiro[5.5]undec-1-en-3-yne"),
+    ],
+)
+def test_spiro_triple_bond_and_ene_yne_endings(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_monospiro_still_resolves_via_spiro_module():
     assert smiles_to_iupac("C1CCCC12CCCCC2") == "spiro[4.5]decane"
 
@@ -817,6 +828,8 @@ def test_monospiro_union_with_a_polycyclic_component(smiles, expected):
         pytest.param("C1CC[N+]2(C1)CCC1CCC(C1)C2", "1′λ5-spiro[3-azabicyclo[4.2.1]nonane-3,1′-pyrrolidin]-1′-ylium", id="lowest_spiro_locant_cited_with_lambda_and_ylium"),
         pytest.param("C1CCC2(C1)SC1CC2C2CC12", "7′-thiaspiro[cyclopentane-1,6′-tricyclo[3.2.1.0^2,4]octane]", id="polycyclic_von_baeyer_component"),
         pytest.param("C1CCC2(C1)C1CC3CC(C1)CC2C3", "spiro[adamantane-2,1′-cyclopentane]", id="adamantane_retained_component"),
+        pytest.param("C12C3(C4OCC(C3)C=C4)CC(OC1)C=C2", "5,6′-dioxa-2,2′-spirobi[bicyclo[2.2.2]octane]-7,7′-diene", id="ene_endings_follow_the_last_bracket"),
+        pytest.param("C1=CC2CC1CC23CC4CCC3C4", "2,2′-spirobi[bicyclo[2.2.1]heptan]-5-ene", id="single_ene_elides_the_final_e"),
     ],
 )
 def test_monospiro_union_with_a_von_baeyer_component(smiles, expected):
