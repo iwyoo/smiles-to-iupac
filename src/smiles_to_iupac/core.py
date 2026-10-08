@@ -216,7 +216,7 @@ from ._hetero_monocyclic import (
 )
 from ._carbene_amine import has_carbene_amine_shape, name_carbene_amine
 from ._carbon_monoxide import has_carbon_monoxide_shape, name_carbon_monoxide
-from ._hetaryne import has_hetaryne_shape, name_hetaryne
+from ._heteroaryne import has_heteroaryne_shape, name_heteroaryne
 from ._didehydro_ring import has_didehydro_ring_name, name_didehydro_ring
 from ._chalcogen_chain_heterone import name_chalcogen_chain_heterone
 from ._halogen_acid_ester import name_halogen_acid_ester
@@ -284,7 +284,6 @@ from ._functional_replacement_oxoacid import (
     has_functional_replacement_oxoacid_shape,
     name_functional_replacement_oxoacid,
 )
-from ._unsaturated_hydride_chain import has_unsaturated_hydride_chain_shape, name_unsaturated_hydride_chain
 from ._ring_imine import has_ring_imine_shape, name_ring_imine
 from ._methanediimine import has_methanediimine_shape, name_methanediimine
 from ._phosphanone import has_phosphanimine_shape, has_phosphanone_shape, name_phosphanimine, name_phosphanone
@@ -1149,11 +1148,6 @@ def _name_mol(mol) -> str:
                 pass
         return mark(name_coordination(mol), _NO_PIN_ORGANOMETALLIC)
 
-    # An unsaturated Group 14/15 chain (P-31.1.2.2) must precede the metal-pair and silane/phosphane chain branches,
-    # which accept single bonds only.
-    if has_unsaturated_hydride_chain_shape(mol):
-        return name_unsaturated_hydride_chain(mol)
-
     # Two or more Group 13-15 metals (P-69.5.3) must precede the
     # single-metal hydride dispatches below, which reject a second metal.
     if has_metal_pair_shape(mol) and not _has_senior_principal_group(mol):
@@ -1581,8 +1575,8 @@ def _name_mol(mol) -> str:
         # didehydro ring's extra double bond means it never matches that
         # check's fully-saturated canonical SMILES anyway, but grouped here
         # for the shared `saturated_ring_name` dependency.
-        (has_hetaryne_shape, name_hetaryne),
         (has_didehydro_ring_name, name_didehydro_ring),
+        (has_heteroaryne_shape, name_heteroaryne),
         # oxirane/thiane/piperidine etc. (P-22.2.1's Hantzsch-Widman
         # saturated-monocyclic retained names) are recognized the same way --
         # see _hetero_monocyclic.py's module docstring; none of the O/N

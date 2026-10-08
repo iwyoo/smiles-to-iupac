@@ -317,24 +317,11 @@ def _candidate_key(parent, spiro_locants, descriptor, substituents):
     return (spiro_locants, descriptor, locant_set, citation_locants, name)
 
 
-def name_linear_polyspiro(mol, chain) -> str:
-    validate_atoms_and_bonds(mol)
-    if non_single_bonds(mol):
-        raise UnsupportedStructure(
-            "unsaturated spiro ring systems are not supported yet (see "
-            "P-31.1.5, unsaturated alicyclic spiro ring systems)"
-        )
-
+def iter_linear_polyspiro_numberings(mol, chain):
     graph = adjacency(mol)
-    halogens = halogen_substituents(mol)
     atom_rings = mol.GetRingInfo().AtomRings()
     ring_order, spiro_atoms = chain
-    spiro_count = len(spiro_atoms)
-    prefix = numerical_term(spiro_count) + "spiro"
-
-    best_key = None
-    best_name = None
-    best_locants = None
+    prefix = numerical_term(len(spiro_atoms)) + "spiro"
     for order, spiros in _chain_direction_candidates(ring_order, spiro_atoms, atom_rings):
         arc_options = _arc_choice_options(graph, atom_rings, order, spiros)
         first_ring_non_spiro = set(atom_rings[order[0]]) - {spiros[0]}
@@ -353,11 +340,29 @@ def name_linear_polyspiro(mol, chain) -> str:
                         for num, sup in zip(descriptor, superscripts)
                     )
                     parent = f"{prefix}[{descriptor_str}]{alkane_name(len(seq))}"
-                    spiro_locants = tuple(sorted(locants[s] for s in spiros))
-                    substituents = substituents_for_ring(graph, seq, halogens)
-                    key = _candidate_key(parent, spiro_locants, tuple(descriptor), substituents)
-                    if best_key is None or key < best_key:
-                        best_key, best_name, best_locants = key, key[-1], locants
+                    yield parent, seq, spiros, tuple(descriptor)
+
+
+def name_linear_polyspiro(mol, chain) -> str:
+    validate_atoms_and_bonds(mol)
+    if non_single_bonds(mol):
+        raise UnsupportedStructure(
+            "unsaturated spiro ring systems are not supported yet (see "
+            "P-31.1.5, unsaturated alicyclic spiro ring systems)"
+        )
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    best_key = None
+    best_name = None
+    best_locants = None
+    for parent, seq, spiros, descriptor in iter_linear_polyspiro_numberings(mol, chain):
+        locants = {atom: pos for pos, atom in enumerate(seq, start=1)}
+        spiro_locants = tuple(sorted(locants[s] for s in spiros))
+        substituents = substituents_for_ring(graph, seq, halogens)
+        key = _candidate_key(parent, spiro_locants, descriptor, substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name, best_locants = key, key[-1], locants
 
     stereo = specified_stereocenters(mol)
     if stereo is None:
@@ -426,22 +431,10 @@ def _build_branched_sequence(graph, terminal_ring_by_spiro, start_spiro, arc1, s
     return seq, descriptor, superscripts
 
 
-def name_branched_polyspiro(mol, hub_data) -> str:
-    validate_atoms_and_bonds(mol)
-    if non_single_bonds(mol):
-        raise UnsupportedStructure(
-            "unsaturated spiro ring systems are not supported yet (see "
-            "P-31.1.5, unsaturated alicyclic spiro ring systems)"
-        )
-
+def iter_branched_polyspiro_numberings(mol, hub_data):
     graph = adjacency(mol)
-    halogens = halogen_substituents(mol)
     hub_atoms, hub_spiro_atoms, terminal_ring_by_spiro = hub_data
     prefix = numerical_term(3) + "spiro"
-
-    best_key = None
-    best_name = None
-    best_locants = None
     for start_spiro in hub_spiro_atoms:
         hub_neighbors = [a for a in graph[start_spiro] if a in hub_atoms]
         for first_step in hub_neighbors:
@@ -465,11 +458,29 @@ def name_branched_polyspiro(mol, hub_data) -> str:
                     for num, sup in zip(descriptor, superscripts)
                 )
                 parent = f"{prefix}[{descriptor_str}]{alkane_name(len(seq))}"
-                spiro_locants = tuple(sorted(locants[s] for s in hub_spiro_atoms))
-                substituents = substituents_for_ring(graph, seq, halogens)
-                key = _candidate_key(parent, spiro_locants, tuple(descriptor), substituents)
-                if best_key is None or key < best_key:
-                    best_key, best_name, best_locants = key, key[-1], locants
+                yield parent, seq, tuple(hub_spiro_atoms), tuple(descriptor)
+
+
+def name_branched_polyspiro(mol, hub_data) -> str:
+    validate_atoms_and_bonds(mol)
+    if non_single_bonds(mol):
+        raise UnsupportedStructure(
+            "unsaturated spiro ring systems are not supported yet (see "
+            "P-31.1.5, unsaturated alicyclic spiro ring systems)"
+        )
+
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    best_key = None
+    best_name = None
+    best_locants = None
+    for parent, seq, spiros, descriptor in iter_branched_polyspiro_numberings(mol, hub_data):
+        locants = {atom: pos for pos, atom in enumerate(seq, start=1)}
+        spiro_locants = tuple(sorted(locants[s] for s in spiros))
+        substituents = substituents_for_ring(graph, seq, halogens)
+        key = _candidate_key(parent, spiro_locants, descriptor, substituents)
+        if best_key is None or key < best_key:
+            best_key, best_name, best_locants = key, key[-1], locants
 
     stereo = specified_stereocenters(mol)
     if stereo is None:

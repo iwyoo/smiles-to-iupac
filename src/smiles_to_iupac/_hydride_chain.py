@@ -3,6 +3,7 @@
 
 from ._common import (
     UnsupportedStructure,
+    unsaturation_suffix,
     group_substituents,
     nonstandard_bonding,
     substituent_locant_set_and_citation,
@@ -35,7 +36,7 @@ def _is_nitro_or_nitroso(atom):
     )
 
 
-def _chain_atoms(mol, graph, skip_nitrogen=False, allow_double=False):
+def _chain_atoms(mol, graph, skip_nitrogen=False, allow_double=False, allow_triple=False):
     elements = {
         a.GetAtomicNum()
         for a in mol.GetAtoms()
@@ -70,7 +71,7 @@ def _chain_atoms(mol, graph, skip_nitrogen=False, allow_double=False):
         return None
     for a, b in zip(chain, chain[1:]):
         order = mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble()
-        if order != 1.0 and not (allow_double and order == 2.0):
+        if order != 1.0 and not (allow_double and order == 2.0) and not (allow_triple and order == 3.0):
             return None
     if z == 7 and len(chain) == 2 and mol.GetBondBetweenAtoms(chain[0], chain[1]).GetBondTypeAsDouble() != 2.0:
         return None
@@ -113,16 +114,20 @@ def _alternating_chain(mol, graph):
             break
         previous = chain[-1]
         chain.append(nxt[0])
-    if len(chain) != len(atoms) or any(mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1.0 for a, b in zip(chain, chain[1:])):
+    if len(chain) != len(atoms):
         return None
     return terminal_z, inner_z, chain
 
 
-def _alternating_parent(terminal_z, inner_z, terminal_count):
+def _alternating_parent(terminal_z, inner_z, terminal_count, ene=(), yne=()):
     terminal, inner = _A_TERMS[terminal_z], _A_TERMS[inner_z]
     if inner[0] in "aeiou":
         terminal = terminal[:-1]
-    return multiplying_prefix(terminal_count) + terminal + inner[:-1] + "ane"
+    stem = multiplying_prefix(terminal_count) + terminal + inner[:-1]
+    if not ene and not yne:
+        return stem + "ane"
+    body, needs_a = unsaturation_suffix(ene, yne)
+    return f"{stem}{'a' if needs_a else ''}-{body}"
 
 
 def _split_chain(mol, graph):
@@ -190,8 +195,29 @@ def _joined_by_chalcogens(mol, graph, best, runs):
     return True
 
 
+def _unsaturated_parent(z, size, ene, yne, grouped):
+    """'disilyne', 'triazene', 'triaz-1-ene', 'pentaaza-1,3-diene' (P-14.3.4.2(d), P-31.1.4): the 'ane' of the chain hydride
+    becomes 'ene' or 'yne'; the locants are omitted for a dinuclear chain and for an unsubstituted monounsaturated one."""
+    root = multiplying_prefix(size) + _STEMS[z][:-3]
+    unsubstituted = not grouped
+    if size == 2 or (size == 3 and len(ene) + len(yne) == 1 and unsubstituted):
+        return root + ("yne" if yne and not ene else "ene" if ene and not yne else _unsat_words(ene, yne)), True
+    body, needs_a = unsaturation_suffix(ene, yne)
+    return f"{root}{'a' if needs_a else ''}-{body}", False
+
+
+def _unsat_words(ene, yne):
+    from ._common import unsaturation_suffix
+
+    return unsaturation_suffix(ene, yne)[0]
+
+
 def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
     found = _chain_atoms(mol, graph)
+    unsaturated = False
+    if found is None:
+        found = _chain_atoms(mol, graph, allow_double=True, allow_triple=True)
+        unsaturated = found is not None
     alternating = None
     if found is None:
         alternating = _alternating_chain(mol, graph)
@@ -220,6 +246,8 @@ def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
                 substituents.setdefault(i + 1, []).append((name, compound))
         grouped = group_substituents(substituents)
         locant_set, _, citation = substituent_locant_set_and_citation(grouped)
+        ene = [i + 1 for i in range(len(candidate) - 1) if mol.GetBondBetweenAtoms(candidate[i], candidate[i + 1]).GetBondTypeAsDouble() == 2.0]
+        yne = [i + 1 for i in range(len(candidate) - 1) if mol.GetBondBetweenAtoms(candidate[i], candidate[i + 1]).GetBondTypeAsDouble() == 3.0]
         lam = {i + 1: n for i, atom in enumerate(candidate) if (n := nonstandard_bonding(mol.GetAtomWithIdx(atom)))}
         omit = not lam and (
             len(chain) == 1
@@ -227,8 +255,10 @@ def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
             or all(mol.GetAtomWithIdx(a).GetTotalNumHs() == 0 for a in chain)
         )
         if alternating is not None:
-            parent = _alternating_parent(alternating[0], alternating[1], (len(chain) + 1) // 2)
+            parent = _alternating_parent(alternating[0], alternating[1], (len(chain) + 1) // 2, ene, yne)
             omit = not lam and len(chain) == 3 and sum(len(info["locants"]) for info in grouped.values()) == 1
+        elif unsaturated:
+            parent, omit = _unsaturated_parent(z, len(chain), ene, yne, grouped)
         else:
             parent = _STEMS[z] if len(chain) == 1 else f"{multiplying_prefix(len(chain))}{_STEMS[z]}"
         lam_text = ",".join(f"{p}\u03bb{lam[p]}" for p in sorted(lam))
@@ -240,7 +270,7 @@ def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
         else:
             prefixes = format_substituent_prefixes(grouped, omit_locants=omit)
             name = prefixes + ("-" if prefixes and lam_text else "") + parent
-        key = (sorted(lam), [-lam[p] for p in sorted(lam)], locant_set, citation, name)
+        key = (sorted(lam), [-lam[p] for p in sorted(lam)], ene, yne, locant_set, citation, name)
         if best is None or key < best[0]:
             best = (key, name)
     return best[1]

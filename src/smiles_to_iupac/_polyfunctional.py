@@ -2632,7 +2632,8 @@ def _require_mancude_system(mol, atoms):
     ):
         raise UnsupportedStructure("a saturated cyclopenta[a]phenanthrene skeleton is a steroid parent hydride (P-101), not a hydro fusion name")
     member_rings = [r for r in mol.GetRingInfo().AtomRings() if set(r) <= set(atoms)]
-    if len(member_rings) > 3 and any(len(r) not in (5, 6, 7) for r in member_rings):
+    only_spiro_contacts = all(len(set(a) & set(b)) <= 1 for i, a in enumerate(member_rings) for b in member_rings[i + 1 :])
+    if len(member_rings) > 3 and not only_spiro_contacts and any(len(r) not in (5, 6, 7) for r in member_rings):
         if not any(sum(a in r for r in member_rings) > 2 for a in atoms):
             raise UnsupportedStructure("the numbering of this larger fused system is not verified here")
 

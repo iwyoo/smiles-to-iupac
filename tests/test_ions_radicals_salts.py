@@ -649,7 +649,7 @@ def test_unaccounted_fragment_or_polyvalent_halogen_is_never_dropped(smiles):
         pytest.param("N[CH]C(=O)O", "amino(carboxy)methyl", id="two_groups_on_a_one_carbon_radical"),
         pytest.param("C[C](C)C(=O)O", "2-carboxypropan-2-yl", id="tertiary_radical_with_acid"),
         pytest.param("OC1CC[CH]CC1", "4-hydroxycyclohexyl", id="ring_radical_with_hydroxy"),
-        pytest.param("[CH2]C(=O)OC", "(methoxycarbonyl)methyl", id="ester_beside_radical"),
+        pytest.param("[CH2]C(=O)OC", "2-methoxy-2-oxoethyl", id="ester_beside_radical"),
         pytest.param("[CH2]c1ccc(cc1)[N+](=O)[O-]", "(4-nitrophenyl)methyl", id="nitro_on_an_aryl_methyl_radical"),
         pytest.param("[O]CC(=O)O", "carboxymethoxyl", id="oxygen_radical_with_acid"),
         pytest.param("[O]CCCl", "2-chloroethoxyl", id="oxygen_radical_with_halogen"),

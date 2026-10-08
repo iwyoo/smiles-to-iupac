@@ -354,9 +354,8 @@ def test_substituted_phenyl_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_halogen_on_nitrogen_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("ClN=N")
+def test_halogen_on_diazene_nitrogen():
+    assert smiles_to_iupac("ClN=N") == "chlorodiazene"
 
 
 @pytest.mark.parametrize(
