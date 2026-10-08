@@ -1946,6 +1946,10 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
         for n in mol.GetAtomWithIdx(r).GetNeighbors()
         if n.GetIdx() not in ring_set
     ]
+    from ._substituents import ISOTOPE_LABELS
+
+    labels = (ISOTOPE_LABELS.get() or {}).get("labels", {})
+    modified = _isotope_counts(stereo, [(a, None) for a in ring_set if a in labels])
     spec = monocycle_spec(mol, ring)
     if spec is None:
         from ._diester_ring_diyl import evaluate_skeleton
@@ -1957,7 +1961,7 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
 
         placed = found[2]
         name = _without_stereo(found[1])
-        return (-len(roots), tuple(sorted(placed[r] for r, _ in roots)), alphanumerical_name_key(name), name), (
+        return (modified, -len(roots), tuple(sorted(placed[r] for r, _ in roots)), alphanumerical_name_key(name), name), (
             (0,), name, (None, None, None, 0, placed, True, PARENT_START.get())
         )
     from ._substituents import ISOTOPE_LABELS
@@ -1968,7 +1972,7 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
         if not ring_labelled:
             raise UnsupportedStructure("an unsubstituted ring is not a polyfunctional case")
         locants = min(numberings(spec), key=lambda option: _stereo_rank(stereo, option))
-        return (0, (), spec.parent), ((0,), spec.parent, (None, None, None, 0, locants, True, 0))
+        return (modified, 0, (), spec.parent), ((0,), spec.parent, (None, None, None, 0, locants, True, 0))
     entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
     best = None
     for locants in numberings(spec):
@@ -1987,7 +1991,7 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
     else:
         prefix_text = _prefix_text(entries, best[1])
     name = _join(prefix_text, spec.parent)
-    return (-len(roots), best[0][0], alphanumerical_name_key(name), name), ((0,), name, (None, None, None, 0, best[1], True, len(name) - len(spec.parent)))
+    return (modified, -len(roots), best[0][0], alphanumerical_name_key(name), name), ((0,), name, (None, None, None, 0, best[1], True, len(name) - len(spec.parent)))
 
 
 _GROUP_14 = (14, 32, 50, 82)
