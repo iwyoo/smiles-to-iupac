@@ -1681,7 +1681,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
     if chain_best is None:
         raise UnsupportedStructure("no parent carries the principal group")
     if _is_terminal(principal) and chain_count < len(principal_atoms):
-        carbo = _carbo_best(mol, graph, halogens, aromatic_atoms, principal, principal_atoms, stereo)
+        carbo = _carbo_best(mol, graph, halogens, aromatic_atoms, principal, principal_atoms, stereo, n_names)
         if carbo is not None and -carbo[0][0] > chain_count:
             return _finish(carbo)
     if (
@@ -1975,7 +1975,7 @@ _CARBO_WORDS = {
 }
 
 
-def _carbo_best(mol, graph, halogens, aromatic_atoms, principal, principal_atoms, stereo):
+def _carbo_best(mol, graph, halogens, aromatic_atoms, principal, principal_atoms, stereo, n_names=()):
     """The chain whose attached group carbons are cited as 'carbo' suffixes
     (propane-1,2,3-tricarboxylic acid), or None."""
     owned = set().union(*principal_atoms.values())
@@ -1992,14 +1992,14 @@ def _carbo_best(mol, graph, halogens, aromatic_atoms, principal, principal_atoms
     for path in _paths(graph, eligible):
         for chain in (path, path[::-1]):
             candidate = _evaluate_carbo(
-                mol, graph, halogens, aromatic_atoms, chain, principal, group_carbons, owned, stereo
+                mol, graph, halogens, aromatic_atoms, chain, principal, group_carbons, owned, stereo, n_names
             )
             if candidate is not None and (best is None or candidate[0] < best[0]):
                 best = candidate
     return best
 
 
-def _evaluate_carbo(mol, graph, halogens, aromatic_atoms, chain, principal, group_carbons, owned, stereo):
+def _evaluate_carbo(mol, graph, halogens, aromatic_atoms, chain, principal, group_carbons, owned, stereo, n_names=()):
     position_of = {atom: i + 1 for i, atom in enumerate(chain)}
     chain_set = set(chain)
     attached = {}
@@ -2029,7 +2029,7 @@ def _evaluate_carbo(mol, graph, halogens, aromatic_atoms, chain, principal, grou
     count = len(attached)
     length = len(chain)
     word = carbo_suffix(spec_from_key(principal), 1) if _is_variant(principal) else _CARBO_WORDS[principal]
-    prefix = format_substituent_prefixes(grouped)
+    prefix = format_substituent_prefixes(_with_n_names(grouped, n_names, position_of, count))
     body = name_from_substituents(length, ene, yne, multiplied_word(count, word), suffix_locants)
     name = prefix + body
     key = (
@@ -2041,6 +2041,7 @@ def _evaluate_carbo(mol, graph, halogens, aromatic_atoms, chain, principal, grou
         -total_count,
         locant_set,
         citation,
+        _n_group_positions(n_names, position_of),
         _stereo_rank(stereo, position_of),
         name,
     )
@@ -3604,26 +3605,53 @@ def _ring_occurrences(mol):
     return found
 
 
+def _n_position(located, position_of):
+    for atom in (located[1], *(located[3] if len(located) > 3 else ())):
+        if atom in position_of:
+            return position_of[atom]
+    return None
+
+
 def _with_n_names(grouped, n_names, position_of=None, group_count=2):
     """`grouped` plus the N-prefixes; a locant ("N", atom) of one of several groups reads N<position of atom>
-    (P-66.1.1.4.2: 'N1,N5-dimethylpentanediamide')."""
+    (P-66.1.1.4.2: 'N1,N5-dimethylpentanediamide'); groups on one atom are told apart by primes, the one with the
+    most substituents unprimed (P-16.9.3)."""
     if not n_names:
         return grouped
     merged = {name: {"locants": list(info["locants"]), "compound": info["compound"]} for name, info in grouped.items()}
+    groups = {}
+    for name, compound, *locant in n_names:
+        if locant and isinstance(locant[0], tuple) and len(locant[0]) > 2:
+            entry = groups.setdefault(locant[0][2], [0, name, locant[0]])
+            entry[0] += 1
+            entry[1] = min(entry[1], name)
+    primes = {}
+    if group_count > 1:
+        by_position = {}
+        for group, (count, first, located) in groups.items():
+            by_position.setdefault(_n_position(located, position_of), []).append((-count, first, group))
+        for members in by_position.values():
+            for prime, (_, _, group) in enumerate(sorted(members)):
+                primes[group] = prime
     for name, compound, *locant in n_names:
         located = locant[0] if locant else "N"
         if isinstance(located, tuple):
-            if located[1] not in position_of:
+            position = _n_position(located, position_of)
+            if position is None:
                 continue
-            located = "N" if group_count == 1 else f"{located[0]}{position_of[located[1]]}"
+            if group_count == 1:
+                located = "N"
+            else:
+                mark = "'" * primes.get(located[2], 0) if len(located) > 2 else ""
+                located = f"{located[0]}{mark}{position}"
         merged.setdefault(name, {"locants": [], "compound": compound})["locants"].append(located)
     return merged
 
 
 def _n_group_positions(n_names, position_of):
     """Sorted numbers of the groups that carry N-prefixes, for choosing the numbering."""
-    anchors = [entry[2][1] for entry in n_names if len(entry) > 2 and isinstance(entry[2], tuple)]
-    return tuple(sorted(position_of[a] for a in anchors if a in position_of))
+    located = [entry[2] for entry in n_names if len(entry) > 2 and isinstance(entry[2], tuple)]
+    return tuple(sorted(p for p in (_n_position(e, position_of) for e in located) if p is not None))
 
 
 def _ring_prefix_text(entries, locants, n_names, group_count=2):
@@ -3635,13 +3663,16 @@ def _ring_prefix_text(entries, locants, n_names, group_count=2):
 
 def _imidic_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls):
     """N-prefix names when the single imidic or hydrazonic acid group carries substituents on its =N atom."""
+    carbon_centre = spec_from_key(cls).center == "C"
     centers = [
-        next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52)), carbon)
+        carbon if carbon_centre else next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52)), carbon)
         for carbon, owned in groups.get(cls, {}).items()
     ]
     for group_cls, ring_atom, owned in ring_groups:
         if group_cls == cls:
-            centers.append(next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (6, 16, 34, 52)))
+            centers.append(
+                next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in ((6,) if carbon_centre else (6, 16, 34, 52)))
+            )
     found = [acid_group_at(mol, c) for c in dict.fromkeys(centers)]
     centers = list(dict.fromkeys(centers))
     substituted = [g for g in found if g is not None and g.n_substituents]
@@ -3796,14 +3827,11 @@ def _amide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cl
     for carbon, (owned, anchor) in members.items():
         nitrogen = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7)
         center = next((a for a in graph[nitrogen] if a in owned), carbon)
-        located = ("N", anchor) if len(members) > 1 else "N"
+        located = ("N", anchor, carbon, tuple(a for a in graph[carbon] if a not in owned)) if len(members) > 1 else "N"
         for n in graph[nitrogen]:
             if n != center:
                 name, compound = name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
                 entries.append((name, compound, located))
-    anchors = [anchor for _, anchor in members.values()]
-    if entries and len(set(anchors)) != len(anchors):
-        raise UnsupportedStructure("amide groups on one atom need primed N locants, which are not supported yet")
     return entries
 
 
