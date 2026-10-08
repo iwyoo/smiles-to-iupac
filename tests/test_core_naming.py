@@ -780,3 +780,18 @@ def test_double_bond_to_an_ylidene_group_takes_the_parent_locant():
         smiles_to_iupac("Cl/C(/C(/C=C/C(=O)O)=C/S(=O)(=O)O)=C\\C")
         == "(2E,4E,5Z)-5-chloro-4-(sulfomethylidene)hepta-2,5-dienoic acid"
     )
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[SiH]#[SiH]", "disilyne"),
+        ("N=NN", "triazene"),
+        ("CN=NN(C)C", "1,3,3-trimethyltriaz-1-ene"),
+        ("N=NN=N", "tetraaza-1,3-diene"),
+        ("N1=CC#CC=C1", "3,4-didehydropyridine"),
+        ("C1#CC=CS1", "2,3-didehydrothiophene"),
+    ],
+)
+def test_unsaturated_heteroatom_chains_and_heteroarynes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
