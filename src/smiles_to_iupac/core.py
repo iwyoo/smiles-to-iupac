@@ -26,6 +26,8 @@ from ._amino_acid_derivative import has_amino_acid_shape, name_amino_acid
 from ._mixed_onium import has_mixed_onium_shape, name_mixed_onium
 from ._axial_stereo import cite_axial_stereo
 from ._chalcone import has_chalcone_shape, name_chalcone
+from ._silicic_cyanate import silicic_cyanate_name
+from ._borane_silane_amide import borane_silane_amide_name
 from ._polyborane import lewis_adduct_mol, polyborane_name
 from ._dipolar import has_dipolar_shape, name_dipolar
 from ._substituents import FORCED_BRANCH_NAMES
@@ -633,6 +635,10 @@ def _name_unabridged(smiles: str) -> str:
             return name
         if parsed is not None and has_chalcone_shape(parsed):
             return name_chalcone(parsed)
+        if parsed is not None and silicic_cyanate_name(parsed) is not None:
+            return silicic_cyanate_name(parsed)
+        if parsed is not None and borane_silane_amide_name(parsed) is not None:
+            return borane_silane_amide_name(parsed)
         if parsed is not None:
             polyborane = polyborane_name(parsed)
             if polyborane is not None:

@@ -36,6 +36,23 @@ def test_halogen_substituted_alkyl_chain():
     assert smiles_to_iupac("ClCCB") == "(2-chloroethyl)borane"
 
 
+# P-67.1.2.6.2 amides and hydrazides of the boron acids and silicic acid
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("NB(N)N", "boranetriamine", id="boron_triamide"),
+        pytest.param("N[Si](N)(N)N", "silanetetramine", id="tetra_elides_its_final_a"),
+        pytest.param("N[SiH2]N", "silanediamine", id="silicon_diamide"),
+        pytest.param("NNB(NN)NN", "1,1′,1′′-boranetriyltrihydrazine", id="boron_trihydrazide"),
+        pytest.param("NN[BH2]", "boranylhydrazine", id="boron_monohydrazide"),
+        pytest.param("[Si](O)(O)(O)OC#N", "cyanatosilicic acid", id="cyanato_prefix_on_silicic_acid"),
+        pytest.param("[Si](O)(O)(OC#N)OC#N", "dicyanatosilicic acid", id="multiplied_cyanato_prefix"),
+    ],
+)
+def test_amides_and_cyanates_of_boron_and_silicon_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.parametrize(
     "smiles, expected",
     [
