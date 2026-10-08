@@ -1779,6 +1779,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             and not (principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES) and atom.GetIdx() in groups.get("hydrazide", {}))
             and _is_ester_like(mol, atom.GetIdx())
             and not (_urea_carbon(mol, atom.GetIdx()) and _outranks_urea(principal))
+            and not (FORCED_PRINCIPAL.get() == principal and principal == "nitrile")
         ):
             raise UnsupportedStructure("an ester outranks every parent this engine can build except an acid")
     if (

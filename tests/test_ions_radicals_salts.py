@@ -1264,3 +1264,17 @@ def test_ion_endings_hydrogen_free_cations_and_cationic_prefixes(smiles, expecte
 )
 def test_ylium_and_onium_cations_of_mononuclear_hydrides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("COC(=O)C1=CC=C(C#[N+][O-])C=C1", "4-(methoxycarbonyl)benzonitrile oxide"),
+        ("c1ccccc1C#[N+][S-]", "benzonitrile sulfide"),
+        ("[O-][N+]#CC1CCC(CC1)C#[N+][O-]", "cyclohexane-1,4-dicarbonitrile dioxide"),
+        ("O=N#CC1=CC=C(C(=O)[O-])C=C1", "4-[(oxo-λ5-azanylidyne)methyl]benzoate"),
+        ("[O-]C(=O)c1ccc(cc1)C#[N+][O-].[Na+]", "sodium 4-[(oxo-λ5-azanylidyne)methyl]benzoate"),
+    ],
+)
+def test_nitrile_oxides_and_their_prefix_beside_an_anion(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

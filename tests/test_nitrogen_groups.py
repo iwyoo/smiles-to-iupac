@@ -1426,3 +1426,14 @@ def test_hydrazidines_and_carbonic_amidrazones(smiles, expected):
 )
 def test_diamidides_formamidine_disulfides_and_amidines_on_hydrides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CN(N=NN(C)C)C=O", "1,4,4-trimethyltetraaz-2-ene-1-carbaldehyde"),
+        ("O=CN=NN=NC", "4-methyltetraaza-1,3-diene-1-carbaldehyde"),
+    ],
+)
+def test_carbaldehyde_on_a_polyaza_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

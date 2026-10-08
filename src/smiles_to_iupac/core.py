@@ -223,8 +223,10 @@ from ._hydroxylamine import has_hydroxylamine_shape, name_hydroxylamine
 from ._hydroxylamine_general import has_o_substituted_hydroxylamine_shape, name_o_substituted_hydroxylamine
 from ._imine import has_simple_imine_shape, name_imine
 from ._dipole_oxide import (
+    has_nitrile_oxide_prefix_shape,
     has_nitrile_oxide_shape,
     has_nitrone_shape,
+    name_nitrile_oxide_prefix,
     name_nitrile_oxide,
     name_nitrone,
 )
@@ -1735,6 +1737,7 @@ def _name_mol(mol) -> str:
         # otherwise fall through to a general heteroatom-allowlist rejection
         # further down, none of which know about this shape).
         (has_nitrile_oxide_shape, name_nitrile_oxide),
+        (has_nitrile_oxide_prefix_shape, name_nitrile_oxide_prefix),
         # A nitro group (-NO2, P-61.5.1) has its own nitrogen and two oxygens
         # neither the ether/carbonyl/alcohol checks below nor the plain-amine
         # branch further down expect, so it must be routed before both -- a

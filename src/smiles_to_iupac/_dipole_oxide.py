@@ -41,8 +41,11 @@ zwitterionic hydrazinium-ide naming method instead of simple functional-
 class 'oxide' naming), and phosphine imides.
 """
 
+import re
+
 from rdkit import Chem
 
+from ._common import UnsupportedStructure
 from ._imine import name_imine
 from ._nitrile import name_nitrile
 
@@ -100,18 +103,38 @@ def has_nitrone_shape(mol) -> bool:
     )
 
 
+_CHALCOGEN_TERM = {8: "oxide", 16: "sulfide", 34: "selenide", 52: "telluride"}
+
+
+def _nitrile_oxide_groups(mol):
+    """[(nitrogen, chalcogen)] of every R-C#N(+)-X(-) or R-C#N(=X) group (P-66.5.4.1)."""
+    found = []
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 7 or atom.GetDegree() != 2:
+            continue
+        triple = chalcogen = False
+        for bond in atom.GetBonds():
+            other = bond.GetOtherAtom(atom)
+            order = bond.GetBondTypeAsDouble()
+            if other.GetAtomicNum() == 6 and order == 3.0:
+                triple = True
+            elif other.GetAtomicNum() in _CHALCOGEN_TERM and other.GetDegree() == 1 and not other.GetIsotope():
+                charged = atom.GetFormalCharge() == 1 and other.GetFormalCharge() == -1 and order == 1.0
+                neutral = not atom.GetFormalCharge() and not other.GetFormalCharge() and order == 2.0
+                if charged or neutral:
+                    chalcogen = other.GetIdx()
+        if triple and chalcogen is not False:
+            found.append((atom.GetIdx(), chalcogen))
+    return found
+
+
 def has_nitrile_oxide_shape(mol) -> bool:
-    """True if `mol` has the dipole N+/O- charge pattern and the charged
-    nitrogen also carries a C#N triple bond (nitrile-shaped once the
-    dipole oxygen is set aside) -- a nitrile oxide."""
-    pair = _dipole_nitrogen_oxygen(mol)
-    if pair is None:
+    """True if every charge of `mol` belongs to a nitrile oxide or chalcogen analogue (a salt names its anion first)."""
+    groups = _nitrile_oxide_groups(mol)
+    if not groups or len(Chem.GetMolFrags(mol)) != 1:
         return False
-    nitrogen, _ = pair
-    return any(
-        bond.GetBondTypeAsDouble() == 3.0 and bond.GetOtherAtom(nitrogen).GetAtomicNum() == 6
-        for bond in nitrogen.GetBonds()
-    )
+    own = {atom for pair in groups for atom in pair}
+    return not any(a.GetFormalCharge() and a.GetIdx() not in own for a in mol.GetAtoms())
 
 
 def name_nitrone(mol) -> str:
@@ -138,10 +161,69 @@ def _is_bare_hydrogen_nitrile(mol) -> bool:
 
 
 def name_nitrile_oxide(mol) -> str:
-    nitrogen, oxygen = _dipole_nitrogen_oxygen(mol)
-    stripped = _strip_dipole_oxygen(mol, nitrogen.GetIdx(), oxygen.GetIdx())
+    """P-66.5.4.1 method (1): the name of the nitrile with the term 'oxide', 'sulfide', 'selenide' or 'telluride'; the
+    nitrile is the parent although a zwitterion outranks esters, amides and acids only in the class order."""
+    from ._common import multiplied_word
+    from ._polyfunctional import FORCED_PRINCIPAL, name_polyfunctional
+
+    groups = _nitrile_oxide_groups(mol)
+    terms = {_CHALCOGEN_TERM[mol.GetAtomWithIdx(x).GetAtomicNum()] for _, x in groups}
+    if len(terms) != 1:
+        raise UnsupportedStructure("nitrile oxides of different chalcogens are not supported yet")
+    stripped = Chem.RWMol(mol)
+    for n, _ in groups:
+        stripped.GetAtomWithIdx(n).SetFormalCharge(0)
+        stripped.GetAtomWithIdx(n).SetNoImplicit(False)
+    for x in sorted((x for _, x in groups), reverse=True):
+        stripped.RemoveAtom(x)
+    stripped = stripped.GetMol()
+    Chem.SanitizeMol(stripped)
     if _is_bare_hydrogen_nitrile(stripped):
-        return "formonitrile oxide"
-    parent_name = name_nitrile(stripped)
-    parent_name = _NITRILE_OXIDE_RETAINED_OVERRIDES.get(parent_name, parent_name)
-    return f"{parent_name} oxide"
+        parent_name = "formonitrile"
+    else:
+        token = FORCED_PRINCIPAL.set("nitrile")
+        try:
+            parent_name = name_polyfunctional(stripped)
+        except UnsupportedStructure:
+            parent_name = name_nitrile(stripped)
+        finally:
+            FORCED_PRINCIPAL.reset(token)
+        parent_name = _NITRILE_OXIDE_RETAINED_OVERRIDES.get(parent_name, parent_name)
+    return f"{parent_name} {multiplied_word(len(groups), terms.pop())}"
+
+
+_YLIDENE = {8: "oxo", 16: "sulfanylidene", 34: "selanylidene", 52: "tellanylidene"}
+_IODO_ONLY_PREFIX = re.compile(r"(?P<head>(?:[a-z]+ )?)(?P<locant>\d+(?:,\d+)*-)?iodo(?P<tail>[a-z].*)")
+
+
+def has_nitrile_oxide_prefix_shape(mol) -> bool:
+    """A nitrile oxide group beside a senior class (an anion or a salt): it is cited as a prefix (P-66.5.4.2)."""
+    groups = _nitrile_oxide_groups(mol)
+    return len(groups) == 1 and not has_nitrile_oxide_shape(mol)
+
+
+def name_nitrile_oxide_prefix(mol) -> str:
+    """'4-[(oxo-lambda5-azanylidyne)methyl]benzoate': the group is replaced by iodine, the structure named, and the
+    iodo prefix, the only one, exchanged for the prefix of the group."""
+    (nitrogen, chalcogen), = _nitrile_oxide_groups(mol)
+    carbon = next(n for n in mol.GetAtomWithIdx(nitrogen).GetNeighbors() if n.GetAtomicNum() == 6)
+    hosts = [n for n in carbon.GetNeighbors() if n.GetIdx() != nitrogen]
+    if len(hosts) != 1:
+        raise UnsupportedStructure("a nitrile oxide group without a single attachment is not supported as a prefix")
+    probe = Chem.RWMol(mol)
+    atom = probe.GetAtomWithIdx(carbon.GetIdx())
+    atom.SetAtomicNum(53)
+    atom.SetNoImplicit(False)
+    for idx in sorted((nitrogen, chalcogen), reverse=True):
+        probe.RemoveAtom(idx)
+    probe = probe.GetMol()
+    Chem.SanitizeMol(probe)
+    from .core import smiles_to_iupac
+
+    name = smiles_to_iupac(Chem.MolToSmiles(probe))
+    match = _IODO_ONLY_PREFIX.fullmatch(name)
+    if match is None:
+        raise UnsupportedStructure("a nitrile oxide prefix beside other substituents is not supported yet")
+    ylidene = _YLIDENE[mol.GetAtomWithIdx(chalcogen).GetAtomicNum()]
+    prefix = f"[({ylidene}-\u03bb5-azanylidyne)methyl]"
+    return f"{match.group('head')}{match.group('locant') or ''}{prefix}{match.group('tail')}"
