@@ -33,7 +33,7 @@ any chalcogen-replacement analogue, and any other heteroatom.
 from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
-from ._phosphate import format_ester_words
+from ._phosphate import allowed_outside_oxygen, format_ester_words
 from ._salt import _MONOATOMIC_CATION_NAMES
 from ._substituents import name_branch
 
@@ -123,12 +123,12 @@ def name_sulfite(mol) -> str:
         atomic_num = atom.GetAtomicNum()
         if atomic_num == _SULFUR and idx != sulfur.GetIdx():
             raise UnsupportedStructure("more than one sulfur atom is not supported yet")
-        if atomic_num not in (1, 6, 8, _SULFUR, *HALOGEN_PREFIXES):
+        if atomic_num not in (1, 6, 7, 8, _SULFUR, *HALOGEN_PREFIXES):
             raise UnsupportedStructure(
                 "heteroatoms other than the sulfite's own sulfur/"
                 "oxygens and a halogen substituent are not supported yet"
             )
-        if atomic_num == 8 and idx not in group_oxygens:
+        if atomic_num == 8 and idx not in group_oxygens and not allowed_outside_oxygen(atom, bool(charged_oxygens)):
             raise UnsupportedStructure(
                 "an oxygen atom not part of the sulfite's own "
                 "S(=O)(OR)2 group is out of scope for this module"

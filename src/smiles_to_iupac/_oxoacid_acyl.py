@@ -142,7 +142,8 @@ def infix_acyl_name(mol, graph, centre, attach, halogens, aromatic_atoms=None):
     if retained is not None:
         return retained, False
     replaced_oxo = mol.GetAtomWithIdx(oxo).GetAtomicNum() != 8
-    if not replaced_oxo and "infix" not in roles.values():
+    one_organyl = list(roles.values()).count("organyl") == 1
+    if not replaced_oxo and "infix" not in roles.values() and not one_organyl:
         return None
     acid_ligands = [n for n in ligands if roles[n] in ("infix", "organyl")]
     keep = {centre, oxo}
@@ -175,7 +176,10 @@ def infix_acyl_name(mol, graph, centre, attach, halogens, aromatic_atoms=None):
     entries = [
         name_branch(graph, n, centre, halogens, aromatic_atoms, mol=mol) for n in ligands if roles[n] == "prefix"
     ]
-    return (format_mononuclear_prefixes(entries) if entries else "") + stem, bool(entries) or not stem.startswith(("phosph", "ars", "stib"))
+    substituted = not stem.startswith(("phosph", "ars", "stib"))
+    if entries:
+        stem = f"({stem})" if substituted else stem
+    return (format_mononuclear_prefixes(entries) if entries else "") + stem, bool(entries) or substituted
 
 
 _OXANE_STEMS = {15: "phosphoxan", 33: "arsoxan", 51: "stiboxan", 16: "sulfoxan", 34: "selenoxan", 52: "telluroxan"}

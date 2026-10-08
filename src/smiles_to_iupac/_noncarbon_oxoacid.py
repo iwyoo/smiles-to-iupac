@@ -64,9 +64,18 @@ _PSEUDOHALIDE_PREFIX = {
 }
 
 
+def _senior_carbonyl(atom):
+    """A carbonyl carbon of an acid, ester or anhydride, classes that outrank a noncarbon acid ester (P-41); acid
+    halides, aldehydes, ketones, amides and nitriles are junior and stay prefixes."""
+    bonds = list(atom.GetBonds())
+    return any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() in (8, 16, 34, 52) for b in bonds) and any(
+        b.GetBondTypeAsDouble() == 1.0 and b.GetOtherAtom(atom).GetAtomicNum() in (8, 16, 34, 52) for b in bonds
+    )
+
+
 def _plain_tree(mol, graph, root, behind):
-    """Whether the group starting at carbon `root` holds only carbon, halogen and sp3 oxygen atoms, so that nothing in
-    it outranks the acid derivative being named; other acid centres and their ligands are tolerated here and ranked
+    """Whether the group starting at carbon `root` holds only carbon, halogen, nitrogen and sp3 oxygen atoms and no
+    acid-type carbonyl, so that nothing in it outranks the acid derivative being named; other acid centres and their ligands are tolerated here and ranked
     by `is_senior_centre` (P-67.1.5.2)."""
     seen, stack = {behind}, [root]
     tolerated = set()
@@ -84,13 +93,14 @@ def _plain_tree(mol, graph, root, behind):
         elif index in tolerated:
             pass
         elif z == 8:
-            if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
+            if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()) and atom.GetDegree() != 1:
+                return False
+        elif z == 7:
+            if atom.IsInRing():
                 return False
         elif z != 6 and z not in _HALIDE:
             return False
-        if z == 6 and any(
-            b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 8 for b in atom.GetBonds()
-        ):
+        if z == 6 and _senior_carbonyl(atom):
             return False
         stack.extend(graph[index])
     return True

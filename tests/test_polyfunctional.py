@@ -1156,6 +1156,11 @@ def test_ring_and_hetero_groups_as_prefixes_use_one_ring_group_namer(smiles, exp
             id="n_locants_of_amides_on_a_fused_ring",
         ),
         pytest.param("CC(=O)OCOC(N)=O", "methylene acetate carbamate", id="carbamate_is_not_a_carboxylic_acyl_chain"),
+        pytest.param(
+            "Cc1cc(S(=O)(=O)N=[N+]=[N-])ccc1Oc1ccc(S(=O)(=O)N=[N+]=[N-])cc1",
+            "4-[4-(azidosulfonyl)phenoxy]-3-methylbenzene-1-sulfonyl azide",
+            id="sulfonyl_azide_is_not_a_sulfamoyl_group",
+        ),
     ],
 )
 def test_polyfunctional_never_misattributes_a_group(smiles, expected):
@@ -1165,7 +1170,6 @@ def test_polyfunctional_never_misattributes_a_group(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        "Cc1cc(S(=O)(=O)N=[N+]=[N-])ccc1Oc1ccc(S(=O)(=O)N=[N+]=[N-])cc1",
         "C=CCC(CN)CC(C)/C(=C\\C)CC/C=C\\C",
     ],
 )

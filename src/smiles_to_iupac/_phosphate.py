@@ -113,7 +113,7 @@ def _is_hydroxy_on_carbon(oxygen) -> bool:
     return oxygen.GetDegree() == 1 and oxygen.GetNeighbors()[0].GetAtomicNum() == 6 and oxygen.GetTotalNumHs() == 1
 
 
-def _allowed_outside_oxygen(oxygen, anionic) -> bool:
+def allowed_outside_oxygen(oxygen, anionic) -> bool:
     """An oxygen of an R group that stays a prefix: hydroxy, ether, oxo of a ketone or amide. The oxygens of a
     carboxylic ester or acid outrank a neutral phosphate ester and are allowed only beside an anionic phosphate."""
     if _is_hydroxy_on_carbon(oxygen):
@@ -185,7 +185,7 @@ def name_phosphate(mol) -> str:
                 "heteroatoms other than the phosphate's own phosphorus/"
                 "oxygens and a halogen substituent are not supported yet"
             )
-        if atomic_num == 8 and idx not in group_oxygens and not _allowed_outside_oxygen(atom, bool(charged_oxygens)):
+        if atomic_num == 8 and idx not in group_oxygens and not allowed_outside_oxygen(atom, bool(charged_oxygens)):
             raise UnsupportedStructure(
                 "an oxygen atom not part of the phosphate's own "
                 "P(=O)(OR)3 group is out of scope for this module"
