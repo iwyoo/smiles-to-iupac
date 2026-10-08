@@ -140,7 +140,10 @@ def test_polyamine_n_locants_and_ring_parents(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("CCNCNCC", "N,N'-methylenediethanamine", id="methylene_joins_monoamine_nitrogens"),
+        pytest.param("CCNCNCC", "N,N'-diethylmethanediamine", id="methylene_between_monoamine_nitrogens_is_a_diamine"),
+        pytest.param(
+            "CCN(C)CNCC", "N,N'-diethyl-N-methylmethanediamine", id="geminal_diamine_unprimed_nitrogen_has_more_substituents"
+        ),
         pytest.param("NCCNCNCCN", "N1,N1'-methylenedi(ethane-1,2-diamine)", id="methylene_joins_diamine_nitrogens"),
         pytest.param(
             "Nc1ccc(NCNc2ccc(N)cc2)cc1", "N1,N1'-methylenedi(benzene-1,4-diamine)", id="methylene_joins_aryl_diamine"

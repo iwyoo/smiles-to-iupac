@@ -1,7 +1,7 @@
 """Two identical nitrogen-bearing parents joined through their nitrogen atoms by an alkanediyl group (P-62.2.5.2):
-N,N'-methylenediethanamine, N1,N1'-methylenedi(ethane-1,2-diamine), N',N'''-(ethane-1,2-diyl)diacetohydrazide.
+N1,N1'-methylenedi(ethane-1,2-diamine), N',N'''-(ethane-1,2-diyl)diacetohydrazide.
 Amine parents are only joined multiplicatively through methylene; a longer chain between two amine nitrogens
-is itself a diamine parent (P-62.2.4.1.2)."""
+is itself a diamine parent (P-62.2.4.1.2), and so is a methylene between two monoamine nitrogens (methanediamine)."""
 
 import re
 
@@ -109,6 +109,8 @@ def name_nitrogen_methylene_multiplicative(mol):
         if _MARKER in unit_name or (nitrogens > 1 and found is None):
             continue
         if len(path) > 1 and not unit_name.endswith("hydrazide"):
+            continue
+        if nitrogens == 1 and len(path) == 1 and unit_name.endswith(("amine", "aniline")):
             continue
         token = "N" if nitrogens == 1 else found.group(1).split(",")[-1]
         locants = ",".join(_nth_locant(token, k, nitrogens) for k in range(2))

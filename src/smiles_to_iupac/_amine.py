@@ -339,14 +339,19 @@ def _amine_locants(position_of, amines, graph):
 
 def _n_locant_labels(amines, amine_locants, n_names_by_nitrogen, chain_length):
     """P-62.2.4.1.2: nitrogens on the same parent carbon share its locant and
-    are told apart by priming (N3, N'3, ...); the first-cited substituent
-    takes the unprimed one (P-14.4)."""
+    are told apart by priming (N3, N'3, ...); the nitrogen with more
+    substituents takes the unprimed locant (P-31.1.4.2.4), then the first-cited one (P-14.4)."""
     by_locant = {}
     for n_idx, locant in zip(amines, amine_locants):
         by_locant.setdefault(locant, []).append(n_idx)
     labels = []
     for locant, group in by_locant.items():
-        group.sort(key=lambda n: sorted(name for name, _ in n_names_by_nitrogen.get(n, [])) or ["\uffff"])
+        group.sort(
+            key=lambda n: (
+                -len(n_names_by_nitrogen.get(n, [])),
+                sorted(name for name, _ in n_names_by_nitrogen.get(n, [])) or ["\uffff"],
+            )
+        )
         for rank, n_idx in enumerate(group):
             shown = "" if chain_length == 1 else str(locant)
             labels.append((n_idx, shown if rank == 0 else "'" * rank + shown))
