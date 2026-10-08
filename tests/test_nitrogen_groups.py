@@ -1590,6 +1590,11 @@ def test_primary_amine_oxides_chalcogen_analogues_and_oxides_beside_senior_group
         ("N#CN(CC)CC", "diethylcyanamide"),
         ("NC(=O)NNC(N)=O", "hydrazine-1,2-dicarboxamide"),
         ("NC(=O)NN(C(=O)N)C([N+](=O)[O-])[N+](=O)[O-]", "1-(dinitromethyl)hydrazine-1,2-dicarboxamide"),
+        ("N#CNN", "cyanohydrazide"),
+        ("N#CNNC", "N'-methylcyanohydrazide"),
+        ("NNC(=O)OC(=S)NN", "1-thiodicarbonic dihydrazide"),
+        ("CNNC(=O)OC(=O)NN", "N'1-methyldicarbonic dihydrazide"),
+        ("NNC(=S)SC(=S)NN", "1,2,3-trithiodicarbonic dihydrazide"),
     ],
 )
 def test_amides_of_cyanic_polycarbonic_and_hydrazinedicarboxylic_acids(smiles, expected):
