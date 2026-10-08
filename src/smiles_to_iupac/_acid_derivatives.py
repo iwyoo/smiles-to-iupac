@@ -819,6 +819,26 @@ def _locants_of(mol, atoms, centers, with_symmetry=False):
     return (found, False) if with_symmetry else found
 
 
+def _located_acid_word(mol, atoms, centers):
+    """The acid word of the component made of `atoms` with every locant cited, for a core whose acid groups are
+    told apart by locants (P-65.7.6.2)."""
+    from ._polyfunctional import FORCE_LOCANTS, _select
+
+    editable = Chem.RWMol(mol)
+    for center in centers:
+        oxygen = editable.AddAtom(Chem.Atom(8))
+        editable.AddBond(center, oxygen, Chem.BondType.SINGLE)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - set(atoms), reverse=True):
+        editable.RemoveAtom(idx)
+    acid = editable.GetMol()
+    Chem.SanitizeMol(acid)
+    token = FORCE_LOCANTS.set(True)
+    try:
+        return acid_word(_select(acid)[1])
+    finally:
+        FORCE_LOCANTS.reset(token)
+
+
 def _multiplied_word(word, count):
     if count == 1:
         return word
@@ -917,21 +937,50 @@ def name_anhydride(mol, links):
         if w[0] == w[2]:
             return f"{_multiplied_word(w[0], 2)} {w[1]} {class_word}"
         return f"{' '.join(w)} {class_word}"
+    if len(order) == 4:
+        senior = {
+            i: (
+                min(mol.GetAtomWithIdx(c).GetAtomicNum() for c in centers[i]),
+                -sum(1 for a in frags[i] if a not in bridge_atoms),
+            )
+            for i in order[1:3]
+        }
+        if senior[order[2]] < senior[order[1]]:
+            order = order[::-1]
     tail = order[2:]
     tail_atoms = set()
     for i in tail:
         tail_atoms |= set(frags[i])
-    join_bridge = next(
-        (chain, first, second)
-        for chain, first, second in bridges.values()
-        if {owner[first], owner[second]} == {order[1], order[2]}
-    )
-    tail_center = join_bridge[1] if owner[join_bridge[1]] == order[2] else join_bridge[2]
+
+    def bridge_between(first_component, second_component):
+        return next(
+            (chain, first, second)
+            for chain, first, second in bridges.values()
+            if {owner[first], owner[second]} == {first_component, second_component}
+        )
+
+    def center_in(bridge, component):
+        return bridge[1] if owner[bridge[1]] == component else bridge[2]
+
+    tail_center = center_in(bridge_between(order[1], order[2]), order[2])
     for chain, first, second in bridges.values():
         if owner[first] in tail and owner[second] in tail:
             tail_atoms |= set(chain)
     merged = acid_word(_component_acid(mol, tail_atoms, [tail_center]))
-    return f"{word_of[order[0]]} {word_of[order[1]]} {merged} dianhydride"
+    core = word_of[order[1]]
+    items = [[word_of[order[0]], ""], [core, ""], [merged, ""]]
+    core_atoms = [a for a in frags[order[1]] if a not in bridge_atoms]
+    if core_atoms and all(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in centers[order[1]]):
+        locants, symmetric = _locants_of(mol, core_atoms, centers[order[1]], with_symmetry=True)
+        if not symmetric:
+            items[1][0] = _located_acid_word(mol, core_atoms, centers[order[1]])
+            items[0][1] = str(locants[center_in(bridge_between(order[0], order[1]), order[1])])
+            items[2][1] = str(locants[center_in(bridge_between(order[1], order[2]), order[1])])
+    cited = [
+        f"{locant}-{enclose(word) if re.search(r'[-(]', word) else word}" if locant else word
+        for word, locant in sorted(items, key=lambda item: alpha_sort_key(item[0]))
+    ]
+    return f"{' '.join(cited)} dianhydride"
 
 
 _RETAINED_ACYL = {

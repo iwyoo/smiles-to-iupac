@@ -878,6 +878,11 @@ def test_ester_class_names(smiles, expected):
         ("CS(=O)(=O)OS(=O)(=O)C", "methanesulfonic anhydride"),
         ("CC(=O)OC(=O)CCC(=O)OC(C)=O", "diacetic butanedioic dianhydride"),
         ("CC(=O)OC(=O)CCC(=O)OC(=O)CCC(=O)OC(=O)CC", "acetic butanedioic 4-oxo-4-(propanoyloxy)butanoic dianhydride"),
+        ("CC(=O)OC(=O)CC(=O)OC(=O)CCC(=O)OC(C)=O", "acetic 3-(acetyloxy)-3-oxopropanoic butanedioic dianhydride"),
+        (
+            "CCC(=O)OC(=O)C(C)CC(=O)OC(=O)CCC(=O)OC(C)=O",
+            "4-[4-(acetyloxy)-4-oxobutanoic] 2-methylbutanedioic 1-propanoic dianhydride",
+        ),
         ("CC(=O)OC(=O)c1cc(C(=O)OC(C)=O)c(C(=O)OC(=O)CC)cc1", "2,4-diacetic 1-propanoic benzene-1,2,4-tricarboxylic trianhydride"),
         ("O=C(Cl)c1ccc(C(=O)Cl)cc1", "benzene-1,4-dicarbonyl dichloride"),
         ("NC(=O)C(=O)Br", "oxamoyl bromide"),

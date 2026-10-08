@@ -554,7 +554,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
     return f"{stereo_text}{lead}{linker}{multiplier_word(count, False)}{unit_phrase(text, tail)}"
 
 
-_CENTER_ACIDS = ("phosphonic acid", "arsonic acid", "stibonic acid")
+_CENTER_ACIDS = ("phosphonic acid", "arsonic acid", "stibonic acid", "phosphonous acid", "arsonous acid", "stibonous acid")
 _HYDRIDE_ENDINGS = ("phosphane", "arsane", "silane", "germane", "stannane", "plumbane")
 _HYDRIDE_ORDER = (15, 33, 14, 32, 50, 82)
 _MULTIPLIED_HYDRIDE = re.compile(r"^(?:di|tri|tetra|penta|hexa|hepta|octa)(?:phosphane|arsane|silane|germane|stannane|plumbane)$")
@@ -698,6 +698,24 @@ def _amine_candidates(mol, graph):
     return candidates
 
 
+def _phosphonous_acid_atoms(mol):
+    """P, As or Sb atoms of a phosphonous-type group: one carbon neighbour and two hydroxyl groups."""
+    return [
+        a
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() in (15, 33, 51)
+        and a.GetDegree() == 3
+        and not a.GetFormalCharge()
+        and sum(
+            1
+            for n in a.GetNeighbors()
+            if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and n.GetTotalNumHs() == 1
+            and mol.GetBondBetweenAtoms(a.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        )
+        == 2
+    ]
+
+
 def _phosphonic_candidates(mol, graph):
     """Phosphonic, arsonic and stibonic acid groups joined to carbon: the acid outranks amines and ethers (P-41, P-45.1.2)."""
     from ._phosphonic_acid import _SENIOR_ACIDS, _phosphonic_acid_phosphorus_atoms
@@ -705,7 +723,7 @@ def _phosphonic_candidates(mol, graph):
     if any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
         return {}
     candidates = {}
-    for center in _phosphonic_acid_phosphorus_atoms(mol):
+    for center in [*_phosphonic_acid_phosphorus_atoms(mol), *_phosphonous_acid_atoms(mol)]:
         oxygens = {n.GetIdx() for n in center.GetNeighbors() if n.GetAtomicNum() == 8}
         (root,) = [n.GetIdx() for n in center.GetNeighbors() if n.GetIdx() not in oxygens]
         if mol.GetAtomWithIdx(root).GetAtomicNum() != 6:
