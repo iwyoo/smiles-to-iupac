@@ -181,6 +181,8 @@ def has_hydrazide_shape(mol) -> bool:
             if len(nitrogen_neighbors) != 1:
                 continue
             (n2,) = nitrogen_neighbors
+            if any(n.GetAtomicNum() == 7 and n.GetIdx() != n1.GetIdx() for n in n2.GetNeighbors()):
+                continue
             if mol.GetBondBetweenAtoms(n1.GetIdx(), n2.GetIdx()).GetBondTypeAsDouble() == 1.0:
                 return True
     return False

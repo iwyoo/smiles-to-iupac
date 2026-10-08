@@ -119,12 +119,25 @@ def _aminooxy_atoms(mol):
     return found
 
 
+def _pseudohalide_atoms(mol):
+    """The atoms of every isocyanato-type group N=C=X, a compulsory prefix on a hydrazine nitrogen (P-58.3.2)."""
+    from ._hydride_chain import _is_pseudohalide_nitrogen
+
+    found = set()
+    for atom in mol.GetAtoms():
+        if _is_pseudohalide_nitrogen(atom):
+            found |= {atom.GetIdx(), *(n.GetIdx() for n in atom.GetNeighbors() if n.GetAtomicNum() == 6)}
+            carbon = next(n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6)
+            found |= {n.GetIdx() for n in carbon.GetNeighbors()}
+    return found
+
+
 def _hydrazine_nitrogens(mol):
     """The two nitrogens of a plain hydrazine skeleton: N-N (single bond),
     each nitrogen degree <= 3 (the N-N bond plus at most two other
     single-bonded neighbors), formal charge 0 -- or None if `mol` isn't
     shaped this way."""
-    outside = _aminooxy_atoms(mol)
+    outside = _aminooxy_atoms(mol) | _pseudohalide_atoms(mol)
     nitrogens = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 7 and atom.GetIdx() not in outside]
     if len(nitrogens) != 2:
         return None
@@ -205,8 +218,9 @@ def name_hydrazine(mol) -> str:
 
     aromatic_atoms = frozenset(atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic())
     aminooxy = _aminooxy_atoms(mol)
+    pseudohalide = _pseudohalide_atoms(mol)
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() not in _ALLOWED_ATOMIC_NUMS and atom.GetIdx() not in aminooxy:
+        if atom.GetAtomicNum() not in _ALLOWED_ATOMIC_NUMS and atom.GetIdx() not in aminooxy | pseudohalide:
             raise UnsupportedStructure(
                 "heteroatoms other than the hydrazine's own two nitrogens "
                 "(P-68.3.1.2.1) and halogen substituents (P-35.2.1) are "
@@ -217,6 +231,7 @@ def name_hydrazine(mol) -> str:
     n1_idx, n2_idx = n1.GetIdx(), n2.GetIdx()
     if any(
         not (a in aromatic_atoms and b in aromatic_atoms)
+        and not (a in pseudohalide and b in pseudohalide)
         and not (order == 2.0 and (a in (n1_idx, n2_idx)) != (b in (n1_idx, n2_idx)) and 6 in _atomic_nums(mol, a, b))
         for a, b, order in non_single_bonds(mol)
     ):

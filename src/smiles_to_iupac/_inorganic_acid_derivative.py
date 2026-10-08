@@ -4,6 +4,7 @@ amide', 'methyl(nitro)nitramide'), a halogen on P, As or Sb an acid halide ('met
 =N(O)OH or >N(O)OH an azinic acid ('ethylideneazinic acid'). Carbon groups are cited as prefixes without locants."""
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_substituents, halogen_substituents
+from ._hydride_chain import _is_pseudohalide_nitrogen
 from ._phosphonic_acid import CENTER_STEMS
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
@@ -73,11 +74,17 @@ def _nitrogen_amide(mol):
                 covered = {centre.GetIdx(), amino[0].GetIdx(), *taken, *(o.GetIdx() for g in (*nitro, *nitroso) for o in g.GetNeighbors())}
                 if all(a.GetIdx() in covered or a.GetAtomicNum() == 6 or a.GetAtomicNum() in HALOGEN_PREFIXES for a in mol.GetAtoms()):
                     return centre, nitro, nitroso, carbons, amino
-        if any(n.GetAtomicNum() != 6 or _bond(mol, centre.GetIdx(), n.GetIdx()) != 1.0 for n in others):
+        pseudohalide = [n for n in others if _is_pseudohalide_nitrogen(n)]
+        if any(
+            (n.GetAtomicNum() != 6 and n not in pseudohalide) or _bond(mol, centre.GetIdx(), n.GetIdx()) != 1.0 for n in others
+        ):
             continue
         covered = {centre.GetIdx()}
         for group in (*nitro, *nitroso):
             covered |= {group.GetIdx(), *(o.GetIdx() for o in group.GetNeighbors())}
+        for group in pseudohalide:
+            carbon = next(n for n in group.GetNeighbors() if n.GetAtomicNum() == 6)
+            covered |= {group.GetIdx(), carbon.GetIdx(), *(x.GetIdx() for x in carbon.GetNeighbors())}
         carbons_ok = all(
             a.GetIdx() in covered or a.GetAtomicNum() == 6 or a.GetAtomicNum() in HALOGEN_PREFIXES for a in mol.GetAtoms()
         )
@@ -110,6 +117,11 @@ def _name_nitrogen_amide(mol, found):
     excluded = {n.GetIdx() for n in (*nitro, *nitroso)}
     entries = _prefix_entries(mol, centre, excluded, graph)
     entries += [("nitro", False)] * len(spare_nitro) + [("nitroso", False)] * len(spare_nitroso)
+    if any(_is_pseudohalide_nitrogen(n) for n in centre.GetNeighbors()):
+        grouped = {}
+        for name, compound in entries:
+            grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append("N")
+        return format_substituent_prefixes(grouped) + parent
     prefix = format_mononuclear_prefixes(entries) if entries else ""
     return prefix + parent
 
