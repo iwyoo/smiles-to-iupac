@@ -33,6 +33,7 @@ from ._polyborane import lewis_adduct_mol, polyborane_name
 from ._diacylamine import diacylamine_name
 from ._alternating_cage import has_alternating_cage_shape, name_alternating_cage
 from ._dipolar import has_dipolar_shape, name_dipolar
+from ._hydride_ylium import has_hydride_onium_shape, has_hydride_ylium_shape, name_hydride_onium, name_hydride_ylium
 from ._spiro_hub_atom import has_spiro_hub_atom_shape, name_spiro_hub_atom
 from ._substituents import FORCED_BRANCH_NAMES
 from ._glycoside import has_glycoside_shape, name_glycoside
@@ -656,6 +657,8 @@ def _name_unabridged(smiles: str) -> str:
             return _METHYLBENZENES[Chem.MolToSmiles(parsed)]
         if parsed is not None and any(a.GetFormalCharge() for a in parsed.GetAtoms()):
             lambda_token = CITE_SKELETAL_LAMBDA.set(False)
+        if parsed is not None and has_hydride_ylium_shape(parsed):
+            return name_hydride_ylium(parsed)
         if parsed is not None and has_skeleton_radical_ion_shape(parsed):
             return name_skeleton_radical_ion(parsed)
         if parsed is not None and parsed.HasProp("_hypervalent_anion"):
@@ -892,6 +895,12 @@ def _has_aromatic_oxo(mol) -> bool:
     )
 
 
+def _name_hydride_onium(mol):
+    if not has_hydride_onium_shape(mol):
+        raise UnsupportedStructure("not an onium cation of a mononuclear hydride")
+    return name_hydride_onium(mol)
+
+
 def _run_fallbacks(smiles, original):
     mol = _parse_smiles(smiles)
     key = Chem.MolToSmiles(mol)
@@ -912,6 +921,7 @@ def _run_fallbacks(smiles, original):
             name_halogen_acid_ester,
             name_halogen_oxo,
             name_polyfunctional,
+            _name_hydride_onium,
             name_anion,
             name_ester_by_parts,
             name_chalcogen_chain_heterone,
