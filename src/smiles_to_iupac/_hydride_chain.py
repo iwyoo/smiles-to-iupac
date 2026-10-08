@@ -36,12 +36,26 @@ def _is_nitro_or_nitroso(atom):
     )
 
 
+def _is_pseudohalide_nitrogen(atom):
+    """The N of an isocyanato-type group N=C=X (X = O, S, Se, Te): a compulsory prefix, not a chain atom (P-58.3.2)."""
+    if atom.GetAtomicNum() != 7 or atom.GetDegree() != 2 or atom.GetTotalNumHs() or atom.GetFormalCharge() or atom.IsInRing():
+        return False
+    mol = atom.GetOwningMol()
+    carbons = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0]
+    return len(carbons) == 1 and carbons[0].GetDegree() == 2 and any(
+        n.GetAtomicNum() in (8, 16, 34, 52) and n.GetIdx() != atom.GetIdx()
+        and mol.GetBondBetweenAtoms(carbons[0].GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for n in carbons[0].GetNeighbors()
+    )
+
+
 def _chain_atoms(mol, graph, skip_nitrogen=False, allow_double=False, allow_triple=False):
     elements = {
         a.GetAtomicNum()
         for a in mol.GetAtoms()
         if a.GetAtomicNum() in _STEMS
         and not _is_nitro_or_nitroso(a)
+        and not _is_pseudohalide_nitrogen(a)
         and not a.IsInRing()
         and not (skip_nitrogen and a.GetAtomicNum() == 7)
         and not (allow_double and _is_nitrile_nitrogen(a))
@@ -52,12 +66,17 @@ def _chain_atoms(mol, graph, skip_nitrogen=False, allow_double=False, allow_trip
     atoms = {
         a.GetIdx()
         for a in mol.GetAtoms()
-        if a.GetAtomicNum() == z and not (allow_double and _is_nitrile_nitrogen(a)) and not _is_nitro_or_nitroso(a)
+        if a.GetAtomicNum() == z
+        and not (allow_double and _is_nitrile_nitrogen(a))
+        and not _is_nitro_or_nitroso(a)
+        and not _is_pseudohalide_nitrogen(a)
     }
     if any(mol.GetAtomWithIdx(a).IsInRing() or mol.GetAtomWithIdx(a).GetFormalCharge() for a in atoms):
         return None
     ends = [a for a in atoms if sum(n in atoms for n in graph[a]) <= 1]
-    if len(atoms) < (3 if z == 7 and not allow_double else 2) or len(ends) != 2 or any(sum(n in atoms for n in graph[a]) > 2 for a in atoms):
+    pseudohalide = any(_is_pseudohalide_nitrogen(a) for a in mol.GetAtoms())
+    minimum = 3 if z == 7 and not allow_double and not pseudohalide else 2
+    if len(atoms) < minimum or len(ends) != 2 or any(sum(n in atoms for n in graph[a]) > 2 for a in atoms):
         return None
     start = ends[0]
     chain, previous = [start], None
@@ -73,7 +92,7 @@ def _chain_atoms(mol, graph, skip_nitrogen=False, allow_double=False, allow_trip
         order = mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble()
         if order != 1.0 and not (allow_double and order == 2.0) and not (allow_triple and order == 3.0):
             return None
-    if z == 7 and len(chain) == 2 and mol.GetBondBetweenAtoms(chain[0], chain[1]).GetBondTypeAsDouble() != 2.0:
+    if z == 7 and len(chain) == 2 and mol.GetBondBetweenAtoms(chain[0], chain[1]).GetBondTypeAsDouble() != 2.0 and not pseudohalide:
         return None
     return z, chain
 
@@ -263,6 +282,8 @@ def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
             parent, omit = _unsaturated_parent(z, len(chain), ene, yne, grouped)
         else:
             parent = _STEMS[z] if len(chain) == 1 else f"{multiplying_prefix(len(chain))}{_STEMS[z]}"
+            if z == 7 and len(chain) == 2:
+                parent = "hydrazine"
         lam_text = ",".join(f"{p}\u03bb{lam[p]}" for p in sorted(lam))
         if lam_text:
             parent = f"{lam_text}-{parent}"

@@ -1580,3 +1580,22 @@ def test_primary_amine_oxides_chalcogen_analogues_and_oxides_beside_senior_group
 )
 def test_imine_oxide_with_n_halogen_and_lambda_3_iodanes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("NNNNC(=O)c1ccccc1", "N-(triazan-1-yl)benzamide"),
+        ("CC(=O)N(C)NNN", "N-methyl-N-(triazan-1-yl)acetamide"),
+        ("O=C(c1ccccc1)NNNNC(=O)c1ccccc1", "N,N'-(hydrazine-1,2-diyl)dibenzamide"),
+        ("CC(=O)NNNC(C)=O", "N,N'-azanediyldiacetamide"),
+        ("NNNNC(=O)O", "tetraazane-1-carboxylic acid"),
+        ("OC(=O)NNNNC(=O)O", "tetraazane-1,4-dicarboxylic acid"),
+        ("CNNNC(=O)O", "3-methyltriazane-1-carboxylic acid"),
+        ("NNNN=C=O", "1-isocyanatotriazane"),
+        ("CNNN=C=O", "1-isocyanato-2-methylhydrazine"),
+        ("O=C=NN[N+](=O)[O-]", "N-isocyanatonitramide"),
+    ],
+)
+def test_nitrogen_chain_broken_to_express_the_senior_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

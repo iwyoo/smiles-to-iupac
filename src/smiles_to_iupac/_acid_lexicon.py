@@ -177,7 +177,7 @@ def carbo_suffix(spec, count):
     if spec.plain:
         return _MULTIPLIER[count] + _PLAIN_WORD[spec.kind]
     text = _infixes(spec, "ic")
-    return _MULTIPLIER[count] + _head(spec, text) + text + _acid_tail(spec, count)
+    return _MULTIPLIER[count] + _head(spec, text) + text + _acid_tail(spec)
 
 
 def acyl_suffix(spec, chain, count):

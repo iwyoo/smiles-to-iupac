@@ -16,31 +16,58 @@ _PARENT_ELEMENTS = {5, 7, 13, 14, 15, 32, 33, 50, 51, 82, 83}
 _ACID_CENTERS = {6, 16, 34, 52}
 
 
+def _nitrogen_chain(mol, first):
+    """The unbranched acyclic N-N-... chain that starts at `first`, or None when it branches at an N atom."""
+    chain = [first]
+    while True:
+        following = [
+            n.GetIdx()
+            for n in mol.GetAtomWithIdx(chain[-1]).GetNeighbors()
+            if n.GetAtomicNum() == 7 and n.GetIdx() not in chain and not n.IsInRing()
+        ]
+        if len(following) > 1:
+            return None
+        if not following:
+            return chain
+        chain.append(following[0])
+
+
 def _hydrazine_acid(mol, found):
-    """'2-methylhydrazine-1-carboxylic acid', 'hydrazine-1,2-dicarboxylic acid': the two nitrogens are numbered so the
-    suffix gets the lowest locants, then the prefixes; None when the acid groups are not on an N-N parent."""
+    """'2-methylhydrazine-1-carboxylic acid', 'hydrazine-1,2-dicarboxylic acid', 'tetraazane-1-carboxylic acid' (P-58.3.2):
+    the whole unbranched N chain is the parent, numbered so the suffix gets the lowest locants, then the prefixes; None
+    when the acid groups are not on an N chain."""
     from ._common import group_substituents
+    from ._numerals import multiplying_prefix
     from ._substituents import format_substituent_prefixes, name_branch
 
     first = found[0][2]
-    partners = [
+    ends = [
         n.GetIdx()
         for n in mol.GetAtomWithIdx(first).GetNeighbors()
         if n.GetAtomicNum() == 7 and not n.IsInRing()
     ]
-    if len(partners) != 1:
+    if not ends:
         return None
-    if mol.GetBondBetweenAtoms(first, partners[0]).GetBondTypeAsDouble() != 1.0:
-        raise UnsupportedStructure("a diazene is not a hydrazine parent")
-    pair = (first, partners[0])
-    if any(h not in pair for _, _, h in found) or len({g.spec for _, g, _ in found}) != 1:
+    chain = None
+    for start in {first, *ends}:
+        candidate = _nitrogen_chain(mol, start)
+        if candidate is not None and first in candidate and all(h in candidate for _, _, h in found):
+            if len(candidate) > len(chain or ()):
+                chain = candidate
+    if chain is None or len(chain) < 2:
+        return None
+    for a, b in zip(chain, chain[1:]):
+        if mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1.0:
+            raise UnsupportedStructure("a diazene is not a hydrazine parent")
+    if len({g.spec for _, g, _ in found}) != 1:
         raise UnsupportedStructure("this hydrazine acid is not supported yet")
+    pair = tuple(chain)
     centers = {c for c, _, _ in found}
     owned = {a for _, g, _ in found for a in g.owned}
     cations = [i for i in pair if mol.GetAtomWithIdx(i).GetFormalCharge() == 1 and mol.GetAtomWithIdx(i).GetTotalDegree() == 4]
     anions = {a for a in owned if mol.GetAtomWithIdx(a).GetFormalCharge()}
     if {a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge()} - anions - set(cations) or (
-        cations and (len(cations) > 1 or not found[0][1].spec.anion)
+        cations and (len(pair) != 2 or len(cations) > 1 or not found[0][1].spec.anion)
     ):
         raise UnsupportedStructure("this charged hydrazine acid is not supported yet")
     graph = adjacency(mol)
@@ -61,10 +88,11 @@ def _hydrazine_acid(mol, found):
     spec = found[0][1].spec
     suffix = carbo_suffix(spec, len(found))
     suffix_text = "-" + ",".join(map(str, suffix_locants)) + "-"
+    parent = "hydrazine" if len(pair) == 2 else multiplying_prefix(len(pair)) + "azane"
     if ium_locants:
         return f"{prefix}hydrazin-{ium_locants[0]}-ium{suffix_text}{suffix}"
-    bare = len(found) == 1 and not prefix
-    return f"{prefix}hydrazine{'' if bare else suffix_text}{suffix}"
+    bare = len(found) == 1 and not prefix and len(pair) == 2
+    return f"{prefix}{parent}{'' if bare else suffix_text}{suffix}"
 
 
 def hydrazine_acyl_prefix(mol, graph, nitrogen, acyl_atom, halogens, ending):
@@ -89,6 +117,24 @@ def hydrazine_acyl_prefix(mol, graph, nitrogen, acyl_atom, halogens, ending):
     return f"{prefix}hydrazine{'-1-' if prefix else ''}{ending}"
 
 
+def _chalcogen_chain_host(mol, atom):
+    """A chain atom of three or more contiguous identical chalcogen atoms, which are parent hydrides (P-68.4.1.1)."""
+    z = atom.GetAtomicNum()
+    if z not in (16, 34, 52) or atom.IsInRing() or atom.GetFormalCharge():
+        return False
+    seen, stack = {atom.GetIdx()}, [atom.GetIdx()]
+    while stack:
+        for n in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
+            if n.GetAtomicNum() == z and n.GetIdx() not in seen and not _oxo_bearing(n):
+                seen.add(n.GetIdx())
+                stack.append(n.GetIdx())
+    return len(seen) >= 3
+
+
+def _oxo_bearing(atom):
+    return any(n.GetAtomicNum() == 8 and n.GetDegree() == 1 for n in atom.GetNeighbors())
+
+
 def name_hetero_parent_acid(mol):
     from .core import smiles_to_iupac
 
@@ -104,7 +150,7 @@ def name_hetero_parent_acid(mol):
         attach = [n for n in atom.GetNeighbors() if n.GetIdx() not in group.owned and n.GetAtomicNum() != 1]
         if (
             len(attach) == 1
-            and attach[0].GetAtomicNum() in _PARENT_ELEMENTS
+            and (attach[0].GetAtomicNum() in _PARENT_ELEMENTS or _chalcogen_chain_host(mol, attach[0]))
             and not attach[0].IsInRing()
             and not _is_acylated(mol, attach[0], atom.GetIdx())
         ):
@@ -115,7 +161,10 @@ def name_hetero_parent_acid(mol):
             return hydrazine
     if not found or len({g.spec for _, g, _ in found}) != 1:
         raise UnsupportedStructure("acid groups of one kind on a heteroatom parent are required")
-    if found[0][1].spec.anion or any(mol.GetAtomWithIdx(c).GetAtomicNum() != 6 for c, _, _ in found):
+    chalcogen_hosts = all(_chalcogen_chain_host(mol, mol.GetAtomWithIdx(h)) for _, _, h in found)
+    if found[0][1].spec.anion or (
+        any(mol.GetAtomWithIdx(c).GetAtomicNum() != 6 for c, _, _ in found) and not chalcogen_hosts
+    ):
         raise UnsupportedStructure("only a hydrazine parent takes anionic or chalcogen acid groups here")
     if any(a.GetFormalCharge() for a in mol.GetAtoms()):
         raise UnsupportedStructure("a charged atom on a heteroatom parent is not supported here")
@@ -139,6 +188,10 @@ def name_hetero_parent_acid(mol):
             return parent + carbo_suffix(spec, len(found))
     elif len(hosts) == 1 and _mononuclear(hydride):
         raise UnsupportedStructure("the heteroatom parent has several possible attachment positions")
+    elif len(found) > 1 and sum(a.GetTotalNumHs() for a in hydride.GetAtoms()) == len(found) and not (
+        any(ch.isdigit() for ch in parent) or " " in parent
+    ):
+        return parent + carbo_suffix(spec, len(found))
     return _located_parent_acid(mol, found, spec)
 
 

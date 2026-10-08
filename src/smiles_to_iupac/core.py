@@ -34,6 +34,7 @@ from ._diacylamine import diacylamine_name
 from ._carbonic_hydrazide import carbonic_hydrazide_name, name_carbonic_hydrazide
 from ._chalcogen_hydrazide import name_chalcogen_hydrazide
 from ._diacylhydrazine import diacylhydrazine_name
+from ._chain_amide import chain_amide_name, chain_ketone_name
 from ._ring_nitrogen_hydrazide import name_ring_nitrogen_hydrazide
 from ._alternating_cage import has_alternating_cage_shape, name_alternating_cage
 from ._dipolar import has_dipolar_shape, name_dipolar
@@ -806,6 +807,12 @@ def _name_unabridged_body(smiles: str) -> str:
             diacylhydrazine = diacylhydrazine_name(parsed)
             if diacylhydrazine is not None:
                 return diacylhydrazine
+            chain_amide = chain_amide_name(parsed)
+            if chain_amide is not None:
+                return chain_amide
+            chain_ketone = chain_ketone_name(parsed)
+            if chain_ketone is not None:
+                return chain_ketone
             carbonic_hydrazidine = carbonic_hydrazide_name(parsed)
             if carbonic_hydrazidine is not None:
                 return carbonic_hydrazidine

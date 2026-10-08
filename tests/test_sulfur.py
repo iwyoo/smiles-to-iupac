@@ -937,3 +937,15 @@ def test_sulfur_oxoacids_modified_by_infixes_and_their_halides_and_amides(smiles
 )
 def test_thiohalogen_oxo_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("SSSSC(=O)c1ccccc1", "phenyl(tetrasulfanyl)methanone"),
+        ("SS(=O)(=O)SSSS(=O)(=O)S", "trisulfanedisulfonothioic S-acid"),
+        ("SSSS(=O)(=O)O", "trisulfanesulfonic acid"),
+    ],
+)
+def test_sulfur_chain_broken_to_express_the_senior_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
