@@ -45,6 +45,7 @@ from ._carbohydrate import (
     name_open_chain_aldose,
 )
 from ._inositol import has_inositol_shape, name_inositol
+from ._inositol_derivative import has_inositol_derivative_shape, name_inositol_derivative
 from ._sphingoid import has_sphingoid_shape, name_sphingoid
 from ._acetal import has_acetal_shape, name_acetal
 from ._amide import has_amide_shape, name_amide
@@ -587,6 +588,8 @@ def _name_unabridged(smiles: str) -> str:
         if parsed is not None and parsed.HasProp("_hypervalent_anion"):
             name = name_anion(parsed)
             return name
+        if parsed is not None and has_inositol_derivative_shape(parsed):
+            return name_inositol_derivative(parsed)
         if parsed is not None and has_common_hydride_shape(parsed):
             name = name_common_hydride(parsed)
             return name

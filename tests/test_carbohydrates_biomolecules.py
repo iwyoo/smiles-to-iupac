@@ -75,6 +75,27 @@ def test_inositol_retained_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CO[C@H]1[C@H](O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1O", "1D-1-O-methyl-myo-inositol", id="o_substituent_lowest_locant_and_dl"),
+        pytest.param("N[C@H]1[C@H](O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1O", "1D-1-amino-1-deoxy-myo-inositol", id="amino_deoxy_pair"),
+        pytest.param("O[C@H]1[C@H](O)[C@@H](OC)[C@H](O)[C@@H](O)[C@H]1O", "5-O-methyl-myo-inositol", id="achiral_derivative_omits_dl"),
+        pytest.param("O[C@H]1[C@H](O)[C@H](OC)[C@@H](O)[C@H](O)[C@H]1O", "1D-2-O-methyl-chiro-inositol", id="chiro_enantiomer_from_numbering"),
+        pytest.param("O[C@H]1[C@H](OCC)[C@@H](O)[C@H](O)[C@@H](OCC)[C@H]1O", "1L-1,4-di-O-ethyl-myo-inositol", id="multiplied_o_substituent"),
+        pytest.param("O[C@H]1[C@H](OC(C)=O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1O", "1L-myo-inositol 4-acetate", id="carboxylic_ester_named_as_alkanoate"),
+        pytest.param("O[C@H]1[C@H](OS(=O)(=O)O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1O", "1L-myo-inositol 4-(hydrogen sulfate)", id="sulfate_ester"),
+        pytest.param(
+            "O[C@H]1[C@H](OP(O)(O)=O)[C@@H](OP(O)(O)=O)[C@H](OP(O)(O)=O)[C@@H](O)[C@H]1O",
+            "myo-inositol 4,5,6-tris(dihydrogen phosphate)",
+            id="multiplied_phosphate_ester",
+        ),
+    ],
+)
+def test_inositol_derivatives(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 @pytest.mark.slow
 def test_nucleoside_base_attached_via_oxygen_is_not_matched():
     name = smiles_to_iupac("C1=CN(C(=O)NC1=O)O[C@H]2[C@@H]([C@@H]([C@H](O2)CO)O)O")
