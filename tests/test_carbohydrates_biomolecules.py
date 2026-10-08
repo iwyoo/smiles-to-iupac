@@ -266,11 +266,11 @@ def test_unspecified_stereo_aldose_and_related(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ('CCCCCCCCCCCCCCCCCC(=O)OCC(OC(=O)CCCCCCCCCCCCCCCCC)COC(=O)CCCCCCCCCCCCCCCCC', 'propane-1,2,3-triyl trioctadecanoate'),
+        ('CCCCCCCCCCCCCCCCCC(=O)OCC(OC(=O)CCCCCCCCCCCCCCCCC)COC(=O)CCCCCCCCCCCCCCCCC', 'propane-1,2,3-triyl tri(octadecanoate)'),
         ('CCCCCCCCCCCCCCCC(=O)OC[C@@H](O)CO', '(2S)-2,3-dihydroxypropyl hexadecanoate'),
         ('CCCCCCCCCCCCCCCC(=O)OC(CO)CO', '1,3-dihydroxypropan-2-yl hexadecanoate'),
-        ('CCCCCCCCCCCCCCCC(=O)OCC(O)COC(=O)CCCCCCCCCCCCCCC', '2-hydroxypropane-1,3-diyl dihexadecanoate'),
-        pytest.param('CCCCCCCCCCCCCCCC(=O)OC[C@@H](OC(=O)CCCCCCCCCCCCCCC)CO', '(2S)-3-hydroxypropane-1,2-diyl dihexadecanoate', marks=pytest.mark.slow),
+        ('CCCCCCCCCCCCCCCC(=O)OCC(O)COC(=O)CCCCCCCCCCCCCCC', '2-hydroxypropane-1,3-diyl di(hexadecanoate)'),
+        pytest.param('CCCCCCCCCCCCCCCC(=O)OC[C@@H](OC(=O)CCCCCCCCCCCCCCC)CO', '(2S)-3-hydroxypropane-1,2-diyl di(hexadecanoate)', marks=pytest.mark.slow),
         pytest.param('CCCCCCCCCCCCCCCC(=O)OC[C@H](OC(C)=O)COC(=O)CCCCCCC/C=C\\CCCCCCCC', '(2S)-propane-1,2,3-triyl 2-acetate 1-hexadecanoate 3-[(9Z)-octadec-9-enoate]', marks=pytest.mark.slow),
         ('OC[C@H](O)COP(O)(O)=O', '(2S)-2,3-dihydroxypropyl dihydrogen phosphate'),
         ('OC[C@@H](O)COP(O)(O)=O', '(2R)-2,3-dihydroxypropyl dihydrogen phosphate'),
@@ -285,14 +285,14 @@ def test_glycerides(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        pytest.param('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(O)=O)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-(phosphonooxy)propane-1,2-diyl dihexadecanoate', marks=pytest.mark.slow),
-        ('CCCCCCCCCCCCCCCC(=O)OCC(OP(O)(O)=O)COC(=O)CCCCCCCCCCCCCCC', '2-(phosphonooxy)propane-1,3-diyl dihexadecanoate'),
-        pytest.param('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(=O)OCCN)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-{[(2-aminoethoxy)hydroxyphosphoryl]oxy}propane-1,2-diyl dihexadecanoate', marks=pytest.mark.slow),
+        pytest.param('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(O)=O)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-(phosphonooxy)propane-1,2-diyl di(hexadecanoate)', marks=pytest.mark.slow),
+        ('CCCCCCCCCCCCCCCC(=O)OCC(OP(O)(O)=O)COC(=O)CCCCCCCCCCCCCCC', '2-(phosphonooxy)propane-1,3-diyl di(hexadecanoate)'),
+        pytest.param('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(=O)OCCN)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-{[(2-aminoethoxy)hydroxyphosphoryl]oxy}propane-1,2-diyl di(hexadecanoate)', marks=pytest.mark.slow),
         ('CCCCCCCCCCCCCCCCCC(=O)OC[C@H](COP(O)(=O)OC[C@H](N)C(O)=O)OC(=O)CCCCCCCCCCCCCCCCC', 'O-{[(2R)-2,3-bis(octadecanoyloxy)propoxy]hydroxyphosphoryl}-L-serine'),
         ('CCCCCCCC/C=C\\CCCCCCCC(=O)OC[C@H](COP(O)(=O)OC[C@H](N)C(O)=O)OC(=O)CCCCCCCCCCCCCCC', 'O-[((2R)-2-(hexadecanoyloxy)-3-{[(9Z)-octadec-9-enoyl]oxy}propoxy)hydroxyphosphoryl]-L-serine'),
-        pytest.param('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(=O)OC[C@H](O)CO)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-({[(2R)-2,3-dihydroxypropoxy]hydroxyphosphoryl}oxy)propane-1,2-diyl dihexadecanoate', marks=pytest.mark.slow),
-        pytest.param('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(=O)O[C@H]1[C@H](O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1O)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-[(hydroxy{[(1S,2R,3R,4S,5S,6R)-2,3,4,5,6-pentahydroxycyclohexyl]oxy}phosphoryl)oxy]propane-1,2-diyl dihexadecanoate', marks=pytest.mark.slow),
-        pytest.param('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(=O)O[C@H]1[C@H](O)[C@@H](O)[C@@H](O)[C@@H](O)[C@@H]1O)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-[(hydroxy{[(1s,2R,3S,4s,5R,6S)-2,3,4,5,6-pentahydroxycyclohexyl]oxy}phosphoryl)oxy]propane-1,2-diyl dihexadecanoate', marks=pytest.mark.slow),
+        pytest.param('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(=O)OC[C@H](O)CO)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-({[(2R)-2,3-dihydroxypropoxy]hydroxyphosphoryl}oxy)propane-1,2-diyl di(hexadecanoate)', marks=pytest.mark.slow),
+        pytest.param('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(=O)O[C@H]1[C@H](O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1O)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-[(hydroxy{[(1S,2R,3R,4S,5S,6R)-2,3,4,5,6-pentahydroxycyclohexyl]oxy}phosphoryl)oxy]propane-1,2-diyl di(hexadecanoate)', marks=pytest.mark.slow),
+        pytest.param('CCCCCCCCCCCCCCCC(=O)OC[C@@H](COP(O)(=O)O[C@H]1[C@H](O)[C@@H](O)[C@@H](O)[C@@H](O)[C@@H]1O)OC(=O)CCCCCCCCCCCCCCC', '(2S)-3-[(hydroxy{[(1s,2R,3S,4s,5R,6S)-2,3,4,5,6-pentahydroxycyclohexyl]oxy}phosphoryl)oxy]propane-1,2-diyl di(hexadecanoate)', marks=pytest.mark.slow),
         ('CCCCCCCCCCCCCCCC(=O)OC[C@@H](O)COP(O)(O)=O', '(2R)-2-hydroxy-3-(phosphonooxy)propyl hexadecanoate'),
         ('CCCCCCCCCCCCCCCC(=O)OC[C@@H](O)COP(O)(=O)OCCN', '(2R)-3-{[(2-aminoethoxy)hydroxyphosphoryl]oxy}-2-hydroxypropyl hexadecanoate'),
         ('CCCCCCCCCCCCCCCCOC[C@H](OC(C)=O)COP(O)(O)=O', '(2S)-1-(hexadecyloxy)-3-(phosphonooxy)propan-2-yl acetate'),
@@ -352,7 +352,7 @@ def test_sphingolipids(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ('CCCCCCCCCCCCCCCCCC(=O)OC[C@H](CO[C@@H]1O[C@H](CO)[C@H](O)[C@H](O)[C@H]1O)OC(=O)CCCCCCCCCCCCCCCCC', '(2S)-3-(β-D-galactopyranosyloxy)propane-1,2-diyl dioctadecanoate'),
+        ('CCCCCCCCCCCCCCCCCC(=O)OC[C@H](CO[C@@H]1O[C@H](CO)[C@H](O)[C@H](O)[C@H]1O)OC(=O)CCCCCCCCCCCCCCCCC', '(2S)-3-(β-D-galactopyranosyloxy)propane-1,2-diyl di(octadecanoate)'),
     ],
 )
 def test_glycoglycerolipids(smiles, expected):

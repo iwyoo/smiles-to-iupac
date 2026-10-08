@@ -109,6 +109,10 @@ def _single_center_special(mol, center):
         host = heavy[0]
         if mol.GetBondBetweenAtoms(center.GetIdx(), host.GetIdx()).GetBondTypeAsDouble() == 2.0:
             return _imide_of_hydride(mol, center, host)
+    if z == 8 and charge == 1 and len(heavy) == 1 and heavy[0].GetAtomicNum() in _HYDROXY_HYDRIDE_HOSTS:
+        named = _hydride_olate(mol, center, heavy[0])
+        if named is not None:
+            return named
     if z == 8 and charge == 1 and len(heavy) == 1 and _is_plain_amino_nitrogen(heavy[0], center):
         graph = adjacency(mol)
         halogens = halogen_substituents(mol)
@@ -121,6 +125,30 @@ def _single_center_special(mol, center):
         ]
         return (format_mononuclear_prefixes(subs) if subs else "") + "aminoxide"
     return None
+
+
+_HYDROXY_HYDRIDE_HOSTS = (13, 14, 31, 32, 49, 50, 81, 82)
+
+
+def _hydride_olate(mol, center, host):
+    """'dimethylalumanolate', 'dimethylthallanolate' (P-68.1.4.1, P-68.1.5.1): the anion of a hydroxy group on a hydride
+    of Group 13 or 14 carrying only organyl groups or halogens; the hydroxy parent has the suffix 'ol' (P-72.2.2.2.2)."""
+    if host.IsInRing() or host.GetFormalCharge() or host.GetIsotope() or host.GetDegree() > _PARENTS[host.GetAtomicNum()][1]:
+        return None
+    if any(a.GetAtomicNum() not in (1, 6, 9, 17, 35, 53, host.GetAtomicNum(), 8) or a.GetIsAromatic() for a in mol.GetAtoms()):
+        return None
+    if sum(a.GetAtomicNum() == 8 for a in mol.GetAtoms()) != 1:
+        return None
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    aromatic_atoms = frozenset()
+    entries = [
+        name_branch(graph, n, host.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True)
+        for n in graph[host.GetIdx()]
+        if n != center.GetIdx()
+    ]
+    prefixes = format_mononuclear_prefixes(entries) if entries else ""
+    return prefixes + _PARENTS[host.GetAtomicNum()][0] + "olate"
 
 
 def _is_nitro_oxygen(atom):

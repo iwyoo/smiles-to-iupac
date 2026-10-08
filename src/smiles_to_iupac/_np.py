@@ -341,6 +341,8 @@ def _natural_product_name(mol):
     if groups:
         return _name_with_groups(mol, groups)
     plain = _plain(mol)
+    if plain is None:
+        return None, 0
     built = _name_once(plain)
     if built is None:
         return None, 0

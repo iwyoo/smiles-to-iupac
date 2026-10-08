@@ -19,6 +19,7 @@ _CLASS_PATTERNS = (
     ("amine", "[NX3;!$(N[#6]=[O,S,N]);!$(N-[a])]"),
     ("ether", "[#6][OX2][#6]"),
 )
+_DONOR_ATOMS = {7, 8, 15, 16, 33, 34, 51, 52}
 _HETERO_RANK = max(SUFFIX_CLASS_RANK.values()) + 1
 _HYDROCARBON_RANK = _HETERO_RANK + 1
 _INORGANIC_RANK = _HYDROCARBON_RANK + 1
@@ -55,6 +56,22 @@ def _components(mol):
     return list(counts.items())
 
 
+def _attachment(base, acid):
+    """('N', 'B') for a drawn donor-acceptor pair whose symbols are unambiguous in their components, cited when the donor
+    component has several possible donor atoms (P-68.1.6.2); None otherwise."""
+    donors = [a for a in base.GetAtoms() if a.HasProp("_adduct_donor")]
+    acceptors = [a for a in acid.GetAtoms() if a.HasProp("_adduct_acceptor")]
+    if len(donors) != 1 or len(acceptors) != 1:
+        return None
+    donor, acceptor = donors[0], acceptors[0]
+    candidates = [a.GetAtomicNum() for a in base.GetAtoms() if a.GetAtomicNum() in _DONOR_ATOMS]
+    if len(candidates) < 2 or candidates.count(donor.GetAtomicNum()) != 1:
+        return None
+    if [a.GetAtomicNum() for a in acid.GetAtoms()].count(acceptor.GetAtomicNum()) != 1:
+        return None
+    return donor.GetSymbol(), acceptor.GetSymbol()
+
+
 def has_adduct_shape(mol) -> bool:
     return _components(mol) is not None
 
@@ -63,9 +80,13 @@ def name_adduct(mol, namer) -> str:
     named = []
     for smiles, (frag, count) in _components(mol):
         name = "water" if _is_bare_water(frag) else namer(smiles)
-        named.append((_class_rank(frag), alpha_sort_key(name), name, count))
+        named.append((_class_rank(frag), alpha_sort_key(name), name, count, frag))
     if len(named) == 1:
         raise UnsupportedStructure("identical components form a repeated molecule, not an adduct")
-    named.sort()
-    names = "—".join(name for _, _, name, _ in named)
-    return f"{names} ({'/'.join(str(count) for *_, count in named)})"
+    named.sort(key=lambda item: item[:4])
+    proportions = f"({'/'.join(str(item[3]) for item in named)})"
+    if len(named) == 2 and all(item[3] == 1 for item in named):
+        pair = _attachment(named[0][4], named[1][4])
+        if pair is not None:
+            return f"{named[0][2]}({pair[0]}\u2014{pair[1]}){named[1][2]} {proportions}"
+    return f"{'\u2014'.join(item[2] for item in named)} {proportions}"

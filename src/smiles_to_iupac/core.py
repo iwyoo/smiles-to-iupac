@@ -3,7 +3,6 @@ import re
 from rdkit import Chem
 
 from ._zwitterion import has_zwitterion_shape, name_zwitterion
-from ._hydrohalide_salt import has_hydrohalide_salt_shape, name_hydrohalide_salt
 from ._adduct import has_adduct_shape, name_adduct
 from ._acyclic import name_acyclic_alkane
 from ._acid_derivatives import name_acid_derivative, name_phosphorous_acid
@@ -168,6 +167,7 @@ from ._cyclic import name_cycloalkane
 from ._disjoint_ring_substituents import find_disjoint_ring_pair_core, name_disjoint_ring_pair
 from ._cyclic_unsaturated import find_cyclic_unsaturated_core, name_cyclic_unsaturated
 from ._diester_acyloxy import has_diester_shape, has_polyester_of_one_polyol_shape, name_diester_acyloxy
+from ._hydride_polyester import has_hydride_polyester_shape, name_hydride_polyester
 from ._ester import has_ester_shape, name_ester
 from ._ester_by_parts import name_ester_by_parts
 from ._heteroacyclic import name_heteroacyclic
@@ -304,7 +304,7 @@ from ._phosphanone import has_phosphanimine_shape, has_phosphanone_shape, name_p
 from ._mononuclear_oxoacid import has_mononuclear_oxoacid_shape, name_mononuclear_oxoacid
 from ._sulfuric_amide import has_sulfuric_amide_shape, name_sulfuric_amide
 from ._phosphate import has_phosphate_shape, name_phosphate
-from ._phosphorus_thioester import has_phosphorus_thioester_shape, name_phosphorus_thioester
+from ._phosphorus_thioester import has_phosphorus_thioester_shape, name_boron_peroxy_ester, name_phosphorus_thioester
 from ._dinuclear_oxoacid import has_dinuclear_oxoacid_shape, name_dinuclear_oxoacid
 from ._phosphite import has_phosphite_shape, name_phosphite
 from ._sulfate import has_sulfate_shape, name_sulfate
@@ -827,7 +827,15 @@ def _name_unabridged_body(smiles: str) -> str:
             return name_amino_acid(parsed)
         if parsed is not None and not has_sphingoid_shape(parsed):
             stereo_specified = _has_specified_stereo(parsed)
-            for namer in (name_acid_salt, name_polycarbonic, name_carbonic_family, name_acid_derivative, name_hetero_parent_acid, name_phosphorous_acid):
+            for namer in (
+                name_acid_salt,
+                name_polycarbonic,
+                name_carbonic_family,
+                name_acid_derivative,
+                name_boron_peroxy_ester,
+                name_hetero_parent_acid,
+                name_phosphorous_acid,
+            ):
                 try:
                     candidate = namer(parsed)
                 except UnsupportedStructure:
@@ -1249,6 +1257,7 @@ def _name_mol(mol) -> str:
         (has_amino_acid_shape, name_amino_acid),
         # A ring-system diester of one polyol (P-65.6.3.3.3) is claimed before every
         # ring/functional-group shape check below, which would misread its esters.
+        (has_hydride_polyester_shape, name_hydride_polyester),
         (has_polyester_of_one_polyol_shape, name_diester_acyloxy),
         (has_hydride_carbo_suffix_shape, name_hydride_carbo_suffix),
         (has_lambda_ring_shape, name_lambda_ring),
@@ -1283,12 +1292,6 @@ def _name_mol(mol) -> str:
     ):
         if has_shape(mol):
             return namer(mol)
-
-    # A bare hydrogen halide fragment (P-77.1.3(3)'s 'hydrochloride'-style
-    # general nomenclature, see _hydrohalide_salt.py) must likewise be
-    # routed here before every other branch below, for the same reason.
-    if has_hydrohalide_salt_shape(mol):
-        return name_hydrohalide_salt(mol, smiles_to_iupac)
 
     # Neutral adducts and solvates (P-14.8, see _adduct.py) must likewise be
     # routed here before every other branch below, for the same reason.

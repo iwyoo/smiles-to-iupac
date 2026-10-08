@@ -3,6 +3,8 @@ anions multiply ('di' unsubstituted, 'bis' substituted), differing anions are li
 alphanumerically with locants when needed. Used by `_diester_acyloxy.py` and `_diester_ring_diyl.py`.
 """
 
+import re
+
 from rdkit import Chem
 from rdkit.Chem import rdCIPLabeler
 
@@ -18,6 +20,8 @@ from ._common import (
 from ._ester import _name_acyl_part
 from ._functional_prefixes import functional_names
 from ._numerals import multiplying_prefix
+
+_MULTIPLICATIVE_START = re.compile(r"(?:di|do|tri|tetra|penta|hexa|hepta|octa|nona|dec)")
 
 
 def find_ester_carbons(mol):
@@ -255,7 +259,7 @@ def multiplied_anion(name, substituted, count):
         return name
     if substituted:
         return multiplying_prefix(count, compound=True) + _enclose(name)
-    if any(ch.isdigit() for ch in name) or name.startswith("cyclo"):
+    if any(ch.isdigit() for ch in name) or name.startswith("cyclo") or _MULTIPLICATIVE_START.match(name):
         return multiplying_prefix(count) + _enclose(name)
     return multiplying_prefix(count) + name
 
