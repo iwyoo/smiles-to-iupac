@@ -1178,8 +1178,8 @@ def test_group_or_stereo_element_without_a_supported_citation_raises(smiles):
         smiles_to_iupac(smiles)
 
 
-def test_chain_unit_bearing_a_group_outside_the_chain_is_not_named_by_skeletal_replacement():
-    assert "carboxy" in smiles_to_iupac("OC(=O)[SiH2]C[SiH2]C[SiH2]C[SiH2]C")
+def test_acid_carbon_bonded_to_a_chain_heteroatom_is_the_chain_end():
+    assert smiles_to_iupac("OC(=O)[SiH2]C[SiH2]C[SiH2]C[SiH2]C") == "2,4,6,8-tetrasilanonan-1-oic acid"
 
 
 @pytest.mark.parametrize(
@@ -1242,4 +1242,28 @@ def test_skeletal_replacement_chains_and_amido_prefixes(smiles, expected):
     ],
 )
 def test_skeletal_replacement_chains_with_adjacent_chalcogen_atoms(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CNCNCNCNC", "2,4,6,8-tetraazanonane"),
+        ("CCNC(=O)CCOCCOCCOCCOC", "N-ethyl-2,5,8,11-tetraoxatetradecan-14-amide"),
+        ("CON(C)C(=O)ON=C(C#N)C(N)=O", "7-cyano-3-methyl-4-oxo-2,5-dioxa-3,6-diazaoct-6-en-8-amide"),
+        ("NC(=N)NCCCCCNC(=N)NCCCCCNC(N)=N", "9-imino-2,8,10,16-tetraazaheptadecane-1,17-diimidamide"),
+        (
+            "O=C(NCCNCCNCCNCCNCCN)NCCNCCNCCNCCNCCN",
+            "16-amino-N-(14-amino-3,6,9,12-tetraazatetradecan-1-yl)-2,5,8,11,14-pentaazahexadecan-1-amide",
+        ),
+        (
+            "FC(=O)NSNCON=CC=NOCNSNC(F)=O",
+            "6,11-dioxa-3,14-dithia-2,4,7,10,13,15-hexaazahexadeca-7,9-diene-1,16-dioyl difluoride",
+        ),
+        ("C[SiH2]C[SiH2]C[SiH2]C[SiH2]C=O", "2,4,6,8-tetrasilanonan-1-al"),
+        ("N#C[SiH2]C[SiH2]C[SiH2]C[SiH2]C#N", "2,4,6,8-tetrasilanonane-1,9-dinitrile"),
+        ("CNC(=O)[SiH2]C[SiH2]C[SiH2]C[SiH2]C", "N-methyl-2,4,6,8-tetrasilanonan-1-amide"),
+    ],
+)
+def test_skeletal_replacement_parents_with_groups_on_heteroatom_bonded_carbons_and_nitrogen_units(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
