@@ -1,4 +1,4 @@
-"""Inositol derivatives (P-104.3.1): O-substituted, esterified and amino-deoxy inositols named on the retained parent.
+"""Inositol derivatives (P-104.3.1): O-substituted, esterified and deoxy-substituted (amino, sulfanyl, halogeno) inositols named on the retained parent.
 
 Numbering keeps the parent's face pattern (P-104.2.1) and is chosen by P-104.2.3 (d)-(f); D/L follows the direction of
 numbering with hydroxy 1 above the ring, and is omitted for achiral derivatives.
@@ -9,6 +9,7 @@ from rdkit import Chem
 from ._common import UnsupportedStructure, adjacency, alpha_sort_key, multiplied_word, numerical_term
 
 _CW, _CCW = Chem.ChiralType.CHI_TETRAHEDRAL_CW, Chem.ChiralType.CHI_TETRAHEDRAL_CCW
+_REPLACEMENT = {7: ("amino", 2), 16: ("sulfanyl", 1), 34: ("selanyl", 1), 9: ("fluoro", 0), 17: ("chloro", 0), 35: ("bromo", 0), 53: ("iodo", 0)}
 
 
 def _substituted_ring(mol, ring):
@@ -20,7 +21,7 @@ def _substituted_ring(mol, ring):
         if atom.GetTotalNumHs() != 1:
             return False
         outside = [n for n in atom.GetNeighbors() if n.GetIdx() not in members]
-        if len(outside) != 1 or outside[0].GetAtomicNum() not in (7, 8):
+        if len(outside) != 1 or outside[0].GetAtomicNum() != 8 and outside[0].GetAtomicNum() not in _REPLACEMENT:
             return False
     return True
 
@@ -131,7 +132,7 @@ def ester_anion(mol, oxygen, acyl):
 
 
 def _classify(mol, ring):
-    """Per ring carbon: (substituent atom, kind, payload) with kind hydroxy/amino/ether/ester; None if unsupported."""
+    """Per ring carbon: (substituent atom, kind, payload) with kind hydroxy/deoxy/ether/ester; None if unsupported."""
     from ._substituents import name_branch
 
     graph = adjacency(mol)
@@ -141,10 +142,11 @@ def _classify(mol, ring):
         hetero = next(n for n in graph[a] if n not in members)
         atom = mol.GetAtomWithIdx(hetero)
         covered.add(hetero)
-        if atom.GetAtomicNum() == 7:
-            if atom.GetDegree() != 1 or atom.GetFormalCharge() or atom.GetTotalNumHs() != 2:
+        if atom.GetAtomicNum() in _REPLACEMENT:
+            word, hydrogens = _REPLACEMENT[atom.GetAtomicNum()]
+            if atom.GetDegree() != 1 or atom.GetFormalCharge() or atom.GetIsotope() or atom.GetTotalNumHs() != hydrogens:
                 return None
-            result[a] = (hetero, "amino", None)
+            result[a] = (hetero, "deoxy", word)
             continue
         if atom.GetFormalCharge() or atom.GetIsotope():
             return None
@@ -194,7 +196,7 @@ def _numbering_key(order, kinds):
 
 def _label_text(label):
     kind, payload = label
-    return {"amino": "amino", "ether": payload, "ester": payload}[kind]
+    return payload
 
 
 def has_inositol_derivative_shape(mol) -> bool:
@@ -244,9 +246,8 @@ def _multiplier(count, compound):
 
 def _prefix_text(label, locants):
     kind, payload = label
-    if kind == "amino":
-        return [("amino", f"{','.join(map(str, locants))}-{multiplied_word(len(locants), 'amino')}"),
-                ("deoxy", f"{','.join(map(str, locants))}-{multiplied_word(len(locants), 'deoxy')}")]
+    if kind == "deoxy":
+        return [(payload, f"{','.join(map(str, locants))}-{multiplied_word(len(locants), payload)}")]
     name, compound = payload
     word = f"({name})" if compound else name
     multiplier = _multiplier(len(locants), compound)
@@ -271,6 +272,9 @@ def name_inositol_derivative(mol) -> str:
             prefixes.extend(_prefix_text(("ether", kind_payload), locants))
         else:
             prefixes.extend(_prefix_text(label, locants))
+    deoxy = sorted(l for label, locants in groups.items() if label[0] == "deoxy" for l in locants)
+    if deoxy:
+        prefixes.append(("deoxy", f"{','.join(map(str, deoxy))}-{multiplied_word(len(deoxy), 'deoxy')}"))
     text = "-".join(piece for _, piece in sorted(prefixes, key=lambda item: alpha_sort_key(item[0])))
     stem = f"{parent}-inositol" if not parent.endswith("inositol") else parent
     head = (f"1{descriptor}-" if descriptor else "") + (f"{text}-" if text else "") + stem

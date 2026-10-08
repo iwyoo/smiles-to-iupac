@@ -80,6 +80,8 @@ def test_inositol_retained_names(smiles, expected):
         pytest.param("CO[C@H]1[C@H](O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1O", "1D-1-O-methyl-myo-inositol", id="o_substituent_lowest_locant_and_dl"),
         pytest.param("N[C@H]1[C@H](O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1O", "1D-1-amino-1-deoxy-myo-inositol", id="amino_deoxy_pair"),
         pytest.param("O[C@H]1[C@H](O)[C@@H](OC)[C@H](O)[C@@H](O)[C@H]1O", "5-O-methyl-myo-inositol", id="achiral_derivative_omits_dl"),
+        pytest.param("F[C@H]1[C@H](O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1Cl", "1D-2-chloro-1,2-dideoxy-1-fluoro-myo-inositol", id="halogeno_deoxy_pair_merged"),
+        pytest.param("S[C@H]1[C@H](O)[C@H](O)[C@@H](O)[C@@H](O)[C@H]1OC", "1D-1-deoxy-2-O-methyl-1-sulfanyl-allo-inositol", id="sulfanyl_deoxy_with_ether"),
         pytest.param("O[C@H]1[C@H](O)[C@H](OC)[C@@H](O)[C@H](O)[C@H]1O", "1D-2-O-methyl-chiro-inositol", id="chiro_enantiomer_from_numbering"),
         pytest.param("O[C@H]1[C@H](OCC)[C@@H](O)[C@H](O)[C@@H](OCC)[C@H]1O", "1L-1,4-di-O-ethyl-myo-inositol", id="multiplied_o_substituent"),
         pytest.param("O[C@H]1[C@H](OC(C)=O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1O", "1L-myo-inositol 4-acetate", id="carboxylic_ester_named_as_alkanoate"),
