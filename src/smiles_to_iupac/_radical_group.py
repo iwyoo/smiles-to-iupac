@@ -261,7 +261,10 @@ def name_group_cation(mol) -> str:
     Chem.SanitizeMol(anionic)
     name = name_anion(anionic)
     if re.search(r"\d+H\)-ide$", name):
-        raise UnsupportedStructure("an added-hydrogen anion name does not carry over to the cation")
+        if centre.GetDegree() == 2:
+            raise UnsupportedStructure("an added-hydrogen anion name does not carry over to an aryl cation")
+        # P-73.2.2.2: the added hydrogen of a mancude cation is cited as for the anion, 'anthracen-4a(2H)-ylium'
+        return name[: -len("ide")] + "ylium"
     if name.endswith("anide"):
         return name[: -len("anide")] + "ylium"
     if name.endswith("benzenide"):

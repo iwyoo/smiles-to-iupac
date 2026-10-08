@@ -1306,3 +1306,7 @@ def test_guanidinium_and_uronium_cations(smiles, expected):
 )
 def test_aryl_cations_chain_onium_cations_and_two_centre_oxonium(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_added_hydrogen_of_a_mancude_ring_cation():
+    assert smiles_to_iupac("C=1CC=C[C+]2C=C3C=CC=CC3=CC12") == "anthracen-4a(2H)-ylium"
