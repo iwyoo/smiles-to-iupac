@@ -1082,6 +1082,9 @@ def test_acylated_nitrogen_is_not_a_hetero_parent_for_a_carboxylic_acid():
         pytest.param("CNC(=O)CCC(N)=O", "N1-methylbutanediamide", id="one_substituted_group_of_a_diamide"),
         pytest.param("CCNC(=O)c1cccc(C(=O)NC)c1", "N1-ethyl-N3-methylbenzene-1,3-dicarboxamide", id="n_locants_of_a_ring_diamide"),
         pytest.param("CC(=O)NCC(N)=O", "2-acetamidoacetamide", id="second_amide_cited_as_a_prefix"),
+        pytest.param("C(C)NC(=O)C(CCC(=O)NC)C(=O)N(C)C", "N'1-ethyl-N1,N1,N3-trimethylpropane-1,1,3-tricarboxamide", id="primed_n_locants_on_a_geminal_carboxamide"),
+        pytest.param("CNC(=O)C(CC(=O)NC)CC(=O)NC", "N1,N2,N3-trimethylpropane-1,2,3-tricarboxamide", id="n_substituents_of_carboxamides_on_a_chain"),
+        pytest.param("O=CCNSCNON=C(C)S", "N-{[({[(2-oxoethyl)amino]sulfanyl}methyl)amino]oxy}ethanimidothioic acid", id="n_substituent_of_an_imidothioic_acid"),
     ],
 )
 def test_n_locants_of_polyamides(smiles, expected):
