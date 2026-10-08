@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, specified_stereo_elements
+from ._formazan import FORMAZAN_SKELETON
 from ._multiplicative_groups import SUFFIX_RANKS, classify
 from ._ring_system_seniority import ring_seniority_key
 from ._multiplicative_linker import DecompositionRejected, name_component
@@ -329,6 +330,17 @@ def _unit_text(mol, unit, groups, name_function):
     return bare_polycyclic_unit(mol, unit.ring_atoms, unit.junction, name_function)
 
 
+def _formazan_central(mol, linker_nodes, selected):
+    from ._formazan import formazan_linker
+    from ._multiplicative_linker import Part
+
+    if len(selected) not in (2, 3) or any(n[0] != "A" for n in linker_nodes):
+        return None
+    elsewhere = set(range(mol.GetNumAtoms())).difference(*(u.atoms for u in selected))
+    found = formazan_linker(mol, elsewhere, [(u.junction, u.linker_atom) for u in selected])
+    return None if found is None else Part(found[0], found[1], True)
+
+
 def _attempt(mol, groups, selected, tree, core, name_function):
     systems, node_of, adj = tree
     selected_nodes = {u.node for u in selected}
@@ -338,10 +350,12 @@ def _attempt(mol, groups, selected, tree, core, name_function):
         return None
     components = _components(mol, linker_nodes, systems)
     found = _find_center(mol, components, selected)
-    if found is None:
+    formazan = _formazan_central(mol, linker_nodes, selected)
+    if formazan is None and (found is None or mol.HasSubstructMatch(FORMAZAN_SKELETON)):
         return None
-    valid, edges, comp_of = found
-    center = valid[0]
+    if found is not None:
+        valid, edges, comp_of = found
+        center = valid[0]
 
     unit_atoms = set().union(*(u.atoms for u in selected))
     principal = principal_rank_of(groups, unit_atoms)
@@ -369,6 +383,9 @@ def _attempt(mol, groups, selected, tree, core, name_function):
     unit = _unit_text(mol, selected[0], groups, name_function)
     if unit is None:
         return None
+
+    if formazan is not None:
+        return _assemble(len(selected), unit, formazan, [])
 
     kind, atoms = components[center]
     center_edges = edges[center]
