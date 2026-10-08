@@ -654,3 +654,26 @@ def test_halogen_oxo_prefixes(smiles, expected):
 )
 def test_locants_without_information_are_omitted(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C(CCCCCCCCC)C1CC(CC(C1)CCCCCCCCCC)CCCCCCCCCC", "1,3,5-tri(decyl)cyclohexane"),
+        ("C(CCCCCCCCCCCC)C1=CC=C(C=C1)CCCCCCCCCCCCC", "1,4-di(tridecyl)benzene"),
+        ("C(C)(C)(C)C1=C(C=CC=C1)C(C)(C)C", "1,2-di-tert-butylbenzene"),
+        ("SC(CC(=O)O)CS", "3,4-bis(sulfanyl)butanoic acid"),
+        ("S(S)C=1C=C(C(=O)N)C=CC1SS", "3,4-bis(disulfanyl)benzamide"),
+        ("CC(CC)N(C(C)(CC)O)C(C)CC", "2-[di(butan-2-yl)amino]butan-2-ol"),
+        (
+            "C12CC(CC(CC1)C2)C2=CC=CC1=CC3=CC=CC(=C3C=C21)C2CC1CCC(C2)C1",
+            "1,8-di(bicyclo[3.2.1]octan-3-yl)anthracene",
+        ),
+        ("C1(=CC=CC=C1)S(=O)C(C(=O)O)S(=O)C1=CC=CC=C1", "di(benzenesulfinyl)acetic acid"),
+        ("N#CC(=S)c1ccccc1C(=O)Cl", "2-(carbonocyanidothioyl)benzoyl chloride"),
+        ("C1=C(C=CC2=CC=CC=C12)[Se](=NN)(=N)S", "naphthalene-2-selenonohydrazonimidothioic acid"),
+        ("C=1SC=CN=CC=COC=C2C1C=CC=C2", "9,2,5-benzoxathiaazacyclododecine"),
+    ],
+)
+def test_multiplying_prefixes_parentheses_and_elision(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

@@ -91,7 +91,8 @@ def _group_atoms(graph, root, blocked):
 
 
 def _infix_text(terms):
-    """Infixes from (word, count, compound) triples in alphabetical order; the last word carries 'ic'."""
+    """Infixes from (word, count, compound) triples in alphabetical order; the last word carries 'ic'. A terminal 'o'
+    is elided before a vowel and a halide or pseudohalide word takes one before a consonant (carbonochloridothioic)."""
     terms = sorted(terms)
     out = []
     for i, (word, count, compound) in enumerate(terms):
@@ -99,6 +100,12 @@ def _infix_text(terms):
         if compound and count > 1:
             text = f"{'bis' if count == 2 else 'tris'}({word}{'ic' if last else ''})"
         else:
+            if not last:
+                following = terms[i + 1][0]
+                if word.endswith("o") and following[0] in "aeiou":
+                    word = word[:-1]
+                elif word.endswith("id") and following[0] not in "aeiou":
+                    word += "o"
             text = _MULTIPLIER[count] + word
             if last:
                 text = text[:-1] + "ic" if word in ("imido", "hydrazono") else text + "ic"

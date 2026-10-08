@@ -68,6 +68,37 @@ def is_plain_stem_prefix(name: str) -> bool:
     return bool(_PLAIN_STEM_PREFIX.match(name) or _RING_GROUP_PREFIX.match(name))
 
 
+_CHALCOGEN_HYDRIDE_GROUP = re.compile(r"^(?:di|tri|tetra|penta|hexa)?(?:sulfanyl|selanyl|tellanyl)$")
+_LEADING_NUMERAL = re.compile(r"^(?:di|do|tri|tetra|penta|hexa|hepta|octa|nona|dec)[a-z]*(?:yl|oyl)$")
+_HYDRIDE_ACYL = re.compile(r"^[a-z]{3,}(?:ane|ene)(?:sulfonyl|sulfinyl)$")
+
+
+_POLYCYCLE_GROUP = re.compile(r"^(?:bi|tri|tetra)?cyclo\[[\d.,^]+\][a-z]+(?:-[\d,]+-(?:en|yn))?-[\d]+[a-z]?-(?:yl|ylidene|ylidyne)$")
+
+
+def prefix_multiplier(count: int, name: str, compound: bool):
+    """(multiplier, enclosed) for `name` cited `count` > 1 times as a detachable prefix (P-16.3.3 to P-16.3.6): 'di'
+    for simple names; 'di' with enclosing marks for simple names with locants, brackets or a leading numerical term;
+    'bis' with marks for substituted names and for the mononuclear groups of a polynuclear chain; 'di-' for tert-butyl."""
+    if (name[:1] in "([{" and not name.startswith("(\u03b7")) or _CHALCOGEN_HYDRIDE_GROUP.match(name):
+        return multiplying_prefix(count, compound=True), True
+    if name == "tert-butyl":
+        return f"{multiplying_prefix(count)}-", False
+    simple = not compound or is_plain_stem_prefix(name) or bool(_HYDRIDE_ACYL.match(name) or _POLYCYCLE_GROUP.match(name))
+    if not simple:
+        return multiplying_prefix(count, compound=True), True
+    enclosed = compound or "[" in name or bool(_LEADING_NUMERAL.match(name) or _HYDRIDE_ACYL.match(name))
+    return multiplying_prefix(count), enclosed
+
+
+def multiplied_prefix(count: int, name: str, compound: bool) -> str:
+    """`name` cited `count` times as a detachable prefix, without locants."""
+    if count == 1:
+        return enclose(name) if compound else name
+    multiplier, enclosed = prefix_multiplier(count, name, compound)
+    return multiplier + (enclose(name) if enclosed else name)
+
+
 def format_substituent_prefixes(grouped, omit_locants: bool = False, omit_all: bool = False) -> str:
     """grouped: {name -> {"locants": [int or 'N', ...], "compound": bool}}.
     Return the assembled, alphanumerically ordered prefix string
@@ -105,24 +136,17 @@ def format_substituent_prefixes(grouped, omit_locants: bool = False, omit_all: b
     for name in sorted(grouped, key=alpha_sort_key):
         info = grouped[name]
         locants = sorted(info["locants"], key=_locant_sort_key)
-        all_non_numeric = all(isinstance(loc, str) for loc in locants)
-        multiplier_compound = (
-            info["compound"] and not is_plain_stem_prefix(name)
-        ) or (name[:1] in "([{" and not name.startswith("(\u03b7"))
-        multiplier = multiplying_prefix(len(locants), compound=multiplier_compound) if len(locants) > 1 else ""
         if "multiplier" in info:
-            multiplier = info["multiplier"]
-        # P-16.3.3: enclosing marks escalate one level, (), [], {}, ... --
-        # a name that already contains its own '(' (e.g. '4-(2-methylpropyl)
-        # phenyl') needs the next mark up, or two same-kind marks would abut
-        # ambiguously (PubChem '2-[4-(2-methylpropyl)phenyl]propanoic acid').
-        display_name = enclose(name) if info["compound"] else name
+            display_name = enclose(name) if info["compound"] else name
+            body = f"{info['multiplier']}{display_name}"
+        else:
+            body = multiplied_prefix(len(locants), name, info["compound"])
         explicit = (not omit_locants) or any(isinstance(loc, str) for loc in locants)
         if explicit:
             loc_str = ",".join(str(loc) for loc in locants)
-            entries.append((f"{loc_str}-{multiplier}{display_name}", True))
+            entries.append((f"{loc_str}-{body}", True))
         else:
-            entries.append((f"{multiplier}{display_name}", False))
+            entries.append((body, False))
 
     result = ""
     for i, (text, explicit) in enumerate(entries):
@@ -211,9 +235,7 @@ def format_mononuclear_prefixes(entries) -> str:
         # ('tri(propan-2-yl)phosphane', PubChem CID 80969, plain 'tri').
         # Confirmed via PubChem PUG REST: three (4-chlorophenyl) groups on
         # one phosphorus -> 'tris(4-chlorophenyl)phosphane' (CID 70874).
-        needs_kis = compound_of[name] and not is_plain_stem_prefix(name)
-        wrapped = wrap_marks(name) if compound_of[name] else name
-        return multiplying_prefix(count, compound=needs_kis) + wrapped
+        return multiplied_prefix(count, name, compound_of[name])
 
     ordered = sorted(counts, key=alpha_sort_key)
     parts = []

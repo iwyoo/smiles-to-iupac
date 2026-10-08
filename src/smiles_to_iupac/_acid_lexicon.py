@@ -106,7 +106,14 @@ def _term_text(term, ending):
 
 def _infixes(spec, ending):
     terms = _terms(spec)
-    return "".join(_term_text(t, ending if i == len(terms) - 1 else None) for i, t in enumerate(terms))
+    texts = []
+    for i, term in enumerate(terms):
+        text = _term_text(term, ending if i == len(terms) - 1 else None)
+        # P-16.7.1: the terminal 'o' of an infix is elided before the vowel of the next one
+        if i < len(terms) - 1 and text.endswith("o") and terms[i + 1][0][0] in "aeiou":
+            text = text[:-1]
+        texts.append(text)
+    return "".join(texts)
 
 
 def tautomer_letters(spec):
