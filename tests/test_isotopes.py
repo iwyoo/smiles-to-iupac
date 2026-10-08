@@ -346,3 +346,17 @@ def test_isotopic_descriptors_in_multiplied_prefixes_and_chalcogen_chains(smiles
 )
 def test_ring_with_more_or_heavier_nuclides_is_the_parent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[2H]c1ccc(cc1)-c1ccccc1", "(4-2H)-1,1'-biphenyl"),
+        ("[2H]c1ccc(cc1)-c1ccc([2H])cc1", "(4,4'-2H2)-1,1'-biphenyl"),
+        ("OC(=O)c1ccc(cc1)-c1ccccc1[2H]", "(2'-2H)[1,1'-biphenyl]-4-carboxylic acid"),
+        ("[2H]c1ccc2ccccc2c1-c1ccc2ccccc2c1", "(2-2H)-1,2'-binaphthalene"),
+        ("C(c1ccc2ccccc2c1)c1ccc2cc([2H])ccc2c1", "2-[(naphthalen-2-yl)methyl](6-2H)naphthalene"),
+    ],
+)
+def test_isotopic_modification_of_ring_assemblies_and_fused_parent_choice(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

@@ -231,7 +231,7 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
         spots = ",".join(_cite(locants[o[1]]) for o in sorted(occurrences, key=lambda o: locants[o[1]]))
         core = f"{bracketed(word[0] in 'aeiouy')}-{spots}-{word}"
     name = assembly_join(prefix, core)
-    return total, ((-total,), name, (None, None, None, 0, {a: CompositeLocant(*loc) for a, loc in locants.items()}, True))
+    return total, ((-total,), name, (None, None, None, 0, {a: CompositeLocant(*loc) for a, loc in locants.items()}, True, len(name) - len(core)))
 
 
 def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees):

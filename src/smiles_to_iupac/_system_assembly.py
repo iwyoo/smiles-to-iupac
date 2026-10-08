@@ -286,4 +286,4 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
         spots_text = ",".join(_cite(locants[o[1]]) for o in sorted(occurrences, key=lambda o: _order(locants[o[1]])))
         core = f"{ih_text}[{base(word[0] in 'aeiouy')}]-{spots_text}-{word}"
     name = assembly_join(prefix, core)
-    return count, ((-count,), name, (None, None, None, 0, {a: PrimedLocant(*loc) for a, loc in locants.items()}, True))
+    return count, ((-count,), name, (None, None, None, 0, {a: PrimedLocant(*loc) for a, loc in locants.items()}, True, len(name) - len(core)))
