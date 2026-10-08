@@ -554,3 +554,18 @@ def test_less_common_amino_acid_retained_names(smiles, expected):
 )
 def test_substituted_proline(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[O-]C(=O)CC[C@H](N)C(=O)O", "L-glutamate(1–)", id="diacid_monoanion_charge_cited"),
+        pytest.param("NCCCC[C@H]([NH3+])C(=O)O", "L-lysinium(1+)", id="two_amino_groups_charge_cited"),
+        pytest.param("NC(=[NH2+])NCCC[C@H](N)C(=O)O", "L-argininium(1+)", id="side_chain_cation_neutralized"),
+        pytest.param("NCCCC[C@H]([NH3+])C(=O)O.[Cl-]", "L-lysinium(1+) chloride", id="cation_with_anion"),
+        pytest.param("[Na+].[O-]C(=O)CC[C@H](N)C(=O)O", "sodium L-glutamate", id="counter_ion_fixes_the_charge"),
+    ],
+)
+def test_ionized_amino_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+

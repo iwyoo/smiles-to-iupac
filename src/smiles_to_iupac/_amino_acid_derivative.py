@@ -8,9 +8,11 @@ from rdkit import Chem
 
 from ._amino_acid_retained import has_retained_amino_acid_shape, name_retained_amino_acid
 from ._amino_acid import SYSTEMATIC_ACID_PROBE, _match, has_amino_acid_shape as _has_plain, name_amino_acid as _name_plain
+from ._histidine import has_histidine_shape, name_histidine
 from ._cited_group import cited_group, subtree
 from ._common import UnsupportedStructure, adjacency
 
+_TWO_AMINO_GROUPS = {"lysine", "ornithine", "arginine", "histidine"}
 _DIACID_SIDE_LOCANT = {"aspartic acid": "4", "glutamic acid": "5"}
 _ESTER = Chem.MolFromSmarts("[CX3](=O)[OX2;!R]([#6])")
 
@@ -41,8 +43,12 @@ def _neutralize(mol):
             continue
         if charge == -1 and atom.GetAtomicNum() == 8 and atom.GetDegree() == 1:
             carboxylates += 1
-        elif charge == 1 and atom.GetAtomicNum() == 7 and atom.GetDegree() == 1 and atom.GetTotalNumHs() == 3:
+        elif charge == 1 and atom.GetAtomicNum() == 7 and atom.GetTotalNumHs() >= 1:
             ammoniums += 1
+            atom.SetNumExplicitHs(atom.GetTotalNumHs() - 1)
+            atom.SetNoImplicit(True)
+            atom.SetFormalCharge(0)
+            continue
         else:
             return None
         atom.SetFormalCharge(0)
@@ -106,6 +112,10 @@ def _derivative_name(mol):
         return None
     if not (groups or carboxylates or ammoniums) or (groups and (carboxylates or ammoniums)):
         return None
+    if has_histidine_shape(acid):
+        if not ammoniums or groups:
+            return None
+        return f"{_cation_stem(name_histidine(acid))}({ammoniums}+)"
     if not _has_plain(acid):
         return None
     found = _match(acid)
@@ -113,11 +123,17 @@ def _derivative_name(mol):
     plain = _name_plain(acid)
     diacid = base in _DIACID_SIDE_LOCANT
     if carboxylates:
+        if diacid and carboxylates == 1:
+            stem = _anion_stem(plain)
+            return stem and f"{stem}(1–)"
         if diacid != (carboxylates == 2):
             return None
         return _anion_stem(plain)
     if ammoniums:
-        return _cation_stem(plain)
+        stem = _cation_stem(plain)
+        if stem and base in _TWO_AMINO_GROUPS:
+            return f"{stem}({ammoniums}+)"
+        return stem if ammoniums == 1 else None
     anion = _anion_stem(plain)
     if anion is None:
         return None
@@ -136,12 +152,22 @@ def _derivative_name(mol):
 def has_amino_acid_shape(mol) -> bool:
     if SYSTEMATIC_ACID_PROBE.get():
         return False
-    return has_retained_amino_acid_shape(mol) or _has_plain(mol) or _derivative_name(mol) is not None
+    if has_retained_amino_acid_shape(mol):
+        return True
+    try:
+        if _has_plain(mol):
+            return True
+    except UnsupportedStructure:
+        pass
+    return _derivative_name(mol) is not None
 
 
 def name_amino_acid(mol) -> str:
     if has_retained_amino_acid_shape(mol):
         return name_retained_amino_acid(mol)
-    if _has_plain(mol):
-        return _name_plain(mol)
+    try:
+        if _has_plain(mol):
+            return _name_plain(mol)
+    except UnsupportedStructure:
+        pass
     return _derivative_name(mol)

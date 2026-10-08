@@ -197,4 +197,4 @@ def _organic_cation(frag):
         name = smiles_to_iupac(Chem.MolToSmiles(frag))
     except UnsupportedStructure:
         return None
-    return (name, len(charges)) if name.endswith(("ium", "ium)")) else None
+    return (name, len(charges)) if name.endswith(("ium", "ium)", "ium(1+)", "ium(2+)")) else None
