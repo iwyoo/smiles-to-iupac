@@ -184,9 +184,12 @@ def phosphoryl_name(parts, group=("phosphono", "phosphoryl")):
 
 def _phosphoryloxy(graph, phosphorus, oxygen, halogens, aromatic_atoms, mol):
     """'phosphonooxy' or '[(X)(Y)phosphoryl]oxy' for O-P(=O)(OX)(OY)."""
-    from ._oxoacid_acyl import infix_acyl_name
+    from ._oxoacid_acyl import infix_acyl_name, oxoacid_chain_group
     from ._substituents import name_branch
 
+    chain = oxoacid_chain_group(mol, graph, phosphorus, oxygen, halogens, aromatic_atoms)
+    if chain is not None:
+        return enclose(chain[0]) + "oxy", True
     infix = infix_acyl_name(mol, graph, phosphorus, oxygen, halogens, aromatic_atoms)
     if infix is not None:
         return infix[0] + "oxy", True
@@ -1322,6 +1325,11 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
             if not mol.HasSubstructMatch(_CARBOXYLIC_CLASS):
                 raise
     if zx == 8 and any(mol.GetAtomWithIdx(n).GetAtomicNum() in _ACID_CENTRE_NUMBERS for n in graph[x] if n != root):
+        from ._oxoacid_acyl import oxoacid_chain_group
+
+        chain = oxoacid_chain_group(mol, graph, root, coming_from, halogens, aromatic_atoms)
+        if chain is not None:
+            return chain
         mark(None, POLYACID_SUBSTITUENT_REASON)
     z_name, z_compound = name_branch(graph, x, root, halogens, aromatic_atoms, mol=mol)
     located = "S-" if zx == 7 and "NH" in symbols and center == "S" else ""
@@ -1356,11 +1364,14 @@ def _chalcogen_acyl_oxo(mol, center, attached):
 def _pnictogen_oxo_group(graph, root, halogens, aromatic_atoms, mol, others):
     """P(=O)(X)(Y)- as 'phosphono' (X = Y = hydroxy), '(X)(Y)phosphoryl', or '(R)(R')phosphinoyl' when both are carbon
     groups (P-67.1.4.1.1.3, P-67.1.4.1.3)."""
-    from ._oxoacid_acyl import infix_acyl_name
+    from ._oxoacid_acyl import infix_acyl_name, oxoacid_chain_group
     from ._substituents import name_branch
 
     attach = next((n for n in graph[root] if n not in others), None)
     if attach is not None:
+        chain = oxoacid_chain_group(mol, graph, root, attach, halogens, aromatic_atoms)
+        if chain is not None:
+            return chain
         infix = infix_acyl_name(mol, graph, root, attach, halogens, aromatic_atoms)
         if infix is not None:
             return infix

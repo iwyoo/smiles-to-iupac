@@ -64,6 +64,24 @@ def _phosphorus_unit(mol, atom):
     )
 
 
+def _chalcogen_unit_valence(mol, atom):
+    """The bonding number 4 or 6 of an S, Se or Te chain unit that carries one or two terminal doubly bonded chalcogen
+    atoms and two chain neighbours, else None (P-14.1.3, P-21.2.3)."""
+    if atom.GetAtomicNum() not in (16, 34, 52) or atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope():
+        return None
+    terminal = [
+        n
+        for n in atom.GetNeighbors()
+        if n.GetAtomicNum() in (8, 16, 34, 52)
+        and n.GetDegree() == 1
+        and not n.GetFormalCharge()
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    ]
+    if not terminal or len(terminal) != atom.GetDegree() - 2 or len(terminal) > 2 or atom.GetTotalNumHs():
+        return None
+    return 2 + 2 * len(terminal)
+
+
 def _chain_acyl_carbon(mol, atom):
     """A carbonyl carbon bonded to two chain atoms (C and N or O): an 'oxo' substituent of the chain (P-51.4.1.1)."""
     if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetDegree() != 3 or atom.GetTotalNumHs():
@@ -112,6 +130,8 @@ def _chain_heteroatom(atom, phosphorus=False):
             and atom.GetDegree() <= _STANDARD_VALENCE[z]
             and atom.GetTotalNumHs() == _STANDARD_VALENCE[z] - atom.GetDegree()
         )
+    if _chalcogen_unit_valence(atom.GetOwningMol(), atom):
+        return True
     if atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope() or atom.GetDegree() != 2:
         return False
     if z in (8, 16, 34, 52):
@@ -125,7 +145,13 @@ def _heterounit_count(mol, path, hetero_positions):
     units = len(hetero_positions)
     for a, b in zip(hetero_positions, hetero_positions[1:]):
         z = mol.GetAtomWithIdx(path[a]).GetAtomicNum()
-        if b - a == 1 and z == mol.GetAtomWithIdx(path[b]).GetAtomicNum() and z in (16, 34, 52):
+        if (
+            b - a == 1
+            and z == mol.GetAtomWithIdx(path[b]).GetAtomicNum()
+            and z in (16, 34, 52)
+            and mol.GetAtomWithIdx(path[a]).GetDegree() == 2
+            and mol.GetAtomWithIdx(path[b]).GetDegree() == 2
+        ):
             units -= 1
     return units
 
@@ -204,6 +230,7 @@ def name_heteroacyclic(mol):
             hetero_positions == list(range(hetero_positions[0], hetero_positions[-1] + 1))
             and len(hetero_positions) >= 3
             and _is_parent_hydride_run([mol.GetAtomWithIdx(path[i]).GetAtomicNum() for i in hetero_positions])
+            and not any(_chalcogen_unit_valence(mol, mol.GetAtomWithIdx(path[i])) for i in hetero_positions)
         ):
             # one block of heteroatoms is an alternating or homogeneous parent hydride (P-21.2.2, P-21.2.3.1)
             continue
@@ -257,7 +284,11 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, 
     nitrogen_entries = {}
     try:
         for atom in chain:
-            if mol.GetAtomWithIdx(atom).GetAtomicNum() != 6 and mol.GetAtomWithIdx(atom).GetAtomicNum() not in _STANDARD_VALENCE:
+            if (
+                mol.GetAtomWithIdx(atom).GetAtomicNum() != 6
+                and mol.GetAtomWithIdx(atom).GetAtomicNum() not in _STANDARD_VALENCE
+                and not _chalcogen_unit_valence(mol, mol.GetAtomWithIdx(atom))
+            ):
                 continue
             for neighbor in graph[atom]:
                 if neighbor in chain_set or neighbor in owned:
@@ -292,12 +323,15 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, 
     count = len(on_chain)
     length = len(chain)
 
-    lambda5_positions = {position_of[a] for a in chain if _phosphorus_unit(mol, mol.GetAtomWithIdx(a))}
+    lambda_of = {position_of[a]: 5 for a in chain if _phosphorus_unit(mol, mol.GetAtomWithIdx(a))}
+    lambda_of.update(
+        {position_of[a]: v for a in chain if (v := _chalcogen_unit_valence(mol, mol.GetAtomWithIdx(a)))}
+    )
 
     def a_unit(z):
         locants = sorted(by_element[z])
         multiplier = multiplying_prefix(len(locants)) if len(locants) > 1 else ""
-        cited = ",".join(f"{p}λ5" if p in lambda5_positions else str(p) for p in locants)
+        cited = ",".join(f"{p}λ{lambda_of[p]}" if p in lambda_of else str(p) for p in locants)
         return f"{cited}-{multiplier}{_A_WORD[z]}"
 
     a_text = "-".join(a_unit(z) for z in _A_ORDER if z in by_element)

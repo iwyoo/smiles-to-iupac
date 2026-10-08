@@ -476,12 +476,12 @@ def test_polynuclear_oxoacid_salts_derivatives_and_senior_acid_parents(smiles, e
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_polyacid_substituent_is_flagged_as_not_preferred():
+def test_branched_polyacid_substituent_is_flagged_as_not_preferred():
     from smiles_to_iupac import NonPreferredNameWarning
 
     with pytest.warns(NonPreferredNameWarning, match="P-67.2.6"):
-        name = smiles_to_iupac("OC(=O)CCOP(=O)(O)OP(=O)(O)O")
-    assert name == "3-{[hydroxy(phosphonooxy)phosphoryl]oxy}propanoic acid"
+        name = smiles_to_iupac("OC(=O)CCOP(=O)(OP(=O)(O)O)OP(=O)(O)O")
+    assert name == "3-{[bis(phosphonooxy)phosphoryl]oxy}propanoic acid"
 
 
 @pytest.mark.parametrize(
@@ -512,4 +512,29 @@ def test_infix_acyl_prefixes_and_senior_acid_derivative_among_centres(smiles, ex
     ],
 )
 def test_amides_carrying_phosphanylidene_phosphanyl_and_alkylidene_groups_on_nitrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "OC(=O)CCOP(=O)(O)OP(=O)(O)O",
+            "3-[(1,3,3-trihydroxy-1,3-dioxo-1λ5,3λ5-diphosphoxan-1-yl)oxy]propanoic acid",
+        ),
+        (
+            "OC(=O)COS(=O)OS(=O)OS(=O)OC",
+            "3,5,7-trioxo-2,4,6,8-tetraoxa-3λ4,5λ4,7λ4-trithiadecan-10-oic acid",
+        ),
+        (
+            "OC(=O)CCSS(=S)SS(=S)SC",
+            "3,5-bis(sulfanylidene)-2,3λ4,4,5λ4,6-pentathianonan-9-oic acid",
+        ),
+        (
+            "OC(=O)CS(=O)(=O)OS(=O)(=O)O",
+            "(3-hydroxy-1,1,3,3-tetraoxo-1λ6,3λ6-dithioxan-1-yl)acetic acid",
+        ),
+    ],
+)
+def test_chains_of_acid_centres_as_skeletal_prefixes_and_replacement_parents(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
