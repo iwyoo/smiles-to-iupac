@@ -176,14 +176,24 @@ def _unsaturation_suffix(ene_locants, yne_locants):
     return body, needs_stem_a
 
 
+def _is_didehydrobenzene(ring_size, ene_locants, yne_locants):
+    return ring_size == 6 and len(ene_locants) == 2 and len(yne_locants) == 1
+
+
 def _name_from_substituents(ring_size, ene_locants, yne_locants, grouped):
+    if _is_didehydrobenzene(ring_size, ene_locants, yne_locants):
+        # P-31.2.4.1: the triple bond is the removal of two hydrogens from benzene, cited at 1,2
+        prefix = format_substituent_prefixes(grouped)
+        return prefix + ("-" if prefix else "") + "1,2-didehydrobenzene"
     parent_stem = "cyclo" + alkane_name(ring_size)[:-3]
     prefix = format_substituent_prefixes(grouped)
     total_count = len(ene_locants) + len(yne_locants)
-    if total_count == 1:
-        # P-14.3.3: always achievable at locant '1', so never cited (see
-        # module docstring).
-        return prefix + parent_stem + ("ene" if ene_locants else "yne")
+    if total_count == ring_size and not yne_locants:
+        # P-31.1.3.3: a cumulene ring needs no locants
+        return parent_stem + "a" + multiplied_word(ring_size, "ene")
+    if total_count == 1 and not grouped:
+        # P-14.3.4.2(d): the locant of a lone multiple bond is omitted only when the ring is unsubstituted
+        return parent_stem + ("ene" if ene_locants else "yne")
     body, needs_stem_a = _unsaturation_suffix(ene_locants, yne_locants)
     return prefix + parent_stem + ("a" if needs_stem_a else "") + "-" + body
 
@@ -193,6 +203,8 @@ def _candidate_key(ring_size, ene_locants, yne_locants, substituents, z_locants=
     locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
+    if _is_didehydrobenzene(ring_size, ene_locants, yne_locants):
+        combined_locant_set = ene_locant_set = lowest_locant_set(yne_locants)
     name = _name_from_substituents(ring_size, ene_locants, yne_locants, grouped)
     return combined_locant_set, ene_locant_set, locant_set, citation_locants, tuple(sorted(z_locants)), name
 
@@ -326,7 +338,7 @@ def name_cyclic_unsaturated(mol, ring_atoms) -> str:
         return f"({prefix})-{best_name}"
     if bond_stereo is not None:
         # P-93.5.1.4.1: a lone multiple bond's descriptor is cited bare, as its locant is not cited either.
-        if len(_multi_bonds(mol)) == 1:
+        if len(_multi_bonds(mol)) == 1 and mol.GetNumAtoms() == ring_size:
             ((_, code),) = bond_stereo
             return f"({code})-{best_name}"
         labels = sorted((_stereo_bond_locant(mol, best_candidate, idx), code) for idx, code in bond_stereo)
