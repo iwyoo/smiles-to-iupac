@@ -77,6 +77,10 @@ _SUFFIX_WORDS = _SuffixWords({
     "telluronodiimidamide": "telluronodiimidamide",
     "tellurinimidamide": "tellurinimidamide",
     "sulfinohydrazide": "sulfinohydrazide",
+    **{
+        f"{stem}hydrazonamide": f"{stem}hydrazonamide"
+        for stem in ("sulfono", "sulfino", "selenono", "selenino", "tellurono", "tellurino")
+    },
     "sulfonohydrazonohydrazide": "sulfonohydrazonohydrazide",
     "sulfinohydrazonohydrazide": "sulfinohydrazonohydrazide",
     "selenonohydrazonohydrazide": "selenonohydrazonohydrazide",

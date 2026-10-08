@@ -82,6 +82,12 @@ _CHALCOGEN_HYDRAZIDINE = {
     (34, 0): "seleninohydrazonohydrazide",
     (52, 1): "telluronohydrazonohydrazide",
     (52, 0): "tellurinohydrazonohydrazide",
+    (16, 1, "amide"): "sulfonohydrazonamide",
+    (16, 0, "amide"): "sulfinohydrazonamide",
+    (34, 1, "amide"): "selenonohydrazonamide",
+    (34, 0, "amide"): "seleninohydrazonamide",
+    (52, 1, "amide"): "telluronohydrazonamide",
+    (52, 0, "amide"): "tellurinohydrazonamide",
 }
 _AMIDRAZONE = ("hydrazonamide", "imidohydrazide", "hydrazonohydrazide")
 _CHALCOGEN_IMIDAMIDE = {}
@@ -449,6 +455,16 @@ def _sulfonyl_group(mol, s_idx, attached):
     if len(rest) != 1 or sulfur.GetDegree() != len(oxygens) + len(imides) + len(replaced) + len(hydrazones) + 2:
         return None
     other = rest[0]
+    if (
+        len(hydrazones) == 1
+        and not imides
+        and not replaced
+        and other.GetAtomicNum() == 7
+        and _terminal_heteroatom(mol, other.GetIdx(), 2)
+        and (name := _CHALCOGEN_HYDRAZIDINE.get((sulfur.GetAtomicNum(), len(oxygens), "amide"))) is not None
+    ):
+        terminal = next(m.GetIdx() for m in mol.GetAtomWithIdx(hydrazones[0]).GetNeighbors() if m.GetIdx() != s_idx)
+        return name, {s_idx, *oxygens, hydrazones[0], terminal, other.GetIdx()}
     if len(hydrazones) == 1 and not imides and not replaced and other.GetAtomicNum() == 7 and (
         (name := _CHALCOGEN_HYDRAZIDINE.get((sulfur.GetAtomicNum(), len(oxygens)))) is not None
     ):
@@ -1999,7 +2015,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             and (
                 a.GetIdx() in principal_atoms
                 or not is_functional_carbon(mol, a.GetIdx())
-                or ((_is_acid_family(principal) or principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "hydrazide")) and _junior_end_group(mol, a.GetIdx()))
+                or ((_is_acid_family(principal) or principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "hydrazide", "amidine", *_AMIDRAZONE)) and _junior_end_group(mol, a.GetIdx()))
             )
         }
         try:
@@ -4346,7 +4362,9 @@ def _with_n_names(grouped, n_names, position_of=None, group_count=2):
                 located = "N"
             else:
                 mark = "'" * primes.get(located[2], 0) if len(located) > 2 else ""
-                if len(located) > 4:
+                if len(located) > 5:
+                    mark *= located[5]
+                elif len(located) > 4:
                     mark *= 2
                 located = f"{located[0]}{mark}{position}"
         merged.setdefault(name, {"locants": [], "compound": compound})["locants"].append(located)
@@ -4452,12 +4470,13 @@ def _hydrazide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups
 def _amidrazone_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls):
     """N-prefix entries of an amidrazone group (P-66.4.2.1): N on the amino nitrogen, N' on the terminal nitrogen of
     the hydrazine, and N'' on the imino nitrogen of an imidohydrazide."""
-    members = dict(groups.get(cls, {}))
+    members = {c: (owned, c) for c, owned in groups.get(cls, {}).items()}
     for group_cls, ring_atom, owned in ring_groups:
         if group_cls == cls:
-            members[next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 6), ring_atom)] = owned
+            members[next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 6), ring_atom)] = (owned, ring_atom)
+    step = 2 if cls == "hydrazonamide" else 3
     entries = []
-    for owned in members.values():
+    for carbon_key, (owned, anchor) in members.items():
         nitrogens = [a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7]
         centre = next(
             c
@@ -4477,14 +4496,14 @@ def _amidrazone_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_group
         else:
             terminal = next(n for n in nitrogens if n not in (imino, amino))
             roles = ((amino, "N"), (terminal, "N'"), (imino, "N''"))
-        for nitrogen, locant in roles:
+        rest = tuple(a for a in graph[centre] if a not in owned)
+        for nitrogen, base in roles:
+            located = (base, anchor, centre, rest, "amidrazone", step) if len(members) > 1 else base
             for n in graph[nitrogen]:
                 if n in nitrogens or n == centre:
                     continue
                 name, compound = name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
-                entries.append((name, compound, locant))
-    if entries and len(members) != 1:
-        raise UnsupportedStructure("several amidrazone groups with N-substitution are not handled by the chain engine")
+                entries.append((name, compound, located))
     return entries
 
 
@@ -4614,7 +4633,7 @@ def _evaluate(
         and not ene
         and not yne
         and not (
-            principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "hydrazide")
+            principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "hydrazide", "amidine", *_AMIDRAZONE)
             and any(mol.GetAtomWithIdx(a).GetAtomicNum() == 7 and mol.GetAtomWithIdx(a).GetTotalNumHs() for a in owned)
         )
         and (

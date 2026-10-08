@@ -1055,6 +1055,19 @@ def test_nitrogen_prefix_keeps_every_substituent(smiles, expected):
         pytest.param("NC(=NN)C(N)=NN", "ethanedihydrazonamide", id="two_hydrazonamide_groups"),
         pytest.param("NNC(=N)C(=N)NN", "ethanediimidohydrazide", id="two_imidohydrazide_groups"),
         pytest.param("NC=N", "methanimidamide", id="amidine_of_a_one_carbon_parent"),
+        pytest.param(
+            "CN(C)C(=NN)c1cc(C(=NN)N(CC)CC)cc2ccccc12",
+            "N3,N3-diethyl-N1,N1-dimethylnaphthalene-1,3-dicarbohydrazonamide",
+            id="substituted_hydrazonamides_on_two_ring_positions",
+        ),
+        pytest.param(
+            "CCN(CC)NC(=N)C1(CCCCC1)C(=N)NN(C)C",
+            "N'1,N'1-diethyl-N''''1,N''''1-dimethylcyclohexane-1,1-dicarboximidohydrazide",
+            id="geminal_imidohydrazides_continue_the_primes",
+        ),
+        pytest.param("NN=C(N)C(=N)NN", "2-hydrazinyl-2-iminoethanehydrazonamide", id="imidohydrazide_at_a_chain_end_is_prefixes"),
+        pytest.param("NC(=N)CC(=N)NN", "3-hydrazinyl-3-iminopropanimidamide", id="imidohydrazide_beside_an_amidine"),
+        pytest.param("NN=S(N)c1ccccc1", "benzenesulfinohydrazonamide", id="sulfinic_amidrazone"),
     ],
 )
 def test_amidrazones(smiles, expected):
