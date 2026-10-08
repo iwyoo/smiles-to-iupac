@@ -20,6 +20,7 @@ from ._common import (
 )
 from ._hetero_prefixes import EXTENDED_PREFIXES, is_functional_carbon
 from ._acid_groups import acid_group_at
+from ._common import UnsupportedStructure, nonstandard_bonding
 from ._polyfunctional import (
     _SENIORITY,
     _TERMINAL,
@@ -239,6 +240,8 @@ def _chain_heteroatom(atom, phosphorus=False):
         return True
     if atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope() or atom.GetDegree() != 2:
         return False
+    if z in (16, 34, 52) and nonstandard_bonding(atom) and all(b.GetBondTypeAsDouble() == 1.0 for b in atom.GetBonds()):
+        return True
     if z in (8, 16, 34, 52):
         return atom.GetTotalNumHs() == 0
     return z == 7 and atom.GetTotalNumHs() == 1 and not atom.GetIsAromatic()
@@ -266,6 +269,31 @@ def _is_parent_hydride_run(elements):
     P-21.2.3.1); any other run needs skeletal replacement in a carbon chain."""
     return len(set(elements)) == 1 or (
         len(set(elements)) == 2 and all(a != b for a, b in zip(elements, elements[1:]))
+    )
+
+
+def _acceptable_path(mol, path):
+    """Whether the path is a chain a skeletal replacement name may use: it ends in carbon or a metalloid, carries four or
+    more heterounits, and is not one block of heteroatoms that is a parent hydride by itself."""
+    if mol.GetAtomWithIdx(path[0]).GetAtomicNum() not in _CHAIN_ENDS or mol.GetAtomWithIdx(path[-1]).GetAtomicNum() not in _CHAIN_ENDS:
+        return False
+    hetero_positions = [i for i, a in enumerate(path) if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
+    if _heterounit_count(mol, path, hetero_positions) < _MINIMUM_UNITS:
+        return False
+    if len(hetero_positions) == len(path) or (
+        hetero_positions == list(range(hetero_positions[0], hetero_positions[-1] + 1))
+        and len(hetero_positions) >= 3
+        and _is_parent_hydride_run([mol.GetAtomWithIdx(path[i]).GetAtomicNum() for i in hetero_positions])
+        and not any(_chalcogen_unit_valence(mol, mol.GetAtomWithIdx(path[i])) for i in hetero_positions)
+    ):
+        return False
+    return not any(
+        b - a == 1
+        and (
+            mol.GetAtomWithIdx(path[a]).GetAtomicNum() == mol.GetAtomWithIdx(path[b]).GetAtomicNum()
+            and mol.GetAtomWithIdx(path[a]).GetAtomicNum() not in (15, 16, 34, 52)
+        )
+        for a, b in zip(hetero_positions, hetero_positions[1:])
     )
 
 
@@ -337,27 +365,7 @@ def name_heteroacyclic(mol):
     }
     best = None
     for path in _chain_paths(graph, eligible, carbamoyl if principal == "amide" else {}):
-        if mol.GetAtomWithIdx(path[0]).GetAtomicNum() not in _CHAIN_ENDS or mol.GetAtomWithIdx(path[-1]).GetAtomicNum() not in _CHAIN_ENDS:
-            continue
-        hetero_positions = [i for i, a in enumerate(path) if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
-        if _heterounit_count(mol, path, hetero_positions) < _MINIMUM_UNITS:
-            continue
-        if len(hetero_positions) == len(path) or (
-            hetero_positions == list(range(hetero_positions[0], hetero_positions[-1] + 1))
-            and len(hetero_positions) >= 3
-            and _is_parent_hydride_run([mol.GetAtomWithIdx(path[i]).GetAtomicNum() for i in hetero_positions])
-            and not any(_chalcogen_unit_valence(mol, mol.GetAtomWithIdx(path[i])) for i in hetero_positions)
-        ):
-            # one block of heteroatoms is an alternating or homogeneous parent hydride (P-21.2.2, P-21.2.3.1)
-            continue
-        if any(
-            b - a == 1
-            and (
-                mol.GetAtomWithIdx(path[a]).GetAtomicNum() == mol.GetAtomWithIdx(path[b]).GetAtomicNum()
-                and mol.GetAtomWithIdx(path[a]).GetAtomicNum() not in (15, 16, 34, 52)
-            )
-            for a, b in zip(hetero_positions, hetero_positions[1:])
-        ):
+        if not _acceptable_path(mol, path):
             continue
         for chain in (path, path[::-1]):
             candidate = _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes, carbamoyl)
@@ -393,9 +401,13 @@ def _chain_stereo(chain, position_of, atom_codes, bond_codes):
     return f"({','.join(f'{p}{c}' for p, c in entries)})-" if entries else ""
 
 
-def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes, carbamoyl=None):
+def _evaluate(
+    mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes, carbamoyl=None, attach=None, blocked=frozenset()
+):
     position_of = {atom: i + 1 for i, atom in enumerate(chain)}
     chain_set = set(chain)
+    if attach is not None and attach not in chain_set:
+        return None
     if principal == "amide" and carbamoyl:
         principal_atoms = dict(principal_atoms)
         for end, neighbor in ((chain[0], chain[1]), (chain[-1], chain[-2])):
@@ -432,7 +444,7 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, 
             ):
                 continue
             for neighbor in graph[atom]:
-                if neighbor in chain_set or neighbor in owned:
+                if neighbor in chain_set or neighbor in owned or neighbor in blocked:
                     continue
                 name, compound = name_branch(graph, neighbor, atom, halogens, aromatic_atoms, mol=mol, unsaturated=True)
                 entries.setdefault(position_of[atom], []).append((name, compound))
@@ -458,6 +470,8 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, 
                         if neighbor != carbon:
                             name, compound = name_branch(graph, neighbor, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
                             nitrogen_entries.setdefault(label, []).append((name, compound))
+    except UnsupportedStructure:
+        return None
     finally:
         EXTENDED_PREFIXES.reset(extended)
         BRANCH_STEREO.reset(token)
@@ -484,6 +498,9 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, 
     lambda_of.update(
         {position_of[a]: v for a in chain if (v := _chalcogen_unit_valence(mol, mol.GetAtomWithIdx(a)))}
     )
+    lambda_of.update(
+        {position_of[a]: v for a in chain if mol.GetAtomWithIdx(a).GetAtomicNum() != 6 and (v := nonstandard_bonding(mol.GetAtomWithIdx(a)))}
+    )
 
     def a_unit(z):
         locants = sorted(by_element[z])
@@ -494,7 +511,9 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, 
     a_text = "-".join(a_unit(z) for z in _A_ORDER if z in by_element)
     prefix = format_substituent_prefixes(grouped_all)
     halide_word = ""
-    if principal is None:
+    if attach is not None:
+        body = name_from_substituents(length, ene, yne, "yl", [position_of[attach]], force_own_locant=True)
+    elif principal is None:
         body = name_from_substituents(length, ene, yne, "e")
     else:
         if principal == "halide":
@@ -508,12 +527,36 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, 
         body = name_from_substituents(length, ene, yne, suffix_word, suffix_locants) + halide_word
     name = prefix + ("-" if prefix and a_text and not prefix.endswith("-") else "") + a_text + body
     stereo = _chain_stereo(chain, position_of, atom_codes, bond_codes)
+    if attach is not None:
+        key = (
+            -sum(len(ps) for ps in by_element.values()),
+            -length,
+            tuple(-len(by_element.get(z, ())) for z in _A_ORDER),
+            -(len(ene) + len(yne)),
+            -len(ene),
+            -len(lambda_of),
+            tuple(-v for v in sorted(lambda_of.values(), reverse=True)),
+            hetero_set,
+            hetero_order,
+            position_of[attach],
+            lowest_locant_set(ene + yne),
+            lowest_locant_set(ene),
+            tuple(sorted(lambda_of)),
+            tuple(-lambda_of[p] for p in sorted(lambda_of)),
+            -total_count,
+            locant_set,
+            citation,
+            name,
+        )
+        return key, stereo + name
     key = (
         -count,
         -sum(len(ps) for ps in by_element.values()),
         -length,
         hetero_set,
         hetero_order,
+        tuple(sorted(lambda_of)),
+        tuple(-lambda_of[p] for p in sorted(lambda_of)),
         tuple(suffix_locants),
         lowest_locant_set(ene + yne),
         lowest_locant_set(ene),
@@ -522,6 +565,47 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, 
         name,
     )
     return key, stereo + name
+
+
+def skeletal_substituent(mol, graph, root, coming_from):
+    """The skeletal replacement group entered at carbon `root` when its principal substituent chain carries four or
+    more heterounits (P-46.0, P-46.1): the chain with the most heteroatoms, then the longest, then the first of the
+    criteria (a)-(m) that decides; None when no such chain exists."""
+    if mol.GetAtomWithIdx(root).GetAtomicNum() != 6 or mol.GetAtomWithIdx(root).IsInRing():
+        return None
+    arm = {root}
+    stack = [root]
+    while stack:
+        for n in graph[stack.pop()]:
+            if n != coming_from and n not in arm:
+                arm.add(n)
+                stack.append(n)
+    atoms = [mol.GetAtomWithIdx(a) for a in arm]
+    if (
+        sum(1 for a in atoms if _chain_heteroatom(a)) < _MINIMUM_UNITS
+        or any(a.GetFormalCharge() or a.GetIsotope() or a.GetNumRadicalElectrons() for a in atoms)
+        or any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in atoms)
+        or mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0
+    ):
+        return None
+    eligible = {
+        a.GetIdx()
+        for a in atoms
+        if (a.GetAtomicNum() == 6 and not a.IsInRing() and (not is_functional_carbon(mol, a.GetIdx()) or _chain_acyl_carbon(mol, a)))
+        or _chain_heteroatom(a)
+    }
+    if root not in eligible:
+        return None
+    adj = {a: [n for n in graph[a] if n in arm] for a in arm}
+    best = None
+    for path in _paths(adj, eligible):
+        if root not in path or not _acceptable_path(mol, path):
+            continue
+        for chain in (path, path[::-1]):
+            candidate = _evaluate(mol, graph, chain, None, {}, set(), {}, {}, attach=root, blocked=frozenset({coming_from}))
+            if candidate is not None and (best is None or candidate[0] < best[0]):
+                best = candidate
+    return (best[1], True) if best else None
 
 
 def _terminal_ester_groups(mol):

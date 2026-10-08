@@ -290,6 +290,8 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 record(node, *alkoxy_prefix(rname, rcompound))
             else:
                 raise UnsupportedStructure("this oxygen-bearing substituent is not supported yet")
+        elif z in CHALCOGEN_PREFIXES and atom.GetTotalValence() > 2 and not atom.IsInRing():
+            record(node, *name_branch(graph, node, parent, shown, aromatic_atoms, mol=mol, unsaturated=True))
         elif z in CHALCOGEN_PREFIXES:
             word = CHALCOGEN_PREFIXES[z]
             if not kids:

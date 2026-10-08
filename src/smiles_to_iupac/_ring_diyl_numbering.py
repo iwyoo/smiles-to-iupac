@@ -45,6 +45,7 @@ from ._common import multiplied_word, reparsable_smiles, sanitize_probe
 _SENIORITY = ["F", "Cl", "Br", "I", "O", "S", "Se", "Te", "N", "P", "As", "Sb", "Bi", "Si", "Ge", "Sn", "Pb", "B", "Al", "Ga", "In", "Tl"]
 _RANK = {e: i for i, e in enumerate(_SENIORITY)}
 _PREFIX = {
+    "F": "fluora", "Cl": "chlora", "Br": "broma", "I": "ioda",
     "O": "oxa", "S": "thia", "Se": "selena", "Te": "tellura", "N": "aza", "P": "phospha", "As": "arsa", "Sb": "stiba",
     "Bi": "bisma", "Si": "sila", "Ge": "germa", "Sn": "stanna", "Pb": "plumba", "B": "bora", "Al": "aluma",
     "Ga": "galla", "In": "indiga", "Tl": "thalla",
@@ -448,7 +449,13 @@ def _hetero_monocycle(mol, ring_order, attached):
             ih, added, hydro = split
         else:
             sat_pos = sorted(position_of[a] for a in saturated_atoms)
-            lambda_h = [position_of[a] for a in walk if position_of[a] in lam and mol.GetAtomWithIdx(a).GetTotalNumHs()]
+            lambda_h = [
+                position_of[a]
+                for a in walk
+                if position_of[a] in lam
+                and mol.GetAtomWithIdx(a).GetTotalNumHs()
+                and not any(b.GetBondTypeAsDouble() == 2.0 for b in mol.GetAtomWithIdx(a).GetBonds())
+            ]
             ih = tuple(sorted(sat_pos[:mancude_sp3] + lambda_h))
             hydro = tuple(sat_pos[mancude_sp3:])
             added = ()
@@ -614,16 +621,23 @@ def _bare_skeleton(mol, skeleton_atoms, mancude=False):
     order = sorted(skeleton_atoms)
     rw = Chem.RWMol()
     new_of = {}
+    ring_halogens = {old for old in order if mancude and mol.GetAtomWithIdx(old).GetAtomicNum() in (9, 17, 35, 53)}
     for old in order:
         atom = mol.GetAtomWithIdx(old)
         copy = Chem.Atom(atom.GetAtomicNum())
-        copy.SetIsAromatic(True if mancude else atom.GetIsAromatic())
+        copy.SetIsAromatic(True if mancude and old not in ring_halogens else atom.GetIsAromatic())
         copy.SetFormalCharge(atom.GetFormalCharge())
+        if old in ring_halogens:
+            copy.SetNoImplicit(True)
+            copy.SetNumExplicitHs(1)
         new_of[old] = rw.AddAtom(copy)
     for bond in mol.GetBonds():
         a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
         if a in new_of and b in new_of:
-            rw.AddBond(new_of[a], new_of[b], Chem.BondType.AROMATIC if mancude else bond.GetBondType())
+            single = a in ring_halogens or b in ring_halogens
+            rw.AddBond(
+                new_of[a], new_of[b], Chem.BondType.SINGLE if single else Chem.BondType.AROMATIC if mancude else bond.GetBondType()
+            )
     bare = rw.GetMol()
     for old in order:
         atom = mol.GetAtomWithIdx(old)
@@ -841,10 +855,21 @@ def _exocyclic_oxo(mol, skeleton_atoms):
     }
 
 
+def _ring_halogens(mol, skeleton_atoms):
+    """Halogen atoms bonded to two ring atoms: λ3 (or λ5) centres that take part in a ring double bond of the mancude
+    parent (P-22.2.7.1)."""
+    return {
+        a
+        for a in skeleton_atoms
+        if mol.GetAtomWithIdx(a).GetSymbol() in ("Cl", "Br", "I")
+        and sum(1 for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in skeleton_atoms) == 2
+    }
+
+
 def _ring_graph(mol, skeleton_atoms):
     adj = {a: {n.GetIdx() for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in skeleton_atoms} for a in skeleton_atoms}
     can_hold = {a for a in skeleton_atoms if mol.GetAtomWithIdx(a).GetSymbol() not in _NO_DOUBLE_BOND}
-    return adj, can_hold
+    return adj, can_hold | _ring_halogens(mol, skeleton_atoms)
 
 
 def _replacement_numberings(bare):
@@ -900,8 +925,11 @@ def _fused_mancude(mol, skeleton_atoms):
     heterones = _chalcogen_heterones(mol, skeleton_atoms) & SUFFIX_ATOMS.get()
     oxo_all = oxo_all | heterones
     ring_info = mol.GetRingInfo()
+    halogens = _ring_halogens(mol, skeleton_atoms)
     sp3 = {
-        a for a in _sp3_ring_atoms(mol, skeleton_atoms) | oxo_all if mol.GetAtomWithIdx(a).GetSymbol() not in _NO_DOUBLE_BOND
+        a
+        for a in _sp3_ring_atoms(mol, skeleton_atoms) | oxo_all
+        if mol.GetAtomWithIdx(a).GetSymbol() not in _NO_DOUBLE_BOND or a in halogens
     }
     sp3 |= {a for a in ANION_SUFFIX.get() if a in skeleton_atoms and mol.GetAtomWithIdx(a).GetAtomicNum() == 6}
     sp3 |= heterones
@@ -912,6 +940,8 @@ def _fused_mancude(mol, skeleton_atoms):
     match = re.match(r"^(\d+H(?:,\d+H)*)-(.*)$", parent)
     ih_count = len(match.group(1).split(",")) if match else 0
     stem = match.group(2) if match else parent
+    if halogens:
+        stem = re.sub(r"(?<=\d)\u03bb\d+", "", stem)
     numberings = fusion_system_numberings(bare, stem if stem in EXCEPTIONS else None)
     replacement = _replacement_numberings(bare)
     if replacement:
@@ -920,7 +950,7 @@ def _fused_mancude(mol, skeleton_atoms):
         raise UnsupportedStructure("this fused skeleton has no supported peripheral numbering as a diyl yet")
     adj, can_hold = _ring_graph(mol, skeleton_atoms)
     can_hold -= fusion_hetero
-    if heterones:
+    if heterones or halogens:
         can_hold |= heterones
         lambda_parent = nx.Graph()
         lambda_parent.add_nodes_from(can_hold)

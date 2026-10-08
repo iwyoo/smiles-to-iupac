@@ -6,7 +6,7 @@ import re
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
+from ._common import nonstandard_bonding, UnsupportedStructure
 
 # P-44.2.1 (c) and (g): heteroatoms by seniority, nitrogen taking its place only in (g)
 _SENIORITY = (9, 17, 35, 53, 8, 16, 34, 52, 7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81)
@@ -80,7 +80,9 @@ def ring_seniority_key(mol, ring_atoms, assembly=False):
     """General key, system type and the criteria of that type, then the multiple bonds of P-44.4.1.1; `ring_atoms` of a
     ring assembly hold every component."""
     atoms = frozenset(ring_atoms)
-    return _parent_key(mol, atoms, assembly) + (-multiple_bond_count(mol, atoms),)
+    bonding = sorted((nonstandard_bonding(mol.GetAtomWithIdx(a)) or 0 for a in atoms), reverse=True)
+    bonding = [n for n in bonding if n]
+    return _parent_key(mol, atoms, assembly) + (-multiple_bond_count(mol, atoms), -len(bonding), tuple(-n for n in bonding))
 
 
 def _parent_key(mol, atoms, assembly=False, as_carbon=frozenset()):

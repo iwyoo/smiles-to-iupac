@@ -24,6 +24,7 @@ from ._common import (
     halogen_substituents,
     lowest_locant_set,
     multiplied_word,
+    nonstandard_bonding,
     name_from_substituents,
     ring_cycle,
     specified_stereo_elements,
@@ -4455,6 +4456,24 @@ def _amide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cl
     return entries
 
 
+_BONDING_LEVELS = (7, 6, 5, 4, 3)
+
+
+def _bonding_rank(mol, graph, parent_atoms, position_of):
+    """P-45.3: among equally ranked parents, the one with more substituents of the higher bonding number attached
+    directly to it, then with lower locants for them."""
+    found = [
+        (nonstandard_bonding(mol.GetAtomWithIdx(n)), position_of[a])
+        for a in parent_atoms
+        for n in graph[a]
+        if n not in parent_atoms and nonstandard_bonding(mol.GetAtomWithIdx(n))
+    ]
+    return (
+        tuple(-sum(1 for b, _ in found if b == level) for level in _BONDING_LEVELS),
+        tuple(tuple(sorted(p for b, p in found if b == level)) for level in _BONDING_LEVELS),
+    )
+
+
 def _evaluate(
     mol, graph, halogens, aromatic_atoms, chain, principal, principal_atoms, owned, attach=None, n_names=(), stereo=None
 ):
@@ -4612,6 +4631,7 @@ def _evaluate(
         -total_count,
         locant_set,
         citation,
+        _bonding_rank(mol, graph, chain_set, position_of),
         _n_group_positions(n_names, position_of),
         _stereo_rank(stereo, position_of),
         name,

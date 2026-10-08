@@ -135,6 +135,7 @@ def _name_fused_ylium(mol, graph, system, centres, anions=None):
     parent, order = _hydride_parent(mol, system, centres, anions)
     name, options, indicated, lam, delta = fused_parent_data(parent)
     index = {a: i for i, a in enumerate(order)}
+    indicated = [i for i in indicated if not (i in lam and order[i] in centres)]
     uide_positions = [index[a] for a, word in anions.items() if word == "uide"]
     hydro = []
     if uide_positions:

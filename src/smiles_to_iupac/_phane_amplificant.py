@@ -195,7 +195,7 @@ def _stereoparent(bare):
 def _parent_rank(source, numbering):
     """Ring seniority of the parent hydride: the double bonds removed by 'hydro' prefixes still count (P-44.2)."""
     key = ring_seniority_key(source, range(source.GetNumAtoms()))
-    return key[:-1] + (key[-1] - len(numbering.hydro_positions) // 2,)
+    return key[:-3] + (key[-3] - len(numbering.hydro_positions) // 2,) + key[-2:]
 
 
 def _route(bare):

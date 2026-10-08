@@ -42,8 +42,8 @@ from ._substituents import format_substituent_prefixes, name_branch
 _RING_HETERO = {8: "O", 16: "S", 34: "Se", 52: "Te", 15: "P"}
 _LAMBDA_HETERO = {16, 34, 52, 15}
 _CHALCOGENS = {8, 16, 34, 52}
-_SENIORITY = ("O", "S", "Se", "Te", "N", "P")
-_RING_PREFIX = {"O": "oxa", "S": "thia", "Se": "selena", "Te": "tellura", "N": "aza", "P": "phospha"}
+_SENIORITY = ("Cl", "Br", "I", "O", "S", "Se", "Te", "N", "P")
+_RING_PREFIX = {"Cl": "chlora", "Br": "broma", "I": "ioda", "O": "oxa", "S": "thia", "Se": "selena", "Te": "tellura", "N": "aza", "P": "phospha"}
 _STEM_ENDING = {3: "irane", 4: "etane", 5: "olane", 6: "ane", 7: "epane", 8: "ocane", 9: "onane", 10: "ecane"}
 _NITROGEN_STEM_ENDING = {3: "iridine", 4: "etidine", 5: "olidine", 6: "inane"}
 _MANCUDE_ENDING = {3: "irene", 4: "ete", 5: "ole", 6: "ine", 7: "epine", 8: "ocine", 9: "onine", 10: "ecine"}
@@ -181,8 +181,8 @@ def _stem(elements, size, mancude):
     ending = (_MANCUDE_ENDING if mancude else _STEM_ENDING)[size]
     if not mancude and "N" in elements and "P" not in elements:
         ending = _NITROGEN_STEM_ENDING.get(size, ending)
-    if not mancude and size == 6 and "P" in elements:
-        ending = "inane"
+    if size == 6 and next(e for e in reversed(_SENIORITY) if e in elements) in ("Cl", "Br", "I", "P"):
+        ending = "inine" if mancude else "inane"
     return (prefix[:-1] if ending[0] in "aeiou" else prefix) + ending
 
 

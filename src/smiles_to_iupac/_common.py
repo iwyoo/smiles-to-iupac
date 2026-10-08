@@ -1711,6 +1711,7 @@ def superscript_locant(primary, local):
 _STANDARD_BONDING = {
     "N": 3, "P": 3, "As": 3, "Sb": 3, "Bi": 3, "B": 3, "Al": 3, "Ga": 3, "In": 3, "Tl": 3,
     "O": 2, "S": 2, "Se": 2, "Te": 2, "Si": 4, "Ge": 4, "Sn": 4, "Pb": 4,
+    "F": 1, "Cl": 1, "Br": 1, "I": 1,
 }
 
 

@@ -758,9 +758,14 @@ def _name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, m
             return glycosyl
 
     if mol is not None and attach_order == 1.0:
+        from ._heteroacyclic import skeletal_substituent
         from ._skeletal_group import skeletal_chain_group, skeletal_ring_group
 
-        skeletal = skeletal_chain_group(mol, graph, root, coming_from) or skeletal_ring_group(mol, graph, root, coming_from)
+        skeletal = (
+            skeletal_substituent(mol, graph, root, coming_from)
+            or skeletal_chain_group(mol, graph, root, coming_from)
+            or skeletal_ring_group(mol, graph, root, coming_from)
+        )
         if skeletal is not None:
             return skeletal
 
