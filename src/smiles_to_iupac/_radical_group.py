@@ -7,12 +7,13 @@ import re
 from rdkit import Chem
 
 from ._common import YLO_MAP_NUMBER, UnsupportedStructure, adjacency, halogen_substituents, specified_stereo_elements
-from ._hetero_prefixes import EXTENDED_PREFIXES, MONONUCLEAR_HYDRIDES, PEROXY_PREFIXES, is_functional_carbon
+from ._hetero_prefixes import DIPOLAR_GROUPS, EXTENDED_PREFIXES, MONONUCLEAR_HYDRIDES, PEROXY_PREFIXES, is_functional_carbon
 from ._numerals import alkyl_name
 from ._radical_poly import polyradical_name
 from ._substituents import name_branch
 
 _MAX_ATOMS = 80
+_IMINE = Chem.MolFromSmarts("[CX3]=[NX2]")
 _CHALCOGENS = {8, 16, 34, 52}
 _SENIORITY = (7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81, 8, 16, 34, 52, 6)
 
@@ -47,7 +48,7 @@ def _multi_centres(mol):
 def _centre(mol):
     radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons()]
     if len(radicals) > 1:
-        return radicals[0] if not any(a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms()) else None
+        return radicals[0] if not any(a.GetIsotope() for a in mol.GetAtoms()) and not sum(a.GetFormalCharge() for a in mol.GetAtoms()) else None
     if len(radicals) != 1 or radicals[0].GetNumRadicalElectrons() not in (1, 2, 3):
         return None
     centre = radicals[0]
@@ -102,6 +103,14 @@ def has_radical_group_shape(mol) -> bool:
 
 
 def name_radical_group(mol) -> str:
+    token = DIPOLAR_GROUPS.set(True)
+    try:
+        return _name_radical_group(mol)
+    finally:
+        DIPOLAR_GROUPS.reset(token)
+
+
+def _name_radical_group(mol) -> str:
     from ._isotope_labels import split_isotopes
     from ._substituents import ISOTOPE_LABELS
 
@@ -141,15 +150,14 @@ def name_radical_group(mol) -> str:
     context = {"labels": labels, "consumed": set(), "mol": hydride}
     token = ISOTOPE_LABELS.set(context if labels else None)
     peroxy = PEROXY_PREFIXES.set(True)
-    extended = EXTENDED_PREFIXES.set(True) if centre.GetAtomicNum() in (16, 34, 52) else None
+    extended = EXTENDED_PREFIXES.set(centre.GetAtomicNum() in (16, 34, 52) or mol.HasSubstructMatch(_IMINE))
     try:
         name, _ = name_branch(
             graph, centre.GetIdx(), hydrogen, halogen_substituents(hydride), aromatic, mol=hydride, unsaturated=True
         )
     finally:
         PEROXY_PREFIXES.reset(peroxy)
-        if extended is not None:
-            EXTENDED_PREFIXES.reset(extended)
+        EXTENDED_PREFIXES.reset(extended)
         ISOTOPE_LABELS.reset(token)
     if set(labels) - context["consumed"]:
         raise UnsupportedStructure("an isotopically modified atom of the radical is not cited by any supported name")
@@ -158,6 +166,13 @@ def name_radical_group(mol) -> str:
             raise UnsupportedStructure("the oxygen radical has no 'oxy' prefix to turn into 'oxyl' (P-71.3.4)")
         return _aminoxyl(name) + "l"
     return name
+
+
+def _imidoyl_carbon(mol, carbon):
+    return any(
+        n.GetAtomicNum() == 7 and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        for n in carbon.GetNeighbors()
+    )
 
 
 def _aminoxyl(oxy_name):
@@ -194,6 +209,16 @@ def _name_aminyl(mol, centre):
     carbons = [n for n in neighbours if n.GetAtomicNum() == 6]
     if not carbons or any(n.GetAtomicNum() not in (1, 6) for n in neighbours):
         raise UnsupportedStructure("this nitrogen radical is not an aminyl or amidyl radical")
+    if suffix == "ylidene" and len(carbons) == 1 and _imidoyl_carbon(hydride, carbons[0]):
+        graph = adjacency(hydride)
+        token = EXTENDED_PREFIXES.set(True)
+        try:
+            group, compound = name_branch(
+                graph, carbons[0].GetIdx(), centre.GetIdx(), halogen_substituents(hydride), frozenset(), mol=hydride
+            )
+        finally:
+            EXTENDED_PREFIXES.reset(token)
+        return (f"({group})" if compound else group) + "azanylidene"
 
     def acyl(carbon):
         return any(

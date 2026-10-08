@@ -467,12 +467,12 @@ def _is_aromatic_ring_with_triple_bond(mol):
 
 
 def _neutral_group15_oxides(mol):
-    """P+-O-, As+-O- and Sb+-O- written as zwitterions are the doubly bonded oxides of the lambda-convention
-    (P-74.2.1.4); RDKit writes some neutral P=O groups this way."""
+    """P+-O-, As+-O- and Sb+-O- written as zwitterions, and the S+-O- of a sulfoxide with three bonds, are the doubly
+    bonded oxides of the lambda-convention (P-74.2.1.4, P-74.2.2.1.8); RDKit writes some neutral P=O groups this way."""
     pairs = [
         (atom.GetIdx(), n.GetIdx())
         for atom in mol.GetAtoms()
-        if atom.GetAtomicNum() in (15, 33, 51) and atom.GetFormalCharge() == 1
+        if atom.GetFormalCharge() == 1 and (atom.GetAtomicNum() in (15, 33, 51) or (atom.GetAtomicNum() in (16, 34, 52) and atom.GetDegree() == 3))
         for n in atom.GetNeighbors()
         if n.GetAtomicNum() in (8, 16, 34) and n.GetFormalCharge() == -1 and n.GetDegree() == 1
     ]
@@ -514,6 +514,8 @@ def _parse_smiles(smiles):
             # RDKit knows only the thallium(I) valence, so the standard TlH3 of P-68.1.1.1 looks like a radical
             if atom.GetAtomicNum() == 81 and atom.GetNumRadicalElectrons() and atom.GetTotalValence() == 3:
                 atom.SetNumRadicalElectrons(0)
+        if any(atom.GetNumRadicalElectrons() for atom in mol.GetAtoms()):
+            return mol
         return _neutral_group15_oxides(mol)
     # hypervalent anionic centers (lambda-convention parents) fail RDKit's valence check only
     mol = Chem.MolFromSmiles(smiles, sanitize=False)

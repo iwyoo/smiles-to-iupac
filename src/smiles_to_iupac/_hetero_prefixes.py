@@ -140,6 +140,9 @@ def _carbonyl_oxygen(mol, idx):
     )
 
 
+DIPOLAR_GROUPS = contextvars.ContextVar("dipolar_groups", default=False)
+
+
 def is_functional_carbon(mol, idx):
     """A carbon that is a substituent group of its own (-C#N, -COOH, -COOR,
     -CONR2, ...) rather than a chain member. Ketone and aldehyde carbons stay
@@ -150,6 +153,8 @@ def is_functional_carbon(mol, idx):
     for b in atom.GetBonds():
         other = b.GetOtherAtom(atom)
         if b.GetBondTypeAsDouble() == 3.0 and other.GetAtomicNum() == 7:
+            if DIPOLAR_GROUPS.get() and other.GetFormalCharge() == 1:
+                continue
             return True
         if b.GetBondTypeAsDouble() == 2.0 and other.GetAtomicNum() in _MULTIPLE_TARGETS:
             return any(
@@ -157,6 +162,31 @@ def is_functional_carbon(mol, idx):
                 for n in atom.GetNeighbors()
             )
     return False
+
+
+def _onium_prefix(graph, root, order, others, halogens, aromatic_atoms, mol):
+    """'trimethylphosphaniumyl', 'oxidodi(phenyl)phosphaniumyl': a cationic centre with organyl and oxido groups."""
+    atom = mol.GetAtomWithIdx(root)
+    z = atom.GetAtomicNum()
+    if not (
+        z in _ONIUM_PREFIX_STEMS
+        and atom.GetFormalCharge() == 1
+        and order == 1.0
+        and not atom.IsInRing()
+        and atom.GetTotalValence() == _ONIUM_PREFIX_STEMS[z][1]
+        and all(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 or _terminal_anion(mol, n) for n in others)
+        and all(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 1.0 for n in others)
+    ):
+        return None
+    from ._substituents import format_mononuclear_prefixes
+
+    entries = _group_names(graph, mol, others, root, halogens, aromatic_atoms)
+    return (format_mononuclear_prefixes(entries) if entries else "") + _ONIUM_PREFIX_STEMS[z][0] + "yl", bool(entries)
+
+
+def _terminal_anion(mol, idx):
+    atom = mol.GetAtomWithIdx(idx)
+    return atom.GetAtomicNum() in (8, 16) and atom.GetFormalCharge() == -1 and atom.GetDegree() == 1
 
 
 def _non_amino_nitrogen(atom):
@@ -542,6 +572,13 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         borono = _borono_prefix(mol, root, others)
         if borono is not None:
             return borono, borono != "borono"
+    if z in _ONIUM_PREFIX_STEMS and atom.GetFormalCharge() == 1:
+        onium = _onium_prefix(
+            graph, root, mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble(),
+            [n for n in graph[root] if n != coming_from], halogens, aromatic_atoms, mol,
+        )
+        if onium is not None:
+            return onium
     if z in MONONUCLEAR_HYDRIDES and not atom.IsInRing():
         return _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if z in LAMBDA_CENTRE_STEMS and not atom.IsInRing():
@@ -649,6 +686,11 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return _enclose(rname, rcomp) + word, True
     if z == 7 and atom.GetFormalCharge() == 1 and nitrogen_pseudohalide_prefix(mol, root, others, order) == "isocyano":
         return "isocyano", False
+    if z == 7 and atom.GetFormalCharge() == 1 and order == 3.0 and DIPOLAR_GROUPS.get() and all(_terminal_anion(mol, n) for n in others):
+        from ._substituents import format_mononuclear_prefixes
+
+        entries = _group_names(graph, mol, others, root, halogens, aromatic_atoms)
+        return (format_mononuclear_prefixes(entries) if entries else "") + "azaniumylidyne", bool(entries)
     if (
         z == 7
         and (
@@ -656,7 +698,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             or (atom.HasProp("_cationic_amine") and not atom.GetFormalCharge())
         )
         and order == 1.0
-        and all(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 for n in others)
+        and all(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 or _terminal_anion(mol, n) for n in others)
     ):
         if any(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() > 2.0 for n in others):
             raise UnsupportedStructure("this azaniumyl group is not supported yet")
@@ -664,19 +706,9 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
 
         entries = _group_names(graph, mol, others, root, halogens, aromatic_atoms)
         return (format_mononuclear_prefixes(entries) if entries else "") + "azaniumyl", bool(entries)
-    if (
-        z in _ONIUM_PREFIX_STEMS
-        and atom.GetFormalCharge() == 1
-        and order == 1.0
-        and not atom.IsInRing()
-        and atom.GetTotalValence() == _ONIUM_PREFIX_STEMS[z][1]
-        and all(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 for n in others)
-        and all(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 1.0 for n in others)
-    ):
-        from ._substituents import format_mononuclear_prefixes
-
-        entries = _group_names(graph, mol, others, root, halogens, aromatic_atoms)
-        return (format_mononuclear_prefixes(entries) if entries else "") + _ONIUM_PREFIX_STEMS[z][0] + "yl", bool(entries)
+    onium = _onium_prefix(graph, root, order, others, halogens, aromatic_atoms, mol)
+    if onium is not None:
+        return onium
     if (
         z == 7
         and atom.GetFormalCharge() == 1
