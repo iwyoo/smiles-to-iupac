@@ -835,3 +835,16 @@ def test_stereogenic_sulfinyl_group_cites_its_descriptor():
 )
 def test_stereogenic_sulfoxide_and_sulfinate(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OS1(=NCCC1)=O", "1-hydroxy-4,5-dihydro-3H-1λ6,2-thiazol-1-one"),
+        ("OS1(=NCCCCCCCCCC1)=O", "1-hydroxy-1λ6-thia-2-azacyclododec-1-en-1-one"),
+        ("S1(=NCCCC1)O", "3,4,5,6-tetrahydro-1λ4,2-thiazin-1-ol"),
+        ("O=S1(=O)NC=CC=C1", "1λ6,2-thiazine-1,1(2H)-dione"),
+    ],
+)
+def test_ring_chalcogen_with_oxo_or_hydroxy_in_an_unsaturated_ring(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

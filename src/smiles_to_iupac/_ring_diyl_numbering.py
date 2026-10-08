@@ -359,12 +359,13 @@ def _hetero_monocycle(mol, ring_order, attached):
         if b.GetBondTypeAsDouble() == 2.0 and b.GetBeginAtomIdx() in ring_set and b.GetEndAtomIdx() in ring_set
         for i in (b.GetBeginAtomIdx(), b.GetEndAtomIdx())
     }
+    heterones = _chalcogen_heterones(mol, ring_set) & SUFFIX_ATOMS.get() if not aromatic else set()
     for a in atoms:
         for n in a.GetNeighbors():
             exocyclic_double = (
                 n.GetIdx() not in ring_set and mol.GetBondBetweenAtoms(a.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
             )
-            if exocyclic_double and (aromatic or ring_double) and a.GetAtomicNum() != 6:
+            if exocyclic_double and (aromatic or ring_double) and a.GetAtomicNum() != 6 and a.GetIdx() not in heterones:
                 raise UnsupportedStructure("a ring atom with an exocyclic double bond is not supported as a diyl yet")
     if not aromatic and any(
         b.GetBondTypeAsDouble() not in (1.0, 2.0)
@@ -372,8 +373,8 @@ def _hetero_monocycle(mol, ring_order, attached):
         if b.GetBeginAtomIdx() in ring_set and b.GetEndAtomIdx() in ring_set
     ):
         raise UnsupportedStructure("a ring triple bond is not supported as a diyl yet")
-    can_hold = {i for i in ring_order if sym[i] not in _NO_DOUBLE_BOND}
-    oxo_all = _exocyclic_oxo(mol, ring_set)
+    can_hold = {i for i in ring_order if sym[i] not in _NO_DOUBLE_BOND or (sym[i] in ("S", "Se", "Te") and i in ring_double)} | heterones
+    oxo_all = _exocyclic_oxo(mol, ring_set) | (heterones - ring_double)
     oxo_suffix = oxo_all & SUFFIX_ATOMS.get()
     if aromatic:
         in_double = {
@@ -417,6 +418,7 @@ def _hetero_monocycle(mol, ring_order, attached):
         hetero = [(i + 1, _RANK.get(sym[a], 99)) for i, a in enumerate(walk) if sym[a] != "C"]
         position_of = {a: i + 1 for i, a in enumerate(walk)}
         lam = _lambda_by_position(mol, position_of)
+        lam.update({position_of[a]: int(mol.GetAtomWithIdx(a).GetTotalValence()) for a in heterones})
         pre = (tuple(p for p, _ in hetero), tuple(r for _, r in hetero))
         if pre != best_pre:
             continue
@@ -429,10 +431,14 @@ def _hetero_monocycle(mol, ring_order, attached):
         if stem is None:
             stem = _hantzsch_widman(elements, saturated=False)
             if stem is None:
-                raise UnsupportedStructure("this heteromonocycle has no supported mancude parent name yet")
+                stem = _replacement_ene_name(mol, elements, walk, hetero, lam)
+                if stem is None:
+                    raise UnsupportedStructure("this heteromonocycle has no supported mancude parent name yet")
+                results.append((position_of, stem, (), (), ()))
+                continue
             stem = _with_hetero_locants(stem, elements, hetero, lam)
         elif lam:
-            stem = _with_hetero_locants(stem, elements, hetero, lam)
+            stem = _with_hetero_locants(re.sub(r"^\d+(?:,\d+)*-", "", stem), elements, hetero, lam)
         if oxo_all or oxo_suffix:
             adj = {a: {n.GetIdx() for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in ring_set} for a in ring_order}
             split = _split_hydrogen(position_of, adj, can_hold, saturated_atoms, oxo_all, oxo_suffix, mancude_sp3)
@@ -486,6 +492,24 @@ def _replacement_cycloalkane_name(elements, lam=None):
         mult = "" if len(locants) == 1 else multiplying_prefix(len(locants))
         pieces.append(f"{','.join(_cite(p, lam) for p in locants)}-{mult}{_PREFIX[element]}")
     return "-".join(pieces) + "cyclo" + alkane_name(len(elements))
+
+
+def _replacement_ene_name(mol, elements, walk, hetero, lam):
+    """Replacement name of a ring too large for a Hantzsch-Widman name, its double bonds cited as 'ene' (P-22.2.3, P-31.1.4.2.4)."""
+    if len(elements) < 11:
+        return None
+    base = _replacement_cycloalkane_name(elements, lam)
+    if base is None:
+        return None
+    position_of = {a: i + 1 for i, a in enumerate(walk)}
+    enes = []
+    for bond in mol.GetBonds():
+        a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+        if bond.GetBondTypeAsDouble() == 2.0 and a in position_of and b in position_of:
+            low, high = sorted((position_of[a], position_of[b]))
+            enes.append((low, str(low)) if high - low == 1 else (low, f"{low}({high})"))
+    body, needs_a = _unsaturation_suffix_from_citations(enes, [])
+    return base[:-3] + ("a" if needs_a else "") + "-" + body
 
 
 _RETAINED_WITHOUT_LOCANTS = {"piperazine", "morpholine", "thiomorpholine", "imidazolidine", "pyrazolidine"}
