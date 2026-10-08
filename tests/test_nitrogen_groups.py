@@ -1556,3 +1556,14 @@ def test_hydrazine_with_aminooxy_prefix_and_multiplied_hydrazine_units(smiles, e
 )
 def test_halogen_oxoacid_amides_aci_nitro_prefix_thionitrates_and_pseudohalide_hydrides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[N+](C)([O-])CC#N", "cyano-N,N-dimethylmethanamine N-oxide"),
+        ("C[N+](C)([O-])CCC#N", "2-cyano-N,N-dimethylethan-1-amine N-oxide"),
+    ],
+)
+def test_amine_oxide_outranks_a_nitrile_cited_as_cyano(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
