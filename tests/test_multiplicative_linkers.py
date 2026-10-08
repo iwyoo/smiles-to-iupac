@@ -53,6 +53,19 @@ def test_amide_units_joined_through_nitrogen(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        ("O=C(O)CNC(=O)C(=O)NCC(=O)O", "2,2'-[oxalylbis(azanediyl)]diacetic acid"),
+        ("O=C(O)CNC(=O)CCC(=O)NCC(=O)O", "2,2'-[(1,4-dioxobutane-1,4-diyl)bis(azanediyl)]diacetic acid"),
+        ("OC(=O)c1ccccc1C(=O)CCC(=S)c1ccccc1C(=O)O", "2,2'-(1-oxo-4-sulfanylidenebutane-1,4-diyl)dibenzoic acid"),
+        ("O=C(N)C(=O)NCC(=O)O", "(oxamoylamino)acetic acid"),
+    ],
+)
+def test_diacyl_linking_groups_and_oxamoylamino(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         ("[SiH3][SiH2]C[SiH2][SiH3]", "1,1'-methylenebis(disilane)"),
         ("[SiH3]CC[SiH2]CC[SiH3]", "[silanediyldi(ethane-2,1-diyl)]bis(silane)"),
         ("C[Si](C)(C)C[Si](C)(C)C", "methylenebis(trimethylsilane)"),

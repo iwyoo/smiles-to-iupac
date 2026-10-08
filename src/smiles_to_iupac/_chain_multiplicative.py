@@ -59,8 +59,36 @@ def _is_linker_atom(mol, atom):
         if bond.GetBondTypeAsDouble() != 1.0 and not azo and not imine_nitrogen:
             return False
         if other.GetAtomicNum() == 6 and is_functional_carbon(mol, other.GetIdx()) and not imine_nitrogen:
-            return False
+            if not _diacyl_carbon(mol, other, atom):
+                return False
     return True
+
+
+def _diacyl_carbon(mol, carbon, linker):
+    """A carbonyl carbon bonded to the `linker` heteroatom whose unbranched carbon chain ends in a second carbonyl carbon
+    bonded to a heteroatom (a diacyl linking group)."""
+    if linker.GetAtomicNum() not in (7, 8):
+        return False
+    previous, current, first = linker.GetIdx(), carbon, True
+    for _ in range(mol.GetNumAtoms()):
+        if current.GetIsAromatic() or current.IsInRing():
+            return False
+        oxo = {
+            n.GetIdx()
+            for n in current.GetNeighbors()
+            if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(current.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        }
+        others = [n for n in current.GetNeighbors() if n.GetIdx() != previous and n.GetIdx() not in oxo]
+        if len(others) != 1:
+            return False
+        if first and len(oxo) != 1:
+            return False
+        if not first and oxo:
+            return len(oxo) == 1 and others[0].GetAtomicNum() in (7, 8)
+        if others[0].GetAtomicNum() != 6:
+            return False
+        previous, current, first = current.GetIdx(), others[0], False
+    return False
 
 
 def _principal_atoms(mol):
@@ -617,6 +645,11 @@ def _phosphonic_candidates(mol, graph):
 
 
 def chain_multiplicative_name(mol, stereo):
+    name = _chain_multiplicative_name(mol, stereo)
+    return name.replace("(1,2-dioxoethane-1,2-diyl)", "oxalyl") if name else name
+
+
+def _chain_multiplicative_name(mol, stereo):
     if len(Chem.GetMolFrags(mol)) != 1:
         return None
     graph = adjacency(mol)

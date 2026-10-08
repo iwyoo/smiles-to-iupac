@@ -14,6 +14,7 @@ from ._numerals import alkane_name, multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes
 
 _SINGLE_ATOM_WORDS = {8: "oxy", 16: "sulfanediyl", 34: "selanediyl", 52: "tellanediyl", 7: "azanediyl"}
+_TERMINAL_DOUBLE_WORDS = {8: "oxo", 16: "sulfanylidene", 34: "selanylidene", 52: "tellanylidene"}
 _OXOACID_LINKER = {15: ("phosphoryl", "phosphonoyl"), 33: ("arsoryl", "arsonoyl"), 51: ("stiboryl", "stibonoyl")}
 _SUBSTITUTABLE_WORDS = {
     7: ("azanediyl", "nitrilo"),
@@ -63,8 +64,8 @@ def _entry(mol, owner, root, ctx):
 def _substituent_entry(mol, owner, root, ctx):
     atom = mol.GetAtomWithIdx(root)
     bond = mol.GetBondBetweenAtoms(owner, root)
-    if atom.GetAtomicNum() == 8 and atom.GetDegree() == 1 and bond.GetBondTypeAsDouble() == 2:
-        return "oxo", False
+    if atom.GetDegree() == 1 and bond.GetBondTypeAsDouble() == 2 and atom.GetAtomicNum() in _TERMINAL_DOUBLE_WORDS:
+        return _TERMINAL_DOUBLE_WORDS[atom.GetAtomicNum()], False
     atoms = subtree(mol, root, owner)
     for g in ctx.groups:
         if g.anchor == root and g.atoms - {owner} == atoms and g.name in SIMPLE_PREFIXES and g.name != "ketone":
