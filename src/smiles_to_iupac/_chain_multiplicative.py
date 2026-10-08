@@ -392,7 +392,8 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
     if span & arm_atoms:
         return None
     comp_of, components = _components(mol, graph, span)
-    if _longest_hetero_run(graph, comp_of, components) >= _SKELETAL_UNITS:
+    # P-21.2.3.1: where nitrogen is present the amine name outranks skeletal replacement
+    if unit_kind != "amine" and _longest_hetero_run(graph, comp_of, components) >= _SKELETAL_UNITS:
         return None
     edges = {cid: [] for cid in components}
     for a in span:
@@ -487,7 +488,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
                 lambda m: f"{m.group(1)}anedioyl", _linker_text(branches, central, arm_parts, True)
             )
             return f"{linker}{multiplier_word(count, True)}({text})"
-        if unit_kind == "amide":
+        if unit_kind in ("amide", "amine"):
             lead = ",".join("N" + "'" * i for i in range(count)) + "-"
         elif _MULTIPLIED_HYDRIDE.match(text):
             lead = ",".join("1" + "'" * i for i in range(count)) + "-"
@@ -540,6 +541,9 @@ def _unit_name_by_pipeline(unit, unit_kind):
         return None
     if unit_kind == "amide":
         return name if name.endswith("amide") else None
+    if unit_kind == "amine":
+        single_nitrogen = sum(a.GetAtomicNum() == 7 for a in unit.GetAtoms()) == 1
+        return name if single_nitrogen and name.endswith("amine") else None
     if unit_kind == "phosphonic":
         return name if name in _CENTER_ACIDS else None
     if unit_kind == "anion":
@@ -633,6 +637,33 @@ def _hydride_candidates(mol, graph):
     return candidates
 
 
+def _amine_candidates(mol, graph):
+    """Secondary or tertiary amines whose nitrogen is joined to a linking heteroatom (hydroxylamine O-substitution,
+    P-68.3.1.1.1.3): the amine parents are multiplied through nitrogen."""
+    candidates = {}
+    for atom in mol.GetAtoms():
+        if (
+            atom.GetAtomicNum() != 7
+            or atom.IsInRing()
+            or atom.GetFormalCharge()
+            or atom.GetIsotope()
+            or atom.GetNumRadicalElectrons()
+            or any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds())
+        ):
+            continue
+        neighbors = list(atom.GetNeighbors())
+        joined = [n for n in neighbors if n.GetAtomicNum() != 6]
+        if len(joined) != 1 or len(joined) == len(neighbors):
+            continue
+        linker = joined[0]
+        if linker.GetAtomicNum() == 7 or not _is_linker_atom(mol, linker):
+            continue
+        atoms = _arm(graph, atom.GetIdx(), linker.GetIdx())
+        if linker.GetIdx() not in atoms:
+            candidates.setdefault(_key(mol, atoms, atom.GetIdx()), []).append((atom.GetIdx(), linker.GetIdx(), atoms))
+    return candidates
+
+
 def _phosphonic_candidates(mol, graph):
     """Phosphonic, arsonic and stibonic acid groups joined to carbon: the acid outranks amines and ethers (P-41, P-45.1.2)."""
     from ._phosphonic_acid import _SENIOR_ACIDS, _phosphonic_acid_phosphorus_atoms
@@ -665,6 +696,10 @@ def _chain_multiplicative_name(mol, stereo):
             return name
     found = _principal_atoms(mol)
     if found is None:
+        for arms in _rank_candidates(_amine_candidates(mol, graph), None):
+            name = _attempt(mol, graph, stereo, arms, "amine")
+            if name is not None:
+                return name
         hydrides = _hydride_candidates(mol, graph)
         if not hydrides:
             return None
