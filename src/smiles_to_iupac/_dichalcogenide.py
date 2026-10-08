@@ -85,6 +85,8 @@ class Dichalcogenide:
         if order is None:
             return False
         e1, e2 = mol.GetAtomWithIdx(order[0]), mol.GetAtomWithIdx(order[-1])
+        if len(order) == 2 and 1 in (e1.GetDegree(), e2.GetDegree()):
+            return False
         return not (e1.GetDegree() == 1 and e2.GetDegree() == 1)
 
     def _validate_and_find(self, mol, aromatic_ring_atoms=frozenset()):

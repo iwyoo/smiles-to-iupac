@@ -23,8 +23,9 @@ def test_branched_diselanyl_substituent_not_supported():
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("C[Se][SeH]", "diselanylmethane", id="methane"),
-        pytest.param("CC[Se][SeH]", "diselanylethane", id="ethane"),
+        pytest.param("C[Se][SeH]", "methanediselenoperoxol", id="methane"),
+        pytest.param("c1ccccc1[Se][SeH]", "benzenediselenoperoxol", id="benzene"),
+        pytest.param("CC[Se][SeH]", "ethanediselenoperoxol", id="ethane"),
     ],
 )
 def test_terminal_perselenol_cases(smiles, expected):
@@ -49,7 +50,6 @@ def test_phenyl_diselenide_direct_bond():
     "smiles",
     [
         pytest.param("c1ccccc1C[Se][Se]C", id="chain_spacer_not_supported"),
-        pytest.param("c1ccccc1[Se][SeH]", id="seh_terminal_not_supported"),
         pytest.param("c1ccccc1[Se][Se]C(C)C", id="branched_other_side_not_supported"),
         pytest.param("Cc1ccccc1[Se][Se]C", id="substituted_ring_not_supported"),
     ],
@@ -79,8 +79,8 @@ def test_branched_ditellanyl_substituent_not_supported():
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("CC[Te][TeH]", "ditellanylethane", id="ethane"),
-        pytest.param("C[Te][TeH]", "ditellanylmethane", id="methane"),
+        pytest.param("CC[Te][TeH]", "ethaneditelluroperoxol", id="ethane"),
+        pytest.param("C[Te][TeH]", "methaneditelluroperoxol", id="methane"),
     ],
 )
 def test_terminal_pertellurol_cases(smiles, expected):
@@ -104,7 +104,6 @@ def test_phenyl_ditelluride_direct_bond():
     "smiles",
     [
         pytest.param("c1ccccc1C[Te][Te]C", id="phenyl_ditelluride_chain_spacer_not_supported"),
-        pytest.param("c1ccccc1[Te][TeH]", id="phenyl_ditelluride_teh_terminal_not_supported"),
         pytest.param("c1ccccc1[Te][Te]C(C)C", id="phenyl_ditelluride_branched_other_side_not_supported"),
         pytest.param("Cc1ccccc1[Te][Te]C", id="phenyl_ditelluride_substituted_ring_not_supported"),
     ],
@@ -458,7 +457,7 @@ def test_unsaturated_ring_selone_triple_bond_raises():
     "smiles, expected",
     [
         pytest.param("CC(=[Se])C1CCC(C)CC1", "1-(4-methylcyclohexyl)ethane-1-selone", id="substituent_chain_selone_ring_with_substituent"),
-        pytest.param("[Se]=C1CCCCC1C(=[Se])C", "2-(1-selanylideneethyl)cyclohexane-1-selone", id="with_selone_chain_selone_tie"),
+        pytest.param("[Se]=C1CCCCC1C(=[Se])C", "2-(ethaneselenoyl)cyclohexane-1-selone", id="with_selone_chain_selone_tie"),
     ],
 )
 def test_ring_substituent_chain_and_related(smiles, expected):
@@ -504,7 +503,7 @@ def test_unsaturated_ring_tellone_triple_bond_raises():
     "smiles, expected",
     [
         pytest.param("CC(=[Te])C1CCCCC1", "1-cyclohexylethane-1-tellone", id="substituent_chain_tellone"),
-        pytest.param("[Te]=C1CCCCC1C(=[Te])C", "2-(1-tellanylideneethyl)cyclohexane-1-tellone", id="with_tellone_chain_tellone_tie"),
+        pytest.param("[Te]=C1CCCCC1C(=[Te])C", "2-(ethanetelluroyl)cyclohexane-1-tellone", id="with_tellone_chain_tellone_tie"),
     ],
 )
 def test_ring_substituent_chain_and_related_2(smiles, expected):

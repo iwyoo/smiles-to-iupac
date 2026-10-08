@@ -85,6 +85,7 @@ from ._common import (
 from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
 
 _ALLOWED_ATOMIC_NUMS = {6, 8, *HALOGEN_PREFIXES}
+_CHALCOGENS = {8: ("O", ""), 16: ("S", "thio"), 34: ("Se", "seleno"), 52: ("Te", "telluro")}
 
 
 def _hydroperoxide_oxygens(mol):
@@ -117,10 +118,44 @@ def _hydroperoxide_oxygens(mol):
     return attach, terminal
 
 
+def _chalcogen_peroxol_atoms(mol):
+    """(attach, terminal) of a -X-YH group of two chalcogens, at least one not oxygen (P-63.4.2.1), or None."""
+    pair = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _CHALCOGENS and not a.GetIsAromatic()]
+    if len(pair) != 2 or all(a.GetAtomicNum() == 8 for a in pair):
+        return None
+    bond = mol.GetBondBetweenAtoms(pair[0].GetIdx(), pair[1].GetIdx())
+    if bond is None or bond.GetBondTypeAsDouble() != 1.0 or sorted(a.GetDegree() for a in pair) != [1, 2]:
+        return None
+    attach, terminal = (pair[0], pair[1]) if pair[0].GetDegree() == 2 else (pair[1], pair[0])
+    (other,) = (n for n in attach.GetNeighbors() if n.GetIdx() != terminal.GetIdx())
+    if terminal.GetTotalNumHs() != 1 or other.GetAtomicNum() != 6 or attach.GetTotalNumHs():
+        return None
+    return attach, terminal
+
+
+def has_chalcogen_peroxol_shape(mol) -> bool:
+    return _chalcogen_peroxol_atoms(mol) is not None
+
+
+def _peroxol_atoms(mol):
+    return _hydroperoxide_oxygens(mol) or _chalcogen_peroxol_atoms(mol)
+
+
+def _chalcogen_word(attach, terminal, base):
+    """`base` ('...peroxol') with the functional replacement of Table 6.1: 'dithioperoxol', 'OS-thioperoxol'."""
+    first, second = _CHALCOGENS[attach.GetAtomicNum()], _CHALCOGENS[terminal.GetAtomicNum()]
+    stem = base[: -len("peroxol")]
+    if first == second:
+        return f"{stem}di{first[1]}peroxol"
+    prefixes = "".join(sorted(p for _, p in (first, second) if p))
+    pair = first[0] + second[0]
+    return f"{stem}{'' if stem.endswith('-') else '-'}{pair}-{prefixes}peroxol"
+
+
 def has_hydroperoxide_shape(mol) -> bool:
     """True iff `mol` has exactly one plain -O-O-H hydroperoxide shape
     (P-56.1), regardless of whether the rest of the molecule is in scope."""
-    return _hydroperoxide_oxygens(mol) is not None
+    return _peroxol_atoms(mol) is not None
 
 
 def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
@@ -138,9 +173,11 @@ def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
     the rest of the molecule. Empty by default, so every other caller's
     behavior is unchanged."""
     has_carbon = False
+    chalcogen_pair = _chalcogen_peroxol_atoms(mol)
+    pair_atoms = {a.GetIdx() for a in chalcogen_pair} if chalcogen_pair else set()
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
-        if atomic_num not in _ALLOWED_ATOMIC_NUMS and atom.GetIdx() not in aromatic_ring_atoms:
+        if atomic_num not in _ALLOWED_ATOMIC_NUMS and atom.GetIdx() not in aromatic_ring_atoms | pair_atoms:
             raise UnsupportedStructure(
                 "heteroatoms other than a hydroperoxide's own two oxygens "
                 "(P-56.1), a heteroaromatic ring's own heteroatom (P-29.3.4.1), "
@@ -166,7 +203,7 @@ def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
             "hydride to substitute"
         )
 
-    oxygens = _hydroperoxide_oxygens(mol)
+    oxygens = _peroxol_atoms(mol)
     if oxygens is None:
         raise UnsupportedStructure(
             "not a plain hydroperoxide (-OOH, P-56.1) shape; a peroxide "
@@ -302,6 +339,15 @@ def _name_acyclic_hydroperoxide(
 
 
 def name_hydroperoxide(mol) -> str:
+    replaced = _chalcogen_peroxol_atoms(mol)
+    if replaced is not None:
+        ring_info = mol.GetRingInfo()
+        if ring_info.NumRings() == 1 and mol.GetNumAtoms() == 8 and is_plain_benzene_ring(mol, set(ring_info.AtomRings()[0])):
+            return _chalcogen_word(*replaced, "benzeneperoxol")
+        if mol.GetRingInfo().NumRings() or non_single_bonds(mol):
+            raise UnsupportedStructure("a chalcogen analogue of a hydroperoxide on a ring or an unsaturated chain is not supported yet")
+        site, exclude = _validate_and_collect(mol)
+        return _chalcogen_word(*replaced, _name_acyclic_hydroperoxide(mol, site, exclude))
     ring_info = mol.GetRingInfo()
     if ring_info.NumRings() == 1:
         ring_atoms = set(ring_info.AtomRings()[0])

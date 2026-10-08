@@ -556,7 +556,49 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
     return result
 
 
+_CHALCOGEN_OYL = {16: "thioyl", 34: "selenoyl", 52: "telluroyl"}
+
+
+def _chalcogen_acyl(graph, root, coming_from, halogens, aromatic_atoms, mol):
+    """'ethanethioyl' for R-C(=S)- on a carbon R, read off the name of the oxygen acyl group (P-65.1.7.2.2)."""
+    if mol is None:
+        return None
+    atom = mol.GetAtomWithIdx(root)
+    link = mol.GetBondBetweenAtoms(root, coming_from)
+    if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetTotalNumHs() or atom.GetFormalCharge() or link is None or link.GetBondTypeAsDouble() != 1.0:
+        return None
+    others = [n for n in graph[root] if n != coming_from]
+    chalcogen = [
+        n for n in others
+        if mol.GetAtomWithIdx(n).GetAtomicNum() in _CHALCOGEN_OYL
+        and mol.GetAtomWithIdx(n).GetDegree() == 1
+        and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 2.0
+    ]
+    if len(others) != 2 or len(chalcogen) != 1:
+        return None
+    (carbon,) = [n for n in others if n != chalcogen[0]]
+    if mol.GetAtomWithIdx(carbon).GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(root, carbon).GetBondTypeAsDouble() != 1.0:
+        return None
+    healed = Chem.RWMol(mol)
+    healed.GetAtomWithIdx(chalcogen[0]).SetAtomicNum(8)
+    try:
+        name, compound = _name_branch_with_phane(graph, root, coming_from, halogens, aromatic_atoms, healed.GetMol(), True)
+    except UnsupportedStructure:
+        return None
+    word = _CHALCOGEN_OYL[mol.GetAtomWithIdx(chalcogen[0]).GetAtomicNum()]
+    if name.endswith("acetyl"):
+        return name[: -len("acetyl")] + "ethane" + word, True
+    if name.endswith("benzoyl"):
+        return name[: -len("benzoyl")] + "benzenecarbo" + word, True
+    if name.endswith("anoyl"):
+        return name[: -len("oyl")] + "e" + word, True
+    return None
+
+
 def _name_branch_with_phane(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated):
+    acyl = _chalcogen_acyl(graph, root, coming_from, halogens, aromatic_atoms, mol)
+    if acyl is not None:
+        return acyl
     try:
         return _name_branch(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated)
     except UnsupportedStructure:
@@ -1004,12 +1046,24 @@ def _chain_children(graph, node, parent, halogens, mol, aromatic_atoms):
     for n in graph[node]:
         if n == parent or n in halogens:
             continue
-        if mol.GetAtomWithIdx(n).GetAtomicNum() != 6 or is_functional_carbon(mol, n):
+        if mol.GetAtomWithIdx(n).GetAtomicNum() != 6 or (is_functional_carbon(mol, n) and not _terminal_amide(graph, mol, n, node)):
             continue
         if mol.GetAtomWithIdx(n).IsInRing():
             continue
         children.append(n)
     return children
+
+
+def _terminal_amide(graph, mol, carbon, parent):
+    """A -C(=O)-NR2 carbon ending a carbon chain of more than one carbon, cited as 'amino' and 'oxo' on the chain
+    (P-66.1.1.4.1.1)."""
+    atom = mol.GetAtomWithIdx(carbon)
+    if atom.IsInRing() or atom.GetFormalCharge() or mol.GetAtomWithIdx(parent).GetAtomicNum() != 6 or len(graph[carbon]) != 3:
+        return False
+    others = [n for n in graph[carbon] if n != parent]
+    oxo = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() == 1 and mol.GetBondBetweenAtoms(carbon, n).GetBondTypeAsDouble() == 2.0]
+    amino = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 7 and not mol.GetAtomWithIdx(n).GetFormalCharge() and not mol.GetAtomWithIdx(n).IsInRing() and mol.GetBondBetweenAtoms(carbon, n).GetBondTypeAsDouble() == 1.0]
+    return len(oxo) == 1 and len(amino) == 1 and mol.GetBondBetweenAtoms(carbon, parent).GetBondTypeAsDouble() == 1.0
 
 
 def _longest_arms(graph, node, parent, halogens, mol, aromatic_atoms, visited):
