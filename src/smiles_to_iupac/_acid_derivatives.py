@@ -509,7 +509,7 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
 
 
 def _bridged_multiplicative_ester(mol, graph, frags, owner, acid_pieces, r_pieces, hubs):
-    """'dimethyl butanedioylbis[oxy(2,1-phenylene)] dibutanedioate' (P-13.6.2): two identical terminal acids joined
+    """'dimethyl butanedioylbis(oxy-2,1-phenylene)dibutanedioate' (P-65.6.3.3.2.2.1): two identical terminal acids joined
     through identical organyl pieces and a central diacyl group; None for any other arrangement."""
     from ._chain_multiplicative import _make_context
     from ._multiplicative_linker import DecompositionRejected, name_component
@@ -544,7 +544,7 @@ def _bridged_multiplicative_ester(mol, graph, frags, owner, acid_pieces, r_piece
             part = name_component(mol, kind, atoms, attachments, ctx, (unit_link.far, center_link.far))
         except (DecompositionRejected, UnsupportedStructure):
             return None
-        arm_texts.append("oxy" + enclose(part.text))
+        arm_texts.append("oxy" + (enclose(part.text) if part.has_prefix else ("-" if part.text[0].isdigit() else "") + part.text))
     if arm_texts[0] != arm_texts[1]:
         return None
     acyl = acyl_name(_acid_name(mol, frags[inner], [l.chain[-1] for l in acid_pieces[inner]]))
@@ -552,7 +552,7 @@ def _bridged_multiplicative_ester(mol, graph, frags, owner, acid_pieces, r_piece
     multiplier = multiplying_prefix(2, compound=not anion.isalpha())
     anion_text = multiplier + anion if anion.isalpha() else f"{multiplier}{enclose(anion)}"
     linker = f"{acyl}bis{enclose(arm_texts[0])}"
-    return " ".join(part for part in (_pendant_text(mol, graph, pendants), linker, anion_text) if part)
+    return " ".join(part for part in (_pendant_text(mol, graph, pendants), linker + anion_text) if part)
 
 
 def _suffix_links(mol, links, keep, cap_of):
