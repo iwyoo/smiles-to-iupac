@@ -31,7 +31,7 @@ from ._silicic_cyanate import silicic_cyanate_name
 from ._borane_silane_amide import borane_silane_amide_name
 from ._polyborane import lewis_adduct_mol, polyborane_name
 from ._diacylamine import diacylamine_name
-from ._carbonic_hydrazide import name_carbonic_hydrazide
+from ._carbonic_hydrazide import carbonic_hydrazide_name, name_carbonic_hydrazide
 from ._chalcogen_hydrazide import name_chalcogen_hydrazide
 from ._diacylhydrazine import diacylhydrazine_name
 from ._ring_nitrogen_hydrazide import name_ring_nitrogen_hydrazide
@@ -728,6 +728,9 @@ def _name_unabridged(smiles: str) -> str:
             diacylhydrazine = diacylhydrazine_name(parsed)
             if diacylhydrazine is not None:
                 return diacylhydrazine
+            carbonic_hydrazidine = carbonic_hydrazide_name(parsed)
+            if carbonic_hydrazidine is not None:
+                return carbonic_hydrazidine
         if parsed is not None and has_dipolar_shape(parsed):
             return name_dipolar(parsed)
         if parsed is not None and has_glycoside_shape(parsed):

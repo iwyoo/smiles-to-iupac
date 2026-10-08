@@ -30,8 +30,14 @@ from ._numerals import multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
 _NITROGEN = 7
-_CLASSES = ("acid", "amide", "nitrile", "aldehyde")
-_SUFFIX = {"acid": "carboxylic acid", "amide": "carboxamide", "nitrile": "carbonitrile", "aldehyde": "carbaldehyde"}
+_CLASSES = ("acid", "amide", "amidine", "nitrile", "aldehyde")
+_SUFFIX = {
+    "acid": "carboxylic acid",
+    "amide": "carboxamide",
+    "amidine": "carboximidamide",
+    "nitrile": "carbonitrile",
+    "aldehyde": "carbaldehyde",
+}
 
 
 def _group_class(mol, carbon):
@@ -43,6 +49,19 @@ def _group_class(mol, carbon):
     order = {n.GetIdx(): mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() for n in neighbors}
     if any(order[n.GetIdx()] == 3.0 and n.GetAtomicNum() == _NITROGEN for n in neighbors):
         return "nitrile" if len(neighbors) == 2 else None
+    imino = [
+        n
+        for n in neighbors
+        if order[n.GetIdx()] == 2.0 and n.GetAtomicNum() == _NITROGEN and n.GetDegree() == 1 and n.GetTotalNumHs() == 1
+    ]
+    if len(imino) == 1:
+        amino = [
+            n
+            for n in neighbors
+            if n.GetIdx() != imino[0].GetIdx() and order[n.GetIdx()] == 1.0 and n.GetAtomicNum() == _NITROGEN
+            and n.GetDegree() == 1 and n.GetTotalNumHs() == 2
+        ]
+        return "amidine" if len(amino) == 1 and len(neighbors) == 3 else None
     doubled = [n for n in neighbors if order[n.GetIdx()] == 2.0 and n.GetAtomicNum() == 8 and n.GetDegree() == 1]
     if len(doubled) != 1:
         return None
@@ -94,11 +113,9 @@ def _parent(mol, graph):
     """(kind, skeleton atoms, parent hydride name) of the heteroacyclic parent, or None."""
     if mol.GetRingInfo().NumRings():
         return None
-    found = _chain_atoms(mol, graph)
+    found = _chain_atoms(mol, graph, skip_nitrogen=True)
     if found is not None:
         z, chain = found
-        if z == _NITROGEN:
-            return None
         return "chain", chain, f"{multiplying_prefix(len(chain))}{_STEMS[z]}"
     siloxane = _siloxane_skeleton(mol, graph)
     if siloxane is not None:

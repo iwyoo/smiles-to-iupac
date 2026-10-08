@@ -73,7 +73,15 @@ _CHALCOGEN_HYDRAZIDE = {
     (52, 2): "telluronohydrazide",
     (52, 1): "tellurinohydrazide",
 }
-_AMIDRAZONE = ("hydrazonamide", "imidohydrazide")
+_CHALCOGEN_HYDRAZIDINE = {
+    (16, 1): "sulfonohydrazonohydrazide",
+    (16, 0): "sulfinohydrazonohydrazide",
+    (34, 1): "selenonohydrazonohydrazide",
+    (34, 0): "seleninohydrazonohydrazide",
+    (52, 1): "telluronohydrazonohydrazide",
+    (52, 0): "tellurinohydrazonohydrazide",
+}
+_AMIDRAZONE = ("hydrazonamide", "imidohydrazide", "hydrazonohydrazide")
 _CHALCOGEN_IMIDAMIDE = {}
 for _z, (_on, _in) in ((16, ("sulfon", "sulfin")), (34, ("selenon", "selenin")), (52, ("telluron", "tellurin"))):
     _CHALCOGEN_IMIDAMIDE[(_z, 1, 1)] = f"{_on}imidamide"
@@ -108,7 +116,7 @@ for _z, _stem in ((34, "selen"), (52, "tellur")):
 _ACID_AMIDE[(16, 1)] = "sulfinamide"
 _CHALCOGEN_SULFONAMIDE_CLASSES = tuple(_CHALCOGEN_SULFONAMIDE.values())
 _SENIORITY = [
-    "ide", "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, *_CHALCOGEN_IMIDAMIDE.values(), "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), "nitrile", "aldehyde", "ketone", "thione", "selone", "tellone", "alcohol", "peroxol",
+    "ide", "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, *_CHALCOGEN_IMIDAMIDE.values(), "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), *_CHALCOGEN_HYDRAZIDINE.values(), "nitrile", "aldehyde", "ketone", "thione", "selone", "tellone", "alcohol", "peroxol",
     "thiol", "selenol", "tellurol", "amine", "imine",
 ]
 _TERMINAL = {"acid", "thioic", "peroxoic", "imidic", "amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE, "hydrazide", "nitrile", "aldehyde"}
@@ -210,7 +218,7 @@ def _terminal_heteroatom(mol, idx, hydrogens):
 _CHALCOGEN_KETONE_CLASS = {16: "thione", 34: "selone", 52: "tellone"}
 _CARBOXYLIC_OR_SULFONIC = Chem.MolFromSmarts("[#6,#16](=[O,S,Se,Te])[O,S,Se,Te;!$(*C#N)]")
 _CHALCOGEN_KETONE_OK = {
-    "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, *_CHALCOGEN_IMIDAMIDE.values(), "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), "nitrile", "aldehyde", "ketone",
+    "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, *_CHALCOGEN_IMIDAMIDE.values(), "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), *_CHALCOGEN_HYDRAZIDINE.values(), "nitrile", "aldehyde", "ketone",
     *_CHALCOGEN_KETONE_CLASS.values(),
 }
 
@@ -407,10 +415,30 @@ def _sulfonyl_group(mol, s_idx, attached):
         and not n.GetFormalCharge()
         and mol.GetBondBetweenAtoms(s_idx, n.GetIdx()).GetBondTypeAsDouble() == 2.0
     ]
-    rest = [n for n in sulfur.GetNeighbors() if n.GetIdx() not in oxygens + imides + replaced and n.GetIdx() != attached]
-    if len(rest) != 1 or sulfur.GetDegree() != len(oxygens) + len(imides) + len(replaced) + 2:
+    hydrazones = [
+        n.GetIdx()
+        for n in sulfur.GetNeighbors()
+        if n.GetAtomicNum() == 7
+        and mol.GetBondBetweenAtoms(s_idx, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        and n.GetDegree() == 2
+        and any(m.GetAtomicNum() == 7 and _terminal_heteroatom(mol, m.GetIdx(), 2) for m in n.GetNeighbors())
+    ]
+    rest = [
+        n for n in sulfur.GetNeighbors() if n.GetIdx() not in oxygens + imides + replaced + hydrazones and n.GetIdx() != attached
+    ]
+    if len(rest) != 1 or sulfur.GetDegree() != len(oxygens) + len(imides) + len(replaced) + len(hydrazones) + 2:
         return None
     other = rest[0]
+    if len(hydrazones) == 1 and not imides and not replaced and other.GetAtomicNum() == 7 and (
+        (name := _CHALCOGEN_HYDRAZIDINE.get((sulfur.GetAtomicNum(), len(oxygens)))) is not None
+    ):
+        beta = _hydrazide_beta_nitrogen(mol, other, s_idx)
+        if beta is not None and _terminal_heteroatom(mol, beta, 2) and other.GetTotalNumHs() == 1:
+            terminal = next(m.GetIdx() for m in mol.GetAtomWithIdx(hydrazones[0]).GetNeighbors() if m.GetIdx() != s_idx)
+            return name, {s_idx, *oxygens, hydrazones[0], terminal, other.GetIdx(), beta}
+        return None
+    if hydrazones:
+        return None
     if sulfur.GetAtomicNum() == 16 and replaced and not imides and len(oxygens) + len(replaced) in (1, 2):
         if other.GetAtomicNum() == 7 and (
             _terminal_heteroatom(mol, other.GetIdx(), 2) or _plain_amide_nitrogen(mol, other, s_idx)
@@ -1690,9 +1718,41 @@ def _select_with_prefixes(mol, attach=None, n_names=(), stereo=None):
     principal = _principal_class(classes)
     token = IDE_EXTRA.set(ide_extra)
     try:
-        return _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal, attach, n_names, stereo)
+        results = [
+            _select_with_principal(mol, graph, halogens, aromatic_atoms, kept, kept_rings, principal, attach, n_names, stereo)
+            for kept, kept_rings in _diamidide_alternatives(mol, groups, ring_groups)
+        ]
+        return min(results, key=lambda result: result[0])
     finally:
         IDE_EXTRA.reset(token)
+
+
+def _diamidide_alternatives(mol, groups, ring_groups):
+    """The (group table, ring group list) pairs in which each pair of amidine groups sharing an amino nitrogen keeps
+    one group: the other carbon is cited as an N-imidoyl prefix (P-66.4.1.6)."""
+    nitrogens = {}
+    for c, owned in groups.get("amidine", {}).items():
+        nitrogens[c] = {a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7}
+    for g in ring_groups:
+        if g[0] == "amidine":
+            carbon = next((a for a in g[2] if mol.GetAtomWithIdx(a).GetAtomicNum() == 6), g[1])
+            nitrogens[carbon] = {a for a in g[2] if mol.GetAtomWithIdx(a).GetAtomicNum() == 7}
+    shared = [(x, y) for x, y in itertools.combinations(sorted(nitrogens), 2) if nitrogens[x] & nitrogens[y]]
+    if not shared:
+        return [(groups, ring_groups)]
+    if len(shared) > 1:
+        raise UnsupportedStructure("several amidine groups sharing nitrogen atoms are not supported yet")
+    alternatives = []
+    for dropped in shared[0]:
+        kept_groups = dict(groups)
+        kept_groups["amidine"] = {c: o for c, o in groups.get("amidine", {}).items() if c != dropped}
+        kept_rings = [
+            g
+            for g in ring_groups
+            if not (g[0] == "amidine" and next((a for a in g[2] if mol.GetAtomWithIdx(a).GetAtomicNum() == 6), g[1]) == dropped)
+        ]
+        alternatives.append((kept_groups, kept_rings))
+    return alternatives
 
 
 def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal, attach, n_names, stereo):
@@ -1713,7 +1773,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             and not RING_CENTER.get()
             and principal not in ("peroxoic", "thioic", "imidic")
             and not (
-                principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, "hydrazide", *_CHALCOGEN_HYDRAZIDE.values())
+                principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), *_CHALCOGEN_HYDRAZIDINE.values())
                 and atom.GetIdx() in groups.get(principal, {})
             )
             and not (principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES) and atom.GetIdx() in groups.get("hydrazide", {}))
@@ -2190,6 +2250,7 @@ _CARBO_WORDS = {
     "amidine": "carboximidamide",
     "hydrazonamide": "carbohydrazonamide",
     "imidohydrazide": "carboximidohydrazide",
+    "hydrazonohydrazide": "carbohydrazonohydrazide",
     "hydrazide": "carbohydrazide",
     "nitrile": "carbonitrile",
     "aldehyde": "carbaldehyde",
@@ -2570,9 +2631,11 @@ _FUSED_SUFFIX = _FusedSuffix({
     "amidine": "carboximidamide",
     "hydrazonamide": "carbohydrazonamide",
     "imidohydrazide": "carboximidohydrazide",
+    "hydrazonohydrazide": "carbohydrazonohydrazide",
     "sulfonamide": "sulfonamide",
     **{name: name for name in _CHALCOGEN_SULFONAMIDE_CLASSES},
     **{name: name for name in _CHALCOGEN_HYDRAZIDE.values()},
+    **{name: name for name in _CHALCOGEN_HYDRAZIDINE.values()},
     **{name: name for name in _CHALCOGEN_IMIDAMIDE.values()},
     "hydrazide": "carbohydrazide",
     "nitrile": "carbonitrile",
@@ -2633,9 +2696,11 @@ _RING_SUFFIX = _RingSuffix({
     "amidine": "amidine",
     "hydrazonamide": "hydrazonamide",
     "imidohydrazide": "imidohydrazide",
+    "hydrazonohydrazide": "hydrazonohydrazide",
     "sulfonamide": "sulfonamide",
     **{name: name for name in _CHALCOGEN_SULFONAMIDE_CLASSES},
     **{name: name for name in _CHALCOGEN_HYDRAZIDE.values()},
+    **{name: name for name in _CHALCOGEN_HYDRAZIDINE.values()},
     **{name: name for name in _CHALCOGEN_IMIDAMIDE.values()},
     "hydrazide": "hydrazide",
     "nitrile": "nitrile",
@@ -3736,6 +3801,23 @@ def _amidrazone_group(mol, atom):
         return None
     imino_far = [m for m in imino.GetNeighbors() if m.GetAtomicNum() == 7 and m.GetIdx() != carbon]
     amino_far = [m for m in amino.GetNeighbors() if m.GetAtomicNum() == 7 and m.GetIdx() != carbon]
+    if len(imino_far) == 1 and len(amino_far) == 1:
+        hydrazone_end, hydrazide_end = imino_far[0], amino_far[0]
+        if any(
+            mol.GetBondBetweenAtoms(a.GetIdx(), b.GetIdx()).GetBondTypeAsDouble() != 1.0
+            for a, b in ((imino, hydrazone_end), (amino, hydrazide_end))
+        ) or any(e.GetFormalCharge() or e.IsInRing() or e.GetIsAromatic() for e in (hydrazone_end, hydrazide_end)):
+            return None
+        if not (
+            _plain_nitrogen_arm(mol, imino, {carbon, hydrazone_end.GetIdx()}, False)
+            and _plain_nitrogen_arm(mol, amino, {carbon, hydrazide_end.GetIdx()}, False)
+            and _plain_nitrogen_arm(mol, hydrazone_end, {imino.GetIdx()}, True)
+            and _plain_nitrogen_arm(mol, hydrazide_end, {amino.GetIdx()}, True)
+        ):
+            return None
+        if imino.GetDegree() != 2 or amino.GetDegree() > 3:
+            return None
+        return "hydrazonohydrazide", {imino.GetIdx(), amino.GetIdx(), hydrazone_end.GetIdx(), hydrazide_end.GetIdx()}
     if len(imino_far) == 1 and not amino_far:
         terminal, cls = imino_far[0], "hydrazonamide"
         arms = ((imino, {carbon, terminal.GetIdx()}, False), (amino, {carbon}, False))
@@ -3756,6 +3838,23 @@ def _amidrazone_group(mol, atom):
     if imino.GetDegree() > (2 if cls == "hydrazonamide" else 2) or amino.GetDegree() > 3:
         return None
     return cls, {imino.GetIdx(), amino.GetIdx(), terminal.GetIdx()}
+
+
+def _imidoyl_carbon(mol, carbon, nitrogen):
+    """Whether `carbon` is the imidoyl carbon R-C(=NR')- of a diamidide (P-66.4.1.6), joined to `nitrogen`."""
+    if carbon.IsInRing() or carbon.GetFormalCharge():
+        return False
+    others = [n for n in carbon.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx()]
+    imino = [n for n in others if n.GetAtomicNum() == 7]
+    rest = [n for n in others if n.GetAtomicNum() != 7]
+    return (
+        len(imino) == 1
+        and len(rest) <= 1
+        and all(n.GetAtomicNum() == 6 and not is_functional_carbon(mol, n.GetIdx()) for n in rest)
+        and mol.GetBondBetweenAtoms(carbon.GetIdx(), imino[0].GetIdx()).GetBondTypeAsDouble() == 2.0
+        and not imino[0].GetFormalCharge()
+        and all(m.GetIdx() == carbon.GetIdx() or m.GetAtomicNum() == 6 for m in imino[0].GetNeighbors())
+    )
 
 
 def _amidine_nitrogens(mol, atom):
@@ -3779,7 +3878,9 @@ def _amidine_nitrogens(mol, atom):
                 continue
             if mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0:
                 return None
-            if n.GetAtomicNum() not in allowed or n.GetFormalCharge() or is_functional_carbon(mol, n.GetIdx()):
+            if n.GetAtomicNum() not in allowed or n.GetFormalCharge():
+                return None
+            if is_functional_carbon(mol, n.GetIdx()) and not (nitrogen is amino and _imidoyl_carbon(mol, n, nitrogen)):
                 return None
     if imino.GetDegree() > 2 or amino.GetDegree() > 3:
         return None
@@ -4025,10 +4126,15 @@ def _amidrazone_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_group
         order = {n: mol.GetBondBetweenAtoms(centre, n).GetBondTypeAsDouble() for n in nitrogens if n in graph[centre]}
         imino = next(n for n, o in order.items() if o == 2.0)
         amino = next(n for n, o in order.items() if o == 1.0)
-        terminal = next(n for n in nitrogens if n not in (imino, amino))
-        if cls == "hydrazonamide":
+        if cls == "hydrazonohydrazide":
+            hydrazone_end = next(n for n in nitrogens if n in graph[imino] and n != centre)
+            hydrazide_end = next(n for n in nitrogens if n in graph[amino] and n != centre)
+            roles = ((amino, "N"), (hydrazide_end, "N'"), (hydrazone_end, "N''"))
+        elif cls == "hydrazonamide":
+            terminal = next(n for n in nitrogens if n not in (imino, amino))
             roles = ((amino, "N"), (terminal, "N'"))
         else:
+            terminal = next(n for n in nitrogens if n not in (imino, amino))
             roles = ((amino, "N"), (terminal, "N'"), (imino, "N''"))
         for nitrogen, locant in roles:
             for n in graph[nitrogen]:
@@ -4061,9 +4167,11 @@ def _amidine_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups):
             base = "N'" if imino else "N"
             located = (base, anchor, carbon, rest, "amidine") if len(members) > 1 else base
             for n in graph[nitrogen]:
-                if mol.GetAtomWithIdx(n).GetAtomicNum() == 6 and _amidine_nitrogens(mol, mol.GetAtomWithIdx(n)) is not None:
+                if n in members:
                     continue
                 name, compound = name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+                if compound and re.fullmatch(r"[a-z]+imidoyl", name) and _imidoyl_carbon(mol, mol.GetAtomWithIdx(n), atom):
+                    compound = False
                 entries.append((name, compound, located))
     return entries
 
@@ -4233,6 +4341,7 @@ def _evaluate(
             "sulfonamide": "sulfonamide",
             **{name: name for name in _CHALCOGEN_SULFONAMIDE_CLASSES},
             **{name: name for name in _CHALCOGEN_HYDRAZIDE.values()},
+            **{name: name for name in _CHALCOGEN_HYDRAZIDINE.values()},
             **{name: name for name in _CHALCOGEN_IMIDAMIDE.values()},
         }[principal]
         body = name_from_substituents(
