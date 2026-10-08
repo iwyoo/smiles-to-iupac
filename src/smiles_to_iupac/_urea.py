@@ -44,7 +44,7 @@ urea core (hydantoin) and groups senior to urea (acids, esters, amides) are out 
 
 from rdkit import Chem
 
-from ._chalcogenourea import is_urea_substituent_root, n_prefix, n_substituent_names
+from ._chalcogenourea import is_urea_substituent_root, n_prefix, n_substituent_names, unprimed_first
 from ._common import UnsupportedStructure, adjacency, group_substituents
 from ._substituents import format_substituent_prefixes
 
@@ -162,6 +162,27 @@ def name_urea(mol, atomic_num=8) -> str:
         return _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names, _AMIDE_ENDING[atomic_num])
     n1_names, n2_names = n_substituent_names(mol, graph, core_atoms, (n1_idx, n2_idx), carbon_idx, junior_groups=True)
     return f"{n_prefix(n1_names, n2_names)}urea"
+
+
+def nitrogen_locants(mol):
+    """({nitrogen: 'N' | "N'"}, the name with every N locant cited) of an N-substituted urea, None for any other shape."""
+    core = _urea_core(mol)
+    if core is None or len(Chem.GetMolFrags(mol)) > 1:
+        return None
+    carbon_idx, (n1_idx, n2_idx) = core
+    if _semicarbazide_amino_nitrogen(mol, n1_idx, n2_idx, carbon_idx) is not None:
+        return None
+    (oxygen_idx,) = (n.GetIdx() for n in mol.GetAtomWithIdx(carbon_idx).GetNeighbors() if n.GetAtomicNum() == 8)
+    n1_names, n2_names = n_substituent_names(
+        mol, adjacency(mol), {carbon_idx, oxygen_idx, n1_idx, n2_idx}, (n1_idx, n2_idx), carbon_idx, junior_groups=True
+    )
+    first = unprimed_first(n1_names, n2_names)
+    (unprimed, primed), (unprimed_names, primed_names) = (
+        ((n1_idx, n2_idx), (n1_names, n2_names)) if first else ((n2_idx, n1_idx), (n2_names, n1_names))
+    )
+    positions = {"N": unprimed_names, "N'": primed_names}
+    prefixes = format_substituent_prefixes(group_substituents({k: v for k, v in positions.items() if v}))
+    return {unprimed: "N", primed: "N'"}, f"{prefixes}urea"
 
 
 def _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names, ending="carboxamide"):
