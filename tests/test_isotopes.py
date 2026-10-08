@@ -377,3 +377,8 @@ def test_isotopic_modification_of_ring_assemblies_and_fused_parent_choice(smiles
 )
 def test_substituent_chains_and_prefixes_are_chosen_by_isotopic_modification(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_deuterium_alkene_stereodescriptor_writes_no_rdkit_logs_to_stderr(capfd):
+    assert smiles_to_iupac("C(=C\\C)/[2H]") == "(1E)-(1-2H1)prop-1-ene"
+    assert capfd.readouterr().err == ""
