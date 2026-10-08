@@ -184,6 +184,9 @@ def _onium_prefix(graph, root, order, others, halogens, aromatic_atoms, mol):
     return (format_mononuclear_prefixes(entries) if entries else "") + _ONIUM_PREFIX_STEMS[z][0] + "yl", bool(entries)
 
 
+_YLIDYNIUM_STEMS = {7: "azaniumylidyne", 8: "oxidaniumylidyne", 16: "sulfaniumylidyne"}
+
+
 def _terminal_anion(mol, idx):
     atom = mol.GetAtomWithIdx(idx)
     return atom.GetAtomicNum() in (8, 16) and atom.GetFormalCharge() == -1 and atom.GetDegree() == 1
@@ -591,6 +594,17 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return named, not named.startswith((_HALOGEN_STEMS[z], "per"))
     if atom.GetFormalCharge() == -1 and atom.GetDegree() == 1 and z in (8, 16):
         return {8: "oxido", 16: "sulfido"}[z], False
+    if (
+        z in _YLIDYNIUM_STEMS
+        and atom.GetFormalCharge() == 1
+        and mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() == 3.0
+        and DIPOLAR_GROUPS.get()
+        and all(_terminal_anion(mol, n) for n in graph[root] if n != coming_from)
+    ):
+        from ._substituents import format_mononuclear_prefixes
+
+        entries = _group_names(graph, mol, [n for n in graph[root] if n != coming_from], root, halogens, aromatic_atoms)
+        return (format_mononuclear_prefixes(entries) if entries else "") + _YLIDYNIUM_STEMS[z], True
     if atom.GetFormalCharge() and z != 7:
         raise UnsupportedStructure("a charged atom in a substituent group is not supported yet")
     if atom.IsInRing():
@@ -686,11 +700,6 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return _enclose(rname, rcomp) + word, True
     if z == 7 and atom.GetFormalCharge() == 1 and nitrogen_pseudohalide_prefix(mol, root, others, order) == "isocyano":
         return "isocyano", False
-    if z == 7 and atom.GetFormalCharge() == 1 and order == 3.0 and DIPOLAR_GROUPS.get() and all(_terminal_anion(mol, n) for n in others):
-        from ._substituents import format_mononuclear_prefixes
-
-        entries = _group_names(graph, mol, others, root, halogens, aromatic_atoms)
-        return (format_mononuclear_prefixes(entries) if entries else "") + "azaniumylidyne", bool(entries)
     if (
         z == 7
         and (

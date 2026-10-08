@@ -879,6 +879,18 @@ def test_radical_ions_on_a_hydrocarbon_skeleton(smiles, expected):
         pytest.param("C[N-]", "methanaminidyl", id="amine_derived_radical_anion"),
         pytest.param("CC(=O)[N-]", "acetylazanidyl", id="acyl_radical_anion"),
         pytest.param("c1ccccc1C#[N+]", "benzonitriliumyl", id="nitrilium_radical_cation"),
+        pytest.param("c1ccccc1[NH2+]", "benzenaminiumyl", id="aminiumyl_on_benzene_is_not_anilinium"),
+        pytest.param("Cc1ccc(cc1)[NH2+]", "4-methylbenzenaminiumyl", id="substituted_benzenaminiumyl"),
+        pytest.param("CC[N+](CC)(CC)[BH2-]", "(N,N-diethylethanaminiumyl)boranuidyl", id="zwitterionic_radical_on_boron"),
+        pytest.param("C[Si](C)(C)[N-][N+]=NC", "3-methyl-1-(trimethylsilyl)triaz-2-en-2-ium-1-id-2-yl", id="zwitterionic_radical_on_the_cationic_atom"),
+        pytest.param("[S-]1CC1", "1\u03bb4-thiiran-1-id-1-yl", id="ring_chalcogen_with_both_centres"),
+        pytest.param("COC(=O)[C-]", "(methoxycarbonyl)methanidylidene", id="carbanidylidene_with_an_ester_prefix"),
+        pytest.param("CC[N+]1C(=O)C=CC=C1", "1-ethyl-2-oxopyridin-1-ium-1(2H)-yl", id="added_hydrogen_beside_the_ring_oxo"),
+        pytest.param("[CH2]C#[O+]", "2-(oxidaniumylidyne)ethyl", id="cationic_prefix_on_a_radical_parent"),
+        pytest.param("CC[n+]1c(sc2ccccc12)C=C[CH]C=Cc1sc2ccccc2[n+]1CC", "1,5-bis(3-ethyl-1,3-benzothiazol-3-ium-2-yl)penta-1,4-dien-3-yl", id="two_cationic_rings_on_a_radical_parent"),
+        pytest.param("FC(F)(F)[C]1SSS[C+]1C(F)(F)F", "4,5-bis(trifluoromethyl)-1,2,3-trithiolan-5-ylium-4-yl", id="radical_cation_of_a_heterocycle"),
+        pytest.param("C1=CC=C2C(=C1)[CH]c1ccccc1[CH-]2", "9,10-dihydroanthracen-10-id-9-yl", id="added_hydrogen_radical_anion"),
+        pytest.param("c1ccc2c(c1)[CH+][CH]c1ccccc12", "9,10-dihydrophenanthren-10-ylium-9-yl", id="added_hydrogen_radical_cation"),
     ],
 )
 def test_radical_ions_named_through_the_filled_ion(smiles, expected):

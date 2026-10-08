@@ -113,6 +113,8 @@ def polyborane_name(mol):
 
 def lewis_adduct_mol(mol):
     """The mol split into its neutral donor and acceptor components, or None."""
+    if any(a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
+        return None
     editable = Chem.RWMol(mol)
     cuts = []
     for bond in mol.GetBonds():

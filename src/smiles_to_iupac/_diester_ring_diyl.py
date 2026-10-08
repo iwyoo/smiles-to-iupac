@@ -569,8 +569,12 @@ def _cationic_ring_substituent(mol, graph, root, parent, rings, atoms, order):
     'ium' suffix cited before the free-valence suffix, as in 'pyridin-1-ium-4-yl'."""
     from ._polyfunctional import _ring_center_base
 
-    found = _ring_center_base(mol)
     suffix = suffix_of(order)
+    if sum(1 for a in mol.GetAtoms() if a.GetFormalCharge() and a.IsInRing()) > 1 or len(Chem.GetMolFrags(mol)) != 1:
+        unit = _ring_unit(mol, graph, root, parent, atoms)
+        if unit is not None:
+            mol, graph, root, parent, rings, atoms = unit
+    found = _ring_center_base(mol)
     if found is None or found[2] != "ium" or suffix is None or found[1] not in atoms or len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("a charged ring atom is not supported in this substituent group yet")
     base, center = found[0], found[1]
@@ -582,6 +586,29 @@ def _cationic_ring_substituent(mol, graph, root, parent, rings, atoms, order):
         raise UnsupportedStructure("the cationic ring substituent name is not delimited")
     name = f"{named[1][:tail.start()]}-{named[2][center]}-ium{tail.group(0)}"
     return name, True
+
+
+def _ring_unit(mol, graph, root, parent, atoms):
+    """The ring system `atoms` with everything hanging off it and the atom `parent` it hangs from, renumbered: other
+    cationic rings of the molecule are not part of this substituent group."""
+    keep = set(atoms) | {parent}
+    stack = [a for a in atoms]
+    while stack:
+        for n in graph[stack.pop()]:
+            if n not in keep:
+                keep.add(n)
+                stack.append(n)
+    editable = Chem.RWMol(mol)
+    order = sorted(keep)
+    for index in sorted(set(range(mol.GetNumAtoms())) - keep, reverse=True):
+        editable.RemoveAtom(index)
+    unit = editable.GetMol()
+    unit.UpdatePropertyCache(strict=False)
+    Chem.GetSymmSSSR(unit)
+    renumber = {old: new for new, old in enumerate(order)}
+    unit_graph = {a.GetIdx(): [n.GetIdx() for n in a.GetNeighbors()] for a in unit.GetAtoms()}
+    rings, system = _system_of(unit, renumber[root])
+    return unit, unit_graph, renumber[root], renumber[parent], rings, system
 
 
 def ring_carboxylate_name(mol, graph, acyl_idx, ring_atom):
