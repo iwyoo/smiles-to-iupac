@@ -76,10 +76,25 @@ _HYDRIDE_ACYL = re.compile(r"^[a-z]{3,}(?:ane|ene)(?:sulfonyl|sulfinyl)$")
 _POLYCYCLE_GROUP = re.compile(r"^(?:bi|tri|tetra)?cyclo\[[\d.,^]+\][a-z]+(?:-[\d,]+-(?:en|yn))?-[\d]+[a-z]?-(?:yl|ylidene|ylidyne)$")
 
 
+def _fully_enclosed(name: str) -> bool:
+    """Whether the first enclosing mark of `name` closes at its last character: '(dimethylamino)'."""
+    depth = 0
+    for index, ch in enumerate(name):
+        if ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            depth -= 1
+            if depth == 0:
+                return index == len(name) - 1
+    return False
+
+
 def prefix_multiplier(count: int, name: str, compound: bool):
     """(multiplier, enclosed) for `name` cited `count` > 1 times as a detachable prefix (P-16.3.3 to P-16.3.6): 'di'
     for simple names; 'di' with enclosing marks for simple names with locants, brackets or a leading numerical term;
     'bis' with marks for substituted names and for the mononuclear groups of a polynuclear chain; 'di-' for tert-butyl."""
+    if name[:1] in "([{" and not name.startswith("(\u03b7") and _fully_enclosed(name):
+        return multiplying_prefix(count, compound=True), False
     if (name[:1] in "([{" and not name.startswith("(\u03b7")) or _CHALCOGEN_HYDRIDE_GROUP.match(name):
         return multiplying_prefix(count, compound=True), True
     if name == "tert-butyl":
