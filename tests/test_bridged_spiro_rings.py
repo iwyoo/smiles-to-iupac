@@ -462,7 +462,7 @@ def test_smiles_to_iupac_von_baeyer_heteroatom_mixed(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("O1C2CC3CC1CC(Cl)(C2)C3", "5-chloro-2-oxatricyclo[3.3.1.1^3,7]decane"),
+        ("O1C2CC3CC1CC(Cl)(C2)C3", "5-chloro-2-oxaadamantane"),
     ],
 )
 def test_smiles_to_iupac_von_baeyer_heteroatom_tricyclic(smiles, expected):
@@ -472,8 +472,8 @@ def test_smiles_to_iupac_von_baeyer_heteroatom_tricyclic(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("O1C2CC3CC1CC(C2)N3", "2-oxa-6-azatricyclo[3.3.1.1^3,7]decane", id="different_ring_heteroatoms_tricyclic"),
-        pytest.param("O1C2CC3OC1CC(C2)C3", "2,4-dioxatricyclo[3.3.1.1^3,7]decane", id="same_element_ring_heteroatoms_tricyclic"),
+        pytest.param("O1C2CC3CC1CC(C2)N3", "2-oxa-6-azaadamantane", id="different_ring_heteroatoms_tricyclic"),
+        pytest.param("O1C2CC3OC1CC(C2)C3", "2,4-dioxaadamantane", id="same_element_ring_heteroatoms_tricyclic"),
     ],
 )
 def test_two_different_ring_and_related(smiles, expected):

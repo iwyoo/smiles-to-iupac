@@ -1086,7 +1086,7 @@ def test_n_locants_of_polyamides(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("CC(OC(=O)c1ccccc1)C(=O)Nc1ccccc1", "1-(phenylcarbamoyl)ethyl benzoate", id="n_phenyl_carbamoyl_prefix"),
+        pytest.param("CC(OC(=O)c1ccccc1)C(=O)Nc1ccccc1", "1-anilino-1-oxopropan-2-yl benzoate", id="n_phenyl_carbamoyl_prefix"),
         pytest.param("COC(=O)NNC(=S)Nc1ccccc1", "methyl 2-(phenylcarbamothioyl)hydrazine-1-carboxylate", id="n_phenyl_thiocarbamoyl_prefix"),
         pytest.param("O=C(CS(=O)(=O)Nc1ccccc1)C(=O)OC", "methyl 2-oxo-3-(phenylsulfamoyl)propanoate", id="n_phenyl_sulfamoyl_prefix"),
         pytest.param("CC(=O)OCON(O)O", "[(dihydroxyamino)oxy]methyl acetate", id="n_dihydroxy_is_not_nitro"),

@@ -869,6 +869,7 @@ _E_ACID_PREFIX = {
     ("Te", 1): "tellurino",
 }
 _REPLACEMENT_PREFIX = {"S": "thio", "Se": "seleno", "Te": "telluro"}
+_REPLACEMENT_SYMBOL = {16: "S", 34: "Se", 52: "Te"}
 
 
 ANIONIC_PREFIXES = {7: "azanidyl", 8: "oxido", 16: "sulfido", 34: "selenido", 52: "tellurido"}
@@ -1011,7 +1012,19 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if not replaced:
             return ("sulfonato" if base == "sulfo" and _is_anionic_oxygen(mol.GetAtomWithIdx(x)) else base), False
         if len(set(replaced)) == 1 and len(replaced) == len(oxo):
-            return {1: "", 2: "di", 3: "tri"}[len(replaced)] + _REPLACEMENT_PREFIX[replaced[0]] + base, False
+            return {1: "", 2: "di", 3: "tri"}[len(replaced)] + _REPLACEMENT_PREFIX[replaced[0]] + base, True
+        raise UnsupportedStructure("a mixed chalcogen acid group on a substituent is not supported yet")
+    xatom = mol.GetAtomWithIdx(x)
+    if (
+        zx in _REPLACEMENT_SYMBOL
+        and xatom.GetDegree() == 1
+        and xatom.GetTotalNumHs() == 1
+        and not xatom.GetFormalCharge()
+        and mol.GetBondBetweenAtoms(root, x).GetBondTypeAsDouble() == 1.0
+    ):
+        replaced = [*(e for e in symbols if e != "O"), _REPLACEMENT_SYMBOL[zx]]
+        if len(set(replaced)) == 1 and len(replaced) == len(oxo) + 1:
+            return {2: "di", 3: "tri"}[len(replaced)] + _REPLACEMENT_PREFIX[replaced[0]] + _E_ACID_PREFIX[(center, len(oxo))], True
         raise UnsupportedStructure("a mixed chalcogen acid group on a substituent is not supported yet")
     if zx == 7 and any(mol.GetAtomWithIdx(n).GetAtomicNum() == 7 for n in graph[x] if n != root):
         from ._hetero_carboxylic import hydrazine_acyl_prefix
@@ -1193,7 +1206,7 @@ def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
                 n != coming_from
                 and n not in chain_atoms
                 and mol.GetAtomWithIdx(n).GetAtomicNum() == z
-                and mol.GetBondBetweenAtoms(current, n).GetBondTypeAsDouble() == 1.0
+                and mol.GetBondBetweenAtoms(current, n).GetBondTypeAsDouble() in (1.0, 2.0)
             ):
                 chain_atoms.add(n)
                 stack.append(n)
@@ -1212,10 +1225,17 @@ def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         grouped = group_substituents(subs)
         locant_set, _, citation = substituent_locant_set_and_citation(grouped)
         attach = walk.index(root) + 1
-        key = ((attach,), -sum(len(v) for v in subs.values()), locant_set, citation)
+        ene = tuple(i + 1 for i in range(len(walk) - 1) if mol.GetBondBetweenAtoms(walk[i], walk[i + 1]).GetBondTypeAsDouble() == 2.0)
+        key = ((attach,), ene, -sum(len(v) for v in subs.values()), locant_set, citation)
         if best is None or key < best[0]:
-            best = (key, grouped, attach)
-    _, grouped, attach = best
+            best = (key, grouped, attach, ene)
+    _, grouped, attach, ene = best
+    if len(ene) > 1:
+        raise UnsupportedStructure("a heteroatom chain with several double bonds is not supported yet")
+    if ene:
+        base = f"{multiplying_prefix(longest)}{stem[:-3]}-{ene[0]}-en-{attach}-yl"
+        prefix = format_substituent_prefixes(grouped) if grouped else ""
+        return prefix + base, True
     word = multiplying_prefix(longest) + stem[:-1]
     base = word + "yl" if longest == 2 and attach == 1 else f"{word}-{attach}-yl"
     if z == 7 and longest == 2 and attach == 1:

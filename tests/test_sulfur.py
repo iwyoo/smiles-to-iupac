@@ -16,8 +16,11 @@ def test_branched_disulfanyl_substituent_not_supported():
     "smiles, expected",
     [
         pytest.param("CSSSSC", "(methyltetrasulfanyl)methane", id="tetrasulfide_chain"),
-        pytest.param("CSS", "disulfanylmethane", id="terminal_persulfide_methane"),
-        pytest.param("CCSS", "disulfanylethane", id="terminal_persulfide_ethane"),
+        pytest.param("CSS", "methanedithioperoxol", id="terminal_persulfide_methane"),
+        pytest.param("CCSS", "ethanedithioperoxol", id="terminal_persulfide_ethane"),
+        pytest.param("c1ccccc1SS", "benzenedithioperoxol", id="terminal_persulfide_benzene"),
+        pytest.param("CCCOS", "propane-1-OS-thioperoxol", id="oxygen_sulfur_peroxol_analogue"),
+        pytest.param("CSO", "methane-SO-thioperoxol", id="sulfur_oxygen_peroxol_analogue"),
     ],
 )
 def test_tetrasulfide_chain_and_related(smiles, expected):
@@ -48,7 +51,6 @@ def test_phenyl_disulfide_direct_bond():
     "smiles",
     [
         pytest.param("c1ccccc1CSSC", id="phenyl_disulfide_chain_spacer_not_supported"),
-        pytest.param("c1ccccc1SS", id="phenyl_disulfide_perthiol_not_supported"),
         pytest.param("c1ccccc1SSC(C)C", id="phenyl_disulfide_branched_other_side_not_supported"),
         pytest.param("Cc1ccccc1SSC", id="phenyl_disulfide_substituted_ring_not_supported"),
         pytest.param("C=Cc1ccccc1CSSC", id="phenyl_disulfide_unsaturation_not_supported"),

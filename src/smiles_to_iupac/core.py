@@ -280,7 +280,7 @@ from ._phosphinic_acid import has_phosphinic_acid_shape, name_phosphinic_acid
 from ._phosphorus_acid_derivative import has_phosphorus_acid_derivative_shape, name_phosphorus_acid_derivative
 from ._phosphane_chain import has_phosphane_chain_shape, name_phosphane_chain
 from ._ring_diyl_numbering import bridged_ring_system_name, is_hydro_fusion_system
-from ._hydroperoxide import has_hydroperoxide_shape, name_hydroperoxide
+from ._hydroperoxide import has_chalcogen_peroxol_shape, has_hydroperoxide_shape, name_hydroperoxide
 from ._hydroperoxide_amine import has_hydroperoxide_amine_shape, name_hydroperoxide_amine
 from ._peroxide import has_peroxide_shape, name_peroxide
 from ._polyspiro import (
@@ -371,7 +371,7 @@ _NO_PIN_ORGANOMETALLIC ="the Blue Book defines no PIN for this class of organome
 _FALLBACKS_RUNNING = set()
 
 
-_ADAMANTANE = re.compile(r"(?<!bi)(?<!ter)(?<!quater)(?<!yclo)(?<!a)tricyclo\[3\.3\.1\.1\^3,7\]decan(?=e|-)")
+_ADAMANTANE = re.compile(r"(?<!bi)(?<!ter)(?<!quater)(?<!yclo)tricyclo\[3\.3\.1\.1\^3,7\]decan(?=e|-)")
 
 
 _INDACENE_PREFIX = re.compile(r"([a-z\]\)])(as-indacen|(?<!a)s-indacen)")
@@ -2288,6 +2288,7 @@ def _name_mol(mol) -> str:
             return name_tellurol(mol)
         return name_amine(mol)
     for has_shape, namer in (
+        (has_chalcogen_peroxol_shape, name_hydroperoxide),
         (has_thione_shape, name_thione),  # A thione (C=S, P-64.6.1) has no oxygen or nitrogen, so it only # reaches this branch once both are ruled out above. Its own shape # check is precise (a real C=S double bond), unlike thiol's/ # sulfide's own loose "any sulfur atom" checks, so it's safe to # check here regardless of order relative to them.
         (has_disulfide_shape, name_disulfide),  # A disulfide (R-S-S-R') has two sulfurs -- it would otherwise # look thiol-shaped to the check below (that check just looks for # the presence of any sulfur atom) -- must be routed here first.
         (has_sulfide_shape, name_sulfide),  # A plain -S- sulfide (P-63.2.1) has no suffix, so it must be routed # here before has_thiol_shape below: _thiol.py's validation rejects # a degree-2 sulfur outright (not a monovalent -SH), so a sulfide # would otherwise raise the wrong error there instead of being named.

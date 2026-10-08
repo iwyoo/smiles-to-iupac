@@ -546,7 +546,10 @@ def name_ester(mol, links):
             return multiplicative
     if len(acid_pieces) > 1 and len(r_pieces) == 1:
         raise UnsupportedStructure("an organyl component with several acid components uses a multiplied name")
-    principal = max(acid_pieces, key=lambda i: (len(acid_pieces[i]), len(frags[i])))
+    def _carboxylic(i):
+        return any(mol.GetAtomWithIdx(l.center).GetAtomicNum() == 6 and (_center(mol, l.center) or ("",))[0] == "acyl" for l in acid_pieces[i])
+
+    principal = max(acid_pieces, key=lambda i: (_carboxylic(i), len(acid_pieces[i]), len(frags[i])))
     chosen = acid_pieces[principal]
     component = _fragments(mol, [(l.chain[-1], l.far) for l in chosen])
     acid_atoms = component[0][component[1][chosen[0].center]]
@@ -907,8 +910,38 @@ def _class_words(mol, links):
     return " ".join(words)
 
 
+def _halocarbonic_amide(mol, graph):
+    """'carbonochloridic amide' for X-C(=O)-NR2 (P-66.1.1.1.2.2): the amide of the halogenated carbonic acid."""
+    from ._substituents import format_substituent_prefixes
+
+    for carbon in mol.GetAtoms():
+        if carbon.GetAtomicNum() != 6 or carbon.GetDegree() != 3 or carbon.IsInRing() or carbon.GetFormalCharge():
+            continue
+        halide = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() in _HALIDES and n.GetDegree() == 1]
+        oxo = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and _bond(mol, carbon.GetIdx(), n.GetIdx()) == 2.0]
+        amino = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 7 and not n.GetFormalCharge() and not n.IsInRing() and _bond(mol, carbon.GetIdx(), n.GetIdx()) == 1.0]
+        if len(halide) != 1 or len(oxo) != 1 or len(amino) != 1:
+            continue
+        nitrogen = amino[0]
+        substituents = [n.GetIdx() for n in nitrogen.GetNeighbors() if n.GetIdx() != carbon.GetIdx()]
+        halogens = halogen_substituents(mol)
+        grouped = {}
+        for root in substituents:
+            name, compound = name_branch(graph, root, nitrogen.GetIdx(), halogens, mol=mol, unsaturated=True)
+            grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append("N")
+        covered = {carbon.GetIdx(), halide[0].GetIdx(), oxo[0].GetIdx(), nitrogen.GetIdx()}
+        if any(a.GetIdx() not in covered and a.GetAtomicNum() not in (1, 6, 9, 17, 35, 53) for a in mol.GetAtoms()):
+            continue
+        acid = f"carbono{_HALIDES[halide[0].GetAtomicNum()][:-3]}idic"
+        return (format_substituent_prefixes(grouped) if grouped else "") + f"{acid} amide"
+    return None
+
+
 def name_acyl_halide(mol, links):
     _reject_unsupported(mol)
+    amide = _halocarbonic_amide(mol, adjacency(mol))
+    if amide is not None:
+        return amide
     halides = [l for l in links if l.kind == "halide"] or [l for l in links if l.kind == "pseudohalide"]
     if not halides:
         raise UnsupportedStructure("no acyl halide group")
@@ -942,7 +975,7 @@ def name_acyl_halide(mol, links):
     from .core import smiles_to_iupac
 
     acid_text = smiles_to_iupac(Chem.MolToSmiles(acid))
-    if re.fullmatch(r"(?:di|tri|tetra)carbonic acid", acid_text):
+    if re.fullmatch(r"[a-z0-9,\-]*(?:di|tri|tetra)carbonic acid", acid_text):
         return f"{acid_text[: -len(' acid')]} {_class_words(mol, halides)}"
     return f"{acyl_name(acid_text)} {_class_words(mol, halides)}"
 
