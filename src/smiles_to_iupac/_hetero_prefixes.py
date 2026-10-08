@@ -14,6 +14,7 @@ from ._common import UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen, na
 from ._free_valence import SUFFIX_OF_ORDER
 from ._multiplicative_text import enclose
 from ._numerals import alkane_name, multiplying_prefix
+from ._pin import mark
 
 _ALKOXY_STEMS = {"methyl": "methoxy", "ethyl": "ethoxy", "propyl": "propoxy", "butyl": "butoxy", "phenyl": "phenoxy"}
 _SIMPLE_NAMES = {
@@ -160,6 +161,12 @@ def _enclose(name, compound):
     return enclose(name) if compound else name
 
 
+_ACID_CENTRE_NUMBERS = frozenset({5, 15, 16, 33, 34, 51, 52})
+POLYACID_SUBSTITUENT_REASON = (
+    "the preferred prefix of a chain of acid centres is its skeletal replacement ('a') name (P-67.2.6)"
+)
+
+
 def phosphoryl_name(parts, group=("phosphono", "phosphoryl")):
     """'phosphono' for P(O)(OH)2, otherwise '(X)(Y)phosphoryl' with X, Y cited alphabetically (P-65.1.3.1)."""
     from ._numerals import multiplying_prefix
@@ -194,7 +201,7 @@ def _phosphoryloxy(graph, phosphorus, oxygen, halogens, aromatic_atoms, mol):
         raise UnsupportedStructure("this phosphorus-bearing substituent is not supported yet")
     parts = [name_branch(graph, n, phosphorus, halogens, aromatic_atoms, mol=mol) for n in rest]
     if any("phospho" in name for name, _ in parts):
-        raise UnsupportedStructure("a polyphosphate chain substituent is not supported yet")
+        mark(None, POLYACID_SUBSTITUENT_REASON)
     group = phosphoryl_name(parts)
     return ("phosphonooxy" if group == "phosphono" else enclose(group) + "oxy"), True
 
@@ -1281,6 +1288,8 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         except UnsupportedStructure:
             if not mol.HasSubstructMatch(_CARBOXYLIC_CLASS):
                 raise
+    if zx == 8 and any(mol.GetAtomWithIdx(n).GetAtomicNum() in _ACID_CENTRE_NUMBERS for n in graph[x] if n != root):
+        mark(None, POLYACID_SUBSTITUENT_REASON)
     z_name, z_compound = name_branch(graph, x, root, halogens, aromatic_atoms, mol=mol)
     located = "S-" if zx == 7 and "NH" in symbols and center == "S" else ""
     return located + (_enclose(z_name, z_compound) if z_compound else z_name) + acyl, True

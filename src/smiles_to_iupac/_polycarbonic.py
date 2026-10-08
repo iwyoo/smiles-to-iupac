@@ -9,8 +9,11 @@ from rdkit import Chem
 
 from ._acid_lexicon import _INFIX
 from ._carbonic_family import _HALIDE_INFIX, _SYMBOL, PSEUDO_INFIX, _chain, pseudohalide_at
-from ._common import UnsupportedStructure, adjacency
+from ._alkoxy import alkoxy_prefix
+from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
+from ._substituents import name_branch
 
 _PREFIX_WORDS = {"fluorid": "fluoro", "chlorid": "chloro", "bromid": "bromo", "iodid": "iodo", "azid": "azido", "isocyanid": "isocyano", "isocyanatid": "isocyanato", "isothiocyanatid": "isothiocyanato", "isoselenocyanatid": "isoselenocyanato", "isotellurocyanatid": "isotellurocyanato"}
 _UNITS = {2: "di", 3: "tri", 4: "tetra"}
@@ -24,6 +27,8 @@ def _bond(mol, a, b):
 def _carbonic_center(mol, idx):
     atom = mol.GetAtomWithIdx(idx)
     if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetFormalCharge() or atom.GetTotalNumHs() or atom.GetDegree() != 3:
+        return False
+    if any(n.GetAtomicNum() == 6 and pseudohalide_at(mol, n.GetIdx(), idx) != "CN" for n in atom.GetNeighbors()):
         return False
     return sum(1 for n in atom.GetNeighbors() if _bond(mol, idx, n.GetIdx()) == 2.0) == 1
 
@@ -95,7 +100,13 @@ def name_polycarbonic(mol):
         order = [start]
         while len(order) < n:
             order.append(next(m for pair in bridges if order[-1] in pair for m in pair if m != order[-1] and m not in order))
-        replaced = _replacements(mol, graph, order, bridges)
+        try:
+            replaced = _replacements(mol, graph, order, bridges)
+        except UnsupportedStructure:
+            acyl = _acyl_end_name(mol, graph, order, bridges)
+            if acyl is None:
+                raise
+            return acyl
         key = tuple(sorted(loc for loc, _ in replaced))
         if best is None or key < best[0]:
             best = (key, order, replaced)
@@ -106,6 +117,40 @@ def name_polycarbonic(mol):
     if len(ends_ligands) == 2:
         raise UnsupportedStructure("two non-hydroxy end groups make an acyl halide of the polycarbonic acid")
     return _compose(mol, n, replaced, _letters(mol, graph, order, bridges))
+
+
+def _acyl_end_name(mol, graph, order, bridges):
+    """P-67.3.1: a polycarbonic acid with an acyloxy end group is formic acid substituted by the rest of the chain,
+    '{[(acetyloxy)carbonyl]oxy}formic acid'; None for any other end groups."""
+    bridge_atoms = _bridge_atoms(bridges)
+    if any(not isinstance(b, int) or mol.GetAtomWithIdx(b).GetAtomicNum() != 8 for b in bridges.values()):
+        return None
+    if any(_oxo_word(mol, center)[0] != "O" for center in order):
+        return None
+    ligands = []
+    for center in (order[0], order[-1]):
+        ligand = [m for m in graph[center] if m not in bridge_atoms and _bond(mol, center, m) == 1.0]
+        if len(ligand) != 1:
+            return None
+        ligands.append(mol.GetAtomWithIdx(ligand[0]))
+    hydroxy = [a for a in ligands if a.GetAtomicNum() == 8 and a.GetDegree() == 1 and a.GetTotalNumHs() == 1]
+    acyloxy = [a for a in ligands if a.GetAtomicNum() == 8 and a.GetDegree() == 2 and a is not None]
+    if len(hydroxy) != 1 or len(acyloxy) != 1:
+        return None
+    oxygen = acyloxy[0]
+    center = order[-1] if ligands[1] is oxygen else order[0]
+    (acyl,) = [n.GetIdx() for n in oxygen.GetNeighbors() if n.GetIdx() != center]
+    if not any(
+        b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(mol.GetAtomWithIdx(acyl)).GetAtomicNum() in (7, 8, 16, 34, 52)
+        for b in mol.GetAtomWithIdx(acyl).GetBonds()
+    ):
+        return None
+    chain = order if ligands[0] in hydroxy else order[::-1]
+    name, compound = name_branch(graph, acyl, oxygen.GetIdx(), halogen_substituents(mol), mol=mol)
+    text, _ = alkoxy_prefix(name, compound)
+    for _ in chain[1:]:
+        text = enclose(enclose(text) + "carbonyl") + "oxy"
+    return enclose(text) + "formic acid"
 
 
 def _bridge_atoms(bridges):
