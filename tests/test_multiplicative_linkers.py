@@ -53,6 +53,16 @@ def test_amide_units_joined_through_nitrogen(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        ("CCN(CC)OBCCBON(CC)CC", "N,N'-[ethane-1,2-diylbis(boranediyloxy)]bis(N-ethylethanamine)"),
+    ],
+)
+def test_amine_units_joined_through_nitrogen_to_a_heteroatom_linker(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         ("O=C(O)CNC(=O)C(=O)NCC(=O)O", "2,2'-[oxalylbis(azanediyl)]diacetic acid"),
         ("O=C(O)CNC(=O)CCC(=O)NCC(=O)O", "2,2'-[(1,4-dioxobutane-1,4-diyl)bis(azanediyl)]diacetic acid"),
         ("OC(=O)c1ccccc1C(=O)CCC(=S)c1ccccc1C(=O)O", "2,2'-(1-oxo-4-sulfanylidenebutane-1,4-diyl)dibenzoic acid"),
