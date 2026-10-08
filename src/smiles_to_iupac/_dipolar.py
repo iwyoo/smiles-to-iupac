@@ -213,6 +213,11 @@ def _sulfur_oxide(mol, graph):
 def dipolar_name(mol):
     if len(Chem.GetMolFrags(mol)) != 1:
         return None
+    from ._radical_hetero import isodiazene_name
+
+    isodiazene = isodiazene_name(mol) if not any(a.GetNumRadicalElectrons() for a in mol.GetAtoms()) else None
+    if isodiazene is not None:
+        return isodiazene
     charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
     if len(charged) != 2 or sorted(a.GetFormalCharge() for a in charged) != [-1, 1]:
         return None

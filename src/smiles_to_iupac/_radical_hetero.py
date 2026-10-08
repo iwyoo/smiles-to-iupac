@@ -100,7 +100,63 @@ def _chain(mol, radicals):
     return f"{base}-{joined}-{_MULTIPLIER[number]}{suffix}"
 
 
+def _isodiazene(mol):
+    """R2N-N: (an N-N compound with a divalent terminal nitrogen) is the parent radical hydrazinylidene (P-68.3.1.3.7)."""
+    from ._cited_group import cited_group
+    from ._common import adjacency
+    from ._substituents import format_mononuclear_prefixes
+
+    radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons()]
+    if len(radicals) != 1 or radicals[0].GetAtomicNum() != 7 or radicals[0].GetNumRadicalElectrons() != 2 or radicals[0].GetDegree() != 1:
+        return None
+    terminal = radicals[0]
+    (root,) = terminal.GetNeighbors()
+    if root.GetAtomicNum() != 7 or root.GetFormalCharge() or terminal.GetFormalCharge() or root.IsInRing():
+        return None
+    graph = adjacency(mol)
+    substituents = [n.GetIdx() for n in root.GetNeighbors() if n.GetIdx() != terminal.GetIdx()]
+    if any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(root.GetIdx(), n).GetBondTypeAsDouble() != 1.0 for n in substituents):
+        return None
+    if root.GetTotalNumHs() + len(substituents) != 2:
+        return None
+    if any(a.GetAtomicNum() != 6 for a in mol.GetAtoms() if a.GetIdx() not in (terminal.GetIdx(), root.GetIdx())):
+        return None
+    try:
+        names = [cited_group(mol, graph, n, root.GetIdx()) for n in substituents]
+    except UnsupportedStructure:
+        return None
+    return (format_mononuclear_prefixes(names) if names else "") + "hydrazinylidene"
+
+
+def isodiazene_name(mol):
+    """The name of an isodiazene given as R2N-N: or as the zwitterion R2N(+)=N(-)."""
+    if any(a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
+        return _isodiazene(mol)
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    if len(charged) != 2 or sorted(a.GetFormalCharge() for a in charged) != [-1, 1]:
+        return None
+    cation = next(a for a in charged if a.GetFormalCharge() > 0)
+    anion = next(a for a in charged if a.GetFormalCharge() < 0)
+    bond = mol.GetBondBetweenAtoms(cation.GetIdx(), anion.GetIdx())
+    if bond is None or bond.GetBondTypeAsDouble() != 2.0 or cation.GetAtomicNum() != 7 or anion.GetAtomicNum() != 7 or anion.GetDegree() != 1:
+        return None
+    editable = Chem.RWMol(mol)
+    editable.GetBondBetweenAtoms(cation.GetIdx(), anion.GetIdx()).SetBondType(Chem.BondType.SINGLE)
+    for atom in (cation, anion):
+        target = editable.GetAtomWithIdx(atom.GetIdx())
+        target.SetFormalCharge(0)
+        target.SetNoImplicit(True)
+        target.SetNumExplicitHs(atom.GetTotalNumHs())
+    editable.GetAtomWithIdx(anion.GetIdx()).SetNumRadicalElectrons(2)
+    neutral = editable.GetMol()
+    neutral.UpdatePropertyCache(strict=False)
+    return _isodiazene(neutral)
+
+
 def hetero_radical_name(mol):
+    isodiazene = _isodiazene(mol)
+    if isodiazene is not None:
+        return isodiazene
     if all(a.GetAtomicNum() == 6 for a in mol.GetAtoms()) or len(Chem.GetMolFrags(mol)) > 1:
         return None
     radicals = [a for a in mol.GetAtoms() if a.GetNumRadicalElectrons()]
