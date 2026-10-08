@@ -249,6 +249,16 @@ def test_phosphorus_acids_with_other_substituent_groups(smiles, expected):
         pytest.param("CCOP(=O)(OCC)SCCN", "S-(2-aminoethyl) O,O-diethyl phosphorothioate", id="thiolo_ester"),
         pytest.param("CCOP(=S)(OCC)SCSCC", "O,O-diethyl S-[(ethylsulfanyl)methyl] phosphorodithioate", id="dithioate"),
         pytest.param("COP(C)(=S)OC", "O,O-dimethyl methylphosphonothioate", id="phosphonothioate"),
+        pytest.param(
+            "CCSP(=O)(OC)CCP(=O)(OC)SCC",
+            "S,S\u2032-diethyl O,O\u2032-dimethyl P,P\u2032-(ethane-1,2-diyl)bis(phosphonothioate)",
+            id="multiplicative_phosphonothioate",
+        ),
+        pytest.param(
+            "CCSP(=O)(OC)c1ccc(cc1)P(=O)(OC)SCC",
+            "S,S\u2032-diethyl O,O\u2032-dimethyl P,P\u2032-(benzene-1,4-diyl)bis(phosphonothioate)",
+            id="multiplicative_phosphonothioate_on_a_ring",
+        ),
     ],
 )
 def test_phosphorus_thio_oxoacid_esters(smiles, expected):
