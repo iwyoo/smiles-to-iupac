@@ -43,7 +43,7 @@ def has_polycation_shape(mol) -> bool:
         )
         and (
             (sum(a.GetFormalCharge() for a in centres) >= 2 and (len(centres) > 1 or centres[0].GetAtomicNum() == 6))
-            or (len(centres) == 1 and _single_ring_heteroatom_cation(centres[0]))
+            or (len(centres) == 1 and (_single_ring_heteroatom_cation(centres[0]) or _ring_nitrenium(centres[0])))
         )
     )
 
@@ -53,6 +53,10 @@ def _ylium_centre(atom) -> bool:
     return atom.GetAtomicNum() == 6 or (
         atom.GetAtomicNum() == 7 and atom.IsInRing() and atom.GetDegree() == 2 and not atom.GetTotalNumHs() and not atom.GetIsAromatic()
     )
+
+
+def _ring_nitrenium(atom) -> bool:
+    return atom.GetAtomicNum() == 7 and _ylium_centre(atom) and atom.GetFormalCharge() == 1
 
 
 def has_ring_nitrenium_shape(mol) -> bool:
@@ -92,7 +96,7 @@ def name_polycation(mol) -> str:
             raise
     if any(a.GetFormalCharge() != 1 for a in centres):
         raise UnsupportedStructure("a multiply charged heteroatom centre is not supported yet")
-    if len(centres) > 1 and all(a.GetAtomicNum() == 7 and _ylium_centre(a) for a in centres):
+    if all(_ring_nitrenium(a) for a in centres):
         return _name_ring_nitrenium_polycation(mol, centres)
     if all(a.IsInRing() for a in centres) and any(_ylium_centre(a) for a in centres) and any(
         not _ylium_centre(a) for a in centres
@@ -129,9 +133,11 @@ def _name_ring_nitrenium_polycation(mol, centres):
     hydron_added.UpdatePropertyCache(strict=False)
     Chem.FastFindRings(hydron_added)
     name = name_polycation(hydron_added)
-    match = re.search(r"(?P<multiplier>di|tri|tetra)ium$", name)
+    match = re.search(r"(?P<multiplier>di|tri|tetra)?ium$", name)
     if match is None:
-        raise UnsupportedStructure("this ring nitrenium polycation has no supported name yet")
+        raise UnsupportedStructure("this ring nitrenium cation has no supported name yet")
+    if match.group("multiplier") is None:
+        return name[: match.start()] + "ylium"
     return name[: match.start()] + f"{_BIS[match.group('multiplier')]}(ylium)"
 
 

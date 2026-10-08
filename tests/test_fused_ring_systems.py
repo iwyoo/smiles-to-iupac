@@ -50,6 +50,13 @@ def test_benzo_heterocycle_parents(smiles, expected):
             "O=C1[N+]C(=O)c2cc3C(=O)[N+]C(=O)c3cc12",
             "1,3,5,7-tetraoxo-5,7-dihydrobenzo[1,2-c:4,5-c']dipyrrole-2,6(1H,3H)-bis(ylium)",
         ),
+        (
+            "O=C1[N-]C(=O)c2cc3C(=O)[N-]C(=O)c3cc12",
+            "1,3,5,7-tetraoxo-5,7-dihydrobenzo[1,2-c:4,5-c']dipyrrole-2,6(1H,3H)-diide",
+        ),
+        ("O=C1[N+]C(=O)c2ccccc12", "1,3-dioxo-1,3-dihydro-2H-isoindol-2-ylium"),
+        ("C1CC[N+]C1", "pyrrolidin-1-ylium"),
+        ("[N-]1C=CC=C1", "1H-pyrrol-1-ide"),
     ],
 )
 def test_multiparent_name_beats_retained_benzoazole_fusion_name(smiles, expected):
