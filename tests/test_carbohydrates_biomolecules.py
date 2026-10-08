@@ -482,6 +482,44 @@ def test_substituted_alditols_and_aldonic_acids(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-102.5.6.6.2.1, P-102.5.6.6.2.2, P-102.5.6.6.3.2, P-102.5.6.6.4.3 derivatives of sugar acids
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("ClC(=O)[C@H](O)[C@@H](O)[C@H](O)[C@H](O)CO", "D-gluconoyl chloride", id="aldonoyl_chloride"),
+        pytest.param(
+            "ClC(=O)[C@H](OC(C)=O)[C@@H](OC(C)=O)[C@H](OC(C)=O)[C@H](OC(C)=O)COC(C)=O",
+            "2,3,4,5,6-penta-O-acetyl-D-gluconoyl chloride",
+            id="o_acyl_prefixes_beside_the_acyl_halide",
+        ),
+        pytest.param("COC(=O)[C@H](O)[C@@H](O)[C@H](OC)[C@H](OC)CO", "methyl 4,5-di-O-methyl-D-gluconate", id="ester_with_o_alkyl_prefixes"),
+        pytest.param("O=C1N[C@H](CO)[C@H](O)[C@H](O)[C@H]1O", "5-amino-5-deoxy-D-galactono-1,5-lactam", id="lactam"),
+        pytest.param("CCOC(=O)[C@H]1O[C@@H](OC)[C@H](O)[C@@H](O)[C@@H]1O", "ethyl (methyl β-D-glucopyranosid)uronate", id="uronate_of_a_glycoside"),
+        pytest.param(
+            "CN(C)C(=O)[C@H]1O[C@@H](OC)[C@H](O)[C@@H](O)[C@@H]1O",
+            "N,N-dimethyl(methyl β-D-glucopyranosid)uronamide",
+            id="substituted_uronamide_of_a_glycoside",
+        ),
+        pytest.param("COC(=O)[C@H]1O[C@H](O)[C@H](O)[C@@H](O)[C@@H]1O", "methyl α-D-glucopyranuronate", id="uronate_of_a_pyranose"),
+        pytest.param("CCOC(=O)[C@]1(OC)OC[C@@H](O)[C@@H](O)[C@@H]1O", "ethyl (methyl α-D-fructopyranosid)onate", id="ester_of_a_ketoaldonic_glycoside"),
+        pytest.param("OC(=O)[C@@]1(O)OC[C@@H](O)[C@@H](O)[C@@H]1O", "β-D-fructopyranosonic acid", id="ketoaldonic_acid"),
+        pytest.param(
+            "CC(=O)OCC(=O)[C@@H](OC(C)=O)[C@@H](OC(C)=O)[C@H](OC(C)=O)C(=O)O",
+            "2,3,4,6-tetra-O-acetyl-D-arabino-hex-5-ulosonic acid",
+            id="open_chain_ketoaldonic_acid",
+        ),
+        pytest.param("OC(=O)[C@H](O)[C@@H](O)[C@H](O)C(=O)CO", "D-xylo-hex-5-ulosonic acid", id="five_keto_gluconic_acid"),
+        pytest.param(
+            "O=C(O)[C@@]1(O)C[C@@H](O)[C@@H](O)[C@@H]([C@H](O)CO)O1",
+            "3-deoxy-α-D-manno-oct-2-ulopyranosonic acid",
+            id="ketoaldonic_acid_with_a_side_chain_on_the_ring",
+        ),
+    ],
+)
+def test_derivatives_of_sugar_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-66.1.1.1.2.5, P-66.3.1.2.4, P-66.5.1.2.4 amides, hydrazides, nitriles and esters of carbohydrate acids
 @pytest.mark.parametrize(
     "smiles,expected",

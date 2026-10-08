@@ -133,12 +133,15 @@ def name_sugar_alcohol_acid(mol) -> str:
     return sugar_alcohol_acid_name(mol)
 
 
+_ACID_CARBON = "[CX3;H0;$(C-[CX4;$(C-[#8,#7,#9,#17,#35,#53])])]"
 _DERIVATIVES = {
-    "amide": Chem.MolFromSmarts("[CX3;H0](=O)[NX3;H2]"),
-    "hydrazide": Chem.MolFromSmarts("[CX3;H0](=O)[NX3;H1][NX3;H2]"),
-    "nitrile": Chem.MolFromSmarts("[CX2]#[NX1]"),
-    "ester": Chem.MolFromSmarts("[CX3;H0](=O)[OX2;H0][CX4]"),
+    "amide": Chem.MolFromSmarts(f"{_ACID_CARBON}(=O)[NX3;H2]"),
+    "hydrazide": Chem.MolFromSmarts(f"{_ACID_CARBON}(=O)[NX3;H1][NX3;H2]"),
+    "nitrile": Chem.MolFromSmarts("[CX2;$(C-[CX4;$(C-[#8,#7,#9,#17,#35,#53])])]#[NX1]"),
+    "ester": Chem.MolFromSmarts(f"{_ACID_CARBON}(=O)[OX2;H0][CX4]"),
+    "halide": Chem.MolFromSmarts(f"{_ACID_CARBON}(=O)[F,Cl,Br,I;X1]"),
 }
+_HALIDE_WORDS = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 _ENDINGS = {"amide": "amide", "hydrazide": "ohydrazide", "nitrile": "onitrile"}
 
 
@@ -153,6 +156,9 @@ def _as_acid(mol):
     carbon = match[0]
     removal, ester_group = [], None
     if kind == "amide":
+        editable.GetAtomWithIdx(match[2]).SetAtomicNum(8)
+    elif kind == "halide":
+        ester_group = _HALIDE_WORDS[mol.GetAtomWithIdx(match[2]).GetAtomicNum()]
         editable.GetAtomWithIdx(match[2]).SetAtomicNum(8)
     elif kind == "hydrazide":
         removal.append(match[3])
@@ -191,7 +197,7 @@ def sugar_acid_derivative_name(mol):
     if prepared is None:
         return None
     acid, kind, alcohol = prepared
-    name = sugar_alcohol_acid_name(acid)
+    name = sugar_alcohol_acid_name(acid) or substituted_chain_name(acid)
     if name is None:
         return None
     for ending in ("onic acid", "uronic acid"):
@@ -200,6 +206,8 @@ def sugar_acid_derivative_name(mol):
             break
     else:
         return None
+    if kind == "halide":
+        return f"{stem[:-2]}oyl {alcohol}"
     if kind == "ester":
         return f"{alcohol} {stem[:-2]}ate"
     return stem[:-2] + _ENDINGS[kind]
@@ -247,7 +255,7 @@ _CHAIN_HALOGENS = {9, 17, 35, 53}
 _RETAINED_ALDITOLS = {"L-galactose": "L-fucitol", "L-mannose": "L-rhamnitol"}
 
 
-def _decorated_chain(mol):
+def _decorated_chain(mol, allow_oxo=False):
     """([C-1 .. C-n] from one end, per-carbon (kind, exo atom, root)) of an unbranched carbon chain that carries
     hydroxy groups, deoxy positions, ethers, amino groups or halogens, else None."""
     from ._sugar_substituted import _CHALCOGEN_WORDS, _HALOGENS  # noqa: F401
@@ -307,10 +315,15 @@ def _decorated_chain(mol):
         (x,) = exo
         atom = mol.GetAtomWithIdx(x)
         z = atom.GetAtomicNum()
+        if allow_oxo and z == 8 and atom.GetDegree() == 1 and mol.GetBondBetweenAtoms(carbon, x).GetBondTypeAsDouble() == 2.0:
+            decorations.append(("oxo", x, None))
+            continue
         if mol.GetBondBetweenAtoms(carbon, x).GetBondTypeAsDouble() != 1.0:
             return None
         if z == 8 and atom.GetDegree() == 1:
             decorations.append(("OH", x, None))
+        elif z == 8 and atom.GetDegree() == 2 and _acyl_carbon(mol, graph, x, carbon, piece):
+            decorations.append(("acyl", x, next(n for n in graph[x] if n != carbon)))
         elif z == 8 and atom.GetDegree() == 2:
             other = next(n for n in graph[x] if n != carbon)
             if mol.GetAtomWithIdx(other).GetAtomicNum() != 6 or other in piece:
@@ -331,6 +344,16 @@ def _decorated_chain(mol):
         elif x is not None:
             covered |= subtree_atoms(graph, x, carbon)
     return (chain, decorations) if covered == set(range(mol.GetNumAtoms())) else None
+
+
+def _acyl_carbon(mol, graph, oxygen, carbon, piece):
+    other = next((n for n in graph[oxygen] if n != carbon), None)
+    if other is None or other in piece or mol.GetAtomWithIdx(other).GetAtomicNum() != 6:
+        return False
+    return any(
+        mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(other, n).GetBondTypeAsDouble() == 2.0
+        for n in graph[other]
+    )
 
 
 def subtree_atoms(graph, root, blocked):
@@ -358,8 +381,10 @@ def _restored_chain(mol, chain, decorations):
             for n in graph[x]:
                 if n != carbon:
                     removed |= subtree(graph, n, x)
-        elif kind == "ether":
+        elif kind in ("ether", "acyl"):
             removed |= subtree(graph, root, x)
+        elif kind == "oxo":
+            editable.GetBondBetweenAtoms(carbon, x).SetBondType(Chem.BondType.SINGLE)
     for atom in editable.GetAtoms():
         atom.SetNoImplicit(False)
         atom.SetNumExplicitHs(0)
@@ -382,7 +407,7 @@ def substituted_chain_name(mol):
     chain, decorations = found
     if all(kind in ("OH", "COOH") for kind, _, _ in decorations):
         return None
-    if sum(kind in ("OH", "ether") for kind, _, _ in decorations) < 3:
+    if sum(kind in ("OH", "ether", "acyl") for kind, _, _ in decorations) < 3:
         return None
     try:
         model, atom_of = _restored_chain(mol, chain, decorations)
@@ -408,11 +433,24 @@ def substituted_chain_name(mol):
             aldose = None
         if aldose is None or not aldose.endswith("ose"):
             continue
-        entries = {}
+        entries, esters = {}, {}
         failed = False
         for position, index in enumerate(order, start=1):
             dkind, x, root = decorations[index]
             if dkind in ("OH", "COOH"):
+                continue
+            if dkind == "acyl" and kind == "alditol":
+                from ._inositol_derivative import ester_anion
+
+                anion = ester_anion(mol, x, root)
+                if anion is None:
+                    failed = True
+                    break
+                esters.setdefault(anion, []).append(position)
+                continue
+            if dkind == "acyl":
+                name, compound = cited_group(mol, graph, root, x)
+                entries.setdefault((name, name, "O", compound), []).append(position)
                 continue
             if dkind == "H":
                 entries.setdefault(("deoxy", "deoxy", "", False), []).append(position)
@@ -432,28 +470,36 @@ def substituted_chain_name(mol):
                 entries.setdefault((name, name, "O", compound), []).append(position)
         if failed:
             continue
-        candidates.append((aldose, entries))
+        candidates.append((aldose, entries, esters))
     if not candidates:
         return None
     from ._common import alpha_sort_key
 
     def rank(item):
-        aldose, entries = item
-        locants = sorted(p for ps in entries.values() for p in ps)
-        first = min(entries, key=lambda key: alpha_sort_key(key[0]))
-        return (aldose[2:], aldose[0] != "D", -len(locants), locants, min(entries[first]))
+        aldose, entries, esters = item
+        locants = sorted(p for ps in [*entries.values(), *esters.values()] for p in ps)
+        first = min(entries, key=lambda key: alpha_sort_key(key[0])) if entries else None
+        return (aldose[2:], aldose[0] != "D", -len(locants), locants, min(entries[first]) if first else 0)
 
     if kind == "alditol":
-        for aldose, entries in candidates:
-            if list(entries) == [("deoxy", "deoxy", "", False)] and entries[("deoxy", "deoxy", "", False)] == [len(chain)] and aldose in _RETAINED_ALDITOLS:
+        for aldose, entries, esters in candidates:
+            if not esters and list(entries) == [("deoxy", "deoxy", "", False)] and entries[("deoxy", "deoxy", "", False)] == [len(chain)] and aldose in _RETAINED_ALDITOLS:
                 return _RETAINED_ALDITOLS[aldose]
-    aldose, entries = min(candidates, key=rank)
+    aldose, entries, esters = min(candidates, key=rank)
     ending = _suffixes(kind)
     stem = aldose[: -len("ose")]
     cited = [(key[0], _segment(sorted(locants), key[0], key[2], key[3])) for key, locants in entries.items()]
     segments = [text for _, text in sorted(cited, key=lambda item: (alpha_sort_key(item[0]), item[1]))]
     prefix = "-".join(segments) + "-" if segments else ""
-    return prefix + stem + ending
+    name = prefix + stem + ending
+    if esters:
+        from ._inositol_derivative import ester_words
+
+        words = ester_words([(a, sorted(l)) for a, l in esters.items()])
+        if len(esters) == 1 and sum(map(len, esters.values())) == len(chain) and not entries:
+            words = words.split("-", 1)[1]
+        name = f"{name} {words}"
+    return name
 
 
 def has_substituted_chain_shape(mol) -> bool:
@@ -465,3 +511,227 @@ def has_substituted_chain_shape(mol) -> bool:
 
 def name_substituted_chain(mol) -> str:
     return substituted_chain_name(mol)
+
+
+_RING_AMIDE = Chem.MolFromSmarts("[CX3;R;H0](=O)[NX3;R;H1][CX4;R]")
+
+
+def sugar_lactam_name(mol):
+    """'5-amino-5-deoxy-D-galactono-1,5-lactam' for the internal amide of an amino aldonic acid (P-102.5.6.6.2.2): the
+    ring is opened at the amide nitrogen, the amino acid named, and the locants of the carboxy carbon and of the
+    carbon that carries the nitrogen cited."""
+    matches = mol.GetSubstructMatches(_RING_AMIDE)
+    if len(matches) != 1 or mol.GetRingInfo().NumRings() != 1:
+        return None
+    carbonyl, _, nitrogen, closing = matches[0]
+    editable = Chem.RWMol(mol)
+    editable.RemoveBond(carbonyl, nitrogen)
+    hydroxy = editable.AddAtom(Chem.Atom(8))
+    editable.AddBond(carbonyl, hydroxy, Chem.BondType.SINGLE)
+    for atom in editable.GetAtoms():
+        atom.SetNoImplicit(False)
+        atom.SetNumExplicitHs(0)
+    try:
+        chain_mol = editable.GetMol()
+        Chem.SanitizeMol(chain_mol)
+        acid = substituted_chain_name(chain_mol)
+    except (ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
+        return None
+    if acid is None or not acid.endswith("onic acid"):
+        return None
+    position, seen, frontier = {carbonyl: 1}, {carbonyl}, [carbonyl]
+    while frontier:
+        atom = frontier.pop(0)
+        for n in chain_mol.GetAtomWithIdx(atom).GetNeighbors():
+            if n.GetAtomicNum() == 6 and n.GetIdx() not in seen:
+                seen.add(n.GetIdx())
+                position[n.GetIdx()] = position[atom] + 1
+                frontier.append(n.GetIdx())
+    return f"{acid[: -len('ic acid')]}o-1,{position[closing]}-lactam"
+
+
+def has_sugar_lactam_shape(mol) -> bool:
+    try:
+        return sugar_lactam_name(mol) is not None
+    except (UnsupportedStructure, ValueError, RuntimeError):
+        return False
+
+
+def name_sugar_lactam(mol) -> str:
+    return sugar_lactam_name(mol)
+
+
+_RING_ACID = Chem.MolFromSmarts("[CX4;R]([OX2;R])-[CX3;H0;!R](=O)[OX2,NX3]")
+
+
+def _nitrogen_prefix(substituents):
+    names = sorted(name for name, _ in substituents)
+    if not names:
+        return ""
+    if len(names) == 1:
+        return f"N-{names[0]}"
+    if len(set(names)) == 1:
+        return f"N,N-di{names[0]}" if not any(ch in names[0] for ch in "-()[], ") else f"N,N-di({names[0]})"
+    return None
+
+
+def sugar_ring_acid_name(mol):
+    """P-102.5.6.6.3, P-102.5.6.6.4: ring-closed uronic acids and ketoaldonic acids and their derivatives. The uronic
+    derivative is turned into the acid, the carboxy group of a ketoaldonic acid into the CH2OH of the ketose; the sugar
+    is named and its ending becomes 'uronic acid', 'onic acid' or the ending of the ester or amide, a glycoside being
+    isolated in parentheses when it is esterified or amidated."""
+    from ._cited_group import cited_group, subtree
+    from .core import smiles_to_iupac
+
+    matches = mol.GetSubstructMatches(_RING_ACID)
+    if len(matches) != 1 or mol.GetRingInfo().NumRings() != 1:
+        return None
+    ring_carbon, ring_oxygen, carboxy, oxo, hetero = matches[0]
+    graph = adjacency(mol)
+    ketose = any(
+        mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and n != ring_oxygen and mol.GetAtomWithIdx(n).GetDegree() <= 2
+        for n in graph[ring_carbon]
+        if n != carboxy
+    )
+    het = mol.GetAtomWithIdx(hetero)
+    removal, alcohol, substituents = set(), None, []
+    if het.GetAtomicNum() == 8 and het.GetDegree() == 1:
+        derivative = "acid"
+    elif het.GetAtomicNum() == 8:
+        derivative = "ester"
+        root = next(n for n in graph[hetero] if n != carboxy)
+        alcohol = cited_group(mol, graph, root, hetero)[0]
+        removal |= subtree(graph, root, hetero)
+    else:
+        derivative = "amide"
+        for n in graph[hetero]:
+            if n != carboxy:
+                substituents.append(cited_group(mol, graph, n, hetero))
+                removal |= subtree(graph, n, hetero)
+    editable = Chem.RWMol(mol)
+    if ketose:
+        removal |= {oxo, hetero}
+        hydroxy = editable.AddAtom(Chem.Atom(8))
+        editable.AddBond(carboxy, hydroxy, Chem.BondType.SINGLE)
+    elif derivative == "amide":
+        editable.GetAtomWithIdx(hetero).SetAtomicNum(8)
+    for atom in editable.GetAtoms():
+        atom.SetNoImplicit(False)
+        atom.SetNumExplicitHs(0)
+    for index in sorted(removal, reverse=True):
+        editable.RemoveAtom(index)
+    try:
+        model = editable.GetMol()
+        Chem.SanitizeMol(model)
+        name = smiles_to_iupac(Chem.MolToSmiles(model))
+    except (UnsupportedStructure, ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
+        return None
+    nitrogen = _nitrogen_prefix(substituents)
+    if nitrogen is None:
+        return None
+    glycoside = name.endswith("oside") or "osiduronic acid" in name
+    if ketose:
+        if not name.endswith(("ose", "oside")):
+            return None
+        stem = name[:-1]
+        if derivative == "acid":
+            return f"{stem}onic acid"
+        if derivative == "ester":
+            return f"{alcohol} ({stem})onate" if glycoside else f"{alcohol} {stem}onate"
+        return f"{nitrogen}({stem})onamide" if glycoside else f"{nitrogen + '-' if nitrogen else ''}{stem}onamide"
+    if not name.endswith("uronic acid"):
+        return None
+    if derivative == "acid":
+        return name
+    stem = name[: -len("ic acid")]
+    base = name[: -len("uronic acid")]
+    if derivative == "ester":
+        return f"{alcohol} ({base})uronate" if glycoside else f"{alcohol} {stem}ate"
+    if glycoside and nitrogen:
+        return f"{nitrogen}({base})uronamide"
+    return f"{nitrogen + '-' if nitrogen else ''}{stem}amide"
+
+
+def has_sugar_ring_acid_shape(mol) -> bool:
+    try:
+        return sugar_ring_acid_name(mol) is not None
+    except (UnsupportedStructure, ValueError, RuntimeError):
+        return False
+
+
+def name_sugar_ring_acid(mol) -> str:
+    return sugar_ring_acid_name(mol)
+
+
+def ketoaldonic_chain_name(mol):
+    """P-102.5.6.6.3.1: an open-chain ketoaldonic acid, 'D-arabino-hex-5-ulosonic acid': the keto group is restored to a
+    hydroxy group for the configurational prefixes of the centres that remain, numbering starts at the carboxy group."""
+    from ._cited_group import cited_group
+    from ._common import alpha_sort_key
+    from ._sugar_substituted import _HALOGENS, _Skeleton, _labels, _parent, _plain_group, _segment
+
+    found = _decorated_chain(mol, allow_oxo=True)
+    if found is None:
+        return None
+    chain, decorations = found
+    if sum(kind == "oxo" for kind, _, _ in decorations) != 1 or sum(kind == "COOH" for kind, _, _ in decorations) != 1:
+        return None
+    if decorations[-1][0] == "COOH":
+        chain, decorations = list(reversed(chain)), list(reversed(decorations))
+    if decorations[0][0] != "COOH" or decorations[-1][0] == "oxo":
+        return None
+    if sum(kind in ("OH", "ether", "acyl") for kind, _, _ in decorations) < 2:
+        return None
+    graph = adjacency(mol)
+    try:
+        model, atom_of = _restored_chain(mol, chain, decorations)
+        skeleton = _Skeleton(chain, False)
+        centres, _ = _labels(model, skeleton, atom_of)
+        parent = _parent(skeleton, centres, None, False)
+    except (UnsupportedStructure, ValueError, RuntimeError, KeyError, Chem.rdchem.MolSanitizeException):
+        return None
+    if parent is None:
+        return None
+    core = parent[0]
+    number = len(chain)
+    if not core.endswith("ose"):
+        return None
+    position = next(i for i, (kind, _, _) in enumerate(decorations, start=1) if kind == "oxo")
+    entries = {}
+    for place, (kind, x, root) in enumerate(decorations, start=1):
+        if kind in ("OH", "COOH", "oxo"):
+            continue
+        carbon = chain[place - 1]
+        if kind == "H":
+            entries.setdefault(("deoxy", "deoxy", "", False), []).append(place)
+        elif kind == "N":
+            name, compound = cited_group(mol, graph, x, carbon)
+            entries.setdefault((name, name, "", compound), []).append(place)
+            entries.setdefault(("deoxy", "deoxy", "", False), []).append(place)
+        elif kind == "X":
+            text = _HALOGENS[mol.GetAtomWithIdx(x).GetAtomicNum()]
+            entries.setdefault((text, text, "", False), []).append(place)
+            entries.setdefault(("deoxy", "deoxy", "", False), []).append(place)
+        elif kind == "ether":
+            if not _plain_group(mol, graph, root, x):
+                return None
+            name, compound = cited_group(mol, graph, root, x)
+            entries.setdefault((name, name, "O", compound), []).append(place)
+        elif kind == "acyl":
+            name, compound = cited_group(mol, graph, root, x)
+            entries.setdefault((name, name, "O", compound), []).append(place)
+    cited = [(key[0], _segment(sorted(locants), key[0], key[2], key[3])) for key, locants in entries.items()]
+    segments = [text for _, text in sorted(cited, key=lambda item: (alpha_sort_key(item[0]), item[1]))]
+    prefix = "-".join(segments) + "-" if segments else ""
+    return f"{prefix}{core[: -len('ose')]}-{position}-ulosonic acid"
+
+
+def has_ketoaldonic_chain_shape(mol) -> bool:
+    try:
+        return ketoaldonic_chain_name(mol) is not None
+    except (UnsupportedStructure, ValueError, RuntimeError):
+        return False
+
+
+def name_ketoaldonic_chain(mol) -> str:
+    return ketoaldonic_chain_name(mol)

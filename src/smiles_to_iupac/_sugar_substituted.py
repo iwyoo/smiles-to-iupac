@@ -96,8 +96,13 @@ def _ring_skeleton(mol, graph):
         carbons = [carbon_exo[0]] + chain
         tail = [n for n in _carbon_neighbors(mol, other, ring_set)]
         if size == 6:
-            if tail:
+            if len(tail) > 1:
                 return None
+            while tail:
+                carbons.append(tail[0])
+                tail = _carbon_neighbors(mol, tail[0], ring_set | set(carbons))
+                if len(tail) > 1:
+                    return None
         else:
             if len(tail) > 1:
                 return None
