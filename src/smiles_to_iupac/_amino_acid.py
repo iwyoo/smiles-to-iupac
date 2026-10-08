@@ -51,6 +51,7 @@ SYSTEMATIC_ACID_PROBE = ContextVar("SYSTEMATIC_ACID_PROBE", default=False)
 
 _ALPHA_TO_LD = {"S": "L", "R": "D"}
 _ALPHA_TO_LD_CYSTEINE = {"R": "L", "S": "D"}  # P-103.1.3.1's stated exception
+_SULFUR_ON_C3 = {"cysteine", "cysteic acid"}
 
 _SIDE_CHAIN_SMILES = {
     "alanine": "*C",
@@ -70,6 +71,13 @@ _SIDE_CHAIN_SMILES = {
     "phenylalanine": "*Cc1ccccc1",
     "tyrosine": "*Cc1ccc(O)cc1",
     "tryptophan": "*Cc1c[nH]c2ccccc12",
+    "ornithine": "*CCCN",
+    "allysine": "*CCCC=O",
+    "citrulline": "*CCCNC(N)=O",
+    "cysteic acid": "*CS(=O)(=O)O",
+    "homocysteine": "*CCS",
+    "homoserine": "*CCO",
+    "dopa": "*Cc1ccc(O)c(O)c1",
 }
 # Canonicalized at import time (rather than hardcoding the already-
 # canonical strings above) so a future RDKit version's canonicalization
@@ -295,11 +303,14 @@ _SIDE_CHAIN_SUBSTITUTION_SITE = {
     "asparagine": "N",
     "glutamine": "N",
     "arginine": "N",
+    "ornithine": "N",
+    "homoserine": "O",
+    "homocysteine": "S",
 }
 # P-103.1.3.2.2: CIP label of C-3 in the L (alpha S) series; 'allo' inverts it, and the D series mirrors both centres
 _BETA_NATURAL = {"isoleucine": "S", "threonine": "R"}
-_ALPHA_NITROGEN_LOCANT = {"lysine": "N2", "asparagine": "N2", "glutamine": "N2", "arginine": "Nα"}
-_SIDE_NITROGEN_LOCANT = {"lysine": "N6", "asparagine": "N4", "glutamine": "N5"}
+_ALPHA_NITROGEN_LOCANT = {"lysine": "N2", "asparagine": "N2", "glutamine": "N2", "arginine": "Nα", "ornithine": "N2", "citrulline": "N2"}
+_SIDE_NITROGEN_LOCANT = {"lysine": "N6", "asparagine": "N4", "glutamine": "N5", "ornithine": "N5"}
 _MAX_CUT_CANDIDATES = 8
 _ALPHA_AMINO_ACID = Chem.MolFromSmarts("[NX3;+0][CX4][CX3](=O)[OX2H1]")
 
@@ -348,6 +359,7 @@ def _match(mol):
     candidates = _cut_candidates(mol)
     if not candidates or len(candidates) > _MAX_CUT_CANDIDATES:
         return None
+    best = None
     for size in range(1, len(candidates) + 1):
         for cuts in itertools.combinations(candidates, size):
             if len({root for _, root in cuts}) != size:
@@ -373,8 +385,10 @@ def _match(mol):
                 continue
             if len(frag.GetSubstructMatches(_ALPHA_AMINO_ACID)) != len(mol.GetSubstructMatches(_ALPHA_AMINO_ACID)):
                 continue
-            return name, alpha, side_chain, None, tuple((allowed[site], site, root) for site, root in cuts)
-    return None
+            found = (name, alpha, side_chain, None, tuple((allowed[site], site, root) for site, root in cuts))
+            if best is None or frag.GetNumAtoms() > best[0]:
+                best = (frag.GetNumAtoms(), found)
+    return best[1] if best else None
 
 
 def _arginine_locants(mol, alpha, side_chain, substituted):
@@ -503,7 +517,7 @@ def name_amino_acid(mol) -> str:
     if alpha_carbon is None:
         return name
     label = _alpha_stereo_label(mol, alpha_carbon, side_chain_atoms)
-    mapping = _ALPHA_TO_LD_CYSTEINE if name == "cysteine" else _ALPHA_TO_LD
+    mapping = _ALPHA_TO_LD_CYSTEINE if name in _SULFUR_ON_C3 else _ALPHA_TO_LD
     if name in _BETA_NATURAL and label:
         beta = mol.GetAtomWithIdx(_beta_atom(mol, alpha_carbon, side_chain_atoms)).GetProp("_CIPCode")
         natural = _BETA_NATURAL[name] if label == "S" else {"S": "R", "R": "S"}[_BETA_NATURAL[name]]
