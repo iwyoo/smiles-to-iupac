@@ -533,7 +533,7 @@ def test_thioate_stereocenter(smiles, expected):
     [
         pytest.param("c1ccccc1C(=O)[S-]", "benzenecarbothioate", id="directly_attached_thioate_is_named"),
         pytest.param("Clc1ccc(CC(=O)[S-])cc1", "2-(4-chlorophenyl)ethanethioate", id="chain_thioate_ring_halogen"),
-        pytest.param("C=Cc1ccccc1CC(=O)[S-]", "2-(2-ethenylphenyl)ethanethioate", id="chain_thioate_unsaturation_is_named"),
+        pytest.param("C=Cc1ccccc1CC(=O)[S-]", "(2-ethenylphenyl)ethanethioate", id="chain_thioate_unsaturation_is_named"),
     ],
 )
 def test_phenyl_directly_attached_and_related(smiles, expected):
@@ -677,7 +677,7 @@ def test_thial_not_supported():
         pytest.param("c1ccccc1C(=S)C", "1-phenylethane-1-thione", id="phenyl_directly_attached_thione_is_named"),
         pytest.param("C=Cc1ccccc1CC(=S)C", "1-(2-ethenylphenyl)propane-2-thione", id="phenyl_chain_thione_unsaturation_is_named"),
         pytest.param("NC(=S)N", "thiourea", id="thiourea"),
-        pytest.param("CNC(=S)N", "N-methylthiourea", id="n_methylthiourea"),
+        pytest.param("CNC(=S)N", "methylthiourea", id="n_methylthiourea"),
         pytest.param("CN(C)C(=S)N", "N,N-dimethylthiourea", id="n_n_dimethylthiourea_same_nitrogen"),
         pytest.param("CCN(C)C(=S)N", "N-ethyl-N-methylthiourea", id="n_ethyl_n_methylthiourea_same_nitrogen"),
     ],

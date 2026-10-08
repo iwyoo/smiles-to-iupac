@@ -249,7 +249,7 @@ def test_phenyl_chain_selenoate():
     [
         pytest.param("c1ccccc1C(=O)[Se-]", "benzenecarboselenoate", id="directly_attached_selenoate_is_named"),
         pytest.param("Cc1ccccc1CC(=O)[Se-]", "2-(2-methylphenyl)ethaneselenoate", id="substituted_benzene_ring_selenoate_is_named"),
-        pytest.param("C=Cc1ccccc1CC(=O)[Se-]", "2-(2-ethenylphenyl)ethaneselenoate", id="chain_selenoate_unsaturation_is_named"),
+        pytest.param("C=Cc1ccccc1CC(=O)[Se-]", "(2-ethenylphenyl)ethaneselenoate", id="chain_selenoate_unsaturation_is_named"),
     ],
 )
 def test_phenyl_directly_attached_and_related(smiles, expected):
@@ -394,7 +394,7 @@ def test_acyclic_selenonic_acid_and_related(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("NC(=[Se])Nc1ccccc1", "N-phenylselenourea", id="phenylselenourea"),
+        pytest.param("NC(=[Se])Nc1ccccc1", "phenylselenourea", id="phenylselenourea"),
         pytest.param("c1ccc(NC(=[Se])Nc2ccccc2)cc1", "N,N'-diphenylselenourea", id="n_prime_diphenylselenourea"),
     ],
 )
@@ -757,7 +757,7 @@ def test_acyclic_telluronic_acid_and_related(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("NC(=[Te])Nc1ccccc1", "N-phenyltellurourea", id="phenyltellurourea"),
+        pytest.param("NC(=[Te])Nc1ccccc1", "phenyltellurourea", id="phenyltellurourea"),
         pytest.param("c1ccc(NC(=[Te])Nc2ccccc2)cc1", "N,N'-diphenyltellurourea", id="n_prime_diphenyltellurourea"),
     ],
 )

@@ -626,3 +626,31 @@ def test_diphosphate_esters_cite_locants_when_the_arrangement_is_otherwise_ambig
 )
 def test_halogen_oxo_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("ClC(C(=O)O)CC(=O)O", "chlorobutanedioic acid", id="sole_substituent_on_symmetric_chain"),
+        pytest.param("ClC(C(=O)O)C(=O)O", "chloropropanedioic acid", id="sole_substituent_between_two_acid_groups"),
+        pytest.param("CC(Cl)C(=O)O", "2-chloropropanoic acid", id="asymmetric_chain_keeps_locant"),
+        pytest.param("ClC(C(=O)O)=CC(=O)O", "2-chlorobut-2-enedioic acid", id="cited_ene_locant_keeps_locants"),
+        pytest.param("FC(C(C(C(=O)O)(F)F)(F)F)(F)F", "heptafluorobutanoic acid", id="fully_substituted_chain_acid"),
+        pytest.param("FC(F)(F)C(F)(F)F", "hexafluoroethane", id="fully_substituted_chain"),
+        pytest.param("FC1(F)C(F)(F)C(F)(F)C(F)(F)C(F)(F)C1(F)F", "dodecafluorocyclohexane", id="fully_substituted_ring"),
+        pytest.param("FC(F)C(F)(F)C(F)(F)F", "1,1,1,2,2,3,3-heptafluoropropane", id="partial_substitution_keeps_locants"),
+        pytest.param("ClC1=CC2=CC=C3C=CC4=CC=C5C=CC6=CC=C1C1=C6C5=C4C3=C21", "chlorocoronene", id="symmetric_fused_system"),
+        pytest.param("Cc1cccc2ccccc12", "1-methylnaphthalene", id="asymmetric_fused_system_keeps_locant"),
+        pytest.param("ClC1(OOO1)Cl", "dichlorotrioxetane", id="fully_substituted_hetero_ring"),
+        pytest.param("CNC(=O)N", "methylurea", id="sole_substituent_on_urea"),
+        pytest.param("FN=C(C(C(F)(F)F)(F)F)N(F)F", "octafluoropropanimidamide", id="fully_substituted_imidamide"),
+        pytest.param("FN(F)C(=O)C(F)(F)F", "pentafluoroacetamide", id="fully_substituted_amide"),
+        pytest.param("CNC=O", "N-methylformamide", id="single_nitrogen_position_keeps_locant"),
+        pytest.param("ClC1=C(C=CC=C1)C(C(F)(F)F)(F)F", "1-chloro-2-(pentafluoroethyl)benzene", id="fully_substituted_substituent_group"),
+        pytest.param("C1(=C(C(=C(C(=C1O)O)O)O)O)O", "benzenehexol", id="every_ring_position_carries_the_suffix"),
+        pytest.param("OC1C(O)C(O)C(O)C(O)C1O", "cyclohexane-1,2,3,4,5,6-hexol", id="partly_modified_ring_keeps_suffix_locants"),
+        pytest.param("CC(=O)CCl", "1-chloropropan-2-one", id="cited_suffix_locant_keeps_prefix_locant"),
+    ],
+)
+def test_locants_without_information_are_omitted(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

@@ -39,11 +39,12 @@ from ._common import (
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
+from ._locant_omission import omits_all_locants
 from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, substituents_for_chain
 
 
-def _name_from_substituents(chain_length, grouped):
+def _name_from_substituents(chain_length, grouped, omit_locants=False):
     if chain_length == 1 and grouped:
         # P-14.3.4.2(a): every substituent's locant on a mononuclear parent
         # hydride is always '1' and is never cited, however many there are
@@ -59,15 +60,15 @@ def _name_from_substituents(chain_length, grouped):
             # numbering direction, so the locant is omittable, e.g.
             # 'chloroethane', analogous to 'ethanol (PIN)' for CH3-CH2-OH.
             return name + alkane_name(chain_length)
-    prefix = format_substituent_prefixes(grouped)
+    prefix = format_substituent_prefixes(grouped, omit_all=omit_locants)
     return prefix + alkane_name(chain_length)
 
 
-def _candidate_key(chain_length, substituents):
+def _candidate_key(chain_length, substituents, omit=None):
     """Sort key implementing P-45.2.1-P-45.2.3, most-preferred first."""
     grouped = group_substituents(substituents)
     locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
-    name = _name_from_substituents(chain_length, grouped)
+    name = _name_from_substituents(chain_length, grouped, omit is not None and omit(grouped))
     # Higher substituent count and lower locants are preferred, so negate the count
     # to sort every field in ascending "most preferred first" order.
     return (-total_count, locant_set, citation_locants, name), name
@@ -104,7 +105,9 @@ def _best_candidate(full_graph, carbon_graph, terminals, mol=None, stereo=None):
     for chain in chains:
         for candidate in (chain, list(reversed(chain))):
             substituents = substituents_for_chain(full_graph, candidate, terminals, mol=mol)
-            key, name = _candidate_key(chain_length, substituents)
+            key, name = _candidate_key(
+                chain_length, substituents, lambda grouped, chain=candidate: omits_all_locants(mol, chain, grouped)
+            )
             ranked = (key, stereo_locant_rank(mol, stereo, {atom: i + 1 for i, atom in enumerate(candidate)}))
             if best_key is None or ranked < best_ranked:
                 best_key, best_ranked, best_chain, best_name = key, ranked, candidate, name
