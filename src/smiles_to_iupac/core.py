@@ -25,6 +25,7 @@ from ._amino_acid_derivative import has_amino_acid_shape, name_amino_acid
 from ._peptide import has_peptide_shape, name_peptide
 from ._mixed_onium import has_mixed_onium_shape, name_mixed_onium
 from ._axial_stereo import cite_axial_stereo
+from ._ring_diyl_numbering import SYSTEMATIC_FUSION
 from ._spiro_stereo import cite_spiro_stereo
 from ._chalcone import has_chalcone_shape, name_chalcone
 from ._hydrogen_cation import hydrogen_salt_name
@@ -496,6 +497,9 @@ def _neutral_group15_oxides(mol):
     return converted
 
 
+_C_GLYCOSYL = Chem.MolFromSmarts("[c]-[C]1O[C]([CH2][OX2])[C]([OX2])[C]([OX2])[C]1[OX2]")
+
+
 def _parse_smiles(smiles):
     mol = Chem.MolFromSmiles(smiles)
     if mol is not None and (
@@ -742,8 +746,11 @@ def _name_unabridged(smiles: str) -> str:
 def _name_unabridged_body(smiles: str) -> str:
     name = None
     lambda_token = None
+    glycosyl_token = None
     try:
         parsed = _parse_smiles(smiles)
+        if parsed is not None and parsed.HasSubstructMatch(_C_GLYCOSYL):
+            glycosyl_token = SYSTEMATIC_FUSION.set(True)
         if parsed is not None and outermost() and Chem.MolToSmiles(parsed) in _METHYLBENZENES:
             return _METHYLBENZENES[Chem.MolToSmiles(parsed)]
         if parsed is not None and any(a.GetFormalCharge() for a in parsed.GetAtoms()):
@@ -894,10 +901,10 @@ def _name_unabridged_body(smiles: str) -> str:
             name = name_nitrogen_methylene_multiplicative(parsed)
             if name is not None:
                 return name
-            name = name_appendix3_skeleton(parsed)
+            name = name_appendix3_skeleton(parsed) if glycosyl_token is None else None
             if name is not None:
                 return name
-            natural, operations = name_natural_product_ranked(parsed)
+            natural, operations = name_natural_product_ranked(parsed) if glycosyl_token is None else (None, 0)
             if natural is not None:
                 phane_name = linear_phane_pin(parsed)
                 if phane_name is not None:
@@ -963,6 +970,8 @@ def _name_unabridged_body(smiles: str) -> str:
     finally:
         if lambda_token is not None:
             CITE_SKELETAL_LAMBDA.reset(lambda_token)
+        if glycosyl_token is not None:
+            SYSTEMATIC_FUSION.reset(glycosyl_token)
 
 
 _SULFINYL_DESCRIPTOR = re.compile(r"\[\(([RS])\)-([a-z]+(?:sulfinyl|seleninyl|tellurinyl))\]([a-z]+)")
