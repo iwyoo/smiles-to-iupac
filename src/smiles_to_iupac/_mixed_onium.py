@@ -88,7 +88,7 @@ def name_mixed_onium(mol) -> str:
     reduced = editable.GetMol()
     Chem.SanitizeMol(reduced)
     forced = {a.GetIdx(): prefixes[placeholders[a.GetIntProp("_orig")]] for a in reduced.GetAtoms() if a.GetIntProp("_orig") in placeholders}
-    token = FORCED_BRANCH_NAMES.set(forced)
+    token = FORCED_BRANCH_NAMES.set((reduced.GetNumAtoms(), forced))
     try:
         return _PARENT_NAMERS[senior.GetAtomicNum()](reduced)
     finally:

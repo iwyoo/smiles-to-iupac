@@ -197,7 +197,6 @@ def test_acetylium_acylium_cation_and_related(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("CC#[N+][N-]C", id="nitrile_imide_still_out_of_scope"),
         pytest.param("Cl.Cl", id="two_halide_fragments_raises"),
         pytest.param("CCO.CCO", id="plain_mixture_raises"),
     ],
@@ -205,6 +204,29 @@ def test_acetylium_acylium_cation_and_related(smiles, expected):
 def test_nitrile_imide_still_and_related_raise(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
+
+
+# P-74.2.1.1, P-74.2.2: ylides, imides, oxides and azoxy compounds
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C[P+](C)(C)[C-](C)C", "2-(trimethylphosphaniumyl)propan-2-ide", id="phosphorus_ylide"),
+        pytest.param("C[S+](C)[C-](CC)CC", "3-(dimethylsulfaniumyl)pentan-3-ide", id="sulfur_ylide"),
+        pytest.param("CC(C)=[N+](C)[C-](C)C", "2-(N-methylpropan-2-iminiumyl)propan-2-ide", id="azomethine_ylide"),
+        pytest.param("CC(C)=[O+][N-]C", "N-[(propan-2-ylidene)oxidaniumyl]methanaminide", id="carbonyl_imide"),
+        pytest.param("CC(C)=[O+][C-](C)C", "2-[(propan-2-ylidene)oxidaniumyl]propan-2-ide", id="carbonyl_ylide"),
+        pytest.param("CC#[N+][C-](C)C", "2-(acetonitriliumyl)propan-2-ide", id="nitrile_ylide"),
+        pytest.param("CC(C)=[O+][O-]", "2-(propan-2-ylidene)dioxidan-2-ium-1-ide", id="carbonyl_oxide"),
+        pytest.param("C[N-][N+](C)=C", "1,2-dimethyl-2-methylidenehydrazin-2-ium-1-ide", id="azomethine_imide"),
+        pytest.param("CC#[N+][N-]C", "2-ethylidyne-1-methylhydrazin-2-ium-1-ide", id="nitrile_imide"),
+        pytest.param("CN=[N+](C)[N-]C", "1,2,3-trimethyltriaz-2-en-2-ium-1-ide", id="azo_imide"),
+        pytest.param("c1ccccc1N=[N+]([O-])c1ccccc1", "diphenyldiazene oxide", id="symmetric_azoxy"),
+        pytest.param("Clc1ccccc1N=[N+]([O-])c1ccccc1", "1-(2-chlorophenyl)-2-phenyldiazene 2-oxide", id="azoxy_with_the_oxide_locant"),
+        pytest.param("CCC=[S+][O-]", "propylidene-\u03bb4-sulfanone", id="thioaldehyde_s_oxide"),
+    ],
+)
+def test_dipolar_compounds(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_unsupported_base_fragment():
