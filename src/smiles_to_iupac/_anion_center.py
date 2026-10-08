@@ -212,7 +212,7 @@ def _name_skeletal_anion(mol, centers):
         hydrogens = atom.GetTotalNumHs()
         atom.SetFormalCharge(0)
         atom.SetNoImplicit(True)
-        atom.SetNumExplicitHs(hydrogens)
+        atom.SetNumExplicitHs(hydrogens + (center.GetAtomicNum() == 7 and center.IsInRing() and center.GetDegree() == 2 and weight))
     neutral = editable.GetMol()
     neutral.UpdatePropertyCache(strict=False)
     graph = adjacency(neutral)

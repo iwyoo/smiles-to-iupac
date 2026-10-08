@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from rdkit import Chem
 
 from ._alkoxy import alkoxy_prefix
-from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._common import UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents
 from ._multiplicative_text import enclose
 from ._numerals import numerical_term
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
@@ -40,6 +40,7 @@ class Ligand:
     oxo: bool = False
     group: object = None
     extra: tuple = ()
+    anionic: bool = False
 
 
 @dataclass
@@ -84,6 +85,26 @@ def _is_cyanide_carbon(mol, carbon, center):
     )
 
 
+def _neutralized(mol):
+    """(acid form, anionic oxygen/chalcogen indices) of an anion whose only charges are deprotonated acid groups."""
+    anionic = {
+        a.GetIdx()
+        for a in mol.GetAtoms()
+        if a.GetFormalCharge() == -1 and a.GetAtomicNum() in _CHALCOGENS and a.GetDegree() == 1 and a.GetNeighbors()[0].GetAtomicNum() in _CENTER_ELEMENTS
+    }
+    if not anionic or any(a.GetFormalCharge() and a.GetIdx() not in anionic for a in mol.GetAtoms()):
+        return None
+    editable = Chem.RWMol(mol)
+    for idx in anionic:
+        atom = editable.GetAtomWithIdx(idx)
+        atom.SetFormalCharge(0)
+        atom.SetNoImplicit(False)
+        atom.SetNumExplicitHs(0)
+    neutral = editable.GetMol()
+    Chem.SanitizeMol(neutral)
+    return neutral, anionic
+
+
 def _scan(mol):
     """(centres, links) of a linear chain of acid centres whose other groups are hydrocarbyl or halogen, else None."""
     if len(Chem.GetMolFrags(mol)) != 1 or any(
@@ -113,6 +134,10 @@ def _scan(mol):
         for lig in center.oxo + center.singles:
             skeleton.add(lig.atom)
             skeleton.update(lig.extra)
+            if _is_acyl_ester(mol, lig):
+                acyl = _side_atoms(graph, lig.group, lig.atom)
+                if all(mol.GetAtomWithIdx(a).GetAtomicNum() in (1, 6, 8, *_HALOGENS) for a in acyl):
+                    skeleton.update(acyl)
     for atom in mol.GetAtoms():
         if atom.GetIdx() not in skeleton and atom.GetAtomicNum() not in (6, *_HALOGENS) and not _bridge_atom(atom, center_set):
             return None
@@ -372,7 +397,14 @@ def _format_n_substituents(found):
     return "-".join(parts) + "-" if parts else ""
 
 
-def _format_replacements(items):
+def _single_position_kind(centers, links):
+    """P-14.3.4.3: the parent acid has one kind of replaceable position, all hydroxy groups of directly joined centres."""
+    return all(not link.elements for link in links) and all(not c.oxo for c in centers)
+
+
+def _format_replacements(items, bare=False):
+    if bare and len(items) == 1:
+        return items[0][0]
     grouped = {}
     for word, locant in items:
         grouped.setdefault(word, []).append(locant)
@@ -444,9 +476,21 @@ def _homogeneous(centers, links):
     return direct.pop()
 
 
-def _chain_name(mol, centers, links, priority=False):
+def _is_acyl_ester(mol, lig):
+    """An ester oxygen whose organic group is an acyl group: such a group is cited as an 'acyloxy' prefix, not as an
+    ester word (P-67.3.1)."""
+    if lig.kind != "ester":
+        return False
+    carbon = mol.GetAtomWithIdx(lig.group)
+    return any(
+        b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(carbon).GetAtomicNum() in (7, 8, 16, 34, 52)
+        for b in carbon.GetBonds()
+    )
+
+
+def _chain_name(mol, centers, links, priority=False, anionic=False):
     direct = _homogeneous(centers, links)
-    if direct is None:
+    if direct is None or any(_is_acyl_ester(mol, lig) for center in centers for lig in center.singles):
         return None
     base = _retained_base(centers[0], len(centers), direct)
     if base is None:
@@ -469,33 +513,40 @@ def _chain_name(mol, centers, links, priority=False):
         candidates.append((key, center_pos, items))
     _, center_pos, items = min(candidates, key=lambda c: c[0])
     n_found = _n_substituents(mol, graph, halogens, centers, center_pos)
-    if priority and not items and senior is None and not n_found and centers[0].z != 5:
+    if priority and not items and senior is None and not n_found and centers[0].z != 5 and not anionic:
         raise UnsupportedStructure("a plain homogeneous polyacid or ester is named by the part-wise modules")
     n_prefix = _format_n_substituents(n_found)
     if senior is not None:
-        return n_prefix + _class_name(centers, center_pos, items, base, senior)
+        if anionic:
+            return None
+        return n_prefix + _class_name(centers, links, center_pos, items, base, senior)
     esters, hydrogens = [], 0
     for ci, center in enumerate(centers):
         for lig in center.singles:
             if lig.kind == "ester":
                 name, compound = name_branch(graph, lig.group, lig.atom, halogens, mol=mol)
                 esters.append((name, compound, lig.element, center_pos[ci]))
-            elif lig.kind == "hydroxy":
+            elif lig.kind == "hydroxy" and not lig.anionic:
                 hydrogens += 1
+    if anionic:
+        return _ester_name(esters, hydrogens, items, base, n_prefix, located=True)
     if not esters:
-        prefix = n_prefix + _format_replacements(items)
+        prefix = n_prefix + _format_replacements(items, bare=_single_position_kind(centers, links))
         return f"{prefix}{base} {_descriptors(centers, center_pos)}acid"
     return _ester_name(esters, hydrogens, items, base, n_prefix)
 
 
-def _class_name(centers, center_pos, items, base, senior):
+def _class_name(centers, links, center_pos, items, base, senior):
     members = []
     for ci, center in enumerate(centers):
         for lig in center.singles:
             if _class_rank(lig) == senior:
                 members.append((_class_word(lig), center_pos[ci]))
     names = sorted({m for m, _ in members})
-    if len(names) == 1:
+    amide_beside_hydrazide = senior == _class_rank(Ligand(0, "NH2", kind="amide")) and any(
+        lig.kind == "hydrazide" for center in centers for lig in center.singles
+    )
+    if len(names) == 1 and not amide_beside_hydrazide:
         count = len(members)
         words = f"{numerical_term(count) if count > 1 else ''}{names[0]}"
     else:
@@ -504,10 +555,10 @@ def _class_name(centers, center_pos, items, base, senior):
             locants = sorted(loc for m, loc in members if m == name)
             parts.append(f"{','.join(str(x) for x in locants)}-{numerical_term(len(locants)) if len(locants) > 1 else ''}{name}")
         words = " ".join(parts)
-    return f"{_format_replacements(items)}{base} {words}"
+    return f"{_format_replacements(items, bare=_single_position_kind(centers, links))}{base} {words}"
 
 
-def _ester_name(esters, hydrogens, items, base, n_prefix=""):
+def _ester_name(esters, hydrogens, items, base, n_prefix="", located=False):
     replaced_chalcogen = any(word in ("thio", "seleno", "telluro") for word, _ in items)
     elements = [e for _, _, e, _ in esters]
     cite_locants = replaced_chalcogen and len(set(elements)) < len(elements)
@@ -528,7 +579,8 @@ def _ester_name(esters, hydrogens, items, base, n_prefix=""):
         words.append(f"{letters}{multiplied}{shown}")
     if hydrogens:
         words.append((numerical_term(hydrogens) if hydrogens > 1 else "") + "hydrogen")
-    return " ".join(words) + " " + n_prefix + _plain_prefixes(items) + _anion(base)
+    prefixes = _format_replacements(items) if located else _plain_prefixes(items)
+    return " ".join(words + [n_prefix + prefixes + _anion(base)])
 
 
 def _prefix_entry(mol, graph, halogens, lig):
@@ -606,10 +658,13 @@ def _parent_acid(center, link_elements):
     return (_ELEMENT_RANK[center.z], 0 if oxo else 1, kind, order), stem + ("ic" if oxo else "ous"), effective
 
 
-def _group_name(mol, graph, halogens, center):
-    """Substituent group of an acid centre attached to the parent (P-67.1.4.1, P-67.2.6), or None."""
+def _group_name(mol, graph, halogens, center, onward=None):
+    """Substituent group of an acid centre attached to the parent (P-67.1.4.1, P-67.2.6), or None; `onward` is the
+    prefix of the rest of the chain, cited beside the other groups of the centre."""
     z, oxo = center.z, len(center.oxo)
-    if any(lig.element != "O" for lig in center.oxo + center.singles) or center.hydrogens > 1:
+    if any(lig.element != "O" for lig in center.oxo) or center.hydrogens > 1:
+        return None
+    if any(lig.kind not in ("hydroxy", "ester", "halide", "amide") or (lig.kind in ("hydroxy", "ester") and lig.element != "O") for lig in center.singles):
         return None
     entries = []
     for lig in center.singles:
@@ -617,6 +672,8 @@ def _group_name(mol, graph, halogens, center):
         if entry is None:
             return None
         entries.append(entry)
+    if onward is not None:
+        entries.append(onward)
     two_hydroxyls = len(entries) == 2 and all(e == ("hydroxy", False) for e in entries)
     if z in _GROUP_STEM:
         stem = _GROUP_STEM[z]
@@ -640,25 +697,127 @@ def _group_name(mol, graph, halogens, center):
     return None
 
 
+def _bridge_atom_between(graph, first, second):
+    common = set(graph[first.atom]) & set(graph[second.atom])
+    return next(iter(common)) if len(common) == 1 else None
+
+
+def _side_atoms(graph, root, blocked):
+    seen, stack = {root}, [root]
+    while stack:
+        for n in graph[stack.pop()]:
+            if n != blocked and n not in seen:
+                seen.add(n)
+                stack.append(n)
+    return seen
+
+
+def _fragment_acid_name(mol, keep, opened):
+    """The mononuclear name of the atoms `keep`, whose atoms `opened` have lost a neighbour and take a hydrogen instead."""
+    from .core import smiles_to_iupac
+
+    editable = Chem.RWMol(mol)
+    for idx in sorted((a.GetIdx() for a in mol.GetAtoms() if a.GetIdx() not in keep), reverse=True):
+        if idx in opened:
+            continue
+        editable.RemoveAtom(idx)
+    for atom in editable.GetAtoms():
+        if atom.GetIdx() in opened:
+            atom.SetNoImplicit(False)
+            atom.SetNumExplicitHs(0)
+    fragment = editable.GetMol()
+    Chem.SanitizeMol(fragment)
+    try:
+        return smiles_to_iupac(Chem.MolToSmiles(fragment))
+    except UnsupportedStructure:
+        return None
+
+
+def _acid_stem(name):
+    return name[: -len(" acid")] if name is not None and name.endswith(" acid") and " " not in name[: -len(" acid")] else None
+
+
+def _is_plain(center):
+    return all(lig.element == "O" for lig in center.oxo) and all(
+        lig.kind in ("hydroxy", "ester") and lig.element == "O" for lig in center.singles
+    )
+
+
+def _chain_group(mol, graph, halogens, centers, links, order, link_order):
+    """The group made of the centres `order` (the first one attached to the parent), joined through the links
+    `link_order`, whose first entry is the link to the parent."""
+    onward = None
+    for position in range(len(order) - 1, -1, -1):
+        group = _group_name(mol, graph, halogens, centers[order[position]], onward)
+        if group is None:
+            return None
+        if position == 0:
+            return group
+        link = links[link_order[position]].elements
+        if len(link) != 1 or link[0] not in _BRIDGE_PREFIX:
+            return None
+        inner = enclose(group[0]) if group[1] else group[0]
+        onward = (enclose(inner + _BRIDGE_PREFIX[link[0]]), True)
+    return None
+
+
 def _substitutive_name(mol, centers, links):
-    """P-67.3.1: the senior mononuclear acid is the parent and the other centre a substituent group."""
-    if len(centers) != 2 or links[0].elements not in ((), ("O",), ("S",), ("Se",), ("Te",)):
+    """P-67.3.1: the senior mononuclear acid is the parent and the other centres a substituent group."""
+    if len(centers) < 2 or any(
+        link.elements not in ((), ("O",), ("S",), ("Se",), ("Te",), ("NH",)) for link in links
+    ) or (len(centers) > 2 and any(link.elements in ((), ("NH",)) for link in links)):
         return None
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
-    elements = links[0].elements
+    last = len(centers) - 1
+    ends = ((0, 1), (last, last - 1))
+    elements_of = {0: links[0].elements, last: links[last - 1].elements}
+    bridge_of = {
+        0: _bridge_atom_between(graph, centers[0], centers[1]) if elements_of[0] else None,
+        last: _bridge_atom_between(graph, centers[last], centers[last - 1]) if elements_of[last] else None,
+    }
+    nitrogen_bridge = len(centers) == 2 and links[0].elements == ("NH",)
     choices = []
-    for parent, other in ((0, 1), (1, 0)):
-        acid = _parent_acid(centers[parent], elements)
-        if acid is None or any(lig.element != "O" for lig in centers[parent].oxo + centers[parent].singles):
+    for parent, _ in ends:
+        elements = elements_of[parent]
+        bridge_atom = bridge_of[parent]
+        center = centers[parent]
+        if any(_is_acyl_ester(mol, lig) for lig in center.singles):
             continue
-        group = _group_name(mol, graph, halogens, centers[other])
-        if group is not None:
-            choices.append((acid[0], parent, acid, group))
+        plain = _is_plain(center)
+        acid = _parent_acid(center, () if nitrogen_bridge else elements)
+        if acid is None or (nitrogen_bridge and not plain and any(lig.kind in ("ester", "hydroxy") and lig.element != "O" for lig in center.singles)):
+            continue
+        if not plain and any(lig.kind == "ester" for lig in center.singles):
+            continue
+        order = list(range(1, last + 1)) if parent == 0 else list(range(last - 1, -1, -1))
+        link_order = list(range(0, last)) if parent == 0 else list(range(last - 1, -1, -1))
+        group = _chain_group(mol, graph, halogens, centers, links, order, link_order)
+        if group is None:
+            continue
+        if nitrogen_bridge:
+            acid_groups = sum(1 for lig in center.singles if lig.kind == "hydroxy" and lig.element == "O")
+            choices.append(((-acid_groups, *acid[0]), parent, acid, group, bridge_atom, elements))
+        else:
+            choices.append((acid[0], parent, acid, group, bridge_atom, elements))
     if not choices:
         return None
-    _, parent, acid, group = min(choices, key=lambda c: c[0])
+    _, parent, acid, group, bridge_atom, elements = min(choices, key=lambda c: c[0])
     center = centers[parent]
+    other_side = centers[1 if parent == 0 else last - 1].atom
+    if nitrogen_bridge:
+        stem = _acid_stem(_fragment_acid_name(mol, _side_atoms(graph, center.atom, other_side) | {bridge_atom}, {bridge_atom}))
+        if stem is None:
+            return None
+        inner = enclose(group[0]) if group[1] else group[0]
+        return f"N-{inner}{stem} acid"
+    plain = _is_plain(center)
+    if not plain:
+        blocked = bridge_atom if bridge_atom is not None else other_side
+        stem = _acid_stem(_fragment_acid_name(mol, _side_atoms(graph, center.atom, blocked) - {blocked}, {center.atom}))
+        if stem is None:
+            return None
+        acid = (acid[0], stem, acid[2])
     bridge = _BRIDGE_PREFIX[elements[0]] if elements else ""
     inner = enclose(group[0]) if group[1] else group[0]
     substituent = enclose(inner + bridge) if bridge else inner
@@ -669,7 +828,7 @@ def _substitutive_name(mol, centers, links):
             esters.append((name, compound))
         elif lig.kind == "hydroxy":
             hydrogens += 1
-        else:
+        elif lig.kind not in ("amide", "halide"):
             return None
     if not esters:
         return f"{substituent}{acid[1]} acid"
@@ -685,16 +844,52 @@ def _substitutive_name(mol, centers, links):
     return " ".join(words) + " " + substituent + _anion(acid[1])
 
 
+_ANHYDRIDE_CLASS = {"O": "", "S": "thio", "Se": "seleno", "Te": "telluro"}
+
+
+def _anhydride_name(mol, centers, links):
+    """P-67.3.1, P-65.7.2: two acid centres linked through one chalcogen are an anhydride of their two acids when
+    neither centre can be the parent of a substitutive name."""
+    if len(centers) != 2 or len(links[0].elements) != 1 or links[0].elements[0] not in _ANHYDRIDE_CLASS:
+        return None
+    if any(lig.kind == "ester" for center in centers for lig in center.singles):
+        return None
+    graph = adjacency(mol)
+    bridge = _bridge_atom_between(graph, centers[0], centers[1])
+    halves = []
+    for i, center in enumerate(centers):
+        keep = _side_atoms(graph, center.atom, centers[1 - i].atom) | {bridge}
+        stem = _acid_stem(_fragment_acid_name(mol, keep, {bridge}))
+        if stem is None:
+            return None
+        basic = sum(1 for lig in center.singles if lig.kind == "hydroxy" and lig.element == "O") + 1
+        halves.append((stem, basic))
+    if halves[0][0] == halves[1][0]:
+        return None
+    mono = "mono" if any(basic > 1 for _, basic in halves) else ""
+    words = sorted((stem for stem, _ in halves), key=alpha_sort_key)
+    return f"{' '.join(words)} {_ANHYDRIDE_CLASS[links[0].elements[0]]}{mono}anhydride"
+
+
 def name_polynuclear_oxoacid(mol, priority=False):
     """The name of a chain of acid centres. With `priority`, plain homogeneous acids and esters (no replacement, no class
     name) are left to the part-wise ester and acid modules, which name them already."""
-    scanned = _scan(mol)
+    neutral = _neutralized(mol)
+    anionic = neutral is not None
+    scanned = _scan(neutral[0] if anionic else mol)
     if scanned is None:
         raise UnsupportedStructure("this is not a chain of acid centres")
     centers, links = scanned
-    name = _chain_name(mol, centers, links, priority)
+    if anionic:
+        mol = neutral[0]
+        for center in centers:
+            for lig in center.singles:
+                lig.anionic = lig.atom in neutral[1]
+    name = _chain_name(mol, centers, links, priority, anionic)
+    if name is None and anionic:
+        raise UnsupportedStructure("this anion of a chain of acid centres matches no retained polyacid name yet")
     if name is None:
-        name = _dithioxane_name(mol, centers, links) or _substitutive_name(mol, centers, links)
+        name = _dithioxane_name(mol, centers, links) or _substitutive_name(mol, centers, links) or _anhydride_name(mol, centers, links)
     if name is None:
         raise UnsupportedStructure("this chain of acid centres matches no retained polyacid name yet")
     return name

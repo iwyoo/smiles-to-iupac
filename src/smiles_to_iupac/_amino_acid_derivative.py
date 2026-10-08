@@ -6,6 +6,7 @@ The ester or ion is reduced to its neutral acid, named by the amino acid module,
 
 from rdkit import Chem
 
+from ._amino_acid_retained import has_retained_amino_acid_shape, name_retained_amino_acid
 from ._amino_acid import SYSTEMATIC_ACID_PROBE, _match, has_amino_acid_shape as _has_plain, name_amino_acid as _name_plain
 from ._cited_group import cited_group, subtree
 from ._common import UnsupportedStructure, adjacency
@@ -135,10 +136,12 @@ def _derivative_name(mol):
 def has_amino_acid_shape(mol) -> bool:
     if SYSTEMATIC_ACID_PROBE.get():
         return False
-    return _has_plain(mol) or _derivative_name(mol) is not None
+    return has_retained_amino_acid_shape(mol) or _has_plain(mol) or _derivative_name(mol) is not None
 
 
 def name_amino_acid(mol) -> str:
+    if has_retained_amino_acid_shape(mol):
+        return name_retained_amino_acid(mol)
     if _has_plain(mol):
         return _name_plain(mol)
     return _derivative_name(mol)

@@ -359,8 +359,26 @@ def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
             and not _double_oxygens(mol, n.GetIdx())
             and not is_functional_carbon(mol, n.GetIdx())
         )
+        or _hydride_group_on_nitrogen(mol, n, nitrogen, len(others))
         for n in others
     )
+
+
+def _hydride_group_on_nitrogen(mol, atom, nitrogen, sibling_count):
+    """An N-substituent that is a mononuclear hydride group (phosphanyl, silyl, boranyl ...) or, on a nitrogen with no
+    other substituent, an ylidene of a hydride atom or of a plain carbon (P-66.1.1.4.3, P-68.1)."""
+    from ._hetero_prefixes import MONONUCLEAR_HYDRIDES
+
+    if atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope():
+        return False
+    order = mol.GetBondBetweenAtoms(nitrogen.GetIdx(), atom.GetIdx()).GetBondTypeAsDouble()
+    if order == 1.0:
+        return atom.GetAtomicNum() in MONONUCLEAR_HYDRIDES and atom.GetAtomicNum() != 7
+    if order == 2.0 and sibling_count == 1:
+        if atom.GetAtomicNum() == 6:
+            return not _double_oxygens(mol, atom.GetIdx()) and not is_functional_carbon(mol, atom.GetIdx())
+        return atom.GetAtomicNum() in MONONUCLEAR_HYDRIDES and atom.GetAtomicNum() != 7
+    return False
 
 
 def _ring_nitrogen_acyl(mol, nitrogen, carbonyl):

@@ -358,7 +358,7 @@ def test_sulfonate_stereocenter(smiles, expected):
     [
         pytest.param("[O-]S(=O)(=O)CCCS(=O)(=O)[O-]", "propane-1,3-disulfonate", id="multiple_sulfonate_groups_is_named"),
         pytest.param("[O-]S(=O)(=O)C1CCCCC1", "cyclohexanesulfonate", id="sulfonate_on_ring_is_named"),
-        pytest.param("C=CS(=O)(=O)[O-]", "eth-1-ene-1-sulfonate", id="sulfonate_carbon_in_double_bond_is_named"),
+        pytest.param("C=CS(=O)(=O)[O-]", "ethenesulfonate", id="sulfonate_carbon_in_double_bond_is_named"),
         pytest.param("NCCS(=O)(=O)[O-]", "2-aminoethane-1-sulfonate", id="sulfonate_other_heteroatom_is_named"),
     ],
 )
@@ -755,6 +755,10 @@ def test_sulfamic_acid_and_the_amides_of_sulfuric_and_sulfurous_acid(smiles, exp
             "CS(=O)(=O)S(=O)(=O)c1ccccc1", "1-methyl-2-phenyl-1λ6,2λ6-disulfane-1,1,2,2-tetrone", id="disulfane_tetrone"
         ),
         pytest.param("CSCl", "methyl thiohypochlorite", id="thiohypochlorite_ester"),
+        pytest.param(
+            "OS(I)(I)SC#N", "1-hydroxy-1,1-diiodo-1λ4-disulfane-2-carbonitrile", id="lambda_chain_nitrile"
+        ),
+        pytest.param("CS(C)(C)SC", "1,1,1,2-tetramethyl-1λ4-disulfane", id="lambda_chain_without_suffix"),
     ],
 )
 def test_chalcogen_chain_heterones_and_halogen_acid_esters(smiles, expected):

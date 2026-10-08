@@ -200,15 +200,22 @@ def _ylium_yl_radical(mol):
     if neutral is None:
         return None
 
-    if has_simple_imine_shape(neutral):
-        neutral_name = name_imine(neutral)
-    elif has_amide_shape(neutral):
-        neutral_name = name_amide(neutral)
-    else:
-        try:
+    try:
+        if has_simple_imine_shape(neutral):
+            neutral_name = name_imine(neutral)
+        elif has_amide_shape(neutral):
+            neutral_name = name_amide(neutral)
+        else:
             neutral_name = name_amine(neutral)
+    except UnsupportedStructure:
+        from .core import smiles_to_iupac
+
+        try:
+            neutral_name = smiles_to_iupac(Chem.MolToSmiles(neutral))
         except UnsupportedStructure:
             return None
+    if not neutral_name.endswith(("amide", "amine", "imine", "aniline")):
+        return None
     # P-73.2.3.2: a nitrogen with two missing valences is the hydride-loss cation (acetamidylium); the third is a radical
     return neutral_name[:-1] + "ylium" + ("yl" if radical.GetNumRadicalElectrons() == 3 else "")
 

@@ -266,12 +266,16 @@ def _phosphorous_acid_name(acid):
     P=O analogue, whose retained 'phosphinic'/'phosphonic' name becomes '-ous'; None for any other piece."""
     from .core import smiles_to_iupac
 
-    phosphorus = [a for a in acid.GetAtoms() if a.GetAtomicNum() == 15]
+    phosphorus = [
+        a
+        for a in acid.GetAtoms()
+        if a.GetAtomicNum() == 15 and any(n.GetAtomicNum() == 8 and n.GetDegree() == 1 for n in a.GetNeighbors())
+    ]
     if len(phosphorus) != 1 or phosphorus[0].GetDegree() + phosphorus[0].GetTotalNumHs() != 3:
         return None
     center = phosphorus[0]
     hydroxy = [n for n in center.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1]
-    organics = [n for n in center.GetNeighbors() if n.GetAtomicNum() == 6]
+    organics = [n for n in center.GetNeighbors() if n.GetAtomicNum() in (6, 15)]
     if len(hydroxy) + len(organics) == center.GetDegree() and (len(hydroxy), len(organics)) in ((2, 1), (1, 2)):
         oxidised = Chem.RWMol(acid)
         oxo = oxidised.AddAtom(Chem.Atom(8))
@@ -281,6 +285,17 @@ def _phosphorous_acid_name(acid):
             if name.endswith(oxo_word + " acid"):
                 return name[: -len(oxo_word + " acid")] + ous_word + " acid"
     return None
+
+
+def name_phosphorous_acid(mol):
+    """P-67.3.1: a P(III) acid centre carrying phosphanyl groups outranks the phosphane chain ('the acid is senior to
+    the heterol')."""
+    if len(Chem.GetMolFrags(mol)) > 1 or sum(a.GetAtomicNum() == 15 for a in mol.GetAtoms()) < 2:
+        raise UnsupportedStructure("not a phosphorous acid with phosphorus substituents")
+    name = _phosphorous_acid_name(mol)
+    if name is None:
+        raise UnsupportedStructure("not a phosphorous acid with phosphorus substituents")
+    return name
 
 
 _ACID_ENDING = re.compile(r"(?: (?:[A-Za-z]+(?:,[A-Za-z]+)*)-acid| acid)(\)?)$")

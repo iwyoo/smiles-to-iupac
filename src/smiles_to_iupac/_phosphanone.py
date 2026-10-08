@@ -113,6 +113,13 @@ def _find_imine_center(mol):
         return None
     if any(mol.HasSubstructMatch(query) for query in _SENIOR):
         return None
+    if any(
+        b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(n).GetAtomicNum() in (7, 8, 16)
+        for n in imines[0].GetNeighbors()
+        if n.GetIdx() != center.GetIdx()
+        for b in n.GetBonds()
+    ):
+        return None
     return center, imines[0]
 
 

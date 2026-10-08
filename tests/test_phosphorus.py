@@ -451,3 +451,90 @@ def test_stereogenic_phosphorus_oxide_and_phosphinate(smiles, expected):
 )
 def test_noncarbon_oxoacids_with_infixes_and_their_halides_amides_and_esters(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[O-]P(=O)([O-])OP(=O)([O-])[O-].[Na+].[Na+].[Na+].[Na+]", "tetrasodium diphosphate"),
+        ("[O-]S(=O)(=O)OS(=O)(=O)O.[Na+]", "sodium hydrogen disulfate"),
+        ("NNP(=O)OP(=O)N", "3-hydrazidodiphosphonic 1-amide"),
+        ("N#CP(I)P(I)I", "cyanohypodiphosphorous triiodide"),
+        ("NP(O)OP(N)(=O)O", "{[amino(hydroxy)phosphanyl]oxy}phosphonamidic acid"),
+        ("OP(=O)(O)NP(=O)O", "N-(hydroxyphosphonoyl)phosphoramidic acid"),
+        ("NP(N)OP(N)(=O)N", "phosphorodiamidic phosphorodiamidous anhydride"),
+        ("OS(=O)(=O)O[Se](=O)(=O)O", "selenic sulfuric monoanhydride"),
+        ("CC(=O)OP(=O)(O)OP(=O)(O)OP(=O)(O)O", "[({[(acetyloxy)(hydroxy)phosphoryl]oxy}(hydroxy)phosphoryl)oxy]phosphonic acid"),
+        ("O[As](O)(=O)CCCCP(O)(O)=O", "(4-arsonobutyl)phosphonic acid"),
+        ("O=P(O)(O)CCCP(=O)(O)CC", "{3-[ethyl(hydroxy)phosphoryl]propyl}phosphonic acid"),
+        ("COS(=O)(=O)c1ccccc1P(=O)(O)O", "[2-(methoxysulfonyl)phenyl]phosphonic acid"),
+        ("CP(C)P(O)P(C)C", "bis(dimethylphosphanyl)phosphinous acid"),
+        ("CC(=O)OC(=O)OC(=O)O", "{[(acetyloxy)carbonyl]oxy}formic acid"),
+    ],
+)
+def test_polynuclear_oxoacid_salts_derivatives_and_senior_acid_parents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_branched_polyacid_substituent_is_flagged_as_not_preferred():
+    from smiles_to_iupac import NonPreferredNameWarning
+
+    with pytest.warns(NonPreferredNameWarning, match="P-67.2.6"):
+        name = smiles_to_iupac("OC(=O)CCOP(=O)(OP(=O)(O)O)OP(=O)(O)O")
+    assert name == "3-{[bis(phosphonooxy)phosphoryl]oxy}propanoic acid"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("BrP(=O)(Br)CCP(=O)(Cl)Cl", "(2-phosphorodibromidoylethyl)phosphonic dichloride"),
+        ("BrP(Br)(=O)CCP(=S)(Cl)Cl", "(2-phosphorodichloridothioylethyl)phosphonic dibromide"),
+        ("ClP(Cl)(=O)OCCOP(=O)(Cl)N", "2-(phosphoramidochloridoyloxy)ethyl phosphorodichloridate"),
+        ("OC(=O)CCP(=O)(N(C)C)N(C)C", "3-(tetramethylphosphorodiamidoyl)propanoic acid"),
+        ("OC(=O)CCP(=S)(OC)OC", "3-(dimethoxyphosphorothioyl)propanoic acid"),
+        ("OC(=O)CCP(=S)(S)S", "3-trithiophosphonopropanoic acid"),
+    ],
+)
+def test_infix_acyl_prefixes_and_senior_acid_derivative_among_centres(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "O=S(=O)(c1ccccc1)N=P(Nc1ccccc1)(Nc1ccccc1)Nc1ccccc1",
+            "N-(trianilino-λ5-phosphanylidene)benzenesulfonamide",
+        ),
+        ("CC(=O)N=P(C)(C)C", "N-(trimethyl-λ5-phosphanylidene)acetamide"),
+        ("O=S(=O)(c1ccccc1)NP(C)C", "N-(dimethylphosphanyl)benzenesulfonamide"),
+        ("O=S(=O)(c1ccccc1)N=CC", "N-ethylidenebenzenesulfonamide"),
+    ],
+)
+def test_amides_carrying_phosphanylidene_phosphanyl_and_alkylidene_groups_on_nitrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "OC(=O)CCOP(=O)(O)OP(=O)(O)O",
+            "3-[(1,3,3-trihydroxy-1,3-dioxo-1λ5,3λ5-diphosphoxan-1-yl)oxy]propanoic acid",
+        ),
+        (
+            "OC(=O)COS(=O)OS(=O)OS(=O)OC",
+            "3,5,7-trioxo-2,4,6,8-tetraoxa-3λ4,5λ4,7λ4-trithiadecan-10-oic acid",
+        ),
+        (
+            "OC(=O)CCSS(=S)SS(=S)SC",
+            "3,5-bis(sulfanylidene)-2,3λ4,4,5λ4,6-pentathianonan-9-oic acid",
+        ),
+        (
+            "OC(=O)CS(=O)(=O)OS(=O)(=O)O",
+            "(3-hydroxy-1,1,3,3-tetraoxo-1λ6,3λ6-dithioxan-1-yl)acetic acid",
+        ),
+    ],
+)
+def test_chains_of_acid_centres_as_skeletal_prefixes_and_replacement_parents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

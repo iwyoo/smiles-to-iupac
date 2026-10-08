@@ -6,7 +6,7 @@ from ._zwitterion import has_zwitterion_shape, name_zwitterion
 from ._hydrohalide_salt import has_hydrohalide_salt_shape, name_hydrohalide_salt
 from ._adduct import has_adduct_shape, name_adduct
 from ._acyclic import name_acyclic_alkane
-from ._acid_derivatives import name_acid_derivative
+from ._acid_derivatives import name_acid_derivative, name_phosphorous_acid
 from ._acid_salts import name_acid_salt
 from ._hetero_carboxylic import name_hetero_parent_acid
 from ._polycarbonic import name_polycarbonic
@@ -23,6 +23,7 @@ from ._aldehyde import name_aldehyde
 from ._aldehyde_amine import has_aldehyde_amine_shape, name_aldehyde_amine
 from ._ketone_amine import has_ketone_amine_shape, name_ketone_amine
 from ._amino_acid_derivative import has_amino_acid_shape, name_amino_acid
+from ._peptide import has_peptide_shape, name_peptide
 from ._mixed_onium import has_mixed_onium_shape, name_mixed_onium
 from ._axial_stereo import cite_axial_stereo
 from ._chalcone import has_chalcone_shape, name_chalcone
@@ -41,6 +42,8 @@ from ._chalcogen_aldehyde import name_chalcogen_aldehyde
 from ._condensed_guanidine import name_condensed_guanidine
 from ._ring_heteroatom_nitrile import name_ring_heteroatom_nitrile
 from ._chain_onium import has_chain_onium_shape, name_chain_onium
+from ._hetero_acylium import has_hetero_acylium_shape, name_hetero_acylium
+from ._chain_ylium import has_chain_ylium_shape, name_chain_ylium
 from ._group_polycation import has_group_polycation_shape, name_group_polycation
 from ._hydride_ylium import (
     has_hydride_onium_shape,
@@ -687,6 +690,15 @@ def _smiles_to_iupac_unabridged(smiles: str) -> str:
 
 def _name_unabridged(smiles: str) -> str:
     enter()
+    result = None
+    try:
+        result = _name_unabridged_body(smiles)
+        return result
+    finally:
+        leave(result)
+
+
+def _name_unabridged_body(smiles: str) -> str:
     name = None
     lambda_token = None
     try:
@@ -778,11 +790,13 @@ def _name_unabridged(smiles: str) -> str:
             return sugar_acid_derivative_name(parsed)
         if parsed is not None and has_substituted_sugar_shape(parsed):
             return name_substituted_sugar(parsed)
+        if parsed is not None and has_peptide_shape(parsed):
+            return name_peptide(parsed)
         if parsed is not None and has_amino_acid_shape(parsed):
             return name_amino_acid(parsed)
         if parsed is not None and not has_sphingoid_shape(parsed):
             stereo_specified = _has_specified_stereo(parsed)
-            for namer in (name_acid_salt, name_polycarbonic, name_carbonic_family, name_acid_derivative, name_hetero_parent_acid):
+            for namer in (name_acid_salt, name_polycarbonic, name_carbonic_family, name_acid_derivative, name_hetero_parent_acid, name_phosphorous_acid):
                 try:
                     candidate = namer(parsed)
                 except UnsupportedStructure:
@@ -874,7 +888,6 @@ def _name_unabridged(smiles: str) -> str:
     finally:
         if lambda_token is not None:
             CITE_SKELETAL_LAMBDA.reset(lambda_token)
-        leave(name)
 
 
 _SULFINYL_DESCRIPTOR = re.compile(r"\[\(([RS])\)-([a-z]+(?:sulfinyl|seleninyl|tellurinyl))\]([a-z]+)")
@@ -1201,6 +1214,7 @@ def _name_mol(mol) -> str:
         # guanidino C=N was caught by `_imine.py`'s dispatch and tryptophan's
         # indole ring by the bicyclic-heteroatom dispatch, both well before
         # this check's original position further down ever ran.
+        (has_peptide_shape, name_peptide),
         (has_amino_acid_shape, name_amino_acid),
         # A ring-system diester of one polyol (P-65.6.3.3.3) is claimed before every
         # ring/functional-group shape check below, which would misread its esters.
@@ -1329,6 +1343,8 @@ def _name_mol(mol) -> str:
         # own broader "any nonzero radical electron count" check would
         # otherwise claim it first and misroute it into the plain-radical
         # dispatch, which rejects any charged atom outright.
+        (has_chain_ylium_shape, name_chain_ylium),
+        (has_hetero_acylium_shape, name_hetero_acylium),
         (has_skeleton_radical_ion_shape, name_skeleton_radical_ion),
         (has_radical_ion_shape, name_radical_ion),
         # A radical center (P-71.2.1.1's 'yl' radical naming) must be routed

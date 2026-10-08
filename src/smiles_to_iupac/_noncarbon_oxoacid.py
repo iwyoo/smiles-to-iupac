@@ -16,6 +16,7 @@ from ._common import (
 )
 from ._multiplicative_text import enclose
 from ._numerals import numerical_term
+from ._oxoacid_acyl import is_senior_centre
 from ._phosphate import format_ester_words
 from ._substituents import (
     format_mononuclear_prefixes,
@@ -64,8 +65,10 @@ _PSEUDOHALIDE_PREFIX = {
 
 def _plain_tree(mol, graph, root, behind):
     """Whether the group starting at carbon `root` holds only carbon, halogen and sp3 oxygen atoms, so that nothing in
-    it outranks the acid derivative being named."""
+    it outranks the acid derivative being named; other acid centres and their ligands are tolerated here and ranked
+    by `is_senior_centre` (P-67.1.5.2)."""
     seen, stack = {behind}, [root]
+    tolerated = set()
     while stack:
         index = stack.pop()
         if index in seen:
@@ -75,7 +78,11 @@ def _plain_tree(mol, graph, root, behind):
         z = atom.GetAtomicNum()
         if atom.GetIsotope() or atom.GetFormalCharge():
             return False
-        if z == 8:
+        if z in _LOCANT:
+            tolerated.update(graph[index])
+        elif index in tolerated:
+            pass
+        elif z == 8:
             if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
                 return False
         elif z != 6 and z not in _HALIDE:
@@ -279,7 +286,8 @@ def _acid_parts(mol):
             continue
         if found is not None:
             parts.append(found)
-    return parts[0] if len(parts) == 1 else None
+    senior = [part for part in parts if is_senior_centre(mol, part["centre"])]
+    return senior[0] if len(senior) == 1 else None
 
 
 def has_noncarbon_oxoacid_shape(mol) -> bool:

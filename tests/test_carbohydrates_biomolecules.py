@@ -5,8 +5,8 @@ from smiles_to_iupac._common import UnsupportedStructure
 
 
 def test_side_chain_table_has_no_collisions():
-    assert len(_SIDE_CHAIN_TABLE) == 17
-    assert len(set(_SIDE_CHAIN_TABLE.values())) == 17
+    assert len(_SIDE_CHAIN_TABLE) == 24
+    assert len(set(_SIDE_CHAIN_TABLE.values())) == 24
 
 
 def test_glycine():
@@ -66,6 +66,8 @@ def test_aldopyranose_still_resolves_and_related(smiles, expected):
     "smiles,expected",
     [
         ("O[C@H]1[C@H](O)[C@H](O)[C@H](O)[C@@H](O)[C@H]1O", "neo-inositol"),  # (1,2,3/4,5,6-)
+        ("O[C@H]1[C@H](O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1O", "myo-inositol"),  # (1,2,3,5/4,6-)
+        ("O[C@H]1[C@H](O)[C@@H](O)[C@H](O)[C@@H](O)[C@@H]1O", "scyllo-inositol"),  # (1,3,5/2,4,6-)
     ],
 )
 def test_inositol_retained_names(smiles, expected):
@@ -78,6 +80,8 @@ def test_inositol_retained_names(smiles, expected):
         pytest.param("CO[C@H]1[C@H](O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1O", "1D-1-O-methyl-myo-inositol", id="o_substituent_lowest_locant_and_dl"),
         pytest.param("N[C@H]1[C@H](O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1O", "1D-1-amino-1-deoxy-myo-inositol", id="amino_deoxy_pair"),
         pytest.param("O[C@H]1[C@H](O)[C@@H](OC)[C@H](O)[C@@H](O)[C@H]1O", "5-O-methyl-myo-inositol", id="achiral_derivative_omits_dl"),
+        pytest.param("F[C@H]1[C@H](O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1Cl", "1D-2-chloro-1,2-dideoxy-1-fluoro-myo-inositol", id="halogeno_deoxy_pair_merged"),
+        pytest.param("S[C@H]1[C@H](O)[C@H](O)[C@@H](O)[C@@H](O)[C@H]1OC", "1D-1-deoxy-2-O-methyl-1-sulfanyl-allo-inositol", id="sulfanyl_deoxy_with_ether"),
         pytest.param("O[C@H]1[C@H](O)[C@H](OC)[C@@H](O)[C@H](O)[C@H]1O", "1D-2-O-methyl-chiro-inositol", id="chiro_enantiomer_from_numbering"),
         pytest.param("O[C@H]1[C@H](OCC)[C@@H](O)[C@H](O)[C@@H](OCC)[C@H]1O", "1L-1,4-di-O-ethyl-myo-inositol", id="multiplied_o_substituent"),
         pytest.param("O[C@H]1[C@H](OC(C)=O)[C@@H](O)[C@H](O)[C@@H](O)[C@H]1O", "1L-myo-inositol 4-acetate", id="carboxylic_ester_named_as_alkanoate"),
@@ -250,7 +254,7 @@ def test_open_chain_heptose_naming(smiles, expected):
         pytest.param("C(C(C(C(C(C=O)O)O)O)O)O", "2,3,4,5,6-pentahydroxyhexanal", id="unspecified_stereo_aldose_still_falls_through_unchanged"),
         pytest.param("C1C[C@@H](NC1)C(=O)O", "D-proline", id="d_proline"),
         pytest.param("C1CC(NC1)C(=O)O", "proline", id="proline_unspecified_stereocenter_no_ld_prefix"),
-        pytest.param("OC1C[C@H](NC1)C(=O)O", "(2S)-4-hydroxypyrrolidine-2-carboxylic acid", id="hydroxyproline_cites_the_specified_center"),
+        pytest.param("OC1C[C@H](NC1)C(=O)O", "4-hydroxy-L-proline", id="hydroxyproline_cites_the_specified_center"),
         pytest.param("O=C1CCCCO1", "oxan-2-one", id="hetero_ring_ketone_still_resolves"),
     ],
 )
@@ -510,4 +514,43 @@ def test_sugar_substituent_is_glycosyl_only_when_linked_at_the_anomeric_carbon(s
     ],
 )
 def test_intramolecular_anhydro_sugars(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(C)C[C@H](N)C(=O)N[C@H](CCC(=O)O)C(=O)N[C@@H]([C@H](C)O)C(=O)N[C@H](C(C)C)C(=O)N[C@@H](CC(C)C)C(=O)O", "L-leucyl-D-glutamyl-L-allothreonyl-D-valyl-L-leucine", id="d_residues_and_allo"),
+        pytest.param("NCC(=O)NCC(=O)O", "glycylglycine", id="glycine_residues_have_no_descriptor"),
+        pytest.param("CC(N)C(=O)N[C@@H](C)C(=O)O", "ξ-alanyl-L-alanine", id="unspecified_residue_xi"),
+        pytest.param("N[C@@H](CS)C(=O)N[C@@H](CC(=O)O)C(=O)N1CCC[C@H]1C(=O)O", "L-cysteinyl-L-aspartyl-L-proline", id="irregular_acyl_endings"),
+    ],
+)
+def test_peptide_acyl_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("NCCC[C@H](N)C(=O)O", "L-ornithine", id="side_chain_table_entry"),
+        pytest.param("N[C@@H](CS(=O)(=O)O)C(=O)O", "L-cysteic acid", id="sulfur_on_c3_reverses_cip_to_ld"),
+        pytest.param("CC(=O)NCCC[C@H](N)C(=O)O", "N5-acetyl-L-ornithine", id="side_chain_nitrogen_locant"),
+        pytest.param("NCCC(=O)O", "β-alanine", id="whole_molecule_retained_name"),
+        pytest.param("N[C@@H](CSSC[C@H](N)C(=O)O)C(=O)O", "L-cystine", id="two_centres_one_descriptor"),
+        pytest.param("N[C@@H](CSC[C@@H](N)C(=O)O)C(=O)O", "(2R,2'S)-3,3'-sulfanediylbis(2-aminopropanoic acid)", id="disagreeing_centres_fall_through"),
+    ],
+)
+def test_less_common_amino_acid_retained_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O[C@@H]1CCN[C@@H]1C(=O)O", "(3R)-3-hydroxy-L-proline", id="ring_centre_by_cip_alpha_by_ld"),
+        pytest.param("OC1CNC(C1)C(=O)O", "4-hydroxyproline", id="no_stereo_no_hyphen"),
+    ],
+)
+def test_substituted_proline(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

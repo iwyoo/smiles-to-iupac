@@ -211,8 +211,10 @@ def _carbenium_valence(atom):
     """A carbenium centre: three bonds in total, three single bonds or one double and one single bond (a vinyl or aryl
     cation, named through the carbanion of the same skeleton)."""
     orders = [b.GetBondTypeAsDouble() for b in atom.GetBonds()]
-    if atom.GetTotalNumHs() == 0 and sorted(orders) == [1.0, 2.0] and atom.GetBonds()[0].GetOtherAtom(atom).GetAtomicNum() == 6:
-        return all(b.GetOtherAtom(atom).GetAtomicNum() == 6 for b in atom.GetBonds())
+    if atom.GetTotalNumHs() == 0 and sorted(orders) == [1.0, 2.0] and (
+        atom.GetBonds()[0].GetOtherAtom(atom).GetAtomicNum() == 6 or atom.IsInRing()
+    ):
+        return atom.IsInRing() or all(b.GetOtherAtom(atom).GetAtomicNum() == 6 for b in atom.GetBonds())
     return atom.GetTotalNumHs() + atom.GetDegree() == 3 and all(order == 1.0 for order in orders)
 
 
