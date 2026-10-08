@@ -210,3 +210,20 @@ def test_three_rings_with_a_double_bond_junction_name_a_two_ring_assembly_with_r
 )
 def test_assembly_indicated_hydrogen_primes_after_the_number_and_replacement_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1=CC2CCC1CC2C1CC2CCC1C=C2", "[2,2'-bi(bicyclo[2.2.2]octane)]-5,5'-diene"),
+        ("C12C(C3CC4PCC3CC4)CC(NC1)CC2", "5-aza-5'-phospha-2,2'-bi(bicyclo[2.2.2]octane)"),
+        ("ClC1CC2CCC1CC2C1CC2CCC1CC2Cl", "5,5'-dichloro-2,2'-bi(bicyclo[2.2.2]octane)"),
+        ("C1C2C3CC(C3)C2C1C1C2C3CC(C3)C2C1", "3,3'-bi(tricyclo[4.1.1.0^2,5]octane)"),
+        (
+            "C12(C34CSC(C=C3)(C56CSC(C=C5)CC6)CC4)SCC(C=C1)CC2",
+            "1²,2³,3³-trithia[1¹,2¹:2⁴,3¹-terbicyclo[2.2.2]octane]-1⁵,2⁵,3⁵-triene",
+        ),
+    ],
+)
+def test_assembly_of_von_baeyer_components(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

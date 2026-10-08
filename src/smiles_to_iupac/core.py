@@ -308,6 +308,7 @@ from ._polyspiro_heteroatom import (
     name_linear_polyspiro_heteroatom,
 )
 from ._ring_assembly import find_ring_assembly_core, name_ring_assembly
+from ._vb_ring_assembly import find_vb_ring_assembly_core, name_vb_ring_assembly
 from ._ring_assembly_chain import find_ring_assembly_chain_core, name_ring_assembly_chain
 from ._ring_assembly_ylidene import find_ring_assembly_ylidene_core, name_ring_assembly_ylidene
 from ._silane_chain import has_silane_chain_shape, name_silane_chain
@@ -1191,6 +1192,10 @@ def _name_mol(mol) -> str:
     # routed here before every other branch below, for the same reason.
     if has_adduct_shape(mol):
         return name_adduct(mol, smiles_to_iupac)
+
+    vb_assembly_core = find_vb_ring_assembly_core(mol)
+    if vb_assembly_core is not None:
+        return name_vb_ring_assembly(mol, vb_assembly_core)
 
     # P-54.3: an assembly of three or more otherwise identical rings that mixes mancude and saturated rings takes
     # hydro prefixes, ahead of any substitutive or multiplicative name built on the saturated ring.
