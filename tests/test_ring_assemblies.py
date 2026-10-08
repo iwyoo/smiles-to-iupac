@@ -48,16 +48,20 @@ def test_seven_ring_chain_still_is_named():
     "smiles, expected",
     [
         ("OC1CCCCC1=C1CCCCC1", "[1,1'-bi(cyclohexylidene)]-2-ol"),
-        ("C1=CCCCC1C1CCCC=C1", "1,1'-bi(cyclohex-2-ene)"),
+        ("C1=CCCCC1C1CCCC=C1", "[1,1'-bi(cyclohexane)]-2,2'-diene"),
+        ("C1=CCCCC1C1=CCCCC1", "[1,1'-bi(cyclohexane)]-1,2'-diene"),
+        ("C1=CCCC(C1)C1CCCCC1", "[1,1'-bi(cyclohexane)]-3-ene"),
+        ("C1=CC=CC(C1)C1C=CC=CC1", "[1,1'-bi(cyclohexane)]-2,2',4,4'-tetraene"),
+        ("C1CC=CC1C1CC=CC1", "[1,1'-bi(cyclopentane)]-2,3'-diene"),
+        ("C1CCC#CCCC1C1CCCCCCC1", "[1,1'-bi(cyclooctane)]-4-yne"),
+        ("OC1CCC(C=C1)C1CCCCC1", "[1,1'-bi(cyclohexane)]-2-en-4-ol"),
+        ("OC1CC=CCC1C1CC=CCC1", "[1,1'-bi(cyclohexane)]-3',4-dien-2-ol"),
+        ("C1=CCCCC1C1=CCCCC1C", "6-methyl[1,1'-bi(cyclohexane)]-1,2'-diene"),
+        ("ClC1=CCCCC1C1CCCCC1Cl", "2,2'-dichloro[1,1'-bi(cyclohexane)]-2-ene"),
     ],
 )
 def test_double_bond_junction_and_unsaturated_rings(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_unsaturated_rings_that_number_differently_are_not_an_assembly():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OC1CC=CCC1C1CC=CCC1")
 
 
 @pytest.mark.parametrize(
