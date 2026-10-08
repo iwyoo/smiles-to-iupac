@@ -497,7 +497,6 @@ def test_hydroperoxide(smiles, expected):
     "smiles",
     [
         pytest.param("C=CCOO", id="unsaturated_not_supported"),
-        pytest.param("OOC1CCCCC1", id="ring_not_supported"),
     ],
 )
 def test_unsaturated_not_supported_and_related_raise(smiles):
@@ -509,7 +508,8 @@ def test_unsaturated_not_supported_and_related_raise(smiles):
     "smiles, expected",
     [
         pytest.param("C(c1ccccc1)C(C)OO", "1-phenylpropane-2-peroxol", id="phenyl_chain_hydroperoxide_internal_locant"),
-        pytest.param("c1ccccc1OO", "hydroperoxybenzene", id="hydroperoxybenzene"),
+        pytest.param("c1ccccc1OO", "benzeneperoxol", id="ring_peroxol"),
+        pytest.param("OOC1CCC(N)CC1", "4-aminocyclohexane-1-peroxol", id="saturated_ring_peroxol"),
     ],
 )
 def test_phenyl_chain_hydroperoxide_and_related(smiles, expected):
@@ -531,7 +531,7 @@ def test_phenyl_substituted_benzene_and_related_raise(smiles):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("OOc1ccco1", "2-hydroperoxyfuran"),
+        ("OOc1ccco1", "furan-2-peroxol"),
     ],
 )
 def test_heteroaromatic_ring_direct_attachment_hydroperoxide(smiles, expected):

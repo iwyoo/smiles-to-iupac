@@ -3954,6 +3954,16 @@ def _ring_imine_nitrogen(mol, nitrogen, ring_atom):
     return True
 
 
+def _hydroperoxy_oxygen(mol, oxygen, ring_atom):
+    """The terminal OH oxygen of an -O-OH group whose first oxygen is bonded to `ring_atom`, else None."""
+    if oxygen.GetDegree() != 2 or oxygen.GetFormalCharge():
+        return None
+    other = next((n for n in oxygen.GetNeighbors() if n.GetIdx() != ring_atom), None)
+    if other is None or other.GetAtomicNum() != 8 or other.GetDegree() != 1 or other.GetTotalNumHs() != 1 or other.GetFormalCharge():
+        return None
+    return other.GetIdx()
+
+
 def _ring_occurrences(mol):
     """[(class, ring_atom, owned atoms)] for every principal-capable group
     sitting directly on a ring atom (or, for a ketone, the ring carbonyl)."""
@@ -3973,6 +3983,8 @@ def _ring_occurrences(mol):
                 found.append((_CHALCOGEN_KETONE_CLASS[z], r, {i}))
             elif z == 8 and _terminal_heteroatom(mol, i, 1):
                 found.append(("alcohol", r, {i}))
+            elif z == 8 and order == 1.0 and (hydroperoxy := _hydroperoxy_oxygen(mol, n, r)) is not None:
+                found.append(("peroxol", r, {i, hydroperoxy}))
             elif z in (16, 34, 52) and _terminal_heteroatom(mol, i, 1):
                 found.append(({16: "thiol", 34: "selenol", 52: "tellurol"}[z], r, {i}))
             elif z in (16, 34, 52) and order == 1.0:

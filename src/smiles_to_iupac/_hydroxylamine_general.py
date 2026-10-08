@@ -23,7 +23,10 @@ def _groups(mol):
         if chalcogen.GetAtomicNum() not in _PARENT or chalcogen.GetDegree() != 2 or chalcogen.GetFormalCharge() or chalcogen.IsInRing():
             return None
         root = next(n for n in chalcogen.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx())
-        if root.GetAtomicNum() not in (6, 16) or (root.GetAtomicNum() == 16 and chalcogen.GetAtomicNum() != 8):
+        if root.GetAtomicNum() not in (6, 16) or (
+            root.GetAtomicNum() == 16
+            and (chalcogen.GetAtomicNum() != 8 or not any(n.GetAtomicNum() == 6 for n in root.GetNeighbors()))
+        ):
             return None
         found.append((nitrogen, chalcogen, root))
     if not found or len({c.GetAtomicNum() for _, c, _ in found}) != 1:

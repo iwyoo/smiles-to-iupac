@@ -1278,3 +1278,15 @@ def test_ylium_and_onium_cations_of_mononuclear_hydrides(smiles, expected):
 )
 def test_nitrile_oxides_and_their_prefix_beside_an_anion(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CN(C)C(N)=[NH2+]", "N,N-dimethylguanidinium"),
+        ("CNC(=[O+]c1ccccc1)NC", "N,N'-dimethyl-O-phenyluronium"),
+        ("CNC(=[S+]C)Nc1ccccc1", "N,S-dimethyl-N'-phenylthiouronium"),
+    ],
+)
+def test_guanidinium_and_uronium_cations(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

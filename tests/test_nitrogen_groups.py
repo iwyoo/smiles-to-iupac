@@ -1471,3 +1471,15 @@ def test_hydroxylamine_functional_parent_and_chalcogen_analogues(smiles, expecte
 )
 def test_diazene_carbo_suffixes_and_substituted_hydrazinyl(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("NOC(N)=O", "hydroxylamine-O-carboxamide"),
+        ("NS", "thiohydroxylamine"),
+        ("CSN", "S-methyl(thiohydroxylamine)"),
+    ],
+)
+def test_hydroxylamine_acid_forms_and_chalcogen_analogues(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

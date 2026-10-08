@@ -282,13 +282,7 @@ def _name_phenyl_chain_hydroperoxide(mol, ring_atoms, ring_order):
     ring_atom, chain_root = attachment
     hetero_name = heteroaromatic_monocycle_name(mol, ring_order)
     if chain_root in exclude:
-        # P-56.1 has no retained ring-plus-suffix name the way `_alcohol.py`'s
-        # 'phenol' does for -OH; PubChem confirms the ring stays the parent
-        # with '-OOH' cited as a plain 'hydroperoxy' prefix instead (same
-        # shape as `_nitro.py`'s 'nitrobenzene', not a suffix construction).
-        if hetero_name is not None:
-            return heteroaromatic_monocycle_prefix_name(mol, ring_order, ring_atom, "hydroperoxy")
-        return "hydroperoxybenzene"
+        raise UnsupportedStructure("a hydroperoxide on a ring is named with the 'peroxol' suffix on the ring (P-63.4.1)")
     if hetero_name is not None:
         raise UnsupportedStructure(
             "a heteroaromatic ring cited as a chain substituent is not "
