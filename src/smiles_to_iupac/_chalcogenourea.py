@@ -162,13 +162,18 @@ def n_prefix(n1_names, n2_names):
         return "N-carbamimidoyl"
     if len(names) == 1 or (len(names) == 4 and len(set(names)) == 1):
         return format_mononuclear_prefixes(names)
-    if len(n1_names) != len(n2_names):
-        unprimed, primed = (n1_names, n2_names) if len(n1_names) > len(n2_names) else (n2_names, n1_names)
-    else:
-        key = lambda names: min((alpha_sort_key(name) for name, _ in names), default="")
-        unprimed, primed = sorted((n1_names, n2_names), key=key)
+    unprimed, primed = (n1_names, n2_names) if unprimed_first(n1_names, n2_names) else (n2_names, n1_names)
     positions = {"N": unprimed, "N'": primed}
     return format_substituent_prefixes(group_substituents({k: v for k, v in positions.items() if v}))
+
+
+def unprimed_first(n1_names, n2_names):
+    """Whether the first of two amino nitrogens takes the unprimed locant: the one with more substituents, then the one
+    holding the alphanumerically first substituent."""
+    if len(n1_names) != len(n2_names):
+        return len(n1_names) > len(n2_names)
+    key = lambda names: min((alpha_sort_key(name) for name, _ in names), default="")
+    return key(n1_names) <= key(n2_names)
 
 
 @dataclass(frozen=True)

@@ -43,7 +43,7 @@ substituent, and the imino nitrogen takes N''. A ring fused to the guanidine cor
 
 from rdkit import Chem
 
-from ._chalcogenourea import is_core_substituent_root, n_substituent_names
+from ._chalcogenourea import is_core_substituent_root, n_substituent_names, unprimed_first
 from ._common import UnsupportedStructure, adjacency, group_substituents
 from ._substituents import alpha_sort_key, format_substituent_prefixes
 
@@ -122,11 +122,25 @@ def name_guanidine(mol) -> str:
     return f"{format_substituent_prefixes(grouped)}guanidine"
 
 
+def nitrogen_locants(mol):
+    """({nitrogen: 'N' | "N'" | "N''"}, the name with every N locant cited) of a guanidine, None for any other shape."""
+    core = _guanidine_core(mol)
+    if core is None or len(Chem.GetMolFrags(mol)) > 1:
+        return None
+    carbon_idx, imino_idx, (n1_idx, n2_idx) = core
+    n1_names, n2_names, imino_names = n_substituent_names(
+        mol, adjacency(mol), {carbon_idx, imino_idx, n1_idx, n2_idx}, (n1_idx, n2_idx, imino_idx), carbon_idx
+    )
+    first = unprimed_first(n1_names, n2_names)
+    (unprimed, primed), (unprimed_names, primed_names) = (
+        ((n1_idx, n2_idx), (n1_names, n2_names)) if first else ((n2_idx, n1_idx), (n2_names, n1_names))
+    )
+    positions = {"N": unprimed_names, "N'": primed_names, "N''": imino_names}
+    prefixes = format_substituent_prefixes(group_substituents({k: v for k, v in positions.items() if v}))
+    return {unprimed: "N", primed: "N'", imino_idx: "N''"}, f"{prefixes}guanidine"
+
+
 def _amino_assignment(n1_names, n2_names):
     """The amino nitrogen with more substituents takes the unprimed locant, then the one whose substituent comes
     first alphanumerically (P-66.4.1.2.1.2: the minimum number of primes)."""
-    if len(n1_names) != len(n2_names):
-        return (n1_names, n2_names) if len(n1_names) > len(n2_names) else (n2_names, n1_names)
-    key = lambda names: min((alpha_sort_key(name) for name, _ in names), default="")
-    first, second = sorted((n1_names, n2_names), key=key)
-    return first, second
+    return (n1_names, n2_names) if unprimed_first(n1_names, n2_names) else (n2_names, n1_names)

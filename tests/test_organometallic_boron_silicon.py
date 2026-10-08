@@ -77,6 +77,10 @@ def test_borane_chains(smiles, expected):
         pytest.param("N->B", "ammonia—borane (1/1)", id="dative_bond_adduct"),
         pytest.param("CC[S+](CC)[BH2-]C", "(ethylsulfanyl)ethane—methylborane (1/1)", id="sulfur_donor"),
         pytest.param("CO[NH2+][BH3-]", "O-methylhydroxylamine(N—B)borane (1/1)", id="attachment_cited_for_several_donors"),
+        pytest.param("[BH3-][NH2+]C(=O)Nc1ccccc1", "N-phenylurea(N'—B)borane (1/1)", id="urea_unsubstituted_nitrogen"),
+        pytest.param("[BH3-][NH+](C)C(=O)Nc1ccccc1", "N-methyl-N'-phenylurea(N—B)borane (1/1)", id="urea_substituted_nitrogen"),
+        pytest.param("CN(C)C(=[NH+][GaH3-])N(C)C", "N,N,N',N'-tetramethylguanidine(N''—Ga)gallane (1/1)", id="guanidine_imino_nitrogen"),
+        pytest.param("C[NH+]([BH3-])C(=N)NC", "N,N'-dimethylguanidine(N—B)borane (1/1)", id="guanidine_amino_nitrogen"),
     ],
 )
 def test_lewis_adducts_of_boranes(smiles, expected):
