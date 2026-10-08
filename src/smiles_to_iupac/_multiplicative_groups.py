@@ -116,6 +116,12 @@ def ring_seniority_key(mol, ring_atoms):
 
 
 def _single_bonded_linker(atom):
+    if atom.GetAtomicNum() == 16 and atom.GetFormalCharge() == 0:
+        # sulfinyl and sulfonyl linkers: two single bonds to the units and terminal =O atoms (P-63.6)
+        oxo = [b for b in atom.GetBonds() if b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 8]
+        singles = [b for b in atom.GetBonds() if b.GetBondTypeAsDouble() == 1.0]
+        if oxo and len(singles) == 2 and len(oxo) + len(singles) == atom.GetDegree():
+            return all(b.GetOtherAtom(atom).GetDegree() == 1 for b in oxo)
     return atom.GetDegree() >= 2 and all(b.GetBondTypeAsDouble() == 1.0 for b in atom.GetBonds())
 
 

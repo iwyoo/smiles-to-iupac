@@ -470,3 +470,14 @@ def test_ring_unit_with_three_different_attachments_is_not_cited_as_a_triyl():
 )
 def test_identical_parents_with_substituted_units_hetero_rings_imine_and_ester_linkers_are_multiplied(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("NCCCS(=O)CCCN", "3,3'-sulfinyldi(propan-1-amine)"),
+        ("N(S(=O)CCCN)S(=O)CCCN", "3,3'-[azanediylbis(sulfinyl)]di(propan-1-amine)"),
+    ],
+)
+def test_sulfinyl_linkers_of_multiplicative_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
