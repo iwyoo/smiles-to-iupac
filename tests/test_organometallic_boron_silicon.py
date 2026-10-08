@@ -432,6 +432,12 @@ def test_group1_metal_with_substituted_alkyl():
     [
         ("[Li][CH3][Li]", "μ-methyl-dilithium"),
         ("Cl[Hg]c1ccc([Hg]Cl)s1", "dichlorido-1κCl,2κCl-μ-thiophene-2,5-diyl-dimercury"),
+        (
+            "C[As](C)c1ccncc1[Hg]c1ccc([Hg]O)s1",
+            "[4-(dimethylarsanyl)pyridin-3-yl]-1κC-hydroxido-2κO-μ-thiophene-2,5-diyl-dimercury",
+        ),
+        ("C[Sb](C)c1ccc(cc1)[Hg]C", "[4-(dimethylstibanyl)phenyl](methyl)mercury"),
+        ("CB(C)c1ccc(cc1)[Hg]C", "[4-(dimethylboranyl)phenyl](methyl)mercury"),
     ],
 )
 def test_carbon_bridged_dilithium(smiles, expected):

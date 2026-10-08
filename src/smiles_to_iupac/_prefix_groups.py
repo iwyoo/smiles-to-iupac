@@ -10,7 +10,8 @@ from ._hetero_prefixes import CHALCOGEN_PREFIXES, require_plain_chalcogen_kids, 
 from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
 _SIMPLE = {"amino", "hydroxy", "sulfanyl", "methoxy", "ethoxy", "propoxy", "butoxy", "phenoxy", "nitro", "cyano"}
-_METALLOID = {14: "silyl", 32: "germyl", 50: "stannyl", 82: "plumbyl"}
+_METALLOID = {5: "boranyl", 14: "silyl", 32: "germyl", 50: "stannyl", 82: "plumbyl"}
+_PNICTOGEN = {15: "phosphanyl", 33: "arsanyl", 51: "stibanyl", 83: "bismuthanyl"}
 _CONTRACTED = {"methyl": "methoxy", "ethyl": "ethoxy", "propyl": "propoxy", "butyl": "butoxy", "phenyl": "phenoxy"}
 _ACYL = {"methyl": "acetyl", "phenyl": "benzoyl", "ethyl": "propanoyl", "propyl": "butanoyl"}
 
@@ -138,8 +139,8 @@ class PrefixNamer:
             return format_mononuclear_prefixes(entries) + word, True
         if z == 7:
             return self._nitrogen(n, parent, entries)
-        if z == 15:
-            return format_mononuclear_prefixes(entries) + "phosphanyl", True
+        if z in _PNICTOGEN:
+            return format_mononuclear_prefixes(entries) + _PNICTOGEN[z], True
         if z in _METALLOID:
             return (format_mononuclear_prefixes(entries) if entries else "") + _METALLOID[z], bool(entries)
         raise UnsupportedStructure("this substituent group is not supported here")
