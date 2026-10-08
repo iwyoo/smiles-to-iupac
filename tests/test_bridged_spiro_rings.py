@@ -949,3 +949,17 @@ def test_branched_spiro_union_pair_order(smiles, expected):
 )
 def test_spiro_systems_with_atoms_of_nonstandard_bonding_number(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[SiH]12O[SiH2]O[SiH](O[SiH2]O1)O2", "bicyclo[3.3.1]tetrasiloxane", id="bicyclic_siloxane"),
+        pytest.param("[SiH]12O[SiH]3O[SiH](O1)O[SiH](O2)O3", "tricyclo[3.3.1.1^3,7]tetrasiloxane", id="adamantane_shaped_siloxane"),
+        pytest.param("O1[SiH]2O[SiH]3O[SiH]1O[SiH]1O[SiH](O[SiH](O1)O3)O2", "tetracyclo[5.5.1.1^3,11.1^5,9]hexasiloxane", id="hexasilasesquioxane"),
+        pytest.param("[Si]12(O[SiH2]O[SiH2]O1)O[SiH2]O[SiH2]O2", "spiro[5.5]pentasiloxane", id="spiro_siloxane"),
+        pytest.param("N12[SiH2]N3[SiH2]N([SiH2]1)[SiH2]N([SiH2]2)[SiH2]3", "1N-tricyclo[3.3.1.1^3,7]hexasilazane", id="bridgehead_nitrogen_named_by_prefix"),
+    ],
+)
+def test_alternating_heteroatom_cages_take_the_preselected_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

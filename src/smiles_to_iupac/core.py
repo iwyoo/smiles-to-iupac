@@ -31,6 +31,7 @@ from ._silicic_cyanate import silicic_cyanate_name
 from ._borane_silane_amide import borane_silane_amide_name
 from ._polyborane import lewis_adduct_mol, polyborane_name
 from ._diacylamine import diacylamine_name
+from ._alternating_cage import has_alternating_cage_shape, name_alternating_cage
 from ._dipolar import has_dipolar_shape, name_dipolar
 from ._spiro_hub_atom import has_spiro_hub_atom_shape, name_spiro_hub_atom
 from ._substituents import FORCED_BRANCH_NAMES
@@ -631,6 +632,10 @@ def _name_unabridged(smiles: str) -> str:
                 pass
         if parsed is not None and has_spiro_hub_atom_shape(parsed):
             return name_spiro_hub_atom(parsed)
+        if parsed is not None and has_alternating_cage_shape(parsed):
+            cage = name_alternating_cage(parsed)
+            if cage is not None:
+                return cage
         if parsed is not None and has_nonstandard_hydride_shape(parsed):
             return name_nonstandard_hydride(parsed)
         if parsed is not None and has_sphingoid_shape(parsed):
