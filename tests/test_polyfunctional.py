@@ -1074,10 +1074,59 @@ def test_heteroatom_connections_are_not_prefixes_without_a_senior_group(smiles):
         ("OC(=O)C1CCC(CC1)=NO", "4-(hydroxyimino)cyclohexane-1-carboxylic acid"),
         ("OC(=O)C1CCC(CC1)=NOC", "4-(methoxyimino)cyclohexane-1-carboxylic acid"),
         ("OC(=O)CCC(=N)CCC(=O)O", "4-iminoheptanedioic acid"),
-        ("OC(=O)c1ccc(cc1)C=N", "4-(iminomethyl)benzoic acid"),
+        ("OC(=O)c1ccc(cc1)C=N", "4-(methanimidoyl)benzoic acid"),
     ],
 )
 def test_imino_prefixes_under_a_senior_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "group, expected",
+    [
+        ("C(=N)C", "ethanimidoyl"),
+        ("C(=N)", "methanimidoyl"),
+        ("C(=N)CCC", "butanimidoyl"),
+        ("C(=N)c1ccccc1", "benzenecarboximidoyl"),
+        ("C(=N)C1CCCC1", "cyclopentanecarboximidoyl"),
+        ("C(=NN)", "methanehydrazonoyl"),
+        ("C(=NN)C", "ethanehydrazonoyl"),
+        ("C(=NN)C1CCCCC1", "cyclohexanecarbohydrazonoyl"),
+        ("C(=NO)c1ccccc1", "N-hydroxybenzenecarboximidoyl"),
+        ("C(=S)CC", "propanethioyl"),
+        ("C(=[Se])C", "ethaneselenoyl"),
+        ("C(=S)C(=O)O", "carboxymethanethioyl"),
+        ("C(=O)C(=S)O", "hydroxy(sulfanylidene)acetyl"),
+        ("C(=S)C(=S)O", "hydroxy(sulfanylidene)ethanethioyl"),
+        ("C(=S)C(=S)S", "sulfanyl(sulfanylidene)ethanethioyl"),
+        ("C(=O)C(=O)Cl", "chloro(oxo)acetyl"),
+        ("C(=O)C(N)=O", "oxamoyl"),
+        ("C(=S)S", "dithiocarboxy"),
+        ("C(=O)S", "sulfanylcarbonyl"),
+        ("C(=S)O", "hydroxycarbonothioyl"),
+        ("S(=O)(=O)c1ccccc1", "benzenesulfonyl"),
+        ("S(=O)(=S)CC", "ethanesulfonothioyl"),
+        ("S(=[Se])c1ccccc1", "benzenesulfinoselenoyl"),
+        ("S(=N)CC", "ethanesulfinimidoyl"),
+        ("[Se](=O)C", "methaneseleninyl"),
+    ],
+)
+def test_acyl_prefixes_of_imidic_and_chalcogen_acids(group, expected):
+    name = smiles_to_iupac("OC(=O)c1ccc(cc1)" + group)
+    assert name.startswith("4-") and name.endswith("benzoic acid")
+    assert expected in name
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("O=C=C1CCC(CC1)C(=O)O", "4-(oxomethylidene)cyclohexane-1-carboxylic acid"),
+        ("S=C=C1CCC(CC1)C(=O)O", "4-(sulfanylidenemethylidene)cyclohexane-1-carboxylic acid"),
+        ("[Se]=C=C1CCC(CC1)C(=O)O", "4-(selanylidenemethylidene)cyclohexane-1-carboxylic acid"),
+        ("NN=C=C1CCC(CC1)C(=O)O", "4-(hydrazinylidenemethylidene)cyclohexane-1-carboxylic acid"),
+    ],
+)
+def test_nonacyl_carbonic_acid_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

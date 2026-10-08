@@ -18,6 +18,7 @@ from ._hetero_prefixes import (
     require_plain_chalcogen_kids,
     require_senior_group,
 )
+from ._imidoyl_prefix import ketene_prefix
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 from ._retained_acids import is_compound_acyl
@@ -315,6 +316,10 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 name = _multiplied_amino(children, "amino")
                 record(node, name, True)
         elif z == 6 and node not in named:
+            ketene = ketene_prefix(mol, graph, node, parent)
+            if ketene is not None:
+                record(node, *ketene)
+                continue
             carbonyl = [k for k in kids if mol.GetAtomWithIdx(k).GetAtomicNum() == 8 and _bond_order(mol, node, k) == 2.0]
             triple_n = [k for k in kids if mol.GetAtomWithIdx(k).GetAtomicNum() == 7 and _bond_order(mol, node, k) == 3.0]
             if triple_n and len(kids) == 1:

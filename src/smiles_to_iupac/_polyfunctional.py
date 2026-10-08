@@ -525,6 +525,8 @@ def _group_of(mol, carbon):
             for n in atom.GetNeighbors()
             if n.GetIdx() != oxygens[0]
         ):
+            if any(n.IsInRing() for n in carbon_neighbors):
+                return None
             raise UnsupportedStructure("a cumulated carbonyl (ketene) is not supported")
         if not hetero:
             if len(carbon_neighbors) == 1 and atom.GetTotalNumHs() == 1:
