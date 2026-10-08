@@ -545,6 +545,21 @@ def _is_pseudoketone_heteroatom(mol, atom, carbon):
     return z in _GROUP_14_ATOMS or all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors() if n.GetIdx() != carbon)
 
 
+def _acyl_diazene_nitrogen(mol, atom, carbon):
+    """The acylated nitrogen of an acyl diazene R-CO-N=N-R': a ketone with a diazenyl prefix, not an amide
+    (P-68.3.1.3.6, P-15.3.3.2.2)."""
+    if atom.GetAtomicNum() != 7 or atom.GetFormalCharge() or atom.GetDegree() != 2 or atom.IsInRing():
+        return False
+    others = [n for n in atom.GetNeighbors() if n.GetIdx() != carbon]
+    return (
+        len(others) == 1
+        and others[0].GetAtomicNum() == 7
+        and not others[0].GetFormalCharge()
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), others[0].GetIdx()).GetBondTypeAsDouble() == 2.0
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), carbon).GetBondTypeAsDouble() == 1.0
+    )
+
+
 def _acyloxy_amine_oxygen(mol, oxygen, carbon):
     """The ester oxygen of an acyl-O-N group on an acyclic amine nitrogen: a pseudoketone (P-65.6.3.4.1), since only a
     cyclic nitrogen gives a traditional ester."""
@@ -619,7 +634,9 @@ def _group_of(mol, carbon):
             for n in atom.GetNeighbors()
             if n.GetAtomicNum() == z and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 2.0
         ]
-        if found and all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors() if n.GetIdx() != found[0]) and atom.GetDegree() == 3:
+        if found and all(
+            n.GetAtomicNum() == 6 or _acyl_diazene_nitrogen(mol, n, carbon) for n in atom.GetNeighbors() if n.GetIdx() != found[0]
+        ) and atom.GetDegree() == 3:
             return thione, {found[0]}
         if found:
             amide = _chalcogen_amide_group(mol, atom, found[0], z)
@@ -650,6 +667,8 @@ def _group_of(mol, carbon):
             nitro = [h for h in hetero if h.GetAtomicNum() == 7 and is_nitro_nitrogen(mol, h.GetIdx())]
             if hydroxyl and nitro and not carbon_neighbors:
                 return "acid", {oxygens[0], hydroxyl[0].GetIdx()}
+        if hetero and all(_acyl_diazene_nitrogen(mol, h, carbon) for h in hetero):
+            return "ketone", {oxygens[0]}
         ring_nitrogens = [h for h in hetero if h.IsInRing() and h.GetAtomicNum() == 7]
         if len(hetero) == 2 and len(ring_nitrogens) == 1:
             other = next(h for h in hetero if h.GetIdx() != ring_nitrogens[0].GetIdx())
@@ -2224,6 +2243,7 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
             (
                 -_amine_count(n),
                 _PARENT_HYDRIDE_ORDER.index(c.GetAtomicNum()) if c.GetAtomicNum() in _PARENT_HYDRIDE_ORDER else 99,
+                -len(graph[c.GetIdx()]),
                 n,
                 c.GetIdx(),
             )
@@ -2231,7 +2251,7 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
             if (n := _mononuclear_parent(mol, graph, halogens, aromatic_atoms, c))
         ]
         if named:
-            _, _, name, center = min(named)
+            _, _, _, name, center = min(named)
             return ((0,), name, (None, None, None, 0, {center: 1}, False))
     if centers or (
         not ring_cation
@@ -2931,7 +2951,16 @@ def _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n
     count, ring, spec, here = candidate
     if spec is None:
         found = _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo)
-        return found[0], found[1], (0, (), (), found[1][1])
+        placed = found[1][2][4]
+        taken = set().union(*(o[2] for o in here))
+        attached = [
+            placed[r]
+            for r in ring
+            for n in mol.GetAtomWithIdx(r).GetNeighbors()
+            if r in placed and n.GetIdx() not in ring and n.GetIdx() not in taken
+        ]
+        locant_set = tuple(sorted(attached))
+        return found[0], found[1], (-len(attached), locant_set, locant_set, re.sub(r"[^a-z]", "", found[1][1]))
     owned = set().union(*(o[2] for o in here))
     ring_set = set(ring)
     roots = [
@@ -3954,6 +3983,7 @@ def _is_ester_like(mol, carbon):
         and not (n.GetAtomicNum() == 7 and (atom.GetTotalNumHs() == 1 or any(c.GetAtomicNum() == 6 for c in atom.GetNeighbors())) and _ring_nitrogen_acyl(mol, n, carbon))
         and not (n.GetAtomicNum() == 8 and _terminal_heteroatom(mol, n.GetIdx(), 1))
         and not (n.GetAtomicNum() == 7 and _terminal_heteroatom(mol, n.GetIdx(), 2))
+        and not (n.GetAtomicNum() == 7 and _acyl_diazene_nitrogen(mol, n, carbon))
         for n in atom.GetNeighbors()
     )
 

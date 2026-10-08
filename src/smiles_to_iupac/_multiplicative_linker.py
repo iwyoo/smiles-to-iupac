@@ -366,14 +366,16 @@ def _carbon_part(mol, atoms, attachments, directed, ctx):
     return Part(stereo_prefix + prefix + name, bool(prefix or stereo_prefix), True)
 
 
-def name_component(mol, kind, atoms, attachments, ctx, directed=None):
+def name_component(mol, kind, atoms, attachments, ctx, directed=None, first=None):
     """`attachments`: [(atom_in_component, external_atom, bond_order)];
     `directed`: (unit_side_atom, center_side_atom) for an arm component."""
     if kind == "ring":
         if any(order != 1 for _, _, order in attachments):
             raise UnsupportedStructure("a multiple bond to the multiplied units is not supported yet")
         ring_attachments = [(a, b) for a, b, _ in attachments]
-        result = name_ring_component(mol, atoms, ring_attachments, ctx.groups, ctx.suffix_group, ctx.name_function, directed)
+        result = name_ring_component(
+            mol, atoms, ring_attachments, ctx.groups, ctx.suffix_group, ctx.name_function, directed, first
+        )
         if result is None:
             raise UnsupportedStructure("this ring is not supported as a multiplicative linker component")
         text, has_prefix = result

@@ -2,6 +2,7 @@
 (P-21.2.1, P-44.1.2.2): Group 14 and 15 atoms outrank carbon, so the chain is the parent and carbon groups are prefixes."""
 
 from ._common import (
+    alphanumerical_name_key,
     UnsupportedStructure,
     unsaturation_suffix,
     group_substituents,
@@ -186,15 +187,19 @@ def _split_chain(mol, graph):
         runs.append(run)
     if len(runs) < 2:
         return None
-    best = max(runs, key=lambda run: (len(run), sum(len(graph[a]) - sum(n in run for n in graph[a]) for a in run)))
+    def rank(run):
+        return len(run), sum(len(graph[a]) - sum(n in run for n in graph[a]) for a in run)
+
+    best = max(runs, key=rank)
     if not _joined_by_chalcogens(mol, graph, best, runs):
         return None
-    return z, best
+    return z, best, [run for run in runs if rank(run) == rank(best)]
 
 
 def _joined_by_chalcogens(mol, graph, best, runs):
-    """Whether every other run is reached from `best` only through O, S, Se or Te atoms (which rank below the runs)."""
+    """Whether every other run is reached from `best` only through C, O, S, Se or Te atoms (which rank below the runs)."""
     others = {a for run in runs if run is not best for a in run}
+    carbon = (6,) if all(len(run) >= 2 for run in runs) else ()
     parent = {a: None for a in best}
     queue = list(best)
     while queue:
@@ -208,7 +213,7 @@ def _joined_by_chalcogens(mol, graph, best, runs):
             continue
         a = parent.get(run[0])
         while a is not None and a not in best:
-            if a not in others and mol.GetAtomWithIdx(a).GetAtomicNum() not in (8, 16, 34, 52):
+            if a not in others and mol.GetAtomWithIdx(a).GetAtomicNum() not in (*carbon, 8, 16, 34, 52):
                 return False
             a = parent[a]
     return True
@@ -238,17 +243,26 @@ def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
         found = _chain_atoms(mol, graph, allow_double=True, allow_triple=True)
         unsaturated = found is not None
     alternating = None
+    tied = None
+    z = None
     if found is None:
         alternating = _alternating_chain(mol, graph)
         if alternating is None:
             found = _split_chain(mol, graph)
             if found is None:
                 return None
-            z, chain = found
+            z, chain, tied = found
         else:
             chain = alternating[2]
     else:
         z, chain = found
+    if tied and len(tied) > 1:
+        names = [_chain_name(mol, graph, halogens, aromatic_atoms, z, run, unsaturated, alternating) for run in tied]
+        return min(names, key=alphanumerical_name_key)
+    return _chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alternating)
+
+
+def _chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alternating):
     chain_set = set(chain)
     best = None
     for candidate in (chain, chain[::-1]):
