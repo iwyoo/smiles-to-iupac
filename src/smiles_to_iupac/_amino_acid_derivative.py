@@ -5,47 +5,13 @@ The ester or ion is reduced to its neutral acid, named by the amino acid module,
 """
 
 from rdkit import Chem
-from rdkit.Chem import rdCIPLabeler
 
 from ._amino_acid import SYSTEMATIC_ACID_PROBE, _match, has_amino_acid_shape as _has_plain, name_amino_acid as _name_plain
-from ._common import UnsupportedStructure, adjacency, halogen_substituents
+from ._cited_group import cited_group, subtree
+from ._common import UnsupportedStructure, adjacency
 
 _DIACID_SIDE_LOCANT = {"aspartic acid": "4", "glutamic acid": "5"}
 _ESTER = Chem.MolFromSmarts("[CX3](=O)[OX2;!R]([#6])")
-
-
-def _subtree(graph, root, blocked):
-    seen, stack = {root}, [root]
-    while stack:
-        for n in graph[stack.pop()]:
-            if n != blocked and n not in seen:
-                seen.add(n)
-                stack.append(n)
-    return seen
-
-
-def _alcohol_group(mol, graph, oxygen, root):
-    from ._substituents import BRANCH_STEREO, name_branch
-
-    inside = _subtree(graph, root, oxygen)
-    probe = Chem.Mol(mol)
-    rdCIPLabeler.AssignCIPLabels(probe)
-    atoms = {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.GetIdx() in inside and a.HasProp("_CIPCode")}
-    bonds = {
-        (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode")
-        for b in probe.GetBonds()
-        if b.HasProp("_CIPCode") and b.GetBeginAtomIdx() in inside and b.GetEndAtomIdx() in inside
-    }
-    context = {"atoms": atoms, "bonds": bonds, "used": set()}
-    aromatic = {a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic()}
-    token = BRANCH_STEREO.set(context)
-    try:
-        name, compound = name_branch(graph, root, oxygen, halogen_substituents(mol), aromatic, mol)
-    finally:
-        BRANCH_STEREO.reset(token)
-    if any(("atom", a) not in context["used"] for a in atoms) or any(("bond", b) not in context["used"] for b in bonds):
-        raise UnsupportedStructure("a stereo element of the ester group is not cited by any supported name")
-    return name, compound
 
 
 def _anion_stem(plain):
@@ -96,11 +62,11 @@ def _acid_and_esters(mol):
     removed = set()
     groups = []
     for carbon, oxygen, root in sites:
-        inside = _subtree(graph, root, oxygen)
+        inside = subtree(graph, root, oxygen)
         if carbon in inside:
             raise UnsupportedStructure("a cyclic ester is not an amino acid ester")
         removed |= inside
-        groups.append((carbon, _alcohol_group(mol, graph, oxygen, root)))
+        groups.append((carbon, cited_group(mol, graph, root, oxygen)))
     editable = Chem.RWMol(mol)
     for atom in editable.GetAtoms():
         atom.SetIntProp("_orig", atom.GetIdx())

@@ -23,6 +23,7 @@ from ._aldehyde import name_aldehyde
 from ._aldehyde_amine import has_aldehyde_amine_shape, name_aldehyde_amine
 from ._ketone_amine import has_ketone_amine_shape, name_ketone_amine
 from ._amino_acid_derivative import has_amino_acid_shape, name_amino_acid
+from ._glycoside import has_glycoside_shape, name_glycoside
 from ._histidine import has_histidine_shape, name_histidine
 from ._proline import has_proline_shape, name_proline
 from ._carboxylic_acid_amine import has_carboxylic_acid_amine_shape, name_carboxylic_acid_amine
@@ -35,11 +36,13 @@ from ._aldehyde_ketone import has_aldehyde_ketone_shape, name_aldehyde_ketone
 from ._carbohydrate import (
     has_cyclic_aldofuranose_shape,
     has_cyclic_aldopyranose_shape,
+    has_cyclic_ketohexofuranose_shape,
     has_cyclic_ketohexopyranose_shape,
     has_open_chain_2_ketose_shape,
     has_open_chain_aldose_shape,
     name_cyclic_aldofuranose,
     name_cyclic_aldopyranose,
+    name_cyclic_ketohexofuranose,
     name_cyclic_ketohexopyranose,
     name_open_chain_2_ketose,
     name_open_chain_aldose,
@@ -613,6 +616,8 @@ def _name_unabridged(smiles: str) -> str:
         if parsed is not None and has_substituted_nucleoside_name(parsed):
             name = name_substituted_nucleoside(parsed)
             return name
+        if parsed is not None and has_glycoside_shape(parsed):
+            return name_glycoside(parsed)
         if parsed is not None and has_amino_acid_shape(parsed):
             return name_amino_acid(parsed)
         if parsed is not None and not has_sphingoid_shape(parsed):
@@ -1824,6 +1829,8 @@ def _name_mol(mol) -> str:
         # false-claim reasoning as the aldopyranose/aldofuranose checks above.
         if has_cyclic_ketohexopyranose_shape(mol):
             return name_cyclic_ketohexopyranose(mol)
+        if has_cyclic_ketohexofuranose_shape(mol):
+            return name_cyclic_ketohexofuranose(mol)
         # Proline's pyrrolidine ring (P-103.1.2) is a plain secondary
         # cyclic amine, not an actual ring ketone either -- same
         # `has_hetero_ring_ketone_shape` false-claim reasoning as the

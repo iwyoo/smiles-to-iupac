@@ -604,14 +604,92 @@ def _ketohexopyranose_ring_order(mol):
     return (c1,) + order
 
 
+def _ketohexofuranose_ring_order(mol):
+    """`(C-1, ..., C-6)` for a plain D-2-ketohexofuranose: a 5-membered ring with one ring oxygen, the anomeric C-2
+    (quaternary, exocyclic -OH and -CH2OH) and C-5 bonded to it, C-3 and C-4 each with one -OH, C-6 a -CH2OH on C-5."""
+    ring_info = mol.GetRingInfo()
+    if ring_info.NumRings() != 1:
+        return None
+    ring = ring_info.AtomRings()[0]
+    if len(ring) != 5 or any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring):
+        return None
+    ring_set = set(ring)
+    ring_oxygens = [a for a in ring if mol.GetAtomWithIdx(a).GetSymbol() == "O"]
+    if len(ring_oxygens) != 1:
+        return None
+    (ring_oxygen,) = ring_oxygens
+    if any(mol.GetAtomWithIdx(a).GetSymbol() != "C" for a in ring if a != ring_oxygen):
+        return None
+    graph = adjacency(mol)
+    oxygens = {atom.GetIdx() for atom in mol.GetAtoms() if atom.GetSymbol() == "O"}
+    ring_neighbors = [n for n in graph[ring_oxygen] if n in ring_set]
+    if len(ring_neighbors) != 2:
+        return None
+    c2 = c5 = None
+    for candidate in ring_neighbors:
+        degree = mol.GetAtomWithIdx(candidate).GetDegree()
+        if degree == 4:
+            c2 = candidate
+        elif degree == 3:
+            c5 = candidate
+    if c2 is None or c5 is None:
+        return None
+    anomeric_oxygen = _exocyclic_oxygen(graph, oxygens, ring_set, c2)
+    c1 = _exocyclic_carbon(graph, oxygens, ring_set, c2)
+    c6 = _exocyclic_carbon(graph, oxygens, ring_set, c5)
+    if anomeric_oxygen is None or c1 is None or c6 is None:
+        return None
+    if mol.GetBondBetweenAtoms(c2, anomeric_oxygen).GetBondTypeAsDouble() != 1.0:
+        return None
+    if mol.GetAtomWithIdx(anomeric_oxygen).GetTotalNumHs() != 1:
+        return None
+    if not _is_terminal_ch2oh(mol, graph, oxygens, c1) or not _is_terminal_ch2oh(mol, graph, oxygens, c6):
+        return None
+    for middle_carbon in ring_set - {ring_oxygen, c2, c5}:
+        if mol.GetAtomWithIdx(middle_carbon).GetDegree() != 3 or _exocyclic_oxygen(graph, oxygens, ring_set, middle_carbon) is None:
+            return None
+    if mol.GetNumAtoms() != 12:
+        return None
+    rotated = ring[ring.index(ring_oxygen) :] + ring[: ring.index(ring_oxygen)]
+    order = rotated[1:]
+    if order[0] != c2:
+        order = tuple(reversed(order))
+    return (c1,) + order + (c6,)
+
+
+def _anomeric_prefix(mol, atom_idx):
+    """'α-' or 'β-' from the anomeric carbon's own CIP label; '' when its configuration is not specified."""
+    pattern = _cip_pattern(mol, [atom_idx])
+    return "" if pattern is None else f"{_ANOMERIC_DESCRIPTORS[pattern[0]]}-"
+
+
+def has_cyclic_ketohexofuranose_shape(mol) -> bool:
+    order = _ketohexofuranose_ring_order(mol)
+    if order is None:
+        return False
+    pattern = _ring_ketose_pattern(mol, order)
+    return pattern is not None and pattern in _D_2_KETOSE_PATTERNS
+
+
+def _ring_ketose_pattern(mol, order):
+    """C-3..C-5 CIP pattern of the open chain; the ring-closing C-5 changes the priorities at C-4, so its label flips."""
+    pattern = _cip_pattern(mol, order[2:5])
+    if pattern is None:
+        return None
+    return pattern[:1] + (_FLIP_CIP[pattern[1]],) + pattern[2:]
+
+
+def name_cyclic_ketohexofuranose(mol) -> str:
+    order = _ketohexofuranose_ring_order(mol)
+    stem = _D_2_KETOSE_PATTERNS[_ring_ketose_pattern(mol, order)]
+    return f"{_anomeric_prefix(mol, order[1])}D-{stem[:-2]}furanose"
+
+
 def has_cyclic_ketohexopyranose_shape(mol) -> bool:
     order = _ketohexopyranose_ring_order(mol)
     if order is None:
         return False
     _, c2, c3, c4, c5, _ = order
-    anomeric_pattern = _cip_pattern(mol, [c2])
-    if anomeric_pattern is None or anomeric_pattern[0] not in _ANOMERIC_DESCRIPTORS:
-        return False
     pattern = _cip_pattern(mol, (c3, c4, c5))
     return pattern is not None and pattern in _D_2_KETOSE_PATTERNS
 
@@ -619,9 +697,8 @@ def has_cyclic_ketohexopyranose_shape(mol) -> bool:
 def name_cyclic_ketohexopyranose(mol) -> str:
     order = _ketohexopyranose_ring_order(mol)
     _, c2, c3, c4, c5, _ = order
-    anomeric_descriptor = _ANOMERIC_DESCRIPTORS[_cip_pattern(mol, [c2])[0]]
     stem = _D_2_KETOSE_PATTERNS[_cip_pattern(mol, (c3, c4, c5))]
-    return f"{anomeric_descriptor}-D-{stem[:-2]}pyranose"
+    return f"{_anomeric_prefix(mol, c2)}D-{stem[:-2]}pyranose"
 
 
 def _ring_stem_pattern(mol, order, flip_index):
@@ -654,26 +731,19 @@ def has_cyclic_aldopyranose_shape(mol) -> bool:
     order = _pyranose_ring_order(mol)
     if order is None:
         return False
-    anomeric_pattern = _cip_pattern(mol, [order[0]])
-    if anomeric_pattern is None or anomeric_pattern[0] not in _ANOMERIC_DESCRIPTORS:
-        return False
     pattern = _ring_stem_pattern(mol, order, flip_index=2)
     return pattern is not None and pattern in _D_ALDOSE_PATTERNS
 
 
 def name_cyclic_aldopyranose(mol) -> str:
     order = _pyranose_ring_order(mol)
-    anomeric_descriptor = _ANOMERIC_DESCRIPTORS[_cip_pattern(mol, [order[0]])[0]]
     stem = _D_ALDOSE_PATTERNS[_ring_stem_pattern(mol, order, flip_index=2)]
-    return f"{anomeric_descriptor}-D-{stem[:-2]}pyranose"
+    return f"{_anomeric_prefix(mol, order[0])}D-{stem[:-2]}pyranose"
 
 
 def has_cyclic_aldofuranose_shape(mol) -> bool:
     order = _furanose_ring_order(mol)
     if order is None:
-        return False
-    anomeric_pattern = _cip_pattern(mol, [order[0]])
-    if anomeric_pattern is None or anomeric_pattern[0] not in _ANOMERIC_DESCRIPTORS:
         return False
     pattern = _ring_stem_pattern(mol, order, flip_index=1)
     return pattern is not None and pattern in _D_ALDOSE_PATTERNS
@@ -681,6 +751,18 @@ def has_cyclic_aldofuranose_shape(mol) -> bool:
 
 def name_cyclic_aldofuranose(mol) -> str:
     order = _furanose_ring_order(mol)
-    anomeric_descriptor = _ANOMERIC_DESCRIPTORS[_cip_pattern(mol, [order[0]])[0]]
     stem = _D_ALDOSE_PATTERNS[_ring_stem_pattern(mol, order, flip_index=1)]
-    return f"{anomeric_descriptor}-D-{stem[:-2]}furanose"
+    return f"{_anomeric_prefix(mol, order[0])}D-{stem[:-2]}furanose"
+
+
+def ring_sugar_name_and_order(mol):
+    """(name, (C-1 .. C-6 atom indices)) of a plain D-hexopyranose, -furanose or 2-ketohexose ring, else None."""
+    for has_shape, namer, ring_order in (
+        (has_cyclic_aldopyranose_shape, name_cyclic_aldopyranose, _pyranose_ring_order),
+        (has_cyclic_aldofuranose_shape, name_cyclic_aldofuranose, _furanose_ring_order),
+        (has_cyclic_ketohexopyranose_shape, name_cyclic_ketohexopyranose, _ketohexopyranose_ring_order),
+        (has_cyclic_ketohexofuranose_shape, name_cyclic_ketohexofuranose, _ketohexofuranose_ring_order),
+    ):
+        if has_shape(mol):
+            return namer(mol), ring_order(mol)
+    return None

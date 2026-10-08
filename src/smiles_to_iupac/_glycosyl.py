@@ -36,7 +36,7 @@ def _sugar_atoms(graph, root, glycosidic_oxygen):
 def glycosyl_group(mol, graph, root, glycosidic_oxygen):
     """(name, atoms) of the glycosyl group rooted at the anomeric `root` and bonded to the aglycone through
     `glycosidic_oxygen`, or None when the group is not a plain unsubstituted aldose/ketose ring."""
-    if mol.GetAtomWithIdx(glycosidic_oxygen).GetAtomicNum() != 8 or not mol.GetAtomWithIdx(root).IsInRing():
+    if not mol.GetAtomWithIdx(root).IsInRing():
         return None
     if not any(n.GetAtomicNum() == 8 and n.IsInRing() for n in mol.GetAtomWithIdx(root).GetNeighbors()):
         return None
@@ -44,9 +44,12 @@ def glycosyl_group(mol, graph, root, glycosidic_oxygen):
     if glycosidic_oxygen in atoms or len(atoms) > 20:
         return None
     editable = Chem.RWMol(mol)
-    keep = atoms | {glycosidic_oxygen}
+    keep = atoms | {glycosidic_oxygen} if mol.GetAtomWithIdx(glycosidic_oxygen).GetAtomicNum() == 8 else atoms
     for idx in sorted(set(range(mol.GetNumAtoms())) - keep, reverse=True):
         editable.RemoveAtom(idx)
+    if len(keep) == len(atoms):
+        anomeric_hydroxy = editable.AddAtom(Chem.Atom(8))
+        editable.AddBond(next(i for i, a in enumerate(sorted(atoms)) if a == root), anomeric_hydroxy, Chem.BondType.SINGLE)
     sugar = editable.GetMol()
     try:
         Chem.SanitizeMol(sugar)
