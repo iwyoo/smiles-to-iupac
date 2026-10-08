@@ -677,3 +677,17 @@ def test_locants_without_information_are_omitted(smiles, expected):
 )
 def test_multiplying_prefixes_parentheses_and_elision(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("Br[C@H](F)Cl", "(R)-bromo(chloro)(fluoro)methane"),
+        ("C1(CCC1)[C@@H](O)C1CC1", "(S)-cyclobutyl(cyclopropyl)methanol"),
+        ("CCC(C)(C(=O)OCC)C(=O)OCC", "diethyl ethyl(methyl)propanedioate"),
+        ("Br[C@H](F)C", "(1S)-1-bromo-1-fluoroethane"),
+        ("ClC(Cl)Cl", "trichloromethane"),
+    ],
+)
+def test_mononuclear_and_single_site_parents_enclose_later_prefixes_and_drop_stereo_locants(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

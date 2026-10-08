@@ -132,6 +132,15 @@ def format_substituent_prefixes(grouped, omit_locants: bool = False, omit_all: b
         from ._retained_acids import single_site_prefixes
 
         return single_site_prefixes(grouped)
+    if (
+        omit_locants
+        and len(grouped) > 1
+        and not any("multiplier" in info or any(isinstance(loc, str) for loc in info["locants"]) for info in grouped.values())
+    ):
+        # P-16.5.1.3.1: with every locant omitted, the second and later prefixes are enclosed
+        return format_mononuclear_prefixes(
+            [(name, info["compound"]) for name, info in grouped.items() for _ in info["locants"]]
+        )
     entries = []
     for name in sorted(grouped, key=alpha_sort_key):
         info = grouped[name]

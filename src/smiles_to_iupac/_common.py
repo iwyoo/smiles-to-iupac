@@ -1495,6 +1495,9 @@ def stereo_locants_prefix(stereo, position_of):
             "principal chain/ring skeleton is not supported yet (see P-92)"
         )
     labels = sorted((position_of[atom], code) for atom, code in stereo)
+    if len(position_of) == 1:
+        # P-93.5: the one skeletal atom of a mononuclear parent needs no locant
+        return f"({labels[0][1]})-"
     prefix = ",".join(f"{locant}{code}" for locant, code in labels)
     return f"({prefix})-"
 
