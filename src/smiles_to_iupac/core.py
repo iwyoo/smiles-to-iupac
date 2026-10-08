@@ -25,6 +25,7 @@ from ._ketone_amine import has_ketone_amine_shape, name_ketone_amine
 from ._amino_acid_derivative import has_amino_acid_shape, name_amino_acid
 from ._mixed_onium import has_mixed_onium_shape, name_mixed_onium
 from ._axial_stereo import cite_axial_stereo
+from ._chalcone import has_chalcone_shape, name_chalcone
 from ._dipolar import has_dipolar_shape, name_dipolar
 from ._substituents import FORCED_BRANCH_NAMES
 from ._glycoside import has_glycoside_shape, name_glycoside
@@ -627,6 +628,8 @@ def _name_unabridged(smiles: str) -> str:
         if parsed is not None and has_substituted_nucleoside_name(parsed):
             name = name_substituted_nucleoside(parsed)
             return name
+        if parsed is not None and has_chalcone_shape(parsed):
+            return name_chalcone(parsed)
         if parsed is not None and has_dipolar_shape(parsed):
             return name_dipolar(parsed)
         if parsed is not None and has_glycoside_shape(parsed):
