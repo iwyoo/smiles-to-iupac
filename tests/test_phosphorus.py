@@ -349,13 +349,13 @@ def test_phosphorus_acid_groups_cited_as_prefixes_under_a_carboxylic_acid(smiles
         ("CP(O)(=O)OC#N", "methylphosphonocyanatidic acid"),
         ("P(O)(=O)(OC#N)OC#N", "phosphorodicyanatidic acid"),
         ("c1ccccc1P(O)(=O)Cl", "phenylphosphonochloridic acid"),
-        ("CP(O)(=S)Cl", "methylphosphonochloridothioic acid"),
-        ("CP(O)Cl", "methylphosphonochlorious acid"),
+        ("CP(O)(=S)Cl", "methylphosphonochloridothioic O-acid"),
+        ("CP(O)Cl", "methylphosphonochloridous acid"),
         ("OP(=S)(O)O", "phosphorothioic O,O,O-acid"),
         ("OP(=O)(S)O", "phosphorothioic S-acid"),
         ("SP(=O)(S)O", "phosphorodithioic S,S-acid"),
         ("CP(=[Se])(O)O", "methylphosphonoselenoic O,O-acid"),
-        ("CP(=[Se])(C)O", "dimethylphosphinoselenoic acid"),
+        ("CP(=[Se])(C)O", "dimethylphosphinoselenoic O-acid"),
         ("CP(=S)(C)S", "dimethylphosphinodithioic acid"),
         ("c1ccccc1[As](c1ccccc1)S", "diphenylarsinothious acid"),
         ("CB(C)S", "dimethylborinothioic acid"),
@@ -419,4 +419,35 @@ def test_phosphane_imides_are_lambda5_phosphanimines(smiles, expected):
     ],
 )
 def test_stereogenic_phosphorus_oxide_and_phosphinate(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CN(C)P(=O)(N=C=S)S", "N,N-dimethylphosphoramid(isothiocyanatido)thioic S-acid"),
+        ("ClP(=Nc1ccccc1)(S)c1ccccc1", "N,P-diphenylphosphonochloridimidothioic acid"),
+        ("CNP(=S)(O)c1ccccc1", "N-methyl-P-phenylphosphonamidothioic O-acid"),
+        ("CN=P(O)(c1ccccc1)c1ccccc1", "N-methyl-P,P-diphenylphosphinimidic acid"),
+        ("NNP(=N)(O)O", "phosphorohydrazidimidic acid"),
+        ("OP(=O)(O)OS", "phosphoro(thioperoxoic) OS-acid"),
+        ("CCP(=[Se])(O)O", "ethylphosphonoselenoic O,O-acid"),
+        ("CP(=O)(OC#N)O", "methylphosphonocyanatidic acid"),
+        ("BrP(Cl)c1ccccc1", "phenylphosphonous bromide chloride"),
+        ("CN(C)P(=O)(N=C=O)Cl", "N,N-dimethylphosphoramidisocyanatidic chloride"),
+        ("N=P(N=C=S)(N=C=S)N=C=S", "phosphorimidic triisothiocyanate"),
+        ("O=P(N=C=O)(N=C=O)N=C=O", "phosphoryl triisocyanate"),
+        ("CNNP(=O)(NNC)NNC", "2,2',2''-trimethylphosphoric trihydrazide"),
+        ("CN(C)P(C)(=O)N(C)C", "N,N,N',N',P-pentamethylphosphonic diamide"),
+        ("CN(C)P(=O)(O)O", "dimethylphosphoramidic acid"),
+        ("CCSP(=O)(OC)c1ccccc1", "S-ethyl O-methyl phenylphosphonothioate"),
+        ("CS[As](C)(C)=O", "S-methyl dimethylarsinothioate"),
+        ("CCSP(=S)(CC)CC", "ethyl diethylphosphinodithioate"),
+        ("COP(Cl)N(C)C", "methyl N,N-dimethylphosphoramidochloridite"),
+        ("CCOP(=O)(N=C=S)N(CC)CC", "ethyl N,N-diethylphosphoramid(isothiocyanatidate)"),
+        ("CS[Sb](=O)(F)F", "S-methyl stiborodifluoridothioate"),
+        ("CN=P(O)(O)OP(=N)(O)O", "N1-methyl-1,3-diimidodiphosphoric acid"),
+    ],
+)
+def test_noncarbon_oxoacids_with_infixes_and_their_halides_amides_and_esters(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

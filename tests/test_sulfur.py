@@ -859,3 +859,21 @@ def test_ring_chalcogen_with_oxo_or_hydroxy_in_an_unsaturated_ring(smiles, expec
 )
 def test_lambda_and_silicon_mancude_monocycles(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OS(=O)(=O)Cl", "sulfurochloridic acid"),
+        ("NS(=O)(=O)S", "sulfamothioic S-acid"),
+        ("OS(=O)(=O)[N+]#[C-]", "sulfurisocyanidic acid"),
+        ("FS(=N)N=C=O", "sulfurimidisocyanatidous fluoride"),
+        ("CNS(=O)(Br)=NC", "N,N'-dimethylsulfuramidimidic bromide"),
+        ("CNS(=O)(=O)Cl", "N-methylsulfamoyl chloride"),
+        ("CN=S(Cl)Cl", "N-methylsulfurimidous dichloride"),
+        ("CN(C)S(=O)(=NC1=CC=CC=C1)N(C)C", "N,N,N',N'-tetramethyl-N''-phenylsulfurimidic diamide"),
+        ("CN=S(O)S(=N)O", "N1-methyl-1,2-diimidodithionous acid"),
+    ],
+)
+def test_sulfur_oxoacids_modified_by_infixes_and_their_halides_and_amides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

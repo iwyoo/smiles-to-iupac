@@ -184,13 +184,72 @@ def select_skeleton(mol, graph, matches):
     return kind, body, atoms
 
 
+def _arm(mol, graph, start, ester_oxygen):
+    """(arm atoms from the ester carbon, joint atom) of an unbranched, unsubstituted chain that ends in a ring atom."""
+    arm, previous, node = [start], ester_oxygen, start
+    ring_info = mol.GetRingInfo()
+    while True:
+        atom = mol.GetAtomWithIdx(node)
+        if atom.GetAtomicNum() != 6 or ring_info.NumAtomRings(node) or atom.GetFormalCharge() or atom.GetIsotope():
+            return None
+        forward = [n for n in graph[node] if n != previous]
+        if len(forward) != 1 or any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
+            return None
+        nxt = forward[0]
+        if ring_info.NumAtomRings(nxt):
+            return arm, nxt
+        arm.append(nxt)
+        previous, node = node, nxt
+
+
+def _star_group(mol, graph, matches):
+    """P-65.6.3.3.4.2: esters of one acid whose alcohol carbons end identical chains joined to a ring system are named
+    as the ring diyl multiplied by the chain diyl, 'cyclohexane-1,1-diyldi(propane-3,1-diyl) diacetate'; the other
+    esters stay acyloxy prefixes of the ring."""
+    anions = acid_anions(mol, matches)
+    by_anion = {}
+    for match, anion in zip(matches, anions):
+        by_anion.setdefault(anion, []).append(match)
+    counts = sorted((len(v) for v in by_anion.values()), reverse=True)
+    if counts[0] < 2 or (len(counts) > 1 and counts[1] == counts[0]):
+        return None
+    chosen = next(v for v in by_anion.values() if len(v) == counts[0])
+    arms = [_arm(mol, graph, m[3].GetIdx(), m[2].GetIdx()) for m in chosen]
+    if any(arm is None for arm in arms) or len({len(arm) for arm, _ in arms}) != 1:
+        return None
+    joints = [joint for _, joint in arms]
+    rings, atoms = _system_of(mol, joints[0])
+    if any(joint not in atoms for joint in joints):
+        return None
+    found = evaluate_skeleton(mol, graph, "ring", rings, atoms, joints, {arm[-1] for arm, _ in arms}, "yl")
+    if found is None:
+        return None
+    from ._common import alkane_name
+    from ._numerals import multiplying_prefix
+
+    length = len(arms[0][0])
+    count = len(arms)
+    if length == 1:
+        arm_text = multiplying_prefix(count, compound=True) + "(methylene)"
+    else:
+        arm_text = multiplying_prefix(count) + f"({alkane_name(length)}-{length},1-diyl)"
+    chosen_anions = acid_anions(mol, chosen)
+    return f"{found[1]}{arm_text} {cite_anions(chosen_anions, [0] * count, False)}"
+
+
 def name_diester_ring_diyl(mol, matches):
     graph = adjacency(mol)
     nitro = nitro_atoms(mol)
     if any((a.GetFormalCharge() != 0 and a.GetIdx() not in nitro) or a.GetIsotope() != 0 for a in mol.GetAtoms()):
         raise UnsupportedStructure("charged or isotopically modified atoms are not supported yet")
 
-    selection = select_skeleton(mol, graph, matches)
+    try:
+        selection = select_skeleton(mol, graph, matches)
+    except UnsupportedStructure:
+        star = _star_group(mol, graph, matches)
+        if star is None:
+            raise
+        return star
     if selection is None:
         raise UnsupportedStructure("no ring system or chain carries the ester oxygens")
     kind, body, pool = selection

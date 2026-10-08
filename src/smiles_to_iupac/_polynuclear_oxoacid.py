@@ -66,7 +66,8 @@ def _is_center(atom):
         return False
     if z in (16, 34, 52):
         return any(
-            n.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            (n.GetDegree() == 1 or (n.GetAtomicNum() == 7 and n.GetDegree() == 2))
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
             for n in neighbors
         )
     return any(n.GetAtomicNum() in _CHALCOGENS or n.GetAtomicNum() in (7, *_HALOGENS) or n.GetAtomicNum() == 6 for n in neighbors)
@@ -468,7 +469,7 @@ def _chain_name(mol, centers, links, priority=False):
         candidates.append((key, center_pos, items))
     _, center_pos, items = min(candidates, key=lambda c: c[0])
     n_found = _n_substituents(mol, graph, halogens, centers, center_pos)
-    if priority and not items and senior is None and not n_found:
+    if priority and not items and senior is None and not n_found and centers[0].z != 5:
         raise UnsupportedStructure("a plain homogeneous polyacid or ester is named by the part-wise modules")
     n_prefix = _format_n_substituents(n_found)
     if senior is not None:

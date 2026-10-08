@@ -647,7 +647,7 @@ def _mancude_candidates(mol, skeleton_atoms, sp3):
     carbons = [
         a
         for a in sorted(sp3, key=lambda a: (mol.GetRingInfo().NumAtomRings(a) > 1, a))
-        if mol.GetAtomWithIdx(a).GetAtomicNum() == 6
+        if mol.GetAtomWithIdx(a).GetAtomicNum() in (6, 14, 32, 50, 82)
     ]
     attempts = (
         [((), ())]
@@ -684,6 +684,9 @@ def _mancude_candidates(mol, skeleton_atoms, sp3):
             for bond in list(trial.GetAtomWithIdx(target).GetBonds()):
                 bond.SetBondType(Chem.BondType.SINGLE)
                 bond.SetIsAromatic(False)
+            if trial.GetAtomWithIdx(target).GetAtomicNum() in (14, 32, 50, 82):
+                trial.GetAtomWithIdx(target).SetNoImplicit(True)
+                trial.GetAtomWithIdx(target).SetNumExplicitHs(4 - trial.GetAtomWithIdx(target).GetDegree())
         try:
             sanitize_probe(trial)
         except Exception:

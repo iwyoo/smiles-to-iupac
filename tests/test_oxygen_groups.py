@@ -1161,3 +1161,14 @@ def test_polyester_seniority_peroxydicarbonic_and_acyl_pseudohalide_gaps(smiles,
 )
 def test_ester_end_carbon_joins_the_substituent_chain(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC(=O)OCCCC1(C(CCCC1)CCCOC=O)CCCOC(C)=O", "2-[3-(formyloxy)propyl]cyclohexane-1,1-diyldi(propane-3,1-diyl) diacetate"),
+        ("CC(=O)OCc1ccc(COC(C)=O)cc1", "1,4-phenylenebis(methylene) diacetate"),
+    ],
+)
+def test_diesters_of_a_ring_joined_to_identical_chains(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
