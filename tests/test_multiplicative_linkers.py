@@ -275,9 +275,12 @@ def test_linear_phane_is_named_as_a_phane():
     )
 
 
-def test_substituted_fused_unit_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("Clc1ccc2ccccc2c1Cc1c(Cl)ccc2ccccc12")
+def test_substituted_fused_unit():
+    assert smiles_to_iupac("Clc1ccc2ccccc2c1Cc1c(Cl)ccc2ccccc12") == "1,1'-methylenebis(2-chloronaphthalene)"
+    assert (
+        smiles_to_iupac("C(=O)(NC1=CC=C2C=CC(=CC2=C1)S(=O)(=O)O)NC1=CC=C2C=CC(=CC2=C1)S(=O)(=O)O")
+        == "7,7'-[carbonylbis(azanediyl)]di(naphthalene-2-sulfonic acid)"
+    )
 
 
 @pytest.mark.parametrize(

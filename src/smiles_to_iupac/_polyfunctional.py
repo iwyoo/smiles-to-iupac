@@ -95,9 +95,17 @@ def _chalcogen_sulfonamide_name(slots, replaced):
 
 
 _CHALCOGEN_SULFONAMIDE = {}
-for _slots, _size in ((2, 1), (2, 2), (1, 1)):
+for _slots, _size in ((2, 1), (2, 2)):
     for _combo in itertools.combinations_with_replacement((16, 34, 52), _size):
         _CHALCOGEN_SULFONAMIDE[(_slots, _combo)] = _chalcogen_sulfonamide_name(_slots, _combo)
+_CHALCOGEN_SULFONAMIDE[(1, ())] = "sulfinamide"
+for _combo in itertools.combinations_with_replacement((16, 34, 52), 1):
+    _CHALCOGEN_SULFONAMIDE[(1, _combo)] = _chalcogen_sulfonamide_name(1, _combo)
+_ACID_AMIDE = {}
+for _z, _stem in ((34, "selen"), (52, "tellur")):
+    for _slots, _ending in ((2, "on"), (1, "in")):
+        _ACID_AMIDE[(_z, _slots)] = _CHALCOGEN_SULFONAMIDE[(_z, _slots)] = f"{_stem}{_ending}amide"
+_ACID_AMIDE[(16, 1)] = "sulfinamide"
 _CHALCOGEN_SULFONAMIDE_CLASSES = tuple(_CHALCOGEN_SULFONAMIDE.values())
 _SENIORITY = [
     "ide", "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, *_CHALCOGEN_IMIDAMIDE.values(), "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), "nitrile", "aldehyde", "ketone", "thione", "selone", "tellone", "alcohol", "peroxol",
@@ -411,6 +419,11 @@ def _sulfonyl_group(mol, s_idx, attached):
             name = _CHALCOGEN_SULFONAMIDE[(len(oxygens) + len(replaced), zs)]
             return name, {s_idx, *oxygens, *replaced, other.GetIdx()}
         return None
+    plain_amide = _ACID_AMIDE.get((sulfur.GetAtomicNum(), len(oxygens)))
+    if plain_amide is not None and not imides and not replaced and other.GetAtomicNum() == 7 and (
+        _terminal_heteroatom(mol, other.GetIdx(), 2) or _plain_amide_nitrogen(mol, other, s_idx)
+    ):
+        return plain_amide, {s_idx, *oxygens, other.GetIdx()}
     if sulfur.GetAtomicNum() == 16 and len(oxygens) == 2 and not imides:
         if other.GetAtomicNum() == 8 and _terminal_heteroatom(mol, other.GetIdx(), 1):
             return "sulfonic", {s_idx, *oxygens, other.GetIdx()}
