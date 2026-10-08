@@ -325,3 +325,16 @@ def test_parent_chain_with_more_isotopic_modifications_is_senior(smiles, expecte
 )
 def test_isotopic_descriptors_in_multiplied_prefixes_and_chalcogen_chains(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C1(=CC=CC=C1)[13C](=O)O", "benzene(13C)carboxylic acid", id="carboxyl_carbon_of_benzoic_acid"),
+        pytest.param("C1(=CC=CC=C1)[13C]#N", "benzene(13C)carbonitrile", id="nitrile_carbon_of_benzonitrile"),
+        pytest.param("O[13C](=O)C1CCCCC1", "cyclohexane(13C)carboxylic acid", id="carboxyl_carbon_on_a_cycloalkane"),
+        pytest.param("Clc1ccc(cc1)[13C](=O)O", "4-chlorobenzene-1-(13C)carboxylic acid", id="substituted_benzoic_acid"),
+    ],
+)
+def test_isotopic_label_on_the_carbon_of_a_ring_suffix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

@@ -433,6 +433,9 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
         text = descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity)
         context["consumed"].update(labelled)
         return text + name, False
+    if name in _CARBON_ACYL_PREFIXES and set(labelled) == {root}:
+        context["consumed"].update(labelled)
+        return descriptor(labelled, {root: 1}, True, capacity=capacity) + name, compound
     run = _chalcogen_run(mol, graph, root, coming_from) if mol is not None else None
     if run is not None and all(a in run for a in labelled):
         stem = _CHALCOGEN_RUN_STEM.search(name)
@@ -468,6 +471,7 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     return name[:stem_index] + text + name[stem_index:], compound
 
 
+_CARBON_ACYL_PREFIXES = {"carboxy", "formyl", "carbamoyl", "cyano"}
 _CHALCOGEN_RUN_STEM = re.compile(r"(?:di|tri|tetra|penta|hexa)?(?:sulfanyl|selanyl|tellanyl)$")
 
 

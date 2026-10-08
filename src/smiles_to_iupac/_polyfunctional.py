@@ -1182,6 +1182,13 @@ def _with_labels(mol, labels, consumed, name, parts, reselect):
         finally:
             FORCE_LOCANTS.reset(force_token)
     rest = {a: e for a, e in labels.items() if a not in in_parent and a not in consumed}
+    suffix_carbons = {a: e for a, e in rest.items() if _ring_suffix_carbon(mol, a, parts)}
+    if suffix_carbons:
+        every = [a.GetIdx() for a in mol.GetAtoms() if _ring_suffix_carbon(mol, a.GetIdx(), parts)]
+        if len(suffix_carbons) != len(every) or len({repr(sorted(e["H"].items())) + str(e["skeleton"]) for e in suffix_carbons.values()}) > 1:
+            raise UnsupportedStructure("differently modified or only some of the suffix groups are not supported yet")
+        name = _label_suffix_carbon(name, descriptor(suffix_carbons, {a: 1 for a in suffix_carbons}, True))
+        rest = {a: e for a, e in rest.items() if a not in suffix_carbons}
     front, suffix_text = _group_atom_labels(mol, rest) if rest else ([], None)
     if suffix_text:
         name = _before_suffix(name, *suffix_text)
@@ -1190,6 +1197,33 @@ def _with_labels(mol, labels, consumed, name, parts, reselect):
         capacity = {a: mol.GetAtomWithIdx(a).GetTotalNumHs() for a in in_parent}
         name = _with_descriptor(name, parts, descriptor(in_parent, parts[4], bare, front, capacity, _sole_heteroatoms(mol, in_parent, parts)))
     return name
+
+
+_CARBO_SUFFIXES = ("carboxylic acid", "carbonitrile", "carboxamide", "carbaldehyde")
+_LABELLED_BENZENE_SUFFIX = {"benzoic acid": "carboxylic acid", "benzonitrile": "carbonitrile", "benzamide": "carboxamide", "benzaldehyde": "carbaldehyde"}
+
+
+def _ring_suffix_carbon(mol, atom, parts):
+    """Whether `atom` is the carbon of a 'carboxylic acid', 'carbonitrile', 'carboxamide' or 'carbaldehyde' suffix on a
+    ring parent atom (P-82.6.3.2)."""
+    center = mol.GetAtomWithIdx(atom)
+    if center.GetAtomicNum() != 6 or _group_of(mol, atom) is None:
+        return False
+    return any(n.GetIdx() in parts[4] and n.IsInRing() for n in center.GetNeighbors())
+
+
+def _label_suffix_carbon(name, text):
+    """`name` with the descriptor `text` of the suffix carbon in front of the 'carbo...' suffix; the retained names of
+    benzene derivatives give way to the systematic ones (benzene(13C)carboxylic acid)."""
+    for retained, suffix in _LABELLED_BENZENE_SUFFIX.items():
+        if name.endswith(retained):
+            base = name[: -len(retained)]
+            name = f"{base}{'benzene-1-' if base else 'benzene'}{suffix}"
+            break
+    for suffix in _CARBO_SUFFIXES:
+        if name.endswith(suffix):
+            return name[: -len(suffix)] + text + suffix
+    raise UnsupportedStructure("the suffix carbon of this name is not delimited")
 
 
 def _name_labelled(mol, labels, finish=None):
@@ -1209,7 +1243,12 @@ def _name_labelled(mol, labels, finish=None):
     isotope_context = {"labels": labels, "consumed": set(), "mol": mol}
     isotope_token = ISOTOPE_LABELS.set(isotope_context if labels else None)
     try:
-        multiplicative = _multiplicative_name(mol, stereo)
+        try:
+            multiplicative = _multiplicative_name(mol, stereo)
+        except UnsupportedStructure:
+            if not labels:
+                raise
+            multiplicative = None
         if multiplicative is not None:
             if labels:
                 raise UnsupportedStructure("isotopic modification of a multiplicative name is not supported yet")
