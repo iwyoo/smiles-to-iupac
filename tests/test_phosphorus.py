@@ -355,3 +355,21 @@ def test_phosphorus_acid_groups_cited_as_prefixes_under_a_carboxylic_acid(smiles
 )
 def test_mononuclear_oxoacids_modified_by_functional_replacement(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[PH4][PH3][PH4]", "1λ5,2λ5,3λ5-triphosphane"),
+        ("C[PH3]P", "1-methyl-1λ5-diphosphane"),
+        ("[PH4]O[PH4]", "1λ5,3λ5-diphosphoxane"),
+        ("POP", "diphosphoxane"),
+        ("[SiH3]S[SiH3]", "disilathiane"),
+        (
+            "C1(=CC=CC=C1)[P+]1(P=P(CC1)(C1=CC=CC=C1)C1=CC=CC=C1)C1=CC=CC=C1",
+            "1,1,3,3-tetraphenyl-4,5-dihydro-1H-1,2,3λ5-triphosphol-1-ium",
+        ),
+    ],
+)
+def test_heteroatom_chains_cite_nonstandard_bonding_numbers_and_alternate_by_seniority(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

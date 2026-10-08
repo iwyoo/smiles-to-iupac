@@ -31,7 +31,7 @@ order other than single, and any ring.
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency
+from ._common import UnsupportedStructure, adjacency, nonstandard_bonding
 from ._numerals import numerical_term
 
 _PHOSPHORUS = 15
@@ -71,7 +71,21 @@ def name_phosphane_chain(mol) -> str:
             "P-21.2.1's general branched-chain substitutive naming, not "
             "yet implemented for phosphanes)"
         )
+    start = next(a for a, v in graph.items() if len(v) == 1)
+    chain, previous = [start], None
+    while len(chain) < n:
+        following = next(v for v in graph[chain[-1]] if v != previous)
+        previous = chain[-1]
+        chain.append(following)
+    best = None
+    for direction in (chain, chain[::-1]):
+        lam = {i + 1: b for i, a in enumerate(direction) if (b := nonstandard_bonding(mol.GetAtomWithIdx(a)))}
+        key = (sorted(lam), [-lam[p] for p in sorted(lam)])
+        if best is None or key < best[0]:
+            best = (key, lam)
+    lam = best[1]
+    locants = ",".join(f"{p}\u03bb{lam[p]}" for p in sorted(lam))
     # 'phosphane' starts with a consonant, so the numerical term's
     # terminal 'a' is kept unchanged, same as `_silane_chain.py`'s
     # 'tetra' + 'silane' -> 'tetrasilane'.
-    return numerical_term(n) + "phosphane"
+    return (f"{locants}-" if locants else "") + numerical_term(n) + "phosphane"
