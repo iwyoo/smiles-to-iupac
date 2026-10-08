@@ -54,7 +54,9 @@ def _anion_name(frag):
                     return namer(frag), charge
                 except UnsupportedStructure:
                     break
-    return smiles_to_iupac(Chem.MolToSmiles(frag)), charge
+    name = smiles_to_iupac(Chem.MolToSmiles(frag))
+    # the counter-ion fixes the charge of an amino acid anion (P-103.2.4.3.1)
+    return (name[: -len("(1–)")] if name.endswith("(1–)") else name), charge
 
 
 # 'di' + a mononuclear onium would read as the dinuclear parent (diazanium = N2H5+)
