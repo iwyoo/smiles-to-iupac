@@ -949,3 +949,43 @@ def test_thiohalogen_oxo_prefixes(smiles, expected):
 )
 def test_sulfur_chain_broken_to_express_the_senior_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OC(=O)c1ccc(Oc2ccccc2[SH5])cc1", "4-[2-(λ6-sulfanyl)phenoxy]benzoic acid"),
+        ("OC(=O)C(C[SH3])C[SH5]", "3-(λ6-sulfanyl)-2-[(λ4-sulfanyl)methyl]propanoic acid"),
+        (
+            "OC(=O)C(CCCP[PH4])CCC[PH3]P",
+            "5-(1λ5-diphosphan-1-yl)-2-[3-(2λ5-diphosphan-1-yl)propyl]pentanoic acid",
+        ),
+        (
+            "OC(=O)c1ccc(cc1)C[SH2]COC(C[SH4]CSC)C[SH2]C[SH2]C",
+            "4-[5-({[(methylsulfanyl)methyl]-λ6-sulfanyl}methyl)-4-oxa-2λ4,7λ4,9λ4-trithiadecan-1-yl]benzoic acid",
+        ),
+        (
+            "OC(=O)c1ccc(cc1)C[SiH2]C[SiH2]C[SiH2]C(CCC)[SiH2]C",
+            "4-(7-propyl-2,4,6,8-tetrasilanonan-1-yl)benzoic acid",
+        ),
+    ],
+)
+def test_nonstandard_bonding_in_substituents_and_substituent_chains(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[SH]1=CCC=C1", "3H-1λ4-thiophene"),
+        ("[SH2]1C=Cc2ccccc12", "1H-1λ4-benzothiophene"),
+        ("[IH]1C=Cc2ccccc12", "1H-1λ3-benziodole"),
+        ("[IH]1CCCCC1", "1λ3-iodinane"),
+        ("[IH3]1C=CC=C1", "1H-1λ5-iodole"),
+        ("C1=CC=C[I]=C1", "1λ3-iodinine"),
+        ("COI1OC(=O)c2ccccc12", "1-methoxy-1λ3,2-benziodoxol-3(1H)-one"),
+        ("O1C[SH4]CC1C1C[SH2]CO1", "5-(1,3λ4-oxathiolan-5-yl)-1,3λ6-oxathiolane"),
+    ],
+)
+def test_indicated_hydrogen_and_halogen_atoms_of_nonstandard_bonding_in_rings(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

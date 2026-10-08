@@ -906,6 +906,14 @@ def _indicated_hydrogen_atoms(mol):
     for atom in kekule.GetAtoms():
         if not _capacity(atom) and atom.GetTotalNumHs() > 0 and atom.IsInRing() and not _above_standard(atom):
             atoms.append(atom.GetIdx())
+        elif (
+            atom.IsInRing()
+            and not atom.GetFormalCharge()
+            and _above_standard(atom)
+            and not _double_bonds(atom)
+            and atom.GetTotalNumHs() == _valence(atom) - atom.GetDegree()
+        ):
+            atoms.append(atom.GetIdx())
     return atoms
 
 

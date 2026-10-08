@@ -7,7 +7,7 @@ from rdkit import Chem
 from ._common import adjacency, ring_cycle
 from ._ring_lambda_heterone import _SENIORITY, _stem
 
-_LAMBDA_STANDARD = {"S": 2, "Se": 2, "Te": 2, "P": 3}
+_LAMBDA_STANDARD = {"S": 2, "Se": 2, "Te": 2, "P": 3, "Cl": 1, "Br": 1, "I": 1}
 
 
 def _match(mol):

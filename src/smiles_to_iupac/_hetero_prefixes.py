@@ -10,7 +10,7 @@ import re
 from rdkit import Chem
 
 from ._alkoxy import alkoxy_prefix
-from ._common import UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen, named_prefix
+from ._common import nonstandard_bonding, UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen, named_prefix
 from ._free_valence import SUFFIX_OF_ORDER
 from ._multiplicative_text import enclose
 from ._numerals import alkane_name, multiplying_prefix
@@ -1646,12 +1646,19 @@ def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         locant_set, _, citation = substituent_locant_set_and_citation(grouped)
         attach = walk.index(root) + 1
         ene = tuple(i + 1 for i in range(len(walk) - 1) if mol.GetBondBetweenAtoms(walk[i], walk[i + 1]).GetBondTypeAsDouble() == 2.0)
-        key = ((attach,), ene, -sum(len(v) for v in subs.values()), locant_set, citation)
+        lam = {i + 1: n for i, a in enumerate(walk) if (n := nonstandard_bonding(mol.GetAtomWithIdx(a)))}
+        key = ((attach,), ene, tuple(sorted(lam)), tuple(-lam[p] for p in sorted(lam)), -sum(len(v) for v in subs.values()), locant_set, citation)
         if best is None or key < best[0]:
-            best = (key, grouped, attach, ene)
-    _, grouped, attach, ene = best
+            best = (key, grouped, attach, ene, lam)
+    _, grouped, attach, ene, lam = best
     if len(ene) > 1:
         raise UnsupportedStructure("a heteroatom chain with several double bonds is not supported yet")
+    lam_text = ",".join(f"{p}λ{lam[p]}" for p in sorted(lam))
+    if lam_text and not ene:
+        word = multiplying_prefix(longest) + stem[:-1]
+        base = f"{lam_text}-{word}-{attach}-yl"
+        prefix = format_substituent_prefixes(grouped) if grouped else ""
+        return prefix + ("-" if prefix else "") + base, True
     if ene:
         base = f"{multiplying_prefix(longest)}{stem[:-3]}-{ene[0]}-en-{attach}-yl"
         prefix = format_substituent_prefixes(grouped) if grouped else ""
