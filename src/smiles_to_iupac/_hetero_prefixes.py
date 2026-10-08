@@ -519,6 +519,19 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         entries = _group_names(graph, mol, others, root, halogens, aromatic_atoms)
         return (format_mononuclear_prefixes(entries) if entries else "") + "azaniumyl", bool(entries)
     if (
+        z in _ONIUM_PREFIX_STEMS
+        and atom.GetFormalCharge() == 1
+        and order == 1.0
+        and not atom.IsInRing()
+        and atom.GetTotalValence() == _ONIUM_PREFIX_STEMS[z][1]
+        and all(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 for n in others)
+        and all(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 1.0 for n in others)
+    ):
+        from ._substituents import format_mononuclear_prefixes
+
+        entries = _group_names(graph, mol, others, root, halogens, aromatic_atoms)
+        return (format_mononuclear_prefixes(entries) if entries else "") + _ONIUM_PREFIX_STEMS[z][0] + "yl", bool(entries)
+    if (
         z == 7
         and atom.GetFormalCharge() == 1
         and order == 2.0
@@ -836,6 +849,15 @@ _REPLACEMENT_PREFIX = {"S": "thio", "Se": "seleno", "Te": "telluro"}
 
 
 ANIONIC_PREFIXES = {7: "azanidyl", 8: "oxido", 16: "sulfido", 34: "selenido", 52: "tellurido"}
+_ONIUM_PREFIX_STEMS = {
+    8: ("oxidanium", 3),
+    16: ("sulfanium", 3),
+    34: ("selanium", 3),
+    52: ("telluranium", 3),
+    15: ("phosphanium", 4),
+    33: ("arsanium", 4),
+    51: ("stibanium", 4),
+}
 
 
 def _in_anionic_chain(mol, root, coming_from):
