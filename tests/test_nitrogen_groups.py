@@ -1524,6 +1524,31 @@ def test_formazan_and_its_hydrocarbyl_derivatives(smiles, expected):
 
 
 @pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OC(=O)c1ccc(cc1)N=NC=NN", "4-(formazan-1-yl)benzoic acid", id="1-yl"),
+        pytest.param("OC(=O)c1ccc(cc1)NN=CN=N", "4-(formazan-5-yl)benzoic acid", id="5-yl"),
+        pytest.param("OC(=O)c1ccc(cc1)C(N=N)=NN", "4-(formazan-3-yl)benzoic acid", id="3-yl"),
+        pytest.param("OC(=O)c1ccc(cc1)C(=NNc1ccccc1)N=Nc1ccccc1", "4-(1,5-diphenylformazan-3-yl)benzoic acid", id="substituted_3-yl"),
+        pytest.param("Nc1ccc(cc1)N=NC=NN", "4-(formazan-1-yl)aniline", id="on_an_amine"),
+        pytest.param("OC(=O)CC(=NNc1ccccc1)N=Nc1ccccc1", "3-(phenyldiazenyl)-3-(phenylhydrazinylidene)propanoic acid", id="chain_parent_includes_C3"),
+        pytest.param("OC(=O)c1ccc(cc1)N=NC=NNc1ccc(cc1)C(=O)O", "4,4'-(formazan-1,5-diyl)dibenzoic acid", id="1,5-diyl"),
+        pytest.param("OC(=O)c1ccc(cc1)C(N=N)=NNc1ccc(cc1)C(=O)O", "4,4'-(formazan-3,5-diyl)dibenzoic acid", id="3,5-diyl"),
+        pytest.param(
+            "N#CC(=NNc1cc(ccc1O)S(O)(=O)=O)N=Nc1cc(ccc1O)S(O)(=O)=O",
+            "3,3'-(3-cyanoformazan-1,5-diyl)bis(4-hydroxybenzene-1-sulfonic acid)",
+            id="substituted_1,5-diyl",
+        ),
+        pytest.param(
+            "OC(=O)c1ccc(cc1)N=NC(c1ccc(cc1)C(=O)O)=NNc1ccc(cc1)C(=O)O", "4,4',4''-(formazan-1,3,5-triyl)tribenzoic acid", id="1,3,5-triyl"
+        ),
+    ],
+)
+def test_formazan_substituent_groups_and_linkers_are_retained_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles, expected",
     [
         ("C1CCC([N+]#[C-])CC1", "isocyanocyclohexane"),

@@ -150,6 +150,10 @@ def classify(mol):
     for query in junior:
         for match in mol.GetSubstructMatches(query):
             covered.update(match)
+    from ._formazan import FORMAZAN_SKELETON
+
+    for chain in mol.GetSubstructMatches(FORMAZAN_SKELETON):
+        covered.update(chain)
     for atom in mol.GetAtoms():
         idx = atom.GetIdx()
         z = atom.GetAtomicNum()

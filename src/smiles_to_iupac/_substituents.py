@@ -764,6 +764,13 @@ def _name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, m
         if sugar is not None:
             return sugar
 
+    if mol is not None and attach_order == 1.0 and mol.GetAtomWithIdx(root).GetAtomicNum() in (6, 7) and not mol.GetAtomWithIdx(root).IsInRing():
+        from ._formazan import formazan_substituent
+
+        formazan = formazan_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms)
+        if formazan is not None:
+            return formazan
+
     if mol is not None and attach_order == 1.0:
         from ._heteroacyclic import skeletal_substituent
         from ._skeletal_group import skeletal_chain_group, skeletal_ring_group
