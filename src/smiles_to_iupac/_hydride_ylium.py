@@ -51,9 +51,25 @@ def name_hydride_ylium(mol) -> str:
         name_branch(graph, n, center.GetIdx(), halogens, aromatic, mol=mol) for n in graph[center.GetIdx()]
     ]
     z = center.GetAtomicNum()
+    if z == 8 and len(entries) == 1:
+        return _oxylium(mol, graph, center, halogens, aromatic)
     stem = _STEM[z][0]
     parent = stem + "ylium"
     return format_mononuclear_prefixes(entries) + parent if entries else parent
+
+
+def _oxylium(mol, graph, center, halogens, aromatic):
+    """P-73.2.3.3: the cation of a hydroxy group that has lost its hydride is the oxy group name with 'ylium': methoxylium,
+    phenoxylium, (chloroacetyl)oxylium."""
+    from ._hetero_prefixes import _alkoxy, _group_names, _enclose, is_functional_carbon
+
+    (carbon,) = graph[center.GetIdx()]
+    if is_functional_carbon(mol, carbon):
+        ((acyl, compound),) = _group_names(graph, mol, [carbon], center.GetIdx(), halogens, aromatic)
+        return _enclose(acyl, compound) + "oxylium"
+    rname, compound = name_branch(graph, carbon, center.GetIdx(), halogens, aromatic, mol=mol)
+    alkoxy, _ = _alkoxy(rname, compound)
+    return alkoxy[: -len("oxy")] + "oxylium"
 
 
 _ONIUM_STEM = {7: "azanium", 8: "oxidanium", 16: "sulfanium", 34: "selanium", 52: "telluranium", 17: "chloranium", 35: "bromanium", 53: "iodanium"}
@@ -96,3 +112,69 @@ def name_hydride_onium(mol) -> str:
         name, compound = _group(mol, graph, n, center.GetIdx())
         entries.append((name, compound))
     return format_mononuclear_prefixes(entries) + _ONIUM_STEM[center.GetAtomicNum()]
+
+
+_POLY_STEM = {8: "oxylium", 16: "sulfanylium", 34: "selanylium", 52: "tellanylium"}
+
+
+def _poly_centers(mol):
+    centers = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    if len(centers) < 2 or len(Chem.GetMolFrags(mol)) != 1 or len({a.GetAtomicNum() for a in centers}) != 1:
+        return None
+    if any(
+        a.GetFormalCharge() != 1
+        or a.GetAtomicNum() not in _POLY_STEM
+        or a.GetDegree() != 1
+        or a.GetTotalNumHs()
+        or a.GetIsotope()
+        or a.GetNeighbors()[0].GetAtomicNum() != 6
+        or mol.GetBondBetweenAtoms(a.GetIdx(), a.GetNeighbors()[0].GetIdx()).GetBondTypeAsDouble() != 1.0
+        for a in centers
+    ):
+        return None
+    if any(a.GetIsotope() for a in mol.GetAtoms()):
+        return None
+    centre_indices = {c.GetIdx() for c in centers}
+    if any(a.GetAtomicNum() not in (1, 6, 7, 8, 9, 17, 35, 53) and a.GetIdx() not in centre_indices for a in mol.GetAtoms()):
+        return None
+    return centers
+
+
+def has_poly_ylium_shape(mol) -> bool:
+    return _poly_centers(mol) is not None
+
+
+def name_poly_ylium(mol) -> str:
+    """P-73.5.1.2: ylium centres on identical hydroxy-type groups of one skeleton: (ethane-1,2-diyl)bis(oxylium),
+    (pyridine-2,6-diyl)bis(sulfanylium). The skeleton's multivalent group name is read from the diacetate of its diol."""
+    from ._numerals import multiplying_prefix
+    from .core import smiles_to_iupac
+
+    centers = _poly_centers(mol)
+    if centers is None:
+        raise UnsupportedStructure("not a polycation of identical ylium centres")
+    editable = Chem.RWMol(mol)
+    for center in centers:
+        target = editable.GetAtomWithIdx(center.GetIdx())
+        target.SetFormalCharge(0)
+        target.SetNoImplicit(True)
+        target.SetNumExplicitHs(0)
+        target.SetNumRadicalElectrons(0)
+        target.SetAtomicNum(8)
+        acyl = editable.AddAtom(Chem.Atom(6))
+        oxo = editable.AddAtom(Chem.Atom(8))
+        methyl = editable.AddAtom(Chem.Atom(6))
+        editable.AddBond(center.GetIdx(), acyl, Chem.BondType.SINGLE)
+        editable.AddBond(acyl, oxo, Chem.BondType.DOUBLE)
+        editable.AddBond(acyl, methyl, Chem.BondType.SINGLE)
+    surrogate = editable.GetMol()
+    Chem.SanitizeMol(surrogate)
+    name = smiles_to_iupac(Chem.MolToSmiles(surrogate))
+    count = len(centers)
+    tail = " " + multiplying_prefix(count) + "acetate"
+    if not name.endswith(tail):
+        raise UnsupportedStructure("the skeleton of this polycation has no multivalent group name")
+    group = name[: -len(tail)]
+    if any(ch.isdigit() for ch in group):
+        group = f"({group})"
+    return f"{group}{multiplying_prefix(count, compound=True)}({_POLY_STEM[centers[0].GetAtomicNum()]})"

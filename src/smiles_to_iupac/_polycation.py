@@ -37,12 +37,30 @@ def has_polycation_shape(mol) -> bool:
         bool(centres)
         and len(Chem.GetMolFrags(mol)) == 1
         and all(a.GetFormalCharge() > 0 and not a.GetIsotope() for a in centres)
-        and not any(a.GetNumRadicalElectrons() for a in mol.GetAtoms())
+        and not any(
+            a.GetNumRadicalElectrons() and not (a.GetAtomicNum() == 7 and _ylium_centre(a) and a.GetFormalCharge() == 1)
+            for a in mol.GetAtoms()
+        )
         and (
             (sum(a.GetFormalCharge() for a in centres) >= 2 and (len(centres) > 1 or centres[0].GetAtomicNum() == 6))
             or (len(centres) == 1 and _single_ring_heteroatom_cation(centres[0]))
         )
     )
+
+
+def _ylium_centre(atom) -> bool:
+    """A ring carbon or a ring nitrogen that has lost a hydride ion (carbenium, nitrenium): an 'ylium' centre."""
+    return atom.GetAtomicNum() == 6 or (
+        atom.GetAtomicNum() == 7 and atom.IsInRing() and atom.GetDegree() == 2 and not atom.GetTotalNumHs() and not atom.GetIsAromatic()
+    )
+
+
+def has_ring_nitrenium_shape(mol) -> bool:
+    """A cation with a ring nitrogen that lost a hydride ion (RDKit reports its missing valences as radical electrons)."""
+    return any(
+        a.GetNumRadicalElectrons() and a.GetAtomicNum() == 7 and _ylium_centre(a) and a.GetFormalCharge() == 1
+        for a in mol.GetAtoms()
+    ) and has_polycation_shape(mol)
 
 
 def _single_ring_heteroatom_cation(atom) -> bool:
@@ -66,11 +84,11 @@ def name_polycation(mol) -> str:
             raise
     if any(a.GetFormalCharge() != 1 for a in centres):
         raise UnsupportedStructure("a multiply charged heteroatom centre is not supported yet")
-    if all(a.IsInRing() for a in centres) and any(a.GetAtomicNum() == 6 for a in centres) and any(
-        a.GetAtomicNum() != 6 for a in centres
+    if all(a.IsInRing() for a in centres) and any(_ylium_centre(a) for a in centres) and any(
+        not _ylium_centre(a) for a in centres
     ):
         return _name_ring_ium_ylium(mol, centres)
-    if all(a.IsInRing() for a in centres) and not any(a.GetAtomicNum() == 6 for a in centres):
+    if all(a.IsInRing() for a in centres) and not any(_ylium_centre(a) for a in centres):
         try:
             return _name_ring_polycation(mol, centres)
         except _DifferentSystems:
@@ -122,8 +140,8 @@ def _name_ring_ium_ylium(mol, centres):
     then to the 'ylium' centres."""
     from ._diester_ring_diyl import _system_of, evaluate_skeleton
 
-    ium = [a.GetIdx() for a in centres if a.GetAtomicNum() != 6]
-    ylium = [a.GetIdx() for a in centres if a.GetAtomicNum() == 6]
+    ium = [a.GetIdx() for a in centres if not _ylium_centre(a)]
+    ylium = [a.GetIdx() for a in centres if _ylium_centre(a)]
     if any(a.GetFormalCharge() != 1 or a.GetAtomicNum() not in _RING_CENTRE_ELEMENTS | {6} for a in centres):
         raise UnsupportedStructure("this combination of ring centres is not supported yet")
     stage = Chem.RWMol(mol)
