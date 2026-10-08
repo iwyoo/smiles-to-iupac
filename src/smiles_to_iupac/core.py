@@ -26,6 +26,7 @@ from ._amino_acid_derivative import has_amino_acid_shape, name_amino_acid
 from ._mixed_onium import has_mixed_onium_shape, name_mixed_onium
 from ._axial_stereo import cite_axial_stereo
 from ._chalcone import has_chalcone_shape, name_chalcone
+from ._polyborane import lewis_adduct_mol, polyborane_name
 from ._dipolar import has_dipolar_shape, name_dipolar
 from ._substituents import FORCED_BRANCH_NAMES
 from ._glycoside import has_glycoside_shape, name_glycoside
@@ -359,7 +360,8 @@ def _is_aldehyde_shaped(carbonyl_oxygen):
     return not any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(carbon).GetAtomicNum() == 6 for b in carbon.GetBonds())
 
 
-_NO_PIN_ORGANOMETALLIC = "the Blue Book defines no PIN for this class of organometallic compound (P-69.0)"
+_NO_PIN_ADDUCT = "the Blue Book assigns no PIN to Lewis adducts, whose preferred names are coordination names (P-68.1.6.2)"
+_NO_PIN_ORGANOMETALLIC ="the Blue Book defines no PIN for this class of organometallic compound (P-69.0)"
 
 _FALLBACKS_RUNNING = set()
 
@@ -631,6 +633,13 @@ def _name_unabridged(smiles: str) -> str:
             return name
         if parsed is not None and has_chalcone_shape(parsed):
             return name_chalcone(parsed)
+        if parsed is not None:
+            polyborane = polyborane_name(parsed)
+            if polyborane is not None:
+                return polyborane
+            parts = lewis_adduct_mol(parsed)
+            if parts is not None and has_adduct_shape(parts):
+                return mark(name_adduct(parts, smiles_to_iupac), _NO_PIN_ADDUCT)
         if parsed is not None and has_dipolar_shape(parsed):
             return name_dipolar(parsed)
         if parsed is not None and has_glycoside_shape(parsed):
