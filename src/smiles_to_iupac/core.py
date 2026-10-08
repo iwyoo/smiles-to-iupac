@@ -23,6 +23,7 @@ from ._aldehyde import name_aldehyde
 from ._aldehyde_amine import has_aldehyde_amine_shape, name_aldehyde_amine
 from ._ketone_amine import has_ketone_amine_shape, name_ketone_amine
 from ._amino_acid_derivative import has_amino_acid_shape, name_amino_acid
+from ._axial_stereo import cite_axial_stereo
 from ._glycoside import has_glycoside_shape, name_glycoside
 from ._sugar_acid import has_sugar_alcohol_acid_shape, name_sugar_alcohol_acid
 from ._sugar_substituted import has_substituted_sugar_shape, name_substituted_sugar
@@ -443,14 +444,19 @@ def smiles_to_iupac(smiles: str) -> str:
         raise TypeError(f"smiles must be a str, not {type(smiles).__name__}")
     if not smiles.strip():
         raise ValueError(f"invalid SMILES: {smiles!r}")
-    name = _retained_polycycle_names(_smiles_to_iupac_unabridged(smiles))
-    mol = _parse_smiles(smiles)
-    if mol is not None:
-        _require_isotopes_cited(mol, name)
-        _require_radicals_cited(mol, name)
-    if mol is not None and _has_free_anion(mol):
-        name = acetyl_names(name)
-    return name
+    legacy = Chem.GetUseLegacyStereoPerception()
+    Chem.SetUseLegacyStereoPerception(False)
+    try:
+        name = cite_axial_stereo(smiles, _retained_polycycle_names(_smiles_to_iupac_unabridged(smiles)))
+        mol = _parse_smiles(smiles)
+        if mol is not None:
+            _require_isotopes_cited(mol, name)
+            _require_radicals_cited(mol, name)
+        if mol is not None and _has_free_anion(mol):
+            name = acetyl_names(name)
+        return name
+    finally:
+        Chem.SetUseLegacyStereoPerception(legacy)
 
 
 _RADICAL_ENDINGS = ("yl", "ylidene", "ylidyne", "yne", "ylium", "yloxy", "yliumyl")
