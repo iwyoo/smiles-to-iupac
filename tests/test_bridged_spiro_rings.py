@@ -836,6 +836,7 @@ def test_monospiro_union_with_an_unsaturated_hetero_monocycle(smiles, expected):
     [
         pytest.param("C1=CC2(C=Cc3ccccc3C2)C=C2CC3(C=Cc4ccccc4C3)CC=C12", "1H,1′H,1′′H,3′H-2,2′:7′,2′′-dispiroter[naphthalene]", id="three_identical_fused_components_with_indicated_hydrogen"),
         pytest.param("C1CCC2C(C1)C21C2CCC3(CCCC4OC43)CC21", "7-oxa-2,3′:7′,7′′-dispiroter[bicyclo[4.1.0]heptane]", id="three_identical_von_baeyer_components_with_replacement_prefix"),
+        pytest.param("C12C3(CCC(OC1)O2)OC2CCC1(C3O2)OC2CCCC1O2", "6,6′,6′′,8,8′,8′′-hexaoxa-2,7′:2′,7′′-dispiroter[bicyclo[3.2.1]octane]", id="replacement_heteroatoms_take_low_locants_before_the_spiro_atoms"),
         pytest.param("c1ccc2c(c1)OS13(O2)(Oc2ccccc2O1)Oc1ccccc1O3", "2λ6,2′,2′′-spiroter[[1,3,2]benzodioxathiole]", id="three_identical_components_on_one_nonstandard_atom"),
         pytest.param("c1ccc2c(c1)OS13(O2)(Oc2ccccc2O1)Oc1ccccc1S3", "2λ6-spiro[bis([1,3,2]benzodioxathiole)-2,2′′:2′,2′′-[1,2,3]benzoxadithiole]", id="two_identical_components_and_a_third_on_one_atom"),
         pytest.param("c1ccc2c(c1)OS13(O2)(Oc2ccccc2S1)c1ccccc1-c1ccccc13", "2λ6-spiro[[1,3,2]benzodioxathiole-2,2′-([1,2,3]benzoxadithiole)-2,5′′-dibenzo[b,d]thiophene]", id="three_different_components_on_one_atom"),
@@ -896,4 +897,15 @@ def test_spiro_union_with_suffix_groups_and_double_bonds(smiles, expected):
     ],
 )
 def test_skeletal_heteroatom_with_a_nonstandard_bonding_number_cites_lambda(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C12C3CCCCCCC(C(CCCCCC1)CCCCCC2)C2CCC(C3)C2", "tetracyclo[8.6.6.5^2,9.1^23,26]octacosane"),
+        ("C12CC3CCCCC4CCCCC(CC(CCC5CC5CC1)CCCC2)CC(C4)C3", "pentacyclo[13.7.4.3^3,8.0^18,20.1^13,28]triacontane"),
+    ],
+)
+def test_largest_main_bridge_with_dependent_secondary_bridges(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
