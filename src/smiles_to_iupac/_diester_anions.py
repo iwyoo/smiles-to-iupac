@@ -59,8 +59,8 @@ def find_ester_carbons(mol):
 
 
 def cip_labels(mol, side):
-    """[(atom, CIP code)] for the specified tetrahedral centres within `side`; raises if `side` also has
-    an unspecified or non-tetrahedral stereo element."""
+    """[(atom or (begin, end) of a ring double bond, CIP code)] for the specified stereo elements within `side`; raises
+    if `side` also has an unspecified element or a specified one that is neither tetrahedral nor a ring C=C."""
     in_side = []
     for element in Chem.FindPotentialStereo(mol):
         if element.type == Chem.StereoType.Atom_Tetrahedral:
@@ -73,19 +73,33 @@ def cip_labels(mol, side):
     specified = [e for e in in_side if e.specified == Chem.StereoSpecified.Specified]
     if not specified:
         return []
-    if any(e.type != Chem.StereoType.Atom_Tetrahedral for e in specified):
+    if any(e.type != Chem.StereoType.Atom_Tetrahedral and not _is_ring_double_bond(mol, e) for e in specified) or any(
+        e.type == Chem.StereoType.Bond_Double and e.specified != Chem.StereoSpecified.Specified for e in in_side
+    ):
         raise UnsupportedStructure(
-            "stereochemistry beyond fully specified tetrahedral stereocenters is not supported on the polyol side"
+            "stereochemistry beyond fully specified tetrahedral stereocenters and ring double bonds is not supported "
+            "on the polyol side"
         )
     rdCIPLabeler.AssignCIPLabels(mol)
     pseudo = _pseudoasymmetric_in_group(mol, side)
     labels = []
     for element in specified:
-        atom = mol.GetAtomWithIdx(element.centeredOn)
-        if not atom.HasProp("_CIPCode"):
-            raise UnsupportedStructure("could not determine a CIP label for a stereocenter")
-        labels.append((element.centeredOn, pseudo.get(element.centeredOn, atom.GetProp("_CIPCode"))))
+        if element.type == Chem.StereoType.Atom_Tetrahedral:
+            atom = mol.GetAtomWithIdx(element.centeredOn)
+            if not atom.HasProp("_CIPCode"):
+                raise UnsupportedStructure("could not determine a CIP label for a stereocenter")
+            labels.append((element.centeredOn, pseudo.get(element.centeredOn, atom.GetProp("_CIPCode"))))
+        else:
+            bond = mol.GetBondWithIdx(element.centeredOn)
+            if not bond.HasProp("_CIPCode"):
+                raise UnsupportedStructure("could not determine a CIP label for a ring double bond")
+            labels.append(((bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()), bond.GetProp("_CIPCode")))
     return labels
+
+
+def _is_ring_double_bond(mol, element):
+    bond = mol.GetBondWithIdx(element.centeredOn)
+    return element.type == Chem.StereoType.Bond_Double and bond.IsInRing() and bond.GetBondType() == Chem.BondType.DOUBLE
 
 
 def _pseudoasymmetric_in_group(mol, side):

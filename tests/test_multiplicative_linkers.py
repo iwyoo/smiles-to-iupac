@@ -34,9 +34,32 @@ def test_ring_and_assembly_components_inside_a_linker(smiles, expected):
     "smiles, expected",
     [
         ("C[C@H](O)CN(C)C[C@H](C)O", "(2S,2'S)-1,1'-(methylazanediyl)di(propan-2-ol)"),
+        ("S(/C1=C/CCCCCC1)/C1=C/CCCCCC/1", "(1E,1'E)-1,1'-sulfanediyldi(cyclooct-1-ene)"),
+        ("C1=C/[C@@H](CC[C@@H]2/C=C/CCCCC2)CCCCC/1", "(1E,1'E,3R,3'R)-3,3'-(ethane-1,2-diyl)di(cyclooct-1-ene)"),
+        ("[C@H]1(CC[C@H]3CCCC34CCCC4)CCCC12CCCC2", "(1R,1'R)-1,1'-(ethane-1,2-diyl)di(spiro[4.4]nonane)"),
+        ("CC[C@@H](C)c1ccc(Sc2ccc([C@H](C)CC)cc2)cc1", "1,1'-sulfanediylbis{4-[(2R)-butan-2-yl]benzene}"),
     ],
 )
 def test_stereodescriptors_of_multiplied_units(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        (
+            "C1=C\\[C@H](CC[C@@H]2/C=C/CCCCC2)CCCCC/1",
+            "(1Z,3S)-3-{2-[(1R,2E)-cyclooct-2-en-1-yl]ethyl}cyclooct-1-ene",
+        ),
+        (
+            "C1=C\\[C@@H](CC[C@H]2/C=C/CCCCC2)CCCCC/1",
+            "(1Z,3R)-3-{2-[(1S,2E)-cyclooct-2-en-1-yl]ethyl}cyclooct-1-ene",
+        ),
+        ("[C@@H]1(CC[C@H]3CCCC34CCCC4)CCCC12CCCC2", "(1R)-1-{2-[(1S)-spiro[4.4]nonan-1-yl]ethyl}spiro[4.4]nonane"),
+        ("[C@H]1(CC[C@@H]3CCCC34CCCC4)CCCC12CCCC2", "(1R)-1-{2-[(1S)-spiro[4.4]nonan-1-yl]ethyl}spiro[4.4]nonane"),
+    ],
+)
+def test_units_of_different_configuration_take_the_senior_one_as_parent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

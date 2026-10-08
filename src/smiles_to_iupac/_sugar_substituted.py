@@ -7,7 +7,7 @@ centre therefore gives a systematic name such as 2-deoxy-D-erythro-pentose, whil
 retained stem. Esters follow the sugar name as separate words, all other substituents are detachable prefixes.
 """
 
-from rdkit import Chem
+from rdkit import Chem, rdBase
 from rdkit.Chem import rdCIPLabeler
 
 from ._carbohydrate import _D_2_KETOSE_PATTERNS, _D_ALDOSE_PATTERNS, _FLIP_CIP
@@ -564,7 +564,8 @@ def sugar_substituent_group(mol, graph, root, coming_from):
     editable.GetAtomWithIdx(original.index(coming_from)).SetIsAromatic(False)
     try:
         sugar = editable.GetMol()
-        Chem.SanitizeMol(sugar)
+        with rdBase.BlockLogs():
+            Chem.SanitizeMol(sugar)
         sugar = Chem.RemoveHs(sugar)
         sugar_graph = adjacency(sugar)
         if sugar.GetRingInfo().NumRings() > 1:
