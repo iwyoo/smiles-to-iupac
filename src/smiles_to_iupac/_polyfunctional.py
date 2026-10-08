@@ -2204,8 +2204,16 @@ def _fused_plain_parent(mol, graph, rings):
         system_rings, system_atoms = _system_of(mol, ring[0])
         if not any(set(system_atoms) == set(seen[1]) for seen in systems):
             systems.append((system_rings, system_atoms))
-    ranked = sorted(systems, key=lambda s: _system_rank(mol, *s), reverse=True)
-    if len(ranked) > 1 and _system_rank(mol, *ranked[0]) == _system_rank(mol, *ranked[1]):
+    from ._substituents import ISOTOPE_LABELS
+
+    labels = (ISOTOPE_LABELS.get() or {}).get("labels", {})
+
+    def rank(system):
+        count, nuclides = _isotope_counts(None, [(a, None) for a in system[1] if a in labels])
+        return _system_rank(mol, *system), -count, tuple(-n for n in nuclides)
+
+    ranked = sorted(systems, key=rank, reverse=True)
+    if len(ranked) > 1 and rank(ranked[0]) == rank(ranked[1]):
         raise UnsupportedStructure("several equally senior ring systems need a multiplicative or assembly name")
     system_rings, system_atoms = ranked[0]
     if len(system_rings) > 1:
@@ -2613,7 +2621,7 @@ def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
         enes = f"{ending[:-1] if word[0] in 'aeiouy' else ending}-" if ending else ""
         core = f"[{base}]-{enes}{spots}-{word}"
     name = assembly_join(prefix, core)
-    return count, ((-count,), name, (None, None, None, 0, {a: PrimedLocant(*loc) for a, loc in locants.items()}, True)), joins[0]
+    return count, ((-count,), name, (None, None, None, 0, {a: PrimedLocant(*loc) for a, loc in locants.items()}, True, len(name) - len(core))), joins[0]
 
 
 _CYCLOPENTA_A_PHENANTHRENE = Chem.MolFromSmarts(
