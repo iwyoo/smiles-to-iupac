@@ -195,11 +195,6 @@ def test_c84_isomer_table_has_24_distinct_entries():
         assert all(1 <= p <= 44 for p in pentagons)
 
 
-def test_heptacyclic_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C12C3C4C1C15C4C14C3C2C54")
-
-
 @pytest.mark.parametrize(
     "smiles,expected",
     [
@@ -218,11 +213,6 @@ def test_hydroxy_monospiro_ketone(smiles, expected):
 )
 def test_hydroxy_von_baeyer_ketone(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
-
-
-def test_pentacyclic_propellane_like_degree_four_branch_atom_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C12C3C4C1C15C2C31C45")
 
 
 def test_biphenyl_assembly_stays_assembly():
@@ -987,4 +977,25 @@ def test_alternating_heteroatom_cages_take_the_preselected_name(smiles, expected
     ],
 )
 def test_heteroatom_polyspiro_systems_and_stereogenic_spiro_atoms(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C123CCCC(C(CCCC1)C2)C3", "tricyclo[4.4.1.1^1,5]dodecane"),
+        ("C12C3C4CCC(CC(CCC1)CCC2)(C4)CC3", "tetracyclo[6.3.3.2^2,6.1^3,6]heptadecane"),
+        ("C12CC34CCCC(CC(CCCC1)CCC2)(CC3)C4", "tetracyclo[7.4.3.2^3,7.1^3,7]nonadecane"),
+        ("C12C3C4C1C15C4C14C3C2C54", "heptacyclo[4.4.0.0^1,5.0^2,5.0^3,9.0^4,8.0^7,10]decane"),
+        ("C1CC12CCC1(CCC3(CC3)CCC3(CC3)CC1)CC2", "tetraspiro[2.2.2.2^9.2.2^14.2^6.2^3]icosane"),
+        ("C1CC12C1(CC1)CC1(CC3(CC3)C3(CC3)C1)CC2", "pentaspiro[2.0.2^4.1.1.2^10.0.2^13.1^8.2^3]octadecane"),
+        (
+            "C1CC12C1(OOC3(C4(CC4)CCC34CC4)OO1)C1(CC1)CC2",
+            "5,6,16,17-tetraoxahexaspiro[2.0.2.0.2^8.2.2^13.0^7.2^4.0.2^18.2^3]docosane",
+        ),
+        ("C12CC#C\\C=C/C=C/CCC(=CCC1)C2", "(5Z,7E)-bicyclo[9.3.1]pentadeca-5,7,11-trien-3-yne"),
+        ("C1=2CCCCCCCCCCCCCCCCC(=CC=C1)C2", "bicyclo[16.3.1]docosa-1(22),18,20-triene"),
+    ],
+)
+def test_general_von_baeyer_and_branched_polyspiro(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
