@@ -90,7 +90,7 @@ def _l_face():
 _L_FACE = _l_face()
 
 
-def _ester_anion(mol, oxygen, acyl):
+def ester_anion(mol, oxygen, acyl):
     """Anion name of the acid whose ester oxygen is `oxygen` and acyl-side atom is `acyl`; None when unsupported."""
     from ._acid_derivatives import anion_name
     from .core import smiles_to_iupac
@@ -156,7 +156,7 @@ def _classify(mol, ring):
         if beyond.GetAtomicNum() in (15, 16) or any(
             b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(beyond).GetAtomicNum() == 8 for b in beyond.GetBonds()
         ):
-            anion = _ester_anion(mol, hetero, other)
+            anion = ester_anion(mol, hetero, other)
             if anion is None:
                 return None
             result[a] = (hetero, "ester", anion)
@@ -276,6 +276,11 @@ def name_inositol_derivative(mol) -> str:
     head = (f"1{descriptor}-" if descriptor else "") + (f"{text}-" if text else "") + stem
     if not esters:
         return head
+    return f"{head} {ester_words(esters)}"
+
+
+def ester_words(esters):
+    """'2,4-diacetate 6-(dihydrogen phosphate)' from [(anion name, [locants])], alphabetized by anion."""
     words = []
     for anion, locants in sorted(esters, key=lambda item: alpha_sort_key(item[0])):
         count = len(locants)
@@ -287,4 +292,4 @@ def name_inositol_derivative(mol) -> str:
             words.append(f"{joined}-{_COMPLEX[count]}({anion})")
         else:
             words.append(f"{joined}-{numerical_term(count)}{anion}")
-    return f"{head} {' '.join(words)}"
+    return " ".join(words)

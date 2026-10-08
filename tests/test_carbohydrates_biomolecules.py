@@ -33,11 +33,8 @@ def test_cyclic_aldofuranose_naming(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_furanose_cites_the_specified_elements():
-    assert (
-        smiles_to_iupac("C([C@H]1[C@@H]([C@H]([C@@H](O1)O)O)O)O")
-        == "(2R,3R,4R,5S)-5-(hydroxymethyl)oxolane-2,3,4-triol"
-    )
+def test_pentofuranose_is_a_named_sugar():
+    assert smiles_to_iupac("C([C@H]1[C@@H]([C@H]([C@@H](O1)O)O)O)O") == "α-L-arabinofuranose"
 
 
 @pytest.mark.parametrize(
@@ -379,6 +376,31 @@ def test_glycoglycerolipids(smiles, expected):
     ],
 )
 def test_glycosides_and_oligosaccharides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-102.5.3 to P-102.5.6.4 deoxy, amino, thio, halo, O- and C-substituted monosaccharides
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C([C@H]([C@H](CC=O)O)O)O", "2-deoxy-D-erythro-pentose", id="deoxy_removes_a_centre_systematic_prefix"),
+        pytest.param("C([C@H]([C@H]([C@@H](CC=O)O)O)O)O", "2-deoxy-D-arabino-hexose", id="deoxy_open_chain_hexose"),
+        pytest.param("C([C@@H]1[C@H](CC(O1)O)O)O", "2-deoxy-D-erythro-pentofuranose", id="furanose_with_unspecified_anomeric_carbon"),
+        pytest.param("C[C@H]1[C@@H]([C@H]([C@H]([C@@H](O1)O)O)O)O", "α-L-rhamnopyranose", id="six_deoxy_retained_names"),
+        pytest.param("C([C@@H]1[C@H]([C@@H]([C@H]([C@@H](O1)O)N)O)O)O", "2-amino-2-deoxy-β-D-glucopyranose", id="amino_deoxy_pair"),
+        pytest.param("CC(=O)N[C@@H]1[C@H]([C@@H]([C@H](O[C@H]1O)CO)O)O", "2-(acetylamino)-2-deoxy-β-D-glucopyranose", id="substituted_amino_group"),
+        pytest.param("BrC[C@H]1O[C@@H](O)[C@H](O)[C@@H](O)[C@@H]1O", "6-bromo-6-deoxy-β-D-glucopyranose", id="halogen_with_deoxy"),
+        pytest.param("OC[C@H]1S[C@@H](O)[C@H](O)[C@@H](O)[C@@H]1O", "5-thio-β-D-glucopyranose", id="ring_sulfur"),
+        pytest.param("COC[C@H]1O[C@@H](O)[C@H](OC)[C@@H](OC)[C@@H]1OC", "2,3,4,6-tetra-O-methyl-β-D-glucopyranose", id="multiplied_o_alkyl_prefix"),
+        pytest.param("COC[C@H]1O[C@@H](O)[C@H](OC(C)=O)[C@@H](O)[C@@H]1O", "6-O-methyl-β-D-glucopyranose 2-acetate", id="ester_after_the_name"),
+        pytest.param("OC1O[C@H](COP(O)(O)=O)[C@@H](O)[C@H](O)[C@H]1O", "D-glucopyranose 6-(dihydrogen phosphate)", id="phosphate_ester"),
+        pytest.param("OC[C@H]1O[C@@H](O)[C@@](O)(c2ccccc2)[C@@H](O)[C@@H]1O", "2-C-phenyl-β-D-mannopyranose", id="c_substituent_on_a_nonterminal_carbon"),
+        pytest.param("O=C[C@@H](OC(=O)c1ccccc1)[C@@H](OC(=O)c1ccccc1)[C@H](OC(=O)c1ccccc1)[C@H](OC(=O)c1ccccc1)COC(=O)c1ccccc1", "D-mannose 2,3,4,5,6-pentabenzoate", id="open_chain_polyester"),
+        pytest.param("C([C@@H]1[C@H]([C@H]([C@@H](O1)O)O)O)O", "β-D-ribofuranose", id="plain_pentofuranose"),
+        pytest.param("OP(O)(=O)OC[C@H]1O[C@](O)(COP(O)(O)=O)[C@@H](O)[C@@H]1O", "β-D-fructofuranose 1,6-bis(dihydrogen phosphate)", id="ketose_with_multiplied_esters"),
+    ],
+)
+def test_substituted_monosaccharides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

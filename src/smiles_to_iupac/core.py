@@ -25,6 +25,7 @@ from ._ketone_amine import has_ketone_amine_shape, name_ketone_amine
 from ._amino_acid_derivative import has_amino_acid_shape, name_amino_acid
 from ._glycoside import has_glycoside_shape, name_glycoside
 from ._sugar_acid import has_sugar_alcohol_acid_shape, name_sugar_alcohol_acid
+from ._sugar_substituted import has_substituted_sugar_shape, name_substituted_sugar
 from ._histidine import has_histidine_shape, name_histidine
 from ._proline import has_proline_shape, name_proline
 from ._carboxylic_acid_amine import has_carboxylic_acid_amine_shape, name_carboxylic_acid_amine
@@ -621,6 +622,8 @@ def _name_unabridged(smiles: str) -> str:
             return name_glycoside(parsed)
         if parsed is not None and has_sugar_alcohol_acid_shape(parsed):
             return name_sugar_alcohol_acid(parsed)
+        if parsed is not None and has_substituted_sugar_shape(parsed):
+            return name_substituted_sugar(parsed)
         if parsed is not None and has_amino_acid_shape(parsed):
             return name_amino_acid(parsed)
         if parsed is not None and not has_sphingoid_shape(parsed):
