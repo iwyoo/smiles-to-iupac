@@ -1097,7 +1097,9 @@ def _branch_stereo_rank(entries):
     return tuple(0 if code in "RZr" else 1 for _, code in entries)
 
 
-def _branch_stereo_prefix(entries):
+def _branch_stereo_prefix(entries, single_atom=False):
+    if single_atom:
+        entries = [("", code) for _, code in entries]
     return "(" + ",".join(f"{locant}{code}" for locant, code in entries) + ")-" if entries else ""
 
 
@@ -1231,7 +1233,7 @@ def _select_unsaturated_structure(graph, root, coming_from, halogens, mol, aroma
             best = (key, chain, root_position, name, is_compound)
     _, chain, root_position, name, is_compound = best
     stereo_prefix = _branch_stereo_prefix(
-        _branch_stereo_entries({a: i for i, a in enumerate(chain, start=1)}, record=True)
+        _branch_stereo_entries({a: i for i, a in enumerate(chain, start=1)}, record=True), single_atom=len(chain) == 1
     )
     return chain, root_position, stereo_prefix + name, is_compound or bool(stereo_prefix)
 
@@ -1374,7 +1376,8 @@ def _ring_branch_stereo_core(graph, ring_order, group_locants, stereo, halogens,
     stereo_atom, r_or_s = next(iter(remaining.items()))
     branch_name, branch_compound = name_branch(graph, branch_root, ring_atom, halogens, aromatic_atoms, mol=mol)
     site_locant = branch_atom_locant(graph, branch_root, ring_atom, stereo_atom, halogens, mol=mol)
-    descriptor = f"({site_locant}{r_or_s})-{branch_name}"
+    chain, _, _, _ = _select_winning_structure(graph, branch_root, ring_atom, halogens or {}, mol, unsaturated=mol is not None)
+    descriptor = f"({'' if len(chain) == 1 else site_locant}{r_or_s})-{branch_name}"
     display = f"[{descriptor}]" if branch_compound else f"({descriptor})"
     return ring_atom, display, ring_r_or_s
 

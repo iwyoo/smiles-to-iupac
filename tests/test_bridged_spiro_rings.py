@@ -310,7 +310,7 @@ def test_branched_polyspiro_off_spiro_stereocenter():
 def test_substituent_branch_stereocenter_on_polyspiro():
     assert (
         smiles_to_iupac("F[C@@H](Cl)C1CCC12CCC1(CCC1)CC2")
-        == "1-[(1S)-chloro(fluoro)methyl]dispiro[3.2.3^7.2^4]dodecane"
+        == "1-[(S)-chloro(fluoro)methyl]dispiro[3.2.3^7.2^4]dodecane"
     )
 
 
