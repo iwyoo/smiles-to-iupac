@@ -85,10 +85,23 @@ def has_single_ring_heteroatom_shape(mol, chain) -> bool:
     one of its spiro atoms -- the shape this module accepts."""
     _, spiro_atoms = chain
     heteroatoms = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() in _HETEROATOM_PREFIXES]
-    if len(heteroatoms) != 1:
-        return False
-    idx = heteroatoms[0].GetIdx()
-    return idx in _chain_ring_atoms(mol, chain) and idx not in spiro_atoms
+    ring_atoms = _chain_ring_atoms(mol, chain)
+    return bool(heteroatoms) and all(a.GetIdx() in ring_atoms and a.GetIdx() not in spiro_atoms for a in heteroatoms)
+
+
+_HETEROATOM_ORDER = (8, 16, 7)
+
+
+def _replacement_prefix(mol, heteroatoms, locants):
+    """'1,8-dioxa', '1-oxa-8-aza': the replacement ('a') prefixes in the order O, S, N with their locants (P-24.2.4)."""
+    parts = []
+    for z in _HETEROATOM_ORDER:
+        members = sorted((h for h in heteroatoms if mol.GetAtomWithIdx(h).GetAtomicNum() == z), key=lambda h: locants[h])
+        if members:
+            cited = ",".join(lambda_cited(mol, h, locants[h]) for h in members)
+            multiplier = numerical_term(len(members)) if len(members) > 1 else ""
+            parts.append(f"{cited}-{multiplier}{_HETEROATOM_PREFIXES[z]}")
+    return "-".join(parts)
 
 
 def _candidate_key(parent, spiro_locants, descriptor, heteroatom_locant, substituents):
@@ -126,15 +139,11 @@ def name_linear_polyspiro_heteroatom(mol, chain) -> str:
     ring_order, spiro_atoms = chain
     heteroatoms = [atom.GetIdx() for atom in mol.GetAtoms() if atom.GetAtomicNum() in _HETEROATOM_PREFIXES]
     ring_atoms = _chain_ring_atoms(mol, chain)
-    if len(heteroatoms) != 1 or heteroatoms[0] not in ring_atoms or heteroatoms[0] in spiro_atoms:
+    if not heteroatoms or any(h not in ring_atoms or h in spiro_atoms for h in heteroatoms):
         raise UnsupportedStructure(
-            "exactly one ring heteroatom, at a non-spiro ring position, is "
-            "supported here (two or more ring heteroatoms, a heteroatom at "
-            "a spiro atom itself, and an exocyclic heteroatom substituent "
-            "are out of scope)"
+            "ring heteroatoms at non-spiro ring positions are supported here (a heteroatom at a spiro atom itself "
+            "and an exocyclic heteroatom substituent are out of scope)"
         )
-    (heteroatom_idx,) = heteroatoms
-    a_prefix = _HETEROATOM_PREFIXES[mol.GetAtomWithIdx(heteroatom_idx).GetAtomicNum()]
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
@@ -161,8 +170,14 @@ def name_linear_polyspiro_heteroatom(mol, chain) -> str:
                         str(num) if sup is None else f"{num}^{locants[sup]}"
                         for num, sup in zip(descriptor, superscripts)
                     )
-                    heteroatom_locant = locants[heteroatom_idx]
-                    parent = f"{lambda_cited(mol, heteroatom_idx, heteroatom_locant)}-{a_prefix}{spiro_prefix}[{descriptor_str}]{alkane_name(len(seq))}"
+                    heteroatom_locant = (
+                        tuple(sorted(locants[h] for h in heteroatoms)),
+                        tuple(
+                            tuple(sorted(locants[h] for h in heteroatoms if mol.GetAtomWithIdx(h).GetAtomicNum() == z))
+                            for z in _HETEROATOM_ORDER
+                        ),
+                    )
+                    parent = f"{_replacement_prefix(mol, heteroatoms, locants)}{spiro_prefix}[{descriptor_str}]{alkane_name(len(seq))}"
                     spiro_locants = tuple(sorted(locants[s] for s in spiros))
                     substituents = substituents_for_ring(graph, seq, halogens)
                     key = _candidate_key(parent, spiro_locants, tuple(descriptor), heteroatom_locant, substituents)

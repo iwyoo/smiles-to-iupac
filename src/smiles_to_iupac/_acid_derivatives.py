@@ -225,6 +225,10 @@ def _acid_name(mol, keep, caps):
         editable.RemoveAtom(idx)
     acid = editable.GetMol()
     Chem.SanitizeMol(acid)
+    for atom in acid.GetAtoms():
+        if atom.GetAtomicNum() in (15, 16):
+            # the descriptor of a stereogenic acid centre is cited in front of the anion, not inside the acid name
+            atom.SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
     return _free_acid_name(acid)
 
 
@@ -716,6 +720,10 @@ def _component_acid(mol, atoms, centers):
         editable.RemoveAtom(idx)
     acid = editable.GetMol()
     Chem.SanitizeMol(acid)
+    for atom in acid.GetAtoms():
+        if atom.GetAtomicNum() in (15, 16):
+            # the descriptor of a stereogenic acid centre is cited in front of the anion, not inside the acid name
+            atom.SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
     return _free_acid_name(acid)
 
 
@@ -1078,5 +1086,22 @@ def name_acid_derivative(mol):
     if "anhydride" in kinds:
         return name_anhydride(mol, links)
     if "ester" in kinds:
-        return name_ester(mol, links)
+        return _stereogenic_phosphorus_ester(mol, name_ester(mol, links))
     return name_acyl_halide(mol, links)
+
+
+def _stereogenic_phosphorus_ester(mol, name):
+    """P-93.2.4, P-93.3.4.1: the descriptor of a stereogenic phosphorus or sulfur centre precedes the anion, bracketed for
+    phosphorus: 'methyl (S)-[methyl(phenyl)phosphinate]', 'ethyl (R)-4-nitrobenzene-1-sulfinate'."""
+    from ._common import heteroatom_stereo_prefix
+
+    centres = [a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() in (15, 16)]
+    if len(centres) != 1:
+        return name
+    descriptor = heteroatom_stereo_prefix(mol, centres[0])
+    if descriptor is None:
+        return name
+    cations, _, anion = name.rpartition(" ")
+    if mol.GetAtomWithIdx(centres[0]).GetAtomicNum() == 16:
+        return f"{cations} {descriptor}{anion}"
+    return f"{cations} {descriptor}[{anion}]"

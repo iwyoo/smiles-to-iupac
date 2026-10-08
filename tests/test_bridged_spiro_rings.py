@@ -961,3 +961,15 @@ def test_spiro_systems_with_atoms_of_nonstandard_bonding_number(smiles, expected
 )
 def test_alternating_heteroatom_cages_take_the_preselected_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("O1CCCC12CC1(CCCN1)CC2", "1-oxa-8-azadispiro[4.1.4^7.2^5]tridecane"),
+        ("O1CCC[C@@]12C[C@]1(OCCC1)CC2", "(5R,7R)-1,8-dioxadispiro[4.1.4^7.2^5]tridecane"),
+        ("O1[C@]2(N=CC1)C=CC1=CC=CC=C12", "(1R)-5′H-spiro[indene-1,2′-[1,3]oxazole]"),
+    ],
+)
+def test_heteroatom_polyspiro_systems_and_stereogenic_spiro_atoms(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

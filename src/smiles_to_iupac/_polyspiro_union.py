@@ -420,7 +420,12 @@ def _analyse(mol, atoms=None, outer=frozenset()):
     comps, spiro, _, ambiguous = structure
     scope = set().union(*(c["atoms"] for c in comps))
     inside = [a for a in mol.GetAtoms() if atoms is None or a.GetIdx() in scope]
-    if any(a.GetIsotope() or a.GetNumRadicalElectrons() or a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in inside):
+    if any(
+        a.GetIsotope()
+        or a.GetNumRadicalElectrons()
+        or (a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED and (a.GetIdx() not in spiro or atoms is not None))
+        for a in inside
+    ):
         raise UnsupportedStructure("isotopes, radicals and stereodescriptors of a spiro union are not supported yet")
     if any(
         b.GetStereo() != Chem.BondStereo.STEREONONE
@@ -780,7 +785,19 @@ def name_spiro_union(mol) -> str:
         s = ctx.cationic[0]
         ending = ("ylium", min((_primed(sol.assignment[m][0][s], sol.prime_of[m]) for m in ctx.lam_members[s]), key=_lk))
     name = _compose(ctx, mol, sol, indicated, hydro, prefixes, ending)
-    return _mark_ambiguous(ctx, name)
+    return _spiro_descriptor(mol, locant_of, _mark_ambiguous(ctx, name))
+
+
+def _spiro_descriptor(mol, locant_of, name):
+    """P-93.5.3.1: the configuration of a stereogenic spiro atom is cited with its locant, '(1R)-5'H-spiro[...]'."""
+    from ._common import specified_stereocenters
+
+    centres = specified_stereocenters(mol)
+    if centres is None:
+        return name
+    if len(centres) == 1 and centres[0][0] in locant_of:
+        return f"({locant_of[centres[0][0]]}{centres[0][1]})-{name}"
+    raise UnsupportedStructure("a specified stereocentre other than the sole spiro atom is not supported yet")
 
 
 def spiro_union_numberings(mol, graph, skeleton_atoms):

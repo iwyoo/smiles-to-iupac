@@ -833,11 +833,21 @@ def _name_unabridged(smiles: str) -> str:
                     name = cited
                 elif not tokens:
                     raise UnsupportedStructure("the stereochemistry of this structure is not cited by any supported name")
-        return name
+        return _sulfinyl_descriptor_in_front(name)
     finally:
         if lambda_token is not None:
             CITE_SKELETAL_LAMBDA.reset(lambda_token)
         leave(name)
+
+
+_SULFINYL_DESCRIPTOR = re.compile(r"\[\(([RS])\)-([a-z]+(?:sulfinyl|seleninyl|tellurinyl))\]([a-z]+)")
+
+
+def _sulfinyl_descriptor_in_front(name):
+    """P-93.3.4.1: with a single sulfinyl-type group on a simple parent the descriptor of its stereogenic atom leads the
+    name, '(S)-(methanesulfinyl)ethane'."""
+    match = _SULFINYL_DESCRIPTOR.fullmatch(name)
+    return f"({match.group(1)})-({match.group(2)}){match.group(3)}" if match else name
 
 
 _ANION_NAME_ENDING = re.compile(r"(?:ide|uide|ate|ite|ato|ido|elide)\b|(?:ide|uide|ate|ite)-|id(?:yl|ylidene|ylidyne)\b|-id-\d")

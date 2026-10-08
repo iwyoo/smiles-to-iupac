@@ -773,3 +773,10 @@ def test_toluene_and_xylenes_only_when_unsubstituted(smiles, expected):
 )
 def test_unsaturated_heteromacrocycles_by_skeletal_replacement(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_double_bond_to_an_ylidene_group_takes_the_parent_locant():
+    assert (
+        smiles_to_iupac("Cl/C(/C(/C=C/C(=O)O)=C/S(=O)(=O)O)=C\\C")
+        == "(2E,4E,5Z)-5-chloro-4-(sulfomethylidene)hepta-2,5-dienoic acid"
+    )

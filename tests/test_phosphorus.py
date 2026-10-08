@@ -409,3 +409,14 @@ def test_halides_of_phosphorus_iii_acids_and_azinic_acids(smiles, expected):
 )
 def test_phosphane_imides_are_lambda5_phosphanimines(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[P@](=O)(CCC)C1=CC=CC=C1", "(S)-methyl(phenyl)(propyl)-λ5-phosphanone"),
+        ("C[P@@](OC)(=O)C1=CC=CC=C1", "methyl (S)-[methyl(phenyl)phosphinate]"),
+    ],
+)
+def test_stereogenic_phosphorus_oxide_and_phosphinate(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

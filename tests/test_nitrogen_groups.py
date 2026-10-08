@@ -1483,3 +1483,7 @@ def test_diazene_carbo_suffixes_and_substituted_hydrazinyl(smiles, expected):
 )
 def test_hydroxylamine_acid_forms_and_chalcogen_analogues(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_stereogenic_nitrogen_of_an_amine_oxide():
+    assert smiles_to_iupac("C(C)[N@+](C1=CC=CC=C1)(C)[O-]") == "(S)-N-ethyl-N-methylaniline N-oxide"
