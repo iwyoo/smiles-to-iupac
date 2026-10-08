@@ -54,7 +54,7 @@ def test_cyclic_ketohexopyranose_naming(smiles, expected):
     "smiles, expected",
     [
         pytest.param("C([C@@H]1[C@H]([C@@H]([C@H]([C@H](O1)O)O)O)O)O", "α-D-glucopyranose", id="aldopyranose_still_resolves"),
-        pytest.param("C([C@@H]1[C@H]([C@@H]([C@](O1)(CO)O)O)O)O", "(2R,3S,4S,5R)-2,5-bis(hydroxymethyl)oxolane-2,3,4-triol", id="ketofuranose_cites_the_specified_elements"),
+        pytest.param("C([C@@H]1[C@H]([C@@H]([C@](O1)(CO)O)O)O)O", "β-D-fructofuranose", id="ketofuranose_is_a_named_sugar"),
         pytest.param("C1=C(NC=N1)C[C@H](C(=O)O)N", "D-histidine", id="d_histidine"),
         pytest.param("C1=C(NC=N1)CC(C(=O)O)N", "histidine", id="histidine_unspecified_stereocenter_no_ld_prefix"),
         pytest.param("Cn1cnc(CC(N)C(=O)O)c1", "2-amino-3-(1-methyl-1H-imidazol-4-yl)propanoic acid", id="ring_substituted_histidine_is_named_as_an_amino_acid_with_a_ring_prefix"),
@@ -355,6 +355,30 @@ def test_sphingolipids(smiles, expected):
     ],
 )
 def test_glycoglycerolipids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-102.5.6.2, P-102.6.1, P-102.7 glycosides, glycosyl compounds and oligosaccharides
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OC[C@H]1O[C@@H](OC)[C@H](O)[C@@H](O)[C@@H]1O", "methyl β-D-glucopyranoside", id="methyl_glycoside"),
+        pytest.param("CCO[C@]1(CO)OC[C@@H](O)[C@@H](O)[C@@H]1O", "ethyl β-D-fructopyranoside", id="ketopyranoside"),
+        pytest.param("Oc1ccc(O[C@@H]2O[C@H](CO)[C@@H](O)[C@H](O)[C@H]2O)cc1", "4-hydroxyphenyl β-D-glucopyranoside", id="aglycone_with_hydroxy_group"),
+        pytest.param("CC(=O)c1ccc(O[C@@H]2O[C@H](CO)[C@@H](O)[C@H](O)[C@H]2O)cc1", "1-[4-(β-D-glucopyranosyloxy)phenyl]ethan-1-one", id="senior_aglycone_keeps_prefix_form"),
+        pytest.param("OC[C@H]1O[C@@H](F)[C@H](O)[C@@H](O)[C@@H]1O", "β-D-glucopyranosyl fluoride", id="glycosyl_halide"),
+        pytest.param("OC[C@H]1O[C@@H](N)[C@H](O)[C@@H](O)[C@@H]1O", "β-D-glucopyranosylamine", id="glycosylamine"),
+        pytest.param("OC[C@H]1O[C@@H](Nc2ccccc2)[C@H](O)[C@@H](O)[C@@H]1O", "N-phenyl-β-D-glucopyranosylamine", id="n_substituted_glycosylamine"),
+        pytest.param("OC[C@H]1O[C@H](c2ccccc2)[C@H](O)[C@@H](O)[C@@H]1O", "(β-D-glucopyranosyl)benzene", id="c_glycosyl_ring"),
+        pytest.param("C([C@@H]1[C@@H]([C@@H]([C@H]([C@H](O1)OC[C@@H]2[C@H]([C@@H]([C@H]([C@H](O2)O[C@]3([C@H]([C@@H]([C@H](O3)CO)O)O)CO)O)O)O)O)O)O)O", "β-D-fructofuranosyl α-D-galactopyranosyl-(1→6)-α-D-glucopyranoside", id="trisaccharide_without_hemiacetal"),
+        pytest.param("C([C@@H]1[C@H]([C@@H]([C@H]([C@H](O1)O[C@]2([C@H]([C@@H]([C@H](O2)CO)O)O)CO)O)O)O)O", "β-D-fructofuranosyl α-D-glucopyranoside", id="aldose_is_the_glycoside_parent"),
+        pytest.param("OC[C@H]1O[C@H](O[C@H]2O[C@H](CO)[C@@H](O)[C@H](O)[C@H]2O)[C@H](O)[C@@H](O)[C@@H]1O", "α-D-glucopyranosyl α-D-glucopyranoside", id="identical_units_anomeric_bond"),
+        pytest.param("OC[C@H]1O[C@H](O[C@H]2[C@H](O)[C@@H](O)[C@H](OC)O[C@@H]2CO)[C@H](O)[C@@H](O)[C@@H]1O", "methyl α-D-glucopyranosyl-(1→4)-β-D-glucopyranoside", id="aglycone_on_oligosaccharide"),
+        pytest.param("OC[C@H]1O[C@H](OC[C@H]2O[C@H](O[C@H]3[C@H](O)[C@@H](O)C(O)O[C@@H]3CO)[C@H](O)[C@@H](O)[C@@H]2O)[C@H](O)[C@@H](O)[C@@H]1O", "α-D-glucopyranosyl-(1→6)-α-D-glucopyranosyl-(1→4)-D-glucopyranose", id="reducing_end_without_anomeric_descriptor"),
+        pytest.param("C([C@@H]1[C@H]([C@@H]([C@](O1)(CO)O)O)O)O", "β-D-fructofuranose", id="ketofuranose"),
+    ],
+)
+def test_glycosides_and_oligosaccharides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
