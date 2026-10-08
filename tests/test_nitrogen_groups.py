@@ -577,9 +577,18 @@ def test_ring_nitrogen_amino_is_amine_not_hydrazine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_halogen_on_nitrogen_raises__hydrazine():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("ClNN")
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("ClNN", "chlorohydrazine"),
+        ("F[N](F)N(F)F", "tetrafluorohydrazine"),
+        ("CN(C)N(C)C", "tetramethylhydrazine"),
+        ("CN(C)N(C)CC", "1-ethyl-1,2,2-trimethylhydrazine"),
+        ("c1ccccc1NC(=O)NN", "N-phenylhydrazinecarboxamide"),
+    ],
+)
+def test_halogens_on_hydrazine_nitrogen_and_fully_substituted_hydrazines(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_hydrazone_unspecified_stereocenter_unaffected():
@@ -1461,6 +1470,20 @@ def test_hydroxylamine_functional_parent_and_chalcogen_analogues(smiles, expecte
         ("OC(=O)N=NC(=O)O", "diazenedicarboxylic acid"),
         ("N=Nc1ccc(N=N)c(c1)C(=O)O", "2,5-bis(diazenyl)benzoic acid"),
         ("OC(=O)CCNNC(N)=O", "3-(2-carbamoylhydrazin-1-yl)propanoic acid"),
+        ("CC(=NO)C(C)=NO", "N2,N3-dihydroxybutane-2,3-diimine"),
+        ("CC(=NOc1ccccc1)CC(C)=NOc1ccccc1", "N2,N4-diphenoxypentane-2,4-diimine"),
+        ("CCC(=NO)[N+](=O)[O-]", "N-hydroxy-1-nitropropan-1-imine"),
+        ("CC(=NO)N=O", "N-hydroxy-1-nitrosoethan-1-imine"),
+        ("CCON=Cc1ccc(cc1)S(=O)(=O)O", "4-[(ethoxyimino)methyl]benzene-1-sulfonic acid"),
+        ("CC(=O)C(N=Nc1ccccc1)=NNc1ccccc1", "1-(phenyldiazenyl)-1-(phenylhydrazinylidene)propan-2-one"),
+        ("CC(=O)NN=CN=Nc1ccccc1", "N'-[(phenyldiazenyl)methylidene]acetohydrazide"),
+        ("NC(=O)N=N", "diazenecarboxamide"),
+        ("N=NC(=O)NN", "diazenecarbohydrazide"),
+        ("S=C(NNc1ccccc1)N=Nc1ccccc1", "N',2-diphenyldiazenecarbothiohydrazide"),
+        ("O=C(NNc1ccccc1)N=Nc1ccccc1", "N',2-diphenyldiazenecarbohydrazide"),
+        ("CCOC(=O)CCNNC(=O)N=N", "ethyl 3-(diazenecarbohydrazido)propanoate"),
+        ("c1ccc(cc1)N=Nc1ccc2ccc(N=Nc3ccc4cc5ccccc5cc4c3)cc2c1", "{7-[(anthracen-2-yl)diazenyl]naphthalen-2-yl}(phenyl)diazene"),
+        ("Oc1c(N=Nc2ccccc2)ccc2ccc(N=Nc3ccccc3)c(O)c12", "2,7-bis(phenyldiazenyl)naphthalene-1,8-diol"),
     ],
 )
 def test_diazene_carbo_suffixes_and_substituted_hydrazinyl(smiles, expected):

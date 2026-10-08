@@ -199,6 +199,10 @@ class Chalcogenourea:
             if any(n.GetFormalCharge() != 0 or n.GetIsotope() != 0 for n in nitrogens):
                 continue
             if any(
+                b.GetBondTypeAsDouble() != 1.0 for n in nitrogens for b in n.GetBonds() if b.GetOtherAtom(n).GetIdx() != atom.GetIdx()
+            ):
+                continue
+            if any(
                 not is_urea_substituent_root(mol, nn)
                 for n in nitrogens
                 for nn in n.GetNeighbors()

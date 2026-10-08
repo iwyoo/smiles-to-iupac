@@ -153,9 +153,18 @@ def is_functional_carbon(mol, idx):
             return True
         if b.GetBondTypeAsDouble() == 2.0 and other.GetAtomicNum() in _MULTIPLE_TARGETS:
             return any(
-                n.GetIdx() != other.GetIdx() and n.GetAtomicNum() in _MULTIPLE_TARGETS for n in atom.GetNeighbors()
+                n.GetIdx() != other.GetIdx() and n.GetAtomicNum() in _MULTIPLE_TARGETS and not _non_amino_nitrogen(n)
+                for n in atom.GetNeighbors()
             )
     return False
+
+
+def _non_amino_nitrogen(atom):
+    """A nitrogen of an N=N, nitro or nitroso group: the substituent of a formazan or nitrolic acid carbon is not an
+    amino group."""
+    return atom.GetAtomicNum() == 7 and any(
+        b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() in (7, 8) for b in atom.GetBonds()
+    )
 
 
 def _enclose(name, compound):
@@ -1102,6 +1111,18 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return _ring_nitrogen_acyl(graph, x, root, halogens, aromatic_atoms, mol, "carbonyl")
         if len(subs) == 1 and _is_amino_nitrogen(mol, subs[0], x):
             return "hydrazinecarbonyl", True
+        if (
+            len(subs) == 1
+            and mol.GetAtomWithIdx(subs[0]).GetAtomicNum() == 7
+            and mol.GetBondBetweenAtoms(x, subs[0]).GetBondTypeAsDouble() == 2.0
+            and not mol.GetAtomWithIdx(subs[0]).GetFormalCharge()
+        ):
+            tail = [m for m in graph[subs[0]] if m != x]
+            if not tail:
+                return "diazenecarbonyl", True
+            if len(tail) == 1 and mol.GetAtomWithIdx(tail[0]).GetAtomicNum() == 6:
+                rname, rcomp = name_branch(graph, tail[0], subs[0], halogens, aromatic_atoms, mol=mol)
+                return f"2-{_enclose(rname, rcomp)}diazene-1-carbonyl", True
         name = _amino(_group_names(graph, mol, subs, x, halogens, aromatic_atoms))
         return _amino_stem(name) + "carbamoyl", True
     if z == 6:
@@ -1589,10 +1610,18 @@ def _chain_paths(graph, chain_atoms, root):
     return paths
 
 
+DIAZENYL_PREFIX = contextvars.ContextVar("diazenyl_prefix", default=False)
+
+
 def _diazenyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol, order, others):
     """R-N=N- attached through the nitrogen next to the parent (P-29.3.2.2, P-68.3.1.3): diazenyl with the far
     nitrogen's substituent cited as a prefix."""
-    if order != 1.0 or len(others) != 1 or mol.GetAtomWithIdx(root).GetFormalCharge() or not _has_senior_principal_group(mol):
+    if (
+        order != 1.0
+        or len(others) != 1
+        or mol.GetAtomWithIdx(root).GetFormalCharge()
+        or not (DIAZENYL_PREFIX.get() or _has_senior_principal_group(mol))
+    ):
         return None
     far = others[0]
     far_atom = mol.GetAtomWithIdx(far)

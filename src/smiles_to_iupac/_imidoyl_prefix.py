@@ -40,6 +40,12 @@ def imidoyl_prefix(mol, graph, root, coming_from):
         return None
     if any(mol.GetAtomWithIdx(n).GetAtomicNum() not in (1, 6, 7, 8) for n in graph[imino[0]] if n != root):
         return None
+    if any(
+        mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() > 1
+        for n in graph[imino[0]]
+        if n != root
+    ):
+        return None
     from ._functional_prefixes import _acyl_prefix
 
     subtree = _subtree(graph, root, coming_from)

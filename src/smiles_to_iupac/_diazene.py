@@ -74,12 +74,38 @@ Explicitly out of scope (raise `UnsupportedStructure`):
 
 from rdkit import Chem
 
+from ._hetero_prefixes import DIAZENYL_PREFIX
 from ._multiplicative_text import enclose
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents, non_single_bonds
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, alpha_sort_key, halogen_substituents, non_single_bonds
 from ._numerals import multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, name_branch
 
 _ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
+
+
+def _azo_pairs(mol):
+    """Every N=N pair when each nitrogen of the molecule belongs to one (degree <= 2, no charge); [] otherwise."""
+    nitrogens = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 7]
+    if len(nitrogens) < 2 or len(nitrogens) % 2:
+        return []
+    pairs, seen = [], set()
+    for atom in nitrogens:
+        if atom.GetIdx() in seen:
+            continue
+        if atom.GetDegree() > 2 or atom.GetFormalCharge():
+            return []
+        partners = [
+            n
+            for n in atom.GetNeighbors()
+            if n.GetAtomicNum() == 7 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        ]
+        if len(partners) != 1 or partners[0].GetIdx() in seen or partners[0].GetDegree() > 2:
+            return []
+        if any(n.GetAtomicNum() != 6 for pair_atom in (atom, partners[0]) for n in pair_atom.GetNeighbors() if n.GetIdx() not in (atom.GetIdx(), partners[0].GetIdx())):
+            return []
+        pairs.append((atom, partners[0]))
+        seen |= {atom.GetIdx(), partners[0].GetIdx()}
+    return pairs
 
 
 def _diazene_nitrogens(mol):
@@ -87,29 +113,18 @@ def _diazene_nitrogens(mol):
     each nitrogen degree <= 2 (the double bond plus at most one other
     single-bonded neighbor), formal charge 0 -- or None if `mol` isn't
     shaped this way."""
-    nitrogens = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 7]
-    if len(nitrogens) != 2:
-        return None
-    n1, n2 = nitrogens
-    bond = mol.GetBondBetweenAtoms(n1.GetIdx(), n2.GetIdx())
-    if bond is None or bond.GetBondTypeAsDouble() != 2.0:
-        return None
-    if n1.GetDegree() > 2 or n2.GetDegree() > 2:
-        return None
-    if n1.GetFormalCharge() != 0 or n2.GetFormalCharge() != 0:
-        return None
-    return n1, n2
+    pairs = _azo_pairs(mol)
+    return pairs[0] if len(pairs) == 1 else None
 
 
 def has_diazene_shape(mol) -> bool:
-    return _diazene_nitrogens(mol) is not None
+    return bool(_azo_pairs(mol))
 
 
 def name_diazene(mol) -> str:
-    nitrogens = _diazene_nitrogens(mol)
-    if nitrogens is None:
+    pairs = _azo_pairs(mol)
+    if not pairs:
         raise UnsupportedStructure("no plain diazene (N=N) skeleton found; this module only handles diazenes")
-    n1, n2 = nitrogens
 
     aromatic_atoms = frozenset(atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic())
     for atom in mol.GetAtoms():
@@ -124,11 +139,9 @@ def name_diazene(mol) -> str:
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
-    n1_idx, n2_idx = n1.GetIdx(), n2.GetIdx()
+    azo = {atom.GetIdx() for pair in pairs for atom in pair}
     if any(
-        a not in (n1_idx, n2_idx)
-        and b not in (n1_idx, n2_idx)
-        and not (a in aromatic_atoms and b in aromatic_atoms)
+        not (a in azo and b in azo) and not (a in aromatic_atoms and b in aromatic_atoms)
         for a, b, _ in non_single_bonds(mol)
     ):
         raise UnsupportedStructure(
@@ -137,6 +150,23 @@ def name_diazene(mol) -> str:
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
+    names = []
+    token = DIAZENYL_PREFIX.set(len(pairs) > 1)
+    try:
+        for first, second in pairs:
+            try:
+                names.append(_name_on_pair(mol, graph, halogens, aromatic_atoms, first.GetIdx(), second.GetIdx()))
+            except UnsupportedStructure:
+                if len(pairs) == 1:
+                    raise
+    finally:
+        DIAZENYL_PREFIX.reset(token)
+    if not names:
+        raise UnsupportedStructure("no azo group of this molecule can be the diazene parent")
+    return min(names, key=alpha_sort_key)
+
+
+def _name_on_pair(mol, graph, halogens, aromatic_atoms, n1_idx, n2_idx):
     substituents = []
     for n_idx in (n1_idx, n2_idx):
         (root,) = [n for n in graph[n_idx] if n not in (n1_idx, n2_idx)] or (None,)

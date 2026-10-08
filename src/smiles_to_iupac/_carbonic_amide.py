@@ -376,3 +376,50 @@ def _hydrazine_dicarboxamide(mol, graph, found, nitro):
         prefixes.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
     head = format_substituent_prefixes(prefixes) if prefixes else ""
     return f"{head}hydrazine-1,2-dicarboxamide"
+
+
+_HYDRAZIDE_INFIX = {8: "carbo", 16: "carbothio", 34: "carboseleno", 52: "carbotelluro"}
+
+
+def diazenecarbohydrazide_name(mol):
+    """Diazenecarbohydrazide and its chalcogen analogues with N, N' and 2 substituents (P-68.3.1.3.4)."""
+    if not _plain(mol):
+        return None
+    graph = adjacency(mol)
+    for carbon in mol.GetAtoms():
+        chalcogen = _carbonyl_chalcogen(carbon) if carbon.GetAtomicNum() == 6 and carbon.GetDegree() == 3 else None
+        if chalcogen is None or carbon.IsInRing():
+            continue
+        nitrogens = [n for n in carbon.GetNeighbors() if n.GetAtomicNum() == 7]
+        if len(nitrogens) != 2:
+            continue
+        for azo, acyl in (nitrogens, nitrogens[::-1]):
+            far = [n for n in azo.GetNeighbors() if n.GetAtomicNum() == 7 and n.GetIdx() != carbon.GetIdx()]
+            beta = [n for n in acyl.GetNeighbors() if n.GetAtomicNum() == 7]
+            if len(far) != 1 or len(beta) != 1 or mol.GetBondBetweenAtoms(azo.GetIdx(), far[0].GetIdx()).GetBondTypeAsDouble() != 2.0:
+                continue
+            if azo.IsInRing() or acyl.IsInRing() or beta[0].IsInRing() or far[0].IsInRing() or far[0].GetDegree() > 2:
+                continue
+            if any(b.GetBondTypeAsDouble() != 1.0 for atom in (acyl, beta[0]) for b in atom.GetBonds()):
+                continue
+            entries, used = [], {carbon.GetIdx(), chalcogen.GetIdx(), azo.GetIdx(), acyl.GetIdx(), far[0].GetIdx(), beta[0].GetIdx()}
+            valid = True
+            for atom, skip, locant in (
+                (far[0], {azo.GetIdx()}, 2),
+                (acyl, {carbon.GetIdx(), beta[0].GetIdx()}, "N"),
+                (beta[0], {acyl.GetIdx()}, "N'"),
+            ):
+                found = _hydrocarbon_arms(mol, graph, atom.GetIdx(), skip)
+                if found is None:
+                    valid = False
+                    break
+                entries += [(locant, name, compound) for name, compound in found[0]]
+                used |= found[1]
+            if not valid or len(used) != mol.GetNumAtoms():
+                continue
+            grouped = {}
+            for locant, name, compound in entries:
+                grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
+            head = format_substituent_prefixes(grouped) if grouped else ""
+            return f"{head}diazene{_HYDRAZIDE_INFIX[chalcogen.GetAtomicNum()]}hydrazide"
+    return None
