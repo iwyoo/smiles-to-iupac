@@ -16,6 +16,7 @@ from ._common import UnsupportedStructure, adjacency, alpha_sort_key, numerical_
 from ._inositol_derivative import ester_anion, ester_words
 
 _HALOGENS = {9: "fluoro", 17: "chloro", 35: "bromo", 53: "iodo"}
+_HALIDE_WORDS = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 _COMPLEX = {2: "bis", 3: "tris", 4: "tetrakis", 5: "pentakis", 6: "hexakis"}
 _NUMBER_STEM = {4: "tetr", 5: "pent", 6: "hex"}
 _GROUP = 4
@@ -79,10 +80,7 @@ def _ring_skeleton(mol, graph):
     def exo(c):
         return [n for n in graph[c] if n not in ring_set]
 
-    def has_hydroxy(c):
-        return any(mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() == 1 for n in exo(c))
-
-    anomerics = [c for c in ends if has_hydroxy(c) and any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in exo(c))]
+    anomerics = [c for c in ends if any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in exo(c))]
     if len(anomerics) != 1:
         return None
     anomeric = anomerics[0]
@@ -326,6 +324,7 @@ def _substituted_sugar_name(mol, bridges=()):
         return None
     skeleton_atoms = set(skeleton.carbons) | ({skeleton.hetero} if skeleton.ring else set())
     decorations, reached = {}, set(skeleton_atoms)
+    anomeric_kind = "OH"
     for carbon in skeleton.carbons:
         position = skeleton.position(carbon)
         if skeleton.ring and position == skeleton.closing:
@@ -336,11 +335,13 @@ def _substituted_sugar_name(mol, bridges=()):
         if kind == "oxo":
             reached.add(x)
             continue
-        if skeleton.ring and position == skeleton.anomeric and kind != "OH":
+        if skeleton.ring and position == skeleton.anomeric and kind not in ("OH", "ester", "ether", "X", "N"):
             return None
         if kind == "C" and position in (1, skeleton.n):
             return None
         decorations[carbon] = (kind, x, root)
+        if skeleton.ring and position == skeleton.anomeric:
+            anomeric_kind = kind
         if x is not None:
             reached |= subtree(graph, x, carbon) if kind != "C" else {x} | subtree(graph, root, carbon)
     if reached != set(range(mol.GetNumAtoms())):
@@ -359,8 +360,17 @@ def _substituted_sugar_name(mol, bridges=()):
             return None
         core, dropped = found
         entries, esters = {}, {}
+        aglycone = None
         for carbon, (kind, x, root) in decorations.items():
             position = skeleton.position(carbon)
+            if skeleton.ring and position == skeleton.anomeric and kind in ("ether", "X", "N"):
+                if kind == "ether":
+                    if not _plain_group(mol, graph, root, x):
+                        return None
+                    aglycone = cited_group(mol, graph, root, x)[0]
+                elif kind == "N" and not (mol.GetAtomWithIdx(x).GetDegree() == 1 and mol.GetAtomWithIdx(x).GetTotalNumHs() == 2):
+                    return None
+                continue
             if kind == "H":
                 if not (position == 6 and dropped):
                     entries.setdefault(("deoxy", "deoxy", "", False), []).append(position)
@@ -384,6 +394,9 @@ def _substituted_sugar_name(mol, bridges=()):
                     return None
                 name, compound = cited_group(mol, graph, root, carbon)
                 entries.setdefault((name, name, "C", compound), []).append(position)
+            elif kind == "ester" and anomeric_kind in ("X", "N"):
+                name, compound = cited_group(mol, graph, root, x)
+                entries.setdefault((name, name, "O", compound), []).append(position)
             elif kind == "ester":
                 anion = ester_anion(mol, x, root)
                 if anion is None:
@@ -399,7 +412,15 @@ def _substituted_sugar_name(mol, bridges=()):
             return None
         cited.append(("anhydro", "{},{}-anhydro".format(*sorted((skeleton.position(first), skeleton.position(second))))))
     segments = [text for _, text in sorted(cited, key=lambda item: (alpha_sort_key(item[0]), item[1]))]
-    name = ("-".join(segments) + "-" if segments else "") + core
+    prefix = "-".join(segments) + "-" if segments else ""
+    if anomeric_kind == "ether":
+        return f"{aglycone} {prefix}{core[:-1]}ide" + (f" {ester_words([(a, sorted(l)) for a, l in esters.items()])}" if esters else "")
+    if anomeric_kind == "X":
+        halide = _HALIDE_WORDS[mol.GetAtomWithIdx(decorations[skeleton.carbons[skeleton.anomeric - 1]][1]).GetAtomicNum()]
+        return f"{prefix}{core[:-1]}yl {halide}"
+    if anomeric_kind == "N":
+        return f"{prefix}{core[:-1]}ylamine"
+    name = prefix + core
     return f"{name} {ester_words([(a, sorted(l)) for a, l in esters.items()])}" if esters else name
 
 
