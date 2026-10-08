@@ -602,6 +602,13 @@ def _group_of(mol, carbon):
             and mol.HasSubstructMatch(_CARBOXYLIC_OR_SULFONIC)
         ):
             return None
+        if (
+            len(others) == 1
+            and others[0].GetAtomicNum() in (16, 34, 52)
+            and others[0].GetDegree() >= 3
+            and mol.HasSubstructMatch(_CARBOXYLIC_OR_SULFONIC)
+        ):
+            return None
         if len(others) != 1 or others[0].GetAtomicNum() != 6:
             raise UnsupportedStructure("a cyanide not bonded to carbon is not a nitrile")
         return "nitrile", {nitrogens[0]}

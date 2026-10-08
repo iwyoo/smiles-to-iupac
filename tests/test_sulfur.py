@@ -805,10 +805,33 @@ def test_lambda_centres_are_prefixes_or_linkers_beside_senior_groups(smiles, exp
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("OS(=O)(=O)OCCO", "2-hydroxyethyl hydrogen sulfate", id="sulfate_beside_alcohol"),
+        pytest.param("COS(=O)(=O)OCCO", "2-hydroxyethyl methyl sulfate", id="mixed_sulfate_beside_alcohol"),
+        pytest.param("OS(=O)OCC(=O)C", "2-oxopropyl hydrogen sulfite", id="sulfite_beside_ketone"),
+        pytest.param("OS(=O)(=O)Oc1ccc(N)cc1", "4-aminophenyl hydrogen sulfate", id="sulfate_beside_amine"),
+        pytest.param("NS(=O)(=O)OCC=O", "2-oxoethyl sulfamate", id="sulfamate_beside_aldehyde"),
+        pytest.param("NS(=O)(=O)OCC(=O)Cl", "2-chloro-2-oxoethyl sulfamate", id="sulfamate_beside_acid_halide"),
+        pytest.param("OS(=O)(=O)OCC(=O)OC", "methyl (sulfooxy)acetate", id="sulfate_yields_to_carboxylic_ester"),
+    ],
+)
+def test_noncarbon_acid_esters_outrank_junior_groups_of_the_alcohol_component(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("OS(=O)(=O)OCCC(O)=O", "3-(sulfooxy)propanoic acid", id="sulfo"),
         pytest.param("COS(=O)OCCC(O)=O", "3-[(methoxysulfinyl)oxy]propanoic acid", id="alkoxysulfinyl"),
         pytest.param("ClS(=O)(=O)OCCC(O)=O", "3-[(chlorosulfonyl)oxy]propanoic acid", id="halosulfonyl"),
         pytest.param("NS(=O)(=O)OCCC(O)=O", "3-(sulfamoyloxy)propanoic acid", id="sulfamoyl"),
+        pytest.param("OS(=O)(=O)SCCC(O)=O", "3-(sulfosulfanyl)propanoic acid", id="attached_through_sulfur"),
+        pytest.param("COS(=O)(=O)NCCC(O)=O", "3-[(methoxysulfonyl)amino]propanoic acid", id="attached_through_nitrogen"),
+        pytest.param("OC(=O)CCOS(=O)(=O)C#N", "3-[(cyanosulfonyl)oxy]propanoic acid", id="cyanide_on_sulfur"),
+        pytest.param(
+            "OC(=O)CCOS(=O)(=O)N=C=S", "3-[(isothiocyanatosulfonyl)oxy]propanoic acid", id="pseudohalide_nitrogen_not_sulfamoyl"
+        ),
+        pytest.param("OS(=O)(=O)NCCC(O)=O", "3-(sulfoamino)propanoic acid", id="sulfamic_acid_yields_to_carboxylic_acid"),
     ],
 )
 def test_sulfur_acid_groups_attached_through_oxygen_under_a_carboxylic_acid(smiles, expected):

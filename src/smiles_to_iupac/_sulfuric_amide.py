@@ -6,6 +6,7 @@ amino group is 'sulfamic acid' (anion 'sulfamate'); with both hydroxy groups rep
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, adjacency, group_substituents, halogen_substituents
+from ._noncarbon_oxoacid import _senior_carbonyl
 from ._substituents import format_substituent_prefixes, name_branch
 
 
@@ -35,6 +36,8 @@ def _slots(mol, sulfur):
 def has_sulfuric_amide_shape(mol) -> bool:
     sulfur = _centre(mol)
     if sulfur is None or sulfur.GetFormalCharge() or sulfur.GetIsotope() or len(Chem.GetMolFrags(mol)) != 1:
+        return False
+    if any(a.GetAtomicNum() == 6 and _senior_carbonyl(a) for a in mol.GetAtoms()):
         return False
     slots = _slots(mol, sulfur)
     if slots is None:

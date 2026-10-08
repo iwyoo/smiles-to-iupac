@@ -465,13 +465,27 @@ def test_noncarbon_oxoacids_with_infixes_and_their_halides_amides_and_esters(smi
         ("OS(=O)(=O)O[Se](=O)(=O)O", "selenic sulfuric monoanhydride"),
         ("CC(=O)OP(=O)(O)OP(=O)(O)OP(=O)(O)O", "[({[(acetyloxy)(hydroxy)phosphoryl]oxy}(hydroxy)phosphoryl)oxy]phosphonic acid"),
         ("O[As](O)(=O)CCCCP(O)(O)=O", "(4-arsonobutyl)phosphonic acid"),
-        ("O=P(O)(O)CCCP(=O)(O)CC", "{3-[ethyl(hydroxy)phosphoryl]propyl}phosphonic acid"),
+        ("O=P(O)(O)CCCP(=O)(O)CC", "{3-[hydroxy(ethylphosphonoyl)]propyl}phosphonic acid"),
         ("COS(=O)(=O)c1ccccc1P(=O)(O)O", "[2-(methoxysulfonyl)phenyl]phosphonic acid"),
         ("CP(C)P(O)P(C)C", "bis(dimethylphosphanyl)phosphinous acid"),
         ("CC(=O)OC(=O)OC(=O)O", "{[(acetyloxy)carbonyl]oxy}formic acid"),
     ],
 )
 def test_polynuclear_oxoacid_salts_derivatives_and_senior_acid_parents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CP(=O)(O)OCC(O)=O", "{[hydroxy(methylphosphonoyl)]oxy}acetic acid", id="organyl_with_hydroxy_through_oxygen"),
+        pytest.param("CC[PH](=O)OCC(O)=O", "[(ethylphosphinoyl)oxy]acetic acid", id="phosphinoyl_with_added_hydrogen"),
+        pytest.param("SP(=O)(S)OCC(O)=O", "{[bis(sulfanyl)phosphoryl]oxy}acetic acid", id="chalcogen_ligands_through_oxygen"),
+        pytest.param("OP(=O)(N)OCC(=O)O", "[(hydroxyphosphoramidoyl)oxy]acetic acid", id="functional_replacement_acyl_enclosed"),
+        pytest.param("OP(O)(=O)SCC(O)=O", "(phosphonosulfanyl)acetic acid", id="simple_prefix_on_sulfanyl_not_enclosed"),
+    ],
+)
+def test_phosphorus_acyl_prefixes_beside_a_carboxylic_acid(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
