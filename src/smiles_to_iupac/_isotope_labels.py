@@ -48,7 +48,7 @@ def _nuclide_sort_key(nuclide):
     return symbol, mass
 
 
-def descriptor(labels, position_of, single_position, extra=(), capacity=None):
+def descriptor(labels, position_of, single_position, extra=(), capacity=None, sole=frozenset()):
     """The '(…)' isotopic descriptor for the labelled parent atoms; `single_position` drops the locants for a
     one-atom parent (P-82.6.1.1). `extra`: (nuclide, locant text or None, count, repeatable) for atoms outside the
     parent, whose letter locant (P-82.6.2) is cited once however many atoms carry the nuclide; the count is a
@@ -81,5 +81,6 @@ def descriptor(labels, position_of, single_position, extra=(), capacity=None):
         subscript = str(count) if count > 1 or counted else ""
         symbol = f"{nuclide}{subscript}"
         locants = [str(x) for x in numbers] + sorted(outside["locants"])
-        groups.append(symbol if single_position and not outside["locants"] or not locants else f"{','.join(locants)}-{symbol}")
+        unlocated = (single_position or nuclide in sole) and not outside["locants"]
+        groups.append(symbol if unlocated or not locants else f"{','.join(locants)}-{symbol}")
     return "(" + ",".join(groups) + ")"

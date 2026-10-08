@@ -32,6 +32,8 @@ from ._numerals import alkane_name, numerical_term
 
 _LEADING_LOCANTS_RE = re.compile(r"^\x01?(?:[\d,\-]+\(?)?")
 _ITALIC_PREFIX_RE = re.compile(r"^(tert|sec|iso)-")
+_NUCLIDE = r"(?:[\d,]+-)?\d+[A-Z][a-z]?\d*"
+_LEADING_ISOTOPE_RE = re.compile(rf"^\x01?\({_NUCLIDE}(?:,{_NUCLIDE})*\)(?=[A-Za-z])")
 _LEADING_STEREO_RE = re.compile(r"^\([\dRSEZrsez,' ]+\)-")
 _LEADING_ANOMER_RE = re.compile(r"^[αβ]-[DL]-")
 
@@ -1173,6 +1175,7 @@ def alpha_sort_key(name: str) -> str:
     previous = None
     while stripped != previous:
         previous = stripped
+        stripped = _LEADING_ISOTOPE_RE.sub("", stripped)
         stripped = _LEADING_STEREO_RE.sub("", stripped)
         stripped = _LEADING_ANOMER_RE.sub("", stripped)
         stripped = _LEADING_LOCANTS_RE.sub("", stripped)
@@ -1180,6 +1183,11 @@ def alpha_sort_key(name: str) -> str:
             stripped = stripped[1:]
     stripped = _ITALIC_PREFIX_RE.sub("", stripped)
     return stripped.lower()
+
+
+def citation_order_key(name: str):
+    """Alphanumerical order, an isotopically modified substituent ahead of the unmodified one (P-82.2.2.1)."""
+    return alpha_sort_key(name), not _LEADING_ISOTOPE_RE.match(name)
 
 
 def substituent_locant_set_and_citation(grouped):

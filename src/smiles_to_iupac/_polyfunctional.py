@@ -1151,7 +1151,7 @@ def _with_labels(mol, labels, consumed, name, parts, reselect):
     if in_parent or front:
         bare = len(parts[4]) == 1 or _locants_omitted(mol, in_parent, parts)
         capacity = {a: mol.GetAtomWithIdx(a).GetTotalNumHs() for a in in_parent}
-        name = _with_descriptor(name, parts, descriptor(in_parent, parts[4], bare, front, capacity))
+        name = _with_descriptor(name, parts, descriptor(in_parent, parts[4], bare, front, capacity, _sole_heteroatoms(mol, in_parent, parts)))
     return name
 
 
@@ -1160,7 +1160,8 @@ def _name_labelled(mol, labels, finish=None):
     from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS
 
     stereo = _check_scope(mol) + [
-        ("isotope", atom, "|".join(filter(None, [entry["skeleton"], *entry["H"]]))) for atom, entry in labels.items()
+        ("isotope", atom, "|".join(filter(None, [entry["skeleton"], *(n for n, c in entry["H"].items() for _ in range(c))])))
+        for atom, entry in labels.items()
     ]
     context = {
         "atoms": {where: code for kind, where, code in stereo if kind == "atom"},
@@ -1262,6 +1263,18 @@ def _capacity(mol, atom):
     return target.GetIntProp("_capacity") if target.HasProp("_capacity") else target.GetTotalNumHs()
 
 
+def _sole_heteroatoms(mol, in_parent, parts):
+    """Nuclides of a heteroatom that is the only atom of its element in the parent, so its locant is implied."""
+    counts = {}
+    for a in parts[4]:
+        number = mol.GetAtomWithIdx(a).GetAtomicNum()
+        counts[number] = counts.get(number, 0) + 1
+    return frozenset(
+        e["skeleton"] for a, e in in_parent.items()
+        if e["skeleton"] and mol.GetAtomWithIdx(a).GetAtomicNum() != 6 and counts[mol.GetAtomWithIdx(a).GetAtomicNum()] == 1
+    )
+
+
 def _locants_omitted(mol, in_parent, parts):
     """P-82.6.1.3 (every parent position modified in the same way, none keeping a hydrogen) and the one modified atom
     of a bare hydrocarbon whose positions are all equivalent (benzene, ethane; P-82.6.1.1)."""
@@ -1336,7 +1349,7 @@ def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset()):
 def _stereo_rank(stereo, position_of, ring_parent=False):
     entries, _ = _stereo_entries(stereo, position_of, ring_parent)
     marked = [(w, code) for k, w, code in stereo or [] if k == "isotope" and w in position_of]
-    isotopic = tuple(sorted(position_of[w] for w, _ in marked))
+    isotopic = tuple(sorted(position_of[w] for w, code in marked for _ in code.split("|")))
     return isotopic, _nuclide_precedence(marked, position_of), tuple(0 if code in "RZr" else 1 for _, code in entries)
 
 
