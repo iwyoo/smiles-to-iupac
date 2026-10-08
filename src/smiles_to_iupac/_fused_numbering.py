@@ -82,8 +82,9 @@ class FusedSystem:
         self.rings = rings
         self.ring_sets = [set(r) for r in rings]
         self.tree = []
-        seen = {0}
-        queue = [0]
+        self.root = min(range(n), key=lambda i: (len(rings[i]) > 7, i))
+        seen = {self.root}
+        queue = [self.root]
         while queue:
             i = queue.pop(0)
             for j in sorted(self.adj[i]):
@@ -129,7 +130,8 @@ def _layouts(system):
     rings = system.rings
     n = len(rings)
     parent = {j: i for i, j in system.tree}
-    order = [0] + [j for _, j in system.tree]
+    root = system.root
+    order = [root] + [j for _, j in system.tree]
     choices = []
     for r in order:
         size = len(rings[r])
@@ -141,13 +143,13 @@ def _layouts(system):
     seen = set()
     found = []
     for pick in product(*choices):
-        centres = {0: (0.0, 0.0)}
+        centres = {root: (0.0, 0.0)}
         normals = {}
         for idx, r in enumerate(order):
             size = len(rings[r])
             variant, role = pick[idx]
             table = _shape_tables(size)[variant]
-            if r == 0:
+            if r == root:
                 p_edge = 0
                 p_normal = Fraction(0)
             else:
@@ -165,6 +167,17 @@ def _layouts(system):
                     dist = 1.0
                     cx, cy = centres[r]
                     centres[child] = (cx + dist * math.cos(theta), cy + dist * math.sin(theta))
+        for r in order:
+            neighbours = list(system.adj[r])
+            if len(rings[r]) > 7 and len(neighbours) > 1 and all(parent.get(c) != r for c in neighbours):
+                points = []
+                for x in neighbours:
+                    bond = system.adj[r][x]
+                    normal = normals[(x, system.edge_index(x, bond))]
+                    theta = 2 * math.pi * float(normal)
+                    points.append((centres[x][0] + math.cos(theta), centres[x][1] + math.sin(theta)))
+                    normals[(r, system.edge_index(r, bond))] = (normal + Fraction(1, 2)) % 1
+                centres[r] = (sum(p[0] for p in points) / len(points), sum(p[1] for p in points) / len(points))
         key = tuple((round(centres[r][0], 4), round(centres[r][1], 4)) for r in range(n)) + tuple(
             sorted((k, v) for k, v in normals.items())
         )
