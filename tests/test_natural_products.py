@@ -39,6 +39,7 @@ def test_cyclo(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("smiles, expected", [
     pytest.param('CC[C@]1(C)[C@H]2CC[C@@H]3[C@@]4(C)CC[C@H](C(C)C)[C@@H]4CC[C@@]3(C)[C@]2(C)CC[C@H]1C(C)(C)C', '2,3-secohopane', marks=pytest.mark.slow),
     ('CC[C@@H]1CNCC[C@@]23CC[C@@H]1[C@@H](C)[C@@H]2Nc1ccccc13', '3,4-secocuran'),
@@ -241,6 +242,7 @@ def test_operations_counted_for_preferred_semisystematic_names(smiles, operation
     assert name_natural_product_ranked(Chem.MolFromSmiles(smiles))[1] == operations
 
 
+@pytest.mark.slow
 def test_spiro_on_a_skeleton_that_is_not_a_ring_system_is_named_substitutively():
     smiles = "COc1ccc(-c2ccc(C[C@@]3(C(N)=O)CCCN(C(=O)c4cccnc4)C3)cc2)cc1"
     assert smiles_to_iupac(smiles) == "(3S)-3-[(4'-methoxy[1,1'-biphenyl]-4-yl)methyl]-1-(pyridine-3-carbonyl)piperidine-3-carboxamide"

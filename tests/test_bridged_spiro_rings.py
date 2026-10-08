@@ -853,6 +853,7 @@ def test_polyspiro_union_with_polycyclic_components(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles,expected",
     [
@@ -980,6 +981,7 @@ def test_heteroatom_polyspiro_systems_and_stereogenic_spiro_atoms(smiles, expect
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles,expected",
     [

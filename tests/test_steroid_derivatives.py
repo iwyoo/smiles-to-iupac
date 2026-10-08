@@ -72,6 +72,7 @@ def test_stereo_centre_inside_a_steroid_ester_alkyl_is_cited():
     assert smiles_to_iupac(smiles) == "(2R)-butan-2-yl 3β-hydroxyandrost-5-ene-17β-carboxylate"
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles",
     [

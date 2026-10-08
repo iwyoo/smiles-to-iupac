@@ -1228,6 +1228,7 @@ def test_locant_is_omitted_only_when_the_parent_has_one_kind_of_substitutable_hy
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "smiles, expected",
     [

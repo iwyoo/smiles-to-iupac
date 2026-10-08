@@ -40,6 +40,7 @@ def test_every_atom_of_a_skeleton_has_its_own_locant():
         assert all(maps) and len(set(maps)) == len(maps), name
 
 
+@pytest.mark.slow
 def test_every_bare_skeleton_is_named_by_its_retained_name():
     # a parent that has an implied configuration is given in it, which also tells dammarane from protostane
     wrong = {}
