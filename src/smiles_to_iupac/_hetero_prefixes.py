@@ -51,6 +51,8 @@ def require_plain_chalcogen_kids(mol, z, kids):
     if z in (34, 52):
         for kid in kids:
             atom = mol.GetAtomWithIdx(kid)
+            if atom.GetAtomicNum() in (16, 34, 52) and atom.GetDegree() <= 2:
+                continue
             if atom.GetAtomicNum() != 6 or any(
                 b.GetBondTypeAsDouble() >= 2.0 and b.GetOtherAtom(atom).GetAtomicNum() in (7, 8, 16, 34, 52)
                 for b in atom.GetBonds()
@@ -67,8 +69,28 @@ def _has_senior_principal_group(mol):
     return CATION_PARENT.get() or any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL) or mol.HasSubstructMatch(_AMINE)
 
 
+def _dichalcogenide_only(mol):
+    """Every contiguous run of chalcogen atoms is a pair joining two carbon groups (a disulfide, diselenide, ditelluride or a
+    mixed S-O, Se-S pair): two contiguous chalcogens are a prefix on a carbon parent, only three or more form a parent
+    hydride of their own (P-68.4.1.1, P-63.3.2)."""
+    if any(a.GetAtomicNum() not in (1, 6, 8, 9, 17, 35, 53, 16, 34, 52) for a in mol.GetAtoms()):
+        return False
+    pairs = 0
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() not in (8, 16, 34, 52):
+            continue
+        partners = [n for n in atom.GetNeighbors() if n.GetAtomicNum() in (8, 16, 34, 52)]
+        if not partners:
+            continue
+        carbons = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
+        if atom.GetDegree() != 2 or len(partners) != 1 or len(carbons) != 1 or partners[0].GetDegree() != 2:
+            return False
+        pairs += 1
+    return pairs > 0
+
+
 def _chain_prefix_allowed(mol):
-    return EXTENDED_PREFIXES.get() or _has_senior_principal_group(mol)
+    return EXTENDED_PREFIXES.get() or _has_senior_principal_group(mol) or _dichalcogenide_only(mol)
 
 
 def require_senior_group(mol, z):

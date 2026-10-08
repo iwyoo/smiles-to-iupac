@@ -753,9 +753,6 @@ def test_peroxide(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("COOC1CCCCC1", id="ring_not_supported__peroxide"),
-        pytest.param("C=COOC", id="unsaturated_not_supported__peroxide"),
-        pytest.param("COOCOC", id="three_oxygens_not_supported"),
     ],
 )
 def test_ring_not_supported_and_related_raise(smiles):
@@ -784,10 +781,6 @@ def test_stereocenter_on_parent_chain__peroxide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_stereocenter_on_substituent_branch_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCCCCOO[C@H](C)CC")
-
 
 @pytest.mark.parametrize(
     "smiles,expected",
@@ -801,10 +794,6 @@ def test_stereocenter_on_substituent_branch_not_supported():
 def test_benzene_ring_parent__peroxide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
-
-def test_benzene_ring_stereocenter_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1OO[C@H](C)CC")
 
 
 @pytest.mark.parametrize(
@@ -1086,4 +1075,16 @@ def test_ketene_with_other_groups_is_rejected_not_misnamed(smiles):
     ],
 )
 def test_diaryl_sulfone_with_carboxylic_groups_keeps_the_sulfonyl_bridge(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("COOC1CCCCC1", "(methylperoxy)cyclohexane", id="peroxy_prefix_on_a_ring"),
+        pytest.param("COOCOC", "methoxy(methylperoxy)methane", id="peroxy_and_alkoxy_on_methane"),
+        pytest.param("C=COOC", "(methylperoxy)ethene", id="peroxy_prefix_on_a_double_bond"),
+    ],
+)
+def test_peroxy_prefixes_without_a_principal_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

@@ -7,10 +7,6 @@ def test_methyl_ethyl_disulfide():
     assert smiles_to_iupac("CSSCC") == "(methyldisulfanyl)ethane"
 
 
-def test_branched_disulfanyl_substituent_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC(C)SSC(C)C")
-
 
 @pytest.mark.parametrize(
     "smiles, expected",
@@ -37,10 +33,6 @@ def test_stereocenter_on_parent_chain(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_stereocenter_on_substituent_branch_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CCCCCSS[C@H](C)CC")
-
 
 def test_phenyl_disulfide_direct_bond():
     assert smiles_to_iupac("c1ccccc1SSC") == "(methyldisulfanyl)benzene"
@@ -50,10 +42,6 @@ def test_phenyl_disulfide_direct_bond():
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("c1ccccc1CSSC", id="phenyl_disulfide_chain_spacer_not_supported"),
-        pytest.param("c1ccccc1SSC(C)C", id="phenyl_disulfide_branched_other_side_not_supported"),
-        pytest.param("Cc1ccccc1SSC", id="phenyl_disulfide_substituted_ring_not_supported"),
-        pytest.param("C=Cc1ccccc1CSSC", id="phenyl_disulfide_unsaturation_not_supported"),
     ],
 )
 def test_phenyl_disulfide_chain_and_related_raise(smiles):
@@ -820,4 +808,22 @@ def test_sulfur_acid_groups_attached_through_oxygen_under_a_carboxylic_acid(smil
     ],
 )
 def test_skeletal_chalcogen_with_nonstandard_bonding_number_keeps_lambda(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C[Se][Se]CCSSC", "1-(methyldiselanyl)-2-(methyldisulfanyl)ethane", id="mixed_diselanyl_and_disulfanyl_on_ethane"),
+        pytest.param("CC(C)[Se][Se]CCC", "1-[(propan-2-yl)diselanyl]propane", id="branched_diselanyl_prefix"),
+        pytest.param("CSSCCSSC", "1,2-bis(methyldisulfanyl)ethane", id="two_disulfanyl_prefixes"),
+        pytest.param("CSOCC", "[(methylsulfanyl)oxy]ethane", id="sulfur_oxygen_pair_prefix"),
+        pytest.param("COSC1CCCCC1", "(methoxysulfanyl)cyclohexane", id="alkoxysulfanyl_prefix_on_a_ring"),
+        pytest.param("C1(=CC=CC=C1)[Se][Te]C1=CC=CC=C1", "[(phenylselanyl)tellanyl]benzene", id="selenium_tellurium_pair_prefix"),
+        pytest.param("CCCCCSS[C@H](C)CC", "1-{[(2R)-butan-2-yl]disulfanyl}pentane", id="stereocentre_in_a_disulfanyl_prefix"),
+        pytest.param("CSCSSCCSCCSC", "2,4,5,8,11-pentathiadodecane", id="four_units_take_skeletal_replacement"),
+        pytest.param("CSCSSCCSCC[Se]C", "2,4,5,8-tetrathia-11-selenadodecane", id="four_units_with_selenium"),
+    ],
+)
+def test_chains_of_two_chalcogens_are_prefixes_and_four_units_make_a_replacement_chain(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

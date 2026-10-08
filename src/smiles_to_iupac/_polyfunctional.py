@@ -2080,7 +2080,7 @@ def _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo=None):
     length = len(chain)
     single = total_count == 1
     prefix = format_substituent_prefixes(
-        grouped, omit_locants=(length == 1 or (length == 2 and (ene or yne) and single)) and not FORCE_LOCANTS.get()
+        grouped, omit_locants=(length == 1 or (length == 2 and single)) and not FORCE_LOCANTS.get()
     )
     if length == 2 and (ene or yne):
         body = "ethene" if ene else "ethyne"
