@@ -7,7 +7,7 @@ prefix ('1,2-dimethoxyethane', 'N1-(2-aminoethyl)ethane-1,2-diamine').
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency
+from ._common import UnsupportedStructure, adjacency, nonstandard_bonding
 from ._numerals import alkane_name, multiplying_prefix
 from ._phosphanyl_group import PREFIX_PROP
 from ._prefix_groups import PrefixNamer
@@ -49,27 +49,32 @@ def name_skeletal_chain(mol):
         nxt = next(v for v in graph[chain[-1]] if v != prev)
         prev = chain[-1]
         chain.append(nxt)
-    zs = [mol.GetAtomWithIdx(i).GetAtomicNum() for i in chain]
-    hetero = [i for i, z in enumerate(zs) if z != 6]
+    hetero = [i for i, a in enumerate(chain) if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
     if len(hetero) < 4:
         return None
     if any(b - a == 1 for a, b in zip(hetero, hetero[1:])):
         raise UnsupportedStructure("adjacent heteroatoms in a chain are not supported here")
     best = None
-    for direction in (zs, zs[::-1]):
-        locants = {z: [i + 1 for i, x in enumerate(direction) if x == z] for z in _SENIORITY}
+    for direction in (chain, chain[::-1]):
+        zs = [mol.GetAtomWithIdx(a).GetAtomicNum() for a in direction]
+        lam = {i + 1: n for i, a in enumerate(direction) if (n := nonstandard_bonding(mol.GetAtomWithIdx(a)))}
+        locants = {z: [i + 1 for i, x in enumerate(zs) if x == z] for z in _SENIORITY}
         all_locants = sorted(l for v in locants.values() for l in v)
-        key = (all_locants, [locants[z] for z in _SENIORITY])
+        key = (all_locants, [locants[z] for z in _SENIORITY], sorted(lam), [-lam[p] for p in sorted(lam)])
         if best is None or key < best[0]:
-            best = (key, locants)
-    locants = best[1]
+            best = (key, locants, lam, len(zs))
+    _, locants, lam, length = best
     parts = []
     for z in _SENIORITY:
         locs = locants[z]
         if locs:
             mult = multiplying_prefix(len(locs)) if len(locs) > 1 else ""
-            parts.append(f"{','.join(map(str, locs))}-{mult}{_A_PREFIX[z]}")
-    return "-".join(parts) + alkane_name(len(zs))
+            parts.append(f"{','.join(_cite(p, lam) for p in locs)}-{mult}{_A_PREFIX[z]}")
+    return "-".join(parts) + alkane_name(length)
+
+
+def _cite(locant, lam):
+    return f"{locant}λ{lam[locant]}" if locant in lam else str(locant)
 
 
 def _components(mol, graph):
@@ -208,6 +213,7 @@ def name_hetero_macrocycle(mol):
             order = [cycle[(start + direction * k) % size] for k in range(size)]
             locant = {a: k + 1 for k, a in enumerate(order)}
             hetero = {z: [locant[a] for a in order if zs[a] == z] for z in _SENIORITY}
+            lam = {locant[a]: n for a in order if (n := nonstandard_bonding(mol.GetAtomWithIdx(a)))}
             substituents: dict = {}
             for a in order:
                 for n in graph[a]:
@@ -218,12 +224,14 @@ def name_hetero_macrocycle(mol):
             key = (
                 sorted(l for v in hetero.values() for l in v),
                 [hetero[z] for z in _SENIORITY],
+                sorted(lam),
+                [-lam[p] for p in sorted(lam)],
                 sorted(l for e in substituents.values() for l in e["locants"]),
                 [substituents[k]["locants"] for k in sorted(substituents)],
             )
             if best is None or key < best[0]:
-                best = (key, hetero, substituents)
-    _, hetero, substituents = best
+                best = (key, hetero, substituents, lam)
+    _, hetero, substituents, lam = best
     prefixes = format_substituent_prefixes(substituents)
     ordered = [z for z in _SENIORITY if hetero[z]]
     all_replaced = len(ordered) == 1 and len(hetero[ordered[0]]) == size
@@ -234,14 +242,14 @@ def name_hetero_macrocycle(mol):
             if mult.endswith("a") and _A_PREFIX[z][0] in "aeiou":
                 mult = mult[:-1]
             a_text += mult + _A_PREFIX[z]
-        all_locs = "" if all_replaced else ",".join(str(l) for l in sorted(sum(hetero.values(), []))) + "-"
+        all_locs = "" if all_replaced and not lam else ",".join(_cite(l, lam) for l in sorted(sum(hetero.values(), []))) + "-"
         name = f"{all_locs}{a_text[:-1]}{_HW_STEM[size]}"
-    elif all_replaced:
+    elif all_replaced and not lam:
         z = ordered[0]
         name = multiplying_prefix(size) + _A_PREFIX[z] + "cyclo" + alkane_name(size)[:-3] + "ane"
     else:
         parts = [
-            f"{','.join(map(str, sorted(hetero[z])))}-{multiplying_prefix(len(hetero[z])) if len(hetero[z]) > 1 else ''}{_A_PREFIX[z]}"
+            f"{','.join(_cite(p, lam) for p in sorted(hetero[z]))}-{multiplying_prefix(len(hetero[z])) if len(hetero[z]) > 1 else ''}{_A_PREFIX[z]}"
             for z in ordered
         ]
         name = "-".join(parts) + "cyclo" + alkane_name(size)[:-3] + "ane"

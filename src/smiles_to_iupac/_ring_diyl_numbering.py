@@ -48,8 +48,8 @@ def _lambda_by_position(mol, position_of):
 
 
 def _lambda_key(lam):
-    """P-22.2.7.2, P-23.6.2: low locants to the nonstandard bonding numbers in order of decreasing value."""
-    return tuple(sorted((-n, p) for p, n in lam.items()))
+    """P-14.4(h), P-22.2.7.2: low locants to the atoms with nonstandard bonding numbers, the higher number first on a tie."""
+    return tuple(sorted(lam)), tuple(-lam[p] for p in sorted(lam))
 
 
 def _cite(locant, lam):
@@ -107,6 +107,7 @@ class Numbering:
         self.text = text
         self.pre_key = pre_key
         self.unsat_key = unsat_key
+        self.lam_key = ()
         self.ih = ih
         self.ih_positions = ih
         self.hydro = ()
@@ -389,8 +390,7 @@ def _hetero_monocycle(mol, ring_order, attached):
         if not starts_at_senior(walk):
             continue
         hetero = [(i + 1, _RANK.get(sym[a], 99)) for i, a in enumerate(walk) if sym[a] != "C"]
-        lam = _lambda_by_position(mol, {a: i + 1 for i, a in enumerate(walk)})
-        pre = (tuple(p for p, _ in hetero), tuple(r for _, r in hetero), _lambda_key(lam))
+        pre = (tuple(p for p, _ in hetero), tuple(r for _, r in hetero))
         if best_pre is None or pre < best_pre:
             best_pre = pre
     for walk in _walks(ring_order):
@@ -399,7 +399,7 @@ def _hetero_monocycle(mol, ring_order, attached):
         hetero = [(i + 1, _RANK.get(sym[a], 99)) for i, a in enumerate(walk) if sym[a] != "C"]
         position_of = {a: i + 1 for i, a in enumerate(walk)}
         lam = _lambda_by_position(mol, position_of)
-        pre = (tuple(p for p, _ in hetero), tuple(r for _, r in hetero), _lambda_key(lam))
+        pre = (tuple(p for p, _ in hetero), tuple(r for _, r in hetero))
         if pre != best_pre:
             continue
         elements = tuple(sym[a] for a in walk)
@@ -423,7 +423,8 @@ def _hetero_monocycle(mol, ring_order, attached):
             ih, added, hydro = split
         else:
             sat_pos = sorted(position_of[a] for a in saturated_atoms)
-            ih = tuple(sat_pos[:mancude_sp3])
+            lambda_h = [position_of[a] for a in walk if position_of[a] in lam and mol.GetAtomWithIdx(a).GetTotalNumHs()]
+            ih = tuple(sorted(sat_pos[:mancude_sp3] + lambda_h))
             hydro = tuple(sat_pos[mancude_sp3:])
             added = ()
         results.append((position_of, stem, ih, hydro, added))
@@ -436,7 +437,7 @@ def _saturated_name(elements, hetero, lam=None):
     names = [e for e in elements if e != "C"]
     if len(names) == 1:
         stem = saturated_ring_name(names[0], size)
-    elif len(names) == 2 and (size, positions[0], positions[1]) in _TWO_HETERO_SATURATED:
+    elif not lam and len(names) == 2 and (size, positions[0], positions[1]) in _TWO_HETERO_SATURATED:
         stem = _TWO_HETERO_SATURATED[(size, positions[0], positions[1])](names)
     else:
         stem = None
@@ -521,6 +522,7 @@ def monocycle_numberings(mol, ring_order, attached, valence, ene_bonds_getter=No
             ih=ih,
         )
         numbering.parent_stem, numbering.hydro_positions, numbering.added_positions = stem, tuple(hydro), tuple(added)
+        numbering.lam_key = _lambda_key(_lambda_by_position(mol, position_of))
         out.append(numbering)
     return out
 

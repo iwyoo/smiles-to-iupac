@@ -4,6 +4,7 @@
 from ._common import (
     UnsupportedStructure,
     group_substituents,
+    nonstandard_bonding,
     substituent_locant_set_and_citation,
 )
 from ._numerals import multiplying_prefix
@@ -39,17 +40,33 @@ def _chain_atoms(mol, graph):
     return z, chain
 
 
-def _siloxane_chain(mol, graph):
-    atoms = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() in (8, 14) and not a.IsInRing()}
-    silicon = [a for a in atoms if mol.GetAtomWithIdx(a).GetAtomicNum() == 14]
-    oxygen = [a for a in atoms if mol.GetAtomWithIdx(a).GetAtomicNum() == 8]
-    if len(silicon) < 2 or len(oxygen) != len(silicon) - 1:
+# P-21.2.3.1: seniority O > S > Se > Te > P > ... > Tl; N is excluded because amine names are preferred
+_ALTERNATING_ORDER = (8, 16, 34, 52, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81)
+_A_TERMS = {
+    8: "oxa", 16: "thia", 34: "selena", 52: "tellura", 15: "phospha", 33: "arsa", 51: "stiba", 83: "bisma", 14: "sila",
+    32: "germa", 50: "stanna", 82: "plumba", 5: "bora", 13: "alumina", 31: "gallia", 49: "india", 81: "thallia",
+}
+_DIVALENT = {8, 16, 34, 52}
+
+
+def _alternating_chain(mol, graph):
+    """(terminal element, inner element, chain) of an unbranched a(ba)n chain of two heteroatoms (P-21.2.3.1)."""
+    atoms = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() in _ALTERNATING_ORDER and not a.IsInRing()}
+    elements = {mol.GetAtomWithIdx(a).GetAtomicNum() for a in atoms}
+    if len(elements) != 2:
+        return None
+    inner_z, terminal_z = sorted(elements, key=_ALTERNATING_ORDER.index)
+    terminals = [a for a in atoms if mol.GetAtomWithIdx(a).GetAtomicNum() == terminal_z]
+    inner = [a for a in atoms if mol.GetAtomWithIdx(a).GetAtomicNum() == inner_z]
+    if len(terminals) < 2 or len(inner) != len(terminals) - 1:
         return None
     if any(sum(n in atoms for n in graph[a]) > 2 for a in atoms):
         return None
-    if any(sum(n in atoms for n in graph[a]) != 2 for a in oxygen) or any(mol.GetAtomWithIdx(a).GetDegree() != 2 for a in oxygen):
+    if any(sum(n in atoms for n in graph[a]) != 2 for a in inner):
         return None
-    ends = [a for a in silicon if sum(n in atoms for n in graph[a]) == 1]
+    if inner_z in _DIVALENT and any(mol.GetAtomWithIdx(a).GetDegree() != 2 for a in inner):
+        return None
+    ends = [a for a in terminals if sum(n in atoms for n in graph[a]) == 1]
     if len(ends) != 2:
         return None
     chain, previous = [ends[0]], None
@@ -61,17 +78,24 @@ def _siloxane_chain(mol, graph):
         chain.append(nxt[0])
     if len(chain) != len(atoms) or any(mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1.0 for a, b in zip(chain, chain[1:])):
         return None
-    return chain
+    return terminal_z, inner_z, chain
+
+
+def _alternating_parent(terminal_z, inner_z, terminal_count):
+    terminal, inner = _A_TERMS[terminal_z], _A_TERMS[inner_z]
+    if inner[0] in "aeiou":
+        terminal = terminal[:-1]
+    return multiplying_prefix(terminal_count) + terminal + inner[:-1] + "ane"
 
 
 def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
     found = _chain_atoms(mol, graph)
-    siloxane = None
+    alternating = None
     if found is None:
-        siloxane = _siloxane_chain(mol, graph)
-        if siloxane is None:
+        alternating = _alternating_chain(mol, graph)
+        if alternating is None:
             return None
-        z, chain = 14, siloxane
+        chain = alternating[2]
     else:
         z, chain = found
     chain_set = set(chain)
@@ -90,20 +114,26 @@ def name_hydride_chain(mol, graph, halogens, aromatic_atoms):
                 substituents.setdefault(i + 1, []).append((name, compound))
         grouped = group_substituents(substituents)
         locant_set, _, citation = substituent_locant_set_and_citation(grouped)
-        omit = (len(chain) == 2 and sum(len(info["locants"]) for info in grouped.values()) == 1) or all(
-            mol.GetAtomWithIdx(a).GetTotalNumHs() == 0 for a in chain
+        lam = {i + 1: n for i, atom in enumerate(candidate) if (n := nonstandard_bonding(mol.GetAtomWithIdx(atom)))}
+        omit = not lam and (
+            (len(chain) == 2 and sum(len(info["locants"]) for info in grouped.values()) == 1)
+            or all(mol.GetAtomWithIdx(a).GetTotalNumHs() == 0 for a in chain)
         )
-        if siloxane is not None:
-            parent = f"{multiplying_prefix((len(chain) + 1) // 2)}siloxane"
-            omit = len(chain) == 3 and sum(len(info["locants"]) for info in grouped.values()) == 1
+        if alternating is not None:
+            parent = _alternating_parent(alternating[0], alternating[1], (len(chain) + 1) // 2)
+            omit = not lam and len(chain) == 3 and sum(len(info["locants"]) for info in grouped.values()) == 1
         else:
             parent = f"{multiplying_prefix(len(chain))}{_STEMS[z]}"
+        lam_text = ",".join(f"{p}\u03bb{lam[p]}" for p in sorted(lam))
+        if lam_text:
+            parent = f"{lam_text}-{parent}"
         if omit and len(grouped) > 1:
             entries = [(n, info["compound"]) for n, info in grouped.items() for _ in info["locants"]]
             name = format_mononuclear_prefixes(entries) + parent
         else:
-            name = format_substituent_prefixes(grouped, omit_locants=omit) + parent
-        key = (locant_set, citation, name)
+            prefixes = format_substituent_prefixes(grouped, omit_locants=omit)
+            name = prefixes + ("-" if prefixes and lam_text else "") + parent
+        key = (sorted(lam), [-lam[p] for p in sorted(lam)], locant_set, citation, name)
         if best is None or key < best[0]:
             best = (key, name)
     return best[1]

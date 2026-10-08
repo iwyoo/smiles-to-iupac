@@ -800,3 +800,18 @@ def test_nonstandard_bonding_number_hydrides_and_chalcogen_chains(smiles, expect
 )
 def test_sulfur_acid_groups_attached_through_oxygen_under_a_carboxylic_acid(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[SH2]CCSCCSCCSC", "2λ4,5,8,11-tetrathiadodecane"),
+        ("CSCC[SH4]CC[SH2]CCSC", "2,5λ6,8λ4,11-tetrathiadodecane"),
+        ("O1CC[SH2]CCCCCCCCCC1", "1-oxa-4λ4-thiacyclotetradecane"),
+        ("O1CC[SH4]CCCCCCC[SH2]CC1", "4-oxa-1λ6,7λ4-dithiacyclotetradecane"),
+        ("O1C[SH2]CC1", "1,3λ4-oxathiolane"),
+        ("[SH2]1C=CC=CC=C1", "1H-1λ4-thiepine"),
+    ],
+)
+def test_skeletal_chalcogen_with_nonstandard_bonding_number_keeps_lambda(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

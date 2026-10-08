@@ -353,8 +353,8 @@ def _evaluate_skeleton(
                 tuple(sorted(position_of[a] for a, word in key_centers if word == "uide" and a in position_of)),
             )
         key = (
-            numbering.pre_key, center_key, free, cite, numbering.unsat_key, locant_set, citation, acid_key, stereo_key,
-            _isotope_key(position_of, skeleton),
+            numbering.pre_key, center_key, free, cite, numbering.unsat_key, locant_set, citation, numbering.lam_key, acid_key,
+            stereo_key, _isotope_key(position_of, skeleton),
         )
         candidates.append((key, numbering, grouped, free, ring_stereo, side))
     if not candidates:

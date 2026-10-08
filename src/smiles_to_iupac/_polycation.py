@@ -7,6 +7,7 @@ import re
 from rdkit import Chem
 
 from ._common import (
+    CITE_SKELETAL_LAMBDA,
     UnsupportedStructure,
     adjacency,
     group_substituents,
@@ -184,12 +185,17 @@ def _name_ring_polycation(mol, centres):
         atom.SetFormalCharge(0)
         atom.SetNoImplicit(True)
         atom.SetNumExplicitHs(max(hydrogens - 1, 0))
-        if atom.GetIsAromatic():
-            atom.SetBoolProp("_ring_cation_centre", True)
+        atom.SetBoolProp("_ring_cation_centre", True)
     base = editable.GetMol()
     base.UpdatePropertyCache(strict=False)
     Chem.FastFindRings(base)
-    found = evaluate_skeleton(base, adjacency(base), "ring", rings, atoms, indices, set(), "ylium" if lambda_centres else "ium")
+    token = CITE_SKELETAL_LAMBDA.set(True)
+    try:
+        found = evaluate_skeleton(
+            base, adjacency(base), "ring", rings, atoms, indices, set(), "ylium" if lambda_centres else "ium"
+        )
+    finally:
+        CITE_SKELETAL_LAMBDA.reset(token)
     if found is None:
         raise UnsupportedStructure("this cationic ring system has no supported name yet")
     if lambda_centres and "λ" not in found[1]:
