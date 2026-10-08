@@ -62,6 +62,7 @@ def _cite(locant, lam):
     return f"{locant}\u03bb{lam[locant]}" if locant in lam else str(locant)
 _CHALCOGENS = {"O", "S", "Se", "Te"}
 _NO_DOUBLE_BOND = _CHALCOGENS | {"F", "Cl", "Br", "I"}
+_TETRAVALENT = {"C", "Si", "Ge", "Sn", "Pb"}
 _SIX_A = {"O", "S", "Se", "Te", "Bi"}
 _SIX_B = {"N", "Si", "Ge", "Sn", "Pb"}
 _STEMS_UNSAT = {3: "irene", 4: "ete", 5: "ole", 7: "epine", 8: "ocine", 9: "onine", 10: "ecine"}
@@ -382,7 +383,7 @@ def _hetero_monocycle(mol, ring_order, attached):
             for i in can_hold
             if i not in oxo_all
             and not (
-                sym[i] != "C"
+                sym[i] not in _TETRAVALENT
                 and (mol.GetAtomWithIdx(i).GetTotalNumHs() > 0 or mol.GetAtomWithIdx(i).GetDegree() == 3)
                 and not mol.GetAtomWithIdx(i).HasProp("_ring_cation_centre")
             )
