@@ -20,11 +20,35 @@ _PENTAVALENT = {15, 33, 51}
 _CHALCOGENS = {8: "O", 16: "S", 34: "Se", 52: "Te"}
 _INFIX = {16: "thio", 34: "seleno", 52: "telluro"}
 _ORDER = {8: 0, 16: 1, 34: 2, 52: 3}
+_HALIDE_INFIX = {9: "fluorid", 17: "chlorid", 35: "bromid", 53: "iodid"}
+# pseudohalide groups bonded to the acid centre by their first atom, with the infix that replaces an OH (P-67.1.2.4.1.3)
+_PSEUDOHALIDES = (
+    ("[O;D2]-C#N", "cyanatid"),
+    ("[N;D2]=C=O", "isocyanatid"),
+    ("[S;D2]-C#N", "thiocyanatid"),
+    ("[N;D2]=C=S", "isothiocyanatid"),
+    ("[Se;D2]-C#N", "selenocyanatid"),
+    ("[C;D2]#N", "cyanid"),
+    ("[N;D2]#[C;D1]", "isocyanid"),
+    ("[N;D2]=[N+]=[N-]", "azid"),
+)
+_PSEUDOHALIDE_PATTERNS = [(Chem.MolFromSmarts(smarts), infix) for smarts, infix in _PSEUDOHALIDES]
+
+
+def _replacer(mol, center, neighbor):
+    """(infix, atoms) of a halogen or pseudohalogen group bonded to the acid centre, else None."""
+    if neighbor.GetAtomicNum() in _HALIDE_INFIX and neighbor.GetDegree() == 1:
+        return _HALIDE_INFIX[neighbor.GetAtomicNum()], {neighbor.GetIdx()}
+    for pattern, infix in _PSEUDOHALIDE_PATTERNS:
+        for match in mol.GetSubstructMatches(pattern):
+            if match[0] == neighbor.GetIdx():
+                return infix, set(match)
+    return None
 
 
 def _ligands(mol, center):
     """([=X atoms], [XH atoms], [carbon neighbours]) of the acid centre, or None if it has any other neighbour."""
-    oxo, hydroxy, carbon = [], [], []
+    oxo, hydroxy, carbon, replacers = [], [], [], []
     for neighbor in center.GetNeighbors():
         z = neighbor.GetAtomicNum()
         order = mol.GetBondBetweenAtoms(center.GetIdx(), neighbor.GetIdx()).GetBondTypeAsDouble()
@@ -37,9 +61,11 @@ def _ligands(mol, center):
                 return None
         elif z == 6 and order == 1.0:
             carbon.append(neighbor)
+        elif order == 1.0 and _replacer(mol, center, neighbor) is not None:
+            replacers.append(neighbor)
         else:
             return None
-    return oxo, hydroxy, carbon
+    return oxo, hydroxy, carbon, replacers
 
 
 def _acid_parts(mol):
@@ -52,20 +78,22 @@ def _acid_parts(mol):
     ligands = _ligands(mol, center)
     if ligands is None:
         return None
-    oxo, hydroxy, carbon = ligands
+    oxo, hydroxy, carbon, replacers = ligands
     z = center.GetAtomicNum()
     pentavalent = z in _PENTAVALENT and len(oxo) == 1
     if len(oxo) > 1 or (len(oxo) == 1 and not pentavalent) or not 1 <= len(hydroxy) <= 3:
         return None
-    if len(hydroxy) + len(carbon) + center.GetTotalNumHs() != 3:
+    if len(hydroxy) + len(replacers) + len(carbon) + center.GetTotalNumHs() != 3:
         return None
     chalcogens = [*oxo, *hydroxy]
-    if all(a.GetAtomicNum() == 8 for a in chalcogens) and pentavalent:
+    if all(a.GetAtomicNum() == 8 for a in chalcogens) and pentavalent and not replacers:
         return None
     ligand_atoms = {x.GetIdx() for x in chalcogens} | {center.GetIdx()}
+    for neighbor in replacers:
+        ligand_atoms |= _replacer(mol, center, neighbor)[1]
     if any(a.GetAtomicNum() not in (6, *HALOGEN_PREFIXES) for a in mol.GetAtoms() if a.GetIdx() not in ligand_atoms):
         return None
-    return center, oxo, hydroxy, carbon, pentavalent
+    return center, oxo, hydroxy, carbon, pentavalent, replacers
 
 
 def has_functional_replacement_oxoacid_shape(mol) -> bool:
@@ -76,19 +104,25 @@ def name_functional_replacement_oxoacid(mol) -> str:
     parts = _acid_parts(mol)
     if parts is None:
         raise UnsupportedStructure("this is not a mononuclear oxoacid modified by functional replacement")
-    center, oxo, hydroxy, carbon, pentavalent = parts
+    center, oxo, hydroxy, carbon, pentavalent, replacers = parts
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     entries = [name_branch(graph, c.GetIdx(), center.GetIdx(), halogens, mol=mol) for c in carbon]
 
     chalcogens = [*oxo, *hydroxy]
     replaced = sorted((a.GetAtomicNum() for a in chalcogens if a.GetAtomicNum() != 8), key=lambda z: _INFIX[z])
-    infix = ""
+    pieces = []
     for z in sorted(set(replaced), key=lambda z: _INFIX[z]):
         count = replaced.count(z)
-        infix += (numerical_term(count) if count > 1 else "") + _INFIX[z]
+        pieces.append(((numerical_term(count) if count > 1 else "") + _INFIX[z], _INFIX[z]))
+    infixes = [_replacer(mol, center, n)[0] for n in replacers]
+    for text in sorted(set(infixes)):
+        count = infixes.count(text)
+        pieces.append(((numerical_term(count) if count > 1 else "") + text, text))
+    pieces.sort(key=lambda piece: piece[1])
+    infix = "o".join(text for text, _ in pieces)
     z_center = center.GetAtomicNum()
-    stem = _STEMS[z_center][len(hydroxy) - 1]
+    stem = _STEMS[z_center][len(hydroxy) + len(replacers) - 1]
     if z_center == 5 or pentavalent:
         word = stem + ("o" + infix if infix else "") + "ic acid"
     else:

@@ -346,6 +346,11 @@ def test_phosphorus_acid_groups_cited_as_prefixes_under_a_carboxylic_acid(smiles
     [
         ("CP(C)O", "dimethylphosphinous acid"),
         ("c1ccccc1P(c1ccccc1)S", "diphenylphosphinothious acid"),
+        ("CP(O)(=O)OC#N", "methylphosphonocyanatidic acid"),
+        ("P(O)(=O)(OC#N)OC#N", "phosphorodicyanatidic acid"),
+        ("c1ccccc1P(O)(=O)Cl", "phenylphosphonochloridic acid"),
+        ("CP(O)(=S)Cl", "methylphosphonochloridothioic acid"),
+        ("CP(O)Cl", "methylphosphonochlorious acid"),
         ("OP(=S)(O)O", "phosphorothioic O,O,O-acid"),
         ("OP(=O)(S)O", "phosphorothioic S-acid"),
         ("SP(=O)(S)O", "phosphorodithioic S,S-acid"),

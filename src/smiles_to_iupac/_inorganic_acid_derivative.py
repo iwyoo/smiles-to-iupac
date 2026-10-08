@@ -58,6 +58,12 @@ def _nitrogen_amide(mol):
             continue
         taken = {n.GetIdx() for n in (*nitro, *nitroso)}
         others = [n for n in centre.GetNeighbors() if n.GetIdx() not in taken]
+        amino = [
+            n for n in others if n.GetAtomicNum() == 7 and n.GetDegree() == 1 and n.GetTotalNumHs() == 2 and not n.GetFormalCharge()
+        ]
+        if amino and len(others) == 1 and len(nitro) + len(nitroso) == 1:
+            if all(a.GetIdx() in taken or a.GetIdx() in (centre.GetIdx(), amino[0].GetIdx()) or a.GetAtomicNum() == 8 for a in mol.GetAtoms()):
+                return centre, nitro, nitroso, [], amino
         if any(n.GetAtomicNum() != 6 or _bond(mol, centre.GetIdx(), n.GetIdx()) != 1.0 for n in others):
             continue
         covered = {centre.GetIdx()}
@@ -67,13 +73,15 @@ def _nitrogen_amide(mol):
             a.GetIdx() in covered or a.GetAtomicNum() == 6 or a.GetAtomicNum() in HALOGEN_PREFIXES for a in mol.GetAtoms()
         )
         if carbons_ok:
-            return centre, nitro, nitroso, others
+            return centre, nitro, nitroso, others, []
     return None
 
 
 def _name_nitrogen_amide(mol, found):
-    centre, nitro, nitroso, others = found
+    centre, nitro, nitroso, others, hydrazide = found
     graph = adjacency(mol)
+    if hydrazide:
+        return "nitric hydrazide" if nitro else "nitrous hydrazide"
     if nitro:
         parent, spare_nitro, spare_nitroso = "nitramide", nitro[1:], nitroso
     else:

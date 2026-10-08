@@ -1208,6 +1208,8 @@ def test_ureas_with_further_substituents_and_ureas_beneath_senior_groups(smiles,
     [
         pytest.param("CN(C)N=O", "dimethylnitrous amide", id="nitroso_on_amine_nitrogen"),
         pytest.param("CN(C)[N+](=O)[O-]", "dimethylnitramide", id="nitro_on_amine_nitrogen"),
+        pytest.param("NN[N+](=O)[O-]", "nitric hydrazide", id="nitro_on_hydrazine_nitrogen"),
+        pytest.param("NNN=O", "nitrous hydrazide", id="nitroso_on_hydrazine_nitrogen"),
         pytest.param("CN([N+](=O)[O-])[N+](=O)[O-]", "methyl(nitro)nitramide", id="second_nitro_group_is_a_prefix_of_nitramide"),
         pytest.param("CCCCN(CC)N=O", "butyl(ethyl)nitrous amide", id="nitrous_amide_prefixes_without_locants"),
         pytest.param("O=C1CCCCC1N=O", "2-nitrosocyclohexan-1-one", id="nitroso_on_a_ring_that_carries_a_ketone"),
