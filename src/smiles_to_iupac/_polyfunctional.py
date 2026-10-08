@@ -1968,9 +1968,10 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     ring_cation = RING_CENTER.get()
     centers = [] if ring_cation else [a for a in mol.GetAtoms() if a.GetAtomicNum() in MONONUCLEAR_HYDRIDES and not a.IsInRing()]
     if centers:
-        named = [n for n in (_mononuclear_parent(mol, graph, halogens, aromatic_atoms, c) for c in centers) if n]
+        named = [(n, c.GetIdx()) for c in centers if (n := _mononuclear_parent(mol, graph, halogens, aromatic_atoms, c))]
         if named:
-            return ((0,), min(named), (None, None, None, 0, {}, False))
+            name, center = min(named)
+            return ((0,), name, (None, None, None, 0, {center: 1}, False))
     if centers or (
         not ring_cation
         and any(

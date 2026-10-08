@@ -1028,3 +1028,16 @@ def test_homogeneous_heteromonocycle_elides_multiplier_vowel_and_omits_locants(s
 )
 def test_group_14_hydrides_take_chalcogenol_suffixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C[P@](CCC)C1=CC=CC=C1", "(R)-methyl(phenyl)(propyl)phosphane", id="stereogenic_phosphorus_parent"),
+        pytest.param("C[P@@](CCC)C1=CC=CC=C1", "(S)-methyl(phenyl)(propyl)phosphane", id="stereogenic_phosphorus_parent_enantiomer"),
+        pytest.param("C[Si@@H](O)CCC", "(R)-methyl(propyl)silanol", id="stereogenic_silicon_with_hydroxy_suffix"),
+        pytest.param("C[Si@H](O)CCC", "(S)-methyl(propyl)silanol", id="stereogenic_silicon_enantiomer"),
+    ],
+)
+def test_stereodescriptor_of_a_mononuclear_hydride_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
