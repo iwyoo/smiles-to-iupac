@@ -835,3 +835,14 @@ def test_stereogenic_sulfinyl_group_cites_its_descriptor():
 )
 def test_stereogenic_sulfoxide_and_sulfinate(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("S1=CN=CC=C1", "1λ4,3-thiazine"),
+        ("[SiH]1=CC=CC=C1", "siline"),
+    ],
+)
+def test_lambda_and_silicon_mancude_monocycles(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

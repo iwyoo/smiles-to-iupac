@@ -193,6 +193,7 @@ from ._metallapolycycle import has_metallapolycycle_shape, name_metallapolycycle
 from ._ocene import has_ocene_shape, name_ocene
 from ._pin import enter, leave, mark, nested, outermost, reason_count, reasons_since, replay
 from ._hydride_carbo_suffix import has_hydride_carbo_suffix_shape, name_hydride_carbo_suffix
+from ._lambda_ring import has_lambda_ring_shape, name_lambda_ring
 from ._ring_lambda_heterone import has_ring_lambda_heterone_shape, name_ring_lambda_heterone
 from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
 from ._pyridinone import has_pyridinone_shape, name_pyridinone
@@ -1172,6 +1173,7 @@ def _name_mol(mol) -> str:
         # ring/functional-group shape check below, which would misread its esters.
         (has_polyester_of_one_polyol_shape, name_diester_acyloxy),
         (has_hydride_carbo_suffix_shape, name_hydride_carbo_suffix),
+        (has_lambda_ring_shape, name_lambda_ring),
         (has_ring_lambda_heterone_shape, name_ring_lambda_heterone),
         # A chalcogen ring-oxide (P-62.5's functional-class "oxide" pattern,
         # not limited to acyclic amines) breaks the ring's own aromaticity as
