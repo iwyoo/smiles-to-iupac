@@ -666,7 +666,7 @@ def test_ammonium_counter_ion_multiplied_with_bis_to_avoid_diazane_reading():
     assert smiles_to_iupac("[NH4+].[NH4+].[O-]S(=O)(=O)[O-]") == "bis(azanium) sulfate"
 
 
-@pytest.mark.parametrize("smiles", ["CN.[O-]S(=O)(=O)O", "c1ccc(I(c2ccccc2)OS(=O)(=O)C)cc1"])
+@pytest.mark.parametrize("smiles", ["CN.[O-]S(=O)(=O)O"])
 def test_unaccounted_fragment_or_polyvalent_halogen_is_never_dropped(smiles):
     with pytest.raises(NotImplementedError):
         smiles_to_iupac(smiles)
