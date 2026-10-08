@@ -782,6 +782,8 @@ def test_saturated_fused_systems_use_hydro_prefixes(smiles, expected):
     "smiles,expected",
     [
         ("C[C@H]1CCCN(C)C1", "(3S)-1,3-dimethylpiperidine"),
+        ("C/C=C1\\C/C(=C/C)CC1", "(1Z,3E)-1,3-diethylidenecyclopentane"),
+        ("C/C=C1\\CCCCC1C", "(1E)-1-ethylidene-2-methylcyclohexane"),
     ],
 )
 def test_ring_stereodescriptors_are_cited_once(smiles, expected):

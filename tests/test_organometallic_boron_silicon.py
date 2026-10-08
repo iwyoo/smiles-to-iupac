@@ -911,7 +911,7 @@ def test_ylidene_and_enyl_prefixes_alongside_principal_characteristic_groups(smi
 @pytest.mark.parametrize(
     "smiles",
     [
-        "C/C=C1\\CCCCC1C",
+        "OC(=O)CC1CCCC\\C1=C/C",
     ],
 )
 def test_specified_double_bond_geometry_on_a_prefix_is_not_silently_dropped(smiles):
