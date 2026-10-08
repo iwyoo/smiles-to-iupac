@@ -395,11 +395,22 @@ def _diyl_name(mol, atoms, attachments):
     return None
 
 
+def _pendant_text(mol, graph, links):
+    halogens = halogen_substituents(mol)
+    counts = {}
+    for l in links:
+        name = name_branch(graph, l.far, l.chain[-1], halogens, mol=mol)[0]
+        counts[name] = counts.get(name, 0) + 1
+    return _multiplied([(n, not n.isalpha(), k, []) for n, k in counts.items()])
+
+
 def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_pieces):
     """'dimethyl ethane-1,2-diyl dibutanedioate' (P-65.6.3.3.4.1): one organyl piece joining identical acid pieces
-    that carry identical pendant organyl groups; None when the molecule is not of that shape."""
+    whose remaining ester groups carry organyl groups; None when the molecule is not of that shape."""
 
     hubs = [i for i, ls in r_pieces.items() if len(ls) >= 2 and i not in acid_pieces]
+    if len(hubs) == 2 and len(acid_pieces) == 3:
+        return _bridged_multiplicative_ester(mol, graph, frags, owner, acid_pieces, r_pieces, hubs)
     if len(hubs) != 1:
         return None
     hub = hubs[0]
@@ -412,13 +423,6 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
     pendants = [l for ls in acid_pieces.values() for l in ls if owner[l.far] != hub]
     if not pendants or any(len(r_pieces[owner[l.far]]) != 1 for l in pendants):
         return None
-    halogens = halogen_substituents(mol)
-    pend_names = sorted(
-        name_branch(graph, l.far, l.chain[-1], halogens, mol=mol)[0] for l in pendants
-    )
-    per_piece = [sorted(name_branch(graph, l.far, l.chain[-1], halogens, mol=mol)[0] for l in acid_pieces[c] if owner[l.far] != hub) for c in centers]
-    if any(p != per_piece[0] for p in per_piece):
-        return None
     first = acid_pieces[centers[0]]
     acid = _acid_name(mol, frags[centers[0]], [l.chain[-1] for l in first])
     anion = anion_name(acid)
@@ -427,12 +431,54 @@ def _multiplicative_ester(mol, graph, esters, frags, owner, acid_pieces, r_piece
         return None
     multiplier = multiplying_prefix(len(centers), compound=not anion.isalpha())
     anion_text = multiplier + anion if anion.isalpha() else f"{multiplier}{enclose(anion)}"
-    counts = {}
-    for n in pend_names:
-        counts[n] = counts.get(n, 0) + 1
-    compound = {n: not n.isalpha() for n in counts}
-    pendant_text = _multiplied([(n, compound[n], k, []) for n, k in counts.items()])
-    return " ".join(part for part in (pendant_text, diyl, anion_text) if part)
+    return " ".join(part for part in (_pendant_text(mol, graph, pendants), diyl, anion_text) if part)
+
+
+def _bridged_multiplicative_ester(mol, graph, frags, owner, acid_pieces, r_pieces, hubs):
+    """'dimethyl butanedioylbis[oxy(2,1-phenylene)] dibutanedioate' (P-13.6.2): two identical terminal acids joined
+    through identical organyl pieces and a central diacyl group; None for any other arrangement."""
+    from ._chain_multiplicative import _make_context
+    from ._multiplicative_linker import DecompositionRejected, name_component
+
+    inner = [c for c, ls in acid_pieces.items() if len(ls) == 2 and all(owner[l.far] in hubs for l in ls)]
+    if len(inner) != 1:
+        return None
+    inner = inner[0]
+    terminals = [c for c in acid_pieces if c != inner]
+    if any(len(acid_pieces[t]) < len(acid_pieces[inner]) for t in terminals):
+        return None
+    if len({_piece_key(mol, frags[c]) for c in terminals}) != 1 or len({_piece_key(mol, frags[h]) for h in hubs}) != 1:
+        return None
+    pendants, arms = [], []
+    for t in terminals:
+        toward = [l for l in acid_pieces[t] if owner[l.far] in hubs]
+        if len(toward) != 1:
+            return None
+        pendants += [l for l in acid_pieces[t] if l is not toward[0]]
+        hub = owner[toward[0].far]
+        center_link = next(l for l in r_pieces[hub] if owner[l.center] == inner)
+        arms.append((hub, toward[0], center_link))
+    if len({a[0] for a in arms}) != 2 or any(len(r_pieces[owner[l.far]]) != 1 for l in pendants):
+        return None
+    ctx = _make_context(mol, graph)
+    arm_texts = []
+    for hub, unit_link, center_link in arms:
+        atoms = list(frags[hub])
+        kind = "ring" if any(mol.GetAtomWithIdx(a).IsInRing() for a in atoms) else "carbon"
+        attachments = [(unit_link.far, unit_link.chain[-1], 1), (center_link.far, center_link.chain[-1], 1)]
+        try:
+            part = name_component(mol, kind, atoms, attachments, ctx, (unit_link.far, center_link.far))
+        except (DecompositionRejected, UnsupportedStructure):
+            return None
+        arm_texts.append("oxy" + enclose(part.text))
+    if arm_texts[0] != arm_texts[1]:
+        return None
+    acyl = acyl_name(_acid_name(mol, frags[inner], [l.chain[-1] for l in acid_pieces[inner]]))
+    anion = anion_name(_acid_name(mol, frags[terminals[0]], [l.chain[-1] for l in acid_pieces[terminals[0]]]))
+    multiplier = multiplying_prefix(2, compound=not anion.isalpha())
+    anion_text = multiplier + anion if anion.isalpha() else f"{multiplier}{enclose(anion)}"
+    linker = f"{acyl}bis{enclose(arm_texts[0])}"
+    return " ".join(part for part in (_pendant_text(mol, graph, pendants), linker, anion_text) if part)
 
 
 def _suffix_links(mol, links, keep, cap_of):
