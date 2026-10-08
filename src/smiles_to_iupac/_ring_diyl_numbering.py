@@ -477,7 +477,10 @@ def _with_hetero_locants(stem, elements, hetero, lam=None):
     lam = lam or {}
     names = [e for e in elements if e != "C"]
     if not lam and (
-        stem in _RETAINED_WITHOUT_LOCANTS or len(names) < 2 or (elements.count("C") <= 1 and len(set(names)) < 2)
+        stem in _RETAINED_WITHOUT_LOCANTS
+        or len(names) < 2
+        or (elements.count("C") <= 1 and len(set(names)) < 2)
+        or (len(elements) == 3 and len(names) == 2)
     ):
         return stem
     pairs = sorted(zip(names, [p for p, _ in hetero]), key=lambda ep: (_RANK[ep[0]], ep[1]))
@@ -550,8 +553,12 @@ def _carbocycle_text(stem, ene):
 
 def _hetero_text(stem, ih, hydro, added=()):
     def text(locants, valence, substituted=frozenset(), suffix="yl"):
+        # P-14.3.4.2(c): the position of the one heteroatom of an unsubstituted ring is not cited (thiacyclododecane)
+        bare = stem
+        if not substituted and not valence and suffix in ("", "yl") and not hydro and not added:
+            bare = re.sub(r"^1-(?=[a-z]+acyclo)", "", stem)
         ih_text = ",".join(f"{p}H" for p in ih) + "-" if ih else ""
-        rest = ih_text + _tail_added(stem, locants, valence, suffix, added)
+        rest = ih_text + _tail_added(bare, locants, valence, suffix, added)
         hydro_text = f"{_locs(hydro)}-{multiplied_word(len(hydro), 'hydro')}" + ("-" if rest[0].isdigit() else "") if hydro else ""
         return hydro_text + rest
 
