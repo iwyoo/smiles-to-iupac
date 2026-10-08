@@ -537,13 +537,18 @@ def _name_isotope_label(mol) -> str:
     raise UnsupportedStructure("this isotopically modified structure is not supported yet")
 
 
+_MULTIPLIER_VALUE = {"di": 2, "bis": 2, "tri": 3, "tris": 3, "tetra": 4, "tetrakis": 4, "penta": 5, "hexa": 6}
+_MULTIPLIED_GROUP = re.compile(r"(di|bis|tri|tris|tetra|tetrakis|penta|hexa)[\[{(]$")
 _NUCLIDE_ITEM = re.compile(r"^(\d+)([A-Z][a-z]?)(\d*)$")
 
 
 def _cited_nuclides(name):
     table = Chem.GetPeriodicTable()
     cited = {}
-    for group in re.findall(r"\(([^()]*)\)", name):
+    for found in re.finditer(r"\(([^()]*)\)", name):
+        group = found.group(1)
+        multiplier = _MULTIPLIED_GROUP.search(name[: found.start()])
+        factor = _MULTIPLIER_VALUE[multiplier.group(1)] if multiplier else 1
         items = group.split(",")
         located, pending = [], []
         for item in items:
@@ -563,7 +568,7 @@ def _cited_nuclides(name):
                 continue
             locants = pending + ([locant] if tail else [])
             pending = []
-            amount = int(count) if count else max(len(locants), 1)
+            amount = (int(count) if count else max(len(locants), 1)) * factor
             key = f"{mass}{symbol}"
             cited[key] = cited.get(key, 0) + amount
     return cited
