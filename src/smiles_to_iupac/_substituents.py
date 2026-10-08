@@ -436,7 +436,7 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
         return result
     name, compound = result
     capacity = _hydrogen_capacity(context, labelled)
-    if name == "methoxy" and set(labelled) == atoms - {root}:
+    if name == "methoxy":
         text = descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity)
         context["consumed"].update(labelled)
         return text + name, False
@@ -465,10 +465,10 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     if mol is None:
         raise UnsupportedStructure("an isotopically modified substituent other than a plain alkyl group is not supported yet")
     if mol.GetAtomWithIdx(root).IsInRing():
-        positions = _phenyl_label_positions(mol, root, labelled, name) if name.endswith("phenyl") else None
+        positions = _phenyl_label_positions(mol, root, labelled, name, coming_from)
         if positions is None:
-            raise UnsupportedStructure("an isotopically modified ring substituent other than phenyl is not supported yet")
-        stem_index = name.rfind("phenyl")
+            raise UnsupportedStructure("an isotopically modified ring substituent other than phenyl or cycloalkyl is not supported yet")
+        stem_index = name.rfind(_ring_group_stem(mol, root)[0])
         omit = _fully_modified(labelled, positions, capacity, {a for a in positions if a != root})
     else:
         named = {**{a: "x" for a in atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6}, **(halogens or {})}
@@ -537,22 +537,41 @@ def _top_level_locants(name):
     return sorted(int(x) for group in re.findall(r"(\d+(?:,\d+)*)-", "".join(flat)) for x in group.split(","))
 
 
-def _phenyl_label_positions(mol, root, labelled, name="phenyl"):
-    """{ring atom: locant} of a phenyl group, numbered from the attachment atom in the direction that gives the
-    ring substituents of the name, then the modified atoms, the lower locants (P-82.5.2); None unless the ring is a
-    benzene ring."""
-    ring = next((r for r in mol.GetRingInfo().AtomRings() if root in r), None)
-    if ring is None or len(ring) != 6 or not all(mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring):
+def _ring_group_stem(mol, root):
+    """('phenyl' or 'cyclo<alkyl>', ring) for an isolated benzene ring or saturated carbocycle attached at `root`."""
+    info = mol.GetRingInfo()
+    ring = next((r for r in info.AtomRings() if root in r), None)
+    if ring is None or any(info.NumAtomRings(a) != 1 or mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in ring):
         return None
+    aromatic = [mol.GetAtomWithIdx(a).GetIsAromatic() for a in ring]
+    if len(ring) == 6 and all(aromatic):
+        return "phenyl", ring
+    saturated = not any(aromatic) and all(
+        mol.GetBondBetweenAtoms(ring[i], ring[(i + 1) % len(ring)]).GetBondTypeAsDouble() == 1.0 for i in range(len(ring))
+    )
+    return ("cyclo" + alkyl_name(len(ring)), ring) if saturated else None
+
+
+def _phenyl_label_positions(mol, root, labelled, name="phenyl", coming_from=None):
+    """{ring atom: locant} of a phenyl or cycloalkyl group, numbered from the attachment atom in the direction that
+    gives the ring substituents of the name, then the modified atoms, the lower locants (P-82.5.2); None unless the
+    ring is an isolated benzene ring or saturated carbocycle."""
+    found = _ring_group_stem(mol, root)
+    if found is None or not name.endswith(found[0]):
+        return None
+    ring = found[1]
     if any(a not in ring for a in labelled):
         return None
     start = ring.index(root)
-    options = [{ring[(start + step * k) % 6]: k + 1 for k in range(6)} for step in (1, -1)]
-    if name != "phenyl":
+    options = [{ring[(start + step * k) % len(ring)]: k + 1 for k in range(len(ring))} for step in (1, -1)]
+    if name != found[0]:
         cited = _top_level_locants(name)
         substituted = [
             a for a in ring
-            if a != root and any(n.GetIdx() not in ring and n.GetIdx() != root and n.GetIdx() not in labelled and n.GetAtomicNum() != 1 for n in mol.GetAtomWithIdx(a).GetNeighbors())
+            if any(
+                n.GetIdx() not in ring and n.GetIdx() != coming_from and n.GetIdx() not in labelled and n.GetAtomicNum() != 1
+                for n in mol.GetAtomWithIdx(a).GetNeighbors()
+            )
         ]
         options = [o for o in options if sorted(o[a] for a in substituted) == cited]
         if not options:
@@ -858,6 +877,20 @@ def _substituent_entries_along_chain(
     return entries
 
 
+def _chain_isotope_key(chain):
+    context = ISOTOPE_LABELS.get()
+    if not context:
+        return ()
+    from ._isotope_labels import modification_key
+
+    return modification_key(context["labels"], {a: i for i, a in enumerate(chain, start=1)})
+
+
+def _labels_consumed():
+    context = ISOTOPE_LABELS.get()
+    return context["consumed"] if context else set()
+
+
 def _select_winning_chain(graph, root, coming_from, halogens, mol=None, aromatic_atoms=frozenset()):
     """The ordinary (non-branch-point) P-46 tie-break: `root` is fixed at
     locant 1 (the free valence is always a chain terminus here). Returns
@@ -872,7 +905,12 @@ def _select_winning_chain(graph, root, coming_from, halogens, mol=None, aromatic
     best_chain = None
     best_name = None
     best_compound = None
+    consumed = _labels_consumed()
+    base = set(consumed)
+    best_gained = base
     for chain in chains:
+        consumed.clear()
+        consumed.update(base)
         entries = _substituent_entries_along_chain(graph, chain, coming_from, halogens, mol=mol, aromatic_atoms=aromatic_atoms)
         grouped = _group_substituents(entries)
         if grouped and chain_length == 1:
@@ -885,10 +923,13 @@ def _select_winning_chain(graph, root, coming_from, halogens, mol=None, aromatic
             name, is_compound = format_substituent_prefixes(grouped) + alkyl_name(chain_length), True
         else:
             name, is_compound = alkyl_name(chain_length), False
-        key = _candidate_key(grouped) + (name,)
+        key = _candidate_key(grouped) + (_chain_isotope_key(chain), name)
         if best_key is None or key < best_key:
             best_key, best_chain, best_name, best_compound = key, chain, name, is_compound
+            best_gained = set(consumed)
 
+    consumed.clear()
+    consumed.update(best_gained)
     return best_chain, 1, best_name, best_compound
 
 
@@ -966,9 +1007,14 @@ def _branch_point_candidate_chains(graph, root, coming_from, halogens, mol=None,
     best_chain = None
     best_position = None
     best_name = None
+    consumed = _labels_consumed()
+    base = set(consumed)
+    best_gained = base
     for before_branch, after_branch in orientations:
         for path_before in paths[before_branch]:
             for path_after in paths[after_branch]:
+                consumed.clear()
+                consumed.update(base)
                 spine = list(reversed(path_before)) + [root] + path_after
                 root_locant = len(path_before) + 1
                 # Any branch off `root` beyond `before_branch`/`after_branch`
@@ -987,13 +1033,16 @@ def _branch_point_candidate_chains(graph, root, coming_from, halogens, mol=None,
                 grouped = _group_substituents(entries)
                 prefix = format_substituent_prefixes(grouped)
                 name = f"{prefix}{stem}-{root_locant}-yl"
-                key = _candidate_key(grouped) + (name,)
+                key = _candidate_key(grouped) + (_chain_isotope_key(spine), name)
                 if best_key is None or key < best_key:
                     best_key = key
                     best_chain = spine
                     best_position = root_locant
                     best_name = name
+                    best_gained = set(consumed)
 
+    consumed.clear()
+    consumed.update(best_gained)
     return best_chain, best_position, best_name, True
 
 
@@ -1192,7 +1241,11 @@ def _select_unsaturated_structure(graph, root, coming_from, halogens, mol, aroma
     suffix = _FREE_VALENCE_SUFFIX[attach_order]
 
     best = None
+    consumed = _labels_consumed()
+    base = set(consumed)
     for chain in _unsaturated_candidate_chains(graph, root, coming_from, halogens, mol, aromatic_atoms):
+        consumed.clear()
+        consumed.update(base)
         chain_set = set(chain)
         root_position = chain.index(root) + 1
         ene, yne = [], []
@@ -1227,11 +1280,13 @@ def _select_unsaturated_structure(graph, root, coming_from, halogens, mol, aroma
         stereo_rank = _branch_stereo_rank(_branch_stereo_entries({a: i for i, a in enumerate(chain, start=1)}))
         key = (
             -len(multiple), -len(ene), root_position, multiple, sorted(ene), -total_count, locant_set, citation,
-            stereo_rank, name,
+            _chain_isotope_key(chain), stereo_rank, name,
         )
         if best is None or key < best[0]:
-            best = (key, chain, root_position, name, is_compound)
-    _, chain, root_position, name, is_compound = best
+            best = (key, chain, root_position, name, is_compound, set(consumed))
+    _, chain, root_position, name, is_compound, gained = best
+    consumed.clear()
+    consumed.update(gained)
     stereo_prefix = _branch_stereo_prefix(
         _branch_stereo_entries({a: i for i, a in enumerate(chain, start=1)}, record=True), single_atom=len(chain) == 1
     )

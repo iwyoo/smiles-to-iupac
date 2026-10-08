@@ -49,6 +49,31 @@ def _nuclide_sort_key(nuclide):
     return symbol, mass
 
 
+def modification_key(labels, position_of):
+    """Sort key of a candidate parent or chain by its isotopic modification (P-44.4.1.11.1-6, P-46.2): more modified
+    atoms, then more nuclides of higher atomic number and of higher mass number, then the lowest locants for the
+    modified atoms and for those nuclides; the smaller key is senior."""
+    table = Chem.GetPeriodicTable()
+
+    def nuclides(entry):
+        found = [entry["skeleton"]] if entry["skeleton"] else []
+        for nuclide, count in entry["H"].items():
+            found.extend([nuclide] * count)
+        return found
+
+    order = sorted(
+        {n for entry in labels.values() for n in nuclides(entry)},
+        key=lambda n: (-table.GetAtomicNumber(_nuclide_sort_key(n)[0]), -_nuclide_sort_key(n)[1]),
+    )
+    modified = [(position_of[atom], n) for atom, entry in labels.items() if atom in position_of for n in nuclides(entry)]
+    return (
+        -len(modified),
+        tuple(-sum(1 for _, m in modified if m == n) for n in order),
+        tuple(sorted(locant for locant, _ in modified)),
+        tuple(tuple(sorted(locant for locant, m in modified if m == n)) for n in order),
+    )
+
+
 def descriptor(labels, position_of, single_position, extra=(), capacity=None, sole=frozenset()):
     """The '(…)' isotopic descriptor for the labelled parent atoms; `single_position` drops the locants for a
     one-atom parent (P-82.6.1.1). `extra`: (nuclide, locant text or None, count, repeatable) for atoms outside the

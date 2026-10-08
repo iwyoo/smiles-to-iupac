@@ -30,9 +30,9 @@ from rdkit.Chem import rdCIPLabeler
 
 from ._numerals import alkane_name, numerical_term
 
-_LEADING_LOCANTS_RE = re.compile(r"^\x01?(?:[\d,\-]+\(?)?")
-_ITALIC_PREFIX_RE = re.compile(r"^(tert|sec|iso)-")
 _NUCLIDE = r"(?:[\d,]+-)?\d+[A-Z][a-z]?\d*"
+_LEADING_LOCANTS_RE = re.compile(rf"^\x01?(?:[\d,\-]+(?:\((?!{_NUCLIDE}(?:,{_NUCLIDE})*\)[A-Za-z]))?)?")
+_ITALIC_PREFIX_RE = re.compile(r"^(tert|sec|iso)-")
 _LEADING_ISOTOPE_RE = re.compile(rf"^\x01?\({_NUCLIDE}(?:,{_NUCLIDE})*\)(?=[A-Za-z])")
 _LEADING_STEREO_RE = re.compile(r"^\([\dRSEZrsez,' ]+\)-")
 _LEADING_ANOMER_RE = re.compile(r"^[αβ]-[DL]-")
@@ -1189,7 +1189,7 @@ def alpha_sort_key(name: str) -> str:
         stripped = _LEADING_STEREO_RE.sub("", stripped)
         stripped = _LEADING_ANOMER_RE.sub("", stripped)
         stripped = _LEADING_LOCANTS_RE.sub("", stripped)
-        if stripped[:1] in ("(", "[", "{") and not _LEADING_STEREO_RE.match(stripped):
+        if stripped[:1] in ("(", "[", "{") and not (_LEADING_STEREO_RE.match(stripped) or _LEADING_ISOTOPE_RE.match(stripped)):
             stripped = stripped[1:]
     stripped = _ITALIC_PREFIX_RE.sub("", stripped)
     return re.sub(r"[^a-z]", "", stripped.lower())

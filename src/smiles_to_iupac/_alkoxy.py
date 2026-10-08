@@ -15,6 +15,7 @@ _RETAINED = {
     "tert-butyl": "tert-butoxy",
     "phenyl": "phenoxy",
 }
+_ISOTOPE_ONLY = re.compile(r"(\(\d[^()-]*\))([a-z-]+)")
 _SUBSTITUTED_END = re.compile(r"(?:methyl|ethyl|propyl|butyl)$")
 _NOT_SUBSTITUTED_END = ("cyclopropyl", "cyclobutyl", "tert-butyl")
 
@@ -23,6 +24,9 @@ def alkoxy_prefix(rname, compound=False):
     """(prefix text, is_compound) for the group R'-O- whose R' substituent prefix is `rname`."""
     if rname in _RETAINED:
         return _RETAINED[rname], False
+    modified = _ISOTOPE_ONLY.fullmatch(rname)
+    if modified and modified.group(2) in _RETAINED:
+        return modified.group(1) + _RETAINED[modified.group(2)], False
     if rname.endswith("phenyl"):
         return rname[: -len("phenyl")] + "phenoxy", True
     if _SUBSTITUTED_END.search(rname) and not rname.endswith(_NOT_SUBSTITUTED_END):
