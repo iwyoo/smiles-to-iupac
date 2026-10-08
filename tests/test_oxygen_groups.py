@@ -978,6 +978,10 @@ def test_carbonic_family_names(smiles, expected):
         ("COC(=O)CCC(=O)OCCOC(=O)CCC(=O)OC", "dimethyl ethane-1,2-diyl dibutanedioate"),
         ("CC(=O)Oc1ccc(cc1)C(=O)OC", "methyl 4-(acetyloxy)benzoate"),
         ("O=C(OCCOC(C)=O)CC(=O)OCCOC(C)=O", "bis[2-(acetyloxy)ethyl] propanedioate"),
+        (
+            "COC(=O)c1cccc(OC(=O)CCC(=O)OCC(=O)OC)c1",
+            "3-(methoxycarbonyl)phenyl 2-methoxy-2-oxoethyl butanedioate",
+        ),
     ],
 )
 def test_polyester_principal_acid_and_multiplicative_names(smiles, expected):
