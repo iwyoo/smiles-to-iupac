@@ -735,3 +735,18 @@ def test_replacement_named_peri_fused_system_keeps_hydrocarbon_numbering_for_sub
 )
 def test_saturated_and_peri_fused_heterocycles_take_hydro_and_indicated_hydrogen_fusion_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C1CC1c1ccc2ccc3cccc4ccc1c2c34", "1-cyclopropylpyrene", id="cyclopropyl_on_peri_position"),
+        pytest.param("C1CCC1c1ccc2ccc3cccc4ccc1c2c34", "1-cyclobutylpyrene", id="cyclobutyl_on_peri_position"),
+        pytest.param("C1CCCC1c1ccc2ccc3cccc4ccc1c2c34", "1-cyclopentylpyrene", id="cyclopentyl_on_peri_position"),
+        pytest.param("C1CCCCC1c1ccc2ccc3cccc4ccc1c2c34", "1-cyclohexylpyrene", id="cyclohexyl_on_peri_position"),
+        pytest.param("C1CC1c1cc2ccc3cccc4ccc(c1)c2c34", "2-cyclopropylpyrene", id="cyclopropyl_on_position_two"),
+        pytest.param("C1CC1c1cccc2ccc3ccccc3c12", "4-cyclopropylphenanthrene", id="cyclopropyl_on_bay_position"),
+    ],
+)
+def test_ring_substituent_does_not_make_a_bridged_fused_system(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

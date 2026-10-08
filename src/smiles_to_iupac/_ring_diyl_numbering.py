@@ -953,6 +953,8 @@ def bridged_ring_system_name(mol):
     if any(info.NumAtomRings(i) == 0 for i in range(mol.GetNumAtoms())):
         return None
     atoms = list(range(mol.GetNumAtoms()))
+    if any(not bond.IsInRing() for bond in mol.GetBonds()):
+        return None
     if not is_bridged_fusion_system(mol, atoms):
         return None
     try:
