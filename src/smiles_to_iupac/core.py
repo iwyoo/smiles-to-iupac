@@ -213,6 +213,7 @@ from ._halogen_amide import name_halogen_amide
 from ._inorganic_acid_derivative import has_inorganic_acid_derivative_shape, name_inorganic_acid_derivative
 from ._halogen_oxo import name_halogen_oxo
 from ._hydroxylamine import has_hydroxylamine_shape, name_hydroxylamine
+from ._hydroxylamine_general import has_o_substituted_hydroxylamine_shape, name_o_substituted_hydroxylamine
 from ._imine import has_simple_imine_shape, name_imine
 from ._dipole_oxide import (
     has_nitrile_oxide_shape,
@@ -895,6 +896,12 @@ def _has_aromatic_oxo(mol) -> bool:
     )
 
 
+def _name_o_substituted_hydroxylamine(mol):
+    if not has_o_substituted_hydroxylamine_shape(mol):
+        raise UnsupportedStructure("not an O-substituted hydroxylamine")
+    return name_o_substituted_hydroxylamine(mol)
+
+
 def _name_hydride_onium(mol):
     if not has_hydride_onium_shape(mol):
         raise UnsupportedStructure("not an onium cation of a mononuclear hydride")
@@ -921,6 +928,7 @@ def _run_fallbacks(smiles, original):
             name_halogen_acid_ester,
             name_halogen_oxo,
             name_polyfunctional,
+            _name_o_substituted_hydroxylamine,
             _name_hydride_onium,
             name_anion,
             name_ester_by_parts,
