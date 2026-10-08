@@ -34,6 +34,7 @@ from ._diacylamine import diacylamine_name
 from ._alternating_cage import has_alternating_cage_shape, name_alternating_cage
 from ._dipolar import has_dipolar_shape, name_dipolar
 from ._chalcogen_aldehyde import name_chalcogen_aldehyde
+from ._condensed_guanidine import name_condensed_guanidine
 from ._ring_heteroatom_nitrile import name_ring_heteroatom_nitrile
 from ._hydride_ylium import has_hydride_onium_shape, has_hydride_ylium_shape, name_hydride_onium, name_hydride_ylium
 from ._spiro_hub_atom import has_spiro_hub_atom_shape, name_spiro_hub_atom
@@ -930,6 +931,7 @@ def _run_fallbacks(smiles, original):
                 return name
         for fallback in (
             name_chalcogen_aldehyde,
+            name_condensed_guanidine,
             name_ring_heteroatom_nitrile,
             name_polynuclear_oxoacid,
             name_halogen_amide,

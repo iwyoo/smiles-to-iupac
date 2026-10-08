@@ -412,6 +412,30 @@ def _thioacyl(mol, idx):
     return atom.GetAtomicNum() in (16, 34, 52) and sum(n.GetAtomicNum() == 8 for n in terminal) == 2
 
 
+def _imidoyl_centre(mol, idx):
+    """A carbon with a terminal =NH, or a sulfonyl-type S, Se or Te with two terminal =O or =NH of which at least one is
+    =NH: the acyl group of an imidamide (P-66.4.1.3.5)."""
+    atom = mol.GetAtomWithIdx(idx)
+    terminal = [
+        n
+        for n in atom.GetNeighbors()
+        if n.GetDegree() == 1 and mol.GetBondBetweenAtoms(idx, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    ]
+    imines = sum(n.GetAtomicNum() == 7 and n.GetTotalNumHs() == 1 and not n.GetFormalCharge() for n in terminal)
+    if atom.GetAtomicNum() == 6:
+        hydrazones = [
+            n
+            for n in atom.GetNeighbors()
+            if n.GetAtomicNum() == 7
+            and n.GetDegree() == 2
+            and mol.GetBondBetweenAtoms(idx, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            and any(m.GetAtomicNum() == 7 and m.GetDegree() == 1 and m.GetTotalNumHs() == 2 for m in n.GetNeighbors())
+        ]
+        return (imines == 1 and len(terminal) == 1 and not hydrazones) or (not terminal and len(hydrazones) == 1)
+    oxygens = sum(n.GetAtomicNum() == 8 for n in terminal)
+    return atom.GetAtomicNum() in (16, 34, 52) and imines >= 1 and imines + oxygens == 2
+
+
 PEROXY_PREFIXES = contextvars.ContextVar("peroxy_prefixes", default=False)
 
 
@@ -652,6 +676,10 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
                 return _enclose(rname, rcomp) + "imino", True
         from ._chalcogenourea import is_oxo_nitrogen
 
+        if order == 1.0 and not atom.GetFormalCharge():
+            imidohydrazido = _imidohydrazido(graph, root, others, mol)
+            if imidohydrazido is not None:
+                return imidohydrazido
         if order == 1.0 and not atom.GetFormalCharge() and any(
             mol.GetAtomWithIdx(n).GetAtomicNum() == 7 and not is_oxo_nitrogen(mol, mol.GetAtomWithIdx(n)) for n in others
         ):
@@ -671,7 +699,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             far = mol.GetAtomWithIdx(others[0])
             if far.GetDegree() == 1 and far.GetTotalNumHs() == 2 and not far.GetFormalCharge():
                 return "hydrazinyl", False
-        amido = _chalcogen_amido(graph, root, others, mol)
+        amido = _chalcogen_amido(graph, root, others, mol) or _imidohydrazido(graph, root, others, mol)
         if amido is not None:
             return amido
         if any(mol.GetAtomWithIdx(n).GetAtomicNum() not in (6,) + tuple(MONONUCLEAR_HYDRIDES) for n in others) and not (
@@ -717,7 +745,7 @@ def _chalcogen_amido(graph, root, others, mol):
     forms: the final 'e' in the complete name of the amide becomes 'o' (P-66.1.1.4.3); None for any other nitrogen."""
     from ._polyfunctional import name_polyfunctional
 
-    acyl = [n for n in others if _thioacyl(mol, n)]
+    acyl = [n for n in others if _thioacyl(mol, n) or _imidoyl_centre(mol, n)]
     rest = [n for n in others if n not in acyl]
     if len(acyl) != 1 or len(rest) > 1 or any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in rest):
         return None
@@ -737,10 +765,40 @@ def _chalcogen_amido(graph, root, others, mol):
         name = contextvars.Context().run(name_polyfunctional, fragment)
     except (UnsupportedStructure, ValueError):
         return None
-    if not name.endswith("amide") or name.endswith(("imidamide", "hydrazonamide")):
+    if not name.endswith("amide"):
         return None
     prefix = name[:-1] + "o"
-    return prefix, "-" in prefix or "ane" in prefix
+    return prefix, any(part in prefix for part in ("-", "ane", "benzene"))
+
+
+def _imidohydrazido(graph, root, others, mol):
+    """'ethanimidohydrazido' for R-C(=NH)-NH-NH- joined through the terminal nitrogen (P-66.4.2.3.6): the final 'e' of
+    the imidohydrazide name becomes 'o'; None for any other hydrazine nitrogen."""
+    from ._polyfunctional import name_polyfunctional
+
+    if len(others) != 1 or mol.GetAtomWithIdx(others[0]).GetAtomicNum() != 7 or mol.GetAtomWithIdx(root).IsInRing():
+        return None
+    alpha = others[0]
+    onward = [n for n in graph[alpha] if n != root]
+    if len(onward) != 1 or mol.GetAtomWithIdx(alpha).IsInRing() or not _imidoyl_centre(mol, onward[0]):
+        return None
+    if mol.GetAtomWithIdx(onward[0]).GetAtomicNum() != 6 or any(
+        a.GetIsotope() or a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()
+    ):
+        return None
+    keep = {root, alpha} | _side(graph, onward[0], alpha)
+    fragment = Chem.RWMol(mol)
+    for index in sorted(set(range(mol.GetNumAtoms())) - keep, reverse=True):
+        fragment.RemoveAtom(index)
+    fragment = fragment.GetMol()
+    try:
+        Chem.SanitizeMol(fragment)
+        name = contextvars.Context().run(name_polyfunctional, fragment)
+    except (UnsupportedStructure, ValueError):
+        return None
+    if not name.endswith("imidohydrazide"):
+        return None
+    return name[:-1] + "o", True
 
 
 _CYANATE_PREFIXES = {8: "cyanato", 16: "thiocyanato", 34: "selenocyanato", 52: "tellurocyanato"}
@@ -867,6 +925,17 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
 
     atom = mol.GetAtomWithIdx(root)
     others = [n for n in graph[root] if n != coming_from]
+    if mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() == 2.0 and len(others) in (1, 2) and not atom.IsInRing():
+        amines = [mol.GetAtomWithIdx(n) for n in others]
+        if all(
+            a.GetAtomicNum() == 7 and not a.GetFormalCharge() and not a.IsInRing()
+            and mol.GetBondBetweenAtoms(root, a.GetIdx()).GetBondTypeAsDouble() == 1.0
+            for a in amines
+        ):
+            entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in others]
+            from ._substituents import format_mononuclear_prefixes
+
+            return format_mononuclear_prefixes(entries) + "methylidene", True
     triple_n = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 7 and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 3.0]
     if triple_n and len(others) == 1:
         return "cyano", False
@@ -1125,7 +1194,8 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
             if not mol.HasSubstructMatch(_CARBOXYLIC_CLASS):
                 raise
     z_name, z_compound = name_branch(graph, x, root, halogens, aromatic_atoms, mol=mol)
-    return (_enclose(z_name, z_compound) if z_compound else z_name) + acyl, True
+    located = "S-" if zx == 7 and "NH" in symbols and center == "S" else ""
+    return located + (_enclose(z_name, z_compound) if z_compound else z_name) + acyl, True
 
 
 def _subtree(graph, root, blocked):

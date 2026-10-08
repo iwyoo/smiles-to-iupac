@@ -1317,3 +1317,35 @@ def test_carbamic_acid_esters_of_amino_groups_cite_the_amino_group_as_the_ester_
 )
 def test_hydroxylamines_with_a_hydride_or_ring_substituent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C(C)N(C(=NC)C1=CC(=CC2=CC=CC=C12)C(N(C)C)=NCC)CC", "N1,N1,N'3-triethyl-N'1,N3,N3-trimethylnaphthalene-1,3-dicarboximidamide"),
+        ("C(C)N=C(N)C1(CCCCC1)C(N(C)C)=N", "N'''1-ethyl-N1,N1-dimethylcyclohexane-1,1-dicarboximidamide"),
+        ("C(C)NC(=N)C1(CCCCC1)C(N(C)C)=N", "N''1-ethyl-N1,N1-dimethylcyclohexane-1,1-dicarboximidamide"),
+        ("CN(C)C(=N)CCC(=N)NCC", "N4-ethyl-N1,N1-dimethylbutanediimidamide"),
+        ("CCN=C(N(C)C)c1ccc(C(=O)O)cc1", "4-(N'-ethyl-N,N-dimethylcarbamimidoyl)benzoic acid"),
+        ("N=CNc1ccc(C(=O)O)cc1", "4-methanimidamidobenzoic acid"),
+        ("CC(=N)Nc1ccc(C(=O)O)cc1", "4-ethanimidamidobenzoic acid"),
+        ("NS(=N)CCC(=O)O", "3-(S-aminosulfinimidoyl)propanoic acid"),
+        ("NC(N)=NCCCC(=O)O", "4-[(diaminomethylidene)amino]butanoic acid"),
+        ("C(N)(=N)NC=O", "N-carbamimidoylformamide"),
+        ("C(N)(=N)NC(C)=O", "N-carbamimidoylacetamide"),
+        ("C(N)(=N)NC(N)=O", "N-carbamimidoylurea"),
+        ("C(N)(=N)NC(N)=N", "imidodicarbonimidic diamide"),
+        ("C(N)(=N)NC(=N)NC(N)=N", "diimidotricarbonimidic diamide"),
+        ("C(C)N=C(N(C1=CC=CC=C1)C1=CC=CC=C1)NC(N)=N", "N'1-ethyl-N1,N1-diphenylimidodicarbonimidic diamide"),
+        ("N=C(NC(N)=N)NC(NC(NC(N)=N)=N)=N", "3,5,7-triimino-2,4,6,8-tetraazanonane-1,9-diimidamide"),
+        ("NN=C(C)NCCC(=O)O", "3-(ethanehydrazonamido)propanoic acid"),
+        ("NN=CNc1ccc(C(=O)O)cc1", "4-(methanehydrazonamido)benzoic acid"),
+        ("NNC=Nc1ccc(C(=O)O)cc1", "4-[(hydrazinylmethylidene)amino]benzoic acid"),
+        ("N=CNNCCC(=O)O", "3-(methanimidohydrazido)propanoic acid"),
+        ("CC(=N)NNCC(=O)OC", "methyl (ethanimidohydrazido)acetate"),
+        ("N=C(NNc1ccc(C(=O)O)cc1)c1ccccc1", "4-(benzenecarboximidohydrazido)benzoic acid"),
+        ("NNC(=N)c1cccc(C(=O)O)c1", "3-(hydrazinecarboximidoyl)benzoic acid"),
+    ],
+)
+def test_amidine_locants_prefixes_and_condensed_guanidines(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

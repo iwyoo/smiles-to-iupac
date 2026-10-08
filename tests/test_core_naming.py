@@ -556,7 +556,7 @@ def test_ring_nitrogen_acyl_prefix_keeps_the_ring_intact(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("CN=C(NCC)NCCC(=O)O", "3-[(N'-ethyl-N-methylcarbamimidoyl)amino]propanoic acid"),
+        ("CN=C(NCC)NCCC(=O)O", "3-[(N-ethyl-N'-methylcarbamimidoyl)amino]propanoic acid"),
         ("CN=C(NC)N(C)CCC(=O)O", "3-[methyl(N,N'-dimethylcarbamimidoyl)amino]propanoic acid"),
     ],
 )
