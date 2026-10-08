@@ -396,7 +396,10 @@ def _is_nonbenzene_monocyclic_annulene(mol):
     if len(rings) != 1 or len(rings[0]) == 6:
         return False
     return all(
-        (a := mol.GetAtomWithIdx(i)).GetIsAromatic() and a.GetAtomicNum() == 6 and not a.GetFormalCharge()
+        (a := mol.GetAtomWithIdx(i)).GetIsAromatic()
+        and a.GetAtomicNum() in (6, 7, 8, 16, 34, 52)
+        and (a.GetAtomicNum() == 6 or len(rings[0]) > 8)
+        and not a.GetFormalCharge()
         for i in rings[0]
     )
 
