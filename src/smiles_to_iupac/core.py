@@ -30,6 +30,7 @@ from ._hydrogen_cation import hydrogen_salt_name
 from ._silicic_cyanate import silicic_cyanate_name
 from ._borane_silane_amide import borane_silane_amide_name
 from ._polyborane import lewis_adduct_mol, polyborane_name
+from ._diacylamine import diacylamine_name
 from ._dipolar import has_dipolar_shape, name_dipolar
 from ._substituents import FORCED_BRANCH_NAMES
 from ._glycoside import has_glycoside_shape, name_glycoside
@@ -651,6 +652,10 @@ def _name_unabridged(smiles: str) -> str:
             parts = lewis_adduct_mol(parsed)
             if parts is not None and has_adduct_shape(parts):
                 return mark(name_adduct(parts, smiles_to_iupac), _NO_PIN_ADDUCT)
+        if parsed is not None:
+            diacylamine = diacylamine_name(parsed)
+            if diacylamine is not None:
+                return diacylamine
         if parsed is not None and has_dipolar_shape(parsed):
             return name_dipolar(parsed)
         if parsed is not None and has_glycoside_shape(parsed):

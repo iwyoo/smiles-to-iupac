@@ -658,42 +658,34 @@ def test_benzyl_o_substituent_and_related_raise(smiles):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("CC(C)C(=O)NC(=O)C(C)C", "N-(2-methylpropanoyl)-2-methylpropanamide", id="branched_symmetric_imide"),
-        pytest.param("ClCC(=O)NC(=O)CCl", "N-(chloroacetyl)-2-chloroethanamide", id="halogen_substituent"),
+        pytest.param("CC(C)C(=O)NC(=O)C(C)C", "2-methyl-N-(2-methylpropanoyl)propanamide", id="branched_symmetric_imide"),
+        pytest.param("ClCC(=O)NC(=O)CCl", "2-chloro-N-(chloroacetyl)acetamide", id="halogen_substituent"),
+        pytest.param("CC(=O)NC(=O)C", "N-acetylacetamide", id="diacetylamine"),
+        pytest.param("CC(=O)N(C(C)=O)C(C)=O", "N,N-diacetylacetamide", id="triacetylamine"),
+        pytest.param("O=CNC=O", "N-formylformamide", id="diformylamine"),
+        pytest.param("CC(=O)NC(=O)CC", "N-acetylpropanamide", id="unsymmetric_imide"),
+        pytest.param("C=CC(=O)NC(=O)C=C", "N-(prop-2-enoyl)prop-2-enamide", id="unsaturated_imide"),
+        pytest.param("O=C(c1ccccc1)NC(=O)c1ccccc1", "N-benzoylbenzamide", id="dibenzoylamine"),
+        pytest.param("O=C(c1ccccc1)NC(C)=O", "N-acetylbenzamide", id="acetyl_benzoyl_amine"),
+        pytest.param("O=C(c1ccco1)NC(=O)c1ccco1", "N-(furan-2-carbonyl)furan-2-carboxamide", id="difuroylamine"),
+        pytest.param(
+            "O=C(C1CCCCC1)N(C(=O)C1CCCCC1)C(=O)C1CCCCC1",
+            "N,N-di(cyclohexanecarbonyl)cyclohexanecarboxamide",
+            id="tri_acylamine_ring_acyl",
+        ),
+        pytest.param("CC(=O)N(C(=O)CCCl)C(=O)c1ccccc1", "N-acetyl-N-(3-chloropropanoyl)benzamide", id="three_different_acyls"),
+        pytest.param("CC(=O)N(C1CCCC1)C(C)=O", "N-acetyl-N-cyclopentylacetamide", id="acylamine_with_alkyl"),
+        pytest.param("CC(=O)N(c1ccc2ccccc2c1)C(=O)c1ccccc1", "N-acetyl-N-(naphthalen-2-yl)benzamide", id="acylamine_with_aryl"),
+        pytest.param("CS(=O)(=O)NS(C)(=O)=O", "N-(methanesulfonyl)methanesulfonamide", id="disulfonylamine"),
+        pytest.param("CS(=O)(=O)NC(C)=O", "N-(methanesulfonyl)acetamide", id="carboxamide_senior_to_sulfonamide"),
     ],
 )
 def test_branched_symmetric_imide_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("CC(=O)NC(=O)CC", id="unsymmetric_imide_not_supported"),
-        pytest.param("C=CC(=O)NC(=O)C=C", id="unsaturated_imide_not_supported"),
-    ],
-)
-def test_unsymmetric_imide_not_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
 def test_n_substituted_cyclic_imide_named_via_ketone_module():
     assert smiles_to_iupac("CN1C(=O)CCC1=O") == "1-methylpyrrolidine-2,5-dione"
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("c1ccccc1CC(=O)NC(=O)CCc1ccccc1", id="phenyl_chain_unsymmetric_raises"),
-        pytest.param("c1ccccc1C(=O)NC(=O)c1ccccc1", id="phenyl_ring_directly_on_acyl_carbon_raises"),
-        pytest.param("c1ccccc1CC(=O)NC(=O)CC", id="one_sided_phenyl_chain_raises"),
-        pytest.param("Cc1ccccc1CC(=O)NC(=O)Cc1ccccc1C", id="substituted_benzene_ring_raises"),
-    ],
-)
-def test_imide_phenyl_chain_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(

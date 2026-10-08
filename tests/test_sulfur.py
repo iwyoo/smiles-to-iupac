@@ -475,6 +475,11 @@ def test_sulfoxide(smiles, expected):
     "smiles,expected",
     [
         ("O=S1(=O)CCCC1", "1λ6-thiolane-1,1-dione"),
+        ("O=S1(=O)CCCCN1", "1λ6,2-thiazinane-1,1-dione"),
+        ("O=S1(=O)CCCN1", "1λ6,2-thiazolidine-1,1-dione"),
+        ("O=S1(=O)CCCN1C", "2-methyl-1λ6,2-thiazolidine-1,1-dione"),
+        ("CC1CCS(=O)(=O)N1", "3-methyl-1λ6,2-thiazolidine-1,1-dione"),
+        ("O=S1CCCCN1", "1λ4,2-thiazinan-1-one"),
         ("O=S1(=O)OCCC1", "1,2λ6-oxathiolane-2,2-dione"),
         ("CC1CCCOS1(=O)=O", "3-methyl-1,2λ6-oxathiane-2,2-dione"),
         ("S=S1OCCC1", "1,2λ4-oxathiolane-2-thione"),

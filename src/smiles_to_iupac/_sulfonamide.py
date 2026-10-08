@@ -166,6 +166,8 @@ def _sulfonamide_sulfur_atoms(mol):
         (nitrogen,) = nitrogens
         if mol.GetBondBetweenAtoms(atom.GetIdx(), nitrogen.GetIdx()).GetBondTypeAsDouble() != 1.0:
             continue
+        if mol.GetBondBetweenAtoms(atom.GetIdx(), nitrogen.GetIdx()).IsInRing():
+            continue
         n_substituents = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != atom.GetIdx()]
         if len(n_substituents) > 2 or any(n.GetAtomicNum() != 6 for n in n_substituents):
             continue
