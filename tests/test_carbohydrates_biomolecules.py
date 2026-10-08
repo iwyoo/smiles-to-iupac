@@ -5,8 +5,8 @@ from smiles_to_iupac._common import UnsupportedStructure
 
 
 def test_side_chain_table_has_no_collisions():
-    assert len(_SIDE_CHAIN_TABLE) == 15
-    assert len(set(_SIDE_CHAIN_TABLE.values())) == 15
+    assert len(_SIDE_CHAIN_TABLE) == 17
+    assert len(set(_SIDE_CHAIN_TABLE.values())) == 17
 
 
 def test_glycine():
@@ -374,6 +374,29 @@ def test_glycoglycerolipids(smiles, expected):
     ],
 )
 def test_substituted_amino_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-103.1.3.2.2 allo prefix; P-103.2.4.2 ions; P-103.2.6 esters
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC[C@H](C)[C@H](N)C(=O)O", "L-isoleucine", id="isoleucine"),
+        pytest.param("CC[C@H](C)[C@@H](N)C(=O)O", "D-alloisoleucine", id="allo_inverts_beta_in_d_series"),
+        pytest.param("C[C@@H](O)[C@H](N)C(=O)O", "L-threonine", id="threonine"),
+        pytest.param("CC(=O)N[C@@H]([C@H](C)O)C(=O)O", "N-acetyl-L-allothreonine", id="substituted_allo"),
+        pytest.param("CC[C@H](C)C(N)C(=O)O", "(3S)-2-amino-3-methylpentanoic acid", id="beta_without_alpha_stays_systematic"),
+        pytest.param("C[C@H](NC(C)=O)C(=O)OC", "methyl N-acetyl-L-alaninate", id="ester_of_substituted_acid"),
+        pytest.param("CC(C)[C@H](N)C(=O)OC[C@@H](N)C(C)C", "(2S)-2-amino-3-methylbutyl L-valinate", id="ester_group_with_stereo"),
+        pytest.param("OC(=O)C[C@H](N)C(=O)OC", "1-methyl L-aspartate", id="diacid_monoester_locant"),
+        pytest.param("COC(=O)C[C@H](N)C(=O)OCC", "1-ethyl 4-methyl L-aspartate", id="diacid_mixed_esters"),
+        pytest.param("COC(=O)C[C@H](N)C(=O)OC", "dimethyl L-aspartate", id="diacid_identical_esters"),
+        pytest.param("C[C@H](N)C(=O)[O-]", "L-alaninate", id="anion"),
+        pytest.param("[NH3+]CC(=O)O", "glycinium", id="cation"),
+        pytest.param("N[C@@H](CCC(=O)[O-])C(=O)[O-]", "L-glutamate", id="diacid_dianion"),
+    ],
+)
+def test_amino_acid_esters_ions_and_allo(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

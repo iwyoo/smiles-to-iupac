@@ -6,6 +6,7 @@ bottom-up so `name_branch`/`_name_acyl_part` can cite them as plain leaves: hydr
 from rdkit import Chem
 
 from ._alkoxy import alkoxy_prefix
+from ._amino_acid import SYSTEMATIC_ACID_PROBE
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen
 from ._hetero_prefixes import (
     ANIONIC_PREFIXES,
@@ -82,7 +83,12 @@ def _acyl_prefix(mol, subtree, root, parent):
         raise UnsupportedStructure("a carboxylic acid outranks the sulfur or phosphorus acid, which is then a prefix, not an acyl group")
     from ._acid_derivatives import acyl_name
 
-    name = acyl_name(smiles_to_iupac(Chem.MolToSmiles(sub)))
+    token = SYSTEMATIC_ACID_PROBE.set(True)
+    try:
+        probe = smiles_to_iupac(Chem.MolToSmiles(sub))
+    finally:
+        SYSTEMATIC_ACID_PROBE.reset(token)
+    name = acyl_name(probe)
     # HOOC-CO- keeps one acid group, so the retained 'oxalyl' (-CO-CO-) becomes 'oxalo' (P-65.1.2.2.3)
     return "oxalo" if name == "oxalyl" else name
 

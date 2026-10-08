@@ -40,11 +40,14 @@ this whole mechanism only ever looks up *one* alpha-stereocenter.
 """
 
 import itertools
+from contextvars import ContextVar
 
 from rdkit import Chem
 from rdkit.Chem import rdCIPLabeler
 
 from ._common import UnsupportedStructure, adjacency, find_primary_amines
+
+SYSTEMATIC_ACID_PROBE = ContextVar("SYSTEMATIC_ACID_PROBE", default=False)
 
 _ALPHA_TO_LD = {"S": "L", "R": "D"}
 _ALPHA_TO_LD_CYSTEINE = {"R": "L", "S": "D"}  # P-103.1.3.1's stated exception
@@ -52,6 +55,8 @@ _ALPHA_TO_LD_CYSTEINE = {"R": "L", "S": "D"}  # P-103.1.3.1's stated exception
 _SIDE_CHAIN_SMILES = {
     "alanine": "*C",
     "valine": "*C(C)C",
+    "isoleucine": "*C(C)CC",
+    "threonine": "*C(C)O",
     "leucine": "*CC(C)C",
     "serine": "*CO",
     "cysteine": "*CS",
@@ -187,6 +192,7 @@ def _side_chain_fragment(mol, alpha_carbon, other_alpha_neighbors):
     Chem.SanitizeMol(frag_mol)
     for frag in Chem.GetMolFrags(frag_mol, asMols=True, sanitizeFrags=True):
         if any(a.GetAtomicNum() == 0 for a in frag.GetAtoms()):
+            Chem.RemoveStereochemistry(frag)
             return frag, Chem.MolToSmiles(frag)
     return None, None
 
@@ -290,6 +296,8 @@ _SIDE_CHAIN_SUBSTITUTION_SITE = {
     "glutamine": "N",
     "arginine": "N",
 }
+# P-103.1.3.2.2: CIP label of C-3 in the L (alpha S) series; 'allo' inverts it, and the D series mirrors both centres
+_BETA_NATURAL = {"isoleucine": "S", "threonine": "R"}
 _ALPHA_NITROGEN_LOCANT = {"lysine": "N2", "asparagine": "N2", "glutamine": "N2", "arginine": "Nα"}
 _SIDE_NITROGEN_LOCANT = {"lysine": "N6", "asparagine": "N4", "glutamine": "N5"}
 _MAX_CUT_CANDIDATES = 8
@@ -428,8 +436,30 @@ def _phosphoryl_group_name(mol, graph, oxygen, phosphorus, side_chain_atoms):
     return _enclose(name)
 
 
+def _beta_atom(mol, alpha_carbon, side_chain_atoms):
+    return next(n.GetIdx() for n in mol.GetAtomWithIdx(alpha_carbon).GetNeighbors() if n.GetIdx() in side_chain_atoms)
+
+
+def _beta_specified(mol, beta):
+    return any(
+        e.type == Chem.StereoType.Atom_Tetrahedral and e.centeredOn == beta and e.specified == Chem.StereoSpecified.Specified
+        for e in Chem.FindPotentialStereo(mol)
+    )
+
+
 def has_amino_acid_shape(mol) -> bool:
-    return _match(mol) is not None
+    found = _match(mol)
+    if found is None:
+        return False
+    name, alpha_carbon, side_chain_atoms = found[:3]
+    if name in _BETA_NATURAL and alpha_carbon is not None:
+        beta = _beta_specified(mol, _beta_atom(mol, alpha_carbon, side_chain_atoms))
+        try:
+            alpha = _alpha_stereo_label(mol, alpha_carbon, side_chain_atoms) is not None
+        except UnsupportedStructure:
+            return True
+        return beta == alpha
+    return True
 
 
 def _substituent_prefixes(mol, graph, substituents):
@@ -474,6 +504,11 @@ def name_amino_acid(mol) -> str:
         return name
     label = _alpha_stereo_label(mol, alpha_carbon, side_chain_atoms)
     mapping = _ALPHA_TO_LD_CYSTEINE if name == "cysteine" else _ALPHA_TO_LD
+    if name in _BETA_NATURAL and label:
+        beta = mol.GetAtomWithIdx(_beta_atom(mol, alpha_carbon, side_chain_atoms)).GetProp("_CIPCode")
+        natural = _BETA_NATURAL[name] if label == "S" else {"S": "R", "R": "S"}[_BETA_NATURAL[name]]
+        if beta != natural:
+            name = "allo" + name
     prefix = ""
     if phosphoryl is not None:
         prefix = f"O-{_phosphoryl_group_name(mol, adjacency(mol), *phosphoryl, side_chain_atoms)}-"
