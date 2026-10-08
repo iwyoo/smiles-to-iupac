@@ -178,6 +178,8 @@ def test_phosphate_ester_unaffected_and_related(smiles, expected):
     "smiles,expected",
     [
         pytest.param("OP(=O)(O)CCP(=O)(O)O", "(ethane-1,2-diyl)bis(phosphonic acid)", id="carbon_linker"),
+        pytest.param("OP(O)c1ccc2cc(P(O)O)ccc2c1", "(naphthalene-2,6-diyl)bis(phosphonous acid)", id="phosphonous_groups_on_a_ring"),
+        pytest.param("O[As](O)c1ccc([As](O)O)cc1", "(1,4-phenylene)bis(arsonous acid)", id="arsonous_groups_on_a_ring"),
         pytest.param("N(CP(O)(O)=O)CP(O)(O)=O", "[azanediylbis(methylene)]bis(phosphonic acid)", id="hetero_linker_outranks_amine"),
         pytest.param(
             "P(CP(O)(O)=O)(CP(O)(O)=O)CP(O)(O)=O", "[phosphanetriyltris(methylene)]tris(phosphonic acid)", id="three_units"
