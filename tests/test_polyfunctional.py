@@ -1232,3 +1232,15 @@ def test_simple_ring_groups_take_di_and_substituted_ones_take_bis(smiles, expect
 )
 def test_skeletal_replacement_chains_and_amido_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("COCSSCCOCC[Se]C", "2,8-dioxa-4,5-dithia-11-selenadodecane", id="adjacent_sulfur_atoms_in_a_replacement_chain"),
+        pytest.param("COCCSSCCOC", "2,9-dioxa-5,6-dithiadecane", id="disulfide_between_two_ether_chains"),
+        pytest.param("CCOCCOCCSSCCOCCOCC", "3,6,13,16-tetraoxa-9,10-dithiaoctadecane", id="long_chain_with_a_disulfide"),
+    ],
+)
+def test_skeletal_replacement_chains_with_adjacent_chalcogen_atoms(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
