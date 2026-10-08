@@ -52,7 +52,10 @@ def name_center_anion(mol):
     if len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("a multi-fragment anionic structure is not supported here")
     centers = [a for a in mol.GetAtoms() if a.GetFormalCharge() < 0 and not _is_nitro_oxygen(a)]
-    if any(a.GetFormalCharge() > 0 and not _is_nitro_nitrogen(a) for a in mol.GetAtoms()):
+    cations = [a for a in mol.GetAtoms() if a.GetFormalCharge() > 0 and not _is_nitro_nitrogen(a)]
+    if cations:
+        if len(cations) == 1 and cations[0].IsInRing() and cations[0].GetFormalCharge() == 1 and all(a.IsInRing() for a in centers):
+            return _name_ring_zwitterion(mol, centers, cations[0])
         raise UnsupportedStructure("cationic centers beside an anionic center are not supported here")
     if any(a.IsInRing() for a in centers):
         if len(centers) > 1 and not all(a.IsInRing() for a in centers):
@@ -232,6 +235,46 @@ def _name_skeletal_anion(mol, centers):
         name = f"{name}-{','.join(str(x) for x in uide_locants)}-{count}uide"
     lam_locants = {position_of[i]: n for i, n in lams.items() if n is not None}
     return _insert_lambda(name, lam_locants) if lam_locants else name
+
+
+def _name_ring_zwitterion(mol, centers, cation):
+    """One ring cation and ring anions of one parent hydride: the suffixes are cumulative, 'ium' before 'ide' (P-74.1.1)."""
+    from ._diester_ring_diyl import _system_of, evaluate_skeleton
+
+    if any(a.GetAtomicNum() not in _PARENTS and a.GetAtomicNum() != 6 for a in centers):
+        raise UnsupportedStructure("this skeletal anionic atom is not supported yet")
+    kinds = [_center_kind(a, _standard(a), preferred="ide") for a in centers]
+    if any(word != "ide" or lam for word, lam in kinds):
+        raise UnsupportedStructure("only plain ide centers beside a ring cation are supported here")
+    editable = Chem.RWMol(mol)
+    for center in centers:
+        atom = editable.GetAtomWithIdx(center.GetIdx())
+        hydrogens = atom.GetTotalNumHs()
+        atom.SetFormalCharge(0)
+        atom.SetNoImplicit(True)
+        atom.SetNumExplicitHs(hydrogens)
+    hydron_added = editable.GetAtomWithIdx(cation.GetIdx())
+    hydrogens = hydron_added.GetTotalNumHs()
+    hydron_added.SetFormalCharge(0)
+    hydron_added.SetNoImplicit(True)
+    hydron_added.SetNumExplicitHs(max(hydrogens - 1, 0))
+    hydron_added.SetBoolProp("_ring_cation_centre", True)
+    base = editable.GetMol()
+    base.UpdatePropertyCache(strict=False)
+    Chem.FastFindRings(base)
+    rings, atoms = _system_of(base, cation.GetIdx())
+    indices = [a.GetIdx() for a in centers]
+    if any(i not in atoms for i in indices):
+        raise UnsupportedStructure("the ionic centers lie in different ring systems")
+    key_centers = [(cation.GetIdx(), "ium")] + [(i, "ide") for i in indices]
+    found = evaluate_skeleton(
+        base, adjacency(base), "ring", rings, atoms, [cation.GetIdx()], set(), "ium", key_centers=key_centers
+    )
+    if found is None:
+        raise UnsupportedStructure("this zwitterionic ring system has no supported name yet")
+    locants = sorted(found[2][i] for i in indices)
+    count = {1: "", 2: "di", 3: "tri"}[len(locants)]
+    return f"{found[1]}-{','.join(str(x) for x in locants)}-{count}ide"
 
 
 def _standard(atom):
