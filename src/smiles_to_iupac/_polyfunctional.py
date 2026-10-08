@@ -11,7 +11,7 @@ from types import MappingProxyType
 import re
 
 from rdkit import Chem, rdBase
-from rdkit.Chem import CanonicalRankAtoms
+from rdkit.Chem import CanonicalRankAtoms, rdCIPLabeler
 
 from ._common import (
     alphanumerical_name_key,
@@ -43,6 +43,7 @@ from ._hetero_prefixes import (
 from ._multiplicative import _bare_key
 from ._multiplicative_text import PrimedLocant, enclose, unit_phrase
 from ._multiplicative_ring import (
+    NO_RETAINED_BENZENE,
     _RETAINED_BENZENE,
     _SUFFIX_WORDS,
     _citation_key,
@@ -487,7 +488,7 @@ def _group_of(mol, carbon):
     `carbon`, else None. Raises on carbon-bound groups this engine cannot
     name (esters, acid halides, ...)."""
     atom = mol.GetAtomWithIdx(carbon)
-    if atom.GetAtomicNum() != 6 or atom.IsInRing():
+    if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.HasProp(JUNIOR_GROUP):
         return None
     variant = acid_group_at(mol, carbon)
     if variant is not None and not variant.spec.plain:
@@ -1138,13 +1139,73 @@ def _cationic_group_suffix(name, parent):
 
 
 STEREO_OF_ISOTOPOLOGUE = contextvars.ContextVar("stereo_of_isotopologue", default=None)
+JUNIOR_GROUP = "_junior_group"
+
+
+def _modifications(entry):
+    return [*([entry["skeleton"]] if entry["skeleton"] else []), *(n for n, c in entry["H"].items() for _ in range(c))]
+
+
+def _nuclide_rank(nuclide):
+    """Higher atomic number first, then higher mass number (P-82.2.2.2)."""
+    table = Chem.GetPeriodicTable()
+    symbol = "".join(ch for ch in nuclide if ch.isalpha())
+    return -table.GetAtomicNumber(symbol), -int("".join(ch for ch in nuclide if ch.isdigit()))
+
+
+def _demote_junior_groups(mol, labels):
+    """Carbon-suffix groups on a ring that are modified in different ways cannot be multiplied: the group with the
+    most modifications, then the nuclide of higher atomic number and mass number, stays the suffix and the others are
+    cited as prefixes (P-82.2.2.2)."""
+    if not labels:
+        return mol
+    principal, owned_groups = _principal_owned(mol)
+    groups = {frozenset(g) for g in owned_groups if any(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in g)}
+    if principal is None or len(groups) < 2:
+        return mol
+
+    def signature(group):
+        return tuple(sorted((n for a in group if a in labels for n in _modifications(labels[a])), key=_nuclide_rank))
+
+    senior = min(groups, key=lambda g: (-len(signature(g)), [_nuclide_rank(n) for n in signature(g)]))
+    others = [g for g in groups if signature(g) != signature(senior)]
+    if not others:
+        return mol
+    demoted = Chem.Mol(mol)
+    for group in others:
+        for atom in group:
+            if mol.GetAtomWithIdx(atom).GetAtomicNum() == 6:
+                demoted.GetAtomWithIdx(atom).SetBoolProp(JUNIOR_GROUP, True)
+    return demoted
+
+
+def _hydrogen_isotope_bonds(original, known):
+    """E/Z codes of double bonds whose stereo rests on a hydrogen isotope, which RDKit's perception drops."""
+    if not any(a.GetAtomicNum() == 1 and a.GetIsotope() for a in original.GetAtoms()):
+        return []
+    legacy = Chem.GetUseLegacyStereoPerception()
+    Chem.SetUseLegacyStereoPerception(True)
+    try:
+        probe = Chem.Mol(original)
+        Chem.AssignStereochemistry(probe, cleanIt=True, force=True)
+        rdCIPLabeler.AssignCIPLabels(probe)
+    finally:
+        Chem.SetUseLegacyStereoPerception(legacy)
+    return [
+        ("bond", b.GetIdx(), b.GetProp("_CIPCode"))
+        for b in probe.GetBonds()
+        if b.HasProp("_CIPCode") and b.GetProp("_CIPCode") in ("E", "Z") and b.GetIdx() not in known
+    ]
 
 
 def _name_isotopic(original, clean, labels, index_map, build=None):
     """Stereodescriptors come from the molecule with its nuclides (a CHD centre is a stereocentre, P-82.4) and are
     carried over to the atoms of the unlabelled molecule."""
     located = []
-    for kind, idx, code in specified_stereo_elements(original) or []:
+    elements = list(specified_stereo_elements(original) or [])
+    extra = _hydrogen_isotope_bonds(original, {idx for kind, idx, _ in elements if kind == "bond"})
+    elements += extra
+    for kind, idx, code in elements:
         if kind == "bond":
             bond = original.GetBondWithIdx(idx)
             ends = (index_map.get(bond.GetBeginAtomIdx()), index_map.get(bond.GetEndAtomIdx()))
@@ -1157,7 +1218,7 @@ def _name_isotopic(original, clean, labels, index_map, build=None):
         b for b in original.GetBonds()
         if b.GetStereo() not in (Chem.BondStereo.STEREONONE, Chem.BondStereo.STEREOANY)
     ]
-    if len(specified_bonds) != sum(1 for k, _, _ in located if k == "bond") or any(
+    if len(specified_bonds) + len(extra) != sum(1 for k, _, _ in located if k == "bond") or any(
         a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED and a.GetAtomicNum() != 1 and a.GetIdx() not in {i for k, i, _ in located if k == "atom"} and False
         for a in original.GetAtoms()
     ):
@@ -1181,8 +1242,14 @@ def _with_labels(mol, labels, consumed, name, parts, reselect):
             name, parts = reselect()
         finally:
             FORCE_LOCANTS.reset(force_token)
-    rest = {a: e for a, e in labels.items() if a not in in_parent and a not in consumed}
-    front, suffix_text = _group_atom_labels(mol, rest) if rest else ([], None)
+    # a suffix group cannot also be cited as a prefix, so labels that candidate names consumed there are still open
+    suffix_atoms = set().union(*_principal_owned(mol)[1])
+    rest = {a: e for a, e in labels.items() if a not in in_parent and (a not in consumed or a in suffix_atoms)}
+    if any(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in rest):
+        name, parts, suffix_text = _carbon_group_label(mol, rest, reselect)
+        front = []
+    else:
+        front, suffix_text = _group_atom_labels(mol, rest) if rest else ([], None)
     if suffix_text:
         name = _before_suffix(name, *suffix_text)
     if in_parent or front:
@@ -1192,9 +1259,57 @@ def _with_labels(mol, labels, consumed, name, parts, reselect):
     return name
 
 
+def _carbon_group_label(mol, rest, reselect):
+    """The nuclide on the carbon of a 'carbo' suffix is cited before the suffix of the systematic name, because the
+    retained name numbers no such position (P-82.6.3.2: 'benzene(13C)carboxylic acid')."""
+
+    principal, owned_groups = _principal_owned(mol)
+    carbon_groups = {frozenset(g) for g in owned_groups if any(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in g)}
+    modified = {g for g in carbon_groups if any(a in rest for a in g)}
+
+    def nuclides(group):
+        return sorted(
+            (n for a in group if a in rest for n in _modifications(rest[a])), key=_nuclide_sort_key
+        )
+
+    from ._isotope_labels import _nuclide_sort_key
+
+    if (
+        principal is None
+        or not carbon_groups
+        or modified != carbon_groups
+        or any(a not in set().union(*carbon_groups) for a in rest)
+        or len({tuple(nuclides(g)) for g in carbon_groups}) != 1
+        or any(e["H"] for a, e in rest.items() if mol.GetAtomWithIdx(a).GetAtomicNum() == 6)
+        or any(sum(1 for a in g if a in rest and mol.GetAtomWithIdx(a).GetAtomicNum() == 6) != 1 for g in carbon_groups)
+    ):
+        raise UnsupportedStructure("an isotopically modified carbon of this characteristic group is not supported yet")
+    try:
+        word = _SUFFIX_WORDS[_RING_SUFFIX[principal]]
+    except KeyError:
+        raise UnsupportedStructure("this characteristic group has no carbon suffix to modify") from None
+    if not word.startswith("carb"):
+        raise UnsupportedStructure("the carbon of this characteristic group is not a suffix carbon")
+    token = NO_RETAINED_BENZENE.set(True)
+    try:
+        name, parts = reselect()
+    finally:
+        NO_RETAINED_BENZENE.reset(token)
+    text = f"({','.join(nuclides(next(iter(carbon_groups))))})"
+    count = len(carbon_groups)
+    if count == 1:
+        return name, parts, (text, word)
+    tail = multiplied_word(count, word)
+    if not name.endswith(tail):
+        raise UnsupportedStructure("the suffix of this name is not delimited")
+    return name[: -len(tail)] + multiplying_prefix(count) + "[" + text + word + "]", parts, None
+
+
 def _name_labelled(mol, labels, finish=None):
     from ._isotope_labels import descriptor
     from ._substituents import BRANCH_STEREO, ISOTOPE_LABELS
+
+    mol = _demote_junior_groups(mol, labels)
 
     stereo = _check_scope(mol) + [
         ("isotope", atom, "|".join(filter(None, [entry["skeleton"], *(n for n, c in entry["H"].items() for _ in range(c))])))
@@ -1209,11 +1324,18 @@ def _name_labelled(mol, labels, finish=None):
     isotope_context = {"labels": labels, "consumed": set(), "mol": mol}
     isotope_token = ISOTOPE_LABELS.set(isotope_context if labels else None)
     try:
-        multiplicative = _multiplicative_name(mol, stereo)
+        try:
+            multiplicative = _multiplicative_name(mol, stereo)
+        except UnsupportedStructure:
+            if not labels:
+                raise
+            multiplicative = None
         if multiplicative is not None:
             if labels:
                 raise UnsupportedStructure("isotopic modification of a multiplicative name is not supported yet")
             return multiplicative if finish is None else finish(multiplicative, {})
+        isotope_context["consumed"].clear()
+        isotope_context.pop("cache", None)
         _, name, parts = _select(mol, stereo=stereo)
         LAST_POSITIONS.set((mol, dict(parts[4])))
         if labels:
@@ -2557,7 +2679,7 @@ def _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n
         count == 1
         and not entries
         and not FORCE_LOCANTS.get()
-        and (spec.kind == "cycloalkane" or (spec.kind == "benzene" and suffix_name not in _RETAINED_BENZENE))
+        and (spec.kind == "cycloalkane" or (spec.kind == "benzene" and (suffix_name not in _RETAINED_BENZENE or NO_RETAINED_BENZENE.get())))
     ):
         word = _SUFFIX_WORDS[suffix_name]
         stem = spec.parent[:-1] if word[0] in "aeiouy" else spec.parent

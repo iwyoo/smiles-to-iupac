@@ -536,8 +536,35 @@ def _name_isotope_label(mol) -> str:
         (has_isotope_shape, name_isotope),
     ):
         if has_shape(mol):
-            return namer(mol)
-    raise UnsupportedStructure("this isotopically modified structure is not supported yet")
+            try:
+                return namer(mol)
+            except UnsupportedStructure as error:
+                try:
+                    return _name_labelled_substituents(mol)
+                except UnsupportedStructure:
+                    raise error from None
+    return _name_labelled_substituents(mol)
+
+
+def _name_labelled_substituents(mol):
+    """Any parent named without its nuclides whose labelled atoms all sit in substituent groups that cite them."""
+    from ._isotope_labels import split_isotopes
+    from ._substituents import ISOTOPE_LABELS
+
+    split = split_isotopes(mol)
+    if split is None or any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in split[0].GetAtoms()):
+        raise UnsupportedStructure("this isotopically modified structure is not supported yet")
+    clean, labels, _ = split
+    context = {"labels": labels, "consumed": set(), "mol": clean}
+    token = ISOTOPE_LABELS.set(context)
+    try:
+        name = _name_mol(clean)
+    finally:
+        ISOTOPE_LABELS.reset(token)
+    if set(labels) - context["consumed"]:
+        raise UnsupportedStructure("a labelled atom of the parent is not cited by this name")
+    _require_isotopes_cited(mol, name)
+    return name
 
 
 _MULTIPLIER_VALUE = {"di": 2, "bis": 2, "tri": 3, "tris": 3, "tetra": 4, "tetrakis": 4, "penta": 5, "hexa": 6}

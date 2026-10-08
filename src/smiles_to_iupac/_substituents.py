@@ -433,6 +433,16 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
         text = descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity)
         context["consumed"].update(labelled)
         return text + name, False
+    if name == "carboxy" and mol is not None and mol.GetAtomWithIdx(root).GetAtomicNum() == 6:
+        from ._polyfunctional import _modifications
+        from ._isotope_labels import _nuclide_sort_key
+
+        nuclides = sorted((n for e in labelled.values() for n in _modifications(e)), key=_nuclide_sort_key)
+        context["consumed"].update(labelled)
+        return "(" + ",".join(nuclides) + ")carboxy", False
+    if name == "benzyl" and set(labelled) == {root}:
+        context["consumed"].add(root)
+        return "phenyl" + descriptor(labelled, {root: 1}, True, capacity=capacity) + "methyl", True
     run = _chalcogen_run(mol, graph, root, coming_from) if mol is not None else None
     if run is not None and all(a in run for a in labelled):
         stem = _CHALCOGEN_RUN_STEM.search(name)
@@ -454,7 +464,8 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
         stem_index = name.rfind("phenyl")
         omit = _fully_modified(labelled, positions, capacity, {a for a in positions if a != root})
     else:
-        chain, _, _, _ = _select_winning_structure(graph, root, coming_from, halogens or {}, mol, aromatic_atoms, unsaturated)
+        named = {**{a: "x" for a in atoms if mol.GetAtomWithIdx(a).GetAtomicNum() != 6}, **(halogens or {})}
+        chain, _, _, _ = _select_winning_structure(graph, root, coming_from, named, mol, aromatic_atoms, unsaturated)
         if any(a not in chain for a in labelled):
             raise UnsupportedStructure("an isotopically modified atom off the principal chain of a substituent is not supported yet")
         positions = _lowest_chain_positions(mol, chain, root, labelled)
@@ -571,6 +582,10 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
         return _name_branch_with_phane(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated)
     cache = context.setdefault("cache", {})
     key = (root, coming_from)
+    if key not in cache and mol is not None:
+        carboxy = _labelled_carboxy(graph, root, coming_from, mol, context)
+        if carboxy is not None:
+            cache[key] = (carboxy[0], frozenset(carboxy[1]))
     if key not in cache:
         before = set(context["consumed"])
         result = _name_branch_with_phane(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated)
@@ -581,6 +596,28 @@ def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mo
     result, used = cache[key]
     context["consumed"].update(used)
     return result
+
+
+def _labelled_carboxy(graph, root, coming_from, mol, context):
+    """((name, compound), consumed atoms) for an isotopically modified -COOH group, cited as one prefix (P-82.2.2.2)."""
+    atom = mol.GetAtomWithIdx(root)
+    others = [n for n in graph[root] if n != coming_from]
+    if atom.GetAtomicNum() != 6 or atom.IsInRing() or len(others) != 2 or atom.GetFormalCharge():
+        return None
+    oxo = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() == 1 and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 2.0]
+    hydroxy = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() == 1 and mol.GetAtomWithIdx(n).GetTotalNumHs() == 1 and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 1.0]
+    if len(oxo) != 1 or len(hydroxy) != 1:
+        return None
+    group = [root, oxo[0], hydroxy[0]]
+    labelled = {a: context["labels"][a] for a in group if a in context["labels"]}
+    if not labelled:
+        return None
+    from ._isotope_labels import _nuclide_sort_key
+    from ._polyfunctional import _modifications
+
+    nuclides = sorted((n for e in labelled.values() for n in _modifications(e)), key=_nuclide_sort_key)
+    context["consumed"].update(labelled)
+    return ("(" + ",".join(nuclides) + ")carboxy", False), set(labelled)
 
 
 _CHALCOGEN_OYL = {16: "thioyl", 34: "selenoyl", 52: "telluroyl"}

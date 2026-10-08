@@ -813,7 +813,12 @@ def _is_plain_amidine(mol, graph, root, coming_from):
 
 
 def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
-    from ._substituents import name_branch
+    from ._substituents import ISOTOPE_LABELS, _labelled_carboxy, name_branch
+
+    if ISOTOPE_LABELS.get():
+        carboxy = _labelled_carboxy(graph, root, coming_from, mol, ISOTOPE_LABELS.get())
+        if carboxy is not None:
+            return carboxy[0]
 
     atom = mol.GetAtomWithIdx(root)
     others = [n for n in graph[root] if n != coming_from]
