@@ -430,6 +430,25 @@ def test_substituted_monosaccharides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-102.6.1.4 C-glycosyl compounds
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(
+            "OC[C@H]1O[C@H](c2c(O)cc3oc(-c4ccc(O)cc4)cc(=O)c3c2O)[C@H](O)[C@@H](O)[C@@H]1O",
+            "6-(β-D-glucopyranosyl)-5,7-dihydroxy-2-(4-hydroxyphenyl)-4H-1-benzopyran-4-one",
+            id="c_glucosyl_flavone",
+        ),
+        pytest.param("OC[C@H]1O[C@H](c2ccc(O)cc2)[C@H](O)[C@@H](O)[C@@H]1O", "4-(β-D-glucopyranosyl)phenol", id="glycosyl_on_a_phenol"),
+        pytest.param("OC[C@H]1O[C@H](c2ccc(C(=O)O)cc2)[C@H](O)[C@@H](O)[C@@H]1O", "4-(β-D-glucopyranosyl)benzoic acid", id="glycosyl_on_a_benzoic_acid"),
+        pytest.param("OC[C@H]1O[C@H](c2ccc(N)cc2)[C@H](O)[C@@H](O)[C@@H]1O", "4-(β-D-glucopyranosyl)aniline", id="glycosyl_on_an_aniline"),
+        pytest.param("OC[C@H]1O[C@H](c2ccccc2)[C@H](O)[C@@H](O)[C@@H]1O", "(β-D-glucopyranosyl)benzene", id="glycosyl_on_benzene"),
+    ],
+)
+def test_c_glycosyl_compounds(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-102.6.2 sugar substituent groups with the free valence away from C-1
 @pytest.mark.parametrize(
     "smiles,expected",

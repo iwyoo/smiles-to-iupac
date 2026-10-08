@@ -3,6 +3,7 @@ monocycles (carbocycle, benzene, mancude/hydro/saturated heterocycles by retaine
 P-22.2.2), ortho-fused arene chains, ortho-fused mancude heterocycles, von Baeyer and monospiro carbocycles.
 """
 
+import contextvars
 import re
 import networkx as nx
 from contextvars import ContextVar
@@ -1142,12 +1143,15 @@ def _plain_fused(mol, skeleton_atoms):
 _APPENDIX3_MAPPED = {}
 
 
+SYSTEMATIC_FUSION = contextvars.ContextVar("systematic_fusion", default=False)
+
+
 def _is_appendix3_system(mol, atoms):
     """A ring system that is, or lies in, an Appendix 3 retained parent (P-101): the parent is numbered as a whole, so
     the ring system gets no fusion numbering of its own."""
     from ._appendix3_skeletons import _MIN_SIZE, _best_skeleton
 
-    if len(atoms) < _MIN_SIZE and mol.GetNumAtoms() < _MIN_SIZE:
+    if SYSTEMATIC_FUSION.get() or (len(atoms) < _MIN_SIZE and mol.GetNumAtoms() < _MIN_SIZE):
         return False
     rings = sum(1 for r in mol.GetRingInfo().AtomRings() if set(r) <= set(atoms))
     key = Chem.MolToSmiles(mol)

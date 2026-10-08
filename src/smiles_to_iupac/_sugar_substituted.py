@@ -491,7 +491,7 @@ def _anhydro_name(mol):
     ether is opened into two hydroxy groups, the sugar named, and 'anhydro' cited with the two locants."""
     names = set()
     for oxygen in mol.GetAtoms():
-        if oxygen.GetAtomicNum() != 8 or oxygen.GetDegree() != 2 or not oxygen.IsInRing():
+        if oxygen.GetAtomicNum() != 8 or oxygen.GetDegree() != 2 or not oxygen.IsInRing() or oxygen.GetIsAromatic():
             continue
         ends = [n.GetIdx() for n in oxygen.GetNeighbors()]
         if any(mol.GetAtomWithIdx(e).GetAtomicNum() != 6 for e in ends):

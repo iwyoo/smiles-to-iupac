@@ -4,7 +4,7 @@ The sugar part is cut at its anomeric C-O bond, named as the free aldopyranose, 
 and its '-ose' ending becomes '-osyl'.
 """
 
-from rdkit import Chem
+from rdkit import Chem, rdBase
 
 from ._carbohydrate import (
     has_cyclic_aldofuranose_shape,
@@ -52,7 +52,8 @@ def glycosyl_group(mol, graph, root, glycosidic_oxygen):
         editable.AddBond(next(i for i, a in enumerate(sorted(atoms)) if a == root), anomeric_hydroxy, Chem.BondType.SINGLE)
     sugar = editable.GetMol()
     try:
-        Chem.SanitizeMol(sugar)
+        with rdBase.BlockLogs():
+            Chem.SanitizeMol(sugar)
     except Exception:
         return None
     for has_shape, namer in _NAMERS:
