@@ -252,6 +252,11 @@ def test_same_cation_type_prefers_multiplying_prefix():
     assert smiles_to_iupac("[Na+].[Na+].[O-]C(=O)[O-]") == "disodium carbonate"
 
 
+def test_pnictogen_cation_is_not_a_radical_centre():
+    acid = "[O-]C(=O)CCC(=O)O"
+    assert smiles_to_iupac(f"[Sb+3].{acid}.{acid}.{acid}") == "antimony tris(3-carboxypropanoate)"
+
+
 def test_multi_cation_mismatched_charge_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("[Al+3].[K+].[O-]S(=O)(=O)[O-]")
