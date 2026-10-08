@@ -759,7 +759,7 @@ def _assemble(mol, atoms, fused, order, fused_name, numbering, parts):
                 capable = frozenset(home)
                 results.append(
                     BridgedParent(
-                        _prefix_text(entries) + fused_name,
+                        _prefix_text(entries) + ("-" if fused_name[:1].isdigit() else "") + fused_name,
                         dict(settled),
                         capable,
                         consumed,

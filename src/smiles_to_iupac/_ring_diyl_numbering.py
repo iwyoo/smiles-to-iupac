@@ -166,14 +166,26 @@ def _split_hydrogen(position_of, adj, can_hold, saturated, oxo_all, oxo_suffix, 
     loc = lambda atoms: tuple(sorted(position_of[a] for a in atoms))
     groups = len(oxo_suffix)
 
+    def added_needed(ih):
+        free = [a for a in ordered if a not in ih and a not in oxo_suffix]
+        base = set(can_hold) - set(ih) - set(oxo_suffix)
+        for k in range(len(free) + 1):
+            if (len(free) - k) % 2:
+                continue
+            if any(_perfect_matching(base - set(added), adj) for added in combinations(free, k)):
+                return k
+        return len(free) + 1
+
     def candidate_key(ih):
-        if not groups:
-            return (loc(ih),)
         valid = 0 if _perfect_matching(set(can_hold) - set(ih), adj) else 1
+        if not groups:
+            return (valid, loc(ih))
+        # P-58.2.3.1.4: indicated hydrogen that makes added hydrogen unnecessary comes before a placement that needs it
+        needed = added_needed(ih)
         covered = sum(a in oxo_suffix for a in ih)
         if ih_count >= groups:
-            return (valid, -covered, loc(ih))
-        return (valid, loc(ih), -covered)
+            return (valid, needed, -covered, loc(ih))
+        return (valid, needed, loc(ih), -covered)
 
     for ih in sorted(combinations(ordered, ih_count), key=candidate_key):
         free = [a for a in ordered if a not in ih and a not in oxo_suffix]
@@ -601,21 +613,45 @@ def _mancude_candidates(mol, skeleton_atoms, sp3):
     """Skeleton-only mancude parents: every atom aromatic, with one explicit [nH] or one sp3 CH2 where needed."""
     bare, new_of, old_of = _bare_skeleton(mol, skeleton_atoms, mancude=True)
     nitrogens = [a for a in sorted(skeleton_atoms) if mol.GetAtomWithIdx(a).GetAtomicNum() in _TRIVALENT_RING_HETERO]
-    attempts = [("none", None)] + [("nh", a) for a in nitrogens] + [
-        ("ch2", a)
+    carbons = [
+        a
         for a in sorted(sp3, key=lambda a: (mol.GetRingInfo().NumAtomRings(a) > 1, a))
         if mol.GetAtomWithIdx(a).GetAtomicNum() == 6
     ]
+    attempts = (
+        [("none", None)]
+        + [("nh", a) for a in nitrogens]
+        + [("ch2", (a,)) for a in carbons]
+        + [("ch2", pair) for pair in combinations(carbons, 2)]
+    )
+    holders = {
+        a
+        for a in skeleton_atoms
+        if mol.GetAtomWithIdx(a).GetSymbol() not in _NO_DOUBLE_BOND
+        and not (
+            mol.GetAtomWithIdx(a).GetAtomicNum() in _TRIVALENT_RING_HETERO
+            and mol.GetAtomWithIdx(a).GetDegree() == 3
+            and not mol.GetAtomWithIdx(a).GetFormalCharge()
+            and mol.GetRingInfo().NumAtomRings(a) > 1
+        )
+    }
+    neighbours = {
+        a: {n.GetIdx() for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in holders} for a in holders
+    }
     for mode, atom_idx in attempts:
+        chosen = {atom_idx} if mode == "nh" else set(atom_idx) if mode == "ch2" else set()
+        if not _perfect_matching(holders - chosen, neighbours):
+            continue
         trial = Chem.RWMol(bare)
         if mode == "nh":
             trial.GetAtomWithIdx(new_of[atom_idx]).SetNumExplicitHs(1)
         elif mode == "ch2":
-            target = new_of[atom_idx]
-            trial.GetAtomWithIdx(target).SetIsAromatic(False)
-            for bond in list(trial.GetAtomWithIdx(target).GetBonds()):
-                bond.SetBondType(Chem.BondType.SINGLE)
-                bond.SetIsAromatic(False)
+            for member in atom_idx:
+                target = new_of[member]
+                trial.GetAtomWithIdx(target).SetIsAromatic(False)
+                for bond in list(trial.GetAtomWithIdx(target).GetBonds()):
+                    bond.SetBondType(Chem.BondType.SINGLE)
+                    bond.SetIsAromatic(False)
         try:
             sanitize_probe(trial)
         except Exception:
@@ -934,7 +970,7 @@ def is_bridged_fusion_system(mol, skeleton_atoms):
 
 
 def is_hydro_fusion_system(mol, skeleton_atoms):
-    """A non-aromatic ortho-fused ring system with at least two rings of five or more members
+    """A non-aromatic ortho- or peri-fused ring system with at least two rings of five or more members
     is named as a hydro derivative of its mancude fusion parent (P-31.1.4.2.4), not by von Baeyer."""
     rings = [set(r) for r in mol.GetRingInfo().AtomRings() if set(r) <= set(skeleton_atoms)]
     if len(rings) < 2 or sum(len(r) >= 5 for r in rings) < 2:
@@ -942,9 +978,18 @@ def is_hydro_fusion_system(mol, skeleton_atoms):
     if any(a.GetIsAromatic() for a in map(mol.GetAtomWithIdx, skeleton_atoms)):
         return False
     pairs = [(i, j) for i in range(len(rings)) for j in range(i + 1, len(rings)) if rings[i] & rings[j]]
-    if len(pairs) != len(rings) - 1 or any(len(rings[i] & rings[j]) != 2 for i, j in pairs):
+    if any(len(rings[i] & rings[j]) != 2 for i, j in pairs):
         return False
-    return not any(sum(a in r for r in rings) > 2 for a in skeleton_atoms)
+    reached, frontier = {0}, [0]
+    while frontier:
+        k = frontier.pop()
+        for i, j in pairs:
+            other = j if i == k else i if j == k else None
+            if other is not None and other not in reached:
+                reached.add(other)
+                frontier.append(other)
+    # ortho-fused (each atom in at most two rings) or peri-fused (an interior atom shared by three rings)
+    return len(reached) == len(rings) and not any(sum(a in r for r in rings) > 3 for a in skeleton_atoms)
 
 
 def _plain_fused(mol, skeleton_atoms):
