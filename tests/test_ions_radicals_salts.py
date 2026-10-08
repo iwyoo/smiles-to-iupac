@@ -1391,3 +1391,14 @@ def test_added_hydrogen_of_a_mancude_ring_cation():
 )
 def test_zwitterionic_ring_with_a_ring_cation_and_a_ring_anion(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[K+].C[As](C)(=O)[O-]", "potassium dimethylarsinate"),
+        ("[Na+].OB(OC#N)[O-]", "sodium hydrogen borocyanatidate"),
+    ],
+)
+def test_salts_of_arsenic_and_cyanato_boron_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

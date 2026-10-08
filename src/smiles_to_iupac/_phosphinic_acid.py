@@ -47,12 +47,14 @@ def _phosphinic_acid_phosphorus_atoms(mol):
     oxygen, and one single-bonded hydroxyl oxygen (terminal, one H)."""
     matches = []
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() not in CENTER_STEMS or atom.GetDegree() != 4 or atom.GetFormalCharge() != 0:
+        if atom.GetAtomicNum() not in CENTER_STEMS or atom.GetFormalCharge() != 0:
+            continue
+        if atom.GetDegree() + atom.GetTotalNumHs() != 4 or atom.GetTotalNumHs() > 1:
             continue
         neighbors = atom.GetNeighbors()
         oxygens = [n for n in neighbors if n.GetAtomicNum() == 8]
         non_oxygens = [n for n in neighbors if n.GetAtomicNum() != 8]
-        if len(oxygens) != 2 or len(non_oxygens) != 2:
+        if len(oxygens) != 2 or len(non_oxygens) != 2 - atom.GetTotalNumHs():
             continue
         double_os = [
             o for o in oxygens if mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx()).GetBondTypeAsDouble() == 2.0

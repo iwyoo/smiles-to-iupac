@@ -458,6 +458,35 @@ def _is_aromatic_ring_with_triple_bond(mol):
     return any(b.GetBondType() == Chem.BondType.TRIPLE and b.IsInRing() and b.GetIsAromatic() for b in mol.GetBonds())
 
 
+def _neutral_group15_oxides(mol):
+    """P+-O-, As+-O- and Sb+-O- written as zwitterions are the doubly bonded oxides of the lambda-convention
+    (P-74.2.1.4); RDKit writes some neutral P=O groups this way."""
+    pairs = [
+        (atom.GetIdx(), n.GetIdx())
+        for atom in mol.GetAtoms()
+        if atom.GetAtomicNum() in (15, 33, 51) and atom.GetFormalCharge() == 1
+        for n in atom.GetNeighbors()
+        if n.GetAtomicNum() in (8, 16, 34) and n.GetFormalCharge() == -1 and n.GetDegree() == 1
+    ]
+    if not pairs:
+        return mol
+    editable = Chem.RWMol(mol)
+    seen = set()
+    for centre, anion in pairs:
+        if centre in seen:
+            continue
+        seen.add(centre)
+        editable.GetAtomWithIdx(centre).SetFormalCharge(0)
+        editable.GetAtomWithIdx(anion).SetFormalCharge(0)
+        editable.GetBondBetweenAtoms(centre, anion).SetBondType(Chem.BondType.DOUBLE)
+    converted = editable.GetMol()
+    try:
+        Chem.SanitizeMol(converted, Chem.SANITIZE_ALL ^ Chem.SANITIZE_CLEANUP)
+    except Exception:
+        return mol
+    return converted
+
+
 def _parse_smiles(smiles):
     mol = Chem.MolFromSmiles(smiles)
     if mol is not None and (
@@ -477,7 +506,7 @@ def _parse_smiles(smiles):
             # RDKit knows only the thallium(I) valence, so the standard TlH3 of P-68.1.1.1 looks like a radical
             if atom.GetAtomicNum() == 81 and atom.GetNumRadicalElectrons() and atom.GetTotalValence() == 3:
                 atom.SetNumRadicalElectrons(0)
-        return mol
+        return _neutral_group15_oxides(mol)
     # hypervalent anionic centers (lambda-convention parents) fail RDKit's valence check only
     mol = Chem.MolFromSmiles(smiles, sanitize=False)
     if mol is None or not any(a.GetFormalCharge() < 0 for a in mol.GetAtoms()):
@@ -833,7 +862,7 @@ def _name_unabridged_body(smiles: str) -> str:
             steroid = name_steroid(parsed) if parsed.GetRingInfo().NumRings() == 4 else None
             if steroid is not None:
                 return steroid
-            if has_chain_multiplicative_shape(parsed) and not has_phosphate_shape(parsed):
+            if has_chain_multiplicative_shape(parsed) and not has_phosphate_shape(parsed) and not has_borinic_acid_shape(parsed) and not has_boronic_acid_shape(parsed):
                 try:
                     return name_polyfunctional(parsed)
                 except UnsupportedStructure:

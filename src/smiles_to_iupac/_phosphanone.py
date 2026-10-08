@@ -24,7 +24,11 @@ _SENIOR = [
 
 
 def _find_center(mol):
-    centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _CENTERS and a.GetDegree() > 1]
+    centers = [
+        a
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() in _CENTERS and (a.GetDegree() > 1 or a.GetAtomicNum() not in _YLIDENE_ONLY)
+    ]
     if len(centers) != 1 or centers[0].IsInRing():
         return None
     center = centers[0]
@@ -70,8 +74,6 @@ def name_phosphanone(mol) -> str:
         raise UnsupportedStructure("an acid, ester, amide, nitrile or aldehyde group outranks the chalcogenide")
     graph = adjacency(mol)
     roots = [n for n in graph[center.GetIdx()] if n not in {c.GetIdx() for c in chalcogens}]
-    if not roots:
-        raise UnsupportedStructure("an unsubstituted group 15 chalcogenide is not supported yet")
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     entries = [name_branch(graph, r, center.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True) for r in roots]
@@ -79,9 +81,11 @@ def name_phosphanone(mol) -> str:
     suffix = multiplied_word(len(chalcogens), _SUFFIX[chalcogens[0].GetAtomicNum()])
     stem = parent[:-1] if suffix[0] in "aeiouy" else parent
     valence = center.GetTotalValence()
-    lambda_label = f"-λ{valence}-" if valence != _STANDARD_VALENCE[center.GetAtomicNum()] else ""
+    lambda_label = f"λ{valence}-" if valence != _STANDARD_VALENCE[center.GetAtomicNum()] else ""
     stereo = heteroatom_stereo_prefix(mol, center.GetIdx()) or ""
-    return f"{stereo}{format_mononuclear_prefixes(entries)}{lambda_label}{stem}{suffix}"
+    prefixes = format_mononuclear_prefixes(entries) if entries else ""
+    joint = "-" if prefixes and lambda_label else ""
+    return f"{stereo}{prefixes}{joint}{lambda_label}{stem}{suffix}"
 
 
 _IMINE_CENTERS = {

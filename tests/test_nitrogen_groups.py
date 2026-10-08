@@ -1542,3 +1542,17 @@ def test_nitrous_hydrazides_and_chalcogen_nitrous_acids(smiles, expected):
 )
 def test_hydrazine_with_aminooxy_prefix_and_multiplied_hydrazine_units(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[NH][Br+][O-]", "methylbromous amide"),
+        ("C[NH][Cl+3]([O-])([O-])[O-]", "methylperchloric amide"),
+        ("OC(=O)C1CCC(CC1)=N(=O)O", "4-[hydroxy(oxo)-λ5-azanylidene]cyclohexane-1-carboxylic acid"),
+        ("CS[N+](=O)[O-]", "S-methyl thionitrate"),
+        ("S=C=N[SiH3]", "isothiocyanatosilane"),
+    ],
+)
+def test_halogen_oxoacid_amides_aci_nitro_prefix_thionitrates_and_pseudohalide_hydrides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

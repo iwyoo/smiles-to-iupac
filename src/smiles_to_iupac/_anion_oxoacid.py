@@ -21,6 +21,18 @@ _PHOSPHORUS = {
 _BORON = {0: "borate", 1: "boronate", 2: "borinate"}
 
 
+_HEAVY_STEMS = {33: "ars", 51: "stib"}
+
+
+def _pnictogen_anion(z, key):
+    """'phosphonate', 'arsonate', 'stiborate' ...: the phosphorus anion name with the stem of the element."""
+    name = _PHOSPHORUS[key]
+    if z == 15:
+        return name
+    stem = _HEAVY_STEMS[z]
+    return stem + ("or" + name[len("phosph"):] if key[1] == 0 else name[len("phosph"):])
+
+
 def oxoacid_center(mol):
     """The single P or oxygen-only S atom bearing the anionic oxygen, else None."""
     anions = [a for a in mol.GetAtoms() if a.GetFormalCharge() < 0]
@@ -30,11 +42,54 @@ def oxoacid_center(mol):
     if len(hosts) != 1:
         return None
     center = mol.GetAtomWithIdx(next(iter(hosts)))
-    if center.GetAtomicNum() in (5, 15):
+    if center.GetAtomicNum() in (5, 15, 33, 51):
         return center
     if center.GetAtomicNum() == 16 and not any(n.GetAtomicNum() == 6 for n in center.GetNeighbors()):
         return center
     return None
+
+
+def _pseudohalide_infix_anion(mol, center):
+    """'hydrogen borocyanatidate' (P-67.1.3.1): an -OC#N group on the acid centre is the infix 'cyanatid', so the anion
+    takes the name of the acid with a replaced hydroxy group."""
+    cyanates = [
+        n
+        for n in center.GetNeighbors()
+        if n.GetAtomicNum() == 8
+        and n.GetDegree() == 2
+        and any(
+            m.GetAtomicNum() == 6
+            and m.GetDegree() == 2
+            and any(x.GetAtomicNum() == 7 and mol.GetBondBetweenAtoms(m.GetIdx(), x.GetIdx()).GetBondTypeAsDouble() == 3.0 for x in m.GetNeighbors())
+            for m in n.GetNeighbors()
+            if m.GetIdx() != center.GetIdx()
+        )
+    ]
+    if not cyanates or len(mol.GetAtoms()) != len(center.GetNeighbors()) + 1 + 2 * len(cyanates):
+        return None
+    from ._acid_derivatives import anion_name
+    from .core import smiles_to_iupac
+
+    editable = Chem.RWMol(mol)
+    for atom in editable.GetAtoms():
+        if atom.GetFormalCharge() == -1:
+            atom.SetFormalCharge(0)
+            atom.SetNoImplicit(False)
+            atom.SetNumExplicitHs(0)
+    neutral = editable.GetMol()
+    Chem.SanitizeMol(neutral)
+    acid = smiles_to_iupac(Chem.MolToSmiles(neutral))
+    if not acid.endswith(" acid"):
+        return None
+    hydroxyls = sum(
+        1
+        for n in center.GetNeighbors()
+        if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and n.GetTotalNumHs() == 1 and not n.GetFormalCharge()
+    )
+    base = anion_name(acid)
+    if not hydroxyls:
+        return base
+    return ("hydrogen" if hydroxyls == 1 else multiplying_prefix(hydroxyls) + "hydrogen") + " " + base
 
 
 def name_oxoacid_anion(mol, center):
@@ -44,6 +99,9 @@ def name_oxoacid_anion(mol, center):
         raise UnsupportedStructure("the stereochemistry of an oxoacid ester anion is not cited yet")
     if len(set(a.GetIdx() for a in mol.GetAtoms() if a.GetFormalCharge() > 0)) or len(mol.GetAtoms()) < 2:
         raise UnsupportedStructure("cationic atoms beside an oxoacid anion are not supported here")
+    infix = _pseudohalide_infix_anion(mol, center)
+    if infix is not None:
+        return infix
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     aromatic_atoms = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
@@ -75,14 +133,14 @@ def name_oxoacid_anion(mol, center):
             name_branch(graph, c, center.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True) for c in carbons
         ]
         parent = (format_mononuclear_prefixes(entries) if entries else "") + _BORON[len(carbons)]
-    elif center.GetAtomicNum() == 15:
+    elif center.GetAtomicNum() in (15, 33, 51):
         key = (5 if oxo else 3, len(carbons))
         if key not in _PHOSPHORUS:
             raise UnsupportedStructure("this phosphorus oxoacid pattern is not supported yet")
         entries = [
             name_branch(graph, c, center.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True) for c in carbons
         ]
-        parent = (format_mononuclear_prefixes(entries) if entries else "") + _PHOSPHORUS[key]
+        parent = (format_mononuclear_prefixes(entries) if entries else "") + _pnictogen_anion(center.GetAtomicNum(), key)
     else:
         if oxo == 2:
             parent = "sulfate"
