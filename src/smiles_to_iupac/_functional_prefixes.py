@@ -9,6 +9,7 @@ from ._alkoxy import alkoxy_prefix
 from ._amino_acid import SYSTEMATIC_ACID_PROBE
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, alpha_sort_key, is_nitro_nitrogen
 from ._hetero_prefixes import (
+    DIPOLAR_GROUPS,
     POLYACID_SUBSTITUENT_REASON,
     ANIONIC_PREFIXES,
     CHALCOGEN_PREFIXES,
@@ -274,7 +275,9 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
             if z == 7:
                 record(node, "nitroso", False)
             continue
-        if atom.HasProp("_anion") and not kids and _bond_order(mol, node, parent) == 1.0:
+        if (
+            atom.HasProp("_anion") or (DIPOLAR_GROUPS.get() and atom.GetFormalCharge() == -1 and z in (8, 16))
+        ) and not kids and _bond_order(mol, node, parent) == 1.0:
             record(node, ANIONIC_PREFIXES[z], False)
             continue
         if z == 8 and node not in named:
@@ -382,7 +385,7 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
                 continue
             carbonyl = [k for k in kids if mol.GetAtomWithIdx(k).GetAtomicNum() == 8 and _bond_order(mol, node, k) == 2.0]
             triple_n = [k for k in kids if mol.GetAtomWithIdx(k).GetAtomicNum() == 7 and _bond_order(mol, node, k) == 3.0]
-            if triple_n and len(kids) == 1:
+            if triple_n and len(kids) == 1 and not (DIPOLAR_GROUPS.get() and mol.GetAtomWithIdx(triple_n[0]).GetFormalCharge() == 1):
                 record(node, "cyano", False)
             elif carbonyl and (node in root_set or mol.GetAtomWithIdx(parent).GetAtomicNum() != 6):
                 others = [k for k in kids if k not in carbonyl]

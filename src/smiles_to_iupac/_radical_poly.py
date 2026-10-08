@@ -19,7 +19,8 @@ def _plain(mol):
     return (
         len(Chem.GetMolFrags(mol)) == 1
         and mol.GetNumAtoms() <= _MAX_ATOMS
-        and not any(a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms())
+        and not any(a.GetIsotope() for a in mol.GetAtoms())
+        and sum(a.GetFormalCharge() for a in mol.GetAtoms()) == 0
         and not specified_stereo_elements(mol)
     )
 
