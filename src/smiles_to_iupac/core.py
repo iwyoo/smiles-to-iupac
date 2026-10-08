@@ -66,7 +66,7 @@ from ._spiro_hub_atom import has_spiro_hub_atom_shape, name_spiro_hub_atom
 from ._substituents import FORCED_BRANCH_NAMES
 from ._glycoside import has_glycoside_shape, name_glycoside
 from ._sugar_acid import has_ketoaldonic_chain_shape, name_ketoaldonic_chain, has_sugar_ring_acid_shape, name_sugar_ring_acid, has_sugar_lactam_shape, name_sugar_lactam, has_substituted_chain_shape, name_substituted_chain, has_sugar_alcohol_acid_shape, has_sugar_lactone_shape, name_sugar_lactone, name_sugar_alcohol_acid, sugar_acid_derivative_name
-from ._sugar_substituted import has_substituted_sugar_shape, name_substituted_sugar
+from ._sugar_substituted import has_substituted_sugar_shape, name_substituted_sugar, has_sugar_dianhydride_shape, name_sugar_dianhydride
 from ._histidine import has_histidine_shape, name_histidine
 from ._proline import has_proline_shape, name_proline
 from ._carboxylic_acid_amine import has_carboxylic_acid_amine_shape, name_carboxylic_acid_amine
@@ -862,6 +862,8 @@ def _name_unabridged_body(smiles: str) -> str:
             return sugar_acid_derivative_name(parsed)
         if parsed is not None and has_substituted_sugar_shape(parsed):
             return name_substituted_sugar(parsed)
+        if parsed is not None and has_sugar_dianhydride_shape(parsed):
+            return name_sugar_dianhydride(parsed)
         if parsed is not None and has_peptide_shape(parsed):
             return name_peptide(parsed)
         if parsed is not None and has_amino_acid_shape(parsed):
@@ -892,6 +894,8 @@ def _name_unabridged_body(smiles: str) -> str:
                 if stereo_specified and namer is not name_acid_salt and not _cites_every_stereo_element(parsed, candidate):
                     continue
                 return candidate
+        if parsed is not None and parsed.GetRingInfo().NumRings() == 3 and sum(a.GetAtomicNum() == 8 for a in parsed.GetAtoms()) >= 8 and has_sugar_dianhydride_shape(parsed):
+            return name_sugar_dianhydride(parsed)
         if parsed is not None and has_spiro_union_shape(parsed):
             try:
                 name = name_spiro_union(parsed)

@@ -395,7 +395,7 @@ def _restored_chain(mol, chain, decorations):
     return model, {a.GetIntProp("_orig"): a.GetIdx() for a in model.GetAtoms() if a.GetIntProp("_orig") >= 0}
 
 
-def substituted_chain_name(mol):
+def substituted_chain_name(mol, bridges=()):
     """P-102.5.6.5, P-102.5.6.6.2: an alditol or aldonic acid with deoxy, amino, halogen or ether positions: the chain
     is restored to the plain alditol, named from its aldose, and the substituents are cited as prefixes."""
     from ._cited_group import cited_group
@@ -405,7 +405,7 @@ def substituted_chain_name(mol):
     if found is None:
         return None
     chain, decorations = found
-    if all(kind in ("OH", "COOH") for kind, _, _ in decorations):
+    if all(kind in ("OH", "COOH") for kind, _, _ in decorations) and not bridges:
         return None
     if sum(kind in ("OH", "ether", "acyl") for kind, _, _ in decorations) < 3:
         return None
@@ -433,7 +433,7 @@ def substituted_chain_name(mol):
             aldose = None
         if aldose is None or not aldose.endswith("ose"):
             continue
-        entries, esters = {}, {}
+        entries, esters, bridged = {}, {}, []
         failed = False
         for position, index in enumerate(order, start=1):
             dkind, x, root = decorations[index]
@@ -470,25 +470,34 @@ def substituted_chain_name(mol):
                 entries.setdefault((name, name, "O", compound), []).append(position)
         if failed:
             continue
-        candidates.append((aldose, entries, esters))
+        for first, second in bridges:
+            if first not in chain or second not in chain:
+                failed = True
+                break
+            ends = sorted((order.index(chain.index(first)) + 1, order.index(chain.index(second)) + 1))
+            bridged.append(ends)
+        if failed:
+            continue
+        candidates.append((aldose, entries, esters, bridged))
     if not candidates:
         return None
     from ._common import alpha_sort_key
 
     def rank(item):
-        aldose, entries, esters = item
-        locants = sorted(p for ps in [*entries.values(), *esters.values()] for p in ps)
+        aldose, entries, esters, bridged = item
+        locants = sorted([p for ps in [*entries.values(), *esters.values()] for p in ps] + [p for ends in bridged for p in ends])
         first = min(entries, key=lambda key: alpha_sort_key(key[0])) if entries else None
         return (aldose[2:], aldose[0] != "D", -len(locants), locants, min(entries[first]) if first else 0)
 
     if kind == "alditol":
-        for aldose, entries, esters in candidates:
-            if not esters and list(entries) == [("deoxy", "deoxy", "", False)] and entries[("deoxy", "deoxy", "", False)] == [len(chain)] and aldose in _RETAINED_ALDITOLS:
+        for aldose, entries, esters, bridged in candidates:
+            if not esters and not bridged and list(entries) == [("deoxy", "deoxy", "", False)] and entries[("deoxy", "deoxy", "", False)] == [len(chain)] and aldose in _RETAINED_ALDITOLS:
                 return _RETAINED_ALDITOLS[aldose]
-    aldose, entries, esters = min(candidates, key=rank)
+    aldose, entries, esters, bridged = min(candidates, key=rank)
     ending = _suffixes(kind)
     stem = aldose[: -len("ose")]
     cited = [(key[0], _segment(sorted(locants), key[0], key[2], key[3])) for key, locants in entries.items()]
+    cited += [("anhydro", f"{ends[0]},{ends[1]}-anhydro") for ends in bridged]
     segments = [text for _, text in sorted(cited, key=lambda item: (alpha_sort_key(item[0]), item[1]))]
     prefix = "-".join(segments) + "-" if segments else ""
     name = prefix + stem + ending
