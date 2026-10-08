@@ -234,6 +234,29 @@ def _perfect_matchings(vertices, adj, limit=2000):
     return found
 
 
+def _resonance_forms(first, second):
+    """Whether two arrangements of double bonds differ only by shifts around cycles of 4n+2 atoms, which are the
+    Kekule forms of one delocalized ring and not isomers."""
+    difference = set(first) ^ set(second)
+    if not difference:
+        return False
+    seen = set()
+    for start in difference:
+        if start in seen:
+            continue
+        component, stack = set(), [start]
+        while stack:
+            bond = stack.pop()
+            if bond in component:
+                continue
+            component.add(bond)
+            stack.extend(other for other in difference if other not in component and bond & other)
+        seen |= component
+        if len(component) % 4 != 2:
+            return False
+    return True
+
+
 def _delta_citation(mol, skeleton_atoms, position_of):
     """P-25.7.1.2: the localized double bonds (as the Greek capital delta locants) that tell this isomer from the other
     arrangements of the same ring atoms and substituents; () when the structure is the only one or delocalized."""
@@ -265,7 +288,7 @@ def _delta_citation(mol, skeleton_atoms, position_of):
 
     actual = frozenset(double & ring_bonds)
     own = identity(actual)
-    others = [m for m in matchings if identity(m) != own]
+    others = [m for m in matchings if identity(m) != own and not _resonance_forms(actual, m)]
     if not others:
         return ()
     order = sorted(live, key=lambda a: position_of[a])
