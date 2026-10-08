@@ -11,7 +11,7 @@ def test_methyl_ethyl_disulfide():
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("CSSSSC", "(methyltetrasulfanyl)methane", id="tetrasulfide_chain"),
+        pytest.param("CSSSSC", "dimethyltetrasulfane", id="tetrasulfide_chain"),
         pytest.param("CSS", "methanedithioperoxol", id="terminal_persulfide_methane"),
         pytest.param("CCSS", "ethanedithioperoxol", id="terminal_persulfide_ethane"),
         pytest.param("c1ccccc1SS", "benzenedithioperoxol", id="terminal_persulfide_benzene"),

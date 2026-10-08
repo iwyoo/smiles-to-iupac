@@ -727,14 +727,17 @@ def test_selenourea_tellurourea_different_n_substituents_like_thiourea(smiles, e
 @pytest.mark.parametrize(
     ("smiles", "expected"),
     [
-        ("C[Se][Se][Se]C", "(methyltriselanyl)methane"),
-        ("CC[Se][Se][Se]CC", "(ethyltriselanyl)ethane"),
-        ("C[Se][Se][Se][Se]C", "(methyltetraselanyl)methane"),
-        ("CC[Se][Se][Se][SeH]", "tetraselanylethane"),
-        ("c1ccccc1[Se][Se][Se]C", "(methyltriselanyl)benzene"),
+        ("C[Se][Se][Se]C", "dimethyltriselane"),
+        ("CC[Se][Se][Se]CC", "diethyltriselane"),
+        ("C[Se][Se][Se][Se]C", "dimethyltetraselane"),
+        ("CC[Se][Se][Se][SeH]", "ethyltetraselane"),
+        ("c1ccccc1[Se][Se][Se]C", "methyl(phenyl)triselane"),
         ("CC[C@H](C)[Se][Se][Se]C", "(2S)-2-(methyltriselanyl)butane"),
-        ("CC[Te][Te][Te]CC", "(ethyltritellanyl)ethane"),
-        ("C[Te][Te][Te][Te]C", "(methyltetratellanyl)methane"),
+        ("CC[Te][Te][Te]CC", "diethyltritellane"),
+        ("c1ccccc1[Se][Se][Se]c1ccccc1", "diphenyltriselane"),
+        ("OOO", "trioxidane"),
+        ("COOOC", "dimethyltrioxidane"),
+        ("C[Te][Te][Te][Te]C", "dimethyltetratellane"),
     ],
 )
 def test_polyselenides_and_polytellurides_like_polysulfides(smiles, expected):

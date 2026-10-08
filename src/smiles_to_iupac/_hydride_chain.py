@@ -292,7 +292,7 @@ def _chain_name(mol, graph, halogens, aromatic_atoms, z, chain, unsaturated, alt
         if alternating is not None:
             parent = _alternating_parent(alternating[0], alternating[1], (len(chain) + 1) // 2, ene, yne)
             cited = sum(len(info["locants"]) for info in grouped.values())
-            fully_substituted = len(grouped) == 1 and all(mol.GetAtomWithIdx(a).GetTotalNumHs() == 0 for a in chain)
+            fully_substituted = all(mol.GetAtomWithIdx(a).GetTotalNumHs() == 0 for a in chain)
             omit = not lam and ((len(chain) == 3 and cited == 1) or fully_substituted)
         elif unsaturated:
             parent, omit = _unsaturated_parent(z, len(chain), ene, yne, grouped)

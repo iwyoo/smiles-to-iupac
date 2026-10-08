@@ -534,6 +534,8 @@ _GROUP_15_ATOMS = {15, 33, 51, 83}
 def _diacyl_chalcogen_chain(mol, carbon, first):
     """Whether the acyl `carbon` is joined through `first` to another acyl carbon by a chain of three or more
     chalcogen atoms (P-65.7.5.1: a diacyl trioxidane or tetrasulfane is a pseudoketone, not an ester)."""
+    if _homogeneous_chalcogen_chain(mol, carbon, first):
+        return True
     chain, previous, atom = [], carbon, first
     while atom.GetAtomicNum() in (8, 16, 34, 52):
         if atom.GetFormalCharge() or atom.GetDegree() != 2 or atom.IsInRing():
@@ -546,6 +548,26 @@ def _diacyl_chalcogen_chain(mol, carbon, first):
     return bool(_double_oxygens(mol, atom.GetIdx())) and any(
         n.GetAtomicNum() == 6 for n in atom.GetNeighbors()
     )
+
+
+def _homogeneous_chalcogen_chain(mol, carbon, first):
+    """Three or more identical chalcogen atoms between the acyl `carbon` and a carbon group or hydrogen: the
+    compound is a pseudoketone (P-68.4.1.3)."""
+    element = first.GetAtomicNum()
+    if element not in (8, 16, 34, 52):
+        return False
+    length, previous, atom = 0, carbon, first
+    while atom.GetAtomicNum() == element:
+        if atom.GetFormalCharge() or atom.IsInRing() or any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
+            return False
+        length += 1
+        onward = [n for n in atom.GetNeighbors() if n.GetIdx() != previous]
+        if not onward:
+            return length >= 3 and atom.GetTotalNumHs() == 1
+        if len(onward) != 1:
+            return False
+        previous, atom = atom.GetIdx(), onward[0]
+    return length >= 3 and atom.GetAtomicNum() == 6
 
 
 def _is_pseudoketone_heteroatom(mol, atom, carbon):
@@ -746,6 +768,11 @@ def _group_of(mol, carbon):
                 continue
             if _terminal_heteroatom(mol, n, hydrogens):
                 return name, {n}
+    for n in _single_neighbors(mol, carbon, 8):
+        bridge = mol.GetAtomWithIdx(n)
+        ends = [m for m in bridge.GetNeighbors() if m.GetIdx() != carbon]
+        if bridge.GetDegree() == 2 and len(ends) == 1 and ends[0].GetAtomicNum() == 8 and _terminal_heteroatom(mol, ends[0].GetIdx(), 1):
+            return "peroxol", {n, ends[0].GetIdx()}
     return None
 
 
@@ -2840,6 +2867,7 @@ _FUSED_SUFFIX = _FusedSuffix({
     "nitrile": "carbonitrile",
     "aldehyde": "carbaldehyde",
     "alcohol": "ol",
+    "peroxol": "peroxol",
     "ketone": "one",
     "thione": "thione",
     "selone": "selone",
