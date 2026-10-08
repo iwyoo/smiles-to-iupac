@@ -94,6 +94,7 @@ def test_bridged_anthracene(smiles):
         pytest.param("c1ccc2cc3ccccc3cc2c1", "anthracene", id="anthracene_itself_is_unaffected"),
         pytest.param("Clc1ccc2cc3c(cc2c1)C1C=CC3C1", "6-chloro-1,4-dihydro-1,4-methanoanthracene", id="halogen_on_bridged_anthracene_terminal_ring"),
         pytest.param("C1=CC2CC1c1ccc3ccccc3c12", "1,4-dihydro-1,4-methanophenanthrene", id="bridged_phenanthrene"),
+        pytest.param("C%11=C1C=CC%11C2=C1C%12C=CC2=C%12", "1,5-dihydro-1,4:5,8-di(metheno)naphthalene", id="repeated_metheno_bridge_is_di_in_parentheses"),
         pytest.param("C1=CC2CC1c1cc3cc4ccccc4cc3cc12", "1,4-dihydro-1,4-methanotetracene", id="bridged_tetracene"),
         pytest.param("Cc1ccc2c(c1)C1C=CC2CC1", "6-methyl-1,4-dihydro-1,4-ethanonaphthalene", id="substituted_ethano_aromatic_ring_is_named"),
         pytest.param("C=1OC2=C3C(C4=CC=C(C13)O4)=CO2", "2,3,9-trioxa-5,8-methanocyclopenta[cd]azulene", id="replacement_prefixes_include_the_bridge_atom"),

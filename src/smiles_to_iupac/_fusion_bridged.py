@@ -2,6 +2,7 @@
 polyvalent, composite, with ring and fused-ring units), named with the bridge prefixes cited in front of the fused parent,
 the attachment locants of the bridges, and the bridge atoms numbered on from the fused system (P-25.4.3-5)."""
 
+import re
 from dataclasses import dataclass, field
 from itertools import groupby, product
 
@@ -842,7 +843,12 @@ def _prefix_text(entries):
         composite = len(members[0][1]["units"]) > 1 or members[0][2].valence >= 3
         if len(members) > 1:
             count = len(members)
-            word = ({2: "bis", 3: "tris", 4: "tetrakis"}[count] + f"({text})") if composite else numerical_term(count) + text
+            if not composite:
+                word = numerical_term(count) + text
+            elif len(members[0][1]["units"]) == 1 and not re.search(r"[\[\](),\d]", text):
+                word = f"{numerical_term(count)}({text})"
+            else:
+                word = {2: "bis", 3: "tris", 4: "tetrakis"}[count] + f"({text})"
         else:
             word = f"({text})" if composite else text
         pieces.append(f"{located}-{word}")
