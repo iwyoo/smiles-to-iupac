@@ -13,6 +13,8 @@ from ._hetero_prefixes import (
     CHALCOGEN_PREFIXES,
     _functional_carbon,
     _has_senior_principal_group,
+    _imidoyl_centre,
+    _thioacyl,
     nitrogen_pseudohalide_prefix,
     phosphoryl_name,
     require_plain_chalcogen_kids,
@@ -25,6 +27,19 @@ from ._retained_acids import is_compound_acyl
 from ._substituents import name_branch
 
 _NATIVE_ROOTS = frozenset({6, 7, 8, 9, 16, 17, 34, 35, 52, 53})
+
+
+def _acylamino_nitrogen(mol, root, parent):
+    """A neutral acyclic nitrogen joined singly to `parent` that carries an acyl group (acetamido, sulfonamido,
+    ethanimidamido; P-66.1.1.4.3) and at most one carbon group."""
+    atom = mol.GetAtomWithIdx(root)
+    if atom.GetAtomicNum() != 7 or atom.GetFormalCharge() or atom.IsInRing() or atom.GetDegree() > 3:
+        return False
+    if mol.GetBondBetweenAtoms(root, parent).GetBondTypeAsDouble() != 1.0:
+        return False
+    kids = [n for n in atom.GetNeighbors() if n.GetIdx() != parent]
+    acyl = [n for n in kids if _thioacyl(mol, n.GetIdx()) or _imidoyl_centre(mol, n.GetIdx())]
+    return len(acyl) == 1 and len(kids) <= 2 and all(n in acyl or n.GetAtomicNum() == 6 for n in kids)
 
 
 def _acyl_hydrazine_sulfur(mol, root):
@@ -191,7 +206,11 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
         if (
             root in parent_of
             and root not in skip
-            and (mol.GetAtomWithIdx(root).GetAtomicNum() not in _NATIVE_ROOTS or _acyl_hydrazine_sulfur(mol, root))
+            and (
+                mol.GetAtomWithIdx(root).GetAtomicNum() not in _NATIVE_ROOTS
+                or _acyl_hydrazine_sulfur(mol, root)
+                or _acylamino_nitrogen(mol, root, parent_of[root])
+            )
         ):
             try:
                 delegated[root] = name_branch(graph, root, parent_of[root], shown, aromatic_atoms, mol=mol)
