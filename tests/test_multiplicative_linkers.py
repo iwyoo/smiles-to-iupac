@@ -351,13 +351,16 @@ def test_ring_system_diyl_components_of_multiplicative_names(linker, expected):
         ("N(C)N", "1-methylhydrazine-1,2-diyl"),
         ("N(C)N(C)", "1,2-dimethylhydrazine-1,2-diyl"),
         ("NNN", "triazane-1,3-diyl"),
-        ("N=N", "diazene-1,2-diyl"),
         ("[PH][PH]", "diphosphane-1,2-diyl"),
         ("[PH][PH][PH]", "triphosphane-1,3-diyl"),
     ],
 )
 def test_homonuclear_heteroatom_hydride_linkers(linker, expected):
     assert smiles_to_iupac(_ARYL_ACID + linker + _ACID_ARYL) == f"4,4'-({expected})dibenzoic acid"
+
+
+def test_diazenediyl_linker_cites_no_locants():
+    assert smiles_to_iupac(_ARYL_ACID + "N=N" + _ACID_ARYL) == "4,4'-diazenediyldibenzoic acid"
 
 
 def test_hydrazine_and_diazene_without_a_principal_group_are_the_parent():
@@ -400,7 +403,7 @@ def test_heavier_group_14_and_15_hydride_linkers(linker, expected):
         ("OC(=O)CC[AsH][AsH]CCC(=O)O", "3,3'-(diarsane-1,2-diyl)dipropanoic acid"),
         ("OC(=O)CC[PH][PH]CCC(=O)O", "3,3'-(diphosphane-1,2-diyl)dipropanoic acid"),
         ("OC(=O)CCNNCCC(=O)O", "3,3'-(hydrazine-1,2-diyl)dipropanoic acid"),
-        ("OC(=O)CCN=NCCC(=O)O", "3,3'-(diazene-1,2-diyl)dipropanoic acid"),
+        ("OC(=O)CCN=NCCC(=O)O", "3,3'-diazenediyldipropanoic acid"),
     ],
 )
 def test_heteroatom_hydride_linkers_between_chain_units(smiles, expected):

@@ -44,6 +44,7 @@ _SENIOR_TO_SELENOL = [
     )
 ]
 _AMINE = Chem.MolFromSmarts("[NX3;!$(N~[!#6;!#1;!#8;!#16]);!$(N-[#6]=[O,S,N])]-[CX4]")
+_HYDRAZINE = Chem.MolFromSmarts("[NX3;!R]-[NX3;!R]")
 
 
 def require_plain_chalcogen_kids(mol, z, kids):
@@ -67,7 +68,12 @@ CATION_PARENT = contextvars.ContextVar("cation_parent", default=False)
 def _has_senior_principal_group(mol):
     """A principal group senior to the hetero-hetero connection (hydroxylamine, hydrazine, peroxide classes) is
     present, so that connection is expressed as a prefix (P-41, P-29.4.1); a cationic parent outranks every group."""
-    return CATION_PARENT.get() or any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL) or mol.HasSubstructMatch(_AMINE)
+    return (
+        CATION_PARENT.get()
+        or any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL)
+        or mol.HasSubstructMatch(_AMINE)
+        or mol.HasSubstructMatch(_HYDRAZINE)
+    )
 
 
 def _dichalcogenide_only(mol):

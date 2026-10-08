@@ -125,6 +125,23 @@ def _single_bonded_linker(atom):
     return atom.GetDegree() >= 2 and all(b.GetBondTypeAsDouble() == 1.0 for b in atom.GetBonds())
 
 
+def _hydrazinediylidene_nitrogen(atom):
+    """A nitrogen of an =N-N= linker whose both nitrogens are doubly bonded to carbon (hydrazinediylidene)."""
+    if atom.GetAtomicNum() != 7 or atom.GetDegree() != 2 or atom.GetFormalCharge() or atom.GetTotalNumHs():
+        return False
+    doubles = [b for b in atom.GetBonds() if b.GetBondTypeAsDouble() == 2.0]
+    singles = [b for b in atom.GetBonds() if b.GetBondTypeAsDouble() == 1.0]
+    if len(doubles) != 1 or len(singles) != 1 or doubles[0].GetOtherAtom(atom).GetAtomicNum() != 6:
+        return False
+    partner = singles[0].GetOtherAtom(atom)
+    return (
+        partner.GetAtomicNum() == 7
+        and partner.GetDegree() == 2
+        and not partner.GetTotalNumHs()
+        and any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(partner).GetAtomicNum() == 6 for b in partner.GetBonds())
+    )
+
+
 def _hydroxy_on_nitrogen(atom):
     """The oxygen of an N-OH group, cited as 'hydroxy' on a linking nitrogen (hydroxyazanediyl, P-68.3.1.1.1.5)."""
     return (
@@ -176,10 +193,14 @@ def classify(mol):
             and idx not in ring_atoms
             and not _single_bonded_linker(atom)
             and not _hydroxy_on_nitrogen(atom)
+            and not _hydrazinediylidene_nitrogen(atom)
         ):
             return None
         if z == 6 and any(
-            b.GetBondTypeAsDouble() >= 2 and b.GetOtherAtom(atom).GetAtomicNum() in (7, 8, 16, 34, 52) for b in atom.GetBonds()
+            b.GetBondTypeAsDouble() >= 2
+            and b.GetOtherAtom(atom).GetAtomicNum() in (7, 8, 16, 34, 52)
+            and not _hydrazinediylidene_nitrogen(b.GetOtherAtom(atom))
+            for b in atom.GetBonds()
         ):
             return None
         if atom.GetFormalCharge() and idx not in covered:

@@ -118,6 +118,8 @@ def _hetero_part(mol, atoms, attachments, ctx, directed=None):
             if z == 7 and len(atoms) == 2:
                 double = mol.GetBondBetweenAtoms(*atoms).GetBondTypeAsDouble() == 2
                 whole = "diazene" if double else "hydrazine"
+                if double and not pend:
+                    return Part("diazenediyl", False, False)
             elif z == 7 and any(
                 mol.GetBondBetweenAtoms(a, b) is not None and mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1
                 for a in atoms
@@ -362,5 +364,8 @@ def name_component(mol, kind, atoms, attachments, ctx, directed=None):
         orders = sorted(order for _, _, order in attachments)
         if len(atoms) == 1 and z in _YLYLIDENE_WORDS and orders == [1, 2]:
             return Part(_YLYLIDENE_WORDS[z], False, False)
+        if len(atoms) == 2 and z == 7 and orders == [2, 2] and all(mol.GetAtomWithIdx(a).GetAtomicNum() == 7 for a in atoms):
+            if mol.GetBondBetweenAtoms(*atoms) is not None and mol.GetBondBetweenAtoms(*atoms).GetBondTypeAsDouble() == 1.0:
+                return Part("hydrazinediylidene", False, False)
         raise UnsupportedStructure("a multiple bond to the multiplied units is not supported yet")
     return _hetero_part(mol, list(atoms), attachments, ctx, directed)

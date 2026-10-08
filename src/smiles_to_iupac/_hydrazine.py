@@ -104,12 +104,28 @@ from ._substituents import format_mononuclear_prefixes, format_substituent_prefi
 _ALLOWED_ATOMIC_NUMS = {6, 7, *HALOGEN_PREFIXES}
 
 
+def _aminooxy_atoms(mol):
+    """The oxygen and nitrogen atoms of every -O-NH2 group on a carbon, cited as the preselected prefix 'aminooxy'
+    (P-68.3.1.1.1.5)."""
+    found = set()
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 8 or atom.GetDegree() != 2 or atom.GetFormalCharge() or atom.GetTotalNumHs():
+            continue
+        neighbors = list(atom.GetNeighbors())
+        nitrogen = [n for n in neighbors if n.GetAtomicNum() == 7 and n.GetDegree() == 1 and n.GetTotalNumHs() == 2 and not n.GetFormalCharge()]
+        carbon = [n for n in neighbors if n.GetAtomicNum() == 6]
+        if len(nitrogen) == 1 and len(carbon) == 1:
+            found |= {atom.GetIdx(), nitrogen[0].GetIdx()}
+    return found
+
+
 def _hydrazine_nitrogens(mol):
     """The two nitrogens of a plain hydrazine skeleton: N-N (single bond),
     each nitrogen degree <= 3 (the N-N bond plus at most two other
     single-bonded neighbors), formal charge 0 -- or None if `mol` isn't
     shaped this way."""
-    nitrogens = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 7]
+    outside = _aminooxy_atoms(mol)
+    nitrogens = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 7 and atom.GetIdx() not in outside]
     if len(nitrogens) != 2:
         return None
     n1, n2 = nitrogens
@@ -142,6 +158,13 @@ def _atomic_nums(mol, *indices):
 
 def has_hydrazine_shape(mol) -> bool:
     return _hydrazine_nitrogens(mol) is not None
+
+
+def has_hydrazine_aminooxy_shape(mol) -> bool:
+    """A hydrazine whose only oxygen atoms belong to aminooxy groups: hydrazine outranks hydroxylamine as the parent."""
+    aminooxy = _aminooxy_atoms(mol)
+    oxygens = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 8}
+    return bool(aminooxy) and oxygens <= aminooxy and _hydrazine_nitrogens(mol) is not None
 
 
 def _substituent_names(graph, n_idx, other_n_idx, halogens, aromatic_atoms, mol=None):
@@ -181,8 +204,9 @@ def name_hydrazine(mol) -> str:
     n1, n2 = nitrogens
 
     aromatic_atoms = frozenset(atom.GetIdx() for atom in mol.GetAtoms() if atom.GetIsAromatic())
+    aminooxy = _aminooxy_atoms(mol)
     for atom in mol.GetAtoms():
-        if atom.GetAtomicNum() not in _ALLOWED_ATOMIC_NUMS:
+        if atom.GetAtomicNum() not in _ALLOWED_ATOMIC_NUMS and atom.GetIdx() not in aminooxy:
             raise UnsupportedStructure(
                 "heteroatoms other than the hydrazine's own two nitrogens "
                 "(P-68.3.1.2.1) and halogen substituents (P-35.2.1) are "

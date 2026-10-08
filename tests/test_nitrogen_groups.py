@@ -1521,3 +1521,16 @@ def test_noncarbon_parents_and_groups(smiles, expected):
 )
 def test_nitrous_hydrazides_and_chalcogen_nitrous_acids(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("NOCNN", "[(aminooxy)methyl]hydrazine"),
+        ("c1ccccc1NN=CC=NNc1ccccc1", "1,1′-ethanediylidenebis(2-phenylhydrazine)"),
+        ("NNCCNN", "1,1′-ethane-1,2-diyldihydrazine"),
+        ("OC(=O)C1CCC(=NN=C2CCC(CC2)C(=O)O)CC1", "4,4'-hydrazinediylidenedi(cyclohexane-1-carboxylic acid)"),
+    ],
+)
+def test_hydrazine_with_aminooxy_prefix_and_multiplied_hydrazine_units(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
