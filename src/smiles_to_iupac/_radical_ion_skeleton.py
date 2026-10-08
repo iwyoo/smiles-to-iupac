@@ -89,7 +89,10 @@ def _assemble(base, radical_locants, anion_locants, cation_locants, prefixes="")
     ]
     if base.endswith(("ane", "ene", "yne")) and endings[0][1][0] in "aeiouy":
         base = base[:-1]
-    endings = [(loc, text[:-1] if text.endswith("ide") and i + 1 < len(endings) else text) for i, (loc, text) in enumerate(endings)]
+    endings = [
+        (loc, text[:-1] if text.endswith("ide") and i + 1 < len(endings) and endings[i + 1][1][0] in "aeiouy" else text)
+        for i, (loc, text) in enumerate(endings)
+    ]
     return prefixes + base + "".join(f"-{','.join(map(str, locants))}-{text}" for locants, text in endings)
 
 
@@ -131,6 +134,8 @@ def _general_name(mol, radicals, anions, cations):
     attachments = {
         a for atom in parent for a in (n.GetIdx() for n in mol.GetAtomWithIdx(atom).GetNeighbors()) if a not in parent
     }
+    kekule = Chem.Mol(mol)
+    Chem.Kekulize(kekule, clearAromaticFlags=True)
     best = None
     for image in _automorphisms(mol, radicals + ions):
         if any(image[i] not in positions for i in positions):
@@ -142,7 +147,7 @@ def _general_name(mol, radicals, anions, cations):
                 numbers[n.GetIdx()] for a in attachments for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in parent
             )
             try:
-                enes, ynes = _unsaturation_locants(mol, parent, numbers, size, flip)
+                enes, ynes = _unsaturation_locants(kekule, parent, numbers, size, flip)
             except UnsupportedStructure:
                 continue
             key = (*_centre_order_key(centre_key), sorted(enes + ynes), enes, substituted)

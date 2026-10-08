@@ -919,6 +919,8 @@ def test_radical_ions_named_through_the_filled_ion(smiles, expected):
             id="ylium_outranks_ium",
         ),
         pytest.param("[N-2]", "azanediidyl", id="dianionic_radical_centre"),
+        pytest.param("[C]1=[C][CH-]C=C1", "cyclopenta-1,4-dien-3-ide-1,2-diyl", id="ide_kept_before_a_diyl_suffix"),
+        pytest.param("[CH-]([CH2])[CH2]", "propan-2-ide-1,3-diyl", id="ide_between_two_free_valences"),
         pytest.param("[O-][O]", "dioxidanidyl", id="radical_and_anion_on_a_peroxide"),
         pytest.param("[S-][S]", "disulfanidyl", id="radical_and_anion_on_a_disulfide"),
         pytest.param("[B-]1C=C2C=CC=CC2=C1", "2H-2-benzoborol-2-uid-2-ylidene", id="uide_and_ylidene_on_one_ring_atom"),
