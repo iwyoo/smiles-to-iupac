@@ -23,6 +23,7 @@ from ._aldehyde import name_aldehyde
 from ._aldehyde_amine import has_aldehyde_amine_shape, name_aldehyde_amine
 from ._ketone_amine import has_ketone_amine_shape, name_ketone_amine
 from ._amino_acid_derivative import has_amino_acid_shape, name_amino_acid
+from ._peptide import has_peptide_shape, name_peptide
 from ._mixed_onium import has_mixed_onium_shape, name_mixed_onium
 from ._axial_stereo import cite_axial_stereo
 from ._chalcone import has_chalcone_shape, name_chalcone
@@ -780,6 +781,8 @@ def _name_unabridged(smiles: str) -> str:
             return sugar_acid_derivative_name(parsed)
         if parsed is not None and has_substituted_sugar_shape(parsed):
             return name_substituted_sugar(parsed)
+        if parsed is not None and has_peptide_shape(parsed):
+            return name_peptide(parsed)
         if parsed is not None and has_amino_acid_shape(parsed):
             return name_amino_acid(parsed)
         if parsed is not None and not has_sphingoid_shape(parsed):
@@ -1203,6 +1206,7 @@ def _name_mol(mol) -> str:
         # guanidino C=N was caught by `_imine.py`'s dispatch and tryptophan's
         # indole ring by the bicyclic-heteroatom dispatch, both well before
         # this check's original position further down ever ran.
+        (has_peptide_shape, name_peptide),
         (has_amino_acid_shape, name_amino_acid),
         # A ring-system diester of one polyol (P-65.6.3.3.3) is claimed before every
         # ring/functional-group shape check below, which would misread its esters.
