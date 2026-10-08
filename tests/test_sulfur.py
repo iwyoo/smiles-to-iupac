@@ -770,13 +770,35 @@ def test_chalcogen_chain_heterones_and_halogen_acid_esters(smiles, expected):
     [
         pytest.param("[AsH5]", "λ5-arsane", id="pnictogen_hypervalent"),
         pytest.param("[IH3]", "λ3-iodane", id="halogen_hypervalent"),
-                pytest.param("C[SH3]", "methyl-λ4-sulfane", id="substituted_hypervalent"),
+        pytest.param("C[SH3]", "methyl-λ4-sulfane", id="substituted_hypervalent"),
+        pytest.param("c1ccccc1[IH2]", "phenyl-λ3-iodane", id="terminal_halogen_with_added_hydrogens"),
         pytest.param("SSS", "trisulfane", id="homogeneous_chalcogen_chain"),
         pytest.param("S[SH2]S", "2λ4-trisulfane", id="chain_lambda_locant"),
         pytest.param("OO", "dioxidane", id="dioxidane"),
     ],
 )
 def test_nonstandard_bonding_number_hydrides_and_chalcogen_chains(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("OC(=O)CI(O)O", "(dihydroxy-λ3-iodanyl)acetic acid", id="centre_hydroxy_under_acid"),
+        pytest.param("OC(=O)C[IH2]", "(λ3-iodanyl)acetic acid", id="halogen_with_added_hydrogens"),
+        pytest.param("OC(=O)C[PH4]", "(λ5-phosphanyl)acetic acid", id="pnictogen_hydrogens_counted"),
+        pytest.param("OC(=O)CC[SH4]C", "3-(methyl-λ6-sulfanyl)propanoic acid", id="chalcogen_lambda6"),
+        pytest.param(
+            "CC(=O)OI(OC(C)=O)c1ccc(cc1)C(O)=O", "4-[bis(acetyloxy)-λ3-iodanyl]benzoic acid", id="acyloxy_on_centre"
+        ),
+        pytest.param("NCC[SH2]C", "2-(methyl-λ4-sulfanyl)ethan-1-amine", id="centre_without_hydroxy_under_amine"),
+        pytest.param("OCC[SH2]C", "2-(methyl-λ4-sulfanyl)ethan-1-ol", id="centre_without_hydroxy_under_alcohol"),
+        pytest.param("OCI(O)O", "(hydroxymethyl)-λ3-iodanediol", id="centre_with_more_hydroxy_groups_is_parent"),
+        pytest.param("OC(=O)C[SH2]CC(=O)O", "2,2'-(λ4-sulfanediyl)diacetic acid", id="lambda_linker"),
+        pytest.param("OC(=O)C[SH](C)CC(=O)O", "2,2'-(methyl-λ4-sulfanediyl)diacetic acid", id="substituted_lambda_linker"),
+    ],
+)
+def test_lambda_centres_are_prefixes_or_linkers_beside_senior_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

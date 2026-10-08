@@ -5,6 +5,7 @@ may carry single-bonded carbon substituents ('dimethyl-λ4-sulfane')."""
 from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency
+from ._hetero_prefixes import AMINE_PATTERN
 from ._numerals import multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, name_branch
 
@@ -16,6 +17,15 @@ _HYDRIDES = {
     9: ("fluorane", 1), 17: ("chlorane", 1), 35: ("bromane", 1), 53: ("iodane", 1),
 }
 _CHALCOGENS = (8, 16, 34, 52)
+_HYDROXY_ON_CARBON = Chem.MolFromSmarts("[OX2H1][#6]")
+_SENIOR_TO_ALCOHOL = [
+    Chem.MolFromSmarts(smarts)
+    for smarts in (
+        "[CX3](=O)[OX2H1]", "[#16,#34,#52;X3,X4](=O)[OX2H1]", "[CX3](=O)[OX2][#6]", "[CX3](=[O,S,Se,Te])[NX3]",
+        "[CX2]#[NX1]", "[CX3H1](=O)", "[#6][CX3](=O)[#6]", "[CX3](=O)[F,Cl,Br,I]",
+    )
+]
+_LOWER_PRINCIPAL = [Chem.MolFromSmarts("[SX2H1][#6]"), AMINE_PATTERN]
 
 
 def _plain(atom):
@@ -25,9 +35,7 @@ def _plain(atom):
 def _center(mol):
     if len(Chem.GetMolFrags(mol)) != 1:
         return None
-    centers = [
-        a for a in mol.GetAtoms() if a.GetAtomicNum() in _HYDRIDES and not (a.GetDegree() == 1 and a.GetAtomicNum() in (8, 9, 17, 35, 53))
-    ]
+    centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _HYDRIDES and not _terminal_standard(a)]
     if len(centers) != 1 or not _plain(centers[0]) or centers[0].IsInRing() or centers[0].GetIsAromatic():
         return None
     center = centers[0]
@@ -36,7 +44,31 @@ def _center(mol):
         return None
     if any(b.GetBondTypeAsDouble() != 1.0 or not _substituent_atom(b.GetOtherAtom(center)) for b in center.GetBonds()):
         return None
+    if _outranked(mol, center):
+        return None
     return center
+
+
+def _terminal_standard(atom):
+    return (
+        atom.GetDegree() == 1
+        and atom.GetAtomicNum() in (8, 9, 17, 35, 53)
+        and atom.GetTotalValence() == _HYDRIDES[atom.GetAtomicNum()][1]
+    )
+
+
+def _outranked(mol, center):
+    """A characteristic group on a carbon substituent that is senior to the centre's own hydroxy groups (or to nothing,
+    when it has none) makes the carbon skeleton the parent and the centre a prefix (P-41, P-44.1.1)."""
+    if any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_ALCOHOL):
+        return True
+    hydroxy_on_centre = sum(
+        n.GetAtomicNum() == 8 and n.GetTotalNumHs() == 1 and n.GetDegree() == 1 for n in center.GetNeighbors()
+    )
+    hydroxy_on_carbon = len(mol.GetSubstructMatches(_HYDROXY_ON_CARBON))
+    if hydroxy_on_carbon > hydroxy_on_centre:
+        return True
+    return not hydroxy_on_centre and any(mol.HasSubstructMatch(query) for query in _LOWER_PRINCIPAL)
 
 
 def _substituent_atom(atom):
