@@ -112,6 +112,13 @@ def _siloxane_skeleton(mol, graph):
 def _parent(mol, graph):
     """(kind, skeleton atoms, parent hydride name) of the heteroacyclic parent, or None."""
     found = _chain_atoms(mol, graph, skip_nitrogen=True) or _chain_atoms(mol, graph, allow_double=True)
+    if found is None:
+        group_nitrogens = frozenset(
+            a.GetIdx()
+            for a in mol.GetAtoms()
+            if a.GetAtomicNum() == _NITROGEN and a.GetDegree() == 1 and all(n.GetAtomicNum() == 6 for n in a.GetNeighbors())
+        )
+        found = _chain_atoms(mol, graph, allow_double=True, ignore=group_nitrogens) if group_nitrogens else None
     if found is not None:
         z, chain = found
         return "chain", chain, f"{multiplying_prefix(len(chain))}{_STEMS[z]}"

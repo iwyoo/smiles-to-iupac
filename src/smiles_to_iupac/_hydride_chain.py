@@ -50,11 +50,12 @@ def _is_pseudohalide_nitrogen(atom):
     )
 
 
-def _chain_atoms(mol, graph, skip_nitrogen=False, allow_double=False, allow_triple=False):
+def _chain_atoms(mol, graph, skip_nitrogen=False, allow_double=False, allow_triple=False, ignore=frozenset()):
     elements = {
         a.GetAtomicNum()
         for a in mol.GetAtoms()
         if a.GetAtomicNum() in _STEMS
+        and a.GetIdx() not in ignore
         and not _is_nitro_or_nitroso(a)
         and not _is_pseudohalide_nitrogen(a)
         and not a.IsInRing()
@@ -68,6 +69,7 @@ def _chain_atoms(mol, graph, skip_nitrogen=False, allow_double=False, allow_trip
         a.GetIdx()
         for a in mol.GetAtoms()
         if a.GetAtomicNum() == z
+        and a.GetIdx() not in ignore
         and not (allow_double and _is_nitrile_nitrogen(a))
         and not _is_nitro_or_nitroso(a)
         and not _is_pseudohalide_nitrogen(a)

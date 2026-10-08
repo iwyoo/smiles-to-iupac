@@ -4260,7 +4260,11 @@ def _acyclic_imine_nitrogen(mol, atom):
         return None
     if nitrogen.GetDegree() > (3 if cationic else 2):
         return None
-    if any(n.GetAtomicNum() != 6 for n in atom.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx()):
+    if any(
+        n.GetAtomicNum() != 6 and not _nitro_or_nitroso(mol, n)
+        for n in atom.GetNeighbors()
+        if n.GetIdx() != nitrogen.GetIdx()
+    ):
         return None
     for n in nitrogen.GetNeighbors():
         if n.GetIdx() == carbon:
@@ -4270,6 +4274,14 @@ def _acyclic_imine_nitrogen(mol, atom):
         if n.GetAtomicNum() not in ((6,) if cationic else (6, 8)) or n.GetFormalCharge():
             return None
     return nitrogen.GetIdx()
+
+
+def _nitro_or_nitroso(mol, atom):
+    """The nitrogen of a nitro or nitroso group, which makes an oxime a nitrolic or nitrosolic acid (P-68.3.1.1.3)."""
+    return atom.GetAtomicNum() == 7 and (
+        is_nitro_nitrogen(mol, atom.GetIdx())
+        or (atom.GetDegree() == 2 and any(n.GetAtomicNum() == 8 and n.GetDegree() == 1 for n in atom.GetNeighbors()))
+    )
 
 
 def _ring_imine_nitrogen(mol, nitrogen, ring_atom):
@@ -4548,20 +4560,38 @@ def _amidine_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups):
 
 
 def _imine_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups):
-    """N-prefix names when the single ring imine group is substituted on its =N atom, else []."""
-    members = [owned for cls, _, owned in ring_groups if cls == "imine"] + list(groups.get("imine", {}).values())
+    """N-prefix names when an imine group is substituted on its =N atom, else []; with several groups each entry
+    carries the position of its group (N2,N3-dihydroxybutane-2,3-diimine)."""
+    members = {c: (owned, c) for c, owned in groups.get("imine", {}).items()}
+    for cls, ring_atom, owned in ring_groups:
+        if cls == "imine":
+            members[ring_atom] = (owned, ring_atom)
     substituted = []
-    for owned in members:
+    for carbon, (owned, anchor) in members.items():
         nitrogen = next(iter(owned))
         subs = [n for n in graph[nitrogen] if mol.GetBondBetweenAtoms(nitrogen, n).GetBondTypeAsDouble() == 1.0]
         if subs:
-            substituted.append((nitrogen, subs))
+            substituted.append((carbon, anchor, owned, nitrogen, subs))
     if not substituted:
         return []
-    if len(members) != 1:
-        raise UnsupportedStructure("several imine groups with N-substitution are not handled by the chain engine")
-    nitrogen, subs = substituted[0]
-    return [name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in subs]
+    if len(members) == 1:
+        _, _, _, nitrogen, subs = substituted[0]
+        return [name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in subs]
+    entries = []
+    for carbon, anchor, owned, nitrogen, subs in substituted:
+        for n in subs:
+            if any(
+                next(iter(other_owned)) in _arm_atoms(graph, n, nitrogen)
+                for other_carbon, (other_owned, _) in members.items()
+                if other_carbon != carbon
+            ):
+                raise UnsupportedStructure("imine groups joined through nitrogen need a multiplicative name (P-15.3)")
+        located = ("N", anchor, carbon, tuple(a for a in graph[carbon] if a not in owned))
+        entries += [
+            (*name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True), located)
+            for n in subs
+        ]
+    return entries
 
 
 def _amide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls="amide"):

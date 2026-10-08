@@ -74,9 +74,6 @@ alkyl substituents per nitrogen), per the IUPAC 2013 Recommendations
 Explicitly out of scope (raise `UnsupportedStructure`):
 - Any atom other than the two hydrazine nitrogens, carbon, hydrogen, and
   a halogen substituent on a carbon branch.
-- A halogen bonded directly to a hydrazine nitrogen (a different, more
-  complex shape than a plain P-35.2.1 carbon-branch substituent; not
-  covered here).
 - An unsaturated substituent, an aromatic substituent other than a plain,
   unsubstituted phenyl (a substituted or heteroaromatic ring, e.g.), or a
   ring other than a plain phenyl substituent.
@@ -185,11 +182,6 @@ def _substituent_names(graph, n_idx, other_n_idx, halogens, aromatic_atoms, mol=
     for root in graph[n_idx]:
         if root == other_n_idx:
             continue
-        if root in halogens:
-            raise UnsupportedStructure(
-                "a halogen bonded directly to a hydrazine nitrogen is out "
-                "of scope for this module (see module docstring)"
-            )
         names.append(name_branch(graph, root, n_idx, halogens, aromatic_atoms, mol=mol))
     return names
 
@@ -249,6 +241,9 @@ def name_hydrazine(mol) -> str:
         return "hydrazine"
     if _is_azine(mol, n1_idx, n2_idx):
         # P-14.3.4.5: every hydrogen is replaced by an ylidene, so no locant is cited
+        return format_mononuclear_prefixes(names_n1 + names_n2) + "hydrazine"
+    if total == 4 and len(set(names_n1 + names_n2)) == 1:
+        # P-14.3.4.5: every hydrogen is replaced in the same way, so no locant is cited
         return format_mononuclear_prefixes(names_n1 + names_n2) + "hydrazine"
     if total == 1:
         ((name, compound),) = names_n1 + names_n2

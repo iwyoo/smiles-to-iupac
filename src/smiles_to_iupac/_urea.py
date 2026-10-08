@@ -76,6 +76,13 @@ def _urea_core(mol, atomic_num=8):
         if any(n.GetFormalCharge() != 0 or n.GetIsotope() != 0 for n in nitrogens):
             continue
         if any(
+            b.GetBondTypeAsDouble() != 1.0 and not (b.GetBeginAtomIdx() == atom.GetIdx() or b.GetEndAtomIdx() == atom.GetIdx())
+            for n in nitrogens
+            for b in n.GetBonds()
+            if b.GetOtherAtom(n).GetAtomicNum() == 7 and b.GetOtherAtom(n).GetIdx() != atom.GetIdx()
+        ):
+            continue
+        if any(
             not is_urea_substituent_root(mol, nn) and not _is_hydrazine_tail(mol, nn, n.GetIdx())
             for n in nitrogens
             for nn in n.GetNeighbors()
@@ -100,6 +107,8 @@ def _is_hydrazine_tail(mol, atom, exclude_idx):
     if atom.GetAtomicNum() != 7 or atom.GetIsAromatic() or atom.IsInRing():
         return False
     if atom.GetFormalCharge() != 0 or atom.GetIsotope() != 0:
+        return False
+    if mol.GetBondBetweenAtoms(atom.GetIdx(), exclude_idx).GetBondTypeAsDouble() != 1.0:
         return False
     others = [n for n in atom.GetNeighbors() if n.GetIdx() != exclude_idx]
     orders = [mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() for n in others]
@@ -162,4 +171,5 @@ def _hydrazinecarboxamide_name(amide_names, alpha_names, beta_names, ending="car
     grouped = group_substituents({k: v for k, v in positions.items() if v})
     if not grouped:
         return f"hydrazine{ending}"
-    return f"{format_substituent_prefixes(grouped)}hydrazine-1-{ending}"
+    numbered = any(isinstance(loc, int) for info in grouped.values() for loc in info["locants"])
+    return f"{format_substituent_prefixes(grouped)}hydrazine{'-1-' if numbered else ''}{ending}"
