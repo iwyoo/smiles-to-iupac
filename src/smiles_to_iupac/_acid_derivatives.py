@@ -357,9 +357,19 @@ def _stereo_context(mol, removed):
     }
 
 
+def _isocyanide_carbon(atom):
+    return (
+        atom.GetAtomicNum() == 6
+        and atom.GetFormalCharge() == -1
+        and atom.GetDegree() == 1
+        and atom.GetNeighbors()[0].GetAtomicNum() == 7
+        and atom.GetNeighbors()[0].GetFormalCharge() == 1
+    )
+
+
 def _reject_unsupported(mol):
     for atom in mol.GetAtoms():
-        if atom.GetIsotope() or atom.GetNumRadicalElectrons() or atom.GetFormalCharge() and atom.GetAtomicNum() not in (7, 8):
+        if atom.GetIsotope() or atom.GetNumRadicalElectrons() or atom.GetFormalCharge() and atom.GetAtomicNum() not in (7, 8) and not _isocyanide_carbon(atom):
             raise UnsupportedStructure("isotopes, radicals and charges are not supported by the acid derivative engine")
     if len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("several fragments are named as salts or adducts")

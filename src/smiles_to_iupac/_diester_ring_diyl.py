@@ -122,6 +122,21 @@ def _chain_paths(graph, component, alcohol_atoms):
     return best, paths
 
 
+def _senior_units(mol, units):
+    """The units of equally many ester oxygens that rank highest by P-44: rings and ring systems by P-44.2.1, chains
+    by length (P-65.6.3.3.4.2: the nitrogenous ring is senior to the carbocyclic ring, the ethyl chain to the methyl)."""
+    from ._multiplicative_groups import ring_seniority_key
+
+    def key(unit):
+        kind, _, body, atoms = unit
+        if kind == "ring":
+            return ring_seniority_key(mol, atoms)
+        return (-max(len(path) for path in body),)
+
+    ranked = sorted(units, key=key)
+    return [u for u in ranked if key(u) == key(ranked[0])]
+
+
 def select_skeleton(mol, graph, matches):
     """(kind, rings_or_paths, atoms) of the single best ring system or chain, or None when no skeleton carries
     an ester oxygen; raises when several equally ranked units tie (multiplicative/ring-assembly names)."""
@@ -158,6 +173,8 @@ def select_skeleton(mol, graph, matches):
     best = [u for u in units if u[1] == top]
     if any(u[0] == "ring" for u in best):
         best = [u for u in best if u[0] == "ring"]
+    if len(best) > 1:
+        best = _senior_units(mol, best)
     if len(best) > 1:
         raise UnsupportedStructure(
             "several equally ranked ring/chain units carry the esters (multiplicative or ring-assembly names, "

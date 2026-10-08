@@ -1658,7 +1658,7 @@ def _select(mol, attach=None, n_names=(), stereo=None):
         c for c, _, _ in _ring_occurrences(mol)
     }
     principal = _principal_class(classes)
-    token = EXTENDED_PREFIXES.set(_is_acid_family(principal) if principal else False)
+    token = EXTENDED_PREFIXES.set((_is_acid_family(principal) or principal in ("thioic", "peroxoic", "imidic")) if principal else False)
     try:
         return _select_with_prefixes(mol, attach, n_names, stereo)
     finally:

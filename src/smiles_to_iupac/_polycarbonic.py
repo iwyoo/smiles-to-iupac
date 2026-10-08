@@ -3,6 +3,8 @@ along the chain, carbons at odd positions; replacement is cited by prefixes with
 replaced by one prefix (P-65.2.3.1.2.1); five or more units are named by skeletal replacement.
 """
 
+import re
+
 from rdkit import Chem
 
 from ._acid_lexicon import _INFIX
@@ -37,9 +39,28 @@ def _oxo_word(mol, center):
     return None, None
 
 
+def _dianion_name(mol):
+    """'1-thiodicarbonate': the name of the fully deprotonated acid, whose tautomer letters are no longer needed."""
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    if len(charged) != 2 or any(a.GetFormalCharge() != -1 or a.GetDegree() != 1 or a.GetAtomicNum() not in _SYMBOL for a in charged):
+        raise UnsupportedStructure("only the fully deprotonated polycarbonic acids are named as anions here")
+    neutral = Chem.RWMol(mol)
+    for atom in charged:
+        target = neutral.GetAtomWithIdx(atom.GetIdx())
+        target.SetFormalCharge(0)
+        target.SetNoImplicit(False)
+    neutral = neutral.GetMol()
+    Chem.SanitizeMol(neutral)
+    name = name_polycarbonic(neutral)
+    name = re.sub(r" (?:[A-Za-z]+\d+)(?:,[A-Za-z]+\d+)*-acid$", " acid", name)
+    return name[: -len("ic acid")] + "ate"
+
+
 def name_polycarbonic(mol):
     if len(Chem.GetMolFrags(mol)) != 1:
         raise UnsupportedStructure("several fragments")
+    if any(a.GetFormalCharge() for a in mol.GetAtoms()):
+        return _dianion_name(mol)
     centers = [a.GetIdx() for a in mol.GetAtoms() if _carbonic_center(mol, a.GetIdx())]
     if len(centers) < 2:
         raise UnsupportedStructure("fewer than two carbonic units")
@@ -52,6 +73,12 @@ def name_polycarbonic(mol):
                 far = [m for m in graph[n] if m != c]
                 if far and far[0] in centers and _bond(mol, c, n) == 1.0 and _bond(mol, n, far[0]) == 1.0:
                     bridges.setdefault(frozenset((c, far[0])), n)
+            if atom.GetAtomicNum() == 8 and atom.GetDegree() == 2 and not atom.GetFormalCharge() and not atom.GetTotalNumHs():
+                partner = [m for m in graph[n] if m != c]
+                if partner and mol.GetAtomWithIdx(partner[0]).GetAtomicNum() == 8 and mol.GetAtomWithIdx(partner[0]).GetDegree() == 2:
+                    far = [m for m in graph[partner[0]] if m != n]
+                    if far and far[0] in centers:
+                        bridges.setdefault(frozenset((c, far[0])), (n, partner[0]))
             elif atom.GetAtomicNum() == 7 and atom.GetDegree() == 2 and atom.GetTotalNumHs() == 1 and not atom.GetFormalCharge():
                 far = [m for m in graph[n] if m != c]
                 if far and far[0] in centers:
@@ -81,6 +108,13 @@ def name_polycarbonic(mol):
     return _compose(mol, n, replaced, _letters(mol, graph, order, bridges))
 
 
+def _bridge_atoms(bridges):
+    atoms = set()
+    for bridge in bridges.values():
+        atoms.update(bridge if isinstance(bridge, tuple) else (bridge,))
+    return atoms
+
+
 def _replacements(mol, graph, order, bridges):
     """[(locant, prefix word)] and letters for the replaced atoms along the numbered chain."""
     n = len(order)
@@ -93,13 +127,16 @@ def _replacements(mol, graph, order, bridges):
         if oxo != "O":
             replaced.append((position, _BRIDGE_WORD.get(oxo) or {"NNH2": "hydrazono"}.get(oxo, _INFIX.get(oxo))))
         if i in (0, n - 1):
-            bridge_atoms = set(bridges.values())
+            bridge_atoms = _bridge_atoms(bridges)
             ligand = [m for m in graph[center] if m not in bridge_atoms and _bond(mol, center, m) == 1.0]
             if len(ligand) != 1:
                 raise UnsupportedStructure("a terminal group of the polycarbonic acid is not recognized")
             _terminal(mol, graph, center, ligand[0], position, replaced, letters)
     for i in range(n - 1):
         bridge = bridges[frozenset((order[i], order[i + 1]))]
+        if isinstance(bridge, tuple):
+            replaced.append((2 * i + 2, "peroxy"))
+            continue
         atom = mol.GetAtomWithIdx(bridge)
         symbol = "NH" if atom.GetAtomicNum() == 7 else _SYMBOL[atom.GetAtomicNum()]
         if symbol != "O":
@@ -151,7 +188,7 @@ def _letters(mol, graph, order, bridges):
     chalcogen could sit on either the =X or the -Y position of that carbon (P-65.2.3.1.2.2)."""
     n = len(order)
     found = []
-    bridge_atoms = set(bridges.values())
+    bridge_atoms = _bridge_atoms(bridges)
     for i in (0, n - 1):
         center = order[i]
         x, _ = _oxo_word(mol, center)

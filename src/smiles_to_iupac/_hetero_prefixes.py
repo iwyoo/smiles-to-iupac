@@ -49,7 +49,7 @@ _AMINE = Chem.MolFromSmarts("[NX3;!$(N~[!#6;!#1]);!$(N-[#6]=[O,S,N])]-[CX4]")
 def require_plain_chalcogen_kids(mol, z, kids):
     """Se/Te bonded to an acyl, carbamoyl, formyl or cyano carbon is a selenoate/selenocyanate-type group, not a
     plain selanyl/tellanyl prefix."""
-    if z in (34, 52):
+    if z in (34, 52) and not EXTENDED_PREFIXES.get():
         for kid in kids:
             atom = mol.GetAtomWithIdx(kid)
             if atom.GetAtomicNum() in (16, 34, 52) and atom.GetDegree() <= 2:
@@ -513,7 +513,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
     others = [n for n in graph[root] if n != coming_from]
     order = mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble()
     if z in _CYANATE_PREFIXES and order == 1.0 and len(others) == 1 and _is_cyanide_carbon(mol, others[0], root):
-        return _CYANATE_PREFIXES[z], False
+        return _CYANATE_PREFIXES[z], z != 8
     if z == 8:
         if order == 2.0:
             return "oxo", False
@@ -593,6 +593,8 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return _enclose(rname, rcomp) + word, True
 
         rname, rcomp = name_branch(graph, others[0], root, halogens, aromatic_atoms, mol=mol)
+        if re.fullmatch(r"[a-z]+animidoyl", rname):
+            rcomp = False
         return _enclose(rname, rcomp) + word, True
     if (
         z == 7
