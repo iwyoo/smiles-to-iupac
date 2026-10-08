@@ -1697,10 +1697,12 @@ def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset()):
         else:
             a, b = where
             if ring_parent or a not in position_of or b not in position_of:
-                if ("bond", where) in used:
-                    continue
                 inside = [x for x in (a, b) if x in position_of]
-                if len(inside) == 1:
+                if len(inside) == 2:
+                    entries.append((min(position_of[a], position_of[b]), code))
+                elif ("bond", where) in used:
+                    continue
+                elif len(inside) == 1:
                     # P-93.4.2.1, P-93.5.1.4.2.1: the configuration of a double bond to an ylidene group takes the locant
                     # of the parent atom
                     entries.append((position_of[inside[0]], code))
@@ -2434,17 +2436,41 @@ def _fused_plain_parent(mol, graph, rings):
         return ring_seniority_key(mol, system[1]), count, nuclides
 
     ranked = sorted(systems, key=rank)
-    if len(ranked) > 1 and rank(ranked[0]) == rank(ranked[1]):
-        raise UnsupportedStructure("several equally senior ring systems need a multiplicative or assembly name")
-    system_rings, system_atoms = ranked[0]
-    if len(system_rings) > 1:
-        _require_mancude_system(mol, system_atoms)
-    found = evaluate_skeleton(mol, graph, "ring", system_rings, system_atoms, [], set(), "")
+    tied = [system for system in ranked if rank(system) == rank(ranked[0])]
+    found = None
+    if len(tied) > 1:
+        found = _configuration_senior_system(mol, graph, tied)
+    else:
+        system_rings, system_atoms = ranked[0]
+        if len(system_rings) > 1:
+            _require_mancude_system(mol, system_atoms)
+        found = evaluate_skeleton(mol, graph, "ring", system_rings, system_atoms, [], set(), "")
     if found is None:
         raise UnsupportedStructure("this fused ring system has no supported numbering")
     from ._diester_ring_diyl import PARENT_START
 
     return ((0,), _without_stereo(found[1]), (None, None, None, 0, found[2], True, PARENT_START.get()))
+
+
+_ALL_DESCRIPTORS = re.compile(r"\((?:\d+[a-z]*['\u2032]*)?[RSEZrs](?:,(?:\d+[a-z]*['\u2032]*)?[RSEZrs])*\)-")
+
+
+def _configuration_senior_system(mol, graph, tied):
+    """The numbered parent among equally senior ring systems that differ only in configuration: Z before E and R before
+    S (P-44.4.1.12.1, P-44.4.1.12.2, P-45.6.2); identical configurations need a multiplicative or assembly name."""
+    from ._diester_ring_diyl import evaluate_skeleton
+
+    candidates = []
+    for rings, atoms in tied:
+        if len(rings) > 1:
+            _require_mancude_system(mol, atoms)
+        found = evaluate_skeleton(mol, graph, "ring", rings, atoms, [], set(), "")
+        if found is None:
+            raise UnsupportedStructure("this fused ring system has no supported numbering")
+        candidates.append(found)
+    if len({_ALL_DESCRIPTORS.sub("", c[1]) for c in candidates}) > 1 or len({c[0] for c in candidates}) == 1:
+        raise UnsupportedStructure("several equally senior ring systems need a multiplicative or assembly name")
+    return min(candidates, key=lambda c: c[0])
 
 
 def _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo=None):

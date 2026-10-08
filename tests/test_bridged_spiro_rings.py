@@ -95,6 +95,13 @@ def test_mixed_enyne_ring():
     "smiles,expected",
     [
         ("C1CCC/C=C/CC1", "(E)-cyclooctene"),
+        ("OC1CCC/C=C/CC1", "(4E)-cyclooct-4-en-1-ol"),
+        ("OC1CCCCC/C=C\\1", "(2Z)-cyclooct-2-en-1-ol"),
+        ("C1CCC/C=C\\CC1C(=O)O", "(3Z)-cyclooct-3-ene-1-carboxylic acid"),
+        ("O=C(OC)C1CCC/C=C/CC1", "methyl (4E)-cyclooct-4-ene-1-carboxylate"),
+        ("OC1CCC/C=C/CC1O", "(4E)-cyclooct-4-ene-1,2-diol"),
+        ("O[C@H]1CCC/C=C/CC[C@@H]1C", "(1S,2S,5E)-2-methylcyclonon-5-en-1-ol"),
+        ("OC1C/C=C/CCC/C=C/1", "(2E,7E)-cyclonona-2,7-dien-1-ol"),
     ],
 )
 def test_ring_double_bond_stereo(smiles, expected):

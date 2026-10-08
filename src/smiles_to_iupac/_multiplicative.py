@@ -416,7 +416,66 @@ def _attempt(mol, groups, selected, tree, core, name_function):
             involved = {bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()}
         if (element_kind, idx) not in ctx.used and not involved <= elsewhere | unit_atoms:
             raise UnsupportedStructure("stereodescriptors outside the linking group of a multiplicative name are not supported yet")
-    return _assemble(len(selected), unit, central, arm_parts)
+    name = _assemble(len(selected), unit, central, arm_parts)
+    descriptors = _unit_descriptors(mol, selected, unit)
+    if descriptors is False:
+        return None
+    return name if descriptors is None else f"{descriptors}{name}"
+
+
+def _unit_descriptors(mol, selected, unit):
+    """'(1E,1'E)-' for identical units that carry stereo elements, cited in the numbering of the unit as a parent
+    hydride carrying the linking group (P-45.6.2); None when the units have none, False when their configurations
+    differ (a substitutive name is required)."""
+    from ._common import adjacency
+    from ._diester_anions import cip_labels
+    from ._diester_ring_diyl import _stereo_locant, _system_of, evaluate_skeleton
+    from ._substituents import _locant_sort_key
+
+    stereo_atoms = set()
+    for kind, idx, _ in specified_stereo_elements(mol) or []:
+        stereo_atoms.update({idx} if kind == "atom" else {mol.GetBondWithIdx(idx).GetBeginAtomIdx(), mol.GetBondWithIdx(idx).GetEndAtomIdx()})
+    if not any(stereo_atoms & u.atoms for u in selected):
+        return None
+    labelled = []
+    for u in selected:
+        if mol.GetBondBetweenAtoms(u.junction, u.linker_atom).GetBondTypeAsDouble() != 1:
+            raise UnsupportedStructure("stereodescriptors of a unit joined by a multiple bond are not supported yet")
+        try:
+            elements = cip_labels(mol, u.atoms)
+        except UnsupportedStructure:
+            return None
+        system = set(_system_of(mol, u.junction)[1])
+        on_system = [(e, c) for e, c in elements if set(e if isinstance(e, tuple) else (e,)) <= system]
+        if not on_system:
+            labelled.append(())
+            continue
+        kept = sorted(u.atoms)
+        probe = Chem.RWMol(mol)
+        iodine = probe.AddAtom(Chem.Atom(53))
+        probe.AddBond(u.junction, iodine, Chem.BondType.SINGLE)
+        for idx in sorted(set(range(mol.GetNumAtoms())) - set(kept), reverse=True):
+            probe.RemoveAtom(idx)
+        probe = probe.GetMol()
+        Chem.SanitizeMol(probe)
+        Chem.RemoveStereochemistry(probe)
+        new_of = {old: new for new, old in enumerate(kept)}
+        rings, atoms = _system_of(probe, new_of[u.junction])
+        found = evaluate_skeleton(probe, adjacency(probe), "ring", rings, atoms, [], set(), "")
+        if found is None or str(found[2][new_of[u.junction]]) != str(unit.junction_locant):
+            raise UnsupportedStructure("the numbering of a unit with stereo elements differs from its multiplicative name")
+        position_of = {old: found[2][new] for old, new in new_of.items() if new in found[2]}
+        labels = [(_stereo_locant(e, position_of), c) for e, c in on_system]
+        labelled.append(tuple(sorted(labels, key=lambda lc: _locant_sort_key(lc[0]))))
+    if len(set(labelled)) != 1:
+        return False
+    if not labelled[0]:
+        return None
+    entries = sorted(
+        ((_locant_sort_key(loc), i, loc, code) for i, labels in enumerate(labelled) for loc, code in labels),
+        key=lambda entry: entry[:2],
+    )
+    return "(" + ",".join(f"{loc}{chr(39) * i}{code}" for _, i, loc, code in entries) + ")-"
 
 
 _MULTIPLIED_HYDRIDE_ARM = re.compile(r"(?:di|tri|tetra|penta|hexa|hepta|octa)(?:silane|germane|stannane|plumbane|phosphane|arsane)")

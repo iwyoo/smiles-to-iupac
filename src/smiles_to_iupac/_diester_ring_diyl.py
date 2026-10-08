@@ -29,7 +29,7 @@ from ._locant_omission import omits_all_locants
 from ._ring_diyl_numbering import ANION_SUFFIX, SUFFIX_ATOMS, _locs, _yl, chain_numberings, monocycle_numberings, system_numberings
 from ._substituents import format_substituent_prefixes, name_branch
 
-_DESCRIPTOR_ORDER = {"R": 0, "S": 1, "r": 2, "s": 3}
+_DESCRIPTOR_ORDER = {"R": 0, "S": 1, "r": 2, "s": 3, "Z": 0, "E": 1}
 PARENT_START = contextvars.ContextVar("parent_start", default=0)
 
 
@@ -367,8 +367,8 @@ def _evaluate_skeleton(
             return cache[key]
         side = _component(graph, next(iter(skeleton)), blocked)
         for atom, code in cip_labels(mol, side):
-            if atom not in skeleton:
-                stereo_context["atoms"][atom] = code
+            if not _within(atom, skeleton):
+                stereo_context["bonds" if isinstance(atom, tuple) else "atoms"][atom] = code
         if any(a in side for m in matches_on for a in (m[0].GetIdx(), m[1].GetIdx())):
             raise UnsupportedStructure(
                 "a lactone or macrocyclic diester is a heterocyclic pseudoketone (P-65.6.3.5), not an ester of a "
@@ -423,12 +423,12 @@ def _evaluate_skeleton(
         locant_set, _, citation = substituent_locant_set_and_citation(grouped)
         free = tuple(sorted(position_of[a] for a in attach))
         cite = tuple(position_of[a] for a in sorted(attach, key=lambda a: (orders[a], position_of[a]))) if mixed else ()
-        ring_stereo = [(a, c) for a, c in stereo_all if a in skeleton]
-        if any(("atom", a) not in stereo_context["used"] for a, _ in stereo_all if a not in skeleton):
+        ring_stereo = [(a, c) for a, c in stereo_all if _within(a, skeleton)]
+        if any(_used_key(a) not in stereo_context["used"] for a, _ in stereo_all if not _within(a, skeleton)):
             raise UnsupportedStructure("a stereocenter on a substituent is not supported yet")
         acid_key = anion_locant_key(anions, [position_of[a] for a in attach]) if anions else ()
         stereo_key = tuple(
-            _DESCRIPTOR_ORDER.get(code, 9) for _, code in sorted((position_of[a], c) for a, c in ring_stereo)
+            _DESCRIPTOR_ORDER.get(code, 9) for _, code in sorted((_stereo_locant(a, position_of), c) for a, c in ring_stereo)
         )
         center_key = tuple(sorted(position_of[a] for a, _ in centers))
         if key_centers:
@@ -472,9 +472,24 @@ def _evaluate_skeleton(
     group_name = prefixes + parent
     PARENT_START.set(len(prefixes) - (1 if prefixes.endswith("-") else 0))
     if ring_stereo:
-        labels = ",".join(f"{loc}{code}" for loc, code in sorted((position_of[a], c) for a, c in ring_stereo))
+        labels = ",".join(f"{loc}{code}" for loc, code in sorted((_stereo_locant(a, position_of), c) for a, c in ring_stereo))
         group_name = f"({labels})-{group_name}"
     return key, group_name, position_of, ring_stereo, side
+
+
+def _used_key(element):
+    return ("bond", element) if isinstance(element, tuple) else ("atom", element)
+
+
+def _within(element, skeleton):
+    return set(element) <= skeleton if isinstance(element, tuple) else element in skeleton
+
+
+def _stereo_locant(element, position_of):
+    """Locant of a stereo element of the skeleton: the atom's, or for a ring double bond its lower end."""
+    if isinstance(element, tuple):
+        return min(position_of[a] for a in element)
+    return position_of[element]
 
 
 def _n_locant_key(n_names, position_of):
@@ -558,8 +573,8 @@ def ring_substituent_name(mol, graph, root, parent):
 
     context = BRANCH_STEREO.get()
     if context:
-        for atom, _ in found[3]:
-            context["used"].add(("atom", atom))
+        for element, _ in found[3]:
+            context["used"].add(_used_key(element))
     name = re.sub(r"(cyclo[a-z]+?)an-1-(yl|ylidene|ylidyne)$", r"\1\2", found[1])
     return name, any(ch.isdigit() or ch in "(-" for ch in name)
 

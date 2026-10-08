@@ -459,6 +459,7 @@ def substituted_polycyclic_unit(mol, ring_atoms, atoms, junction, name_function=
         rw.RemoveAtom(idx)
     probe = rw.GetMol()
     Chem.SanitizeMol(probe)
+    Chem.RemoveStereochemistry(probe)
     name = probe_name(Chem.MolToSmiles(probe), name_function)
     matches = list(re.finditer(r"(?<![\w,])(\d+[a-z]?)-iodo(-?)", name))
     if len(matches) != 1:
@@ -483,6 +484,7 @@ def bare_polycyclic_unit(mol, atoms, junction, name_function=None):
         rw.RemoveAtom(idx)
     probe = rw.GetMol()
     Chem.SanitizeMol(probe)
+    Chem.RemoveStereochemistry(probe)
     name = probe_name(Chem.MolToSmiles(probe), name_function)
     match = re.fullmatch(r"(\d+[a-z]?)-iodo-?(.+)", name)
     if match is None:
