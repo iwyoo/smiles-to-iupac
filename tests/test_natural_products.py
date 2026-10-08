@@ -243,4 +243,4 @@ def test_operations_counted_for_preferred_semisystematic_names(smiles, operation
 
 def test_spiro_on_a_skeleton_that_is_not_a_ring_system_is_named_substitutively():
     smiles = "COc1ccc(-c2ccc(C[C@@]3(C(N)=O)CCCN(C(=O)c4cccnc4)C3)cc2)cc1"
-    assert smiles_to_iupac(smiles) == "(3S)-3-[(4'-methoxy-[1,1'-biphenyl]-4-yl)methyl]-1-(pyridine-3-carbonyl)piperidine-3-carboxamide"
+    assert smiles_to_iupac(smiles) == "(3S)-3-[(4'-methoxy[1,1'-biphenyl]-4-yl)methyl]-1-(pyridine-3-carbonyl)piperidine-3-carboxamide"

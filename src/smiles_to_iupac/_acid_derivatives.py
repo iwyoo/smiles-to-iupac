@@ -930,9 +930,10 @@ def name_acid_derivative(mol):
             return name_ester(mol, links)
         if all(_center(mol, c)[0] == "inorganic" for c in acid) and any(l.kind == "anhydride" for l in links):
             return _acyloxy_oxoacid(mol, acid)
+        from ._multiplicative import name_if_multiplicative
         from ._polyfunctional import name_polyfunctional
 
-        return name_polyfunctional(mol)
+        return name_if_multiplicative(mol) or name_polyfunctional(mol)
     kinds = {l.kind for l in links}
     if "anhydride" in kinds:
         return name_anhydride(mol, links)

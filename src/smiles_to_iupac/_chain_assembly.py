@@ -6,7 +6,7 @@ import re
 from itertools import product
 
 from ._free_valence import SUFFIX_OF_ORDER, valence_word
-from ._common import multiplied_word, ring_cycle, superscript_locant
+from ._common import assembly_join, multiplied_word, ring_cycle, superscript_locant
 from ._multiplicative import _bare_key
 from ._multiplicative_ring import _SUFFIX_WORDS, _citation_key, monocycle_spec, numberings
 from ._multiplicative_text import CompositeLocant
@@ -220,7 +220,7 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
     if frees:
         spots = ",".join(_cite(c) for c in sorted(locants[f[0]] for f in frees))
         core = f"{bracketed(True)}-{spots}-{multiplied_word(len(frees), 'yl')}"
-        return (f"{prefix}-{core}" if prefix else core), True
+        return (assembly_join(prefix, core)), True
     total = len(occurrences)
     if principal is None:
         core = base(False)
@@ -230,7 +230,7 @@ def chain_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
         word = multiplied_word(total, _SUFFIX_WORDS[_RING_SUFFIX[principal]])
         spots = ",".join(_cite(locants[o[1]]) for o in sorted(occurrences, key=lambda o: locants[o[1]]))
         core = f"{bracketed(word[0] in 'aeiouy')}-{spots}-{word}"
-    name = f"{prefix}-{core}" if prefix else core
+    name = assembly_join(prefix, core)
     return total, ((-total,), name, (None, None, None, 0, {a: CompositeLocant(*loc) for a, loc in locants.items()}, True))
 
 
@@ -293,7 +293,7 @@ def assembly_diyl(mol, graph, halogens, aromatic_atoms, atoms, frees):
             spots = ",".join(cite(c) for c in sorted((locants[m] for m in group), key=_locant_order))
             pieces.append(f"{spots}-{valence_word(len(group), order)}")
         core = f"[{base}]-" + "-".join(pieces)
-        return f"{prefix}-{core}" if prefix else core
+        return assembly_join(prefix, core)
     spots = ",".join(cite(c) for c in sorted((locants[m] for m in marked), key=_locant_order))
     core = f"[{base}]-{spots}-{multiplied_word(len(frees), 'yl')}"
-    return f"{prefix}-{core}" if prefix else core
+    return assembly_join(prefix, core)
