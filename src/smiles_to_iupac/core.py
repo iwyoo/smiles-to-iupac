@@ -219,6 +219,7 @@ from ._halogen_amide import name_halogen_amide
 from ._inorganic_acid_derivative import has_inorganic_acid_derivative_shape, name_inorganic_acid_derivative
 from ._halogen_oxo import name_halogen_oxo
 from ._hydroxylamine import has_hydroxylamine_shape, name_hydroxylamine
+from ._hydroxylamine_acid import has_hydroxylamine_acid_shape, name_hydroxylamine_acid
 from ._hydroxylamine_general import has_o_substituted_hydroxylamine_shape, name_o_substituted_hydroxylamine
 from ._imine import has_simple_imine_shape, name_imine
 from ._dipole_oxide import (
@@ -1396,6 +1397,7 @@ def _name_mol(mol) -> str:
         (has_phosphate_shape, name_phosphate),
         # Thio analogues of the phosphate, phosphonate and phosphinate esters carry sulfur on the phosphorus.
         (has_phosphorus_thioester_shape, name_phosphorus_thioester),
+        (has_hydroxylamine_acid_shape, name_hydroxylamine_acid),
         # A phosphite ester (P-67.1.3.2's P(OR)3, no P=O) has three P-O-R
         # ester oxygens that `_phosphane.py`'s own plain-phosphane shape
         # doesn't expect (it rejects any heteroatom besides its own

@@ -91,6 +91,10 @@ def _fully_enclosed(name: str) -> bool:
     return False
 
 
+# P-16.3.6: 'bis(diazenyl)', not 'di(diazenyl)': the group name itself begins with a multiplying term
+_MULTIPLIED_HETERO_STEM = re.compile(r"(?:di|tri|tetra|penta|hexa)(?:az|sil|sulf|selan|tellan|phosph|ars|oxid|germ|stann|plumb|bor)[a-z]*yl")
+
+
 def prefix_multiplier(count: int, name: str, compound: bool):
     """(multiplier, enclosed) for `name` cited `count` > 1 times as a detachable prefix (P-16.3.3 to P-16.3.6): 'di'
     for simple names; 'di' with enclosing marks for simple names with locants, brackets or a leading numerical term;
@@ -103,6 +107,8 @@ def prefix_multiplier(count: int, name: str, compound: bool):
         return multiplying_prefix(count, compound=True), True
     if name == "tert-butyl":
         return f"{multiplying_prefix(count)}-", False
+    if _MULTIPLIED_HETERO_STEM.match(name):
+        return multiplying_prefix(count, compound=True), True
     simple = not compound or is_plain_stem_prefix(name) or bool(
         _HYDRIDE_ACYL.match(name) or _POLYCYCLE_GROUP.match(name) or _PLAIN_CARBONYL.match(name)
     )
@@ -254,7 +260,8 @@ def format_mononuclear_prefixes(entries) -> str:
     ('bis') outside its own enclosing marks, first position included."""
     counts = {}
     compound_of = {}
-    for name, is_compound in entries:
+    # P-68.3.1.1.1.5: 'aminooxy' is a preselected simple prefix, cited first without enclosing marks
+    for name, is_compound in [(n, c and n != "aminooxy") for n, c in entries]:
         counts[name] = counts.get(name, 0) + 1
         compound_of[name] = is_compound
     if len(counts) == 1:

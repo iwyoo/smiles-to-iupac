@@ -1053,7 +1053,7 @@ def test_fused_bridged_and_macrocyclic_substituents_on_a_carboxylic_acid_ring(sm
         ("OC(=O)c1ccc(cc1)SNC", "4-[(methylamino)sulfanyl]benzoic acid"),
         ("OC(=O)c1ccc(cc1)N=Nc1ccccc1", "4-(phenyldiazenyl)benzoic acid"),
         ("OC(=O)c1ccc(cc1)N=N", "4-diazenylbenzoic acid"),
-        ("OC(=O)c1ccc(cc1)NNc1ccccc1", "4-(2-phenylhydrazinyl)benzoic acid"),
+        ("OC(=O)c1ccc(cc1)NNc1ccccc1", "4-(2-phenylhydrazin-1-yl)benzoic acid"),
     ],
 )
 def test_heteroatom_to_heteroatom_substituent_groups_on_a_carboxylic_acid_ring(smiles, expected):

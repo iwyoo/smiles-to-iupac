@@ -1267,13 +1267,13 @@ def test_chiral_substituent_groups_of_ureas_and_thioureas_cite_their_descriptors
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        ("NC(=O)ONC", "(methylamino) carbamate"),
-        ("NC(=O)ON", "amino carbamate"),
-        ("NC(=O)ON(C)C", "(dimethylamino) carbamate"),
+        ("NC(=O)ONC", "N-methylhydroxylamine-O-carboxamide"),
+        ("NC(=O)ON", "hydroxylamine-O-carboxamide"),
+        ("NC(=O)ON(C)C", "N,N-dimethylhydroxylamine-O-carboxamide"),
         ("CNC(=O)ONC", "(methylamino) N-methylcarbamate"),
     ],
 )
-def test_carbamic_acid_esters_of_amino_groups_cite_the_amino_group_as_the_ester_word(smiles, expected):
+def test_carbamic_acid_esters_of_amino_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
@@ -1436,4 +1436,38 @@ def test_diamidides_formamidine_disulfides_and_amidines_on_hydrides(smiles, expe
     ],
 )
 def test_carbaldehyde_on_a_polyaza_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C(CON)ON", "O,O'-(ethane-1,2-diyl)bis(hydroxylamine)"),
+        ("NSC", "S-methyl(thiohydroxylamine)"),
+        ("NS", "thiohydroxylamine"),
+        ("CS(=O)ON", "O-(methanesulfinyl)hydroxylamine"),
+        ("NOS(=O)(=O)O", "hydroxylamine-O-sulfonic acid"),
+        ("NOC(=O)O", "hydroxylamine-O-carboxylic acid"),
+        ("NONC", "N-(aminooxy)methanamine"),
+        ("NOC(=O)c1ccccc1", "aminooxy(phenyl)methanone"),
+        ("CNS", "N-sulfanylmethanamine"),
+        ("CC(=O)NS", "N-sulfanylacetamide"),
+        ("ON(C=1C=C(C(=O)O)C=CC1)C=1C=C(C(=O)O)C=CC1", "3,3'-(hydroxyazanediyl)dibenzoic acid"),
+    ],
+)
+def test_hydroxylamine_functional_parent_and_chalcogen_analogues(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("O=CN=NC=O", "diazenedicarbaldehyde"),
+        ("N#CN=Nc1ccccc1", "phenyldiazenecarbonitrile"),
+        ("OC(=O)N=NC(=O)O", "diazenedicarboxylic acid"),
+        ("N=Nc1ccc(N=N)c(c1)C(=O)O", "2,5-bis(diazenyl)benzoic acid"),
+        ("OC(=O)CCNNC(N)=O", "3-(2-carbamoylhydrazin-1-yl)propanoic acid"),
+    ],
+)
+def test_diazene_carbo_suffixes_and_substituted_hydrazinyl(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

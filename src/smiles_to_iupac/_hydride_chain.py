@@ -13,20 +13,32 @@ from ._substituents import format_mononuclear_prefixes, format_substituent_prefi
 _STEMS = {7: "azane", 14: "silane", 15: "phosphane", 32: "germane", 33: "arsane", 50: "stannane", 51: "stibane", 82: "plumbane", 83: "bismuthane"}
 
 
+def _is_nitrile_nitrogen(atom):
+    return (
+        atom.GetAtomicNum() == 7
+        and atom.GetDegree() == 1
+        and atom.GetBonds()[0].GetBondTypeAsDouble() == 3.0
+        and atom.GetNeighbors()[0].GetAtomicNum() == 6
+    )
+
+
 def _chain_atoms(mol, graph, skip_nitrogen=False, allow_double=False):
     elements = {
         a.GetAtomicNum()
         for a in mol.GetAtoms()
-        if a.GetAtomicNum() in _STEMS and not a.IsInRing() and not (skip_nitrogen and a.GetAtomicNum() == 7)
+        if a.GetAtomicNum() in _STEMS
+        and not a.IsInRing()
+        and not (skip_nitrogen and a.GetAtomicNum() == 7)
+        and not (allow_double and _is_nitrile_nitrogen(a))
     }
     if len(elements) != 1:
         return None
     (z,) = elements
-    atoms = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == z}
+    atoms = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == z and not (allow_double and _is_nitrile_nitrogen(a))}
     if any(mol.GetAtomWithIdx(a).IsInRing() or mol.GetAtomWithIdx(a).GetFormalCharge() for a in atoms):
         return None
     ends = [a for a in atoms if sum(n in atoms for n in graph[a]) <= 1]
-    if len(atoms) < (3 if z == 7 else 2) or len(ends) != 2 or any(sum(n in atoms for n in graph[a]) > 2 for a in atoms):
+    if len(atoms) < (3 if z == 7 and not allow_double else 2) or len(ends) != 2 or any(sum(n in atoms for n in graph[a]) > 2 for a in atoms):
         return None
     start = ends[0]
     chain, previous = [start], None
@@ -42,6 +54,8 @@ def _chain_atoms(mol, graph, skip_nitrogen=False, allow_double=False):
         order = mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble()
         if order != 1.0 and not (allow_double and order == 2.0):
             return None
+    if z == 7 and len(chain) == 2 and mol.GetBondBetweenAtoms(chain[0], chain[1]).GetBondTypeAsDouble() != 2.0:
+        return None
     return z, chain
 
 

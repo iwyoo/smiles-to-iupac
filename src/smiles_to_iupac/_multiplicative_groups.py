@@ -119,6 +119,16 @@ def _single_bonded_linker(atom):
     return atom.GetDegree() >= 2 and all(b.GetBondTypeAsDouble() == 1.0 for b in atom.GetBonds())
 
 
+def _hydroxy_on_nitrogen(atom):
+    """The oxygen of an N-OH group, cited as 'hydroxy' on a linking nitrogen (hydroxyazanediyl, P-68.3.1.1.1.5)."""
+    return (
+        atom.GetAtomicNum() == 8
+        and atom.GetDegree() == 1
+        and atom.GetTotalNumHs() == 1
+        and atom.GetNeighbors()[0].GetAtomicNum() == 7
+    )
+
+
 def classify(mol):
     """Return the list of `Group`s found in `mol`, or None when `mol` holds
     an atom, charge, or group this vocabulary can't place (so no claim about
@@ -155,7 +165,12 @@ def classify(mol):
         z = atom.GetAtomicNum()
         if idx in covered or atom.GetIsAromatic():
             continue
-        if z in (7, 8, 16, 34, 52) and idx not in ring_atoms and not _single_bonded_linker(atom):
+        if (
+            z in (7, 8, 16, 34, 52)
+            and idx not in ring_atoms
+            and not _single_bonded_linker(atom)
+            and not _hydroxy_on_nitrogen(atom)
+        ):
             return None
         if z == 6 and any(
             b.GetBondTypeAsDouble() >= 2 and b.GetOtherAtom(atom).GetAtomicNum() in (7, 8, 16, 34, 52) for b in atom.GetBonds()

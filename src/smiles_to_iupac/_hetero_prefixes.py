@@ -43,7 +43,7 @@ _SENIOR_TO_SELENOL = [
         "[SX2H1][#6;!$([#6]=[O,S,Se,Te])]",
     )
 ]
-_AMINE = Chem.MolFromSmarts("[NX3;!$(N~[!#6;!#1]);!$(N-[#6]=[O,S,N])]-[CX4]")
+_AMINE = Chem.MolFromSmarts("[NX3;!$(N~[!#6;!#1;!#8;!#16]);!$(N-[#6]=[O,S,N])]-[CX4]")
 
 
 def require_plain_chalcogen_kids(mol, z, kids):
@@ -1444,11 +1444,13 @@ def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return prefix + base, True
     word = multiplying_prefix(longest) + stem[:-1]
     base = word + "yl" if longest == 2 and attach == 1 else f"{word}-{attach}-yl"
+    ylidene_only = bool(grouped) and all(name.endswith("ylidene") for name in grouped)
     if z == 7 and longest == 2 and attach == 1:
-        base = "hydrazinyl"
+        # P-29.3.1: a substituted hydrazinyl cites its free valence ('2-phenylhydrazin-1-yl'); an ylidene group can only
+        # sit on the second nitrogen, so no locant is cited (P-66.3.6)
+        base = "hydrazinyl" if not grouped or ylidene_only else "hydrazin-1-yl"
     prefix = format_substituent_prefixes(grouped) if grouped else ""
-    if base == "hydrazinyl" and len(grouped) == 1 and all(name.endswith("ylidene") for name in grouped):
-        # an ylidene group can only sit on the second nitrogen, so its locant is not cited (P-66.3.6)
+    if base == "hydrazinyl" and ylidene_only:
         prefix = format_substituent_prefixes(grouped, omit_all=True)
     return prefix + base, bool(prefix) or "-" in base
 

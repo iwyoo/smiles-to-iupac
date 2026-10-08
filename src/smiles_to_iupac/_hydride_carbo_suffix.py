@@ -111,8 +111,6 @@ def _siloxane_skeleton(mol, graph):
 
 def _parent(mol, graph):
     """(kind, skeleton atoms, parent hydride name) of the heteroacyclic parent, or None."""
-    if mol.GetRingInfo().NumRings():
-        return None
     found = _chain_atoms(mol, graph, skip_nitrogen=True) or _chain_atoms(mol, graph, allow_double=True)
     if found is not None:
         z, chain = found
@@ -207,9 +205,12 @@ def name_hydride_carbo_suffix(mol) -> str:
     _, suffix_locants, ene_locants, grouped = best
     total = count + sum(len(info["locants"]) for info in grouped.values())
     siloxane = parent_name.endswith("siloxane")
-    symmetric_sole = total == 1 and len(skeleton) == (3 if siloxane else 2) and not ene_locants
+    symmetric_sole = (total == 1 and len(skeleton) == (3 if siloxane else 2) and not ene_locants) or (
+        len(skeleton) == 2 and bool(ene_locants)
+    )
     body = multiplied_word(count, word)
-    prefix = format_substituent_prefixes(grouped)
+    diazene_like = len(skeleton) == 2 and bool(ene_locants)
+    prefix = format_substituent_prefixes(grouped, omit_all=diazene_like)
     if ene_locants:
         stem = parent_name[:-3]
         if len(skeleton) == 2:

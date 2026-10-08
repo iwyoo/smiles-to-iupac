@@ -339,7 +339,7 @@ def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
     ):
         return False
     others = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != carbonyl]
-    hydroxy = [n for n in others if _terminal_heteroatom(mol, n.GetIdx(), 1) and n.GetAtomicNum() == 8]
+    hydroxy = [n for n in others if _terminal_heteroatom(mol, n.GetIdx(), 1) and n.GetAtomicNum() in (8, 16, 34, 52)]
     oxy = [n for n in others if _organyloxy(mol, n, nitrogen)]
     acyl = [n for n in others if mol.GetAtomWithIdx(carbonyl).GetAtomicNum() != 6 and _urea_carbon(mol, n.GetIdx())]
     if mol.GetAtomWithIdx(carbonyl).GetAtomicNum() == 6 and _acyl_chalcogen(mol, carbonyl) is not None:
@@ -3749,12 +3749,20 @@ def _is_ester_like(mol, carbon):
     )
 
 
+def _terminal_chalcogen_hydride(atom):
+    """The sulfur, selenium or tellurium of an -SH, -SeH or -TeH group on nitrogen (thiohydroxylamine analogues, P-68.3.1.1.1.6)."""
+    return atom.GetAtomicNum() in (16, 34, 52) and atom.GetDegree() == 1 and atom.GetTotalNumHs() == 1 and not atom.GetFormalCharge()
+
+
 def _substituted_amine_nitrogen(mol, atom):
     if any(n.GetAtomicNum() in MONONUCLEAR_HYDRIDES for n in atom.GetNeighbors()):
         return False
     if atom.GetAtomicNum() != 7 or (atom.GetFormalCharge() and not (AMINIUM.get() and atom.GetFormalCharge() == 1)) or atom.GetIsAromatic() or atom.IsInRing():
         return False
-    if any(n.GetAtomicNum() not in (6, 8) and not is_oxo_nitrogen(mol, n) for n in atom.GetNeighbors()):
+    if any(
+        n.GetAtomicNum() not in (6, 8) and not is_oxo_nitrogen(mol, n) and not _terminal_chalcogen_hydride(n)
+        for n in atom.GetNeighbors()
+    ):
         return False
     if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
         return False
