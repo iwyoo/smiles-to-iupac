@@ -396,3 +396,16 @@ def test_heteroatom_chains_cite_nonstandard_bonding_numbers_and_alternate_by_sen
 )
 def test_halides_of_phosphorus_iii_acids_and_azinic_acids(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C(C)N=P(C1=CC=CC=C1)(C1=CC=CC=C1)C1=CC=CC=C1", "N-ethyl-P,P,P-triphenyl-λ5-phosphanimine", id="phosphine_imide_from_the_book"),
+        pytest.param("C[P](C)(C)=NC", "N,P,P,P-tetramethyl-λ5-phosphanimine", id="all_methyl_phosphine_imide"),
+        pytest.param("C[P](C)(C)=N", "trimethyl-λ5-phosphanimine", id="unsubstituted_imino_nitrogen"),
+        pytest.param("C[As](C)(C)=N", "trimethyl-λ5-arsanimine", id="arsenic_analogue"),
+    ],
+)
+def test_phosphane_imides_are_lambda5_phosphanimines(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

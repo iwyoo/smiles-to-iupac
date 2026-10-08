@@ -79,3 +79,62 @@ def name_phosphanone(mol) -> str:
     valence = center.GetTotalValence()
     lambda_label = f"-λ{valence}-" if valence != _STANDARD_VALENCE[center.GetAtomicNum()] else ""
     return f"{format_mononuclear_prefixes(entries)}{lambda_label}{stem}{suffix}"
+
+
+_IMINE_CENTERS = {15: "phosphanimine", 33: "arsanimine", 51: "stibanimine", 83: "bismuthanimine"}
+
+
+def _find_imine_center(mol):
+    """(center, imino nitrogen) of a Group 15 atom carrying one =N-H or =N-R and otherwise carbon groups, else None."""
+    centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _IMINE_CENTERS and a.GetDegree() > 1]
+    if len(centers) != 1 or centers[0].IsInRing() or len(Chem.GetMolFrags(mol)) != 1:
+        return None
+    center = centers[0]
+    imines = [
+        b.GetOtherAtom(center)
+        for b in center.GetBonds()
+        if b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(center).GetAtomicNum() == 7
+    ]
+    if len(imines) != 1 or imines[0].GetFormalCharge() or imines[0].IsInRing() or imines[0].GetDegree() > 2:
+        return None
+    others = [n for n in center.GetNeighbors() if n.GetIdx() != imines[0].GetIdx()]
+    if not others or any(n.GetAtomicNum() != 6 or n.GetFormalCharge() for n in others):
+        return None
+    if any(n.GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(imines[0].GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
+           for n in imines[0].GetNeighbors() if n.GetIdx() != center.GetIdx()):
+        return None
+    if any(a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms()):
+        return None
+    if any(mol.HasSubstructMatch(query) for query in _SENIOR):
+        return None
+    return center, imines[0]
+
+
+def has_phosphanimine_shape(mol) -> bool:
+    return _find_imine_center(mol) is not None
+
+
+def name_phosphanimine(mol) -> str:
+    """P-74.2.1.5: R3P=NR' is a N,P-substituted lambda5-phosphanimine (N-ethyl-P,P,P-triphenyl-λ5-phosphanimine)."""
+    from ._substituents import format_substituent_prefixes
+
+    found = _find_imine_center(mol)
+    if found is None:
+        raise UnsupportedStructure("no Group 15 imide (R3E=NR) shape found")
+    center, nitrogen = found
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+    grouped = {}
+    for locant, atom, root in (
+        *(("P", center.GetIdx(), n) for n in graph[center.GetIdx()] if n != nitrogen.GetIdx()),
+        *(("N", nitrogen.GetIdx(), n) for n in graph[nitrogen.GetIdx()] if n != center.GetIdx()),
+    ):
+        name, compound = name_branch(graph, root, atom, halogens, aromatic, mol=mol, unsaturated=True)
+        grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
+    valence = center.GetTotalValence()
+    parent = _IMINE_CENTERS[center.GetAtomicNum()]
+    if not any("N" in info["locants"] for info in grouped.values()):
+        entries = [(name, info["compound"]) for name, info in grouped.items() for _ in info["locants"]]
+        return f"{format_mononuclear_prefixes(entries)}-λ{valence}-{parent}"
+    return f"{format_substituent_prefixes(grouped)}-λ{valence}-{parent}"

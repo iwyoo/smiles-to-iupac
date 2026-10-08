@@ -267,7 +267,7 @@ from ._functional_replacement_oxoacid import (
     has_functional_replacement_oxoacid_shape,
     name_functional_replacement_oxoacid,
 )
-from ._phosphanone import has_phosphanone_shape, name_phosphanone
+from ._phosphanone import has_phosphanimine_shape, has_phosphanone_shape, name_phosphanimine, name_phosphanone
 from ._mononuclear_oxoacid import has_mononuclear_oxoacid_shape, name_mononuclear_oxoacid
 from ._sulfuric_amide import has_sulfuric_amide_shape, name_sulfuric_amide
 from ._phosphate import has_phosphate_shape, name_phosphate
@@ -1396,6 +1396,7 @@ def _name_mol(mol) -> str:
         # has_simple_phosphane_shape below, for the same reason as
         # has_phosphane_chain_shape above.
         (has_phosphanone_shape, name_phosphanone),
+        (has_phosphanimine_shape, name_phosphanimine),
         # Thiophosphoric acid (P-67.1.2's own preselected infix-modified
         # oxoacid name) has a phosphorus with 4 substituents (=S plus three
         # -OH), which `_phosphane.py` rejects outright (more than three
