@@ -2,15 +2,26 @@
 amides and hydrazides they form (P-67.1.2.5, P-67.1.2.6): the replacing groups are cited as infixes while an acidic
 hydrogen remains, else the senior replaced class becomes the class name, N- and P-substituents take letter locants."""
 
+import re
 from itertools import permutations
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, alpha_sort_key, group_substituents, halogen_substituents
-from ._numerals import numerical_term
+from ._common import (
+    UnsupportedStructure,
+    adjacency,
+    alpha_sort_key,
+    group_substituents,
+    halogen_substituents,
+)
 from ._multiplicative_text import enclose
+from ._numerals import numerical_term
 from ._phosphate import format_ester_words
-from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
+from ._substituents import (
+    format_mononuclear_prefixes,
+    format_substituent_prefixes,
+    name_branch,
+)
 
 _CHALCOGEN = {8: "O", 16: "S", 34: "Se", 52: "Te"}
 _CHALCOGEN_PREFIX = {16: "thio", 34: "seleno", 52: "telluro"}
@@ -90,6 +101,13 @@ def _carbon_substituents(mol, graph, halogens, atom, skip):
             return None
         found.append(name_branch(graph, n, atom.GetIdx(), halogens, mol=mol))
     return found
+
+
+_SYMBOL_ORDER = {symbol: _ORDER[z] for z, symbol in _CHALCOGEN.items()}
+
+
+def _symbol_order(text):
+    return _SYMBOL_ORDER[re.match(r"[A-Z][a-z]?", text).group()]
 
 
 def _peroxo_name(first, last):
@@ -357,7 +375,7 @@ def _infix_tokens(positions):
     for text in positions:
         counts[text] = counts.get(text, 0) + 1
     tokens = []
-    for text in sorted(counts, key=lambda t: t.lstrip("di") if t.startswith("dithio") or t.startswith("diseleno") else t):
+    for text in sorted(counts, key=lambda t: t.removeprefix("di") if t.startswith(("dithio", "diseleno")) else t):
         paren = any(marker in text for marker in _PARENTHESIZED)
         count = counts[text]
         if count > 1:
@@ -395,7 +413,7 @@ def _acid_locants(parts):
         cited = [_CHALCOGEN[p["z"]] + (_CHALCOGEN[p["z2"]] if p["kind"] == "peroxo" else "") for p in with_hydrogen]
     else:
         cited = [_CHALCOGEN[p["z"]] for p in positions if p["H"]]
-    return ",".join(sorted(cited, key=lambda c: _ORDER[[z for z, e in _CHALCOGEN.items() if e == c[0]][0]]))
+    return ",".join(sorted(cited, key=_symbol_order))
 
 
 def name_noncarbon_oxoacid(mol) -> str:
@@ -517,7 +535,7 @@ def _ester_words(mol, parts, esters, cited):
         by_name.setdefault(name, []).append(_CHALCOGEN[ester["z"]])
     words = []
     for name in sorted(by_name, key=alpha_sort_key):
-        letters = sorted(by_name[name], key=lambda e: _ORDER[[z for z, sym in _CHALCOGEN.items() if sym == e][0]])
+        letters = sorted(by_name[name], key=_symbol_order)
         if cited and len(letters) == 1 and (name[0].isdigit() or name[0] in "([{"):
             word = enclose(name)
         else:
