@@ -64,6 +64,24 @@ def _phosphorus_unit(mol, atom):
     )
 
 
+def _chain_acyl_carbon(mol, atom):
+    """A carbonyl carbon bonded to two chain atoms (C and N or O): an 'oxo' substituent of the chain (P-51.4.1.1)."""
+    if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetDegree() != 3 or atom.GetTotalNumHs():
+        return False
+    oxo = [
+        n
+        for n in atom.GetNeighbors()
+        if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    ]
+    rest = [n for n in atom.GetNeighbors() if n.GetIdx() != oxo[0].GetIdx()] if len(oxo) == 1 else []
+    return (
+        len(rest) == 2
+        and sorted(n.GetAtomicNum() for n in rest) in ([6, 7], [6, 8])
+        and all(mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0 for n in rest)
+        and any(n.GetAtomicNum() in (7, 8) and n.GetDegree() == 2 and not n.IsInRing() for n in rest)
+    )
+
+
 def _aminium_groups(mol):
     """{carbon: {nitrogen}} for an acyclic quaternary N+ bonded to four carbons, any one of which may be the chain."""
     found = {}
@@ -91,7 +109,7 @@ def _chain_heteroatom(atom, phosphorus=False):
             and not atom.GetFormalCharge()
             and not atom.GetIsotope()
             and not atom.GetIsAromatic()
-            and atom.GetDegree() in (1, 2)
+            and atom.GetDegree() <= _STANDARD_VALENCE[z]
             and atom.GetTotalNumHs() == _STANDARD_VALENCE[z] - atom.GetDegree()
         )
     if atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope() or atom.GetDegree() != 2:
@@ -124,7 +142,9 @@ def name_heteroacyclic(mol):
     principal = "aminium" if aminium else next((c for c in _SENIORITY if c in classes), None)
     if principal is not None and any(c == principal for c, _, _ in ring_groups):
         return None
-    if not aminium and any(_is_ester_like(mol, a.GetIdx()) for a in mol.GetAtoms() if a.GetAtomicNum() == 6):
+    if not aminium and any(
+        _is_ester_like(mol, a.GetIdx()) and not _chain_acyl_carbon(mol, a) for a in mol.GetAtoms() if a.GetAtomicNum() == 6
+    ):
         return None
 
     principal_atoms = groups.get(principal, {}) if principal else {}
@@ -138,6 +158,7 @@ def name_heteroacyclic(mol):
             and (
                 a.GetIdx() in principal_atoms
                 or not is_functional_carbon(mol, a.GetIdx())
+                or _chain_acyl_carbon(mol, a)
                 or (aminium and _is_ester_like(mol, a.GetIdx()))
             )
         )
@@ -156,8 +177,17 @@ def name_heteroacyclic(mol):
         hetero_positions = [i for i, a in enumerate(path) if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
         if len(hetero_positions) < _MINIMUM_UNITS:
             continue
+        if len(hetero_positions) == len(path) or (
+            hetero_positions == list(range(hetero_positions[0], hetero_positions[-1] + 1)) and len(hetero_positions) >= 3
+        ):
+            # one block of heteroatoms is an alternating or homogeneous parent hydride (P-21.2.2, P-21.2.3.1)
+            continue
         if any(
-            b - a == 1 and 15 not in (mol.GetAtomWithIdx(path[a]).GetAtomicNum(), mol.GetAtomWithIdx(path[b]).GetAtomicNum())
+            b - a == 1
+            and (
+                mol.GetAtomWithIdx(path[a]).GetAtomicNum() == mol.GetAtomWithIdx(path[b]).GetAtomicNum()
+                and mol.GetAtomWithIdx(path[a]).GetAtomicNum() != 15
+            )
             for a, b in zip(hetero_positions, hetero_positions[1:])
         ):
             continue
@@ -182,13 +212,6 @@ def _chain_stereo(chain, position_of, atom_codes, bond_codes):
 def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes):
     position_of = {atom: i + 1 for i, atom in enumerate(chain)}
     chain_set = set(chain)
-    if any(
-        n not in chain_set
-        for a in chain
-        if mol.GetAtomWithIdx(a).GetAtomicNum() in _STANDARD_VALENCE and not _phosphorus_unit(mol, mol.GetAtomWithIdx(a))
-        for n in graph[a]
-    ):
-        return None
     on_chain = [a for a in principal_atoms if a in chain_set]
     if principal is not None and not on_chain:
         return None
@@ -209,7 +232,7 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, 
     nitrogen_entries = {}
     try:
         for atom in chain:
-            if mol.GetAtomWithIdx(atom).GetAtomicNum() not in (6, 15):
+            if mol.GetAtomWithIdx(atom).GetAtomicNum() != 6 and mol.GetAtomWithIdx(atom).GetAtomicNum() not in _STANDARD_VALENCE:
                 continue
             for neighbor in graph[atom]:
                 if neighbor in chain_set or neighbor in owned:
@@ -274,3 +297,71 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, 
         name,
     )
     return key, stereo + name
+
+
+def _terminal_ester_groups(mol):
+    """[(acyl carbon, ester oxygen, organyl root)] for every -C(=O)-O-R end group whose organyl R carries only carbon
+    and halogen atoms and whose carbon continues the chain through exactly one carbon neighbour."""
+    found = []
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetDegree() != 3 or atom.GetTotalNumHs():
+            continue
+        oxo = [
+            n
+            for n in atom.GetNeighbors()
+            if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        ]
+        oxygens = [
+            n
+            for n in atom.GetNeighbors()
+            if n.GetAtomicNum() == 8 and n.GetDegree() == 2 and not n.IsInRing() and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        ]
+        carbons = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
+        if len(oxo) != 1 or len(oxygens) != 1 or len(carbons) != 1:
+            continue
+        roots = [n for n in oxygens[0].GetNeighbors() if n.GetIdx() != atom.GetIdx()]
+        if len(roots) != 1 or roots[0].GetAtomicNum() != 6:
+            continue
+        seen, stack = {roots[0].GetIdx()}, [roots[0].GetIdx()]
+        while stack:
+            for n in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
+                if n.GetIdx() != oxygens[0].GetIdx() and n.GetIdx() not in seen:
+                    seen.add(n.GetIdx())
+                    stack.append(n.GetIdx())
+        if atom.GetIdx() in seen or any(mol.GetAtomWithIdx(i).GetAtomicNum() not in (6, 9, 17, 35, 53) for i in seen):
+            continue
+        found.append((atom.GetIdx(), oxygens[0].GetIdx(), roots[0].GetIdx(), seen))
+    return found
+
+
+def name_heteroacyclic_ester(mol):
+    """'dimethyl 3,8,10,15-tetraoxo-4,7,11,14-tetraoxaheptadecane-1,17-dioate' (P-51.4.1.1, P-65.6.3.2): the free acid
+    of the chain named by skeletal replacement, with the organyl groups of its terminal esters cited first; None when
+    the molecule is not of that shape."""
+    from ._acid_derivatives import _multiplied, anion_name
+
+    terminal = _terminal_ester_groups(mol)
+    if not terminal or len(Chem.GetMolFrags(mol)) != 1 or Chem.FindMolChiralCenters(mol, includeUnassigned=False):
+        return None
+    editable = Chem.RWMol(mol)
+    for _, oxygen, _, far in terminal:
+        atom = editable.GetAtomWithIdx(oxygen)
+        atom.SetNumExplicitHs(1)
+        atom.SetNoImplicit(True)
+    removed = set().union(*(far for _, _, _, far in terminal))
+    for idx in sorted(removed, reverse=True):
+        editable.RemoveAtom(idx)
+    acid = editable.GetMol()
+    Chem.SanitizeMol(acid)
+    name = name_heteroacyclic(acid)
+    if name is None or not name.endswith("oic acid"):
+        return None
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    counts = {}
+    for _, oxygen, root, _ in terminal:
+        organyl, compound = name_branch(graph, root, oxygen, halogens, mol=mol)
+        entry = counts.setdefault(organyl, [0, compound])
+        entry[0] += 1
+    pendants = _multiplied([(n, compound, k, []) for n, (k, compound) in counts.items()])
+    return f"{pendants} {anion_name(name)}"

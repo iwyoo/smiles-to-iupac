@@ -671,7 +671,7 @@ def test_unsaturated_ring_thioketone_is_named():
     "smiles,expected",
     [
         ("CC(C)(C)OC(=O)NCC(=O)O", "[(tert-butoxycarbonyl)amino]acetic acid"),
-        ("O=C(O)CNC(=O)c1ccccc1", "(benzoylamino)acetic acid"),
+        ("O=C(O)CNC(=O)c1ccccc1", "benzamidoacetic acid"),
     ],
 )
 def test_acyl_prefixes_with_substituents_and_alkoxycarbonylamino(smiles, expected):
@@ -1156,4 +1156,30 @@ def test_senior_ring_is_the_parent_and_a_multiplicative_centre_keeps_all_princip
     ],
 )
 def test_simple_ring_groups_take_di_and_substituted_ones_take_bis(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("PPPPP", "pentaphosphane"),
+        ("CO[SiH2]CC[SiH2]SC", "2-oxa-7-thia-3,6-disilaoctane"),
+        ("[SiH3]OCS[SiH3]", "2-oxa-4-thia-1,5-disilapentane"),
+        ("CB(C)COCCOCB(C)C", "2,9-dimethyl-4,7-dioxa-2,9-diboradecane"),
+        (
+            "C(C)OP(OCC)OCCOCC[N+](C)(C)C",
+            "4-ethoxy-N,N,N-trimethyl-3,5,8-trioxa-4-phosphadecan-10-aminium",
+        ),
+        (
+            "O=C(CC(=O)OC)OCCOC(CC(OCCOC(CC(=O)OC)=O)=O)=O",
+            "dimethyl 3,8,10,15-tetraoxo-4,7,11,14-tetraoxaheptadecane-1,17-dioate",
+        ),
+        (
+            "C(C)(=O)NC(CCCNC(C)=O)CC(NCCCC(CC(NCCCC(CC(NCCCC(CC(=O)OC)NC(C)=O)=O)NC(C)=O)=O)NC(C)=O)=O",
+            "methyl 7,14,21,28-tetraacetamido-2,9,16,23-tetraoxo-3,10,17,24-tetraazatriacontan-30-oate",
+        ),
+        ("CC(=O)N(C)CCC(O)=O", "3-(N-methylacetamido)propanoic acid"),
+    ],
+)
+def test_skeletal_replacement_chains_and_amido_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

@@ -965,6 +965,11 @@ def name_acid_derivative(mol):
     links, acid = find_links(mol)
     if not links:
         raise UnsupportedStructure("no acid derivative group")
+    from ._heteroacyclic import name_heteroacyclic_ester
+
+    skeletal = name_heteroacyclic_ester(mol)
+    if skeletal is not None:
+        return skeletal
     from ._appendix3_skeletons import name_appendix3_skeleton
 
     if name_appendix3_skeleton(mol) is not None:
