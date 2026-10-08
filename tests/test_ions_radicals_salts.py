@@ -1230,9 +1230,54 @@ def test_valence_deficient_heteroatom_is_not_named_as_its_hydride(smiles):
         pytest.param("CC[N+](C)=[N-]", "ethyl(methyl)hydrazinylidene", id="isodiazene_prefixes_alphabetized"),
         pytest.param("[NH2][NH]", "hydrazinyl", id="retained_hydrazine_root"),
         pytest.param("[NH][NH]", "hydrazine-1,2-diyl", id="two_radical_centres_on_a_chain"),
+        pytest.param("[SiH2][SiH3]", "disilanyl", id="diatomic_chain_cites_no_locant"),
+        pytest.param("P[P]", "diphosphanylidene", id="diatomic_chain_ylidene"),
+        pytest.param("CC(C)(C)O[P](c1ccccc1)(c1ccccc1)c1ccccc1", "tert-butoxytri(phenyl)-λ5-phosphanyl", id="lambda5_phosphanyl"),
+        pytest.param("C[P](C)=O", "dimethylphosphinoyl", id="phosphinoyl_acyl_radical"),
+        pytest.param("C[P](C)(C)=[N]", "trimethyl-λ5-phosphaniminyl", id="phosphaniminyl"),
+        pytest.param("c1ccccc1[N]", "benzenaminylidene", id="nitrene_on_a_ring"),
+        pytest.param("CC(=O)[N]", "acetamidylidene", id="acylnitrene"),
+        pytest.param("CC(C)(C)S[S]", "tert-butyldisulfanyl", id="disulfanyl_radical"),
+        pytest.param("N[O]", "aminoxyl", id="aminoxyl"),
+        pytest.param("ClCN(CCl)[O]", "bis(chloromethyl)aminoxyl", id="substituted_aminoxyl"),
+        pytest.param("CS(=O)(=O)[O]", "(methanesulfonyl)oxyl", id="oxyl_on_a_sulfonyl_group"),
     ],
 )
 def test_radicals_on_heteroatom_parents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+# P-71.2.3, P-71.2.4, P-71.3.1, P-71.3.3, P-71.4, P-71.6: several radical centres
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C[C]C[C]C", "pentane-2,4-diylidene", id="two_ylidene_centres"),
+        pytest.param("[CH2][CH]", "ethan-1-yl-2-ylidene", id="yl_before_ylidene"),
+        pytest.param("[CH2][C]", "ethan-1-yl-2-ylidyne", id="yl_before_ylidyne"),
+        pytest.param("[CH2]C[CH]", "propan-1-yl-3-ylidene", id="mixed_centres_far_apart"),
+        pytest.param("[CH2]C1CC1[CH2]", "(cyclopropane-1,2-diyl)dimethyl", id="assembly_of_methyl_groups"),
+        pytest.param("[CH2]c1ccc(cc1)[CH2]", "(benzene-1,4-diyl)dimethyl", id="assembly_on_benzene"),
+        pytest.param("[CH2]C1CCC2(CC1)CCCC2[CH2]", "(spiro[4.5]decane-1,8-diyl)dimethyl", id="assembly_on_spiro_skeleton"),
+        pytest.param("[O]C(C)(C)CC(C)(C)[O]", "(2,4-dimethylpentane-2,4-diyl)bis(oxyl)", id="assembly_of_oxyl_groups"),
+        pytest.param("[NH]CC[NH]", "(ethane-1,2-diyl)bis(aminyl)", id="assembly_of_aminyl_groups"),
+        pytest.param("[O][O]C1CC(C1)O[O]", "(cyclobutane-1,3-diyl)bis(peroxyl)", id="assembly_of_peroxyl_groups"),
+        pytest.param("[S]Sc1ccc2cc(S[S])ccc2c1", "(naphthalene-2,6-diyl)bis(disulfanyl)", id="assembly_of_disulfanyl_groups_on_a_fused_ring"),
+        pytest.param("O=[S]c1ccc(cc1)[S]=O", "benzene-1,4-disulfinyl", id="two_sulfinyl_radicals"),
+        pytest.param("O=[C]c1ccc(cc1)[C]=O", "benzene-1,4-dicarbonyl", id="two_carbonyl_radicals"),
+        pytest.param("O=[C]CC[C]=O", "butanedioyl", id="two_acyl_radicals_on_a_chain"),
+        pytest.param("[N]=C=[N]", "methanebis(iminyl)", id="two_iminyl_radicals"),
+        pytest.param("O=C([NH])c1ccccc1C(=O)[NH]", "benzene-1,2-bis(carboxamidyl)", id="two_carboxamidyl_radicals"),
+        pytest.param("O=C([NH])CCC(=O)[NH]", "butanebis(amidyl)", id="two_amidyl_radicals"),
+        pytest.param("O=C([N])CCCCC(=O)[N]", "hexanebis(amidylidene)", id="two_amidylidene_radicals"),
+        pytest.param("[CH2][CH]C1CC[CH]CC1", "1-(4-ylocyclohexyl)ethane-1,2-diyl", id="parent_with_most_centres"),
+        pytest.param("[CH2]Cc1cccc(c1)[C]C", "2-[3-(1,1-diyloethyl)phenyl]ethyl", id="parent_with_most_yl_centres"),
+        pytest.param("C[CH]C1CC[CH]C1", "3-(1-yloethyl)cyclopentyl", id="ring_outranks_chain"),
+        pytest.param("[C]1C[C]=Cc2ccccc12", "naphthalen-3-yl-1(2H)-ylidene", id="yl_and_ylidene_with_added_hydrogen"),
+        pytest.param("[CH]1CCC(C)C[CH]1", "4-methylcyclohexane-1,2-diyl", id="ring_diyl_with_an_alkyl_prefix"),
+        pytest.param("[CH]1CC(Cl)C(O)C[CH]1", "4-chloro-5-hydroxycyclohexane-1,2-diyl", id="ring_diyl_with_a_hydroxy_prefix"),
+    ],
+)
+def test_radicals_with_several_centres(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

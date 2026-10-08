@@ -101,6 +101,8 @@ def _chain(mol, radicals):
         return "hydrazin" + suffix
     joined = ",".join(map(str, locants))
     if number == 1:
+        if mol.GetNumAtoms() == 2:
+            return base[:-1] + suffix
         return f"{base[:-1]}-{joined}-{suffix}"
     return f"{base}-{joined}-{_MULTIPLIER[number]}{suffix}"
 
