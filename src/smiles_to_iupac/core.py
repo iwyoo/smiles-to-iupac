@@ -281,6 +281,7 @@ from ._cyclophane import has_cyclophane_name, name_cyclophane, name_nonpreferred
 from ._linear_phane import has_linear_phane_shape, linear_phane_pin, name_linear_phane
 from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
 from ._polyphosphane import has_polyphosphane_shape, name_polyphosphane
+from ._noncarbon_oxoacid import has_noncarbon_oxoacid_shape, name_noncarbon_oxoacid
 from ._functional_replacement_oxoacid import (
     has_functional_replacement_oxoacid_shape,
     name_functional_replacement_oxoacid,
@@ -703,6 +704,8 @@ def _name_unabridged(smiles: str) -> str:
             return name
         if parsed is not None and has_anisole_shape(parsed):
             return name_anisole(parsed)
+        if parsed is not None and has_noncarbon_oxoacid_shape(parsed):
+            return name_noncarbon_oxoacid(parsed)
         if parsed is not None and has_functional_replacement_oxoacid_shape(parsed):
             return name_functional_replacement_oxoacid(parsed)
         if parsed is not None and parsed.GetNumAtoms() > 4:
@@ -1494,6 +1497,7 @@ def _name_mol(mol) -> str:
         # oxoacid name) has a phosphorus with 4 substituents (=S plus three
         # -OH), which `_phosphane.py` rejects outright (more than three
         # substituents) -- must be routed here first.
+        (has_noncarbon_oxoacid_shape, name_noncarbon_oxoacid),
         (has_functional_replacement_oxoacid_shape, name_functional_replacement_oxoacid),
     ):
         if has_shape(mol):

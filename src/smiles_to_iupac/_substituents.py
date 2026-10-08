@@ -35,14 +35,14 @@ def _locant_sort_key(locant):
     assumption from `_amine.py`'s N-prefix/halogen interleaving, PR
     #443, which had no coinciding-name test case to catch this)."""
     if not isinstance(locant, str):
-        return (1, 0, locant, "")
+        return (1, 0, locant, 0, "")
     digits = re.match(r"\d+", locant)
     if digits is None:
-        nitrogen = re.fullmatch(r"N(['′]*)(\d*)", locant)
-        if nitrogen:
-            return (0, int(nitrogen.group(2) or 0), len(nitrogen.group(1)), locant)
-        return (0, 0, 0, locant)
-    return (1, locant.count("\u2032"), int(digits.group()), locant[digits.end():].replace("\u2032", ""))
+        lettered = re.fullmatch(r"([A-Z][a-z]?)(['′]*)(\d*)", locant)
+        if lettered:
+            return (0, int(lettered.group(3) or 0), lettered.group(1), len(lettered.group(2)), locant)
+        return (0, 0, "", 0, locant)
+    return (1, locant.count("\u2032"), int(digits.group()), 0, locant[digits.end():].replace("\u2032", ""))
 
 
 _PLAIN_STEM_PREFIX = None

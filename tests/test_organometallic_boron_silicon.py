@@ -1073,3 +1073,17 @@ def test_noncarbon_hydride_parents_and_prefixes(smiles, expected):
 )
 def test_boron_acid_esters_anions_boranediamines_and_fused_indicated_hydrogen(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("O[Si](O)(O)S", "thiosilicic acid"),
+        ("CCO[Si](SC)(SC)SC", "O-ethyl S,S,S-trimethyl trithiosilicate"),
+        ("OB(O)B(O)O", "hypodiboric acid"),
+        ("C1(O[Pb]2(OC(C3=C1C=CC=C3)=O)OC(C3=C(C(O2)=O)C=CC=C3)=O)=O", "3,3′-spirobi[[2,4,3]benzodioxaplumbepine]-1,1′,5,5′-tetrone"),
+        ("C1O[Sn](C)(C)OCc2ccccc12", "3,3-dimethyl-1,5-dihydro-3H-2,4,3-benzodioxastannepine"),
+    ],
+)
+def test_silicic_boric_acids_and_group_14_fused_heterocycles(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

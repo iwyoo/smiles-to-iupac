@@ -1508,3 +1508,15 @@ def test_formazan_and_its_hydrocarbyl_derivatives(smiles, expected):
 )
 def test_noncarbon_parents_and_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CCCCCC=NNN=O", "N'-hexylidenenitrous hydrazide"),
+        ("CN(C)NN=O", "N',N'-dimethylnitrous hydrazide"),
+        ("S=NO", "thionitrous O-acid"),
+    ],
+)
+def test_nitrous_hydrazides_and_chalcogen_nitrous_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

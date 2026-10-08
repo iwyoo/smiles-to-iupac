@@ -3,9 +3,9 @@ P-67.1.2.6): a nitroso or nitro group on an amine nitrogen makes an amide of nit
 amide', 'methyl(nitro)nitramide'), a halogen on P, As or Sb an acid halide ('methylphosphinous chloride') and the group
 =N(O)OH or >N(O)OH an azinic acid ('ethylideneazinic acid'). Carbon groups are cited as prefixes without locants."""
 
-from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, halogen_substituents
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_substituents, halogen_substituents
 from ._phosphonic_acid import CENTER_STEMS
-from ._substituents import format_mononuclear_prefixes, name_branch
+from ._substituents import format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
 _HALIDE = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 _MULTIPLIER = {1: "", 2: "di"}
@@ -48,6 +48,14 @@ def _prefix_entries(mol, centre, excluded, graph):
     ]
 
 
+def _terminal_nitrogen_ok(mol, nitrogen, centre):
+    """The far nitrogen of a hydrazide carries only hydrogen, carbon groups or one ylidene carbon."""
+    others = [n for n in nitrogen.GetNeighbors() if n.GetIdx() != centre.GetIdx()]
+    if any(n.GetAtomicNum() != 6 for n in others):
+        return False
+    return sum(_bond(mol, nitrogen.GetIdx(), n.GetIdx()) for n in others) + nitrogen.GetTotalNumHs() == 2
+
+
 def _nitrogen_amide(mol):
     for centre in mol.GetAtoms():
         if centre.GetAtomicNum() != 7 or centre.GetFormalCharge() or centre.IsInRing() or centre.GetDegree() < 1:
@@ -58,12 +66,13 @@ def _nitrogen_amide(mol):
             continue
         taken = {n.GetIdx() for n in (*nitro, *nitroso)}
         others = [n for n in centre.GetNeighbors() if n.GetIdx() not in taken]
-        amino = [
-            n for n in others if n.GetAtomicNum() == 7 and n.GetDegree() == 1 and n.GetTotalNumHs() == 2 and not n.GetFormalCharge()
-        ]
-        if amino and len(others) == 1 and len(nitro) + len(nitroso) == 1:
-            if all(a.GetIdx() in taken or a.GetIdx() in (centre.GetIdx(), amino[0].GetIdx()) or a.GetAtomicNum() == 8 for a in mol.GetAtoms()):
-                return centre, nitro, nitroso, [], amino
+        amino = [n for n in others if n.GetAtomicNum() == 7 and not n.GetFormalCharge() and not n.IsInRing()]
+        if len(amino) == 1 and len(nitro) + len(nitroso) == 1 and _terminal_nitrogen_ok(mol, amino[0], centre):
+            carbons = [n for n in others if n.GetIdx() != amino[0].GetIdx()]
+            if all(n.GetAtomicNum() == 6 and _bond(mol, centre.GetIdx(), n.GetIdx()) == 1.0 for n in carbons):
+                covered = {centre.GetIdx(), amino[0].GetIdx(), *taken, *(o.GetIdx() for g in (*nitro, *nitroso) for o in g.GetNeighbors())}
+                if all(a.GetIdx() in covered or a.GetAtomicNum() == 6 or a.GetAtomicNum() in HALOGEN_PREFIXES for a in mol.GetAtoms()):
+                    return centre, nitro, nitroso, carbons, amino
         if any(n.GetAtomicNum() != 6 or _bond(mol, centre.GetIdx(), n.GetIdx()) != 1.0 for n in others):
             continue
         covered = {centre.GetIdx()}
@@ -81,7 +90,19 @@ def _name_nitrogen_amide(mol, found):
     centre, nitro, nitroso, others, hydrazide = found
     graph = adjacency(mol)
     if hydrazide:
-        return "nitric hydrazide" if nitro else "nitrous hydrazide"
+        parent = "nitric hydrazide" if nitro else "nitrous hydrazide"
+        far = hydrazide[0]
+        entries = {}
+        for letter, atom, skip in (("N", centre, {far.GetIdx(), *(n.GetIdx() for n in (*nitro, *nitroso))}), ("N'", far, {centre.GetIdx()})):
+            for n in atom.GetNeighbors():
+                if n.GetIdx() in skip:
+                    continue
+                entries.setdefault(letter, []).append(
+                    name_branch(graph, n.GetIdx(), atom.GetIdx(), halogen_substituents(mol), mol=mol, unsaturated=True)
+                )
+        if not entries:
+            return parent
+        return format_substituent_prefixes(group_substituents(entries)) + parent
     if nitro:
         parent, spare_nitro, spare_nitroso = "nitramide", nitro[1:], nitroso
     else:
