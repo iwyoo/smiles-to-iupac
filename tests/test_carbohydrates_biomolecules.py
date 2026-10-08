@@ -430,6 +430,21 @@ def test_substituted_monosaccharides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-102.6.2 sugar substituent groups with the free valence away from C-1
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OC[C@H]1O[C@@H](O)[C@H](OCC(O)=O)[C@@H](O)[C@@H]1O", "(β-D-glucopyranos-2-O-yl)acetic acid", id="o_substituent_of_a_pyranose"),
+        pytest.param("CO[C@@H]1OC[C@@H](O)[C@@H](O)[C@H]1OCC(=O)O", "(methyl β-D-ribopyranosid-2-O-yl)acetic acid", id="o_substituent_of_a_glycoside"),
+        pytest.param("OC[C@H]1O[C@@H](O)[C@H](O)[C@@H](O)[C@@H]1OCC(O)=O", "(β-D-glucopyranos-4-O-yl)acetic acid", id="o_substituent_at_c4"),
+        pytest.param("OC(=O)C[C@@]1(O)[C@H](O)[C@@H](O)[C@@H](CO)O[C@H]1O", "(β-D-gulopyranos-2-C-yl)acetic acid", id="c_substituent_keeping_the_hydroxy_group"),
+        pytest.param("OC(=O)C[C@H]1[C@@H](O)[C@H](O)[C@@H](CO)O[C@@H]1O", "(2-deoxy-α-D-arabino-hexopyranos-2-yl)acetic acid", id="c_symbol_omitted_beside_hydrogen_only"),
+    ],
+)
+def test_sugar_groups_with_the_free_valence_away_from_c1(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-66.1.1.1.2.5, P-66.3.1.2.4, P-66.5.1.2.4 amides, hydrazides, nitriles and esters of carbohydrate acids
 @pytest.mark.parametrize(
     "smiles,expected",
@@ -512,11 +527,11 @@ def test_amino_acid_esters_ions_and_allo(smiles, expected):
         ("OC(=O)c1ccc(O[C@@H]2O[C@H](CO)[C@@H](O)[C@H](O)[C@H]2O)cc1", "4-(β-D-glucopyranosyloxy)benzoic acid"),
         (
             "OC(=O)c1ccc(O[C@H]2[C@H](O)[C@@H](O)C(O)O[C@@H]2CO)cc1",
-            "4-{[(2R,3S,4R,5R)-4,5,6-trihydroxy-2-(hydroxymethyl)oxan-3-yl]oxy}benzoic acid",
+            "4-(D-glucopyranos-4-O-yl)benzoic acid",
         ),
         (
             "OC(=O)c1ccc(O[C@H]2[C@H](O)C(O)O[C@@H](CO)[C@@H]2O)cc1",
-            "4-{[(3S,4R,5S,6S)-2,3,5-trihydroxy-6-(hydroxymethyl)oxan-4-yl]oxy}benzoic acid",
+            "4-(L-glucopyranos-3-O-yl)benzoic acid",
         ),
     ],
 )

@@ -757,6 +757,13 @@ def _name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, m
         if glycosyl is not None:
             return glycosyl
 
+    if mol is not None and attach_order == 1.0 and mol.GetRingInfo().NumRings() >= 1:
+        from ._sugar_substituted import sugar_substituent_group
+
+        sugar = sugar_substituent_group(mol, graph, root, coming_from)
+        if sugar is not None:
+            return sugar
+
     if mol is not None and attach_order == 1.0:
         from ._heteroacyclic import skeletal_substituent
         from ._skeletal_group import skeletal_chain_group, skeletal_ring_group
