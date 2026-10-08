@@ -1877,6 +1877,20 @@ _GROUP_14 = (14, 32, 50, 82)
 _CHALCOGENOL_WORDS = {8: "ol", 16: "thiol", 34: "selenol", 52: "tellurol"}
 
 
+_NITROGEN_GROUP_PREFIXES = {"nitro", "nitroso", "azido", "isocyano", "isocyanato", "isothiocyanato"}
+
+
+def _nitrogen_group_prefix(mol, graph, atom, parent, halogens, aromatic_atoms):
+    """Whether the nitrogen `atom` bonded to the hydride atom `parent` is a nitro, nitroso, azido or isocyano group."""
+    if mol.GetAtomWithIdx(atom).GetAtomicNum() != 7:
+        return False
+    try:
+        name, _ = name_branch(graph, atom, parent, halogens, aromatic_atoms, mol=mol)
+    except UnsupportedStructure:
+        return False
+    return name in _NITROGEN_GROUP_PREFIXES
+
+
 def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
     """A single Si, Ge, P, B, ... atom is the senior parent hydride when there is no principal group (P-44.1.2):
     'trimethyl(phenyl)silane', 'methoxy(trimethyl)silane'. On a Group 14 atom a hydroxy or amino group is the
@@ -1916,7 +1930,10 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
     suffix_atoms = chalcogenols[principal_word] if principal_word else []
     others = [n for n in neighbors if n not in suffix_atoms and n not in amines]
     if any(
-        mol.GetAtomWithIdx(n).GetAtomicNum() not in (6, 8, *HALOGEN_PREFIXES) and n not in junior_chalcogenols for n in others
+        mol.GetAtomWithIdx(n).GetAtomicNum() not in (6, 8, *HALOGEN_PREFIXES)
+        and n not in junior_chalcogenols
+        and not _nitrogen_group_prefix(mol, graph, n, index, halogens, aromatic_atoms)
+        for n in others
     ):
         return None
     if (suffix_atoms or amines) and (z not in _GROUP_14 or (suffix_atoms and amines) or len(amines) > 1):

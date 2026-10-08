@@ -181,7 +181,7 @@ from ._metallacycle_group import name_metallacycle_as_group
 from ._metallafused import has_metallafused_shape, name_metallafused
 from ._metallapolycycle import has_metallapolycycle_shape, name_metallapolycycle
 from ._ocene import has_ocene_shape, name_ocene
-from ._pin import enter, leave, mark, nested, reason_count, reasons_since, replay
+from ._pin import enter, leave, mark, nested, outermost, reason_count, reasons_since, replay
 from ._fused_hetero_ring_oxide import has_fused_hetero_ring_oxide_shape, name_fused_hetero_ring_oxide
 from ._hydride_carbo_suffix import has_hydride_carbo_suffix_shape, name_hydride_carbo_suffix
 from ._ring_lambda_heterone import has_ring_lambda_heterone_shape, name_ring_lambda_heterone
@@ -372,15 +372,23 @@ _NO_PIN_ORGANOMETALLIC ="the Blue Book defines no PIN for this class of organome
 _FALLBACKS_RUNNING = set()
 
 
+# P-22.1.3: toluene and the xylenes are preferred names of the unsubstituted hydrocarbons only
+_METHYLBENZENES = {"Cc1ccccc1": "toluene", "Cc1ccccc1C": "1,2-xylene", "Cc1cccc(C)c1": "1,3-xylene", "Cc1ccc(C)cc1": "1,4-xylene"}
+
+
 _ADAMANTANE = re.compile(r"(?<!bi)(?<!ter)(?<!quater)(?<!yclo)tricyclo\[3\.3\.1\.1\^3,7\]decan(?=e|-)")
+
+
+_CUBANE = re.compile(r"(?<!bi)(?<!ter)(?<!quater)(?<!yclo)pentacyclo\[4\.2\.0\.0\^2,5\.0\^3,8\.0\^4,7\]octan(?=e|-)")
 
 
 _INDACENE_PREFIX = re.compile(r"([a-z\]\)])(as-indacen|(?<!a)s-indacen)")
 
 
 def _retained_polycycle_names(name):
-    """P-23.7: 'adamantane' replaces tricyclo[3.3.1.1^3,7]decane; the numbering is the same."""
-    return _INDACENE_PREFIX.sub(r"\1-\2", _ADAMANTANE.sub("adamantan", name))
+    """P-23.7: 'adamantane' replaces tricyclo[3.3.1.1^3,7]decane and 'cubane' pentacyclo[4.2.0.0^2,5.0^3,8.0^4,7]octane; the
+    numbering is the same."""
+    return _INDACENE_PREFIX.sub(r"\1-\2", _CUBANE.sub("cuban", _ADAMANTANE.sub("adamantan", name)))
 
 
 def _is_nonbenzene_monocyclic_annulene(mol):
@@ -388,7 +396,10 @@ def _is_nonbenzene_monocyclic_annulene(mol):
     if len(rings) != 1 or len(rings[0]) == 6:
         return False
     return all(
-        (a := mol.GetAtomWithIdx(i)).GetIsAromatic() and a.GetAtomicNum() == 6 and not a.GetFormalCharge()
+        (a := mol.GetAtomWithIdx(i)).GetIsAromatic()
+        and a.GetAtomicNum() in (6, 7, 8, 16, 34, 52)
+        and (a.GetAtomicNum() == 6 or len(rings[0]) > 8)
+        and not a.GetFormalCharge()
         for i in rings[0]
     )
 
@@ -556,6 +567,8 @@ def _name_labelled_substituents(mol):
     return name
 
 
+_MULTIPLIER_VALUE = {"di": 2, "bis": 2, "tri": 3, "tris": 3, "tetra": 4, "tetrakis": 4, "penta": 5, "hexa": 6}
+_MULTIPLIED_GROUP = re.compile(r"(di|bis|tri|tris|tetra|tetrakis|penta|hexa)[\[{(]$")
 _NUCLIDE_ITEM = re.compile(r"^(\d+)([A-Z][a-z]?)(\d*)$")
 
 
@@ -564,8 +577,8 @@ def _cited_nuclides(name):
     cited = {}
     for found in re.finditer(r"\(([^()]*)\)", name):
         group = found.group(1)
-        multiplied = re.search(r"(di|tri|tetra|penta|hexa)\[$", name[: found.start()])
-        times = {"di": 2, "tri": 3, "tetra": 4, "penta": 5, "hexa": 6}[multiplied.group(1)] if multiplied else 1
+        multiplier = _MULTIPLIED_GROUP.search(name[: found.start()])
+        factor = _MULTIPLIER_VALUE[multiplier.group(1)] if multiplier else 1
         items = group.split(",")
         located, pending = [], []
         for item in items:
@@ -585,9 +598,9 @@ def _cited_nuclides(name):
                 continue
             locants = pending + ([locant] if tail else [])
             pending = []
-            amount = int(count) if count else max(len(locants), 1)
+            amount = (int(count) if count else max(len(locants), 1)) * factor
             key = f"{mass}{symbol}"
-            cited[key] = cited.get(key, 0) + amount * times
+            cited[key] = cited.get(key, 0) + amount
     return cited
 
 
@@ -639,6 +652,8 @@ def _name_unabridged(smiles: str) -> str:
     lambda_token = None
     try:
         parsed = _parse_smiles(smiles)
+        if parsed is not None and outermost() and Chem.MolToSmiles(parsed) in _METHYLBENZENES:
+            return _METHYLBENZENES[Chem.MolToSmiles(parsed)]
         if parsed is not None and any(a.GetFormalCharge() for a in parsed.GetAtoms()):
             lambda_token = CITE_SKELETAL_LAMBDA.set(False)
         if parsed is not None and has_skeleton_radical_ion_shape(parsed):

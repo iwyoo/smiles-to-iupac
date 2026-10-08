@@ -7,7 +7,7 @@ prefix ('1,2-dimethoxyethane', 'N1-(2-aminoethyl)ethane-1,2-diamine').
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, nonstandard_bonding
+from ._common import UnsupportedStructure, adjacency, nonstandard_bonding, unsaturation_suffix
 from ._numerals import alkane_name, multiplying_prefix
 from ._phosphanyl_group import PREFIX_PROP
 from ._prefix_groups import PrefixNamer
@@ -201,29 +201,62 @@ def _contract(mol, graph, comps, backbone, principal):
 _HW_STEM = {9: "onane", 10: "ecane"}
 
 
+_MACRO_ALLOWED = {6, 7, 8, 16, 34, 52}
+_MACRO_A_PREFIX = {8: "oxa", 16: "thia", 34: "selena", 52: "tellura", 7: "aza"}
+_MACRO_SENIORITY = [8, 16, 34, 52, 7]
+
+
+def _ring_double_bonds(mol, ring_set):
+    """The double bonds of a monocycle, or None when any other bond is not single or a double bond leaves the ring."""
+    doubles = []
+    for bond in mol.GetBonds():
+        order = bond.GetBondTypeAsDouble()
+        if order == 1.0:
+            continue
+        if order != 2.0 or not bond.IsInRing():
+            return None
+        doubles.append(bond)
+    return doubles
+
+
+def _ring_double_bond_labels(mol):
+    from rdkit.Chem import rdCIPLabeler
+
+    probe = Chem.Mol(mol)
+    rdCIPLabeler.AssignCIPLabels(probe)
+    return {
+        frozenset((b.GetBeginAtomIdx(), b.GetEndAtomIdx())): b.GetProp("_CIPCode") for b in probe.GetBonds() if b.HasProp("_CIPCode")
+    }
+
+
 def name_hetero_macrocycle(mol):
-    """Saturated monocycle of >= 9 members with >= 2 O/S/N heteroatoms and
-    only alkyl substituents: '1,4,7-triazonane' (Hantzsch-Widman, 9-10
-    members) or '1,4,7,10,13,16-hexaoxacyclooctadecane' ('a' prefixes on a
-    cycloalkane, P-22.2.3)."""
+    """Monocycle of >= 9 members with >= 2 O/S/Se/Te/N heteroatoms and only alkyl substituents: '1,4,7-triazonane'
+    (Hantzsch-Widman, 9-10 members, saturated) or '1,4,7,10,13,16-hexaoxacyclooctadecane' ('a' prefixes on a
+    cycloalkane, P-22.2.3), with ring double bonds cited as 'ene' endings and their E/Z descriptors (P-31.1.3.2)."""
     info = mol.GetRingInfo()
     if info.NumRings() != 1 or len(Chem.GetMolFrags(mol)) != 1:
         return None
     ring = list(info.AtomRings()[0])
     size = len(ring)
-    if size < 9 or any(a.GetAtomicNum() not in _ALLOWED for a in mol.GetAtoms()):
+    if size < 9 or any(a.GetAtomicNum() not in _MACRO_ALLOWED for a in mol.GetAtoms()):
         return None
-    if any(a.GetFormalCharge() or a.GetIsotope() or a.GetIsAromatic() for a in mol.GetAtoms()) or has_stereo(mol):
+    if any(a.GetFormalCharge() or a.GetIsotope() or a.GetIsAromatic() for a in mol.GetAtoms()):
         return None
-    if any(b.GetBondTypeAsDouble() != 1.0 for b in mol.GetBonds()):
+    if any(a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()):
         return None
     ring_set = set(ring)
+    doubles = _ring_double_bonds(mol, ring_set)
+    if doubles is None or (doubles and size in _HW_STEM):
+        return None
     zs = {i: mol.GetAtomWithIdx(i).GetAtomicNum() for i in ring}
-    if sum(1 for z in zs.values() if z != 6) < 2:
+    if sum(1 for z in zs.values() if z != 6) < (1 if doubles else 2):
         return None
     graph = adjacency(mol)
     if any(mol.GetAtomWithIdx(i).GetAtomicNum() != 6 for i in range(mol.GetNumAtoms()) if i not in ring_set):
         raise UnsupportedStructure("only alkyl substituents are supported on a heteromacrocycle")
+    senior = next(z for z in _MACRO_SENIORITY if z in zs.values())
+    double_pairs = {frozenset((b.GetBeginAtomIdx(), b.GetEndAtomIdx())) for b in doubles}
+    labels = _ring_double_bond_labels(mol) if doubles else {}
     cycle = [ring[0]]
     while len(cycle) < size:
         cycle.append(next(n for n in graph[cycle[-1]] if n in ring_set and n not in cycle))
@@ -231,9 +264,16 @@ def name_hetero_macrocycle(mol):
     for start in range(size):
         for direction in (1, -1):
             order = [cycle[(start + direction * k) % size] for k in range(size)]
+            if zs[order[0]] != senior:
+                continue
             locant = {a: k + 1 for k, a in enumerate(order)}
-            hetero = {z: [locant[a] for a in order if zs[a] == z] for z in _SENIORITY}
+            hetero = {z: [locant[a] for a in order if zs[a] == z] for z in _MACRO_SENIORITY}
             lam = {locant[a]: n for a in order if (n := nonstandard_bonding(mol.GetAtomWithIdx(a)))}
+            ene = []
+            for k, a in enumerate(order):
+                b = order[(k + 1) % size]
+                if frozenset((a, b)) in double_pairs:
+                    ene.append((size if k == size - 1 else k + 1, labels.get(frozenset((a, b)))))
             substituents: dict = {}
             for a in order:
                 for n in graph[a]:
@@ -243,34 +283,45 @@ def name_hetero_macrocycle(mol):
                         entry["locants"].append(locant[a])
             key = (
                 sorted(l for v in hetero.values() for l in v),
-                [hetero[z] for z in _SENIORITY],
+                [hetero[z] for z in _MACRO_SENIORITY],
                 sorted(lam),
                 [-lam[p] for p in sorted(lam)],
+                sorted(l for l, _ in ene),
                 sorted(l for e in substituents.values() for l in e["locants"]),
                 [substituents[k]["locants"] for k in sorted(substituents)],
             )
             if best is None or key < best[0]:
-                best = (key, hetero, substituents, lam)
-    _, hetero, substituents, lam = best
+                best = (key, hetero, substituents, lam, sorted(ene))
+    _, hetero, substituents, lam, ene = best
     prefixes = format_substituent_prefixes(substituents)
-    ordered = [z for z in _SENIORITY if hetero[z]]
+    ordered = [z for z in _MACRO_SENIORITY if hetero[z]]
     all_replaced = len(ordered) == 1 and len(hetero[ordered[0]]) == size
+    stereo = ",".join(f"{locant}{code}" for locant, code in ene if code)
+    stereo = f"({stereo})-" if stereo else ""
     if size in _HW_STEM:
         a_text = ""
         for z in ordered:
             mult = multiplying_prefix(len(hetero[z])) if len(hetero[z]) > 1 else ""
-            if mult.endswith("a") and _A_PREFIX[z][0] in "aeiou":
+            if mult.endswith("a") and _MACRO_A_PREFIX[z][0] in "aeiou":
                 mult = mult[:-1]
-            a_text += mult + _A_PREFIX[z]
+            a_text += mult + _MACRO_A_PREFIX[z]
         all_locs = "" if all_replaced and not lam else ",".join(_cite(l, lam) for l in sorted(sum(hetero.values(), []))) + "-"
         name = f"{all_locs}{a_text[:-1]}{_HW_STEM[size]}"
-    elif all_replaced and not lam:
-        z = ordered[0]
-        name = multiplying_prefix(size) + _A_PREFIX[z] + "cyclo" + alkane_name(size)[:-3] + "ane"
     else:
-        parts = [
-            f"{','.join(_cite(p, lam) for p in sorted(hetero[z]))}-{multiplying_prefix(len(hetero[z])) if len(hetero[z]) > 1 else ''}{_A_PREFIX[z]}"
-            for z in ordered
-        ]
-        name = "-".join(parts) + "cyclo" + alkane_name(size)[:-3] + "ane"
-    return f"{prefixes}{'-' if prefixes else ''}{name}"
+        stem = "cyclo" + alkane_name(size)[:-3]
+        if ene:
+            body, needs_a = unsaturation_suffix([locant for locant, _ in ene], [])
+            ending = f"{stem}{'a' if needs_a else ''}-{body}"
+        else:
+            ending = stem + "ane"
+        if all_replaced and not lam:
+            name = multiplying_prefix(size) + _MACRO_A_PREFIX[ordered[0]] + ending
+        elif len(sum(hetero.values(), [])) == 1:
+            name = f"{sum(hetero.values(), [])[0]}-{_MACRO_A_PREFIX[ordered[0]]}{ending}"
+        else:
+            parts = [
+                f"{','.join(_cite(p, lam) for p in sorted(hetero[z]))}-{multiplying_prefix(len(hetero[z])) if len(hetero[z]) > 1 else ''}{_MACRO_A_PREFIX[z]}"
+                for z in ordered
+            ]
+            name = "-".join(parts) + ending
+    return f"{stereo}{prefixes}{'-' if prefixes else ''}{name}"

@@ -196,7 +196,7 @@ def name_heteroacyclic(mol):
             b - a == 1
             and (
                 mol.GetAtomWithIdx(path[a]).GetAtomicNum() == mol.GetAtomWithIdx(path[b]).GetAtomicNum()
-                and mol.GetAtomWithIdx(path[a]).GetAtomicNum() != 15
+                and mol.GetAtomWithIdx(path[a]).GetAtomicNum() not in (15, 16, 34, 52)
             )
             for a, b in zip(hetero_positions, hetero_positions[1:])
         ):

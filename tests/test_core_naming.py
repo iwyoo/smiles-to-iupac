@@ -725,3 +725,51 @@ def test_multiplying_prefixes_parentheses_and_elision(smiles, expected):
 )
 def test_mononuclear_and_single_site_parents_enclose_later_prefixes_and_drop_stereo_locants(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C12C3C4C5C3C1C5C24", "cubane"),
+        ("OC(=O)C12C3C4C1C5C2C3C45", "cubane-1-carboxylic acid"),
+        ("CC12C3C4C1C5C2C3C45", "1-methylcubane"),
+        ("OC12C3C4C1C5C2C3C45", "cuban-1-ol"),
+        ("Cl[C]12C3C4C1C5C2C3C45", "1-chlorocubane"),
+        ("C12CC3CC(CC(C1)C3)C2", "adamantane"),
+    ],
+)
+def test_retained_cage_names_cubane_and_adamantane(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("Cc1ccccc1", "toluene"),
+        ("Cc1ccccc1C", "1,2-xylene"),
+        ("Cc1cccc(C)c1", "1,3-xylene"),
+        ("Cc1ccc(C)cc1", "1,4-xylene"),
+        ("Cc1cc(C)cc(C)c1", "1,3,5-trimethylbenzene"),
+        ("Cc1ccccc1Cl", "1-chloro-2-methylbenzene"),
+        ("Cc1ccc(C(=O)O)cc1", "4-methylbenzoic acid"),
+    ],
+)
+def test_toluene_and_xylenes_only_when_unsubstituted(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("O1C=CC=CC=CC=CC=C1", "1-oxacycloundeca-2,4,6,8,10-pentaene"),
+        ("N1C=CC=CC=CC=CC=CC=C1", "1-azacyclotrideca-2,4,6,8,10,12-hexaene"),
+        ("O1NC=CC=CC=CC=CC=C1", "1-oxa-2-azacyclododeca-3,5,7,9,11-pentaene"),
+        ("O1C=C[Se]C=CC=CC=CNC=C1", "1-oxa-4-selena-11-azacyclotrideca-2,5,7,9,12-pentaene"),
+        ("O1C=CC=CC=COC=CC=CC=CC=CC=C1", "1,8-dioxacyclooctadeca-2,4,6,9,11,13,15,17-octaene"),
+        ("O1CC=NC=CC=NC=CN=CC=C1", "1-oxa-4,8,11-triazacyclotetradeca-3,5,7,9,11,13-hexaene"),
+        ("O1\\C=C/OCCOCCOCC1", "(2Z)-1,4,7,10-tetraoxacyclododec-2-ene"),
+        ("O1C\\C=N\\CCCCCCCC1", "(3E)-1-oxa-4-azacyclododec-3-ene"),
+    ],
+)
+def test_unsaturated_heteromacrocycles_by_skeletal_replacement(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

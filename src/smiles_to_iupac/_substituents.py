@@ -95,6 +95,8 @@ def prefix_multiplier(count: int, name: str, compound: bool):
     """(multiplier, enclosed) for `name` cited `count` > 1 times as a detachable prefix (P-16.3.3 to P-16.3.6): 'di'
     for simple names; 'di' with enclosing marks for simple names with locants, brackets or a leading numerical term;
     'bis' with marks for substituted names and for the mononuclear groups of a polynuclear chain; 'di-' for tert-butyl."""
+    if _isotope_only_prefix(name):
+        return multiplying_prefix(count), True
     if name[:1] in "([{" and not name.startswith("(\u03b7") and _fully_enclosed(name):
         return multiplying_prefix(count, compound=True), False
     if (name[:1] in "([{" and not name.startswith("(\u03b7")) or _CHALCOGEN_HYDRIDE_GROUP.match(name):
@@ -113,7 +115,7 @@ def prefix_multiplier(count: int, name: str, compound: bool):
 def _isotope_only_prefix(name):
     """A plain alkyl or alkoxy group with only its isotopic descriptor in front: cited alone it needs no enclosing
     marks (P-82.2.1)."""
-    match = re.fullmatch(r"\([^()]*\)([a-z]+)", name)
+    match = re.fullmatch(r"\(\d[^()]*\)([a-z]+)", name)
     if not match:
         return False
     stem = match.group(1)
@@ -441,6 +443,13 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     if name == "benzyl" and set(labelled) == {root}:
         context["consumed"].add(root)
         return "phenyl" + descriptor(labelled, {root: 1}, True, capacity=capacity) + "methyl", True
+    run = _chalcogen_run(mol, graph, root, coming_from) if mol is not None else None
+    if run is not None and all(a in run for a in labelled):
+        stem = _CHALCOGEN_RUN_STEM.search(name)
+        if stem is not None:
+            context["consumed"].update(labelled)
+            text = descriptor(labelled, {a: i + 1 for i, a in enumerate(run)}, False, capacity=capacity)
+            return name[: stem.start()] + text + name[stem.start() :], compound
     positions = _plain_chain_positions(graph, root, coming_from, atoms, mol)
     if positions is not None and name.isalpha():
         context["consumed"].update(labelled)
@@ -468,6 +477,24 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
     context["consumed"].update(labelled)
     text = descriptor(labelled, positions, omit, capacity=capacity)
     return name[:stem_index] + text + name[stem_index:], compound
+
+
+_CHALCOGEN_RUN_STEM = re.compile(r"(?:di|tri|tetra|penta|hexa)?(?:sulfanyl|selanyl|tellanyl)$")
+
+
+def _chalcogen_run(mol, graph, root, coming_from):
+    """The atoms of the chain of one chalcogen element that starts at `root` (a disulfanyl or trisulfanyl group), else None."""
+    element = mol.GetAtomWithIdx(root).GetAtomicNum()
+    if element not in (16, 34, 52):
+        return None
+    run, previous = [root], coming_from
+    while True:
+        onward = [n for n in graph[run[-1]] if n != previous and mol.GetAtomWithIdx(n).GetAtomicNum() == element]
+        if len(onward) != 1:
+            break
+        previous = run[-1]
+        run.append(onward[0])
+    return run if len(run) >= 2 else None
 
 
 def _lowest_chain_positions(mol, chain, root, labelled):
