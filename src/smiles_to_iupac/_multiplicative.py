@@ -403,7 +403,7 @@ def _attempt(mol, groups, selected, tree, core, name_function):
         else:
             bond = mol.GetBondWithIdx(idx)
             involved = {bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()}
-        if (element_kind, idx) not in ctx.used and not involved <= elsewhere:
+        if (element_kind, idx) not in ctx.used and not involved <= elsewhere | unit_atoms:
             raise UnsupportedStructure("stereodescriptors outside the linking group of a multiplicative name are not supported yet")
     return _assemble(len(selected), unit, central, arm_parts)
 

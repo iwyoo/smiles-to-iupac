@@ -1196,8 +1196,19 @@ def alpha_sort_key(name: str) -> str:
 
 
 def citation_order_key(name: str):
-    """Alphanumerical order, an isotopically modified substituent ahead of the unmodified one (P-82.2.2.1)."""
-    return alpha_sort_key(name), not _LEADING_ISOTOPE_RE.match(name)
+    """Alphanumerical order, an isotopically modified substituent ahead of the unmodified one (P-82.2.2.1), then configuration (P-45.6.3)."""
+    return alpha_sort_key(name), not _LEADING_ISOTOPE_RE.match(name), _descriptor_precedence(name)
+
+
+_DESCRIPTOR_PRECEDENCE = {"Z": 0, "E": 1, "R": 2, "S": 3, "r": 4, "s": 5}
+
+
+def _descriptor_precedence(name: str):
+    """P-45.6.3: when names tie, Z precedes E, then R precedes S, compared in cited order."""
+    match = _LEADING_STEREO_RE.match(_LEADING_ISOTOPE_RE.sub("", name))
+    if match is None:
+        return ()
+    return tuple(_DESCRIPTOR_PRECEDENCE[c] for c in match.group() if c in _DESCRIPTOR_PRECEDENCE)
 
 
 def substituent_locant_set_and_citation(grouped):
