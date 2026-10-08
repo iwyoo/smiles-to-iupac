@@ -31,6 +31,7 @@ from ._silicic_cyanate import silicic_cyanate_name
 from ._borane_silane_amide import borane_silane_amide_name
 from ._polyborane import lewis_adduct_mol, polyborane_name
 from ._diacylamine import diacylamine_name
+from ._chalcogen_polychain import name_polychalcogen_hydride
 from ._carbonic_amide import (
     cyanamide_name,
     diazenecarbohydrazide_name,
@@ -881,6 +882,9 @@ def _name_unabridged_body(smiles: str) -> str:
         beyond_preferred = None
         if parsed is not None:
             name = name_heteroacyclic(parsed)
+            if name is not None:
+                return name
+            name = name_polychalcogen_hydride(parsed)
             if name is not None:
                 return name
             name = name_nitrogen_methylene_multiplicative(parsed)

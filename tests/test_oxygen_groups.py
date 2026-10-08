@@ -494,14 +494,25 @@ def test_hydroperoxide(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("C=CCOO", id="unsaturated_not_supported"),
+        pytest.param("C=CCOO", "prop-2-ene-1-peroxol", id="unsaturated_chain"),
     ],
 )
-def test_unsaturated_not_supported_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_unsaturated_peroxol(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("CCC(=O)[Se][Se][Se]C", "1-(methyltriselanyl)propan-1-one"),
+        ("CCC(=O)OOO", "1-trioxidanylpropan-1-one"),
+        ("CSSSC(=O)C", "1-(methyltrisulfanyl)ethan-1-one"),
+    ],
+)
+def test_acyl_on_a_homogeneous_chalcogen_chain_is_a_pseudoketone(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -517,15 +528,14 @@ def test_phenyl_chain_hydroperoxide_and_related(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("Cc1ccccc1CCOO", id="substituted_benzene_ring_hydroperoxide_raises"),
-        pytest.param("C=Cc1ccccc1CCOO", id="chain_hydroperoxide_unsaturation_raises"),
+        pytest.param("Cc1ccccc1CCOO", "2-(2-methylphenyl)ethane-1-peroxol", id="substituted_benzene_ring"),
+        pytest.param("C=Cc1ccccc1CCOO", "2-(2-ethenylphenyl)ethane-1-peroxol", id="unsaturated_ring_substituent"),
     ],
 )
-def test_phenyl_substituted_benzene_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_peroxol_on_a_chain_beside_a_substituted_benzene_ring(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -538,9 +548,8 @@ def test_heteroaromatic_ring_direct_attachment_hydroperoxide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_heteroaromatic_ring_chain_hydroperoxide_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OOCCc1cccnc1")
+def test_heteroaromatic_ring_chain_hydroperoxide():
+    assert smiles_to_iupac("OOCCc1cccnc1") == "2-(pyridin-3-yl)ethane-1-peroxol"
 
 
 @pytest.mark.parametrize(

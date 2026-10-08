@@ -350,16 +350,15 @@ def test_hydroxyl_coexisting__and_related(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("COCC(OC)COO", id="two_ethers_raises"),
-        pytest.param("OOCC=CCOC", id="unsaturated_chain_raises"),
-        pytest.param("OO[C@@H](C)COC", id="specified_stereocenter_raises__ether_hydroperoxide"),
+        pytest.param("COCC(OC)COO", "2,3-dimethoxypropane-1-peroxol", id="two_ethers"),
+        pytest.param("OOCC=CCOC", "4-methoxybut-2-ene-1-peroxol", id="unsaturated_chain"),
+        pytest.param("OO[C@@H](C)COC", "(2S)-1-methoxypropane-2-peroxol", id="specified_stereocenter_ether_hydroperoxide"),
     ],
 )
-def test_two_ethers_raises_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_peroxol_with_ether_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -427,16 +426,17 @@ def test_chalcogen_chain_beside_a_principal_group_raises(smiles):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("NC1CCCCC1COO", id="ring_raises"),
-        pytest.param("NCC=CCOO", id="unsaturated_chain_raises__hydroperoxide_amine"),
-        pytest.param("N[C@@H](C)COO", id="specified_stereocenter_raises__hydroperoxide_amine"),
+        pytest.param("NC1CCCCC1COO", "(2-aminocyclohexyl)methaneperoxol", id="ring_amine"),
+        pytest.param("NCC=CCOO", "4-aminobut-2-ene-1-peroxol", id="unsaturated_chain_hydroperoxide_amine"),
+        pytest.param("N[C@@H](C)COO", "(2S)-2-aminopropane-1-peroxol", id="specified_stereocenter_hydroperoxide_amine"),
+        pytest.param("CC(C)(OO)CCN(C)C", "4-(dimethylamino)-2-methylbutane-2-peroxol", id="tertiary_amine_prefix"),
+        pytest.param("OOC1CCCc2ccccc12", "1,2,3,4-tetrahydronaphthalene-1-peroxol", id="fused_ring_peroxol"),
     ],
 )
-def test_ring_raises_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_peroxol_with_amino_prefixes_and_on_fused_rings(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -838,6 +838,9 @@ def test_ring_substituents_inside_chain_substituents_and_stereo_citation(smiles,
         ("CNNNC", "1,3-dimethyltriazane"),
         ("C[SiH2]O[SiH2]O[SiH2]C", "1,5-dimethyltrisiloxane"),
         ("Cl[SiH2]O[SiH3]", "chlorodisiloxane"),
+        ("c1ccccc1SOSC", "methyl(phenyl)dithioxane"),
+        ("CSOSC", "dimethyldithioxane"),
+        ("CSOS", "methyldithioxane"),
     ],
 )
 def test_heteroatom_chain_parent_hydrides(smiles, expected):
