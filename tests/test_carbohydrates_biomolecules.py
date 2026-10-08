@@ -464,6 +464,24 @@ def test_sugar_groups_with_the_free_valence_away_from_c1(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-102.5.6.5, P-102.5.6.6.2 alditols and aldonic acids with deoxy, amino and O-substituents
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[C@H](O)[C@@H](O)[C@@H](O)[C@H](O)CO", "L-fucitol", id="retained_fucitol"),
+        pytest.param("C[C@H](O)[C@H](O)[C@@H](O)[C@@H](O)CO", "L-rhamnitol", id="retained_rhamnitol"),
+        pytest.param("OC[C@H](O)[C@@H](O)[C@@H](O)[C@H](OC)CO", "5-O-methyl-D-galactitol", id="d_outranks_l_for_a_substituted_meso_alditol"),
+        pytest.param("OC[C@@H](OC)[C@@H](OC)[C@H](O)[C@H](OC)CO", "2,3,5-tri-O-methyl-D-mannitol", id="lowest_locants_of_the_prefixes"),
+        pytest.param("OC[C@@H](OCCCC)[C@@H](O)[C@H](O)[C@H](OC)CO", "2-O-butyl-5-O-methyl-D-mannitol", id="lowest_locant_of_the_first_cited_prefix"),
+        pytest.param("OC[C@H](N)[C@@H](O)[C@H](O)[C@H](O)CO", "2-amino-2-deoxy-D-glucitol", id="aminoalditol"),
+        pytest.param("OC(=O)[C@H](NC)[C@@H](O)[C@H](O)[C@H](O)CO", "2-deoxy-2-(methylamino)-D-gluconic acid", id="amino_aldonic_acid"),
+        pytest.param("OC(=O)[C@H](O)[C@@H](O)[C@H](O)[C@H](OC)CO", "5-O-methyl-D-gluconic acid", id="o_substituted_aldonic_acid"),
+    ],
+)
+def test_substituted_alditols_and_aldonic_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-66.1.1.1.2.5, P-66.3.1.2.4, P-66.5.1.2.4 amides, hydrazides, nitriles and esters of carbohydrate acids
 @pytest.mark.parametrize(
     "smiles,expected",

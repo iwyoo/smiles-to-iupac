@@ -9,6 +9,7 @@ then D before L; a chain that is its own mirror image is a meso form and carries
 from rdkit import Chem
 
 from ._carbohydrate import has_open_chain_aldose_shape, name_open_chain_aldose
+from ._common import UnsupportedStructure, adjacency
 
 _MIN_CARBONS, _MAX_CARBONS = 4, 7
 
@@ -240,3 +241,227 @@ def has_sugar_lactone_shape(mol) -> bool:
 
 def name_sugar_lactone(mol) -> str:
     return sugar_lactone_name(mol)
+
+
+_CHAIN_HALOGENS = {9, 17, 35, 53}
+_RETAINED_ALDITOLS = {"L-galactose": "L-fucitol", "L-mannose": "L-rhamnitol"}
+
+
+def _decorated_chain(mol):
+    """([C-1 .. C-n] from one end, per-carbon (kind, exo atom, root)) of an unbranched carbon chain that carries
+    hydroxy groups, deoxy positions, ethers, amino groups or halogens, else None."""
+    from ._sugar_substituted import _CHALCOGEN_WORDS, _HALOGENS  # noqa: F401
+
+    if mol.GetRingInfo().NumRings() or any(a.GetFormalCharge() or a.GetIsotope() for a in mol.GetAtoms()):
+        return None
+    graph = adjacency(mol)
+    carbon_graph = {a.GetIdx(): [n for n in graph[a.GetIdx()] if mol.GetAtomWithIdx(n).GetAtomicNum() == 6] for a in mol.GetAtoms() if a.GetAtomicNum() == 6}
+    pieces = []
+    seen = set()
+    for start in carbon_graph:
+        if start in seen:
+            continue
+        stack, piece = [start], set()
+        while stack:
+            current = stack.pop()
+            if current in piece:
+                continue
+            piece.add(current)
+            stack.extend(carbon_graph[current])
+        seen |= piece
+        pieces.append(piece)
+    candidates = [p for p in pieces if _MIN_CARBONS <= len(p) <= _MAX_CARBONS]
+    if not candidates:
+        return None
+
+    def oxygenation(piece):
+        return sum(1 for c in piece for n in graph[c] if n not in piece and mol.GetAtomWithIdx(n).GetAtomicNum() in (7, 8))
+
+    best = max(oxygenation(p) for p in candidates)
+    main = [p for p in candidates if oxygenation(p) == best]
+    if len(main) != 1:
+        return None
+    piece = main[0]
+    ends = [c for c in piece if len(carbon_graph[c]) == 1]
+    if len(ends) != 2 or any(len(carbon_graph[c]) > 2 for c in piece):
+        return None
+    chain = [ends[0]]
+    while len(chain) < len(piece):
+        following = [n for n in carbon_graph[chain[-1]] if n not in chain]
+        if len(following) != 1:
+            return None
+        chain.append(following[0])
+    decorations = []
+    for carbon in chain:
+        exo = [n for n in graph[carbon] if n not in piece]
+        if len(exo) == 2 and carbon in (ends[0], ends[-1]) and all(
+            mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() == 1 for n in exo
+        ) and sorted(mol.GetBondBetweenAtoms(carbon, n).GetBondTypeAsDouble() for n in exo) == [1.0, 2.0]:
+            decorations.append(("COOH", None, None))
+            continue
+        if len(exo) > 1:
+            return None
+        if not exo:
+            decorations.append(("H", None, None))
+            continue
+        (x,) = exo
+        atom = mol.GetAtomWithIdx(x)
+        z = atom.GetAtomicNum()
+        if mol.GetBondBetweenAtoms(carbon, x).GetBondTypeAsDouble() != 1.0:
+            return None
+        if z == 8 and atom.GetDegree() == 1:
+            decorations.append(("OH", x, None))
+        elif z == 8 and atom.GetDegree() == 2:
+            other = next(n for n in graph[x] if n != carbon)
+            if mol.GetAtomWithIdx(other).GetAtomicNum() != 6 or other in piece:
+                return None
+            if any(mol.GetAtomWithIdx(a).GetAtomicNum() not in (6, 8, 9, 17, 35, 53) for a in subtree_atoms(graph, other, x)):
+                return None
+            decorations.append(("ether", x, other))
+        elif z == 7:
+            decorations.append(("N", x, None))
+        elif z in _CHAIN_HALOGENS and atom.GetDegree() == 1:
+            decorations.append(("X", x, None))
+        else:
+            return None
+    covered = set(piece)
+    for (kind, x, root), carbon in zip(decorations, chain):
+        if kind == "COOH":
+            covered |= {n for n in graph[carbon] if n not in piece}
+        elif x is not None:
+            covered |= subtree_atoms(graph, x, carbon)
+    return (chain, decorations) if covered == set(range(mol.GetNumAtoms())) else None
+
+
+def subtree_atoms(graph, root, blocked):
+    from ._cited_group import subtree
+
+    return subtree(graph, root, blocked)
+
+
+def _restored_chain(mol, chain, decorations):
+    """The plain polyhydroxy chain (every position CH-OH, both ends CH2OH or the carboxy end kept) with its atoms."""
+    from ._cited_group import subtree
+
+    graph = adjacency(mol)
+    editable = Chem.RWMol(mol)
+    for atom in editable.GetAtoms():
+        atom.SetIntProp("_orig", atom.GetIdx())
+    removed = set()
+    for carbon, (kind, x, root) in zip(chain, decorations):
+        if kind == "H":
+            oxygen = editable.AddAtom(Chem.Atom(8))
+            editable.GetAtomWithIdx(oxygen).SetIntProp("_orig", -1)
+            editable.AddBond(carbon, oxygen, Chem.BondType.SINGLE)
+        elif kind in ("N", "X"):
+            editable.GetAtomWithIdx(x).SetAtomicNum(8)
+            for n in graph[x]:
+                if n != carbon:
+                    removed |= subtree(graph, n, x)
+        elif kind == "ether":
+            removed |= subtree(graph, root, x)
+    for atom in editable.GetAtoms():
+        atom.SetNoImplicit(False)
+        atom.SetNumExplicitHs(0)
+    for index in sorted(removed, reverse=True):
+        editable.RemoveAtom(index)
+    model = editable.GetMol()
+    Chem.SanitizeMol(model)
+    return model, {a.GetIntProp("_orig"): a.GetIdx() for a in model.GetAtoms() if a.GetIntProp("_orig") >= 0}
+
+
+def substituted_chain_name(mol):
+    """P-102.5.6.5, P-102.5.6.6.2: an alditol or aldonic acid with deoxy, amino, halogen or ether positions: the chain
+    is restored to the plain alditol, named from its aldose, and the substituents are cited as prefixes."""
+    from ._cited_group import cited_group
+    from ._sugar_substituted import _HALOGENS, _plain_group, _segment
+
+    found = _decorated_chain(mol)
+    if found is None:
+        return None
+    chain, decorations = found
+    if all(kind in ("OH", "COOH") for kind, _, _ in decorations):
+        return None
+    if sum(kind in ("OH", "ether") for kind, _, _ in decorations) < 3:
+        return None
+    try:
+        model, atom_of = _restored_chain(mol, chain, decorations)
+    except (ValueError, RuntimeError, Chem.rdchem.MolSanitizeException):
+        return None
+    modeled = _chain(model)
+    if modeled is None:
+        return None
+    model_chain = [atom_of[c] for c in chain]
+    if model_chain != modeled[0] and model_chain != list(reversed(modeled[0])):
+        return None
+    kinds = modeled[1] if model_chain == modeled[0] else list(reversed(modeled[1]))
+    kind = _class(kinds)
+    if kind not in ("alditol", "aldonic"):
+        return None
+    graph = adjacency(mol)
+    candidates = []
+    for reverse in ([False, True] if kind == "alditol" else [kinds[0][0] != "COOH"]):
+        order = list(reversed(range(len(chain)))) if reverse else list(range(len(chain)))
+        try:
+            aldose = _as_aldose(model, model_chain, kinds, reverse)
+        except Exception:
+            aldose = None
+        if aldose is None or not aldose.endswith("ose"):
+            continue
+        entries = {}
+        failed = False
+        for position, index in enumerate(order, start=1):
+            dkind, x, root = decorations[index]
+            if dkind in ("OH", "COOH"):
+                continue
+            if dkind == "H":
+                entries.setdefault(("deoxy", "deoxy", "", False), []).append(position)
+            elif dkind == "N":
+                name, compound = cited_group(mol, graph, x, chain[index])
+                entries.setdefault((name, name, "", compound), []).append(position)
+                entries.setdefault(("deoxy", "deoxy", "", False), []).append(position)
+            elif dkind == "X":
+                text = _HALOGENS[mol.GetAtomWithIdx(x).GetAtomicNum()]
+                entries.setdefault((text, text, "", False), []).append(position)
+                entries.setdefault(("deoxy", "deoxy", "", False), []).append(position)
+            elif dkind == "ether":
+                if not _plain_group(mol, graph, root, x):
+                    failed = True
+                    break
+                name, compound = cited_group(mol, graph, root, x)
+                entries.setdefault((name, name, "O", compound), []).append(position)
+        if failed:
+            continue
+        candidates.append((aldose, entries))
+    if not candidates:
+        return None
+    from ._common import alpha_sort_key
+
+    def rank(item):
+        aldose, entries = item
+        locants = sorted(p for ps in entries.values() for p in ps)
+        first = min(entries, key=lambda key: alpha_sort_key(key[0]))
+        return (aldose[2:], aldose[0] != "D", -len(locants), locants, min(entries[first]))
+
+    if kind == "alditol":
+        for aldose, entries in candidates:
+            if list(entries) == [("deoxy", "deoxy", "", False)] and entries[("deoxy", "deoxy", "", False)] == [len(chain)] and aldose in _RETAINED_ALDITOLS:
+                return _RETAINED_ALDITOLS[aldose]
+    aldose, entries = min(candidates, key=rank)
+    ending = _suffixes(kind)
+    stem = aldose[: -len("ose")]
+    cited = [(key[0], _segment(sorted(locants), key[0], key[2], key[3])) for key, locants in entries.items()]
+    segments = [text for _, text in sorted(cited, key=lambda item: (alpha_sort_key(item[0]), item[1]))]
+    prefix = "-".join(segments) + "-" if segments else ""
+    return prefix + stem + ending
+
+
+def has_substituted_chain_shape(mol) -> bool:
+    try:
+        return substituted_chain_name(mol) is not None
+    except (UnsupportedStructure, ValueError, RuntimeError):
+        return False
+
+
+def name_substituted_chain(mol) -> str:
+    return substituted_chain_name(mol)
