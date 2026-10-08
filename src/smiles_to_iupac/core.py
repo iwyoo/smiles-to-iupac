@@ -375,12 +375,16 @@ _FALLBACKS_RUNNING = set()
 _ADAMANTANE = re.compile(r"(?<!bi)(?<!ter)(?<!quater)(?<!yclo)tricyclo\[3\.3\.1\.1\^3,7\]decan(?=e|-)")
 
 
+_CUBANE = re.compile(r"(?<!bi)(?<!ter)(?<!quater)(?<!yclo)pentacyclo\[4\.2\.0\.0\^2,5\.0\^3,8\.0\^4,7\]octan(?=e|-)")
+
+
 _INDACENE_PREFIX = re.compile(r"([a-z\]\)])(as-indacen|(?<!a)s-indacen)")
 
 
 def _retained_polycycle_names(name):
-    """P-23.7: 'adamantane' replaces tricyclo[3.3.1.1^3,7]decane; the numbering is the same."""
-    return _INDACENE_PREFIX.sub(r"\1-\2", _ADAMANTANE.sub("adamantan", name))
+    """P-23.7: 'adamantane' replaces tricyclo[3.3.1.1^3,7]decane and 'cubane' pentacyclo[4.2.0.0^2,5.0^3,8.0^4,7]octane; the
+    numbering is the same."""
+    return _INDACENE_PREFIX.sub(r"\1-\2", _CUBANE.sub("cuban", _ADAMANTANE.sub("adamantan", name)))
 
 
 def _is_nonbenzene_monocyclic_annulene(mol):

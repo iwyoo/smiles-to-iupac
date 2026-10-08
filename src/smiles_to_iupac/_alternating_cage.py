@@ -22,7 +22,7 @@ _PARENT = {
     "B": "borane",
 }
 _VALENCE = {"O": 2, "S": 2, "Se": 2, "Te": 2, "N": 3, "P": 3, "As": 3, "Sb": 3, "Bi": 3, "Si": 4, "Ge": 4, "Sn": 4, "Pb": 4, "B": 3}
-_RETAINED_HEAD = {"adamantane": "tricyclo[3.3.1.1^3,7]", "cubane": "pentacyclo[4.2.0.0^2,5.0^3,8.0^4,7]"}
+_RETAINED_HEAD = {"cubane": "pentacyclo[4.2.0.0^2,5.0^3,8.0^4,7]"}
 _HEAD = re.compile(r"^((?:bi|tri|tetra|penta|hexa|hepta|octa|nona)cyclo\[[^\]]+\]|(?:di|tri|tetra|penta)?spiro\[[^\]]+\])")
 
 
@@ -65,6 +65,9 @@ def name_alternating_cage(mol):
     hydrocarbon = editable.GetMol()
     Chem.SanitizeMol(hydrocarbon)
     carbon_name = smiles_to_iupac(Chem.MolToSmiles(hydrocarbon))
+    if carbon_name == "adamantane":
+        # P-68.2.1.2 prints the replacement name of an adamantane skeleton as the preselected one, against P-52.1.6.2
+        return None
     head = _RETAINED_HEAD.get(carbon_name)
     if head is None:
         match = _HEAD.match(carbon_name)

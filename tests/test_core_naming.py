@@ -726,3 +726,18 @@ def test_multiplying_prefixes_parentheses_and_elision(smiles, expected):
 )
 def test_mononuclear_and_single_site_parents_enclose_later_prefixes_and_drop_stereo_locants(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C12C3C4C5C3C1C5C24", "cubane"),
+        ("OC(=O)C12C3C4C1C5C2C3C45", "cubane-1-carboxylic acid"),
+        ("CC12C3C4C1C5C2C3C45", "1-methylcubane"),
+        ("OC12C3C4C1C5C2C3C45", "cuban-1-ol"),
+        ("Cl[C]12C3C4C1C5C2C3C45", "1-chlorocubane"),
+        ("C12CC3CC(CC(C1)C3)C2", "adamantane"),
+    ],
+)
+def test_retained_cage_names_cubane_and_adamantane(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
