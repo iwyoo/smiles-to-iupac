@@ -43,7 +43,7 @@ def test_ring_compound_substituent():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("C[C@@H]1CCCC[C@@H]1C", "cis-1,2-dimethylcyclohexane"),
+        ("C[C@@H]1CCCC[C@@H]1C", "(1R,2S)-1,2-dimethylcyclohexane"),
     ],
 )
 def test_smiles_to_iupac_ring_cis_trans(smiles, expected):

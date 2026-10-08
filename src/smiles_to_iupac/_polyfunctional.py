@@ -1355,6 +1355,9 @@ def _stereo_prefix(stereo, position_of, ring_parent=False, used=frozenset()):
         raise UnsupportedStructure("stereodescriptors outside the parent are not supported by the chain engine yet")
     if not entries:
         return ""
+    if len(position_of) == 1 and len(entries) == 1:
+        # P-93.5: the one skeletal atom of a mononuclear parent needs no locant
+        return f"({entries[0][1]})-"
     return "(" + ",".join(f"{locant}{code}" for locant, code in entries) + ")-"
 
 

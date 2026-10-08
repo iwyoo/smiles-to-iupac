@@ -563,7 +563,7 @@ def test_two_carbon_suffix_locant_is_cited_once_a_prefix_is_present(smiles, expe
 def test_aryl_ketone_cites_the_ring_as_a_substituent():
     assert smiles_to_iupac("CC(=O)c1ccccc1") == "1-phenylethan-1-one"
     assert smiles_to_iupac("O=C(c1ccccc1)c1ccccc1") == "diphenylmethanone"
-    assert smiles_to_iupac("O=C(c1ccc(Cl)cc1)c1ccccc1") == "(4-chlorophenyl)phenylmethanone"
+    assert smiles_to_iupac("O=C(c1ccc(Cl)cc1)c1ccccc1") == "(4-chlorophenyl)(phenyl)methanone"
 
 
 @pytest.mark.parametrize(
