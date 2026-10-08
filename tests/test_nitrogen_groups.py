@@ -370,16 +370,34 @@ def test_diazo(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles, expected",
     [
-        pytest.param("C1(=[N+]=[N-])CCCCC1", id="ring_not_supported__diazo"),
-        pytest.param("C=CC=[N+]=[N-]", id="unsaturated_chain_not_supported__diazo"),
-        pytest.param("[N-]=[N+]=CC=[N+]=[N-]", id="two_diazo_groups_not_supported"),
+        pytest.param("C1(=[N+]=[N-])CCCCC1", "diazocyclohexane", id="diazo_on_a_ring"),
+        pytest.param("C=CC=[N+]=[N-]", "3-diazoprop-1-ene", id="diazo_beside_a_double_bond"),
+        pytest.param("[N-]=[N+]=CC=[N+]=[N-]", "1,2-didiazoethane", id="two_diazo_groups"),
+        pytest.param("[N-]=[N+]=CC(=O)O", "diazoacetic acid", id="diazo_beside_a_carboxylic_acid"),
+        pytest.param("[N-]=[N+]=CC(=O)OCC", "ethyl diazoacetate", id="diazo_acetate_ester"),
+        pytest.param("[N-]=[N+]=CC(C)=O", "1-diazopropan-2-one", id="diazo_beside_a_ketone"),
+        pytest.param("[N-]=[N+]=C(C(C)=O)[Si](C)(C)C", "1-diazo-1-(trimethylsilyl)propan-2-one", id="diazo_and_silyl_on_one_carbon"),
     ],
 )
-def test_ring_not_supported_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_diazo_prefix_on_rings_and_beside_other_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C[Si](C)(C)[N+](=O)[O-]", "trimethyl(nitro)silane", id="nitro_on_silicon"),
+        pytest.param("CB[N+](=O)[O-]", "methyl(nitro)borane", id="nitro_on_boron"),
+        pytest.param("C[Si](C)(C)N=O", "trimethyl(nitroso)silane", id="nitroso_on_silicon"),
+        pytest.param("C[Si](C)(C)N=[N+]=[N-]", "azidotri(methyl)silane", id="azido_on_silicon"),
+        pytest.param("C[Ge](C)(C)[N+](=O)[O-]", "trimethyl(nitro)germane", id="nitro_on_germanium"),
+        pytest.param("CB(C)N=O", "dimethyl(nitroso)borane", id="nitroso_on_boron"),
+    ],
+)
+def test_nitrogen_group_prefixes_on_mononuclear_hydrides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(

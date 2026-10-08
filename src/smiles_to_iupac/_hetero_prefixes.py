@@ -577,6 +577,15 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         pseudohalide = nitrogen_pseudohalide_prefix(mol, root, others, order)
         if pseudohalide is not None:
             return pseudohalide, False
+        if order == 2.0 and atom.GetFormalCharge() == 1 and len(others) == 1 and mol.GetAtomWithIdx(coming_from).GetAtomicNum() == 6:
+            far = mol.GetAtomWithIdx(others[0])
+            if (
+                far.GetAtomicNum() == 7
+                and far.GetFormalCharge() == -1
+                and far.GetDegree() == 1
+                and mol.GetBondBetweenAtoms(root, others[0]).GetBondTypeAsDouble() == 2.0
+            ):
+                return "diazo", False
         if EXTENDED_PREFIXES.get() and order == 2.0 and not atom.GetFormalCharge() and len(others) <= 1:
             if not others and atom.GetTotalNumHs() == 1:
                 return "imino", False
