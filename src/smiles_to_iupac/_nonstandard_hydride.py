@@ -4,7 +4,7 @@ may carry single-bonded carbon substituents ('dimethyl-λ4-sulfane')."""
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency
+from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency
 from ._numerals import multiplying_prefix
 from ._substituents import format_mononuclear_prefixes, name_branch
 
@@ -23,18 +23,28 @@ def _plain(atom):
 
 
 def _center(mol):
-    if any(a.GetIsAromatic() for a in mol.GetAtoms()) or len(Chem.GetMolFrags(mol)) != 1:
+    if len(Chem.GetMolFrags(mol)) != 1:
         return None
-    centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() in _HYDRIDES]
-    if len(centers) != 1 or not _plain(centers[0]) or centers[0].IsInRing():
+    centers = [
+        a for a in mol.GetAtoms() if a.GetAtomicNum() in _HYDRIDES and not (a.GetDegree() == 1 and a.GetAtomicNum() in (8, 9, 17, 35, 53))
+    ]
+    if len(centers) != 1 or not _plain(centers[0]) or centers[0].IsInRing() or centers[0].GetIsAromatic():
         return None
     center = centers[0]
     excess = center.GetTotalValence() - _HYDRIDES[center.GetAtomicNum()][1]
     if excess == 0 or excess % 2 or (excess < 0 and center.GetDegree()):
         return None
-    if any(b.GetBondTypeAsDouble() != 1.0 or b.GetOtherAtom(center).GetAtomicNum() != 6 for b in center.GetBonds()):
+    if any(b.GetBondTypeAsDouble() != 1.0 or not _substituent_atom(b.GetOtherAtom(center)) for b in center.GetBonds()):
         return None
     return center
+
+
+def _substituent_atom(atom):
+    """A carbon, halogen or hydroxy oxygen bonded to a hydride centre of nonstandard bonding number."""
+    z = atom.GetAtomicNum()
+    if z == 6:
+        return True
+    return atom.GetFormalCharge() == 0 and atom.GetDegree() == 1 and (z in (9, 17, 35, 53) or (z == 8 and atom.GetTotalNumHs() == 1))
 
 
 def _chalcogen_chain(mol):
@@ -85,7 +95,17 @@ def name_nonstandard_hydride(mol) -> str:
         raise UnsupportedStructure("isotopically modified structures are not supported yet")
     graph = adjacency(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
-    entries = [name_branch(graph, n, center.GetIdx(), {}, aromatic, mol=mol, unsaturated=True) for n in graph[center.GetIdx()]]
+    hydroxyls = [n for n in graph[center.GetIdx()] if mol.GetAtomWithIdx(n).GetAtomicNum() == 8]
+    halogens = {a.GetIdx(): HALOGEN_PREFIXES[a.GetAtomicNum()] for a in mol.GetAtoms() if a.GetAtomicNum() in HALOGEN_PREFIXES}
+    entries = [
+        name_branch(graph, n, center.GetIdx(), halogens, aromatic, mol=mol, unsaturated=True)
+        for n in graph[center.GetIdx()]
+        if n not in hydroxyls
+    ]
     stem, _ = _HYDRIDES[center.GetAtomicNum()]
     prefixes = f"{format_mononuclear_prefixes(entries)}-" if entries else ""
-    return f"{prefixes}λ{center.GetTotalValence()}-{stem}"
+    suffix = ""
+    if hydroxyls:
+        suffix = {1: "ol", 2: "diol", 3: "triol"}[len(hydroxyls)]
+        stem = stem[:-1] if len(hydroxyls) == 1 else stem
+    return f"{prefixes}λ{center.GetTotalValence()}-{stem}{suffix}"

@@ -176,6 +176,8 @@ def _validate_and_find_imine(mol, aromatic_ring_atoms=frozenset()):
             oxime_oxygen_idx = other.GetIdx()
         elif other.GetAtomicNum() == 6 and not other.GetIsAromatic():
             n_substituent_roots = (other.GetIdx(),)
+        elif other.GetAtomicNum() in HALOGEN_PREFIXES and other.GetDegree() == 1:
+            n_substituent_roots = (other.GetIdx(),)
         else:
             raise UnsupportedStructure(
                 "an imine nitrogen substituent other than a plain carbon "
@@ -270,7 +272,8 @@ def _n_substituent_names(graph, imine_nitrogen, n_substituent_roots, oxime_oxyge
     oxime; empty for a plain =N-H imine. Shared by the acyclic and
     benzene-ring-substituent-chain naming paths so the two stay in sync."""
     if n_substituent_roots:
-        return [name_branch(graph, root, imine_nitrogen, mol=mol) for root in n_substituent_roots]
+        halogens = halogen_substituents(mol) if mol is not None else None
+        return [name_branch(graph, root, imine_nitrogen, halogens, mol=mol) for root in n_substituent_roots]
     if oxime_oxygen_idx is not None:
         if oxime_alkyl_root is None:
             return [("hydroxy", False)]

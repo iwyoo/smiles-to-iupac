@@ -229,17 +229,6 @@ def test_ring_substituent_chain_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("C[NH2+][O-]", id="primary_amine_oxide_not_matched"),
-    ],
-)
-def test_primary_amine_oxide_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
 def test_amine_oxide_ring_nitrogen():
     assert smiles_to_iupac("C[N+]1([O-])CCCCC1") == "1-methylpiperidine 1-oxide"
 
@@ -1566,4 +1555,28 @@ def test_halogen_oxoacid_amides_aci_nitro_prefix_thionitrates_and_pseudohalide_h
     ],
 )
 def test_amine_oxide_outranks_a_nitrile_cited_as_cyano(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC[NH2+][O-]", "ethanamine N-oxide"),
+        ("CC[N+](CC)(CC)[S-]", "N,N-diethylethanamine N-sulfide"),
+        ("NC(=O)c1cc(CC[NH2+][O-])cc(C(=O)O)c1", "2-(3-carbamoyl-5-carboxyphenyl)ethan-1-amine N-oxide"),
+    ],
+)
+def test_primary_amine_oxides_chalcogen_analogues_and_oxides_beside_senior_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C=[N+]([O-])Cl", "N-chloromethanimine N-oxide"),
+        ("OI(O)c1ccccc1", "phenyl-λ3-iodanediol"),
+        ("ClI(Cl)C", "dichloro(methyl)-λ3-iodane"),
+    ],
+)
+def test_imine_oxide_with_n_halogen_and_lambda_3_iodanes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
