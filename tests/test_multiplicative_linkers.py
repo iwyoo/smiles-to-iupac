@@ -163,6 +163,7 @@ def test_functional_group_on_a_heteroaromatic_ring_beside_another_ring_is_reject
         ("c1ccccc1S(=O)(=O)c1ccccc1", "1,1'-sulfonyldibenzene"),
         ("c1ccccc1C#Cc1ccccc1", "1,1'-(ethyne-1,2-diyl)dibenzene"),
         ("c1ccc2ccccc2c1Cc1cccc2ccccc12", "1,1'-methylenedinaphthalene"),
+        ("BrC1=CC(=CC=C1)CC1=CC(=CC=C1)Cl", "1-bromo-3-[(3-chlorophenyl)methyl]benzene"),
     ],
 )
 def test_unsubstituted_units(smiles, expected):

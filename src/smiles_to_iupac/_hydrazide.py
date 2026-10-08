@@ -505,11 +505,19 @@ def _validate_and_collect_hydrazide(mol, aromatic_ring_atoms=frozenset()):
     return hydrazide_carbon, hydrazide_oxygen, n1, n2, n1_alkyl, n2_alkyl, hydroxyls
 
 
-def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped):
-    return format_substituent_prefixes(grouped) + name_from_substituents(chain_length, ene_locants, yne_locants, "hydrazide")
+def _with_n_entries(grouped, n_entries):
+    merged = {name: {"locants": list(info["locants"]), "compound": info["compound"]} for name, info in grouped.items()}
+    for label, name in n_entries:
+        merged.setdefault(name, {"locants": [], "compound": not name.isalpha()})["locants"].append(label)
+    return merged
 
 
-def _candidate_key(chain_length, ene_locants, yne_locants, substituents):
+def _name_from_substituents(chain_length, ene_locants, yne_locants, grouped, n_entries=()):
+    prefix = format_substituent_prefixes(_with_n_entries(grouped, n_entries))
+    return prefix + name_from_substituents(chain_length, ene_locants, yne_locants, "hydrazide")
+
+
+def _candidate_key(chain_length, ene_locants, yne_locants, substituents, n_entries=()):
     """Sort key implementing P-44.4.1.10 (ene/yne locants) ahead of P-45.2
     (substituent-prefix locants), most-preferred first. The hydrazide
     group's own locant isn't part of this key: candidates are
@@ -519,7 +527,7 @@ def _candidate_key(chain_length, ene_locants, yne_locants, substituents):
     locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
-    name = _name_from_substituents(chain_length, ene_locants, yne_locants, grouped)
+    name = _name_from_substituents(chain_length, ene_locants, yne_locants, grouped, n_entries)
     return (
         (
             combined_locant_set,
@@ -538,7 +546,7 @@ def _collect_n_alkyl(full_carbon_graph, mol, hydroxyls, graph, n1_alkyl, n2_alky
     be a plain, unbranched, unsubstituted, saturated alkyl chain, the same
     restriction `_amide.py` places on its own N-substituents -- and return
     (entries, n_alkyl_atoms): `entries` is a list of ("N"/"N'", name)
-    pairs (module docstring's N/N' convention) ready for `_format_n_prefix`,
+    pairs (module docstring's N/N' convention) ready for `_with_n_entries`,
     and `n_alkyl_atoms` is the full set of atom indices spanned by every
     N-substituent, to exclude from the principal-chain search below."""
     entries = []
@@ -586,25 +594,6 @@ def _collect_n_alkyl(full_carbon_graph, mol, hydroxyls, graph, n1_alkyl, n2_alky
     return entries, n_alkyl_atoms
 
 
-def _format_n_prefix(entries):
-    """entries: [("N"/"N'", name), ...] -> the assembled "N-"/"N'-" prefix
-    string (module docstring), grouping identically-named substituents
-    (whether on the same nitrogen or split across both) under one shared
-    multiplying prefix, e.g. [("N", "methyl"), ("N'", "methyl")] ->
-    "N,N'-dimethyl". '' if entries is empty."""
-    if not entries:
-        return ""
-    grouped = {}
-    for locant, name in entries:
-        grouped.setdefault(name, []).append(locant)
-    parts = []
-    for name in sorted(grouped, key=alpha_sort_key):
-        locants = sorted(grouped[name])
-        multiplier = multiplying_prefix(len(locants)) if len(locants) > 1 else ""
-        parts.append(f"{','.join(locants)}-{multiplier}{name}")
-    return "-".join(parts)
-
-
 def _name_acyclic_hydrazide(
     mol,
     hydrazide_carbon,
@@ -639,7 +628,6 @@ def _name_acyclic_hydrazide(
     full_carbon_graph = carbon_adjacency(mol)
     n_entries, n_alkyl_atoms = _collect_n_alkyl(full_carbon_graph, mol, hydroxyls, graph, n1_alkyl, n2_alkyl)
     n_entries = n_entries + list(extra_n_entries)
-    n_prefix = _format_n_prefix(n_entries)
 
     # N-alkyl substituent carbons hang off the (excluded) hydrazide
     # nitrogens, not off any acyl-chain carbon, so they form their own
@@ -683,12 +671,7 @@ def _name_acyclic_hydrazide(
         # '2-chloroacetohydrazide', PubChem CID 101883).
         substituents = substituents_for_chain(graph, chain, halogens, excluded, mol=mol)
         grouped = group_substituents(substituents)
-        prefix = format_substituent_prefixes(grouped)
-        name = prefix + "acetohydrazide"
-        if n_prefix:
-            separator = "-" if name[0].isdigit() else ""
-            name = f"{n_prefix}{separator}{name}"
-        return name
+        return format_substituent_prefixes(_with_n_entries(grouped, n_entries)) + "acetohydrazide"
 
     stereo_atoms = [atom for atom, _ in stereo] if stereo is not None else []
 
@@ -728,14 +711,10 @@ def _name_acyclic_hydrazide(
                 continue
             ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, excluded, mol=mol)
-            key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents)
+            key, name = _candidate_key(chain_length, ene_locants, yne_locants, substituents, n_entries)
             if best_key is None or key < best_key:
                 position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
                 best_key, best_name, best_position_of = key, name, position_of
-
-    if n_prefix:
-        separator = "-" if best_name[0].isdigit() else ""
-        best_name = f"{n_prefix}{separator}{best_name}"
 
     if stereo is not None:
         labels = sorted((best_position_of[atom], code) for atom, code in stereo)

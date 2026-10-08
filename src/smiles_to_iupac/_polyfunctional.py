@@ -14,6 +14,7 @@ from rdkit import Chem, rdBase
 from rdkit.Chem import CanonicalRankAtoms
 
 from ._common import (
+    alphanumerical_name_key,
     assembly_join,
     alpha_sort_key,
     HALOGEN_PREFIXES,
@@ -1625,7 +1626,7 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
 
         placed = found[2]
         name = _without_stereo(found[1])
-        return (-len(roots), tuple(sorted(placed[r] for r, _ in roots)), name), (
+        return (-len(roots), tuple(sorted(placed[r] for r, _ in roots)), alphanumerical_name_key(name), name), (
             (0,), name, (None, None, None, 0, placed, True, PARENT_START.get())
         )
     from ._substituents import ISOTOPE_LABELS
@@ -1655,7 +1656,7 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
     else:
         prefix_text = _prefix_text(entries, best[1])
     name = _join(prefix_text, spec.parent)
-    return (-len(roots), best[0][0], name), ((0,), name, (None, None, None, 0, best[1], True, len(name) - len(spec.parent)))
+    return (-len(roots), best[0][0], alphanumerical_name_key(name), name), ((0,), name, (None, None, None, 0, best[1], True, len(name) - len(spec.parent)))
 
 
 _GROUP_14 = (14, 32, 50, 82)
