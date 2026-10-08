@@ -15,7 +15,13 @@ from ._common import UnsupportedStructure, specified_stereo_elements
 from ._multiplicative_groups import SUFFIX_RANKS, classify, ring_seniority_key
 from ._multiplicative_linker import DecompositionRejected, name_component
 from ._multiplicative_prefix import SUFFIX_CARRIERS, hook_suspended
-from ._multiplicative_ring import bare_polycyclic_unit, name_monocyclic_unit, principal_rank_of, spec_of
+from ._multiplicative_ring import (
+    bare_polycyclic_unit,
+    name_monocyclic_unit,
+    principal_rank_of,
+    spec_of,
+    substituted_polycyclic_unit,
+)
 from ._multiplicative_text import enclose, multiplier_word, primed_locants
 
 _MAX_GROUP = 8
@@ -318,9 +324,7 @@ def _unit_text(mol, unit, groups, name_function):
     if ring_count == 1:
         return name_monocyclic_unit(mol, unit.ring_atoms, unit.junction, unit.linker_atom, groups, unit.atoms, name_function)
     if unit.atoms != unit.ring_atoms:
-        raise UnsupportedStructure(
-            "a substituted fused/bridged/spiro ring system as a multiplied parent structure is not supported yet"
-        )
+        return substituted_polycyclic_unit(mol, unit.ring_atoms, unit.atoms, unit.junction, name_function)
     return bare_polycyclic_unit(mol, unit.ring_atoms, unit.junction, name_function)
 
 

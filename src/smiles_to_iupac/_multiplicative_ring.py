@@ -61,6 +61,7 @@ _SUFFIX_WORDS = _SuffixWords({
     "telluroamide": "carbotelluroamide",
     "amidine": "carboximidamide",
     "sulfonamide": "sulfonamide",
+    **{name: name for name in ("sulfinamide", "selenonamide", "seleninamide", "telluronamide", "tellurinamide")},
     **{name: name for name in _SULFONAMIDE_THIO},
     "hydrazonamide": "carbohydrazonamide",
     "imidohydrazide": "carboximidohydrazide",
@@ -422,6 +423,30 @@ def _ring_system_component(mol, ring_atoms, attachments, directed):
         for n in mol.GetAtomWithIdx(a).GetNeighbors()
     )
     return found[1], substituted
+
+
+def substituted_polycyclic_unit(mol, ring_atoms, atoms, junction, name_function=None):
+    """UnitText for a fused/bridged/spiro ring system with substituents and suffix groups: the unit is named with an
+    iodo prefix at the junction, which is then read off and removed (the junction takes the lowest locant left
+    after the principal groups, P-15.3.1.3)."""
+    rw = Chem.RWMol(mol)
+    iodine = rw.AddAtom(Chem.Atom(53))
+    rw.AddBond(junction, iodine, Chem.BondType.SINGLE)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - set(atoms) - {iodine}, reverse=True):
+        rw.RemoveAtom(idx)
+    probe = rw.GetMol()
+    Chem.SanitizeMol(probe)
+    name = probe_name(Chem.MolToSmiles(probe), name_function)
+    matches = list(re.finditer(r"(?<![\w,])(\d+[a-z]?)-iodo(-?)", name))
+    if len(matches) != 1:
+        raise UnsupportedStructure(f"could not read the junction locant from {name!r}")
+    match = matches[0]
+    before, after = name[: match.start()], name[match.end():]
+    if before.endswith("-") and match.group(2) == "" and after[:1].isalpha():
+        before = before[:-1]
+    text = before + after
+    parent = bare_polycyclic_unit(mol, ring_atoms, junction, name_function).text
+    return UnitText(text, match.group(1), not text.startswith(parent), True)
 
 
 def bare_polycyclic_unit(mol, atoms, junction, name_function=None):

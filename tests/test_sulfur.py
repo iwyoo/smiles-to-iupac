@@ -123,15 +123,14 @@ def test_benzene_ring_cases(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles,expected",
     [
-        pytest.param("C=C(S(=O)N)C", id="ene_carbon_not_supported"),
-        pytest.param("NS(=O)CS(=O)N", id="two_sulfinamides_not_supported"),
+        pytest.param("C=C(S(=O)N)C", "prop-1-ene-2-sulfinamide", id="ene_carbon"),
+        pytest.param("NS(=O)CS(=O)N", "methanedisulfinamide", id="two_sulfinamides"),
     ],
 )
-def test_ene_carbon_not_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_ene_carbon_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -151,16 +150,19 @@ def test_unsaturated_ring_sulfinamide():
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles,expected",
     [
-        pytest.param("O=S(N)C1CCCC=C1C", id="with_substituent_raises"),
-        pytest.param("O=S(N)C1CCCC#C1", id="triple_bond_raises"),
-        pytest.param("O=S(NC)C1CCCC=C1", id="with_n_substituent_raises"),
+        pytest.param("O=S(N)C1CCCC=C1C", "2-methylcyclohex-2-ene-1-sulfinamide", id="with_substituent"),
+        pytest.param("O=S(NC)C1CCCC=C1", "N-methylcyclohex-2-ene-1-sulfinamide", id="with_n_substituent"),
     ],
 )
-def test_unsaturated_ring_sulfinamide_cases_raise(smiles):
+def test_unsaturated_ring_sulfinamide_cases(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_unsaturated_ring_sulfinamide_triple_bond_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+        smiles_to_iupac("O=S(N)C1CCCC#C1")
 
 
 def test_ring_substituent_chain_sulfinamide():
@@ -168,15 +170,14 @@ def test_ring_substituent_chain_sulfinamide():
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles,expected",
     [
-        pytest.param("NS(=O)CC1CCC(C)CC1", id="ring_substituent_chain_sulfinamide_ring_with_substituent_raises"),
-        pytest.param("NS(=O)CCO", id="sulfinamide_with_alcohol_not_supported"),
+        pytest.param("NS(=O)CC1CCC(C)CC1", "(4-methylcyclohexyl)methanesulfinamide", id="ring_substituent_chain_sulfinamide_ring_with_substituent"),
+        pytest.param("NS(=O)CCO", "2-hydroxyethane-1-sulfinamide", id="sulfinamide_with_alcohol"),
     ],
 )
-def test_ring_substituent_chain_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_ring_substituent_chain_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
@@ -190,18 +191,16 @@ def test_benzenesulfinamide_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_phenyl_chain_sulfinamide_n_alkyl_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("c1ccccc1CCCS(=O)NC")
+def test_phenyl_chain_sulfinamide_n_alkyl():
+    assert smiles_to_iupac("c1ccccc1CCCS(=O)NC") == "N-methyl-3-phenylpropane-1-sulfinamide"
 
 
 def test_phenyl_chain_sulfinamide_ring_halogen():
     assert smiles_to_iupac("Clc1ccc(CS(=O)N)cc1") == "(4-chlorophenyl)methanesulfinamide"
 
 
-def test_phenyl_chain_sulfinamide_unsaturation_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C=Cc1ccccc1CCS(=O)N")
+def test_phenyl_chain_sulfinamide_unsaturation():
+    assert smiles_to_iupac("C=Cc1ccccc1CCS(=O)N") == "2-(2-ethenylphenyl)ethane-1-sulfinamide"
 
 
 @pytest.mark.parametrize(
@@ -216,16 +215,15 @@ def test_n_methylmethanesulfinamide_and_related(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles,expected",
     [
-        pytest.param("CS(=O)NCCCl", id="halogenated_n_substituent_not_supported"),
-        pytest.param("CS(=O)NCC=C", id="unsaturated_n_substituted_sulfinamide_not_supported"),
-        pytest.param("CC[C@@H](C)S(=O)N", id="sulfinamide_specified_chain_stereocenter_raises"),
+        pytest.param("CS(=O)NCCCl", "N-(2-chloroethyl)methanesulfinamide", id="halogenated_n_substituent"),
+        pytest.param("CS(=O)NCC=C", "N-(prop-2-en-1-yl)methanesulfinamide", id="unsaturated_n_substituted_sulfinamide"),
+        pytest.param("CC[C@@H](C)S(=O)N", "(2R)-butane-2-sulfinamide", id="sulfinamide_specified_chain_stereocenter"),
     ],
 )
-def test_halogenated_n_substituent_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_halogenated_n_substituent_and_related(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_sulfinamide_specified_sulfur_stereocenter_cited():

@@ -1365,3 +1365,18 @@ def test_hydrazide_variants(smiles, expected):
 )
 def test_acylamino_prefix_on_heteroaromatic_ring(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CCOC=NCC(=O)O", "[(ethoxymethylidene)amino]acetic acid"),
+        ("OC(=O)c1ccc(cc1)N=C(OC)SC", "4-{[methoxy(methylsulfanyl)methylidene]amino}benzoic acid"),
+        (
+            "CN(C)CCOC=NC1=CC=C2C=CC(=CC2=C1)C(=O)O",
+            "7-({[2-(dimethylamino)ethoxy]methylidene}amino)naphthalene-2-carboxylic acid",
+        ),
+    ],
+)
+def test_imidate_prefix_on_ring_and_chain_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

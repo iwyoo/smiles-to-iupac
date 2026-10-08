@@ -888,3 +888,16 @@ def test_selenium_and_tellurium_hydrazides(smiles, expected):
 )
 def test_selenium_and_tellurium_imidamides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=[Se](N)c1ccco1", "furan-2-seleninamide", id="seleninamide_on_a_ring"),
+        pytest.param("O=[Te](=O)(NC)c1ccccc1", "N-methylbenzenetelluronamide", id="telluronamide_n_substituted"),
+        pytest.param("NC(=O)C[Se](=O)(=O)N", "2-(aminoselenonyl)acetamide", id="selenonamide_demoted_to_a_prefix"),
+        pytest.param("NC(=O)CS(=O)NC", "2-[(methylamino)sulfinyl]acetamide", id="sulfinamide_demoted_to_a_prefix"),
+    ],
+)
+def test_amides_of_sulfinic_selenium_and_tellurium_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

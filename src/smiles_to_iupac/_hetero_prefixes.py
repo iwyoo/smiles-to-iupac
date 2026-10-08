@@ -935,7 +935,7 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
     if mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() == 2.0 and len(others) in (1, 2) and not atom.IsInRing():
         amines = [mol.GetAtomWithIdx(n) for n in others]
         if all(
-            a.GetAtomicNum() == 7 and not a.GetFormalCharge() and not a.IsInRing()
+            a.GetAtomicNum() in (7, 8, 16) and not a.GetFormalCharge() and not a.IsInRing()
             and mol.GetBondBetweenAtoms(root, a.GetIdx()).GetBondTypeAsDouble() == 1.0
             for a in amines
         ):
@@ -1147,10 +1147,13 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if _terminal_double_atom(mol, root, n)
     ]
     rest = [n for n in others if n not in {n for n, _ in oxo}]
-    if len(rest) != 1 or len(oxo) not in (1, 2) or (not EXTENDED_PREFIXES.get() and (center != "S" or any(e != "O" for _, e in oxo))):
+    if len(rest) != 1 or len(oxo) not in (1, 2):
         raise UnsupportedStructure("this sulfur-linked group is not supported yet")
     x = rest[0]
     zx = mol.GetAtomWithIdx(x).GetAtomicNum()
+    acid_amide = zx == 7 and all(e == "O" for _, e in oxo)
+    if not EXTENDED_PREFIXES.get() and not acid_amide and (center != "S" or any(e != "O" for _, e in oxo)):
+        raise UnsupportedStructure("this sulfur-linked group is not supported yet")
     symbols = [e for _, e in oxo]
     if zx == 8 and mol.GetAtomWithIdx(x).GetDegree() == 1 and mol.GetBondBetweenAtoms(root, x).GetBondTypeAsDouble() == 1.0:
         base = _E_ACID_PREFIX[(center, len(oxo))]
@@ -1180,7 +1183,7 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         )
         if hydrazine is not None:
             return hydrazine, True
-    if all(e == "O" for e in symbols) and len(oxo) == 2 and zx == 7:
+    if center == "S" and all(e == "O" for e in symbols) and len(oxo) == 2 and zx == 7:
         subs = [n for n in graph[x] if n != root]
         if not subs:
             return "sulfamoyl", False
@@ -1188,7 +1191,7 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return _ring_nitrogen_acyl(graph, x, root, halogens, aromatic_atoms, mol, "sulfonyl")
         name = _amino(_group_names(graph, mol, subs, x, halogens, aromatic_atoms))
         return _amino_stem(name) + "sulfamoyl", True
-    if zx != 6 and not EXTENDED_PREFIXES.get():
+    if zx != 6 and not EXTENDED_PREFIXES.get() and not acid_amide:
         raise UnsupportedStructure("this sulfur-linked group is not supported yet")
     spec = make_spec(center, symbols, ("O",))
     acyl = acyl_suffix(spec, chain=False, count=1)

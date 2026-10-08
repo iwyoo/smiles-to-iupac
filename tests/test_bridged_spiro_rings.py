@@ -547,15 +547,14 @@ def test_von_baeyer_spiro_sulfinamide_reviewed(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles,expected",
     [
-        pytest.param("CNS(=O)C1CC2CCC1C2", id="n_substituted_sulfinamide_on_polycyclic_ring_raises"),
-        pytest.param("NS(=O)C1CCCC2(C1)C=CCCC2", id="unsaturated_monospiro_sulfinamide_still_raises"),
+        ("CNS(=O)C1CC2CCC1C2", "N-methylbicyclo[2.2.1]heptane-2-sulfinamide"),
+        ("NS(=O)C1CCCC2(C1)C=CCCC2", "spiro[5.5]undec-7-ene-2-sulfinamide"),
     ],
 )
-def test_n_substituted_sulfinamide_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_sulfinamide_on_polycyclic_ring(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
