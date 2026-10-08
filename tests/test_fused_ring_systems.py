@@ -750,3 +750,11 @@ def test_saturated_and_peri_fused_heterocycles_take_hydro_and_indicated_hydrogen
 )
 def test_ring_substituent_does_not_make_a_bridged_fused_system(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_large_ring_distorted_to_fit_peri_fusion_orientation():
+    # P-25.3.2.3.1: a ring that fits no shape is distorted, so the macrocycle may be drawn uppermost and numbered first
+    assert (
+        smiles_to_iupac("C1C=2C3=C(COC=COC=COC=COC=COC=CO1)C=CC=C3C=CC2")
+        == "1H,18H-naphtho[1,8-rs][1,4,7,10,13,16]hexaoxacyclohenicosine"
+    )
