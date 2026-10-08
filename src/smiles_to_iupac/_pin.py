@@ -28,6 +28,11 @@ def nested():
     return getattr(_state, "depth", 0) > 0
 
 
+def outermost():
+    """Whether the running name is the one asked for, not a fragment named on the way."""
+    return getattr(_state, "depth", 0) == 1
+
+
 def reason_count():
     return len(_state.reasons)
 

@@ -741,3 +741,19 @@ def test_mononuclear_and_single_site_parents_enclose_later_prefixes_and_drop_ste
 )
 def test_retained_cage_names_cubane_and_adamantane(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("Cc1ccccc1", "toluene"),
+        ("Cc1ccccc1C", "1,2-xylene"),
+        ("Cc1cccc(C)c1", "1,3-xylene"),
+        ("Cc1ccc(C)cc1", "1,4-xylene"),
+        ("Cc1cc(C)cc(C)c1", "1,3,5-trimethylbenzene"),
+        ("Cc1ccccc1Cl", "1-chloro-2-methylbenzene"),
+        ("Cc1ccc(C(=O)O)cc1", "4-methylbenzoic acid"),
+    ],
+)
+def test_toluene_and_xylenes_only_when_unsubstituted(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
