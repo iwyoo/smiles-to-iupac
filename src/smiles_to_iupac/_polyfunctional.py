@@ -2666,8 +2666,6 @@ def _fused_parent(mol, graph, principal, occurrences, here, n_names, stereo):
     on_system = [o for o in occurrences if o[1] in atoms]
     attach = [o[1] for o in on_system]
     blocked = set().union(*(o[2] for o in on_system))
-    if principal in ("ketone", *_CHALCOGEN_KETONE_CLASS.values()) and any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in attach):
-        raise UnsupportedStructure("a ring-heteroatom oxide is not a ring ketone")
     found = evaluate_skeleton(mol, graph, "ring", rings, atoms, attach, blocked, _FUSED_SUFFIX[principal], n_names=n_names)
     if found is None:
         raise UnsupportedStructure("this fused ring system has no supported numbering")

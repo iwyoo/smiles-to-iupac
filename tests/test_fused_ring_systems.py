@@ -133,7 +133,10 @@ def test_furano_bridge_benzo_g_quinoline():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("c1ccc2cs(=O)cc2c1", "2-benzothiophene 2-oxide"),
+        ("c1ccc2cs(=O)cc2c1", "2H-2λ4-benzothiophen-2-one"),
+        ("O=S1(=O)NC2=CC=CC3=CC=CC1=C23", "1λ6-naphtho[1,8-cd][1,2]thiazole-1,1(2H)-dione"),
+        ("O=S1(=O)c2ccccc2Sc2ccccc12", "5H-5λ6-thianthrene-5,5-dione"),
+        ("O=S1(=O)NC(=O)c2ccccc12", "2H-1λ6,2-benzothiazole-1,1,3-trione"),
     ],
 )
 def test_fused_hetero_ring_oxide_resolves(smiles, expected):

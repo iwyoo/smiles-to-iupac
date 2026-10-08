@@ -190,7 +190,6 @@ from ._metallafused import has_metallafused_shape, name_metallafused
 from ._metallapolycycle import has_metallapolycycle_shape, name_metallapolycycle
 from ._ocene import has_ocene_shape, name_ocene
 from ._pin import enter, leave, mark, nested, outermost, reason_count, reasons_since, replay
-from ._fused_hetero_ring_oxide import has_fused_hetero_ring_oxide_shape, name_fused_hetero_ring_oxide
 from ._hydride_carbo_suffix import has_hydride_carbo_suffix_shape, name_hydride_carbo_suffix
 from ._ring_lambda_heterone import has_ring_lambda_heterone_shape, name_ring_lambda_heterone
 from ._hetero_ring_oxide import has_hetero_ring_oxide_shape, name_hetero_ring_oxide
@@ -1146,12 +1145,6 @@ def _name_mol(mol) -> str:
         # RDKit perceives it, so it must be routed here before any ring-shape
         # or aromatic dispatch below ever gets a chance to reject it outright.
         (has_hetero_ring_oxide_shape, name_hetero_ring_oxide),
-        # The fused-bicyclic analogue of the chalcogen ring-oxide above (e.g.
-        # benzothiophene 1-oxide) has the same aromaticity-breaking shape, and
-        # would otherwise be misrouted into the von Baeyer bicyclic-heteroatom
-        # dispatch further below -- routed here, right alongside its
-        # single-ring sibling.
-        (has_fused_hetero_ring_oxide_shape, name_fused_hetero_ring_oxide),
         # The pyridinone tautomer (P-31.1.4.3.4's indicated-hydrogen oxo form)
         # keeps its ring-carbon aromatic despite the exocyclic oxo, so it must
         # be routed here before `_ketone.py`'s own generic aryl-ketone
