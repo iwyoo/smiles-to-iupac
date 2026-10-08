@@ -1925,7 +1925,11 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
         if mol.GetAtomWithIdx(n).GetAtomicNum() == 7
         and not mol.GetAtomWithIdx(n).GetFormalCharge()
         and not mol.GetAtomWithIdx(n).IsInRing()
-        and all(mol.GetAtomWithIdx(m).GetAtomicNum() in (6, *MONONUCLEAR_HYDRIDES) for m in graph[n] if m != index)
+        and all(
+            mol.GetAtomWithIdx(m).GetAtomicNum() in (6, *MONONUCLEAR_HYDRIDES) or _terminal_heteroatom(mol, m, 1)
+            for m in graph[n]
+            if m != index
+        )
     ]
     suffix_atoms = chalcogenols[principal_word] if principal_word else []
     others = [n for n in neighbors if n not in suffix_atoms and n not in amines]
@@ -1936,7 +1940,9 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
         for n in others
     ):
         return None
-    if (suffix_atoms or amines) and (z not in _GROUP_14 or (suffix_atoms and amines) or len(amines) > 1):
+    if (suffix_atoms or amines) and (
+        z not in _GROUP_14 and not (amines and not suffix_atoms and z == 5) or (suffix_atoms and amines) or len(amines) > 1
+    ):
         return None
     entries = [name_branch(graph, n, index, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in others]
     if suffix_atoms:

@@ -646,31 +646,8 @@ def test_hydroxylamine(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("C=CON", id="unsaturated_not_supported"),
-    ],
-)
-def test_n_substituted_not_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
 def test_phenyl_o_substituent():
     assert smiles_to_iupac("NOc1ccccc1") == "O-phenylhydroxylamine"
-
-
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("NOCc1ccccc1", id="benzyl_o_substituent_still_not_supported"),
-        pytest.param("NOc1ccccc1C", id="substituted_phenyl_o_substituent_not_supported"),
-    ],
-)
-def test_benzyl_o_substituent_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
 
 
 @pytest.mark.parametrize(
@@ -1326,4 +1303,22 @@ def test_chiral_substituent_groups_of_ureas_and_thioureas_cite_their_descriptors
     ],
 )
 def test_carbamic_acid_esters_of_amino_groups_cite_the_amino_group_as_the_ester_word(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("ON[SiH3]", "N-hydroxysilanamine", id="n_hydroxy_silanamine"),
+        pytest.param("ONB", "N-hydroxyboranamine", id="n_hydroxy_boranamine"),
+        pytest.param("NOCCl", "O-(chloromethyl)hydroxylamine", id="o_halogenated_alkyl_hydroxylamine"),
+        pytest.param("NOCC1CCCCC1", "O-(cyclohexylmethyl)hydroxylamine", id="o_ring_alkyl_hydroxylamine"),
+        pytest.param("NOc1ccccc1", "O-phenylhydroxylamine", id="o_phenyl_hydroxylamine"),
+        pytest.param("C=CON", "O-ethenylhydroxylamine", id="o_ethenyl_hydroxylamine"),
+        pytest.param("NOCc1ccccc1", "O-benzylhydroxylamine", id="o_benzyl_hydroxylamine"),
+        pytest.param("NOc1ccccc1C", "O-(2-methylphenyl)hydroxylamine", id="o_substituted_phenyl_hydroxylamine"),
+        pytest.param("NOC(C)C", "O-(propan-2-yl)hydroxylamine", id="o_branched_alkyl_hydroxylamine"),
+    ],
+)
+def test_hydroxylamines_with_a_hydride_or_ring_substituent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
