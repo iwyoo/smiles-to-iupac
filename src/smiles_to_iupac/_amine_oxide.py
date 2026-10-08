@@ -34,6 +34,8 @@ rejection applies -- or `name_amine` itself rejects the reduced molecule):
   substituent coexisting with the secondary/tertiary nitrogen, etc.
 """
 
+import re
+
 from rdkit import Chem
 
 
@@ -85,6 +87,16 @@ def name_amine_oxide(mol) -> str:
     reduced_mol = reduced.GetMol()
     Chem.SanitizeMol(reduced_mol)
 
+    nitrile_carbons = [
+        a
+        for a in reduced_mol.GetAtoms()
+        if a.GetAtomicNum() == 6
+        and any(
+            b.GetBondTypeAsDouble() == 3.0 and b.GetOtherAtom(a).GetAtomicNum() == 7 for b in a.GetBonds()
+        )
+    ]
+    if nitrile_carbons and sum(a.GetAtomicNum() == 7 for a in reduced_mol.GetAtoms()) == 1 + len(nitrile_carbons):
+        return f"{_name_with_nitrile_prefix(reduced_mol)} N-oxide"
     if sum(a.GetAtomicNum() == 7 for a in reduced_mol.GetAtoms()) > 1:
         return f"{_name_with_oxidized_parent(reduced_mol, nitrogen.GetIdx(), oxide_oxygen.GetIdx())} N-oxide"
     from ._common import heteroatom_stereo_prefix, specified_stereocenters
@@ -93,6 +105,20 @@ def name_amine_oxide(mol) -> str:
     stereo_prefix = heteroatom_stereo_prefix(mol, nitrogen.GetIdx()) or "" if any(i == nitrogen.GetIdx() for i, _ in centres) else ""
     base_name = name_amine(reduced_mol)
     return f"{stereo_prefix}{base_name} N-oxide"
+
+
+def _name_with_nitrile_prefix(reduced_mol):
+    """P-62.5, P-67.1.6: the amine oxide is the parent, so the nitrile is cited as the prefix 'cyano'
+    ('cyano-N,N-dimethylmethanamine N-oxide')."""
+    from ._polyfunctional import FORCED_PRINCIPAL, name_polyfunctional
+
+    token = FORCED_PRINCIPAL.set("amine")
+    try:
+        name = name_polyfunctional(reduced_mol)
+    finally:
+        FORCED_PRINCIPAL.reset(token)
+    # P-14.3.4.4: the oxidized nitrogen carries no hydrogen, so the only position left for the prefix is carbon 1
+    return re.sub(r"^1-(?=[a-z(\[{])", "", name) if name.endswith("methanamine") else name
 
 
 def _name_with_oxidized_parent(reduced_mol, nitrogen_idx, oxide_idx):
