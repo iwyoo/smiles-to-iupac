@@ -300,7 +300,9 @@ def _amino(names):
     ordered = sorted(names, key=lambda item: alpha_sort_key(item[0]))
     if len(ordered) == 2 and ordered[0] == ordered[1]:
         name, compound = ordered[0]
-        return (f"bis({name})" if compound else "di" + name) + "amino"
+        from ._substituents import multiplied_prefix
+
+        return multiplied_prefix(2, name, compound) + "amino"
     parts = [_enclose(ordered[0][0], ordered[0][1])]
     parts += [f"({n})" for n, _ in ordered[1:]]
     return "".join(parts) + "amino"

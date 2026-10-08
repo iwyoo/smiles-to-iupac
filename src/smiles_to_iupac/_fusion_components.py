@@ -402,7 +402,7 @@ def monocycle_prototype(sub):
     if size > 10:
         pieces = [("" if counts[e] == 1 else numerical_term(counts[e])) + A_PREFIX[e] for e in citation]
         stem = "cyclo" + _alkane_stem(size) + "ine"
-        name = _join_hw(pieces + [stem])
+        name = "".join(pieces) + stem
         return name, _prefix_of(name), numberings, locant_text, True
     pieces = []
     for e in citation:

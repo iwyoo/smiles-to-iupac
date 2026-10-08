@@ -8,7 +8,7 @@ import re
 from ._common import alpha_sort_key
 from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
-from ._substituents import is_plain_stem_prefix
+from ._substituents import prefix_multiplier
 
 _SUBSTITUTED_RETAINED_ACYL = re.compile(r"(?<=.)(?:acetyl|formyl)$")
 _HYDRIDE_ACYL = re.compile(r"(?<=.)(?:thioyl|selenoyl|telluroyl|imidoyl|hydrazonoyl|carbonyl|sulfonyl|sulfinyl|selenonyl|seleninyl|telluronyl|tellurinyl)$")
@@ -37,9 +37,8 @@ def single_site_prefixes(grouped):
         info = grouped[name]
         count = len(info["locants"])
         compound = info["compound"]
-        kis = (compound and not is_plain_stem_prefix(name)) or name[:1] in "([{"
-        multiplier = multiplying_prefix(count, compound=kis) if count > 1 else ""
-        parts.append(multiplier + (enclose(name) if compound or position else name))
+        multiplier, enclosed = prefix_multiplier(count, name, compound) if count > 1 else ("", False)
+        parts.append(multiplier + (enclose(name) if compound or position or enclosed else name))
     return "".join(parts)
 
 
