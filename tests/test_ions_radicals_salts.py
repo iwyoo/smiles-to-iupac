@@ -1235,3 +1235,27 @@ def test_ring_cation_with_an_ester_group_names_the_cation_as_parent(smiles, expe
 )
 def test_ion_endings_hydrogen_free_cations_and_cationic_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[NH2+]", "azanylium", id="nitrenium"),
+        pytest.param("[SiH3+]", "silylium", id="silylium"),
+        pytest.param("C[Si+](C)C", "trimethylsilylium", id="trimethylsilylium"),
+        pytest.param("C1(=CC=CC=C1)[Si+](C1=CC=CC=C1)C1=CC=CC=C1", "triphenylsilylium", id="triphenylsilylium"),
+        pytest.param("[PH2+]", "phosphanylium", id="phosphanylium"),
+        pytest.param("C[PH+]", "methylphosphanylium", id="substituted_phosphanylium"),
+        pytest.param("C1(=CC=CC=C1)[S+]", "phenylsulfanylium", id="phenylsulfanylium"),
+        pytest.param("C[O+]", "methyloxidanylium", id="methyloxidanylium"),
+        pytest.param("[BH2+]", "boranylium", id="boranylium"),
+        pytest.param("[Cl+]", "chloranylium", id="chloranylium"),
+        pytest.param("C(C)=[OH+]", "ethylideneoxidanium", id="ylidene_oxonium"),
+        pytest.param("C(C)[O+]=C(C)C", "ethyl(propan-2-ylidene)oxidanium", id="mixed_ylidene_and_alkyl_oxonium"),
+        pytest.param("OC(C)=[OH+]", "(1-hydroxyethylidene)oxidanium", id="hydroxyethylidene_oxonium"),
+        pytest.param("OC(C)=[N+](C)C", "(1-hydroxyethylidene)di(methyl)azanium", id="ylidene_azanium"),
+        pytest.param("C(C)(=O)[Cl+]C", "acetyl(methyl)chloranium", id="chloronium_with_an_acyl_group"),
+    ],
+)
+def test_ylium_and_onium_cations_of_mononuclear_hydrides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

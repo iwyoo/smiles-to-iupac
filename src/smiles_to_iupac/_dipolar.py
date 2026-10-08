@@ -62,6 +62,9 @@ def _cation_prefix(mol, graph, x, y):
     Chem.SanitizeMol(fragment)
     try:
         name = smiles_to_iupac(Chem.MolToSmiles(fragment))
+        single = re.fullmatch(r"(.+?ylidene)(oxidanium|sulfanium|selanium|telluranium|chloranium|bromanium|iodanium)", name)
+        if single and "," not in single.group(1) and single.group(1)[0] not in "([":
+            return f"({single.group(1)}){single.group(2)}yl"
         if name.endswith("ium"):
             return name + "yl"
     except UnsupportedStructure:
