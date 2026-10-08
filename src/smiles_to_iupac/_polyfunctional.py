@@ -2072,7 +2072,7 @@ def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_ma
         ]
 
     best = None
-    unsaturated = bool(specs) and specs[0].kind == "cycloalkene"
+    unsaturated = bool(specs) and any(sp.kind == "cycloalkene" for sp in specs)
     for unprimed in (0, 1):
         for first in orientations(unprimed):
             for second in orientations(1 - unprimed):
@@ -2080,7 +2080,7 @@ def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_ma
                 locants.update({atom: (1, number) for atom, number in second.items()})
                 ene = ()
                 if unsaturated:
-                    ene = (tuple(multiple_locants(specs[unprimed], first)[0]), tuple(multiple_locants(specs[1 - unprimed], second)[0]))
+                    ene = tuple(sorted(_locant_order(loc) for loc in _assembly_multiple_locants(specs, locants)[0] + _assembly_multiple_locants(specs, locants)[1]))
                 key = (
                     (locants[join[unprimed]][1], locants[join[1 - unprimed]][1]),
                     tuple(sorted(_locant_order(locants[a]) for a in marked)),
@@ -2091,11 +2091,48 @@ def _assembly_numbering(graph, rings, join, marked, entries, specs=None, cite_ma
                 )
                 if best is None or key < best[0]:
                     best = (key, locants, ene)
-    if unsaturated and any(loc == len(rings[0]) for loc in best[2][0] + best[2][1]):
+    if unsaturated and any(loc[0] == len(rings[0]) for loc in best[2]):
         raise UnsupportedStructure("a ring double bond closing the numbering (1(n) locant) is not supported in an assembly")
-    if unsaturated and best[2][0] != best[2][1]:
-        raise UnsupportedStructure("the rings of this assembly are not identical once numbered (P-28.7)")
     return best[1]
+
+
+def _assembly_multiple_locants(specs, locants):
+    """([(prime count, locant)] of the ring double bonds, [...] of the triple bonds) of an assembly numbering."""
+    ene, yne = [], []
+    for spec in specs:
+        if spec.kind != "cycloalkene":
+            continue
+        prime = locants[spec.cycle[0]][0]
+        found_ene, found_yne = multiple_locants(spec, {a: locants[a][1] for a in spec.cycle})
+        ene += [(prime, n) for n in found_ene]
+        yne += [(prime, n) for n in found_yne]
+    return sorted(ene, key=_locant_order), sorted(yne, key=_locant_order)
+
+
+def _assembly_unsaturation(specs, locants):
+    """The ending of an assembly of saturated components with ring double or triple bonds, cited after the bracket
+    (P-31.1.7.1): '1,2'-diene'; '' when no ring is unsaturated."""
+    ene, yne = _assembly_multiple_locants(specs, locants)
+    if not ene and not yne:
+        return ""
+
+    def cite(found):
+        return ",".join(f"{n}{chr(39) * prime}" for prime, n in found)
+
+    ene_word, yne_word = multiplied_word(len(ene), "ene"), multiplied_word(len(yne), "yne")
+    if ene and yne:
+        return f"{cite(ene)}-{ene_word[:-1]}-{cite(yne)}-{yne_word}"
+    return f"{cite(ene)}-{ene_word}" if ene else f"{cite(yne)}-{yne_word}"
+
+
+def _compatible_assembly_rings(mol, rings, specs):
+    """Whether two rings are the same component of a ring assembly: unsaturation of cycloalkane components is
+    cited as endings, so a cycloalkene counts as its cycloalkane (P-31.1.7.1)."""
+    if any(sp is None or sp.kind == "pyrrole" for sp in specs) or len(rings[0]) != len(rings[1]):
+        return False
+    if {sp.kind for sp in specs} <= {"cycloalkane", "cycloalkene"}:
+        return True
+    return specs[0].kind == specs[1].kind and _bare_key(mol, set(rings[0])) == _bare_key(mol, set(rings[1]))
 
 
 def _junction_is_ylidene(mol, join, specs):
@@ -2119,9 +2156,6 @@ def _assembly_base(specs, locants, join, elide, ylidene=False):
     if ylidene:
         return f"{spots}-bi({spec.parent[:-3]}ylidene)"
     parent = spec.parent
-    if spec.kind == "cycloalkene":
-        inside = {a: locants[a][1] for a in spec.cycle}
-        parent = parent_text(spec, inside)
     stem = parent[:-1] if elide and parent.endswith("e") else parent
     return f"{spots}-bi({stem})" if spec.hetero is None else f"{spots}-bi{stem}"
 
@@ -2151,10 +2185,10 @@ def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms
         return None
     other = next(r for r in inside if r != own)
     joins = [(a, b) for a in own for b in other if mol.GetBondBetweenAtoms(a, b) is not None]
-    if len(joins) != 1 or _bare_key(mol, set(own)) != _bare_key(mol, set(other)):
+    if len(joins) != 1:
         return None
     specs = [spec_of(mol, r) for r in (own, other)]
-    if any(sp is None or sp.kind == "pyrrole" for sp in specs) or specs[0].kind != specs[1].kind:
+    if not _compatible_assembly_rings(mol, (own, other), specs):
         return None
     ylidene = _junction_is_ylidene(mol, joins[0], specs)
     if ylidene is None:
@@ -2176,9 +2210,11 @@ def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms
     for info in grouped.values():
         info["locants"].sort(key=lambda text: (int(text.rstrip(chr(39))), text.count(chr(39))))
     prefix = format_substituent_prefixes(grouped) if grouped else ""
-    base = _assembly_base(specs, locants, joins[0], elide=True, ylidene=ylidene)
+    ending = _assembly_unsaturation(specs, locants)
+    base = _assembly_base(specs, locants, joins[0], elide=not ending, ylidene=ylidene)
     spot = locants[root]
-    core = f"[{base}]-{spot[1]}{chr(39) * spot[0]}-yl"
+    enes = f"{ending[:-1]}-" if ending else ""
+    core = f"[{base}]-{enes}{spot[1]}{chr(39) * spot[0]}-yl" if not ending else f"[{base}]-{enes}{spot[1]}{chr(39) * spot[0]}-yl"
     return (assembly_join(prefix, core)), True
 
 
@@ -2202,7 +2238,10 @@ def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrence
     all_rings = [list(r) for r in ring_info.AtomRings()]
     if len(all_rings) < 2 or any(ring_info.NumAtomRings(a) != 1 for r in all_rings for a in r):
         return None
-    if len({_bare_key(mol, set(r)) for r in all_rings}) != 1:
+    ring_specs = [spec_of(mol, r) for r in all_rings]
+    if len(all_rings) > 2 and any(sp is not None and sp.kind == "cycloalkene" for sp in ring_specs):
+        return None
+    if not all(_compatible_assembly_rings(mol, (all_rings[0], r), (ring_specs[0], sp)) for r, sp in zip(all_rings, ring_specs)):
         return None
     best = None
     for i, first in enumerate(all_rings):
@@ -2227,11 +2266,7 @@ def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
     if occurrences and any(o[1] not in set(rings[0]) | set(rings[1]) for o in occurrences):
         return None
     specs = [spec_of(mol, r) for r in rings]
-    if any(sp is None or sp.kind == "pyrrole" for sp in specs):
-        return None
-    if specs[0].kind != specs[1].kind or len(rings[0]) != len(rings[1]):
-        return None
-    if _bare_key(mol, set(rings[0])) != _bare_key(mol, set(rings[1])):
+    if not _compatible_assembly_rings(mol, rings, specs):
         return None
     joins = [(a, b) for a in rings[0] for b in rings[1] if mol.GetBondBetweenAtoms(a, b) is not None]
     if len(joins) != 1:
@@ -2260,13 +2295,17 @@ def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
         info["locants"].sort(key=lambda text: (int(text.rstrip(chr(39))), text.count(chr(39))))
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     count = len(occurrences)
+    ending = _assembly_unsaturation(specs, locants)
     if principal is None:
         core = _assembly_base(specs, locants, joins[0], elide=False, ylidene=ylidene)
+        if ending:
+            core = f"[{core}]-{ending}"
     else:
         word = multiplied_word(count, _SUFFIX_WORDS[_RING_SUFFIX[principal]])
-        base = _assembly_base(specs, locants, joins[0], elide=word[0] in "aeiouy", ylidene=ylidene)
+        base = _assembly_base(specs, locants, joins[0], elide=word[0] in "aeiouy" and not ending, ylidene=ylidene)
         spots = ",".join(cite(locants[o[1]]) for o in sorted(occurrences, key=lambda o: _locant_order(locants[o[1]])))
-        core = f"[{base}]-{spots}-{word}"
+        enes = f"{ending[:-1] if word[0] in 'aeiouy' else ending}-" if ending else ""
+        core = f"[{base}]-{enes}{spots}-{word}"
     name = assembly_join(prefix, core)
     return count, ((-count,), name, (None, None, None, 0, {a: PrimedLocant(*loc) for a, loc in locants.items()}, True)), joins[0]
 
