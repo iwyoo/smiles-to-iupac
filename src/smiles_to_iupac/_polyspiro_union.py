@@ -555,6 +555,7 @@ def _solutions(ctx, mol):
         centre = layout.get("centre")
         terminal_atoms = [s for s, _, _ in layout["links"]] if centre is not None else []
         shortlist, shortlist_key = [], None
+        hetero_first = len(ctx.comps) >= 3 and bool(ctx.replacement_atoms)
         for combo in product(*(list(ctx.projections[i]) for i in indices)):
             base = {}
             for i, proj in zip(indices, combo):
@@ -566,11 +567,13 @@ def _solutions(ctx, mol):
                 _lk(locant[(s, c)]) for gi in sorted(blocks) for s, early, late in blocks[gi] for c in (early, late)
             )
             key = (central, sorted(_lk(l) for l in locant.values()), citation)
-            if shortlist_key is None or key < shortlist_key:
-                shortlist, shortlist_key = [combo], key
+            if hetero_first:
+                shortlist.append((key, combo))
+            elif shortlist_key is None or key < shortlist_key:
+                shortlist, shortlist_key = [(key, combo)], key
             elif key == shortlist_key:
-                shortlist.append(combo)
-        for combo in shortlist:
+                shortlist.append((key, combo))
+        for shortlist_key, combo in shortlist:
             tables = [ctx.projections[i][proj] for i, proj in zip(indices, combo)]
             size = 1
             for table in tables:
@@ -589,6 +592,13 @@ def _solutions(ctx, mol):
                     layout=layout, blocks=blocks, key=shortlist_key, assignment=assignment, locant_of=locant_of,
                     prime_of=prime_of, ene=ene,
                 )
+
+
+def _ranked(ctx, mol, sol):
+    """(sol.key, hetero key) in the order of precedence: the heteroatoms of a skeletal replacement name of three or more
+    components take their low locants before the spiro atoms do (P-24.4.3(b))."""
+    hetero = _hetero_key(ctx, mol, sol.locant_of)
+    return (hetero, sol.key) if len(ctx.comps) >= 3 and ctx.replacement_atoms else (sol.key, hetero)
 
 
 def _hetero_key(ctx, mol, locant_of):
@@ -748,7 +758,7 @@ def name_spiro_union(mol) -> str:
             key=lambda c: (c[0], c[1]),
         )
         unsaturation = sorted(choice[1] + [_lk(x) for x in sol.ene])
-        key = (sol.key, _hetero_key(ctx, mol, locant_of), choice[0], unsaturation, locant_set, citation_prefix)
+        key = (*_ranked(ctx, mol, sol), choice[0], unsaturation, locant_set, citation_prefix)
         if best is None or key < best[0]:
             best = (key, sol, choice[2], grouped)
     if best is None:
@@ -832,7 +842,7 @@ def spiro_union_numberings(mol, graph, skeleton_atoms):
         numbering = Numbering(
             position_of,
             text,
-            pre_key=(sol.key, _hetero_key(ctx, mol, sol.locant_of), ih),
+            pre_key=(*_ranked(ctx, mol, sol), ih),
             unsat_key=(tuple(sorted(SpiroLocant(x) for x in sol.ene)), added, hydro),
             ih=ih,
         )

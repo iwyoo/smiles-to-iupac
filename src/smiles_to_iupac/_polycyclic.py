@@ -84,7 +84,7 @@ Flagship validation cases:
   the only thing gating it).
 """
 
-from itertools import combinations, permutations
+from itertools import combinations, permutations, product
 
 from ._common import (
     ENE_BOND_ORDER,
@@ -244,6 +244,90 @@ def _composite_bridges(adj, start, end, others):
     yield from walk(start, (), frozenset(), [])
 
 
+def _secondary_paths(bridges, remaining, main_atoms, free_atoms):
+    """Yield every way to cover the `remaining` simple bridges with secondary bridges (P-23.1.7, P-23.1.8): each one is a
+    path whose ends lie in the main system or in another secondary bridge and whose inner atoms may include
+    branch atoms outside the main system (`free_atoms`). A free branch atom lies inside exactly one path and is an end of
+    the path that uses its third bridge. A path is (end, end, inner atoms from the first end to the second)."""
+    free_atoms = sorted(free_atoms)
+    incident = {f: [i for i in remaining if f in (bridges[i][0], bridges[i][1])] for f in free_atoms}
+    if any(len(edges) != 3 for edges in incident.values()):
+        return
+    for choice in product(range(3), repeat=len(free_atoms)):
+        terminal = {f: incident[f][c] for f, c in zip(free_atoms, choice)}
+        unused = set(remaining)
+        paths = []
+        valid = True
+        while unused and valid:
+            start_edge = None
+            for e in sorted(unused):
+                u, v, _ = bridges[e]
+                if u in main_atoms or v in main_atoms or terminal.get(u) == e or terminal.get(v) == e:
+                    start_edge = e
+                    break
+            if start_edge is None:
+                valid = False
+                break
+            u, v, seg = bridges[start_edge]
+            if u in main_atoms or terminal.get(u) == start_edge:
+                begin, end, inner = u, v, list(seg)
+            else:
+                begin, end, inner = v, u, list(reversed(seg))
+            unused.discard(start_edge)
+            edge = start_edge
+            while end in terminal and terminal[end] != edge:
+                through = [i for i in incident[end] if i != terminal[end] and i != edge]
+                if len(through) != 1 or through[0] not in unused:
+                    valid = False
+                    break
+                edge = through[0]
+                unused.discard(edge)
+                x, y, seg2 = bridges[edge]
+                inner = inner + [end] + (list(seg2) if x == end else list(reversed(seg2)))
+                end = y if x == end else x
+            if not valid:
+                break
+            paths.append((begin, end, inner))
+        if valid:
+            yield paths
+
+
+def _number_secondary(paths, main_order):
+    """(full_order, secondary records) for the secondary bridges `paths`, numbered independent bridges first and then
+    dependent ones, each group from the bridge linked to the highest numbered bridgehead (P-23.2.6.3); None when a
+    bridge has an end that no earlier bridge numbers."""
+    main_atoms = set(main_order)
+    position = {atom: i + 1 for i, atom in enumerate(main_order)}
+    full_order = list(main_order)
+    pending = list(paths)
+    records = []
+    while pending:
+        ready = [p for p in pending if p[0] in position and p[1] in position]
+        if not ready:
+            return None
+        batch = []
+        for u, v, inner in ready:
+            x, y = position[u], position[v]
+            hi_atom = u if x > y else v
+            ordered = inner if u == hi_atom else list(reversed(inner))
+            batch.append(
+                {
+                    "lo": min(x, y),
+                    "hi": max(x, y),
+                    "path": ordered,
+                    "len": len(inner),
+                    "independent": u in main_atoms and v in main_atoms,
+                }
+            )
+        for record in sorted(batch, key=lambda r: (-r["hi"], -r["len"], r["lo"])):
+            full_order.extend(record["path"])
+            for atom in record["path"]:
+                position[atom] = len(position) + 1
+            records.append(record)
+        pending = [p for p in pending if p not in ready]
+    return full_order, records
+
+
 def iter_polycyclic_candidates(core, ring_count):
     """Yield `(full_order, parent, outer_key)` for every von Baeyer-valid
     numbering of `core` (P-23.2.1-P-23.2.6, VB-6/VB-7) -- every choice of
@@ -276,8 +360,6 @@ def iter_polycyclic_candidates(core, ring_count):
                 if len(used_idxs) != len(idxs[0]) + len(idxs[1]) + len(idxs[2]):
                     continue
                 remaining = set(range(len(bridges))) - used_idxs
-                if len(remaining) != secondary_count:
-                    continue
 
                 a, b, c = sorted((len(p) for p in paths), reverse=True)
                 # P-23.2.1 (max main ring) > P-23.2.4 (max main bridge) >
@@ -292,70 +374,39 @@ def iter_polycyclic_candidates(core, ring_count):
                         [start] + main_ring_first + [other]
                         + list(reversed(main_ring_second)) + main_bridge
                     )
-                    position = {atom: idx + 1 for idx, atom in enumerate(main_order)}
-
-                    secondary = []
-                    all_independent = True
-                    for sec_idx in remaining:
-                        sec_u, sec_v, sec_path_uv = bridges[sec_idx]
-                        if sec_u not in position or sec_v not in position:
-                            all_independent = False
-                            break
-                        x, y = position[sec_u], position[sec_v]
-                        lo, hi = min(x, y), max(x, y)
-                        hi_atom = sec_u if x > y else sec_v
-                        secondary_path = (
-                            sec_path_uv if sec_u == hi_atom else list(reversed(sec_path_uv))
+                    free_atoms = set(branch_atoms) - set(main_order)
+                    for sec_paths in _secondary_paths(bridges, remaining, set(main_order), free_atoms):
+                        if len(sec_paths) != secondary_count:
+                            continue
+                        numbered = _number_secondary(sec_paths, main_order)
+                        if numbered is None:
+                            continue
+                        full_order, secondary = numbered
+                        independent = [r for r in secondary if r["independent"]]
+                        dependent = [r for r in secondary if not r["independent"]]
+                        # VB-6: independent secondary bridges are cited first, in decreasing size, then the
+                        # dependent ones (P-23.2.6.1.3); equal sizes in ascending locant order.
+                        citation_order = sorted(independent, key=lambda r: (-r["len"], r["lo"], r["hi"])) + sorted(
+                            dependent, key=lambda r: (-r["len"], r["lo"], r["hi"])
                         )
-                        secondary.append(
-                            {"lo": lo, "hi": hi, "path": secondary_path, "len": len(sec_path_uv)}
+                        descriptor = ".".join(f"{r['len']}^{r['lo']},{r['hi']}" for r in citation_order)
+                        total_atoms = a + b + c + sum(r["len"] for r in secondary) + 2
+                        parent = f"{ring_prefix}[{a}.{b}.{c}.{descriptor}]{alkane_name(total_atoms)}"
+
+                        combined_locants = tuple(sorted(loc for r in secondary for loc in (r["lo"], r["hi"])))
+                        citation_locants = tuple(loc for r in citation_order for loc in (r["lo"], r["hi"]))
+                        # P-23.2.6.2.2 (independent bridges as long as possible) > P-23.2.6.2.3 (fewest dependent
+                        # bridges) > P-23.2.6.2.4/.2.5 (lowest superscript locants as a set, then in citation order)
+                        outer_key = (
+                            shape_key
+                            + tuple(sorted((-r["len"] for r in independent))) + (1,) * len(dependent)
+                            + (len(dependent),)
+                            + tuple(-r["len"] for r in sorted(dependent, key=lambda r: (-r["len"], r["lo"], r["hi"])))
+                            + combined_locants
+                            + citation_locants
                         )
-                    if not all_independent:
-                        continue
+                        yield full_order, parent, outer_key
 
-                    # VB-7: independent secondary bridges are numbered in
-                    # order of the highest-numbered bridgehead they attach
-                    # to (higher first), ties broken by longer bridge, then
-                    # lower attachment locant.
-                    numbering_order = sorted(
-                        secondary, key=lambda s: (-s["hi"], -s["len"], s["lo"])
-                    )
-                    full_order = list(main_order)
-                    for s in numbering_order:
-                        full_order.extend(s["path"])
-
-                    # VB-6: secondary bridges are cited in decreasing size;
-                    # equal-size ties cited in ascending locant order (this is
-                    # independent of, and can differ from, numbering_order --
-                    # see the tetracyclo[4.4.2.2^2,5.2^7,10]hexadecane example
-                    # in this module's docstring).
-                    citation_order = sorted(
-                        secondary, key=lambda s: (-s["len"], s["lo"], s["hi"])
-                    )
-                    descriptor = ".".join(
-                        f"{s['len']}^{s['lo']},{s['hi']}" for s in citation_order
-                    )
-                    total_atoms = a + b + c + sum(s["len"] for s in secondary) + 2
-                    parent = f"{ring_prefix}[{a}.{b}.{c}.{descriptor}]{alkane_name(total_atoms)}"
-
-                    combined_locants = tuple(
-                        sorted(loc for s in secondary for loc in (s["lo"], s["hi"]))
-                    )
-                    citation_locants = tuple(
-                        loc for s in citation_order for loc in (s["lo"], s["hi"])
-                    )
-                    # VB-6 (maximize each secondary bridge's length, largest
-                    # first) > P-23.2.6.2.4/.2.5-style lowest combined locant
-                    # set for all secondary-bridge attachment points > lowest
-                    # locants in citation order > (caller's own tie-break,
-                    # e.g. P-14.4/P-45.2 lowest substituent locants).
-                    outer_key = (
-                        shape_key
-                        + tuple(-s["len"] for s in citation_order)
-                        + combined_locants
-                        + citation_locants
-                    )
-                    yield full_order, parent, outer_key
 
 
 def _candidate_key(parent, substituents, heteroatom_locant=None, suffix_locant=None, nondetachable_prefix=""):
