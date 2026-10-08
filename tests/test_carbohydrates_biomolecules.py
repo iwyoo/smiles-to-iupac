@@ -254,7 +254,7 @@ def test_open_chain_heptose_naming(smiles, expected):
         pytest.param("C(C(C(C(C(C=O)O)O)O)O)O", "2,3,4,5,6-pentahydroxyhexanal", id="unspecified_stereo_aldose_still_falls_through_unchanged"),
         pytest.param("C1C[C@@H](NC1)C(=O)O", "D-proline", id="d_proline"),
         pytest.param("C1CC(NC1)C(=O)O", "proline", id="proline_unspecified_stereocenter_no_ld_prefix"),
-        pytest.param("OC1C[C@H](NC1)C(=O)O", "(2S)-4-hydroxypyrrolidine-2-carboxylic acid", id="hydroxyproline_cites_the_specified_center"),
+        pytest.param("OC1C[C@H](NC1)C(=O)O", "4-hydroxy-L-proline", id="hydroxyproline_cites_the_specified_center"),
         pytest.param("O=C1CCCCO1", "oxan-2-one", id="hetero_ring_ketone_still_resolves"),
     ],
 )
@@ -542,4 +542,15 @@ def test_peptide_acyl_names(smiles, expected):
     ],
 )
 def test_less_common_amino_acid_retained_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O[C@@H]1CCN[C@@H]1C(=O)O", "(3R)-3-hydroxy-L-proline", id="ring_centre_by_cip_alpha_by_ld"),
+        pytest.param("OC1CNC(C1)C(=O)O", "4-hydroxyproline", id="no_stereo_no_hyphen"),
+    ],
+)
+def test_substituted_proline(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

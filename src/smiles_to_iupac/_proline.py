@@ -18,12 +18,9 @@ retained name and L/D stereodescriptor, per the IUPAC 2013 Recommendations
   not the cysteine exception), confirmed against real PubChem L-/D-
   proline structures during scoping.
 
-Scope, deliberately narrow: a plain pyrrolidine ring (5-membered, one ring
-nitrogen bearing a single ring-hydrogen and no substituent) whose C-2 (the
-ring carbon adjacent to nitrogen) bears an exocyclic -COOH and nothing
-else, with every other ring carbon a plain -CH2-. Any substituent on the
-ring beyond the C-2 carboxy group (e.g. hydroxyproline) is out of scope,
-deferred to a follow-up.
+Scope: a pyrrolidine ring whose ring nitrogen carries only hydrogen and whose C-2 bears the exocyclic -COOH.
+Substituents on C-3, C-4 and C-5 are cited as prefixes, and their centres by CIP descriptors before the prefixes while
+the alpha centre keeps D or L (P-103.1.3.2.1, P-103.2.3).
 """
 
 from ._carboxylic_acid_amine import _find_carboxylic_acid_carbon
@@ -74,15 +71,33 @@ def _match(mol):
     if alpha_atom.GetFormalCharge() != 0 or alpha_atom.GetDegree() != 3 or alpha_atom.GetTotalNumHs() != 1:
         return None
 
+    path = [alpha_carbon]
+    while len(path) < 4:
+        path.append(next(n for n in graph[path[-1]] if n in ring_set and n not in path and n != ring_n))
+    locant_of = {path[0]: "2", path[1]: "3", path[2]: "4", path[3]: "5"}
+    acid = {acid_carbon_idx, carbonyl_oxygen.GetIdx(), hydroxyl_oxygen.GetIdx()}
+    substituents = []
     for ring_carbon in ring_set - {ring_n, alpha_carbon}:
         atom = mol.GetAtomWithIdx(ring_carbon)
-        if atom.GetFormalCharge() != 0 or atom.GetDegree() != 2 or atom.GetTotalNumHs() != 2:
+        if atom.GetFormalCharge() != 0 or atom.GetDegree() not in (2, 3, 4):
             return None
-
-    excluded = ring_set | {acid_carbon_idx, carbonyl_oxygen.GetIdx(), hydroxyl_oxygen.GetIdx()}
-    if mol.GetNumAtoms() != len(excluded):
+        for n in graph[ring_carbon]:
+            if n not in ring_set:
+                substituents.append((locant_of[ring_carbon], ring_carbon, n))
+    covered = set(ring_set) | acid
+    for _, site, root in substituents:
+        stack = [root]
+        while stack:
+            node = stack.pop()
+            if node in covered:
+                if node in ring_set:
+                    return None
+                continue
+            covered.add(node)
+            stack.extend(n for n in graph[node] if n != site)
+    if len(covered) != mol.GetNumAtoms():
         return None
-    return alpha_carbon
+    return alpha_carbon, substituents, locant_of
 
 
 def has_proline_shape(mol) -> bool:
@@ -90,11 +105,14 @@ def has_proline_shape(mol) -> bool:
 
 
 def name_proline(mol) -> str:
-    alpha_carbon = _match(mol)
-    stereo = specified_stereocenters(mol)
-    if not stereo:
-        return "proline"
-    labels = {atom_idx: label for atom_idx, label in stereo}
-    if alpha_carbon not in labels:
-        return "proline"
-    return f"{_ALPHA_TO_LD[labels[alpha_carbon]]}-proline"
+    from ._amino_acid import _substituent_prefixes
+
+    alpha_carbon, substituents, locant_of = _match(mol)
+    prefixes = _substituent_prefixes(mol, adjacency(mol), substituents) if substituents else ""
+    labels = dict(specified_stereocenters(mol) or ())
+    other = sorted(
+        (int(locant_of[atom]), f"{locant_of[atom]}{label}") for atom, label in labels.items() if atom != alpha_carbon
+    )
+    descriptors = f"({','.join(text for _, text in other)})-" if other else ""
+    stem = f"{_ALPHA_TO_LD[labels[alpha_carbon]]}-proline" if alpha_carbon in labels else "proline"
+    return descriptors + prefixes + ("-" if prefixes and alpha_carbon in labels else "") + stem
