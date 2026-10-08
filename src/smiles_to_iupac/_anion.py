@@ -6,11 +6,12 @@ names the neutral molecule with only the marked groups eligible as the
 principal group, and the neutral suffix is then swapped for its anion form.
 """
 
+import contextlib
 import re
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure
+from ._common import UnsupportedStructure, specified_stereo_elements
 
 ANION_PROP = "_anion"
 
@@ -221,6 +222,30 @@ def _name_anion_unchecked(mol):
     return name
 
 
+@contextlib.contextmanager
+def _anion_stereo(mol, neutral):
+    """The stereo elements of the anion carried over to its protonated copy, where two rings that differ only in
+    the charged atom would otherwise leave a centre unrecognised (P-92.1.4.4)."""
+    from ._polyfunctional import STEREO_OF_ISOTOPOLOGUE
+
+    elements = specified_stereo_elements(mol) or []
+    if len(elements) == len(specified_stereo_elements(neutral) or []):
+        yield
+        return
+    located = []
+    for kind, idx, code in elements:
+        if kind == "bond":
+            bond = mol.GetBondWithIdx(idx)
+            located.append(("bond", (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()), code))
+        else:
+            located.append((kind, idx, code))
+    token = STEREO_OF_ISOTOPOLOGUE.set(located)
+    try:
+        yield
+    finally:
+        STEREO_OF_ISOTOPOLOGUE.reset(token)
+
+
 def _name_substitutive(mol):
     from ._anion_center import has_center_anion_shape, name_center_anion
     from ._anion_oxoacid import name_oxoacid_anion, oxoacid_center
@@ -237,13 +262,14 @@ def _name_substitutive(mol):
     if has_center_anion_shape(mol) and (not _has_group_or_carbon(mol) or _ring_mixed_centers(mol)):
         return name_center_anion(mol)
     neutral = marked_neutral(mol)
-    try:
-        name = name_polyfunctional(neutral)
-    except UnsupportedStructure:
+    with _anion_stereo(mol, neutral):
         try:
-            name = _multiplicative_neutral_name(neutral)
+            name = name_polyfunctional(neutral)
         except UnsupportedStructure:
-            name = _pipeline_neutral_name(neutral)
+            try:
+                name = _multiplicative_neutral_name(neutral)
+            except UnsupportedStructure:
+                name = _pipeline_neutral_name(neutral)
     variant = peroxy_variant(neutral)
     if variant is not None:
         return _peroxy_swap(name, variant, peroxy_carbonyl_thio(neutral))

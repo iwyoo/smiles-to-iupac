@@ -844,7 +844,11 @@ def _name_unabridged(smiles: str) -> str:
                         name = cited
             if not tokens or parsed.GetRingInfo().NumRings() == 0:
                 cited = _engine_name(parsed)
-                strip = lambda text: re.sub(r"^\([^()]*\)-", "", text)
+                strip = (
+                    (lambda text: _DESCRIPTOR_GROUP.sub("", text))
+                    if not tokens
+                    else (lambda text: re.sub(r"^\([^()]*\)-", "", text))
+                )
                 if cited is not None and _STEREO_TOKENS.search(cited) and (
                     strip(cited) == strip(name) or (not tokens and parsed.GetRingInfo().NumRings() == 0)
                 ):
@@ -883,6 +887,7 @@ _STEREO_TOKENS = re.compile(
 )
 
 
+_DESCRIPTOR_GROUP = re.compile(r"\((?:\d+[a-z]?[\u2032']*)?[RSEZrs](?:,(?:\d+[a-z]?[\u2032']*)?[RSEZrs])*\)-")
 _STEREO_IN_RETAINED_NAME = re.compile(r"inositol|(?:adenos|guanos|inos|xanthos|cytid|urid|thymid)in")
 
 

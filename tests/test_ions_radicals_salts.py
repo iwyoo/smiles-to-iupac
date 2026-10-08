@@ -184,6 +184,12 @@ def test_branch_point_carbenium_and_related_raise(smiles):
         pytest.param("c1ccccc1C#[Se+]", "benzenecarboselenoylium", id="chalcogen_acylium_ring"),
         pytest.param("[CH-]1C=CC=C1", "cyclopenta-2,4-dien-1-ide", id="cyclopentadienide_name"),
         pytest.param("C1=CC=CC1", "cyclopenta-1,3-diene", id="cyclopentadiene_neutral_parent_unaffected"),
+        pytest.param(
+            "C1(=CCC=C1)[C@H](C1=C[CH-]C=C1)O",
+            "3-[(S)-(cyclopenta-1,4-dien-1-yl)(hydroxy)methyl]cyclopenta-2,4-dien-1-ide",
+            id="stereocentre_recognised_only_through_the_charged_ring",
+        ),
+        pytest.param("Cl[C@H](F)c1ccc(C(=O)O)cc1", "4-[(S)-chloro(fluoro)methyl]benzoic acid", id="methyl_substituent_descriptor_without_locant"),
         pytest.param("OP(=O)(O)OP(=O)(O)O", "diphosphoric acid", id="diphosphoric_acid"),
         pytest.param("C=[N+]([H])[O-]", "methanimine N-oxide", id="nitrone_unsubstituted_nitrogen"),
         pytest.param("CCC#[N+][O-]", "propanenitrile oxide", id="nitrile_oxide_propane"),
