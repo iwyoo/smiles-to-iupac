@@ -37,6 +37,7 @@ _SENIOR_TO_SELENOL = [
         "[CX2]#[NX1]",
         "[CX3H1](=O)[#6]",
         "[#6][CX3](=O)[#6]",
+        "[#6][CX3](=O)[O,S,Se,Te;X2][O,S,Se,Te;X2][O,S,Se,Te;X2]",
         "[OX2H1][#6;!$([#6]=O)]",
         "[SX2H1][#6;!$([#6]=[O,S,Se,Te])]",
     )
@@ -335,28 +336,43 @@ def _chalcogen_chain_group(graph, first, second, halogens, aromatic_atoms, mol):
         raise UnsupportedStructure("this chalcogen chain is not supported yet")
     organyl = None
     if tail:
-        if mol.GetAtomWithIdx(tail[0]).GetAtomicNum() != 6 or is_functional_carbon(mol, tail[0]):
+        end = mol.GetAtomWithIdx(tail[0])
+        if end.GetAtomicNum() != 6 or (is_functional_carbon(mol, tail[0]) and not _thioacyl(mol, tail[0])):
             raise UnsupportedStructure("a functional group on a chalcogen chain is not supported yet")
         organyl = name_branch(graph, tail[0], run[-1], halogens, aromatic_atoms, mol=mol)
     elif not any(mol.HasSubstructMatch(query) for query in _SENIOR_TO_SELENOL):
         raise UnsupportedStructure("a peroxol or its chalcogen analogue outranks an amine as the principal group")
-    elements = [atom.GetAtomicNum() for atom in atoms]
-    if len(set(elements)) == 1:
-        if elements[0] == 8 and len(run) > 2:
-            raise UnsupportedStructure("an oxygen chain longer than a peroxy group is not supported yet")
-        word = "peroxy" if elements[0] == 8 else multiplying_prefix(len(run)) + _CHAIN_WORDS[elements[0]]
-        if organyl is None:
-            return ("hydroperoxy" if elements[0] == 8 else word), False
-        return _enclose(*organyl) + word, True
+    runs = [[atom.GetAtomicNum(), 0] for atom in atoms[:1]]
+    for atom in atoms[1:]:
+        if atom.GetAtomicNum() == runs[-1][0] and (atom.GetAtomicNum() == 8 or len(set(a.GetAtomicNum() for a in atoms)) == 1):
+            runs[-1][1] += 1
+        else:
+            runs.append([atom.GetAtomicNum(), 1])
+    runs[0][1] += 1
     inner = organyl
-    for z in reversed(elements[1:]):
+    for z, count in reversed(runs[1:]):
         if inner is None:
-            inner = _CHAIN_HYDRO[z], False
-        elif z == 8:
+            inner = _run_hydro(z, count), False
+        elif z == 8 and count == 1:
             inner = _alkoxy(*inner)
         else:
-            inner = _enclose(*inner) + _CHAIN_WORDS[z], True
-    return _enclose(*inner) + _CHAIN_WORDS[elements[0]], True
+            inner = _enclose(*inner) + _run_word(z, count), True
+    z, count = runs[0]
+    if inner is None:
+        return _run_hydro(z, count), False
+    return _enclose(*inner) + _run_word(z, count), True
+
+
+def _run_word(z, count):
+    if z == 8:
+        return {1: "oxy", 2: "peroxy"}.get(count) or multiplying_prefix(count) + "oxidanyl"
+    return (multiplying_prefix(count) if count > 1 else "") + _CHAIN_WORDS[z]
+
+
+def _run_hydro(z, count):
+    if z == 8:
+        return {1: "hydroxy", 2: "hydroperoxy"}.get(count) or multiplying_prefix(count) + "oxidanyl"
+    return (multiplying_prefix(count) if count > 1 else "") + _CHAIN_WORDS[z]
 
 
 def _thioacyl(mol, idx):

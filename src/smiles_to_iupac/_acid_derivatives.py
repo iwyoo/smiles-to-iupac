@@ -741,7 +741,7 @@ def _locants_of(mol, atoms, centers, with_symmetry=False):
 def _multiplied_word(word, count):
     if count == 1:
         return word
-    return multiplying_prefix(count, compound=not word.isalpha()) + (word if word.isalpha() else f"({word})")
+    return multiplying_prefix(count, compound=not word.isalpha()) + (word if word.isalpha() else enclose(word))
 
 
 def _component_word(name):
@@ -750,8 +750,23 @@ def _component_word(name):
     return acid_word(name) if _ACID_ENDING.search(name) else f"({name})"
 
 
+_CHALCOGEN_SENIORITY = ("O", "S", "Se", "Te")
+
+
+def _senior_bridge_links(mol, links):
+    """P-65.7.6.4.2: when single-chalcogen linkages of different elements occur, the most senior (O > S > Se > Te)
+    names the anhydride and the others stay in the acid pieces as substituent groups."""
+    anhydrides = [l for l in links if l.kind == "anhydride"]
+    kinds = {id(l): _SYMBOL[mol.GetAtomWithIdx(l.chain[0]).GetAtomicNum()] for l in anhydrides if len(l.chain) == 1}
+    if len(kinds) != len(anhydrides) or len(set(kinds.values())) < 2:
+        return links
+    senior = min(kinds.values(), key=_CHALCOGEN_SENIORITY.index)
+    return [l for l in links if l.kind != "anhydride" or kinds[id(l)] == senior]
+
+
 def name_anhydride(mol, links):
     _reject_unsupported(mol)
+    links = _senior_bridge_links(mol, links)
     bridges, frags, owner = _bridged_components(mol, links)
     kinds = {tuple(_SYMBOL[mol.GetAtomWithIdx(a).GetAtomicNum()] for a in chain) for chain, _, _ in bridges.values()}
     if len(kinds) != 1 or next(iter(kinds)) not in _ANHYDRIDE_WORDS:
@@ -786,20 +801,27 @@ def name_anhydride(mol, links):
         return f"{text} {class_word}"
     hubs = [i for i in components if degrees[i] > 2]
     if hubs:
-        if len(hubs) != 1 or any(degrees[i] != 1 for i in components if i != hubs[0]):
+        if len(hubs) != 1:
             raise UnsupportedStructure("a branched polyanhydride beyond one polybasic centre is not handled")
         hub = hubs[0]
+        if any(degrees[i] != 1 for i in components if i != hub):
+            hub_keys = {key for key, (_, first, second) in bridges.items() if hub in (owner[first], owner[second])}
+            return name_anhydride(
+                mol, [l for l in links if l.kind != "anhydride" or frozenset(l.chain) in hub_keys]
+            )
         hub_keep = [a for a in frags[hub] if a not in bridge_atoms]
-        locants = _locants_of(mol, hub_keep, centers[hub])
+        carbon_hub = any(mol.GetAtomWithIdx(a).GetAtomicNum() == 6 for a in hub_keep)
+        locants = _locants_of(mol, hub_keep, centers[hub]) if carbon_hub else {}
         groups = {}
         for chain, first, second in bridges.values():
             leaf_center, hub_center = (first, second) if owner[first] != hub else (second, first)
             leaf = owner[leaf_center]
-            groups.setdefault(word_of[leaf], []).append(str(locants[hub_center]))
+            groups.setdefault(word_of[leaf], []).append(str(locants.get(hub_center, "")))
         cited = []
         for leaf_word in sorted(groups, key=alpha_sort_key):
             group = sorted(groups[leaf_word], key=lambda t: (len(t), t))
-            cited.append(f"{','.join(group)}-{_multiplied_word(leaf_word, len(group))}")
+            body = _multiplied_word(leaf_word, len(group))
+            cited.append(f"{','.join(group)}-{body}" if carbon_hub else body)
         return f"{' '.join(cited)} {word_of[hub]} {class_word}"
     ends = [i for i in components if degrees[i] == 1]
     order = [min(ends, key=lambda i: alpha_sort_key(word_of[i]))]
