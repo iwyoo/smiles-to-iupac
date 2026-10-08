@@ -1576,6 +1576,29 @@ def test_primary_amine_oxides_chalcogen_analogues_and_oxides_beside_senior_group
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        ("NC(=O)NC(=O)N", "2-imidodicarbonic diamide"),
+        ("NC(=O)NC(=O)NC(=O)N", "2,4-diimidotricarbonic diamide"),
+        ("CNC(=O)NC(=O)N", "N1-methyl-2-imidodicarbonic diamide"),
+        ("CNC(=S)NC(=O)N", "N1-methyl-2-imido-1-thiodicarbonic diamide"),
+        ("CNC(=O)NC(=S)NC(=O)N", "N1-methyl-2,4-diimido-3-thiotricarbonic diamide"),
+        ("NC(=O)OC(N)=O", "dicarbonic diamide"),
+        ("NC(=O)OC(=O)OC(N)=O", "tricarbonic diamide"),
+        ("CC(C)NC(=O)OC(N)=O", "N1-(propan-2-yl)dicarbonic diamide"),
+        ("NC(=S)SC(N)=S", "1,2,3-trithiodicarbonic diamide"),
+        ("NC(=S)SSC(N)=S", "2-dithioperoxy-1,3-dithiodicarbonic diamide"),
+        ("N#CNC(C)C", "(propan-2-yl)cyanamide"),
+        ("N#CN(CC)CC", "diethylcyanamide"),
+        ("NC(=O)NNC(N)=O", "hydrazine-1,2-dicarboxamide"),
+        ("NC(=O)NN(C(=O)N)C([N+](=O)[O-])[N+](=O)[O-]", "1-(dinitromethyl)hydrazine-1,2-dicarboxamide"),
+    ],
+)
+def test_amides_of_cyanic_polycarbonic_and_hydrazinedicarboxylic_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("CN(C)CCc1cccc(c1)CN(C)C", "2-{3-[(dimethylamino)methyl]phenyl}-N,N-dimethylethan-1-amine"),
         ("C[N+](C)([O-])CCc1cccc(c1)CN(C)C", "2-{3-[(dimethylamino)methyl]phenyl}-N,N-dimethylethan-1-amine N-oxide"),
         ("CN(C)CCc1cccc(c1)C[N+](C)(C)[O-]", "1-{3-[2-(dimethylamino)ethyl]phenyl}-N,N-dimethylmethanamine N-oxide"),
