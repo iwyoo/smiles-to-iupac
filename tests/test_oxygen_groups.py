@@ -935,6 +935,8 @@ def test_acid_derivative_prefixes(smiles, expected):
         ("OC(=O)OC(=O)OC(=O)OC(=O)OC(=O)O", "3,5,7-trioxo-2,4,6,8-tetraoxanonanedioic acid"),
         ("OC(=S)OC(=S)O", "1,3-dithiodicarbonic O1,O3-acid"),
         ("OC(=O)SC(=O)O", "2-thiodicarbonic acid"),
+        ("C(=O)(SC(=O)O)N", "1-amido-2-thiodicarbonic acid"),
+        ("C(=O)(NC(=O)NC(=O)O)NN", "1-hydrazido-2,4-diimidotricarbonic acid"),
         ("OC(=N)OC(=O)O", "1-imidodicarbonic acid"),
         ("ClC(=O)OC(=O)O", "chlorodicarbonic acid"),
     ],
