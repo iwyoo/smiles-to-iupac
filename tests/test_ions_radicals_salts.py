@@ -938,6 +938,7 @@ def test_iminium_and_mixed_ionic_centres(smiles, expected):
         pytest.param("C[n+]1cc[n+](C)cc1", "1,4-dimethylpyrazine-1,4-diium", id="aromatic_ring_with_two_cationic_nitrogens"),
         pytest.param("C1C[NH+]2CC[NH+]1CC2", "1,4-diazabicyclo[2.2.2]octane-1,4-diium", id="bicyclic_skeleton_centres"),
         pytest.param("C[N+](C)=[N+](C)C", "tetramethyldiazene-1,2-diium", id="fully_substituted_pair_omits_locants"),
+        pytest.param("C1CCC[SH3+]C[SH3+]C1", "1λ4,3λ4-dithiocane-1,3-diium", id="lambda4_ring_chalcogen_takes_ium"),
         pytest.param("C[NH2+][NH2+]C", "1,2-dimethylhydrazine-1,2-diium", id="partly_substituted_pair_cites_locants"),
         pytest.param("C[N+](C)(C)CC[N+](C)(C)C", "N1,N1,N1,N2,N2,N2-hexamethylethane-1,2-bis(aminium)", id="quaternary_bis_aminium"),
         pytest.param("C[NH2+]CC[NH2+]C", "N1,N2-dimethylethane-1,2-bis(aminium)", id="secondary_bis_aminium"),
@@ -1071,6 +1072,18 @@ def test_ring_cations_on_heteroatoms_other_than_nitrogen(smiles, expected):
     ],
 )
 def test_ring_heteroatom_ylium_cations(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("O=C(c1ccc(cc1)C(=O)[NH+])[NH+]", "benzene-1,4-bis(carboxamidylium)", id="carboxamidylium_centres"),
+        pytest.param("O=[S+](=O)c1ccc(cc1)[S+](=O)=O", "(1,4-phenylene)bis(dioxo-λ6-sulfanylium)", id="sulfonylium_centres"),
+        pytest.param("O=C(c1ccccc1C(=O)S[S+])S[S+]", "(benzene-1,2-dicarbonyl)bis(disulfanylium)", id="disulfanylium_centres_on_acyl_groups"),
+    ],
+)
+def test_polycations_of_ylium_groups_on_one_skeleton(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

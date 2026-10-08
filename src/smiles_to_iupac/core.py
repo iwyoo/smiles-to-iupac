@@ -41,6 +41,7 @@ from ._chalcogen_aldehyde import name_chalcogen_aldehyde
 from ._condensed_guanidine import name_condensed_guanidine
 from ._ring_heteroatom_nitrile import name_ring_heteroatom_nitrile
 from ._chain_onium import has_chain_onium_shape, name_chain_onium
+from ._group_polycation import has_group_polycation_shape, name_group_polycation
 from ._hydride_ylium import (
     has_hydride_onium_shape,
     has_hydride_ylium_shape,
@@ -702,6 +703,8 @@ def _name_unabridged(smiles: str) -> str:
             return name_hydride_ylium(parsed)
         if parsed is not None and has_poly_ylium_shape(parsed):
             return name_poly_ylium(parsed)
+        if parsed is not None and has_group_polycation_shape(parsed):
+            return name_group_polycation(parsed)
         if parsed is not None and has_ring_nitrenium_shape(parsed):
             return name_polycation(parsed)
         if parsed is not None and has_skeleton_radical_ion_shape(parsed):
