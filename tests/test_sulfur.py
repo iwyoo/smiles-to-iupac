@@ -820,3 +820,7 @@ def test_skeletal_chalcogen_with_nonstandard_bonding_number_keeps_lambda(smiles,
 )
 def test_chains_of_two_chalcogens_are_prefixes_and_four_units_make_a_replacement_chain(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+def test_stereogenic_sulfinyl_group_cites_its_descriptor():
+    assert smiles_to_iupac("C[S@](=O)c1ccccc1") == "[(S)-methanesulfinyl]benzene"
