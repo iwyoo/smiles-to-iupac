@@ -655,7 +655,13 @@ def _body(ctx, mol, sol, front=True, hidden=frozenset()):
         return text if len(group) == 1 else f"{multiplying_prefix(len(group), compound=True)}({text})"
 
     def pair_text(gi):
-        return ":".join(f"{locant_in(s, early)},{locant_in(s, late)}" for s, early, late in blocks[gi])
+        # a multiplied first-cited component precedes the central one only once; its other copies follow it (P-24.7.3)
+        distinct = len({s for s, _, _ in blocks[gi]}) == len(blocks[gi])
+        repeated = set(groups[0][1:]) if gi == 1 and len(groups[0]) > 1 and distinct else set()
+        return ":".join(
+            f"{locant_in(s, late)},{locant_in(s, early)}" if early in repeated else f"{locant_in(s, early)},{locant_in(s, late)}"
+            for s, early, late in blocks[gi]
+        )
 
     lam_front = ",".join(
         f"{lowest}λ{info[s][0]}"
