@@ -87,8 +87,12 @@ def name_amine_oxide(mol) -> str:
 
     if sum(a.GetAtomicNum() == 7 for a in reduced_mol.GetAtoms()) > 1:
         return f"{_name_with_oxidized_parent(reduced_mol, nitrogen.GetIdx(), oxide_oxygen.GetIdx())} N-oxide"
+    from ._common import heteroatom_stereo_prefix, specified_stereocenters
+
+    centres = specified_stereocenters(mol) or []
+    stereo_prefix = heteroatom_stereo_prefix(mol, nitrogen.GetIdx()) or "" if any(i == nitrogen.GetIdx() for i, _ in centres) else ""
     base_name = name_amine(reduced_mol)
-    return f"{base_name} N-oxide"
+    return f"{stereo_prefix}{base_name} N-oxide"
 
 
 def _name_with_oxidized_parent(reduced_mol, nitrogen_idx, oxide_idx):

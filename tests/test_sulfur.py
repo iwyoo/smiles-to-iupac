@@ -823,4 +823,15 @@ def test_chains_of_two_chalcogens_are_prefixes_and_four_units_make_a_replacement
 
 
 def test_stereogenic_sulfinyl_group_cites_its_descriptor():
-    assert smiles_to_iupac("C[S@](=O)c1ccccc1") == "[(S)-methanesulfinyl]benzene"
+    assert smiles_to_iupac("C[S@](=O)c1ccccc1") == "(S)-(methanesulfinyl)benzene"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[S@](=O)CC", "(S)-(methanesulfinyl)ethane"),
+        ("[N+](=O)([O-])C1=CC=C(C=C1)[S@](=O)OCC", "ethyl (R)-4-nitrobenzene-1-sulfinate"),
+    ],
+)
+def test_stereogenic_sulfoxide_and_sulfinate(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

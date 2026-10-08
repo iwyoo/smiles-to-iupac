@@ -6,7 +6,7 @@ valence differs from the standard one. Carbon and amino groups are cited as pref
 
 from rdkit import Chem
 
-from ._common import UnsupportedStructure, adjacency, halogen_substituents, multiplied_word
+from ._common import UnsupportedStructure, adjacency, halogen_substituents, heteroatom_stereo_prefix, multiplied_word
 from ._substituents import format_mononuclear_prefixes, name_branch
 
 _CENTERS = {
@@ -80,7 +80,8 @@ def name_phosphanone(mol) -> str:
     stem = parent[:-1] if suffix[0] in "aeiouy" else parent
     valence = center.GetTotalValence()
     lambda_label = f"-λ{valence}-" if valence != _STANDARD_VALENCE[center.GetAtomicNum()] else ""
-    return f"{format_mononuclear_prefixes(entries)}{lambda_label}{stem}{suffix}"
+    stereo = heteroatom_stereo_prefix(mol, center.GetIdx()) or ""
+    return f"{stereo}{format_mononuclear_prefixes(entries)}{lambda_label}{stem}{suffix}"
 
 
 _IMINE_CENTERS = {15: "phosphanimine", 33: "arsanimine", 51: "stibanimine", 83: "bismuthanimine"}
