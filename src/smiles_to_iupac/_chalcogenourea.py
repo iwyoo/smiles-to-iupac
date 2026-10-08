@@ -60,7 +60,6 @@ _SENIOR_TO_UREA = [
         "[CX3](=[O,S,Se,Te])[SX2,SeX2,TeX2]",
         "[CX3](=[O,S,Se,Te])[F,Cl,Br,I]",
         "[CX3](=[O,S,Se,Te])[NX3]",
-        "[CX3](=[NX2])[NX3]",
         "[SX4,SX3,SeX4,TeX4](=O)[OX2H1,OX1-,OX2,NX3]",
     )
 ]
@@ -159,6 +158,8 @@ def n_prefix(n1_names, n2_names):
     comes first alphanumerically (P-14.3.5, P-14.5.2). A sole substituent sits on one of two equivalent nitrogens
     (P-14.3.4.3) and four identical ones leave no substitutable hydrogen (P-14.3.4.5), so no locant is cited."""
     names = n1_names + n2_names
+    if names == [("carbamimidoyl", False)]:
+        return "N-carbamimidoyl"
     if len(names) == 1 or (len(names) == 4 and len(set(names)) == 1):
         return format_mononuclear_prefixes(names)
     if len(n1_names) != len(n2_names):

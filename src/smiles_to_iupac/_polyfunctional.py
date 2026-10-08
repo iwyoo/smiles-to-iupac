@@ -300,6 +300,21 @@ def _organyloxy(mol, oxygen, nitrogen):
     )
 
 
+def _carbamimidoyl_on(mol, atom, nitrogen):
+    """Whether `atom` is the carbon of an unsubstituted carbamimidoyl group -C(=NH)NH2 bonded to `nitrogen`."""
+    if atom.GetAtomicNum() != 6 or atom.GetDegree() != 3 or atom.GetFormalCharge() or atom.IsInRing():
+        return False
+    if mol.GetBondBetweenAtoms(atom.GetIdx(), nitrogen.GetIdx()).GetBondTypeAsDouble() != 1.0:
+        return False
+    ends = [n for n in atom.GetNeighbors() if n.GetIdx() != nitrogen.GetIdx()]
+    orders = sorted(mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() for n in ends)
+    return (
+        orders == [1.0, 2.0]
+        and all(n.GetAtomicNum() == 7 and n.GetDegree() == 1 and not n.GetFormalCharge() for n in ends)
+        and sum(n.GetTotalNumHs() for n in ends) == 3
+    )
+
+
 def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
     """An amide nitrogen carrying carbon, hydroxy or organyloxy substituents (a hydroxamic acid, P-65.1.3.4, or its
     O-organyl ether) and at most one acyl group -- named with 'N-' prefixes on the amide parent."""
@@ -319,6 +334,7 @@ def _plain_amide_nitrogen(mol, nitrogen, carbonyl):
         n in hydroxy
         or n in oxy
         or n in acyl
+        or _carbamimidoyl_on(mol, n, nitrogen)
         or n.GetAtomicNum() in HALOGEN_PREFIXES
         or (
             n.GetAtomicNum() == 6
@@ -3874,6 +3890,8 @@ def _with_n_names(grouped, n_names, position_of=None, group_count=2):
                 located = "N"
             else:
                 mark = "'" * primes.get(located[2], 0) if len(located) > 2 else ""
+                if len(located) > 4:
+                    mark *= 2
                 located = f"{located[0]}{mark}{position}"
         merged.setdefault(name, {"locants": [], "compound": compound})["locants"].append(located)
     return merged
@@ -4007,26 +4025,29 @@ def _amidrazone_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_group
 
 
 def _amidine_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups):
-    """N and N' prefix entries (name, compound, locant) of the amidine group: N on the amino nitrogen, N' on the
-    imino nitrogen (P-66.4.1.1); several groups cannot be told apart by these locants."""
-    members = dict(groups.get("amidine", {}))
+    """N and N' prefix entries (name, compound, locant) of the amidine groups: N on the amino nitrogen, N' on the
+    imino nitrogen; with several groups the locant carries the position of its group (P-66.4.1.4.1) and geminal groups
+    continue the primes (P-66.4.1.4.2)."""
+    members = {c: (owned, c) for c, owned in groups.get("amidine", {}).items()}
     for cls, ring_atom, owned in ring_groups:
         if cls == "amidine":
-            members[next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 6), ring_atom)] = owned
+            key = next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 6), ring_atom)
+            members[key] = (owned, ring_atom)
     entries = []
-    for owned in members.values():
+    for carbon, (owned, anchor) in members.items():
+        rest = tuple(a for a in graph[carbon] if a not in owned)
         for nitrogen in (a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7):
             atom = mol.GetAtomWithIdx(nitrogen)
             imino = any(
                 b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(atom).GetAtomicNum() == 6 for b in atom.GetBonds()
             )
+            base = "N'" if imino else "N"
+            located = (base, anchor, carbon, rest, "amidine") if len(members) > 1 else base
             for n in graph[nitrogen]:
                 if mol.GetAtomWithIdx(n).GetAtomicNum() == 6 and _amidine_nitrogens(mol, mol.GetAtomWithIdx(n)) is not None:
                     continue
                 name, compound = name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
-                entries.append((name, compound, "N'" if imino else "N"))
-    if entries and len(members) != 1:
-        raise UnsupportedStructure("several amidine groups with N-substitution are not handled by the chain engine")
+                entries.append((name, compound, located))
     return entries
 
 

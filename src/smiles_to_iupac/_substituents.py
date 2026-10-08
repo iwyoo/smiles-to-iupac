@@ -40,7 +40,7 @@ def _locant_sort_key(locant):
     if digits is None:
         nitrogen = re.fullmatch(r"N(['′]*)(\d*)", locant)
         if nitrogen:
-            return (0, len(nitrogen.group(1)), int(nitrogen.group(2) or 0), locant)
+            return (0, int(nitrogen.group(2) or 0), len(nitrogen.group(1)), locant)
         return (0, 0, 0, locant)
     return (1, locant.count("\u2032"), int(digits.group()), locant[digits.end():].replace("\u2032", ""))
 
