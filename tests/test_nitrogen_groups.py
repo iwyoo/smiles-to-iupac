@@ -474,17 +474,6 @@ def test_n_n_prime_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("N1CCCCC1=N", id="ring_fused_guanidine_still_not_supported"),
-    ],
-)
-def test_substituted_phenyl_n_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
-
-
 def test_pyrrolidine_amine_2():
     assert smiles_to_iupac("NC1CCCN1") == "pyrrolidin-2-amine"
 
@@ -760,11 +749,6 @@ def test_isocyanide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_ring_not_supported__isocyanide():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCC([N+]#[C-])CC1")
-
-
 def test_phenyl_isocyanide_chain():
     assert smiles_to_iupac("c1ccccc1C[N+]#[C-]") == "(isocyanomethyl)benzene"
     assert smiles_to_iupac("c1ccccc1CC[N+]#[C-]") == "(2-isocyanoethyl)benzene"
@@ -773,9 +757,6 @@ def test_phenyl_isocyanide_chain():
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("C=Cc1ccccc1C[N+]#[C-]", id="phenyl_isocyanide_unsaturation_not_supported"),
-        pytest.param("C=CC[N+]#[C-]", id="unsaturated_chain_not_supported__isocyanide"),
-        pytest.param("[C-]#[N+]C[N+]#[C-]", id="two_isocyanide_groups_not_supported"),
         pytest.param("CO[N+](=O)[O-].C", id="multiple_fragments_raises"),
         pytest.param("[O-][N+](=O)OCCCO[N+](=O)[O-]", id="two_nitrate_groups_raises"),
     ],
@@ -1498,4 +1479,32 @@ def test_stereogenic_nitrogen_of_an_amine_oxide():
     ],
 )
 def test_formazan_and_its_hydrocarbyl_derivatives(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C1CCC([N+]#[C-])CC1", "isocyanocyclohexane"),
+        ("OC(=O)c1ccc(cc1)[N+]#[C-]", "4-isocyanobenzoic acid"),
+        ("CC(C)(C)N=C(C(=O)O)C(C)(O[N+](=O)[O-])C", "2-(tert-butylimino)-3-methyl-3-(nitrooxy)butanoic acid"),
+        ("C1CCC(CC1)N=C=NC1CCCCC1", "dicyclohexylmethanediimine"),
+        ("CN=C=NCC", "N'-ethyl-N-methylmethanediimine"),
+        ("CP=N", "1-methylphosphanimine"),
+        ("C[Si](C)=Nc1ccccc1", "1,1-dimethyl-N-phenylsilanimine"),
+        ("S1C(CCC1)=N", "thiolan-2-imine"),
+        ("CN=C1C=CC(C2=CC=CC=C12)=NC", "N1,N4-dimethylnaphthalene-1,4-diimine"),
+        ("[SiH]#[SiH]", "disilyne"),
+        ("NN=NNN", "pentaaz-2-ene"),
+        ("c1ccccc1N=NNc1ccccc1", "1,3-diphenyltriaz-1-ene"),
+        ("[SnH2]=P[SnH]=P[SnH3]", "tristannaphospha-1,3-diene"),
+        ("[SiH2]([SiH3])SS[SiH2][Si](C)(C)C", "2-(disilanyldisulfanyl)-1,1,1-trimethyldisilane"),
+        ("CPPN=O", "1-methyl-2-nitrosodiphosphane"),
+        ("O=Nc1ccc(cc1)N=O", "1,4-dinitrosobenzene"),
+        ("N1=CC#CC=C1", "3,4-didehydropyridine"),
+        ("[C-]#[O+]", "carbon monoxide"),
+        ("ON[CH]", "N-hydroxy-λ2-methanamine"),
+    ],
+)
+def test_noncarbon_parents_and_groups(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

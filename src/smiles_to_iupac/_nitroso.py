@@ -175,13 +175,16 @@ def name_nitroso(mol) -> str:
         nitroso_atom_idxs.update(o.GetIdx() for o in n.GetNeighbors() if o.GetAtomicNum() == 8)
 
     ring_info = mol.GetRingInfo()
-    if ring_info.NumRings() == 1:
-        ring_atoms = set(ring_info.AtomRings()[0])
-        if is_plain_benzene_ring(mol, ring_atoms):
-            return _name_benzene_ring_nitroso_chain(mol, nitroso_nitrogens, nitroso_atom_idxs, ring_atoms)
-        raise UnsupportedStructure("rings are not supported by this module yet")
     if ring_info.NumRings() > 0:
-        raise UnsupportedStructure("rings are not supported by this module yet")
+        ring_atoms = set(ring_info.AtomRings()[0])
+        try:
+            if ring_info.NumRings() == 1 and is_plain_benzene_ring(mol, ring_atoms):
+                return _name_benzene_ring_nitroso_chain(mol, nitroso_nitrogens, nitroso_atom_idxs, ring_atoms)
+            raise UnsupportedStructure("rings are not supported by this module yet")
+        except UnsupportedStructure:
+            from ._polyfunctional import name_polyfunctional
+
+            return name_polyfunctional(mol)
 
     _validate_nitroso_atoms(mol, nitroso_atom_idxs, frozenset())
     if any(a not in nitroso_atom_idxs and b not in nitroso_atom_idxs for a, b, _ in non_single_bonds(mol)):

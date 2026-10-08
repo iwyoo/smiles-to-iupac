@@ -573,6 +573,8 @@ def _group_of(mol, carbon):
         if n.GetAtomicNum() == 7 and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 3.0
     ]
     if nitrogens:
+        if atom.GetFormalCharge() == -1 and atom.GetDegree() == 1 and mol.GetAtomWithIdx(nitrogens[0]).GetFormalCharge() == 1:
+            return None
         others = [n for n in atom.GetNeighbors() if n.GetIdx() != nitrogens[0]]
         if (
             len(others) == 1
@@ -3560,12 +3562,22 @@ def _is_isocyanate_carbon(atom):
 
 
 def _is_nitro_part(atom):
-    """The charged atoms of a nitro or azido group: N+ bonded to two oxygens (one O-)."""
+    """The charged atoms of a nitro, azido or isocyano group: N+ bonded to two oxygens (one O-)."""
     if _is_azide_part(atom) or is_halogen_oxo_part(atom.GetOwningMol(), atom):
         return True
+    if atom.GetAtomicNum() in (6, 7) and atom.GetFormalCharge() in (-1, 1):
+        mol = atom.GetOwningMol()
+        if any(
+            {n.GetAtomicNum(), atom.GetAtomicNum()} == {6, 7}
+            and n.GetFormalCharge() == -atom.GetFormalCharge()
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 3.0
+            and (atom if atom.GetAtomicNum() == 6 else n).GetDegree() == 1
+            for n in atom.GetNeighbors()
+        ):
+            return True
     if atom.GetAtomicNum() == 7 and atom.GetFormalCharge() == 1:
         oxygens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8]
-        return len(oxygens) == 2 and sum(o.GetFormalCharge() for o in oxygens) == -1 and atom.GetDegree() == 3
+        return len(oxygens) in (2, 3) and sum(o.GetFormalCharge() for o in oxygens) == -1 and atom.GetDegree() == 3
     if atom.GetAtomicNum() == 8 and atom.GetFormalCharge() == -1 and atom.GetDegree() == 1:
         (n,) = atom.GetNeighbors()
         return n.GetAtomicNum() == 7 and _is_nitro_part(n)
