@@ -722,3 +722,16 @@ def test_fusion_name_without_two_large_rings_is_kept_with_a_warning_when_von_bae
 )
 def test_replacement_named_peri_fused_system_keeps_hydrocarbon_numbering_for_substituents(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("O1CCCC2C1OCCC2", "hexahydro-2H,5H-pyrano[2,3-b]pyran"),
+        ("C1OCC23C1(C=CC=C2)C3", "1H,3H-3a,7a-methano-2-benzofuran"),
+        ("C1C=CN2C=3C(C(C=CC13)=O)=CC(C2)=O", "1H,5H-pyrido[3,2,1-ij]quinoline-6,8-dione"),
+        ("C1CC2=CC=CC3=C2N(C1)CCC3", "2,3,6,7-tetrahydro-1H,5H-pyrido[3,2,1-ij]quinoline"),
+    ],
+)
+def test_saturated_and_peri_fused_heterocycles_take_hydro_and_indicated_hydrogen_fusion_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
