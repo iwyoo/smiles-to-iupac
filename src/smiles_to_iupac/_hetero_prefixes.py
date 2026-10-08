@@ -55,7 +55,7 @@ def require_plain_chalcogen_kids(mol, z, kids):
     if z in (34, 52) and not EXTENDED_PREFIXES.get():
         for kid in kids:
             atom = mol.GetAtomWithIdx(kid)
-            if atom.GetAtomicNum() in (16, 34, 52) and atom.GetDegree() <= 2:
+            if atom.GetAtomicNum() in (14, 32, 50, 82) or (atom.GetAtomicNum() in (16, 34, 52) and atom.GetDegree() <= 2):
                 continue
             if atom.GetAtomicNum() != 6 or any(
                 b.GetBondTypeAsDouble() >= 2.0 and b.GetOtherAtom(atom).GetAtomicNum() in (7, 8, 16, 34, 52)
