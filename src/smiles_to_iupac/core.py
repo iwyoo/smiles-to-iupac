@@ -214,6 +214,7 @@ from ._hetero_monocyclic import (
     name_hetero_monocyclic_substituent,
     name_pyran_indicated_hydrogen,
 )
+from ._heteroaryne import has_heteroaryne_shape, name_heteroaryne
 from ._didehydro_ring import has_didehydro_ring_name, name_didehydro_ring
 from ._chalcogen_chain_heterone import name_chalcogen_chain_heterone
 from ._halogen_acid_ester import name_halogen_acid_ester
@@ -1562,6 +1563,7 @@ def _name_mol(mol) -> str:
         # check's fully-saturated canonical SMILES anyway, but grouped here
         # for the shared `saturated_ring_name` dependency.
         (has_didehydro_ring_name, name_didehydro_ring),
+        (has_heteroaryne_shape, name_heteroaryne),
         # oxirane/thiane/piperidine etc. (P-22.2.1's Hantzsch-Widman
         # saturated-monocyclic retained names) are recognized the same way --
         # see _hetero_monocyclic.py's module docstring; none of the O/N
