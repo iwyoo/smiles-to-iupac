@@ -1393,10 +1393,15 @@ def _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     order = int(mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble())
     others = [n for n in graph[root] if n != coming_from]
     if order > 1:
-        if any(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0 for n in others) or len(others) > valence - order:
+        if any(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() != 1.0 for n in others):
+            raise UnsupportedStructure("this mononuclear ylidene group is not supported yet")
+        bonding = order + len(others)
+        if bonding > valence and (bonding - valence) % 2 or bonding > valence + 4:
             raise UnsupportedStructure("this mononuclear ylidene group is not supported yet")
         entries = [name_branch(graph, n, root, halogens, aromatic_atoms, mol=mol) for n in others]
         prefix = format_mononuclear_prefixes(entries) if entries else ""
+        if bonding > valence:
+            return (prefix + "-" if prefix else "") + f"λ{bonding}-" + base[:-2] + SUFFIX_OF_ORDER[order], True
         return prefix + base[:-2] + SUFFIX_OF_ORDER[order], bool(entries)
     if any(
         mol.GetAtomWithIdx(n).GetAtomicNum() == atom.GetAtomicNum() and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 1.0
