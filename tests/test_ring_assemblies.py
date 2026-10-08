@@ -134,9 +134,17 @@ def test_4_chlorobiphenyl_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_unsaturated_ring_chain_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1=CCCCC1C1=CCCCC1C1=CCCCC1")
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        ("C1=CCCCC1C1=CCCCC1C1=CCCCC1", "[1¹,2¹:2²,3¹-tercyclohexane]-1¹,2²,3²-triene"),
+        ("C1CC=CCC1C1CCC(CC1)C1CCCCC1", "[1¹,2¹:2⁴,3¹-tercyclohexane]-1³-ene"),
+        ("C1CCCCC1C1CC#CCC1C1CCCCC1", "[1¹,2¹:2²,3¹-tercyclohexane]-2⁴-yne"),
+        ("C1=CCCCC1C1CC#CCC1C1CCCCC1", "[1¹,2¹:2²,3¹-tercyclohexane]-1²-en-2⁴-yne"),
+    ],
+)
+def test_ring_chain_unsaturation_is_cited_after_the_bracket(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(

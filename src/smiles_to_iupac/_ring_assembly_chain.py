@@ -114,6 +114,7 @@ from itertools import product
 from ._common import (
     UnsupportedStructure,
     adjacency,
+    multiplied_word,
     group_substituents,
     halogen_substituents,
     ring_cycle,
@@ -245,7 +246,7 @@ def hydro_prefix(locants):
     return f"{','.join(locants)}-{numerical_term(len(locants))}hydro-" if locants else ""
 
 
-def _ring_kind(mol, ring):
+def _ring_kind(mol, ring, allow_multiple=False):
     """("aromatic", 6) for an all-carbon benzo ring, (parent_name, size)
     for a mancude 5- or 6-ring matching one of `_ROLE_SEQUENCES`'s non-NH
     parents (e.g. ("pyridine", 6), ("thiophene", 5), ("pyrazine", 6)),
@@ -260,12 +261,17 @@ def _ring_kind(mol, ring):
         return (parent_name, len(ring)) if parent_name is not None else None
     if any(a.GetAtomicNum() != 6 or a.GetIsAromatic() for a in atoms):
         return None
-    ring_set = set(ring)
-    for bond in mol.GetBonds():
-        a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
-        if a in ring_set and b in ring_set and bond.GetBondTypeAsDouble() != 1.0:
-            return None
+    if not allow_multiple and _has_ring_multiple_bond(mol, ring):
+        return None
     return "saturated", len(ring)
+
+
+def _has_ring_multiple_bond(mol, ring):
+    ring_set = set(ring)
+    return any(
+        b.GetBeginAtomIdx() in ring_set and b.GetEndAtomIdx() in ring_set and b.GetBondTypeAsDouble() != 1.0
+        for b in mol.GetBonds()
+    )
 
 
 def _pyrrole_ring_kind(mol, ring):
@@ -306,7 +312,7 @@ def find_ring_assembly_chain_core(mol):
     graph = adjacency(mol)
     kinds, hydro_rings = [], []
     for ring in atom_rings:
-        kind = _ring_kind(mol, ring) or _pyrrole_ring_kind(mol, ring)
+        kind = _ring_kind(mol, ring, allow_multiple=True) or _pyrrole_ring_kind(mol, ring)
         if kind is None:
             kind = saturated_counterpart_kind(mol, graph, ring)
             if kind is not None:
@@ -314,7 +320,7 @@ def find_ring_assembly_chain_core(mol):
         kinds.append(kind)
     if ("aromatic", 6) in kinds:
         for i, kind in enumerate(kinds):
-            if kind == ("saturated", 6):
+            if kind == ("saturated", 6) and not _has_ring_multiple_bond(mol, atom_rings[i]):
                 kinds[i] = ("aromatic", 6)
                 hydro_rings.append(frozenset(atom_rings[i]))
     if len(set(kinds)) != 1 or None in kinds or len(hydro_rings) == n:
@@ -410,6 +416,37 @@ def validate_hetero_ring_assembly_atoms(mol, ring_atoms_all, kind):
         ],
         aromatic_ring_atoms=ring_atoms_all,
     )
+
+
+def _multiple_bond_locants(mol, locants, ring_size):
+    """([(ring, position)] of the ring double bonds, [...] of the triple bonds) in a composite numbering; the first
+    atom of each bond cites it (P-31.1.7.1)."""
+    enes, ynes = [], []
+    for bond in mol.GetBonds():
+        order = bond.GetBondTypeAsDouble()
+        a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+        if order == 1.0 or a not in locants or b not in locants or locants[a][0] != locants[b][0] or bond.GetIsAromatic():
+            continue
+        ring_number = locants[a][0]
+        low, high = sorted((locants[a][1], locants[b][1]))
+        if high - low != 1:
+            return None
+        (enes if order == 2.0 else ynes).append((ring_number, low))
+    return sorted(enes), sorted(ynes)
+
+
+def _unsaturation_ending(enes, ynes):
+    """'12,21-diene' style ending of an assembly of saturated components, cited after the bracket (P-31.1.7.1)."""
+    if not enes and not ynes:
+        return ""
+
+    def cite(found):
+        return ",".join(superscript_locant(*loc) for loc in found)
+
+    ene_word, yne_word = multiplied_word(len(enes), "ene"), multiplied_word(len(ynes), "yne")
+    if enes and ynes:
+        return f"{cite(enes)}-{ene_word[:-1]}-{cite(ynes)}-{yne_word}"
+    return f"{cite(enes)}-{ene_word}" if enes else f"{cite(ynes)}-{yne_word}"
 
 
 def name_ring_assembly_chain(mol, core) -> str:
@@ -515,6 +552,10 @@ def name_ring_assembly_chain(mol, core) -> str:
             all_junction_locants = [loc for pair in junction_pairs for loc in pair]
             junction_locant_set = tuple(sorted(all_junction_locants))
             junction_citation = tuple(all_junction_locants)
+            found = _multiple_bond_locants(mol, locants, ring_size)
+            if found is None:
+                continue
+            enes, ynes = found
 
             substituents = {}
             for atom, composite in locants.items():
@@ -533,12 +574,15 @@ def name_ring_assembly_chain(mol, core) -> str:
             )
             hydro_str = hydro_prefix([superscript_locant(*loc) for loc in hydro])
             base = f"{hydro_str}{junction_str}-{_MULTIPLIER[n]}{ring_word}"
+            ending = _unsaturation_ending(enes, ynes)
+            if ending:
+                base = f"[{base}]-{ending}"
             # P-28.2.3: indicated hydrogen, if any, is cited at the very
             # front of the name -- ahead of the substituent prefix too
             # (same placement `_ring_assembly.py`'s own N=2 case uses).
             name = indicated_hydrogen_prefix + (base if not prefix else f"{prefix}-{base}")
 
-            key = (junction_locant_set, junction_citation, tuple(hydro), sub_locant_set, sub_citation, name)
+            key = (junction_locant_set, junction_citation, tuple(hydro), (tuple(enes), tuple(ynes)), sub_locant_set, sub_citation, name)
             if best_key is None or key < best_key:
                 best_key, best_name = key, name
 
