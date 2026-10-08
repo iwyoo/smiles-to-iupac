@@ -29,7 +29,7 @@ _FREE_INORGANIC_ACIDS = {"OB(O)O": "boric acid", "OP(O)O": "phosphorous acid",
     "PO": "phosphinous acid",
 }
 _HALIDES = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
-_PSEUDOESTER_ELEMENTS = {5, 13, 14, 15, 31, 32, 33, 49, 50, 51, 81, 82, 83}
+_PSEUDOESTER_ELEMENTS = {5, 7, 13, 14, 15, 31, 32, 33, 49, 50, 51, 81, 82, 83}
 _RING_ONLY_PSEUDOESTER = {5, 15, 33, 51, 83, 7}
 _ANHYDRIDE_WORDS = {
     ("O",): "anhydride",

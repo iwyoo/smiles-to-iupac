@@ -38,6 +38,7 @@ _SENIOR_TO_SELENOL = [
         "[CX3H1](=O)[#6]",
         "[#6][CX3](=O)[#6]",
         "[#6][CX3](=O)[O,S,Se,Te;X2][O,S,Se,Te;X2][O,S,Se,Te;X2]",
+        "[#6][CX3](=O)[OX2][NX3;!R]",
         "[OX2H1][#6;!$([#6]=O)]",
         "[SX2H1][#6;!$([#6]=[O,S,Se,Te])]",
     )
@@ -458,7 +459,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         others = [n for n in graph[root] if n != coming_from]
         if len(others) == 2 and all(_terminal_hydroxy(mol, n, root) for n in others):
             return "borono", False
-    if z in MONONUCLEAR_HYDRIDES:
+    if z in MONONUCLEAR_HYDRIDES and not atom.IsInRing():
         return _mononuclear_group(graph, root, coming_from, halogens, aromatic_atoms, mol)
     if z in _HALOGEN_STEMS:
         named = halogen_oxo_prefix(mol, root, coming_from)
@@ -472,6 +473,8 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return None
     others = [n for n in graph[root] if n != coming_from]
     order = mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble()
+    if z in _CYANATE_PREFIXES and order == 1.0 and len(others) == 1 and _is_cyanide_carbon(mol, others[0], root):
+        return _CYANATE_PREFIXES[z], False
     if z == 8:
         if order == 2.0:
             return "oxo", False
@@ -738,6 +741,22 @@ def _chalcogen_amido(graph, root, others, mol):
         return None
     prefix = name[:-1] + "o"
     return prefix, "-" in prefix or "ane" in prefix
+
+
+_CYANATE_PREFIXES = {8: "cyanato", 16: "thiocyanato", 34: "selenocyanato", 52: "tellurocyanato"}
+
+
+def _is_cyanide_carbon(mol, idx, chalcogen):
+    atom = mol.GetAtomWithIdx(idx)
+    if atom.GetAtomicNum() != 6 or atom.GetDegree() != 2 or atom.GetFormalCharge():
+        return False
+    other = next(n for n in atom.GetNeighbors() if n.GetIdx() != chalcogen)
+    return (
+        other.GetAtomicNum() == 7
+        and other.GetDegree() == 1
+        and not other.GetFormalCharge()
+        and mol.GetBondBetweenAtoms(idx, other.GetIdx()).GetBondTypeAsDouble() == 3.0
+    )
 
 
 _ISOCYANATE_PREFIXES = {8: "isocyanato", 16: "isothiocyanato", 34: "isoselenocyanato", 52: "isotellurocyanato"}

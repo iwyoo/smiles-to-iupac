@@ -200,6 +200,7 @@ def _terminal_heteroatom(mol, idx, hydrogens):
 
 
 _CHALCOGEN_KETONE_CLASS = {16: "thione", 34: "selone", 52: "tellone"}
+_CARBOXYLIC_OR_SULFONIC = Chem.MolFromSmarts("[#6,#16](=[O,S,Se,Te])[O,S,Se,Te;!$(*C#N)]")
 _CHALCOGEN_KETONE_OK = {
     "acid", "thioic", "peroxoic", "imidic", "sulfonic", "amide", *_CHALCOGEN_AMIDE_CLASSES, "amidine", *_AMIDRAZONE, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, *_CHALCOGEN_IMIDAMIDE.values(), "hydrazide", *_CHALCOGEN_HYDRAZIDE.values(), "nitrile", "aldehyde", "ketone",
     *_CHALCOGEN_KETONE_CLASS.values(),
@@ -467,6 +468,22 @@ def _is_pseudoketone_heteroatom(mol, atom, carbon):
     return z in _GROUP_14_ATOMS or all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors() if n.GetIdx() != carbon)
 
 
+def _acyloxy_amine_oxygen(mol, oxygen, carbon):
+    """The ester oxygen of an acyl-O-N group on an acyclic amine nitrogen: a pseudoketone (P-65.6.3.4.1), since only a
+    cyclic nitrogen gives a traditional ester."""
+    if oxygen.GetAtomicNum() != 8 or oxygen.GetDegree() != 2 or oxygen.GetFormalCharge():
+        return False
+    far = next((n for n in oxygen.GetNeighbors() if n.GetIdx() != carbon), None)
+    if far is None or far.GetAtomicNum() != 7 or far.GetFormalCharge() or far.IsInRing() or far.GetIsAromatic():
+        return False
+    if any(b.GetBondTypeAsDouble() != 1.0 for b in far.GetBonds()):
+        return False
+    return all(
+        n.GetIdx() == oxygen.GetIdx() or (n.GetAtomicNum() == 6 and not _double_oxygens(mol, n.GetIdx()))
+        for n in far.GetNeighbors()
+    )
+
+
 def _sulfonyl_groups_on(mol, carbon):
     """[(class, owned atoms)] of the sulfonyl-type groups bonded to `carbon`."""
     found = []
@@ -500,6 +517,13 @@ def _group_of(mol, carbon):
     ]
     if nitrogens:
         others = [n for n in atom.GetNeighbors() if n.GetIdx() != nitrogens[0]]
+        if (
+            len(others) == 1
+            and others[0].GetAtomicNum() in (8, 16, 34, 52)
+            and others[0].GetDegree() == 2
+            and mol.HasSubstructMatch(_CARBOXYLIC_OR_SULFONIC)
+        ):
+            return None
         if len(others) != 1 or others[0].GetAtomicNum() != 6:
             raise UnsupportedStructure("a cyanide not bonded to carbon is not a nitrile")
         return "nitrile", {nitrogens[0]}
@@ -573,7 +597,9 @@ def _group_of(mol, carbon):
             if carbon_neighbors and other.GetAtomicNum() == 7 and _ring_nitrogen_acyl(mol, other, carbon):
                 return "ketone", {oxygens[0]}
             if carbon_neighbors and (
-                _is_pseudoketone_heteroatom(mol, other, carbon) or _diacyl_chalcogen_chain(mol, carbon, other)
+                _is_pseudoketone_heteroatom(mol, other, carbon)
+                or _diacyl_chalcogen_chain(mol, carbon, other)
+                or _acyloxy_amine_oxygen(mol, other, carbon)
             ):
                 return "ketone", {oxygens[0]}
             if not carbon_neighbors and atom.GetTotalNumHs() == 1 and other.GetAtomicNum() == 7 and _ring_nitrogen_acyl(mol, other, carbon):
@@ -3605,6 +3631,7 @@ def _is_ester_like(mol, carbon):
     return any(
         n.GetAtomicNum() in (8, 7, 16, 9, 17, 35, 53) and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0
         and not _diacyl_chalcogen_chain(mol, carbon, n)
+        and not (_acyloxy_amine_oxygen(mol, n, carbon) and any(c.GetAtomicNum() == 6 for c in atom.GetNeighbors()))
         and not (n.GetAtomicNum() == 7 and (atom.GetTotalNumHs() == 1 or any(c.GetAtomicNum() == 6 for c in atom.GetNeighbors())) and _ring_nitrogen_acyl(mol, n, carbon))
         and not (n.GetAtomicNum() == 8 and _terminal_heteroatom(mol, n.GetIdx(), 1))
         and not (n.GetAtomicNum() == 7 and _terminal_heteroatom(mol, n.GetIdx(), 2))
