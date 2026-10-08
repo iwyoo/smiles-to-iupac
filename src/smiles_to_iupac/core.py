@@ -369,7 +369,7 @@ _NO_PIN_ORGANOMETALLIC ="the Blue Book defines no PIN for this class of organome
 _FALLBACKS_RUNNING = set()
 
 
-_ADAMANTANE = re.compile(r"(?<![a-z])tricyclo\[3\.3\.1\.1\^3,7\]decan(?=e|-)")
+_ADAMANTANE = re.compile(r"(?<!bi)(?<!ter)(?<!quater)(?<!yclo)(?<!a)tricyclo\[3\.3\.1\.1\^3,7\]decan(?=e|-)")
 
 
 _INDACENE_PREFIX = re.compile(r"([a-z\]\)])(as-indacen|(?<!a)s-indacen)")
