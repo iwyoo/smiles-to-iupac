@@ -360,13 +360,17 @@ def _chalcogen_chain_group(graph, first, second, halogens, aromatic_atoms, mol):
 
 
 def _thioacyl(mol, idx):
-    """A carbon with a terminal =S, =Se or =Te: the acyl group of a chalcogen analogue of an acid (P-65.1.7.2.3)."""
-    return any(
-        n.GetAtomicNum() in (16, 34, 52)
-        and n.GetDegree() == 1
-        and mol.GetBondBetweenAtoms(idx, n.GetIdx()).GetBondTypeAsDouble() == 2.0
-        for n in mol.GetAtomWithIdx(idx).GetNeighbors()
-    )
+    """An acyl centre: a carbon with a terminal =O, =S, =Se or =Te, or a sulfonyl-type S, Se or Te with two terminal =O
+    (P-65.1.7.2.3, P-66.1.1.4.3)."""
+    atom = mol.GetAtomWithIdx(idx)
+    terminal = [
+        n
+        for n in atom.GetNeighbors()
+        if n.GetDegree() == 1 and mol.GetBondBetweenAtoms(idx, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    ]
+    if atom.GetAtomicNum() == 6:
+        return any(n.GetAtomicNum() in (8, 16, 34, 52) for n in terminal)
+    return atom.GetAtomicNum() in (16, 34, 52) and sum(n.GetAtomicNum() == 8 for n in terminal) == 2
 
 
 PEROXY_PREFIXES = contextvars.ContextVar("peroxy_prefixes", default=False)
@@ -635,11 +639,11 @@ def _side(graph, start, blocked):
 
 
 def _chalcogen_amido(graph, root, others, mol):
-    """'ethanethioamido' for R-C(=S)-NH- (also Se, Te) and N-substituted forms: the final 'e' in the complete name of the
-    amide becomes 'o' (P-66.1.4.4); None for any other nitrogen."""
+    """'acetamido', 'ethanethioamido', 'methanesulfonamido' for R-CO-NH-, R-CS-NH-, R-SO2-NH- and N-substituted
+    forms: the final 'e' in the complete name of the amide becomes 'o' (P-66.1.1.4.3); None for any other nitrogen."""
     from ._polyfunctional import name_polyfunctional
 
-    acyl = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 6 and _thioacyl(mol, n)]
+    acyl = [n for n in others if _thioacyl(mol, n)]
     rest = [n for n in others if n not in acyl]
     if len(acyl) != 1 or len(rest) > 1 or any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in rest):
         return None
@@ -659,9 +663,10 @@ def _chalcogen_amido(graph, root, others, mol):
         name = contextvars.Context().run(name_polyfunctional, fragment)
     except (UnsupportedStructure, ValueError):
         return None
-    if not name.endswith(("thioamide", "selenoamide", "telluroamide")):
+    if not name.endswith("amide") or name.endswith(("imidamide", "hydrazonamide")):
         return None
-    return name[:-1] + "o", True
+    prefix = name[:-1] + "o"
+    return prefix, "-" in prefix or "ane" in prefix
 
 
 _ISOCYANATE_PREFIXES = {8: "isocyanato", 16: "isothiocyanato", 34: "isoselenocyanato", 52: "isotellurocyanato"}

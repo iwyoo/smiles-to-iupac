@@ -512,7 +512,7 @@ def test_nested_fragment_is_named_once_per_top_level_call(monkeypatch):
         ("Nc1ccccc1S(=O)(=O)N1CCC1", "2-[(azetidin-1-yl)sulfonyl]aniline"),
         ("OC(=O)CS(=O)(=O)N1CCCC1", "[(pyrrolidin-1-yl)sulfonyl]acetic acid"),
         ("OC(=O)c1ccccc1S(=O)(=O)N1CCOCC1", "2-[(morpholin-4-yl)sulfonyl]benzoic acid"),
-        ("OC(=O)CNC(=O)N1CCCC1", "[(pyrrolidine-1-carbonyl)amino]acetic acid"),
+        ("OC(=O)CNC(=O)N1CCCC1", "(pyrrolidine-1-carboxamido)acetic acid"),
     ],
 )
 def test_ring_nitrogen_acyl_prefix_keeps_the_ring_intact(smiles, expected):

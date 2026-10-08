@@ -210,7 +210,7 @@ def test_nitrile_imide_still_and_related_raise(smiles):
 def test_unsupported_base_fragment():
     assert (
         smiles_to_iupac("c1ccccc1CC(=O)Nc1ccccc1C(=O)OCCCC.Cl")
-        == "butyl 2-[(phenylacetyl)amino]benzoate;hydrochloride"
+        == "butyl 2-(2-phenylacetamido)benzoate;hydrochloride"
     )
 
 
