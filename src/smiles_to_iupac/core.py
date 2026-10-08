@@ -171,7 +171,7 @@ from ._diester_acyloxy import has_diester_shape, has_polyester_of_one_polyol_sha
 from ._hydride_polyester import has_hydride_polyester_shape, name_hydride_polyester
 from ._ester import has_ester_shape, name_ester
 from ._ester_by_parts import name_ester_by_parts
-from ._heteroacyclic import name_heteroacyclic
+from ._heteroacyclic import name_heteroacyclic, has_carbonless_acyl
 from ._nitrogen_methylene_multiplicative import name_nitrogen_methylene_multiplicative
 from ._chain_multiplicative import has_chain_multiplicative_shape
 from ._np import PREFERRED_OPERATIONS, name_natural_product_ranked
@@ -833,6 +833,13 @@ def _name_unabridged_body(smiles: str) -> str:
         if parsed is not None and has_amino_acid_shape(parsed):
             return name_amino_acid(parsed)
         if parsed is not None and not has_sphingoid_shape(parsed):
+            if has_carbonless_acyl(parsed):
+                try:
+                    skeletal = name_heteroacyclic(parsed)
+                except UnsupportedStructure:
+                    skeletal = None
+                if skeletal is not None:
+                    return skeletal
             stereo_specified = _has_specified_stereo(parsed)
             for namer in (
                 name_acid_salt,
@@ -859,10 +866,10 @@ def _name_unabridged_body(smiles: str) -> str:
                 pass
         beyond_preferred = None
         if parsed is not None:
-            name = name_nitrogen_methylene_multiplicative(parsed)
+            name = name_heteroacyclic(parsed)
             if name is not None:
                 return name
-            name = name_heteroacyclic(parsed)
+            name = name_nitrogen_methylene_multiplicative(parsed)
             if name is not None:
                 return name
             name = name_appendix3_skeleton(parsed)

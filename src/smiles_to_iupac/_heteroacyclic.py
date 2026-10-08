@@ -4,6 +4,8 @@ in an unbranched chain that ends in carbon, none of them part of the principal
 group, give '3,6,9,12-tetraoxatetradecanedioic acid'.
 """
 
+import itertools
+
 from rdkit import Chem
 from rdkit.Chem import rdCIPLabeler
 
@@ -16,7 +18,8 @@ from ._common import (
     name_from_substituents,
     substituent_locant_set_and_citation,
 )
-from ._hetero_prefixes import is_functional_carbon
+from ._hetero_prefixes import EXTENDED_PREFIXES, is_functional_carbon
+from ._acid_groups import acid_group_at
 from ._polyfunctional import (
     _SENIORITY,
     _TERMINAL,
@@ -33,10 +36,14 @@ _A_WORD = {
     14: "sila", 32: "germa", 50: "stanna", 82: "plumba", 5: "bora", 13: "alumina", 31: "galla", 49: "inda", 81: "thalla",
 }
 _A_ORDER = [8, 16, 34, 52, 7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81]
-_STANDARD_VALENCE = {15: 3, 33: 3, 51: 3, 83: 3, 14: 4, 32: 4, 50: 4, 82: 4, 5: 3, 13: 3, 31: 3, 49: 3, 81: 3}
-_CHAIN_ENDS = {6, *_STANDARD_VALENCE}
+_STANDARD_VALENCE = {7: 3, 15: 3, 33: 3, 51: 3, 83: 3, 14: 4, 32: 4, 50: 4, 82: 4, 5: 3, 13: 3, 31: 3, 49: 3, 81: 3}
+_CHAIN_ENDS = {6, *(z for z in _STANDARD_VALENCE if z != 7)}
 _MINIMUM_UNITS = 4
+_ORDER = [*_SENIORITY[: _SENIORITY.index("amide")], "halide", *_SENIORITY[_SENIORITY.index("amide") :]]
+_TERMINAL_CLASSES = _TERMINAL | {"halide"}
+_HALIDE_WORD = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 _SUFFIX_WORD = {
+    "amidine": "imidamide",
     "acid": "oic acid",
     "amide": "amide",
     "nitrile": "nitrile",
@@ -83,20 +90,24 @@ def _chalcogen_unit_valence(mol, atom):
 
 
 def _chain_acyl_carbon(mol, atom):
-    """A carbonyl carbon bonded to two chain atoms (C and N or O): an 'oxo' substituent of the chain (P-51.4.1.1)."""
+    """A carbon with one terminal doubly bonded O, S, Se, Te or NH and two chain neighbours, at least one of them a
+    heteroatom: an 'oxo', 'sulfanylidene' or 'imino' substituent of the chain (P-51.4.1.1)."""
     if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetDegree() != 3 or atom.GetTotalNumHs():
         return False
-    oxo = [
+    terminal = [
         n
         for n in atom.GetNeighbors()
-        if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+        if n.GetDegree() == 1
+        and not n.GetFormalCharge()
+        and (n.GetAtomicNum() in (8, 16, 34, 52) or (n.GetAtomicNum() == 7 and n.GetTotalNumHs() == 1))
+        and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
     ]
-    rest = [n for n in atom.GetNeighbors() if n.GetIdx() != oxo[0].GetIdx()] if len(oxo) == 1 else []
+    rest = [n for n in atom.GetNeighbors() if len(terminal) == 1 and n.GetIdx() != terminal[0].GetIdx()]
     return (
         len(rest) == 2
-        and sorted(n.GetAtomicNum() for n in rest) in ([6, 7], [6, 8])
         and all(mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0 for n in rest)
-        and any(n.GetAtomicNum() in (7, 8) and n.GetDegree() == 2 and not n.IsInRing() for n in rest)
+        and all(n.GetAtomicNum() in (6, 7, 8, 16) and not n.IsInRing() for n in rest)
+        and any(n.GetAtomicNum() in (7, 8, 16) and n.GetDegree() >= 2 for n in rest)
     )
 
 
@@ -117,9 +128,102 @@ def _aminium_groups(mol):
     return found
 
 
+def _carbonless_groups(mol):
+    """{carbon: (class, owned atoms)} for an acid, amide, amidine or acid halide group whose carbon has no carbon neighbour:
+    the carbon is a chain member bonded to a heteroatom (P-51.4.1.3)."""
+    found = {}
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetFormalCharge():
+            continue
+        neighbors = atom.GetNeighbors()
+        if len(neighbors) == 2 and any(_chain_heteroatom(n) for n in neighbors):
+            chain = [n for n in neighbors if _chain_heteroatom(n)]
+            other = [n for n in neighbors if n not in chain]
+            if len(chain) == 1 and len(other) == 1 and other[0].GetDegree() == 1:
+                order = mol.GetBondBetweenAtoms(atom.GetIdx(), other[0].GetIdx()).GetBondTypeAsDouble()
+                if order == 3.0 and other[0].GetAtomicNum() == 7 and not atom.GetTotalNumHs():
+                    found[atom.GetIdx()] = ("nitrile", {other[0].GetIdx()})
+                elif order == 2.0 and other[0].GetAtomicNum() == 8 and atom.GetTotalNumHs() == 1:
+                    found[atom.GetIdx()] = ("aldehyde", {other[0].GetIdx()})
+            continue
+        if atom.GetTotalNumHs() or len(neighbors) != 3 or any(n.GetAtomicNum() == 6 for n in neighbors):
+            continue
+        chain = [n for n in neighbors if _chain_heteroatom(n) and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0]
+        if len(chain) == 2 and sum(n.GetAtomicNum() == 7 for n in chain) == 1 and all(
+            n.GetAtomicNum() in _STANDARD_VALENCE for n in chain
+        ):
+            chain = [n for n in chain if n.GetAtomicNum() != 7]
+        if len(chain) != 1:
+            continue
+        variant = acid_group_at(mol, atom.GetIdx(), hetero_attach=True)
+        if variant is not None:
+            found[atom.GetIdx()] = ("acid" if variant.spec.plain else variant.spec.key, variant.owned)
+            continue
+        others = [n for n in neighbors if n.GetIdx() != chain[0].GetIdx()]
+        double = [n for n in others if mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0 and n.GetDegree() == 1]
+        single = [n for n in others if n not in double and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0]
+        if len(double) != 1 or len(single) != 1:
+            continue
+        top, other = double[0], single[0]
+        if top.GetAtomicNum() == 8 and other.GetAtomicNum() in _HALIDE_WORD and other.GetDegree() == 1:
+            found[atom.GetIdx()] = ("halide", {top.GetIdx(), other.GetIdx()})
+        elif top.GetAtomicNum() == 8 and other.GetAtomicNum() == 7 and not other.IsInRing() and (
+            chain[0].GetAtomicNum() != 7 or not _chain_heteroatom(other)
+        ):
+            found[atom.GetIdx()] = ("amide", {top.GetIdx(), other.GetIdx()})
+        elif top.GetAtomicNum() == 7 and top.GetTotalNumHs() == 1 and other.GetAtomicNum() == 7 and not other.IsInRing() and not _chain_heteroatom(other):
+            found[atom.GetIdx()] = ("amidine", {top.GetIdx(), other.GetIdx()})
+    return found
+
+
+def _carbamoyl_carbons(mol):
+    """{carbon: (oxygen, [nitrogens])} for every C(=O)(N)(N) whose two nitrogens may each serve as the chain atom, the other
+    being the amide nitrogen: an amide expressed as the principal group is senior to the urea (P-51.4.1.3)."""
+    found = {}
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetDegree() != 3 or atom.GetTotalNumHs():
+            continue
+        oxygen = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 8 and n.GetDegree() == 1 and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0]
+        nitrogens = [n.GetIdx() for n in atom.GetNeighbors() if n.GetAtomicNum() == 7 and not n.IsInRing()]
+        if len(oxygen) == 1 and len(nitrogens) == 2:
+            found[atom.GetIdx()] = (oxygen[0].GetIdx(), nitrogens)
+    return found
+
+
+def has_carbonless_acyl(mol):
+    """A carbonyl-type carbon bonded to nitrogen and to no carbon (a carbamoyl or amidine centre): such a carbon only
+    belongs to a skeletal replacement chain, so that route must run before the acid-derivative namers."""
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 6 or atom.IsInRing() or atom.GetDegree() != 3 or atom.GetTotalNumHs():
+            continue
+        if any(n.GetAtomicNum() == 6 for n in atom.GetNeighbors()) or not any(n.GetAtomicNum() == 7 for n in atom.GetNeighbors()):
+            continue
+        if any(
+            n.GetDegree() == 1
+            and n.GetAtomicNum() in (7, 8, 16)
+            and mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            for n in atom.GetNeighbors()
+        ):
+            return True
+    return False
+
+
+def _imino_chain_nitrogen(atom):
+    """The =N- of a chain C=N-X: two heavy neighbours, a double bond to carbon and no hydrogen."""
+    if atom.GetAtomicNum() != 7 or atom.IsInRing() or atom.GetFormalCharge() or atom.GetIsotope() or atom.GetTotalNumHs():
+        return False
+    mol = atom.GetOwningMol()
+    orders = sorted(
+        (mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble(), n.GetAtomicNum()) for n in atom.GetNeighbors()
+    )
+    return len(orders) == 2 and orders[1] == (2.0, 6) and orders[0][0] == 1.0
+
+
 def _chain_heteroatom(atom, phosphorus=False):
     z = atom.GetAtomicNum()
     if phosphorus and _phosphorus_unit(atom.GetOwningMol(), atom):
+        return True
+    if _imino_chain_nitrogen(atom):
         return True
     if z in _STANDARD_VALENCE:
         return (
@@ -128,6 +232,7 @@ def _chain_heteroatom(atom, phosphorus=False):
             and not atom.GetIsotope()
             and not atom.GetIsAromatic()
             and atom.GetDegree() <= _STANDARD_VALENCE[z]
+            and (z != 7 or atom.GetDegree() >= 2)
             and atom.GetTotalNumHs() == _STANDARD_VALENCE[z] - atom.GetDegree()
         )
     if _chalcogen_unit_valence(atom.GetOwningMol(), atom):
@@ -180,22 +285,29 @@ def name_heteroacyclic(mol):
     if any(a.GetNumRadicalElectrons() or a.GetIsotope() for a in mol.GetAtoms()):
         return None
     groups = {}
+    carbonless = _carbonless_groups(mol)
     for atom in mol.GetAtoms():
-        found = _group_of(mol, atom.GetIdx())
+        found = None if atom.GetIdx() in carbonless else _group_of(mol, atom.GetIdx())
         if found is not None:
             groups.setdefault(found[0], {})[atom.GetIdx()] = found[1]
+    for carbon, (cls, atoms) in carbonless.items():
+        groups.setdefault(cls, {})[carbon] = atoms
+    carbamoyl = _carbamoyl_carbons(mol)
     if aminium:
         groups["aminium"] = aminium
     ring_groups = _ring_occurrences(mol)
-    classes = set(groups) | {c for c, _, _ in ring_groups}
-    principal = "aminium" if aminium else next((c for c in _SENIORITY if c in classes), None)
+    classes = set(groups) | {c for c, _, _ in ring_groups} | ({"amide"} if carbamoyl else set())
+    principal = "aminium" if aminium else next((c for c in _ORDER if c in classes), None)
     if principal is not None and any(c == principal for c, _, _ in ring_groups):
         return None
     if not aminium and any(
-        _is_ester_like(mol, a.GetIdx()) and not _chain_acyl_carbon(mol, a) for a in mol.GetAtoms() if a.GetAtomicNum() == 6
+        _is_ester_like(mol, a.GetIdx()) and not _chain_acyl_carbon(mol, a) and a.GetIdx() not in carbonless
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() == 6
     ):
         return None
 
+    senior_to_amine = principal is not None and principal not in ("amine", "imine")
     principal_atoms = groups.get(principal, {}) if principal else {}
     owned = set().union(*principal_atoms.values()) if principal_atoms else set()
     eligible = {
@@ -211,7 +323,11 @@ def name_heteroacyclic(mol):
                 or (aminium and _is_ester_like(mol, a.GetIdx()))
             )
         )
-        or (_chain_heteroatom(a, bool(aminium)) and a.GetIdx() not in owned)
+        or (
+            _chain_heteroatom(a, bool(aminium))
+            and a.GetIdx() not in owned
+            and (senior_to_amine or not (a.GetAtomicNum() == 7 and a.GetDegree() == 3))
+        )
     }
     probe = Chem.Mol(mol)
     rdCIPLabeler.AssignCIPLabels(probe)
@@ -220,7 +336,7 @@ def name_heteroacyclic(mol):
         (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode") for b in probe.GetBonds() if b.HasProp("_CIPCode")
     }
     best = None
-    for path in _paths(graph, eligible):
+    for path in _chain_paths(graph, eligible, carbamoyl if principal == "amide" else {}):
         if mol.GetAtomWithIdx(path[0]).GetAtomicNum() not in _CHAIN_ENDS or mol.GetAtomWithIdx(path[-1]).GetAtomicNum() not in _CHAIN_ENDS:
             continue
         hetero_positions = [i for i, a in enumerate(path) if mol.GetAtomWithIdx(a).GetAtomicNum() != 6]
@@ -244,12 +360,28 @@ def name_heteroacyclic(mol):
         ):
             continue
         for chain in (path, path[::-1]):
-            candidate = _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes)
+            candidate = _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes, carbamoyl)
             if candidate is not None and (best is None or candidate[0] < best[0]):
                 best = candidate
     if best is None:
         return None
     return best[1]
+
+
+def _chain_paths(graph, eligible, carbamoyl):
+    """The maximal chains of `eligible`, plus those that end at a carbamoyl carbon with one of its two nitrogens cut off
+    as the amide nitrogen."""
+    seen = set()
+    for choice in itertools.product(*([None, *v[1]] for v in carbamoyl.values())):
+        adj = {a: list(ns) for a, ns in graph.items()}
+        for carbon, cut in zip(carbamoyl, choice):
+            if cut is not None:
+                adj[carbon].remove(cut)
+                adj[cut].remove(carbon)
+        for path in _paths(adj, eligible):
+            if tuple(path) not in seen:
+                seen.add(tuple(path))
+                yield path
 
 
 def _chain_stereo(chain, position_of, atom_codes, bond_codes):
@@ -261,13 +393,21 @@ def _chain_stereo(chain, position_of, atom_codes, bond_codes):
     return f"({','.join(f'{p}{c}' for p, c in entries)})-" if entries else ""
 
 
-def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes):
+def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, bond_codes, carbamoyl=None):
     position_of = {atom: i + 1 for i, atom in enumerate(chain)}
     chain_set = set(chain)
+    if principal == "amide" and carbamoyl:
+        principal_atoms = dict(principal_atoms)
+        for end, neighbor in ((chain[0], chain[1]), (chain[-1], chain[-2])):
+            if end in carbamoyl and end not in principal_atoms:
+                amide_nitrogen = [n for n in carbamoyl[end][1] if n != neighbor]
+                if len(amide_nitrogen) == 1 and amide_nitrogen[0] not in chain_set:
+                    principal_atoms[end] = {carbamoyl[end][0], amide_nitrogen[0]}
+        owned = owned | set().union(*principal_atoms.values()) if principal_atoms else owned
     on_chain = [a for a in principal_atoms if a in chain_set]
     if principal is not None and not on_chain:
         return None
-    if principal in _TERMINAL and any(position_of[a] not in (1, len(chain)) for a in on_chain):
+    if principal in _TERMINAL_CLASSES and any(position_of[a] not in (1, len(chain)) for a in on_chain):
         return None
     halogens = halogen_substituents(mol)
     aromatic_atoms = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
@@ -280,6 +420,7 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, 
             yne.append(position_of[a])
     context = {"atoms": atom_codes, "bonds": bond_codes, "used": set()}
     token = BRANCH_STEREO.set(context)
+    extended = EXTENDED_PREFIXES.set(True)
     entries = {}
     nitrogen_entries = {}
     try:
@@ -302,7 +443,23 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, 
                         if neighbor != carbon:
                             name, compound = name_branch(graph, neighbor, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
                             nitrogen_entries.setdefault("N", []).append((name, compound))
+        elif principal in ("amide", "amidine"):
+            primes = ("N", "N'", "N''", "N'''")
+            for rank, carbon in enumerate(sorted(on_chain, key=position_of.get)):
+                nitrogens = sorted(
+                    (n for n in principal_atoms[carbon] if mol.GetAtomWithIdx(n).GetAtomicNum() == 7),
+                    key=lambda n: mol.GetBondBetweenAtoms(carbon, n).GetBondTypeAsDouble(),
+                )
+                for offset, nitrogen in enumerate(nitrogens):
+                    label = primes[rank + offset] if principal == "amidine" and len(on_chain) == 1 else primes[rank]
+                    if principal == "amidine" and len(on_chain) > 1:
+                        label = primes[2 * rank + offset]
+                    for neighbor in graph[nitrogen]:
+                        if neighbor != carbon:
+                            name, compound = name_branch(graph, neighbor, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+                            nitrogen_entries.setdefault(label, []).append((name, compound))
     finally:
+        EXTENDED_PREFIXES.reset(extended)
         BRANCH_STEREO.reset(token)
     if any(("atom", a) not in context["used"] for a in atom_codes if a not in chain_set) or any(
         ("bond", b) not in context["used"] for b in bond_codes if not (b[0] in chain_set and b[1] in chain_set)
@@ -336,10 +493,19 @@ def _evaluate(mol, graph, chain, principal, principal_atoms, owned, atom_codes, 
 
     a_text = "-".join(a_unit(z) for z in _A_ORDER if z in by_element)
     prefix = format_substituent_prefixes(grouped_all)
+    halide_word = ""
     if principal is None:
         body = name_from_substituents(length, ene, yne, "e")
     else:
-        body = name_from_substituents(length, ene, yne, multiplied_word(count, _SUFFIX_WORD[principal]), suffix_locants)
+        if principal == "halide":
+            halogens_cited = {mol.GetAtomWithIdx(i).GetAtomicNum() for a in on_chain for i in principal_atoms[a] if mol.GetAtomWithIdx(i).GetAtomicNum() in _HALIDE_WORD}
+            if len(halogens_cited) != 1:
+                return None
+            halide_word = " " + ("di" if count == 2 else "") + _HALIDE_WORD[halogens_cited.pop()]
+            suffix_word = multiplied_word(count, "oyl")
+        else:
+            suffix_word = multiplied_word(count, _SUFFIX_WORD[principal])
+        body = name_from_substituents(length, ene, yne, suffix_word, suffix_locants) + halide_word
     name = prefix + ("-" if prefix and a_text and not prefix.endswith("-") else "") + a_text + body
     stereo = _chain_stereo(chain, position_of, atom_codes, bond_codes)
     key = (

@@ -55,20 +55,31 @@ def _stereo_free(mol, atoms):
 
 
 def skeletal_chain_group(mol, graph, root, coming_from):
+    """The 'a' group entered at carbon `root`; atoms that are not part of the chain (amino, hydroxy, halogen ends) are
+    cited as prefixes."""
+    from ._substituents import format_substituent_prefixes, name_branch
+
     if mol.GetAtomWithIdx(root).GetAtomicNum() != 6 or mol.GetAtomWithIdx(root).IsInRing():
         return None
     atoms = _arm(graph, root, coming_from)
-    if any(mol.GetAtomWithIdx(a).IsInRing() for a in atoms) or not _plain(mol, atoms, coming_from, root) or not _stereo_free(mol, atoms):
+    if any(mol.GetAtomWithIdx(a).IsInRing() for a in atoms) or not _stereo_free(mol, atoms):
         return None
-    if any(len([n for n in graph[a] if n in atoms]) > 2 for a in atoms) or len([n for n in graph[root] if n in atoms]) > 1:
-        return None
-    walk, previous = [root], coming_from
+    walk, previous, leaves = [root], coming_from, {}
     while True:
-        nxt = [n for n in graph[walk[-1]] if n in atoms and n != previous]
-        if not nxt:
+        onward = [n for n in graph[walk[-1]] if n != previous]
+        leaf = [n for n in onward if len(graph[n]) == 1 and mol.GetAtomWithIdx(n).GetAtomicNum() != 6]
+        chain = [n for n in onward if n not in leaf]
+        if leaf:
+            leaves[walk[-1]] = leaf
+        if len(chain) > 1:
+            return None
+        if not chain:
             break
         previous = walk[-1]
-        walk.append(nxt[0])
+        walk.append(chain[0])
+    chain_atoms = set(walk)
+    if not _plain(mol, chain_atoms, coming_from, root):
+        return None
     zs = [mol.GetAtomWithIdx(a).GetAtomicNum() for a in walk]
     hetero = [i for i, z in enumerate(zs) if z != 6]
     if len(hetero) < 4 or zs[-1] != 6:
@@ -77,15 +88,32 @@ def skeletal_chain_group(mol, graph, root, coming_from):
         raise UnsupportedStructure("adjacent heteroatoms in a skeletal-replacement group are not supported yet")
     if any(mol.GetAtomWithIdx(a).GetTotalDegree() != len(graph[a]) + mol.GetAtomWithIdx(a).GetTotalNumHs() for a in walk):
         return None
+    if any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 and a in leaves for a in walk):
+        return None
+    try:
+        named = {a: [name_branch(graph, n, a, {}, mol=mol) for n in ns] for a, ns in leaves.items()}
+    except UnsupportedStructure:
+        return None
     count = len(walk)
     best = None
     for locate in (lambda i: count - i, lambda i: i + 1):
         found = {z: [locate(i) for i, x in enumerate(zs) if x == z] for z in _SENIORITY}
-        key = (sorted(l for v in found.values() for l in v), [sorted(found[z]) for z in _SENIORITY], locate(0))
+        cited = {}
+        for i, atom in enumerate(walk):
+            for name, compound in named.get(atom, []):
+                entry = cited.setdefault(name, {"locants": [], "compound": compound})
+                entry["locants"].append(locate(i))
+        key = (
+            sorted(l for v in found.values() for l in v),
+            [sorted(found[z]) for z in _SENIORITY],
+            locate(0),
+            sorted(l for e in cited.values() for l in e["locants"]),
+        )
         if best is None or key < best[0]:
-            best = (key, found, locate(0))
-    _, found, free = best
-    return f"{_locant_text(found)}{alkane_name(count)[:-1]}-{free}-yl", True
+            best = (key, found, locate(0), cited)
+    _, found, free, cited = best
+    prefixes = format_substituent_prefixes(cited) if cited else ""
+    return f"{prefixes}{'-' if prefixes else ''}{_locant_text(found)}{alkane_name(count)[:-1]}-{free}-yl", True
 
 
 def skeletal_ring_group(mol, graph, root, coming_from):
