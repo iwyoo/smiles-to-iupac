@@ -582,3 +582,14 @@ def test_ionized_amino_acids(smiles, expected):
 def test_substituted_glycosides_and_glycosyl_derivatives(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("O=C1O[C@H](CO)[C@@H](O)[C@H](O)[C@H]1O", "D-glucono-1,5-lactone", id="six_membered_ring_ester"),
+        pytest.param("O=C1O[C@H]([C@H](O)CO)[C@H](O)[C@H]1O", "D-glucono-1,4-lactone", id="five_membered_ring_ester"),
+    ],
+)
+def test_aldonic_acid_lactones(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+

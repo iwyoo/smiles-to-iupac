@@ -202,3 +202,41 @@ def sugar_acid_derivative_name(mol):
     if kind == "ester":
         return f"{alcohol} {stem[:-2]}ate"
     return stem[:-2] + _ENDINGS[kind]
+
+
+_RING_ESTER = Chem.MolFromSmarts("[CX3;R;H0](=O)[OX2;R;H0][CX4;R]")
+
+
+def sugar_lactone_name(mol):
+    """'D-glucono-1,5-lactone' for the internal ester of an aldonic acid (P-102.5.6.6.2.2): the ring is opened at the
+    ester oxygen, the acid named, and the locants of the carboxy carbon and of the carbon that closes the ring cited."""
+    from ._sugar_substituted import _opened_ether
+
+    matches = mol.GetSubstructMatches(_RING_ESTER)
+    if len(matches) != 1 or mol.GetRingInfo().NumRings() != 1:
+        return None
+    carbonyl, _, oxygen, closing = matches[0]
+    try:
+        opened = _opened_ether(mol, oxygen, closing)
+    except (ValueError, RuntimeError):
+        return None
+    acid = sugar_alcohol_acid_name(opened)
+    if acid is None or not acid.endswith("onic acid"):
+        return None
+    position, seen, frontier = {carbonyl: 1}, {carbonyl}, [carbonyl]
+    while frontier:
+        atom = frontier.pop(0)
+        for n in opened.GetAtomWithIdx(atom).GetNeighbors():
+            if n.GetAtomicNum() == 6 and n.GetIdx() not in seen:
+                seen.add(n.GetIdx())
+                position[n.GetIdx()] = position[atom] + 1
+                frontier.append(n.GetIdx())
+    return f"{acid[: -len('ic acid')]}o-1,{position[closing]}-lactone"
+
+
+def has_sugar_lactone_shape(mol) -> bool:
+    return sugar_lactone_name(mol) is not None
+
+
+def name_sugar_lactone(mol) -> str:
+    return sugar_lactone_name(mol)
