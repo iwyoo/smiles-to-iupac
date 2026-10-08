@@ -201,6 +201,7 @@ from ._didehydro_ring import has_didehydro_ring_name, name_didehydro_ring
 from ._chalcogen_chain_heterone import name_chalcogen_chain_heterone
 from ._halogen_acid_ester import name_halogen_acid_ester
 from ._halogen_amide import name_halogen_amide
+from ._inorganic_acid_derivative import has_inorganic_acid_derivative_shape, name_inorganic_acid_derivative
 from ._halogen_oxo import name_halogen_oxo
 from ._hydroxylamine import has_hydroxylamine_shape, name_hydroxylamine
 from ._imine import has_simple_imine_shape, name_imine
@@ -992,6 +993,11 @@ def _name_mol(mol) -> str:
     # single-metal hydride dispatches below, which reject a second metal.
     if has_metal_pair_shape(mol) and not _has_senior_principal_group(mol):
         return name_metal_pair(mol)
+    if has_inorganic_acid_derivative_shape(mol):
+        try:
+            return name_inorganic_acid_derivative(mol)
+        except UnsupportedStructure:
+            pass
     for has_shape, namer in (
         # P-103.1.1.1: a common amino acid's retained name + L/D descriptor
         # must be routed here, before every ring-count/functional-group

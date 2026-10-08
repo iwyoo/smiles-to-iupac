@@ -377,3 +377,17 @@ def test_mononuclear_oxoacids_modified_by_functional_replacement(smiles, expecte
 )
 def test_heteroatom_chains_cite_nonstandard_bonding_numbers_and_alternate_by_seniority(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CPCl", "methylphosphinous chloride"),
+        ("c1ccccc1P(c1ccccc1)Cl", "diphenylphosphinous chloride"),
+        ("CP(Cl)Cl", "methylphosphonous dichloride"),
+        ("C(C)=[N+](O)[O-]", "ethylideneazinic acid"),
+        ("C[N+](C)(O)[O-]", "dimethylazinic acid"),
+    ],
+)
+def test_halides_of_phosphorus_iii_acids_and_azinic_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
