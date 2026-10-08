@@ -5,6 +5,7 @@ principal characteristic groups (P-15.3.2.4.2), ring-diyl linker components
 """
 
 import re
+import contextvars
 from dataclasses import dataclass
 
 from rdkit import Chem
@@ -276,9 +277,12 @@ def _prefix_entries(mol, roots, groups, suffix_group, name_function):
     return entries
 
 
+NO_RETAINED_BENZENE = contextvars.ContextVar("no_retained_benzene", default=False)
+
+
 def _suffix_text(parent, suffix_name, locants, spec, omit_locants=False):
     count = len(locants)
-    if count == 1 and spec.kind == "benzene" and suffix_name in _RETAINED_BENZENE:
+    if count == 1 and spec.kind == "benzene" and suffix_name in _RETAINED_BENZENE and not NO_RETAINED_BENZENE.get():
         return _RETAINED_BENZENE[suffix_name], False
     suffix = multiplied_word(count, _SUFFIX_WORDS[suffix_name])
     stem = parent[:-1] if (parent.endswith("e") and suffix[0] in "aeiouy") else parent

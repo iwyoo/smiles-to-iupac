@@ -32,6 +32,7 @@ def split_isotopes(mol):
             editable.GetAtomWithIdx(atom.GetIdx()).SetIsotope(0)
     parameters = Chem.RemoveHsParameters()
     parameters.removeIsotopes = True
+    parameters.removeDefiningBondStereo = True
     clean = Chem.RemoveHs(editable.GetMol(), parameters)
     new_index = {}
     for atom in mol.GetAtoms():

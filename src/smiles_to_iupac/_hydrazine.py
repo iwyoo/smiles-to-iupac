@@ -213,7 +213,7 @@ def name_hydrazine(mol) -> str:
         return format_mononuclear_prefixes(names_n1 + names_n2) + "hydrazine"
     if total == 1:
         ((name, compound),) = names_n1 + names_n2
-        return (enclose(name) if compound and name[0].isdigit() else name) + "hydrazine"
+        return (enclose(name) if compound and (name[0].isdigit() or "(" in name) else name) + "hydrazine"
 
     candidates = []
     for first, second in ((names_n1, names_n2), (names_n2, names_n1)):

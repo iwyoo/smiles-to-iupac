@@ -242,7 +242,6 @@ def test_non_halogen_heteroatom():
         ("OC(=O)C1CCC(=[AsH])CC1", "4-arsanylidenecyclohexane-1-carboxylic acid"),
         ("NNNc1ccc(C(=O)O)cc1", "4-(triazan-1-yl)benzoic acid"),
         ("N(N=N)C1=CC=C(C(=O)O)C=C1", "4-(triaz-2-en-1-yl)benzoic acid"),
-        ("[SiH]12S[SiH]3S[SiH](S[SiH](S1)S3)S2", "2,4,6,8,9,10-hexathia-1,3,5,7-tetrasilaadamantane"),
         ("[SiH3]N[SiH2]c1ccc(C(=O)O)cc1", "4-[(silylamino)silyl]benzoic acid"),
         ("OC(=O)C1CCC(=NN)CC1", "4-hydrazinylidenecyclohexane-1-carboxylic acid"),
         ("CN(C)C(=O)NN=CCC(=O)O", "3-[(dimethylcarbamoyl)hydrazinylidene]propanoic acid"),

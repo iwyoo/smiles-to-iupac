@@ -82,7 +82,7 @@ def _find_hydroperoxides(mol):
 
 
 def has_ether_hydroperoxide_shape(mol) -> bool:
-    if mol.GetRingInfo().NumRings() > 0:
+    if mol.GetRingInfo().NumRings() > 0 or any(a.GetAtomicNum() in (16, 34, 52) for a in mol.GetAtoms()):
         return False
     ethers = find_ether_oxygens(mol)
     if len(ethers) != 1:

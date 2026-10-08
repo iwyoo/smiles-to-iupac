@@ -137,8 +137,26 @@ def has_chalcogen_peroxol_shape(mol) -> bool:
     return _chalcogen_peroxol_atoms(mol) is not None
 
 
+def _substituted_peroxol_atoms(mol):
+    """(attach, terminal) of the one -O-OH group of a chain whose substituents hold chalcogen or ether atoms."""
+    if not any(a.GetAtomicNum() in (16, 34, 52) for a in mol.GetAtoms()) or any(
+        a.GetAtomicNum() not in _ALLOWED_ATOMIC_NUMS | set(_CHALCOGENS) for a in mol.GetAtoms()
+    ):
+        return None
+    found = [
+        (n, a)
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() == 8 and a.GetDegree() == 1 and a.GetTotalNumHs() == 1 and not a.GetIsAromatic()
+        for n in a.GetNeighbors()
+        if n.GetAtomicNum() == 8 and n.GetDegree() == 2 and not n.GetTotalNumHs()
+        and mol.GetBondBetweenAtoms(a.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        and any(m.GetAtomicNum() == 6 for m in n.GetNeighbors())
+    ]
+    return found[0] if len(found) == 1 else None
+
+
 def _peroxol_atoms(mol):
-    return _hydroperoxide_oxygens(mol) or _chalcogen_peroxol_atoms(mol)
+    return _hydroperoxide_oxygens(mol) or _chalcogen_peroxol_atoms(mol) or _substituted_peroxol_atoms(mol)
 
 
 def _chalcogen_word(attach, terminal, base):
@@ -175,8 +193,11 @@ def _validate_and_collect(mol, aromatic_ring_atoms=frozenset()):
     has_carbon = False
     chalcogen_pair = _chalcogen_peroxol_atoms(mol)
     pair_atoms = {a.GetIdx() for a in chalcogen_pair} if chalcogen_pair else set()
+    substituted = _substituted_peroxol_atoms(mol) is not None
     for atom in mol.GetAtoms():
         atomic_num = atom.GetAtomicNum()
+        if atomic_num in _CHALCOGENS and substituted:
+            continue
         if atomic_num not in _ALLOWED_ATOMIC_NUMS and atom.GetIdx() not in aromatic_ring_atoms | pair_atoms:
             raise UnsupportedStructure(
                 "heteroatoms other than a hydroperoxide's own two oxygens "

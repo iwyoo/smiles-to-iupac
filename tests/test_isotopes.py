@@ -264,6 +264,16 @@ def test_isotope_on_substituents_and_prefixed_parents(smiles, expected):
         pytest.param("C[C@@H]([2H])O", "(1R)-(1-2H1)ethan-1-ol", id="opposite_isotopic_stereocentre"),
         pytest.param("[13CH3][C@H](Cl)C(=O)O", "(2S)-2-chloro(3-13C)propanoic acid", id="stereocentre_beside_a_labelled_acid"),
         pytest.param("[13CH3]C(=O)[C@H](Cl)C", "(3R)-3-chloro(1-13C)butan-2-one", id="stereocentre_beside_a_labelled_ketone"),
+        pytest.param("C(=C\\C)/[2H]", "(1E)-(1-2H1)prop-1-ene", id="alkene_stereo_from_a_deuterium"),
+        pytest.param("C(=C/C)/[2H]", "(1Z)-(1-2H1)prop-1-ene", id="alkene_stereo_from_a_deuterium_z"),
+        pytest.param("C1(=CC=CC=C1)[13C]#N", "benzene(13C)carbonitrile", id="labelled_nitrile_carbon_on_a_ring"),
+        pytest.param("C1(=CC=CC=C1)[13C](=O)O", "benzene(13C)carboxylic acid", id="labelled_carboxyl_carbon_on_a_ring"),
+        pytest.param("C1(=CC=CC=C1)[13CH2]NN", "[phenyl(13C)methyl]hydrazine", id="labelled_benzyl_carbon_on_a_hydrazine"),
+        pytest.param("[14C](=O)(O)C1(CCCCC1)[14C](=O)O", "cyclohexane-1,1-di[(14C)carboxylic acid]", id="identical_labelled_acids_multiplied"),
+        pytest.param("[13C](=O)(O)C1(CCCCC1)[14C](=O)O", "1-(13C)carboxycyclohexane-1-(14C)carboxylic acid", id="different_labelled_acids_senior_nuclide_is_suffix"),
+        pytest.param("OC(=O)C1(CCCCC1)[13C](=O)O[2H]", "1-carboxycyclohexane-1-(13C,2H)carboxylic acid", id="acid_with_more_modifications_is_suffix"),
+        pytest.param("[2H]OC(=O)C1(CCCCC1)[13C](=O)O", "1-(2H)carboxycyclohexane-1-(13C)carboxylic acid", id="labelled_carboxy_prefix"),
+        pytest.param("C(OC([2H])([2H])SCOO)[2H]", "{[(2H1)methoxy(2H2)methyl]sulfanyl}methaneperoxol", id="labelled_ether_in_a_sulfanyl_peroxol"),
     ],
 )
 def test_isotopes_with_unsaturation_and_stereo(smiles, expected):
