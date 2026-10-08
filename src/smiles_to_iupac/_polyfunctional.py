@@ -37,6 +37,7 @@ from ._functional_prefixes import is_nitro_nitrogen
 from ._hetero_prefixes import (
     CATION_PARENT,
     EXTENDED_PREFIXES,
+    LAMBDA_CENTRE_STEMS,
     MONONUCLEAR_HYDRIDES,
     is_functional_carbon,
     is_halogen_oxo_part,
@@ -4174,6 +4175,17 @@ def _is_carboxylic_ester_carbon(mol, carbon):
     return all(n.GetAtomicNum() == 6 and not n.IsInRing() or n.GetIdx() == carbon for n in amine[0].GetNeighbors())
 
 
+def _acyloxy_lambda_centre_oxygen(oxygen, carbon):
+    """The oxygen of an acyl-O-X group on a halogen or chalcogen of nonstandard bonding number: iodine and the other
+    centres are not pseudoester elements, so the acyloxy group is a prefix of the lambda-n substituent (P-65.6.3.1.2)."""
+    if oxygen.GetAtomicNum() != 8 or oxygen.GetDegree() != 2 or oxygen.GetFormalCharge():
+        return False
+    far = next((n for n in oxygen.GetNeighbors() if n.GetIdx() != carbon), None)
+    if far is None or far.GetAtomicNum() not in LAMBDA_CENTRE_STEMS or far.GetFormalCharge() or far.IsInRing():
+        return False
+    return far.GetTotalValence() > LAMBDA_CENTRE_STEMS[far.GetAtomicNum()][1]
+
+
 def _is_ester_like(mol, carbon):
     atom = mol.GetAtomWithIdx(carbon)
     if not _double_oxygens(mol, carbon):
@@ -4182,6 +4194,7 @@ def _is_ester_like(mol, carbon):
         n.GetAtomicNum() in (8, 7, 16, 9, 17, 35, 53) and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0
         and not _diacyl_chalcogen_chain(mol, carbon, n)
         and not (_acyloxy_amine_oxygen(mol, n, carbon) and any(c.GetAtomicNum() == 6 for c in atom.GetNeighbors()))
+        and not _acyloxy_lambda_centre_oxygen(n, carbon)
         and not (n.GetAtomicNum() == 7 and (atom.GetTotalNumHs() == 1 or any(c.GetAtomicNum() == 6 for c in atom.GetNeighbors())) and _ring_nitrogen_acyl(mol, n, carbon))
         and not (n.GetAtomicNum() == 8 and _terminal_heteroatom(mol, n.GetIdx(), 1))
         and not (n.GetAtomicNum() == 7 and _terminal_heteroatom(mol, n.GetIdx(), 2))

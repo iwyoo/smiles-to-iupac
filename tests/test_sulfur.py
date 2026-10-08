@@ -834,6 +834,9 @@ def test_nonstandard_bonding_number_hydrides_and_chalcogen_chains(smiles, expect
         pytest.param(
             "CC(=O)OI(OC(C)=O)c1ccc(cc1)C(O)=O", "4-[bis(acetyloxy)-λ3-iodanyl]benzoic acid", id="acyloxy_on_centre"
         ),
+        pytest.param(
+            "OCCI(OC(C)=O)OC(C)=O", "2-[bis(acetyloxy)-λ3-iodanyl]ethan-1-ol", id="acyloxy_on_centre_under_alcohol"
+        ),
         pytest.param("NCC[SH2]C", "2-(methyl-λ4-sulfanyl)ethan-1-amine", id="centre_without_hydroxy_under_amine"),
         pytest.param("OCC[SH2]C", "2-(methyl-λ4-sulfanyl)ethan-1-ol", id="centre_without_hydroxy_under_alcohol"),
         pytest.param("OCI(O)O", "(hydroxymethyl)-λ3-iodanediol", id="centre_with_more_hydroxy_groups_is_parent"),
