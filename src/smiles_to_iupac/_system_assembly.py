@@ -17,8 +17,31 @@ def _order(locant):
     return float(locant[1]), locant[0]
 
 
+def _primed(position, primes):
+    """P-16.9.4: primes follow the number, not the letter of a fusion locant (4'a, 3'a)."""
+    return re.sub(r"^(\d+)", lambda m: m.group(1) + chr(39) * primes, str(position))
+
+
 def _cite(locant):
-    return f"{locant[1]}{chr(39) * locant[0]}"
+    return _primed(locant[1], locant[0])
+
+
+def _hetero_mancude_ring(mol, atoms):
+    """A monocycle with a heteroatom and at least one ring double bond (or aromatic atoms): pyridine, azepine, pyran."""
+    ring_bonds = [b for b in mol.GetBonds() if b.GetBeginAtomIdx() in atoms and b.GetEndAtomIdx() in atoms]
+    return (
+        len(atoms) == len(ring_bonds)
+        and any(mol.GetAtomWithIdx(a).GetAtomicNum() != 6 for a in atoms)
+        and any(b.GetBondTypeAsDouble() == 2.0 or b.GetIsAromatic() for b in ring_bonds)
+        and not any(b.GetBondTypeAsDouble() == 3.0 for b in ring_bonds)
+    )
+
+
+def _monocycle_numberings(mol, graph, atoms):
+    from ._common import ring_cycle
+    from ._ring_diyl_numbering import monocycle_numberings
+
+    return monocycle_numberings(mol, ring_cycle(graph, list(atoms)), set(), 1)
 
 
 def _systems(mol):
@@ -39,7 +62,7 @@ def _stem(numbering):
     if numbering.added:
         return None
     if numbering.stem:
-        return numbering.stem
+        return re.sub(r"^\d+[a-z]*H(?:,\d+[a-z]*H)*-", "", numbering.stem)
     text = numbering.text((), 0, frozenset(), "")
     text = _HYDRO_HEAD.sub("", text)
     return re.sub(r"^\d+[a-z]*H(?:,\d+[a-z]*H)*-", "", text)
@@ -62,7 +85,36 @@ def _lit_hydrogens(mol, numbering):
     return [p for p in numbering.ih_positions if mol.GetAtomWithIdx(atom_of[p]).GetTotalNumHs() > 0]
 
 
+def _lit(mol, numbering, positions, monocycles):
+    """Indicated-hydrogen positions of a component. A fused system keeps those its numbering names, minus junction atoms
+    that lost their hydrogen (P-28.2.3). A monocycle takes every saturated ring carbon or NH that still has a hydrogen or
+    carries =O (a pseudoketone, P-64.3.1): the junction atoms and the positions of double bonds need none."""
+    if not monocycles:
+        return _lit_hydrogens(mol, numbering) + list(positions)
+    found = []
+    for atom_idx, position in numbering.position_of.items():
+        atom = mol.GetAtomWithIdx(atom_idx)
+        if atom.GetAtomicNum() not in (6, 7):
+            continue
+        oxo = False
+        double = False
+        for bond in atom.GetBonds():
+            if bond.GetBondTypeAsDouble() == 2.0 or bond.GetIsAromatic():
+                other = bond.GetOtherAtom(atom)
+                if other.GetAtomicNum() in (8, 16, 34, 52) and other.GetDegree() == 1:
+                    oxo = True
+                else:
+                    double = True
+        if double:
+            continue
+        if atom.GetTotalNumHs() > 0 or (oxo and atom.GetAtomicNum() == 6):
+            found.append(position)
+    return sorted(found)
+
+
 def _skeleton_key(mol, atoms):
+    """Canonical SMILES of the ring system alone, every bond single and every atom saturated, so that the same parent
+    hydride in different hydrogenation states compares equal."""
     from rdkit import Chem
 
     editable = Chem.RWMol(mol)
@@ -73,7 +125,10 @@ def _skeleton_key(mol, atoms):
         atom.SetIsAromatic(False)
         atom.SetNoImplicit(True)
         atom.SetNumExplicitHs(0)
-    return Chem.MolFragmentToSmiles(editable, atomsToUse=sorted(atoms), canonical=True)
+        atom.SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
+    for index in sorted(set(range(mol.GetNumAtoms())) - set(atoms), reverse=True):
+        editable.RemoveAtom(index)
+    return Chem.MolToSmiles(editable.GetMol())
 
 
 def _split_added(numbering, frees):
@@ -91,11 +146,14 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
     """(count, ((-count,), name, parts)) for the parent form, (name, True) for the substituent form `free`
     = (root, coming_from); None when `mol` is not two identical fused systems joined by one bond."""
     systems = [s for s in _systems(mol) if within is None or set(s[1]) <= within]
-    if len(systems) != 2 or all(len(rings) == 1 for rings, _ in systems):
+    if len(systems) != 2 or all(len(rings) == 1 for rings, _ in systems) and not all(
+        _hetero_mancude_ring(mol, atoms) for _, atoms in systems
+    ):
         return None
     frees = [] if free is None else [free] if isinstance(free[0], int) else list(free)
     (rings_a, atoms_a), (rings_b, atoms_b) = systems
-    if _bare_key(mol, atoms_a) != _bare_key(mol, atoms_b) and not (
+    monocycles = all(len(rings) == 1 for rings, _ in systems)
+    if _bare_key(mol, atoms_a) != _bare_key(mol, atoms_b) and not (monocycles and _skeleton_key(mol, atoms_a) == _skeleton_key(mol, atoms_b)) and not (
         frees and all(mol.GetBondBetweenAtoms(*f).GetBondTypeAsDouble() == 2.0 for f in frees)
         and _skeleton_key(mol, atoms_a) == _skeleton_key(mol, atoms_b)
     ):
@@ -116,7 +174,10 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
     if ylidene and frees:
         return None
     if not all(
-        any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms) or is_hydro_fusion_system(mol, atoms) for _, atoms in systems
+        any(mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms)
+        or is_hydro_fusion_system(mol, atoms)
+        or _hetero_mancude_ring(mol, atoms)
+        for _, atoms in systems
     ):
         return None
     from ._polyfunctional import _require_mancude_system
@@ -126,7 +187,10 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
     join = joins[0]
     token = SUFFIX_ATOMS.set(frozenset(join) | frozenset(o[1] for o in occurrences))
     try:
-        numbered = [system_numberings(mol, graph, rings, atoms) for rings, atoms in systems]
+        numbered = [
+            _monocycle_numberings(mol, graph, atoms) if len(rings) == 1 else system_numberings(mol, graph, rings, atoms)
+            for rings, atoms in systems
+        ]
     finally:
         SUFFIX_ATOMS.reset(token)
     owned = set().union(*(o[2] for o in occurrences)) if occurrences else set()
@@ -147,8 +211,12 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
             stem_first = _stem(first)
             for second in numbered[1 - unprimed]:
                 stem_second = _stem(second)
-                hydro_first, added_first = _split_added(first, frees) if frees and free_ylidene else (_hydro(first), [])
-                hydro_second, added_second = _split_added(second, frees) if frees and free_ylidene else (_hydro(second), [])
+                if monocycles:
+                    hydro_first = hydro_second = ()
+                    added_first = added_second = []
+                else:
+                    hydro_first, added_first = _split_added(first, frees) if frees and free_ylidene else (_hydro(first), [])
+                    hydro_second, added_second = _split_added(second, frees) if frees and free_ylidene else (_hydro(second), [])
                 if stem_first is None or stem_first != stem_second or hydro_first != hydro_second:
                     continue
                 locants = {a: (0, p) for a, p in first.position_of.items()}
@@ -156,8 +224,8 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
                 if any(a not in locants for a in marked + [r for r, _, _ in entries] + list(join)):
                     continue
                 ih = sorted(
-                    [(0, p) for p in _lit_hydrogens(mol, first) + added_first]
-                    + [(1, p) for p in _lit_hydrogens(mol, second) + added_second],
+                    [(0, p) for p in _lit(mol, first, added_first, monocycles)]
+                    + [(1, p) for p in _lit(mol, second, added_second, monocycles)],
                     key=_order,
                 )
                 members = (atoms_a, atoms_b)
@@ -181,17 +249,17 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
     for info in grouped.values():
         info["locants"].sort(key=lambda text: (int(re.match(r"\d+", text).group()), text.count(chr(39))))
     prefix = format_substituent_prefixes(grouped) if grouped else ""
-    ih_text = (",".join(f"{p}{chr(39) * n}H" for n, p in ih) + "-") if ih else ""
+    ih_text = (",".join(f"{_primed(p, n)}H" for n, p in ih) + "-") if ih else ""
     hydro_prefix = ""
     if hydro:
         cited = sorted([(0, p) for p in hydro] + [(1, p) for p in hydro], key=_order)
         hydro_word = multiplied_word(len(cited), "hydro")
-        hydro_text = hydro_word if fully_hydro else f"{','.join(f'{p}{chr(39) * n}' for n, p in cited)}-{hydro_word}"
+        hydro_text = hydro_word if fully_hydro else f"{','.join(_primed(p, n) for n, p in cited)}-{hydro_word}"
         ih_text = hydro_text + "-" + ih_text
         hydro_prefix = hydro_text + "-"
     unprimed_join = join[0] if join[0] in (atoms_a, atoms_b)[unprimed] else join[1]
     primed_join = join[1] if unprimed_join == join[0] else join[0]
-    spots = f"{locants[unprimed_join][1]},{locants[primed_join][1]}'"
+    spots = f"{locants[unprimed_join][1]},{_primed(locants[primed_join][1], 1)}"
     def base(elide):
         text = stem[:-1] if (elide or ylidene) and stem.endswith("e") else stem
         if ylidene:
@@ -202,7 +270,7 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
     if frees:
         free_spots = ",".join(_cite(c) for c in sorted((locants[f[0]] for f in frees), key=_order))
         if free_ylidene:
-            added = ",".join(f"{p}{chr(39) * n}H" for n, p in ih)
+            added = ",".join(f"{_primed(p, n)}H" for n, p in ih)
             tail = f"{free_spots}({added})" if added else free_spots
             core = f"{hydro_prefix}[{base(multiplied_word(len(frees), 'ylidene')[0] in 'aeiouy')}]-{tail}-{multiplied_word(len(frees), 'ylidene')}"
         else:

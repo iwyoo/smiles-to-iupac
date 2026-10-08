@@ -91,6 +91,8 @@ this module's own primed-locant one.
   case already applies to imidazole's C2-substituted case.
 """
 
+from rdkit import Chem
+
 from ._common import (
     adjacency,
     group_substituents,
@@ -99,7 +101,7 @@ from ._common import (
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
-from ._numerals import alkane_name
+from ._numerals import alkane_name, numerical_term
 from ._ring_assembly_chain import (
     _NON_NH_ROLE_SEQUENCES,
     _hetero_ring_alignments,
@@ -156,6 +158,29 @@ def _tautomer_fixed_ring_kind(mol, graph, ring, attach_atom):
     return None
 
 
+_REPLACEMENT_ELEMENTS = {8: "oxa", 16: "thia", 34: "selena", 52: "tellura", 7: "aza"}
+_REPLACEMENT_ORDER = (8, 16, 34, 52, 7)
+_REPLACEMENT_MINIMUM_SIZE = 11
+
+
+def _replacement_ring_kind(mol, ring, attach_atom):
+    """("saturated", n) for a saturated monocycle of more than ten members whose heteroatoms are O, S, Se, Te or NH and
+    whose junction atom is carbon: the cycloalkane assembly takes the skeletal replacement prefixes (P-28.4.2)."""
+    atoms = [mol.GetAtomWithIdx(i) for i in ring]
+    if len(ring) < _REPLACEMENT_MINIMUM_SIZE or mol.GetAtomWithIdx(attach_atom).GetAtomicNum() != 6:
+        return None
+    if any(a.GetIsAromatic() or a.GetAtomicNum() not in {6, *_REPLACEMENT_ELEMENTS} for a in atoms):
+        return None
+    if any(a.GetAtomicNum() == 7 and (a.GetFormalCharge() or a.GetDegree() != 2) for a in atoms):
+        return None
+    ring_set = set(ring)
+    if any(
+        b.GetBondTypeAsDouble() != 1.0 for b in mol.GetBonds() if b.GetBeginAtomIdx() in ring_set and b.GetEndAtomIdx() in ring_set
+    ):
+        return None
+    return "saturated", len(ring)
+
+
 def find_ring_assembly_core(mol):
     """Return (ring0_atoms, ring1_atoms, attach0, attach1, kind) if `mol` is
     exactly two disjoint identical-kind rings (`_ring_kind`'s own
@@ -191,11 +216,13 @@ def find_ring_assembly_core(mol):
         _ring_kind(mol, atom_rings[0])
         or _pyrrole_ring_kind(mol, atom_rings[0])
         or _tautomer_fixed_ring_kind(mol, graph, atom_rings[0], attach0)
+        or _replacement_ring_kind(mol, atom_rings[0], attach0)
     )
     kind1 = (
         _ring_kind(mol, atom_rings[1])
         or _pyrrole_ring_kind(mol, atom_rings[1])
         or _tautomer_fixed_ring_kind(mol, graph, atom_rings[1], attach1)
+        or _replacement_ring_kind(mol, atom_rings[1], attach1)
     )
     hydro_ring = None
     if kind0 is None and kind1 is not None and kind1[0] in _NON_NH_ROLE_SEQUENCES:
@@ -221,6 +248,41 @@ def _hetero_numberings_from_attachment(mol, graph, ring_atoms, parent_name, prim
     suffix = "'" if prime else ""
     for alignment in _hetero_ring_alignments(mol, graph, ring_atoms, parent_name):
         yield {atom: f"{position}{suffix}" for atom, position in alignment.items()}
+
+
+def _carbon_skeleton(mol):
+    """`mol` with every ring atom that a skeletal replacement prefix will name turned into carbon."""
+    editable = Chem.RWMol(mol)
+    for atom in editable.GetAtoms():
+        if atom.GetAtomicNum() in _REPLACEMENT_ELEMENTS and atom.IsInRing():
+            atom.SetAtomicNum(6)
+            atom.SetNoImplicit(False)
+            atom.SetNumExplicitHs(0)
+    skeleton = editable.GetMol()
+    skeleton.UpdatePropertyCache(strict=False)
+    return skeleton
+
+
+def _replacement_text(mol, locants):
+    """(sort key, 'a' prefix text) of the skeletal replacement prefixes of an assembly: low locants to the heteroatoms
+    as a set, then in the order O > S > Se > Te > N (P-28.4.2)."""
+    by_element = {}
+    for atom, position in locants.items():
+        z = mol.GetAtomWithIdx(atom).GetAtomicNum()
+        if z in _REPLACEMENT_ELEMENTS and mol.GetAtomWithIdx(atom).IsInRing():
+            by_element.setdefault(z, []).append(position)
+    if not by_element:
+        return ((), ()), ""
+    order = lambda position: hydro_sort_key(position)
+    as_set = tuple(sorted(order(p) for ps in by_element.values() for p in ps))
+    by_seniority = tuple(tuple(sorted(order(p) for p in by_element.get(z, ()))) for z in _REPLACEMENT_ORDER)
+    pieces = []
+    for z in _REPLACEMENT_ORDER:
+        if z in by_element:
+            cited = sorted(by_element[z], key=order)
+            multiplier = numerical_term(len(cited)) if len(cited) > 1 else ""
+            pieces.append(f"{','.join(cited)}-{multiplier}{_REPLACEMENT_ELEMENTS[z]}")
+    return (as_set, by_seniority), "-".join(pieces) + "-"
 
 
 def _candidate_key(
@@ -255,12 +317,13 @@ def _candidate_key(
     # role sequence instead, it's the deciding factor (confirmed by
     # `2,2'-bipyridine`, not `6,2'-bipyridine` or `6,6'-bipyridine`).
     attach_pair = tuple(sorted((locants[attach_a], locants[attach_b])))
+    replaced = _replacement_text(mol, locants) if ring_word.startswith("bi(cyclo") and len(ring_atoms) // 2 >= _REPLACEMENT_MINIMUM_SIZE else ((), "")
     # P-28.2.3: indicated hydrogen, if any, is "placed... at the front of
     # the name of the assembly" -- ahead of the substituent prefix too,
     # not folded next to the ring word the way a single ring's own "nH-"
     # sits (see module docstring).
-    name = f"{indicated_hydrogen_prefix}{prefix}{hydro_prefix(hydro)}{attach_pair[0]},{attach_pair[1]}-{ring_word}"
-    return attach_pair, tuple(hydro_sort_key(p) for p in hydro), locant_set, citation_locants, name
+    name = f"{indicated_hydrogen_prefix}{prefix}{replaced[1]}{hydro_prefix(hydro)}{attach_pair[0]},{attach_pair[1]}-{ring_word}"
+    return attach_pair, replaced[0], tuple(hydro_sort_key(p) for p in hydro), locant_set, citation_locants, name
 
 
 def name_ring_assembly(mol, core) -> str:
@@ -276,7 +339,7 @@ def name_ring_assembly(mol, core) -> str:
             mol, graph, ring_atoms_i, parent_name, prime
         )
     else:
-        validate_atoms_and_bonds(mol)
+        validate_atoms_and_bonds(_carbon_skeleton(mol))
         if parent_name == "aromatic":
             ring_word = "biphenyl"
         else:
