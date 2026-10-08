@@ -263,7 +263,8 @@ from ._thiocyanate import has_thiocyanate_shape, name_thiocyanate
 from ._azide import has_azide_shape, name_azide
 from ._diazene import has_diazene_shape, name_diazene
 from ._azine import has_azine_shape, name_azine
-from ._hydrazine import has_hydrazine_shape, name_hydrazine
+from ._hydrazine import has_hydrazine_aminooxy_shape, has_hydrazine_shape, name_hydrazine
+from ._hydrazine_multiplicative import has_hydrazine_multiplicative_shape, name_hydrazine_multiplicative
 from ._hydrazone import has_hydrazone_shape, name_hydrazone
 from ._diazo import has_diazo_shape, name_diazo
 from ._isocyanate import has_isocyanate_shape, name_isocyanate
@@ -1849,6 +1850,8 @@ def _name_mol(mol) -> str:
         if has_shape(mol):
             return namer(mol)
 
+    if has_hydrazine_aminooxy_shape(mol):
+        return name_hydrazine(mol)
     if any(atom.GetAtomicNum() == 8 for atom in mol.GetAtoms()):
         # An acyl group bonded directly to the nitrogen of an otherwise-
         # plain saturated monocyclic ring (e.g. 1-acetylpiperidine) is a
@@ -2348,6 +2351,8 @@ def _name_mol(mol) -> str:
         # diazene above) with no carbon parent chain at all -- must be
         # routed before name_amine for the same reason as the checks
         # above.
+        if has_hydrazine_multiplicative_shape(mol):
+            return name_hydrazine_multiplicative(mol)
         if has_hydrazine_shape(mol):
             return name_hydrazine(mol)
         # A thiocyanate (R-S-C#N, P-6) has a nitrile-shaped -C#N group with
