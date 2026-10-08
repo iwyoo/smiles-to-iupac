@@ -176,3 +176,60 @@ def infix_acyl_name(mol, graph, centre, attach, halogens, aromatic_atoms=None):
         name_branch(graph, n, centre, halogens, aromatic_atoms, mol=mol) for n in ligands if roles[n] == "prefix"
     ]
     return (format_mononuclear_prefixes(entries) if entries else "") + stem, bool(entries) or not stem.startswith(("phosph", "ars", "stib"))
+
+
+_OXANE_STEMS = {15: "phosphoxan", 33: "arsoxan", 51: "stiboxan", 16: "sulfoxan", 34: "selenoxan", 52: "telluroxan"}
+_STANDARD = {15: 3, 33: 3, 51: 3, 16: 2, 34: 2, 52: 2}
+
+
+def oxoacid_chain_group(mol, graph, centre, attach, halogens, aromatic_atoms=None):
+    """(name, True) of a chain of acid centres of one element joined through oxygen and attached through its terminal
+    centre, named as the heteroacyclic parent with its bonding numbers: '1,3,3-trihydroxy-1,3-dioxo-1λ5,3λ5-
+    diphosphoxan-1-yl' (P-67.2.6); None for a single centre or any other shape."""
+    from ._common import group_substituents
+    from ._numerals import numerical_term
+    from ._substituents import format_substituent_prefixes, name_branch
+
+    z = mol.GetAtomWithIdx(centre).GetAtomicNum()
+    if z not in _OXANE_STEMS:
+        return None
+    walk, previous = [centre], attach
+    while True:
+        bridges = [
+            n
+            for n in graph[walk[-1]]
+            if n != previous
+            and mol.GetAtomWithIdx(n).GetAtomicNum() == 8
+            and mol.GetAtomWithIdx(n).GetDegree() == 2
+            and any(m != walk[-1] and mol.GetAtomWithIdx(m).GetAtomicNum() == z for m in graph[n])
+        ]
+        if not bridges:
+            break
+        if len(bridges) > 1:
+            return None
+        (nxt,) = [m for m in graph[bridges[0]] if m != walk[-1]]
+        if nxt in walk:
+            return None
+        walk += [bridges[0], nxt]
+        previous = bridges[0]
+    if len(walk) < 3:
+        return None
+    chain = set(walk)
+    subs, lambdas = {}, []
+    for i, atom in enumerate(walk):
+        a = mol.GetAtomWithIdx(atom)
+        if a.IsInRing() or a.GetFormalCharge() or a.GetIsotope():
+            return None
+        if a.GetAtomicNum() == z:
+            if a.GetTotalValence() != _STANDARD[z]:
+                lambdas.append(f"{i + 1}\u03bb{a.GetTotalValence()}")
+        for n in graph[atom]:
+            if n in chain or n == attach:
+                continue
+            subs.setdefault(i + 1, []).append(name_branch(graph, n, atom, halogens, aromatic_atoms, mol=mol))
+    grouped = group_substituents(subs)
+    prefix = format_substituent_prefixes(grouped) if grouped else ""
+    count = (len(walk) + 1) // 2
+    stem = "dithioxan" if z == 16 and count == 2 else numerical_term(count) + _OXANE_STEMS[z]
+    head = "-".join(part for part in (prefix, ",".join(lambdas)) if part)
+    return (f"{head}-" if head else "") + stem + "-1-yl", True
