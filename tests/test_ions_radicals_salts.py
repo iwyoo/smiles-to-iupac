@@ -798,9 +798,25 @@ def test_carbenium_centre_beside_groups(smiles, expected):
         pytest.param("[CH2+]", "methyliumyl", id="one_atom_radical_cation"),
         pytest.param("C[CH+]", "ethan-1-ylium-1-yl", id="both_centres_on_one_atom"),
         pytest.param("[CH2-]C[CH-]", "propane-1,3-diid-1-yl", id="dianion_with_radical_on_an_ionic_atom"),
+        pytest.param("c1ccccc1[CH-][CH][CH-]c1ccccc1", "1,3-diphenylpropane-1,3-diid-2-yl", id="aromatic_substituents_do_not_count_as_a_ring_parent"),
+        pytest.param("c1ccc2c(c1)[CH-]c1ccccc1[CH]2", "9,10-dihydroanthracen-10-id-9-yl", id="named_ring_system_parent"),
     ],
 )
 def test_radical_ions_on_a_hydrocarbon_skeleton(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[NH-]", "azanidyl", id="heteroatom_hydride_radical_anion"),
+        pytest.param("C[B-](C)C", "trimethylboranuidyl", id="boron_radical_anion"),
+        pytest.param("C[N-]", "methanaminidyl", id="amine_derived_radical_anion"),
+        pytest.param("CC(=O)[N-]", "acetylazanidyl", id="acyl_radical_anion"),
+        pytest.param("c1ccccc1C#[N+]", "benzonitriliumyl", id="nitrilium_radical_cation"),
+    ],
+)
+def test_radical_ions_named_through_the_filled_ion(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
