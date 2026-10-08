@@ -184,3 +184,17 @@ def test_bicyclic_ring_assembly_ylidene_halogen_substituent_raises():
 )
 def test_three_rings_with_a_double_bond_junction_name_a_two_ring_assembly_with_ring_substituent(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C12(C=CC=C1C=CC=C2)C12C=CC=C1C=CC=C2", "3a,3'a-biindene"),
+        ("N1C=CC(=CC=C1)C=1CC=NC=CC1", "1H,3'H-4,4'-biazepine"),
+        ("N1(CC=CC=C1)C1=NC=CC=C1", "2H-1,2'-bipyridine"),
+        ("C1(SCCCCCCCCCCCC1)C1COCCCCCCCCCCC1", "3'-oxa-2-thia-1,1'-bi(cyclotetradecane)"),
+        ("O1C(C=CC1=O)=C1C(OC=C1)=O", "2'H,5H-[2,3'-bifuranylidene]-2',5-dione"),
+    ],
+)
+def test_assembly_indicated_hydrogen_primes_after_the_number_and_replacement_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
