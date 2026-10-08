@@ -497,3 +497,19 @@ def test_polyacid_substituent_is_flagged_as_not_preferred():
 )
 def test_infix_acyl_prefixes_and_senior_acid_derivative_among_centres(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "O=S(=O)(c1ccccc1)N=P(Nc1ccccc1)(Nc1ccccc1)Nc1ccccc1",
+            "N-(trianilino-λ5-phosphanylidene)benzenesulfonamide",
+        ),
+        ("CC(=O)N=P(C)(C)C", "N-(trimethyl-λ5-phosphanylidene)acetamide"),
+        ("O=S(=O)(c1ccccc1)NP(C)C", "N-(dimethylphosphanyl)benzenesulfonamide"),
+        ("O=S(=O)(c1ccccc1)N=CC", "N-ethylidenebenzenesulfonamide"),
+    ],
+)
+def test_amides_carrying_phosphanylidene_phosphanyl_and_alkylidene_groups_on_nitrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
