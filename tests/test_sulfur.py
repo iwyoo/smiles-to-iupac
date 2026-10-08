@@ -847,8 +847,10 @@ def test_stereogenic_sulfoxide_and_sulfinate(smiles, expected):
     ],
 )
 def test_ring_chalcogen_with_oxo_or_hydroxy_in_an_unsaturated_ring(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
     "smiles, expected",
     [
         ("S1=CN=CC=C1", "1λ4,3-thiazine"),
