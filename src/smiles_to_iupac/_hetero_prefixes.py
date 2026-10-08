@@ -184,8 +184,12 @@ def phosphoryl_name(parts, group=("phosphono", "phosphoryl")):
 
 def _phosphoryloxy(graph, phosphorus, oxygen, halogens, aromatic_atoms, mol):
     """'phosphonooxy' or '[(X)(Y)phosphoryl]oxy' for O-P(=O)(OX)(OY)."""
+    from ._oxoacid_acyl import infix_acyl_name
     from ._substituents import name_branch
 
+    infix = infix_acyl_name(mol, graph, phosphorus, oxygen, halogens, aromatic_atoms)
+    if infix is not None:
+        return infix[0] + "oxy", True
     atom = mol.GetAtomWithIdx(phosphorus)
     others = [n for n in graph[phosphorus] if n != oxygen]
     terminal = [
@@ -1323,8 +1327,14 @@ def _chalcogen_acyl_oxo(mol, center, attached):
 def _pnictogen_oxo_group(graph, root, halogens, aromatic_atoms, mol, others):
     """P(=O)(X)(Y)- as 'phosphono' (X = Y = hydroxy), '(X)(Y)phosphoryl', or '(R)(R')phosphinoyl' when both are carbon
     groups (P-67.1.4.1.1.3, P-67.1.4.1.3)."""
+    from ._oxoacid_acyl import infix_acyl_name
     from ._substituents import name_branch
 
+    attach = next((n for n in graph[root] if n not in others), None)
+    if attach is not None:
+        infix = infix_acyl_name(mol, graph, root, attach, halogens, aromatic_atoms)
+        if infix is not None:
+            return infix
     oxo = [
         n
         for n in others

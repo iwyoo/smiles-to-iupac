@@ -8,6 +8,7 @@ from rdkit import Chem
 
 from ._common import HALOGEN_PREFIXES, UnsupportedStructure, adjacency, group_substituents, halogen_substituents
 from ._carbonic_family import pseudohalide_at
+from ._oxoacid_acyl import is_senior_centre
 from ._phosphonic_acid import _SENIOR_ACIDS, CENTER_STEMS
 from ._substituents import alpha_sort_key, format_mononuclear_prefixes, format_substituent_prefixes, name_branch
 
@@ -28,9 +29,10 @@ _SYMBOL = {15: "P", 33: "As", 51: "Sb"}
 
 def _find(mol):
     centers = [a for a in mol.GetAtoms() if a.GetAtomicNum() in CENTER_STEMS]
-    if len(centers) != 1:
+    senior = [a for a in centers if is_senior_centre(mol, a)]
+    if len(senior) != 1:
         return None
-    center = centers[0]
+    center = senior[0]
     if center.GetDegree() != 4 or center.GetFormalCharge() or center.IsInRing():
         return None
     double = [
