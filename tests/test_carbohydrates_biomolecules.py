@@ -515,3 +515,16 @@ def test_sugar_substituent_is_glycosyl_only_when_linked_at_the_anomeric_carbon(s
 )
 def test_intramolecular_anhydro_sugars(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(C)C[C@H](N)C(=O)N[C@H](CCC(=O)O)C(=O)N[C@@H]([C@H](C)O)C(=O)N[C@H](C(C)C)C(=O)N[C@@H](CC(C)C)C(=O)O", "L-leucyl-D-glutamyl-L-allothreonyl-D-valyl-L-leucine", id="d_residues_and_allo"),
+        pytest.param("NCC(=O)NCC(=O)O", "glycylglycine", id="glycine_residues_have_no_descriptor"),
+        pytest.param("CC(N)C(=O)N[C@@H](C)C(=O)O", "ξ-alanyl-L-alanine", id="unspecified_residue_xi"),
+        pytest.param("N[C@@H](CS)C(=O)N[C@@H](CC(=O)O)C(=O)N1CCC[C@H]1C(=O)O", "L-cysteinyl-L-aspartyl-L-proline", id="irregular_acyl_endings"),
+    ],
+)
+def test_peptide_acyl_names(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
