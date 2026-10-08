@@ -1681,8 +1681,9 @@ def _stereo_entries(stereo, position_of, ring_parent=False, used=frozenset()):
                 if ("bond", where) in used:
                     continue
                 inside = [x for x in (a, b) if x in position_of]
-                if len(inside) == 1 and not ring_parent:
-                    # P-93.4.2.1: the configuration of a double bond to an ylidene group takes the locant of the parent atom
+                if len(inside) == 1:
+                    # P-93.4.2.1, P-93.5.1.4.2.1: the configuration of a double bond to an ylidene group takes the locant
+                    # of the parent atom
                     entries.append((position_of[inside[0]], code))
                 else:
                     complete = False
