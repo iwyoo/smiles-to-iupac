@@ -128,7 +128,7 @@ def test_locants_are_all_cited_once_a_nuclide_needs_one(smiles, expected):
         ("[2H]C1CC1", "(2H1)cyclopropane"),
         ("[13CH2]1CCCCC1", "(13C)cyclohexane"),
         ("[13CH2]1CC([2H])CCC1", "(1-13C,3-2H1)cyclohexane"),
-        ("CCN(C)C[13CH3]", "N-(2-13C)ethyl-N-methylethanamine"),
+        ("CCN(C)C[13CH3]", "N-ethyl-N-methyl(2-13C)ethan-1-amine"),
         ("CCN(CC)CC[13CH3]", "N,N-diethyl(3-13C)propan-1-amine"),
         ("[2H]N(C)CC", "N-methyl(N-2H)ethanamine"),
         ("CC[NH+](C)[2H]", "N-methyl(N-2H)ethanaminium"),
@@ -200,7 +200,7 @@ def test_isotopic_descriptor_follows_the_unmodified_name(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-@pytest.mark.parametrize("smiles", ["OC(=O)c1ccc(cc1)C([13CH3])([13CH3])C", "CC(=O)Nc1ccccc1C(=O)[13CH3]"])
+@pytest.mark.parametrize("smiles", ["CC(=O)Nc1ccccc1C(=O)[13CH3]"])
 def test_unplaceable_isotope_label_is_never_dropped(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
@@ -232,7 +232,7 @@ def test_isotope_on_characteristic_group_atom(smiles, expected):
         pytest.param("CC(=O)Nc1ccccc1C[13CH3]", "N-[2-(2-13C)ethylphenyl]acetamide", id="labelled_alkyl_on_a_ring_substituent"),
         pytest.param("CC(=O)c1ccc([18F])cc1", "1-[4-(18F)fluorophenyl]ethan-1-one", id="labelled_halogen_on_a_ring_substituent"),
         pytest.param("O=C(O)c1ccc(cc1)C([2H])([2H])[2H]", "4-(2H3)methylbenzoic acid", id="labelled_methyl_beside_a_ring_principal_group"),
-        pytest.param("C([2H])([2H])([2H])Oc1ccc(cc1)C(=O)O", "4-[(2H3)methoxy]benzoic acid", id="labelled_methoxy_beside_a_ring_principal_group"),
+        pytest.param("C([2H])([2H])([2H])Oc1ccc(cc1)C(=O)O", "4-(2H3)methoxybenzoic acid", id="labelled_methoxy_beside_a_ring_principal_group"),
         pytest.param("CC(=O)Nc1ccccc1OC[13CH3]", "N-{2-[(2-13C)ethoxy]phenyl}acetamide", id="labelled_ethoxy_on_a_ring_substituent"),
         pytest.param("OC(=O)CC[13CH2]Cl", "4-chloro(4-13C)butanoic acid", id="descriptor_after_prefixes_of_an_acid"),
         pytest.param("OC(=O)C[13CH](C)C", "3-methyl(3-13C)butanoic acid", id="labelled_branch_point_of_an_acid"),
@@ -292,7 +292,7 @@ def test_isotopes_with_unsaturation_and_stereo(smiles, expected):
         pytest.param("CCOC(=[18O])OCC", "O,O-diethyl (18O1)carbonate", id="labelled_carbonyl_oxygen_of_a_symmetric_carbonate"),
         pytest.param("CC(=[18O])OC", "O-methyl acet(18O1)ate", id="labelled_acetate_carbonyl"),
         pytest.param("O=C([18O]C)c1ccccc1", "O-methyl benz(18O1)oate", id="labelled_benzoate_ester_oxygen"),
-        pytest.param("OC(=O)c1ccc(cc1)C(C)(C)[13CH3]", "4-[2-(13C)methylpropan-2-yl]benzoic acid", id="modified_tert_butyl_loses_its_retained_name"),
+        pytest.param("OC(=O)c1ccc(cc1)C(C)(C)[13CH3]", "4-[2-methyl(1-13C)propan-2-yl]benzoic acid", id="modified_tert_butyl_loses_its_retained_name"),
         pytest.param("OC(=O)c1ccc(cc1)[13C](C)(C)C", "4-[2-methyl(2-13C)propan-2-yl]benzoic acid", id="modified_quaternary_carbon_of_tert_butyl"),
         pytest.param("[2H]C([2H])([2H])C", "(1,1,1-2H3)ethane", id="locants_kept_when_isomers_exist"),
         pytest.param("C(OC1=CC=CC=C1)([2H])([2H])[2H]", "(2H3)methoxybenzene", id="lone_modified_alkoxy_is_not_enclosed"),
@@ -359,4 +359,21 @@ def test_ring_with_more_or_heavier_nuclides_is_the_parent(smiles, expected):
     ],
 )
 def test_isotopic_modification_of_ring_assemblies_and_fused_parent_choice(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("[2H]CC(C)CC[SiH3]", "[3-methyl(4-2H1)butyl]silane"),
+        ("[SiH3]CCC([14CH3])C[2H]", "[3-(2H1)methyl(4-14C)butyl]silane"),
+        ("CC(=O)NC(CO)C[18OH]", "N-[1-(18O)hydroxy-3-hydroxypropan-2-yl]acetamide"),
+        ("CCCC(Br)COCC([81Br])CCC", "2-bromo-1-{[2-(81Br)bromopentyl]oxy}pentane"),
+        ("OCC(CC(C[14CH3])CCC)CC(C[13CH3])CCC", "4-(2-13C)ethyl-2-[2-(2-14C)ethylpentyl]heptan-1-ol"),
+        ("[13CH3]OCCNCC[18O]C", "2-(13C)methoxy-N-[2-(18O)methoxyethyl]ethan-1-amine"),
+        ("[2H]C1CCCCC1(C)CC1CCCCC1", "1-(cyclohexylmethyl)-1-methyl(2-2H1)cyclohexane"),
+        ("[14CH2]1CCCCC1CC1([2H])CCCCC1", "1-[(1-2H)cyclohexylmethyl](2-14C)cyclohexane"),
+    ],
+)
+def test_substituent_chains_and_prefixes_are_chosen_by_isotopic_modification(smiles, expected):
     assert smiles_to_iupac(smiles) == expected

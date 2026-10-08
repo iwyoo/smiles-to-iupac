@@ -1629,7 +1629,61 @@ def _stereo_rank(stereo, position_of, ring_parent=False):
         _isotope_counts(stereo, marked),
         isotopic,
         _nuclide_precedence(marked, position_of),
+        _substituent_isotope_locants(position_of),
         tuple(0 if code in "RZr" else 1 for _, code in entries),
+    )
+
+
+def _substituent_isotope_locants(position_of, mol=None, labels=None):
+    """P-45.4: the parent gives the lowest locants to its isotopically modified substituent groups, then to those
+    holding the nuclide of higher atomic number, then of higher mass number."""
+    from ._isotope_labels import _nuclide_sort_key
+    from ._substituents import ISOTOPE_LABELS, _locant_sort_key
+
+    if mol is None:
+        context = ISOTOPE_LABELS.get()
+        if not context:
+            return ()
+        mol, labels = context["mol"], context["labels"]
+    table = Chem.GetPeriodicTable()
+    groups = []
+    for parent_atom, locant in position_of.items():
+        for neighbor in mol.GetAtomWithIdx(parent_atom).GetNeighbors():
+            if neighbor.GetIdx() in position_of:
+                continue
+            group, stack = {neighbor.GetIdx()}, [neighbor.GetIdx()]
+            while stack:
+                for onward in mol.GetAtomWithIdx(stack.pop()).GetNeighbors():
+                    if onward.GetIdx() not in group and onward.GetIdx() not in position_of:
+                        group.add(onward.GetIdx())
+                        stack.append(onward.GetIdx())
+            found = {n for a in group if a in labels for n in [labels[a]["skeleton"], *labels[a]["H"]] if n}
+            if found:
+                groups.append((locant, found))
+    order = sorted(
+        {n for _, found in groups for n in found},
+        key=lambda n: (-table.GetAtomicNumber(_nuclide_sort_key(n)[0]), -_nuclide_sort_key(n)[1]),
+    )
+    return (
+        tuple(sorted(_locant_sort_key(locant) for locant, _ in groups)),
+        tuple(tuple(sorted(_locant_sort_key(locant) for locant, found in groups if n in found)) for n in order),
+    )
+
+
+def _parent_configuration_rank(stereo, position_of, ring_parent=False):
+    """P-44.4.1.11.1-3, P-44.4.1.12: between candidate parents the one with more isotopically modified atoms is senior,
+    then the one with more Z double bonds (and lower locants for them), more like descriptor pairs, and R ahead of S."""
+    entries, _ = _stereo_entries(stereo, position_of, ring_parent)
+    marked = [(w, code) for k, w, code in stereo or [] if k == "isotope" and w in position_of]
+    cis = [locant for locant, code in entries if code == "Z"]
+    centres = [code for _, code in entries if code in ("R", "S", "r", "s")]
+    like = sum(1 for code in centres[1:] if code == centres[0])
+    return (
+        _isotope_counts(stereo, marked),
+        -len(cis),
+        tuple(cis),
+        -like,
+        tuple(0 if code in "Rr" else 1 for code in centres),
     )
 
 
@@ -1998,7 +2052,7 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
 
         placed = found[2]
         name = _without_stereo(found[1])
-        return (modified, -len(roots), tuple(sorted(placed[r] for r, _ in roots)), alphanumerical_name_key(name), name), (
+        return (modified, _parent_configuration_rank(stereo, placed), -len(roots), tuple(sorted(placed[r] for r, _ in roots)), alphanumerical_name_key(name), name), (
             (0,), name, (None, None, None, 0, placed, True, PARENT_START.get())
         )
     from ._substituents import ISOTOPE_LABELS
@@ -2009,7 +2063,7 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
         if not ring_labelled:
             raise UnsupportedStructure("an unsubstituted ring is not a polyfunctional case")
         locants = min(numberings(spec), key=lambda option: _stereo_rank(stereo, option))
-        return (modified, 0, (), spec.parent), ((0,), spec.parent, (None, None, None, 0, locants, True, 0))
+        return (modified, _parent_configuration_rank(stereo, locants), 0, (), spec.parent), ((0,), spec.parent, (None, None, None, 0, locants, True, 0))
     entries = [(r, *name_branch(graph, n, r, halogens, aromatic_atoms, mol=mol, unsaturated=True)) for r, n in roots]
     best = None
     for locants in numberings(spec):
@@ -2028,7 +2082,7 @@ def _plain_ring_parent(mol, graph, halogens, aromatic_atoms, ring, stereo):
     else:
         prefix_text = _prefix_text(entries, best[1])
     name = _join(prefix_text, spec.parent)
-    return (modified, -len(roots), best[0][0], alphanumerical_name_key(name), name), ((0,), name, (None, None, None, 0, best[1], True, len(name) - len(spec.parent)))
+    return (modified, _parent_configuration_rank(stereo, best[1]), -len(roots), best[0][0], alphanumerical_name_key(name), name), ((0,), name, (None, None, None, 0, best[1], True, len(name) - len(spec.parent)))
 
 
 _GROUP_14 = (14, 32, 50, 82)
@@ -2295,6 +2349,7 @@ def _evaluate_plain(mol, graph, halogens, aromatic_atoms, chain, stereo=None):
         -len(ene),
         lowest_locant_set(ene + yne),
         lowest_locant_set(ene),
+        _parent_configuration_rank(stereo, position_of),
         -total_count,
         locant_set,
         citation,
@@ -2381,6 +2436,7 @@ def _evaluate_carbo(mol, graph, halogens, aromatic_atoms, chain, principal, grou
         tuple(suffix_locants),
         -(len(ene) + len(yne)),
         lowest_locant_set(ene + yne),
+        _parent_configuration_rank(stereo, position_of),
         -total_count,
         locant_set,
         citation,
@@ -2992,6 +3048,11 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         ring = parent.GetAtomWithIdx(mapped).IsInRing()
         count = -result[0][0] if primaries else 0
         results.append((-count, ring, _ring_rank(parent, mapped), _chain_size(parent, mapped), result, c))
+        if context:
+            keep = sorted(set(arms[c]) | {n_idx})
+            placed = {keep[new]: locant for new, locant in result[2][4].items() if new < len(keep)}
+            placed[n_idx] = "N"
+            results[-1] += (_substituent_isotope_locants(placed, mol, context["labels"]),)
     if primaries:
         token = SUBSTITUTED_AMINE_PREFIX.set(True)
         try:
@@ -3008,7 +3069,7 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
             )
         if not results:
             raise UnsupportedStructure("no parent carries the amine groups of this substituted amine")
-    results.sort(key=lambda r: (r[0], not r[1], r[2], -r[3], r[4][1]))
+    results.sort(key=lambda r: (r[0], not r[1], r[2], -r[3], r[6] if len(r) > 6 else (), r[4][1]))
     best = results[0]
     if best[5] is None:
         return best[4]
@@ -3022,15 +3083,18 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         parent_labels = {new_index[a]: e for a, e in context["labels"].items() if a in new_index}
         if parent_labels:
             parent, _ = _amine_parent_molecule(mol, arms[best[4]], best[4], n_idx)
-            unlabelled = ISOTOPE_LABELS.set(None)
+            sub_context = {"labels": parent_labels, "consumed": set(), "mol": parent}
+            sub_token = ISOTOPE_LABELS.set(sub_context)
             try:
+                selected = _select(parent, None, n_names)
                 name = _with_labels(
-                    parent, parent_labels, set(), best[3][1], best[3][2], lambda: _select(parent, None, n_names)[1:]
+                    parent, parent_labels, sub_context["consumed"], selected[1], selected[2],
+                    lambda: _select(parent, None, n_names)[1:],
                 )
             finally:
-                ISOTOPE_LABELS.reset(unlabelled)
+                ISOTOPE_LABELS.reset(sub_token)
             context["consumed"].update(a for a in context["labels"] if a in new_index)
-            return best[3][0], name, (*best[3][2][:4], {}, *best[3][2][5:])
+            return selected[0], name, (*selected[2][:4], {}, *selected[2][5:])
     kept = sorted(set(arms[best[4]]) | {n_idx})
     positions = best[3][2][4]
     if isinstance(positions, dict) and positions:
@@ -4536,6 +4600,7 @@ def _evaluate(
         lowest_locant_set(ene + yne),
         lowest_locant_set(ene),
         attach_locant,
+        _parent_configuration_rank(stereo, position_of),
         -total_count,
         locant_set,
         citation,

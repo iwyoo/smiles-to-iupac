@@ -783,3 +783,14 @@ def test_double_bond_to_an_ylidene_group_takes_the_parent_locant():
 )
 def test_unsaturated_heteroatom_chains_and_heteroarynes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[C@H]1CCCCC1CC1CCCC[C@H]1C", "(1R)-1-methyl-2-{[(2S)-2-methylcyclohexyl]methyl}cyclohexane"),
+        ("CC(=O)NC(C)(CC[C@@H](C)Cl)CC[C@H](C)Cl", "N-[(2R,8S)-2,8-dichloro-5-methylnonan-5-yl]acetamide"),
+    ],
+)
+def test_ring_parent_and_substituent_chain_prefer_r_to_s(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
