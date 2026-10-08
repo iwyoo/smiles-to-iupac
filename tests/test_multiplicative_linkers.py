@@ -496,3 +496,24 @@ def test_identical_parents_with_substituted_units_hetero_rings_imine_and_ester_l
 )
 def test_sulfinyl_linkers_of_multiplicative_names(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        (
+            "CC[C@@H](C)c1ccc(Sc2ccc([C@H](C)CC)cc2)cc1",
+            "1,1'-sulfanediylbis{4-[(2R)-butan-2-yl]benzene}",
+        ),
+        (
+            "CC[C@@H](C)c1ccc(Sc2ccc([C@@H](C)CC)cc2)cc1",
+            "1-[(2R)-butan-2-yl]-4-({4-[(2S)-butan-2-yl]phenyl}sulfanyl)benzene",
+        ),
+        (
+            "C[C@@H](Br)C1([C@H](C)Br)CCCC1",
+            "1-[(1R)-1-bromoethyl]-1-[(1S)-1-bromoethyl]cyclopentane",
+        ),
+    ],
+)
+def test_identical_configuration_units_are_multiplied_and_r_is_cited_before_s(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
