@@ -1387,7 +1387,40 @@ def _stereo_rank(stereo, position_of, ring_parent=False):
     entries, _ = _stereo_entries(stereo, position_of, ring_parent)
     marked = [(w, code) for k, w, code in stereo or [] if k == "isotope" and w in position_of]
     isotopic = tuple(sorted(position_of[w] for w, code in marked for _ in code.split("|")))
-    return isotopic, _nuclide_precedence(marked, position_of), tuple(0 if code in "RZr" else 1 for _, code in entries)
+    return (
+        _isotope_counts(stereo, marked),
+        isotopic,
+        _nuclide_precedence(marked, position_of),
+        tuple(0 if code in "RZr" else 1 for _, code in entries),
+    )
+
+
+def _isotope_counts(stereo, marked):
+    """P-44.4.1.11.1-3: the parent with more isotopically modified atoms is senior, then the one with more nuclides of
+    higher atomic number, then of higher mass number; smaller keys are senior."""
+    from ._isotope_labels import _nuclide_sort_key
+    from ._substituents import ISOTOPE_LABELS
+
+    context = ISOTOPE_LABELS.get()
+    if not context or not marked:
+        return 0, ()
+    counts = {}
+    for atom, _ in marked:
+        entry = context["labels"].get(atom)
+        if entry is None:
+            continue
+        if entry["skeleton"]:
+            counts[entry["skeleton"]] = counts.get(entry["skeleton"], 0) + 1
+        for nuclide, number in entry["H"].items():
+            counts[nuclide] = counts.get(nuclide, 0) + number
+    table = Chem.GetPeriodicTable()
+    everywhere = {entry["skeleton"] for entry in context["labels"].values() if entry["skeleton"]}
+    everywhere |= {n for entry in context["labels"].values() for n in entry["H"]}
+    order = sorted(
+        everywhere,
+        key=lambda n: (-table.GetAtomicNumber(_nuclide_sort_key(n)[0]), -_nuclide_sort_key(n)[1]),
+    )
+    return -sum(counts.values()), tuple(-counts.get(n, 0) for n in order)
 
 
 def _nuclide_precedence(marked, position_of):

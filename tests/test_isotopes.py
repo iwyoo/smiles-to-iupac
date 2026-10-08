@@ -295,3 +295,17 @@ def test_isotopes_with_unsaturation_and_stereo(smiles, expected):
 )
 def test_isotope_on_ester_oxygens_and_tert_butyl(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("CCC(CC)CC([2H])([2H])[2H]", "3-ethyl(1,1,1-2H3)pentane", id="chain_through_the_modified_branch"),
+        pytest.param("CCC(C)(CC)CC([2H])([2H])[2H]", "3-ethyl-3-methyl(1,1,1-2H3)pentane", id="modified_chain_with_substituents"),
+        pytest.param("[2H]C(CC)(CC)CC", "3-ethyl(3-2H)pentane", id="one_modified_atom_on_the_chain"),
+        pytest.param("CCC(CC[13CH3])(CC)CC[14CH3]", "4,4-diethyl(7-13C,1-14C)heptane", id="both_chains_modified"),
+        pytest.param("CCC(CC)(CC[2H])C[13CH3]", "3,3-diethyl(1-13C,5-2H1)pentane", id="more_nuclides_of_higher_atomic_number_first"),
+    ],
+)
+def test_parent_chain_with_more_isotopic_modifications_is_senior(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
