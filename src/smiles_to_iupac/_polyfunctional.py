@@ -1790,6 +1790,10 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             and not (FORCED_PRINCIPAL.get() == principal and principal == "nitrile")
         ):
             raise UnsupportedStructure("an ester outranks every parent this engine can build except an acid")
+    if principal in (None, "amine") and attach is None and not n_names and not RING_CENTER.get():
+        boranyl = _boranyl_amines(mol, graph, halogens, aromatic_atoms)
+        if boranyl is not None:
+            return boranyl
     if (
         principal in (None, "amine")
         and not SUBSTITUTED_AMINE_PREFIX.get()
@@ -2984,6 +2988,69 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         remapped = {kept[new]: locant for new, locant in positions.items() if new < len(kept)}
         return best[3][0], best[3][1], (*best[3][2][:4], remapped, *best[3][2][5:])
     return best[3]
+
+
+def _boranyl_nitrogens(mol):
+    """[(nitrogen, parent carbon, [hydride atoms])] for nitrogens bonded to one carbon and to mononuclear hydride groups
+    such as boranyl, when together with the primary amines they number at least two, else []."""
+    nitrogens = []
+    primaries = 0
+    for atom in mol.GetAtoms():
+        if atom.GetAtomicNum() != 7 or atom.GetFormalCharge() or atom.IsInRing() or atom.GetIsAromatic():
+            continue
+        carbons = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 6]
+        hydrides = [n for n in atom.GetNeighbors() if n.GetAtomicNum() in MONONUCLEAR_HYDRIDES]
+        if hydrides and len(carbons) == 1 and len(carbons) + len(hydrides) == atom.GetDegree():
+            nitrogens.append((atom.GetIdx(), carbons[0].GetIdx(), [h.GetIdx() for h in hydrides]))
+        elif atom.GetDegree() == 1 and atom.GetTotalNumHs() == 2 and len(carbons) == 1:
+            primaries += 1
+    return nitrogens if nitrogens and len(nitrogens) + primaries >= 2 else []
+
+
+def boranyl_amine_parent_applies(mol):
+    return bool(_boranyl_nitrogens(mol))
+
+
+def _boranyl_amines(mol, graph, halogens, aromatic_atoms):
+    """Nitrogens bonded to one carbon of a shared parent and carrying mononuclear hydride groups such as boranyl: the
+    carbon parent whose amine groups outnumber those of any hydride parent is senior (P-44.1.1, P-68.1.5.2.1), and the
+    hydride groups become N<locant> prefixes. None when the structure is not of this kind."""
+    nitrogens = _boranyl_nitrogens(mol)
+    if not nitrogens:
+        return None
+    removed = set()
+    for n_idx, _, hydrides in nitrogens:
+        for h in hydrides:
+            arm = _arm_atoms(graph, h, n_idx)
+            if arm & removed or any(a in arm for _, c, _ in nitrogens for a in (n_idx, c)):
+                return None
+            removed |= arm
+    n_names = []
+    editable = Chem.RWMol(mol)
+    for number, (n_idx, carbon, hydrides) in enumerate(nitrogens, start=1):
+        editable.GetAtomWithIdx(carbon).SetAtomMapNum(number)
+        for h in hydrides:
+            n_names.append((*name_branch(graph, h, n_idx, halogens, aromatic_atoms, mol=mol), number))
+    kept = [i for i in range(mol.GetNumAtoms()) if i not in removed]
+    for idx in sorted(removed, reverse=True):
+        editable.RemoveAtom(idx)
+    parent = editable.GetMol()
+    try:
+        Chem.SanitizeMol(parent)
+    except Exception:
+        return None
+    if len(Chem.GetMolFrags(parent)) != 1:
+        return None
+    mapped = {a.GetAtomMapNum(): a.GetIdx() for a in parent.GetAtoms() if a.GetAtomMapNum()}
+    for a in parent.GetAtoms():
+        a.SetAtomMapNum(0)
+    tagged = [(name, compound, ("N", mapped[number])) for name, compound, number in n_names]
+    result = _select(parent, None, tagged)
+    positions = result[2][4]
+    if isinstance(positions, dict) and positions:
+        positions = {kept[new]: locant for new, locant in positions.items() if new < len(kept)}
+        return result[0], result[1], (*result[2][:4], positions, *result[2][5:])
+    return result
 
 
 def _amine_parent_molecule(mol, atoms, carbon, n_idx):

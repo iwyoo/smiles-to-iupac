@@ -146,6 +146,10 @@ def name_heteroacyclic(mol):
     hetero_atoms = [a for a in mol.GetAtoms() if _chain_heteroatom(a, bool(aminium))]
     if len(hetero_atoms) < _MINIMUM_UNITS:
         return None
+    from ._polyfunctional import boranyl_amine_parent_applies
+
+    if boranyl_amine_parent_applies(mol):
+        return None
     graph = adjacency(mol)
     if any(a.GetNumRadicalElectrons() or a.GetIsotope() for a in mol.GetAtoms()):
         return None
