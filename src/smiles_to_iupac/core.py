@@ -1270,6 +1270,12 @@ def _name_mol(mol) -> str:
         ring_assembly_core = find_ring_assembly_core(mol)
         if ring_assembly_core is not None:
             return name_ring_assembly(mol, ring_assembly_core)
+        ylidene_core = find_ring_assembly_ylidene_core(mol)
+        if ylidene_core is not None and any(a.GetAtomicNum() != 6 and a.IsInRing() for a in mol.GetAtoms()):
+            try:
+                return name_ring_assembly_ylidene(mol, ylidene_core)
+            except UnsupportedStructure:
+                pass
     for has_shape, namer in (
         (_has_isotope_label, _name_isotope_label),
         (has_o_substituted_hydroxylamine_shape, name_o_substituted_hydroxylamine),

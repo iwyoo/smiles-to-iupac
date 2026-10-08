@@ -719,11 +719,11 @@ def _hydro_text(hydro):
     return f"{_locs(hydro)}-{multiplied_word(len(hydro), 'hydro')}" if hydro else ""
 
 
-def _vb_text(parent, ene_citations, hetero_prefix=""):
+def _vb_text(parent, ene_citations, hetero_prefix="", yne_citations=()):
     def text(locants, valence, substituted=frozenset(), suffix="yl"):
         stem = parent
-        if ene_citations:
-            body, needs_a = _unsaturation_suffix_from_citations(ene_citations, [])
+        if ene_citations or yne_citations:
+            body, needs_a = _unsaturation_suffix_from_citations(ene_citations, yne_citations)
             stem = parent[:-3] + ("a" if needs_a else "") + "-" + body
         return _tail(hetero_prefix + stem, locants, valence, suffix)
 
@@ -803,10 +803,8 @@ def _von_baeyer(mol, skeleton_atoms):
         pre = tuple(outer) + (hetero_locs, hetero_ranks, lam_key)
         if bonds_new:
             ene, yne, compound_count, primary, full = von_baeyer_unsaturation_citations(position_new, bonds_new)
-            if yne:
-                raise UnsupportedStructure("a ring triple bond is not supported as a diyl yet")
-            unsat = (compound_count, tuple(sorted(primary)), tuple(sorted(full)))
-            out.append(Numbering(position_of, _vb_text(parent, ene, prefix), pre_key=pre, unsat_key=unsat))
+            unsat = (compound_count, tuple(sorted(primary)), tuple(sorted(full)), tuple(sorted(p for p, _ in ene)))
+            out.append(Numbering(position_of, _vb_text(parent, ene, prefix, yne), pre_key=pre, unsat_key=unsat))
         else:
             out.append(Numbering(position_of, _vb_text(parent, [], prefix), pre_key=pre))
     return out

@@ -15,6 +15,17 @@ from smiles_to_iupac._fullerene_spiral import (
 )
 
 
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1CC12CCC#CCC2", "spiro[2.6]non-6-yne"),
+        ("C1CCC2(CC1)CC#CC=C2", "spiro[5.5]undec-1-en-3-yne"),
+    ],
+)
+def test_spiro_triple_bond_and_ene_yne_endings(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_monospiro_still_resolves_via_spiro_module():
     assert smiles_to_iupac("C1CCCC12CCCCC2") == "spiro[4.5]decane"
 

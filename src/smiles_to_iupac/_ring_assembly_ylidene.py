@@ -88,7 +88,7 @@ from ._common import (
     validate_atoms_and_bonds,
 )
 from ._numerals import alkyl_name
-from ._ring_assembly import _numberings_from_attachment
+from ._ring_assembly import _carbon_skeleton, _numberings_from_attachment, _replacement_ring_kind, _replacement_text
 from ._substituents import format_substituent_prefixes, name_branch
 
 
@@ -167,7 +167,11 @@ def find_ring_assembly_ylidene_core(mol):
             ring_set = set(ring)
             for idx in ring:
                 atom = mol.GetAtomWithIdx(idx)
-                if atom.GetIsAromatic() or atom.GetAtomicNum() != 6:
+                if atom.GetIsAromatic():
+                    return None
+                if atom.GetAtomicNum() != 6 and (
+                    atom.GetDegree() != 2 or _replacement_ring_kind(mol, ring, junction0 if ring is rings0[0] else junction1) is None
+                ):
                     return None
             for bond2 in mol.GetBonds():
                 a, b = bond2.GetBeginAtomIdx(), bond2.GetEndAtomIdx()
@@ -209,6 +213,7 @@ def _bicyclic_junction_locant(mol, cross_bond, junction) -> int:
 
 
 def _candidate_key(locants, ring_atoms, ylidene_name, graph, halogens, mol=None):
+    replaced = _replacement_text(mol, locants)
     substituents = {}
     for atom, position in locants.items():
         branch_roots = [n for n in graph[atom] if n not in ring_atoms]
@@ -220,12 +225,12 @@ def _candidate_key(locants, ring_atoms, ylidene_name, graph, halogens, mol=None)
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     if prefix:
         prefix += "-"
-    name = f"{prefix}1,1'-bi({ylidene_name})"
-    return locant_set, citation_locants, name
+    name = f"{prefix}{replaced[1]}1,1'-bi({ylidene_name})"
+    return replaced[0], locant_set, citation_locants, name
 
 
 def _name_monocyclic_ring_assembly_ylidene(mol, ring0_atoms, ring1_atoms, junction0, junction1, ring_size) -> str:
-    validate_atoms_and_bonds(mol)
+    validate_atoms_and_bonds(_carbon_skeleton(mol))
 
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
