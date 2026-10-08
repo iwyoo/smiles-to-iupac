@@ -25,6 +25,21 @@ def test_acyclic_alkane_stereocenter(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
+        pytest.param("C1(=CC=CC=C1)/C=C/C(=O)C1=CC=CC=C1", "chalcone", id="retained_name"),
+        pytest.param("OC1=C(C(/C=C/C2=CC(=CC=C2)OC)=O)C=CC(=C1OC)O", "2′,4′-dihydroxy-3,3′-dimethoxychalcone", id="primed_locants_on_the_benzoyl_ring"),
+        pytest.param("O=C(/C=C/c1ccc(Cl)cc1)c1ccccc1", "4-chlorochalcone", id="unprimed_locants_on_the_styryl_ring"),
+        pytest.param("O=C(/C=C/c1ccccc1Br)c1cccc([N+](=O)[O-])c1", "2-bromo-3′-nitrochalcone", id="nitro_group"),
+        pytest.param("OC1=C(C=CC(=C1)O)C(/C=C/C1=CC=C(C(=O)N)C=C1)=O", "4-[(1E)-3-(2,4-dihydroxyphenyl)-3-oxoprop-1-en-1-yl]benzamide", id="senior_group_keeps_the_substitutive_name"),
+        pytest.param("C1(=CC=CC=C1)/C=C\\C(=O)C1=CC=CC=C1", "(2Z)-1,3-diphenylprop-2-en-1-one", id="only_the_e_isomer_is_chalcone"),
+    ],
+)
+def test_chalcone(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
         pytest.param("ClC=[C@AL1]=CCl", "(1M)-1,3-dichloropropa-1,2-diene", id="allene_anticlockwise"),
         pytest.param("ClC=[C@AL2]=CCl", "(1P)-1,3-dichloropropa-1,2-diene", id="allene_clockwise_is_the_enantiomer"),
         pytest.param("NC(Br)=[C@AL1]=C(F)Cl", "(1P)-1-bromo-3-chloro-3-fluoropropa-1,2-dien-1-amine", id="priority_order_swaps_the_sense"),
