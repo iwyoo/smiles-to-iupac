@@ -188,7 +188,7 @@ def test_benzene_ring_multiple_and_related(smiles, expected):
     "smiles, expected",
     [
         pytest.param("C=C([Se](=O)O)C", "prop-1-ene-2-seleninic acid", id="ene_carbon"),
-        pytest.param("O[Se](=O)C[Se](=O)O", "seleninomethaneseleninic acid", id="two_seleninic_acids"),
+        pytest.param("O[Se](=O)C[Se](=O)O", "methanediseleninic acid", id="two_seleninic_acids"),
         pytest.param("O[Se](=O)CCO", "2-hydroxyethane-1-seleninic acid", id="seleninic_acid_with_alcohol"),
     ],
 )
@@ -359,7 +359,7 @@ def test_methaneselenonic_acid_and_related(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("O[Se](=O)(=O)C[Se](=O)(=O)O", "selenonomethaneselenonic acid", id="two_selenonic_acids"),
+        pytest.param("O[Se](=O)(=O)C[Se](=O)(=O)O", "methanediselenonic acid", id="two_selenonic_acids"),
         pytest.param("O[Se](=O)(=O)CCO", "2-hydroxyethane-1-selenonic acid", id="selenonic_acid_with_alcohol"),
     ],
 )
@@ -585,7 +585,7 @@ def test_halogen_substituent__tellurinic_acid():
     "smiles, expected",
     [
         pytest.param("C=C([Te](=O)O)C", "prop-1-ene-2-tellurinic acid", id="ene_carbon"),
-        pytest.param("O[Te](=O)C[Te](=O)O", "tellurinomethanetellurinic acid", id="two_tellurinic_acids"),
+        pytest.param("O[Te](=O)C[Te](=O)O", "methaneditellurinic acid", id="two_tellurinic_acids"),
         pytest.param("O[Te](=O)CCO", "2-hydroxyethane-1-tellurinic acid", id="tellurinic_acid_with_alcohol"),
     ],
 )
@@ -722,7 +722,7 @@ def test_methanetelluronic_acid_and_related(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("O[Te](=O)(=O)C[Te](=O)(=O)O", "telluronomethanetelluronic acid", id="two_telluronic_acids"),
+        pytest.param("O[Te](=O)(=O)C[Te](=O)(=O)O", "methaneditelluronic acid", id="two_telluronic_acids"),
         pytest.param("O[Te](=O)(=O)CCO", "2-hydroxyethane-1-telluronic acid", id="telluronic_acid_with_alcohol"),
     ],
 )

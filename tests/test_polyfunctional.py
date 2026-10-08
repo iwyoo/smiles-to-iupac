@@ -406,6 +406,7 @@ def test_smiles_to_iupac_hydroperoxide_amine(smiles, expected):
         pytest.param("NC(=O)COOC", "2-(methylperoxy)acetamide", id="peroxy_prefix_on_amide"),
         pytest.param("NCCSSC", "2-(methyldisulfanyl)ethan-1-amine", id="disulfanyl_prefix_on_amine"),
         pytest.param("OC(=O)CSSSCCO", "[(2-hydroxyethyl)trisulfanyl]acetic acid", id="homonuclear_run_of_three"),
+        pytest.param("OC(=O)COOOC", "(methyltrioxidanyl)acetic acid", id="oxygen_run_of_three"),
         pytest.param("OC(=O)CSSOC", "[(methoxysulfanyl)sulfanyl]acetic acid", id="mixed_run_of_three"),
         pytest.param("OC(=O)CSSSCC(=O)O", "2,2'-trisulfanediyldiacetic acid", id="trisulfanediyl_linker"),
     ],
@@ -418,7 +419,6 @@ def test_chalcogen_chain_prefixes_beside_a_principal_group(smiles, expected):
     "smiles",
     [
         pytest.param("NCCSS", id="perthiol_outranks_amine"),
-        pytest.param("OC(=O)COOOC", id="oxygen_chain_longer_than_peroxy"),
     ],
 )
 def test_chalcogen_chain_beside_a_principal_group_raises(smiles):

@@ -30,6 +30,7 @@ from ._common import (
     substituent_locant_set_and_citation,
 )
 from ._anion import ANION_PROP, anion_weight
+from ._numerals import multiplying_prefix
 from ._chalcogenourea import is_oxo_nitrogen
 from ._functional_prefixes import is_nitro_nitrogen
 from ._hetero_prefixes import (
@@ -435,6 +436,23 @@ _GROUP_14_ATOMS = {14, 32, 50, 82}
 _GROUP_15_ATOMS = {15, 33, 51, 83}
 
 
+def _diacyl_chalcogen_chain(mol, carbon, first):
+    """Whether the acyl `carbon` is joined through `first` to another acyl carbon by a chain of three or more
+    chalcogen atoms (P-65.7.5.1: a diacyl trioxidane or tetrasulfane is a pseudoketone, not an ester)."""
+    chain, previous, atom = [], carbon, first
+    while atom.GetAtomicNum() in (8, 16, 34, 52):
+        if atom.GetFormalCharge() or atom.GetDegree() != 2 or atom.IsInRing():
+            return False
+        chain.append(atom.GetIdx())
+        onward = next(n for n in atom.GetNeighbors() if n.GetIdx() != previous)
+        previous, atom = atom.GetIdx(), onward
+    if len(chain) < 3 or atom.GetAtomicNum() != 6 or atom.GetIdx() == carbon:
+        return False
+    return bool(_double_oxygens(mol, atom.GetIdx())) and any(
+        n.GetAtomicNum() == 6 for n in atom.GetNeighbors()
+    )
+
+
 def _is_pseudoketone_heteroatom(mol, atom, carbon):
     """A neutral Group 14 or 15 atom (P-64.1.2.1) that makes its acyl carbon a pseudoketone rather than a member of
     a senior class: no multiple bonds on it, and for Group 15 no oxygen, nitrogen or halogen (phosphinous-type acids)."""
@@ -446,6 +464,22 @@ def _is_pseudoketone_heteroatom(mol, atom, carbon):
     if any(_double_oxygens(mol, n.GetIdx()) for n in atom.GetNeighbors() if n.GetIdx() != carbon):
         return False
     return z in _GROUP_14_ATOMS or all(n.GetAtomicNum() == 6 for n in atom.GetNeighbors() if n.GetIdx() != carbon)
+
+
+def _sulfonyl_groups_on(mol, carbon):
+    """[(class, owned atoms)] of the sulfonyl-type groups bonded to `carbon`."""
+    found = []
+    for n in mol.GetAtomWithIdx(carbon).GetNeighbors():
+        if n.GetAtomicNum() in (16, 34, 52) and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0:
+            sulfonyl = _sulfonyl_group(mol, n.GetIdx(), carbon)
+            if sulfonyl is not None:
+                found.append(sulfonyl)
+    return found
+
+
+def _group_weight(mol, carbon, cls):
+    """How many groups of class `cls` sit on `carbon` (two sulfonic acid groups on one carbon: methanedisulfonic acid)."""
+    return sum(1 for c, _ in _sulfonyl_groups_on(mol, carbon) if c == cls) or 1
 
 
 def _group_of(mol, carbon):
@@ -535,7 +569,9 @@ def _group_of(mol, carbon):
                     return "hydrazide", {oxygens[0], other.GetIdx(), beta}
             if carbon_neighbors and other.GetAtomicNum() == 7 and _ring_nitrogen_acyl(mol, other, carbon):
                 return "ketone", {oxygens[0]}
-            if carbon_neighbors and _is_pseudoketone_heteroatom(mol, other, carbon):
+            if carbon_neighbors and (
+                _is_pseudoketone_heteroatom(mol, other, carbon) or _diacyl_chalcogen_chain(mol, carbon, other)
+            ):
                 return "ketone", {oxygens[0]}
             if not carbon_neighbors and atom.GetTotalNumHs() == 1 and other.GetAtomicNum() == 7 and _ring_nitrogen_acyl(mol, other, carbon):
                 return "aldehyde", {oxygens[0]}
@@ -549,11 +585,10 @@ def _group_of(mol, carbon):
     imine = _acyclic_imine_nitrogen(mol, atom)
     if imine is not None:
         return "imine", {imine}
-    for n in atom.GetNeighbors():
-        if n.GetAtomicNum() in (16, 34, 52) and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0:
-            sulfonyl = _sulfonyl_group(mol, n.GetIdx(), carbon)
-            if sulfonyl is not None:
-                return sulfonyl
+    sulfonyls = _sulfonyl_groups_on(mol, carbon)
+    if sulfonyls:
+        same = [owned for cls, owned in sulfonyls if cls == sulfonyls[0][0]]
+        return sulfonyls[0][0], set().union(*same)
     for z, hydrogens, name in ((8, 1, "alcohol"), (16, 1, "thiol"), (34, 1, "selenol"), (52, 1, "tellurol"), (7, 2, "amine")):
         for n in _single_neighbors(mol, carbon, z):
             # in an aminium name only the cationic nitrogens are the suffix; a neutral amino group is a prefix
@@ -1543,7 +1578,9 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
     for cls, _, owned in ring_groups:
         if cls == principal:
             anchors.add(min(owned, key=lambda a: (mol.GetAtomWithIdx(a).GetAtomicNum() != 6, a)))
-    total_principal = len(anchors)
+    total_principal = sum(
+        _group_weight(mol, a, principal) if mol.GetAtomWithIdx(a).GetAtomicNum() == 6 else 1 for a in anchors
+    )
     group_atoms = set().union(*groups.get(principal, {}).values(), *(g[2] for g in ring_groups if g[0] == principal))
     group_atoms |= set(groups.get(principal, {}))
 
@@ -2627,6 +2664,8 @@ def _identical_group_units(mol, graph, group_atoms):
     for i, (bi, ai, si) in enumerate(sides):
         for bj, aj, sj in sides[:i]:
             if bi != bj and si == sj and not ai & aj:
+                if _unsymmetric_chalcogen_linker(mol, graph, ai, aj):
+                    continue
                 # a multiplied parent must express every principal group (P-15.6.1.5)
                 units = ai | aj | set().union(*(ak for bk, ak, sk in sides if sk == si and not ak & (ai | aj)))
                 if group_atoms <= units:
@@ -2634,8 +2673,104 @@ def _identical_group_units(mol, graph, group_atoms):
     return False
 
 
+def _unsymmetric_chalcogen_linker(mol, graph, first_arm, second_arm):
+    """Whether the rest of the molecule is one chain of chalcogen atoms whose element sequence reads differently from
+    each end, so no divalent multiplying group names it (P-65.7.5.1: 1-[(acetylperoxy)sulfanyl]ethan-1-one)."""
+    rest = set(range(mol.GetNumAtoms())) - first_arm - second_arm
+    if len(rest) < 2 or any(mol.GetAtomWithIdx(a).GetAtomicNum() not in (8, 16, 34, 52) for a in rest):
+        return False
+    start = next((a for a in rest if first_arm & set(graph[a])), None)
+    if start is None:
+        return False
+    order, previous = [start], None
+    while True:
+        onward = [n for n in graph[order[-1]] if n in rest and n != previous]
+        if not onward:
+            break
+        previous = order[-1]
+        order.append(onward[0])
+    elements = [mol.GetAtomWithIdx(a).GetAtomicNum() for a in order]
+    return len(order) == len(rest) and elements != elements[::-1]
+
+
 _LINKER_WORDS = {8: "oxy", 16: "sulfanediyl", 34: "selanediyl"}
 _DICHALCOGEN_WORDS = {8: "peroxy", 16: "disulfanediyl", 34: "diselanediyl"}
+
+
+_CHALCOGEN_CHAIN_STEMS = {8: "oxidane", 16: "sulfane", 34: "selane", 52: "tellane"}
+_THIO_PREFIXES = {16: "thio", 34: "seleno", 52: "telluro"}
+
+
+def _chalcogen_linker_word(elements):
+    """'trioxidanediyl', 'tetrasulfanediyl', 'dithioxanediyl' for a symmetric chain of chalcogen atoms, else None."""
+    if elements != elements[::-1]:
+        return None
+    if len(set(elements)) == 1:
+        return multiplying_prefix(len(elements)) + _CHALCOGEN_CHAIN_STEMS[elements[0]] + "diyl"
+    if len(elements) == 3 and elements[1] == 8 and elements[0] in _THIO_PREFIXES:
+        return "di" + _THIO_PREFIXES[elements[0]] + "xanediyl"
+    return None
+
+
+def _diacyl_chalcogen_chain_name(mol, graph, stereo):
+    """P-65.7.5.1: two identical acyl groups joined by a symmetric chain of three or more chalcogen atoms are
+    pseudoketones named multiplicatively (1,1'-trioxidanediyldi(ethan-1-one))."""
+    chain = [
+        a.GetIdx()
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() in _CHALCOGEN_CHAIN_STEMS
+        and a.GetDegree() == 2
+        and not a.IsInRing()
+        and not a.GetFormalCharge()
+        and not a.GetTotalNumHs()
+    ]
+    if len(chain) < 3:
+        return None
+    chain_set = set(chain)
+    ends = [a for a in chain if sum(1 for n in graph[a] if n in chain_set) == 1]
+    if len(ends) != 2 or any(mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1.0 for a in chain for b in graph[a]):
+        return None
+    order, previous = [ends[0]], None
+    while len(order) < len(chain):
+        onward = [n for n in graph[order[-1]] if n in chain_set and n != previous]
+        if len(onward) != 1:
+            return None
+        previous = order[-1]
+        order.append(onward[0])
+    word = _chalcogen_linker_word([mol.GetAtomWithIdx(a).GetAtomicNum() for a in order])
+    roots = [next(n for n in graph[end] if n not in chain_set) for end in (order[0], order[-1])]
+    if word is None or any(
+        mol.GetAtomWithIdx(r).GetAtomicNum() != 6 or not _double_oxygens(mol, r) for r in roots
+    ):
+        return None
+    arms = [_arm_atoms(graph, r, end) for r, end in zip(roots, (order[0], order[-1]))]
+    if arms[0] & arms[1] or len(arms[0]) + len(arms[1]) + len(chain) != mol.GetNumAtoms():
+        return None
+    if stereo:
+        raise UnsupportedStructure("stereodescriptors in a multiplicative name are not supported yet")
+    from .core import smiles_to_iupac
+
+    names = []
+    for atoms, root in zip(arms, roots):
+        editable = Chem.RWMol(mol)
+        editable.GetAtomWithIdx(root).SetNumExplicitHs(1)
+        editable.GetAtomWithIdx(root).SetNoImplicit(True)
+        for idx in sorted(set(range(mol.GetNumAtoms())) - atoms, reverse=True):
+            editable.RemoveAtom(idx)
+        unit = editable.GetMol()
+        Chem.SanitizeMol(unit)
+        names.append(smiles_to_iupac(Chem.MolToSmiles(unit)))
+    if names[0] != names[1]:
+        return None
+    if names[0] == "acetaldehyde":
+        unit = "ethan-1-one"
+    elif names[0].endswith(("anal", "enal", "ynal")):
+        unit = names[0][:-2] + "-1-one"
+    else:
+        return None
+    if unit[0].isdigit():
+        return f"1,1'-{word}bis({unit})"
+    return f"1,1'-{word}di({unit})"
 
 
 def _arm_atoms(graph, start, blocked):
@@ -2728,7 +2863,8 @@ def _multiplicative_name(mol, stereo=None):
     from ._chain_multiplicative import chain_multiplicative_name
 
     return (
-        _natural_product_linker_name(mol, graph, stereo)
+        _diacyl_chalcogen_chain_name(mol, graph, stereo)
+        or _natural_product_linker_name(mol, graph, stereo)
         or _ring_linker_name(mol, graph, stereo)
         or _composite_linker_name(mol, graph, stereo)
         or chain_multiplicative_name(mol, stereo)
@@ -3228,6 +3364,7 @@ def _is_ester_like(mol, carbon):
         return False
     return any(
         n.GetAtomicNum() in (8, 7, 16, 9, 17, 35, 53) and mol.GetBondBetweenAtoms(carbon, n.GetIdx()).GetBondTypeAsDouble() == 1.0
+        and not _diacyl_chalcogen_chain(mol, carbon, n)
         and not (n.GetAtomicNum() == 7 and (atom.GetTotalNumHs() == 1 or any(c.GetAtomicNum() == 6 for c in atom.GetNeighbors())) and _ring_nitrogen_acyl(mol, n, carbon))
         and not (n.GetAtomicNum() == 8 and _terminal_heteroatom(mol, n.GetIdx(), 1))
         and not (n.GetAtomicNum() == 7 and _terminal_heteroatom(mol, n.GetIdx(), 2))
@@ -3646,6 +3783,8 @@ def _evaluate(
     owned = set().union(*(principal_atoms[a] for a in on_chain)) if on_chain else owned
     if principal == "ide":
         on_chain = [a for a in on_chain for _ in range(anion_weight(mol.GetAtomWithIdx(a)))]
+    else:
+        on_chain = [a for a in on_chain for _ in range(_group_weight(mol, a, principal))]
     if not on_chain or (_is_terminal(principal) and any(position_of[a] not in (1, len(chain)) for a in on_chain)):
         return ((1,), "", None)
     ene, yne = [], []

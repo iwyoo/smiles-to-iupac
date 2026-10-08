@@ -119,6 +119,14 @@ def _chain_heteroatom(atom, phosphorus=False):
     return z == 7 and atom.GetTotalNumHs() == 1 and not atom.GetIsAromatic()
 
 
+def _is_parent_hydride_run(elements):
+    """A run of heteroatoms that is a parent hydride by itself: one element (trisulfane) or two alternating (P-21.2.2,
+    P-21.2.3.1); any other run needs skeletal replacement in a carbon chain."""
+    return len(set(elements)) == 1 or (
+        len(set(elements)) == 2 and all(a != b for a, b in zip(elements, elements[1:]))
+    )
+
+
 def name_heteroacyclic(mol):
     """The skeletal-replacement name, or None when `mol` does not qualify."""
     if len(Chem.GetMolFrags(mol)) != 1:
@@ -178,7 +186,9 @@ def name_heteroacyclic(mol):
         if len(hetero_positions) < _MINIMUM_UNITS:
             continue
         if len(hetero_positions) == len(path) or (
-            hetero_positions == list(range(hetero_positions[0], hetero_positions[-1] + 1)) and len(hetero_positions) >= 3
+            hetero_positions == list(range(hetero_positions[0], hetero_positions[-1] + 1))
+            and len(hetero_positions) >= 3
+            and _is_parent_hydride_run([mol.GetAtomWithIdx(path[i]).GetAtomicNum() for i in hetero_positions])
         ):
             # one block of heteroatoms is an alternating or homogeneous parent hydride (P-21.2.2, P-21.2.3.1)
             continue
