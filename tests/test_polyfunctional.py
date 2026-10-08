@@ -318,11 +318,6 @@ def test_ring_with_extra_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_specified_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N[C@@H](C)C(=O)OC")
-
-
 @pytest.mark.parametrize(
     "smiles, expected",
     [

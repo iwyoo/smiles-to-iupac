@@ -247,7 +247,7 @@ def test_carboxylate_names(smiles, expected):
     [
         pytest.param("[O-]C(=O)CC(=O)[O-]", "propanedioate", id="dicarboxylate_is_named"),
         pytest.param("[O-]C(=O)C1CCCCC1", "cyclohexanecarboxylate", id="ring_carboxylate_is_named"),
-        pytest.param("NCC(=O)[O-]", "aminoacetate", id="amine_coexisting_is_named"),
+        pytest.param("NCC(=O)[O-]", "glycinate", id="amine_coexisting_is_named"),
     ],
 )
 def test_dicarboxylate_is_named_and_related(smiles, expected):
@@ -324,7 +324,7 @@ def test_plain_cyclyl_alcohol_ester():
     "smiles, expected",
     [
         pytest.param("CC(=O)OC1CCC(C)CC1", "4-methylcyclohexyl acetate", id="substituted_cyclyl_alcohol_ester"),
-        pytest.param("NCC(=O)OC", "methyl aminoacetate", id="amine_coexisting_now_supported_via_ester_amine"),
+        pytest.param("NCC(=O)OC", "methyl glycinate", id="amine_coexisting_now_supported_via_ester_amine"),
         pytest.param("Cc1ccccc1C(=O)OC", "methyl 2-methylbenzoate", id="benzoate_ester_substituted"),
         pytest.param("O=C(OC)C1CCCCC1", "methyl cyclohexanecarboxylate", id="ring_acyl_ester"),
         pytest.param("O=C(OC)C1CCCC=C1", "methyl cyclohex-2-ene-1-carboxylate", id="ring_acyl_ester_unsaturated_ring"),

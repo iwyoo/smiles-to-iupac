@@ -22,7 +22,7 @@ from ._anion import name_anion
 from ._aldehyde import name_aldehyde
 from ._aldehyde_amine import has_aldehyde_amine_shape, name_aldehyde_amine
 from ._ketone_amine import has_ketone_amine_shape, name_ketone_amine
-from ._amino_acid import has_amino_acid_shape, name_amino_acid
+from ._amino_acid_derivative import has_amino_acid_shape, name_amino_acid
 from ._histidine import has_histidine_shape, name_histidine
 from ._proline import has_proline_shape, name_proline
 from ._carboxylic_acid_amine import has_carboxylic_acid_amine_shape, name_carboxylic_acid_amine
