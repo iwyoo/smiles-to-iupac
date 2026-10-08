@@ -172,6 +172,9 @@ def _center_kind(center, standard, preferred):
     n_ide, n_uide = bonds + charge, bonds - charge
     if n_ide == standard:
         return "ide", None
+    if n_uide == standard and n_ide > standard and any(b.GetBondTypeAsDouble() > 1.0 for b in center.GetBonds()):
+        # P-72.2.1: a centre with a multiple bond (oxo(phenyl)-λ4-sulfanide) is the hydron-loss anion of a λ-hydride
+        return "ide", n_ide
     if n_uide == standard:
         return "uide", None
     if n_uide > standard and n_ide > standard:

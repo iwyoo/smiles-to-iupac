@@ -244,5 +244,7 @@ def name_ammonium(mol) -> str:
     neutral_mol = neutral_rw.GetMol()
     Chem.SanitizeMol(neutral_mol)
 
+    if sum(a.GetAtomicNum() == 7 for a in mol.GetAtoms()) > 1:
+        raise UnsupportedStructure("a neutral amino group beside the ammonium group is a prefix of the aminium name")
     amine_name = name_amine(neutral_mol)
     return amine_name[:-1] + "ium"

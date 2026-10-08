@@ -209,7 +209,8 @@ def _ylium_yl_radical(mol):
             neutral_name = name_amine(neutral)
         except UnsupportedStructure:
             return None
-    return neutral_name[:-1] + "ylium" + "yl"
+    # P-73.2.3.2: a nitrogen with two missing valences is the hydride-loss cation (acetamidylium); the third is a radical
+    return neutral_name[:-1] + "ylium" + ("yl" if radical.GetNumRadicalElectrons() == 3 else "")
 
 
 _RADICAL_SUFFIX = {1: "yl", 2: "ylidene", 3: "ylidyne"}

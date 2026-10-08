@@ -507,9 +507,11 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         return _enclose(rname, rcomp) + word, True
     if (
         z == 7
-        and atom.GetFormalCharge() == 1
+        and (
+            (atom.GetFormalCharge() == 1 and atom.GetTotalValence() == 4)
+            or (atom.HasProp("_cationic_amine") and not atom.GetFormalCharge())
+        )
         and order == 1.0
-        and atom.GetTotalValence() == 4
         and all(mol.GetAtomWithIdx(n).GetAtomicNum() == 6 for n in others)
     ):
         if any(mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() > 2.0 for n in others):

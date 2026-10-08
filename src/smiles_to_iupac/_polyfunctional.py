@@ -556,6 +556,9 @@ def _group_of(mol, carbon):
                 return sulfonyl
     for z, hydrogens, name in ((8, 1, "alcohol"), (16, 1, "thiol"), (34, 1, "selenol"), (52, 1, "tellurol"), (7, 2, "amine")):
         for n in _single_neighbors(mol, carbon, z):
+            # in an aminium name only the cationic nitrogens are the suffix; a neutral amino group is a prefix
+            if AMINIUM.get() is True and z == 7 and not mol.GetAtomWithIdx(n).HasProp("_cationic_amine"):
+                continue
             if _terminal_heteroatom(mol, n, hydrogens):
                 return name, {n}
     return None
@@ -940,6 +943,7 @@ def _aminium_base(mol, ignore=frozenset()):
         atom.SetFormalCharge(0)
         atom.SetNumExplicitHs(nitrogen.GetTotalNumHs() - 1 if nitrogen.GetTotalNumHs() else 0)
         atom.SetNoImplicit(True)
+        atom.SetBoolProp("_cationic_amine", True)
     Chem.SanitizeMol(neutral)
     return neutral.GetMol()
 
@@ -2553,6 +2557,7 @@ def _amine_parent_molecule(mol, atoms, carbon, n_idx):
             a.SetFormalCharge(0)
             a.SetNumExplicitHs(2)
             a.SetNoImplicit(True)
+            a.SetBoolProp("_cationic_amine", True)
     if any(a.HasProp("_ring_cation_centre") for a in parent.GetAtoms()):
         parent.UpdatePropertyCache(strict=False)
         Chem.FastFindRings(parent)
