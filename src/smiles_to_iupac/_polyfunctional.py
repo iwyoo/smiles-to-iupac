@@ -2166,7 +2166,7 @@ def _nitrogen_group_prefix(mol, graph, atom, parent, halogens, aromatic_atoms):
 def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
     """A single Si, Ge, P, B, ... atom is the senior parent hydride when there is no principal group (P-44.1.2):
     'trimethyl(phenyl)silane', 'methoxy(trimethyl)silane'. On a Group 14 atom a hydroxy or amino group is the
-    suffix (P-68.2): 'trimethylsilanol', '1,1,1-trimethylsilanamine'."""
+    suffix (P-68.2): 'trimethylsilanol', 'trimethylsilanamine' ('1,1,1-trimethyl-N-(trimethylsilyl)silanamine' once N-locants occur)."""
     from ._substituents import format_mononuclear_prefixes
 
     z = center.GetAtomicNum()
@@ -2205,17 +2205,21 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
         and not _nitrogen_group_prefix(mol, graph, n, index, halogens, aromatic_atoms)
     ]
     suffix_atoms = chalcogenols[principal_word] if principal_word else []
+    amino_prefixes = amines if suffix_atoms else []
+    if suffix_atoms:
+        amines = []
     others = [n for n in neighbors if n not in suffix_atoms and n not in amines]
     if any(
         mol.GetAtomWithIdx(n).GetAtomicNum() not in (6, 8, 16, 34, 52, *HALOGEN_PREFIXES)
         and n not in junior_chalcogenols
+        and n not in amino_prefixes
         and not _nitrogen_group_prefix(mol, graph, n, index, halogens, aromatic_atoms)
         and not _junior_hydride_atom(mol, n, z)
         for n in others
     ):
         return None
     if (suffix_atoms or amines) and (
-        z not in (*_GROUP_14, *_GROUP_13_METALS) and not (amines and not suffix_atoms and z == 5) or (suffix_atoms and amines)
+        z not in (*_GROUP_14, *_GROUP_13_METALS) and not (amines and not suffix_atoms and z == 5)
     ):
         return None
     entries = [name_branch(graph, n, index, halogens, aromatic_atoms, mol=mol, unsaturated=True) for n in others]
@@ -2234,8 +2238,14 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
         ]
         merged = _with_n_names(grouped, n_entries)
         suffix = stem[:-1] + "amine" if len(amines) == 1 else stem + multiplied_word(len(amines), "amine")
-        return format_substituent_prefixes(merged) + suffix
+        return format_substituent_prefixes(merged, omit_locants=not n_entries) + suffix
     return format_mononuclear_prefixes(entries) + stem
+
+
+def _hydroxy_suffix_count(name):
+    """The number of hydroxy or chalcogenol suffixes of a hydride name: stannanol 1, silanetriol 3 (P-41, P-44.1.1)."""
+    match = re.search(r"(di|tri|tetra)?(?:ol|thiol|selenol|tellurol)$", name)
+    return {"di": 2, "tri": 3, "tetra": 4}.get(match.group(1), 1) if match else 0
 
 
 def _amine_count(name):
@@ -2257,6 +2267,7 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     if centers:
         named = [
             (
+                -_hydroxy_suffix_count(n),
                 -_amine_count(n),
                 _PARENT_HYDRIDE_ORDER.index(c.GetAtomicNum()) if c.GetAtomicNum() in _PARENT_HYDRIDE_ORDER else 99,
                 -len(graph[c.GetIdx()]),
@@ -2267,7 +2278,7 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
             if (n := _mononuclear_parent(mol, graph, halogens, aromatic_atoms, c))
         ]
         if named:
-            _, _, _, name, center = min(named)
+            *_, name, center = min(named)
             return ((0,), name, (None, None, None, 0, {center: 1}, False))
     if centers or (
         not ring_cation

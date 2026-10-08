@@ -981,6 +981,8 @@ def test_carbonic_family_names(smiles, expected):
     "smiles,expected",
     [
         ("COC(=O)CCC(=O)OCCOC(=O)CCC(=O)OC", "dimethyl ethane-1,2-diyl dibutanedioate"),
+        ("CCCC[Sn](CCCC)(OC(=O)CCC(=O)OC)OC(=O)CCC(=O)OC", "dimethyl dibutylstannanediyl dibutanedioate"),
+        ("COC(=O)CCC(=O)O[Sn](CCCC)(CCCC)OC(=O)CCC(=O)OC", "dimethyl dibutylstannanediyl dibutanedioate"),
         ("CC(=O)Oc1ccc(cc1)C(=O)OC", "methyl 4-(acetyloxy)benzoate"),
         ("O=C(OCCOC(C)=O)CC(=O)OCCOC(C)=O", "bis[2-(acetyloxy)ethyl] propanedioate"),
         (

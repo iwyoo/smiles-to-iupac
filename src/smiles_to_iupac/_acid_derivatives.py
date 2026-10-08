@@ -440,7 +440,21 @@ def _plain(name):
 
 
 def _piece_key(mol, atoms):
-    return Chem.MolFragmentToSmiles(mol, atomsToUse=sorted(atoms), isomericSmiles=False)
+    """Canonical text of the piece `atoms`, each cut bond ending in a dummy atom, so that equivalent pieces compare
+    equal whatever the atom order."""
+    inside = set(atoms)
+    editable = Chem.RWMol(mol)
+    cut = {n.GetIdx() for i in inside for n in mol.GetAtomWithIdx(i).GetNeighbors() if n.GetIdx() not in inside}
+    for idx in cut:
+        editable.GetAtomWithIdx(idx).SetAtomicNum(0)
+    for first, second in [(a, b) for a in cut for b in cut if a < b and mol.GetBondBetweenAtoms(a, b) is not None]:
+        editable.RemoveBond(first, second)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - inside - cut, reverse=True):
+        editable.RemoveAtom(idx)
+    piece = editable.GetMol()
+    piece.UpdatePropertyCache(strict=False)
+    Chem.FastFindRings(piece)
+    return Chem.MolToSmiles(piece, isomericSmiles=False)
 
 
 _DIYL = re.compile(r"^(?P<prefix>.*?)benzene-(?P<locants>[\d,]+)-(?P<count>di|tri)ol$")
