@@ -354,7 +354,7 @@ def _evaluate_skeleton(
             )
         key = (
             numbering.pre_key, center_key, free, cite, numbering.unsat_key, locant_set, citation, numbering.lam_key, acid_key,
-            stereo_key, _isotope_key(position_of, skeleton),
+            stereo_key, _isotope_key(position_of, skeleton), _n_locant_key(n_names, position_of),
         )
         candidates.append((key, numbering, grouped, free, ring_stereo, side))
     if not candidates:
@@ -391,6 +391,15 @@ def _evaluate_skeleton(
         labels = ",".join(f"{loc}{code}" for loc, code in sorted((position_of[a], c) for a, c in ring_stereo))
         group_name = f"({labels})-{group_name}"
     return key, group_name, position_of, ring_stereo, side
+
+
+def _n_locant_key(n_names, position_of):
+    """The positions and primes of the N locants of several groups, so that N1 outranks N'1 (P-66.3.3.2)."""
+    if not n_names:
+        return ()
+    from ._polyfunctional import _n_group_positions
+
+    return _n_group_positions(n_names, position_of)
 
 
 def _marked_centers(mol, atoms):

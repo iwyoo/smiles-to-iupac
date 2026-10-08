@@ -1703,6 +1703,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
                 principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES, "hydrazide", *_CHALCOGEN_HYDRAZIDE.values())
                 and atom.GetIdx() in groups.get(principal, {})
             )
+            and not (principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES) and atom.GetIdx() in groups.get("hydrazide", {}))
             and _is_ester_like(mol, atom.GetIdx())
             and not (_urea_carbon(mol, atom.GetIdx()) and _outranks_urea(principal))
         ):
@@ -3900,7 +3901,9 @@ def _with_n_names(grouped, n_names, position_of=None, group_count=2):
 def _n_group_positions(n_names, position_of):
     """Sorted numbers of the groups that carry N-prefixes, for choosing the numbering."""
     located = [entry[2] for entry in n_names if len(entry) > 2 and isinstance(entry[2], tuple)]
-    return tuple(sorted(p for p in (_n_position(e, position_of) for e in located) if p is not None))
+    return tuple(
+        sorted((p, e[0].count("'")) for e in located if (p := _n_position(e, position_of)) is not None)
+    )
 
 
 def _ring_prefix_text(entries, locants, n_names, group_count=2):
@@ -3968,25 +3971,26 @@ def _imidamide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups
 
 
 def _hydrazide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, cls="hydrazide"):
-    """N and N' prefix entries (name, compound, locant) of the hydrazide group: N on the acylated nitrogen, N' on
-    the terminal nitrogen (P-66.3.3); several groups cannot be told apart by these locants."""
-    members = dict(groups.get(cls, {}))
+    """N and N' prefix entries (name, compound, locant) of the hydrazide groups: N on the acylated nitrogen, N' on
+    the terminal nitrogen; with several groups the locant carries the position of its group (P-66.3.3.2)."""
+    members = {c: (owned, c) for c, owned in groups.get(cls, {}).items()}
     for group_cls, ring_atom, owned in ring_groups:
         if group_cls == cls:
-            members[next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 6), ring_atom)] = owned
+            key = next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 6), ring_atom)
+            members[key] = (owned, ring_atom)
     entries = []
-    for carbon, owned in members.items():
+    for carbon, (owned, anchor) in members.items():
         acyl = next((a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() in (16, 34, 52)), carbon)
         alpha = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7 and acyl in graph[a])
         beta = next(a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7 and a != alpha)
-        for nitrogen, partner, locant in ((alpha, beta, "N"), (beta, alpha, "N'")):
+        rest = tuple(a for a in graph[carbon] if a not in owned)
+        for nitrogen, partner, base in ((alpha, beta, "N"), (beta, alpha, "N'")):
+            located = (base, anchor, carbon, rest, "paired") if len(members) > 1 else base
             for n in graph[nitrogen]:
                 if n in (partner, acyl):
                     continue
                 name, compound = name_branch(graph, n, nitrogen, halogens, aromatic_atoms, mol=mol, unsaturated=True)
-                entries.append((name, compound, locant))
-    if entries and len(members) != 1:
-        raise UnsupportedStructure("several hydrazide groups with N-substitution are not handled by the chain engine")
+                entries.append((name, compound, located))
     return entries
 
 
@@ -4129,6 +4133,10 @@ def _evaluate(
         and len(on_chain) == 1
         and not ene
         and not yne
+        and not (
+            principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES)
+            and any(mol.GetAtomWithIdx(a).GetAtomicNum() == 7 and mol.GetAtomWithIdx(a).GetTotalNumHs() for a in owned)
+        )
         and (
             mol.GetAtomWithIdx(next(a for a in chain if a != on_chain[0])).GetTotalNumHs() == 0
             # P-14.3.4.3: the hydrogen of a formyl group and the carbon of a cyano group are not substitutable

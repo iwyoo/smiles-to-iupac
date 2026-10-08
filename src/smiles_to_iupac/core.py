@@ -31,6 +31,10 @@ from ._silicic_cyanate import silicic_cyanate_name
 from ._borane_silane_amide import borane_silane_amide_name
 from ._polyborane import lewis_adduct_mol, polyborane_name
 from ._diacylamine import diacylamine_name
+from ._carbonic_hydrazide import name_carbonic_hydrazide
+from ._chalcogen_hydrazide import name_chalcogen_hydrazide
+from ._diacylhydrazine import diacylhydrazine_name
+from ._ring_nitrogen_hydrazide import name_ring_nitrogen_hydrazide
 from ._alternating_cage import has_alternating_cage_shape, name_alternating_cage
 from ._dipolar import has_dipolar_shape, name_dipolar
 from ._chalcogen_aldehyde import name_chalcogen_aldehyde
@@ -720,6 +724,9 @@ def _name_unabridged(smiles: str) -> str:
             diacylamine = diacylamine_name(parsed)
             if diacylamine is not None:
                 return diacylamine
+            diacylhydrazine = diacylhydrazine_name(parsed)
+            if diacylhydrazine is not None:
+                return diacylhydrazine
         if parsed is not None and has_dipolar_shape(parsed):
             return name_dipolar(parsed)
         if parsed is not None and has_glycoside_shape(parsed):
@@ -931,6 +938,9 @@ def _run_fallbacks(smiles, original):
                 return name
         for fallback in (
             name_chalcogen_aldehyde,
+            name_carbonic_hydrazide,
+            name_chalcogen_hydrazide,
+            name_ring_nitrogen_hydrazide,
             name_condensed_guanidine,
             name_ring_heteroatom_nitrile,
             name_polynuclear_oxoacid,

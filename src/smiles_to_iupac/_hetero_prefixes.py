@@ -677,7 +677,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         from ._chalcogenourea import is_oxo_nitrogen
 
         if order == 1.0 and not atom.GetFormalCharge():
-            imidohydrazido = _imidohydrazido(graph, root, others, mol)
+            imidohydrazido = _hydrazido(graph, root, others, mol)
             if imidohydrazido is not None:
                 return imidohydrazido
         if order == 1.0 and not atom.GetFormalCharge() and any(
@@ -699,7 +699,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
             far = mol.GetAtomWithIdx(others[0])
             if far.GetDegree() == 1 and far.GetTotalNumHs() == 2 and not far.GetFormalCharge():
                 return "hydrazinyl", False
-        amido = _chalcogen_amido(graph, root, others, mol) or _imidohydrazido(graph, root, others, mol)
+        amido = _chalcogen_amido(graph, root, others, mol) or _hydrazido(graph, root, others, mol)
         if amido is not None:
             return amido
         if any(mol.GetAtomWithIdx(n).GetAtomicNum() not in (6,) + tuple(MONONUCLEAR_HYDRIDES) for n in others) and not (
@@ -771,18 +771,20 @@ def _chalcogen_amido(graph, root, others, mol):
     return prefix, any(part in prefix for part in ("-", "ane", "benzene"))
 
 
-def _imidohydrazido(graph, root, others, mol):
-    """'ethanimidohydrazido' for R-C(=NH)-NH-NH- joined through the terminal nitrogen (P-66.4.2.3.6): the final 'e' of
-    the imidohydrazide name becomes 'o'; None for any other hydrazine nitrogen."""
+def _hydrazido(graph, root, others, mol):
+    """'ethanimidohydrazido', 'formohydrazido', 'hydrazinecarbohydrazido' for R-CO-NH-NH- and R-C(=NH)-NH-NH- joined
+    through the terminal nitrogen (P-66.3.5.3, P-66.4.2.3.6): the final 'e' of the hydrazide name becomes 'o'; None for
+    any other hydrazine nitrogen."""
+    from ._carbonic_hydrazide import carbonic_hydrazide_name
     from ._polyfunctional import name_polyfunctional
 
     if len(others) != 1 or mol.GetAtomWithIdx(others[0]).GetAtomicNum() != 7 or mol.GetAtomWithIdx(root).IsInRing():
         return None
     alpha = others[0]
     onward = [n for n in graph[alpha] if n != root]
-    if len(onward) != 1 or mol.GetAtomWithIdx(alpha).IsInRing() or not _imidoyl_centre(mol, onward[0]):
+    if len(onward) != 1 or mol.GetAtomWithIdx(alpha).IsInRing() or mol.GetAtomWithIdx(onward[0]).GetAtomicNum() != 6:
         return None
-    if mol.GetAtomWithIdx(onward[0]).GetAtomicNum() != 6 or any(
+    if not (_imidoyl_centre(mol, onward[0]) or _thioacyl(mol, onward[0])) or any(
         a.GetIsotope() or a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()
     ):
         return None
@@ -793,12 +795,17 @@ def _imidohydrazido(graph, root, others, mol):
     fragment = fragment.GetMol()
     try:
         Chem.SanitizeMol(fragment)
-        name = contextvars.Context().run(name_polyfunctional, fragment)
+        name = carbonic_hydrazide_name(fragment) or contextvars.Context().run(name_polyfunctional, fragment)
     except (UnsupportedStructure, ValueError):
+        try:
+            from .core import smiles_to_iupac
+
+            name = contextvars.Context().run(smiles_to_iupac, Chem.MolToSmiles(fragment))
+        except (UnsupportedStructure, ValueError):
+            return None
+    if not name.endswith("hydrazide") or name.endswith("dihydrazide") and name.startswith("dicarbonic"):
         return None
-    if not name.endswith("imidohydrazide"):
-        return None
-    return name[:-1] + "o", True
+    return name[:-1] + "o", not name.startswith(("formo", "aceto", "benzo"))
 
 
 _CYANATE_PREFIXES = {8: "cyanato", 16: "thiocyanato", 34: "selenocyanato", 52: "tellurocyanato"}
@@ -1381,6 +1388,9 @@ def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     if z == 7 and longest == 2 and attach == 1:
         base = "hydrazinyl"
     prefix = format_substituent_prefixes(grouped) if grouped else ""
+    if base == "hydrazinyl" and len(grouped) == 1 and all(name.endswith("ylidene") for name in grouped):
+        # an ylidene group can only sit on the second nitrogen, so its locant is not cited (P-66.3.6)
+        prefix = format_substituent_prefixes(grouped, omit_all=True)
     return prefix + base, bool(prefix) or "-" in base
 
 
