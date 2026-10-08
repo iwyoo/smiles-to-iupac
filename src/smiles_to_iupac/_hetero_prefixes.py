@@ -740,6 +740,17 @@ def _side(graph, start, blocked):
     return seen
 
 
+def _acylated_nitrogens(fragment):
+    """Carbon, sulfur, selenium or tellurium centres of `fragment` that carry a double-bonded atom and a nitrogen."""
+    return sum(
+        1
+        for c in fragment.GetAtoms()
+        if c.GetAtomicNum() in (6, 16, 34, 52)
+        and any(n.GetAtomicNum() == 7 for n in c.GetNeighbors())
+        and any(b.GetBondTypeAsDouble() == 2.0 and b.GetOtherAtom(c).GetAtomicNum() != 6 for b in c.GetBonds())
+    )
+
+
 def _chalcogen_amido(graph, root, others, mol):
     """'acetamido', 'ethanethioamido', 'methanesulfonamido' for R-CO-NH-, R-CS-NH-, R-SO2-NH- and N-substituted
     forms: the final 'e' in the complete name of the amide becomes 'o' (P-66.1.1.4.3); None for any other nitrogen."""
@@ -765,7 +776,7 @@ def _chalcogen_amido(graph, root, others, mol):
         name = contextvars.Context().run(name_polyfunctional, fragment)
     except (UnsupportedStructure, ValueError):
         return None
-    if not name.endswith("amide"):
+    if not name.endswith("amide") or _acylated_nitrogens(fragment) > 1:
         return None
     prefix = name[:-1] + "o"
     return prefix, any(part in prefix for part in ("-", "ane", "benzene"))

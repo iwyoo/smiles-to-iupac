@@ -70,6 +70,7 @@ _JUNIOR_PATTERNS = [
 
 _CLASS_QUERIES = [(name, Chem.MolFromSmarts(smarts), anchor) for name, smarts, anchor in _CLASS_PATTERNS]
 _JUNIOR_QUERIES = [Chem.MolFromSmarts(smarts) for smarts in _JUNIOR_PATTERNS]
+_THIOKETONE_QUERY = Chem.MolFromSmarts("[#6][CX3](=[SX1,SeX1,TeX1])[#6]")
 
 
 @dataclass(frozen=True)
@@ -145,7 +146,8 @@ def classify(mol):
                 group_atoms = frozenset({match[1], match[2]})
             groups.append(Group(name, SUFFIX_RANKS[name], anchor_atom, group_atoms, ring_atom))
             covered.update(group_atoms)
-    for query in _JUNIOR_QUERIES:
+    junior = _JUNIOR_QUERIES + [_THIOKETONE_QUERY] if any(g.rank < SUFFIX_RANKS["ketone"] for g in groups) else _JUNIOR_QUERIES
+    for query in junior:
         for match in mol.GetSubstructMatches(query):
             covered.update(match)
     for atom in mol.GetAtoms():

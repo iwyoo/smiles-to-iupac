@@ -440,6 +440,11 @@ def _is_linear_phane(core):
 
 
 def name_if_multiplicative(mol, name_function=None):
+    name = _name_if_multiplicative(mol, name_function)
+    return name.replace("(1,2-dioxoethane-1,2-diyl)", "oxalyl") if name else name
+
+
+def _name_if_multiplicative(mol, name_function=None):
     """The multiplicative name of `mol` when it is one, else None. Raises
     `UnsupportedStructure` when the structure is multiplicative but a
     component of the name can't be built yet."""
