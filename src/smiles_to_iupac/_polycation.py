@@ -92,6 +92,8 @@ def name_polycation(mol) -> str:
             raise
     if any(a.GetFormalCharge() != 1 for a in centres):
         raise UnsupportedStructure("a multiply charged heteroatom centre is not supported yet")
+    if len(centres) > 1 and all(a.GetAtomicNum() == 7 and _ylium_centre(a) for a in centres):
+        return _name_ring_nitrenium_polycation(mol, centres)
     if all(a.IsInRing() for a in centres) and any(_ylium_centre(a) for a in centres) and any(
         not _ylium_centre(a) for a in centres
     ):
@@ -112,6 +114,25 @@ def name_polycation(mol) -> str:
         except _NotAPair:
             pass
     return name_cation_assembly(mol)
+
+
+def _name_ring_nitrenium_polycation(mol, centres):
+    """Ring nitrogens that lost a hydride ion are 'ylium' centres (P-73.5.1.3): the name is that of the hydron-added
+    polycation with 'bis(ylium)' in place of 'diium'."""
+    editable = Chem.RWMol(mol)
+    for centre in centres:
+        atom = editable.GetAtomWithIdx(centre.GetIdx())
+        atom.SetNumRadicalElectrons(0)
+        atom.SetNoImplicit(True)
+        atom.SetNumExplicitHs(2)
+    hydron_added = editable.GetMol()
+    hydron_added.UpdatePropertyCache(strict=False)
+    Chem.FastFindRings(hydron_added)
+    name = name_polycation(hydron_added)
+    match = re.search(r"(?P<multiplier>di|tri|tetra)ium$", name)
+    if match is None:
+        raise UnsupportedStructure("this ring nitrenium polycation has no supported name yet")
+    return name[: match.start()] + f"{_BIS[match.group('multiplier')]}(ylium)"
 
 
 class _NoSkeletonName(UnsupportedStructure):
