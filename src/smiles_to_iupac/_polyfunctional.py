@@ -974,7 +974,7 @@ def _ylium_inserted(name, base, center, placed):
 def _name_ring_center(base, center, kind, probe=None, labels=None):
     from ._diester_ring_diyl import _system_of
 
-    if kind == "ium" and any(_anionic_group_atom(base, a) for a in base.GetAtoms()):
+    if kind == "ium" and any(_anionic_group_atom(base, a) or a.HasProp(ANION_PROP) for a in base.GetAtoms()):
         return _name_labelled(base, labels or {}, lambda name, placed: _cation_inserted(name, base, center, placed))
     if not labels and len(_system_of(base, center)[1]) == base.GetNumAtoms():
         name, placed = _bare_ring_name(base, center)
@@ -1027,9 +1027,15 @@ def _bare_ring_name(base, center):
     from ._hetero_monocyclic import has_hetero_monocyclic_name, name_hetero_monocyclic
 
     if base.GetRingInfo().NumRings() == 1:
-        if not has_hetero_monocyclic_name(base):
-            raise UnsupportedStructure("this ring has no supported parent name")
-        return name_hetero_monocyclic(base), {center: _monocycle_locant(base, center)}
+        if has_hetero_monocyclic_name(base):
+            return name_hetero_monocyclic(base), {center: _monocycle_locant(base, center)}
+        from .core import smiles_to_iupac
+
+        try:
+            named = smiles_to_iupac(Chem.MolToSmiles(base))
+        except UnsupportedStructure:
+            raise UnsupportedStructure("this ring has no supported parent name") from None
+        return re.sub(r"^(?:\d+[a-z]?(?:,\d+[a-z]?)*H-)+", "", named), {center: _monocycle_locant(base, center)}
     name = fused_ring_system_name(base)
     if name is None:
         raise UnsupportedStructure("this ring system has no supported parent name")

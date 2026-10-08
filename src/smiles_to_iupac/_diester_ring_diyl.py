@@ -498,6 +498,8 @@ def _with_anion_centers(parent, located):
     word = words.pop()
     count = len(locants)
     text = f"{','.join(str(x) for x in locants)}-{_COUNT_PREFIX[count]}{word[:-1]}"
+    if parent.endswith("ium"):
+        return f"{parent}-{','.join(str(x) for x in locants)}-{_COUNT_PREFIX[count]}{word}"
     match = re.search(r"(-\d+(?:,\d+)*-)?(?:di|tri)?(?:yl|ylidene|ylidyne)$", parent)
     if match is None:
         raise UnsupportedStructure("this substituent group cannot carry an anionic center yet")

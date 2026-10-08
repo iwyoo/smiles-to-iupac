@@ -561,6 +561,8 @@ def _benzo_unit(sub, rings):
     hetero_ring = next(r for r in rings if any(sub.GetAtomWithIdx(a).GetSymbol() != "C" for a in r))
     base_name = name
     glued = ("benz" if base_name[0] in "aeiou" else "benzo") + base_name
+    if hetero_name_prefix == "imidazo":
+        hetero_name_prefix = "imidazolo"
     prefix = ("benz" if hetero_name_prefix[0] in "aeiou" else "benzo") + hetero_name_prefix
     shared_numberings = _benzo_numberings(sub, rings, hetero_ring)
     comp = Component(glued, prefix, "hetero", list(range(sub.GetNumAtoms())), shared_numberings,

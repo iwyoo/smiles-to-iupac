@@ -222,6 +222,22 @@ def test_nitrile_imide_still_and_related_raise(smiles):
         pytest.param("CC(C)=[O+][N-]C", "N-[(propan-2-ylidene)oxidaniumyl]methanaminide", id="carbonyl_imide"),
         pytest.param("CC(C)=[O+][C-](C)C", "2-[(propan-2-ylidene)oxidaniumyl]propan-2-ide", id="carbonyl_ylide"),
         pytest.param("CC#[N+][C-](C)C", "2-(acetonitriliumyl)propan-2-ide", id="nitrile_ylide"),
+        pytest.param(
+            "C[B-](C=C[P+](C1=CC=CC=C1)(C1=CC=CC=C1)C)(C)C",
+            "trimethyl{2-[methyldi(phenyl)phosphaniumyl]ethen-1-yl}boranuide",
+            id="onium_prefix_on_a_remote_boranuide",
+        ),
+        pytest.param(
+            "C[Se+]1CC2=C(C([CH-]1)=O)C=CC=C2",
+            "2-methyl-4-oxo-3,4-dihydro-1H-2-benzoselenopyran-2-ium-3-ide",
+            id="ring_chalcogenium_with_ring_carbanide",
+        ),
+        pytest.param("[O-]c1cc[n+](C)cc1", "1-methylpyridin-1-ium-4-olate", id="ring_cation_with_an_anionic_group_suffix"),
+        pytest.param(
+            "c1ccccc1[N-]c1nn(-c2ccccc2)c[n+]1-c1ccccc1",
+            "N,1,4-triphenyl-1H-1,2,4-triazol-4-ium-3-aminide",
+            id="azolium_aminide_with_indicated_hydrogen",
+        ),
         pytest.param("CC(C)=[O+][O-]", "2-(propan-2-ylidene)dioxidan-2-ium-1-ide", id="carbonyl_oxide"),
         pytest.param("C[N-][N+](C)=C", "1,2-dimethyl-2-methylidenehydrazin-2-ium-1-ide", id="azomethine_imide"),
         pytest.param("CC#[N+][N-]C", "2-ethylidyne-1-methylhydrazin-2-ium-1-ide", id="nitrile_imide"),
@@ -1046,6 +1062,12 @@ def test_ring_cations_on_heteroatoms_other_than_nitrogen(smiles, expected):
         pytest.param("C1=CC2=CC=CC=C2[I+]1", "1λ3-benziodol-1-ylium", id="halogen_ring_centre"),
         pytest.param("c1ccc2c(c1)[S+]=CCSC=C2", "3H-1λ4,4-benzodithiocin-1-ylium", id="lambda_joins_the_cited_heteroatom_locant"),
         pytest.param("c1cc[n+]2cc[n+]3ccccc3c2c1", "5λ5,8λ5-dipyrido[1,2-a:2',1'-c]pyrazine-5,8-diylium", id="two_cationic_centres"),
+        pytest.param("C1=C2C(=CC=C1)[N-]C1=CC=3C=CC=C[N+]3C=C12", "5H-11λ5-indolo[2,3-b]quinolizin-11-ylium-5-ide", id="ylium_with_ide_centre"),
+        pytest.param(
+            "C1(=CC=CC=C1)[B-]1(OC2=[N+](C=CC=C2)O1)C1=CC=CC=C1",
+            "2,2-diphenyl-4λ5-[1,3,4,2]dioxazaborolo[4,5-a]pyridin-4-ylium-2-uide",
+            id="ylium_with_uide_centre_drops_its_indicated_hydrogen",
+        ),
     ],
 )
 def test_ring_heteroatom_ylium_cations(smiles, expected):

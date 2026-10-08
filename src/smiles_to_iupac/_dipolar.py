@@ -139,6 +139,19 @@ def _ylide_pair(mol, graph, cation, anion):
     raise UnsupportedStructure("an unsupported anionic centre")
 
 
+def _remote_pair(mol, graph, cation, anion):
+    """Anionic and cationic centres on different parent structures (P-74.1.3): the cationic group is cited as a prefix of
+    the parent that holds the anion, here a boranuide or a carbanide joined to it through an acyclic chain."""
+    if cation.IsInRing() or anion.IsInRing() or anion.GetAtomicNum() not in (5, 6):
+        raise UnsupportedStructure("not a remote pair of an acyclic onium group and a boranuide or carbanide")
+    toward = [n for n in graph[cation.GetIdx()] if anion.GetIdx() in _side(graph, n, cation.GetIdx())]
+    if len(toward) != 1:
+        raise UnsupportedStructure("the anionic parent is not reached through one bond of the cationic group")
+    attach = toward[0]
+    prefix = _cation_prefix(mol, graph, cation.GetIdx(), attach)
+    return _carbon_anion_name(mol, graph, cation.GetIdx(), attach, prefix)
+
+
 def _chain_pair(mol, graph, cation, anion):
     """Cation and anion on a chain of identical heteroatoms: the 'ium'/'ide' pair of hydrazine, dioxidane or triazene."""
     z = anion.GetAtomicNum()
@@ -227,9 +240,18 @@ def dipolar_name(mol):
     cation = next(a for a in charged if a.GetFormalCharge() > 0)
     anion = next(a for a in charged if a.GetFormalCharge() < 0)
     link = mol.GetBondBetweenAtoms(cation.GetIdx(), anion.GetIdx())
-    if link is None or link.GetBondTypeAsDouble() != 1.0 or any(a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
+    if any(a.GetIsotope() or a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
         return None
     graph = adjacency(mol)
+    if link is None:
+        if cation.GetAtomicNum() not in _ONIUM_STEMS:
+            return None
+        try:
+            return _remote_pair(mol, graph, cation, anion)
+        except (UnsupportedStructure, ValueError, KeyError):
+            return None
+    if link.GetBondTypeAsDouble() != 1.0:
+        return None
     try:
         if _azoxy(mol, graph) is not None:
             return _azoxy_name(mol, graph)
