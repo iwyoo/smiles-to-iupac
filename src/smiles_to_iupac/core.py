@@ -32,6 +32,7 @@ from ._borane_silane_amide import borane_silane_amide_name
 from ._polyborane import lewis_adduct_mol, polyborane_name
 from ._diacylamine import diacylamine_name
 from ._dipolar import has_dipolar_shape, name_dipolar
+from ._spiro_hub_atom import has_spiro_hub_atom_shape, name_spiro_hub_atom
 from ._substituents import FORCED_BRANCH_NAMES
 from ._glycoside import has_glycoside_shape, name_glycoside
 from ._sugar_acid import has_sugar_alcohol_acid_shape, name_sugar_alcohol_acid, sugar_acid_derivative_name
@@ -628,6 +629,8 @@ def _name_unabridged(smiles: str) -> str:
                 return name_polynuclear_oxoacid(parsed, priority=True)
             except UnsupportedStructure:
                 pass
+        if parsed is not None and has_spiro_hub_atom_shape(parsed):
+            return name_spiro_hub_atom(parsed)
         if parsed is not None and has_nonstandard_hydride_shape(parsed):
             return name_nonstandard_hydride(parsed)
         if parsed is not None and has_sphingoid_shape(parsed):
