@@ -130,3 +130,75 @@ def has_sugar_alcohol_acid_shape(mol) -> bool:
 
 def name_sugar_alcohol_acid(mol) -> str:
     return sugar_alcohol_acid_name(mol)
+
+
+_DERIVATIVES = {
+    "amide": Chem.MolFromSmarts("[CX3;H0](=O)[NX3;H2]"),
+    "hydrazide": Chem.MolFromSmarts("[CX3;H0](=O)[NX3;H1][NX3;H2]"),
+    "nitrile": Chem.MolFromSmarts("[CX2]#[NX1]"),
+    "ester": Chem.MolFromSmarts("[CX3;H0](=O)[OX2;H0][CX4]"),
+}
+_ENDINGS = {"amide": "amide", "hydrazide": "ohydrazide", "nitrile": "onitrile"}
+
+
+def _as_acid(mol):
+    """(acid mol, derivative kind, alcohol group of an ester) for a polyhydroxy chain ending in an acid derivative."""
+    found = [(kind, match) for kind, pattern in _DERIVATIVES.items() for match in mol.GetSubstructMatches(pattern)]
+    found = [item for item in found if not (item[0] == "amide" and any(m[0] == item[1][0] for k, m in found if k == "hydrazide"))]
+    if len(found) != 1:
+        return None
+    kind, match = found[0]
+    editable = Chem.RWMol(mol)
+    carbon = match[0]
+    removal, ester_group = [], None
+    if kind == "amide":
+        editable.GetAtomWithIdx(match[2]).SetAtomicNum(8)
+    elif kind == "hydrazide":
+        removal.append(match[3])
+        editable.GetAtomWithIdx(match[2]).SetAtomicNum(8)
+    elif kind == "nitrile":
+        nitrogen = match[1]
+        editable.GetAtomWithIdx(nitrogen).SetAtomicNum(8)
+        editable.GetBondBetweenAtoms(carbon, nitrogen).SetBondType(Chem.BondType.DOUBLE)
+        hydroxy = editable.AddAtom(Chem.Atom(8))
+        editable.AddBond(carbon, hydroxy, Chem.BondType.SINGLE)
+    else:
+        from ._cited_group import cited_group, subtree
+        from ._common import adjacency
+
+        graph = adjacency(mol)
+        try:
+            ester_group = cited_group(mol, graph, match[3], match[2])[0]
+        except Exception:
+            return None
+        removal.extend(subtree(graph, match[3], match[2]))
+    for index in sorted(removal, reverse=True):
+        editable.RemoveAtom(index)
+    for atom in editable.GetAtoms():
+        atom.SetNoImplicit(False)
+        atom.SetNumExplicitHs(0)
+    acid = editable.GetMol()
+    try:
+        Chem.SanitizeMol(acid)
+    except Exception:
+        return None
+    return acid, kind, ester_group
+
+
+def sugar_acid_derivative_name(mol):
+    prepared = _as_acid(mol)
+    if prepared is None:
+        return None
+    acid, kind, alcohol = prepared
+    name = sugar_alcohol_acid_name(acid)
+    if name is None:
+        return None
+    for ending in ("onic acid", "uronic acid"):
+        if name.endswith(ending):
+            stem = name[: -len(" acid")]
+            break
+    else:
+        return None
+    if kind == "ester":
+        return f"{alcohol} {stem[:-2]}ate"
+    return stem[:-2] + _ENDINGS[kind]

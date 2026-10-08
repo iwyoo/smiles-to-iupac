@@ -32,7 +32,7 @@ from ._polyborane import lewis_adduct_mol, polyborane_name
 from ._dipolar import has_dipolar_shape, name_dipolar
 from ._substituents import FORCED_BRANCH_NAMES
 from ._glycoside import has_glycoside_shape, name_glycoside
-from ._sugar_acid import has_sugar_alcohol_acid_shape, name_sugar_alcohol_acid
+from ._sugar_acid import has_sugar_alcohol_acid_shape, name_sugar_alcohol_acid, sugar_acid_derivative_name
 from ._sugar_substituted import has_substituted_sugar_shape, name_substituted_sugar
 from ._histidine import has_histidine_shape, name_histidine
 from ._proline import has_proline_shape, name_proline
@@ -652,6 +652,8 @@ def _name_unabridged(smiles: str) -> str:
             return name_glycoside(parsed)
         if parsed is not None and has_sugar_alcohol_acid_shape(parsed):
             return name_sugar_alcohol_acid(parsed)
+        if parsed is not None and sugar_acid_derivative_name(parsed) is not None:
+            return sugar_acid_derivative_name(parsed)
         if parsed is not None and has_substituted_sugar_shape(parsed):
             return name_substituted_sugar(parsed)
         if parsed is not None and has_amino_acid_shape(parsed):
