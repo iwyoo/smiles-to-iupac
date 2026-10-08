@@ -13,8 +13,12 @@ from ._substituents import format_mononuclear_prefixes, format_substituent_prefi
 _STEMS = {7: "azane", 14: "silane", 15: "phosphane", 32: "germane", 33: "arsane", 50: "stannane", 51: "stibane", 82: "plumbane", 83: "bismuthane"}
 
 
-def _chain_atoms(mol, graph):
-    elements = {a.GetAtomicNum() for a in mol.GetAtoms() if a.GetAtomicNum() in _STEMS and not a.IsInRing()}
+def _chain_atoms(mol, graph, skip_nitrogen=False):
+    elements = {
+        a.GetAtomicNum()
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() in _STEMS and not a.IsInRing() and not (skip_nitrogen and a.GetAtomicNum() == 7)
+    }
     if len(elements) != 1:
         return None
     (z,) = elements

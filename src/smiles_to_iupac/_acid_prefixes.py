@@ -17,6 +17,7 @@ _HYDRAZINECARBONYL = {
     "Se": "hydrazinecarboselenoyl",
     "Te": "hydrazinecarbotelluroyl",
     "NH": "hydrazinecarboximidoyl",
+    "NNH2": "hydrazinecarbohydrazonoyl",
 }
 _CARBAM = {"O": "carbamoyl", "S": "carbamothioyl", "Se": "carbamoselenoyl", "Te": "carbamotelluroyl", "NH": "carbamimidoyl", "NNH2": "carbamohydrazonoyl"}
 _FORM = {"O": "formyl", "S": "methanethioyl", "Se": "methaneselenoyl", "Te": "methanetelluroyl", "NH": "methanimidoyl", "NNH2": "methanehydrazonoyl"}

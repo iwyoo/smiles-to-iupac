@@ -1392,3 +1392,37 @@ def test_imidate_prefix_on_ring_and_chain_acids(smiles, expected):
 )
 def test_chalcogen_hydrazide_end_group_beside_a_hydrazide(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("NNC(=NN)C", "ethanehydrazonohydrazide"),
+        ("CNNC(=NNC)c1cccs1", "N',N''-dimethylthiophene-2-carbohydrazonohydrazide"),
+        ("NNC(=NN)c1cccc(c1)C(=O)O", "3-(hydrazinecarbohydrazonoyl)benzoic acid"),
+        ("NNC(=NN)CC(=O)O", "3-hydrazinyl-3-hydrazinylidenepropanoic acid"),
+        ("NNS(=NN)c1ccccc1", "benzenesulfinohydrazonohydrazide"),
+        ("NNS(=O)(=NN)C", "methanesulfonohydrazonohydrazide"),
+        ("NNC(=NN)NN", "hydrazinecarbohydrazonohydrazide"),
+        ("NNC(=N)NN", "hydrazinecarboximidohydrazide"),
+        ("NC(=NN)N", "carbonohydrazonic diamide"),
+        ("NC(=NN)OC(=NN)N", "dicarbonohydrazonic diamide"),
+    ],
+)
+def test_hydrazidines_and_carbonic_amidrazones(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CC(=N)NC(=N)C", "N-ethanimidoylethanimidamide"),
+        ("CCC(=N)NC(=N)C", "N-ethanimidoylpropanimidamide"),
+        ("N=C(c1ccccc1)NC(=N)c1ccccc1", "N-benzenecarboximidoylbenzenecarboximidamide"),
+        ("CCNC(=N)SSC(=N)NC", "N-ethylcarbamimidic N-methylcarbamimidic dithioperoxyanhydride"),
+        ("[SiH2]([SiH2]C(N)=N)C(N)=N", "disilane-1,2-dicarboximidamide"),
+        ("NC(=O)[SiH2][SiH2]C(N)=O", "disilane-1,2-dicarboxamide"),
+    ],
+)
+def test_diamidides_formamidine_disulfides_and_amidines_on_hydrides(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

@@ -201,7 +201,7 @@ def find_links(mol):
             if mol.GetBondBetweenAtoms(chain[-1], far.GetIdx()).IsInRing():
                 raise UnsupportedStructure("a cyclic ester or anhydride is named as a heterocycle")
             if _center(mol, far.GetIdx()) is not None:
-                if found[0] == "carbonic" and _center(mol, far.GetIdx())[0] == "carbonic":
+                if found[0] == "carbonic" and _center(mol, far.GetIdx())[0] == "carbonic" and len(chain) == 1:
                     continue
                 if found[0] == "inorganic" and _center(mol, far.GetIdx())[0] == "inorganic":
                     continue

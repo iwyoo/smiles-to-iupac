@@ -43,6 +43,8 @@ def _find_center(mol):
         return None
     if amino and len(chalcogens) == 1 and center.GetTotalValence() == 5:
         return None
+    if amino and center.GetAtomicNum() in _YLIDENE_ONLY:
+        return None
     ylidene = any(
         mol.GetBondBetweenAtoms(center.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0 for n in others
     )
