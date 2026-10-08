@@ -71,11 +71,71 @@ def _thio_phosphorus(mol):
     return [a for a in mol.GetAtoms() if _group(mol, a) is not None]
 
 
+def _linked_pair(mol):
+    """The two phosphonic thioester phosphorus atoms of a multiplicative ester, else None: each carries one carbon (the
+    linker) and no free acid hydroxy group."""
+    groups = _thio_phosphorus(mol)
+    if len(groups) != 2 or sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() in (_PHOSPHORUS, _BORON)) != 2:
+        return None
+    if any(a.GetAtomicNum() != _PHOSPHORUS for a in groups):
+        return None
+    found = [_group(mol, a) for a in groups]
+    if any(len(carbons) != 1 or any(carbon is None or link is not None for _, carbon, link in esters) for carbons, _, esters in found):
+        return None
+    return groups, found
+
+
 def has_phosphorus_thioester_shape(mol) -> bool:
-    return len(_thio_phosphorus(mol)) == 1
+    return len(_thio_phosphorus(mol)) == 1 or _linked_pair(mol) is not None
+
+
+def _name_linked_pair(mol, groups, found):
+    from ._radical_poly import _benzene, _component
+
+    if len(Chem.GetMolFrags(mol)) > 1 or any(a.GetIsotope() for a in mol.GetAtoms()):
+        raise UnsupportedStructure("a multi-fragment or isotopically modified structure is not supported yet")
+    if any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
+        raise UnsupportedStructure("a carboxylic or sulfur-group acid outranks the phosphorus ester")
+    sulfur_counts = {
+        sum(1 for c in (*(() if double is None else (double,)), *(c for c, _, _ in esters)) if c.GetAtomicNum() == 16)
+        for _, double, esters in found
+    }
+    if len(sulfur_counts) != 1 or 0 in sulfur_counts:
+        raise UnsupportedStructure("the two acid groups differ in their chalcogen replacement")
+    graph = adjacency(mol)
+    halogens = halogen_substituents(mol)
+    aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+    attachments = [(carbons[0].GetIdx(), atom.GetIdx(), 1) for atom, (carbons, _, _) in zip(groups, found)]
+    part = _component(mol, attachments)
+    if part is None:
+        raise UnsupportedStructure("the linker of the two phosphorus acid groups is not named")
+    best = None
+    for order in ((0, 1), (1, 0)):
+        words = {}
+        for rank, index in enumerate(order):
+            for chalcogen, carbon, _ in found[index][2]:
+                name, is_compound = name_branch(graph, carbon.GetIdx(), chalcogen.GetIdx(), halogens, aromatic, mol=mol)
+                words.setdefault(name, [is_compound, []])[1].append((rank, chalcogen.GetSymbol()))
+        cited = []
+        for name, (is_compound, locants) in sorted(words.items(), key=lambda item: alpha_sort_key(item[0])):
+            text = ",".join(symbol + "\u2032" * rank for rank, symbol in sorted(locants))
+            group = enclose(name) if is_compound else name
+            multiplier = multiplying_prefix(len(locants), compound=is_compound) if len(locants) > 1 else ""
+            cited.append(f"{text}-{multiplier}{group}")
+        key = tuple(cited)
+        if best is None or key < best:
+            best = key
+    infix = _INFIX[next(iter(sulfur_counts))]
+    anion = f"phosphono{infix}ate"
+    text = _benzene(part.text)
+    linker = enclose(text) if part.has_prefix or part.has_locants else text
+    return " ".join([*best, f"P,P\u2032-{linker}bis({anion})"])
 
 
 def name_phosphorus_thioester(mol) -> str:
+    pair = _linked_pair(mol)
+    if pair is not None:
+        return _name_linked_pair(mol, *pair)
     (phosphorus,) = _thio_phosphorus(mol)
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
