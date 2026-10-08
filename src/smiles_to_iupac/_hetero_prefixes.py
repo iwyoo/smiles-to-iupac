@@ -1174,6 +1174,18 @@ def _terminal_double_atom(mol, center, idx):
     return atom.GetAtomicNum() in (8, 16, 34, 52) or (atom.GetAtomicNum() == 7 and atom.GetTotalNumHs() == 1)
 
 
+def _stereo_cited(name, atom):
+    """`name` with the CIP descriptor of the stereogenic skeletal `atom` of the group, as in '(S)-methanesulfinyl' (P-93.3.4.1)."""
+    from ._substituents import BRANCH_STEREO
+
+    context = BRANCH_STEREO.get()
+    if not context or atom not in context["atoms"]:
+        return name
+    context["used"].add(("atom", atom))
+    plain = re.sub(r"^\([RS]\)-", "", name)
+    return f"({context['atoms'][atom]})-{plain}"
+
+
 def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     """Prefixes of the acyl groups of sulfonic, sulfinic, selenonic ... acids (P-65.3.2): 'sulfo', 'sulfamoyl',
     'benzenesulfonyl', 'methoxysulfonyl', 'chlorosulfinyl', 'trithiosulfo'."""
@@ -1243,7 +1255,7 @@ def _sulfur_oxo_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
         from ._functional_prefixes import _CARBOXYLIC_CLASS, _acyl_prefix
 
         try:
-            return _acyl_prefix(mol, _subtree(graph, root, coming_from), root, coming_from), True
+            return _stereo_cited(_acyl_prefix(mol, _subtree(graph, root, coming_from), root, coming_from), root), True
         except UnsupportedStructure:
             if not mol.HasSubstructMatch(_CARBOXYLIC_CLASS):
                 raise
