@@ -1877,6 +1877,20 @@ _GROUP_14 = (14, 32, 50, 82)
 _CHALCOGENOL_WORDS = {8: "ol", 16: "thiol", 34: "selenol", 52: "tellurol"}
 
 
+_PARENT_HYDRIDE_ORDER = (7, 15, 33, 51, 83, 14, 32, 50, 82, 5, 13, 31, 49, 81)
+
+
+def _junior_hydride_atom(mol, atom, center_z):
+    """Whether `atom` is a mononuclear hydride atom of an element junior to the parent hydride `center_z` (P-68.1.5.2.3):
+    a boranyl group on silicon, not the other way round."""
+    z = mol.GetAtomWithIdx(atom).GetAtomicNum()
+    return (
+        z in _PARENT_HYDRIDE_ORDER
+        and center_z in _PARENT_HYDRIDE_ORDER
+        and _PARENT_HYDRIDE_ORDER.index(z) > _PARENT_HYDRIDE_ORDER.index(center_z)
+    )
+
+
 _NITROGEN_GROUP_PREFIXES = {"nitro", "nitroso", "azido", "isocyano", "isocyanato", "isothiocyanato"}
 
 
@@ -1937,6 +1951,7 @@ def _mononuclear_parent(mol, graph, halogens, aromatic_atoms, center):
         mol.GetAtomWithIdx(n).GetAtomicNum() not in (6, 8, *HALOGEN_PREFIXES)
         and n not in junior_chalcogenols
         and not _nitrogen_group_prefix(mol, graph, n, index, halogens, aromatic_atoms)
+        and not _junior_hydride_atom(mol, n, z)
         for n in others
     ):
         return None
@@ -1974,9 +1989,13 @@ def _plain_parent(mol, graph, halogens, aromatic_atoms, stereo=None):
     ring_cation = RING_CENTER.get()
     centers = [] if ring_cation else [a for a in mol.GetAtoms() if a.GetAtomicNum() in MONONUCLEAR_HYDRIDES and not a.IsInRing()]
     if centers:
-        named = [(n, c.GetIdx()) for c in centers if (n := _mononuclear_parent(mol, graph, halogens, aromatic_atoms, c))]
+        named = [
+            (_PARENT_HYDRIDE_ORDER.index(c.GetAtomicNum()) if c.GetAtomicNum() in _PARENT_HYDRIDE_ORDER else 99, n, c.GetIdx())
+            for c in centers
+            if (n := _mononuclear_parent(mol, graph, halogens, aromatic_atoms, c))
+        ]
         if named:
-            name, center = min(named)
+            _, name, center = min(named)
             return ((0,), name, (None, None, None, 0, {center: 1}, False))
     if centers or (
         not ring_cation
