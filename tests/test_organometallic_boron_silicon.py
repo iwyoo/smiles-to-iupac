@@ -36,9 +36,29 @@ def test_halogen_substituted_alkyl_chain():
     assert smiles_to_iupac("ClCCB") == "(2-chloroethyl)borane"
 
 
-def test_borane_chain_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("BB")
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("BB", "diborane(4)", id="parent_hydride_cites_its_hydrogen_count"),
+        pytest.param("CBB", "1-methyldiborane(4)", id="substituted_diborane"),
+        pytest.param("CB(C)B(C)B(C)C", "1,1,2,3,3-pentamethyltriborane(5)", id="triborane_chain"),
+        pytest.param("ClBB(Cl)Cl", "1,1,2-trichlorodiborane(4)", id="lowest_locants_for_prefixes"),
+    ],
+)
+def test_borane_chains(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("C[N+](C)(C)[B-](Cl)(Cl)Cl", "N,N-dimethylmethanamine—trichloroborane (1/1)", id="charge_separated_adduct"),
+        pytest.param("N->B", "ammonia—borane (1/1)", id="dative_bond_adduct"),
+        pytest.param("CC[S+](CC)[BH2-]C", "(ethylsulfanyl)ethane—methylborane (1/1)", id="sulfur_donor"),
+    ],
+)
+def test_lewis_adducts_of_boranes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
