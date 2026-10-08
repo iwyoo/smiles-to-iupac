@@ -247,6 +247,8 @@ def _name_bicyclic_unsaturated(mol, core, bonds) -> str:
 
 def name_bicycloalkane(mol, core) -> str:
     validate_atoms_and_bonds(mol)
+    if any(a.GetIsAromatic() for a in mol.GetAtoms()) and bicyclic_parent_name(core).endswith(".0]" + bicyclic_parent_name(core).split("]")[-1]):
+        raise UnsupportedStructure("an aromatic ortho-fused bicyclic ring system is named by fusion nomenclature, not von Baeyer")
     mol = kekulized_copy(mol)
     ring_atoms = {a.GetIdx() for a in mol.GetAtoms() if a.IsInRing()}
     bonds = [b for b in non_single_bonds(mol) if b[0] in ring_atoms and b[1] in ring_atoms]

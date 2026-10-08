@@ -10,7 +10,7 @@ from rdkit import Chem, rdBase
 
 from ._common import UnsupportedStructure
 from ._fused_numbering import HETERO_RANK, FusedSystem, _locant_key
-from ._fusion_components import identify, skeleton
+from ._fusion_components import A_PREFIX, identify, skeleton
 from ._fusion_name import Context, _fusion_name_core, system_numbering_options
 from ._numerals import alkane_name, numerical_term
 
@@ -629,14 +629,31 @@ def _kekule(mol, single_bonds=()):
     return forced.GetMol()
 
 
+def _carbonized(mol, atoms):
+    """`mol` with every non-carbon atom of `atoms` turned into a carbon atom, for the hydrocarbon name that skeletal
+    replacement (P-25.5.1) starts from."""
+    editable = Chem.RWMol(mol)
+    for a in atoms:
+        atom = editable.GetAtomWithIdx(a)
+        if atom.GetAtomicNum() != 6:
+            atom.SetAtomicNum(6)
+            atom.SetFormalCharge(0)
+            atom.SetNoImplicit(False)
+            atom.SetNumExplicitHs(0)
+    out = editable.GetMol()
+    out.UpdatePropertyCache(strict=False)
+    return out
+
+
 def bridged_parents(mol, atoms):
-    """Names of the ring system `atoms` as a fused ring system with bridges: list of `BridgedParent`, best choice only."""
+    """Names of the ring system `atoms` as a fused ring system with bridges: list of `BridgedParent`, best choice only.
+    A fused ring system with no fusion name takes its hydrocarbon name with 'a' prefixes for all heteroatoms, bridge
+    atoms included (P-25.5.1.2)."""
     if any(mol.GetAtomWithIdx(a).GetFormalCharge() or mol.GetAtomWithIdx(a).GetNumRadicalElectrons() for a in atoms):
         raise UnsupportedStructure("a charged or radical ring atom in a bridged fused system")
     aromatic = Chem.Mol(mol)
     mol = _kekule(aromatic)
     graph, valid = _candidates(mol, atoms)
-    ranked = []
     cache = {"aromatic_rings": [r for r in aromatic.GetRingInfo().AtomRings() if all(aromatic.GetAtomWithIdx(a).GetIsAromatic() for a in r)]}
 
     def hetero_count(order):
@@ -646,32 +663,50 @@ def bridged_parents(mol, atoms):
         (item for item in valid.items() if len(item[0]) >= 2 and len(item[1][0]) != len(atoms) and sum(len(c) >= 5 for c in item[1][1].GetRingInfo().AtomRings()) >= 2),
         key=lambda item: (-len(item[0]), -len(item[1][0]), hetero_count(item[1][0])),
     )
-    for _, group in groupby(states, key=lambda item: (-len(item[0]), -len(item[1][0]), hetero_count(item[1][0]))):
-        for state, (order, sk) in group:
-            fused = set(order)
-            fused_rings = [{order[i] for i in ring} for ring in sk.GetRingInfo().AtomRings()]
-            clusters = list(nx.connected_components(graph.subgraph(set(graph.nodes) - fused)))
-            kekule = _kekule(aromatic, [(b, f) for c in clusters for b in c for f in graph[b] if f in fused]) or mol
-            try:
-                readings = [_decompositions(kekule, graph, fused, c, cache, fused_rings) for c in clusters]
-                name, numberings, root = _fused_parent(order, sk)
-            except UnsupportedStructure:
-                continue
-            senior = root.comp.senior_key if hasattr(root, "comp") else ()
-            for combo in list(product(*readings))[:_MAX_DECOMPOSITIONS]:
-                parts = sum(combo, [])
-                ranked.append(((-len(state), -len(order), hetero_count(order), senior) + _metrics(parts), order, name, numberings, parts, kekule))
-        if ranked:
-            break
+
+    def collect(replacing):
+        ranked = []
+        for _, group in groupby(states, key=lambda item: (-len(item[0]), -len(item[1][0]), hetero_count(item[1][0]))):
+            for state, (order, sk) in group:
+                if replacing and not hetero_count(order):
+                    continue
+                fused = set(order)
+                fused_rings = [{order[i] for i in ring} for ring in sk.GetRingInfo().AtomRings()]
+                clusters = list(nx.connected_components(graph.subgraph(set(graph.nodes) - fused)))
+                kekule = _kekule(aromatic, [(b, f) for c in clusters for b in c for f in graph[b] if f in fused]) or mol
+                if replacing:
+                    kekule = _carbonized(kekule, atoms)
+                    sk = skeleton(["C"] * sk.GetNumAtoms(), [(b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in sk.GetBonds()])
+                try:
+                    readings = [_decompositions(kekule, graph, fused, c, cache, fused_rings) for c in clusters]
+                    name, numberings, root = _fused_parent(order, sk)
+                except UnsupportedStructure:
+                    continue
+                senior = root.comp.senior_key if hasattr(root, "comp") else ()
+                for combo in list(product(*readings))[:_MAX_DECOMPOSITIONS]:
+                    parts = sum(combo, [])
+                    ranked.append(((-len(state), -len(order), hetero_count(order), senior) + _metrics(parts), order, name, numberings, parts, kekule))
+            if ranked:
+                break
+        return ranked
+
+    replacing = False
+    ranked = collect(False)
+    if not ranked:
+        replacing = True
+        ranked = collect(True)
     if not ranked:
         raise UnsupportedStructure("this ring system has no fused ring system with bridges")
+    hetero = {a: mol.GetAtomWithIdx(a).GetSymbol() for a in atoms if mol.GetAtomWithIdx(a).GetSymbol() != "C"} if replacing else None
+    if hetero and any(s not in A_PREFIX or mol.GetAtomWithIdx(a).GetTotalValence() != _STANDARD_BONDING.get(s) for a, s in hetero.items()):
+        raise UnsupportedStructure("a heteroatom without a skeletal replacement prefix or of nonstandard bonding number")
     ranked.sort(key=lambda r: r[0])
     out = []
     for rank, order, name, numberings, parts, kekule in ranked:
         if rank != ranked[0][0]:
             break
         try:
-            out.extend(_name(kekule, atoms, order, name, numberings, parts))
+            out.extend(_name(kekule, atoms, order, name, numberings, parts, hetero))
         except UnsupportedStructure:
             continue
     if not out:
@@ -707,11 +742,11 @@ def _consumed(mol, atoms, order, parts):
     return home, frozenset(out)
 
 
-def _name(mol, atoms, order, fused_name, numberings, parts):
+def _name(mol, atoms, order, fused_name, numberings, parts, hetero=None):
     results = []
     for local in numberings:
         numbering = {order[i]: loc for i, loc in local.items()}
-        results.extend(_assemble(mol, atoms, set(order), order, fused_name, numbering, parts))
+        results.extend(_assemble(mol, atoms, set(order), order, fused_name, numbering, parts, hetero))
     return results
 
 
@@ -735,7 +770,7 @@ def _number_group(mol, atoms, fused, group, position, counter):
     return states
 
 
-def _assemble(mol, atoms, fused, order, fused_name, numbering, parts):
+def _assemble(mol, atoms, fused, order, fused_name, numbering, parts, hetero=None):
     independent = [p for p in parts if p.independent]
     dependent = [p for p in parts if not p.independent]
     results = []
@@ -757,17 +792,37 @@ def _assemble(mol, atoms, fused, order, fused_name, numbering, parts):
                 )
                 home, consumed = _consumed(mol, atoms, order, parts)
                 capable = frozenset(home)
+                replacement_key, replacement_text = _replacement_prefix(hetero, settled)
                 results.append(
                     BridgedParent(
-                        _prefix_text(entries) + ("-" if fused_name[:1].isdigit() else "") + fused_name,
+                        replacement_text + _prefix_text(entries) + ("-" if fused_name[:1].isdigit() else "") + fused_name,
                         dict(settled),
                         capable,
                         consumed,
                         frozenset(a for p in parts for a in p.atoms),
-                        key + (_unsaturation_key(mol, capable, consumed),),
+                        key + replacement_key + (_unsaturation_key(mol, capable, consumed),),
                     )
                 )
     return results
+
+
+def _replacement_prefix(hetero, position):
+    """(sort key, text) of the skeletal replacement prefixes of the heteroatoms `hetero` (atom -> element): lowest
+    locants as a set, then in the order of the elements (P-25.5.1.2)."""
+    if not hetero:
+        return (), ""
+    groups = {}
+    for atom, element in hetero.items():
+        groups.setdefault(element, []).append(str(position[atom]))
+    ordered = sorted(groups, key=HETERO_RANK.get)
+    locants = sorted((_locant_key(p), element) for element in ordered for p in groups[element])
+    key = (tuple(k for k, _ in locants), tuple(HETERO_RANK[e] for _, e in locants))
+    pieces = []
+    for element in ordered:
+        cited = sorted(groups[element], key=_locant_key)
+        multiplier = numerical_term(len(cited)) if len(cited) > 1 else ""
+        pieces.append(",".join(cited) + "-" + multiplier + A_PREFIX[element])
+    return (key,), "-".join(pieces) + "-"
 
 
 def _citation_name(text):

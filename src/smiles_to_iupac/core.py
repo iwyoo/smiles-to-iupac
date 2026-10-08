@@ -281,6 +281,7 @@ from ._cyclophane import has_cyclophane_name, name_cyclophane, name_nonpreferred
 from ._linear_phane import has_linear_phane_shape, linear_phane_pin, name_linear_phane
 from ._phosphane import has_simple_phosphane_shape, name_simple_phosphane
 from ._polyphosphane import has_polyphosphane_shape, name_polyphosphane
+from ._noncarbon_oxoacid import has_noncarbon_oxoacid_shape, name_noncarbon_oxoacid
 from ._functional_replacement_oxoacid import (
     has_functional_replacement_oxoacid_shape,
     name_functional_replacement_oxoacid,
@@ -703,6 +704,8 @@ def _name_unabridged(smiles: str) -> str:
             return name
         if parsed is not None and has_anisole_shape(parsed):
             return name_anisole(parsed)
+        if parsed is not None and has_noncarbon_oxoacid_shape(parsed):
+            return name_noncarbon_oxoacid(parsed)
         if parsed is not None and has_functional_replacement_oxoacid_shape(parsed):
             return name_functional_replacement_oxoacid(parsed)
         if parsed is not None and parsed.GetNumAtoms() > 4:
@@ -1270,6 +1273,12 @@ def _name_mol(mol) -> str:
         ring_assembly_core = find_ring_assembly_core(mol)
         if ring_assembly_core is not None:
             return name_ring_assembly(mol, ring_assembly_core)
+        ylidene_core = find_ring_assembly_ylidene_core(mol)
+        if ylidene_core is not None and any(a.GetAtomicNum() != 6 and a.IsInRing() for a in mol.GetAtoms()):
+            try:
+                return name_ring_assembly_ylidene(mol, ylidene_core)
+            except UnsupportedStructure:
+                pass
     for has_shape, namer in (
         (_has_isotope_label, _name_isotope_label),
         (has_o_substituted_hydroxylamine_shape, name_o_substituted_hydroxylamine),
@@ -1494,6 +1503,7 @@ def _name_mol(mol) -> str:
         # oxoacid name) has a phosphorus with 4 substituents (=S plus three
         # -OH), which `_phosphane.py` rejects outright (more than three
         # substituents) -- must be routed here first.
+        (has_noncarbon_oxoacid_shape, name_noncarbon_oxoacid),
         (has_functional_replacement_oxoacid_shape, name_functional_replacement_oxoacid),
     ):
         if has_shape(mol):

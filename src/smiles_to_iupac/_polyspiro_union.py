@@ -460,9 +460,10 @@ def _analyse(mol, atoms=None, outer=frozenset()):
     forced = set()
     for s, members in spiro.items():
         if mol.GetAtomWithIdx(s).GetAtomicNum() != 6 and not info[s][0]:
-            if not any(comps[m]["von_baeyer"] for m in members):
-                raise UnsupportedStructure("a standard-valence heteroatom at the spiro atom is not supported without a von Baeyer component")
-            forced.update(members)
+            if any(comps[m]["von_baeyer"] for m in members):
+                forced.update(members)
+            elif not all(comps[m]["rings"] >= 2 for m in members):
+                raise UnsupportedStructure("a standard-valence heteroatom at the spiro atom is not supported without a von Baeyer or fused component")
     for i, c in enumerate(comps):
         if named[i] is None:
             named[i] = _component(mol, c, i in forced, {s for s, members in spiro.items() if i in members} | (outer & c["atoms"]))
@@ -507,6 +508,7 @@ def _analyse(mol, atoms=None, outer=frozenset()):
             capable |= _capable(mol, comp, set(spiro_in[i]) | (outer & comp["atoms"]))
             polycyclic_bonds |= comp["bonds"]
         elif n["replacement"]:
+            monocyclic_bonds |= comp["bonds"]
             replacement_atoms |= {
                 a for a in comp["atoms"] if mol.GetAtomWithIdx(a).GetAtomicNum() != 6 and a not in inner.get(i, ())
             }
@@ -618,13 +620,12 @@ def _hetero_key(ctx, mol, locant_of):
 
 
 def _ending_text(ene, ending):
-    if len(ene) > 1:
-        raise UnsupportedStructure("several double bonds of a spiro component are not supported yet")
     if ene and ending and ending[0] == "ylium":
         raise UnsupportedStructure("a double bond of a spiro cation is not supported yet")
     text, initial = "", ""
     if ene:
-        text, initial = (f"-{ene[0]}-en" if ending else f"-{ene[0]}-ene"), "e"
+        word = multiplied_word(len(ene), "ene")
+        text, initial = f"-{','.join(sorted(ene, key=_lk))}-{word[:-1] if ending else word}", word[0]
     if ending:
         if ending[0] == "ylium":
             text += f"-{ending[1]}-ylium"
