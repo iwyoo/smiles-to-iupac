@@ -92,6 +92,7 @@ from ._ring_amine import has_ring_amine_shape, has_ring_amine_sulfonyl_shape, na
 from ._amine_oxide import has_amine_oxide_shape, name_amine_oxide
 from ._aminide import has_aminide_shape, name_aminide
 from ._ammonium import has_ammonium_shape, has_polyammonium_shape, name_ammonium, name_polyammonium
+from ._uronium import has_uronium_shape, name_uronium
 from ._polycation import has_polycation_shape, name_polycation
 from ._polyspiro_union import has_spiro_union_shape, name_spiro_union
 from ._ylium_ring import has_ylium_ring_shape, name_ylium_ring
@@ -1223,6 +1224,7 @@ def _name_mol(mol) -> str:
             return name_ring_assembly(mol, ring_assembly_core)
     for has_shape, namer in (
         (_has_isotope_label, _name_isotope_label),
+        (has_uronium_shape, name_uronium),
         # An isotopically labeled hydroxyl oxygen and/or skeletal carbon
         # combined with the '-ol' suffix (P-82.5.1/P-82.5.2) must be routed
         # here before `_isotope.py`'s own plain chain/methane path just below,
