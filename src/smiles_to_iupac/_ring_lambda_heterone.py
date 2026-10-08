@@ -45,6 +45,7 @@ _CHALCOGENS = {8, 16, 34, 52}
 _SENIORITY = ("O", "S", "Se", "Te", "N", "P")
 _RING_PREFIX = {"O": "oxa", "S": "thia", "Se": "selena", "Te": "tellura", "N": "aza", "P": "phospha"}
 _STEM_ENDING = {3: "irane", 4: "etane", 5: "olane", 6: "ane", 7: "epane", 8: "ocane", 9: "onane", 10: "ecane"}
+_NITROGEN_STEM_ENDING = {3: "iridine", 4: "etidine", 5: "olidine", 6: "inane"}
 _MANCUDE_ENDING = {3: "irene", 4: "ete", 5: "ole", 6: "ine", 7: "epine", 8: "ocine", 9: "onine", 10: "ecine"}
 _RETAINED = {"S": "thiophene", "Se": "selenophene", "Te": "tellurophene"}
 _SUFFIX = {"O": "one", "S": "thione", "Se": "selone", "Te": "tellone"}
@@ -106,6 +107,13 @@ def _match(mol):
             if ring_double[idx] != 1 or exo or atom.GetTotalNumHs() != 0:
                 return None
             ring_hetero[idx] = "N"
+        elif atom.GetAtomicNum() == 7:
+            if ring_double[idx] or len(exo) + atom.GetTotalNumHs() != 1 or any(
+                mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in exo
+            ):
+                return None
+            ring_hetero[idx] = "N"
+            roots[idx] = exo
         elif atom.GetAtomicNum() in _RING_HETERO:
             if ring_double[idx]:
                 return None
@@ -171,6 +179,8 @@ def _stem(elements, size, mancude):
         term = (numerical_term(n) if n > 1 else "") + _RING_PREFIX[e]
         prefix = (prefix[:-1] if prefix and term[0] in "aeiou" else prefix) + term
     ending = (_MANCUDE_ENDING if mancude else _STEM_ENDING)[size]
+    if not mancude and "N" in elements and "P" not in elements:
+        ending = _NITROGEN_STEM_ENDING.get(size, ending)
     if not mancude and size == 6 and "P" in elements:
         ending = "inane"
     return (prefix[:-1] if ending[0] in "aeiou" else prefix) + ending

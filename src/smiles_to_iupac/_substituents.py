@@ -71,6 +71,7 @@ def is_plain_stem_prefix(name: str) -> bool:
 
 _CHALCOGEN_HYDRIDE_GROUP = re.compile(r"^(?:di|tri|tetra|penta|hexa)?(?:sulfanyl|selanyl|tellanyl)$")
 _LEADING_NUMERAL = re.compile(r"^(?:di|do|tri|tetra|penta|hexa|hepta|octa|nona|dec)[a-z]*(?:yl|oyl)$")
+_PLAIN_CARBONYL = re.compile(r"^(?:cyclo)?[a-z]+(?:ane|an|e)?(?:-[\d,]+)?-?carbon(?:yl|othioyl)$")
 _HYDRIDE_ACYL = re.compile(r"^[a-z]{3,}(?:ane|ene)(?:sulfonyl|sulfinyl)$")
 
 
@@ -100,7 +101,9 @@ def prefix_multiplier(count: int, name: str, compound: bool):
         return multiplying_prefix(count, compound=True), True
     if name == "tert-butyl":
         return f"{multiplying_prefix(count)}-", False
-    simple = not compound or is_plain_stem_prefix(name) or bool(_HYDRIDE_ACYL.match(name) or _POLYCYCLE_GROUP.match(name))
+    simple = not compound or is_plain_stem_prefix(name) or bool(
+        _HYDRIDE_ACYL.match(name) or _POLYCYCLE_GROUP.match(name) or _PLAIN_CARBONYL.match(name)
+    )
     if not simple:
         return multiplying_prefix(count, compound=True), True
     enclosed = compound or "[" in name or bool(_LEADING_NUMERAL.match(name) or _HYDRIDE_ACYL.match(name))
