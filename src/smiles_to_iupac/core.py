@@ -388,9 +388,17 @@ def _is_aromatic_ring_without_double_bonds(mol):
     )
 
 
+def _is_aromatic_ring_with_triple_bond(mol):
+    return any(b.GetBondType() == Chem.BondType.TRIPLE and b.IsInRing() and b.GetIsAromatic() for b in mol.GetBonds())
+
+
 def _parse_smiles(smiles):
     mol = Chem.MolFromSmiles(smiles)
-    if mol is not None and (_is_nonbenzene_monocyclic_annulene(mol) or _is_aromatic_ring_without_double_bonds(mol)):
+    if mol is not None and (
+        _is_nonbenzene_monocyclic_annulene(mol)
+        or _is_aromatic_ring_without_double_bonds(mol)
+        or _is_aromatic_ring_with_triple_bond(mol)
+    ):
         # P-54.2: only benzene is named as an aromatic ring; larger annulenes take ene/yne endings, and
         # RDKit's aromatic perception would drop their E/Z bond stereo. A ring of NH-type atoms with no double
         # bond is saturated although RDKit counts its lone pairs as an aromatic sextet.

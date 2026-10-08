@@ -66,6 +66,9 @@ def test_asymmetric_1_2_and_related(smiles, expected):
     "smiles,expected",
     [
         ("C1=CC=CCC1", "cyclohexa-1,3-diene"),
+        ("BrC1C=CCCC1", "3-bromocyclohex-1-ene"),
+        ("C=1=C=C=C=C=C=C=C=C=C=C1", "cycloundecaundecaene"),
+        ("C1#CC(C)=CC=C1", "3-methyl-1,2-didehydrobenzene"),
     ],
 )
 def test_unsubstituted_cyclic_unsaturated(smiles, expected):
@@ -107,8 +110,8 @@ def test_ring_double_bond_stereo_partly_unspecified_raises():
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("CC[C@H]1CCC=CC1", "(4S)-4-ethylcyclohexene"),
-        ("CC[C@H](C)[C@H]1CCC=CC1", "(4S)-4-[(2S)-butan-2-yl]cyclohexene"),
+        ("CC[C@H]1CCC=CC1", "(4S)-4-ethylcyclohex-1-ene"),
+        ("CC[C@H](C)[C@H]1CCC=CC1", "(4S)-4-[(2S)-butan-2-yl]cyclohex-1-ene"),
     ],
 )
 def test_ring_tetrahedral_stereocenter(smiles, expected):
