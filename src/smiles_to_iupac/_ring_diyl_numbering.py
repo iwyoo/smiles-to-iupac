@@ -32,6 +32,12 @@ from ._hetero_monocyclic import (
 )
 from ._numerals import alkane_name, alkyl_name, multiplying_prefix
 from ._polycyclic import find_polycyclic_core, iter_polycyclic_candidates
+from ._polyspiro import (
+    find_branched_polyspiro_hub,
+    find_linear_polyspiro_chain,
+    iter_branched_polyspiro_numberings,
+    iter_linear_polyspiro_numberings,
+)
 from ._spiro import find_monospiro_atom, iter_monospiro_numberings
 from ._unsaturated import _unsaturation_suffix_from_citations
 from ._common import multiplied_word, sanitize_probe
@@ -748,6 +754,12 @@ def _von_baeyer(mol, skeleton_atoms):
             raise UnsupportedStructure("this bicyclic skeleton is not supported as a diyl yet")
         parent = bicyclic_parent_name(core)
         for order in iter_bicyclic_numberings(core):
+            candidates.append((parent, order, ()))
+    elif (chain := find_linear_polyspiro_chain(bare)) is not None:
+        for parent, order, spiros, _ in iter_linear_polyspiro_numberings(bare, chain):
+            candidates.append((parent, order, ()))
+    elif (hub := find_branched_polyspiro_hub(bare)) is not None:
+        for parent, order, spiros, _ in iter_branched_polyspiro_numberings(bare, hub):
             candidates.append((parent, order, ()))
     else:
         core = find_polycyclic_core(bare, ring_count)

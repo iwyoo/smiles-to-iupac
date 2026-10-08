@@ -259,9 +259,8 @@ def test_smiles_to_iupac_linear_polyspiro(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_unsaturated_linear_polyspiro_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1=CC12CCC3(CC2)CCC3")
+def test_unsaturated_linear_polyspiro():
+    assert smiles_to_iupac("C1=CC12CCC3(CC2)CCC3") == "dispiro[2.2.3^6.2^3]undec-1-ene"
 
 
 def test_monospiro_two_rings_is_unaffected():
@@ -288,9 +287,8 @@ def test_smiles_to_iupac_linear_polyspiro_heteroatom_tie_break(smiles, expected)
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_unsaturated_heteroatom_polyspiro_raises():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("C1CCC2(C1)C=CC3(O2)CCCC3")
+def test_unsaturated_heteroatom_polyspiro():
+    assert smiles_to_iupac("C1CCC2(C1)C=CC3(O2)CCCC3") == "6-oxadispiro[4.1.4^7.2^5]tridec-12-ene"
 
 
 def test_oxadispiro_off_spiro_stereocenter():
@@ -308,9 +306,26 @@ def test_branched_polyspiro_off_spiro_stereocenter():
     )
 
 
-def test_substituent_branch_stereocenter_raises():
-    with pytest.raises(UnsupportedStructure):
+def test_substituent_branch_stereocenter_on_polyspiro():
+    assert (
         smiles_to_iupac("F[C@@H](Cl)C1CCC12CCC1(CCC1)CC2")
+        == "1-[(1S)-chloro(fluoro)methyl]dispiro[3.2.3^7.2^4]dodecane"
+    )
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("OC(=O)C1CC2(C1)CC1(C2)CCCC1", "dispiro[3.1.4^6.1^4]undecane-2-carboxylic acid"),
+        ("OC1CCC2(CC1)CC1(C2)CCCC1", "dispiro[4.1.5^7.1^5]tridecan-10-ol"),
+        ("O=C1CC2(C1)CC1(C2)CCCC1", "dispiro[3.1.4^6.1^4]undecan-2-one"),
+        ("CC1CC2(C1)CC1(C2)CCCC1C", "2,7-dimethyldispiro[3.1.4^6.1^4]undecane"),
+        ("NC1CC2(CC1)CC1(C2)CCOC1", "2-oxadispiro[4.1.4^7.1^5]dodecan-9-amine"),
+        ("OC1C2(CCC2)CC2(CCC2)CC13CCC3", "trispiro[3.1.3^6.1.3^11.1^4]pentadecan-5-ol"),
+    ],
+)
+def test_polyspiro_ring_bearing_a_suffix_group(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_fused_bicyclic_is_not_spiro():
