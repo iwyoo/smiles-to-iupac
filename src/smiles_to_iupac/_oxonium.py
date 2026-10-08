@@ -62,7 +62,7 @@ def has_oxonium_shape(mol) -> bool:
     charged_oxygens = [
         atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 8 and atom.GetFormalCharge() == 1
     ]
-    if len(charged_oxygens) != 1:
+    if len(charged_oxygens) != 1 or sum(1 for atom in mol.GetAtoms() if atom.GetFormalCharge()) != 1:
         return False
     oxygen = charged_oxygens[0]
     if oxygen.GetIsotope() != 0:

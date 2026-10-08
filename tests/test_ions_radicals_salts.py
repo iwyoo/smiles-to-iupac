@@ -384,6 +384,12 @@ def test_carbanide_salt_names():
         # Valine zwitterion (branched chain).
         ("CC(C)C(C(=O)[O-])[NH3+]", "2-azaniumyl-3-methylbutanoate"),
         ("C[N+](C)(C)CCS(=O)(=O)[O-]", "2-(N,N-dimethylmethanaminiumyl)ethane-1-sulfonate"),
+        pytest.param("C[S+](C)CC(=O)[O-]", "(dimethylsulfaniumyl)acetate", id="sulfonium_prefix_on_a_carboxylate"),
+        pytest.param("C[P+](C)(C)CC(=O)[O-]", "(trimethylphosphaniumyl)acetate", id="phosphonium_prefix_on_a_carboxylate"),
+        pytest.param("C[S+](C)CCS(=O)(=O)[O-]", "2-(dimethylsulfaniumyl)ethane-1-sulfonate", id="sulfonium_prefix_on_a_sulfonate"),
+        pytest.param("C[S+](C)CCCCCC[N+](C)(C)C", "6-(dimethylsulfaniumyl)-N,N,N-trimethylhexan-1-aminium", id="senior_nitrogen_cation_is_the_parent"),
+        pytest.param("C[S+](C)CCCCCC[P+](C)(C)C", "[6-(dimethylsulfaniumyl)hexyl]tri(methyl)phosphanium", id="phosphorus_outranks_sulfur"),
+        pytest.param("C[O+](C)CCCC[N+](C)(C)C", "4-(dimethyloxidaniumyl)-N,N,N-trimethylbutan-1-aminium", id="oxygen_cation_prefix"),
     ],
 )
 def test_zwitterion_name(smiles, expected):

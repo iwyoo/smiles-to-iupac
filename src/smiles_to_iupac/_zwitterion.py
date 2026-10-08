@@ -57,7 +57,32 @@ from ._ammonium import has_ammonium_shape, name_ammonium
 from ._carboxylate import _find_carboxylate_group, _name_acyclic_carboxylate
 from ._common import UnsupportedStructure, adjacency, bfs, specified_stereocenters
 from ._imine import has_simple_imine_shape, name_imine
+from ._onium_prefixes import onium_name
 from ._sulfonate import _find_sulfonate_group, _name_acyclic_sulfonate
+
+_ONIUM_STEMS = {8: ("oxidanium", 3), 16: ("sulfanium", 3), 34: ("selanium", 3), 52: ("telluranium", 3), 15: ("phosphanium", 4), 33: ("arsanium", 4)}
+
+
+def _onium_centre(mol):
+    """The single acyclic O, S, Se, Te, P or As cation bonded only to carbon by single bonds, else None."""
+    cations = [a for a in mol.GetAtoms() if a.GetFormalCharge() > 0]
+    if len(cations) != 1:
+        return None
+    (atom,) = cations
+    stem = _ONIUM_STEMS.get(atom.GetAtomicNum())
+    if (
+        stem is None
+        or atom.GetFormalCharge() != 1
+        or atom.IsInRing()
+        or atom.GetIsotope()
+        or atom.GetDegree() + atom.GetTotalNumHs() != stem[1]
+        or any(
+            n.GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() != 1.0
+            for n in atom.GetNeighbors()
+        )
+    ):
+        return None
+    return atom
 
 
 def _find_anion(mol):
@@ -90,7 +115,7 @@ def has_zwitterion_shape(mol) -> bool:
     molecule as a bare ammonium cation."""
     if len(Chem.GetMolFrags(mol)) > 1:
         return False
-    if not (has_ammonium_shape(mol) or _has_iminium_nitrogen(mol)):
+    if not (has_ammonium_shape(mol) or _has_iminium_nitrogen(mol) or _onium_centre(mol) is not None):
         return False
     return _find_anion(mol) is not None
 
@@ -151,7 +176,10 @@ def _ammonium_prefix(mol, nitrogen_idx, chain_neighbor_idx):
         fragment for fragment, atom_indices in zip(fragments, mapping) if nitrogen_idx in atom_indices
     )
     Chem.SanitizeMol(nitrogen_fragment)
-    if has_simple_imine_shape(nitrogen_fragment):
+    centre = nitrogen_fragment.GetAtomWithIdx(next(a.GetIdx() for a in nitrogen_fragment.GetAtoms() if a.GetFormalCharge() > 0))
+    if centre.GetAtomicNum() != 7:
+        cation_name = onium_name(nitrogen_fragment, centre, _ONIUM_STEMS[centre.GetAtomicNum()][0])
+    elif has_simple_imine_shape(nitrogen_fragment):
         cation_name = name_imine(nitrogen_fragment)
     else:
         cation_name = name_ammonium(nitrogen_fragment)
@@ -162,7 +190,7 @@ def _ammonium_prefix(mol, nitrogen_idx, chain_neighbor_idx):
     # way to know otherwise), so this module wraps it in parentheses
     # itself before injection, the same way `_ether.py`'s callers wrap a
     # compound alkoxy substituent (P-29.4).
-    if prefix != "azaniumyl":
+    if prefix not in ("azaniumyl", "sulfaniumyl", "oxidaniumyl", "phosphaniumyl", "selaniumyl"):
         prefix = enclose(prefix)
     return prefix
 
@@ -174,7 +202,7 @@ def name_zwitterion(mol) -> str:
             "construction, out of scope for this acyclic-only module"
         )
 
-    (nitrogen,) = (atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 7 and atom.GetFormalCharge() == 1)
+    (nitrogen,) = (atom for atom in mol.GetAtoms() if atom.GetFormalCharge() == 1)
     nitrogen_idx = nitrogen.GetIdx()
     anion_kind, anion_carbon_idx, anion_heteroatoms, sulfur_idx = _find_anion(mol)
 

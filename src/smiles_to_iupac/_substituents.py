@@ -375,6 +375,7 @@ class CompoundPrefix(str):
 
 
 ISOTOPE_LABELS = contextvars.ContextVar("isotope_labels", default=None)
+FORCED_BRANCH_NAMES = contextvars.ContextVar("forced_branch_names", default=None)
 
 
 def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aromatic_atoms=frozenset(), unsaturated=None):
@@ -503,6 +504,9 @@ def _plain_chain_positions(graph, root, coming_from, atoms):
 
 
 def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mol=None, unsaturated=None):
+    forced = FORCED_BRANCH_NAMES.get()
+    if forced and root in forced:
+        return forced[root]
     context = ISOTOPE_LABELS.get()
     if not context:
         return _name_branch_with_phane(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated)

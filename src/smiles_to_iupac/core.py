@@ -23,6 +23,7 @@ from ._aldehyde import name_aldehyde
 from ._aldehyde_amine import has_aldehyde_amine_shape, name_aldehyde_amine
 from ._ketone_amine import has_ketone_amine_shape, name_ketone_amine
 from ._amino_acid_derivative import has_amino_acid_shape, name_amino_acid
+from ._mixed_onium import has_mixed_onium_shape, name_mixed_onium
 from ._axial_stereo import cite_axial_stereo
 from ._glycoside import has_glycoside_shape, name_glycoside
 from ._sugar_acid import has_sugar_alcohol_acid_shape, name_sugar_alcohol_acid
@@ -1161,6 +1162,8 @@ def _name_mol(mol) -> str:
             return name_ylium_ring(mol)
         except UnsupportedStructure:
             pass
+    if has_mixed_onium_shape(mol):
+        return name_mixed_onium(mol)
     if has_polyammonium_shape(mol):
         return name_polyammonium(mol)
     if has_polycation_shape(mol):
