@@ -1678,3 +1678,10 @@ def lambda_cited(mol, atom_idx, locant):
     """`locant` with the λn mark of a nonstandard bonding number on skeletal atom `atom_idx` (P-14.1, P-15.4.1.3)."""
     bonding = nonstandard_bonding(mol.GetAtomWithIdx(atom_idx))
     return f"{locant}\u03bb{bonding}" if bonding else str(locant)
+
+
+def assembly_join(prefix, core):
+    """Prefixes directly precede an enclosing bracket of an assembly name and are hyphenated from a locant (P-16.5)."""
+    if not prefix:
+        return core
+    return prefix + core if core[0] == "[" else f"{prefix}-{core}"

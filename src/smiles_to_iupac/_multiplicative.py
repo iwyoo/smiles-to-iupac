@@ -15,7 +15,7 @@ from ._common import UnsupportedStructure, specified_stereo_elements
 from ._multiplicative_groups import SUFFIX_RANKS, classify, ring_seniority_key
 from ._multiplicative_linker import DecompositionRejected, name_component
 from ._multiplicative_prefix import SUFFIX_CARRIERS, hook_suspended
-from ._multiplicative_ring import bare_polycyclic_unit, name_monocyclic_unit, principal_rank_of
+from ._multiplicative_ring import bare_polycyclic_unit, name_monocyclic_unit, principal_rank_of, spec_of
 from ._multiplicative_text import enclose, multiplier_word, primed_locants
 
 _MAX_GROUP = 8
@@ -313,6 +313,8 @@ def _arm_chain(mol, center, edges, comp_of, first_edge, junction_atoms):
 
 def _unit_text(mol, unit, groups, name_function):
     ring_count = sum(1 for ring in mol.GetRingInfo().AtomRings() if set(ring) <= unit.ring_atoms)
+    if ring_count == 1 and unit.atoms == unit.ring_atoms and spec_of(mol, unit.ring_atoms) is None:
+        return bare_polycyclic_unit(mol, unit.ring_atoms, unit.junction, name_function)
     if ring_count == 1:
         return name_monocyclic_unit(mol, unit.ring_atoms, unit.junction, unit.linker_atom, groups, unit.atoms, name_function)
     if unit.atoms != unit.ring_atoms:
@@ -419,7 +421,7 @@ def _assemble(count, unit, central, arm_parts):
         )
         multiplier = multiplier_word(count, use_bis=not single_locant_only)
         linker = enclose(central_text + multiplier + enclose(arm_text))
-    if unit.substituted:
+    if unit.substituted or unit.text[0].isdigit():
         unit_text = multiplier_word(count, True) + enclose(unit.text)
     elif unit.has_locants:
         unit_text = multiplier_word(count, False) + enclose(unit.text)

@@ -14,6 +14,7 @@ from rdkit import Chem, rdBase
 from rdkit.Chem import CanonicalRankAtoms
 
 from ._common import (
+    assembly_join,
     alpha_sort_key,
     HALOGEN_PREFIXES,
     UnsupportedStructure,
@@ -1478,7 +1479,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
     if principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "sulfonamide", *_CHALCOGEN_SULFONAMIDE_CLASSES):
         amide_ns = _amide_n_names(mol, graph, halogens, aromatic_atoms, groups, ring_groups, principal)
         if amide_ns:
-            if attach is not None or n_names:
+            if n_names:
                 raise UnsupportedStructure("an N-substituted amide inside a unit is not handled by the chain engine")
             n_names = amide_ns
 
@@ -2085,7 +2086,7 @@ def assembly_substituent(mol, graph, root, coming_from, halogens, aromatic_atoms
     base = _assembly_base(specs, locants, joins[0], elide=True, ylidene=ylidene)
     spot = locants[root]
     core = f"[{base}]-{spot[1]}{chr(39) * spot[0]}-yl"
-    return (f"{prefix}-{core}" if prefix else core), True
+    return (assembly_join(prefix, core)), True
 
 
 def _assembly_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, stereo):
@@ -2173,7 +2174,7 @@ def _pair_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences,
         base = _assembly_base(specs, locants, joins[0], elide=word[0] in "aeiouy", ylidene=ylidene)
         spots = ",".join(cite(locants[o[1]]) for o in sorted(occurrences, key=lambda o: _locant_order(locants[o[1]])))
         core = f"[{base}]-{spots}-{word}"
-    name = f"{prefix}-{core}" if prefix else core
+    name = assembly_join(prefix, core)
     return count, ((-count,), name, (None, None, None, 0, {a: PrimedLocant(*loc) for a, loc in locants.items()}, True)), joins[0]
 
 

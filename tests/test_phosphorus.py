@@ -176,14 +176,18 @@ def test_phosphate_ester_unaffected_and_related(smiles, expected):
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles,expected",
     [
-        pytest.param("OP(=O)(O)CCP(=O)(O)O", id="second_phosphonic_acid_group"),
+        pytest.param("OP(=O)(O)CCP(=O)(O)O", "(ethane-1,2-diyl)bis(phosphonic acid)", id="carbon_linker"),
+        pytest.param("N(CP(O)(O)=O)CP(O)(O)=O", "[azanediylbis(methylene)]bis(phosphonic acid)", id="hetero_linker_outranks_amine"),
+        pytest.param(
+            "P(CP(O)(O)=O)(CP(O)(O)=O)CP(O)(O)=O", "[phosphanetriyltris(methylene)]tris(phosphonic acid)", id="three_units"
+        ),
     ],
 )
-def test_rejects_second_phosphonic_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_phosphonic_acids_joined_by_a_linker_are_multiplied(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
 
 
 @pytest.mark.parametrize(

@@ -4,7 +4,7 @@
 import re
 
 
-from ._common import UnsupportedStructure
+from ._common import UnsupportedStructure, assembly_join
 from ._multiplicative import _bare_key
 from ._multiplicative_ring import _SUFFIX_WORDS
 from ._common import multiplied_word
@@ -207,7 +207,7 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
             core = f"{hydro_prefix}[{base(multiplied_word(len(frees), 'ylidene')[0] in 'aeiouy')}]-{tail}-{multiplied_word(len(frees), 'ylidene')}"
         else:
             core = f"{ih_text}[{base(multiplied_word(len(frees), 'yl')[0] in 'aeiouy')}]-{free_spots}-{multiplied_word(len(frees), 'yl')}"
-        return (f"{prefix}-{core}" if prefix else core), True
+        return (assembly_join(prefix, core)), True
     count = len(occurrences)
     if principal is None:
         core = f"{ih_text}{base(False)}"
@@ -217,5 +217,5 @@ def system_assembly(mol, graph, halogens, aromatic_atoms, principal, occurrences
         word = multiplied_word(count, _SUFFIX_WORDS[_RING_SUFFIX[principal]])
         spots_text = ",".join(_cite(locants[o[1]]) for o in sorted(occurrences, key=lambda o: _order(locants[o[1]])))
         core = f"{ih_text}[{base(word[0] in 'aeiouy')}]-{spots_text}-{word}"
-    name = f"{prefix}-{core}" if prefix else core
+    name = assembly_join(prefix, core)
     return count, ((-count,), name, (None, None, None, 0, {a: PrimedLocant(*loc) for a, loc in locants.items()}, True))

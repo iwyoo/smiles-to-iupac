@@ -47,12 +47,18 @@ def _is_linker_atom(mol, atom):
         return False
     if atom.GetDegree() < 2 or atom.GetNumRadicalElectrons():
         return False
+    imine_nitrogen = (
+        atom.GetAtomicNum() == 7
+        and atom.GetDegree() == 2
+        and sorted(b.GetBondTypeAsDouble() for b in atom.GetBonds()) == [1.0, 2.0]
+        and all(b.GetOtherAtom(atom).GetAtomicNum() == 6 for b in atom.GetBonds())
+    )
     for bond in atom.GetBonds():
         other = bond.GetOtherAtom(atom)
         azo = atom.GetAtomicNum() == 7 and other.GetAtomicNum() == 7 and bond.GetBondTypeAsDouble() == 2.0
-        if bond.GetBondTypeAsDouble() != 1.0 and not azo:
+        if bond.GetBondTypeAsDouble() != 1.0 and not azo and not imine_nitrogen:
             return False
-        if other.GetAtomicNum() == 6 and is_functional_carbon(mol, other.GetIdx()):
+        if other.GetAtomicNum() == 6 and is_functional_carbon(mol, other.GetIdx()) and not imine_nitrogen:
             return False
     return True
 
@@ -452,7 +458,11 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
         elif _MULTIPLIED_HYDRIDE.match(text):
             lead = ",".join("1" + "'" * i for i in range(count)) + "-"
         linker = _linker_text(branches, central, arm_parts, bool(lead) or unit_kind != "hydride")
-        if unit_kind == "hydride" or text.startswith(("N-", "di", "tri", "tetra")) or any(ch.isdigit() or ch == "-" for ch in text):
+        if (
+            unit_kind == "hydride"
+            or text.startswith(("N-", "di", "tri", "tetra"))
+            or any(ch.isdigit() or ch in "- " for ch in text)
+        ):
             return f"{lead}{linker}{multiplier_word(count, True)}({text})"
         return f"{lead}{linker}{multiplier_word(count, False)}{text}"
     linker = _linker_text(branches, central, arm_parts)
@@ -475,6 +485,7 @@ def _attempt(mol, graph, stereo, arms, unit_kind="chain"):
     return f"{stereo_text}{lead}{linker}{multiplier_word(count, False)}{unit_phrase(text, tail)}"
 
 
+_CENTER_ACIDS = ("phosphonic acid", "arsonic acid", "stibonic acid")
 _HYDRIDE_ENDINGS = ("phosphane", "arsane", "silane", "germane", "stannane", "plumbane")
 _HYDRIDE_ORDER = (15, 33, 14, 32, 50, 82)
 _MULTIPLIED_HYDRIDE = re.compile(r"^(?:di|tri|tetra|penta|hexa|hepta|octa)(?:phosphane|arsane|silane|germane|stannane|plumbane)$")
@@ -495,6 +506,8 @@ def _unit_name_by_pipeline(unit, unit_kind):
         return None
     if unit_kind == "amide":
         return name if name.endswith("amide") else None
+    if unit_kind == "phosphonic":
+        return name if name in _CENTER_ACIDS else None
     if unit_kind == "anion":
         return name if re.search(r"(?:ide|uide|ate)$", name) else None
     return name if name.endswith(_HYDRIDE_ENDINGS) else None
@@ -586,10 +599,31 @@ def _hydride_candidates(mol, graph):
     return candidates
 
 
+def _phosphonic_candidates(mol, graph):
+    """Phosphonic, arsonic and stibonic acid groups joined to carbon: the acid outranks amines and ethers (P-41, P-45.1.2)."""
+    from ._phosphonic_acid import _SENIOR_ACIDS, _phosphonic_acid_phosphorus_atoms
+
+    if any(mol.HasSubstructMatch(query) for query in _SENIOR_ACIDS):
+        return {}
+    candidates = {}
+    for center in _phosphonic_acid_phosphorus_atoms(mol):
+        oxygens = {n.GetIdx() for n in center.GetNeighbors() if n.GetAtomicNum() == 8}
+        (root,) = [n.GetIdx() for n in center.GetNeighbors() if n.GetIdx() not in oxygens]
+        if mol.GetAtomWithIdx(root).GetAtomicNum() != 6:
+            return {}
+        atoms = oxygens | {center.GetIdx()}
+        candidates.setdefault(_key(mol, atoms, center.GetIdx()), []).append((center.GetIdx(), root, atoms))
+    return candidates
+
+
 def chain_multiplicative_name(mol, stereo):
     if len(Chem.GetMolFrags(mol)) != 1:
         return None
     graph = adjacency(mol)
+    for arms in _rank_candidates(_phosphonic_candidates(mol, graph), None):
+        name = _attempt(mol, graph, stereo, arms, "phosphonic")
+        if name is not None:
+            return name
     found = _principal_atoms(mol)
     if found is None:
         hydrides = _hydride_candidates(mol, graph)

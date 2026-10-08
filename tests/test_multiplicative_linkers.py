@@ -430,3 +430,20 @@ def test_substituted_metal_linker_and_principal_group_count_between_parents(smil
 def test_ring_unit_with_three_different_attachments_is_not_cited_as_a_triyl():
     with pytest.raises(NotImplementedError):
         smiles_to_iupac("CC(c1cc(CCCCS)c(CCCCS)cc1)C(C)c1cc(CCCCS)c(CCCCS)cc1")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("CN(C)C(=O)CCSCCC(=O)N(C)C", "3,3'-sulfanediylbis(N,N-dimethylpropanamide)"),
+        ("C(N1CCCCCCCCCCC1)N1CCCCCCCCCCC1", "1,1'-methylenebis(1-azacyclododecane)"),
+        ("C(N1CCOCC1)N1CCOCC1", "4,4'-methylenedimorpholine"),
+        ("C(CN=CCC(=O)O)N=CCC(=O)O", "3,3'-[ethane-1,2-diylbis(azanylylidene)]dipropanoic acid"),
+        (
+            "OC(=O)c1ccc(CC(C(=O)OC)c2ccc(C(O)=O)cc2)cc1",
+            "4,4'-(3-methoxy-3-oxopropane-1,2-diyl)dibenzoic acid",
+        ),
+    ],
+)
+def test_identical_parents_with_substituted_units_hetero_rings_imine_and_ester_linkers_are_multiplied(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
