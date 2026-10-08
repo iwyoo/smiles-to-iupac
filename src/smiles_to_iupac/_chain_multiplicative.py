@@ -651,6 +651,13 @@ def _hydride_candidates(mol, graph):
     if any(a.GetAtomicNum() == 7 for a in mol.GetAtoms()):
         return {}
     present = {a.GetAtomicNum() for a in mol.GetAtoms() if a.GetAtomicNum() in _HYDRIDE_ORDER}
+    if any(
+        n.GetAtomicNum() in (8, 16, 34, 52) and n.GetDegree() == 1 and n.GetTotalNumHs() == 1
+        for a in mol.GetAtoms()
+        if a.GetAtomicNum() in _HYDRIDE_ORDER
+        for n in a.GetNeighbors()
+    ):
+        return {}
     element = next((z for z in _HYDRIDE_ORDER if z in present), None)
     if element is None:
         return {}
