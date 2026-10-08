@@ -1182,7 +1182,7 @@ def alpha_sort_key(name: str) -> str:
         if stripped[:1] in ("(", "[", "{") and not _LEADING_STEREO_RE.match(stripped):
             stripped = stripped[1:]
     stripped = _ITALIC_PREFIX_RE.sub("", stripped)
-    return stripped.lower()
+    return re.sub(r"[^a-z]", "", stripped.lower())
 
 
 def citation_order_key(name: str):
