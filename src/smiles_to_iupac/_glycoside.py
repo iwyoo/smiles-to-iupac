@@ -14,6 +14,7 @@ from ._common import UnsupportedStructure, adjacency
 _HALIDES = {9: "fluoride", 17: "chloride", 35: "bromide", 53: "iodide"}
 _AGLYCONE_ELEMENTS = {6, 8, 9, 17, 35, 53}
 _MAX_CHAIN = 2
+_URONIC = {"acid": ("uronic acid",), "amide": ("uronamide",)}
 
 
 class _Unit:
@@ -104,6 +105,12 @@ def _capped_unit(mol, ring):
     ]
     if len(carbonyls) > 1:
         return None
+    amide_nitrogens = [
+        n.GetIdx()
+        for c in chain
+        for n in mol.GetAtomWithIdx(c).GetNeighbors()
+        if carbonyls and n.GetAtomicNum() == 7 and n.GetDegree() == 1 and n.GetTotalNumHs() == 2 and not n.GetFormalCharge()
+    ]
     editable = Chem.RWMol(mol)
     for atom in editable.GetAtoms():
         atom.SetIntProp("_orig", atom.GetIdx())
@@ -111,7 +118,7 @@ def _capped_unit(mol, ring):
         editable.RemoveAtom(index)
     for atom in editable.GetAtoms():
         origin = atom.GetIntProp("_orig")
-        if origin == exo.GetIdx() and kind != "oxygen":
+        if (origin == exo.GetIdx() and kind != "oxygen") or origin in amide_nitrogens:
             atom.SetAtomicNum(8)
         if origin not in ring_set and origin not in carbons:
             atom.SetNoImplicit(False)
@@ -126,7 +133,7 @@ def _capped_unit(mol, ring):
         return None
     name, order = found
     origin = {a.GetIdx(): a.GetIntProp("_orig") for a in sub.GetAtoms()}
-    unit = _Unit(atoms, carbons, anomeric, exo.GetIdx(), kind, name, tuple(origin[i] for i in order), bool(carbonyls))
+    unit = _Unit(atoms, carbons, anomeric, exo.GetIdx(), kind, name, tuple(origin[i] for i in order), ("amide" if amide_nitrogens else "acid") if carbonyls else False)
     return None if unit.uronic and unit.is_ketose else unit
 
 
@@ -162,15 +169,15 @@ def _parent_key(unit):
 
 
 def _glycose(unit):
-    return unit.name[: -len("ose")] + "uronic acid" if unit.uronic else unit.name
+    return unit.name[: -len("ose")] + _URONIC[unit.uronic][0] if unit.uronic else unit.name
 
 
 def _glycosyl(unit):
-    return unit.name[: -len("ose")] + "osyluronic acid" if unit.uronic else unit.name[: -len("e")] + "yl"
+    return unit.name[: -len("ose")] + "osyl" + _URONIC[unit.uronic][0] if unit.uronic else unit.name[: -len("e")] + "yl"
 
 
 def _glycoside_ending(unit):
-    return unit.name[: -len("ose")] + "osiduronic acid" if unit.uronic else unit.name[: -len("e")] + "ide"
+    return unit.name[: -len("ose")] + "osid" + _URONIC[unit.uronic][0] if unit.uronic else unit.name[: -len("e")] + "ide"
 
 
 def _bridges(mol, graph, units):

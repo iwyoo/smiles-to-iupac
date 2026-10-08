@@ -404,6 +404,22 @@ def test_substituted_monosaccharides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-66.1.1.1.2.5, P-66.3.1.2.4, P-66.5.1.2.4 amides, hydrazides, nitriles and esters of carbohydrate acids
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("NC(=O)[C@H](O)[C@@H](O)[C@H](O)[C@H](O)CO", "D-gluconamide", id="aldonamide"),
+        pytest.param("NNC(=O)[C@H](O)[C@@H](O)[C@H](O)[C@H](O)CO", "D-gluconohydrazide", id="aldonohydrazide"),
+        pytest.param("N#C[C@H](O)[C@@H](O)[C@H](O)[C@H](O)CO", "D-glucononitrile", id="aldononitrile"),
+        pytest.param("CC(C)OC(=O)[C@H](O)[C@@H](O)[C@H](O)[C@H](O)CO", "propan-2-yl D-gluconate", id="aldonate_ester"),
+        pytest.param("NC(=O)[C@H]1O[C@@H](OC)[C@H](O)[C@@H](O)[C@@H]1O", "methyl β-D-glucopyranosiduronamide", id="glycosiduronamide"),
+        pytest.param("NC(=O)[C@H]1O[C@H](O)[C@H](O)[C@@H](O)[C@@H]1O", "α-D-glucopyranuronamide", id="pyranuronamide"),
+    ],
+)
+def test_carbohydrate_acid_derivatives(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-102.5.6.5, P-102.5.6.6 alditols and monosaccharide carboxylic acids
 @pytest.mark.parametrize(
     "smiles,expected",
