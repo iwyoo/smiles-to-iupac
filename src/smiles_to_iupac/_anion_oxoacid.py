@@ -1,4 +1,4 @@
-"""Anions of phosphorus and sulfur oxoacids and their esters (P-72.2.2.2.1.1,
+"""Anions of phosphorus, boron and sulfur oxoacids and their esters (P-72.2.2.2.1.1,
 P-72.2.2.2.1.2): phosphinate/phosphonate/phosphate and their 'ite' analogues take
 the acid ending 'ate'/'ite'; acid esters of inorganic acids are named as 'hydrogen
 salts' with the ester groups cited first, then 'hydrogen' (P-65.6.2.3, P-65.6.3.3.5).
@@ -18,6 +18,7 @@ _PHOSPHORUS = {
     (3, 1): "phosphonite",
     (3, 2): "phosphinite",
 }
+_BORON = {0: "borate", 1: "boronate", 2: "borinate"}
 
 
 def oxoacid_center(mol):
@@ -29,7 +30,7 @@ def oxoacid_center(mol):
     if len(hosts) != 1:
         return None
     center = mol.GetAtomWithIdx(next(iter(hosts)))
-    if center.GetAtomicNum() == 15:
+    if center.GetAtomicNum() in (5, 15):
         return center
     if center.GetAtomicNum() == 16 and not any(n.GetAtomicNum() == 6 for n in center.GetNeighbors()):
         return center
@@ -65,9 +66,16 @@ def name_oxoacid_anion(mol, center):
             esters.append(name_branch(graph, other.GetIdx(), n.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True))
         else:
             raise UnsupportedStructure("this oxoacid substituent is not supported yet")
-    if any(a.GetIdx() != center.GetIdx() and a.GetAtomicNum() in (15, 16) for a in mol.GetAtoms()):
+    if any(a.GetIdx() != center.GetIdx() and a.GetAtomicNum() in (5, 15, 16) for a in mol.GetAtoms()):
         raise UnsupportedStructure("several phosphorus atoms are not supported here")
-    if center.GetAtomicNum() == 15:
+    if center.GetAtomicNum() == 5:
+        if oxo or len(carbons) > 2:
+            raise UnsupportedStructure("this boron acid pattern is not supported yet")
+        entries = [
+            name_branch(graph, c, center.GetIdx(), halogens, aromatic_atoms, mol=mol, unsaturated=True) for c in carbons
+        ]
+        parent = (format_mononuclear_prefixes(entries) if entries else "") + _BORON[len(carbons)]
+    elif center.GetAtomicNum() == 15:
         key = (5 if oxo else 3, len(carbons))
         if key not in _PHOSPHORUS:
             raise UnsupportedStructure("this phosphorus oxoacid pattern is not supported yet")

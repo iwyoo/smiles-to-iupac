@@ -619,10 +619,12 @@ def _mancude_candidates(mol, skeleton_atoms, sp3):
         if mol.GetAtomWithIdx(a).GetAtomicNum() == 6
     ]
     attempts = (
-        [("none", None)]
-        + [("nh", a) for a in nitrogens]
-        + [("ch2", (a,)) for a in carbons]
-        + [("ch2", pair) for pair in combinations(carbons, 2)]
+        [((), ())]
+        + [((a,), ()) for a in nitrogens]
+        + [((), (a,)) for a in carbons]
+        + [((), pair) for pair in combinations(carbons, 2)]
+        + [(pair, ()) for pair in combinations(nitrogens, 2)]
+        + [((n,), (c,)) for n in nitrogens for c in carbons]
     )
     holders = {
         a
@@ -638,20 +640,19 @@ def _mancude_candidates(mol, skeleton_atoms, sp3):
     neighbours = {
         a: {n.GetIdx() for n in mol.GetAtomWithIdx(a).GetNeighbors() if n.GetIdx() in holders} for a in holders
     }
-    for mode, atom_idx in attempts:
-        chosen = {atom_idx} if mode == "nh" else set(atom_idx) if mode == "ch2" else set()
+    for hydrogenated, saturated in attempts:
+        chosen = set(hydrogenated) | set(saturated)
         if not _perfect_matching(holders - chosen, neighbours):
             continue
         trial = Chem.RWMol(bare)
-        if mode == "nh":
-            trial.GetAtomWithIdx(new_of[atom_idx]).SetNumExplicitHs(1)
-        elif mode == "ch2":
-            for member in atom_idx:
-                target = new_of[member]
-                trial.GetAtomWithIdx(target).SetIsAromatic(False)
-                for bond in list(trial.GetAtomWithIdx(target).GetBonds()):
-                    bond.SetBondType(Chem.BondType.SINGLE)
-                    bond.SetIsAromatic(False)
+        for member in hydrogenated:
+            trial.GetAtomWithIdx(new_of[member]).SetNumExplicitHs(1)
+        for member in saturated:
+            target = new_of[member]
+            trial.GetAtomWithIdx(target).SetIsAromatic(False)
+            for bond in list(trial.GetAtomWithIdx(target).GetBonds()):
+                bond.SetBondType(Chem.BondType.SINGLE)
+                bond.SetIsAromatic(False)
         try:
             sanitize_probe(trial)
         except Exception:
