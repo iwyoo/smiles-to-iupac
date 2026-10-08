@@ -17,7 +17,8 @@ _MAX_CHAIN = 2
 
 
 class _Unit:
-    def __init__(self, atoms, carbons, anomeric, exo, exo_kind, name, order):
+    def __init__(self, atoms, carbons, anomeric, exo, exo_kind, name, order, uronic=False):
+        self.uronic = uronic
         self.atoms = atoms
         self.carbons = carbons
         self.anomeric = anomeric
@@ -95,10 +96,18 @@ def _capped_unit(mol, ring):
     kind = _exo_kind(exo)
     if kind is None:
         return None
+    carbonyls = [
+        n.GetIdx()
+        for c in chain
+        for n in mol.GetAtomWithIdx(c).GetNeighbors()
+        if n.GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(c, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    ]
+    if len(carbonyls) > 1:
+        return None
     editable = Chem.RWMol(mol)
     for atom in editable.GetAtoms():
         atom.SetIntProp("_orig", atom.GetIdx())
-    for index in sorted(set(range(mol.GetNumAtoms())) - atoms, reverse=True):
+    for index in sorted(set(range(mol.GetNumAtoms())) - atoms | set(carbonyls), reverse=True):
         editable.RemoveAtom(index)
     for atom in editable.GetAtoms():
         origin = atom.GetIntProp("_orig")
@@ -117,7 +126,8 @@ def _capped_unit(mol, ring):
         return None
     name, order = found
     origin = {a.GetIdx(): a.GetIntProp("_orig") for a in sub.GetAtoms()}
-    return _Unit(atoms, carbons, anomeric, exo.GetIdx(), kind, name, tuple(origin[i] for i in order))
+    unit = _Unit(atoms, carbons, anomeric, exo.GetIdx(), kind, name, tuple(origin[i] for i in order), bool(carbonyls))
+    return None if unit.uronic and unit.is_ketose else unit
 
 
 def _units(mol):
@@ -151,12 +161,16 @@ def _parent_key(unit):
     return (unit.is_ketose, stem[2:], stem[0] != "D", anomeric != "α")
 
 
+def _glycose(unit):
+    return unit.name[: -len("ose")] + "uronic acid" if unit.uronic else unit.name
+
+
 def _glycosyl(unit):
-    return unit.name[: -len("e")] + "yl"
+    return unit.name[: -len("ose")] + "osyluronic acid" if unit.uronic else unit.name[: -len("e")] + "yl"
 
 
 def _glycoside_ending(unit):
-    return unit.name[: -len("e")] + "ide"
+    return unit.name[: -len("ose")] + "osiduronic acid" if unit.uronic else unit.name[: -len("e")] + "ide"
 
 
 def _bridges(mol, graph, units):
@@ -223,7 +237,7 @@ def _name_tree(mol, graph, units):
         raise UnsupportedStructure("the parent unit is also a glycosyl donor")
 
     def chain(unit, role):
-        ending = {"glycoside": _glycoside_ending, "glycose": lambda u: u.name, "glycosyl": _glycosyl}[role](unit)
+        ending = {"glycoside": _glycoside_ending, "glycose": _glycose, "glycosyl": _glycosyl}[role](unit)
         below = children.get(id(unit))
         if not below:
             return ending
@@ -279,6 +293,8 @@ def glycoside_name(mol):
         covered = set().union(*(u.atoms for u in units))
         if len(units) == 1 and units[0].exo_kind != "oxygen":
             unit = units[0]
+            if unit.uronic:
+                return None
             if covered != set(range(mol.GetNumAtoms())) and unit.exo_kind != "substituted amine":
                 return None
             if unit.exo_kind == "amine":
@@ -293,7 +309,7 @@ def glycoside_name(mol):
                 return f"N-{cited_group(mol, graph, root, unit.exo)[0]}-{_glycosyl(unit)}amine"
             return f"{_glycosyl(unit)} {_HALIDES[mol.GetAtomWithIdx(unit.exo).GetAtomicNum()]}"
         text, aglycone_atoms = _name_tree(mol, graph, units)
-        if len(units) == 1 and not aglycone_atoms:
+        if len(units) == 1 and not aglycone_atoms and not units[0].uronic:
             return None
         return text if covered | aglycone_atoms == set(range(mol.GetNumAtoms())) else None
     except UnsupportedStructure:

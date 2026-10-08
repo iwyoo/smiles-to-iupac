@@ -382,6 +382,23 @@ def test_glycosides_and_oligosaccharides(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+# P-102.5.6.5, P-102.5.6.6 alditols and monosaccharide carboxylic acids
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("OC[C@@H](O)[C@@H](O)[C@H](O)[C@@H](O)CO", "D-glucitol", id="alditol_parent_chosen_by_alphabetical_stem"),
+        pytest.param("OC[C@H](O)[C@@H](O)[C@@H](O)[C@H](O)CO", "galactitol", id="meso_alditol_has_no_dl"),
+        pytest.param("O=C(O)[C@H](O)[C@@H](O)[C@H](O)[C@H](O)CO", "D-gluconic acid", id="aldonic_acid"),
+        pytest.param("O=C[C@H](O)[C@@H](O)[C@H](O)[C@H](O)C(=O)O", "D-glucuronic acid", id="uronic_acid"),
+        pytest.param("O=C(O)[C@@H](O)[C@@H](O)[C@H](O)[C@@H](O)C(=O)O", "D-glucaric acid", id="aldaric_acid"),
+        pytest.param("OC(=O)[C@H]1O[C@H](O)[C@H](O)[C@@H](O)[C@@H]1O", "α-D-glucopyranuronic acid", id="cyclic_uronic_acid"),
+        pytest.param("OC(=O)[C@H]1O[C@@H](OC)[C@H](O)[C@@H](O)[C@@H]1O", "methyl β-D-glucopyranosiduronic acid", id="uronic_acid_glycoside"),
+    ],
+)
+def test_alditols_and_sugar_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 # P-103.2.3 N-, S- and O-substitution of retained amino acid names
 @pytest.mark.parametrize(
     "smiles,expected",
