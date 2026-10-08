@@ -67,17 +67,32 @@ def cyanamide_name(mol):
             continue
         if amino.IsInRing() or amino.GetIsAromatic() or any(b.GetBondTypeAsDouble() != 1.0 for b in amino.GetBonds()):
             continue
-        found = _hydrocarbon_arms(mol, graph, amino.GetIdx(), {atom.GetIdx()})
+        betas = [n for n in amino.GetNeighbors() if n.GetAtomicNum() == 7]
+        if len(betas) > 1:
+            continue
+        found = _hydrocarbon_arms(mol, graph, amino.GetIdx(), {atom.GetIdx(), *(b.GetIdx() for b in betas)})
         if found is None:
             continue
         names, covered = found
-        if len(covered) + 3 != mol.GetNumAtoms():
+        entries = [("N" if betas else 1, name, compound) for name, compound in names]
+        extra = 3
+        if betas:
+            beta = betas[0]
+            if beta.IsInRing() or beta.GetIsAromatic() or any(b.GetBondTypeAsDouble() != 1.0 for b in beta.GetBonds()):
+                continue
+            tail = _hydrocarbon_arms(mol, graph, beta.GetIdx(), {amino.GetIdx()})
+            if tail is None:
+                continue
+            entries += [("N'", name, compound) for name, compound in tail[0]]
+            covered = covered | tail[1]
+            extra = 4
+        if len(covered) + extra != mol.GetNumAtoms():
             continue
         grouped = {}
-        for name, compound in names:
-            grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(1)
-        prefix = format_substituent_prefixes(grouped, omit_locants=True) if grouped else ""
-        return prefix + "cyanamide"
+        for locant, name, compound in entries:
+            grouped.setdefault(name, {"locants": [], "compound": compound})["locants"].append(locant)
+        prefix = format_substituent_prefixes(grouped, omit_locants=not betas) if grouped else ""
+        return prefix + ("cyanohydrazide" if betas else "cyanamide")
     return None
 
 
@@ -177,16 +192,31 @@ def _assemble(mol, graph, chain):
     for middle, chalcogen in zip(carbons[1:-1], chalcogens[1:-1]):
         if sum(1 for n in middle.GetNeighbors() if n.GetIdx() != chalcogen.GetIdx()) != 2:
             return None
-    arms = []
+    arms, hydrazide = [], []
+    carbon_set = {c.GetIdx() for c in carbons}
     for nitrogen in ends:
         if any(b.GetBondTypeAsDouble() != 1.0 for b in nitrogen.GetBonds()):
             return None
-        found = _hydrocarbon_arms(mol, graph, nitrogen.GetIdx(), {c.GetIdx() for c in carbons})
+        betas = [n for n in nitrogen.GetNeighbors() if n.GetAtomicNum() == 7]
+        hydrazide.append(bool(betas))
+        if len(betas) > 1:
+            return None
+        found = _hydrocarbon_arms(mol, graph, nitrogen.GetIdx(), carbon_set | {b.GetIdx() for b in betas})
         if found is None:
             return None
-        arms.append(found)
+        names = {"": found[0]}
         used |= {nitrogen.GetIdx()} | found[1]
-    if len(used) != mol.GetNumAtoms():
+        if betas:
+            beta = betas[0]
+            if beta.IsInRing() or beta.GetIsAromatic() or beta.GetDegree() > 3 or any(b.GetBondTypeAsDouble() != 1.0 for b in beta.GetBonds()):
+                return None
+            tail = _hydrocarbon_arms(mol, graph, beta.GetIdx(), {nitrogen.GetIdx()})
+            if tail is None:
+                return None
+            names["'"] = tail[0]
+            used |= {beta.GetIdx()} | tail[1]
+        arms.append(names)
+    if hydrazide[0] != hydrazide[1] or len(used) != mol.GetNumAtoms():
         return None
 
     best = None
@@ -207,8 +237,8 @@ def _assemble(mol, graph, chain):
         substituents = []
         for rank, index in enumerate(order):
             if index in (0, len(carbons) - 1):
-                names = arms[0 if index == 0 else 1][0]
-                substituents.extend((f"N{positions[rank]}", name, compound) for name, compound in names)
+                for prime, names in arms[0 if index == 0 else 1].items():
+                    substituents.extend((f"N{prime}{positions[rank]}", name, compound) for name, compound in names)
         key = (
             tuple(sorted(p for p, _, _ in replacements)),
             tuple(sorted(_locant_number(loc) for loc, _, _ in substituents)),
@@ -223,11 +253,11 @@ def _assemble(mol, graph, chain):
     head = "-".join(
         part for part in (format_substituent_prefixes(prefixes) if prefixes else "", _replacement_text(replacements)) if part
     )
-    return f"{head}{numerical_term(len(carbons))}carbonic diamide"
+    return f"{head}{numerical_term(len(carbons))}carbonic {'dihydrazide' if hydrazide[0] else 'diamide'}"
 
 
 def _locant_number(locant):
-    return int(locant[1:])
+    return int(locant.lstrip("N'"))
 
 
 def _linker_prefix(group, position):
