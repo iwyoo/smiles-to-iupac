@@ -56,16 +56,26 @@ _INOSITOL_SMILES = {
     "1L-chiro-inositol": "O[C@H]1[C@H](O)[C@@H](O)[C@H](O)[C@H](O)[C@H]1O",
     "1D-chiro-inositol": "O[C@H]1[C@H](O)[C@H](O)[C@@H](O)[C@H](O)[C@H]1O",
 }
-_CANONICAL_TO_NAME = {Chem.CanonSmiles(smiles): name for name, smiles in _INOSITOL_SMILES.items()}
-assert len(_CANONICAL_TO_NAME) == len(_INOSITOL_SMILES), (
+_TEMPLATES = {name: Chem.MolFromSmiles(smiles) for name, smiles in _INOSITOL_SMILES.items()}
+assert len({Chem.CanonSmiles(smiles) for smiles in _INOSITOL_SMILES.values()}) == len(_INOSITOL_SMILES), (
     "two entries above canonicalized to the same key -- a real name "
     "collision, not just a duplicate row"
 )
 
 
+def _match(mol):
+    # Canonical SMILES of a meso ring depends on the stereo-perception mode, so compare by chiral substructure.
+    if mol.GetNumAtoms() != 12:
+        return None
+    for name, template in _TEMPLATES.items():
+        if mol.HasSubstructMatch(template, useChirality=True):
+            return name
+    return None
+
+
 def has_inositol_shape(mol) -> bool:
-    return Chem.MolToSmiles(mol) in _CANONICAL_TO_NAME
+    return _match(mol) is not None
 
 
 def name_inositol(mol) -> str:
-    return _CANONICAL_TO_NAME[Chem.MolToSmiles(mol)]
+    return _match(mol)
