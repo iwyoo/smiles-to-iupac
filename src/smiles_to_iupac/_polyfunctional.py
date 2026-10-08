@@ -1820,7 +1820,7 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             and (
                 a.GetIdx() in principal_atoms
                 or not is_functional_carbon(mol, a.GetIdx())
-                or ((_is_acid_family(principal) or principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES)) and _junior_end_group(mol, a.GetIdx()))
+                or ((_is_acid_family(principal) or principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "hydrazide")) and _junior_end_group(mol, a.GetIdx()))
             )
         }
         try:
@@ -4147,7 +4147,7 @@ def _evaluate(
         and not ene
         and not yne
         and not (
-            principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES)
+            principal in ("amide", *_CHALCOGEN_AMIDE_CLASSES, "hydrazide")
             and any(mol.GetAtomWithIdx(a).GetAtomicNum() == 7 and mol.GetAtomWithIdx(a).GetTotalNumHs() for a in owned)
         )
         and (

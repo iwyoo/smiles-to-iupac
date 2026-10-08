@@ -11,6 +11,13 @@ from ._multiplicative_text import enclose
 _X_INFIX = {"O": "", "S": "thio", "Se": "seleno", "Te": "telluro", "NH": "imido", "NNH2": "hydrazono"}
 _SYMBOL = {8: "O", 16: "S", 34: "Se", 52: "Te"}
 _HALIDE_INFIX = {9: "fluorid", 17: "chlorid", 35: "bromid", 53: "iodid"}
+_HYDRAZINECARBONYL = {
+    "O": "hydrazinecarbonyl",
+    "S": "hydrazinecarbothioyl",
+    "Se": "hydrazinecarboselenoyl",
+    "Te": "hydrazinecarbotelluroyl",
+    "NH": "hydrazinecarboximidoyl",
+}
 _CARBAM = {"O": "carbamoyl", "S": "carbamothioyl", "Se": "carbamoselenoyl", "Te": "carbamotelluroyl", "NH": "carbamimidoyl", "NNH2": "carbamohydrazonoyl"}
 _FORM = {"O": "formyl", "S": "methanethioyl", "Se": "methaneselenoyl", "Te": "methanetelluroyl", "NH": "methanimidoyl", "NNH2": "methanehydrazonoyl"}
 
@@ -166,8 +173,8 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
 
         if not subs and not n_entries:
             return _CARBAM[x], False
-        if x in ("O", "NH") and len(subs) == 1 and not n_entries and _is_amino_nitrogen(mol, subs[0], z_idx):
-            return "hydrazinecarbonyl" if x == "O" else "hydrazinecarboximidoyl", True
+        if x in _HYDRAZINECARBONYL and len(subs) == 1 and not n_entries and _is_amino_nitrogen(mol, subs[0], z_idx):
+            return _HYDRAZINECARBONYL[x], True
         stem = _CARBAM[x]
         if subs and mol.GetAtomWithIdx(z_idx).IsInRing() and x in ("O", "S"):
             from ._hetero_prefixes import _ring_nitrogen_acyl

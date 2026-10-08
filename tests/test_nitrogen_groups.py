@@ -1380,3 +1380,15 @@ def test_acylamino_prefix_on_heteroaromatic_ring(smiles, expected):
 )
 def test_imidate_prefix_on_ring_and_chain_acids(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("NNC(=S)C(=O)NN", "2-hydrazinyl-2-sulfanylideneacetohydrazide"),
+        ("NNC(=S)CC(=O)NN", "3-hydrazinyl-3-sulfanylidenepropanehydrazide"),
+        ("NNC(=S)CCCC(=O)NN", "5-hydrazinyl-5-sulfanylidenepentanehydrazide"),
+    ],
+)
+def test_chalcogen_hydrazide_end_group_beside_a_hydrazide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
