@@ -412,6 +412,21 @@ def _thioacyl(mol, idx):
     return atom.GetAtomicNum() in (16, 34, 52) and sum(n.GetAtomicNum() == 8 for n in terminal) == 2
 
 
+def _chalcogen_formyl(mol, idx):
+    """A -CH=S, -CH=Se or -CH=Te group, the analogue of formyl, which cannot join a chain from a substituent root."""
+    atom = mol.GetAtomWithIdx(idx)
+    return (
+        atom.GetDegree() == 2
+        and atom.GetTotalNumHs() == 1
+        and any(
+            n.GetAtomicNum() in (16, 34, 52)
+            and n.GetDegree() == 1
+            and mol.GetBondBetweenAtoms(idx, n.GetIdx()).GetBondTypeAsDouble() == 2.0
+            for n in atom.GetNeighbors()
+        )
+    )
+
+
 def _imidoyl_centre(mol, idx):
     """A carbon with a terminal =NH, or a sulfonyl-type S, Se or Te with two terminal =O or =NH of which at least one is
     =NH: the acyl group of an imidamide (P-66.4.1.3.5)."""
@@ -473,7 +488,7 @@ def hetero_branch_name(graph, root, coming_from, halogens, aromatic_atoms, mol):
         if named is not None:
             return named
         if is_functional_carbon(mol, root) or _carbonyl_oxygen(mol, root) is not None or (
-            EXTENDED_PREFIXES.get() and _thioacyl(mol, root)
+            (EXTENDED_PREFIXES.get() or _chalcogen_formyl(mol, root)) and _thioacyl(mol, root)
         ):
             return _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol)
         return None
@@ -933,6 +948,19 @@ def _is_plain_amidine(mol, graph, root, coming_from):
     )
 
 
+_NITRILE_OXIDE_YLIDENE = {8: "oxo", 16: "sulfanylidene", 34: "selanylidene", 52: "tellanylidene"}
+
+
+def _nitrile_oxide_prefix(mol, nitrogen):
+    """'(oxo-\u03bb5-azanylidyne)methyl' for the nitrogen of a nitrile oxide or its chalcogen analogue cited as a prefix
+    (P-66.5.4.2), else None."""
+    atom = mol.GetAtomWithIdx(nitrogen)
+    for n in atom.GetNeighbors():
+        if n.GetAtomicNum() in _NITRILE_OXIDE_YLIDENE and n.GetDegree() == 1:
+            return f"({_NITRILE_OXIDE_YLIDENE[n.GetAtomicNum()]}-\u03bb5-azanylidyne)methyl"
+    return None
+
+
 def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
     from ._substituents import ISOTOPE_LABELS, _labelled_carboxy, name_branch
 
@@ -956,6 +984,9 @@ def _functional_carbon(graph, root, coming_from, halogens, aromatic_atoms, mol):
             return format_mononuclear_prefixes(entries) + "methylidene", True
     triple_n = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 7 and mol.GetBondBetweenAtoms(root, n).GetBondTypeAsDouble() == 3.0]
     if triple_n and len(others) == 1:
+        nitrile_oxide = _nitrile_oxide_prefix(mol, triple_n[0])
+        if nitrile_oxide is not None:
+            return nitrile_oxide, True
         return "cyano", False
     from ._acid_prefixes import acid_group_prefix
 

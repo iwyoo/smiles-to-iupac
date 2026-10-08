@@ -13,7 +13,7 @@ from ._substituents import format_mononuclear_prefixes, format_substituent_prefi
 _STEMS = {7: "azane", 14: "silane", 15: "phosphane", 32: "germane", 33: "arsane", 50: "stannane", 51: "stibane", 82: "plumbane", 83: "bismuthane"}
 
 
-def _chain_atoms(mol, graph, skip_nitrogen=False):
+def _chain_atoms(mol, graph, skip_nitrogen=False, allow_double=False):
     elements = {
         a.GetAtomicNum()
         for a in mol.GetAtoms()
@@ -39,7 +39,8 @@ def _chain_atoms(mol, graph, skip_nitrogen=False):
     if len(chain) != len(atoms):
         return None
     for a, b in zip(chain, chain[1:]):
-        if mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() != 1.0:
+        order = mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble()
+        if order != 1.0 and not (allow_double and order == 2.0):
             return None
     return z, chain
 

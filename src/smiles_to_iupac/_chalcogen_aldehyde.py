@@ -65,9 +65,11 @@ def name_chalcogen_aldehyde(mol) -> str:
     chalcogens = _groups(mol)
     if not chalcogens:
         raise UnsupportedStructure("no chalcogen aldehyde group")
-    elements = {mol.GetAtomWithIdx(x).GetAtomicNum() for x in chalcogens}
-    if len(elements) != 1 or mol.HasSubstructMatch(_ALDEHYDE):
+    if mol.HasSubstructMatch(_ALDEHYDE):
         raise UnsupportedStructure("mixed aldehyde and chalcogen aldehyde groups are not supported yet")
+    senior = min((mol.GetAtomWithIdx(x).GetAtomicNum() for x in chalcogens))
+    chalcogens = [x for x in chalcogens if mol.GetAtomWithIdx(x).GetAtomicNum() == senior]
+    elements = {senior}
     healed = Chem.RWMol(mol)
     for x in chalcogens:
         healed.GetAtomWithIdx(x).SetAtomicNum(8)
@@ -75,4 +77,11 @@ def name_chalcogen_aldehyde(mol) -> str:
     Chem.SanitizeMol(healed)
     from .core import _smiles_to_iupac_unabridged
 
-    return _rename(_smiles_to_iupac_unabridged(Chem.MolToSmiles(healed)), elements.pop(), len(chalcogens))
+    healed_name = _smiles_to_iupac_unabridged(Chem.MolToSmiles(healed))
+    original_oxo = any(
+        a.GetAtomicNum() == 8 and a.GetDegree() == 1 and mol.GetBondBetweenAtoms(a.GetIdx(), a.GetNeighbors()[0].GetIdx()).GetBondTypeAsDouble() == 2.0
+        for a in mol.GetAtoms()
+    )
+    if "oxo" in healed_name and not original_oxo:
+        raise UnsupportedStructure("a chalcogen aldehyde group expressed as a prefix beside another one is not supported yet")
+    return _rename(healed_name, elements.pop(), len(chalcogens))

@@ -1123,3 +1123,14 @@ def test_peroxy_prefixes_without_a_principal_group(smiles, expected):
 )
 def test_chalcogen_aldehydes_and_ring_nitrogen_nitriles(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("S=CCCC=[Se]", "4-selanylidenebutanethial"),
+        ("S=CC1CCC(C(N)=O)CC1", "4-(methanethioyl)cyclohexane-1-carboxamide"),
+    ],
+)
+def test_mixed_chalcogen_aldehydes_and_methanethioyl_beside_an_amide(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

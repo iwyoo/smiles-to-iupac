@@ -113,7 +113,7 @@ def _parent(mol, graph):
     """(kind, skeleton atoms, parent hydride name) of the heteroacyclic parent, or None."""
     if mol.GetRingInfo().NumRings():
         return None
-    found = _chain_atoms(mol, graph, skip_nitrogen=True)
+    found = _chain_atoms(mol, graph, skip_nitrogen=True) or _chain_atoms(mol, graph, allow_double=True)
     if found is not None:
         z, chain = found
         return "chain", chain, f"{multiplying_prefix(len(chain))}{_STEMS[z]}"
@@ -195,18 +195,27 @@ def name_hydride_carbo_suffix(mol) -> str:
     for candidate in (skeleton, skeleton[::-1]):
         position_of = {a: i + 1 for i, a in enumerate(candidate)}
         suffix_locants = sorted(position_of[host] for host in principal_carbons.values())
+        ene_locants = [
+            i + 1 for i, (a, b) in enumerate(zip(candidate, candidate[1:])) if mol.GetBondBetweenAtoms(a, b).GetBondTypeAsDouble() == 2.0
+        ]
         grouped = group_substituents(_merge(entries, position_of))
         locant_set, _, citation = substituent_locant_set_and_citation(grouped)
-        key = (suffix_locants, locant_set, citation)
+        key = (suffix_locants, ene_locants, locant_set, citation)
         if best is None or key < best[0]:
-            best = (key, suffix_locants, grouped)
+            best = (key, suffix_locants, ene_locants, grouped)
 
-    _, suffix_locants, grouped = best
+    _, suffix_locants, ene_locants, grouped = best
     total = count + sum(len(info["locants"]) for info in grouped.values())
     siloxane = parent_name.endswith("siloxane")
-    symmetric_sole = total == 1 and len(skeleton) == (3 if siloxane else 2)
+    symmetric_sole = total == 1 and len(skeleton) == (3 if siloxane else 2) and not ene_locants
     body = multiplied_word(count, word)
     prefix = format_substituent_prefixes(grouped)
+    if ene_locants:
+        stem = parent_name[:-3]
+        if len(skeleton) == 2:
+            parent_name = f"{stem}ene"
+        else:
+            parent_name = f"{stem}{'a' if len(ene_locants) > 1 else ''}-{','.join(map(str, ene_locants))}-{multiplied_word(len(ene_locants), 'ene')}"
     if symmetric_sole:
         return f"{prefix}{parent_name}{body}"
     return f"{prefix}{parent_name}-{','.join(map(str, suffix_locants))}-{body}"
