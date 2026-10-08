@@ -1133,7 +1133,7 @@ def _terminal_amide(graph, mol, carbon, parent):
         return False
     others = [n for n in graph[carbon] if n != parent]
     oxo = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() == 1 and mol.GetBondBetweenAtoms(carbon, n).GetBondTypeAsDouble() == 2.0]
-    amino = [n for n in others if mol.GetAtomWithIdx(n).GetAtomicNum() == 7 and not mol.GetAtomWithIdx(n).GetFormalCharge() and not mol.GetAtomWithIdx(n).IsInRing() and mol.GetBondBetweenAtoms(carbon, n).GetBondTypeAsDouble() == 1.0]
+    amino = [n for n in others if (mol.GetAtomWithIdx(n).GetAtomicNum() == 7 or (mol.GetAtomWithIdx(n).GetAtomicNum() == 8 and mol.GetAtomWithIdx(n).GetDegree() == 2)) and not mol.GetAtomWithIdx(n).GetFormalCharge() and not mol.GetAtomWithIdx(n).IsInRing() and mol.GetBondBetweenAtoms(carbon, n).GetBondTypeAsDouble() == 1.0]
     return len(oxo) == 1 and len(amino) == 1 and mol.GetBondBetweenAtoms(carbon, parent).GetBondTypeAsDouble() == 1.0
 
 

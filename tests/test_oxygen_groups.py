@@ -1149,3 +1149,15 @@ def test_mixed_chalcogen_aldehydes_and_methanethioyl_beside_an_amide(smiles, exp
 )
 def test_polyester_seniority_peroxydicarbonic_and_acyl_pseudohalide_gaps(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("COC(=O)CC1CCCCC1C(=O)O", "2-(2-methoxy-2-oxoethyl)cyclohexane-1-carboxylic acid"),
+        ("NC(=O)CC1CCCCC1C(=O)O", "2-(2-amino-2-oxoethyl)cyclohexane-1-carboxylic acid"),
+        ("CCOC(=O)CC(Cc1ccccc1)C(=O)O", "2-benzyl-4-ethoxy-4-oxobutanoic acid"),
+    ],
+)
+def test_ester_end_carbon_joins_the_substituent_chain(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
