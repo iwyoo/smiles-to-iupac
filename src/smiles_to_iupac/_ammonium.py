@@ -248,5 +248,33 @@ def name_ammonium(mol) -> str:
 
     if sum(a.GetAtomicNum() == 7 for a in mol.GetAtoms()) > 1:
         raise UnsupportedStructure("a neutral amino group beside the ammonium group is a prefix of the aminium name")
-    amine_name = name_amine(neutral_mol)
+    if len(neighbors) > 1 and not mol.GetRingInfo().NumRings() and _forced_prefixes_active():
+        bonds = [b for b in non_single_bonds(neutral_mol) if b[2] in (2.0, 3.0)]
+        amine_name = _name_acyclic_secondary_tertiary_amine(
+            neutral_mol, nitrogen.GetIdx(), tuple(n.GetIdx() for n in neighbors), bonds, specified_stereo_elements(mol)
+        )
+        return amine_name[:-1] + "ium"
+    try:
+        amine_name = name_amine(neutral_mol)
+        if not _cites_forced_prefixes(amine_name):
+            raise UnsupportedStructure("the amine namer dropped a prefix supplied for a further onium group")
+    except UnsupportedStructure:
+        from ._polyfunctional import name_polyfunctional
+
+        amine_name = name_polyfunctional(neutral_mol)
+        if not amine_name.endswith("amine") or not _cites_forced_prefixes(amine_name):
+            raise
     return amine_name[:-1] + "ium"
+
+
+def _forced_prefixes_active():
+    from ._substituents import FORCED_BRANCH_NAMES
+
+    return FORCED_BRANCH_NAMES.get() is not None
+
+
+def _cites_forced_prefixes(name):
+    from ._substituents import FORCED_BRANCH_NAMES
+
+    forced = FORCED_BRANCH_NAMES.get()
+    return forced is None or all(text in name for text, _ in forced[1].values())

@@ -809,10 +809,11 @@ def name_polyfunctional(mol) -> str:
         if center is not None:
             return _name_isotopic(mol, *split, build=lambda clean, labels: _name_labelled_ring_center(clean, labels, center))
         return _name_isotopic(mol, *split)
-    cation = _aminium_base(mol)
+    anionic_parent = any(a.HasProp(ANION_PROP) for a in mol.GetAtoms())
+    cation = None if anionic_parent else _aminium_base(mol)
     if cation is not None:
         return _name_aminium(cation)
-    iminium = _iminium_base(mol)
+    iminium = None if anionic_parent else _iminium_base(mol)
     if iminium is not None:
         return _name_aminium(iminium, parent="imine")
     for kind in ("amide", "nitrile"):
@@ -1202,12 +1203,30 @@ def _iminium_base(mol):
     return neutral.GetMol()
 
 
+def _prefix_ammonium(mol, nitrogen):
+    return (
+        nitrogen.GetDegree() + nitrogen.GetTotalNumHs() == 4
+        and nitrogen.GetDegree() > 0
+        and all(
+            n.GetAtomicNum() == 6
+            and mol.GetBondBetweenAtoms(nitrogen.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 1.0
+            and not _double_oxygens(mol, n.GetIdx())
+            for n in nitrogen.GetNeighbors()
+        )
+    )
+
+
 def _group_cation_base(mol, kind, ignore=frozenset()):
     """The mol with its hydrogen-bearing cationic nitrogens neutralised, for the acylammonium (amidium, a nitrogen with
     four bonds on an amide carbonyl) or nitrilium (C#N-H) centres of a polycation of one kind (Table 7.4); else None."""
     charged = [a for a in mol.GetAtoms() if a.GetFormalCharge() and a.GetIdx() not in ignore]
     if not charged or any(a.GetFormalCharge() != 1 or a.GetAtomicNum() != 7 or a.GetIsAromatic() or a.IsInRing() for a in charged):
         return None
+    if kind == "amide":
+        # a cationic amide group outranks an ammonium group, which is then an 'azaniumyl' prefix (P-73.7)
+        charged = [a for a in charged if not _prefix_ammonium(mol, a)]
+        if not charged:
+            return None
     for nitrogen in charged:
         triple = [b for b in nitrogen.GetBonds() if b.GetBondTypeAsDouble() == 3.0]
         if kind == "nitrile":
@@ -1880,9 +1899,39 @@ def _select_with_prefixes(mol, attach=None, n_names=(), stereo=None):
             _select_with_principal(mol, graph, halogens, aromatic_atoms, kept, kept_rings, principal, attach, n_names, stereo)
             for kept, kept_rings in _diamidide_alternatives(mol, groups, ring_groups)
         ]
-        return min(results, key=lambda result: result[0])
+        best = min(results, key=lambda result: result[0])
     finally:
         IDE_EXTRA.reset(token)
+    if len(ide_extra) > 1 and not ring_groups:
+        anions = _carbanion_parent(mol, graph, halogens, aromatic_atoms, ide_extra, groups, attach, n_names, stereo)
+        if anions is not None and _prefer_anion_parent(best[1], anions[1]):
+            return anions
+    return best
+
+
+def _carbanion_parent(mol, graph, halogens, aromatic_atoms, centres, groups, attach, n_names, stereo):
+    """The parent chain named by its carbanide centres alone, the anionic acid groups being prefixes (P-72.7b)."""
+    ide_groups = {"ide": {idx: {idx} for idx in centres}}
+    token = IDE_EXTRA.set({})
+    try:
+        return _select_with_principal(mol, graph, halogens, aromatic_atoms, ide_groups, [], "ide", attach, n_names, stereo)
+    except UnsupportedStructure:
+        return None
+    finally:
+        IDE_EXTRA.reset(token)
+
+
+_IDE_COUNT = re.compile(r"-(\d+(?:,\d+)*)-(?:di|tri|tetra)?ide$")
+_ID_COUNT = re.compile(r"-(\d+(?:,\d+)*)-(?:di|tri|tetra)?id-")
+
+
+def _prefer_anion_parent(acid_name, anion_name):
+    """P-72.7: with as many anionic centres in the parent, the parent with more 'ide' centres is senior."""
+    anion = _IDE_COUNT.search(anion_name)
+    centre = _ID_COUNT.search(acid_name)
+    if anion is None or centre is None:
+        return False
+    return len(anion.group(1).split(",")) > len(centre.group(1).split(","))
 
 
 def _diamidide_alternatives(mol, groups, ring_groups):
@@ -1921,7 +1970,10 @@ def _select_with_principal(mol, graph, halogens, aromatic_atoms, groups, ring_gr
             raise UnsupportedStructure("isotopes and radicals are not supported by the polyfunctional chain engine")
         if atom.GetFormalCharge() and not _is_nitro_part(atom) and not _anionic_group_atom(mol, atom) and not (
             AMINIUM.get() and atom.GetAtomicNum() == 7
-        ) and not (_cationic_prefix_nitrogen(atom) and any(_anionic_group_atom(mol, a) for a in mol.GetAtoms())):
+        ) and not (
+            _cationic_prefix_nitrogen(atom)
+            and any(_anionic_group_atom(mol, a) or a.HasProp(ANION_PROP) for a in mol.GetAtoms())
+        ):
             raise UnsupportedStructure("charged atoms are not supported by the polyfunctional chain engine")
         if (
             atom.GetAtomicNum() == 6

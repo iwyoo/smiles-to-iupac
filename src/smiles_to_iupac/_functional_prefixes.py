@@ -27,7 +27,7 @@ from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 from ._pin import mark
 from ._retained_acids import is_compound_acyl
-from ._substituents import name_branch
+from ._substituents import FORCED_BRANCH_NAMES, name_branch
 
 _NATIVE_ROOTS = frozenset({6, 7, 8, 9, 16, 17, 34, 35, 52, 53})
 
@@ -252,6 +252,10 @@ def functional_names(mol, graph, seeds, blocked, halogens, aromatic_atoms=frozen
         if node in ring_entries:
             name, compound = name_branch(graph, node, parent_of[node], shown, aromatic_atoms, mol=mol)
             record(node, name, compound)
+            continue
+        forced = FORCED_BRANCH_NAMES.get()
+        if forced and mol.GetNumAtoms() == forced[0] and node in forced[1]:
+            record(node, *forced[1][node])
             continue
         if node in delegated:
             record(node, *delegated[node])

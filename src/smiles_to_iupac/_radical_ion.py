@@ -238,7 +238,7 @@ def _healed_ion_radical(mol):
     (radical,) = radicals
     count = radical.GetNumRadicalElectrons()
     charge = radical.GetFormalCharge()
-    if abs(charge) != 1 or radical.GetIsotope() or count not in _RADICAL_SUFFIX:
+    if charge not in (-2, -1, 1) or radical.GetIsotope() or count not in _RADICAL_SUFFIX:
         return None
     if radical.GetAtomicNum() == 7 and charge == 1 and radical.IsInRing() and radical.GetDegree() == 2 and not radical.GetTotalNumHs():
         return None
@@ -265,7 +265,7 @@ def _healed_ion_radical(mol):
     lambda_form = _lambda_ide_radical(radical, name, charge, count)
     if lambda_form is not None:
         return lambda_form
-    located = re.search(r"-(\d+)-" + ending + "$", name)
+    located = re.search(r"-(\d+)-" + ("u?" if charge < 0 else "") + ending + "$", name)
     stem = name[:-1] if charge < 0 else name
     if located:
         return f"{stem}-{located.group(1)}{_added_hydrogen(mol, radical, name)}-{suffix}"
@@ -302,6 +302,21 @@ def _added_hydrogen(mol, radical, name):
 
 
 _GROUP_13 = {5, 13, 31, 49, 81}
+_DICHALCOGEN_RADICAL_ANIONS = {8: "dioxidanidyl", 16: "disulfanidyl", 34: "diselanidyl", 52: "ditellanidyl"}
+
+
+def _dichalcogen_radical_anion(mol):
+    """-X-X(-) with the radical on one chalcogen and the anion on the other (P-72.6.3): 'disulfanidyl'."""
+    if mol.GetNumAtoms() != 2 or mol.GetNumBonds() != 1:
+        return None
+    first, second = mol.GetAtoms()
+    if first.GetAtomicNum() != second.GetAtomicNum() or first.GetAtomicNum() not in _DICHALCOGEN_RADICAL_ANIONS:
+        return None
+    if sorted(a.GetFormalCharge() for a in (first, second)) != [-1, 0] or sorted(a.GetNumRadicalElectrons() for a in (first, second)) != [0, 1]:
+        return None
+    if any(a.GetTotalNumHs() or a.GetIsotope() for a in (first, second)):
+        return None
+    return _DICHALCOGEN_RADICAL_ANIONS[first.GetAtomicNum()]
 
 
 def _ammonium_group(mol, nitrogen, centre):
@@ -377,6 +392,7 @@ def has_radical_ion_shape(mol) -> bool:
         _ionic_suffix_radical(mol) is not None
         or _ylium_yl_radical(mol) is not None
         or _group13_zwitterion(mol) is not None
+        or _dichalcogen_radical_anion(mol) is not None
         or _healed_ion_radical(mol) is not None
     )
 
@@ -387,7 +403,7 @@ def name_radical_ion(mol) -> str:
     name = _ionic_suffix_radical(mol)
     if name is not None:
         return name
-    name = _ylium_yl_radical(mol) or _group13_zwitterion(mol) or _healed_ion_radical(mol)
+    name = _ylium_yl_radical(mol) or _group13_zwitterion(mol) or _dichalcogen_radical_anion(mol) or _healed_ion_radical(mol)
     if name is None:
         raise UnsupportedStructure(
             "only the aminiumyl/oxidaniumyl/sulfaniumyl/aminyliumyl/"
