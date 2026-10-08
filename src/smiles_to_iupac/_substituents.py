@@ -505,8 +505,8 @@ def _plain_chain_positions(graph, root, coming_from, atoms):
 
 def name_branch(graph, root, coming_from, halogens=None, aromatic_atoms=None, mol=None, unsaturated=None):
     forced = FORCED_BRANCH_NAMES.get()
-    if forced and root in forced:
-        return forced[root]
+    if forced and mol is not None and mol.GetNumAtoms() == forced[0] and root in forced[1]:
+        return forced[1][root]
     context = ISOTOPE_LABELS.get()
     if not context:
         return _name_branch_with_phane(graph, root, coming_from, halogens, aromatic_atoms, mol, unsaturated)

@@ -778,26 +778,26 @@ def test_trimethylammonium_methylide():
     assert smiles_to_iupac("[CH2-][N+](C)(C)C") == "(N,N-dimethylmethanaminiumyl)methanide"
 
 
-@pytest.mark.parametrize(
-    "smiles",
-    [
-        pytest.param("C[CH-][N+](C)(C)C", id="branched_anion_carbon_raises"),
-        pytest.param("[CH2-][N+](C)C", id="tertiary_ammonium_ylide_raises"),
-    ],
-)
-def test_branched_anion_carbon_and_related_raise(smiles):
+def test_tertiary_ammonium_ylide_raises():
     with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+        smiles_to_iupac("[CH2-][N+](C)C")
 
 
 def test_mixed_substituent_sulfonium_ylide():
-    assert smiles_to_iupac("[CH2-][S+](C)CC") == "(ethyl(methyl)sulfaniumyl)methanide"
+    assert smiles_to_iupac("[CH2-][S+](C)CC") == "[ethyl(methyl)sulfaniumyl]methanide"
 
 
-@pytest.mark.parametrize("smiles", ["C[CH-][P+](C)(C)C", "C[CH-][O+](C)C", "C[CH-][S+](C)C"])
-def test_pos_ylide_branched_anion_carbon_raises(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C[CH-][N+](C)(C)C", "1-(N,N-dimethylmethanaminiumyl)ethan-1-ide"),
+        ("C[CH-][P+](C)(C)C", "1-(trimethylphosphaniumyl)ethan-1-ide"),
+        ("C[CH-][O+](C)C", "1-(dimethyloxidaniumyl)ethan-1-ide"),
+        ("C[CH-][S+](C)C", "1-(dimethylsulfaniumyl)ethan-1-ide"),
+    ],
+)
+def test_ylide_with_a_substituted_anion_carbon(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(

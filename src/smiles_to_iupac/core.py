@@ -25,6 +25,8 @@ from ._ketone_amine import has_ketone_amine_shape, name_ketone_amine
 from ._amino_acid_derivative import has_amino_acid_shape, name_amino_acid
 from ._mixed_onium import has_mixed_onium_shape, name_mixed_onium
 from ._axial_stereo import cite_axial_stereo
+from ._dipolar import has_dipolar_shape, name_dipolar
+from ._substituents import FORCED_BRANCH_NAMES
 from ._glycoside import has_glycoside_shape, name_glycoside
 from ._sugar_acid import has_sugar_alcohol_acid_shape, name_sugar_alcohol_acid
 from ._sugar_substituted import has_substituted_sugar_shape, name_substituted_sugar
@@ -567,7 +569,7 @@ _NESTED_NAMES_MAX = 4096
 
 def _smiles_to_iupac_unabridged(smiles: str) -> str:
     # Acyl/substituent namers re-name the same fragment hundreds of times while ranking candidates.
-    if not nested():
+    if not nested() or FORCED_BRANCH_NAMES.get():
         return _name_unabridged(smiles)
     entry = _NESTED_NAMES.get(smiles)
     if entry is None:
@@ -625,6 +627,8 @@ def _name_unabridged(smiles: str) -> str:
         if parsed is not None and has_substituted_nucleoside_name(parsed):
             name = name_substituted_nucleoside(parsed)
             return name
+        if parsed is not None and has_dipolar_shape(parsed):
+            return name_dipolar(parsed)
         if parsed is not None and has_glycoside_shape(parsed):
             return name_glycoside(parsed)
         if parsed is not None and has_sugar_alcohol_acid_shape(parsed):
