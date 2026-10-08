@@ -527,3 +527,68 @@ def has_substituted_sugar_shape(mol) -> bool:
 
 def name_substituted_sugar(mol) -> str:
     return substituted_sugar_name(mol)
+
+
+def sugar_substituent_group(mol, graph, root, coming_from):
+    """(name, True) of a monosaccharide cited as a substituent group through an atom other than its anomeric carbon
+    (P-102.6.2): the sugar is named with a hydrogen atom in place of the bond to the parent, its final e is dropped
+    and the position of the free valence is cited before 'yl', 'O-yl' or 'C-yl'."""
+    from .core import smiles_to_iupac
+
+    atom = mol.GetAtomWithIdx(root)
+    if atom.GetAtomicNum() not in (6, 8) or mol.GetBondBetweenAtoms(root, coming_from).GetBondTypeAsDouble() != 1.0:
+        return None
+    atoms = subtree(graph, root, coming_from)
+    if coming_from in atoms or not 5 <= len(atoms) <= 40 or not any(mol.GetAtomWithIdx(a).IsInRing() for a in atoms):
+        return None
+    if any(mol.GetAtomWithIdx(a).GetAtomicNum() not in _ELEMENTS or mol.GetAtomWithIdx(a).GetIsAromatic() for a in atoms):
+        return None
+    editable = Chem.RWMol(mol)
+    for index in sorted(set(range(mol.GetNumAtoms())) - atoms - {coming_from}, reverse=True):
+        editable.RemoveAtom(index)
+    for a in editable.GetAtoms():
+        a.SetIntProp("_orig", -1)
+    original = sorted(atoms | {coming_from})
+    for new, old in enumerate(original):
+        editable.GetAtomWithIdx(new).SetIntProp("_orig", old)
+    editable.GetAtomWithIdx(original.index(coming_from)).SetAtomicNum(1)
+    editable.GetAtomWithIdx(original.index(coming_from)).SetIsAromatic(False)
+    try:
+        sugar = editable.GetMol()
+        Chem.SanitizeMol(sugar)
+        sugar = Chem.RemoveHs(sugar)
+        sugar_graph = adjacency(sugar)
+        if sugar.GetRingInfo().NumRings() > 1:
+            return None
+        skeleton = _ring_skeleton(sugar, sugar_graph) or _chain_skeleton(sugar, sugar_graph)
+        if skeleton is None or skeleton.n < 4:
+            return None
+        index = {a.GetIntProp("_orig"): a.GetIdx() for a in sugar.GetAtoms()}
+        carbon = index[root] if atom.GetAtomicNum() == 6 else next(
+            n.GetIdx() for n in sugar.GetAtomWithIdx(index[root]).GetNeighbors() if n.GetIdx() in skeleton.carbons
+        )
+        if carbon not in skeleton.carbons:
+            return None
+        position = skeleton.position(carbon)
+        if skeleton.ring and position == skeleton.anomeric:
+            return None
+        if atom.GetAtomicNum() == 8:
+            kind = "O"
+        else:
+            skeleton_atoms = set(skeleton.carbons) | ({skeleton.hetero} if skeleton.ring else set())
+            exo = [n for n in sugar_graph[carbon] if n not in skeleton_atoms]
+            kind = "C" if exo else ""
+        name = smiles_to_iupac(Chem.MolToSmiles(sugar))
+    except (UnsupportedStructure, ValueError, RuntimeError, KeyError, StopIteration, Chem.rdchem.MolSanitizeException):
+        return None
+    if not name.endswith("e") or name.count(" ") > 1 or ("(" in name and " " in name) or len(name) < 8:
+        return None
+    if " " in name and not name.endswith("oside"):
+        return None
+    marker = f"-{position}-{kind}-yl" if kind else f"-{position}-yl"
+    from ._substituents import BRANCH_STEREO
+
+    context = BRANCH_STEREO.get()
+    if context:
+        context["used"].update(("atom", a) for a in atoms)
+    return f"{name[:-1]}{marker}", True
