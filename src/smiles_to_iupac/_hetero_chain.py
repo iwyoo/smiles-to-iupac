@@ -123,8 +123,15 @@ class _Contractor:
 def contract_hetero_groups(mol):
     """`mol` with every heteroatom group off the chosen backbone collapsed
     into a named placeholder prefix, or None when nothing applies."""
+    candidates = contract_hetero_groups_candidates(mol)
+    return candidates[0] if candidates else None
+
+
+def contract_hetero_groups_candidates(mol):
+    """Every contraction over the equally senior backbones: most principal groups attached, then the longest
+    carbon backbone, then the most substituents (P-44.1.1, P-44.3, P-45.2.1)."""
     if not _acyclic_single(mol):
-        return None
+        return []
     graph = adjacency(mol)
     hydroxyls = [
         a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 8 and a.GetDegree() == 1 and a.GetTotalNumHs() == 1
@@ -134,14 +141,27 @@ def contract_hetero_groups(mol):
     principal = set(hydroxyls) or {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 7}
     comps = _components(mol, graph)
     if not comps:
-        return None
+        return []
 
     def score(comp):
         attached = sum(1 for c in comp for x in graph[c] if x in principal)
         hetero = sum(1 for c in comp for x in graph[c] if mol.GetAtomWithIdx(x).GetAtomicNum() != 6)
-        return (attached, len(comp), hetero)
+        touching = {x for c in comp for x in graph[c] if x in principal}
+        substituents = sum(1 for x in touching for y in graph[x] if y not in comp) + sum(
+            1 for c in comp for y in graph[c] if y not in principal and mol.GetAtomWithIdx(y).GetAtomicNum() != 6
+        )
+        return (attached, len(comp), substituents, hetero)
 
-    backbone = max(comps, key=score)
+    best = max(score(comp) for comp in comps)
+    contracted = []
+    for backbone in (comp for comp in comps if score(comp) == best):
+        found = _contract(mol, graph, comps, backbone, principal)
+        if found is not None:
+            contracted.append(found)
+    return contracted
+
+
+def _contract(mol, graph, comps, backbone, principal):
     contractor = _Contractor(mol, graph, comps)
     outermost = []
 

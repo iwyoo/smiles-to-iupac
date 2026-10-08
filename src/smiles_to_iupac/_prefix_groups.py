@@ -23,7 +23,7 @@ def enclose(name: str) -> str:
     if name in _SIMPLE:
         return name
     if "{" in name:
-        return f"[{name}]"
+        return f"({name})"
     if "[" in name:
         return "{" + name + "}"
     if "(" in name:

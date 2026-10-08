@@ -80,7 +80,13 @@ def test_linker_with_a_substituent_that_carries_the_principal_group():
     "smiles,expected",
     [
         ("CNCCNCCNCCNC", "2,5,8,11-tetraazadodecane"),
-        ("NCCNCCNCCN", "N1-{2-[(2-aminoethyl)amino]ethyl}ethane-1,2-diamine"),
+        ("NCCNCCNCCN", "N1,N2-bis(2-aminoethyl)ethane-1,2-diamine"),
+        ("NCCN(CCN(C)C)C", "N1-(2-aminoethyl)-N1,N2,N2-trimethylethane-1,2-diamine"),
+        ("NCCNCCNCCNCN", "N1-{2-[(2-aminoethyl)amino]ethyl}-N2-(aminomethyl)ethane-1,2-diamine"),
+        (
+            "CC(CN(CC(=C)C)CC(=C)C)(C)C",
+            "N-(2,2-dimethylpropyl)-2-methyl-N-(2-methylprop-2-en-1-yl)prop-2-en-1-amine",
+        ),
         ("C1CNCCNCCN1", "1,4,7-triazonane"),
     ],
 )
