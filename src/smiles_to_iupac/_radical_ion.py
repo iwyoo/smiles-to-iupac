@@ -227,6 +227,8 @@ def _healed_ion_radical(mol):
     charge = radical.GetFormalCharge()
     if abs(charge) != 1 or radical.GetIsotope() or count not in _RADICAL_SUFFIX:
         return None
+    if radical.GetAtomicNum() == 7 and charge == 1 and radical.IsInRing() and radical.GetDegree() == 2 and not radical.GetTotalNumHs():
+        return None
     editable = Chem.RWMol(mol)
     atom = editable.GetAtomWithIdx(radical.GetIdx())
     atom.SetNoImplicit(True)
