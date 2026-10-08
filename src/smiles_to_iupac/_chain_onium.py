@@ -78,6 +78,9 @@ def name_chain_onium(mol) -> str:
     graph = adjacency(mol)
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
+    hydrazide = _hydrazide_ium(mol, graph, z, chain, cations, halogens, aromatic)
+    if hydrazide is not None:
+        return hydrazide
     chain_set = set(chain)
     best = None
     for walk in (chain, chain[::-1]):
@@ -106,3 +109,61 @@ def name_chain_onium(mol) -> str:
         parent = f"{stem}e-{locants}-{multiplying_prefix(count)}ium"
     prefix = format_substituent_prefixes(grouped) if grouped else ""
     return prefix + parent
+
+
+def _hydrazide_ium(mol, graph, z, chain, cations, halogens, aromatic):
+    """P-73.1.2.1: an acylated hydrazine whose other nitrogen is the cationic centre is a hydrazid-N'-ium of the acid,
+    N',N',N'-trimethylbenzohydrazid-N'-ium, not a hydrazin-1-ium with an acyl prefix."""
+    from .core import smiles_to_iupac
+
+    if z != 7 or len(chain) != 2 or len(cations) != 1:
+        return None
+    (cation,) = cations
+    acylated = next(a for a in chain if a != cation)
+    carbonyl = [
+        n for n in graph[acylated]
+        if mol.GetAtomWithIdx(n).GetAtomicNum() == 6
+        and any(
+            m.GetAtomicNum() == 8 and mol.GetBondBetweenAtoms(n, m.GetIdx()).GetBondTypeAsDouble() == 2.0
+            for m in mol.GetAtomWithIdx(n).GetNeighbors()
+        )
+    ]
+    if len(carbonyl) != 1:
+        return None
+    editable = Chem.RWMol(mol)
+    for atom in editable.GetAtoms():
+        if atom.GetIdx() in chain:
+            atom.SetFormalCharge(0)
+            atom.SetNoImplicit(True)
+            atom.SetNumExplicitHs(2 if atom.GetIdx() == cation else 1)
+    branches = {a: [n for n in graph[a] if n not in chain and n != carbonyl[0]] for a in chain}
+    removed = set()
+    for a in chain:
+        for n in branches[a]:
+            stack, seen = [n], set()
+            while stack:
+                current = stack.pop()
+                if current in seen:
+                    continue
+                seen.add(current)
+                stack.extend(m for m in graph[current] if m not in chain and m != carbonyl[0] and m not in seen)
+            removed |= seen
+    for index in sorted(removed, reverse=True):
+        editable.RemoveAtom(index)
+    neutral = editable.GetMol()
+    try:
+        Chem.SanitizeMol(neutral)
+        parent = smiles_to_iupac(Chem.MolToSmiles(neutral))
+    except UnsupportedStructure:
+        return None
+    if not parent.endswith("hydrazide") or " " in parent or "-" in parent[: parent.rfind("hydrazide")] or parent.startswith("("):
+        return None
+    if parent.count("(") or any(ch.isdigit() for ch in parent):
+        return None
+    entries = {}
+    for atom, label in ((acylated, "N"), (cation, "N'")):
+        for n in branches[atom]:
+            entries.setdefault(label, []).append(name_branch(graph, n, atom, halogens, aromatic, mol=mol, unsaturated=True))
+    grouped = group_substituents(entries)
+    prefix = format_substituent_prefixes(grouped) if grouped else ""
+    return prefix + parent[:-1] + "-N'-ium"

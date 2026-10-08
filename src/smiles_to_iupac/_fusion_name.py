@@ -141,6 +141,10 @@ def _signature(part):
     return (part.comp.name, part.comp.hetero_text, tuple(sorted(_signature(c) for c in part.children)))
 
 
+# P-25.3.5.3: a multiparent name beats the retained benzoazole names (benzo[1,2-c:4,5-c']dipyrrole, P-72.2, P-73.5.1.3)
+_BENZOAZOLES = {"indole", "isoindole", "indazole"}
+
+
 def _valid_decomposition(ctx, parts, retained_sets):
     """P-25.3.5: retained components are never broken up by weaker ones, and an isolated benzene ring fused to a
     heteromonocycle of five or more members belongs to a benzoheterocycle unit, unless that would break up a multiplicative
@@ -768,10 +772,20 @@ def _fusion_name_core(mol):
             scored_ext.sort(key=lambda r: (r[0], r[1]))
             _, text, parts, parent0, count = scored_ext[0]
             return text + _multiparent_name(parent0, count), parts[0]
-        multi = [d for d in _multiparent_decompositions(ctx, group) if _valid_decomposition(ctx, d, retained_sets)]
-        if multi:
+        multi_sets = [
+            subset
+            for subset in retained_sets
+            if any(p.comp.retained and p.comp.kind != "mono" and not p.comp.benzo_unit and p.comp.name not in _BENZOAZOLES for p in ctx.parts_for(subset))
+        ]
+        multi_groups = [group]
+        if group[0].comp.name in _BENZOAZOLES:
+            later = roots[index:]
+            keys = {repr(r.comp.senior_key): r.comp.senior_key for r in later}.values()
+            multi_groups += [[r for r in later if r.comp.senior_key == key] for key in keys]
+        for multi_group in multi_groups:
+            multi = [d for d in _multiparent_decompositions(ctx, multi_group) if _valid_decomposition(ctx, d, multi_sets)]
             scored = []
-            for parts in _preferred(multi):
+            for parts in _preferred(multi) if multi else []:
                 result = _render_multiparent(ctx, parts)
                 if result is not None:
                     scored.append((result[0], result[1], parts))

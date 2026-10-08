@@ -38,6 +38,32 @@ def test_benzo_heterocycle_parents(smiles, expected):
 
 
 @pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("O=C1NC(=O)c2cc3C(=O)NC(=O)c3cc12", "benzo[1,2-c:4,5-c']dipyrrole-1,3,5,7(2H,6H)-tetrone"),
+        ("C1=CC2=CC3=C(C=C2N1)C=CN3", "1H,5H-benzo[1,2-b:4,5-b']dipyrrole"),
+        (
+            "O=C1[NH+](C)C(=O)c2cc3C(=O)[NH+](C)C(=O)c3cc12",
+            "2,6-dimethyl-1,3,5,7-tetraoxo-5,7-dihydrobenzo[1,2-c:4,5-c']dipyrrole-2,6(1H,3H)-diium",
+        ),
+        (
+            "O=C1[N+]C(=O)c2cc3C(=O)[N+]C(=O)c3cc12",
+            "1,3,5,7-tetraoxo-5,7-dihydrobenzo[1,2-c:4,5-c']dipyrrole-2,6(1H,3H)-bis(ylium)",
+        ),
+        (
+            "O=C1[N-]C(=O)c2cc3C(=O)[N-]C(=O)c3cc12",
+            "1,3,5,7-tetraoxo-5,7-dihydrobenzo[1,2-c:4,5-c']dipyrrole-2,6(1H,3H)-diide",
+        ),
+        ("O=C1[N+]C(=O)c2ccccc12", "1,3-dioxo-1,3-dihydro-2H-isoindol-2-ylium"),
+        ("C1CC[N+]C1", "pyrrolidin-1-ylium"),
+        ("[N-]1C=CC=C1", "1H-pyrrol-1-ide"),
+    ],
+)
+def test_multiparent_name_beats_retained_benzoazole_fusion_name(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
     "smiles, expected",
     [
         pytest.param("Cc1ccc2c(c1)c1ccccc1c1ccccc21", "2-methyltriphenylene", id="substituted_triphenylene_is_named"),

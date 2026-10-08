@@ -411,27 +411,26 @@ def test_methanediazonium_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
-def test_two_diazonium_groups_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("N#[N+]CC[N+]#N")
+def test_two_diazonium_groups_are_bis_diazonium():
+    assert smiles_to_iupac("N#[N+]CC[N+]#N") == "ethane-1,2-bis(diazonium)"
+    assert smiles_to_iupac("N#[N+]c1ccc(cc1)[N+]#N") == "benzene-1,4-bis(diazonium)"
 
 
 def test_cyclohexanediazonium():
     assert smiles_to_iupac("C1CCCCC1[N+]#N") == "cyclohexanediazonium"
 
 
-def test_substituted_ring_diazonium_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("CC1CCCCC1[N+]#N")
+def test_substituted_ring_diazonium():
+    assert smiles_to_iupac("CC1CCCCC1[N+]#N") == "2-methylcyclohexane-1-diazonium"
 
 
 def test_benzenediazonium():
     assert smiles_to_iupac("c1ccccc1[N+]#N") == "benzenediazonium"  # CID 9718
 
 
-def test_diazonium_with_alcohol_not_supported():
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac("OCC[N+]#N")
+def test_diazonium_outranks_alcohol_and_ketone():
+    assert smiles_to_iupac("OCC[N+]#N") == "2-hydroxyethane-1-diazonium"
+    assert smiles_to_iupac("CC(=O)C(C(C)=O)[N+]#N") == "2,4-dioxopentane-3-diazonium"
 
 
 def test_phenyl_chain_diazonium():
@@ -444,15 +443,14 @@ def test_dimethyl_benzenediazonium():
 
 
 @pytest.mark.parametrize(
-    "smiles",
+    "smiles,expected",
     [
-        pytest.param("Cc1ccccc1CC[N+]#N", id="substituted_benzene_ring_diazonium_raises"),
-        pytest.param("C=Cc1ccccc1CC[N+]#N", id="chain_diazonium_unsaturation_raises"),
+        pytest.param("Cc1ccccc1CC[N+]#N", "2-(2-methylphenyl)ethane-1-diazonium", id="substituted_benzene_ring_diazonium"),
+        pytest.param("C=Cc1ccccc1CC[N+]#N", "2-(2-ethenylphenyl)ethane-1-diazonium", id="chain_diazonium_beside_alkenyl_ring"),
     ],
 )
-def test_phenyl_substituted_benzene_and_related_raise(smiles):
-    with pytest.raises(UnsupportedStructure):
-        smiles_to_iupac(smiles)
+def test_phenyl_substituted_benzene_diazonium(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 def test_guanidine():
