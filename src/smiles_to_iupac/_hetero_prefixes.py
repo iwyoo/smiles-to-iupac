@@ -1638,6 +1638,21 @@ def _diazenyl_group(graph, root, coming_from, halogens, aromatic_atoms, mol, ord
     return _enclose(rname, rcomp) + "diazenyl", True
 
 
+def _nitro_or_nitroso_nitrogen(mol, idx, attached_to):
+    if is_nitro_nitrogen(mol, idx):
+        return True
+    atom = mol.GetAtomWithIdx(idx)
+    if atom.GetDegree() != 2 or atom.GetFormalCharge():
+        return False
+    oxygens = [n for n in atom.GetNeighbors() if n.GetIdx() != attached_to]
+    return (
+        len(oxygens) == 1
+        and oxygens[0].GetAtomicNum() == 8
+        and oxygens[0].GetDegree() == 1
+        and mol.GetBondBetweenAtoms(idx, oxygens[0].GetIdx()).GetBondTypeAsDouble() == 2.0
+    )
+
+
 def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
     """disilanyl, triazan-1-yl, 3-silyltetrasilan-1-yl, 1-methyltetrasilan-1-yl: a homogeneous heteroatom chain
     attached through one of its atoms; the longest chain through the free valence is the parent (P-29.4.1, P-44.3)."""
@@ -1657,6 +1672,7 @@ def _chain_group(graph, root, coming_from, halogens, aromatic_atoms, mol):
                 and n not in chain_atoms
                 and mol.GetAtomWithIdx(n).GetAtomicNum() == z
                 and mol.GetBondBetweenAtoms(current, n).GetBondTypeAsDouble() in (1.0, 2.0)
+                and not (z == 7 and _nitro_or_nitroso_nitrogen(mol, n, current))
             ):
                 chain_atoms.add(n)
                 stack.append(n)
