@@ -217,8 +217,13 @@ def _compound(name):
 def _acyl_name(mol, graph, carbon, from_atom, halogens=None, aromatic_atoms=None):
     """alkanoyl or benzoyl prefix for R-C(=O)-: an unbranched saturated chain
     whose carbons may carry substituents (2-aminoethanoyl), or phenyl."""
+    from ._amino_acyl_group import amino_acyl_group
     from ._substituents import name_branch
 
+    amino = amino_acyl_group(mol, graph, carbon, from_atom)
+    if amino is not None:
+        _mark_stereo_used(mol, graph, carbon, from_atom)
+        return amino[0]
     halogens = halogens or {}
     aromatic_atoms = aromatic_atoms or frozenset()
     others = [n for n in graph[carbon] if n != from_atom and mol.GetBondBetweenAtoms(carbon, n).GetBondTypeAsDouble() == 1.0]
@@ -274,9 +279,13 @@ def _acyl_name(mol, graph, carbon, from_atom, halogens=None, aromatic_atoms=None
 
 def _acyl_from_acid_name(mol, graph, carbon, from_atom):
     """'(9Z)-octadec-9-enoyl' from the name of the acid whose acyl group is rooted at `carbon` (P-65.1.7.1)."""
+    from ._amino_acyl_group import amino_acyl_group
     from ._functional_prefixes import _acyl_prefix
-    from ._substituents import BRANCH_STEREO
 
+    amino = amino_acyl_group(mol, graph, carbon, from_atom)
+    if amino is not None:
+        _mark_stereo_used(mol, graph, carbon, from_atom)
+        return amino[0]
     atoms = {carbon}
     stack = [carbon]
     while stack:
@@ -287,6 +296,21 @@ def _acyl_from_acid_name(mol, graph, carbon, from_atom):
     if from_atom in atoms or any(mol.GetAtomWithIdx(a).GetFormalCharge() for a in atoms):
         raise UnsupportedStructure("this acyl group is not supported yet")
     name = _acyl_prefix(mol, atoms, carbon, from_atom)
+    _mark_stereo_used(mol, graph, carbon, from_atom)
+    return name
+
+
+def _mark_stereo_used(mol, graph, carbon, from_atom):
+    """Record that the stereo elements inside the acyl group are cited by its name."""
+    from ._substituents import BRANCH_STEREO
+
+    atoms = {carbon}
+    stack = [carbon]
+    while stack:
+        for n in graph[stack.pop()]:
+            if n != from_atom and n not in atoms:
+                atoms.add(n)
+                stack.append(n)
     context = BRANCH_STEREO.get()
     if context:
         context["used"].update(("atom", a) for a in atoms)
@@ -295,7 +319,6 @@ def _acyl_from_acid_name(mol, graph, carbon, from_atom):
             for b in mol.GetBonds()
             if b.GetBeginAtomIdx() in atoms and b.GetEndAtomIdx() in atoms
         )
-    return name
 
 
 def _group_names(graph, mol, atoms, parent, halogens, aromatic_atoms):
@@ -796,6 +819,12 @@ def _chalcogen_amido(graph, root, others, mol):
     rest = [n for n in others if n not in acyl]
     if len(acyl) != 1 or len(rest) > 1 or any(mol.GetAtomWithIdx(n).GetAtomicNum() != 6 for n in rest):
         return None
+    if not rest:
+        from ._amino_acyl_group import amino_acyl_group
+
+        amino = amino_acyl_group(mol, graph, acyl[0], root)
+        if amino is not None:
+            return amino[0] + "amino", True
     if any(a.GetIsotope() or a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED for a in mol.GetAtoms()) or any(
         b.GetStereo() != Chem.BondStereo.STEREONONE for b in mol.GetBonds()
     ):

@@ -31,6 +31,18 @@ def _acyl(base):
     return _SPECIAL_ACYL.get(base) or base[: -len("ine")] + "yl"
 
 
+def acyl_word(residue, last=False, xi=True):
+    """The acyl (or, for the C-terminal residue, the amino acid) word of a residue name such as 'L-alanine'; None if not a common amino acid."""
+    found = _RESIDUE_NAME.match(residue)
+    if not found or found.group(3) not in _RESIDUES:
+        return None
+    descriptor, allo, base = found.groups()
+    if descriptor is None and base != "glycine" and xi:
+        descriptor = "ξ"
+    word = (allo or "") + (base if last else _acyl(base))
+    return (f"{descriptor}-" if descriptor else "") + word
+
+
 def _cut(mol):
     cuts = {(m[0], m[4]) for m in mol.GetSubstructMatches(_PEPTIDE_BOND)}
     editable = Chem.RWMol(mol)
@@ -79,14 +91,10 @@ def _name(smiles):
             residue = smiles_to_iupac(Chem.MolToSmiles(molecules[index]))
         except (UnsupportedStructure, ValueError):
             return None
-        found = _RESIDUE_NAME.match(residue)
-        if not found or found.group(3) not in _RESIDUES:
+        word = acyl_word(residue, position == len(order) - 1)
+        if word is None:
             return None
-        descriptor, allo, base = found.groups()
-        if descriptor is None and base != "glycine":
-            descriptor = "ξ"
-        word = (allo or "") + (_acyl(base) if position < len(order) - 1 else base)
-        words.append((f"{descriptor}-" if descriptor else "") + word)
+        words.append(word)
     return words[0] + "".join(("-" if w[1:2] == "-" else "") + w for w in words[1:])
 
 
