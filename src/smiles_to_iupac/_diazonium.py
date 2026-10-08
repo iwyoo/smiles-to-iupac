@@ -357,6 +357,66 @@ def _name_phenyl_chain_diazonium(mol, ring_atoms):
 
 
 def name_diazonium(mol) -> str:
+    try:
+        return _name_diazonium_skeleton(mol)
+    except UnsupportedStructure:
+        return _name_via_amine_surrogate(mol)
+
+
+def _name_via_amine_surrogate(mol) -> str:
+    """P-73.2.2.3: the diazonium groups are suffixes in the position of the amine suffix (cations rank above acids and
+    ketones), so the skeleton is named with each -N2+ read as -NH2 and 'amine' becomes 'diazonium'."""
+    import re
+    from rdkit import Chem
+
+    from ._polyfunctional import FORCED_PRINCIPAL, name_polyfunctional
+    from .core import smiles_to_iupac
+
+    nitrogens = _diazonium_nitrogens(mol)
+    if not nitrogens:
+        raise UnsupportedStructure("no diazonium group")
+    editable = Chem.RWMol(mol)
+    remove = []
+    for atom in nitrogens:
+        terminal = next(n.GetIdx() for n in atom.GetNeighbors() if n.GetAtomicNum() == 7)
+        remove.append(terminal)
+        target = editable.GetAtomWithIdx(atom.GetIdx())
+        target.SetFormalCharge(0)
+        target.SetNoImplicit(False)
+        editable.GetBondBetweenAtoms(atom.GetIdx(), terminal).SetBondType(Chem.BondType.SINGLE)
+    for index in sorted(remove, reverse=True):
+        editable.RemoveAtom(index)
+    surrogate = editable.GetMol()
+    Chem.SanitizeMol(surrogate)
+    token = FORCED_PRINCIPAL.set("amine")
+    try:
+        try:
+            name = name_polyfunctional(surrogate)
+        except UnsupportedStructure:
+            name = smiles_to_iupac(Chem.MolToSmiles(surrogate))
+    finally:
+        FORCED_PRINCIPAL.reset(token)
+    count = len(nitrogens)
+    if count == 1 and name.endswith("aniline"):
+        return name[: -len("aniline")] + "benzenediazonium"
+    match = re.search(r"(?P<multiplier>di|tri|tetra)?amine$", name)
+    if match is None or (count > 1) != bool(match.group("multiplier")):
+        raise UnsupportedStructure("this diazonium skeleton has no amine surrogate name")
+    head = name[: match.start()]
+    if head.endswith("-"):
+        cut = head.rfind("-", 0, len(head) - 1)
+        stem, locants = head[:cut], head[cut:]
+    else:
+        stem, locants = head, ""
+    if not stem.endswith("e"):
+        stem += "e"
+    head = stem + locants
+    if count == 1:
+        return head + "diazonium"
+    return head + {2: "bis", 3: "tris", 4: "tetrakis"}[count] + "(diazonium)"
+
+
+def _name_diazonium_skeleton(mol) -> str:
     ring_name = _unsubstituted_monocyclic_ring_diazonium_name(mol)
     if ring_name is not None:
         return ring_name

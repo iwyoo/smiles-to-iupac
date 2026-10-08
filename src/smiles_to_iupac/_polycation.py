@@ -84,9 +84,12 @@ def _hydron_added(atom) -> bool:
 
 
 def name_polycation(mol) -> str:
+    from ._diazonium import _diazonium_nitrogens, name_diazonium
     from ._multiplicative_cation import name_cation_assembly
 
     centres = _centres(mol)
+    if len(_diazonium_nitrogens(mol)) == len(centres):
+        return name_diazonium(mol)
     if all(a.GetAtomicNum() == 6 for a in centres):
         try:
             return _name_polycarbenium(mol, centres)

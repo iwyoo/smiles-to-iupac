@@ -16,20 +16,26 @@ _STEM = {
 
 def _center(mol):
     charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
-    if len(charged) != 1 or charged[0].GetFormalCharge() != 1 or len(Chem.GetMolFrags(mol)) != 1:
+    if len(charged) != 1 or charged[0].GetFormalCharge() not in (1, 2) or len(Chem.GetMolFrags(mol)) != 1:
         return None
     atom = charged[0]
     if atom.GetAtomicNum() not in _STEM or atom.IsInRing() or atom.GetIsotope():
         return None
     standard = _STEM[atom.GetAtomicNum()][1]
     bonds = sum(b.GetBondTypeAsDouble() for b in atom.GetBonds()) + atom.GetTotalNumHs()
-    if bonds != standard - 1:
+    if bonds != standard - atom.GetFormalCharge():
         return None
-    if atom.GetAtomicNum() == 7 and atom.GetDegree():
+    if atom.GetFormalCharge() == 2 and (atom.GetAtomicNum() != 7 or atom.GetDegree() != 1 or atom.GetTotalNumHs()):
         return None
-    if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds()):
+    if atom.GetAtomicNum() == 7 and atom.GetDegree() and atom.GetFormalCharge() == 1:
         return None
-    if any(n.GetAtomicNum() not in (6, 9, 17, 35, 53) for n in atom.GetNeighbors()):
+    if any(b.GetBondTypeAsDouble() != 1.0 for b in atom.GetBonds() if atom.GetFormalCharge() == 1) or any(
+        b.GetBondTypeAsDouble() > 2.0 for b in atom.GetBonds()
+    ):
+        return None
+    if atom.GetAtomicNum() != 8 and any(n.GetAtomicNum() == 7 for n in atom.GetNeighbors()):
+        return None
+    if any(n.GetAtomicNum() not in (6, 7, 8, 9, 16, 17, 34, 35, 52, 53) or n.GetAtomicNum() == atom.GetAtomicNum() for n in atom.GetNeighbors()):
         return None
     if any(a.GetIsotope() for a in mol.GetAtoms()) or any(a.GetNumRadicalElectrons() for a in mol.GetAtoms() if a.GetIdx() != atom.GetIdx()):
         return None
@@ -54,7 +60,7 @@ def name_hydride_ylium(mol) -> str:
     if z == 8 and len(entries) == 1:
         return _oxylium(mol, graph, center, halogens, aromatic)
     stem = _STEM[z][0]
-    parent = stem + "ylium"
+    parent = stem + ("ylium" if center.GetFormalCharge() == 1 else "ebis(ylium)")
     return format_mononuclear_prefixes(entries) + parent if entries else parent
 
 
@@ -64,6 +70,20 @@ def _oxylium(mol, graph, center, halogens, aromatic):
     from ._hetero_prefixes import _alkoxy, _group_names, _enclose, is_functional_carbon
 
     (carbon,) = graph[center.GetIdx()]
+    if mol.GetAtomWithIdx(carbon).GetAtomicNum() == 7:
+        from .core import smiles_to_iupac
+
+        editable = Chem.RWMol(mol)
+        editable.RemoveAtom(center.GetIdx())
+        amine = editable.GetMol()
+        Chem.SanitizeMol(amine)
+        name = smiles_to_iupac(Chem.MolToSmiles(amine))
+        if not name.endswith("amine"):
+            raise UnsupportedStructure("this aminoxylium has no amine name")
+        return name[:-1] + "oxylium"
+    if mol.GetAtomWithIdx(carbon).GetAtomicNum() == 16:
+        name, compound = name_branch(graph, carbon, center.GetIdx(), halogens, aromatic, mol=mol)
+        return _enclose(name, compound) + "oxylium"
     if is_functional_carbon(mol, carbon):
         ((acyl, compound),) = _group_names(graph, mol, [carbon], center.GetIdx(), halogens, aromatic)
         return _enclose(acyl, compound) + "oxylium"

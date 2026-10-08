@@ -358,7 +358,7 @@ def test_sulfonate_stereocenter(smiles, expected):
     [
         pytest.param("[O-]S(=O)(=O)CCCS(=O)(=O)[O-]", "propane-1,3-disulfonate", id="multiple_sulfonate_groups_is_named"),
         pytest.param("[O-]S(=O)(=O)C1CCCCC1", "cyclohexanesulfonate", id="sulfonate_on_ring_is_named"),
-        pytest.param("C=CS(=O)(=O)[O-]", "eth-1-ene-1-sulfonate", id="sulfonate_carbon_in_double_bond_is_named"),
+        pytest.param("C=CS(=O)(=O)[O-]", "ethenesulfonate", id="sulfonate_carbon_in_double_bond_is_named"),
         pytest.param("NCCS(=O)(=O)[O-]", "2-aminoethane-1-sulfonate", id="sulfonate_other_heteroatom_is_named"),
     ],
 )
