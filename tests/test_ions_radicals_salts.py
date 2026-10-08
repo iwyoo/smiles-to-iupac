@@ -379,7 +379,7 @@ def test_diradical_branch_point_name():
     [
         pytest.param("CC[OH+]", "ethyloxidaniumyl", id="ethyloxidaniumyl"),
         pytest.param("C[N+]", "methanaminyliumyl", id="methanaminyliumyl"),
-        pytest.param("CC=[N+]", "ethaniminyliumyl", id="ethaniminyliumyl"),
+        pytest.param("CC=[N+]", "ethaniminylium", id="ethaniminylium"),
         pytest.param("CC(=O)[N+]", "acetamidyliumyl", id="ethanamidyliumyl"),
         pytest.param("[Ca+2].CCCCC(C)(C(=O)[O-])c1ccccc1.CCCCC(C)(C(=O)[O-])c1ccccc1", "calcium bis(2-methyl-2-phenylhexanoate)", id="calcium_bis_compound_carboxylate"),
         pytest.param("[Na+].C[O-]", "sodium methoxide", id="sodium_methoxide"),
@@ -1217,4 +1217,18 @@ def test_onium_centres_that_carry_characteristic_groups(smiles, expected):
     ],
 )
 def test_ring_cation_with_an_ester_group_names_the_cation_as_parent(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("O=[S-]C1=CC=CC=C1", "oxo(phenyl)-λ4-sulfanide"),
+        ("C(C)(=O)[NH+]", "acetamidylium"),
+        ("C(C)[NH+]", "ethanaminylium"),
+        ("[NH3+]CC(CC[NH3+])CC[NH3+]", "3-(azaniumylmethyl)pentane-1,5-bis(aminium)"),
+        ("NCCC[NH3+]", "3-aminopropan-1-aminium"),
+    ],
+)
+def test_ion_endings_hydrogen_free_cations_and_cationic_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
