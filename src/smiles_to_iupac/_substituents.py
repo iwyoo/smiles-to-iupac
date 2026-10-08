@@ -18,6 +18,7 @@ from ._common import (
     substituent_locant_set_and_citation,
     unsaturation_suffix,
 )
+from ._locant_omission import omits_all_locants
 from ._numerals import alkane_name, alkyl_name, multiplying_prefix
 
 # alpha_sort_key lives in _common.py now; re-imported here (not redefined)
@@ -67,7 +68,7 @@ def is_plain_stem_prefix(name: str) -> bool:
     return bool(_PLAIN_STEM_PREFIX.match(name) or _RING_GROUP_PREFIX.match(name))
 
 
-def format_substituent_prefixes(grouped, omit_locants: bool = False) -> str:
+def format_substituent_prefixes(grouped, omit_locants: bool = False, omit_all: bool = False) -> str:
     """grouped: {name -> {"locants": [int or 'N', ...], "compound": bool}}.
     Return the assembled, alphanumerically ordered prefix string
     (P-14.5.2), ready to prepend to a parent name; '' if grouped is empty.
@@ -96,6 +97,10 @@ def format_substituent_prefixes(grouped, omit_locants: bool = False) -> str:
     genuinely new coinciding-name citation, e.g.
     'N,4-dimethylbenzenesulfonamide') still follows the ordinary
     compound-aware bis/tris rule, unaffected."""
+    if omit_all:
+        from ._retained_acids import single_site_prefixes
+
+        return single_site_prefixes(grouped)
     entries = []
     for name in sorted(grouped, key=alpha_sort_key):
         info = grouped[name]
@@ -1015,7 +1020,14 @@ def _select_unsaturated_structure(graph, root, coming_from, halogens, mol, aroma
         grouped = _group_substituents(entries)
         locant_set, total_count, citation = substituent_locant_set_and_citation(grouped)
         name, is_compound = _unsaturated_chain_name(
-            len(chain), root_position, suffix, ene, yne, grouped, tert_butyl=_is_tert_butyl(graph, root, coming_from, halogens)
+            len(chain),
+            root_position,
+            suffix,
+            ene,
+            yne,
+            grouped,
+            tert_butyl=_is_tert_butyl(graph, root, coming_from, halogens),
+            omit_locants=omits_all_locants(mol, chain, grouped, single_kind=False, free_atoms={coming_from}),
         )
         multiple = sorted(ene + yne)
         stereo_rank = _branch_stereo_rank(_branch_stereo_entries({a: i for i, a in enumerate(chain, start=1)}))
@@ -1048,7 +1060,7 @@ def _carries_label(root, atoms):
     return bool(context) and any(a in context["labels"] for a in [root, *atoms])
 
 
-def _unsaturated_chain_name(length, root_position, suffix, ene, yne, grouped, tert_butyl):
+def _unsaturated_chain_name(length, root_position, suffix, ene, yne, grouped, tert_butyl, omit_locants=False):
     if tert_butyl and suffix == "yl" and not ene and not yne:
         return "tert-butyl", False
     if length == 1 and list(grouped) == ["phenyl"] and len(grouped["phenyl"]["locants"]) == 1:
@@ -1062,7 +1074,9 @@ def _unsaturated_chain_name(length, root_position, suffix, ene, yne, grouped, te
         except UnsupportedStructure:
             prefix = ""
     if not prefix:
-        prefix = format_substituent_prefixes(grouped, omit_locants=(length == 1)) if grouped else ""
+        prefix = format_substituent_prefixes(
+            grouped, omit_locants=(length == 1), omit_all=omit_locants and root_position == 1 and not (ene or yne)
+        ) if grouped else ""
     multiple = len(ene) + len(yne)
     if not multiple:
         if root_position == 1:

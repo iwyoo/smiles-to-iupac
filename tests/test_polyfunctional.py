@@ -49,7 +49,7 @@ def test_smiles_to_iupac_aldehyde_amine(smiles, expected):
         pytest.param("NC(CO)C=O", "2-amino-3-hydroxypropanal", id="hydroxyl_coexisting"),
         pytest.param("O=CC(C)C(=O)O", "2-methyl-3-oxopropanoic acid", id="branch_substituent"),
         pytest.param("CC(=O)C(Cl)C=O", "2-chloro-3-oxobutanal", id="halogen_substituent"),
-        pytest.param("O=CC(=O)CC=O", "2-oxobutanedial", id="two_aldehydes_with_ketone"),
+        pytest.param("O=CC(=O)CC=O", "oxobutanedial", id="two_aldehydes_with_ketone"),
         pytest.param("C=CC(=O)CC=O", "3-oxopent-4-enal", id="unsaturated_chain__aldehyde_ketone"),
         pytest.param("O=CC1CCC(=O)C1", "3-oxocyclopentane-1-carbaldehyde", id="ring__aldehyde_ketone"),
         pytest.param("OCC(=O)CC=O", "4-hydroxy-3-oxobutanal", id="hydroxyl_coexistence"),
@@ -166,11 +166,11 @@ def test_carboxylic_acid_sulfonamide(smiles, expected):
 @pytest.mark.parametrize(
     "smiles, expected",
     [
-        pytest.param("OC(=O)CC(S(=O)(=O)N)C(=O)O", "2-sulfamoylbutanedioic acid", id="multiple_carboxylic_acids"),
+        pytest.param("OC(=O)CC(S(=O)(=O)N)C(=O)O", "sulfamoylbutanedioic acid", id="multiple_carboxylic_acids"),
         pytest.param("OC(=O)C(O)CS(=O)(=O)N", "2-hydroxy-3-sulfamoylpropanoic acid", id="other_heteroatom"),
         pytest.param("OC(=O)C=CCS(=O)(=O)N", "4-sulfamoylbut-2-enoic acid", id="unsaturated_chain__carboxylic_acid_sulfonamide"),
         pytest.param("OC(=O)C1CCC(S(=O)(=O)N)CC1", "4-sulfamoylcyclohexane-1-carboxylic acid", id="ring__carboxylic_acid_sulfonamide"),
-        pytest.param("OC(=O)CC(S(=O)(=O)O)C(=O)O", "2-sulfobutanedioic acid", id="multiple_carboxylic_acids__carboxylic_acid_sulfonic_acid"),
+        pytest.param("OC(=O)CC(S(=O)(=O)O)C(=O)O", "sulfobutanedioic acid", id="multiple_carboxylic_acids__carboxylic_acid_sulfonic_acid"),
         pytest.param("OC(=O)C(O)CS(=O)(=O)O", "2-hydroxy-3-sulfopropanoic acid", id="other_heteroatom__carboxylic_acid_sulfonic_acid"),
         pytest.param("OC(=O)C=CCS(=O)(=O)O", "4-sulfobut-2-enoic acid", id="unsaturated_chain__carboxylic_acid_sulfonic_acid"),
         pytest.param("OC(=O)C1CCC(S(=O)(=O)O)CC1", "4-sulfocyclohexane-1-carboxylic acid", id="ring__carboxylic_acid_sulfonic_acid"),

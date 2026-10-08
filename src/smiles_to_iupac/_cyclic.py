@@ -73,13 +73,14 @@ from ._common import (
     substituent_locant_set_and_citation,
     validate_atoms_and_bonds,
 )
+from ._locant_omission import omits_all_locants
 from ._numerals import alkane_name
 from ._substituents import format_substituent_prefixes, name_branch, ring_branch_stereo_display, substituents_for_ring
 
 
 
 
-def _name_from_substituents(ring_size, grouped):
+def _name_from_substituents(ring_size, grouped, omit_locants=False):
     parent = "cyclo" + alkane_name(ring_size)
     total_count = sum(len(info["locants"]) for info in grouped.values())
     if total_count == 0:
@@ -89,17 +90,17 @@ def _name_from_substituents(ring_size, grouped):
         (name,) = grouped
         display_name = enclose(name) if grouped[name]["compound"] else name
         return f"{display_name}{parent}"
-    prefix = format_substituent_prefixes(grouped)
+    prefix = format_substituent_prefixes(grouped, omit_all=omit_locants)
     return prefix + parent
 
 
-def _candidate_key(ring_size, substituents):
+def _candidate_key(ring_size, substituents, omit=None):
     """Sort key implementing P-45.2.2/P-45.2.3, most-preferred first (the
     substituent count is fixed for a given ring, so unlike the acyclic case
     there is no P-45.2.1 dimension to break ties on)."""
     grouped = group_substituents(substituents)
     locant_set, _, citation_locants = substituent_locant_set_and_citation(grouped)
-    name = _name_from_substituents(ring_size, grouped)
+    name = _name_from_substituents(ring_size, grouped, omit is not None and omit(grouped))
     return locant_set, citation_locants, name
 
 
@@ -260,7 +261,9 @@ def name_cycloalkane(mol) -> str:
             if branch_stereo is not None:
                 branch_ring_atom, display = branch_stereo
                 substituents[position_of[branch_ring_atom]] = [(display, False)]
-            key = _candidate_key(ring_size, substituents)
+            key = _candidate_key(
+                ring_size, substituents, lambda grouped, ring=candidate: omits_all_locants(mol, ring, grouped)
+            )
             if best_key is None or key < best_key:
                 best_key, best_name = key, key[-1]
 

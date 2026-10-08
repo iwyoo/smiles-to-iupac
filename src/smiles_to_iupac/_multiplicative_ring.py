@@ -275,12 +275,14 @@ def _prefix_entries(mol, roots, groups, suffix_group, name_function):
     return entries
 
 
-def _suffix_text(parent, suffix_name, locants, spec):
+def _suffix_text(parent, suffix_name, locants, spec, omit_locants=False):
     count = len(locants)
     if count == 1 and spec.kind == "benzene" and suffix_name in _RETAINED_BENZENE:
         return _RETAINED_BENZENE[suffix_name], False
     suffix = multiplied_word(count, _SUFFIX_WORDS[suffix_name])
     stem = parent[:-1] if (parent.endswith("e") and suffix[0] in "aeiouy") else parent
+    if omit_locants:
+        return stem + suffix, False
     return f"{stem}-{','.join(str(x) for x in sorted(locants))}-{suffix}", True
 
 

@@ -122,6 +122,7 @@ from ._common import (
     stereo_element_atoms,
     substituent_locant_set_and_citation,
 )
+from ._locant_omission import omits_all_locants
 from ._retained_acids import retained_chain_acid
 from ._substituents import format_substituent_prefixes, name_branch, substituents_for_chain
 
@@ -279,13 +280,15 @@ def _validate_and_collect_carboxyls(mol, aromatic_ring_atoms=frozenset(), extra_
     return carboxyl_carbons, carboxyl_oxygens, extra_hydroxyls
 
 
-def _name_from_substituents(chain_length, acid_count, ene_locants, yne_locants, grouped):
+def _name_from_substituents(chain_length, acid_count, ene_locants, yne_locants, grouped, omit_locants=False):
     retained = retained_chain_acid(grouped, chain_length, ene_locants, yne_locants, acid_count, "acid")
     if retained is not None:
         return retained
     # P-14.3.4.2(a): a mononuclear parent's substituent locant is always
     # '1' and never cited.
-    prefix = format_substituent_prefixes(grouped, omit_locants=chain_length == 1)
+    prefix = format_substituent_prefixes(
+        grouped, omit_locants=chain_length == 1, omit_all=omit_locants and not (ene_locants or yne_locants)
+    )
     return (
         prefix
         + name_from_substituents(chain_length, ene_locants, yne_locants, multiplied_word(acid_count, "oic"))
@@ -293,7 +296,7 @@ def _name_from_substituents(chain_length, acid_count, ene_locants, yne_locants, 
     )
 
 
-def _candidate_key(chain_length, acid_count, ene_locants, yne_locants, substituents):
+def _candidate_key(chain_length, acid_count, ene_locants, yne_locants, substituents, omit=None):
     """Sort key implementing P-44.4.1.10 (ene/yne locants) ahead of P-45.2
     (substituent-prefix locants), most-preferred first. The -COOH group's
     own locant isn't part of this key: candidates are pre-filtered so a
@@ -302,7 +305,9 @@ def _candidate_key(chain_length, acid_count, ene_locants, yne_locants, substitue
     locant_set, total_count, citation_locants = substituent_locant_set_and_citation(grouped)
     combined_locant_set = lowest_locant_set(ene_locants + yne_locants)
     ene_locant_set = lowest_locant_set(ene_locants)
-    name = _name_from_substituents(chain_length, acid_count, ene_locants, yne_locants, grouped)
+    name = _name_from_substituents(
+        chain_length, acid_count, ene_locants, yne_locants, grouped, omit is not None and omit(grouped)
+    )
     return (
         (
             combined_locant_set,
@@ -390,7 +395,14 @@ def _best_acyclic_carboxylic_acid_candidate(
                 continue
             ene_locants, yne_locants = chain_bond_locants(candidate, bonds)
             substituents = substituents_for_chain(graph, candidate, halogens, carboxyl_oxygens, mol=mol)
-            key, name = _candidate_key(chain_length, acid_count, ene_locants, yne_locants, substituents)
+            key, name = _candidate_key(
+                chain_length,
+                acid_count,
+                ene_locants,
+                yne_locants,
+                substituents,
+                lambda grouped, chain=candidate: omits_all_locants(mol, chain, grouped, carboxyl_oxygens),
+            )
             position_of = {atom: i + 1 for i, atom in enumerate(candidate)}
             key = (key, stereo_locant_rank(mol, stereo, position_of))
             if best_key is None or key < best_key:

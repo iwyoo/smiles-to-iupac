@@ -958,7 +958,7 @@ def test_phenyl_nitroso_chain():
         pytest.param("CS(=O)(=O)N1CCC(C)CC1", "1-(methanesulfonyl)-4-methylpiperidine", id="ring_amine_sulfonyl_with_ring_carbon_substituent"),
         pytest.param("CS(=O)(=O)N1CCOCC1", "4-methylsulfonylmorpholine", id="methylsulfonylmorpholine"),
         pytest.param("NC(=O)N", "urea", id="urea"),
-        pytest.param("CNC(=O)N", "N-methylurea", id="n_methylurea"),
+        pytest.param("CNC(=O)N", "methylurea", id="n_methylurea"),
         pytest.param("CN(C)C(=O)N", "N,N-dimethylurea", id="n_n_dimethylurea_same_nitrogen"),
         pytest.param("CCN(C)C(=O)N", "N-ethyl-N-methylurea", id="n_ethyl_n_methylurea_same_nitrogen"),
     ],
@@ -1185,11 +1185,11 @@ def test_chalcogen_analogues_of_sulfonamides(smiles, expected):
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        pytest.param("NC(=O)NCCO", "N-(2-hydroxyethyl)urea", id="hydroxy_group_in_an_n_substituent"),
+        pytest.param("NC(=O)NCCO", "(2-hydroxyethyl)urea", id="hydroxy_group_in_an_n_substituent"),
         pytest.param("COCCNC(=O)Nc1cccs1", "N-(2-methoxyethyl)-N'-(thiophen-2-yl)urea", id="ether_and_heteroaryl_on_the_two_nitrogens"),
         pytest.param("NC(=O)N(O)C", "N-hydroxy-N-methylurea", id="hydroxy_on_the_nitrogen_itself"),
         pytest.param("N#CC(CCSC)NC(=O)NC", "N-[1-cyano-3-(methylsulfanyl)propyl]-N'-methylurea", id="nitrile_and_sulfanyl_in_a_substituent"),
-        pytest.param("NC(=S)NCCO", "N-(2-hydroxyethyl)thiourea", id="thiourea_with_a_hydroxy_substituent"),
+        pytest.param("NC(=S)NCCO", "(2-hydroxyethyl)thiourea", id="thiourea_with_a_hydroxy_substituent"),
         pytest.param("NC(=O)NC(=O)c1ccccc1", "N-carbamoylbenzamide", id="urea_beneath_a_carboxamide"),
         pytest.param("NC(=O)NS(=O)(=O)c1ccccc1", "N-carbamoylbenzenesulfonamide", id="urea_beneath_a_sulfonamide"),
         pytest.param("CC(=O)NCCNC(N)=O", "N-[2-(carbamoylamino)ethyl]acetamide", id="carbamoylamino_prefix_beneath_an_amide"),

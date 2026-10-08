@@ -58,6 +58,7 @@ from ._ring_diyl_numbering import _exocyclic_oxo, is_hydro_fusion_system
 from ._acid_groups import acid_group_at
 from ._acid_lexicon import carbo_suffix, chain_suffix, make_spec, rank_key, spec_from_key
 from ._retained_acids import retained_chain_acid, single_site_prefixes
+from ._locant_omission import omits_all_locants
 from ._substituents import format_substituent_prefixes, name_branch
 
 _CHALCOGEN_HYDRAZIDE = {
@@ -2410,7 +2411,10 @@ def _ring_parent(mol, graph, halogens, aromatic_atoms, principal, occurrences, n
         stem = spec.parent[:-1] if word[0] in "aeiouy" else spec.parent
         core = stem + word
     else:
-        core, _ = _suffix_text(spec.parent, suffix_name, suffix_locants, spec)
+        every_position_modified = (
+            count > 1 and not entries and not n_names and not any(mol.GetAtomWithIdx(r).GetTotalNumHs() for r in ring)
+        )
+        core, _ = _suffix_text(spec.parent, suffix_name, suffix_locants, spec, every_position_modified)
     name = _join(prefix_text, core)
     count += len(ide_atoms)
     letters = re.sub(r"[^a-z]", "", name)
@@ -3312,7 +3316,7 @@ def _amidine_nitrogens(mol, atom):
     imino, amino = imino[0], amino[0]
     if any(n.GetFormalCharge() or n.IsInRing() or n.GetIsAromatic() for n in (imino, amino)):
         return None
-    for nitrogen, allowed in ((imino, (6, 8)), (amino, (6,))):
+    for nitrogen, allowed in ((imino, (6, 8, 9, 17, 35, 53)), (amino, (6, 9, 17, 35, 53))):
         for n in nitrogen.GetNeighbors():
             if n.GetIdx() == carbon:
                 continue
@@ -3654,12 +3658,13 @@ def _evaluate(
             or principal in ("nitrile", "aldehyde")
         )
     )
+    with_n = _with_n_names(grouped, n_names, position_of, len(on_chain))
+    nitrogens = {a for a in owned if mol.GetAtomWithIdx(a).GetAtomicNum() == 7}
+    uncited_locants = length > 1 and not force and omits_all_locants(mol, chain_set | nitrogens, with_n, owned - nitrogens)
     if completely_substituted and not force and not n_names:
         prefix = single_site_prefixes(grouped)
     else:
-        prefix = format_substituent_prefixes(
-            _with_n_names(grouped, n_names, position_of, len(on_chain)), omit_locants=length == 1 and not force and not n_names
-        )
+        prefix = format_substituent_prefixes(with_n, omit_locants=length == 1 and not force and not n_names)
     tail = ""
     if principal == "ide" and attach is None and length == 2 and not grouped and (ene or yne) and (count == 1 or yne):
         word = multiplied_word(count, "ide")
@@ -3736,6 +3741,8 @@ def _evaluate(
             length, ene, yne, multiplied_word(count, word), suffix_locants, force_own_locant=force,
             substituted=bool(grouped),
         )
+    if prefix and uncited_locants and not any(ch.isdigit() for ch in body):
+        prefix = format_substituent_prefixes(with_n, omit_all=True)
     name = prefix + body + tail
     attach_locant = position_of[attach] if attach is not None else 0
     reported_attach = None if (attach is not None and length == 1) else attach_locant

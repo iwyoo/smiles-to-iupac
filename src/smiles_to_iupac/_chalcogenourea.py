@@ -156,10 +156,10 @@ def n_substituent_names(mol, graph, core_atoms, nitrogens, carbon_idx, junior_gr
 def n_prefix(n1_names, n2_names):
     """The 'N'/'N'' substituent prefix block: the nitrogen with more
     substituents takes the unprimed locant, then the one whose substituent
-    comes first alphanumerically (P-14.3.5, P-14.5.2). Four identical substituents leave no substitutable hydrogen,
-    so the locants are omitted (P-14.3.4.5)."""
+    comes first alphanumerically (P-14.3.5, P-14.5.2). A sole substituent sits on one of two equivalent nitrogens
+    (P-14.3.4.3) and four identical ones leave no substitutable hydrogen (P-14.3.4.5), so no locant is cited."""
     names = n1_names + n2_names
-    if len(names) == 4 and len(set(names)) == 1:
+    if len(names) == 1 or (len(names) == 4 and len(set(names)) == 1):
         return format_mononuclear_prefixes(names)
     if len(n1_names) != len(n2_names):
         unprimed, primed = (n1_names, n2_names) if len(n1_names) > len(n2_names) else (n2_names, n1_names)
