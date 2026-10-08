@@ -13,6 +13,7 @@ from ._free_valence import valence_word
 from ._common import (
     UnsupportedStructure,
     alpha_sort_key,
+    citation_order_key,
     heteroaromatic_monocycle_name,
     multiplied_word,
     ring_cycle,
@@ -229,7 +230,7 @@ def _join(prefix_text, core):
 
 
 def _citation_key(entries):
-    return tuple(loc for loc, _ in sorted(entries, key=lambda e: (alpha_sort_key(e[1]), e[0])))
+    return tuple(loc for loc, _ in sorted(entries, key=lambda e: (citation_order_key(e[1]), e[0])))
 
 
 def _prefix_text(entries, locants):

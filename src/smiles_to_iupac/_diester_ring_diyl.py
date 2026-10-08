@@ -46,10 +46,10 @@ def _isotope_key(position_of, skeleton):
         if atom not in skeleton or atom not in position_of:
             continue
         nuclides = [(-table.GetAtomicNumber("".join(c for c in entry["skeleton"] if c.isalpha())), -int("".join(c for c in entry["skeleton"] if c.isdigit())))] if entry["skeleton"] else []
-        nuclides += [(-1, -{"1H": 1, "2H": 2, "3H": 3}[n]) for n in entry["H"]]
+        nuclides += [(-1, -{"1H": 1, "2H": 2, "3H": 3}[n]) for n, c in entry["H"].items() for _ in range(c)]
         found.append((position_of[atom], tuple(sorted(nuclides))))
     found.sort()
-    return (tuple(loc for loc, _ in found), tuple(n for _, n in found))
+    return (tuple(loc for loc, n in found for _ in n), tuple(n for _, n in found))
 
 
 def _component(graph, start, blocked):

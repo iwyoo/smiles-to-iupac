@@ -15,6 +15,7 @@ from ._free_valence import SUFFIX_OF_ORDER
 from ._common import (
     UnsupportedStructure,
     alpha_sort_key,
+    citation_order_key,
     substituent_locant_set_and_citation,
     unsaturation_suffix,
 )
@@ -106,6 +107,16 @@ def prefix_multiplier(count: int, name: str, compound: bool):
     return multiplying_prefix(count), enclosed
 
 
+def _isotope_only_prefix(name):
+    """A plain alkyl or alkoxy group with only its isotopic descriptor in front: cited alone it needs no enclosing
+    marks (P-82.2.1)."""
+    match = re.fullmatch(r"\([^()]*\)([a-z]+)", name)
+    if not match:
+        return False
+    stem = match.group(1)
+    return is_plain_stem_prefix(stem[:-3] + "yl" if stem.endswith("oxy") else stem)
+
+
 def multiplied_prefix(count: int, name: str, compound: bool) -> str:
     """`name` cited `count` times as a detachable prefix, without locants."""
     if count == 1:
@@ -157,14 +168,15 @@ def format_substituent_prefixes(grouped, omit_locants: bool = False, omit_all: b
             [(name, info["compound"]) for name, info in grouped.items() for _ in info["locants"]]
         )
     entries = []
-    for name in sorted(grouped, key=alpha_sort_key):
+    for name in sorted(grouped, key=citation_order_key):
         info = grouped[name]
         locants = sorted(info["locants"], key=_locant_sort_key)
         if "multiplier" in info:
             display_name = enclose(name) if info["compound"] else name
             body = f"{info['multiplier']}{display_name}"
         else:
-            body = multiplied_prefix(len(locants), name, info["compound"])
+            lone = omit_locants and len(grouped) == 1 and len(locants) == 1 and _isotope_only_prefix(name)
+            body = multiplied_prefix(len(locants), name, info["compound"] and not lone)
         explicit = (not omit_locants) or any(isinstance(loc, str) for loc in locants)
         if explicit:
             loc_str = ",".join(str(loc) for loc in locants)
@@ -416,7 +428,7 @@ def _label_branch(result, graph, root, coming_from, halogens=None, mol=None, aro
         text = descriptor(labelled, {a: 1 for a in labelled}, True, capacity=capacity)
         context["consumed"].update(labelled)
         return text + name, False
-    positions = _plain_chain_positions(graph, root, coming_from, atoms)
+    positions = _plain_chain_positions(graph, root, coming_from, atoms, mol)
     if positions is not None and name.isalpha():
         context["consumed"].update(labelled)
         omit = len(atoms) == 1 or _fully_modified(labelled, positions, capacity, atoms)
@@ -505,11 +517,13 @@ def _hydrogen_capacity(context, atoms):
     return {a: mol.GetAtomWithIdx(a).GetTotalNumHs() for a in atoms} if mol is not None else None
 
 
-def _plain_chain_positions(graph, root, coming_from, atoms):
+def _plain_chain_positions(graph, root, coming_from, atoms, mol=None):
     """{atom: locant} when the branch is an unbranched chain of carbon atoms read from its attachment atom."""
     positions = {}
     previous, current = coming_from, root
     while current is not None:
+        if mol is not None and len(atoms) > 1 and mol.GetAtomWithIdx(current).GetAtomicNum() != 6:
+            return None
         if len([n for n in graph[current] if n != previous]) > 1:
             return None
         positions[current] = len(positions) + 1
