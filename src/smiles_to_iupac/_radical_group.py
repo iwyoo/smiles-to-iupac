@@ -207,16 +207,23 @@ def _name_polyradical(mol):
     raise UnsupportedStructure("the polyradical is not named as a polyanion parent")
 
 
+def _carbenium_valence(atom):
+    """A carbenium centre: three bonds in total, three single bonds or one double and one single bond (a vinyl or aryl
+    cation, named through the carbanion of the same skeleton)."""
+    orders = [b.GetBondTypeAsDouble() for b in atom.GetBonds()]
+    if atom.GetTotalNumHs() == 0 and sorted(orders) == [1.0, 2.0] and atom.GetBonds()[0].GetOtherAtom(atom).GetAtomicNum() == 6:
+        return all(b.GetOtherAtom(atom).GetAtomicNum() == 6 for b in atom.GetBonds())
+    return atom.GetTotalNumHs() + atom.GetDegree() == 3 and all(order == 1.0 for order in orders)
+
+
 def _group_cation_centre(mol):
     cations = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
     if (
         len(cations) != 1
         or cations[0].GetFormalCharge() != 1
         or cations[0].GetAtomicNum() != 6
-        or cations[0].GetIsAromatic()
         or cations[0].GetIsotope()
-        or cations[0].GetTotalNumHs() + cations[0].GetDegree() != 3
-        or any(b.GetBondTypeAsDouble() != 1.0 for b in cations[0].GetBonds())
+        or not _carbenium_valence(cations[0])
         or any(a.GetNumRadicalElectrons() or a.GetIsotope() for a in mol.GetAtoms())
         or len(Chem.GetMolFrags(mol)) != 1
         or mol.GetNumAtoms() < 2
@@ -257,6 +264,8 @@ def name_group_cation(mol) -> str:
         raise UnsupportedStructure("an added-hydrogen anion name does not carry over to the cation")
     if name.endswith("anide"):
         return name[: -len("anide")] + "ylium"
+    if name.endswith("benzenide"):
+        return name[: -len("ide")] + "ylium"
     if name.endswith("ide") and name[:-3].endswith("-"):
         return name[:-3] + "ylium"
     raise UnsupportedStructure("the cation is not named as a carbanion-like parent")
