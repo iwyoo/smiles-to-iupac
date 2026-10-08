@@ -235,6 +235,22 @@ def _general_anion(mol, graph, match, component):
     return name, substituted
 
 
+_INORGANIC_ANIONS = {
+    (16, 2): "hydrogen sulfate",
+    (16, 1): "hydrogen sulfite",
+    (15, 1): "dihydrogen phosphate",
+    (15, 0): "dihydrogen phosphite",
+}
+
+
+def inorganic_anion_name(mol, centre):
+    """Anion of a sulfur or phosphorus acid esterified once, its remaining hydroxyl groups cited as 'hydrogen' (P-67.1.3.2)."""
+    doubled = sum(
+        1 for n in centre.GetNeighbors() if mol.GetBondBetweenAtoms(centre.GetIdx(), n.GetIdx()).GetBondTypeAsDouble() == 2.0
+    )
+    return _INORGANIC_ANIONS[(centre.GetAtomicNum(), doubled)]
+
+
 def acid_anions(mol, matches):
     """[(anion_name, is_substituted), ...] aligned with `matches`."""
     graph = adjacency(mol)
@@ -247,6 +263,9 @@ def acid_anions(mol, matches):
     results = []
     for match in matches:
         acyl, carbonyl, ester_o, _ = match
+        if acyl.GetAtomicNum() != 6:
+            results.append((inorganic_anion_name(mol, acyl), True))
+            continue
         component = _acyl_component(graph, acyl.GetIdx(), ester_o.GetIdx())
         if (component & ester_atoms) != {acyl.GetIdx(), carbonyl.GetIdx()}:
             raise UnsupportedStructure("an acyl group connected to another ester group is not supported yet")
@@ -313,5 +332,6 @@ __all__ = [
     "cip_labels",
     "cite_anions",
     "find_ester_carbons",
+    "inorganic_anion_name",
     "multiplied_anion",
 ]

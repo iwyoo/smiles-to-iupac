@@ -64,6 +64,40 @@ def test_sulfite_ester_unaffected_and_related(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("OS(=O)(=O)OCCOS(=O)(=O)O", "ethane-1,2-diyl bis(hydrogen sulfate)", id="sulfate"),
+        pytest.param("OS(=O)OCCOS(=O)O", "ethane-1,2-diyl bis(hydrogen sulfite)", id="sulfite"),
+        pytest.param("OS(=O)(=O)OCC(Cl)COS(=O)(=O)O", "2-chloropropane-1,3-diyl bis(hydrogen sulfate)", id="substituted_diyl"),
+        pytest.param("OS(=O)(=O)OCC(O)COS(=O)(=O)O", "2-hydroxypropane-1,3-diyl bis(hydrogen sulfate)", id="hydroxy_diyl"),
+        pytest.param("OP(O)(=O)OCCOP(O)(O)=O", "ethane-1,2-diyl bis(dihydrogen phosphate)", id="phosphate"),
+        pytest.param("OP(O)(=O)OCC(OP(O)(O)=O)COP(O)(O)=O", "propane-1,2,3-triyl tris(dihydrogen phosphate)", id="triple"),
+        pytest.param("OP(O)(=O)OC1CCCCC1OP(O)(O)=O", "cyclohexane-1,2-diyl bis(dihydrogen phosphate)", id="ring_diyl"),
+        pytest.param("OP(O)OCCOP(O)O", "ethane-1,2-diyl bis(dihydrogen phosphite)", id="phosphite"),
+    ],
+)
+def test_multiplicative_esters_of_sulfur_and_phosphorus_acids(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("OC(=O)CCOS(=O)(=N)O", "3-[(hydroxysulfonimidoyl)oxy]propanoic acid", id="imidic_o_bound"),
+        pytest.param("OC(=O)CCS(=O)(=N)O", "3-(hydroxysulfonimidoyl)propanoic acid", id="imidic_c_bound"),
+        pytest.param("OC(=O)CCS(=N)(=N)O", "3-(hydroxysulfonodiimidoyl)propanoic acid", id="diimidic"),
+        pytest.param("OC(=O)CCOS(=S)(=O)O", "3-[(thiosulfo)oxy]propanoic acid", id="thio_o_bound"),
+        pytest.param("OC(=O)CCS(=O)(=S)O", "3-(thiosulfo)propanoic acid", id="thio_c_bound"),
+        pytest.param("OC(=O)CCS(=O)(=O)S", "3-(thiosulfo)propanoic acid", id="thio_s_acid"),
+        pytest.param("OC(=O)CCOS(=S)(=S)O", "3-[(dithiosulfo)oxy]propanoic acid", id="dithio"),
+        pytest.param("OC(=O)CCS(=S)O", "3-(thiosulfino)propanoic acid", id="thiosulfino"),
+    ],
+)
+def test_modified_sulfonic_acid_groups_as_prefixes_beside_a_senior_acid(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
 def test_salt_of_partial_ester_multivalent_cation_raises():
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac("COS(=O)(=O)[O-].[Ca+2]")
