@@ -20,6 +20,7 @@ from ._substituents import BRANCH_STEREO, name_branch
 _SYMBOL = {8: "O", 16: "S", 34: "Se", 52: "Te"}
 _CENTERS = {6: "C", 16: "S", 34: "Se", 52: "Te"}
 _INORGANIC_CENTERS = {5, 15, 33, 51}
+_CHALCOGEN_CENTERS = {16, 34, 52}
 _HEAVY_PNICTOGEN_STEMS = {33: "ars", 51: "stib"}
 _FREE_INORGANIC_ACIDS = {"OB(O)O": "boric acid", "OP(O)O": "phosphorous acid",
     "O=P(O)(O)O": "phosphoric acid",
@@ -90,10 +91,13 @@ def _inorganic_center(mol, idx):
     only P=O, hydroxy/oxy and organyl neighbours, at least one oxy position."""
     atom = mol.GetAtomWithIdx(idx)
     oxo = [n for n in atom.GetNeighbors() if _bond(mol, idx, n.GetIdx()) == 2.0]
-    if len(oxo) > 1 or any(n.GetAtomicNum() != 8 or n.GetDegree() != 1 for n in oxo):
+    chalcogen = atom.GetAtomicNum() in _CHALCOGEN_CENTERS
+    if len(oxo) > (2 if chalcogen else 1) or any(n.GetAtomicNum() != 8 or n.GetDegree() != 1 for n in oxo):
         return None
     rest = [n for n in atom.GetNeighbors() if _bond(mol, idx, n.GetIdx()) == 1.0]
-    if len(oxo) + len(rest) != atom.GetDegree() or any(n.GetAtomicNum() not in (6, 8) for n in rest):
+    direct = [n for n in rest if n.GetAtomicNum() == atom.GetAtomicNum()]
+    rest = [n for n in rest if n not in direct]
+    if len(oxo) + len(rest) + len(direct) != atom.GetDegree() or any(n.GetAtomicNum() not in (6, 8) for n in rest):
         return None
     positions = [(n.GetIdx(), "Y") for n in rest if n.GetAtomicNum() == 8]
     if not positions or atom.GetAtomicNum() == 5 and oxo:
@@ -101,11 +105,27 @@ def _inorganic_center(mol, idx):
     return "inorganic", ["O"] * len(oxo), positions
 
 
+def _acylated_oxoacid_center(mol, atom):
+    """A sulfur, selenium or tellurium oxoacid centre (no organyl neighbour) with an acyloxy neighbour."""
+    if atom.GetFormalCharge() or atom.GetIsotope() or atom.IsInRing():
+        return False
+    neighbors = atom.GetNeighbors()
+    if any(n.GetAtomicNum() == 6 for n in neighbors):
+        return False
+    return any(
+        n.GetAtomicNum() == 8
+        and any(c.GetIdx() != atom.GetIdx() and c.GetAtomicNum() == 6 and _oxo_slots(mol, c.GetIdx()) for c in n.GetNeighbors())
+        for n in neighbors
+    )
+
+
 def _center(mol, idx):
     """(kind, oxo slots, [(neighbor, role)] of the Y positions) for an acyl-type ('acyl'), carbonic
     ('carbonic') or cyanic ('cyanic') centre, else None."""
     atom = mol.GetAtomWithIdx(idx)
     if atom.GetAtomicNum() in _INORGANIC_CENTERS and not (atom.GetFormalCharge() or atom.GetIsotope() or atom.IsInRing()):
+        return _inorganic_center(mol, idx)
+    if atom.GetAtomicNum() in _CHALCOGEN_CENTERS and _acylated_oxoacid_center(mol, atom):
         return _inorganic_center(mol, idx)
     symbol = _CENTERS.get(atom.GetAtomicNum())
     if symbol is None or atom.GetFormalCharge() or atom.GetIsotope() or atom.IsInRing():
