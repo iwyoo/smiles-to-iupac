@@ -585,9 +585,53 @@ def _hapto_bridges(mol, graph, metal_set):
                 n in donors and mol.GetBondBetweenAtoms(a, n).GetBondTypeAsDouble() >= 2.0 for n in graph[a]
             )
 
-        if len(reach) >= 2 and len(comp) > 1 and all(pi_linked(a) for a in multi):
+        if len(reach) >= 2 and len(comp) > 1 and all(pi_linked(a) for a in multi) and not _sigma_only(reach, multi):
             found.append((comp, reach))
     return found
+
+
+def _sigma_only(reach, multi):
+    return not multi and all(len(donors) == 1 for donors in reach.values())
+
+
+def _sigma_bridges(mol, graph, metal_set, taken):
+    """Groups joined to two metals by one single bond each: [(atoms, {metal: donor})] (P-69.2.5, P-69.5.1)."""
+    seen, found = set(taken), []
+    for start in range(mol.GetNumAtoms()):
+        if start in seen or start in metal_set:
+            continue
+        comp, stack = set(), [start]
+        while stack:
+            x = stack.pop()
+            if x in comp or x in metal_set:
+                continue
+            comp.add(x)
+            stack.extend(graph[x])
+        seen |= comp
+        reach = {m: {a for a in comp if m in graph[a]} for m in metal_set}
+        reach = {m: d for m, d in reach.items() if d}
+        if len(reach) >= 2 and len(comp) > 1 and _sigma_only(reach, [a for a in comp if sum(m in graph[a] for m in metal_set) > 1]):
+            found.append((comp, {m: next(iter(d)) for m, d in reach.items()}))
+    return found
+
+
+def _diyl_label(mol, comp, donors):
+    rw = Chem.RWMol(mol)
+    for idx in sorted(set(range(mol.GetNumAtoms())) - comp, reverse=True):
+        rw.RemoveAtom(idx)
+    kept = sorted(comp)
+    for donor in donors:
+        atom = rw.GetAtomWithIdx(kept.index(donor))
+        atom.SetNumExplicitHs(mol.GetAtomWithIdx(donor).GetTotalNumHs())
+        atom.SetNoImplicit(True)
+        atom.SetNumRadicalElectrons(1)
+    for atom in rw.GetAtoms():
+        atom.SetFormalCharge(0)
+    fragment = rw.GetMol()
+    Chem.SanitizeMol(fragment)
+    from .core import smiles_to_iupac
+
+    return smiles_to_iupac(Chem.MolToSmiles(fragment))
 
 
 _CLUSTER_WORDS = {(3, 3): "triangulo", (4, 6): "tetrahedro", (4, 4): "quadro"}
@@ -661,6 +705,7 @@ def _name_polynuclear(mol, metals) -> str:
     hapto_bridges = _hapto_bridges(mol, graph, metal_set)
     hapto_atoms = set().union(*(comp for comp, _ in hapto_bridges)) if hapto_bridges else set()
     bridge_atoms = [a for a in bridge_atoms if a.GetIdx() not in hapto_atoms]
+    sigma_bridges = _sigma_bridges(mol, graph, metal_set, hapto_atoms | {a.GetIdx() for a in bridge_atoms})
     parent = {i: i for i in ids}
 
     def find(x):
@@ -678,6 +723,10 @@ def _name_polynuclear(mol, metals) -> str:
         linked = list(reach)
         for other in linked[1:]:
             parent[find(other)] = find(linked[0])
+    for _, reach in sigma_bridges:
+        linked = list(reach)
+        for other in linked[1:]:
+            parent[find(other)] = find(linked[0])
     if len({find(i) for i in ids}) != 1:
         raise UnsupportedStructure("the metal atoms are not all connected to each other")
 
@@ -692,6 +741,15 @@ def _name_polynuclear(mol, metals) -> str:
             bridge_counts[m][label] = bridge_counts[m].get(label, 0) + 1
             bridge_sites[m][label] = bridge_sites[m].get(label, 0) + 1
     skip = metal_set | {a.GetIdx() for a in bridge_atoms}
+    for comp, reach in sigma_bridges:
+        if len(reach) != 2:
+            raise UnsupportedStructure("a bridging group joined to more than two metal atoms is not supported yet")
+        skip |= comp
+        label = _diyl_label(mol, comp, set(reach.values()))
+        bridge_info[(label, 2)] = bridge_info.get((label, 2), 0) + 1
+        for m in reach:
+            bridge_counts[m][label] = bridge_counts[m].get(label, 0) + 1
+            bridge_sites[m][label] = bridge_sites[m].get(label, 0) + 1
     hapto_results = []
     for comp, reach in hapto_bridges:
         from ._hapto import bridge_result
