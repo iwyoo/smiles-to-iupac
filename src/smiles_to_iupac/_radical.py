@@ -485,6 +485,12 @@ def name_radical(mol) -> str:
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
 
+    from ._radical_hetero import hetero_radical_name
+
+    hetero_name = hetero_radical_name(mol)
+    if hetero_name is not None:
+        return hetero_name
+
     characteristic_group_name = _characteristic_group_radical_name(mol)
     if characteristic_group_name is not None:
         return characteristic_group_name

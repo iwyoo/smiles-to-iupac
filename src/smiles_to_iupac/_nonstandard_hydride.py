@@ -51,6 +51,8 @@ def _chalcogen_chain(mol):
 
 
 def has_nonstandard_hydride_shape(mol) -> bool:
+    if any(atom.GetNumRadicalElectrons() for atom in mol.GetAtoms()):
+        return False
     if _center(mol) is not None:
         return True
     return _chalcogen_chain(mol) is not None

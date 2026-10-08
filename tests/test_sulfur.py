@@ -778,8 +778,7 @@ def test_chalcogen_chain_heterones_and_halogen_acid_esters(smiles, expected):
     [
         pytest.param("[AsH5]", "λ5-arsane", id="pnictogen_hypervalent"),
         pytest.param("[IH3]", "λ3-iodane", id="halogen_hypervalent"),
-        pytest.param("[SnH2]", "λ2-stannane", id="below_standard_bare_atom"),
-        pytest.param("C[SH3]", "methyl-λ4-sulfane", id="substituted_hypervalent"),
+                pytest.param("C[SH3]", "methyl-λ4-sulfane", id="substituted_hypervalent"),
         pytest.param("SSS", "trisulfane", id="homogeneous_chalcogen_chain"),
         pytest.param("S[SH2]S", "2λ4-trisulfane", id="chain_lambda_locant"),
         pytest.param("OO", "dioxidane", id="dioxidane"),

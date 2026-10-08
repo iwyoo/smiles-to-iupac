@@ -1150,13 +1150,33 @@ def test_cation_on_the_parent_hydride_of_an_anionic_suffix(smiles, expected):
     [
         "CC[Si]C[N+](C)(C)C.[I-]",
         "CC[Ge]C[N+](C)(C)C.[I-]",
-        "C[Sn]C",
-        "CC[Si]CC",
     ],
 )
 def test_valence_deficient_heteroatom_is_not_named_as_its_hydride(smiles):
     with pytest.raises(UnsupportedStructure):
         smiles_to_iupac(smiles)
+
+
+# P-71.2.1.1, P-71.2.2.1, P-71.2.3 radicals on parent hydrides of other elements
+@pytest.mark.parametrize(
+    "smiles, expected",
+    [
+        pytest.param("[NH2]", "azanyl", id="mononuclear_pnictogen"),
+        pytest.param("[SiH3]", "silyl", id="group_14_ane_becomes_yl"),
+        pytest.param("[BH2]", "boranyl", id="boron"),
+        pytest.param("[OH]", "hydroxyl", id="retained_hydroxyl"),
+        pytest.param("O[O]", "hydroperoxyl", id="retained_hydroperoxyl"),
+        pytest.param("[SiH2]", "silylidene", id="divalent_centre"),
+        pytest.param("[SiH]", "silylidyne", id="trivalent_centre"),
+        pytest.param("C[Sn]C", "dimethylstannylidene", id="substituted_divalent_centre"),
+        pytest.param("CC[P]C", "ethyl(methyl)phosphanyl", id="substituted_phosphorus"),
+        pytest.param("[SiH3][SiH][SiH3]", "trisilan-2-yl", id="chain_locant"),
+        pytest.param("[NH2][NH]", "hydrazinyl", id="retained_hydrazine_root"),
+        pytest.param("[NH][NH]", "hydrazine-1,2-diyl", id="two_radical_centres_on_a_chain"),
+    ],
+)
+def test_radicals_on_heteroatom_parents(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
 
 
 @pytest.mark.parametrize(
