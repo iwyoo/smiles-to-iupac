@@ -1576,6 +1576,18 @@ def test_primary_amine_oxides_chalcogen_analogues_and_oxides_beside_senior_group
 @pytest.mark.parametrize(
     "smiles,expected",
     [
+        ("CN(C)CCc1cccc(c1)CN(C)C", "2-{3-[(dimethylamino)methyl]phenyl}-N,N-dimethylethan-1-amine"),
+        ("C[N+](C)([O-])CCc1cccc(c1)CN(C)C", "2-{3-[(dimethylamino)methyl]phenyl}-N,N-dimethylethan-1-amine N-oxide"),
+        ("CN(C)CCc1cccc(c1)C[N+](C)(C)[O-]", "1-{3-[2-(dimethylamino)ethyl]phenyl}-N,N-dimethylmethanamine N-oxide"),
+    ],
+)
+def test_substituted_amines_on_separate_chains_one_is_the_parent_and_the_oxidized_one_wins(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
         ("C=[N+]([O-])Cl", "N-chloromethanimine N-oxide"),
         ("OI(O)c1ccccc1", "phenyl-λ3-iodanediol"),
         ("ClI(Cl)C", "dichloro(methyl)-λ3-iodane"),

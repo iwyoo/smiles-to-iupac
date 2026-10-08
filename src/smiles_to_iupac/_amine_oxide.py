@@ -143,6 +143,7 @@ def _name_with_oxidized_parent(reduced_mol, nitrogen_idx, oxide_idx):
     from .core import _name_mol
     from ._common import UnsupportedStructure
     from ._hetero_chain import contract_hetero_groups_candidates
+    from ._polyfunctional import name_polyfunctional
 
     position = nitrogen_idx - (1 if oxide_idx < nitrogen_idx else 0)
     names = []
@@ -152,5 +153,9 @@ def _name_with_oxidized_parent(reduced_mol, nitrogen_idx, oxide_idx):
         except UnsupportedStructure:
             continue
     if not names:
-        raise UnsupportedStructure("no amine parent carries the oxidized nitrogen of this polyamine N-oxide")
+        reduced_mol.GetAtomWithIdx(position).SetBoolProp("_oxidized_amine", True)
+        try:
+            return name_polyfunctional(reduced_mol)
+        except UnsupportedStructure:
+            raise UnsupportedStructure("no amine parent carries the oxidized nitrogen of this polyamine N-oxide")
     return min(names)

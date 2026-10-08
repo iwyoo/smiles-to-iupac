@@ -3045,6 +3045,15 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
     primaries = [a for a in groups.get("amine", {})] + [r for c, r, _ in ring_groups if c == "amine"]
     from ._substituents import ISOTOPE_LABELS
 
+    if (
+        len(amine_nitrogens) > 1
+        and not primaries
+        and not ISOTOPE_LABELS.get()
+        and not SUBSTITUTED_AMINE_PREFIX.get()
+        and not any(a.GetFormalCharge() for a in amine_nitrogens)
+        and not _share_chain_backbone(mol, graph, amine_nitrogens)
+    ):
+        return _one_of_substituted_amines(mol, graph, halogens, aromatic_atoms, groups, ring_groups, amine_nitrogens)
     if len(amine_nitrogens) != 1 or (primaries and ISOTOPE_LABELS.get()):
         raise UnsupportedStructure("several amine groups with N-substitution are not handled by the chain engine")
     nitrogen = amine_nitrogens[0]
@@ -3139,6 +3148,64 @@ def _substituted_amine(mol, graph, halogens, aromatic_atoms, groups, ring_groups
         remapped = {kept[new]: locant for new, locant in positions.items() if new < len(kept)}
         return best[3][0], best[3][1], (*best[3][2][:4], remapped, *best[3][2][5:])
     return best[3]
+
+
+def _share_chain_backbone(mol, graph, nitrogens):
+    """Two of `nitrogens` joined through acyclic carbons only: they are amino groups of one chain (P-62.2.4.1.2)."""
+    chain = {a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and not a.IsInRing()}
+    for i, first in enumerate(nitrogens):
+        reached, stack = {first.GetIdx()}, [first.GetIdx()]
+        while stack:
+            for nxt in graph[stack.pop()]:
+                if nxt in chain and nxt not in reached:
+                    reached.add(nxt)
+                    stack.append(nxt)
+        reached_nitrogens = {n for atom in reached for n in graph[atom]}
+        if any(second.GetIdx() in reached_nitrogens for second in nitrogens[i + 1 :]):
+            return True
+    return False
+
+
+def _one_of_substituted_amines(mol, graph, halogens, aromatic_atoms, groups, ring_groups, amine_nitrogens):
+    """Several N-substituted amines, none primary: each in turn is the parent amine and the others are amino prefixes;
+    the oxidized nitrogen of an N-oxide, when marked, is the only candidate (P-62.5)."""
+    marked = [a for a in amine_nitrogens if a.HasProp("_oxidized_amine")]
+    candidates = []
+    for nitrogen in marked or amine_nitrogens:
+        n_idx = nitrogen.GetIdx()
+        if nitrogen.IsInRing() or nitrogen.GetTotalNumHs() > 1:
+            continue
+        neighbors = [n.GetIdx() for n in nitrogen.GetNeighbors()]
+        carbons = [c for c in neighbors if mol.GetAtomWithIdx(c).GetAtomicNum() == 6]
+        if len(carbons) != len(neighbors) or any(is_functional_carbon(mol, c) or _double_oxygens(mol, c) for c in carbons):
+            continue
+        for c in carbons:
+            arm = _arm_atoms(graph, c, n_idx)
+            if n_idx in arm or any(o in arm for o in neighbors if o != c):
+                continue
+            n_names = [
+                name_branch(graph, o, n_idx, halogens, aromatic_atoms, mol=mol, unsaturated=True)
+                for o in neighbors
+                if o != c
+            ]
+            parent, mapped = _amine_parent_molecule(mol, arm, c, n_idx)
+            token = SUBSTITUTED_AMINE_PREFIX.set(True)
+            try:
+                result = _select(parent, None, n_names)
+            except UnsupportedStructure:
+                continue
+            finally:
+                SUBSTITUTED_AMINE_PREFIX.reset(token)
+            if mapped not in result[2][4]:
+                continue
+            ring = parent.GetAtomWithIdx(mapped).IsInRing()
+            kept = sorted(set(arm) | {n_idx})
+            positions = {kept[new]: locant for new, locant in result[2][4].items() if new < len(kept)}
+            ranked = (not ring, _ring_rank(parent, mapped), -_chain_size(parent, mapped), result[1])
+            candidates.append((ranked, (result[0], result[1], (*result[2][:4], positions, *result[2][5:]))))
+    if not candidates:
+        raise UnsupportedStructure("no parent carries the amine nitrogen of these N-substituted amines")
+    return min(candidates, key=lambda candidate: candidate[0])[1]
 
 
 def _boranyl_nitrogens(mol):
