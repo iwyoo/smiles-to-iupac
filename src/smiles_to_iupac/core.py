@@ -967,6 +967,8 @@ def _name_unabridged_body(smiles: str) -> str:
             tokens = bool(_STEREO_TOKENS.search(name) or _STEREO_IN_RETAINED_NAME.search(name))
             if tokens and not _cites_every_double_bond(parsed, name):
                 raise UnsupportedStructure("a stereodefined double bond of this structure is not cited by any supported name")
+            if tokens and not _cites_every_tetrahedral_center(parsed, name):
+                raise UnsupportedStructure("a stereocentre of this structure is not cited by any supported name")
             if tokens and name.startswith("("):
                 cited = _engine_name(parsed)
                 if cited is not None and cited.startswith("(") and cited != name:
@@ -1021,6 +1023,22 @@ _STEREO_TOKENS = re.compile(
 
 _DESCRIPTOR_GROUP = re.compile(r"\((?:\d+[a-z]?[\u2032']*)?[RSEZrs](?:,(?:\d+[a-z]?[\u2032']*)?[RSEZrs])*\)-")
 _STEREO_IN_RETAINED_NAME = re.compile(r"inositol|(?:adenos|guanos|inos|xanthos|cytid|urid|thymid)in")
+
+
+_CENTER_CODE = re.compile(r"(?<=[\d'a-z\u00b2\u00b3\u00b9\u2070-\u209f\u1d43-\u1d4a])[RSrs](?=[,)])|\((?:R|S)\)")
+_CODE_WORDS = re.compile(r"bis[{\[(]|tris|tetrakis|\b[DL]-|[\u03b1\u03b2\u03be]|\brel-|\brac-|ose\b|inositol|ent-|\b(?:cis|trans)-|\((?:T|SP|SS|TBPY|OC|SPY|TPR|PBPY|CU|SAPR|TPRS)-")
+
+
+def _cites_every_tetrahedral_center(mol, name) -> bool:
+    """A name without a D/L, alpha/beta or multiplying word needs one R or S for each specified tetrahedral centre."""
+    if _CODE_WORDS.search(name):
+        return True
+    centers = sum(
+        1
+        for s in Chem.FindPotentialStereo(mol)
+        if s.type == Chem.StereoType.Atom_Tetrahedral and s.specified == Chem.StereoSpecified.Specified
+    )
+    return len(_CENTER_CODE.findall(name)) >= centers
 
 
 def _cites_every_stereo_element(mol, name) -> bool:

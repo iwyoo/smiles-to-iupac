@@ -54,6 +54,39 @@ def _rank(mol, graph, root, nitrogen):
     return (int(sulfur), 1, (), -length)
 
 
+def donor_names(mol, graph, donors, halogens, aromatic):
+    """{root: name} of the acyl donor groups, each cited with the descriptors of its own stereo elements; raises
+    UnsupportedStructure when one of them is left uncited."""
+    from rdkit.Chem import rdCIPLabeler
+
+    from ._substituents import BRANCH_STEREO
+
+    probe = Chem.Mol(mol)
+    rdCIPLabeler.AssignCIPLabels(probe)
+    names = {}
+    for root, nitrogen in donors:
+        side = _side(graph, root, nitrogen)
+        context = {
+            "atoms": {a.GetIdx(): a.GetProp("_CIPCode") for a in probe.GetAtoms() if a.GetIdx() in side and a.HasProp("_CIPCode")},
+            "bonds": {
+                (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): b.GetProp("_CIPCode")
+                for b in probe.GetBonds()
+                if b.GetBeginAtomIdx() in side and b.GetEndAtomIdx() in side and b.HasProp("_CIPCode")
+            },
+            "used": set(),
+        }
+        token = BRANCH_STEREO.set(context)
+        try:
+            names[root] = name_branch(graph, root, nitrogen, halogens, aromatic, mol=mol)
+        finally:
+            BRANCH_STEREO.reset(token)
+        if any(("atom", a) not in context["used"] for a in context["atoms"]) or any(
+            ("bond", b) not in context["used"] for b in context["bonds"]
+        ):
+            raise UnsupportedStructure("a stereo element of an acyl group is not cited by its name")
+    return names
+
+
 def diacylamine_name(mol):
     """The name of a molecule with an acyclic nitrogen bearing two or three acyl groups, else None."""
     if len(Chem.GetMolFrags(mol)) != 1 or any(
@@ -75,7 +108,7 @@ def diacylamine_name(mol):
     halogens = halogen_substituents(mol)
     aromatic = frozenset(a.GetIdx() for a in mol.GetAtoms() if a.GetIsAromatic())
     try:
-        names = {r: name_branch(graph, r, nitrogen.GetIdx(), halogens, aromatic, mol=mol) for r in donors}
+        names = donor_names(mol, graph, [(r, nitrogen.GetIdx()) for r in donors], halogens, aromatic)
     except UnsupportedStructure:
         return None
     editable = Chem.RWMol(mol)

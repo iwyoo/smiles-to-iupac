@@ -832,3 +832,20 @@ def test_amplificant_locant_with_prime_is_unsupported():
 def test_stereodescriptors_cited_by_the_ring_parent_are_not_repeated():
     name = smiles_to_iupac("C#C[C@@]12[C@H]3[C@@H]4[C@@H]5CC(=O)[C@H]([C@@H]43)[C@@H]1[C@H]52")
     assert name.startswith("(1S,1aS,1a1S,1bS,2R,2aS,2a1S,2bR)-1a1-ethynyl") and name.count("(1S,1aS") == 1
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("C[C@H](O)C(=O)NC(=O)c1ccccc1", "N-[(2S)-2-hydroxypropanoyl]benzamide", id="diacylamine"),
+        pytest.param("C[C@@H](O)C(=O)NNC(=O)c1ccccc1", "N'-[(2R)-2-hydroxypropanoyl]benzohydrazide", id="diacylhydrazine"),
+        pytest.param("CC(C)(C)S[C@H]1CCN[C@@H]1C(=O)O", "(3S)-3-(tert-butylsulfanyl)-L-proline", id="proline_with_sulfur_on_c3"),
+    ],
+)
+def test_stereo_of_acyl_groups_and_proline_substituents_is_cited(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_a_stereocentre_outside_the_cited_descriptors_is_not_dropped():
+    with pytest.raises(NotImplementedError):
+        smiles_to_iupac("CCCCC/C=C\\CCC(=O)N[C@@H](CCP(=O)(O)O)Cc1ccccc1")
