@@ -1273,3 +1273,15 @@ def test_skeletal_replacement_chains_with_adjacent_chalcogen_atoms(smiles, expec
 )
 def test_skeletal_replacement_parents_with_groups_on_heteroatom_bonded_carbons_and_nitrogen_units(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("CC1CCCC(C)N1NS(=O)(=O)c1ccc(NN)cc1", id="ring_nitrogen_is_not_a_hydrazine_chain_atom"),
+        pytest.param("CN(C)S(=O)(=O)c1ccc(CNC(=NC)N2CCSCC2)cc1", id="ring_nitrogen_of_a_carbamimidoyl_group"),
+    ],
+)
+def test_ring_nitrogens_are_never_chain_or_acyl_group_atoms_with_ring_copies(smiles):
+    with pytest.raises(NotImplementedError):
+        smiles_to_iupac(smiles)

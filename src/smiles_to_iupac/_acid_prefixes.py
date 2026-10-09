@@ -170,6 +170,8 @@ def acid_group_prefix(mol, graph, root, coming_from, halogens, aromatic_atoms, n
         subs = [n for n in graph[z_idx] if n != root]
         if mol.GetAtomWithIdx(z_idx).GetFormalCharge() or any(_bond(mol, z_idx, n) != 1.0 for n in subs):
             return None
+        if mol.GetAtomWithIdx(z_idx).IsInRing():
+            return None
         from ._hetero_prefixes import _amino, _amino_stem, _group_names, _is_amino_nitrogen
 
         if not subs and not n_entries:
