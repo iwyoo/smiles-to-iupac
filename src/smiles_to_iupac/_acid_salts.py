@@ -7,6 +7,7 @@ anionic group is the suffix and the free acid groups are 'carboxy' prefixes."""
 from rdkit import Chem
 
 from ._common import UnsupportedStructure, alpha_sort_key
+from ._multiplicative_text import enclose
 from ._numerals import multiplying_prefix
 
 _EXTRA_CATIONS = {
@@ -74,7 +75,7 @@ def _counted(entries):
         elif simple and name.isalpha() and name not in _MONONUCLEAR_ONIUM:
             parts.append(multiplying_prefix(count) + name)
         else:
-            parts.append(multiplying_prefix(count, compound=True) + f"({name})")
+            parts.append(multiplying_prefix(count, compound=True) + enclose(name))
     return " ".join(parts)
 
 

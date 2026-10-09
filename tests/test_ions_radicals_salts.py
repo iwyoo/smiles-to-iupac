@@ -1514,3 +1514,30 @@ def test_zwitterionic_ring_with_a_ring_cation_and_a_ring_anion(smiles, expected)
 )
 def test_salts_of_arsenic_and_cyanato_boron_acids(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)OCCC(=O)[O-].[Na+]", "sodium 3-(acetyloxy)propanoate", id="carboxylate_outranks_ester"),
+        pytest.param(
+            "CC(=O)OCCC(=O)[O-].CC(=O)OCCC(=O)[O-].[Ca+2]",
+            "calcium bis[3-(acetyloxy)propanoate]",
+            id="multiplied_anion_with_inner_parentheses_takes_square_brackets",
+        ),
+    ],
+)
+def test_carboxylate_salts_of_esters(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles",
+    [
+        pytest.param("CCC1(CC)C(=O)N=C([O-])NC1=O", id="lactim_anion_charge_is_not_dropped"),
+        pytest.param("NC1=CC=CC=C1[NH2+]C", id="neutral_amino_group_is_not_counted_as_aminium"),
+    ],
+)
+def test_charge_is_never_miscounted_in_a_name(smiles):
+    with pytest.raises(NotImplementedError):
+        smiles_to_iupac(smiles)

@@ -1315,10 +1315,13 @@ def _name_aminium(base, labels=None, parent="amine"):
         name = _name_labelled(base, labels or {})
     finally:
         AMINIUM.reset(token)
-    return _cationic_group_suffix(name, parent)
+    return _cationic_group_suffix(name, parent, sum(a.HasProp("_cationic_amine") for a in base.GetAtoms()))
 
 
-def _cationic_group_suffix(name, parent):
+_MULTIPLIED = {"di": 2, "tri": 3, "tetra": 4, "penta": 5, "hexa": 6}
+
+
+def _cationic_group_suffix(name, parent, cationic=None):
     if parent in ("amide", "nitrile"):
         match = _GROUP_SUFFIX.search(name)
         if match is None or match.group("kind") != parent:
@@ -1332,6 +1335,8 @@ def _cationic_group_suffix(name, parent):
         raise UnsupportedStructure("the cation is not named as an amine or imine parent")
     multiple = re.search(r"(di|tri|tetra|penta|hexa)(amine|aniline)$", name)
     if multiple is not None:
+        if cationic and _MULTIPLIED[multiple.group(1)] > cationic:
+            raise UnsupportedStructure("a neutral amino group beside a cationic one is not cited as a prefix of this parent")
         word = {"di": "bis", "tri": "tris", "tetra": "tetrakis", "penta": "pentakis", "hexa": "hexakis"}[multiple.group(1)]
         return f"{name[:multiple.start()]}{word}(aminium)"
     return name[:-1] + "ium"

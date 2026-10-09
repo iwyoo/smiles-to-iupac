@@ -206,6 +206,8 @@ def find_links(mol):
                 continue
             y = mol.GetAtomWithIdx(position)
             if y.GetFormalCharge():
+                if y.GetFormalCharge() == -1 and y.GetDegree() == 1:
+                    acid.append(idx)
                 continue
             chain = [position]
             beyond = [n for n in y.GetNeighbors() if n.GetIdx() != idx]
