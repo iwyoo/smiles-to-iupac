@@ -111,7 +111,10 @@ def _acyl_prefix(mol, subtree, root, parent):
     for idx in sorted(set(range(mol.GetNumAtoms())) - subtree, reverse=True):
         rw.RemoveAtom(idx)
     sub = rw.GetMol()
-    Chem.SanitizeMol(sub)
+    try:
+        Chem.SanitizeMol(sub)
+    except Chem.MolSanitizeException as error:
+        raise UnsupportedStructure("the acyl group cannot be cut from its ring system as a valid molecule") from error
     root_atom = mol.GetAtomWithIdx(root)
     if root_atom.GetAtomicNum() != 6 and sub.HasSubstructMatch(_CARBOXYLIC_CLASS):
         raise UnsupportedStructure("a carboxylic acid outranks the sulfur or phosphorus acid, which is then a prefix, not an acyl group")

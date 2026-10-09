@@ -42,7 +42,10 @@ class AmpLoc(int):
     """Locant of an amplificant atom in its own numbering: 1..8 or, for a fusion atom, '4a'."""
 
     def __new__(cls, text):
-        digits, letter, interior = re.fullmatch(r"(\d+)([a-h]?)(\d*)", str(text)).groups()
+        match = re.fullmatch(r"(\d+)([a-h]?)(\d*)", str(text))
+        if match is None:
+            raise UnsupportedStructure(f"the amplificant locant {text!r} is not supported")
+        digits, letter, interior = match.groups()
         order = int(digits) * 1000 + (ord(letter) - 96 if letter else 0) * 100 + (int(interior) if interior else 0)
         obj = super().__new__(cls, order)
         obj.text = str(text)

@@ -1542,7 +1542,8 @@ def _name_labelled(mol, labels, finish=None):
             )
         if finish is not None:
             name = finish(name, parts[4])
-        return _stereo_prefix(stereo, parts[4], ring_parent=parts[5], used=context["used"]) + name
+        prefix = _stereo_prefix(stereo, parts[4], ring_parent=parts[5], used=context["used"])
+        return name if prefix and name.startswith(prefix) else prefix + name
     finally:
         BRANCH_STEREO.reset(token)
         ISOTOPE_LABELS.reset(isotope_token)
