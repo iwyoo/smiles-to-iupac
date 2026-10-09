@@ -188,6 +188,8 @@ def _name_ester_parts(mol, labels) -> str:
             counts[nuclide] = counts.get(nuclide, 0) + 1
         text = "(" + ",".join(f"{n}{c}" for n, c in sorted(counts.items())) + ")"
         anion = text + anion if anion == "carbonate" else _insert_before_ending(anion, text)
+    if len({name for name, _ in named}) > 1 and not ester_labels:
+        raise UnsupportedStructure("different alkyl groups on one acid need the locants of their ester positions")
     grouped = {}
     for (name, locant), (count, compound, _) in named.items():
         grouped.setdefault(name, []).append((locant, count, compound))
