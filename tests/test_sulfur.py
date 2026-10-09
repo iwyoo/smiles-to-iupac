@@ -299,7 +299,7 @@ def test_unsaturated_ring_sulfinic_acid_triple_bond_raises():
         pytest.param("CCc1ccc(cc1)CS(=O)O", "(4-ethylphenyl)methanesulfinic acid", id="phenyl_chain_sulfinic_acid_ring_ethyl"),
     ],
 )
-def test_ring_substituent_chain_and_related(smiles, expected):
+def test_sulfinic_acid_chains_with_ring_substituents(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
 
 

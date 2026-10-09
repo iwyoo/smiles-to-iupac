@@ -109,4 +109,5 @@ def name_adduct(mol, namer) -> str:
         pair = _attachment(named[0][4], named[1][4])
         if pair is not None:
             return f"{pair[2] or named[0][2]}({pair[0]}\u2014{pair[1]}){named[1][2]} {proportions}"
-    return f"{'\u2014'.join(item[2] for item in named)} {proportions}"
+    joined = "\u2014".join(item[2] for item in named)
+    return f"{joined} {proportions}"
