@@ -1017,7 +1017,26 @@ _ANION_WORD_ANYWHERE = re.compile(r"ato|ido|ide|ate|ite|uide")
 def _drops_anionic_charge(mol, name, anywhere=False) -> bool:
     if len(Chem.GetMolFrags(mol)) != 1 or sum(a.GetFormalCharge() for a in mol.GetAtoms()) >= 0:
         return False
-    return (_ANION_WORD_ANYWHERE if anywhere else _ANION_NAME_ENDING).search(name) is None
+    if (_ANION_WORD_ANYWHERE if anywhere else _ANION_NAME_ENDING).search(name) is None:
+        return True
+    return bool(_ESTER_WORD_ENDING.search(name)) and _protonated_name(mol) == name
+
+
+_ESTER_WORD_ENDING = re.compile(r"^\S+ \S*ate$")
+
+
+def _protonated_name(mol):
+    """The name of `mol` with every anionic atom protonated: an ester name that equals it has lost the charge."""
+    neutral = Chem.RWMol(mol)
+    for atom in neutral.GetAtoms():
+        if atom.GetFormalCharge() < 0:
+            atom.SetFormalCharge(0)
+            atom.SetNumExplicitHs(atom.GetTotalNumHs() + 1)
+            atom.SetNoImplicit(True)
+    try:
+        return smiles_to_iupac(Chem.MolToSmiles(neutral))
+    except (UnsupportedStructure, ValueError):
+        return None
 
 
 _HYDRO_FUSION_RUNNING = set()
@@ -1158,9 +1177,11 @@ def _run_fallbacks(smiles, original):
             name_chalcogen_chain_heterone,
         ):
             try:
-                return fallback(mol)
+                name = fallback(mol)
             except UnsupportedStructure:
                 continue
+            if not _drops_anionic_charge(mol, name, anywhere=True):
+                return name
         name = _name_via_fallbacks(mol)
         if name is not None:
             return name
