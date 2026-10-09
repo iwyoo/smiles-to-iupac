@@ -813,6 +813,12 @@ def name_polyfunctional(mol) -> str:
     cation = None if anionic_parent else _aminium_base(mol)
     if cation is not None:
         return _name_aminium(cation)
+    amidinium = None if anionic_parent else _amidinium_base(mol)
+    if amidinium is not None:
+        name = _name_labelled(amidinium, {})
+        if not name.endswith("imidamide"):
+            raise UnsupportedStructure("the amidinium cation is not named as an amidine parent")
+        return name[:-1] + "ium"
     iminium = None if anionic_parent else _iminium_base(mol)
     if iminium is not None:
         return _name_aminium(iminium, parent="imine")
@@ -1214,6 +1220,34 @@ def _prefix_ammonium(mol, nitrogen):
             for n in nitrogen.GetNeighbors()
         )
     )
+
+
+def _amidinium_base(mol):
+    """The neutral amidine of the only charge in `mol`, an unsubstituted amidinium group C(NH2)=NH2(+) on carbon; the
+    cation takes the suffix 'imidamidium' (P-73.5.3.1)."""
+    charged = [a for a in mol.GetAtoms() if a.GetFormalCharge()]
+    if len(charged) != 1:
+        return None
+    cation = charged[0]
+    if cation.GetFormalCharge() != 1 or cation.GetAtomicNum() != 7 or cation.GetIsAromatic() or cation.IsInRing():
+        return None
+    if cation.GetDegree() != 1 or cation.GetTotalNumHs() != 2:
+        return None
+    carbon = cation.GetNeighbors()[0]
+    if carbon.GetAtomicNum() != 6 or mol.GetBondBetweenAtoms(cation.GetIdx(), carbon.GetIdx()).GetBondTypeAsDouble() != 2.0:
+        return None
+    others = [n for n in carbon.GetNeighbors() if n.GetIdx() != cation.GetIdx()]
+    amino = [n for n in others if n.GetAtomicNum() == 7 and n.GetDegree() == 1 and n.GetTotalNumHs() == 2]
+    if len(amino) != 1 or len(others) != 2:
+        return None
+    neutral = Chem.RWMol(mol)
+    atom = neutral.GetAtomWithIdx(cation.GetIdx())
+    atom.SetFormalCharge(0)
+    atom.SetNoImplicit(True)
+    atom.SetNumExplicitHs(1)
+    base = neutral.GetMol()
+    Chem.SanitizeMol(base)
+    return base
 
 
 def _group_cation_base(mol, kind, ignore=frozenset()):

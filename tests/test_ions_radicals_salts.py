@@ -1541,3 +1541,15 @@ def test_carboxylate_salts_of_esters(smiles, expected):
 def test_charge_is_never_miscounted_in_a_name(smiles):
     with pytest.raises(NotImplementedError):
         smiles_to_iupac(smiles)
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("NC(=[NH2+])c1ccccc1", "benzenecarboximidamidium", id="aryl_amidinium"),
+        pytest.param("CC(N)=[NH2+].[Cl-]", "ethanimidamidium chloride", id="chain_amidinium_salt"),
+        pytest.param("CNCc1cncc(C(N)=[NH2+])c1", "5-[(methylamino)methyl]pyridine-3-carboximidamidium", id="amidinium_with_a_neutral_amine"),
+    ],
+)
+def test_amidinium_cations_take_the_imidamidium_suffix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
