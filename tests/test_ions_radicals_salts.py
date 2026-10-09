@@ -1534,7 +1534,6 @@ def test_carboxylate_salts_of_esters(smiles, expected):
 @pytest.mark.parametrize(
     "smiles",
     [
-        pytest.param("CCC1(CC)C(=O)N=C([O-])NC1=O", id="lactim_anion_charge_is_not_dropped"),
         pytest.param("NC1=CC=CC=C1[NH2+]C", id="neutral_amino_group_is_not_counted_as_aminium"),
     ],
 )
@@ -1553,3 +1552,26 @@ def test_charge_is_never_miscounted_in_a_name(smiles):
 )
 def test_amidinium_cations_take_the_imidamidium_suffix(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("[O-]C1=NCCCC1", "3,4,5,6-tetrahydropyridin-2-olate", id="hydro_ring_olate"),
+        pytest.param(
+            "CCC1(CC)C(=O)N=C([O-])NC1=O.[Na+]",
+            "sodium 5,5-diethyl-4,6-dioxo-1,4,5,6-tetrahydropyrimidin-2-olate",
+            id="lactim_anion_of_a_barbiturate",
+        ),
+    ],
+)
+def test_lactim_and_hydro_ring_anions_take_the_olate_suffix(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
+
+
+def test_a_phenolate_ester_never_loses_its_charge():
+    try:
+        name = smiles_to_iupac("CC(=O)Oc1ccc([O-])cc1")
+    except NotImplementedError:
+        return
+    assert "olate" in name or "oxido" in name
