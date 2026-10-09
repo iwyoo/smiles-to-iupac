@@ -14,15 +14,23 @@ _MARKS = ["()", "[]", "{}"]
 _ASSEMBLY_BRACKETS = re.compile(
     r"\[\d+,\d+'-bi(?:\([a-z]+\)|[a-z]+)\]"  # [1,1'-biphenyl]
     r"|\[[\d,:⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇᶜᵈᵉᶠᵍʰ]+-(?:ter|quater|quinque|sexi)[a-z]+\]"  # [1¹,2¹:2⁴,3¹-terphenyl]
-    r"|\[[\d.^,]+\]"  # von Baeyer and spiro descriptors: [3.3.1.1^3,7], [4.5]
+    r"|\[[\d.^,':\u2032]+\]"  # von Baeyer, spiro and primed fusion locants: [3.3.1.1^3,7], [4.5], [3',4':6,7]
     r"|\[[\d,']*-?[a-z]{1,2}(?:,[a-z]{1,2})*\]"  # fusion descriptors: [b], [3,2-b], [b,f]
 )
 
 
+_ADDED_HYDROGEN = re.compile(r"\(\d+[a-z]?H\)")
+
+
+def nesting_text(text):
+    """`text` without the marks that P-16.5.4.1 leaves out of the nesting order: the descriptor brackets of ring
+    assembly, von Baeyer, spiro and fusion names, and the parentheses of added hydrogen."""
+    return _ADDED_HYDROGEN.sub("", _ASSEMBLY_BRACKETS.sub("", text))
+
+
 def enclose(text):
-    # Descriptor brackets (ring assembly, von Baeyer, spiro, fusion) belong to the name, not to the nesting.
     depth = deepest = 0
-    for ch in _ASSEMBLY_BRACKETS.sub("", text):
+    for ch in nesting_text(text):
         if ch in _OPENERS:
             depth += 1
             deepest = max(deepest, depth)

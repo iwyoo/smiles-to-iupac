@@ -879,7 +879,7 @@ def test_heteroaromatic_substituent_prefixes_cite_indicated_hydrogen(smiles, exp
 @pytest.mark.parametrize(
     "smiles,expected",
     [
-        ("OC(=O)CN1C=CC=CC1", "[pyridin-1(2H)-yl]acetic acid"),
+        ("OC(=O)CN1C=CC=CC1", "(pyridin-1(2H)-yl)acetic acid"),
         ("OC(=O)Cn1c2ccccc2c2ccccc21", "(9H-carbazol-9-yl)acetic acid"),
     ],
 )
@@ -1134,7 +1134,7 @@ def test_nonacyl_carbonic_acid_groups(smiles, expected):
     [
         ("OC(=O)c1ccc(cc1)[SiH2]Cc1ccc(C)cc1", "4-{[(4-methylphenyl)methyl]silyl}benzoic acid"),
         ("OC(=O)c1ccc(cc1)C1CCC2(CC1)CCCP2", "4-(1-phosphaspiro[4.5]decan-8-yl)benzoic acid"),
-        ("OC(=O)c1ccc(cc1)N1CC=NC2=NC=CN12", "4-[imidazo[1,2-b][1,2,4]triazin-1(2H)-yl]benzoic acid"),
+        ("OC(=O)c1ccc(cc1)N1CC=NC2=NC=CN12", "4-(imidazo[1,2-b][1,2,4]triazin-1(2H)-yl)benzoic acid"),
         ("OC(=O)Cc1ccc(S(C)(=O)=O)cc1", "[4-(methanesulfonyl)phenyl]acetic acid"),
         ("OC(=O)Cc1cccc([SiH2]O[SiH3])n1", "(6-disiloxanylpyridin-2-yl)acetic acid"),
         (

@@ -18,7 +18,7 @@ from smiles_to_iupac._ring_system_seniority import ring_seniority_key
         ),
         (
             "OC(=O)C=C2C=CC(c3ccc4ccccc4c3)c3ccccc23",
-            "[[1,2'-binaphthalen]-4(1H)-ylidene]acetic acid",
+            "([1,2'-binaphthalen]-4(1H)-ylidene)acetic acid",
         ),
     ],
 )

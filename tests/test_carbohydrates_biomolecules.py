@@ -185,7 +185,7 @@ def test_nucleotide_retained_names(smiles, expected):
         ),
         (
             "NC1=NC(=O)N(C=C1C#N)[C@H]2C[C@@H]([C@H](O2)COC(C)=O)O",
-            "{(2R,3S,5R)-5-[4-amino-5-cyano-2-oxopyrimidin-1(2H)-yl]-3-hydroxyoxolan-2-yl}methyl acetate",
+            "[(2R,3S,5R)-5-(4-amino-5-cyano-2-oxopyrimidin-1(2H)-yl)-3-hydroxyoxolan-2-yl]methyl acetate",
         ),
     ],
 )
