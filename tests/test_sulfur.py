@@ -1037,3 +1037,18 @@ def test_nonstandard_bonding_in_substituents_and_substituent_chains(smiles, expe
 )
 def test_indicated_hydrogen_and_halogen_atoms_of_nonstandard_bonding_in_rings(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(
+            "CS(=O)(=O)N(CCOc1cc(Cl)cc(Cl)c1)CCc1cccc(CC(=O)O)c1",
+            "[3-(2-{[2-(3,5-dichlorophenoxy)ethyl](methanesulfonyl)amino}ethyl)phenyl]acetic acid",
+            id="sulfonyl_and_alkyl_on_the_nitrogen_of_an_amino_prefix",
+        ),
+        pytest.param("CC(=O)N(S(C)(=O)=O)CC(=O)O", "[acetyl(methanesulfonyl)amino]acetic acid", id="acyl_and_sulfonyl"),
+    ],
+)
+def test_amino_prefix_with_a_sulfonyl_group_on_the_nitrogen(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
