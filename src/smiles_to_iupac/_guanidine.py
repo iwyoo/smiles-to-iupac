@@ -112,14 +112,32 @@ def name_guanidine(mol) -> str:
 
     if len(Chem.GetMolFrags(mol)) > 1:
         raise UnsupportedStructure("multi-fragment structures are not supported yet")
+    if any(
+        _is_guanidine_carbon(mol, n.GetIdx())
+        for idx in (n1_idx, n2_idx, imino_idx)
+        for n in mol.GetAtomWithIdx(idx).GetNeighbors()
+        if n.GetIdx() != carbon_idx
+    ):
+        raise UnsupportedStructure("a condensed guanidine (biguanide, imidodicarbonimidic diamide) is named on its own parent")
 
     n1_names, n2_names, imino_names = n_substituent_names(
-        mol, adjacency(mol), {carbon_idx, imino_idx, n1_idx, n2_idx}, (n1_idx, n2_idx, imino_idx), carbon_idx
+        mol, adjacency(mol), {carbon_idx, imino_idx, n1_idx, n2_idx}, (n1_idx, n2_idx, imino_idx), carbon_idx, junior_groups=True
     )
     unprimed, primed = _amino_assignment(n1_names, n2_names)
     positions = {"N": unprimed, "N'": primed, "N''": imino_names}
     grouped = group_substituents({k: v for k, v in positions.items() if v})
     return f"{format_substituent_prefixes(grouped)}guanidine"
+
+
+def _is_guanidine_carbon(mol, idx):
+    atom = mol.GetAtomWithIdx(idx)
+    nitrogens = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 7]
+    return (
+        atom.GetAtomicNum() == 6
+        and atom.GetDegree() == 3
+        and len(nitrogens) == 3
+        and sorted(mol.GetBondBetweenAtoms(idx, n.GetIdx()).GetBondTypeAsDouble() for n in nitrogens) == [1.0, 1.0, 2.0]
+    )
 
 
 def nitrogen_locants(mol):
@@ -129,7 +147,7 @@ def nitrogen_locants(mol):
         return None
     carbon_idx, imino_idx, (n1_idx, n2_idx) = core
     n1_names, n2_names, imino_names = n_substituent_names(
-        mol, adjacency(mol), {carbon_idx, imino_idx, n1_idx, n2_idx}, (n1_idx, n2_idx, imino_idx), carbon_idx
+        mol, adjacency(mol), {carbon_idx, imino_idx, n1_idx, n2_idx}, (n1_idx, n2_idx, imino_idx), carbon_idx, junior_groups=True
     )
     first = unprimed_first(n1_names, n2_names)
     (unprimed, primed), (unprimed_names, primed_names) = (

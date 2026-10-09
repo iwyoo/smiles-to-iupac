@@ -1707,3 +1707,19 @@ def test_imine_oxide_with_n_halogen_and_lambda_3_iodanes(smiles, expected):
 )
 def test_nitrogen_chain_broken_to_express_the_senior_group(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(
+            "CCNC(=NCc1ccc(OC)c(F)c1)NCCCOCC1CCOCC1",
+            "N-ethyl-N''-[(3-fluoro-4-methoxyphenyl)methyl]-N'-{3-[(oxan-4-yl)methoxy]propyl}guanidine",
+            id="ether_in_a_substituent",
+        ),
+        pytest.param("CN=C(NC)NCCO", "N-(2-hydroxyethyl)-N',N''-dimethylguanidine", id="hydroxy_prefix"),
+        pytest.param("CN=C(NC)NCC(=O)OC", "methyl [(N,N'-dimethylcarbamimidoyl)amino]acetate", id="ester_outranks_guanidine"),
+    ],
+)
+def test_guanidines_take_junior_groups_as_prefixes(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
