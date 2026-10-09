@@ -1723,3 +1723,22 @@ def test_nitrogen_chain_broken_to_express_the_senior_group(smiles, expected):
 )
 def test_guanidines_take_junior_groups_as_prefixes(smiles, expected):
     assert smiles_to_iupac(smiles) == expected
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param(
+            "Cc1ccc(O)c(NC(=O)NC2CC(=O)N(Cc3ccccc3)C2)c1",
+            "N-(1-benzyl-5-oxopyrrolidin-3-yl)-N'-(2-hydroxy-5-methylphenyl)urea",
+            id="lactam_is_a_pseudoketone_junior_to_urea",
+        ),
+        pytest.param(
+            "C=CCN(CC(=O)N1CCCN(c2ccc(-c3ccccc3)nn2)CC1)C(=O)NCC",
+            "N'-ethyl-N-{[4-(6-phenylpyridazin-3-yl)-1,4-diazepane-1-carbonyl]methyl}-N-(prop-2-en-1-yl)urea",
+            id="amide_of_a_ring_nitrogen_is_a_hidden_amide_junior_to_urea",
+        ),
+    ],
+)
+def test_ring_amides_do_not_outrank_a_urea(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

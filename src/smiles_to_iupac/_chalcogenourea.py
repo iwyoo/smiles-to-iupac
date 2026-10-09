@@ -56,10 +56,10 @@ _SENIOR_TO_UREA = [
     Chem.MolFromSmarts(smarts)
     for smarts in (
         "[CX3](=[O,S,Se,Te])[OX2H1,OX1-]",
-        "[CX3](=[O,S,Se,Te])[OX2][#6]",
-        "[CX3](=[O,S,Se,Te])[SX2,SeX2,TeX2]",
+        "[CX3;!$([CX3;R]([OX2,NX3,SX2;R]))](=[O,S,Se,Te])[OX2][#6]",
+        "[CX3;!$([CX3;R]([OX2,NX3,SX2;R]))](=[O,S,Se,Te])[SX2,SeX2,TeX2]",
         "[CX3](=[O,S,Se,Te])[F,Cl,Br,I]",
-        "[CX3](=[O,S,Se,Te])[NX3]",
+        "[CX3;!$([CX3;R]([OX2,NX3,SX2;R]))](=[O,S,Se,Te])[NX3;!R]",
         "[SX4,SX3,SeX4,TeX4](=O)[OX2H1,OX1-,OX2,NX3]",
     )
 ]
