@@ -401,7 +401,9 @@ def _amino(names):
 
         return multiplied_prefix(2, name, compound) + "amino"
     parts = [_enclose(ordered[0][0], ordered[0][1])]
-    parts += [f"({n})" for n, _ in ordered[1:]]
+    from ._substituents import wrap_marks
+
+    parts += [wrap_marks(n) for n, _ in ordered[1:]]
     return "".join(parts) + "amino"
 
 

@@ -854,3 +854,16 @@ def test_a_stereocentre_outside_the_cited_descriptors_is_not_dropped():
 def test_different_alkyl_groups_on_one_polyacid_are_cited_with_the_locants_of_their_esters():
     name = smiles_to_iupac("COC(=O)C1(C(=O)OC)[C@@H]2[C@H]1c1cccc(C)c1N(C(=O)OCc1ccccc1)[C@H]2O")
     assert name.startswith("3-benzyl 1,1-dimethyl (1aS,2S,7bS)-2-hydroxy-4-methyl-")
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CCN(Cc1ccccn1)CC(=O)O", "{ethyl[(pyridin-2-yl)methyl]amino}acetic acid", id="second_substituent_of_amino_takes_the_next_mark"),
+        pytest.param(
+            "OC(=O)CN1C(=O)c2ccccc2CC1", "(1-oxo-3,4-dihydroisoquinolin-2(1H)-yl)acetic acid", id="added_hydrogen_parentheses_are_ignored"
+        ),
+    ],
+)
+def test_enclosing_marks_follow_the_nesting_order(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected
