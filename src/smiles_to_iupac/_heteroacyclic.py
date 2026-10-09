@@ -443,6 +443,7 @@ def _evaluate(
     on_chain = [a for a in principal_atoms if a in chain_set]
     if principal is not None and not on_chain:
         return None
+    owned = set().union(*(principal_atoms[a] for a in on_chain)) if on_chain else set()
     if principal in _TERMINAL_CLASSES and any(position_of[a] not in (1, len(chain)) for a in on_chain):
         return None
     halogens = halogen_substituents(mol)

@@ -351,6 +351,8 @@ def _skeleton_after_cuts(mol, cuts):
 def _match(mol):
     """`_match_skeleton`'s tuple plus ((locant, site, root), ...) for the substituents on the amino, thiol or
     hydroxy group that must be cut to reach a table amino acid (P-103.2.3)."""
+    if len(Chem.GetMolFrags(mol)) != 1:
+        return None
     found = _match_skeleton(mol)
     if found is not None:
         return (*found, ())

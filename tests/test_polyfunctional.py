@@ -1232,6 +1232,7 @@ def test_simple_ring_groups_take_di_and_substituted_ones_take_bis(smiles, expect
             "methyl 7,14,21,28-tetraacetamido-2,9,16,23-tetraoxo-3,10,17,24-tetraazatriacontan-30-oate",
         ),
         ("CC(=O)N(C)CCC(O)=O", "3-(N-methylacetamido)propanoic acid"),
+        ("NC(=O)CCOCCOCCOCCOCCNC(=O)C", "1-acetamido-3,6,9,12-tetraoxapentadecan-15-amide"),
     ],
 )
 def test_skeletal_replacement_chains_and_amido_prefixes(smiles, expected):
