@@ -721,3 +721,15 @@ def test_aldonic_acid_lactones(smiles, expected):
 
 def test_substituted_amino_acid_keeps_its_second_fragment():
     assert smiles_to_iupac("CN[C@@H](C(C)C)C(=O)O.Cl") == "N-methyl-L-valine—hydrogen chloride (1/1)"
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        pytest.param("CC(=O)OC1CC(=O)CNC1=O", "2,5-dioxopiperidin-3-yl acetate", id="saturated_ring_with_ketones"),
+        pytest.param("CCC(=O)OC1CCC(=O)NCCOC1", "5-oxo-1,4-oxazonan-8-yl propanoate", id="nine_membered_ring"),
+        pytest.param("OC(=O)CC1CC(=O)C=CO1", "(4-oxo-3,4-dihydro-2H-pyran-2-yl)acetic acid", id="pyranone_ring"),
+    ],
+)
+def test_rings_with_ketones_are_not_cited_as_sugar_groups(smiles, expected):
+    assert smiles_to_iupac(smiles) == expected

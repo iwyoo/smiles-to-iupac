@@ -125,6 +125,13 @@ def _ring_skeleton(mol, graph):
 
 
 def _chain_skeleton(mol, graph):
+    skeleton = _open_chain_skeleton(mol, graph)
+    if skeleton is None or any(mol.GetAtomWithIdx(a).IsInRing() for a in skeleton.carbons):
+        return None
+    return skeleton
+
+
+def _open_chain_skeleton(mol, graph):
     carbonyls = [
         a.GetIdx()
         for a in mol.GetAtoms()
@@ -594,7 +601,7 @@ def sugar_substituent_group(mol, graph, root, coming_from):
         name = smiles_to_iupac(Chem.MolToSmiles(sugar))
     except (UnsupportedStructure, ValueError, RuntimeError, KeyError, StopIteration, Chem.rdchem.MolSanitizeException):
         return None
-    if not name.endswith("e") or name.count(" ") > 1 or ("(" in name and " " in name) or len(name) < 8:
+    if not name.endswith(("ose", "oside")) or name.count(" ") > 1 or ("(" in name and " " in name) or len(name) < 8:
         return None
     if " " in name and not name.endswith("oside"):
         return None
