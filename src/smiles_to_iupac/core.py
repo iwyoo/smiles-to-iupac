@@ -953,6 +953,8 @@ def _name_unabridged_body(smiles: str) -> str:
         except UnsupportedStructure as original:
             try:
                 name = _run_fallbacks(smiles, original)
+                if parsed is not None and _drops_anionic_charge(parsed, name, anywhere=True):
+                    raise UnsupportedStructure("the negative charge of this structure is not cited by any supported name")
             except UnsupportedStructure:
                 if beyond_preferred is None:
                     raise
@@ -1009,10 +1011,13 @@ def _sulfinyl_descriptor_in_front(name):
 _ANION_NAME_ENDING = re.compile(r"(?:ide|uide|ate|ite|ato|ido|elide)\b|(?:ide|uide|ate|ite)-|id(?:yl|ylidene|ylidyne)\b|-u?id-\d")
 
 
-def _drops_anionic_charge(mol, name) -> bool:
+_ANION_WORD_ANYWHERE = re.compile(r"ato|ido|ide|ate|ite|uide")
+
+
+def _drops_anionic_charge(mol, name, anywhere=False) -> bool:
     if len(Chem.GetMolFrags(mol)) != 1 or sum(a.GetFormalCharge() for a in mol.GetAtoms()) >= 0:
         return False
-    return _ANION_NAME_ENDING.search(name) is None
+    return (_ANION_WORD_ANYWHERE if anywhere else _ANION_NAME_ENDING).search(name) is None
 
 
 _HYDRO_FUSION_RUNNING = set()
